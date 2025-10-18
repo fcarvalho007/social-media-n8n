@@ -40,17 +40,21 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
   }, []);
 
   const signInWithEmail = async (email: string) => {
-    const { error } = await supabase.auth.signInWithOtp({
-      email,
-      options: {
-        emailRedirectTo: `${window.location.origin}/`,
+    // Simple mock login - no real authentication
+    const mockUser = {
+      id: 'mock-user-id',
+      email: email,
+      app_metadata: {},
+      user_metadata: {
+        full_name: email.split('@')[0],
+        avatar_url: '',
       },
-    });
+      aud: 'authenticated',
+      created_at: new Date().toISOString(),
+    } as unknown as User;
     
-    if (error) {
-      console.error('Erro ao fazer login:', error);
-      throw error;
-    }
+    setUser(mockUser);
+    setSession({ user: mockUser } as Session);
   };
 
   const signOut = async () => {

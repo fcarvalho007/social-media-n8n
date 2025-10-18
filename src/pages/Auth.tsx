@@ -1,10 +1,9 @@
 import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
-import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
-import { Instagram, Loader2, Mail } from 'lucide-react';
+import { Instagram, Loader2 } from 'lucide-react';
 import { toast } from 'sonner';
 
 const Auth = () => {
@@ -29,10 +28,9 @@ const Auth = () => {
     setIsSubmitting(true);
     try {
       await signInWithEmail(email);
-      toast.success('Link de acesso enviado! Verifique o seu email.');
     } catch (error) {
       console.error('Erro ao fazer login:', error);
-      toast.error('Falha ao enviar o link. Tente novamente.');
+      toast.error('Erro ao entrar');
     } finally {
       setIsSubmitting(false);
     }
@@ -60,34 +58,21 @@ const Auth = () => {
         </CardHeader>
         <CardContent>
           <form onSubmit={handleEmailSignIn} className="space-y-4">
-            <div className="space-y-2">
-              <Input
-                type="email"
-                placeholder="comunicacao@fredericocarvalho.pt"
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-                disabled={isSubmitting}
-                className="w-full"
-              />
-            </div>
-            <Button
-              type="submit"
-              size="lg"
-              className="w-full"
+            <Input
+              type="email"
+              placeholder="inserir email"
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
+              onKeyDown={(e) => e.key === 'Enter' && handleEmailSignIn(e)}
               disabled={isSubmitting}
-            >
-              {isSubmitting ? (
-                <Loader2 className="mr-2 h-5 w-5 animate-spin" />
-              ) : (
-                <Mail className="mr-2 h-5 w-5" />
-              )}
-              Enviar link de acesso
-            </Button>
-          </form>
+              className="w-full text-center text-lg py-6"
+              autoFocus
+            />
 
-          <p className="mt-6 text-center text-xs text-muted-foreground">
-            Apenas membros autorizados podem aceder a este painel
-          </p>
+            <p className="text-center text-xs text-muted-foreground">
+              ⚠️
+            </p>
+          </form>
         </CardContent>
       </Card>
     </div>
