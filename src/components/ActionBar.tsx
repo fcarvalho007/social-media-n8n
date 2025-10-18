@@ -67,7 +67,7 @@ export const ActionBar = ({ canApprove, onApprove, onReject, onSave }: ActionBar
             className="sm:w-auto w-full"
           >
             {loading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Trash2 className="mr-2 h-4 w-4" />}
-            Reject
+            Rejeitar
           </Button>
 
           <div className="flex gap-3 flex-1 sm:flex-initial sm:justify-center">
@@ -79,7 +79,7 @@ export const ActionBar = ({ canApprove, onApprove, onReject, onSave }: ActionBar
               className="flex-1 sm:flex-initial"
             >
               {loading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Save className="mr-2 h-4 w-4" />}
-              Save Edits
+              Guardar Edições
             </Button>
           </div>
 
@@ -90,7 +90,7 @@ export const ActionBar = ({ canApprove, onApprove, onReject, onSave }: ActionBar
             className="sm:w-auto w-full bg-success hover:bg-success/90"
           >
             {loading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Check className="mr-2 h-4 w-4" />}
-            Approve
+            Aprovar
           </Button>
         </div>
       </div>
@@ -98,30 +98,30 @@ export const ActionBar = ({ canApprove, onApprove, onReject, onSave }: ActionBar
       <AlertDialog open={showRejectDialog} onOpenChange={setShowRejectDialog}>
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>Reject this post?</AlertDialogTitle>
+            <AlertDialogTitle>Rejeitar esta publicação?</AlertDialogTitle>
             <AlertDialogDescription>
-              This will mark the post as rejected. You can optionally add notes explaining why.
+              Isto marcará a publicação como rejeitada. Pode adicionar notas opcionais explicando o motivo.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <div className="py-4">
             <Label htmlFor="reject-notes" className="mb-2 block">
-              Rejection notes (optional)
+              Notas de rejeição (opcional)
             </Label>
             <Textarea
               id="reject-notes"
               value={rejectNotes}
               onChange={(e) => setRejectNotes(e.target.value)}
-              placeholder="Why is this post being rejected?"
+              placeholder="Porquê esta publicação está a ser rejeitada?"
               className="min-h-[100px]"
             />
           </div>
           <AlertDialogFooter>
-            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogCancel>Cancelar</AlertDialogCancel>
             <AlertDialogAction
               onClick={handleReject}
               className="bg-destructive hover:bg-destructive/90"
             >
-              Reject Post
+              Rejeitar Publicação
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>

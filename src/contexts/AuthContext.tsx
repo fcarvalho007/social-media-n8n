@@ -6,7 +6,7 @@ import { useNavigate } from 'react-router-dom';
 interface AuthContextType {
   user: User | null;
   session: Session | null;
-  signInWithGoogle: () => Promise<void>;
+  signInWithEmail: (email: string) => Promise<void>;
   signOut: () => Promise<void>;
   loading: boolean;
 }
@@ -39,16 +39,16 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
     return () => subscription.unsubscribe();
   }, []);
 
-  const signInWithGoogle = async () => {
-    const { error } = await supabase.auth.signInWithOAuth({
-      provider: 'google',
+  const signInWithEmail = async (email: string) => {
+    const { error } = await supabase.auth.signInWithOtp({
+      email,
       options: {
-        redirectTo: `${window.location.origin}/`,
+        emailRedirectTo: `${window.location.origin}/`,
       },
     });
     
     if (error) {
-      console.error('Error signing in with Google:', error);
+      console.error('Erro ao fazer login:', error);
       throw error;
     }
   };
@@ -63,7 +63,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
   };
 
   return (
-    <AuthContext.Provider value={{ user, session, signInWithGoogle, signOut, loading }}>
+    <AuthContext.Provider value={{ user, session, signInWithEmail, signOut, loading }}>
       {children}
     </AuthContext.Provider>
   );

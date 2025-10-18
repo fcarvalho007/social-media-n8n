@@ -45,7 +45,7 @@ export const CaptionEditor = ({ initialCaption, initialHashtags, onChange }: Cap
       <div className="space-y-2">
         <div className="flex items-center justify-between">
           <Label htmlFor="caption" className="text-base font-semibold">
-            Caption
+            Legenda
           </Label>
           <div className="flex items-center gap-2">
             <span className={`text-sm ${caption.length > maxCaptionLength ? 'text-destructive font-medium' : 'text-muted-foreground'}`}>
@@ -57,7 +57,7 @@ export const CaptionEditor = ({ initialCaption, initialHashtags, onChange }: Cap
               size="sm"
               onClick={handleRestore}
             >
-              Restore original
+              Restaurar original
             </Button>
           </div>
         </div>
@@ -66,7 +66,7 @@ export const CaptionEditor = ({ initialCaption, initialHashtags, onChange }: Cap
           value={caption}
           onChange={(e) => setCaption(e.target.value)}
           className="min-h-[150px] resize-none"
-          placeholder="Write your Instagram caption here..."
+          placeholder="Escreva a sua legenda do Instagram aqui..."
         />
       </div>
 
@@ -80,7 +80,7 @@ export const CaptionEditor = ({ initialCaption, initialHashtags, onChange }: Cap
             value={newHashtag}
             onChange={(e) => setNewHashtag(e.target.value)}
             onKeyPress={(e) => e.key === 'Enter' && (e.preventDefault(), addHashtag())}
-            placeholder="Add hashtag (without #)"
+            placeholder="Adicionar hashtag (sem #)"
             className="flex-1"
           />
           <Button type="button" onClick={addHashtag} size="icon">

@@ -17,7 +17,7 @@ export const Header = () => {
       <div className="container flex h-16 items-center justify-between px-4">
         <div className="flex items-center gap-2">
           <Instagram className="h-6 w-6 text-primary" />
-          <h1 className="text-lg font-semibold">Content Approval</h1>
+          <h1 className="text-lg font-semibold">Aprovação de Conteúdo</h1>
         </div>
 
         {user && (
@@ -39,7 +39,7 @@ export const Header = () => {
               </div>
               <DropdownMenuItem onClick={signOut} className="cursor-pointer">
                 <LogOut className="mr-2 h-4 w-4" />
-                Sign out
+                Sair
               </DropdownMenuItem>
             </DropdownMenuContent>
           </DropdownMenu>

@@ -38,7 +38,7 @@ export const CarouselPreview = ({ images, template, onSelect, isSelected }: Caro
             Template {template}
           </Badge>
           <span className="text-sm font-medium text-muted-foreground">
-            {template === 'A' ? 'Purple/Blue Tech' : 'Black/Gold Elegant'}
+            {template === 'A' ? 'Roxo/Azul Tech' : 'Preto/Dourado Elegante'}
           </span>
         </div>
         <span className="text-sm font-medium text-muted-foreground">
@@ -101,7 +101,7 @@ export const CarouselPreview = ({ images, template, onSelect, isSelected }: Caro
           isSelected ? "bg-primary" : `bg-gradient-to-r ${templateColors[template].gradient}`
         )}
       >
-        {isSelected ? '✓ Selected' : `Choose Template ${template}`}
+        {isSelected ? '✓ Selecionado' : `Escolher Modelo ${template}`}
       </Button>
     </div>
   );

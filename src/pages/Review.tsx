@@ -46,8 +46,8 @@ const Review = () => {
       setSelectedTemplate(data.selected_template as 'A' | 'B' | null);
       setNotes(data.notes || '');
     } catch (error) {
-      console.error('Error fetching post:', error);
-      toast.error('Failed to load post');
+      console.error('Erro ao carregar publicação:', error);
+      toast.error('Falha ao carregar publicação');
       navigate('/pending');
     } finally {
       setLoading(false);
@@ -67,17 +67,17 @@ const Review = () => {
         .eq('id', id);
 
       if (error) throw error;
-      toast.success('Changes saved successfully');
+      toast.success('Alterações guardadas com sucesso');
     } catch (error) {
-      console.error('Error saving:', error);
-      toast.error('Failed to save changes');
+      console.error('Erro ao guardar:', error);
+      toast.error('Falha ao guardar alterações');
       throw error;
     }
   };
 
   const handleApprove = async () => {
     if (!selectedTemplate) {
-      toast.error('Please select a template first');
+      toast.error('Por favor, selecione primeiro um modelo');
       return;
     }
 
@@ -97,11 +97,11 @@ const Review = () => {
 
       if (error) throw error;
       
-      toast.success('Post approved successfully!');
+      toast.success('Publicação aprovada com sucesso!');
       navigate('/pending');
     } catch (error) {
-      console.error('Error approving:', error);
-      toast.error('Failed to approve post');
+      console.error('Erro ao aprovar:', error);
+      toast.error('Falha ao aprovar publicação');
       throw error;
     }
   };
@@ -120,11 +120,11 @@ const Review = () => {
 
       if (error) throw error;
       
-      toast.success('Post rejected');
+      toast.success('Publicação rejeitada');
       navigate('/pending');
     } catch (error) {
-      console.error('Error rejecting:', error);
-      toast.error('Failed to reject post');
+      console.error('Erro ao rejeitar:', error);
+      toast.error('Falha ao rejeitar publicação');
       throw error;
     }
   };
@@ -152,12 +152,12 @@ const Review = () => {
           className="mb-6"
         >
           <ArrowLeft className="mr-2 h-4 w-4" />
-          Back to Dashboard
+          Voltar ao Painel
         </Button>
 
         <div className="mb-8">
           <h2 className="text-3xl font-bold mb-2">{post.tema}</h2>
-          <p className="text-muted-foreground">Select your preferred template and review the content</p>
+          <p className="text-muted-foreground">Selecione o seu modelo preferido e reveja o conteúdo</p>
         </div>
 
         {/* Templates - Side by side on desktop, stacked on mobile */}
@@ -191,13 +191,13 @@ const Review = () => {
         {/* Internal Notes */}
         <div className="rounded-xl border border-border bg-card p-6 mb-8">
           <Label htmlFor="notes" className="text-base font-semibold mb-2 block">
-            Internal Notes
+            Notas Internas
           </Label>
           <Textarea
             id="notes"
             value={notes}
             onChange={(e) => setNotes(e.target.value)}
-            placeholder="Add any internal notes about this post..."
+            placeholder="Adicione notas internas sobre esta publicação..."
             className="min-h-[100px]"
           />
         </div>

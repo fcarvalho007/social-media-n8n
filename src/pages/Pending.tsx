@@ -27,8 +27,8 @@ const Pending = () => {
       if (error) throw error;
       setPosts(data || []);
     } catch (error) {
-      console.error('Error fetching posts:', error);
-      toast.error('Failed to load posts');
+      console.error('Erro ao carregar publicações:', error);
+      toast.error('Falha ao carregar publicações');
     } finally {
       setLoading(false);
     }
@@ -69,22 +69,22 @@ const Pending = () => {
       
       <main className="container py-8 px-4">
         <div className="mb-8">
-          <h2 className="text-3xl font-bold mb-2">Content Dashboard</h2>
-          <p className="text-muted-foreground">Review and approve Instagram carousel posts</p>
+          <h2 className="text-3xl font-bold mb-2">Painel de Conteúdo</h2>
+          <p className="text-muted-foreground">Reveja e aprove publicações de carrossel Instagram</p>
         </div>
 
         <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
             <TabsList>
-              <TabsTrigger value="pending">Pending</TabsTrigger>
-              <TabsTrigger value="approved">Approved</TabsTrigger>
-              <TabsTrigger value="rejected">Rejected</TabsTrigger>
+              <TabsTrigger value="pending">Pendentes</TabsTrigger>
+              <TabsTrigger value="approved">Aprovados</TabsTrigger>
+              <TabsTrigger value="rejected">Rejeitados</TabsTrigger>
             </TabsList>
 
             <div className="relative flex-1 max-w-md">
               <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
               <Input
-                placeholder="Search by tema or caption..."
+                placeholder="Procurar por tema ou legenda..."
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
                 className="pl-10"
@@ -100,11 +100,11 @@ const Pending = () => {
             ) : filteredPosts.length === 0 ? (
               <div className="flex flex-col items-center justify-center py-12 text-center">
                 <Inbox className="h-16 w-16 text-muted-foreground/50 mb-4" />
-                <h3 className="text-lg font-semibold mb-2">No posts found</h3>
+                <h3 className="text-lg font-semibold mb-2">Nenhuma publicação encontrada</h3>
                 <p className="text-muted-foreground max-w-md">
                   {searchQuery
-                    ? "No posts match your search criteria"
-                    : `There are no ${activeTab} posts at the moment`}
+                    ? "Nenhuma publicação corresponde aos critérios de pesquisa"
+                    : `Não existem publicações ${activeTab === 'pending' ? 'pendentes' : activeTab === 'approved' ? 'aprovadas' : 'rejeitadas'} neste momento`}
                 </p>
               </div>
             ) : (

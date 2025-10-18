@@ -1,4 +1,5 @@
 import { formatDistanceToNow } from 'date-fns';
+import { pt } from 'date-fns/locale';
 import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -27,6 +28,12 @@ export const PostCard = ({ post, onClick }: PostCardProps) => {
     rejected: 'bg-destructive text-destructive-foreground',
   };
 
+  const statusLabels = {
+    pending: 'Pendente',
+    approved: 'Aprovado',
+    rejected: 'Rejeitado',
+  };
+
   // Get first 4 images from both templates for preview
   const previewImages = [
     ...post.template_a_images.slice(0, 2),
@@ -38,8 +45,8 @@ export const PostCard = ({ post, onClick }: PostCardProps) => {
       <CardContent className="p-4">
         <div className="mb-3 flex items-start justify-between gap-2">
           <h3 className="font-semibold line-clamp-2 flex-1">{post.tema}</h3>
-          <Badge className={cn(statusColors[post.status as keyof typeof statusColors], "capitalize shrink-0")}>
-            {post.status}
+          <Badge className={cn(statusColors[post.status as keyof typeof statusColors], "shrink-0")}>
+            {statusLabels[post.status as keyof typeof statusLabels]}
           </Badge>
         </div>
 
@@ -58,10 +65,10 @@ export const PostCard = ({ post, onClick }: PostCardProps) => {
 
         <div className="flex items-center justify-between text-sm text-muted-foreground">
           <span>
-            {formatDistanceToNow(new Date(post.created_at), { addSuffix: true })}
+            {formatDistanceToNow(new Date(post.created_at), { addSuffix: true, locale: pt })}
           </span>
           <Button variant="ghost" size="sm" className="gap-1">
-            Review
+            Rever
             <ArrowRight className="h-4 w-4" />
           </Button>
         </div>
@@ -69,7 +76,7 @@ export const PostCard = ({ post, onClick }: PostCardProps) => {
         {post.selected_template && (
           <div className="mt-2 pt-2 border-t border-border">
             <span className="text-xs text-muted-foreground">
-              Selected: <span className="font-medium text-foreground">Template {post.selected_template}</span>
+              Selecionado: <span className="font-medium text-foreground">Modelo {post.selected_template}</span>
             </span>
           </div>
         )}
