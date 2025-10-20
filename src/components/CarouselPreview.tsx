@@ -6,6 +6,16 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { cn } from '@/lib/utils';
 import { X } from 'lucide-react';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '@/components/ui/alert-dialog';
 
 import 'swiper/css';
 import 'swiper/css/navigation';
@@ -23,6 +33,7 @@ interface CarouselPreviewProps {
 export const CarouselPreview = ({ images, template, onSelect, isSelected, onRemoveSlide }: CarouselPreviewProps) => {
   const [thumbsSwiper, setThumbsSwiper] = useState<SwiperType | null>(null);
   const [activeIndex, setActiveIndex] = useState(0);
+  const [slideToRemove, setSlideToRemove] = useState<number | null>(null);
 
   const templateColors = {
     A: { badge: 'bg-template-a-primary text-white', gradient: 'from-template-a-primary to-template-a-secondary' },
@@ -94,12 +105,12 @@ export const CarouselPreview = ({ images, template, onSelect, isSelected, onRemo
                 <button
                   onClick={(e) => {
                     e.stopPropagation();
-                    onRemoveSlide(index);
+                    setSlideToRemove(index);
                   }}
-                  className="absolute top-1 right-1 bg-destructive text-destructive-foreground rounded-full p-1 opacity-0 group-hover:opacity-100 transition-opacity hover:bg-destructive/90"
+                  className="absolute top-1 right-1 z-10 bg-destructive/90 backdrop-blur-sm text-destructive-foreground rounded-full p-1.5 opacity-0 group-hover:opacity-100 transition-all hover:bg-destructive hover:scale-110 shadow-lg"
                   aria-label="Remover slide"
                 >
-                  <X className="h-3 w-3" />
+                  <X className="h-4 w-4" />
                 </button>
               )}
             </div>
@@ -117,6 +128,35 @@ export const CarouselPreview = ({ images, template, onSelect, isSelected, onRemo
       >
         {isSelected ? '✓ Selecionado' : `Escolher Modelo ${template}`}
       </Button>
+
+      <AlertDialog open={slideToRemove !== null} onOpenChange={() => setSlideToRemove(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Remover Slide?</AlertDialogTitle>
+            <AlertDialogDescription>
+              Tem certeza que deseja remover o slide {slideToRemove !== null ? slideToRemove + 1 : ''} de {images.length}?
+              <br />
+              <strong className="text-foreground mt-2 block">
+                O carrossel ficará com {images.length - 1} imagens.
+              </strong>
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancelar</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={() => {
+                if (slideToRemove !== null && onRemoveSlide) {
+                  onRemoveSlide(slideToRemove);
+                  setSlideToRemove(null);
+                }
+              }}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+            >
+              Remover Slide
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 };

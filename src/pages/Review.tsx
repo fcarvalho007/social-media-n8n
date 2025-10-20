@@ -177,7 +177,7 @@ const Review = () => {
     const currentImages = isTemplateA ? templateAImages : templateBImages;
     const newImages = currentImages.filter((_, idx) => idx !== slideIndex);
     
-    toast.warning(`Ao remover slides, o carrossel ficará com ${newImages.length} imagens`);
+    toast.loading('A remover slide...');
     
     // Update local state
     if (isTemplateA) {
@@ -216,10 +216,10 @@ const Review = () => {
         [isTemplateA ? 'template_a_metadata' : 'template_b_metadata']: updatedMetadata,
       });
       
-      toast.success('Slide removido com sucesso');
+      toast.success(`Slide removido! Carrossel agora tem ${newImages.length} imagens`);
     } catch (error) {
       console.error('Erro ao remover slide:', error);
-      toast.error('Falha ao remover slide');
+      toast.error('Falha ao remover slide. Por favor, tente novamente.');
       // Revert local state
       if (isTemplateA) {
         setTemplateAImages(post?.template_a_images || []);
