@@ -5,6 +5,7 @@ import type { Swiper as SwiperType } from 'swiper';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { cn } from '@/lib/utils';
+import { X } from 'lucide-react';
 
 import 'swiper/css';
 import 'swiper/css/navigation';
@@ -16,9 +17,10 @@ interface CarouselPreviewProps {
   template: 'A' | 'B';
   onSelect: () => void;
   isSelected: boolean;
+  onRemoveSlide?: (index: number) => void;
 }
 
-export const CarouselPreview = ({ images, template, onSelect, isSelected }: CarouselPreviewProps) => {
+export const CarouselPreview = ({ images, template, onSelect, isSelected, onRemoveSlide }: CarouselPreviewProps) => {
   const [thumbsSwiper, setThumbsSwiper] = useState<SwiperType | null>(null);
   const [activeIndex, setActiveIndex] = useState(0);
 
@@ -80,7 +82,7 @@ export const CarouselPreview = ({ images, template, onSelect, isSelected }: Caro
         {images.map((image, index) => (
           <SwiperSlide key={index}>
             <div className={cn(
-              "aspect-square cursor-pointer overflow-hidden rounded border-2 transition-all",
+              "relative aspect-square cursor-pointer overflow-hidden rounded border-2 transition-all group",
               activeIndex === index ? "border-primary" : "border-transparent opacity-60 hover:opacity-100"
             )}>
               <img
@@ -88,6 +90,18 @@ export const CarouselPreview = ({ images, template, onSelect, isSelected }: Caro
                 alt={`Thumbnail ${index + 1}`}
                 className="h-full w-full object-cover"
               />
+              {onRemoveSlide && images.length > 1 && (
+                <button
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    onRemoveSlide(index);
+                  }}
+                  className="absolute top-1 right-1 bg-destructive text-destructive-foreground rounded-full p-1 opacity-0 group-hover:opacity-100 transition-opacity hover:bg-destructive/90"
+                  aria-label="Remover slide"
+                >
+                  <X className="h-3 w-3" />
+                </button>
+              )}
             </div>
           </SwiperSlide>
         ))}

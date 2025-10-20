@@ -22,6 +22,8 @@ const Review = () => {
   const [caption, setCaption] = useState('');
   const [hashtags, setHashtags] = useState<string[]>([]);
   const [notes, setNotes] = useState('');
+  const [templateAImages, setTemplateAImages] = useState<string[]>([]);
+  const [templateBImages, setTemplateBImages] = useState<string[]>([]);
 
   useEffect(() => {
     fetchPost();
@@ -45,6 +47,8 @@ const Review = () => {
       setHashtags(data.hashtags_edited || data.hashtags || []);
       setSelectedTemplate(data.selected_template as 'A' | 'B' | null);
       setNotes(data.notes || '');
+      setTemplateAImages(data.template_a_images || []);
+      setTemplateBImages(data.template_b_images || []);
     } catch (error) {
       console.error('Erro ao carregar publicação:', error);
       toast.error('Falha ao carregar publicação');
@@ -168,6 +172,63 @@ const Review = () => {
     }
   };
 
+  const handleRemoveSlide = async (template: 'A' | 'B', slideIndex: number) => {
+    const isTemplateA = template === 'A';
+    const currentImages = isTemplateA ? templateAImages : templateBImages;
+    const newImages = currentImages.filter((_, idx) => idx !== slideIndex);
+    
+    toast.warning(`Ao remover slides, o carrossel ficará com ${newImages.length} imagens`);
+    
+    // Update local state
+    if (isTemplateA) {
+      setTemplateAImages(newImages);
+    } else {
+      setTemplateBImages(newImages);
+    }
+
+    // Update metadata with new slide numbers
+    const currentMetadata = isTemplateA ? post?.template_a_metadata : post?.template_b_metadata;
+    const updatedMetadata = {
+      ...currentMetadata,
+      slides: newImages.map((img, idx) => ({
+        ...currentMetadata?.slides?.[idx > slideIndex ? idx + 1 : idx],
+        slide_num: idx + 1,
+        total_slides: newImages.length,
+        image_url: img,
+      })),
+    };
+
+    try {
+      const { error } = await supabase
+        .from('posts')
+        .update({
+          [isTemplateA ? 'template_a_images' : 'template_b_images']: newImages,
+          [isTemplateA ? 'template_a_metadata' : 'template_b_metadata']: updatedMetadata,
+        })
+        .eq('id', id);
+
+      if (error) throw error;
+      
+      // Update post state
+      setPost({
+        ...post,
+        [isTemplateA ? 'template_a_images' : 'template_b_images']: newImages,
+        [isTemplateA ? 'template_a_metadata' : 'template_b_metadata']: updatedMetadata,
+      });
+      
+      toast.success('Slide removido com sucesso');
+    } catch (error) {
+      console.error('Erro ao remover slide:', error);
+      toast.error('Falha ao remover slide');
+      // Revert local state
+      if (isTemplateA) {
+        setTemplateAImages(post?.template_a_images || []);
+      } else {
+        setTemplateBImages(post?.template_b_images || []);
+      }
+    }
+  };
+
   if (loading) {
     return (
       <div className="flex min-h-screen items-center justify-center bg-background">
@@ -202,16 +263,18 @@ const Review = () => {
         {/* Templates - Side by side on desktop, stacked on mobile */}
         <div className="grid lg:grid-cols-2 gap-6 mb-8">
           <CarouselPreview
-            images={post.template_a_images}
+            images={templateAImages}
             template="A"
             onSelect={() => setSelectedTemplate('A')}
             isSelected={selectedTemplate === 'A'}
+            onRemoveSlide={(index) => handleRemoveSlide('A', index)}
           />
           <CarouselPreview
-            images={post.template_b_images}
+            images={templateBImages}
             template="B"
             onSelect={() => setSelectedTemplate('B')}
             isSelected={selectedTemplate === 'B'}
+            onRemoveSlide={(index) => handleRemoveSlide('B', index)}
           />
         </div>
 
