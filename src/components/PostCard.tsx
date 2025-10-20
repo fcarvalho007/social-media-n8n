@@ -3,7 +3,7 @@ import { pt } from 'date-fns/locale';
 import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { ArrowRight } from 'lucide-react';
+import { ArrowRight, Trash2 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
 interface Post {
@@ -19,9 +19,10 @@ interface Post {
 interface PostCardProps {
   post: Post;
   onClick: () => void;
+  onDelete?: (postId: string) => void;
 }
 
-export const PostCard = ({ post, onClick }: PostCardProps) => {
+export const PostCard = ({ post, onClick, onDelete }: PostCardProps) => {
   const statusColors = {
     pending: 'bg-warning text-warning-foreground',
     approved: 'bg-success text-success-foreground',
@@ -45,9 +46,24 @@ export const PostCard = ({ post, onClick }: PostCardProps) => {
       <CardContent className="p-4">
         <div className="mb-3 flex items-start justify-between gap-2">
           <h3 className="font-semibold line-clamp-2 flex-1">{post.tema}</h3>
-          <Badge className={cn(statusColors[post.status as keyof typeof statusColors], "shrink-0")}>
-            {statusLabels[post.status as keyof typeof statusLabels]}
-          </Badge>
+          <div className="flex items-center gap-2 shrink-0">
+            <Badge className={cn(statusColors[post.status as keyof typeof statusColors])}>
+              {statusLabels[post.status as keyof typeof statusLabels]}
+            </Badge>
+            {onDelete && (
+              <Button
+                variant="ghost"
+                size="icon"
+                className="h-8 w-8 text-destructive hover:text-destructive hover:bg-destructive/10"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  onDelete(post.id);
+                }}
+              >
+                <Trash2 className="h-4 w-4" />
+              </Button>
+            )}
+          </div>
         </div>
 
         {/* Image preview grid */}

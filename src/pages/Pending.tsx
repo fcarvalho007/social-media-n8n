@@ -34,6 +34,23 @@ const Pending = () => {
     }
   };
 
+  const handleDelete = async (postId: string) => {
+    try {
+      const { error } = await supabase
+        .from('posts')
+        .delete()
+        .eq('id', postId);
+
+      if (error) throw error;
+      
+      toast.success('Publicação eliminada com sucesso');
+      fetchPosts();
+    } catch (error) {
+      console.error('Erro ao eliminar publicação:', error);
+      toast.error('Falha ao eliminar publicação');
+    }
+  };
+
   useEffect(() => {
     fetchPosts();
 
@@ -114,6 +131,7 @@ const Pending = () => {
                     key={post.id}
                     post={post}
                     onClick={() => navigate(`/review/${post.id}`)}
+                    onDelete={handleDelete}
                   />
                 ))}
               </div>
