@@ -42,15 +42,15 @@ export const CarouselPreview = ({ images, template, onSelect, isSelected, onRemo
 
   return (
     <div className={cn(
-      "rounded-xl border-2 p-6 transition-all duration-300",
+      "rounded-xl border-2 p-4 sm:p-6 transition-all duration-300",
       isSelected ? "border-primary shadow-lg ring-2 ring-primary/20" : "border-border"
     )}>
-      <div className="mb-4 flex items-center justify-between">
-        <div className="flex items-center gap-2">
+      <div className="mb-4 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
+        <div className="flex items-center gap-2 flex-wrap">
           <Badge className={templateColors[template].badge}>
             Template {template}
           </Badge>
-          <span className="text-sm font-medium text-muted-foreground">
+          <span className="text-xs sm:text-sm font-medium text-muted-foreground">
             {template === 'A' ? 'Roxo/Azul Tech' : 'Preto/Dourado Elegante'}
           </span>
         </div>
@@ -86,7 +86,12 @@ export const CarouselPreview = ({ images, template, onSelect, isSelected, onRemo
         modules={[Thumbs]}
         onSwiper={setThumbsSwiper}
         spaceBetween={8}
-        slidesPerView={9}
+        slidesPerView="auto"
+        breakpoints={{
+          320: { slidesPerView: 4, spaceBetween: 6 },
+          640: { slidesPerView: 6, spaceBetween: 8 },
+          1024: { slidesPerView: 9, spaceBetween: 8 },
+        }}
         watchSlidesProgress
         className="mb-6"
       >

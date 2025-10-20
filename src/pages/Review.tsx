@@ -261,7 +261,7 @@ const Review = () => {
     <div className="min-h-screen bg-background pb-24">
       <Header />
       
-      <main className="container py-8 px-4">
+      <main className="container py-4 sm:py-8 px-4">
         <Button
           variant="ghost"
           onClick={() => navigate('/pending')}
@@ -271,13 +271,13 @@ const Review = () => {
           Voltar ao Painel
         </Button>
 
-        <div className="mb-8">
-          <h2 className="text-3xl font-bold mb-2">{post.tema}</h2>
-          <p className="text-muted-foreground">Selecione o seu modelo preferido e reveja o conteúdo</p>
+        <div className="mb-6 sm:mb-8">
+          <h2 className="text-2xl sm:text-3xl font-bold mb-2">{post.tema}</h2>
+          <p className="text-sm sm:text-base text-muted-foreground">Selecione o seu modelo preferido e reveja o conteúdo</p>
         </div>
 
         {/* Templates - Side by side on desktop, stacked on mobile */}
-        <div className="grid lg:grid-cols-2 gap-6 mb-8">
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 sm:gap-6 mb-6 sm:mb-8">
           <CarouselPreview
             images={templateAImages}
             template="A"
@@ -295,7 +295,7 @@ const Review = () => {
         </div>
 
         {/* Caption and Hashtags Editor */}
-        <div className="mb-8">
+        <div className="mb-6 sm:mb-8">
           <CaptionEditor
             initialCaption={post.caption}
             initialHashtags={post.hashtags || []}
@@ -307,7 +307,7 @@ const Review = () => {
         </div>
 
         {/* Internal Notes */}
-        <div className="rounded-xl border border-border bg-card p-6 mb-8">
+        <div className="rounded-xl border border-border bg-card p-4 sm:p-6 mb-6 sm:mb-8">
           <Label htmlFor="notes" className="text-base font-semibold mb-2 block">
             Notas Internas
           </Label>

@@ -88,10 +88,10 @@ const Pending = () => {
     <div className="min-h-screen bg-background">
       <Header />
       
-      <main className="container py-8 px-4">
-        <div className="mb-8">
-          <h2 className="text-3xl font-bold mb-2">Painel de Conteúdo</h2>
-          <p className="text-muted-foreground">Reveja e aprove publicações de carrossel Instagram</p>
+      <main className="container py-4 sm:py-8 px-4">
+        <div className="mb-6 sm:mb-8">
+          <h2 className="text-2xl sm:text-3xl font-bold mb-2">Painel de Conteúdo</h2>
+          <p className="text-sm sm:text-base text-muted-foreground">Reveja e aprove publicações de carrossel Instagram</p>
         </div>
 
         {/* Content Type Filter */}

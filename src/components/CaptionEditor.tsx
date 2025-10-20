@@ -83,7 +83,7 @@ export const CaptionEditor = ({ initialCaption, initialHashtags, onChange }: Cap
   return (
     <div className="space-y-6 rounded-xl border border-border bg-card p-6">
       <div className="space-y-2">
-        <div className="flex items-center justify-between">
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
           <Label htmlFor="caption" className="text-base font-semibold">
             Legenda
           </Label>
@@ -96,6 +96,7 @@ export const CaptionEditor = ({ initialCaption, initialHashtags, onChange }: Cap
               variant="outline"
               size="sm"
               onClick={handleRestore}
+              className="whitespace-nowrap"
             >
               Restaurar original
             </Button>
@@ -144,7 +145,7 @@ export const CaptionEditor = ({ initialCaption, initialHashtags, onChange }: Cap
         </div>
 
         {suggestedHashtags.length > 0 && (
-          <div className="space-y-2">
+          <div className="space-y-3">
             <div className="flex items-center gap-2">
               <Hash className="h-4 w-4 text-muted-foreground" />
               <Label className="text-sm font-medium text-muted-foreground">
@@ -159,7 +160,7 @@ export const CaptionEditor = ({ initialCaption, initialHashtags, onChange }: Cap
                   variant="outline"
                   size="sm"
                   onClick={() => addHashtag(tag)}
-                  className="h-8 text-xs hover:bg-primary hover:text-primary-foreground transition-colors"
+                  className="h-9 text-sm hover:bg-primary hover:text-primary-foreground transition-colors"
                 >
                   {tag}
                 </Button>
