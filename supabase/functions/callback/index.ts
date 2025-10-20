@@ -82,17 +82,17 @@ serve(async (req) => {
     if (callbackUrl) {
       console.log('Sending callback to n8n:', callbackUrl);
       
+      const isTemplateA = selected_template === 'A' || selected_template === 'template_a' || selected_template === 'a';
       const callbackPayload = {
         post_id,
         workflow_id: post.workflow_id,
         status,
         selected_template,
-        caption: caption_edited || post.caption,
-        hashtags: hashtags_edited || post.hashtags,
-        images: selected_template === 'template_a' ? post.template_a_images : post.template_b_images,
-        metadata: selected_template === 'template_a' ? post.template_a_metadata : post.template_b_metadata,
+        caption_final: caption_edited || post.caption,
+        hashtags_final: hashtags_edited || post.hashtags,
+        images: isTemplateA ? post.template_a_images : post.template_b_images,
+        metadata: isTemplateA ? post.template_a_metadata : post.template_b_metadata,
         notes,
-        reviewed_at: new Date().toISOString(),
       };
 
       const n8nResponse = await fetch(callbackUrl, {
@@ -104,10 +104,11 @@ serve(async (req) => {
         body: JSON.stringify(callbackPayload),
       });
 
+      const respText = await n8nResponse.text();
       if (!n8nResponse.ok) {
-        console.error('Failed to send callback to n8n:', n8nResponse.statusText);
+        console.error('Failed to send callback to n8n:', n8nResponse.status, respText);
       } else {
-        console.log('Callback sent successfully to n8n');
+        console.log('Callback sent successfully to n8n. Status:', n8nResponse.status, 'Body:', respText);
       }
     } else {
       console.warn('N8N_CALLBACK_WEBHOOK_URL not configured');
