@@ -5,3 +5,6 @@ verify_jwt = false
 
 [functions.callback]
 verify_jwt = false
+
+[functions.submit-publication]
+verify_jwt = true

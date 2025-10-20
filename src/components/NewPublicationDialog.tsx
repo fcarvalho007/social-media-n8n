@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
+import { supabase } from '@/integrations/supabase/client';
 import { Button } from '@/components/ui/button';
 import {
   Dialog,
@@ -70,10 +71,10 @@ export const NewPublicationDialog = () => {
     setIsSubmitting(true);
 
     try {
-      let pdfUrl = null;
+      let pdfBase64 = null;
       let pdfFilename = null;
 
-      // If PDF is uploaded, convert to base64 and send directly to n8n
+      // If PDF is uploaded, convert to base64
       if (pdfFile) {
         pdfFilename = pdfFile.name;
         const reader = new FileReader();
@@ -89,40 +90,34 @@ export const NewPublicationDialog = () => {
         });
 
         reader.readAsDataURL(pdfFile);
-        const base64Data = await base64Promise;
-        pdfUrl = base64Data;
+        pdfBase64 = await base64Promise;
       }
 
-      // Send to n8n webhook
+      // Call edge function to handle submission
       const payload = {
         content_text: contentText.trim() || null,
-        pdf_url: pdfUrl,
+        pdf_base64: pdfBase64,
         pdf_filename: pdfFilename,
-        source: 'lovable_form',
-        submitted_at: new Date().toISOString(),
         submitted_by: user?.email || 'unknown',
       };
 
-      console.log('Sending to n8n:', { ...payload, pdf_url: pdfUrl ? '[BASE64_DATA]' : null });
+      console.log('Submitting publication via edge function...');
 
-      const response = await fetch(
-        'https://n8n.srv881120.hstgr.cloud/webhook/nova-publicacao-lovable',
-        {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify(payload),
-        }
-      );
+      const { data, error } = await supabase.functions.invoke('submit-publication', {
+        body: payload,
+      });
 
-      if (!response.ok) {
-        throw new Error('Falha ao enviar para o n8n');
+      if (error) {
+        throw error;
+      }
+
+      if (data?.error) {
+        throw new Error(data.error);
       }
 
       toast({
         title: 'Sucesso',
-        description: 'Publicação enviada com sucesso!',
+        description: data?.message || 'Publicação enviada com sucesso!',
       });
 
       // Reset form and close
