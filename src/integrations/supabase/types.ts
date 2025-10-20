@@ -18,6 +18,7 @@ export type Database = {
         Row: {
           caption: string
           caption_edited: string | null
+          content_type: string | null
           created_at: string | null
           hashtags: string[] | null
           hashtags_edited: string[] | null
@@ -39,6 +40,7 @@ export type Database = {
         Insert: {
           caption: string
           caption_edited?: string | null
+          content_type?: string | null
           created_at?: string | null
           hashtags?: string[] | null
           hashtags_edited?: string[] | null
@@ -60,6 +62,7 @@ export type Database = {
         Update: {
           caption?: string
           caption_edited?: string | null
+          content_type?: string | null
           created_at?: string | null
           hashtags?: string[] | null
           hashtags_edited?: string[] | null

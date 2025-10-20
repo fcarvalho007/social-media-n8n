@@ -5,14 +5,16 @@ import { Header } from '@/components/Header';
 import { PostCard } from '@/components/PostCard';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Input } from '@/components/ui/input';
-import { Loader2, Search, Inbox } from 'lucide-react';
+import { Loader2, Search, Inbox, LayoutGrid, Video, Image as ImageIcon } from 'lucide-react';
 import { toast } from 'sonner';
+import { Badge } from '@/components/ui/badge';
 
 const Pending = () => {
   const [posts, setPosts] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState('');
   const [activeTab, setActiveTab] = useState('pending');
+  const [contentTypeFilter, setContentTypeFilter] = useState<string>('all');
   const navigate = useNavigate();
 
   const fetchPosts = async () => {
@@ -75,10 +77,12 @@ const Pending = () => {
     };
   }, [activeTab]);
 
-  const filteredPosts = posts.filter((post) =>
-    post.tema.toLowerCase().includes(searchQuery.toLowerCase()) ||
-    post.caption.toLowerCase().includes(searchQuery.toLowerCase())
-  );
+  const filteredPosts = posts.filter((post) => {
+    const matchesSearch = post.tema.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      post.caption.toLowerCase().includes(searchQuery.toLowerCase());
+    const matchesContentType = contentTypeFilter === 'all' || post.content_type === contentTypeFilter;
+    return matchesSearch && matchesContentType;
+  });
 
   return (
     <div className="min-h-screen bg-background">
@@ -88,6 +92,41 @@ const Pending = () => {
         <div className="mb-8">
           <h2 className="text-3xl font-bold mb-2">Painel de Conteúdo</h2>
           <p className="text-muted-foreground">Reveja e aprove publicações de carrossel Instagram</p>
+        </div>
+
+        {/* Content Type Filter */}
+        <div className="mb-6 flex flex-wrap gap-2">
+          <Badge
+            variant={contentTypeFilter === 'all' ? 'default' : 'outline'}
+            className="cursor-pointer px-4 py-2 text-sm"
+            onClick={() => setContentTypeFilter('all')}
+          >
+            Todos os tipos
+          </Badge>
+          <Badge
+            variant={contentTypeFilter === 'carousel' ? 'default' : 'outline'}
+            className="cursor-pointer px-4 py-2 text-sm flex items-center gap-1.5"
+            onClick={() => setContentTypeFilter('carousel')}
+          >
+            <LayoutGrid className="h-3.5 w-3.5" />
+            Carrossel
+          </Badge>
+          <Badge
+            variant={contentTypeFilter === 'stories' ? 'default' : 'outline'}
+            className="cursor-pointer px-4 py-2 text-sm flex items-center gap-1.5"
+            onClick={() => setContentTypeFilter('stories')}
+          >
+            <Video className="h-3.5 w-3.5" />
+            Stories
+          </Badge>
+          <Badge
+            variant={contentTypeFilter === 'post' ? 'default' : 'outline'}
+            className="cursor-pointer px-4 py-2 text-sm flex items-center gap-1.5"
+            onClick={() => setContentTypeFilter('post')}
+          >
+            <ImageIcon className="h-3.5 w-3.5" />
+            Post
+          </Badge>
         </div>
 
         <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
@@ -125,7 +164,7 @@ const Pending = () => {
                 </p>
               </div>
             ) : (
-              <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+              <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
                 {filteredPosts.map((post) => (
                   <PostCard
                     key={post.id}
