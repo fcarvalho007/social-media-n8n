@@ -86,17 +86,25 @@ const Review = () => {
     }
 
     try {
+      // Only include reviewed_by if user has a valid UUID
+      const isValidUUID = user?.id && /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(user.id);
+      
+      const updateData: any = {
+        status: 'approved',
+        selected_template: selectedTemplate,
+        caption_edited: caption,
+        hashtags_edited: hashtags,
+        notes,
+        reviewed_at: new Date().toISOString(),
+      };
+
+      if (isValidUUID) {
+        updateData.reviewed_by = user.id;
+      }
+
       const { error } = await supabase
         .from('posts')
-        .update({
-          status: 'approved',
-          selected_template: selectedTemplate,
-          caption_edited: caption,
-          hashtags_edited: hashtags,
-          notes,
-          reviewed_by: user?.id,
-          reviewed_at: new Date().toISOString(),
-        })
+        .update(updateData)
         .eq('id', id);
 
       if (error) throw error;
@@ -105,11 +113,11 @@ const Review = () => {
       try {
         const { data: callbackData, error: callbackError } = await supabase.functions.invoke('callback', {
           body: {
-            postId: id,
+            post_id: id,
             status: 'approved',
-            selectedTemplate,
-            captionEdited: caption,
-            hashtagsEdited: hashtags,
+            selected_template: selectedTemplate,
+            caption_edited: caption,
+            hashtags_edited: hashtags,
             notes,
           },
         });
@@ -133,14 +141,22 @@ const Review = () => {
 
   const handleReject = async (rejectNotes?: string) => {
     try {
+      // Only include reviewed_by if user has a valid UUID
+      const isValidUUID = user?.id && /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(user.id);
+      
+      const updateData: any = {
+        status: 'rejected',
+        notes: rejectNotes || notes,
+        reviewed_at: new Date().toISOString(),
+      };
+
+      if (isValidUUID) {
+        updateData.reviewed_by = user.id;
+      }
+
       const { error } = await supabase
         .from('posts')
-        .update({
-          status: 'rejected',
-          notes: rejectNotes || notes,
-          reviewed_by: user?.id,
-          reviewed_at: new Date().toISOString(),
-        })
+        .update(updateData)
         .eq('id', id);
 
       if (error) throw error;
@@ -149,7 +165,7 @@ const Review = () => {
       try {
         const { data: callbackData, error: callbackError } = await supabase.functions.invoke('callback', {
           body: {
-            postId: id,
+            post_id: id,
             status: 'rejected',
             notes: rejectNotes || notes,
           },
