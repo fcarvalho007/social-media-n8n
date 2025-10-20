@@ -26,20 +26,27 @@ serve(async (req) => {
       );
     }
 
-    // Initialize Supabase client with service role
+    // Initialize Supabase client with service role (fallback to anon/publishable in testing)
     const supabaseUrl = Deno.env.get('SUPABASE_URL') || Deno.env.get('VITE_SUPABASE_URL');
-    const serviceRoleKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY');
+    const serviceRoleKey =
+      Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ||
+      Deno.env.get('SERVICE_ROLE_KEY') ||
+      Deno.env.get('VITE_SUPABASE_PUBLISHABLE_KEY') ||
+      Deno.env.get('SUPABASE_PUBLISHABLE_KEY') ||
+      Deno.env.get('NEXT_PUBLIC_SUPABASE_ANON_KEY') ||
+      Deno.env.get('SUPABASE_ANON_KEY');
 
     if (!supabaseUrl || !serviceRoleKey) {
-      console.error('Missing Supabase configuration');
+      console.error('Missing Supabase configuration (url or key)');
       return new Response(
-        JSON.stringify({ error: 'Server configuration error' }),
+        JSON.stringify({ error: 'Server configuration error: missing Supabase URL or Key' }),
         { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
 
     const supabase = createClient(supabaseUrl, serviceRoleKey);
-
+    const usingServiceRole = !!(Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') || Deno.env.get('SERVICE_ROLE_KEY'));
+    console.log('Supabase client initialized. Key type:', usingServiceRole ? 'service_role' : 'anon/publishable');
     // Get post data before updating
     const { data: post, error: fetchError } = await supabase
       .from('posts')
