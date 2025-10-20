@@ -3,7 +3,7 @@ import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { X, Hash } from 'lucide-react';
+import { Hash } from 'lucide-react';
 
 interface CaptionEditorProps {
   initialCaption: string;
@@ -13,17 +13,19 @@ interface CaptionEditorProps {
 
 export const CaptionEditor = ({ initialCaption, initialHashtags, onChange }: CaptionEditorProps) => {
   const [caption, setCaption] = useState(initialCaption);
-  const [hashtags, setHashtags] = useState<string[]>(initialHashtags);
-
   const maxCaptionLength = 2200;
 
   useEffect(() => {
-    onChange(caption, hashtags);
-  }, [caption, hashtags]);
+    // Extract hashtags from caption text
+    const hashtagMatches = caption.match(/#[\w\u00C0-\u017F]+/g);
+    onChange(caption, hashtagMatches ? hashtagMatches : []);
+  }, [caption, onChange]);
 
   const getSuggestedHashtags = (): string[] => {
     const text = caption.toLowerCase();
     const suggestions: string[] = [];
+    const hashtagMatches = caption.match(/#[\w\u00C0-\u017F]+/g);
+    const existingHashtags: string[] = hashtagMatches ? hashtagMatches : [];
     
     const hashtagMap: { [key: string]: string[] } = {
       'marketing': ['#marketingdigital', '#marketing', '#marketingdeconteudo', '#estrategiadigital'],
@@ -41,7 +43,7 @@ export const CaptionEditor = ({ initialCaption, initialHashtags, onChange }: Cap
     Object.entries(hashtagMap).forEach(([keyword, tags]) => {
       if (text.includes(keyword)) {
         tags.forEach(tag => {
-          if (!suggestions.includes(tag) && !hashtags.includes(tag)) {
+          if (!suggestions.includes(tag) && !existingHashtags.includes(tag)) {
             suggestions.push(tag);
           }
         });
@@ -55,7 +57,7 @@ export const CaptionEditor = ({ initialCaption, initialHashtags, onChange }: Cap
     ];
     
     generalHashtags.forEach(tag => {
-      if (!suggestions.includes(tag) && !hashtags.includes(tag) && suggestions.length < 8) {
+      if (!suggestions.includes(tag) && !existingHashtags.includes(tag) && suggestions.length < 8) {
         suggestions.push(tag);
       }
     });
@@ -64,18 +66,15 @@ export const CaptionEditor = ({ initialCaption, initialHashtags, onChange }: Cap
   };
 
   const addHashtag = (tag: string) => {
-    if (!hashtags.includes(tag)) {
-      setHashtags([...hashtags, tag]);
+    const hashtagMatches = caption.match(/#[\w\u00C0-\u017F]+/g);
+    const existingHashtags: string[] = hashtagMatches ? hashtagMatches : [];
+    if (!existingHashtags.includes(tag)) {
+      setCaption(prev => prev + (prev.endsWith(' ') || prev.endsWith('\n') || !prev ? '' : ' ') + tag);
     }
-  };
-
-  const removeHashtag = (tagToRemove: string) => {
-    setHashtags(hashtags.filter(tag => tag !== tagToRemove));
   };
 
   const handleRestore = () => {
     setCaption(initialCaption);
-    setHashtags(initialHashtags);
   };
 
   const suggestedHashtags = getSuggestedHashtags();
@@ -106,69 +105,35 @@ export const CaptionEditor = ({ initialCaption, initialHashtags, onChange }: Cap
           id="caption"
           value={caption}
           onChange={(e) => setCaption(e.target.value)}
-          className="min-h-[150px] resize-none"
-          placeholder="Escreva a sua legenda do Instagram aqui..."
+          className="min-h-[200px] resize-none"
+          placeholder="Escreva a sua legenda do Instagram aqui... Adicione hashtags diretamente no texto ou clique nas recomendadas abaixo."
         />
       </div>
 
-      <div className="space-y-4">
-        <div className="flex items-center gap-2">
-          <Label className="text-base font-semibold">
-            Hashtags Selecionadas
-          </Label>
-          <Badge variant="outline" className="text-xs">
-            {hashtags.length}
-          </Badge>
-        </div>
-        
-        <div className="flex flex-wrap gap-2 min-h-[40px] p-3 rounded-lg bg-muted/50">
-          {hashtags.length > 0 ? (
-            hashtags.map((tag) => (
-              <Badge
+      {suggestedHashtags.length > 0 && (
+        <div className="space-y-4">
+          <div className="flex items-center gap-2">
+            <Hash className="h-4 w-4 text-muted-foreground" />
+            <Label className="text-sm font-medium text-muted-foreground">
+              Hashtags Recomendadas
+            </Label>
+          </div>
+          <div className="flex flex-wrap gap-2">
+            {suggestedHashtags.map((tag) => (
+              <Button
                 key={tag}
-                variant="secondary"
-                className="gap-1 px-3 py-1.5 text-sm"
+                type="button"
+                variant="outline"
+                size="sm"
+                onClick={() => addHashtag(tag)}
+                className="h-9 text-sm hover:bg-primary hover:text-primary-foreground transition-colors"
               >
                 {tag}
-                <button
-                  type="button"
-                  onClick={() => removeHashtag(tag)}
-                  className="ml-1 hover:text-destructive transition-colors"
-                >
-                  <X className="h-3 w-3" />
-                </button>
-              </Badge>
-            ))
-          ) : (
-            <p className="text-sm text-muted-foreground">Clique nas hashtags recomendadas para adicionar</p>
-          )}
-        </div>
-
-        {suggestedHashtags.length > 0 && (
-          <div className="space-y-3">
-            <div className="flex items-center gap-2">
-              <Hash className="h-4 w-4 text-muted-foreground" />
-              <Label className="text-sm font-medium text-muted-foreground">
-                Hashtags Recomendadas
-              </Label>
-            </div>
-            <div className="flex flex-wrap gap-2">
-              {suggestedHashtags.map((tag) => (
-                <Button
-                  key={tag}
-                  type="button"
-                  variant="outline"
-                  size="sm"
-                  onClick={() => addHashtag(tag)}
-                  className="h-9 text-sm hover:bg-primary hover:text-primary-foreground transition-colors"
-                >
-                  {tag}
-                </Button>
-              ))}
-            </div>
+              </Button>
+            ))}
           </div>
-        )}
-      </div>
+        </div>
+      )}
     </div>
   );
 };
