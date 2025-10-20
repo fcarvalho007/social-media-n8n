@@ -120,9 +120,8 @@ export const CarouselPreview = ({ images, template, onSelect, isSelected, onRemo
 
       <Button
         onClick={onSelect}
-        size="lg"
         className={cn(
-          "w-full",
+          "w-full h-14 text-lg font-semibold",
           isSelected ? "bg-primary" : `bg-gradient-to-r ${templateColors[template].gradient}`
         )}
       >
