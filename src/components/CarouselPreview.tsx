@@ -54,7 +54,7 @@ export const CarouselPreview = ({ images, template, onSelect, isSelected }: Caro
           pagination={{ clickable: true }}
           thumbs={{ swiper: thumbsSwiper && !thumbsSwiper.destroyed ? thumbsSwiper : null }}
           onSlideChange={(swiper) => setActiveIndex(swiper.activeIndex)}
-          className="aspect-square w-full"
+          className="aspect-[4/5] w-full"
         >
           {images.map((image, index) => (
             <SwiperSlide key={index}>

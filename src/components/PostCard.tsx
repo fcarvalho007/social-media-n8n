@@ -69,7 +69,7 @@ export const PostCard = ({ post, onClick, onDelete }: PostCardProps) => {
         {/* Image preview grid */}
         <div className="mb-3 grid grid-cols-2 gap-2 overflow-hidden rounded-lg">
           {previewImages.slice(0, 4).map((image, index) => (
-            <div key={index} className="aspect-square overflow-hidden bg-muted">
+            <div key={index} className="aspect-[4/5] overflow-hidden bg-muted">
               <img
                 src={image}
                 alt={`Preview ${index + 1}`}
