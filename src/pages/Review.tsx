@@ -96,6 +96,27 @@ const Review = () => {
         .eq('id', id);
 
       if (error) throw error;
+
+      // Call callback edge function
+      try {
+        const { data: callbackData, error: callbackError } = await supabase.functions.invoke('callback', {
+          body: {
+            postId: id,
+            status: 'approved',
+            selectedTemplate,
+            captionEdited: caption,
+            hashtagsEdited: hashtags,
+            notes,
+          },
+        });
+
+        if (callbackError) {
+          console.error('Callback error:', callbackError);
+          toast.error('Aprovado localmente, mas falha ao notificar n8n');
+        }
+      } catch (callbackError) {
+        console.error('Failed to call callback:', callbackError);
+      }
       
       toast.success('Publicação aprovada com sucesso!');
       navigate('/pending');
@@ -119,6 +140,24 @@ const Review = () => {
         .eq('id', id);
 
       if (error) throw error;
+
+      // Call callback edge function
+      try {
+        const { data: callbackData, error: callbackError } = await supabase.functions.invoke('callback', {
+          body: {
+            postId: id,
+            status: 'rejected',
+            notes: rejectNotes || notes,
+          },
+        });
+
+        if (callbackError) {
+          console.error('Callback error:', callbackError);
+          toast.error('Rejeitado localmente, mas falha ao notificar n8n');
+        }
+      } catch (callbackError) {
+        console.error('Failed to call callback:', callbackError);
+      }
       
       toast.success('Publicação rejeitada');
       navigate('/pending');
