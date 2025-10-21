@@ -278,21 +278,25 @@ const Review = () => {
         </div>
 
         {/* Templates - Side by side on desktop, stacked on mobile */}
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 sm:gap-6 mb-4 sm:mb-6">
-          <CarouselPreview
-            images={templateAImages}
-            template="A"
-            onSelect={() => setSelectedTemplate('A')}
-            isSelected={selectedTemplate === 'A'}
-            onRemoveSlide={(index) => handleRemoveSlide('A', index)}
-          />
-          <CarouselPreview
-            images={templateBImages}
-            template="B"
-            onSelect={() => setSelectedTemplate('B')}
-            isSelected={selectedTemplate === 'B'}
-            onRemoveSlide={(index) => handleRemoveSlide('B', index)}
-          />
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 sm:gap-6 mb-4 sm:mb-6 max-w-5xl mx-auto">
+          <div className="w-full max-w-md mx-auto">
+            <CarouselPreview
+              images={templateAImages}
+              template="A"
+              onSelect={() => setSelectedTemplate('A')}
+              isSelected={selectedTemplate === 'A'}
+              onRemoveSlide={(index) => handleRemoveSlide('A', index)}
+            />
+          </div>
+          <div className="w-full max-w-md mx-auto">
+            <CarouselPreview
+              images={templateBImages}
+              template="B"
+              onSelect={() => setSelectedTemplate('B')}
+              isSelected={selectedTemplate === 'B'}
+              onRemoveSlide={(index) => handleRemoveSlide('B', index)}
+            />
+          </div>
         </div>
 
         {/* Caption and Hashtags Editor */}
