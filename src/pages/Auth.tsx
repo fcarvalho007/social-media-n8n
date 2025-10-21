@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
+import { Button } from '@/components/ui/button';
 import { Instagram, Loader2 } from 'lucide-react';
 import { toast } from 'sonner';
 
@@ -66,11 +67,25 @@ const Auth = () => {
               placeholder="#***"
               value={password}
               onChange={(e) => setPassword(e.target.value)}
-              onKeyDown={(e) => e.key === 'Enter' && handlePasswordSignIn(e)}
               disabled={isSubmitting}
               className="w-full text-center text-lg py-6"
               autoFocus
             />
+
+            <Button
+              type="submit"
+              disabled={isSubmitting || !password}
+              className="w-full h-11 text-base font-semibold"
+            >
+              {isSubmitting ? (
+                <>
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  A entrar...
+                </>
+              ) : (
+                'Entrar'
+              )}
+            </Button>
 
             <p className="text-center text-xs text-muted-foreground">
               #***
