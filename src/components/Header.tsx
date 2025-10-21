@@ -16,7 +16,7 @@ import {
   DialogTitle,
   DialogTrigger,
 } from '@/components/ui/dialog';
-import { LogOut, Instagram, ImagePlus, CirclePlay, Image } from 'lucide-react';
+import { LogOut, Instagram, Images, Video, Construction } from 'lucide-react';
 
 export const Header = () => {
   const { user, signOut } = useAuth();
@@ -37,7 +37,7 @@ export const Header = () => {
               size="sm"
               onClick={() => window.open('https://docs.google.com/forms/d/e/1FAIpQLScHxiU2xQOQz-7Z480crzkvTbIjYhHcdtb8Nuv98JSotdPcNg/viewform', '_blank')}
             >
-              <ImagePlus className="h-4 w-4 mr-2" />
+              <Images className="h-4 w-4 mr-2" />
               Carrossel
             </Button>
             <Button 
@@ -45,15 +45,16 @@ export const Header = () => {
               size="sm"
               onClick={() => window.open('https://docs.google.com/forms/d/e/1FAIpQLScy8tdv3CpBN0Kn_U6sBbfyk3fx3fbSBQcryOrmhVYw_sP1Xg/viewform?usp=dialog', '_blank')}
             >
-              <CirclePlay className="h-4 w-4 mr-2" />
+              <Video className="h-4 w-4 mr-2" />
               Stories
             </Button>
             <Button 
               variant="outline" 
               size="sm"
-              onClick={() => window.open('https://docs.google.com/forms/d/e/1FAIpQLScHxiU2xQOQz-7Z480crzkvTbIjYhHcdtb8Nuv98JSotdPcNg/viewform', '_blank')}
+              disabled
+              className="cursor-not-allowed opacity-60"
             >
-              <Image className="h-4 w-4 mr-2" />
+              <Construction className="h-4 w-4 mr-2" />
               Post individual
             </Button>
             <DropdownMenu>
