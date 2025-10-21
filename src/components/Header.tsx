@@ -39,18 +39,14 @@ export const Header = () => {
                   Nova Publicação
                 </Button>
               </DialogTrigger>
-              <DialogContent className="sm:max-w-6xl">
-                <DialogHeader>
-                  <DialogTitle>🎪🎡🎢 Nova Publicação</DialogTitle>
-                  <DialogDescription>
-                    Preenche o formulário para criar novo carrossel
-                  </DialogDescription>
+              <DialogContent className="max-w-[1200px] w-[90vw] h-[85vh] p-0">
+                <DialogHeader className="px-6 py-4">
+                  <DialogTitle>🎪🤹🎡 Nova Publicação - Carrossel Instagram</DialogTitle>
                 </DialogHeader>
                 <iframe
                   src="https://docs.google.com/forms/d/e/1FAIpQLScHxiU2xQOQz-7Z480crzkvTbIjYhHcdtb8Nuv98JSotdPcNg/viewform?embedded=true"
-                  className="w-full rounded-lg border-none"
-                  style={{ height: '85vh' }}
-                  title="Google Forms"
+                  className="w-full h-full border-0"
+                  title="Formulário Google"
                 />
               </DialogContent>
             </Dialog>
