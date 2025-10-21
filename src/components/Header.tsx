@@ -26,36 +26,38 @@ export const Header = () => {
     <header className="sticky top-0 z-50 w-full border-b border-border bg-card/95 backdrop-blur supports-[backdrop-filter]:bg-card/60">
       <div className="container flex h-16 items-center justify-between px-4">
         <div className="flex items-center gap-2">
-          <Instagram className="h-6 w-6 text-primary" />
-          <h1 className="text-lg font-semibold">Aprovação de Conteúdo</h1>
+          <Instagram className="h-5 w-5 sm:h-6 sm:w-6 text-primary" />
+          <h1 className="text-sm sm:text-lg font-semibold">Aprovação de Conteúdo</h1>
         </div>
 
         {user && (
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-1.5 sm:gap-2">
             <Button 
               variant="default" 
               size="sm"
+              className="px-2 sm:px-3"
               onClick={() => window.open('https://docs.google.com/forms/d/e/1FAIpQLScHxiU2xQOQz-7Z480crzkvTbIjYhHcdtb8Nuv98JSotdPcNg/viewform', '_blank')}
             >
-              <Images className="h-4 w-4 mr-2" />
-              Carrossel
+              <Images className="h-4 w-4 sm:mr-2" />
+              <span className="hidden sm:inline">Carrossel</span>
             </Button>
             <Button 
               variant="outline" 
               size="sm"
+              className="px-2 sm:px-3"
               onClick={() => window.open('https://docs.google.com/forms/d/e/1FAIpQLScy8tdv3CpBN0Kn_U6sBbfyk3fx3fbSBQcryOrmhVYw_sP1Xg/viewform?usp=dialog', '_blank')}
             >
-              <Video className="h-4 w-4 mr-2" />
-              Stories
+              <Video className="h-4 w-4 sm:mr-2" />
+              <span className="hidden sm:inline">Stories</span>
             </Button>
             <Button 
               variant="outline" 
               size="sm"
               disabled
-              className="cursor-not-allowed opacity-60"
+              className="cursor-not-allowed opacity-60 px-2 sm:px-3"
             >
-              <Construction className="h-4 w-4 mr-2" />
-              Post individual
+              <Construction className="h-4 w-4 sm:mr-2" />
+              <span className="hidden sm:inline">Post individual</span>
             </Button>
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
