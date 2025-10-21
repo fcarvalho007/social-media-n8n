@@ -36,8 +36,16 @@ export const CarouselPreview = ({ images, template, onSelect, isSelected, onRemo
   const [slideToRemove, setSlideToRemove] = useState<number | null>(null);
 
   const templateColors = {
-    A: { badge: 'bg-template-a-primary text-white', gradient: 'from-template-a-primary to-template-a-secondary' },
-    B: { badge: 'bg-template-b-secondary text-template-b-primary', gradient: 'from-template-b-secondary to-template-b-primary' },
+    A: { 
+      badge: 'bg-[#001f3f] text-[#00d4ff] border border-[#00d4ff]/50 shadow-[0_0_15px_rgba(0,212,255,0.5)]', 
+      gradient: 'from-[#001f3f] to-[#00d4ff]',
+      description: 'Azul Tech'
+    },
+    B: { 
+      badge: 'bg-[#ff4500] text-white border border-[#ff6347]/50 shadow-[0_0_15px_rgba(255,69,0,0.5)]', 
+      gradient: 'from-[#ff4500] to-[#ff6347]',
+      description: 'Red tech'
+    },
   };
 
   return (
@@ -46,9 +54,14 @@ export const CarouselPreview = ({ images, template, onSelect, isSelected, onRemo
       isSelected ? "border-primary shadow-lg ring-2 ring-primary/20" : "border-border"
     )}>
       <div className="mb-3 sm:mb-4 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
-        <Badge className={cn(templateColors[template].badge, "text-xs sm:text-sm")}>
-          Template {template}
-        </Badge>
+        <div className="flex items-center gap-2 flex-wrap">
+          <Badge className={cn(templateColors[template].badge, "text-xs sm:text-sm font-bold")}>
+            Template {template}
+          </Badge>
+          <span className="text-xs sm:text-sm font-medium text-muted-foreground">
+            {templateColors[template].description}
+          </span>
+        </div>
         <span className="text-xs sm:text-sm font-medium text-muted-foreground">
           {activeIndex + 1}/{images.length}
         </span>
