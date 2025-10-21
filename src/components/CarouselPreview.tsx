@@ -5,7 +5,7 @@ import type { Swiper as SwiperType } from 'swiper';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { cn } from '@/lib/utils';
-import { X } from 'lucide-react';
+import { X, ZoomIn } from 'lucide-react';
 import {
   AlertDialog,
   AlertDialogAction,
@@ -16,6 +16,10 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog';
+import {
+  Dialog,
+  DialogContent,
+} from '@/components/ui/dialog';
 
 import 'swiper/css';
 import 'swiper/css/navigation';
@@ -34,6 +38,7 @@ export const CarouselPreview = ({ images, template, onSelect, isSelected, onRemo
   const [thumbsSwiper, setThumbsSwiper] = useState<SwiperType | null>(null);
   const [activeIndex, setActiveIndex] = useState(0);
   const [slideToRemove, setSlideToRemove] = useState<number | null>(null);
+  const [zoomImageIndex, setZoomImageIndex] = useState<number | null>(null);
 
   const templateColors = {
     A: { 
@@ -68,7 +73,7 @@ export const CarouselPreview = ({ images, template, onSelect, isSelected, onRemo
       </div>
 
       {/* Main carousel */}
-      <div className="relative mb-3 sm:mb-4 overflow-hidden rounded-md sm:rounded-lg bg-muted">
+      <div className="relative mb-3 sm:mb-4 overflow-hidden rounded-md sm:rounded-lg bg-muted group/carousel">
         <Swiper
           modules={[Navigation, Pagination, Thumbs]}
           navigation
@@ -79,11 +84,16 @@ export const CarouselPreview = ({ images, template, onSelect, isSelected, onRemo
         >
           {images.map((image, index) => (
             <SwiperSlide key={index}>
-              <img
-                src={image}
-                alt={`Slide ${index + 1}`}
-                className="h-full w-full object-cover"
-              />
+              <div className="relative h-full w-full cursor-zoom-in" onClick={() => setZoomImageIndex(index)}>
+                <img
+                  src={image}
+                  alt={`Slide ${index + 1}`}
+                  className="h-full w-full object-cover"
+                />
+                <div className="absolute inset-0 bg-black/0 group-hover/carousel:bg-black/20 transition-colors flex items-center justify-center">
+                  <ZoomIn className="w-12 h-12 text-white opacity-0 group-hover/carousel:opacity-100 transition-opacity drop-shadow-lg" />
+                </div>
+              </div>
             </SwiperSlide>
           ))}
         </Swiper>
@@ -169,6 +179,20 @@ export const CarouselPreview = ({ images, template, onSelect, isSelected, onRemo
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      <Dialog open={zoomImageIndex !== null} onOpenChange={() => setZoomImageIndex(null)}>
+        <DialogContent className="max-w-[95vw] max-h-[95vh] p-2 sm:p-4">
+          {zoomImageIndex !== null && (
+            <div className="flex items-center justify-center w-full h-full">
+              <img
+                src={images[zoomImageIndex]}
+                alt={`Slide ${zoomImageIndex + 1} - Zoom`}
+                className="max-w-full max-h-[90vh] object-contain rounded-lg"
+              />
+            </div>
+          )}
+        </DialogContent>
+      </Dialog>
     </div>
   );
 };
