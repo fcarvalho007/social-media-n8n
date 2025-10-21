@@ -83,6 +83,60 @@ export type Database = {
         }
         Relationships: []
       }
+      stories: {
+        Row: {
+          caption: string
+          created_at: string | null
+          drive_url: string | null
+          error_log: string | null
+          getlate_post_id: string | null
+          id: string
+          idioma: string | null
+          metadata: Json | null
+          reviewed_at: string | null
+          reviewed_by: string | null
+          status: string | null
+          story_image_url: string
+          tema: string | null
+          texto_base: string | null
+          titulo_slide: string | null
+        }
+        Insert: {
+          caption: string
+          created_at?: string | null
+          drive_url?: string | null
+          error_log?: string | null
+          getlate_post_id?: string | null
+          id?: string
+          idioma?: string | null
+          metadata?: Json | null
+          reviewed_at?: string | null
+          reviewed_by?: string | null
+          status?: string | null
+          story_image_url: string
+          tema?: string | null
+          texto_base?: string | null
+          titulo_slide?: string | null
+        }
+        Update: {
+          caption?: string
+          created_at?: string | null
+          drive_url?: string | null
+          error_log?: string | null
+          getlate_post_id?: string | null
+          id?: string
+          idioma?: string | null
+          metadata?: Json | null
+          reviewed_at?: string | null
+          reviewed_by?: string | null
+          status?: string | null
+          story_image_url?: string
+          tema?: string | null
+          texto_base?: string | null
+          titulo_slide?: string | null
+        }
+        Relationships: []
+      }
     }
     Views: {
       [_ in never]: never
