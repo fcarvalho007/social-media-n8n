@@ -28,12 +28,14 @@ export const PostCard = ({ post, onClick, onDelete }: PostCardProps) => {
     pending: 'bg-warning text-warning-foreground',
     approved: 'bg-success text-success-foreground',
     rejected: 'bg-destructive text-destructive-foreground',
+    published: 'bg-green-600 text-white',
   };
 
   const statusLabels = {
     pending: 'Pendente',
     approved: 'Aprovado',
     rejected: 'Rejeitado',
+    published: 'Publicado',
   };
 
   const contentTypeConfig = {
@@ -64,8 +66,22 @@ export const PostCard = ({ post, onClick, onDelete }: PostCardProps) => {
   ];
 
   return (
-    <Card className="group cursor-pointer transition-all hover:shadow-lg hover:scale-[1.02] duration-200" onClick={onClick}>
+    <Card 
+      className={cn(
+        "group cursor-pointer transition-all hover:shadow-lg hover:scale-[1.02] duration-200 relative",
+        post.status === 'published' && "border-l-4 border-green-500"
+      )} 
+      onClick={onClick}
+    >
       <CardContent className="p-5">
+        {/* Published Badge in top-right corner */}
+        {post.status === 'published' && (
+          <div className="absolute top-2 right-2 z-10">
+            <Badge className="bg-green-600 text-white text-xs px-2 py-0.5 flex items-center gap-1">
+              ✓ Publicado
+            </Badge>
+          </div>
+        )}
         {/* Content Type Badge */}
         <div className="mb-3 flex items-center gap-2">
           <Badge 

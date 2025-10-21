@@ -20,14 +20,27 @@ const Pending = () => {
   const fetchPosts = async () => {
     setLoading(true);
     try {
-      const { data, error } = await supabase
-        .from('posts')
-        .select('*')
-        .eq('status', activeTab)
-        .order('created_at', { ascending: false });
+      let query = supabase.from('posts').select('*');
+
+      // For approved tab, show both approved and published posts
+      if (activeTab === 'approved') {
+        query = query.in('status', ['approved', 'published']);
+      } else {
+        query = query.eq('status', activeTab);
+      }
+
+      const { data, error } = await query.order('created_at', { ascending: false });
 
       if (error) throw error;
-      setPosts(data || []);
+
+      // Sort approved posts first, then published posts
+      const sortedData = (data || []).sort((a, b) => {
+        if (a.status === 'approved' && b.status === 'published') return -1;
+        if (a.status === 'published' && b.status === 'approved') return 1;
+        return 0;
+      });
+
+      setPosts(sortedData);
     } catch (error) {
       console.error('Erro ao carregar publicações:', error);
       toast.error('Falha ao carregar publicações');
