@@ -174,12 +174,7 @@ async function appendToSheet(timestamp: string, contentText: string | null, pdfU
 }
 
 async function callN8nWebhook(timestamp: string, contentText: string | null, driveLink: string | null): Promise<void> {
-  const webhookUrl = Deno.env.get('N8N_CALLBACK_WEBHOOK_URL');
-  
-  if (!webhookUrl) {
-    console.warn('N8N_CALLBACK_WEBHOOK_URL not configured, skipping webhook call');
-    return;
-  }
+  const webhookUrl = 'https://n8n.srv881120.hstgr.cloud/webhook/n8n-carrossel';
 
   // Get first 80 characters of content for theme
   const theme = contentText ? contentText.substring(0, 80) : '';
@@ -187,7 +182,7 @@ async function callN8nWebhook(timestamp: string, contentText: string | null, dri
   const payload = {
     data: {
       "Carimbo de data/hora": timestamp,
-      "Conteudo": contentText || '',
+      "Conteúdo": contentText || '',
       "foi publicado?": "não",
       "Carregar PDF": driveLink || '',
       "Tema": theme,
