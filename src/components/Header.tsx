@@ -1,3 +1,4 @@
+import { useState } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import { Button } from '@/components/ui/button';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
@@ -7,11 +8,19 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
-import { LogOut, Instagram } from 'lucide-react';
-import { NewPublicationDialog } from './NewPublicationDialog';
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from '@/components/ui/dialog';
+import { LogOut, Instagram, Plus } from 'lucide-react';
 
 export const Header = () => {
   const { user, signOut } = useAuth();
+  const [isDialogOpen, setIsDialogOpen] = useState(false);
 
   return (
     <header className="sticky top-0 z-50 w-full border-b border-border bg-card/95 backdrop-blur supports-[backdrop-filter]:bg-card/60">
@@ -23,7 +32,28 @@ export const Header = () => {
 
         {user && (
           <div className="flex items-center gap-3">
-            <NewPublicationDialog />
+            <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
+              <DialogTrigger asChild>
+                <Button variant="default" size="sm">
+                  <Plus className="h-4 w-4 mr-2" />
+                  Nova Publicação
+                </Button>
+              </DialogTrigger>
+              <DialogContent className="sm:max-w-6xl">
+                <DialogHeader>
+                  <DialogTitle>🎪🎡🎢 Nova Publicação</DialogTitle>
+                  <DialogDescription>
+                    Preenche o formulário para criar novo carrossel
+                  </DialogDescription>
+                </DialogHeader>
+                <iframe
+                  src="https://docs.google.com/forms/d/e/1FAIpQLScHxiU2xQOQz-7Z480crzkvTbIjYhHcdtb8Nuv98JSotdPcNg/viewform?embedded=true"
+                  className="w-full rounded-lg border-none"
+                  style={{ height: '85vh' }}
+                  title="Google Forms"
+                />
+              </DialogContent>
+            </Dialog>
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
                 <Button variant="ghost" className="relative h-10 w-10 rounded-full">
