@@ -44,7 +44,7 @@ export const Header = () => {
                   <DialogTitle>🎪🤹🎡 Nova Publicação - Carrossel Instagram</DialogTitle>
                 </DialogHeader>
                 <iframe
-                  src="https://docs.google.com/forms/d/e/1FAIpQLScHxiU2xQOQz-7Z480crzkvTbIjYhHcdtb8Nuv98JSotdPcNg/viewform?embedded=true"
+                  src="https://docs.google.com/forms/d/e/1FAIpQLScHxiU2xQOQz-7Z480crzkvTbIjYhHcdtb8Nuv98JSotdPcNg/viewform?usp=dialog"
                   className="w-full h-full border-0"
                   title="Formulário Google"
                 />
