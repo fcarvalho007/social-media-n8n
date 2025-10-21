@@ -32,24 +32,14 @@ export const Header = () => {
 
         {user && (
           <div className="flex items-center gap-3">
-            <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
-              <DialogTrigger asChild>
-                <Button variant="default" size="sm">
-                  <Plus className="h-4 w-4 mr-2" />
-                  Nova Publicação
-                </Button>
-              </DialogTrigger>
-              <DialogContent className="max-w-[1200px] w-[90vw] h-[85vh] p-0">
-                <DialogHeader className="px-6 py-4">
-                  <DialogTitle>🎪🤹🎡 Nova Publicação - Carrossel Instagram</DialogTitle>
-                </DialogHeader>
-                <iframe
-                  src="https://docs.google.com/forms/d/e/1FAIpQLScHxiU2xQOQz-7Z480crzkvTbIjYhHcdtb8Nuv98JSotdPcNg/viewform?usp=dialog"
-                  className="w-full h-full border-0"
-                  title="Formulário Google"
-                />
-              </DialogContent>
-            </Dialog>
+            <Button 
+              variant="default" 
+              size="sm"
+              onClick={() => window.open('https://docs.google.com/forms/d/e/1FAIpQLScHxiU2xQOQz-7Z480crzkvTbIjYhHcdtb8Nuv98JSotdPcNg/viewform', '_blank')}
+            >
+              <Plus className="h-4 w-4 mr-2" />
+              Nova Publicação
+            </Button>
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
                 <Button variant="ghost" className="relative h-10 w-10 rounded-full">
