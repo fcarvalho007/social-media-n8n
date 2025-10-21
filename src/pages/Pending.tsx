@@ -4,6 +4,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { Header } from '@/components/Header';
 import { ActionButtons } from '@/components/ActionButtons';
 import { PostCard } from '@/components/PostCard';
+import { StoryCard } from '@/components/StoryCard';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Input } from '@/components/ui/input';
 import { Loader2, Search, Inbox, LayoutGrid, Video, Image as ImageIcon } from 'lucide-react';
@@ -12,6 +13,7 @@ import { Badge } from '@/components/ui/badge';
 
 const Pending = () => {
   const [posts, setPosts] = useState<any[]>([]);
+  const [stories, setStories] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState('');
   const [activeTab, setActiveTab] = useState('pending');
@@ -50,6 +52,32 @@ const Pending = () => {
     }
   };
 
+  const fetchStories = async () => {
+    try {
+      let query = supabase.from('stories').select('*');
+
+      if (activeTab === 'approved') {
+        query = query.in('status', ['approved', 'published']);
+      } else {
+        query = query.eq('status', activeTab);
+      }
+
+      const { data, error } = await query.order('created_at', { ascending: false });
+
+      if (error) throw error;
+
+      setStories(data || []);
+    } catch (error) {
+      console.error('Erro ao carregar stories:', error);
+    }
+  };
+
+  const fetchAll = async () => {
+    setLoading(true);
+    await Promise.all([fetchPosts(), fetchStories()]);
+    setLoading(false);
+  };
+
   const handleDelete = async (postId: string) => {
     try {
       const { error } = await supabase
@@ -60,18 +88,35 @@ const Pending = () => {
       if (error) throw error;
       
       toast.success('Publicação eliminada com sucesso');
-      fetchPosts();
+      fetchAll();
     } catch (error) {
       console.error('Erro ao eliminar publicação:', error);
       toast.error('Falha ao eliminar publicação');
     }
   };
 
-  useEffect(() => {
-    fetchPosts();
+  const handleDeleteStory = async (storyId: string) => {
+    try {
+      const { error } = await supabase
+        .from('stories')
+        .delete()
+        .eq('id', storyId);
 
-    // Set up realtime subscription
-    const channel = supabase
+      if (error) throw error;
+      
+      toast.success('Story eliminado com sucesso');
+      fetchAll();
+    } catch (error) {
+      console.error('Erro ao eliminar story:', error);
+      toast.error('Falha ao eliminar story');
+    }
+  };
+
+  useEffect(() => {
+    fetchAll();
+
+    // Set up realtime subscriptions
+    const postsChannel = supabase
       .channel('posts-changes')
       .on(
         'postgres_changes',
@@ -81,13 +126,29 @@ const Pending = () => {
           table: 'posts',
         },
         () => {
-          fetchPosts();
+          fetchAll();
+        }
+      )
+      .subscribe();
+
+    const storiesChannel = supabase
+      .channel('stories-changes')
+      .on(
+        'postgres_changes',
+        {
+          event: '*',
+          schema: 'public',
+          table: 'stories',
+        },
+        () => {
+          fetchAll();
         }
       )
       .subscribe();
 
     return () => {
-      supabase.removeChannel(channel);
+      supabase.removeChannel(postsChannel);
+      supabase.removeChannel(storiesChannel);
     };
   }, [activeTab]);
 
@@ -97,6 +158,17 @@ const Pending = () => {
     const matchesContentType = contentTypeFilter === 'all' || post.content_type === contentTypeFilter;
     return matchesSearch && matchesContentType;
   });
+
+  const filteredStories = stories.filter((story) => {
+    const matchesSearch = (story.tema?.toLowerCase() || '').includes(searchQuery.toLowerCase()) ||
+      (story.caption?.toLowerCase() || '').includes(searchQuery.toLowerCase()) ||
+      (story.titulo_slide?.toLowerCase() || '').includes(searchQuery.toLowerCase());
+    const matchesContentType = contentTypeFilter === 'all' || contentTypeFilter === 'stories';
+    return matchesSearch && matchesContentType;
+  });
+
+  const showPosts = contentTypeFilter === 'all' || contentTypeFilter === 'carousel' || contentTypeFilter === 'post';
+  const showStories = contentTypeFilter === 'all' || contentTypeFilter === 'stories';
 
   return (
     <div className="min-h-screen bg-background">
@@ -176,24 +248,32 @@ const Pending = () => {
               <div className="flex items-center justify-center py-12">
                 <Loader2 className="h-8 w-8 animate-spin text-primary" />
               </div>
-            ) : filteredPosts.length === 0 ? (
+            ) : filteredPosts.length === 0 && filteredStories.length === 0 ? (
               <div className="flex flex-col items-center justify-center py-12 text-center">
                 <Inbox className="h-16 w-16 text-muted-foreground/50 mb-4" />
-                <h3 className="text-lg font-semibold mb-2">Nenhuma publicação encontrada</h3>
+                <h3 className="text-lg font-semibold mb-2">Nenhum conteúdo encontrado</h3>
                 <p className="text-muted-foreground max-w-md">
                   {searchQuery
-                    ? "Nenhuma publicação corresponde aos critérios de pesquisa"
-                    : `Não existem publicações ${activeTab === 'pending' ? 'pendentes' : activeTab === 'approved' ? 'aprovadas' : 'rejeitadas'} neste momento`}
+                    ? "Nenhum conteúdo corresponde aos critérios de pesquisa"
+                    : `Não existe conteúdo ${activeTab === 'pending' ? 'pendente' : activeTab === 'approved' ? 'aprovado' : 'rejeitado'} neste momento`}
                 </p>
               </div>
             ) : (
               <div className="grid gap-4 sm:gap-6 grid-cols-1 sm:grid-cols-2 lg:grid-cols-3">
-                {filteredPosts.map((post) => (
+                {showPosts && filteredPosts.map((post) => (
                   <PostCard
                     key={post.id}
                     post={post}
                     onClick={() => navigate(`/review/${post.id}`)}
                     onDelete={handleDelete}
+                  />
+                ))}
+                {showStories && filteredStories.map((story) => (
+                  <StoryCard
+                    key={story.id}
+                    story={story}
+                    onClick={() => navigate(`/review-story/${story.id}`)}
+                    onDelete={handleDeleteStory}
                   />
                 ))}
               </div>

@@ -10,6 +10,7 @@ import Auth from "./pages/Auth";
 import Dashboard from "./pages/Dashboard";
 import Pending from "./pages/Pending";
 import Review from "./pages/Review";
+import ReviewStory from "./pages/ReviewStory";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -44,6 +45,14 @@ const App = () => (
               element={
                 <ProtectedRoute>
                   <Review />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/review-story/:id"
+              element={
+                <ProtectedRoute>
+                  <ReviewStory />
                 </ProtectedRoute>
               }
             />
