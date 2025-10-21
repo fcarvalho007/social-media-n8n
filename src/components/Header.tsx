@@ -24,10 +24,10 @@ export const Header = () => {
 
   return (
     <header className="sticky top-0 z-50 w-full border-b border-border bg-card/95 backdrop-blur supports-[backdrop-filter]:bg-card/60">
-      <div className="container flex h-16 items-center justify-between px-4">
-        <div className="flex items-center gap-2">
-          <Instagram className="h-5 w-5 sm:h-6 sm:w-6 text-primary" />
-          <h1 className="text-sm sm:text-lg font-semibold">Aprovação de Conteúdo</h1>
+      <div className="container flex h-14 sm:h-16 items-center justify-between px-3 sm:px-4 gap-2 sm:gap-4">
+        <div className="flex items-center gap-1.5 sm:gap-2 min-w-0">
+          <Instagram className="h-5 w-5 sm:h-6 sm:w-6 text-primary flex-shrink-0" />
+          <h1 className="text-sm sm:text-lg font-semibold truncate">Aprovação de Conteúdo</h1>
         </div>
 
         {user && (
@@ -61,10 +61,10 @@ export const Header = () => {
             </Button>
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
-                <Button variant="ghost" className="relative h-10 w-10 rounded-full">
-                  <Avatar className="h-10 w-10">
+                <Button variant="ghost" className="relative h-8 w-8 sm:h-10 sm:w-10 rounded-full p-0">
+                  <Avatar className="h-8 w-8 sm:h-10 sm:w-10">
                     <AvatarImage src={user.user_metadata?.avatar_url} alt={user.email} />
-                    <AvatarFallback>
+                    <AvatarFallback className="text-xs sm:text-sm">
                       {user.email?.charAt(0).toUpperCase()}
                     </AvatarFallback>
                   </Avatar>

@@ -261,23 +261,24 @@ const Review = () => {
     <div className="min-h-screen bg-background pb-24">
       <Header />
       
-      <main className="container py-4 sm:py-8 px-4">
+      <main className="container py-4 sm:py-8 px-3 sm:px-4">
         <Button
           variant="ghost"
           onClick={() => navigate('/pending')}
-          className="mb-6"
+          className="mb-4 sm:mb-6 -ml-2 sm:ml-0"
+          size="sm"
         >
-          <ArrowLeft className="mr-2 h-4 w-4" />
-          Voltar ao Painel
+          <ArrowLeft className="mr-1.5 sm:mr-2 h-3.5 w-3.5 sm:h-4 sm:w-4" />
+          <span className="text-xs sm:text-sm">Voltar ao Painel</span>
         </Button>
 
-        <div className="mb-6 sm:mb-8">
-          <h2 className="text-2xl sm:text-3xl font-bold mb-2">{post.tema}</h2>
-          <p className="text-sm sm:text-base text-muted-foreground">Selecione o seu modelo preferido e reveja o conteúdo</p>
+        <div className="mb-4 sm:mb-6">
+          <h2 className="text-xl sm:text-2xl md:text-3xl font-bold mb-1 sm:mb-2">{post.tema}</h2>
+          <p className="text-xs sm:text-sm text-muted-foreground">Selecione o seu modelo preferido e reveja o conteúdo</p>
         </div>
 
         {/* Templates - Side by side on desktop, stacked on mobile */}
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 sm:gap-6 mb-6 sm:mb-8">
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 sm:gap-6 mb-4 sm:mb-6">
           <CarouselPreview
             images={templateAImages}
             template="A"
@@ -295,7 +296,7 @@ const Review = () => {
         </div>
 
         {/* Caption and Hashtags Editor */}
-        <div className="mb-6 sm:mb-8">
+        <div className="mb-4 sm:mb-6">
           <CaptionEditor
             initialCaption={post.caption}
             initialHashtags={post.hashtags || []}
@@ -307,8 +308,8 @@ const Review = () => {
         </div>
 
         {/* Internal Notes */}
-        <div className="rounded-xl border border-border bg-card p-4 sm:p-6 mb-6 sm:mb-8">
-          <Label htmlFor="notes" className="text-base font-semibold mb-2 block">
+        <div className="rounded-lg sm:rounded-xl border border-border bg-card p-3 sm:p-4 md:p-6 mb-4 sm:mb-6">
+          <Label htmlFor="notes" className="text-sm sm:text-base font-semibold mb-2 block">
             Notas Internas
           </Label>
           <Textarea

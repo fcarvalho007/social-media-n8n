@@ -101,62 +101,62 @@ const Pending = () => {
     <div className="min-h-screen bg-background">
       <Header />
       
-      <main className="container py-4 sm:py-8 px-4">
-        <div className="mb-6 sm:mb-8">
-          <h2 className="text-2xl sm:text-3xl font-bold mb-2">Painel de Conteúdo</h2>
-          <p className="text-sm sm:text-base text-muted-foreground">Reveja e aprove publicações de carrossel Instagram</p>
+      <main className="container py-4 sm:py-8 px-3 sm:px-4">
+        <div className="mb-4 sm:mb-6">
+          <h2 className="text-xl sm:text-2xl md:text-3xl font-bold mb-1 sm:mb-2">Painel de Conteúdo</h2>
+          <p className="text-xs sm:text-sm text-muted-foreground">Reveja e aprove publicações de carrossel Instagram</p>
         </div>
 
         {/* Content Type Filter */}
-        <div className="mb-6 flex flex-wrap gap-2">
+        <div className="mb-4 sm:mb-6 flex flex-wrap gap-1.5 sm:gap-2">
           <Badge
             variant={contentTypeFilter === 'all' ? 'default' : 'outline'}
-            className="cursor-pointer px-4 py-2 text-sm"
+            className="cursor-pointer px-3 sm:px-4 py-1.5 sm:py-2 text-xs sm:text-sm"
             onClick={() => setContentTypeFilter('all')}
           >
             Todos os tipos
           </Badge>
           <Badge
             variant={contentTypeFilter === 'carousel' ? 'default' : 'outline'}
-            className="cursor-pointer px-4 py-2 text-sm flex items-center gap-1.5"
+            className="cursor-pointer px-3 sm:px-4 py-1.5 sm:py-2 text-xs sm:text-sm flex items-center gap-1 sm:gap-1.5"
             onClick={() => setContentTypeFilter('carousel')}
           >
-            <LayoutGrid className="h-3.5 w-3.5" />
+            <LayoutGrid className="h-3 w-3 sm:h-3.5 sm:w-3.5" />
             Carrossel
           </Badge>
           <Badge
             variant={contentTypeFilter === 'stories' ? 'default' : 'outline'}
-            className="cursor-pointer px-4 py-2 text-sm flex items-center gap-1.5"
+            className="cursor-pointer px-3 sm:px-4 py-1.5 sm:py-2 text-xs sm:text-sm flex items-center gap-1 sm:gap-1.5"
             onClick={() => setContentTypeFilter('stories')}
           >
-            <Video className="h-3.5 w-3.5" />
+            <Video className="h-3 w-3 sm:h-3.5 sm:w-3.5" />
             Stories
           </Badge>
           <Badge
             variant={contentTypeFilter === 'post' ? 'default' : 'outline'}
-            className="cursor-pointer px-4 py-2 text-sm flex items-center gap-1.5"
+            className="cursor-pointer px-3 sm:px-4 py-1.5 sm:py-2 text-xs sm:text-sm flex items-center gap-1 sm:gap-1.5"
             onClick={() => setContentTypeFilter('post')}
           >
-            <ImageIcon className="h-3.5 w-3.5" />
+            <ImageIcon className="h-3 w-3 sm:h-3.5 sm:w-3.5" />
             Post
           </Badge>
         </div>
 
-        <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
-          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-            <TabsList>
-              <TabsTrigger value="pending">Pendentes</TabsTrigger>
-              <TabsTrigger value="approved">Aprovados</TabsTrigger>
-              <TabsTrigger value="rejected">Rejeitados</TabsTrigger>
+        <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-4 sm:space-y-6">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 sm:gap-4">
+            <TabsList className="w-full sm:w-auto grid grid-cols-3 sm:inline-flex">
+              <TabsTrigger value="pending" className="text-xs sm:text-sm">Pendentes</TabsTrigger>
+              <TabsTrigger value="approved" className="text-xs sm:text-sm">Aprovados</TabsTrigger>
+              <TabsTrigger value="rejected" className="text-xs sm:text-sm">Rejeitados</TabsTrigger>
             </TabsList>
 
-            <div className="relative flex-1 max-w-md">
+            <div className="relative w-full sm:flex-1 sm:max-w-md">
               <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
               <Input
                 placeholder="Procurar por tema ou legenda..."
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
-                className="pl-10"
+                className="pl-10 text-sm"
               />
             </div>
           </div>
@@ -177,7 +177,7 @@ const Pending = () => {
                 </p>
               </div>
             ) : (
-              <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
+              <div className="grid gap-4 sm:gap-6 grid-cols-1 sm:grid-cols-2 lg:grid-cols-3">
                 {filteredPosts.map((post) => (
                   <PostCard
                     key={post.id}

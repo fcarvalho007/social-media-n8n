@@ -42,25 +42,25 @@ export const CarouselPreview = ({ images, template, onSelect, isSelected, onRemo
 
   return (
     <div className={cn(
-      "rounded-xl border-2 p-4 sm:p-6 transition-all duration-300",
+      "rounded-lg sm:rounded-xl border-2 p-3 sm:p-4 md:p-6 transition-all duration-300",
       isSelected ? "border-primary shadow-lg ring-2 ring-primary/20" : "border-border"
     )}>
-      <div className="mb-4 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
+      <div className="mb-3 sm:mb-4 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
         <div className="flex items-center gap-2 flex-wrap">
-          <Badge className={templateColors[template].badge}>
+          <Badge className={cn(templateColors[template].badge, "text-xs sm:text-sm")}>
             Template {template}
           </Badge>
-          <span className="text-xs sm:text-sm font-medium text-muted-foreground">
+          <span className="text-[10px] sm:text-xs md:text-sm font-medium text-muted-foreground">
             {template === 'A' ? 'Roxo/Azul Tech' : 'Preto/Dourado Elegante'}
           </span>
         </div>
-        <span className="text-sm font-medium text-muted-foreground">
+        <span className="text-xs sm:text-sm font-medium text-muted-foreground">
           {activeIndex + 1}/{images.length}
         </span>
       </div>
 
       {/* Main carousel */}
-      <div className="relative mb-4 overflow-hidden rounded-lg bg-muted">
+      <div className="relative mb-3 sm:mb-4 overflow-hidden rounded-md sm:rounded-lg bg-muted">
         <Swiper
           modules={[Navigation, Pagination, Thumbs]}
           navigation
@@ -93,7 +93,7 @@ export const CarouselPreview = ({ images, template, onSelect, isSelected, onRemo
           1024: { slidesPerView: 9, spaceBetween: 8 },
         }}
         watchSlidesProgress
-        className="mb-6"
+        className="mb-4 sm:mb-6"
       >
         {images.map((image, index) => (
           <SwiperSlide key={index}>
@@ -112,10 +112,10 @@ export const CarouselPreview = ({ images, template, onSelect, isSelected, onRemo
                     e.stopPropagation();
                     setSlideToRemove(index);
                   }}
-                  className="absolute top-1 right-1 z-10 bg-destructive/90 backdrop-blur-sm text-destructive-foreground rounded-full p-1.5 opacity-0 group-hover:opacity-100 transition-all hover:bg-destructive hover:scale-110 shadow-lg"
+                  className="absolute top-0.5 right-0.5 sm:top-1 sm:right-1 z-10 bg-destructive/90 backdrop-blur-sm text-destructive-foreground rounded-full p-1 sm:p-1.5 opacity-0 group-hover:opacity-100 transition-all hover:bg-destructive hover:scale-110 shadow-lg"
                   aria-label="Remover slide"
                 >
-                  <X className="h-4 w-4" />
+                  <X className="h-3 w-3 sm:h-4 sm:w-4" />
                 </button>
               )}
             </div>
@@ -126,7 +126,7 @@ export const CarouselPreview = ({ images, template, onSelect, isSelected, onRemo
       <Button
         onClick={onSelect}
         className={cn(
-          "w-full h-14 text-lg font-semibold",
+          "w-full h-11 sm:h-14 text-base sm:text-lg font-semibold",
           isSelected ? "bg-primary" : `bg-gradient-to-r ${templateColors[template].gradient}`
         )}
       >

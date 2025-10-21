@@ -80,14 +80,14 @@ export const CaptionEditor = ({ initialCaption, initialHashtags, onChange }: Cap
   const suggestedHashtags = getSuggestedHashtags();
 
   return (
-    <div className="space-y-6 rounded-xl border border-border bg-card p-6">
+    <div className="space-y-4 sm:space-y-6 rounded-lg sm:rounded-xl border border-border bg-card p-3 sm:p-4 md:p-6">
       <div className="space-y-2">
         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
-          <Label htmlFor="caption" className="text-base font-semibold">
+          <Label htmlFor="caption" className="text-sm sm:text-base font-semibold">
             Legenda
           </Label>
           <div className="flex items-center gap-2">
-            <span className={`text-sm ${caption.length > maxCaptionLength ? 'text-destructive font-medium' : 'text-muted-foreground'}`}>
+            <span className={`text-xs sm:text-sm ${caption.length > maxCaptionLength ? 'text-destructive font-medium' : 'text-muted-foreground'}`}>
               {caption.length}/{maxCaptionLength}
             </span>
             <Button
@@ -95,7 +95,7 @@ export const CaptionEditor = ({ initialCaption, initialHashtags, onChange }: Cap
               variant="outline"
               size="sm"
               onClick={handleRestore}
-              className="whitespace-nowrap"
+              className="whitespace-nowrap text-xs sm:text-sm h-8 sm:h-9 px-2 sm:px-3"
             >
               Restaurar original
             </Button>
@@ -105,20 +105,20 @@ export const CaptionEditor = ({ initialCaption, initialHashtags, onChange }: Cap
           id="caption"
           value={caption}
           onChange={(e) => setCaption(e.target.value)}
-          className="min-h-[200px] resize-none"
+          className="min-h-[150px] sm:min-h-[200px] resize-none text-sm sm:text-base"
           placeholder="Escreva a sua legenda do Instagram aqui... Adicione hashtags diretamente no texto ou clique nas recomendadas abaixo."
         />
       </div>
 
       {suggestedHashtags.length > 0 && (
-        <div className="space-y-4">
+        <div className="space-y-3 sm:space-y-4">
           <div className="flex items-center gap-2">
-            <Hash className="h-4 w-4 text-muted-foreground" />
-            <Label className="text-sm font-medium text-muted-foreground">
+            <Hash className="h-3.5 w-3.5 sm:h-4 sm:w-4 text-muted-foreground" />
+            <Label className="text-xs sm:text-sm font-medium text-muted-foreground">
               Hashtags Recomendadas
             </Label>
           </div>
-          <div className="flex flex-wrap gap-2">
+          <div className="flex flex-wrap gap-1.5 sm:gap-2">
             {suggestedHashtags.map((tag) => (
               <Button
                 key={tag}
@@ -126,7 +126,7 @@ export const CaptionEditor = ({ initialCaption, initialHashtags, onChange }: Cap
                 variant="outline"
                 size="sm"
                 onClick={() => addHashtag(tag)}
-                className="h-9 text-sm hover:bg-primary hover:text-primary-foreground transition-colors"
+                className="h-7 sm:h-9 text-xs sm:text-sm px-2 sm:px-3 hover:bg-primary hover:text-primary-foreground transition-colors"
               >
                 {tag}
               </Button>
