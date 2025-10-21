@@ -46,14 +46,9 @@ export const CarouselPreview = ({ images, template, onSelect, isSelected, onRemo
       isSelected ? "border-primary shadow-lg ring-2 ring-primary/20" : "border-border"
     )}>
       <div className="mb-3 sm:mb-4 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
-        <div className="flex items-center gap-2 flex-wrap">
-          <Badge className={cn(templateColors[template].badge, "text-xs sm:text-sm")}>
-            Template {template}
-          </Badge>
-          <span className="text-[10px] sm:text-xs md:text-sm font-medium text-muted-foreground">
-            {template === 'A' ? 'Roxo/Azul Tech' : 'Preto/Dourado Elegante'}
-          </span>
-        </div>
+        <Badge className={cn(templateColors[template].badge, "text-xs sm:text-sm")}>
+          Template {template}
+        </Badge>
         <span className="text-xs sm:text-sm font-medium text-muted-foreground">
           {activeIndex + 1}/{images.length}
         </span>
