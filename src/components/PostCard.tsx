@@ -132,9 +132,20 @@ export const PostCard = ({ post, onClick, onDelete }: PostCardProps) => {
         </div>
 
         <div className="flex items-center justify-between text-xs sm:text-sm">
-          <span className="text-muted-foreground text-[10px] sm:text-xs">
-            {formatDistanceToNow(new Date(post.created_at), { addSuffix: true, locale: pt })}
-          </span>
+          <div className="flex flex-col gap-0.5">
+            <span className="text-muted-foreground text-[10px] sm:text-xs">
+              {formatDistanceToNow(new Date(post.created_at), { addSuffix: true, locale: pt })}
+            </span>
+            <span className="text-muted-foreground text-[10px]">
+              {new Date(post.created_at).toLocaleDateString('pt-PT', { 
+                day: '2-digit', 
+                month: '2-digit', 
+                year: 'numeric',
+                hour: '2-digit',
+                minute: '2-digit'
+              })}
+            </span>
+          </div>
           <Button variant="ghost" size="sm" className="gap-1 sm:gap-1.5 -mr-2 h-8 px-2 sm:px-3 text-xs sm:text-sm group-hover:bg-primary/10 group-hover:text-primary transition-colors">
             Rever
             <ArrowRight className="h-3.5 w-3.5 sm:h-4 sm:w-4 transition-transform group-hover:translate-x-1" />
