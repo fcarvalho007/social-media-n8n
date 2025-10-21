@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { supabase } from '@/integrations/supabase/client';
 import { Header } from '@/components/Header';
+import { ActionButtons } from '@/components/ActionButtons';
 import { PostCard } from '@/components/PostCard';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Input } from '@/components/ui/input';
@@ -104,7 +105,10 @@ const Pending = () => {
       <main className="container py-4 sm:py-8 px-3 sm:px-4">
         <div className="mb-4 sm:mb-6">
           <h2 className="text-xl sm:text-2xl md:text-3xl font-bold mb-1 sm:mb-2">Painel de Conteúdo</h2>
-          <p className="text-xs sm:text-sm text-muted-foreground">Reveja e aprove publicações de carrossel Instagram</p>
+          <p className="text-xs sm:text-sm text-muted-foreground mb-4">Reveja e aprove publicações de carrossel Instagram</p>
+          
+          {/* Primary Action Buttons */}
+          <ActionButtons className="mb-4" />
         </div>
 
         {/* Content Type Filter */}
