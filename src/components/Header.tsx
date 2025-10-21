@@ -16,7 +16,7 @@ import {
   DialogTitle,
   DialogTrigger,
 } from '@/components/ui/dialog';
-import { LogOut, Instagram, ImagePlus, CirclePlay } from 'lucide-react';
+import { LogOut, Instagram, ImagePlus, CirclePlay, Image } from 'lucide-react';
 
 export const Header = () => {
   const { user, signOut } = useAuth();
@@ -31,7 +31,7 @@ export const Header = () => {
         </div>
 
         {user && (
-          <div className="flex items-center gap-3">
+          <div className="flex items-center gap-2">
             <Button 
               variant="default" 
               size="sm"
@@ -47,6 +47,14 @@ export const Header = () => {
             >
               <CirclePlay className="h-4 w-4 mr-2" />
               Stories
+            </Button>
+            <Button 
+              variant="outline" 
+              size="sm"
+              onClick={() => window.open('https://docs.google.com/forms/d/e/1FAIpQLScHxiU2xQOQz-7Z480crzkvTbIjYhHcdtb8Nuv98JSotdPcNg/viewform', '_blank')}
+            >
+              <Image className="h-4 w-4 mr-2" />
+              Post individual
             </Button>
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
