@@ -7,9 +7,10 @@ import { PostCard } from '@/components/PostCard';
 import { StoryCard } from '@/components/StoryCard';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Input } from '@/components/ui/input';
-import { Loader2, Search, Inbox, LayoutGrid, Video, Image as ImageIcon } from 'lucide-react';
+import { Loader2, Search, Inbox, LayoutGrid, Video, Image as ImageIcon, RefreshCw } from 'lucide-react';
 import { toast } from 'sonner';
 import { Badge } from '@/components/ui/badge';
+import { Button } from '@/components/ui/button';
 
 const Pending = () => {
   const [posts, setPosts] = useState<any[]>([]);
@@ -54,6 +55,7 @@ const Pending = () => {
 
   const fetchStories = async () => {
     try {
+      console.log('🔍 Fetching stories with status:', activeTab);
       let query = supabase.from('stories').select('*');
 
       if (activeTab === 'approved') {
@@ -62,13 +64,19 @@ const Pending = () => {
         query = query.eq('status', activeTab);
       }
 
+      console.log('📊 Query being executed for stories');
       const { data, error } = await query.order('created_at', { ascending: false });
 
-      if (error) throw error;
+      if (error) {
+        console.error('❌ Error fetching stories:', error);
+        throw error;
+      }
 
+      console.log('✅ Stories data received:', data);
+      console.log('📈 Number of stories:', data?.length || 0);
       setStories(data || []);
     } catch (error) {
-      console.error('Erro ao carregar stories:', error);
+      console.error('💥 Exception in fetchStories:', error);
     }
   };
 
@@ -170,6 +178,12 @@ const Pending = () => {
   const showPosts = contentTypeFilter === 'all' || contentTypeFilter === 'carousel' || contentTypeFilter === 'post';
   const showStories = contentTypeFilter === 'all' || contentTypeFilter === 'stories';
 
+  console.log('🎯 Stories array:', stories);
+  console.log('🔎 Filtered stories:', filteredStories);
+  console.log('🎨 Content type filter:', contentTypeFilter);
+  console.log('🔍 Search query:', searchQuery);
+  console.log('📱 Show stories?', showStories);
+
   return (
     <div className="min-h-screen bg-background">
       <Header />
@@ -232,14 +246,25 @@ const Pending = () => {
               <TabsTrigger value="rejected" className="text-xs sm:text-sm">Rejeitados</TabsTrigger>
             </TabsList>
 
-            <div className="relative w-full sm:flex-1 sm:max-w-md">
-              <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-              <Input
-                placeholder="Procurar por tema ou legenda..."
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-                className="pl-10 text-sm"
-              />
+            <div className="flex items-center gap-2 w-full sm:flex-1 sm:max-w-md">
+              <div className="relative flex-1">
+                <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+                <Input
+                  placeholder="Procurar por tema ou legenda..."
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  className="pl-10 text-sm"
+                />
+              </div>
+              <Button
+                variant="outline"
+                size="icon"
+                onClick={() => fetchAll()}
+                disabled={loading}
+                className="flex-shrink-0"
+              >
+                <RefreshCw className={`h-4 w-4 ${loading ? 'animate-spin' : ''}`} />
+              </Button>
             </div>
           </div>
 
