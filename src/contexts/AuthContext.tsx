@@ -6,7 +6,7 @@ import { useNavigate } from 'react-router-dom';
 interface AuthContextType {
   user: User | null;
   session: Session | null;
-  signInWithEmail: (email: string) => Promise<void>;
+  signInWithPassword: (password: string) => Promise<boolean>;
   signOut: () => Promise<void>;
   loading: boolean;
 }
@@ -39,14 +39,20 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
     return () => subscription.unsubscribe();
   }, []);
 
-  const signInWithEmail = async (email: string) => {
-    // Simple mock login - no real authentication
+  const signInWithPassword = async (password: string) => {
+    const CORRECT_PASSWORD = '#123@';
+    
+    if (password !== CORRECT_PASSWORD) {
+      return false;
+    }
+    
+    // Password correct - create mock session
     const mockUser = {
-      id: 'mock-user-id',
-      email: email,
+      id: 'admin-user-id',
+      email: 'admin@instagram.com',
       app_metadata: {},
       user_metadata: {
-        full_name: email.split('@')[0],
+        full_name: 'Admin',
         avatar_url: '',
       },
       aud: 'authenticated',
@@ -55,6 +61,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
     
     setUser(mockUser);
     setSession({ user: mockUser } as Session);
+    return true;
   };
 
   const signOut = async () => {
@@ -67,7 +74,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
   };
 
   return (
-    <AuthContext.Provider value={{ user, session, signInWithEmail, signOut, loading }}>
+    <AuthContext.Provider value={{ user, session, signInWithPassword, signOut, loading }}>
       {children}
     </AuthContext.Provider>
   );

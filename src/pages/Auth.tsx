@@ -7,9 +7,9 @@ import { Instagram, Loader2 } from 'lucide-react';
 import { toast } from 'sonner';
 
 const Auth = () => {
-  const { user, signInWithEmail, loading } = useAuth();
+  const { user, signInWithPassword, loading } = useAuth();
   const navigate = useNavigate();
-  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   useEffect(() => {
@@ -18,16 +18,19 @@ const Auth = () => {
     }
   }, [user, navigate]);
 
-  const handleEmailSignIn = async (e: React.FormEvent) => {
+  const handlePasswordSignIn = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!email) {
-      toast.error('Por favor, insira o seu email');
+    if (!password) {
+      toast.error('Por favor, insira a password');
       return;
     }
     
     setIsSubmitting(true);
     try {
-      await signInWithEmail(email);
+      const success = await signInWithPassword(password);
+      if (!success) {
+        toast.error('Password incorreta');
+      }
     } catch (error) {
       console.error('Erro ao fazer login:', error);
       toast.error('Erro ao entrar');
@@ -57,20 +60,20 @@ const Auth = () => {
           </CardDescription>
         </CardHeader>
         <CardContent>
-          <form onSubmit={handleEmailSignIn} className="space-y-4">
+          <form onSubmit={handlePasswordSignIn} className="space-y-4">
             <Input
-              type="email"
-              placeholder="inserir email"
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-              onKeyDown={(e) => e.key === 'Enter' && handleEmailSignIn(e)}
+              type="password"
+              placeholder="#***"
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
+              onKeyDown={(e) => e.key === 'Enter' && handlePasswordSignIn(e)}
               disabled={isSubmitting}
               className="w-full text-center text-lg py-6"
               autoFocus
             />
 
             <p className="text-center text-xs text-muted-foreground">
-              ⚠️
+              #***
             </p>
           </form>
         </CardContent>
