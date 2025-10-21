@@ -103,12 +103,18 @@ const Pending = () => {
       <Header />
       
       <main className="container py-4 sm:py-8 px-3 sm:px-4">
+        {/* Creation Section */}
+        <div className="mb-6 sm:mb-8">
+          <ActionButtons />
+        </div>
+
+        {/* Review Section */}
         <div className="mb-4 sm:mb-6">
-          <h2 className="text-xl sm:text-2xl md:text-3xl font-bold mb-1 sm:mb-2">Painel de Conteúdo</h2>
-          <p className="text-xs sm:text-sm text-muted-foreground mb-4">Reveja e aprove publicações de carrossel Instagram</p>
-          
-          {/* Primary Action Buttons */}
-          <ActionButtons className="mb-4" />
+          <div className="flex items-center gap-3 mb-4">
+            <div className="h-px bg-border flex-1" />
+            <h3 className="text-sm font-medium text-muted-foreground">Rever e aprovar publicações</h3>
+            <div className="h-px bg-border flex-1" />
+          </div>
         </div>
 
         {/* Content Type Filter */}
