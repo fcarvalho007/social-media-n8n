@@ -173,6 +173,52 @@ async function appendToSheet(timestamp: string, contentText: string | null, pdfU
   }
 }
 
+async function callN8nWebhook(timestamp: string, contentText: string | null, driveLink: string | null): Promise<void> {
+  const webhookUrl = Deno.env.get('N8N_CALLBACK_WEBHOOK_URL');
+  
+  if (!webhookUrl) {
+    console.warn('N8N_CALLBACK_WEBHOOK_URL not configured, skipping webhook call');
+    return;
+  }
+
+  // Get first 80 characters of content for theme
+  const theme = contentText ? contentText.substring(0, 80) : '';
+
+  const payload = {
+    data: {
+      "Carimbo de data/hora": timestamp,
+      "Conteudo": contentText || '',
+      "foi publicado?": "não",
+      "Carregar PDF": driveLink || '',
+      "Tema": theme,
+      "idioma": "pt-PT"
+    },
+    metadata: {
+      source: "lovable_form",
+      sheet_name: "Form_Responses",
+      row: 0,
+      timestamp: new Date().toISOString(),
+      script_version: "lovable-1.0"
+    }
+  };
+
+  const response = await fetch(webhookUrl, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify(payload),
+  });
+
+  if (!response.ok) {
+    const error = await response.text();
+    console.error('N8N webhook failed:', error);
+    // Don't throw - we don't want to fail the whole submission if webhook fails
+  } else {
+    console.log('N8N webhook called successfully');
+  }
+}
+
 serve(async (req) => {
   if (req.method === 'OPTIONS') {
     return new Response(null, { headers: corsHeaders });
@@ -199,7 +245,16 @@ serve(async (req) => {
       );
     }
 
-    const timestamp = new Date().toISOString();
+    // Format timestamp in Portuguese format (DD/MM/YYYY HH:mm:ss)
+    const now = new Date();
+    const day = String(now.getDate()).padStart(2, '0');
+    const month = String(now.getMonth() + 1).padStart(2, '0');
+    const year = now.getFullYear();
+    const hours = String(now.getHours()).padStart(2, '0');
+    const minutes = String(now.getMinutes()).padStart(2, '0');
+    const seconds = String(now.getSeconds()).padStart(2, '0');
+    const timestamp = `${day}/${month}/${year} ${hours}:${minutes}:${seconds}`;
+    
     let driveLink: string | null = null;
 
     // Get Google access token
@@ -216,6 +271,11 @@ serve(async (req) => {
     console.log('Appending to Google Sheets...');
     await appendToSheet(timestamp, content_text || null, driveLink, accessToken);
     console.log('Sheet updated successfully');
+
+    // Call n8n webhook
+    console.log('Calling n8n webhook...');
+    await callN8nWebhook(timestamp, content_text || null, driveLink);
+    console.log('N8N webhook called');
 
     return new Response(
       JSON.stringify({ 
