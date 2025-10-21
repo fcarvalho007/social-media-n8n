@@ -88,32 +88,24 @@ const ReviewStory = () => {
 
       if (error) throw error;
 
-      // Call n8n webhook for approved stories
+      // Call edge function to notify N8N webhook for approved stories
       try {
-        const webhookUrl = 'https://n8n.digitalsprints.pt/webhook/aprovacao-stories';
-        const webhookBody = {
-          post_id: id,
-          status: 'approved',
-          caption_final: caption,
-          reviewed_by: user?.email || 'unknown',
-          reviewed_at: reviewedAt,
-        };
-
-        const response = await fetch(webhookUrl, {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            'Authorization': 'Bearer YOUR_TOKEN_HERE', // TODO: Configurar token
+        const { error: webhookError } = await supabase.functions.invoke('notify-story-approval', {
+          body: {
+            post_id: id,
+            status: 'approved',
+            caption_final: caption,
+            reviewed_by: user?.email || 'unknown',
+            reviewed_at: reviewedAt,
           },
-          body: JSON.stringify(webhookBody),
         });
 
-        if (!response.ok) {
-          console.error('Webhook error:', response.statusText);
+        if (webhookError) {
+          console.error('Webhook notification error:', webhookError);
           toast.error('Aprovado localmente, mas falha ao notificar n8n');
         }
       } catch (webhookError) {
-        console.error('Failed to call webhook:', webhookError);
+        console.error('Failed to call webhook notification:', webhookError);
         toast.error('Aprovado localmente, mas falha ao notificar n8n');
       }
       
