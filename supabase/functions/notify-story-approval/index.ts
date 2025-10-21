@@ -35,14 +35,14 @@ Deno.serve(async (req) => {
     }
 
     // Get webhook secret from environment
-    const webhookSecret = Deno.env.get('N8N_WEBHOOK_SECRET');
+    const webhookSecret = Deno.env.get('N8N_STORIES_WEBHOOK_SECRET');
     if (!webhookSecret) {
-      console.error('N8N_WEBHOOK_SECRET not configured');
+      console.error('N8N_STORIES_WEBHOOK_SECRET not configured');
       throw new Error('Webhook secret not configured');
     }
 
     // Call N8N webhook
-    const webhookUrl = 'https://n8n.digitalsprints.pt/webhook/aprovacao-stories';
+    const webhookUrl = 'https://n8n.srv881120.hstgr.cloud/webhook/aprovacao-stories';
     console.log('Calling N8N webhook:', webhookUrl);
 
     const response = await fetch(webhookUrl, {
