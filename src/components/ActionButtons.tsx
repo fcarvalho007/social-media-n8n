@@ -8,46 +8,45 @@ interface ActionButtonsProps {
 
 export const ActionButtons = ({ className }: ActionButtonsProps) => {
   return (
-    <div className={cn("space-y-4", className)}>
+    <div className={cn("space-y-6", className)}>
       {/* Section Header */}
-      <div className="flex items-center gap-3">
-        <div className="h-px bg-border flex-1" />
-        <h3 className="text-sm font-medium text-muted-foreground">Criar nova publicação</h3>
-        <div className="h-px bg-border flex-1" />
+      <div className="space-y-2">
+        <h2 className="text-lg font-semibold text-foreground">Criar nova publicação</h2>
+        <p className="text-sm text-muted-foreground">Escolha o tipo de conteúdo que pretende criar</p>
       </div>
 
-      {/* Action Buttons Grid */}
-      <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-        {/* Carrossel Button */}
+      {/* Action Buttons Grid - 8px spacing grid */}
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+        {/* Carrossel Button - Blue Primary */}
         <Button 
           size="lg"
-          className="h-auto py-4 flex-col gap-2 bg-primary hover:bg-primary/90 active:scale-95 transition-all"
+          className="h-auto min-h-[110px] py-6 px-4 flex-col gap-3 bg-primary hover:bg-primary/90 shadow-md hover:shadow-lg active:scale-[0.98] transition-all touch-target"
           onClick={() => window.open('https://docs.google.com/forms/d/e/1FAIpQLScHxiU2xQOQz-7Z480crzkvTbIjYhHcdtb8Nuv98JSotdPcNg/viewform', '_blank')}
         >
           <div className="flex items-center gap-2">
-            <LayoutGrid className="h-5 w-5" />
-            <span className="text-sm font-semibold">Carrossel</span>
+            <LayoutGrid className="h-6 w-6" />
+            <span className="font-semibold">Carrossel</span>
           </div>
-          <div className="flex items-center gap-1 text-xs opacity-90">
-            <Clock className="h-3 w-3" />
-            <span>5m a processar</span>
+          <div className="flex items-center gap-1.5 text-xs opacity-90">
+            <Clock className="h-3.5 w-3.5" />
+            <span>🕒 5 m a processar</span>
           </div>
         </Button>
 
-        {/* Stories Button */}
+        {/* Stories Button - Neutral Gray */}
         <Button 
           size="lg"
-          variant="outline"
-          className="h-auto py-4 flex-col gap-2 hover:bg-primary hover:text-primary-foreground hover:border-primary active:scale-95 transition-all"
+          variant="secondary"
+          className="h-auto min-h-[110px] py-6 px-4 flex-col gap-3 bg-secondary hover:bg-secondary/80 shadow-sm hover:shadow-md active:scale-[0.98] transition-all touch-target"
           onClick={() => window.open('https://docs.google.com/forms/d/e/1FAIpQLScy8tdv3CpBN0Kn_U6sBbfyk3fx3fbSBQcryOrmhVYw_sP1Xg/viewform?usp=dialog', '_blank')}
         >
           <div className="flex items-center gap-2">
-            <Video className="h-5 w-5" />
-            <span className="text-sm font-semibold">Stories</span>
+            <Video className="h-6 w-6" />
+            <span className="font-semibold">Stories</span>
           </div>
-          <div className="flex items-center gap-1 text-xs opacity-75">
-            <Clock className="h-3 w-3" />
-            <span>2m a processar</span>
+          <div className="flex items-center gap-1.5 text-xs opacity-75">
+            <Clock className="h-3.5 w-3.5" />
+            <span>🕒 2 m a processar</span>
           </div>
         </Button>
 
@@ -56,13 +55,13 @@ export const ActionButtons = ({ className }: ActionButtonsProps) => {
           size="lg"
           variant="outline"
           disabled
-          className="h-auto py-4 flex-col gap-2 cursor-not-allowed opacity-40"
+          className="h-auto min-h-[110px] py-6 px-4 flex-col gap-3 cursor-not-allowed opacity-40 shadow-sm"
         >
           <div className="flex items-center gap-2">
-            <ImageIcon className="h-5 w-5" />
-            <span className="text-sm font-semibold">Post Individual</span>
+            <ImageIcon className="h-6 w-6" />
+            <span className="font-semibold">Post Individual</span>
           </div>
-          <span className="text-xs">Em breve</span>
+          <span className="text-xs font-medium">Em breve</span>
         </Button>
       </div>
     </div>

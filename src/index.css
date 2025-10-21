@@ -109,4 +109,10 @@ All colors MUST be HSL.
   body {
     @apply bg-background text-foreground;
   }
+
+  /* Touch targets for mobile - minimum 44x44px */
+  .touch-target {
+    min-width: 44px;
+    min-height: 44px;
+  }
 }
