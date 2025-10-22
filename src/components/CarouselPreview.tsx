@@ -36,6 +36,7 @@ import 'swiper/css/pagination';
 import 'swiper/css/thumbs';
 import JSZip from 'jszip';
 import { saveAs } from 'file-saver';
+import { jsPDF } from 'jspdf';
 
 interface CarouselPreviewProps {
   images: string[];
@@ -54,6 +55,7 @@ export const CarouselPreview = ({ images, template, onSelect, isSelected, onRemo
   const [zoomImageIndex, setZoomImageIndex] = useState<number | null>(null);
   const [zoomSwiper, setZoomSwiper] = useState<SwiperType | null>(null);
   const [downloading, setDownloading] = useState(false);
+  const [downloadingPdf, setDownloadingPdf] = useState(false);
 
   // Helper function to generate optimized preview URLs for Supabase Storage
   const getPreviewUrl = (originalUrl: string, width: number = 800, quality: number = 70) => {
@@ -112,6 +114,63 @@ export const CarouselPreview = ({ images, template, onSelect, isSelected, onRemo
     }
   };
 
+  const handleDownloadPdf = async () => {
+    try {
+      setDownloadingPdf(true);
+      const pdf = new jsPDF();
+      
+      for (let i = 0; i < images.length; i++) {
+        const url = images[i];
+        try {
+          const response = await fetch(url);
+          if (!response.ok) throw new Error(`HTTP ${response.status}`);
+          const blob = await response.blob();
+          const img = await createImageBitmap(blob);
+          
+          // Add new page for images after the first one
+          if (i > 0) {
+            pdf.addPage();
+          }
+          
+          // Calculate dimensions to fit the page (A4 size)
+          const pageWidth = pdf.internal.pageSize.getWidth();
+          const pageHeight = pdf.internal.pageSize.getHeight();
+          const imgRatio = img.width / img.height;
+          const pageRatio = pageWidth / pageHeight;
+          
+          let finalWidth = pageWidth;
+          let finalHeight = pageHeight;
+          
+          if (imgRatio > pageRatio) {
+            finalHeight = pageWidth / imgRatio;
+          } else {
+            finalWidth = pageHeight * imgRatio;
+          }
+          
+          const x = (pageWidth - finalWidth) / 2;
+          const y = (pageHeight - finalHeight) / 2;
+          
+          // Convert blob to base64
+          const reader = new FileReader();
+          const base64 = await new Promise<string>((resolve) => {
+            reader.onload = () => resolve(reader.result as string);
+            reader.readAsDataURL(blob);
+          });
+          
+          pdf.addImage(base64, 'JPEG', x, y, finalWidth, finalHeight);
+        } catch (err) {
+          console.error(`Falha ao adicionar imagem ${i + 1} ao PDF:`, err);
+        }
+      }
+      
+      pdf.save(`carrossel_template_${template}.pdf`);
+    } catch (e) {
+      console.error('Erro ao gerar PDF:', e);
+    } finally {
+      setDownloadingPdf(false);
+    }
+  };
+
   return (
     <div className={cn(
       "rounded-lg sm:rounded-xl border-2 p-3 sm:p-4 md:p-5 transition-all duration-300 relative",
@@ -156,11 +215,22 @@ export const CarouselPreview = ({ images, template, onSelect, isSelected, onRemo
             size="sm"
             onClick={handleDownloadAll}
             className="h-8 gap-1.5 text-xs"
-            disabled={downloading}
+            disabled={downloading || downloadingPdf}
             aria-label="Baixar todas as imagens em ZIP"
           >
             <Download className="h-3.5 w-3.5" />
-            {downloading ? 'A preparar...' : 'Baixar .zip'}
+            {downloading ? 'A preparar...' : '.zip'}
+          </Button>
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={handleDownloadPdf}
+            className="h-8 gap-1.5 text-xs"
+            disabled={downloading || downloadingPdf}
+            aria-label="Baixar todas as imagens em PDF"
+          >
+            <Download className="h-3.5 w-3.5" />
+            {downloadingPdf ? 'A preparar...' : '.pdf'}
           </Button>
           <span className="text-xs sm:text-sm font-medium text-muted-foreground">
             {activeIndex + 1}/{images.length}
