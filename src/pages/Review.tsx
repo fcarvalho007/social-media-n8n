@@ -2,12 +2,14 @@ import { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
-import { Header } from '@/components/Header';
+import { AppSidebar } from '@/components/AppSidebar';
+import { DashboardHeader } from '@/components/DashboardHeader';
 import { CarouselPreview } from '@/components/CarouselPreview';
 import { CaptionEditor } from '@/components/CaptionEditor';
 import { ActionBar } from '@/components/ActionBar';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
+import { SidebarProvider } from '@/components/ui/sidebar';
 import { Loader2, ArrowLeft } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { toast } from 'sonner';
@@ -247,9 +249,14 @@ const Review = () => {
 
   if (loading) {
     return (
-      <div className="flex min-h-screen items-center justify-center bg-background">
-        <Loader2 className="h-8 w-8 animate-spin text-primary" />
-      </div>
+      <SidebarProvider defaultOpen={true}>
+        <div className="flex min-h-screen w-full bg-gradient-to-br from-background to-background-secondary">
+          <AppSidebar />
+          <div className="flex-1 flex items-center justify-center">
+            <Loader2 className="h-8 w-8 animate-spin text-primary" />
+          </div>
+        </div>
+      </SidebarProvider>
     );
   }
 
@@ -258,10 +265,14 @@ const Review = () => {
   }
 
   return (
-    <div className="min-h-screen bg-background pb-24">
-      <Header />
-      
-      <main className="container py-4 sm:py-8 px-3 sm:px-4">
+    <SidebarProvider defaultOpen={true}>
+      <div className="flex min-h-screen w-full bg-gradient-to-br from-background to-background-secondary">
+        <AppSidebar />
+        
+        <div className="flex-1 flex flex-col min-w-0 pb-24">
+          <DashboardHeader />
+          
+          <main className="flex-1 p-4 sm:p-6 lg:p-10 animate-fade-in overflow-auto bg-gradient-to-br from-white to-gray-50">
         <Button
           variant="ghost"
           onClick={() => navigate('/')}
@@ -324,15 +335,17 @@ const Review = () => {
             className="min-h-[100px]"
           />
         </div>
-      </main>
+          </main>
 
-      <ActionBar
-        canApprove={!!selectedTemplate}
-        onApprove={handleApprove}
-        onReject={handleReject}
-        onSave={handleSave}
-      />
-    </div>
+          <ActionBar
+            canApprove={!!selectedTemplate}
+            onApprove={handleApprove}
+            onReject={handleReject}
+            onSave={handleSave}
+          />
+        </div>
+      </div>
+    </SidebarProvider>
   );
 };
 

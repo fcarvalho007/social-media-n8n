@@ -1,4 +1,4 @@
-import { CheckCircle2, PlusCircle, User, X, Bell, Settings } from 'lucide-react';
+import { CheckCircle2, PlusCircle, X } from 'lucide-react';
 import { NavLink } from 'react-router-dom';
 import {
   Sidebar,
@@ -16,17 +16,7 @@ import {
   TooltipProvider,
   TooltipTrigger,
 } from '@/components/ui/tooltip';
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuLabel,
-  DropdownMenuSeparator,
-  DropdownMenuTrigger,
-} from '@/components/ui/dropdown-menu';
 import { Button } from '@/components/ui/button';
-import { Avatar, AvatarFallback } from '@/components/ui/avatar';
-import { useAuth } from '@/contexts/AuthContext';
 import { cn } from '@/lib/utils';
 import { Badge } from '@/components/ui/badge';
 
@@ -52,11 +42,6 @@ const menuItems = [
 
 export function AppSidebar() {
   const { open, setOpen } = useSidebar();
-  const { user, signOut } = useAuth();
-
-  const handleLogout = async () => {
-    await signOut();
-  };
 
   // Mock notification count - você pode conectar isso ao estado real
   const notificationCount = 3;
@@ -172,68 +157,6 @@ export function AppSidebar() {
             </SidebarGroupContent>
           </SidebarGroup>
 
-          {/* Spacer */}
-          <div className="flex-1" />
-
-          {/* User Profile - Bottom Section */}
-          <div className="flex flex-col items-center px-3 mt-6">
-            <DropdownMenu>
-              <DropdownMenuTrigger asChild>
-                <Button
-                  variant="ghost"
-                  className="h-auto p-0 transition-all duration-200 ease-in-out hover:bg-transparent group flex flex-col items-center gap-2"
-                >
-                  <div className="flex h-[60px] w-[60px] items-center justify-center rounded-full transition-all duration-200 bg-transparent group-hover:shadow-[0_0_12px_rgba(65,105,160,0.3)]">
-                    <Avatar className="h-12 w-12 transition-all duration-200">
-                      <AvatarFallback 
-                        className="font-semibold text-base text-white"
-                        style={{
-                          background: '#4169A0',
-                          boxShadow: '0 2px 8px rgba(65, 105, 160, 0.25)'
-                        }}
-                      >
-                        {user?.email?.charAt(0).toUpperCase() || 'A'}
-                      </AvatarFallback>
-                    </Avatar>
-                  </div>
-                  <span 
-                    className="text-xs text-[#6B7280] font-medium group-hover:text-[#4169A0] transition-colors"
-                    style={{ fontFamily: 'Inter, sans-serif', fontWeight: 500 }}
-                  >
-                    Conta
-                  </span>
-                </Button>
-              </DropdownMenuTrigger>
-              <DropdownMenuContent 
-                side="right" 
-                align="end" 
-                className="w-56 rounded-xl bg-white border border-[#4169A0]/10"
-                style={{
-                  boxShadow: '0 4px 16px rgba(0, 0, 0, 0.1)'
-                }}
-              >
-                <DropdownMenuLabel className="font-semibold text-[#4169A0]">
-                  {user?.email?.split('@')[0] || 'Utilizador'}
-                </DropdownMenuLabel>
-                <DropdownMenuSeparator />
-                <DropdownMenuItem className="cursor-pointer rounded-lg">
-                  <User className="mr-2 h-4 w-4" />
-                  Perfil
-                </DropdownMenuItem>
-                <DropdownMenuItem className="cursor-pointer rounded-lg">
-                  <Settings className="mr-2 h-4 w-4" />
-                  Configurações
-                </DropdownMenuItem>
-                <DropdownMenuSeparator />
-                <DropdownMenuItem
-                  onClick={handleLogout}
-                  className="cursor-pointer text-destructive focus:text-destructive rounded-lg"
-                >
-                  Terminar Sessão
-                </DropdownMenuItem>
-              </DropdownMenuContent>
-            </DropdownMenu>
-          </div>
         </SidebarContent>
       </Sidebar>
     </>
