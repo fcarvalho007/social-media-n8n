@@ -7,7 +7,7 @@ import { PostCard } from '@/components/PostCard';
 import { StoryCard } from '@/components/StoryCard';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Input } from '@/components/ui/input';
-import { Loader2, Search, Inbox, LayoutGrid, Video, Image as ImageIcon, RefreshCw } from 'lucide-react';
+import { Loader2, Search, Inbox, LayoutGrid, Video, Image as ImageIcon, RefreshCw, CheckCircle, Plus } from 'lucide-react';
 import { toast } from 'sonner';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -182,129 +182,138 @@ const Pending = () => {
           <p className="text-sm text-muted-foreground">Crie novos conteúdos e faça a revisão de publicações pendentes</p>
         </div>
 
-        {/* Creation Section - Visually distinct card */}
-        <div className="mb-12 sm:mb-16 p-6 sm:p-8 rounded-xl bg-card border-2 border-border shadow-sm">
-          <ActionButtons />
-        </div>
+        {/* Main Tabs: Approve vs Create */}
+        <Tabs defaultValue="approve" className="space-y-6">
+          <TabsList className="w-full sm:w-auto h-12 bg-muted p-1">
+            <TabsTrigger value="approve" className="gap-2 px-6 text-sm font-medium">
+              <CheckCircle className="h-4 w-4" />
+              Aprovar Conteúdo
+            </TabsTrigger>
+            <TabsTrigger value="create" className="gap-2 px-6 text-sm font-medium">
+              <Plus className="h-4 w-4" />
+              Criar Novo
+            </TabsTrigger>
+          </TabsList>
 
-        {/* Review Section - Visually distinct area */}
-        <div className="space-y-6">
-          <div className="space-y-2 pb-4 border-b-2 border-border">
-            <h2 className="text-lg sm:text-xl font-semibold text-foreground">Rever e aprovar publicações</h2>
-            <p className="text-sm text-muted-foreground">Reveja o conteúdo pendente e aprove ou rejeite publicações</p>
-          </div>
+          {/* Tab: Create New Content */}
+          <TabsContent value="create" className="space-y-6 mt-6">
+            <ActionButtons />
+          </TabsContent>
 
-          {/* Content Type Filter */}
-          <div className="mb-6 flex flex-wrap gap-2">
-            <Badge
-              variant={contentTypeFilter === 'all' ? 'default' : 'outline'}
-              className="cursor-pointer px-4 py-2 text-sm hover:bg-primary/10 transition-colors"
-              onClick={() => setContentTypeFilter('all')}
-            >
-              Todos os tipos
-            </Badge>
-            <Badge
-              variant={contentTypeFilter === 'carousel' ? 'default' : 'outline'}
-              className="cursor-pointer px-4 py-2 text-sm flex items-center gap-2 hover:bg-primary/10 transition-colors"
-              onClick={() => setContentTypeFilter('carousel')}
-            >
-              <LayoutGrid className="h-4 w-4" />
-              Carrossel
-            </Badge>
-            <Badge
-              variant={contentTypeFilter === 'stories' ? 'default' : 'outline'}
-              className="cursor-pointer px-4 py-2 text-sm flex items-center gap-2 hover:bg-primary/10 transition-colors"
-              onClick={() => setContentTypeFilter('stories')}
-            >
-              <Video className="h-4 w-4" />
-              Stories
-            </Badge>
-            <Badge
-              variant={contentTypeFilter === 'post' ? 'default' : 'outline'}
-              className="cursor-pointer px-4 py-2 text-sm flex items-center gap-2 hover:bg-primary/10 transition-colors"
-              onClick={() => setContentTypeFilter('post')}
-            >
-              <ImageIcon className="h-4 w-4" />
-              Post
-            </Badge>
-          </div>
-
-          <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
-            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-              <TabsList className="w-full sm:w-auto grid grid-cols-3 h-11">
-                <TabsTrigger value="pending" className="text-sm font-medium data-[state=active]:bg-warning data-[state=active]:text-warning-foreground">
-                  Pendentes
-                </TabsTrigger>
-                <TabsTrigger value="approved" className="text-sm font-medium data-[state=active]:bg-success data-[state=active]:text-success-foreground">
-                  Aprovados
-                </TabsTrigger>
-                <TabsTrigger value="rejected" className="text-sm font-medium data-[state=active]:bg-destructive data-[state=active]:text-destructive-foreground">
-                  Rejeitados
-                </TabsTrigger>
-              </TabsList>
-
-              <div className="flex items-center gap-2 w-full sm:flex-1 sm:max-w-md">
-                <div className="relative flex-1">
-                  <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-                  <Input
-                    placeholder="Procurar por tema ou legenda..."
-                    value={searchQuery}
-                    onChange={(e) => setSearchQuery(e.target.value)}
-                    className="pl-10 text-sm h-11"
-                  />
-                </div>
-                <Button
-                  variant="outline"
-                  size="icon"
-                  onClick={() => fetchAll()}
-                  disabled={loading}
-                  className="flex-shrink-0 h-11 w-11"
-                  title="Recarregar lista"
-                >
-                  <RefreshCw className={`h-4 w-4 ${loading ? 'animate-spin' : ''}`} />
-                </Button>
-              </div>
+          {/* Tab: Approve Content (Default) */}
+          <TabsContent value="approve" className="space-y-6 mt-6">
+            {/* Content Type Filter */}
+            <div className="flex flex-wrap gap-2">
+              <Badge
+                variant={contentTypeFilter === 'all' ? 'default' : 'outline'}
+                className="cursor-pointer px-4 py-2 text-sm hover:bg-primary/10 transition-colors"
+                onClick={() => setContentTypeFilter('all')}
+              >
+                Todos os tipos
+              </Badge>
+              <Badge
+                variant={contentTypeFilter === 'carousel' ? 'default' : 'outline'}
+                className="cursor-pointer px-4 py-2 text-sm flex items-center gap-2 hover:bg-primary/10 transition-colors"
+                onClick={() => setContentTypeFilter('carousel')}
+              >
+                <LayoutGrid className="h-4 w-4" />
+                Carrossel
+              </Badge>
+              <Badge
+                variant={contentTypeFilter === 'stories' ? 'default' : 'outline'}
+                className="cursor-pointer px-4 py-2 text-sm flex items-center gap-2 hover:bg-primary/10 transition-colors"
+                onClick={() => setContentTypeFilter('stories')}
+              >
+                <Video className="h-4 w-4" />
+                Stories
+              </Badge>
+              <Badge
+                variant={contentTypeFilter === 'post' ? 'default' : 'outline'}
+                className="cursor-pointer px-4 py-2 text-sm flex items-center gap-2 hover:bg-primary/10 transition-colors"
+                onClick={() => setContentTypeFilter('post')}
+              >
+                <ImageIcon className="h-4 w-4" />
+                Post
+              </Badge>
             </div>
 
-            <TabsContent value={activeTab} className="space-y-4 mt-6">
-              {loading ? (
-                <div className="flex flex-col items-center justify-center py-16">
-                  <Loader2 className="h-10 w-10 animate-spin text-primary mb-4" />
-                  <p className="text-sm text-muted-foreground">A carregar conteúdos...</p>
-                </div>
-              ) : filteredPosts.length === 0 && filteredStories.length === 0 ? (
-                <div className="flex flex-col items-center justify-center py-16 text-center bg-muted/30 rounded-lg border-2 border-dashed border-border">
-                  <Inbox className="h-20 w-20 text-muted-foreground/40 mb-4" />
-                  <h3 className="text-lg font-semibold mb-2">Nenhum conteúdo encontrado</h3>
-                  <p className="text-sm text-muted-foreground max-w-md">
-                    {searchQuery
-                      ? "Nenhum conteúdo corresponde aos critérios de pesquisa"
-                      : `Não existe conteúdo ${activeTab === 'pending' ? 'pendente' : activeTab === 'approved' ? 'aprovado' : 'rejeitado'} neste momento`}
-                  </p>
-                </div>
-              ) : (
-                <div className="grid gap-6 grid-cols-1 sm:grid-cols-2 lg:grid-cols-3">
-                  {showPosts && filteredPosts.map((post) => (
-                    <PostCard
-                      key={post.id}
-                      post={post}
-                      onClick={() => navigate(`/review/${post.id}`)}
-                      onDelete={handleDelete}
+            <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                <TabsList className="w-full sm:w-auto grid grid-cols-3 h-11">
+                  <TabsTrigger value="pending" className="text-sm font-medium data-[state=active]:bg-warning data-[state=active]:text-warning-foreground">
+                    Pendentes
+                  </TabsTrigger>
+                  <TabsTrigger value="approved" className="text-sm font-medium data-[state=active]:bg-success data-[state=active]:text-success-foreground">
+                    Aprovados
+                  </TabsTrigger>
+                  <TabsTrigger value="rejected" className="text-sm font-medium data-[state=active]:bg-destructive data-[state=active]:text-destructive-foreground">
+                    Rejeitados
+                  </TabsTrigger>
+                </TabsList>
+
+                <div className="flex items-center gap-2 w-full sm:flex-1 sm:max-w-md">
+                  <div className="relative flex-1">
+                    <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+                    <Input
+                      placeholder="Procurar por tema ou legenda..."
+                      value={searchQuery}
+                      onChange={(e) => setSearchQuery(e.target.value)}
+                      className="pl-10 text-sm h-11"
                     />
-                  ))}
-                  {showStories && filteredStories.map((story) => (
-                    <StoryCard
-                      key={story.id}
-                      story={story}
-                      onClick={() => navigate(`/review-story/${story.id}`)}
-                      onDelete={handleDeleteStory}
-                    />
-                  ))}
+                  </div>
+                  <Button
+                    variant="outline"
+                    size="icon"
+                    onClick={() => fetchAll()}
+                    disabled={loading}
+                    className="flex-shrink-0 h-11 w-11"
+                    title="Recarregar lista"
+                  >
+                    <RefreshCw className={`h-4 w-4 ${loading ? 'animate-spin' : ''}`} />
+                  </Button>
                 </div>
-              )}
-            </TabsContent>
-          </Tabs>
-        </div>
+              </div>
+
+              <TabsContent value={activeTab} className="space-y-4 mt-6">
+                {loading ? (
+                  <div className="flex flex-col items-center justify-center py-16">
+                    <Loader2 className="h-10 w-10 animate-spin text-primary mb-4" />
+                    <p className="text-sm text-muted-foreground">A carregar conteúdos...</p>
+                  </div>
+                ) : filteredPosts.length === 0 && filteredStories.length === 0 ? (
+                  <div className="flex flex-col items-center justify-center py-16 text-center bg-muted/30 rounded-lg border-2 border-dashed border-border">
+                    <Inbox className="h-20 w-20 text-muted-foreground/40 mb-4" />
+                    <h3 className="text-lg font-semibold mb-2">Nenhum conteúdo encontrado</h3>
+                    <p className="text-sm text-muted-foreground max-w-md">
+                      {searchQuery
+                        ? "Nenhum conteúdo corresponde aos critérios de pesquisa"
+                        : `Não existe conteúdo ${activeTab === 'pending' ? 'pendente' : activeTab === 'approved' ? 'aprovado' : 'rejeitado'} neste momento`}
+                    </p>
+                  </div>
+                ) : (
+                  <div className="grid gap-6 grid-cols-1 sm:grid-cols-2 lg:grid-cols-3">
+                    {showPosts && filteredPosts.map((post) => (
+                      <PostCard
+                        key={post.id}
+                        post={post}
+                        onClick={() => navigate(`/review/${post.id}`)}
+                        onDelete={handleDelete}
+                      />
+                    ))}
+                    {showStories && filteredStories.map((story) => (
+                      <StoryCard
+                        key={story.id}
+                        story={story}
+                        onClick={() => navigate(`/review-story/${story.id}`)}
+                        onDelete={handleDeleteStory}
+                      />
+                    ))}
+                  </div>
+                )}
+              </TabsContent>
+            </Tabs>
+          </TabsContent>
+        </Tabs>
       </main>
     </div>
   );
