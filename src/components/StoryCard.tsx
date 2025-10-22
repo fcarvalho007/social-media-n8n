@@ -56,12 +56,12 @@ export const StoryCard = ({ story, onClick, onDelete }: StoryCardProps) => {
           </Badge>
         </div>
 
-        {/* Story Image - Reduced by 20% */}
-        <div className="relative aspect-[9/20] bg-muted rounded-lg overflow-hidden mb-3 sm:mb-4 mx-auto max-w-[80%]">
+        {/* Story Image - Responsive sizing */}
+        <div className="relative aspect-[9/16] bg-muted rounded-lg overflow-hidden mb-3 sm:mb-4 mx-auto max-w-[90%] sm:max-w-[70%] md:max-w-[60%]">
           <img
             src={story.story_image_url}
             alt={story.tema || 'Story'}
-            className="w-full h-full object-cover transition-transform duration-300 group-hover:scale-110"
+            className="w-full h-full object-contain transition-transform duration-300 group-hover:scale-110"
           />
         </div>
 

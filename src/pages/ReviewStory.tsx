@@ -185,12 +185,12 @@ const ReviewStory = () => {
         </div>
 
         {/* Story Image Preview */}
-        <div className="max-w-md mx-auto mb-6">
+        <div className="max-w-[90%] sm:max-w-[70%] md:max-w-[60%] mx-auto mb-6">
           <div className="relative rounded-lg overflow-hidden bg-muted aspect-[9/16] group cursor-zoom-in" onClick={() => setZoomImage(true)}>
             <img
               src={story.story_image_url}
               alt="Story preview"
-              className="w-full h-full object-cover"
+              className="w-full h-full object-contain"
             />
             <div className="absolute inset-0 bg-black/0 group-hover:bg-black/20 transition-colors flex items-center justify-center">
               <ZoomIn className="w-12 h-12 text-white opacity-0 group-hover:opacity-100 transition-opacity drop-shadow-lg" />

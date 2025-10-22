@@ -40,6 +40,15 @@ export const CarouselPreview = ({ images, template, onSelect, isSelected, onRemo
   const [slideToRemove, setSlideToRemove] = useState<number | null>(null);
   const [zoomImageIndex, setZoomImageIndex] = useState<number | null>(null);
 
+  // Helper function to generate optimized preview URLs for Supabase Storage
+  const getPreviewUrl = (originalUrl: string, width: number = 800, quality: number = 70) => {
+    // Only transform Supabase storage URLs
+    if (!originalUrl.includes('supabase.co/storage') && !originalUrl.includes('vtmrimrrppuclciolzuw')) {
+      return originalUrl;
+    }
+    return `${originalUrl}?width=${width}&quality=${quality}`;
+  };
+
   const templateColors = {
     A: { 
       badge: 'bg-[#001f3f] text-[#00d4ff] border border-[#00d4ff]/50 shadow-[0_0_15px_rgba(0,212,255,0.5)]', 
@@ -86,7 +95,7 @@ export const CarouselPreview = ({ images, template, onSelect, isSelected, onRemo
             <SwiperSlide key={index}>
               <div className="relative h-full w-full cursor-zoom-in" onClick={() => setZoomImageIndex(index)}>
                 <img
-                  src={image}
+                  src={getPreviewUrl(image, 800, 70)}
                   alt={`Slide ${index + 1}`}
                   className="h-full w-full object-cover"
                 />
@@ -120,7 +129,7 @@ export const CarouselPreview = ({ images, template, onSelect, isSelected, onRemo
               activeIndex === index ? "border-primary" : "border-transparent opacity-60 hover:opacity-100"
             )}>
               <img
-                src={image}
+                src={getPreviewUrl(image, 200, 60)}
                 alt={`Thumbnail ${index + 1}`}
                 className="h-full w-full object-cover"
               />
