@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { supabase } from '@/integrations/supabase/client';
 import { AppSidebar } from '@/components/AppSidebar';
+import { DashboardHeader } from '@/components/DashboardHeader';
 import { ActionButtons } from '@/components/ActionButtons';
 import { PostCard } from '@/components/PostCard';
 import { StoryCard } from '@/components/StoryCard';
@@ -174,17 +175,20 @@ const Pending = () => {
   ];
 
   return (
-    <SidebarProvider defaultOpen>
+    <SidebarProvider defaultOpen={false}>
       <div className="flex min-h-screen w-full bg-gradient-to-br from-background to-background-secondary">
         <AppSidebar />
         
-        <main className="flex-1 p-6 lg:p-10 animate-fade-in">
-          {/* Header */}
-          <div className="mb-8">
-            <h1 className="text-3xl lg:text-4xl font-bold text-foreground mb-2">
+        <div className="flex-1 flex flex-col min-w-0">
+          <DashboardHeader />
+          
+          <main className="flex-1 p-4 sm:p-6 lg:p-10 animate-fade-in overflow-auto">
+          {/* Page Header */}
+          <div className="mb-6 sm:mb-8">
+            <h1 className="text-2xl sm:text-3xl lg:text-4xl font-bold text-foreground mb-2 leading-tight">
               Painel de Conteúdo
             </h1>
-            <p className="text-muted-foreground text-base">
+            <p className="text-muted-foreground text-sm sm:text-base">
               Crie novos conteúdos e faça a revisão de publicações pendentes
             </p>
           </div>
@@ -204,27 +208,27 @@ const Pending = () => {
             /* Approve Tab */
             <div className="space-y-6 animate-slide-up">
               {/* Action Buttons */}
-              <div className="flex flex-col sm:flex-row gap-4">
+              <div className="flex flex-col sm:flex-row gap-3 sm:gap-4">
                 <Button
                   size="lg"
-                  className="flex-1 h-14 text-base font-semibold shadow-lg hover:shadow-xl transition-all glow-primary"
+                  className="flex-1 h-12 sm:h-14 text-sm sm:text-base font-bold shadow-lg hover:shadow-2xl transition-all duration-300 glow-primary hover:scale-[1.02] active:scale-95"
                   onClick={() => navigate('/pending')}
                 >
-                  <CheckCircle2 className="mr-2 h-5 w-5" />
+                  <CheckCircle2 className="mr-2 h-4 w-4 sm:h-5 sm:w-5" />
                   Aprovar Conteúdo
                 </Button>
                 <Button
                   size="lg"
                   variant="outline"
-                  className="flex-1 h-14 text-base font-semibold border-2 hover:bg-primary/5 hover:border-primary transition-all"
+                  className="flex-1 h-12 sm:h-14 text-sm sm:text-base font-bold border-2 hover:bg-primary/5 hover:border-primary hover:shadow-lg transition-all duration-300 hover:scale-[1.02] active:scale-95"
                   onClick={() => navigate('/pending?tab=create')}
                 >
-                  <span className="mr-2 text-xl">➕</span>
+                  <span className="mr-2 text-lg sm:text-xl">➕</span>
                   Criar Novo
                 </Button>
               </div>
 
-              <p className="text-center text-sm text-muted-foreground">
+              <p className="text-center text-xs sm:text-sm text-muted-foreground px-4">
                 Crie novos conteúdos ou faça a revisão de publicações pendentes
               </p>
 
@@ -232,7 +236,7 @@ const Pending = () => {
 
               {/* Content Type Filter */}
               <div className="space-y-3">
-                <h3 className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">
+                <h3 className="text-xs font-bold text-muted-foreground uppercase tracking-wider">
                   Filtrar por Tipo
                 </h3>
                 <div className="flex flex-wrap gap-2">
@@ -241,14 +245,15 @@ const Pending = () => {
                       key={type.id}
                       onClick={() => setContentTypeFilter(type.id)}
                       variant="outline"
+                      size="sm"
                       className={cn(
-                        'h-11 px-6 text-sm font-semibold transition-all border-2 rounded-xl',
+                        'h-10 sm:h-11 px-4 sm:px-6 text-xs sm:text-sm font-bold transition-all duration-300 border-2 rounded-xl',
                         contentTypeFilter === type.id
-                          ? 'bg-primary text-primary-foreground border-primary shadow-lg scale-105 glow-primary'
-                          : 'bg-card hover:bg-card-hover border-border hover:border-primary/50'
+                          ? 'bg-primary text-primary-foreground border-primary shadow-xl scale-105 glow-primary'
+                          : 'bg-card hover:bg-card-hover border-border hover:border-primary/50 hover:shadow-md hover:scale-105 active:scale-95'
                       )}
                     >
-                      {type.icon && <type.icon className="mr-2 h-4 w-4" />}
+                      {type.icon && <type.icon className="mr-1.5 sm:mr-2 h-3.5 w-3.5 sm:h-4 sm:w-4" />}
                       {type.label}
                     </Button>
                   ))}
@@ -256,22 +261,23 @@ const Pending = () => {
               </div>
 
               {/* Status Tabs + Search */}
-              <div className="bg-muted/30 rounded-2xl p-6 border border-border/50">
-                <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4 mb-4">
-                  <div className="flex gap-2">
+              <div className="bg-muted/30 rounded-2xl p-4 sm:p-6 border border-border/50 backdrop-blur-sm">
+                <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4">
+                  <div className="flex gap-2 overflow-x-auto pb-2 lg:pb-0 scrollbar-hide">
                     {Object.entries(statusConfig).map(([key, config]) => (
                       <Button
                         key={key}
                         onClick={() => setActiveStatus(key)}
                         variant="ghost"
+                        size="sm"
                         className={cn(
-                          'h-12 px-6 text-sm font-bold rounded-xl transition-all border-2',
+                          'h-10 sm:h-12 px-4 sm:px-6 text-xs sm:text-sm font-bold rounded-xl transition-all duration-300 border-2 whitespace-nowrap',
                           activeStatus === key
-                            ? config.color + ' shadow-lg scale-105'
-                            : 'bg-card border-border hover:bg-card-hover'
+                            ? config.color + ' shadow-xl scale-105'
+                            : 'bg-card border-border hover:bg-card-hover hover:shadow-md hover:scale-105 active:scale-95'
                         )}
                       >
-                        <config.icon className="mr-2 h-4 w-4" />
+                        <config.icon className="mr-1.5 sm:mr-2 h-3.5 w-3.5 sm:h-4 sm:w-4" />
                         {config.label}
                       </Button>
                     ))}
@@ -279,12 +285,12 @@ const Pending = () => {
 
                   <div className="flex items-center gap-2 flex-1 lg:max-w-md">
                     <div className="relative flex-1">
-                      <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+                      <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground pointer-events-none" />
                       <Input
-                        placeholder="Procurar por tema ou legenda..."
+                        placeholder="Procurar..."
                         value={searchQuery}
                         onChange={(e) => setSearchQuery(e.target.value)}
-                        className="pl-10 h-12 bg-card border-border/50 rounded-xl"
+                        className="pl-10 h-10 sm:h-12 bg-card border-border/50 rounded-xl text-sm focus:border-primary transition-all"
                       />
                     </div>
                     <Button
@@ -292,7 +298,7 @@ const Pending = () => {
                       size="icon"
                       onClick={() => fetchAll()}
                       disabled={loading}
-                      className="h-12 w-12 rounded-xl border-2 hover:bg-card-hover"
+                      className="h-10 w-10 sm:h-12 sm:w-12 rounded-xl border-2 hover:bg-card-hover hover:border-primary/50 transition-all hover:scale-105 active:scale-95"
                       title="Recarregar lista"
                     >
                       <RefreshCw className={`h-4 w-4 ${loading ? 'animate-spin' : ''}`} />
@@ -325,28 +331,39 @@ const Pending = () => {
                   </p>
                 </div>
               ) : (
-                <div className="grid gap-6 grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 animate-scale-in">
-                  {showPosts && filteredPosts.map((post) => (
-                    <PostCard
+                <div className="grid gap-4 sm:gap-5 lg:gap-6 grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 animate-scale-in">
+                  {showPosts && filteredPosts.map((post, index) => (
+                    <div
                       key={post.id}
-                      post={post}
-                      onClick={() => navigate(`/review/${post.id}`)}
-                      onDelete={handleDelete}
-                    />
+                      style={{ animationDelay: `${index * 50}ms` }}
+                      className="animate-fade-in"
+                    >
+                      <PostCard
+                        post={post}
+                        onClick={() => navigate(`/review/${post.id}`)}
+                        onDelete={handleDelete}
+                      />
+                    </div>
                   ))}
-                  {showStories && filteredStories.map((story) => (
-                    <StoryCard
+                  {showStories && filteredStories.map((story, index) => (
+                    <div
                       key={story.id}
-                      story={story}
-                      onClick={() => navigate(`/review-story/${story.id}`)}
-                      onDelete={handleDeleteStory}
-                    />
+                      style={{ animationDelay: `${(filteredPosts.length + index) * 50}ms` }}
+                      className="animate-fade-in"
+                    >
+                      <StoryCard
+                        story={story}
+                        onClick={() => navigate(`/review-story/${story.id}`)}
+                        onDelete={handleDeleteStory}
+                      />
+                    </div>
                   ))}
                 </div>
               )}
             </div>
           )}
-        </main>
+          </main>
+        </div>
       </div>
     </SidebarProvider>
   );
