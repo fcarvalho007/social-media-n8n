@@ -132,21 +132,25 @@ export const CarouselPreview = ({ images, template, onSelect, isSelected, onRemo
             pdf.addPage();
           }
           
-          // Calculate dimensions to fit the page (A4 size)
+          // Calculate dimensions to cover the entire page (A4 size) - "cover" logic
           const pageWidth = pdf.internal.pageSize.getWidth();
           const pageHeight = pdf.internal.pageSize.getHeight();
           const imgRatio = img.width / img.height;
           const pageRatio = pageWidth / pageHeight;
           
-          let finalWidth = pageWidth;
-          let finalHeight = pageHeight;
+          let finalWidth, finalHeight;
           
           if (imgRatio > pageRatio) {
-            finalHeight = pageWidth / imgRatio;
-          } else {
+            // Image is wider proportionally - use page height as base
+            finalHeight = pageHeight;
             finalWidth = pageHeight * imgRatio;
+          } else {
+            // Image is taller proportionally - use page width as base
+            finalWidth = pageWidth;
+            finalHeight = pageWidth / imgRatio;
           }
           
+          // Center the image (may crop edges to fill page)
           const x = (pageWidth - finalWidth) / 2;
           const y = (pageHeight - finalHeight) / 2;
           
