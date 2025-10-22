@@ -12,7 +12,9 @@ export const ActionButtons = ({ className }: ActionButtonsProps) => {
       {/* Section Header */}
       <div className="space-y-2">
         <h2 className="text-lg font-semibold text-foreground">Criar nova publicação</h2>
-        <p className="text-sm text-muted-foreground">Escolha o tipo de conteúdo que pretende criar</p>
+        <p className="text-sm text-muted-foreground">
+          Escolha o tipo de conteúdo que pretende criar. Todos os botões redirecionam para formulários externos do Google Forms para facilitar o processo de criação.
+        </p>
       </div>
 
       {/* Action Buttons Grid - More compact */}
