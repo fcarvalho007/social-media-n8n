@@ -1,10 +1,12 @@
+import { useState } from 'react';
 import { formatDistanceToNow } from 'date-fns';
 import { pt } from 'date-fns/locale';
 import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { ArrowRight, Trash2, LayoutGrid, Image, Video } from 'lucide-react';
+import { ArrowRight, Trash2, LayoutGrid, Image, Video, Loader2 } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import { getOptimizedImageUrl } from '@/lib/imageOptimization';
 
 interface Post {
   id: string;
@@ -24,6 +26,8 @@ interface PostCardProps {
 }
 
 export const PostCard = ({ post, onClick, onDelete }: PostCardProps) => {
+  const [imageLoading, setImageLoading] = useState<Record<number, boolean>>({});
+  
   const statusColors = {
     pending: 'bg-warning text-warning-foreground',
     approved: 'bg-success text-success-foreground',
@@ -111,6 +115,8 @@ export const PostCard = ({ post, onClick, onDelete }: PostCardProps) => {
                   e.stopPropagation();
                   onDelete(post.id);
                 }}
+                aria-label={`Eliminar publicação ${post.tema}`}
+                title="Eliminar publicação"
               >
                 <Trash2 className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
               </Button>
@@ -121,11 +127,21 @@ export const PostCard = ({ post, onClick, onDelete }: PostCardProps) => {
         {/* Image preview grid */}
         <div className="mb-3 sm:mb-4 grid grid-cols-2 gap-1.5 sm:gap-2 overflow-hidden rounded-lg">
           {previewImages.slice(0, 4).map((image, index) => (
-            <div key={index} className="aspect-[4/5] overflow-hidden bg-muted rounded-md">
+            <div key={index} className="aspect-[4/5] overflow-hidden bg-muted rounded-md relative">
+              {imageLoading[index] && (
+                <div className="absolute inset-0 flex items-center justify-center bg-muted/50 z-10">
+                  <Loader2 className="h-6 w-6 animate-spin text-primary" />
+                </div>
+              )}
               <img
-                src={image}
-                alt={`Preview ${index + 1}`}
-                className="h-full w-full object-cover transition-transform duration-300 group-hover:scale-110"
+                src={getOptimizedImageUrl(image, 400, 70)}
+                alt={`Preview ${index + 1} - ${post.tema}`}
+                className={cn(
+                  "h-full w-full object-cover transition-all duration-300 group-hover:scale-110",
+                  imageLoading[index] && "opacity-0"
+                )}
+                onLoad={() => setImageLoading(prev => ({ ...prev, [index]: false }))}
+                onError={() => setImageLoading(prev => ({ ...prev, [index]: false }))}
               />
             </div>
           ))}
@@ -146,7 +162,12 @@ export const PostCard = ({ post, onClick, onDelete }: PostCardProps) => {
               })}
             </span>
           </div>
-          <Button variant="ghost" size="sm" className="gap-1 sm:gap-1.5 -mr-2 h-8 px-2 sm:px-3 text-xs sm:text-sm group-hover:bg-primary/10 group-hover:text-primary transition-colors">
+          <Button 
+            variant="ghost" 
+            size="sm" 
+            className="gap-1 sm:gap-1.5 -mr-2 h-8 px-2 sm:px-3 text-xs sm:text-sm group-hover:bg-primary/10 group-hover:text-primary transition-colors"
+            aria-label={`Rever publicação ${post.tema}`}
+          >
             Rever
             <ArrowRight className="h-3.5 w-3.5 sm:h-4 sm:w-4 transition-transform group-hover:translate-x-1" />
           </Button>

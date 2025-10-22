@@ -5,12 +5,15 @@ import { Header } from '@/components/Header';
 import { ActionButtons } from '@/components/ActionButtons';
 import { PostCard } from '@/components/PostCard';
 import { StoryCard } from '@/components/StoryCard';
+import { PostCardSkeleton } from '@/components/PostCardSkeleton';
+import { StoryCardSkeleton } from '@/components/StoryCardSkeleton';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Input } from '@/components/ui/input';
 import { Loader2, Search, Inbox, LayoutGrid, Video, Image as ImageIcon, RefreshCw, CheckCircle, Plus } from 'lucide-react';
 import { toast } from 'sonner';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
+import { logger } from '@/lib/logger';
 
 const Pending = () => {
   const [posts, setPosts] = useState<any[]>([]);
@@ -46,7 +49,7 @@ const Pending = () => {
 
       setPosts(sortedData);
     } catch (error) {
-      console.error('Erro ao carregar publicações:', error);
+      logger.error('Erro ao carregar publicações', error);
       toast.error('Falha ao carregar publicações');
     } finally {
       setLoading(false);
@@ -69,7 +72,7 @@ const Pending = () => {
 
       setStories(data || []);
     } catch (error) {
-      console.error('Erro ao carregar stories:', error);
+      logger.error('Erro ao carregar stories', error);
     }
   };
 
@@ -91,7 +94,7 @@ const Pending = () => {
       toast.success('Publicação eliminada com sucesso');
       fetchAll();
     } catch (error) {
-      console.error('Erro ao eliminar publicação:', error);
+      logger.error('Erro ao eliminar publicação', error);
       toast.error('Falha ao eliminar publicação');
     }
   };
@@ -108,7 +111,7 @@ const Pending = () => {
       toast.success('Story eliminado com sucesso');
       fetchAll();
     } catch (error) {
-      console.error('Erro ao eliminar story:', error);
+      logger.error('Erro ao eliminar story', error);
       toast.error('Falha ao eliminar story');
     }
   };
@@ -116,7 +119,7 @@ const Pending = () => {
   useEffect(() => {
     fetchAll();
 
-    // Set up realtime subscriptions
+    // Set up realtime subscriptions - only once on mount
     const postsChannel = supabase
       .channel('posts-changes')
       .on(
@@ -127,6 +130,7 @@ const Pending = () => {
           table: 'posts',
         },
         () => {
+          logger.debug('Posts table changed, refetching...');
           fetchAll();
         }
       )
@@ -142,6 +146,7 @@ const Pending = () => {
           table: 'stories',
         },
         () => {
+          logger.debug('Stories table changed, refetching...');
           fetchAll();
         }
       )
@@ -151,7 +156,7 @@ const Pending = () => {
       supabase.removeChannel(postsChannel);
       supabase.removeChannel(storiesChannel);
     };
-  }, [activeTab]);
+  }, []); // ✅ Removed activeTab dependency to prevent unnecessary re-subscriptions
 
   const filteredPosts = posts.filter((post) => {
     const matchesSearch = post.tema.toLowerCase().includes(searchQuery.toLowerCase()) ||
@@ -321,9 +326,14 @@ const Pending = () => {
 
               <TabsContent value={activeTab} className="space-y-4">
                 {loading ? (
-                  <div className="flex flex-col items-center justify-center py-20 bg-muted/20 rounded-lg">
-                    <Loader2 className="h-10 w-10 animate-spin text-primary mb-4" />
-                    <p className="text-sm text-muted-foreground">A carregar conteúdos...</p>
+                  <div className="grid gap-5 grid-cols-1 sm:grid-cols-2 lg:grid-cols-3">
+                    {Array.from({ length: 6 }).map((_, i) => (
+                      contentTypeFilter === 'stories' || (contentTypeFilter === 'all' && i % 2 === 0) ? (
+                        <StoryCardSkeleton key={i} />
+                      ) : (
+                        <PostCardSkeleton key={i} />
+                      )
+                    ))}
                   </div>
                 ) : filteredPosts.length === 0 && filteredStories.length === 0 ? (
                   <div className="flex flex-col items-center justify-center py-20 text-center bg-muted/20 rounded-xl border-2 border-dashed border-border/50">

@@ -23,11 +23,12 @@ Deno.serve(async (req) => {
   try {
     const payload: ApprovalPayload = await req.json();
     
-    console.log('Received approval payload:', payload);
+    console.log('📥 [STORY-APPROVAL] Received approval payload at', new Date().toISOString());
+    console.log('📋 [STORY-APPROVAL] Payload details:', JSON.stringify(payload, null, 2));
 
     // Only send webhook for approved stories
     if (payload.status !== 'approved') {
-      console.log('Status is not approved, skipping webhook call');
+      console.log('ℹ️ [STORY-APPROVAL] Status is not approved, skipping webhook call:', payload.status);
       return new Response(
         JSON.stringify({ success: true, message: 'No webhook needed for non-approved status' }),
         { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 200 }
@@ -37,13 +38,14 @@ Deno.serve(async (req) => {
     // Get webhook secret from environment
     const webhookSecret = Deno.env.get('N8N_STORIES_WEBHOOK_SECRET');
     if (!webhookSecret) {
-      console.error('N8N_STORIES_WEBHOOK_SECRET not configured');
+      console.error('❌ [STORY-APPROVAL] N8N_STORIES_WEBHOOK_SECRET not configured');
       throw new Error('Webhook secret not configured');
     }
 
     // Call N8N webhook
     const webhookUrl = 'https://n8n.srv881120.hstgr.cloud/webhook/aprovacao-stories';
-    console.log('Calling N8N webhook:', webhookUrl);
+    console.log('📤 [STORY-APPROVAL] Calling N8N webhook:', webhookUrl);
+    console.log('🔐 [STORY-APPROVAL] Using webhook secret starting with:', webhookSecret.substring(0, 10) + '...');
 
     const response = await fetch(webhookUrl, {
       method: 'POST',
@@ -62,12 +64,15 @@ Deno.serve(async (req) => {
 
     if (!response.ok) {
       const errorText = await response.text();
-      console.error('N8N webhook error:', response.status, errorText);
+      console.error('❌ [STORY-APPROVAL] N8N webhook error:', { 
+        status: response.status, 
+        error: errorText 
+      });
       throw new Error(`Webhook failed: ${response.status} ${errorText}`);
     }
 
     const result = await response.json();
-    console.log('N8N webhook success:', result);
+    console.log('✅ [STORY-APPROVAL] N8N webhook success:', result);
 
     return new Response(
       JSON.stringify({ success: true, result }),
@@ -75,7 +80,7 @@ Deno.serve(async (req) => {
     );
 
   } catch (error: any) {
-    console.error('Error in notify-story-approval:', error);
+    console.error('❌ [STORY-APPROVAL] Unexpected error in notify-story-approval:', error);
     return new Response(
       JSON.stringify({ error: error.message }),
       { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 500 }

@@ -12,14 +12,15 @@ serve(async (req) => {
   }
 
   try {
-    console.log('Callback webhook triggered');
+    console.log('📥 [CALLBACK] Webhook triggered at', new Date().toISOString());
 
     const payload = await req.json();
-    console.log('Callback payload:', JSON.stringify(payload, null, 2));
+    console.log('📋 [CALLBACK] Received payload:', JSON.stringify(payload, null, 2));
 
     const { post_id, status, selected_template, caption_edited, hashtags_edited, notes } = payload;
 
     if (!post_id || !status) {
+      console.error('❌ [CALLBACK] Missing required fields:', { post_id, status });
       return new Response(
         JSON.stringify({ error: 'Missing required fields: post_id, status' }),
         { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
@@ -37,7 +38,10 @@ serve(async (req) => {
       Deno.env.get('SUPABASE_ANON_KEY');
 
     if (!supabaseUrl || !serviceRoleKey) {
-      console.error('Missing Supabase configuration (url or key)');
+      console.error('❌ [CALLBACK] Missing Supabase configuration:', { 
+        hasUrl: !!supabaseUrl, 
+        hasKey: !!serviceRoleKey 
+      });
       return new Response(
         JSON.stringify({ error: 'Server configuration error: missing Supabase URL or Key' }),
         { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
@@ -46,7 +50,8 @@ serve(async (req) => {
 
     const supabase = createClient(supabaseUrl, serviceRoleKey);
     const usingServiceRole = !!(Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') || Deno.env.get('SERVICE_ROLE_KEY'));
-    console.log('Supabase client initialized. Key type:', usingServiceRole ? 'service_role' : 'anon/publishable');
+    console.log('✅ [CALLBACK] Supabase client initialized. Key type:', usingServiceRole ? 'service_role' : 'anon/publishable');
+    console.log('🔑 [CALLBACK] Using key starting with:', serviceRoleKey.substring(0, 20) + '...');
     // Get post data before updating
     const { data: post, error: fetchError } = await supabase
       .from('posts')
@@ -55,12 +60,14 @@ serve(async (req) => {
       .single();
 
     if (fetchError || !post) {
-      console.error('Post not found:', fetchError);
+      console.error('❌ [CALLBACK] Post not found:', { post_id, error: fetchError });
       return new Response(
         JSON.stringify({ error: 'Post not found' }),
         { status: 404, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
+    
+    console.log('✅ [CALLBACK] Post found:', { id: post.id, workflow_id: post.workflow_id, current_status: post.status });
 
     // Update post status
     const { error: updateError } = await supabase
@@ -76,18 +83,20 @@ serve(async (req) => {
       .eq('id', post_id);
 
     if (updateError) {
-      console.error('Failed to update post:', updateError);
+      console.error('❌ [CALLBACK] Failed to update post:', updateError);
       return new Response(
         JSON.stringify({ error: 'Failed to update post', details: updateError.message }),
         { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
+    
+    console.log('✅ [CALLBACK] Post updated successfully:', { post_id, new_status: status });
 
     // Send callback to n8n
     const callbackUrl = Deno.env.get('N8N_CALLBACK_WEBHOOK_URL');
     
     if (callbackUrl) {
-      console.log('Sending callback to n8n:', callbackUrl);
+      console.log('📤 [CALLBACK] Sending callback to n8n:', callbackUrl);
       
       const isTemplateA = selected_template === 'A' || selected_template === 'template_a' || selected_template === 'a';
       const callbackPayload = {
@@ -113,12 +122,18 @@ serve(async (req) => {
 
       const respText = await n8nResponse.text();
       if (!n8nResponse.ok) {
-        console.error('Failed to send callback to n8n:', n8nResponse.status, respText);
+        console.error('❌ [CALLBACK] Failed to send callback to n8n:', { 
+          status: n8nResponse.status, 
+          response: respText 
+        });
       } else {
-        console.log('Callback sent successfully to n8n. Status:', n8nResponse.status, 'Body:', respText);
+        console.log('✅ [CALLBACK] Callback sent successfully to n8n:', { 
+          status: n8nResponse.status, 
+          response: respText 
+        });
       }
     } else {
-      console.warn('N8N_CALLBACK_WEBHOOK_URL not configured');
+      console.warn('⚠️ [CALLBACK] N8N_CALLBACK_WEBHOOK_URL not configured - skipping n8n notification');
     }
 
     return new Response(
@@ -127,7 +142,7 @@ serve(async (req) => {
     );
 
   } catch (error) {
-    console.error('Error in callback webhook:', error);
+    console.error('❌ [CALLBACK] Unexpected error in callback webhook:', error);
     const errorMessage = error instanceof Error ? error.message : 'Unknown error';
     return new Response(
       JSON.stringify({ error: errorMessage }),
