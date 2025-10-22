@@ -13,6 +13,9 @@ import { toast } from 'sonner';
 import {
   Dialog,
   DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogDescription,
 } from '@/components/ui/dialog';
 
 const ReviewStory = () => {
@@ -224,7 +227,11 @@ const ReviewStory = () => {
       />
 
       <Dialog open={zoomImage} onOpenChange={setZoomImage}>
-        <DialogContent className="max-w-[95vw] max-h-[95vh] p-2 sm:p-4">
+        <DialogContent className="max-w-[95vw] max-h-[95vh] p-2 sm:p-4 bg-background z-[60]">
+          <DialogHeader className="sr-only">
+            <DialogTitle>Visualizar story</DialogTitle>
+            <DialogDescription>Ampliação da imagem do story</DialogDescription>
+          </DialogHeader>
           <div className="flex items-center justify-center w-full h-full">
             <img
               src={story.story_image_url}
