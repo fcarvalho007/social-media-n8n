@@ -84,16 +84,31 @@ export const CarouselPreview = ({ images, template, onSelect, isSelected, onRemo
   const handleDownloadAll = async () => {
     for (let i = 0; i < images.length; i++) {
       const image = images[i];
-      const link = document.createElement('a');
-      link.href = image;
-      link.download = `template_${template}_slide_${i + 1}.jpg`;
-      document.body.appendChild(link);
-      link.click();
-      document.body.removeChild(link);
-      
-      // Small delay between downloads
-      if (i < images.length - 1) {
-        await new Promise(resolve => setTimeout(resolve, 300));
+      try {
+        // Fetch the image as blob
+        const response = await fetch(image);
+        const blob = await response.blob();
+        
+        // Create blob URL
+        const blobUrl = window.URL.createObjectURL(blob);
+        
+        // Create download link
+        const link = document.createElement('a');
+        link.href = blobUrl;
+        link.download = `template_${template}_slide_${i + 1}.jpg`;
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+        
+        // Clean up blob URL
+        window.URL.revokeObjectURL(blobUrl);
+        
+        // Delay between downloads to prevent browser blocking
+        if (i < images.length - 1) {
+          await new Promise(resolve => setTimeout(resolve, 500));
+        }
+      } catch (error) {
+        console.error(`Erro ao baixar imagem ${i + 1}:`, error);
       }
     }
   };
