@@ -15,7 +15,7 @@ const Auth = () => {
 
   useEffect(() => {
     if (user) {
-      navigate('/pending');
+      navigate('/');
     }
   }, [user, navigate]);
 

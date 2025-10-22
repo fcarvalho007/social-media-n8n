@@ -9,7 +9,6 @@ import { ProtectedRoute } from "@/components/ProtectedRoute";
 import { ErrorBoundary } from "@/components/ErrorBoundary";
 
 import Auth from "./pages/Auth";
-import Dashboard from "./pages/Dashboard";
 import Pending from "./pages/Pending";
 import Review from "./pages/Review";
 import ReviewStory from "./pages/ReviewStory";
@@ -32,7 +31,7 @@ const App = () => (
                 path="/"
                 element={
                   <ProtectedRoute>
-                    <Dashboard />
+                    <Pending />
                   </ProtectedRoute>
                 }
               />

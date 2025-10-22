@@ -33,18 +33,20 @@ import { Badge } from '@/components/ui/badge';
 const menuItems = [
   {
     title: 'Aprovação',
-    label: 'Approve',
+    label: 'Aprovar',
     icon: CheckCircle2,
-    url: '/pending',
+    url: '/',
     showBadge: true,
     disabled: false,
+    isMain: true,
   },
   {
     title: 'Criação',
-    label: 'Create',
+    label: 'Criar',
     icon: PlusCircle,
-    url: '/pending?tab=create',
+    url: '/?tab=create',
     disabled: false,
+    isMain: false,
   },
 ];
 
@@ -71,8 +73,8 @@ export function AppSidebar() {
       
       <Sidebar 
         className={cn(
-          "w-24 border-none transition-all duration-300",
-          "fixed lg:sticky inset-y-0 left-0 z-50 lg:z-auto",
+          "w-28 border-none transition-all duration-300",
+          "fixed lg:sticky inset-y-0 left-0 z-50 lg:z-auto rounded-l-lg",
           open ? "translate-x-0" : "-translate-x-full lg:translate-x-0"
         )}
         style={{
@@ -104,8 +106,8 @@ export function AppSidebar() {
                     >
                       {item.disabled ? (
                         <div className="flex flex-col items-center gap-2 mx-auto opacity-30 cursor-not-allowed">
-                          <div className="flex h-14 w-14 items-center justify-center rounded-xl relative">
-                            <item.icon className="h-6 w-6 text-[#B2B7C8]" strokeWidth={1.5} />
+                          <div className="flex h-14 w-14 items-center justify-center rounded-full relative">
+                            <item.icon className="h-6 w-6 text-[#6B7280]" strokeWidth={1.5} />
                           </div>
                           <span className="text-xs text-[#6B7280] font-medium">{item.label}</span>
                         </div>
@@ -119,21 +121,14 @@ export function AppSidebar() {
                             <>
                               <div
                                 className={cn(
-                                  'flex h-14 w-14 items-center justify-center rounded-xl relative',
+                                  'flex h-[60px] w-[60px] items-center justify-center rounded-full relative',
                                   'transition-all duration-200 ease-in-out',
-                                  'focus:outline-none focus:ring-2 focus:ring-[#4169A0]/30',
-                                  isActive
-                                    ? 'text-white'
-                                    : 'text-[#B2B7C8] group-hover:text-[#4169A0]'
+                                  isActive && item.isMain
+                                    ? 'bg-[#4169A0] text-white shadow-md'
+                                    : isActive && !item.isMain
+                                    ? 'bg-[#E3E8FA] text-[#1E3A8A]'
+                                    : 'text-[#6B7280] group-hover:bg-[#4169A0]/15'
                                 )}
-                                style={
-                                  isActive
-                                    ? {
-                                        background: '#4169A0',
-                                        boxShadow: '0 0 0 10px rgba(65, 105, 160, 0.15), 0 4px 12px rgba(65, 105, 160, 0.3)'
-                                      }
-                                    : {}
-                                }
                                 onMouseEnter={(e) => {
                                   if (!isActive) {
                                     e.currentTarget.style.background = 'rgba(65, 105, 160, 0.15)';
@@ -151,7 +146,7 @@ export function AppSidebar() {
                                 />
                                 {item.showBadge && notificationCount > 0 && (
                                   <Badge 
-                                    className="absolute -top-1 -right-1 h-5 w-5 rounded-full p-0 flex items-center justify-center text-[10px] bg-[#BC2139] border-2 border-[#E0E3EC] shadow-sm"
+                                    className="absolute -top-1 -right-1 h-5 w-5 rounded-full p-0 flex items-center justify-center text-[10px] font-bold bg-[#EF4444] text-white border-2 border-[#E0E3EC] shadow-sm"
                                   >
                                     {notificationCount}
                                   </Badge>
@@ -162,6 +157,7 @@ export function AppSidebar() {
                                   "text-xs font-medium transition-colors duration-200",
                                   isActive ? "text-[#4169A0]" : "text-[#6B7280] group-hover:text-[#4169A0]"
                                 )}
+                                style={{ fontFamily: 'Inter, sans-serif', fontWeight: 500 }}
                               >
                                 {item.label}
                               </span>
@@ -185,10 +181,10 @@ export function AppSidebar() {
               <DropdownMenuTrigger asChild>
                 <Button
                   variant="ghost"
-                  className="h-14 w-14 rounded-xl p-0 transition-all duration-200 ease-in-out focus:outline-none focus:ring-2 focus:ring-[#4169A0]/30 hover:bg-transparent group"
+                  className="h-auto p-0 transition-all duration-200 ease-in-out hover:bg-transparent group flex flex-col items-center gap-2"
                 >
-                  <div className="flex flex-col items-center gap-2">
-                    <Avatar className="h-11 w-11 transition-all duration-200 group-hover:ring-2 group-hover:ring-[#4169A0]/30">
+                  <div className="flex h-[60px] w-[60px] items-center justify-center rounded-full transition-all duration-200 bg-transparent group-hover:shadow-[0_0_12px_rgba(65,105,160,0.3)]">
+                    <Avatar className="h-12 w-12 transition-all duration-200">
                       <AvatarFallback 
                         className="font-semibold text-base text-white"
                         style={{
@@ -199,10 +195,13 @@ export function AppSidebar() {
                         {user?.email?.charAt(0).toUpperCase() || 'A'}
                       </AvatarFallback>
                     </Avatar>
-                    <span className="text-xs text-[#6B7280] font-medium group-hover:text-[#4169A0] transition-colors">
-                      Account
-                    </span>
                   </div>
+                  <span 
+                    className="text-xs text-[#6B7280] font-medium group-hover:text-[#4169A0] transition-colors"
+                    style={{ fontFamily: 'Inter, sans-serif', fontWeight: 500 }}
+                  >
+                    Conta
+                  </span>
                 </Button>
               </DropdownMenuTrigger>
               <DropdownMenuContent 

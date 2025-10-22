@@ -52,7 +52,7 @@ const Review = () => {
     } catch (error) {
       console.error('Erro ao carregar publicação:', error);
       toast.error('Falha ao carregar publicação');
-      navigate('/pending');
+      navigate('/');
     } finally {
       setLoading(false);
     }
@@ -131,7 +131,7 @@ const Review = () => {
       }
       
       toast.success('Publicação aprovada com sucesso!');
-      navigate('/pending');
+      navigate('/');
     } catch (error) {
       console.error('Erro ao aprovar:', error);
       toast.error('Falha ao aprovar publicação');
@@ -180,7 +180,7 @@ const Review = () => {
       }
       
       toast.success('Publicação rejeitada');
-      navigate('/pending');
+      navigate('/');
     } catch (error) {
       console.error('Erro ao rejeitar:', error);
       toast.error('Falha ao rejeitar publicação');
@@ -264,7 +264,7 @@ const Review = () => {
       <main className="container py-4 sm:py-8 px-3 sm:px-4">
         <Button
           variant="ghost"
-          onClick={() => navigate('/pending')}
+          onClick={() => navigate('/')}
           className="mb-4 sm:mb-6 -ml-2 sm:ml-0"
           size="sm"
         >

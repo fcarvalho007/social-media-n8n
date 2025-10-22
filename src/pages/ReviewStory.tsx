@@ -49,7 +49,7 @@ const ReviewStory = () => {
     } catch (error) {
       console.error('Erro ao carregar story:', error);
       toast.error('Falha ao carregar story');
-      navigate('/pending');
+      navigate('/');
     } finally {
       setLoading(false);
     }
@@ -113,7 +113,7 @@ const ReviewStory = () => {
       }
       
       toast.success('Story aprovado com sucesso!');
-      navigate('/pending');
+      navigate('/');
     } catch (error) {
       console.error('Erro ao aprovar:', error);
       toast.error('Falha ao aprovar story');
@@ -137,7 +137,7 @@ const ReviewStory = () => {
       if (error) throw error;
 
       toast.success('Story rejeitado');
-      navigate('/pending');
+      navigate('/');
     } catch (error) {
       console.error('Erro ao rejeitar:', error);
       toast.error('Falha ao rejeitar story');
@@ -164,7 +164,7 @@ const ReviewStory = () => {
       <main className="container py-4 sm:py-8 px-3 sm:px-4">
         <Button
           variant="ghost"
-          onClick={() => navigate('/pending')}
+          onClick={() => navigate('/')}
           className="mb-4 sm:mb-6 -ml-2 sm:ml-0"
           size="sm"
         >

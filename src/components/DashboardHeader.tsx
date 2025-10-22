@@ -12,16 +12,10 @@ export function DashboardHeader() {
   const activeTab = searchParams.get('tab');
 
   const getBreadcrumbs = () => {
-    if (location.pathname === '/') {
-      return [
-        { label: 'Dashboard', path: '/' },
-        { label: 'Visão Geral', path: null },
-      ];
-    }
-    if (location.pathname === '/pending') {
+    if (location.pathname === '/' || location.pathname === '/pending') {
       if (activeTab === 'create') {
         return [
-          { label: 'Painel de Conteúdo', path: '/pending' },
+          { label: 'Painel de Conteúdo', path: '/' },
           { label: 'Criação', path: null },
         ];
       }
@@ -31,13 +25,12 @@ export function DashboardHeader() {
     }
     if (location.pathname.startsWith('/review')) {
       return [
-        { label: 'Painel de Conteúdo', path: '/pending' },
+        { label: 'Painel de Conteúdo', path: '/' },
         { label: 'Revisão', path: null },
       ];
     }
     return [
-      { label: 'Dashboard', path: '/' },
-      { label: 'Conteúdo', path: null },
+      { label: 'Painel de Conteúdo', path: null },
     ];
   };
 

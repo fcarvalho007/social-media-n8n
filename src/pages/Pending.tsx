@@ -221,7 +221,7 @@ const Pending = () => {
                     size="lg"
                     variant="outline"
                     className="flex-1 h-12 sm:h-14 text-sm sm:text-base font-bold border-2 border-[#4169A0] text-[#4169A0] hover:bg-[#4169A0]/5 hover:shadow-md transition-all duration-200 hover:scale-[1.02] active:scale-[0.98]"
-                    onClick={() => navigate('/pending?tab=create')}
+                    onClick={() => navigate('/?tab=create')}
                   >
                     <span className="mr-2 text-lg sm:text-xl">➕</span>
                     Criar Novo
