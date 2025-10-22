@@ -26,7 +26,13 @@ export default {
           DEFAULT: "hsl(var(--primary))",
           hover: "hsl(var(--primary-hover))",
           foreground: "hsl(var(--primary-foreground))",
+          light: "hsl(var(--primary-light))",
         },
+        'iconosquare-blue': "hsl(var(--iconosquare-blue))",
+        'iconosquare-bg': "hsl(var(--iconosquare-bg))",
+        'iconosquare-inactive': "hsl(var(--iconosquare-inactive))",
+        'iconosquare-alert': "hsl(var(--iconosquare-alert))",
+        'iconosquare-accent': "hsl(var(--iconosquare-accent))",
         secondary: {
           DEFAULT: "hsl(var(--secondary))",
           foreground: "hsl(var(--secondary-foreground))",

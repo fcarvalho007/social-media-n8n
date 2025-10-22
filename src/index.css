@@ -26,6 +26,14 @@ All colors MUST be HSL.
     --primary: 217 91% 60%;
     --primary-hover: 217 91% 55%;
     --primary-foreground: 0 0% 100%;
+    --primary-light: 217 91% 92%;
+    
+    /* Iconosquare specific colors */
+    --iconosquare-blue: 210 42% 44%; /* #4169A0 */
+    --iconosquare-bg: 225 25% 91%; /* #E0E3EC */
+    --iconosquare-inactive: 225 17% 72%; /* #B2B7C8 */
+    --iconosquare-alert: 349 70% 44%; /* #BC2139 */
+    --iconosquare-accent: 37 89% 51%; /* #F29F14 */
 
     /* Secondary - Subtle purple accent */
     --secondary: 250 60% 95%;
@@ -91,6 +99,14 @@ All colors MUST be HSL.
     --primary: 217 91% 60%;
     --primary-hover: 217 91% 65%;
     --primary-foreground: 0 0% 100%;
+    --primary-light: 217 91% 30%;
+    
+    /* Iconosquare colors for dark mode */
+    --iconosquare-blue: 210 42% 55%; /* Lighter for dark mode */
+    --iconosquare-bg: 225 15% 20%; /* Dark version */
+    --iconosquare-inactive: 225 10% 50%; /* Muted for dark */
+    --iconosquare-alert: 349 70% 55%; /* Lighter red for dark */
+    --iconosquare-accent: 37 89% 60%; /* Lighter orange for dark */
 
     --secondary: 217 33% 18%;
     --secondary-foreground: 210 40% 98%;
@@ -190,6 +206,13 @@ All colors MUST be HSL.
   /* Glow effects */
   .glow-primary {
     box-shadow: 0 0 24px hsla(var(--primary), 0.4), 0 4px 12px hsla(var(--primary), 0.2);
+  }
+  
+  .glow-iconosquare {
+    box-shadow: 
+      0 0 16px hsla(var(--iconosquare-blue), 0.25),
+      0 0 32px hsla(var(--iconosquare-blue), 0.15),
+      0 0 48px hsla(var(--iconosquare-blue), 0.08);
   }
   
   .glow-success {
