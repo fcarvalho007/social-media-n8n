@@ -5,13 +5,16 @@ import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
+  DropdownMenuLabel,
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
-import { LogOut, Instagram, Menu, Settings, HelpCircle } from 'lucide-react';
+import { LogOut, Instagram, Menu, Sun, Moon } from 'lucide-react';
+import { useTheme } from 'next-themes';
 
 export const Header = () => {
   const { user, signOut } = useAuth();
+  const { theme, setTheme } = useTheme();
 
   return (
     <header className="sticky top-0 z-50 w-full border-b border-border bg-card/95 backdrop-blur supports-[backdrop-filter]:bg-card/60">
@@ -43,13 +46,24 @@ export const Header = () => {
                 </div>
               </div>
               <DropdownMenuSeparator />
-              <DropdownMenuItem className="cursor-pointer">
-                <Settings className="mr-2 h-4 w-4" />
-                Configurações
+              <DropdownMenuLabel className="text-xs font-semibold text-muted-foreground">
+                Tema
+              </DropdownMenuLabel>
+              <DropdownMenuItem 
+                onClick={() => setTheme('light')}
+                className="cursor-pointer"
+              >
+                <Sun className="mr-2 h-4 w-4" />
+                Claro
+                {theme === 'light' && <span className="ml-auto text-xs">✓</span>}
               </DropdownMenuItem>
-              <DropdownMenuItem className="cursor-pointer">
-                <HelpCircle className="mr-2 h-4 w-4" />
-                Ajuda
+              <DropdownMenuItem 
+                onClick={() => setTheme('dark')}
+                className="cursor-pointer"
+              >
+                <Moon className="mr-2 h-4 w-4" />
+                Escuro
+                {theme === 'dark' && <span className="ml-auto text-xs">✓</span>}
               </DropdownMenuItem>
               <DropdownMenuSeparator />
               <DropdownMenuItem onClick={signOut} className="cursor-pointer text-destructive focus:text-destructive">

@@ -23,8 +23,18 @@
     <meta property="og:title" content="Instagram Content Approval Dashboard">
   <meta name="twitter:title" content="Instagram Content Approval Dashboard">
   <meta property="og:description" content="Review and approve Instagram carousel posts with ease">
-  <meta name="twitter:description" content="Review and approve Instagram carousel posts with ease">
-</head>
+    <meta name="twitter:description" content="Review and approve Instagram carousel posts with ease">
+    
+    <!-- Prevent theme flash on page load -->
+    <script>
+      try {
+        const theme = localStorage.getItem('theme') || 'system';
+        if (theme === 'dark' || (theme === 'system' && window.matchMedia('(prefers-color-scheme: dark)').matches)) {
+          document.documentElement.classList.add('dark');
+        }
+      } catch (e) {}
+    </script>
+  </head>
 
   <body>
     <div id="root"></div>
