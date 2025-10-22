@@ -77,7 +77,7 @@ export const CarouselPreview = ({ images, template, onSelect, isSelected, onRemo
     B: { 
       badge: 'bg-[#ff4500] text-white border border-[#ff6347]/50 shadow-[0_0_15px_rgba(255,69,0,0.5)]', 
       gradient: 'from-[#ff4500] to-[#ff6347]',
-      description: 'Red tech',
+      description: 'Purple tech',
       glow: 'shadow-[0_0_30px_rgba(255,99,71,0.8)]',
       ring: 'ring-[#ff6347]'
     },
