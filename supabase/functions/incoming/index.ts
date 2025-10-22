@@ -14,30 +14,38 @@ serve(async (req) => {
   try {
     console.log('Incoming webhook received');
 
-    // Validate webhook secret
+    // Validate webhook secret (priority authentication)
     const webhookSecret = req.headers.get('x-webhook-secret');
     const expectedSecret = Deno.env.get('N8N_WEBHOOK_SECRET');
     
-    if (!webhookSecret || webhookSecret !== expectedSecret) {
+    // Parse payload once
+    const payload = await req.json();
+    console.log('Payload received:', JSON.stringify(payload, null, 2));
+    
+    // Authentication logic
+    if (webhookSecret && webhookSecret === expectedSecret) {
+      // Webhook secret is valid - skip email validation
+      console.log('✅ Authenticated via webhook secret');
+    } else if (!webhookSecret) {
+      // No webhook secret provided - validate email
+      console.log('No webhook secret - validating email');
+      
+      const allowedEmailsStr = Deno.env.get('ALLOWED_EMAILS');
+      const allowedEmails = allowedEmailsStr ? allowedEmailsStr.split(',').map(e => e.trim()) : [];
+      
+      if (payload.source && !allowedEmails.includes(payload.source)) {
+        console.error('Email not allowed:', payload.source);
+        return new Response(
+          JSON.stringify({ error: 'Email not authorized' }),
+          { status: 403, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        );
+      }
+    } else {
+      // Webhook secret provided but invalid
       console.error('Invalid webhook secret');
       return new Response(
         JSON.stringify({ error: 'Unauthorized' }),
         { status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-      );
-    }
-
-    const payload = await req.json();
-    console.log('Payload received:', JSON.stringify(payload, null, 2));
-
-    // Validate allowed email
-    const allowedEmailsStr = Deno.env.get('ALLOWED_EMAILS');
-    const allowedEmails = allowedEmailsStr ? allowedEmailsStr.split(',').map(e => e.trim()) : [];
-    
-    if (payload.source && !allowedEmails.includes(payload.source)) {
-      console.error('Email not allowed:', payload.source);
-      return new Response(
-        JSON.stringify({ error: 'Email not authorized' }),
-        { status: 403, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
 
