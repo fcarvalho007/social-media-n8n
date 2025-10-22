@@ -5,7 +5,7 @@ import type { Swiper as SwiperType } from 'swiper';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { cn } from '@/lib/utils';
-import { X, ZoomIn, ChevronLeft, ChevronRight, Trash2 } from 'lucide-react';
+import { X, ZoomIn, ChevronLeft, ChevronRight, Trash2, Keyboard } from 'lucide-react';
 import {
   AlertDialog,
   AlertDialogAction,
@@ -20,6 +20,12 @@ import {
   Dialog,
   DialogContent,
 } from '@/components/ui/dialog';
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
 
 import 'swiper/css';
 import 'swiper/css/navigation';
@@ -191,88 +197,129 @@ export const CarouselPreview = ({ images, template, onSelect, isSelected, onRemo
       </AlertDialog>
 
       {/* Zoom Dialog with Navigation */}
-      <Dialog open={zoomImageIndex !== null} onOpenChange={() => {
-        setZoomImageIndex(null);
-        setZoomSwiper(null);
-      }}>
-        <DialogContent className="max-w-[95vw] max-h-[95vh] p-0 bg-black/95 border-none">
-          {zoomImageIndex !== null && (
-            <div className="relative w-full h-[95vh]">
-              {/* Header with counter and close button */}
-              <div className="absolute top-4 left-0 right-0 z-50 flex items-center justify-between px-6">
-                <Badge className={cn(
-                  templateColors[template].badge, 
-                  "text-sm font-bold backdrop-blur-sm"
-                )}>
-                  Template {template} - Slide {(zoomSwiper?.activeIndex ?? zoomImageIndex) + 1}/{images.length}
-                </Badge>
-                
-                {onRemoveSlide && (
-                  <Button
-                    size="sm"
-                    variant="destructive"
-                    className="gap-2 backdrop-blur-sm"
-                    onClick={() => {
-                      const currentIndex = zoomSwiper?.activeIndex ?? zoomImageIndex;
-                      setSlideToRemove(currentIndex);
-                      setZoomImageIndex(null);
-                    }}
-                  >
-                    <Trash2 className="h-4 w-4" />
-                    Eliminar Slide
-                  </Button>
-                )}
-              </div>
-
-              {/* Carousel */}
-              <Swiper
-                modules={[Navigation]}
-                navigation={{
-                  prevEl: '.zoom-swiper-button-prev',
-                  nextEl: '.zoom-swiper-button-next',
-                }}
-                initialSlide={zoomImageIndex}
-                onSwiper={setZoomSwiper}
-                className="w-full h-full"
-              >
-                {images.map((image, index) => (
-                  <SwiperSlide key={index}>
-                    <div className="flex items-center justify-center w-full h-full p-12">
-                      <img
-                        src={image}
-                        alt={`Slide ${index + 1} - Zoom`}
-                        className="max-w-full max-h-full object-contain"
-                      />
+      <TooltipProvider>
+        <Dialog open={zoomImageIndex !== null} onOpenChange={() => {
+          setZoomImageIndex(null);
+          setZoomSwiper(null);
+        }}>
+          <DialogContent className="max-w-[98vw] max-h-[98vh] p-0 bg-black/98 border-none overflow-hidden">
+            {zoomImageIndex !== null && (
+              <div className="relative w-full h-[98vh]">
+                {/* Header with counter, delete and close */}
+                <div className="absolute top-6 left-0 right-0 z-50 flex items-center justify-between px-8">
+                  <div className="flex items-center gap-4">
+                    <Badge className={cn(
+                      templateColors[template].badge, 
+                      "text-base font-bold backdrop-blur-md px-4 py-2 shadow-xl"
+                    )}>
+                      Template {template}
+                    </Badge>
+                    <div className="bg-white/10 backdrop-blur-md px-4 py-2 rounded-lg border border-white/20 shadow-xl">
+                      <span className="text-white font-semibold text-base">
+                        {(zoomSwiper?.activeIndex ?? zoomImageIndex) + 1} / {images.length}
+                      </span>
                     </div>
-                  </SwiperSlide>
-                ))}
-              </Swiper>
+                  </div>
+                  
+                  {onRemoveSlide && images.length > 1 && (
+                    <Tooltip>
+                      <TooltipTrigger asChild>
+                        <Button
+                          size="lg"
+                          variant="destructive"
+                          className="gap-3 backdrop-blur-md shadow-xl hover:scale-105 transition-transform font-semibold text-base h-12 px-6"
+                          onClick={() => {
+                            const currentIndex = zoomSwiper?.activeIndex ?? zoomImageIndex;
+                            setSlideToRemove(currentIndex);
+                            setZoomImageIndex(null);
+                          }}
+                        >
+                          <Trash2 className="h-5 w-5" />
+                          Eliminar
+                        </Button>
+                      </TooltipTrigger>
+                      <TooltipContent side="bottom">
+                        <p>Eliminar slide atual do carrossel</p>
+                      </TooltipContent>
+                    </Tooltip>
+                  )}
+                </div>
 
-              {/* Navigation Buttons */}
-              <button
-                className="zoom-swiper-button-prev absolute left-4 top-1/2 -translate-y-1/2 z-50 w-12 h-12 rounded-full bg-white/10 backdrop-blur-sm hover:bg-white/20 border border-white/20 flex items-center justify-center transition-all disabled:opacity-30 disabled:cursor-not-allowed"
-                aria-label="Previous slide"
-              >
-                <ChevronLeft className="h-6 w-6 text-white" />
-              </button>
-              
-              <button
-                className="zoom-swiper-button-next absolute right-4 top-1/2 -translate-y-1/2 z-50 w-12 h-12 rounded-full bg-white/10 backdrop-blur-sm hover:bg-white/20 border border-white/20 flex items-center justify-center transition-all disabled:opacity-30 disabled:cursor-not-allowed"
-                aria-label="Next slide"
-              >
-                <ChevronRight className="h-6 w-6 text-white" />
-              </button>
+                {/* Carousel */}
+                <Swiper
+                  modules={[Navigation]}
+                  navigation={{
+                    prevEl: '.zoom-swiper-button-prev',
+                    nextEl: '.zoom-swiper-button-next',
+                  }}
+                  initialSlide={zoomImageIndex}
+                  onSwiper={setZoomSwiper}
+                  keyboard={{ enabled: true }}
+                  className="w-full h-full"
+                >
+                  {images.map((image, index) => (
+                    <SwiperSlide key={index}>
+                      <div className="flex items-center justify-center w-full h-full p-20">
+                        <img
+                          src={image}
+                          alt={`Slide ${index + 1} - Zoom`}
+                          className="max-w-full max-h-full object-contain rounded-lg shadow-2xl"
+                        />
+                      </div>
+                    </SwiperSlide>
+                  ))}
+                </Swiper>
 
-              {/* Instructions */}
-              <div className="absolute bottom-6 left-1/2 -translate-x-1/2 z-50">
-                <div className="bg-black/50 backdrop-blur-sm px-4 py-2 rounded-full text-white/70 text-xs">
-                  Use as setas para navegar entre slides
+                {/* Navigation Buttons - Left */}
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <button
+                      className="zoom-swiper-button-prev absolute left-8 top-1/2 -translate-y-1/2 z-50 w-16 h-16 rounded-full bg-white/15 backdrop-blur-md hover:bg-white/25 hover:scale-110 border-2 border-white/30 flex items-center justify-center transition-all duration-200 disabled:opacity-20 disabled:cursor-not-allowed disabled:hover:scale-100 shadow-2xl group"
+                      aria-label="Slide anterior"
+                    >
+                      <ChevronLeft className="h-8 w-8 text-white group-hover:scale-110 transition-transform" />
+                    </button>
+                  </TooltipTrigger>
+                  <TooltipContent side="right">
+                    <p className="flex items-center gap-2">
+                      <Keyboard className="h-4 w-4" />
+                      Slide anterior (← ou A)
+                    </p>
+                  </TooltipContent>
+                </Tooltip>
+                
+                {/* Navigation Buttons - Right */}
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <button
+                      className="zoom-swiper-button-next absolute right-8 top-1/2 -translate-y-1/2 z-50 w-16 h-16 rounded-full bg-white/15 backdrop-blur-md hover:bg-white/25 hover:scale-110 border-2 border-white/30 flex items-center justify-center transition-all duration-200 disabled:opacity-20 disabled:cursor-not-allowed disabled:hover:scale-100 shadow-2xl group"
+                      aria-label="Próximo slide"
+                    >
+                      <ChevronRight className="h-8 w-8 text-white group-hover:scale-110 transition-transform" />
+                    </button>
+                  </TooltipTrigger>
+                  <TooltipContent side="left">
+                    <p className="flex items-center gap-2">
+                      <Keyboard className="h-4 w-4" />
+                      Próximo slide (→ ou D)
+                    </p>
+                  </TooltipContent>
+                </Tooltip>
+
+                {/* Instructions Footer */}
+                <div className="absolute bottom-8 left-1/2 -translate-x-1/2 z-50">
+                  <div className="bg-black/60 backdrop-blur-md px-6 py-3 rounded-full border border-white/20 shadow-xl">
+                    <div className="flex items-center gap-3 text-white/90 text-sm font-medium">
+                      <Keyboard className="h-4 w-4" />
+                      <span>Use as teclas de setas ou clique nos botões para navegar</span>
+                    </div>
+                  </div>
                 </div>
               </div>
-            </div>
-          )}
-        </DialogContent>
-      </Dialog>
+            )}
+          </DialogContent>
+        </Dialog>
+      </TooltipProvider>
     </div>
   );
 };
