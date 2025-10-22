@@ -187,10 +187,6 @@ const Pending = () => {
             /* Create Tab */
             <div className="animate-slide-up">
               <div className="bg-white rounded-2xl shadow-md p-8 border border-gray-100">
-                <h2 className="text-2xl font-bold mb-2">Criar Novo Conteúdo</h2>
-                <p className="text-[#6B7280] mb-6">
-                  Selecione o tipo de conteúdo que deseja criar
-                </p>
                 <ActionButtons />
               </div>
             </div>
