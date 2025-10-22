@@ -22,6 +22,7 @@ export type Database = {
           created_at: string | null
           hashtags: string[] | null
           hashtags_edited: string[] | null
+          hashtags_text: string | null
           id: string
           notes: string | null
           published_at: string | null
@@ -35,6 +36,7 @@ export type Database = {
           template_a_metadata: Json | null
           template_b_images: string[]
           template_b_metadata: Json | null
+          updated_at: string | null
           workflow_id: string
         }
         Insert: {
@@ -44,6 +46,7 @@ export type Database = {
           created_at?: string | null
           hashtags?: string[] | null
           hashtags_edited?: string[] | null
+          hashtags_text?: string | null
           id?: string
           notes?: string | null
           published_at?: string | null
@@ -57,6 +60,7 @@ export type Database = {
           template_a_metadata?: Json | null
           template_b_images: string[]
           template_b_metadata?: Json | null
+          updated_at?: string | null
           workflow_id: string
         }
         Update: {
@@ -66,6 +70,7 @@ export type Database = {
           created_at?: string | null
           hashtags?: string[] | null
           hashtags_edited?: string[] | null
+          hashtags_text?: string | null
           id?: string
           notes?: string | null
           published_at?: string | null
@@ -79,6 +84,7 @@ export type Database = {
           template_a_metadata?: Json | null
           template_b_images?: string[]
           template_b_metadata?: Json | null
+          updated_at?: string | null
           workflow_id?: string
         }
         Relationships: []
