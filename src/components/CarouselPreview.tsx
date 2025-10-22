@@ -89,14 +89,14 @@ export const CarouselPreview = ({ images, template, onSelect, isSelected, onRemo
       !isApproved && isSelected && "border-primary shadow-lg ring-2 ring-primary/20",
       !isApproved && !isSelected && "border-border"
     )}>
-      {/* Approved Badge - Large and Prominent */}
+      {/* Approved Badge */}
       {isThisTemplateApproved && (
-        <div className="absolute -top-3 left-1/2 -translate-x-1/2 z-20">
+        <div className="absolute -top-2 left-1/2 -translate-x-1/2 z-20">
           <Badge className={cn(
-            "px-4 py-2 text-sm sm:text-base font-bold flex items-center gap-2 animate-pulse",
+            "px-3 py-1 text-xs font-semibold",
             templateColors[template].badge
           )}>
-            ✓ APROVADO E SELECIONADO
+            ✓ Selecionado
           </Badge>
         </div>
       )}
@@ -196,18 +196,13 @@ export const CarouselPreview = ({ images, template, onSelect, isSelected, onRemo
 
       <Button
         onClick={onSelect}
-        disabled={isApproved}
         className={cn(
           "w-full h-12 sm:h-13 md:h-14 text-sm sm:text-base md:text-lg font-semibold touch-target",
-          isThisTemplateApproved && "bg-gradient-to-r from-green-600 to-green-500 text-white cursor-not-allowed",
-          isOtherTemplateApproved && "bg-muted text-muted-foreground cursor-not-allowed",
-          !isApproved && isSelected && "bg-primary",
-          !isApproved && !isSelected && `bg-gradient-to-r ${templateColors[template].gradient}`
+          isSelected && "bg-primary",
+          !isSelected && `bg-gradient-to-r ${templateColors[template].gradient}`
         )}
       >
-        {isThisTemplateApproved && '✓ TEMPLATE APROVADO'}
-        {isOtherTemplateApproved && 'Não Selecionado'}
-        {!isApproved && (isSelected ? '✓ Selecionado' : `Escolher Modelo ${template}`)}
+        {isSelected ? '✓ Selecionado' : `Escolher Modelo ${template}`}
       </Button>
 
       <AlertDialog open={slideToRemove !== null} onOpenChange={() => setSlideToRemove(null)}>

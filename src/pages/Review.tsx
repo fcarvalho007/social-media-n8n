@@ -289,53 +289,32 @@ const Review = () => {
           <DashboardHeader />
           
           <main className="flex-1 p-3 sm:p-4 md:p-6 lg:p-8 animate-fade-in overflow-auto bg-gradient-to-br from-white to-gray-50">
-        <Button
-          variant="ghost"
-          onClick={() => navigate('/')}
-          className="mb-3 sm:mb-4 md:mb-6 -ml-2 sm:ml-0 touch-target"
-          size="sm"
-        >
-          <ArrowLeft className="mr-1.5 sm:mr-2 h-3.5 w-3.5 sm:h-4 sm:w-4" />
-          <span className="text-xs sm:text-sm">Voltar ao Painel</span>
-        </Button>
+        <div className="flex items-center justify-between mb-3 sm:mb-4 md:mb-6">
+          <Button
+            variant="ghost"
+            onClick={() => navigate('/')}
+            className="-ml-2 sm:ml-0 touch-target"
+            size="sm"
+          >
+            <ArrowLeft className="mr-1.5 sm:mr-2 h-3.5 w-3.5 sm:h-4 sm:w-4" />
+            <span className="text-xs sm:text-sm">Voltar ao Painel</span>
+          </Button>
 
-        {/* Approval Status Banner */}
-        {isApproved && post.selected_template && (
-          <div className={cn(
-            "mb-4 sm:mb-6 p-4 sm:p-6 rounded-xl border-4 animate-fade-in flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3",
-            templateBadgeColors[post.selected_template as 'A' | 'B']
-          )}>
-            <div className="flex items-start sm:items-center gap-3">
-              <CheckCircle2 className="h-8 w-8 sm:h-10 sm:w-10 flex-shrink-0 mt-0.5 sm:mt-0" />
-              <div>
-                <h3 className="text-lg sm:text-xl md:text-2xl font-bold flex items-center gap-2 mb-1">
-                  ✓ PUBLICAÇÃO APROVADA
-                </h3>
-                <p className="text-sm sm:text-base opacity-90">
-                  Template {post.selected_template} foi selecionado
-                  {post.reviewed_at && (
-                    <span className="ml-2 text-xs opacity-75">
-                      • {formatDistanceToNow(new Date(post.reviewed_at), { addSuffix: true, locale: pt })}
-                    </span>
-                  )}
-                </p>
-              </div>
-            </div>
-            <Button
-              onClick={scrollToTemplates}
-              variant="secondary"
-              className="gap-2 bg-white/20 hover:bg-white/30 border-2 border-white/30 text-current shrink-0"
-            >
-              <Eye className="h-4 w-4" />
-              Ver Template
-            </Button>
-          </div>
-        )}
+          {/* Simple approval badge */}
+          {isApproved && post.selected_template && (
+            <Badge className={cn(
+              "text-xs sm:text-sm",
+              templateBadgeColors[post.selected_template as 'A' | 'B']
+            )}>
+              Template {post.selected_template} Selecionado
+            </Badge>
+          )}
+        </div>
 
         <div className="mb-3 sm:mb-4 md:mb-6">
           <h2 className="text-lg sm:text-xl md:text-2xl lg:text-3xl font-bold mb-1 sm:mb-2">{post.tema}</h2>
           <p className="text-xs sm:text-sm text-muted-foreground">
-            {isApproved ? 'Revisão da publicação aprovada' : 'Selecione o seu modelo preferido e reveja o conteúdo'}
+            Selecione o seu modelo preferido e reveja o conteúdo
           </p>
         </div>
 
@@ -414,14 +393,12 @@ const Review = () => {
         </div>
           </main>
 
-          {!isApproved && (
-            <ActionBar
-              canApprove={!!selectedTemplate}
-              onApprove={handleApprove}
-              onReject={handleReject}
-              onSave={handleSave}
-            />
-          )}
+          <ActionBar
+            canApprove={!!selectedTemplate}
+            onApprove={handleApprove}
+            onReject={handleReject}
+            onSave={handleSave}
+          />
         </div>
       </div>
     </SidebarProvider>
