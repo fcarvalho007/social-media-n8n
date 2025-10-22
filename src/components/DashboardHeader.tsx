@@ -1,6 +1,7 @@
 import { Menu, Bell, User } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { useSidebar } from '@/components/ui/sidebar';
+import { useLocation, useSearchParams } from 'react-router-dom';
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -15,6 +16,28 @@ import { useAuth } from '@/contexts/AuthContext';
 export function DashboardHeader() {
   const { setOpen } = useSidebar();
   const { user, signOut } = useAuth();
+  const location = useLocation();
+  const [searchParams] = useSearchParams();
+  
+  const activeTab = searchParams.get('tab');
+
+  const getBreadcrumbs = () => {
+    if (location.pathname === '/') {
+      return { section: 'Dashboard', page: 'Visão Geral' };
+    }
+    if (location.pathname === '/pending') {
+      if (activeTab === 'create') {
+        return { section: 'Painel de Conteúdo', page: 'Criação' };
+      }
+      return { section: 'Painel de Conteúdo', page: 'Aprovação' };
+    }
+    if (location.pathname.startsWith('/review')) {
+      return { section: 'Painel de Conteúdo', page: 'Revisão' };
+    }
+    return { section: 'Dashboard', page: 'Conteúdo' };
+  };
+
+  const breadcrumbs = getBreadcrumbs();
 
   const handleLogout = async () => {
     await signOut();
@@ -35,9 +58,9 @@ export function DashboardHeader() {
           </Button>
 
           <div className="hidden sm:flex items-center gap-2 text-sm">
-            <span className="text-muted-foreground">Dashboard</span>
+            <span className="text-muted-foreground">{breadcrumbs.section}</span>
             <span className="text-muted-foreground">/</span>
-            <span className="font-semibold text-foreground">Conteúdo</span>
+            <span className="font-semibold text-foreground">{breadcrumbs.page}</span>
           </div>
         </div>
 
