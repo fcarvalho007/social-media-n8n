@@ -43,16 +43,16 @@ export const StoryCard = ({ story, onClick, onDelete }: StoryCardProps) => {
   return (
     <Card 
       className={cn(
-        "group cursor-pointer transition-all hover:shadow-lg hover:scale-[1.02] duration-200"
+        "group cursor-pointer transition-all duration-300 hover:shadow-2xl hover:scale-[1.02] overflow-hidden rounded-2xl border-2 bg-card hover:bg-card-hover animate-fade-in"
       )}
       onClick={onClick}
     >
-      <CardContent className="p-4 sm:p-5">
+      <CardContent className="p-5">
         {/* Status Badge */}
-        <div className="mb-2 sm:mb-3 flex items-center gap-2">
+        <div className="mb-3 flex items-center gap-2">
           <Badge 
             className={cn(
-              "text-[10px] sm:text-xs px-1.5 sm:px-2",
+              "text-xs px-2.5 py-1 font-medium rounded-lg",
               statusColors[story.status as keyof typeof statusColors] || statusColors.pending
             )}
           >
@@ -61,7 +61,7 @@ export const StoryCard = ({ story, onClick, onDelete }: StoryCardProps) => {
         </div>
 
         {/* Story Image - Responsive sizing */}
-        <div className="relative aspect-[9/16] bg-muted rounded-lg overflow-hidden mb-3 sm:mb-4 mx-auto max-w-[90%] sm:max-w-[70%] md:max-w-[60%]">
+        <div className="relative aspect-[9/16] bg-muted rounded-xl overflow-hidden mb-4 mx-auto max-w-[85%] shadow-lg">
           {imageLoading && (
             <div className="absolute inset-0 flex items-center justify-center bg-muted/50 z-10">
               <Loader2 className="h-8 w-8 animate-spin text-primary" />
@@ -71,7 +71,7 @@ export const StoryCard = ({ story, onClick, onDelete }: StoryCardProps) => {
             src={getOptimizedImageUrl(story.story_image_url, 600, 75)}
             alt={story.tema || 'Story'}
             className={cn(
-              "w-full h-full object-contain transition-all duration-300 group-hover:scale-110",
+              "w-full h-full object-contain transition-all duration-500 group-hover:scale-110 group-hover:brightness-110",
               imageLoading && "opacity-0"
             )}
             onLoad={() => setImageLoading(false)}
@@ -81,25 +81,16 @@ export const StoryCard = ({ story, onClick, onDelete }: StoryCardProps) => {
 
         {/* Caption */}
         {story.caption && (
-          <p className="text-xs sm:text-sm text-muted-foreground line-clamp-3 mb-3">
+          <p className="text-sm text-muted-foreground line-clamp-2 mb-3 font-medium">
             {story.caption}
           </p>
         )}
 
         {/* Footer with time and Review button */}
-        <div className="flex items-center justify-between text-xs sm:text-sm pt-2 border-t border-border">
+        <div className="flex items-center justify-between text-sm pt-3 border-t border-border/50">
           <div className="flex flex-col gap-0.5">
-            <span className="text-muted-foreground text-[10px] sm:text-xs">
+            <span className="text-muted-foreground text-xs font-medium">
               {formatDistanceToNow(new Date(story.created_at), { addSuffix: true, locale: pt })}
-            </span>
-            <span className="text-muted-foreground text-[10px]">
-              {new Date(story.created_at).toLocaleDateString('pt-PT', { 
-                day: '2-digit', 
-                month: '2-digit', 
-                year: 'numeric',
-                hour: '2-digit',
-                minute: '2-digit'
-              })}
             </span>
           </div>
           <div className="flex items-center gap-1.5">
@@ -137,11 +128,11 @@ export const StoryCard = ({ story, onClick, onDelete }: StoryCardProps) => {
             <Button 
               variant="ghost" 
               size="sm" 
-              className="gap-1 sm:gap-1.5 -mr-2 h-8 px-2 sm:px-3 text-xs sm:text-sm group-hover:bg-primary/10 group-hover:text-primary transition-colors"
+              className="gap-1.5 -mr-2 h-9 px-3 text-sm font-medium group-hover:bg-primary group-hover:text-primary-foreground transition-all rounded-lg shadow-sm"
               aria-label={`Rever story ${story.tema || story.caption}`}
             >
               Rever
-              <ArrowRight className="h-3.5 w-3.5 sm:h-4 sm:w-4 transition-transform group-hover:translate-x-1" />
+              <ArrowRight className="h-4 w-4 transition-transform group-hover:translate-x-1" />
             </Button>
           </div>
         </div>

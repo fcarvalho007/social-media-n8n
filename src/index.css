@@ -8,45 +8,57 @@ All colors MUST be HSL.
 
 @layer base {
   :root {
-    /* Clean slate background and foreground */
+    /* Iconosquare-inspired background gradient */
     --background: 210 40% 98%;
+    --background-secondary: 225 100% 98%;
     --foreground: 222 47% 11%;
 
-    /* Card styling */
+    /* Card styling with subtle elevation */
     --card: 0 0% 100%;
     --card-foreground: 222 47% 11%;
+    --card-hover: 217 100% 99%;
 
     /* Popover styling */
     --popover: 0 0% 100%;
     --popover-foreground: 222 47% 11%;
 
-    /* Primary - Blue accent */
+    /* Primary - Iconosquare Blue */
     --primary: 217 91% 60%;
+    --primary-hover: 217 91% 55%;
     --primary-foreground: 0 0% 100%;
 
-    /* Secondary - Light gray */
-    --secondary: 210 40% 96%;
+    /* Secondary - Subtle purple accent */
+    --secondary: 250 60% 95%;
     --secondary-foreground: 222 47% 11%;
 
     /* Muted elements */
     --muted: 210 40% 96%;
     --muted-foreground: 215 16% 47%;
 
-    /* Accent - Blue */
+    /* Accent colors - Purple and Mint */
     --accent: 217 91% 60%;
     --accent-foreground: 0 0% 100%;
+    --accent-purple: 250 60% 85%;
+    --accent-mint: 160 80% 80%;
 
-    /* Success - Green */
+    /* Success - Soft Green */
     --success: 142 71% 45%;
+    --success-light: 142 71% 95%;
     --success-foreground: 0 0% 100%;
 
-    /* Destructive - Red */
+    /* Destructive - Soft Red */
     --destructive: 0 72% 51%;
+    --destructive-light: 0 72% 95%;
     --destructive-foreground: 0 0% 100%;
 
-    /* Warning - Amber */
+    /* Warning - Warm Amber */
     --warning: 38 92% 50%;
+    --warning-light: 38 92% 95%;
     --warning-foreground: 0 0% 100%;
+
+    /* Sidebar */
+    --sidebar-background: 0 0% 100%;
+    --sidebar-border: 214 32% 91%;
 
     /* Template A - Purple gradient */
     --template-a-primary: 271 76% 53%;
@@ -61,20 +73,23 @@ All colors MUST be HSL.
     --input: 214 32% 91%;
     --ring: 217 91% 60%;
 
-    --radius: 0.75rem;
+    --radius: 1rem;
   }
 
   .dark {
     --background: 222 47% 11%;
+    --background-secondary: 222 47% 13%;
     --foreground: 210 40% 98%;
 
     --card: 222 47% 13%;
     --card-foreground: 210 40% 98%;
+    --card-hover: 222 47% 15%;
 
     --popover: 222 47% 13%;
     --popover-foreground: 210 40% 98%;
 
     --primary: 217 91% 60%;
+    --primary-hover: 217 91% 65%;
     --primary-foreground: 0 0% 100%;
 
     --secondary: 217 33% 18%;
@@ -85,15 +100,23 @@ All colors MUST be HSL.
 
     --accent: 217 91% 60%;
     --accent-foreground: 0 0% 100%;
+    --accent-purple: 250 40% 30%;
+    --accent-mint: 160 40% 30%;
 
     --success: 142 71% 45%;
+    --success-light: 142 71% 20%;
     --success-foreground: 0 0% 100%;
 
     --destructive: 0 72% 51%;
+    --destructive-light: 0 72% 20%;
     --destructive-foreground: 0 0% 100%;
 
     --warning: 38 92% 50%;
+    --warning-light: 38 92% 20%;
     --warning-foreground: 0 0% 100%;
+
+    --sidebar-background: 222 47% 13%;
+    --sidebar-border: 217 33% 18%;
 
     --border: 217 33% 18%;
     --input: 217 33% 18%;
@@ -107,12 +130,69 @@ All colors MUST be HSL.
   }
 
   body {
-    @apply bg-background text-foreground;
+    @apply bg-gradient-to-br from-background to-[hsl(var(--background-secondary))] text-foreground;
   }
 
   /* Touch targets for mobile - minimum 44x44px */
   .touch-target {
     min-width: 44px;
     min-height: 44px;
+  }
+}
+
+@layer utilities {
+  /* Smooth animations */
+  .animate-fade-in {
+    animation: fadeIn 0.3s ease-out;
+  }
+  
+  .animate-slide-up {
+    animation: slideUp 0.3s ease-out;
+  }
+  
+  .animate-scale-in {
+    animation: scaleIn 0.2s ease-out;
+  }
+  
+  @keyframes fadeIn {
+    from {
+      opacity: 0;
+      transform: translateY(10px);
+    }
+    to {
+      opacity: 1;
+      transform: translateY(0);
+    }
+  }
+  
+  @keyframes slideUp {
+    from {
+      opacity: 0;
+      transform: translateY(20px);
+    }
+    to {
+      opacity: 1;
+      transform: translateY(0);
+    }
+  }
+  
+  @keyframes scaleIn {
+    from {
+      opacity: 0;
+      transform: scale(0.95);
+    }
+    to {
+      opacity: 1;
+      transform: scale(1);
+    }
+  }
+  
+  /* Glow effect */
+  .glow-primary {
+    box-shadow: 0 0 20px hsla(var(--primary), 0.3);
+  }
+  
+  .glow-success {
+    box-shadow: 0 0 20px hsla(var(--success), 0.3);
   }
 }
