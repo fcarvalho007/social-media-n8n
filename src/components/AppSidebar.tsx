@@ -1,4 +1,4 @@
-import { Home, CheckCircle2, PlusCircle, BarChart3, Settings, User, X } from 'lucide-react';
+import { Home, CheckCircle2, PlusCircle, BarChart3, Settings, User, X, Bell } from 'lucide-react';
 import { NavLink } from 'react-router-dom';
 import {
   Sidebar,
@@ -28,34 +28,27 @@ import { Button } from '@/components/ui/button';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import { useAuth } from '@/contexts/AuthContext';
 import { cn } from '@/lib/utils';
+import { Badge } from '@/components/ui/badge';
 
 const menuItems = [
   {
     title: 'Dashboard',
     icon: Home,
     url: '/',
+    disabled: false,
   },
   {
     title: 'Aprovação',
     icon: CheckCircle2,
     url: '/pending',
+    showBadge: true,
+    disabled: false,
   },
   {
     title: 'Criação',
     icon: PlusCircle,
     url: '/pending?tab=create',
-  },
-  {
-    title: 'Relatórios',
-    icon: BarChart3,
-    url: '/reports',
-    disabled: true,
-  },
-  {
-    title: 'Configurações',
-    icon: Settings,
-    url: '/settings',
-    disabled: true,
+    disabled: false,
   },
 ];
 
@@ -66,6 +59,9 @@ export function AppSidebar() {
   const handleLogout = async () => {
     await signOut();
   };
+
+  // Mock notification count - você pode conectar isso ao estado real
+  const notificationCount = 3;
 
   return (
     <>
@@ -100,21 +96,10 @@ export function AppSidebar() {
         </Button>
 
         <SidebarContent className="flex flex-col h-full py-8">
-          {/* Logo no Topo */}
-          <div className="flex justify-center mb-10 px-3">
-            <div 
-              className="h-11 w-11 rounded-xl flex items-center justify-center transition-all duration-200"
-              style={{
-                background: '#4169A0',
-                boxShadow: '0 2px 8px rgba(65, 105, 160, 0.25)'
-              }}
-            >
-              <span className="text-white font-bold text-xl">N</span>
-            </div>
-          </div>
+          {/* Logo removido conforme solicitado */}
 
-          {/* Menu Items */}
-          <SidebarGroup className="flex-1">
+          {/* Menu Items - Top Section */}
+          <SidebarGroup>
             <SidebarGroupContent>
               <SidebarMenu className="space-y-6">
                 <TooltipProvider delayDuration={150}>
@@ -125,7 +110,7 @@ export function AppSidebar() {
                           <SidebarMenuButton 
                             asChild={!item.disabled}
                             disabled={item.disabled}
-                            className="h-auto p-0"
+                            className="h-auto p-0 relative"
                           >
                             {item.disabled ? (
                               <div className="flex h-11 w-11 items-center justify-center rounded-xl mx-auto opacity-30 cursor-not-allowed">
@@ -137,7 +122,7 @@ export function AppSidebar() {
                                 onClick={() => setOpen(false)}
                                 className={({ isActive }) =>
                                   cn(
-                                    'flex h-11 w-11 items-center justify-center rounded-xl mx-auto',
+                                    'flex h-11 w-11 items-center justify-center rounded-xl mx-auto relative',
                                     'transition-all duration-150 ease-in-out',
                                     'focus:outline-none focus:ring-2 focus:ring-[#4169A0]/30',
                                     isActive
@@ -168,6 +153,13 @@ export function AppSidebar() {
                                   className="h-5 w-5" 
                                   strokeWidth={1.5} 
                                 />
+                                {item.showBadge && notificationCount > 0 && (
+                                  <Badge 
+                                    className="absolute -top-1 -right-1 h-5 w-5 rounded-full p-0 flex items-center justify-center text-[10px] bg-[#BC2139] border-2 border-[#E0E3EC]"
+                                  >
+                                    {notificationCount}
+                                  </Badge>
+                                )}
                               </NavLink>
                             )}
                           </SidebarMenuButton>
@@ -180,6 +172,9 @@ export function AppSidebar() {
                           }}
                         >
                           {item.title}
+                          {item.showBadge && notificationCount > 0 && (
+                            <span className="ml-2 text-[#BC2139]">({notificationCount})</span>
+                          )}
                         </TooltipContent>
                       </Tooltip>
                     </SidebarMenuItem>
@@ -189,8 +184,11 @@ export function AppSidebar() {
             </SidebarGroupContent>
           </SidebarGroup>
 
-          {/* User Avatar no Fundo */}
-          <div className="flex justify-center mt-auto px-3">
+          {/* Spacer */}
+          <div className="flex-1" />
+
+          {/* User Profile - Bottom Section */}
+          <div className="flex justify-center px-3 mt-6">
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
                 <Button
@@ -228,7 +226,7 @@ export function AppSidebar() {
                 }}
               >
                 <DropdownMenuLabel className="font-semibold text-[#4169A0]">
-                  Minha Conta
+                  {user?.email?.split('@')[0] || 'Utilizador'}
                 </DropdownMenuLabel>
                 <DropdownMenuSeparator />
                 <DropdownMenuItem className="cursor-pointer rounded-lg">
