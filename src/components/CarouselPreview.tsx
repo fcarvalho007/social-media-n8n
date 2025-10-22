@@ -5,7 +5,7 @@ import type { Swiper as SwiperType } from 'swiper';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { cn } from '@/lib/utils';
-import { X, ZoomIn } from 'lucide-react';
+import { X, ZoomIn, ChevronLeft, ChevronRight, Trash2 } from 'lucide-react';
 import {
   AlertDialog,
   AlertDialogAction,
@@ -39,6 +39,7 @@ export const CarouselPreview = ({ images, template, onSelect, isSelected, onRemo
   const [activeIndex, setActiveIndex] = useState(0);
   const [slideToRemove, setSlideToRemove] = useState<number | null>(null);
   const [zoomImageIndex, setZoomImageIndex] = useState<number | null>(null);
+  const [zoomSwiper, setZoomSwiper] = useState<SwiperType | null>(null);
 
   // Helper function to generate optimized preview URLs for Supabase Storage
   const getPreviewUrl = (originalUrl: string, width: number = 800, quality: number = 70) => {
@@ -189,15 +190,85 @@ export const CarouselPreview = ({ images, template, onSelect, isSelected, onRemo
         </AlertDialogContent>
       </AlertDialog>
 
-      <Dialog open={zoomImageIndex !== null} onOpenChange={() => setZoomImageIndex(null)}>
-        <DialogContent className="max-w-[95vw] max-h-[95vh] p-2 sm:p-4">
+      {/* Zoom Dialog with Navigation */}
+      <Dialog open={zoomImageIndex !== null} onOpenChange={() => {
+        setZoomImageIndex(null);
+        setZoomSwiper(null);
+      }}>
+        <DialogContent className="max-w-[95vw] max-h-[95vh] p-0 bg-black/95 border-none">
           {zoomImageIndex !== null && (
-            <div className="flex items-center justify-center w-full h-full">
-              <img
-                src={images[zoomImageIndex]}
-                alt={`Slide ${zoomImageIndex + 1} - Zoom`}
-                className="max-w-full max-h-[90vh] object-contain rounded-lg"
-              />
+            <div className="relative w-full h-[95vh]">
+              {/* Header with counter and close button */}
+              <div className="absolute top-4 left-0 right-0 z-50 flex items-center justify-between px-6">
+                <Badge className={cn(
+                  templateColors[template].badge, 
+                  "text-sm font-bold backdrop-blur-sm"
+                )}>
+                  Template {template} - Slide {(zoomSwiper?.activeIndex ?? zoomImageIndex) + 1}/{images.length}
+                </Badge>
+                
+                {onRemoveSlide && (
+                  <Button
+                    size="sm"
+                    variant="destructive"
+                    className="gap-2 backdrop-blur-sm"
+                    onClick={() => {
+                      const currentIndex = zoomSwiper?.activeIndex ?? zoomImageIndex;
+                      setSlideToRemove(currentIndex);
+                      setZoomImageIndex(null);
+                    }}
+                  >
+                    <Trash2 className="h-4 w-4" />
+                    Eliminar Slide
+                  </Button>
+                )}
+              </div>
+
+              {/* Carousel */}
+              <Swiper
+                modules={[Navigation]}
+                navigation={{
+                  prevEl: '.zoom-swiper-button-prev',
+                  nextEl: '.zoom-swiper-button-next',
+                }}
+                initialSlide={zoomImageIndex}
+                onSwiper={setZoomSwiper}
+                className="w-full h-full"
+              >
+                {images.map((image, index) => (
+                  <SwiperSlide key={index}>
+                    <div className="flex items-center justify-center w-full h-full p-12">
+                      <img
+                        src={image}
+                        alt={`Slide ${index + 1} - Zoom`}
+                        className="max-w-full max-h-full object-contain"
+                      />
+                    </div>
+                  </SwiperSlide>
+                ))}
+              </Swiper>
+
+              {/* Navigation Buttons */}
+              <button
+                className="zoom-swiper-button-prev absolute left-4 top-1/2 -translate-y-1/2 z-50 w-12 h-12 rounded-full bg-white/10 backdrop-blur-sm hover:bg-white/20 border border-white/20 flex items-center justify-center transition-all disabled:opacity-30 disabled:cursor-not-allowed"
+                aria-label="Previous slide"
+              >
+                <ChevronLeft className="h-6 w-6 text-white" />
+              </button>
+              
+              <button
+                className="zoom-swiper-button-next absolute right-4 top-1/2 -translate-y-1/2 z-50 w-12 h-12 rounded-full bg-white/10 backdrop-blur-sm hover:bg-white/20 border border-white/20 flex items-center justify-center transition-all disabled:opacity-30 disabled:cursor-not-allowed"
+                aria-label="Next slide"
+              >
+                <ChevronRight className="h-6 w-6 text-white" />
+              </button>
+
+              {/* Instructions */}
+              <div className="absolute bottom-6 left-1/2 -translate-x-1/2 z-50">
+                <div className="bg-black/50 backdrop-blur-sm px-4 py-2 rounded-full text-white/70 text-xs">
+                  Use as setas para navegar entre slides
+                </div>
+              </div>
             </div>
           )}
         </DialogContent>
