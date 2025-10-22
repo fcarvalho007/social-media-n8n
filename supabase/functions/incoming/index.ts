@@ -60,15 +60,18 @@ serve(async (req) => {
       .from('posts')
       .insert({
         workflow_id: payload.workflow_id,
-        source: payload.source,
+        source: payload.source || 'n8n_workflow',
         tema: payload.tema,
         caption: payload.caption,
         hashtags: payload.hashtags || [],
+        hashtags_text: payload.hashtags_text || null,
         template_a_images: payload.template_a_images,
-        template_a_metadata: payload.template_a_metadata,
-        template_b_images: payload.template_b_images,
-        template_b_metadata: payload.template_b_metadata,
-        status: 'pending',
+        template_a_metadata: payload.template_a_metadata || {},
+        template_b_images: payload.template_b_images || [],
+        template_b_metadata: payload.template_b_metadata || {},
+        status: payload.status || 'pending',
+        selected_template: payload.selected_template || null,
+        content_type: payload.content_type || 'carousel',
       })
       .select()
       .single();
@@ -84,8 +87,8 @@ serve(async (req) => {
     console.log('Post created successfully:', data.id);
 
     return new Response(
-      JSON.stringify({ success: true, post_id: data.id }),
-      { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      JSON.stringify({ success: true, post: data }),
+      { status: 201, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     );
 
   } catch (error) {
