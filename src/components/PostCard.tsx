@@ -14,6 +14,8 @@ interface Post {
   status: string;
   selected_template: string | null;
   created_at: string;
+  reviewed_at?: string | null;
+  published_at?: string | null;
   template_a_images: string[];
   template_b_images: string[];
   content_type?: string;
@@ -87,14 +89,14 @@ export const PostCard = ({ post, onClick, onDelete }: PostCardProps) => {
       onClick={onClick}
     >
       <CardContent className="p-3 sm:p-4 md:p-5">
-        {/* Template Selected Badge - Top Left (Prominent) */}
+        {/* Template Selected Badge - Top Left */}
         {post.selected_template && (post.status === 'approved' || post.status === 'published') && (
           <div className="absolute top-2 left-2 sm:top-3 sm:left-3 z-10">
             <Badge className={cn(
-              "flex items-center gap-1 sm:gap-1.5 px-2.5 sm:px-3 py-1 sm:py-1.5 font-bold text-[11px] sm:text-sm rounded-lg animate-pulse",
+              "flex items-center gap-1 sm:gap-1.5 px-2.5 sm:px-3 py-1 sm:py-1.5 font-bold text-[11px] sm:text-sm rounded-lg",
               templateBadgeColors[post.selected_template as 'A' | 'B']
             )}>
-              ⭐ Template {post.selected_template}
+              Template {post.selected_template}
             </Badge>
           </div>
         )}
@@ -177,8 +179,16 @@ export const PostCard = ({ post, onClick, onDelete }: PostCardProps) => {
         <div className="flex items-center justify-between text-sm border-t border-border/50 pt-2 sm:pt-3">
           <div className="flex flex-col gap-0.5">
             <span className="text-muted-foreground text-[10px] sm:text-xs font-medium">
-              {formatDistanceToNow(new Date(post.created_at), { addSuffix: true, locale: pt })}
+              Criado {formatDistanceToNow(new Date(post.created_at), { addSuffix: true, locale: pt })}
             </span>
+            {(post.reviewed_at || post.published_at) && (
+              <span className="text-muted-foreground text-[10px] sm:text-xs font-medium">
+                {post.published_at 
+                  ? `Publicado ${formatDistanceToNow(new Date(post.published_at), { addSuffix: true, locale: pt })}`
+                  : `Revisto ${formatDistanceToNow(new Date(post.reviewed_at!), { addSuffix: true, locale: pt })}`
+                }
+              </span>
+            )}
           </div>
           <Button 
             variant="ghost" 
@@ -190,21 +200,6 @@ export const PostCard = ({ post, onClick, onDelete }: PostCardProps) => {
             <ArrowRight className="h-3.5 w-3.5 sm:h-4 sm:w-4 transition-transform group-hover:translate-x-1" />
           </Button>
         </div>
-
-        {post.selected_template && (
-          <div className="mt-2 sm:mt-3 pt-2 sm:pt-3 border-t border-border/50">
-            <div className={cn(
-              "flex items-center gap-1.5 sm:gap-2 px-2.5 sm:px-3 py-1.5 sm:py-2 rounded-lg border-2 w-fit",
-              post.selected_template === 'A' 
-                ? "bg-[#001f3f]/10 border-[#00d4ff]/50 text-[#00d4ff]"
-                : "bg-[#ff4500]/10 border-[#ff6347]/50 text-[#ff6347]"
-            )}>
-              <span className="text-[10px] sm:text-xs font-bold">
-                ⭐ Template {post.selected_template} Selecionado
-              </span>
-            </div>
-          </div>
-        )}
       </CardContent>
     </Card>
   );

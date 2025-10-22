@@ -344,37 +344,26 @@ const Review = () => {
           </div>
         </div>
 
+        {/* Republish Warning for Approved Posts */}
+        {isApproved && (
+          <div className="mb-3 sm:mb-4 md:mb-6 rounded-lg border-2 border-primary/20 bg-primary/5 p-3 sm:p-4">
+            <p className="text-sm text-muted-foreground">
+              Esta publicação já foi aprovada. Pode alterar o template e a legenda e republicar. 
+              <span className="font-semibold text-foreground"> O conteúdo será enviado novamente para o destino pré-definido.</span>
+            </p>
+          </div>
+        )}
+
         {/* Caption and Hashtags Editor */}
         <div className="mb-3 sm:mb-4 md:mb-6">
-          {isApproved ? (
-            <div className="rounded-lg sm:rounded-xl border border-border bg-card p-3 sm:p-4 md:p-5">
-              <Label className="text-xs sm:text-sm md:text-base font-semibold mb-2 block flex items-center gap-2">
-                <CheckCircle2 className="h-4 w-4 text-success" />
-                Caption e Hashtags (Modo Leitura)
-              </Label>
-              <div className="p-3 bg-muted/50 rounded-md">
-                <p className="text-sm whitespace-pre-wrap mb-3">{caption}</p>
-                {hashtags.length > 0 && (
-                  <div className="flex flex-wrap gap-1.5">
-                    {hashtags.map((tag, idx) => (
-                      <Badge key={idx} variant="secondary" className="text-xs">
-                        #{tag}
-                      </Badge>
-                    ))}
-                  </div>
-                )}
-              </div>
-            </div>
-          ) : (
-            <CaptionEditor
-              initialCaption={post.caption}
-              initialHashtags={post.hashtags || []}
-              onChange={(newCaption, newHashtags) => {
-                setCaption(newCaption);
-                setHashtags(newHashtags);
-              }}
-            />
-          )}
+          <CaptionEditor
+            initialCaption={post.caption}
+            initialHashtags={post.hashtags || []}
+            onChange={(newCaption, newHashtags) => {
+              setCaption(newCaption);
+              setHashtags(newHashtags);
+            }}
+          />
         </div>
 
         {/* Internal Notes */}
@@ -388,7 +377,6 @@ const Review = () => {
             onChange={(e) => setNotes(e.target.value)}
             placeholder="Adicione notas internas sobre esta publicação..."
             className="min-h-[80px] sm:min-h-[100px] text-sm"
-            disabled={isApproved}
           />
         </div>
           </main>
