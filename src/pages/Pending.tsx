@@ -207,32 +207,6 @@ const Pending = () => {
           ) : (
             /* Approve Tab */
             <div className="space-y-6 animate-slide-up">
-              {/* Action Buttons - Zona destacada */}
-              <div className="bg-white/80 backdrop-blur-sm rounded-2xl shadow-md p-6 border border-gray-100">
-                <div className="flex flex-col sm:flex-row gap-3 sm:gap-4">
-                  <Button
-                    size="lg"
-                    className="flex-1 h-12 sm:h-14 text-sm sm:text-base font-bold shadow-lg hover:shadow-xl transition-all duration-200 hover:scale-[1.02] active:scale-[0.98] bg-[#4169A0] hover:bg-[#4169A0]/90"
-                  >
-                    <CheckCircle2 className="mr-2 h-4 w-4 sm:h-5 sm:w-5" />
-                    Aprovar Conteúdo
-                  </Button>
-                  <Button
-                    size="lg"
-                    variant="outline"
-                    className="flex-1 h-12 sm:h-14 text-sm sm:text-base font-bold border-2 border-[#4169A0] text-[#4169A0] hover:bg-[#4169A0]/5 hover:shadow-md transition-all duration-200 hover:scale-[1.02] active:scale-[0.98]"
-                    onClick={() => navigate('/?tab=create')}
-                  >
-                    <span className="mr-2 text-lg sm:text-xl">➕</span>
-                    Criar Novo
-                  </Button>
-                </div>
-
-                <p className="text-center text-xs sm:text-sm text-[#6B7280] mt-4">
-                  Crie novos conteúdos ou faça a revisão de publicações pendentes
-                </p>
-              </div>
-
               {/* Filters Section - Agrupada em card */}
               <div className="bg-[#F9FAFB] rounded-2xl p-5 border border-gray-200">
                 {/* Content Type Filter */}
