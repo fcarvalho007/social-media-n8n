@@ -41,9 +41,11 @@ interface CarouselPreviewProps {
   onSelect: () => void;
   isSelected: boolean;
   onRemoveSlide?: (index: number) => void;
+  isApproved?: boolean;
+  approvedTemplate?: 'A' | 'B' | null;
 }
 
-export const CarouselPreview = ({ images, template, onSelect, isSelected, onRemoveSlide }: CarouselPreviewProps) => {
+export const CarouselPreview = ({ images, template, onSelect, isSelected, onRemoveSlide, isApproved = false, approvedTemplate = null }: CarouselPreviewProps) => {
   const [thumbsSwiper, setThumbsSwiper] = useState<SwiperType | null>(null);
   const [activeIndex, setActiveIndex] = useState(0);
   const [slideToRemove, setSlideToRemove] = useState<number | null>(null);
@@ -63,20 +65,51 @@ export const CarouselPreview = ({ images, template, onSelect, isSelected, onRemo
     A: { 
       badge: 'bg-[#001f3f] text-[#00d4ff] border border-[#00d4ff]/50 shadow-[0_0_15px_rgba(0,212,255,0.5)]', 
       gradient: 'from-[#001f3f] to-[#00d4ff]',
-      description: 'purple tech'
+      description: 'purple tech',
+      glow: 'shadow-[0_0_30px_rgba(0,212,255,0.8)]',
+      ring: 'ring-[#00d4ff]'
     },
     B: { 
       badge: 'bg-[#ff4500] text-white border border-[#ff6347]/50 shadow-[0_0_15px_rgba(255,69,0,0.5)]', 
       gradient: 'from-[#ff4500] to-[#ff6347]',
-      description: 'Red tech'
+      description: 'Red tech',
+      glow: 'shadow-[0_0_30px_rgba(255,99,71,0.8)]',
+      ring: 'ring-[#ff6347]'
     },
   };
 
+  const isThisTemplateApproved = isApproved && approvedTemplate === template;
+  const isOtherTemplateApproved = isApproved && approvedTemplate !== null && approvedTemplate !== template;
+
   return (
     <div className={cn(
-      "rounded-lg sm:rounded-xl border-2 p-3 sm:p-4 md:p-5 transition-all duration-300",
-      isSelected ? "border-primary shadow-lg ring-2 ring-primary/20" : "border-border"
+      "rounded-lg sm:rounded-xl border-2 p-3 sm:p-4 md:p-5 transition-all duration-300 relative",
+      isThisTemplateApproved && `border-4 ${templateColors[template].ring} ${templateColors[template].glow} ring-4 ring-offset-2`,
+      isOtherTemplateApproved && "opacity-60 border-border/50",
+      !isApproved && isSelected && "border-primary shadow-lg ring-2 ring-primary/20",
+      !isApproved && !isSelected && "border-border"
     )}>
+      {/* Approved Badge - Large and Prominent */}
+      {isThisTemplateApproved && (
+        <div className="absolute -top-3 left-1/2 -translate-x-1/2 z-20">
+          <Badge className={cn(
+            "px-4 py-2 text-sm sm:text-base font-bold flex items-center gap-2 animate-pulse",
+            templateColors[template].badge
+          )}>
+            ✓ APROVADO E SELECIONADO
+          </Badge>
+        </div>
+      )}
+
+      {/* Not Selected Badge */}
+      {isOtherTemplateApproved && (
+        <div className="absolute top-2 right-2 z-20">
+          <Badge variant="outline" className="bg-muted/80 text-muted-foreground text-xs">
+            Não Selecionado
+          </Badge>
+        </div>
+      )}
+
       <div className="mb-2 sm:mb-3 md:mb-4 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-1.5 sm:gap-2">
         <div className="flex items-center gap-2 flex-wrap">
           <Badge className={cn(templateColors[template].badge, "text-xs sm:text-sm font-bold")}>
@@ -163,12 +196,18 @@ export const CarouselPreview = ({ images, template, onSelect, isSelected, onRemo
 
       <Button
         onClick={onSelect}
+        disabled={isApproved}
         className={cn(
           "w-full h-12 sm:h-13 md:h-14 text-sm sm:text-base md:text-lg font-semibold touch-target",
-          isSelected ? "bg-primary" : `bg-gradient-to-r ${templateColors[template].gradient}`
+          isThisTemplateApproved && "bg-gradient-to-r from-green-600 to-green-500 text-white cursor-not-allowed",
+          isOtherTemplateApproved && "bg-muted text-muted-foreground cursor-not-allowed",
+          !isApproved && isSelected && "bg-primary",
+          !isApproved && !isSelected && `bg-gradient-to-r ${templateColors[template].gradient}`
         )}
       >
-        {isSelected ? '✓ Selecionado' : `Escolher Modelo ${template}`}
+        {isThisTemplateApproved && '✓ TEMPLATE APROVADO'}
+        {isOtherTemplateApproved && 'Não Selecionado'}
+        {!isApproved && (isSelected ? '✓ Selecionado' : `Escolher Modelo ${template}`)}
       </Button>
 
       <AlertDialog open={slideToRemove !== null} onOpenChange={() => setSlideToRemove(null)}>

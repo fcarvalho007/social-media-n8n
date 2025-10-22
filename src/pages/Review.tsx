@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
@@ -10,9 +10,13 @@ import { ActionBar } from '@/components/ActionBar';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { SidebarProvider } from '@/components/ui/sidebar';
-import { Loader2, ArrowLeft } from 'lucide-react';
+import { Loader2, ArrowLeft, CheckCircle2, Eye } from 'lucide-react';
 import { Button } from '@/components/ui/button';
+import { Badge } from '@/components/ui/badge';
 import { toast } from 'sonner';
+import { cn } from '@/lib/utils';
+import { formatDistanceToNow } from 'date-fns';
+import { pt } from 'date-fns/locale';
 
 const Review = () => {
   const { id } = useParams();
@@ -26,6 +30,7 @@ const Review = () => {
   const [notes, setNotes] = useState('');
   const [templateAImages, setTemplateAImages] = useState<string[]>([]);
   const [templateBImages, setTemplateBImages] = useState<string[]>([]);
+  const templatesRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     fetchPost();
@@ -247,6 +252,17 @@ const Review = () => {
     }
   };
 
+  const scrollToTemplates = () => {
+    templatesRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  };
+
+  const isApproved = post?.status === 'approved' || post?.status === 'published';
+
+  const templateBadgeColors = {
+    A: 'bg-gradient-to-r from-[#001f3f] to-[#003d7a] text-[#00d4ff] border-2 border-[#00d4ff] shadow-[0_0_25px_rgba(0,212,255,0.7)]',
+    B: 'bg-gradient-to-r from-[#ff4500] to-[#ff6347] text-white border-2 border-[#ff6347] shadow-[0_0_25px_rgba(255,99,71,0.7)]',
+  };
+
   if (loading) {
     return (
       <SidebarProvider defaultOpen={true}>
@@ -283,20 +299,57 @@ const Review = () => {
           <span className="text-xs sm:text-sm">Voltar ao Painel</span>
         </Button>
 
+        {/* Approval Status Banner */}
+        {isApproved && post.selected_template && (
+          <div className={cn(
+            "mb-4 sm:mb-6 p-4 sm:p-6 rounded-xl border-4 animate-fade-in flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3",
+            templateBadgeColors[post.selected_template as 'A' | 'B']
+          )}>
+            <div className="flex items-start sm:items-center gap-3">
+              <CheckCircle2 className="h-8 w-8 sm:h-10 sm:w-10 flex-shrink-0 mt-0.5 sm:mt-0" />
+              <div>
+                <h3 className="text-lg sm:text-xl md:text-2xl font-bold flex items-center gap-2 mb-1">
+                  ✓ PUBLICAÇÃO APROVADA
+                </h3>
+                <p className="text-sm sm:text-base opacity-90">
+                  Template {post.selected_template} foi selecionado
+                  {post.reviewed_at && (
+                    <span className="ml-2 text-xs opacity-75">
+                      • {formatDistanceToNow(new Date(post.reviewed_at), { addSuffix: true, locale: pt })}
+                    </span>
+                  )}
+                </p>
+              </div>
+            </div>
+            <Button
+              onClick={scrollToTemplates}
+              variant="secondary"
+              className="gap-2 bg-white/20 hover:bg-white/30 border-2 border-white/30 text-current shrink-0"
+            >
+              <Eye className="h-4 w-4" />
+              Ver Template
+            </Button>
+          </div>
+        )}
+
         <div className="mb-3 sm:mb-4 md:mb-6">
           <h2 className="text-lg sm:text-xl md:text-2xl lg:text-3xl font-bold mb-1 sm:mb-2">{post.tema}</h2>
-          <p className="text-xs sm:text-sm text-muted-foreground">Selecione o seu modelo preferido e reveja o conteúdo</p>
+          <p className="text-xs sm:text-sm text-muted-foreground">
+            {isApproved ? 'Revisão da publicação aprovada' : 'Selecione o seu modelo preferido e reveja o conteúdo'}
+          </p>
         </div>
 
         {/* Templates - Side by side on desktop, stacked on mobile */}
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-3 sm:gap-4 md:gap-5 lg:gap-6 mb-3 sm:mb-4 md:mb-6 max-w-5xl mx-auto">
+        <div ref={templatesRef} className="grid grid-cols-1 lg:grid-cols-2 gap-3 sm:gap-4 md:gap-5 lg:gap-6 mb-3 sm:mb-4 md:mb-6 max-w-5xl mx-auto">
           <div className="w-full max-w-md mx-auto">
             <CarouselPreview
               images={templateAImages}
               template="A"
               onSelect={() => setSelectedTemplate('A')}
               isSelected={selectedTemplate === 'A'}
-              onRemoveSlide={(index) => handleRemoveSlide('A', index)}
+              onRemoveSlide={!isApproved ? (index) => handleRemoveSlide('A', index) : undefined}
+              isApproved={isApproved}
+              approvedTemplate={post.selected_template as 'A' | 'B' | null}
             />
           </div>
           <div className="w-full max-w-md mx-auto">
@@ -305,21 +358,44 @@ const Review = () => {
               template="B"
               onSelect={() => setSelectedTemplate('B')}
               isSelected={selectedTemplate === 'B'}
-              onRemoveSlide={(index) => handleRemoveSlide('B', index)}
+              onRemoveSlide={!isApproved ? (index) => handleRemoveSlide('B', index) : undefined}
+              isApproved={isApproved}
+              approvedTemplate={post.selected_template as 'A' | 'B' | null}
             />
           </div>
         </div>
 
         {/* Caption and Hashtags Editor */}
         <div className="mb-3 sm:mb-4 md:mb-6">
-          <CaptionEditor
-            initialCaption={post.caption}
-            initialHashtags={post.hashtags || []}
-            onChange={(newCaption, newHashtags) => {
-              setCaption(newCaption);
-              setHashtags(newHashtags);
-            }}
-          />
+          {isApproved ? (
+            <div className="rounded-lg sm:rounded-xl border border-border bg-card p-3 sm:p-4 md:p-5">
+              <Label className="text-xs sm:text-sm md:text-base font-semibold mb-2 block flex items-center gap-2">
+                <CheckCircle2 className="h-4 w-4 text-success" />
+                Caption e Hashtags (Modo Leitura)
+              </Label>
+              <div className="p-3 bg-muted/50 rounded-md">
+                <p className="text-sm whitespace-pre-wrap mb-3">{caption}</p>
+                {hashtags.length > 0 && (
+                  <div className="flex flex-wrap gap-1.5">
+                    {hashtags.map((tag, idx) => (
+                      <Badge key={idx} variant="secondary" className="text-xs">
+                        #{tag}
+                      </Badge>
+                    ))}
+                  </div>
+                )}
+              </div>
+            </div>
+          ) : (
+            <CaptionEditor
+              initialCaption={post.caption}
+              initialHashtags={post.hashtags || []}
+              onChange={(newCaption, newHashtags) => {
+                setCaption(newCaption);
+                setHashtags(newHashtags);
+              }}
+            />
+          )}
         </div>
 
         {/* Internal Notes */}
@@ -333,16 +409,19 @@ const Review = () => {
             onChange={(e) => setNotes(e.target.value)}
             placeholder="Adicione notas internas sobre esta publicação..."
             className="min-h-[80px] sm:min-h-[100px] text-sm"
+            disabled={isApproved}
           />
         </div>
           </main>
 
-          <ActionBar
-            canApprove={!!selectedTemplate}
-            onApprove={handleApprove}
-            onReject={handleReject}
-            onSave={handleSave}
-          />
+          {!isApproved && (
+            <ActionBar
+              canApprove={!!selectedTemplate}
+              onApprove={handleApprove}
+              onReject={handleReject}
+              onSave={handleSave}
+            />
+          )}
         </div>
       </div>
     </SidebarProvider>

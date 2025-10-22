@@ -63,11 +63,19 @@ export const PostCard = ({ post, onClick, onDelete }: PostCardProps) => {
   const contentType = post.content_type || 'carousel';
   const ContentIcon = contentTypeConfig[contentType as keyof typeof contentTypeConfig].icon;
 
-  // Get first 4 images from both templates for preview
-  const previewImages = [
-    ...post.template_a_images.slice(0, 2),
-    ...post.template_b_images.slice(0, 2),
-  ];
+  // Template colors for badges
+  const templateBadgeColors = {
+    A: 'bg-gradient-to-r from-[#001f3f] to-[#003d7a] text-[#00d4ff] border-2 border-[#00d4ff] shadow-[0_0_20px_rgba(0,212,255,0.6)]',
+    B: 'bg-gradient-to-r from-[#ff4500] to-[#ff6347] text-white border-2 border-[#ff6347] shadow-[0_0_20px_rgba(255,99,71,0.6)]',
+  };
+
+  // Get preview images - if template is selected, show only those images, otherwise show mixed
+  const previewImages = post.selected_template
+    ? (post.selected_template === 'A' ? post.template_a_images : post.template_b_images).slice(0, 4)
+    : [
+        ...post.template_a_images.slice(0, 2),
+        ...post.template_b_images.slice(0, 2),
+      ];
 
   return (
     <Card 
@@ -79,6 +87,18 @@ export const PostCard = ({ post, onClick, onDelete }: PostCardProps) => {
       onClick={onClick}
     >
       <CardContent className="p-3 sm:p-4 md:p-5">
+        {/* Template Selected Badge - Top Left (Prominent) */}
+        {post.selected_template && (post.status === 'approved' || post.status === 'published') && (
+          <div className="absolute top-2 left-2 sm:top-3 sm:left-3 z-10">
+            <Badge className={cn(
+              "flex items-center gap-1 sm:gap-1.5 px-2.5 sm:px-3 py-1 sm:py-1.5 font-bold text-[11px] sm:text-sm rounded-lg animate-pulse",
+              templateBadgeColors[post.selected_template as 'A' | 'B']
+            )}>
+              ⭐ Template {post.selected_template}
+            </Badge>
+          </div>
+        )}
+
         {/* Published Badge in top-right corner */}
         {post.status === 'published' && (
           <div className="absolute top-2 right-2 sm:top-3 sm:right-3 z-10">
@@ -127,7 +147,12 @@ export const PostCard = ({ post, onClick, onDelete }: PostCardProps) => {
         </div>
 
         {/* Image preview grid */}
-        <div className="mb-3 sm:mb-4 grid grid-cols-2 gap-1.5 sm:gap-2 overflow-hidden rounded-lg sm:rounded-xl">
+        <div className={cn(
+          "mb-3 sm:mb-4 grid grid-cols-2 gap-1.5 sm:gap-2 overflow-hidden rounded-lg sm:rounded-xl relative",
+          post.selected_template && (post.status === 'approved' || post.status === 'published') && "ring-2 ring-offset-2",
+          post.selected_template === 'A' && (post.status === 'approved' || post.status === 'published') && "ring-[#00d4ff]",
+          post.selected_template === 'B' && (post.status === 'approved' || post.status === 'published') && "ring-[#ff6347]"
+        )}>
           {previewImages.slice(0, 4).map((image, index) => (
             <div key={index} className="aspect-[4/5] overflow-hidden bg-muted rounded-lg relative shadow-sm">
               {imageLoading[index] && (
@@ -168,9 +193,16 @@ export const PostCard = ({ post, onClick, onDelete }: PostCardProps) => {
 
         {post.selected_template && (
           <div className="mt-2 sm:mt-3 pt-2 sm:pt-3 border-t border-border/50">
-            <span className="text-[10px] sm:text-xs text-muted-foreground font-medium">
-              Modelo: <span className="font-bold text-foreground">Template {post.selected_template}</span>
-            </span>
+            <div className={cn(
+              "flex items-center gap-1.5 sm:gap-2 px-2.5 sm:px-3 py-1.5 sm:py-2 rounded-lg border-2 w-fit",
+              post.selected_template === 'A' 
+                ? "bg-[#001f3f]/10 border-[#00d4ff]/50 text-[#00d4ff]"
+                : "bg-[#ff4500]/10 border-[#ff6347]/50 text-[#ff6347]"
+            )}>
+              <span className="text-[10px] sm:text-xs font-bold">
+                ⭐ Template {post.selected_template} Selecionado
+              </span>
+            </div>
           </div>
         )}
       </CardContent>
