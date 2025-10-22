@@ -38,19 +38,19 @@ export function DashboardHeader() {
 
   return (
     <header className="sticky top-0 z-30 bg-white/80 backdrop-blur-lg border-b border-gray-100 shadow-sm animate-fade-in">
-      <div className="flex h-16 items-center justify-between px-4 lg:px-6">
+      <div className="flex h-14 sm:h-16 items-center justify-between px-3 sm:px-4 lg:px-6">
         {/* Left: Mobile Menu + Breadcrumb */}
-        <div className="flex items-center gap-4">
+        <div className="flex items-center gap-2 sm:gap-4">
           <Button
             variant="ghost"
             size="icon"
-            className="lg:hidden h-10 w-10 rounded-xl hover:bg-[#4169A0]/10"
+            className="lg:hidden h-10 w-10 rounded-xl hover:bg-[#4169A0]/10 touch-target"
             onClick={() => setOpen(true)}
           >
             <Menu className="h-5 w-5" />
           </Button>
 
-          <nav className="flex items-center gap-2 text-sm">
+          <nav className="flex items-center gap-1.5 sm:gap-2 text-xs sm:text-sm">
             {breadcrumbs.map((crumb, index) => (
               <div key={index} className="flex items-center gap-2">
                 {crumb.path ? (

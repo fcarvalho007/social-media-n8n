@@ -269,27 +269,27 @@ const Review = () => {
       <div className="flex min-h-screen w-full bg-gradient-to-br from-background to-background-secondary">
         <AppSidebar />
         
-        <div className="flex-1 flex flex-col min-w-0 pb-24">
+        <div className="flex-1 flex flex-col min-w-0 pb-20 sm:pb-24">
           <DashboardHeader />
           
-          <main className="flex-1 p-4 sm:p-6 lg:p-10 animate-fade-in overflow-auto bg-gradient-to-br from-white to-gray-50">
+          <main className="flex-1 p-3 sm:p-4 md:p-6 lg:p-8 animate-fade-in overflow-auto bg-gradient-to-br from-white to-gray-50">
         <Button
           variant="ghost"
           onClick={() => navigate('/')}
-          className="mb-4 sm:mb-6 -ml-2 sm:ml-0"
+          className="mb-3 sm:mb-4 md:mb-6 -ml-2 sm:ml-0 touch-target"
           size="sm"
         >
           <ArrowLeft className="mr-1.5 sm:mr-2 h-3.5 w-3.5 sm:h-4 sm:w-4" />
           <span className="text-xs sm:text-sm">Voltar ao Painel</span>
         </Button>
 
-        <div className="mb-4 sm:mb-6">
-          <h2 className="text-xl sm:text-2xl md:text-3xl font-bold mb-1 sm:mb-2">{post.tema}</h2>
+        <div className="mb-3 sm:mb-4 md:mb-6">
+          <h2 className="text-lg sm:text-xl md:text-2xl lg:text-3xl font-bold mb-1 sm:mb-2">{post.tema}</h2>
           <p className="text-xs sm:text-sm text-muted-foreground">Selecione o seu modelo preferido e reveja o conteúdo</p>
         </div>
 
         {/* Templates - Side by side on desktop, stacked on mobile */}
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 sm:gap-6 mb-4 sm:mb-6 max-w-5xl mx-auto">
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-3 sm:gap-4 md:gap-5 lg:gap-6 mb-3 sm:mb-4 md:mb-6 max-w-5xl mx-auto">
           <div className="w-full max-w-md mx-auto">
             <CarouselPreview
               images={templateAImages}
@@ -311,7 +311,7 @@ const Review = () => {
         </div>
 
         {/* Caption and Hashtags Editor */}
-        <div className="mb-4 sm:mb-6">
+        <div className="mb-3 sm:mb-4 md:mb-6">
           <CaptionEditor
             initialCaption={post.caption}
             initialHashtags={post.hashtags || []}
@@ -323,8 +323,8 @@ const Review = () => {
         </div>
 
         {/* Internal Notes */}
-        <div className="rounded-lg sm:rounded-xl border border-border bg-card p-3 sm:p-4 md:p-6 mb-4 sm:mb-6">
-          <Label htmlFor="notes" className="text-sm sm:text-base font-semibold mb-2 block">
+        <div className="rounded-lg sm:rounded-xl border border-border bg-card p-3 sm:p-4 md:p-5 mb-3 sm:mb-4 md:mb-6">
+          <Label htmlFor="notes" className="text-xs sm:text-sm md:text-base font-semibold mb-2 block">
             Notas Internas
           </Label>
           <Textarea
@@ -332,7 +332,7 @@ const Review = () => {
             value={notes}
             onChange={(e) => setNotes(e.target.value)}
             placeholder="Adicione notas internas sobre esta publicação..."
-            className="min-h-[100px]"
+            className="min-h-[80px] sm:min-h-[100px] text-sm"
           />
         </div>
           </main>

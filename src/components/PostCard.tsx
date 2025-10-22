@@ -72,47 +72,47 @@ export const PostCard = ({ post, onClick, onDelete }: PostCardProps) => {
   return (
     <Card 
       className={cn(
-        "group cursor-pointer transition-all duration-300 hover:shadow-2xl hover:scale-[1.02] relative overflow-hidden rounded-2xl border-2",
+        "group cursor-pointer transition-all duration-300 hover:shadow-2xl hover:scale-[1.02] active:scale-[0.98] relative overflow-hidden rounded-xl sm:rounded-2xl border-2",
         post.status === 'published' && "border-l-4 border-l-success glow-success",
         "bg-card hover:bg-card-hover animate-fade-in"
       )} 
       onClick={onClick}
     >
-      <CardContent className="p-5">
+      <CardContent className="p-3 sm:p-4 md:p-5">
         {/* Published Badge in top-right corner */}
         {post.status === 'published' && (
-          <div className="absolute top-3 right-3 z-10">
-            <Badge className="bg-success text-success-foreground text-xs px-2.5 py-1 flex items-center gap-1 shadow-lg">
+          <div className="absolute top-2 right-2 sm:top-3 sm:right-3 z-10">
+            <Badge className="bg-success text-success-foreground text-[10px] sm:text-xs px-2 sm:px-2.5 py-0.5 sm:py-1 flex items-center gap-1 shadow-lg">
               ✓ Publicado
             </Badge>
           </div>
         )}
         
         {/* Content Type Badge */}
-        <div className="mb-3 flex items-center gap-2">
+        <div className="mb-2 sm:mb-3 flex items-center gap-2">
           <Badge 
             variant="outline" 
             className={cn(
-              "flex items-center gap-1.5 px-3 py-1.5 font-semibold border-2 text-xs rounded-lg",
+              "flex items-center gap-1 sm:gap-1.5 px-2 sm:px-3 py-1 sm:py-1.5 font-semibold border-2 text-[10px] sm:text-xs rounded-lg",
               contentTypeConfig[contentType as keyof typeof contentTypeConfig].color
             )}
           >
-            <ContentIcon className="h-4 w-4" />
+            <ContentIcon className="h-3 w-3 sm:h-4 sm:w-4" />
             {contentTypeConfig[contentType as keyof typeof contentTypeConfig].label}
           </Badge>
         </div>
 
-        <div className="mb-3 flex items-start justify-between gap-2">
-          <h3 className="font-bold line-clamp-2 flex-1 text-base leading-tight">{post.tema}</h3>
-          <div className="flex items-center gap-2 shrink-0">
-            <Badge className={cn("text-xs px-2.5 py-1 font-medium rounded-lg", statusColors[post.status as keyof typeof statusColors])}>
+        <div className="mb-2 sm:mb-3 flex items-start justify-between gap-2">
+          <h3 className="font-bold line-clamp-2 flex-1 text-sm sm:text-base leading-tight">{post.tema}</h3>
+          <div className="flex items-center gap-1.5 sm:gap-2 shrink-0">
+            <Badge className={cn("text-[10px] sm:text-xs px-2 sm:px-2.5 py-0.5 sm:py-1 font-medium rounded-lg", statusColors[post.status as keyof typeof statusColors])}>
               {statusLabels[post.status as keyof typeof statusLabels]}
             </Badge>
             {onDelete && (
               <Button
                 variant="ghost"
                 size="icon"
-                className="h-7 w-7 sm:h-8 sm:w-8 text-destructive hover:text-destructive hover:bg-destructive/10"
+                className="h-8 w-8 sm:h-9 sm:w-9 text-destructive hover:text-destructive hover:bg-destructive/10 touch-target"
                 onClick={(e) => {
                   e.stopPropagation();
                   onDelete(post.id);
@@ -120,14 +120,14 @@ export const PostCard = ({ post, onClick, onDelete }: PostCardProps) => {
                 aria-label={`Eliminar publicação ${post.tema}`}
                 title="Eliminar publicação"
               >
-                <Trash2 className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
+                <Trash2 className="h-4 w-4" />
               </Button>
             )}
           </div>
         </div>
 
         {/* Image preview grid */}
-        <div className="mb-4 grid grid-cols-2 gap-2 overflow-hidden rounded-xl">
+        <div className="mb-3 sm:mb-4 grid grid-cols-2 gap-1.5 sm:gap-2 overflow-hidden rounded-lg sm:rounded-xl">
           {previewImages.slice(0, 4).map((image, index) => (
             <div key={index} className="aspect-[4/5] overflow-hidden bg-muted rounded-lg relative shadow-sm">
               {imageLoading[index] && (
@@ -149,26 +149,26 @@ export const PostCard = ({ post, onClick, onDelete }: PostCardProps) => {
           ))}
         </div>
 
-        <div className="flex items-center justify-between text-sm border-t border-border/50 pt-3">
+        <div className="flex items-center justify-between text-sm border-t border-border/50 pt-2 sm:pt-3">
           <div className="flex flex-col gap-0.5">
-            <span className="text-muted-foreground text-xs font-medium">
+            <span className="text-muted-foreground text-[10px] sm:text-xs font-medium">
               {formatDistanceToNow(new Date(post.created_at), { addSuffix: true, locale: pt })}
             </span>
           </div>
           <Button 
             variant="ghost" 
             size="sm" 
-            className="gap-1.5 -mr-2 h-9 px-3 text-sm font-medium group-hover:bg-primary group-hover:text-primary-foreground transition-all rounded-lg shadow-sm"
+            className="gap-1 sm:gap-1.5 -mr-2 h-8 sm:h-9 px-2 sm:px-3 text-xs sm:text-sm font-medium group-hover:bg-primary group-hover:text-primary-foreground transition-all rounded-lg shadow-sm touch-target"
             aria-label={`Rever publicação ${post.tema}`}
           >
             Rever
-            <ArrowRight className="h-4 w-4 transition-transform group-hover:translate-x-1" />
+            <ArrowRight className="h-3.5 w-3.5 sm:h-4 sm:w-4 transition-transform group-hover:translate-x-1" />
           </Button>
         </div>
 
         {post.selected_template && (
-          <div className="mt-3 pt-3 border-t border-border/50">
-            <span className="text-xs text-muted-foreground font-medium">
+          <div className="mt-2 sm:mt-3 pt-2 sm:pt-3 border-t border-border/50">
+            <span className="text-[10px] sm:text-xs text-muted-foreground font-medium">
               Modelo: <span className="font-bold text-foreground">Template {post.selected_template}</span>
             </span>
           </div>

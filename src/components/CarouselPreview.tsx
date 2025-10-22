@@ -74,10 +74,10 @@ export const CarouselPreview = ({ images, template, onSelect, isSelected, onRemo
 
   return (
     <div className={cn(
-      "rounded-lg sm:rounded-xl border-2 p-3 sm:p-4 md:p-6 transition-all duration-300",
+      "rounded-lg sm:rounded-xl border-2 p-3 sm:p-4 md:p-5 transition-all duration-300",
       isSelected ? "border-primary shadow-lg ring-2 ring-primary/20" : "border-border"
     )}>
-      <div className="mb-3 sm:mb-4 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
+      <div className="mb-2 sm:mb-3 md:mb-4 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-1.5 sm:gap-2">
         <div className="flex items-center gap-2 flex-wrap">
           <Badge className={cn(templateColors[template].badge, "text-xs sm:text-sm font-bold")}>
             Template {template}
@@ -92,7 +92,7 @@ export const CarouselPreview = ({ images, template, onSelect, isSelected, onRemo
       </div>
 
       {/* Main carousel */}
-      <div className="relative mb-3 sm:mb-4 overflow-hidden rounded-md sm:rounded-lg bg-muted group/carousel">
+      <div className="relative mb-2 sm:mb-3 md:mb-4 overflow-hidden rounded-md sm:rounded-lg bg-muted group/carousel">
         <Swiper
           modules={[Navigation, Pagination, Thumbs]}
           navigation
@@ -125,12 +125,13 @@ export const CarouselPreview = ({ images, template, onSelect, isSelected, onRemo
         spaceBetween={8}
         slidesPerView="auto"
         breakpoints={{
-          320: { slidesPerView: 4, spaceBetween: 6 },
+          320: { slidesPerView: 4, spaceBetween: 4 },
+          480: { slidesPerView: 5, spaceBetween: 6 },
           640: { slidesPerView: 6, spaceBetween: 8 },
           1024: { slidesPerView: 9, spaceBetween: 8 },
         }}
         watchSlidesProgress
-        className="mb-4 sm:mb-6"
+        className="mb-3 sm:mb-4 md:mb-5"
       >
         {images.map((image, index) => (
           <SwiperSlide key={index}>
@@ -163,7 +164,7 @@ export const CarouselPreview = ({ images, template, onSelect, isSelected, onRemo
       <Button
         onClick={onSelect}
         className={cn(
-          "w-full h-11 sm:h-14 text-base sm:text-lg font-semibold",
+          "w-full h-12 sm:h-13 md:h-14 text-sm sm:text-base md:text-lg font-semibold touch-target",
           isSelected ? "bg-primary" : `bg-gradient-to-r ${templateColors[template].gradient}`
         )}
       >

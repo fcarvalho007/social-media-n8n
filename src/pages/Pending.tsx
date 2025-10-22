@@ -276,7 +276,7 @@ const Pending = () => {
 
               {/* Content Grid */}
               {loading ? (
-                <div className="grid gap-6 grid-cols-1 sm:grid-cols-2 lg:grid-cols-3">
+                <div className="grid gap-3 sm:gap-4 md:gap-5 lg:gap-6 grid-cols-1 sm:grid-cols-2 lg:grid-cols-3">
                   {Array.from({ length: 6 }).map((_, i) => (
                     contentTypeFilter === 'stories' || (contentTypeFilter === 'all' && i % 2 === 0) ? (
                       <StoryCardSkeleton key={i} />
@@ -286,19 +286,19 @@ const Pending = () => {
                   ))}
                 </div>
               ) : filteredPosts.length === 0 && filteredStories.length === 0 ? (
-                <div className="flex flex-col items-center justify-center py-20 text-center bg-white rounded-2xl border-2 border-dashed border-gray-200 shadow-sm">
-                  <Inbox className="h-16 w-16 text-gray-300 mb-4" />
-                  <h3 className="text-lg font-semibold mb-2 text-foreground">
+                <div className="flex flex-col items-center justify-center py-12 sm:py-16 md:py-20 text-center bg-white rounded-xl sm:rounded-2xl border-2 border-dashed border-gray-200 shadow-sm mx-2 sm:mx-0">
+                  <Inbox className="h-12 w-12 sm:h-14 sm:w-14 md:h-16 md:w-16 text-gray-300 mb-3 sm:mb-4" />
+                  <h3 className="text-base sm:text-lg font-semibold mb-2 text-foreground px-4">
                     Nenhum conteúdo encontrado
                   </h3>
-                  <p className="text-sm text-[#6B7280] max-w-md">
+                  <p className="text-xs sm:text-sm text-[#6B7280] max-w-md px-4">
                     {searchQuery
                       ? 'Nenhum conteúdo corresponde aos critérios de pesquisa'
                       : `Não existe conteúdo ${activeStatus === 'pending' ? 'pendente' : activeStatus === 'approved' ? 'aprovado' : 'rejeitado'} neste momento`}
                   </p>
                 </div>
               ) : (
-                <div className="grid gap-4 sm:gap-5 lg:gap-6 grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 animate-scale-in">
+                <div className="grid gap-3 sm:gap-4 md:gap-5 lg:gap-6 grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 animate-scale-in">
                   {showPosts && filteredPosts.map((post, index) => (
                     <div
                       key={post.id}
