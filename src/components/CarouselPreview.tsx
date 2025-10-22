@@ -5,7 +5,7 @@ import type { Swiper as SwiperType } from 'swiper';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { cn } from '@/lib/utils';
-import { X, ZoomIn, ChevronLeft, ChevronRight, Trash2, Keyboard } from 'lucide-react';
+import { X, ZoomIn, ChevronLeft, ChevronRight, Trash2, Keyboard, Download } from 'lucide-react';
 import {
   AlertDialog,
   AlertDialogAction,
@@ -81,6 +81,23 @@ export const CarouselPreview = ({ images, template, onSelect, isSelected, onRemo
   const isThisTemplateApproved = isApproved && approvedTemplate === template;
   const isOtherTemplateApproved = isApproved && approvedTemplate !== null && approvedTemplate !== template;
 
+  const handleDownloadAll = async () => {
+    for (let i = 0; i < images.length; i++) {
+      const image = images[i];
+      const link = document.createElement('a');
+      link.href = image;
+      link.download = `template_${template}_slide_${i + 1}.jpg`;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      
+      // Small delay between downloads
+      if (i < images.length - 1) {
+        await new Promise(resolve => setTimeout(resolve, 300));
+      }
+    }
+  };
+
   return (
     <div className={cn(
       "rounded-lg sm:rounded-xl border-2 p-3 sm:p-4 md:p-5 transition-all duration-300 relative",
@@ -119,9 +136,20 @@ export const CarouselPreview = ({ images, template, onSelect, isSelected, onRemo
             {templateColors[template].description}
           </span>
         </div>
-        <span className="text-xs sm:text-sm font-medium text-muted-foreground">
-          {activeIndex + 1}/{images.length}
-        </span>
+        <div className="flex items-center gap-2">
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={handleDownloadAll}
+            className="h-8 gap-1.5 text-xs"
+          >
+            <Download className="h-3.5 w-3.5" />
+            Download
+          </Button>
+          <span className="text-xs sm:text-sm font-medium text-muted-foreground">
+            {activeIndex + 1}/{images.length}
+          </span>
+        </div>
       </div>
 
       {/* Main carousel */}
