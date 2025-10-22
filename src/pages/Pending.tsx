@@ -141,7 +141,7 @@ const Pending = () => {
       supabase.removeChannel(postsChannel);
       supabase.removeChannel(storiesChannel);
     };
-  }, []);
+  }, [activeStatus]);
 
   const filteredPosts = posts.filter((post) => {
     const matchesSearch = post.tema.toLowerCase().includes(searchQuery.toLowerCase()) ||
