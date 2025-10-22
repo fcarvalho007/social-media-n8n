@@ -175,7 +175,7 @@ const Pending = () => {
   ];
 
   return (
-    <SidebarProvider defaultOpen={false}>
+    <SidebarProvider defaultOpen={true}>
       <div className="flex min-h-screen w-full bg-gradient-to-br from-background to-background-secondary">
         <AppSidebar />
         

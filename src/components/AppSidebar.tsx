@@ -52,8 +52,8 @@ export function AppSidebar() {
       )}
       
       <Sidebar className={cn(
-        "border-r border-sidebar-border bg-sidebar/95 backdrop-blur-md z-50 transition-all duration-300",
-        "lg:relative fixed inset-y-0 left-0",
+        "border-r border-sidebar-border bg-sidebar/95 backdrop-blur-md transition-all duration-300",
+        "fixed lg:sticky inset-y-0 left-0 z-50 lg:z-auto",
         open ? "translate-x-0" : "-translate-x-full lg:translate-x-0"
       )}>
         {/* Mobile Close Button */}
