@@ -9,8 +9,8 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Input } from '@/components/ui/input';
 import { Loader2, Search, Inbox, LayoutGrid, Video, Image as ImageIcon, RefreshCw, CheckCircle, Plus } from 'lucide-react';
 import { toast } from 'sonner';
-import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
+import { cn } from '@/lib/utils';
 
 const Pending = () => {
   const [posts, setPosts] = useState<any[]>([]);
@@ -177,19 +177,25 @@ const Pending = () => {
       
       <main className="container py-6 sm:py-10 px-4 sm:px-6 max-w-7xl mx-auto">
         {/* Main Page Title */}
-        <div className="mb-8 sm:mb-12">
+        <div className="mb-6 sm:mb-8">
           <h1 className="text-2xl sm:text-3xl font-bold text-foreground mb-2">Painel de Conteúdo</h1>
           <p className="text-sm text-muted-foreground">Crie novos conteúdos e faça a revisão de publicações pendentes</p>
         </div>
 
         {/* Main Tabs: Approve vs Create */}
-        <Tabs defaultValue="approve" className="space-y-6">
-          <TabsList className="w-full sm:w-auto h-12 bg-muted p-1">
-            <TabsTrigger value="approve" className="gap-2 px-6 text-sm font-medium">
+        <Tabs defaultValue="approve" className="space-y-8">
+          <TabsList className="w-full sm:w-auto h-11 bg-muted/50 p-1 rounded-lg border border-border/50">
+            <TabsTrigger 
+              value="approve" 
+              className="gap-2 px-6 py-2 text-sm font-semibold rounded-md data-[state=active]:bg-background data-[state=active]:shadow-sm transition-all"
+            >
               <CheckCircle className="h-4 w-4" />
               Aprovar Conteúdo
             </TabsTrigger>
-            <TabsTrigger value="create" className="gap-2 px-6 text-sm font-medium">
+            <TabsTrigger 
+              value="create" 
+              className="gap-2 px-6 py-2 text-sm font-semibold rounded-md data-[state=active]:bg-background data-[state=active]:shadow-sm transition-all"
+            >
               <Plus className="h-4 w-4" />
               Criar Novo
             </TabsTrigger>
@@ -201,52 +207,77 @@ const Pending = () => {
           </TabsContent>
 
           {/* Tab: Approve Content (Default) */}
-          <TabsContent value="approve" className="space-y-6 mt-6">
+          <TabsContent value="approve" className="space-y-6">
             {/* Content Type Filter */}
-            <div className="flex flex-wrap gap-2">
-              <Badge
-                variant={contentTypeFilter === 'all' ? 'default' : 'outline'}
-                className="cursor-pointer px-4 py-2 text-sm hover:bg-primary/10 transition-colors"
+            <div className="flex flex-wrap gap-2.5">
+              <button
                 onClick={() => setContentTypeFilter('all')}
+                className={cn(
+                  "px-4 py-2 rounded-lg text-sm font-medium transition-all inline-flex items-center gap-2",
+                  contentTypeFilter === 'all'
+                    ? "bg-primary text-primary-foreground shadow-sm"
+                    : "bg-muted hover:bg-muted/80 text-muted-foreground hover:text-foreground"
+                )}
               >
                 Todos os tipos
-              </Badge>
-              <Badge
-                variant={contentTypeFilter === 'carousel' ? 'default' : 'outline'}
-                className="cursor-pointer px-4 py-2 text-sm flex items-center gap-2 hover:bg-primary/10 transition-colors"
+              </button>
+              <button
                 onClick={() => setContentTypeFilter('carousel')}
+                className={cn(
+                  "px-4 py-2 rounded-lg text-sm font-medium transition-all inline-flex items-center gap-2",
+                  contentTypeFilter === 'carousel'
+                    ? "bg-primary text-primary-foreground shadow-sm"
+                    : "bg-muted hover:bg-muted/80 text-muted-foreground hover:text-foreground"
+                )}
               >
                 <LayoutGrid className="h-4 w-4" />
                 Carrossel
-              </Badge>
-              <Badge
-                variant={contentTypeFilter === 'stories' ? 'default' : 'outline'}
-                className="cursor-pointer px-4 py-2 text-sm flex items-center gap-2 hover:bg-primary/10 transition-colors"
+              </button>
+              <button
                 onClick={() => setContentTypeFilter('stories')}
+                className={cn(
+                  "px-4 py-2 rounded-lg text-sm font-medium transition-all inline-flex items-center gap-2",
+                  contentTypeFilter === 'stories'
+                    ? "bg-primary text-primary-foreground shadow-sm"
+                    : "bg-muted hover:bg-muted/80 text-muted-foreground hover:text-foreground"
+                )}
               >
                 <Video className="h-4 w-4" />
                 Stories
-              </Badge>
-              <Badge
-                variant={contentTypeFilter === 'post' ? 'default' : 'outline'}
-                className="cursor-pointer px-4 py-2 text-sm flex items-center gap-2 hover:bg-primary/10 transition-colors"
+              </button>
+              <button
                 onClick={() => setContentTypeFilter('post')}
+                className={cn(
+                  "px-4 py-2 rounded-lg text-sm font-medium transition-all inline-flex items-center gap-2",
+                  contentTypeFilter === 'post'
+                    ? "bg-primary text-primary-foreground shadow-sm"
+                    : "bg-muted hover:bg-muted/80 text-muted-foreground hover:text-foreground"
+                )}
               >
                 <ImageIcon className="h-4 w-4" />
                 Post
-              </Badge>
+              </button>
             </div>
 
-            <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
-              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-                <TabsList className="w-full sm:w-auto grid grid-cols-3 h-11">
-                  <TabsTrigger value="pending" className="text-sm font-medium data-[state=active]:bg-warning data-[state=active]:text-warning-foreground">
+            <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-5">
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 bg-muted/30 p-4 rounded-lg border border-border/50">
+                <TabsList className="w-full sm:w-auto grid grid-cols-3 h-10 bg-background shadow-sm">
+                  <TabsTrigger 
+                    value="pending" 
+                    className="text-sm font-semibold data-[state=active]:bg-orange-500 data-[state=active]:text-white rounded-md transition-all"
+                  >
                     Pendentes
                   </TabsTrigger>
-                  <TabsTrigger value="approved" className="text-sm font-medium data-[state=active]:bg-success data-[state=active]:text-success-foreground">
+                  <TabsTrigger 
+                    value="approved" 
+                    className="text-sm font-semibold data-[state=active]:bg-green-500 data-[state=active]:text-white rounded-md transition-all"
+                  >
                     Aprovados
                   </TabsTrigger>
-                  <TabsTrigger value="rejected" className="text-sm font-medium data-[state=active]:bg-destructive data-[state=active]:text-destructive-foreground">
+                  <TabsTrigger 
+                    value="rejected" 
+                    className="text-sm font-semibold data-[state=active]:bg-red-500 data-[state=active]:text-white rounded-md transition-all"
+                  >
                     Rejeitados
                   </TabsTrigger>
                 </TabsList>
@@ -258,7 +289,7 @@ const Pending = () => {
                       placeholder="Procurar por tema ou legenda..."
                       value={searchQuery}
                       onChange={(e) => setSearchQuery(e.target.value)}
-                      className="pl-10 text-sm h-11"
+                      className="pl-10 text-sm h-10 bg-background border-border/50"
                     />
                   </div>
                   <Button
@@ -266,7 +297,7 @@ const Pending = () => {
                     size="icon"
                     onClick={() => fetchAll()}
                     disabled={loading}
-                    className="flex-shrink-0 h-11 w-11"
+                    className="flex-shrink-0 h-10 w-10 border-border/50 hover:bg-muted/50"
                     title="Recarregar lista"
                   >
                     <RefreshCw className={`h-4 w-4 ${loading ? 'animate-spin' : ''}`} />
@@ -274,16 +305,16 @@ const Pending = () => {
                 </div>
               </div>
 
-              <TabsContent value={activeTab} className="space-y-4 mt-6">
+              <TabsContent value={activeTab} className="space-y-4">
                 {loading ? (
-                  <div className="flex flex-col items-center justify-center py-16">
+                  <div className="flex flex-col items-center justify-center py-20 bg-muted/20 rounded-lg">
                     <Loader2 className="h-10 w-10 animate-spin text-primary mb-4" />
                     <p className="text-sm text-muted-foreground">A carregar conteúdos...</p>
                   </div>
                 ) : filteredPosts.length === 0 && filteredStories.length === 0 ? (
-                  <div className="flex flex-col items-center justify-center py-16 text-center bg-muted/30 rounded-lg border-2 border-dashed border-border">
-                    <Inbox className="h-20 w-20 text-muted-foreground/40 mb-4" />
-                    <h3 className="text-lg font-semibold mb-2">Nenhum conteúdo encontrado</h3>
+                  <div className="flex flex-col items-center justify-center py-20 text-center bg-muted/20 rounded-xl border-2 border-dashed border-border/50">
+                    <Inbox className="h-16 w-16 text-muted-foreground/30 mb-4" />
+                    <h3 className="text-lg font-semibold mb-2 text-foreground">Nenhum conteúdo encontrado</h3>
                     <p className="text-sm text-muted-foreground max-w-md">
                       {searchQuery
                         ? "Nenhum conteúdo corresponde aos critérios de pesquisa"
@@ -291,7 +322,7 @@ const Pending = () => {
                     </p>
                   </div>
                 ) : (
-                  <div className="grid gap-6 grid-cols-1 sm:grid-cols-2 lg:grid-cols-3">
+                  <div className="grid gap-5 grid-cols-1 sm:grid-cols-2 lg:grid-cols-3">
                     {showPosts && filteredPosts.map((post) => (
                       <PostCard
                         key={post.id}
