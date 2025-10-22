@@ -34,6 +34,8 @@ import 'swiper/css';
 import 'swiper/css/navigation';
 import 'swiper/css/pagination';
 import 'swiper/css/thumbs';
+import JSZip from 'jszip';
+import { saveAs } from 'file-saver';
 
 interface CarouselPreviewProps {
   images: string[];
@@ -51,6 +53,7 @@ export const CarouselPreview = ({ images, template, onSelect, isSelected, onRemo
   const [slideToRemove, setSlideToRemove] = useState<number | null>(null);
   const [zoomImageIndex, setZoomImageIndex] = useState<number | null>(null);
   const [zoomSwiper, setZoomSwiper] = useState<SwiperType | null>(null);
+  const [downloading, setDownloading] = useState(false);
 
   // Helper function to generate optimized preview URLs for Supabase Storage
   const getPreviewUrl = (originalUrl: string, width: number = 800, quality: number = 70) => {
@@ -82,34 +85,30 @@ export const CarouselPreview = ({ images, template, onSelect, isSelected, onRemo
   const isOtherTemplateApproved = isApproved && approvedTemplate !== null && approvedTemplate !== template;
 
   const handleDownloadAll = async () => {
-    for (let i = 0; i < images.length; i++) {
-      const image = images[i];
-      try {
-        // Fetch the image as blob
-        const response = await fetch(image);
-        const blob = await response.blob();
-        
-        // Create blob URL
-        const blobUrl = window.URL.createObjectURL(blob);
-        
-        // Create download link
-        const link = document.createElement('a');
-        link.href = blobUrl;
-        link.download = `template_${template}_slide_${i + 1}.jpg`;
-        document.body.appendChild(link);
-        link.click();
-        document.body.removeChild(link);
-        
-        // Clean up blob URL
-        window.URL.revokeObjectURL(blobUrl);
-        
-        // Delay between downloads to prevent browser blocking
-        if (i < images.length - 1) {
-          await new Promise(resolve => setTimeout(resolve, 500));
+    try {
+      setDownloading(true);
+      const zip = new JSZip();
+
+      for (let i = 0; i < images.length; i++) {
+        const url = images[i];
+        try {
+          const response = await fetch(url);
+          if (!response.ok) throw new Error(`HTTP ${response.status}`);
+          const blob = await response.blob();
+          const urlNoQuery = url.split('?')[0];
+          const ext = urlNoQuery.includes('.') ? urlNoQuery.split('.').pop() : 'jpg';
+          zip.file(`template_${template}_slide_${i + 1}.${ext}`, blob);
+        } catch (err) {
+          console.error(`Falha ao obter imagem ${i + 1}:`, err);
         }
-      } catch (error) {
-        console.error(`Erro ao baixar imagem ${i + 1}:`, error);
       }
+
+      const content = await zip.generateAsync({ type: 'blob' });
+      saveAs(content, `carrossel_template_${template}.zip`);
+    } catch (e) {
+      console.error('Erro ao preparar ZIP:', e);
+    } finally {
+      setDownloading(false);
     }
   };
 
@@ -157,9 +156,11 @@ export const CarouselPreview = ({ images, template, onSelect, isSelected, onRemo
             size="sm"
             onClick={handleDownloadAll}
             className="h-8 gap-1.5 text-xs"
+            disabled={downloading}
+            aria-label="Baixar todas as imagens em ZIP"
           >
             <Download className="h-3.5 w-3.5" />
-            Download
+            {downloading ? 'A preparar...' : 'Baixar .zip'}
           </Button>
           <span className="text-xs sm:text-sm font-medium text-muted-foreground">
             {activeIndex + 1}/{images.length}
