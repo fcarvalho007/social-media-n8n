@@ -15,6 +15,11 @@ export const CaptionEditor = ({ initialCaption, initialHashtags, onChange }: Cap
   const [caption, setCaption] = useState(initialCaption);
   const maxCaptionLength = 2200;
 
+  // Sync internal state when initialCaption prop changes
+  useEffect(() => {
+    setCaption(initialCaption);
+  }, [initialCaption]);
+
   useEffect(() => {
     // Extract hashtags from caption text
     const hashtagMatches = caption.match(/#[\w\u00C0-\u017F]+/g);
