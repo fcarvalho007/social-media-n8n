@@ -1,29 +1,44 @@
-import { Menu } from 'lucide-react';
+import { Menu, ChevronRight } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { useSidebar } from '@/components/ui/sidebar';
-import { useLocation, useSearchParams } from 'react-router-dom';
+import { useLocation, useSearchParams, useNavigate } from 'react-router-dom';
 
 export function DashboardHeader() {
   const { setOpen } = useSidebar();
   const location = useLocation();
   const [searchParams] = useSearchParams();
+  const navigate = useNavigate();
   
   const activeTab = searchParams.get('tab');
 
   const getBreadcrumbs = () => {
     if (location.pathname === '/') {
-      return { section: 'Dashboard', page: 'Visão Geral' };
+      return [
+        { label: 'Dashboard', path: '/' },
+        { label: 'Visão Geral', path: null },
+      ];
     }
     if (location.pathname === '/pending') {
       if (activeTab === 'create') {
-        return { section: 'Painel de Conteúdo', page: 'Criação' };
+        return [
+          { label: 'Painel de Conteúdo', path: '/pending' },
+          { label: 'Criação', path: null },
+        ];
       }
-      return { section: 'Painel de Conteúdo', page: 'Aprovação' };
+      return [
+        { label: 'Painel de Conteúdo', path: null },
+      ];
     }
     if (location.pathname.startsWith('/review')) {
-      return { section: 'Painel de Conteúdo', page: 'Revisão' };
+      return [
+        { label: 'Painel de Conteúdo', path: '/pending' },
+        { label: 'Revisão', path: null },
+      ];
     }
-    return { section: 'Dashboard', page: 'Conteúdo' };
+    return [
+      { label: 'Dashboard', path: '/' },
+      { label: 'Conteúdo', path: null },
+    ];
   };
 
   const breadcrumbs = getBreadcrumbs();
@@ -42,11 +57,25 @@ export function DashboardHeader() {
             <Menu className="h-5 w-5" />
           </Button>
 
-          <div className="flex items-center gap-2 text-sm">
-            <span className="text-[#6B7280]">{breadcrumbs.section}</span>
-            <span className="text-[#6B7280]">/</span>
-            <span className="font-semibold text-foreground">{breadcrumbs.page}</span>
-          </div>
+          <nav className="flex items-center gap-2 text-sm">
+            {breadcrumbs.map((crumb, index) => (
+              <div key={index} className="flex items-center gap-2">
+                {crumb.path ? (
+                  <button
+                    onClick={() => navigate(crumb.path)}
+                    className="text-[#6B7280] hover:text-[#4169A0] transition-colors duration-150 font-medium"
+                  >
+                    {crumb.label}
+                  </button>
+                ) : (
+                  <span className="font-semibold text-foreground">{crumb.label}</span>
+                )}
+                {index < breadcrumbs.length - 1 && (
+                  <ChevronRight className="h-4 w-4 text-[#B2B7C8]" />
+                )}
+              </div>
+            ))}
+          </nav>
         </div>
       </div>
     </header>

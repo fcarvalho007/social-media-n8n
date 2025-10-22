@@ -1,4 +1,4 @@
-import { Home, CheckCircle2, PlusCircle, BarChart3, Settings, User, X, Bell } from 'lucide-react';
+import { CheckCircle2, PlusCircle, User, X, Bell, Settings } from 'lucide-react';
 import { NavLink } from 'react-router-dom';
 import {
   Sidebar,
@@ -32,13 +32,8 @@ import { Badge } from '@/components/ui/badge';
 
 const menuItems = [
   {
-    title: 'Dashboard',
-    icon: Home,
-    url: '/',
-    disabled: false,
-  },
-  {
     title: 'Aprovação',
+    label: 'Approve',
     icon: CheckCircle2,
     url: '/pending',
     showBadge: true,
@@ -46,6 +41,7 @@ const menuItems = [
   },
   {
     title: 'Criação',
+    label: 'Create',
     icon: PlusCircle,
     url: '/pending?tab=create',
     disabled: false,
@@ -75,9 +71,8 @@ export function AppSidebar() {
       
       <Sidebar 
         className={cn(
-          "w-20 border-none transition-all duration-300",
+          "w-24 border-none transition-all duration-300",
           "fixed lg:sticky inset-y-0 left-0 z-50 lg:z-auto",
-          "rounded-l-lg lg:rounded-l-none",
           open ? "translate-x-0" : "-translate-x-full lg:translate-x-0"
         )}
         style={{
@@ -95,91 +90,88 @@ export function AppSidebar() {
           <X className="h-4 w-4 text-[#4169A0]" />
         </Button>
 
-        <SidebarContent className="flex flex-col h-full py-8">
-          {/* Logo removido conforme solicitado */}
-
-          {/* Menu Items - Top Section */}
-          <SidebarGroup>
-            <SidebarGroupContent>
-              <SidebarMenu className="space-y-6">
-                <TooltipProvider delayDuration={150}>
-                  {menuItems.map((item) => (
-                    <SidebarMenuItem key={item.title}>
-                      <Tooltip>
-                        <TooltipTrigger asChild>
-                          <SidebarMenuButton 
-                            asChild={!item.disabled}
-                            disabled={item.disabled}
-                            className="h-auto p-0 relative"
-                          >
-                            {item.disabled ? (
-                              <div className="flex h-11 w-11 items-center justify-center rounded-xl mx-auto opacity-30 cursor-not-allowed">
-                                <item.icon className="h-5 w-5 text-[#B2B7C8]" strokeWidth={1.5} />
-                              </div>
-                            ) : (
-                              <NavLink
-                                to={item.url}
-                                onClick={() => setOpen(false)}
-                                className={({ isActive }) =>
-                                  cn(
-                                    'flex h-11 w-11 items-center justify-center rounded-xl mx-auto relative',
-                                    'transition-all duration-150 ease-in-out',
-                                    'focus:outline-none focus:ring-2 focus:ring-[#4169A0]/30',
-                                    isActive
-                                      ? 'text-white'
-                                      : 'text-[#B2B7C8] hover:text-[#4169A0]'
-                                  )
-                                }
-                                style={({ isActive }) =>
+        <SidebarContent className="flex flex-col h-full py-12">
+          {/* Menu Items - Centralizados com labels */}
+          <SidebarGroup className="flex-1 flex items-center">
+            <SidebarGroupContent className="w-full">
+              <SidebarMenu className="space-y-8">
+                {menuItems.map((item) => (
+                  <SidebarMenuItem key={item.title}>
+                    <SidebarMenuButton 
+                      asChild={!item.disabled}
+                      disabled={item.disabled}
+                      className="h-auto p-0 hover:bg-transparent"
+                    >
+                      {item.disabled ? (
+                        <div className="flex flex-col items-center gap-2 mx-auto opacity-30 cursor-not-allowed">
+                          <div className="flex h-14 w-14 items-center justify-center rounded-xl relative">
+                            <item.icon className="h-6 w-6 text-[#B2B7C8]" strokeWidth={1.5} />
+                          </div>
+                          <span className="text-xs text-[#6B7280] font-medium">{item.label}</span>
+                        </div>
+                      ) : (
+                        <NavLink
+                          to={item.url}
+                          onClick={() => setOpen(false)}
+                          className="flex flex-col items-center gap-2 mx-auto group"
+                        >
+                          {({ isActive }) => (
+                            <>
+                              <div
+                                className={cn(
+                                  'flex h-14 w-14 items-center justify-center rounded-xl relative',
+                                  'transition-all duration-200 ease-in-out',
+                                  'focus:outline-none focus:ring-2 focus:ring-[#4169A0]/30',
+                                  isActive
+                                    ? 'text-white'
+                                    : 'text-[#B2B7C8] group-hover:text-[#4169A0]'
+                                )}
+                                style={
                                   isActive
                                     ? {
                                         background: '#4169A0',
-                                        boxShadow: '0 0 0 8px rgba(65, 105, 160, 0.15), 0 2px 8px rgba(65, 105, 160, 0.3)'
+                                        boxShadow: '0 0 0 10px rgba(65, 105, 160, 0.15), 0 4px 12px rgba(65, 105, 160, 0.3)'
                                       }
                                     : {}
                                 }
                                 onMouseEnter={(e) => {
-                                  if (!e.currentTarget.classList.contains('active')) {
+                                  if (!isActive) {
                                     e.currentTarget.style.background = 'rgba(65, 105, 160, 0.15)';
                                   }
                                 }}
                                 onMouseLeave={(e) => {
-                                  if (!e.currentTarget.classList.contains('active')) {
+                                  if (!isActive) {
                                     e.currentTarget.style.background = '';
                                   }
                                 }}
                               >
                                 <item.icon 
-                                  className="h-5 w-5" 
+                                  className="h-6 w-6" 
                                   strokeWidth={1.5} 
                                 />
                                 {item.showBadge && notificationCount > 0 && (
                                   <Badge 
-                                    className="absolute -top-1 -right-1 h-5 w-5 rounded-full p-0 flex items-center justify-center text-[10px] bg-[#BC2139] border-2 border-[#E0E3EC]"
+                                    className="absolute -top-1 -right-1 h-5 w-5 rounded-full p-0 flex items-center justify-center text-[10px] bg-[#BC2139] border-2 border-[#E0E3EC] shadow-sm"
                                   >
                                     {notificationCount}
                                   </Badge>
                                 )}
-                              </NavLink>
-                            )}
-                          </SidebarMenuButton>
-                        </TooltipTrigger>
-                        <TooltipContent 
-                          side="right" 
-                          className="font-medium text-sm bg-white text-[#4169A0] border border-[#4169A0]/10"
-                          style={{
-                            boxShadow: '0 4px 12px rgba(0, 0, 0, 0.1)'
-                          }}
-                        >
-                          {item.title}
-                          {item.showBadge && notificationCount > 0 && (
-                            <span className="ml-2 text-[#BC2139]">({notificationCount})</span>
+                              </div>
+                              <span 
+                                className={cn(
+                                  "text-xs font-medium transition-colors duration-200",
+                                  isActive ? "text-[#4169A0]" : "text-[#6B7280] group-hover:text-[#4169A0]"
+                                )}
+                              >
+                                {item.label}
+                              </span>
+                            </>
                           )}
-                        </TooltipContent>
-                      </Tooltip>
-                    </SidebarMenuItem>
-                  ))}
-                </TooltipProvider>
+                        </NavLink>
+                      )}
+                    </SidebarMenuButton>
+                  </SidebarMenuItem>
+                ))}
               </SidebarMenu>
             </SidebarGroupContent>
           </SidebarGroup>
@@ -188,33 +180,29 @@ export function AppSidebar() {
           <div className="flex-1" />
 
           {/* User Profile - Bottom Section */}
-          <div className="flex justify-center px-3 mt-6">
+          <div className="flex flex-col items-center px-3 mt-6">
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
                 <Button
                   variant="ghost"
-                  className="h-11 w-11 rounded-xl p-0 transition-all duration-150 ease-in-out focus:outline-none focus:ring-2 focus:ring-[#4169A0]/30"
-                  style={{
-                    background: 'transparent'
-                  }}
-                  onMouseEnter={(e) => {
-                    e.currentTarget.style.background = 'rgba(65, 105, 160, 0.15)';
-                  }}
-                  onMouseLeave={(e) => {
-                    e.currentTarget.style.background = 'transparent';
-                  }}
+                  className="h-14 w-14 rounded-xl p-0 transition-all duration-200 ease-in-out focus:outline-none focus:ring-2 focus:ring-[#4169A0]/30 hover:bg-transparent group"
                 >
-                  <Avatar className="h-9 w-9">
-                    <AvatarFallback 
-                      className="font-semibold text-sm text-white"
-                      style={{
-                        background: '#4169A0',
-                        boxShadow: '0 2px 6px rgba(65, 105, 160, 0.25)'
-                      }}
-                    >
-                      {user?.email?.charAt(0).toUpperCase() || 'A'}
-                    </AvatarFallback>
-                  </Avatar>
+                  <div className="flex flex-col items-center gap-2">
+                    <Avatar className="h-11 w-11 transition-all duration-200 group-hover:ring-2 group-hover:ring-[#4169A0]/30">
+                      <AvatarFallback 
+                        className="font-semibold text-base text-white"
+                        style={{
+                          background: '#4169A0',
+                          boxShadow: '0 2px 8px rgba(65, 105, 160, 0.25)'
+                        }}
+                      >
+                        {user?.email?.charAt(0).toUpperCase() || 'A'}
+                      </AvatarFallback>
+                    </Avatar>
+                    <span className="text-xs text-[#6B7280] font-medium group-hover:text-[#4169A0] transition-colors">
+                      Account
+                    </span>
+                  </div>
                 </Button>
               </DropdownMenuTrigger>
               <DropdownMenuContent 
