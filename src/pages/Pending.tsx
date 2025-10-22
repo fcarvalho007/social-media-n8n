@@ -183,23 +183,26 @@ const Pending = () => {
         </div>
 
         {/* Main Tabs: Approve vs Create */}
-        <Tabs defaultValue="approve" className="space-y-8">
-          <TabsList className="w-full sm:w-auto h-11 bg-muted/50 p-1 rounded-lg border border-border/50">
-            <TabsTrigger 
-              value="approve" 
-              className="gap-2 px-6 py-2 text-sm font-semibold rounded-md data-[state=active]:bg-background data-[state=active]:shadow-sm transition-all"
-            >
-              <CheckCircle className="h-4 w-4" />
-              Aprovar Conteúdo
-            </TabsTrigger>
-            <TabsTrigger 
-              value="create" 
-              className="gap-2 px-6 py-2 text-sm font-semibold rounded-md data-[state=active]:bg-background data-[state=active]:shadow-sm transition-all"
-            >
-              <Plus className="h-4 w-4" />
-              Criar Novo
-            </TabsTrigger>
-          </TabsList>
+        <Tabs defaultValue="approve" className="space-y-10">
+          {/* Primary Navigation - Larger, more prominent */}
+          <div className="bg-gradient-to-r from-primary/5 to-transparent p-1 rounded-xl border border-primary/20">
+            <TabsList className="w-full sm:w-auto h-12 bg-background p-1.5 rounded-lg shadow-sm">
+              <TabsTrigger 
+                value="approve" 
+                className="gap-2.5 px-8 py-2.5 text-base font-bold rounded-lg data-[state=active]:bg-primary data-[state=active]:text-primary-foreground data-[state=active]:shadow-md transition-all"
+              >
+                <CheckCircle className="h-5 w-5" />
+                Aprovar Conteúdo
+              </TabsTrigger>
+              <TabsTrigger 
+                value="create" 
+                className="gap-2.5 px-8 py-2.5 text-base font-bold rounded-lg data-[state=active]:bg-primary data-[state=active]:text-primary-foreground data-[state=active]:shadow-md transition-all"
+              >
+                <Plus className="h-5 w-5" />
+                Criar Novo
+              </TabsTrigger>
+            </TabsList>
+          </div>
 
           {/* Tab: Create New Content */}
           <TabsContent value="create" className="space-y-6 mt-6">
@@ -207,101 +210,112 @@ const Pending = () => {
           </TabsContent>
 
           {/* Tab: Approve Content (Default) */}
-          <TabsContent value="approve" className="space-y-6">
-            {/* Content Type Filter */}
-            <div className="flex flex-wrap gap-2.5">
-              <button
-                onClick={() => setContentTypeFilter('all')}
-                className={cn(
-                  "px-4 py-2 rounded-lg text-sm font-medium transition-all inline-flex items-center gap-2",
-                  contentTypeFilter === 'all'
-                    ? "bg-primary text-primary-foreground shadow-sm"
-                    : "bg-muted hover:bg-muted/80 text-muted-foreground hover:text-foreground"
-                )}
-              >
-                Todos os tipos
-              </button>
-              <button
-                onClick={() => setContentTypeFilter('carousel')}
-                className={cn(
-                  "px-4 py-2 rounded-lg text-sm font-medium transition-all inline-flex items-center gap-2",
-                  contentTypeFilter === 'carousel'
-                    ? "bg-primary text-primary-foreground shadow-sm"
-                    : "bg-muted hover:bg-muted/80 text-muted-foreground hover:text-foreground"
-                )}
-              >
-                <LayoutGrid className="h-4 w-4" />
-                Carrossel
-              </button>
-              <button
-                onClick={() => setContentTypeFilter('stories')}
-                className={cn(
-                  "px-4 py-2 rounded-lg text-sm font-medium transition-all inline-flex items-center gap-2",
-                  contentTypeFilter === 'stories'
-                    ? "bg-primary text-primary-foreground shadow-sm"
-                    : "bg-muted hover:bg-muted/80 text-muted-foreground hover:text-foreground"
-                )}
-              >
-                <Video className="h-4 w-4" />
-                Stories
-              </button>
-              <button
-                onClick={() => setContentTypeFilter('post')}
-                className={cn(
-                  "px-4 py-2 rounded-lg text-sm font-medium transition-all inline-flex items-center gap-2",
-                  contentTypeFilter === 'post'
-                    ? "bg-primary text-primary-foreground shadow-sm"
-                    : "bg-muted hover:bg-muted/80 text-muted-foreground hover:text-foreground"
-                )}
-              >
-                <ImageIcon className="h-4 w-4" />
-                Post
-              </button>
+          <TabsContent value="approve" className="space-y-8">
+            {/* Section: Content Type Filter */}
+            <div className="space-y-3">
+              <h3 className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Filtrar por Tipo</h3>
+              <div className="flex flex-wrap gap-2">
+                <button
+                  onClick={() => setContentTypeFilter('all')}
+                  className={cn(
+                    "px-5 py-2.5 rounded-lg text-sm font-semibold transition-all inline-flex items-center gap-2 border-2",
+                    contentTypeFilter === 'all'
+                      ? "bg-primary text-primary-foreground border-primary shadow-md scale-105"
+                      : "bg-background border-border hover:border-primary/50 text-foreground hover:bg-primary/5"
+                  )}
+                >
+                  Todos os tipos
+                </button>
+                <button
+                  onClick={() => setContentTypeFilter('carousel')}
+                  className={cn(
+                    "px-5 py-2.5 rounded-lg text-sm font-semibold transition-all inline-flex items-center gap-2 border-2",
+                    contentTypeFilter === 'carousel'
+                      ? "bg-primary text-primary-foreground border-primary shadow-md scale-105"
+                      : "bg-background border-border hover:border-primary/50 text-foreground hover:bg-primary/5"
+                  )}
+                >
+                  <LayoutGrid className="h-4 w-4" />
+                  Carrossel
+                </button>
+                <button
+                  onClick={() => setContentTypeFilter('stories')}
+                  className={cn(
+                    "px-5 py-2.5 rounded-lg text-sm font-semibold transition-all inline-flex items-center gap-2 border-2",
+                    contentTypeFilter === 'stories'
+                      ? "bg-primary text-primary-foreground border-primary shadow-md scale-105"
+                      : "bg-background border-border hover:border-primary/50 text-foreground hover:bg-primary/5"
+                  )}
+                >
+                  <Video className="h-4 w-4" />
+                  Stories
+                </button>
+                <button
+                  onClick={() => setContentTypeFilter('post')}
+                  className={cn(
+                    "px-5 py-2.5 rounded-lg text-sm font-semibold transition-all inline-flex items-center gap-2 border-2",
+                    contentTypeFilter === 'post'
+                      ? "bg-primary text-primary-foreground border-primary shadow-md scale-105"
+                      : "bg-background border-border hover:border-primary/50 text-foreground hover:bg-primary/5"
+                  )}
+                >
+                  <ImageIcon className="h-4 w-4" />
+                  Post
+                </button>
+              </div>
             </div>
 
-            <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-5">
-              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 bg-muted/30 p-4 rounded-lg border border-border/50">
-                <TabsList className="w-full sm:w-auto grid grid-cols-3 h-10 bg-background shadow-sm">
-                  <TabsTrigger 
-                    value="pending" 
-                    className="text-sm font-semibold data-[state=active]:bg-orange-500 data-[state=active]:text-white rounded-md transition-all"
-                  >
-                    Pendentes
-                  </TabsTrigger>
-                  <TabsTrigger 
-                    value="approved" 
-                    className="text-sm font-semibold data-[state=active]:bg-green-500 data-[state=active]:text-white rounded-md transition-all"
-                  >
-                    Aprovados
-                  </TabsTrigger>
-                  <TabsTrigger 
-                    value="rejected" 
-                    className="text-sm font-semibold data-[state=active]:bg-red-500 data-[state=active]:text-white rounded-md transition-all"
-                  >
-                    Rejeitados
-                  </TabsTrigger>
-                </TabsList>
+            {/* Divider */}
+            <div className="border-t border-border/50"></div>
 
-                <div className="flex items-center gap-2 w-full sm:flex-1 sm:max-w-md">
-                  <div className="relative flex-1">
-                    <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-                    <Input
-                      placeholder="Procurar por tema ou legenda..."
-                      value={searchQuery}
-                      onChange={(e) => setSearchQuery(e.target.value)}
-                      className="pl-10 text-sm h-10 bg-background border-border/50"
-                    />
+            {/* Section: Status Tabs + Search */}
+            <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
+              <div className="space-y-4">
+                <h3 className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Estado da Publicação</h3>
+                
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 bg-muted/20 p-4 rounded-xl border border-border/30">
+                  <TabsList className="w-full sm:w-auto grid grid-cols-3 h-11 bg-background shadow-sm border border-border/50 p-1">
+                    <TabsTrigger 
+                      value="pending" 
+                      className="text-sm font-bold data-[state=active]:bg-gradient-to-br data-[state=active]:from-orange-500 data-[state=active]:to-orange-600 data-[state=active]:text-white rounded-md transition-all data-[state=active]:shadow-lg"
+                    >
+                      Pendentes
+                    </TabsTrigger>
+                    <TabsTrigger 
+                      value="approved" 
+                      className="text-sm font-bold data-[state=active]:bg-gradient-to-br data-[state=active]:from-green-500 data-[state=active]:to-green-600 data-[state=active]:text-white rounded-md transition-all data-[state=active]:shadow-lg"
+                    >
+                      Aprovados
+                    </TabsTrigger>
+                    <TabsTrigger 
+                      value="rejected" 
+                      className="text-sm font-bold data-[state=active]:bg-gradient-to-br data-[state=active]:from-red-500 data-[state=active]:to-red-600 data-[state=active]:text-white rounded-md transition-all data-[state=active]:shadow-lg"
+                    >
+                      Rejeitados
+                    </TabsTrigger>
+                  </TabsList>
+
+                  <div className="flex items-center gap-2 w-full sm:flex-1 sm:max-w-md">
+                    <div className="relative flex-1">
+                      <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+                      <Input
+                        placeholder="Procurar por tema ou legenda..."
+                        value={searchQuery}
+                        onChange={(e) => setSearchQuery(e.target.value)}
+                        className="pl-10 text-sm h-10 bg-background border-border/50"
+                      />
+                    </div>
+                    <Button
+                      variant="outline"
+                      size="icon"
+                      onClick={() => fetchAll()}
+                      disabled={loading}
+                      className="flex-shrink-0 h-10 w-10 border-border/50 hover:bg-muted/50"
+                      title="Recarregar lista"
+                    >
+                      <RefreshCw className={`h-4 w-4 ${loading ? 'animate-spin' : ''}`} />
+                    </Button>
                   </div>
-                  <Button
-                    variant="outline"
-                    size="icon"
-                    onClick={() => fetchAll()}
-                    disabled={loading}
-                    className="flex-shrink-0 h-10 w-10 border-border/50 hover:bg-muted/50"
-                    title="Recarregar lista"
-                  >
-                    <RefreshCw className={`h-4 w-4 ${loading ? 'animate-spin' : ''}`} />
-                  </Button>
                 </div>
               </div>
 
