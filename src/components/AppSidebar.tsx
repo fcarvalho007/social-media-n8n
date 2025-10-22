@@ -78,9 +78,9 @@ export function AppSidebar() {
       )}
       
       <Sidebar className={cn(
-        "w-24 border-r-0 transition-all duration-300",
-        "fixed lg:sticky inset-y-0 left-0 z-50 lg:z-auto rounded-r-lg lg:rounded-r-none",
-        "bg-gradient-to-b from-iconosquare-bg to-background shadow-xl",
+        "w-20 border-r border-border transition-all duration-300",
+        "fixed lg:sticky inset-y-0 left-0 z-50 lg:z-auto",
+        "bg-white shadow-lg",
         open ? "translate-x-0" : "-translate-x-full lg:translate-x-0"
       )}>
         {/* Mobile Close Button */}
@@ -93,10 +93,10 @@ export function AppSidebar() {
           <X className="h-4 w-4 text-iconosquare-blue" />
         </Button>
 
-        <SidebarContent className="flex flex-col h-full py-6">
+        <SidebarContent className="flex flex-col h-full py-4">
           {/* Logo no Topo */}
-          <div className="flex justify-center mb-8 px-4">
-            <div className="h-12 w-12 rounded-xl bg-gradient-to-br from-iconosquare-blue to-primary flex items-center justify-center shadow-lg glow-iconosquare">
+          <div className="flex justify-center mb-6 px-3">
+            <div className="h-12 w-12 rounded-2xl bg-primary flex items-center justify-center shadow-md">
               <span className="text-white font-bold text-2xl">N</span>
             </div>
           </div>
@@ -104,8 +104,8 @@ export function AppSidebar() {
           {/* Menu Items */}
           <SidebarGroup className="flex-1">
             <SidebarGroupContent>
-              <SidebarMenu className="space-y-3">
-                <TooltipProvider delayDuration={100}>
+              <SidebarMenu className="space-y-1">
+                <TooltipProvider delayDuration={150}>
                   {menuItems.map((item) => (
                     <SidebarMenuItem key={item.title}>
                       <Tooltip>
@@ -113,10 +113,11 @@ export function AppSidebar() {
                           <SidebarMenuButton 
                             asChild={!item.disabled}
                             disabled={item.disabled}
+                            className="h-auto p-0"
                           >
                             {item.disabled ? (
-                              <div className="flex h-14 w-14 items-center justify-center rounded-xl mx-auto opacity-40 cursor-not-allowed">
-                                <item.icon className="h-6 w-6 text-iconosquare-inactive" strokeWidth={2} />
+                              <div className="flex h-12 w-12 items-center justify-center rounded-xl mx-auto opacity-30 cursor-not-allowed">
+                                <item.icon className="h-5 w-5 text-muted-foreground" strokeWidth={2} />
                               </div>
                             ) : (
                               <NavLink
@@ -124,19 +125,16 @@ export function AppSidebar() {
                                 onClick={() => setOpen(false)}
                                 className={({ isActive }) =>
                                   cn(
-                                    'flex h-14 w-14 items-center justify-center rounded-xl transition-all duration-200 mx-auto group',
-                                    'hover:bg-iconosquare-blue/15 focus:outline-none focus:ring-2 focus:ring-iconosquare-blue',
+                                    'flex h-12 w-12 items-center justify-center rounded-xl transition-all duration-200 mx-auto',
+                                    'focus:outline-none focus:ring-2 focus:ring-primary/50',
                                     isActive
-                                      ? 'bg-iconosquare-blue text-white shadow-lg glow-iconosquare'
-                                      : 'text-iconosquare-inactive hover:text-iconosquare-blue'
+                                      ? 'bg-primary text-white shadow-md'
+                                      : 'text-muted-foreground hover:text-primary hover:bg-primary/5'
                                   )
                                 }
                               >
                                 <item.icon 
-                                  className={cn(
-                                    "h-6 w-6 transition-transform duration-200",
-                                    "group-hover:scale-110"
-                                  )} 
+                                  className="h-5 w-5" 
                                   strokeWidth={2} 
                                 />
                               </NavLink>
@@ -145,7 +143,7 @@ export function AppSidebar() {
                         </TooltipTrigger>
                         <TooltipContent 
                           side="right" 
-                          className="font-medium text-sm bg-white text-iconosquare-blue border-iconosquare-blue/20 shadow-lg"
+                          className="font-medium text-sm"
                         >
                           {item.title}
                         </TooltipContent>
@@ -158,16 +156,16 @@ export function AppSidebar() {
           </SidebarGroup>
 
           {/* User Avatar no Fundo */}
-          <div className="flex justify-center mt-auto px-4">
+          <div className="flex justify-center mt-auto px-3">
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
                 <Button
                   variant="ghost"
-                  className="h-14 w-14 rounded-xl p-0 hover:bg-iconosquare-blue/15 transition-all duration-200 group focus:outline-none focus:ring-2 focus:ring-iconosquare-blue"
+                  className="h-12 w-12 rounded-xl p-0 hover:bg-primary/5 transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-primary/50"
                 >
-                  <Avatar className="h-11 w-11 border-2 border-iconosquare-inactive group-hover:border-iconosquare-blue transition-colors">
-                    <AvatarFallback className="bg-gradient-to-br from-iconosquare-blue to-primary text-white font-semibold text-lg">
-                      {user?.email?.charAt(0).toUpperCase() || 'U'}
+                  <Avatar className="h-10 w-10">
+                    <AvatarFallback className="bg-primary text-white font-semibold text-base">
+                      {user?.email?.charAt(0).toUpperCase() || 'A'}
                     </AvatarFallback>
                   </Avatar>
                 </Button>
@@ -175,24 +173,24 @@ export function AppSidebar() {
               <DropdownMenuContent 
                 side="right" 
                 align="end" 
-                className="w-56 rounded-xl bg-white shadow-xl border-iconosquare-blue/20"
+                className="w-56 rounded-xl"
               >
-                <DropdownMenuLabel className="font-semibold text-iconosquare-blue">
+                <DropdownMenuLabel className="font-semibold">
                   Minha Conta
                 </DropdownMenuLabel>
                 <DropdownMenuSeparator />
-                <DropdownMenuItem className="cursor-pointer rounded-lg focus:bg-iconosquare-blue/10">
+                <DropdownMenuItem className="cursor-pointer rounded-lg">
                   <User className="mr-2 h-4 w-4" />
                   Perfil
                 </DropdownMenuItem>
-                <DropdownMenuItem className="cursor-pointer rounded-lg focus:bg-iconosquare-blue/10">
+                <DropdownMenuItem className="cursor-pointer rounded-lg">
                   <Settings className="mr-2 h-4 w-4" />
                   Configurações
                 </DropdownMenuItem>
                 <DropdownMenuSeparator />
                 <DropdownMenuItem
                   onClick={handleLogout}
-                  className="cursor-pointer text-iconosquare-alert focus:text-iconosquare-alert focus:bg-iconosquare-alert/10 rounded-lg"
+                  className="cursor-pointer text-destructive focus:text-destructive rounded-lg"
                 >
                   Terminar Sessão
                 </DropdownMenuItem>
