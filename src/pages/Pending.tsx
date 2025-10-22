@@ -183,16 +183,6 @@ const Pending = () => {
           <DashboardHeader />
           
           <main className="flex-1 p-4 sm:p-6 lg:p-10 animate-fade-in overflow-auto bg-gradient-to-br from-white to-gray-50">
-          {/* Page Header */}
-          <div className="mb-8">
-            <h1 className="text-2xl sm:text-3xl lg:text-4xl font-bold text-foreground mb-3 leading-tight">
-              Painel de Conteúdo
-            </h1>
-            <p className="text-[#6B7280] text-sm">
-              Crie novos conteúdos e faça a revisão de publicações pendentes
-            </p>
-          </div>
-
           {activeTab === 'create' ? (
             /* Create Tab */
             <div className="animate-slide-up">
