@@ -1,20 +1,22 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useMemo } from 'react';
 import { Calendar as BigCalendar, dateFnsLocalizer, Event } from 'react-big-calendar';
 import withDragAndDrop from 'react-big-calendar/lib/addons/dragAndDrop';
-import { format, parse, startOfWeek, getDay } from 'date-fns';
+import { format, parse, startOfWeek, getDay, isToday, isSameMonth, startOfMonth, endOfMonth } from 'date-fns';
 import { pt } from 'date-fns/locale';
 import { supabase } from '@/integrations/supabase/client';
 import { AppSidebar } from '@/components/AppSidebar';
 import { DashboardHeader } from '@/components/DashboardHeader';
 import { SidebarProvider } from '@/components/ui/sidebar';
 import { Badge } from '@/components/ui/badge';
+import { Card } from '@/components/ui/card';
 import { toast } from 'sonner';
 import { logger } from '@/lib/logger';
 import 'react-big-calendar/lib/css/react-big-calendar.css';
 import 'react-big-calendar/lib/addons/dragAndDrop/styles.css';
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
-import { Calendar as CalendarIcon, Clock } from 'lucide-react';
+import { Calendar as CalendarIcon, Clock, LayoutGrid, Video, TrendingUp, Filter } from 'lucide-react';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 
 const locales = {
   'pt-PT': pt,
@@ -49,6 +51,8 @@ const Calendar = () => {
   const [events, setEvents] = useState<CalendarEvent[]>([]);
   const [loading, setLoading] = useState(true);
   const [selectedEvent, setSelectedEvent] = useState<CalendarEvent | null>(null);
+  const [currentMonth, setCurrentMonth] = useState(new Date());
+  const [filterType, setFilterType] = useState<'all' | 'posts' | 'stories'>('all');
 
   const fetchScheduledContent = async () => {
     setLoading(true);
@@ -152,11 +156,42 @@ const Calendar = () => {
     };
   };
 
-  const CustomEvent = ({ event }: { event: CalendarEvent }) => (
-    <div className="flex items-center gap-1 truncate">
-      <span className="text-xs font-semibold truncate">{event.title}</span>
-    </div>
-  );
+  const filteredEvents = useMemo(() => {
+    if (filterType === 'all') return events;
+    if (filterType === 'posts') {
+      return events.filter(e => e.resource.content_type !== 'stories');
+    }
+    return events.filter(e => e.resource.content_type === 'stories');
+  }, [events, filterType]);
+
+  const monthStats = useMemo(() => {
+    const monthStart = startOfMonth(currentMonth);
+    const monthEnd = endOfMonth(currentMonth);
+    
+    const monthEvents = events.filter(e => {
+      const eventDate = e.start as Date;
+      return eventDate >= monthStart && eventDate <= monthEnd;
+    });
+
+    const posts = monthEvents.filter(e => e.resource.content_type !== 'stories').length;
+    const stories = monthEvents.filter(e => e.resource.content_type === 'stories').length;
+    
+    return { total: monthEvents.length, posts, stories };
+  }, [events, currentMonth]);
+
+  const CustomEvent = ({ event }: { event: CalendarEvent }) => {
+    const isStory = event.resource.content_type === 'stories';
+    return (
+      <div className="flex items-center gap-1 truncate group">
+        {isStory ? (
+          <Video className="h-3 w-3 flex-shrink-0" />
+        ) : (
+          <LayoutGrid className="h-3 w-3 flex-shrink-0" />
+        )}
+        <span className="text-xs font-semibold truncate">{event.title}</span>
+      </div>
+    );
+  };
 
   return (
     <SidebarProvider defaultOpen={false}>
@@ -168,26 +203,76 @@ const Calendar = () => {
           
           <main className="flex-1 p-4 sm:p-6 lg:p-10 overflow-auto bg-gradient-to-br from-white to-gray-50">
             <div className="animate-slide-up space-y-6">
-              <div className="flex items-center justify-between">
+              {/* Header */}
+              <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4">
                 <div>
-                  <h1 className="text-3xl font-bold text-foreground flex items-center gap-2">
-                    <CalendarIcon className="h-8 w-8 text-primary" />
+                  <h1 className="text-3xl font-bold text-foreground flex items-center gap-3">
+                    <div className="h-12 w-12 rounded-xl bg-primary/10 flex items-center justify-center">
+                      <CalendarIcon className="h-6 w-6 text-primary" />
+                    </div>
                     Calendário de Publicações
                   </h1>
-                  <p className="text-muted-foreground mt-1">
-                    Visualize e gerencie seus posts agendados
+                  <p className="text-muted-foreground mt-2 ml-[60px]">
+                    Arraste e solte para reagendar • Clique para ver detalhes
                   </p>
                 </div>
-                <div className="flex gap-3">
-                  <Badge variant="secondary" className="h-8 px-3 flex items-center gap-2">
-                    <div className="w-3 h-3 rounded-full bg-[#4169A0]" />
-                    Posts
-                  </Badge>
-                  <Badge variant="secondary" className="h-8 px-3 flex items-center gap-2">
-                    <div className="w-3 h-3 rounded-full bg-[#8B5CF6]" />
-                    Stories
-                  </Badge>
+              </div>
+
+              {/* Stats Cards */}
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                <Card className="p-5 border-2">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <p className="text-sm font-medium text-muted-foreground">Total Este Mês</p>
+                      <p className="text-3xl font-bold text-foreground mt-1">{monthStats.total}</p>
+                    </div>
+                    <div className="h-12 w-12 rounded-full bg-primary/10 flex items-center justify-center">
+                      <TrendingUp className="h-6 w-6 text-primary" />
+                    </div>
+                  </div>
+                </Card>
+
+                <Card className="p-5 border-2">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <p className="text-sm font-medium text-muted-foreground">Posts Agendados</p>
+                      <p className="text-3xl font-bold text-foreground mt-1">{monthStats.posts}</p>
+                    </div>
+                    <div className="h-12 w-12 rounded-full bg-[#4169A0]/10 flex items-center justify-center">
+                      <LayoutGrid className="h-6 w-6 text-[#4169A0]" />
+                    </div>
+                  </div>
+                </Card>
+
+                <Card className="p-5 border-2">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <p className="text-sm font-medium text-muted-foreground">Stories Agendadas</p>
+                      <p className="text-3xl font-bold text-foreground mt-1">{monthStats.stories}</p>
+                    </div>
+                    <div className="h-12 w-12 rounded-full bg-[#8B5CF6]/10 flex items-center justify-center">
+                      <Video className="h-6 w-6 text-[#8B5CF6]" />
+                    </div>
+                  </div>
+                </Card>
+              </div>
+
+              {/* Filters */}
+              <div className="flex items-center justify-between bg-white rounded-xl p-4 border-2">
+                <div className="flex items-center gap-2">
+                  <Filter className="h-4 w-4 text-muted-foreground" />
+                  <span className="text-sm font-medium text-muted-foreground">Filtrar por:</span>
                 </div>
+                <Select value={filterType} onValueChange={(value: any) => setFilterType(value)}>
+                  <SelectTrigger className="w-[180px]">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">Todos</SelectItem>
+                    <SelectItem value="posts">Apenas Posts</SelectItem>
+                    <SelectItem value="stories">Apenas Stories</SelectItem>
+                  </SelectContent>
+                </Select>
               </div>
 
               <div className="bg-white rounded-2xl shadow-md p-6 border border-gray-100">
@@ -198,11 +283,12 @@ const Calendar = () => {
                 ) : (
                   <DnDCalendar
                     localizer={localizer}
-                    events={events}
+                    events={filteredEvents}
                     startAccessor={(event: CalendarEvent) => event.start as Date}
                     endAccessor={(event: CalendarEvent) => event.end as Date}
-                    style={{ height: 600 }}
+                    style={{ height: 650 }}
                     culture="pt-PT"
+                    onNavigate={(date) => setCurrentMonth(date)}
                     messages={{
                       next: 'Próximo',
                       previous: 'Anterior',
@@ -234,33 +320,47 @@ const Calendar = () => {
       </div>
 
       <Dialog open={!!selectedEvent} onOpenChange={() => setSelectedEvent(null)}>
-        <DialogContent className="sm:max-w-md">
+        <DialogContent className="sm:max-w-lg">
           <DialogHeader>
-            <DialogTitle className="flex items-center gap-2">
-              <CalendarIcon className="h-5 w-5 text-primary" />
+            <DialogTitle className="flex items-center gap-2 text-xl">
+              {selectedEvent?.resource.content_type === 'stories' ? (
+                <Video className="h-5 w-5 text-[#8B5CF6]" />
+              ) : (
+                <LayoutGrid className="h-5 w-5 text-[#4169A0]" />
+              )}
               Detalhes da Publicação
             </DialogTitle>
+            <DialogDescription>
+              Agendada para {selectedEvent && format(selectedEvent.start as Date, "dd 'de' MMMM 'de' yyyy", { locale: pt })}
+            </DialogDescription>
           </DialogHeader>
           {selectedEvent && (
-            <div className="space-y-4">
-              <div>
-                <h3 className="font-semibold text-lg">{selectedEvent.title}</h3>
-                <Badge className="mt-2">
-                  {selectedEvent.resource.content_type === 'stories' ? 'Story' : 'Post'}
-                </Badge>
-              </div>
-              
-              <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                <Clock className="h-4 w-4" />
-                <span>
-                  {format(selectedEvent.start as Date, "dd 'de' MMMM 'às' HH:mm", {
-                    locale: pt,
-                  })}
-                </span>
+            <div className="space-y-5">
+              <div className="bg-muted/50 rounded-lg p-4">
+                <h3 className="font-semibold text-lg mb-2">{selectedEvent.title}</h3>
+                <div className="flex items-center gap-3">
+                  <Badge variant={selectedEvent.resource.content_type === 'stories' ? 'default' : 'secondary'} className="flex items-center gap-1.5">
+                    {selectedEvent.resource.content_type === 'stories' ? (
+                      <>
+                        <Video className="h-3 w-3" />
+                        Story
+                      </>
+                    ) : (
+                      <>
+                        <LayoutGrid className="h-3 w-3" />
+                        Post
+                      </>
+                    )}
+                  </Badge>
+                  <div className="flex items-center gap-1.5 text-sm font-medium text-muted-foreground">
+                    <Clock className="h-3.5 w-3.5" />
+                    {format(selectedEvent.start as Date, "HH:mm", { locale: pt })}
+                  </div>
+                </div>
               </div>
 
               {selectedEvent.resource.template_a_images?.[0] && (
-                <div className="relative aspect-video rounded-lg overflow-hidden border">
+                <div className="relative aspect-video rounded-xl overflow-hidden border-2 shadow-md hover:shadow-lg transition-shadow">
                   <img
                     src={selectedEvent.resource.template_a_images[0]}
                     alt="Preview"
@@ -270,7 +370,7 @@ const Calendar = () => {
               )}
 
               {selectedEvent.resource.story_image_url && (
-                <div className="relative aspect-[9/16] max-h-96 rounded-lg overflow-hidden border mx-auto">
+                <div className="relative aspect-[9/16] max-h-96 rounded-xl overflow-hidden border-2 shadow-md hover:shadow-lg transition-shadow mx-auto">
                   <img
                     src={selectedEvent.resource.story_image_url}
                     alt="Story Preview"
@@ -279,18 +379,27 @@ const Calendar = () => {
                 </div>
               )}
 
-              <Button
-                className="w-full"
-                onClick={() => {
-                  const path =
-                    selectedEvent.resource.content_type === 'stories'
-                      ? `/review-story/${selectedEvent.id}`
-                      : `/review/${selectedEvent.id}`;
-                  window.location.href = path;
-                }}
-              >
-                Ver Detalhes Completos
-              </Button>
+              <div className="flex gap-3">
+                <Button
+                  variant="outline"
+                  className="flex-1"
+                  onClick={() => setSelectedEvent(null)}
+                >
+                  Fechar
+                </Button>
+                <Button
+                  className="flex-1"
+                  onClick={() => {
+                    const path =
+                      selectedEvent.resource.content_type === 'stories'
+                        ? `/review-story/${selectedEvent.id}`
+                        : `/review/${selectedEvent.id}`;
+                    window.location.href = path;
+                  }}
+                >
+                  Editar Publicação
+                </Button>
+              </div>
             </div>
           )}
         </DialogContent>
