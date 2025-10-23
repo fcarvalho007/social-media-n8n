@@ -89,24 +89,22 @@ export const PostCard = ({ post, onClick, onDelete }: PostCardProps) => {
       onClick={onClick}
     >
       <CardContent className="p-3 sm:p-4 md:p-5">
-        {/* Template Selected Badge - Top Left */}
-        {post.selected_template && (post.status === 'approved' || post.status === 'published') && (
-          <div className="absolute top-2 left-2 sm:top-3 sm:left-3 z-10">
-            <Badge className={cn(
-              "flex items-center gap-1 sm:gap-1.5 px-2.5 sm:px-3 py-1 sm:py-1.5 font-bold text-[11px] sm:text-sm rounded-lg",
-              templateBadgeColors[post.selected_template as 'A' | 'B']
-            )}>
-              Template {post.selected_template}
-            </Badge>
-          </div>
-        )}
-
-        {/* Published Badge in top-right corner */}
-        {post.status === 'published' && (
+        {/* Delete Button - Top Right */}
+        {onDelete && (
           <div className="absolute top-2 right-2 sm:top-3 sm:right-3 z-10">
-            <Badge className="bg-success text-success-foreground text-[10px] sm:text-xs px-2 sm:px-2.5 py-0.5 sm:py-1 flex items-center gap-1 shadow-lg">
-              ✓ Publicado
-            </Badge>
+            <Button
+              variant="ghost"
+              size="icon"
+              className="h-8 w-8 sm:h-9 sm:w-9 text-destructive hover:text-destructive hover:bg-destructive/10 bg-background/80 backdrop-blur-sm touch-target shadow-sm"
+              onClick={(e) => {
+                e.stopPropagation();
+                onDelete(post.id);
+              }}
+              aria-label={`Eliminar publicação ${post.tema}`}
+              title="Eliminar publicação"
+            >
+              <Trash2 className="h-4 w-4" />
+            </Button>
           </div>
         )}
         
@@ -125,27 +123,10 @@ export const PostCard = ({ post, onClick, onDelete }: PostCardProps) => {
         </div>
 
         <div className="mb-2 sm:mb-3 flex items-start justify-between gap-2">
-          <h3 className="font-bold line-clamp-2 flex-1 text-sm sm:text-base leading-tight">{post.tema}</h3>
-          <div className="flex items-center gap-1.5 sm:gap-2 shrink-0">
-            <Badge className={cn("text-[10px] sm:text-xs px-2 sm:px-2.5 py-0.5 sm:py-1 font-medium rounded-lg", statusColors[post.status as keyof typeof statusColors])}>
-              {statusLabels[post.status as keyof typeof statusLabels]}
-            </Badge>
-            {onDelete && (
-              <Button
-                variant="ghost"
-                size="icon"
-                className="h-8 w-8 sm:h-9 sm:w-9 text-destructive hover:text-destructive hover:bg-destructive/10 touch-target"
-                onClick={(e) => {
-                  e.stopPropagation();
-                  onDelete(post.id);
-                }}
-                aria-label={`Eliminar publicação ${post.tema}`}
-                title="Eliminar publicação"
-              >
-                <Trash2 className="h-4 w-4" />
-              </Button>
-            )}
-          </div>
+          <h3 className="font-bold line-clamp-2 flex-1 text-sm sm:text-base leading-tight pr-12">{post.tema}</h3>
+          <Badge className={cn("text-[10px] sm:text-xs px-2 sm:px-2.5 py-0.5 sm:py-1 font-medium rounded-lg shrink-0", statusColors[post.status as keyof typeof statusColors])}>
+            {statusLabels[post.status as keyof typeof statusLabels]}
+          </Badge>
         </div>
 
         {/* Image preview grid */}
@@ -177,19 +158,9 @@ export const PostCard = ({ post, onClick, onDelete }: PostCardProps) => {
         </div>
 
         <div className="flex items-center justify-between text-sm border-t border-border/50 pt-2 sm:pt-3">
-          <div className="flex flex-col gap-0.5">
-            <span className="text-muted-foreground text-[10px] sm:text-xs font-medium">
-              Criado {formatDistanceToNow(new Date(post.created_at), { addSuffix: true, locale: pt })}
-            </span>
-            {(post.reviewed_at || post.published_at) && (
-              <span className="text-muted-foreground text-[10px] sm:text-xs font-medium">
-                {post.published_at 
-                  ? `Publicado ${formatDistanceToNow(new Date(post.published_at), { addSuffix: true, locale: pt })}`
-                  : `Revisto ${formatDistanceToNow(new Date(post.reviewed_at!), { addSuffix: true, locale: pt })}`
-                }
-              </span>
-            )}
-          </div>
+          <span className="text-muted-foreground text-[10px] sm:text-xs font-medium">
+            {formatDistanceToNow(new Date(post.created_at), { addSuffix: true, locale: pt })}
+          </span>
           <Button 
             variant="ghost" 
             size="sm" 
