@@ -15,7 +15,7 @@ import 'react-big-calendar/lib/css/react-big-calendar.css';
 import 'react-big-calendar/lib/addons/dragAndDrop/styles.css';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
-import { Calendar as CalendarIcon, Clock, LayoutGrid, Video, TrendingUp, Filter } from 'lucide-react';
+import { Calendar as CalendarIcon, Clock, LayoutGrid, Video, TrendingUp, Filter, Trash2 } from 'lucide-react';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 
 const locales = {
@@ -61,28 +61,26 @@ const Calendar = () => {
         supabase
           .from('posts')
           .select('*')
-          .eq('status', 'approved')
-          .not('scheduled_date', 'is', null),
+          .in('status', ['approved', 'published']),
         supabase
           .from('stories')
           .select('*')
-          .eq('status', 'approved')
-          .not('scheduled_date', 'is', null),
+          .in('status', ['approved', 'published']),
       ]);
 
       const postEvents: CalendarEvent[] = (posts || []).map((post) => ({
         id: post.id,
         title: post.tema,
-        start: new Date(post.scheduled_date),
-        end: new Date(post.scheduled_date),
+        start: post.scheduled_date ? new Date(post.scheduled_date) : new Date(post.reviewed_at || post.created_at),
+        end: post.scheduled_date ? new Date(post.scheduled_date) : new Date(post.reviewed_at || post.created_at),
         resource: { ...post, content_type: post.content_type || 'carousel' },
       }));
 
       const storyEvents: CalendarEvent[] = (stories || []).map((story) => ({
         id: story.id,
         title: story.tema || 'Story',
-        start: new Date(story.scheduled_date),
-        end: new Date(story.scheduled_date),
+        start: story.scheduled_date ? new Date(story.scheduled_date) : new Date(story.reviewed_at || story.created_at),
+        end: story.scheduled_date ? new Date(story.scheduled_date) : new Date(story.reviewed_at || story.created_at),
         resource: { ...story, content_type: 'stories' },
       }));
 
@@ -118,6 +116,22 @@ const Calendar = () => {
     };
   }, []);
 
+  const handleDelete = async (id: string, contentType: string) => {
+    try {
+      const table = contentType === 'stories' ? 'stories' : 'posts';
+      const { error } = await supabase.from(table).delete().eq('id', id);
+
+      if (error) throw error;
+
+      toast.success('Publicação eliminada com sucesso');
+      setSelectedEvent(null);
+      fetchScheduledContent();
+    } catch (error) {
+      logger.error('Erro ao eliminar publicação', error);
+      toast.error('Falha ao eliminar publicação');
+    }
+  };
+
   const handleEventDrop = useCallback(
     async ({ event, start }: { event: CalendarEvent; start: Date }) => {
       try {
@@ -141,11 +155,23 @@ const Calendar = () => {
 
   const eventStyleGetter = (event: CalendarEvent) => {
     const isStory = event.resource.content_type === 'stories';
+    const isScheduled = !!event.resource.scheduled_date;
+    const isPublished = event.resource.status === 'published';
+    
+    let backgroundColor = isStory ? '#8B5CF6' : '#4169A0';
+    let opacity = 0.9;
+    
+    if (isPublished) {
+      opacity = 0.6; // Published posts are more transparent
+    } else if (!isScheduled) {
+      opacity = 0.75; // Approved but not scheduled
+    }
+    
     return {
       style: {
-        backgroundColor: isStory ? '#8B5CF6' : '#4169A0',
+        backgroundColor,
         borderRadius: '8px',
-        opacity: 0.9,
+        opacity,
         color: 'white',
         border: '0px',
         display: 'block',
@@ -331,13 +357,30 @@ const Calendar = () => {
               Detalhes da Publicação
             </DialogTitle>
             <DialogDescription>
-              Agendada para {selectedEvent && format(selectedEvent.start as Date, "dd 'de' MMMM 'de' yyyy", { locale: pt })}
+              {selectedEvent?.resource.scheduled_date 
+                ? `Agendada para ${format(selectedEvent.start as Date, "dd 'de' MMMM 'de' yyyy 'às' HH:mm", { locale: pt })}`
+                : selectedEvent?.resource.status === 'published' 
+                  ? `Publicada em ${format(selectedEvent.start as Date, "dd 'de' MMMM 'de' yyyy 'às' HH:mm", { locale: pt })}`
+                  : `Aprovada em ${format(selectedEvent.start as Date, "dd 'de' MMMM 'de' yyyy 'às' HH:mm", { locale: pt })}`
+              }
             </DialogDescription>
           </DialogHeader>
           {selectedEvent && (
             <div className="space-y-5">
               <div className="bg-muted/50 rounded-lg p-4">
-                <h3 className="font-semibold text-lg mb-2">{selectedEvent.title}</h3>
+                <div className="flex items-start justify-between gap-3 mb-2">
+                  <h3 className="font-semibold text-lg">{selectedEvent.title}</h3>
+                  {selectedEvent.resource.status === 'published' && (
+                    <Badge variant="outline" className="bg-success/10 text-success border-success/20">
+                      Publicada
+                    </Badge>
+                  )}
+                  {selectedEvent.resource.scheduled_date && selectedEvent.resource.status === 'approved' && (
+                    <Badge variant="outline" className="bg-primary/10 text-primary border-primary/20">
+                      Agendada
+                    </Badge>
+                  )}
+                </div>
                 <div className="flex items-center gap-3">
                   <Badge variant={selectedEvent.resource.content_type === 'stories' ? 'default' : 'secondary'} className="flex items-center gap-1.5">
                     {selectedEvent.resource.content_type === 'stories' ? (
@@ -381,6 +424,18 @@ const Calendar = () => {
 
               <div className="flex gap-3">
                 <Button
+                  variant="destructive"
+                  className="flex-1"
+                  onClick={() => {
+                    if (confirm('Tem a certeza que deseja eliminar esta publicação?')) {
+                      handleDelete(selectedEvent.id, selectedEvent.resource.content_type);
+                    }
+                  }}
+                >
+                  <Trash2 className="mr-2 h-4 w-4" />
+                  Eliminar
+                </Button>
+                <Button
                   variant="outline"
                   className="flex-1"
                   onClick={() => setSelectedEvent(null)}
@@ -397,7 +452,7 @@ const Calendar = () => {
                     window.location.href = path;
                   }}
                 >
-                  Editar Publicação
+                  Editar
                 </Button>
               </div>
             </div>
