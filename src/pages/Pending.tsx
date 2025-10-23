@@ -53,13 +53,7 @@ const Pending = () => {
 
       if (error) throw error;
 
-      const sortedData = (data || []).sort((a, b) => {
-        if (a.status === 'approved' && b.status === 'published') return -1;
-        if (a.status === 'published' && b.status === 'approved') return 1;
-        return 0;
-      });
-
-      setPosts(sortedData);
+      setPosts(data || []);
     } catch (error) {
       logger.error('Erro ao carregar publicações', error);
       toast.error('Falha ao carregar publicações');
