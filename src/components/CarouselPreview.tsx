@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Swiper, SwiperSlide } from 'swiper/react';
 import { Navigation, Pagination, Thumbs } from 'swiper/modules';
 import type { Swiper as SwiperType } from 'swiper';
@@ -56,6 +56,14 @@ export const CarouselPreview = ({ images, template, onSelect, isSelected, onRemo
   const [zoomSwiper, setZoomSwiper] = useState<SwiperType | null>(null);
   const [downloading, setDownloading] = useState(false);
   const [downloadingPdf, setDownloadingPdf] = useState(false);
+
+  // Cleanup state when component unmounts to prevent Dialog overlay issues
+  useEffect(() => {
+    return () => {
+      setZoomImageIndex(null);
+      setSlideToRemove(null);
+    };
+  }, []);
 
   // Helper function to generate optimized preview URLs for Supabase Storage
   const getPreviewUrl = (originalUrl: string, width: number = 800, quality: number = 70) => {

@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
 import { Label } from '@/components/ui/label';
@@ -44,6 +44,14 @@ export const ActionBar = ({ canApprove, onApprove, onReject, onSave }: ActionBar
   const [scheduledDate, setScheduledDate] = useState<Date>();
   const [scheduledTime, setScheduledTime] = useState('12:00');
   const [validationError, setValidationError] = useState<string>();
+
+  // Cleanup Dialog states when component unmounts
+  useEffect(() => {
+    return () => {
+      setShowRejectDialog(false);
+      setShowScheduleDialog(false);
+    };
+  }, []);
 
   const validateSchedule = (): boolean => {
     if (!scheduledDate) {

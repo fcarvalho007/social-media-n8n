@@ -332,6 +332,7 @@ const Review = () => {
         <div ref={templatesRef} className="grid grid-cols-1 lg:grid-cols-2 gap-3 sm:gap-4 md:gap-5 lg:gap-6 mb-3 sm:mb-4 md:mb-6 max-w-5xl mx-auto">
           <div className="w-full max-w-md mx-auto">
             <CarouselPreview
+              key={`template-a-${post.id}`}
               images={templateAImages}
               template="A"
               onSelect={() => setSelectedTemplate('A')}
@@ -343,6 +344,7 @@ const Review = () => {
           </div>
           <div className="w-full max-w-md mx-auto">
             <CarouselPreview
+              key={`template-b-${post.id}`}
               images={templateBImages}
               template="B"
               onSelect={() => setSelectedTemplate('B')}
