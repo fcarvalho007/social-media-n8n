@@ -1,16 +1,19 @@
+import { useState } from 'react';
 import { Menu, ChevronRight } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { useSidebar } from '@/components/ui/sidebar';
 import { useLocation, useSearchParams, useNavigate } from 'react-router-dom';
-
+import { useIsMobile } from '@/hooks/use-mobile';
+import { Drawer, DrawerContent, DrawerHeader, DrawerTitle, DrawerDescription } from '@/components/ui/drawer';
 export function DashboardHeader() {
   const { setOpen } = useSidebar();
   const location = useLocation();
   const [searchParams] = useSearchParams();
   const navigate = useNavigate();
   
+  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  const isMobile = useIsMobile();
   const activeTab = searchParams.get('tab');
-
   const getBreadcrumbs = () => {
     if (location.pathname === '/' || location.pathname === '/pending') {
       if (activeTab === 'create') {
@@ -45,7 +48,7 @@ export function DashboardHeader() {
             variant="ghost"
             size="icon"
             className="lg:hidden h-10 w-10 rounded-xl hover:bg-[#4169A0]/10 touch-target"
-            onClick={() => setOpen(true)}
+            onClick={() => (isMobile ? setMobileMenuOpen(true) : setOpen(true))}
           >
             <Menu className="h-5 w-5" />
           </Button>
@@ -70,6 +73,33 @@ export function DashboardHeader() {
             ))}
           </nav>
         </div>
+
+        {/* Mobile Quick Menu Drawer */}
+        <Drawer open={mobileMenuOpen} onOpenChange={setMobileMenuOpen} shouldScaleBackground>
+          <DrawerContent>
+            <DrawerHeader>
+              <DrawerTitle>Menu</DrawerTitle>
+              <DrawerDescription>Escolha uma opção</DrawerDescription>
+            </DrawerHeader>
+            <div className="p-4 grid gap-3">
+              <Button
+                size="lg"
+                className="h-14 rounded-xl"
+                onClick={() => { navigate('/'); setMobileMenuOpen(false); }}
+              >
+                Aprovar
+              </Button>
+              <Button
+                variant="outline"
+                size="lg"
+                className="h-14 rounded-xl"
+                onClick={() => { navigate('/?tab=create'); setMobileMenuOpen(false); }}
+              >
+                Criar
+              </Button>
+            </div>
+          </DrawerContent>
+        </Drawer>
       </div>
     </header>
   );
