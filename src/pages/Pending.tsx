@@ -169,14 +169,14 @@ const Pending = () => {
   ];
 
   return (
-    <SidebarProvider defaultOpen={true}>
+    <SidebarProvider defaultOpen={false}>
       <div className="flex min-h-screen w-full bg-gradient-to-br from-background to-background-secondary">
         <AppSidebar />
         
         <div className="flex-1 flex flex-col min-w-0">
           <DashboardHeader />
           
-          <main className="flex-1 p-4 sm:p-6 lg:p-10 animate-fade-in overflow-auto bg-gradient-to-br from-white to-gray-50">
+          <main className="flex-1 p-4 sm:p-6 lg:p-10 overflow-auto bg-gradient-to-br from-white to-gray-50">
           {activeTab === 'create' ? (
             /* Create Tab */
             <div className="animate-slide-up">

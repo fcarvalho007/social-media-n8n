@@ -37,7 +37,7 @@ export function DashboardHeader() {
   const breadcrumbs = getBreadcrumbs();
 
   return (
-    <header className="sticky top-0 z-30 bg-white/80 backdrop-blur-lg border-b border-gray-100 shadow-sm animate-fade-in">
+    <header className="sticky top-0 z-30 bg-white/80 backdrop-blur-lg border-b border-gray-100 shadow-sm">
       <div className="flex h-14 sm:h-16 items-center justify-between px-3 sm:px-4 lg:px-6">
         {/* Left: Mobile Menu + Breadcrumb */}
         <div className="flex items-center gap-2 sm:gap-4">
