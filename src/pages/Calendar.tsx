@@ -356,14 +356,16 @@ const Calendar = () => {
               )}
               Detalhes da Publicação
             </DialogTitle>
-            <DialogDescription>
-              {selectedEvent?.resource.scheduled_date 
-                ? `Agendada para ${format(selectedEvent.start as Date, "dd 'de' MMMM 'de' yyyy 'às' HH:mm", { locale: pt })}`
-                : selectedEvent?.resource.status === 'published' 
-                  ? `Publicada em ${format(selectedEvent.start as Date, "dd 'de' MMMM 'de' yyyy 'às' HH:mm", { locale: pt })}`
-                  : `Aprovada em ${format(selectedEvent.start as Date, "dd 'de' MMMM 'de' yyyy 'às' HH:mm", { locale: pt })}`
-              }
-            </DialogDescription>
+            {selectedEvent && (
+              <DialogDescription>
+                {selectedEvent.resource.scheduled_date 
+                  ? `Agendada para ${format(selectedEvent.start as Date, "dd 'de' MMMM 'de' yyyy 'às' HH:mm", { locale: pt })}`
+                  : selectedEvent.resource.status === 'published' 
+                    ? `Publicada em ${format(selectedEvent.start as Date, "dd 'de' MMMM 'de' yyyy 'às' HH:mm", { locale: pt })}`
+                    : `Aprovada em ${format(selectedEvent.start as Date, "dd 'de' MMMM 'de' yyyy 'às' HH:mm", { locale: pt })}`
+                }
+              </DialogDescription>
+            )}
           </DialogHeader>
           {selectedEvent && (
             <div className="space-y-5">
