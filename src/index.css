@@ -229,3 +229,116 @@ All colors MUST be HSL.
     display: none;
   }
 }
+
+/* React Big Calendar Custom Styles */
+.rbc-calendar {
+  font-family: 'Inter', sans-serif;
+}
+
+.rbc-header {
+  padding: 12px 8px;
+  font-weight: 600;
+  color: hsl(var(--muted-foreground));
+  font-size: 13px;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  border-bottom: 2px solid hsl(var(--border));
+}
+
+.rbc-month-view {
+  border: 1px solid hsl(var(--border));
+  border-radius: 12px;
+  overflow: hidden;
+}
+
+.rbc-day-bg {
+  border-color: hsl(var(--border));
+}
+
+.rbc-today {
+  background-color: hsl(var(--primary-light));
+}
+
+.rbc-off-range-bg {
+  background-color: hsl(var(--muted));
+}
+
+.rbc-date-cell {
+  padding: 8px;
+}
+
+.rbc-date-cell > a {
+  color: hsl(var(--foreground));
+  font-weight: 500;
+}
+
+.rbc-today .rbc-date-cell > a {
+  color: hsl(var(--primary));
+  font-weight: 700;
+}
+
+.rbc-event {
+  padding: 4px 8px;
+  border-radius: 6px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.rbc-event:hover {
+  opacity: 0.85;
+  transform: translateY(-1px);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+}
+
+.rbc-event-label {
+  font-size: 11px;
+  font-weight: 600;
+}
+
+.rbc-toolbar {
+  padding: 16px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 16px;
+}
+
+.rbc-toolbar button {
+  padding: 8px 16px;
+  border: 1px solid hsl(var(--border));
+  background-color: white;
+  color: hsl(var(--foreground));
+  border-radius: 8px;
+  font-weight: 500;
+  transition: all 0.2s ease;
+}
+
+.rbc-toolbar button:hover {
+  background-color: hsl(var(--primary-light));
+  border-color: hsl(var(--primary));
+}
+
+.rbc-toolbar button.rbc-active {
+  background-color: hsl(var(--primary));
+  color: white;
+  border-color: hsl(var(--primary));
+}
+
+.rbc-toolbar-label {
+  font-size: 18px;
+  font-weight: 700;
+  color: hsl(var(--foreground));
+}
+
+/* Drag and drop styles */
+.rbc-addons-dnd .rbc-addons-dnd-resizable {
+  position: relative;
+}
+
+.rbc-addons-dnd-dragging {
+  opacity: 0.5;
+}
+
+.rbc-addons-dnd-drag-preview {
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+}

@@ -1,4 +1,4 @@
-import { CheckCircle2, PlusCircle, X } from 'lucide-react';
+import { CheckCircle2, PlusCircle, Calendar, X } from 'lucide-react';
 import { NavLink } from 'react-router-dom';
 import {
   Sidebar,
@@ -35,6 +35,14 @@ const menuItems = [
     label: 'Criar',
     icon: PlusCircle,
     url: '/?tab=create',
+    disabled: false,
+    isMain: false,
+  },
+  {
+    title: 'Calendário',
+    label: 'Calendário',
+    icon: Calendar,
+    url: '/calendar',
     disabled: false,
     isMain: false,
   },

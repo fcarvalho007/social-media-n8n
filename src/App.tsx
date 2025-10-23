@@ -12,6 +12,7 @@ import Auth from "./pages/Auth";
 import Pending from "./pages/Pending";
 import Review from "./pages/Review";
 import ReviewStory from "./pages/ReviewStory";
+import Calendar from "./pages/Calendar";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -56,6 +57,14 @@ const App = () => (
                 element={
                   <ProtectedRoute>
                     <ReviewStory />
+                  </ProtectedRoute>
+                }
+              />
+              <Route
+                path="/calendar"
+                element={
+                  <ProtectedRoute>
+                    <Calendar />
                   </ProtectedRoute>
                 }
               />
