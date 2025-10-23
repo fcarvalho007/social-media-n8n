@@ -2,6 +2,8 @@ import { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
 import { Label } from '@/components/ui/label';
+import { Calendar } from '@/components/ui/calendar';
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import {
   AlertDialog,
   AlertDialogAction,
@@ -12,24 +14,56 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog';
-import { Loader2, Trash2, Save, Check } from 'lucide-react';
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog';
+import { Loader2, Trash2, Save, Check, Clock, CalendarIcon } from 'lucide-react';
+import { format } from 'date-fns';
+import { pt } from 'date-fns/locale';
+import { cn } from '@/lib/utils';
 
 interface ActionBarProps {
   canApprove: boolean;
-  onApprove: () => Promise<void>;
+  onApprove: (scheduledDate?: Date) => Promise<void>;
   onReject: (notes?: string) => Promise<void>;
   onSave: () => Promise<void>;
 }
 
 export const ActionBar = ({ canApprove, onApprove, onReject, onSave }: ActionBarProps) => {
   const [showRejectDialog, setShowRejectDialog] = useState(false);
+  const [showScheduleDialog, setShowScheduleDialog] = useState(false);
   const [rejectNotes, setRejectNotes] = useState('');
   const [loading, setLoading] = useState(false);
+  const [scheduledDate, setScheduledDate] = useState<Date>();
+  const [scheduledTime, setScheduledTime] = useState('12:00');
 
-  const handleApprove = async () => {
+  const handleApproveNow = async () => {
     setLoading(true);
     try {
       await onApprove();
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleSchedule = async () => {
+    if (!scheduledDate) return;
+    
+    setLoading(true);
+    try {
+      const [hours, minutes] = scheduledTime.split(':');
+      const dateTime = new Date(scheduledDate);
+      dateTime.setHours(parseInt(hours), parseInt(minutes), 0, 0);
+      
+      await onApprove(dateTime);
+      setShowScheduleDialog(false);
+      setScheduledDate(undefined);
+      setScheduledTime('12:00');
     } finally {
       setLoading(false);
     }
@@ -83,15 +117,26 @@ export const ActionBar = ({ canApprove, onApprove, onReject, onSave }: ActionBar
             </Button>
           </div>
 
-          <Button
-            size="lg"
-            onClick={handleApprove}
-            disabled={!canApprove || loading}
-            className="sm:w-auto w-full bg-success hover:bg-success/90 h-11 sm:h-12 text-sm sm:text-base touch-target"
-          >
-            {loading ? <Loader2 className="mr-1.5 sm:mr-2 h-4 w-4 animate-spin" /> : <Check className="mr-1.5 sm:mr-2 h-4 w-4" />}
-            <span>Aprovar</span>
-          </Button>
+          <div className="flex gap-2 sm:w-auto w-full">
+            <Button
+              size="lg"
+              onClick={handleApproveNow}
+              disabled={!canApprove || loading}
+              className="flex-1 sm:flex-initial bg-success hover:bg-success/90 h-11 sm:h-12 text-sm sm:text-base touch-target"
+            >
+              {loading ? <Loader2 className="mr-1.5 sm:mr-2 h-4 w-4 animate-spin" /> : <Check className="mr-1.5 sm:mr-2 h-4 w-4" />}
+              <span>Aprovar</span>
+            </Button>
+            <Button
+              size="lg"
+              variant="outline"
+              onClick={() => setShowScheduleDialog(true)}
+              disabled={!canApprove || loading}
+              className="h-11 sm:h-12 px-3 touch-target"
+            >
+              <Clock className="h-4 w-4" />
+            </Button>
+          </div>
         </div>
       </div>
 
@@ -126,6 +171,65 @@ export const ActionBar = ({ canApprove, onApprove, onReject, onSave }: ActionBar
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      <Dialog open={showScheduleDialog} onOpenChange={setShowScheduleDialog}>
+        <DialogContent className="sm:max-w-[425px]">
+          <DialogHeader>
+            <DialogTitle>Agendar Publicação</DialogTitle>
+            <DialogDescription>
+              Escolha a data e hora para publicar este conteúdo.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="grid gap-4 py-4">
+            <div className="grid gap-2">
+              <Label>Data</Label>
+              <Popover>
+                <PopoverTrigger asChild>
+                  <Button
+                    variant="outline"
+                    className={cn(
+                      "justify-start text-left font-normal",
+                      !scheduledDate && "text-muted-foreground"
+                    )}
+                  >
+                    <CalendarIcon className="mr-2 h-4 w-4" />
+                    {scheduledDate ? format(scheduledDate, "PPP", { locale: pt }) : "Escolher data"}
+                  </Button>
+                </PopoverTrigger>
+                <PopoverContent className="w-auto p-0" align="start">
+                  <Calendar
+                    mode="single"
+                    selected={scheduledDate}
+                    onSelect={setScheduledDate}
+                    disabled={(date) => date < new Date(new Date().setHours(0, 0, 0, 0))}
+                    initialFocus
+                    className="pointer-events-auto"
+                  />
+                </PopoverContent>
+              </Popover>
+            </div>
+            <div className="grid gap-2">
+              <Label htmlFor="time">Hora</Label>
+              <input
+                id="time"
+                type="time"
+                value={scheduledTime}
+                onChange={(e) => setScheduledTime(e.target.value)}
+                className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
+              />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setShowScheduleDialog(false)}>
+              Cancelar
+            </Button>
+            <Button onClick={handleSchedule} disabled={!scheduledDate || loading}>
+              {loading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
+              Agendar
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </>
   );
 };

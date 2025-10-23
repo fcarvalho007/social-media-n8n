@@ -73,7 +73,7 @@ const ReviewStory = () => {
     }
   };
 
-  const handleApprove = async () => {
+  const handleApprove = async (scheduledDate?: Date) => {
     try {
       const reviewedAt = new Date().toISOString();
       
@@ -84,6 +84,11 @@ const ReviewStory = () => {
         reviewed_by: user?.email || 'unknown',
       };
 
+      // If scheduled, save the date and don't call the webhook yet
+      if (scheduledDate) {
+        updateData.scheduled_date = scheduledDate.toISOString();
+      }
+
       const { error } = await supabase
         .from('stories')
         .update(updateData)
@@ -91,28 +96,33 @@ const ReviewStory = () => {
 
       if (error) throw error;
 
-      // Call edge function to notify N8N webhook for approved stories
-      try {
-        const { error: webhookError } = await supabase.functions.invoke('notify-story-approval', {
-          body: {
-            post_id: id,
-            status: 'approved',
-            caption_final: caption,
-            reviewed_by: user?.email || 'unknown',
-            reviewed_at: reviewedAt,
-          },
-        });
+      // Only call edge function to notify N8N webhook if not scheduled
+      if (!scheduledDate) {
+        try {
+          const { error: webhookError } = await supabase.functions.invoke('notify-story-approval', {
+            body: {
+              post_id: id,
+              status: 'approved',
+              caption_final: caption,
+              reviewed_by: user?.email || 'unknown',
+              reviewed_at: reviewedAt,
+            },
+          });
 
-        if (webhookError) {
-          console.error('Webhook notification error:', webhookError);
+          if (webhookError) {
+            console.error('Webhook notification error:', webhookError);
+            toast.error('Aprovado localmente, mas falha ao notificar n8n');
+          }
+        } catch (webhookError) {
+          console.error('Failed to call webhook notification:', webhookError);
           toast.error('Aprovado localmente, mas falha ao notificar n8n');
         }
-      } catch (webhookError) {
-        console.error('Failed to call webhook notification:', webhookError);
-        toast.error('Aprovado localmente, mas falha ao notificar n8n');
       }
       
-      toast.success('Story aprovado com sucesso!');
+      const successMessage = scheduledDate 
+        ? 'Story agendado com sucesso!' 
+        : 'Story aprovado com sucesso!';
+      toast.success(successMessage);
       navigate('/');
     } catch (error) {
       console.error('Erro ao aprovar:', error);

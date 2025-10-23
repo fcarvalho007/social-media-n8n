@@ -86,7 +86,7 @@ const Review = () => {
     }
   };
 
-  const handleApprove = async () => {
+  const handleApprove = async (scheduledDate?: Date) => {
     if (!selectedTemplate) {
       toast.error('Por favor, selecione primeiro um modelo');
       return;
@@ -109,6 +109,11 @@ const Review = () => {
         updateData.reviewed_by = user.id;
       }
 
+      // If scheduled, save the date and don't call the webhook yet
+      if (scheduledDate) {
+        updateData.scheduled_date = scheduledDate.toISOString();
+      }
+
       const { error } = await supabase
         .from('posts')
         .update(updateData)
@@ -116,28 +121,33 @@ const Review = () => {
 
       if (error) throw error;
 
-      // Call callback edge function
-      try {
-        const { data: callbackData, error: callbackError } = await supabase.functions.invoke('callback', {
-          body: {
-            post_id: id,
-            status: 'approved',
-            selected_template: selectedTemplate,
-            caption_edited: caption,
-            hashtags_edited: hashtags,
-            notes,
-          },
-        });
+      // Only call callback edge function if not scheduled
+      if (!scheduledDate) {
+        try {
+          const { data: callbackData, error: callbackError } = await supabase.functions.invoke('callback', {
+            body: {
+              post_id: id,
+              status: 'approved',
+              selected_template: selectedTemplate,
+              caption_edited: caption,
+              hashtags_edited: hashtags,
+              notes,
+            },
+          });
 
-        if (callbackError) {
-          console.error('Callback error:', callbackError);
-          toast.error('Aprovado localmente, mas falha ao notificar n8n');
+          if (callbackError) {
+            console.error('Callback error:', callbackError);
+            toast.error('Aprovado localmente, mas falha ao notificar n8n');
+          }
+        } catch (callbackError) {
+          console.error('Failed to call callback:', callbackError);
         }
-      } catch (callbackError) {
-        console.error('Failed to call callback:', callbackError);
       }
       
-      toast.success('Publicação aprovada com sucesso!');
+      const successMessage = scheduledDate 
+        ? 'Publicação agendada com sucesso!' 
+        : 'Publicação aprovada com sucesso!';
+      toast.success(successMessage);
       navigate('/');
     } catch (error) {
       console.error('Erro ao aprovar:', error);
