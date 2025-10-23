@@ -28,6 +28,7 @@ export type Database = {
           published_at: string | null
           reviewed_at: string | null
           reviewed_by: string | null
+          scheduled_date: string | null
           selected_template: string | null
           source: string | null
           status: string | null
@@ -52,6 +53,7 @@ export type Database = {
           published_at?: string | null
           reviewed_at?: string | null
           reviewed_by?: string | null
+          scheduled_date?: string | null
           selected_template?: string | null
           source?: string | null
           status?: string | null
@@ -76,6 +78,7 @@ export type Database = {
           published_at?: string | null
           reviewed_at?: string | null
           reviewed_by?: string | null
+          scheduled_date?: string | null
           selected_template?: string | null
           source?: string | null
           status?: string | null
@@ -101,6 +104,7 @@ export type Database = {
           metadata: Json | null
           reviewed_at: string | null
           reviewed_by: string | null
+          scheduled_date: string | null
           status: string | null
           story_image_url: string
           tema: string | null
@@ -118,6 +122,7 @@ export type Database = {
           metadata?: Json | null
           reviewed_at?: string | null
           reviewed_by?: string | null
+          scheduled_date?: string | null
           status?: string | null
           story_image_url: string
           tema?: string | null
@@ -135,6 +140,7 @@ export type Database = {
           metadata?: Json | null
           reviewed_at?: string | null
           reviewed_by?: string | null
+          scheduled_date?: string | null
           status?: string | null
           story_image_url?: string
           tema?: string | null
