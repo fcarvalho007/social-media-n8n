@@ -24,7 +24,7 @@ export const CaptionEditor = ({ initialCaption, initialHashtags, onChange }: Cap
     // Extract hashtags from caption text
     const hashtagMatches = caption.match(/#[\w\u00C0-\u017F]+/g);
     onChange(caption, hashtagMatches ? hashtagMatches : []);
-  }, [caption, onChange]);
+  }, [caption]);
 
   const getSuggestedHashtags = (): string[] => {
     const text = caption.toLowerCase();
