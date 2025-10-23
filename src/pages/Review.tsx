@@ -298,7 +298,7 @@ const Review = () => {
         <div className="flex-1 flex flex-col min-w-0 pb-20 sm:pb-24">
           <DashboardHeader />
           
-          <main className="flex-1 p-3 sm:p-4 md:p-6 lg:p-8 animate-fade-in overflow-auto bg-gradient-to-br from-white to-gray-50">
+          <main className="flex-1 p-3 sm:p-4 md:p-6 lg:p-8 animate-fade-in overflow-auto">
         <div className="flex items-center justify-between mb-3 sm:mb-4 md:mb-6">
           <Button
             variant="ghost"
