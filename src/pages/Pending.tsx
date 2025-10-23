@@ -44,7 +44,9 @@ const Pending = () => {
       let query = supabase.from('posts').select('*');
 
       if (activeStatus === 'approved') {
-        query = query.in('status', ['approved', 'published']);
+        query = query.in('status', ['approved', 'published']).is('scheduled_date', null);
+      } else if (activeStatus === 'scheduled') {
+        query = query.eq('status', 'approved').not('scheduled_date', 'is', null);
       } else {
         query = query.eq('status', activeStatus);
       }
@@ -67,7 +69,9 @@ const Pending = () => {
       let query = supabase.from('stories').select('*');
 
       if (activeStatus === 'approved') {
-        query = query.in('status', ['approved', 'published']);
+        query = query.in('status', ['approved', 'published']).is('scheduled_date', null);
+      } else if (activeStatus === 'scheduled') {
+        query = query.eq('status', 'approved').not('scheduled_date', 'is', null);
       } else {
         query = query.eq('status', activeStatus);
       }
@@ -158,6 +162,7 @@ const Pending = () => {
   const statusConfig = {
     pending: { label: 'Pendentes', icon: Clock, color: 'bg-warning-light text-warning border-warning/20', count: 0 },
     approved: { label: 'Aprovados', icon: CheckCircle2, color: 'bg-success-light text-success border-success/20', count: 0 },
+    scheduled: { label: 'Agendados', icon: Clock, color: 'bg-primary-light text-primary border-primary/20', count: 0 },
     rejected: { label: 'Rejeitados', icon: XCircle, color: 'bg-destructive-light text-destructive border-destructive/20', count: 0 },
   };
 
