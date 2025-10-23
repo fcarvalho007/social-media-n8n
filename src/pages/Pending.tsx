@@ -94,22 +94,15 @@ const Pending = () => {
 
   const handleDelete = async (postId: string) => {
     try {
-      const { data, error } = await supabase
+      const { error } = await supabase
         .from('posts')
         .delete()
-        .eq('id', postId)
-        .select('id');
+        .eq('id', postId);
 
       if (error) throw error;
 
-      if (!data || data.length === 0) {
-        toast.error('Sem permissão para eliminar. Inicie sessão.');
-        return;
-      }
-
       setPosts((prev) => prev.filter((p) => p.id !== postId));
       toast.success('Publicação eliminada com sucesso');
-      fetchAll();
     } catch (error) {
       logger.error('Erro ao eliminar publicação', error);
       toast.error('Falha ao eliminar publicação');
@@ -118,22 +111,15 @@ const Pending = () => {
 
   const handleDeleteStory = async (storyId: string) => {
     try {
-      const { data, error } = await supabase
+      const { error } = await supabase
         .from('stories')
         .delete()
-        .eq('id', storyId)
-        .select('id');
+        .eq('id', storyId);
 
       if (error) throw error;
 
-      if (!data || data.length === 0) {
-        toast.error('Sem permissão para eliminar. Inicie sessão.');
-        return;
-      }
-
       setStories((prev) => prev.filter((s) => s.id !== storyId));
       toast.success('Story eliminado com sucesso');
-      fetchAll();
     } catch (error) {
       logger.error('Erro ao eliminar story', error);
       toast.error('Falha ao eliminar story');
