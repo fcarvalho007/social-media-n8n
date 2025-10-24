@@ -14,21 +14,84 @@ export type Database = {
   }
   public: {
     Tables: {
+      media_library: {
+        Row: {
+          aspect_ratio: string | null
+          created_at: string
+          duration: number | null
+          file_name: string
+          file_size: number | null
+          file_type: string
+          file_url: string
+          height: number | null
+          id: string
+          is_favorite: boolean | null
+          tags: string[] | null
+          thumbnail_url: string | null
+          updated_at: string
+          user_id: string
+          width: number | null
+        }
+        Insert: {
+          aspect_ratio?: string | null
+          created_at?: string
+          duration?: number | null
+          file_name: string
+          file_size?: number | null
+          file_type: string
+          file_url: string
+          height?: number | null
+          id?: string
+          is_favorite?: boolean | null
+          tags?: string[] | null
+          thumbnail_url?: string | null
+          updated_at?: string
+          user_id: string
+          width?: number | null
+        }
+        Update: {
+          aspect_ratio?: string | null
+          created_at?: string
+          duration?: number | null
+          file_name?: string
+          file_size?: number | null
+          file_type?: string
+          file_url?: string
+          height?: number | null
+          id?: string
+          is_favorite?: boolean | null
+          tags?: string[] | null
+          thumbnail_url?: string | null
+          updated_at?: string
+          user_id?: string
+          width?: number | null
+        }
+        Relationships: []
+      }
       posts: {
         Row: {
+          alt_texts: Json | null
+          approval_comments: string | null
           caption: string
           caption_edited: string | null
           content_type: string | null
           created_at: string | null
+          first_comment: string | null
           hashtags: string[] | null
           hashtags_edited: string[] | null
           hashtags_text: string | null
           id: string
+          media_items: Json | null
+          network_validations: Json | null
           notes: string | null
+          origin_mode: string | null
+          post_type: string | null
           published_at: string | null
           reviewed_at: string | null
           reviewed_by: string | null
+          schedule_asap: boolean | null
           scheduled_date: string | null
+          selected_networks: string[] | null
           selected_template: string | null
           source: string | null
           status: string | null
@@ -38,22 +101,33 @@ export type Database = {
           template_b_images: string[]
           template_b_metadata: Json | null
           updated_at: string | null
+          user_id: string | null
+          utm_preset: string | null
           workflow_id: string
         }
         Insert: {
+          alt_texts?: Json | null
+          approval_comments?: string | null
           caption: string
           caption_edited?: string | null
           content_type?: string | null
           created_at?: string | null
+          first_comment?: string | null
           hashtags?: string[] | null
           hashtags_edited?: string[] | null
           hashtags_text?: string | null
           id?: string
+          media_items?: Json | null
+          network_validations?: Json | null
           notes?: string | null
+          origin_mode?: string | null
+          post_type?: string | null
           published_at?: string | null
           reviewed_at?: string | null
           reviewed_by?: string | null
+          schedule_asap?: boolean | null
           scheduled_date?: string | null
+          selected_networks?: string[] | null
           selected_template?: string | null
           source?: string | null
           status?: string | null
@@ -63,22 +137,33 @@ export type Database = {
           template_b_images: string[]
           template_b_metadata?: Json | null
           updated_at?: string | null
+          user_id?: string | null
+          utm_preset?: string | null
           workflow_id: string
         }
         Update: {
+          alt_texts?: Json | null
+          approval_comments?: string | null
           caption?: string
           caption_edited?: string | null
           content_type?: string | null
           created_at?: string | null
+          first_comment?: string | null
           hashtags?: string[] | null
           hashtags_edited?: string[] | null
           hashtags_text?: string | null
           id?: string
+          media_items?: Json | null
+          network_validations?: Json | null
           notes?: string | null
+          origin_mode?: string | null
+          post_type?: string | null
           published_at?: string | null
           reviewed_at?: string | null
           reviewed_by?: string | null
+          schedule_asap?: boolean | null
           scheduled_date?: string | null
+          selected_networks?: string[] | null
           selected_template?: string | null
           source?: string | null
           status?: string | null
@@ -88,7 +173,57 @@ export type Database = {
           template_b_images?: string[]
           template_b_metadata?: Json | null
           updated_at?: string | null
+          user_id?: string | null
+          utm_preset?: string | null
           workflow_id?: string
+        }
+        Relationships: []
+      }
+      social_profiles: {
+        Row: {
+          access_token: string | null
+          connection_status: string
+          created_at: string
+          id: string
+          network: string
+          profile_handle: string | null
+          profile_image_url: string | null
+          profile_metadata: Json | null
+          profile_name: string
+          refresh_token: string | null
+          token_expires_at: string | null
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          access_token?: string | null
+          connection_status?: string
+          created_at?: string
+          id?: string
+          network: string
+          profile_handle?: string | null
+          profile_image_url?: string | null
+          profile_metadata?: Json | null
+          profile_name: string
+          refresh_token?: string | null
+          token_expires_at?: string | null
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          access_token?: string | null
+          connection_status?: string
+          created_at?: string
+          id?: string
+          network?: string
+          profile_handle?: string | null
+          profile_image_url?: string | null
+          profile_metadata?: Json | null
+          profile_name?: string
+          refresh_token?: string | null
+          token_expires_at?: string | null
+          updated_at?: string
+          user_id?: string
         }
         Relationships: []
       }
