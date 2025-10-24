@@ -6,6 +6,7 @@ import { validatePost } from '@/lib/socialNetworks';
 import { AppSidebar } from '@/components/AppSidebar';
 import { DashboardHeader } from '@/components/DashboardHeader';
 import { ModeBadge } from '@/components/ModeBadge';
+import { DevHelper } from '@/components/DevHelper';
 import { ProfileSelector } from '@/components/manual-post/ProfileSelector';
 import { PostTypeSelector } from '@/components/manual-post/PostTypeSelector';
 import { MediaManager } from '@/components/manual-post/MediaManager';
@@ -326,6 +327,9 @@ export default function ManualCreate() {
             </div>
           </main>
         </div>
+
+        {/* Dev Helper - only in development */}
+        <DevHelper />
       </div>
     </SidebarProvider>
   );

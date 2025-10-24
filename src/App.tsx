@@ -13,6 +13,7 @@ import Pending from "./pages/Pending";
 import Review from "./pages/Review";
 import ReviewStory from "./pages/ReviewStory";
 import Calendar from "./pages/Calendar";
+import ManualCreate from "./pages/ManualCreate";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -65,6 +66,14 @@ const App = () => (
                 element={
                   <ProtectedRoute>
                     <Calendar />
+                  </ProtectedRoute>
+                }
+              />
+              <Route
+                path="/manual-create"
+                element={
+                  <ProtectedRoute>
+                    <ManualCreate />
                   </ProtectedRoute>
                 }
               />

@@ -8,6 +8,8 @@ import { DndContext, closestCenter, KeyboardSensor, PointerSensor, useSensor, us
 import { arrayMove, SortableContext, sortableKeyboardCoordinates, rectSortingStrategy } from '@dnd-kit/sortable';
 import { useSortable } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
+import { UploadMediaDialog } from './UploadMediaDialog';
+import { MediaLibraryDialog } from './MediaLibraryDialog';
 
 interface MediaManagerProps {
   mediaItems: MediaItem[];
@@ -110,6 +112,9 @@ function SortableMediaItem({
 }
 
 export function MediaManager({ mediaItems, onMediaChange, maxItems = 10 }: MediaManagerProps) {
+  const [uploadDialogOpen, setUploadDialogOpen] = useState(false);
+  const [libraryDialogOpen, setLibraryDialogOpen] = useState(false);
+
   const sensors = useSensors(
     useSensor(PointerSensor),
     useSensor(KeyboardSensor, {
@@ -141,14 +146,14 @@ export function MediaManager({ mediaItems, onMediaChange, maxItems = 10 }: Media
     );
   };
 
-  const handleUpload = () => {
-    // TODO: Implement file upload
-    console.log('Upload clicked');
+  const handleUploadComplete = (newItems: MediaItem[]) => {
+    const combinedItems = [...mediaItems, ...newItems].slice(0, maxItems);
+    onMediaChange(combinedItems.map((item, index) => ({ ...item, order: index })));
   };
 
-  const handleLibrary = () => {
-    // TODO: Implement media library
-    console.log('Library clicked');
+  const handleLibrarySelect = (newItems: MediaItem[]) => {
+    const combinedItems = [...mediaItems, ...newItems].slice(0, maxItems);
+    onMediaChange(combinedItems.map((item, index) => ({ ...item, order: index })));
   };
 
   return (
@@ -164,15 +169,28 @@ export function MediaManager({ mediaItems, onMediaChange, maxItems = 10 }: Media
       </CardHeader>
       <CardContent className="space-y-4">
         <div className="flex gap-2">
-          <Button onClick={handleUpload} className="flex-1">
+          <Button onClick={() => setUploadDialogOpen(true)} className="flex-1">
             <Upload className="h-4 w-4 mr-2" />
             Upload
           </Button>
-          <Button onClick={handleLibrary} variant="outline" className="flex-1">
+          <Button onClick={() => setLibraryDialogOpen(true)} variant="outline" className="flex-1">
             <FolderOpen className="h-4 w-4 mr-2" />
             Library
           </Button>
         </div>
+
+        <UploadMediaDialog
+          open={uploadDialogOpen}
+          onOpenChange={setUploadDialogOpen}
+          onUploadComplete={handleUploadComplete}
+        />
+
+        <MediaLibraryDialog
+          open={libraryDialogOpen}
+          onOpenChange={setLibraryDialogOpen}
+          onSelect={handleLibrarySelect}
+          maxSelection={maxItems - mediaItems.length}
+        />
 
         {mediaItems.length > 0 && (
           <DndContext

@@ -246,11 +246,18 @@ const Pending = () => {
                     ) : (
                       <div className="text-center py-12 space-y-4">
                         <h3 className="text-xl font-bold text-foreground">
-                          Modo Manual
+                          Manual Mode
                         </h3>
-                        <p className="text-muted-foreground max-w-md mx-auto">
-                          O editor manual está em desenvolvimento. Por enquanto, utilize o modo Assistido por IA para criar o seu conteúdo.
+                        <p className="text-muted-foreground max-w-md mx-auto mb-4">
+                          Start creating your post with full control over every detail.
                         </p>
+                        <Button
+                          size="lg"
+                          onClick={() => navigate('/manual-create')}
+                          className="px-8"
+                        >
+                          Open Manual Editor
+                        </Button>
                       </div>
                     )}
                   </div>
