@@ -4,6 +4,9 @@ import { supabase } from '@/integrations/supabase/client';
 import { AppSidebar } from '@/components/AppSidebar';
 import { DashboardHeader } from '@/components/DashboardHeader';
 import { ActionButtons } from '@/components/ActionButtons';
+import { ModeSelector } from '@/components/ModeSelector';
+import { ModeBadge } from '@/components/ModeBadge';
+import { ModeChangeConfirmDialog } from '@/components/ModeChangeConfirmDialog';
 import { PostCard } from '@/components/PostCard';
 import { StoryCard } from '@/components/StoryCard';
 import { PostCardSkeleton } from '@/components/PostCardSkeleton';
@@ -34,9 +37,24 @@ const Pending = () => {
   const [searchQuery, setSearchQuery] = useState('');
   const [activeStatus, setActiveStatus] = useState('pending');
   const [contentTypeFilter, setContentTypeFilter] = useState<string>('all');
+  const [creationMode, setCreationMode] = useState<'manual' | 'ia' | null>(null);
+  const [showModeSelector, setShowModeSelector] = useState(true);
+  const [showModeChangeDialog, setShowModeChangeDialog] = useState(false);
+  const [hasDraft, setHasDraft] = useState(false);
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   const activeTab = searchParams.get('tab') || 'approve';
+
+  // Check for preferred mode on mount
+  useEffect(() => {
+    if (activeTab === 'create') {
+      const preferredMode = localStorage.getItem('preferredCreationMode') as 'manual' | 'ia' | null;
+      if (preferredMode) {
+        setCreationMode(preferredMode);
+        setShowModeSelector(false);
+      }
+    }
+  }, [activeTab]);
 
   const fetchPosts = async () => {
     setLoading(true);
@@ -194,10 +212,50 @@ const Pending = () => {
           <main className="flex-1 p-4 sm:p-6 lg:p-10 overflow-auto">
           {activeTab === 'create' ? (
             /* Create Tab */
-            <div className="animate-slide-up">
-              <div className="bg-card rounded-2xl shadow-lg p-8 border-2 border-border">
-                <ActionButtons />
-              </div>
+            <div className="space-y-6 animate-slide-up">
+              {showModeSelector && !creationMode ? (
+                <div className="bg-card rounded-2xl shadow-lg p-6 sm:p-8 border-2 border-border">
+                  <ModeSelector 
+                    onModeSelect={(mode, skipNext) => {
+                      setCreationMode(mode);
+                      setShowModeSelector(false);
+                    }}
+                  />
+                </div>
+              ) : (
+                <>
+                  {/* Mode Badge */}
+                  {creationMode && (
+                    <ModeBadge 
+                      mode={creationMode}
+                      onChangeMode={() => {
+                        if (hasDraft) {
+                          setShowModeChangeDialog(true);
+                        } else {
+                          setCreationMode(null);
+                          setShowModeSelector(true);
+                        }
+                      }}
+                    />
+                  )}
+                  
+                  {/* Content based on mode */}
+                  <div className="bg-card rounded-2xl shadow-lg p-6 sm:p-8 border-2 border-border">
+                    {creationMode === 'ia' ? (
+                      <ActionButtons />
+                    ) : (
+                      <div className="text-center py-12 space-y-4">
+                        <h3 className="text-xl font-bold text-foreground">
+                          Modo Manual
+                        </h3>
+                        <p className="text-muted-foreground max-w-md mx-auto">
+                          O editor manual está em desenvolvimento. Por enquanto, utilize o modo Assistido por IA para criar o seu conteúdo.
+                        </p>
+                      </div>
+                    )}
+                  </div>
+                </>
+              )}
             </div>
           ) : (
             /* Approve Tab */
@@ -339,6 +397,26 @@ const Pending = () => {
           </main>
         </div>
       </div>
+
+      {/* Mode Change Confirmation Dialog */}
+      <ModeChangeConfirmDialog
+        open={showModeChangeDialog}
+        onOpenChange={setShowModeChangeDialog}
+        onSaveAndChange={() => {
+          // TODO: Implement draft saving logic
+          toast.success('Rascunho guardado');
+          setCreationMode(null);
+          setShowModeSelector(true);
+          setShowModeChangeDialog(false);
+          setHasDraft(false);
+        }}
+        onChangeWithoutSaving={() => {
+          setCreationMode(null);
+          setShowModeSelector(true);
+          setShowModeChangeDialog(false);
+          setHasDraft(false);
+        }}
+      />
     </SidebarProvider>
   );
 };

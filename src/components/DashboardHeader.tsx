@@ -17,9 +17,14 @@ export function DashboardHeader() {
   const getBreadcrumbs = () => {
     if (location.pathname === '/' || location.pathname === '/pending') {
       if (activeTab === 'create') {
+        // Check if mode is set in localStorage for breadcrumb detail
+        const mode = localStorage.getItem('preferredCreationMode');
+        const modeLabel = mode === 'manual' ? 'Manual' : mode === 'ia' ? 'IA' : '';
+        
         return [
           { label: 'Painel de Conteúdo', path: '/' },
-          { label: 'Criação', path: null },
+          { label: 'Criar', path: null },
+          ...(modeLabel ? [{ label: modeLabel, path: null }] : []),
         ];
       }
       return [
