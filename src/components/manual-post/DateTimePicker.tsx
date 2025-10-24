@@ -48,17 +48,17 @@ export function DateTimePicker({
   return (
     <Card>
       <CardHeader>
-        <CardTitle>Date & time</CardTitle>
-        <CardDescription>When should this post be published?</CardDescription>
+        <CardTitle>Data e hora</CardTitle>
+        <CardDescription>Quando deve esta publicação ser publicada?</CardDescription>
       </CardHeader>
       <CardContent className="space-y-4">
         <div className="flex items-center justify-between p-3 rounded-lg bg-accent/30">
           <div className="space-y-0.5">
             <Label htmlFor="asap-mode" className="text-sm font-semibold">
-              As soon as possible
+              Logo que possível
             </Label>
             <p className="text-xs text-muted-foreground">
-              Publish immediately after approval
+              Publicar imediatamente após aprovação
             </p>
           </div>
           <Switch
@@ -71,7 +71,7 @@ export function DateTimePicker({
         {!scheduleAsap && (
           <div className="space-y-3">
             <div>
-              <Label className="text-sm font-semibold mb-2 block">Date</Label>
+              <Label className="text-sm font-semibold mb-2 block">Data</Label>
               <Popover>
                 <PopoverTrigger asChild>
                   <Button
@@ -82,7 +82,7 @@ export function DateTimePicker({
                     )}
                   >
                     <CalendarIcon className="mr-2 h-4 w-4" />
-                    {scheduledDate ? format(scheduledDate, 'dd/MM/yyyy') : 'Pick a date'}
+                    {scheduledDate ? format(scheduledDate, 'dd/MM/yyyy') : 'Escolha uma data'}
                   </Button>
                 </PopoverTrigger>
                 <PopoverContent className="w-auto p-0" align="start">
@@ -100,7 +100,7 @@ export function DateTimePicker({
 
             <div>
               <Label htmlFor="time-input" className="text-sm font-semibold mb-2 block">
-                Time (24h)
+                Hora (24h)
               </Label>
               <div className="relative">
                 <Clock className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
@@ -117,8 +117,8 @@ export function DateTimePicker({
 
             {scheduledDate && (
               <div className="text-sm text-muted-foreground bg-accent/30 p-3 rounded-lg">
-                <span className="font-semibold">Scheduled for:</span>{' '}
-                {format(scheduledDate, "dd/MM/yyyy 'at' HH:mm")}
+                <span className="font-semibold">Agendado para:</span>{' '}
+                {format(scheduledDate, "dd/MM/yyyy 'às' HH:mm")}
               </div>
             )}
           </div>

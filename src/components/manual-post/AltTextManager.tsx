@@ -24,20 +24,20 @@ export function AltTextManager({ mediaItems, altTexts, onAltTextChange }: AltTex
       <CardHeader>
         <div className="flex items-center justify-between">
           <div>
-            <CardTitle>Alt text</CardTitle>
+            <CardTitle>Texto alternativo</CardTitle>
             <CardDescription>
-              Add descriptive text for each image
+              Adicione texto descritivo para cada imagem
             </CardDescription>
           </div>
           {missingCount > 0 ? (
             <Badge variant="outline" className="text-warning">
               <AlertTriangle className="h-3 w-3 mr-1" />
-              {missingCount} missing
+              {missingCount} em falta
             </Badge>
           ) : (
             <Badge variant="outline" className="text-success">
               <CheckCircle2 className="h-3 w-3 mr-1" />
-              Complete
+              Completo
             </Badge>
           )}
         </div>
@@ -55,12 +55,12 @@ export function AltTextManager({ mediaItems, altTexts, onAltTextChange }: AltTex
               </div>
               <div className="flex-1 space-y-1">
                 <label className="text-xs font-semibold text-muted-foreground">
-                  Image {index + 1}
+                  Imagem {index + 1}
                 </label>
                 <Input
                   value={altTexts[image.id] || ''}
                   onChange={(e) => onAltTextChange(image.id, e.target.value)}
-                  placeholder="Describe this image..."
+                  placeholder="Descreva esta imagem..."
                   className="h-9 text-sm"
                 />
               </div>

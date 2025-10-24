@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback, useMemo } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { Calendar as BigCalendar, dateFnsLocalizer, Event } from 'react-big-calendar';
 import withDragAndDrop from 'react-big-calendar/lib/addons/dragAndDrop';
 import { format, parse, startOfWeek, getDay, isToday, isSameMonth, startOfMonth, endOfMonth } from 'date-fns';
@@ -48,6 +49,7 @@ interface CalendarEvent extends Event {
 }
 
 const Calendar = () => {
+  const navigate = useNavigate();
   const [events, setEvents] = useState<CalendarEvent[]>([]);
   const [loading, setLoading] = useState(true);
   const [selectedEvent, setSelectedEvent] = useState<CalendarEvent | null>(null);
@@ -451,7 +453,8 @@ const Calendar = () => {
                       selectedEvent.resource.content_type === 'stories'
                         ? `/review-story/${selectedEvent.id}`
                         : `/review/${selectedEvent.id}`;
-                    window.location.href = path;
+                    navigate(path);
+                    setSelectedEvent(null);
                   }}
                 >
                   Editar

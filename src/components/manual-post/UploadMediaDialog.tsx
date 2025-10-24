@@ -30,17 +30,17 @@ export function UploadMediaDialog({
 
   const handleFileSelect = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
     const files = Array.from(e.target.files || []);
-    const validFiles = files.filter(file => {
+        const validFiles = files.filter(file => {
       const isImage = file.type.startsWith('image/');
       const isVideo = file.type.startsWith('video/');
       const isValidSize = file.size <= 100 * 1024 * 1024; // 100MB
 
       if (!isImage && !isVideo) {
-        toast.error(`${file.name}: Only images and videos are supported`);
+        toast.error(`${file.name}: Apenas imagens e vídeos são suportados`);
         return false;
       }
       if (!isValidSize) {
-        toast.error(`${file.name}: File size exceeds 100MB`);
+        toast.error(`${file.name}: Tamanho do ficheiro excede 100MB`);
         return false;
       }
       return true;
@@ -124,13 +124,13 @@ export function UploadMediaDialog({
         setUploadProgress(((i + 1) / totalFiles) * 100);
       }
 
-      toast.success(`${uploadedItems.length} file(s) uploaded successfully`);
+      toast.success(`${uploadedItems.length} ficheiro(s) carregado(s) com sucesso`);
       onUploadComplete(uploadedItems);
       onOpenChange(false);
       setSelectedFiles([]);
     } catch (error) {
       console.error('Upload error:', error);
-      toast.error('Failed to upload files');
+      toast.error('Falha ao carregar ficheiros');
     } finally {
       setUploading(false);
       setUploadProgress(0);
@@ -141,9 +141,9 @@ export function UploadMediaDialog({
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-2xl">
         <DialogHeader>
-          <DialogTitle>Upload Media</DialogTitle>
+          <DialogTitle>Carregar Média</DialogTitle>
           <DialogDescription>
-            Select up to 10 images or videos to upload
+            Selecione até 10 imagens ou vídeos para carregar
           </DialogDescription>
         </DialogHeader>
 
@@ -153,9 +153,9 @@ export function UploadMediaDialog({
             <div className="text-center space-y-2">
               <Upload className="h-12 w-12 mx-auto text-muted-foreground" />
               <div>
-                <p className="font-semibold">Click to upload</p>
+                <p className="font-semibold">Clique para carregar</p>
                 <p className="text-sm text-muted-foreground">
-                  Images or videos (max 100MB each)
+                  Imagens ou vídeos (máx. 100MB cada)
                 </p>
               </div>
             </div>
@@ -173,7 +173,7 @@ export function UploadMediaDialog({
           {selectedFiles.length > 0 && (
             <div className="space-y-2">
               <p className="text-sm font-semibold">
-                {selectedFiles.length} file(s) selected
+                {selectedFiles.length} ficheiro(s) selecionado(s)
               </p>
               <div className="space-y-2 max-h-48 overflow-y-auto">
                 {selectedFiles.map((file, index) => (
@@ -212,7 +212,7 @@ export function UploadMediaDialog({
             <div className="space-y-2">
               <Progress value={uploadProgress} />
               <p className="text-sm text-center text-muted-foreground">
-                Uploading {Math.round(uploadProgress)}%
+                A carregar {Math.round(uploadProgress)}%
               </p>
             </div>
           )}
@@ -221,13 +221,13 @@ export function UploadMediaDialog({
         {/* Actions */}
         <div className="flex justify-end gap-2 pt-4 border-t">
           <Button variant="outline" onClick={() => onOpenChange(false)} disabled={uploading}>
-            Cancel
+            Cancelar
           </Button>
           <Button
             onClick={handleUpload}
             disabled={selectedFiles.length === 0 || uploading}
           >
-            Upload {selectedFiles.length > 0 && `(${selectedFiles.length})`}
+            Carregar {selectedFiles.length > 0 && `(${selectedFiles.length})`}
           </Button>
         </div>
       </DialogContent>

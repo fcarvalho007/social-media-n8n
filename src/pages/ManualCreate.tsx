@@ -45,7 +45,7 @@ export default function ManualCreate() {
       setSaving(true);
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) {
-        toast.error('You must be logged in');
+        toast.error('Tem de iniciar sessão');
         return;
       }
 
@@ -72,11 +72,11 @@ export default function ManualCreate() {
 
       if (error) throw error;
 
-      toast.success('Draft saved.');
+      toast.success('Rascunho guardado.');
       navigate('/?tab=approve');
     } catch (error) {
       console.error('Error saving draft:', error);
-      toast.error('Failed to save draft');
+      toast.error('Falha ao guardar rascunho');
     } finally {
       setSaving(false);
     }
@@ -84,12 +84,12 @@ export default function ManualCreate() {
 
   const handleSubmitForApproval = async () => {
     if (selectedNetworks.length === 0) {
-      toast.error('Select at least one profile.');
+      toast.error('Selecione pelo menos um perfil.');
       return;
     }
 
     if (hasErrors) {
-      toast.error('Fix validation errors before submitting');
+      toast.error('Corrija os erros de validação antes de submeter');
       return;
     }
 
@@ -97,7 +97,7 @@ export default function ManualCreate() {
       setSaving(true);
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) {
-        toast.error('You must be logged in');
+        toast.error('Tem de iniciar sessão');
         return;
       }
 
@@ -124,11 +124,11 @@ export default function ManualCreate() {
 
       if (error) throw error;
 
-      toast.success('Post submitted for approval');
+      toast.success('Publicação submetida para aprovação');
       navigate('/?tab=approve');
     } catch (error) {
       console.error('Error submitting:', error);
-      toast.error('Failed to submit for approval');
+      toast.error('Falha ao submeter para aprovação');
     } finally {
       setSaving(false);
     }
@@ -136,17 +136,17 @@ export default function ManualCreate() {
 
   const handleSchedulePost = async () => {
     if (selectedNetworks.length === 0) {
-      toast.error('Select at least one profile.');
+      toast.error('Selecione pelo menos um perfil.');
       return;
     }
 
     if (!scheduleAsap && !scheduledDate) {
-      toast.error('Select a date and time');
+      toast.error('Selecione uma data e hora');
       return;
     }
 
     if (hasErrors) {
-      toast.error('Fix validation errors before scheduling');
+      toast.error('Corrija os erros de validação antes de agendar');
       return;
     }
 
@@ -182,14 +182,14 @@ export default function ManualCreate() {
       if (error) throw error;
 
       const scheduleMsg = scheduleAsap 
-        ? 'Post scheduled for immediate publishing'
-        : `Post scheduled for ${scheduledDate?.toLocaleDateString()} at ${scheduledDate?.toLocaleTimeString()}`;
+        ? 'Publicação agendada para publicação imediata'
+        : `Publicação agendada para ${scheduledDate?.toLocaleDateString('pt-PT')} às ${scheduledDate?.toLocaleTimeString('pt-PT', { hour: '2-digit', minute: '2-digit' })}`;
       
       toast.success(scheduleMsg);
       navigate('/calendar');
     } catch (error) {
       console.error('Error scheduling:', error);
-      toast.error('Failed to schedule post');
+      toast.error('Falha ao agendar publicação');
     } finally {
       setSaving(false);
     }
@@ -214,7 +214,7 @@ export default function ManualCreate() {
                   className="gap-2"
                 >
                   <ArrowLeft className="h-4 w-4" />
-                  Back
+                  Voltar
                 </Button>
                 <ModeBadge 
                   mode="manual"
@@ -277,7 +277,7 @@ export default function ManualCreate() {
                       className="w-full h-12 font-bold"
                     >
                       <CalendarIcon className="h-5 w-5 mr-2" />
-                      Schedule post
+                      Agendar publicação
                     </Button>
                     <div className="grid grid-cols-2 gap-3">
                       <Button
@@ -288,7 +288,7 @@ export default function ManualCreate() {
                         className="h-11 font-semibold"
                       >
                         <Save className="h-4 w-4 mr-2" />
-                        Save draft
+                        Guardar rascunho
                       </Button>
                       <Button
                         size="lg"
@@ -298,7 +298,7 @@ export default function ManualCreate() {
                         className="h-11 font-semibold"
                       >
                         <Send className="h-4 w-4 mr-2" />
-                        Submit for approval
+                        Submeter para aprovação
                       </Button>
                     </div>
                     <Button
@@ -307,7 +307,7 @@ export default function ManualCreate() {
                       onClick={() => navigate('/calendar')}
                       className="text-xs"
                     >
-                      View calendar
+                      Ver calendário
                     </Button>
                   </div>
                 </div>

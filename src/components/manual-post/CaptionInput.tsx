@@ -21,14 +21,14 @@ export function CaptionInput({ caption, onCaptionChange, selectedNetworks }: Cap
     const hashtagCount = (caption.match(/#/g) || []).length;
     
     if (hashtagCount > 30) {
-      newWarnings.push('Excessive hashtags may reduce engagement');
+      newWarnings.push('Hashtags excessivas podem reduzir o engagement');
     }
 
     // Check for duplicate lines
     const lines = caption.split('\n').filter(l => l.trim());
     const uniqueLines = new Set(lines);
     if (lines.length !== uniqueLines.size) {
-      newWarnings.push('Duplicate text detected');
+      newWarnings.push('Texto duplicado detetado');
     }
 
     setWarnings(newWarnings);
@@ -52,14 +52,14 @@ export function CaptionInput({ caption, onCaptionChange, selectedNetworks }: Cap
   return (
     <Card>
       <CardHeader>
-        <CardTitle>Caption</CardTitle>
-        <CardDescription>Write your post caption</CardDescription>
+        <CardTitle>Legenda</CardTitle>
+        <CardDescription>Escreva a legenda da sua publicação</CardDescription>
       </CardHeader>
       <CardContent className="space-y-4">
         <Textarea
           value={caption}
           onChange={(e) => onCaptionChange(e.target.value)}
-          placeholder="Write your caption here..."
+          placeholder="Escreva a sua legenda aqui..."
           className="min-h-[120px] resize-none"
         />
 

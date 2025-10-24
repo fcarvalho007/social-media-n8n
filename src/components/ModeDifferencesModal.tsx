@@ -57,7 +57,7 @@ export const ModeDifferencesModal = ({ open, onOpenChange }: ModeDifferencesModa
                   <td className="p-3 text-sm">Texto gerado, editável depois</td>
                 </tr>
                 <tr className="hover:bg-accent/5 transition-colors">
-                  <td className="p-3 font-semibold text-sm">Previews por rede</td>
+                  <td className="p-3 font-semibold text-sm">Pré-visualizações por rede</td>
                   <td className="p-3 text-sm">
                     <Check className="h-4 w-4 text-primary inline" /> Ambos
                   </td>

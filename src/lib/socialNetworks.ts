@@ -132,25 +132,25 @@ export function validatePost(
 
     // Caption length
     if (caption.length > constraints.max_caption_length) {
-      errors.push(`Caption exceeds ${constraints.max_caption_length} characters.`);
+      errors.push(`Legenda excede ${constraints.max_caption_length} caracteres.`);
     }
 
     // Recommended caption length
     if (network === 'linkedin' && caption.length > 1500) {
-      warnings.push('Consider keeping caption under 1,500 characters for better engagement.');
+      warnings.push('Considere manter a legenda abaixo de 1.500 caracteres para melhor engagement.');
     }
 
     // Links in caption
     if (!constraints.supports_links_in_caption && caption.includes('http')) {
-      warnings.push('Links are not clickable in captions on this network.');
+      warnings.push('Links não são clicáveis em legendas nesta rede.');
     }
 
     // First comment
     if (firstComment) {
       if (!constraints.supports_first_comment) {
-        warnings.push('First comment is not supported on this network.');
+        warnings.push('Primeiro comentário não é suportado nesta rede.');
       } else if (constraints.max_first_comment_length && firstComment.length > constraints.max_first_comment_length) {
-        errors.push(`First comment exceeds ${constraints.max_first_comment_length} characters.`);
+        errors.push(`Primeiro comentário excede ${constraints.max_first_comment_length} caracteres.`);
       }
     }
 
@@ -159,18 +159,18 @@ export function validatePost(
     const videoCount = mediaItems.filter(m => m.type === 'video').length;
 
     if (imageCount + videoCount === 0 && network !== 'x' && network !== 'linkedin') {
-      errors.push('At least one media item is required.');
+      errors.push('É necessário pelo menos um item de média.');
     }
 
     if (imageCount > constraints.max_images) {
-      errors.push(`Maximum ${constraints.max_images} images allowed.`);
+      errors.push(`Máximo de ${constraints.max_images} imagens permitidas.`);
     }
 
     // Video duration
     if (videoCount > 0 && constraints.max_video_duration) {
       mediaItems.filter(m => m.type === 'video').forEach(video => {
         if (video.duration && video.duration > constraints.max_video_duration!) {
-          errors.push(`Video duration exceeds ${constraints.max_video_duration} seconds.`);
+          errors.push(`Duração do vídeo excede ${constraints.max_video_duration} segundos.`);
         }
       });
     }
@@ -178,13 +178,13 @@ export function validatePost(
     // Alt text recommendation
     const missingAltText = mediaItems.filter(m => m.type === 'image' && !m.alt_text).length;
     if (missingAltText > 0) {
-      warnings.push(`${missingAltText} image${missingAltText > 1 ? 's' : ''} missing alt text.`);
+      warnings.push(`${missingAltText} imagem${missingAltText > 1 ? 'ns' : ''} sem texto alternativo.`);
     }
 
     // Hashtags
     const hashtagCount = (caption.match(/#/g) || []).length;
     if (hashtagCount > 30) {
-      warnings.push('Excessive hashtags may reduce engagement.');
+      warnings.push('Hashtags excessivas podem reduzir o engagement.');
     }
 
     results[network] = {

@@ -60,7 +60,7 @@ function SortableMediaItem({
       {isCover && (
         <Badge className="absolute top-2 left-2 bg-primary text-primary-foreground">
           <Star className="h-3 w-3 mr-1 fill-current" />
-          Cover
+          Capa
         </Badge>
       )}
 
@@ -159,11 +159,11 @@ export function MediaManager({ mediaItems, onMediaChange, maxItems = 10 }: Media
   return (
     <Card>
       <CardHeader>
-        <CardTitle>Media</CardTitle>
+        <CardTitle>Média</CardTitle>
         <CardDescription>
           {mediaItems.length === 0 
-            ? 'Add images or videos to start building your post'
-            : `${mediaItems.length} of ${maxItems} items`
+            ? 'Adicione imagens ou vídeos para começar a criar a sua publicação'
+            : `${mediaItems.length} de ${maxItems} itens`
           }
         </CardDescription>
       </CardHeader>
@@ -171,11 +171,11 @@ export function MediaManager({ mediaItems, onMediaChange, maxItems = 10 }: Media
         <div className="flex gap-2">
           <Button onClick={() => setUploadDialogOpen(true)} className="flex-1">
             <Upload className="h-4 w-4 mr-2" />
-            Upload
+            Carregar
           </Button>
           <Button onClick={() => setLibraryDialogOpen(true)} variant="outline" className="flex-1">
             <FolderOpen className="h-4 w-4 mr-2" />
-            Library
+            Biblioteca
           </Button>
         </div>
 
@@ -217,7 +217,7 @@ export function MediaManager({ mediaItems, onMediaChange, maxItems = 10 }: Media
         {mediaItems.length === 0 && (
           <div className="border-2 border-dashed border-border rounded-lg p-8 text-center">
             <Grid3x3 className="h-12 w-12 mx-auto mb-3 text-muted-foreground/50" />
-            <p className="text-sm text-muted-foreground">No media added yet</p>
+            <p className="text-sm text-muted-foreground">Nenhuma média adicionada</p>
           </div>
         )}
       </CardContent>

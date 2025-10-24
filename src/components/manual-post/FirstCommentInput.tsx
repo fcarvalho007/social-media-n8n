@@ -28,23 +28,23 @@ export function FirstCommentInput({
   return (
     <Card>
       <CardHeader>
-        <CardTitle>First comment (optional)</CardTitle>
+        <CardTitle>Primeiro comentário (opcional)</CardTitle>
         <CardDescription>
-          Automatically post this as the first comment
+          Publicar automaticamente como primeiro comentário
         </CardDescription>
       </CardHeader>
       <CardContent className="space-y-4">
         <div className="flex items-start gap-2 text-sm text-muted-foreground bg-accent/30 p-3 rounded-lg">
           <Info className="h-4 w-4 mt-0.5 flex-shrink-0" />
           <span>
-            Only supported on {supportingNetworks.map(n => NETWORK_INFO[n].name).join(', ')}
+            Apenas suportado em {supportingNetworks.map(n => NETWORK_INFO[n].name).join(', ')}
           </span>
         </div>
 
         <Textarea
           value={firstComment}
           onChange={(e) => onFirstCommentChange(e.target.value)}
-          placeholder="First comment (optional)..."
+          placeholder="Primeiro comentário (opcional)..."
           className="min-h-[80px] resize-none"
         />
 

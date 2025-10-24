@@ -13,35 +13,35 @@ export function PostTypeSelector({ postType, onPostTypeChange }: PostTypeSelecto
   const postTypes: { value: PostType; label: string; icon: any; description: string }[] = [
     {
       value: 'image',
-      label: 'Image',
+      label: 'Imagem',
       icon: ImageIcon,
-      description: 'Single image post',
+      description: 'Publicação com uma imagem',
     },
     {
       value: 'video',
-      label: 'Video',
+      label: 'Vídeo',
       icon: Video,
-      description: 'Single video post',
+      description: 'Publicação com um vídeo',
     },
     {
       value: 'carousel',
-      label: 'Carousel (1–10)',
+      label: 'Carrossel (1–10)',
       icon: LayoutGrid,
-      description: 'Multiple images or videos',
+      description: 'Múltiplas imagens ou vídeos',
     },
     {
       value: 'text',
-      label: 'Text',
+      label: 'Texto',
       icon: FileText,
-      description: 'Text-only post',
+      description: 'Publicação apenas com texto',
     },
   ];
 
   return (
     <Card>
       <CardHeader>
-        <CardTitle>Post type</CardTitle>
-        <CardDescription>Select the type of content to create</CardDescription>
+        <CardTitle>Tipo de publicação</CardTitle>
+        <CardDescription>Selecione o tipo de conteúdo a criar</CardDescription>
       </CardHeader>
       <CardContent>
         <RadioGroup value={postType} onValueChange={(value) => onPostTypeChange(value as PostType)}>

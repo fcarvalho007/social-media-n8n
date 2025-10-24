@@ -38,7 +38,7 @@ export function ProfileSelector({ selectedNetworks, onNetworksChange }: ProfileS
       setProfiles((data || []) as SocialProfile[]);
     } catch (error) {
       console.error('Error fetching profiles:', error);
-      toast.error('Failed to load social profiles');
+      toast.error('Falha ao carregar perfis sociais');
     } finally {
       setLoading(false);
     }
@@ -68,11 +68,11 @@ export function ProfileSelector({ selectedNetworks, onNetworksChange }: ProfileS
   const getConnectionStatusLabel = (status: string) => {
     switch (status) {
       case 'connected':
-        return 'Connected';
+        return 'Ligado';
       case 'expired':
-        return 'Expired';
+        return 'Expirado';
       case 'missing_permission':
-        return 'Missing permission';
+        return 'Sem permissão';
       default:
         return status;
     }
@@ -81,10 +81,10 @@ export function ProfileSelector({ selectedNetworks, onNetworksChange }: ProfileS
   if (loading) {
     return (
       <Card>
-        <CardHeader>
-          <CardTitle>Profiles</CardTitle>
-          <CardDescription>Loading profiles...</CardDescription>
-        </CardHeader>
+      <CardHeader>
+        <CardTitle>Perfis</CardTitle>
+        <CardDescription>A carregar perfis...</CardDescription>
+      </CardHeader>
       </Card>
     );
   }
@@ -93,17 +93,17 @@ export function ProfileSelector({ selectedNetworks, onNetworksChange }: ProfileS
     return (
       <Card>
         <CardHeader>
-          <CardTitle>Profiles</CardTitle>
-          <CardDescription>No profiles connected yet</CardDescription>
+          <CardTitle>Perfis</CardTitle>
+          <CardDescription>Nenhum perfil ligado</CardDescription>
         </CardHeader>
         <CardContent>
           <div className="text-center py-6 space-y-4">
             <p className="text-sm text-muted-foreground">
-              No profiles connected yet. Connect profiles to schedule, or Save draft for later.
+              Sem perfis ligados. Ligue perfis para agendar, ou guarde o rascunho para mais tarde.
             </p>
             <Button variant="outline" size="sm">
               <Plus className="h-4 w-4 mr-2" />
-              Connect profiles
+              Ligar perfis
             </Button>
           </div>
         </CardContent>
@@ -114,8 +114,8 @@ export function ProfileSelector({ selectedNetworks, onNetworksChange }: ProfileS
   return (
     <Card>
       <CardHeader>
-        <CardTitle>Profiles</CardTitle>
-        <CardDescription>Select the networks to publish to</CardDescription>
+        <CardTitle>Perfis</CardTitle>
+        <CardDescription>Selecione as redes onde pretende publicar</CardDescription>
       </CardHeader>
       <CardContent>
         <div className="space-y-3">

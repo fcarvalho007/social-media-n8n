@@ -161,7 +161,7 @@ export function NetworkPreview({
           <div className="text-center space-y-2">
             <Info className="h-12 w-12 mx-auto text-muted-foreground/50" />
             <p className="text-sm text-muted-foreground">
-              Select networks to see previews
+              Selecione redes para ver pré-visualizações
             </p>
           </div>
         </CardContent>
@@ -257,7 +257,7 @@ export function NetworkPreview({
                       {validation.valid && validation.warnings.length === 0 && (
                         <div className="flex items-center gap-2 text-sm text-success bg-success/10 p-2 rounded-lg">
                           <CheckCircle2 className="h-4 w-4" />
-                          <span>All validations passed</span>
+                          <span>Todas as validações passaram</span>
                         </div>
                       )}
                     </div>

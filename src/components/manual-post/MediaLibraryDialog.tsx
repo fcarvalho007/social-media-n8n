@@ -62,7 +62,7 @@ export function MediaLibraryDialog({
       setMediaFiles(data || []);
     } catch (error) {
       console.error('Error fetching media:', error);
-      toast.error('Failed to load media library');
+      toast.error('Falha ao carregar biblioteca de média');
     } finally {
       setLoading(false);
     }
@@ -95,8 +95,8 @@ export function MediaLibraryDialog({
     if (newSelection.has(id)) {
       newSelection.delete(id);
     } else {
-      if (newSelection.size >= maxSelection) {
-        toast.error(`Maximum ${maxSelection} items can be selected`);
+      if (selectedIds.size >= maxSelection) {
+        toast.error(`Máximo de ${maxSelection} itens podem ser selecionados`);
         return;
       }
       newSelection.add(id);
@@ -126,9 +126,9 @@ export function MediaLibraryDialog({
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-4xl max-h-[90vh]">
         <DialogHeader>
-          <DialogTitle>Media Library</DialogTitle>
+          <DialogTitle>Biblioteca de Média</DialogTitle>
           <DialogDescription>
-            Select up to {maxSelection} items to add to your post
+            Selecione até {maxSelection} itens para adicionar à sua publicação
           </DialogDescription>
         </DialogHeader>
 
@@ -137,26 +137,26 @@ export function MediaLibraryDialog({
             <TabsList>
               <TabsTrigger value="recent">
                 <Clock className="h-4 w-4 mr-2" />
-                Recent
+                Recentes
               </TabsTrigger>
               <TabsTrigger value="favorites">
                 <Star className="h-4 w-4 mr-2" />
-                Favorites
+                Favoritos
               </TabsTrigger>
               <TabsTrigger value="images">
                 <ImageIcon className="h-4 w-4 mr-2" />
-                Images
+                Imagens
               </TabsTrigger>
               <TabsTrigger value="videos">
                 <Video className="h-4 w-4 mr-2" />
-                Videos
+                Vídeos
               </TabsTrigger>
             </TabsList>
 
             <div className="flex-1 relative">
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
               <Input
-                placeholder="Search files..."
+                placeholder="Procurar ficheiros..."
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
                 className="pl-10"
@@ -168,13 +168,13 @@ export function MediaLibraryDialog({
             <TabsContent value={activeTab} className="mt-0">
               {loading ? (
                 <div className="text-center py-12 text-muted-foreground">
-                  Loading...
+                  A carregar...
                 </div>
               ) : filteredFiles.length === 0 ? (
                 <div className="text-center py-12 space-y-2">
-                  <p className="text-muted-foreground">No media found</p>
+                  <p className="text-muted-foreground">Nenhuma média encontrada</p>
                   <p className="text-sm text-muted-foreground">
-                    Upload files to build your media library
+                    Carregue ficheiros para construir a sua biblioteca
                   </p>
                 </div>
               ) : (
@@ -199,7 +199,7 @@ export function MediaLibraryDialog({
                         {isSelected && (
                           <div className="absolute inset-0 bg-primary/20 flex items-center justify-center">
                             <Badge className="bg-primary text-primary-foreground">
-                              Selected
+                              Selecionado
                             </Badge>
                           </div>
                         )}
@@ -224,14 +224,14 @@ export function MediaLibraryDialog({
 
         <div className="flex items-center justify-between pt-4 border-t">
           <p className="text-sm text-muted-foreground">
-            {selectedIds.size} of {maxSelection} selected
+            {selectedIds.size} de {maxSelection} selecionados
           </p>
           <div className="flex gap-2">
             <Button variant="outline" onClick={() => onOpenChange(false)}>
-              Cancel
+              Cancelar
             </Button>
             <Button onClick={handleAddToPost} disabled={selectedIds.size === 0}>
-              Add to post
+              Adicionar à publicação
             </Button>
           </div>
         </div>

@@ -245,18 +245,16 @@ const Pending = () => {
                       <ActionButtons />
                     ) : (
                       <div className="text-center py-12 space-y-4">
-                        <h3 className="text-xl font-bold text-foreground">
-                          Manual Mode
-                        </h3>
+                        <p className="text-muted-foreground">Modo Manual</p>
                         <p className="text-muted-foreground max-w-md mx-auto mb-4">
-                          Start creating your post with full control over every detail.
+                          Comece a criar a sua publicação com controlo total sobre todos os detalhes.
                         </p>
                         <Button
                           size="lg"
                           onClick={() => navigate('/manual-create')}
                           className="px-8"
                         >
-                          Open Manual Editor
+                          Abrir Editor Manual
                         </Button>
                       </div>
                     )}
