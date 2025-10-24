@@ -8,135 +8,135 @@ All colors MUST be HSL.
 
 @layer base {
   :root {
-    /* Iconosquare-inspired background gradient */
-    --background: 210 40% 98%;
-    --background-secondary: 225 100% 98%;
-    --foreground: 222 47% 11%;
+    /* Nova paleta de cores */
+    --background: 214 36% 93%; /* #E6ECF4 */
+    --background-secondary: 0 0% 88%; /* #E0E0E0 */
+    --foreground: 0 0% 0%; /* #000000 */
 
-    /* Card styling with subtle elevation */
+    /* Card styling */
     --card: 0 0% 100%;
-    --card-foreground: 222 47% 11%;
-    --card-hover: 217 100% 99%;
+    --card-foreground: 0 0% 0%;
+    --card-hover: 214 36% 95%;
 
     /* Popover styling */
     --popover: 0 0% 100%;
-    --popover-foreground: 222 47% 11%;
+    --popover-foreground: 0 0% 0%;
 
-    /* Primary - Iconosquare Blue */
-    --primary: 217 91% 60%;
-    --primary-hover: 217 91% 55%;
+    /* Primary - Azul escuro */
+    --primary: 240 100% 47%; /* #0000EE */
+    --primary-hover: 240 100% 42%;
     --primary-foreground: 0 0% 100%;
-    --primary-light: 217 91% 92%;
+    --primary-light: 240 100% 93%;
     
-    /* Iconosquare specific colors */
-    --iconosquare-blue: 210 42% 44%; /* #4169A0 */
-    --iconosquare-bg: 225 25% 91%; /* #E0E3EC */
-    --iconosquare-inactive: 225 17% 72%; /* #B2B7C8 */
-    --iconosquare-alert: 349 70% 44%; /* #BC2139 */
-    --iconosquare-accent: 37 89% 51%; /* #F29F14 */
+    /* Cores específicas da paleta */
+    --iconosquare-blue: 208 100% 50%; /* #0089FF */
+    --iconosquare-bg: 214 36% 93%; /* #E6ECF4 */
+    --iconosquare-inactive: 214 14% 53%; /* #76869A */
+    --iconosquare-alert: 0 72% 51%;
+    --iconosquare-accent: 208 100% 50%; /* #0089FF */
 
-    /* Secondary - Subtle purple accent */
-    --secondary: 250 60% 95%;
-    --secondary-foreground: 222 47% 11%;
+    /* Secondary */
+    --secondary: 0 0% 88%; /* #E0E0E0 */
+    --secondary-foreground: 0 0% 0%;
 
     /* Muted elements */
-    --muted: 210 40% 96%;
-    --muted-foreground: 215 16% 47%;
+    --muted: 214 16% 78%; /* #BFC6CF */
+    --muted-foreground: 214 14% 53%; /* #76869A */
 
-    /* Accent colors - Purple and Mint */
-    --accent: 217 91% 60%;
+    /* Accent colors */
+    --accent: 208 100% 50%; /* #0089FF */
     --accent-foreground: 0 0% 100%;
-    --accent-purple: 250 60% 85%;
-    --accent-mint: 160 80% 80%;
+    --accent-purple: 240 100% 47%;
+    --accent-mint: 208 100% 50%;
 
-    /* Success - Soft Green */
+    /* Success */
     --success: 142 71% 45%;
     --success-light: 142 71% 95%;
     --success-foreground: 0 0% 100%;
 
-    /* Destructive - Soft Red */
+    /* Destructive */
     --destructive: 0 72% 51%;
     --destructive-light: 0 72% 95%;
     --destructive-foreground: 0 0% 100%;
 
-    /* Warning - Warm Amber */
+    /* Warning */
     --warning: 38 92% 50%;
     --warning-light: 38 92% 95%;
     --warning-foreground: 0 0% 100%;
 
     /* Sidebar */
     --sidebar-background: 0 0% 100%;
-    --sidebar-border: 214 32% 91%;
+    --sidebar-border: 214 18% 73%; /* #AEB9C6 */
 
-    /* Template A - Purple gradient */
-    --template-a-primary: 271 76% 53%;
-    --template-a-secondary: 217 91% 60%;
+    /* Template A */
+    --template-a-primary: 240 100% 47%;
+    --template-a-secondary: 208 100% 50%;
 
-    /* Template B - Black/Gold gradient */
-    --template-b-primary: 45 100% 51%;
-    --template-b-secondary: 0 0% 0%;
+    /* Template B */
+    --template-b-primary: 0 0% 0%;
+    --template-b-secondary: 214 14% 53%;
 
     /* Borders and inputs */
-    --border: 214 32% 91%;
-    --input: 214 32% 91%;
-    --ring: 217 91% 60%;
+    --border: 214 18% 73%; /* #AEB9C6 */
+    --input: 214 18% 73%;
+    --ring: 240 100% 47%;
 
     --radius: 1rem;
   }
 
   .dark {
-    --background: 222 47% 11%;
-    --background-secondary: 222 47% 13%;
-    --foreground: 210 40% 98%;
+    --background: 0 0% 8%;
+    --background-secondary: 0 0% 12%;
+    --foreground: 214 36% 93%;
 
-    --card: 222 47% 13%;
-    --card-foreground: 210 40% 98%;
-    --card-hover: 222 47% 15%;
+    --card: 0 0% 12%;
+    --card-foreground: 214 36% 93%;
+    --card-hover: 0 0% 15%;
 
-    --popover: 222 47% 13%;
-    --popover-foreground: 210 40% 98%;
+    --popover: 0 0% 12%;
+    --popover-foreground: 214 36% 93%;
 
-    --primary: 217 91% 60%;
-    --primary-hover: 217 91% 65%;
+    --primary: 240 100% 60%;
+    --primary-hover: 240 100% 65%;
     --primary-foreground: 0 0% 100%;
-    --primary-light: 217 91% 30%;
+    --primary-light: 240 100% 30%;
     
-    /* Iconosquare colors for dark mode */
-    --iconosquare-blue: 210 42% 55%; /* Lighter for dark mode */
-    --iconosquare-bg: 225 15% 20%; /* Dark version */
-    --iconosquare-inactive: 225 10% 50%; /* Muted for dark */
-    --iconosquare-alert: 349 70% 55%; /* Lighter red for dark */
-    --iconosquare-accent: 37 89% 60%; /* Lighter orange for dark */
+    /* Cores dark mode */
+    --iconosquare-blue: 208 100% 60%;
+    --iconosquare-bg: 0 0% 15%;
+    --iconosquare-inactive: 214 14% 60%;
+    --iconosquare-alert: 0 72% 55%;
+    --iconosquare-accent: 208 100% 60%;
 
-    --secondary: 217 33% 18%;
-    --secondary-foreground: 210 40% 98%;
+    --secondary: 0 0% 20%;
+    --secondary-foreground: 214 36% 93%;
 
-    --muted: 217 33% 18%;
-    --muted-foreground: 215 20% 65%;
+    --muted: 214 16% 25%;
+    --muted-foreground: 214 14% 60%;
 
-    --accent: 217 91% 60%;
+    --accent: 208 100% 60%;
     --accent-foreground: 0 0% 100%;
-    --accent-purple: 250 40% 30%;
-    --accent-mint: 160 40% 30%;
+    --accent-purple: 240 100% 60%;
+    --accent-mint: 208 100% 60%;
 
-    --success: 142 71% 45%;
+    --success: 142 71% 50%;
     --success-light: 142 71% 20%;
     --success-foreground: 0 0% 100%;
 
-    --destructive: 0 72% 51%;
+    --destructive: 0 72% 55%;
     --destructive-light: 0 72% 20%;
     --destructive-foreground: 0 0% 100%;
 
-    --warning: 38 92% 50%;
+    --warning: 38 92% 55%;
     --warning-light: 38 92% 20%;
     --warning-foreground: 0 0% 100%;
 
-    --sidebar-background: 222 47% 13%;
-    --sidebar-border: 217 33% 18%;
+    --sidebar-background: 0 0% 12%;
+    --sidebar-border: 214 18% 25%;
 
-    --border: 217 33% 18%;
-    --input: 217 33% 18%;
-    --ring: 217 91% 60%;
+    --border: 214 18% 25%;
+    --input: 214 18% 25%;
+    --ring: 240 100% 60%;
   }
 }
 
@@ -232,7 +232,7 @@ All colors MUST be HSL.
 
 /* React Big Calendar Custom Styles */
 .rbc-calendar {
-  font-family: 'Inter', sans-serif;
+  font-family: 'Montserrat', sans-serif;
 }
 
 .rbc-header {
