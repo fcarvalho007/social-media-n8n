@@ -1,9 +1,11 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { Hash } from 'lucide-react';
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
+import { Hash, Smile, Bold, Italic } from 'lucide-react';
+import EmojiPicker, { EmojiClickData } from 'emoji-picker-react';
 
 interface CaptionEditorProps {
   initialCaption: string;
@@ -13,6 +15,8 @@ interface CaptionEditorProps {
 
 export const CaptionEditor = ({ initialCaption, initialHashtags, onChange }: CaptionEditorProps) => {
   const [caption, setCaption] = useState(initialCaption);
+  const [isEmojiPickerOpen, setIsEmojiPickerOpen] = useState(false);
+  const textareaRef = useRef<HTMLTextAreaElement>(null);
   const maxCaptionLength = 2200;
 
   // Sync internal state when initialCaption prop changes
@@ -82,6 +86,50 @@ export const CaptionEditor = ({ initialCaption, initialHashtags, onChange }: Cap
     setCaption(initialCaption);
   };
 
+  const handleEmojiClick = (emojiData: EmojiClickData) => {
+    const textarea = textareaRef.current;
+    if (!textarea) return;
+
+    const start = textarea.selectionStart;
+    const end = textarea.selectionEnd;
+    const newCaption = caption.substring(0, start) + emojiData.emoji + caption.substring(end);
+    
+    setCaption(newCaption);
+    setIsEmojiPickerOpen(false);
+
+    // Restore cursor position
+    setTimeout(() => {
+      textarea.focus();
+      textarea.setSelectionRange(start + emojiData.emoji.length, start + emojiData.emoji.length);
+    }, 0);
+  };
+
+  const insertFormatting = (format: 'bold' | 'italic') => {
+    const textarea = textareaRef.current;
+    if (!textarea) return;
+
+    const start = textarea.selectionStart;
+    const end = textarea.selectionEnd;
+    const selectedText = caption.substring(start, end);
+    
+    let formattedText = '';
+    if (format === 'bold') {
+      formattedText = `*${selectedText}*`;
+    } else if (format === 'italic') {
+      formattedText = `_${selectedText}_`;
+    }
+
+    const newCaption = caption.substring(0, start) + formattedText + caption.substring(end);
+    setCaption(newCaption);
+
+    // Restore cursor position
+    setTimeout(() => {
+      textarea.focus();
+      const newPos = start + formattedText.length;
+      textarea.setSelectionRange(newPos, newPos);
+    }, 0);
+  };
+
   const suggestedHashtags = getSuggestedHashtags();
 
   return (
@@ -106,7 +154,47 @@ export const CaptionEditor = ({ initialCaption, initialHashtags, onChange }: Cap
             </Button>
           </div>
         </div>
+        <div className="flex gap-2 mb-2">
+          <Button
+            type="button"
+            variant="outline"
+            size="sm"
+            onClick={() => insertFormatting('bold')}
+            title="Negrito (*texto*)"
+          >
+            <Bold className="h-4 w-4" />
+          </Button>
+          <Button
+            type="button"
+            variant="outline"
+            size="sm"
+            onClick={() => insertFormatting('italic')}
+            title="Itálico (_texto_)"
+          >
+            <Italic className="h-4 w-4" />
+          </Button>
+          <Popover open={isEmojiPickerOpen} onOpenChange={setIsEmojiPickerOpen}>
+            <PopoverTrigger asChild>
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                title="Adicionar emoji"
+              >
+                <Smile className="h-4 w-4" />
+              </Button>
+            </PopoverTrigger>
+            <PopoverContent className="w-full p-0 border-0" align="start">
+              <EmojiPicker
+                onEmojiClick={handleEmojiClick}
+                searchPlaceHolder="Procurar emoji..."
+                previewConfig={{ showPreview: false }}
+              />
+            </PopoverContent>
+          </Popover>
+        </div>
         <Textarea
+          ref={textareaRef}
           id="caption"
           value={caption}
           onChange={(e) => setCaption(e.target.value)}
