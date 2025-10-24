@@ -40,14 +40,14 @@ export function DashboardHeader() {
   const breadcrumbs = getBreadcrumbs();
 
   return (
-    <header className="sticky top-0 z-30 bg-white/80 backdrop-blur-lg border-b border-gray-100 shadow-sm">
+    <header className="sticky top-0 z-30 bg-card/95 backdrop-blur-lg border-b-2 border-border shadow-lg">
       <div className="flex h-14 sm:h-16 items-center justify-between px-3 sm:px-4 lg:px-6">
         {/* Left: Mobile Menu + Breadcrumb */}
         <div className="flex items-center gap-2 sm:gap-4">
           <Button
             variant="ghost"
             size="icon"
-            className="lg:hidden h-10 w-10 rounded-xl hover:bg-[#4169A0]/10 touch-target"
+            className="lg:hidden h-10 w-10 rounded-xl hover:bg-primary/10 touch-target"
             onClick={() => (isMobile ? setMobileMenuOpen(true) : setOpen(true))}
           >
             <Menu className="h-5 w-5" />
@@ -59,15 +59,15 @@ export function DashboardHeader() {
                 {crumb.path ? (
                   <button
                     onClick={() => navigate(crumb.path)}
-                    className="text-[#6B7280] hover:text-[#4169A0] transition-colors duration-150 font-medium"
+                    className="text-muted-foreground hover:text-primary transition-colors duration-150 font-semibold"
                   >
                     {crumb.label}
                   </button>
                 ) : (
-                  <span className="font-semibold text-foreground">{crumb.label}</span>
+                  <span className="font-bold text-foreground">{crumb.label}</span>
                 )}
                 {index < breadcrumbs.length - 1 && (
-                  <ChevronRight className="h-4 w-4 text-[#B2B7C8]" />
+                  <ChevronRight className="h-4 w-4 text-muted-foreground" />
                 )}
               </div>
             ))}

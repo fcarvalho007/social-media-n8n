@@ -32,7 +32,7 @@ export const StoryCard = ({ story, onClick, onDelete }: StoryCardProps) => {
   return (
     <Card 
       className={cn(
-        "group cursor-pointer transition-all duration-300 hover:shadow-2xl hover:scale-[1.02] active:scale-[0.98] overflow-hidden rounded-xl sm:rounded-2xl border-2 bg-card hover:bg-card-hover animate-fade-in"
+        "group cursor-pointer transition-all duration-300 hover:shadow-xl hover:scale-[1.02] active:scale-[0.98] overflow-hidden rounded-2xl border-2 border-border bg-card hover:bg-accent/5 animate-fade-in"
       )}
       onClick={onClick}
     >
@@ -43,7 +43,7 @@ export const StoryCard = ({ story, onClick, onDelete }: StoryCardProps) => {
             <Button
               variant="ghost"
               size="icon"
-              className="h-8 w-8 sm:h-9 sm:w-9 text-destructive hover:text-destructive hover:bg-destructive/10 bg-background/80 backdrop-blur-sm touch-target shadow-sm"
+              className="h-8 w-8 sm:h-9 sm:w-9 text-destructive hover:text-destructive-foreground hover:bg-destructive bg-card/95 backdrop-blur-sm touch-target shadow-md border border-border"
               onClick={(e) => {
                 e.stopPropagation();
                 onDelete(story.id);
@@ -88,14 +88,14 @@ export const StoryCard = ({ story, onClick, onDelete }: StoryCardProps) => {
         </div>
 
         {/* Footer with time and Review button */}
-        <div className="flex items-center justify-between text-sm pt-2 sm:pt-3 border-t border-border/50">
-          <span className="text-muted-foreground text-[10px] sm:text-xs font-medium">
+        <div className="flex items-center justify-between text-sm pt-3 border-t-2 border-border">
+          <span className="text-muted-foreground text-[10px] sm:text-xs font-semibold">
             {formatDistanceToNow(new Date(story.created_at), { addSuffix: true, locale: pt })}
           </span>
           <Button 
             variant="ghost" 
             size="sm" 
-            className="gap-1 sm:gap-1.5 -mr-2 h-8 sm:h-9 px-2 sm:px-3 text-xs sm:text-sm font-medium group-hover:bg-primary group-hover:text-primary-foreground transition-all rounded-lg shadow-sm touch-target"
+            className="gap-1 sm:gap-1.5 -mr-2 h-8 sm:h-9 px-3 sm:px-4 text-xs sm:text-sm font-bold group-hover:bg-primary group-hover:text-primary-foreground transition-all rounded-xl shadow-sm touch-target"
             aria-label={`Rever story ${story.tema || story.caption}`}
           >
             Rever

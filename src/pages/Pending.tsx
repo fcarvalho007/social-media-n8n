@@ -191,11 +191,11 @@ const Pending = () => {
         <div className="flex-1 flex flex-col min-w-0">
           <DashboardHeader />
           
-          <main className="flex-1 p-4 sm:p-6 lg:p-10 overflow-auto bg-gradient-to-br from-white to-gray-50">
+          <main className="flex-1 p-4 sm:p-6 lg:p-10 overflow-auto">
           {activeTab === 'create' ? (
             /* Create Tab */
             <div className="animate-slide-up">
-              <div className="bg-white rounded-2xl shadow-md p-8 border border-gray-100">
+              <div className="bg-card rounded-2xl shadow-lg p-8 border-2 border-border">
                 <ActionButtons />
               </div>
             </div>
@@ -203,10 +203,10 @@ const Pending = () => {
             /* Approve Tab */
             <div className="space-y-6 animate-slide-up">
               {/* Filters Section - Agrupada em card */}
-              <div className="bg-[#F9FAFB] rounded-2xl p-5 border border-gray-200">
+              <div className="bg-card rounded-2xl p-6 border-2 border-border shadow-lg">
                 {/* Content Type Filter */}
                 <div className="mb-5">
-                  <h3 className="text-xs font-bold text-[#6B7280] uppercase tracking-wider mb-3">
+                  <h3 className="text-xs font-bold text-muted-foreground uppercase tracking-wider mb-3">
                     Filtrar por Tipo
                   </h3>
                   <div className="flex flex-wrap gap-2">
@@ -219,8 +219,8 @@ const Pending = () => {
                         className={cn(
                           'h-10 px-4 text-xs sm:text-sm font-bold transition-all duration-200 border-2 rounded-xl',
                           contentTypeFilter === type.id
-                            ? 'bg-[#4169A0] text-white border-[#4169A0] shadow-md'
-                            : 'bg-white hover:bg-gray-50 border-gray-300 hover:border-[#4169A0]/50 hover:shadow-sm'
+                            ? 'bg-primary text-primary-foreground border-primary shadow-lg'
+                            : 'bg-background hover:bg-accent border-border hover:border-primary/50 hover:shadow-md'
                         )}
                       >
                         {type.icon && <type.icon className="mr-1.5 h-4 w-4" />}
@@ -232,7 +232,7 @@ const Pending = () => {
 
                 {/* Status Tabs + Search */}
                 <div className="space-y-4">
-                  <h3 className="text-xs font-bold text-[#6B7280] uppercase tracking-wider">
+                  <h3 className="text-xs font-bold text-muted-foreground uppercase tracking-wider">
                     Estado da Publicação
                   </h3>
                   <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4">
@@ -246,10 +246,8 @@ const Pending = () => {
                           className={cn(
                             'h-10 px-4 text-xs sm:text-sm font-bold rounded-xl transition-all duration-200 border-2 whitespace-nowrap',
                             activeStatus === key
-                              ? key === 'pending'
-                                ? 'bg-[#FBBF24] text-white border-[#FBBF24] shadow-md'
-                                : config.color + ' shadow-md'
-                              : 'bg-white border-gray-300 hover:bg-gray-50 hover:shadow-sm'
+                              ? config.color + ' shadow-lg'
+                              : 'bg-card border-border hover:bg-accent hover:shadow-md'
                           )}
                         >
                           <config.icon className="mr-1.5 h-4 w-4" />
@@ -260,12 +258,12 @@ const Pending = () => {
 
                     <div className="flex items-center gap-2 flex-1 lg:max-w-md">
                       <div className="relative flex-1">
-                        <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-[#6B7280] pointer-events-none" />
+                        <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground pointer-events-none" />
                         <Input
                           placeholder="Procurar..."
                           value={searchQuery}
                           onChange={(e) => setSearchQuery(e.target.value)}
-                          className="pl-10 h-10 bg-white border-gray-300 rounded-xl text-sm focus:border-[#4169A0] transition-all"
+                          className="pl-10 h-10 bg-background border-2 border-border rounded-xl text-sm focus:border-primary transition-all shadow-sm"
                         />
                       </div>
                       <Button
@@ -273,7 +271,7 @@ const Pending = () => {
                         size="icon"
                         onClick={() => fetchAll()}
                         disabled={loading}
-                        className="h-10 w-10 rounded-xl border-2 border-gray-300 hover:bg-gray-50 hover:border-[#4169A0]/50 transition-all"
+                        className="h-10 w-10 rounded-xl border-2 border-border hover:bg-accent hover:border-primary/50 transition-all shadow-sm"
                         title="Recarregar lista"
                       >
                         <RefreshCw className={`h-4 w-4 ${loading ? 'animate-spin' : ''}`} />
@@ -295,12 +293,12 @@ const Pending = () => {
                   ))}
                 </div>
               ) : filteredPosts.length === 0 && filteredStories.length === 0 ? (
-                <div className="flex flex-col items-center justify-center py-12 sm:py-16 md:py-20 text-center bg-white rounded-xl sm:rounded-2xl border-2 border-dashed border-gray-200 shadow-sm mx-2 sm:mx-0">
-                  <Inbox className="h-12 w-12 sm:h-14 sm:w-14 md:h-16 md:w-16 text-gray-300 mb-3 sm:mb-4" />
-                  <h3 className="text-base sm:text-lg font-semibold mb-2 text-foreground px-4">
+                <div className="flex flex-col items-center justify-center py-12 sm:py-16 md:py-20 text-center bg-card rounded-xl sm:rounded-2xl border-2 border-dashed border-border shadow-lg mx-2 sm:mx-0">
+                  <Inbox className="h-12 w-12 sm:h-14 sm:w-14 md:h-16 md:w-16 text-muted-foreground/50 mb-3 sm:mb-4" />
+                  <h3 className="text-base sm:text-lg font-bold mb-2 text-foreground px-4">
                     Nenhum conteúdo encontrado
                   </h3>
-                  <p className="text-xs sm:text-sm text-[#6B7280] max-w-md px-4">
+                  <p className="text-xs sm:text-sm text-muted-foreground max-w-md px-4">
                     {searchQuery
                       ? 'Nenhum conteúdo corresponde aos critérios de pesquisa'
                       : `Não existe conteúdo ${activeStatus === 'pending' ? 'pendente' : activeStatus === 'approved' ? 'aprovado' : 'rejeitado'} neste momento`}
