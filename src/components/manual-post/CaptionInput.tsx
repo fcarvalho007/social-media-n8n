@@ -1,11 +1,14 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { SocialNetwork } from '@/types/social';
 import { NETWORK_CONSTRAINTS, NETWORK_INFO, getCharacterCount } from '@/lib/socialNetworks';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Textarea } from '@/components/ui/textarea';
 import { Badge } from '@/components/ui/badge';
-import { AlertCircle } from 'lucide-react';
+import { Button } from '@/components/ui/button';
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
+import { AlertCircle, Smile, Bold, Italic } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import EmojiPicker, { EmojiClickData } from 'emoji-picker-react';
 
 interface CaptionInputProps {
   caption: string;
@@ -15,6 +18,8 @@ interface CaptionInputProps {
 
 export function CaptionInput({ caption, onCaptionChange, selectedNetworks }: CaptionInputProps) {
   const [warnings, setWarnings] = useState<string[]>([]);
+  const [isEmojiPickerOpen, setIsEmojiPickerOpen] = useState(false);
+  const textareaRef = useRef<HTMLTextAreaElement>(null);
 
   useEffect(() => {
     const newWarnings: string[] = [];
@@ -33,6 +38,50 @@ export function CaptionInput({ caption, onCaptionChange, selectedNetworks }: Cap
 
     setWarnings(newWarnings);
   }, [caption]);
+
+  const handleEmojiClick = (emojiData: EmojiClickData) => {
+    const textarea = textareaRef.current;
+    if (!textarea) return;
+
+    const start = textarea.selectionStart;
+    const end = textarea.selectionEnd;
+    const newCaption = caption.substring(0, start) + emojiData.emoji + caption.substring(end);
+    
+    onCaptionChange(newCaption);
+    setIsEmojiPickerOpen(false);
+
+    // Restore cursor position
+    setTimeout(() => {
+      textarea.focus();
+      textarea.setSelectionRange(start + emojiData.emoji.length, start + emojiData.emoji.length);
+    }, 0);
+  };
+
+  const insertFormatting = (format: 'bold' | 'italic') => {
+    const textarea = textareaRef.current;
+    if (!textarea) return;
+
+    const start = textarea.selectionStart;
+    const end = textarea.selectionEnd;
+    const selectedText = caption.substring(start, end);
+    
+    let formattedText = '';
+    if (format === 'bold') {
+      formattedText = `*${selectedText}*`;
+    } else if (format === 'italic') {
+      formattedText = `_${selectedText}_`;
+    }
+
+    const newCaption = caption.substring(0, start) + formattedText + caption.substring(end);
+    onCaptionChange(newCaption);
+
+    // Restore cursor position
+    setTimeout(() => {
+      textarea.focus();
+      const newPos = start + formattedText.length;
+      textarea.setSelectionRange(newPos, newPos);
+    }, 0);
+  };
 
   const getNetworkStatus = (network: SocialNetwork) => {
     const constraints = NETWORK_CONSTRAINTS[network];
@@ -56,12 +105,54 @@ export function CaptionInput({ caption, onCaptionChange, selectedNetworks }: Cap
         <CardDescription>Escreva a legenda da sua publicação</CardDescription>
       </CardHeader>
       <CardContent className="space-y-4">
-        <Textarea
-          value={caption}
-          onChange={(e) => onCaptionChange(e.target.value)}
-          placeholder="Escreva a sua legenda aqui..."
-          className="min-h-[120px] resize-none"
-        />
+        <div className="space-y-2">
+          <div className="flex gap-2">
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              onClick={() => insertFormatting('bold')}
+              title="Negrito (*texto*)"
+            >
+              <Bold className="h-4 w-4" />
+            </Button>
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              onClick={() => insertFormatting('italic')}
+              title="Itálico (_texto_)"
+            >
+              <Italic className="h-4 w-4" />
+            </Button>
+            <Popover open={isEmojiPickerOpen} onOpenChange={setIsEmojiPickerOpen}>
+              <PopoverTrigger asChild>
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  title="Adicionar emoji"
+                >
+                  <Smile className="h-4 w-4" />
+                </Button>
+              </PopoverTrigger>
+              <PopoverContent className="w-full p-0 border-0" align="start">
+                <EmojiPicker
+                  onEmojiClick={handleEmojiClick}
+                  searchPlaceHolder="Procurar emoji..."
+                  previewConfig={{ showPreview: false }}
+                />
+              </PopoverContent>
+            </Popover>
+          </div>
+          <Textarea
+            ref={textareaRef}
+            value={caption}
+            onChange={(e) => onCaptionChange(e.target.value)}
+            placeholder="Escreva a sua legenda aqui..."
+            className="min-h-[120px] resize-none"
+          />
+        </div>
 
         {/* Character counters by network */}
         {selectedNetworks.length > 0 && (
