@@ -10,6 +10,7 @@ import { ActionBar } from '@/components/ActionBar';
 import { TargetSelector } from '@/components/publishing/TargetSelector';
 import { PlatformRules } from '@/components/publishing/PlatformRules';
 import { PublishModal } from '@/components/publishing/PublishModal';
+import { PublishDebugPanel } from '@/components/publishing/PublishDebugPanel';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { SidebarProvider } from '@/components/ui/sidebar';
@@ -49,6 +50,7 @@ const Review = () => {
     linkedin: { platform: 'linkedin', status: 'pending', progress: 0 },
   });
   const [validations, setValidations] = useState<Record<string, any>>({});
+  const [generatedPdf, setGeneratedPdf] = useState<{ blob: Blob; filename: string; sizeMB: number; pages: number } | null>(null);
 
   useEffect(() => {
     fetchPost();
@@ -252,6 +254,14 @@ const Review = () => {
         sizeMB: pdfBlob.size / (1024 * 1024), 
         pages: pageCount 
       };
+
+      // Store PDF metadata for debug panel
+      setGeneratedPdf({
+        blob: pdfBlob,
+        filename: 'carousel.pdf',
+        sizeMB: pdfMetadata.sizeMB,
+        pages: pdfMetadata.pages,
+      });
 
       const { valid, errors, warnings } = await import('@/lib/pdfGenerator').then(m => 
         m.validatePDFSize(pdfBlob!, pageCount)
@@ -669,6 +679,30 @@ const Review = () => {
             className="min-h-[80px] sm:min-h-[100px] text-sm"
           />
         </div>
+
+        {/* Debug Panel - Only in DEV mode */}
+        {import.meta.env.DEV && (
+          <div className="mb-3 sm:mb-4 md:mb-6">
+            <PublishDebugPanel
+              postId={id!}
+              targets={publishTargets}
+              postType="carousel"
+              caption={caption}
+              hashtags={hashtags}
+              mediaCount={selectedTemplate === 'A' ? templateAImages.length : templateBImages.length}
+              pdfMetadata={generatedPdf ? {
+                sizeMB: generatedPdf.sizeMB,
+                pages: generatedPdf.pages,
+                filename: generatedPdf.filename,
+              } : undefined}
+              pageAlts={(selectedTemplate === 'A' ? templateAImages : templateBImages).map((imgUrl, idx) => {
+                const imgKey = imgUrl.split('/').pop() || `image_${idx}`;
+                return post.alt_texts?.[imgKey] || `Slide ${idx + 1}`;
+              })}
+              progress={Object.values(publishProgress)}
+            />
+          </div>
+        )}
           </main>
 
           <ActionBar
