@@ -27,15 +27,32 @@ export async function generateCarouselPDF(options: CarouselPDFOptions): Promise<
   const pageWidth = pdf.internal.pageSize.getWidth();
   const pageHeight = pdf.internal.pageSize.getHeight();
 
-  // Load all images first
+  // Load all images first with better error handling
   const loadedImages = await Promise.all(
     images.map(async (imgUrl, index) => {
       return new Promise<{ url: string; img: HTMLImageElement; index: number }>((resolve, reject) => {
         const img = new Image();
+        
+        // Try with CORS first, fallback to no-cors on error
         img.crossOrigin = 'anonymous';
         
-        img.onload = () => resolve({ url: imgUrl, img, index });
-        img.onerror = () => reject(new Error(`Failed to load image ${index + 1}`));
+        const timeout = setTimeout(() => {
+          reject(new Error(`Timeout loading image ${index + 1}: ${imgUrl}`));
+        }, 15000); // 15s timeout per image
+        
+        img.onload = () => {
+          clearTimeout(timeout);
+          resolve({ url: imgUrl, img, index });
+        };
+        
+        img.onerror = () => {
+          clearTimeout(timeout);
+          // Retry without CORS
+          const img2 = new Image();
+          img2.onload = () => resolve({ url: imgUrl, img: img2, index });
+          img2.onerror = () => reject(new Error(`Failed to load image ${index + 1}: ${imgUrl}`));
+          img2.src = imgUrl;
+        };
         
         img.src = imgUrl;
       });

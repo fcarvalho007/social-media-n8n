@@ -11,6 +11,7 @@ import { TargetSelector } from '@/components/publishing/TargetSelector';
 import { PlatformRules } from '@/components/publishing/PlatformRules';
 import { PublishModal } from '@/components/publishing/PublishModal';
 import { PublishDebugPanel } from '@/components/publishing/PublishDebugPanel';
+import { FinalReviewModal } from '@/components/publishing/FinalReviewModal';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { SidebarProvider } from '@/components/ui/sidebar';
@@ -51,6 +52,15 @@ const Review = () => {
   });
   const [validations, setValidations] = useState<Record<string, any>>({});
   const [generatedPdf, setGeneratedPdf] = useState<{ blob: Blob; filename: string; sizeMB: number; pages: number } | null>(null);
+  const [showFinalReview, setShowFinalReview] = useState(false);
+  const [pendingPublishData, setPendingPublishData] = useState<{
+    scheduledDate?: Date;
+    retryPlatform?: PublishTarget;
+    pdfBlob: Blob | null;
+    pdfUrl: string | null;
+    pdfMetadata: { sizeMB: number; pages: number } | null;
+    selectedImages: string[];
+  } | null>(null);
 
   useEffect(() => {
     fetchPost();
@@ -246,9 +256,22 @@ const Review = () => {
       });
 
       if (needsPdf) {
+        console.info('[PDF] Starting PDF generation', { imageCount: selectedImages.length, timestamp: new Date().toISOString() });
+        
+        // Progress: 10% -> 30% during PDF generation
+        setPublishProgress(prev => ({
+          ...prev,
+          linkedin: { ...prev.linkedin, progress: 15, message: 'A carregar imagens...' }
+        }));
+
         pdfBlob = await generateCarouselPDF({
           images: selectedImages,
           title: post.tema,
+        });
+
+        console.info('[PDF] PDF generated successfully', { 
+          sizeBytes: pdfBlob.size, 
+          timestamp: new Date().toISOString() 
         });
 
         const pageCount = selectedImages.length;
@@ -256,6 +279,12 @@ const Review = () => {
           sizeMB: pdfBlob.size / (1024 * 1024), 
           pages: pageCount 
         };
+
+        // Progress: 30% PDF ready
+        setPublishProgress(prev => ({
+          ...prev,
+          linkedin: { ...prev.linkedin, progress: 30, message: 'PDF gerado com sucesso' }
+        }));
 
         // Store PDF metadata for debug panel
         setGeneratedPdf({
@@ -271,6 +300,7 @@ const Review = () => {
 
         if (!valid) {
           const errorMsg = errors.join('; ');
+          console.error('[PDF] Validation failed', { errors, warnings });
           targetsToPublish.forEach(target => {
             setPublishProgress(prev => ({
               ...prev,
@@ -292,16 +322,77 @@ const Review = () => {
         }
 
         pdfUrl = URL.createObjectURL(pdfBlob);
+
+        // Show Final Review for LinkedIn
+        console.info('[PDF] Opening Final Review', { timestamp: new Date().toISOString() });
+        setPendingPublishData({
+          scheduledDate,
+          retryPlatform,
+          pdfBlob,
+          pdfUrl,
+          pdfMetadata,
+          selectedImages,
+        });
+        setShowFinalReview(true);
+        return; // Exit and wait for user confirmation
       }
 
+      // Continue to actual publishing
+      await executePublish(targetsToPublish, selectedImages, scheduledDate, pdfUrl, pdfMetadata, successTracker);
+
+    } catch (error) {
+      console.error('Error in publishing flow:', error);
+      toast.error('Erro ao processar publicação');
+      
+      // Set error state for all targets
+      targetsToPublish.forEach(target => {
+        setPublishProgress(prev => ({
+          ...prev,
+          [target]: {
+            ...prev[target],
+            status: 'error',
+            progress: 0,
+            error: error instanceof Error ? error.message : 'Erro desconhecido',
+          }
+        }));
+      });
+    }
+  };
+
+  const executePublish = async (
+    targetsToPublish: PublishTarget[],
+    selectedImages: string[],
+    scheduledDate: Date | undefined,
+    pdfUrl: string | null,
+    pdfMetadata: { sizeMB: number; pages: number } | null,
+    successTracker: Record<PublishTarget, boolean>
+  ) => {
+    try {
       // Publish to each platform with retry logic
       for (const target of targetsToPublish) {
         let attempts = 0;
         const maxAttempts = 3;
         let lastError: Error | null = null;
+        let lastProgressUpdate = Date.now();
+
+        // Heartbeat timer to show "Working..." if no progress for 5s
+        const heartbeatInterval = setInterval(() => {
+          const timeSinceUpdate = Date.now() - lastProgressUpdate;
+          if (timeSinceUpdate > 5000) {
+            setPublishProgress(prev => ({
+              ...prev,
+              [target]: { 
+                ...prev[target], 
+                message: `${prev[target].message} (a processar...)` 
+              }
+            }));
+          }
+        }, 5000);
 
         while (attempts < maxAttempts) {
           try {
+            console.info(`[PUBLISH:${target}] Attempt ${attempts + 1}/${maxAttempts}`, { timestamp: new Date().toISOString() });
+            
             const delay = attempts > 0 ? Math.pow(2, attempts) * 1000 : 0;
             if (delay > 0) {
               setPublishProgress(prev => ({
@@ -309,17 +400,20 @@ const Review = () => {
                 [target]: { 
                   ...prev[target], 
                   status: 'uploading', 
-                  progress: 20, 
+                  progress: 40, 
                   message: `A tentar novamente... (tentativa ${attempts + 1}/${maxAttempts})` 
                 }
               }));
+              lastProgressUpdate = Date.now();
               await new Promise(resolve => setTimeout(resolve, delay));
             }
 
+            // Progress: 40% -> 60% preparing payload
             setPublishProgress(prev => ({
               ...prev,
-              [target]: { ...prev[target], status: 'uploading', progress: 30, message: 'A carregar conteúdo...' }
+              [target]: { ...prev[target], status: 'uploading', progress: 50, message: 'A preparar payload...' }
             }));
+            lastProgressUpdate = Date.now();
 
             // Build platform-specific payload
             const basePayload = {
@@ -354,11 +448,32 @@ const Review = () => {
               };
             }
 
+            console.info(`[PUBLISH:${target}] Sending to API`, { payloadKeys: Object.keys(payload) });
+
+            // Progress: 60% uploading to API
+            setPublishProgress(prev => ({
+              ...prev,
+              [target]: { ...prev[target], progress: 60, message: 'A enviar para a API...' }
+            }));
+            lastProgressUpdate = Date.now();
+
             const { data, error } = await supabase.functions.invoke('publish-to-getlate', {
               body: payload,
             });
 
+            console.info(`[PUBLISH:${target}] API response received`, { 
+              success: !error, 
+              timestamp: new Date().toISOString() 
+            });
+
             if (error) throw error;
+
+            // Progress: 90% finalizing
+            setPublishProgress(prev => ({
+              ...prev,
+              [target]: { ...prev[target], progress: 90, message: 'A finalizar...' }
+            }));
+            lastProgressUpdate = Date.now();
 
             // Update database with external post ID
             await supabase
@@ -378,6 +493,7 @@ const Review = () => {
               })
               .eq('id', id);
 
+            // Progress: 100% done
             setPublishProgress(prev => ({
               ...prev,
               [target]: {
@@ -389,18 +505,23 @@ const Review = () => {
                 publishedAt: new Date().toISOString(),
               }
             }));
+            lastProgressUpdate = Date.now();
 
             successTracker[target] = true;
+            clearInterval(heartbeatInterval);
+            
+            console.info(`[PUBLISH:${target}] Success`, { timestamp: new Date().toISOString() });
             
             // Success - break retry loop
             break;
           } catch (error) {
             attempts++;
             lastError = error instanceof Error ? error : new Error('Erro desconhecido');
-            console.error(`Error publishing to ${target} (attempt ${attempts}/${maxAttempts}):`, error);
+            console.error(`[PUBLISH:${target}] Error on attempt ${attempts}/${maxAttempts}`, { error });
             
             if (attempts >= maxAttempts) {
               // Final failure after all retries
+              clearInterval(heartbeatInterval);
               setPublishProgress(prev => ({
                 ...prev,
                 [target]: {
@@ -418,11 +539,8 @@ const Review = () => {
             }
           }
         }
-      }
 
-      // Clean up blob URL
-      if (pdfUrl) {
-        setTimeout(() => URL.revokeObjectURL(pdfUrl), 5000);
+        clearInterval(heartbeatInterval);
       }
 
       // Check success for all targets
@@ -433,8 +551,67 @@ const Review = () => {
         setTimeout(() => navigate('/'), 2000);
       }
     } catch (error) {
-      console.error('Error in publishing flow:', error);
-      toast.error('Erro ao processar publicação');
+      console.error('[PUBLISH] Error in executePublish', { error });
+      throw error;
+    }
+  };
+
+  const handleFinalReviewBack = () => {
+    setShowFinalReview(false);
+    setPendingPublishData(null);
+    // Reset progress
+    setPublishProgress({
+      instagram: { platform: 'instagram', status: 'pending', progress: 0 },
+      linkedin: { platform: 'linkedin', status: 'pending', progress: 0 },
+    });
+  };
+
+  const handleFinalReviewRegenerate = async () => {
+    if (!pendingPublishData) return;
+    
+    setShowFinalReview(false);
+    
+    // Clean up old blob
+    if (pendingPublishData.pdfUrl) {
+      URL.revokeObjectURL(pendingPublishData.pdfUrl);
+    }
+    
+    // Clear stored PDF and restart
+    setGeneratedPdf(null);
+    setPendingPublishData(null);
+    
+    toast.info('A regenerar PDF...');
+    
+    // Restart the publish flow
+    await handlePublishToTargets(pendingPublishData.scheduledDate, pendingPublishData.retryPlatform);
+  };
+
+  const handleFinalReviewConfirm = async () => {
+    if (!pendingPublishData) return;
+    
+    setShowFinalReview(false);
+    setPublishModalOpen(true);
+    
+    const { scheduledDate, pdfBlob, pdfUrl, pdfMetadata, selectedImages } = pendingPublishData;
+    
+    const targetsToPublish = Object.entries(publishTargets)
+      .filter(([_, active]) => active)
+      .map(([target]) => target as PublishTarget);
+    
+    const successTracker: Record<PublishTarget, boolean> = { instagram: false, linkedin: false };
+    
+    try {
+      await executePublish(targetsToPublish, selectedImages, scheduledDate, pdfUrl, pdfMetadata, successTracker);
+      
+      // Clean up
+      if (pdfUrl) {
+        setTimeout(() => URL.revokeObjectURL(pdfUrl), 5000);
+      }
+    } catch (error) {
+      console.error('[FINAL_REVIEW] Error confirming publish', { error });
+      toast.error('Erro ao publicar');
+    } finally {
+      setPendingPublishData(null);
     }
   };
 
@@ -755,6 +932,26 @@ const Review = () => {
           handlePublishToTargets(undefined, platform);
         }}
       />
+
+      {/* Final Review Modal (LinkedIn PDF) */}
+      {showFinalReview && pendingPublishData && (
+        <FinalReviewModal
+          open={showFinalReview}
+          onBack={handleFinalReviewBack}
+          onRegenerate={handleFinalReviewRegenerate}
+          onConfirm={handleFinalReviewConfirm}
+          pdfMetadata={{
+            pages: pendingPublishData.pdfMetadata?.pages || 0,
+            sizeMB: pendingPublishData.pdfMetadata?.sizeMB || 0,
+            title: post.tema || id || 'carousel',
+          }}
+          pageAlts={pendingPublishData.selectedImages.map((imgUrl, idx) => {
+            const imgKey = imgUrl.split('/').pop() || `image_${idx}`;
+            return post.alt_texts?.[imgKey] || `Slide ${idx + 1}/${pendingPublishData.selectedImages.length}`;
+          })}
+          previewImages={pendingPublishData.selectedImages}
+        />
+      )}
     </SidebarProvider>
   );
 };
