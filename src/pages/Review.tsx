@@ -223,75 +223,91 @@ const Review = () => {
 
     const selectedImages = selectedTemplate === 'A' ? templateAImages : templateBImages;
 
-    // Generate PDF for carousel
+    // Generate PDF only if LinkedIn is selected
     let pdfBlob: Blob | null = null;
     let pdfUrl: string | null = null;
     let pdfMetadata: { sizeMB: number; pages: number } | null = null;
+    const needsPdf = targetsToPublish.includes('linkedin');
 
     try {
-      // Update progress - generating PDF
-      targetsToPublish.forEach(target => {
-        setPublishProgress(prev => ({
-          ...prev,
-          [target]: { 
-            ...prev[target], 
-            status: 'validating', 
-            progress: 10, 
-            message: 'A gerar PDF do carrossel...',
-            startedAt: new Date().toISOString(),
-          }
-        }));
-      });
-
-      pdfBlob = await generateCarouselPDF({
-        images: selectedImages,
-        title: post.tema,
-      });
-
-      // Validate PDF size and page count
-      const pageCount = selectedImages.length;
-      pdfMetadata = { 
-        sizeMB: pdfBlob.size / (1024 * 1024), 
-        pages: pageCount 
-      };
-
-      // Store PDF metadata for debug panel
-      setGeneratedPdf({
-        blob: pdfBlob,
-        filename: 'carousel.pdf',
-        sizeMB: pdfMetadata.sizeMB,
-        pages: pdfMetadata.pages,
-      });
-
-      const { valid, errors, warnings } = await import('@/lib/pdfGenerator').then(m => 
-        m.validatePDFSize(pdfBlob!, pageCount)
-      );
-
-      if (!valid) {
-        const errorMsg = errors.join('; ');
+      if (needsPdf) {
+        // Update progress - generating PDF
         targetsToPublish.forEach(target => {
           setPublishProgress(prev => ({
             ...prev,
             [target]: { 
               ...prev[target], 
-              status: 'error', 
-              progress: 0, 
-              error: errorMsg,
-              technicalDetails: { pdfMetadata, errors, warnings }
+              status: 'validating', 
+              progress: 10, 
+              message: target === 'linkedin' ? 'A gerar PDF do carrossel...' : 'A preparar imagens...',
+              startedAt: new Date().toISOString(),
             }
           }));
         });
-        toast.error(errorMsg);
-        return;
-      }
 
-      if (warnings.length > 0) {
-        warnings.forEach(w => toast.warning(w));
-      }
+        pdfBlob = await generateCarouselPDF({
+          images: selectedImages,
+          title: post.tema,
+        });
 
-      // Upload PDF to temporary storage or use it directly
-      // For now, we'll convert to data URL (in production, upload to storage)
-      pdfUrl = URL.createObjectURL(pdfBlob);
+        // Validate PDF size and page count
+        const pageCount = selectedImages.length;
+        pdfMetadata = { 
+          sizeMB: pdfBlob.size / (1024 * 1024), 
+          pages: pageCount 
+        };
+
+        // Store PDF metadata for debug panel
+        setGeneratedPdf({
+          blob: pdfBlob,
+          filename: 'carousel.pdf',
+          sizeMB: pdfMetadata.sizeMB,
+          pages: pdfMetadata.pages,
+        });
+
+        const { valid, errors, warnings } = await import('@/lib/pdfGenerator').then(m => 
+          m.validatePDFSize(pdfBlob!, pageCount)
+        );
+
+        if (!valid) {
+          const errorMsg = errors.join('; ');
+          targetsToPublish.forEach(target => {
+            setPublishProgress(prev => ({
+              ...prev,
+              [target]: { 
+                ...prev[target], 
+                status: 'error', 
+                progress: 0, 
+                error: errorMsg,
+                technicalDetails: { pdfMetadata, errors, warnings }
+              }
+            }));
+          });
+          toast.error(errorMsg);
+          return;
+        }
+
+        if (warnings.length > 0) {
+          warnings.forEach(w => toast.warning(w));
+        }
+
+        // Upload PDF to temporary storage or use it directly
+        pdfUrl = URL.createObjectURL(pdfBlob);
+      } else {
+        // Instagram only - no PDF needed
+        targetsToPublish.forEach(target => {
+          setPublishProgress(prev => ({
+            ...prev,
+            [target]: { 
+              ...prev[target], 
+              status: 'validating', 
+              progress: 10, 
+              message: 'A preparar imagens...',
+              startedAt: new Date().toISOString(),
+            }
+          }));
+        });
+      }
 
       // Extract alt texts for pages (in order)
       const pageAlts = selectedImages.map((imgUrl, idx) => {
@@ -334,9 +350,24 @@ const Review = () => {
               caption: target === 'instagram' ? caption : undefined,
               body: target === 'linkedin' ? caption : undefined,
               hashtags,
-              pdfUrl,
-              pageAlts, // Alt text for each page
-              pdfMetadata,
+              // LinkedIn: send PDF
+              ...(target === 'linkedin' && pdfUrl ? {
+                pdfUrl,
+                pageAlts,
+                pdfMetadata,
+              } : {}),
+              // Instagram: send native images
+              ...(target === 'instagram' ? {
+                media: selectedImages.map((imgUrl, idx) => {
+                  const imgKey = imgUrl.split('/').pop() || `image_${idx}`;
+                  return {
+                    type: 'image',
+                    src: imgUrl,
+                    alt: post.alt_texts?.[imgKey] || `Slide ${idx + 1}/${selectedImages.length}`,
+                    order: idx,
+                  };
+                }),
+              } : {}),
               scheduleAt: scheduledDate?.toISOString(),
             },
           });

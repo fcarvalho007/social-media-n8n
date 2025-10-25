@@ -101,9 +101,11 @@ export const PLATFORM_CONSTRAINTS = {
       field: 'Hashtags',
     },
     carousel: {
-      minImages: 2,
-      maxImages: 9,
+      minImages: 1,
+      maxImages: 300,
       field: 'Carousel Images (as Document)',
+      recommendedMin: 8,
+      recommendedMax: 12,
     },
     video: {
       maxDurationMin: 10,

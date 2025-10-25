@@ -73,13 +73,13 @@ export function validatePublishing(
       errors.push(`Texto excede limite de ${constraints.body.maxLength} caracteres. Atualmente: ${bodyLength}`);
     }
 
-    // Carousel validation
+    // Carousel validation (LinkedIn uses PDF documents)
     if (postType === 'carousel') {
       if (data.mediaCount < constraints.carousel.minImages) {
-        errors.push(`Documento LinkedIn exige ${constraints.carousel.minImages}-${constraints.carousel.maxImages} páginas. Atualmente: ${data.mediaCount}`);
+        errors.push(`Documento LinkedIn exige pelo menos ${constraints.carousel.minImages} página. Atualmente: ${data.mediaCount}`);
       }
       if (data.mediaCount > constraints.carousel.maxImages) {
-        errors.push(`Documento LinkedIn exige ${constraints.carousel.minImages}-${constraints.carousel.maxImages} páginas. Atualmente: ${data.mediaCount}`);
+        errors.push(`Documento LinkedIn excede limite de ${constraints.carousel.maxImages} páginas. Atualmente: ${data.mediaCount}`);
       }
     }
 

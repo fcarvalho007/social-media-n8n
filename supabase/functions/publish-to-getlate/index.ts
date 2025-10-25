@@ -12,9 +12,9 @@ interface PublishRequest {
   caption?: string;
   body?: string;
   hashtags: string[];
-  media?: Array<{ url: string; alt?: string }>;
+  media?: Array<{ type: 'image'; src: string; alt?: string; order: number }>;
   pdfUrl?: string;
-  pageAlts?: string[]; // Alt text for each PDF page
+  pageAlts?: string[]; // Alt text for each PDF page (LinkedIn only)
   pdfMetadata?: { sizeMB: number; pages: number };
   videoUrl?: string;
   scheduleAt?: string;
@@ -23,7 +23,7 @@ interface PublishRequest {
 // Server-side validation
 function validateRequest(req: PublishRequest): string[] {
   const errors: string[] = [];
-  const { platform, postType, caption, body, hashtags, media, pdfUrl, videoUrl } = req;
+  const { platform, postType, caption, body, hashtags, media, pdfUrl, pdfMetadata, videoUrl } = req;
 
   if (platform === 'instagram') {
     // Caption validation
@@ -36,7 +36,7 @@ function validateRequest(req: PublishRequest): string[] {
       errors.push(`IG hashtags exceed 30 (${hashtags.length})`);
     }
     
-    // Carousel validation
+    // Carousel validation (Instagram uses native images)
     if (postType === 'carousel') {
       const imageCount = media?.length || 0;
       if (imageCount < 2 || imageCount > 10) {
@@ -53,9 +53,18 @@ function validateRequest(req: PublishRequest): string[] {
     }
     
     // Document validation (carousel as PDF)
-    if (postType === 'carousel' && pdfUrl) {
-      // LinkedIn accepts up to 300 pages, but we validate reasonable size
-      // Actual PDF size validation should happen before upload
+    if (postType === 'carousel') {
+      if (!pdfUrl) {
+        errors.push('LI carousel requires pdfUrl');
+      }
+      if (pdfMetadata) {
+        if (pdfMetadata.sizeMB > 100) {
+          errors.push(`PDF exceeds 100 MB (${pdfMetadata.sizeMB.toFixed(2)} MB)`);
+        }
+        if (pdfMetadata.pages > 300) {
+          errors.push(`PDF exceeds 300 pages (${pdfMetadata.pages})`);
+        }
+      }
     }
   }
 
@@ -146,45 +155,61 @@ serve(async (req) => {
       
       const finalCaption = `${caption || ''}\n\n${hashtags.join(' ')}`.trim();
 
-      requestBody = {
-        accountId: '68fb951d8bbca9c10cbfef93',
-        type: postType === 'carousel' ? 'document' : postType === 'video' ? 'video' : 'image',
-        caption: finalCaption,
-        scheduleAt: scheduleAt || null,
-      };
+      // Instagram carousel: send native images (not PDF)
+      if (postType === 'carousel' && media && media.length > 0) {
+        const imagePromises = media
+          .sort((a, b) => a.order - b.order) // Ensure correct order
+          .map(async (m) => {
+            const imgResponse = await fetch(m.src);
+            const imgBlob = await imgResponse.blob();
+            const imgBuffer = await imgBlob.arrayBuffer();
+            return {
+              kind: 'image',
+              file: Array.from(new Uint8Array(imgBuffer)),
+              alt: m.alt || '',
+            };
+          });
+        const images = await Promise.all(imagePromises);
 
-      if (postType === 'carousel' && pdfUrl) {
-        // Download PDF and convert to binary
-        const pdfResponse = await fetch(pdfUrl);
-        const pdfBlob = await pdfResponse.blob();
-        const pdfBuffer = await pdfBlob.arrayBuffer();
-        
-        requestBody.document = {
-          file: Array.from(new Uint8Array(pdfBuffer)),
-          filename: 'carousel.pdf',
-          // Include page alt texts for accessibility (future compatibility)
-          pageAlts: pageAlts || [],
+        requestBody = {
+          accountId: '68fb951d8bbca9c10cbfef93',
+          type: 'carousel',
+          caption: finalCaption,
+          media: images,
+          scheduleAt: scheduleAt || null,
         };
       } else if (postType === 'video' && videoUrl) {
         const videoResponse = await fetch(videoUrl);
         const videoBlob = await videoResponse.blob();
         const videoBuffer = await videoBlob.arrayBuffer();
         
-        requestBody.media = [{
-          kind: 'video',
-          file: Array.from(new Uint8Array(videoBuffer)),
-        }];
+        requestBody = {
+          accountId: '68fb951d8bbca9c10cbfef93',
+          type: 'video',
+          caption: finalCaption,
+          media: [{
+            kind: 'video',
+            file: Array.from(new Uint8Array(videoBuffer)),
+          }],
+          scheduleAt: scheduleAt || null,
+        };
       } else if (media && media.length > 0) {
-        const imagePromises = media.map(async (m) => {
-          const imgResponse = await fetch(m.url);
-          const imgBlob = await imgResponse.blob();
-          const imgBuffer = await imgBlob.arrayBuffer();
-          return {
+        // Single image
+        const imgResponse = await fetch(media[0].src);
+        const imgBlob = await imgResponse.blob();
+        const imgBuffer = await imgBlob.arrayBuffer();
+        
+        requestBody = {
+          accountId: '68fb951d8bbca9c10cbfef93',
+          type: 'image',
+          caption: finalCaption,
+          media: [{
             kind: 'image',
             file: Array.from(new Uint8Array(imgBuffer)),
-          };
-        });
-        requestBody.media = await Promise.all(imagePromises);
+            alt: media[0].alt || '',
+          }],
+          scheduleAt: scheduleAt || null,
+        };
       }
     } else if (platform === 'linkedin') {
       apiUrl = 'https://api.getlate.co/v1/social/linkedin/posts';
@@ -202,6 +227,7 @@ serve(async (req) => {
         scheduleAt: scheduleAt || null,
       };
 
+      // LinkedIn carousel: send as PDF document
       if (postType === 'carousel' && pdfUrl) {
         const pdfResponse = await fetch(pdfUrl);
         const pdfBlob = await pdfResponse.blob();
@@ -214,6 +240,12 @@ serve(async (req) => {
           // Include page alt texts for accessibility (future compatibility)
           pageAlts: pageAlts || [],
         };
+        
+        console.log('[PUBLISH] LinkedIn PDF document:', {
+          pages: pdfMetadata?.pages,
+          sizeMB: pdfMetadata?.sizeMB,
+          pageAltsCount: pageAlts?.length,
+        });
       } else if (postType === 'video' && videoUrl) {
         const videoResponse = await fetch(videoUrl);
         const videoBlob = await videoResponse.blob();
@@ -225,7 +257,7 @@ serve(async (req) => {
         };
       } else if (media && media.length > 0) {
         const imagePromises = media.map(async (m) => {
-          const imgResponse = await fetch(m.url);
+          const imgResponse = await fetch(m.src);
           const imgBlob = await imgResponse.blob();
           const imgBuffer = await imgBlob.arrayBuffer();
           return {

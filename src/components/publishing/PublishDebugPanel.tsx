@@ -33,22 +33,19 @@ export function PublishDebugPanel({
 }: PublishDebugPanelProps) {
   const generateInstagramPayload = () => {
     if (postType === "carousel") {
+      // Instagram: native images
       return {
         accountId: "68fb951d8bbca9c10cbfef93",
-        type: "document",
+        type: "carousel",
         caption: `${caption}\n\n${hashtags.join(" ")}`,
-        document: {
-          file: "<pdf-bytes>",
-          filename: pdfMetadata?.filename || "carousel.pdf",
-          pageAlts: pageAlts,
-        },
+        media: pageAlts.map((alt, idx) => ({
+          kind: "image",
+          file: "<image-bytes>",
+          alt: alt || `Slide ${idx + 1}`,
+        })),
         headers: {
           "Idempotency-Key": postId,
         },
-        metadata: pdfMetadata ? {
-          sizeMB: pdfMetadata.sizeMB,
-          pages: pdfMetadata.pages,
-        } : null,
       };
     }
     return null;

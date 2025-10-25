@@ -70,12 +70,10 @@ export function PlatformRules({ selectedTargets, postType, validations }: Platfo
               </div>
               {postType === 'carousel' && (
                 <div>
-                  <p className="font-medium">Carrossel → PDF</p>
-                  <p className="text-muted-foreground">{PLATFORM_CONSTRAINTS.instagram.carousel.minImages}-{PLATFORM_CONSTRAINTS.instagram.carousel.maxImages} imagens</p>
-                  <p className="text-muted-foreground">Exportado como PDF ordenado</p>
-                  <div className="inline-flex items-center gap-1 text-xs bg-blue-500/10 text-blue-600 px-2 py-1 rounded mt-1">
-                    ℹ️ Carrossel enviado como PDF documento
-                  </div>
+                  <p className="font-medium">Carrossel</p>
+                  <p className="text-muted-foreground">{PLATFORM_CONSTRAINTS.instagram.carousel.minImages}-{PLATFORM_CONSTRAINTS.instagram.carousel.maxImages} imagens (JPG/PNG)</p>
+                  <p className="text-muted-foreground">Mínimo 1080 px, sRGB</p>
+                  <p className="text-muted-foreground">Recomendado: 4:5 (1080×1350) ou 9:16</p>
                 </div>
               )}
               {postType === 'video' && (
@@ -125,11 +123,11 @@ export function PlatformRules({ selectedTargets, postType, validations }: Platfo
               </div>
               {postType === 'carousel' && (
                 <div>
-                  <p className="font-medium">Carrossel → Documento PDF</p>
-                  <p className="text-muted-foreground">{PLATFORM_CONSTRAINTS.linkedin.carousel.minImages}-{PLATFORM_CONSTRAINTS.linkedin.carousel.maxImages} páginas</p>
-                  <p className="text-muted-foreground">Publicado como Documento</p>
+                  <p className="font-medium">Carrossel → Documento (PDF)</p>
+                  <p className="text-muted-foreground">Até {PLATFORM_CONSTRAINTS.linkedin.carousel.maxImages} páginas, ≤ 100 MB</p>
+                  <p className="text-muted-foreground">Recomendado: 8–12 páginas</p>
                   <div className="inline-flex items-center gap-1 text-xs bg-blue-500/10 text-blue-600 px-2 py-1 rounded mt-1">
-                    ℹ️ Carrossel exportado como PDF documento (até 300 páginas)
+                    ℹ️ No LinkedIn, carrosséis são publicados como Documento (PDF)
                   </div>
                 </div>
               )}
