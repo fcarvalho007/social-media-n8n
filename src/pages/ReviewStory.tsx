@@ -75,6 +75,7 @@ const ReviewStory = () => {
 
   const handleApprove = async (scheduledDate?: Date) => {
     try {
+      console.log('[APPROVE] Starting approval process for story:', id);
       const reviewedAt = new Date().toISOString();
       
       const updateData: any = {
@@ -87,14 +88,32 @@ const ReviewStory = () => {
       // If scheduled, save the date and don't call the webhook yet
       if (scheduledDate) {
         updateData.scheduled_date = scheduledDate.toISOString();
+        console.log('[APPROVE] Scheduled approval for:', scheduledDate.toISOString());
+      } else {
+        console.log('[APPROVE] Immediate approval');
       }
 
-      const { error } = await supabase
+      console.log('[APPROVE] Update data:', updateData);
+
+      const { data, error } = await supabase
         .from('stories')
         .update(updateData)
-        .eq('id', id);
+        .eq('id', id)
+        .select();
 
-      if (error) throw error;
+      console.log('[APPROVE] Update result:', { data, error });
+
+      if (error) {
+        console.error('[APPROVE] Update error:', error);
+        throw error;
+      }
+
+      if (!data || data.length === 0) {
+        console.error('[APPROVE] No data returned from update');
+        throw new Error('Nenhum story foi atualizado');
+      }
+
+      console.log('[APPROVE] Story updated successfully:', data[0]);
 
       // Only call edge function to notify N8N webhook if not scheduled
       if (!scheduledDate) {
