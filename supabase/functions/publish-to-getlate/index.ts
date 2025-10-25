@@ -18,6 +18,67 @@ interface PublishRequest {
   scheduleAt?: string;
 }
 
+// Server-side validation
+function validateRequest(req: PublishRequest): string[] {
+  const errors: string[] = [];
+  const { platform, postType, caption, body, hashtags, media, pdfUrl, videoUrl } = req;
+
+  if (platform === 'instagram') {
+    // Caption validation
+    if (caption && caption.length > 2200) {
+      errors.push(`IG caption exceeds 2200 chars (${caption.length})`);
+    }
+    
+    // Hashtags validation
+    if (hashtags.length > 30) {
+      errors.push(`IG hashtags exceed 30 (${hashtags.length})`);
+    }
+    
+    // Carousel validation
+    if (postType === 'carousel') {
+      const imageCount = media?.length || 0;
+      if (imageCount < 2 || imageCount > 10) {
+        errors.push(`IG carousel requires 2-10 images (${imageCount})`);
+      }
+    }
+  }
+
+  if (platform === 'linkedin') {
+    // Body validation
+    const textContent = body || caption || '';
+    if (textContent.length > 3000) {
+      errors.push(`LI body exceeds 3000 chars (${textContent.length})`);
+    }
+    
+    // Document validation (carousel as PDF)
+    if (postType === 'carousel' && pdfUrl) {
+      // LinkedIn accepts up to 300 pages, but we validate reasonable size
+      // Actual PDF size validation should happen before upload
+    }
+  }
+
+  return errors;
+}
+
+// Deduplicate hashtags
+function deduplicateHashtags(hashtags: string[]): string[] {
+  const normalized = hashtags.map(h => h.toLowerCase().trim());
+  const unique = [...new Set(normalized)];
+  return unique.map(h => h.startsWith('#') ? h : `#${h}`);
+}
+
+// Move URLs to end for LinkedIn
+function formatLinkedInBody(text: string): string {
+  const urlRegex = /(https?:\/\/[^\s]+)/g;
+  const urls: string[] = [];
+  const cleanText = text.replace(urlRegex, (match) => {
+    urls.push(match);
+    return '';
+  }).trim();
+  
+  return urls.length > 0 ? `${cleanText}\n\n${urls.join('\n')}` : cleanText;
+}
+
 serve(async (req) => {
   // Handle CORS
   if (req.method === 'OPTIONS') {
@@ -35,27 +96,49 @@ serve(async (req) => {
       postId: requestData.postId,
       platform: requestData.platform,
       postType: requestData.postType,
+      timestamp: new Date().toISOString(),
     });
 
+    // Server-side validation
+    const validationErrors = validateRequest(requestData);
+    if (validationErrors.length > 0) {
+      console.error('[PUBLISH] Validation failed:', validationErrors);
+      return new Response(
+        JSON.stringify({
+          success: false,
+          error: 'Validation failed',
+          details: validationErrors,
+        }),
+        {
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+          status: 400,
+        }
+      );
+    }
+
     const {
+      postId,
       platform,
       postType,
       caption,
       body,
-      hashtags,
+      hashtags: rawHashtags,
       media,
       pdfUrl,
       videoUrl,
       scheduleAt,
     } = requestData;
 
+    // Deduplicate hashtags
+    const hashtags = deduplicateHashtags(rawHashtags);
+
     let apiUrl: string;
     let requestBody: any;
 
     if (platform === 'instagram') {
-      apiUrl = 'https://api.getlate.example/social/instagram/publish';
+      apiUrl = 'https://api.getlate.co/v1/social/instagram/posts';
       
-      const finalCaption = `${caption || ''}\n\n${hashtags.map(h => h.startsWith('#') ? h : `#${h}`).join(' ')}`.trim();
+      const finalCaption = `${caption || ''}\n\n${hashtags.join(' ')}`.trim();
 
       requestBody = {
         accountId: '68fb951d8bbca9c10cbfef93',
@@ -96,9 +179,11 @@ serve(async (req) => {
         requestBody.media = await Promise.all(imagePromises);
       }
     } else if (platform === 'linkedin') {
-      apiUrl = 'https://api.getlate.example/social/linkedin/publish';
+      apiUrl = 'https://api.getlate.co/v1/social/linkedin/posts';
       
-      const finalBody = `${body || caption || ''}\n\n${hashtags.map(h => h.startsWith('#') ? h : `#${h}`).join(' ')}`.trim();
+      // Format body with URLs at the end
+      const textWithHashtags = `${body || caption || ''}\n\n${hashtags.join(' ')}`.trim();
+      const finalBody = formatLinkedInBody(textWithHashtags);
 
       requestBody = {
         memberUrn: 'urn:li:person:ojg2Ri_Otv',
@@ -117,7 +202,7 @@ serve(async (req) => {
         requestBody.content.kind = 'document';
         requestBody.content.document = {
           file: Array.from(new Uint8Array(pdfBuffer)),
-          title: requestData.postId,
+          title: postId, // Use postId as document title
         };
       } else if (postType === 'video' && videoUrl) {
         const videoResponse = await fetch(videoUrl);
@@ -154,6 +239,7 @@ serve(async (req) => {
       headers: {
         'Authorization': `Bearer ${GETLATE_TOKEN}`,
         'Content-Type': 'application/json',
+        'Idempotency-Key': postId, // Prevent duplicate posts
       },
       body: JSON.stringify(requestBody),
     });

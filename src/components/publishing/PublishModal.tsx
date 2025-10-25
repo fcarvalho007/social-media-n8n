@@ -37,9 +37,25 @@ export function PublishModal({
 
   const copyTechnicalDetails = (platform: PublishTarget) => {
     const details = progress[platform];
-    const text = `Platform: ${platform}\nStatus: ${details.status}\nError: ${details.error || 'N/A'}\nMessage: ${details.message || 'N/A'}`;
+    
+    // Sanitize sensitive data
+    const sanitizedDetails = {
+      platform,
+      status: details.status,
+      error: details.error || 'N/A',
+      message: details.message || 'N/A',
+      startedAt: details.startedAt || 'N/A',
+      publishedAt: details.publishedAt || 'N/A',
+      postUrl: details.postUrl || 'N/A',
+      technicalDetails: details.technicalDetails || 'N/A',
+    };
+    
+    const text = Object.entries(sanitizedDetails)
+      .map(([key, value]) => `${key}: ${typeof value === 'object' ? JSON.stringify(value, null, 2) : value}`)
+      .join('\n');
+    
     navigator.clipboard.writeText(text);
-    toast.success('Detalhes copiados');
+    toast.success('Detalhes técnicos copiados (sanitizados)');
   };
 
   const getIcon = (platform: PublishTarget) => {

@@ -10,7 +10,6 @@ import { ActionBar } from '@/components/ActionBar';
 import { TargetSelector } from '@/components/publishing/TargetSelector';
 import { PlatformRules } from '@/components/publishing/PlatformRules';
 import { PublishModal } from '@/components/publishing/PublishModal';
-import { PublishingPreview } from '@/components/publishing/PublishingPreview';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { SidebarProvider } from '@/components/ui/sidebar';
@@ -196,10 +195,29 @@ const Review = () => {
     }
   };
 
-  const handlePublishToTargets = async (scheduledDate?: Date) => {
-    const activeTargets = Object.entries(publishTargets)
+  const handlePublishToTargets = async (scheduledDate?: Date, retryPlatform?: PublishTarget) => {
+    let activeTargets = Object.entries(publishTargets)
       .filter(([_, active]) => active)
       .map(([target]) => target as PublishTarget);
+
+    // If retrying a specific platform, only publish that one
+    if (retryPlatform) {
+      activeTargets = [retryPlatform];
+    }
+
+    // Check idempotency - skip already published platforms (unless retrying)
+    const targetsToPublish = activeTargets.filter(target => {
+      if (!retryPlatform && post.external_post_ids?.[target]) {
+        toast.info(`Já publicado em ${target === 'instagram' ? 'Instagram' : 'LinkedIn'}`);
+        return false;
+      }
+      return true;
+    });
+
+    if (targetsToPublish.length === 0) {
+      toast.info('Todas as plataformas selecionadas já foram publicadas');
+      return;
+    }
 
     const selectedImages = selectedTemplate === 'A' ? templateAImages : templateBImages;
 
@@ -209,10 +227,16 @@ const Review = () => {
 
     try {
       // Update progress - generating PDF
-      activeTargets.forEach(target => {
+      targetsToPublish.forEach(target => {
         setPublishProgress(prev => ({
           ...prev,
-          [target]: { ...prev[target], status: 'validating', progress: 10, message: 'A gerar PDF do carrossel...' }
+          [target]: { 
+            ...prev[target], 
+            status: 'validating', 
+            progress: 10, 
+            message: 'A gerar PDF do carrossel...',
+            startedAt: new Date().toISOString(),
+          }
         }));
       });
 
@@ -225,13 +249,32 @@ const Review = () => {
       // For now, we'll convert to data URL (in production, upload to storage)
       pdfUrl = URL.createObjectURL(pdfBlob);
 
-      // Publish to each platform
-      for (const target of activeTargets) {
-        try {
-          setPublishProgress(prev => ({
-            ...prev,
-            [target]: { ...prev[target], status: 'uploading', progress: 30, message: 'A carregar conteúdo...' }
-          }));
+      // Publish to each platform with retry logic
+      for (const target of targetsToPublish) {
+        let attempts = 0;
+        const maxAttempts = 3;
+        let lastError: Error | null = null;
+
+        while (attempts < maxAttempts) {
+          try {
+            const delay = attempts > 0 ? Math.pow(2, attempts) * 1000 : 0; // 0s, 2s, 4s
+            if (delay > 0) {
+              setPublishProgress(prev => ({
+                ...prev,
+                [target]: { 
+                  ...prev[target], 
+                  status: 'uploading', 
+                  progress: 20, 
+                  message: `A tentar novamente... (tentativa ${attempts + 1}/${maxAttempts})` 
+                }
+              }));
+              await new Promise(resolve => setTimeout(resolve, delay));
+            }
+
+            setPublishProgress(prev => ({
+              ...prev,
+              [target]: { ...prev[target], status: 'uploading', progress: 30, message: 'A carregar conteúdo...' }
+            }));
 
           const { data, error } = await supabase.functions.invoke('publish-to-getlate', {
             body: {
@@ -274,20 +317,36 @@ const Review = () => {
               progress: 100,
               message: 'Publicado com sucesso!',
               postUrl: data.postUrl,
+              publishedAt: new Date().toISOString(),
             }
           }));
+          
+          // Success - break retry loop
+          break;
         } catch (error) {
-          console.error(`Error publishing to ${target}:`, error);
-          setPublishProgress(prev => ({
-            ...prev,
-            [target]: {
-              ...prev[target],
-              status: 'error',
-              progress: 0,
-              error: error instanceof Error ? error.message : 'Erro ao publicar',
-            }
-          }));
+          attempts++;
+          lastError = error instanceof Error ? error : new Error('Erro desconhecido');
+          console.error(`Error publishing to ${target} (attempt ${attempts}/${maxAttempts}):`, error);
+          
+          if (attempts >= maxAttempts) {
+            // Final failure after all retries
+            setPublishProgress(prev => ({
+              ...prev,
+              [target]: {
+                ...prev[target],
+                status: 'error',
+                progress: 0,
+                error: lastError?.message || 'Erro ao publicar após várias tentativas',
+                technicalDetails: {
+                  attempts: maxAttempts,
+                  lastError: lastError?.message,
+                  timestamp: new Date().toISOString(),
+                },
+              }
+            }));
+          }
         }
+      }
       }
 
       // Clean up blob URL
@@ -295,7 +354,7 @@ const Review = () => {
         setTimeout(() => URL.revokeObjectURL(pdfUrl), 5000);
       }
 
-      const allSuccess = activeTargets.every(
+      const allSuccess = targetsToPublish.every(
         target => publishProgress[target]?.status === 'done'
       );
 
@@ -503,13 +562,6 @@ const Review = () => {
             postType="carousel"
             validations={validations}
           />
-          <PublishingPreview
-            selectedTargets={publishTargets}
-            postType="carousel"
-            mediaCount={selectedTemplate === 'A' ? templateAImages.length : templateBImages.length}
-            caption={caption}
-            images={selectedTemplate === 'A' ? templateAImages : templateBImages}
-          />
         </div>
 
         {/* Templates - Side by side on desktop, stacked on mobile */}
@@ -578,7 +630,11 @@ const Review = () => {
           </main>
 
           <ActionBar
-            canApprove={!!selectedTemplate}
+            canApprove={
+              !!selectedTemplate && 
+              Object.values(publishTargets).some(active => active) &&
+              !Object.values(validations).some((v: any) => v?.errors?.length > 0)
+            }
             onApprove={handleApprove}
             onReject={handleReject}
             onSave={handleSave}
@@ -600,7 +656,8 @@ const Review = () => {
             ...prev,
             [platform]: { platform, status: 'pending', progress: 0 }
           }));
-          handlePublishToTargets();
+          // Retry only the failed platform
+          handlePublishToTargets(undefined, platform);
         }}
       />
     </SidebarProvider>

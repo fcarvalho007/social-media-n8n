@@ -50,6 +50,9 @@ export interface PublishProgress {
   message?: string;
   error?: string;
   postUrl?: string;
+  startedAt?: string;
+  publishedAt?: string;
+  technicalDetails?: any;
 }
 
 export const INSTAGRAM_CONFIG = {
