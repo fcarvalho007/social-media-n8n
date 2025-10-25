@@ -157,25 +157,27 @@ const Calendar = () => {
 
   const eventStyleGetter = (event: CalendarEvent) => {
     const isStory = event.resource.content_type === 'stories';
-    const isScheduled = !!event.resource.scheduled_date;
+    const isCarousel = event.resource.content_type === 'carousel';
     const isPublished = event.resource.status === 'published';
     
-    let backgroundColor = isStory ? '#8B5CF6' : '#4169A0';
-    let opacity = 0.9;
+    let backgroundColor;
+    let border = 'none';
     
     if (isPublished) {
-      opacity = 0.6; // Published posts are more transparent
-    } else if (!isScheduled) {
-      opacity = 0.75; // Approved but not scheduled
+      // Published content - darker, with checkmark pattern
+      backgroundColor = isStory ? '#6B21A8' : isCarousel ? '#1E40AF' : '#047857';
+      border = '2px solid rgba(255, 255, 255, 0.3)';
+    } else {
+      // Scheduled content - lighter colors
+      backgroundColor = isStory ? '#8B5CF6' : isCarousel ? '#3B82F6' : '#10B981';
     }
     
     return {
       style: {
         backgroundColor,
         borderRadius: '8px',
-        opacity,
         color: 'white',
-        border: '0px',
+        border,
         display: 'block',
         fontSize: '13px',
         fontWeight: '600',
@@ -209,14 +211,23 @@ const Calendar = () => {
 
   const CustomEvent = ({ event }: { event: CalendarEvent }) => {
     const isStory = event.resource.content_type === 'stories';
+    const isCarousel = event.resource.content_type === 'carousel';
+    const isPublished = event.resource.status === 'published';
+    
+    let icon;
+    if (isStory) {
+      icon = <Video className="h-3 w-3 flex-shrink-0" />;
+    } else if (isCarousel) {
+      icon = <LayoutGrid className="h-3 w-3 flex-shrink-0" />;
+    } else {
+      icon = <div className="h-3 w-3 flex-shrink-0 rounded-full bg-white/30" />;
+    }
+    
     return (
       <div className="flex items-center gap-1 truncate group">
-        {isStory ? (
-          <Video className="h-3 w-3 flex-shrink-0" />
-        ) : (
-          <LayoutGrid className="h-3 w-3 flex-shrink-0" />
-        )}
+        {icon}
         <span className="text-xs font-semibold truncate">{event.title}</span>
+        {isPublished && <span className="ml-1 text-[10px]">✓</span>}
       </div>
     );
   };
@@ -285,22 +296,81 @@ const Calendar = () => {
                 </Card>
               </div>
 
-              {/* Filters */}
-              <div className="flex items-center justify-between bg-white rounded-xl p-4 border-2">
-                <div className="flex items-center gap-2">
-                  <Filter className="h-4 w-4 text-muted-foreground" />
-                  <span className="text-sm font-medium text-muted-foreground">Filtrar por:</span>
-                </div>
-                <Select value={filterType} onValueChange={(value: any) => setFilterType(value)}>
-                  <SelectTrigger className="w-[180px]">
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="all">Todos</SelectItem>
-                    <SelectItem value="posts">Apenas Posts</SelectItem>
-                    <SelectItem value="stories">Apenas Stories</SelectItem>
-                  </SelectContent>
-                </Select>
+              {/* Legend and Filters */}
+              <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+                {/* Legend */}
+                <Card className="p-5 border-2">
+                  <h3 className="text-sm font-semibold text-foreground mb-4 flex items-center gap-2">
+                    <div className="h-2 w-2 rounded-full bg-gradient-to-r from-primary to-secondary"></div>
+                    Legenda de Cores
+                  </h3>
+                  <div className="space-y-3">
+                    <div className="grid grid-cols-2 gap-3">
+                      {/* Stories */}
+                      <div className="space-y-2">
+                        <div className="flex items-center gap-2">
+                          <div className="h-4 w-8 rounded" style={{ backgroundColor: '#8B5CF6' }}></div>
+                          <span className="text-xs font-medium text-muted-foreground">Story Agendada</span>
+                        </div>
+                        <div className="flex items-center gap-2">
+                          <div className="h-4 w-8 rounded border-2 border-white/30" style={{ backgroundColor: '#6B21A8' }}></div>
+                          <span className="text-xs font-medium text-muted-foreground">Story Publicada ✓</span>
+                        </div>
+                      </div>
+                      
+                      {/* Carousel */}
+                      <div className="space-y-2">
+                        <div className="flex items-center gap-2">
+                          <div className="h-4 w-8 rounded" style={{ backgroundColor: '#3B82F6' }}></div>
+                          <span className="text-xs font-medium text-muted-foreground">Carousel Agendado</span>
+                        </div>
+                        <div className="flex items-center gap-2">
+                          <div className="h-4 w-8 rounded border-2 border-white/30" style={{ backgroundColor: '#1E40AF' }}></div>
+                          <span className="text-xs font-medium text-muted-foreground">Carousel Publicado ✓</span>
+                        </div>
+                      </div>
+                      
+                      {/* Post */}
+                      <div className="space-y-2">
+                        <div className="flex items-center gap-2">
+                          <div className="h-4 w-8 rounded" style={{ backgroundColor: '#10B981' }}></div>
+                          <span className="text-xs font-medium text-muted-foreground">Post Agendado</span>
+                        </div>
+                        <div className="flex items-center gap-2">
+                          <div className="h-4 w-8 rounded border-2 border-white/30" style={{ backgroundColor: '#047857' }}></div>
+                          <span className="text-xs font-medium text-muted-foreground">Post Publicado ✓</span>
+                        </div>
+                      </div>
+                    </div>
+                    <div className="pt-2 border-t">
+                      <p className="text-xs text-muted-foreground flex items-center gap-1">
+                        <Video className="h-3 w-3" /> = Story • 
+                        <LayoutGrid className="h-3 w-3 ml-1" /> = Carousel • 
+                        <div className="h-2 w-2 rounded-full bg-muted ml-1" /> = Post
+                      </p>
+                    </div>
+                  </div>
+                </Card>
+
+                {/* Filters */}
+                <Card className="p-5 border-2 flex flex-col justify-center">
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-2">
+                      <Filter className="h-4 w-4 text-muted-foreground" />
+                      <span className="text-sm font-medium text-muted-foreground">Filtrar por:</span>
+                    </div>
+                    <Select value={filterType} onValueChange={(value: any) => setFilterType(value)}>
+                      <SelectTrigger className="w-[180px]">
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="all">Todos</SelectItem>
+                        <SelectItem value="posts">Apenas Posts</SelectItem>
+                        <SelectItem value="stories">Apenas Stories</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                </Card>
               </div>
 
               <div className="bg-white rounded-2xl shadow-md p-6 border border-gray-100">
