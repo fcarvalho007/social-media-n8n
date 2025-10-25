@@ -8,3 +8,6 @@ verify_jwt = false
 
 [functions.send-scheduled-posts]
 verify_jwt = false
+
+[functions.publish-to-getlate]
+verify_jwt = false

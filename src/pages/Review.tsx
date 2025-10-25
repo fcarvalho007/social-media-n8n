@@ -7,16 +7,22 @@ import { DashboardHeader } from '@/components/DashboardHeader';
 import { CarouselPreview } from '@/components/CarouselPreview';
 import { CaptionEditor } from '@/components/CaptionEditor';
 import { ActionBar } from '@/components/ActionBar';
+import { TargetSelector } from '@/components/publishing/TargetSelector';
+import { PlatformRules } from '@/components/publishing/PlatformRules';
+import { PublishModal } from '@/components/publishing/PublishModal';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { SidebarProvider } from '@/components/ui/sidebar';
-import { Loader2, ArrowLeft, CheckCircle2, Eye } from 'lucide-react';
+import { Loader2, ArrowLeft, CheckCircle2, Eye, LayoutGrid } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { toast } from 'sonner';
 import { cn } from '@/lib/utils';
 import { formatDistanceToNow } from 'date-fns';
 import { pt } from 'date-fns/locale';
+import { PublishTarget, PostType, PublishProgress } from '@/types/publishing';
+import { validateAllTargets } from '@/lib/publishingValidation';
+import { generateCarouselPDF } from '@/lib/pdfGenerator';
 
 const Review = () => {
   const { id } = useParams();
@@ -31,10 +37,43 @@ const Review = () => {
   const [templateAImages, setTemplateAImages] = useState<string[]>([]);
   const [templateBImages, setTemplateBImages] = useState<string[]>([]);
   const templatesRef = useRef<HTMLDivElement>(null);
+  
+  // Publishing state
+  const [publishTargets, setPublishTargets] = useState<Record<PublishTarget, boolean>>({
+    instagram: false,
+    linkedin: false,
+  });
+  const [publishModalOpen, setPublishModalOpen] = useState(false);
+  const [publishProgress, setPublishProgress] = useState<Record<PublishTarget, PublishProgress>>({
+    instagram: { platform: 'instagram', status: 'pending', progress: 0 },
+    linkedin: { platform: 'linkedin', status: 'pending', progress: 0 },
+  });
+  const [validations, setValidations] = useState<Record<string, any>>({});
 
   useEffect(() => {
     fetchPost();
   }, [id]);
+
+  // Validate when targets or caption changes
+  useEffect(() => {
+    if (post && caption) {
+      const postType: PostType = 'carousel'; // Always carousel for IA posts
+      const selectedImages = selectedTemplate === 'A' ? templateAImages : templateBImages;
+      
+      const validationResults = validateAllTargets(
+        publishTargets,
+        postType,
+        {
+          caption,
+          body: caption,
+          hashtags,
+          mediaCount: selectedImages.length,
+        }
+      );
+      
+      setValidations(validationResults);
+    }
+  }, [publishTargets, caption, hashtags, selectedTemplate, templateAImages, templateBImages, post]);
 
   const fetchPost = async () => {
     if (!id) return;
@@ -92,8 +131,22 @@ const Review = () => {
       return;
     }
 
+    // Check if at least one target is selected
+    const hasTargets = Object.values(publishTargets).some(t => t);
+    if (!hasTargets) {
+      toast.error('Selecione pelo menos uma plataforma para publicar');
+      return;
+    }
+
+    // Validate all targets
+    const allValid = Object.entries(validations).every(([_, v]) => v.valid);
+    if (!allValid) {
+      toast.error('Corrija os erros de validação antes de publicar');
+      return;
+    }
+
     try {
-      // Only include reviewed_by if user has a valid UUID
+      // Save to database first
       const isValidUUID = user?.id && /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(user.id);
       
       const updateData: any = {
@@ -109,7 +162,6 @@ const Review = () => {
         updateData.reviewed_by = user.id;
       }
 
-      // If scheduled, save the date and don't call the webhook yet
       if (scheduledDate) {
         updateData.scheduled_date = scheduledDate.toISOString();
       }
@@ -121,38 +173,113 @@ const Review = () => {
 
       if (error) throw error;
 
-      // Only call callback edge function if not scheduled
+      // If not scheduled, publish immediately
       if (!scheduledDate) {
-        try {
-          const { data: callbackData, error: callbackError } = await supabase.functions.invoke('callback', {
-            body: {
-              post_id: id,
-              status: 'approved',
-              selected_template: selectedTemplate,
-              caption_edited: caption,
-              hashtags_edited: hashtags,
-              notes,
-            },
-          });
-
-          if (callbackError) {
-            console.error('Callback error:', callbackError);
-            toast.error('Aprovado localmente, mas falha ao notificar n8n');
-          }
-        } catch (callbackError) {
-          console.error('Failed to call callback:', callbackError);
-        }
+        setPublishModalOpen(true);
+        await handlePublishToTargets(scheduledDate);
+      } else {
+        toast.success('Publicação agendada com sucesso!');
+        navigate('/');
       }
-      
-      const successMessage = scheduledDate 
-        ? 'Publicação agendada com sucesso!' 
-        : 'Publicação aprovada com sucesso!';
-      toast.success(successMessage);
-      navigate('/');
     } catch (error) {
       console.error('Erro ao aprovar:', error);
       toast.error('Falha ao aprovar publicação');
       throw error;
+    }
+  };
+
+  const handlePublishToTargets = async (scheduledDate?: Date) => {
+    const activeTargets = Object.entries(publishTargets)
+      .filter(([_, active]) => active)
+      .map(([target]) => target as PublishTarget);
+
+    const selectedImages = selectedTemplate === 'A' ? templateAImages : templateBImages;
+
+    // Generate PDF for carousel
+    let pdfBlob: Blob | null = null;
+    let pdfUrl: string | null = null;
+
+    try {
+      // Update progress - generating PDF
+      activeTargets.forEach(target => {
+        setPublishProgress(prev => ({
+          ...prev,
+          [target]: { ...prev[target], status: 'validating', progress: 10, message: 'A gerar PDF do carrossel...' }
+        }));
+      });
+
+      pdfBlob = await generateCarouselPDF({
+        images: selectedImages,
+        title: post.tema,
+      });
+
+      // Upload PDF to temporary storage or use it directly
+      // For now, we'll convert to data URL (in production, upload to storage)
+      pdfUrl = URL.createObjectURL(pdfBlob);
+
+      // Publish to each platform
+      for (const target of activeTargets) {
+        try {
+          setPublishProgress(prev => ({
+            ...prev,
+            [target]: { ...prev[target], status: 'uploading', progress: 30, message: 'A carregar conteúdo...' }
+          }));
+
+          const { data, error } = await supabase.functions.invoke('publish-to-getlate', {
+            body: {
+              postId: id,
+              platform: target,
+              postType: 'carousel',
+              caption: target === 'instagram' ? caption : undefined,
+              body: target === 'linkedin' ? caption : undefined,
+              hashtags,
+              pdfUrl,
+              scheduleAt: scheduledDate?.toISOString(),
+            },
+          });
+
+          if (error) throw error;
+
+          setPublishProgress(prev => ({
+            ...prev,
+            [target]: {
+              ...prev[target],
+              status: 'done',
+              progress: 100,
+              message: 'Publicado com sucesso!',
+              postUrl: data.postUrl,
+            }
+          }));
+        } catch (error) {
+          console.error(`Error publishing to ${target}:`, error);
+          setPublishProgress(prev => ({
+            ...prev,
+            [target]: {
+              ...prev[target],
+              status: 'error',
+              progress: 0,
+              error: error instanceof Error ? error.message : 'Erro ao publicar',
+            }
+          }));
+        }
+      }
+
+      // Clean up blob URL
+      if (pdfUrl) {
+        setTimeout(() => URL.revokeObjectURL(pdfUrl), 5000);
+      }
+
+      const allSuccess = activeTargets.every(
+        target => publishProgress[target]?.status === 'done'
+      );
+
+      if (allSuccess) {
+        toast.success('Publicado com sucesso em todas as plataformas!');
+        setTimeout(() => navigate('/'), 2000);
+      }
+    } catch (error) {
+      console.error('Error in publishing flow:', error);
+      toast.error('Erro ao processar publicação');
     }
   };
 
@@ -322,10 +449,29 @@ const Review = () => {
         </div>
 
         <div className="mb-3 sm:mb-4 md:mb-6">
-          <h2 className="text-lg sm:text-xl md:text-2xl lg:text-3xl font-bold mb-1 sm:mb-2">{post.tema}</h2>
+          <div className="flex items-center gap-2 mb-2">
+            <h2 className="text-lg sm:text-xl md:text-2xl lg:text-3xl font-bold">{post.tema}</h2>
+            <Badge variant="outline" className="gap-1">
+              <LayoutGrid className="h-3 w-3" />
+              Carrossel
+            </Badge>
+          </div>
           <p className="text-xs sm:text-sm text-muted-foreground">
-            Selecione o seu modelo preferido e reveja o conteúdo
+            Selecione o modelo, plataformas e reveja o conteúdo
           </p>
+        </div>
+
+        {/* Publishing Configuration */}
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 mb-6">
+          <TargetSelector
+            selectedTargets={publishTargets}
+            onTargetsChange={setPublishTargets}
+          />
+          <PlatformRules
+            selectedTargets={publishTargets}
+            postType="carousel"
+            validations={validations}
+          />
         </div>
 
         {/* Templates - Side by side on desktop, stacked on mobile */}
@@ -401,6 +547,24 @@ const Review = () => {
           />
         </div>
       </div>
+
+      {/* Publishing Modal */}
+      <PublishModal
+        open={publishModalOpen}
+        onOpenChange={setPublishModalOpen}
+        targets={publishTargets}
+        postType="carousel"
+        mediaCount={selectedTemplate === 'A' ? templateAImages.length : templateBImages.length}
+        progress={publishProgress}
+        onRetry={(platform) => {
+          // Reset progress for retry
+          setPublishProgress(prev => ({
+            ...prev,
+            [platform]: { platform, status: 'pending', progress: 0 }
+          }));
+          handlePublishToTargets();
+        }}
+      />
     </SidebarProvider>
   );
 };
