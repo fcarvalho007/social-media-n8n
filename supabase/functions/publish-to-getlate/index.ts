@@ -96,6 +96,42 @@ function formatLinkedInBody(text: string): string {
   return urls.length > 0 ? `${cleanText}\n\n${urls.join('\n')}` : cleanText;
 }
 
+// Helper: Fetch with timeout and retries
+async function fetchWithRetry(
+  url: string,
+  options: RequestInit,
+  maxRetries = 3,
+  timeoutMs = 25000
+): Promise<Response> {
+  let lastError: Error | null = null;
+
+  for (let attempt = 1; attempt <= maxRetries; attempt++) {
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), timeoutMs);
+
+    try {
+      console.log(`[PUBLISH] Attempt ${attempt}/${maxRetries} to ${url}`);
+      const response = await fetch(url, {
+        ...options,
+        signal: controller.signal,
+      });
+      clearTimeout(timeoutId);
+      return response;
+    } catch (error) {
+      clearTimeout(timeoutId);
+      lastError = error instanceof Error ? error : new Error('Unknown error');
+      
+      if (attempt < maxRetries) {
+        const backoffMs = Math.pow(2, attempt) * 1000;
+        console.log(`[PUBLISH] Retry ${attempt} failed, waiting ${backoffMs}ms:`, lastError.message);
+        await new Promise(resolve => setTimeout(resolve, backoffMs));
+      }
+    }
+  }
+
+  throw lastError || new Error('Failed after max retries');
+}
+
 serve(async (req) => {
   // Handle CORS
   if (req.method === 'OPTIONS') {
@@ -168,7 +204,7 @@ serve(async (req) => {
       
       const finalCaption = `${caption || ''}\n\n${hashtags.join(' ')}`.trim();
 
-      // Instagram carousel: send native images (not PDF)
+      // Instagram carousel: send native images as base64 (not PDF)
       if (postType === 'carousel' && images && images.length > 0) {
         console.log('[PUBLISH] Instagram carousel with', images.length, 'images');
         
@@ -176,9 +212,10 @@ serve(async (req) => {
           const imgResponse = await fetch(imgUrl);
           const imgBlob = await imgResponse.blob();
           const imgBuffer = await imgBlob.arrayBuffer();
+          const base64 = btoa(String.fromCharCode(...new Uint8Array(imgBuffer)));
           return {
             kind: 'image',
-            file: Array.from(new Uint8Array(imgBuffer)),
+            file: base64,
           };
         });
         const imageData = await Promise.all(imagePromises);
@@ -194,6 +231,7 @@ serve(async (req) => {
         const videoResponse = await fetch(videoUrl);
         const videoBlob = await videoResponse.blob();
         const videoBuffer = await videoBlob.arrayBuffer();
+        const base64 = btoa(String.fromCharCode(...new Uint8Array(videoBuffer)));
         
         requestBody = {
           accountId: '68fb951d8bbca9c10cbfef93',
@@ -201,7 +239,7 @@ serve(async (req) => {
           caption: finalCaption,
           media: [{
             kind: 'video',
-            file: Array.from(new Uint8Array(videoBuffer)),
+            file: base64,
           }],
           scheduleAt: scheduleAt || null,
         };
@@ -210,6 +248,7 @@ serve(async (req) => {
         const imgResponse = await fetch(images[0]);
         const imgBlob = await imgResponse.blob();
         const imgBuffer = await imgBlob.arrayBuffer();
+        const base64 = btoa(String.fromCharCode(...new Uint8Array(imgBuffer)));
         
         requestBody = {
           accountId: '68fb951d8bbca9c10cbfef93',
@@ -217,7 +256,7 @@ serve(async (req) => {
           caption: finalCaption,
           media: [{
             kind: 'image',
-            file: Array.from(new Uint8Array(imgBuffer)),
+            file: base64,
           }],
           scheduleAt: scheduleAt || null,
         };
@@ -238,17 +277,18 @@ serve(async (req) => {
         scheduleAt: scheduleAt || null,
       };
 
-      // LinkedIn carousel: send as PDF document
+      // LinkedIn carousel: send as PDF document (base64)
       if (postType === 'carousel' && pdfUrl) {
         console.log('[PUBLISH] LinkedIn document with', pdfMetadata?.pages, 'pages,', pdfMetadata?.sizeMB?.toFixed(2), 'MB');
         
         const pdfResponse = await fetch(pdfUrl);
         const pdfBlob = await pdfResponse.blob();
         const pdfBuffer = await pdfBlob.arrayBuffer();
+        const base64 = btoa(String.fromCharCode(...new Uint8Array(pdfBuffer)));
         
         requestBody.content.kind = 'document';
         requestBody.content.document = {
-          file: Array.from(new Uint8Array(pdfBuffer)),
+          file: base64,
           title: postId,
           pageAlts: pageAlts || [],
         };
@@ -256,18 +296,20 @@ serve(async (req) => {
         const videoResponse = await fetch(videoUrl);
         const videoBlob = await videoResponse.blob();
         const videoBuffer = await videoBlob.arrayBuffer();
+        const base64 = btoa(String.fromCharCode(...new Uint8Array(videoBuffer)));
         
         requestBody.content.kind = 'video';
         requestBody.content.video = {
-          file: Array.from(new Uint8Array(videoBuffer)),
+          file: base64,
         };
       } else if (images && images.length > 0) {
         const imagePromises = images.map(async (imgUrl) => {
           const imgResponse = await fetch(imgUrl);
           const imgBlob = await imgResponse.blob();
           const imgBuffer = await imgBlob.arrayBuffer();
+          const base64 = btoa(String.fromCharCode(...new Uint8Array(imgBuffer)));
           return {
-            file: Array.from(new Uint8Array(imgBuffer)),
+            file: base64,
           };
         });
         requestBody.content.kind = 'image';
@@ -281,7 +323,7 @@ serve(async (req) => {
 
     console.log('[PUBLISH] Calling Getlate API:', apiUrl);
 
-    const response = await fetch(apiUrl, {
+    const response = await fetchWithRetry(apiUrl, {
       method: 'POST',
       headers: {
         'Authorization': `Bearer ${GETLATE_TOKEN}`,

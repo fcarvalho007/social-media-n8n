@@ -239,7 +239,7 @@ const Review = () => {
             ...prev[target], 
             status: 'validating', 
             progress: 10, 
-            message: needsPdf && target === 'linkedin' ? 'A gerar PDF do carrossel...' : 'A preparar conteúdo...',
+            message: target === 'linkedin' && needsPdf ? 'A gerar PDF do carrossel...' : 'A preparar conteúdo...',
             startedAt: new Date().toISOString(),
           }
         }));

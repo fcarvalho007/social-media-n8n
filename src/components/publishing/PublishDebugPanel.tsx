@@ -38,11 +38,14 @@ export function PublishDebugPanel({
         accountId: "68fb951d8bbca9c10cbfef93",
         type: "carousel",
         caption: `${caption}\n\n${hashtags.join(" ")}`,
-        images: pageAlts.map((_, idx) => `<image-url-${idx + 1}>`),
+        media: Array.from({ length: mediaCount }, (_, i) => ({
+          kind: "image",
+          file: "<base64-encoded-image-data>", // Base64 format
+        })),
         headers: {
           "Idempotency-Key": postId,
         },
-        note: "Instagram receives native JPG/PNG images in sequence (not PDF)",
+        note: "Instagram receives native images encoded as base64 (not PDF)",
       };
     }
     return null;
@@ -65,7 +68,7 @@ export function PublishDebugPanel({
           kind: "document",
           text: finalText,
           document: {
-            file: "<pdf-bytes>",
+            file: "<base64-encoded-pdf-data>", // Base64 format
             title: postId,
             pageAlts: pageAlts,
           },
@@ -77,7 +80,7 @@ export function PublishDebugPanel({
           sizeMB: pdfMetadata.sizeMB,
           pages: pdfMetadata.pages,
         } : null,
-        note: "LinkedIn receives PDF document (not native images)",
+        note: "LinkedIn receives PDF document encoded as base64 (not native images)",
       };
     }
     return null;
