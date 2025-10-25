@@ -95,6 +95,11 @@ const Review = () => {
       setNotes(data.notes || '');
       setTemplateAImages(data.template_a_images || []);
       setTemplateBImages(data.template_b_images || []);
+      
+      // Load saved targets or default to last used
+      if (data.publish_targets) {
+        setPublishTargets(data.publish_targets as Record<PublishTarget, boolean>);
+      }
     } catch (error) {
       console.error('Erro ao carregar publicação:', error);
       toast.error('Falha ao carregar publicação');
@@ -113,6 +118,7 @@ const Review = () => {
           hashtags_edited: hashtags,
           notes,
           selected_template: selectedTemplate,
+          publish_targets: publishTargets,
         })
         .eq('id', id);
 
@@ -156,6 +162,7 @@ const Review = () => {
         hashtags_edited: hashtags,
         notes,
         reviewed_at: new Date().toISOString(),
+        publish_targets: publishTargets,
       };
 
       if (isValidUUID) {
@@ -239,6 +246,24 @@ const Review = () => {
           });
 
           if (error) throw error;
+
+          // Update database with external post ID
+          await supabase
+            .from('posts')
+            .update({
+              external_post_ids: {
+                ...post.external_post_ids,
+                [target]: data.externalId,
+              },
+              publish_metadata: {
+                ...post.publish_metadata,
+                [target]: {
+                  publishedAt: new Date().toISOString(),
+                  postUrl: data.postUrl,
+                },
+              },
+            })
+            .eq('id', id);
 
           setPublishProgress(prev => ({
             ...prev,

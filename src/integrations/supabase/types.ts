@@ -76,6 +76,7 @@ export type Database = {
           caption_edited: string | null
           content_type: string | null
           created_at: string | null
+          external_post_ids: Json | null
           first_comment: string | null
           hashtags: string[] | null
           hashtags_edited: string[] | null
@@ -86,6 +87,8 @@ export type Database = {
           notes: string | null
           origin_mode: string | null
           post_type: string | null
+          publish_metadata: Json | null
+          publish_targets: Json | null
           published_at: string | null
           reviewed_at: string | null
           reviewed_by: string | null
@@ -112,6 +115,7 @@ export type Database = {
           caption_edited?: string | null
           content_type?: string | null
           created_at?: string | null
+          external_post_ids?: Json | null
           first_comment?: string | null
           hashtags?: string[] | null
           hashtags_edited?: string[] | null
@@ -122,6 +126,8 @@ export type Database = {
           notes?: string | null
           origin_mode?: string | null
           post_type?: string | null
+          publish_metadata?: Json | null
+          publish_targets?: Json | null
           published_at?: string | null
           reviewed_at?: string | null
           reviewed_by?: string | null
@@ -148,6 +154,7 @@ export type Database = {
           caption_edited?: string | null
           content_type?: string | null
           created_at?: string | null
+          external_post_ids?: Json | null
           first_comment?: string | null
           hashtags?: string[] | null
           hashtags_edited?: string[] | null
@@ -158,6 +165,8 @@ export type Database = {
           notes?: string | null
           origin_mode?: string | null
           post_type?: string | null
+          publish_metadata?: Json | null
+          publish_targets?: Json | null
           published_at?: string | null
           reviewed_at?: string | null
           reviewed_by?: string | null
