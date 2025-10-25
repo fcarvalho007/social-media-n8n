@@ -261,7 +261,7 @@ const Review = () => {
         // Progress: 10% -> 30% during PDF generation
         setPublishProgress(prev => ({
           ...prev,
-          linkedin: { ...prev.linkedin, progress: 15, message: 'A carregar imagens...' }
+          linkedin: { ...prev.linkedin, progress: 15, message: 'A gerar PDF...' }
         }));
 
         pdfBlob = await generateCarouselPDF({
