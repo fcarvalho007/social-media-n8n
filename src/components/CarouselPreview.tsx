@@ -83,11 +83,11 @@ export const CarouselPreview = ({ images, template, onSelect, isSelected, onRemo
       ring: 'ring-[#00d4ff]'
     },
     B: { 
-      badge: 'bg-[#ff4500] text-white border border-[#ff6347]/50 shadow-[0_0_15px_rgba(255,69,0,0.5)]', 
-      gradient: 'from-[#ff4500] to-[#ff6347]',
+      badge: 'bg-[#7c3aed] text-white border border-[#a78bfa]/50 shadow-[0_0_15px_rgba(124,58,237,0.5)]', 
+      gradient: 'from-[#7c3aed] to-[#a78bfa]',
       description: 'purple tech',
-      glow: 'shadow-[0_0_30px_rgba(255,99,71,0.8)]',
-      ring: 'ring-[#ff6347]'
+      glow: 'shadow-[0_0_30px_rgba(167,139,250,0.8)]',
+      ring: 'ring-[#a78bfa]'
     },
   };
 
