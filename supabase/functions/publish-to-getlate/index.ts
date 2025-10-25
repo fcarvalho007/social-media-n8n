@@ -14,6 +14,8 @@ interface PublishRequest {
   hashtags: string[];
   media?: Array<{ url: string; alt?: string }>;
   pdfUrl?: string;
+  pageAlts?: string[]; // Alt text for each PDF page
+  pdfMetadata?: { sizeMB: number; pages: number };
   videoUrl?: string;
   scheduleAt?: string;
 }
@@ -125,9 +127,13 @@ serve(async (req) => {
       hashtags: rawHashtags,
       media,
       pdfUrl,
+      pageAlts,
+      pdfMetadata,
       videoUrl,
       scheduleAt,
     } = requestData;
+
+    console.log('[PUBLISH] PDF metadata:', pdfMetadata);
 
     // Deduplicate hashtags
     const hashtags = deduplicateHashtags(rawHashtags);
@@ -156,6 +162,8 @@ serve(async (req) => {
         requestBody.document = {
           file: Array.from(new Uint8Array(pdfBuffer)),
           filename: 'carousel.pdf',
+          // Include page alt texts for accessibility (future compatibility)
+          pageAlts: pageAlts || [],
         };
       } else if (postType === 'video' && videoUrl) {
         const videoResponse = await fetch(videoUrl);
@@ -203,6 +211,8 @@ serve(async (req) => {
         requestBody.content.document = {
           file: Array.from(new Uint8Array(pdfBuffer)),
           title: postId, // Use postId as document title
+          // Include page alt texts for accessibility (future compatibility)
+          pageAlts: pageAlts || [],
         };
       } else if (postType === 'video' && videoUrl) {
         const videoResponse = await fetch(videoUrl);

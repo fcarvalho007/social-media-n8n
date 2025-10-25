@@ -34,9 +34,10 @@ interface ActionBarProps {
   onApprove: (scheduledDate?: Date) => Promise<void>;
   onReject: (notes?: string) => Promise<void>;
   onSave: () => Promise<void>;
+  disabledReason?: string;
 }
 
-export const ActionBar = ({ canApprove, onApprove, onReject, onSave }: ActionBarProps) => {
+export const ActionBar = ({ canApprove, onApprove, onReject, onSave, disabledReason }: ActionBarProps) => {
   const [showRejectDialog, setShowRejectDialog] = useState(false);
   const [showScheduleDialog, setShowScheduleDialog] = useState(false);
   const [rejectNotes, setRejectNotes] = useState('');
@@ -149,21 +150,25 @@ export const ActionBar = ({ canApprove, onApprove, onReject, onSave }: ActionBar
           </div>
 
           <div className="flex gap-2 sm:w-auto w-full">
-            <Button
-              size="lg"
-              onClick={handleApproveNow}
-              disabled={!canApprove || loading}
-              className="flex-1 sm:flex-initial bg-success hover:bg-success/90 h-11 sm:h-12 text-sm sm:text-base touch-target"
-            >
-              {loading ? <Loader2 className="mr-1.5 sm:mr-2 h-4 w-4 animate-spin" /> : <Check className="mr-1.5 sm:mr-2 h-4 w-4" />}
-              <span>Aprovar</span>
-            </Button>
+            <div className="relative flex-1 sm:flex-initial">
+              <Button
+                size="lg"
+                onClick={handleApproveNow}
+                disabled={!canApprove || loading}
+                className="w-full bg-success hover:bg-success/90 h-11 sm:h-12 text-sm sm:text-base touch-target"
+                title={!canApprove ? disabledReason : undefined}
+              >
+                {loading ? <Loader2 className="mr-1.5 sm:mr-2 h-4 w-4 animate-spin" /> : <Check className="mr-1.5 sm:mr-2 h-4 w-4" />}
+                <span>Aprovar</span>
+              </Button>
+            </div>
             <Button
               size="lg"
               variant="outline"
               onClick={() => setShowScheduleDialog(true)}
               disabled={!canApprove || loading}
               className="h-11 sm:h-12 px-3 touch-target"
+              title={!canApprove ? disabledReason : undefined}
             >
               <Clock className="h-4 w-4" />
             </Button>

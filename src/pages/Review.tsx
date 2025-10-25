@@ -224,6 +224,7 @@ const Review = () => {
     // Generate PDF for carousel
     let pdfBlob: Blob | null = null;
     let pdfUrl: string | null = null;
+    let pdfMetadata: { sizeMB: number; pages: number } | null = null;
 
     try {
       // Update progress - generating PDF
@@ -245,9 +246,48 @@ const Review = () => {
         title: post.tema,
       });
 
+      // Validate PDF size and page count
+      const pageCount = selectedImages.length;
+      pdfMetadata = { 
+        sizeMB: pdfBlob.size / (1024 * 1024), 
+        pages: pageCount 
+      };
+
+      const { valid, errors, warnings } = await import('@/lib/pdfGenerator').then(m => 
+        m.validatePDFSize(pdfBlob!, pageCount)
+      );
+
+      if (!valid) {
+        const errorMsg = errors.join('; ');
+        targetsToPublish.forEach(target => {
+          setPublishProgress(prev => ({
+            ...prev,
+            [target]: { 
+              ...prev[target], 
+              status: 'error', 
+              progress: 0, 
+              error: errorMsg,
+              technicalDetails: { pdfMetadata, errors, warnings }
+            }
+          }));
+        });
+        toast.error(errorMsg);
+        return;
+      }
+
+      if (warnings.length > 0) {
+        warnings.forEach(w => toast.warning(w));
+      }
+
       // Upload PDF to temporary storage or use it directly
       // For now, we'll convert to data URL (in production, upload to storage)
       pdfUrl = URL.createObjectURL(pdfBlob);
+
+      // Extract alt texts for pages (in order)
+      const pageAlts = selectedImages.map((imgUrl, idx) => {
+        const imgKey = imgUrl.split('/').pop() || `image_${idx}`;
+        return post.alt_texts?.[imgKey] || `Slide ${idx + 1}/${selectedImages.length}`;
+      });
 
       // Publish to each platform with retry logic
       for (const target of targetsToPublish) {
@@ -285,6 +325,8 @@ const Review = () => {
               body: target === 'linkedin' ? caption : undefined,
               hashtags,
               pdfUrl,
+              pageAlts, // Alt text for each page
+              pdfMetadata,
               scheduleAt: scheduledDate?.toISOString(),
             },
           });
@@ -634,6 +676,15 @@ const Review = () => {
               !!selectedTemplate && 
               Object.values(publishTargets).some(active => active) &&
               !Object.values(validations).some((v: any) => v?.errors?.length > 0)
+            }
+            disabledReason={
+              !selectedTemplate 
+                ? 'Selecione um template primeiro' 
+                : !Object.values(publishTargets).some(active => active)
+                ? 'Selecione pelo menos uma plataforma'
+                : Object.values(validations).some((v: any) => v?.errors?.length > 0)
+                ? 'Corrija os erros de validação'
+                : undefined
             }
             onApprove={handleApprove}
             onReject={handleReject}

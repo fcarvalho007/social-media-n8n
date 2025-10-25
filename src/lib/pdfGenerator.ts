@@ -100,16 +100,28 @@ export async function generateCarouselPDF(options: CarouselPDFOptions): Promise<
 /**
  * Validates PDF size and returns warnings
  */
-export function validatePDFSize(blob: Blob): { valid: boolean; warnings: string[] } {
+export function validatePDFSize(blob: Blob, pageCount: number): { valid: boolean; errors: string[]; warnings: string[] } {
+  const errors: string[] = [];
   const warnings: string[] = [];
   const sizeMB = blob.size / (1024 * 1024);
 
-  if (sizeMB > 30) {
-    warnings.push(`PDF size is ${sizeMB.toFixed(1)}MB (max recommended: 30MB)`);
+  // Hard limits
+  if (sizeMB > 100) {
+    errors.push(`O PDF excede o limite de 100 MB (tamanho atual: ${sizeMB.toFixed(1)} MB)`);
+  }
+
+  if (pageCount > 300) {
+    errors.push(`O PDF excede o limite de 300 páginas (páginas atuais: ${pageCount})`);
+  }
+
+  // Warnings
+  if (sizeMB > 30 && sizeMB <= 100) {
+    warnings.push(`Tamanho do PDF: ${sizeMB.toFixed(1)} MB (recomendado: ≤30 MB para melhor desempenho)`);
   }
 
   return {
-    valid: sizeMB <= 50, // Hard limit
+    valid: errors.length === 0,
+    errors,
     warnings,
   };
 }
