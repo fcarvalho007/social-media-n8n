@@ -27,21 +27,21 @@ export function validatePublishing(
     // Caption validation
     const captionLength = data.caption?.length || 0;
     if (captionLength > constraints.caption.maxLength) {
-      errors.push(`Caption excede ${constraints.caption.maxLength} caracteres (${captionLength})`);
+      errors.push(`Caption excede limite de ${constraints.caption.maxLength} caracteres. Atualmente: ${captionLength}`);
     }
 
     // Hashtags validation
     if (data.hashtags.length > constraints.hashtags.maxCount) {
-      errors.push(`Hashtags excedem ${constraints.hashtags.maxCount} (${data.hashtags.length})`);
+      errors.push(`Número de hashtags excede limite de ${constraints.hashtags.maxCount}. Atualmente: ${data.hashtags.length}`);
     }
 
     // Carousel validation
     if (postType === 'carousel') {
       if (data.mediaCount < constraints.carousel.minImages) {
-        errors.push(`Carrossel precisa de pelo menos ${constraints.carousel.minImages} imagens`);
+        errors.push(`Carrossel IG exige ${constraints.carousel.minImages}-${constraints.carousel.maxImages} imagens. Atualmente: ${data.mediaCount}`);
       }
       if (data.mediaCount > constraints.carousel.maxImages) {
-        errors.push(`Carrossel não pode ter mais de ${constraints.carousel.maxImages} imagens`);
+        errors.push(`Carrossel IG exige ${constraints.carousel.minImages}-${constraints.carousel.maxImages} imagens. Atualmente: ${data.mediaCount}`);
       }
     }
 
@@ -70,16 +70,16 @@ export function validatePublishing(
     // Body validation
     const bodyLength = data.body?.length || 0;
     if (bodyLength > constraints.body.maxLength) {
-      errors.push(`Texto excede ${constraints.body.maxLength} caracteres (${bodyLength})`);
+      errors.push(`Texto excede limite de ${constraints.body.maxLength} caracteres. Atualmente: ${bodyLength}`);
     }
 
     // Carousel validation
     if (postType === 'carousel') {
       if (data.mediaCount < constraints.carousel.minImages) {
-        errors.push(`Documento precisa de pelo menos ${constraints.carousel.minImages} páginas`);
+        errors.push(`Documento LinkedIn exige ${constraints.carousel.minImages}-${constraints.carousel.maxImages} páginas. Atualmente: ${data.mediaCount}`);
       }
       if (data.mediaCount > constraints.carousel.maxImages) {
-        errors.push(`Documento não pode ter mais de ${constraints.carousel.maxImages} páginas`);
+        errors.push(`Documento LinkedIn exige ${constraints.carousel.minImages}-${constraints.carousel.maxImages} páginas. Atualmente: ${data.mediaCount}`);
       }
     }
 

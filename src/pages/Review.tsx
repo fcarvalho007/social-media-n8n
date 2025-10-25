@@ -10,6 +10,7 @@ import { ActionBar } from '@/components/ActionBar';
 import { TargetSelector } from '@/components/publishing/TargetSelector';
 import { PlatformRules } from '@/components/publishing/PlatformRules';
 import { PublishModal } from '@/components/publishing/PublishModal';
+import { PublishingPreview } from '@/components/publishing/PublishingPreview';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { SidebarProvider } from '@/components/ui/sidebar';
@@ -474,12 +475,17 @@ const Review = () => {
         </div>
 
         <div className="mb-3 sm:mb-4 md:mb-6">
-          <div className="flex items-center gap-2 mb-2">
+          <div className="flex items-center gap-2 mb-2 flex-wrap">
             <h2 className="text-lg sm:text-xl md:text-2xl lg:text-3xl font-bold">{post.tema}</h2>
             <Badge variant="outline" className="gap-1">
               <LayoutGrid className="h-3 w-3" />
               Carrossel
             </Badge>
+            {selectedTemplate && (
+              <Badge variant="secondary" className="gap-1">
+                {selectedTemplate === 'A' ? templateAImages.length : templateBImages.length} imagens
+              </Badge>
+            )}
           </div>
           <p className="text-xs sm:text-sm text-muted-foreground">
             Selecione o modelo, plataformas e reveja o conteúdo
@@ -487,7 +493,7 @@ const Review = () => {
         </div>
 
         {/* Publishing Configuration */}
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 mb-6">
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 mb-6">
           <TargetSelector
             selectedTargets={publishTargets}
             onTargetsChange={setPublishTargets}
@@ -496,6 +502,13 @@ const Review = () => {
             selectedTargets={publishTargets}
             postType="carousel"
             validations={validations}
+          />
+          <PublishingPreview
+            selectedTargets={publishTargets}
+            postType="carousel"
+            mediaCount={selectedTemplate === 'A' ? templateAImages.length : templateBImages.length}
+            caption={caption}
+            images={selectedTemplate === 'A' ? templateAImages : templateBImages}
           />
         </div>
 
