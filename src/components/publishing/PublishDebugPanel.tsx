@@ -1,8 +1,10 @@
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Copy, FileText } from "lucide-react";
+import { Copy, FileText, Activity } from "lucide-react";
 import { toast } from "sonner";
+import { supabase } from '@/integrations/supabase/client';
+import { useState } from 'react';
 
 interface PublishDebugPanelProps {
   postId: string;
@@ -31,21 +33,47 @@ export function PublishDebugPanel({
   pageAlts,
   progress,
 }: PublishDebugPanelProps) {
+  const [testingConnection, setTestingConnection] = useState(false);
+  const [connectionTestResult, setConnectionTestResult] = useState<any>(null);
+
+  const testConnection = async () => {
+    setTestingConnection(true);
+    setConnectionTestResult(null);
+    
+    try {
+      const { data, error } = await supabase.functions.invoke('publish-to-getlate', {
+        body: { test: true },
+      });
+      
+      if (error) throw error;
+      
+      setConnectionTestResult(data);
+      toast.success('Conexão OK!');
+    } catch (error) {
+      const errorMsg = error instanceof Error ? error.message : 'Erro desconhecido';
+      setConnectionTestResult({ error: errorMsg });
+      toast.error('Falha na conexão');
+    } finally {
+      setTestingConnection(false);
+    }
+  };
   const generateInstagramPayload = () => {
     if (postType === "carousel") {
-      // Instagram: native images (no PDF)
+      // Instagram: uses Getlate /v1/posts endpoint with uploaded media URLs
       return {
-        accountId: "68fb951d8bbca9c10cbfef93",
-        type: "carousel",
-        caption: `${caption}\n\n${hashtags.join(" ")}`,
-        media: Array.from({ length: mediaCount }, (_, i) => ({
-          kind: "image",
-          file: "<base64-encoded-image-data>", // Base64 format
+        content: `${caption}\n\n${hashtags.join(" ")}`,
+        platforms: [
+          {
+            platform: "instagram",
+            accountId: "68fb951d8bbca9c10cbfef93",
+          }
+        ],
+        mediaItems: Array.from({ length: mediaCount }, (_, i) => ({
+          type: "image",
+          url: `<uploaded-image-url-${i + 1}>`, // URLs returned from /v1/media
         })),
-        headers: {
-          "Idempotency-Key": postId,
-        },
-        note: "Instagram receives native images encoded as base64 (not PDF)",
+        publishNow: true,
+        note: "Instagram uses unified /v1/posts endpoint with pre-uploaded media URLs",
       };
     }
     return null;
@@ -62,25 +90,25 @@ export function PublishDebugPanel({
         : `${caption}\n\n${hashtags.join(" ")}`;
 
       return {
-        memberUrn: "urn:li:person:ojg2Ri_Otv",
-        visibility: "PUBLIC",
-        content: {
-          kind: "document",
-          text: finalText,
-          document: {
-            file: "<base64-encoded-pdf-data>", // Base64 format
-            title: postId,
-            pageAlts: pageAlts,
-          },
-        },
-        headers: {
-          "Idempotency-Key": postId,
-        },
+        content: finalText,
+        platforms: [
+          {
+            platform: "linkedin",
+            accountId: "urn:li:person:ojg2Ri_Otv",
+          }
+        ],
+        mediaItems: [
+          {
+            type: "document",
+            url: "<uploaded-pdf-url>", // URL returned from /v1/media
+          }
+        ],
+        publishNow: true,
         metadata: pdfMetadata ? {
           sizeMB: pdfMetadata.sizeMB,
           pages: pdfMetadata.pages,
         } : null,
-        note: "LinkedIn receives PDF document encoded as base64 (not native images)",
+        note: "LinkedIn uses unified /v1/posts endpoint with pre-uploaded PDF URL",
       };
     }
     return null;
@@ -136,12 +164,53 @@ export function PublishDebugPanel({
             <FileText className="h-5 w-5 text-orange-600" />
             <CardTitle className="text-lg">Debug Panel — Payloads Sanitizados</CardTitle>
           </div>
-          <Button onClick={exportAll} variant="outline" size="sm">
-            Exportar Tudo
-          </Button>
+          <div className="flex gap-2">
+            <Button 
+              onClick={testConnection} 
+              variant="outline" 
+              size="sm"
+              disabled={testingConnection}
+            >
+              <Activity className="h-4 w-4 mr-2" />
+              {testingConnection ? 'A testar...' : 'Testar API'}
+            </Button>
+            <Button onClick={exportAll} variant="outline" size="sm">
+              Exportar Tudo
+            </Button>
+          </div>
         </div>
       </CardHeader>
       <CardContent className="space-y-4">
+        {connectionTestResult && (
+          <div className={`rounded-lg p-3 space-y-1 text-sm ${
+            connectionTestResult.error ? 'bg-destructive/10 text-destructive' : 'bg-green-50 dark:bg-green-950/20'
+          }`}>
+            <div className="font-semibold">
+              {connectionTestResult.error ? '❌ Teste de Conectividade Falhou' : '✅ Conexão OK'}
+            </div>
+            {connectionTestResult.baseUrl && (
+              <div className="text-xs">Base URL: {connectionTestResult.baseUrl}</div>
+            )}
+            {connectionTestResult.status && (
+              <div className="text-xs">Status HTTP: {connectionTestResult.status}</div>
+            )}
+            {connectionTestResult.error && (
+              <div className="text-xs mt-2">{connectionTestResult.error}</div>
+            )}
+            {connectionTestResult.usageStats && (
+              <div className="text-xs mt-2">
+                <div>Plan: {connectionTestResult.usageStats.planName || 'N/A'}</div>
+                <div>Profiles: {connectionTestResult.usageStats.usage?.profiles || 0}/{connectionTestResult.usageStats.limits?.profiles || 'N/A'}</div>
+              </div>
+            )}
+            {connectionTestResult.timestamp && (
+              <div className="text-xs opacity-60">
+                {new Date(connectionTestResult.timestamp).toLocaleString('pt-PT')}
+              </div>
+            )}
+          </div>
+        )}
+
         <div className="grid grid-cols-2 gap-4 text-sm">
           <div>
             <span className="font-semibold">Post ID:</span> {postId}

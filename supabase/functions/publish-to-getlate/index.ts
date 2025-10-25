@@ -5,6 +5,9 @@ const corsHeaders = {
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 };
 
+// Configurable base URL (default: production)
+const GETLATE_BASE_URL = Deno.env.get('GETLATE_BASE_URL') || 'https://getlate.dev/api';
+
 interface PublishRequest {
   postId: string;
   platform: 'instagram' | 'linkedin';
@@ -21,6 +24,11 @@ interface PublishRequest {
   // Video
   videoUrl?: string;
   scheduleAt?: string;
+}
+
+// Test connectivity to Getlate API
+interface HealthCheckRequest {
+  test: boolean;
 }
 
 // Server-side validation
@@ -132,6 +140,56 @@ async function fetchWithRetry(
   throw lastError || new Error('Failed after max retries');
 }
 
+// Upload media file to Getlate
+async function uploadMediaToGetlate(
+  fileUrl: string,
+  token: string,
+  mediaType: 'image' | 'video' | 'document'
+): Promise<string> {
+  console.log(`[MEDIA] Uploading ${mediaType} from ${fileUrl}`);
+  
+  // Fetch the file
+  const fileResponse = await fetch(fileUrl);
+  if (!fileResponse.ok) {
+    throw new Error(`Failed to fetch file: ${fileResponse.statusText}`);
+  }
+  
+  const fileBlob = await fileResponse.blob();
+  const filename = fileUrl.split('/').pop() || `media-${Date.now()}`;
+  
+  console.log(`[MEDIA] File size: ${(fileBlob.size / 1024 / 1024).toFixed(2)} MB`);
+  
+  // Upload to Getlate via multipart/form-data
+  const formData = new FormData();
+  formData.append('files', fileBlob, filename);
+  
+  const uploadResponse = await fetchWithRetry(
+    `${GETLATE_BASE_URL}/v1/media`,
+    {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${token}`,
+      },
+      body: formData,
+    }
+  );
+  
+  if (!uploadResponse.ok) {
+    const errorText = await uploadResponse.text();
+    throw new Error(`Media upload failed: ${errorText}`);
+  }
+  
+  const uploadData = await uploadResponse.json();
+  console.log(`[MEDIA] Upload successful:`, uploadData);
+  
+  // Return the URL of the uploaded file
+  if (uploadData.files && uploadData.files.length > 0) {
+    return uploadData.files[0].url;
+  }
+  
+  throw new Error('No URL returned from media upload');
+}
+
 serve(async (req) => {
   // Handle CORS
   if (req.method === 'OPTIONS') {
@@ -144,16 +202,51 @@ serve(async (req) => {
       throw new Error('GETLATE_API_TOKEN not configured');
     }
 
-    const requestData: PublishRequest = await req.json();
+    const requestData: PublishRequest | HealthCheckRequest = await req.json();
+    
+    // Health check / connectivity test
+    if ('test' in requestData && requestData.test) {
+      console.log('[HEALTH] Running connectivity test');
+      
+      const testResponse = await fetchWithRetry(
+        `${GETLATE_BASE_URL}/v1/usage-stats`,
+        {
+          method: 'GET',
+          headers: {
+            'Authorization': `Bearer ${GETLATE_TOKEN}`,
+            'Content-Type': 'application/json',
+          },
+        }
+      );
+      
+      const testData = await testResponse.json();
+      
+      return new Response(
+        JSON.stringify({
+          success: true,
+          test: true,
+          baseUrl: GETLATE_BASE_URL,
+          status: testResponse.status,
+          usageStats: testData,
+          timestamp: new Date().toISOString(),
+        }),
+        {
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+          status: 200,
+        }
+      );
+    }
+
+    const publishRequest = requestData as PublishRequest;
     console.log('[PUBLISH] Request:', {
-      postId: requestData.postId,
-      platform: requestData.platform,
-      postType: requestData.postType,
+      postId: publishRequest.postId,
+      platform: publishRequest.platform,
+      postType: publishRequest.postType,
       timestamp: new Date().toISOString(),
     });
 
     // Server-side validation
-    const validationErrors = validateRequest(requestData);
+    const validationErrors = validateRequest(publishRequest);
     if (validationErrors.length > 0) {
       console.error('[PUBLISH] Validation failed:', validationErrors);
       return new Response(
@@ -182,7 +275,7 @@ serve(async (req) => {
       pdfMetadata,
       videoUrl,
       scheduleAt,
-    } = requestData;
+    } = publishRequest;
 
     console.log('[PUBLISH] Processing:', {
       platform,
@@ -196,139 +289,75 @@ serve(async (req) => {
     // Deduplicate hashtags
     const hashtags = deduplicateHashtags(rawHashtags);
 
-    let apiUrl: string;
-    let requestBody: any;
-
-    if (platform === 'instagram') {
-      apiUrl = 'https://api.getlate.co/v1/social/instagram/posts';
-      
-      const finalCaption = `${caption || ''}\n\n${hashtags.join(' ')}`.trim();
-
-      // Instagram carousel: send native images as base64 (not PDF)
-      if (postType === 'carousel' && images && images.length > 0) {
-        console.log('[PUBLISH] Instagram carousel with', images.length, 'images');
-        
-        const imagePromises = images.map(async (imgUrl) => {
-          const imgResponse = await fetch(imgUrl);
-          const imgBlob = await imgResponse.blob();
-          const imgBuffer = await imgBlob.arrayBuffer();
-          const base64 = btoa(String.fromCharCode(...new Uint8Array(imgBuffer)));
-          return {
-            kind: 'image',
-            file: base64,
-          };
-        });
-        const imageData = await Promise.all(imagePromises);
-
-        requestBody = {
-          accountId: '68fb951d8bbca9c10cbfef93',
-          type: 'carousel',
-          caption: finalCaption,
-          media: imageData,
-          scheduleAt: scheduleAt || null,
-        };
-      } else if (postType === 'video' && videoUrl) {
-        const videoResponse = await fetch(videoUrl);
-        const videoBlob = await videoResponse.blob();
-        const videoBuffer = await videoBlob.arrayBuffer();
-        const base64 = btoa(String.fromCharCode(...new Uint8Array(videoBuffer)));
-        
-        requestBody = {
-          accountId: '68fb951d8bbca9c10cbfef93',
-          type: 'video',
-          caption: finalCaption,
-          media: [{
-            kind: 'video',
-            file: base64,
-          }],
-          scheduleAt: scheduleAt || null,
-        };
-      } else if (images && images.length > 0) {
-        // Single image
-        const imgResponse = await fetch(images[0]);
-        const imgBlob = await imgResponse.blob();
-        const imgBuffer = await imgBlob.arrayBuffer();
-        const base64 = btoa(String.fromCharCode(...new Uint8Array(imgBuffer)));
-        
-        requestBody = {
-          accountId: '68fb951d8bbca9c10cbfef93',
-          type: 'image',
-          caption: finalCaption,
-          media: [{
-            kind: 'image',
-            file: base64,
-          }],
-          scheduleAt: scheduleAt || null,
-        };
+    // Upload media files first
+    const mediaItems: Array<{ type: string; url: string }> = [];
+    
+    if (platform === 'instagram' && postType === 'carousel' && images && images.length > 0) {
+      console.log('[PUBLISH] Uploading Instagram carousel images');
+      for (const imgUrl of images) {
+        const uploadedUrl = await uploadMediaToGetlate(imgUrl, GETLATE_TOKEN, 'image');
+        mediaItems.push({ type: 'image', url: uploadedUrl });
       }
-    } else if (platform === 'linkedin') {
-      apiUrl = 'https://api.getlate.co/v1/social/linkedin/posts';
-      
-      // Format body with URLs at the end
-      const textWithHashtags = `${body || caption || ''}\n\n${hashtags.join(' ')}`.trim();
-      const finalBody = formatLinkedInBody(textWithHashtags);
-
-      requestBody = {
-        memberUrn: 'urn:li:person:ojg2Ri_Otv',
-        visibility: 'PUBLIC',
-        content: {
-          text: finalBody,
-        },
-        scheduleAt: scheduleAt || null,
-      };
-
-      // LinkedIn carousel: send as PDF document (base64)
-      if (postType === 'carousel' && pdfUrl) {
-        console.log('[PUBLISH] LinkedIn document with', pdfMetadata?.pages, 'pages,', pdfMetadata?.sizeMB?.toFixed(2), 'MB');
-        
-        const pdfResponse = await fetch(pdfUrl);
-        const pdfBlob = await pdfResponse.blob();
-        const pdfBuffer = await pdfBlob.arrayBuffer();
-        const base64 = btoa(String.fromCharCode(...new Uint8Array(pdfBuffer)));
-        
-        requestBody.content.kind = 'document';
-        requestBody.content.document = {
-          file: base64,
-          title: postId,
-          pageAlts: pageAlts || [],
-        };
-      } else if (postType === 'video' && videoUrl) {
-        const videoResponse = await fetch(videoUrl);
-        const videoBlob = await videoResponse.blob();
-        const videoBuffer = await videoBlob.arrayBuffer();
-        const base64 = btoa(String.fromCharCode(...new Uint8Array(videoBuffer)));
-        
-        requestBody.content.kind = 'video';
-        requestBody.content.video = {
-          file: base64,
-        };
-      } else if (images && images.length > 0) {
-        const imagePromises = images.map(async (imgUrl) => {
-          const imgResponse = await fetch(imgUrl);
-          const imgBlob = await imgResponse.blob();
-          const imgBuffer = await imgBlob.arrayBuffer();
-          const base64 = btoa(String.fromCharCode(...new Uint8Array(imgBuffer)));
-          return {
-            file: base64,
-          };
-        });
-        requestBody.content.kind = 'image';
-        requestBody.content.images = await Promise.all(imagePromises);
-      } else {
-        requestBody.content.kind = 'text';
+    } else if (platform === 'instagram' && images && images.length > 0) {
+      // Single image
+      const uploadedUrl = await uploadMediaToGetlate(images[0], GETLATE_TOKEN, 'image');
+      mediaItems.push({ type: 'image', url: uploadedUrl });
+    } else if (platform === 'instagram' && videoUrl) {
+      const uploadedUrl = await uploadMediaToGetlate(videoUrl, GETLATE_TOKEN, 'video');
+      mediaItems.push({ type: 'video', url: uploadedUrl });
+    } else if (platform === 'linkedin' && postType === 'carousel' && pdfUrl) {
+      console.log('[PUBLISH] Uploading LinkedIn PDF document');
+      const uploadedUrl = await uploadMediaToGetlate(pdfUrl, GETLATE_TOKEN, 'document');
+      mediaItems.push({ type: 'document', url: uploadedUrl });
+    } else if (platform === 'linkedin' && videoUrl) {
+      const uploadedUrl = await uploadMediaToGetlate(videoUrl, GETLATE_TOKEN, 'video');
+      mediaItems.push({ type: 'video', url: uploadedUrl });
+    } else if (platform === 'linkedin' && images && images.length > 0) {
+      for (const imgUrl of images) {
+        const uploadedUrl = await uploadMediaToGetlate(imgUrl, GETLATE_TOKEN, 'image');
+        mediaItems.push({ type: 'image', url: uploadedUrl });
       }
-    } else {
-      throw new Error(`Unsupported platform: ${platform}`);
     }
 
-    console.log('[PUBLISH] Calling Getlate API:', apiUrl);
+    // Build post content
+    let postContent: string;
+    if (platform === 'instagram') {
+      postContent = `${caption || ''}\n\n${hashtags.join(' ')}`.trim();
+    } else if (platform === 'linkedin') {
+      const textWithHashtags = `${body || caption || ''}\n\n${hashtags.join(' ')}`.trim();
+      postContent = formatLinkedInBody(textWithHashtags);
+    } else {
+      postContent = caption || body || '';
+    }
 
-    const response = await fetchWithRetry(apiUrl, {
+    // Get account IDs from env (these should be configured per installation)
+    const INSTAGRAM_ACCOUNT_ID = Deno.env.get('INSTAGRAM_ACCOUNT_ID') || '68fb951d8bbca9c10cbfef93';
+    const LINKEDIN_ACCOUNT_ID = Deno.env.get('LINKEDIN_ACCOUNT_ID') || 'urn:li:person:ojg2Ri_Otv';
+
+    // Build request body according to Getlate API spec
+    const requestBody: any = {
+      content: postContent,
+      platforms: [
+        {
+          platform: platform,
+          accountId: platform === 'instagram' ? INSTAGRAM_ACCOUNT_ID : LINKEDIN_ACCOUNT_ID,
+        },
+      ],
+      mediaItems: mediaItems.length > 0 ? mediaItems : undefined,
+      publishNow: !scheduleAt,
+      scheduledFor: scheduleAt || undefined,
+      timezone: scheduleAt ? 'UTC' : undefined,
+    };
+
+    console.log('[PUBLISH] Calling Getlate API:', `${GETLATE_BASE_URL}/v1/posts`);
+    console.log('[PUBLISH] Media items count:', mediaItems.length);
+
+    const response = await fetchWithRetry(`${GETLATE_BASE_URL}/v1/posts`, {
       method: 'POST',
       headers: {
         'Authorization': `Bearer ${GETLATE_TOKEN}`,
         'Content-Type': 'application/json',
-        'Idempotency-Key': postId, // Prevent duplicate posts
+        'Idempotency-Key': postId,
       },
       body: JSON.stringify(requestBody),
     });
@@ -346,8 +375,9 @@ serve(async (req) => {
       JSON.stringify({
         success: true,
         platform,
-        postUrl: responseData.postUrl || null,
-        externalId: responseData.id || null,
+        postUrl: responseData.url || null,
+        externalId: responseData._id || responseData.id || null,
+        data: responseData,
       }),
       {
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
