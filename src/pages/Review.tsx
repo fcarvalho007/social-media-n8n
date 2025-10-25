@@ -557,14 +557,14 @@ const Review = () => {
 
   if (loading) {
     return (
-      <SidebarProvider defaultOpen={true}>
-        <div className="flex min-h-screen w-full bg-gradient-to-br from-background to-background-secondary">
-          <AppSidebar />
-          <div className="flex-1 flex items-center justify-center">
-            <Loader2 className="h-8 w-8 animate-spin text-primary" />
-          </div>
+    <SidebarProvider defaultOpen={true}>
+      <div className="flex min-h-screen w-full bg-background">
+        <AppSidebar />
+        <div className="flex-1 flex items-center justify-center">
+          <Loader2 className="h-8 w-8 animate-spin text-primary" />
         </div>
-      </SidebarProvider>
+      </div>
+    </SidebarProvider>
     );
   }
 
@@ -574,153 +574,145 @@ const Review = () => {
 
   return (
     <SidebarProvider defaultOpen={true}>
-      <div className="flex min-h-screen w-full bg-gradient-to-br from-background to-background-secondary">
+      <div className="flex min-h-screen w-full bg-background">
         <AppSidebar />
         
         <div className="flex-1 flex flex-col min-w-0 pb-20 sm:pb-24">
           <DashboardHeader />
           
-          <main className="flex-1 p-3 sm:p-4 md:p-6 lg:p-8 animate-fade-in overflow-auto">
-        <div className="flex items-center justify-between mb-3 sm:mb-4 md:mb-6">
-          <Button
-            variant="ghost"
-            onClick={() => navigate('/')}
-            className="-ml-2 sm:ml-0 touch-target"
-            size="sm"
-          >
-            <ArrowLeft className="mr-1.5 sm:mr-2 h-3.5 w-3.5 sm:h-4 sm:w-4" />
-            <span className="text-xs sm:text-sm">Voltar ao Painel</span>
-          </Button>
+          <main className="flex-1 px-6 md:px-8 lg:px-10 xl:px-12 py-6 md:py-8 animate-fade-in overflow-auto">
+            <div className="flex items-center justify-between mb-4 md:mb-5">
+              <Button
+                variant="ghost"
+                onClick={() => navigate('/')}
+                className="-ml-2 touch-target transition-all duration-150"
+                size="sm"
+              >
+                <ArrowLeft className="mr-2 h-4 w-4" />
+                <span className="text-sm">Voltar ao Painel</span>
+              </Button>
 
-          {/* Simple approval badge */}
-          {isApproved && post.selected_template && (
-            <Badge className={cn(
-              "text-xs sm:text-sm",
-              templateBadgeColors[post.selected_template as 'A' | 'B']
-            )}>
-              Template {post.selected_template} Selecionado
-            </Badge>
-          )}
-        </div>
+              {/* Simple approval badge */}
+              {isApproved && post.selected_template && (
+                <Badge className={cn(
+                  "text-sm",
+                  templateBadgeColors[post.selected_template as 'A' | 'B']
+                )}>
+                  Template {post.selected_template} Selecionado
+                </Badge>
+              )}
+            </div>
 
-        <div className="mb-3 sm:mb-4 md:mb-6">
-          <div className="flex items-center gap-2 mb-2 flex-wrap">
-            <h2 className="text-lg sm:text-xl md:text-2xl lg:text-3xl font-bold">{post.tema}</h2>
-            <Badge variant="outline" className="gap-1">
-              <LayoutGrid className="h-3 w-3" />
-              Carrossel
-            </Badge>
-            {selectedTemplate && (
-              <Badge variant="secondary" className="gap-1">
-                {selectedTemplate === 'A' ? templateAImages.length : templateBImages.length} imagens
-              </Badge>
+            <div className="mb-6 md:mb-8">
+              <div className="flex items-center gap-2 mb-2 flex-wrap">
+                <h1 className="text-2xl md:text-3xl lg:text-4xl font-bold tracking-tight">{post.tema}</h1>
+                <Badge variant="outline" className="gap-1">
+                  <LayoutGrid className="h-3 w-3" />
+                  Carrossel
+                </Badge>
+                {selectedTemplate && (
+                  <Badge variant="secondary" className="gap-1">
+                    {selectedTemplate === 'A' ? templateAImages.length : templateBImages.length} imagens
+                  </Badge>
+                )}
+              </div>
+              <p className="text-sm md:text-base text-muted-foreground leading-snug">
+                Selecione o modelo, plataformas e reveja o conteúdo
+              </p>
+            </div>
+
+            {/* Publishing Configuration - Platform Selector Only */}
+            <div className="mb-6 md:mb-8">
+              <TargetSelector
+                selectedTargets={publishTargets}
+                onTargetsChange={setPublishTargets}
+                validations={validations}
+              />
+            </div>
+
+            {/* Templates - Side by side with equal height */}
+            <div ref={templatesRef} className="grid grid-cols-1 lg:grid-cols-2 gap-6 md:gap-8 mb-6 md:mb-8">
+              <CarouselPreview
+                key={`template-a-${post.id}`}
+                images={templateAImages}
+                template="A"
+                onSelect={() => setSelectedTemplate('A')}
+                isSelected={selectedTemplate === 'A'}
+                onRemoveSlide={!isApproved ? (index) => handleRemoveSlide('A', index) : undefined}
+                isApproved={isApproved}
+                approvedTemplate={post.selected_template as 'A' | 'B' | null}
+              />
+              <CarouselPreview
+                key={`template-b-${post.id}`}
+                images={templateBImages}
+                template="B"
+                onSelect={() => setSelectedTemplate('B')}
+                isSelected={selectedTemplate === 'B'}
+                onRemoveSlide={!isApproved ? (index) => handleRemoveSlide('B', index) : undefined}
+                isApproved={isApproved}
+                approvedTemplate={post.selected_template as 'A' | 'B' | null}
+              />
+            </div>
+
+            {/* Republish Warning for Approved Posts */}
+            {isApproved && (
+              <div className="mb-6 md:mb-8 rounded-xl border-2 border-primary/20 bg-primary/5 p-4">
+                <p className="text-sm text-muted-foreground leading-relaxed">
+                  Esta publicação já foi aprovada. Pode alterar o template e a legenda e republicar. 
+                  <span className="font-semibold text-foreground"> O conteúdo será enviado novamente para o destino pré-definido.</span>
+                </p>
+              </div>
             )}
-          </div>
-          <p className="text-xs sm:text-sm text-muted-foreground">
-            Selecione o modelo, plataformas e reveja o conteúdo
-          </p>
-        </div>
 
-        {/* Publishing Configuration */}
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 mb-6">
-          <TargetSelector
-            selectedTargets={publishTargets}
-            onTargetsChange={setPublishTargets}
-          />
-          <PlatformRules
-            selectedTargets={publishTargets}
-            postType="carousel"
-            validations={validations}
-          />
-        </div>
+            {/* Caption and Hashtags Editor */}
+            <div className="mb-6 md:mb-8">
+              <CaptionEditor
+                initialCaption={post.caption}
+                initialHashtags={post.hashtags || []}
+                onChange={(newCaption, newHashtags) => {
+                  setCaption(newCaption);
+                  setHashtags(newHashtags);
+                }}
+              />
+            </div>
 
-        {/* Templates - Side by side on desktop, stacked on mobile */}
-        <div ref={templatesRef} className="grid grid-cols-1 lg:grid-cols-2 gap-3 sm:gap-4 md:gap-5 lg:gap-6 mb-3 sm:mb-4 md:mb-6 max-w-5xl mx-auto">
-          <div className="w-full max-w-md mx-auto">
-            <CarouselPreview
-              key={`template-a-${post.id}`}
-              images={templateAImages}
-              template="A"
-              onSelect={() => setSelectedTemplate('A')}
-              isSelected={selectedTemplate === 'A'}
-              onRemoveSlide={!isApproved ? (index) => handleRemoveSlide('A', index) : undefined}
-              isApproved={isApproved}
-              approvedTemplate={post.selected_template as 'A' | 'B' | null}
-            />
-          </div>
-          <div className="w-full max-w-md mx-auto">
-            <CarouselPreview
-              key={`template-b-${post.id}`}
-              images={templateBImages}
-              template="B"
-              onSelect={() => setSelectedTemplate('B')}
-              isSelected={selectedTemplate === 'B'}
-              onRemoveSlide={!isApproved ? (index) => handleRemoveSlide('B', index) : undefined}
-              isApproved={isApproved}
-              approvedTemplate={post.selected_template as 'A' | 'B' | null}
-            />
-          </div>
-        </div>
+            {/* Internal Notes */}
+            <div className="rounded-xl border border-border bg-card p-4 md:p-5 mb-6 md:mb-8 shadow-sm">
+              <Label htmlFor="notes" className="text-base font-semibold mb-2 block tracking-tight">
+                Notas Internas
+              </Label>
+              <Textarea
+                id="notes"
+                value={notes}
+                onChange={(e) => setNotes(e.target.value)}
+                placeholder="Adicione notas internas sobre esta publicação..."
+                className="min-h-[100px] text-sm"
+              />
+            </div>
 
-        {/* Republish Warning for Approved Posts */}
-        {isApproved && (
-          <div className="mb-3 sm:mb-4 md:mb-6 rounded-lg border-2 border-primary/20 bg-primary/5 p-3 sm:p-4">
-            <p className="text-sm text-muted-foreground">
-              Esta publicação já foi aprovada. Pode alterar o template e a legenda e republicar. 
-              <span className="font-semibold text-foreground"> O conteúdo será enviado novamente para o destino pré-definido.</span>
-            </p>
-          </div>
-        )}
-
-        {/* Caption and Hashtags Editor */}
-        <div className="mb-3 sm:mb-4 md:mb-6">
-          <CaptionEditor
-            initialCaption={post.caption}
-            initialHashtags={post.hashtags || []}
-            onChange={(newCaption, newHashtags) => {
-              setCaption(newCaption);
-              setHashtags(newHashtags);
-            }}
-          />
-        </div>
-
-        {/* Internal Notes */}
-        <div className="rounded-lg sm:rounded-xl border border-border bg-card p-3 sm:p-4 md:p-5 mb-3 sm:mb-4 md:mb-6">
-          <Label htmlFor="notes" className="text-xs sm:text-sm md:text-base font-semibold mb-2 block">
-            Notas Internas
-          </Label>
-          <Textarea
-            id="notes"
-            value={notes}
-            onChange={(e) => setNotes(e.target.value)}
-            placeholder="Adicione notas internas sobre esta publicação..."
-            className="min-h-[80px] sm:min-h-[100px] text-sm"
-          />
-        </div>
-
-        {/* Debug Panel - Only in DEV mode */}
-        {import.meta.env.DEV && (
-          <div className="mb-3 sm:mb-4 md:mb-6">
-            <PublishDebugPanel
-              postId={id!}
-              targets={publishTargets}
-              postType="carousel"
-              caption={caption}
-              hashtags={hashtags}
-              mediaCount={selectedTemplate === 'A' ? templateAImages.length : templateBImages.length}
-              pdfMetadata={generatedPdf ? {
-                sizeMB: generatedPdf.sizeMB,
-                pages: generatedPdf.pages,
-                filename: generatedPdf.filename,
-              } : undefined}
-              pageAlts={(selectedTemplate === 'A' ? templateAImages : templateBImages).map((imgUrl, idx) => {
-                const imgKey = imgUrl.split('/').pop() || `image_${idx}`;
-                return post.alt_texts?.[imgKey] || `Slide ${idx + 1}`;
-              })}
-              progress={Object.values(publishProgress)}
-            />
-          </div>
-        )}
+            {/* Debug Panel - Only in DEV mode */}
+            {import.meta.env.DEV && (
+              <div className="mb-6 md:mb-8">
+                <PublishDebugPanel
+                  postId={id!}
+                  targets={publishTargets}
+                  postType="carousel"
+                  caption={caption}
+                  hashtags={hashtags}
+                  mediaCount={selectedTemplate === 'A' ? templateAImages.length : templateBImages.length}
+                  pdfMetadata={generatedPdf ? {
+                    sizeMB: generatedPdf.sizeMB,
+                    pages: generatedPdf.pages,
+                    filename: generatedPdf.filename,
+                  } : undefined}
+                  pageAlts={(selectedTemplate === 'A' ? templateAImages : templateBImages).map((imgUrl, idx) => {
+                    const imgKey = imgUrl.split('/').pop() || `image_${idx}`;
+                    return post.alt_texts?.[imgKey] || `Slide ${idx + 1}`;
+                  })}
+                  progress={Object.values(publishProgress)}
+                />
+              </div>
+            )}
           </main>
 
           <ActionBar
@@ -731,11 +723,11 @@ const Review = () => {
             }
             disabledReason={
               !selectedTemplate 
-                ? 'Selecione um template primeiro' 
+                ? 'Selecionar um template.' 
                 : !Object.values(publishTargets).some(active => active)
-                ? 'Selecione pelo menos uma plataforma'
+                ? 'Selecionar pelo menos uma plataforma.'
                 : Object.values(validations).some((v: any) => v?.errors?.length > 0)
-                ? 'Corrija os erros de validação'
+                ? 'Corrigir os erros indicados.'
                 : undefined
             }
             onApprove={handleApprove}

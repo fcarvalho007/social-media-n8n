@@ -185,11 +185,11 @@ export const CarouselPreview = ({ images, template, onSelect, isSelected, onRemo
 
   return (
     <div className={cn(
-      "rounded-lg sm:rounded-xl border-2 p-3 sm:p-4 md:p-5 transition-all duration-300 relative",
+      "rounded-2xl border-2 p-4 md:p-5 transition-all duration-150 relative shadow-sm hover:shadow-md",
       isThisTemplateApproved && `border-4 ${templateColors[template].ring} ${templateColors[template].glow} ring-4 ring-offset-2`,
       isOtherTemplateApproved && "opacity-60 border-border/50",
       !isApproved && isSelected && "border-primary shadow-lg ring-2 ring-primary/20",
-      !isApproved && !isSelected && "border-border"
+      !isApproved && !isSelected && "border-border hover:ring-1 hover:ring-border"
     )}>
       {/* Approved Badge */}
       {isThisTemplateApproved && (
@@ -212,39 +212,39 @@ export const CarouselPreview = ({ images, template, onSelect, isSelected, onRemo
         </div>
       )}
 
-      <div className="mb-2 sm:mb-3 md:mb-4 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-1.5 sm:gap-2">
-        <div className="flex items-center gap-2 flex-wrap">
-          <Badge className={cn(templateColors[template].badge, "text-xs sm:text-sm font-bold")}>
+      <div className="mb-3 md:mb-4 flex items-center justify-between gap-2">
+        <div className="flex items-center gap-2">
+          <Badge className={cn(templateColors[template].badge, "text-sm font-bold px-3 py-1")}>
             Template {template}
           </Badge>
-          <span className="text-xs sm:text-sm font-medium text-muted-foreground">
+          <span className="text-xs font-medium text-muted-foreground tracking-tight">
             {templateColors[template].description}
           </span>
         </div>
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-1.5">
           <Button
             variant="ghost"
             size="sm"
             onClick={handleDownloadAll}
-            className="h-8 gap-1.5 text-xs"
+            className="h-8 w-8 p-0"
             disabled={downloading || downloadingPdf}
             aria-label="Baixar todas as imagens em ZIP"
+            title=".zip"
           >
             <Download className="h-3.5 w-3.5" />
-            {downloading ? 'A preparar...' : '.zip'}
           </Button>
           <Button
             variant="ghost"
             size="sm"
             onClick={handleDownloadPdf}
-            className="h-8 gap-1.5 text-xs"
+            className="h-8 w-8 p-0"
             disabled={downloading || downloadingPdf}
             aria-label="Baixar todas as imagens em PDF"
+            title=".pdf"
           >
             <Download className="h-3.5 w-3.5" />
-            {downloadingPdf ? 'A preparar...' : '.pdf'}
           </Button>
-          <span className="text-xs sm:text-sm font-medium text-muted-foreground">
+          <span className="text-xs font-medium text-muted-foreground ml-1">
             {activeIndex + 1}/{images.length}
           </span>
         </div>
@@ -323,9 +323,9 @@ export const CarouselPreview = ({ images, template, onSelect, isSelected, onRemo
       <Button
         onClick={onSelect}
         className={cn(
-          "w-full h-12 sm:h-13 md:h-14 text-sm sm:text-base md:text-lg font-semibold touch-target",
-          isSelected && "bg-primary",
-          !isSelected && `bg-gradient-to-r ${templateColors[template].gradient}`
+          "w-full h-12 md:h-13 text-base font-semibold touch-target transition-all duration-150",
+          isSelected && "bg-primary shadow-sm",
+          !isSelected && `bg-gradient-to-r ${templateColors[template].gradient} hover:opacity-90`
         )}
       >
         {isSelected ? '✓ Selecionado' : `Escolher Modelo ${template}`}
