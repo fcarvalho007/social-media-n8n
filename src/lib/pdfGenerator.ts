@@ -86,9 +86,24 @@ export async function generateCarouselPDF(options: CarouselPDFOptions): Promise<
       x = (pageWidth - finalWidth) / 2;
     }
 
+    // Convert image to canvas to avoid CORS and data access issues
+    const canvas = document.createElement('canvas');
+    canvas.width = img.naturalWidth;
+    canvas.height = img.naturalHeight;
+    const ctx = canvas.getContext('2d');
+    
+    if (!ctx) {
+      throw new Error(`Failed to get canvas context for image ${index + 1}`);
+    }
+    
+    ctx.drawImage(img, 0, 0);
+    
+    // Get base64 data URL from canvas
+    const imgData = canvas.toDataURL('image/jpeg', quality);
+
     // Add image to PDF with quality compression
     pdf.addImage(
-      img,
+      imgData,
       'JPEG',
       x,
       y,
