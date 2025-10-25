@@ -222,6 +222,7 @@ const Review = () => {
     }
 
     const selectedImages = selectedTemplate === 'A' ? templateAImages : templateBImages;
+    const successTracker: Record<PublishTarget, boolean> = { instagram: false, linkedin: false };
 
     // Generate PDF only if LinkedIn is selected
     let pdfBlob: Blob | null = null;
@@ -230,27 +231,26 @@ const Review = () => {
     const needsPdf = targetsToPublish.includes('linkedin');
 
     try {
-      if (needsPdf) {
-        // Update progress - generating PDF
-        targetsToPublish.forEach(target => {
-          setPublishProgress(prev => ({
-            ...prev,
-            [target]: { 
-              ...prev[target], 
-              status: 'validating', 
-              progress: 10, 
-              message: target === 'linkedin' ? 'A gerar PDF do carrossel...' : 'A preparar imagens...',
-              startedAt: new Date().toISOString(),
-            }
-          }));
-        });
+      // Initialize progress
+      targetsToPublish.forEach(target => {
+        setPublishProgress(prev => ({
+          ...prev,
+          [target]: { 
+            ...prev[target], 
+            status: 'validating', 
+            progress: 10, 
+            message: needsPdf && target === 'linkedin' ? 'A gerar PDF do carrossel...' : 'A preparar conteúdo...',
+            startedAt: new Date().toISOString(),
+          }
+        }));
+      });
 
+      if (needsPdf) {
         pdfBlob = await generateCarouselPDF({
           images: selectedImages,
           title: post.tema,
         });
 
-        // Validate PDF size and page count
         const pageCount = selectedImages.length;
         pdfMetadata = { 
           sizeMB: pdfBlob.size / (1024 * 1024), 
@@ -291,29 +291,8 @@ const Review = () => {
           warnings.forEach(w => toast.warning(w));
         }
 
-        // Upload PDF to temporary storage or use it directly
         pdfUrl = URL.createObjectURL(pdfBlob);
-      } else {
-        // Instagram only - no PDF needed
-        targetsToPublish.forEach(target => {
-          setPublishProgress(prev => ({
-            ...prev,
-            [target]: { 
-              ...prev[target], 
-              status: 'validating', 
-              progress: 10, 
-              message: 'A preparar imagens...',
-              startedAt: new Date().toISOString(),
-            }
-          }));
-        });
       }
-
-      // Extract alt texts for pages (in order)
-      const pageAlts = selectedImages.map((imgUrl, idx) => {
-        const imgKey = imgUrl.split('/').pop() || `image_${idx}`;
-        return post.alt_texts?.[imgKey] || `Slide ${idx + 1}/${selectedImages.length}`;
-      });
 
       // Publish to each platform with retry logic
       for (const target of targetsToPublish) {
@@ -323,7 +302,7 @@ const Review = () => {
 
         while (attempts < maxAttempts) {
           try {
-            const delay = attempts > 0 ? Math.pow(2, attempts) * 1000 : 0; // 0s, 2s, 4s
+            const delay = attempts > 0 ? Math.pow(2, attempts) * 1000 : 0;
             if (delay > 0) {
               setPublishProgress(prev => ({
                 ...prev,
@@ -342,94 +321,103 @@ const Review = () => {
               [target]: { ...prev[target], status: 'uploading', progress: 30, message: 'A carregar conteúdo...' }
             }));
 
-          const { data, error } = await supabase.functions.invoke('publish-to-getlate', {
-            body: {
+            // Build platform-specific payload
+            const basePayload = {
               postId: id,
               platform: target,
-              postType: 'carousel',
-              caption: target === 'instagram' ? caption : undefined,
-              body: target === 'linkedin' ? caption : undefined,
+              postType: 'carousel' as const,
               hashtags,
-              // LinkedIn: send PDF
-              ...(target === 'linkedin' && pdfUrl ? {
+              scheduleAt: scheduledDate?.toISOString(),
+            };
+
+            let payload: any;
+            if (target === 'instagram') {
+              // Instagram: send native images
+              payload = {
+                ...basePayload,
+                caption,
+                images: selectedImages,
+              };
+            } else if (target === 'linkedin') {
+              // LinkedIn: send PDF document
+              const pageAlts = selectedImages.map((imgUrl, idx) => {
+                const imgKey = imgUrl.split('/').pop() || `image_${idx}`;
+                return post.alt_texts?.[imgKey] || `Slide ${idx + 1}/${selectedImages.length}`;
+              });
+
+              payload = {
+                ...basePayload,
+                body: caption,
                 pdfUrl,
                 pageAlts,
                 pdfMetadata,
-              } : {}),
-              // Instagram: send native images
-              ...(target === 'instagram' ? {
-                media: selectedImages.map((imgUrl, idx) => {
-                  const imgKey = imgUrl.split('/').pop() || `image_${idx}`;
-                  return {
-                    type: 'image',
-                    src: imgUrl,
-                    alt: post.alt_texts?.[imgKey] || `Slide ${idx + 1}/${selectedImages.length}`,
-                    order: idx,
-                  };
-                }),
-              } : {}),
-              scheduleAt: scheduledDate?.toISOString(),
-            },
-          });
-
-          if (error) throw error;
-
-          // Update database with external post ID
-          await supabase
-            .from('posts')
-            .update({
-              external_post_ids: {
-                ...post.external_post_ids,
-                [target]: data.externalId,
-              },
-              publish_metadata: {
-                ...post.publish_metadata,
-                [target]: {
-                  publishedAt: new Date().toISOString(),
-                  postUrl: data.postUrl,
-                },
-              },
-            })
-            .eq('id', id);
-
-          setPublishProgress(prev => ({
-            ...prev,
-            [target]: {
-              ...prev[target],
-              status: 'done',
-              progress: 100,
-              message: 'Publicado com sucesso!',
-              postUrl: data.postUrl,
-              publishedAt: new Date().toISOString(),
+              };
             }
-          }));
-          
-          // Success - break retry loop
-          break;
-        } catch (error) {
-          attempts++;
-          lastError = error instanceof Error ? error : new Error('Erro desconhecido');
-          console.error(`Error publishing to ${target} (attempt ${attempts}/${maxAttempts}):`, error);
-          
-          if (attempts >= maxAttempts) {
-            // Final failure after all retries
+
+            const { data, error } = await supabase.functions.invoke('publish-to-getlate', {
+              body: payload,
+            });
+
+            if (error) throw error;
+
+            // Update database with external post ID
+            await supabase
+              .from('posts')
+              .update({
+                external_post_ids: {
+                  ...post.external_post_ids,
+                  [target]: data.externalId,
+                },
+                publish_metadata: {
+                  ...post.publish_metadata,
+                  [target]: {
+                    publishedAt: new Date().toISOString(),
+                    postUrl: data.postUrl,
+                  },
+                },
+              })
+              .eq('id', id);
+
             setPublishProgress(prev => ({
               ...prev,
               [target]: {
                 ...prev[target],
-                status: 'error',
-                progress: 0,
-                error: lastError?.message || 'Erro ao publicar após várias tentativas',
-                technicalDetails: {
-                  attempts: maxAttempts,
-                  lastError: lastError?.message,
-                  timestamp: new Date().toISOString(),
-                },
+                status: 'done',
+                progress: 100,
+                message: 'Publicado com sucesso!',
+                postUrl: data.postUrl,
+                publishedAt: new Date().toISOString(),
               }
             }));
+
+            successTracker[target] = true;
+            
+            // Success - break retry loop
+            break;
+          } catch (error) {
+            attempts++;
+            lastError = error instanceof Error ? error : new Error('Erro desconhecido');
+            console.error(`Error publishing to ${target} (attempt ${attempts}/${maxAttempts}):`, error);
+            
+            if (attempts >= maxAttempts) {
+              // Final failure after all retries
+              setPublishProgress(prev => ({
+                ...prev,
+                [target]: {
+                  ...prev[target],
+                  status: 'error',
+                  progress: 0,
+                  error: lastError?.message || 'Erro ao publicar após várias tentativas',
+                  technicalDetails: {
+                    attempts: maxAttempts,
+                    lastError: lastError?.message,
+                    timestamp: new Date().toISOString(),
+                  },
+                }
+              }));
+            }
           }
         }
-      }
       }
 
       // Clean up blob URL
@@ -437,9 +425,8 @@ const Review = () => {
         setTimeout(() => URL.revokeObjectURL(pdfUrl), 5000);
       }
 
-      const allSuccess = targetsToPublish.every(
-        target => publishProgress[target]?.status === 'done'
-      );
+      // Check success for all targets
+      const allSuccess = targetsToPublish.every(t => successTracker[t]);
 
       if (allSuccess) {
         toast.success('Publicado com sucesso em todas as plataformas!');

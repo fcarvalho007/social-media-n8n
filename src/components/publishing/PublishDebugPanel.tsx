@@ -33,19 +33,16 @@ export function PublishDebugPanel({
 }: PublishDebugPanelProps) {
   const generateInstagramPayload = () => {
     if (postType === "carousel") {
-      // Instagram: native images
+      // Instagram: native images (no PDF)
       return {
         accountId: "68fb951d8bbca9c10cbfef93",
         type: "carousel",
         caption: `${caption}\n\n${hashtags.join(" ")}`,
-        media: pageAlts.map((alt, idx) => ({
-          kind: "image",
-          file: "<image-bytes>",
-          alt: alt || `Slide ${idx + 1}`,
-        })),
+        images: pageAlts.map((_, idx) => `<image-url-${idx + 1}>`),
         headers: {
           "Idempotency-Key": postId,
         },
+        note: "Instagram receives native JPG/PNG images in sequence (not PDF)",
       };
     }
     return null;
@@ -80,6 +77,7 @@ export function PublishDebugPanel({
           sizeMB: pdfMetadata.sizeMB,
           pages: pdfMetadata.pages,
         } : null,
+        note: "LinkedIn receives PDF document (not native images)",
       };
     }
     return null;

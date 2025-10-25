@@ -12,10 +12,13 @@ interface PublishRequest {
   caption?: string;
   body?: string;
   hashtags: string[];
-  media?: Array<{ type: 'image'; src: string; alt?: string; order: number }>;
+  // Instagram-specific
+  images?: string[]; // Array of image URLs in order
+  // LinkedIn-specific (carousel as PDF)
   pdfUrl?: string;
-  pageAlts?: string[]; // Alt text for each PDF page (LinkedIn only)
+  pageAlts?: string[]; // Alt text for each PDF page
   pdfMetadata?: { sizeMB: number; pages: number };
+  // Video
   videoUrl?: string;
   scheduleAt?: string;
 }
@@ -23,7 +26,7 @@ interface PublishRequest {
 // Server-side validation
 function validateRequest(req: PublishRequest): string[] {
   const errors: string[] = [];
-  const { platform, postType, caption, body, hashtags, media, pdfUrl, pdfMetadata, videoUrl } = req;
+  const { platform, postType, caption, body, hashtags, images, pdfUrl, pdfMetadata, videoUrl } = req;
 
   if (platform === 'instagram') {
     // Caption validation
@@ -38,7 +41,7 @@ function validateRequest(req: PublishRequest): string[] {
     
     // Carousel validation (Instagram uses native images)
     if (postType === 'carousel') {
-      const imageCount = media?.length || 0;
+      const imageCount = images?.length || 0;
       if (imageCount < 2 || imageCount > 10) {
         errors.push(`IG carousel requires 2-10 images (${imageCount})`);
       }
@@ -63,6 +66,9 @@ function validateRequest(req: PublishRequest): string[] {
         }
         if (pdfMetadata.pages > 300) {
           errors.push(`PDF exceeds 300 pages (${pdfMetadata.pages})`);
+        }
+        if (pdfMetadata.pages < 1) {
+          errors.push('PDF must have at least 1 page');
         }
       }
     }
@@ -134,7 +140,7 @@ serve(async (req) => {
       caption,
       body,
       hashtags: rawHashtags,
-      media,
+      images,
       pdfUrl,
       pageAlts,
       pdfMetadata,
@@ -142,7 +148,14 @@ serve(async (req) => {
       scheduleAt,
     } = requestData;
 
-    console.log('[PUBLISH] PDF metadata:', pdfMetadata);
+    console.log('[PUBLISH] Processing:', {
+      platform,
+      postType,
+      hasImages: !!images,
+      imageCount: images?.length,
+      hasPdf: !!pdfUrl,
+      pdfMetadata,
+    });
 
     // Deduplicate hashtags
     const hashtags = deduplicateHashtags(rawHashtags);
@@ -156,26 +169,25 @@ serve(async (req) => {
       const finalCaption = `${caption || ''}\n\n${hashtags.join(' ')}`.trim();
 
       // Instagram carousel: send native images (not PDF)
-      if (postType === 'carousel' && media && media.length > 0) {
-        const imagePromises = media
-          .sort((a, b) => a.order - b.order) // Ensure correct order
-          .map(async (m) => {
-            const imgResponse = await fetch(m.src);
-            const imgBlob = await imgResponse.blob();
-            const imgBuffer = await imgBlob.arrayBuffer();
-            return {
-              kind: 'image',
-              file: Array.from(new Uint8Array(imgBuffer)),
-              alt: m.alt || '',
-            };
-          });
-        const images = await Promise.all(imagePromises);
+      if (postType === 'carousel' && images && images.length > 0) {
+        console.log('[PUBLISH] Instagram carousel with', images.length, 'images');
+        
+        const imagePromises = images.map(async (imgUrl) => {
+          const imgResponse = await fetch(imgUrl);
+          const imgBlob = await imgResponse.blob();
+          const imgBuffer = await imgBlob.arrayBuffer();
+          return {
+            kind: 'image',
+            file: Array.from(new Uint8Array(imgBuffer)),
+          };
+        });
+        const imageData = await Promise.all(imagePromises);
 
         requestBody = {
           accountId: '68fb951d8bbca9c10cbfef93',
           type: 'carousel',
           caption: finalCaption,
-          media: images,
+          media: imageData,
           scheduleAt: scheduleAt || null,
         };
       } else if (postType === 'video' && videoUrl) {
@@ -193,9 +205,9 @@ serve(async (req) => {
           }],
           scheduleAt: scheduleAt || null,
         };
-      } else if (media && media.length > 0) {
+      } else if (images && images.length > 0) {
         // Single image
-        const imgResponse = await fetch(media[0].src);
+        const imgResponse = await fetch(images[0]);
         const imgBlob = await imgResponse.blob();
         const imgBuffer = await imgBlob.arrayBuffer();
         
@@ -206,7 +218,6 @@ serve(async (req) => {
           media: [{
             kind: 'image',
             file: Array.from(new Uint8Array(imgBuffer)),
-            alt: media[0].alt || '',
           }],
           scheduleAt: scheduleAt || null,
         };
@@ -229,6 +240,8 @@ serve(async (req) => {
 
       // LinkedIn carousel: send as PDF document
       if (postType === 'carousel' && pdfUrl) {
+        console.log('[PUBLISH] LinkedIn document with', pdfMetadata?.pages, 'pages,', pdfMetadata?.sizeMB?.toFixed(2), 'MB');
+        
         const pdfResponse = await fetch(pdfUrl);
         const pdfBlob = await pdfResponse.blob();
         const pdfBuffer = await pdfBlob.arrayBuffer();
@@ -236,16 +249,9 @@ serve(async (req) => {
         requestBody.content.kind = 'document';
         requestBody.content.document = {
           file: Array.from(new Uint8Array(pdfBuffer)),
-          title: postId, // Use postId as document title
-          // Include page alt texts for accessibility (future compatibility)
+          title: postId,
           pageAlts: pageAlts || [],
         };
-        
-        console.log('[PUBLISH] LinkedIn PDF document:', {
-          pages: pdfMetadata?.pages,
-          sizeMB: pdfMetadata?.sizeMB,
-          pageAltsCount: pageAlts?.length,
-        });
       } else if (postType === 'video' && videoUrl) {
         const videoResponse = await fetch(videoUrl);
         const videoBlob = await videoResponse.blob();
@@ -255,14 +261,13 @@ serve(async (req) => {
         requestBody.content.video = {
           file: Array.from(new Uint8Array(videoBuffer)),
         };
-      } else if (media && media.length > 0) {
-        const imagePromises = media.map(async (m) => {
-          const imgResponse = await fetch(m.src);
+      } else if (images && images.length > 0) {
+        const imagePromises = images.map(async (imgUrl) => {
+          const imgResponse = await fetch(imgUrl);
           const imgBlob = await imgResponse.blob();
           const imgBuffer = await imgBlob.arrayBuffer();
           return {
             file: Array.from(new Uint8Array(imgBuffer)),
-            alt: m.alt || '',
           };
         });
         requestBody.content.kind = 'image';
