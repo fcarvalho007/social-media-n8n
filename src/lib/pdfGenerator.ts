@@ -11,13 +11,21 @@ export interface CarouselPDFOptions {
  * Each image becomes one page in portrait A4 format
  */
 export async function generateCarouselPDF(options: CarouselPDFOptions): Promise<Blob> {
+  const { PDF_GENERATION_MODE } = await import('@/config/pdf');
+  
+  if (PDF_GENERATION_MODE === 'server') {
+    throw new Error('Client-side PDF generation is disabled in server mode. Use the server-side edge function instead.');
+  }
+
   const { images, title = 'carousel', quality = 0.85 } = options;
   
   if (images.length === 0) {
     throw new Error('No images provided for PDF generation');
   }
 
-  // A4 portrait dimensions in mm
+  // Legacy client-side generation (disabled in server mode)
+  const jsPDF = (await import('jspdf')).default;
+
   const pdf = new jsPDF({
     orientation: 'portrait',
     unit: 'mm',

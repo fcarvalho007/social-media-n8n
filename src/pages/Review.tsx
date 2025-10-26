@@ -50,14 +50,12 @@ const Review = () => {
     linkedin: { platform: 'linkedin', status: 'pending', progress: 0 },
   });
   const [validations, setValidations] = useState<Record<string, any>>({});
-  const [generatedPdf, setGeneratedPdf] = useState<{ blob: Blob; filename: string; sizeMB: number; pages: number } | null>(null);
+  const [generatedPdf, setGeneratedPdf] = useState<{ filename: string; sizeMB: number; pages: number } | null>(null);
   const [showFinalReview, setShowFinalReview] = useState(false);
   const [pendingPublishData, setPendingPublishData] = useState<{
     scheduledDate?: Date;
     retryPlatform?: PublishTarget;
-    pdfBlob: Blob | null;
     pdfUrl: string | null;
-    pdfBase64?: string;
     pdfMetadata: { sizeMB: number; pages: number } | null;
     selectedImages: string[];
   } | null>(null);
@@ -257,36 +255,21 @@ const Review = () => {
 
       if (needsPdf) {
         console.info('[PDF] Starting server-side PDF generation', { imageCount: selectedImages.length, timestamp: new Date().toISOString() });
-        
-        // Progress: 10% -> 30% during PDF generation
         setPublishProgress(prev => ({
           ...prev,
           linkedin: { ...prev.linkedin, progress: 15, message: 'A gerar PDF no servidor...' }
         }));
-
         try {
-          // Generate alt texts for each image
           const pageAlts = selectedImages.map((imgUrl, idx) => {
             const imgKey = imgUrl.split('/').pop() || `image_${idx}`;
             return post.alt_texts?.[imgKey] || `Slide ${idx + 1}/${selectedImages.length}`;
           });
 
-          // Call server-side PDF generation
           const { data: pdfData, error: pdfError } = await supabase.functions.invoke('generate-carousel-pdf', {
-            body: {
-              images: selectedImages,
-              title: post.tema,
-              pageAlts,
-            },
+            body: { images: selectedImages, title: post.tema, pageAlts },
           });
-
-          if (pdfError) {
-            throw new Error(pdfError.message || 'Failed to generate PDF on server');
-          }
-
-          if (!pdfData || !pdfData.pdfBase64) {
-            throw new Error('Invalid PDF response from server');
-          }
+          if (pdfError) throw new Error(pdfError.message || 'Failed to generate PDF on server');
+          if (!pdfData || !pdfData.pdfUrl) throw new Error('Invalid PDF response from server');
 
           console.info('[PDF] Server-side PDF generated successfully', { 
             pages: pdfData.metadata.pages,
@@ -294,61 +277,29 @@ const Review = () => {
             timestamp: new Date().toISOString() 
           });
 
-          // Convert base64 to Blob for preview
-          const byteCharacters = atob(pdfData.pdfBase64);
-          const byteNumbers = new Array(byteCharacters.length);
-          for (let i = 0; i < byteCharacters.length; i++) {
-            byteNumbers[i] = byteCharacters.charCodeAt(i);
-          }
-          const byteArray = new Uint8Array(byteNumbers);
-          pdfBlob = new Blob([byteArray], { type: 'application/pdf' });
-
-          pdfMetadata = pdfData.metadata;
-
-          // Progress: 30% PDF ready
           setPublishProgress(prev => ({
             ...prev,
             linkedin: { ...prev.linkedin, progress: 30, message: 'PDF gerado com sucesso' }
           }));
 
-          // Store PDF metadata and base64 for debug panel and publishing
-          setGeneratedPdf({
-            blob: pdfBlob,
-            filename: 'carousel.pdf',
-            sizeMB: pdfMetadata.sizeMB,
-            pages: pdfMetadata.pages,
-          });
+          setGeneratedPdf({ filename: 'carousel.pdf', sizeMB: pdfData.metadata.sizeMB, pages: pdfData.metadata.pages });
 
-          // Create object URL for preview only
-          pdfUrl = URL.createObjectURL(pdfBlob);
-
-          // Show Final Review for LinkedIn
-          console.info('[PDF] Opening Final Review', { timestamp: new Date().toISOString() });
           setPendingPublishData({
             scheduledDate,
             retryPlatform,
-            pdfBlob,
-            pdfUrl,
-            pdfBase64: pdfData.pdfBase64, // Store base64 for publishing
-            pdfMetadata,
+            pdfUrl: pdfData.pdfUrl as string,
+            pdfMetadata: pdfData.metadata,
             selectedImages,
           });
           setShowFinalReview(true);
-          return; // Exit and wait for user confirmation
+          return;
         } catch (error) {
           const errorMsg = error instanceof Error ? error.message : 'Failed to generate PDF';
           console.error('[PDF] Generation failed', { error, timestamp: new Date().toISOString() });
-          
           targetsToPublish.forEach(target => {
             setPublishProgress(prev => ({
               ...prev,
-              [target]: { 
-                ...prev[target], 
-                status: 'error', 
-                progress: 0, 
-                error: `Erro ao gerar PDF: ${errorMsg}`,
-                technicalDetails: { error: errorMsg }
-              }
+              [target]: { ...prev[target], status: 'error', progress: 0, error: `Erro ao gerar PDF: ${errorMsg}`, technicalDetails: { error: errorMsg } }
             }));
           });
           toast.error(`Erro ao gerar PDF: ${errorMsg}`);
@@ -451,21 +402,20 @@ const Review = () => {
                 caption,
                 images: selectedImages,
               };
-            } else if (target === 'linkedin') {
-              // LinkedIn: send PDF document
-              const pageAlts = selectedImages.map((imgUrl, idx) => {
-                const imgKey = imgUrl.split('/').pop() || `image_${idx}`;
-                return post.alt_texts?.[imgKey] || `Slide ${idx + 1}/${selectedImages.length}`;
-              });
+              } else if (target === 'linkedin') {
+                const pageAlts = selectedImages.map((imgUrl, idx) => {
+                  const imgKey = imgUrl.split('/').pop() || `image_${idx}`;
+                  return post.alt_texts?.[imgKey] || `Slide ${idx + 1}/${selectedImages.length}`;
+                });
 
-              payload = {
-                ...basePayload,
-                body: caption,
-                pdfBase64: pendingPublishData?.pdfBase64,
-                pageAlts,
-                pdfMetadata,
-              };
-            }
+                payload = {
+                  ...basePayload,
+                  body: caption,
+                  pdfUrl: pendingPublishData?.pdfUrl || pdfUrl,
+                  pageAlts,
+                  pdfMetadata,
+                };
+              }
 
             console.info(`[PUBLISH:${target}] Sending to API`, { payloadKeys: Object.keys(payload) });
 
@@ -611,12 +561,8 @@ const Review = () => {
     setShowFinalReview(false);
     setPublishModalOpen(true);
     
-    const { scheduledDate, pdfBlob, pdfUrl, pdfMetadata, selectedImages } = pendingPublishData;
-    
-    const targetsToPublish = Object.entries(publishTargets)
-      .filter(([_, active]) => active)
-      .map(([target]) => target as PublishTarget);
-    
+    const { scheduledDate, pdfUrl, pdfMetadata, selectedImages } = pendingPublishData;
+    const targetsToPublish = Object.entries(publishTargets).filter(([_, active]) => active).map(([target]) => target as PublishTarget);
     const successTracker: Record<PublishTarget, boolean> = { instagram: false, linkedin: false };
     
     try {
@@ -908,6 +854,8 @@ const Review = () => {
                     return post.alt_texts?.[imgKey] || `Slide ${idx + 1}`;
                   })}
                   progress={Object.values(publishProgress)}
+                  pdfUrl={pendingPublishData?.pdfUrl}
+                  pdfSource="server"
                 />
               </div>
             )}
@@ -966,11 +914,11 @@ const Review = () => {
             sizeMB: pendingPublishData.pdfMetadata?.sizeMB || 0,
             title: post.tema || id || 'carousel',
           }}
+          pdfUrl={pendingPublishData.pdfUrl || ''}
           pageAlts={pendingPublishData.selectedImages.map((imgUrl, idx) => {
             const imgKey = imgUrl.split('/').pop() || `image_${idx}`;
             return post.alt_texts?.[imgKey] || `Slide ${idx + 1}/${pendingPublishData.selectedImages.length}`;
           })}
-          previewImages={pendingPublishData.selectedImages}
         />
       )}
     </SidebarProvider>

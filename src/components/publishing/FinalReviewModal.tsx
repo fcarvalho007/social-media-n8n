@@ -15,8 +15,8 @@ interface FinalReviewModalProps {
     sizeMB: number;
     title: string;
   };
-  pageAlts: string[];
-  previewImages: string[];
+  pdfUrl: string;
+  pageAlts?: string[];
 }
 
 export function FinalReviewModal({
@@ -25,10 +25,10 @@ export function FinalReviewModal({
   onRegenerate,
   onConfirm,
   pdfMetadata,
-  pageAlts,
-  previewImages,
+  pdfUrl,
+  pageAlts = [],
 }: FinalReviewModalProps) {
-  const [selectedPreview, setSelectedPreview] = useState<number | null>(null);
+  const [selectedPreview] = useState<number | null>(null);
 
   return (
     <>
@@ -70,53 +70,41 @@ export function FinalReviewModal({
               </p>
             </div>
 
-            {/* Preview thumbnails */}
+            {/* Preview PDF from server */}
             <div>
-              <label className="text-sm font-medium mb-2 block">Pré-visualização:</label>
-              <div className="grid grid-cols-3 gap-3">
-                {previewImages.slice(0, 3).map((imgUrl, idx) => (
-                  <button
-                    key={idx}
-                    onClick={() => setSelectedPreview(idx)}
-                    className="relative aspect-square rounded-lg overflow-hidden border-2 border-border hover:border-primary transition-all group"
-                  >
-                    <img
-                      src={imgUrl}
-                      alt={`Página ${idx + 1}`}
-                      className="w-full h-full object-cover"
-                    />
-                    <div className="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
-                      <Eye className="h-5 w-5 text-white" />
-                    </div>
-                    <Badge className="absolute bottom-2 right-2 text-xs">
-                      {idx + 1}/{pdfMetadata.pages}
-                    </Badge>
-                  </button>
-                ))}
+              <label className="text-sm font-medium mb-2 block">Pré-visualização (PDF do servidor):</label>
+              <div className="rounded-lg border overflow-hidden">
+                <object data={pdfUrl} type="application/pdf" className="w-full h-[480px]">
+                  <div className="p-3 text-sm">
+                    Não foi possível incorporar o PDF. <a href={pdfUrl} target="_blank" rel="noreferrer" className="underline">Abrir numa nova aba</a>.
+                  </div>
+                </object>
               </div>
             </div>
 
-            {/* Alt texts preview */}
-            <div>
-              <label className="text-sm font-medium mb-2 block">
-                Textos alternativos (primeiros 3):
-              </label>
-              <ScrollArea className="h-24 rounded-lg border bg-muted/30 p-3">
-                <div className="space-y-1.5">
-                  {pageAlts.slice(0, 3).map((alt, idx) => (
-                    <div key={idx} className="text-sm">
-                      <span className="font-medium text-muted-foreground">Pág. {idx + 1}:</span>{' '}
-                      <span className="text-foreground/80">{alt}</span>
-                    </div>
-                  ))}
-                  {pageAlts.length > 3 && (
-                    <div className="text-xs text-muted-foreground italic pt-1">
-                      + {pageAlts.length - 3} mais...
-                    </div>
-                  )}
-                </div>
-              </ScrollArea>
-            </div>
+            {/* Alt texts preview (optional) */}
+            {pageAlts.length > 0 && (
+              <div>
+                <label className="text-sm font-medium mb-2 block">
+                  Textos alternativos (primeiros 3):
+                </label>
+                <ScrollArea className="h-24 rounded-lg border bg-muted/30 p-3">
+                  <div className="space-y-1.5">
+                    {pageAlts.slice(0, 3).map((alt, idx) => (
+                      <div key={idx} className="text-sm">
+                        <span className="font-medium text-muted-foreground">Pág. {idx + 1}:</span>{' '}
+                        <span className="text-foreground/80">{alt}</span>
+                      </div>
+                    ))}
+                    {pageAlts.length > 3 && (
+                      <div className="text-xs text-muted-foreground italic pt-1">
+                        + {pageAlts.length - 3} mais...
+                      </div>
+                    )}
+                  </div>
+                </ScrollArea>
+              </div>
+            )}
           </div>
 
           {/* Actions */}
@@ -146,23 +134,8 @@ export function FinalReviewModal({
         </DialogContent>
       </Dialog>
 
-      {/* Enlarged preview dialog */}
-      {selectedPreview !== null && (
-        <Dialog open={true} onOpenChange={() => setSelectedPreview(null)}>
-          <DialogContent className="max-w-4xl">
-            <DialogHeader>
-              <DialogTitle>Página {selectedPreview + 1} de {pdfMetadata.pages}</DialogTitle>
-            </DialogHeader>
-            <div className="relative w-full aspect-square">
-              <img
-                src={previewImages[selectedPreview]}
-                alt={`Página ${selectedPreview + 1}`}
-                className="w-full h-full object-contain rounded-lg"
-              />
-            </div>
-          </DialogContent>
-        </Dialog>
-      )}
+      {/* Removed enlarged preview since we no longer render image thumbnails */}
+      {selectedPreview !== null && null}
     </>
   );
 }

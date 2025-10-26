@@ -123,10 +123,26 @@ export const CarouselPreview = ({ images, template, onSelect, isSelected, onRemo
   };
 
   const handleDownloadPdf = async () => {
+    // Server-only mode: disable client-side PDF generation to avoid CORS/canvas issues
+    try {
+      const { PDF_GENERATION_MODE } = await import('@/config/pdf');
+      if (PDF_GENERATION_MODE === 'server') {
+        console.info('[PDF] Client-side PDF generation disabled in server mode');
+        // Lazy import to avoid cyclic deps at module load time
+        const { toast } = await import('sonner');
+        toast.info('Exportação local de PDF está desativada. O PDF é gerado no servidor.');
+        return;
+      }
+    } catch (e) {
+      // If import fails, fallback to safe no-op
+      console.warn('[PDF] Could not load PDF config, skipping client PDF');
+      return;
+    }
+
     try {
       setDownloadingPdf(true);
+      const { jsPDF } = await import('jspdf');
       const pdf = new jsPDF();
-      
       for (let i = 0; i < images.length; i++) {
         const url = images[i];
         try {
@@ -134,47 +150,33 @@ export const CarouselPreview = ({ images, template, onSelect, isSelected, onRemo
           if (!response.ok) throw new Error(`HTTP ${response.status}`);
           const blob = await response.blob();
           const img = await createImageBitmap(blob);
-          
-          // Add new page for images after the first one
           if (i > 0) {
             pdf.addPage();
           }
-          
-          // Calculate dimensions to cover the entire page (A4 size) - "cover" logic
           const pageWidth = pdf.internal.pageSize.getWidth();
           const pageHeight = pdf.internal.pageSize.getHeight();
           const imgRatio = img.width / img.height;
           const pageRatio = pageWidth / pageHeight;
-          
           let finalWidth, finalHeight;
-          
           if (imgRatio > pageRatio) {
-            // Image is wider proportionally - use page height as base
             finalHeight = pageHeight;
             finalWidth = pageHeight * imgRatio;
           } else {
-            // Image is taller proportionally - use page width as base
             finalWidth = pageWidth;
             finalHeight = pageWidth / imgRatio;
           }
-          
-          // Center the image (may crop edges to fill page)
           const x = (pageWidth - finalWidth) / 2;
           const y = (pageHeight - finalHeight) / 2;
-          
-          // Convert blob to base64
           const reader = new FileReader();
           const base64 = await new Promise<string>((resolve) => {
             reader.onload = () => resolve(reader.result as string);
             reader.readAsDataURL(blob);
           });
-          
           pdf.addImage(base64, 'JPEG', x, y, finalWidth, finalHeight);
         } catch (err) {
           console.error(`Falha ao adicionar imagem ${i + 1} ao PDF:`, err);
         }
       }
-      
       pdf.save(`carrossel_template_${template}.pdf`);
     } catch (e) {
       console.error('Erro ao gerar PDF:', e);

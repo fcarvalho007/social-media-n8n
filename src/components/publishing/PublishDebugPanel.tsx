@@ -20,6 +20,8 @@ interface PublishDebugPanelProps {
   };
   pageAlts: string[];
   progress: any[];
+  pdfUrl?: string;
+  pdfSource?: 'server' | 'client';
 }
 
 export function PublishDebugPanel({
@@ -32,6 +34,8 @@ export function PublishDebugPanel({
   pdfMetadata,
   pageAlts,
   progress,
+  pdfUrl,
+  pdfSource = 'server',
 }: PublishDebugPanelProps) {
   const [testingConnection, setTestingConnection] = useState(false);
   const [connectionTestResult, setConnectionTestResult] = useState<any>(null);
@@ -230,10 +234,11 @@ export function PublishDebugPanel({
 
         {pdfMetadata && (
           <div className="rounded-lg bg-background p-3 space-y-1 text-sm">
-            <div className="font-semibold">PDF Gerado:</div>
-            <div>Ficheiro: {pdfMetadata.filename}</div>
+            <div className="font-semibold">PDF Gerado ({pdfSource}):</div>
+            <div>Ficheiro: {pdfMetadata.filename || 'carousel.pdf'}</div>
             <div>Páginas: {pdfMetadata.pages}</div>
             <div>Tamanho: {pdfMetadata.sizeMB.toFixed(2)} MB</div>
+            {pdfUrl && <div className="text-xs text-muted-foreground">URL: {pdfUrl.substring(0, 50)}...</div>}
           </div>
         )}
 
