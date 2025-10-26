@@ -269,7 +269,17 @@ const Review = () => {
           const { data: pdfData, error: pdfError } = await supabase.functions.invoke('generate-carousel-pdf', {
             body: { images: selectedImages, title: post.tema, pageAlts, postId: post.id },
           });
-          if (pdfError) throw new Error(pdfError.message || 'Failed to generate PDF on server');
+          
+          // Handle structured error responses
+          if (pdfError) {
+            throw pdfError;
+          }
+          
+          if (pdfData && !pdfData.ok) {
+            // Structured error from edge function
+            throw pdfData;
+          }
+          
           if (!pdfData || (!pdfData.pdfUrl && !pdfData.pdfBase64)) {
             throw new Error('Invalid PDF response from server');
           }
@@ -323,20 +333,27 @@ const Review = () => {
           console.error('[PDF] Generation failed', { 
             error: pdfError, 
             stage: pdfError?.stage || 'unknown',
+            code: pdfError?.code,
             message: pdfError?.message,
             details: pdfError?.details,
             timestamp: new Date().toISOString() 
           });
           
-          const errorMsg = pdfError?.message || pdfError?.error || 'Erro ao gerar PDF';
+          let errorMsg = pdfError?.message || pdfError?.error || 'Erro ao gerar PDF';
           const errorStage = pdfError?.stage || 'unknown';
+          const errorCode = pdfError?.code;
           
-          if (errorStage === 'fetch' && pdfError?.details && Array.isArray(pdfError.details)) {
+          // Handle specific error cases
+          if (errorCode === 415 && errorStage === 'validation') {
+            errorMsg = 'Formato WEBP não suportado. Por favor, use PNG ou JPG.';
+          } else if (errorCode === 408) {
+            errorMsg = 'Timeout ao processar imagens. Tente novamente ou reduza o número de slides.';
+          } else if (errorStage === 'fetch' && pdfError?.details && Array.isArray(pdfError.details)) {
             const failedImages = pdfError.details.map((d: any) => `Slide ${d.index + 1}: ${d.reason}`).join(', ');
-            toast.error(`Erro ao validar imagens: ${failedImages}`);
-          } else {
-            toast.error(errorMsg);
+            errorMsg = `Erro ao validar imagens: ${failedImages}`;
           }
+          
+          toast.error(errorMsg);
           
           setPublishProgress(prev => ({
             ...prev,
@@ -344,7 +361,7 @@ const Review = () => {
               ...prev.linkedin, 
               status: 'error', 
               error: errorMsg,
-              message: `Erro na etapa: ${errorStage}`
+              message: `Erro na etapa: ${errorStage} (${errorCode || 'unknown'})`
             }
           }));
           return;
@@ -476,10 +493,32 @@ const Review = () => {
 
             console.info(`[PUBLISH:${target}] API response received`, { 
               success: !error, 
+              data,
               timestamp: new Date().toISOString() 
             });
 
+            // Handle idempotency conflict (409)
+            if (data?.code === 409) {
+              console.info(`[PUBLISH:${target}] Already published (idempotency conflict)`);
+              toast.info(`Já publicado em ${target === 'instagram' ? 'Instagram' : 'LinkedIn'}`);
+              
+              setPublishProgress(prev => ({
+                ...prev,
+                [target]: {
+                  ...prev[target],
+                  status: 'done',
+                  progress: 100,
+                  message: 'Já publicado anteriormente',
+                }
+              }));
+              
+              successTracker[target] = true;
+              clearInterval(heartbeatInterval);
+              break;
+            }
+
             if (error) throw error;
+            if (!data?.success) throw new Error(data?.error || 'Falha ao publicar');
 
             // Progress: 90% finalizing
             setPublishProgress(prev => ({

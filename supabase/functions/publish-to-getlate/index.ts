@@ -199,11 +199,15 @@ async function uploadMediaToGetlate(
   }
   
   const uploadData = await uploadResponse.json();
-  console.log(`[MEDIA] Upload successful:`, uploadData);
+  
+  console.log(`[MEDIA] Upload successful`);
   
   // Return the URL of the uploaded file
   if (uploadData.files && uploadData.files.length > 0) {
     return uploadData.files[0].url;
+  }
+  if (uploadData.url) {
+    return uploadData.url;
   }
   
   throw new Error('No URL returned from media upload');
@@ -377,20 +381,48 @@ serve(async (req) => {
       timezone: scheduleAt ? 'UTC' : undefined,
     };
 
+    // Create idempotency key based on postId + content hash
+    const contentHash = await crypto.subtle.digest(
+      'SHA-256',
+      new TextEncoder().encode(JSON.stringify({ postContent, mediaItems: mediaItems.length }))
+    );
+    const hashArray = Array.from(new Uint8Array(contentHash));
+    const hashHex = hashArray.map(b => b.toString(16).padStart(2, '0')).join('').substring(0, 8);
+    const idempotencyKey = `${postId}:${mediaItems.length}:${hashHex}`;
+
     console.log('[PUBLISH] Calling Getlate API:', `${GETLATE_BASE_URL}/v1/posts`);
     console.log('[PUBLISH] Media items count:', mediaItems.length);
+    console.log('[PUBLISH] Idempotency key:', idempotencyKey);
 
     const response = await fetchWithRetry(`${GETLATE_BASE_URL}/v1/posts`, {
       method: 'POST',
       headers: {
         'Authorization': `Bearer ${GETLATE_TOKEN}`,
         'Content-Type': 'application/json',
-        'Idempotency-Key': postId,
+        'Idempotency-Key': idempotencyKey,
       },
       body: JSON.stringify(requestBody),
     });
 
     const responseData = await response.json();
+
+    // Handle idempotency conflict (409)
+    if (response.status === 409) {
+      console.log('[PUBLISH] Idempotency conflict detected');
+      return new Response(
+        JSON.stringify({
+          success: false,
+          error: 'Already published',
+          code: 409,
+          message: 'This post has already been published to this platform',
+          data: responseData,
+        }),
+        {
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+          status: 409,
+        }
+      );
+    }
 
     if (!response.ok) {
       console.error('[PUBLISH] Getlate API error:', responseData);
