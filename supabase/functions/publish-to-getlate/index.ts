@@ -35,7 +35,7 @@ interface HealthCheckRequest {
 // Server-side validation
 function validateRequest(req: PublishRequest): string[] {
   const errors: string[] = [];
-  const { platform, postType, caption, body, hashtags, images, pdfUrl, pdfMetadata, videoUrl } = req;
+  const { platform, postType, caption, body, hashtags, images, pdfUrl, pdfBase64, pdfMetadata, videoUrl } = req;
 
   if (platform === 'instagram') {
     // Caption validation
@@ -66,8 +66,8 @@ function validateRequest(req: PublishRequest): string[] {
     
     // Document validation (carousel as PDF)
     if (postType === 'carousel') {
-      if (!pdfUrl) {
-        errors.push('LI carousel requires pdfUrl');
+      if (!pdfUrl && !pdfBase64) {
+        errors.push('LI carousel requires pdfUrl or pdfBase64');
       }
       if (pdfMetadata) {
         if (pdfMetadata.sizeMB > 100) {
@@ -302,7 +302,7 @@ serve(async (req) => {
       postType,
       hasImages: !!images,
       imageCount: images?.length,
-      hasPdf: !!pdfUrl,
+      hasPdf: !!(pdfUrl || pdfBase64),
       pdfMetadata,
     });
 
