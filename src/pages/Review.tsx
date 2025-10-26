@@ -24,6 +24,7 @@ import { formatDistanceToNow } from 'date-fns';
 import { pt } from 'date-fns/locale';
 import { PublishTarget, PostType, PublishProgress } from '@/types/publishing';
 import { validateAllTargets } from '@/lib/publishingValidation';
+import { generateCarouselPDF } from '@/lib/pdfGenerator';
 
 const Review = () => {
   const { id } = useParams();
@@ -56,6 +57,7 @@ const Review = () => {
     scheduledDate?: Date;
     retryPlatform?: PublishTarget;
     pdfUrl: string | null;
+    pdfBase64?: string;
     pdfMetadata: { sizeMB: number; pages: number } | null;
     pdfSource?: string;
     selectedImages: string[];
@@ -95,9 +97,14 @@ const Review = () => {
         .from('posts')
         .select('*')
         .eq('id', id)
-        .single();
+        .maybeSingle();
 
       if (error) throw error;
+      if (!data) {
+        toast.error('Publicação não encontrada');
+        navigate('/');
+        return;
+      }
       
       setPost(data);
       setCaption(data.caption_edited || data.caption);
@@ -360,6 +367,36 @@ const Review = () => {
           let errorMsg = pdfError?.message || pdfError?.error || 'Erro ao gerar PDF';
           const errorStage = pdfError?.stage || 'unknown';
           const errorCode = pdfError?.code;
+
+          // Fallback: try client-side PDF when edge invoke returns non-2xx/WORKER_LIMIT
+          const invokeMsg = String(pdfError?.message || '');
+          if (invokeMsg.includes('non-2xx')) {
+            try {
+              console.info('[PDF] Falling back to client-side generation');
+              setPublishProgress(prev => ({
+                ...prev,
+                linkedin: { ...prev.linkedin, status: 'validating', progress: 20, message: 'A gerar PDF localmente...' }
+              }));
+              const blob = await generateCarouselPDF({ images: selectedImages, title: post.tema });
+              const sizeMBLocal = blob.size / (1024 * 1024);
+              const blobUrl = URL.createObjectURL(blob);
+              const ab = await blob.arrayBuffer();
+              const b64 = btoa(String.fromCharCode(...new Uint8Array(ab)));
+              setPendingPublishData({
+                scheduledDate,
+                retryPlatform,
+                pdfUrl: blobUrl,
+                pdfBase64: b64,
+                pdfMetadata: { pages: selectedImages.length, sizeMB: parseFloat(sizeMBLocal.toFixed(2)) },
+                pdfSource: 'client',
+                selectedImages,
+              });
+              setShowFinalReview(true);
+              return;
+            } catch (fallbackErr) {
+              console.error('[PDF] Client-side fallback failed', fallbackErr);
+            }
+          }
           
           // Handle specific error cases
           if (errorCode === 415 && errorStage === 'parse') {
@@ -502,6 +539,7 @@ const Review = () => {
                   ...basePayload,
                   body: caption,
                   pdfUrl: pendingPublishData?.pdfUrl || pdfUrl,
+                  pdfBase64: pendingPublishData?.pdfBase64,
                   pageAlts,
                   pdfMetadata,
                 };
