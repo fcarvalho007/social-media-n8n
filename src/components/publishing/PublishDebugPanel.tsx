@@ -98,7 +98,7 @@ export function PublishDebugPanel({
         platforms: [
           {
             platform: "linkedin",
-            accountId: "urn:li:person:ojg2Ri_Otv",
+            memberUrn: "urn:li:person:ojg2Ri_Otv",
           }
         ],
         mediaItems: [

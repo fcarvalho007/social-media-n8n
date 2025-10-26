@@ -37,24 +37,32 @@ export function PublishModal({
 
   const copyTechnicalDetails = (platform: PublishTarget) => {
     const details = progress[platform];
-    
-    // Sanitize sensitive data
-    const sanitizedDetails = {
+
+    const stage = (details.technicalDetails as any)?.stage || 'unknown';
+    const code = (details.technicalDetails as any)?.code ?? 'unknown';
+    const meta = (details.technicalDetails as any)?.meta || {};
+
+    const payload = {
       platform,
       status: details.status,
-      error: details.error || 'N/A',
-      message: details.message || 'N/A',
+      stage,
+      code,
+      message: details.message || details.error || 'N/A',
+      postId: meta.postId || 'N/A',
+      idempotencyKey: meta.idempotencyKey || 'N/A',
+      baseUrl: meta.baseUrl || 'N/A',
+      edge: meta.edge || (details.technicalDetails as any)?.edge || 'N/A',
       startedAt: details.startedAt || 'N/A',
       publishedAt: details.publishedAt || 'N/A',
       postUrl: details.postUrl || 'N/A',
-      technicalDetails: details.technicalDetails || 'N/A',
+      // Only include first 2 detail items to keep it readable
+      details: Array.isArray((details.technicalDetails as any)?.details)
+        ? ((details.technicalDetails as any)?.details).slice(0, 2)
+        : undefined,
+      timestamp: new Date().toISOString(),
     };
-    
-    const text = Object.entries(sanitizedDetails)
-      .map(([key, value]) => `${key}: ${typeof value === 'object' ? JSON.stringify(value, null, 2) : value}`)
-      .join('\n');
-    
-    navigator.clipboard.writeText(text);
+
+    navigator.clipboard.writeText(JSON.stringify(payload, null, 2));
     toast.success('Detalhes técnicos copiados (sanitizados)');
   };
 
