@@ -328,9 +328,10 @@ serve(async (req) => {
 
     console.log(`[PDF-GEN] PDF generated successfully: ${images.length} pages, ${sizeMB.toFixed(2)} MB`);
 
-    // 3. Upload to Getlate if sizeMB >= 5 (preferred path)
-    if (sizeMB >= 5) {
-      console.log('[PDF-GEN] Uploading PDF to Getlate (>= 5 MB)...');
+    // 3. Upload to Getlate if sizeMB >= 20 (preferred path for very large PDFs)
+    // For PDFs between 5-20MB, return base64 to avoid CPU timeout
+    if (sizeMB >= 20) {
+      console.log('[PDF-GEN] Uploading PDF to Getlate (>= 20 MB)...');
       const apiToken = Deno.env.get('GETLATE_API_TOKEN');
       
       if (!apiToken) {
@@ -400,8 +401,8 @@ serve(async (req) => {
       }
     }
 
-    // Fallback: return base64 for small PDFs (< 5 MB)
-    console.log('[PDF-GEN] Returning base64 (< 5 MB)');
+    // Fallback: return base64 for PDFs < 20 MB
+    console.log('[PDF-GEN] Returning base64 (< 20 MB)');
     const response: GeneratePDFResponse = {
       ok: true,
       pdfBase64,
