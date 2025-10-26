@@ -5,7 +5,7 @@ import type { Swiper as SwiperType } from 'swiper';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { cn } from '@/lib/utils';
-import { X, ZoomIn, ChevronLeft, ChevronRight, Trash2, Keyboard, Download } from 'lucide-react';
+import { X, ZoomIn, ChevronLeft, ChevronRight, Download, FileArchive, FileText } from 'lucide-react';
 import {
   AlertDialog,
   AlertDialogAction,
@@ -29,6 +29,23 @@ import {
   TooltipProvider,
   TooltipTrigger,
 } from "@/components/ui/tooltip";
+import {
+  DndContext,
+  closestCenter,
+  KeyboardSensor,
+  PointerSensor,
+  useSensor,
+  useSensors,
+  DragEndEvent,
+} from '@dnd-kit/core';
+import {
+  arrayMove,
+  SortableContext,
+  sortableKeyboardCoordinates,
+  horizontalListSortingStrategy,
+  useSortable,
+} from '@dnd-kit/sortable';
+import { CSS } from '@dnd-kit/utilities';
 
 import 'swiper/css';
 import 'swiper/css/navigation';
@@ -44,11 +61,78 @@ interface CarouselPreviewProps {
   onSelect: () => void;
   isSelected: boolean;
   onRemoveSlide?: (index: number) => void;
+  onReorderSlides?: (newOrder: string[]) => void;
   isApproved?: boolean;
   approvedTemplate?: 'A' | 'B' | null;
 }
 
-export const CarouselPreview = ({ images, template, onSelect, isSelected, onRemoveSlide, isApproved = false, approvedTemplate = null }: CarouselPreviewProps) => {
+interface SortableThumbProps {
+  image: string;
+  index: number;
+  activeIndex: number;
+  onRemove?: () => void;
+  canRemove: boolean;
+}
+
+function SortableThumb({ image, index, activeIndex, onRemove, canRemove }: SortableThumbProps) {
+  const {
+    attributes,
+    listeners,
+    setNodeRef,
+    transform,
+    transition,
+    isDragging,
+  } = useSortable({ id: image });
+
+  const style = {
+    transform: CSS.Transform.toString(transform),
+    transition,
+    zIndex: isDragging ? 50 : 1,
+  };
+
+  const getPreviewUrl = (originalUrl: string, width: number = 200, quality: number = 60) => {
+    if (!originalUrl.includes('supabase.co/storage') && !originalUrl.includes('vtmrimrrppuclciolzuw')) {
+      return originalUrl;
+    }
+    return `${originalUrl}?width=${width}&quality=${quality}`;
+  };
+
+  return (
+    <div
+      ref={setNodeRef}
+      style={style}
+      {...attributes}
+      {...listeners}
+      className={cn(
+        "relative aspect-square cursor-grab active:cursor-grabbing overflow-hidden rounded border-2 transition-all group select-none",
+        activeIndex === index ? "border-primary" : "border-transparent opacity-60 hover:opacity-100",
+        isDragging && "opacity-50 scale-105 shadow-2xl ring-2 ring-primary"
+      )}
+    >
+      <img
+        src={getPreviewUrl(image)}
+        alt={`Thumbnail ${index + 1}`}
+        className="h-full w-full object-cover pointer-events-none"
+        draggable={false}
+      />
+      {onRemove && canRemove && (
+        <button
+          onClick={(e) => {
+            e.stopPropagation();
+            onRemove();
+          }}
+          onPointerDown={(e) => e.stopPropagation()}
+          className="absolute top-0.5 right-0.5 sm:top-1 sm:right-1 z-10 bg-destructive/90 backdrop-blur-sm text-destructive-foreground rounded-full p-1 sm:p-1.5 opacity-0 group-hover:opacity-100 transition-all hover:bg-destructive hover:scale-110 shadow-lg"
+          aria-label="Remover slide"
+        >
+          <X className="h-3 w-3 sm:h-4 sm:w-4" />
+        </button>
+      )}
+    </div>
+  );
+}
+
+export const CarouselPreview = ({ images, template, onSelect, isSelected, onRemoveSlide, onReorderSlides, isApproved = false, approvedTemplate = null }: CarouselPreviewProps) => {
   const [thumbsSwiper, setThumbsSwiper] = useState<SwiperType | null>(null);
   const [activeIndex, setActiveIndex] = useState(0);
   const [slideToRemove, setSlideToRemove] = useState<number | null>(null);
@@ -56,6 +140,31 @@ export const CarouselPreview = ({ images, template, onSelect, isSelected, onRemo
   const [zoomSwiper, setZoomSwiper] = useState<SwiperType | null>(null);
   const [downloading, setDownloading] = useState(false);
   const [downloadingPdf, setDownloadingPdf] = useState(false);
+
+  const sensors = useSensors(
+    useSensor(PointerSensor, {
+      activationConstraint: {
+        distance: 8,
+      },
+    }),
+    useSensor(KeyboardSensor, {
+      coordinateGetter: sortableKeyboardCoordinates,
+    })
+  );
+
+  const handleDragEnd = (event: DragEndEvent) => {
+    const { active, over } = event;
+
+    if (over && active.id !== over.id && onReorderSlides) {
+      const oldIndex = images.indexOf(active.id as string);
+      const newIndex = images.indexOf(over.id as string);
+
+      if (oldIndex !== -1 && newIndex !== -1) {
+        const newOrder = arrayMove(images, oldIndex, newIndex);
+        onReorderSlides(newOrder);
+      }
+    }
+  };
 
   // Cleanup state when component unmounts to prevent Dialog overlay issues
   useEffect(() => {
@@ -123,18 +232,17 @@ export const CarouselPreview = ({ images, template, onSelect, isSelected, onRemo
   };
 
   const handleDownloadPdf = async () => {
-    // Server-only mode: disable client-side PDF generation to avoid CORS/canvas issues
+    // Check PDF generation mode
     try {
       const { PDF_GENERATION_MODE } = await import('@/config/pdf');
       if (PDF_GENERATION_MODE === 'server') {
         console.info('[PDF] Client-side PDF generation disabled in server mode');
-        // Lazy import to avoid cyclic deps at module load time
         const { toast } = await import('sonner');
         toast.info('Exportação local de PDF está desativada. O PDF é gerado no servidor.');
         return;
       }
+      // Mode 'client' or 'both' allows local PDF export
     } catch (e) {
-      // If import fails, fallback to safe no-op
       console.warn('[PDF] Could not load PDF config, skipping client PDF');
       return;
     }
@@ -224,28 +332,48 @@ export const CarouselPreview = ({ images, template, onSelect, isSelected, onRemo
           </span>
         </div>
         <div className="flex items-center gap-1.5">
-          <Button
-            variant="ghost"
-            size="sm"
-            onClick={handleDownloadAll}
-            className="h-8 w-8 p-0"
-            disabled={downloading || downloadingPdf}
-            aria-label="Baixar todas as imagens em ZIP"
-            title=".zip"
-          >
-            <Download className="h-3.5 w-3.5" />
-          </Button>
-          <Button
-            variant="ghost"
-            size="sm"
-            onClick={handleDownloadPdf}
-            className="h-8 w-8 p-0"
-            disabled={downloading || downloadingPdf}
-            aria-label="Baixar todas as imagens em PDF"
-            title=".pdf"
-          >
-            <Download className="h-3.5 w-3.5" />
-          </Button>
+          <TooltipProvider>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={handleDownloadAll}
+                  className="h-8 gap-1.5 px-2"
+                  disabled={downloading || downloadingPdf}
+                  aria-label="Exportar imagens em ZIP"
+                >
+                  <FileArchive className="h-3.5 w-3.5" />
+                  <span className="text-xs font-medium">ZIP</span>
+                </Button>
+              </TooltipTrigger>
+              <TooltipContent>
+                <p>Exportar todas as imagens em arquivo ZIP</p>
+              </TooltipContent>
+            </Tooltip>
+          </TooltipProvider>
+          
+          <TooltipProvider>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={handleDownloadPdf}
+                  className="h-8 gap-1.5 px-2"
+                  disabled={downloading || downloadingPdf}
+                  aria-label="Exportar como PDF"
+                >
+                  <FileText className="h-3.5 w-3.5" />
+                  <span className="text-xs font-medium">PDF</span>
+                </Button>
+              </TooltipTrigger>
+              <TooltipContent>
+                <p>Exportar como documento PDF</p>
+              </TooltipContent>
+            </Tooltip>
+          </TooltipProvider>
+          
           <span className="text-xs font-medium text-muted-foreground ml-1">
             {activeIndex + 1}/{images.length}
           </span>
@@ -279,48 +407,27 @@ export const CarouselPreview = ({ images, template, onSelect, isSelected, onRemo
         </Swiper>
       </div>
 
-      {/* Thumbnails */}
-      <Swiper
-        modules={[Thumbs]}
-        onSwiper={setThumbsSwiper}
-        spaceBetween={8}
-        slidesPerView="auto"
-        breakpoints={{
-          320: { slidesPerView: 4, spaceBetween: 4 },
-          480: { slidesPerView: 5, spaceBetween: 6 },
-          640: { slidesPerView: 6, spaceBetween: 8 },
-          1024: { slidesPerView: 9, spaceBetween: 8 },
-        }}
-        watchSlidesProgress
-        className="mb-3 sm:mb-4 md:mb-5"
+      {/* Thumbnails with drag-and-drop */}
+      <DndContext
+        sensors={sensors}
+        collisionDetection={closestCenter}
+        onDragEnd={handleDragEnd}
       >
-        {images.map((image, index) => (
-          <SwiperSlide key={index}>
-            <div className={cn(
-              "relative aspect-square cursor-pointer overflow-hidden rounded border-2 transition-all group",
-              activeIndex === index ? "border-primary" : "border-transparent opacity-60 hover:opacity-100"
-            )}>
-              <img
-                src={getPreviewUrl(image, 200, 60)}
-                alt={`Thumbnail ${index + 1}`}
-                className="h-full w-full object-cover"
+        <SortableContext items={images} strategy={horizontalListSortingStrategy}>
+          <div className="mb-3 sm:mb-4 md:mb-5 grid grid-cols-4 sm:grid-cols-5 md:grid-cols-6 lg:grid-cols-9 gap-2">
+            {images.map((image, index) => (
+              <SortableThumb
+                key={image}
+                image={image}
+                index={index}
+                activeIndex={activeIndex}
+                onRemove={onRemoveSlide ? () => setSlideToRemove(index) : undefined}
+                canRemove={images.length > 1}
               />
-              {onRemoveSlide && images.length > 1 && (
-                <button
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    setSlideToRemove(index);
-                  }}
-                  className="absolute top-0.5 right-0.5 sm:top-1 sm:right-1 z-10 bg-destructive/90 backdrop-blur-sm text-destructive-foreground rounded-full p-1 sm:p-1.5 opacity-0 group-hover:opacity-100 transition-all hover:bg-destructive hover:scale-110 shadow-lg"
-                  aria-label="Remover slide"
-                >
-                  <X className="h-3 w-3 sm:h-4 sm:w-4" />
-                </button>
-              )}
-            </div>
-          </SwiperSlide>
-        ))}
-      </Swiper>
+            ))}
+          </div>
+        </SortableContext>
+      </DndContext>
 
       <Button
         onClick={onSelect}

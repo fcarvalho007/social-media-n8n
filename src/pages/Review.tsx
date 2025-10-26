@@ -353,6 +353,7 @@ const Review = () => {
             code: pdfError?.code,
             message: pdfError?.message,
             details: pdfError?.details,
+            postId: id,
             timestamp: new Date().toISOString() 
           });
           
@@ -361,7 +362,7 @@ const Review = () => {
           const errorCode = pdfError?.code;
           
           // Handle specific error cases
-          if (errorCode === 415 && errorStage === 'validation') {
+          if (errorCode === 415 && errorStage === 'parse') {
             errorMsg = 'Formato WEBP não suportado. Por favor, use PNG ou JPG.';
           } else if (errorCode === 408) {
             errorMsg = 'Timeout ao processar imagens. Tente novamente ou reduza o número de slides.';
@@ -372,13 +373,24 @@ const Review = () => {
           
           toast.error(errorMsg);
           
+          const errorDetails = {
+            stage: errorStage,
+            code: errorCode || 'unknown',
+            message: errorMsg,
+            postId: id,
+            platform: 'linkedin',
+            details: pdfError?.details || [],
+            timestamp: new Date().toISOString(),
+          };
+          
           setPublishProgress(prev => ({
             ...prev,
             linkedin: { 
               ...prev.linkedin, 
               status: 'error', 
               error: errorMsg,
-              message: `Erro na etapa: ${errorStage} (${errorCode || 'unknown'})`
+              message: `Erro na etapa: ${errorStage} (${errorCode || 'unknown'})`,
+              technicalDetails: errorDetails,
             }
           }));
           return;
@@ -535,6 +547,17 @@ const Review = () => {
               const stage = data.stage || 'unknown';
               const code = data.code;
               const message = data.message || 'Falha ao publicar';
+              const errorDetails = {
+                stage,
+                code,
+                message,
+                postId: id,
+                platform: target,
+                meta: data.meta || {},
+                details: data.details || [],
+                timestamp: new Date().toISOString(),
+              };
+              
               setPublishProgress(prev => ({
                 ...prev,
                 [target]: {
@@ -543,18 +566,23 @@ const Review = () => {
                   progress: 0,
                   error: message,
                   message: `Erro na etapa: ${stage} (${code ?? 'unknown'})`,
-                  technicalDetails: {
-                    stage,
-                    code,
-                    meta: data.meta,
-                    timestamp: new Date().toISOString(),
-                  }
+                  technicalDetails: errorDetails,
                 }
               }));
               throw new Error(message);
             }
 
             if (error) {
+              const errorDetails = {
+                stage: 'network',
+                code: 'invoke-error',
+                message: error.message || 'Erro desconhecido',
+                postId: id,
+                platform: target,
+                payload: { ...payload, pdfBase64: payload.pdfBase64 ? '[BASE64_OMITTED]' : undefined },
+                timestamp: new Date().toISOString(),
+              };
+              
               setPublishProgress(prev => ({
                 ...prev,
                 [target]: {
@@ -562,12 +590,8 @@ const Review = () => {
                   status: 'error',
                   progress: 0,
                   error: error.message || 'Erro desconhecido',
-                  message: 'Erro na etapa: network (non-2xx)',
-                  technicalDetails: {
-                    stage: 'network',
-                    code: 'non-2xx',
-                    timestamp: new Date().toISOString(),
-                  }
+                  message: `Erro na etapa: network (invoke-error)`,
+                  technicalDetails: errorDetails,
                 }
               }));
               throw error;
@@ -630,6 +654,16 @@ const Review = () => {
             if (attempts >= maxAttempts) {
               // Final failure after all retries
               clearInterval(heartbeatInterval);
+              const errorDetails = {
+                stage: 'publish',
+                code: 'max-retries',
+                message: lastError?.message || 'Erro ao publicar após várias tentativas',
+                postId: id,
+                platform: target,
+                attempts: maxAttempts,
+                timestamp: new Date().toISOString(),
+              };
+              
               setPublishProgress(prev => ({
                 ...prev,
                 [target]: {
@@ -637,11 +671,8 @@ const Review = () => {
                   status: 'error',
                   progress: 0,
                   error: lastError?.message || 'Erro ao publicar após várias tentativas',
-                  technicalDetails: {
-                    attempts: maxAttempts,
-                    lastError: lastError?.message,
-                    timestamp: new Date().toISOString(),
-                  },
+                  message: `Erro na etapa: publish (max-retries)`,
+                  technicalDetails: errorDetails,
                 }
               }));
             }
@@ -825,6 +856,59 @@ const Review = () => {
     }
   };
 
+  const handleReorderSlides = async (template: 'A' | 'B', newOrder: string[]) => {
+    const isTemplateA = template === 'A';
+    
+    // Update local state immediately for responsive UI
+    if (isTemplateA) {
+      setTemplateAImages(newOrder);
+    } else {
+      setTemplateBImages(newOrder);
+    }
+
+    // Update metadata with new order
+    const currentMetadata = isTemplateA ? post?.template_a_metadata : post?.template_b_metadata;
+    const updatedMetadata = {
+      ...currentMetadata,
+      slides: newOrder.map((img, idx) => ({
+        ...currentMetadata?.slides?.find((s: any) => s.url === img),
+        slide_num: idx + 1,
+        total_slides: newOrder.length,
+        url: img,
+      })),
+    };
+
+    try {
+      const { error } = await supabase
+        .from('posts')
+        .update({
+          [isTemplateA ? 'template_a_images' : 'template_b_images']: newOrder,
+          [isTemplateA ? 'template_a_metadata' : 'template_b_metadata']: updatedMetadata,
+        })
+        .eq('id', id);
+
+      if (error) throw error;
+      
+      // Update post state
+      setPost({
+        ...post,
+        [isTemplateA ? 'template_a_images' : 'template_b_images']: newOrder,
+        [isTemplateA ? 'template_a_metadata' : 'template_b_metadata']: updatedMetadata,
+      });
+      
+      toast.success('Ordem dos slides atualizada');
+    } catch (error) {
+      console.error('Erro ao reordenar slides:', error);
+      toast.error('Falha ao reordenar slides. Por favor, tente novamente.');
+      // Revert local state
+      if (isTemplateA) {
+        setTemplateAImages(post?.template_a_images || []);
+      } else {
+        setTemplateBImages(post?.template_b_images || []);
+      }
+    }
+  };
+
   const scrollToTemplates = () => {
     templatesRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
   };
@@ -920,6 +1004,7 @@ const Review = () => {
                 onSelect={() => setSelectedTemplate('A')}
                 isSelected={selectedTemplate === 'A'}
                 onRemoveSlide={!isApproved ? (index) => handleRemoveSlide('A', index) : undefined}
+                onReorderSlides={!isApproved ? (newOrder) => handleReorderSlides('A', newOrder) : undefined}
                 isApproved={isApproved}
                 approvedTemplate={post.selected_template as 'A' | 'B' | null}
               />
@@ -930,6 +1015,7 @@ const Review = () => {
                 onSelect={() => setSelectedTemplate('B')}
                 isSelected={selectedTemplate === 'B'}
                 onRemoveSlide={!isApproved ? (index) => handleRemoveSlide('B', index) : undefined}
+                onReorderSlides={!isApproved ? (newOrder) => handleReorderSlides('B', newOrder) : undefined}
                 isApproved={isApproved}
                 approvedTemplate={post.selected_template as 'A' | 'B' | null}
               />
