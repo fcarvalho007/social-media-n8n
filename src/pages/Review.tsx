@@ -273,7 +273,7 @@ const Review = () => {
             return post.alt_texts?.[imgKey] || `Slide ${idx + 1}/${selectedImages.length}`;
           });
 
-          const { data: pdfData, error: pdfError } = await supabase.functions.invoke('generate-carousel-pdf', {
+          const { data: pdfData, error: pdfError } = await supabase.functions.invoke('generate-carousel-pdf-lite', {
             body: { images: selectedImages, title: post.tema, pageAlts, postId: post.id },
           });
           
