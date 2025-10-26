@@ -35,47 +35,63 @@ export async function generateCarouselPDF(options: CarouselPDFOptions): Promise<
   const pageWidth = pdf.internal.pageSize.getWidth();
   const pageHeight = pdf.internal.pageSize.getHeight();
 
-  // Load all images first with better error handling
-  const loadedImages = await Promise.all(
-    images.map(async (imgUrl, index) => {
-      return new Promise<{ url: string; img: HTMLImageElement; index: number }>((resolve, reject) => {
-        const img = new Image();
-        
-        // Try with CORS first, fallback to no-cors on error
-        img.crossOrigin = 'anonymous';
-        
-        const timeout = setTimeout(() => {
-          reject(new Error(`Timeout loading image ${index + 1}: ${imgUrl}`));
-        }, 15000); // 15s timeout per image
-        
-        img.onload = () => {
-          clearTimeout(timeout);
-          resolve({ url: imgUrl, img, index });
-        };
-        
-        img.onerror = () => {
-          clearTimeout(timeout);
-          // Retry without CORS
-          const img2 = new Image();
-          img2.onload = () => resolve({ url: imgUrl, img: img2, index });
-          img2.onerror = () => reject(new Error(`Failed to load image ${index + 1}: ${imgUrl}`));
-          img2.src = imgUrl;
-        };
-        
-        img.src = imgUrl;
-      });
-    })
-  );
+  // Helper: blob to data URL (avoids tainted canvas)
+  const blobToDataURL = (blob: Blob) => new Promise<string>((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => resolve(reader.result as string);
+    reader.onerror = () => reject(new Error('Falha ao ler blob como DataURL'));
+    reader.readAsDataURL(blob);
+  });
 
-  // Add each image as a page
-  loadedImages.forEach(({ img, index }) => {
+  // Helper: get image natural size from blob via object URL (same-origin)
+  const getImageSize = (blob: Blob) => new Promise<{ width: number; height: number }>((resolve, reject) => {
+    const url = URL.createObjectURL(blob);
+    const img = new Image();
+    img.onload = () => {
+      const dims = { width: img.naturalWidth, height: img.naturalHeight };
+      URL.revokeObjectURL(url);
+      resolve(dims);
+    };
+    img.onerror = () => {
+      URL.revokeObjectURL(url);
+      reject(new Error('Falha ao obter dimensões da imagem'));
+    };
+    img.src = url;
+  });
+
+  // Process each image sequentially using fetch -> blob -> dataURL (sem canvas)
+  for (let index = 0; index < images.length; index++) {
+    const imgUrl = images[index];
+
+    // Timeout por imagem
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), 15000);
+    let resp: Response;
+    try {
+      resp = await fetch(imgUrl, { signal: controller.signal, mode: 'cors' });
+    } catch (e) {
+      clearTimeout(timeout);
+      throw new Error(`Falha ao descarregar a imagem ${index + 1}: ${imgUrl}`);
+    }
+    clearTimeout(timeout);
+
+    if (!resp.ok) {
+      throw new Error(`HTTP ${resp.status} ao descarregar a imagem ${index + 1}: ${imgUrl}`);
+    }
+
+    const blob = await resp.blob();
+    const dataUrl = await blobToDataURL(blob);
+    const { width: imgWidth, height: imgHeight } = await getImageSize(blob);
+
+    // Nova página
     if (index > 0) {
       pdf.addPage();
     }
 
-    // Calculate dimensions to fit the page while maintaining aspect ratio
-    const imgWidth = img.naturalWidth;
-    const imgHeight = img.naturalHeight;
+    const pageWidth = pdf.internal.pageSize.getWidth();
+    const pageHeight = pdf.internal.pageSize.getHeight();
+
+    // Calcular proporções
     const imgAspect = imgWidth / imgHeight;
     const pageAspect = pageWidth / pageHeight;
 
@@ -85,34 +101,20 @@ export async function generateCarouselPDF(options: CarouselPDFOptions): Promise<
     let y = 0;
 
     if (imgAspect > pageAspect) {
-      // Image is wider - fit to width
       finalHeight = pageWidth / imgAspect;
       y = (pageHeight - finalHeight) / 2;
     } else {
-      // Image is taller - fit to height
       finalWidth = pageHeight * imgAspect;
       x = (pageWidth - finalWidth) / 2;
     }
 
-    // Convert image to canvas to avoid CORS and data access issues
-    const canvas = document.createElement('canvas');
-    canvas.width = img.naturalWidth;
-    canvas.height = img.naturalHeight;
-    const ctx = canvas.getContext('2d');
-    
-    if (!ctx) {
-      throw new Error(`Failed to get canvas context for image ${index + 1}`);
-    }
-    
-    ctx.drawImage(img, 0, 0);
-    
-    // Get base64 data URL from canvas
-    const imgData = canvas.toDataURL('image/jpeg', quality);
+    // Detectar formato
+    const format = (blob.type.includes('png') || imgUrl.toLowerCase().endsWith('.png')) ? 'PNG' : 'JPEG';
 
-    // Add image to PDF with quality compression
+    // Adicionar imagem ao PDF
     pdf.addImage(
-      imgData,
-      'JPEG',
+      dataUrl,
+      format,
       x,
       y,
       finalWidth,
@@ -121,7 +123,7 @@ export async function generateCarouselPDF(options: CarouselPDFOptions): Promise<
       'FAST'
     );
 
-    // Add page number at bottom
+    // Número da página
     pdf.setFontSize(8);
     pdf.setTextColor(150);
     pdf.text(
@@ -130,7 +132,7 @@ export async function generateCarouselPDF(options: CarouselPDFOptions): Promise<
       pageHeight - 5,
       { align: 'center' }
     );
-  });
+  }
 
   // Generate blob
   const pdfBlob = pdf.output('blob');
