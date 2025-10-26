@@ -497,28 +497,67 @@ const Review = () => {
               timestamp: new Date().toISOString() 
             });
 
-            // Handle idempotency conflict (409)
-            if (data?.code === 409) {
-              console.info(`[PUBLISH:${target}] Already published (idempotency conflict)`);
-              toast.info(`Já publicado em ${target === 'instagram' ? 'Instagram' : 'LinkedIn'}`);
-              
+            // Prefer structured response shape
+            if (data?.ok === false) {
+              if (data.code === 409) {
+                console.info(`[PUBLISH:${target}] Already published (idempotency conflict)`);
+                toast.info(`Já publicado em ${target === 'instagram' ? 'Instagram' : 'LinkedIn'}`);
+                setPublishProgress(prev => ({
+                  ...prev,
+                  [target]: {
+                    ...prev[target],
+                    status: 'done',
+                    progress: 100,
+                    message: 'Já publicado anteriormente',
+                  }
+                }));
+                successTracker[target] = true;
+                clearInterval(heartbeatInterval);
+                break;
+              }
+              const stage = data.stage || 'unknown';
+              const code = data.code;
+              const message = data.message || 'Falha ao publicar';
               setPublishProgress(prev => ({
                 ...prev,
                 [target]: {
                   ...prev[target],
-                  status: 'done',
-                  progress: 100,
-                  message: 'Já publicado anteriormente',
+                  status: 'error',
+                  progress: 0,
+                  error: message,
+                  message: `Erro na etapa: ${stage} (${code ?? 'unknown'})`,
+                  technicalDetails: {
+                    stage,
+                    code,
+                    meta: data.meta,
+                    timestamp: new Date().toISOString(),
+                  }
                 }
               }));
-              
-              successTracker[target] = true;
-              clearInterval(heartbeatInterval);
-              break;
+              throw new Error(message);
             }
 
-            if (error) throw error;
-            if (!data?.success) throw new Error(data?.error || 'Falha ao publicar');
+            if (error) {
+              setPublishProgress(prev => ({
+                ...prev,
+                [target]: {
+                  ...prev[target],
+                  status: 'error',
+                  progress: 0,
+                  error: error.message || 'Erro desconhecido',
+                  message: 'Erro na etapa: network (non-2xx)',
+                  technicalDetails: {
+                    stage: 'network',
+                    code: 'non-2xx',
+                    timestamp: new Date().toISOString(),
+                  }
+                }
+              }));
+              throw error;
+            }
+
+            const okSuccess = data?.ok === true || data?.success === true;
+            if (!okSuccess) throw new Error(data?.error || 'Falha ao publicar');
 
             // Progress: 90% finalizing
             setPublishProgress(prev => ({

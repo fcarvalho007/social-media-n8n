@@ -180,7 +180,7 @@ async function uploadMediaToGetlate(
   
   // Upload to Getlate via multipart/form-data
   const formData = new FormData();
-  formData.append('files', fileBlob, filename);
+  formData.append('file', fileBlob, filename);
   
   const uploadResponse = await fetchWithRetry(
     `${GETLATE_BASE_URL}/v1/media`,
@@ -274,13 +274,15 @@ serve(async (req) => {
       console.error('[PUBLISH] Validation failed:', validationErrors);
       return new Response(
         JSON.stringify({
-          success: false,
-          error: 'Validation failed',
+          ok: false,
+          stage: 'validation',
+          code: 400,
+          message: 'Validation failed',
           details: validationErrors,
         }),
         {
           headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-          status: 400,
+          status: 200,
         }
       );
     }
@@ -381,14 +383,17 @@ serve(async (req) => {
       timezone: scheduleAt ? 'UTC' : undefined,
     };
 
-    // Create idempotency key based on postId + content hash
+    // Create idempotency key: postId:pages:byteLenHash
     const contentHash = await crypto.subtle.digest(
       'SHA-256',
       new TextEncoder().encode(JSON.stringify({ postContent, mediaItems: mediaItems.length }))
     );
     const hashArray = Array.from(new Uint8Array(contentHash));
     const hashHex = hashArray.map(b => b.toString(16).padStart(2, '0')).join('').substring(0, 8);
-    const idempotencyKey = `${postId}:${mediaItems.length}:${hashHex}`;
+    const pagesForKey = (platform === 'linkedin' && postType === 'carousel')
+      ? (pdfMetadata?.pages || mediaItems.length || 0)
+      : mediaItems.length;
+    const idempotencyKey = `${postId}:${pagesForKey}:${hashHex}`;
 
     console.log('[PUBLISH] Calling Getlate API:', `${GETLATE_BASE_URL}/v1/posts`);
     console.log('[PUBLISH] Media items count:', mediaItems.length);
@@ -411,33 +416,48 @@ serve(async (req) => {
       console.log('[PUBLISH] Idempotency conflict detected');
       return new Response(
         JSON.stringify({
-          success: false,
-          error: 'Already published',
+          ok: false,
+          stage: 'post',
           code: 409,
-          message: 'This post has already been published to this platform',
+          message: 'idempotency-conflict',
           data: responseData,
+          meta: { postId, idempotencyKey, baseUrl: GETLATE_BASE_URL },
         }),
         {
           headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-          status: 409,
+          status: 200,
         }
       );
     }
 
     if (!response.ok) {
       console.error('[PUBLISH] Getlate API error:', responseData);
-      throw new Error(responseData.error || 'Failed to publish to Getlate');
+      return new Response(
+        JSON.stringify({
+          ok: false,
+          stage: 'post',
+          code: response.status,
+          message: responseData?.error || 'Failed to publish to Getlate',
+          data: responseData,
+          meta: { postId, idempotencyKey, baseUrl: GETLATE_BASE_URL },
+        }),
+        {
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+          status: 200,
+        }
+      );
     }
 
     console.log('[PUBLISH] Success:', responseData);
 
     return new Response(
       JSON.stringify({
-        success: true,
+        ok: true,
         platform,
         postUrl: responseData.url || null,
         externalId: responseData._id || responseData.id || null,
         data: responseData,
+        meta: { postId, idempotencyKey, baseUrl: GETLATE_BASE_URL },
       }),
       {
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
@@ -449,12 +469,14 @@ serve(async (req) => {
     const errorMessage = error instanceof Error ? error.message : 'Unknown error occurred';
     return new Response(
       JSON.stringify({
-        success: false,
-        error: errorMessage,
+        ok: false,
+        stage: 'unknown',
+        code: 500,
+        message: errorMessage,
       }),
       {
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-        status: 500,
+        status: 200,
       }
     );
   }

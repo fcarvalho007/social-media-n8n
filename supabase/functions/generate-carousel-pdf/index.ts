@@ -57,7 +57,7 @@ serve(async (req) => {
           message: 'LinkedIn carousel requires at least 2 pages',
           details: []
         }),
-        { status: 422, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
 
@@ -77,7 +77,7 @@ serve(async (req) => {
             reason: 'empty-url'
           }))
         }),
-        { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
 
@@ -92,7 +92,7 @@ serve(async (req) => {
           message: 'Duplicate image URLs detected',
           details: []
         }),
-        { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
 
@@ -105,7 +105,7 @@ serve(async (req) => {
           message: `Too many pages. Maximum ${MAX_PAGES} pages allowed, got ${images.length}`,
           details: []
         }),
-        { status: 422, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
 
@@ -215,7 +215,7 @@ serve(async (req) => {
             message: 'Global timeout exceeded (90s)',
             details: []
           }),
-          { status: 408, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+          { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
         );
       }
       throw error;
@@ -235,7 +235,7 @@ serve(async (req) => {
             message: 'WEBP not supported by pdf-lib',
             details: webpErrors
           }),
-          { status: 415, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+          { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
         );
       }
 
@@ -247,7 +247,7 @@ serve(async (req) => {
           message: `${validationErrors.length} image(s) failed validation`,
           details: validationErrors
         }),
-        { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
 
@@ -282,7 +282,7 @@ serve(async (req) => {
             message: 'Global timeout exceeded (90s)',
             details: []
           }),
-          { status: 408, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+          { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
         );
       }
 
@@ -333,7 +333,7 @@ serve(async (req) => {
               reason: lastError?.message || 'Unknown error'
             }]
           }),
-          { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+          { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
         );
       }
 
@@ -359,7 +359,7 @@ serve(async (req) => {
               reason: error instanceof Error ? error.message : 'Unknown error'
             }]
           }),
-          { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+          { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
         );
       }
 
@@ -424,7 +424,7 @@ serve(async (req) => {
           pages: images.length,
           sizeMB: parseFloat(sizeMB.toFixed(2))
         }),
-        { status: 413, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
 
@@ -444,7 +444,7 @@ serve(async (req) => {
             message: 'Getlate API token not configured',
             details: []
           }),
-          { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+          { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
         );
       }
 
@@ -500,7 +500,7 @@ serve(async (req) => {
             message: error instanceof Error ? error.message : 'Failed to upload PDF to Getlate',
             details: []
           }),
-          { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+          { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
         );
       }
     }
@@ -538,7 +538,7 @@ serve(async (req) => {
           message: 'Failed to convert PDF to base64',
           details: []
         }),
-        { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
   } catch (error) {
@@ -551,7 +551,7 @@ serve(async (req) => {
         message: error instanceof Error ? error.message : 'Internal server error',
         details: []
       }),
-      { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     );
   }
 });
