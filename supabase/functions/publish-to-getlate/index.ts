@@ -19,6 +19,7 @@ interface PublishRequest {
   images?: string[]; // Array of image URLs in order
   // LinkedIn-specific (carousel as PDF)
   pdfUrl?: string;
+  pdfBase64?: string; // Base64 encoded PDF data
   pageAlts?: string[]; // Alt text for each PDF page
   pdfMetadata?: { sizeMB: number; pages: number };
   // Video
@@ -142,20 +143,38 @@ async function fetchWithRetry(
 
 // Upload media file to Getlate
 async function uploadMediaToGetlate(
-  fileUrl: string,
+  fileUrlOrData: string,
   token: string,
-  mediaType: 'image' | 'video' | 'document'
+  mediaType: 'image' | 'video' | 'document',
+  isBase64 = false
 ): Promise<string> {
-  console.log(`[MEDIA] Uploading ${mediaType} from ${fileUrl}`);
+  console.log(`[MEDIA] Uploading ${mediaType}`);
   
-  // Fetch the file
-  const fileResponse = await fetch(fileUrl);
-  if (!fileResponse.ok) {
-    throw new Error(`Failed to fetch file: ${fileResponse.statusText}`);
+  let fileBlob: Blob;
+  let filename: string;
+  
+  if (isBase64) {
+    // Handle base64 data (for PDF documents)
+    console.log('[MEDIA] Processing base64 data');
+    const base64Data = fileUrlOrData.split(',')[1] || fileUrlOrData;
+    const byteCharacters = atob(base64Data);
+    const byteNumbers = new Array(byteCharacters.length);
+    for (let i = 0; i < byteCharacters.length; i++) {
+      byteNumbers[i] = byteCharacters.charCodeAt(i);
+    }
+    const byteArray = new Uint8Array(byteNumbers);
+    fileBlob = new Blob([byteArray], { type: 'application/pdf' });
+    filename = `carousel-${Date.now()}.pdf`;
+  } else {
+    // Fetch the file from URL
+    const fileResponse = await fetch(fileUrlOrData);
+    if (!fileResponse.ok) {
+      throw new Error(`Failed to fetch file: ${fileResponse.statusText}`);
+    }
+    
+    fileBlob = await fileResponse.blob();
+    filename = fileUrlOrData.split('/').pop() || `media-${Date.now()}`;
   }
-  
-  const fileBlob = await fileResponse.blob();
-  const filename = fileUrl.split('/').pop() || `media-${Date.now()}`;
   
   console.log(`[MEDIA] File size: ${(fileBlob.size / 1024 / 1024).toFixed(2)} MB`);
   
@@ -271,6 +290,7 @@ serve(async (req) => {
       hashtags: rawHashtags,
       images,
       pdfUrl,
+      pdfBase64,
       pageAlts,
       pdfMetadata,
       videoUrl,
@@ -305,10 +325,18 @@ serve(async (req) => {
     } else if (platform === 'instagram' && videoUrl) {
       const uploadedUrl = await uploadMediaToGetlate(videoUrl, GETLATE_TOKEN, 'video');
       mediaItems.push({ type: 'video', url: uploadedUrl });
-    } else if (platform === 'linkedin' && postType === 'carousel' && pdfUrl) {
+    } else if (platform === 'linkedin' && postType === 'carousel' && (pdfUrl || pdfBase64)) {
       console.log('[PUBLISH] Uploading LinkedIn PDF document');
-      const uploadedUrl = await uploadMediaToGetlate(pdfUrl, GETLATE_TOKEN, 'document');
-      mediaItems.push({ type: 'document', url: uploadedUrl });
+      
+      if (pdfBase64) {
+        // Handle base64 PDF data directly
+        const uploadedUrl = await uploadMediaToGetlate(pdfBase64, GETLATE_TOKEN, 'document', true);
+        mediaItems.push({ type: 'document', url: uploadedUrl });
+      } else if (pdfUrl) {
+        // Handle PDF URL
+        const uploadedUrl = await uploadMediaToGetlate(pdfUrl, GETLATE_TOKEN, 'document', false);
+        mediaItems.push({ type: 'document', url: uploadedUrl });
+      }
     } else if (platform === 'linkedin' && videoUrl) {
       const uploadedUrl = await uploadMediaToGetlate(videoUrl, GETLATE_TOKEN, 'video');
       mediaItems.push({ type: 'video', url: uploadedUrl });

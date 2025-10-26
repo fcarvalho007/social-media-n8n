@@ -24,7 +24,6 @@ import { formatDistanceToNow } from 'date-fns';
 import { pt } from 'date-fns/locale';
 import { PublishTarget, PostType, PublishProgress } from '@/types/publishing';
 import { validateAllTargets } from '@/lib/publishingValidation';
-import { generateCarouselPDF } from '@/lib/pdfGenerator';
 
 const Review = () => {
   const { id } = useParams();
@@ -58,6 +57,7 @@ const Review = () => {
     retryPlatform?: PublishTarget;
     pdfBlob: Blob | null;
     pdfUrl: string | null;
+    pdfBase64?: string;
     pdfMetadata: { sizeMB: number; pages: number } | null;
     selectedImages: string[];
   } | null>(null);
@@ -256,51 +256,89 @@ const Review = () => {
       });
 
       if (needsPdf) {
-        console.info('[PDF] Starting PDF generation', { imageCount: selectedImages.length, timestamp: new Date().toISOString() });
+        console.info('[PDF] Starting server-side PDF generation', { imageCount: selectedImages.length, timestamp: new Date().toISOString() });
         
         // Progress: 10% -> 30% during PDF generation
         setPublishProgress(prev => ({
           ...prev,
-          linkedin: { ...prev.linkedin, progress: 15, message: 'A gerar PDF...' }
+          linkedin: { ...prev.linkedin, progress: 15, message: 'A gerar PDF no servidor...' }
         }));
 
-        pdfBlob = await generateCarouselPDF({
-          images: selectedImages,
-          title: post.tema,
-        });
+        try {
+          // Generate alt texts for each image
+          const pageAlts = selectedImages.map((imgUrl, idx) => {
+            const imgKey = imgUrl.split('/').pop() || `image_${idx}`;
+            return post.alt_texts?.[imgKey] || `Slide ${idx + 1}/${selectedImages.length}`;
+          });
 
-        console.info('[PDF] PDF generated successfully', { 
-          sizeBytes: pdfBlob.size, 
-          timestamp: new Date().toISOString() 
-        });
+          // Call server-side PDF generation
+          const { data: pdfData, error: pdfError } = await supabase.functions.invoke('generate-carousel-pdf', {
+            body: {
+              images: selectedImages,
+              title: post.tema,
+              pageAlts,
+            },
+          });
 
-        const pageCount = selectedImages.length;
-        pdfMetadata = { 
-          sizeMB: pdfBlob.size / (1024 * 1024), 
-          pages: pageCount 
-        };
+          if (pdfError) {
+            throw new Error(pdfError.message || 'Failed to generate PDF on server');
+          }
 
-        // Progress: 30% PDF ready
-        setPublishProgress(prev => ({
-          ...prev,
-          linkedin: { ...prev.linkedin, progress: 30, message: 'PDF gerado com sucesso' }
-        }));
+          if (!pdfData || !pdfData.pdfBase64) {
+            throw new Error('Invalid PDF response from server');
+          }
 
-        // Store PDF metadata for debug panel
-        setGeneratedPdf({
-          blob: pdfBlob,
-          filename: 'carousel.pdf',
-          sizeMB: pdfMetadata.sizeMB,
-          pages: pdfMetadata.pages,
-        });
+          console.info('[PDF] Server-side PDF generated successfully', { 
+            pages: pdfData.metadata.pages,
+            sizeMB: pdfData.metadata.sizeMB,
+            timestamp: new Date().toISOString() 
+          });
 
-        const { valid, errors, warnings } = await import('@/lib/pdfGenerator').then(m => 
-          m.validatePDFSize(pdfBlob!, pageCount)
-        );
+          // Convert base64 to Blob for preview
+          const byteCharacters = atob(pdfData.pdfBase64);
+          const byteNumbers = new Array(byteCharacters.length);
+          for (let i = 0; i < byteCharacters.length; i++) {
+            byteNumbers[i] = byteCharacters.charCodeAt(i);
+          }
+          const byteArray = new Uint8Array(byteNumbers);
+          pdfBlob = new Blob([byteArray], { type: 'application/pdf' });
 
-        if (!valid) {
-          const errorMsg = errors.join('; ');
-          console.error('[PDF] Validation failed', { errors, warnings });
+          pdfMetadata = pdfData.metadata;
+
+          // Progress: 30% PDF ready
+          setPublishProgress(prev => ({
+            ...prev,
+            linkedin: { ...prev.linkedin, progress: 30, message: 'PDF gerado com sucesso' }
+          }));
+
+          // Store PDF metadata and base64 for debug panel and publishing
+          setGeneratedPdf({
+            blob: pdfBlob,
+            filename: 'carousel.pdf',
+            sizeMB: pdfMetadata.sizeMB,
+            pages: pdfMetadata.pages,
+          });
+
+          // Create object URL for preview only
+          pdfUrl = URL.createObjectURL(pdfBlob);
+
+          // Show Final Review for LinkedIn
+          console.info('[PDF] Opening Final Review', { timestamp: new Date().toISOString() });
+          setPendingPublishData({
+            scheduledDate,
+            retryPlatform,
+            pdfBlob,
+            pdfUrl,
+            pdfBase64: pdfData.pdfBase64, // Store base64 for publishing
+            pdfMetadata,
+            selectedImages,
+          });
+          setShowFinalReview(true);
+          return; // Exit and wait for user confirmation
+        } catch (error) {
+          const errorMsg = error instanceof Error ? error.message : 'Failed to generate PDF';
+          console.error('[PDF] Generation failed', { error, timestamp: new Date().toISOString() });
+          
           targetsToPublish.forEach(target => {
             setPublishProgress(prev => ({
               ...prev,
@@ -308,33 +346,14 @@ const Review = () => {
                 ...prev[target], 
                 status: 'error', 
                 progress: 0, 
-                error: errorMsg,
-                technicalDetails: { pdfMetadata, errors, warnings }
+                error: `Erro ao gerar PDF: ${errorMsg}`,
+                technicalDetails: { error: errorMsg }
               }
             }));
           });
-          toast.error(errorMsg);
+          toast.error(`Erro ao gerar PDF: ${errorMsg}`);
           return;
         }
-
-        if (warnings.length > 0) {
-          warnings.forEach(w => toast.warning(w));
-        }
-
-        pdfUrl = URL.createObjectURL(pdfBlob);
-
-        // Show Final Review for LinkedIn
-        console.info('[PDF] Opening Final Review', { timestamp: new Date().toISOString() });
-        setPendingPublishData({
-          scheduledDate,
-          retryPlatform,
-          pdfBlob,
-          pdfUrl,
-          pdfMetadata,
-          selectedImages,
-        });
-        setShowFinalReview(true);
-        return; // Exit and wait for user confirmation
       }
 
       // Continue to actual publishing
@@ -442,7 +461,7 @@ const Review = () => {
               payload = {
                 ...basePayload,
                 body: caption,
-                pdfUrl,
+                pdfBase64: pendingPublishData?.pdfBase64,
                 pageAlts,
                 pdfMetadata,
               };

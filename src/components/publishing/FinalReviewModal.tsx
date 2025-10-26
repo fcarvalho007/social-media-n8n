@@ -65,6 +65,8 @@ export function FinalReviewModal({
             <div className="rounded-xl border border-primary/20 bg-primary/5 p-3 text-sm">
               <p className="text-foreground/90">
                 O carrossel no LinkedIn será publicado como <strong>Documento (PDF)</strong>.
+                <br />
+                <span className="text-xs text-muted-foreground">PDF gerado no servidor para evitar problemas de CORS</span>
               </p>
             </div>
 

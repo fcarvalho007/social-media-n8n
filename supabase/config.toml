@@ -11,3 +11,6 @@ verify_jwt = false
 
 [functions.publish-to-getlate]
 verify_jwt = false
+
+[functions.generate-carousel-pdf]
+verify_jwt = false
