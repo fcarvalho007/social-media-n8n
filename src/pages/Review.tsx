@@ -319,8 +319,20 @@ const Review = () => {
           console.log('[PDF] COMPOSE: OK', { pages, sizeMB, elapsed: composeElapsed });
           
           // Step 4: Convert to base64 and blob URL
+          console.log('[PDF] Converting to base64', { sizeMB, pages });
           const ab = await blob.arrayBuffer();
-          const b64 = btoa(String.fromCharCode(...new Uint8Array(ab)));
+          
+          // Convert ArrayBuffer to base64 in chunks to avoid stack overflow
+          const bytes = new Uint8Array(ab);
+          let binary = '';
+          const chunkSize = 8192;
+          for (let i = 0; i < bytes.length; i += chunkSize) {
+            const chunk = bytes.slice(i, i + chunkSize);
+            binary += String.fromCharCode(...chunk);
+          }
+          const b64 = btoa(binary);
+          console.log('[PDF] Base64 ready', { b64Length: b64.length });
+          
           const blobUrl = URL.createObjectURL(blob);
           
           setPublishProgress(prev => ({
