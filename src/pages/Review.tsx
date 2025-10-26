@@ -279,7 +279,33 @@ const Review = () => {
           
           // Check for Supabase SDK error
           if (pdfError) {
-            throw new Error(`PDF invoke error: ${pdfError.message}`);
+            // Fallback immediately to client-side generation when invoke fails (e.g., non-2xx/WORKER_LIMIT)
+            console.warn('[PDF] Edge invoke failed, falling back to client generation', { message: pdfError.message });
+            try {
+              setPublishProgress(prev => ({
+                ...prev,
+                linkedin: { ...prev.linkedin, status: 'validating', progress: 20, message: 'A gerar PDF localmente...' }
+              }));
+              const blob = await generateCarouselPDF({ images: selectedImages, title: post.tema });
+              const sizeMBLocal = blob.size / (1024 * 1024);
+              const blobUrl = URL.createObjectURL(blob);
+              const ab = await blob.arrayBuffer();
+              const b64 = btoa(String.fromCharCode(...new Uint8Array(ab)));
+              setPendingPublishData({
+                scheduledDate,
+                retryPlatform,
+                pdfUrl: blobUrl,
+                pdfBase64: b64,
+                pdfMetadata: { pages: selectedImages.length, sizeMB: parseFloat(sizeMBLocal.toFixed(2)) },
+                pdfSource: 'client',
+                selectedImages,
+              });
+              setShowFinalReview(true);
+              return;
+            } catch (fallbackErr) {
+              console.error('[PDF] Client-side fallback failed', fallbackErr);
+              throw new Error(`PDF invoke error: ${pdfError.message}`);
+            }
           }
           
           // Check for structured error from edge function
