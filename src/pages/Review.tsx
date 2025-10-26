@@ -319,36 +319,77 @@ const Review = () => {
           
           console.log('[PDF] COMPOSE: OK', { pages, sizeMB, elapsed: composeElapsed });
           
-          // Step 4: Upload PDF to Getlate via proxy
-          console.log('[PDF] Uploading to Getlate via proxy', { sizeMB, pages });
+          // Step 4: Prepare storage upload
+          console.log('[PDF] Preparing storage upload', { sizeMB, pages });
           
           setPublishProgress(prev => ({
             ...prev,
-            linkedin: { ...prev.linkedin, progress: 40, message: 'A fazer upload do PDF...' }
+            linkedin: { ...prev.linkedin, progress: 35, message: 'A preparar upload...' }
           }));
           
-          const uploadStart = Date.now();
-          const formData = new FormData();
-          formData.append('file', blob, `carousel-${Date.now()}.pdf`);
-          
-          const uploadResponse = await supabase.functions.invoke('upload-pdf-proxy', {
-            body: formData,
+          const { data: prepareData, error: prepareError } = await supabase.functions.invoke('prepare-pdf-upload', {
+            body: { postId: id, userId: user?.id || 'anonymous' },
           });
           
-          const uploadElapsed = Date.now() - uploadStart;
+          if (prepareError || !prepareData?.ok) {
+            const errorMsg = prepareData?.message || prepareError?.message || 'Erro ao preparar upload';
+            console.error('[PDF] Prepare failed', { error: prepareError, data: prepareData });
+            throw new Error(errorMsg);
+          }
           
-          if (uploadResponse.error || !uploadResponse.data?.ok) {
-            const errorMsg = uploadResponse.data?.message || uploadResponse.error?.message || 'Erro ao fazer upload do PDF';
-            console.error('[PDF] Upload failed', { 
-              error: uploadResponse.error, 
-              data: uploadResponse.data,
-              elapsed: uploadElapsed 
+          const { uploadUrl, path } = prepareData;
+          console.log('[PDF] Prepare OK', { path });
+          
+          // Step 5: Upload PDF to storage
+          setPublishProgress(prev => ({
+            ...prev,
+            linkedin: { ...prev.linkedin, progress: 40, message: 'A carregar PDF para o servidor...' }
+          }));
+          
+          const storageUploadStart = Date.now();
+          const storageResponse = await fetch(uploadUrl, {
+            method: 'PUT',
+            body: blob,
+            headers: {
+              'Content-Type': 'application/pdf',
+            },
+          });
+          
+          const storageElapsed = Date.now() - storageUploadStart;
+          
+          if (!storageResponse.ok) {
+            const errorText = await storageResponse.text();
+            console.error('[PDF] Storage upload failed', { status: storageResponse.status, error: errorText, elapsed: storageElapsed });
+            throw new Error(`Storage upload failed: ${errorText}`);
+          }
+          
+          console.log('[PDF] Storage upload OK', { path, elapsed: storageElapsed });
+          
+          // Step 6: Upload to Getlate via proxy (using storage path)
+          setPublishProgress(prev => ({
+            ...prev,
+            linkedin: { ...prev.linkedin, progress: 50, message: 'A enviar PDF para o Getlate...' }
+          }));
+          
+          const proxyStart = Date.now();
+          const proxyResponse = await supabase.functions.invoke('upload-pdf-proxy', {
+            body: { storagePath: path },
+          });
+          
+          const proxyElapsed = Date.now() - proxyStart;
+          
+          if (proxyResponse.error || !proxyResponse.data?.ok) {
+            const errorMsg = proxyResponse.data?.message || proxyResponse.error?.message || 'Erro ao enviar PDF para o Getlate';
+            console.error('[PDF] Proxy upload failed', { 
+              error: proxyResponse.error, 
+              data: proxyResponse.data,
+              elapsed: proxyElapsed 
             });
             throw new Error(errorMsg);
           }
           
-          const uploadedPdfUrl = uploadResponse.data.url;
-          console.log('[PDF] Upload OK', { url: uploadedPdfUrl, elapsed: uploadElapsed });
+          const uploadedPdfUrl = proxyResponse.data.url;
+          console.log('[PDF] Getlate upload OK', { url: uploadedPdfUrl, elapsed: proxyElapsed });
           
           // Create blob URL for local preview
           const blobUrl = URL.createObjectURL(blob);
