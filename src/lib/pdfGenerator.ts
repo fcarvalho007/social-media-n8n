@@ -59,28 +59,50 @@ export async function generateCarouselPDF(options: CarouselPDFOptions): Promise<
     img.src = url;
   });
 
-  // Process each image sequentially using fetch -> blob -> dataURL (sem canvas)
+  // Process each image sequentially
   for (let index = 0; index < images.length; index++) {
     const imgUrl = images[index];
 
-    // Timeout por imagem
-    const controller = new AbortController();
-    const timeout = setTimeout(() => controller.abort(), 15000);
-    let resp: Response;
-    try {
-      resp = await fetch(imgUrl, { signal: controller.signal, mode: 'cors' });
-    } catch (e) {
+    let blob: Blob;
+    let dataUrl: string;
+
+    // If already a data URL, parse it directly
+    if (imgUrl.startsWith('data:')) {
+      dataUrl = imgUrl;
+      // Extract mime and base64
+      const match = imgUrl.match(/^data:([^;]+);base64,(.+)$/);
+      if (!match) {
+        throw new Error(`Formato data URL inválido para imagem ${index + 1}`);
+      }
+      const [, mime, base64] = match;
+      const byteCharacters = atob(base64);
+      const byteNumbers = new Array(byteCharacters.length);
+      for (let i = 0; i < byteCharacters.length; i++) {
+        byteNumbers[i] = byteCharacters.charCodeAt(i);
+      }
+      const byteArray = new Uint8Array(byteNumbers);
+      blob = new Blob([byteArray], { type: mime });
+    } else {
+      // Fetch from URL
+      const controller = new AbortController();
+      const timeout = setTimeout(() => controller.abort(), 15000);
+      let resp: Response;
+      try {
+        resp = await fetch(imgUrl, { signal: controller.signal, mode: 'cors' });
+      } catch (e) {
+        clearTimeout(timeout);
+        throw new Error(`Falha ao descarregar a imagem ${index + 1}: ${imgUrl}`);
+      }
       clearTimeout(timeout);
-      throw new Error(`Falha ao descarregar a imagem ${index + 1}: ${imgUrl}`);
-    }
-    clearTimeout(timeout);
 
-    if (!resp.ok) {
-      throw new Error(`HTTP ${resp.status} ao descarregar a imagem ${index + 1}: ${imgUrl}`);
+      if (!resp.ok) {
+        throw new Error(`HTTP ${resp.status} ao descarregar a imagem ${index + 1}: ${imgUrl}`);
+      }
+
+      blob = await resp.blob();
+      dataUrl = await blobToDataURL(blob);
     }
 
-    const blob = await resp.blob();
-    const dataUrl = await blobToDataURL(blob);
     const { width: imgWidth, height: imgHeight } = await getImageSize(blob);
 
     // Nova página

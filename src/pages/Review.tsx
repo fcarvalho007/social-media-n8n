@@ -262,189 +262,95 @@ const Review = () => {
       });
 
       if (needsPdf) {
-        console.info('[PDF] Starting server-side PDF generation', { imageCount: selectedImages.length, timestamp: new Date().toISOString() });
+        console.info('[PDF] Starting client-side PDF with proxy', { imageCount: selectedImages.length, timestamp: new Date().toISOString() });
         setPublishProgress(prev => ({
           ...prev,
-          linkedin: { ...prev.linkedin, progress: 15, message: 'A gerar PDF no servidor...' }
+          linkedin: { ...prev.linkedin, progress: 15, message: 'A validar imagens...' }
         }));
+        
         try {
-          const pageAlts = selectedImages.map((imgUrl, idx) => {
-            const imgKey = imgUrl.split('/').pop() || `image_${idx}`;
-            return post.alt_texts?.[imgKey] || `Slide ${idx + 1}/${selectedImages.length}`;
+          // Step 1: Fetch images as base64 via proxy
+          console.log('[PDF] FETCH: Calling fetch-images-b64 proxy');
+          const fetchStart = Date.now();
+          const { data: fetchData, error: fetchError } = await supabase.functions.invoke('fetch-images-b64', {
+            body: { urls: selectedImages },
           });
-
-          const { data: pdfData, error: pdfError } = await supabase.functions.invoke('generate-carousel-pdf-lite', {
-            body: { images: selectedImages, title: post.tema, pageAlts, postId: post.id },
-          });
+          const fetchElapsed = Date.now() - fetchStart;
           
-          // Check for Supabase SDK error
-          if (pdfError) {
-            // Fallback immediately to client-side generation when invoke fails (e.g., non-2xx/WORKER_LIMIT)
-            console.warn('[PDF] Edge invoke failed, falling back to client generation', { message: pdfError.message });
-            try {
-              setPublishProgress(prev => ({
-                ...prev,
-                linkedin: { ...prev.linkedin, status: 'validating', progress: 20, message: 'A gerar PDF localmente...' }
-              }));
-              const blob = await generateCarouselPDF({ images: selectedImages, title: post.tema });
-              const sizeMBLocal = blob.size / (1024 * 1024);
-              const blobUrl = URL.createObjectURL(blob);
-              const ab = await blob.arrayBuffer();
-              const b64 = btoa(String.fromCharCode(...new Uint8Array(ab)));
-              setPendingPublishData({
-                scheduledDate,
-                retryPlatform,
-                pdfUrl: blobUrl,
-                pdfBase64: b64,
-                pdfMetadata: { pages: selectedImages.length, sizeMB: parseFloat(sizeMBLocal.toFixed(2)) },
-                pdfSource: 'client',
-                selectedImages,
-              });
-              setShowFinalReview(true);
-              return;
-            } catch (fallbackErr) {
-              console.error('[PDF] Client-side fallback failed', fallbackErr);
-              throw new Error(`PDF invoke error: ${pdfError.message}`);
-            }
+          if (fetchError) {
+            console.error('[PDF] FETCH: Invoke error', { error: fetchError, elapsed: fetchElapsed });
+            throw new Error(`Erro ao validar imagens: ${fetchError.message}`);
           }
           
-          // Check for structured error from edge function
-          if (!pdfData?.ok) {
-            const errorStage = pdfData?.stage || 'unknown';
-            const errorCode = pdfData?.code || 'unknown';
-            const errorMsg = pdfData?.message || 'PDF generation failed';
-            const errorDetails = pdfData?.details || [];
+          if (!fetchData?.ok) {
+            const stage = fetchData?.stage || 'unknown';
+            const code = fetchData?.code || 'unknown';
+            const msg = fetchData?.message || 'Fetch failed';
+            const details = fetchData?.details || [];
+            console.error('[PDF] FETCH: Failed', { stage, code, msg, details, elapsed: fetchElapsed });
             
-            // Special handling for WEBP error (415)
-            if (errorCode === 415 && errorDetails.some((d: any) => d.reason === 'unsupported-webp')) {
-              throw new Error('WEBP images are not supported for LinkedIn carousels. Please use JPG or PNG images.');
+            let errorMsg = `Erro na etapa: ${stage} (${code})\n${msg}`;
+            if (details.length > 0) {
+              const detailsStr = details.map((d: any) => `Slide ${d.index + 1}: ${d.reason}`).join(', ');
+              errorMsg += `\nDetalhes: ${detailsStr}`;
             }
-            
-            // Special handling for global timeout (408)
-            if (errorCode === 408) {
-              throw new Error('PDF generation timed out. Please try with fewer or smaller images.');
-            }
-            
-            // Throw structured error with stage, code, message, details
-            const detailsStr = errorDetails.length > 0 ? `\nDetalhes: ${JSON.stringify(errorDetails.slice(0, 2))}` : '';
-            throw new Error(`Erro na etapa: ${errorStage} (${errorCode})\n${errorMsg}${detailsStr}`);
+            throw new Error(errorMsg);
           }
           
-          if (!pdfData || (!pdfData.pdfUrl && !pdfData.pdfBase64)) {
-            throw new Error('Invalid PDF response from server');
-          }
-
-          console.info('[PDF] Server-side PDF generated successfully', { 
-            pages: pdfData.pages,
-            sizeMB: pdfData.sizeMB,
-            timestamp: new Date().toISOString() 
-          });
-
-          // Convert base64 to Blob and create object URL for preview
-          const pdfSource = pdfData.pdfUrl ? 'server-uploaded' : 'server-generated';
-          let pdfUrl: string;
+          const items = fetchData.items as Array<{ index: number; url: string; mime: string; base64: string }>;
+          console.log('[PDF] FETCH: OK', { count: items.length, elapsed: fetchElapsed });
           
-          if (pdfData.pdfUrl) {
-            // PDF already uploaded to Getlate
-            pdfUrl = pdfData.pdfUrl;
-            console.info('[PDF] Using uploaded PDF URL', { pdfUrl, timestamp: new Date().toISOString() });
-          } else if (pdfData.pdfBase64) {
-            // Convert base64 to blob URL for preview
-            const byteCharacters = atob(pdfData.pdfBase64);
-            const byteNumbers = new Array(byteCharacters.length);
-            for (let i = 0; i < byteCharacters.length; i++) {
-              byteNumbers[i] = byteCharacters.charCodeAt(i);
-            }
-            const byteArray = new Uint8Array(byteNumbers);
-            const pdfBlob = new Blob([byteArray], { type: 'application/pdf' });
-            pdfUrl = URL.createObjectURL(pdfBlob);
-            console.info('[PDF] Created blob URL from base64', { timestamp: new Date().toISOString() });
-          } else {
-            throw new Error('No PDF data received from server');
-          }
-
           setPublishProgress(prev => ({
             ...prev,
-            linkedin: { ...prev.linkedin, progress: 30, message: 'PDF gerado com sucesso' }
+            linkedin: { ...prev.linkedin, progress: 30, message: 'A gerar PDF localmente...' }
           }));
-
-          // Show Final Review modal
+          
+          // Step 2: Build data URLs
+          const dataUrls = items.map(item => `data:${item.mime};base64,${item.base64}`);
+          
+          // Step 3: Generate PDF locally
+          console.log('[PDF] COMPOSE: Generating PDF with', dataUrls.length, 'images');
+          const composeStart = Date.now();
+          const blob = await generateCarouselPDF({ images: dataUrls, title: post.tema });
+          const composeElapsed = Date.now() - composeStart;
+          const sizeMB = parseFloat((blob.size / (1024 * 1024)).toFixed(2));
+          const pages = dataUrls.length;
+          
+          console.log('[PDF] COMPOSE: OK', { pages, sizeMB, elapsed: composeElapsed });
+          
+          // Step 4: Convert to base64 and blob URL
+          const ab = await blob.arrayBuffer();
+          const b64 = btoa(String.fromCharCode(...new Uint8Array(ab)));
+          const blobUrl = URL.createObjectURL(blob);
+          
+          setPublishProgress(prev => ({
+            ...prev,
+            linkedin: { ...prev.linkedin, progress: 50, message: 'PDF gerado com sucesso' }
+          }));
+          
+          // Show Final Review
           setPendingPublishData({
             scheduledDate,
             retryPlatform,
-            pdfUrl,
-            pdfMetadata: { pages: pdfData.pages, sizeMB: pdfData.sizeMB },
-            pdfSource,
+            pdfUrl: blobUrl,
+            pdfBase64: b64,
+            pdfMetadata: { pages, sizeMB },
+            pdfSource: 'client-proxy',
             selectedImages,
           });
           setShowFinalReview(true);
-          return; // Stop here and wait for user confirmation
+          return;
+
         } catch (pdfError: any) {
           console.error('[PDF] Generation failed', { 
             error: pdfError, 
-            stage: pdfError?.stage || 'unknown',
-            code: pdfError?.code,
             message: pdfError?.message,
-            details: pdfError?.details,
             postId: id,
             timestamp: new Date().toISOString() 
           });
           
-          let errorMsg = pdfError?.message || pdfError?.error || 'Erro ao gerar PDF';
-          const errorStage = pdfError?.stage || 'unknown';
-          const errorCode = pdfError?.code;
-
-          // Fallback: try client-side PDF when edge invoke returns non-2xx/WORKER_LIMIT
-          const invokeMsg = String(pdfError?.message || '');
-          if (invokeMsg.includes('non-2xx')) {
-            try {
-              console.info('[PDF] Falling back to client-side generation');
-              setPublishProgress(prev => ({
-                ...prev,
-                linkedin: { ...prev.linkedin, status: 'validating', progress: 20, message: 'A gerar PDF localmente...' }
-              }));
-              const blob = await generateCarouselPDF({ images: selectedImages, title: post.tema });
-              const sizeMBLocal = blob.size / (1024 * 1024);
-              const blobUrl = URL.createObjectURL(blob);
-              const ab = await blob.arrayBuffer();
-              const b64 = btoa(String.fromCharCode(...new Uint8Array(ab)));
-              setPendingPublishData({
-                scheduledDate,
-                retryPlatform,
-                pdfUrl: blobUrl,
-                pdfBase64: b64,
-                pdfMetadata: { pages: selectedImages.length, sizeMB: parseFloat(sizeMBLocal.toFixed(2)) },
-                pdfSource: 'client',
-                selectedImages,
-              });
-              setShowFinalReview(true);
-              return;
-            } catch (fallbackErr) {
-              console.error('[PDF] Client-side fallback failed', fallbackErr);
-            }
-          }
-          
-          // Handle specific error cases
-          if (errorCode === 415 && errorStage === 'parse') {
-            errorMsg = 'Formato WEBP não suportado. Por favor, use PNG ou JPG.';
-          } else if (errorCode === 408) {
-            errorMsg = 'Timeout ao processar imagens. Tente novamente ou reduza o número de slides.';
-          } else if (errorStage === 'fetch' && pdfError?.details && Array.isArray(pdfError.details)) {
-            const failedImages = pdfError.details.map((d: any) => `Slide ${d.index + 1}: ${d.reason}`).join(', ');
-            errorMsg = `Erro ao validar imagens: ${failedImages}`;
-          }
-          
+          const errorMsg = pdfError?.message || 'Erro ao gerar PDF';
           toast.error(errorMsg);
-          
-          const errorDetails = {
-            stage: errorStage,
-            code: errorCode || 'unknown',
-            message: errorMsg,
-            postId: id,
-            platform: 'linkedin',
-            details: pdfError?.details || [],
-            timestamp: new Date().toISOString(),
-          };
           
           setPublishProgress(prev => ({
             ...prev,
@@ -452,8 +358,8 @@ const Review = () => {
               ...prev.linkedin, 
               status: 'error', 
               error: errorMsg,
-              message: `Erro na etapa: ${errorStage} (${errorCode || 'unknown'})`,
-              technicalDetails: errorDetails,
+              message: errorMsg,
+              technicalDetails: { error: pdfError, postId: id, timestamp: new Date().toISOString() },
             }
           }));
           return;
