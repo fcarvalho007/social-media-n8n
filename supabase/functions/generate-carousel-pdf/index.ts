@@ -38,8 +38,9 @@ const GLOBAL_TIMEOUT_MS = 90000; // 90s total job timeout
 const GETLATE_BASE_URL = Deno.env.get('GETLATE_BASE_URL') || 'https://getlate.dev/api';
 
 serve(async (req) => {
+  // Handle CORS preflight
   if (req.method === 'OPTIONS') {
-    return new Response(null, { headers: corsHeaders });
+    return new Response(null, { headers: corsHeaders, status: 200 });
   }
 
   const globalStartTime = Date.now();
@@ -52,7 +53,7 @@ serve(async (req) => {
       return new Response(
         JSON.stringify({ 
           ok: false,
-          stage: 'validation',
+          stage: 'parse',
           code: 422,
           message: 'LinkedIn carousel requires at least 2 pages',
           details: []
@@ -68,7 +69,7 @@ serve(async (req) => {
       return new Response(
         JSON.stringify({ 
           ok: false,
-          stage: 'validation',
+          stage: 'parse',
           code: 400,
           message: 'Some image URLs are empty or null',
           details: invalidUrls.map(({ idx, url }) => ({
@@ -87,7 +88,7 @@ serve(async (req) => {
       return new Response(
         JSON.stringify({ 
           ok: false,
-          stage: 'validation',
+          stage: 'parse',
           code: 400,
           message: 'Duplicate image URLs detected',
           details: []
@@ -100,7 +101,7 @@ serve(async (req) => {
       return new Response(
         JSON.stringify({ 
           ok: false,
-          stage: 'validation',
+          stage: 'parse',
           code: 422,
           message: `Too many pages. Maximum ${MAX_PAGES} pages allowed, got ${images.length}`,
           details: []
@@ -230,7 +231,7 @@ serve(async (req) => {
         return new Response(
           JSON.stringify({ 
             ok: false,
-            stage: 'validation',
+            stage: 'parse',
             code: 415,
             message: 'WEBP not supported by pdf-lib',
             details: webpErrors
@@ -428,10 +429,10 @@ serve(async (req) => {
       );
     }
 
-    // 3. Upload to Getlate if sizeMB >= 20 (preferred path for very large PDFs)
-    // For PDFs < 20MB, return base64 to avoid CPU timeout on conversion
-    if (sizeMB >= 20) {
-      console.log('[PDF-GEN] Uploading PDF to Getlate (>= 20 MB)...');
+    // 3. Upload to Getlate if sizeMB >= 5 (preferred path)
+    // For PDFs < 5MB, return base64
+    if (sizeMB >= 5) {
+      console.log(`[PDF-GEN] Uploading PDF to Getlate (${sizeMB.toFixed(2)} MB >= 5 MB)...`);
       const apiToken = Deno.env.get('GETLATE_API_TOKEN');
       
       if (!apiToken) {
@@ -505,8 +506,8 @@ serve(async (req) => {
       }
     }
 
-    // Fallback: return base64 for PDFs < 20 MB (convert in chunks to avoid CPU timeout)
-    console.log('[PDF-GEN] Converting PDF to base64 (< 20 MB)...');
+    // Fallback: return base64 for PDFs < 5 MB
+    console.log(`[PDF-GEN] Converting PDF to base64 (${sizeMB.toFixed(2)} MB < 5 MB)...`);
     try {
       let pdfBase64 = '';
       const chunkSize = 8192;
@@ -526,6 +527,7 @@ serve(async (req) => {
       };
 
       return new Response(JSON.stringify(response), {
+        status: 200,
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       });
     } catch (error) {
@@ -549,7 +551,8 @@ serve(async (req) => {
         stage: 'unknown',
         code: 500,
         message: error instanceof Error ? error.message : 'Internal server error',
-        details: []
+        details: [],
+        meta: { edge: 'generate-carousel-pdf', ts: new Date().toISOString() }
       }),
       { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     );

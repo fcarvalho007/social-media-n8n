@@ -270,14 +270,31 @@ const Review = () => {
             body: { images: selectedImages, title: post.tema, pageAlts, postId: post.id },
           });
           
-          // Handle structured error responses
+          // Check for Supabase SDK error
           if (pdfError) {
-            throw pdfError;
+            throw new Error(`PDF invoke error: ${pdfError.message}`);
           }
           
-          if (pdfData && !pdfData.ok) {
-            // Structured error from edge function
-            throw pdfData;
+          // Check for structured error from edge function
+          if (!pdfData?.ok) {
+            const errorStage = pdfData?.stage || 'unknown';
+            const errorCode = pdfData?.code || 'unknown';
+            const errorMsg = pdfData?.message || 'PDF generation failed';
+            const errorDetails = pdfData?.details || [];
+            
+            // Special handling for WEBP error (415)
+            if (errorCode === 415 && errorDetails.some((d: any) => d.reason === 'unsupported-webp')) {
+              throw new Error('WEBP images are not supported for LinkedIn carousels. Please use JPG or PNG images.');
+            }
+            
+            // Special handling for global timeout (408)
+            if (errorCode === 408) {
+              throw new Error('PDF generation timed out. Please try with fewer or smaller images.');
+            }
+            
+            // Throw structured error with stage, code, message, details
+            const detailsStr = errorDetails.length > 0 ? `\nDetalhes: ${JSON.stringify(errorDetails.slice(0, 2))}` : '';
+            throw new Error(`Erro na etapa: ${errorStage} (${errorCode})\n${errorMsg}${detailsStr}`);
           }
           
           if (!pdfData || (!pdfData.pdfUrl && !pdfData.pdfBase64)) {

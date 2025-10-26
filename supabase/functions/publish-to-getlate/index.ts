@@ -148,7 +148,7 @@ async function uploadMediaToGetlate(
   mediaType: 'image' | 'video' | 'document',
   isBase64 = false
 ): Promise<string> {
-  console.log(`[MEDIA] Uploading ${mediaType}`);
+  console.log(`[MEDIA] Uploading ${mediaType} (stage: upload)`);
   
   let fileBlob: Blob;
   let filename: string;
@@ -169,14 +169,14 @@ async function uploadMediaToGetlate(
     // Fetch the file from URL
     const fileResponse = await fetch(fileUrlOrData);
     if (!fileResponse.ok) {
-      throw new Error(`Failed to fetch file: ${fileResponse.statusText}`);
+      throw new Error(`Failed to fetch file (${fileResponse.status}): ${fileResponse.statusText}`);
     }
     
     fileBlob = await fileResponse.blob();
     filename = fileUrlOrData.split('/').pop() || `media-${Date.now()}`;
   }
   
-  console.log(`[MEDIA] File size: ${(fileBlob.size / 1024 / 1024).toFixed(2)} MB`);
+  console.log(`[MEDIA] File size: ${(fileBlob.size / 1024 / 1024).toFixed(2)} MB, filename: ${filename}`);
   
   // Upload to Getlate via multipart/form-data
   const formData = new FormData();
@@ -195,7 +195,8 @@ async function uploadMediaToGetlate(
   
   if (!uploadResponse.ok) {
     const errorText = await uploadResponse.text();
-    throw new Error(`Media upload failed: ${errorText}`);
+    console.error(`[MEDIA] Upload failed (${uploadResponse.status}):`, errorText);
+    throw new Error(`Media upload failed (${uploadResponse.status}): ${errorText}`);
   }
   
   const uploadData = await uploadResponse.json();
@@ -214,9 +215,9 @@ async function uploadMediaToGetlate(
 }
 
 serve(async (req) => {
-  // Handle CORS
+  // Handle CORS preflight
   if (req.method === 'OPTIONS') {
-    return new Response(null, { headers: corsHeaders });
+    return new Response(null, { headers: corsHeaders, status: 200 });
   }
 
   try {
@@ -332,17 +333,25 @@ serve(async (req) => {
       const uploadedUrl = await uploadMediaToGetlate(videoUrl, GETLATE_TOKEN, 'video');
       mediaItems.push({ type: 'video', url: uploadedUrl });
     } else if (platform === 'linkedin' && postType === 'carousel' && (pdfUrl || pdfBase64)) {
-      console.log('[PUBLISH] Uploading LinkedIn PDF document');
+      console.log('[PUBLISH] Uploading LinkedIn PDF document (stage: upload)');
+      
+      let uploadedUrl: string;
       
       if (pdfBase64) {
         // Handle base64 PDF data directly
-        const uploadedUrl = await uploadMediaToGetlate(pdfBase64, GETLATE_TOKEN, 'document', true);
-        mediaItems.push({ type: 'document', url: uploadedUrl });
+        uploadedUrl = await uploadMediaToGetlate(pdfBase64, GETLATE_TOKEN, 'document', true);
       } else if (pdfUrl) {
         // Handle PDF URL
-        const uploadedUrl = await uploadMediaToGetlate(pdfUrl, GETLATE_TOKEN, 'document', false);
-        mediaItems.push({ type: 'document', url: uploadedUrl });
+        uploadedUrl = await uploadMediaToGetlate(pdfUrl, GETLATE_TOKEN, 'document', false);
+      } else {
+        throw new Error('No PDF data provided for LinkedIn carousel');
       }
+      
+      // LinkedIn document (simple format without title/pageAlts for now to avoid TS issues)
+      mediaItems.push({ 
+        type: 'document', 
+        url: uploadedUrl
+      });
     } else if (platform === 'linkedin' && videoUrl) {
       const uploadedUrl = await uploadMediaToGetlate(videoUrl, GETLATE_TOKEN, 'video');
       mediaItems.push({ type: 'video', url: uploadedUrl });
@@ -364,18 +373,17 @@ serve(async (req) => {
       postContent = caption || body || '';
     }
 
-    // Get account IDs from env (these should be configured per installation)
+    // Get account IDs/URNs from env (these should be configured per installation)
     const INSTAGRAM_ACCOUNT_ID = Deno.env.get('INSTAGRAM_ACCOUNT_ID') || '68fb951d8bbca9c10cbfef93';
-    const LINKEDIN_ACCOUNT_ID = Deno.env.get('LINKEDIN_ACCOUNT_ID') || 'urn:li:person:ojg2Ri_Otv';
+    const LINKEDIN_MEMBER_URN = Deno.env.get('LINKEDIN_MEMBER_URN') || 'urn:li:person:ojg2Ri_Otv';
 
     // Build request body according to Getlate API spec
     const requestBody: any = {
       content: postContent,
       platforms: [
-        {
-          platform: platform,
-          accountId: platform === 'instagram' ? INSTAGRAM_ACCOUNT_ID : LINKEDIN_ACCOUNT_ID,
-        },
+        platform === 'instagram'
+          ? { platform: 'instagram', accountId: INSTAGRAM_ACCOUNT_ID }
+          : { platform: 'linkedin', memberUrn: LINKEDIN_MEMBER_URN }
       ],
       mediaItems: mediaItems.length > 0 ? mediaItems : undefined,
       publishNow: !scheduleAt,
@@ -395,9 +403,10 @@ serve(async (req) => {
       : mediaItems.length;
     const idempotencyKey = `${postId}:${pagesForKey}:${hashHex}`;
 
-    console.log('[PUBLISH] Calling Getlate API:', `${GETLATE_BASE_URL}/v1/posts`);
+    console.log('[PUBLISH] Calling Getlate API (stage: publish):', `${GETLATE_BASE_URL}/v1/posts`);
     console.log('[PUBLISH] Media items count:', mediaItems.length);
     console.log('[PUBLISH] Idempotency key:', idempotencyKey);
+    console.log('[PUBLISH] Platform config:', platform === 'instagram' ? `accountId=${INSTAGRAM_ACCOUNT_ID}` : `memberUrn=${LINKEDIN_MEMBER_URN}`);
 
     const response = await fetchWithRetry(`${GETLATE_BASE_URL}/v1/posts`, {
       method: 'POST',
@@ -413,14 +422,14 @@ serve(async (req) => {
 
     // Handle idempotency conflict (409)
     if (response.status === 409) {
-      console.log('[PUBLISH] Idempotency conflict detected');
+      console.log('[PUBLISH] Idempotency conflict detected (stage: publish)');
       return new Response(
         JSON.stringify({
           ok: false,
-          stage: 'post',
+          stage: 'publish',
           code: 409,
           message: 'idempotency-conflict',
-          data: responseData,
+          details: [{ reason: 'duplicate-post', idempotencyKey }],
           meta: { postId, idempotencyKey, baseUrl: GETLATE_BASE_URL },
         }),
         {
@@ -431,14 +440,14 @@ serve(async (req) => {
     }
 
     if (!response.ok) {
-      console.error('[PUBLISH] Getlate API error:', responseData);
+      console.error('[PUBLISH] Getlate API error (stage: publish):', responseData);
       return new Response(
         JSON.stringify({
           ok: false,
-          stage: 'post',
+          stage: 'publish',
           code: response.status,
           message: responseData?.error || 'Failed to publish to Getlate',
-          data: responseData,
+          details: [{ reason: 'api-error', status: response.status }],
           meta: { postId, idempotencyKey, baseUrl: GETLATE_BASE_URL },
         }),
         {
@@ -473,6 +482,8 @@ serve(async (req) => {
         stage: 'unknown',
         code: 500,
         message: errorMessage,
+        details: [],
+        meta: { edge: 'publish-to-getlate', ts: new Date().toISOString() }
       }),
       {
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
