@@ -332,25 +332,13 @@ serve(async (req) => {
     } else if (platform === 'instagram' && videoUrl) {
       const uploadedUrl = await uploadMediaToGetlate(videoUrl, GETLATE_TOKEN, 'video');
       mediaItems.push({ type: 'video', url: uploadedUrl });
-    } else if (platform === 'linkedin' && postType === 'carousel' && (pdfUrl || pdfBase64)) {
-      console.log('[PUBLISH] Uploading LinkedIn PDF document (stage: upload)');
+    } else if (platform === 'linkedin' && postType === 'carousel' && pdfUrl) {
+      console.log('[PUBLISH] Using pre-uploaded LinkedIn PDF document');
       
-      let uploadedUrl: string;
-      
-      if (pdfBase64) {
-        // Handle base64 PDF data directly
-        uploadedUrl = await uploadMediaToGetlate(pdfBase64, GETLATE_TOKEN, 'document', true);
-      } else if (pdfUrl) {
-        // Handle PDF URL
-        uploadedUrl = await uploadMediaToGetlate(pdfUrl, GETLATE_TOKEN, 'document', false);
-      } else {
-        throw new Error('No PDF data provided for LinkedIn carousel');
-      }
-      
-      // LinkedIn document (simple format without title/pageAlts for now to avoid TS issues)
+      // PDF is already uploaded to Getlate, just use the URL directly
       mediaItems.push({ 
         type: 'document', 
-        url: uploadedUrl
+        url: pdfUrl
       });
     } else if (platform === 'linkedin' && videoUrl) {
       const uploadedUrl = await uploadMediaToGetlate(videoUrl, GETLATE_TOKEN, 'video');

@@ -58,6 +58,7 @@ const Review = () => {
     retryPlatform?: PublishTarget;
     pdfUrl: string | null;
     pdfBase64?: string;
+    uploadedPdfUrl?: string;
     pdfMetadata: { sizeMB: number; pages: number } | null;
     pdfSource?: string;
     selectedImages: string[];
@@ -318,34 +319,53 @@ const Review = () => {
           
           console.log('[PDF] COMPOSE: OK', { pages, sizeMB, elapsed: composeElapsed });
           
-          // Step 4: Convert to base64 and blob URL
-          console.log('[PDF] Converting to base64', { sizeMB, pages });
-          const ab = await blob.arrayBuffer();
+          // Step 4: Upload PDF to Getlate via proxy
+          console.log('[PDF] Uploading to Getlate via proxy', { sizeMB, pages });
           
-          // Convert ArrayBuffer to base64 in chunks to avoid stack overflow
-          const bytes = new Uint8Array(ab);
-          let binary = '';
-          const chunkSize = 8192;
-          for (let i = 0; i < bytes.length; i += chunkSize) {
-            const chunk = bytes.slice(i, i + chunkSize);
-            binary += String.fromCharCode(...chunk);
+          setPublishProgress(prev => ({
+            ...prev,
+            linkedin: { ...prev.linkedin, progress: 40, message: 'A fazer upload do PDF...' }
+          }));
+          
+          const uploadStart = Date.now();
+          const formData = new FormData();
+          formData.append('file', blob, `carousel-${Date.now()}.pdf`);
+          
+          const uploadResponse = await supabase.functions.invoke('upload-pdf-proxy', {
+            body: formData,
+          });
+          
+          const uploadElapsed = Date.now() - uploadStart;
+          
+          if (uploadResponse.error || !uploadResponse.data?.ok) {
+            const errorMsg = uploadResponse.data?.message || uploadResponse.error?.message || 'Erro ao fazer upload do PDF';
+            console.error('[PDF] Upload failed', { 
+              error: uploadResponse.error, 
+              data: uploadResponse.data,
+              elapsed: uploadElapsed 
+            });
+            throw new Error(errorMsg);
           }
-          const b64 = btoa(binary);
-          console.log('[PDF] Base64 ready', { b64Length: b64.length });
           
+          const uploadedPdfUrl = uploadResponse.data.url;
+          console.log('[PDF] Upload OK', { url: uploadedPdfUrl, elapsed: uploadElapsed });
+          
+          // Create blob URL for local preview
           const blobUrl = URL.createObjectURL(blob);
           
           setPublishProgress(prev => ({
             ...prev,
-            linkedin: { ...prev.linkedin, progress: 50, message: 'PDF gerado com sucesso' }
+            linkedin: { ...prev.linkedin, progress: 60, message: 'PDF pronto para revisão' }
           }));
           
-          // Show Final Review
+          toast.success('PDF gerado e carregado com sucesso');
+          
+          // Show Final Review with uploaded URL
           setPendingPublishData({
             scheduledDate,
             retryPlatform,
-            pdfUrl: blobUrl,
-            pdfBase64: b64,
+            pdfUrl: blobUrl, // For local preview
+            uploadedPdfUrl, // For publishing (already on Getlate)
             pdfMetadata: { pages, sizeMB },
             pdfSource: 'client-proxy',
             selectedImages,
@@ -482,8 +502,7 @@ const Review = () => {
                 payload = {
                   ...basePayload,
                   body: caption,
-                  pdfUrl: pendingPublishData?.pdfUrl || pdfUrl,
-                  pdfBase64: pendingPublishData?.pdfBase64,
+                  pdfUrl: pendingPublishData?.uploadedPdfUrl || pdfUrl,
                   pageAlts,
                   pdfMetadata,
                 };

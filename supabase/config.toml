@@ -20,3 +20,6 @@ verify_jwt = false
 
 [functions.fetch-images-b64]
 verify_jwt = false
+
+[functions.upload-pdf-proxy]
+verify_jwt = false
