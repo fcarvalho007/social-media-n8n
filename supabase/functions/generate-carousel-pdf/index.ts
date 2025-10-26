@@ -181,7 +181,16 @@ serve(async (req) => {
 
     // Generate PDF as base64
     const pdfBytes = await pdfDoc.save();
-    const pdfBase64 = btoa(String.fromCharCode(...pdfBytes));
+    
+    // Convert to base64 in chunks to avoid stack overflow with large PDFs
+    let pdfBase64 = '';
+    const chunkSize = 8192;
+    for (let i = 0; i < pdfBytes.length; i += chunkSize) {
+      const chunk = pdfBytes.slice(i, i + chunkSize);
+      pdfBase64 += String.fromCharCode(...chunk);
+    }
+    pdfBase64 = btoa(pdfBase64);
+    
     const sizeMB = pdfBytes.length / (1024 * 1024);
 
     // Validate size
