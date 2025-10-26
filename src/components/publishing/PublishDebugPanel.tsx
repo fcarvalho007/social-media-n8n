@@ -234,7 +234,7 @@ export function PublishDebugPanel({
 
         {pdfMetadata && (
           <div className="rounded-lg bg-background p-3 space-y-1 text-sm">
-            <div className="font-semibold">PDF Gerado ({pdfSource}):</div>
+            <div className="font-semibold">PDF Gerado ({pdfSource || 'server'}):</div>
             <div>Ficheiro: {pdfMetadata.filename || 'carousel.pdf'}</div>
             <div>Páginas: {pdfMetadata.pages}</div>
             <div>Tamanho: {pdfMetadata.sizeMB.toFixed(2)} MB</div>

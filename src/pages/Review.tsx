@@ -57,6 +57,7 @@ const Review = () => {
     retryPlatform?: PublishTarget;
     pdfUrl: string | null;
     pdfMetadata: { sizeMB: number; pages: number } | null;
+    pdfSource?: string;
     selectedImages: string[];
   } | null>(null);
 
@@ -266,53 +267,86 @@ const Review = () => {
           });
 
           const { data: pdfData, error: pdfError } = await supabase.functions.invoke('generate-carousel-pdf', {
-            body: { images: selectedImages, title: post.tema, pageAlts },
+            body: { images: selectedImages, title: post.tema, pageAlts, postId: post.id },
           });
           if (pdfError) throw new Error(pdfError.message || 'Failed to generate PDF on server');
-          if (!pdfData || !pdfData.pdfBase64) throw new Error('Invalid PDF response from server');
+          if (!pdfData || (!pdfData.pdfUrl && !pdfData.pdfBase64)) {
+            throw new Error('Invalid PDF response from server');
+          }
 
           console.info('[PDF] Server-side PDF generated successfully', { 
-            pages: pdfData.metadata.pages,
-            sizeMB: pdfData.metadata.sizeMB,
+            pages: pdfData.pages,
+            sizeMB: pdfData.sizeMB,
             timestamp: new Date().toISOString() 
           });
 
           // Convert base64 to Blob and create object URL for preview
-          const byteCharacters = atob(pdfData.pdfBase64);
-          const byteNumbers = new Array(byteCharacters.length);
-          for (let i = 0; i < byteCharacters.length; i++) {
-            byteNumbers[i] = byteCharacters.charCodeAt(i);
+          const pdfSource = pdfData.pdfUrl ? 'server-uploaded' : 'server-generated';
+          let pdfUrl: string;
+          
+          if (pdfData.pdfUrl) {
+            // PDF already uploaded to Getlate
+            pdfUrl = pdfData.pdfUrl;
+            console.info('[PDF] Using uploaded PDF URL', { pdfUrl, timestamp: new Date().toISOString() });
+          } else if (pdfData.pdfBase64) {
+            // Convert base64 to blob URL for preview
+            const byteCharacters = atob(pdfData.pdfBase64);
+            const byteNumbers = new Array(byteCharacters.length);
+            for (let i = 0; i < byteCharacters.length; i++) {
+              byteNumbers[i] = byteCharacters.charCodeAt(i);
+            }
+            const byteArray = new Uint8Array(byteNumbers);
+            const pdfBlob = new Blob([byteArray], { type: 'application/pdf' });
+            pdfUrl = URL.createObjectURL(pdfBlob);
+            console.info('[PDF] Created blob URL from base64', { timestamp: new Date().toISOString() });
+          } else {
+            throw new Error('No PDF data received from server');
           }
-          const byteArray = new Uint8Array(byteNumbers);
-          const pdfBlob = new Blob([byteArray], { type: 'application/pdf' });
-          const pdfUrl = URL.createObjectURL(pdfBlob);
 
           setPublishProgress(prev => ({
             ...prev,
             linkedin: { ...prev.linkedin, progress: 30, message: 'PDF gerado com sucesso' }
           }));
 
-          setGeneratedPdf({ filename: 'carousel.pdf', sizeMB: pdfData.metadata.sizeMB, pages: pdfData.metadata.pages });
-
+          // Show Final Review modal
           setPendingPublishData({
             scheduledDate,
             retryPlatform,
             pdfUrl,
-            pdfMetadata: pdfData.metadata,
+            pdfMetadata: { pages: pdfData.pages, sizeMB: pdfData.sizeMB },
+            pdfSource,
             selectedImages,
           });
           setShowFinalReview(true);
-          return;
-        } catch (error) {
-          const errorMsg = error instanceof Error ? error.message : 'Failed to generate PDF';
-          console.error('[PDF] Generation failed', { error, timestamp: new Date().toISOString() });
-          targetsToPublish.forEach(target => {
-            setPublishProgress(prev => ({
-              ...prev,
-              [target]: { ...prev[target], status: 'error', progress: 0, error: `Erro ao gerar PDF: ${errorMsg}`, technicalDetails: { error: errorMsg } }
-            }));
+          return; // Stop here and wait for user confirmation
+        } catch (pdfError: any) {
+          console.error('[PDF] Generation failed', { 
+            error: pdfError, 
+            stage: pdfError?.stage || 'unknown',
+            message: pdfError?.message,
+            details: pdfError?.details,
+            timestamp: new Date().toISOString() 
           });
-          toast.error(`Erro ao gerar PDF: ${errorMsg}`);
+          
+          const errorMsg = pdfError?.message || pdfError?.error || 'Erro ao gerar PDF';
+          const errorStage = pdfError?.stage || 'unknown';
+          
+          if (errorStage === 'fetch' && pdfError?.details && Array.isArray(pdfError.details)) {
+            const failedImages = pdfError.details.map((d: any) => `Slide ${d.index + 1}: ${d.reason}`).join(', ');
+            toast.error(`Erro ao validar imagens: ${failedImages}`);
+          } else {
+            toast.error(errorMsg);
+          }
+          
+          setPublishProgress(prev => ({
+            ...prev,
+            linkedin: { 
+              ...prev.linkedin, 
+              status: 'error', 
+              error: errorMsg,
+              message: `Erro na etapa: ${errorStage}`
+            }
+          }));
           return;
         }
       }
@@ -550,8 +584,8 @@ const Review = () => {
     
     setShowFinalReview(false);
     
-    // Clean up old blob URL
-    if (pendingPublishData.pdfUrl) {
+    // Clean up old blob URL (only if it's a blob URL, not a Getlate URL)
+    if (pendingPublishData.pdfUrl && pendingPublishData.pdfUrl.startsWith('blob:')) {
       URL.revokeObjectURL(pendingPublishData.pdfUrl);
     }
     
@@ -576,7 +610,8 @@ const Review = () => {
     try {
       await executePublish(targetsToPublish, selectedImages, scheduledDate, pdfUrl, pdfMetadata, successTracker);
       
-      if (pdfUrl) {
+      // Clean up blob URL after successful publish (only if it's a blob URL)
+      if (pdfUrl && pdfUrl.startsWith('blob:')) {
         setTimeout(() => URL.revokeObjectURL(pdfUrl), 5000);
       }
     } catch (error) {
@@ -862,7 +897,7 @@ const Review = () => {
                   })}
                   progress={Object.values(publishProgress)}
                   pdfUrl={pendingPublishData?.pdfUrl}
-                  pdfSource="server"
+                  pdfSource={(pendingPublishData?.pdfSource as 'client' | 'server') || 'server'}
                 />
               </div>
             )}
