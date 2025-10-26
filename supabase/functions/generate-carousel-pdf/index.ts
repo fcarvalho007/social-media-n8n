@@ -14,7 +14,6 @@ interface GeneratePDFRequest {
 
 interface GeneratePDFResponse {
   pdfBase64: string;
-  pdfUrl?: string;
   metadata: {
     pages: number;
     sizeMB: number;
@@ -198,14 +197,8 @@ serve(async (req) => {
 
     console.log(`[PDF-GEN] PDF generated successfully: ${images.length} pages, ${sizeMB.toFixed(2)} MB`);
 
-    // Create blob URL for preview (fix TypeScript compatibility)
-    const pdfBlob = new Blob([pdfBytes as Uint8Array], { type: 'application/pdf' });
-    const pdfUrl = URL.createObjectURL(pdfBlob);
-    console.log(`[PDF-GEN] Created PDF URL for preview`);
-
     const response: GeneratePDFResponse = {
       pdfBase64,
-      pdfUrl, // Include URL for preview
       metadata: {
         pages: images.length,
         sizeMB: parseFloat(sizeMB.toFixed(2)),

@@ -269,13 +269,23 @@ const Review = () => {
             body: { images: selectedImages, title: post.tema, pageAlts },
           });
           if (pdfError) throw new Error(pdfError.message || 'Failed to generate PDF on server');
-          if (!pdfData || !pdfData.pdfUrl) throw new Error('Invalid PDF response from server');
+          if (!pdfData || !pdfData.pdfBase64) throw new Error('Invalid PDF response from server');
 
           console.info('[PDF] Server-side PDF generated successfully', { 
             pages: pdfData.metadata.pages,
             sizeMB: pdfData.metadata.sizeMB,
             timestamp: new Date().toISOString() 
           });
+
+          // Convert base64 to Blob and create object URL for preview
+          const byteCharacters = atob(pdfData.pdfBase64);
+          const byteNumbers = new Array(byteCharacters.length);
+          for (let i = 0; i < byteCharacters.length; i++) {
+            byteNumbers[i] = byteCharacters.charCodeAt(i);
+          }
+          const byteArray = new Uint8Array(byteNumbers);
+          const pdfBlob = new Blob([byteArray], { type: 'application/pdf' });
+          const pdfUrl = URL.createObjectURL(pdfBlob);
 
           setPublishProgress(prev => ({
             ...prev,
@@ -287,7 +297,7 @@ const Review = () => {
           setPendingPublishData({
             scheduledDate,
             retryPlatform,
-            pdfUrl: pdfData.pdfUrl as string,
+            pdfUrl,
             pdfMetadata: pdfData.metadata,
             selectedImages,
           });
@@ -540,18 +550,16 @@ const Review = () => {
     
     setShowFinalReview(false);
     
-    // Clean up old blob
+    // Clean up old blob URL
     if (pendingPublishData.pdfUrl) {
       URL.revokeObjectURL(pendingPublishData.pdfUrl);
     }
     
-    // Clear stored PDF and restart
     setGeneratedPdf(null);
     setPendingPublishData(null);
     
     toast.info('A regenerar PDF...');
     
-    // Restart the publish flow
     await handlePublishToTargets(pendingPublishData.scheduledDate, pendingPublishData.retryPlatform);
   };
 
@@ -568,7 +576,6 @@ const Review = () => {
     try {
       await executePublish(targetsToPublish, selectedImages, scheduledDate, pdfUrl, pdfMetadata, successTracker);
       
-      // Clean up
       if (pdfUrl) {
         setTimeout(() => URL.revokeObjectURL(pdfUrl), 5000);
       }
