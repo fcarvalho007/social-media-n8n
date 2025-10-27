@@ -63,9 +63,10 @@ export function PlatformTabs({
 
   return (
     <TooltipProvider delayDuration={200}>
-      <div className="flex flex-wrap items-center gap-2 overflow-x-auto snap-x snap-mandatory pb-2">
-        {/* Instagram Tab */}
-        <div className="flex items-center gap-2 snap-start">
+      <div className="rounded-xl border-2 border-border bg-card/50 p-3 shadow-sm">
+        <div className="flex flex-wrap items-center gap-2 overflow-x-auto snap-x snap-mandatory">
+          {/* Instagram Tab */}
+          <div className="flex items-center gap-2 snap-start">
           <button
             onClick={() => toggleTarget('instagram')}
             className={cn(
@@ -183,6 +184,7 @@ export function PlatformTabs({
           Selecione pelo menos uma plataforma para publicar
         </p>
       )}
+      </div>
     </TooltipProvider>
   );
 }

@@ -16,7 +16,6 @@ import { PlatformRules } from '@/components/publishing/PlatformRules';
 import { PublishModal } from '@/components/publishing/PublishModal';
 import { PublishDebugPanel } from '@/components/publishing/PublishDebugPanel';
 import { PublishConfirmationModal } from '@/components/publishing/PublishConfirmationModal';
-import { PublishButtons } from '@/components/publishing/PublishButtons';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { SidebarProvider } from '@/components/ui/sidebar';
@@ -981,22 +980,6 @@ const Review = () => {
                   </div>
                 )}
 
-                {/* Publish Buttons - Unified */}
-                {publishTargets.instagram && publishTargets.linkedin && !useDifferentCaptions && (
-                  <PublishButtons
-                    showInstagram={true}
-                    showLinkedIn={true}
-                    onPublishInstagram={handlePublishInstagram}
-                    onPublishLinkedIn={handlePublishLinkedIn}
-                    isPublishing={isPublishing}
-                    instagramDisabled={!caption?.trim() || !selectedTemplate}
-                    linkedinDisabled={!caption?.trim() || !selectedTemplate}
-                    instagramQuotaText={quotaText}
-                    instagramCanPublish={canPublishToInstagram}
-                    className="mt-4"
-                  />
-                )}
-
                 {/* Differentiated Captions (when both platforms + differentiated enabled) */}
                 {publishTargets.instagram && publishTargets.linkedin && useDifferentCaptions && (
                   <div className="space-y-4">
@@ -1064,22 +1047,6 @@ const Review = () => {
                   </div>
                 )}
 
-                {/* Publish Buttons - Differentiated */}
-                {publishTargets.instagram && publishTargets.linkedin && useDifferentCaptions && (
-                  <PublishButtons
-                    showInstagram={true}
-                    showLinkedIn={true}
-                    onPublishInstagram={handlePublishInstagram}
-                    onPublishLinkedIn={handlePublishLinkedIn}
-                    isPublishing={isPublishing}
-                    instagramDisabled={!instagramCaption?.trim() || !selectedTemplate}
-                    linkedinDisabled={!linkedinBody?.trim() || !selectedTemplate}
-                    instagramQuotaText={quotaText}
-                    instagramCanPublish={canPublishToInstagram}
-                    className="mt-4"
-                  />
-                )}
-
                 {/* Instagram Only */}
                 {publishTargets.instagram && !publishTargets.linkedin && (
                   <div className="rounded-xl border border-border bg-card p-4 md:p-5 shadow-sm">
@@ -1109,20 +1076,6 @@ const Review = () => {
                       caption={caption}
                     />
                   </div>
-                )}
-
-                {/* Publish Button - Instagram Only */}
-                {publishTargets.instagram && !publishTargets.linkedin && (
-                  <PublishButtons
-                    showInstagram={true}
-                    showLinkedIn={false}
-                    onPublishInstagram={handlePublishInstagram}
-                    isPublishing={isPublishing}
-                    instagramDisabled={!caption?.trim() || !selectedTemplate}
-                    instagramQuotaText={quotaText}
-                    instagramCanPublish={canPublishToInstagram}
-                    className="mt-4"
-                  />
                 )}
 
                 {/* LinkedIn Only */}
@@ -1159,18 +1112,6 @@ const Review = () => {
                     </p>
                     </div>
                   </div>
-                )}
-
-                {/* Publish Button - LinkedIn Only */}
-                {!publishTargets.instagram && publishTargets.linkedin && (
-                  <PublishButtons
-                    showInstagram={false}
-                    showLinkedIn={true}
-                    onPublishLinkedIn={handlePublishLinkedIn}
-                    isPublishing={isPublishing}
-                    linkedinDisabled={!linkedinBody?.trim() || !selectedTemplate}
-                    className="mt-4"
-                  />
                 )}
               </div>
 
@@ -1274,6 +1215,8 @@ const Review = () => {
             validations={validations}
             contentType="carousel"
             mediaCount={selectedTemplate === 'A' ? templateAImages.length : templateBImages.length}
+            instagramQuotaText={quotaText}
+            instagramCanPublish={canPublishToInstagram}
           />
         </div>
       </div>

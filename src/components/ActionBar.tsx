@@ -42,6 +42,8 @@ interface ActionBarProps {
   validations: Record<string, any>;
   contentType?: string;
   mediaCount?: number;
+  instagramQuotaText?: string;
+  instagramCanPublish?: boolean;
 }
 
 export const ActionBar = ({ 
@@ -55,7 +57,9 @@ export const ActionBar = ({
   publishTargets,
   validations,
   contentType = 'carousel',
-  mediaCount = 0
+  mediaCount = 0,
+  instagramQuotaText = '0/5',
+  instagramCanPublish = true
 }: ActionBarProps) => {
   const [showRejectDialog, setShowRejectDialog] = useState(false);
   const [showScheduleDialog, setShowScheduleDialog] = useState(false);
@@ -297,16 +301,33 @@ export const ActionBar = ({
               <Button
                 size="lg"
                 onClick={handleApproveNow}
-                disabled={!canApprove || loading}
+                disabled={!canApprove || loading || (publishTargets.instagram && !instagramCanPublish)}
                 className={cn(
-                  "w-full h-12 text-base touch-target transition-all duration-150",
+                  "w-full h-12 text-base touch-target transition-all duration-150 relative",
                   canApprove && "bg-success hover:bg-success/90 shadow-sm"
                 )}
-                title={!canApprove ? disabledReason : approveConfig.tooltip}
+                title={
+                  !canApprove 
+                    ? disabledReason 
+                    : publishTargets.instagram && !instagramCanPublish
+                    ? 'Quota de Instagram excedida (5/mês)'
+                    : approveConfig.tooltip
+                }
                 aria-label={approveConfig.label}
               >
                 {loading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : approveConfig.icon}
                 <span className="truncate">{approveConfig.label}</span>
+                {publishTargets.instagram && (
+                  <Badge 
+                    variant="secondary" 
+                    className={cn(
+                      "ml-2 font-mono text-xs absolute right-3",
+                      !instagramCanPublish && "bg-red-500/20 text-red-100"
+                    )}
+                  >
+                    {instagramQuotaText}
+                  </Badge>
+                )}
               </Button>
             </div>
             <Button
