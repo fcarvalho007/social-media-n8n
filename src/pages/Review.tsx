@@ -516,13 +516,14 @@ const Review = () => {
         return post.alt_texts?.[imgKey] || `Slide ${index + 1} de ${selectedImages.length}`;
       });
 
-      // Payload simples para n8n
+      // Payload para n8n com IMAGENS
       const payload = {
         post_id: id,
         status: 'approved',
         selected_template: selectedTemplate,
         caption_final: useDifferentCaptions ? instagramCaption : caption,
         hashtags_final: hashtags || [],
+        images: selectedImages, // CRITICAL: enviar URLs das imagens
         pageAlts: pageAlts,
         reviewed_by: user?.email || 'unknown',
         notes: ''
@@ -590,13 +591,14 @@ const Review = () => {
         return post.alt_texts?.[imgKey] || `Slide ${index + 1} de ${selectedImages.length}`;
       });
 
-      // Payload simples para n8n
+      // Payload para n8n com IMAGENS
       const payload = {
         post_id: id,
         status: 'approved',
         selected_template: selectedTemplate,
         body_final: linkedinBody,
         hashtags_final: hashtags || [],
+        images: selectedImages, // CRITICAL: enviar URLs das imagens para gerar PDF
         pageAlts: pageAlts,
         reviewed_by: user?.email || 'unknown',
         notes: ''
