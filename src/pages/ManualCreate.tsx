@@ -274,9 +274,16 @@ export default function ManualCreate() {
       setSubmitting(true);
       setUploadProgress(0);
       
+      // Check user authentication
       const { data: { user }, error: authError } = await supabase.auth.getUser();
+      console.log('🔐 DEBUG - User:', user ? { id: user.id, email: user.email } : null);
+      console.log('🔐 DEBUG - Auth Error:', authError);
+      
       if (authError || !user) {
-        toast.error('Tem de iniciar sessão para submeter');
+        console.error('❌ Authentication failed:', authError);
+        toast.error('Tem de iniciar sessão para submeter. Por favor, faça login novamente.', {
+          duration: 5000,
+        });
         return;
       }
 
@@ -327,10 +334,21 @@ export default function ManualCreate() {
 
       setUploadProgress(60);
 
-      // Get auth token
+      // Get auth session
       const { data: { session } } = await supabase.auth.getSession();
-      if (!session) throw new Error('Sessão expirada. Faça login novamente.');
+      console.log('🔐 DEBUG - Session:', session ? { 
+        access_token: session.access_token ? '✅ Presente' : '❌ Ausente',
+        expires_at: session.expires_at,
+        user_id: session.user?.id 
+      } : null);
+      
+      if (!session || !session.access_token) {
+        console.error('❌ Sessão inválida:', session);
+        throw new Error('Sessão inválida. Faça login novamente.');
+      }
 
+      console.log('✅ Autenticação válida - A submeter para n8n...');
+      
       // Call edge function to submit to N8N
       toast.loading('A submeter publicação...', { id: 'submit' });
       setUploadProgress(80);

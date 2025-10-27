@@ -1,15 +1,27 @@
 import { useState } from 'react';
-import { Menu, ChevronRight } from 'lucide-react';
+import { Menu, ChevronRight, User, LogOut } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { useSidebar } from '@/components/ui/sidebar';
 import { useLocation, useSearchParams, useNavigate } from 'react-router-dom';
 import { useIsMobile } from '@/hooks/use-mobile';
 import { Drawer, DrawerContent, DrawerHeader, DrawerTitle, DrawerDescription } from '@/components/ui/drawer';
+import { useAuth } from '@/contexts/AuthContext';
+import { 
+  DropdownMenu, 
+  DropdownMenuContent, 
+  DropdownMenuItem, 
+  DropdownMenuLabel, 
+  DropdownMenuSeparator, 
+  DropdownMenuTrigger 
+} from '@/components/ui/dropdown-menu';
+import { Avatar, AvatarFallback } from '@/components/ui/avatar';
+
 export function DashboardHeader() {
   const { setOpen } = useSidebar();
   const location = useLocation();
   const [searchParams] = useSearchParams();
   const navigate = useNavigate();
+  const { user, signOut } = useAuth();
   
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const isMobile = useIsMobile();
@@ -48,7 +60,7 @@ export function DashboardHeader() {
     <header className="sticky top-0 z-30 bg-card/95 backdrop-blur-lg border-b-2 border-border shadow-lg">
       <div className="flex h-14 sm:h-16 items-center justify-between px-3 sm:px-4 lg:px-6">
         {/* Left: Mobile Menu + Breadcrumb */}
-        <div className="flex items-center gap-2 sm:gap-4">
+        <div className="flex items-center gap-2 sm:gap-4 flex-1 min-w-0">
           <Button
             variant="ghost"
             size="icon"
@@ -78,6 +90,44 @@ export function DashboardHeader() {
             ))}
           </nav>
         </div>
+
+        {/* Right: User Menu */}
+        {user && (
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button 
+                variant="ghost" 
+                size="icon"
+                className="h-10 w-10 rounded-full hover:bg-primary/10"
+                aria-label="Menu do utilizador"
+              >
+                <Avatar className="h-9 w-9">
+                  <AvatarFallback className="bg-primary text-primary-foreground font-semibold">
+                    <User className="h-5 w-5" />
+                  </AvatarFallback>
+                </Avatar>
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end" className="w-56">
+              <DropdownMenuLabel className="font-normal">
+                <div className="flex flex-col space-y-1">
+                  <p className="text-sm font-medium leading-none">Utilizador Autenticado</p>
+                  <p className="text-xs leading-none text-muted-foreground">
+                    {user.email}
+                  </p>
+                </div>
+              </DropdownMenuLabel>
+              <DropdownMenuSeparator />
+              <DropdownMenuItem 
+                onClick={() => signOut()}
+                className="text-destructive focus:text-destructive cursor-pointer"
+              >
+                <LogOut className="mr-2 h-4 w-4" />
+                <span>Sair</span>
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
+        )}
 
         {/* Mobile Quick Menu Drawer */}
         <Drawer open={mobileMenuOpen} onOpenChange={setMobileMenuOpen} shouldScaleBackground>
