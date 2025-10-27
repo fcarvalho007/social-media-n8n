@@ -23,11 +23,12 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog';
-import { Loader2, Trash2, Save, Check, Clock, CalendarIcon, AlertCircle } from 'lucide-react';
+import { Loader2, Trash2, Save, Check, Clock, CalendarIcon, AlertCircle, Instagram, Linkedin, CheckCircle2, AlertTriangle, XCircle } from 'lucide-react';
 import { format, addDays, isBefore, startOfToday } from 'date-fns';
 import { pt } from 'date-fns/locale';
 import { cn } from '@/lib/utils';
 import { Alert, AlertDescription } from '@/components/ui/alert';
+import { Badge } from '@/components/ui/badge';
 
 interface ActionBarProps {
   canApprove: boolean;
@@ -37,9 +38,25 @@ interface ActionBarProps {
   onSave: () => Promise<void>;
   disabledReason?: string;
   isApproved?: boolean;
+  publishTargets: { instagram: boolean; linkedin: boolean };
+  validations: Record<string, any>;
+  contentType?: string;
+  mediaCount?: number;
 }
 
-export const ActionBar = ({ canApprove, onApprove, onReject, onRevertToPending, onSave, disabledReason, isApproved }: ActionBarProps) => {
+export const ActionBar = ({ 
+  canApprove, 
+  onApprove, 
+  onReject, 
+  onRevertToPending, 
+  onSave, 
+  disabledReason, 
+  isApproved,
+  publishTargets,
+  validations,
+  contentType = 'carousel',
+  mediaCount = 0
+}: ActionBarProps) => {
   const [showRejectDialog, setShowRejectDialog] = useState(false);
   const [showScheduleDialog, setShowScheduleDialog] = useState(false);
   const [rejectNotes, setRejectNotes] = useState('');
@@ -133,10 +150,111 @@ export const ActionBar = ({ canApprove, onApprove, onReject, onRevertToPending, 
     }
   };
 
+  // Determine button label and icon based on selected platforms
+  const getApproveButtonConfig = () => {
+    const igActive = publishTargets.instagram;
+    const liActive = publishTargets.linkedin;
+    
+    if (!igActive && !liActive) {
+      return {
+        label: 'Selecionar plataforma de publicação',
+        icon: <AlertCircle className="mr-2 h-4 w-4" />,
+        tooltip: 'Ativar pelo menos uma plataforma para prosseguir'
+      };
+    }
+    
+    if (igActive && liActive) {
+      return {
+        label: 'Aprovar e publicar no Instagram e LinkedIn',
+        icon: (
+          <div className="flex items-center mr-2 gap-1">
+            <Instagram className="h-4 w-4" />
+            <Linkedin className="h-4 w-4" />
+          </div>
+        ),
+        tooltip: 'Publicar em ambas as plataformas após validação'
+      };
+    }
+    
+    if (igActive) {
+      return {
+        label: 'Aprovar e publicar no Instagram',
+        icon: <Instagram className="mr-2 h-4 w-4" />,
+        tooltip: 'Publicar no Instagram após validação'
+      };
+    }
+    
+    return {
+      label: 'Aprovar e publicar no LinkedIn',
+      icon: <Linkedin className="mr-2 h-4 w-4" />,
+      tooltip: 'Publicar no LinkedIn após validação'
+    };
+  };
+
+  const approveConfig = getApproveButtonConfig();
+
+  // Get validation status for each platform
+  const getValidationIcon = (platform: 'instagram' | 'linkedin') => {
+    if (!publishTargets[platform]) return null;
+    
+    const validation = validations[platform];
+    if (!validation) return null;
+    
+    if (validation.errors?.length > 0) {
+      return <XCircle className="h-3 w-3 text-destructive" />;
+    }
+    if (validation.warnings?.length > 0) {
+      return <AlertTriangle className="h-3 w-3 text-amber-500" />;
+    }
+    return <CheckCircle2 className="h-3 w-3 text-success" />;
+  };
+
+  const getContentTypeLabel = () => {
+    if (contentType === 'carousel') {
+      return `Carrossel • ${mediaCount} imagens`;
+    }
+    return contentType;
+  };
+
   return (
     <>
-      <div className="sticky bottom-0 border-t border-border bg-background/80 backdrop-blur-md p-4 md:p-5 shadow-lg">
-        <div className="container flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between px-4 max-w-6xl mx-auto">
+      <div className="sticky bottom-0 border-t border-border bg-background/95 backdrop-blur-md shadow-lg">
+        {/* Sticky summary bar */}
+        <div className="border-b border-border bg-muted/30 px-4 py-2">
+          <div className="container max-w-6xl mx-auto flex items-center justify-between gap-4 flex-wrap">
+            {/* Selected platforms */}
+            <div className="flex items-center gap-2 flex-wrap">
+              {publishTargets.instagram && (
+                <Badge variant="secondary" className="flex items-center gap-1.5">
+                  <Instagram className="h-3 w-3" />
+                  Instagram
+                  {getValidationIcon('instagram')}
+                </Badge>
+              )}
+              {publishTargets.linkedin && (
+                <Badge variant="secondary" className="flex items-center gap-1.5">
+                  <Linkedin className="h-3 w-3" />
+                  LinkedIn
+                  {getValidationIcon('linkedin')}
+                </Badge>
+              )}
+              {!publishTargets.instagram && !publishTargets.linkedin && (
+                <Badge variant="outline" className="text-muted-foreground">
+                  Nenhuma plataforma selecionada
+                </Badge>
+              )}
+            </div>
+            
+            {/* Content summary */}
+            <div className="text-sm text-muted-foreground">
+              {getContentTypeLabel()}
+            </div>
+          </div>
+        </div>
+        
+        {/* Action buttons */}
+        <div className="p-4 md:p-5">
+          <div className="container flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between px-4 max-w-6xl mx-auto">
           {isApproved ? (
             <Button
               variant="outline"
@@ -184,10 +302,11 @@ export const ActionBar = ({ canApprove, onApprove, onReject, onRevertToPending, 
                   "w-full h-12 text-base touch-target transition-all duration-150",
                   canApprove && "bg-success hover:bg-success/90 shadow-sm"
                 )}
-                title={!canApprove ? disabledReason : undefined}
+                title={!canApprove ? disabledReason : approveConfig.tooltip}
+                aria-label={approveConfig.label}
               >
-                {loading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Check className="mr-2 h-4 w-4" />}
-                <span>Aprovar</span>
+                {loading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : approveConfig.icon}
+                <span className="truncate">{approveConfig.label}</span>
               </Button>
             </div>
             <Button
@@ -201,6 +320,7 @@ export const ActionBar = ({ canApprove, onApprove, onReject, onRevertToPending, 
               <Clock className="h-4 w-4" />
             </Button>
           </div>
+        </div>
         </div>
       </div>
 

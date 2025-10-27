@@ -278,6 +278,10 @@ const ReviewStory = () => {
         onReject={handleReject}
         onRevertToPending={handleRevertToPending}
         onSave={handleSave}
+        publishTargets={{ instagram: true, linkedin: false }}
+        validations={{ instagram: { valid: true, errors: [], warnings: [] } }}
+        contentType="story"
+        mediaCount={1}
       />
 
       <Dialog open={zoomImage} onOpenChange={setZoomImage}>

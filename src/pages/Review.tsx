@@ -15,6 +15,7 @@ import { TargetSelector } from '@/components/publishing/TargetSelector';
 import { PlatformRules } from '@/components/publishing/PlatformRules';
 import { PublishModal } from '@/components/publishing/PublishModal';
 import { PublishDebugPanel } from '@/components/publishing/PublishDebugPanel';
+import { PublishConfirmationModal } from '@/components/publishing/PublishConfirmationModal';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { SidebarProvider } from '@/components/ui/sidebar';
@@ -64,6 +65,7 @@ const Review = () => {
   });
   const [validations, setValidations] = useState<Record<string, any>>({});
   const templatesRef = useRef<HTMLDivElement>(null);
+  const [showPublishConfirmation, setShowPublishConfirmation] = useState(false);
 
   useEffect(() => {
     fetchPost();
@@ -183,6 +185,51 @@ const Review = () => {
       return;
     }
 
+    // If scheduling, save to database and return
+    if (scheduledDate) {
+      try {
+        const isValidUUID = user?.id && /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(user.id);
+        
+        const updateData: any = {
+          status: 'approved',
+          selected_template: selectedTemplate,
+          caption_edited: caption,
+          hashtags_edited: hashtags,
+          notes,
+          reviewed_at: new Date().toISOString(),
+          publish_targets: publishTargets,
+          scheduled_date: scheduledDate.toISOString(),
+        };
+
+        if (isValidUUID) {
+          updateData.reviewed_by = user.id;
+        }
+
+        const { error } = await supabase
+          .from('posts')
+          .update(updateData)
+          .eq('id', id);
+
+        if (error) throw error;
+
+        toast.success('Publicação agendada com sucesso!');
+        navigate('/');
+      } catch (error) {
+        console.error('Erro ao agendar:', error);
+        toast.error('Falha ao agendar publicação');
+        throw error;
+      }
+      return;
+    }
+
+    // Show confirmation modal for immediate publishing
+    setShowPublishConfirmation(true);
+  };
+
+  const handleConfirmPublish = async () => {
+    setShowPublishConfirmation(false);
+    setIsPublishing(true);
+
     try {
       // Save to database first
       const isValidUUID = user?.id && /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(user.id);
@@ -201,10 +248,6 @@ const Review = () => {
         updateData.reviewed_by = user.id;
       }
 
-      if (scheduledDate) {
-        updateData.scheduled_date = scheduledDate.toISOString();
-      }
-
       const { error } = await supabase
         .from('posts')
         .update(updateData)
@@ -212,17 +255,24 @@ const Review = () => {
 
       if (error) throw error;
 
-      // Success - navigate away
-      if (!scheduledDate) {
-        toast.success('Publicação aprovada! Use os botões de publicar abaixo.');
-      } else {
-        toast.success('Publicação agendada com sucesso!');
-        navigate('/');
+      // Publish to selected platforms
+      const publishPromises: Promise<void>[] = [];
+      
+      if (publishTargets.instagram) {
+        publishPromises.push(handlePublishInstagram());
       }
+      
+      if (publishTargets.linkedin) {
+        publishPromises.push(handlePublishLinkedIn());
+      }
+
+      await Promise.allSettled(publishPromises);
+
     } catch (error) {
-      console.error('Erro ao aprovar:', error);
-      toast.error('Falha ao aprovar publicação');
-      throw error;
+      console.error('Erro ao publicar:', error);
+      toast.error('Falha ao publicar');
+    } finally {
+      setIsPublishing(false);
     }
   };
 
@@ -504,7 +554,6 @@ const Review = () => {
       return;
     }
 
-    setIsPublishing(true);
     const loadingToast = toast.loading('Publishing to Instagram...');
     
     try {
@@ -563,8 +612,6 @@ const Review = () => {
       toast.dismiss(loadingToast);
       console.error('Instagram error:', error);
       toast.error(`Failed: ${error.message}`);
-    } finally {
-      setIsPublishing(false);
     }
   };
 
@@ -579,7 +626,6 @@ const Review = () => {
       return;
     }
 
-    setIsPublishing(true);
     const loadingToast = toast.loading('Publishing to LinkedIn...');
     
     try {
@@ -638,8 +684,6 @@ const Review = () => {
       toast.dismiss(loadingToast);
       console.error('LinkedIn error:', error);
       toast.error(`Failed: ${error.message}`);
-    } finally {
-      setIsPublishing(false);
     }
   };
 
@@ -1030,14 +1074,6 @@ const Review = () => {
                       )}
                     </p>
                   </div>
-                  <Button
-                    onClick={handlePublishLinkedIn}
-                    disabled={isPublishing || !linkedinBody?.trim() || !selectedTemplate}
-                    className="w-full mt-3 flex items-center justify-center gap-2"
-                  >
-                    <Linkedin className="w-4 h-4" />
-                    {isPublishing ? 'Publishing...' : 'Publish to LinkedIn'}
-                  </Button>
                 </div>
               )}
             </div>
@@ -1105,6 +1141,10 @@ const Review = () => {
             onReject={handleReject}
             onRevertToPending={handleRevertToPending}
             onSave={handleSave}
+            publishTargets={publishTargets}
+            validations={validations}
+            contentType="carousel"
+            mediaCount={selectedTemplate === 'A' ? templateAImages.length : templateBImages.length}
           />
         </div>
       </div>
@@ -1144,6 +1184,18 @@ const Review = () => {
           isDocument={showSinglePreview.platform === 'linkedin'}
         />
       )}
+
+      {/* Publish Confirmation Modal */}
+      <PublishConfirmationModal
+        open={showPublishConfirmation}
+        onOpenChange={setShowPublishConfirmation}
+        onConfirm={handleConfirmPublish}
+        publishTargets={publishTargets}
+        validations={validations}
+        contentType="carousel"
+        mediaCount={selectedTemplate === 'A' ? templateAImages.length : templateBImages.length}
+        isPublishing={isPublishing}
+      />
     </SidebarProvider>
   );
 };
