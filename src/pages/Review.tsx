@@ -1132,7 +1132,7 @@ const Review = () => {
             </div>
 
             {/* Templates - Side by side with equal height */}
-            <div ref={templatesRef} className="grid grid-cols-1 lg:grid-cols-2 gap-6 md:gap-8 mb-6 md:mb-8 w-[80%] mx-auto">
+            <div ref={templatesRef} className="grid grid-cols-1 lg:grid-cols-2 gap-6 md:gap-8 mb-6 md:mb-8 w-[85%] mx-auto">
               <CarouselPreview
                 key={`template-a-${post.id}`}
                 images={templateAImages}

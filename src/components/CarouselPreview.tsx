@@ -124,10 +124,10 @@ function SortableThumb({ image, index, activeIndex, onRemove, canRemove }: Sorta
             onRemove();
           }}
           onPointerDown={(e) => e.stopPropagation()}
-          className="absolute -top-2 -right-2 sm:-top-2 sm:-right-2 z-20 bg-destructive text-destructive-foreground rounded-full p-2.5 transition-all hover:bg-destructive/90 hover:scale-110 shadow-2xl border-[3px] border-white ring-4 ring-destructive/30 animate-pulse hover:animate-none"
+          className="absolute -top-1.5 -right-1.5 z-20 bg-destructive/90 text-white rounded-full p-1.5 opacity-0 group-hover:opacity-100 transition-all hover:bg-destructive hover:scale-110 shadow-lg backdrop-blur-sm"
           aria-label="Arquivar slide"
         >
-          <X className="h-5 w-5 sm:h-6 sm:w-6 stroke-[3]" />
+          <X className="h-4 w-4 stroke-[2.5]" />
         </button>
       )}
     </div>
@@ -423,9 +423,9 @@ export const CarouselPreview = ({
       {/* Thumbnails with drag-and-drop */}
       <div className="mb-3">
         {onRemoveSlide && images.length > 1 && (
-          <p className="text-xs text-muted-foreground mb-2 flex items-center gap-1.5 bg-destructive/10 p-2 rounded border border-destructive/20">
-            <X className="h-4 w-4 text-destructive animate-pulse" />
-            <span className="font-semibold text-destructive">Clique no X vermelho</span> nas miniaturas para arquivar slides (podem ser restaurados depois)
+          <p className="text-xs text-muted-foreground/70 mb-2 flex items-center gap-1.5">
+            <Archive className="h-3.5 w-3.5" />
+            Passe o rato sobre as miniaturas para arquivar slides
           </p>
         )}
         <DndContext
@@ -452,33 +452,33 @@ export const CarouselPreview = ({
 
       {/* Archived Slides Section */}
       {archivedSlides.length > 0 && onRestoreSlide && (
-        <div className="mt-4 pt-4 border-t border-border">
+        <div className="mt-4 pt-4 border-t border-border/50 animate-fade-in">
           <div className="flex items-center gap-2 mb-3">
-            <div className="flex items-center gap-1.5 text-sm font-semibold text-muted-foreground">
+            <div className="flex items-center gap-1.5 text-sm font-medium text-muted-foreground">
               <Archive className="h-4 w-4" />
-              Slides Arquivados ({archivedSlides.length})
+              Slides Arquivados
             </div>
-            <span className="text-xs text-muted-foreground">
-              Clique para restaurar
-            </span>
+            <Badge variant="secondary" className="text-[10px] px-1.5 py-0">
+              {archivedSlides.length}
+            </Badge>
           </div>
           <div className="grid grid-cols-4 sm:grid-cols-5 md:grid-cols-6 lg:grid-cols-9 gap-2">
             {archivedSlides.map((image, index) => (
               <button
                 key={`archived-${index}`}
                 onClick={() => onRestoreSlide(index)}
-                className="relative aspect-square overflow-hidden rounded border-2 border-dashed border-muted-foreground/30 opacity-50 hover:opacity-100 transition-all group bg-muted/50 hover:border-primary hover:ring-2 hover:ring-primary/20"
+                className="relative aspect-square overflow-hidden rounded-lg border-2 border-dashed border-border/60 opacity-40 hover:opacity-100 transition-all duration-200 group bg-muted/30 hover:border-primary hover:shadow-lg hover:scale-105"
                 aria-label={`Restaurar slide ${index + 1}`}
               >
                 <img
                   src={getPreviewUrl(image)}
                   alt={`Slide arquivado ${index + 1}`}
-                  className="h-full w-full object-cover"
+                  className="h-full w-full object-cover grayscale group-hover:grayscale-0 transition-all duration-200"
                 />
-                <div className="absolute inset-0 bg-black/40 flex items-center justify-center">
-                  <RotateCcw className="h-6 w-6 text-white drop-shadow-lg group-hover:scale-110 transition-transform" />
+                <div className="absolute inset-0 bg-black/50 group-hover:bg-black/30 flex items-center justify-center transition-colors">
+                  <RotateCcw className="h-5 w-5 text-white drop-shadow-lg group-hover:scale-125 group-hover:rotate-180 transition-all duration-300" />
                 </div>
-                <div className="absolute bottom-1 right-1 bg-primary text-primary-foreground text-[10px] font-bold px-1.5 py-0.5 rounded">
+                <div className="absolute bottom-1 right-1 bg-primary text-primary-foreground text-[10px] font-bold px-1.5 py-0.5 rounded opacity-0 group-hover:opacity-100 transition-opacity">
                   Restaurar
                 </div>
               </button>
