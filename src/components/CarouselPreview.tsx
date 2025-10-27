@@ -122,10 +122,10 @@ function SortableThumb({ image, index, activeIndex, onRemove, canRemove }: Sorta
             onRemove();
           }}
           onPointerDown={(e) => e.stopPropagation()}
-          className="absolute top-0.5 right-0.5 sm:top-1 sm:right-1 z-10 bg-destructive text-destructive-foreground rounded-full p-1.5 sm:p-2 transition-all hover:bg-destructive/90 hover:scale-110 shadow-lg border-2 border-white"
+          className="absolute -top-1 -right-1 sm:-top-2 sm:-right-2 z-20 bg-destructive text-destructive-foreground rounded-full p-2 sm:p-2.5 transition-all hover:bg-destructive/90 hover:scale-110 shadow-2xl border-3 border-white ring-2 ring-destructive/50"
           aria-label="Remover slide"
         >
-          <X className="h-4 w-4 sm:h-5 sm:w-5" />
+          <X className="h-5 w-5 sm:h-6 sm:w-6 stroke-[3]" />
         </button>
       )}
     </div>
@@ -408,26 +408,34 @@ export const CarouselPreview = ({ images, template, onSelect, isSelected, onRemo
       </div>
 
       {/* Thumbnails with drag-and-drop */}
-      <DndContext
-        sensors={sensors}
-        collisionDetection={closestCenter}
-        onDragEnd={handleDragEnd}
-      >
-        <SortableContext items={images} strategy={horizontalListSortingStrategy}>
-          <div className="mb-3 sm:mb-4 md:mb-5 grid grid-cols-4 sm:grid-cols-5 md:grid-cols-6 lg:grid-cols-9 gap-2">
-            {images.map((image, index) => (
-              <SortableThumb
-                key={image}
-                image={image}
-                index={index}
-                activeIndex={activeIndex}
-                onRemove={onRemoveSlide ? () => setSlideToRemove(index) : undefined}
-                canRemove={images.length > 1}
-              />
-            ))}
-          </div>
-        </SortableContext>
-      </DndContext>
+      <div className="mb-3">
+        {onRemoveSlide && images.length > 1 && (
+          <p className="text-xs text-muted-foreground mb-2 flex items-center gap-1.5">
+            <X className="h-3.5 w-3.5 text-destructive" />
+            Clique no <span className="font-semibold text-destructive">X vermelho</span> nas miniaturas para remover slides
+          </p>
+        )}
+        <DndContext
+          sensors={sensors}
+          collisionDetection={closestCenter}
+          onDragEnd={handleDragEnd}
+        >
+          <SortableContext items={images} strategy={horizontalListSortingStrategy}>
+            <div className="grid grid-cols-4 sm:grid-cols-5 md:grid-cols-6 lg:grid-cols-9 gap-2">
+              {images.map((image, index) => (
+                <SortableThumb
+                  key={image}
+                  image={image}
+                  index={index}
+                  activeIndex={activeIndex}
+                  onRemove={onRemoveSlide ? () => setSlideToRemove(index) : undefined}
+                  canRemove={images.length > 1}
+                />
+              ))}
+            </div>
+          </SortableContext>
+        </DndContext>
+      </div>
 
       <Button
         onClick={onSelect}
