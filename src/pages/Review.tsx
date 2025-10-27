@@ -577,15 +577,11 @@ const Review = () => {
         notes: ''
       };
 
-      // Buscar webhook secret
-      const secret = import.meta.env.VITE_N8N_WEBHOOK_SECRET;
-
       // FETCH DIRECTO para n8n
       const response = await fetch('https://n8n.srv881120.hstgr.cloud/webhook/aprovacao-instagram', {
         method: 'POST',
         headers: {
-          'Content-Type': 'application/json',
-          'X-Webhook-Secret': secret
+          'Content-Type': 'application/json'
         },
         body: JSON.stringify(payload)
       });
@@ -649,15 +645,11 @@ const Review = () => {
         notes: ''
       };
 
-      // Buscar webhook secret
-      const secret = import.meta.env.VITE_N8N_WEBHOOK_SECRET;
-
       // FETCH DIRECTO para n8n (SEM API, SEM EDGE FUNCTION)
       const response = await fetch('https://n8n.srv881120.hstgr.cloud/webhook/aprovacao-linkedin', {
         method: 'POST',
         headers: {
-          'Content-Type': 'application/json',
-          'X-Webhook-Secret': secret
+          'Content-Type': 'application/json'
         },
         body: JSON.stringify(payload)
       });
