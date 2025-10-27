@@ -58,7 +58,6 @@ const Review = () => {
     retryPlatform?: PublishTarget;
     pdfUrl: string | null;
     pdfBase64?: string;
-    uploadedPdfUrl?: string;
     pdfMetadata: { sizeMB: number; pages: number } | null;
     pdfSource?: string;
     selectedImages: string[];
@@ -309,7 +308,7 @@ const Review = () => {
           // Step 2: Build data URLs
           const dataUrls = items.map(item => `data:${item.mime};base64,${item.base64}`);
           
-          // Step 3: Generate PDF locally
+          // Step 3: Generate PDF locally (for preview/download only)
           console.log('[PDF] COMPOSE: Generating PDF with', dataUrls.length, 'images');
           const composeStart = Date.now();
           const blob = await generateCarouselPDF({ images: dataUrls, title: post.tema });
@@ -319,79 +318,7 @@ const Review = () => {
           
           console.log('[PDF] COMPOSE: OK', { pages, sizeMB, elapsed: composeElapsed });
           
-          // Step 4: Prepare storage upload
-          console.log('[PDF] Preparing storage upload', { sizeMB, pages });
-          
-          setPublishProgress(prev => ({
-            ...prev,
-            linkedin: { ...prev.linkedin, progress: 35, message: 'A preparar upload...' }
-          }));
-          
-          const { data: prepareData, error: prepareError } = await supabase.functions.invoke('prepare-pdf-upload', {
-            body: { postId: id, userId: user?.id || 'anonymous' },
-          });
-          
-          if (prepareError || !prepareData?.ok) {
-            const errorMsg = prepareData?.message || prepareError?.message || 'Erro ao preparar upload';
-            console.error('[PDF] Prepare failed', { error: prepareError, data: prepareData });
-            throw new Error(errorMsg);
-          }
-          
-          const { uploadUrl, path } = prepareData;
-          console.log('[PDF] Prepare OK', { path });
-          
-          // Step 5: Upload PDF to storage
-          setPublishProgress(prev => ({
-            ...prev,
-            linkedin: { ...prev.linkedin, progress: 40, message: 'A carregar PDF para o servidor...' }
-          }));
-          
-          const storageUploadStart = Date.now();
-          const storageResponse = await fetch(uploadUrl, {
-            method: 'PUT',
-            body: blob,
-            headers: {
-              'Content-Type': 'application/pdf',
-            },
-          });
-          
-          const storageElapsed = Date.now() - storageUploadStart;
-          
-          if (!storageResponse.ok) {
-            const errorText = await storageResponse.text();
-            console.error('[PDF] Storage upload failed', { status: storageResponse.status, error: errorText, elapsed: storageElapsed });
-            throw new Error(`Storage upload failed: ${errorText}`);
-          }
-          
-          console.log('[PDF] Storage upload OK', { path, elapsed: storageElapsed });
-          
-          // Step 6: Upload to Getlate via proxy (using storage path)
-          setPublishProgress(prev => ({
-            ...prev,
-            linkedin: { ...prev.linkedin, progress: 50, message: 'A enviar PDF para o Getlate...' }
-          }));
-          
-          const proxyStart = Date.now();
-          const proxyResponse = await supabase.functions.invoke('upload-pdf-proxy', {
-            body: { storagePath: path },
-          });
-          
-          const proxyElapsed = Date.now() - proxyStart;
-          
-          if (proxyResponse.error || !proxyResponse.data?.ok) {
-            const errorMsg = proxyResponse.data?.message || proxyResponse.error?.message || 'Erro ao enviar PDF para o Getlate';
-            console.error('[PDF] Proxy upload failed', { 
-              error: proxyResponse.error, 
-              data: proxyResponse.data,
-              elapsed: proxyElapsed 
-            });
-            throw new Error(errorMsg);
-          }
-          
-          const uploadedPdfUrl = proxyResponse.data.url;
-          console.log('[PDF] Getlate upload OK', { url: uploadedPdfUrl, elapsed: proxyElapsed });
-          
-          // Create blob URL for local preview
+          // Create blob URL for local preview/download
           const blobUrl = URL.createObjectURL(blob);
           
           setPublishProgress(prev => ({
@@ -399,16 +326,15 @@ const Review = () => {
             linkedin: { ...prev.linkedin, progress: 60, message: 'PDF pronto para revisão' }
           }));
           
-          toast.success('PDF gerado e carregado com sucesso');
+          toast.success('PDF gerado com sucesso');
           
-          // Show Final Review with uploaded URL
+          // Show Final Review with local PDF (n8n will generate its own PDF from image URLs)
           setPendingPublishData({
             scheduledDate,
             retryPlatform,
-            pdfUrl: blobUrl, // For local preview
-            uploadedPdfUrl, // For publishing (already on Getlate)
+            pdfUrl: blobUrl, // For local preview/download only
             pdfMetadata: { pages, sizeMB },
-            pdfSource: 'client-proxy',
+            pdfSource: 'client',
             selectedImages,
           });
           setShowFinalReview(true);
@@ -540,10 +466,11 @@ const Review = () => {
                   return post.alt_texts?.[imgKey] || `Slide ${idx + 1}/${selectedImages.length}`;
                 });
 
+                // LinkedIn: send images URLs, n8n will generate PDF
                 payload = {
                   ...basePayload,
                   body: caption,
-                  pdfUrl: pendingPublishData?.uploadedPdfUrl || pdfUrl,
+                  images: selectedImages, // n8n generates PDF from these URLs
                   pageAlts,
                   pdfMetadata,
                 };
