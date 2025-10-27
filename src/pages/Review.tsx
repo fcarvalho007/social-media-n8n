@@ -6,6 +6,9 @@ import { AppSidebar } from '@/components/AppSidebar';
 import { DashboardHeader } from '@/components/DashboardHeader';
 import { CarouselPreview } from '@/components/CarouselPreview';
 import { CaptionEditor } from '@/components/CaptionEditor';
+import { RichTextEditor } from '@/components/RichTextEditor';
+import { HashtagManager } from '@/components/HashtagManager';
+import { SocialPreviewDialog } from '@/components/SocialPreviewDialog';
 import { ActionBar } from '@/components/ActionBar';
 import { TargetSelector } from '@/components/publishing/TargetSelector';
 import { PlatformRules } from '@/components/publishing/PlatformRules';
@@ -15,7 +18,7 @@ import { FinalReviewModal } from '@/components/publishing/FinalReviewModal';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { SidebarProvider } from '@/components/ui/sidebar';
-import { Loader2, ArrowLeft, CheckCircle2, Eye, LayoutGrid, Linkedin, Instagram, Link2, Unlink } from 'lucide-react';
+import { Loader2, ArrowLeft, CheckCircle2, Eye, LayoutGrid, Linkedin, Instagram, Link2, Unlink, Code2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { toast } from 'sonner';
@@ -44,6 +47,8 @@ const Review = () => {
   const [isPublishing, setIsPublishing] = useState(false);
   const [useDifferentCaptions, setUseDifferentCaptions] = useState(false);
   const [instagramCaption, setInstagramCaption] = useState('');
+  const [showPreview, setShowPreview] = useState<{ platform: 'instagram' | 'linkedin'; open: boolean } | null>(null);
+  const [showDebugPanel, setShowDebugPanel] = useState(false);
   const templatesRef = useRef<HTMLDivElement>(null);
   
   // Publishing state
@@ -1231,10 +1236,8 @@ const Review = () => {
                     const newValue = !useDifferentCaptions;
                     setUseDifferentCaptions(newValue);
                     if (!newValue) {
-                      // When turning off, sync LinkedIn with main caption
                       setLinkedinBody(caption);
                     } else {
-                      // When turning on, separate the captions
                       setInstagramCaption(caption);
                     }
                   }}
@@ -1247,19 +1250,34 @@ const Review = () => {
               {/* Unified Caption Editor (when not differentiated) */}
               {!useDifferentCaptions && (
                 <div className="rounded-xl border border-border bg-card p-4 md:p-5 shadow-sm">
-                  <div className="flex items-center gap-2 mb-3">
-                    <Instagram className="h-4 w-4 text-pink-500" />
-                    <Linkedin className="h-4 w-4 text-blue-600" />
-                    <Label className="text-base font-semibold">Legenda (Instagram & LinkedIn)</Label>
+                  <div className="flex items-center justify-between mb-3">
+                    <div className="flex items-center gap-2">
+                      <Instagram className="h-4 w-4 text-pink-500" />
+                      <Linkedin className="h-4 w-4 text-blue-600" />
+                      <Label className="text-base font-semibold">Legenda (Instagram & LinkedIn)</Label>
+                    </div>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => setShowPreview({ platform: 'instagram', open: true })}
+                      className="flex items-center gap-2"
+                    >
+                      <Eye className="h-4 w-4" />
+                      Pré-visualizar
+                    </Button>
                   </div>
-                  <CaptionEditor
-                    initialCaption={post.caption}
-                    initialHashtags={post.hashtags || []}
-                    onChange={(newCaption, newHashtags) => {
+                  <RichTextEditor
+                    value={caption}
+                    onChange={(newCaption) => {
                       setCaption(newCaption);
-                      setHashtags(newHashtags);
                       setLinkedinBody(newCaption);
                     }}
+                    placeholder="Escreve a legenda para ambas as plataformas..."
+                  />
+                  <HashtagManager
+                    hashtags={hashtags}
+                    onChange={setHashtags}
+                    caption={caption}
                   />
                 </div>
               )}
@@ -1269,35 +1287,59 @@ const Review = () => {
                 <div className="space-y-4">
                   {/* Instagram Caption */}
                   <div className="rounded-xl border border-border bg-card p-4 md:p-5 shadow-sm">
-                    <div className="flex items-center gap-2 mb-3">
-                      <Instagram className="h-4 w-4 text-pink-500" />
-                      <Label className="text-base font-semibold">Legenda Instagram</Label>
+                    <div className="flex items-center justify-between mb-3">
+                      <div className="flex items-center gap-2">
+                        <Instagram className="h-4 w-4 text-pink-500" />
+                        <Label className="text-base font-semibold">Legenda Instagram</Label>
+                      </div>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => setShowPreview({ platform: 'instagram', open: true })}
+                        className="flex items-center gap-2"
+                      >
+                        <Eye className="h-4 w-4" />
+                        Pré-visualizar
+                      </Button>
                     </div>
-                    <CaptionEditor
-                      initialCaption={instagramCaption}
-                      initialHashtags={post.hashtags || []}
-                      onChange={(newCaption, newHashtags) => {
+                    <RichTextEditor
+                      value={instagramCaption}
+                      onChange={(newCaption) => {
                         setInstagramCaption(newCaption);
                         setCaption(newCaption);
-                        setHashtags(newHashtags);
                       }}
+                      placeholder="Escreve a legenda para Instagram..."
+                    />
+                    <HashtagManager
+                      hashtags={hashtags}
+                      onChange={setHashtags}
+                      caption={instagramCaption}
                     />
                   </div>
 
                   {/* LinkedIn Caption */}
                   <div className="rounded-xl border border-border bg-card p-4 md:p-5 shadow-sm">
-                    <div className="flex items-center gap-2 mb-3">
-                      <Linkedin className="h-4 w-4 text-blue-600" />
-                      <Label className="text-base font-semibold">Legenda LinkedIn</Label>
+                    <div className="flex items-center justify-between mb-3">
+                      <div className="flex items-center gap-2">
+                        <Linkedin className="h-4 w-4 text-blue-600" />
+                        <Label className="text-base font-semibold">Legenda LinkedIn</Label>
+                      </div>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => setShowPreview({ platform: 'linkedin', open: true })}
+                        className="flex items-center gap-2"
+                      >
+                        <Eye className="h-4 w-4" />
+                        Pré-visualizar
+                      </Button>
                     </div>
-                    <Textarea
-                      placeholder="Escreve o texto do post para LinkedIn..."
+                    <RichTextEditor
                       value={linkedinBody}
-                      onChange={(e) => setLinkedinBody(e.target.value)}
-                      rows={6}
-                      className="w-full mb-2"
+                      onChange={setLinkedinBody}
+                      placeholder="Escreve a legenda para LinkedIn..."
                     />
-                    <p className="text-xs text-muted-foreground">
+                    <p className="text-xs text-muted-foreground mt-3">
                       Hashtags: {hashtags?.map(h => h.startsWith('#') ? h : `#${h}`).join(' ') || 'Sem hashtags'}
                     </p>
                   </div>
@@ -1305,43 +1347,52 @@ const Review = () => {
               )}
             </div>
 
-            {/* Internal Notes */}
-            <div className="rounded-xl border border-border bg-card p-4 md:p-5 mb-6 md:mb-8 shadow-sm">
-              <Label htmlFor="notes" className="text-base font-semibold mb-2 block tracking-tight">
-                Notas Internas
-              </Label>
-              <Textarea
-                id="notes"
-                value={notes}
-                onChange={(e) => setNotes(e.target.value)}
-                placeholder="Adicione notas internas sobre esta publicação..."
-                className="min-h-[100px] text-sm"
-              />
-            </div>
-
-            {/* Debug Panel - Only in DEV mode */}
+            {/* Debug Panel - Minimized */}
             {import.meta.env.DEV && (
               <div className="mb-6 md:mb-8">
-                <PublishDebugPanel
-                  postId={id!}
-                  targets={publishTargets}
-                  postType="carousel"
-                  caption={caption}
-                  hashtags={hashtags}
-                  mediaCount={selectedTemplate === 'A' ? templateAImages.length : templateBImages.length}
-                  pdfMetadata={generatedPdf ? {
-                    sizeMB: generatedPdf.sizeMB,
-                    pages: generatedPdf.pages,
-                    filename: generatedPdf.filename,
-                  } : undefined}
-                  pageAlts={(selectedTemplate === 'A' ? templateAImages : templateBImages).map((imgUrl, idx) => {
-                    const imgKey = imgUrl.split('/').pop() || `image_${idx}`;
-                    return post.alt_texts?.[imgKey] || `Slide ${idx + 1}`;
-                  })}
-                  progress={Object.values(publishProgress)}
-                  pdfUrl={pendingPublishData?.pdfUrl}
-                  pdfSource={(pendingPublishData?.pdfSource as 'client' | 'server') || 'server'}
-                />
+                {showDebugPanel ? (
+                  <div className="space-y-2">
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => setShowDebugPanel(false)}
+                      className="flex items-center gap-2 text-muted-foreground"
+                    >
+                      <Code2 className="h-4 w-4" />
+                      Ocultar Debug Panel
+                    </Button>
+                    <PublishDebugPanel
+                      postId={id!}
+                      targets={publishTargets}
+                      postType="carousel"
+                      caption={caption}
+                      hashtags={hashtags}
+                      mediaCount={selectedTemplate === 'A' ? templateAImages.length : templateBImages.length}
+                      pdfMetadata={generatedPdf ? {
+                        sizeMB: generatedPdf.sizeMB,
+                        pages: generatedPdf.pages,
+                        filename: generatedPdf.filename,
+                      } : undefined}
+                      pageAlts={(selectedTemplate === 'A' ? templateAImages : templateBImages).map((imgUrl, idx) => {
+                        const imgKey = imgUrl.split('/').pop() || `image_${idx}`;
+                        return post.alt_texts?.[imgKey] || `Slide ${idx + 1}`;
+                      })}
+                      progress={Object.values(publishProgress)}
+                      pdfUrl={pendingPublishData?.pdfUrl}
+                      pdfSource={(pendingPublishData?.pdfSource as 'client' | 'server') || 'server'}
+                    />
+                  </div>
+                ) : (
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => setShowDebugPanel(true)}
+                    className="flex items-center gap-2"
+                  >
+                    <Code2 className="h-4 w-4" />
+                    <span className="text-xs">Debug</span>
+                  </Button>
+                )}
               </div>
             )}
           </main>
@@ -1406,6 +1457,18 @@ const Review = () => {
             const imgKey = imgUrl.split('/').pop() || `image_${idx}`;
             return post.alt_texts?.[imgKey] || `Slide ${idx + 1}/${pendingPublishData.selectedImages.length}`;
           })}
+        />
+      )}
+
+      {/* Social Preview Dialog */}
+      {showPreview && (
+        <SocialPreviewDialog
+          open={showPreview.open}
+          onOpenChange={(open) => setShowPreview(open ? showPreview : null)}
+          platform={showPreview.platform}
+          caption={showPreview.platform === 'instagram' ? (useDifferentCaptions ? instagramCaption : caption) : linkedinBody}
+          hashtags={hashtags}
+          previewImage={selectedTemplate ? (selectedTemplate === 'A' ? templateAImages[0] : templateBImages[0]) : undefined}
         />
       )}
     </SidebarProvider>
