@@ -1022,7 +1022,7 @@ const Review = () => {
         return post.alt_texts?.[imgKey] || `Slide ${index + 1} de ${selectedImages.length}`;
       });
 
-      // Payload para o n8n
+      // Payload para o n8n (simples e direto)
       const payload = {
         post_id: id,
         status: 'approved',
@@ -1034,48 +1034,56 @@ const Review = () => {
         notes: notes || ''
       };
 
-      // Buscar webhook secret das variáveis de ambiente
-      const webhookSecret = import.meta.env.VITE_N8N_WEBHOOK_SECRET;
-
       // Enviar para n8n webhook
       const response = await fetch('https://n8n.srv881120.hstgr.cloud/webhook/aprovacao-linkedin', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          'X-Webhook-Secret': webhookSecret
+          'X-Webhook-Secret': import.meta.env.VITE_N8N_WEBHOOK_SECRET
         },
         body: JSON.stringify(payload)
       });
 
       if (!response.ok) {
-        const errorData = await response.json().catch(() => ({}));
-        throw new Error(errorData.message || `HTTP ${response.status}: ${response.statusText}`);
+        throw new Error(`Erro ao publicar: ${response.status}`);
       }
 
-      const result = await response.json();
+      toast.success('Post enviado para publicação no LinkedIn!');
       
-      toast.success('Post publicado no LinkedIn com sucesso!');
-      console.log('LinkedIn publish result:', result);
-
-      // Atualizar estado local do post
-      const { error: updateError } = await supabase
+      // Atualizar estado local
+      await supabase
         .from('posts')
         .update({
           linkedin_body: linkedinBody,
-          linkedin_published: true,
           status: 'approved'
         })
         .eq('id', id);
 
-      if (updateError) {
-        console.error('Erro ao atualizar post:', updateError);
-      }
-
     } catch (error: any) {
-      console.error('Error publishing to LinkedIn:', error);
       toast.error(`Falha ao publicar no LinkedIn: ${error.message}`);
     } finally {
       setIsPublishing(false);
+    }
+  };
+
+  const handleRevertToPending = async () => {
+    try {
+      const { error } = await supabase
+        .from('posts')
+        .update({
+          status: 'pending',
+          reviewed_at: null,
+          reviewed_by: null,
+        })
+        .eq('id', id);
+
+      if (error) throw error;
+
+      toast.success('Post voltou para pendentes');
+      navigate('/');
+    } catch (error) {
+      console.error('Erro ao voltar para pendentes:', error);
+      toast.error('Falha ao voltar para pendentes');
     }
   };
 
@@ -1353,8 +1361,10 @@ const Review = () => {
                 ? 'Corrigir os erros indicados.'
                 : undefined
             }
+            isApproved={isApproved}
             onApprove={handleApprove}
             onReject={handleReject}
+            onRevertToPending={handleRevertToPending}
             onSave={handleSave}
           />
         </div>

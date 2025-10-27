@@ -174,6 +174,29 @@ const ReviewStory = () => {
     }
   };
 
+  const handleRevertToPending = async () => {
+    try {
+      const { error } = await supabase
+        .from('stories')
+        .update({
+          status: 'pending',
+          reviewed_at: null,
+          reviewed_by: null,
+        })
+        .eq('id', id);
+
+      if (error) throw error;
+
+      toast.success('Story voltou para pendentes');
+      navigate('/');
+    } catch (error) {
+      console.error('Erro ao voltar para pendentes:', error);
+      toast.error('Falha ao voltar para pendentes');
+    }
+  };
+
+  const isApproved = story?.status === 'approved' || story?.status === 'published';
+
   if (loading) {
     return (
       <div className="flex min-h-screen items-center justify-center bg-background">
@@ -250,8 +273,10 @@ const ReviewStory = () => {
 
       <ActionBar
         canApprove={true}
+        isApproved={isApproved}
         onApprove={handleApprove}
         onReject={handleReject}
+        onRevertToPending={handleRevertToPending}
         onSave={handleSave}
       />
 

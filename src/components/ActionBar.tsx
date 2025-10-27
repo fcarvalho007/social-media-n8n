@@ -33,11 +33,13 @@ interface ActionBarProps {
   canApprove: boolean;
   onApprove: (scheduledDate?: Date) => Promise<void>;
   onReject: (notes?: string) => Promise<void>;
+  onRevertToPending?: () => Promise<void>;
   onSave: () => Promise<void>;
   disabledReason?: string;
+  isApproved?: boolean;
 }
 
-export const ActionBar = ({ canApprove, onApprove, onReject, onSave, disabledReason }: ActionBarProps) => {
+export const ActionBar = ({ canApprove, onApprove, onReject, onRevertToPending, onSave, disabledReason, isApproved }: ActionBarProps) => {
   const [showRejectDialog, setShowRejectDialog] = useState(false);
   const [showScheduleDialog, setShowScheduleDialog] = useState(false);
   const [rejectNotes, setRejectNotes] = useState('');
@@ -112,6 +114,16 @@ export const ActionBar = ({ canApprove, onApprove, onReject, onSave, disabledRea
     }
   };
 
+  const handleRevertToPending = async () => {
+    if (!onRevertToPending) return;
+    setLoading(true);
+    try {
+      await onRevertToPending();
+    } finally {
+      setLoading(false);
+    }
+  };
+
   const handleSave = async () => {
     setLoading(true);
     try {
@@ -125,16 +137,29 @@ export const ActionBar = ({ canApprove, onApprove, onReject, onSave, disabledRea
     <>
       <div className="sticky bottom-0 border-t border-border bg-background/80 backdrop-blur-md p-4 md:p-5 shadow-lg">
         <div className="container flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between px-4 max-w-6xl mx-auto">
-          <Button
-            variant="destructive"
-            size="lg"
-            onClick={() => setShowRejectDialog(true)}
-            disabled={loading}
-            className="sm:w-auto w-full h-12 text-base touch-target transition-all duration-150"
-          >
-            {loading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Trash2 className="mr-2 h-4 w-4" />}
-            <span>Rejeitar</span>
-          </Button>
+          {isApproved ? (
+            <Button
+              variant="outline"
+              size="lg"
+              onClick={handleRevertToPending}
+              disabled={loading}
+              className="sm:w-auto w-full h-12 text-base touch-target transition-all duration-150"
+            >
+              {loading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <AlertCircle className="mr-2 h-4 w-4" />}
+              <span>Voltar a Pendentes</span>
+            </Button>
+          ) : (
+            <Button
+              variant="destructive"
+              size="lg"
+              onClick={() => setShowRejectDialog(true)}
+              disabled={loading}
+              className="sm:w-auto w-full h-12 text-base touch-target transition-all duration-150"
+            >
+              {loading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Trash2 className="mr-2 h-4 w-4" />}
+              <span>Rejeitar</span>
+            </Button>
+          )}
 
           <div className="flex gap-3 flex-1 sm:flex-initial sm:justify-center">
             <Button
