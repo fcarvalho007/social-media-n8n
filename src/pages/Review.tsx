@@ -15,7 +15,7 @@ import { FinalReviewModal } from '@/components/publishing/FinalReviewModal';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { SidebarProvider } from '@/components/ui/sidebar';
-import { Loader2, ArrowLeft, CheckCircle2, Eye, LayoutGrid, Linkedin } from 'lucide-react';
+import { Loader2, ArrowLeft, CheckCircle2, Eye, LayoutGrid, Linkedin, Instagram, Link2, Unlink } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { toast } from 'sonner';
@@ -42,6 +42,8 @@ const Review = () => {
   const [archivedSlidesB, setArchivedSlidesB] = useState<string[]>([]);
   const [linkedinBody, setLinkedinBody] = useState('');
   const [isPublishing, setIsPublishing] = useState(false);
+  const [useDifferentCaptions, setUseDifferentCaptions] = useState(false);
+  const [instagramCaption, setInstagramCaption] = useState('');
   const templatesRef = useRef<HTMLDivElement>(null);
   
   // Publishing state
@@ -118,7 +120,12 @@ const Review = () => {
       setNotes(data.notes || '');
       setTemplateAImages(data.template_a_images || []);
       setTemplateBImages(data.template_b_images || []);
+      
+      // Check if we have different captions for each platform
+      const hasLinkedinBody = data.linkedin_body && data.linkedin_body !== data.caption;
+      setUseDifferentCaptions(hasLinkedinBody);
       setLinkedinBody(data.linkedin_body || data.caption || '');
+      setInstagramCaption(data.caption || '');
       
       // Load archived slides from metadata
       const metadataA = data.template_a_metadata as any;
@@ -1167,9 +1174,9 @@ const Review = () => {
                 template="A"
                 onSelect={() => setSelectedTemplate('A')}
                 isSelected={selectedTemplate === 'A'}
-                onRemoveSlide={!isApproved ? (index) => handleRemoveSlide('A', index) : undefined}
-                onRestoreSlide={!isApproved ? (index) => handleRestoreSlide('A', index) : undefined}
-                onReorderSlides={!isApproved ? (newOrder) => handleReorderSlides('A', newOrder) : undefined}
+                onRemoveSlide={(index) => handleRemoveSlide('A', index)}
+                onRestoreSlide={(index) => handleRestoreSlide('A', index)}
+                onReorderSlides={(newOrder) => handleReorderSlides('A', newOrder)}
                 isApproved={isApproved}
                 approvedTemplate={post.selected_template as 'A' | 'B' | null}
               />
@@ -1180,62 +1187,114 @@ const Review = () => {
                 template="B"
                 onSelect={() => setSelectedTemplate('B')}
                 isSelected={selectedTemplate === 'B'}
-                onRemoveSlide={!isApproved ? (index) => handleRemoveSlide('B', index) : undefined}
-                onRestoreSlide={!isApproved ? (index) => handleRestoreSlide('B', index) : undefined}
-                onReorderSlides={!isApproved ? (newOrder) => handleReorderSlides('B', newOrder) : undefined}
+                onRemoveSlide={(index) => handleRemoveSlide('B', index)}
+                onRestoreSlide={(index) => handleRestoreSlide('B', index)}
+                onReorderSlides={(newOrder) => handleReorderSlides('B', newOrder)}
                 isApproved={isApproved}
                 approvedTemplate={post.selected_template as 'A' | 'B' | null}
               />
             </div>
 
-            {/* Republish Warning for Approved Posts */}
-            {isApproved && (
-              <div className="mb-6 md:mb-8 rounded-xl border-2 border-primary/20 bg-primary/5 p-4">
-                <p className="text-sm text-muted-foreground leading-relaxed">
-                  Esta publicação já foi aprovada. Pode alterar o template e a legenda e republicar. 
-                  <span className="font-semibold text-foreground"> O conteúdo será enviado novamente para o destino pré-definido.</span>
-                </p>
-              </div>
-            )}
-
-            {/* Caption and Hashtags Editor */}
-            <div className="mb-6 md:mb-8">
-              <CaptionEditor
-                initialCaption={post.caption}
-                initialHashtags={post.hashtags || []}
-                onChange={(newCaption, newHashtags) => {
-                  setCaption(newCaption);
-                  setHashtags(newHashtags);
-                }}
-              />
-            </div>
-
-            {/* LinkedIn Post Text */}
-            <div className="rounded-xl border border-border bg-card p-4 md:p-5 mb-6 md:mb-8 shadow-sm">
-              <Label htmlFor="linkedin-body" className="text-base font-semibold mb-2 block tracking-tight">
-                Texto do Post LinkedIn
-              </Label>
-              <Textarea
-                id="linkedin-body"
-                placeholder="Escreve o texto do post para LinkedIn..."
-                value={linkedinBody}
-                onChange={(e) => setLinkedinBody(e.target.value)}
-                rows={6}
-                className="w-full mb-3"
-              />
-              <p className="text-sm text-muted-foreground">
-                Hashtags que serão adicionadas automaticamente: {hashtags?.map(h => h.startsWith('#') ? h : `#${h}`).join(' ') || 'Sem hashtags'}
-              </p>
-              <div className="mt-4 flex gap-3">
+            {/* Caption Editor with Platform Differentiation */}
+            <div className="mb-6 md:mb-8 space-y-4">
+              {/* Toggle for differentiated captions */}
+              <div className="flex items-center justify-between rounded-xl border border-border bg-card p-4 shadow-sm">
+                <div className="flex items-center gap-3">
+                  {useDifferentCaptions ? (
+                    <Unlink className="h-5 w-5 text-muted-foreground" />
+                  ) : (
+                    <Link2 className="h-5 w-5 text-primary" />
+                  )}
+                  <div>
+                    <p className="font-semibold text-sm">
+                      {useDifferentCaptions ? 'Legendas Diferenciadas' : 'Mesma Legenda para Ambas'}
+                    </p>
+                    <p className="text-xs text-muted-foreground">
+                      {useDifferentCaptions 
+                        ? 'Cada plataforma terá sua própria legenda' 
+                        : 'Instagram e LinkedIn usarão a mesma legenda'}
+                    </p>
+                  </div>
+                </div>
                 <Button
-                  onClick={handlePublishLinkedIn}
-                  disabled={isPublishing || !linkedinBody.trim() || !selectedTemplate}
-                  className="flex items-center gap-2"
+                  variant={useDifferentCaptions ? "default" : "outline"}
+                  size="sm"
+                  onClick={() => {
+                    const newValue = !useDifferentCaptions;
+                    setUseDifferentCaptions(newValue);
+                    if (!newValue) {
+                      // When turning off, sync LinkedIn with main caption
+                      setLinkedinBody(caption);
+                    } else {
+                      // When turning on, separate the captions
+                      setInstagramCaption(caption);
+                    }
+                  }}
+                  className="min-w-[100px]"
                 >
-                  <Linkedin className="w-4 h-4" />
-                  {isPublishing ? 'A publicar...' : 'Publicar no LinkedIn'}
+                  {useDifferentCaptions ? 'Unificar' : 'Diferenciar'}
                 </Button>
               </div>
+
+              {/* Unified Caption Editor (when not differentiated) */}
+              {!useDifferentCaptions && (
+                <div className="rounded-xl border border-border bg-card p-4 md:p-5 shadow-sm">
+                  <div className="flex items-center gap-2 mb-3">
+                    <Instagram className="h-4 w-4 text-pink-500" />
+                    <Linkedin className="h-4 w-4 text-blue-600" />
+                    <Label className="text-base font-semibold">Legenda (Instagram & LinkedIn)</Label>
+                  </div>
+                  <CaptionEditor
+                    initialCaption={post.caption}
+                    initialHashtags={post.hashtags || []}
+                    onChange={(newCaption, newHashtags) => {
+                      setCaption(newCaption);
+                      setHashtags(newHashtags);
+                      setLinkedinBody(newCaption);
+                    }}
+                  />
+                </div>
+              )}
+
+              {/* Differentiated Captions (when enabled) */}
+              {useDifferentCaptions && (
+                <div className="space-y-4">
+                  {/* Instagram Caption */}
+                  <div className="rounded-xl border border-border bg-card p-4 md:p-5 shadow-sm">
+                    <div className="flex items-center gap-2 mb-3">
+                      <Instagram className="h-4 w-4 text-pink-500" />
+                      <Label className="text-base font-semibold">Legenda Instagram</Label>
+                    </div>
+                    <CaptionEditor
+                      initialCaption={instagramCaption}
+                      initialHashtags={post.hashtags || []}
+                      onChange={(newCaption, newHashtags) => {
+                        setInstagramCaption(newCaption);
+                        setCaption(newCaption);
+                        setHashtags(newHashtags);
+                      }}
+                    />
+                  </div>
+
+                  {/* LinkedIn Caption */}
+                  <div className="rounded-xl border border-border bg-card p-4 md:p-5 shadow-sm">
+                    <div className="flex items-center gap-2 mb-3">
+                      <Linkedin className="h-4 w-4 text-blue-600" />
+                      <Label className="text-base font-semibold">Legenda LinkedIn</Label>
+                    </div>
+                    <Textarea
+                      placeholder="Escreve o texto do post para LinkedIn..."
+                      value={linkedinBody}
+                      onChange={(e) => setLinkedinBody(e.target.value)}
+                      rows={6}
+                      className="w-full mb-2"
+                    />
+                    <p className="text-xs text-muted-foreground">
+                      Hashtags: {hashtags?.map(h => h.startsWith('#') ? h : `#${h}`).join(' ') || 'Sem hashtags'}
+                    </p>
+                  </div>
+                </div>
+              )}
             </div>
 
             {/* Internal Notes */}
