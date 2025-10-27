@@ -13,9 +13,17 @@ interface PlatformTabsProps {
   selectedTargets: Record<PublishTarget, boolean>;
   onTargetsChange: (targets: Record<PublishTarget, boolean>) => void;
   validations?: Record<PublishTarget, { valid: boolean; errors: string[]; warnings: string[] }>;
+  instagramQuotaText?: string;
+  instagramCanPublish?: boolean;
 }
 
-export function PlatformTabs({ selectedTargets, onTargetsChange, validations }: PlatformTabsProps) {
+export function PlatformTabs({ 
+  selectedTargets, 
+  onTargetsChange, 
+  validations,
+  instagramQuotaText = '0/5',
+  instagramCanPublish = true 
+}: PlatformTabsProps) {
   const toggleTarget = (target: PublishTarget) => {
     onTargetsChange({
       ...selectedTargets,
@@ -72,7 +80,18 @@ export function PlatformTabs({ selectedTargets, onTargetsChange, validations }: 
             <Instagram className="h-4 w-4" />
             <span className="font-semibold text-sm">Instagram</span>
             {selectedTargets.instagram && (
-              <CheckCircle2 className="h-3.5 w-3.5 ml-1" />
+              <>
+                <CheckCircle2 className="h-3.5 w-3.5 ml-1" />
+                <Badge 
+                  variant="secondary" 
+                  className={cn(
+                    "ml-1 font-mono text-xs",
+                    !instagramCanPublish && "bg-red-500/20 text-red-600"
+                  )}
+                >
+                  {instagramQuotaText}
+                </Badge>
+              </>
             )}
           </button>
 

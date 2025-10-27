@@ -16,6 +16,7 @@ import { PlatformRules } from '@/components/publishing/PlatformRules';
 import { PublishModal } from '@/components/publishing/PublishModal';
 import { PublishDebugPanel } from '@/components/publishing/PublishDebugPanel';
 import { PublishConfirmationModal } from '@/components/publishing/PublishConfirmationModal';
+import { PublishButtons } from '@/components/publishing/PublishButtons';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { SidebarProvider } from '@/components/ui/sidebar';
@@ -28,6 +29,7 @@ import { formatDistanceToNow } from 'date-fns';
 import { pt } from 'date-fns/locale';
 import { PublishTarget, PostType, PublishProgress } from '@/types/publishing';
 import { validateAllTargets } from '@/lib/publishingValidation';
+import { useInstagramQuota } from '@/hooks/useInstagramQuota';
 
 const Review = () => {
   const { id } = useParams();
@@ -66,6 +68,9 @@ const Review = () => {
   const [validations, setValidations] = useState<Record<string, any>>({});
   const templatesRef = useRef<HTMLDivElement>(null);
   const [showPublishConfirmation, setShowPublishConfirmation] = useState(false);
+  
+  // Instagram quota hook
+  const { quota: instagramQuota, canPublish: canPublishToInstagram, quotaText, refetch: refetchQuota } = useInstagramQuota();
 
   useEffect(() => {
     fetchPost();
@@ -644,6 +649,19 @@ const Review = () => {
         .eq('id', id);
       
       console.log('[Instagram] Post atualizado na BD com', selectedImages.length, 'imagens');
+      
+      // Register publication in quota
+      if (user?.id) {
+        await supabase.from('publication_quota').insert({
+          user_id: user.id,
+          platform: 'instagram',
+          post_type: 'carousel',
+          post_id: id,
+        });
+        
+        // Refetch quota to update UI
+        refetchQuota();
+      }
 
     } catch (error: any) {
       toast.dismiss(loadingToast);
@@ -839,18 +857,6 @@ const Review = () => {
                         {post.title}
                       </p>
                     </div>
-                    
-                    {/* Template Badge Pill - Desktop */}
-                    {selectedTemplate && (
-                      <Badge className={cn(
-                        "hidden md:flex rounded-full px-3 py-1 text-sm font-medium whitespace-nowrap transition-all duration-150",
-                        isApproved 
-                          ? templateBadgeColors[selectedTemplate]
-                          : "bg-primary/10 text-primary border border-primary/30"
-                      )}>
-                        Template {selectedTemplate} {isApproved ? 'Aprovado' : 'Selecionado'}
-                      </Badge>
-                    )}
                   </div>
 
                   {/* Platform Tabs */}
@@ -858,19 +864,9 @@ const Review = () => {
                     selectedTargets={publishTargets}
                     onTargetsChange={setPublishTargets}
                     validations={validations}
+                    instagramQuotaText={quotaText}
+                    instagramCanPublish={canPublishToInstagram}
                   />
-                  
-                  {/* Template Badge Pill - Mobile */}
-                  {selectedTemplate && (
-                    <Badge className={cn(
-                      "md:hidden inline-flex rounded-full px-3 py-1 text-sm font-medium mt-3 transition-all duration-150",
-                      isApproved 
-                        ? templateBadgeColors[selectedTemplate]
-                        : "bg-primary/10 text-primary border border-primary/30"
-                    )}>
-                      Template {selectedTemplate} {isApproved ? 'Aprovado' : 'Selecionado'}
-                    </Badge>
-                  )}
                 </div>
               </div>
             </div>
@@ -985,6 +981,22 @@ const Review = () => {
                   </div>
                 )}
 
+                {/* Publish Buttons - Unified */}
+                {publishTargets.instagram && publishTargets.linkedin && !useDifferentCaptions && (
+                  <PublishButtons
+                    showInstagram={true}
+                    showLinkedIn={true}
+                    onPublishInstagram={handlePublishInstagram}
+                    onPublishLinkedIn={handlePublishLinkedIn}
+                    isPublishing={isPublishing}
+                    instagramDisabled={!caption?.trim() || !selectedTemplate}
+                    linkedinDisabled={!caption?.trim() || !selectedTemplate}
+                    instagramQuotaText={quotaText}
+                    instagramCanPublish={canPublishToInstagram}
+                    className="mt-4"
+                  />
+                )}
+
                 {/* Differentiated Captions (when both platforms + differentiated enabled) */}
                 {publishTargets.instagram && publishTargets.linkedin && useDifferentCaptions && (
                   <div className="space-y-4">
@@ -1052,6 +1064,22 @@ const Review = () => {
                   </div>
                 )}
 
+                {/* Publish Buttons - Differentiated */}
+                {publishTargets.instagram && publishTargets.linkedin && useDifferentCaptions && (
+                  <PublishButtons
+                    showInstagram={true}
+                    showLinkedIn={true}
+                    onPublishInstagram={handlePublishInstagram}
+                    onPublishLinkedIn={handlePublishLinkedIn}
+                    isPublishing={isPublishing}
+                    instagramDisabled={!instagramCaption?.trim() || !selectedTemplate}
+                    linkedinDisabled={!linkedinBody?.trim() || !selectedTemplate}
+                    instagramQuotaText={quotaText}
+                    instagramCanPublish={canPublishToInstagram}
+                    className="mt-4"
+                  />
+                )}
+
                 {/* Instagram Only */}
                 {publishTargets.instagram && !publishTargets.linkedin && (
                   <div className="rounded-xl border border-border bg-card p-4 md:p-5 shadow-sm">
@@ -1081,6 +1109,20 @@ const Review = () => {
                       caption={caption}
                     />
                   </div>
+                )}
+
+                {/* Publish Button - Instagram Only */}
+                {publishTargets.instagram && !publishTargets.linkedin && (
+                  <PublishButtons
+                    showInstagram={true}
+                    showLinkedIn={false}
+                    onPublishInstagram={handlePublishInstagram}
+                    isPublishing={isPublishing}
+                    instagramDisabled={!caption?.trim() || !selectedTemplate}
+                    instagramQuotaText={quotaText}
+                    instagramCanPublish={canPublishToInstagram}
+                    className="mt-4"
+                  />
                 )}
 
                 {/* LinkedIn Only */}
@@ -1113,10 +1155,22 @@ const Review = () => {
                           <>Documento: {(selectedTemplate === 'A' ? templateAImages.length : templateBImages.length)} páginas</>
                         ) : (
                           <>Hashtags: {hashtags?.map(h => h.startsWith('#') ? h : `#${h}`).join(' ') || 'Sem hashtags'}</>
-                        )}
-                      </p>
+                      )}
+                    </p>
                     </div>
                   </div>
+                )}
+
+                {/* Publish Button - LinkedIn Only */}
+                {!publishTargets.instagram && publishTargets.linkedin && (
+                  <PublishButtons
+                    showInstagram={false}
+                    showLinkedIn={true}
+                    onPublishLinkedIn={handlePublishLinkedIn}
+                    isPublishing={isPublishing}
+                    linkedinDisabled={!linkedinBody?.trim() || !selectedTemplate}
+                    className="mt-4"
+                  />
                 )}
               </div>
 
