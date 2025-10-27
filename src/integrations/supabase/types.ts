@@ -200,6 +200,48 @@ export type Database = {
         }
         Relationships: []
       }
+      posts_drafts: {
+        Row: {
+          caption: string | null
+          created_at: string
+          id: string
+          media_urls: Json | null
+          platform: string
+          publish_immediately: boolean | null
+          scheduled_date: string | null
+          scheduled_time: string | null
+          status: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          caption?: string | null
+          created_at?: string
+          id?: string
+          media_urls?: Json | null
+          platform: string
+          publish_immediately?: boolean | null
+          scheduled_date?: string | null
+          scheduled_time?: string | null
+          status?: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          caption?: string | null
+          created_at?: string
+          id?: string
+          media_urls?: Json | null
+          platform?: string
+          publish_immediately?: boolean | null
+          scheduled_date?: string | null
+          scheduled_time?: string | null
+          status?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       publication_quota: {
         Row: {
           created_at: string

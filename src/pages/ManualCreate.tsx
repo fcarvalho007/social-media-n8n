@@ -17,10 +17,14 @@ import { Calendar } from '@/components/ui/calendar';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Badge } from '@/components/ui/badge';
 import { toast } from 'sonner';
-import { Save, Send, Calendar as CalendarIcon, ArrowLeft, Instagram, Linkedin, Upload, Clock, X, Image as ImageIcon } from 'lucide-react';
+import { Save, Send, Calendar as CalendarIcon, ArrowLeft, Instagram, Linkedin, Upload, Clock, X, FileText } from 'lucide-react';
 import { format } from 'date-fns';
 import { pt } from 'date-fns/locale';
 import { cn } from '@/lib/utils';
+import InstagramCarouselPreview from '@/components/manual-post/InstagramCarouselPreview';
+import InstagramStoryPreview from '@/components/manual-post/InstagramStoryPreview';
+import LinkedInPreview from '@/components/manual-post/LinkedInPreview';
+import DraftsDialog from '@/components/manual-post/DraftsDialog';
 
 type NetworkType = 'instagram-carousel' | 'instagram-stories' | 'linkedin';
 
@@ -34,6 +38,8 @@ export default function ManualCreate() {
   const [time, setTime] = useState('12:00');
   const [scheduleAsap, setScheduleAsap] = useState(false);
   const [saving, setSaving] = useState(false);
+  const [draftsDialogOpen, setDraftsDialogOpen] = useState(false);
+  const [currentDraftId, setCurrentDraftId] = useState<string | null>(null);
 
   // Character limits
   const getMaxCaptionLength = () => {
@@ -142,32 +148,65 @@ export default function ManualCreate() {
         mediaUrls.push(publicUrl);
       }
 
-      const postData = {
+      // Map selectedNetwork to platform format
+      let platform: string;
+      if (selectedNetwork === 'instagram-carousel') platform = 'instagram_carrousel';
+      else if (selectedNetwork === 'instagram-stories') platform = 'instagram_stories';
+      else platform = 'linkedin';
+
+      const draftData = {
         user_id: user.id,
-        post_type: selectedNetwork === 'instagram-carousel' ? 'carousel' : selectedNetwork === 'instagram-stories' ? 'image' : 'text',
-        selected_networks: [selectedNetwork.split('-')[0]] as any,
+        platform,
         caption,
-        scheduled_date: scheduledDate?.toISOString() || null,
-        schedule_asap: scheduleAsap,
+        media_urls: mediaUrls,
+        scheduled_date: scheduledDate ? format(scheduledDate, 'yyyy-MM-dd') : null,
+        scheduled_time: time || null,
+        publish_immediately: scheduleAsap,
         status: 'draft',
-        origin_mode: 'manual',
-        tema: 'Manual post',
-        template_a_images: mediaUrls,
-        template_b_images: [],
-        workflow_id: 'manual-' + Date.now(),
       };
 
-      const { error } = await supabase.from('posts').insert(postData);
-      if (error) throw error;
+      if (currentDraftId) {
+        // Update existing draft
+        const { error } = await supabase
+          .from('posts_drafts')
+          .update(draftData)
+          .eq('id', currentDraftId);
+        if (error) throw error;
+      } else {
+        // Insert new draft
+        const { error } = await supabase.from('posts_drafts').insert(draftData);
+        if (error) throw error;
+      }
 
-      toast.success('Rascunho guardado');
-      navigate('/?tab=approve');
+      toast.success('Rascunho guardado com sucesso');
     } catch (error) {
       console.error('Error saving draft:', error);
       toast.error('Falha ao guardar rascunho');
     } finally {
       setSaving(false);
     }
+  };
+
+  const handleLoadDraft = (draft: any) => {
+    // Map platform back to NetworkType
+    let network: NetworkType;
+    if (draft.platform === 'instagram_carrousel') network = 'instagram-carousel';
+    else if (draft.platform === 'instagram_stories') network = 'instagram-stories';
+    else network = 'linkedin';
+
+    setSelectedNetwork(network);
+    setCaption(draft.caption || '');
+    setMediaPreviewUrls(draft.media_urls || []);
+    setScheduleAsap(draft.publish_immediately);
+    
+    if (draft.scheduled_date) {
+      setScheduledDate(new Date(draft.scheduled_date));
+    }
+    if (draft.scheduled_time) {
+      setTime(draft.scheduled_time);
+    }
+
+    setCurrentDraftId(draft.id);
   };
 
   const handleSubmitForApproval = async () => {
@@ -485,58 +524,71 @@ export default function ManualCreate() {
                           </Button>
                         </div>
                         
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          onClick={() => navigate('/calendar')}
-                          className="w-full text-xs"
-                        >
-                          <CalendarIcon className="h-3 w-3 mr-1" />
-                          Ver calendário
-                        </Button>
+                        <div className="grid grid-cols-2 gap-3">
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => setDraftsDialogOpen(true)}
+                            className="w-full text-xs"
+                          >
+                            <FileText className="h-3 w-3 mr-1" />
+                            Ver rascunhos
+                          </Button>
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => navigate('/calendar')}
+                            className="w-full text-xs"
+                          >
+                            <CalendarIcon className="h-3 w-3 mr-1" />
+                            Ver calendário
+                          </Button>
+                        </div>
                       </CardContent>
                     </Card>
                   )}
                 </div>
 
                 {/* Right - Preview */}
-                <div className="lg:sticky lg:top-24 lg:h-[calc(100vh-8rem)]">
+                <div className="lg:sticky lg:top-24 lg:h-[calc(100vh-8rem)] overflow-auto">
                   <Card className="h-full">
                     <CardHeader>
                       <CardTitle>Pré-visualização</CardTitle>
                       <CardDescription>Como ficará a sua publicação</CardDescription>
                     </CardHeader>
-                    <CardContent className="space-y-4">
+                    <CardContent>
                       {!selectedNetwork ? (
                         <div className="flex items-center justify-center h-64 text-muted-foreground text-sm">
                           Selecione uma rede social para ver a pré-visualização
                         </div>
                       ) : (
-                        <div className="space-y-4">
-                          <div className="flex items-center gap-2">
-                            {selectedNetwork.includes('instagram') ? <Instagram className="h-5 w-5" /> : <Linkedin className="h-5 w-5" />}
-                            <span className="font-semibold text-sm">{networkOptions.find(o => o.value === selectedNetwork)?.label}</span>
-                          </div>
-                          
-                          {mediaPreviewUrls.length > 0 && (
-                            <div className="aspect-square rounded-xl overflow-hidden border border-border bg-muted">
-                              <img src={mediaPreviewUrls[0]} alt="Preview" className="w-full h-full object-cover" />
-                            </div>
+                        <>
+                          {selectedNetwork === 'instagram-carousel' && (
+                            <InstagramCarouselPreview
+                              mediaUrls={mediaPreviewUrls}
+                              caption={caption}
+                            />
                           )}
-                          
-                          {caption && (
-                            <div className="p-3 rounded-lg bg-muted/30 border border-border">
-                              <p className="text-sm leading-relaxed whitespace-pre-wrap">{caption}</p>
-                            </div>
+                          {selectedNetwork === 'instagram-stories' && (
+                            <InstagramStoryPreview
+                              mediaUrl={mediaPreviewUrls[0]}
+                              aspectRatioValid={true}
+                            />
+                          )}
+                          {selectedNetwork === 'linkedin' && (
+                            <LinkedInPreview
+                              mediaUrls={mediaPreviewUrls}
+                              caption={caption}
+                            />
                           )}
                           
                           {scheduledDate && !scheduleAsap && (
-                            <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                            <div className="flex items-center gap-2 text-xs text-muted-foreground mt-4 justify-center">
                               <Clock className="h-3 w-3" />
                               <span>Agendado: {format(scheduledDate, 'dd/MM/yyyy', { locale: pt })} às {time}</span>
                             </div>
                           )}
-                        </div>
+                        </>
                       )}
                     </CardContent>
                   </Card>
@@ -547,6 +599,12 @@ export default function ManualCreate() {
         </div>
 
         <DevHelper />
+        
+        <DraftsDialog
+          open={draftsDialogOpen}
+          onOpenChange={setDraftsDialogOpen}
+          onLoadDraft={handleLoadDraft}
+        />
       </div>
     </SidebarProvider>
   );
