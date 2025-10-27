@@ -14,7 +14,6 @@ import { TargetSelector } from '@/components/publishing/TargetSelector';
 import { PlatformRules } from '@/components/publishing/PlatformRules';
 import { PublishModal } from '@/components/publishing/PublishModal';
 import { PublishDebugPanel } from '@/components/publishing/PublishDebugPanel';
-import { FinalReviewModal } from '@/components/publishing/FinalReviewModal';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { SidebarProvider } from '@/components/ui/sidebar';
@@ -49,7 +48,6 @@ const Review = () => {
   const [instagramCaption, setInstagramCaption] = useState('');
   const [showPreview, setShowPreview] = useState<{ platform: 'instagram' | 'linkedin'; open: boolean } | null>(null);
   const [showDebugPanel, setShowDebugPanel] = useState(false);
-  const templatesRef = useRef<HTMLDivElement>(null);
   
   // Publishing state
   const [publishTargets, setPublishTargets] = useState<Record<PublishTarget, boolean>>({
@@ -62,18 +60,7 @@ const Review = () => {
     linkedin: { platform: 'linkedin', status: 'pending', progress: 0 },
   });
   const [validations, setValidations] = useState<Record<string, any>>({});
-  const [generatedPdf, setGeneratedPdf] = useState<{ filename: string; sizeMB: number; pages: number } | null>(null);
-  const [showFinalReview, setShowFinalReview] = useState(false);
-  const [pendingPublishData, setPendingPublishData] = useState<{
-    scheduledDate?: Date;
-    retryPlatform?: PublishTarget;
-    pdfUrl: string | null;
-    pdfBlob?: Blob;
-    pdfBase64?: string;
-    pdfMetadata: { sizeMB: number; pages: number } | null;
-    pdfSource?: string;
-    selectedImages: string[];
-  } | null>(null);
+  const templatesRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     fetchPost();
@@ -247,31 +234,33 @@ const Review = () => {
       activeTargets = [retryPlatform];
     }
 
-    // Check idempotency - skip already published platforms (unless retrying)
+    // LinkedIn uses separate flow - only process Instagram here
+    activeTargets = activeTargets.filter(t => t === 'instagram');
+
+    if (activeTargets.length === 0) {
+      toast.info('Use o botão "Publish to LinkedIn" para publicar no LinkedIn');
+      return;
+    }
+
+    // Check idempotency - skip already published platforms
     const targetsToPublish = activeTargets.filter(target => {
       if (!retryPlatform && post.external_post_ids?.[target]) {
-        toast.info(`Já publicado em ${target === 'instagram' ? 'Instagram' : 'LinkedIn'}`);
+        toast.info(`Já publicado em Instagram`);
         return false;
       }
       return true;
     });
 
     if (targetsToPublish.length === 0) {
-      toast.info('Todas as plataformas selecionadas já foram publicadas');
+      toast.info('Já publicado no Instagram');
       return;
     }
 
     const selectedImages = selectedTemplate === 'A' ? templateAImages : templateBImages;
     const successTracker: Record<PublishTarget, boolean> = { instagram: false, linkedin: false };
 
-    // Generate PDF only if LinkedIn is selected
-    let pdfBlob: Blob | null = null;
-    let pdfUrl: string | null = null;
-    let pdfMetadata: { sizeMB: number; pages: number } | null = null;
-    const needsPdf = targetsToPublish.includes('linkedin');
-
     try {
-      // Initialize progress
+      // Initialize progress for Instagram only
       targetsToPublish.forEach(target => {
         setPublishProgress(prev => ({
           ...prev,
@@ -279,119 +268,14 @@ const Review = () => {
             ...prev[target], 
             status: 'validating', 
             progress: 10, 
-            message: target === 'linkedin' && needsPdf ? 'A gerar PDF do carrossel...' : 'A preparar conteúdo...',
+            message: 'A preparar conteúdo...',
             startedAt: new Date().toISOString(),
           }
         }));
       });
 
-      if (needsPdf) {
-        console.info('[PDF] Starting client-side PDF with proxy', { imageCount: selectedImages.length, timestamp: new Date().toISOString() });
-        setPublishProgress(prev => ({
-          ...prev,
-          linkedin: { ...prev.linkedin, progress: 15, message: 'A validar imagens...' }
-        }));
-        
-        try {
-          // Step 1: Fetch images as base64 via proxy
-          console.log('[PDF] FETCH: Calling fetch-images-b64 proxy');
-          const fetchStart = Date.now();
-          const { data: fetchData, error: fetchError } = await supabase.functions.invoke('fetch-images-b64', {
-            body: { urls: selectedImages },
-          });
-          const fetchElapsed = Date.now() - fetchStart;
-          
-          if (fetchError) {
-            console.error('[PDF] FETCH: Invoke error', { error: fetchError, elapsed: fetchElapsed });
-            throw new Error(`Erro ao validar imagens: ${fetchError.message}`);
-          }
-          
-          if (!fetchData?.ok) {
-            const stage = fetchData?.stage || 'unknown';
-            const code = fetchData?.code || 'unknown';
-            const msg = fetchData?.message || 'Fetch failed';
-            const details = fetchData?.details || [];
-            console.error('[PDF] FETCH: Failed', { stage, code, msg, details, elapsed: fetchElapsed });
-            
-            let errorMsg = `Erro na etapa: ${stage} (${code})\n${msg}`;
-            if (details.length > 0) {
-              const detailsStr = details.map((d: any) => `Slide ${d.index + 1}: ${d.reason}`).join(', ');
-              errorMsg += `\nDetalhes: ${detailsStr}`;
-            }
-            throw new Error(errorMsg);
-          }
-          
-          const items = fetchData.items as Array<{ index: number; url: string; mime: string; base64: string }>;
-          console.log('[PDF] FETCH: OK', { count: items.length, elapsed: fetchElapsed });
-          
-          setPublishProgress(prev => ({
-            ...prev,
-            linkedin: { ...prev.linkedin, progress: 30, message: 'A gerar PDF localmente...' }
-          }));
-          
-          // Step 2: Build data URLs
-          const dataUrls = items.map(item => `data:${item.mime};base64,${item.base64}`);
-          
-          // Step 3: Generate PDF locally (for preview/download only)
-          console.log('[PDF] COMPOSE: Generating PDF with', dataUrls.length, 'images');
-          const composeStart = Date.now();
-          const blob = await generateCarouselPDF({ images: dataUrls, title: post.tema });
-          const composeElapsed = Date.now() - composeStart;
-          const sizeMB = parseFloat((blob.size / (1024 * 1024)).toFixed(2));
-          const pages = dataUrls.length;
-          
-          console.log('[PDF] COMPOSE: OK', { pages, sizeMB, elapsed: composeElapsed });
-          
-          // Create blob URL for local preview/download
-          const blobUrl = URL.createObjectURL(blob);
-          
-          setPublishProgress(prev => ({
-            ...prev,
-            linkedin: { ...prev.linkedin, progress: 60, message: 'PDF pronto para revisão' }
-          }));
-          
-          toast.success('PDF gerado com sucesso');
-          
-          // Show Final Review with PDF blob for later conversion to base64
-          setPendingPublishData({
-            scheduledDate,
-            retryPlatform,
-            pdfUrl: blobUrl, // For local preview only
-            pdfBlob: blob, // Store blob for base64 conversion
-            pdfMetadata: { pages, sizeMB },
-            pdfSource: 'client',
-            selectedImages,
-          });
-          setShowFinalReview(true);
-          return;
-
-        } catch (pdfError: any) {
-          console.error('[PDF] Generation failed', { 
-            error: pdfError, 
-            message: pdfError?.message,
-            postId: id,
-            timestamp: new Date().toISOString() 
-          });
-          
-          const errorMsg = pdfError?.message || 'Erro ao gerar PDF';
-          toast.error(errorMsg);
-          
-          setPublishProgress(prev => ({
-            ...prev,
-            linkedin: { 
-              ...prev.linkedin, 
-              status: 'error', 
-              error: errorMsg,
-              message: errorMsg,
-              technicalDetails: { error: pdfError, postId: id, timestamp: new Date().toISOString() },
-            }
-          }));
-          return;
-        }
-      }
-
-      // Continue to actual publishing
-      await executePublish(targetsToPublish, selectedImages, scheduledDate, pdfUrl, pdfMetadata, successTracker);
+      // Continue to actual publishing (Instagram only, no PDF needed)
+      await executePublish(targetsToPublish, selectedImages, scheduledDate, null, null, successTracker);
 
     } catch (error) {
       console.error('Error in publishing flow:', error);
@@ -478,29 +362,12 @@ const Review = () => {
               scheduleAt: scheduledDate?.toISOString(),
             };
 
-            let payload: any;
-            if (target === 'instagram') {
-              // Instagram: send native images
-              payload = {
-                ...basePayload,
-                caption,
-                images: selectedImages,
-              };
-              } else if (target === 'linkedin') {
-                const pageAlts = selectedImages.map((imgUrl, idx) => {
-                  const imgKey = imgUrl.split('/').pop() || `image_${idx}`;
-                  return post.alt_texts?.[imgKey] || `Slide ${idx + 1}/${selectedImages.length}`;
-                });
-
-                // LinkedIn: send PDF as base64
-                payload = {
-                  ...basePayload,
-                  body: caption,
-                  pageAlts,
-                  pdfMetadata,
-                  pdfBase64, // Send PDF as base64 instead of images
-                };
-              }
+            // Instagram only (LinkedIn uses separate flow)
+            const payload = {
+              ...basePayload,
+              caption,
+              images: selectedImages,
+            };
 
             console.info(`[PUBLISH:${target}] Sending to API`, { payloadKeys: Object.keys(payload) });
 
@@ -574,7 +441,7 @@ const Review = () => {
                 message: error.message || 'Erro desconhecido',
                 postId: id,
                 platform: target,
-                payload: { ...payload, pdfBase64: payload.pdfBase64 ? '[BASE64_OMITTED]' : undefined },
+                payload: { ...payload },
                 timestamp: new Date().toISOString(),
               };
               
@@ -687,83 +554,6 @@ const Review = () => {
     } catch (error) {
       console.error('[PUBLISH] Error in executePublish', { error });
       throw error;
-    }
-  };
-
-  const handleFinalReviewBack = () => {
-    setShowFinalReview(false);
-    setPendingPublishData(null);
-    // Reset progress
-    setPublishProgress({
-      instagram: { platform: 'instagram', status: 'pending', progress: 0 },
-      linkedin: { platform: 'linkedin', status: 'pending', progress: 0 },
-    });
-  };
-
-  const handleFinalReviewRegenerate = async () => {
-    if (!pendingPublishData) return;
-    
-    setShowFinalReview(false);
-    
-    // Clean up old blob URL (only if it's a blob URL, not a Getlate URL)
-    if (pendingPublishData.pdfUrl && pendingPublishData.pdfUrl.startsWith('blob:')) {
-      URL.revokeObjectURL(pendingPublishData.pdfUrl);
-    }
-    
-    setGeneratedPdf(null);
-    setPendingPublishData(null);
-    
-    toast.info('A regenerar PDF...');
-    
-    await handlePublishToTargets(pendingPublishData.scheduledDate, pendingPublishData.retryPlatform);
-  };
-
-  const handleFinalReviewConfirm = async () => {
-    if (!pendingPublishData) return;
-    
-    setShowFinalReview(false);
-    setPublishModalOpen(true);
-    
-    const { scheduledDate, pdfUrl, pdfBlob, pdfMetadata, selectedImages } = pendingPublishData;
-    
-    // Convert PDF blob to base64 if we have it
-    let pdfBase64: string | undefined;
-    if (pdfBlob) {
-      try {
-        const reader = new FileReader();
-        pdfBase64 = await new Promise<string>((resolve, reject) => {
-          reader.onload = () => {
-            const result = reader.result as string;
-            // Remove data URL prefix (e.g., "data:application/pdf;base64,")
-            const base64 = result.split(',')[1];
-            resolve(base64);
-          };
-          reader.onerror = reject;
-          reader.readAsDataURL(pdfBlob);
-        });
-        console.log('[PDF] Converted blob to base64', { sizeKB: (pdfBase64.length * 0.75 / 1024).toFixed(2) });
-      } catch (error) {
-        console.error('[PDF] Failed to convert blob to base64', error);
-        toast.error('Erro ao processar PDF');
-        return;
-      }
-    }
-    
-    const targetsToPublish = Object.entries(publishTargets).filter(([_, active]) => active).map(([target]) => target as PublishTarget);
-    const successTracker: Record<PublishTarget, boolean> = { instagram: false, linkedin: false };
-    
-    try {
-      await executePublish(targetsToPublish, selectedImages, scheduledDate, pdfUrl, pdfMetadata, successTracker, pdfBase64);
-      
-      // Clean up blob URL after successful publish (only if it's a blob URL)
-      if (pdfUrl && pdfUrl.startsWith('blob:')) {
-        setTimeout(() => URL.revokeObjectURL(pdfUrl), 5000);
-      }
-    } catch (error) {
-      console.error('[FINAL_REVIEW] Error confirming publish', { error });
-      toast.error('Erro ao publicar');
-    } finally {
-      setPendingPublishData(null);
     }
   };
 
@@ -1007,8 +797,8 @@ const Review = () => {
   };
 
   const handlePublishLinkedIn = async () => {
-    if (!linkedinBody.trim()) {
-      toast.error('O texto do post LinkedIn não pode estar vazio');
+    if (!linkedinBody?.trim()) {
+      toast.error('LinkedIn post text cannot be empty');
       return;
     }
 
@@ -1018,6 +808,7 @@ const Review = () => {
     }
 
     setIsPublishing(true);
+    const loadingToast = toast.loading('Publishing to LinkedIn...');
     
     try {
       // Preparar pageAlts a partir dos slides
@@ -1027,7 +818,7 @@ const Review = () => {
         return post.alt_texts?.[imgKey] || `Slide ${index + 1} de ${selectedImages.length}`;
       });
 
-      // Payload para o n8n (simples e direto)
+      // Payload simples para n8n
       const payload = {
         post_id: id,
         status: 'approved',
@@ -1036,25 +827,31 @@ const Review = () => {
         hashtags_final: hashtags || [],
         pageAlts: pageAlts,
         reviewed_by: user?.email || 'unknown',
-        notes: notes || ''
+        notes: ''
       };
 
-      // Enviar para n8n webhook
+      // Buscar webhook secret
+      const secret = import.meta.env.VITE_N8N_WEBHOOK_SECRET;
+
+      // FETCH DIRECTO para n8n (SEM API, SEM EDGE FUNCTION)
       const response = await fetch('https://n8n.srv881120.hstgr.cloud/webhook/aprovacao-linkedin', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          'X-Webhook-Secret': import.meta.env.VITE_N8N_WEBHOOK_SECRET
+          'X-Webhook-Secret': secret
         },
         body: JSON.stringify(payload)
       });
 
       if (!response.ok) {
-        throw new Error(`Erro ao publicar: ${response.status}`);
+        throw new Error(`HTTP ${response.status}`);
       }
 
-      toast.success('Post enviado para publicação no LinkedIn!');
-      
+      const result = await response.json();
+      toast.dismiss(loadingToast);
+      toast.success('Published to LinkedIn successfully!');
+      console.log('LinkedIn result:', result);
+
       // Atualizar estado local
       await supabase
         .from('posts')
@@ -1065,7 +862,9 @@ const Review = () => {
         .eq('id', id);
 
     } catch (error: any) {
-      toast.error(`Falha ao publicar no LinkedIn: ${error.message}`);
+      toast.dismiss(loadingToast);
+      console.error('LinkedIn error:', error);
+      toast.error(`Failed: ${error.message}`);
     } finally {
       setIsPublishing(false);
     }
@@ -1339,9 +1138,19 @@ const Review = () => {
                       onChange={setLinkedinBody}
                       placeholder="Escreve a legenda para LinkedIn..."
                     />
-                    <p className="text-xs text-muted-foreground mt-3">
-                      Hashtags: {hashtags?.map(h => h.startsWith('#') ? h : `#${h}`).join(' ') || 'Sem hashtags'}
-                    </p>
+                    <div className="flex items-center justify-between mt-3">
+                      <p className="text-xs text-muted-foreground">
+                        Hashtags: {hashtags?.map(h => h.startsWith('#') ? h : `#${h}`).join(' ') || 'Sem hashtags'}
+                      </p>
+                      <Button
+                        onClick={handlePublishLinkedIn}
+                        disabled={isPublishing || !linkedinBody?.trim() || !selectedTemplate}
+                        className="flex items-center gap-2"
+                      >
+                        <Linkedin className="w-4 h-4" />
+                        {isPublishing ? 'Publishing...' : 'Publish to LinkedIn'}
+                      </Button>
+                    </div>
                   </div>
                 </div>
               )}
@@ -1364,23 +1173,16 @@ const Review = () => {
                     <PublishDebugPanel
                       postId={id!}
                       targets={publishTargets}
-                      postType="carousel"
-                      caption={caption}
-                      hashtags={hashtags}
-                      mediaCount={selectedTemplate === 'A' ? templateAImages.length : templateBImages.length}
-                      pdfMetadata={generatedPdf ? {
-                        sizeMB: generatedPdf.sizeMB,
-                        pages: generatedPdf.pages,
-                        filename: generatedPdf.filename,
-                      } : undefined}
-                      pageAlts={(selectedTemplate === 'A' ? templateAImages : templateBImages).map((imgUrl, idx) => {
-                        const imgKey = imgUrl.split('/').pop() || `image_${idx}`;
-                        return post.alt_texts?.[imgKey] || `Slide ${idx + 1}`;
-                      })}
-                      progress={Object.values(publishProgress)}
-                      pdfUrl={pendingPublishData?.pdfUrl}
-                      pdfSource={(pendingPublishData?.pdfSource as 'client' | 'server') || 'server'}
-                    />
+                  postType="carousel"
+                  caption={caption}
+                  hashtags={hashtags}
+                  mediaCount={selectedTemplate === 'A' ? templateAImages.length : templateBImages.length}
+                  pageAlts={(selectedTemplate === 'A' ? templateAImages : templateBImages).map((imgUrl, idx) => {
+                    const imgKey = imgUrl.split('/').pop() || `image_${idx}`;
+                    return post.alt_texts?.[imgKey] || `Slide ${idx + 1}`;
+                  })}
+                  progress={Object.values(publishProgress)}
+                />
                   </div>
                 ) : (
                   <Button
@@ -1439,26 +1241,6 @@ const Review = () => {
           handlePublishToTargets(undefined, platform);
         }}
       />
-
-      {/* Final Review Modal (LinkedIn PDF) */}
-      {showFinalReview && pendingPublishData && (
-        <FinalReviewModal
-          open={showFinalReview}
-          onBack={handleFinalReviewBack}
-          onRegenerate={handleFinalReviewRegenerate}
-          onConfirm={handleFinalReviewConfirm}
-          pdfMetadata={{
-            pages: pendingPublishData.pdfMetadata?.pages || 0,
-            sizeMB: pendingPublishData.pdfMetadata?.sizeMB || 0,
-            title: post.tema || id || 'carousel',
-          }}
-          pdfUrl={pendingPublishData.pdfUrl || ''}
-          pageAlts={pendingPublishData.selectedImages.map((imgUrl, idx) => {
-            const imgKey = imgUrl.split('/').pop() || `image_${idx}`;
-            return post.alt_texts?.[imgKey] || `Slide ${idx + 1}/${pendingPublishData.selectedImages.length}`;
-          })}
-        />
-      )}
 
       {/* Social Preview Dialog */}
       {showPreview && (
