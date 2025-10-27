@@ -178,13 +178,13 @@ export default function ManualCreate() {
 
     try {
       setSaving(true);
-      const { data: { user } } = await supabase.auth.getUser();
-      if (!user) {
+      const { data: { user }, error: authError } = await supabase.auth.getUser();
+      if (authError || !user) {
         toast.error('Tem de iniciar sessão');
         return;
       }
 
-      // Upload media
+      // Upload media to storage
       const mediaUrls: string[] = [];
       for (const file of mediaFiles) {
         const fileName = `${user.id}/${Date.now()}-${file.name}`;
@@ -201,6 +201,44 @@ export default function ManualCreate() {
         mediaUrls.push(publicUrl);
       }
 
+      // Map selectedNetwork to platform format for N8N
+      let platform: string;
+      if (selectedNetwork === 'instagram-carousel') platform = 'instagram_carousel';
+      else if (selectedNetwork === 'instagram-stories') platform = 'instagram_stories';
+      else platform = 'linkedin';
+
+      // Prepare scheduled date/time
+      let scheduledDateStr = '';
+      let scheduledTimeStr = '';
+      
+      if (!scheduleAsap && scheduledDate) {
+        scheduledDateStr = format(scheduledDate, 'yyyy-MM-dd');
+        scheduledTimeStr = time;
+      }
+
+      // Get auth token
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session) throw new Error('No session');
+
+      // Call edge function to submit to N8N
+      const { data, error } = await supabase.functions.invoke('submit-to-n8n', {
+        body: {
+          platform,
+          caption,
+          media_urls: mediaUrls,
+          scheduled_date: scheduledDateStr || undefined,
+          scheduled_time: scheduledTimeStr || undefined,
+          publish_immediately: scheduleAsap,
+        },
+      });
+
+      if (error) throw error;
+
+      if (!data?.success) {
+        throw new Error(data?.error || 'Falha ao submeter');
+      }
+
+      // Save to database
       const postData = {
         user_id: user.id,
         post_type: selectedNetwork === 'instagram-carousel' ? 'carousel' : selectedNetwork === 'instagram-stories' ? 'image' : 'text',
@@ -216,14 +254,14 @@ export default function ManualCreate() {
         workflow_id: 'manual-' + Date.now(),
       };
 
-      const { error } = await supabase.from('posts').insert(postData);
-      if (error) throw error;
+      const { error: dbError } = await supabase.from('posts').insert(postData);
+      if (dbError) console.error('DB insert error:', dbError);
 
       toast.success('Publicação submetida para aprovação');
-      navigate('/?tab=approve');
+      navigate('/calendar');
     } catch (error) {
       console.error('Error submitting:', error);
-      toast.error('Falha ao submeter');
+      toast.error(error instanceof Error ? error.message : 'Erro ao submeter. Tenta novamente.');
     } finally {
       setSaving(false);
     }

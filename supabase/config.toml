@@ -8,3 +8,6 @@ verify_jwt = false
 
 [functions.publish-proxy]
 verify_jwt = false
+
+[functions.submit-to-n8n]
+verify_jwt = true
