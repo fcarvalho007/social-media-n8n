@@ -122,10 +122,10 @@ function SortableThumb({ image, index, activeIndex, onRemove, canRemove }: Sorta
             onRemove();
           }}
           onPointerDown={(e) => e.stopPropagation()}
-          className="absolute top-0.5 right-0.5 sm:top-1 sm:right-1 z-10 bg-destructive/90 backdrop-blur-sm text-destructive-foreground rounded-full p-1 sm:p-1.5 opacity-0 group-hover:opacity-100 transition-all hover:bg-destructive hover:scale-110 shadow-lg"
+          className="absolute top-0.5 right-0.5 sm:top-1 sm:right-1 z-10 bg-destructive text-destructive-foreground rounded-full p-1.5 sm:p-2 transition-all hover:bg-destructive/90 hover:scale-110 shadow-lg border-2 border-white"
           aria-label="Remover slide"
         >
-          <X className="h-3 w-3 sm:h-4 sm:w-4" />
+          <X className="h-4 w-4 sm:h-5 sm:w-5" />
         </button>
       )}
     </div>
