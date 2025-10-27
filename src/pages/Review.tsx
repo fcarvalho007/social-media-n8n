@@ -61,6 +61,7 @@ const Review = () => {
     scheduledDate?: Date;
     retryPlatform?: PublishTarget;
     pdfUrl: string | null;
+    pdfBlob?: Blob;
     pdfBase64?: string;
     pdfMetadata: { sizeMB: number; pages: number } | null;
     pdfSource?: string;
@@ -339,11 +340,12 @@ const Review = () => {
           
           toast.success('PDF gerado com sucesso');
           
-          // Show Final Review with local PDF (n8n will generate its own PDF from image URLs)
+          // Show Final Review with PDF blob for later conversion to base64
           setPendingPublishData({
             scheduledDate,
             retryPlatform,
-            pdfUrl: blobUrl, // For local preview/download only
+            pdfUrl: blobUrl, // For local preview only
+            pdfBlob: blob, // Store blob for base64 conversion
             pdfMetadata: { pages, sizeMB },
             pdfSource: 'client',
             selectedImages,
@@ -404,7 +406,8 @@ const Review = () => {
     scheduledDate: Date | undefined,
     pdfUrl: string | null,
     pdfMetadata: { sizeMB: number; pages: number } | null,
-    successTracker: Record<PublishTarget, boolean>
+    successTracker: Record<PublishTarget, boolean>,
+    pdfBase64?: string
   ) => {
     try {
       // Publish to each platform with retry logic
@@ -477,13 +480,13 @@ const Review = () => {
                   return post.alt_texts?.[imgKey] || `Slide ${idx + 1}/${selectedImages.length}`;
                 });
 
-                // LinkedIn: send images URLs, n8n will generate PDF
+                // LinkedIn: send PDF as base64
                 payload = {
                   ...basePayload,
                   body: caption,
-                  images: selectedImages, // n8n generates PDF from these URLs
                   pageAlts,
                   pdfMetadata,
+                  pdfBase64, // Send PDF as base64 instead of images
                 };
               }
 
@@ -709,12 +712,36 @@ const Review = () => {
     setShowFinalReview(false);
     setPublishModalOpen(true);
     
-    const { scheduledDate, pdfUrl, pdfMetadata, selectedImages } = pendingPublishData;
+    const { scheduledDate, pdfUrl, pdfBlob, pdfMetadata, selectedImages } = pendingPublishData;
+    
+    // Convert PDF blob to base64 if we have it
+    let pdfBase64: string | undefined;
+    if (pdfBlob) {
+      try {
+        const reader = new FileReader();
+        pdfBase64 = await new Promise<string>((resolve, reject) => {
+          reader.onload = () => {
+            const result = reader.result as string;
+            // Remove data URL prefix (e.g., "data:application/pdf;base64,")
+            const base64 = result.split(',')[1];
+            resolve(base64);
+          };
+          reader.onerror = reject;
+          reader.readAsDataURL(pdfBlob);
+        });
+        console.log('[PDF] Converted blob to base64', { sizeKB: (pdfBase64.length * 0.75 / 1024).toFixed(2) });
+      } catch (error) {
+        console.error('[PDF] Failed to convert blob to base64', error);
+        toast.error('Erro ao processar PDF');
+        return;
+      }
+    }
+    
     const targetsToPublish = Object.entries(publishTargets).filter(([_, active]) => active).map(([target]) => target as PublishTarget);
     const successTracker: Record<PublishTarget, boolean> = { instagram: false, linkedin: false };
     
     try {
-      await executePublish(targetsToPublish, selectedImages, scheduledDate, pdfUrl, pdfMetadata, successTracker);
+      await executePublish(targetsToPublish, selectedImages, scheduledDate, pdfUrl, pdfMetadata, successTracker, pdfBase64);
       
       // Clean up blob URL after successful publish (only if it's a blob URL)
       if (pdfUrl && pdfUrl.startsWith('blob:')) {

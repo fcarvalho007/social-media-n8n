@@ -33,85 +33,48 @@ export function FinalReviewModal({
   return (
     <>
       <Dialog open={open} onOpenChange={(isOpen) => !isOpen && onBack()}>
-        <DialogContent className="max-w-2xl">
+        <DialogContent className="max-w-lg">
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
               <FileText className="h-5 w-5 text-primary" />
-              Revisão Final — Documento (PDF) para LinkedIn
+              Confirmar Publicação
             </DialogTitle>
             <DialogDescription>
-              Confirma os detalhes antes de publicar o carrossel como documento no LinkedIn.
+              O carrossel será publicado como documento PDF no LinkedIn.
             </DialogDescription>
           </DialogHeader>
 
-          <div className="space-y-4">
+          <div className="space-y-3">
             {/* Metadata */}
-            <div className="rounded-xl border bg-muted/30 p-4 space-y-2">
-              <div className="flex items-center justify-between">
-                <span className="text-sm font-medium">Título:</span>
-                <span className="text-sm text-muted-foreground">{pdfMetadata.title}</span>
+            <div className="rounded-lg border bg-muted/30 p-3 space-y-2">
+              <div className="flex items-center justify-between text-sm">
+                <span className="font-medium">Título:</span>
+                <span className="text-muted-foreground truncate ml-2">{pdfMetadata.title}</span>
               </div>
-              <div className="flex items-center justify-between">
-                <span className="text-sm font-medium">Páginas:</span>
-                <Badge variant="outline">{pdfMetadata.pages}</Badge>
+              <div className="flex items-center justify-between text-sm">
+                <span className="font-medium">Páginas:</span>
+                <Badge variant="outline" className="text-xs">{pdfMetadata.pages}</Badge>
               </div>
-              <div className="flex items-center justify-between">
-                <span className="text-sm font-medium">Tamanho:</span>
-                <Badge variant="outline">{pdfMetadata.sizeMB.toFixed(2)} MB</Badge>
+              <div className="flex items-center justify-between text-sm">
+                <span className="font-medium">Tamanho:</span>
+                <Badge variant="outline" className="text-xs">{pdfMetadata.sizeMB.toFixed(2)} MB</Badge>
               </div>
             </div>
 
             {/* Info */}
-            <div className="rounded-xl border border-primary/20 bg-primary/5 p-3 text-sm">
+            <div className="rounded-lg border border-primary/20 bg-primary/5 p-3 text-sm">
               <p className="text-foreground/90">
-                O carrossel no LinkedIn será publicado como <strong>Documento (PDF)</strong>.
-                <br />
-                <span className="text-xs text-muted-foreground">PDF gerado no servidor para evitar problemas de CORS</span>
+                PDF gerado automaticamente no servidor.
               </p>
             </div>
-
-            {/* Preview PDF from server */}
-            <div>
-              <label className="text-sm font-medium mb-2 block">Pré-visualização (PDF do servidor):</label>
-              <div className="rounded-lg border overflow-hidden">
-                <object data={pdfUrl} type="application/pdf" className="w-full h-[480px]">
-                  <div className="p-3 text-sm">
-                    Não foi possível incorporar o PDF. <a href={pdfUrl} target="_blank" rel="noreferrer" className="underline">Abrir numa nova aba</a>.
-                  </div>
-                </object>
-              </div>
-            </div>
-
-            {/* Alt texts preview (optional) */}
-            {pageAlts.length > 0 && (
-              <div>
-                <label className="text-sm font-medium mb-2 block">
-                  Textos alternativos (primeiros 3):
-                </label>
-                <ScrollArea className="h-24 rounded-lg border bg-muted/30 p-3">
-                  <div className="space-y-1.5">
-                    {pageAlts.slice(0, 3).map((alt, idx) => (
-                      <div key={idx} className="text-sm">
-                        <span className="font-medium text-muted-foreground">Pág. {idx + 1}:</span>{' '}
-                        <span className="text-foreground/80">{alt}</span>
-                      </div>
-                    ))}
-                    {pageAlts.length > 3 && (
-                      <div className="text-xs text-muted-foreground italic pt-1">
-                        + {pageAlts.length - 3} mais...
-                      </div>
-                    )}
-                  </div>
-                </ScrollArea>
-              </div>
-            )}
           </div>
 
           {/* Actions */}
-          <div className="flex items-center justify-between gap-3 pt-4 border-t">
+          <div className="flex items-center justify-between gap-3 pt-3 border-t">
             <Button
               variant="ghost"
               onClick={onBack}
+              size="sm"
               className="gap-2"
             >
               <ArrowLeft className="h-4 w-4" />
@@ -121,12 +84,13 @@ export function FinalReviewModal({
               <Button
                 variant="outline"
                 onClick={onRegenerate}
+                size="sm"
                 className="gap-2"
               >
                 <RefreshCw className="h-4 w-4" />
-                Regenerar PDF
+                Regenerar
               </Button>
-              <Button onClick={onConfirm} className="gap-2">
+              <Button onClick={onConfirm} size="sm">
                 Confirmar e Publicar
               </Button>
             </div>
