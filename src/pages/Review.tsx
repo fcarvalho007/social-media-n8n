@@ -975,14 +975,6 @@ const Review = () => {
                       onChange={setHashtags}
                       caption={instagramCaption}
                     />
-                    <Button
-                      onClick={handlePublishInstagram}
-                      disabled={isPublishing || !instagramCaption?.trim() || !selectedTemplate}
-                      className="w-full mt-3 flex items-center justify-center gap-2"
-                    >
-                      <Instagram className="w-4 h-4" />
-                      {isPublishing ? 'Publishing...' : 'Publish to Instagram'}
-                    </Button>
                   </div>
 
                   {/* LinkedIn Caption */}
@@ -1053,14 +1045,6 @@ const Review = () => {
                     onChange={setHashtags}
                     caption={caption}
                   />
-                  <Button
-                    onClick={handlePublishInstagram}
-                    disabled={isPublishing || !caption?.trim() || !selectedTemplate}
-                    className="w-full mt-3 flex items-center justify-center gap-2"
-                  >
-                    <Instagram className="w-4 h-4" />
-                    {isPublishing ? 'Publishing...' : 'Publish to Instagram'}
-                  </Button>
                 </div>
               )}
 
