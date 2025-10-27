@@ -831,7 +831,7 @@ const Review = () => {
                   <Button
                     variant="ghost"
                     onClick={() => navigate('/')}
-                    className="-ml-2 h-8 px-2 text-sm hover:bg-accent transition-colors duration-150"
+                    className="-ml-2 h-8 px-2 text-sm hover:bg-accent transition-colors duration-150 focus:ring-2 focus:ring-primary/40"
                     size="sm"
                   >
                     <ArrowLeft className="mr-1.5 h-3.5 w-3.5" />
@@ -849,10 +849,10 @@ const Review = () => {
                 <div className="py-4">
                   <div className="flex items-start justify-between gap-4 mb-4">
                     <div className="flex-1 min-w-0">
-                      <h1 className="text-2xl font-bold tracking-tight leading-tight mb-1">
+                      <h1 className="text-2xl font-bold tracking-tight leading-snug mb-1">
                         Revisão de Publicação
                       </h1>
-                      <p className="text-sm text-muted-foreground tracking-tight leading-snug truncate">
+                      <p className="text-sm text-muted-foreground leading-snug truncate">
                         {post.title}
                       </p>
                     </div>
@@ -870,41 +870,50 @@ const Review = () => {
               </div>
             </div>
 
-            {/* Main Content Area */}
+            {/* Main Content Area - Responsive */}
             <div className="max-w-[1440px] mx-auto px-4 sm:px-6 lg:px-8 py-6 md:py-8">
 
-              {/* Templates - Side by side with equal height */}
-              <div ref={templatesRef} className="grid grid-cols-1 lg:grid-cols-2 gap-6 md:gap-8 mb-6 md:mb-8 w-[85%] mx-auto">
-              <CarouselPreview
-                key={`template-a-${post.id}`}
-                images={templateAImages}
-                archivedSlides={archivedSlidesA}
-                template="A"
-                onSelect={() => setSelectedTemplate('A')}
-                isSelected={selectedTemplate === 'A'}
-                onRemoveSlide={(index) => handleRemoveSlide('A', index)}
-                onRestoreSlide={(index) => handleRestoreSlide('A', index)}
-                onReorderSlides={(newOrder) => handleReorderSlides('A', newOrder)}
-                isApproved={isApproved}
-                approvedTemplate={post.selected_template as 'A' | 'B' | null}
-              />
-              <CarouselPreview
-                key={`template-b-${post.id}`}
-                images={templateBImages}
-                archivedSlides={archivedSlidesB}
-                template="B"
-                onSelect={() => setSelectedTemplate('B')}
-                isSelected={selectedTemplate === 'B'}
-                onRemoveSlide={(index) => handleRemoveSlide('B', index)}
-                onRestoreSlide={(index) => handleRestoreSlide('B', index)}
-                onReorderSlides={(newOrder) => handleReorderSlides('B', newOrder)}
-                isApproved={isApproved}
-                approvedTemplate={post.selected_template as 'A' | 'B' | null}
-              />
+              {/* Templates - Side by side with equal height and responsive gap */}
+              <div ref={templatesRef} className="grid grid-cols-1 lg:grid-cols-2 gap-8 lg:gap-10 xl:gap-12 mb-6 md:mb-8 max-w-[1440px] mx-auto">
+                <div className="h-full flex flex-col min-w-0 lg:min-w-[520px] lg:max-w-[620px]">
+                  <CarouselPreview
+                    key={`template-a-${post.id}`}
+                    images={templateAImages}
+                    archivedSlides={archivedSlidesA}
+                    template="A"
+                    onSelect={() => setSelectedTemplate('A')}
+                    isSelected={selectedTemplate === 'A'}
+                    onRemoveSlide={(index) => handleRemoveSlide('A', index)}
+                    onRestoreSlide={(index) => handleRestoreSlide('A', index)}
+                    onReorderSlides={(newOrder) => handleReorderSlides('A', newOrder)}
+                    isApproved={isApproved}
+                    approvedTemplate={post.selected_template as 'A' | 'B' | null}
+                  />
+                </div>
+                <div className="h-full flex flex-col min-w-0 lg:min-w-[520px] lg:max-w-[620px]">
+                  <CarouselPreview
+                    key={`template-b-${post.id}`}
+                    images={templateBImages}
+                    archivedSlides={archivedSlidesB}
+                    template="B"
+                    onSelect={() => setSelectedTemplate('B')}
+                    isSelected={selectedTemplate === 'B'}
+                    onRemoveSlide={(index) => handleRemoveSlide('B', index)}
+                    onRestoreSlide={(index) => handleRestoreSlide('B', index)}
+                    onReorderSlides={(newOrder) => handleReorderSlides('B', newOrder)}
+                    isApproved={isApproved}
+                    approvedTemplate={post.selected_template as 'A' | 'B' | null}
+                  />
+                </div>
               </div>
 
               {/* Caption Editor with Platform Differentiation */}
-              <div className="mb-6 md:mb-8 space-y-4">
+              <div className="mb-6 md:mb-8 space-y-6">
+                {/* Section Header */}
+                <div className="border-t border-border/60 pt-6">
+                  <h2 className="text-lg font-semibold tracking-tight leading-snug mb-1">Legendas</h2>
+                  <p className="text-sm text-muted-foreground">Configure as legendas para cada plataforma selecionada</p>
+                </div>
                 {/* Toggle for differentiated captions - Only show when both platforms active */}
                 {publishTargets.instagram && publishTargets.linkedin && (
                   <div className="flex items-center justify-between rounded-xl border border-border bg-card p-4 shadow-sm">
@@ -971,7 +980,11 @@ const Review = () => {
                         setLinkedinBody(newCaption);
                       }}
                       placeholder="Escreve a legenda para ambas as plataformas..."
+                      className="text-[15px] leading-relaxed"
                     />
+                    <div className="mt-2 text-xs text-muted-foreground">
+                      {caption.length} caracteres
+                    </div>
                     <HashtagManager
                       hashtags={hashtags}
                       onChange={setHashtags}
@@ -1007,7 +1020,11 @@ const Review = () => {
                           setCaption(newCaption);
                         }}
                         placeholder="Escreve a legenda para Instagram..."
+                        className="text-[15px] leading-relaxed"
                       />
+                      <div className="mt-2 text-xs text-muted-foreground">
+                        {instagramCaption.length} caracteres
+                      </div>
                       <HashtagManager
                         hashtags={hashtags}
                         onChange={setHashtags}
@@ -1037,7 +1054,11 @@ const Review = () => {
                         value={linkedinBody}
                         onChange={setLinkedinBody}
                         placeholder="Escreve a legenda para LinkedIn..."
+                        className="text-[15px] leading-relaxed"
                       />
+                      <div className="mt-2 text-xs text-muted-foreground">
+                        {linkedinBody.length} caracteres
+                      </div>
                       <div className="flex items-center justify-between mt-3">
                         <p className="text-xs text-muted-foreground">
                           Hashtags: {hashtags?.map(h => h.startsWith('#') ? h : `#${h}`).join(' ') || 'Sem hashtags'}
@@ -1069,7 +1090,11 @@ const Review = () => {
                       value={caption}
                       onChange={setCaption}
                       placeholder="Escreve a legenda para Instagram..."
+                      className="text-[15px] leading-relaxed"
                     />
+                    <div className="mt-2 text-xs text-muted-foreground">
+                      {caption.length} caracteres
+                    </div>
                     <HashtagManager
                       hashtags={hashtags}
                       onChange={setHashtags}
@@ -1101,7 +1126,11 @@ const Review = () => {
                       value={linkedinBody}
                       onChange={setLinkedinBody}
                       placeholder="Escreve a legenda para LinkedIn..."
+                      className="text-[15px] leading-relaxed"
                     />
+                    <div className="mt-2 text-xs text-muted-foreground">
+                      {linkedinBody.length} caracteres
+                    </div>
                     <div className="flex items-center justify-between mt-3">
                       <p className="text-xs text-muted-foreground">
                         {selectedTemplate ? (
@@ -1159,16 +1188,19 @@ const Review = () => {
 
               {/* Notes */}
               <div className="mb-6 md:mb-8">
+                {/* Section Divider */}
+                <div className="border-t border-border/60 pt-6 mb-4">
+                  <h2 className="text-lg font-semibold tracking-tight leading-snug mb-1">Notas Internas</h2>
+                  <p className="text-sm text-muted-foreground">Adicione observações ou comentários sobre esta revisão</p>
+                </div>
+                
                 <div className="rounded-xl border border-border bg-card p-4 md:p-5 shadow-sm">
-                  <Label htmlFor="notes" className="text-base font-semibold mb-3 block">
-                    Notas Internas
-                  </Label>
                   <Textarea
                     id="notes"
                     value={notes}
                     onChange={(e) => setNotes(e.target.value)}
                     placeholder="Adicione notas internas sobre esta revisão..."
-                    className="min-h-[100px]"
+                    className="min-h-[100px] text-[15px] leading-relaxed focus:ring-2 focus:ring-primary/40"
                   />
                 </div>
               </div>

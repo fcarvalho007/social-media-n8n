@@ -289,7 +289,7 @@ export const ActionBar = ({
               size="lg"
               onClick={handleSave}
               disabled={loading}
-              className="flex-1 sm:flex-initial h-12 text-base touch-target transition-all duration-150"
+              className="flex-1 sm:flex-initial h-12 text-base touch-target transition-all duration-150 focus:ring-2 focus:ring-primary/40"
             >
               {loading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Save className="mr-2 h-4 w-4" />}
               <span>Guardar</span>
@@ -303,7 +303,7 @@ export const ActionBar = ({
                 onClick={handleApproveNow}
                 disabled={!canApprove || loading || (publishTargets.instagram && !instagramCanPublish)}
                 className={cn(
-                  "w-full h-12 text-base touch-target transition-all duration-150 relative",
+                  "w-full h-12 text-base touch-target transition-all duration-150 relative focus:ring-2 focus:ring-primary/40",
                   canApprove && "bg-success hover:bg-success/90 shadow-sm"
                 )}
                 title={
@@ -335,8 +335,8 @@ export const ActionBar = ({
               variant="outline"
               onClick={() => setShowScheduleDialog(true)}
               disabled={!canApprove || loading}
-              className="h-12 px-4 touch-target transition-all duration-150"
-              title={!canApprove ? disabledReason : undefined}
+              className="h-12 px-4 touch-target transition-all duration-150 focus:ring-2 focus:ring-primary/40"
+              title={!canApprove ? disabledReason : 'Agendar publicação'}
             >
               <Clock className="h-4 w-4" />
             </Button>

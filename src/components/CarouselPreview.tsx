@@ -106,10 +106,11 @@ function SortableThumb({ image, index, activeIndex, onRemove, canRemove }: Sorta
       {...attributes}
       {...listeners}
       className={cn(
-        "relative aspect-square cursor-grab active:cursor-grabbing overflow-hidden rounded border-2 transition-all group select-none",
-        activeIndex === index ? "border-primary" : "border-transparent opacity-60 hover:opacity-100",
+        "relative aspect-square cursor-grab active:cursor-grabbing overflow-hidden rounded border-2 transition-all group select-none w-20 h-20 flex-shrink-0",
+        activeIndex === index ? "border-primary ring-2 ring-primary/40" : "border-transparent opacity-60 hover:opacity-100",
         isDragging && "opacity-50 scale-105 shadow-2xl ring-2 ring-primary"
       )}
+      title="Arrastar para reordenar"
     >
       <img
         src={getPreviewUrl(image)}
@@ -308,11 +309,11 @@ export const CarouselPreview = ({
 
   return (
     <div className={cn(
-      "rounded-2xl border-2 p-4 md:p-5 transition-all duration-150 relative shadow-sm hover:shadow-md",
+      "rounded-2xl border-2 p-4 md:p-5 transition-all duration-150 relative shadow-sm hover:shadow-md h-full flex flex-col",
       isThisTemplateApproved && `border-4 ${templateColors[template].ring} ${templateColors[template].glow} ring-4 ring-offset-2`,
-      isOtherTemplateApproved && "opacity-60 border-border/50",
-      !isApproved && isSelected && "border-primary shadow-lg ring-2 ring-primary/20",
-      !isApproved && !isSelected && "border-border hover:ring-1 hover:ring-border"
+      isOtherTemplateApproved && "opacity-80 hover:opacity-100 border-border/50",
+      !isApproved && isSelected && "border-primary shadow-lg ring-2 ring-primary/40 shadow-[0_8px_30px_rgba(0,0,0,.08)]",
+      !isApproved && !isSelected && "border-border hover:ring-1 hover:ring-border opacity-80 hover:opacity-100"
     )}>
       {/* Approved Badge */}
       {isThisTemplateApproved && (
@@ -394,7 +395,7 @@ export const CarouselPreview = ({
       </div>
 
       {/* Main carousel */}
-      <div className="relative mb-2 sm:mb-3 md:mb-4 overflow-hidden rounded-md sm:rounded-lg bg-muted group/carousel">
+      <div className="relative mb-2 sm:mb-3 md:mb-4 overflow-hidden rounded-xl bg-muted group/carousel aspect-[4/5]">
         <Swiper
           modules={[Navigation, Pagination, Thumbs]}
           navigation
@@ -423,10 +424,10 @@ export const CarouselPreview = ({
       {/* Thumbnails with drag-and-drop */}
       <div className="mb-3">
         {onRemoveSlide && images.length > 1 && (
-          <p className="text-xs text-muted-foreground/70 mb-2 flex items-center gap-1.5">
+          <div className="text-xs text-muted-foreground/70 mb-2 flex items-center gap-1.5">
             <Archive className="h-3.5 w-3.5" />
-            Passe o rato sobre as miniaturas para arquivar slides
-          </p>
+            <span>Arrastar para reordenar • Passar o rato para arquivar</span>
+          </div>
         )}
         <DndContext
           sensors={sensors}
@@ -434,17 +435,26 @@ export const CarouselPreview = ({
           onDragEnd={handleDragEnd}
         >
           <SortableContext items={images} strategy={horizontalListSortingStrategy}>
-            <div className="grid grid-cols-4 sm:grid-cols-5 md:grid-cols-6 lg:grid-cols-9 gap-2">
-              {images.map((image, index) => (
-                <SortableThumb
-                  key={image}
-                  image={image}
-                  index={index}
-                  activeIndex={activeIndex}
-                  onRemove={onRemoveSlide ? () => setSlideToRemove(index) : undefined}
-                  canRemove={images.length > 1}
-                />
-              ))}
+            <div className="relative">
+              {/* Scroll shadows for scannability */}
+              <div className="absolute left-0 top-0 bottom-0 w-8 bg-gradient-to-r from-background to-transparent z-10 pointer-events-none" />
+              <div className="absolute right-0 top-0 bottom-0 w-8 bg-gradient-to-l from-background to-transparent z-10 pointer-events-none" />
+              
+              <div className="overflow-x-auto snap-x snap-mandatory scrollbar-thin scrollbar-thumb-border scrollbar-track-transparent pb-2">
+                <div className="flex gap-2 min-w-min px-1">
+                  {images.map((image, index) => (
+                    <div key={image} className="snap-start">
+                      <SortableThumb
+                        image={image}
+                        index={index}
+                        activeIndex={activeIndex}
+                        onRemove={onRemoveSlide ? () => setSlideToRemove(index) : undefined}
+                        canRemove={images.length > 1}
+                      />
+                    </div>
+                  ))}
+                </div>
+              </div>
             </div>
           </SortableContext>
         </DndContext>
@@ -487,16 +497,21 @@ export const CarouselPreview = ({
         </div>
       )}
 
-      <Button
-        onClick={onSelect}
-        className={cn(
-          "w-full h-12 md:h-13 text-base font-semibold touch-target transition-all duration-150",
-          isSelected && "bg-primary shadow-sm",
-          !isSelected && `bg-gradient-to-r ${templateColors[template].gradient} hover:opacity-90`
-        )}
-      >
-        {isSelected ? '✓ Selecionado' : `Escolher Modelo ${template}`}
-      </Button>
+      {/* Select button - pushed to bottom */}
+      {!isApproved && (
+        <div className="mt-auto pt-4">
+          <Button
+            onClick={onSelect}
+            className={cn(
+              "w-full h-12 md:h-13 text-base font-semibold touch-target transition-all duration-150 focus:ring-2 focus:ring-primary/40",
+              isSelected && "bg-primary shadow-sm",
+              !isSelected && `bg-gradient-to-r ${templateColors[template].gradient} hover:opacity-90`
+            )}
+          >
+            {isSelected ? '✓ Selecionado' : `Escolher Modelo ${template}`}
+          </Button>
+        </div>
+      )}
 
       <AlertDialog open={slideToRemove !== null} onOpenChange={() => setSlideToRemove(null)}>
         <AlertDialogContent>
