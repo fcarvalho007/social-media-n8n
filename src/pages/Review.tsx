@@ -544,7 +544,7 @@ const Review = () => {
 
   const handlePublishInstagram = async () => {
     if (!caption?.trim()) {
-      toast.error('Instagram caption cannot be empty');
+      toast.error('A legenda do Instagram não pode estar vazia');
       return;
     }
 
@@ -553,7 +553,7 @@ const Review = () => {
       return;
     }
 
-    const loadingToast = toast.loading('Publishing to Instagram...');
+    const loadingToast = toast.loading('A publicar no Instagram...');
     
     try {
       const selectedImages = selectedTemplate === 'A' ? templateAImages : templateBImages;
@@ -609,7 +609,7 @@ const Review = () => {
       console.log('[Instagram] Publish result:', data);
 
       toast.dismiss(loadingToast);
-      toast.success('Published to Instagram successfully!');
+      toast.success('Publicado no Instagram com sucesso!');
 
       await supabase
         .from('posts')
@@ -622,13 +622,13 @@ const Review = () => {
     } catch (error: any) {
       toast.dismiss(loadingToast);
       console.error('[Instagram] Error:', error);
-      toast.error(`Failed: ${error.message}`);
+      toast.error(`Falha: ${error.message}`);
     }
   };
 
   const handlePublishLinkedIn = async () => {
     if (!linkedinBody?.trim()) {
-      toast.error('LinkedIn post text cannot be empty');
+      toast.error('O texto da publicação no LinkedIn não pode estar vazio');
       return;
     }
 
@@ -637,7 +637,7 @@ const Review = () => {
       return;
     }
 
-    const loadingToast = toast.loading('Publishing to LinkedIn...');
+    const loadingToast = toast.loading('A publicar no LinkedIn...');
     
     try {
       const selectedImages = selectedTemplate === 'A' ? templateAImages : templateBImages;
@@ -693,7 +693,7 @@ const Review = () => {
       console.log('[LinkedIn] Publish result:', data);
 
       toast.dismiss(loadingToast);
-      toast.success('Published to LinkedIn successfully!');
+      toast.success('Publicado no LinkedIn com sucesso!');
 
       await supabase
         .from('posts')
@@ -706,7 +706,7 @@ const Review = () => {
     } catch (error: any) {
       toast.dismiss(loadingToast);
       console.error('[LinkedIn] Error:', error);
-      toast.error(`Failed: ${error.message}`);
+      toast.error(`Falha: ${error.message}`);
     }
   };
 
@@ -928,7 +928,7 @@ const Review = () => {
                       className="flex-1 flex items-center justify-center gap-2"
                     >
                       <Instagram className="w-4 h-4" />
-                      {isPublishing ? 'Publishing...' : 'Publish IG'}
+                      {isPublishing ? 'A publicar...' : 'Publicar IG'}
                     </Button>
                     <Button
                       onClick={handlePublishLinkedIn}
@@ -936,7 +936,7 @@ const Review = () => {
                       className="flex-1 flex items-center justify-center gap-2"
                     >
                       <Linkedin className="w-4 h-4" />
-                      {isPublishing ? 'Publishing...' : 'Publish LI'}
+                      {isPublishing ? 'A publicar...' : 'Publicar LI'}
                     </Button>
                   </div>
                 </div>
@@ -1011,7 +1011,7 @@ const Review = () => {
                       className="w-full mt-3 flex items-center justify-center gap-2"
                     >
                       <Linkedin className="w-4 h-4" />
-                      {isPublishing ? 'Publishing...' : 'Publish to LinkedIn'}
+                      {isPublishing ? 'A publicar...' : 'Publicar no LinkedIn'}
                     </Button>
                   </div>
                 </div>

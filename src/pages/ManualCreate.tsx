@@ -154,7 +154,7 @@ export default function ManualCreate() {
       setSaving(true);
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) {
-        toast.error('You must be logged in');
+        toast.error('Tem de iniciar sessão');
         return;
       }
 

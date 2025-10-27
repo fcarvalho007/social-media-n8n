@@ -13,17 +13,17 @@ export function DevHelper() {
       setAdding(true);
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) {
-        toast.error('You must be logged in');
+        toast.error('Tem de iniciar sessão');
         return;
       }
 
       await addMockProfiles(supabase, user.id);
       await addMockMedia(supabase, user.id);
       
-      toast.success('Mock data added successfully!');
+      toast.success('Dados de teste adicionados com sucesso!');
     } catch (error) {
       console.error('Error adding mock data:', error);
-      toast.error('Failed to add mock data');
+      toast.error('Falha ao adicionar dados de teste');
     } finally {
       setAdding(false);
     }
