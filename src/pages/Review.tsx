@@ -807,37 +807,34 @@ const Review = () => {
           
           <main className="flex-1 animate-fade-in overflow-auto">
             {/* Refined Header - Iconosquare Style */}
-            <div className="sticky top-0 z-20 bg-background/95 backdrop-blur-sm border-b border-border">
-              <div className="max-w-[1400px] mx-auto px-4 md:px-6 py-4">
+            <div className="sticky top-0 z-20 bg-background/95 backdrop-blur-sm border-b">
+              <div className="max-w-[1400px] mx-auto px-4 md:px-6 py-3">
                 {/* Back Button */}
                 <Button
                   variant="ghost"
                   onClick={() => navigate('/')}
-                  className="-ml-2 mb-4 touch-target transition-all duration-150"
+                  className="-ml-2 mb-3 h-8 px-3 text-sm"
                   size="sm"
                 >
-                  <ArrowLeft className="mr-2 h-4 w-4" />
-                  <span className="text-sm">Voltar a Pendentes</span>
+                  <ArrowLeft className="mr-1.5 h-3.5 w-3.5" />
+                  <span>Voltar a Pendentes</span>
                 </Button>
 
                 {/* Title Row with Template Badge */}
-                <div className="flex items-start justify-between gap-4 mb-3">
+                <div className="flex items-center justify-between gap-4 mb-3">
                   <div className="flex-1 min-w-0">
-                    <h1 className="text-xl md:text-2xl font-bold tracking-tight leading-snug truncate">
+                    <h1 className="text-lg md:text-xl font-semibold tracking-tight leading-tight truncate">
                       {post.title || 'Revisão de Publicação'}
                     </h1>
-                    <p className="text-sm text-muted-foreground mt-1">
-                      Escolha onde pretende publicar este conteúdo
-                    </p>
                   </div>
                   
                   {/* Template Badge Pill */}
                   {selectedTemplate && (
                     <Badge className={cn(
-                      "rounded-full px-3 py-1.5 text-sm whitespace-nowrap",
+                      "rounded-full px-2.5 py-0.5 text-xs font-medium whitespace-nowrap",
                       isApproved 
                         ? templateBadgeColors[selectedTemplate]
-                        : "bg-primary/10 text-primary border-2 border-primary/30"
+                        : "bg-primary/10 text-primary border border-primary/30"
                     )}>
                       Template {selectedTemplate} {isApproved ? 'Aprovado' : 'Selecionado'}
                     </Badge>
@@ -960,24 +957,6 @@ const Review = () => {
                       onChange={setHashtags}
                       caption={caption}
                     />
-                    <div className="flex gap-2 mt-3">
-                      <Button
-                        onClick={handlePublishInstagram}
-                        disabled={isPublishing || !caption?.trim() || !selectedTemplate}
-                        className="flex-1 flex items-center justify-center gap-2"
-                      >
-                        <Instagram className="w-4 h-4" />
-                        {isPublishing ? 'A publicar...' : 'Publicar IG'}
-                      </Button>
-                      <Button
-                        onClick={handlePublishLinkedIn}
-                        disabled={isPublishing || !caption?.trim() || !selectedTemplate}
-                        className="flex-1 flex items-center justify-center gap-2"
-                      >
-                        <Linkedin className="w-4 h-4" />
-                        {isPublishing ? 'A publicar...' : 'Publicar LI'}
-                      </Button>
-                    </div>
                   </div>
                 )}
 
@@ -1044,14 +1023,6 @@ const Review = () => {
                           Hashtags: {hashtags?.map(h => h.startsWith('#') ? h : `#${h}`).join(' ') || 'Sem hashtags'}
                         </p>
                       </div>
-                      <Button
-                        onClick={handlePublishLinkedIn}
-                        disabled={isPublishing || !linkedinBody?.trim() || !selectedTemplate}
-                        className="w-full mt-3 flex items-center justify-center gap-2"
-                      >
-                        <Linkedin className="w-4 h-4" />
-                        {isPublishing ? 'A publicar...' : 'Publicar no LinkedIn'}
-                      </Button>
                     </div>
                   </div>
                 )}
