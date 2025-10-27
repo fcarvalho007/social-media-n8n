@@ -807,31 +807,63 @@ const Review = () => {
           
           <main className="flex-1 animate-fade-in overflow-auto">
             {/* Refined Header - Iconosquare Style */}
-            <div className="sticky top-0 z-20 bg-background/95 backdrop-blur-sm border-b">
-              <div className="max-w-[1400px] mx-auto px-4 md:px-6 py-3">
-                {/* Back Button */}
-                <Button
-                  variant="ghost"
-                  onClick={() => navigate('/')}
-                  className="-ml-2 mb-3 h-8 px-3 text-sm"
-                  size="sm"
-                >
-                  <ArrowLeft className="mr-1.5 h-3.5 w-3.5" />
-                  <span>Voltar a Pendentes</span>
-                </Button>
-
-                {/* Title Row with Template Badge */}
-                <div className="flex items-center justify-between gap-4 mb-3">
-                  <div className="flex-1 min-w-0">
-                    <h1 className="text-lg md:text-xl font-semibold tracking-tight leading-tight truncate">
-                      {post.title || 'Revisão de Publicação'}
-                    </h1>
-                  </div>
+            <div className="sticky top-0 z-20 bg-background border-b">
+              <div className="max-w-[1440px] mx-auto px-4 sm:px-6 lg:px-8">
+                {/* Breadcrumb + Back Navigation */}
+                <div className="flex items-center justify-between py-3 border-b border-border/40">
+                  <Button
+                    variant="ghost"
+                    onClick={() => navigate('/')}
+                    className="-ml-2 h-8 px-2 text-sm hover:bg-accent transition-colors duration-150"
+                    size="sm"
+                  >
+                    <ArrowLeft className="mr-1.5 h-3.5 w-3.5" />
+                    <span className="font-medium">Voltar a Pendentes</span>
+                  </Button>
                   
-                  {/* Template Badge Pill */}
+                  <nav className="hidden sm:flex items-center gap-2 text-xs text-muted-foreground">
+                    <span>Painel de Conteúdo</span>
+                    <span>›</span>
+                    <span className="text-foreground font-medium">Revisão</span>
+                  </nav>
+                </div>
+
+                {/* Header Principal */}
+                <div className="py-4">
+                  <div className="flex items-start justify-between gap-4 mb-4">
+                    <div className="flex-1 min-w-0">
+                      <h1 className="text-2xl font-bold tracking-tight leading-tight mb-1">
+                        Revisão de Publicação
+                      </h1>
+                      <p className="text-sm text-muted-foreground tracking-tight leading-snug truncate">
+                        {post.title}
+                      </p>
+                    </div>
+                    
+                    {/* Template Badge Pill - Desktop */}
+                    {selectedTemplate && (
+                      <Badge className={cn(
+                        "hidden md:flex rounded-full px-3 py-1 text-sm font-medium whitespace-nowrap transition-all duration-150",
+                        isApproved 
+                          ? templateBadgeColors[selectedTemplate]
+                          : "bg-primary/10 text-primary border border-primary/30"
+                      )}>
+                        Template {selectedTemplate} {isApproved ? 'Aprovado' : 'Selecionado'}
+                      </Badge>
+                    )}
+                  </div>
+
+                  {/* Platform Tabs */}
+                  <PlatformTabs
+                    selectedTargets={publishTargets}
+                    onTargetsChange={setPublishTargets}
+                    validations={validations}
+                  />
+                  
+                  {/* Template Badge Pill - Mobile */}
                   {selectedTemplate && (
                     <Badge className={cn(
-                      "rounded-full px-2.5 py-0.5 text-xs font-medium whitespace-nowrap",
+                      "md:hidden inline-flex rounded-full px-3 py-1 text-sm font-medium mt-3 transition-all duration-150",
                       isApproved 
                         ? templateBadgeColors[selectedTemplate]
                         : "bg-primary/10 text-primary border border-primary/30"
@@ -840,18 +872,11 @@ const Review = () => {
                     </Badge>
                   )}
                 </div>
-
-                {/* Platform Tabs */}
-                <PlatformTabs
-                  selectedTargets={publishTargets}
-                  onTargetsChange={setPublishTargets}
-                  validations={validations}
-                />
               </div>
             </div>
 
             {/* Main Content Area */}
-            <div className="max-w-[1400px] mx-auto px-4 md:px-6 py-6 md:py-8">
+            <div className="max-w-[1440px] mx-auto px-4 sm:px-6 lg:px-8 py-6 md:py-8">
 
               {/* Templates - Side by side with equal height */}
               <div ref={templatesRef} className="grid grid-cols-1 lg:grid-cols-2 gap-6 md:gap-8 mb-6 md:mb-8 w-[85%] mx-auto">

@@ -61,7 +61,7 @@ export function PlatformTabs({ selectedTargets, onTargetsChange, validations }: 
           <button
             onClick={() => toggleTarget('instagram')}
             className={cn(
-              "inline-flex items-center gap-2 rounded-full px-4 py-2 border-2 transition-all duration-150 cursor-pointer",
+              "inline-flex items-center gap-2 rounded-full px-4 py-2 border-2 transition-all duration-150 cursor-pointer focus:outline-none focus:ring-2 focus:ring-primary/40",
               selectedTargets.instagram
                 ? "border-pink-600/30 bg-pink-600/10 text-pink-600 ring-1 ring-pink-600/30 shadow-sm"
                 : "border-border bg-card hover:border-pink-600/50 hover:bg-accent/50"
@@ -79,7 +79,7 @@ export function PlatformTabs({ selectedTargets, onTargetsChange, validations }: 
           {selectedTargets.instagram && (
             <Tooltip>
               <TooltipTrigger asChild>
-                <button className="flex-shrink-0 h-9 w-9 rounded-full border-2 border-border bg-card hover:bg-accent/50 transition-all duration-150 flex items-center justify-center">
+                <button className="flex-shrink-0 h-9 w-9 rounded-full border-2 border-border bg-card hover:bg-accent/50 transition-all duration-150 flex items-center justify-center focus:outline-none focus:ring-2 focus:ring-primary/40">
                   <Info className="h-3.5 w-3.5 text-muted-foreground" />
                 </button>
               </TooltipTrigger>
@@ -112,7 +112,7 @@ export function PlatformTabs({ selectedTargets, onTargetsChange, validations }: 
           <button
             onClick={() => toggleTarget('linkedin')}
             className={cn(
-              "inline-flex items-center gap-2 rounded-full px-4 py-2 border-2 transition-all duration-150 cursor-pointer",
+              "inline-flex items-center gap-2 rounded-full px-4 py-2 border-2 transition-all duration-150 cursor-pointer focus:outline-none focus:ring-2 focus:ring-primary/40",
               selectedTargets.linkedin
                 ? "border-blue-600/30 bg-blue-600/10 text-blue-600 ring-1 ring-blue-600/30 shadow-sm"
                 : "border-border bg-card hover:border-blue-600/50 hover:bg-accent/50"
@@ -130,7 +130,7 @@ export function PlatformTabs({ selectedTargets, onTargetsChange, validations }: 
           {selectedTargets.linkedin && (
             <Tooltip>
               <TooltipTrigger asChild>
-                <button className="flex-shrink-0 h-9 w-9 rounded-full border-2 border-border bg-card hover:bg-accent/50 transition-all duration-150 flex items-center justify-center">
+                <button className="flex-shrink-0 h-9 w-9 rounded-full border-2 border-border bg-card hover:bg-accent/50 transition-all duration-150 flex items-center justify-center focus:outline-none focus:ring-2 focus:ring-primary/40">
                   <Info className="h-3.5 w-3.5 text-muted-foreground" />
                 </button>
               </TooltipTrigger>
