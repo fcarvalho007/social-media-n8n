@@ -8,7 +8,8 @@ import { CarouselPreview } from '@/components/CarouselPreview';
 import { CaptionEditor } from '@/components/CaptionEditor';
 import { RichTextEditor } from '@/components/RichTextEditor';
 import { HashtagManager } from '@/components/HashtagManager';
-import { SocialPreviewDialog } from '@/components/SocialPreviewDialog';
+import SinglePlatformPreview from '@/components/publishing/SinglePlatformPreview';
+import SplitPreviewDialog from '@/components/publishing/SplitPreviewDialog';
 import { ActionBar } from '@/components/ActionBar';
 import { TargetSelector } from '@/components/publishing/TargetSelector';
 import { PlatformRules } from '@/components/publishing/PlatformRules';
@@ -46,8 +47,11 @@ const Review = () => {
   const [isPublishing, setIsPublishing] = useState(false);
   const [useDifferentCaptions, setUseDifferentCaptions] = useState(false);
   const [instagramCaption, setInstagramCaption] = useState('');
-  const [showPreview, setShowPreview] = useState<{ platform: 'instagram' | 'linkedin'; open: boolean } | null>(null);
   const [showDebugPanel, setShowDebugPanel] = useState(false);
+  
+  // Preview state
+  const [showSplitPreview, setShowSplitPreview] = useState(false);
+  const [showSinglePreview, setShowSinglePreview] = useState<{ platform: 'instagram' | 'linkedin'; open: boolean } | null>(null);
   
   // Publishing state
   const [publishTargets, setPublishTargets] = useState<Record<PublishTarget, boolean>>({
@@ -209,10 +213,9 @@ const Review = () => {
 
       if (error) throw error;
 
-      // If not scheduled, publish immediately
+      // Success - navigate away
       if (!scheduledDate) {
-        setPublishModalOpen(true);
-        await handlePublishToTargets(scheduledDate);
+        toast.success('Publicação aprovada! Use os botões de publicar abaixo.');
       } else {
         toast.success('Publicação agendada com sucesso!');
         navigate('/');
@@ -224,338 +227,6 @@ const Review = () => {
     }
   };
 
-  const handlePublishToTargets = async (scheduledDate?: Date, retryPlatform?: PublishTarget) => {
-    let activeTargets = Object.entries(publishTargets)
-      .filter(([_, active]) => active)
-      .map(([target]) => target as PublishTarget);
-
-    // If retrying a specific platform, only publish that one
-    if (retryPlatform) {
-      activeTargets = [retryPlatform];
-    }
-
-    // LinkedIn uses separate flow - only process Instagram here
-    activeTargets = activeTargets.filter(t => t === 'instagram');
-
-    if (activeTargets.length === 0) {
-      toast.info('Use o botão "Publish to LinkedIn" para publicar no LinkedIn');
-      return;
-    }
-
-    // Check idempotency - skip already published platforms
-    const targetsToPublish = activeTargets.filter(target => {
-      if (!retryPlatform && post.external_post_ids?.[target]) {
-        toast.info(`Já publicado em Instagram`);
-        return false;
-      }
-      return true;
-    });
-
-    if (targetsToPublish.length === 0) {
-      toast.info('Já publicado no Instagram');
-      return;
-    }
-
-    const selectedImages = selectedTemplate === 'A' ? templateAImages : templateBImages;
-    const successTracker: Record<PublishTarget, boolean> = { instagram: false, linkedin: false };
-
-    try {
-      // Initialize progress for Instagram only
-      targetsToPublish.forEach(target => {
-        setPublishProgress(prev => ({
-          ...prev,
-          [target]: { 
-            ...prev[target], 
-            status: 'validating', 
-            progress: 10, 
-            message: 'A preparar conteúdo...',
-            startedAt: new Date().toISOString(),
-          }
-        }));
-      });
-
-      // Continue to actual publishing (Instagram only, no PDF needed)
-      await executePublish(targetsToPublish, selectedImages, scheduledDate, null, null, successTracker);
-
-    } catch (error) {
-      console.error('Error in publishing flow:', error);
-      toast.error('Erro ao processar publicação');
-      
-      // Set error state for all targets
-      targetsToPublish.forEach(target => {
-        setPublishProgress(prev => ({
-          ...prev,
-          [target]: {
-            ...prev[target],
-            status: 'error',
-            progress: 0,
-            error: error instanceof Error ? error.message : 'Erro desconhecido',
-          }
-        }));
-      });
-    }
-  };
-
-  const executePublish = async (
-    targetsToPublish: PublishTarget[],
-    selectedImages: string[],
-    scheduledDate: Date | undefined,
-    pdfUrl: string | null,
-    pdfMetadata: { sizeMB: number; pages: number } | null,
-    successTracker: Record<PublishTarget, boolean>,
-    pdfBase64?: string
-  ) => {
-    try {
-      // Publish to each platform with retry logic
-      for (const target of targetsToPublish) {
-        let attempts = 0;
-        const maxAttempts = 3;
-        let lastError: Error | null = null;
-        let lastProgressUpdate = Date.now();
-
-        // Heartbeat timer to show "Working..." if no progress for 5s
-        const heartbeatInterval = setInterval(() => {
-          const timeSinceUpdate = Date.now() - lastProgressUpdate;
-          if (timeSinceUpdate > 5000) {
-            setPublishProgress(prev => ({
-              ...prev,
-              [target]: { 
-                ...prev[target], 
-                message: `${prev[target].message} (a processar...)` 
-              }
-            }));
-          }
-        }, 5000);
-
-        while (attempts < maxAttempts) {
-          try {
-            console.info(`[PUBLISH:${target}] Attempt ${attempts + 1}/${maxAttempts}`, { timestamp: new Date().toISOString() });
-            
-            const delay = attempts > 0 ? Math.pow(2, attempts) * 1000 : 0;
-            if (delay > 0) {
-              setPublishProgress(prev => ({
-                ...prev,
-                [target]: { 
-                  ...prev[target], 
-                  status: 'uploading', 
-                  progress: 40, 
-                  message: `A tentar novamente... (tentativa ${attempts + 1}/${maxAttempts})` 
-                }
-              }));
-              lastProgressUpdate = Date.now();
-              await new Promise(resolve => setTimeout(resolve, delay));
-            }
-
-            // Progress: 40% -> 60% preparing payload
-            setPublishProgress(prev => ({
-              ...prev,
-              [target]: { ...prev[target], status: 'uploading', progress: 50, message: 'A preparar payload...' }
-            }));
-            lastProgressUpdate = Date.now();
-
-            // Build platform-specific payload
-            const basePayload = {
-              postId: id,
-              platform: target,
-              postType: 'carousel' as const,
-              hashtags,
-              scheduleAt: scheduledDate?.toISOString(),
-            };
-
-            // Instagram only (LinkedIn uses separate flow)
-            const payload = {
-              ...basePayload,
-              caption,
-              images: selectedImages,
-            };
-
-            console.info(`[PUBLISH:${target}] Sending to API`, { payloadKeys: Object.keys(payload) });
-
-            // Progress: 60% uploading to API
-            setPublishProgress(prev => ({
-              ...prev,
-              [target]: { ...prev[target], progress: 60, message: 'A enviar para a API...' }
-            }));
-            lastProgressUpdate = Date.now();
-
-            const { data, error } = await supabase.functions.invoke('publish-to-getlate', {
-              body: payload,
-            });
-
-            console.info(`[PUBLISH:${target}] API response received`, { 
-              success: !error, 
-              data,
-              timestamp: new Date().toISOString() 
-            });
-
-            // Prefer structured response shape
-            if (data?.ok === false) {
-              if (data.code === 409) {
-                console.info(`[PUBLISH:${target}] Already published (idempotency conflict)`);
-                toast.info(`Já publicado em ${target === 'instagram' ? 'Instagram' : 'LinkedIn'}`);
-                setPublishProgress(prev => ({
-                  ...prev,
-                  [target]: {
-                    ...prev[target],
-                    status: 'done',
-                    progress: 100,
-                    message: 'Já publicado anteriormente',
-                  }
-                }));
-                successTracker[target] = true;
-                clearInterval(heartbeatInterval);
-                break;
-              }
-              const stage = data.stage || 'unknown';
-              const code = data.code;
-              const message = data.message || 'Falha ao publicar';
-              const errorDetails = {
-                stage,
-                code,
-                message,
-                postId: id,
-                platform: target,
-                meta: data.meta || {},
-                details: data.details || [],
-                timestamp: new Date().toISOString(),
-              };
-              
-              setPublishProgress(prev => ({
-                ...prev,
-                [target]: {
-                  ...prev[target],
-                  status: 'error',
-                  progress: 0,
-                  error: message,
-                  message: `Erro na etapa: ${stage} (${code ?? 'unknown'})`,
-                  technicalDetails: errorDetails,
-                }
-              }));
-              throw new Error(message);
-            }
-
-            if (error) {
-              const errorDetails = {
-                stage: 'network',
-                code: 'invoke-error',
-                message: error.message || 'Erro desconhecido',
-                postId: id,
-                platform: target,
-                payload: { ...payload },
-                timestamp: new Date().toISOString(),
-              };
-              
-              setPublishProgress(prev => ({
-                ...prev,
-                [target]: {
-                  ...prev[target],
-                  status: 'error',
-                  progress: 0,
-                  error: error.message || 'Erro desconhecido',
-                  message: `Erro na etapa: network (invoke-error)`,
-                  technicalDetails: errorDetails,
-                }
-              }));
-              throw error;
-            }
-
-            const okSuccess = data?.ok === true || data?.success === true;
-            if (!okSuccess) throw new Error(data?.error || 'Falha ao publicar');
-
-            // Progress: 90% finalizing
-            setPublishProgress(prev => ({
-              ...prev,
-              [target]: { ...prev[target], progress: 90, message: 'A finalizar...' }
-            }));
-            lastProgressUpdate = Date.now();
-
-            // Update database with external post ID
-            await supabase
-              .from('posts')
-              .update({
-                external_post_ids: {
-                  ...post.external_post_ids,
-                  [target]: data.externalId,
-                },
-                publish_metadata: {
-                  ...post.publish_metadata,
-                  [target]: {
-                    publishedAt: new Date().toISOString(),
-                    postUrl: data.postUrl,
-                  },
-                },
-              })
-              .eq('id', id);
-
-            // Progress: 100% done
-            setPublishProgress(prev => ({
-              ...prev,
-              [target]: {
-                ...prev[target],
-                status: 'done',
-                progress: 100,
-                message: 'Publicado com sucesso!',
-                postUrl: data.postUrl,
-                publishedAt: new Date().toISOString(),
-              }
-            }));
-            lastProgressUpdate = Date.now();
-
-            successTracker[target] = true;
-            clearInterval(heartbeatInterval);
-            
-            console.info(`[PUBLISH:${target}] Success`, { timestamp: new Date().toISOString() });
-            
-            // Success - break retry loop
-            break;
-          } catch (error) {
-            attempts++;
-            lastError = error instanceof Error ? error : new Error('Erro desconhecido');
-            console.error(`[PUBLISH:${target}] Error on attempt ${attempts}/${maxAttempts}`, { error });
-            
-            if (attempts >= maxAttempts) {
-              // Final failure after all retries
-              clearInterval(heartbeatInterval);
-              const errorDetails = {
-                stage: 'publish',
-                code: 'max-retries',
-                message: lastError?.message || 'Erro ao publicar após várias tentativas',
-                postId: id,
-                platform: target,
-                attempts: maxAttempts,
-                timestamp: new Date().toISOString(),
-              };
-              
-              setPublishProgress(prev => ({
-                ...prev,
-                [target]: {
-                  ...prev[target],
-                  status: 'error',
-                  progress: 0,
-                  error: lastError?.message || 'Erro ao publicar após várias tentativas',
-                  message: `Erro na etapa: publish (max-retries)`,
-                  technicalDetails: errorDetails,
-                }
-              }));
-            }
-          }
-        }
-
-        clearInterval(heartbeatInterval);
-      }
-
-      // Check success for all targets
-      const allSuccess = targetsToPublish.every(t => successTracker[t]);
-
-      if (allSuccess) {
-        toast.success('Publicado com sucesso em todas as plataformas!');
-        setTimeout(() => navigate('/'), 2000);
-      }
-    } catch (error) {
-      console.error('[PUBLISH] Error in executePublish', { error });
-      throw error;
-    }
-  };
 
   const handleReject = async (rejectNotes?: string) => {
     try {
@@ -796,6 +467,107 @@ const Review = () => {
     }
   };
 
+  // Helper to check if preview is available
+  const canPreview = () => {
+    return publishTargets.instagram || publishTargets.linkedin;
+  };
+
+  // Handle preview button click
+  const handlePreviewClick = () => {
+    if (!canPreview()) {
+      toast.error('Selecione pelo menos uma plataforma');
+      return;
+    }
+
+    const bothActive = publishTargets.instagram && publishTargets.linkedin;
+    
+    if (bothActive) {
+      // Open split preview
+      setShowSplitPreview(true);
+    } else if (publishTargets.instagram) {
+      // Open Instagram only
+      setShowSinglePreview({ platform: 'instagram', open: true });
+    } else if (publishTargets.linkedin) {
+      // Open LinkedIn only
+      setShowSinglePreview({ platform: 'linkedin', open: true });
+    }
+  };
+
+  // Simple Instagram publish (direct to n8n like LinkedIn)
+  const handlePublishInstagram = async () => {
+    if (!caption?.trim()) {
+      toast.error('Instagram caption cannot be empty');
+      return;
+    }
+
+    if (!selectedTemplate) {
+      toast.error('Por favor, selecione primeiro um modelo');
+      return;
+    }
+
+    setIsPublishing(true);
+    const loadingToast = toast.loading('Publishing to Instagram...');
+    
+    try {
+      // Preparar pageAlts
+      const selectedImages = selectedTemplate === 'A' ? templateAImages : templateBImages;
+      const pageAlts = selectedImages.map((imgUrl, index) => {
+        const imgKey = imgUrl.split('/').pop() || `image_${index}`;
+        return post.alt_texts?.[imgKey] || `Slide ${index + 1} de ${selectedImages.length}`;
+      });
+
+      // Payload simples para n8n
+      const payload = {
+        post_id: id,
+        status: 'approved',
+        selected_template: selectedTemplate,
+        caption_final: useDifferentCaptions ? instagramCaption : caption,
+        hashtags_final: hashtags || [],
+        pageAlts: pageAlts,
+        reviewed_by: user?.email || 'unknown',
+        notes: ''
+      };
+
+      // Buscar webhook secret
+      const secret = import.meta.env.VITE_N8N_WEBHOOK_SECRET;
+
+      // FETCH DIRECTO para n8n
+      const response = await fetch('https://n8n.srv881120.hstgr.cloud/webhook/aprovacao-instagram', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'X-Webhook-Secret': secret
+        },
+        body: JSON.stringify(payload)
+      });
+
+      if (!response.ok) {
+        throw new Error(`HTTP ${response.status}`);
+      }
+
+      const result = await response.json();
+      toast.dismiss(loadingToast);
+      toast.success('Published to Instagram successfully!');
+      console.log('Instagram result:', result);
+
+      // Atualizar estado local
+      await supabase
+        .from('posts')
+        .update({
+          caption_edited: useDifferentCaptions ? instagramCaption : caption,
+          status: 'approved'
+        })
+        .eq('id', id);
+
+    } catch (error: any) {
+      toast.dismiss(loadingToast);
+      console.error('Instagram error:', error);
+      toast.error(`Failed: ${error.message}`);
+    } finally {
+      setIsPublishing(false);
+    }
+  };
+
   const handlePublishLinkedIn = async () => {
     if (!linkedinBody?.trim()) {
       toast.error('LinkedIn post text cannot be empty');
@@ -1009,45 +781,47 @@ const Review = () => {
 
             {/* Caption Editor with Platform Differentiation */}
             <div className="mb-6 md:mb-8 space-y-4">
-              {/* Toggle for differentiated captions */}
-              <div className="flex items-center justify-between rounded-xl border border-border bg-card p-4 shadow-sm">
-                <div className="flex items-center gap-3">
-                  {useDifferentCaptions ? (
-                    <Unlink className="h-5 w-5 text-muted-foreground" />
-                  ) : (
-                    <Link2 className="h-5 w-5 text-primary" />
-                  )}
-                  <div>
-                    <p className="font-semibold text-sm">
-                      {useDifferentCaptions ? 'Legendas Diferenciadas' : 'Mesma Legenda para Ambas'}
-                    </p>
-                    <p className="text-xs text-muted-foreground">
-                      {useDifferentCaptions 
-                        ? 'Cada plataforma terá sua própria legenda' 
-                        : 'Instagram e LinkedIn usarão a mesma legenda'}
-                    </p>
+              {/* Toggle for differentiated captions - Only show when both platforms active */}
+              {publishTargets.instagram && publishTargets.linkedin && (
+                <div className="flex items-center justify-between rounded-xl border border-border bg-card p-4 shadow-sm">
+                  <div className="flex items-center gap-3">
+                    {useDifferentCaptions ? (
+                      <Unlink className="h-5 w-5 text-muted-foreground" />
+                    ) : (
+                      <Link2 className="h-5 w-5 text-primary" />
+                    )}
+                    <div>
+                      <p className="font-semibold text-sm">
+                        {useDifferentCaptions ? 'Legendas Diferenciadas' : 'Mesma Legenda para Ambas'}
+                      </p>
+                      <p className="text-xs text-muted-foreground">
+                        {useDifferentCaptions 
+                          ? 'Cada plataforma terá sua própria legenda' 
+                          : 'Instagram e LinkedIn usarão a mesma legenda'}
+                      </p>
+                    </div>
                   </div>
+                  <Button
+                    variant={useDifferentCaptions ? "default" : "outline"}
+                    size="sm"
+                    onClick={() => {
+                      const newValue = !useDifferentCaptions;
+                      setUseDifferentCaptions(newValue);
+                      if (!newValue) {
+                        setLinkedinBody(caption);
+                      } else {
+                        setInstagramCaption(caption);
+                      }
+                    }}
+                    className="min-w-[100px]"
+                  >
+                    {useDifferentCaptions ? 'Unificar' : 'Diferenciar'}
+                  </Button>
                 </div>
-                <Button
-                  variant={useDifferentCaptions ? "default" : "outline"}
-                  size="sm"
-                  onClick={() => {
-                    const newValue = !useDifferentCaptions;
-                    setUseDifferentCaptions(newValue);
-                    if (!newValue) {
-                      setLinkedinBody(caption);
-                    } else {
-                      setInstagramCaption(caption);
-                    }
-                  }}
-                  className="min-w-[100px]"
-                >
-                  {useDifferentCaptions ? 'Unificar' : 'Diferenciar'}
-                </Button>
-              </div>
+              )}
 
-              {/* Unified Caption Editor (when not differentiated) */}
-              {!useDifferentCaptions && (
+              {/* Unified Caption Editor (when both platforms + not differentiated) */}
+              {publishTargets.instagram && publishTargets.linkedin && !useDifferentCaptions && (
                 <div className="rounded-xl border border-border bg-card p-4 md:p-5 shadow-sm">
                   <div className="flex items-center justify-between mb-3">
                     <div className="flex items-center gap-2">
@@ -1058,7 +832,8 @@ const Review = () => {
                     <Button
                       variant="outline"
                       size="sm"
-                      onClick={() => setShowPreview({ platform: 'instagram', open: true })}
+                      onClick={handlePreviewClick}
+                      disabled={!canPreview()}
                       className="flex items-center gap-2"
                     >
                       <Eye className="h-4 w-4" />
@@ -1078,11 +853,29 @@ const Review = () => {
                     onChange={setHashtags}
                     caption={caption}
                   />
+                  <div className="flex gap-2 mt-3">
+                    <Button
+                      onClick={handlePublishInstagram}
+                      disabled={isPublishing || !caption?.trim() || !selectedTemplate}
+                      className="flex-1 flex items-center justify-center gap-2"
+                    >
+                      <Instagram className="w-4 h-4" />
+                      {isPublishing ? 'Publishing...' : 'Publish IG'}
+                    </Button>
+                    <Button
+                      onClick={handlePublishLinkedIn}
+                      disabled={isPublishing || !caption?.trim() || !selectedTemplate}
+                      className="flex-1 flex items-center justify-center gap-2"
+                    >
+                      <Linkedin className="w-4 h-4" />
+                      {isPublishing ? 'Publishing...' : 'Publish LI'}
+                    </Button>
+                  </div>
                 </div>
               )}
 
-              {/* Differentiated Captions (when enabled) */}
-              {useDifferentCaptions && (
+              {/* Differentiated Captions (when both platforms + differentiated enabled) */}
+              {publishTargets.instagram && publishTargets.linkedin && useDifferentCaptions && (
                 <div className="space-y-4">
                   {/* Instagram Caption */}
                   <div className="rounded-xl border border-border bg-card p-4 md:p-5 shadow-sm">
@@ -1094,11 +887,11 @@ const Review = () => {
                       <Button
                         variant="outline"
                         size="sm"
-                        onClick={() => setShowPreview({ platform: 'instagram', open: true })}
+                        onClick={() => setShowSinglePreview({ platform: 'instagram', open: true })}
                         className="flex items-center gap-2"
                       >
                         <Eye className="h-4 w-4" />
-                        Pré-visualizar
+                        Pré-visualizar IG
                       </Button>
                     </div>
                     <RichTextEditor
@@ -1114,6 +907,14 @@ const Review = () => {
                       onChange={setHashtags}
                       caption={instagramCaption}
                     />
+                    <Button
+                      onClick={handlePublishInstagram}
+                      disabled={isPublishing || !instagramCaption?.trim() || !selectedTemplate}
+                      className="w-full mt-3 flex items-center justify-center gap-2"
+                    >
+                      <Instagram className="w-4 h-4" />
+                      {isPublishing ? 'Publishing...' : 'Publish to Instagram'}
+                    </Button>
                   </div>
 
                   {/* LinkedIn Caption */}
@@ -1122,15 +923,16 @@ const Review = () => {
                       <div className="flex items-center gap-2">
                         <Linkedin className="h-4 w-4 text-blue-600" />
                         <Label className="text-base font-semibold">Legenda LinkedIn</Label>
+                        <Badge variant="secondary" className="text-xs">Documento (PDF)</Badge>
                       </div>
                       <Button
                         variant="outline"
                         size="sm"
-                        onClick={() => setShowPreview({ platform: 'linkedin', open: true })}
+                        onClick={() => setShowSinglePreview({ platform: 'linkedin', open: true })}
                         className="flex items-center gap-2"
                       >
                         <Eye className="h-4 w-4" />
-                        Pré-visualizar
+                        Pré-visualizar LI
                       </Button>
                     </div>
                     <RichTextEditor
@@ -1142,16 +944,99 @@ const Review = () => {
                       <p className="text-xs text-muted-foreground">
                         Hashtags: {hashtags?.map(h => h.startsWith('#') ? h : `#${h}`).join(' ') || 'Sem hashtags'}
                       </p>
-                      <Button
-                        onClick={handlePublishLinkedIn}
-                        disabled={isPublishing || !linkedinBody?.trim() || !selectedTemplate}
-                        className="flex items-center gap-2"
-                      >
-                        <Linkedin className="w-4 h-4" />
-                        {isPublishing ? 'Publishing...' : 'Publish to LinkedIn'}
-                      </Button>
                     </div>
+                    <Button
+                      onClick={handlePublishLinkedIn}
+                      disabled={isPublishing || !linkedinBody?.trim() || !selectedTemplate}
+                      className="w-full mt-3 flex items-center justify-center gap-2"
+                    >
+                      <Linkedin className="w-4 h-4" />
+                      {isPublishing ? 'Publishing...' : 'Publish to LinkedIn'}
+                    </Button>
                   </div>
+                </div>
+              )}
+
+              {/* Instagram Only */}
+              {publishTargets.instagram && !publishTargets.linkedin && (
+                <div className="rounded-xl border border-border bg-card p-4 md:p-5 shadow-sm">
+                  <div className="flex items-center justify-between mb-3">
+                    <div className="flex items-center gap-2">
+                      <Instagram className="h-4 w-4 text-pink-500" />
+                      <Label className="text-base font-semibold">Legenda Instagram</Label>
+                    </div>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => setShowSinglePreview({ platform: 'instagram', open: true })}
+                      className="flex items-center gap-2"
+                    >
+                      <Eye className="h-4 w-4" />
+                      Pré-visualizar
+                    </Button>
+                  </div>
+                  <RichTextEditor
+                    value={caption}
+                    onChange={setCaption}
+                    placeholder="Escreve a legenda para Instagram..."
+                  />
+                  <HashtagManager
+                    hashtags={hashtags}
+                    onChange={setHashtags}
+                    caption={caption}
+                  />
+                  <Button
+                    onClick={handlePublishInstagram}
+                    disabled={isPublishing || !caption?.trim() || !selectedTemplate}
+                    className="w-full mt-3 flex items-center justify-center gap-2"
+                  >
+                    <Instagram className="w-4 h-4" />
+                    {isPublishing ? 'Publishing...' : 'Publish to Instagram'}
+                  </Button>
+                </div>
+              )}
+
+              {/* LinkedIn Only */}
+              {!publishTargets.instagram && publishTargets.linkedin && (
+                <div className="rounded-xl border border-border bg-card p-4 md:p-5 shadow-sm">
+                  <div className="flex items-center justify-between mb-3">
+                    <div className="flex items-center gap-2">
+                      <Linkedin className="h-4 w-4 text-blue-600" />
+                      <Label className="text-base font-semibold">Legenda LinkedIn</Label>
+                      <Badge variant="secondary" className="text-xs">Documento (PDF)</Badge>
+                    </div>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => setShowSinglePreview({ platform: 'linkedin', open: true })}
+                      className="flex items-center gap-2"
+                    >
+                      <Eye className="h-4 w-4" />
+                      Pré-visualizar
+                    </Button>
+                  </div>
+                  <RichTextEditor
+                    value={linkedinBody}
+                    onChange={setLinkedinBody}
+                    placeholder="Escreve a legenda para LinkedIn..."
+                  />
+                  <div className="flex items-center justify-between mt-3">
+                    <p className="text-xs text-muted-foreground">
+                      {selectedTemplate ? (
+                        <>Documento: {(selectedTemplate === 'A' ? templateAImages.length : templateBImages.length)} páginas</>
+                      ) : (
+                        <>Hashtags: {hashtags?.map(h => h.startsWith('#') ? h : `#${h}`).join(' ') || 'Sem hashtags'}</>
+                      )}
+                    </p>
+                  </div>
+                  <Button
+                    onClick={handlePublishLinkedIn}
+                    disabled={isPublishing || !linkedinBody?.trim() || !selectedTemplate}
+                    className="w-full mt-3 flex items-center justify-center gap-2"
+                  >
+                    <Linkedin className="w-4 h-4" />
+                    {isPublishing ? 'Publishing...' : 'Publish to LinkedIn'}
+                  </Button>
                 </div>
               )}
             </div>
@@ -1231,26 +1116,31 @@ const Review = () => {
         postType="carousel"
         mediaCount={selectedTemplate === 'A' ? templateAImages.length : templateBImages.length}
         progress={publishProgress}
-        onRetry={(platform) => {
-          // Reset progress for retry
-          setPublishProgress(prev => ({
-            ...prev,
-            [platform]: { platform, status: 'pending', progress: 0 }
-          }));
-          // Retry only the failed platform
-          handlePublishToTargets(undefined, platform);
-        }}
       />
 
-      {/* Social Preview Dialog */}
-      {showPreview && (
-        <SocialPreviewDialog
-          open={showPreview.open}
-          onOpenChange={(open) => setShowPreview(open ? showPreview : null)}
-          platform={showPreview.platform}
-          caption={showPreview.platform === 'instagram' ? (useDifferentCaptions ? instagramCaption : caption) : linkedinBody}
+      {/* Preview Dialogs */}
+      {/* Split Preview (IG + LI) */}
+      <SplitPreviewDialog
+        open={showSplitPreview}
+        onOpenChange={setShowSplitPreview}
+        instagramCaption={useDifferentCaptions ? instagramCaption : caption}
+        linkedinBody={linkedinBody}
+        hashtags={hashtags}
+        mediaCount={selectedTemplate ? (selectedTemplate === 'A' ? templateAImages.length : templateBImages.length) : 1}
+      />
+
+      {/* Single Platform Preview */}
+      {showSinglePreview && (
+        <SinglePlatformPreview
+          open={showSinglePreview.open}
+          onOpenChange={(open) => setShowSinglePreview(open ? showSinglePreview : null)}
+          platform={showSinglePreview.platform}
+          caption={showSinglePreview.platform === 'instagram' 
+            ? (useDifferentCaptions ? instagramCaption : caption) 
+            : linkedinBody}
           hashtags={hashtags}
-          previewImage={selectedTemplate ? (selectedTemplate === 'A' ? templateAImages[0] : templateBImages[0]) : undefined}
+          mediaCount={selectedTemplate ? (selectedTemplate === 'A' ? templateAImages.length : templateBImages.length) : 1}
+          isDocument={showSinglePreview.platform === 'linkedin'}
         />
       )}
     </SidebarProvider>

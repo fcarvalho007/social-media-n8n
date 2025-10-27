@@ -8,15 +8,3 @@ verify_jwt = false
 
 [functions.send-scheduled-posts]
 verify_jwt = false
-
-[functions.publish-to-getlate]
-verify_jwt = false
-
-[functions.generate-carousel-pdf]
-verify_jwt = false
-
-[functions.generate-carousel-pdf-lite]
-verify_jwt = false
-
-[functions.fetch-images-b64]
-verify_jwt = false
