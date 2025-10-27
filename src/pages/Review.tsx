@@ -823,36 +823,26 @@ const Review = () => {
                   "text-sm",
                   templateBadgeColors[post.selected_template as 'A' | 'B']
                 )}>
-                  Template {post.selected_template} Selecionado
+                  Template {post.selected_template} Aprovado
                 </Badge>
               )}
             </div>
 
+            {/* Publishing Configuration - Clean and focused */}
             <div className="mb-6 md:mb-8">
-              <div className="flex items-center gap-2 mb-2 flex-wrap">
-                <h1 className="text-2xl md:text-3xl lg:text-4xl font-bold tracking-tight">{post.tema}</h1>
-                <Badge variant="outline" className="gap-1">
-                  <LayoutGrid className="h-3 w-3" />
-                  Carrossel
-                </Badge>
-                {selectedTemplate && (
-                  <Badge variant="secondary" className="gap-1">
-                    {selectedTemplate === 'A' ? templateAImages.length : templateBImages.length} imagens
-                  </Badge>
-                )}
+              <div className="space-y-4">
+                <div>
+                  <h2 className="text-lg font-semibold mb-1">Plataformas de Publicação</h2>
+                  <p className="text-sm text-muted-foreground">
+                    Escolha onde pretende publicar este conteúdo
+                  </p>
+                </div>
+                <TargetSelector
+                  selectedTargets={publishTargets}
+                  onTargetsChange={setPublishTargets}
+                  validations={validations}
+                />
               </div>
-              <p className="text-sm md:text-base text-muted-foreground leading-snug">
-                Selecione o modelo, plataformas e reveja o conteúdo
-              </p>
-            </div>
-
-            {/* Publishing Configuration - Platform Selector Only */}
-            <div className="mb-6 md:mb-8">
-              <TargetSelector
-                selectedTargets={publishTargets}
-                onTargetsChange={setPublishTargets}
-                validations={validations}
-              />
             </div>
 
             {/* Templates - Side by side with equal height */}
