@@ -1,9 +1,6 @@
 project_id = "vtmrimrrppuclciolzuw"
 
-[functions.incoming]
-verify_jwt = false
-
-[functions.callback]
+[functions.notify-story-approval]
 verify_jwt = false
 
 [functions.send-scheduled-posts]

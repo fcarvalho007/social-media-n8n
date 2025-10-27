@@ -27,7 +27,6 @@ import { formatDistanceToNow } from 'date-fns';
 import { pt } from 'date-fns/locale';
 import { PublishTarget, PostType, PublishProgress } from '@/types/publishing';
 import { validateAllTargets } from '@/lib/publishingValidation';
-import { generateCarouselPDF } from '@/lib/pdfGenerator';
 
 const Review = () => {
   const { id } = useParams();
