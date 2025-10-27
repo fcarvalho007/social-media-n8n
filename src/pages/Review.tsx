@@ -15,7 +15,7 @@ import { FinalReviewModal } from '@/components/publishing/FinalReviewModal';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { SidebarProvider } from '@/components/ui/sidebar';
-import { Loader2, ArrowLeft, CheckCircle2, Eye, LayoutGrid } from 'lucide-react';
+import { Loader2, ArrowLeft, CheckCircle2, Eye, LayoutGrid, Linkedin } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { toast } from 'sonner';
@@ -40,6 +40,8 @@ const Review = () => {
   const [templateBImages, setTemplateBImages] = useState<string[]>([]);
   const [archivedSlidesA, setArchivedSlidesA] = useState<string[]>([]);
   const [archivedSlidesB, setArchivedSlidesB] = useState<string[]>([]);
+  const [linkedinBody, setLinkedinBody] = useState('');
+  const [isPublishing, setIsPublishing] = useState(false);
   const templatesRef = useRef<HTMLDivElement>(null);
   
   // Publishing state
@@ -115,6 +117,7 @@ const Review = () => {
       setNotes(data.notes || '');
       setTemplateAImages(data.template_a_images || []);
       setTemplateBImages(data.template_b_images || []);
+      setLinkedinBody(data.linkedin_body || data.caption || '');
       
       // Load archived slides from metadata
       const metadataA = data.template_a_metadata as any;
@@ -964,6 +967,84 @@ const Review = () => {
     }
   };
 
+  const handlePublishLinkedIn = async () => {
+    if (!linkedinBody.trim()) {
+      toast.error('O texto do post LinkedIn não pode estar vazio');
+      return;
+    }
+
+    if (!selectedTemplate) {
+      toast.error('Por favor, selecione primeiro um modelo');
+      return;
+    }
+
+    setIsPublishing(true);
+    
+    try {
+      // Preparar pageAlts a partir dos slides
+      const selectedImages = selectedTemplate === 'A' ? templateAImages : templateBImages;
+      const pageAlts = selectedImages.map((imgUrl, index) => {
+        const imgKey = imgUrl.split('/').pop() || `image_${index}`;
+        return post.alt_texts?.[imgKey] || `Slide ${index + 1} de ${selectedImages.length}`;
+      });
+
+      // Payload para o n8n
+      const payload = {
+        post_id: id,
+        status: 'approved',
+        selected_template: selectedTemplate,
+        body_final: linkedinBody,
+        hashtags_final: hashtags || [],
+        pageAlts: pageAlts,
+        reviewed_by: user?.email || 'unknown',
+        notes: notes || ''
+      };
+
+      // Buscar webhook secret das variáveis de ambiente
+      const webhookSecret = import.meta.env.VITE_N8N_WEBHOOK_SECRET;
+
+      // Enviar para n8n webhook
+      const response = await fetch('https://n8n.srv881120.hstgr.cloud/webhook/aprovacao-linkedin', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'X-Webhook-Secret': webhookSecret
+        },
+        body: JSON.stringify(payload)
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}));
+        throw new Error(errorData.message || `HTTP ${response.status}: ${response.statusText}`);
+      }
+
+      const result = await response.json();
+      
+      toast.success('Post publicado no LinkedIn com sucesso!');
+      console.log('LinkedIn publish result:', result);
+
+      // Atualizar estado local do post
+      const { error: updateError } = await supabase
+        .from('posts')
+        .update({
+          linkedin_body: linkedinBody,
+          linkedin_published: true,
+          status: 'approved'
+        })
+        .eq('id', id);
+
+      if (updateError) {
+        console.error('Erro ao atualizar post:', updateError);
+      }
+
+    } catch (error: any) {
+      console.error('Error publishing to LinkedIn:', error);
+      toast.error(`Falha ao publicar no LinkedIn: ${error.message}`);
+    } finally {
+      setIsPublishing(false);
+    }
+  };
+
   const scrollToTemplates = () => {
     templatesRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
   };
@@ -1100,6 +1181,34 @@ const Review = () => {
                   setHashtags(newHashtags);
                 }}
               />
+            </div>
+
+            {/* LinkedIn Post Text */}
+            <div className="rounded-xl border border-border bg-card p-4 md:p-5 mb-6 md:mb-8 shadow-sm">
+              <Label htmlFor="linkedin-body" className="text-base font-semibold mb-2 block tracking-tight">
+                Texto do Post LinkedIn
+              </Label>
+              <Textarea
+                id="linkedin-body"
+                placeholder="Escreve o texto do post para LinkedIn..."
+                value={linkedinBody}
+                onChange={(e) => setLinkedinBody(e.target.value)}
+                rows={6}
+                className="w-full mb-3"
+              />
+              <p className="text-sm text-muted-foreground">
+                Hashtags que serão adicionadas automaticamente: {hashtags?.map(h => h.startsWith('#') ? h : `#${h}`).join(' ') || 'Sem hashtags'}
+              </p>
+              <div className="mt-4 flex gap-3">
+                <Button
+                  onClick={handlePublishLinkedIn}
+                  disabled={isPublishing || !linkedinBody.trim() || !selectedTemplate}
+                  className="flex items-center gap-2"
+                >
+                  <Linkedin className="w-4 h-4" />
+                  {isPublishing ? 'A publicar...' : 'Publicar no LinkedIn'}
+                </Button>
+              </div>
             </div>
 
             {/* Internal Notes */}
