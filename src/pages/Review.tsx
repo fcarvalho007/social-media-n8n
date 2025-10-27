@@ -1268,10 +1268,10 @@ const Review = () => {
       <SplitPreviewDialog
         open={showSplitPreview}
         onOpenChange={setShowSplitPreview}
-        instagramCaption={useDifferentCaptions ? instagramCaption : caption}
-        linkedinBody={linkedinBody}
-        hashtags={hashtags}
+        selectedPlatforms={Object.entries(publishTargets).filter(([_, enabled]) => enabled).map(([platform]) => platform)}
         mediaCount={selectedTemplate ? (selectedTemplate === 'A' ? templateAImages.length : templateBImages.length) : 1}
+        hasWarnings={Object.values(validations).some(v => v?.warnings?.length > 0 || v?.errors?.length > 0)}
+        warningCount={Object.values(validations).reduce((acc, v) => acc + (v?.warnings?.length || 0) + (v?.errors?.length || 0), 0)}
       />
 
       {/* Single Platform Preview */}
