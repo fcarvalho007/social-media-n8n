@@ -190,6 +190,9 @@ const Review = () => {
       try {
         const isValidUUID = user?.id && /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(user.id);
         
+        // Get current active images for selected template
+        const activeImages = selectedTemplate === 'A' ? templateAImages : templateBImages;
+        
         const updateData: any = {
           status: 'approved',
           selected_template: selectedTemplate,
@@ -199,11 +202,15 @@ const Review = () => {
           reviewed_at: new Date().toISOString(),
           publish_targets: publishTargets,
           scheduled_date: scheduledDate.toISOString(),
+          // Save the active images for the selected template
+          [selectedTemplate === 'A' ? 'template_a_images' : 'template_b_images']: activeImages,
         };
 
         if (isValidUUID) {
           updateData.reviewed_by = user.id;
         }
+        
+        console.log('[Approve Schedule] Guardando', activeImages.length, 'imagens ativas do template', selectedTemplate);
 
         const { error } = await supabase
           .from('posts')
@@ -234,6 +241,9 @@ const Review = () => {
       // Save to database first
       const isValidUUID = user?.id && /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(user.id);
       
+      // Get current active images for selected template
+      const activeImages = selectedTemplate === 'A' ? templateAImages : templateBImages;
+      
       const updateData: any = {
         status: 'approved',
         selected_template: selectedTemplate,
@@ -242,11 +252,15 @@ const Review = () => {
         notes,
         reviewed_at: new Date().toISOString(),
         publish_targets: publishTargets,
+        // Save the active images for the selected template
+        [selectedTemplate === 'A' ? 'template_a_images' : 'template_b_images']: activeImages,
       };
 
       if (isValidUUID) {
         updateData.reviewed_by = user.id;
       }
+      
+      console.log('[Approve Publish] Guardando', activeImages.length, 'imagens ativas do template', selectedTemplate);
 
       const { error } = await supabase
         .from('posts')
@@ -556,7 +570,12 @@ const Review = () => {
     const loadingToast = toast.loading('A publicar no Instagram...');
     
     try {
+      // CRITICAL: Always get fresh images from current state (excludes archived slides)
       const selectedImages = selectedTemplate === 'A' ? templateAImages : templateBImages;
+      
+      console.log('[Instagram Publish] Selected template:', selectedTemplate);
+      console.log('[Instagram Publish] Total images to publish:', selectedImages.length);
+      console.log('[Instagram Publish] Images:', selectedImages);
       
       // Validate images before sending
       if (!selectedImages || selectedImages.length === 0) {
@@ -590,11 +609,14 @@ const Review = () => {
         notes: ''
       };
 
-      console.log('[Instagram] Calling publish-proxy with payload:', {
+      console.log('[Instagram] Payload completo a enviar:', {
         platform: payload.platform,
         post_id: payload.post_id,
+        selected_template: payload.selected_template,
         imageCount: payload.images.length,
-        imagesPreview: payload.images.slice(0, 2),
+        images: payload.images,
+        caption_length: payload.caption_final.length,
+        hashtags_count: payload.hashtags_final.length,
       });
 
       const { data, error } = await supabase.functions.invoke('publish-proxy', {
@@ -611,13 +633,17 @@ const Review = () => {
       toast.dismiss(loadingToast);
       toast.success('Publicado no Instagram com sucesso!');
 
+      // Update post status and ensure template images are saved
       await supabase
         .from('posts')
         .update({
           caption_edited: useDifferentCaptions ? instagramCaption : caption,
-          status: 'approved'
+          status: 'approved',
+          [selectedTemplate === 'A' ? 'template_a_images' : 'template_b_images']: selectedImages,
         })
         .eq('id', id);
+      
+      console.log('[Instagram] Post atualizado na BD com', selectedImages.length, 'imagens');
 
     } catch (error: any) {
       toast.dismiss(loadingToast);
@@ -640,7 +666,12 @@ const Review = () => {
     const loadingToast = toast.loading('A publicar no LinkedIn...');
     
     try {
+      // CRITICAL: Always get fresh images from current state (excludes archived slides)
       const selectedImages = selectedTemplate === 'A' ? templateAImages : templateBImages;
+      
+      console.log('[LinkedIn Publish] Selected template:', selectedTemplate);
+      console.log('[LinkedIn Publish] Total images to publish:', selectedImages.length);
+      console.log('[LinkedIn Publish] Images:', selectedImages);
       
       // Validate images before sending
       if (!selectedImages || selectedImages.length === 0) {
@@ -674,11 +705,14 @@ const Review = () => {
         notes: ''
       };
 
-      console.log('[LinkedIn] Calling publish-proxy with payload:', {
+      console.log('[LinkedIn] Payload completo a enviar:', {
         platform: payload.platform,
         post_id: payload.post_id,
+        selected_template: payload.selected_template,
         imageCount: payload.images.length,
-        imagesPreview: payload.images.slice(0, 2),
+        images: payload.images,
+        body_length: payload.body_final.length,
+        hashtags_count: payload.hashtags_final.length,
       });
 
       const { data, error } = await supabase.functions.invoke('publish-proxy', {
@@ -695,13 +729,17 @@ const Review = () => {
       toast.dismiss(loadingToast);
       toast.success('Publicado no LinkedIn com sucesso!');
 
+      // Update post status and ensure template images are saved
       await supabase
         .from('posts')
         .update({
           linkedin_body: linkedinBody,
-          status: 'approved'
+          status: 'approved',
+          [selectedTemplate === 'A' ? 'template_a_images' : 'template_b_images']: selectedImages,
         })
         .eq('id', id);
+      
+      console.log('[LinkedIn] Post atualizado na BD com', selectedImages.length, 'imagens');
 
     } catch (error: any) {
       toast.dismiss(loadingToast);

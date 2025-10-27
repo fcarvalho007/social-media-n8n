@@ -21,6 +21,9 @@ serve(async (req) => {
       hasCaption: !!payload.caption_final,
       hasBody: !!payload.body_final,
     });
+    
+    // Log all image URLs for debugging
+    console.log(`[publish-proxy] Images received (${payload.images?.length || 0}):`, payload.images);
 
     // Validate payload
     if (!platform || !['instagram', 'linkedin'].includes(platform)) {
