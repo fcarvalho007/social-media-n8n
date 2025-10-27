@@ -17,10 +17,11 @@ import { Calendar } from '@/components/ui/calendar';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Badge } from '@/components/ui/badge';
 import { toast } from 'sonner';
-import { Save, Send, Calendar as CalendarIcon, ArrowLeft, Instagram, Linkedin, Upload, Clock, X, FileText } from 'lucide-react';
+import { Save, Send, Calendar as CalendarIcon, ArrowLeft, Instagram, Linkedin, Upload, Clock, X, FileText, Loader2 } from 'lucide-react';
 import { format } from 'date-fns';
 import { pt } from 'date-fns/locale';
 import { cn } from '@/lib/utils';
+import { Progress } from '@/components/ui/progress';
 import InstagramCarouselPreview from '@/components/manual-post/InstagramCarouselPreview';
 import InstagramStoryPreview from '@/components/manual-post/InstagramStoryPreview';
 import LinkedInPreview from '@/components/manual-post/LinkedInPreview';
@@ -38,6 +39,9 @@ export default function ManualCreate() {
   const [time, setTime] = useState('12:00');
   const [scheduleAsap, setScheduleAsap] = useState(false);
   const [saving, setSaving] = useState(false);
+  const [submitting, setSubmitting] = useState(false);
+  const [uploadProgress, setUploadProgress] = useState(0);
+  const [isUploading, setIsUploading] = useState(false);
   const [draftsDialogOpen, setDraftsDialogOpen] = useState(false);
   const [currentDraftId, setCurrentDraftId] = useState<string | null>(null);
 
@@ -90,7 +94,7 @@ export default function ManualCreate() {
   const hasErrors = validationErrors.length > 0;
 
   // Handle media upload
-  const handleMediaUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleMediaUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const files = Array.from(e.target.files || []);
     
     if (selectedNetwork === 'instagram-carousel' && files.length > 10) {
@@ -102,11 +106,48 @@ export default function ManualCreate() {
       toast.error('Stories permite apenas 1 ficheiro');
       return;
     }
+
+    // Validate file sizes
+    const maxSize = 50 * 1024 * 1024; // 50MB
+    const invalidFiles = files.filter(file => file.size > maxSize);
+    if (invalidFiles.length > 0) {
+      toast.error('Ficheiros não podem exceder 50MB');
+      return;
+    }
+
+    // Validate file types
+    const validTypes = ['image/jpeg', 'image/jpg', 'image/png', 'image/webp'];
+    if (selectedNetwork === 'instagram-stories') {
+      validTypes.push('video/mp4');
+    }
+    const invalidTypes = files.filter(file => !validTypes.includes(file.type));
+    if (invalidTypes.length > 0) {
+      toast.error('Formato não suportado. Use PNG, JPG ou MP4');
+      return;
+    }
     
-    // Create preview URLs
+    setIsUploading(true);
+    setUploadProgress(0);
+
+    // Simulate progress for preview generation
     const urls = files.map(file => URL.createObjectURL(file));
+    
+    // Animate progress
+    const interval = setInterval(() => {
+      setUploadProgress(prev => {
+        if (prev >= 100) {
+          clearInterval(interval);
+          setIsUploading(false);
+          return 100;
+        }
+        return prev + 10;
+      });
+    }, 50);
+
     setMediaFiles(files);
     setMediaPreviewUrls(urls);
+    
+    toast.success(`${files.length} ficheiro(s) carregado(s)`);
   };
 
   const removeMedia = (index: number) => {
@@ -125,6 +166,8 @@ export default function ManualCreate() {
 
     try {
       setSaving(true);
+      setUploadProgress(0);
+
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) {
         toast.error('Tem de iniciar sessão');
@@ -133,8 +176,14 @@ export default function ManualCreate() {
 
       // Upload media files to storage
       const mediaUrls: string[] = [];
-      for (const file of mediaFiles) {
+      const totalFiles = mediaFiles.length;
+      
+      for (let i = 0; i < totalFiles; i++) {
+        const file = mediaFiles[i];
         const fileName = `${user.id}/${Date.now()}-${file.name}`;
+        
+        setUploadProgress(Math.round((i / totalFiles) * 100));
+        
         const { error: uploadError } = await supabase.storage
           .from('pdfs')
           .upload(fileName, file);
@@ -147,6 +196,8 @@ export default function ManualCreate() {
         
         mediaUrls.push(publicUrl);
       }
+
+      setUploadProgress(100);
 
       // Map selectedNetwork to platform format
       let platform: string;
@@ -172,18 +223,19 @@ export default function ManualCreate() {
           .update(draftData)
           .eq('id', currentDraftId);
         if (error) throw error;
+        toast.success('Rascunho atualizado com sucesso');
       } else {
         // Insert new draft
         const { error } = await supabase.from('posts_drafts').insert(draftData);
         if (error) throw error;
+        toast.success('Rascunho guardado com sucesso');
       }
-
-      toast.success('Rascunho guardado com sucesso');
     } catch (error) {
       console.error('Error saving draft:', error);
-      toast.error('Falha ao guardar rascunho');
+      toast.error('Erro ao guardar rascunho. Tente novamente.');
     } finally {
       setSaving(false);
+      setUploadProgress(0);
     }
   };
 
@@ -211,27 +263,42 @@ export default function ManualCreate() {
 
   const handleSubmitForApproval = async () => {
     if (hasErrors) {
-      toast.error('Corrija os erros: ' + validationErrors.join(', '));
+      const errorMsg = validationErrors.join(', ');
+      toast.error(`Corrija os erros: ${errorMsg}`, {
+        duration: 5000,
+      });
       return;
     }
 
     try {
-      setSaving(true);
+      setSubmitting(true);
+      setUploadProgress(0);
+      
       const { data: { user }, error: authError } = await supabase.auth.getUser();
       if (authError || !user) {
-        toast.error('Tem de iniciar sessão');
+        toast.error('Tem de iniciar sessão para submeter');
         return;
       }
 
-      // Upload media to storage
+      // Upload media to storage with progress
+      toast.loading('A carregar ficheiros...', { id: 'upload' });
       const mediaUrls: string[] = [];
-      for (const file of mediaFiles) {
+      const totalFiles = mediaFiles.length;
+      
+      for (let i = 0; i < totalFiles; i++) {
+        const file = mediaFiles[i];
         const fileName = `${user.id}/${Date.now()}-${file.name}`;
+        
+        setUploadProgress(Math.round((i / totalFiles) * 50)); // 0-50% for upload
+        
         const { error: uploadError } = await supabase.storage
           .from('pdfs')
           .upload(fileName, file);
         
-        if (uploadError) throw uploadError;
+        if (uploadError) {
+          toast.dismiss('upload');
+          throw new Error(`Erro ao carregar ${file.name}`);
+        }
         
         const { data: { publicUrl } } = supabase.storage
           .from('pdfs')
@@ -239,6 +306,9 @@ export default function ManualCreate() {
         
         mediaUrls.push(publicUrl);
       }
+
+      toast.dismiss('upload');
+      setUploadProgress(50);
 
       // Map selectedNetwork to platform format for N8N
       let platform: string;
@@ -255,11 +325,16 @@ export default function ManualCreate() {
         scheduledTimeStr = time;
       }
 
+      setUploadProgress(60);
+
       // Get auth token
       const { data: { session } } = await supabase.auth.getSession();
-      if (!session) throw new Error('No session');
+      if (!session) throw new Error('Sessão expirada. Faça login novamente.');
 
       // Call edge function to submit to N8N
+      toast.loading('A submeter publicação...', { id: 'submit' });
+      setUploadProgress(80);
+      
       const { data, error } = await supabase.functions.invoke('submit-to-n8n', {
         body: {
           platform,
@@ -271,11 +346,18 @@ export default function ManualCreate() {
         },
       });
 
-      if (error) throw error;
+      if (error) {
+        toast.dismiss('submit');
+        throw new Error('Erro ao comunicar com o servidor');
+      }
 
       if (!data?.success) {
-        throw new Error(data?.error || 'Falha ao submeter');
+        toast.dismiss('submit');
+        throw new Error(data?.error || 'Falha ao submeter para aprovação');
       }
+
+      toast.dismiss('submit');
+      setUploadProgress(90);
 
       // Save to database
       const postData = {
@@ -296,13 +378,32 @@ export default function ManualCreate() {
       const { error: dbError } = await supabase.from('posts').insert(postData);
       if (dbError) console.error('DB insert error:', dbError);
 
-      toast.success('Publicação submetida para aprovação');
-      navigate('/calendar');
+      setUploadProgress(100);
+      
+      toast.success('Publicação submetida para aprovação com sucesso!', {
+        duration: 4000,
+      });
+      
+      // Clear form if it's a new draft (not updating)
+      if (!currentDraftId) {
+        setCaption('');
+        setMediaFiles([]);
+        setMediaPreviewUrls([]);
+        setScheduledDate(undefined);
+        setTime('12:00');
+        setScheduleAsap(false);
+      }
+      
+      setTimeout(() => navigate('/calendar'), 1500);
     } catch (error) {
       console.error('Error submitting:', error);
-      toast.error(error instanceof Error ? error.message : 'Erro ao submeter. Tenta novamente.');
+      const errorMsg = error instanceof Error ? error.message : 'Erro ao submeter. Tente novamente.';
+      toast.error(errorMsg, {
+        duration: 5000,
+      });
     } finally {
-      setSaving(false);
+      setSubmitting(false);
+      setUploadProgress(0);
     }
   };
 
@@ -324,15 +425,21 @@ export default function ManualCreate() {
           <main className="flex-1 p-4 sm:p-6 lg:p-8 overflow-auto">
             <div className="max-w-7xl mx-auto space-y-6">
               {/* Header */}
-              <div className="flex items-center gap-4">
-                <Button variant="ghost" size="sm" onClick={() => navigate('/?tab=create')} className="gap-2">
+              <div className="flex flex-col sm:flex-row items-start sm:items-center gap-4">
+                <Button 
+                  variant="ghost" 
+                  size="sm" 
+                  onClick={() => navigate('/?tab=create')} 
+                  className="gap-2"
+                  aria-label="Voltar à página anterior"
+                >
                   <ArrowLeft className="h-4 w-4" />
                   Voltar
                 </Button>
                 <ModeBadge mode="manual" onChangeMode={() => navigate('/?tab=create')} className="flex-1" />
               </div>
 
-              <div className="grid lg:grid-cols-2 gap-8">
+              <div className="grid lg:grid-cols-2 gap-6 lg:gap-8">
                 {/* Left - Form */}
                 <div className="space-y-6">
                   {/* Network Selection */}
@@ -343,22 +450,26 @@ export default function ManualCreate() {
                     </CardHeader>
                     <CardContent className="space-y-3">
                       {networkOptions.map((option) => (
-                        <div
+                        <button
                           key={option.value}
+                          type="button"
                           onClick={() => setSelectedNetwork(option.value)}
+                          disabled={saving || submitting}
+                          aria-label={`Selecionar ${option.label}`}
+                          aria-pressed={selectedNetwork === option.value}
                           className={cn(
-                            "flex items-center gap-3 p-4 rounded-lg border-2 cursor-pointer transition-all",
+                            "w-full flex items-center gap-3 p-4 rounded-lg border-2 cursor-pointer transition-all disabled:opacity-50 disabled:cursor-not-allowed",
                             selectedNetwork === option.value
-                              ? "border-primary bg-primary/5"
-                              : "border-border hover:border-border/80 hover:bg-accent/50"
+                              ? "border-primary bg-primary/5 ring-2 ring-primary/20"
+                              : "border-border hover:border-primary/50 hover:bg-accent/50"
                           )}
                         >
-                          <option.icon className="h-6 w-6" />
-                          <div className="flex-1">
+                          <option.icon className="h-6 w-6 flex-shrink-0" aria-hidden="true" />
+                          <div className="flex-1 text-left">
                             <p className="font-semibold text-sm">{option.label}</p>
                             <p className="text-xs text-muted-foreground">{option.description}</p>
                           </div>
-                        </div>
+                        </button>
                       ))}
                     </CardContent>
                   </Card>
@@ -369,16 +480,32 @@ export default function ManualCreate() {
                       <CardHeader>
                         <CardTitle>Média</CardTitle>
                         <CardDescription>
-                          {selectedNetwork === 'instagram-carousel' && 'Carregue entre 1 e 10 imagens'}
-                          {selectedNetwork === 'instagram-stories' && 'Carregue 1 imagem ou vídeo'}
-                          {selectedNetwork === 'linkedin' && 'Opcional: carregue imagens'}
+                          {selectedNetwork === 'instagram-carousel' && 'Carregue entre 1 e 10 imagens (PNG, JPG - máx. 50MB cada)'}
+                          {selectedNetwork === 'instagram-stories' && 'Carregue 1 imagem ou vídeo (PNG, JPG, MP4 - máx. 50MB)'}
+                          {selectedNetwork === 'linkedin' && 'Opcional: carregue imagens (PNG, JPG - máx. 50MB cada)'}
                         </CardDescription>
                       </CardHeader>
                       <CardContent className="space-y-4">
-                        <Label htmlFor="media-upload" className="cursor-pointer">
-                          <div className="flex items-center justify-center gap-2 h-32 rounded-lg border-2 border-dashed border-border hover:border-primary/50 transition-colors bg-muted/30">
-                            <Upload className="h-6 w-6 text-muted-foreground" />
-                            <span className="text-sm text-muted-foreground">Carregar ficheiros</span>
+                        <Label 
+                          htmlFor="media-upload" 
+                          className={cn(
+                            "cursor-pointer",
+                            (saving || submitting || isUploading) && "cursor-not-allowed opacity-50"
+                          )}
+                        >
+                          <div className="flex flex-col items-center justify-center gap-2 h-32 rounded-lg border-2 border-dashed border-border hover:border-primary/50 transition-colors bg-muted/30">
+                            {isUploading ? (
+                              <>
+                                <Loader2 className="h-6 w-6 text-primary animate-spin" />
+                                <span className="text-sm text-muted-foreground">A processar ficheiros...</span>
+                              </>
+                            ) : (
+                              <>
+                                <Upload className="h-6 w-6 text-muted-foreground" aria-hidden="true" />
+                                <span className="text-sm text-muted-foreground">Carregar ficheiros</span>
+                                <span className="text-xs text-muted-foreground">Arraste ou clique para selecionar</span>
+                              </>
+                            )}
                           </div>
                           <Input
                             id="media-upload"
@@ -386,21 +513,37 @@ export default function ManualCreate() {
                             multiple={selectedNetwork !== 'instagram-stories'}
                             accept={selectedNetwork === 'instagram-stories' ? 'image/*,video/*' : 'image/*'}
                             onChange={handleMediaUpload}
+                            disabled={saving || submitting || isUploading}
                             className="hidden"
+                            aria-label="Carregar ficheiros de média"
                           />
                         </Label>
+
+                        {isUploading && (
+                          <Progress value={uploadProgress} className="h-2" />
+                        )}
                         
                         {mediaPreviewUrls.length > 0 && (
-                          <div className="grid grid-cols-3 gap-2">
+                          <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
                             {mediaPreviewUrls.map((url, idx) => (
                               <div key={idx} className="relative aspect-square rounded-lg overflow-hidden border border-border group">
-                                <img src={url} alt={`Preview ${idx + 1}`} className="w-full h-full object-cover" />
+                                <img 
+                                  src={url} 
+                                  alt={`Pré-visualização ${idx + 1} de ${mediaPreviewUrls.length}`} 
+                                  className="w-full h-full object-cover" 
+                                />
                                 <button
+                                  type="button"
                                   onClick={() => removeMedia(idx)}
-                                  className="absolute top-1 right-1 p-1 rounded-full bg-destructive text-destructive-foreground opacity-0 group-hover:opacity-100 transition-opacity"
+                                  disabled={saving || submitting}
+                                  aria-label={`Remover imagem ${idx + 1}`}
+                                  className="absolute top-1 right-1 p-1.5 rounded-full bg-destructive text-destructive-foreground opacity-0 group-hover:opacity-100 transition-opacity disabled:opacity-50 disabled:cursor-not-allowed hover:scale-110"
                                 >
                                   <X className="h-3 w-3" />
                                 </button>
+                                <div className="absolute bottom-1 left-1 bg-background/80 backdrop-blur-sm px-1.5 py-0.5 rounded text-xs">
+                                  {idx + 1}/{mediaPreviewUrls.length}
+                                </div>
                               </div>
                             ))}
                           </div>
@@ -415,7 +558,14 @@ export default function ManualCreate() {
                       <CardHeader>
                         <CardTitle>Legenda</CardTitle>
                         <CardDescription>
-                          {captionLength}/{maxLength} caracteres
+                          <span className={cn(
+                            "font-medium",
+                            captionLength > maxLength * 0.9 && captionLength <= maxLength && "text-orange-500",
+                            captionLength > maxLength && "text-destructive"
+                          )}>
+                            {captionLength}/{maxLength}
+                          </span>
+                          {' '}caracteres
                           {selectedNetwork === 'linkedin' && ' (obrigatório)'}
                         </CardDescription>
                       </CardHeader>
@@ -423,9 +573,21 @@ export default function ManualCreate() {
                         <Textarea
                           value={caption}
                           onChange={(e) => setCaption(e.target.value.slice(0, maxLength))}
-                          placeholder="Escreva a sua legenda..."
+                          placeholder={
+                            selectedNetwork === 'linkedin' 
+                              ? "Escreva o corpo do seu post no LinkedIn..." 
+                              : "Escreva a sua legenda..."
+                          }
+                          disabled={saving || submitting}
                           className="min-h-[120px] resize-none"
+                          aria-label="Legenda da publicação"
+                          aria-describedby="caption-description"
                         />
+                        <p id="caption-description" className="sr-only">
+                          Campo de texto para a legenda da publicação. 
+                          {selectedNetwork === 'linkedin' && ' Este campo é obrigatório para LinkedIn.'}
+                          Máximo de {maxLength} caracteres.
+                        </p>
                       </CardContent>
                     </Card>
                   )}
@@ -492,55 +654,95 @@ export default function ManualCreate() {
 
                   {/* Actions */}
                   {selectedNetwork && (
-                    <Card className="sticky bottom-4 bg-card/95 backdrop-blur-sm border-2 shadow-lg">
+                    <Card className="lg:sticky lg:bottom-4 bg-card/95 backdrop-blur-sm border-2 shadow-lg">
                       <CardContent className="pt-6 space-y-3">
+                        {(saving || submitting) && uploadProgress > 0 && (
+                          <div className="space-y-2">
+                            <div className="flex items-center justify-between text-sm">
+                              <span className="text-muted-foreground">
+                                {saving ? 'A guardar...' : 'A submeter...'}
+                              </span>
+                              <span className="font-medium">{uploadProgress}%</span>
+                            </div>
+                            <Progress value={uploadProgress} className="h-2" />
+                          </div>
+                        )}
+
                         {validationErrors.length > 0 && (
-                          <div className="space-y-1">
+                          <div className="space-y-1" role="alert" aria-live="polite">
                             {validationErrors.map((error, idx) => (
-                              <Badge key={idx} variant="destructive" className="text-xs">
+                              <Badge key={idx} variant="destructive" className="text-xs block">
                                 {error}
                               </Badge>
                             ))}
                           </div>
                         )}
                         
-                        <div className="grid grid-cols-2 gap-3">
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                           <Button
+                            type="button"
                             variant="outline"
                             onClick={handleSaveDraft}
-                            disabled={saving || !selectedNetwork}
+                            disabled={saving || submitting || !selectedNetwork || isUploading}
                             className="font-semibold"
+                            aria-label="Guardar como rascunho"
                           >
-                            <Save className="h-4 w-4 mr-2" />
-                            Guardar rascunho
+                            {saving ? (
+                              <>
+                                <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                                A guardar...
+                              </>
+                            ) : (
+                              <>
+                                <Save className="h-4 w-4 mr-2" />
+                                Guardar rascunho
+                              </>
+                            )}
                           </Button>
                           <Button
+                            type="button"
                             onClick={handleSubmitForApproval}
-                            disabled={saving || hasErrors}
+                            disabled={submitting || saving || hasErrors || isUploading}
                             className="font-semibold"
+                            aria-label="Submeter para aprovação"
                           >
-                            <Send className="h-4 w-4 mr-2" />
-                            Submeter para aprovação
+                            {submitting ? (
+                              <>
+                                <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                                A submeter...
+                              </>
+                            ) : (
+                              <>
+                                <Send className="h-4 w-4 mr-2" />
+                                Submeter
+                              </>
+                            )}
                           </Button>
                         </div>
                         
-                        <div className="grid grid-cols-2 gap-3">
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                           <Button
+                            type="button"
                             variant="ghost"
                             size="sm"
                             onClick={() => setDraftsDialogOpen(true)}
+                            disabled={saving || submitting}
                             className="w-full text-xs"
+                            aria-label="Ver rascunhos guardados"
                           >
-                            <FileText className="h-3 w-3 mr-1" />
+                            <FileText className="h-3 w-3 mr-1" aria-hidden="true" />
                             Ver rascunhos
                           </Button>
                           <Button
+                            type="button"
                             variant="ghost"
                             size="sm"
                             onClick={() => navigate('/calendar')}
+                            disabled={saving || submitting}
                             className="w-full text-xs"
+                            aria-label="Ver calendário de publicações"
                           >
-                            <CalendarIcon className="h-3 w-3 mr-1" />
+                            <CalendarIcon className="h-3 w-3 mr-1" aria-hidden="true" />
                             Ver calendário
                           </Button>
                         </div>

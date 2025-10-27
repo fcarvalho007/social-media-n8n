@@ -3,11 +3,13 @@ import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Badge } from "@/components/ui/badge";
-import { Trash2, Edit } from "lucide-react";
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
+import { Trash2, Edit, Loader2 } from "lucide-react";
 import { Instagram, Linkedin } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { useState } from "react";
 
 interface Draft {
   id: string;
@@ -29,6 +31,9 @@ interface DraftsDialogProps {
 const DraftsDialog = ({ open, onOpenChange, onLoadDraft }: DraftsDialogProps) => {
   const { toast } = useToast();
   const queryClient = useQueryClient();
+  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
+  const [draftToDelete, setDraftToDelete] = useState<string | null>(null);
+  const [isDeleting, setIsDeleting] = useState(false);
 
   const { data: drafts = [], isLoading } = useQuery({
     queryKey: ["drafts"],
@@ -49,12 +54,20 @@ const DraftsDialog = ({ open, onOpenChange, onLoadDraft }: DraftsDialogProps) =>
     enabled: open,
   });
 
-  const handleDelete = async (id: string) => {
+  const handleDeleteClick = (id: string) => {
+    setDraftToDelete(id);
+    setDeleteDialogOpen(true);
+  };
+
+  const handleConfirmDelete = async () => {
+    if (!draftToDelete) return;
+
     try {
+      setIsDeleting(true);
       const { error } = await supabase
         .from("posts_drafts")
         .delete()
-        .eq("id", id);
+        .eq("id", draftToDelete);
 
       if (error) throw error;
 
@@ -71,6 +84,10 @@ const DraftsDialog = ({ open, onOpenChange, onLoadDraft }: DraftsDialogProps) =>
         title: "Erro",
         description: "Não foi possível eliminar o rascunho.",
       });
+    } finally {
+      setIsDeleting(false);
+      setDeleteDialogOpen(false);
+      setDraftToDelete(null);
     }
   };
 
@@ -104,12 +121,13 @@ const DraftsDialog = ({ open, onOpenChange, onLoadDraft }: DraftsDialogProps) =>
   };
 
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-3xl max-h-[80vh]">
-        <DialogHeader>
-          <DialogTitle>Os Meus Rascunhos</DialogTitle>
-        </DialogHeader>
-        <ScrollArea className="h-[60vh] pr-4">
+    <>
+      <Dialog open={open} onOpenChange={onOpenChange}>
+        <DialogContent className="max-w-3xl max-h-[80vh]">
+          <DialogHeader>
+            <DialogTitle>Os Meus Rascunhos</DialogTitle>
+          </DialogHeader>
+          <ScrollArea className="h-[60vh] pr-4">
           {isLoading ? (
             <div className="text-center py-8 text-muted-foreground">
               A carregar rascunhos...
@@ -165,21 +183,23 @@ const DraftsDialog = ({ open, onOpenChange, onLoadDraft }: DraftsDialogProps) =>
                     </div>
 
                     {/* Actions */}
-                    <div className="flex flex-col gap-2">
+                    <div className="flex flex-col gap-2 flex-shrink-0">
                       <Button
                         size="sm"
                         variant="outline"
                         onClick={() => handleLoadDraft(draft)}
+                        aria-label={`Editar rascunho de ${getPlatformLabel(draft.platform)}`}
                       >
-                        <Edit className="w-4 h-4 mr-2" />
+                        <Edit className="w-4 h-4 mr-2" aria-hidden="true" />
                         Editar
                       </Button>
                       <Button
                         size="sm"
                         variant="outline"
-                        onClick={() => handleDelete(draft.id)}
+                        onClick={() => handleDeleteClick(draft.id)}
+                        aria-label={`Eliminar rascunho de ${getPlatformLabel(draft.platform)}`}
                       >
-                        <Trash2 className="w-4 h-4 mr-2" />
+                        <Trash2 className="w-4 h-4 mr-2" aria-hidden="true" />
                         Eliminar
                       </Button>
                     </div>
@@ -191,6 +211,35 @@ const DraftsDialog = ({ open, onOpenChange, onLoadDraft }: DraftsDialogProps) =>
         </ScrollArea>
       </DialogContent>
     </Dialog>
+
+    <AlertDialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
+      <AlertDialogContent>
+        <AlertDialogHeader>
+          <AlertDialogTitle>Tem a certeza?</AlertDialogTitle>
+          <AlertDialogDescription>
+            Esta ação não pode ser desfeita. O rascunho será permanentemente eliminado.
+          </AlertDialogDescription>
+        </AlertDialogHeader>
+        <AlertDialogFooter>
+          <AlertDialogCancel disabled={isDeleting}>Cancelar</AlertDialogCancel>
+          <AlertDialogAction
+            onClick={handleConfirmDelete}
+            disabled={isDeleting}
+            className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+          >
+            {isDeleting ? (
+              <>
+                <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                A eliminar...
+              </>
+            ) : (
+              'Eliminar'
+            )}
+          </AlertDialogAction>
+        </AlertDialogFooter>
+      </AlertDialogContent>
+    </AlertDialog>
+    </>
   );
 };
 
