@@ -5,7 +5,7 @@ import type { Swiper as SwiperType } from 'swiper';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { cn } from '@/lib/utils';
-import { X, ZoomIn, ChevronLeft, ChevronRight, Download, FileArchive, FileText } from 'lucide-react';
+import { X, ZoomIn, ChevronLeft, ChevronRight, Download, FileArchive, FileText, Archive, RotateCcw } from 'lucide-react';
 import {
   AlertDialog,
   AlertDialogAction,
@@ -57,10 +57,12 @@ import { jsPDF } from 'jspdf';
 
 interface CarouselPreviewProps {
   images: string[];
+  archivedSlides?: string[];
   template: 'A' | 'B';
   onSelect: () => void;
   isSelected: boolean;
   onRemoveSlide?: (index: number) => void;
+  onRestoreSlide?: (index: number) => void;
   onReorderSlides?: (newOrder: string[]) => void;
   isApproved?: boolean;
   approvedTemplate?: 'A' | 'B' | null;
@@ -122,8 +124,8 @@ function SortableThumb({ image, index, activeIndex, onRemove, canRemove }: Sorta
             onRemove();
           }}
           onPointerDown={(e) => e.stopPropagation()}
-          className="absolute -top-1 -right-1 sm:-top-2 sm:-right-2 z-20 bg-destructive text-destructive-foreground rounded-full p-2 sm:p-2.5 transition-all hover:bg-destructive/90 hover:scale-110 shadow-2xl border-3 border-white ring-2 ring-destructive/50"
-          aria-label="Remover slide"
+          className="absolute -top-2 -right-2 sm:-top-2 sm:-right-2 z-20 bg-destructive text-destructive-foreground rounded-full p-2.5 transition-all hover:bg-destructive/90 hover:scale-110 shadow-2xl border-[3px] border-white ring-4 ring-destructive/30 animate-pulse hover:animate-none"
+          aria-label="Arquivar slide"
         >
           <X className="h-5 w-5 sm:h-6 sm:w-6 stroke-[3]" />
         </button>
@@ -132,7 +134,18 @@ function SortableThumb({ image, index, activeIndex, onRemove, canRemove }: Sorta
   );
 }
 
-export const CarouselPreview = ({ images, template, onSelect, isSelected, onRemoveSlide, onReorderSlides, isApproved = false, approvedTemplate = null }: CarouselPreviewProps) => {
+export const CarouselPreview = ({ 
+  images, 
+  archivedSlides = [], 
+  template, 
+  onSelect, 
+  isSelected, 
+  onRemoveSlide, 
+  onRestoreSlide,
+  onReorderSlides, 
+  isApproved = false, 
+  approvedTemplate = null 
+}: CarouselPreviewProps) => {
   const [thumbsSwiper, setThumbsSwiper] = useState<SwiperType | null>(null);
   const [activeIndex, setActiveIndex] = useState(0);
   const [slideToRemove, setSlideToRemove] = useState<number | null>(null);
@@ -410,9 +423,9 @@ export const CarouselPreview = ({ images, template, onSelect, isSelected, onRemo
       {/* Thumbnails with drag-and-drop */}
       <div className="mb-3">
         {onRemoveSlide && images.length > 1 && (
-          <p className="text-xs text-muted-foreground mb-2 flex items-center gap-1.5">
-            <X className="h-3.5 w-3.5 text-destructive" />
-            Clique no <span className="font-semibold text-destructive">X vermelho</span> nas miniaturas para remover slides
+          <p className="text-xs text-muted-foreground mb-2 flex items-center gap-1.5 bg-destructive/10 p-2 rounded border border-destructive/20">
+            <X className="h-4 w-4 text-destructive animate-pulse" />
+            <span className="font-semibold text-destructive">Clique no X vermelho</span> nas miniaturas para arquivar slides (podem ser restaurados depois)
           </p>
         )}
         <DndContext
@@ -437,6 +450,43 @@ export const CarouselPreview = ({ images, template, onSelect, isSelected, onRemo
         </DndContext>
       </div>
 
+      {/* Archived Slides Section */}
+      {archivedSlides.length > 0 && onRestoreSlide && (
+        <div className="mt-4 pt-4 border-t border-border">
+          <div className="flex items-center gap-2 mb-3">
+            <div className="flex items-center gap-1.5 text-sm font-semibold text-muted-foreground">
+              <Archive className="h-4 w-4" />
+              Slides Arquivados ({archivedSlides.length})
+            </div>
+            <span className="text-xs text-muted-foreground">
+              Clique para restaurar
+            </span>
+          </div>
+          <div className="grid grid-cols-4 sm:grid-cols-5 md:grid-cols-6 lg:grid-cols-9 gap-2">
+            {archivedSlides.map((image, index) => (
+              <button
+                key={`archived-${index}`}
+                onClick={() => onRestoreSlide(index)}
+                className="relative aspect-square overflow-hidden rounded border-2 border-dashed border-muted-foreground/30 opacity-50 hover:opacity-100 transition-all group bg-muted/50 hover:border-primary hover:ring-2 hover:ring-primary/20"
+                aria-label={`Restaurar slide ${index + 1}`}
+              >
+                <img
+                  src={getPreviewUrl(image)}
+                  alt={`Slide arquivado ${index + 1}`}
+                  className="h-full w-full object-cover"
+                />
+                <div className="absolute inset-0 bg-black/40 flex items-center justify-center">
+                  <RotateCcw className="h-6 w-6 text-white drop-shadow-lg group-hover:scale-110 transition-transform" />
+                </div>
+                <div className="absolute bottom-1 right-1 bg-primary text-primary-foreground text-[10px] font-bold px-1.5 py-0.5 rounded">
+                  Restaurar
+                </div>
+              </button>
+            ))}
+          </div>
+        </div>
+      )}
+
       <Button
         onClick={onSelect}
         className={cn(
@@ -451,13 +501,16 @@ export const CarouselPreview = ({ images, template, onSelect, isSelected, onRemo
       <AlertDialog open={slideToRemove !== null} onOpenChange={() => setSlideToRemove(null)}>
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>Remover Slide?</AlertDialogTitle>
+            <AlertDialogTitle>Arquivar Slide?</AlertDialogTitle>
             <AlertDialogDescription>
-              Tem certeza que deseja remover o slide {slideToRemove !== null ? slideToRemove + 1 : ''} de {images.length}?
+              Tem certeza que deseja arquivar o slide {slideToRemove !== null ? slideToRemove + 1 : ''} de {images.length}?
               <br />
               <strong className="text-foreground mt-2 block">
-                O carrossel ficará com {images.length - 1} imagens.
+                O slide será movido para "Slides Arquivados" e pode ser restaurado a qualquer momento.
               </strong>
+              <span className="text-muted-foreground text-sm mt-1 block">
+                O carrossel ficará com {images.length - 1} imagens ativas.
+              </span>
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
@@ -469,9 +522,9 @@ export const CarouselPreview = ({ images, template, onSelect, isSelected, onRemo
                   setSlideToRemove(null);
                 }
               }}
-              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+              className="bg-orange-600 text-white hover:bg-orange-700"
             >
-              Remover Slide
+              Arquivar Slide
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>

@@ -38,6 +38,8 @@ const Review = () => {
   const [notes, setNotes] = useState('');
   const [templateAImages, setTemplateAImages] = useState<string[]>([]);
   const [templateBImages, setTemplateBImages] = useState<string[]>([]);
+  const [archivedSlidesA, setArchivedSlidesA] = useState<string[]>([]);
+  const [archivedSlidesB, setArchivedSlidesB] = useState<string[]>([]);
   const templatesRef = useRef<HTMLDivElement>(null);
   
   // Publishing state
@@ -113,6 +115,12 @@ const Review = () => {
       setNotes(data.notes || '');
       setTemplateAImages(data.template_a_images || []);
       setTemplateBImages(data.template_b_images || []);
+      
+      // Load archived slides from metadata
+      const metadataA = data.template_a_metadata as any;
+      const metadataB = data.template_b_metadata as any;
+      setArchivedSlidesA(metadataA?.archived_slides || []);
+      setArchivedSlidesB(metadataB?.archived_slides || []);
       
       // Load saved targets or default to last used
       if (data.publish_targets) {
@@ -769,15 +777,22 @@ const Review = () => {
   const handleRemoveSlide = async (template: 'A' | 'B', slideIndex: number) => {
     const isTemplateA = template === 'A';
     const currentImages = isTemplateA ? templateAImages : templateBImages;
-    const newImages = currentImages.filter((_, idx) => idx !== slideIndex);
+    const archivedSlides = isTemplateA ? archivedSlidesA : archivedSlidesB;
     
-    const loadingToast = toast.loading('A remover slide...');
+    // Get the slide to archive
+    const slideToArchive = currentImages[slideIndex];
+    const newImages = currentImages.filter((_, idx) => idx !== slideIndex);
+    const newArchived = [...archivedSlides, slideToArchive];
+    
+    const loadingToast = toast.loading('A arquivar slide...');
     
     // Update local state
     if (isTemplateA) {
       setTemplateAImages(newImages);
+      setArchivedSlidesA(newArchived);
     } else {
       setTemplateBImages(newImages);
+      setArchivedSlidesB(newArchived);
     }
 
     // Update metadata with new slide numbers
@@ -790,6 +805,7 @@ const Review = () => {
         total_slides: newImages.length,
         image_url: img,
       })),
+      archived_slides: newArchived,
     };
 
     try {
@@ -811,16 +827,86 @@ const Review = () => {
       });
       
       toast.dismiss(loadingToast);
-      toast.success(`Slide removido! Carrossel agora tem ${newImages.length} imagens`);
+      toast.success(`Slide arquivado! Carrossel agora tem ${newImages.length} imagens ativas`);
     } catch (error) {
-      console.error('Erro ao remover slide:', error);
+      console.error('Erro ao arquivar slide:', error);
       toast.dismiss(loadingToast);
-      toast.error('Falha ao remover slide. Por favor, tente novamente.');
+      toast.error('Falha ao arquivar slide. Por favor, tente novamente.');
       // Revert local state
       if (isTemplateA) {
         setTemplateAImages(post?.template_a_images || []);
+        setArchivedSlidesA(archivedSlides);
       } else {
         setTemplateBImages(post?.template_b_images || []);
+        setArchivedSlidesB(archivedSlides);
+      }
+    }
+  };
+
+  const handleRestoreSlide = async (template: 'A' | 'B', archivedIndex: number) => {
+    const isTemplateA = template === 'A';
+    const currentImages = isTemplateA ? templateAImages : templateBImages;
+    const archivedSlides = isTemplateA ? archivedSlidesA : archivedSlidesB;
+    
+    // Get the slide to restore
+    const slideToRestore = archivedSlides[archivedIndex];
+    const newArchived = archivedSlides.filter((_, idx) => idx !== archivedIndex);
+    const newImages = [...currentImages, slideToRestore];
+    
+    const loadingToast = toast.loading('A restaurar slide...');
+    
+    // Update local state
+    if (isTemplateA) {
+      setTemplateAImages(newImages);
+      setArchivedSlidesA(newArchived);
+    } else {
+      setTemplateBImages(newImages);
+      setArchivedSlidesB(newArchived);
+    }
+
+    // Update metadata
+    const currentMetadata = isTemplateA ? post?.template_a_metadata : post?.template_b_metadata;
+    const updatedMetadata = {
+      ...currentMetadata,
+      slides: newImages.map((img, idx) => ({
+        slide_num: idx + 1,
+        total_slides: newImages.length,
+        image_url: img,
+      })),
+      archived_slides: newArchived,
+    };
+
+    try {
+      const { error } = await supabase
+        .from('posts')
+        .update({
+          [isTemplateA ? 'template_a_images' : 'template_b_images']: newImages,
+          [isTemplateA ? 'template_a_metadata' : 'template_b_metadata']: updatedMetadata,
+        })
+        .eq('id', id);
+
+      if (error) throw error;
+      
+      // Update post state
+      setPost({
+        ...post,
+        [isTemplateA ? 'template_a_images' : 'template_b_images']: newImages,
+        [isTemplateA ? 'template_a_metadata' : 'template_b_metadata']: updatedMetadata,
+      });
+      
+      toast.dismiss(loadingToast);
+      toast.success(`Slide restaurado! Carrossel agora tem ${newImages.length} imagens ativas`);
+    } catch (error) {
+      console.error('Erro ao restaurar slide:', error);
+      toast.dismiss(loadingToast);
+      toast.error('Falha ao restaurar slide. Por favor, tente novamente.');
+      // Revert local state
+      if (isTemplateA) {
+        setTemplateAImages(currentImages);
+        setArchivedSlidesA(archivedSlides);
+      } else {
+        setTemplateBImages(currentImages);
+        setArchivedSlidesB(archivedSlides);
       }
     }
   };
@@ -969,10 +1055,12 @@ const Review = () => {
               <CarouselPreview
                 key={`template-a-${post.id}`}
                 images={templateAImages}
+                archivedSlides={archivedSlidesA}
                 template="A"
                 onSelect={() => setSelectedTemplate('A')}
                 isSelected={selectedTemplate === 'A'}
                 onRemoveSlide={!isApproved ? (index) => handleRemoveSlide('A', index) : undefined}
+                onRestoreSlide={!isApproved ? (index) => handleRestoreSlide('A', index) : undefined}
                 onReorderSlides={!isApproved ? (newOrder) => handleReorderSlides('A', newOrder) : undefined}
                 isApproved={isApproved}
                 approvedTemplate={post.selected_template as 'A' | 'B' | null}
@@ -980,10 +1068,12 @@ const Review = () => {
               <CarouselPreview
                 key={`template-b-${post.id}`}
                 images={templateBImages}
+                archivedSlides={archivedSlidesB}
                 template="B"
                 onSelect={() => setSelectedTemplate('B')}
                 isSelected={selectedTemplate === 'B'}
                 onRemoveSlide={!isApproved ? (index) => handleRemoveSlide('B', index) : undefined}
+                onRestoreSlide={!isApproved ? (index) => handleRestoreSlide('B', index) : undefined}
                 onReorderSlides={!isApproved ? (newOrder) => handleReorderSlides('B', newOrder) : undefined}
                 isApproved={isApproved}
                 approvedTemplate={post.selected_template as 'A' | 'B' | null}
