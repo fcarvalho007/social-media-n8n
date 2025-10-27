@@ -82,6 +82,10 @@ export type Database = {
           hashtags_edited: string[] | null
           hashtags_text: string | null
           id: string
+          linkedin_body: string | null
+          linkedin_external_id: string | null
+          linkedin_permalink: string | null
+          linkedin_published: boolean | null
           media_items: Json | null
           network_validations: Json | null
           notes: string | null
@@ -121,6 +125,10 @@ export type Database = {
           hashtags_edited?: string[] | null
           hashtags_text?: string | null
           id?: string
+          linkedin_body?: string | null
+          linkedin_external_id?: string | null
+          linkedin_permalink?: string | null
+          linkedin_published?: boolean | null
           media_items?: Json | null
           network_validations?: Json | null
           notes?: string | null
@@ -160,6 +168,10 @@ export type Database = {
           hashtags_edited?: string[] | null
           hashtags_text?: string | null
           id?: string
+          linkedin_body?: string | null
+          linkedin_external_id?: string | null
+          linkedin_permalink?: string | null
+          linkedin_published?: boolean | null
           media_items?: Json | null
           network_validations?: Json | null
           notes?: string | null
