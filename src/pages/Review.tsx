@@ -542,7 +542,6 @@ const Review = () => {
     }
   };
 
-  // Simple Instagram publish (direct to n8n like LinkedIn)
   const handlePublishInstagram = async () => {
     if (!caption?.trim()) {
       toast.error('Instagram caption cannot be empty');
@@ -557,45 +556,61 @@ const Review = () => {
     const loadingToast = toast.loading('Publishing to Instagram...');
     
     try {
-      // Preparar pageAlts
       const selectedImages = selectedTemplate === 'A' ? templateAImages : templateBImages;
+      
+      // Validate images before sending
+      if (!selectedImages || selectedImages.length === 0) {
+        throw new Error('No images selected for carousel');
+      }
+
+      const invalidUrls = selectedImages.filter(url => 
+        !url || typeof url !== 'string' || !url.startsWith('https://')
+      );
+      
+      if (invalidUrls.length > 0) {
+        console.error('Invalid image URLs:', invalidUrls);
+        throw new Error(`Found ${invalidUrls.length} invalid image URL(s)`);
+      }
+
       const pageAlts = selectedImages.map((imgUrl, index) => {
         const imgKey = imgUrl.split('/').pop() || `image_${index}`;
         return post.alt_texts?.[imgKey] || `Slide ${index + 1} de ${selectedImages.length}`;
       });
 
-      // Payload para n8n com IMAGENS
       const payload = {
+        platform: 'instagram',
         post_id: id,
         status: 'approved',
         selected_template: selectedTemplate,
         caption_final: useDifferentCaptions ? instagramCaption : caption,
         hashtags_final: hashtags || [],
-        images: selectedImages, // CRITICAL: enviar URLs das imagens
+        images: selectedImages,
         pageAlts: pageAlts,
         reviewed_by: user?.email || 'unknown',
         notes: ''
       };
 
-      // FETCH DIRECTO para n8n
-      const response = await fetch('https://n8n.srv881120.hstgr.cloud/webhook/aprovacao-instagram', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json'
-        },
-        body: JSON.stringify(payload)
+      console.log('[Instagram] Calling publish-proxy with payload:', {
+        platform: payload.platform,
+        post_id: payload.post_id,
+        imageCount: payload.images.length,
+        imagesPreview: payload.images.slice(0, 2),
       });
 
-      if (!response.ok) {
-        throw new Error(`HTTP ${response.status}`);
+      const { data, error } = await supabase.functions.invoke('publish-proxy', {
+        body: payload,
+      });
+
+      if (error) {
+        console.error('[Instagram] Edge function error:', error);
+        throw new Error(error.message || 'Failed to call publish proxy');
       }
 
-      const result = await response.json();
+      console.log('[Instagram] Publish result:', data);
+
       toast.dismiss(loadingToast);
       toast.success('Published to Instagram successfully!');
-      console.log('Instagram result:', result);
 
-      // Atualizar estado local
       await supabase
         .from('posts')
         .update({
@@ -606,7 +621,7 @@ const Review = () => {
 
     } catch (error: any) {
       toast.dismiss(loadingToast);
-      console.error('Instagram error:', error);
+      console.error('[Instagram] Error:', error);
       toast.error(`Failed: ${error.message}`);
     }
   };
@@ -625,45 +640,61 @@ const Review = () => {
     const loadingToast = toast.loading('Publishing to LinkedIn...');
     
     try {
-      // Preparar pageAlts a partir dos slides
       const selectedImages = selectedTemplate === 'A' ? templateAImages : templateBImages;
+      
+      // Validate images before sending
+      if (!selectedImages || selectedImages.length === 0) {
+        throw new Error('No images selected for carousel');
+      }
+
+      const invalidUrls = selectedImages.filter(url => 
+        !url || typeof url !== 'string' || !url.startsWith('https://')
+      );
+      
+      if (invalidUrls.length > 0) {
+        console.error('Invalid image URLs:', invalidUrls);
+        throw new Error(`Found ${invalidUrls.length} invalid image URL(s)`);
+      }
+
       const pageAlts = selectedImages.map((imgUrl, index) => {
         const imgKey = imgUrl.split('/').pop() || `image_${index}`;
         return post.alt_texts?.[imgKey] || `Slide ${index + 1} de ${selectedImages.length}`;
       });
 
-      // Payload para n8n com IMAGENS
       const payload = {
+        platform: 'linkedin',
         post_id: id,
         status: 'approved',
         selected_template: selectedTemplate,
         body_final: linkedinBody,
         hashtags_final: hashtags || [],
-        images: selectedImages, // CRITICAL: enviar URLs das imagens para gerar PDF
+        images: selectedImages,
         pageAlts: pageAlts,
         reviewed_by: user?.email || 'unknown',
         notes: ''
       };
 
-      // FETCH DIRECTO para n8n (SEM API, SEM EDGE FUNCTION)
-      const response = await fetch('https://n8n.srv881120.hstgr.cloud/webhook/aprovacao-linkedin', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json'
-        },
-        body: JSON.stringify(payload)
+      console.log('[LinkedIn] Calling publish-proxy with payload:', {
+        platform: payload.platform,
+        post_id: payload.post_id,
+        imageCount: payload.images.length,
+        imagesPreview: payload.images.slice(0, 2),
       });
 
-      if (!response.ok) {
-        throw new Error(`HTTP ${response.status}`);
+      const { data, error } = await supabase.functions.invoke('publish-proxy', {
+        body: payload,
+      });
+
+      if (error) {
+        console.error('[LinkedIn] Edge function error:', error);
+        throw new Error(error.message || 'Failed to call publish proxy');
       }
 
-      const result = await response.json();
+      console.log('[LinkedIn] Publish result:', data);
+
       toast.dismiss(loadingToast);
       toast.success('Published to LinkedIn successfully!');
-      console.log('LinkedIn result:', result);
 
-      // Atualizar estado local
       await supabase
         .from('posts')
         .update({
@@ -674,7 +705,7 @@ const Review = () => {
 
     } catch (error: any) {
       toast.dismiss(loadingToast);
-      console.error('LinkedIn error:', error);
+      console.error('[LinkedIn] Error:', error);
       toast.error(`Failed: ${error.message}`);
     }
   };
