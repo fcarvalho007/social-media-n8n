@@ -200,6 +200,44 @@ export type Database = {
         }
         Relationships: []
       }
+      publication_quota: {
+        Row: {
+          created_at: string
+          id: string
+          platform: string
+          post_id: string | null
+          post_type: string
+          published_at: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          platform: string
+          post_id?: string | null
+          post_type: string
+          published_at?: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          platform?: string
+          post_id?: string | null
+          post_type?: string
+          published_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "publication_quota_post_id_fkey"
+            columns: ["post_id"]
+            isOneToOne: false
+            referencedRelation: "posts"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       social_profiles: {
         Row: {
           access_token: string | null
@@ -310,7 +348,18 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
-      [_ in never]: never
+      can_publish_to_instagram: {
+        Args: { p_user_id: string }
+        Returns: boolean
+      }
+      get_instagram_quota_usage: {
+        Args: { p_user_id: string }
+        Returns: {
+          limit_count: number
+          remaining: number
+          used_count: number
+        }[]
+      }
     }
     Enums: {
       [_ in never]: never
