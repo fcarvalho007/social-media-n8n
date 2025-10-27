@@ -40,28 +40,54 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
   }, []);
 
   const signInWithPassword = async (password: string) => {
-    const CORRECT_PASSWORD = '#123@';
+    const ADMIN_EMAIL = 'admin@instagram.com';
     
-    if (password !== CORRECT_PASSWORD) {
+    try {
+      // Try to sign in with the admin email and provided password
+      const { data, error } = await supabase.auth.signInWithPassword({
+        email: ADMIN_EMAIL,
+        password: password,
+      });
+
+      if (error) {
+        // If user doesn't exist and password is correct, create account
+        if (error.message.includes('Invalid') && password === '#123@') {
+          const { error: signUpError } = await supabase.auth.signUp({
+            email: ADMIN_EMAIL,
+            password: password,
+            options: {
+              data: {
+                full_name: 'Admin',
+              },
+            },
+          });
+
+          if (signUpError) {
+            console.error('Error creating account:', signUpError);
+            return false;
+          }
+
+          // Sign in after creating account
+          const { error: signInError } = await supabase.auth.signInWithPassword({
+            email: ADMIN_EMAIL,
+            password: password,
+          });
+
+          if (signInError) {
+            console.error('Error signing in:', signInError);
+            return false;
+          }
+
+          return true;
+        }
+        return false;
+      }
+
+      return true;
+    } catch (error) {
+      console.error('Error in signInWithPassword:', error);
       return false;
     }
-    
-    // Password correct - create mock session
-    const mockUser = {
-      id: 'admin-user-id',
-      email: 'admin@instagram.com',
-      app_metadata: {},
-      user_metadata: {
-        full_name: 'Admin',
-        avatar_url: '',
-      },
-      aud: 'authenticated',
-      created_at: new Date().toISOString(),
-    } as unknown as User;
-    
-    setUser(mockUser);
-    setSession({ user: mockUser } as Session);
-    return true;
   };
 
   const signOut = async () => {
