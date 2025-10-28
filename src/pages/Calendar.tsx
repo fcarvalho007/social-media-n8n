@@ -169,19 +169,23 @@ const Calendar = () => {
 
   const eventStyleGetter = (event: CalendarEvent) => {
     const isStory = event.resource.content_type === 'stories';
-    const isCarousel = event.resource.content_type === 'carousel';
     const isPublished = event.resource.status === 'published';
+    const isApproved = event.resource.status === 'approved';
     
     let backgroundColor;
     let border = 'none';
     
     if (isPublished) {
-      // Published content - darker, with checkmark pattern
-      backgroundColor = isStory ? '#6B21A8' : isCarousel ? '#1E40AF' : '#047857';
-      border = '2px solid rgba(255, 255, 255, 0.3)';
+      // 🟢 Posts PUBLICADOS - Verde brilhante
+      backgroundColor = '#10B981';
+      border = '2px solid #059669';
+    } else if (isApproved) {
+      // 🟡 Posts APROVADOS mas não publicados - Laranja/Amarelo
+      backgroundColor = '#F59E0B';
+      border = '2px solid #D97706';
     } else {
-      // Scheduled content - lighter colors
-      backgroundColor = isStory ? '#8B5CF6' : isCarousel ? '#3B82F6' : '#10B981';
+      // 🔵 Posts AGENDADOS - Azul
+      backgroundColor = isStory ? '#8B5CF6' : '#3B82F6';
     }
     
     return {
@@ -225,6 +229,7 @@ const Calendar = () => {
     const isStory = event.resource.content_type === 'stories';
     const isCarousel = event.resource.content_type === 'carousel';
     const isPublished = event.resource.status === 'published';
+    const isApproved = event.resource.status === 'approved';
     
     let icon;
     if (isStory) {
@@ -239,7 +244,8 @@ const Calendar = () => {
       <div className="flex items-center gap-1 truncate group">
         {icon}
         <span className="text-xs font-semibold truncate">{event.title}</span>
-        {isPublished && <span className="ml-1 text-[10px]">✓</span>}
+        {isPublished && <span className="ml-1 text-sm font-bold">✓</span>}
+        {isApproved && !isPublished && <span className="ml-1 text-xs">⏳</span>}
       </div>
     );
   };
@@ -317,40 +323,24 @@ const Calendar = () => {
                     Legenda de Cores
                   </h3>
                   <div className="space-y-3">
-                    <div className="grid grid-cols-2 gap-3">
-                      {/* Stories */}
+                    <div className="grid grid-cols-1 gap-3">
+                      {/* Status Colors */}
                       <div className="space-y-2">
                         <div className="flex items-center gap-2">
-                          <div className="h-4 w-8 rounded" style={{ backgroundColor: '#8B5CF6' }}></div>
-                          <span className="text-xs font-medium text-muted-foreground">Story Agendada</span>
+                          <div className="h-4 w-8 rounded border-2 border-green-700" style={{ backgroundColor: '#10B981' }}></div>
+                          <span className="text-xs font-medium text-green-600">✓ Publicado</span>
                         </div>
                         <div className="flex items-center gap-2">
-                          <div className="h-4 w-8 rounded border-2 border-white/30" style={{ backgroundColor: '#6B21A8' }}></div>
-                          <span className="text-xs font-medium text-muted-foreground">Story Publicada ✓</span>
+                          <div className="h-4 w-8 rounded border-2 border-orange-700" style={{ backgroundColor: '#F59E0B' }}></div>
+                          <span className="text-xs font-medium text-orange-600">⏳ Aprovado (pendente publicação)</span>
                         </div>
-                      </div>
-                      
-                      {/* Carousel */}
-                      <div className="space-y-2">
                         <div className="flex items-center gap-2">
                           <div className="h-4 w-8 rounded" style={{ backgroundColor: '#3B82F6' }}></div>
-                          <span className="text-xs font-medium text-muted-foreground">Carousel Agendado</span>
+                          <span className="text-xs font-medium text-blue-600">📅 Agendado</span>
                         </div>
                         <div className="flex items-center gap-2">
-                          <div className="h-4 w-8 rounded border-2 border-white/30" style={{ backgroundColor: '#1E40AF' }}></div>
-                          <span className="text-xs font-medium text-muted-foreground">Carousel Publicado ✓</span>
-                        </div>
-                      </div>
-                      
-                      {/* Post */}
-                      <div className="space-y-2">
-                        <div className="flex items-center gap-2">
-                          <div className="h-4 w-8 rounded" style={{ backgroundColor: '#10B981' }}></div>
-                          <span className="text-xs font-medium text-muted-foreground">Post Agendado</span>
-                        </div>
-                        <div className="flex items-center gap-2">
-                          <div className="h-4 w-8 rounded border-2 border-white/30" style={{ backgroundColor: '#047857' }}></div>
-                          <span className="text-xs font-medium text-muted-foreground">Post Publicado ✓</span>
+                          <div className="h-4 w-8 rounded" style={{ backgroundColor: '#8B5CF6' }}></div>
+                          <span className="text-xs font-medium text-purple-600">📅 Story Agendada</span>
                         </div>
                       </div>
                     </div>

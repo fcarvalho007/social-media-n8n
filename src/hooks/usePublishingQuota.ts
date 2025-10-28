@@ -14,6 +14,7 @@ interface GetlateQuotaResponse {
   planName: string;
   resetDate: string;
   isUnlimited: boolean;
+  warning?: string;
 }
 
 export function usePublishingQuota() {
@@ -34,13 +35,19 @@ export function usePublishingQuota() {
         throw error;
       }
       
-      console.log('Getlate quota received:', data);
+      console.log('[Quota] Received from Getlate:', data);
+      
+      // Validar dados recebidos
+      if (data?.warning) {
+        console.warn('[Quota] API returned warning:', data.warning);
+      }
+      
       return data;
     },
     enabled: !!user?.id,
     refetchOnWindowFocus: true,
-    refetchInterval: 60000, // Atualiza a cada 1 minuto
-    staleTime: 30000, // Cache de 30 segundos
+    refetchInterval: 30000, // Atualiza a cada 30 segundos
+    staleTime: 15000, // Cache de 15 segundos
   });
 
   const formatQuotaText = (used: number, limit: number) => {

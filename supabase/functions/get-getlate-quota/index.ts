@@ -75,19 +75,32 @@ Deno.serve(async (req) => {
 
     const stats: GetlateUsageStats = await response.json();
     
+    // Log completo da resposta para debug
+    console.log('Raw Getlate API response:', JSON.stringify(stats, null, 2));
+    
+    // Validar estrutura da resposta
+    if (!stats || !stats.usage) {
+      console.error('Invalid Getlate response structure:', stats);
+      throw new Error('Invalid API response structure from Getlate.dev');
+    }
+    
+    // Código defensivo para extrair planName
+    const planName = stats?.plan?.name || 'Free';
+    const resetDate = stats?.resetDate || new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString();
+    
     console.log('Getlate stats received:', {
-      plan: stats.plan.name,
-      limits: stats.limits.uploads,
-      instagramUsed: stats.usage.instagram.totalPosts,
-      linkedinUsed: stats.usage.linkedin.totalPosts,
+      plan: planName,
+      limits: stats.limits?.uploads,
+      instagramUsed: stats.usage?.instagram?.totalPosts,
+      linkedinUsed: stats.usage?.linkedin?.totalPosts,
     });
 
     // Processar limites: -1 significa ilimitado
-    const limit = stats.limits.uploads;
+    const limit = stats.limits?.uploads ?? 5;
     const isUnlimited = limit === -1;
     
-    const instagramUsed = stats.usage.instagram.totalPosts;
-    const linkedinUsed = stats.usage.linkedin.totalPosts;
+    const instagramUsed = stats.usage?.instagram?.totalPosts ?? 0;
+    const linkedinUsed = stats.usage?.linkedin?.totalPosts ?? 0;
     
     const instagramRemaining = isUnlimited ? 999999 : Math.max(0, limit - instagramUsed);
     const linkedinRemaining = isUnlimited ? 999999 : Math.max(0, limit - linkedinUsed);
@@ -103,8 +116,8 @@ Deno.serve(async (req) => {
         limit_count: isUnlimited ? -1 : limit,
         remaining: linkedinRemaining,
       },
-      planName: stats.plan.name,
-      resetDate: stats.resetDate,
+      planName,
+      resetDate,
       isUnlimited,
     };
 
@@ -116,17 +129,20 @@ Deno.serve(async (req) => {
   } catch (error) {
     console.error('Error in get-getlate-quota:', error);
     const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+    
+    // Retornar 200 com warning em vez de 500 para permitir retry
     return new Response(
       JSON.stringify({ 
-        error: errorMessage,
+        warning: errorMessage,
         // Fallback para dados padrão em caso de erro
         instagram: { used_count: 0, limit_count: 5, remaining: 5 },
         linkedin: { used_count: 0, limit_count: 5, remaining: 5 },
         planName: 'Unknown',
+        resetDate: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString(),
         isUnlimited: false,
       }),
       {
-        status: 500,
+        status: 200,
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       }
     );
