@@ -8,11 +8,11 @@ interface QuotaUsage {
   remaining: number;
 }
 
-export function useInstagramQuota() {
+export function usePublishingQuota() {
   const { user } = useAuth();
 
   const { data, isLoading, error, refetch } = useQuery({
-    queryKey: ['instagram-quota', user?.id],
+    queryKey: ['publishing-quota', user?.id],
     queryFn: async () => {
       if (!user?.id) return null;
 

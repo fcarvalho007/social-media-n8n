@@ -301,7 +301,7 @@ export const ActionBar = ({
               <Button
                 size="lg"
                 onClick={handleApproveNow}
-                disabled={!canApprove || loading || (publishTargets.instagram && !instagramCanPublish)}
+                disabled={!canApprove || loading || ((publishTargets.instagram || publishTargets.linkedin) && !instagramCanPublish)}
                 className={cn(
                   "w-full h-12 text-base touch-target transition-all duration-150 relative focus:ring-2 focus:ring-primary/40",
                   canApprove && "bg-success hover:bg-success/90 shadow-sm"
@@ -309,15 +309,15 @@ export const ActionBar = ({
                 title={
                   !canApprove 
                     ? disabledReason 
-                    : publishTargets.instagram && !instagramCanPublish
-                    ? 'Quota de Instagram excedida (5/mês)'
+                    : (publishTargets.instagram || publishTargets.linkedin) && !instagramCanPublish
+                    ? 'Quota de publicações excedida (5/mês)'
                     : approveConfig.tooltip
                 }
                 aria-label={approveConfig.label}
               >
                 {loading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : approveConfig.icon}
                 <span className="truncate">{approveConfig.label}</span>
-                {publishTargets.instagram && (
+                {(publishTargets.instagram || publishTargets.linkedin) && (
                   <Badge 
                     variant="secondary" 
                     className={cn(

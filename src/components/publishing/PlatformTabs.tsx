@@ -143,7 +143,18 @@ export function PlatformTabs({
             <Linkedin className="h-4 w-4" />
             <span className="font-semibold text-sm">LinkedIn</span>
             {selectedTargets.linkedin && (
-              <CheckCircle2 className="h-3.5 w-3.5 ml-1" />
+              <>
+                <CheckCircle2 className="h-3.5 w-3.5 ml-1" />
+                <Badge 
+                  variant="secondary" 
+                  className={cn(
+                    "ml-1 font-mono text-xs",
+                    !instagramCanPublish && "bg-red-500/20 text-red-600"
+                  )}
+                >
+                  {instagramQuotaText}
+                </Badge>
+              </>
             )}
           </button>
 
@@ -169,6 +180,30 @@ export function PlatformTabs({
                     <p>• Até {PLATFORM_CONSTRAINTS.linkedin.carousel.maxImages} páginas, ≤ 100 MB</p>
                     <p>• Recomendado: 8–12 páginas</p>
                     <p>• Texto ≤ {PLATFORM_CONSTRAINTS.linkedin.body.maxLength} caracteres</p>
+                  </div>
+                </div>
+              </TooltipContent>
+            </Tooltip>
+          )}
+
+          {!instagramCanPublish && selectedTargets.linkedin && (
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <div>
+                  <AlertCircle className="h-4 w-4 text-red-500" />
+                </div>
+              </TooltipTrigger>
+              <TooltipContent 
+                side="bottom" 
+                className="max-w-[280px] bg-red-500/10 border-red-500/30"
+              >
+                <div className="flex items-start gap-2">
+                  <AlertCircle className="h-4 w-4 text-red-500 mt-0.5 flex-shrink-0" />
+                  <div className="space-y-1">
+                    <p className="font-semibold text-xs text-red-600">Quota Excedida</p>
+                    <p className="text-xs text-muted-foreground">
+                      Atingiu o limite de 5 publicações mensais.
+                    </p>
                   </div>
                 </div>
               </TooltipContent>

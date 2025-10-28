@@ -28,7 +28,7 @@ import { formatDistanceToNow } from 'date-fns';
 import { pt } from 'date-fns/locale';
 import { PublishTarget, PostType, PublishProgress } from '@/types/publishing';
 import { validateAllTargets } from '@/lib/publishingValidation';
-import { useInstagramQuota } from '@/hooks/useInstagramQuota';
+import { usePublishingQuota } from '@/hooks/usePublishingQuota';
 
 const Review = () => {
   const { id } = useParams();
@@ -68,8 +68,8 @@ const Review = () => {
   const templatesRef = useRef<HTMLDivElement>(null);
   const [showPublishConfirmation, setShowPublishConfirmation] = useState(false);
   
-  // Instagram quota hook
-  const { quota: instagramQuota, canPublish: canPublishToInstagram, quotaText, refetch: refetchQuota } = useInstagramQuota();
+  // Publishing quota hook (applies to both Instagram and LinkedIn)
+  const { quota: publishingQuota, canPublish: canPublishAnywhere, quotaText, refetch: refetchQuota } = usePublishingQuota();
 
   useEffect(() => {
     fetchPost();
@@ -864,7 +864,7 @@ const Review = () => {
                     onTargetsChange={setPublishTargets}
                     validations={validations}
                     instagramQuotaText={quotaText}
-                    instagramCanPublish={canPublishToInstagram}
+                    instagramCanPublish={canPublishAnywhere}
                   />
                 </div>
               </div>
@@ -1248,7 +1248,7 @@ const Review = () => {
             contentType="carousel"
             mediaCount={selectedTemplate === 'A' ? templateAImages.length : templateBImages.length}
             instagramQuotaText={quotaText}
-            instagramCanPublish={canPublishToInstagram}
+            instagramCanPublish={canPublishAnywhere}
           />
         </div>
       </div>
