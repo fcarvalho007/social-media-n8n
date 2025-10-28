@@ -69,7 +69,9 @@ const Pending = () => {
         query = query.eq('status', activeStatus);
       }
 
-      const { data, error } = await query.order('created_at', { ascending: false });
+      // Ordenar por reviewed_at se aprovado, ou created_at se pendente
+      const orderColumn = activeStatus === 'approved' ? 'reviewed_at' : 'created_at';
+      const { data, error } = await query.order(orderColumn, { ascending: false });
 
       if (error) throw error;
 
@@ -94,7 +96,9 @@ const Pending = () => {
         query = query.eq('status', activeStatus);
       }
 
-      const { data, error } = await query.order('created_at', { ascending: false });
+      // Ordenar por reviewed_at se aprovado, ou created_at se pendente
+      const orderColumn = activeStatus === 'approved' ? 'reviewed_at' : 'created_at';
+      const { data, error } = await query.order(orderColumn, { ascending: false });
 
       if (error) throw error;
 

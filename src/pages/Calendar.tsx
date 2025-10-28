@@ -62,21 +62,33 @@ const Calendar = () => {
       const [{ data: posts }, { data: stories }] = await Promise.all([
         supabase
           .from('posts')
-          .select('*')
+          .select('id, tema, content_type, status, scheduled_date, reviewed_at, created_at, published_at, template_a_images')
           .in('status', ['approved', 'published']),
         supabase
           .from('stories')
-          .select('*')
+          .select('id, tema, status, scheduled_date, reviewed_at, created_at, story_image_url')
           .in('status', ['approved', 'published']),
       ]);
 
-      const postEvents: CalendarEvent[] = (posts || []).map((post) => ({
-        id: post.id,
-        title: post.tema,
-        start: post.scheduled_date ? new Date(post.scheduled_date) : new Date(post.reviewed_at || post.created_at),
-        end: post.scheduled_date ? new Date(post.scheduled_date) : new Date(post.reviewed_at || post.created_at),
-        resource: { ...post, content_type: post.content_type || 'carousel' },
-      }));
+      const postEvents: CalendarEvent[] = (posts || []).map((post) => {
+        // Prioridade de datas: scheduled_date > published_at > reviewed_at > created_at
+        let eventDate: Date;
+        if (post.scheduled_date) {
+          eventDate = new Date(post.scheduled_date);
+        } else if (post.status === 'published' && post.published_at) {
+          eventDate = new Date(post.published_at);
+        } else {
+          eventDate = new Date(post.reviewed_at || post.created_at);
+        }
+        
+        return {
+          id: post.id,
+          title: post.tema,
+          start: eventDate,
+          end: eventDate,
+          resource: { ...post, content_type: post.content_type || 'carousel' },
+        };
+      });
 
       const storyEvents: CalendarEvent[] = (stories || []).map((story) => ({
         id: story.id,

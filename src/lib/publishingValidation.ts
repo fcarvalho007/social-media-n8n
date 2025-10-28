@@ -90,9 +90,9 @@ export function validatePublishing(
       }
     }
 
-    // Warnings
+    // Warnings - apenas avisar se passar do recomendado
     if (data.hashtags.length > constraints.hashtags.recommendedCount) {
-      warnings.push(`Recomendado até ${constraints.hashtags.recommendedCount} hashtags para melhor alcance`);
+      warnings.push(`LinkedIn recomenda até ${constraints.hashtags.recommendedCount} hashtags (você tem ${data.hashtags.length})`);
     }
   }
 
