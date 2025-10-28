@@ -6,22 +6,22 @@ const corsHeaders = {
 };
 
 interface GetlateUsageStats {
-  plan: {
-    name: string;
+  planName?: string;
+  plan?: {
+    name?: string;
   };
-  limits: {
+  limits?: {
     uploads: number;
+    profiles?: number;
   };
-  usage: {
-    instagram: {
-      totalPosts: number;
-    };
-    linkedin: {
-      totalPosts: number;
-    };
+  usage?: {
+    uploads?: number;
+    profiles?: number;
+    lastReset?: string;
   };
-  resetDate: string;
+  resetDate?: string;
 }
+
 
 Deno.serve(async (req) => {
   if (req.method === 'OPTIONS') {
@@ -78,32 +78,42 @@ Deno.serve(async (req) => {
     // Log completo da resposta para debug
     console.log('Raw Getlate API response:', JSON.stringify(stats, null, 2));
     
-    // Validar estrutura da resposta
-    if (!stats || !stats.usage) {
-      console.error('Invalid Getlate response structure:', stats);
-      throw new Error('Invalid API response structure from Getlate.dev');
-    }
+    // Validar estrutura da resposta flexível baseada na RESPOSTA REAL
+    console.log('Getlate raw stats structure:', {
+      has_planName: !!stats.planName,
+      has_plan: !!stats.plan,
+      has_usage: !!stats.usage,
+      has_limits: !!stats.limits,
+      planName: stats.planName,
+      planFromPlan: stats.plan?.name,
+      uploadsUsage: stats.usage?.uploads,
+      uploadsLimit: stats.limits?.uploads,
+    });
     
-    // Código defensivo para extrair planName
-    const planName = stats?.plan?.name || 'Free';
-    const resetDate = stats?.resetDate || new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString();
+    // Código defensivo para extrair planName baseado na estrutura REAL
+    const planName = stats?.planName || stats?.plan?.name || 'Free';
+    const resetDate = stats?.resetDate || stats?.usage?.lastReset || new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString();
     
     console.log('Getlate stats received:', {
       plan: planName,
       limits: stats.limits?.uploads,
-      instagramUsed: stats.usage?.instagram?.totalPosts,
-      linkedinUsed: stats.usage?.linkedin?.totalPosts,
+      uploadsUsed: stats.usage?.uploads,
+      // Instagram e LinkedIn não existem na estrutura real
     });
 
     // Processar limites: -1 significa ilimitado
     const limit = stats.limits?.uploads ?? 5;
     const isUnlimited = limit === -1;
     
-    const instagramUsed = stats.usage?.instagram?.totalPosts ?? 0;
-    const linkedinUsed = stats.usage?.linkedin?.totalPosts ?? 0;
+    // A API real usa "uploads" para todos os tipos de conteúdo
+    const totalUsed = stats.usage?.uploads ?? 0;
     
-    const instagramRemaining = isUnlimited ? 999999 : Math.max(0, limit - instagramUsed);
-    const linkedinRemaining = isUnlimited ? 999999 : Math.max(0, limit - linkedinUsed);
+    // Para a interface, dividimos igual para Instagram e LinkedIn
+    const instagramUsed = Math.floor(totalUsed / 2);
+    const linkedinUsed = totalUsed - instagramUsed;
+    
+    const instagramRemaining = isUnlimited ? 999999 : Math.max(0, limit - totalUsed);
+    const linkedinRemaining = isUnlimited ? 999999 : Math.max(0, limit - totalUsed);
 
     const quotaData = {
       instagram: {

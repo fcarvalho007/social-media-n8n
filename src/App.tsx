@@ -14,6 +14,7 @@ import Review from "./pages/Review";
 import ReviewStory from "./pages/ReviewStory";
 import Calendar from "./pages/Calendar";
 import ManualCreate from "./pages/ManualCreate";
+import QuotaSettings from "./pages/QuotaSettings";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -74,6 +75,14 @@ const App = () => (
                 element={
                   <ProtectedRoute>
                     <ManualCreate />
+                  </ProtectedRoute>
+                }
+              />
+              <Route
+                path="/quota"
+                element={
+                  <ProtectedRoute>
+                    <QuotaSettings />
                   </ProtectedRoute>
                 }
               />

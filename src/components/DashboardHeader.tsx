@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Menu, ChevronRight, User, LogOut, CheckCircle2, PlusCircle, Calendar } from 'lucide-react';
+import { Menu, ChevronRight, User, LogOut, CheckCircle2, PlusCircle, Calendar, Settings } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { useSidebar } from '@/components/ui/sidebar';
 import { useLocation, useSearchParams, useNavigate } from 'react-router-dom';
@@ -122,6 +122,14 @@ export function DashboardHeader() {
                   </p>
                 </div>
               </DropdownMenuLabel>
+              <DropdownMenuSeparator />
+              <DropdownMenuItem 
+                onClick={() => navigate('/quota')}
+                className="cursor-pointer py-3 text-base"
+              >
+                <Settings className="mr-3 h-5 w-5" />
+                <span>Gestão de Quota</span>
+              </DropdownMenuItem>
               <DropdownMenuSeparator />
               <DropdownMenuItem 
                 onClick={() => signOut()}

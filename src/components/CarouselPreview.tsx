@@ -273,9 +273,11 @@ export const CarouselPreview = ({
       const { jsPDF } = await import('jspdf');
       const pdf = new jsPDF();
       
-      // Filter archived slides before exporting
+      // Filter archived slides before exporting to PDF - CRITICAL FIX
       const activeImages = images.filter(img => !archivedSlides.includes(img));
-      console.log('[PDF Export] Total images:', images.length, 'Active:', activeImages.length, 'Archived:', archivedSlides.length);
+      console.log('[PDF Export] Total images in state:', images.length, 'Active images for PDF:', activeImages.length, 'Archived slides:', archivedSlides.length);
+      console.log('[PDF Export] Active images:', activeImages);
+      console.log('[PDF Export] Archived slides:', archivedSlides);
       
       for (let i = 0; i < activeImages.length; i++) {
         const url = activeImages[i];

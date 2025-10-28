@@ -15,34 +15,71 @@ interface GetlateQuotaResponse {
   resetDate: string;
   isUnlimited: boolean;
   warning?: string;
+  source?: 'override' | 'getlate';
 }
 
 export function usePublishingQuota() {
   const { user } = useAuth();
 
-  // Query unificada que chama Getlate.dev
+  // Query que verifica primeiro quota_overrides, depois Getlate.dev
   const quotaQuery = useQuery({
-    queryKey: ['getlate-quota', user?.id],
+    queryKey: ['publishing-quota', user?.id],
     queryFn: async () => {
       if (!user?.id) return null;
 
-      console.log('Fetching quota from Getlate.dev edge function...');
+      // 1. Verificar se existe quota override personalizada
+      try {
+        const { data: override, error: overrideError } = await supabase
+          .from('quota_overrides')
+          .select('*')
+          .eq('user_id', user.id)
+          .maybeSingle();
+
+        if (overrideError && overrideError.code !== 'PGRST116') {
+          console.warn('[Quota] Erro ao verificar override:', overrideError);
+        }
+
+        if (override) {
+          console.log('[Quota] Usando quota personalizada:', override);
+          return {
+            instagram: {
+              used_count: override.instagram_used,
+              limit_count: override.instagram_limit,
+              remaining: Math.max(0, override.instagram_limit - override.instagram_used),
+            },
+            linkedin: {
+              used_count: override.linkedin_used,
+              limit_count: override.linkedin_limit,
+              remaining: Math.max(0, override.linkedin_limit - override.linkedin_used),
+            },
+            planName: 'Quota Personalizada',
+            resetDate: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString(),
+            isUnlimited: false,
+            source: 'override',
+          };
+        }
+      } catch (err) {
+        console.warn('[Quota] Falha ao verificar override, usando Getlate.dev:', err);
+      }
+
+      // 2. Se não existe override, usar Getlate.dev
+      console.log('[Quota] Usando quota do Getlate.dev...');
       
       const { data, error } = await supabase.functions.invoke<GetlateQuotaResponse>('get-getlate-quota');
 
       if (error) {
-        console.error('Error fetching Getlate quota:', error);
+        console.error('[Quota] Erro Getlate.dev:', error);
         throw error;
       }
       
-      console.log('[Quota] Received from Getlate:', data);
+      console.log('[Quota] Recebido do Getlate.dev:', data);
       
       // Validar dados recebidos
       if (data?.warning) {
-        console.warn('[Quota] API returned warning:', data.warning);
+        console.warn('[Quota] API retornou warning:', data.warning);
       }
       
-      return data;
+      return { ...data, source: 'getlate' };
     },
     enabled: !!user?.id,
     refetchOnWindowFocus: true,
