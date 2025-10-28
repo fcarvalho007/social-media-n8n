@@ -102,7 +102,12 @@ Deno.serve(async (req) => {
     });
 
     // Processar limites: -1 significa ilimitado
-    const limit = stats.limits?.uploads ?? 5;
+    // PROTEÇÃO: Se o limite vier como 0 (erro de reset), usar fallback de 5
+    let limit = stats.limits?.uploads ?? 5;
+    if (limit === 0) {
+      console.warn('⚠️ API retornou limite = 0, usando fallback de 5');
+      limit = 5;
+    }
     const isUnlimited = limit === -1;
     
     // A API real usa "uploads" para todos os tipos de conteúdo
