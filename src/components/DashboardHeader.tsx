@@ -15,6 +15,7 @@ import {
   DropdownMenuTrigger 
 } from '@/components/ui/dropdown-menu';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
+import { QuotaBadge } from '@/components/QuotaBadge';
 
 export function DashboardHeader() {
   const { setOpen } = useSidebar();
@@ -92,9 +93,12 @@ export function DashboardHeader() {
           </nav>
         </div>
 
-        {/* Right: User Menu */}
-        {user && (
-          <DropdownMenu>
+        {/* Right: Quota Badge + User Menu */}
+        <div className="flex items-center gap-3 flex-shrink-0">
+          <QuotaBadge />
+          
+          {user && (
+            <DropdownMenu>
             <DropdownMenuTrigger asChild>
               <Button 
                 variant="ghost" 
@@ -128,7 +132,8 @@ export function DashboardHeader() {
               </DropdownMenuItem>
             </DropdownMenuContent>
           </DropdownMenu>
-        )}
+          )}
+        </div>
 
         {/* Mobile Quick Menu Drawer */}
         <Drawer open={mobileMenuOpen} onOpenChange={setMobileMenuOpen} shouldScaleBackground>

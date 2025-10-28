@@ -402,6 +402,14 @@ export type Database = {
           used_count: number
         }[]
       }
+      get_linkedin_quota_usage: {
+        Args: { p_user_id: string }
+        Returns: {
+          limit_count: number
+          remaining: number
+          used_count: number
+        }[]
+      }
     }
     Enums: {
       [_ in never]: never

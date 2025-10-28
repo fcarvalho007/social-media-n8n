@@ -77,7 +77,10 @@ const Review = () => {
   }>({});
   
   // Publishing quota hook (applies to both Instagram and LinkedIn)
-  const { quota: publishingQuota, canPublish: canPublishAnywhere, quotaText, refetch: refetchQuota } = usePublishingQuota();
+  const { instagram, refetch: refetchQuota } = usePublishingQuota();
+  const publishingQuota = instagram.quota;
+  const canPublishAnywhere = instagram.canPublish;
+  const quotaText = instagram.quotaText;
 
   // Validation function to ensure slide consistency
   const validateSlideConsistency = (template: 'A' | 'B'): { valid: boolean; message?: string } => {
