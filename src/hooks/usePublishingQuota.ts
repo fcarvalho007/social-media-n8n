@@ -8,63 +8,82 @@ interface QuotaUsage {
   remaining: number;
 }
 
+interface GetlateQuotaResponse {
+  instagram: QuotaUsage;
+  linkedin: QuotaUsage;
+  planName: string;
+  resetDate: string;
+  isUnlimited: boolean;
+}
+
 export function usePublishingQuota() {
   const { user } = useAuth();
 
-  // Query para Instagram
-  const instagramQuery = useQuery({
-    queryKey: ['publishing-quota-instagram', user?.id],
+  // Query unificada que chama Getlate.dev
+  const quotaQuery = useQuery({
+    queryKey: ['getlate-quota', user?.id],
     queryFn: async () => {
       if (!user?.id) return null;
 
-      const { data, error } = await supabase
-        .rpc('get_instagram_quota_usage', { p_user_id: user.id });
-
-      if (error) throw error;
+      console.log('Fetching quota from Getlate.dev edge function...');
       
-      return data?.[0] as QuotaUsage || { used_count: 0, limit_count: 5, remaining: 5 };
+      const { data, error } = await supabase.functions.invoke<GetlateQuotaResponse>('get-getlate-quota');
+
+      if (error) {
+        console.error('Error fetching Getlate quota:', error);
+        throw error;
+      }
+      
+      console.log('Getlate quota received:', data);
+      return data;
     },
     enabled: !!user?.id,
     refetchOnWindowFocus: true,
-    staleTime: 30000, // 30 seconds
+    refetchInterval: 60000, // Atualiza a cada 1 minuto
+    staleTime: 30000, // Cache de 30 segundos
   });
 
-  // Query para LinkedIn
-  const linkedinQuery = useQuery({
-    queryKey: ['publishing-quota-linkedin', user?.id],
-    queryFn: async () => {
-      if (!user?.id) return null;
+  const formatQuotaText = (used: number, limit: number) => {
+    if (limit === -1) return `${used}/∞`;
+    return `${used}/${limit}`;
+  };
 
-      const { data, error } = await supabase
-        .rpc('get_linkedin_quota_usage', { p_user_id: user.id });
+  const calculatePercentage = (used: number, limit: number) => {
+    if (limit === -1) return 0; // Ilimitado = sem barra de progresso
+    return limit > 0 ? (used / limit) * 100 : 0;
+  };
 
-      if (error) throw error;
-      
-      return data?.[0] as QuotaUsage || { used_count: 0, limit_count: 5, remaining: 5 };
-    },
-    enabled: !!user?.id,
-    refetchOnWindowFocus: true,
-    staleTime: 30000, // 30 seconds
-  });
+  const defaultQuota: QuotaUsage = { used_count: 0, limit_count: 5, remaining: 5 };
 
   return {
     instagram: {
-      quota: instagramQuery.data,
-      quotaText: instagramQuery.data ? `${instagramQuery.data.used_count}/${instagramQuery.data.limit_count}` : '0/5',
-      canPublish: instagramQuery.data ? instagramQuery.data.remaining > 0 : false,
-      isLoading: instagramQuery.isLoading,
-      percentage: instagramQuery.data ? (instagramQuery.data.used_count / instagramQuery.data.limit_count) * 100 : 0,
+      quota: quotaQuery.data?.instagram || defaultQuota,
+      quotaText: quotaQuery.data?.instagram 
+        ? formatQuotaText(quotaQuery.data.instagram.used_count, quotaQuery.data.instagram.limit_count)
+        : '0/5',
+      canPublish: quotaQuery.data?.instagram 
+        ? (quotaQuery.data.instagram.limit_count === -1 || quotaQuery.data.instagram.remaining > 0)
+        : false,
+      isLoading: quotaQuery.isLoading,
+      percentage: quotaQuery.data?.instagram 
+        ? calculatePercentage(quotaQuery.data.instagram.used_count, quotaQuery.data.instagram.limit_count)
+        : 0,
     },
     linkedin: {
-      quota: linkedinQuery.data,
-      quotaText: linkedinQuery.data ? `${linkedinQuery.data.used_count}/${linkedinQuery.data.limit_count}` : '0/5',
-      canPublish: linkedinQuery.data ? linkedinQuery.data.remaining > 0 : false,
-      isLoading: linkedinQuery.isLoading,
-      percentage: linkedinQuery.data ? (linkedinQuery.data.used_count / linkedinQuery.data.limit_count) * 100 : 0,
+      quota: quotaQuery.data?.linkedin || defaultQuota,
+      quotaText: quotaQuery.data?.linkedin 
+        ? formatQuotaText(quotaQuery.data.linkedin.used_count, quotaQuery.data.linkedin.limit_count)
+        : '0/5',
+      canPublish: quotaQuery.data?.linkedin 
+        ? (quotaQuery.data.linkedin.limit_count === -1 || quotaQuery.data.linkedin.remaining > 0)
+        : false,
+      isLoading: quotaQuery.isLoading,
+      percentage: quotaQuery.data?.linkedin 
+        ? calculatePercentage(quotaQuery.data.linkedin.used_count, quotaQuery.data.linkedin.limit_count)
+        : 0,
     },
-    refetch: () => {
-      instagramQuery.refetch();
-      linkedinQuery.refetch();
-    }
+    planName: quotaQuery.data?.planName || 'Unknown',
+    isUnlimited: quotaQuery.data?.isUnlimited || false,
+    refetch: () => quotaQuery.refetch(),
   };
 }

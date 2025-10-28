@@ -4,16 +4,23 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 
 export function QuotaBadge() {
-  const { instagram, linkedin } = usePublishingQuota();
+  const { instagram, linkedin, planName, isUnlimited } = usePublishingQuota();
 
   if (instagram.isLoading || linkedin.isLoading) {
     return <Skeleton className="h-10 w-48" />;
   }
 
+  const formatRemaining = (remaining: number, isUnlimited: boolean) => {
+    if (isUnlimited) return '∞';
+    return remaining;
+  };
+
   return (
     <TooltipProvider>
       <div className="flex items-center gap-2 px-3 py-2 rounded-lg bg-muted/50 border border-border">
-        <span className="text-xs font-medium text-muted-foreground hidden md:inline">Hoje:</span>
+        <span className="text-xs font-medium text-muted-foreground hidden md:inline">
+          {isUnlimited ? 'Ilimitado' : 'Este mês'}:
+        </span>
         
         {/* Instagram Badge */}
         <Tooltip>
@@ -28,9 +35,10 @@ export function QuotaBadge() {
             </div>
           </TooltipTrigger>
           <TooltipContent>
-            <p className="text-xs">
-              Instagram: {instagram.quota?.remaining || 0} publicações restantes este mês
-            </p>
+            <div className="text-xs">
+              <p>Instagram: {formatRemaining(instagram.quota?.remaining || 0, isUnlimited)} publicações restantes</p>
+              <p className="text-muted-foreground mt-1">Plano: {planName}</p>
+            </div>
           </TooltipContent>
         </Tooltip>
 
@@ -49,9 +57,10 @@ export function QuotaBadge() {
             </div>
           </TooltipTrigger>
           <TooltipContent>
-            <p className="text-xs">
-              LinkedIn: {linkedin.quota?.remaining || 0} publicações restantes este mês
-            </p>
+            <div className="text-xs">
+              <p>LinkedIn: {formatRemaining(linkedin.quota?.remaining || 0, isUnlimited)} publicações restantes</p>
+              <p className="text-muted-foreground mt-1">Plano: {planName}</p>
+            </div>
           </TooltipContent>
         </Tooltip>
       </div>
