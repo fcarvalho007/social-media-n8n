@@ -131,25 +131,16 @@ export function PublishCompletedModal({
             )}
           </div>
 
-          {/* Navigation Buttons */}
+          {/* Navigation Button */}
           {hasAnySuccess && (
-            <div className="flex flex-col sm:flex-row gap-3 pt-4">
+            <div className="flex justify-center pt-4">
               <Button
                 onClick={onNavigateToPending}
-                className="flex-1 bg-gradient-to-r from-primary to-primary/80 hover:from-primary/90 hover:to-primary/70 shadow-lg"
+                className="bg-gradient-to-r from-primary to-primary/80 hover:from-primary/90 hover:to-primary/70 shadow-lg"
                 size="lg"
               >
                 <Calendar className="h-4 w-4 mr-2" />
                 Ver Publicações Pendentes
-              </Button>
-              <Button
-                onClick={onNavigateToDashboard}
-                variant="outline"
-                className="flex-1 border-2"
-                size="lg"
-              >
-                <LayoutDashboard className="h-4 w-4 mr-2" />
-                Voltar ao Dashboard
               </Button>
             </div>
           )}
