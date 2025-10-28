@@ -188,6 +188,39 @@ const Review = () => {
       const metadataB = data.template_b_metadata as any;
       setArchivedSlidesA(metadataA?.archived_slides || []);
       setArchivedSlidesB(metadataB?.archived_slides || []);
+
+      // ✅ CORREÇÃO 5: Validação de integridade de dados
+      const archivedA = metadataA?.archived_slides || [];
+      const archivedB = metadataB?.archived_slides || [];
+      const totalA = data.template_a_images.length + archivedA.length;
+      const totalB = data.template_b_images.length + archivedB.length;
+
+      console.log('[Load Post] Validação de integridade:', {
+        templateA: {
+          images: data.template_a_images.length,
+          archived: archivedA.length,
+          total: totalA,
+          expected: metadataA?.total_slides || 'unknown',
+        },
+        templateB: {
+          images: data.template_b_images.length,
+          archived: archivedB.length,
+          total: totalB,
+          expected: metadataB?.total_slides || 'unknown',
+        },
+      });
+
+      // Verificar se slides arquivados estão presentes em template_X_images
+      const missingA = archivedA.filter((url: string) => !data.template_a_images.includes(url));
+      const missingB = archivedB.filter((url: string) => !data.template_b_images.includes(url));
+
+      if (missingA.length > 0 || missingB.length > 0) {
+        console.error('[Load Post] ⚠️ Slides arquivados NÃO encontrados na BD:', {
+          templateA: missingA,
+          templateB: missingB,
+        });
+        toast.error('Aviso: Alguns slides arquivados foram perdidos na BD. Contacte o suporte.');
+      }
       
       // Load saved targets or default to last used
       if (data.publish_targets) {
@@ -261,8 +294,7 @@ const Review = () => {
           reviewed_at: new Date().toISOString(),
           publish_targets: publishTargets,
           scheduled_date: scheduledDate.toISOString(),
-          // Save the active images for the selected template
-          [selectedTemplate === 'A' ? 'template_a_images' : 'template_b_images']: activeImages,
+          // ✅ CORREÇÃO: Não sobrescrever template_X_images - a BD mantém array completo
         };
 
         if (isValidUUID) {
@@ -312,8 +344,7 @@ const Review = () => {
         notes,
         reviewed_at: new Date().toISOString(),
         publish_targets: publishTargets,
-        // Save the active images for the selected template
-        [selectedTemplate === 'A' ? 'template_a_images' : 'template_b_images']: activeImages,
+        // ✅ CORREÇÃO: Não sobrescrever template_X_images - a BD mantém array completo
       };
 
       if (isValidUUID) {
@@ -783,14 +814,14 @@ const Review = () => {
         className: 'bg-gradient-to-r from-green-500 to-emerald-600 text-white border-0',
       });
 
-      // Update post status to published and save exactly what was published
+      // Update post status to published
+      // ✅ CORREÇÃO: Não sobrescrever template_X_images - a BD mantém array completo (ativas + arquivadas)
       await supabase
         .from('posts')
         .update({
           caption_edited: useDifferentCaptions ? instagramCaption : caption,
           status: 'published',
           published_at: new Date().toISOString(),
-          [selectedTemplate === 'A' ? 'template_a_images' : 'template_b_images']: imagesToPublish,
         })
         .eq('id', id);
       
@@ -911,14 +942,14 @@ const Review = () => {
         className: 'bg-gradient-to-r from-green-500 to-emerald-600 text-white border-0',
       });
 
-      // Update post status to published and save exactly what was published
+      // Update post status to published
+      // ✅ CORREÇÃO: Não sobrescrever template_X_images - a BD mantém array completo (ativas + arquivadas)
       await supabase
         .from('posts')
         .update({
           linkedin_body: linkedinBody,
           status: 'published',
           published_at: new Date().toISOString(),
-          [selectedTemplate === 'A' ? 'template_a_images' : 'template_b_images']: imagesToPublish,
         })
         .eq('id', id);
       

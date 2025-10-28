@@ -319,6 +319,12 @@ export const CarouselPreview = ({
           pdf.addImage(base64, 'JPEG', x, y, finalWidth, finalHeight);
         } catch (err) {
           console.error(`Falha ao adicionar imagem ${i + 1} ao PDF:`, err);
+          // ✅ CORREÇÃO 6: Fallback CORS - avisar e continuar
+          const { toast } = await import('sonner');
+          toast.warning(`Imagem ${i + 1} ignorada no PDF (erro CORS ou rede)`, {
+            description: 'Algumas imagens podem ter sido omitidas devido a restrições de acesso',
+          });
+          continue; // Pular esta imagem mas continuar com as outras
         }
       }
       pdf.save(`carrossel_template_${template}.pdf`);
