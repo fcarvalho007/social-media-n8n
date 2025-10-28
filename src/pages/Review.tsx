@@ -19,8 +19,9 @@ import { PublishConfirmationModal } from '@/components/publishing/PublishConfirm
 import { PublishCompletedModal } from '@/components/publishing/PublishCompletedModal';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
+import { Alert, AlertDescription } from '@/components/ui/alert';
 import { SidebarProvider } from '@/components/ui/sidebar';
-import { Loader2, ArrowLeft, CheckCircle2, Eye, LayoutGrid, Linkedin, Instagram, Link2, Unlink, Code2 } from 'lucide-react';
+import { Loader2, ArrowLeft, CheckCircle2, Eye, LayoutGrid, Linkedin, Instagram, Link2, Unlink, Code2, AlertTriangle } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { toast } from 'sonner';
@@ -30,6 +31,7 @@ import { pt } from 'date-fns/locale';
 import { PublishTarget, PostType, PublishProgress } from '@/types/publishing';
 import { validateAllTargets } from '@/lib/publishingValidation';
 import { usePublishingQuota } from '@/hooks/usePublishingQuota';
+import { logger } from '@/lib/logger';
 
 const Review = () => {
   const { id } = useParams();
@@ -76,6 +78,44 @@ const Review = () => {
   
   // Publishing quota hook (applies to both Instagram and LinkedIn)
   const { quota: publishingQuota, canPublish: canPublishAnywhere, quotaText, refetch: refetchQuota } = usePublishingQuota();
+
+  // Validation function to ensure slide consistency
+  const validateSlideConsistency = (template: 'A' | 'B'): { valid: boolean; message?: string } => {
+    const isTemplateA = template === 'A';
+    const images = isTemplateA ? templateAImages : templateBImages;
+    const archived = isTemplateA ? archivedSlidesA : archivedSlidesB;
+    const metadata = post?.[`template_${template.toLowerCase()}_metadata`];
+    
+    const totalOriginal = metadata?.total_slides || metadata?.slides?.length || 0;
+    const totalCurrent = images.length + archived.length;
+    
+    // Check for missing slides
+    if (totalOriginal > 0 && totalOriginal !== totalCurrent) {
+      const message = `Inconsistência no template ${template}: ${totalOriginal} slides originais, ${totalCurrent} atuais (${images.length} ativos + ${archived.length} arquivados)`;
+      logger.error('[Validation] Slide consistency check failed', { template, totalOriginal, totalCurrent, images: images.length, archived: archived.length });
+      return { valid: false, message };
+    }
+    
+    // Check for duplicates between active and archived
+    const allSlides = [...images, ...archived];
+    const uniqueSlides = new Set(allSlides);
+    if (uniqueSlides.size !== allSlides.length) {
+      const message = `Template ${template}: slides duplicados detetados`;
+      logger.error('[Validation] Duplicate slides detected', { template, total: allSlides.length, unique: uniqueSlides.size });
+      return { valid: false, message };
+    }
+    
+    // Check for archived slides in active images (should never happen)
+    const hasArchivedInActive = images.some(img => archived.includes(img));
+    if (hasArchivedInActive) {
+      const message = `Template ${template}: slides arquivados encontrados nas imagens ativas`;
+      logger.error('[Validation] Archived slides found in active images', { template });
+      return { valid: false, message };
+    }
+    
+    logger.debug('[Validation] Slide consistency check passed', { template, images: images.length, archived: archived.length });
+    return { valid: true };
+  };
 
   useEffect(() => {
     fetchPost();
@@ -401,6 +441,18 @@ const Review = () => {
     const newImages = currentImages.filter((_, idx) => idx !== slideIndex);
     const newArchived = [...archivedSlides, slideToArchive];
     
+    // Validate before archiving
+    const totalBefore = currentImages.length + archivedSlides.length;
+    const totalAfter = newImages.length + newArchived.length;
+    
+    if (totalBefore !== totalAfter) {
+      console.error(`[Archive] Inconsistência: ${totalBefore} slides antes, ${totalAfter} depois`);
+      toast.error('Erro: Inconsistência detetada ao arquivar slide');
+      return;
+    }
+    
+    console.log(`[Archive] Template ${template}: ${currentImages.length} → ${newImages.length} ativos, ${archivedSlides.length} → ${newArchived.length} arquivados`);
+    
     const loadingToast = toast.loading('A arquivar slide...');
     
     // Update local state
@@ -530,6 +582,25 @@ const Review = () => {
 
   const handleReorderSlides = async (template: 'A' | 'B', newOrder: string[]) => {
     const isTemplateA = template === 'A';
+    const archivedSlides = isTemplateA ? archivedSlidesA : archivedSlidesB;
+    const currentImages = isTemplateA ? templateAImages : templateBImages;
+    
+    // Validate new order before applying
+    if (newOrder.length !== currentImages.length) {
+      console.error(`[Reorder] Inconsistência: esperado ${currentImages.length}, recebido ${newOrder.length}`);
+      toast.error('Erro ao reordenar: número de slides incorreto');
+      return;
+    }
+    
+    // Ensure no archived slides are in the new order
+    const hasArchivedSlides = newOrder.some(img => archivedSlides.includes(img));
+    if (hasArchivedSlides) {
+      console.error('[Reorder] Slides arquivados encontrados na nova ordem');
+      toast.error('Erro: Slides arquivados não podem ser reordenados');
+      return;
+    }
+    
+    console.log(`[Reorder] Template ${template}: ${currentImages.length} slides mantidos, ${archivedSlides.length} arquivados`);
     
     // Update local state immediately for responsive UI
     if (isTemplateA) {
@@ -623,17 +694,35 @@ const Review = () => {
     try {
       // CRITICAL: Always get fresh images from current state (excludes archived slides)
       const selectedImages = selectedTemplate === 'A' ? templateAImages : templateBImages;
+      const archivedSlides = selectedTemplate === 'A' ? archivedSlidesA : archivedSlidesB;
+      
+      // Validate slide consistency before publishing
+      const validation = validateSlideConsistency(selectedTemplate);
+      if (!validation.valid) {
+        toast.dismiss(loadingToast);
+        toast.error(`Erro de validação: ${validation.message}`);
+        console.error('[Instagram Publish] Validation failed:', validation.message);
+        return;
+      }
+      
+      // Ensure no archived slides are included
+      const cleanedImages = selectedImages.filter(img => !archivedSlides.includes(img));
+      if (cleanedImages.length !== selectedImages.length) {
+        const diff = selectedImages.length - cleanedImages.length;
+        console.warn(`[Instagram Publish] Removidos ${diff} slides arquivados das imagens ativas`);
+      }
       
       console.log('[Instagram Publish] Selected template:', selectedTemplate);
-      console.log('[Instagram Publish] Total images to publish:', selectedImages.length);
-      console.log('[Instagram Publish] Images:', selectedImages);
+      console.log('[Instagram Publish] Total images to publish:', cleanedImages.length);
+      console.log('[Instagram Publish] Archived slides:', archivedSlides.length);
+      console.log('[Instagram Publish] Images:', cleanedImages);
       
       // Validate images before sending
-      if (!selectedImages || selectedImages.length === 0) {
+      if (!cleanedImages || cleanedImages.length === 0) {
         throw new Error('No images selected for carousel');
       }
 
-      const invalidUrls = selectedImages.filter(url => 
+      const invalidUrls = cleanedImages.filter(url => 
         !url || typeof url !== 'string' || !url.startsWith('https://')
       );
       
@@ -642,9 +731,9 @@ const Review = () => {
         throw new Error(`Found ${invalidUrls.length} invalid image URL(s)`);
       }
 
-      const pageAlts = selectedImages.map((imgUrl, index) => {
+      const pageAlts = cleanedImages.map((imgUrl, index) => {
         const imgKey = imgUrl.split('/').pop() || `image_${index}`;
-        return post.alt_texts?.[imgKey] || `Slide ${index + 1} de ${selectedImages.length}`;
+        return post.alt_texts?.[imgKey] || `Slide ${index + 1} de ${cleanedImages.length}`;
       });
 
       const payload = {
@@ -654,7 +743,7 @@ const Review = () => {
         selected_template: selectedTemplate,
         caption_final: useDifferentCaptions ? instagramCaption : caption,
         hashtags_final: hashtags || [],
-        images: selectedImages,
+        images: cleanedImages,
         pageAlts: pageAlts,
         reviewed_by: user?.email || 'unknown',
         notes: ''
@@ -693,11 +782,11 @@ const Review = () => {
         .update({
           caption_edited: useDifferentCaptions ? instagramCaption : caption,
           status: 'approved',
-          [selectedTemplate === 'A' ? 'template_a_images' : 'template_b_images']: selectedImages,
+          [selectedTemplate === 'A' ? 'template_a_images' : 'template_b_images']: cleanedImages,
         })
         .eq('id', id);
       
-      console.log('[Instagram] Post atualizado na BD com', selectedImages.length, 'imagens');
+      console.log('[Instagram] Post atualizado na BD com', cleanedImages.length, 'imagens');
       
       // Register publication in quota
       if (user?.id) {
@@ -735,17 +824,35 @@ const Review = () => {
     try {
       // CRITICAL: Always get fresh images from current state (excludes archived slides)
       const selectedImages = selectedTemplate === 'A' ? templateAImages : templateBImages;
+      const archivedSlides = selectedTemplate === 'A' ? archivedSlidesA : archivedSlidesB;
+      
+      // Validate slide consistency before publishing
+      const validation = validateSlideConsistency(selectedTemplate);
+      if (!validation.valid) {
+        toast.dismiss(loadingToast);
+        toast.error(`Erro de validação: ${validation.message}`);
+        console.error('[LinkedIn Publish] Validation failed:', validation.message);
+        return;
+      }
+      
+      // Ensure no archived slides are included
+      const cleanedImages = selectedImages.filter(img => !archivedSlides.includes(img));
+      if (cleanedImages.length !== selectedImages.length) {
+        const diff = selectedImages.length - cleanedImages.length;
+        console.warn(`[LinkedIn Publish] Removidos ${diff} slides arquivados das imagens ativas`);
+      }
       
       console.log('[LinkedIn Publish] Selected template:', selectedTemplate);
-      console.log('[LinkedIn Publish] Total images to publish:', selectedImages.length);
-      console.log('[LinkedIn Publish] Images:', selectedImages);
+      console.log('[LinkedIn Publish] Total images to publish:', cleanedImages.length);
+      console.log('[LinkedIn Publish] Archived slides:', archivedSlides.length);
+      console.log('[LinkedIn Publish] Images:', cleanedImages);
       
       // Validate images before sending
-      if (!selectedImages || selectedImages.length === 0) {
+      if (!cleanedImages || cleanedImages.length === 0) {
         throw new Error('No images selected for carousel');
       }
 
-      const invalidUrls = selectedImages.filter(url => 
+      const invalidUrls = cleanedImages.filter(url => 
         !url || typeof url !== 'string' || !url.startsWith('https://')
       );
       
@@ -754,9 +861,9 @@ const Review = () => {
         throw new Error(`Found ${invalidUrls.length} invalid image URL(s)`);
       }
 
-      const pageAlts = selectedImages.map((imgUrl, index) => {
+      const pageAlts = cleanedImages.map((imgUrl, index) => {
         const imgKey = imgUrl.split('/').pop() || `image_${index}`;
-        return post.alt_texts?.[imgKey] || `Slide ${index + 1} de ${selectedImages.length}`;
+        return post.alt_texts?.[imgKey] || `Slide ${index + 1} de ${cleanedImages.length}`;
       });
 
       const payload = {
@@ -766,7 +873,7 @@ const Review = () => {
         selected_template: selectedTemplate,
         body_final: linkedinBody,
         hashtags_final: hashtags || [],
-        images: selectedImages,
+        images: cleanedImages,
         pageAlts: pageAlts,
         reviewed_by: user?.email || 'unknown',
         notes: ''
@@ -805,11 +912,11 @@ const Review = () => {
         .update({
           linkedin_body: linkedinBody,
           status: 'approved',
-          [selectedTemplate === 'A' ? 'template_a_images' : 'template_b_images']: selectedImages,
+          [selectedTemplate === 'A' ? 'template_a_images' : 'template_b_images']: cleanedImages,
         })
         .eq('id', id);
       
-      console.log('[LinkedIn] Post atualizado na BD com', selectedImages.length, 'imagens');
+      console.log('[LinkedIn] Post atualizado na BD com', cleanedImages.length, 'imagens');
 
     } catch (error: any) {
       toast.dismiss(loadingToast);
@@ -959,6 +1066,18 @@ const Review = () => {
                   />
                 </div>
               </div>
+
+              {/* Slide Consistency Warning */}
+              {selectedTemplate && !validateSlideConsistency(selectedTemplate).valid && (
+                <Alert className="mb-6 border-yellow-500/50 bg-yellow-500/10">
+                  <AlertTriangle className="h-4 w-4 text-yellow-600" />
+                  <AlertDescription className="text-yellow-700 dark:text-yellow-500">
+                    <strong>Inconsistência detetada:</strong> {validateSlideConsistency(selectedTemplate).message}
+                    <br />
+                    <span className="text-sm">Por favor, recarregue a página ou contacte o suporte.</span>
+                  </AlertDescription>
+                </Alert>
+              )}
 
               {/* Caption Editor with Platform Differentiation */}
               <div className="mb-6 md:mb-8 space-y-6">
