@@ -695,48 +695,52 @@ const Review = () => {
     const loadingToast = toast.loading('A publicar no Instagram...');
     
     try {
-      // CRITICAL: Always get fresh images from current state (excludes archived slides)
+      // Get active images (what user sees in front-end)
       const selectedImages = selectedTemplate === 'A' ? templateAImages : templateBImages;
       const archivedSlides = selectedTemplate === 'A' ? archivedSlidesA : archivedSlidesB;
       
-      // Validate slide consistency before publishing
-      const validation = validateSlideConsistency(selectedTemplate);
-      if (!validation.valid) {
+      // Filter out archived slides - this is EXACTLY what will be published
+      const imagesToPublish = selectedImages.filter(img => !archivedSlides.includes(img));
+      
+      // Debug logging
+      console.log('[Instagram Publish Debug]', {
+        selectedTemplate,
+        totalImages: selectedImages.length,
+        archivedSlides: archivedSlides.length,
+        archivedList: archivedSlides,
+        activeImages: imagesToPublish.length,
+        activeList: imagesToPublish,
+        willPublish: imagesToPublish,
+      });
+      
+      // Validate we have images
+      if (!imagesToPublish || imagesToPublish.length === 0) {
         toast.dismiss(loadingToast);
-        toast.error(`Erro de validação: ${validation.message}`);
-        console.error('[Instagram Publish] Validation failed:', validation.message);
+        toast.error('Não há imagens ativas para publicar');
         return;
       }
       
-      // Ensure no archived slides are included
-      const cleanedImages = selectedImages.filter(img => !archivedSlides.includes(img));
-      if (cleanedImages.length !== selectedImages.length) {
-        const diff = selectedImages.length - cleanedImages.length;
-        console.warn(`[Instagram Publish] Removidos ${diff} slides arquivados das imagens ativas`);
-      }
-      
-      console.log('[Instagram Publish] Selected template:', selectedTemplate);
-      console.log('[Instagram Publish] Total images to publish:', cleanedImages.length);
-      console.log('[Instagram Publish] Archived slides:', archivedSlides.length);
-      console.log('[Instagram Publish] Images:', cleanedImages);
-      
-      // Validate images before sending
-      if (!cleanedImages || cleanedImages.length === 0) {
-        throw new Error('No images selected for carousel');
+      // Instagram limit: MAX 10 slides - force user to archive
+      if (imagesToPublish.length > 10) {
+        toast.dismiss(loadingToast);
+        toast.error(`Instagram permite máx. 10 imagens. Atualmente tem ${imagesToPublish.length}. Por favor, arquive ${imagesToPublish.length - 10} slide(s).`);
+        return;
       }
 
-      const invalidUrls = cleanedImages.filter(url => 
+      const invalidUrls = imagesToPublish.filter(url => 
         !url || typeof url !== 'string' || !url.startsWith('https://')
       );
       
       if (invalidUrls.length > 0) {
         console.error('Invalid image URLs:', invalidUrls);
-        throw new Error(`Found ${invalidUrls.length} invalid image URL(s)`);
+        toast.dismiss(loadingToast);
+        toast.error(`Encontradas ${invalidUrls.length} URL(s) inválida(s)`);
+        return;
       }
 
-      const pageAlts = cleanedImages.map((imgUrl, index) => {
+      const pageAlts = imagesToPublish.map((imgUrl, index) => {
         const imgKey = imgUrl.split('/').pop() || `image_${index}`;
-        return post.alt_texts?.[imgKey] || `Slide ${index + 1} de ${cleanedImages.length}`;
+        return post.alt_texts?.[imgKey] || `Slide ${index + 1} de ${imagesToPublish.length}`;
       });
 
       const payload = {
@@ -746,13 +750,13 @@ const Review = () => {
         selected_template: selectedTemplate,
         caption_final: useDifferentCaptions ? instagramCaption : caption,
         hashtags_final: hashtags || [],
-        images: cleanedImages,
+        images: imagesToPublish,
         pageAlts: pageAlts,
         reviewed_by: user?.email || 'unknown',
         notes: ''
       };
 
-      console.log('[Instagram] Payload completo a enviar:', {
+      console.log('[Instagram] Payload a enviar:', {
         platform: payload.platform,
         post_id: payload.post_id,
         selected_template: payload.selected_template,
@@ -779,17 +783,18 @@ const Review = () => {
         className: 'bg-gradient-to-r from-green-500 to-emerald-600 text-white border-0',
       });
 
-      // Update post status and ensure template images are saved
+      // Update post status to published and save exactly what was published
       await supabase
         .from('posts')
         .update({
           caption_edited: useDifferentCaptions ? instagramCaption : caption,
-          status: 'approved',
-          [selectedTemplate === 'A' ? 'template_a_images' : 'template_b_images']: cleanedImages,
+          status: 'published',
+          published_at: new Date().toISOString(),
+          [selectedTemplate === 'A' ? 'template_a_images' : 'template_b_images']: imagesToPublish,
         })
         .eq('id', id);
       
-      console.log('[Instagram] Post atualizado na BD com', cleanedImages.length, 'imagens');
+      console.log('[Instagram] Post publicado na BD com', imagesToPublish.length, 'imagens');
       
       // Register publication in quota
       if (user?.id) {
@@ -825,48 +830,45 @@ const Review = () => {
     const loadingToast = toast.loading('A publicar no LinkedIn...');
     
     try {
-      // CRITICAL: Always get fresh images from current state (excludes archived slides)
+      // Get active images (what user sees in front-end)
       const selectedImages = selectedTemplate === 'A' ? templateAImages : templateBImages;
       const archivedSlides = selectedTemplate === 'A' ? archivedSlidesA : archivedSlidesB;
       
-      // Validate slide consistency before publishing
-      const validation = validateSlideConsistency(selectedTemplate);
-      if (!validation.valid) {
+      // Filter out archived slides - this is EXACTLY what will be published
+      const imagesToPublish = selectedImages.filter(img => !archivedSlides.includes(img));
+      
+      // Debug logging
+      console.log('[LinkedIn Publish Debug]', {
+        selectedTemplate,
+        totalImages: selectedImages.length,
+        archivedSlides: archivedSlides.length,
+        archivedList: archivedSlides,
+        activeImages: imagesToPublish.length,
+        activeList: imagesToPublish,
+        willPublish: imagesToPublish,
+      });
+      
+      // Validate we have images
+      if (!imagesToPublish || imagesToPublish.length === 0) {
         toast.dismiss(loadingToast);
-        toast.error(`Erro de validação: ${validation.message}`);
-        console.error('[LinkedIn Publish] Validation failed:', validation.message);
+        toast.error('Não há imagens ativas para publicar');
         return;
       }
-      
-      // Ensure no archived slides are included
-      const cleanedImages = selectedImages.filter(img => !archivedSlides.includes(img));
-      if (cleanedImages.length !== selectedImages.length) {
-        const diff = selectedImages.length - cleanedImages.length;
-        console.warn(`[LinkedIn Publish] Removidos ${diff} slides arquivados das imagens ativas`);
-      }
-      
-      console.log('[LinkedIn Publish] Selected template:', selectedTemplate);
-      console.log('[LinkedIn Publish] Total images to publish:', cleanedImages.length);
-      console.log('[LinkedIn Publish] Archived slides:', archivedSlides.length);
-      console.log('[LinkedIn Publish] Images:', cleanedImages);
-      
-      // Validate images before sending
-      if (!cleanedImages || cleanedImages.length === 0) {
-        throw new Error('No images selected for carousel');
-      }
 
-      const invalidUrls = cleanedImages.filter(url => 
+      const invalidUrls = imagesToPublish.filter(url => 
         !url || typeof url !== 'string' || !url.startsWith('https://')
       );
       
       if (invalidUrls.length > 0) {
         console.error('Invalid image URLs:', invalidUrls);
-        throw new Error(`Found ${invalidUrls.length} invalid image URL(s)`);
+        toast.dismiss(loadingToast);
+        toast.error(`Encontradas ${invalidUrls.length} URL(s) inválida(s)`);
+        return;
       }
 
-      const pageAlts = cleanedImages.map((imgUrl, index) => {
+      const pageAlts = imagesToPublish.map((imgUrl, index) => {
         const imgKey = imgUrl.split('/').pop() || `image_${index}`;
-        return post.alt_texts?.[imgKey] || `Slide ${index + 1} de ${cleanedImages.length}`;
+        return post.alt_texts?.[imgKey] || `Slide ${index + 1} de ${imagesToPublish.length}`;
       });
 
       const payload = {
@@ -876,13 +878,13 @@ const Review = () => {
         selected_template: selectedTemplate,
         body_final: linkedinBody,
         hashtags_final: hashtags || [],
-        images: cleanedImages,
+        images: imagesToPublish,
         pageAlts: pageAlts,
         reviewed_by: user?.email || 'unknown',
         notes: ''
       };
 
-      console.log('[LinkedIn] Payload completo a enviar:', {
+      console.log('[LinkedIn] Payload a enviar:', {
         platform: payload.platform,
         post_id: payload.post_id,
         selected_template: payload.selected_template,
@@ -909,17 +911,18 @@ const Review = () => {
         className: 'bg-gradient-to-r from-green-500 to-emerald-600 text-white border-0',
       });
 
-      // Update post status and ensure template images are saved
+      // Update post status to published and save exactly what was published
       await supabase
         .from('posts')
         .update({
           linkedin_body: linkedinBody,
-          status: 'approved',
-          [selectedTemplate === 'A' ? 'template_a_images' : 'template_b_images']: cleanedImages,
+          status: 'published',
+          published_at: new Date().toISOString(),
+          [selectedTemplate === 'A' ? 'template_a_images' : 'template_b_images']: imagesToPublish,
         })
         .eq('id', id);
       
-      console.log('[LinkedIn] Post atualizado na BD com', cleanedImages.length, 'imagens');
+      console.log('[LinkedIn] Post publicado na BD com', imagesToPublish.length, 'imagens');
 
     } catch (error: any) {
       toast.dismiss(loadingToast);

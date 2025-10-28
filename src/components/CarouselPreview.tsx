@@ -227,7 +227,12 @@ export const CarouselPreview = ({
 
       // Filter archived slides before exporting
       const activeImages = images.filter(img => !archivedSlides.includes(img));
-      console.log('[ZIP Export] Total images:', images.length, 'Active:', activeImages.length, 'Archived:', archivedSlides.length);
+      console.log('[ZIP Export Debug]', {
+        totalImages: images.length,
+        archivedSlides: archivedSlides.length,
+        activeImages: activeImages.length,
+        willExport: activeImages,
+      });
 
       for (let i = 0; i < activeImages.length; i++) {
         const url = activeImages[i];
@@ -273,11 +278,14 @@ export const CarouselPreview = ({
       const { jsPDF } = await import('jspdf');
       const pdf = new jsPDF();
       
-      // Filter archived slides before exporting to PDF - CRITICAL FIX
+      // Filter archived slides before exporting to PDF
       const activeImages = images.filter(img => !archivedSlides.includes(img));
-      console.log('[PDF Export] Total images in state:', images.length, 'Active images for PDF:', activeImages.length, 'Archived slides:', archivedSlides.length);
-      console.log('[PDF Export] Active images:', activeImages);
-      console.log('[PDF Export] Archived slides:', archivedSlides);
+      console.log('[PDF Export Debug]', {
+        totalImages: images.length,
+        archivedSlides: archivedSlides.length,
+        activeImages: activeImages.length,
+        willExport: activeImages,
+      });
       
       for (let i = 0; i < activeImages.length; i++) {
         const url = activeImages[i];
@@ -351,13 +359,18 @@ export const CarouselPreview = ({
       )}
 
       <div className="mb-3 md:mb-4 flex items-center justify-between gap-2">
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-2 flex-wrap">
           <Badge className={cn(templateColors[template].badge, "text-sm font-bold px-3 py-1")}>
             Template {template}
           </Badge>
           <span className="text-xs font-medium text-muted-foreground tracking-tight">
             {templateColors[template].description}
           </span>
+          {activeImages.length > 10 && (
+            <Badge variant="destructive" className="text-xs animate-pulse">
+              ⚠️ {activeImages.length}/10 - Arquive {activeImages.length - 10}
+            </Badge>
+          )}
         </div>
         <div className="flex items-center gap-1.5">
           <TooltipProvider>

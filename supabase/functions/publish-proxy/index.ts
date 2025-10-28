@@ -23,7 +23,12 @@ serve(async (req) => {
     });
     
     // Log all image URLs for debugging
-    console.log(`[publish-proxy] Images received (${payload.images?.length || 0}):`, payload.images);
+    console.log(`[publish-proxy] Images to publish (${payload.images?.length || 0}):`, payload.images);
+    
+    // Warning if Instagram receives >10 images (should be blocked by frontend)
+    if (platform === 'instagram' && payload.images?.length > 10) {
+      console.error(`[publish-proxy] WARNING: Instagram received ${payload.images.length} images (max 10). Frontend validation failed!`);
+    }
 
     // Validate payload
     if (!platform || !['instagram', 'linkedin'].includes(platform)) {
