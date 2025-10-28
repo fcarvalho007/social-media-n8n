@@ -6,9 +6,10 @@ interface LiPostMockProps {
   mediaCount?: number;
   hasWarnings?: boolean;
   warningCount?: number;
+  caption?: string;
 }
 
-export const LiPostMock = ({ mediaCount = 0, hasWarnings, warningCount }: LiPostMockProps) => {
+export const LiPostMock = ({ mediaCount = 0, hasWarnings, warningCount, caption = '' }: LiPostMockProps) => {
   return (
     <div className="w-full max-w-[640px] mx-auto rounded-2xl border bg-card shadow-sm overflow-hidden">
       {/* Header */}
@@ -53,9 +54,9 @@ export const LiPostMock = ({ mediaCount = 0, hasWarnings, warningCount }: LiPost
 
       {/* Body Text */}
       <div className="px-4 py-3">
-        <p className="text-[15px] leading-relaxed">
-          O seu texto de publicação aparecerá aqui...{" "}
-          <button className="text-primary hover:underline font-medium">ver mais</button>
+        <p className="text-[15px] leading-relaxed whitespace-pre-wrap">
+          {caption || 'O seu texto de publicação aparecerá aqui...'}{" "}
+          {caption && <button className="text-primary hover:underline font-medium">ver mais</button>}
         </p>
       </div>
 

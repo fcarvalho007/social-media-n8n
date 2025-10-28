@@ -11,6 +11,9 @@ interface SplitPreviewDialogProps {
   mediaCount?: number;
   hasWarnings?: boolean;
   warningCount?: number;
+  instagramCaption?: string;
+  linkedinCaption?: string;
+  images?: string[];
 }
 
 const SplitPreviewDialog = ({
@@ -20,6 +23,9 @@ const SplitPreviewDialog = ({
   mediaCount = 1,
   hasWarnings,
   warningCount,
+  instagramCaption = '',
+  linkedinCaption = '',
+  images = [],
 }: SplitPreviewDialogProps) => {
   const showBoth = selectedPlatforms.includes("instagram") && selectedPlatforms.includes("linkedin");
   const showInstagram = selectedPlatforms.includes("instagram");
@@ -56,11 +62,14 @@ const SplitPreviewDialog = ({
                   mediaCount={mediaCount} 
                   hasWarnings={hasWarnings}
                   warningCount={warningCount}
+                  caption={instagramCaption}
+                  images={images}
                 />
                 <LiPostMock 
                   mediaCount={mediaCount}
                   hasWarnings={hasWarnings}
                   warningCount={warningCount}
+                  caption={linkedinCaption}
                 />
               </div>
             ) : (
@@ -70,6 +79,8 @@ const SplitPreviewDialog = ({
                     mediaCount={mediaCount}
                     hasWarnings={hasWarnings}
                     warningCount={warningCount}
+                    caption={instagramCaption}
+                    images={images}
                   />
                 )}
                 {showLinkedin && (
@@ -77,6 +88,7 @@ const SplitPreviewDialog = ({
                     mediaCount={mediaCount}
                     hasWarnings={hasWarnings}
                     warningCount={warningCount}
+                    caption={linkedinCaption}
                   />
                 )}
               </div>

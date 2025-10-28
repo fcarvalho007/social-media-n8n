@@ -5,9 +5,11 @@ interface IgPostMockProps {
   mediaCount?: number;
   hasWarnings?: boolean;
   warningCount?: number;
+  caption?: string;
+  images?: string[];
 }
 
-export const IgPostMock = ({ mediaCount = 1, hasWarnings, warningCount }: IgPostMockProps) => {
+export const IgPostMock = ({ mediaCount = 1, hasWarnings, warningCount, caption = '', images = [] }: IgPostMockProps) => {
   return (
     <div className="w-full max-w-[640px] mx-auto rounded-2xl border bg-card shadow-sm overflow-hidden">
       {/* Header */}
@@ -37,6 +39,14 @@ export const IgPostMock = ({ mediaCount = 1, hasWarnings, warningCount }: IgPost
 
       {/* Media Area */}
       <div className="relative aspect-[4/5] bg-gradient-to-br from-muted via-muted/80 to-muted overflow-hidden">
+        {images.length > 0 ? (
+          <img 
+            src={images[0]} 
+            alt="Preview" 
+            className="w-full h-full object-cover"
+          />
+        ) : null}
+        
         {/* Carousel Mock */}
         {mediaCount > 1 && (
           <>
@@ -65,13 +75,6 @@ export const IgPostMock = ({ mediaCount = 1, hasWarnings, warningCount }: IgPost
         <button className="absolute top-3 right-3 p-1.5 rounded-full bg-background/80 backdrop-blur-sm hover:bg-background transition-colors" aria-label="Som desativado">
           <Volume2 className="w-4 h-4" />
         </button>
-
-        {/* Title Overlay */}
-        <div className="absolute bottom-0 left-0 right-0 p-6 bg-gradient-to-t from-black/60 to-transparent">
-          <h3 className="text-white text-xl font-bold leading-snug tracking-tight line-clamp-2">
-            Descubra estratégias inovadoras
-          </h3>
-        </div>
       </div>
 
       {/* Actions */}
@@ -93,9 +96,9 @@ export const IgPostMock = ({ mediaCount = 1, hasWarnings, warningCount }: IgPost
       {/* Metrics & Caption */}
       <div className="px-4 pb-3 space-y-1.5">
         <p className="text-sm font-semibold">Vários gostos</p>
-        <p className="text-sm leading-relaxed">
-          <span className="font-semibold">Instagram</span> A sua legenda aparecerá aqui...{" "}
-          <button className="text-muted-foreground hover:text-foreground transition-colors">mais</button>
+        <p className="text-sm leading-relaxed whitespace-pre-wrap">
+          <span className="font-semibold">Instagram</span> {caption || 'A sua legenda aparecerá aqui...'}{" "}
+          {caption && <button className="text-muted-foreground hover:text-foreground transition-colors">mais</button>}
         </p>
         <button className="text-sm text-muted-foreground hover:text-foreground transition-colors">
           Ver comentários

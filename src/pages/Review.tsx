@@ -986,7 +986,7 @@ const Review = () => {
                         setLinkedinBody(newCaption);
                       }}
                       placeholder="Escreve a legenda para ambas as plataformas..."
-                      rows={10}
+                      rows={15}
                       className="text-[15px] leading-relaxed"
                     />
                     <HashtagManager
@@ -1028,7 +1028,7 @@ const Review = () => {
                           setCaption(newCaption);
                         }}
                         placeholder="Escreve a legenda para Instagram..."
-                        rows={10}
+                        rows={15}
                         className="text-[15px] leading-relaxed"
                       />
                       <HashtagManager
@@ -1064,7 +1064,7 @@ const Review = () => {
                         value={linkedinBody}
                         onChange={setLinkedinBody}
                         placeholder="Escreve a legenda para LinkedIn..."
-                        rows={10}
+                        rows={15}
                         className="text-[15px] leading-relaxed"
                       />
                       <div className="flex items-center justify-between mt-3">
@@ -1098,7 +1098,7 @@ const Review = () => {
                       value={caption}
                       onChange={setCaption}
                       placeholder="Escreve a legenda para Instagram..."
-                      rows={10}
+                      rows={15}
                       className="text-[15px] leading-relaxed"
                     />
                     <HashtagManager
@@ -1133,7 +1133,7 @@ const Review = () => {
                       value={linkedinBody}
                       onChange={setLinkedinBody}
                       placeholder="Escreve a legenda para LinkedIn..."
-                      rows={10}
+                      rows={15}
                       className="text-[15px] leading-relaxed"
                     />
                     <div className="flex items-center justify-between mt-3">
@@ -1259,6 +1259,9 @@ const Review = () => {
         mediaCount={selectedTemplate ? (selectedTemplate === 'A' ? templateAImages.length : templateBImages.length) : 1}
         hasWarnings={Object.values(validations).some(v => v?.warnings?.length > 0 || v?.errors?.length > 0)}
         warningCount={Object.values(validations).reduce((acc, v) => acc + (v?.warnings?.length || 0) + (v?.errors?.length || 0), 0)}
+        instagramCaption={useDifferentCaptions ? instagramCaption : caption}
+        linkedinCaption={linkedinBody}
+        images={selectedTemplate ? (selectedTemplate === 'A' ? templateAImages : templateBImages) : []}
       />
 
       {/* Single Platform Preview */}
