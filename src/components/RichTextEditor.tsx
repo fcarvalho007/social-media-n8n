@@ -154,10 +154,6 @@ export const RichTextEditor = ({
           }
         }}
       />
-
-      <p className="text-xs text-muted-foreground">
-        Use **texto** para negrito e *texto* para itálico
-      </p>
     </div>
   );
 };

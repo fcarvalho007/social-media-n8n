@@ -54,10 +54,10 @@ const Review = () => {
   const [showSplitPreview, setShowSplitPreview] = useState(false);
   const [showSinglePreview, setShowSinglePreview] = useState<{ platform: 'instagram' | 'linkedin'; open: boolean } | null>(null);
   
-  // Publishing state
+  // Publishing state - Pre-select both platforms by default
   const [publishTargets, setPublishTargets] = useState<Record<PublishTarget, boolean>>({
-    instagram: false,
-    linkedin: false,
+    instagram: true,
+    linkedin: true,
   });
   const [publishModalOpen, setPublishModalOpen] = useState(false);
   const [publishProgress, setPublishProgress] = useState<Record<PublishTarget, PublishProgress>>({
@@ -115,7 +115,13 @@ const Review = () => {
       }
       
       setPost(data);
-      setCaption(data.caption_edited || data.caption);
+      
+      // Set default caption with hashtags if no caption exists
+      const defaultHashtags = '\n\n#educacao #marketing #marketingdigital #ia #digitalsprint\n\ntransparência: co-criado com IA';
+      const currentCaption = data.caption_edited || data.caption || '';
+      const captionWithHashtags = currentCaption.includes('#educacao') ? currentCaption : currentCaption + defaultHashtags;
+      
+      setCaption(captionWithHashtags);
       setHashtags(data.hashtags_edited || data.hashtags || []);
       setSelectedTemplate(data.selected_template as 'A' | 'B' | null);
       setNotes(data.notes || '');
@@ -982,9 +988,6 @@ const Review = () => {
                       placeholder="Escreve a legenda para ambas as plataformas..."
                       className="text-[15px] leading-relaxed"
                     />
-                    <div className="mt-2 text-xs text-muted-foreground">
-                      {caption.length} caracteres
-                    </div>
                     <HashtagManager
                       hashtags={hashtags}
                       onChange={setHashtags}
@@ -1022,9 +1025,6 @@ const Review = () => {
                         placeholder="Escreve a legenda para Instagram..."
                         className="text-[15px] leading-relaxed"
                       />
-                      <div className="mt-2 text-xs text-muted-foreground">
-                        {instagramCaption.length} caracteres
-                      </div>
                       <HashtagManager
                         hashtags={hashtags}
                         onChange={setHashtags}
@@ -1056,9 +1056,6 @@ const Review = () => {
                         placeholder="Escreve a legenda para LinkedIn..."
                         className="text-[15px] leading-relaxed"
                       />
-                      <div className="mt-2 text-xs text-muted-foreground">
-                        {linkedinBody.length} caracteres
-                      </div>
                       <div className="flex items-center justify-between mt-3">
                         <p className="text-xs text-muted-foreground">
                           Hashtags: {hashtags?.map(h => h.startsWith('#') ? h : `#${h}`).join(' ') || 'Sem hashtags'}
@@ -1092,9 +1089,6 @@ const Review = () => {
                       placeholder="Escreve a legenda para Instagram..."
                       className="text-[15px] leading-relaxed"
                     />
-                    <div className="mt-2 text-xs text-muted-foreground">
-                      {caption.length} caracteres
-                    </div>
                     <HashtagManager
                       hashtags={hashtags}
                       onChange={setHashtags}
@@ -1128,9 +1122,6 @@ const Review = () => {
                       placeholder="Escreve a legenda para LinkedIn..."
                       className="text-[15px] leading-relaxed"
                     />
-                    <div className="mt-2 text-xs text-muted-foreground">
-                      {linkedinBody.length} caracteres
-                    </div>
                     <div className="flex items-center justify-between mt-3">
                       <p className="text-xs text-muted-foreground">
                         {selectedTemplate ? (
