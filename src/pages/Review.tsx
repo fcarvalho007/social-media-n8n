@@ -924,6 +924,19 @@ const Review = () => {
       
       console.log('[LinkedIn] Post publicado na BD com', imagesToPublish.length, 'imagens');
 
+      // Register publication in quota
+      if (user?.id) {
+        await supabase.from('publication_quota').insert({
+          user_id: user.id,
+          platform: 'linkedin',
+          post_type: 'carousel',
+          post_id: id,
+        });
+        
+        // Refetch quota to update UI
+        refetchQuota();
+      }
+
     } catch (error: any) {
       toast.dismiss(loadingToast);
       console.error('[LinkedIn] Error:', error);
