@@ -66,30 +66,31 @@ export function AppSidebar() {
       
       <Sidebar 
         className={cn(
-          "w-28 border-none transition-all duration-300",
-          "fixed lg:sticky inset-y-0 left-0 z-50 lg:z-auto rounded-l-lg",
+          "w-28 md:w-32 border-none transition-all duration-300",
+          "fixed lg:sticky inset-y-0 left-0 z-50 lg:z-auto",
           open ? "translate-x-0" : "-translate-x-full lg:translate-x-0"
         )}
         style={{
           background: 'linear-gradient(180deg, #E0E3EC 0%, #F8FAFC 100%)',
-          boxShadow: '2px 0 8px rgba(0, 0, 0, 0.05)'
+          boxShadow: '2px 0 12px rgba(0, 0, 0, 0.08)'
         }}
       >
         {/* Mobile Close Button */}
         <Button
           variant="ghost"
           size="icon"
-          className="absolute top-4 right-4 lg:hidden z-10 h-8 w-8 rounded-lg hover:bg-white/40 transition-all duration-150"
+          className="absolute top-4 right-4 lg:hidden z-10 min-h-[44px] min-w-[44px] rounded-lg hover:bg-white/40 transition-all duration-150"
           onClick={() => setOpen(false)}
+          aria-label="Fechar menu"
         >
-          <X className="h-4 w-4 text-[#4169A0]" />
+          <X className="h-5 w-5 text-[#4169A0]" />
         </Button>
 
-        <SidebarContent className="flex flex-col h-full py-12">
+        <SidebarContent className="flex flex-col h-full py-16 md:py-12">
           {/* Menu Items - Centralizados com labels */}
           <SidebarGroup className="flex-1 flex items-center">
             <SidebarGroupContent className="w-full">
-              <SidebarMenu className="space-y-8">
+              <SidebarMenu className="space-y-10 md:space-y-8">
                 {menuItems.map((item) => (
                   <SidebarMenuItem key={item.title}>
                     <SidebarMenuButton 
@@ -98,29 +99,29 @@ export function AppSidebar() {
                       className="h-auto p-0 hover:bg-transparent"
                     >
                       {item.disabled ? (
-                        <div className="flex flex-col items-center gap-2 mx-auto opacity-30 cursor-not-allowed">
-                          <div className="flex h-14 w-14 items-center justify-center rounded-full relative">
-                            <item.icon className="h-6 w-6 text-[#6B7280]" strokeWidth={1.5} />
+                        <div className="flex flex-col items-center gap-2.5 mx-auto opacity-30 cursor-not-allowed">
+                          <div className="flex h-16 w-16 md:h-14 md:w-14 items-center justify-center rounded-full relative">
+                            <item.icon className="h-7 w-7 md:h-6 md:w-6 text-[#6B7280]" strokeWidth={1.5} />
                           </div>
-                          <span className="text-xs text-[#6B7280] font-medium">{item.label}</span>
+                          <span className="text-sm md:text-xs text-[#6B7280] font-medium">{item.label}</span>
                         </div>
                       ) : (
                         <NavLink
                           to={item.url}
                           onClick={() => setOpen(false)}
-                          className="flex flex-col items-center gap-2 mx-auto group"
+                          className="flex flex-col items-center gap-2.5 mx-auto group min-h-[44px]"
                         >
                           {({ isActive }) => (
                             <>
                               <div
                                 className={cn(
-                                  'flex h-[60px] w-[60px] items-center justify-center rounded-full relative',
+                                  'flex h-16 w-16 md:h-[60px] md:w-[60px] items-center justify-center rounded-full relative',
                                   'transition-all duration-200 ease-in-out',
                                   isActive && item.isMain
-                                    ? 'bg-[#4169A0] text-white shadow-md'
+                                    ? 'bg-[#4169A0] text-white shadow-lg'
                                     : isActive && !item.isMain
                                     ? 'bg-[#E3E8FA] text-[#1E3A8A]'
-                                    : 'text-[#6B7280] group-hover:bg-[#4169A0]/15'
+                                    : 'text-[#6B7280] group-hover:bg-[#4169A0]/15 active:bg-[#4169A0]/25'
                                 )}
                                 onMouseEnter={(e) => {
                                   if (!isActive) {
@@ -134,12 +135,12 @@ export function AppSidebar() {
                                 }}
                               >
                                 <item.icon 
-                                  className="h-6 w-6" 
+                                  className="h-7 w-7 md:h-6 md:w-6" 
                                   strokeWidth={1.5} 
                                 />
                                 {item.showBadge && notificationCount > 0 && (
                                   <Badge 
-                                    className="absolute -top-1 -right-1 h-5 w-5 rounded-full p-0 flex items-center justify-center text-[10px] font-bold bg-[#EF4444] text-white border-2 border-[#E0E3EC] shadow-sm"
+                                    className="absolute -top-1 -right-1 h-6 w-6 md:h-5 md:w-5 rounded-full p-0 flex items-center justify-center text-xs md:text-[10px] font-bold bg-[#EF4444] text-white border-2 border-[#E0E3EC] shadow-sm"
                                   >
                                     {notificationCount}
                                   </Badge>
@@ -147,7 +148,7 @@ export function AppSidebar() {
                               </div>
                               <span 
                                 className={cn(
-                                  "text-xs font-medium transition-colors duration-200",
+                                  "text-sm md:text-xs font-medium transition-colors duration-200",
                                   isActive ? "text-[#4169A0]" : "text-[#6B7280] group-hover:text-[#4169A0]"
                                 )}
                                 style={{ fontFamily: 'Inter, sans-serif', fontWeight: 500 }}

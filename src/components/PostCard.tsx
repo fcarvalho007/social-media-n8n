@@ -82,20 +82,20 @@ export const PostCard = ({ post, onClick, onDelete }: PostCardProps) => {
   return (
     <Card 
       className={cn(
-        "group cursor-pointer transition-all duration-300 hover:shadow-xl hover:scale-[1.02] active:scale-[0.98] relative overflow-hidden rounded-2xl border-2 border-border",
+        "group cursor-pointer transition-all duration-300 hover:shadow-xl hover:scale-[1.02] touch-feedback relative overflow-hidden rounded-xl md:rounded-2xl border-2 border-border",
         post.status === 'published' && "border-l-4 border-l-success shadow-lg",
         "bg-card hover:bg-accent/5 animate-fade-in"
-      )} 
+      )}
       onClick={onClick}
     >
-      <CardContent className="p-3 sm:p-4 md:p-5">
+      <CardContent className="p-4 md:p-5 lg:p-6">
         {/* Delete Button - Top Right */}
         {onDelete && (
-          <div className="absolute top-2 right-2 sm:top-3 sm:right-3 z-10">
+          <div className="absolute top-3 right-3 md:top-4 md:right-4 z-10">
             <Button
               variant="ghost"
               size="icon"
-              className="h-8 w-8 sm:h-9 sm:w-9 text-destructive hover:text-destructive-foreground hover:bg-destructive bg-card/95 backdrop-blur-sm touch-target shadow-md border border-border"
+              className="min-h-[44px] min-w-[44px] text-destructive hover:text-destructive-foreground hover:bg-destructive bg-card/95 backdrop-blur-sm shadow-md border border-border rounded-lg md:rounded-xl touch-feedback"
               onClick={(e) => {
                 e.stopPropagation();
                 onDelete(post.id);
