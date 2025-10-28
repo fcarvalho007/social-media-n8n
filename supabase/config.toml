@@ -1,5 +1,8 @@
 project_id = "vtmrimrrppuclciolzuw"
 
+[functions.incoming]
+verify_jwt = false
+
 [functions.notify-story-approval]
 verify_jwt = false
 
