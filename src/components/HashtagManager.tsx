@@ -8,9 +8,10 @@ interface HashtagManagerProps {
   hashtags: string[];
   onChange: (hashtags: string[]) => void;
   caption: string;
+  onCaptionChange: (caption: string) => void;
 }
 
-export const HashtagManager = ({ hashtags, onChange, caption }: HashtagManagerProps) => {
+export const HashtagManager = ({ hashtags, onChange, caption, onCaptionChange }: HashtagManagerProps) => {
   const getSuggestedHashtags = (): string[] => {
     const text = caption.toLowerCase();
     const suggestions: string[] = [];
@@ -54,9 +55,10 @@ export const HashtagManager = ({ hashtags, onChange, caption }: HashtagManagerPr
   };
 
   const addHashtag = (tag: string) => {
-    if (!hashtags.includes(tag)) {
-      onChange([...hashtags, tag]);
-    }
+    // Add hashtag directly to the caption at the end
+    const trimmedCaption = caption.trim();
+    const newCaption = trimmedCaption + (trimmedCaption ? ' ' : '') + tag;
+    onCaptionChange(newCaption);
   };
 
   const removeHashtag = (tag: string) => {
@@ -67,25 +69,6 @@ export const HashtagManager = ({ hashtags, onChange, caption }: HashtagManagerPr
 
   return (
     <div className="space-y-3 mt-4">
-      {/* Current Hashtags */}
-      {hashtags.length > 0 && (
-        <div className="space-y-2">
-          <Label className="text-sm font-medium">Hashtags Selecionadas</Label>
-          <div className="flex flex-wrap gap-2">
-            {hashtags.map((tag) => (
-              <Badge
-                key={tag}
-                variant="secondary"
-                className="cursor-pointer hover:bg-destructive hover:text-destructive-foreground transition-colors"
-                onClick={() => removeHashtag(tag)}
-              >
-                {tag} ✕
-              </Badge>
-            ))}
-          </div>
-        </div>
-      )}
-
       {/* Suggested Hashtags */}
       {suggestedHashtags.length > 0 && (
         <div className="space-y-2">

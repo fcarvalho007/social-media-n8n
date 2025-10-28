@@ -17,9 +17,9 @@ export const LiPostMock = ({ mediaCount = 0, hasWarnings, warningCount }: LiPost
         <div className="flex-1 min-w-0">
           <div className="flex items-start justify-between gap-2">
             <div className="flex-1 min-w-0">
-              <h4 className="text-sm font-semibold tracking-tight leading-snug">Pedro Dias</h4>
+              <h4 className="text-sm font-semibold tracking-tight leading-snug">LinkedIn</h4>
               <p className="text-xs text-muted-foreground leading-snug line-clamp-1">
-                AI Strategist | Content Creator
+                Publicação Profissional
               </p>
               <div className="flex items-center gap-1 mt-0.5 text-xs text-muted-foreground">
                 <span>1 h</span>
@@ -54,8 +54,8 @@ export const LiPostMock = ({ mediaCount = 0, hasWarnings, warningCount }: LiPost
       {/* Body Text */}
       <div className="px-4 py-3">
         <p className="text-[15px] leading-relaxed">
-          Lorem ipsum dolor sit amet, consectetur adipiscing elit. Sed do eiusmod tempor incididunt ut labore...{" "}
-          <button className="text-primary hover:underline font-medium">see more</button>
+          O seu texto de publicação aparecerá aqui...{" "}
+          <button className="text-primary hover:underline font-medium">ver mais</button>
         </p>
       </div>
 

@@ -969,11 +969,11 @@ const Review = () => {
                         <Label className="text-base font-semibold">Legenda (Instagram & LinkedIn)</Label>
                       </div>
                       <Button
-                        variant="outline"
+                        variant="default"
                         size="sm"
                         onClick={handlePreviewClick}
                         disabled={!canPreview()}
-                        className="flex items-center gap-2"
+                        className="flex items-center gap-2 bg-gradient-to-r from-primary to-primary/80 hover:from-primary/90 hover:to-primary/70 shadow-md hover:shadow-lg transition-all duration-200"
                       >
                         <Eye className="h-4 w-4" />
                         Pré-visualizar
@@ -986,12 +986,17 @@ const Review = () => {
                         setLinkedinBody(newCaption);
                       }}
                       placeholder="Escreve a legenda para ambas as plataformas..."
+                      rows={10}
                       className="text-[15px] leading-relaxed"
                     />
                     <HashtagManager
                       hashtags={hashtags}
                       onChange={setHashtags}
                       caption={caption}
+                      onCaptionChange={(newCaption) => {
+                        setCaption(newCaption);
+                        setLinkedinBody(newCaption);
+                      }}
                     />
                   </div>
                 )}
@@ -1007,10 +1012,10 @@ const Review = () => {
                           <Label className="text-base font-semibold">Legenda Instagram</Label>
                         </div>
                         <Button
-                          variant="outline"
+                          variant="default"
                           size="sm"
                           onClick={() => setShowSinglePreview({ platform: 'instagram', open: true })}
-                          className="flex items-center gap-2"
+                          className="flex items-center gap-2 bg-gradient-to-r from-pink-600 to-purple-600 hover:from-pink-700 hover:to-purple-700 shadow-md hover:shadow-lg transition-all duration-200"
                         >
                           <Eye className="h-4 w-4" />
                           Pré-visualizar IG
@@ -1023,12 +1028,17 @@ const Review = () => {
                           setCaption(newCaption);
                         }}
                         placeholder="Escreve a legenda para Instagram..."
+                        rows={10}
                         className="text-[15px] leading-relaxed"
                       />
                       <HashtagManager
                         hashtags={hashtags}
                         onChange={setHashtags}
                         caption={instagramCaption}
+                        onCaptionChange={(newCaption) => {
+                          setInstagramCaption(newCaption);
+                          setCaption(newCaption);
+                        }}
                       />
                     </div>
 
@@ -1041,10 +1051,10 @@ const Review = () => {
                           <Badge variant="secondary" className="text-xs">Documento (PDF)</Badge>
                         </div>
                         <Button
-                          variant="outline"
+                          variant="default"
                           size="sm"
                           onClick={() => setShowSinglePreview({ platform: 'linkedin', open: true })}
-                          className="flex items-center gap-2"
+                          className="flex items-center gap-2 bg-gradient-to-r from-blue-600 to-cyan-600 hover:from-blue-700 hover:to-cyan-700 shadow-md hover:shadow-lg transition-all duration-200"
                         >
                           <Eye className="h-4 w-4" />
                           Pré-visualizar LI
@@ -1054,6 +1064,7 @@ const Review = () => {
                         value={linkedinBody}
                         onChange={setLinkedinBody}
                         placeholder="Escreve a legenda para LinkedIn..."
+                        rows={10}
                         className="text-[15px] leading-relaxed"
                       />
                       <div className="flex items-center justify-between mt-3">
@@ -1074,10 +1085,10 @@ const Review = () => {
                         <Label className="text-base font-semibold">Legenda Instagram</Label>
                       </div>
                       <Button
-                        variant="outline"
+                        variant="default"
                         size="sm"
                         onClick={() => setShowSinglePreview({ platform: 'instagram', open: true })}
-                        className="flex items-center gap-2"
+                        className="flex items-center gap-2 bg-gradient-to-r from-pink-600 to-purple-600 hover:from-pink-700 hover:to-purple-700 shadow-md hover:shadow-lg transition-all duration-200"
                       >
                         <Eye className="h-4 w-4" />
                         Pré-visualizar
@@ -1087,12 +1098,14 @@ const Review = () => {
                       value={caption}
                       onChange={setCaption}
                       placeholder="Escreve a legenda para Instagram..."
+                      rows={10}
                       className="text-[15px] leading-relaxed"
                     />
                     <HashtagManager
                       hashtags={hashtags}
                       onChange={setHashtags}
                       caption={caption}
+                      onCaptionChange={setCaption}
                     />
                   </div>
                 )}
@@ -1107,10 +1120,10 @@ const Review = () => {
                         <Badge variant="secondary" className="text-xs">Documento (PDF)</Badge>
                       </div>
                       <Button
-                        variant="outline"
+                        variant="default"
                         size="sm"
                         onClick={() => setShowSinglePreview({ platform: 'linkedin', open: true })}
-                        className="flex items-center gap-2"
+                        className="flex items-center gap-2 bg-gradient-to-r from-blue-600 to-cyan-600 hover:from-blue-700 hover:to-cyan-700 shadow-md hover:shadow-lg transition-all duration-200"
                       >
                         <Eye className="h-4 w-4" />
                         Pré-visualizar
@@ -1120,6 +1133,7 @@ const Review = () => {
                       value={linkedinBody}
                       onChange={setLinkedinBody}
                       placeholder="Escreve a legenda para LinkedIn..."
+                      rows={10}
                       className="text-[15px] leading-relaxed"
                     />
                     <div className="flex items-center justify-between mt-3">
@@ -1177,24 +1191,6 @@ const Review = () => {
               </div>
             )}
 
-              {/* Notes */}
-              <div className="mb-6 md:mb-8">
-                {/* Section Divider */}
-                <div className="border-t border-border/60 pt-6 mb-4">
-                  <h2 className="text-lg font-semibold tracking-tight leading-snug mb-1">Notas Internas</h2>
-                  <p className="text-sm text-muted-foreground">Adicione observações ou comentários sobre esta revisão</p>
-                </div>
-                
-                <div className="rounded-xl border border-border bg-card p-4 md:p-5 shadow-sm">
-                  <Textarea
-                    id="notes"
-                    value={notes}
-                    onChange={(e) => setNotes(e.target.value)}
-                    placeholder="Adicione notas internas sobre esta revisão..."
-                    className="min-h-[100px] text-[15px] leading-relaxed focus:ring-2 focus:ring-primary/40"
-                  />
-                </div>
-              </div>
 
               {/* Metadata - Now at bottom */}
               <div className="mb-4 text-sm text-muted-foreground space-y-1">

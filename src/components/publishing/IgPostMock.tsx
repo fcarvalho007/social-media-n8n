@@ -14,9 +14,9 @@ export const IgPostMock = ({ mediaCount = 1, hasWarnings, warningCount }: IgPost
       <div className="flex items-center gap-2 px-4 py-3 border-b">
         <div className="w-8 h-8 rounded-full bg-gradient-to-br from-purple-500 to-pink-500" />
         <div className="flex-1 flex items-center gap-1.5">
-          <span className="text-sm font-semibold tracking-tight">theaipage</span>
+          <span className="text-sm font-semibold tracking-tight">Instagram</span>
           <CheckCircle className="w-3.5 h-3.5 text-blue-500 fill-blue-500" />
-          <span className="text-muted-foreground text-sm">• 20 h</span>
+          <span className="text-muted-foreground text-sm">• agora</span>
         </div>
         <button className="p-1 hover:bg-muted/50 rounded-full transition-colors" aria-label="Mais opções">
           <div className="flex flex-col gap-0.5">
@@ -92,16 +92,13 @@ export const IgPostMock = ({ mediaCount = 1, hasWarnings, warningCount }: IgPost
 
       {/* Metrics & Caption */}
       <div className="px-4 pb-3 space-y-1.5">
-        <p className="text-sm font-semibold">3 gostos</p>
+        <p className="text-sm font-semibold">Vários gostos</p>
         <p className="text-sm leading-relaxed">
-          <span className="font-semibold">theaipage</span> Lorem ipsum dolor sit amet, consectetur adipiscing elit. Sed do eiusmod tempor...{" "}
+          <span className="font-semibold">Instagram</span> A sua legenda aparecerá aqui...{" "}
           <button className="text-muted-foreground hover:text-foreground transition-colors">mais</button>
         </p>
-        <button className="text-xs text-muted-foreground hover:text-foreground transition-colors">
-          Ver tradução
-        </button>
         <button className="text-sm text-muted-foreground hover:text-foreground transition-colors">
-          Ver todos os 22 comentários
+          Ver comentários
         </button>
         <div className="flex items-center gap-2 pt-1">
           <input
