@@ -41,21 +41,28 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
 
   const signInWithPassword = async (password: string) => {
     const ADMIN_EMAIL = 'admin@instagram.com';
+    const VALID_PASSWORD = '#123@A'; // 6 characters minimum for Supabase
+    
+    // Check if password matches
+    if (password !== VALID_PASSWORD) {
+      return false;
+    }
     
     try {
       // Try to sign in with the admin email and provided password
       const { data, error } = await supabase.auth.signInWithPassword({
         email: ADMIN_EMAIL,
-        password: password,
+        password: VALID_PASSWORD,
       });
 
       if (error) {
-        // If user doesn't exist and password is correct, create account
-        if (error.message.includes('Invalid') && password === '#123@') {
+        // If user doesn't exist, create account
+        if (error.message.includes('Invalid')) {
           const { error: signUpError } = await supabase.auth.signUp({
             email: ADMIN_EMAIL,
-            password: password,
+            password: VALID_PASSWORD,
             options: {
+              emailRedirectTo: `${window.location.origin}/`,
               data: {
                 full_name: 'Admin',
               },
@@ -70,7 +77,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
           // Sign in after creating account
           const { error: signInError } = await supabase.auth.signInWithPassword({
             email: ADMIN_EMAIL,
-            password: password,
+            password: VALID_PASSWORD,
           });
 
           if (signInError) {

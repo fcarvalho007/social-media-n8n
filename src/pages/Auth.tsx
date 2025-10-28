@@ -64,7 +64,7 @@ const Auth = () => {
           <form onSubmit={handlePasswordSignIn} className="space-y-4">
             <Input
               type="password"
-              placeholder="#***"
+              placeholder="Insira a password"
               value={password}
               onChange={(e) => setPassword(e.target.value)}
               disabled={isSubmitting}
@@ -87,8 +87,8 @@ const Auth = () => {
               )}
             </Button>
 
-            <p className="text-center text-xs text-muted-foreground">
-              #***
+            <p className="text-center text-xs text-muted-foreground mt-4">
+              Password: <span className="font-mono font-semibold">#123@A</span>
             </p>
           </form>
         </CardContent>
