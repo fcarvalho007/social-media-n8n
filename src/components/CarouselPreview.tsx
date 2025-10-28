@@ -217,13 +217,20 @@ export const CarouselPreview = ({
   const isThisTemplateApproved = isApproved && approvedTemplate === template;
   const isOtherTemplateApproved = isApproved && approvedTemplate !== null && approvedTemplate !== template;
 
+  // Filter archived slides for display
+  const activeImages = images.filter(img => !archivedSlides.includes(img));
+
   const handleDownloadAll = async () => {
     try {
       setDownloading(true);
       const zip = new JSZip();
 
-      for (let i = 0; i < images.length; i++) {
-        const url = images[i];
+      // Filter archived slides before exporting
+      const activeImages = images.filter(img => !archivedSlides.includes(img));
+      console.log('[ZIP Export] Total images:', images.length, 'Active:', activeImages.length, 'Archived:', archivedSlides.length);
+
+      for (let i = 0; i < activeImages.length; i++) {
+        const url = activeImages[i];
         try {
           const response = await fetch(url);
           if (!response.ok) throw new Error(`HTTP ${response.status}`);
@@ -265,8 +272,13 @@ export const CarouselPreview = ({
       setDownloadingPdf(true);
       const { jsPDF } = await import('jspdf');
       const pdf = new jsPDF();
-      for (let i = 0; i < images.length; i++) {
-        const url = images[i];
+      
+      // Filter archived slides before exporting
+      const activeImages = images.filter(img => !archivedSlides.includes(img));
+      console.log('[PDF Export] Total images:', images.length, 'Active:', activeImages.length, 'Archived:', archivedSlides.length);
+      
+      for (let i = 0; i < activeImages.length; i++) {
+        const url = activeImages[i];
         try {
           const response = await fetch(url);
           if (!response.ok) throw new Error(`HTTP ${response.status}`);
@@ -389,7 +401,7 @@ export const CarouselPreview = ({
           </TooltipProvider>
           
           <span className="text-xs font-medium text-muted-foreground ml-1">
-            {activeIndex + 1}/{images.length}
+            {activeIndex + 1}/{activeImages.length}
           </span>
         </div>
       </div>
@@ -404,7 +416,7 @@ export const CarouselPreview = ({
           onSlideChange={(swiper) => setActiveIndex(swiper.activeIndex)}
           className="aspect-[4/5] w-full"
         >
-          {images.map((image, index) => (
+          {activeImages.map((image, index) => (
             <SwiperSlide key={index}>
               <div className="relative h-full w-full cursor-zoom-in" onClick={() => setZoomImageIndex(index)}>
                 <img
@@ -423,7 +435,7 @@ export const CarouselPreview = ({
 
       {/* Thumbnails with drag-and-drop */}
       <div className="mb-3">
-        {onRemoveSlide && images.length > 1 && (
+        {onRemoveSlide && activeImages.length > 1 && (
           <div className="text-xs text-muted-foreground/70 mb-2 flex items-center gap-1.5">
             <Archive className="h-3.5 w-3.5" />
             <span>Arrastar para reordenar • Passar o rato para arquivar</span>
@@ -434,7 +446,7 @@ export const CarouselPreview = ({
           collisionDetection={closestCenter}
           onDragEnd={handleDragEnd}
         >
-          <SortableContext items={images} strategy={horizontalListSortingStrategy}>
+          <SortableContext items={activeImages} strategy={horizontalListSortingStrategy}>
             <div className="relative">
               {/* Scroll shadows for scannability */}
               <div className="absolute left-0 top-0 bottom-0 w-8 bg-gradient-to-r from-background to-transparent z-10 pointer-events-none" />
@@ -442,14 +454,14 @@ export const CarouselPreview = ({
               
               <div className="overflow-x-auto snap-x snap-mandatory scrollbar-thin scrollbar-thumb-border scrollbar-track-transparent pb-2">
                 <div className="flex gap-2 min-w-min px-1">
-                  {images.map((image, index) => (
+                  {activeImages.map((image, index) => (
                     <div key={image} className="snap-start">
                       <SortableThumb
                         image={image}
                         index={index}
                         activeIndex={activeIndex}
                         onRemove={onRemoveSlide ? () => setSlideToRemove(index) : undefined}
-                        canRemove={images.length > 1}
+                        canRemove={activeImages.length > 1}
                       />
                     </div>
                   ))}
