@@ -16,6 +16,7 @@ import { PlatformRules } from '@/components/publishing/PlatformRules';
 import { PublishModal } from '@/components/publishing/PublishModal';
 import { PublishDebugPanel } from '@/components/publishing/PublishDebugPanel';
 import { PublishConfirmationModal } from '@/components/publishing/PublishConfirmationModal';
+import { PublishCompletedModal } from '@/components/publishing/PublishCompletedModal';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { SidebarProvider } from '@/components/ui/sidebar';
@@ -67,6 +68,11 @@ const Review = () => {
   const [validations, setValidations] = useState<Record<string, any>>({});
   const templatesRef = useRef<HTMLDivElement>(null);
   const [showPublishConfirmation, setShowPublishConfirmation] = useState(false);
+  const [showPublishCompleted, setShowPublishCompleted] = useState(false);
+  const [publishResults, setPublishResults] = useState<{
+    instagram?: { success: boolean; url?: string; error?: string };
+    linkedin?: { success: boolean; url?: string; error?: string };
+  }>({});
   
   // Publishing quota hook (applies to both Instagram and LinkedIn)
   const { quota: publishingQuota, canPublish: canPublishAnywhere, quotaText, refetch: refetchQuota } = usePublishingQuota();
@@ -246,6 +252,7 @@ const Review = () => {
   const handleConfirmPublish = async () => {
     setShowPublishConfirmation(false);
     setIsPublishing(true);
+    setPublishResults({});
 
     try {
       // Save to database first
@@ -279,18 +286,52 @@ const Review = () => {
 
       if (error) throw error;
 
-      // Publish to selected platforms
-      const publishPromises: Promise<void>[] = [];
+      // Publish to selected platforms and collect results
+      const results: {
+        instagram?: { success: boolean; url?: string; error?: string };
+        linkedin?: { success: boolean; url?: string; error?: string };
+      } = {};
+      
+      const publishPromises: Promise<{ platform: 'instagram' | 'linkedin'; success: boolean; url?: string; error?: string }>[] = [];
       
       if (publishTargets.instagram) {
-        publishPromises.push(handlePublishInstagram());
+        publishPromises.push(
+          handlePublishInstagram()
+            .then(() => ({ platform: 'instagram' as const, success: true }))
+            .catch((error) => ({ platform: 'instagram' as const, success: false, error: error.message }))
+        );
       }
       
       if (publishTargets.linkedin) {
-        publishPromises.push(handlePublishLinkedIn());
+        publishPromises.push(
+          handlePublishLinkedIn()
+            .then(() => ({ platform: 'linkedin' as const, success: true }))
+            .catch((error) => ({ platform: 'linkedin' as const, success: false, error: error.message }))
+        );
       }
 
-      await Promise.allSettled(publishPromises);
+      const publishedResults = await Promise.all(publishPromises);
+      
+      // Collect results
+      publishedResults.forEach(result => {
+        results[result.platform] = {
+          success: result.success,
+          url: result.url,
+          error: result.error,
+        };
+      });
+
+      setPublishResults(results);
+
+      // If at least one succeeded, show completion modal
+      const hasSuccess = publishedResults.some(r => r.success);
+      if (hasSuccess) {
+        setShowPublishCompleted(true);
+        setPublishModalOpen(false);
+      } else {
+        // All failed - keep user on page
+        toast.error('Todas as publicações falharam. Por favor, tente novamente.');
+      }
 
     } catch (error) {
       console.error('Erro ao publicar:', error);
@@ -641,7 +682,10 @@ const Review = () => {
       console.log('[Instagram] Publish result:', data);
 
       toast.dismiss(loadingToast);
-      toast.success('Publicado no Instagram com sucesso!');
+      toast.success('✓ Publicado no Instagram com sucesso!', {
+        duration: 5000,
+        className: 'bg-gradient-to-r from-green-500 to-emerald-600 text-white border-0',
+      });
 
       // Update post status and ensure template images are saved
       await supabase
@@ -750,7 +794,10 @@ const Review = () => {
       console.log('[LinkedIn] Publish result:', data);
 
       toast.dismiss(loadingToast);
-      toast.success('Publicado no LinkedIn com sucesso!');
+      toast.success('✓ Publicado no LinkedIn com sucesso!', {
+        duration: 5000,
+        className: 'bg-gradient-to-r from-green-500 to-emerald-600 text-white border-0',
+      });
 
       // Update post status and ensure template images are saved
       await supabase
@@ -1289,6 +1336,21 @@ const Review = () => {
         contentType="carousel"
         mediaCount={selectedTemplate === 'A' ? templateAImages.length : templateBImages.length}
         isPublishing={isPublishing}
+      />
+
+      {/* Publish Completed Modal */}
+      <PublishCompletedModal
+        open={showPublishCompleted}
+        onOpenChange={setShowPublishCompleted}
+        results={publishResults}
+        onNavigateToPending={() => {
+          setShowPublishCompleted(false);
+          navigate('/pending');
+        }}
+        onNavigateToDashboard={() => {
+          setShowPublishCompleted(false);
+          navigate('/');
+        }}
       />
     </SidebarProvider>
   );
