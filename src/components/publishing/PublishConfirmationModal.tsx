@@ -81,7 +81,7 @@ export function PublishConfirmationModal({
             <p className="text-sm font-medium text-amber-600">Avisos</p>
             <ul className="text-xs text-muted-foreground mt-1 space-y-0.5">
               {validation.warnings.map((warning: any, idx: number) => (
-                <li key={idx}>• {warning.message}</li>
+                <li key={idx}>• {warning.message || warning.field || 'Aviso de validação'}</li>
               ))}
             </ul>
           </div>

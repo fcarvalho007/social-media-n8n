@@ -1,3 +1,4 @@
+import { useState } from "react";
 import { Heart, MessageCircle, Send, Bookmark, Volume2, CheckCircle } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 
@@ -10,6 +11,15 @@ interface IgPostMockProps {
 }
 
 export const IgPostMock = ({ mediaCount = 1, hasWarnings, warningCount, caption = '', images = [] }: IgPostMockProps) => {
+  const [currentIndex, setCurrentIndex] = useState(0);
+  
+  const handlePrevious = () => {
+    setCurrentIndex((prev) => (prev > 0 ? prev - 1 : images.length - 1));
+  };
+  
+  const handleNext = () => {
+    setCurrentIndex((prev) => (prev < images.length - 1 ? prev + 1 : 0));
+  };
   return (
     <div className="w-full max-w-[640px] mx-auto rounded-2xl border bg-card shadow-sm overflow-hidden">
       {/* Header */}
@@ -41,30 +51,40 @@ export const IgPostMock = ({ mediaCount = 1, hasWarnings, warningCount, caption 
       <div className="relative aspect-[4/5] bg-gradient-to-br from-muted via-muted/80 to-muted overflow-hidden">
         {images.length > 0 ? (
           <img 
-            src={images[0]} 
-            alt="Preview" 
+            src={images[currentIndex]} 
+            alt={`Preview ${currentIndex + 1}`} 
             className="w-full h-full object-cover"
           />
         ) : null}
         
-        {/* Carousel Mock */}
-        {mediaCount > 1 && (
+        {/* Carousel Interactive */}
+        {images.length > 1 && (
           <>
             {/* Navigation Arrows */}
-            <button className="absolute left-3 top-1/2 -translate-y-1/2 w-8 h-8 rounded-full bg-background/80 backdrop-blur-sm flex items-center justify-center shadow-lg hover:bg-background transition-colors z-10" aria-label="Anterior">
+            <button 
+              onClick={handlePrevious}
+              className="absolute left-3 top-1/2 -translate-y-1/2 w-8 h-8 rounded-full bg-background/80 backdrop-blur-sm flex items-center justify-center shadow-lg hover:bg-background transition-colors z-10" 
+              aria-label="Anterior"
+            >
               <div className="w-2 h-2 border-l-2 border-b-2 border-foreground -rotate-45 -mr-0.5" />
             </button>
-            <button className="absolute right-3 top-1/2 -translate-y-1/2 w-8 h-8 rounded-full bg-background/80 backdrop-blur-sm flex items-center justify-center shadow-lg hover:bg-background transition-colors z-10" aria-label="Próximo">
+            <button 
+              onClick={handleNext}
+              className="absolute right-3 top-1/2 -translate-y-1/2 w-8 h-8 rounded-full bg-background/80 backdrop-blur-sm flex items-center justify-center shadow-lg hover:bg-background transition-colors z-10" 
+              aria-label="Próximo"
+            >
               <div className="w-2 h-2 border-r-2 border-t-2 border-foreground -rotate-45 -ml-0.5" />
             </button>
             {/* Dots */}
             <div className="absolute bottom-3 left-1/2 -translate-x-1/2 flex gap-1.5 z-10">
-              {Array.from({ length: Math.min(mediaCount, 5) }).map((_, i) => (
-                <div
+              {images.map((_, i) => (
+                <button
                   key={i}
+                  onClick={() => setCurrentIndex(i)}
                   className={`w-1.5 h-1.5 rounded-full transition-colors ${
-                    i === 0 ? "bg-primary" : "bg-background/60"
+                    i === currentIndex ? "bg-primary" : "bg-background/60"
                   }`}
+                  aria-label={`Ir para imagem ${i + 1}`}
                 />
               ))}
             </div>
