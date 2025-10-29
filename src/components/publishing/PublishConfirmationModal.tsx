@@ -103,7 +103,7 @@ export function PublishConfirmationModal({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-lg">
+      <DialogContent className="sm:max-w-4xl">
         <DialogHeader>
           <DialogTitle>Confirmar Publicação</DialogTitle>
           <DialogDescription>
@@ -111,101 +111,101 @@ export function PublishConfirmationModal({
           </DialogDescription>
         </DialogHeader>
 
-        <div className="space-y-4">
-          {/* Platforms */}
-          <div>
-            <p className="text-sm font-medium mb-2">Destinos:</p>
-            <div className="flex gap-2">
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+          {/* Left Column: Info & Validations */}
+          <div className="space-y-4">
+            {/* Platforms */}
+            <div>
+              <p className="text-sm font-medium mb-2">Destinos:</p>
+              <div className="flex gap-2">
+                {publishTargets.instagram && (
+                  <Badge variant="secondary" className="flex items-center gap-1.5">
+                    <Instagram className="h-3 w-3" />
+                    Instagram
+                  </Badge>
+                )}
+                {publishTargets.linkedin && (
+                  <Badge variant="secondary" className="flex items-center gap-1.5">
+                    <Linkedin className="h-3 w-3" />
+                    LinkedIn
+                  </Badge>
+                )}
+              </div>
+            </div>
+
+            {/* Content summary */}
+            <div>
+              <p className="text-sm font-medium mb-1">Tipo de conteúdo:</p>
+              <p className="text-sm text-muted-foreground">
+                {contentType === 'carousel' ? `Carrossel • ${mediaCount} imagens ativas` : contentType}
+              </p>
+            </div>
+
+            {/* Validations */}
+            <div className="space-y-3">
+              <p className="text-sm font-medium">Resumo de validações:</p>
               {publishTargets.instagram && (
-                <Badge variant="secondary" className="flex items-center gap-1.5">
-                  <Instagram className="h-3 w-3" />
-                  Instagram
-                </Badge>
+                <div className="rounded-lg border p-3 space-y-2">
+                  <div className="flex items-center gap-2">
+                    <Instagram className="h-4 w-4" />
+                    <span className="text-sm font-medium">Instagram</span>
+                  </div>
+                  {getValidationSummary('instagram')}
+                </div>
               )}
               {publishTargets.linkedin && (
-                <Badge variant="secondary" className="flex items-center gap-1.5">
-                  <Linkedin className="h-3 w-3" />
-                  LinkedIn
-                </Badge>
+                <div className="rounded-lg border p-3 space-y-2">
+                  <div className="flex items-center gap-2">
+                    <Linkedin className="h-4 w-4" />
+                    <span className="text-sm font-medium">LinkedIn</span>
+                  </div>
+                  {getValidationSummary('linkedin')}
+                </div>
               )}
             </div>
+
+            {/* Warning about errors */}
+            {hasBlockingErrors && (
+              <Alert variant="destructive">
+                <AlertDescription>
+                  Corrija os erros de validação antes de publicar
+                </AlertDescription>
+              </Alert>
+            )}
           </div>
 
-          {/* Content summary */}
-          <div>
-            <p className="text-sm font-medium mb-1">Tipo de conteúdo:</p>
-            <p className="text-sm text-muted-foreground">
-              {contentType === 'carousel' ? `Carrossel • ${mediaCount} imagens ativas` : contentType}
-            </p>
-          </div>
-
-          {/* Preview Section */}
+          {/* Right Column: Preview */}
           <div className="space-y-3">
-            <div className="flex items-center justify-between">
-              <p className="text-sm font-medium">Pré-visualização:</p>
-            </div>
+            <p className="text-sm font-medium">Pré-visualização:</p>
             
-            <ScrollArea className="h-[420px] rounded-lg border bg-muted/30">
-              <div className={cn(
-                "p-4",
-                publishTargets.instagram && publishTargets.linkedin 
-                  ? "grid grid-cols-1 md:grid-cols-2 gap-4" 
-                  : "flex justify-center"
-              )}>
+            <ScrollArea className="h-[480px] rounded-lg border bg-muted/30">
+              <div className="p-4 space-y-4">
                 {publishTargets.instagram && (
                   <div className="flex flex-col items-center">
                     <p className="text-xs font-medium text-muted-foreground mb-2">Instagram</p>
-                    <IgPostMock
-                      mediaCount={activeImages.length}
-                      caption={useDifferentCaptions ? instagramCaption : caption}
-                      images={activeImages}
-                    />
+                    <div className="scale-90 origin-top">
+                      <IgPostMock
+                        mediaCount={activeImages.length}
+                        caption={useDifferentCaptions ? instagramCaption : caption}
+                        images={activeImages}
+                      />
+                    </div>
                   </div>
                 )}
                 {publishTargets.linkedin && (
                   <div className="flex flex-col items-center">
                     <p className="text-xs font-medium text-muted-foreground mb-2">LinkedIn</p>
-                    <LiPostMock
-                      mediaCount={activeImages.length}
-                      caption={linkedinBody || caption}
-                    />
+                    <div className="scale-90 origin-top">
+                      <LiPostMock
+                        mediaCount={activeImages.length}
+                        caption={linkedinBody || caption}
+                      />
+                    </div>
                   </div>
                 )}
               </div>
             </ScrollArea>
           </div>
-
-          {/* Validations */}
-          <div className="space-y-3">
-            <p className="text-sm font-medium">Resumo de validações:</p>
-            {publishTargets.instagram && (
-              <div className="rounded-lg border p-3 space-y-2">
-                <div className="flex items-center gap-2">
-                  <Instagram className="h-4 w-4" />
-                  <span className="text-sm font-medium">Instagram</span>
-                </div>
-                {getValidationSummary('instagram')}
-              </div>
-            )}
-            {publishTargets.linkedin && (
-              <div className="rounded-lg border p-3 space-y-2">
-                <div className="flex items-center gap-2">
-                  <Linkedin className="h-4 w-4" />
-                  <span className="text-sm font-medium">LinkedIn</span>
-                </div>
-                {getValidationSummary('linkedin')}
-              </div>
-            )}
-          </div>
-
-          {/* Warning about errors */}
-          {hasBlockingErrors && (
-            <Alert variant="destructive">
-              <AlertDescription>
-                Corrija os erros de validação antes de publicar
-              </AlertDescription>
-            </Alert>
-          )}
         </div>
 
         <DialogFooter>
