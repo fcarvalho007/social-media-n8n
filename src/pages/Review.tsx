@@ -469,6 +469,7 @@ const Review = () => {
     const isTemplateA = template === 'A';
     const currentImages = isTemplateA ? templateAImages : templateBImages;
     const archivedSlides = isTemplateA ? archivedSlidesA : archivedSlidesB;
+    const allImages = isTemplateA ? post?.template_a_images : post?.template_b_images;
     
     // Get the slide to archive
     const slideToArchive = currentImages[slideIndex];
@@ -489,12 +490,11 @@ const Review = () => {
     
     const loadingToast = toast.loading('A arquivar slide...');
     
-    // Update local state
+    // ✅ CORREÇÃO: Apenas atualizar archived_slides, NÃO remover de template_X_images
+    // O CarouselPreview filtra automaticamente usando archivedSlides
     if (isTemplateA) {
-      setTemplateAImages(newImages);
       setArchivedSlidesA(newArchived);
     } else {
-      setTemplateBImages(newImages);
       setArchivedSlidesB(newArchived);
     }
 
@@ -509,23 +509,24 @@ const Review = () => {
         image_url: img,
       })),
       archived_slides: newArchived,
+      total_slides_including_archived: allImages?.length || 0,
     };
 
     try {
+      // ✅ CORREÇÃO CRÍTICA: NÃO atualizar template_X_images - mantém TODOS os slides na BD
+      // Apenas atualizar metadata com a lista de arquivados
       const { error } = await supabase
         .from('posts')
         .update({
-          [isTemplateA ? 'template_a_images' : 'template_b_images']: newImages,
           [isTemplateA ? 'template_a_metadata' : 'template_b_metadata']: updatedMetadata,
         })
         .eq('id', id);
 
       if (error) throw error;
       
-      // Update post state
+      // ✅ CORREÇÃO: Manter template_X_images intacto no estado, apenas atualizar metadata
       setPost({
         ...post,
-        [isTemplateA ? 'template_a_images' : 'template_b_images']: newImages,
         [isTemplateA ? 'template_a_metadata' : 'template_b_metadata']: updatedMetadata,
       });
       
@@ -535,12 +536,10 @@ const Review = () => {
       console.error('Erro ao arquivar slide:', error);
       toast.dismiss(loadingToast);
       toast.error('Falha ao arquivar slide. Por favor, tente novamente.');
-      // Revert local state
+      // ✅ Revert apenas archived_slides (template_X_images não foi alterado)
       if (isTemplateA) {
-        setTemplateAImages(post?.template_a_images || []);
         setArchivedSlidesA(archivedSlides);
       } else {
-        setTemplateBImages(post?.template_b_images || []);
         setArchivedSlidesB(archivedSlides);
       }
     }
@@ -548,67 +547,59 @@ const Review = () => {
 
   const handleRestoreSlide = async (template: 'A' | 'B', archivedIndex: number) => {
     const isTemplateA = template === 'A';
-    const currentImages = isTemplateA ? templateAImages : templateBImages;
     const archivedSlides = isTemplateA ? archivedSlidesA : archivedSlidesB;
+    const allImages = isTemplateA ? post?.template_a_images : post?.template_b_images;
     
     // Get the slide to restore
     const slideToRestore = archivedSlides[archivedIndex];
     const newArchived = archivedSlides.filter((_, idx) => idx !== archivedIndex);
-    const newImages = [...currentImages, slideToRestore];
     
     const loadingToast = toast.loading('A restaurar slide...');
     
-    // Update local state
+    // ✅ CORREÇÃO: Apenas atualizar archived_slides, NÃO modificar template_X_images
+    // O CarouselPreview filtra automaticamente usando archivedSlides
     if (isTemplateA) {
-      setTemplateAImages(newImages);
       setArchivedSlidesA(newArchived);
     } else {
-      setTemplateBImages(newImages);
       setArchivedSlidesB(newArchived);
     }
 
     // Update metadata
     const currentMetadata = isTemplateA ? post?.template_a_metadata : post?.template_b_metadata;
+    const activeCount = (allImages?.length || 0) - newArchived.length;
     const updatedMetadata = {
       ...currentMetadata,
-      slides: newImages.map((img, idx) => ({
-        slide_num: idx + 1,
-        total_slides: newImages.length,
-        image_url: img,
-      })),
       archived_slides: newArchived,
+      total_slides_including_archived: allImages?.length || 0,
     };
 
     try {
+      // ✅ CORREÇÃO CRÍTICA: NÃO atualizar template_X_images - mantém TODOS os slides na BD
       const { error } = await supabase
         .from('posts')
         .update({
-          [isTemplateA ? 'template_a_images' : 'template_b_images']: newImages,
           [isTemplateA ? 'template_a_metadata' : 'template_b_metadata']: updatedMetadata,
         })
         .eq('id', id);
 
       if (error) throw error;
       
-      // Update post state
+      // ✅ CORREÇÃO: Manter template_X_images intacto no estado
       setPost({
         ...post,
-        [isTemplateA ? 'template_a_images' : 'template_b_images']: newImages,
         [isTemplateA ? 'template_a_metadata' : 'template_b_metadata']: updatedMetadata,
       });
       
       toast.dismiss(loadingToast);
-      toast.success(`Slide restaurado! Carrossel agora tem ${newImages.length} imagens ativas`);
+      toast.success(`Slide restaurado! Carrossel agora tem ${activeCount} imagens ativas`);
     } catch (error) {
       console.error('Erro ao restaurar slide:', error);
       toast.dismiss(loadingToast);
       toast.error('Falha ao restaurar slide. Por favor, tente novamente.');
-      // Revert local state
+      // ✅ Revert apenas archived_slides
       if (isTemplateA) {
-        setTemplateAImages(currentImages);
         setArchivedSlidesA(archivedSlides);
       } else {
-        setTemplateBImages(currentImages);
         setArchivedSlidesB(archivedSlides);
       }
     }
