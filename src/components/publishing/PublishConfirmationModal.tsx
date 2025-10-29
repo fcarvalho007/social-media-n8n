@@ -9,7 +9,11 @@ import {
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Alert, AlertDescription } from '@/components/ui/alert';
+import { ScrollArea } from '@/components/ui/scroll-area';
 import { CheckCircle2, AlertTriangle, XCircle, Instagram, Linkedin, Loader2 } from 'lucide-react';
+import { IgPostMock } from './IgPostMock';
+import { LiPostMock } from './LiPostMock';
+import { cn } from '@/lib/utils';
 
 interface PublishConfirmationModalProps {
   open: boolean;
@@ -20,6 +24,11 @@ interface PublishConfirmationModalProps {
   contentType: string;
   mediaCount: number;
   isPublishing: boolean;
+  caption: string;
+  linkedinBody?: string;
+  activeImages: string[];
+  useDifferentCaptions?: boolean;
+  instagramCaption?: string;
 }
 
 export function PublishConfirmationModal({
@@ -31,6 +40,11 @@ export function PublishConfirmationModal({
   contentType,
   mediaCount,
   isPublishing,
+  caption,
+  linkedinBody,
+  activeImages,
+  useDifferentCaptions,
+  instagramCaption,
 }: PublishConfirmationModalProps) {
   const platforms = [];
   if (publishTargets.instagram) platforms.push('Instagram');
@@ -121,8 +135,44 @@ export function PublishConfirmationModal({
           <div>
             <p className="text-sm font-medium mb-1">Tipo de conteúdo:</p>
             <p className="text-sm text-muted-foreground">
-              {contentType === 'carousel' ? `Carrossel • ${mediaCount} imagens` : contentType}
+              {contentType === 'carousel' ? `Carrossel • ${mediaCount} imagens ativas` : contentType}
             </p>
+          </div>
+
+          {/* Preview Section */}
+          <div className="space-y-3">
+            <div className="flex items-center justify-between">
+              <p className="text-sm font-medium">Pré-visualização:</p>
+            </div>
+            
+            <ScrollArea className="h-[420px] rounded-lg border bg-muted/30">
+              <div className={cn(
+                "p-4",
+                publishTargets.instagram && publishTargets.linkedin 
+                  ? "grid grid-cols-1 md:grid-cols-2 gap-4" 
+                  : "flex justify-center"
+              )}>
+                {publishTargets.instagram && (
+                  <div className="flex flex-col items-center">
+                    <p className="text-xs font-medium text-muted-foreground mb-2">Instagram</p>
+                    <IgPostMock
+                      mediaCount={activeImages.length}
+                      caption={useDifferentCaptions ? instagramCaption : caption}
+                      images={activeImages}
+                    />
+                  </div>
+                )}
+                {publishTargets.linkedin && (
+                  <div className="flex flex-col items-center">
+                    <p className="text-xs font-medium text-muted-foreground mb-2">LinkedIn</p>
+                    <LiPostMock
+                      mediaCount={activeImages.length}
+                      caption={linkedinBody || caption}
+                    />
+                  </div>
+                )}
+              </div>
+            </ScrollArea>
           </div>
 
           {/* Validations */}

@@ -75,6 +75,7 @@ const Review = () => {
     instagram?: { success: boolean; url?: string; error?: string };
     linkedin?: { success: boolean; url?: string; error?: string };
   }>({});
+  const [previewActiveImages, setPreviewActiveImages] = useState<string[]>([]);
   
   // Publishing quota hook (applies to both Instagram and LinkedIn)
   const { instagram, refetch: refetchQuota } = usePublishingQuota();
@@ -319,6 +320,16 @@ const Review = () => {
       }
       return;
     }
+
+    // Calculate active images for preview
+    const selectedImages = selectedTemplate === 'A' ? templateAImages : templateBImages;
+    const archivedSlides = selectedTemplate === 'A' ? archivedSlidesA : archivedSlidesB;
+    const activeImages = selectedImages.filter(img => !archivedSlides.includes(img));
+    
+    console.log('[Preview Modal] Imagens ativas para pré-visualização:', activeImages.length);
+    
+    // Store active images for modal preview
+    setPreviewActiveImages(activeImages);
 
     // Show confirmation modal for immediate publishing
     setShowPublishConfirmation(true);
@@ -1494,8 +1505,13 @@ const Review = () => {
         publishTargets={publishTargets}
         validations={validations}
         contentType="carousel"
-        mediaCount={selectedTemplate === 'A' ? templateAImages.length : templateBImages.length}
+        mediaCount={previewActiveImages.length}
         isPublishing={isPublishing}
+        caption={caption}
+        linkedinBody={linkedinBody}
+        activeImages={previewActiveImages}
+        useDifferentCaptions={useDifferentCaptions}
+        instagramCaption={instagramCaption}
       />
 
       {/* Publish Completed Modal */}
