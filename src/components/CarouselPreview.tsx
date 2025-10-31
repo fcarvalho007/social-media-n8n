@@ -55,6 +55,7 @@ import JSZip from 'jszip';
 import { saveAs } from 'file-saver';
 import { jsPDF } from 'jspdf';
 import { toast } from 'sonner';
+import { supabase } from '@/integrations/supabase/client';
 
 interface CarouselPreviewProps {
   images: string[];
@@ -198,6 +199,30 @@ export const CarouselPreview = ({
     return `${originalUrl}?width=${width}&quality=${quality}`;
   };
 
+  // Helper: fetch image as Blob, falling back to Cloud proxy for CORS-restricted URLs
+  const fetchImageBlobWithProxy = async (url: string): Promise<Blob> => {
+    try {
+      const res = await fetch(url, { method: 'GET' });
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      return await res.blob();
+    } catch (err) {
+      // Fallback via edge function (base64)
+      try {
+        const { data, error } = await supabase.functions.invoke('image-proxy', { body: { url } });
+        if (error) throw error;
+        const contentType = (data as any).contentType || 'application/octet-stream';
+        const base64: string = (data as any).base64;
+        const byteString = atob(base64);
+        const len = byteString.length;
+        const bytes = new Uint8Array(len);
+        for (let i = 0; i < len; i++) bytes[i] = byteString.charCodeAt(i);
+        return new Blob([bytes], { type: contentType });
+      } catch (proxyErr) {
+        throw proxyErr;
+      }
+    }
+  };
+
   const templateColors = {
     A: { 
       badge: 'bg-[#001f3f] text-[#00d4ff] border border-[#00d4ff]/50 shadow-[0_0_15px_rgba(0,212,255,0.5)]', 
@@ -257,9 +282,7 @@ export const CarouselPreview = ({
             }
           );
 
-          const response = await fetch(url);
-          if (!response.ok) throw new Error(`HTTP ${response.status}`);
-          const blob = await response.blob();
+          const blob = await fetchImageBlobWithProxy(url);
           const urlNoQuery = url.split('?')[0];
           const ext = urlNoQuery.includes('.') ? urlNoQuery.split('.').pop() : 'jpg';
           zip.file(`template_${template}_slide_${i + 1}.${ext}`, blob);
@@ -366,9 +389,7 @@ export const CarouselPreview = ({
             }
           );
 
-          const response = await fetch(url);
-          if (!response.ok) throw new Error(`HTTP ${response.status}`);
-          const blob = await response.blob();
+          const blob = await fetchImageBlobWithProxy(url);
           const img = await createImageBitmap(blob);
           
           if (addedPages > 0) {
