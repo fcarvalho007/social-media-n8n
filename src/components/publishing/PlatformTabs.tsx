@@ -39,18 +39,60 @@ export function PlatformTabs({
 
     if (validation.errors.length > 0) {
       return (
-        <Badge variant="destructive" className="gap-1 text-xs px-2 py-0.5 rounded-full">
-          <AlertCircle className="h-3 w-3" />
-          Erros · {validation.errors.length}
-        </Badge>
+        <Tooltip>
+          <TooltipTrigger asChild>
+            <Badge variant="destructive" className="gap-1 text-xs px-2 py-0.5 rounded-full cursor-help">
+              <AlertCircle className="h-3 w-3" />
+              Erros · {validation.errors.length}
+            </Badge>
+          </TooltipTrigger>
+          <TooltipContent 
+            side="bottom" 
+            className="max-w-[360px] p-3 rounded-xl shadow-lg border bg-destructive/5 border-destructive/30"
+            sideOffset={4}
+          >
+            <div className="space-y-2">
+              <p className="font-semibold text-xs text-destructive">Erros de Validação</p>
+              <div className="space-y-1.5">
+                {validation.errors.map((error, i) => (
+                  <p key={i} className="text-xs text-destructive/90 flex items-start gap-1.5">
+                    <AlertCircle className="h-3 w-3 mt-0.5 flex-shrink-0" />
+                    <span>{error}</span>
+                  </p>
+                ))}
+              </div>
+            </div>
+          </TooltipContent>
+        </Tooltip>
       );
     }
     if (validation.warnings.length > 0) {
       return (
-        <Badge variant="outline" className="gap-1 text-xs px-2 py-0.5 rounded-full border-yellow-500/50 bg-yellow-500/10 text-yellow-600">
-          <AlertCircle className="h-3 w-3" />
-          Avisos · {validation.warnings.length}
-        </Badge>
+        <Tooltip>
+          <TooltipTrigger asChild>
+            <Badge variant="outline" className="gap-1 text-xs px-2 py-0.5 rounded-full border-yellow-500/50 bg-yellow-500/10 text-yellow-600 cursor-help">
+              <AlertCircle className="h-3 w-3" />
+              Avisos · {validation.warnings.length}
+            </Badge>
+          </TooltipTrigger>
+          <TooltipContent 
+            side="bottom" 
+            className="max-w-[360px] p-3 rounded-xl shadow-lg border bg-yellow-500/5 border-yellow-500/30"
+            sideOffset={4}
+          >
+            <div className="space-y-2">
+              <p className="font-semibold text-xs text-yellow-700">Avisos de Validação</p>
+              <div className="space-y-1.5">
+                {validation.warnings.map((warning, i) => (
+                  <p key={i} className="text-xs text-yellow-700/90 flex items-start gap-1.5">
+                    <AlertCircle className="h-3 w-3 mt-0.5 flex-shrink-0" />
+                    <span>{warning}</span>
+                  </p>
+                ))}
+              </div>
+            </div>
+          </TooltipContent>
+        </Tooltip>
       );
     }
     return (
