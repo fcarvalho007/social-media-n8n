@@ -22,8 +22,24 @@ serve(async (req) => {
       hasBody: !!payload.body_final,
     });
     
-    // Log all image URLs for debugging
+    // ✅ FASE 2.2: Logging detalhado de validação de URLs
     console.log(`[publish-proxy] Images to publish (${payload.images?.length || 0}):`, payload.images);
+    console.log('[publish-proxy] Image URLs validation:', {
+      total: payload.images?.length || 0,
+      urls: (payload.images || []).map((url: string, idx: number) => ({
+        index: idx + 1,
+        url: url.substring(0, 80) + (url.length > 80 ? '...' : ''),
+        domain: (() => {
+          try {
+            return new URL(url).hostname;
+          } catch {
+            return 'INVALID_URL';
+          }
+        })(),
+        isHttps: url.startsWith('https://'),
+        isValidFormat: /^https:\/\/.+\.(jpg|jpeg|png|gif|webp|bmp)(\?.*)?$/i.test(url)
+      }))
+    });
     
     // Warning if Instagram receives >10 images (should be blocked by frontend)
     if (platform === 'instagram' && payload.images?.length > 10) {

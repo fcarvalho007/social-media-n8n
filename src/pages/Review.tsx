@@ -730,6 +730,27 @@ const Review = () => {
       // Filter out archived slides - this is EXACTLY what will be published
       const imagesToPublish = selectedImages.filter(img => !archivedSlides.includes(img));
       
+      // ✅ FASE 2.1: Validação de consistência pré-publicação
+      console.log('[Pre-Publish Instagram] Validation:', {
+        originalImages: selectedImages.length,
+        archivedImages: archivedSlides.length,
+        finalImages: imagesToPublish.length,
+        expectedImages: selectedImages.length - archivedSlides.length,
+        allUrls: imagesToPublish.map((url, idx) => ({
+          index: idx + 1,
+          url: url.substring(0, 60) + '...',
+          domain: new URL(url).hostname
+        }))
+      });
+
+      if (imagesToPublish.length !== (selectedImages.length - archivedSlides.length)) {
+        const error = 'Inconsistência detectada na seleção de imagens para Instagram';
+        console.error('[Pre-Publish Instagram]', error);
+        toast.dismiss(loadingToast);
+        toast.error(error);
+        return;
+      }
+      
       // Debug logging
       console.log('[Instagram Publish Debug]', {
         selectedTemplate,
@@ -803,6 +824,11 @@ const Review = () => {
         throw new Error(error.message || 'Failed to call publish proxy');
       }
 
+      // ✅ Log resultado da publicação
+      console.log('[Publish Instagram] Success:', {
+        imagesPublished: imagesToPublish.length,
+        response: data
+      });
       console.log('[Instagram] Publish result:', data);
 
       toast.dismiss(loadingToast);
@@ -864,6 +890,27 @@ const Review = () => {
       
       // Filter out archived slides - this is EXACTLY what will be published
       const imagesToPublish = selectedImages.filter(img => !archivedSlides.includes(img));
+      
+      // ✅ FASE 2.1: Validação de consistência pré-publicação
+      console.log('[Pre-Publish LinkedIn] Validation:', {
+        originalImages: selectedImages.length,
+        archivedImages: archivedSlides.length,
+        finalImages: imagesToPublish.length,
+        expectedImages: selectedImages.length - archivedSlides.length,
+        allUrls: imagesToPublish.map((url, idx) => ({
+          index: idx + 1,
+          url: url.substring(0, 60) + '...',
+          domain: new URL(url).hostname
+        }))
+      });
+
+      if (imagesToPublish.length !== (selectedImages.length - archivedSlides.length)) {
+        const error = 'Inconsistência detectada na seleção de imagens para LinkedIn';
+        console.error('[Pre-Publish LinkedIn]', error);
+        toast.dismiss(loadingToast);
+        toast.error(error);
+        return;
+      }
       
       // Debug logging
       console.log('[LinkedIn Publish Debug]', {
@@ -931,6 +978,11 @@ const Review = () => {
         throw new Error(error.message || 'Failed to call publish proxy');
       }
 
+      // ✅ Log resultado da publicação
+      console.log('[Publish LinkedIn] Success:', {
+        imagesPublished: imagesToPublish.length,
+        response: data
+      });
       console.log('[LinkedIn] Publish result:', data);
 
       toast.dismiss(loadingToast);

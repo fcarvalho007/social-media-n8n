@@ -54,6 +54,7 @@ import 'swiper/css/thumbs';
 import JSZip from 'jszip';
 import { saveAs } from 'file-saver';
 import { jsPDF } from 'jspdf';
+import { toast } from 'sonner';
 
 interface CarouselPreviewProps {
   images: string[];
@@ -234,6 +235,10 @@ export const CarouselPreview = ({
         willExport: activeImages,
       });
 
+      let successCount = 0;
+      let corsErrors = 0;
+      let otherErrors = 0;
+
       for (let i = 0; i < activeImages.length; i++) {
         const url = activeImages[i];
         try {
@@ -243,15 +248,48 @@ export const CarouselPreview = ({
           const urlNoQuery = url.split('?')[0];
           const ext = urlNoQuery.includes('.') ? urlNoQuery.split('.').pop() : 'jpg';
           zip.file(`template_${template}_slide_${i + 1}.${ext}`, blob);
+          successCount++;
         } catch (err) {
-          console.error(`Falha ao obter imagem ${i + 1}:`, err);
+          const errorMsg = err instanceof Error ? err.message : 'Erro desconhecido';
+          const isCorsError = errorMsg.includes('CORS') || errorMsg.includes('Failed to fetch');
+          
+          console.error(`[ZIP Export] Falha imagem ${i + 1}:`, {
+            url: url.substring(0, 60) + '...',
+            error: errorMsg,
+            isCors: isCorsError
+          });
+
+          if (isCorsError) {
+            corsErrors++;
+          } else {
+            otherErrors++;
+          }
         }
+      }
+
+      if (successCount === 0) {
+        toast.error('Nenhuma imagem pôde ser exportada', {
+          description: 'Todas as imagens têm problemas de acesso'
+        });
+        return;
       }
 
       const content = await zip.generateAsync({ type: 'blob' });
       saveAs(content, `carrossel_template_${template}.zip`);
+      
+      // Show detailed result
+      if (corsErrors > 0 || otherErrors > 0) {
+        toast.warning(`ZIP exportado com ${successCount} de ${activeImages.length} imagens`, {
+          description: corsErrors > 0 
+            ? `${corsErrors} imagem(ns) bloqueada(s) por CORS` 
+            : `${otherErrors} imagem(ns) inacessível(is)`
+        });
+      } else {
+        toast.success(`ZIP exportado com todas as ${successCount} imagens`);
+      }
     } catch (e) {
       console.error('Erro ao preparar ZIP:', e);
+      toast.error('Erro ao criar arquivo ZIP');
     } finally {
       setDownloading(false);
     }
@@ -287,6 +325,11 @@ export const CarouselPreview = ({
         willExport: activeImages,
       });
       
+      let successCount = 0;
+      let corsErrors = 0;
+      let otherErrors = 0;
+      let addedPages = 0;
+
       for (let i = 0; i < activeImages.length; i++) {
         const url = activeImages[i];
         try {
@@ -294,9 +337,11 @@ export const CarouselPreview = ({
           if (!response.ok) throw new Error(`HTTP ${response.status}`);
           const blob = await response.blob();
           const img = await createImageBitmap(blob);
-          if (i > 0) {
+          
+          if (addedPages > 0) {
             pdf.addPage();
           }
+          
           const pageWidth = pdf.internal.pageSize.getWidth();
           const pageHeight = pdf.internal.pageSize.getHeight();
           const imgRatio = img.width / img.height;
@@ -317,17 +362,47 @@ export const CarouselPreview = ({
             reader.readAsDataURL(blob);
           });
           pdf.addImage(base64, 'JPEG', x, y, finalWidth, finalHeight);
+          successCount++;
+          addedPages++;
         } catch (err) {
-          console.error(`Falha ao adicionar imagem ${i + 1} ao PDF:`, err);
-          // ✅ CORREÇÃO 6: Fallback CORS - avisar e continuar
-          const { toast } = await import('sonner');
-          toast.warning(`Imagem ${i + 1} ignorada no PDF (erro CORS ou rede)`, {
-            description: 'Algumas imagens podem ter sido omitidas devido a restrições de acesso',
+          const errorMsg = err instanceof Error ? err.message : 'Erro desconhecido';
+          const isCorsError = errorMsg.includes('CORS') || errorMsg.includes('Failed to fetch');
+          
+          console.error(`[PDF Export] Falha imagem ${i + 1}:`, {
+            url: url.substring(0, 60) + '...',
+            error: errorMsg,
+            isCors: isCorsError
           });
-          continue; // Pular esta imagem mas continuar com as outras
+
+          if (isCorsError) {
+            corsErrors++;
+          } else {
+            otherErrors++;
+          }
+          // Continue to next image without adding to PDF
+          continue;
         }
       }
+
+      if (successCount === 0) {
+        toast.error('Nenhuma imagem pôde ser exportada para PDF', {
+          description: 'Todas as imagens têm problemas de acesso'
+        });
+        return;
+      }
+
       pdf.save(`carrossel_template_${template}.pdf`);
+      
+      // Show detailed result
+      if (corsErrors > 0 || otherErrors > 0) {
+        toast.warning(`PDF exportado com ${successCount} de ${activeImages.length} imagens`, {
+          description: corsErrors > 0 
+            ? `${corsErrors} imagem(ns) bloqueada(s) por CORS foram omitidas` 
+            : `${otherErrors} imagem(ns) inacessível(is) foram omitidas`
+        });
+      } else {
+        toast.success(`PDF exportado com todas as ${successCount} imagens`);
+      }
     } catch (e) {
       console.error('Erro ao gerar PDF:', e);
     } finally {
