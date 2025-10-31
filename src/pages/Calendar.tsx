@@ -16,7 +16,7 @@ import 'react-big-calendar/lib/css/react-big-calendar.css';
 import 'react-big-calendar/lib/addons/dragAndDrop/styles.css';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
-import { Calendar as CalendarIcon, Clock, LayoutGrid, Video, TrendingUp, Filter, Trash2 } from 'lucide-react';
+import { Calendar as CalendarIcon, Clock, LayoutGrid, Video, TrendingUp, Filter, Trash2, Maximize2, Minimize2, ImageIcon } from 'lucide-react';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 
 const locales = {
@@ -55,6 +55,7 @@ const Calendar = () => {
   const [selectedEvent, setSelectedEvent] = useState<CalendarEvent | null>(null);
   const [currentMonth, setCurrentMonth] = useState(new Date());
   const [filterType, setFilterType] = useState<'all' | 'posts' | 'stories'>('all');
+  const [viewMode, setViewMode] = useState<'normal' | 'compact'>('normal');
 
   const fetchScheduledContent = async () => {
     setLoading(true);
@@ -237,18 +238,75 @@ const Calendar = () => {
     } else if (isCarousel) {
       icon = <LayoutGrid className="h-3 w-3 flex-shrink-0" />;
     } else {
-      icon = <div className="h-3 w-3 flex-shrink-0 rounded-full bg-white/30" />;
+      icon = <ImageIcon className="h-3 w-3 flex-shrink-0" />;
+    }
+
+    // Compact view: icon + title only
+    if (viewMode === 'compact') {
+      return (
+        <div className="flex items-center gap-1 truncate group">
+          {icon}
+          <span className="text-xs font-semibold truncate">{event.title}</span>
+          {isPublished && <span className="ml-1 text-sm font-bold">✓</span>}
+          {isApproved && !isPublished && <span className="ml-1 text-xs">⏳</span>}
+        </div>
+      );
     }
     
+    // Normal view: thumbnail + title
+    const thumbnailUrl = isStory 
+      ? event.resource.story_image_url 
+      : event.resource.template_a_images?.[0];
+
     return (
-      <div className="flex items-center gap-1 truncate group">
-        {icon}
-        <span className="text-xs font-semibold truncate">{event.title}</span>
-        {isPublished && <span className="ml-1 text-sm font-bold">✓</span>}
-        {isApproved && !isPublished && <span className="ml-1 text-xs">⏳</span>}
+      <div className="flex items-start gap-2 group">
+        {thumbnailUrl ? (
+          <img 
+            src={thumbnailUrl} 
+            alt={String(event.title || '')}
+            className="w-12 h-12 object-cover rounded flex-shrink-0"
+          />
+        ) : (
+          <div className="w-12 h-12 bg-white/20 rounded flex items-center justify-center flex-shrink-0">
+            {icon}
+          </div>
+        )}
+        <div className="flex-1 min-w-0">
+          <div className="text-xs font-semibold truncate">{event.title}</div>
+          <div className="flex items-center gap-1 mt-0.5">
+            {icon}
+            <span className="text-[10px] opacity-90">
+              {isStory ? 'Story' : isCarousel ? 'Carousel' : 'Post'}
+            </span>
+            {isPublished && <span className="ml-1 text-xs">✓</span>}
+            {isApproved && !isPublished && <span className="ml-1 text-xs">⏳</span>}
+          </div>
+        </div>
       </div>
     );
   };
+
+  const gridEvents = useMemo(() => {
+    const monthStart = startOfMonth(currentMonth);
+    const monthEnd = endOfMonth(currentMonth);
+    
+    return events
+      .filter(e => {
+        const eventDate = e.start as Date;
+        return eventDate >= monthStart && eventDate <= monthEnd;
+      })
+      .sort((a, b) => (b.start as Date).getTime() - (a.start as Date).getTime());
+  }, [events, currentMonth]);
+
+  const feedPosts = useMemo(() => 
+    gridEvents.filter(e => e.resource.content_type !== 'stories'), 
+    [gridEvents]
+  );
+
+  const stories = useMemo(() => 
+    gridEvents.filter(e => e.resource.content_type === 'stories'), 
+    [gridEvents]
+  );
 
   return (
     <SidebarProvider defaultOpen={false}>
@@ -258,22 +316,46 @@ const Calendar = () => {
         <div className="flex-1 flex flex-col min-w-0">
           <DashboardHeader />
           
-          <main className="flex-1 p-4 sm:p-6 lg:p-10 overflow-auto bg-gradient-to-br from-white to-gray-50">
-            <div className="animate-slide-up space-y-6">
-              {/* Header */}
-              <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4">
-                <div>
-                  <h1 className="text-3xl font-bold text-foreground flex items-center gap-3">
-                    <div className="h-12 w-12 rounded-xl bg-primary/10 flex items-center justify-center">
-                      <CalendarIcon className="h-6 w-6 text-primary" />
-                    </div>
-                    Calendário de Publicações
-                  </h1>
-                  <p className="text-muted-foreground mt-2 ml-[60px]">
-                    Arraste e solte para reagendar • Clique para ver detalhes
-                  </p>
+          <main className="flex-1 p-4 sm:p-6 lg:p-8 overflow-auto bg-gradient-to-br from-white to-gray-50">
+            <div className="flex gap-6 max-w-[1800px] mx-auto">
+              {/* Main Calendar Section */}
+              <div className="flex-1 animate-slide-up space-y-6">
+                {/* Header */}
+                <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4">
+                  <div>
+                    <h1 className="text-3xl font-bold text-foreground flex items-center gap-3">
+                      <div className="h-12 w-12 rounded-xl bg-primary/10 flex items-center justify-center">
+                        <CalendarIcon className="h-6 w-6 text-primary" />
+                      </div>
+                      Calendário de Publicações
+                    </h1>
+                    <p className="text-muted-foreground mt-2 ml-[60px]">
+                      Arraste e solte para reagendar • Clique para ver detalhes
+                    </p>
+                  </div>
+                  
+                  {/* View Toggle */}
+                  <div className="flex items-center gap-2">
+                    <Button
+                      variant={viewMode === 'normal' ? 'default' : 'outline'}
+                      size="sm"
+                      onClick={() => setViewMode('normal')}
+                      className="gap-2"
+                    >
+                      <Maximize2 className="h-4 w-4" />
+                      Normal
+                    </Button>
+                    <Button
+                      variant={viewMode === 'compact' ? 'default' : 'outline'}
+                      size="sm"
+                      onClick={() => setViewMode('compact')}
+                      className="gap-2"
+                    >
+                      <Minimize2 className="h-4 w-4" />
+                      Compacta
+                    </Button>
+                  </div>
                 </div>
-              </div>
 
               {/* Stats Cards */}
               <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
@@ -415,6 +497,105 @@ const Calendar = () => {
                 )}
               </div>
             </div>
+
+            {/* Side Grid Panel */}
+            <div className="w-80 animate-slide-up space-y-4 flex-shrink-0">
+              <Card className="p-4 border-2 sticky top-4">
+                <h3 className="text-lg font-bold text-foreground mb-4 flex items-center gap-2">
+                  <LayoutGrid className="h-5 w-5 text-primary" />
+                  Grid de Conteúdos
+                </h3>
+                
+                {/* Posts Feed */}
+                <div className="mb-6">
+                  <div className="flex items-center justify-between mb-3">
+                    <h4 className="text-sm font-semibold text-muted-foreground flex items-center gap-2">
+                      <LayoutGrid className="h-4 w-4" />
+                      Posts Feed
+                    </h4>
+                    <Badge variant="secondary">{feedPosts.length}</Badge>
+                  </div>
+                  <div className="grid grid-cols-3 gap-2 max-h-[400px] overflow-y-auto">
+                    {feedPosts.map((event) => {
+                      const thumbnailUrl = event.resource.template_a_images?.[0];
+                      const isScheduled = !!event.resource.scheduled_date;
+                      return (
+                        <div
+                          key={event.id}
+                          className="relative aspect-square rounded-lg overflow-hidden border-2 cursor-pointer hover:scale-105 transition-transform"
+                          onClick={() => setSelectedEvent(event)}
+                        >
+                          {thumbnailUrl ? (
+                            <img 
+                              src={thumbnailUrl} 
+                              alt={String(event.title || '')}
+                              className="w-full h-full object-cover"
+                            />
+                          ) : (
+                            <div className="w-full h-full bg-muted flex items-center justify-center">
+                              <LayoutGrid className="h-6 w-6 text-muted-foreground" />
+                            </div>
+                          )}
+                          {isScheduled && (
+                            <div className="absolute top-1 right-1 bg-primary rounded-full p-1">
+                              <Clock className="h-3 w-3 text-white" />
+                            </div>
+                          )}
+                        </div>
+                      );
+                    })}
+                  </div>
+                  {feedPosts.length === 0 && (
+                    <p className="text-xs text-muted-foreground text-center py-4">Nenhum post agendado</p>
+                  )}
+                </div>
+
+                {/* Stories */}
+                <div>
+                  <div className="flex items-center justify-between mb-3">
+                    <h4 className="text-sm font-semibold text-muted-foreground flex items-center gap-2">
+                      <Video className="h-4 w-4" />
+                      Stories Instagram
+                    </h4>
+                    <Badge variant="secondary">{stories.length}</Badge>
+                  </div>
+                  <div className="grid grid-cols-3 gap-2 max-h-[400px] overflow-y-auto">
+                    {stories.map((event) => {
+                      const thumbnailUrl = event.resource.story_image_url;
+                      const isScheduled = !!event.resource.scheduled_date;
+                      return (
+                        <div
+                          key={event.id}
+                          className="relative aspect-[9/16] rounded-lg overflow-hidden border-2 cursor-pointer hover:scale-105 transition-transform"
+                          onClick={() => setSelectedEvent(event)}
+                        >
+                          {thumbnailUrl ? (
+                            <img 
+                              src={thumbnailUrl} 
+                              alt={String(event.title || '')}
+                              className="w-full h-full object-cover"
+                            />
+                          ) : (
+                            <div className="w-full h-full bg-muted flex items-center justify-center">
+                              <Video className="h-6 w-6 text-muted-foreground" />
+                            </div>
+                          )}
+                          {isScheduled && (
+                            <div className="absolute top-1 right-1 bg-primary rounded-full p-1">
+                              <Clock className="h-3 w-3 text-white" />
+                            </div>
+                          )}
+                        </div>
+                      );
+                    })}
+                  </div>
+                  {stories.length === 0 && (
+                    <p className="text-xs text-muted-foreground text-center py-4">Nenhuma story agendada</p>
+                  )}
+                </div>
+              </Card>
+            </div>
+          </div>
           </main>
         </div>
       </div>
