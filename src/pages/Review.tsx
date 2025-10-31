@@ -31,6 +31,7 @@ import { pt } from 'date-fns/locale';
 import { PublishTarget, PostType, PublishProgress } from '@/types/publishing';
 import { validateAllTargets } from '@/lib/publishingValidation';
 import { usePublishingQuota } from '@/hooks/usePublishingQuota';
+import { useImagePrevalidation } from '@/hooks/useImagePrevalidation';
 import { logger } from '@/lib/logger';
 
 const Review = () => {
@@ -82,6 +83,33 @@ const Review = () => {
   const publishingQuota = instagram.quota;
   const canPublishAnywhere = instagram.canPublish;
   const quotaText = instagram.quotaText;
+
+  // ✅ FASE 3: Pré-validação de imagens (validar apenas template selecionado)
+  const activeImagesForValidation = selectedTemplate 
+    ? (selectedTemplate === 'A' ? templateAImages : templateBImages).filter(
+        img => !(selectedTemplate === 'A' ? archivedSlidesA : archivedSlidesB).includes(img)
+      )
+    : [];
+
+  const imageValidation = useImagePrevalidation({
+    images: activeImagesForValidation,
+    enabled: !!selectedTemplate && activeImagesForValidation.length > 0
+  });
+
+  // Show warning when images have problems
+  useEffect(() => {
+    if (imageValidation.hasProblems && selectedTemplate && !loading) {
+      const { corsIssues, otherErrors } = imageValidation.summary;
+      const total = corsIssues + otherErrors;
+      
+      toast.warning(`⚠️ ${total} de ${activeImagesForValidation.length} imagens podem ter problemas`, {
+        description: corsIssues > 0 
+          ? `${corsIssues} imagem(ns) pode(m) ter restrições CORS. Exportação/publicação pode falhar.`
+          : `${otherErrors} imagem(ns) pode(m) estar inacessível(is).`,
+        duration: 8000,
+      });
+    }
+  }, [imageValidation.hasProblems, imageValidation.summary, selectedTemplate, loading, activeImagesForValidation.length]);
 
   // Validation function to ensure slide consistency
   const validateSlideConsistency = (template: 'A' | 'B'): { valid: boolean; message?: string } => {

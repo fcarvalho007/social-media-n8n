@@ -16,8 +16,9 @@ import 'react-big-calendar/lib/css/react-big-calendar.css';
 import 'react-big-calendar/lib/addons/dragAndDrop/styles.css';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
-import { Calendar as CalendarIcon, Clock, LayoutGrid, Video, TrendingUp, Filter, Trash2, Maximize2, Minimize2, ImageIcon } from 'lucide-react';
+import { Calendar as CalendarIcon, Clock, LayoutGrid, Video, TrendingUp, Filter, Trash2, Maximize2, Minimize2, ImageIcon, Plus, Wand2, PenTool, AlertCircle } from 'lucide-react';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 
 const locales = {
   'pt-PT': pt,
@@ -334,26 +335,60 @@ const Calendar = () => {
                     </p>
                   </div>
                   
-                  {/* View Toggle */}
+                  {/* Create Button + View Toggle */}
                   <div className="flex items-center gap-2 flex-shrink-0">
-                    <Button
-                      variant={viewMode === 'normal' ? 'default' : 'outline'}
-                      size="sm"
-                      onClick={() => setViewMode('normal')}
-                      className="gap-1.5"
-                    >
-                      <Maximize2 className="h-3.5 w-3.5" />
-                      <span className="hidden sm:inline">Normal</span>
-                    </Button>
-                    <Button
-                      variant={viewMode === 'compact' ? 'default' : 'outline'}
-                      size="sm"
-                      onClick={() => setViewMode('compact')}
-                      className="gap-1.5"
-                    >
-                      <Minimize2 className="h-3.5 w-3.5" />
-                      <span className="hidden sm:inline">Compacta</span>
-                    </Button>
+                    {/* Create Content Button */}
+                    <TooltipProvider>
+                      <Tooltip>
+                        <TooltipTrigger asChild>
+                          <Button
+                            variant="default"
+                            size="sm"
+                            onClick={() => {
+                              // Show dropdown or navigate
+                              const choice = confirm('Criar conteúdo:\n\nOK = Manual\nCancelar = Com IA');
+                              if (choice) {
+                                navigate('/manual-create');
+                              } else {
+                                navigate('/');
+                              }
+                            }}
+                            className="gap-2 bg-gradient-to-r from-primary to-primary/80 hover:from-primary/90 hover:to-primary/70"
+                          >
+                            <Plus className="h-4 w-4" />
+                            <span className="hidden sm:inline font-semibold">Criar</span>
+                          </Button>
+                        </TooltipTrigger>
+                        <TooltipContent side="bottom" className="max-w-xs">
+                          <p className="font-semibold mb-1">Criar Novo Conteúdo</p>
+                          <p className="text-xs text-muted-foreground">
+                            Escolha entre criação manual ou com IA
+                          </p>
+                        </TooltipContent>
+                      </Tooltip>
+                    </TooltipProvider>
+
+                    {/* View Mode Buttons */}
+                    <div className="flex items-center gap-1 ml-2 border-l pl-2">
+                      <Button
+                        variant={viewMode === 'normal' ? 'default' : 'outline'}
+                        size="sm"
+                        onClick={() => setViewMode('normal')}
+                        className="gap-1.5"
+                      >
+                        <Maximize2 className="h-3.5 w-3.5" />
+                        <span className="hidden sm:inline">Normal</span>
+                      </Button>
+                      <Button
+                        variant={viewMode === 'compact' ? 'default' : 'outline'}
+                        size="sm"
+                        onClick={() => setViewMode('compact')}
+                        className="gap-1.5"
+                      >
+                        <Minimize2 className="h-3.5 w-3.5" />
+                        <span className="hidden sm:inline">Compacta</span>
+                      </Button>
+                    </div>
                   </div>
                 </div>
 
@@ -500,11 +535,17 @@ const Calendar = () => {
 
             {/* Side Grid Panel - Hidden on mobile/tablet, visible on large screens */}
             <div className="hidden xl:block w-80 animate-slide-up space-y-4 flex-shrink-0">
-              <Card className="p-5 border-2 sticky top-4 max-h-[calc(100vh-8rem)] overflow-hidden flex flex-col">
-                <h3 className="text-lg font-bold text-foreground mb-4 flex items-center gap-2">
-                  <LayoutGrid className="h-5 w-5 text-primary" />
-                  Grid de Conteúdos
-                </h3>
+              <Card className="p-5 border-2 sticky top-4 max-h-[calc(100vh-8rem)] overflow-hidden flex flex-col shadow-lg">
+                <div className="mb-4">
+                  <h3 className="text-lg font-bold text-foreground flex items-center gap-2">
+                    <LayoutGrid className="h-5 w-5 text-primary" />
+                    Grid de Conteúdos
+                  </h3>
+                  <p className="text-xs text-muted-foreground mt-1 flex items-center gap-1">
+                    <AlertCircle className="h-3 w-3" />
+                    Conteúdos agendados para este mês
+                  </p>
+                </div>
                 
                 <div className="overflow-y-auto flex-1 space-y-6 pr-2">
                   {/* Posts Feed */}
@@ -526,15 +567,30 @@ const Calendar = () => {
                             className="relative aspect-square rounded-lg overflow-hidden border-2 cursor-pointer hover:scale-105 hover:shadow-lg transition-all"
                             onClick={() => setSelectedEvent(event)}
                           >
-                            {thumbnailUrl ? (
+                             {thumbnailUrl ? (
                               <img 
                                 src={thumbnailUrl} 
                                 alt={String(event.title || '')}
                                 className="w-full h-full object-cover"
+                                onError={(e) => {
+                                  // Fallback to placeholder on image load error
+                                  e.currentTarget.style.display = 'none';
+                                  if (e.currentTarget.parentElement) {
+                                    e.currentTarget.parentElement.innerHTML = `
+                                      <div class="w-full h-full bg-gradient-to-br from-red-50 to-orange-50 flex flex-col items-center justify-center p-2">
+                                        <svg class="h-5 w-5 text-red-400 mb-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+                                        </svg>
+                                        <span class="text-[9px] text-red-600 font-medium text-center">Imagem não disponível</span>
+                                      </div>
+                                    `;
+                                  }
+                                }}
                               />
                             ) : (
-                              <div className="w-full h-full bg-muted flex items-center justify-center">
-                                <LayoutGrid className="h-6 w-6 text-muted-foreground" />
+                              <div className="w-full h-full bg-gradient-to-br from-gray-100 to-gray-200 flex flex-col items-center justify-center p-2 gap-1">
+                                <LayoutGrid className="h-5 w-5 text-gray-400" />
+                                <span className="text-[9px] text-gray-500 font-medium text-center">Sem imagem</span>
                               </div>
                             )}
                             {isScheduled && (
@@ -570,15 +626,30 @@ const Calendar = () => {
                             className="relative aspect-[9/16] rounded-lg overflow-hidden border-2 cursor-pointer hover:scale-105 hover:shadow-lg transition-all"
                             onClick={() => setSelectedEvent(event)}
                           >
-                            {thumbnailUrl ? (
+                             {thumbnailUrl ? (
                               <img 
                                 src={thumbnailUrl} 
                                 alt={String(event.title || '')}
                                 className="w-full h-full object-cover"
+                                onError={(e) => {
+                                  // Fallback to placeholder on image load error
+                                  e.currentTarget.style.display = 'none';
+                                  if (e.currentTarget.parentElement) {
+                                    e.currentTarget.parentElement.innerHTML = `
+                                      <div class="w-full h-full bg-gradient-to-br from-red-50 to-orange-50 flex flex-col items-center justify-center p-2">
+                                        <svg class="h-5 w-5 text-red-400 mb-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+                                        </svg>
+                                        <span class="text-[9px] text-red-600 font-medium text-center">Imagem não disponível</span>
+                                      </div>
+                                    `;
+                                  }
+                                }}
                               />
                             ) : (
-                              <div className="w-full h-full bg-muted flex items-center justify-center">
-                                <Video className="h-6 w-6 text-muted-foreground" />
+                              <div className="w-full h-full bg-gradient-to-br from-purple-100 to-purple-200 flex flex-col items-center justify-center p-2 gap-1">
+                                <Video className="h-5 w-5 text-purple-400" />
+                                <span className="text-[9px] text-purple-600 font-medium text-center">Sem imagem</span>
                               </div>
                             )}
                             {isScheduled && (

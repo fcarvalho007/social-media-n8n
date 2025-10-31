@@ -239,9 +239,24 @@ export const CarouselPreview = ({
       let corsErrors = 0;
       let otherErrors = 0;
 
+      // ✅ FASE 5: Progress Toast
+      const progressToast = toast.loading(
+        `Exportando ZIP: 0 / ${activeImages.length} imagens`,
+        { description: 'Preparando imagens...' }
+      );
+
       for (let i = 0; i < activeImages.length; i++) {
         const url = activeImages[i];
         try {
+          // Update progress
+          toast.loading(
+            `Exportando ZIP: ${i + 1} / ${activeImages.length} imagens`,
+            { 
+              id: progressToast,
+              description: `Processando imagem ${i + 1}...`
+            }
+          );
+
           const response = await fetch(url);
           if (!response.ok) throw new Error(`HTTP ${response.status}`);
           const blob = await response.blob();
@@ -267,6 +282,8 @@ export const CarouselPreview = ({
         }
       }
 
+      toast.dismiss(progressToast);
+
       if (successCount === 0) {
         toast.error('Nenhuma imagem pôde ser exportada', {
           description: 'Todas as imagens têm problemas de acesso'
@@ -275,17 +292,18 @@ export const CarouselPreview = ({
       }
 
       const content = await zip.generateAsync({ type: 'blob' });
+      const sizeMB = (content.size / (1024 * 1024)).toFixed(2);
       saveAs(content, `carrossel_template_${template}.zip`);
       
-      // Show detailed result
+      // ✅ FASE 5: Detailed summary
       if (corsErrors > 0 || otherErrors > 0) {
-        toast.warning(`ZIP exportado com ${successCount} de ${activeImages.length} imagens`, {
-          description: corsErrors > 0 
-            ? `${corsErrors} imagem(ns) bloqueada(s) por CORS` 
-            : `${otherErrors} imagem(ns) inacessível(is)`
+        toast.warning(`✓ ZIP Exportado`, {
+          description: `${successCount} de ${activeImages.length} imagens incluídas\n${corsErrors + otherErrors} imagens ignoradas (erro de acesso)\nTamanho: ${sizeMB} MB`
         });
       } else {
-        toast.success(`ZIP exportado com todas as ${successCount} imagens`);
+        toast.success(`✓ ZIP Exportado`, {
+          description: `Todas as ${successCount} imagens incluídas\nTamanho: ${sizeMB} MB`
+        });
       }
     } catch (e) {
       console.error('Erro ao preparar ZIP:', e);
@@ -330,9 +348,24 @@ export const CarouselPreview = ({
       let otherErrors = 0;
       let addedPages = 0;
 
+      // ✅ FASE 5: Progress Toast
+      const progressToast = toast.loading(
+        `Gerando PDF: 0 / ${activeImages.length} páginas`,
+        { description: 'Preparando documento...' }
+      );
+
       for (let i = 0; i < activeImages.length; i++) {
         const url = activeImages[i];
         try {
+          // Update progress
+          toast.loading(
+            `Gerando PDF: ${i + 1} / ${activeImages.length} páginas`,
+            { 
+              id: progressToast,
+              description: `Processando página ${i + 1}...`
+            }
+          );
+
           const response = await fetch(url);
           if (!response.ok) throw new Error(`HTTP ${response.status}`);
           const blob = await response.blob();
@@ -384,6 +417,8 @@ export const CarouselPreview = ({
         }
       }
 
+      toast.dismiss(progressToast);
+
       if (successCount === 0) {
         toast.error('Nenhuma imagem pôde ser exportada para PDF', {
           description: 'Todas as imagens têm problemas de acesso'
@@ -391,17 +426,19 @@ export const CarouselPreview = ({
         return;
       }
 
+      const pdfBlob = pdf.output('blob');
+      const sizeMB = (pdfBlob.size / (1024 * 1024)).toFixed(2);
       pdf.save(`carrossel_template_${template}.pdf`);
       
-      // Show detailed result
+      // ✅ FASE 5: Detailed summary
       if (corsErrors > 0 || otherErrors > 0) {
-        toast.warning(`PDF exportado com ${successCount} de ${activeImages.length} imagens`, {
-          description: corsErrors > 0 
-            ? `${corsErrors} imagem(ns) bloqueada(s) por CORS foram omitidas` 
-            : `${otherErrors} imagem(ns) inacessível(is) foram omitidas`
+        toast.warning(`✓ PDF Exportado`, {
+          description: `${successCount} de ${activeImages.length} páginas incluídas\n${corsErrors + otherErrors} imagens omitidas (erro de acesso)\nTamanho: ${sizeMB} MB`
         });
       } else {
-        toast.success(`PDF exportado com todas as ${successCount} imagens`);
+        toast.success(`✓ PDF Exportado`, {
+          description: `Todas as ${successCount} páginas incluídas\nTamanho: ${sizeMB} MB`
+        });
       }
     } catch (e) {
       console.error('Erro ao gerar PDF:', e);
