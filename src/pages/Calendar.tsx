@@ -259,26 +259,26 @@ const Calendar = () => {
       : event.resource.template_a_images?.[0];
 
     return (
-      <div className="flex items-start gap-2 group">
+      <div className="flex items-start gap-2.5 group">
         {thumbnailUrl ? (
           <img 
             src={thumbnailUrl} 
             alt={String(event.title || '')}
-            className="w-12 h-12 object-cover rounded flex-shrink-0"
+            className="w-16 h-16 sm:w-20 sm:h-20 object-cover rounded-lg shadow-sm flex-shrink-0"
           />
         ) : (
-          <div className="w-12 h-12 bg-white/20 rounded flex items-center justify-center flex-shrink-0">
+          <div className="w-16 h-16 sm:w-20 sm:h-20 bg-white/20 rounded-lg flex items-center justify-center flex-shrink-0">
             {icon}
           </div>
         )}
         <div className="flex-1 min-w-0">
-          <div className="text-xs font-semibold truncate">{event.title}</div>
-          <div className="flex items-center gap-1 mt-0.5">
+          <div className="text-sm font-semibold truncate leading-tight">{event.title}</div>
+          <div className="flex items-center gap-1.5 mt-1">
             {icon}
-            <span className="text-[10px] opacity-90">
+            <span className="text-xs opacity-90">
               {isStory ? 'Story' : isCarousel ? 'Carousel' : 'Post'}
             </span>
-            {isPublished && <span className="ml-1 text-xs">✓</span>}
+            {isPublished && <span className="ml-1 text-sm">✓</span>}
             {isApproved && !isPublished && <span className="ml-1 text-xs">⏳</span>}
           </div>
         </div>
@@ -316,90 +316,90 @@ const Calendar = () => {
         <div className="flex-1 flex flex-col min-w-0">
           <DashboardHeader />
           
-          <main className="flex-1 p-4 sm:p-6 lg:p-8 overflow-auto bg-gradient-to-br from-white to-gray-50">
-            <div className="flex gap-6 max-w-[1800px] mx-auto">
+          <main className="flex-1 p-3 sm:p-4 lg:p-6 overflow-auto bg-gradient-to-br from-white to-gray-50">
+            <div className="flex flex-col lg:flex-row gap-4 lg:gap-6 max-w-[1900px] mx-auto">
               {/* Main Calendar Section */}
-              <div className="flex-1 animate-slide-up space-y-6">
+              <div className="flex-1 animate-slide-up space-y-4 lg:space-y-6 min-w-0">
                 {/* Header */}
-                <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4">
-                  <div>
-                    <h1 className="text-3xl font-bold text-foreground flex items-center gap-3">
-                      <div className="h-12 w-12 rounded-xl bg-primary/10 flex items-center justify-center">
-                        <CalendarIcon className="h-6 w-6 text-primary" />
+                <div className="flex flex-col sm:flex-row sm:items-start lg:items-center justify-between gap-3 lg:gap-4">
+                  <div className="flex-1 min-w-0">
+                    <h1 className="text-2xl sm:text-3xl font-bold text-foreground flex items-center gap-2.5 lg:gap-3">
+                      <div className="h-10 w-10 lg:h-12 lg:w-12 rounded-xl bg-primary/10 flex items-center justify-center flex-shrink-0">
+                        <CalendarIcon className="h-5 w-5 lg:h-6 lg:w-6 text-primary" />
                       </div>
-                      Calendário de Publicações
+                      <span className="truncate">Calendário</span>
                     </h1>
-                    <p className="text-muted-foreground mt-2 ml-[60px]">
+                    <p className="text-sm text-muted-foreground mt-2 ml-12 lg:ml-[60px] hidden sm:block">
                       Arraste e solte para reagendar • Clique para ver detalhes
                     </p>
                   </div>
                   
                   {/* View Toggle */}
-                  <div className="flex items-center gap-2">
+                  <div className="flex items-center gap-2 flex-shrink-0">
                     <Button
                       variant={viewMode === 'normal' ? 'default' : 'outline'}
                       size="sm"
                       onClick={() => setViewMode('normal')}
-                      className="gap-2"
+                      className="gap-1.5"
                     >
-                      <Maximize2 className="h-4 w-4" />
-                      Normal
+                      <Maximize2 className="h-3.5 w-3.5" />
+                      <span className="hidden sm:inline">Normal</span>
                     </Button>
                     <Button
                       variant={viewMode === 'compact' ? 'default' : 'outline'}
                       size="sm"
                       onClick={() => setViewMode('compact')}
-                      className="gap-2"
+                      className="gap-1.5"
                     >
-                      <Minimize2 className="h-4 w-4" />
-                      Compacta
+                      <Minimize2 className="h-3.5 w-3.5" />
+                      <span className="hidden sm:inline">Compacta</span>
                     </Button>
                   </div>
                 </div>
 
               {/* Stats Cards */}
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                <Card className="p-5 border-2">
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 lg:gap-4">
+                <Card className="p-4 lg:p-5 border-2 hover:shadow-md transition-shadow">
                   <div className="flex items-center justify-between">
                     <div>
-                      <p className="text-sm font-medium text-muted-foreground">Total Este Mês</p>
-                      <p className="text-3xl font-bold text-foreground mt-1">{monthStats.total}</p>
+                      <p className="text-xs sm:text-sm font-medium text-muted-foreground">Total Este Mês</p>
+                      <p className="text-2xl sm:text-3xl font-bold text-foreground mt-0.5 sm:mt-1">{monthStats.total}</p>
                     </div>
-                    <div className="h-12 w-12 rounded-full bg-primary/10 flex items-center justify-center">
-                      <TrendingUp className="h-6 w-6 text-primary" />
+                    <div className="h-10 w-10 sm:h-12 sm:w-12 rounded-full bg-primary/10 flex items-center justify-center flex-shrink-0">
+                      <TrendingUp className="h-5 w-5 sm:h-6 sm:w-6 text-primary" />
                     </div>
                   </div>
                 </Card>
 
-                <Card className="p-5 border-2">
+                <Card className="p-4 lg:p-5 border-2 hover:shadow-md transition-shadow">
                   <div className="flex items-center justify-between">
                     <div>
-                      <p className="text-sm font-medium text-muted-foreground">Posts Agendados</p>
-                      <p className="text-3xl font-bold text-foreground mt-1">{monthStats.posts}</p>
+                      <p className="text-xs sm:text-sm font-medium text-muted-foreground">Posts Agendados</p>
+                      <p className="text-2xl sm:text-3xl font-bold text-foreground mt-0.5 sm:mt-1">{monthStats.posts}</p>
                     </div>
-                    <div className="h-12 w-12 rounded-full bg-[#4169A0]/10 flex items-center justify-center">
-                      <LayoutGrid className="h-6 w-6 text-[#4169A0]" />
+                    <div className="h-10 w-10 sm:h-12 sm:w-12 rounded-full bg-[#4169A0]/10 flex items-center justify-center flex-shrink-0">
+                      <LayoutGrid className="h-5 w-5 sm:h-6 sm:w-6 text-[#4169A0]" />
                     </div>
                   </div>
                 </Card>
 
-                <Card className="p-5 border-2">
+                <Card className="p-4 lg:p-5 border-2 hover:shadow-md transition-shadow">
                   <div className="flex items-center justify-between">
                     <div>
-                      <p className="text-sm font-medium text-muted-foreground">Stories Agendadas</p>
-                      <p className="text-3xl font-bold text-foreground mt-1">{monthStats.stories}</p>
+                      <p className="text-xs sm:text-sm font-medium text-muted-foreground">Stories Agendadas</p>
+                      <p className="text-2xl sm:text-3xl font-bold text-foreground mt-0.5 sm:mt-1">{monthStats.stories}</p>
                     </div>
-                    <div className="h-12 w-12 rounded-full bg-[#8B5CF6]/10 flex items-center justify-center">
-                      <Video className="h-6 w-6 text-[#8B5CF6]" />
+                    <div className="h-10 w-10 sm:h-12 sm:w-12 rounded-full bg-[#8B5CF6]/10 flex items-center justify-center flex-shrink-0">
+                      <Video className="h-5 w-5 sm:h-6 sm:w-6 text-[#8B5CF6]" />
                     </div>
                   </div>
                 </Card>
               </div>
 
               {/* Legend and Filters */}
-              <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+              <div className="grid grid-cols-1 lg:grid-cols-2 gap-3 lg:gap-4">
                 {/* Legend */}
-                <Card className="p-5 border-2">
+                <Card className="p-4 lg:p-5 border-2">
                   <h3 className="text-sm font-semibold text-foreground mb-4 flex items-center gap-2">
                     <div className="h-2 w-2 rounded-full bg-gradient-to-r from-primary to-secondary"></div>
                     Legenda de Cores
@@ -437,7 +437,7 @@ const Calendar = () => {
                 </Card>
 
                 {/* Filters */}
-                <Card className="p-5 border-2 flex flex-col justify-center">
+                <Card className="p-4 lg:p-5 border-2 flex flex-col justify-center">
                   <div className="flex items-center justify-between">
                     <div className="flex items-center gap-2">
                       <Filter className="h-4 w-4 text-muted-foreground" />
@@ -457,9 +457,9 @@ const Calendar = () => {
                 </Card>
               </div>
 
-              <div className="bg-white rounded-2xl shadow-md p-6 border border-gray-100">
+              <div className="bg-white rounded-xl lg:rounded-2xl shadow-md p-3 sm:p-4 lg:p-6 border border-gray-100">
                 {loading ? (
-                  <div className="h-[600px] flex items-center justify-center">
+                  <div className="h-[400px] sm:h-[500px] lg:h-[600px] flex items-center justify-center">
                     <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary"></div>
                   </div>
                 ) : (
@@ -468,7 +468,7 @@ const Calendar = () => {
                     events={filteredEvents}
                     startAccessor={(event: CalendarEvent) => event.start as Date}
                     endAccessor={(event: CalendarEvent) => event.end as Date}
-                    style={{ height: 650 }}
+                    style={{ height: window.innerWidth < 640 ? 500 : window.innerWidth < 1024 ? 600 : 700 }}
                     culture="pt-PT"
                     onNavigate={(date) => setCurrentMonth(date)}
                     messages={{
@@ -498,100 +498,102 @@ const Calendar = () => {
               </div>
             </div>
 
-            {/* Side Grid Panel */}
-            <div className="w-80 animate-slide-up space-y-4 flex-shrink-0">
-              <Card className="p-4 border-2 sticky top-4">
+            {/* Side Grid Panel - Hidden on mobile/tablet, visible on large screens */}
+            <div className="hidden xl:block w-80 animate-slide-up space-y-4 flex-shrink-0">
+              <Card className="p-5 border-2 sticky top-4 max-h-[calc(100vh-8rem)] overflow-hidden flex flex-col">
                 <h3 className="text-lg font-bold text-foreground mb-4 flex items-center gap-2">
                   <LayoutGrid className="h-5 w-5 text-primary" />
                   Grid de Conteúdos
                 </h3>
                 
-                {/* Posts Feed */}
-                <div className="mb-6">
-                  <div className="flex items-center justify-between mb-3">
-                    <h4 className="text-sm font-semibold text-muted-foreground flex items-center gap-2">
-                      <LayoutGrid className="h-4 w-4" />
-                      Posts Feed
-                    </h4>
-                    <Badge variant="secondary">{feedPosts.length}</Badge>
+                <div className="overflow-y-auto flex-1 space-y-6 pr-2">
+                  {/* Posts Feed */}
+                  <div>
+                    <div className="flex items-center justify-between mb-3">
+                      <h4 className="text-sm font-semibold text-muted-foreground flex items-center gap-2">
+                        <LayoutGrid className="h-4 w-4" />
+                        Posts Feed
+                      </h4>
+                      <Badge variant="secondary">{feedPosts.length}</Badge>
+                    </div>
+                    <div className="grid grid-cols-3 gap-2">
+                      {feedPosts.map((event) => {
+                        const thumbnailUrl = event.resource.template_a_images?.[0];
+                        const isScheduled = !!event.resource.scheduled_date;
+                        return (
+                          <div
+                            key={event.id}
+                            className="relative aspect-square rounded-lg overflow-hidden border-2 cursor-pointer hover:scale-105 hover:shadow-lg transition-all"
+                            onClick={() => setSelectedEvent(event)}
+                          >
+                            {thumbnailUrl ? (
+                              <img 
+                                src={thumbnailUrl} 
+                                alt={String(event.title || '')}
+                                className="w-full h-full object-cover"
+                              />
+                            ) : (
+                              <div className="w-full h-full bg-muted flex items-center justify-center">
+                                <LayoutGrid className="h-6 w-6 text-muted-foreground" />
+                              </div>
+                            )}
+                            {isScheduled && (
+                              <div className="absolute top-1.5 right-1.5 bg-primary rounded-full p-1 shadow-md">
+                                <Clock className="h-3 w-3 text-white" />
+                              </div>
+                            )}
+                          </div>
+                        );
+                      })}
+                    </div>
+                    {feedPosts.length === 0 && (
+                      <p className="text-xs text-muted-foreground text-center py-4">Nenhum post agendado</p>
+                    )}
                   </div>
-                  <div className="grid grid-cols-3 gap-2 max-h-[400px] overflow-y-auto">
-                    {feedPosts.map((event) => {
-                      const thumbnailUrl = event.resource.template_a_images?.[0];
-                      const isScheduled = !!event.resource.scheduled_date;
-                      return (
-                        <div
-                          key={event.id}
-                          className="relative aspect-square rounded-lg overflow-hidden border-2 cursor-pointer hover:scale-105 transition-transform"
-                          onClick={() => setSelectedEvent(event)}
-                        >
-                          {thumbnailUrl ? (
-                            <img 
-                              src={thumbnailUrl} 
-                              alt={String(event.title || '')}
-                              className="w-full h-full object-cover"
-                            />
-                          ) : (
-                            <div className="w-full h-full bg-muted flex items-center justify-center">
-                              <LayoutGrid className="h-6 w-6 text-muted-foreground" />
-                            </div>
-                          )}
-                          {isScheduled && (
-                            <div className="absolute top-1 right-1 bg-primary rounded-full p-1">
-                              <Clock className="h-3 w-3 text-white" />
-                            </div>
-                          )}
-                        </div>
-                      );
-                    })}
-                  </div>
-                  {feedPosts.length === 0 && (
-                    <p className="text-xs text-muted-foreground text-center py-4">Nenhum post agendado</p>
-                  )}
-                </div>
 
-                {/* Stories */}
-                <div>
-                  <div className="flex items-center justify-between mb-3">
-                    <h4 className="text-sm font-semibold text-muted-foreground flex items-center gap-2">
-                      <Video className="h-4 w-4" />
-                      Stories Instagram
-                    </h4>
-                    <Badge variant="secondary">{stories.length}</Badge>
+                  {/* Stories */}
+                  <div>
+                    <div className="flex items-center justify-between mb-3">
+                      <h4 className="text-sm font-semibold text-muted-foreground flex items-center gap-2">
+                        <Video className="h-4 w-4" />
+                        Stories Instagram
+                      </h4>
+                      <Badge variant="secondary">{stories.length}</Badge>
+                    </div>
+                    <div className="grid grid-cols-3 gap-2">
+                      {stories.map((event) => {
+                        const thumbnailUrl = event.resource.story_image_url;
+                        const isScheduled = !!event.resource.scheduled_date;
+                        return (
+                          <div
+                            key={event.id}
+                            className="relative aspect-[9/16] rounded-lg overflow-hidden border-2 cursor-pointer hover:scale-105 hover:shadow-lg transition-all"
+                            onClick={() => setSelectedEvent(event)}
+                          >
+                            {thumbnailUrl ? (
+                              <img 
+                                src={thumbnailUrl} 
+                                alt={String(event.title || '')}
+                                className="w-full h-full object-cover"
+                              />
+                            ) : (
+                              <div className="w-full h-full bg-muted flex items-center justify-center">
+                                <Video className="h-6 w-6 text-muted-foreground" />
+                              </div>
+                            )}
+                            {isScheduled && (
+                              <div className="absolute top-1.5 right-1.5 bg-primary rounded-full p-1 shadow-md">
+                                <Clock className="h-3 w-3 text-white" />
+                              </div>
+                            )}
+                          </div>
+                        );
+                      })}
+                    </div>
+                    {stories.length === 0 && (
+                      <p className="text-xs text-muted-foreground text-center py-4">Nenhuma story agendada</p>
+                    )}
                   </div>
-                  <div className="grid grid-cols-3 gap-2 max-h-[400px] overflow-y-auto">
-                    {stories.map((event) => {
-                      const thumbnailUrl = event.resource.story_image_url;
-                      const isScheduled = !!event.resource.scheduled_date;
-                      return (
-                        <div
-                          key={event.id}
-                          className="relative aspect-[9/16] rounded-lg overflow-hidden border-2 cursor-pointer hover:scale-105 transition-transform"
-                          onClick={() => setSelectedEvent(event)}
-                        >
-                          {thumbnailUrl ? (
-                            <img 
-                              src={thumbnailUrl} 
-                              alt={String(event.title || '')}
-                              className="w-full h-full object-cover"
-                            />
-                          ) : (
-                            <div className="w-full h-full bg-muted flex items-center justify-center">
-                              <Video className="h-6 w-6 text-muted-foreground" />
-                            </div>
-                          )}
-                          {isScheduled && (
-                            <div className="absolute top-1 right-1 bg-primary rounded-full p-1">
-                              <Clock className="h-3 w-3 text-white" />
-                            </div>
-                          )}
-                        </div>
-                      );
-                    })}
-                  </div>
-                  {stories.length === 0 && (
-                    <p className="text-xs text-muted-foreground text-center py-4">Nenhuma story agendada</p>
-                  )}
                 </div>
               </Card>
             </div>
