@@ -222,11 +222,6 @@ const Review = () => {
         });
         toast.error('Aviso: Alguns slides arquivados foram perdidos na BD. Contacte o suporte.');
       }
-      
-      // Load saved targets or default to last used
-      if (data.publish_targets) {
-        setPublishTargets(data.publish_targets as Record<PublishTarget, boolean>);
-      }
     } catch (error) {
       console.error('Erro ao carregar publicação:', error);
       toast.error('Falha ao carregar publicação');
