@@ -20,6 +20,7 @@ import { PublishCompletedModal } from '@/components/publishing/PublishCompletedM
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Alert, AlertDescription } from '@/components/ui/alert';
+import { ImageValidationAlert } from '@/components/ImageValidationAlert';
 import { SidebarProvider } from '@/components/ui/sidebar';
 import { Loader2, ArrowLeft, CheckCircle2, Eye, LayoutGrid, Linkedin, Instagram, Link2, Unlink, Code2, AlertTriangle } from 'lucide-react';
 import { Button } from '@/components/ui/button';
@@ -96,20 +97,18 @@ const Review = () => {
     enabled: !!selectedTemplate && activeImagesForValidation.length > 0
   });
 
-  // Show warning when images have problems
+  // Track if user dismissed the validation alert
+  const [validationAlertDismissed, setValidationAlertDismissed] = useState(false);
+  const lastValidationContextRef = useRef<string>('');
+
+  // Reset dismissal when template or images change
   useEffect(() => {
-    if (imageValidation.hasProblems && selectedTemplate && !loading) {
-      const { corsIssues, otherErrors } = imageValidation.summary;
-      const total = corsIssues + otherErrors;
-      
-      toast.warning(`⚠️ ${total} de ${activeImagesForValidation.length} imagens podem ter problemas`, {
-        description: corsIssues > 0 
-          ? `${corsIssues} imagem(ns) pode(m) ter restrições CORS. Exportação/publicação pode falhar.`
-          : `${otherErrors} imagem(ns) pode(m) estar inacessível(is).`,
-        duration: 8000,
-      });
+    const currentContext = `${selectedTemplate}-${imageValidation.summaryKey}`;
+    if (currentContext !== lastValidationContextRef.current) {
+      setValidationAlertDismissed(false);
+      lastValidationContextRef.current = currentContext;
     }
-  }, [imageValidation.hasProblems, imageValidation.summary, selectedTemplate, loading, activeImagesForValidation.length]);
+  }, [selectedTemplate, imageValidation.summaryKey]);
 
   // Validation function to ensure slide consistency
   const validateSlideConsistency = (template: 'A' | 'B'): { valid: boolean; message?: string } => {
@@ -1193,6 +1192,17 @@ const Review = () => {
                   />
                 </div>
               </div>
+
+              {/* Image Validation Alert - Show when there are problems with current template images */}
+              {selectedTemplate && imageValidation.hasProblems && !validationAlertDismissed && !loading && (
+                <ImageValidationAlert
+                  corsIssues={imageValidation.summary.corsIssues}
+                  otherErrors={imageValidation.summary.otherErrors}
+                  total={activeImagesForValidation.length}
+                  validations={imageValidation.validations}
+                  onDismiss={() => setValidationAlertDismissed(true)}
+                />
+              )}
 
               {/* Slide Consistency Warning */}
               {selectedTemplate && !validateSlideConsistency(selectedTemplate).valid && (
