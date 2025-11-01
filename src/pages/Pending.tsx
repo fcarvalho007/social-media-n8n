@@ -29,6 +29,7 @@ import {
 import { toast } from 'sonner';
 import { cn } from '@/lib/utils';
 import { logger } from '@/lib/logger';
+import { usePendingCounts } from '@/hooks/usePendingCounts';
 
 const Pending = () => {
   const [posts, setPosts] = useState<any[]>([]);
@@ -44,6 +45,7 @@ const Pending = () => {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   const activeTab = searchParams.get('tab') || 'approve';
+  const { counts } = usePendingCounts();
 
   // Check for preferred mode on mount
   useEffect(() => {
@@ -192,10 +194,16 @@ const Pending = () => {
   const showStories = contentTypeFilter === 'all' || contentTypeFilter === 'stories';
 
   const statusConfig = {
-    pending: { label: 'Pendentes', icon: Clock, color: 'bg-warning-light text-warning border-warning/20', count: 0 },
-    approved: { label: 'Aprovados', icon: CheckCircle2, color: 'bg-success-light text-success border-success/20', count: 0 },
-    scheduled: { label: 'Agendados', icon: Clock, color: 'bg-primary-light text-primary border-primary/20', count: 0 },
-    rejected: { label: 'Rejeitados', icon: XCircle, color: 'bg-destructive-light text-destructive border-destructive/20', count: 0 },
+    pending: { 
+      label: 'Pendentes', 
+      icon: Clock, 
+      color: 'bg-warning-light text-warning border-warning/20', 
+      count: counts.total,
+      breakdown: `${counts.stories} Stories • ${counts.carousels} Carrosséis • ${counts.posts} Posts`
+    },
+    approved: { label: 'Aprovados', icon: CheckCircle2, color: 'bg-success-light text-success border-success/20', count: 0, breakdown: '' },
+    scheduled: { label: 'Agendados', icon: Clock, color: 'bg-primary-light text-primary border-primary/20', count: 0, breakdown: '' },
+    rejected: { label: 'Rejeitados', icon: XCircle, color: 'bg-destructive-light text-destructive border-destructive/20', count: 0, breakdown: '' },
   };
 
   const contentTypes = [
@@ -311,14 +319,23 @@ const Pending = () => {
                           variant="ghost"
                           size="sm"
                           className={cn(
-                            'h-10 px-4 text-xs sm:text-sm font-bold rounded-xl transition-all duration-200 border-2 whitespace-nowrap',
+                            'h-10 px-4 text-xs sm:text-sm font-bold rounded-xl transition-all duration-200 border-2 whitespace-nowrap relative',
                             activeStatus === key
                               ? config.color + ' shadow-lg'
                               : 'bg-card border-border hover:bg-accent hover:shadow-md'
                           )}
+                          title={key === 'pending' && config.count > 0 ? config.breakdown : undefined}
                         >
                           <config.icon className="mr-1.5 h-4 w-4" />
                           {config.label}
+                          {key === 'pending' && config.count > 0 && (
+                            <Badge 
+                              variant="secondary" 
+                              className="ml-2 h-5 px-1.5 text-xs font-bold bg-warning text-warning-foreground"
+                            >
+                              {config.count}
+                            </Badge>
+                          )}
                         </Button>
                       ))}
                     </div>
