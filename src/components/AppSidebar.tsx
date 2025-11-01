@@ -19,6 +19,7 @@ import {
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
 import { Badge } from '@/components/ui/badge';
+import { usePendingCounts } from '@/hooks/usePendingCounts';
 
 const menuItems = [
   {
@@ -50,9 +51,7 @@ const menuItems = [
 
 export function AppSidebar() {
   const { open, setOpen } = useSidebar();
-
-  // Mock notification count - você pode conectar isso ao estado real
-  const notificationCount = 3;
+  const { counts } = usePendingCounts();
 
   return (
     <>
@@ -138,12 +137,38 @@ export function AppSidebar() {
                                   className="h-7 w-7 md:h-6 md:w-6" 
                                   strokeWidth={1.5} 
                                 />
-                                {item.showBadge && notificationCount > 0 && (
-                                  <Badge 
-                                    className="absolute -top-1 -right-1 h-6 w-6 md:h-5 md:w-5 rounded-full p-0 flex items-center justify-center text-xs md:text-[10px] font-bold bg-[#EF4444] text-white border-2 border-[#E0E3EC] shadow-sm"
-                                  >
-                                    {notificationCount}
-                                  </Badge>
+                                {item.showBadge && counts.total > 0 && (
+                                  <TooltipProvider>
+                                    <Tooltip delayDuration={200}>
+                                      <TooltipTrigger asChild>
+                                        <Badge 
+                                          className="absolute -top-1 -right-1 h-6 w-6 md:h-5 md:w-5 rounded-full p-0 flex items-center justify-center text-xs md:text-[10px] font-bold bg-[#EF4444] text-white border-2 border-[#E0E3EC] shadow-sm cursor-help"
+                                        >
+                                          {counts.total}
+                                        </Badge>
+                                      </TooltipTrigger>
+                                      <TooltipContent side="right" className="bg-popover border shadow-lg">
+                                        <div className="space-y-1.5 py-1">
+                                          <p className="font-semibold text-sm">Pendentes de Aprovação:</p>
+                                          {counts.stories > 0 && (
+                                            <p className="text-xs text-muted-foreground">
+                                              • {counts.stories} {counts.stories === 1 ? 'Story' : 'Stories'}
+                                            </p>
+                                          )}
+                                          {counts.carousels > 0 && (
+                                            <p className="text-xs text-muted-foreground">
+                                              • {counts.carousels} {counts.carousels === 1 ? 'Carrossel' : 'Carrosséis'}
+                                            </p>
+                                          )}
+                                          {counts.posts > 0 && (
+                                            <p className="text-xs text-muted-foreground">
+                                              • {counts.posts} {counts.posts === 1 ? 'Post' : 'Posts'}
+                                            </p>
+                                          )}
+                                        </div>
+                                      </TooltipContent>
+                                    </Tooltip>
+                                  </TooltipProvider>
                                 )}
                               </div>
                               <span 
