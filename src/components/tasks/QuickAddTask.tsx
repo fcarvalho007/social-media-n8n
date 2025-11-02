@@ -24,6 +24,7 @@ export function QuickAddTask({ projectId, onCreate }: QuickAddTaskProps) {
         priority: 'medium',
         assignee_id: null,
         due_date: null,
+        start_date: null,
         estimated_hours: null,
       });
       setTitle('');

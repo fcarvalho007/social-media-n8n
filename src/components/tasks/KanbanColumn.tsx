@@ -11,12 +11,14 @@ interface KanbanColumnProps {
   title: string;
   status: Task['status'];
   tasks: Task[];
+  projectId: string;
+  allTasks: Task[];
   onUpdateTask: (id: string, updates: Partial<Task>) => void;
   onDeleteTask: (id: string) => void;
   onCreateTask?: () => void;
 }
 
-export function KanbanColumn({ id, title, status, tasks, onUpdateTask, onDeleteTask, onCreateTask }: KanbanColumnProps) {
+export function KanbanColumn({ id, title, status, tasks, projectId, allTasks, onUpdateTask, onDeleteTask, onCreateTask }: KanbanColumnProps) {
   const { setNodeRef, isOver } = useDroppable({ id: status });
   
   const statusColors = {
@@ -53,6 +55,8 @@ export function KanbanColumn({ id, title, status, tasks, onUpdateTask, onDeleteT
             <TaskCard
               key={task.id}
               task={task}
+              projectId={projectId}
+              availableTasks={allTasks}
               onUpdate={(updates) => onUpdateTask(task.id, updates)}
               onDelete={() => onDeleteTask(task.id)}
             />

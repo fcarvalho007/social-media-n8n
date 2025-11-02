@@ -4,21 +4,26 @@ import { Task } from '@/hooks/useTasks';
 import { Card } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { GripVertical, Calendar, Trash2, Clock } from 'lucide-react';
+import { GripVertical, Calendar, Trash2, Clock, Lock, Link2 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useState } from 'react';
 import { EditTaskModal } from './EditTaskModal';
 import { InlineEditableText } from '../InlineEditableText';
+import { useDependencies } from '@/hooks/useDependencies';
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 
 interface TaskCardProps {
   task: Task;
+  projectId: string;
+  availableTasks: Task[];
   onUpdate: (updates: Partial<Task>) => void;
   onDelete: () => void;
   isDragging?: boolean;
 }
 
-export function TaskCard({ task, onUpdate, onDelete, isDragging }: TaskCardProps) {
+export function TaskCard({ task, projectId, availableTasks, onUpdate, onDelete, isDragging }: TaskCardProps) {
   const [editOpen, setEditOpen] = useState(false);
+  const { dependencies } = useDependencies(task.id);
   
   const {
     attributes,
@@ -49,19 +54,60 @@ export function TaskCard({ task, onUpdate, onDelete, isDragging }: TaskCardProps
   };
 
   const isOverdue = task.due_date && new Date(task.due_date) < new Date() && task.status !== 'done';
+  
+  // Check for blocking dependencies
+  const unfinishedDependencies = dependencies.filter(dep => {
+    const depTask = availableTasks.find(t => t.id === dep.depends_on_task_id);
+    return depTask && depTask.status !== 'done';
+  });
+  
+  const isBlocked = unfinishedDependencies.length > 0;
+  const hasDependencies = dependencies.length > 0;
 
   return (
     <>
+      <TooltipProvider>
       <Card
         ref={setNodeRef}
         style={style}
         className={cn(
-          'p-4 cursor-pointer hover:shadow-md transition-all duration-200 border-l-4 group',
+          'p-4 cursor-pointer hover:shadow-md transition-all duration-200 border-l-4 group relative',
           priorityColors[task.priority],
-          (isDragging || isSortableDragging) && 'opacity-50 rotate-2 scale-105 shadow-lg'
+          (isDragging || isSortableDragging) && 'opacity-50 rotate-2 scale-105 shadow-lg',
+          isBlocked && 'opacity-75'
         )}
         onClick={() => setEditOpen(true)}
       >
+        {/* Blocked/Dependencies indicators */}
+        {(isBlocked || hasDependencies) && (
+          <div className="absolute top-2 right-2 flex gap-1">
+            {isBlocked && (
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <div className="bg-destructive text-destructive-foreground rounded-full p-1">
+                    <Lock className="h-3 w-3" />
+                  </div>
+                </TooltipTrigger>
+                <TooltipContent>
+                  <p className="text-xs">🔒 Bloqueada - Aguarda {unfinishedDependencies.length} {unfinishedDependencies.length === 1 ? 'tarefa' : 'tarefas'}</p>
+                </TooltipContent>
+              </Tooltip>
+            )}
+            {hasDependencies && !isBlocked && (
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <div className="bg-muted text-muted-foreground rounded-full p-1">
+                    <Link2 className="h-3 w-3" />
+                  </div>
+                </TooltipTrigger>
+                <TooltipContent>
+                  <p className="text-xs">🔗 {dependencies.length} {dependencies.length === 1 ? 'dependência' : 'dependências'}</p>
+                </TooltipContent>
+              </Tooltip>
+            )}
+          </div>
+        )}
+      
         <div className="flex items-start gap-2">
           <button
             className="mt-1 cursor-grab active:cursor-grabbing text-muted-foreground hover:text-foreground"
@@ -124,11 +170,14 @@ export function TaskCard({ task, onUpdate, onDelete, isDragging }: TaskCardProps
           </Button>
         </div>
       </Card>
+      </TooltipProvider>
 
       <EditTaskModal
         open={editOpen}
         onOpenChange={setEditOpen}
         task={task}
+        projectId={projectId}
+        availableTasks={availableTasks}
         onUpdate={onUpdate}
       />
     </>

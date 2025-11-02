@@ -32,6 +32,7 @@ export function CreateTaskModal({ open, onOpenChange, projectId, onCreate }: Cre
       priority,
       assignee_id: null,
       due_date: dueDate || null,
+      start_date: null,
       estimated_hours: estimatedHours ? parseInt(estimatedHours) : null,
     });
 

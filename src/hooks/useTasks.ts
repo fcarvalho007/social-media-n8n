@@ -12,6 +12,7 @@ export interface Task {
   assignee_id: string | null;
   reporter_id: string;
   due_date: string | null;
+  start_date: string | null;
   estimated_hours: number | null;
   created_at: string;
   updated_at: string;

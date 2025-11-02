@@ -69,6 +69,8 @@ export function KanbanBoard({ tasks, projectId, onUpdateTask, onDeleteTask, onCr
                 title={column.title}
                 status={column.status}
                 tasks={columnTasks}
+                projectId={projectId}
+                allTasks={tasks}
                 onUpdateTask={onUpdateTask}
                 onDeleteTask={onDeleteTask}
               />
@@ -79,7 +81,14 @@ export function KanbanBoard({ tasks, projectId, onUpdateTask, onDeleteTask, onCr
         <DragOverlay>
           {activeTask && (
             <div className="opacity-80 rotate-3 scale-105">
-              <TaskCard task={activeTask} onUpdate={() => {}} onDelete={() => {}} isDragging />
+              <TaskCard 
+                task={activeTask} 
+                projectId={projectId}
+                availableTasks={tasks}
+                onUpdate={() => {}} 
+                onDelete={() => {}} 
+                isDragging 
+              />
             </div>
           )}
         </DragOverlay>
