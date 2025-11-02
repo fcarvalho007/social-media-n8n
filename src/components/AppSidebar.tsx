@@ -1,4 +1,4 @@
-import { CheckCircle2, PlusCircle, Calendar, X, FolderKanban } from 'lucide-react';
+import { CheckCircle2, PlusCircle, Calendar, X, FolderKanban, LayoutDashboard } from 'lucide-react';
 import { NavLink } from 'react-router-dom';
 import {
   Sidebar,
@@ -23,10 +23,18 @@ import { usePendingCounts } from '@/hooks/usePendingCounts';
 
 const menuItems = [
   {
+    title: 'Dashboard',
+    label: 'Dashboard',
+    icon: LayoutDashboard,
+    url: '/dashboard',
+    disabled: false,
+    isMain: false,
+  },
+  {
     title: 'Aprovação',
     label: 'Aprovar',
     icon: CheckCircle2,
-    url: '/',
+    url: '/pending',
     showBadge: true,
     disabled: false,
     isMain: true,
@@ -35,7 +43,7 @@ const menuItems = [
     title: 'Criação',
     label: 'Criar',
     icon: PlusCircle,
-    url: '/?tab=create',
+    url: '/pending?tab=create',
     disabled: false,
     isMain: false,
   },

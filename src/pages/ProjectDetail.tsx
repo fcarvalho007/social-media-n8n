@@ -4,17 +4,23 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Card } from '@/components/ui/card';
-import { ArrowLeft, Edit, Archive, Trash2, CheckCircle2 } from 'lucide-react';
+import { ArrowLeft, Edit, Archive, Trash2, CheckCircle2, Plus } from 'lucide-react';
 import { useProjects } from '@/hooks/useProjects';
 import { useTasks } from '@/hooks/useTasks';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/components/ui/alert-dialog';
+import { KanbanBoard } from '@/components/tasks/KanbanBoard';
+import { CreateTaskModal } from '@/components/tasks/CreateTaskModal';
+import { SidebarProvider, SidebarInset } from '@/components/ui/sidebar';
+import { AppSidebar } from '@/components/AppSidebar';
+import { DashboardHeader } from '@/components/DashboardHeader';
 
 export default function ProjectDetail() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
   const { projects, deleteProject } = useProjects();
-  const { tasks } = useTasks(id);
+  const { tasks, createTask, updateTask, deleteTask } = useTasks(id);
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
+  const [createTaskOpen, setCreateTaskOpen] = useState(false);
 
   const project = projects.find((p) => p.id === id);
 
@@ -51,7 +57,13 @@ export default function ProjectDetail() {
     : null;
 
   return (
-    <div className="container mx-auto py-8 px-4 space-y-8">
+    <SidebarProvider>
+      <div className="flex min-h-screen w-full">
+        <AppSidebar />
+        <SidebarInset className="flex-1">
+          <DashboardHeader />
+          <main className="flex-1 p-4 md:p-6 space-y-6 animate-fade-in">
+      <div className="space-y-8">
       {/* Back Button */}
       <Button variant="ghost" onClick={() => navigate('/projects')} className="gap-2">
         <ArrowLeft className="h-4 w-4" />
@@ -129,16 +141,24 @@ export default function ProjectDetail() {
           </div>
         </TabsContent>
 
-        <TabsContent value="tasks">
-          <Card className="p-6">
-            <div className="text-center py-8">
-              <CheckCircle2 className="h-16 w-16 mx-auto text-muted-foreground mb-4" />
-              <h3 className="text-xl font-semibold mb-2">Sistema de tarefas em desenvolvimento</h3>
-              <p className="text-muted-foreground">
-                A gestão completa de tarefas estará disponível em breve
-              </p>
+        <TabsContent value="tasks" className="space-y-4">
+          <div className="flex justify-between items-center">
+            <div>
+              <h2 className="text-2xl font-bold">Tarefas</h2>
+              <p className="text-muted-foreground">Gerir tarefas com quadro Kanban</p>
             </div>
-          </Card>
+            <Button onClick={() => setCreateTaskOpen(true)} className="gap-2">
+              <Plus className="h-4 w-4" />
+              Nova Tarefa
+            </Button>
+          </div>
+          
+          <KanbanBoard
+            tasks={tasks}
+            onUpdateTask={(taskId, updates) => updateTask.mutate({ id: taskId, ...updates })}
+            onDeleteTask={(taskId) => deleteTask.mutate(taskId)}
+            onCreateTask={() => setCreateTaskOpen(true)}
+          />
         </TabsContent>
 
         <TabsContent value="activity">
@@ -167,6 +187,17 @@ export default function ProjectDetail() {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
-    </div>
+
+      <CreateTaskModal
+        open={createTaskOpen}
+        onOpenChange={setCreateTaskOpen}
+        projectId={id!}
+        onCreate={(task) => createTask.mutate(task)}
+      />
+      </div>
+          </main>
+        </SidebarInset>
+      </div>
+    </SidebarProvider>
   );
 }

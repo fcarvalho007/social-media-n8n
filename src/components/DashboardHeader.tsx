@@ -28,9 +28,24 @@ export function DashboardHeader() {
   const isMobile = useIsMobile();
   const activeTab = searchParams.get('tab');
   const getBreadcrumbs = () => {
+    if (location.pathname === '/dashboard') {
+      return [{ label: 'Dashboard', path: null }];
+    }
+    if (location.pathname === '/projects') {
+      return [
+        { label: 'Dashboard', path: '/dashboard' },
+        { label: 'Projetos', path: null },
+      ];
+    }
+    if (location.pathname.startsWith('/projects/')) {
+      return [
+        { label: 'Dashboard', path: '/dashboard' },
+        { label: 'Projetos', path: '/projects' },
+        { label: 'Detalhes', path: null },
+      ];
+    }
     if (location.pathname === '/' || location.pathname === '/pending') {
       if (activeTab === 'create') {
-        // Check if mode is set in localStorage for breadcrumb detail
         const mode = localStorage.getItem('preferredCreationMode');
         const modeLabel = mode === 'manual' ? 'Manual' : mode === 'ia' ? 'IA' : '';
         
