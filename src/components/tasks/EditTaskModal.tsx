@@ -48,7 +48,7 @@ export function EditTaskModal({ open, onOpenChange, task, onUpdate }: EditTaskMo
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-[500px]">
+      <DialogContent className="sm:max-w-[500px] backdrop-blur-xl bg-background/95 border-2" aria-label="Modal de editar tarefa">
         <DialogHeader>
           <DialogTitle>Editar Tarefa</DialogTitle>
         </DialogHeader>

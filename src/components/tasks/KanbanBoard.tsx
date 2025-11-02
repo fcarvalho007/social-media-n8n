@@ -3,15 +3,17 @@ import { DndContext, DragEndEvent, DragOverlay, DragStartEvent, PointerSensor, u
 import { Task } from '@/hooks/useTasks';
 import { KanbanColumn } from './KanbanColumn';
 import { TaskCard } from './TaskCard';
+import { QuickAddTask } from './QuickAddTask';
 
 interface KanbanBoardProps {
   tasks: Task[];
+  projectId: string;
   onUpdateTask: (id: string, updates: Partial<Task>) => void;
   onDeleteTask: (id: string) => void;
-  onCreateTask: () => void;
+  onCreateTask: (task: Omit<Task, 'id' | 'created_at' | 'updated_at' | 'reporter_id'>) => void;
 }
 
-export function KanbanBoard({ tasks, onUpdateTask, onDeleteTask, onCreateTask }: KanbanBoardProps) {
+export function KanbanBoard({ tasks, projectId, onUpdateTask, onDeleteTask, onCreateTask }: KanbanBoardProps) {
   const [activeTask, setActiveTask] = useState<Task | null>(null);
 
   const sensors = useSensors(
@@ -50,32 +52,38 @@ export function KanbanBoard({ tasks, onUpdateTask, onDeleteTask, onCreateTask }:
   };
 
   return (
-    <DndContext sensors={sensors} onDragStart={handleDragStart} onDragEnd={handleDragEnd}>
-      <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-4 min-h-[600px]">
-        {columns.map((column) => {
-          const columnTasks = tasks.filter((task) => task.status === column.status);
-          return (
-            <KanbanColumn
-              key={column.id}
-              id={column.id}
-              title={column.title}
-              status={column.status}
-              tasks={columnTasks}
-              onUpdateTask={onUpdateTask}
-              onDeleteTask={onDeleteTask}
-              onCreateTask={column.status === 'todo' ? onCreateTask : undefined}
-            />
-          );
-        })}
+    <>
+      {/* Quick Add Task */}
+      <div className="mb-6">
+        <QuickAddTask projectId={projectId} onCreate={onCreateTask} />
       </div>
 
-      <DragOverlay>
-        {activeTask && (
-          <div className="opacity-80 rotate-3 scale-105">
-            <TaskCard task={activeTask} onUpdate={() => {}} onDelete={() => {}} isDragging />
-          </div>
-        )}
-      </DragOverlay>
-    </DndContext>
+      <DndContext sensors={sensors} onDragStart={handleDragStart} onDragEnd={handleDragEnd}>
+        <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-4 min-h-[600px]">
+          {columns.map((column) => {
+            const columnTasks = tasks.filter((task) => task.status === column.status);
+            return (
+              <KanbanColumn
+                key={column.id}
+                id={column.id}
+                title={column.title}
+                status={column.status}
+                tasks={columnTasks}
+                onUpdateTask={onUpdateTask}
+                onDeleteTask={onDeleteTask}
+              />
+            );
+          })}
+        </div>
+
+        <DragOverlay>
+          {activeTask && (
+            <div className="opacity-80 rotate-3 scale-105">
+              <TaskCard task={activeTask} onUpdate={() => {}} onDelete={() => {}} isDragging />
+            </div>
+          )}
+        </DragOverlay>
+      </DndContext>
+    </>
   );
 }

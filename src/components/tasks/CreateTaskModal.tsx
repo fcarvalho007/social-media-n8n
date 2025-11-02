@@ -46,7 +46,7 @@ export function CreateTaskModal({ open, onOpenChange, projectId, onCreate }: Cre
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-[500px]">
+      <DialogContent className="sm:max-w-[500px] backdrop-blur-xl bg-background/95 border-2" aria-label="Modal de nova tarefa">
         <DialogHeader>
           <DialogTitle>Nova Tarefa</DialogTitle>
         </DialogHeader>

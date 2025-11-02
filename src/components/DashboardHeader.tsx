@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Menu, ChevronRight, User, LogOut, CheckCircle2, PlusCircle, Calendar, Settings } from 'lucide-react';
+import { Menu, ChevronRight, User, LogOut, CheckCircle2, PlusCircle, Calendar, Settings, Search, Bell } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { useSidebar } from '@/components/ui/sidebar';
 import { useLocation, useSearchParams, useNavigate } from 'react-router-dom';
@@ -16,6 +16,8 @@ import {
 } from '@/components/ui/dropdown-menu';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import { QuotaBadge } from '@/components/QuotaBadge';
+import { GlobalSearch } from '@/components/GlobalSearch';
+import { Badge } from '@/components/ui/badge';
 
 export function DashboardHeader() {
   const { setOpen } = useSidebar();
@@ -25,6 +27,7 @@ export function DashboardHeader() {
   const { user, signOut } = useAuth();
   
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  const [searchOpen, setSearchOpen] = useState(false);
   const isMobile = useIsMobile();
   const activeTab = searchParams.get('tab');
   const getBreadcrumbs = () => {
@@ -108,8 +111,32 @@ export function DashboardHeader() {
           </nav>
         </div>
 
-        {/* Right: Quota Badge + User Menu */}
-        <div className="flex items-center gap-3 flex-shrink-0">
+        {/* Right: Search + Notifications + Quota Badge + User Menu */}
+        <div className="flex items-center gap-2 flex-shrink-0">
+          {/* Global Search Button */}
+          <Button
+            variant="ghost"
+            size="icon"
+            onClick={() => setSearchOpen(true)}
+            className="min-h-[44px] min-w-[44px] rounded-full hover:bg-primary/10"
+            aria-label="Pesquisar (Cmd+K)"
+          >
+            <Search className="h-5 w-5" />
+          </Button>
+
+          {/* Notifications (placeholder) */}
+          <Button
+            variant="ghost"
+            size="icon"
+            className="min-h-[44px] min-w-[44px] rounded-full hover:bg-primary/10 relative"
+            aria-label="Notificações"
+          >
+            <Bell className="h-5 w-5" />
+            <Badge className="absolute -top-1 -right-1 h-5 w-5 flex items-center justify-center p-0 text-xs bg-destructive text-destructive-foreground">
+              3
+            </Badge>
+          </Button>
+
           <QuotaBadge />
           
           {user && (
@@ -195,6 +222,9 @@ export function DashboardHeader() {
             </div>
           </DrawerContent>
         </Drawer>
+
+        {/* Global Search Dialog */}
+        <GlobalSearch open={searchOpen} onOpenChange={setSearchOpen} />
       </div>
     </header>
   );

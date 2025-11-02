@@ -8,6 +8,7 @@ import { GripVertical, Calendar, Trash2, Clock } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useState } from 'react';
 import { EditTaskModal } from './EditTaskModal';
+import { InlineEditableText } from '../InlineEditableText';
 
 interface TaskCardProps {
   task: Task;
@@ -72,9 +73,13 @@ export function TaskCard({ task, onUpdate, onDelete, isDragging }: TaskCardProps
           </button>
           
           <div className="flex-1 min-w-0">
-            <h4 className="font-semibold text-sm mb-2 group-hover:text-primary transition-colors">
-              {task.title}
-            </h4>
+            <InlineEditableText
+              value={task.title}
+              onSave={(newTitle) => onUpdate({ title: newTitle })}
+              className="font-semibold text-sm mb-2 group-hover:text-primary transition-colors block"
+              inputClassName="font-semibold text-sm"
+              as="h4"
+            />
             
             {task.description && (
               <p className="text-xs text-muted-foreground mb-3 line-clamp-2">

@@ -37,14 +37,14 @@ export const ProjectCard = ({
   return (
     <Link to={`/projects/${project.id}`} className="group block">
       <Card 
-        className="p-6 transition-all duration-200 hover:shadow-lg hover:-translate-y-1 cursor-pointer border-l-4"
+        className="relative p-6 transition-all duration-300 hover:shadow-xl hover:-translate-y-2 cursor-pointer border-l-4 overflow-hidden active:scale-98"
         style={{ borderLeftColor: project.color }}
       >
-        <div className="space-y-4">
+        <div className="space-y-4 relative z-10">
           {/* Header */}
           <div className="flex items-start justify-between">
             <div className="flex items-center gap-3">
-              <span className="text-2xl">{project.icon}</span>
+              <span className="text-2xl" role="img" aria-label="Project icon">{project.icon}</span>
               <div>
                 <h3 className="font-semibold text-lg truncate max-w-[200px]">
                   {project.name}
@@ -60,31 +60,42 @@ export const ProjectCard = ({
 
           {/* Progress */}
           <div className="space-y-2">
+            <div className="flex justify-between items-center mb-1">
+              <span className="text-xs font-medium text-foreground">Progresso</span>
+              <span className="text-xs font-bold text-primary">{completionPercentage}%</span>
+            </div>
             <Progress value={completionPercentage} className="h-2" />
-            <p className="text-xs text-muted-foreground">
-              {completionPercentage}% concluído
-            </p>
           </div>
 
-          {/* Stats */}
-          <div className="flex items-center gap-4 text-sm text-muted-foreground">
-            <span>{totalTasks} tarefas</span>
-            <span className="flex items-center gap-1">
-              <Users className="h-4 w-4" />
-              {totalMembers}
+          {/* Stats - Quick Stats */}
+          <div className="flex items-center gap-4 text-sm text-muted-foreground pt-2 border-t border-border/50">
+            <span className="flex items-center gap-1.5" title={`${totalTasks} tarefas`}>
+              <span className="font-semibold text-foreground">{totalTasks}</span>
+              tarefas
+            </span>
+            <span className="flex items-center gap-1.5" title={`${totalMembers} membros`}>
+              <Users className="h-4 w-4" aria-hidden="true" />
+              <span className="font-semibold text-foreground">{totalMembers}</span>
             </span>
             {daysRemaining !== null && (
-              <span className="flex items-center gap-1">
-                <Calendar className="h-4 w-4" />
-                {daysRemaining} dias
+              <span 
+                className={`flex items-center gap-1.5 ${daysRemaining < 7 ? 'text-warning' : ''}`}
+                title={`${daysRemaining} dias restantes`}
+              >
+                <Calendar className="h-4 w-4" aria-hidden="true" />
+                <span className="font-semibold">{daysRemaining}</span> dias
               </span>
             )}
           </div>
         </div>
 
-        {/* Hover Overlay */}
-        <div className="absolute inset-0 bg-primary/5 opacity-0 group-hover:opacity-100 transition-opacity rounded-lg flex items-center justify-center">
-          <span className="text-primary font-medium">Ver Projeto</span>
+        {/* Hover Overlay - Improved */}
+        <div className="absolute inset-0 bg-gradient-to-br from-primary/10 to-primary/5 opacity-0 group-hover:opacity-100 transition-all duration-300 rounded-lg flex items-center justify-center backdrop-blur-[2px]">
+          <div className="transform translate-y-4 group-hover:translate-y-0 transition-transform duration-300">
+            <span className="text-primary font-bold text-lg px-6 py-2 bg-background/90 rounded-full shadow-lg">
+              Ver Projeto →
+            </span>
+          </div>
         </div>
       </Card>
     </Link>

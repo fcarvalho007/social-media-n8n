@@ -11,6 +11,8 @@ import { CreateProjectModal } from '@/components/projects/CreateProjectModal';
 import { SidebarProvider, SidebarInset } from '@/components/ui/sidebar';
 import { AppSidebar } from '@/components/AppSidebar';
 import { DashboardHeader } from '@/components/DashboardHeader';
+import { SkeletonCard } from '@/components/ui/skeleton-card';
+import { Skeleton } from '@/components/ui/skeleton';
 
 export default function Projects() {
   const { projects, isLoading, createProject } = useProjects();
@@ -58,11 +60,17 @@ export default function Projects() {
           <SidebarInset className="flex-1">
             <DashboardHeader />
             <main className="flex-1 p-4 md:p-6">
-              <div className="animate-pulse space-y-4">
-                <div className="h-12 bg-muted rounded" />
+              <div className="space-y-6">
+                <div className="flex justify-between items-center">
+                  <div className="space-y-2">
+                    <Skeleton className="h-8 w-48" />
+                    <Skeleton className="h-4 w-64" />
+                  </div>
+                  <Skeleton className="h-10 w-40" />
+                </div>
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                  {[1, 2, 3].map((i) => (
-                    <div key={i} className="h-48 bg-muted rounded" />
+                  {[1, 2, 3, 4, 5, 6].map((i) => (
+                    <SkeletonCard key={i} />
                   ))}
                 </div>
               </div>
@@ -76,10 +84,15 @@ export default function Projects() {
   return (
     <SidebarProvider>
       <div className="flex min-h-screen w-full">
+        {/* Skip to main content for accessibility */}
+        <a href="#main-content" className="skip-to-content">
+          Ir para o conteúdo principal
+        </a>
+        
         <AppSidebar />
         <SidebarInset className="flex-1">
           <DashboardHeader />
-          <main className="flex-1 p-4 md:p-6 space-y-6 animate-fade-in">
+          <main id="main-content" className="flex-1 p-4 md:p-6 space-y-6 animate-fade-in">
             <div className="space-y-8">
               {/* Header */}
               <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
@@ -96,16 +109,17 @@ export default function Projects() {
               {/* Filters */}
               <div className="flex flex-col md:flex-row gap-4">
                 <div className="relative flex-1">
-                  <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                  <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" aria-hidden="true" />
                   <Input
                     placeholder="Pesquisar projetos..."
                     value={searchQuery}
                     onChange={(e) => setSearchQuery(e.target.value)}
                     className="pl-10"
+                    aria-label="Campo de pesquisa de projetos"
                   />
                 </div>
                 <Select value={statusFilter} onValueChange={setStatusFilter}>
-                  <SelectTrigger className="w-full md:w-48">
+                  <SelectTrigger className="w-full md:w-48" aria-label="Filtrar por estado">
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
@@ -120,8 +134,8 @@ export default function Projects() {
 
               {/* Projects Grid */}
               {filteredProjects.length === 0 ? (
-                <div className="text-center py-16">
-                  <FolderOpen className="h-16 w-16 mx-auto text-muted-foreground mb-4" />
+                <div className="text-center py-16" role="status" aria-live="polite">
+                  <FolderOpen className="h-16 w-16 mx-auto text-muted-foreground mb-4" aria-hidden="true" />
                   <h3 className="text-xl font-semibold mb-2">
                     {searchQuery || statusFilter !== 'all' 
                       ? 'Nenhum projeto encontrado'

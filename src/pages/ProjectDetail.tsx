@@ -13,11 +13,13 @@ import { CreateTaskModal } from '@/components/tasks/CreateTaskModal';
 import { SidebarProvider, SidebarInset } from '@/components/ui/sidebar';
 import { AppSidebar } from '@/components/AppSidebar';
 import { DashboardHeader } from '@/components/DashboardHeader';
+import { InlineEditableText } from '@/components/InlineEditableText';
+import { InlineEditableSelect } from '@/components/InlineEditableSelect';
 
 export default function ProjectDetail() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
-  const { projects, deleteProject } = useProjects();
+  const { projects, updateProject, deleteProject } = useProjects();
   const { tasks, createTask, updateTask, deleteTask } = useTasks(id);
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [createTaskOpen, setCreateTaskOpen] = useState(false);
@@ -59,10 +61,15 @@ export default function ProjectDetail() {
   return (
     <SidebarProvider>
       <div className="flex min-h-screen w-full">
+        {/* Skip to main content for accessibility */}
+        <a href="#main-content" className="skip-to-content">
+          Ir para o conteúdo principal
+        </a>
+        
         <AppSidebar />
         <SidebarInset className="flex-1">
           <DashboardHeader />
-          <main className="flex-1 p-4 md:p-6 space-y-6 animate-fade-in">
+          <main id="main-content" className="flex-1 p-4 md:p-6 space-y-6 animate-fade-in">
       <div className="space-y-8">
       {/* Back Button */}
       <Button variant="ghost" onClick={() => navigate('/projects')} className="gap-2">
@@ -73,18 +80,35 @@ export default function ProjectDetail() {
       {/* Header */}
       <div className="flex flex-col md:flex-row justify-between items-start gap-4">
         <div className="flex items-start gap-4">
-          <span className="text-4xl">{project.icon}</span>
+          <span className="text-4xl" role="img" aria-label="Project icon">{project.icon}</span>
           <div>
-            <h1 className="text-3xl font-bold">{project.name}</h1>
-            <Badge className="mt-2">{statusLabels[project.status]}</Badge>
+            <InlineEditableText
+              value={project.name}
+              onSave={(newName) => updateProject.mutate({ id: project.id, name: newName })}
+              className="text-3xl font-bold block"
+              inputClassName="text-3xl font-bold"
+              as="h1"
+            />
+            <div className="mt-2">
+              <InlineEditableSelect
+                value={project.status}
+                options={[
+                  { value: 'active', label: 'Ativo' },
+                  { value: 'on_hold', label: 'Em Pausa' },
+                  { value: 'completed', label: 'Concluído' },
+                  { value: 'archived', label: 'Arquivado' },
+                ]}
+                onSave={(newStatus) => updateProject.mutate({ id: project.id, status: newStatus })}
+              />
+            </div>
           </div>
         </div>
         <div className="flex gap-2">
-          <Button variant="outline" className="gap-2">
+          <Button variant="outline" className="gap-2" aria-label="Editar projeto">
             <Edit className="h-4 w-4" />
             Editar
           </Button>
-          <Button variant="outline" className="gap-2">
+          <Button variant="outline" className="gap-2" aria-label="Arquivar projeto">
             <Archive className="h-4 w-4" />
             Arquivar
           </Button>
@@ -92,6 +116,7 @@ export default function ProjectDetail() {
             variant="destructive" 
             className="gap-2"
             onClick={() => setDeleteDialogOpen(true)}
+            aria-label="Eliminar projeto"
           >
             <Trash2 className="h-4 w-4" />
             Eliminar
@@ -155,9 +180,10 @@ export default function ProjectDetail() {
           
           <KanbanBoard
             tasks={tasks}
+            projectId={id!}
             onUpdateTask={(taskId, updates) => updateTask.mutate({ id: taskId, ...updates })}
             onDeleteTask={(taskId) => deleteTask.mutate(taskId)}
-            onCreateTask={() => setCreateTaskOpen(true)}
+            onCreateTask={(task) => createTask.mutate(task)}
           />
         </TabsContent>
 

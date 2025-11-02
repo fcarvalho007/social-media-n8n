@@ -60,7 +60,7 @@ export const CreateProjectModal = ({ open, onClose }: CreateProjectModalProps) =
 
   return (
     <Dialog open={open} onOpenChange={onClose}>
-      <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
+      <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto backdrop-blur-xl bg-background/95 border-2" aria-label="Modal de criar projeto">
         <DialogHeader>
           <DialogTitle>Criar Projeto</DialogTitle>
         </DialogHeader>
@@ -105,6 +105,7 @@ export const CreateProjectModal = ({ open, onClose }: CreateProjectModalProps) =
                     }`}
                     style={{ backgroundColor: color }}
                     onClick={() => setFormData({ ...formData, color })}
+                    aria-label={`Selecionar cor ${color}`}
                   />
                 ))}
               </div>
@@ -121,6 +122,7 @@ export const CreateProjectModal = ({ open, onClose }: CreateProjectModalProps) =
                       formData.icon === icon ? 'border-primary bg-primary/10' : 'border-transparent hover:bg-accent'
                     }`}
                     onClick={() => setFormData({ ...formData, icon })}
+                    aria-label={`Selecionar ícone ${icon}`}
                   >
                     {icon}
                   </button>
