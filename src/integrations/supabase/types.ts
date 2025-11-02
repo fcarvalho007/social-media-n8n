@@ -68,6 +68,47 @@ export type Database = {
         }
         Relationships: []
       }
+      milestones: {
+        Row: {
+          created_at: string
+          description: string | null
+          due_date: string
+          id: string
+          project_id: string
+          status: string
+          title: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          description?: string | null
+          due_date: string
+          id?: string
+          project_id: string
+          status?: string
+          title: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          description?: string | null
+          due_date?: string
+          id?: string
+          project_id?: string
+          status?: string
+          title?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "milestones_project_id_fkey"
+            columns: ["project_id"]
+            isOneToOne: false
+            referencedRelation: "projects"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       posts: {
         Row: {
           alt_texts: Json | null
@@ -239,6 +280,39 @@ export type Database = {
           status?: string
           updated_at?: string
           user_id?: string
+        }
+        Relationships: []
+      }
+      project_templates: {
+        Row: {
+          created_at: string
+          created_by: string
+          description: string | null
+          id: string
+          is_public: boolean
+          name: string
+          structure: Json
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          created_by: string
+          description?: string | null
+          id?: string
+          is_public?: boolean
+          name: string
+          structure?: Json
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          created_by?: string
+          description?: string | null
+          id?: string
+          is_public?: boolean
+          name?: string
+          structure?: Json
+          updated_at?: string
         }
         Relationships: []
       }
@@ -460,6 +534,81 @@ export type Database = {
         }
         Relationships: []
       }
+      task_dependencies: {
+        Row: {
+          created_at: string
+          depends_on_task_id: string
+          id: string
+          task_id: string
+          type: string
+        }
+        Insert: {
+          created_at?: string
+          depends_on_task_id: string
+          id?: string
+          task_id: string
+          type?: string
+        }
+        Update: {
+          created_at?: string
+          depends_on_task_id?: string
+          id?: string
+          task_id?: string
+          type?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "task_dependencies_depends_on_task_id_fkey"
+            columns: ["depends_on_task_id"]
+            isOneToOne: false
+            referencedRelation: "tasks"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "task_dependencies_task_id_fkey"
+            columns: ["task_id"]
+            isOneToOne: false
+            referencedRelation: "tasks"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      task_milestones: {
+        Row: {
+          created_at: string
+          id: string
+          milestone_id: string
+          task_id: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          milestone_id: string
+          task_id: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          milestone_id?: string
+          task_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "task_milestones_milestone_id_fkey"
+            columns: ["milestone_id"]
+            isOneToOne: false
+            referencedRelation: "milestones"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "task_milestones_task_id_fkey"
+            columns: ["task_id"]
+            isOneToOne: false
+            referencedRelation: "tasks"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       tasks: {
         Row: {
           assignee_id: string | null
@@ -471,6 +620,7 @@ export type Database = {
           priority: string
           project_id: string
           reporter_id: string
+          start_date: string | null
           status: string
           title: string
           updated_at: string
@@ -485,6 +635,7 @@ export type Database = {
           priority?: string
           project_id: string
           reporter_id: string
+          start_date?: string | null
           status?: string
           title: string
           updated_at?: string
@@ -499,6 +650,7 @@ export type Database = {
           priority?: string
           project_id?: string
           reporter_id?: string
+          start_date?: string | null
           status?: string
           title?: string
           updated_at?: string
