@@ -1,4 +1,4 @@
-import { CheckCircle2, PlusCircle, Calendar, X } from 'lucide-react';
+import { CheckCircle2, PlusCircle, Calendar, X, FolderKanban } from 'lucide-react';
 import { NavLink } from 'react-router-dom';
 import {
   Sidebar,
@@ -44,6 +44,14 @@ const menuItems = [
     label: 'Calendário',
     icon: Calendar,
     url: '/calendar',
+    disabled: false,
+    isMain: false,
+  },
+  {
+    title: 'Projetos',
+    label: 'Projetos',
+    icon: FolderKanban,
+    url: '/projects',
     disabled: false,
     isMain: false,
   },

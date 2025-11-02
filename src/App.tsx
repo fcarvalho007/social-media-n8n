@@ -15,6 +15,8 @@ import ReviewStory from "./pages/ReviewStory";
 import Calendar from "./pages/Calendar";
 import ManualCreate from "./pages/ManualCreate";
 import QuotaSettings from "./pages/QuotaSettings";
+import Projects from "./pages/Projects";
+import ProjectDetail from "./pages/ProjectDetail";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -83,6 +85,22 @@ const App = () => (
                 element={
                   <ProtectedRoute>
                     <QuotaSettings />
+                  </ProtectedRoute>
+                }
+              />
+              <Route
+                path="/projects"
+                element={
+                  <ProtectedRoute>
+                    <Projects />
+                  </ProtectedRoute>
+                }
+              />
+              <Route
+                path="/projects/:id"
+                element={
+                  <ProtectedRoute>
+                    <ProjectDetail />
                   </ProtectedRoute>
                 }
               />

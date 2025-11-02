@@ -49,6 +49,18 @@ All colors MUST be HSL.
     --accent-purple: 240 100% 47%;
     --accent-mint: 208 100% 50%;
 
+    /* Status colors for project management */
+    --status-todo: 215 16% 47%; /* slate-500 */
+    --status-in-progress: 217 91% 60%; /* blue-500 */
+    --status-review: 38 92% 50%; /* amber-500 */
+    --status-done: 142 71% 45%; /* emerald-500 */
+    
+    /* Priority colors */
+    --priority-low: 215 20% 65%; /* slate-400 */
+    --priority-medium: 217 91% 60%; /* blue-400 */
+    --priority-high: 25 95% 53%; /* orange-400 */
+    --priority-urgent: 0 84% 60%; /* red-400 */
+
     /* Success */
     --success: 142 71% 45%;
     --success-light: 142 71% 95%;
