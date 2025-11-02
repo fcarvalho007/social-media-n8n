@@ -211,44 +211,96 @@ const Review = () => {
       setLinkedinBody(data.linkedin_body || data.caption || '');
       setInstagramCaption(data.caption || '');
       
-      // Load archived slides from metadata
-      const metadataA = data.template_a_metadata as any;
-      const metadataB = data.template_b_metadata as any;
-      setArchivedSlidesA(metadataA?.archived_slides || []);
-      setArchivedSlidesB(metadataB?.archived_slides || []);
+  /**
+   * ✅ ARQUITETURA DE SLIDES ARQUIVADOS:
+   * 
+   * 1. template_X_images (BD + Estado): Array COMPLETO de URLs (ativas + arquivadas)
+   * 2. template_X_metadata.archived_slides (BD): Array de URLs arquivados
+   * 3. archivedSlidesX (Estado local): Cópia de archived_slides para filtragem
+   * 
+   * FLUXO DE PUBLICAÇÃO:
+   * - Ler template_X_images (TODOS os slides)
+   * - Filtrar usando archived_slides (remover arquivados)
+   * - Publicar apenas os não-arquivados
+   * 
+   * IMPORTANTE: template_X_images NUNCA é modificado ao arquivar/restaurar!
+   */
+  
+  // Load archived slides from metadata
+  const metadataA = data.template_a_metadata as any;
+  const metadataB = data.template_b_metadata as any;
+  const archivedA = Array.isArray(metadataA?.archived_slides) ? metadataA.archived_slides : [];
+  const archivedB = Array.isArray(metadataB?.archived_slides) ? metadataB.archived_slides : [];
+  
+  setArchivedSlidesA(archivedA);
+  setArchivedSlidesB(archivedB);
 
-      // ✅ CORREÇÃO 5: Validação de integridade de dados
-      const archivedA = metadataA?.archived_slides || [];
-      const archivedB = metadataB?.archived_slides || [];
-      const totalA = data.template_a_images.length + archivedA.length;
-      const totalB = data.template_b_images.length + archivedB.length;
+  // ✅ VALIDAÇÃO DE INTEGRIDADE: Verificar consistência dos dados
+  const imagesA = data.template_a_images || [];
+  const imagesB = data.template_b_images || [];
+  const activeA = imagesA.filter((url: string) => !archivedA.includes(url));
+  const activeB = imagesB.filter((url: string) => !archivedB.includes(url));
+  
+  console.log('[Load Post] 📊 Estado de Slides:', {
+    templateA: {
+      total: imagesA.length,
+      archived: archivedA.length,
+      active: activeA.length,
+      expected: metadataA?.total_slides || 'N/A',
+      allUrls: imagesA.map((url: string, i: number) => ({
+        index: i + 1,
+        url: url.substring(url.lastIndexOf('/') + 1),
+        archived: archivedA.includes(url) ? '🗄️' : '✅'
+      }))
+    },
+    templateB: {
+      total: imagesB.length,
+      archived: archivedB.length,
+      active: activeB.length,
+      expected: metadataB?.total_slides || 'N/A',
+      allUrls: imagesB.map((url: string, i: number) => ({
+        index: i + 1,
+        url: url.substring(url.lastIndexOf('/') + 1),
+        archived: archivedB.includes(url) ? '🗄️' : '✅'
+      }))
+    },
+  });
 
-      console.log('[Load Post] Validação de integridade:', {
-        templateA: {
-          images: data.template_a_images.length,
-          archived: archivedA.length,
-          total: totalA,
-          expected: metadataA?.total_slides || 'unknown',
-        },
-        templateB: {
-          images: data.template_b_images.length,
-          archived: archivedB.length,
-          total: totalB,
-          expected: metadataB?.total_slides || 'unknown',
-        },
-      });
+  // Verificar se archived_slides é válido
+  if (archivedA.length > 0 && !Array.isArray(metadataA?.archived_slides)) {
+    console.error('[Load Post] ⚠️ Template A: archived_slides inválido', metadataA?.archived_slides);
+    toast.warning('Template A: dados de slides arquivados podem estar corrompidos.');
+  }
+  
+  if (archivedB.length > 0 && !Array.isArray(metadataB?.archived_slides)) {
+    console.error('[Load Post] ⚠️ Template B: archived_slides inválido', metadataB?.archived_slides);
+    toast.warning('Template B: dados de slides arquivados podem estar corrompidos.');
+  }
 
-      // Verificar se slides arquivados estão presentes em template_X_images
-      const missingA = archivedA.filter((url: string) => !data.template_a_images.includes(url));
-      const missingB = archivedB.filter((url: string) => !data.template_b_images.includes(url));
+  // Verificar se slides arquivados existem em template_X_images
+  const missingA = archivedA.filter((url: string) => !imagesA.includes(url));
+  const missingB = archivedB.filter((url: string) => !imagesB.includes(url));
 
-      if (missingA.length > 0 || missingB.length > 0) {
-        console.error('[Load Post] ⚠️ Slides arquivados NÃO encontrados na BD:', {
-          templateA: missingA,
-          templateB: missingB,
-        });
-        toast.error('Aviso: Alguns slides arquivados foram perdidos na BD. Contacte o suporte.');
-      }
+  if (missingA.length > 0 || missingB.length > 0) {
+    console.error('[Load Post] ❌ Slides arquivados NÃO encontrados na BD:', {
+      templateA: missingA,
+      templateB: missingB,
+    });
+    toast.error('⚠️ Dados inconsistentes: Alguns slides arquivados foram perdidos. Por favor, recarregue a página.', {
+      duration: 8000,
+    });
+  }
+  
+  // Verificar se há duplicados em archived_slides
+  const uniqueA = new Set(archivedA);
+  const uniqueB = new Set(archivedB);
+  if (uniqueA.size !== archivedA.length || uniqueB.size !== archivedB.length) {
+    console.error('[Load Post] ⚠️ Duplicados em archived_slides:', {
+      templateA: { total: archivedA.length, unique: uniqueA.size },
+      templateB: { total: archivedB.length, unique: uniqueB.size },
+    });
+    toast.warning('Slides arquivados contêm duplicados. Recomenda-se recarregar a página.');
+  }
     } catch (error) {
       console.error('Erro ao carregar publicação:', error);
       toast.error('Falha ao carregar publicação');
@@ -500,49 +552,83 @@ const Review = () => {
 
   const handleRemoveSlide = async (template: 'A' | 'B', slideIndex: number) => {
     const isTemplateA = template === 'A';
-    const currentImages = isTemplateA ? templateAImages : templateBImages;
-    const archivedSlides = isTemplateA ? archivedSlidesA : archivedSlidesB;
+    
+    // ✅ CORREÇÃO CRÍTICA: Usar template_X_images da BD, não do estado local
+    // O estado local (templateAImages/templateBImages) pode estar dessincronizado
     const allImages = isTemplateA ? post?.template_a_images : post?.template_b_images;
-    
-    // Get the slide to archive
-    const slideToArchive = currentImages[slideIndex];
-    const newImages = currentImages.filter((_, idx) => idx !== slideIndex);
-    const newArchived = [...archivedSlides, slideToArchive];
-    
-    // Validate before archiving
-    const totalBefore = currentImages.length + archivedSlides.length;
-    const totalAfter = newImages.length + newArchived.length;
-    
-    if (totalBefore !== totalAfter) {
-      console.error(`[Archive] Inconsistência: ${totalBefore} slides antes, ${totalAfter} depois`);
-      toast.error('Erro: Inconsistência detetada ao arquivar slide');
+    if (!allImages || allImages.length === 0) {
+      toast.error('Erro: Nenhuma imagem encontrada para arquivar');
       return;
     }
     
-    console.log(`[Archive] Template ${template}: ${currentImages.length} → ${newImages.length} ativos, ${archivedSlides.length} → ${newArchived.length} arquivados`);
+    const archivedSlides = isTemplateA ? archivedSlidesA : archivedSlidesB;
+    
+    // Get ACTIVE images (all images minus archived)
+    const currentImages = allImages.filter((img: string) => !archivedSlides.includes(img));
+    
+    // Validate slideIndex
+    if (slideIndex < 0 || slideIndex >= currentImages.length) {
+      console.error(`[Archive] Índice inválido: ${slideIndex} (total: ${currentImages.length})`);
+      toast.error('Erro: Slide inválido selecionado');
+      return;
+    }
+    
+    // Get the slide to archive
+    const slideToArchive = currentImages[slideIndex];
+    const newArchived = [...archivedSlides, slideToArchive];
+    
+    // Validate: archived slide must exist in allImages
+    if (!allImages.includes(slideToArchive)) {
+      console.error('[Archive] Slide não encontrado em template_X_images:', slideToArchive);
+      toast.error('Erro: Slide não encontrado na base de dados');
+      return;
+    }
+    
+    // Validate no duplicates
+    if (archivedSlides.includes(slideToArchive)) {
+      console.error('[Archive] Slide já está arquivado:', slideToArchive);
+      toast.error('Erro: Slide já está arquivado');
+      return;
+    }
+    
+    const activeAfter = currentImages.length - 1;
+    const archivedAfter = newArchived.length;
+    
+    console.log(`[Archive] Template ${template}:`, {
+      total: allImages.length,
+      activeBefore: currentImages.length,
+      activeAfter,
+      archivedBefore: archivedSlides.length,
+      archivedAfter,
+      slideToArchive: slideToArchive.substring(slideToArchive.lastIndexOf('/') + 1),
+    });
     
     const loadingToast = toast.loading('A arquivar slide...');
     
-    // ✅ CORREÇÃO: Apenas atualizar archived_slides, NÃO remover de template_X_images
-    // O CarouselPreview filtra automaticamente usando archivedSlides
+    // ✅ Update local state (archived list only)
     if (isTemplateA) {
       setArchivedSlidesA(newArchived);
     } else {
       setArchivedSlidesB(newArchived);
     }
 
-    // Update metadata with new slide numbers
+    // ✅ CORREÇÃO: Criar metadata.slides com TODOS os slides + flag is_archived
     const currentMetadata = isTemplateA ? post?.template_a_metadata : post?.template_b_metadata;
     const updatedMetadata = {
       ...currentMetadata,
-      slides: newImages.map((img, idx) => ({
-        ...currentMetadata?.slides?.[idx > slideIndex ? idx + 1 : idx],
-        slide_num: idx + 1,
-        total_slides: newImages.length,
-        image_url: img,
-      })),
+      slides: allImages.map((img: string, idx: number) => {
+        const isArchived = newArchived.includes(img);
+        return {
+          url: img,
+          slide_num: idx + 1,
+          total_slides: allImages.length,
+          is_archived: isArchived,
+          alt_text: `Slide ${idx + 1}/${allImages.length}${isArchived ? ' (Arquivado)' : ''}`,
+        };
+      }),
       archived_slides: newArchived,
-      total_slides_including_archived: allImages?.length || 0,
+      total_slides: allImages.length,
+      active_slides: activeAfter,
     };
 
     try {
@@ -557,19 +643,22 @@ const Review = () => {
 
       if (error) throw error;
       
-      // ✅ CORREÇÃO: Manter template_X_images intacto no estado, apenas atualizar metadata
+      // ✅ Update local post state with new metadata
       setPost({
         ...post,
         [isTemplateA ? 'template_a_metadata' : 'template_b_metadata']: updatedMetadata,
       });
       
       toast.dismiss(loadingToast);
-      toast.success(`Slide arquivado! Carrossel agora tem ${newImages.length} imagens ativas`);
+      toast.success(`✓ Slide arquivado! ${activeAfter} de ${allImages.length} ativos`, {
+        description: 'O slide arquivado não será publicado',
+        duration: 4000,
+      });
     } catch (error) {
       console.error('Erro ao arquivar slide:', error);
       toast.dismiss(loadingToast);
       toast.error('Falha ao arquivar slide. Por favor, tente novamente.');
-      // ✅ Revert apenas archived_slides (template_X_images não foi alterado)
+      // ✅ Revert archived_slides
       if (isTemplateA) {
         setArchivedSlidesA(archivedSlides);
       } else {
@@ -583,27 +672,66 @@ const Review = () => {
     const archivedSlides = isTemplateA ? archivedSlidesA : archivedSlidesB;
     const allImages = isTemplateA ? post?.template_a_images : post?.template_b_images;
     
+    if (!allImages || allImages.length === 0) {
+      toast.error('Erro: Nenhuma imagem encontrada');
+      return;
+    }
+    
+    // Validate archivedIndex
+    if (archivedIndex < 0 || archivedIndex >= archivedSlides.length) {
+      console.error(`[Restore] Índice inválido: ${archivedIndex} (total arquivados: ${archivedSlides.length})`);
+      toast.error('Erro: Slide arquivado inválido');
+      return;
+    }
+    
     // Get the slide to restore
     const slideToRestore = archivedSlides[archivedIndex];
     const newArchived = archivedSlides.filter((_, idx) => idx !== archivedIndex);
     
+    // Validate: slide to restore must exist in allImages
+    if (!allImages.includes(slideToRestore)) {
+      console.error('[Restore] Slide não encontrado em template_X_images:', slideToRestore);
+      toast.error('Erro: Slide não encontrado na base de dados');
+      return;
+    }
+    
+    const activeAfter = allImages.length - newArchived.length;
+    
+    console.log(`[Restore] Template ${template}:`, {
+      total: allImages.length,
+      activeBefore: allImages.length - archivedSlides.length,
+      activeAfter,
+      archivedBefore: archivedSlides.length,
+      archivedAfter: newArchived.length,
+      slideToRestore: slideToRestore.substring(slideToRestore.lastIndexOf('/') + 1),
+    });
+    
     const loadingToast = toast.loading('A restaurar slide...');
     
-    // ✅ CORREÇÃO: Apenas atualizar archived_slides, NÃO modificar template_X_images
-    // O CarouselPreview filtra automaticamente usando archivedSlides
+    // ✅ Update local state (archived list only)
     if (isTemplateA) {
       setArchivedSlidesA(newArchived);
     } else {
       setArchivedSlidesB(newArchived);
     }
 
-    // Update metadata
+    // ✅ CORREÇÃO: Criar metadata.slides com TODOS os slides + flag is_archived
     const currentMetadata = isTemplateA ? post?.template_a_metadata : post?.template_b_metadata;
-    const activeCount = (allImages?.length || 0) - newArchived.length;
     const updatedMetadata = {
       ...currentMetadata,
+      slides: allImages.map((img: string, idx: number) => {
+        const isArchived = newArchived.includes(img);
+        return {
+          url: img,
+          slide_num: idx + 1,
+          total_slides: allImages.length,
+          is_archived: isArchived,
+          alt_text: `Slide ${idx + 1}/${allImages.length}${isArchived ? ' (Arquivado)' : ''}`,
+        };
+      }),
       archived_slides: newArchived,
-      total_slides_including_archived: allImages?.length || 0,
+      total_slides: allImages.length,
+      active_slides: activeAfter,
     };
 
     try {
@@ -617,19 +745,22 @@ const Review = () => {
 
       if (error) throw error;
       
-      // ✅ CORREÇÃO: Manter template_X_images intacto no estado
+      // ✅ Update local post state with new metadata
       setPost({
         ...post,
         [isTemplateA ? 'template_a_metadata' : 'template_b_metadata']: updatedMetadata,
       });
       
       toast.dismiss(loadingToast);
-      toast.success(`Slide restaurado! Carrossel agora tem ${activeCount} imagens ativas`);
+      toast.success(`✓ Slide restaurado! ${activeAfter} de ${allImages.length} ativos`, {
+        description: 'O slide será incluído na publicação',
+        duration: 4000,
+      });
     } catch (error) {
       console.error('Erro ao restaurar slide:', error);
       toast.dismiss(loadingToast);
       toast.error('Falha ao restaurar slide. Por favor, tente novamente.');
-      // ✅ Revert apenas archived_slides
+      // ✅ Revert archived_slides
       if (isTemplateA) {
         setArchivedSlidesA(archivedSlides);
       } else {
@@ -750,49 +881,69 @@ const Review = () => {
     const loadingToast = toast.loading('A publicar no Instagram...');
     
     try {
-      // Get active images (what user sees in front-end)
-      const selectedImages = selectedTemplate === 'A' ? templateAImages : templateBImages;
+      // ✅ CORREÇÃO CRÍTICA: Ler diretamente da BD, não do estado local
+      const allImages = selectedTemplate === 'A' ? post?.template_a_images : post?.template_b_images;
+      const metadata = selectedTemplate === 'A' ? post?.template_a_metadata : post?.template_b_metadata;
       const archivedSlides = selectedTemplate === 'A' ? archivedSlidesA : archivedSlidesB;
       
-      // Filter out archived slides - this is EXACTLY what will be published
-      const imagesToPublish = selectedImages.filter(img => !archivedSlides.includes(img));
-      
-      // ✅ FASE 2.1: Validação de consistência pré-publicação
-      console.log('[Pre-Publish Instagram] Validation:', {
-        originalImages: selectedImages.length,
-        archivedImages: archivedSlides.length,
-        finalImages: imagesToPublish.length,
-        expectedImages: selectedImages.length - archivedSlides.length,
-        allUrls: imagesToPublish.map((url, idx) => ({
-          index: idx + 1,
-          url: url.substring(0, 60) + '...',
-          domain: new URL(url).hostname
-        }))
-      });
-
-      if (imagesToPublish.length !== (selectedImages.length - archivedSlides.length)) {
-        const error = 'Inconsistência detectada na seleção de imagens para Instagram';
-        console.error('[Pre-Publish Instagram]', error);
+      if (!allImages || allImages.length === 0) {
         toast.dismiss(loadingToast);
-        toast.error(error);
+        toast.error('Erro: Nenhuma imagem encontrada para publicar');
         return;
       }
       
-      // Debug logging
-      console.log('[Instagram Publish Debug]', {
-        selectedTemplate,
-        totalImages: selectedImages.length,
-        archivedSlides: archivedSlides.length,
-        archivedList: archivedSlides,
-        activeImages: imagesToPublish.length,
-        activeList: imagesToPublish,
-        willPublish: imagesToPublish,
-      });
-      
-      // Validate we have images
-      if (!imagesToPublish || imagesToPublish.length === 0) {
+      // ✅ VALIDAÇÃO PRÉ-PUBLICAÇÃO: Verificar sincronização
+      const metadataArchived = metadata?.archived_slides || [];
+      if (JSON.stringify(archivedSlides.sort()) !== JSON.stringify(metadataArchived.sort())) {
+        console.error('[Pre-Publish Instagram] ⚠️ DESSINCRONIZAÇÃO DETECTADA:', {
+          stateArchived: archivedSlides,
+          metadataArchived,
+        });
+        
         toast.dismiss(loadingToast);
-        toast.error('Não há imagens ativas para publicar');
+        toast.error('Dados de slides arquivados dessincronizados!', {
+          description: 'Por favor, recarregue a página antes de publicar.',
+          duration: 8000,
+          action: {
+            label: 'Recarregar',
+            onClick: () => window.location.reload(),
+          },
+        });
+        return;
+      }
+      
+      // Filter out archived slides - this is EXACTLY what will be published
+      const imagesToPublish = allImages.filter((img: string) => !archivedSlides.includes(img));
+      
+      // ✅ VALIDAÇÃO FINAL: Certificar que temos slides para publicar
+      if (imagesToPublish.length === 0) {
+        toast.dismiss(loadingToast);
+        toast.error('Nenhum slide ativo para publicar. Restaure pelo menos um slide.');
+        return;
+      }
+      
+      // ✅ LOGGING DETALHADO
+      console.log('[Pre-Publish Instagram] 📋 Validação Completa:', {
+        template: selectedTemplate,
+        totalImages: allImages.length,
+        archivedCount: archivedSlides.length,
+        activeCount: imagesToPublish.length,
+        expected: allImages.length - archivedSlides.length,
+        isValid: imagesToPublish.length === (allImages.length - archivedSlides.length),
+        allImages: allImages.map((url: string, i: number) => ({
+          index: i + 1,
+          filename: url.substring(url.lastIndexOf('/') + 1, url.lastIndexOf('/') + 20),
+          archived: archivedSlides.includes(url) ? '🗄️ ARQUIVADO' : '✅ ATIVO',
+          willPublish: !archivedSlides.includes(url) ? '📤 SIM' : '❌ NÃO'
+        }))
+      });
+
+      // ✅ Verificação de consistência
+      if (imagesToPublish.length !== (allImages.length - archivedSlides.length)) {
+        const error = `Inconsistência: ${imagesToPublish.length} slides a publicar, esperado ${allImages.length - archivedSlides.length}`;
+        console.error('[Pre-Publish Instagram] ❌', error);
+        toast.dismiss(loadingToast);
+        toast.error(error);
         return;
       }
       
@@ -911,44 +1062,71 @@ const Review = () => {
     const loadingToast = toast.loading('A publicar no LinkedIn...');
     
     try {
-      // Get active images (what user sees in front-end)
-      const selectedImages = selectedTemplate === 'A' ? templateAImages : templateBImages;
+      // ✅ CORREÇÃO CRÍTICA: Ler diretamente da BD, não do estado local
+      const allImages = selectedTemplate === 'A' ? post?.template_a_images : post?.template_b_images;
+      const metadata = selectedTemplate === 'A' ? post?.template_a_metadata : post?.template_b_metadata;
       const archivedSlides = selectedTemplate === 'A' ? archivedSlidesA : archivedSlidesB;
       
-      // Filter out archived slides - this is EXACTLY what will be published
-      const imagesToPublish = selectedImages.filter(img => !archivedSlides.includes(img));
+      if (!allImages || allImages.length === 0) {
+        toast.dismiss(loadingToast);
+        toast.error('Erro: Nenhuma imagem encontrada para publicar');
+        return;
+      }
       
-      // ✅ FASE 2.1: Validação de consistência pré-publicação
-      console.log('[Pre-Publish LinkedIn] Validation:', {
-        originalImages: selectedImages.length,
-        archivedImages: archivedSlides.length,
-        finalImages: imagesToPublish.length,
-        expectedImages: selectedImages.length - archivedSlides.length,
-        allUrls: imagesToPublish.map((url, idx) => ({
-          index: idx + 1,
-          url: url.substring(0, 60) + '...',
-          domain: new URL(url).hostname
+      // ✅ VALIDAÇÃO PRÉ-PUBLICAÇÃO: Verificar sincronização
+      const metadataArchived = metadata?.archived_slides || [];
+      if (JSON.stringify(archivedSlides.sort()) !== JSON.stringify(metadataArchived.sort())) {
+        console.error('[Pre-Publish LinkedIn] ⚠️ DESSINCRONIZAÇÃO DETECTADA:', {
+          stateArchived: archivedSlides,
+          metadataArchived,
+        });
+        
+        toast.dismiss(loadingToast);
+        toast.error('Dados de slides arquivados dessincronizados!', {
+          description: 'Por favor, recarregue a página antes de publicar.',
+          duration: 8000,
+          action: {
+            label: 'Recarregar',
+            onClick: () => window.location.reload(),
+          },
+        });
+        return;
+      }
+      
+      // Filter out archived slides - this is EXACTLY what will be published
+      const imagesToPublish = allImages.filter((img: string) => !archivedSlides.includes(img));
+      
+      // ✅ VALIDAÇÃO FINAL: Certificar que temos slides para publicar
+      if (imagesToPublish.length === 0) {
+        toast.dismiss(loadingToast);
+        toast.error('Nenhum slide ativo para publicar. Restaure pelo menos um slide.');
+        return;
+      }
+      
+      // ✅ LOGGING DETALHADO
+      console.log('[Pre-Publish LinkedIn] 📋 Validação Completa:', {
+        template: selectedTemplate,
+        totalImages: allImages.length,
+        archivedCount: archivedSlides.length,
+        activeCount: imagesToPublish.length,
+        expected: allImages.length - archivedSlides.length,
+        isValid: imagesToPublish.length === (allImages.length - archivedSlides.length),
+        allImages: allImages.map((url: string, i: number) => ({
+          index: i + 1,
+          filename: url.substring(url.lastIndexOf('/') + 1, url.lastIndexOf('/') + 20),
+          archived: archivedSlides.includes(url) ? '🗄️ ARQUIVADO' : '✅ ATIVO',
+          willPublish: !archivedSlides.includes(url) ? '📤 SIM' : '❌ NÃO'
         }))
       });
 
-      if (imagesToPublish.length !== (selectedImages.length - archivedSlides.length)) {
-        const error = 'Inconsistência detectada na seleção de imagens para LinkedIn';
-        console.error('[Pre-Publish LinkedIn]', error);
+      // ✅ Verificação de consistência
+      if (imagesToPublish.length !== (allImages.length - archivedSlides.length)) {
+        const error = `Inconsistência: ${imagesToPublish.length} slides a publicar, esperado ${allImages.length - archivedSlides.length}`;
+        console.error('[Pre-Publish LinkedIn] ❌', error);
         toast.dismiss(loadingToast);
         toast.error(error);
         return;
       }
-      
-      // Debug logging
-      console.log('[LinkedIn Publish Debug]', {
-        selectedTemplate,
-        totalImages: selectedImages.length,
-        archivedSlides: archivedSlides.length,
-        archivedList: archivedSlides,
-        activeImages: imagesToPublish.length,
-        activeList: imagesToPublish,
-        willPublish: imagesToPublish,
-      });
       
       // Validate we have images
       if (!imagesToPublish || imagesToPublish.length === 0) {
