@@ -15,6 +15,7 @@ import { AppSidebar } from '@/components/AppSidebar';
 import { DashboardHeader } from '@/components/DashboardHeader';
 import { InlineEditableText } from '@/components/InlineEditableText';
 import { InlineEditableSelect } from '@/components/InlineEditableSelect';
+import { MilestonesList } from '@/components/milestones/MilestonesList';
 
 export default function ProjectDetail() {
   const { id } = useParams<{ id: string }>();
@@ -129,6 +130,7 @@ export default function ProjectDetail() {
         <TabsList>
           <TabsTrigger value="overview">Visão Geral</TabsTrigger>
           <TabsTrigger value="tasks">Tarefas</TabsTrigger>
+          <TabsTrigger value="milestones">Marcos</TabsTrigger>
           <TabsTrigger value="activity">Atividade</TabsTrigger>
         </TabsList>
 
@@ -185,6 +187,10 @@ export default function ProjectDetail() {
             onDeleteTask={(taskId) => deleteTask.mutate(taskId)}
             onCreateTask={(task) => createTask.mutate(task)}
           />
+        </TabsContent>
+
+        <TabsContent value="milestones">
+          <MilestonesList projectId={id!} />
         </TabsContent>
 
         <TabsContent value="activity">

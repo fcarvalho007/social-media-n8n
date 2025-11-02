@@ -8,6 +8,8 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Task } from '@/hooks/useTasks';
 import { DependencyManager } from './DependencyManager';
 import { ScrollArea } from '@/components/ui/scroll-area';
+import { useMilestones } from '@/hooks/useMilestones';
+import { Checkbox } from '@/components/ui/checkbox';
 
 interface EditTaskModalProps {
   open: boolean;
@@ -19,6 +21,8 @@ interface EditTaskModalProps {
 }
 
 export function EditTaskModal({ open, onOpenChange, task, projectId, availableTasks, onUpdate }: EditTaskModalProps) {
+  const { milestones, taskMilestones, addTaskToMilestone, removeTaskFromMilestone } = useMilestones(projectId);
+  
   const [title, setTitle] = useState(task.title);
   const [description, setDescription] = useState(task.description || '');
   const [priority, setPriority] = useState<Task['priority']>(task.priority);
@@ -26,6 +30,11 @@ export function EditTaskModal({ open, onOpenChange, task, projectId, availableTa
   const [dueDate, setDueDate] = useState(task.due_date || '');
   const [startDate, setStartDate] = useState(task.start_date || '');
   const [estimatedHours, setEstimatedHours] = useState(task.estimated_hours?.toString() || '');
+
+  // Get milestones associated with this task
+  const taskMilestoneIds = taskMilestones
+    .filter(tm => tm.task_id === task.id)
+    .map(tm => tm.milestone_id);
 
   useEffect(() => {
     setTitle(task.title);
@@ -159,6 +168,42 @@ export function EditTaskModal({ open, onOpenChange, task, projectId, availableTa
               currentStatus={status}
             />
           </div>
+
+          {/* Milestones Association */}
+          {milestones.length > 0 && (
+            <div className="border-t pt-4 space-y-3">
+              <Label>Marcos Associados</Label>
+              <div className="space-y-2">
+                {milestones.map((milestone) => {
+                  const isAssociated = taskMilestoneIds.includes(milestone.id);
+                  return (
+                    <div key={milestone.id} className="flex items-center space-x-2">
+                      <Checkbox
+                        id={`milestone-${milestone.id}`}
+                        checked={isAssociated}
+                        onCheckedChange={(checked) => {
+                          if (checked) {
+                            addTaskToMilestone.mutate({ taskId: task.id, milestoneId: milestone.id });
+                          } else {
+                            removeTaskFromMilestone.mutate({ taskId: task.id, milestoneId: milestone.id });
+                          }
+                        }}
+                      />
+                      <label
+                        htmlFor={`milestone-${milestone.id}`}
+                        className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70 cursor-pointer"
+                      >
+                        {milestone.title}
+                        <span className="text-xs text-muted-foreground ml-2">
+                          ({new Date(milestone.due_date).toLocaleDateString('pt-PT')})
+                        </span>
+                      </label>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          )}
 
           <DialogFooter className="mt-6">
             <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>
