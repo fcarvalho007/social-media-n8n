@@ -4,7 +4,7 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Card } from '@/components/ui/card';
-import { ArrowLeft, Edit, Archive, Trash2, CheckCircle2, Plus } from 'lucide-react';
+import { ArrowLeft, Edit, Archive, Trash2, CheckCircle2, Plus, Save } from 'lucide-react';
 import { useProjects } from '@/hooks/useProjects';
 import { useTasks } from '@/hooks/useTasks';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/components/ui/alert-dialog';
@@ -17,6 +17,7 @@ import { InlineEditableText } from '@/components/InlineEditableText';
 import { InlineEditableSelect } from '@/components/InlineEditableSelect';
 import { MilestonesList } from '@/components/milestones/MilestonesList';
 import { TimelineView } from '@/components/projects/TimelineView';
+import { CreateTemplateModal } from '@/components/projects/CreateTemplateModal';
 
 export default function ProjectDetail() {
   const { id } = useParams<{ id: string }>();
@@ -25,6 +26,7 @@ export default function ProjectDetail() {
   const { tasks, createTask, updateTask, deleteTask } = useTasks(id);
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [createTaskOpen, setCreateTaskOpen] = useState(false);
+  const [createTemplateOpen, setCreateTemplateOpen] = useState(false);
 
   const project = projects.find((p) => p.id === id);
 
@@ -106,6 +108,15 @@ export default function ProjectDetail() {
           </div>
         </div>
         <div className="flex gap-2">
+          <Button 
+            variant="outline" 
+            className="gap-2" 
+            onClick={() => setCreateTemplateOpen(true)}
+            aria-label="Guardar como template"
+          >
+            <Save className="h-4 w-4" />
+            Template
+          </Button>
           <Button variant="outline" className="gap-2" aria-label="Editar projeto">
             <Edit className="h-4 w-4" />
             Editar
@@ -231,6 +242,13 @@ export default function ProjectDetail() {
         onOpenChange={setCreateTaskOpen}
         projectId={id!}
         onCreate={(task) => createTask.mutate(task)}
+      />
+
+      <CreateTemplateModal
+        open={createTemplateOpen}
+        onOpenChange={setCreateTemplateOpen}
+        projectId={id!}
+        projectStartDate={project.start_date}
       />
       </div>
           </main>

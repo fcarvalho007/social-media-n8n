@@ -6,6 +6,12 @@ import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { useProjects } from '@/hooks/useProjects';
+import { useTasks } from '@/hooks/useTasks';
+import { useMilestones } from '@/hooks/useMilestones';
+import { useDependencies } from '@/hooks/useDependencies';
+import { ProjectTemplate } from '@/hooks/useTemplates';
+import { TemplateSelector } from './TemplateSelector';
+import { addDays, format } from 'date-fns';
 
 interface CreateProjectModalProps {
   open: boolean;
@@ -27,6 +33,10 @@ const PROJECT_ICONS = ['📁', '🚀', '💼', '🎯', '📊', '🔧', '💡', '
 
 export const CreateProjectModal = ({ open, onClose }: CreateProjectModalProps) => {
   const { createProject } = useProjects();
+  const { createTask } = useTasks();
+  const { createMilestone } = useMilestones();
+  const { createDependency } = useDependencies();
+  const [selectedTemplate, setSelectedTemplate] = useState<ProjectTemplate | null>(null);
   const [formData, setFormData] = useState({
     name: '',
     description: '',
@@ -40,11 +50,81 @@ export const CreateProjectModal = ({ open, onClose }: CreateProjectModalProps) =
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
-    await createProject.mutateAsync({
+    const project = await createProject.mutateAsync({
       ...formData,
-      start_date: formData.start_date || null,
+      start_date: formData.start_date || format(new Date(), 'yyyy-MM-dd'),
       due_date: formData.due_date || null,
     });
+
+    // Apply template if selected
+    if (selectedTemplate && project) {
+      const baseDate = new Date(project.start_date || new Date());
+      const createdTaskIds: string[] = [];
+
+      // Create tasks from template
+      for (const taskTemplate of selectedTemplate.structure.tasks) {
+        const taskStartDate = format(addDays(baseDate, taskTemplate.relativeStart), 'yyyy-MM-dd');
+        const taskDueDate = format(
+          addDays(baseDate, taskTemplate.relativeStart + taskTemplate.relativeDuration),
+          'yyyy-MM-dd'
+        );
+
+        try {
+          const result = await new Promise<any>((resolve, reject) => {
+            createTask.mutate(
+              {
+                project_id: project.id,
+                title: taskTemplate.title,
+                description: taskTemplate.description,
+                priority: taskTemplate.priority,
+                estimated_hours: taskTemplate.estimated_hours,
+                start_date: taskStartDate,
+                due_date: taskDueDate,
+                status: 'todo',
+                assignee_id: null,
+              },
+              {
+                onSuccess: (data) => resolve(data),
+                onError: (error) => reject(error),
+              }
+            );
+          });
+          createdTaskIds.push(result.id);
+        } catch (error) {
+          console.error('Error creating task:', error);
+        }
+      }
+
+      // Create milestones from template
+      for (const milestoneTemplate of selectedTemplate.structure.milestones) {
+        const milestoneDueDate = format(
+          addDays(baseDate, milestoneTemplate.relativeDueDate),
+          'yyyy-MM-dd'
+        );
+
+        createMilestone.mutate({
+          project_id: project.id,
+          title: milestoneTemplate.title,
+          description: milestoneTemplate.description,
+          due_date: milestoneDueDate,
+          status: 'pending',
+        });
+      }
+
+      // Create dependencies from template
+      for (const depTemplate of selectedTemplate.structure.dependencies) {
+        if (
+          createdTaskIds[depTemplate.taskIndex] &&
+          createdTaskIds[depTemplate.dependsOnTaskIndex]
+        ) {
+          createDependency.mutate({
+            task_id: createdTaskIds[depTemplate.taskIndex],
+            depends_on_task_id: createdTaskIds[depTemplate.dependsOnTaskIndex],
+            type: depTemplate.type,
+          });
+        }
+      }
+    }
 
     onClose();
     setFormData({
@@ -56,6 +136,7 @@ export const CreateProjectModal = ({ open, onClose }: CreateProjectModalProps) =
       start_date: '',
       due_date: '',
     });
+    setSelectedTemplate(null);
   };
 
   return (
@@ -168,6 +249,12 @@ export const CreateProjectModal = ({ open, onClose }: CreateProjectModalProps) =
               />
             </div>
           </div>
+
+          {/* Template Selector */}
+          <TemplateSelector
+            selectedTemplate={selectedTemplate}
+            onSelect={setSelectedTemplate}
+          />
 
           {/* Buttons */}
           <div className="flex justify-end gap-3">
