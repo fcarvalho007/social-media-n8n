@@ -16,6 +16,7 @@ import { DashboardHeader } from '@/components/DashboardHeader';
 import { InlineEditableText } from '@/components/InlineEditableText';
 import { InlineEditableSelect } from '@/components/InlineEditableSelect';
 import { MilestonesList } from '@/components/milestones/MilestonesList';
+import { TimelineView } from '@/components/projects/TimelineView';
 
 export default function ProjectDetail() {
   const { id } = useParams<{ id: string }>();
@@ -131,6 +132,7 @@ export default function ProjectDetail() {
           <TabsTrigger value="overview">Visão Geral</TabsTrigger>
           <TabsTrigger value="tasks">Tarefas</TabsTrigger>
           <TabsTrigger value="milestones">Marcos</TabsTrigger>
+          <TabsTrigger value="timeline">Timeline</TabsTrigger>
           <TabsTrigger value="activity">Atividade</TabsTrigger>
         </TabsList>
 
@@ -191,6 +193,10 @@ export default function ProjectDetail() {
 
         <TabsContent value="milestones">
           <MilestonesList projectId={id!} />
+        </TabsContent>
+
+        <TabsContent value="timeline">
+          <TimelineView tasks={tasks} />
         </TabsContent>
 
         <TabsContent value="activity">
