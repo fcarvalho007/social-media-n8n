@@ -1,5 +1,6 @@
 import { useProjects } from '@/hooks/useProjects';
 import { useTasks } from '@/hooks/useTasks';
+import { useMilestones } from '@/hooks/useMilestones';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Progress } from '@/components/ui/progress';
@@ -7,12 +8,14 @@ import { Badge } from '@/components/ui/badge';
 import { SidebarProvider, SidebarInset } from '@/components/ui/sidebar';
 import { AppSidebar } from '@/components/AppSidebar';
 import { DashboardHeader } from '@/components/DashboardHeader';
-import { FolderKanban, CheckCircle2, Clock, AlertCircle, TrendingUp, ArrowRight } from 'lucide-react';
+import { FolderKanban, CheckCircle2, Clock, AlertCircle, TrendingUp, ArrowRight, Target, Calendar } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
+import { isAfter, isBefore, addDays } from 'date-fns';
 
 export default function Dashboard() {
   const { projects } = useProjects();
   const { tasks } = useTasks();
+  const { milestones } = useMilestones();
   const navigate = useNavigate();
 
   const activeProjects = projects.filter((p) => p.status === 'active').length;
@@ -20,6 +23,13 @@ export default function Dashboard() {
   const completedTasks = tasks.filter((t) => t.status === 'done').length;
   const inProgressTasks = tasks.filter((t) => t.status === 'in_progress').length;
   const overdueTasksCount = tasks.filter((t) => t.due_date && new Date(t.due_date) < new Date() && t.status !== 'done').length;
+
+  // Milestone statistics
+  const upcomingMilestonesCount = milestones.filter(m => 
+    m.due_date && isAfter(new Date(m.due_date), new Date()) && 
+    isBefore(new Date(m.due_date), addDays(new Date(), 7)) &&
+    m.status === 'pending'
+  ).length;
 
   const recentProjects = projects.slice(0, 4);
   const urgentTasks = tasks.filter((t) => t.priority === 'urgent' && t.status !== 'done').slice(0, 5);
@@ -83,6 +93,17 @@ export default function Dashboard() {
                 <CardContent>
                   <div className="text-3xl font-bold text-destructive">{overdueTasksCount}</div>
                   <p className="text-xs text-muted-foreground mt-1">requerem atenção</p>
+                </CardContent>
+              </Card>
+
+              <Card className="hover:shadow-lg transition-all duration-300 hover-scale border-l-4 border-l-blue-500 lg:col-span-2">
+                <CardHeader className="flex flex-row items-center justify-between pb-2">
+                  <CardTitle className="text-sm font-medium text-muted-foreground">Milestones Próximos</CardTitle>
+                  <Target className="h-5 w-5 text-blue-500" />
+                </CardHeader>
+                <CardContent>
+                  <div className="text-3xl font-bold text-blue-600">{upcomingMilestonesCount}</div>
+                  <p className="text-xs text-muted-foreground mt-1">nos próximos 7 dias</p>
                 </CardContent>
               </Card>
             </div>

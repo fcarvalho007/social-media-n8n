@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Menu, ChevronRight, User, LogOut, CheckCircle2, PlusCircle, Calendar, Settings, Search, Bell } from 'lucide-react';
+import { Menu, ChevronRight, User, LogOut, CheckCircle2, PlusCircle, Calendar, Settings, Search } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { useSidebar } from '@/components/ui/sidebar';
 import { useLocation, useSearchParams, useNavigate } from 'react-router-dom';
@@ -17,7 +17,7 @@ import {
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import { QuotaBadge } from '@/components/QuotaBadge';
 import { GlobalSearch } from '@/components/GlobalSearch';
-import { Badge } from '@/components/ui/badge';
+import { NotificationBell } from '@/components/NotificationBell';
 
 export function DashboardHeader() {
   const { setOpen } = useSidebar();
@@ -124,18 +124,8 @@ export function DashboardHeader() {
             <Search className="h-5 w-5" />
           </Button>
 
-          {/* Notifications (placeholder) */}
-          <Button
-            variant="ghost"
-            size="icon"
-            className="min-h-[44px] min-w-[44px] rounded-full hover:bg-primary/10 relative"
-            aria-label="Notificações"
-          >
-            <Bell className="h-5 w-5" />
-            <Badge className="absolute -top-1 -right-1 h-5 w-5 flex items-center justify-center p-0 text-xs bg-destructive text-destructive-foreground">
-              3
-            </Badge>
-          </Button>
+          {/* Notifications */}
+          <NotificationBell />
 
           <QuotaBadge />
           
