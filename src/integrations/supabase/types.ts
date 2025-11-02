@@ -242,6 +242,48 @@ export type Database = {
         }
         Relationships: []
       }
+      projects: {
+        Row: {
+          color: string
+          created_at: string
+          description: string | null
+          due_date: string | null
+          icon: string
+          id: string
+          name: string
+          owner_id: string
+          start_date: string | null
+          status: string
+          updated_at: string
+        }
+        Insert: {
+          color: string
+          created_at?: string
+          description?: string | null
+          due_date?: string | null
+          icon: string
+          id?: string
+          name: string
+          owner_id: string
+          start_date?: string | null
+          status?: string
+          updated_at?: string
+        }
+        Update: {
+          color?: string
+          created_at?: string
+          description?: string | null
+          due_date?: string | null
+          icon?: string
+          id?: string
+          name?: string
+          owner_id?: string
+          start_date?: string | null
+          status?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
       publication_quota: {
         Row: {
           created_at: string
@@ -417,6 +459,59 @@ export type Database = {
           titulo_slide?: string | null
         }
         Relationships: []
+      }
+      tasks: {
+        Row: {
+          assignee_id: string | null
+          created_at: string
+          description: string | null
+          due_date: string | null
+          estimated_hours: number | null
+          id: string
+          priority: string
+          project_id: string
+          reporter_id: string
+          status: string
+          title: string
+          updated_at: string
+        }
+        Insert: {
+          assignee_id?: string | null
+          created_at?: string
+          description?: string | null
+          due_date?: string | null
+          estimated_hours?: number | null
+          id?: string
+          priority?: string
+          project_id: string
+          reporter_id: string
+          status?: string
+          title: string
+          updated_at?: string
+        }
+        Update: {
+          assignee_id?: string | null
+          created_at?: string
+          description?: string | null
+          due_date?: string | null
+          estimated_hours?: number | null
+          id?: string
+          priority?: string
+          project_id?: string
+          reporter_id?: string
+          status?: string
+          title?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "tasks_project_id_fkey"
+            columns: ["project_id"]
+            isOneToOne: false
+            referencedRelation: "projects"
+            referencedColumns: ["id"]
+          },
+        ]
       }
     }
     Views: {
