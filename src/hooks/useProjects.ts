@@ -19,7 +19,7 @@ export interface Project {
 export const useProjects = () => {
   const queryClient = useQueryClient();
 
-  const { data: projects = [], isLoading } = useQuery({
+  const { data: projects = [], isLoading, error } = useQuery({
     queryKey: ['projects'],
     queryFn: async () => {
       const { data, error } = await supabase
@@ -30,6 +30,7 @@ export const useProjects = () => {
       if (error) throw error;
       return data as Project[];
     },
+    retry: false,
   });
 
   const createProject = useMutation({
@@ -100,6 +101,7 @@ export const useProjects = () => {
   return {
     projects,
     isLoading,
+    error,
     createProject,
     updateProject,
     deleteProject,

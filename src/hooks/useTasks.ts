@@ -21,7 +21,7 @@ export interface Task {
 export const useTasks = (projectId?: string) => {
   const queryClient = useQueryClient();
 
-  const { data: tasks = [], isLoading } = useQuery({
+  const { data: tasks = [], isLoading, error } = useQuery({
     queryKey: ['tasks', projectId],
     queryFn: async () => {
       let query = supabase
@@ -39,6 +39,7 @@ export const useTasks = (projectId?: string) => {
       return data as Task[];
     },
     enabled: !!projectId || projectId === undefined,
+    retry: false,
   });
 
   const createTask = useMutation({
@@ -108,6 +109,7 @@ export const useTasks = (projectId?: string) => {
   return {
     tasks,
     isLoading,
+    error,
     createTask,
     updateTask,
     deleteTask,
