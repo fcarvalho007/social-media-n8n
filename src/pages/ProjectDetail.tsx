@@ -18,6 +18,7 @@ import { InlineEditableSelect } from '@/components/InlineEditableSelect';
 import { MilestonesList } from '@/components/milestones/MilestonesList';
 import { TimelineView } from '@/components/projects/TimelineView';
 import { CreateTemplateModal } from '@/components/projects/CreateTemplateModal';
+import { EditProjectModal } from '@/components/projects/EditProjectModal';
 
 export default function ProjectDetail() {
   const { id } = useParams<{ id: string }>();
@@ -27,6 +28,7 @@ export default function ProjectDetail() {
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [createTaskOpen, setCreateTaskOpen] = useState(false);
   const [createTemplateOpen, setCreateTemplateOpen] = useState(false);
+  const [editProjectOpen, setEditProjectOpen] = useState(false);
 
   const project = projects.find((p) => p.id === id);
 
@@ -117,7 +119,12 @@ export default function ProjectDetail() {
             <Save className="h-4 w-4" />
             Template
           </Button>
-          <Button variant="outline" className="gap-2" aria-label="Editar projeto">
+          <Button 
+            variant="outline" 
+            className="gap-2" 
+            onClick={() => setEditProjectOpen(true)}
+            aria-label="Editar projeto"
+          >
             <Edit className="h-4 w-4" />
             Editar
           </Button>
@@ -249,6 +256,13 @@ export default function ProjectDetail() {
         onOpenChange={setCreateTemplateOpen}
         projectId={id!}
         projectStartDate={project.start_date}
+      />
+
+      <EditProjectModal
+        open={editProjectOpen}
+        onOpenChange={setEditProjectOpen}
+        project={project}
+        onUpdate={(updates) => updateProject.mutate({ id: project.id, ...updates })}
       />
       </div>
           </main>
