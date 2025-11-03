@@ -70,21 +70,12 @@ export function AppSidebar() {
   const { counts } = usePendingCounts();
 
   return (
-    <>
-      {/* Mobile Overlay */}
-      {open && (
-        <div 
-          className="fixed inset-0 bg-black/30 backdrop-blur-sm z-40 lg:hidden animate-fade-in"
-          onClick={() => setOpen(false)}
-        />
+    <Sidebar 
+      className={cn(
+        "w-28 md:w-32 border-none transition-all duration-300",
+        "fixed lg:sticky inset-y-0 left-0 z-50 lg:z-auto",
+        open ? "translate-x-0" : "-translate-x-full lg:translate-x-0"
       )}
-      
-      <Sidebar 
-        className={cn(
-          "w-28 md:w-32 border-none transition-all duration-300",
-          "fixed lg:sticky inset-y-0 left-0 z-50 lg:z-auto",
-          open ? "translate-x-0" : "-translate-x-full lg:translate-x-0"
-        )}
         style={{
           background: 'linear-gradient(180deg, #E0E3EC 0%, #F8FAFC 100%)',
           boxShadow: '2px 0 12px rgba(0, 0, 0, 0.08)'
@@ -209,6 +200,5 @@ export function AppSidebar() {
 
         </SidebarContent>
       </Sidebar>
-    </>
   );
 }
