@@ -16,11 +16,9 @@ import 'react-big-calendar/lib/css/react-big-calendar.css';
 import 'react-big-calendar/lib/addons/dragAndDrop/styles.css';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
-import { Calendar as CalendarIcon, Clock, LayoutGrid, Video, TrendingUp, Filter, Trash2, Maximize2, Minimize2, ImageIcon, Plus, Wand2, PenTool, AlertCircle, CheckSquare, Target } from 'lucide-react';
+import { Calendar as CalendarIcon, Clock, LayoutGrid, Video, TrendingUp, Filter, Trash2, Maximize2, Minimize2, ImageIcon, Plus, Wand2, PenTool, AlertCircle } from 'lucide-react';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
-import { useTasks } from '@/hooks/useTasks';
-import { useMilestones } from '@/hooks/useMilestones';
 
 const locales = {
   'pt-PT': pt,
@@ -62,11 +60,8 @@ const Calendar = () => {
   const [loading, setLoading] = useState(true);
   const [selectedEvent, setSelectedEvent] = useState<CalendarEvent | null>(null);
   const [currentMonth, setCurrentMonth] = useState(new Date());
-  const [filterType, setFilterType] = useState<'all' | 'posts' | 'stories' | 'tasks' | 'milestones'>('all');
+  const [filterType, setFilterType] = useState<'all' | 'posts' | 'stories'>('all');
   const [viewMode, setViewMode] = useState<'normal' | 'compact'>('normal');
-  
-  const { tasks } = useTasks();
-  const { milestones } = useMilestones();
 
   const fetchScheduledContent = async () => {
     setLoading(true);
@@ -109,27 +104,7 @@ const Calendar = () => {
         resource: { ...story, content_type: 'stories' as const },
       }));
 
-      const taskEvents: CalendarEvent[] = (tasks || [])
-        .filter(task => task.due_date)
-        .map((task) => ({
-          id: task.id,
-          title: task.title,
-          start: new Date(task.due_date!),
-          end: new Date(task.due_date!),
-          resource: { ...task, content_type: 'task' as const },
-        }));
-
-      const milestoneEvents: CalendarEvent[] = (milestones || [])
-        .filter(milestone => milestone.due_date)
-        .map((milestone) => ({
-          id: milestone.id,
-          title: milestone.title,
-          start: new Date(milestone.due_date!),
-          end: new Date(milestone.due_date!),
-          resource: { ...milestone, content_type: 'milestone' as const },
-        }));
-
-      setEvents([...postEvents, ...storyEvents, ...taskEvents, ...milestoneEvents]);
+      setEvents([...postEvents, ...storyEvents]);
     } catch (error) {
       logger.error('Erro ao carregar conteúdo agendado', error);
       toast.error('Falha ao carregar calendário');
@@ -155,41 +130,21 @@ const Calendar = () => {
       })
       .subscribe();
 
-    const tasksChannel = supabase
-      .channel('calendar-tasks-changes')
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'tasks' }, () => {
-        fetchScheduledContent();
-      })
-      .subscribe();
-
-    const milestonesChannel = supabase
-      .channel('calendar-milestones-changes')
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'milestones' }, () => {
-        fetchScheduledContent();
-      })
-      .subscribe();
-
     return () => {
       supabase.removeChannel(postsChannel);
       supabase.removeChannel(storiesChannel);
-      supabase.removeChannel(tasksChannel);
-      supabase.removeChannel(milestonesChannel);
     };
-  }, [tasks, milestones]);
+  }, []);
 
   const handleDelete = async (id: string, contentType: string) => {
     try {
-      let table: 'posts' | 'stories' | 'tasks' | 'milestones' = 'posts';
-      if (contentType === 'stories') table = 'stories';
-      else if (contentType === 'task') table = 'tasks';
-      else if (contentType === 'milestone') table = 'milestones';
+      const table: 'posts' | 'stories' = contentType === 'stories' ? 'stories' : 'posts';
       
-      const { error } = await supabase.from(table as any).delete().eq('id', id);
+      const { error } = await supabase.from(table).delete().eq('id', id);
 
       if (error) throw error;
 
-      const itemName = contentType === 'task' ? 'Tarefa' : contentType === 'milestone' ? 'Marco' : 'Publicação';
-      toast.success(`${itemName} eliminado(a) com sucesso`);
+      toast.success('Publicação eliminada com sucesso');
       setSelectedEvent(null);
       fetchScheduledContent();
     } catch (error) {
@@ -201,22 +156,11 @@ const Calendar = () => {
   const handleEventDrop = useCallback(
     async ({ event, start }: { event: CalendarEvent; start: Date }) => {
       try {
-        let table: 'posts' | 'stories' | 'tasks' | 'milestones' = 'posts';
-        let dateField = 'scheduled_date';
-        
-        if (event.resource.content_type === 'stories') {
-          table = 'stories';
-        } else if (event.resource.content_type === 'task') {
-          table = 'tasks';
-          dateField = 'due_date';
-        } else if (event.resource.content_type === 'milestone') {
-          table = 'milestones';
-          dateField = 'due_date';
-        }
+        const table: 'posts' | 'stories' = event.resource.content_type === 'stories' ? 'stories' : 'posts';
         
         const { error } = await supabase
-          .from(table as any)
-          .update({ [dateField]: start.toISOString() })
+          .from(table)
+          .update({ scheduled_date: start.toISOString() })
           .eq('id', event.id);
 
         if (error) throw error;
@@ -239,21 +183,7 @@ const Calendar = () => {
     let backgroundColor;
     let border = 'none';
     
-    if (contentType === 'task') {
-      // Tarefas - cores baseadas em prioridade
-      const priority = event.resource.priority || 'medium';
-      const priorityColors = {
-        urgent: '#EF4444',
-        high: '#F97316',
-        medium: '#3B82F6',
-        low: '#10B981'
-      };
-      backgroundColor = priorityColors[priority];
-    } else if (contentType === 'milestone') {
-      // Marcos - roxo escuro
-      backgroundColor = '#7C3AED';
-      border = '2px solid #6D28D9';
-    } else if (isPublished) {
+    if (isPublished) {
       backgroundColor = '#10B981';
       border = '2px solid #059669';
     } else if (isApproved) {
@@ -280,15 +210,9 @@ const Calendar = () => {
   const filteredEvents = useMemo(() => {
     if (filterType === 'all') return events;
     if (filterType === 'posts') {
-      return events.filter(e => e.resource.content_type !== 'stories' && e.resource.content_type !== 'task' && e.resource.content_type !== 'milestone');
+      return events.filter(e => e.resource.content_type !== 'stories');
     }
-    if (filterType === 'stories') {
-      return events.filter(e => e.resource.content_type === 'stories');
-    }
-    if (filterType === 'tasks') {
-      return events.filter(e => e.resource.content_type === 'task');
-    }
-    return events.filter(e => e.resource.content_type === 'milestone');
+    return events.filter(e => e.resource.content_type === 'stories');
   }, [events, filterType]);
 
   const monthStats = useMemo(() => {
@@ -300,12 +224,10 @@ const Calendar = () => {
       return eventDate >= monthStart && eventDate <= monthEnd;
     });
 
-    const posts = monthEvents.filter(e => e.resource.content_type !== 'stories' && e.resource.content_type !== 'task' && e.resource.content_type !== 'milestone').length;
+    const posts = monthEvents.filter(e => e.resource.content_type !== 'stories').length;
     const stories = monthEvents.filter(e => e.resource.content_type === 'stories').length;
-    const tasksCount = monthEvents.filter(e => e.resource.content_type === 'task').length;
-    const milestonesCount = monthEvents.filter(e => e.resource.content_type === 'milestone').length;
     
-    return { total: monthEvents.length, posts, stories, tasks: tasksCount, milestones: milestonesCount };
+    return { total: monthEvents.length, posts, stories };
   }, [events, currentMonth]);
 
   const CustomEvent = ({ event }: { event: CalendarEvent }) => {
@@ -314,11 +236,7 @@ const Calendar = () => {
     const isApproved = event.resource.status === 'approved';
     
     let icon;
-    if (contentType === 'task') {
-      icon = <CheckSquare className="h-3 w-3 flex-shrink-0" />;
-    } else if (contentType === 'milestone') {
-      icon = <Target className="h-3 w-3 flex-shrink-0" />;
-    } else if (contentType === 'stories') {
+    if (contentType === 'stories') {
       icon = <Video className="h-3 w-3 flex-shrink-0" />;
     } else if (contentType === 'carousel') {
       icon = <LayoutGrid className="h-3 w-3 flex-shrink-0" />;
@@ -343,7 +261,7 @@ const Calendar = () => {
       ? event.resource.story_image_url 
       : event.resource.template_a_images?.[0];
 
-    const showThumbnail = contentType === 'stories' || contentType === 'carousel' || (contentType !== 'task' && contentType !== 'milestone');
+    const showThumbnail = true;
 
     return (
       <div className="flex items-start gap-2.5 group">
@@ -369,7 +287,7 @@ const Calendar = () => {
           <div className="flex items-center gap-1.5 mt-1">
             {icon}
             <span className="text-xs opacity-90">
-              {contentType === 'task' ? 'Tarefa' : contentType === 'milestone' ? 'Marco' : contentType === 'stories' ? 'Story' : contentType === 'carousel' ? 'Carousel' : 'Post'}
+              {contentType === 'stories' ? 'Story' : contentType === 'carousel' ? 'Carousel' : 'Post'}
             </span>
             {isPublished && <span className="ml-1 text-sm">✓</span>}
             {isApproved && !isPublished && <span className="ml-1 text-xs">⏳</span>}
@@ -420,10 +338,10 @@ const Calendar = () => {
                       <div className="h-10 w-10 lg:h-12 lg:w-12 rounded-xl bg-primary/10 flex items-center justify-center flex-shrink-0">
                         <CalendarIcon className="h-5 w-5 lg:h-6 lg:w-6 text-primary" />
                       </div>
-                      <span className="truncate">Calendário</span>
+                      <span className="truncate">Calendário de Conteúdo</span>
                     </h1>
                     <p className="text-sm text-muted-foreground mt-2 ml-12 lg:ml-[60px] hidden sm:block">
-                      Arraste e solte para reagendar • Clique para ver detalhes
+                      Gerencie publicações agendadas • Arraste para reagendar
                     </p>
                   </div>
                   
@@ -522,29 +440,7 @@ const Calendar = () => {
                   </div>
                 </Card>
 
-                <Card className="p-4 lg:p-5 border-2 hover:shadow-md transition-shadow">
-                  <div className="flex items-center justify-between">
-                    <div>
-                      <p className="text-xs sm:text-sm font-medium text-muted-foreground">Tarefas</p>
-                      <p className="text-2xl sm:text-3xl font-bold text-foreground mt-0.5 sm:mt-1">{monthStats.tasks}</p>
-                    </div>
-                    <div className="h-10 w-10 sm:h-12 sm:w-12 rounded-full bg-blue-500/10 flex items-center justify-center flex-shrink-0">
-                      <CheckSquare className="h-5 w-5 sm:h-6 sm:w-6 text-blue-500" />
-                    </div>
-                  </div>
-                </Card>
-
-                <Card className="p-4 lg:p-5 border-2 hover:shadow-md transition-shadow">
-                  <div className="flex items-center justify-between">
-                    <div>
-                      <p className="text-xs sm:text-sm font-medium text-muted-foreground">Marcos</p>
-                      <p className="text-2xl sm:text-3xl font-bold text-foreground mt-0.5 sm:mt-1">{monthStats.milestones}</p>
-                    </div>
-                    <div className="h-10 w-10 sm:h-12 sm:w-12 rounded-full bg-purple-600/10 flex items-center justify-center flex-shrink-0">
-                      <Target className="h-5 w-5 sm:h-6 sm:w-6 text-purple-600" />
-                    </div>
-                  </div>
-                </Card>
+                {/* Espaçamento */}
               </div>
 
               {/* Legend and Filters */}
@@ -575,22 +471,12 @@ const Calendar = () => {
                           <div className="h-4 w-8 rounded" style={{ backgroundColor: '#8B5CF6' }}></div>
                           <span className="text-xs font-medium text-purple-600">📅 Story Agendada</span>
                         </div>
-                        <div className="flex items-center gap-2">
-                          <div className="h-4 w-8 rounded" style={{ backgroundColor: '#3B82F6' }}></div>
-                          <span className="text-xs font-medium text-blue-600">✓ Tarefa</span>
-                        </div>
-                        <div className="flex items-center gap-2">
-                          <div className="h-4 w-8 rounded border-2 border-purple-700" style={{ backgroundColor: '#7C3AED' }}></div>
-                          <span className="text-xs font-medium text-purple-700">🎯 Marco</span>
-                        </div>
                       </div>
                     </div>
                     <div className="pt-2 border-t">
                       <p className="text-xs text-muted-foreground flex items-center gap-1 flex-wrap">
                         <Video className="h-3 w-3" /> = Story • 
-                        <LayoutGrid className="h-3 w-3 ml-1" /> = Carousel • 
-                        <CheckSquare className="h-3 w-3 ml-1" /> = Tarefa • 
-                        <Target className="h-3 w-3 ml-1" /> = Marco
+                        <LayoutGrid className="h-3 w-3 ml-1" /> = Carousel
                       </p>
                     </div>
                   </div>

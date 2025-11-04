@@ -26,6 +26,43 @@ interface Story {
   scheduled_date: string;
 }
 
+// Função auxiliar para incrementar quota
+async function incrementQuota(supabase: any, userId: string, platform: 'instagram' | 'linkedin', postId: string) {
+  try {
+    const { data: override } = await supabase
+      .from('quota_overrides')
+      .select('*')
+      .eq('user_id', userId)
+      .maybeSingle();
+
+    const fieldToUpdate = platform === 'instagram' ? 'instagram_used' : 'linkedin_used';
+
+    if (override) {
+      await supabase
+        .from('quota_overrides')
+        .update({ 
+          [fieldToUpdate]: override[fieldToUpdate] + 1,
+          updated_at: new Date().toISOString()
+        })
+        .eq('user_id', userId);
+    } else {
+      await supabase
+        .from('quota_overrides')
+        .insert({
+          user_id: userId,
+          instagram_used: platform === 'instagram' ? 1 : 0,
+          linkedin_used: platform === 'linkedin' ? 1 : 0,
+          instagram_limit: 5,
+          linkedin_limit: 5,
+        });
+    }
+
+    console.log(`✅ Quota incrementada: ${platform} para user ${userId}`);
+  } catch (error) {
+    console.error('⚠️ Erro ao incrementar quota:', error);
+  }
+}
+
 Deno.serve(async (req) => {
   if (req.method === 'OPTIONS') {
     return new Response(null, { headers: corsHeaders });
@@ -88,10 +125,15 @@ Deno.serve(async (req) => {
         // Update post to remove scheduled_date (mark as sent)
         await supabase
           .from('posts')
-          .update({ scheduled_date: null, status: 'published' })
+          .update({ scheduled_date: null, status: 'published', published_at: new Date().toISOString() })
           .eq('id', post.id);
 
         console.log(`Post ${post.id} marked as published`);
+        
+        // Incrementar quota (Instagram por defeito)
+        if (post.user_id) {
+          await incrementQuota(supabase, post.user_id, 'instagram', post.id);
+        }
       } catch (error) {
         console.error(`Error processing post ${post.id}:`, error);
       }

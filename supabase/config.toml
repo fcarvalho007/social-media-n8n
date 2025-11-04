@@ -14,3 +14,9 @@ verify_jwt = false
 
 [functions.submit-to-n8n]
 verify_jwt = true
+
+[functions.reset-daily-quota]
+verify_jwt = false
+
+[functions.increment-quota]
+verify_jwt = false

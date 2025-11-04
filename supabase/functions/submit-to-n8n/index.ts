@@ -63,6 +63,68 @@ async function sendToWebhook(url: string, payload: SubmitPayload, retries = 3): 
   return false;
 }
 
+// Função auxiliar para validar quota
+async function validateQuota(supabase: any, userId: string, platform: 'instagram' | 'linkedin'): Promise<{ canPublish: boolean; error?: string }> {
+  try {
+    const { data: override } = await supabase
+      .from('quota_overrides')
+      .select('*')
+      .eq('user_id', userId)
+      .maybeSingle();
+
+    if (override) {
+      const used = platform === 'instagram' ? override.instagram_used : override.linkedin_used;
+      const limit = platform === 'instagram' ? override.instagram_limit : override.linkedin_limit;
+      
+      if (limit !== -1 && used >= limit) {
+        return { canPublish: false, error: `Quota ${platform} esgotada: ${used}/${limit}` };
+      }
+    }
+
+    return { canPublish: true };
+  } catch (error) {
+    console.error('⚠️ Erro ao validar quota:', error);
+    return { canPublish: true }; // Permitir em caso de erro
+  }
+}
+
+// Função auxiliar para incrementar quota
+async function incrementQuota(supabase: any, userId: string, platform: 'instagram' | 'linkedin') {
+  try {
+    const { data: override } = await supabase
+      .from('quota_overrides')
+      .select('*')
+      .eq('user_id', userId)
+      .maybeSingle();
+
+    const fieldToUpdate = platform === 'instagram' ? 'instagram_used' : 'linkedin_used';
+
+    if (override) {
+      await supabase
+        .from('quota_overrides')
+        .update({ 
+          [fieldToUpdate]: override[fieldToUpdate] + 1,
+          updated_at: new Date().toISOString()
+        })
+        .eq('user_id', userId);
+    } else {
+      await supabase
+        .from('quota_overrides')
+        .insert({
+          user_id: userId,
+          instagram_used: platform === 'instagram' ? 1 : 0,
+          linkedin_used: platform === 'linkedin' ? 1 : 0,
+          instagram_limit: 5,
+          linkedin_limit: 5,
+        });
+    }
+
+    console.log(`✅ Quota incrementada: ${platform} para user ${userId}`);
+  } catch (error) {
+    console.error('⚠️ Erro ao incrementar quota:', error);
+  }
+}
+
 Deno.serve(async (req) => {
   // Handle CORS preflight
   if (req.method === 'OPTIONS') {
@@ -99,6 +161,16 @@ Deno.serve(async (req) => {
       throw new Error('Invalid platform');
     }
 
+    // Validar quota antes de publicar (apenas se publicação imediata)
+    if (publish_immediately) {
+      const quotaPlatform = platform === 'linkedin' ? 'linkedin' : 'instagram';
+      const quotaCheck = await validateQuota(supabase, user.id, quotaPlatform);
+      
+      if (!quotaCheck.canPublish) {
+        throw new Error(quotaCheck.error || 'Quota esgotada');
+      }
+    }
+
     // Prepare payload
     const payload: SubmitPayload = {
       platform,
@@ -116,6 +188,12 @@ Deno.serve(async (req) => {
 
     if (!success) {
       throw new Error('Failed to submit to N8N after 3 attempts');
+    }
+
+    // Incrementar quota após sucesso (apenas se publicação imediata)
+    if (publish_immediately) {
+      const quotaPlatform = platform === 'linkedin' ? 'linkedin' : 'instagram';
+      await incrementQuota(supabase, user.id, quotaPlatform);
     }
 
     return new Response(
