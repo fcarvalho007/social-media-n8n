@@ -47,88 +47,82 @@ export default function Dashboard() {
             </div>
 
             {/* Linha 0: Custos */}
-            <div className="space-y-3">
-              <h2 className="text-xl font-semibold flex items-center gap-2">
-                <Euro className="h-5 w-5 text-primary" />
-                Custos
-              </h2>
-              <div className="grid gap-4 md:gap-6 grid-cols-1 sm:grid-cols-2 lg:grid-cols-3">
-                <Card className="hover:shadow-lg transition-all duration-300 hover-scale border-l-4 border-l-green-500">
-                  <CardHeader className="flex flex-row items-center justify-between pb-2">
-                    <CardTitle className="text-sm font-medium text-muted-foreground">Stories Gerados</CardTitle>
-                    <FileImage className="h-5 w-5 text-green-500" />
-                  </CardHeader>
-                  <CardContent>
-                    <div className="text-3xl font-bold text-green-600">
-                      {loadingCosts ? '...' : costs.storiesCount}
-                    </div>
-                    <p className="text-xs text-muted-foreground mt-1">
-                      Custo: €0,02/story
+            <Card className="border-primary/20 bg-gradient-to-br from-background to-muted/20">
+              <CardHeader className="pb-3">
+                <div className="flex items-center justify-between">
+                  <CardTitle className="text-lg font-semibold flex items-center gap-2">
+                    <Euro className="h-5 w-5 text-primary" />
+                    Controlo de Custos
+                  </CardTitle>
+                  <div className="text-right">
+                    <p className="text-xs text-muted-foreground">Total Acumulado</p>
+                    <p className="text-xl font-bold text-primary">
+                      {loadingCosts ? '...' : formatCurrency(costs.totalCost)}
                     </p>
-                    <div className="mt-3 pt-3 border-t">
-                      <p className="text-sm font-semibold text-green-600">
-                        Total: {loadingCosts ? '...' : formatCurrency(costs.storiesCost)}
-                      </p>
-                    </div>
-                  </CardContent>
-                </Card>
-
-                <Card className="hover:shadow-lg transition-all duration-300 hover-scale border-l-4 border-l-blue-500">
-                  <CardHeader className="flex flex-row items-center justify-between pb-2">
-                    <CardTitle className="text-sm font-medium text-muted-foreground">Carrosséis Gerados</CardTitle>
-                    <ImagePlus className="h-5 w-5 text-blue-500" />
-                  </CardHeader>
-                  <CardContent>
-                    <div className="text-3xl font-bold text-blue-600">
-                      {loadingCosts ? '...' : costs.carouselsCount}
-                    </div>
-                    <p className="text-xs text-muted-foreground mt-1">
-                      Custo: €0,08/carrossel
-                    </p>
-                    <div className="mt-3 pt-3 border-t">
-                      <p className="text-sm font-semibold text-blue-600">
-                        Total: {loadingCosts ? '...' : formatCurrency(costs.carouselsCost)}
-                      </p>
-                    </div>
-                  </CardContent>
-                </Card>
-
-                <Card className="hover:shadow-lg transition-all duration-300 hover-scale border-l-4 border-l-gray-400">
-                  <CardHeader className="flex flex-row items-center justify-between pb-2">
-                    <CardTitle className="text-sm font-medium text-muted-foreground">Posts Gerados</CardTitle>
-                    <FileText className="h-5 w-5 text-gray-400" />
-                  </CardHeader>
-                  <CardContent>
-                    <div className="text-3xl font-bold text-gray-500">
-                      {loadingCosts ? '...' : costs.postsCount}
-                    </div>
-                    <p className="text-xs text-muted-foreground mt-1">
-                      Em desenvolvimento
-                    </p>
-                    <div className="mt-3 pt-3 border-t">
-                      <Badge variant="secondary" className="text-xs">
-                        Em breve
-                      </Badge>
-                    </div>
-                  </CardContent>
-                </Card>
-              </div>
-
-              {/* Total Geral */}
-              <Card className="bg-gradient-to-br from-primary/10 to-secondary/10 border-primary/20">
-                <CardContent className="pt-6">
-                  <div className="flex items-center justify-between">
-                    <div>
-                      <p className="text-sm font-medium text-muted-foreground">Custo Total Acumulado</p>
-                      <p className="text-3xl font-bold text-primary mt-1">
-                        {loadingCosts ? '...' : formatCurrency(costs.totalCost)}
-                      </p>
-                    </div>
-                    <Euro className="h-12 w-12 text-primary/20" />
                   </div>
-                </CardContent>
-              </Card>
-            </div>
+                </div>
+              </CardHeader>
+              <CardContent>
+                <div className="grid gap-3 md:grid-cols-3">
+                  {/* Stories */}
+                  <div className="flex items-center gap-3 p-3 rounded-lg bg-card border border-border/50 hover:border-green-500/50 transition-colors">
+                    <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-green-500/10">
+                      <FileImage className="h-5 w-5 text-green-500" />
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <p className="text-xs text-muted-foreground">Stories Gerados</p>
+                      <div className="flex items-baseline gap-2">
+                        <p className="text-2xl font-bold text-foreground">
+                          {loadingCosts ? '...' : costs.storiesCount}
+                        </p>
+                        <p className="text-xs text-green-600 font-medium">
+                          {loadingCosts ? '...' : formatCurrency(costs.storiesCost)}
+                        </p>
+                      </div>
+                      <p className="text-xs text-muted-foreground">€0,02/un</p>
+                    </div>
+                  </div>
+
+                  {/* Carrosséis */}
+                  <div className="flex items-center gap-3 p-3 rounded-lg bg-card border border-border/50 hover:border-blue-500/50 transition-colors">
+                    <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-blue-500/10">
+                      <ImagePlus className="h-5 w-5 text-blue-500" />
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <p className="text-xs text-muted-foreground">Carrosséis Gerados</p>
+                      <div className="flex items-baseline gap-2">
+                        <p className="text-2xl font-bold text-foreground">
+                          {loadingCosts ? '...' : costs.carouselsCount}
+                        </p>
+                        <p className="text-xs text-blue-600 font-medium">
+                          {loadingCosts ? '...' : formatCurrency(costs.carouselsCost)}
+                        </p>
+                      </div>
+                      <p className="text-xs text-muted-foreground">€0,08/un</p>
+                    </div>
+                  </div>
+
+                  {/* Posts */}
+                  <div className="flex items-center gap-3 p-3 rounded-lg bg-card border border-border/50 opacity-60">
+                    <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-muted">
+                      <FileText className="h-5 w-5 text-muted-foreground" />
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <p className="text-xs text-muted-foreground">Posts Gerados</p>
+                      <div className="flex items-baseline gap-2">
+                        <p className="text-2xl font-bold text-foreground">
+                          {loadingCosts ? '...' : costs.postsCount}
+                        </p>
+                        <Badge variant="secondary" className="text-xs h-5">
+                          Em breve
+                        </Badge>
+                      </div>
+                      <p className="text-xs text-muted-foreground">Em desenvolvimento</p>
+                    </div>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
 
             {/* Linha 1: Conteúdos */}
             <div className="space-y-3">
