@@ -1,13 +1,14 @@
 import { useProjects } from '@/hooks/useProjects';
 import { usePendingCounts } from '@/hooks/usePendingCounts';
 import { useScheduledCounts } from '@/hooks/useScheduledCounts';
+import { useCostTracking } from '@/hooks/useCostTracking';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { SidebarProvider, SidebarInset } from '@/components/ui/sidebar';
 import { AppSidebar } from '@/components/AppSidebar';
 import { DashboardHeader } from '@/components/DashboardHeader';
-import { FileImage, ImagePlus, FileText, Calendar as CalendarIcon, TrendingUp, ArrowRight, FolderKanban, Clock, AlertCircle } from 'lucide-react';
+import { FileImage, ImagePlus, FileText, Calendar as CalendarIcon, TrendingUp, ArrowRight, FolderKanban, Clock, AlertCircle, Euro } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { format } from 'date-fns';
 import { pt } from 'date-fns/locale';
@@ -16,6 +17,7 @@ export default function Dashboard() {
   const { projects } = useProjects();
   const { counts: pendingCounts, loading: loadingPending } = usePendingCounts();
   const { counts: scheduledCounts, loading: loadingScheduled } = useScheduledCounts();
+  const { costs, loading: loadingCosts } = useCostTracking();
   const navigate = useNavigate();
 
   const activeProjects = projects.filter((p) => p.status === 'active').length;
@@ -28,6 +30,9 @@ export default function Dashboard() {
   
   const currentMonth = format(new Date(), 'MMMM', { locale: pt });
 
+  // Formatar valores de custo
+  const formatCurrency = (value: number) => `€${value.toFixed(2)}`;
+
   return (
     <SidebarProvider>
       <div className="flex min-h-screen w-full">
@@ -39,6 +44,90 @@ export default function Dashboard() {
             <div className="space-y-2">
               <h1 className="text-3xl md:text-4xl font-bold tracking-tight">Dashboard</h1>
               <p className="text-muted-foreground">Visão geral dos seus conteúdos e projetos</p>
+            </div>
+
+            {/* Linha 0: Custos */}
+            <div className="space-y-3">
+              <h2 className="text-xl font-semibold flex items-center gap-2">
+                <Euro className="h-5 w-5 text-primary" />
+                Custos
+              </h2>
+              <div className="grid gap-4 md:gap-6 grid-cols-1 sm:grid-cols-2 lg:grid-cols-3">
+                <Card className="hover:shadow-lg transition-all duration-300 hover-scale border-l-4 border-l-green-500">
+                  <CardHeader className="flex flex-row items-center justify-between pb-2">
+                    <CardTitle className="text-sm font-medium text-muted-foreground">Stories Gerados</CardTitle>
+                    <FileImage className="h-5 w-5 text-green-500" />
+                  </CardHeader>
+                  <CardContent>
+                    <div className="text-3xl font-bold text-green-600">
+                      {loadingCosts ? '...' : costs.storiesCount}
+                    </div>
+                    <p className="text-xs text-muted-foreground mt-1">
+                      Custo: €0,02/story
+                    </p>
+                    <div className="mt-3 pt-3 border-t">
+                      <p className="text-sm font-semibold text-green-600">
+                        Total: {loadingCosts ? '...' : formatCurrency(costs.storiesCost)}
+                      </p>
+                    </div>
+                  </CardContent>
+                </Card>
+
+                <Card className="hover:shadow-lg transition-all duration-300 hover-scale border-l-4 border-l-blue-500">
+                  <CardHeader className="flex flex-row items-center justify-between pb-2">
+                    <CardTitle className="text-sm font-medium text-muted-foreground">Carrosséis Gerados</CardTitle>
+                    <ImagePlus className="h-5 w-5 text-blue-500" />
+                  </CardHeader>
+                  <CardContent>
+                    <div className="text-3xl font-bold text-blue-600">
+                      {loadingCosts ? '...' : costs.carouselsCount}
+                    </div>
+                    <p className="text-xs text-muted-foreground mt-1">
+                      Custo: €0,08/carrossel
+                    </p>
+                    <div className="mt-3 pt-3 border-t">
+                      <p className="text-sm font-semibold text-blue-600">
+                        Total: {loadingCosts ? '...' : formatCurrency(costs.carouselsCost)}
+                      </p>
+                    </div>
+                  </CardContent>
+                </Card>
+
+                <Card className="hover:shadow-lg transition-all duration-300 hover-scale border-l-4 border-l-gray-400">
+                  <CardHeader className="flex flex-row items-center justify-between pb-2">
+                    <CardTitle className="text-sm font-medium text-muted-foreground">Posts Gerados</CardTitle>
+                    <FileText className="h-5 w-5 text-gray-400" />
+                  </CardHeader>
+                  <CardContent>
+                    <div className="text-3xl font-bold text-gray-500">
+                      {loadingCosts ? '...' : costs.postsCount}
+                    </div>
+                    <p className="text-xs text-muted-foreground mt-1">
+                      Em desenvolvimento
+                    </p>
+                    <div className="mt-3 pt-3 border-t">
+                      <Badge variant="secondary" className="text-xs">
+                        Em breve
+                      </Badge>
+                    </div>
+                  </CardContent>
+                </Card>
+              </div>
+
+              {/* Total Geral */}
+              <Card className="bg-gradient-to-br from-primary/10 to-secondary/10 border-primary/20">
+                <CardContent className="pt-6">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <p className="text-sm font-medium text-muted-foreground">Custo Total Acumulado</p>
+                      <p className="text-3xl font-bold text-primary mt-1">
+                        {loadingCosts ? '...' : formatCurrency(costs.totalCost)}
+                      </p>
+                    </div>
+                    <Euro className="h-12 w-12 text-primary/20" />
+                  </div>
+                </CardContent>
+              </Card>
             </div>
 
             {/* Linha 1: Conteúdos */}
