@@ -261,27 +261,36 @@ const Calendar = () => {
       ? event.resource.story_image_url 
       : event.resource.template_a_images?.[0];
 
-    const showThumbnail = true;
-
     return (
       <div className="flex items-start gap-2.5 group">
-        {showThumbnail ? (
-          thumbnailUrl ? (
-            <img 
-              src={thumbnailUrl} 
-              alt={String(event.title || '')}
-              className="w-16 h-16 sm:w-20 sm:h-20 object-cover rounded-lg shadow-sm flex-shrink-0"
-            />
+        <div className="relative flex-shrink-0">
+          {thumbnailUrl ? (
+            <>
+              <img 
+                src={thumbnailUrl} 
+                alt={String(event.title || '')}
+                className="w-16 h-16 sm:w-20 sm:h-20 object-cover rounded-lg shadow-sm"
+                onError={(e) => {
+                  const target = e.currentTarget;
+                  target.style.display = 'none';
+                  if (target.nextElementSibling) {
+                    (target.nextElementSibling as HTMLElement).style.display = 'flex';
+                  }
+                }}
+              />
+              <div 
+                className="w-16 h-16 sm:w-20 sm:h-20 bg-white/20 rounded-lg items-center justify-center"
+                style={{ display: 'none' }}
+              >
+                {icon}
+              </div>
+            </>
           ) : (
-            <div className="w-16 h-16 sm:w-20 sm:h-20 bg-white/20 rounded-lg flex items-center justify-center flex-shrink-0">
+            <div className="w-16 h-16 sm:w-20 sm:h-20 bg-white/20 rounded-lg flex items-center justify-center">
               {icon}
             </div>
-          )
-        ) : (
-          <div className="w-12 h-12 bg-white/20 rounded-lg flex items-center justify-center flex-shrink-0">
-            {icon}
-          </div>
-        )}
+          )}
+        </div>
         <div className="flex-1 min-w-0">
           <div className="text-sm font-semibold truncate leading-tight">{event.title}</div>
           <div className="flex items-center gap-1.5 mt-1">
@@ -404,38 +413,38 @@ const Calendar = () => {
 
               {/* Stats Cards */}
               <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3 lg:gap-4">
-                <Card className="p-4 lg:p-5 border-2 hover:shadow-md transition-shadow">
+                <Card className="p-4 lg:p-5 bg-gradient-to-br from-primary/5 to-primary/10 border-primary/20 border-2 hover:shadow-lg hover:shadow-primary/10 transition-all">
                   <div className="flex items-center justify-between">
                     <div>
-                      <p className="text-xs sm:text-sm font-medium text-muted-foreground">Total</p>
-                      <p className="text-2xl sm:text-3xl font-bold text-foreground mt-0.5 sm:mt-1">{monthStats.total}</p>
+                      <p className="text-xs sm:text-sm font-semibold text-primary/70">Total</p>
+                      <p className="text-2xl sm:text-3xl font-bold bg-gradient-to-r from-primary to-primary/80 bg-clip-text text-transparent mt-0.5 sm:mt-1">{monthStats.total}</p>
                     </div>
-                    <div className="h-10 w-10 sm:h-12 sm:w-12 rounded-full bg-primary/10 flex items-center justify-center flex-shrink-0">
-                      <TrendingUp className="h-5 w-5 sm:h-6 sm:w-6 text-primary" />
+                    <div className="h-10 w-10 sm:h-12 sm:w-12 rounded-xl bg-gradient-to-br from-primary to-primary/80 flex items-center justify-center flex-shrink-0 shadow-lg shadow-primary/25">
+                      <TrendingUp className="h-5 w-5 sm:h-6 sm:w-6 text-white" />
                     </div>
                   </div>
                 </Card>
 
-                <Card className="p-4 lg:p-5 border-2 hover:shadow-md transition-shadow">
+                <Card className="p-4 lg:p-5 bg-gradient-to-br from-blue-50 to-blue-100 border-blue-200 border-2 hover:shadow-lg hover:shadow-blue-200/50 transition-all">
                   <div className="flex items-center justify-between">
                     <div>
-                      <p className="text-xs sm:text-sm font-medium text-muted-foreground">Posts</p>
-                      <p className="text-2xl sm:text-3xl font-bold text-foreground mt-0.5 sm:mt-1">{monthStats.posts}</p>
+                      <p className="text-xs sm:text-sm font-semibold text-blue-600/70">Posts</p>
+                      <p className="text-2xl sm:text-3xl font-bold text-blue-600 mt-0.5 sm:mt-1">{monthStats.posts}</p>
                     </div>
-                    <div className="h-10 w-10 sm:h-12 sm:w-12 rounded-full bg-[#4169A0]/10 flex items-center justify-center flex-shrink-0">
-                      <LayoutGrid className="h-5 w-5 sm:h-6 sm:w-6 text-[#4169A0]" />
+                    <div className="h-10 w-10 sm:h-12 sm:w-12 rounded-xl bg-gradient-to-br from-blue-500 to-blue-600 flex items-center justify-center flex-shrink-0 shadow-lg shadow-blue-400/30">
+                      <LayoutGrid className="h-5 w-5 sm:h-6 sm:w-6 text-white" />
                     </div>
                   </div>
                 </Card>
 
-                <Card className="p-4 lg:p-5 border-2 hover:shadow-md transition-shadow">
+                <Card className="p-4 lg:p-5 bg-gradient-to-br from-purple-50 to-purple-100 border-purple-200 border-2 hover:shadow-lg hover:shadow-purple-200/50 transition-all">
                   <div className="flex items-center justify-between">
                     <div>
-                      <p className="text-xs sm:text-sm font-medium text-muted-foreground">Stories</p>
-                      <p className="text-2xl sm:text-3xl font-bold text-foreground mt-0.5 sm:mt-1">{monthStats.stories}</p>
+                      <p className="text-xs sm:text-sm font-semibold text-purple-600/70">Stories</p>
+                      <p className="text-2xl sm:text-3xl font-bold text-purple-600 mt-0.5 sm:mt-1">{monthStats.stories}</p>
                     </div>
-                    <div className="h-10 w-10 sm:h-12 sm:w-12 rounded-full bg-[#8B5CF6]/10 flex items-center justify-center flex-shrink-0">
-                      <Video className="h-5 w-5 sm:h-6 sm:w-6 text-[#8B5CF6]" />
+                    <div className="h-10 w-10 sm:h-12 sm:w-12 rounded-xl bg-gradient-to-br from-purple-500 to-purple-600 flex items-center justify-center flex-shrink-0 shadow-lg shadow-purple-400/30">
+                      <Video className="h-5 w-5 sm:h-6 sm:w-6 text-white" />
                     </div>
                   </div>
                 </Card>

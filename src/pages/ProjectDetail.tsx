@@ -145,48 +145,13 @@ export default function ProjectDetail() {
       </div>
 
       {/* Tabs */}
-      <Tabs defaultValue="overview" className="space-y-6">
+      <Tabs defaultValue="tasks" className="space-y-6">
         <TabsList>
-          <TabsTrigger value="overview">Visão Geral</TabsTrigger>
           <TabsTrigger value="tasks">Tarefas</TabsTrigger>
           <TabsTrigger value="milestones">Marcos</TabsTrigger>
           <TabsTrigger value="timeline">Timeline</TabsTrigger>
           <TabsTrigger value="activity">Atividade</TabsTrigger>
         </TabsList>
-
-        <TabsContent value="overview" className="space-y-6">
-          {/* Description */}
-          {project.description && (
-            <Card className="p-6">
-              <h2 className="text-xl font-semibold mb-4">Descrição</h2>
-              <p className="text-muted-foreground whitespace-pre-wrap">
-                {project.description}
-              </p>
-            </Card>
-          )}
-
-          {/* Metrics */}
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-            <Card className="p-6">
-              <div className="text-3xl font-bold text-primary">{tasks.length}</div>
-              <p className="text-sm text-muted-foreground mt-1">Total de tarefas</p>
-            </Card>
-            <Card className="p-6">
-              <div className="text-3xl font-bold text-success">{completionPercentage}%</div>
-              <p className="text-sm text-muted-foreground mt-1">Tarefas concluídas</p>
-            </Card>
-            {daysRemaining !== null && (
-              <Card className="p-6">
-                <div className="text-3xl font-bold text-warning">{daysRemaining}</div>
-                <p className="text-sm text-muted-foreground mt-1">Dias restantes</p>
-              </Card>
-            )}
-            <Card className="p-6">
-              <div className="text-3xl font-bold text-accent">2</div>
-              <p className="text-sm text-muted-foreground mt-1">Membros da equipa</p>
-            </Card>
-          </div>
-        </TabsContent>
 
         <TabsContent value="tasks" className="space-y-4">
           <div className="flex justify-between items-center">

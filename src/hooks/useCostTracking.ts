@@ -40,16 +40,19 @@ export function useCostTracking() {
           .select('*', { count: 'exact', head: true });
 
         // Contar TODOS os carrosséis que entraram na plataforma
+        // Incluir posts onde content_type é 'carousel' OU é null (por defeito é carousel)
         const { count: carouselsCount } = await supabase
           .from('posts')
           .select('*', { count: 'exact', head: true })
-          .eq('content_type', 'carousel');
+          .or('content_type.eq.carousel,content_type.is.null');
 
         // Contar TODOS os posts (não carrosséis) que entraram na plataforma
+        // Posts são aqueles que explicitamente NÃO são carrosséis (excluir null porque null = carousel por defeito)
         const { count: postsCount } = await supabase
           .from('posts')
           .select('*', { count: 'exact', head: true })
-          .neq('content_type', 'carousel');
+          .not('content_type', 'in', '(carousel)')
+          .not('content_type', 'is', null);
 
         if (mounted) {
           const stories = storiesCount || 0;
