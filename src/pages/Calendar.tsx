@@ -412,44 +412,42 @@ const Calendar = () => {
                 </div>
 
               {/* Stats Cards */}
-              <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3 lg:gap-4">
-                <Card className="p-4 lg:p-5 bg-gradient-to-br from-primary/5 to-primary/10 border-primary/20 border-2 hover:shadow-lg hover:shadow-primary/10 transition-all">
-                  <div className="flex items-center justify-between">
+              <div className="grid grid-cols-3 gap-3 lg:gap-4">
+                <Card className="p-3 lg:p-4 bg-gradient-to-br from-primary/5 to-primary/10 border-primary/20 border-2 hover:shadow-lg hover:shadow-primary/10 transition-all">
+                  <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
                     <div>
-                      <p className="text-xs sm:text-sm font-semibold text-primary/70">Total</p>
-                      <p className="text-2xl sm:text-3xl font-bold bg-gradient-to-r from-primary to-primary/80 bg-clip-text text-transparent mt-0.5 sm:mt-1">{monthStats.total}</p>
+                      <p className="text-xs font-semibold text-primary/70">Total</p>
+                      <p className="text-xl sm:text-2xl font-bold bg-gradient-to-r from-primary to-primary/80 bg-clip-text text-transparent">{monthStats.total}</p>
                     </div>
-                    <div className="h-10 w-10 sm:h-12 sm:w-12 rounded-xl bg-gradient-to-br from-primary to-primary/80 flex items-center justify-center flex-shrink-0 shadow-lg shadow-primary/25">
-                      <TrendingUp className="h-5 w-5 sm:h-6 sm:w-6 text-white" />
+                    <div className="h-8 w-8 sm:h-10 sm:w-10 rounded-lg bg-gradient-to-br from-primary to-primary/80 flex items-center justify-center shadow-md shadow-primary/25">
+                      <TrendingUp className="h-4 w-4 sm:h-5 sm:w-5 text-white" />
                     </div>
                   </div>
                 </Card>
 
-                <Card className="p-4 lg:p-5 bg-gradient-to-br from-blue-50 to-blue-100 border-blue-200 border-2 hover:shadow-lg hover:shadow-blue-200/50 transition-all">
-                  <div className="flex items-center justify-between">
+                <Card className="p-3 lg:p-4 bg-gradient-to-br from-blue-50 to-blue-100 border-blue-200 border-2 hover:shadow-lg hover:shadow-blue-200/50 transition-all">
+                  <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
                     <div>
-                      <p className="text-xs sm:text-sm font-semibold text-blue-600/70">Posts</p>
-                      <p className="text-2xl sm:text-3xl font-bold text-blue-600 mt-0.5 sm:mt-1">{monthStats.posts}</p>
+                      <p className="text-xs font-semibold text-blue-600/70">Posts</p>
+                      <p className="text-xl sm:text-2xl font-bold text-blue-600">{monthStats.posts}</p>
                     </div>
-                    <div className="h-10 w-10 sm:h-12 sm:w-12 rounded-xl bg-gradient-to-br from-blue-500 to-blue-600 flex items-center justify-center flex-shrink-0 shadow-lg shadow-blue-400/30">
-                      <LayoutGrid className="h-5 w-5 sm:h-6 sm:w-6 text-white" />
+                    <div className="h-8 w-8 sm:h-10 sm:w-10 rounded-lg bg-gradient-to-br from-blue-500 to-blue-600 flex items-center justify-center shadow-md shadow-blue-400/30">
+                      <LayoutGrid className="h-4 w-4 sm:h-5 sm:w-5 text-white" />
                     </div>
                   </div>
                 </Card>
 
-                <Card className="p-4 lg:p-5 bg-gradient-to-br from-purple-50 to-purple-100 border-purple-200 border-2 hover:shadow-lg hover:shadow-purple-200/50 transition-all">
-                  <div className="flex items-center justify-between">
+                <Card className="p-3 lg:p-4 bg-gradient-to-br from-purple-50 to-purple-100 border-purple-200 border-2 hover:shadow-lg hover:shadow-purple-200/50 transition-all">
+                  <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
                     <div>
-                      <p className="text-xs sm:text-sm font-semibold text-purple-600/70">Stories</p>
-                      <p className="text-2xl sm:text-3xl font-bold text-purple-600 mt-0.5 sm:mt-1">{monthStats.stories}</p>
+                      <p className="text-xs font-semibold text-purple-600/70">Stories</p>
+                      <p className="text-xl sm:text-2xl font-bold text-purple-600">{monthStats.stories}</p>
                     </div>
-                    <div className="h-10 w-10 sm:h-12 sm:w-12 rounded-xl bg-gradient-to-br from-purple-500 to-purple-600 flex items-center justify-center flex-shrink-0 shadow-lg shadow-purple-400/30">
-                      <Video className="h-5 w-5 sm:h-6 sm:w-6 text-white" />
+                    <div className="h-8 w-8 sm:h-10 sm:w-10 rounded-lg bg-gradient-to-br from-purple-500 to-purple-600 flex items-center justify-center shadow-md shadow-purple-400/30">
+                      <Video className="h-4 w-4 sm:h-5 sm:w-5 text-white" />
                     </div>
                   </div>
                 </Card>
-
-                {/* Espaçamento */}
               </div>
 
               {/* Legend and Filters */}

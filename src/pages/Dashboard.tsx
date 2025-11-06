@@ -39,24 +39,26 @@ export default function Dashboard() {
         <AppSidebar />
         <SidebarInset className="flex-1">
           <DashboardHeader />
-          <main className="flex-1 p-4 md:p-6 space-y-8 animate-fade-in">
+          <main className="flex-1 p-4 md:p-6 space-y-6 animate-fade-in bg-gradient-to-br from-background via-background to-muted/10">
             {/* Hero Section */}
-            <div className="space-y-2">
-              <h1 className="text-3xl md:text-4xl font-bold tracking-tight">Dashboard</h1>
-              <p className="text-muted-foreground">Visão geral dos seus conteúdos e projetos</p>
+            <div className="space-y-2 pb-2 border-b border-border/50">
+              <h1 className="text-3xl md:text-4xl font-bold tracking-tight bg-gradient-to-r from-primary via-primary to-primary/70 bg-clip-text text-transparent">Dashboard</h1>
+              <p className="text-muted-foreground text-sm">Visão geral dos seus conteúdos e projetos</p>
             </div>
 
             {/* Linha 0: Custos */}
-            <Card className="border-primary/20 bg-gradient-to-br from-background to-muted/20">
-              <CardHeader className="pb-3">
+            <Card className="border-2 border-primary/20 bg-gradient-to-br from-primary/[0.02] via-background to-secondary/[0.02] shadow-lg">
+              <CardHeader className="pb-3 border-b border-border/50">
                 <div className="flex items-center justify-between">
-                  <CardTitle className="text-lg font-semibold flex items-center gap-2">
-                    <Euro className="h-5 w-5 text-primary" />
+                  <CardTitle className="text-base font-bold flex items-center gap-2.5">
+                    <div className="h-10 w-10 rounded-xl bg-gradient-to-br from-primary to-primary/80 flex items-center justify-center shadow-lg shadow-primary/20">
+                      <Euro className="h-5 w-5 text-white" />
+                    </div>
                     Controlo de Custos
                   </CardTitle>
-                  <div className="text-right">
-                    <p className="text-xs text-muted-foreground">Total Acumulado</p>
-                    <p className="text-xl font-bold text-primary">
+                  <div className="text-right px-4 py-2 rounded-lg bg-primary/5 border border-primary/20">
+                    <p className="text-[10px] font-semibold text-primary/70 uppercase tracking-wide">Total Acumulado</p>
+                    <p className="text-2xl font-bold bg-gradient-to-r from-primary to-primary/70 bg-clip-text text-transparent">
                       {loadingCosts ? '...' : formatCurrency(costs.totalCost)}
                     </p>
                   </div>
@@ -125,13 +127,15 @@ export default function Dashboard() {
             </Card>
 
             {/* Linha 1: Conteúdos */}
-            <div className="space-y-3">
-              <h2 className="text-xl font-semibold flex items-center gap-2">
-                <FileImage className="h-5 w-5 text-primary" />
-                Conteúdos
-              </h2>
-              <div className="grid gap-4 md:gap-6 grid-cols-1 sm:grid-cols-2 lg:grid-cols-3">
-                <Card className="hover:shadow-lg transition-all duration-300 hover-scale border-l-4 border-l-primary">
+            <div className="space-y-4">
+              <div className="flex items-center gap-3 pb-2 border-b border-border/30">
+                <div className="h-8 w-8 rounded-lg bg-gradient-to-br from-primary to-primary/80 flex items-center justify-center shadow-md">
+                  <FileImage className="h-4 w-4 text-white" />
+                </div>
+                <h2 className="text-lg font-bold text-foreground">Conteúdos</h2>
+              </div>
+              <div className="grid gap-4 md:gap-5 grid-cols-1 sm:grid-cols-2 lg:grid-cols-3">
+                <Card className="group hover:shadow-xl transition-all duration-300 hover:-translate-y-1 border-2 border-transparent hover:border-primary/20 bg-gradient-to-br from-card to-primary/[0.02]">
                   <CardHeader className="flex flex-row items-center justify-between pb-2">
                     <CardTitle className="text-sm font-medium text-muted-foreground">Stories por Aprovar/Agendar</CardTitle>
                     <FileImage className="h-5 w-5 text-primary" />
@@ -197,13 +201,15 @@ export default function Dashboard() {
             </div>
 
             {/* Linha 2: Calendário */}
-            <div className="space-y-3">
-              <h2 className="text-xl font-semibold flex items-center gap-2">
-                <CalendarIcon className="h-5 w-5 text-primary" />
-                Calendário
-              </h2>
-              <div className="grid gap-4 md:gap-6 grid-cols-1 sm:grid-cols-2 lg:grid-cols-3">
-                <Card className="hover:shadow-lg transition-all duration-300 hover-scale border-l-4 border-l-success">
+            <div className="space-y-4">
+              <div className="flex items-center gap-3 pb-2 border-b border-border/30">
+                <div className="h-8 w-8 rounded-lg bg-gradient-to-br from-primary to-primary/80 flex items-center justify-center shadow-md">
+                  <CalendarIcon className="h-4 w-4 text-white" />
+                </div>
+                <h2 className="text-lg font-bold text-foreground">Calendário</h2>
+              </div>
+              <div className="grid gap-4 md:gap-5 grid-cols-1 sm:grid-cols-2 lg:grid-cols-3">
+                <Card className="group hover:shadow-xl transition-all duration-300 hover:-translate-y-1 border-2 border-transparent hover:border-success/20 bg-gradient-to-br from-card to-success/[0.02]">
                   <CardHeader className="flex flex-row items-center justify-between pb-2">
                     <CardTitle className="text-sm font-medium text-muted-foreground">Posts agendados para hoje</CardTitle>
                     <CalendarIcon className="h-5 w-5 text-success" />
@@ -271,13 +277,15 @@ export default function Dashboard() {
             </div>
 
             {/* Linha 3: Projetos */}
-            <div className="space-y-3">
-              <h2 className="text-xl font-semibold flex items-center gap-2">
-                <FolderKanban className="h-5 w-5 text-primary" />
-                Projetos
-              </h2>
-              <div className="grid gap-4 md:gap-6 grid-cols-1 sm:grid-cols-2 lg:grid-cols-3">
-                <Card className="hover:shadow-lg transition-all duration-300 hover-scale border-l-4 border-l-primary">
+            <div className="space-y-4">
+              <div className="flex items-center gap-3 pb-2 border-b border-border/30">
+                <div className="h-8 w-8 rounded-lg bg-gradient-to-br from-primary to-primary/80 flex items-center justify-center shadow-md">
+                  <FolderKanban className="h-4 w-4 text-white" />
+                </div>
+                <h2 className="text-lg font-bold text-foreground">Projetos</h2>
+              </div>
+              <div className="grid gap-4 md:gap-5 grid-cols-1 sm:grid-cols-2 lg:grid-cols-3">
+                <Card className="group hover:shadow-xl transition-all duration-300 hover:-translate-y-1 border-2 border-transparent hover:border-primary/20 bg-gradient-to-br from-card to-primary/[0.02]">
                   <CardHeader className="flex flex-row items-center justify-between pb-2">
                     <CardTitle className="text-sm font-medium text-muted-foreground">Projetos Ativos</CardTitle>
                     <FolderKanban className="h-5 w-5 text-primary" />
@@ -340,20 +348,22 @@ export default function Dashboard() {
             </div>
 
             {/* Linha 4: Projetos Recentes */}
-            <div className="space-y-3">
-              <div className="flex items-center justify-between">
-                <h2 className="text-xl font-semibold flex items-center gap-2">
-                  <TrendingUp className="h-5 w-5 text-primary" />
-                  Projetos Recentes
-                </h2>
+            <div className="space-y-4">
+              <div className="flex items-center justify-between pb-2 border-b border-border/30">
+                <div className="flex items-center gap-3">
+                  <div className="h-8 w-8 rounded-lg bg-gradient-to-br from-primary to-primary/80 flex items-center justify-center shadow-md">
+                    <TrendingUp className="h-4 w-4 text-white" />
+                  </div>
+                  <h2 className="text-lg font-bold text-foreground">Projetos Recentes</h2>
+                </div>
                 <Button 
                   variant="ghost" 
                   size="sm" 
                   onClick={() => navigate('/projects')}
-                  className="hover:text-primary"
+                  className="hover:text-primary hover:bg-primary/5 gap-2"
                 >
-                  Ver todos
-                  <ArrowRight className="ml-2 h-4 w-4" />
+                  <span className="text-xs font-semibold">Ver todos</span>
+                  <ArrowRight className="h-3.5 w-3.5" />
                 </Button>
               </div>
 
