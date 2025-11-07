@@ -259,15 +259,15 @@ export const ActionBar = ({
         </div>
         
         {/* Action buttons */}
-        <div className="p-3 md:p-4 lg:p-5">
-          <div className="container flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between px-2 md:px-4 max-w-6xl mx-auto">
+        <div className="p-4 md:p-5 lg:p-6">
+          <div className="container flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between px-2 md:px-4 max-w-6xl mx-auto">
           {isApproved ? (
             <Button
               variant="outline"
               size="lg"
               onClick={handleRevertToPending}
               disabled={loading}
-              className="sm:w-auto w-full min-h-[52px] md:min-h-[56px] text-base md:text-lg touch-feedback transition-all duration-150"
+              className="sm:w-auto w-full h-12 md:h-14 text-base md:text-lg touch-feedback transition-all duration-150 font-semibold"
             >
               {loading ? <Loader2 className="mr-2 h-5 w-5 animate-spin" /> : <AlertCircle className="mr-2 h-5 w-5" />}
               <span>Voltar a Pendentes</span>
@@ -278,7 +278,7 @@ export const ActionBar = ({
               size="lg"
               onClick={() => setShowRejectDialog(true)}
               disabled={loading}
-              className="sm:w-auto w-full min-h-[52px] md:min-h-[56px] text-base md:text-lg touch-feedback transition-all duration-150"
+              className="sm:w-auto w-full h-12 md:h-14 text-base md:text-lg touch-feedback transition-all duration-150 font-semibold"
             >
               {loading ? <Loader2 className="mr-2 h-5 w-5 animate-spin" /> : <Trash2 className="mr-2 h-5 w-5" />}
               <span>Rejeitar</span>
@@ -291,21 +291,21 @@ export const ActionBar = ({
               size="lg"
               onClick={handleSave}
               disabled={loading}
-              className="flex-1 sm:flex-initial min-h-[52px] md:min-h-[56px] text-base md:text-lg touch-feedback transition-all duration-150 focus:ring-2 focus:ring-primary/40"
+              className="flex-1 sm:flex-initial h-12 md:h-14 text-base md:text-lg touch-feedback transition-all duration-150 focus:ring-2 focus:ring-primary/40 font-semibold"
             >
               {loading ? <Loader2 className="mr-2 h-5 w-5 animate-spin" /> : <Save className="mr-2 h-5 w-5" />}
               <span>Guardar</span>
             </Button>
           </div>
 
-          <div className="flex gap-2 md:gap-3 sm:w-auto w-full">
+          <div className="flex gap-3 sm:w-auto w-full">
             <div className="relative flex-1 sm:flex-initial">
               <Button
                 size="lg"
                 onClick={handleApproveNow}
                 disabled={!canApprove || loading || ((publishTargets.instagram || publishTargets.linkedin) && !instagramCanPublish)}
                 className={cn(
-                  "w-full min-h-[52px] md:min-h-[56px] text-base md:text-lg touch-feedback transition-all duration-150 relative focus:ring-2 focus:ring-primary/40",
+                  "w-full h-12 md:h-14 text-base md:text-lg touch-feedback transition-all duration-150 relative focus:ring-2 focus:ring-primary/40 font-semibold",
                   canApprove && "bg-success hover:bg-success/90 shadow-sm"
                 )}
                 title={
@@ -318,12 +318,12 @@ export const ActionBar = ({
                 aria-label={approveConfig.label}
               >
                 {loading ? <Loader2 className="mr-2 h-5 w-5 animate-spin" /> : approveConfig.icon}
-                <span className="truncate pr-14 md:pr-16">{approveConfig.label}</span>
+                <span className="truncate pr-16">{approveConfig.label}</span>
                 {(publishTargets.instagram || publishTargets.linkedin) && (
                   <Badge 
                     variant="secondary" 
                     className={cn(
-                      "font-mono text-xs absolute right-2 md:right-3",
+                      "font-mono text-xs absolute right-3",
                       !instagramCanPublish && "bg-red-500/20 text-red-100"
                     )}
                   >
@@ -337,11 +337,11 @@ export const ActionBar = ({
               variant="outline"
               onClick={() => setShowScheduleDialog(true)}
               disabled={!canApprove || loading}
-              className="min-h-[52px] min-w-[52px] md:min-h-[56px] md:min-w-[56px] px-4 touch-feedback transition-all duration-150 focus:ring-2 focus:ring-primary/40"
+              className="h-12 w-12 md:h-14 md:w-14 p-0 touch-feedback transition-all duration-150 focus:ring-2 focus:ring-primary/40"
               title={!canApprove ? disabledReason : 'Agendar publicação'}
               aria-label="Agendar publicação"
             >
-              <Clock className="h-5 w-5" />
+              <Clock className="h-6 w-6" />
             </Button>
           </div>
         </div>

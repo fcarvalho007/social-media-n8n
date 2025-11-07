@@ -193,6 +193,12 @@ const Pending = () => {
   const showPosts = contentTypeFilter === 'all' || contentTypeFilter === 'carousel' || contentTypeFilter === 'post';
   const showStories = contentTypeFilter === 'all' || contentTypeFilter === 'stories';
 
+  // Combine and sort all content by created_at (most recent first)
+  const allContent = [
+    ...filteredPosts.map(post => ({ type: 'post', data: post, created_at: post.created_at })),
+    ...filteredStories.map(story => ({ type: 'story', data: story, created_at: story.created_at }))
+  ].sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
+
   const statusConfig = {
     pending: { 
       label: 'Pendentes', 
@@ -376,7 +382,7 @@ const Pending = () => {
                     )
                   ))}
                 </div>
-              ) : filteredPosts.length === 0 && filteredStories.length === 0 ? (
+              ) : allContent.length === 0 ? (
                 <div className="flex flex-col items-center justify-center py-12 sm:py-16 md:py-20 text-center bg-card rounded-xl sm:rounded-2xl border-2 border-dashed border-border shadow-lg mx-2 sm:mx-0">
                   <Inbox className="h-12 w-12 sm:h-14 sm:w-14 md:h-16 md:w-16 text-muted-foreground/50 mb-3 sm:mb-4" />
                   <h3 className="text-base sm:text-lg font-bold mb-2 text-foreground px-4">
@@ -390,30 +396,25 @@ const Pending = () => {
                 </div>
               ) : (
                 <div className="grid gap-3 sm:gap-4 md:gap-5 lg:gap-6 grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 animate-scale-in">
-                  {showPosts && filteredPosts.map((post, index) => (
+                  {allContent.map((item, index) => (
                     <div
-                      key={post.id}
+                      key={`${item.type}-${item.data.id}`}
                       style={{ animationDelay: `${index * 50}ms` }}
                       className="animate-fade-in"
                     >
-                      <PostCard
-                        post={post}
-                        onClick={() => navigate(`/review/${post.id}`)}
-                        onDelete={handleDelete}
-                      />
-                    </div>
-                  ))}
-                  {showStories && filteredStories.map((story, index) => (
-                    <div
-                      key={story.id}
-                      style={{ animationDelay: `${(filteredPosts.length + index) * 50}ms` }}
-                      className="animate-fade-in"
-                    >
-                      <StoryCard
-                        story={story}
-                        onClick={() => navigate(`/review-story/${story.id}`)}
-                        onDelete={handleDeleteStory}
-                      />
+                      {item.type === 'post' ? (
+                        <PostCard
+                          post={item.data}
+                          onClick={() => navigate(`/review/${item.data.id}`)}
+                          onDelete={handleDelete}
+                        />
+                      ) : (
+                        <StoryCard
+                          story={item.data}
+                          onClick={() => navigate(`/review-story/${item.data.id}`)}
+                          onDelete={handleDeleteStory}
+                        />
+                      )}
                     </div>
                   ))}
                 </div>

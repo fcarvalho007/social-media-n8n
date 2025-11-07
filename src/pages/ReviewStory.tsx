@@ -213,15 +213,15 @@ const ReviewStory = () => {
     <div className="min-h-screen bg-background pb-24">
       <Header />
       
-      <main className="container py-4 sm:py-8 px-3 sm:px-4">
+      <main className="container py-4 sm:py-8 px-4 sm:px-6">
         <Button
           variant="ghost"
           onClick={() => navigate('/')}
-          className="mb-4 sm:mb-6 -ml-2 sm:ml-0"
-          size="sm"
+          className="mb-4 sm:mb-6 h-11 px-4"
+          size="default"
         >
-          <ArrowLeft className="mr-1.5 sm:mr-2 h-3.5 w-3.5 sm:h-4 sm:w-4" />
-          <span className="text-xs sm:text-sm">Voltar ao Painel</span>
+          <ArrowLeft className="mr-2 h-4 w-4" />
+          <span className="text-sm">Voltar ao Painel</span>
         </Button>
 
         <div className="mb-4 sm:mb-6">
@@ -240,8 +240,11 @@ const ReviewStory = () => {
         </div>
 
         {/* Story Image Preview */}
-        <div className="max-w-[90%] sm:max-w-[70%] md:max-w-[60%] mx-auto mb-6">
-          <div className="relative rounded-lg overflow-hidden bg-muted aspect-[9/16] group cursor-zoom-in" onClick={() => setZoomImage(true)}>
+        <div className="max-w-[85%] sm:max-w-[70%] md:max-w-[60%] mx-auto mb-8">
+          <div 
+            className="relative rounded-xl overflow-hidden bg-muted aspect-[9/16] group cursor-zoom-in shadow-lg touch-feedback active:scale-[0.98] transition-transform" 
+            onClick={() => setZoomImage(true)}
+          >
             <img
               src={story.story_image_url}
               alt="Story preview"
@@ -254,8 +257,8 @@ const ReviewStory = () => {
         </div>
 
         {/* Caption Editor */}
-        <div className="rounded-lg sm:rounded-xl border border-border bg-card p-3 sm:p-4 md:p-6 mb-4 sm:mb-6 max-w-2xl mx-auto">
-          <Label htmlFor="caption" className="text-sm sm:text-base font-semibold mb-2 block">
+        <div className="rounded-xl border-2 border-border bg-card p-4 sm:p-5 md:p-6 mb-6 sm:mb-8 max-w-2xl mx-auto shadow-sm">
+          <Label htmlFor="caption" className="text-base font-semibold mb-3 block">
             Caption / Legenda
           </Label>
           <Textarea
@@ -263,9 +266,9 @@ const ReviewStory = () => {
             value={caption}
             onChange={(e) => setCaption(e.target.value)}
             placeholder="Escreva a caption para o story..."
-            className="min-h-[150px] text-sm sm:text-base"
+            className="min-h-[180px] text-base leading-relaxed"
           />
-          <p className="text-xs text-muted-foreground mt-2">
+          <p className="text-sm text-muted-foreground mt-3">
             {caption.length} caracteres
           </p>
         </div>

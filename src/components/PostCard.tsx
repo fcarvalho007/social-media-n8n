@@ -95,7 +95,7 @@ export const PostCard = ({ post, onClick, onDelete }: PostCardProps) => {
             <Button
               variant="ghost"
               size="icon"
-              className="min-h-[44px] min-w-[44px] text-destructive hover:text-destructive-foreground hover:bg-destructive bg-card/95 backdrop-blur-sm shadow-md border border-border rounded-lg md:rounded-xl touch-feedback"
+              className="h-11 w-11 md:h-12 md:w-12 text-destructive hover:text-destructive-foreground hover:bg-destructive bg-card/95 backdrop-blur-sm shadow-md border-2 border-border rounded-xl touch-feedback"
               onClick={(e) => {
                 e.stopPropagation();
                 onDelete(post.id);
@@ -103,7 +103,7 @@ export const PostCard = ({ post, onClick, onDelete }: PostCardProps) => {
               aria-label={`Eliminar publicação ${post.tema}`}
               title="Eliminar publicação"
             >
-              <Trash2 className="h-4 w-4" />
+              <Trash2 className="h-5 w-5" />
             </Button>
           </div>
         )}
@@ -158,17 +158,17 @@ export const PostCard = ({ post, onClick, onDelete }: PostCardProps) => {
         </div>
 
         <div className="flex items-center justify-between text-sm border-t-2 border-border pt-3">
-          <span className="text-muted-foreground text-[10px] sm:text-xs font-semibold">
+          <span className="text-muted-foreground text-xs sm:text-sm font-semibold">
             {formatDistanceToNow(new Date(post.created_at), { addSuffix: true, locale: pt })}
           </span>
           <Button 
             variant="ghost" 
             size="sm" 
-            className="gap-1 sm:gap-1.5 -mr-2 h-8 sm:h-9 px-3 sm:px-4 text-xs sm:text-sm font-bold group-hover:bg-primary group-hover:text-primary-foreground transition-all rounded-xl shadow-sm touch-target"
+            className="gap-1.5 -mr-2 h-11 px-4 text-sm font-bold group-hover:bg-primary group-hover:text-primary-foreground transition-all rounded-xl shadow-sm touch-feedback"
             aria-label={`Rever publicação ${post.tema}`}
           >
             Rever
-            <ArrowRight className="h-3.5 w-3.5 sm:h-4 sm:w-4 transition-transform group-hover:translate-x-1" />
+            <ArrowRight className="h-4 w-4 transition-transform group-hover:translate-x-1" />
           </Button>
         </div>
       </CardContent>
