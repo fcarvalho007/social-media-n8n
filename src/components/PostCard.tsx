@@ -82,20 +82,20 @@ export const PostCard = ({ post, onClick, onDelete }: PostCardProps) => {
   return (
     <Card 
       className={cn(
-        "group cursor-pointer transition-all duration-300 hover:shadow-xl hover:scale-[1.02] touch-feedback relative overflow-hidden rounded-xl md:rounded-2xl border-2 border-border",
+        "group cursor-pointer transition-all duration-300 hover:shadow-xl hover:scale-[1.02] active:scale-[0.98] touch-feedback relative overflow-hidden rounded-xl md:rounded-2xl border-2 border-border",
         post.status === 'published' && "border-l-4 border-l-success shadow-lg",
         "bg-card hover:bg-accent/5 animate-fade-in"
       )}
       onClick={onClick}
     >
-      <CardContent className="p-4 md:p-5 lg:p-6">
+      <CardContent className="p-4 sm:p-5 md:p-6">
         {/* Delete Button - Top Right */}
         {onDelete && (
-          <div className="absolute top-3 right-3 md:top-4 md:right-4 z-10">
+          <div className="absolute top-4 right-4 z-10">
             <Button
               variant="ghost"
               size="icon"
-              className="h-11 w-11 md:h-12 md:w-12 text-destructive hover:text-destructive-foreground hover:bg-destructive bg-card/95 backdrop-blur-sm shadow-md border-2 border-border rounded-xl touch-feedback"
+              className="h-12 w-12 sm:h-13 sm:w-13 text-destructive hover:text-destructive-foreground hover:bg-destructive bg-card/95 backdrop-blur-sm shadow-lg border-2 border-border rounded-xl touch-feedback active:scale-95"
               onClick={(e) => {
                 e.stopPropagation();
                 onDelete(post.id);
@@ -103,51 +103,51 @@ export const PostCard = ({ post, onClick, onDelete }: PostCardProps) => {
               aria-label={`Eliminar publicação ${post.tema}`}
               title="Eliminar publicação"
             >
-              <Trash2 className="h-5 w-5" />
+              <Trash2 className="h-5 w-5 sm:h-6 sm:w-6" />
             </Button>
           </div>
         )}
         
         {/* Content Type Badge */}
-        <div className="mb-2 sm:mb-3 flex items-center gap-2">
+        <div className="mb-3 sm:mb-4 flex items-center gap-2">
           <Badge 
             variant="outline" 
             className={cn(
-              "flex items-center gap-1 sm:gap-1.5 px-2 sm:px-3 py-1 sm:py-1.5 font-semibold border-2 text-[10px] sm:text-xs rounded-lg",
+              "flex items-center gap-1.5 sm:gap-2 px-3 sm:px-4 py-1.5 sm:py-2 font-semibold border-2 text-xs sm:text-sm rounded-lg shadow-sm",
               contentTypeConfig[contentType as keyof typeof contentTypeConfig].color
             )}
           >
-            <ContentIcon className="h-3 w-3 sm:h-4 sm:w-4" />
+            <ContentIcon className="h-4 w-4 sm:h-5 sm:w-5" />
             {contentTypeConfig[contentType as keyof typeof contentTypeConfig].label}
           </Badge>
         </div>
 
-        <div className="mb-2 sm:mb-3 flex items-start justify-between gap-2">
-          <h3 className="font-bold line-clamp-2 flex-1 text-sm sm:text-base leading-tight pr-12">{post.tema}</h3>
-          <Badge className={cn("text-[10px] sm:text-xs px-2 sm:px-2.5 py-0.5 sm:py-1 font-medium rounded-lg shrink-0", statusColors[post.status as keyof typeof statusColors])}>
+        <div className="mb-3 sm:mb-4 flex items-start justify-between gap-3">
+          <h3 className="font-bold line-clamp-2 flex-1 text-base sm:text-lg leading-tight pr-12">{post.tema}</h3>
+          <Badge className={cn("text-xs sm:text-sm px-3 py-1.5 font-semibold rounded-lg shrink-0 shadow-sm", statusColors[post.status as keyof typeof statusColors])}>
             {statusLabels[post.status as keyof typeof statusLabels]}
           </Badge>
         </div>
 
         {/* Image preview grid */}
         <div className={cn(
-          "mb-3 sm:mb-4 grid grid-cols-2 gap-1.5 sm:gap-2 overflow-hidden rounded-lg sm:rounded-xl relative",
+          "mb-4 sm:mb-5 grid grid-cols-2 gap-2 sm:gap-3 overflow-hidden rounded-xl relative",
           post.selected_template && (post.status === 'approved' || post.status === 'published') && "ring-2 ring-offset-2",
           post.selected_template === 'A' && (post.status === 'approved' || post.status === 'published') && "ring-[#00d4ff]",
           post.selected_template === 'B' && (post.status === 'approved' || post.status === 'published') && "ring-[#ff6347]"
         )}>
           {previewImages.slice(0, 4).map((image, index) => (
-            <div key={index} className="aspect-[4/5] overflow-hidden bg-muted rounded-lg relative shadow-sm">
+            <div key={index} className="aspect-[4/5] overflow-hidden bg-muted rounded-lg relative shadow-md">
               {imageLoading[index] && (
                 <div className="absolute inset-0 flex items-center justify-center bg-muted/50 z-10">
-                  <Loader2 className="h-6 w-6 animate-spin text-primary" />
+                  <Loader2 className="h-8 w-8 animate-spin text-primary" />
                 </div>
               )}
               <img
                 src={getOptimizedImageUrl(image, 400, 70)}
                 alt={`Preview ${index + 1} - ${post.tema}`}
                 className={cn(
-                  "h-full w-full object-cover transition-all duration-500 group-hover:scale-110 group-hover:brightness-110",
+                  "h-full w-full object-cover transition-all duration-500 group-hover:scale-105 group-hover:brightness-110",
                   imageLoading[index] && "opacity-0"
                 )}
                 onLoad={() => setImageLoading(prev => ({ ...prev, [index]: false }))}
@@ -157,18 +157,18 @@ export const PostCard = ({ post, onClick, onDelete }: PostCardProps) => {
           ))}
         </div>
 
-        <div className="flex items-center justify-between text-sm border-t-2 border-border pt-3">
-          <span className="text-muted-foreground text-xs sm:text-sm font-semibold">
+        <div className="flex items-center justify-between gap-3 border-t-2 border-border pt-4">
+          <span className="text-muted-foreground text-sm sm:text-base font-semibold truncate">
             {formatDistanceToNow(new Date(post.created_at), { addSuffix: true, locale: pt })}
           </span>
           <Button 
             variant="ghost" 
             size="sm" 
-            className="gap-1.5 -mr-2 h-11 px-4 text-sm font-bold group-hover:bg-primary group-hover:text-primary-foreground transition-all rounded-xl shadow-sm touch-feedback"
+            className="gap-2 h-12 px-5 text-sm sm:text-base font-bold group-hover:bg-primary group-hover:text-primary-foreground transition-all rounded-xl shadow-sm touch-feedback active:scale-95 shrink-0"
             aria-label={`Rever publicação ${post.tema}`}
           >
             Rever
-            <ArrowRight className="h-4 w-4 transition-transform group-hover:translate-x-1" />
+            <ArrowRight className="h-5 w-5 transition-transform group-hover:translate-x-1" />
           </Button>
         </div>
       </CardContent>

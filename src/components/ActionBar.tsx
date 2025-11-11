@@ -259,17 +259,17 @@ export const ActionBar = ({
         </div>
         
         {/* Action buttons */}
-        <div className="p-4 md:p-5 lg:p-6">
-          <div className="container flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between px-2 md:px-4 max-w-6xl mx-auto">
+        <div className="p-5 md:p-6">
+          <div className="container flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between px-3 md:px-4 max-w-6xl mx-auto">
           {isApproved ? (
             <Button
               variant="outline"
               size="lg"
               onClick={handleRevertToPending}
               disabled={loading}
-              className="sm:w-auto w-full h-12 md:h-14 text-base md:text-lg touch-feedback transition-all duration-150 font-semibold"
+              className="sm:w-auto w-full h-14 md:h-16 text-base md:text-lg touch-feedback active:scale-95 transition-all duration-150 font-bold shadow-sm"
             >
-              {loading ? <Loader2 className="mr-2 h-5 w-5 animate-spin" /> : <AlertCircle className="mr-2 h-5 w-5" />}
+              {loading ? <Loader2 className="mr-2 h-6 w-6 animate-spin" /> : <AlertCircle className="mr-2 h-6 w-6" />}
               <span>Voltar a Pendentes</span>
             </Button>
           ) : (
@@ -278,9 +278,9 @@ export const ActionBar = ({
               size="lg"
               onClick={() => setShowRejectDialog(true)}
               disabled={loading}
-              className="sm:w-auto w-full h-12 md:h-14 text-base md:text-lg touch-feedback transition-all duration-150 font-semibold"
+              className="sm:w-auto w-full h-14 md:h-16 text-base md:text-lg touch-feedback active:scale-95 transition-all duration-150 font-bold shadow-lg"
             >
-              {loading ? <Loader2 className="mr-2 h-5 w-5 animate-spin" /> : <Trash2 className="mr-2 h-5 w-5" />}
+              {loading ? <Loader2 className="mr-2 h-6 w-6 animate-spin" /> : <Trash2 className="mr-2 h-6 w-6" />}
               <span>Rejeitar</span>
             </Button>
           )}
@@ -291,9 +291,9 @@ export const ActionBar = ({
               size="lg"
               onClick={handleSave}
               disabled={loading}
-              className="flex-1 sm:flex-initial h-12 md:h-14 text-base md:text-lg touch-feedback transition-all duration-150 focus:ring-2 focus:ring-primary/40 font-semibold"
+              className="flex-1 sm:flex-initial h-14 md:h-16 text-base md:text-lg touch-feedback active:scale-95 transition-all duration-150 focus:ring-2 focus:ring-primary/40 font-bold shadow-sm"
             >
-              {loading ? <Loader2 className="mr-2 h-5 w-5 animate-spin" /> : <Save className="mr-2 h-5 w-5" />}
+              {loading ? <Loader2 className="mr-2 h-6 w-6 animate-spin" /> : <Save className="mr-2 h-6 w-6" />}
               <span>Guardar</span>
             </Button>
           </div>
@@ -305,8 +305,8 @@ export const ActionBar = ({
                 onClick={handleApproveNow}
                 disabled={!canApprove || loading || ((publishTargets.instagram || publishTargets.linkedin) && !instagramCanPublish)}
                 className={cn(
-                  "w-full h-12 md:h-14 text-base md:text-lg touch-feedback transition-all duration-150 relative focus:ring-2 focus:ring-primary/40 font-semibold",
-                  canApprove && "bg-success hover:bg-success/90 shadow-sm"
+                  "w-full h-14 md:h-16 text-base md:text-lg touch-feedback active:scale-95 transition-all duration-150 relative focus:ring-2 focus:ring-primary/40 font-bold",
+                  canApprove && "bg-success hover:bg-success/90 shadow-lg"
                 )}
                 title={
                   !canApprove 
@@ -317,7 +317,7 @@ export const ActionBar = ({
                 }
                 aria-label={approveConfig.label}
               >
-                {loading ? <Loader2 className="mr-2 h-5 w-5 animate-spin" /> : approveConfig.icon}
+                {loading ? <Loader2 className="mr-2 h-6 w-6 animate-spin" /> : approveConfig.icon}
                 <span className="truncate pr-16">{approveConfig.label}</span>
                 {(publishTargets.instagram || publishTargets.linkedin) && (
                   <Badge 
@@ -337,11 +337,11 @@ export const ActionBar = ({
               variant="outline"
               onClick={() => setShowScheduleDialog(true)}
               disabled={!canApprove || loading}
-              className="h-12 w-12 md:h-14 md:w-14 p-0 touch-feedback transition-all duration-150 focus:ring-2 focus:ring-primary/40"
+              className="h-14 w-14 md:h-16 md:w-16 p-0 touch-feedback active:scale-95 transition-all duration-150 focus:ring-2 focus:ring-primary/40 shadow-sm"
               title={!canApprove ? disabledReason : 'Agendar publicação'}
               aria-label="Agendar publicação"
             >
-              <Clock className="h-6 w-6" />
+              <Clock className="h-6 w-6 md:h-7 md:w-7" />
             </Button>
           </div>
         </div>
