@@ -1,10 +1,8 @@
 import { useState } from 'react';
-import { Menu, ChevronRight, User, LogOut, CheckCircle2, PlusCircle, Calendar, Settings, Search } from 'lucide-react';
+import { Menu, ChevronRight, User, LogOut, Settings, Search } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { useSidebar } from '@/components/ui/sidebar';
 import { useLocation, useSearchParams, useNavigate } from 'react-router-dom';
-import { useIsMobile } from '@/hooks/use-mobile';
-import { Drawer, DrawerContent, DrawerHeader, DrawerTitle, DrawerDescription } from '@/components/ui/drawer';
 import { useAuth } from '@/contexts/AuthContext';
 import { 
   DropdownMenu, 
@@ -26,9 +24,7 @@ export function DashboardHeader() {
   const navigate = useNavigate();
   const { user, signOut } = useAuth();
   
-  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [searchOpen, setSearchOpen] = useState(false);
-  const isMobile = useIsMobile();
   const activeTab = searchParams.get('tab');
   const getBreadcrumbs = () => {
     if (location.pathname === '/dashboard') {
@@ -83,11 +79,11 @@ export function DashboardHeader() {
           <Button
             variant="ghost"
             size="icon"
-            className="lg:hidden min-h-[44px] min-w-[44px] rounded-xl hover:bg-primary/10"
-            onClick={() => (isMobile ? setMobileMenuOpen(true) : setOpen(true))}
+            className="lg:hidden min-h-[48px] min-w-[48px] rounded-xl hover:bg-primary/10 active:scale-95 transition-transform duration-150"
+            onClick={() => setOpen(true)}
             aria-label="Menu"
           >
-            <Menu className="h-6 w-6" />
+            <Menu className="h-7 w-7" />
           </Button>
 
           <nav className="flex items-center gap-2 text-sm md:text-base overflow-x-auto scrollbar-hide">
@@ -174,44 +170,6 @@ export function DashboardHeader() {
           </DropdownMenu>
           )}
         </div>
-
-        {/* Mobile Quick Menu Drawer */}
-        <Drawer open={mobileMenuOpen} onOpenChange={setMobileMenuOpen} shouldScaleBackground>
-          <DrawerContent className="pb-8">
-            <DrawerHeader className="text-left">
-              <DrawerTitle className="text-2xl">Menu de Navegação</DrawerTitle>
-              <DrawerDescription className="text-base">Escolha para onde deseja ir</DrawerDescription>
-            </DrawerHeader>
-            <div className="px-6 py-4 grid gap-4">
-              <Button
-                size="lg"
-                className="min-h-[56px] rounded-xl text-lg font-semibold"
-                onClick={() => { navigate('/'); setMobileMenuOpen(false); }}
-              >
-                <CheckCircle2 className="mr-3 h-6 w-6" />
-                Aprovar Publicações
-              </Button>
-              <Button
-                variant="outline"
-                size="lg"
-                className="min-h-[56px] rounded-xl text-lg font-semibold"
-                onClick={() => { navigate('/?tab=create'); setMobileMenuOpen(false); }}
-              >
-                <PlusCircle className="mr-3 h-6 w-6" />
-                Criar Publicação
-              </Button>
-              <Button
-                variant="outline"
-                size="lg"
-                className="min-h-[56px] rounded-xl text-lg font-semibold"
-                onClick={() => { navigate('/calendar'); setMobileMenuOpen(false); }}
-              >
-                <Calendar className="mr-3 h-6 w-6" />
-                Calendário
-              </Button>
-            </div>
-          </DrawerContent>
-        </Drawer>
 
         {/* Global Search Dialog */}
         <GlobalSearch open={searchOpen} onOpenChange={setSearchOpen} />

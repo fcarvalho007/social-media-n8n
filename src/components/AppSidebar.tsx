@@ -96,7 +96,7 @@ export function AppSidebar() {
           {/* Menu Items - Centralizados com labels */}
           <SidebarGroup className="flex-1 flex items-center">
             <SidebarGroupContent className="w-full">
-              <SidebarMenu className="space-y-10 md:space-y-8">
+              <SidebarMenu className="space-y-8 md:space-y-8">
                 {menuItems.map((item) => (
                   <SidebarMenuItem key={item.title}>
                     <SidebarMenuButton 
@@ -115,19 +115,19 @@ export function AppSidebar() {
                         <NavLink
                           to={item.url}
                           onClick={() => setOpen(false)}
-                          className="flex flex-col items-center gap-2.5 mx-auto group min-h-[44px]"
+                          className="flex flex-col items-center gap-1.5 mx-auto group w-full py-3 active:scale-95 transition-transform duration-150"
                         >
                           {({ isActive }) => (
                             <>
                               <div
                                 className={cn(
-                                  'flex h-16 w-16 md:h-[60px] md:w-[60px] items-center justify-center rounded-full relative',
+                                  'flex h-20 w-20 md:h-[60px] md:w-[60px] items-center justify-center rounded-full relative',
                                   'transition-all duration-200 ease-in-out',
                                   isActive && item.isMain
                                     ? 'bg-[#4169A0] text-white shadow-lg'
                                     : isActive && !item.isMain
                                     ? 'bg-[#E3E8FA] text-[#1E3A8A]'
-                                    : 'text-[#6B7280] group-hover:bg-[#4169A0]/15 active:bg-[#4169A0]/25'
+                                    : 'text-[#6B7280] group-hover:bg-[#4169A0]/15 group-active:bg-[#4169A0]/25'
                                 )}
                                 onMouseEnter={(e) => {
                                   if (!isActive) {
@@ -141,7 +141,7 @@ export function AppSidebar() {
                                 }}
                               >
                                 <item.icon 
-                                  className="h-7 w-7 md:h-6 md:w-6" 
+                                  className="h-8 w-8 md:h-6 md:w-6" 
                                   strokeWidth={1.5} 
                                 />
                                 {item.showBadge && counts.total > 0 && (
@@ -149,7 +149,7 @@ export function AppSidebar() {
                                     <Tooltip delayDuration={200}>
                                       <TooltipTrigger asChild>
                                         <Badge 
-                                          className="absolute -top-1 -right-1 h-6 w-6 md:h-5 md:w-5 rounded-full p-0 flex items-center justify-center text-xs md:text-[10px] font-bold bg-[#EF4444] text-white border-2 border-[#E0E3EC] shadow-sm cursor-help"
+                                          className="absolute -top-1 -right-1 h-7 w-7 md:h-5 md:w-5 rounded-full p-0 flex items-center justify-center text-sm md:text-[10px] font-bold bg-[#EF4444] text-white border-2 border-[#E0E3EC] shadow-sm cursor-help"
                                         >
                                           {counts.total}
                                         </Badge>
