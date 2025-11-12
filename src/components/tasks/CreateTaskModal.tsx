@@ -6,6 +6,8 @@ import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Task } from '@/hooks/useTasks';
+import { useProfiles } from '@/hooks/useProfiles';
+import { UserAvatar } from './UserAvatar';
 
 interface CreateTaskModalProps {
   open: boolean;
@@ -15,11 +17,13 @@ interface CreateTaskModalProps {
 }
 
 export function CreateTaskModal({ open, onOpenChange, projectId, onCreate }: CreateTaskModalProps) {
+  const { profiles } = useProfiles();
   const [title, setTitle] = useState('');
   const [description, setDescription] = useState('');
   const [priority, setPriority] = useState<Task['priority']>('medium');
   const [dueDate, setDueDate] = useState('');
   const [estimatedHours, setEstimatedHours] = useState('');
+  const [assigneeId, setAssigneeId] = useState('');
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -30,7 +34,7 @@ export function CreateTaskModal({ open, onOpenChange, projectId, onCreate }: Cre
       description: description || null,
       status: 'todo',
       priority,
-      assignee_id: null,
+      assignee_id: assigneeId || null,
       due_date: dueDate || null,
       start_date: null,
       estimated_hours: estimatedHours ? parseInt(estimatedHours) : null,
@@ -42,6 +46,7 @@ export function CreateTaskModal({ open, onOpenChange, projectId, onCreate }: Cre
     setPriority('medium');
     setDueDate('');
     setEstimatedHours('');
+    setAssigneeId('');
     onOpenChange(false);
   };
 
@@ -92,6 +97,25 @@ export function CreateTaskModal({ open, onOpenChange, projectId, onCreate }: Cre
             </div>
 
             <div className="space-y-2">
+              <Label htmlFor="assignee">Atribuir a</Label>
+              <Select value={assigneeId} onValueChange={setAssigneeId}>
+                <SelectTrigger id="assignee">
+                  <SelectValue placeholder="Selecionar pessoa" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="">Não atribuído</SelectItem>
+                  {profiles.map((profile) => (
+                    <SelectItem key={profile.id} value={profile.id}>
+                      {profile.full_name || profile.email}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+          </div>
+
+          <div className="grid grid-cols-2 gap-4">
+            <div className="space-y-2">
               <Label htmlFor="estimatedHours">Horas Estimadas</Label>
               <Input
                 id="estimatedHours"
@@ -102,16 +126,16 @@ export function CreateTaskModal({ open, onOpenChange, projectId, onCreate }: Cre
                 min="0"
               />
             </div>
-          </div>
 
-          <div className="space-y-2">
-            <Label htmlFor="dueDate">Data Limite</Label>
-            <Input
-              id="dueDate"
-              type="date"
-              value={dueDate}
-              onChange={(e) => setDueDate(e.target.value)}
-            />
+            <div className="space-y-2">
+              <Label htmlFor="dueDate">Data Limite</Label>
+              <Input
+                id="dueDate"
+                type="date"
+                value={dueDate}
+                onChange={(e) => setDueDate(e.target.value)}
+              />
+            </div>
           </div>
 
           <DialogFooter>

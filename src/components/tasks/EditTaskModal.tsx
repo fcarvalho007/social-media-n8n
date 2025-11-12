@@ -10,6 +10,7 @@ import { DependencyManager } from './DependencyManager';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { useMilestones } from '@/hooks/useMilestones';
 import { Checkbox } from '@/components/ui/checkbox';
+import { useProfiles } from '@/hooks/useProfiles';
 
 interface EditTaskModalProps {
   open: boolean;
@@ -22,6 +23,7 @@ interface EditTaskModalProps {
 
 export function EditTaskModal({ open, onOpenChange, task, projectId, availableTasks, onUpdate }: EditTaskModalProps) {
   const { milestones, taskMilestones, addTaskToMilestone, removeTaskFromMilestone } = useMilestones(projectId);
+  const { profiles } = useProfiles();
   
   const [title, setTitle] = useState(task.title);
   const [description, setDescription] = useState(task.description || '');
@@ -30,6 +32,7 @@ export function EditTaskModal({ open, onOpenChange, task, projectId, availableTa
   const [dueDate, setDueDate] = useState(task.due_date || '');
   const [startDate, setStartDate] = useState(task.start_date || '');
   const [estimatedHours, setEstimatedHours] = useState(task.estimated_hours?.toString() || '');
+  const [assigneeId, setAssigneeId] = useState(task.assignee_id || '');
 
   // Get milestones associated with this task
   const taskMilestoneIds = taskMilestones
@@ -44,6 +47,7 @@ export function EditTaskModal({ open, onOpenChange, task, projectId, availableTa
     setDueDate(task.due_date || '');
     setStartDate(task.start_date || '');
     setEstimatedHours(task.estimated_hours?.toString() || '');
+    setAssigneeId(task.assignee_id || '');
   }, [task]);
 
   const handleSubmit = (e: React.FormEvent) => {
@@ -54,6 +58,7 @@ export function EditTaskModal({ open, onOpenChange, task, projectId, availableTa
       description: description || null,
       priority,
       status,
+      assignee_id: assigneeId || null,
       due_date: dueDate || null,
       start_date: startDate || null,
       estimated_hours: estimatedHours ? parseInt(estimatedHours) : null,
@@ -123,6 +128,23 @@ export function EditTaskModal({ open, onOpenChange, task, projectId, availableTa
                 </SelectContent>
               </Select>
             </div>
+          </div>
+
+          <div className="space-y-2">
+            <Label htmlFor="assignee">Atribuir a</Label>
+            <Select value={assigneeId} onValueChange={setAssigneeId}>
+              <SelectTrigger id="assignee">
+                <SelectValue placeholder="Selecionar pessoa" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="">Não atribuído</SelectItem>
+                {profiles.map((profile) => (
+                  <SelectItem key={profile.id} value={profile.id}>
+                    {profile.full_name || profile.email}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
           </div>
 
           <div className="grid grid-cols-2 gap-4">

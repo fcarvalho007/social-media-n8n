@@ -4,13 +4,15 @@ import { Task } from '@/hooks/useTasks';
 import { Card } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { GripVertical, Calendar, Trash2, Clock, Lock, Link2 } from 'lucide-react';
+import { GripVertical, Calendar, Trash2, Clock, Lock, Link2, User } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useState } from 'react';
 import { EditTaskModal } from './EditTaskModal';
 import { InlineEditableText } from '../InlineEditableText';
 import { useDependencies } from '@/hooks/useDependencies';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
+import { useProfiles } from '@/hooks/useProfiles';
+import { UserAvatar } from './UserAvatar';
 
 interface TaskCardProps {
   task: Task;
@@ -24,6 +26,9 @@ interface TaskCardProps {
 export function TaskCard({ task, projectId, availableTasks, onUpdate, onDelete, isDragging }: TaskCardProps) {
   const [editOpen, setEditOpen] = useState(false);
   const { dependencies } = useDependencies(task.id);
+  const { profiles } = useProfiles();
+  
+  const assignedProfile = profiles.find(p => p.id === task.assignee_id);
   
   const {
     attributes,
@@ -132,6 +137,29 @@ export function TaskCard({ task, projectId, availableTasks, onUpdate, onDelete, 
                 {task.description}
               </p>
             )}
+
+            <div className="flex flex-wrap gap-2 items-center mb-3">
+              {assignedProfile ? (
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <div className="flex items-center gap-1.5 px-2 py-1 bg-primary/5 rounded-md border border-primary/20 hover:bg-primary/10 transition-colors">
+                      <UserAvatar profile={assignedProfile} size="sm" />
+                      <span className="text-xs font-medium text-foreground">
+                        {assignedProfile.full_name || assignedProfile.email.split('@')[0]}
+                      </span>
+                    </div>
+                  </TooltipTrigger>
+                  <TooltipContent>
+                    <p>Atribuído a {assignedProfile.full_name || assignedProfile.email}</p>
+                  </TooltipContent>
+                </Tooltip>
+              ) : (
+                <div className="flex items-center gap-1 px-2 py-1 bg-muted/50 rounded-md border border-border/50">
+                  <User className="h-3 w-3 text-muted-foreground" />
+                  <span className="text-xs text-muted-foreground">Não atribuído</span>
+                </div>
+              )}
+            </div>
 
             <div className="flex flex-wrap gap-2 items-center">
               <Badge variant={task.priority === 'urgent' ? 'destructive' : 'secondary'} className="text-xs">
