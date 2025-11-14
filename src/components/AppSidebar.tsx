@@ -66,37 +66,39 @@ const menuItems = [
 ];
 
 export function AppSidebar() {
-  const { open, setOpen } = useSidebar();
+  const { open, setOpen, isMobile } = useSidebar();
   const { counts } = usePendingCounts();
 
   return (
     <Sidebar 
+      collapsible="offcanvas"
       className={cn(
-        "w-28 md:w-32 border-none transition-all duration-300",
-        "fixed lg:sticky inset-y-0 left-0 z-50 lg:z-auto",
-        open ? "translate-x-0" : "-translate-x-full lg:translate-x-0"
+        "border-none transition-all duration-300",
+        !isMobile && "w-[110px]"
       )}
-        style={{
-          background: 'linear-gradient(180deg, #E0E3EC 0%, #F8FAFC 100%)',
-          boxShadow: '2px 0 12px rgba(0, 0, 0, 0.08)'
-        }}
-      >
-        {/* Mobile Close Button */}
+      style={{
+        background: 'linear-gradient(180deg, #E0E3EC 0%, #F8FAFC 100%)',
+        boxShadow: '2px 0 12px rgba(0, 0, 0, 0.08)'
+      }}
+    >
+      {/* Mobile Close Button */}
+      {isMobile && (
         <Button
           variant="ghost"
           size="icon"
-          className="absolute top-4 right-4 lg:hidden z-10 min-h-[44px] min-w-[44px] rounded-lg hover:bg-white/40 transition-all duration-150"
+          className="absolute top-3 right-3 z-10 h-9 w-9 rounded-lg hover:bg-white/40 transition-all duration-150"
           onClick={() => setOpen(false)}
           aria-label="Fechar menu"
         >
           <X className="h-5 w-5 text-[#4169A0]" />
         </Button>
+      )}
 
-        <SidebarContent className="flex flex-col h-full py-16 md:py-12">
-          {/* Menu Items - Centralizados com labels */}
-          <SidebarGroup className="flex-1 flex items-center">
-            <SidebarGroupContent className="w-full">
-              <SidebarMenu className="space-y-8 md:space-y-8">
+      <SidebarContent className="flex flex-col h-full py-10">
+        {/* Menu Items */}
+        <SidebarGroup className="flex-1 flex items-center">
+          <SidebarGroupContent className="w-full">
+            <SidebarMenu className="space-y-5">
                 {menuItems.map((item) => (
                   <SidebarMenuItem key={item.title}>
                     <SidebarMenuButton 
@@ -104,19 +106,19 @@ export function AppSidebar() {
                       disabled={item.disabled}
                       className="h-auto p-0 hover:bg-transparent"
                     >
-                      {item.disabled ? (
-                        <div className="flex flex-col items-center gap-2.5 mx-auto opacity-30 cursor-not-allowed">
-                          <div className="flex h-16 w-16 md:h-14 md:w-14 items-center justify-center rounded-full relative">
-                            <item.icon className="h-7 w-7 md:h-6 md:w-6 text-[#6B7280]" strokeWidth={1.5} />
-                          </div>
-                          <span className="text-sm md:text-xs text-[#6B7280] font-medium">{item.label}</span>
+                    {item.disabled ? (
+                      <div className="flex flex-col items-center gap-2 mx-auto opacity-30 cursor-not-allowed">
+                        <div className="flex h-12 w-12 items-center justify-center rounded-full relative">
+                          <item.icon className="h-5 w-5 text-[#6B7280]" strokeWidth={1.5} />
                         </div>
+                        <span className="text-xs text-[#6B7280] font-medium text-center">{item.label}</span>
+                      </div>
                       ) : (
-                        <NavLink
-                          to={item.url}
-                          onClick={() => setOpen(false)}
-                          className="flex flex-col items-center gap-1.5 mx-auto group w-full py-3 active:scale-95 transition-transform duration-150"
-                        >
+                      <NavLink
+                        to={item.url}
+                        onClick={() => isMobile && setOpen(false)}
+                        className="flex flex-col items-center gap-2 mx-auto group w-full py-2 active:scale-95 transition-transform duration-150"
+                      >
                           {({ isActive }) => (
                             <>
                               <div
