@@ -72,35 +72,35 @@ export function DashboardHeader() {
   const breadcrumbs = getBreadcrumbs();
 
   return (
-    <header className="sticky top-0 z-30 bg-card/95 backdrop-blur-lg border-b-2 border-border shadow-lg">
-      <div className="flex h-16 md:h-18 items-center justify-between px-4 md:px-6">
+    <header className="sticky top-0 z-30 bg-card/95 backdrop-blur-lg border-b border-border shadow-sm">
+      <div className="flex h-14 md:h-16 items-center justify-between px-3 md:px-6 gap-3">
         {/* Left: Mobile Menu + Breadcrumb */}
-        <div className="flex items-center gap-3 md:gap-4 flex-1 min-w-0">
+        <div className="flex items-center gap-2 md:gap-4 flex-1 min-w-0">
           <Button
             variant="ghost"
             size="icon"
-            className="lg:hidden min-h-[48px] min-w-[48px] rounded-xl hover:bg-primary/10 active:scale-95 transition-transform duration-150"
+            className="lg:hidden h-9 w-9 rounded-lg hover:bg-primary/10 active:scale-95 transition-transform duration-150"
             onClick={() => setOpen(true)}
             aria-label="Menu"
           >
-            <Menu className="h-7 w-7" />
+            <Menu className="h-5 w-5" />
           </Button>
 
-          <nav className="flex items-center gap-2 text-sm md:text-base overflow-x-auto scrollbar-hide">
+          <nav className="flex items-center gap-1.5 text-sm overflow-x-auto scrollbar-hide">
             {breadcrumbs.map((crumb, index) => (
-              <div key={index} className="flex items-center gap-2 flex-shrink-0">
+              <div key={index} className="flex items-center gap-1.5 flex-shrink-0">
                 {crumb.path ? (
                   <button
                     onClick={() => navigate(crumb.path)}
-                    className="text-muted-foreground hover:text-primary transition-colors duration-150 font-semibold min-h-[44px] px-2 -my-2 touch-target"
+                    className="text-muted-foreground hover:text-primary transition-colors duration-150 font-medium px-1"
                   >
                     {crumb.label}
                   </button>
                 ) : (
-                  <span className="font-bold text-foreground">{crumb.label}</span>
+                  <span className="font-semibold text-foreground">{crumb.label}</span>
                 )}
                 {index < breadcrumbs.length - 1 && (
-                  <ChevronRight className="h-4 w-4 text-muted-foreground flex-shrink-0" />
+                  <ChevronRight className="h-3.5 w-3.5 text-muted-foreground flex-shrink-0" />
                 )}
               </div>
             ))}
@@ -114,10 +114,10 @@ export function DashboardHeader() {
             variant="ghost"
             size="icon"
             onClick={() => setSearchOpen(true)}
-            className="min-h-[44px] min-w-[44px] rounded-full hover:bg-primary/10"
+            className="h-9 w-9 rounded-lg hover:bg-primary/10"
             aria-label="Pesquisar (Cmd+K)"
           >
-            <Search className="h-5 w-5" />
+            <Search className="h-4 w-4" />
           </Button>
 
           {/* Notifications */}
@@ -131,20 +131,20 @@ export function DashboardHeader() {
               <Button 
                 variant="ghost" 
                 size="icon"
-                className="min-h-[44px] min-w-[44px] rounded-full hover:bg-primary/10 flex-shrink-0"
+                className="h-9 w-9 rounded-full hover:bg-primary/10 flex-shrink-0"
                 aria-label="Menu do utilizador"
               >
-                <Avatar className="h-10 w-10">
-                  <AvatarFallback className="bg-primary text-primary-foreground font-semibold">
-                    <User className="h-5 w-5" />
+                <Avatar className="h-8 w-8">
+                  <AvatarFallback className="bg-primary text-primary-foreground font-semibold text-xs">
+                    <User className="h-4 w-4" />
                   </AvatarFallback>
                 </Avatar>
               </Button>
             </DropdownMenuTrigger>
-            <DropdownMenuContent align="end" className="w-64 md:w-72 bg-popover z-50">
-              <DropdownMenuLabel className="font-normal py-3">
-                <div className="flex flex-col space-y-1.5">
-                  <p className="text-sm font-semibold leading-none">Utilizador Autenticado</p>
+            <DropdownMenuContent align="end" className="w-56 bg-popover z-50">
+              <DropdownMenuLabel className="font-normal py-2">
+                <div className="flex flex-col space-y-1">
+                  <p className="text-sm font-semibold leading-none">Utilizador</p>
                   <p className="text-xs leading-none text-muted-foreground truncate">
                     {user.email}
                   </p>
@@ -153,17 +153,17 @@ export function DashboardHeader() {
               <DropdownMenuSeparator />
               <DropdownMenuItem 
                 onClick={() => navigate('/quota')}
-                className="cursor-pointer py-3 text-base"
+                className="cursor-pointer py-2"
               >
-                <Settings className="mr-3 h-5 w-5" />
+                <Settings className="mr-2 h-4 w-4" />
                 <span>Gestão de Quota</span>
               </DropdownMenuItem>
               <DropdownMenuSeparator />
               <DropdownMenuItem 
                 onClick={() => signOut()}
-                className="text-destructive focus:text-destructive cursor-pointer py-3 text-base"
+                className="text-destructive focus:text-destructive cursor-pointer py-2"
               >
-                <LogOut className="mr-3 h-5 w-5" />
+                <LogOut className="mr-2 h-4 w-4" />
                 <span>Sair</span>
               </DropdownMenuItem>
             </DropdownMenuContent>
