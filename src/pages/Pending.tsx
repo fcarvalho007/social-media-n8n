@@ -11,7 +11,7 @@ import { PostCard } from '@/components/PostCard';
 import { StoryCard } from '@/components/StoryCard';
 import { PostCardSkeleton } from '@/components/PostCardSkeleton';
 import { StoryCardSkeleton } from '@/components/StoryCardSkeleton';
-import { SidebarProvider } from '@/components/ui/sidebar';
+import { SidebarProvider, SidebarInset } from '@/components/ui/sidebar';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -220,14 +220,12 @@ const Pending = () => {
   ];
 
   return (
-    <SidebarProvider defaultOpen={false}>
-      <div className="flex min-h-screen w-full bg-gradient-to-br from-background to-background-secondary">
+    <SidebarProvider>
+      <div className="flex min-h-screen w-full">
         <AppSidebar />
-        
-        <div className="flex-1 flex flex-col min-w-0">
+        <SidebarInset className="flex-1">
           <DashboardHeader />
-          
-          <main className="flex-1 p-4 sm:p-6 lg:p-10 overflow-auto">
+          <main className="flex-1 p-4 md:p-6 space-y-6 animate-fade-in bg-gradient-to-br from-background to-background-secondary">
           {activeTab === 'create' ? (
             /* Create Tab */
             <div className="space-y-6 animate-slide-up">
@@ -422,7 +420,7 @@ const Pending = () => {
             </div>
           )}
           </main>
-        </div>
+        </SidebarInset>
       </div>
 
       {/* Mode Change Confirmation Dialog */}

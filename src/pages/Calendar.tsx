@@ -7,7 +7,7 @@ import { pt } from 'date-fns/locale';
 import { supabase } from '@/integrations/supabase/client';
 import { AppSidebar } from '@/components/AppSidebar';
 import { DashboardHeader } from '@/components/DashboardHeader';
-import { SidebarProvider } from '@/components/ui/sidebar';
+import { SidebarProvider, SidebarInset } from '@/components/ui/sidebar';
 import { Badge } from '@/components/ui/badge';
 import { Card } from '@/components/ui/card';
 import { toast } from 'sonner';
@@ -329,14 +329,12 @@ const Calendar = () => {
   );
 
   return (
-    <SidebarProvider defaultOpen={false}>
-      <div className="flex min-h-screen w-full bg-gradient-to-br from-background to-background-secondary">
+    <SidebarProvider>
+      <div className="flex min-h-screen w-full">
         <AppSidebar />
-        
-        <div className="flex-1 flex flex-col min-w-0">
+        <SidebarInset className="flex-1">
           <DashboardHeader />
-          
-          <main className="flex-1 p-3 sm:p-4 lg:p-6 overflow-auto bg-gradient-to-br from-white to-gray-50">
+          <main className="flex-1 p-4 md:p-6 space-y-6 animate-fade-in bg-gradient-to-br from-white to-gray-50">
             <div className="flex flex-col lg:flex-row gap-4 lg:gap-6 max-w-[1900px] mx-auto">
               {/* Main Calendar Section */}
               <div className="flex-1 animate-slide-up space-y-4 lg:space-y-6 min-w-0">
@@ -690,7 +688,7 @@ const Calendar = () => {
             </div>
           </div>
           </main>
-        </div>
+        </SidebarInset>
       </div>
 
       <Dialog open={!!selectedEvent} onOpenChange={() => setSelectedEvent(null)}>
