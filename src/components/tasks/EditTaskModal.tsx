@@ -132,12 +132,12 @@ export function EditTaskModal({ open, onOpenChange, task, projectId, availableTa
 
           <div className="space-y-2">
             <Label htmlFor="assignee">Atribuir a</Label>
-            <Select value={assigneeId} onValueChange={setAssigneeId}>
+            <Select value={assigneeId || "unassigned"} onValueChange={(value) => setAssigneeId(value === "unassigned" ? "" : value)}>
               <SelectTrigger id="assignee">
                 <SelectValue placeholder="Selecionar pessoa" />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="">Não atribuído</SelectItem>
+                <SelectItem value="unassigned">Não atribuído</SelectItem>
                 {profiles.map((profile) => (
                   <SelectItem key={profile.id} value={profile.id}>
                     {profile.full_name || profile.email}
