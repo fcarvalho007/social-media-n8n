@@ -4,6 +4,7 @@ import { Task } from '@/hooks/useTasks';
 import { KanbanColumn } from './KanbanColumn';
 import { TaskCard } from './TaskCard';
 import { QuickAddTask } from './QuickAddTask';
+import { TaskAssigneeFilter } from './TaskAssigneeFilter';
 
 interface KanbanBoardProps {
   tasks: Task[];
@@ -15,6 +16,7 @@ interface KanbanBoardProps {
 
 export function KanbanBoard({ tasks, projectId, onUpdateTask, onDeleteTask, onCreateTask }: KanbanBoardProps) {
   const [activeTask, setActiveTask] = useState<Task | null>(null);
+  const [assigneeFilter, setAssigneeFilter] = useState<string>('all');
 
   const sensors = useSensors(
     useSensor(PointerSensor, {
@@ -51,17 +53,25 @@ export function KanbanBoard({ tasks, projectId, onUpdateTask, onDeleteTask, onCr
     setActiveTask(null);
   };
 
+  // Filter tasks based on assignee
+  const filteredTasks = tasks.filter((task) => {
+    if (assigneeFilter === 'all') return true;
+    if (assigneeFilter === 'unassigned') return !task.assignee_id;
+    return task.assignee_id === assigneeFilter;
+  });
+
   return (
     <>
-      {/* Quick Add Task */}
-      <div className="mb-6">
+      {/* Quick Add Task and Filter */}
+      <div className="mb-6 flex flex-col sm:flex-row gap-4 items-start sm:items-center justify-between">
         <QuickAddTask projectId={projectId} onCreate={onCreateTask} />
+        <TaskAssigneeFilter value={assigneeFilter} onChange={setAssigneeFilter} />
       </div>
 
       <DndContext sensors={sensors} onDragStart={handleDragStart} onDragEnd={handleDragEnd}>
         <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-4 min-h-[600px]">
           {columns.map((column) => {
-            const columnTasks = tasks.filter((task) => task.status === column.status);
+            const columnTasks = filteredTasks.filter((task) => task.status === column.status);
             return (
               <KanbanColumn
                 key={column.id}
