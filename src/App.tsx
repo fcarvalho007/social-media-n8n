@@ -16,6 +16,7 @@ import ReviewStory from "./pages/ReviewStory";
 import Calendar from "./pages/Calendar";
 import ManualCreate from "./pages/ManualCreate";
 import QuotaSettings from "./pages/QuotaSettings";
+import UserManagement from "./pages/UserManagement";
 import Projects from "./pages/Projects";
 import ProjectDetail from "./pages/ProjectDetail";
 import NotFound from "./pages/NotFound";
@@ -94,6 +95,14 @@ const App = () => (
                 element={
                   <ProtectedRoute>
                     <QuotaSettings />
+                  </ProtectedRoute>
+                }
+              />
+              <Route
+                path="/users"
+                element={
+                  <ProtectedRoute>
+                    <UserManagement />
                   </ProtectedRoute>
                 }
               />

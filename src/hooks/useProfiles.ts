@@ -9,7 +9,7 @@ export interface Profile {
 }
 
 export const useProfiles = () => {
-  const { data: profiles = [], isLoading } = useQuery({
+  const { data: profiles = [], isLoading, refetch } = useQuery({
     queryKey: ['profiles'],
     queryFn: async () => {
       const { data, error } = await supabase
@@ -22,5 +22,5 @@ export const useProfiles = () => {
     },
   });
 
-  return { profiles, isLoading };
+  return { profiles, isLoading, refetch };
 };
