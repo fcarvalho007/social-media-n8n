@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Menu, ChevronRight, User, LogOut, Settings, Search } from 'lucide-react';
+import { Menu, ChevronRight, User, LogOut, Settings, Search, Users } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { useSidebar } from '@/components/ui/sidebar';
 import { useLocation, useSearchParams, useNavigate } from 'react-router-dom';
@@ -29,6 +29,12 @@ export function DashboardHeader() {
   const getBreadcrumbs = () => {
     if (location.pathname === '/dashboard') {
       return [{ label: 'Dashboard', path: null }];
+    }
+    if (location.pathname === '/users') {
+      return [
+        { label: 'Dashboard', path: '/dashboard' },
+        { label: 'Utilizadores', path: null },
+      ];
     }
     if (location.pathname === '/projects') {
       return [
@@ -157,6 +163,13 @@ export function DashboardHeader() {
               >
                 <Settings className="mr-2 h-4 w-4" />
                 <span>Gestão de Quota</span>
+              </DropdownMenuItem>
+              <DropdownMenuItem 
+                onClick={() => navigate('/users')}
+                className="cursor-pointer py-2"
+              >
+                <Users className="mr-2 h-4 w-4" />
+                <span>Utilizadores</span>
               </DropdownMenuItem>
               <DropdownMenuSeparator />
               <DropdownMenuItem 
