@@ -88,7 +88,7 @@ const Auth = () => {
             </Button>
             
             <p className="text-center text-sm text-muted-foreground/50 mt-2">
-              #*****
+              C*****@
             </p>
           </form>
         </CardContent>
