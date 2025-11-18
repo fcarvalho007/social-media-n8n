@@ -41,7 +41,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
 
   const signInWithPassword = async (password: string) => {
     const ADMIN_EMAIL = 'admin@instagram.com';
-    const VALID_PASSWORD = '#123@!';
+    const VALID_PASSWORD = 'Click123@';
     
     // Check if password matches
     if (password !== VALID_PASSWORD) {
