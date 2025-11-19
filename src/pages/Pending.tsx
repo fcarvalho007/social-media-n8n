@@ -305,29 +305,31 @@ const Pending = () => {
             <div className="space-y-6 animate-slide-up">
               {/* Filters Section - Agrupada em card */}
               <div className="bg-card rounded-2xl p-4 sm:p-6 border-2 border-border shadow-lg">
-                {/* Content Type Filter */}
+                {/* Content Type Filter - Mobile optimized */}
                 <div className="mb-5">
                   <h3 className="text-xs font-bold text-muted-foreground uppercase tracking-wider mb-3">
                     Filtrar por Tipo
                   </h3>
-                  <div className="flex flex-wrap gap-2">
-                    {contentTypes.map((type) => (
-                      <Button
-                        key={type.id}
-                        onClick={() => setContentTypeFilter(type.id)}
-                        variant="outline"
-                        size="sm"
-                        className={cn(
-                          'h-10 min-h-[44px] px-3 sm:px-4 text-xs sm:text-sm font-bold transition-all duration-200 border-2 rounded-xl touch-target',
-                          contentTypeFilter === type.id
-                            ? 'bg-primary text-primary-foreground border-primary shadow-lg'
-                            : 'bg-background hover:bg-accent border-border hover:border-primary/50 hover:shadow-md'
-                        )}
-                      >
-                        {type.icon && <type.icon className="mr-1 sm:mr-1.5 h-4 w-4 flex-shrink-0" />}
-                        <span className="truncate">{type.label}</span>
-                      </Button>
-                    ))}
+                  <div className="flex overflow-x-auto snap-x snap-mandatory scrollbar-hide pb-2 -mx-4 px-4 md:mx-0 md:px-0">
+                    <div className="flex gap-2 flex-shrink-0">
+                      {contentTypes.map((type) => (
+                        <Button
+                          key={type.id}
+                          onClick={() => setContentTypeFilter(type.id)}
+                          variant="outline"
+                          size="sm"
+                          className={cn(
+                            'h-10 min-h-[44px] px-6 py-3 text-xs sm:text-sm font-bold transition-all duration-200 border-2 rounded-xl touch-target snap-center flex-shrink-0 whitespace-nowrap active:scale-95',
+                            contentTypeFilter === type.id
+                              ? 'bg-primary text-primary-foreground border-primary shadow-lg'
+                              : 'bg-background hover:bg-accent border-border hover:border-primary/50 hover:shadow-md'
+                          )}
+                        >
+                          {type.icon && <type.icon className="mr-1 sm:mr-1.5 h-5 w-5 flex-shrink-0" />}
+                          <span className="truncate">{type.label}</span>
+                        </Button>
+                      ))}
+                    </div>
                   </div>
                 </div>
 
@@ -337,33 +339,35 @@ const Pending = () => {
                     Estado da Publicação
                   </h3>
                   <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4">
-                    <div className="flex gap-2 overflow-x-auto pb-2 lg:pb-0 scrollbar-hide mobile-scroll">
-                      {Object.entries(statusConfig).map(([key, config]) => (
-                        <Button
-                          key={key}
-                          onClick={() => setActiveStatus(key)}
-                          variant="ghost"
-                          size="sm"
-                          className={cn(
-                            'h-10 px-4 text-xs sm:text-sm font-bold rounded-xl transition-all duration-200 border-2 whitespace-nowrap relative',
-                            activeStatus === key
-                              ? config.color + ' shadow-lg'
-                              : 'bg-card border-border hover:bg-accent hover:shadow-md'
-                          )}
-                          title={key === 'pending' && config.count > 0 ? config.breakdown : undefined}
-                        >
-                          <config.icon className="mr-1.5 h-4 w-4" />
-                          {config.label}
-                          {key === 'pending' && config.count > 0 && (
-                            <Badge 
-                              variant="secondary" 
-                              className="ml-2 h-5 px-1.5 text-xs font-bold bg-warning text-warning-foreground"
-                            >
-                              {config.count}
-                            </Badge>
-                          )}
-                        </Button>
-                      ))}
+                    <div className="flex overflow-x-auto snap-x snap-mandatory scrollbar-hide pb-2 -mx-4 px-4 md:mx-0 md:px-0">
+                      <div className="flex gap-2 flex-shrink-0">
+                        {Object.entries(statusConfig).map(([key, config]) => (
+                          <Button
+                            key={key}
+                            onClick={() => setActiveStatus(key)}
+                            variant="ghost"
+                            size="sm"
+                            className={cn(
+                              'h-10 min-h-[44px] px-6 py-3 text-xs sm:text-sm font-bold rounded-xl transition-all duration-200 border-2 whitespace-nowrap relative snap-center flex-shrink-0 active:scale-95',
+                              activeStatus === key
+                                ? config.color + ' shadow-lg'
+                                : 'bg-card border-border hover:bg-accent hover:shadow-md'
+                            )}
+                            title={key === 'pending' && config.count > 0 ? config.breakdown : undefined}
+                          >
+                            <config.icon className="mr-1.5 h-5 w-5" />
+                            {config.label}
+                            {key === 'pending' && config.count > 0 && (
+                              <Badge 
+                                variant="secondary" 
+                                className="ml-2 h-5 px-1.5 text-xs font-bold bg-warning text-warning-foreground"
+                              >
+                                {config.count}
+                              </Badge>
+                            )}
+                          </Button>
+                        ))}
+                      </div>
                     </div>
 
                     <div className="flex items-center gap-2 flex-1 lg:max-w-md">
@@ -391,7 +395,7 @@ const Pending = () => {
                 </div>
               </div>
 
-              {/* Content Grid */}
+              {/* Content Grid - Mobile optimized spacing */}
               {loading ? (
                 <div className="grid gap-3 sm:gap-4 md:gap-5 lg:gap-6 grid-cols-1 sm:grid-cols-2 lg:grid-cols-3">
                   {Array.from({ length: 6 }).map((_, i) => (

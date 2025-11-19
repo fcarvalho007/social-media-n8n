@@ -1,3 +1,4 @@
+import { useState, useEffect } from 'react';
 import { CheckCircle2, PlusCircle, Calendar, X, FolderKanban, LayoutDashboard } from 'lucide-react';
 import { NavLink } from 'react-router-dom';
 import {
@@ -69,14 +70,25 @@ export function AppSidebar() {
   const { open, setOpen, isMobile, openMobile } = useSidebar();
   const { counts } = usePendingCounts();
   const totalPending = counts.stories + counts.carousels + counts.posts;
+  const [userOpened, setUserOpened] = useState(false);
+
+  // When sidebar opens in mobile, mark it as user-opened
+  useEffect(() => {
+    if (isMobile && open) {
+      setUserOpened(true);
+    }
+  }, [isMobile, open]);
 
   return (
     <>
-      {/* Mobile: Dark overlay with backdrop blur - only show when explicitly opened */}
-      {isMobile && open && (
+      {/* Mobile: Dark overlay with backdrop blur - only show when user explicitly opened sidebar */}
+      {isMobile && open && userOpened && (
         <div 
           className="fixed inset-0 bg-background/80 backdrop-blur-sm z-40 animate-fade-in"
-          onClick={() => setOpen(false)}
+          onClick={() => {
+            setUserOpened(false);
+            setOpen(false);
+          }}
           aria-hidden="true"
         />
       )}
@@ -98,7 +110,10 @@ export function AppSidebar() {
             variant="ghost"
             size="icon"
             className="absolute top-4 right-4 z-10 h-12 w-12 rounded-lg hover:bg-white/40 active:scale-95 transition-all duration-150 touch-target"
-            onClick={() => setOpen(false)}
+            onClick={() => {
+              setUserOpened(false);
+              setOpen(false);
+            }}
             aria-label="Fechar menu"
           >
             <X className="h-6 w-6 text-[#4169A0]" />
