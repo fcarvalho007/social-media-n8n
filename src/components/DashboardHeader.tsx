@@ -90,21 +90,27 @@ export function DashboardHeader() {
             <Menu className="h-5 w-5" />
           </Button>
 
-          <nav className="flex items-center gap-1 sm:gap-1.5 text-xs sm:text-sm overflow-x-auto scrollbar-hide">
+          <nav className="flex items-center gap-1 sm:gap-2 text-xs sm:text-sm overflow-x-auto scrollbar-hide">
             {breadcrumbs.map((crumb, index) => (
-              <div key={index} className="flex items-center gap-1 sm:gap-1.5 flex-shrink-0">
+              <div key={index} className="flex items-center gap-1 sm:gap-2 flex-shrink-0">
                 {crumb.path ? (
                   <button
                     onClick={() => navigate(crumb.path)}
-                    className="text-muted-foreground hover:text-primary transition-colors duration-150 font-medium px-1 whitespace-nowrap"
+                    className="text-muted-foreground hover:text-primary transition-colors duration-150 font-medium px-1 whitespace-nowrap truncate max-w-[120px] sm:max-w-none"
+                    title={crumb.label}
                   >
                     {crumb.label}
                   </button>
                 ) : (
-                  <span className="font-semibold text-foreground whitespace-nowrap">{crumb.label}</span>
+                  <span 
+                    className="font-semibold text-foreground whitespace-nowrap truncate max-w-[120px] sm:max-w-none" 
+                    title={crumb.label}
+                  >
+                    {crumb.label}
+                  </span>
                 )}
                 {index < breadcrumbs.length - 1 && (
-                  <ChevronRight className="h-3 w-3 sm:h-3.5 sm:w-3.5 text-muted-foreground flex-shrink-0" />
+                  <ChevronRight className="h-3 w-3 sm:h-4 sm:w-4 text-muted-foreground flex-shrink-0" />
                 )}
               </div>
             ))}
@@ -112,16 +118,16 @@ export function DashboardHeader() {
         </div>
 
         {/* Right: Search + Notifications + Quota Badge + Settings */}
-        <div className="flex items-center gap-1 sm:gap-2 flex-shrink-0">
+        <div className="flex items-center gap-1.5 sm:gap-2.5 flex-shrink-0">
           {/* Global Search Button */}
           <Button
             variant="ghost"
             size="icon"
             onClick={() => setSearchOpen(true)}
-            className="h-10 w-10 min-h-[44px] min-w-[44px] touch-target rounded-lg hover:bg-primary/10"
+            className="h-10 w-10 min-h-[44px] min-w-[44px] touch-target rounded-lg hover:bg-primary/10 active:scale-95 transition-all duration-150"
             aria-label="Pesquisar (Cmd+K)"
           >
-            <Search className="h-4 w-4 sm:h-5 sm:w-5" />
+            <Search className="h-5 w-5" />
           </Button>
 
           {/* Notifications */}
@@ -140,7 +146,7 @@ export function DashboardHeader() {
             className="h-10 w-10 min-h-[44px] min-w-[44px] touch-target rounded-lg hover:bg-primary/10 active:scale-95 transition-all duration-150"
             aria-label="Definições"
           >
-            <Settings className="h-4 w-4 sm:h-5 sm:w-5" />
+            <Settings className="h-5 w-5" />
           </Button>
         </div>
 
