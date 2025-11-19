@@ -3,6 +3,7 @@ import { Menu, ChevronRight, User, Settings, Search, Users } from 'lucide-react'
 import { Button } from '@/components/ui/button';
 import { useSidebar } from '@/components/ui/sidebar';
 import { useLocation, useSearchParams, useNavigate } from 'react-router-dom';
+import { useIsMobile } from '@/hooks/use-mobile';
 import { 
   DropdownMenu, 
   DropdownMenuContent, 
@@ -21,6 +22,7 @@ export function DashboardHeader() {
   const location = useLocation();
   const [searchParams] = useSearchParams();
   const navigate = useNavigate();
+  const isMobile = useIsMobile();
   
   const [searchOpen, setSearchOpen] = useState(false);
   const activeTab = searchParams.get('tab');
@@ -75,6 +77,11 @@ export function DashboardHeader() {
 
   const breadcrumbs = getBreadcrumbs();
 
+  // Em mobile, esconder "Painel de Conteúdo" quando é o único breadcrumb
+  const displayBreadcrumbs = isMobile 
+    ? breadcrumbs.filter(crumb => !(breadcrumbs.length === 1 && crumb.label === 'Painel de Conteúdo'))
+    : breadcrumbs;
+
   return (
     <header className="sticky top-0 z-30 bg-card/95 backdrop-blur-lg border-b border-border shadow-sm">
       <div className="flex h-16 items-center justify-between px-3 sm:px-4 md:px-6 gap-2 sm:gap-3">
@@ -83,15 +90,15 @@ export function DashboardHeader() {
           <Button
             variant="ghost"
             size="icon"
-            className="lg:hidden h-10 w-10 min-h-[44px] min-w-[44px] touch-target rounded-lg hover:bg-primary/10 active:scale-95 transition-transform duration-150"
+            className="lg:hidden h-12 w-12 min-h-[48px] min-w-[48px] touch-target rounded-lg hover:bg-primary/10 active:scale-95 transition-transform duration-150"
             onClick={() => toggleSidebar()}
             aria-label="Menu"
           >
-            <Menu className="h-5 w-5" />
+            <Menu className="h-6 w-6" />
           </Button>
 
           <nav className="flex items-center gap-1 sm:gap-2 text-xs sm:text-sm overflow-x-auto scrollbar-hide">
-            {breadcrumbs.map((crumb, index) => (
+            {displayBreadcrumbs.map((crumb, index) => (
               <div key={index} className="flex items-center gap-1 sm:gap-2 flex-shrink-0">
                 {crumb.path ? (
                   <button
@@ -109,7 +116,7 @@ export function DashboardHeader() {
                     {crumb.label}
                   </span>
                 )}
-                {index < breadcrumbs.length - 1 && (
+                {index < displayBreadcrumbs.length - 1 && (
                   <ChevronRight className="h-3 w-3 sm:h-4 sm:w-4 text-muted-foreground flex-shrink-0" />
                 )}
               </div>

@@ -73,7 +73,7 @@ export function AppSidebar() {
   return (
     <>
       {/* Mobile: Dark overlay with backdrop blur - only show when explicitly opened */}
-      {isMobile && openMobile && (
+      {isMobile && open && (
         <div 
           className="fixed inset-0 bg-background/80 backdrop-blur-sm z-40 animate-fade-in"
           onClick={() => setOpen(false)}
