@@ -344,7 +344,7 @@ const Calendar = () => {
         <AppSidebar />
         <SidebarInset className="flex-1">
           <DashboardHeader />
-          <main className="flex-1 p-4 md:p-6 space-y-6 animate-fade-in bg-gradient-to-br from-white to-gray-50">
+          <main className="flex-1 p-3 sm:p-4 md:p-6 space-y-4 md:space-y-6 animate-fade-in bg-gradient-to-br from-white to-gray-50">
             <div className="flex flex-col lg:flex-row gap-4 lg:gap-6 max-w-[1900px] mx-auto">
               {/* Main Calendar Section */}
               <div className="flex-1 animate-slide-up space-y-4 lg:space-y-6 min-w-0">
@@ -380,7 +380,7 @@ const Calendar = () => {
                                 navigate('/');
                               }
                             }}
-                            className="gap-2 bg-gradient-to-r from-primary to-primary/80 hover:from-primary/90 hover:to-primary/70"
+                            className="gap-2 min-h-[44px] min-w-[44px] px-3 sm:px-4 active:scale-95 transition-transform bg-gradient-to-r from-primary to-primary/80 hover:from-primary/90 hover:to-primary/70"
                           >
                             <Plus className="h-4 w-4" />
                             <span className="hidden sm:inline font-semibold">Criar</span>
@@ -401,18 +401,18 @@ const Calendar = () => {
                         variant={viewMode === 'normal' ? 'default' : 'outline'}
                         size="sm"
                         onClick={() => setViewMode('normal')}
-                        className="gap-1.5"
+                        className="gap-1.5 min-h-[44px] px-3 sm:px-4 active:scale-95 transition-transform"
                       >
-                        <Maximize2 className="h-3.5 w-3.5" />
+                        <Maximize2 className="h-4 w-4" />
                         <span className="hidden sm:inline">Normal</span>
                       </Button>
                       <Button
                         variant={viewMode === 'compact' ? 'default' : 'outline'}
                         size="sm"
                         onClick={() => setViewMode('compact')}
-                        className="gap-1.5"
+                        className="gap-1.5 min-h-[44px] px-3 sm:px-4 active:scale-95 transition-transform"
                       >
-                        <Minimize2 className="h-3.5 w-3.5" />
+                        <Minimize2 className="h-4 w-4" />
                         <span className="hidden sm:inline">Compacta</span>
                       </Button>
                     </div>
@@ -420,7 +420,7 @@ const Calendar = () => {
                 </div>
 
               {/* Stats Cards */}
-              <div className="grid grid-cols-3 gap-3 lg:gap-4">
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 md:gap-4">
                 <Card className="p-3 lg:p-4 bg-gradient-to-br from-primary/5 to-primary/10 border-primary/20 border-2 hover:shadow-lg hover:shadow-primary/10 transition-all">
                   <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
                     <div>

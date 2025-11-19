@@ -75,10 +75,10 @@ export default function ProjectDetail() {
         <AppSidebar />
         <SidebarInset className="flex-1">
           <DashboardHeader />
-          <main id="main-content" className="flex-1 p-4 md:p-6 space-y-6 animate-fade-in">
-      <div className="space-y-8">
+          <main id="main-content" className="flex-1 p-3 sm:p-4 md:p-6 space-y-4 md:space-y-6 animate-fade-in">
+      <div className="space-y-4 md:space-y-6 lg:space-y-8">
       {/* Back Button */}
-      <Button variant="ghost" onClick={() => navigate('/projects')} className="gap-2">
+      <Button variant="ghost" onClick={() => navigate('/projects')} className="gap-2 min-h-[44px] active:scale-95 transition-transform">
         <ArrowLeft className="h-4 w-4" />
         Voltar
       </Button>
@@ -166,9 +166,9 @@ export default function ProjectDetail() {
               <h2 className="text-2xl font-bold">Tarefas</h2>
               <p className="text-muted-foreground">Gerir tarefas com quadro Kanban</p>
             </div>
-            <Button onClick={() => setCreateTaskOpen(true)} className="gap-2">
-              <Plus className="h-4 w-4" />
-              Nova Tarefa
+            <Button onClick={() => setCreateTaskOpen(true)} className="gap-2 min-h-[44px] active:scale-95 transition-transform">
+              <Plus className="h-5 w-5" />
+              <span className="hidden sm:inline">Nova Tarefa</span>
             </Button>
           </div>
           

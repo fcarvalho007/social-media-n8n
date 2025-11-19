@@ -88,7 +88,7 @@ export const PostCard = ({ post, onClick, onDelete }: PostCardProps) => {
       )}
       onClick={onClick}
     >
-      <CardContent className="p-4 sm:p-5 md:p-6">
+      <CardContent className="p-3 sm:p-4 md:p-5">
         {/* Delete Button - Top Right */}
         {onDelete && (
           <div className="absolute top-4 right-4 z-10">
