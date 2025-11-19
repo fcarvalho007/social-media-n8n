@@ -40,7 +40,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
   }, []);
 
   const signInWithPassword = async (password: string) => {
-    const ADMIN_EMAIL = 'admin@instagram.com';
+    const ADMIN_EMAIL = 'comunicacao@fredericocarvalho.pt';
     const VALID_PASSWORD = 'Click123@';
     
     // Check if password matches
