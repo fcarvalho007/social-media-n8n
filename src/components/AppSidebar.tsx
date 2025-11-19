@@ -68,39 +68,55 @@ const menuItems = [
 export function AppSidebar() {
   const { open, setOpen, isMobile } = useSidebar();
   const { counts } = usePendingCounts();
+  const location = window.location;
 
   return (
-    <Sidebar 
-      collapsible="offcanvas"
-      className={cn(
-        "border-none transition-all duration-300",
-        !isMobile && "w-[110px]"
-      )}
-      style={{
-        background: 'linear-gradient(180deg, #E0E3EC 0%, #F8FAFC 100%)',
-        boxShadow: '2px 0 12px rgba(0, 0, 0, 0.08)'
-      }}
-    >
-      {/* Mobile Close Button */}
-      {isMobile && (
-        <Button
-          variant="ghost"
-          size="icon"
-          className="absolute top-3 right-3 z-10 h-10 w-10 min-h-[44px] min-w-[44px] touch-target rounded-lg hover:bg-white/40 transition-all duration-150"
+    <>
+      {/* Mobile: Dark overlay with backdrop blur */}
+      {isMobile && open && (
+        <div 
+          className="fixed inset-0 bg-background/80 backdrop-blur-sm z-40 animate-fade-in"
           onClick={() => setOpen(false)}
-          aria-label="Fechar menu"
-        >
-          <X className="h-5 w-5 text-[#4169A0]" />
-        </Button>
+          aria-hidden="true"
+        />
       )}
+      
+      <Sidebar 
+        collapsible="offcanvas"
+        className={cn(
+          "border-none transition-all duration-300 ease-out z-50",
+          !isMobile && "w-[110px]"
+        )}
+        style={{
+          background: 'linear-gradient(180deg, #E0E3EC 0%, #F8FAFC 100%)',
+          boxShadow: '2px 0 12px rgba(0, 0, 0, 0.08)'
+        }}
+      >
+        {/* Mobile Close Button */}
+        {isMobile && (
+          <Button
+            variant="ghost"
+            size="icon"
+            className="absolute top-4 right-4 z-10 h-12 w-12 rounded-lg hover:bg-white/40 active:scale-95 transition-all duration-150 touch-target"
+            onClick={() => setOpen(false)}
+            aria-label="Fechar menu"
+          >
+            <X className="h-6 w-6 text-[#4169A0]" />
+          </Button>
+        )}
 
       <SidebarContent className="flex flex-col h-full py-10">
         {/* Menu Items */}
         <SidebarGroup className="flex-1 flex items-center">
           <SidebarGroupContent className="w-full">
-            <SidebarMenu className="space-y-5">
-                {menuItems.map((item) => (
-                  <SidebarMenuItem key={item.title}>
+            <SidebarMenu className="space-y-3">
+                {menuItems.map((item, index) => (
+                  <SidebarMenuItem 
+                    key={item.title}
+                    style={{
+                      animation: `fade-in 0.3s ease-out ${index * 0.05}s both`
+                    }}
+                  >
                     <SidebarMenuButton 
                       asChild={!item.disabled}
                       disabled={item.disabled}
@@ -117,9 +133,14 @@ export function AppSidebar() {
                       <NavLink
                         to={item.url}
                         onClick={() => isMobile && setOpen(false)}
-                        className="flex flex-col items-center gap-2 mx-auto group w-full py-3 active:scale-95 transition-transform duration-150 min-h-[64px] touch-target"
+                        className="flex flex-col items-center gap-2 mx-auto group w-full py-3 hover:scale-105 active:scale-95 transition-all duration-200 ease-out min-h-[64px] touch-target"
                       >
-                          {({ isActive }) => (
+                          {({ isActive }) => {
+                            const isApprovalItem = item.url === '/pending';
+                            const showBadge = isApprovalItem && (counts.stories + counts.carousels + counts.posts) > 0;
+                            const totalPending = counts.stories + counts.carousels + counts.posts;
+                            
+                            return (
                             <>
                               <div
                                 className={cn(
