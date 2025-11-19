@@ -67,9 +67,53 @@ const Calendar = () => {
   const [calendarView, setCalendarView] = useState<'month' | 'week' | 'day'>(isMobile ? 'day' : 'month');
   const [touchStart, setTouchStart] = useState<number | null>(null);
   const [touchEnd, setTouchEnd] = useState<number | null>(null);
-  
+  const [isSwipping, setIsSwipping] = useState(false);
+
   const minSwipeDistance = 50;
-  
+
+  const onTouchStart = (e: React.TouchEvent) => {
+    setTouchEnd(null);
+    setTouchStart(e.targetTouches[0].clientX);
+    setIsSwipping(true);
+  };
+
+  const onTouchMove = (e: React.TouchEvent) => {
+    setTouchEnd(e.targetTouches[0].clientX);
+  };
+
+  const onTouchEnd = () => {
+    setIsSwipping(false);
+    if (!touchStart || !touchEnd) return;
+    
+    const distance = touchStart - touchEnd;
+    const isLeftSwipe = distance > minSwipeDistance;
+    const isRightSwipe = distance < -minSwipeDistance;
+    
+    if (isLeftSwipe) {
+      const nextDate = new Date(currentMonth);
+      if (calendarView === 'day') {
+        nextDate.setDate(nextDate.getDate() + 1);
+      } else if (calendarView === 'week') {
+        nextDate.setDate(nextDate.getDate() + 7);
+      } else {
+        nextDate.setMonth(nextDate.getMonth() + 1);
+      }
+      setCurrentMonth(nextDate);
+    }
+    
+    if (isRightSwipe) {
+      const prevDate = new Date(currentMonth);
+      if (calendarView === 'day') {
+        prevDate.setDate(prevDate.getDate() - 1);
+      } else if (calendarView === 'week') {
+        prevDate.setDate(prevDate.getDate() - 7);
+      } else {
+        prevDate.setMonth(prevDate.getMonth() - 1);
+      }
+      setCurrentMonth(prevDate);
+    }
+  };
+
   // Force mobile-friendly view on small screens
   useEffect(() => {
     if (isMobile && calendarView === 'month') {
@@ -301,36 +345,6 @@ const Calendar = () => {
     return { total: monthEvents.length, posts, stories };
   }, [events, currentMonth]);
 
-  // Swipe gesture handlers for mobile navigation
-  const onTouchStart = (e: React.TouchEvent) => {
-    setTouchEnd(null);
-    setTouchStart(e.targetTouches[0].clientX);
-  };
-
-  const onTouchMove = (e: React.TouchEvent) => {
-    setTouchEnd(e.targetTouches[0].clientX);
-  };
-
-  const onTouchEnd = () => {
-    if (!touchStart || !touchEnd) return;
-    
-    const distance = touchStart - touchEnd;
-    const isLeftSwipe = distance > minSwipeDistance;
-    const isRightSwipe = distance < -minSwipeDistance;
-    
-    if (isLeftSwipe) {
-      const nextMonth = new Date(currentMonth);
-      nextMonth.setMonth(nextMonth.getMonth() + 1);
-      setCurrentMonth(nextMonth);
-    }
-    
-    if (isRightSwipe) {
-      const prevMonth = new Date(currentMonth);
-      prevMonth.setMonth(prevMonth.getMonth() - 1);
-      setCurrentMonth(prevMonth);
-    }
-  };
-
   // Custom toolbar for better mobile navigation
   const CustomToolbar = (toolbar: any) => {
     const goToBack = () => toolbar.onNavigate('PREV');
@@ -340,14 +354,15 @@ const Calendar = () => {
     return (
       <div className="flex flex-col sm:flex-row items-center justify-between gap-3 mb-4 pb-4 border-b">
         <div className="flex items-center gap-2 w-full sm:w-auto justify-between sm:justify-start">
-          <Button
-            onClick={goToBack}
-            variant="outline"
-            size="sm"
-            className="min-h-[44px] min-w-[44px] px-4 active:scale-95 transition-transform"
-          >
-            <span className="hidden sm:inline mr-1">←</span> Anterior
-          </Button>
+        <Button
+          onClick={goToBack}
+          variant="outline"
+          size="sm"
+          className="min-h-[44px] min-w-[44px] px-4 active:scale-95 transition-transform"
+        >
+          <span className="sm:hidden text-lg">←</span>
+          <span className="hidden sm:inline">← Anterior</span>
+        </Button>
           <Button
             onClick={goToToday}
             variant="default"
@@ -356,14 +371,15 @@ const Calendar = () => {
           >
             Hoje
           </Button>
-          <Button
-            onClick={goToNext}
-            variant="outline"
-            size="sm"
-            className="min-h-[44px] min-w-[44px] px-4 active:scale-95 transition-transform"
-          >
-            Próximo <span className="hidden sm:inline ml-1">→</span>
-          </Button>
+        <Button
+          onClick={goToNext}
+          variant="outline"
+          size="sm"
+          className="min-h-[44px] min-w-[44px] px-4 active:scale-95 transition-transform"
+        >
+          <span className="sm:hidden text-lg">→</span>
+          <span className="hidden sm:inline">Próximo →</span>
+        </Button>
         </div>
 
         <div className="text-center sm:text-left">
@@ -430,7 +446,7 @@ const Calendar = () => {
               <img 
                 src={thumbnailUrl} 
                 alt={String(event.title || '')}
-                className="w-16 h-16 sm:w-20 sm:h-20 object-cover rounded-lg shadow-sm"
+                className="w-20 h-20 sm:w-24 sm:h-24 object-cover rounded-lg shadow-sm"
                 onError={(e) => {
                   const target = e.currentTarget;
                   target.style.display = 'none';
@@ -440,7 +456,7 @@ const Calendar = () => {
                 }}
               />
               <div 
-                className="w-16 h-16 sm:w-20 sm:h-20 bg-white/20 rounded-lg items-center justify-center"
+                className="w-20 h-20 sm:w-24 sm:h-24 bg-white/20 rounded-lg items-center justify-center"
                 style={{ display: 'none' }}
               >
                 {icon}
@@ -612,7 +628,7 @@ const Calendar = () => {
               {/* Legend and Filters */}
               <div className="grid grid-cols-1 lg:grid-cols-2 gap-3 lg:gap-4">
                 {/* Legend */}
-                <Card className="p-4 lg:p-5 border-2">
+                <Card className="p-3 sm:p-4 lg:p-5 border-2">
                   <h3 className="text-sm font-semibold text-foreground mb-4 flex items-center gap-2">
                     <div className="h-2 w-2 rounded-full bg-gradient-to-r from-primary to-secondary"></div>
                     Legenda de Cores
@@ -621,21 +637,21 @@ const Calendar = () => {
                     <div className="grid grid-cols-1 gap-3">
                       {/* Status Colors */}
                       <div className="space-y-2">
-                        <div className="flex items-center gap-2">
+                        <div className="flex items-center gap-1.5 sm:gap-2">
                           <div className="h-4 w-8 rounded border-2 border-green-700" style={{ backgroundColor: '#10B981' }}></div>
-                          <span className="text-xs font-medium text-green-600">✓ Publicado</span>
+                          <span className="text-xs sm:text-sm font-medium text-green-600">✓ Publicado</span>
                         </div>
-                        <div className="flex items-center gap-2">
+                        <div className="flex items-center gap-1.5 sm:gap-2">
                           <div className="h-4 w-8 rounded border-2 border-orange-700" style={{ backgroundColor: '#F59E0B' }}></div>
-                          <span className="text-xs font-medium text-orange-600">⏳ Aprovado (pendente publicação)</span>
+                          <span className="text-xs sm:text-sm font-medium text-orange-600">⏳ Aprovado (pendente publicação)</span>
                         </div>
-                        <div className="flex items-center gap-2">
+                        <div className="flex items-center gap-1.5 sm:gap-2">
                           <div className="h-4 w-8 rounded" style={{ backgroundColor: '#3B82F6' }}></div>
-                          <span className="text-xs font-medium text-blue-600">📅 Agendado</span>
+                          <span className="text-xs sm:text-sm font-medium text-blue-600">📅 Agendado</span>
                         </div>
-                        <div className="flex items-center gap-2">
+                        <div className="flex items-center gap-1.5 sm:gap-2">
                           <div className="h-4 w-8 rounded" style={{ backgroundColor: '#8B5CF6' }}></div>
-                          <span className="text-xs font-medium text-purple-600">📅 Story Agendada</span>
+                          <span className="text-xs sm:text-sm font-medium text-purple-600">📅 Story Agendada</span>
                         </div>
                       </div>
                     </div>
@@ -671,12 +687,12 @@ const Calendar = () => {
                 </Card>
               </div>
 
-              <div 
-                className="bg-white rounded-lg sm:rounded-xl lg:rounded-2xl shadow-md p-2 sm:p-4 lg:p-6 border border-gray-100 overflow-hidden"
-                onTouchStart={isMobile ? onTouchStart : undefined}
-                onTouchMove={isMobile ? onTouchMove : undefined}
-                onTouchEnd={isMobile ? onTouchEnd : undefined}
-              >
+        <div 
+          className={`bg-white rounded-lg sm:rounded-xl lg:rounded-2xl shadow-md p-2 sm:p-4 lg:p-6 border border-gray-100 overflow-hidden transition-transform ${isSwipping ? 'scale-[0.98]' : ''}`}
+          onTouchStart={isMobile ? onTouchStart : undefined}
+          onTouchMove={isMobile ? onTouchMove : undefined}
+          onTouchEnd={isMobile ? onTouchEnd : undefined}
+        >
                 {loading ? (
                   <div className="h-[400px] sm:h-[500px] lg:h-[600px] flex items-center justify-center">
                     <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary"></div>
@@ -687,13 +703,13 @@ const Calendar = () => {
                     events={filteredEvents}
                     startAccessor={(event: CalendarEvent) => event.start as Date}
                     endAccessor={(event: CalendarEvent) => event.end as Date}
-                    style={{ 
-                      height: isMobile 
-                        ? 'calc(100vh - 420px)'
-                        : window.innerWidth < 1024 
-                          ? 600 
-                          : 700 
-                    }}
+          style={{ 
+            height: isMobile 
+              ? 'calc(100vh - 380px)'
+              : window.innerWidth < 1024 
+                ? 600 
+                : 700 
+          }}
                     culture="pt-PT"
                     view={calendarView}
                     onView={(view) => {
@@ -701,7 +717,7 @@ const Calendar = () => {
                         setCalendarView(view);
                       }
                     }}
-                    views={isMobile ? ['day', 'week'] : ['month', 'week', 'day']}
+                    views={isMobile ? ['day'] : ['month', 'week', 'day']}
                     onNavigate={(date) => setCurrentMonth(date)}
                     messages={{
                       next: 'Próximo',
