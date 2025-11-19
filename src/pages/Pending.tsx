@@ -334,13 +334,13 @@ const Pending = () => {
                 </div>
 
                 {/* Status Tabs + Search */}
-                <div className="space-y-4">
-                  <h3 className="text-xs font-bold text-muted-foreground uppercase tracking-wider">
+                <div className="space-y-3 sm:space-y-4">
+                  <h3 className="text-[10px] sm:text-xs font-bold text-muted-foreground uppercase tracking-wider">
                     Estado da Publicação
                   </h3>
-                  <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4">
-                    <div className="flex overflow-x-auto snap-x snap-mandatory scrollbar-hide pb-2 -mx-4 px-4 md:mx-0 md:px-0">
-                      <div className="flex gap-2 flex-shrink-0">
+                  <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-3 sm:gap-4">
+                    <div className="flex overflow-x-auto snap-x snap-mandatory scrollbar-hide pb-2 -mx-3 px-3 md:mx-0 md:px-0">
+                      <div className="flex gap-1.5 sm:gap-2 flex-shrink-0">
                         {Object.entries(statusConfig).map(([key, config]) => (
                           <Button
                             key={key}
@@ -348,19 +348,19 @@ const Pending = () => {
                             variant="ghost"
                             size="sm"
                             className={cn(
-                              'h-10 min-h-[44px] px-4 sm:px-6 py-2.5 sm:py-3 text-xs sm:text-sm font-bold rounded-xl transition-all duration-200 border-2 whitespace-nowrap relative snap-center flex-shrink-0 active:scale-95',
+                              'h-10 min-h-[44px] px-3 sm:px-4 md:px-6 py-2 sm:py-2.5 text-xs sm:text-sm font-bold rounded-xl transition-all duration-200 border-2 whitespace-nowrap relative snap-center flex-shrink-0 active:scale-95',
                               activeStatus === key
                                 ? config.color + ' shadow-lg'
                                 : 'bg-card border-border hover:bg-accent hover:shadow-md'
                             )}
                             title={key === 'pending' && config.count > 0 ? config.breakdown : undefined}
                           >
-                            <config.icon className="mr-1.5 h-5 w-5" />
+                            <config.icon className="mr-1 sm:mr-1.5 h-4 w-4 sm:h-5 sm:w-5" />
                             {config.label}
                             {key === 'pending' && config.count > 0 && (
                               <Badge 
                                 variant="secondary" 
-                                className="ml-1.5 sm:ml-2 h-4 sm:h-5 px-1 sm:px-1.5 text-[10px] sm:text-xs font-bold bg-warning text-warning-foreground"
+                                className="ml-1 sm:ml-1.5 h-4 sm:h-5 px-1 sm:px-1.5 text-[10px] sm:text-xs font-bold bg-warning text-warning-foreground"
                               >
                                 {config.count}
                               </Badge>
@@ -370,14 +370,14 @@ const Pending = () => {
                       </div>
                     </div>
 
-                    <div className="flex items-center gap-2 flex-1 lg:max-w-md">
+                    <div className="flex items-center gap-1.5 sm:gap-2 flex-1 lg:max-w-md">
                       <div className="relative flex-1">
-                        <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground pointer-events-none" />
+                        <Search className="absolute left-2.5 sm:left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground pointer-events-none" />
                         <Input
                           placeholder="Procurar..."
                           value={searchQuery}
                           onChange={(e) => setSearchQuery(e.target.value)}
-                          className="pl-10 h-10 bg-background border-2 border-border rounded-xl text-sm focus:border-primary transition-all shadow-sm"
+                          className="pl-9 sm:pl-10 h-10 bg-background border-2 border-border rounded-xl text-sm focus:border-primary transition-all shadow-sm"
                         />
                       </div>
                       <Button
@@ -385,7 +385,7 @@ const Pending = () => {
                         size="icon"
                         onClick={() => fetchAll()}
                         disabled={loading}
-                        className="h-10 w-10 rounded-xl border-2 border-border hover:bg-accent hover:border-primary/50 transition-all shadow-sm"
+                        className="h-10 w-10 min-w-[40px] rounded-xl border-2 border-border hover:bg-accent hover:border-primary/50 transition-all shadow-sm"
                         title="Recarregar lista"
                       >
                         <RefreshCw className={`h-4 w-4 ${loading ? 'animate-spin' : ''}`} />
