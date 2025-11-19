@@ -88,14 +88,14 @@ export const PostCard = ({ post, onClick, onDelete }: PostCardProps) => {
       )}
       onClick={onClick}
     >
-      <CardContent className="p-3 sm:p-4 md:p-5">
+      <CardContent className="p-2.5 sm:p-4 md:p-5">
         {/* Delete Button - Top Right */}
         {onDelete && (
           <div className="absolute top-4 right-4 z-10">
             <Button
               variant="ghost"
               size="icon"
-              className="h-12 w-12 sm:h-13 sm:w-13 text-destructive hover:text-destructive-foreground hover:bg-destructive bg-card/95 backdrop-blur-sm shadow-lg border-2 border-border rounded-xl touch-feedback active:scale-95"
+              className="h-14 w-14 sm:h-14 sm:w-14 text-destructive hover:text-destructive-foreground hover:bg-destructive bg-card/95 backdrop-blur-sm shadow-lg border-2 border-border rounded-xl touch-feedback active:scale-95"
               onClick={(e) => {
                 e.stopPropagation();
                 onDelete(post.id);
@@ -113,7 +113,7 @@ export const PostCard = ({ post, onClick, onDelete }: PostCardProps) => {
           <Badge 
             variant="outline" 
             className={cn(
-              "flex items-center gap-1.5 sm:gap-2 px-3 sm:px-4 py-1.5 sm:py-2 font-semibold border-2 text-xs sm:text-sm rounded-lg shadow-sm",
+              "flex items-center gap-1.5 sm:gap-2 px-2.5 sm:px-4 py-1.5 sm:py-2 font-semibold border-2 text-[10px] sm:text-sm rounded-lg shadow-sm",
               contentTypeConfig[contentType as keyof typeof contentTypeConfig].color
             )}
           >
