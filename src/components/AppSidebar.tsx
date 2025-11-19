@@ -86,7 +86,7 @@ export function AppSidebar() {
         <Button
           variant="ghost"
           size="icon"
-          className="absolute top-3 right-3 z-10 h-9 w-9 rounded-lg hover:bg-white/40 transition-all duration-150"
+          className="absolute top-3 right-3 z-10 h-10 w-10 min-h-[44px] min-w-[44px] touch-target rounded-lg hover:bg-white/40 transition-all duration-150"
           onClick={() => setOpen(false)}
           aria-label="Fechar menu"
         >
@@ -117,7 +117,7 @@ export function AppSidebar() {
                       <NavLink
                         to={item.url}
                         onClick={() => isMobile && setOpen(false)}
-                        className="flex flex-col items-center gap-2 mx-auto group w-full py-2 active:scale-95 transition-transform duration-150"
+                        className="flex flex-col items-center gap-2 mx-auto group w-full py-3 active:scale-95 transition-transform duration-150 min-h-[64px] touch-target"
                       >
                           {({ isActive }) => (
                             <>
@@ -151,7 +151,7 @@ export function AppSidebar() {
                                     <Tooltip delayDuration={200}>
                                       <TooltipTrigger asChild>
                                         <Badge 
-                                          className="absolute -top-1 -right-1 h-7 w-7 md:h-5 md:w-5 rounded-full p-0 flex items-center justify-center text-sm md:text-[10px] font-bold bg-[#EF4444] text-white border-2 border-[#E0E3EC] shadow-sm cursor-help"
+                                          className="absolute -top-1 -right-1 h-7 w-7 md:h-5 md:w-5 min-h-[28px] min-w-[28px] md:min-h-[20px] md:min-w-[20px] rounded-full p-0 flex items-center justify-center text-sm md:text-[10px] font-bold bg-[#EF4444] text-white border-2 border-[#E0E3EC] shadow-sm cursor-help"
                                         >
                                           {counts.total}
                                         </Badge>
