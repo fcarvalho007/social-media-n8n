@@ -68,7 +68,7 @@ const menuItems = [
 export function AppSidebar() {
   const { open, setOpen, isMobile } = useSidebar();
   const { counts } = usePendingCounts();
-  const location = window.location;
+  const totalPending = counts.stories + counts.carousels + counts.posts;
 
   return (
     <>
@@ -105,11 +105,11 @@ export function AppSidebar() {
           </Button>
         )}
 
-      <SidebarContent className="flex flex-col h-full py-10">
-        {/* Menu Items */}
-        <SidebarGroup className="flex-1 flex items-center">
-          <SidebarGroupContent className="w-full">
-            <SidebarMenu className="space-y-3">
+        <SidebarContent className="flex flex-col h-full py-10">
+          {/* Menu Items */}
+          <SidebarGroup className="flex-1 flex items-center">
+            <SidebarGroupContent className="w-full">
+              <SidebarMenu className="space-y-3">
                 {menuItems.map((item, index) => (
                   <SidebarMenuItem 
                     key={item.title}
@@ -122,96 +122,95 @@ export function AppSidebar() {
                       disabled={item.disabled}
                       className="h-auto p-0 hover:bg-transparent"
                     >
-                    {item.disabled ? (
-                      <div className="flex flex-col items-center gap-2 mx-auto opacity-30 cursor-not-allowed">
-                        <div className="flex h-12 w-12 items-center justify-center rounded-full relative">
-                          <item.icon className="h-5 w-5 text-[#6B7280]" strokeWidth={1.5} />
+                      {item.disabled ? (
+                        <div className="flex flex-col items-center gap-2 mx-auto opacity-30 cursor-not-allowed">
+                          <div className="flex h-12 w-12 items-center justify-center rounded-full relative">
+                            <item.icon className="h-5 w-5 text-[#6B7280]" strokeWidth={1.5} />
+                          </div>
+                          <span className="text-xs text-[#6B7280] font-medium text-center">{item.label}</span>
                         </div>
-                        <span className="text-xs text-[#6B7280] font-medium text-center">{item.label}</span>
-                      </div>
                       ) : (
-                      <NavLink
-                        to={item.url}
-                        onClick={() => isMobile && setOpen(false)}
-                        className="flex flex-col items-center gap-2 mx-auto group w-full py-3 hover:scale-105 active:scale-95 transition-all duration-200 ease-out min-h-[64px] touch-target"
-                      >
+                        <NavLink
+                          to={item.url}
+                          onClick={() => isMobile && setOpen(false)}
+                          className="flex flex-col items-center gap-2 mx-auto group w-full py-3 hover:scale-105 active:scale-95 transition-all duration-200 ease-out min-h-[64px] touch-target"
+                        >
                           {({ isActive }) => {
                             const isApprovalItem = item.url === '/pending';
-                            const showBadge = isApprovalItem && (counts.stories + counts.carousels + counts.posts) > 0;
-                            const totalPending = counts.stories + counts.carousels + counts.posts;
+                            const showBadge = isApprovalItem && totalPending > 0;
                             
                             return (
-                            <>
-                              <div
-                                className={cn(
-                                  'flex h-20 w-20 md:h-[60px] md:w-[60px] items-center justify-center rounded-full relative',
-                                  'transition-all duration-200 ease-in-out',
-                                  isActive && item.isMain
-                                    ? 'bg-[#4169A0] text-white shadow-lg'
-                                    : isActive && !item.isMain
-                                    ? 'bg-[#E3E8FA] text-[#1E3A8A]'
-                                    : 'text-[#6B7280] group-hover:bg-[#4169A0]/15 group-active:bg-[#4169A0]/25'
-                                )}
-                                onMouseEnter={(e) => {
-                                  if (!isActive) {
-                                    e.currentTarget.style.background = 'rgba(65, 105, 160, 0.15)';
-                                  }
-                                }}
-                                onMouseLeave={(e) => {
-                                  if (!isActive) {
-                                    e.currentTarget.style.background = '';
-                                  }
-                                }}
-                              >
-                                <item.icon 
-                                  className="h-8 w-8 md:h-6 md:w-6" 
-                                  strokeWidth={1.5} 
-                                />
-                                {item.showBadge && counts.total > 0 && (
-                                  <TooltipProvider>
-                                    <Tooltip delayDuration={200}>
-                                      <TooltipTrigger asChild>
-                                        <Badge 
-                                          className="absolute -top-1 -right-1 h-7 w-7 md:h-5 md:w-5 min-h-[28px] min-w-[28px] md:min-h-[20px] md:min-w-[20px] rounded-full p-0 flex items-center justify-center text-sm md:text-[10px] font-bold bg-[#EF4444] text-white border-2 border-[#E0E3EC] shadow-sm cursor-help"
+                              <>
+                                <div 
+                                  className={cn(
+                                    "flex h-14 w-14 sm:h-16 sm:w-16 items-center justify-center rounded-full relative transition-all duration-200",
+                                    isActive && item.isMain && "bg-[#4169A0] shadow-[0_0_24px_rgba(65,105,160,0.4)]",
+                                    isActive && !item.isMain && "bg-[#E3E8FA]",
+                                    !isActive && "bg-white/50 group-hover:bg-white/70 group-hover:scale-110 group-hover:shadow-lg"
+                                  )}
+                                >
+                                  <item.icon 
+                                    className={cn(
+                                      "h-7 w-7 sm:h-8 sm:w-8 transition-all duration-200",
+                                      isActive && item.isMain && "text-white drop-shadow-sm",
+                                      isActive && !item.isMain && "text-[#4169A0]",
+                                      !isActive && "text-[#6B7280] group-hover:text-[#4169A0]"
+                                    )} 
+                                    strokeWidth={isActive ? 2.5 : 1.5}
+                                  />
+                                  
+                                  {/* Pending Badge */}
+                                  {showBadge && (
+                                    <TooltipProvider delayDuration={0}>
+                                      <Tooltip>
+                                        <TooltipTrigger asChild>
+                                          <Badge 
+                                            variant="destructive" 
+                                            className="absolute -top-1 -right-1 h-6 w-6 rounded-full p-0 flex items-center justify-center shadow-lg text-xs font-bold animate-pulse cursor-help"
+                                          >
+                                            {totalPending}
+                                          </Badge>
+                                        </TooltipTrigger>
+                                        <TooltipContent 
+                                          side="right" 
+                                          className="bg-popover text-popover-foreground border border-border shadow-xl"
                                         >
-                                          {counts.total}
-                                        </Badge>
-                                      </TooltipTrigger>
-                                      <TooltipContent side="right" className="bg-popover border shadow-lg">
-                                        <div className="space-y-1.5 py-1">
-                                          <p className="font-semibold text-sm">Pendentes de Aprovação:</p>
-                                          {counts.stories > 0 && (
-                                            <p className="text-xs text-muted-foreground">
-                                              • {counts.stories} {counts.stories === 1 ? 'Story' : 'Stories'}
-                                            </p>
-                                          )}
-                                          {counts.carousels > 0 && (
-                                            <p className="text-xs text-muted-foreground">
-                                              • {counts.carousels} {counts.carousels === 1 ? 'Carrossel' : 'Carrosséis'}
-                                            </p>
-                                          )}
-                                          {counts.posts > 0 && (
-                                            <p className="text-xs text-muted-foreground">
-                                              • {counts.posts} {counts.posts === 1 ? 'Post' : 'Posts'}
-                                            </p>
-                                          )}
-                                        </div>
-                                      </TooltipContent>
-                                    </Tooltip>
-                                  </TooltipProvider>
-                                )}
-                              </div>
-                              <span 
-                                className={cn(
-                                  "text-sm md:text-xs font-medium transition-colors duration-200",
-                                  isActive ? "text-[#4169A0]" : "text-[#6B7280] group-hover:text-[#4169A0]"
-                                )}
-                                style={{ fontFamily: 'Inter, sans-serif', fontWeight: 500 }}
-                              >
-                                {item.label}
-                              </span>
-                            </>
-                          )}
+                                          <div className="text-sm space-y-1">
+                                            {counts.stories > 0 && (
+                                              <p className="font-medium">
+                                                Stories: <span className="text-destructive">{counts.stories}</span>
+                                              </p>
+                                            )}
+                                            {counts.carousels > 0 && (
+                                              <p className="font-medium">
+                                                Carrosséis: <span className="text-destructive">{counts.carousels}</span>
+                                              </p>
+                                            )}
+                                            {counts.posts > 0 && (
+                                              <p className="font-medium">
+                                                Posts: <span className="text-destructive">{counts.posts}</span>
+                                              </p>
+                                            )}
+                                          </div>
+                                        </TooltipContent>
+                                      </Tooltip>
+                                    </TooltipProvider>
+                                  )}
+                                </div>
+                                
+                                <span 
+                                  className={cn(
+                                    "text-xs font-medium text-center leading-tight transition-colors duration-200",
+                                    isActive && item.isMain && "text-[#4169A0] font-semibold",
+                                    isActive && !item.isMain && "text-[#4169A0] font-semibold",
+                                    !isActive && "text-[#6B7280] group-hover:text-[#4169A0]"
+                                  )}
+                                >
+                                  {item.label}
+                                </span>
+                              </>
+                            );
+                          }}
                         </NavLink>
                       )}
                     </SidebarMenuButton>
@@ -220,8 +219,8 @@ export function AppSidebar() {
               </SidebarMenu>
             </SidebarGroupContent>
           </SidebarGroup>
-
         </SidebarContent>
       </Sidebar>
+    </>
   );
 }
