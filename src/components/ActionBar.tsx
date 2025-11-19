@@ -224,12 +224,12 @@ export const ActionBar = ({
     <>
       <div className="sticky bottom-0 border-t-2 border-border bg-background/95 backdrop-blur-md shadow-2xl mobile-safe-bottom z-40">
         {/* Sticky summary bar */}
-        <div className="border-b border-border bg-muted/30 px-4 md:px-6 py-2.5 md:py-3">
+        <div className="border-b border-border bg-muted/30 px-3 sm:px-4 md:px-6 py-2 sm:py-2.5 md:py-3">
           <div className="container max-w-6xl mx-auto flex items-center justify-between gap-4 flex-wrap">
             {/* Selected platforms */}
             <div className="flex items-center gap-2 md:gap-3 flex-wrap">
               {publishTargets.instagram && (
-                <Badge variant="secondary" className="flex items-center gap-1.5 text-xs md:text-sm px-2.5 py-1.5">
+                <Badge variant="secondary" className="flex items-center gap-1 text-xs px-2 py-1 sm:gap-1.5 sm:px-2.5 sm:py-1.5 md:text-sm">
                   <Instagram className="h-3.5 w-3.5 md:h-4 md:w-4" />
                   <span className="hidden sm:inline">Instagram</span>
                   <span className="sm:hidden">IG</span>
@@ -237,7 +237,7 @@ export const ActionBar = ({
                 </Badge>
               )}
               {publishTargets.linkedin && (
-                <Badge variant="secondary" className="flex items-center gap-1.5 text-xs md:text-sm px-2.5 py-1.5">
+                <Badge variant="secondary" className="flex items-center gap-1 text-xs px-2 py-1 sm:gap-1.5 sm:px-2.5 sm:py-1.5 md:text-sm">
                   <Linkedin className="h-3.5 w-3.5 md:h-4 md:w-4" />
                   <span className="hidden sm:inline">LinkedIn</span>
                   <span className="sm:hidden">LI</span>
@@ -259,7 +259,7 @@ export const ActionBar = ({
         </div>
         
         {/* Action buttons */}
-        <div className="p-5 md:p-6">
+        <div className="p-3 sm:p-5 md:p-6">
           <div className="container flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between px-3 md:px-4 max-w-6xl mx-auto">
           {isApproved ? (
             <Button
@@ -267,7 +267,7 @@ export const ActionBar = ({
               size="lg"
               onClick={handleRevertToPending}
               disabled={loading}
-              className="sm:w-auto w-full h-14 md:h-16 text-base md:text-lg touch-feedback active:scale-95 transition-all duration-150 font-bold shadow-sm"
+              className="sm:w-auto w-full h-12 sm:h-14 md:h-16 text-base md:text-lg touch-feedback active:scale-95 transition-all duration-150 font-bold shadow-sm"
             >
               {loading ? <Loader2 className="mr-2 h-6 w-6 animate-spin" /> : <AlertCircle className="mr-2 h-6 w-6" />}
               <span>Voltar a Pendentes</span>
@@ -278,7 +278,7 @@ export const ActionBar = ({
               size="lg"
               onClick={() => setShowRejectDialog(true)}
               disabled={loading}
-              className="sm:w-auto w-full h-14 md:h-16 text-base md:text-lg touch-feedback active:scale-95 transition-all duration-150 font-bold shadow-lg"
+              className="sm:w-auto w-full h-12 sm:h-14 md:h-16 text-base md:text-lg touch-feedback active:scale-95 transition-all duration-150 font-bold shadow-lg"
             >
               {loading ? <Loader2 className="mr-2 h-6 w-6 animate-spin" /> : <Trash2 className="mr-2 h-6 w-6" />}
               <span>Rejeitar</span>
@@ -291,7 +291,7 @@ export const ActionBar = ({
               size="lg"
               onClick={handleSave}
               disabled={loading}
-              className="flex-1 sm:flex-initial h-14 md:h-16 text-base md:text-lg touch-feedback active:scale-95 transition-all duration-150 focus:ring-2 focus:ring-primary/40 font-bold shadow-sm"
+              className="flex-1 sm:flex-initial h-12 sm:h-14 md:h-16 text-base md:text-lg touch-feedback active:scale-95 transition-all duration-150 focus:ring-2 focus:ring-primary/40 font-bold shadow-sm"
             >
               {loading ? <Loader2 className="mr-2 h-6 w-6 animate-spin" /> : <Save className="mr-2 h-6 w-6" />}
               <span>Guardar</span>
@@ -305,7 +305,7 @@ export const ActionBar = ({
                 onClick={handleApproveNow}
                 disabled={!canApprove || loading || ((publishTargets.instagram || publishTargets.linkedin) && !instagramCanPublish)}
                 className={cn(
-                  "w-full h-14 md:h-16 text-base md:text-lg touch-feedback active:scale-95 transition-all duration-150 relative focus:ring-2 focus:ring-primary/40 font-bold",
+                  "w-full h-12 sm:h-14 md:h-16 text-base md:text-lg touch-feedback active:scale-95 transition-all duration-150 relative focus:ring-2 focus:ring-primary/40 font-bold",
                   canApprove && "bg-success hover:bg-success/90 shadow-lg"
                 )}
                 title={
@@ -337,7 +337,7 @@ export const ActionBar = ({
               variant="outline"
               onClick={() => setShowScheduleDialog(true)}
               disabled={!canApprove || loading}
-              className="h-14 w-14 md:h-16 md:w-16 p-0 touch-feedback active:scale-95 transition-all duration-150 focus:ring-2 focus:ring-primary/40 shadow-sm"
+              className="h-12 w-12 sm:h-14 sm:w-14 md:h-16 md:w-16 p-0 touch-feedback active:scale-95 transition-all duration-150 focus:ring-2 focus:ring-primary/40 shadow-sm"
               title={!canApprove ? disabledReason : 'Agendar publicação'}
               aria-label="Agendar publicação"
             >

@@ -348,7 +348,7 @@ const Pending = () => {
                             variant="ghost"
                             size="sm"
                             className={cn(
-                              'h-10 min-h-[44px] px-6 py-3 text-xs sm:text-sm font-bold rounded-xl transition-all duration-200 border-2 whitespace-nowrap relative snap-center flex-shrink-0 active:scale-95',
+                              'h-10 min-h-[44px] px-4 sm:px-6 py-2.5 sm:py-3 text-xs sm:text-sm font-bold rounded-xl transition-all duration-200 border-2 whitespace-nowrap relative snap-center flex-shrink-0 active:scale-95',
                               activeStatus === key
                                 ? config.color + ' shadow-lg'
                                 : 'bg-card border-border hover:bg-accent hover:shadow-md'
@@ -360,7 +360,7 @@ const Pending = () => {
                             {key === 'pending' && config.count > 0 && (
                               <Badge 
                                 variant="secondary" 
-                                className="ml-2 h-5 px-1.5 text-xs font-bold bg-warning text-warning-foreground"
+                                className="ml-1.5 sm:ml-2 h-4 sm:h-5 px-1 sm:px-1.5 text-[10px] sm:text-xs font-bold bg-warning text-warning-foreground"
                               >
                                 {config.count}
                               </Badge>
@@ -397,7 +397,7 @@ const Pending = () => {
 
               {/* Content Grid - Mobile optimized spacing */}
               {loading ? (
-                <div className="grid gap-3 sm:gap-4 md:gap-5 lg:gap-6 grid-cols-1 sm:grid-cols-2 lg:grid-cols-3">
+                <div className="grid gap-2.5 sm:gap-4 md:gap-5 lg:gap-6 grid-cols-1 sm:grid-cols-2 lg:grid-cols-3">
                   {Array.from({ length: 6 }).map((_, i) => (
                     contentTypeFilter === 'stories' || (contentTypeFilter === 'all' && i % 2 === 0) ? (
                       <StoryCardSkeleton key={i} />
