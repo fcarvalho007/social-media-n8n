@@ -304,14 +304,14 @@ const Pending = () => {
             /* Approve Tab */
             <div className="space-y-6 animate-slide-up">
               {/* Filters Section - Agrupada em card */}
-              <div className="bg-card rounded-2xl p-4 sm:p-6 border-2 border-border shadow-lg">
+              <div className="bg-card rounded-xl sm:rounded-2xl p-3 sm:p-4 md:p-6 border-2 border-border shadow-lg">
                 {/* Content Type Filter - Mobile optimized */}
-                <div className="mb-5">
-                  <h3 className="text-xs font-bold text-muted-foreground uppercase tracking-wider mb-3">
+                <div className="mb-3 sm:mb-5">
+                  <h3 className="text-[10px] sm:text-xs font-bold text-muted-foreground uppercase tracking-wider mb-2 sm:mb-3">
                     Filtrar por Tipo
                   </h3>
-                  <div className="flex overflow-x-auto snap-x snap-mandatory scrollbar-hide pb-2 -mx-4 px-4 md:mx-0 md:px-0">
-                    <div className="flex gap-2 flex-shrink-0">
+                  <div className="flex overflow-x-auto snap-x snap-mandatory scrollbar-hide pb-2 -mx-3 px-3 md:mx-0 md:px-0">
+                    <div className="flex gap-1.5 sm:gap-2 flex-shrink-0">
                       {contentTypes.map((type) => (
                         <Button
                           key={type.id}
@@ -319,7 +319,7 @@ const Pending = () => {
                           variant="outline"
                           size="sm"
                           className={cn(
-                            'h-10 min-h-[44px] px-6 py-3 text-xs sm:text-sm font-bold transition-all duration-200 border-2 rounded-xl touch-target snap-center flex-shrink-0 whitespace-nowrap active:scale-95',
+                            'h-10 min-h-[44px] px-4 sm:px-6 py-2.5 sm:py-3 text-xs sm:text-sm font-bold transition-all duration-200 border-2 rounded-xl touch-target snap-center flex-shrink-0 whitespace-nowrap active:scale-95',
                             contentTypeFilter === type.id
                               ? 'bg-primary text-primary-foreground border-primary shadow-lg'
                               : 'bg-background hover:bg-accent border-border hover:border-primary/50 hover:shadow-md'
