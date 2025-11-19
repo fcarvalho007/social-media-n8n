@@ -1,7 +1,6 @@
 import { useState, useEffect, useRef } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { supabase } from '@/integrations/supabase/client';
-import { useAuth } from '@/contexts/AuthContext';
 import { AppSidebar } from '@/components/AppSidebar';
 import { DashboardHeader } from '@/components/DashboardHeader';
 import { CarouselPreview } from '@/components/CarouselPreview';
@@ -38,7 +37,6 @@ import { logger } from '@/lib/logger';
 const Review = () => {
   const { id } = useParams();
   const navigate = useNavigate();
-  const { user } = useAuth();
   const [post, setPost] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [selectedTemplate, setSelectedTemplate] = useState<'A' | 'B' | null>(null);
@@ -355,11 +353,6 @@ const Review = () => {
     // If scheduling, save to database and return
     if (scheduledDate) {
       try {
-        const isValidUUID = user?.id && /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(user.id);
-        
-        // Get current active images for selected template
-        const activeImages = selectedTemplate === 'A' ? templateAImages : templateBImages;
-        
         const updateData: any = {
           status: 'approved',
           selected_template: selectedTemplate,
@@ -371,12 +364,8 @@ const Review = () => {
           scheduled_date: scheduledDate.toISOString(),
           // ✅ CORREÇÃO: Não sobrescrever template_X_images - a BD mantém array completo
         };
-
-        if (isValidUUID) {
-          updateData.reviewed_by = user.id;
-        }
         
-        console.log('[Approve Schedule] Guardando', activeImages.length, 'imagens ativas do template', selectedTemplate);
+        console.log('[Approve Schedule] Guardando imagens ativas do template', selectedTemplate);
 
         const { error } = await supabase
           .from('posts')
@@ -416,7 +405,6 @@ const Review = () => {
 
     try {
       // Save to database first
-      const isValidUUID = user?.id && /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(user.id);
       
       // Get current active images for selected template
       const activeImages = selectedTemplate === 'A' ? templateAImages : templateBImages;
@@ -431,12 +419,8 @@ const Review = () => {
         publish_targets: publishTargets,
         // ✅ CORREÇÃO: Não sobrescrever template_X_images - a BD mantém array completo
       };
-
-      if (isValidUUID) {
-        updateData.reviewed_by = user.id;
-      }
       
-      console.log('[Approve Publish] Guardando', activeImages.length, 'imagens ativas do template', selectedTemplate);
+      console.log('[Approve Publish] Guardando imagens ativas do template', selectedTemplate);
 
       const { error } = await supabase
         .from('posts')
@@ -503,18 +487,11 @@ const Review = () => {
 
   const handleReject = async (rejectNotes?: string) => {
     try {
-      // Only include reviewed_by if user has a valid UUID
-      const isValidUUID = user?.id && /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(user.id);
-      
       const updateData: any = {
         status: 'rejected',
         notes: rejectNotes || notes,
         reviewed_at: new Date().toISOString(),
       };
-
-      if (isValidUUID) {
-        updateData.reviewed_by = user.id;
-      }
 
       const { error } = await supabase
         .from('posts')
@@ -979,7 +956,7 @@ const Review = () => {
         hashtags_final: hashtags || [],
         images: imagesToPublish,
         pageAlts: pageAlts,
-        reviewed_by: user?.email || 'unknown',
+        reviewed_by: 'user',
         notes: ''
       };
 
@@ -1029,9 +1006,10 @@ const Review = () => {
       console.log('[Instagram] Post publicado na BD com', imagesToPublish.length, 'imagens');
       
       // Register publication in quota
-      if (user?.id) {
+      const { data: userData } = await supabase.auth.getUser();
+      if (userData?.user?.id) {
         await supabase.from('publication_quota').insert({
-          user_id: user.id,
+          user_id: userData.user.id,
           platform: 'instagram',
           post_type: 'carousel',
           post_id: id,
@@ -1160,7 +1138,7 @@ const Review = () => {
         hashtags_final: hashtags || [],
         images: imagesToPublish,
         pageAlts: pageAlts,
-        reviewed_by: user?.email || 'unknown',
+        reviewed_by: 'user',
         notes: ''
       };
 
@@ -1210,9 +1188,10 @@ const Review = () => {
       console.log('[LinkedIn] Post publicado na BD com', imagesToPublish.length, 'imagens');
 
       // Register publication in quota
-      if (user?.id) {
+      const { data: userData } = await supabase.auth.getUser();
+      if (userData?.user?.id) {
         await supabase.from('publication_quota').insert({
-          user_id: user.id,
+          user_id: userData.user.id,
           platform: 'linkedin',
           post_type: 'carousel',
           post_id: id,

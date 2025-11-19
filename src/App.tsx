@@ -4,11 +4,7 @@ import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import { ThemeProvider } from "next-themes";
-import { AuthProvider } from "@/contexts/AuthContext";
-import { ProtectedRoute } from "@/components/ProtectedRoute";
 import { ErrorBoundary } from "@/components/ErrorBoundary";
-
-import Auth from "./pages/Auth";
 import Dashboard from "./pages/Dashboard";
 import Pending from "./pages/Pending";
 import Review from "./pages/Review";
@@ -31,101 +27,21 @@ const App = () => (
           <Toaster />
           <Sonner />
           <BrowserRouter>
-            <AuthProvider>
-              <Routes>
-              <Route path="/auth" element={<Auth />} />
-              <Route
-                path="/"
-                element={
-                  <ProtectedRoute>
-                    <Dashboard />
-                  </ProtectedRoute>
-                }
-              />
-              <Route
-                path="/dashboard"
-                element={
-                  <ProtectedRoute>
-                    <Dashboard />
-                  </ProtectedRoute>
-                }
-              />
-              <Route
-                path="/pending"
-                element={
-                  <ProtectedRoute>
-                    <Pending />
-                  </ProtectedRoute>
-                }
-              />
-              <Route
-                path="/review/:id"
-                element={
-                  <ProtectedRoute>
-                    <Review />
-                  </ProtectedRoute>
-                }
-              />
-              <Route
-                path="/review-story/:id"
-                element={
-                  <ProtectedRoute>
-                    <ReviewStory />
-                  </ProtectedRoute>
-                }
-              />
-              <Route
-                path="/calendar"
-                element={
-                  <ProtectedRoute>
-                    <Calendar />
-                  </ProtectedRoute>
-                }
-              />
-              <Route
-                path="/manual-create"
-                element={
-                  <ProtectedRoute>
-                    <ManualCreate />
-                  </ProtectedRoute>
-                }
-              />
-              <Route
-                path="/quota"
-                element={
-                  <ProtectedRoute>
-                    <QuotaSettings />
-                  </ProtectedRoute>
-                }
-              />
-              <Route
-                path="/users"
-                element={
-                  <ProtectedRoute>
-                    <UserManagement />
-                  </ProtectedRoute>
-                }
-              />
-              <Route
-                path="/projects"
-                element={
-                  <ProtectedRoute>
-                    <Projects />
-                  </ProtectedRoute>
-                }
-              />
-              <Route
-                path="/projects/:id"
-                element={
-                  <ProtectedRoute>
-                    <ProjectDetail />
-                  </ProtectedRoute>
-                }
-              />
+            <Routes>
+              <Route path="/" element={<Dashboard />} />
+              <Route path="/dashboard" element={<Dashboard />} />
+              <Route path="/pending" element={<Pending />} />
+              <Route path="/review/:id" element={<Review />} />
+              <Route path="/review-story/:id" element={<ReviewStory />} />
+              <Route path="/calendar" element={<Calendar />} />
+              <Route path="/manual-create" element={<ManualCreate />} />
+              <Route path="/quota" element={<QuotaSettings />} />
+              <Route path="/users" element={<UserManagement />} />
+              <Route path="/projects" element={<Projects />} />
+              <Route path="/projects/:id" element={<ProjectDetail />} />
               {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
               <Route path="*" element={<NotFound />} />
-              </Routes>
-            </AuthProvider>
+            </Routes>
           </BrowserRouter>
         </TooltipProvider>
       </ThemeProvider>

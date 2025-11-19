@@ -1,9 +1,8 @@
 import { useState } from 'react';
-import { Menu, ChevronRight, User, LogOut, Settings, Search, Users } from 'lucide-react';
+import { Menu, ChevronRight, User, Settings, Search, Users } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { useSidebar } from '@/components/ui/sidebar';
 import { useLocation, useSearchParams, useNavigate } from 'react-router-dom';
-import { useAuth } from '@/contexts/AuthContext';
 import { 
   DropdownMenu, 
   DropdownMenuContent, 
@@ -22,7 +21,6 @@ export function DashboardHeader() {
   const location = useLocation();
   const [searchParams] = useSearchParams();
   const navigate = useNavigate();
-  const { user, signOut } = useAuth();
   
   const [searchOpen, setSearchOpen] = useState(false);
   const activeTab = searchParams.get('tab');
@@ -131,57 +129,16 @@ export function DashboardHeader() {
 
           <QuotaBadge />
           
-          {user && (
-            <DropdownMenu>
-            <DropdownMenuTrigger asChild>
-              <Button 
-                variant="ghost" 
-                size="icon"
-                className="h-9 w-9 rounded-full hover:bg-primary/10 flex-shrink-0"
-                aria-label="Menu do utilizador"
-              >
-                <Avatar className="h-8 w-8">
-                  <AvatarFallback className="bg-primary text-primary-foreground font-semibold text-xs">
-                    <User className="h-4 w-4" />
-                  </AvatarFallback>
-                </Avatar>
-              </Button>
-            </DropdownMenuTrigger>
-            <DropdownMenuContent align="end" className="w-56 bg-popover z-50">
-              <DropdownMenuLabel className="font-normal py-2">
-                <div className="flex flex-col space-y-1">
-                  <p className="text-sm font-semibold leading-none">Utilizador</p>
-                  <p className="text-xs leading-none text-muted-foreground truncate">
-                    {user.email}
-                  </p>
-                </div>
-              </DropdownMenuLabel>
-              <DropdownMenuSeparator />
-              <DropdownMenuItem 
-                onClick={() => navigate('/quota')}
-                className="cursor-pointer py-2"
-              >
-                <Settings className="mr-2 h-4 w-4" />
-                <span>Gestão de Quota</span>
-              </DropdownMenuItem>
-              <DropdownMenuItem 
-                onClick={() => navigate('/users')}
-                className="cursor-pointer py-2"
-              >
-                <Users className="mr-2 h-4 w-4" />
-                <span>Utilizadores</span>
-              </DropdownMenuItem>
-              <DropdownMenuSeparator />
-              <DropdownMenuItem 
-                onClick={() => signOut()}
-                className="text-destructive focus:text-destructive cursor-pointer py-2"
-              >
-                <LogOut className="mr-2 h-4 w-4" />
-                <span>Sair</span>
-              </DropdownMenuItem>
-            </DropdownMenuContent>
-          </DropdownMenu>
-          )}
+          {/* Settings Menu */}
+          <Button
+            variant="ghost"
+            size="icon"
+            onClick={() => navigate('/quota')}
+            className="h-9 w-9 rounded-lg hover:bg-primary/10 active:scale-95 transition-all duration-150"
+            aria-label="Definições"
+          >
+            <Settings className="h-5 w-5" />
+          </Button>
         </div>
 
         {/* Global Search Dialog */}
