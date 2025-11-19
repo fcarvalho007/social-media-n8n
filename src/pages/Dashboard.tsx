@@ -39,11 +39,11 @@ export default function Dashboard() {
         <AppSidebar />
         <SidebarInset className="flex-1">
           <DashboardHeader />
-          <main className="flex-1 p-4 md:p-6 space-y-6 animate-fade-in bg-gradient-to-br from-background via-background to-muted/10">
+          <main className="flex-1 p-3 sm:p-4 md:p-6 space-y-4 sm:space-y-6 animate-fade-in bg-gradient-to-br from-background via-background to-muted/10">
             {/* Hero Section */}
-            <div className="space-y-2 pb-2 border-b border-border/50">
-              <h1 className="text-3xl md:text-4xl font-bold tracking-tight bg-gradient-to-r from-primary via-primary to-primary/70 bg-clip-text text-transparent">Dashboard</h1>
-              <p className="text-muted-foreground text-sm">Visão geral dos seus conteúdos e projetos</p>
+            <div className="space-y-1 sm:space-y-2 pb-2 border-b border-border/50">
+              <h1 className="text-2xl sm:text-3xl md:text-4xl font-bold tracking-tight bg-gradient-to-r from-primary via-primary to-primary/70 bg-clip-text text-transparent">Dashboard</h1>
+              <p className="text-muted-foreground text-xs sm:text-sm">Visão geral dos seus conteúdos e projetos</p>
             </div>
 
             {/* Linha 0: Custos */}
@@ -64,8 +64,8 @@ export default function Dashboard() {
                   </div>
                 </div>
               </CardHeader>
-              <CardContent>
-                <div className="grid gap-3 md:grid-cols-3">
+              <CardContent className="pt-4">
+                <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
                   {/* Stories */}
                   <div className="flex items-center gap-3 p-3 rounded-lg bg-card border border-border/50 hover:border-green-500/50 transition-colors">
                     <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-green-500/10">
@@ -135,19 +135,19 @@ export default function Dashboard() {
                 <h2 className="text-lg font-bold text-foreground">Conteúdos</h2>
               </div>
               <div className="grid gap-4 md:gap-5 grid-cols-1 sm:grid-cols-2 lg:grid-cols-3">
-                <Card className="group hover:shadow-xl transition-all duration-300 hover:-translate-y-1 border-2 border-transparent hover:border-primary/20 bg-gradient-to-br from-card to-primary/[0.02]">
+                <Card className="group hover:shadow-xl transition-all duration-300 hover:-translate-y-1 border-2 border-transparent hover:border-primary/20 bg-gradient-to-br from-card to-primary/[0.02] touch-active">
                   <CardHeader className="flex flex-row items-center justify-between pb-2">
-                    <CardTitle className="text-sm font-medium text-muted-foreground">Stories por Aprovar/Agendar</CardTitle>
-                    <FileImage className="h-5 w-5 text-primary" />
+                    <CardTitle className="text-xs sm:text-sm font-medium text-muted-foreground">Stories por Aprovar/Agendar</CardTitle>
+                    <FileImage className="h-5 w-5 text-primary flex-shrink-0" />
                   </CardHeader>
                   <CardContent>
-                    <div className="text-3xl font-bold text-primary">
+                    <div className="text-2xl sm:text-3xl font-bold text-primary">
                       {loadingPending ? '...' : pendingCounts.stories}
                     </div>
                     <Button 
                       variant="ghost" 
                       size="sm" 
-                      className="mt-3 text-xs hover:text-primary"
+                      className="mt-3 text-xs hover:text-primary touch-target"
                       onClick={() => navigate('/pending')}
                     >
                       Ver mais
@@ -156,19 +156,19 @@ export default function Dashboard() {
                   </CardContent>
                 </Card>
 
-                <Card className="hover:shadow-lg transition-all duration-300 hover-scale border-l-4 border-l-secondary">
+                <Card className="hover:shadow-lg transition-all duration-300 hover-scale border-l-4 border-l-secondary touch-active">
                   <CardHeader className="flex flex-row items-center justify-between pb-2">
-                    <CardTitle className="text-sm font-medium text-muted-foreground">Carrosséis por Aprovar/Agendar</CardTitle>
-                    <ImagePlus className="h-5 w-5 text-secondary" />
+                    <CardTitle className="text-xs sm:text-sm font-medium text-muted-foreground">Carrosséis por Aprovar/Agendar</CardTitle>
+                    <ImagePlus className="h-5 w-5 text-secondary flex-shrink-0" />
                   </CardHeader>
                   <CardContent>
-                    <div className="text-3xl font-bold text-secondary">
+                    <div className="text-2xl sm:text-3xl font-bold text-secondary">
                       {loadingPending ? '...' : pendingCounts.carousels}
                     </div>
                     <Button 
                       variant="ghost" 
                       size="sm" 
-                      className="mt-3 text-xs hover:text-primary"
+                      className="mt-3 text-xs hover:text-primary touch-target"
                       onClick={() => navigate('/review')}
                     >
                       Ver mais
@@ -177,19 +177,19 @@ export default function Dashboard() {
                   </CardContent>
                 </Card>
 
-                <Card className="hover:shadow-lg transition-all duration-300 hover-scale border-l-4 border-l-accent">
+                <Card className="hover:shadow-lg transition-all duration-300 hover-scale border-l-4 border-l-accent touch-active">
                   <CardHeader className="flex flex-row items-center justify-between pb-2">
-                    <CardTitle className="text-sm font-medium text-muted-foreground">Posts na Feed por Aprovar/Agendar</CardTitle>
-                    <FileText className="h-5 w-5 text-accent" />
+                    <CardTitle className="text-xs sm:text-sm font-medium text-muted-foreground">Posts na Feed por Aprovar/Agendar</CardTitle>
+                    <FileText className="h-5 w-5 text-accent flex-shrink-0" />
                   </CardHeader>
                   <CardContent>
-                    <div className="text-3xl font-bold text-accent">
+                    <div className="text-2xl sm:text-3xl font-bold text-accent">
                       {loadingPending ? '...' : pendingCounts.posts}
                     </div>
                     <Button 
                       variant="ghost" 
                       size="sm" 
-                      className="mt-3 text-xs hover:text-primary"
+                      className="mt-3 text-xs hover:text-primary touch-target"
                       onClick={() => navigate('/review')}
                     >
                       Ver mais

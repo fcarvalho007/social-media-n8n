@@ -232,19 +232,29 @@ All colors MUST be HSL.
   
   /* Responsive spacing */
   .mobile-p {
-    @apply p-4 md:p-6 lg:p-8;
+    @apply p-3 sm:p-4 md:p-6 lg:p-8;
   }
   
   .mobile-px {
-    @apply px-4 md:px-6 lg:px-8;
+    @apply px-3 sm:px-4 md:px-6 lg:px-8;
   }
   
   .mobile-py {
-    @apply py-4 md:py-6 lg:py-8;
+    @apply py-3 sm:py-4 md:py-6 lg:py-8;
   }
   
   .mobile-gap {
-    @apply gap-3 md:gap-4 lg:gap-6;
+    @apply gap-2 sm:gap-3 md:gap-4 lg:gap-6;
+  }
+
+  /* Touch-friendly targets (minimum 44x44px for accessibility) */
+  .touch-target {
+    @apply min-h-[44px] min-w-[44px];
+  }
+
+  /* Touch feedback */
+  .touch-active {
+    @apply active:scale-95 active:opacity-90 transition-all duration-150;
   }
   
   /* Better scroll on mobile */

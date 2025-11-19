@@ -77,67 +77,70 @@ export function DashboardHeader() {
 
   return (
     <header className="sticky top-0 z-30 bg-card/95 backdrop-blur-lg border-b border-border shadow-sm">
-      <div className="flex h-14 md:h-16 items-center justify-between px-3 md:px-6 gap-3">
+      <div className="flex h-16 items-center justify-between px-3 sm:px-4 md:px-6 gap-2 sm:gap-3">
         {/* Left: Mobile Menu + Breadcrumb */}
         <div className="flex items-center gap-2 md:gap-4 flex-1 min-w-0">
           <Button
             variant="ghost"
             size="icon"
-            className="lg:hidden h-9 w-9 rounded-lg hover:bg-primary/10 active:scale-95 transition-transform duration-150"
+            className="lg:hidden h-10 w-10 min-h-[44px] min-w-[44px] touch-target rounded-lg hover:bg-primary/10 active:scale-95 transition-transform duration-150"
             onClick={() => setOpen(true)}
             aria-label="Menu"
           >
             <Menu className="h-5 w-5" />
           </Button>
 
-          <nav className="flex items-center gap-1.5 text-sm overflow-x-auto scrollbar-hide">
+          <nav className="flex items-center gap-1 sm:gap-1.5 text-xs sm:text-sm overflow-x-auto scrollbar-hide">
             {breadcrumbs.map((crumb, index) => (
-              <div key={index} className="flex items-center gap-1.5 flex-shrink-0">
+              <div key={index} className="flex items-center gap-1 sm:gap-1.5 flex-shrink-0">
                 {crumb.path ? (
                   <button
                     onClick={() => navigate(crumb.path)}
-                    className="text-muted-foreground hover:text-primary transition-colors duration-150 font-medium px-1"
+                    className="text-muted-foreground hover:text-primary transition-colors duration-150 font-medium px-1 whitespace-nowrap"
                   >
                     {crumb.label}
                   </button>
                 ) : (
-                  <span className="font-semibold text-foreground">{crumb.label}</span>
+                  <span className="font-semibold text-foreground whitespace-nowrap">{crumb.label}</span>
                 )}
                 {index < breadcrumbs.length - 1 && (
-                  <ChevronRight className="h-3.5 w-3.5 text-muted-foreground flex-shrink-0" />
+                  <ChevronRight className="h-3 w-3 sm:h-3.5 sm:w-3.5 text-muted-foreground flex-shrink-0" />
                 )}
               </div>
             ))}
           </nav>
         </div>
 
-        {/* Right: Search + Notifications + Quota Badge + User Menu */}
-        <div className="flex items-center gap-2 flex-shrink-0">
+        {/* Right: Search + Notifications + Quota Badge + Settings */}
+        <div className="flex items-center gap-1 sm:gap-2 flex-shrink-0">
           {/* Global Search Button */}
           <Button
             variant="ghost"
             size="icon"
             onClick={() => setSearchOpen(true)}
-            className="h-9 w-9 rounded-lg hover:bg-primary/10"
+            className="h-10 w-10 min-h-[44px] min-w-[44px] touch-target rounded-lg hover:bg-primary/10"
             aria-label="Pesquisar (Cmd+K)"
           >
-            <Search className="h-4 w-4" />
+            <Search className="h-4 w-4 sm:h-5 sm:w-5" />
           </Button>
 
           {/* Notifications */}
           <NotificationBell />
 
-          <QuotaBadge />
+          {/* Quota Badge - Hidden on small mobile */}
+          <div className="hidden xs:block">
+            <QuotaBadge />
+          </div>
           
           {/* Settings Menu */}
           <Button
             variant="ghost"
             size="icon"
             onClick={() => navigate('/quota')}
-            className="h-9 w-9 rounded-lg hover:bg-primary/10 active:scale-95 transition-all duration-150"
+            className="h-10 w-10 min-h-[44px] min-w-[44px] touch-target rounded-lg hover:bg-primary/10 active:scale-95 transition-all duration-150"
             aria-label="Definições"
           >
-            <Settings className="h-5 w-5" />
+            <Settings className="h-4 w-4 sm:h-5 sm:w-5" />
           </Button>
         </div>
 

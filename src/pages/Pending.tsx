@@ -282,7 +282,7 @@ const Pending = () => {
             /* Approve Tab */
             <div className="space-y-6 animate-slide-up">
               {/* Filters Section - Agrupada em card */}
-              <div className="bg-card rounded-2xl p-6 border-2 border-border shadow-lg">
+              <div className="bg-card rounded-2xl p-4 sm:p-6 border-2 border-border shadow-lg">
                 {/* Content Type Filter */}
                 <div className="mb-5">
                   <h3 className="text-xs font-bold text-muted-foreground uppercase tracking-wider mb-3">
@@ -296,14 +296,14 @@ const Pending = () => {
                         variant="outline"
                         size="sm"
                         className={cn(
-                          'h-10 px-4 text-xs sm:text-sm font-bold transition-all duration-200 border-2 rounded-xl',
+                          'h-10 min-h-[44px] px-3 sm:px-4 text-xs sm:text-sm font-bold transition-all duration-200 border-2 rounded-xl touch-target',
                           contentTypeFilter === type.id
                             ? 'bg-primary text-primary-foreground border-primary shadow-lg'
                             : 'bg-background hover:bg-accent border-border hover:border-primary/50 hover:shadow-md'
                         )}
                       >
-                        {type.icon && <type.icon className="mr-1.5 h-4 w-4" />}
-                        {type.label}
+                        {type.icon && <type.icon className="mr-1 sm:mr-1.5 h-4 w-4 flex-shrink-0" />}
+                        <span className="truncate">{type.label}</span>
                       </Button>
                     ))}
                   </div>
@@ -315,7 +315,7 @@ const Pending = () => {
                     Estado da Publicação
                   </h3>
                   <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4">
-                    <div className="flex gap-2 overflow-x-auto pb-2 lg:pb-0 scrollbar-hide">
+                    <div className="flex gap-2 overflow-x-auto pb-2 lg:pb-0 scrollbar-hide mobile-scroll">
                       {Object.entries(statusConfig).map(([key, config]) => (
                         <Button
                           key={key}
