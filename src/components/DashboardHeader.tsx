@@ -17,7 +17,7 @@ import { GlobalSearch } from '@/components/GlobalSearch';
 import { NotificationBell } from '@/components/NotificationBell';
 
 export function DashboardHeader() {
-  const { setOpen } = useSidebar();
+  const { setOpen, toggleSidebar } = useSidebar();
   const location = useLocation();
   const [searchParams] = useSearchParams();
   const navigate = useNavigate();
@@ -84,7 +84,7 @@ export function DashboardHeader() {
             variant="ghost"
             size="icon"
             className="lg:hidden h-10 w-10 min-h-[44px] min-w-[44px] touch-target rounded-lg hover:bg-primary/10 active:scale-95 transition-transform duration-150"
-            onClick={() => setOpen(true)}
+            onClick={() => toggleSidebar()}
             aria-label="Menu"
           >
             <Menu className="h-5 w-5" />
