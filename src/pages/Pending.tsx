@@ -11,6 +11,9 @@ import { PostCard } from '@/components/PostCard';
 import { StoryCard } from '@/components/StoryCard';
 import { PostCardSkeleton } from '@/components/PostCardSkeleton';
 import { StoryCardSkeleton } from '@/components/StoryCardSkeleton';
+import { PullToRefreshIndicator } from '@/components/PullToRefreshIndicator';
+import { usePullToRefresh } from '@/hooks/usePullToRefresh';
+import { useIsMobile } from '@/hooks/use-mobile';
 import { SidebarProvider, SidebarInset } from '@/components/ui/sidebar';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
@@ -46,6 +49,19 @@ const Pending = () => {
   const [searchParams] = useSearchParams();
   const activeTab = searchParams.get('tab') || 'approve';
   const { counts } = usePendingCounts();
+  const isMobile = useIsMobile();
+
+  const handleRefresh = async () => {
+    await Promise.all([
+      fetchPosts(),
+      fetchStories(),
+    ]);
+  };
+
+  const pullToRefresh = usePullToRefresh({
+    onRefresh: handleRefresh,
+    disabled: !isMobile,
+  });
 
   // Check for preferred mode on mount
   useEffect(() => {
@@ -225,10 +241,15 @@ const Pending = () => {
         <AppSidebar />
         <SidebarInset className="flex-1">
           <DashboardHeader />
-          <main className="flex-1 p-4 md:p-6 space-y-6 animate-fade-in bg-gradient-to-br from-background to-background-secondary">
+          <PullToRefreshIndicator
+            pullDistance={pullToRefresh.pullDistance}
+            isRefreshing={pullToRefresh.isRefreshing}
+            isPulling={pullToRefresh.isPulling}
+          />
+          <main className="flex-1 p-4 md:p-6 space-y-6 animate-fade-in bg-gradient-to-br from-background to-background-secondary" role="main" aria-label="Conteúdo de aprovação e criação">
           {activeTab === 'create' ? (
             /* Create Tab */
-            <div className="space-y-6 animate-slide-up">
+            <div className="space-y-6 animate-slide-up" role="region" aria-label="Área de criação de conteúdo">
               {showModeSelector && !creationMode ? (
                 <div className="bg-card rounded-2xl shadow-lg p-6 sm:p-8 border-2 border-border">
                   <ModeSelector 
@@ -268,7 +289,8 @@ const Pending = () => {
                         <Button
                           size="lg"
                           onClick={() => navigate('/manual-create')}
-                          className="px-8"
+                          className="px-8 min-h-[44px] touch-target"
+                          aria-label="Abrir editor manual de publicações"
                         >
                           Abrir Editor Manual
                         </Button>

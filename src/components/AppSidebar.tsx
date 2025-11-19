@@ -66,14 +66,14 @@ const menuItems = [
 ];
 
 export function AppSidebar() {
-  const { open, setOpen, isMobile } = useSidebar();
+  const { open, setOpen, isMobile, openMobile } = useSidebar();
   const { counts } = usePendingCounts();
   const totalPending = counts.stories + counts.carousels + counts.posts;
 
   return (
     <>
-      {/* Mobile: Dark overlay with backdrop blur */}
-      {isMobile && open && (
+      {/* Mobile: Dark overlay with backdrop blur - only show when explicitly opened */}
+      {isMobile && openMobile && (
         <div 
           className="fixed inset-0 bg-background/80 backdrop-blur-sm z-40 animate-fade-in"
           onClick={() => setOpen(false)}
