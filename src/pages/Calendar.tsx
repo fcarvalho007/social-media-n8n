@@ -65,6 +65,10 @@ const Calendar = () => {
   const [filterType, setFilterType] = useState<'all' | 'posts' | 'stories'>('all');
   const [viewMode, setViewMode] = useState<'normal' | 'compact'>('normal');
   const [calendarView, setCalendarView] = useState<'month' | 'week' | 'day'>(isMobile ? 'day' : 'month');
+  const [touchStart, setTouchStart] = useState<number | null>(null);
+  const [touchEnd, setTouchEnd] = useState<number | null>(null);
+  
+  const minSwipeDistance = 50;
   
   // Force mobile-friendly view on small screens
   useEffect(() => {
@@ -72,6 +76,63 @@ const Calendar = () => {
       setCalendarView('day');
     }
   }, [isMobile, calendarView]);
+
+  // Add custom CSS for mobile calendar optimization
+  useEffect(() => {
+    const styleElement = document.createElement('style');
+    styleElement.innerHTML = `
+      .rbc-btn-group button {
+        min-height: 44px !important;
+        min-width: 44px !important;
+        padding: 8px 16px !important;
+        font-size: 14px !important;
+      }
+
+      @media (max-width: 640px) {
+        .rbc-day-bg,
+        .rbc-time-slot {
+          padding: 2px !important;
+        }
+        
+        .rbc-header {
+          padding: 8px 4px !important;
+          font-size: 12px !important;
+        }
+        
+        .rbc-event {
+          padding: 4px 6px !important;
+          font-size: 11px !important;
+        }
+
+        .rbc-toolbar {
+          flex-direction: column !important;
+          gap: 12px !important;
+          padding: 12px 8px !important;
+        }
+
+        .rbc-toolbar-label {
+          order: -1;
+          width: 100%;
+          text-align: center;
+          font-size: 18px !important;
+          font-weight: bold;
+        }
+        
+        .rbc-today {
+          background-color: rgba(59, 130, 246, 0.1) !important;
+        }
+        
+        .rbc-off-range-bg {
+          background: rgba(0, 0, 0, 0.02) !important;
+        }
+      }
+    `;
+    document.head.appendChild(styleElement);
+    
+    return () => {
+      document.head.removeChild(styleElement);
+    };
+  }, []);
 
   const fetchScheduledContent = async () => {
     setLoading(true);
@@ -240,6 +301,96 @@ const Calendar = () => {
     return { total: monthEvents.length, posts, stories };
   }, [events, currentMonth]);
 
+  // Swipe gesture handlers for mobile navigation
+  const onTouchStart = (e: React.TouchEvent) => {
+    setTouchEnd(null);
+    setTouchStart(e.targetTouches[0].clientX);
+  };
+
+  const onTouchMove = (e: React.TouchEvent) => {
+    setTouchEnd(e.targetTouches[0].clientX);
+  };
+
+  const onTouchEnd = () => {
+    if (!touchStart || !touchEnd) return;
+    
+    const distance = touchStart - touchEnd;
+    const isLeftSwipe = distance > minSwipeDistance;
+    const isRightSwipe = distance < -minSwipeDistance;
+    
+    if (isLeftSwipe) {
+      const nextMonth = new Date(currentMonth);
+      nextMonth.setMonth(nextMonth.getMonth() + 1);
+      setCurrentMonth(nextMonth);
+    }
+    
+    if (isRightSwipe) {
+      const prevMonth = new Date(currentMonth);
+      prevMonth.setMonth(prevMonth.getMonth() - 1);
+      setCurrentMonth(prevMonth);
+    }
+  };
+
+  // Custom toolbar for better mobile navigation
+  const CustomToolbar = (toolbar: any) => {
+    const goToBack = () => toolbar.onNavigate('PREV');
+    const goToNext = () => toolbar.onNavigate('NEXT');
+    const goToToday = () => toolbar.onNavigate('TODAY');
+
+    return (
+      <div className="flex flex-col sm:flex-row items-center justify-between gap-3 mb-4 pb-4 border-b">
+        <div className="flex items-center gap-2 w-full sm:w-auto justify-between sm:justify-start">
+          <Button
+            onClick={goToBack}
+            variant="outline"
+            size="sm"
+            className="min-h-[44px] min-w-[44px] px-4 active:scale-95 transition-transform"
+          >
+            <span className="hidden sm:inline mr-1">←</span> Anterior
+          </Button>
+          <Button
+            onClick={goToToday}
+            variant="default"
+            size="sm"
+            className="min-h-[44px] px-6 active:scale-95 transition-transform font-semibold"
+          >
+            Hoje
+          </Button>
+          <Button
+            onClick={goToNext}
+            variant="outline"
+            size="sm"
+            className="min-h-[44px] min-w-[44px] px-4 active:scale-95 transition-transform"
+          >
+            Próximo <span className="hidden sm:inline ml-1">→</span>
+          </Button>
+        </div>
+
+        <div className="text-center sm:text-left">
+          <h2 className="text-lg sm:text-xl font-bold text-foreground">
+            {toolbar.label}
+          </h2>
+        </div>
+
+        {!isMobile && (
+          <div className="flex gap-1">
+            {['month', 'week', 'day'].map((view) => (
+              <Button
+                key={view}
+                onClick={() => toolbar.onView(view)}
+                variant={toolbar.view === view ? 'default' : 'outline'}
+                size="sm"
+                className="min-h-[44px] px-4 capitalize active:scale-95 transition-transform"
+              >
+                {view === 'month' ? 'Mês' : view === 'week' ? 'Semana' : 'Dia'}
+              </Button>
+            ))}
+          </div>
+        )}
+      </div>
+    );
+  };
+
   const CustomEvent = ({ event }: { event: CalendarEvent }) => {
     const contentType = event.resource.content_type;
     const isPublished = event.resource.status === 'published';
@@ -396,7 +547,7 @@ const Calendar = () => {
                     </TooltipProvider>
 
                     {/* View Mode Buttons */}
-                    <div className="flex items-center gap-1 ml-2 border-l pl-2">
+                    <div className="hidden sm:flex items-center gap-1 ml-2 border-l pl-2">
                       <Button
                         variant={viewMode === 'normal' ? 'default' : 'outline'}
                         size="sm"
@@ -404,7 +555,7 @@ const Calendar = () => {
                         className="gap-1.5 min-h-[44px] px-3 sm:px-4 active:scale-95 transition-transform"
                       >
                         <Maximize2 className="h-4 w-4" />
-                        <span className="hidden sm:inline">Normal</span>
+                        <span className="hidden md:inline">Normal</span>
                       </Button>
                       <Button
                         variant={viewMode === 'compact' ? 'default' : 'outline'}
@@ -413,7 +564,7 @@ const Calendar = () => {
                         className="gap-1.5 min-h-[44px] px-3 sm:px-4 active:scale-95 transition-transform"
                       >
                         <Minimize2 className="h-4 w-4" />
-                        <span className="hidden sm:inline">Compacta</span>
+                        <span className="hidden md:inline">Compacta</span>
                       </Button>
                     </div>
                   </div>
@@ -520,7 +671,12 @@ const Calendar = () => {
                 </Card>
               </div>
 
-              <div className="bg-white rounded-xl lg:rounded-2xl shadow-md p-3 sm:p-4 lg:p-6 border border-gray-100">
+              <div 
+                className="bg-white rounded-lg sm:rounded-xl lg:rounded-2xl shadow-md p-2 sm:p-4 lg:p-6 border border-gray-100 overflow-hidden"
+                onTouchStart={isMobile ? onTouchStart : undefined}
+                onTouchMove={isMobile ? onTouchMove : undefined}
+                onTouchEnd={isMobile ? onTouchEnd : undefined}
+              >
                 {loading ? (
                   <div className="h-[400px] sm:h-[500px] lg:h-[600px] flex items-center justify-center">
                     <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary"></div>
@@ -531,8 +687,21 @@ const Calendar = () => {
                     events={filteredEvents}
                     startAccessor={(event: CalendarEvent) => event.start as Date}
                     endAccessor={(event: CalendarEvent) => event.end as Date}
-                    style={{ height: window.innerWidth < 640 ? 500 : window.innerWidth < 1024 ? 600 : 700 }}
+                    style={{ 
+                      height: isMobile 
+                        ? 'calc(100vh - 420px)'
+                        : window.innerWidth < 1024 
+                          ? 600 
+                          : 700 
+                    }}
                     culture="pt-PT"
+                    view={calendarView}
+                    onView={(view) => {
+                      if (view === 'month' || view === 'week' || view === 'day') {
+                        setCalendarView(view);
+                      }
+                    }}
+                    views={isMobile ? ['day', 'week'] : ['month', 'week', 'day']}
                     onNavigate={(date) => setCurrentMonth(date)}
                     messages={{
                       next: 'Próximo',
@@ -551,6 +720,7 @@ const Calendar = () => {
                     eventPropGetter={eventStyleGetter}
                     components={{
                       event: ({ event }: any) => <CustomEvent event={event as CalendarEvent} />,
+                      toolbar: CustomToolbar,
                     }}
                     onEventDrop={({ event, start }: any) => handleEventDrop({ event: event as CalendarEvent, start })}
                     onSelectEvent={(event: any) => setSelectedEvent(event as CalendarEvent)}
