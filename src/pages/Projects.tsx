@@ -106,31 +106,30 @@ export default function Projects() {
                 </Button>
               </div>
 
-              {/* Filters */}
-              <div className="flex flex-col md:flex-row gap-4">
-                <div className="relative flex-1">
-                  <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" aria-hidden="true" />
-                  <Input
-                    placeholder="Pesquisar projetos..."
-                    value={searchQuery}
-                    onChange={(e) => setSearchQuery(e.target.value)}
-                    className="pl-10"
-                    aria-label="Campo de pesquisa de projetos"
-                  />
-                </div>
-                <Select value={statusFilter} onValueChange={setStatusFilter}>
-                  <SelectTrigger className="w-full md:w-48" aria-label="Filtrar por estado">
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="all">Todos</SelectItem>
-                    <SelectItem value="active">Ativos</SelectItem>
-                    <SelectItem value="on_hold">Em Pausa</SelectItem>
-                    <SelectItem value="completed">Concluídos</SelectItem>
-                    <SelectItem value="archived">Arquivados</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
+          {/* Search and Filters - Mobile optimized */}
+          <div className="flex flex-col gap-3 mb-6">
+            <div className="relative flex-1">
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-muted-foreground" />
+              <Input
+                placeholder="Pesquisar projetos..."
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                className="pl-10 min-h-[44px] text-base"
+              />
+            </div>
+            <Select value={statusFilter} onValueChange={setStatusFilter}>
+              <SelectTrigger className="w-full min-h-[44px] active:scale-95 transition-transform">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">Todos os Status</SelectItem>
+                <SelectItem value="active">Ativos</SelectItem>
+                <SelectItem value="on_hold">Em Pausa</SelectItem>
+                <SelectItem value="completed">Concluídos</SelectItem>
+                <SelectItem value="archived">Arquivados</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
 
               {/* Projects Grid */}
               {filteredProjects.length === 0 ? (

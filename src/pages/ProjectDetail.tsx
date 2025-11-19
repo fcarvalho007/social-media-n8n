@@ -83,16 +83,16 @@ export default function ProjectDetail() {
         Voltar
       </Button>
 
-      {/* Header */}
-      <div className="flex flex-col md:flex-row justify-between items-start gap-4">
-        <div className="flex items-start gap-4">
-          <span className="text-4xl" role="img" aria-label="Project icon">{project.icon}</span>
-          <div>
+      {/* Header - Mobile optimized */}
+      <div className="flex flex-col md:flex-row justify-between items-start gap-4 mb-6">
+        <div className="flex items-start gap-3 md:gap-4 w-full md:w-auto">
+          <span className="text-3xl md:text-4xl flex-shrink-0" role="img" aria-label="Project icon">{project.icon}</span>
+          <div className="min-w-0 flex-1">
             <InlineEditableText
               value={project.name}
               onSave={(newName) => updateProject.mutate({ id: project.id, name: newName })}
-              className="text-3xl font-bold block"
-              inputClassName="text-3xl font-bold"
+              className="text-2xl md:text-3xl font-bold block truncate"
+              inputClassName="text-2xl md:text-3xl font-bold"
               as="h1"
             />
             <div className="mt-2">
@@ -109,48 +109,55 @@ export default function ProjectDetail() {
             </div>
           </div>
         </div>
-        <div className="flex gap-2">
+        <div className="flex items-center gap-2 overflow-x-auto scrollbar-hide -mx-4 px-4 md:mx-0 md:px-0 w-full md:w-auto">
           <Button 
             variant="outline" 
-            className="gap-2" 
+            size="sm"
+            className="gap-2 flex-shrink-0 min-h-[44px] active:scale-95 transition-transform" 
             onClick={() => setCreateTemplateOpen(true)}
             aria-label="Guardar como template"
           >
             <Save className="h-4 w-4" />
-            Template
+            <span className="hidden sm:inline">Template</span>
           </Button>
           <Button 
             variant="outline" 
-            className="gap-2" 
+            size="sm"
+            className="gap-2 flex-shrink-0 min-h-[44px] active:scale-95 transition-transform" 
             onClick={() => setEditProjectOpen(true)}
             aria-label="Editar projeto"
           >
             <Edit className="h-4 w-4" />
-            Editar
+            <span className="hidden sm:inline">Editar</span>
           </Button>
-          <Button variant="outline" className="gap-2" aria-label="Arquivar projeto">
+          <Button 
+            variant="outline" 
+            size="sm"
+            className="gap-2 flex-shrink-0 min-h-[44px] active:scale-95 transition-transform" 
+            aria-label="Arquivar projeto"
+          >
             <Archive className="h-4 w-4" />
-            Arquivar
+            <span className="hidden sm:inline">Arquivar</span>
           </Button>
           <Button 
             variant="destructive" 
-            className="gap-2"
+            size="sm"
+            className="gap-2 flex-shrink-0 min-h-[44px] min-w-[44px] active:scale-95 transition-transform"
             onClick={() => setDeleteDialogOpen(true)}
             aria-label="Eliminar projeto"
           >
             <Trash2 className="h-4 w-4" />
-            Eliminar
           </Button>
         </div>
       </div>
 
-      {/* Tabs */}
+      {/* Tabs - Mobile optimized with horizontal scroll */}
       <Tabs defaultValue="tasks" className="space-y-6">
-        <TabsList>
-          <TabsTrigger value="tasks">Tarefas</TabsTrigger>
-          <TabsTrigger value="milestones">Marcos</TabsTrigger>
-          <TabsTrigger value="timeline">Timeline</TabsTrigger>
-          <TabsTrigger value="activity">Atividade</TabsTrigger>
+        <TabsList className="w-full justify-start overflow-x-auto scrollbar-hide">
+          <TabsTrigger value="tasks" className="min-h-[44px] px-6 active:scale-95 transition-transform whitespace-nowrap">Tarefas</TabsTrigger>
+          <TabsTrigger value="milestones" className="min-h-[44px] px-6 active:scale-95 transition-transform whitespace-nowrap">Marcos</TabsTrigger>
+          <TabsTrigger value="timeline" className="min-h-[44px] px-6 active:scale-95 transition-transform whitespace-nowrap">Timeline</TabsTrigger>
+          <TabsTrigger value="activity" className="min-h-[44px] px-6 active:scale-95 transition-transform whitespace-nowrap">Atividade</TabsTrigger>
         </TabsList>
 
         <TabsContent value="tasks" className="space-y-4">
