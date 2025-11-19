@@ -1,7 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { supabase } from '@/integrations/supabase/client';
-import { useAuth } from '@/contexts/AuthContext';
 import { Header } from '@/components/Header';
 import { ActionBar } from '@/components/ActionBar';
 import { Label } from '@/components/ui/label';
@@ -21,7 +20,6 @@ import {
 const ReviewStory = () => {
   const { id } = useParams();
   const navigate = useNavigate();
-  const { user } = useAuth();
   const [story, setStory] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [caption, setCaption] = useState('');
@@ -82,7 +80,7 @@ const ReviewStory = () => {
         status: 'approved',
         caption,
         reviewed_at: reviewedAt,
-        reviewed_by: user?.email || 'unknown',
+        reviewed_by: 'user',
       };
 
       // If scheduled, save the date and don't call the webhook yet
@@ -123,7 +121,7 @@ const ReviewStory = () => {
               post_id: id,
               status: 'approved',
               caption_final: caption,
-              reviewed_by: user?.email || 'unknown',
+              reviewed_by: 'user',
               reviewed_at: reviewedAt,
             },
           });
@@ -155,7 +153,7 @@ const ReviewStory = () => {
       const updateData: any = {
         status: 'rejected',
         reviewed_at: new Date().toISOString(),
-        reviewed_by: user?.email || 'unknown',
+        reviewed_by: 'user',
       };
 
       const { error } = await supabase

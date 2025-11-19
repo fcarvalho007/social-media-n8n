@@ -5,7 +5,6 @@ import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { toast } from 'sonner';
 import { supabase } from '@/integrations/supabase/client';
-import { useAuth } from '@/contexts/AuthContext';
 import { Save, RefreshCw, Trash2, AlertCircle } from 'lucide-react';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 
@@ -22,7 +21,6 @@ interface QuotaManagementProps {
 }
 
 export function QuotaManagement({ onQuotaChange }: QuotaManagementProps) {
-  const { user } = useAuth();
   const [quota, setQuota] = useState<QuotaOverride>({
     instagram_used: 0,
     instagram_limit: 5,
@@ -35,30 +33,34 @@ export function QuotaManagement({ onQuotaChange }: QuotaManagementProps) {
 
   useEffect(() => {
     loadQuotaOverride();
-  }, [user?.id]);
+  }, []);
 
   const loadQuotaOverride = async () => {
-    if (!user?.id) return;
-
     setLoading(true);
     try {
-      const { data, error } = await supabase
-        .from('quota_overrides')
-        .select('*')
-        .eq('user_id', user.id)
-        .maybeSingle();
-
-      if (error && error.code !== 'PGRST116') {
-        throw error;
+      const { data: userData, error: userError } = await supabase.auth.getUser();
+      if (userError || !userData.user) {
+        toast.error('Utilizador não autenticado');
+        return;
       }
 
-      if (data) {
+      const { data: override, error: overrideError } = await supabase
+        .from('quota_overrides')
+        .select('*')
+        .eq('user_id', userData.user.id)
+        .maybeSingle();
+
+      if (overrideError && overrideError.code !== 'PGRST116') {
+        throw overrideError;
+      }
+
+      if (override) {
         setQuota({
-          id: data.id,
-          instagram_used: data.instagram_used,
-          instagram_limit: data.instagram_limit,
-          linkedin_used: data.linkedin_used,
-          linkedin_limit: data.linkedin_limit,
+          id: override.id,
+          instagram_used: override.instagram_used,
+          instagram_limit: override.instagram_limit,
+          linkedin_used: override.linkedin_used,
+          linkedin_limit: override.linkedin_limit,
         });
         setHasOverride(true);
       } else {
@@ -73,12 +75,16 @@ export function QuotaManagement({ onQuotaChange }: QuotaManagementProps) {
   };
 
   const handleSave = async () => {
-    if (!user?.id) return;
-
     setSaving(true);
     try {
+      const { data, error } = await supabase.auth.getUser();
+      if (error || !data.user) {
+        toast.error('Utilizador não autenticado');
+        return;
+      }
+
       const quotaData = {
-        user_id: user.id,
+        user_id: data.user.id,
         instagram_used: quota.instagram_used,
         instagram_limit: quota.instagram_limit,
         linkedin_used: quota.linkedin_used,

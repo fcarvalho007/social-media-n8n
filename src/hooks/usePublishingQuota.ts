@@ -1,6 +1,6 @@
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
-import { useAuth } from '@/contexts/AuthContext';
+import { useEffect, useState } from 'react';
 
 interface QuotaUsage {
   used_count: number;
@@ -19,20 +19,26 @@ interface GetlateQuotaResponse {
 }
 
 export function usePublishingQuota() {
-  const { user } = useAuth();
+  const [userId, setUserId] = useState<string | null>(null);
+
+  useEffect(() => {
+    supabase.auth.getUser().then(({ data }) => {
+      setUserId(data.user?.id || null);
+    });
+  }, []);
 
   // Query que verifica primeiro quota_overrides, depois Getlate.dev
   const quotaQuery = useQuery({
-    queryKey: ['publishing-quota', user?.id],
+    queryKey: ['publishing-quota', userId],
     queryFn: async () => {
-      if (!user?.id) return null;
+      if (!userId) return null;
 
       // 1. Verificar se existe quota override personalizada
       try {
         const { data: override, error: overrideError } = await supabase
           .from('quota_overrides')
           .select('*')
-          .eq('user_id', user.id)
+          .eq('user_id', userId)
           .maybeSingle();
 
         if (overrideError && overrideError.code !== 'PGRST116') {
@@ -81,7 +87,7 @@ export function usePublishingQuota() {
       
       return { ...data, source: 'getlate' };
     },
-    enabled: !!user?.id,
+    enabled: !!userId,
     refetchOnWindowFocus: true,
     refetchInterval: 30000, // Atualiza a cada 30 segundos
     staleTime: 15000, // Cache de 15 segundos
