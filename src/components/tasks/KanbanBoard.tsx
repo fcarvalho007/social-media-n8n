@@ -63,13 +63,13 @@ export function KanbanBoard({ tasks, projectId, onUpdateTask, onDeleteTask, onCr
   return (
     <>
       {/* Quick Add Task and Filter */}
-      <div className="mb-6 flex flex-col sm:flex-row gap-4 items-start sm:items-center justify-between">
+      <div className="mb-4 md:mb-6 flex flex-col sm:flex-row gap-3 md:gap-4 items-start sm:items-center justify-between">
         <QuickAddTask projectId={projectId} onCreate={onCreateTask} />
         <TaskAssigneeFilter value={assigneeFilter} onChange={setAssigneeFilter} />
       </div>
 
       <DndContext sensors={sensors} onDragStart={handleDragStart} onDragEnd={handleDragEnd}>
-        <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-4 min-h-[600px]">
+        <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-3 md:gap-4 min-h-[500px] md:min-h-[600px] overflow-x-auto">
           {columns.map((column) => {
             const columnTasks = filteredTasks.filter((task) => task.status === column.status);
             return (
