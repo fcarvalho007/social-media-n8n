@@ -19,6 +19,7 @@ import { Button } from '@/components/ui/button';
 import { Calendar as CalendarIcon, Clock, LayoutGrid, Video, TrendingUp, Filter, Trash2, Maximize2, Minimize2, ImageIcon, Plus, Wand2, PenTool, AlertCircle } from 'lucide-react';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
+import { useIsMobile } from '@/hooks/use-mobile';
 
 const locales = {
   'pt-PT': pt,
@@ -56,12 +57,21 @@ interface CalendarEvent extends Event {
 
 const Calendar = () => {
   const navigate = useNavigate();
+  const isMobile = useIsMobile();
   const [events, setEvents] = useState<CalendarEvent[]>([]);
   const [loading, setLoading] = useState(true);
   const [selectedEvent, setSelectedEvent] = useState<CalendarEvent | null>(null);
   const [currentMonth, setCurrentMonth] = useState(new Date());
   const [filterType, setFilterType] = useState<'all' | 'posts' | 'stories'>('all');
   const [viewMode, setViewMode] = useState<'normal' | 'compact'>('normal');
+  const [calendarView, setCalendarView] = useState<'month' | 'week' | 'day'>(isMobile ? 'day' : 'month');
+  
+  // Force mobile-friendly view on small screens
+  useEffect(() => {
+    if (isMobile && calendarView === 'month') {
+      setCalendarView('day');
+    }
+  }, [isMobile, calendarView]);
 
   const fetchScheduledContent = async () => {
     setLoading(true);
@@ -489,16 +499,16 @@ const Calendar = () => {
 
                 {/* Filters */}
                 <Card className="p-4 lg:p-5 border-2 flex flex-col justify-center">
-                  <div className="flex items-center justify-between">
+                  <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
                     <div className="flex items-center gap-2">
                       <Filter className="h-4 w-4 text-muted-foreground" />
                       <span className="text-sm font-medium text-muted-foreground">Filtrar por:</span>
                     </div>
                     <Select value={filterType} onValueChange={(value: any) => setFilterType(value)}>
-                      <SelectTrigger className="w-[180px]">
+                      <SelectTrigger className="w-full sm:w-[180px] min-h-[44px] touch-target">
                         <SelectValue />
                       </SelectTrigger>
-                      <SelectContent>
+                      <SelectContent className="bg-popover z-50">
                         <SelectItem value="all">Todos</SelectItem>
                         <SelectItem value="posts">Apenas Posts</SelectItem>
                         <SelectItem value="stories">Apenas Stories</SelectItem>

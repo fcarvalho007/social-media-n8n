@@ -108,9 +108,10 @@ function SortableThumb({ image, index, activeIndex, onRemove, canRemove }: Sorta
       {...attributes}
       {...listeners}
       className={cn(
-        "relative aspect-square cursor-grab active:cursor-grabbing overflow-hidden rounded border-2 transition-all group select-none w-20 h-20 flex-shrink-0",
-        activeIndex === index ? "border-primary ring-2 ring-primary/40" : "border-transparent opacity-60 hover:opacity-100",
-        isDragging && "opacity-50 scale-105 shadow-2xl ring-2 ring-primary"
+        "relative aspect-square cursor-grab active:cursor-grabbing overflow-hidden rounded-lg border-2 transition-all group select-none flex-shrink-0",
+        "w-16 h-16 sm:w-20 sm:h-20 touch-manipulation",
+        activeIndex === index ? "border-primary ring-2 ring-primary/40 shadow-md" : "border-border/50 opacity-70 hover:opacity-100",
+        isDragging && "opacity-50 scale-110 shadow-2xl ring-2 ring-primary z-50"
       )}
       title="Arrastar para reordenar"
     >
