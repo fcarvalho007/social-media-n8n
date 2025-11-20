@@ -36,14 +36,14 @@ export const StoryCard = ({ story, onClick, onDelete }: StoryCardProps) => {
       )}
       onClick={onClick}
     >
-      <CardContent className="p-4 sm:p-5 md:p-6">
+      <CardContent className="p-3 sm:p-4 md:p-5">
         {/* Delete Button - Top Right */}
         {onDelete && (
           <div className="absolute top-4 right-4 z-10">
             <Button
               variant="ghost"
               size="icon"
-              className="h-12 w-12 sm:h-13 sm:w-13 text-destructive hover:text-destructive-foreground hover:bg-destructive bg-card/95 backdrop-blur-sm shadow-lg border-2 border-border rounded-xl touch-feedback active:scale-95"
+              className="h-11 w-11 sm:h-12 sm:w-12 text-destructive hover:text-destructive-foreground hover:bg-destructive bg-card/95 backdrop-blur-sm shadow-lg border-2 border-border rounded-xl touch-feedback active:scale-95"
               onClick={(e) => {
                 e.stopPropagation();
                 onDelete(story.id);
@@ -57,10 +57,10 @@ export const StoryCard = ({ story, onClick, onDelete }: StoryCardProps) => {
         )}
 
         {/* Status Badge */}
-        <div className="mb-3 sm:mb-4">
+        <div className="mb-2 sm:mb-3">
           <Badge 
             className={cn(
-              "text-xs sm:text-sm px-3 py-1.5 font-semibold rounded-lg shadow-sm",
+              "text-xs px-2.5 sm:px-3 py-1 sm:py-1.5 font-semibold rounded-lg shadow-sm",
               statusColors[story.status as keyof typeof statusColors] || statusColors.pending
             )}
           >
@@ -69,7 +69,7 @@ export const StoryCard = ({ story, onClick, onDelete }: StoryCardProps) => {
         </div>
 
         {/* Story Image - Responsive sizing */}
-        <div className="relative aspect-[9/16] bg-muted rounded-xl overflow-hidden mb-4 sm:mb-5 mx-auto max-w-[85%] sm:max-w-[80%] shadow-xl">
+        <div className="relative aspect-[3/4] sm:aspect-[9/16] bg-muted rounded-xl overflow-hidden mb-3 sm:mb-4 shadow-xl">
           {imageLoading && (
             <div className="absolute inset-0 flex items-center justify-center bg-muted/50 z-10">
               <Loader2 className="h-10 w-10 animate-spin text-primary" />
@@ -79,7 +79,7 @@ export const StoryCard = ({ story, onClick, onDelete }: StoryCardProps) => {
             src={getOptimizedImageUrl(story.story_image_url, 600, 75)}
             alt={story.tema || 'Story'}
             className={cn(
-              "w-full h-full object-contain transition-all duration-500 group-hover:scale-105 group-hover:brightness-110",
+              "w-full h-full object-cover transition-all duration-500 group-hover:scale-105 group-hover:brightness-110",
               imageLoading && "opacity-0"
             )}
             onLoad={() => setImageLoading(false)}
@@ -88,14 +88,14 @@ export const StoryCard = ({ story, onClick, onDelete }: StoryCardProps) => {
         </div>
 
         {/* Footer with time and Review button */}
-        <div className="flex items-center justify-between gap-3 pt-4 border-t-2 border-border">
+        <div className="flex items-center justify-between gap-2 sm:gap-3 pt-3 sm:pt-4 border-t-2 border-border">
           <span className="text-muted-foreground text-sm sm:text-base font-semibold truncate">
             {formatDistanceToNow(new Date(story.created_at), { addSuffix: true, locale: pt })}
           </span>
           <Button 
             variant="ghost" 
             size="sm" 
-            className="gap-2 h-12 px-5 text-sm sm:text-base font-bold group-hover:bg-primary group-hover:text-primary-foreground transition-all rounded-xl shadow-sm touch-feedback active:scale-95 shrink-0"
+            className="gap-1.5 sm:gap-2 h-11 sm:h-12 px-4 sm:px-5 text-sm sm:text-base font-bold group-hover:bg-primary group-hover:text-primary-foreground transition-all rounded-xl shadow-sm touch-feedback active:scale-95 shrink-0"
             aria-label={`Rever story ${story.tema || story.caption}`}
           >
             Rever
