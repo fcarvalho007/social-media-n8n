@@ -69,7 +69,7 @@ export const StoryCard = ({ story, onClick, onDelete }: StoryCardProps) => {
         </div>
 
         {/* Story Image - Responsive sizing */}
-        <div className="relative aspect-[3/4] sm:aspect-[9/16] bg-muted rounded-xl overflow-hidden mb-3 sm:mb-4 shadow-xl">
+        <div className="relative aspect-[2/3] sm:aspect-[9/16] max-h-[360px] bg-muted rounded-xl overflow-hidden mb-3 sm:mb-4 shadow-xl">
           {imageLoading && (
             <div className="absolute inset-0 flex items-center justify-center bg-muted/50 z-10">
               <Loader2 className="h-10 w-10 animate-spin text-primary" />
