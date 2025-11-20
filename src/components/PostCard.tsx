@@ -137,7 +137,7 @@ export const PostCard = ({ post, onClick, onDelete }: PostCardProps) => {
           post.selected_template === 'B' && (post.status === 'approved' || post.status === 'published') && "ring-[#ff6347]"
         )}>
           {previewImages.slice(0, 4).map((image, index) => (
-            <div key={index} className="aspect-square sm:aspect-[4/5] overflow-hidden bg-muted rounded-lg relative shadow-md">
+            <div key={index} className="aspect-square sm:aspect-[5/4] overflow-hidden bg-muted rounded-lg relative shadow-md">
               {imageLoading[index] && (
                 <div className="absolute inset-0 flex items-center justify-center bg-muted/50 z-10">
                   <Loader2 className="h-8 w-8 animate-spin text-primary" />
