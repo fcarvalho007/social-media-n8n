@@ -36,7 +36,7 @@ export const StoryCard = ({ story, onClick, onDelete }: StoryCardProps) => {
       )}
       onClick={onClick}
     >
-      <CardContent className="p-3 sm:p-4 md:p-5">
+      <CardContent className="p-2 sm:p-3 md:p-4">
         {/* Delete Button - Top Right */}
         {onDelete && (
           <div className="absolute top-4 right-4 z-10">
@@ -57,7 +57,7 @@ export const StoryCard = ({ story, onClick, onDelete }: StoryCardProps) => {
         )}
 
         {/* Status Badge */}
-        <div className="mb-2 sm:mb-3">
+        <div className="mb-1.5 sm:mb-2">
           <Badge 
             className={cn(
               "text-xs px-2.5 sm:px-3 py-1 sm:py-1.5 font-semibold rounded-lg shadow-sm",
@@ -69,7 +69,7 @@ export const StoryCard = ({ story, onClick, onDelete }: StoryCardProps) => {
         </div>
 
         {/* Story Image - Responsive sizing */}
-        <div className="relative aspect-[2/3] sm:aspect-[9/16] max-h-[360px] bg-muted rounded-xl overflow-hidden mb-3 sm:mb-4 shadow-xl">
+        <div className="relative aspect-[2/3] sm:aspect-[9/16] max-h-[360px] bg-muted rounded-xl overflow-hidden mb-2 sm:mb-3 shadow-xl">
           {imageLoading && (
             <div className="absolute inset-0 flex items-center justify-center bg-muted/50 z-10">
               <Loader2 className="h-10 w-10 animate-spin text-primary" />
@@ -88,8 +88,8 @@ export const StoryCard = ({ story, onClick, onDelete }: StoryCardProps) => {
         </div>
 
         {/* Footer with time and Review button */}
-        <div className="flex items-center justify-between gap-2 sm:gap-3 pt-3 sm:pt-4 border-t-2 border-border">
-          <span className="text-muted-foreground text-sm sm:text-base font-semibold truncate">
+        <div className="flex items-center justify-between gap-2 sm:gap-3 pt-2 sm:pt-3 border-t-2 border-border">
+          <span className="text-muted-foreground text-xs sm:text-sm font-semibold truncate">
             {formatDistanceToNow(new Date(story.created_at), { addSuffix: true, locale: pt })}
           </span>
           <Button 
