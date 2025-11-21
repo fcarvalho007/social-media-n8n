@@ -76,7 +76,7 @@ export function TaskCard({ task, projectId, availableTasks, onUpdate, onDelete, 
         ref={setNodeRef}
         style={style}
         className={cn(
-          'p-4 cursor-pointer hover:shadow-md transition-all duration-200 border-l-4 group relative',
+          'p-4 cursor-pointer md:hover:shadow-md transition-all duration-200 border-l-4 group relative',
           priorityColors[task.priority],
           (isDragging || isSortableDragging) && 'opacity-50 rotate-2 scale-105 shadow-lg',
           isBlocked && 'opacity-75'
@@ -127,7 +127,7 @@ export function TaskCard({ task, projectId, availableTasks, onUpdate, onDelete, 
             <InlineEditableText
               value={task.title}
               onSave={(newTitle) => onUpdate({ title: newTitle })}
-              className="font-semibold text-sm mb-2 group-hover:text-primary transition-colors block"
+              className="font-semibold text-sm mb-2 md:group-hover:text-primary transition-colors block"
               inputClassName="font-semibold text-sm"
               as="h4"
             />
@@ -188,7 +188,7 @@ export function TaskCard({ task, projectId, availableTasks, onUpdate, onDelete, 
           <Button
             variant="ghost"
             size="icon"
-            className="h-8 w-8 opacity-0 group-hover:opacity-100 transition-opacity"
+            className="h-8 w-8 opacity-0 md:group-hover:opacity-100 transition-opacity"
             onClick={(e) => {
               e.stopPropagation();
               onDelete();
