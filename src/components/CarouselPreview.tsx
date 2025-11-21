@@ -5,7 +5,7 @@ import type { Swiper as SwiperType } from 'swiper';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { cn } from '@/lib/utils';
-import { X, ZoomIn, ChevronLeft, ChevronRight, Download, FileArchive, FileText, Archive, RotateCcw } from 'lucide-react';
+import { X, ZoomIn, ChevronLeft, ChevronRight, Download, FileArchive, FileText, Archive, RotateCcw, MoveHorizontal } from 'lucide-react';
 import {
   AlertDialog,
   AlertDialogAction,
@@ -563,13 +563,30 @@ export const CarouselPreview = ({
 
       {/* Main carousel */}
       <div className="relative mb-2 sm:mb-3 md:mb-4 overflow-hidden rounded-xl bg-muted group/carousel aspect-[4/5]">
+        {/* Badge "Deslize" para múltiplas imagens */}
+        {activeImages.length > 1 && (
+          <div className="absolute top-3 right-3 z-20 pointer-events-none md:hidden">
+            <Badge className="bg-black/70 backdrop-blur-sm text-white text-xs px-2.5 py-1 flex items-center gap-1 animate-pulse shadow-lg">
+              <span className="font-semibold">Deslize</span>
+              <ChevronRight className="h-3.5 w-3.5" />
+            </Badge>
+          </div>
+        )}
+        
         <Swiper
           modules={[Navigation, Pagination, Thumbs]}
           navigation
-          pagination={{ clickable: true }}
+          pagination={{ 
+            clickable: true,
+            dynamicBullets: true,
+            dynamicMainBullets: 3,
+            renderBullet: (index, className) => {
+              return `<span class="${className}" style="width: 10px; height: 10px; background: white; opacity: 0.6; transition: all 0.3s ease;"></span>`;
+            }
+          }}
           thumbs={{ swiper: thumbsSwiper && !thumbsSwiper.destroyed ? thumbsSwiper : null }}
           onSlideChange={(swiper) => setActiveIndex(swiper.activeIndex)}
-          className="aspect-[4/5] w-full"
+          className="aspect-[4/5] w-full carousel-custom-pagination"
         >
           {activeImages.map((image, index) => (
             <SwiperSlide key={index}>
@@ -586,14 +603,38 @@ export const CarouselPreview = ({
             </SwiperSlide>
           ))}
         </Swiper>
+        
+        <style>{`
+          .carousel-custom-pagination .swiper-pagination-bullet {
+            width: 10px;
+            height: 10px;
+            background: white;
+            opacity: 0.6;
+            transition: all 0.3s ease;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.3);
+          }
+          .carousel-custom-pagination .swiper-pagination-bullet-active {
+            opacity: 1;
+            width: 24px;
+            border-radius: 6px;
+            background: white;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.4);
+          }
+          .carousel-custom-pagination .swiper-pagination {
+            bottom: 12px;
+          }
+        `}</style>
       </div>
 
       {/* Thumbnails with drag-and-drop */}
       <div className="mb-3">
+        {/* Hint de reordenação para mobile */}
         {onRemoveSlide && activeImages.length > 1 && (
           <div className="text-xs text-muted-foreground/70 mb-2 flex items-center gap-1.5">
-            <Archive className="h-3.5 w-3.5" />
-            <span>Arrastar para reordenar • Passar o rato para arquivar</span>
+            <MoveHorizontal className="h-3.5 w-3.5 md:hidden animate-pulse" />
+            <Archive className="h-3.5 w-3.5 hidden md:inline" />
+            <span className="md:hidden">Arraste para reordenar</span>
+            <span className="hidden md:inline">Arrastar para reordenar • Passar o rato para arquivar</span>
           </div>
         )}
         <DndContext
