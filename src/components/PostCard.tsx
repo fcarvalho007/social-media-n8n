@@ -82,7 +82,7 @@ export const PostCard = ({ post, onClick, onDelete }: PostCardProps) => {
   return (
     <Card 
       className={cn(
-        "group cursor-pointer transition-all duration-300 hover:shadow-xl hover:scale-[1.02] active:scale-[0.98] touch-feedback relative overflow-hidden rounded-xl md:rounded-2xl border-2 border-border",
+        "group cursor-pointer transition-all duration-300 md:hover:shadow-xl md:hover:scale-[1.02] active:scale-[0.98] touch-feedback relative overflow-hidden rounded-xl md:rounded-2xl border-2 border-border",
         post.status === 'published' && "border-l-4 border-l-success shadow-lg",
         "bg-card hover:bg-accent/5 animate-fade-in"
       )}
@@ -147,7 +147,7 @@ export const PostCard = ({ post, onClick, onDelete }: PostCardProps) => {
                 src={getOptimizedImageUrl(image, 400, 70)}
                 alt={`Preview ${index + 1} - ${post.tema}`}
                 className={cn(
-                  "h-full w-full object-cover transition-all duration-500 group-hover:scale-105 group-hover:brightness-110",
+                  "h-full w-full object-cover transition-all duration-500 md:group-hover:scale-105 md:group-hover:brightness-110",
                   imageLoading[index] && "opacity-0"
                 )}
                 onLoad={() => setImageLoading(prev => ({ ...prev, [index]: false }))}
