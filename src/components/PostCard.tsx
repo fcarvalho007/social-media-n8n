@@ -82,7 +82,7 @@ export const PostCard = ({ post, onClick, onDelete }: PostCardProps) => {
   return (
     <Card 
       className={cn(
-        "group cursor-pointer transition-all duration-300 md:hover:shadow-xl md:hover:scale-[1.02] active:scale-[0.98] touch-feedback relative overflow-hidden rounded-xl md:rounded-2xl border-2 border-border",
+        "w-full max-w-full mx-auto group cursor-pointer transition-all duration-300 md:hover:shadow-xl md:hover:scale-[1.02] active:scale-[0.98] touch-feedback relative overflow-hidden rounded-xl md:rounded-2xl border-2 border-border",
         post.status === 'published' && "border-l-4 border-l-success shadow-lg",
         "bg-card hover:bg-accent/5 animate-fade-in"
       )}
@@ -132,7 +132,7 @@ export const PostCard = ({ post, onClick, onDelete }: PostCardProps) => {
         {/* Image preview grid */}
         <div className={cn(
           "mb-2 sm:mb-3 grid grid-cols-2 gap-1 sm:gap-1.5 overflow-hidden rounded-xl relative",
-          post.selected_template && (post.status === 'approved' || post.status === 'published') && "ring-2 ring-offset-2",
+          post.selected_template && (post.status === 'approved' || post.status === 'published') && "ring-2 ring-offset-1",
           post.selected_template === 'A' && (post.status === 'approved' || post.status === 'published') && "ring-[#00d4ff]",
           post.selected_template === 'B' && (post.status === 'approved' || post.status === 'published') && "ring-[#ff6347]"
         )}>
