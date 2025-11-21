@@ -246,7 +246,7 @@ const Pending = () => {
             isRefreshing={pullToRefresh.isRefreshing}
             isPulling={pullToRefresh.isPulling}
           />
-          <main className="flex-1 p-4 md:p-6 space-y-6 animate-fade-in bg-gradient-to-br from-background to-background-secondary" role="main" aria-label="Conteúdo de aprovação e criação">
+          <main className="flex-1 p-3 md:p-4 space-y-4 animate-fade-in bg-gradient-to-br from-background to-background-secondary" role="main" aria-label="Conteúdo de aprovação e criação">
           {activeTab === 'create' ? (
             /* Create Tab */
             <div className="space-y-6 animate-slide-up" role="region" aria-label="Área de criação de conteúdo">
@@ -304,7 +304,7 @@ const Pending = () => {
             /* Approve Tab */
             <div className="space-y-6 animate-slide-up">
               {/* Filters Section - Agrupada em card */}
-              <div className="bg-card rounded-xl sm:rounded-2xl p-3 sm:p-4 md:p-6 border-2 border-border shadow-lg">
+              <div className="bg-card rounded-xl sm:rounded-2xl p-3 sm:p-4 md:p-4 border-2 border-border shadow-lg">
                 {/* Content Type Filter - Mobile optimized */}
                 <div className="mb-3 sm:mb-5">
                   <h3 className="text-[10px] sm:text-xs font-bold text-muted-foreground uppercase tracking-wider mb-2 sm:mb-3">
@@ -397,7 +397,7 @@ const Pending = () => {
 
               {/* Content Grid - Mobile optimized spacing */}
               {loading ? (
-                <div className="grid gap-2.5 sm:gap-4 md:gap-5 lg:gap-6 grid-cols-1 sm:grid-cols-2 lg:grid-cols-3">
+                <div className="grid gap-2 sm:gap-3 md:gap-4 lg:gap-5 grid-cols-1 sm:grid-cols-2 lg:grid-cols-3">
                   {Array.from({ length: 6 }).map((_, i) => (
                     contentTypeFilter === 'stories' || (contentTypeFilter === 'all' && i % 2 === 0) ? (
                       <StoryCardSkeleton key={i} />
