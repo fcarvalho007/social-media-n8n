@@ -32,7 +32,7 @@ export const StoryCard = ({ story, onClick, onDelete }: StoryCardProps) => {
   return (
     <Card 
       className={cn(
-        "group cursor-pointer transition-all duration-300 hover:shadow-xl hover:scale-[1.02] active:scale-[0.98] overflow-hidden rounded-xl sm:rounded-2xl border-2 border-border bg-card hover:bg-accent/5 animate-fade-in"
+        "group cursor-pointer transition-all duration-300 md:hover:shadow-xl md:hover:scale-[1.02] active:scale-[0.98] overflow-hidden rounded-xl sm:rounded-2xl border-2 border-border bg-card hover:bg-accent/5 animate-fade-in"
       )}
       onClick={onClick}
     >
@@ -79,7 +79,7 @@ export const StoryCard = ({ story, onClick, onDelete }: StoryCardProps) => {
             src={getOptimizedImageUrl(story.story_image_url, 600, 75)}
             alt={story.tema || 'Story'}
             className={cn(
-              "w-full h-full object-cover transition-all duration-500 group-hover:scale-105 group-hover:brightness-110",
+              "w-full h-full object-cover transition-all duration-500 md:group-hover:scale-105 md:group-hover:brightness-110",
               imageLoading && "opacity-0"
             )}
             onLoad={() => setImageLoading(false)}
