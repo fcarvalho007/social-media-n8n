@@ -97,7 +97,7 @@ export function AppSidebar() {
         collapsible="offcanvas"
         className={cn(
           "border-none transition-all duration-300 ease-out z-50",
-          !isMobile && "w-[110px]"
+          !isMobile && "w-[100px]"
         )}
         style={{
           background: 'linear-gradient(180deg, #E0E3EC 0%, #F8FAFC 100%)',
