@@ -418,28 +418,30 @@ const Pending = () => {
                   </p>
                 </div>
               ) : (
-                <div className="grid gap-2 sm:gap-3 md:gap-4 lg:gap-5 grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 animate-scale-in">
-                  {allContent.map((item, index) => (
-                    <div
-                      key={`${item.type}-${item.data.id}`}
-                      style={{ animationDelay: `${index * 50}ms` }}
-                      className="animate-fade-in"
-                    >
-                      {item.type === 'post' ? (
-                        <PostCard
-                          post={item.data}
-                          onClick={() => navigate(`/review/${item.data.id}`)}
-                          onDelete={handleDelete}
-                        />
-                      ) : (
-                        <StoryCard
-                          story={item.data}
-                          onClick={() => navigate(`/review-story/${item.data.id}`)}
-                          onDelete={handleDeleteStory}
-                        />
-                      )}
-                    </div>
-                  ))}
+                <div className="w-full overflow-x-hidden">
+                  <div className="grid gap-2 sm:gap-3 md:gap-4 lg:gap-5 grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 animate-scale-in">
+                    {allContent.map((item, index) => (
+                      <div
+                        key={`${item.type}-${item.data.id}`}
+                        style={{ animationDelay: `${index * 50}ms` }}
+                        className="animate-fade-in w-full max-w-[480px] mx-auto sm:max-w-none"
+                      >
+                        {item.type === 'post' ? (
+                          <PostCard
+                            post={item.data}
+                            onClick={() => navigate(`/review/${item.data.id}`)}
+                            onDelete={handleDelete}
+                          />
+                        ) : (
+                          <StoryCard
+                            story={item.data}
+                            onClick={() => navigate(`/review-story/${item.data.id}`)}
+                            onDelete={handleDeleteStory}
+                          />
+                        )}
+                      </div>
+                    ))}
+                  </div>
                 </div>
               )}
             </div>
