@@ -249,8 +249,8 @@ const Pending = () => {
           <main className="flex-1 w-full overflow-x-hidden p-0 md:pl-2 md:pr-4 md:py-3 space-y-4 animate-fade-in bg-gradient-to-br from-background to-background-secondary" role="main" aria-label="Conteúdo de aprovação e criação">
           {activeTab === 'create' ? (
             /* Create Tab */
-            <div className="px-3 py-3 sm:px-4 sm:py-4 md:px-0 md:py-0">
-              <div className="space-y-6 animate-slide-up" role="region" aria-label="Área de criação de conteúdo">
+            <div className="px-3 py-3 sm:px-4 sm:py-4 md:px-0 md:py-0 w-full max-w-full">
+              <div className="space-y-6 animate-slide-up w-full" role="region" aria-label="Área de criação de conteúdo">
               {showModeSelector && !creationMode ? (
                 <div className="bg-card rounded-2xl shadow-lg p-6 sm:p-8 border-2 border-border">
                   <ModeSelector 
@@ -304,16 +304,16 @@ const Pending = () => {
             </div>
           ) : (
             /* Approve Tab */
-            <div className="px-3 py-3 sm:px-4 sm:py-4 md:px-0 md:py-0">
-              <div className="space-y-6 animate-slide-up">
+            <div className="px-3 py-3 sm:px-4 sm:py-4 md:px-0 md:py-0 w-full max-w-full">
+              <div className="space-y-6 animate-slide-up w-full">
               {/* Filters Section - Agrupada em card */}
-              <div className="bg-card rounded-xl sm:rounded-2xl p-3 sm:p-4 md:p-4 border-2 border-border shadow-lg">
+              <div className="bg-card rounded-xl sm:rounded-2xl p-3 sm:p-4 md:p-6 border-2 border-border shadow-lg w-full max-w-full overflow-hidden">
                 {/* Content Type Filter - Mobile optimized */}
                 <div className="mb-3 sm:mb-5">
                   <h3 className="text-[10px] sm:text-xs font-bold text-muted-foreground uppercase tracking-wider mb-2 sm:mb-3">
                     Filtrar por Tipo
                   </h3>
-                  <div className="flex overflow-x-auto snap-x snap-mandatory scrollbar-hide pb-2 -mx-3 px-3 md:mx-0 md:px-0">
+                  <div className="flex overflow-x-auto snap-x snap-mandatory scrollbar-hide pb-2">
                     <div className="flex gap-1.5 sm:gap-2 flex-shrink-0">
                       {contentTypes.map((type) => (
                         <Button
@@ -342,7 +342,7 @@ const Pending = () => {
                     Estado da Publicação
                   </h3>
                   <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-3 sm:gap-4">
-                    <div className="flex overflow-x-auto snap-x snap-mandatory scrollbar-hide pb-2 -mx-3 px-3 md:mx-0 md:px-0">
+                    <div className="flex overflow-x-auto snap-x snap-mandatory scrollbar-hide pb-2">
                       <div className="flex gap-1.5 sm:gap-2 flex-shrink-0">
                         {Object.entries(statusConfig).map(([key, config]) => (
                           <Button
@@ -410,7 +410,7 @@ const Pending = () => {
                   ))}
                 </div>
               ) : allContent.length === 0 ? (
-                <div className="flex flex-col items-center justify-center py-12 sm:py-16 md:py-20 text-center bg-card rounded-xl sm:rounded-2xl border-2 border-dashed border-border shadow-lg mx-2 sm:mx-0">
+                <div className="flex flex-col items-center justify-center py-12 sm:py-16 md:py-20 text-center bg-card rounded-xl sm:rounded-2xl border-2 border-dashed border-border shadow-lg">
                   <Inbox className="h-12 w-12 sm:h-14 sm:w-14 md:h-16 md:w-16 text-muted-foreground/50 mb-3 sm:mb-4" />
                   <h3 className="text-base sm:text-lg font-bold mb-2 text-foreground px-4">
                     Nenhum conteúdo encontrado
