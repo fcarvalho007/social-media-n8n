@@ -442,7 +442,6 @@ const Pending = () => {
                   ))}
                 </div>
               )}
-              </div>
             </div>
           )}
           </main>
