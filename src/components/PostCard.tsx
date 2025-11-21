@@ -88,7 +88,7 @@ export const PostCard = ({ post, onClick, onDelete }: PostCardProps) => {
       )}
       onClick={onClick}
     >
-      <CardContent className="p-2.5 sm:p-4 md:p-5">
+      <CardContent className="p-2 sm:p-3 md:p-4">
         {/* Delete Button - Top Right */}
         {onDelete && (
           <div className="absolute top-4 right-4 z-10">
@@ -109,11 +109,11 @@ export const PostCard = ({ post, onClick, onDelete }: PostCardProps) => {
         )}
         
         {/* Content Type Badge */}
-        <div className="mb-2 sm:mb-3 flex items-center gap-2">
+        <div className="mb-1.5 sm:mb-2 flex items-center gap-2">
           <Badge 
             variant="outline" 
             className={cn(
-              "flex items-center gap-1 sm:gap-1.5 px-2 sm:px-2.5 py-1 sm:py-1.5 font-semibold border-2 text-[10px] sm:text-xs rounded-lg shadow-sm",
+              "flex items-center gap-1 sm:gap-1.5 px-2 sm:px-2.5 py-1 sm:py-1.5 font-semibold border text-[10px] sm:text-xs rounded-lg shadow-sm",
               contentTypeConfig[contentType as keyof typeof contentTypeConfig].color
             )}
           >
@@ -122,8 +122,8 @@ export const PostCard = ({ post, onClick, onDelete }: PostCardProps) => {
           </Badge>
         </div>
 
-        <div className="mb-3 sm:mb-4 flex items-start justify-between gap-3">
-          <h3 className="font-bold line-clamp-2 flex-1 text-base sm:text-lg leading-tight pr-12">{post.tema}</h3>
+        <div className="mb-2 sm:mb-3 flex items-start justify-between gap-3">
+          <h3 className="font-bold line-clamp-2 flex-1 text-sm sm:text-base leading-tight pr-12">{post.tema}</h3>
           <Badge className={cn("text-xs px-2.5 sm:px-3 py-1 sm:py-1.5 font-semibold rounded-lg shrink-0 shadow-sm", statusColors[post.status as keyof typeof statusColors])}>
             {statusLabels[post.status as keyof typeof statusLabels]}
           </Badge>
@@ -131,7 +131,7 @@ export const PostCard = ({ post, onClick, onDelete }: PostCardProps) => {
 
         {/* Image preview grid */}
         <div className={cn(
-          "mb-3 sm:mb-4 grid grid-cols-2 gap-1.5 sm:gap-2 overflow-hidden rounded-xl relative",
+          "mb-2 sm:mb-3 grid grid-cols-2 gap-1 sm:gap-1.5 overflow-hidden rounded-xl relative",
           post.selected_template && (post.status === 'approved' || post.status === 'published') && "ring-2 ring-offset-2",
           post.selected_template === 'A' && (post.status === 'approved' || post.status === 'published') && "ring-[#00d4ff]",
           post.selected_template === 'B' && (post.status === 'approved' || post.status === 'published') && "ring-[#ff6347]"
@@ -157,8 +157,8 @@ export const PostCard = ({ post, onClick, onDelete }: PostCardProps) => {
           ))}
         </div>
 
-        <div className="flex items-center justify-between gap-2 sm:gap-3 border-t-2 border-border pt-3 sm:pt-4">
-          <span className="text-muted-foreground text-sm sm:text-base font-semibold truncate">
+        <div className="flex items-center justify-between gap-2 sm:gap-3 border-t-2 border-border pt-2 sm:pt-3">
+          <span className="text-muted-foreground text-xs sm:text-sm font-semibold truncate">
             {formatDistanceToNow(new Date(post.created_at), { addSuffix: true, locale: pt })}
           </span>
           <Button 

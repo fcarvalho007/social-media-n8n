@@ -419,7 +419,7 @@ const Pending = () => {
                   </p>
                 </div>
               ) : (
-                <div className="grid gap-3 sm:gap-4 md:gap-5 lg:gap-6 grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 animate-scale-in">
+                <div className="grid gap-2 sm:gap-3 md:gap-4 lg:gap-5 grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 animate-scale-in">
                   {allContent.map((item, index) => (
                     <div
                       key={`${item.type}-${item.data.id}`}
