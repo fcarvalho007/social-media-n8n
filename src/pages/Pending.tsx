@@ -246,7 +246,7 @@ const Pending = () => {
             isRefreshing={pullToRefresh.isRefreshing}
             isPulling={pullToRefresh.isPulling}
           />
-          <main className="flex-1 p-3 md:p-4 space-y-4 animate-fade-in bg-gradient-to-br from-background to-background-secondary" role="main" aria-label="Conteúdo de aprovação e criação">
+          <main className="flex-1 px-3 py-3 md:pl-2 md:pr-4 md:py-3 space-y-4 animate-fade-in bg-gradient-to-br from-background to-background-secondary" role="main" aria-label="Conteúdo de aprovação e criação">
           {activeTab === 'create' ? (
             /* Create Tab */
             <div className="space-y-6 animate-slide-up" role="region" aria-label="Área de criação de conteúdo">
