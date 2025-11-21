@@ -511,12 +511,12 @@ const Calendar = () => {
         <AppSidebar />
         <SidebarInset className="flex-1">
           <DashboardHeader />
-          <main className="flex-1 p-3 sm:p-4 md:p-6 space-y-4 md:space-y-6 animate-fade-in bg-gradient-to-br from-white to-gray-50">
-            <div className="flex flex-col lg:flex-row gap-4 lg:gap-6 max-w-[1900px] mx-auto">
+          <main className="flex-1 p-3 sm:p-4 md:p-4 space-y-3 md:space-y-4 animate-fade-in bg-gradient-to-br from-white to-gray-50">
+            <div className="flex flex-col lg:flex-row gap-3 lg:gap-4 max-w-[1900px] mx-auto">
               {/* Main Calendar Section */}
-              <div className="flex-1 animate-slide-up space-y-4 lg:space-y-6 min-w-0">
+              <div className="flex-1 animate-slide-up space-y-3 lg:space-y-4 min-w-0">
                 {/* Header */}
-                <div className="flex flex-col sm:flex-row sm:items-start lg:items-center justify-between gap-3 lg:gap-4">
+                <div className="flex flex-col sm:flex-row sm:items-start lg:items-center justify-between gap-2 lg:gap-3">
                   <div className="flex-1 min-w-0">
                     <h1 className="text-2xl sm:text-3xl font-bold text-foreground flex items-center gap-2.5 lg:gap-3">
                       <div className="h-10 w-10 lg:h-12 lg:w-12 rounded-xl bg-primary/10 flex items-center justify-center flex-shrink-0">
@@ -588,7 +588,7 @@ const Calendar = () => {
 
               {/* Stats Cards */}
               <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 md:gap-4">
-                <Card className="p-3 lg:p-4 bg-gradient-to-br from-primary/5 to-primary/10 border-primary/20 border-2 hover:shadow-lg hover:shadow-primary/10 transition-all">
+                <Card className="p-3 lg:p-3.5 bg-gradient-to-br from-primary/5 to-primary/10 border-primary/20 border-2 hover:shadow-lg hover:shadow-primary/10 transition-all">
                   <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
                     <div>
                       <p className="text-xs font-semibold text-primary/70">Total</p>
@@ -600,7 +600,7 @@ const Calendar = () => {
                   </div>
                 </Card>
 
-                <Card className="p-3 lg:p-4 bg-gradient-to-br from-blue-50 to-blue-100 border-blue-200 border-2 hover:shadow-lg hover:shadow-blue-200/50 transition-all">
+                <Card className="p-3 lg:p-3.5 bg-gradient-to-br from-blue-50 to-blue-100 border-blue-200 border-2 hover:shadow-lg hover:shadow-blue-200/50 transition-all">
                   <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
                     <div>
                       <p className="text-xs font-semibold text-blue-600/70">Posts</p>
@@ -612,7 +612,7 @@ const Calendar = () => {
                   </div>
                 </Card>
 
-                <Card className="p-3 lg:p-4 bg-gradient-to-br from-purple-50 to-purple-100 border-purple-200 border-2 hover:shadow-lg hover:shadow-purple-200/50 transition-all">
+                <Card className="p-3 lg:p-3.5 bg-gradient-to-br from-purple-50 to-purple-100 border-purple-200 border-2 hover:shadow-lg hover:shadow-purple-200/50 transition-all">
                   <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
                     <div>
                       <p className="text-xs font-semibold text-purple-600/70">Stories</p>
@@ -626,9 +626,9 @@ const Calendar = () => {
               </div>
 
               {/* Legend and Filters */}
-              <div className="grid grid-cols-1 lg:grid-cols-2 gap-3 lg:gap-4">
+              <div className="grid grid-cols-1 lg:grid-cols-2 gap-2 lg:gap-3">
                 {/* Legend */}
-                <Card className="p-3 sm:p-4 lg:p-5 border-2">
+                <Card className="p-3 sm:p-4 lg:p-4 border-2">
                   <h3 className="text-sm font-semibold text-foreground mb-4 flex items-center gap-2">
                     <div className="h-2 w-2 rounded-full bg-gradient-to-r from-primary to-secondary"></div>
                     Legenda de Cores
@@ -665,7 +665,7 @@ const Calendar = () => {
                 </Card>
 
                 {/* Filters */}
-                <Card className="p-4 lg:p-5 border-2 flex flex-col justify-center">
+                <Card className="p-3 lg:p-4 border-2 flex flex-col justify-center">
                   <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
                     <div className="flex items-center gap-2">
                       <Filter className="h-4 w-4 text-muted-foreground" />
@@ -688,7 +688,7 @@ const Calendar = () => {
               </div>
 
         <div 
-          className={`bg-white rounded-lg sm:rounded-xl lg:rounded-2xl shadow-md p-2 sm:p-4 lg:p-6 border border-gray-100 overflow-hidden transition-transform ${isSwipping ? 'scale-[0.98]' : ''}`}
+          className={`bg-white rounded-lg sm:rounded-xl lg:rounded-2xl shadow-md p-2 sm:p-3 lg:p-4 border border-gray-100 overflow-hidden transition-transform ${isSwipping ? 'scale-[0.98]' : ''}`}
           onTouchStart={isMobile ? onTouchStart : undefined}
           onTouchMove={isMobile ? onTouchMove : undefined}
           onTouchEnd={isMobile ? onTouchEnd : undefined}
