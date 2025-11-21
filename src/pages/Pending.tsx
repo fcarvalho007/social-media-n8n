@@ -246,11 +246,10 @@ const Pending = () => {
             isRefreshing={pullToRefresh.isRefreshing}
             isPulling={pullToRefresh.isPulling}
           />
-          <main className="flex-1 w-full overflow-x-hidden p-0 md:pl-2 md:pr-4 md:py-3 space-y-4 animate-fade-in bg-gradient-to-br from-background to-background-secondary" role="main" aria-label="Conteúdo de aprovação e criação">
+          <main className="flex-1 w-full overflow-x-hidden p-3 sm:p-4 md:p-6 space-y-4 sm:space-y-6 animate-fade-in bg-gradient-to-br from-background via-background to-muted/10" role="main" aria-label="Conteúdo de aprovação e criação">
           {activeTab === 'create' ? (
             /* Create Tab */
-            <div className="px-3 py-3 sm:px-4 sm:py-4 md:px-0 md:py-0 w-full max-w-full">
-              <div className="space-y-6 animate-slide-up w-full" role="region" aria-label="Área de criação de conteúdo">
+            <div className="space-y-6 animate-slide-up w-full" role="region" aria-label="Área de criação de conteúdo">
               {showModeSelector && !creationMode ? (
                 <div className="bg-card rounded-2xl shadow-lg p-6 sm:p-8 border-2 border-border">
                   <ModeSelector 
@@ -276,7 +275,6 @@ const Pending = () => {
                       }}
                     />
                   )}
-                  
                   {/* Content based on mode */}
                   <div className="bg-card rounded-2xl shadow-lg p-6 sm:p-8 border-2 border-border">
                     {creationMode === 'ia' ? (
@@ -300,12 +298,10 @@ const Pending = () => {
                   </div>
                 </>
               )}
-              </div>
             </div>
           ) : (
             /* Approve Tab */
-            <div className="px-3 py-3 sm:px-4 sm:py-4 md:px-0 md:py-0 w-full max-w-full">
-              <div className="space-y-6 animate-slide-up w-full">
+            <div className="space-y-6 animate-slide-up w-full">
               {/* Filters Section - Agrupada em card */}
               <div className="bg-card rounded-xl sm:rounded-2xl p-3 sm:p-4 md:p-6 border-2 border-border shadow-lg w-full max-w-full overflow-hidden">
                 {/* Content Type Filter - Mobile optimized */}
