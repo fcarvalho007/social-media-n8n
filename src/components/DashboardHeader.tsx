@@ -90,7 +90,7 @@ export function DashboardHeader() {
           <Button
             variant="ghost"
             size="icon"
-            className="lg:hidden h-12 w-12 min-h-[48px] min-w-[48px] touch-target rounded-lg hover:bg-primary/10 active:scale-95 transition-transform duration-150"
+            className="h-12 w-12 min-h-[48px] min-w-[48px] touch-target rounded-lg hover:bg-primary/10 active:scale-95 transition-transform duration-150"
             onClick={() => toggleSidebar()}
             aria-label="Menu"
           >
