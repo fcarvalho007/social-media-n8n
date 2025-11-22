@@ -358,7 +358,7 @@ const Calendar = () => {
           onClick={goToBack}
           variant="outline"
           size="sm"
-          className="min-h-[44px] min-w-[44px] px-4 active:scale-95 transition-transform"
+          className="min-h-[44px] min-w-[44px] px-4 lg:px-6 active:scale-95 transition-transform"
         >
           <span className="sm:hidden text-lg">←</span>
           <span className="hidden sm:inline">← Anterior</span>
@@ -367,7 +367,7 @@ const Calendar = () => {
             onClick={goToToday}
             variant="default"
             size="sm"
-            className="min-h-[44px] px-6 active:scale-95 transition-transform font-semibold"
+            className="min-h-[44px] px-6 lg:px-8 active:scale-95 transition-transform font-semibold"
           >
             Hoje
           </Button>
@@ -375,7 +375,7 @@ const Calendar = () => {
           onClick={goToNext}
           variant="outline"
           size="sm"
-          className="min-h-[44px] min-w-[44px] px-4 active:scale-95 transition-transform"
+          className="min-h-[44px] min-w-[44px] px-4 lg:px-6 active:scale-95 transition-transform"
         >
           <span className="sm:hidden text-lg">→</span>
           <span className="hidden sm:inline">Próximo →</span>
@@ -396,7 +396,7 @@ const Calendar = () => {
                 onClick={() => toolbar.onView(view)}
                 variant={toolbar.view === view ? 'default' : 'outline'}
                 size="sm"
-                className="min-h-[44px] px-4 capitalize active:scale-95 transition-transform"
+                className="min-h-[44px] px-4 lg:px-6 capitalize active:scale-95 transition-transform"
               >
                 {view === 'month' ? 'Mês' : view === 'week' ? 'Semana' : 'Dia'}
               </Button>
@@ -512,9 +512,9 @@ const Calendar = () => {
         <SidebarInset className="flex-1">
           <DashboardHeader />
           <main className="flex-1 p-3 sm:p-4 md:p-4 space-y-3 md:space-y-4 animate-fade-in bg-gradient-to-br from-white to-gray-50">
-            <div className="flex flex-col lg:flex-row gap-3 lg:gap-4 max-w-[1900px] mx-auto">
+            <div className="flex flex-col lg:flex-row gap-4 lg:gap-6 max-w-[1900px] mx-auto">
               {/* Main Calendar Section */}
-              <div className="flex-1 animate-slide-up space-y-3 lg:space-y-4 min-w-0">
+              <div className="flex-1 animate-slide-up space-y-4 lg:space-y-5 min-w-0">
                 {/* Header */}
                 <div className="flex flex-col sm:flex-row sm:items-start lg:items-center justify-between gap-2 lg:gap-3">
                   <div className="flex-1 min-w-0">
@@ -587,7 +587,7 @@ const Calendar = () => {
                 </div>
 
               {/* Stats Cards */}
-              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 md:gap-4">
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 lg:gap-4 xl:gap-5">
                 <Card className="p-3 lg:p-3.5 bg-gradient-to-br from-primary/5 to-primary/10 border-primary/20 border-2 hover:shadow-lg hover:shadow-primary/10 transition-all">
                   <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
                     <div>
@@ -626,9 +626,9 @@ const Calendar = () => {
               </div>
 
               {/* Legend and Filters */}
-              <div className="grid grid-cols-1 lg:grid-cols-2 gap-2 lg:gap-3">
+              <div className="grid grid-cols-1 lg:grid-cols-2 gap-3 lg:gap-4">
                 {/* Legend */}
-                <Card className="p-3 sm:p-4 lg:p-4 border-2">
+                <Card className="p-4 lg:p-5 border-2">
                   <h3 className="text-sm font-semibold text-foreground mb-4 flex items-center gap-2">
                     <div className="h-2 w-2 rounded-full bg-gradient-to-r from-primary to-secondary"></div>
                     Legenda de Cores
@@ -665,7 +665,7 @@ const Calendar = () => {
                 </Card>
 
                 {/* Filters */}
-                <Card className="p-3 lg:p-4 border-2 flex flex-col justify-center">
+                <Card className="p-4 lg:p-5 border-2 flex flex-col justify-center">
                   <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
                     <div className="flex items-center gap-2">
                       <Filter className="h-4 w-4 text-muted-foreground" />
@@ -688,7 +688,7 @@ const Calendar = () => {
               </div>
 
         <div 
-          className={`bg-white rounded-lg sm:rounded-xl lg:rounded-2xl shadow-md p-2 sm:p-3 lg:p-4 border border-gray-100 overflow-hidden transition-transform ${isSwipping ? 'scale-[0.98]' : ''}`}
+          className={`bg-white rounded-xl lg:rounded-2xl shadow-md p-3 sm:p-4 lg:p-5 xl:p-6 border border-gray-100 overflow-hidden transition-transform ${isSwipping ? 'scale-[0.98]' : ''}`}
           onTouchStart={isMobile ? onTouchStart : undefined}
           onTouchMove={isMobile ? onTouchMove : undefined}
           onTouchEnd={isMobile ? onTouchEnd : undefined}
@@ -708,7 +708,9 @@ const Calendar = () => {
               ? 'calc(100vh - 380px)'
               : window.innerWidth < 1024 
                 ? 600 
-                : 700 
+                : window.innerWidth < 1536
+                  ? 700
+                  : 800
           }}
                     culture="pt-PT"
                     view={calendarView}
@@ -748,8 +750,8 @@ const Calendar = () => {
             </div>
 
             {/* Side Grid Panel - Hidden on mobile/tablet, visible on large screens */}
-            <div className="hidden xl:block w-80 animate-slide-up space-y-4 flex-shrink-0">
-              <Card className="p-5 border-2 sticky top-4 max-h-[calc(100vh-8rem)] overflow-hidden flex flex-col shadow-lg">
+            <div className="hidden lg:block w-80 2xl:w-96 animate-slide-up space-y-4 flex-shrink-0">
+              <Card className="p-5 xl:p-6 border-2 sticky top-4 max-h-[calc(100vh-8rem)] overflow-hidden flex flex-col shadow-lg">
                 <div className="mb-4">
                   <h3 className="text-lg font-bold text-foreground flex items-center gap-2">
                     <LayoutGrid className="h-5 w-5 text-primary" />
@@ -771,7 +773,7 @@ const Calendar = () => {
                       </h4>
                       <Badge variant="secondary">{feedPosts.length}</Badge>
                     </div>
-                    <div className="grid grid-cols-3 gap-2">
+                    <div className="grid grid-cols-3 gap-2 xl:gap-3">
                       {feedPosts.map((event) => {
                         const thumbnailUrl = event.resource.template_a_images?.[0];
                         const isScheduled = !!event.resource.scheduled_date;
