@@ -238,9 +238,9 @@ const ReviewStory = () => {
         </div>
 
         {/* Story Image Preview */}
-        <div className="max-w-[85%] sm:max-w-[70%] md:max-w-[60%] mx-auto mb-8">
+        <div className="max-w-[85%] sm:max-w-[480px] md:max-w-[420px] lg:max-w-[400px] mx-auto mb-8">
           <div 
-            className="relative rounded-xl overflow-hidden bg-muted aspect-[9/16] group cursor-zoom-in shadow-lg touch-feedback active:scale-[0.98] transition-transform" 
+            className="relative rounded-xl overflow-hidden bg-muted aspect-[9/16] group cursor-zoom-in shadow-lg hover:shadow-xl touch-feedback active:scale-[0.98] transition-all" 
             onClick={() => setZoomImage(true)}
           >
             <img
@@ -249,7 +249,7 @@ const ReviewStory = () => {
               className="w-full h-full object-contain"
             />
             <div className="absolute inset-0 bg-black/0 group-hover:bg-black/20 transition-colors flex items-center justify-center">
-              <ZoomIn className="w-12 h-12 text-white opacity-0 group-hover:opacity-100 transition-opacity drop-shadow-lg" />
+              <ZoomIn className="w-10 h-10 sm:w-12 sm:h-12 text-white opacity-0 group-hover:opacity-100 transition-opacity drop-shadow-lg" />
             </div>
           </div>
         </div>
