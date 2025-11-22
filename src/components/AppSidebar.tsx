@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
-import { CheckCircle2, PlusCircle, Calendar, X, FolderKanban, LayoutDashboard } from 'lucide-react';
-import { NavLink } from 'react-router-dom';
+import { CheckCircle2, PlusCircle, Calendar, X, FolderKanban, LayoutDashboard, Settings, Users, LogOut } from 'lucide-react';
+import { NavLink, useNavigate } from 'react-router-dom';
 import {
   Sidebar,
   SidebarContent,
@@ -9,6 +9,7 @@ import {
   SidebarMenu,
   SidebarMenuButton,
   SidebarMenuItem,
+  SidebarFooter,
   useSidebar,
 } from '@/components/ui/sidebar';
 import {
@@ -21,6 +22,9 @@ import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
 import { Badge } from '@/components/ui/badge';
 import { usePendingCounts } from '@/hooks/usePendingCounts';
+import { useAuth } from '@/contexts/AuthContext';
+import { useCurrentUserRoles } from '@/hooks/useUserRoles';
+import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 
 const menuItems = [
   {
@@ -64,13 +68,46 @@ const menuItems = [
     disabled: false,
     isMain: false,
   },
+  {
+    title: 'Quota',
+    label: 'Quota',
+    icon: Settings,
+    url: '/quota',
+    disabled: false,
+    isMain: false,
+  },
+  {
+    title: 'Utilizadores',
+    label: 'Users',
+    icon: Users,
+    url: '/users',
+    disabled: false,
+    isMain: false,
+    adminOnly: true,
+  },
 ];
 
 export function AppSidebar() {
   const { open, setOpen, isMobile, openMobile } = useSidebar();
   const { counts } = usePendingCounts();
+  const { user, signOut } = useAuth();
+  const { isAdmin } = useCurrentUserRoles();
+  const navigate = useNavigate();
   const totalPending = counts.stories + counts.carousels + counts.posts;
   const [userOpened, setUserOpened] = useState(false);
+
+  const handleLogout = async () => {
+    await signOut();
+    navigate('/auth');
+  };
+
+  const getInitials = (email: string) => {
+    return email.substring(0, 2).toUpperCase();
+  };
+
+  const filteredMenuItems = menuItems.filter(
+    item => !item.adminOnly || isAdmin
+  );
 
   // When sidebar opens in mobile, mark it as user-opened
   useEffect(() => {
@@ -125,7 +162,7 @@ export function AppSidebar() {
           <SidebarGroup className="flex-1 flex items-center">
             <SidebarGroupContent className="w-full">
               <SidebarMenu className="space-y-3">
-                {menuItems.map((item, index) => (
+                {filteredMenuItems.map((item, index) => (
                   <SidebarMenuItem 
                     key={item.title}
                     style={{
@@ -235,6 +272,25 @@ export function AppSidebar() {
             </SidebarGroupContent>
           </SidebarGroup>
         </SidebarContent>
+        
+        <SidebarFooter className="border-t border-border/20 bg-white/30 backdrop-blur-sm">
+          <div className="flex flex-col items-center gap-3 p-4">
+            <Avatar className="h-10 w-10 ring-2 ring-primary/10">
+              <AvatarFallback className="bg-primary/10 text-primary text-xs font-semibold">
+                {user?.email ? getInitials(user.email) : 'U'}
+              </AvatarFallback>
+            </Avatar>
+            <Button
+              variant="ghost"
+              size="icon"
+              onClick={handleLogout}
+              className="h-10 w-10 rounded-full hover:bg-destructive/10 hover:text-destructive transition-all"
+              title="Logout"
+            >
+              <LogOut className="h-4 w-4" />
+            </Button>
+          </div>
+        </SidebarFooter>
       </Sidebar>
     </>
   );
