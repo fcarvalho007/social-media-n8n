@@ -222,54 +222,52 @@ export const ActionBar = ({
 
   return (
     <>
-      <div className="sticky bottom-0 border-t-2 border-border bg-background/95 backdrop-blur-md shadow-2xl mobile-safe-bottom z-40">
+      <div className="sticky bottom-0 border-t border-border bg-background/98 backdrop-blur-lg shadow-lg mobile-safe-bottom z-40">
         {/* Sticky summary bar */}
-        <div className="border-b border-border bg-muted/30 px-3 sm:px-4 md:px-6 py-2 sm:py-2.5 md:py-3">
-          <div className="container max-w-6xl mx-auto flex items-center justify-between gap-4 flex-wrap">
+        <div className="border-b border-border/50 bg-muted/20 px-3 sm:px-4 py-1.5 sm:py-2">
+          <div className="container max-w-6xl mx-auto flex items-center justify-between gap-3">
             {/* Selected platforms */}
-            <div className="flex items-center gap-2 md:gap-3 flex-wrap">
+            <div className="flex items-center gap-1.5 sm:gap-2">
               {publishTargets.instagram && (
-                <Badge variant="secondary" className="flex items-center gap-1 text-xs px-2 py-1 sm:gap-1.5 sm:px-2.5 sm:py-1.5 md:text-sm">
-                  <Instagram className="h-3.5 w-3.5 md:h-4 md:w-4" />
-                  <span className="hidden sm:inline">Instagram</span>
-                  <span className="sm:hidden">IG</span>
+                <Badge variant="secondary" className="flex items-center gap-1 text-xs px-2 py-0.5 sm:px-2.5 sm:py-1">
+                  <Instagram className="h-3 w-3 sm:h-3.5 sm:w-3.5" />
+                  <span className="hidden sm:inline text-xs">Instagram</span>
                   {getValidationIcon('instagram')}
                 </Badge>
               )}
               {publishTargets.linkedin && (
-                <Badge variant="secondary" className="flex items-center gap-1 text-xs px-2 py-1 sm:gap-1.5 sm:px-2.5 sm:py-1.5 md:text-sm">
-                  <Linkedin className="h-3.5 w-3.5 md:h-4 md:w-4" />
-                  <span className="hidden sm:inline">LinkedIn</span>
-                  <span className="sm:hidden">LI</span>
+                <Badge variant="secondary" className="flex items-center gap-1 text-xs px-2 py-0.5 sm:px-2.5 sm:py-1">
+                  <Linkedin className="h-3 w-3 sm:h-3.5 sm:w-3.5" />
+                  <span className="hidden sm:inline text-xs">LinkedIn</span>
                   {getValidationIcon('linkedin')}
                 </Badge>
               )}
               {!publishTargets.instagram && !publishTargets.linkedin && (
-                <Badge variant="outline" className="text-muted-foreground text-xs md:text-sm">
+                <Badge variant="outline" className="text-muted-foreground text-xs px-2 py-0.5">
                   Nenhuma plataforma
                 </Badge>
               )}
             </div>
             
             {/* Content summary */}
-            <div className="text-xs md:text-sm text-muted-foreground font-medium">
+            <div className="text-xs text-muted-foreground font-medium">
               {getContentTypeLabel()}
             </div>
           </div>
         </div>
         
         {/* Action buttons */}
-        <div className="p-3 sm:p-5 md:p-6">
-          <div className="container flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between px-3 md:px-4 max-w-6xl mx-auto">
+        <div className="p-2.5 sm:p-3 md:p-4">
+          <div className="container flex flex-col gap-2.5 sm:flex-row sm:items-center sm:justify-between px-2 sm:px-3 max-w-6xl mx-auto">
           {isApproved ? (
             <Button
               variant="outline"
               size="lg"
               onClick={handleRevertToPending}
               disabled={loading}
-              className="sm:w-auto w-full h-12 sm:h-14 md:h-16 text-base md:text-lg touch-feedback active:scale-95 transition-all duration-150 font-bold shadow-sm"
+              className="sm:w-auto w-full h-11 sm:h-12 text-sm sm:text-base touch-feedback active:scale-95 transition-all font-semibold shadow-sm"
             >
-              {loading ? <Loader2 className="mr-2 h-6 w-6 animate-spin" /> : <AlertCircle className="mr-2 h-6 w-6" />}
+              {loading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <AlertCircle className="mr-2 h-4 w-4" />}
               <span>Voltar a Pendentes</span>
             </Button>
           ) : (
@@ -278,35 +276,35 @@ export const ActionBar = ({
               size="lg"
               onClick={() => setShowRejectDialog(true)}
               disabled={loading}
-              className="sm:w-auto w-full h-12 sm:h-14 md:h-16 text-base md:text-lg touch-feedback active:scale-95 transition-all duration-150 font-bold shadow-lg"
+              className="sm:w-auto w-full h-11 sm:h-12 text-sm sm:text-base touch-feedback active:scale-95 transition-all font-semibold shadow-md"
             >
-              {loading ? <Loader2 className="mr-2 h-6 w-6 animate-spin" /> : <Trash2 className="mr-2 h-6 w-6" />}
+              {loading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Trash2 className="mr-2 h-4 w-4" />}
               <span>Rejeitar</span>
             </Button>
           )}
 
-          <div className="flex gap-3 flex-1 sm:flex-initial sm:justify-center">
+          <div className="flex gap-2 flex-1 sm:flex-initial sm:justify-center">
             <Button
               variant="outline"
               size="lg"
               onClick={handleSave}
               disabled={loading}
-              className="flex-1 sm:flex-initial h-12 sm:h-14 md:h-16 text-base md:text-lg touch-feedback active:scale-95 transition-all duration-150 focus:ring-2 focus:ring-primary/40 font-bold shadow-sm"
+              className="flex-1 sm:flex-initial h-11 sm:h-12 text-sm sm:text-base touch-feedback active:scale-95 transition-all focus:ring-2 focus:ring-primary/40 font-semibold shadow-sm"
             >
-              {loading ? <Loader2 className="mr-2 h-6 w-6 animate-spin" /> : <Save className="mr-2 h-6 w-6" />}
+              {loading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Save className="mr-2 h-4 w-4" />}
               <span>Guardar</span>
             </Button>
           </div>
 
-          <div className="flex gap-3 sm:w-auto w-full">
+          <div className="flex gap-2 sm:w-auto w-full">
             <div className="relative flex-1 sm:flex-initial">
               <Button
                 size="lg"
                 onClick={handleApproveNow}
                 disabled={!canApprove || loading || ((publishTargets.instagram || publishTargets.linkedin) && !instagramCanPublish)}
                 className={cn(
-                  "w-full h-12 sm:h-14 md:h-16 text-base md:text-lg touch-feedback active:scale-95 transition-all duration-150 relative focus:ring-2 focus:ring-primary/40 font-bold",
-                  canApprove && "bg-success hover:bg-success/90 shadow-lg"
+                  "w-full h-11 sm:h-12 text-sm sm:text-base touch-feedback active:scale-95 transition-all relative focus:ring-2 focus:ring-primary/40 font-semibold",
+                  canApprove && "bg-success hover:bg-success/90 shadow-md"
                 )}
                 title={
                   !canApprove 
@@ -317,13 +315,13 @@ export const ActionBar = ({
                 }
                 aria-label={approveConfig.label}
               >
-                {loading ? <Loader2 className="mr-2 h-6 w-6 animate-spin" /> : approveConfig.icon}
-                <span className="truncate pr-16">{approveConfig.label}</span>
+                {loading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : approveConfig.icon}
+                <span className="truncate pr-12">{approveConfig.label}</span>
                 {(publishTargets.instagram || publishTargets.linkedin) && (
                   <Badge 
                     variant="secondary" 
                     className={cn(
-                      "font-mono text-xs absolute right-3",
+                      "font-mono text-xs absolute right-2 py-0",
                       !instagramCanPublish && "bg-red-500/20 text-red-100"
                     )}
                   >
@@ -337,11 +335,11 @@ export const ActionBar = ({
               variant="outline"
               onClick={() => setShowScheduleDialog(true)}
               disabled={!canApprove || loading}
-              className="h-12 w-12 sm:h-14 sm:w-14 md:h-16 md:w-16 p-0 touch-feedback active:scale-95 transition-all duration-150 focus:ring-2 focus:ring-primary/40 shadow-sm"
+              className="h-11 w-11 sm:h-12 sm:w-12 p-0 touch-feedback active:scale-95 transition-all focus:ring-2 focus:ring-primary/40 shadow-sm"
               title={!canApprove ? disabledReason : 'Agendar publicação'}
               aria-label="Agendar publicação"
             >
-              <Clock className="h-6 w-6 md:h-7 md:w-7" />
+              <Clock className="h-5 w-5" />
             </Button>
           </div>
         </div>

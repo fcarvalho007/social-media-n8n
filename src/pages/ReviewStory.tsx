@@ -208,37 +208,35 @@ const ReviewStory = () => {
   }
 
   return (
-    <div className="min-h-screen bg-background pb-24">
+    <div className="min-h-screen bg-background pb-20">
       <Header />
       
-      <main className="container py-4 sm:py-8 px-4 sm:px-6">
+      <main className="container py-3 sm:py-4 px-4 sm:px-6">
         <Button
           variant="ghost"
           onClick={() => navigate('/')}
-          className="mb-4 sm:mb-6 h-11 px-4"
-          size="default"
+          className="mb-3 h-9 px-3 -ml-3"
+          size="sm"
         >
-          <ArrowLeft className="mr-2 h-4 w-4" />
-          <span className="text-sm">Voltar ao Painel</span>
+          <ArrowLeft className="mr-1.5 h-3.5 w-3.5" />
+          <span className="text-xs sm:text-sm">Voltar ao Painel</span>
         </Button>
 
-        <div className="mb-4 sm:mb-6">
-          <div className="flex items-center gap-2 mb-2">
-            <h2 className="text-xl sm:text-2xl md:text-3xl font-bold">{story.tema || 'Story'}</h2>
-            <Badge variant="outline" className="text-xs">Story</Badge>
+        <div className="mb-4">
+          <div className="flex items-center gap-2 mb-1.5">
+            <h2 className="text-lg sm:text-xl md:text-2xl font-bold">{story.tema || 'Story'}</h2>
+            <Badge variant="outline" className="text-xs h-5">story</Badge>
           </div>
-          <p className="text-xs sm:text-sm text-muted-foreground">
-            Criado em: {new Date(story.created_at).toLocaleString('pt-PT')}
-          </p>
-          {story.titulo_slide && (
-            <p className="text-sm text-muted-foreground mt-1">
-              <strong>Título:</strong> {story.titulo_slide}
-            </p>
-          )}
+          <div className="text-xs text-muted-foreground space-y-0.5">
+            <p>Criado em: {new Date(story.created_at).toLocaleString('pt-PT')}</p>
+            {story.titulo_slide && (
+              <p><strong>Título:</strong> {story.titulo_slide}</p>
+            )}
+          </div>
         </div>
 
         {/* Story Image Preview */}
-        <div className="max-w-[85%] sm:max-w-[480px] md:max-w-[420px] lg:max-w-[400px] mx-auto mb-8">
+        <div className="max-w-[85%] sm:max-w-[480px] md:max-w-[420px] lg:max-w-[400px] mx-auto mb-5">
           <div 
             className="relative rounded-xl overflow-hidden bg-muted aspect-[9/16] group cursor-zoom-in shadow-lg hover:shadow-xl touch-feedback active:scale-[0.98] transition-all" 
             onClick={() => setZoomImage(true)}
@@ -255,8 +253,8 @@ const ReviewStory = () => {
         </div>
 
         {/* Caption Editor */}
-        <div className="rounded-xl border-2 border-border bg-card p-4 sm:p-5 md:p-6 mb-6 sm:mb-8 max-w-2xl mx-auto shadow-sm">
-          <Label htmlFor="caption" className="text-base font-semibold mb-3 block">
+        <div className="rounded-lg border border-border bg-card p-4 sm:p-5 mb-5 max-w-2xl mx-auto shadow-sm">
+          <Label htmlFor="caption" className="text-sm font-semibold mb-2 block">
             Caption / Legenda
           </Label>
           <Textarea
@@ -264,9 +262,9 @@ const ReviewStory = () => {
             value={caption}
             onChange={(e) => setCaption(e.target.value)}
             placeholder="Escreva a caption para o story..."
-            className="min-h-[180px] text-base leading-relaxed"
+            className="min-h-[150px] text-sm leading-relaxed"
           />
-          <p className="text-sm text-muted-foreground mt-3">
+          <p className="text-xs text-muted-foreground mt-2">
             {caption.length} caracteres
           </p>
         </div>
