@@ -44,7 +44,7 @@ export function QuickAddTask({ projectId, onCreate }: QuickAddTaskProps) {
       <Button
         onClick={() => setIsAdding(true)}
         variant="outline"
-        className="w-full justify-start gap-2 text-muted-foreground hover:text-foreground hover:border-primary transition-all"
+        className="w-full justify-start gap-2 text-muted-foreground hover:text-foreground hover:border-primary transition-all min-h-[44px] touch-target"
         aria-label="Adicionar tarefa rápida"
       >
         <Plus className="h-4 w-4" />
@@ -54,7 +54,7 @@ export function QuickAddTask({ projectId, onCreate }: QuickAddTaskProps) {
   }
 
   return (
-    <form onSubmit={handleSubmit} className="animate-slide-in-right">
+    <form onSubmit={handleSubmit} className="animate-slide-in-right w-full">
       <div className="flex gap-2">
         <Input
           value={title}
@@ -62,10 +62,16 @@ export function QuickAddTask({ projectId, onCreate }: QuickAddTaskProps) {
           onKeyDown={handleKeyDown}
           placeholder="Título da tarefa (Enter para criar, Esc para cancelar)"
           autoFocus
-          className="flex-1"
+          className="flex-1 min-h-[44px]"
           aria-label="Título da nova tarefa"
         />
-        <Button type="submit" size="icon" disabled={!title.trim()} aria-label="Confirmar">
+        <Button 
+          type="submit" 
+          size="icon" 
+          disabled={!title.trim()} 
+          aria-label="Confirmar"
+          className="min-h-[44px] min-w-[44px] touch-target"
+        >
           <Plus className="h-4 w-4" />
         </Button>
         <Button
@@ -77,6 +83,7 @@ export function QuickAddTask({ projectId, onCreate }: QuickAddTaskProps) {
             setIsAdding(false);
           }}
           aria-label="Cancelar"
+          className="min-h-[44px] min-w-[44px] touch-target"
         >
           <X className="h-4 w-4" />
         </Button>
