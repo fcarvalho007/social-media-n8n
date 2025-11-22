@@ -1,10 +1,9 @@
 import { useParams, useNavigate } from 'react-router-dom';
 import { useState } from 'react';
 import { Button } from '@/components/ui/button';
-import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Card } from '@/components/ui/card';
-import { ArrowLeft, Edit, Archive, Trash2, CheckCircle2, Plus, Save } from 'lucide-react';
+import { ArrowLeft, Plus } from 'lucide-react';
 import { useProjects } from '@/hooks/useProjects';
 import { useTasks } from '@/hooks/useTasks';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/components/ui/alert-dialog';
@@ -19,10 +18,14 @@ import { MilestonesList } from '@/components/milestones/MilestonesList';
 import { TimelineView } from '@/components/projects/TimelineView';
 import { CreateTemplateModal } from '@/components/projects/CreateTemplateModal';
 import { EditProjectModal } from '@/components/projects/EditProjectModal';
+import { ProjectActionsMenu } from '@/components/projects/ProjectActionsMenu';
+import { ProjectStatsCard } from '@/components/projects/ProjectStatsCard';
+import { useIsMobile } from '@/hooks/use-mobile';
 
 export default function ProjectDetail() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
+  const isMobile = useIsMobile();
   const { projects, updateProject, deleteProject } = useProjects();
   const { tasks, createTask, updateTask, deleteTask } = useTasks(id);
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
@@ -75,23 +78,30 @@ export default function ProjectDetail() {
         <AppSidebar />
         <SidebarInset className="flex-1">
           <DashboardHeader />
-          <main id="main-content" className="flex-1 p-3 sm:p-4 md:p-6 space-y-4 md:space-y-6 animate-fade-in">
-      <div className="space-y-4 md:space-y-6 lg:space-y-8">
+          <main id="main-content" className="flex-1 p-2 sm:p-4 md:p-6 space-y-3 md:space-y-4 lg:space-y-6 animate-fade-in">
+      <div className="space-y-3 md:space-y-4 lg:space-y-6">
       {/* Back Button */}
-      <Button variant="ghost" onClick={() => navigate('/projects')} className="gap-2 min-h-[44px] active:scale-95 transition-transform">
+      <Button 
+        variant="ghost" 
+        onClick={() => navigate('/projects')} 
+        className="gap-2 min-h-[44px] active:scale-95 transition-transform -ml-2"
+        aria-label="Voltar aos projetos"
+      >
         <ArrowLeft className="h-4 w-4" />
-        Voltar
+        {!isMobile && <span>Voltar</span>}
       </Button>
 
       {/* Header - Mobile optimized */}
-      <div className="flex flex-col md:flex-row justify-between items-start gap-4 mb-6">
+      <div className="flex flex-col md:flex-row justify-between items-start gap-3 md:gap-4">
         <div className="flex items-start gap-3 md:gap-4 w-full md:w-auto">
-          <span className="text-3xl md:text-4xl flex-shrink-0" role="img" aria-label="Project icon">{project.icon}</span>
+          <span className="text-4xl md:text-5xl flex-shrink-0" role="img" aria-label="Ícone do projeto">
+            {project.icon}
+          </span>
           <div className="min-w-0 flex-1">
             <InlineEditableText
               value={project.name}
               onSave={(newName) => updateProject.mutate({ id: project.id, name: newName })}
-              className="text-2xl md:text-3xl font-bold block truncate"
+              className="text-2xl md:text-3xl font-bold block"
               inputClassName="text-2xl md:text-3xl font-bold"
               as="h1"
             />
@@ -109,66 +119,72 @@ export default function ProjectDetail() {
             </div>
           </div>
         </div>
-        <div className="flex items-center gap-2 overflow-x-auto scrollbar-hide -mx-4 px-4 md:mx-0 md:px-0 w-full md:w-auto">
-          <Button 
-            variant="outline" 
-            size="sm"
-            className="gap-2 flex-shrink-0 min-h-[44px] active:scale-95 transition-transform" 
-            onClick={() => setCreateTemplateOpen(true)}
-            aria-label="Guardar como template"
-          >
-            <Save className="h-4 w-4" />
-            <span className="hidden sm:inline">Template</span>
-          </Button>
-          <Button 
-            variant="outline" 
-            size="sm"
-            className="gap-2 flex-shrink-0 min-h-[44px] active:scale-95 transition-transform" 
-            onClick={() => setEditProjectOpen(true)}
-            aria-label="Editar projeto"
-          >
-            <Edit className="h-4 w-4" />
-            <span className="hidden sm:inline">Editar</span>
-          </Button>
-          <Button 
-            variant="outline" 
-            size="sm"
-            className="gap-2 flex-shrink-0 min-h-[44px] active:scale-95 transition-transform" 
-            aria-label="Arquivar projeto"
-          >
-            <Archive className="h-4 w-4" />
-            <span className="hidden sm:inline">Arquivar</span>
-          </Button>
-          <Button 
-            variant="destructive" 
-            size="sm"
-            className="gap-2 flex-shrink-0 min-h-[44px] min-w-[44px] active:scale-95 transition-transform"
-            onClick={() => setDeleteDialogOpen(true)}
-            aria-label="Eliminar projeto"
-          >
-            <Trash2 className="h-4 w-4" />
-          </Button>
-        </div>
+        
+        <ProjectActionsMenu
+          onSaveTemplate={() => setCreateTemplateOpen(true)}
+          onEdit={() => setEditProjectOpen(true)}
+          onArchive={() => {
+            updateProject.mutate({ id: project.id, status: 'archived' });
+          }}
+          onDelete={() => setDeleteDialogOpen(true)}
+        />
       </div>
 
+      {/* Stats Card */}
+      <ProjectStatsCard
+        completionPercentage={completionPercentage}
+        completedTasks={completedTasks}
+        totalTasks={tasks.length}
+        daysRemaining={daysRemaining}
+        dueDate={project.due_date}
+      />
+
       {/* Tabs - Mobile optimized with horizontal scroll */}
-      <Tabs defaultValue="tasks" className="space-y-6">
-        <TabsList className="w-full justify-start overflow-x-auto scrollbar-hide">
-          <TabsTrigger value="tasks" className="min-h-[44px] px-6 active:scale-95 transition-transform whitespace-nowrap">Tarefas</TabsTrigger>
-          <TabsTrigger value="milestones" className="min-h-[44px] px-6 active:scale-95 transition-transform whitespace-nowrap">Marcos</TabsTrigger>
-          <TabsTrigger value="timeline" className="min-h-[44px] px-6 active:scale-95 transition-transform whitespace-nowrap">Timeline</TabsTrigger>
-          <TabsTrigger value="activity" className="min-h-[44px] px-6 active:scale-95 transition-transform whitespace-nowrap">Atividade</TabsTrigger>
-        </TabsList>
+      <Tabs defaultValue="tasks" className="space-y-4 md:space-y-6">
+        <div className="relative">
+          <TabsList className="w-full justify-start overflow-x-auto scrollbar-hide bg-muted/50">
+            <TabsTrigger 
+              value="tasks" 
+              className="min-h-[48px] px-4 md:px-6 active:scale-95 transition-transform whitespace-nowrap touch-target"
+            >
+              Tarefas
+            </TabsTrigger>
+            <TabsTrigger 
+              value="milestones" 
+              className="min-h-[48px] px-4 md:px-6 active:scale-95 transition-transform whitespace-nowrap touch-target"
+            >
+              Marcos
+            </TabsTrigger>
+            <TabsTrigger 
+              value="timeline" 
+              className="min-h-[48px] px-4 md:px-6 active:scale-95 transition-transform whitespace-nowrap touch-target"
+            >
+              Timeline
+            </TabsTrigger>
+            <TabsTrigger 
+              value="activity" 
+              className="min-h-[48px] px-4 md:px-6 active:scale-95 transition-transform whitespace-nowrap touch-target"
+            >
+              Atividade
+            </TabsTrigger>
+          </TabsList>
+          {/* Scroll indicator gradient */}
+          <div className="absolute right-0 top-0 bottom-0 w-8 bg-gradient-to-l from-background to-transparent pointer-events-none md:hidden" />
+        </div>
 
         <TabsContent value="tasks" className="space-y-4">
-          <div className="flex justify-between items-center">
+          <div className="flex flex-col md:flex-row md:justify-between md:items-center gap-3">
             <div>
-              <h2 className="text-2xl font-bold">Tarefas</h2>
-              <p className="text-muted-foreground">Gerir tarefas com quadro Kanban</p>
+              <h2 className="text-xl md:text-2xl font-bold">Tarefas</h2>
+              <p className="text-sm text-muted-foreground">Gerir tarefas com quadro Kanban</p>
             </div>
-            <Button onClick={() => setCreateTaskOpen(true)} className="gap-2 min-h-[44px] active:scale-95 transition-transform">
+            <Button 
+              onClick={() => setCreateTaskOpen(true)} 
+              className="gap-2 min-h-[44px] active:scale-95 transition-transform w-full md:w-auto"
+            >
               <Plus className="h-5 w-5" />
-              <span className="hidden sm:inline">Nova Tarefa</span>
+              <span className="md:hidden">Nova Tarefa</span>
+              <span className="hidden md:inline">Nova Tarefa</span>
             </Button>
           </div>
           

@@ -5,6 +5,8 @@ import { KanbanColumn } from './KanbanColumn';
 import { TaskCard } from './TaskCard';
 import { QuickAddTask } from './QuickAddTask';
 import { TaskAssigneeFilter } from './TaskAssigneeFilter';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { useIsMobile } from '@/hooks/use-mobile';
 
 interface KanbanBoardProps {
   tasks: Task[];
@@ -17,6 +19,7 @@ interface KanbanBoardProps {
 export function KanbanBoard({ tasks, projectId, onUpdateTask, onDeleteTask, onCreateTask }: KanbanBoardProps) {
   const [activeTask, setActiveTask] = useState<Task | null>(null);
   const [assigneeFilter, setAssigneeFilter] = useState<string>('all');
+  const isMobile = useIsMobile();
 
   const sensors = useSensors(
     useSensor(PointerSensor, {
@@ -60,6 +63,71 @@ export function KanbanBoard({ tasks, projectId, onUpdateTask, onDeleteTask, onCr
     return task.assignee_id === assigneeFilter;
   });
 
+  if (isMobile) {
+    return (
+      <>
+        {/* Quick Add Task and Filter */}
+        <div className="mb-4 space-y-3">
+          <QuickAddTask projectId={projectId} onCreate={onCreateTask} />
+          <TaskAssigneeFilter value={assigneeFilter} onChange={setAssigneeFilter} />
+        </div>
+
+        <Tabs defaultValue="todo" className="space-y-4">
+          <TabsList className="w-full grid grid-cols-4 h-auto">
+            {columns.map((column) => {
+              const columnTasks = filteredTasks.filter((task) => task.status === column.status);
+              return (
+                <TabsTrigger 
+                  key={column.id} 
+                  value={column.id}
+                  className="flex flex-col gap-1 py-2 px-1 text-xs touch-target"
+                >
+                  <span className="font-semibold">{column.title}</span>
+                  <span className="text-muted-foreground">({columnTasks.length})</span>
+                </TabsTrigger>
+              );
+            })}
+          </TabsList>
+
+          <DndContext sensors={sensors} onDragStart={handleDragStart} onDragEnd={handleDragEnd}>
+            {columns.map((column) => {
+              const columnTasks = filteredTasks.filter((task) => task.status === column.status);
+              return (
+                <TabsContent key={column.id} value={column.id} className="mt-0">
+                  <KanbanColumn
+                    id={column.id}
+                    title={column.title}
+                    status={column.status}
+                    tasks={columnTasks}
+                    projectId={projectId}
+                    allTasks={tasks}
+                    onUpdateTask={onUpdateTask}
+                    onDeleteTask={onDeleteTask}
+                  />
+                </TabsContent>
+              );
+            })}
+
+            <DragOverlay>
+              {activeTask && (
+                <div className="opacity-80 rotate-3 scale-105">
+                  <TaskCard 
+                    task={activeTask} 
+                    projectId={projectId}
+                    availableTasks={tasks}
+                    onUpdate={() => {}} 
+                    onDelete={() => {}} 
+                    isDragging 
+                  />
+                </div>
+              )}
+            </DragOverlay>
+          </DndContext>
+        </Tabs>
+      </>
+    );
+  }
+
   return (
     <>
       {/* Quick Add Task and Filter */}
@@ -69,7 +137,7 @@ export function KanbanBoard({ tasks, projectId, onUpdateTask, onDeleteTask, onCr
       </div>
 
       <DndContext sensors={sensors} onDragStart={handleDragStart} onDragEnd={handleDragEnd}>
-        <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-3 md:gap-4 min-h-[500px] md:min-h-[600px] overflow-x-auto">
+        <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-3 md:gap-4 min-h-[500px] md:min-h-[600px]">
           {columns.map((column) => {
             const columnTasks = filteredTasks.filter((task) => task.status === column.status);
             return (
