@@ -68,11 +68,16 @@ const Pending = () => {
     if (activeTab === 'create') {
       const preferredMode = localStorage.getItem('preferredCreationMode') as 'manual' | 'ia' | null;
       if (preferredMode) {
-        setCreationMode(preferredMode);
-        setShowModeSelector(false);
+        if (preferredMode === 'manual') {
+          // Redirect directly to manual editor
+          navigate('/manual-create');
+        } else {
+          setCreationMode(preferredMode);
+          setShowModeSelector(false);
+        }
       }
     }
-  }, [activeTab]);
+  }, [activeTab, navigate]);
 
   const fetchPosts = async () => {
     setLoading(true);
@@ -254,8 +259,13 @@ const Pending = () => {
                 <div className="bg-card rounded-2xl shadow-lg p-6 sm:p-8 border-2 border-border">
                   <ModeSelector 
                     onModeSelect={(mode, skipNext) => {
-                      setCreationMode(mode);
-                      setShowModeSelector(false);
+                      if (mode === 'manual') {
+                        // Redirect directly to manual editor
+                        navigate('/manual-create');
+                      } else {
+                        setCreationMode(mode);
+                        setShowModeSelector(false);
+                      }
                     }}
                   />
                 </div>
@@ -275,27 +285,12 @@ const Pending = () => {
                       }}
                     />
                   )}
-                  {/* Content based on mode */}
-                  <div className="bg-card rounded-2xl shadow-lg p-6 sm:p-8 border-2 border-border">
-                    {creationMode === 'ia' ? (
+                  {/* Content based on mode - Only IA mode shows content here */}
+                  {creationMode === 'ia' && (
+                    <div className="bg-card rounded-2xl shadow-lg p-6 sm:p-8 border-2 border-border">
                       <ActionButtons />
-                    ) : (
-                      <div className="text-center py-12 space-y-4">
-                        <p className="text-muted-foreground">Modo Manual</p>
-                        <p className="text-muted-foreground max-w-md mx-auto mb-4">
-                          Comece a criar a sua publicação com controlo total sobre todos os detalhes.
-                        </p>
-                        <Button
-                          size="lg"
-                          onClick={() => navigate('/manual-create')}
-                          className="px-8 min-h-[44px] touch-target"
-                          aria-label="Abrir editor manual de publicações"
-                        >
-                          Abrir Editor Manual
-                        </Button>
-                      </div>
-                    )}
-                  </div>
+                    </div>
+                  )}
                 </>
               )}
             </div>
