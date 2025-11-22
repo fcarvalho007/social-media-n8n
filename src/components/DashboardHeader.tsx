@@ -146,15 +146,30 @@ export function DashboardHeader() {
           </div>
           
           {/* Settings Menu */}
-          <Button
-            variant="ghost"
-            size="icon"
-            onClick={() => navigate('/quota')}
-            className="h-10 w-10 min-h-[44px] min-w-[44px] touch-target rounded-lg hover:bg-primary/10 active:scale-95 transition-all duration-150"
-            aria-label="Definições"
-          >
-            <Settings className="h-5 w-5" />
-          </Button>
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button
+                variant="ghost"
+                size="icon"
+                className="h-10 w-10 min-h-[44px] min-w-[44px] touch-target rounded-lg hover:bg-primary/10 active:scale-95 transition-all duration-150"
+                aria-label="Definições"
+              >
+                <Settings className="h-5 w-5" />
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end" className="w-56">
+              <DropdownMenuLabel>Definições</DropdownMenuLabel>
+              <DropdownMenuSeparator />
+              <DropdownMenuItem onClick={() => navigate('/quota')}>
+                <Settings className="mr-2 h-4 w-4" />
+                <span>Configurações de Quota</span>
+              </DropdownMenuItem>
+              <DropdownMenuItem onClick={() => navigate('/users')}>
+                <Users className="mr-2 h-4 w-4" />
+                <span>Gestão de Utilizadores</span>
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
         </div>
 
         {/* Global Search Dialog */}

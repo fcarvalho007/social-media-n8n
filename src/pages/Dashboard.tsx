@@ -385,16 +385,16 @@ export default function Dashboard() {
                       className="cursor-pointer hover:shadow-lg transition-all duration-300 hover-scale group"
                     >
                       <CardHeader>
-                        <div className="flex items-start justify-between">
-                          <div className="flex items-center gap-3 flex-1">
-                            <span className="text-3xl">{project.icon}</span>
+                        <div className="flex items-start justify-between gap-3">
+                          <div className="flex items-center gap-3 flex-1 min-w-0">
+                            <span className="text-3xl flex-shrink-0">{project.icon}</span>
                             <div className="flex-1 min-w-0">
-                              <CardTitle className="text-base truncate group-hover:text-primary transition-colors">
+                              <CardTitle className="text-base line-clamp-2 group-hover:text-primary transition-colors">
                                 {project.name}
                               </CardTitle>
                             </div>
                           </div>
-                          <Badge variant={project.status === 'active' ? 'default' : 'secondary'}>
+                          <Badge variant={project.status === 'active' ? 'default' : 'secondary'} className="flex-shrink-0 whitespace-nowrap">
                             {project.status === 'active' ? 'Ativo' : project.status === 'completed' ? 'Concluído' : 'Pausado'}
                           </Badge>
                         </div>
