@@ -23,3 +23,15 @@ verify_jwt = false
 
 [functions.admin-reset-password]
 verify_jwt = false
+
+[functions.invite-user]
+verify_jwt = true
+
+[functions.reset-user-password]
+verify_jwt = true
+
+[functions.update-user-email]
+verify_jwt = true
+
+[functions.manage-user-role]
+verify_jwt = true
