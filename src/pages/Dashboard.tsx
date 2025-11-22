@@ -382,21 +382,27 @@ export default function Dashboard() {
                     <Card
                       key={project.id}
                       onClick={() => navigate(`/projects/${project.id}`)}
-                      className="cursor-pointer hover:shadow-lg transition-all duration-300 hover-scale group"
+                      className="cursor-pointer hover:shadow-lg transition-all duration-300 hover-scale group relative"
                     >
-                      <CardHeader>
-                        <div className="flex items-start justify-between gap-3">
-                          <div className="flex items-center gap-3 flex-1 min-w-0">
-                            <span className="text-3xl flex-shrink-0">{project.icon}</span>
-                            <div className="flex-1 min-w-0">
-                              <CardTitle className="text-base line-clamp-2 group-hover:text-primary transition-colors">
-                                {project.name}
-                              </CardTitle>
-                            </div>
+                      <Badge 
+                        variant={project.status === 'active' ? 'default' : 'secondary'} 
+                        className="absolute top-4 right-4 z-10"
+                      >
+                        {project.status === 'active' ? 'Ativo' : project.status === 'completed' ? 'Concluído' : 'Pausado'}
+                      </Badge>
+                      <CardHeader className="pr-20">
+                        <div className="flex items-start gap-3">
+                          <div 
+                            className="flex-shrink-0 w-12 h-12 rounded-lg flex items-center justify-center text-2xl shadow-sm"
+                            style={{ backgroundColor: project.color }}
+                          >
+                            {project.icon}
                           </div>
-                          <Badge variant={project.status === 'active' ? 'default' : 'secondary'} className="flex-shrink-0 whitespace-nowrap">
-                            {project.status === 'active' ? 'Ativo' : project.status === 'completed' ? 'Concluído' : 'Pausado'}
-                          </Badge>
+                          <div className="flex-1 min-w-0">
+                            <CardTitle className="text-base leading-snug group-hover:text-primary transition-colors">
+                              {project.name}
+                            </CardTitle>
+                          </div>
                         </div>
                       </CardHeader>
                       <CardContent>
