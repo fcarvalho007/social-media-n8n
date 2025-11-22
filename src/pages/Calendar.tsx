@@ -68,6 +68,7 @@ const Calendar = () => {
   const [touchStart, setTouchStart] = useState<number | null>(null);
   const [touchEnd, setTouchEnd] = useState<number | null>(null);
   const [isSwipping, setIsSwipping] = useState(false);
+  const [calendarHeight, setCalendarHeight] = useState<number>(600);
 
   const minSwipeDistance = 50;
 
@@ -113,6 +114,31 @@ const Calendar = () => {
       setCurrentMonth(prevDate);
     }
   };
+
+  // Calculate dynamic calendar height based on window height
+  const getCalendarHeight = useCallback((mobile: boolean): number => {
+    const viewportHeight = window.innerHeight;
+    // Discount space for header (~80px), stats cards (~120px), legend/filters (~140px), padding (~80px)
+    const reservedSpace = 420;
+    const calculatedHeight = viewportHeight - reservedSpace;
+    
+    if (mobile) {
+      return Math.max(360, Math.min(calculatedHeight, 600));
+    }
+    return Math.max(520, Math.min(calculatedHeight, 820));
+  }, []);
+
+  // Update calendar height on mount and resize
+  useEffect(() => {
+    const updateHeight = () => {
+      setCalendarHeight(getCalendarHeight(isMobile));
+    };
+    
+    updateHeight();
+    window.addEventListener('resize', updateHeight);
+    
+    return () => window.removeEventListener('resize', updateHeight);
+  }, [isMobile, getCalendarHeight]);
 
   // Force mobile-friendly view on small screens
   useEffect(() => {
@@ -509,10 +535,10 @@ const Calendar = () => {
     <SidebarProvider>
       <div className="flex min-h-screen w-full">
         <AppSidebar />
-        <SidebarInset className="flex-1">
+        <SidebarInset className="flex-1 overflow-x-hidden">
           <DashboardHeader />
           <main className="flex-1 w-full overflow-x-hidden p-3 sm:p-4 lg:p-6 xl:p-8 space-y-3 sm:space-y-4 lg:space-y-5 animate-fade-in bg-gradient-to-br from-white to-gray-50">
-            <div className="flex flex-col lg:flex-row gap-4 lg:gap-5 xl:gap-6 max-w-[2000px] mx-auto w-full">
+            <div className="flex flex-col lg:flex-row gap-4 lg:gap-5 xl:gap-6 max-w-6xl xl:max-w-7xl mx-auto w-full">
               {/* Main Calendar Section */}
               <div className="flex-1 animate-slide-up space-y-3 sm:space-y-4 lg:space-y-5 min-w-0 w-full lg:w-auto">
                 {/* Header */}
@@ -694,7 +720,10 @@ const Calendar = () => {
           onTouchEnd={isMobile ? onTouchEnd : undefined}
         >
                 {loading ? (
-                  <div className="h-[350px] sm:h-[450px] md:h-[550px] lg:h-[650px] xl:h-[750px] flex items-center justify-center w-full">
+                  <div 
+                    className="flex items-center justify-center w-full"
+                    style={{ height: calendarHeight, minHeight: isMobile ? 360 : 520 }}
+                  >
                     <div className="animate-spin rounded-full h-10 w-10 sm:h-12 sm:w-12 border-b-2 border-primary"></div>
                   </div>
                 ) : (
@@ -703,20 +732,10 @@ const Calendar = () => {
                     events={filteredEvents}
                     startAccessor={(event: CalendarEvent) => event.start as Date}
                     endAccessor={(event: CalendarEvent) => event.end as Date}
-          style={{ 
-            height: isMobile 
-              ? 'calc(100vh - 360px)'
-              : window.innerWidth < 768
-                ? 500
-                : window.innerWidth < 1024 
-                  ? 620 
-                  : window.innerWidth < 1440
-                    ? 760
-                    : window.innerWidth < 1920
-                      ? 880
-                      : 1000,
-            minHeight: isMobile ? 400 : 600
-          }}
+                    style={{ 
+                      height: calendarHeight,
+                      minHeight: isMobile ? 360 : 520
+                    }}
                     culture="pt-PT"
                     view={calendarView}
                     onView={(view) => {
@@ -755,7 +774,7 @@ const Calendar = () => {
             </div>
 
             {/* Side Grid Panel - Hidden on mobile/tablet, visible on large screens */}
-            <div className="hidden lg:block w-72 xl:w-80 2xl:w-96 animate-slide-up space-y-4 flex-shrink-0">
+            <div className="hidden lg:block w-64 xl:w-72 2xl:w-80 animate-slide-up space-y-4 flex-shrink-0">
               <Card className="p-4 sm:p-5 xl:p-6 border-2 sticky top-4 max-h-[calc(100vh-8rem)] overflow-hidden flex flex-col shadow-lg w-full">
                 <div className="mb-4">
                   <h3 className="text-lg font-bold text-foreground flex items-center gap-2">
