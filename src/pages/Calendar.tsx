@@ -352,8 +352,8 @@ const Calendar = () => {
     const goToToday = () => toolbar.onNavigate('TODAY');
 
     return (
-      <div className="flex flex-col sm:flex-row items-center justify-between gap-3 mb-4 pb-4 border-b">
-        <div className="flex items-center gap-2 w-full sm:w-auto justify-between sm:justify-start">
+      <div className="flex flex-col sm:flex-row items-center justify-between gap-3 mb-4 pb-4 border-b w-full overflow-x-hidden">
+        <div className="flex items-center gap-2 w-full sm:w-auto justify-between sm:justify-start flex-wrap">
         <Button
           onClick={goToBack}
           variant="outline"
@@ -511,26 +511,26 @@ const Calendar = () => {
         <AppSidebar />
         <SidebarInset className="flex-1">
           <DashboardHeader />
-          <main className="flex-1 p-3 sm:p-4 md:p-4 space-y-3 md:space-y-4 animate-fade-in bg-gradient-to-br from-white to-gray-50">
-            <div className="flex flex-col lg:flex-row gap-4 lg:gap-6 max-w-[1900px] mx-auto">
+          <main className="flex-1 w-full overflow-x-hidden p-3 sm:p-4 lg:p-6 xl:p-8 space-y-3 sm:space-y-4 lg:space-y-5 animate-fade-in bg-gradient-to-br from-white to-gray-50">
+            <div className="flex flex-col lg:flex-row gap-4 lg:gap-5 xl:gap-6 max-w-[2000px] mx-auto w-full">
               {/* Main Calendar Section */}
-              <div className="flex-1 animate-slide-up space-y-4 lg:space-y-5 min-w-0">
+              <div className="flex-1 animate-slide-up space-y-3 sm:space-y-4 lg:space-y-5 min-w-0 w-full lg:w-auto">
                 {/* Header */}
-                <div className="flex flex-col sm:flex-row sm:items-start lg:items-center justify-between gap-2 lg:gap-3">
-                  <div className="flex-1 min-w-0">
-                    <h1 className="text-2xl sm:text-3xl font-bold text-foreground flex items-center gap-2.5 lg:gap-3">
-                      <div className="h-10 w-10 lg:h-12 lg:w-12 rounded-xl bg-primary/10 flex items-center justify-center flex-shrink-0">
-                        <CalendarIcon className="h-5 w-5 lg:h-6 lg:w-6 text-primary" />
+                <div className="flex flex-col sm:flex-row sm:items-start lg:items-center justify-between gap-3 sm:gap-4 lg:gap-5">
+                  <div className="flex-1 min-w-0 w-full sm:w-auto">
+                    <h1 className="text-xl sm:text-2xl lg:text-3xl xl:text-4xl font-bold text-foreground flex items-center gap-2 sm:gap-2.5 lg:gap-3">
+                      <div className="h-8 w-8 sm:h-10 sm:w-10 lg:h-12 lg:w-12 rounded-lg sm:rounded-xl bg-primary/10 flex items-center justify-center flex-shrink-0">
+                        <CalendarIcon className="h-4 w-4 sm:h-5 sm:w-5 lg:h-6 lg:w-6 text-primary" />
                       </div>
                       <span className="truncate">Calendário de Conteúdo</span>
                     </h1>
-                    <p className="text-sm text-muted-foreground mt-2 ml-12 lg:ml-[60px] hidden sm:block">
+                    <p className="text-xs sm:text-sm text-muted-foreground mt-1 sm:mt-2 ml-10 sm:ml-12 lg:ml-[60px] hidden sm:block">
                       Gerencie publicações agendadas • Arraste para reagendar
                     </p>
                   </div>
                   
                   {/* Create Button + View Toggle */}
-                  <div className="flex items-center gap-2 flex-shrink-0">
+                  <div className="flex items-center gap-2 flex-shrink-0 w-full sm:w-auto">
                     {/* Create Content Button */}
                     <TooltipProvider>
                       <Tooltip>
@@ -547,10 +547,10 @@ const Calendar = () => {
                                 navigate('/');
                               }
                             }}
-                            className="gap-2 min-h-[44px] min-w-[44px] px-3 sm:px-4 active:scale-95 transition-transform bg-gradient-to-r from-primary to-primary/80 hover:from-primary/90 hover:to-primary/70"
+                            className="gap-2 min-h-[44px] min-w-[44px] px-3 sm:px-4 lg:px-5 active:scale-95 transition-transform bg-gradient-to-r from-primary to-primary/80 hover:from-primary/90 hover:to-primary/70 flex-1 sm:flex-none"
                           >
                             <Plus className="h-4 w-4" />
-                            <span className="hidden sm:inline font-semibold">Criar</span>
+                            <span className="font-semibold">Criar</span>
                           </Button>
                         </TooltipTrigger>
                         <TooltipContent side="bottom" className="max-w-xs">
@@ -563,116 +563,116 @@ const Calendar = () => {
                     </TooltipProvider>
 
                     {/* View Mode Buttons */}
-                    <div className="hidden sm:flex items-center gap-1 ml-2 border-l pl-2">
+                    <div className="flex items-center gap-1 ml-0 sm:ml-2 border-l pl-2">
                       <Button
                         variant={viewMode === 'normal' ? 'default' : 'outline'}
                         size="sm"
                         onClick={() => setViewMode('normal')}
-                        className="gap-1.5 min-h-[44px] px-3 sm:px-4 active:scale-95 transition-transform"
+                        className="gap-1.5 min-h-[44px] px-3 lg:px-4 active:scale-95 transition-transform"
                       >
                         <Maximize2 className="h-4 w-4" />
-                        <span className="hidden md:inline">Normal</span>
+                        <span className="hidden sm:inline text-xs sm:text-sm">Normal</span>
                       </Button>
                       <Button
                         variant={viewMode === 'compact' ? 'default' : 'outline'}
                         size="sm"
                         onClick={() => setViewMode('compact')}
-                        className="gap-1.5 min-h-[44px] px-3 sm:px-4 active:scale-95 transition-transform"
+                        className="gap-1.5 min-h-[44px] px-3 lg:px-4 active:scale-95 transition-transform"
                       >
                         <Minimize2 className="h-4 w-4" />
-                        <span className="hidden md:inline">Compacta</span>
+                        <span className="hidden sm:inline text-xs sm:text-sm">Compacta</span>
                       </Button>
                     </div>
                   </div>
                 </div>
 
               {/* Stats Cards */}
-              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 lg:gap-4 xl:gap-5">
-                <Card className="p-3 lg:p-3.5 bg-gradient-to-br from-primary/5 to-primary/10 border-primary/20 border-2 hover:shadow-lg hover:shadow-primary/10 transition-all">
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-2.5 sm:gap-3 md:gap-4 lg:gap-5">
+                <Card className="p-3 sm:p-3.5 lg:p-4 bg-gradient-to-br from-primary/5 to-primary/10 border-primary/20 border-2 hover:shadow-lg hover:shadow-primary/10 transition-all">
                   <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
-                    <div>
-                      <p className="text-xs font-semibold text-primary/70">Total</p>
-                      <p className="text-xl sm:text-2xl font-bold bg-gradient-to-r from-primary to-primary/80 bg-clip-text text-transparent">{monthStats.total}</p>
+                    <div className="flex-1 min-w-0">
+                      <p className="text-xs font-semibold text-primary/70 truncate">Total</p>
+                      <p className="text-2xl sm:text-3xl lg:text-4xl font-bold bg-gradient-to-r from-primary to-primary/80 bg-clip-text text-transparent truncate">{monthStats.total}</p>
                     </div>
-                    <div className="h-8 w-8 sm:h-10 sm:w-10 rounded-lg bg-gradient-to-br from-primary to-primary/80 flex items-center justify-center shadow-md shadow-primary/25">
-                      <TrendingUp className="h-4 w-4 sm:h-5 sm:w-5 text-white" />
+                    <div className="h-10 w-10 sm:h-12 sm:w-12 lg:h-14 lg:w-14 rounded-lg sm:rounded-xl bg-gradient-to-br from-primary to-primary/80 flex items-center justify-center shadow-md shadow-primary/25 flex-shrink-0">
+                      <TrendingUp className="h-5 w-5 sm:h-6 sm:w-6 lg:h-7 lg:w-7 text-white" />
                     </div>
                   </div>
                 </Card>
 
-                <Card className="p-3 lg:p-3.5 bg-gradient-to-br from-blue-50 to-blue-100 border-blue-200 border-2 hover:shadow-lg hover:shadow-blue-200/50 transition-all">
+                <Card className="p-3 sm:p-3.5 lg:p-4 bg-gradient-to-br from-blue-50 to-blue-100 border-blue-200 border-2 hover:shadow-lg hover:shadow-blue-200/50 transition-all">
                   <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
-                    <div>
-                      <p className="text-xs font-semibold text-blue-600/70">Posts</p>
-                      <p className="text-xl sm:text-2xl font-bold text-blue-600">{monthStats.posts}</p>
+                    <div className="flex-1 min-w-0">
+                      <p className="text-xs font-semibold text-blue-600/70 truncate">Posts</p>
+                      <p className="text-2xl sm:text-3xl lg:text-4xl font-bold text-blue-600 truncate">{monthStats.posts}</p>
                     </div>
-                    <div className="h-8 w-8 sm:h-10 sm:w-10 rounded-lg bg-gradient-to-br from-blue-500 to-blue-600 flex items-center justify-center shadow-md shadow-blue-400/30">
-                      <LayoutGrid className="h-4 w-4 sm:h-5 sm:w-5 text-white" />
+                    <div className="h-10 w-10 sm:h-12 sm:w-12 lg:h-14 lg:w-14 rounded-lg sm:rounded-xl bg-gradient-to-br from-blue-500 to-blue-600 flex items-center justify-center shadow-md shadow-blue-400/30 flex-shrink-0">
+                      <LayoutGrid className="h-5 w-5 sm:h-6 sm:w-6 lg:h-7 lg:w-7 text-white" />
                     </div>
                   </div>
                 </Card>
 
-                <Card className="p-3 lg:p-3.5 bg-gradient-to-br from-purple-50 to-purple-100 border-purple-200 border-2 hover:shadow-lg hover:shadow-purple-200/50 transition-all">
+                <Card className="p-3 sm:p-3.5 lg:p-4 bg-gradient-to-br from-purple-50 to-purple-100 border-purple-200 border-2 hover:shadow-lg hover:shadow-purple-200/50 transition-all">
                   <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
-                    <div>
-                      <p className="text-xs font-semibold text-purple-600/70">Stories</p>
-                      <p className="text-xl sm:text-2xl font-bold text-purple-600">{monthStats.stories}</p>
+                    <div className="flex-1 min-w-0">
+                      <p className="text-xs font-semibold text-purple-600/70 truncate">Stories</p>
+                      <p className="text-2xl sm:text-3xl lg:text-4xl font-bold text-purple-600 truncate">{monthStats.stories}</p>
                     </div>
-                    <div className="h-8 w-8 sm:h-10 sm:w-10 rounded-lg bg-gradient-to-br from-purple-500 to-purple-600 flex items-center justify-center shadow-md shadow-purple-400/30">
-                      <Video className="h-4 w-4 sm:h-5 sm:w-5 text-white" />
+                    <div className="h-10 w-10 sm:h-12 sm:w-12 lg:h-14 lg:w-14 rounded-lg sm:rounded-xl bg-gradient-to-br from-purple-500 to-purple-600 flex items-center justify-center shadow-md shadow-purple-400/30 flex-shrink-0">
+                      <Video className="h-5 w-5 sm:h-6 sm:w-6 lg:h-7 lg:w-7 text-white" />
                     </div>
                   </div>
                 </Card>
               </div>
 
               {/* Legend and Filters */}
-              <div className="grid grid-cols-1 lg:grid-cols-2 gap-3 lg:gap-4">
+              <div className="grid grid-cols-1 lg:grid-cols-2 gap-2.5 sm:gap-3 lg:gap-4">
                 {/* Legend */}
-                <Card className="p-4 lg:p-5 border-2">
-                  <h3 className="text-sm font-semibold text-foreground mb-4 flex items-center gap-2">
-                    <div className="h-2 w-2 rounded-full bg-gradient-to-r from-primary to-secondary"></div>
-                    Legenda de Cores
+                <Card className="p-3 sm:p-4 lg:p-5 border-2 w-full">
+                  <h3 className="text-xs sm:text-sm font-semibold text-foreground mb-3 sm:mb-4 flex items-center gap-2">
+                    <div className="h-2 w-2 rounded-full bg-gradient-to-r from-primary to-secondary flex-shrink-0"></div>
+                    <span className="truncate">Legenda de Cores</span>
                   </h3>
-                  <div className="space-y-3">
-                    <div className="grid grid-cols-1 gap-3">
+                  <div className="space-y-2 sm:space-y-3">
+                    <div className="grid grid-cols-1 gap-2 sm:gap-3">
                       {/* Status Colors */}
                       <div className="space-y-2">
                         <div className="flex items-center gap-1.5 sm:gap-2">
-                          <div className="h-4 w-8 rounded border-2 border-green-700" style={{ backgroundColor: '#10B981' }}></div>
-                          <span className="text-xs sm:text-sm font-medium text-green-600">✓ Publicado</span>
+                          <div className="h-3 w-6 sm:h-4 sm:w-8 rounded border-2 border-green-700 flex-shrink-0" style={{ backgroundColor: '#10B981' }}></div>
+                          <span className="text-xs sm:text-sm font-medium text-green-600 truncate">✓ Publicado</span>
                         </div>
                         <div className="flex items-center gap-1.5 sm:gap-2">
-                          <div className="h-4 w-8 rounded border-2 border-orange-700" style={{ backgroundColor: '#F59E0B' }}></div>
-                          <span className="text-xs sm:text-sm font-medium text-orange-600">⏳ Aprovado (pendente publicação)</span>
+                          <div className="h-3 w-6 sm:h-4 sm:w-8 rounded border-2 border-orange-700 flex-shrink-0" style={{ backgroundColor: '#F59E0B' }}></div>
+                          <span className="text-xs sm:text-sm font-medium text-orange-600 truncate">⏳ Aprovado (pendente publicação)</span>
                         </div>
                         <div className="flex items-center gap-1.5 sm:gap-2">
-                          <div className="h-4 w-8 rounded" style={{ backgroundColor: '#3B82F6' }}></div>
-                          <span className="text-xs sm:text-sm font-medium text-blue-600">📅 Agendado</span>
+                          <div className="h-3 w-6 sm:h-4 sm:w-8 rounded flex-shrink-0" style={{ backgroundColor: '#3B82F6' }}></div>
+                          <span className="text-xs sm:text-sm font-medium text-blue-600 truncate">📅 Agendado</span>
                         </div>
                         <div className="flex items-center gap-1.5 sm:gap-2">
-                          <div className="h-4 w-8 rounded" style={{ backgroundColor: '#8B5CF6' }}></div>
-                          <span className="text-xs sm:text-sm font-medium text-purple-600">📅 Story Agendada</span>
+                          <div className="h-3 w-6 sm:h-4 sm:w-8 rounded flex-shrink-0" style={{ backgroundColor: '#8B5CF6' }}></div>
+                          <span className="text-xs sm:text-sm font-medium text-purple-600 truncate">📅 Story Agendada</span>
                         </div>
                       </div>
                     </div>
                     <div className="pt-2 border-t">
                       <p className="text-xs text-muted-foreground flex items-center gap-1 flex-wrap">
-                        <Video className="h-3 w-3" /> = Story • 
-                        <LayoutGrid className="h-3 w-3 ml-1" /> = Carousel
+                        <Video className="h-3 w-3 flex-shrink-0" /> = Story • 
+                        <LayoutGrid className="h-3 w-3 ml-1 flex-shrink-0" /> = Carousel
                       </p>
                     </div>
                   </div>
                 </Card>
 
                 {/* Filters */}
-                <Card className="p-4 lg:p-5 border-2 flex flex-col justify-center">
+                <Card className="p-3 sm:p-4 lg:p-5 border-2 flex flex-col justify-center w-full">
                   <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
-                    <div className="flex items-center gap-2">
-                      <Filter className="h-4 w-4 text-muted-foreground" />
-                      <span className="text-sm font-medium text-muted-foreground">Filtrar por:</span>
+                    <div className="flex items-center gap-2 flex-shrink-0">
+                      <Filter className="h-4 w-4 text-muted-foreground flex-shrink-0" />
+                      <span className="text-xs sm:text-sm font-medium text-muted-foreground whitespace-nowrap">Filtrar por:</span>
                     </div>
                     <Select value={filterType} onValueChange={(value: any) => setFilterType(value)}>
-                      <SelectTrigger className="w-full sm:w-[180px] min-h-[44px] touch-target">
+                      <SelectTrigger className="w-full sm:w-[180px] lg:w-[200px] min-h-[44px] touch-target">
                         <SelectValue />
                       </SelectTrigger>
                       <SelectContent className="bg-popover z-50">
@@ -688,14 +688,14 @@ const Calendar = () => {
               </div>
 
         <div 
-          className={`bg-white rounded-xl lg:rounded-2xl shadow-md p-3 sm:p-4 lg:p-5 xl:p-6 border border-gray-100 overflow-hidden transition-transform ${isSwipping ? 'scale-[0.98]' : ''}`}
+          className={`bg-white rounded-lg sm:rounded-xl lg:rounded-2xl shadow-md p-2 sm:p-3 md:p-4 lg:p-5 xl:p-6 border border-gray-100 overflow-hidden transition-transform w-full ${isSwipping ? 'scale-[0.98]' : ''}`}
           onTouchStart={isMobile ? onTouchStart : undefined}
           onTouchMove={isMobile ? onTouchMove : undefined}
           onTouchEnd={isMobile ? onTouchEnd : undefined}
         >
                 {loading ? (
-                  <div className="h-[400px] sm:h-[500px] lg:h-[600px] flex items-center justify-center">
-                    <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary"></div>
+                  <div className="h-[350px] sm:h-[450px] md:h-[550px] lg:h-[650px] xl:h-[750px] flex items-center justify-center w-full">
+                    <div className="animate-spin rounded-full h-10 w-10 sm:h-12 sm:w-12 border-b-2 border-primary"></div>
                   </div>
                 ) : (
                   <DnDCalendar
@@ -706,11 +706,16 @@ const Calendar = () => {
           style={{ 
             height: isMobile 
               ? 'calc(100vh - 360px)'
-              : window.innerWidth < 1024 
-                ? 620 
-                : window.innerWidth < 1440
-                  ? 760
-                  : 880
+              : window.innerWidth < 768
+                ? 500
+                : window.innerWidth < 1024 
+                  ? 620 
+                  : window.innerWidth < 1440
+                    ? 760
+                    : window.innerWidth < 1920
+                      ? 880
+                      : 1000,
+            minHeight: isMobile ? 400 : 600
           }}
                     culture="pt-PT"
                     view={calendarView}
@@ -750,8 +755,8 @@ const Calendar = () => {
             </div>
 
             {/* Side Grid Panel - Hidden on mobile/tablet, visible on large screens */}
-            <div className="hidden lg:block w-80 2xl:w-96 animate-slide-up space-y-4 flex-shrink-0">
-              <Card className="p-5 xl:p-6 border-2 sticky top-4 max-h-[calc(100vh-8rem)] overflow-hidden flex flex-col shadow-lg">
+            <div className="hidden lg:block w-72 xl:w-80 2xl:w-96 animate-slide-up space-y-4 flex-shrink-0">
+              <Card className="p-4 sm:p-5 xl:p-6 border-2 sticky top-4 max-h-[calc(100vh-8rem)] overflow-hidden flex flex-col shadow-lg w-full">
                 <div className="mb-4">
                   <h3 className="text-lg font-bold text-foreground flex items-center gap-2">
                     <LayoutGrid className="h-5 w-5 text-primary" />
