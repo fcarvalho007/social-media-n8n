@@ -705,12 +705,12 @@ const Calendar = () => {
                     endAccessor={(event: CalendarEvent) => event.end as Date}
           style={{ 
             height: isMobile 
-              ? 'calc(100vh - 380px)'
+              ? 'calc(100vh - 360px)'
               : window.innerWidth < 1024 
-                ? 600 
-                : window.innerWidth < 1536
-                  ? 700
-                  : 800
+                ? 620 
+                : window.innerWidth < 1440
+                  ? 760
+                  : 880
           }}
                     culture="pt-PT"
                     view={calendarView}
