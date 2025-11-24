@@ -3,32 +3,27 @@ import { useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Loader2, LogIn, UserPlus, Lock } from 'lucide-react';
+import { Loader2, LogIn, Lock, Mail } from 'lucide-react';
 import { z } from 'zod';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
+import { toast } from 'sonner';
 
 const loginSchema = z.object({
   email: z.string().email('Email inválido'),
   password: z.string().min(6, 'Password deve ter no mínimo 6 caracteres'),
 });
 
-const signupSchema = z.object({
-  email: z.string().email('Email inválido'),
-  password: z.string().min(6, 'Password deve ter no mínimo 6 caracteres'),
-  fullName: z.string().min(2, 'Nome deve ter no mínimo 2 caracteres'),
-});
 
 const resetSchema = z.object({
   email: z.string().email('Email inválido'),
 });
 
 const Auth = () => {
-  const { user, signIn, signUp, resetPassword } = useAuth();
+  const { user, signIn, resetPassword } = useAuth();
   const navigate = useNavigate();
   const location = useLocation();
   const [isLoading, setIsLoading] = useState(false);
@@ -49,14 +44,6 @@ const Auth = () => {
     },
   });
 
-  const signupForm = useForm({
-    resolver: zodResolver(signupSchema),
-    defaultValues: {
-      email: '',
-      password: '',
-      fullName: '',
-    },
-  });
 
   const resetForm = useForm({
     resolver: zodResolver(resetSchema),
@@ -71,16 +58,17 @@ const Auth = () => {
     setIsLoading(false);
   };
 
-  const handleSignup = async (values: z.infer<typeof signupSchema>) => {
-    setIsLoading(true);
-    await signUp(values.email, values.password, values.fullName);
-    setIsLoading(false);
-  };
-
   const handleReset = async (values: z.infer<typeof resetSchema>) => {
     setIsLoading(true);
-    await resetPassword(values.email);
+    const { error } = await resetPassword(values.email);
     setIsLoading(false);
+    
+    if (!error) {
+      toast.success('Email enviado!', {
+        description: 'Verifique a sua caixa de entrada para redefinir a password.',
+      });
+      resetForm.reset();
+    }
   };
 
   return (
@@ -93,20 +81,19 @@ const Auth = () => {
             </div>
           </div>
           <CardTitle className="text-3xl font-bold">Bem-vindo</CardTitle>
-          <CardDescription>Entre ou crie uma nova conta</CardDescription>
+          <CardDescription>Entre na sua conta</CardDescription>
         </CardHeader>
         <CardContent>
           <Tabs defaultValue="login" className="w-full">
-            <TabsList className="grid w-full grid-cols-3">
+            <TabsList className="grid w-full grid-cols-2">
               <TabsTrigger value="login">
                 <LogIn className="h-4 w-4 mr-2" />
                 Login
               </TabsTrigger>
-              <TabsTrigger value="signup">
-                <UserPlus className="h-4 w-4 mr-2" />
-                Registar
+              <TabsTrigger value="reset">
+                <Mail className="h-4 w-4 mr-2" />
+                Reset Password
               </TabsTrigger>
-              <TabsTrigger value="reset">Reset</TabsTrigger>
             </TabsList>
 
             <TabsContent value="login" className="space-y-4">
@@ -155,66 +142,10 @@ const Auth = () => {
               </Form>
             </TabsContent>
 
-            <TabsContent value="signup" className="space-y-4">
-              <Form {...signupForm}>
-                <form onSubmit={signupForm.handleSubmit(handleSignup)} className="space-y-4">
-                  <FormField
-                    control={signupForm.control}
-                    name="fullName"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>Nome Completo</FormLabel>
-                        <FormControl>
-                          <Input placeholder="João Silva" {...field} />
-                        </FormControl>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-                  <FormField
-                    control={signupForm.control}
-                    name="email"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>Email</FormLabel>
-                        <FormControl>
-                          <Input placeholder="seu@email.com" type="email" {...field} />
-                        </FormControl>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-                  <FormField
-                    control={signupForm.control}
-                    name="password"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>Password</FormLabel>
-                        <FormControl>
-                          <Input placeholder="••••••••" type="password" {...field} />
-                        </FormControl>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-                  <Button type="submit" className="w-full" disabled={isLoading}>
-                    {isLoading ? (
-                      <>
-                        <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                        A criar conta...
-                      </>
-                    ) : (
-                      <>
-                        <UserPlus className="mr-2 h-4 w-4" />
-                        Criar Conta
-                      </>
-                    )}
-                  </Button>
-                </form>
-              </Form>
-            </TabsContent>
-
             <TabsContent value="reset" className="space-y-4">
+              <p className="text-sm text-muted-foreground mb-4">
+                Introduza o seu email e enviaremos um link para redefinir a sua password.
+              </p>
               <Form {...resetForm}>
                 <form onSubmit={resetForm.handleSubmit(handleReset)} className="space-y-4">
                   <FormField
