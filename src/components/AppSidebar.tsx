@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { CheckCircle2, PlusCircle, Calendar, X, FolderKanban, LayoutDashboard, Settings, Users, LogOut } from 'lucide-react';
+import { CheckCircle2, PlusCircle, Calendar, X, FolderKanban, LayoutDashboard, Settings, LogOut } from 'lucide-react';
 import { NavLink, useNavigate } from 'react-router-dom';
 import {
   Sidebar,
@@ -23,7 +23,6 @@ import { cn } from '@/lib/utils';
 import { Badge } from '@/components/ui/badge';
 import { usePendingCounts } from '@/hooks/usePendingCounts';
 import { useAuth } from '@/contexts/AuthContext';
-import { useCurrentUserRoles } from '@/hooks/useUserRoles';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 
 const menuItems = [
@@ -68,22 +67,12 @@ const menuItems = [
     disabled: false,
     isMain: false,
   },
-  {
-    title: 'Utilizadores',
-    label: 'Users',
-    icon: Users,
-    url: '/users',
-    disabled: false,
-    isMain: false,
-    adminOnly: true,
-  },
 ];
 
 export function AppSidebar() {
   const { open, setOpen, isMobile, openMobile } = useSidebar();
   const { counts } = usePendingCounts();
   const { user, signOut } = useAuth();
-  const { isAdmin } = useCurrentUserRoles();
   const navigate = useNavigate();
   const totalPending = counts.stories + counts.carousels + counts.posts;
   const [userOpened, setUserOpened] = useState(false);
@@ -96,10 +85,6 @@ export function AppSidebar() {
   const getInitials = (email: string) => {
     return email.substring(0, 2).toUpperCase();
   };
-
-  const filteredMenuItems = menuItems.filter(
-    item => !item.adminOnly || isAdmin
-  );
 
   // When sidebar opens in mobile, mark it as user-opened
   useEffect(() => {
@@ -126,35 +111,34 @@ export function AppSidebar() {
         collapsible="offcanvas"
         className={cn(
           "border-none transition-all duration-300 ease-out z-50",
-          !isMobile && "w-[100px]"
+          !isMobile && "w-[110px]",
+          "bg-gradient-to-b from-muted/30 via-background/50 to-background/80",
+          "backdrop-blur-xl",
+          "shadow-[2px_0_24px_rgba(0,0,0,0.06)]"
         )}
-        style={{
-          background: 'linear-gradient(180deg, #E0E3EC 0%, #F8FAFC 100%)',
-          boxShadow: '2px 0 12px rgba(0, 0, 0, 0.08)'
-        }}
       >
         {/* Mobile Close Button */}
         {isMobile && (
           <Button
             variant="ghost"
             size="icon"
-            className="absolute top-4 right-4 z-10 h-12 w-12 rounded-lg hover:bg-white/40 active:scale-95 transition-all duration-150 touch-target"
+            className="absolute top-4 right-4 z-10 h-11 w-11 rounded-xl hover:bg-primary/10 active:scale-95 transition-all duration-200 touch-target"
             onClick={() => {
               setUserOpened(false);
               setOpen(false);
             }}
             aria-label="Fechar menu"
           >
-            <X className="h-6 w-6 text-[#4169A0]" />
+            <X className="h-5 w-5 text-primary" />
           </Button>
         )}
 
-        <SidebarContent className="flex flex-col h-full py-10">
+        <SidebarContent className="flex flex-col h-full py-8">
           {/* Menu Items */}
           <SidebarGroup className="flex-1 flex items-center">
-            <SidebarGroupContent className="w-full">
-              <SidebarMenu className="space-y-3">
-                {filteredMenuItems.map((item, index) => (
+            <SidebarGroupContent className="w-full px-2">
+              <SidebarMenu className="space-y-2">
+                {menuItems.map((item, index) => (
                   <SidebarMenuItem 
                     key={item.title}
                     style={{
@@ -167,17 +151,17 @@ export function AppSidebar() {
                       className="h-auto p-0 hover:bg-transparent"
                     >
                       {item.disabled ? (
-                        <div className="flex flex-col items-center gap-2 mx-auto opacity-30 cursor-not-allowed">
-                          <div className="flex h-12 w-12 items-center justify-center rounded-full relative">
-                            <item.icon className="h-5 w-5 text-[#6B7280]" strokeWidth={1.5} />
+                        <div className="flex flex-col items-center gap-2.5 mx-auto opacity-40 cursor-not-allowed">
+                          <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-muted/50 relative">
+                            <item.icon className="h-5 w-5 text-muted-foreground" strokeWidth={1.5} />
                           </div>
-                          <span className="text-xs text-[#6B7280] font-medium text-center">{item.label}</span>
+                          <span className="text-[11px] text-muted-foreground font-medium text-center leading-tight">{item.label}</span>
                         </div>
                       ) : (
                         <NavLink
                           to={item.url}
                           onClick={() => isMobile && setOpen(false)}
-                          className="flex flex-col items-center gap-2 mx-auto group w-full py-3 hover:scale-105 active:scale-95 transition-all duration-200 ease-out min-h-[64px] touch-target"
+                          className="flex flex-col items-center gap-2.5 mx-auto group w-full py-2.5 hover:scale-[1.02] active:scale-[0.98] transition-all duration-300 ease-out min-h-[72px] touch-target rounded-2xl"
                         >
                           {({ isActive }) => {
                             const isApprovalItem = item.url === '/pending';
@@ -187,20 +171,20 @@ export function AppSidebar() {
                               <>
                                 <div 
                                   className={cn(
-                                    "flex h-14 w-14 sm:h-16 sm:w-16 items-center justify-center rounded-full relative transition-all duration-200",
-                                    isActive && item.isMain && "bg-[#4169A0] shadow-[0_0_24px_rgba(65,105,160,0.4)]",
-                                    isActive && !item.isMain && "bg-[#E3E8FA]",
-                                    !isActive && "bg-white/50 group-hover:bg-white/70 group-hover:scale-110 group-hover:shadow-lg"
+                                    "flex h-[60px] w-[60px] sm:h-[64px] sm:w-[64px] items-center justify-center rounded-2xl relative transition-all duration-300 ease-out",
+                                    isActive && item.isMain && "bg-primary shadow-[0_8px_32px_-8px_hsl(var(--primary)/0.5)] ring-2 ring-primary/20 ring-offset-2 ring-offset-background",
+                                    isActive && !item.isMain && "bg-primary/10 ring-2 ring-primary/20",
+                                    !isActive && "bg-card/80 backdrop-blur-sm group-hover:bg-card group-hover:shadow-lg group-hover:ring-2 group-hover:ring-primary/10"
                                   )}
                                 >
                                   <item.icon 
                                     className={cn(
-                                      "h-7 w-7 sm:h-8 sm:w-8 transition-all duration-200",
-                                      isActive && item.isMain && "text-white drop-shadow-sm",
-                                      isActive && !item.isMain && "text-[#4169A0]",
-                                      !isActive && "text-[#6B7280] group-hover:text-[#4169A0]"
+                                      "h-6 w-6 sm:h-7 sm:w-7 transition-all duration-300",
+                                      isActive && item.isMain && "text-primary-foreground",
+                                      isActive && !item.isMain && "text-primary",
+                                      !isActive && "text-muted-foreground group-hover:text-primary group-hover:scale-110"
                                     )} 
-                                    strokeWidth={isActive ? 2.5 : 1.5}
+                                    strokeWidth={isActive ? 2.5 : 2}
                                   />
                                   
                                   {/* Pending Badge */}
@@ -244,10 +228,9 @@ export function AppSidebar() {
                                 
                                 <span 
                                   className={cn(
-                                    "text-xs font-medium text-center leading-tight transition-colors duration-200",
-                                    isActive && item.isMain && "text-[#4169A0] font-semibold",
-                                    isActive && !item.isMain && "text-[#4169A0] font-semibold",
-                                    !isActive && "text-[#6B7280] group-hover:text-[#4169A0]"
+                                    "text-[11px] font-semibold text-center leading-tight transition-all duration-300 tracking-wide",
+                                    isActive && "text-primary scale-105",
+                                    !isActive && "text-muted-foreground group-hover:text-primary"
                                   )}
                                 >
                                   {item.label}
@@ -265,10 +248,10 @@ export function AppSidebar() {
           </SidebarGroup>
         </SidebarContent>
         
-        <SidebarFooter className="border-t border-border/20 bg-white/30 backdrop-blur-sm">
-          <div className="flex flex-col items-center gap-3 p-4">
-            <Avatar className="h-10 w-10 ring-2 ring-primary/10">
-              <AvatarFallback className="bg-primary/10 text-primary text-xs font-semibold">
+        <SidebarFooter className="border-t border-border/30 bg-card/40 backdrop-blur-md">
+          <div className="flex flex-col items-center gap-4 p-5">
+            <Avatar className="h-11 w-11 ring-2 ring-primary/20 ring-offset-2 ring-offset-background transition-all hover:ring-primary/40 hover:scale-105">
+              <AvatarFallback className="bg-primary/15 text-primary text-sm font-bold">
                 {user?.email ? getInitials(user.email) : 'U'}
               </AvatarFallback>
             </Avatar>
@@ -276,7 +259,7 @@ export function AppSidebar() {
               variant="ghost"
               size="icon"
               onClick={handleLogout}
-              className="h-10 w-10 rounded-full hover:bg-destructive/10 hover:text-destructive transition-all"
+              className="h-10 w-10 rounded-xl hover:bg-destructive/10 hover:text-destructive transition-all duration-300 hover:scale-105 active:scale-95"
               title="Logout"
             >
               <LogOut className="h-4 w-4" />
