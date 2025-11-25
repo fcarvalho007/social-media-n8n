@@ -69,14 +69,6 @@ const menuItems = [
     isMain: false,
   },
   {
-    title: 'Quota',
-    label: 'Quota',
-    icon: Settings,
-    url: '/quota',
-    disabled: false,
-    isMain: false,
-  },
-  {
     title: 'Utilizadores',
     label: 'Users',
     icon: Users,
