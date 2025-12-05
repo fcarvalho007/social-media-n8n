@@ -20,7 +20,7 @@ import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { ImageValidationAlert } from '@/components/ImageValidationAlert';
-import { SidebarProvider } from '@/components/ui/sidebar';
+// Layout handled by MainLayout
 import { Loader2, ArrowLeft, CheckCircle2, Eye, LayoutGrid, Linkedin, Instagram, Link2, Unlink, Code2, AlertTriangle } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -1242,14 +1242,9 @@ const Review = () => {
 
   if (loading) {
     return (
-    <SidebarProvider defaultOpen={true}>
-      <div className="flex min-h-screen w-full bg-background">
-        <AppSidebar />
-        <div className="flex-1 flex items-center justify-center">
-          <Loader2 className="h-8 w-8 animate-spin text-primary" />
-        </div>
+      <div className="flex items-center justify-center min-h-[50vh]">
+        <Loader2 className="h-8 w-8 animate-spin text-primary" />
       </div>
-    </SidebarProvider>
     );
   }
 
@@ -1258,12 +1253,7 @@ const Review = () => {
   }
 
   return (
-    <SidebarProvider defaultOpen={true}>
-      <div className="flex min-h-screen w-full bg-background">
-        <AppSidebar />
-        
-        <div className="flex-1 flex flex-col min-w-0 pb-20 sm:pb-24">
-          <DashboardHeader />
+    <div className="pb-20 sm:pb-24">
           
           <main className="flex-1 animate-fade-in overflow-auto">
             {/* Refined Header - Iconosquare Style */}
@@ -1770,7 +1760,7 @@ const Review = () => {
           navigate('/');
         }}
       />
-    </SidebarProvider>
+    </div>
   );
 };
 

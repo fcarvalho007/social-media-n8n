@@ -1,8 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { supabase } from '@/integrations/supabase/client';
-import { AppSidebar } from '@/components/AppSidebar';
-import { DashboardHeader } from '@/components/DashboardHeader';
 import { ActionButtons } from '@/components/ActionButtons';
 import { ModeSelector } from '@/components/ModeSelector';
 import { ModeBadge } from '@/components/ModeBadge';
@@ -14,7 +12,6 @@ import { StoryCardSkeleton } from '@/components/StoryCardSkeleton';
 import { PullToRefreshIndicator } from '@/components/PullToRefreshIndicator';
 import { usePullToRefresh } from '@/hooks/usePullToRefresh';
 import { useIsMobile } from '@/hooks/use-mobile';
-import { SidebarProvider, SidebarInset } from '@/components/ui/sidebar';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -241,17 +238,13 @@ const Pending = () => {
   ];
 
   return (
-    <SidebarProvider>
-      <div className="flex min-h-screen w-full">
-        <AppSidebar />
-        <SidebarInset className="flex-1">
-          <DashboardHeader />
-          <PullToRefreshIndicator
-            pullDistance={pullToRefresh.pullDistance}
-            isRefreshing={pullToRefresh.isRefreshing}
-            isPulling={pullToRefresh.isPulling}
-          />
-          <main className="flex-1 w-full overflow-x-hidden p-3 sm:p-4 md:p-6 space-y-4 sm:space-y-6 animate-fade-in bg-gradient-to-br from-background via-background to-muted/10" role="main" aria-label="Conteúdo de aprovação e criação">
+    <>
+      <PullToRefreshIndicator
+        pullDistance={pullToRefresh.pullDistance}
+        isRefreshing={pullToRefresh.isRefreshing}
+        isPulling={pullToRefresh.isPulling}
+      />
+      <div className="space-y-4 sm:space-y-6 bg-gradient-to-br from-background via-background to-muted/10" role="main" aria-label="Conteúdo de aprovação e criação">
           {activeTab === 'create' ? (
             /* Create Tab */
             <div className="space-y-6 animate-slide-up w-full" role="region" aria-label="Área de criação de conteúdo">
@@ -441,8 +434,6 @@ const Pending = () => {
               )}
             </div>
           )}
-          </main>
-        </SidebarInset>
       </div>
 
       {/* Mode Change Confirmation Dialog */}
@@ -464,7 +455,7 @@ const Pending = () => {
           setHasDraft(false);
         }}
       />
-    </SidebarProvider>
+    </>
   );
 };
 

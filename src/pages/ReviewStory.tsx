@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { supabase } from '@/integrations/supabase/client';
-import { Header } from '@/components/Header';
+// Layout handled by MainLayout
 import { ActionBar } from '@/components/ActionBar';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
@@ -208,19 +208,16 @@ const ReviewStory = () => {
   }
 
   return (
-    <div className="min-h-screen bg-background pb-20">
-      <Header />
-      
-      <main className="container py-3 sm:py-4 px-4 sm:px-6">
-        <Button
-          variant="ghost"
-          onClick={() => navigate('/')}
-          className="mb-3 h-9 px-3 -ml-3"
-          size="sm"
-        >
-          <ArrowLeft className="mr-1.5 h-3.5 w-3.5" />
-          <span className="text-xs sm:text-sm">Voltar ao Painel</span>
-        </Button>
+    <div className="pb-20">
+      <Button
+        variant="ghost"
+        onClick={() => navigate('/')}
+        className="mb-3 h-9 px-3 -ml-3"
+        size="sm"
+      >
+        <ArrowLeft className="mr-1.5 h-3.5 w-3.5" />
+        <span className="text-xs sm:text-sm">Voltar ao Painel</span>
+      </Button>
 
         <div className="mb-4">
           <div className="flex items-center gap-2 mb-1.5">

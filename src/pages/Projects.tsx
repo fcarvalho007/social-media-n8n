@@ -8,9 +8,6 @@ import { useProjects } from '@/hooks/useProjects';
 import { useTasks } from '@/hooks/useTasks';
 import { ProjectCard } from '@/components/projects/ProjectCard';
 import { CreateProjectModal } from '@/components/projects/CreateProjectModal';
-import { SidebarProvider, SidebarInset } from '@/components/ui/sidebar';
-import { AppSidebar } from '@/components/AppSidebar';
-import { DashboardHeader } from '@/components/DashboardHeader';
 import { SkeletonCard } from '@/components/ui/skeleton-card';
 import { Skeleton } from '@/components/ui/skeleton';
 
@@ -54,131 +51,113 @@ export default function Projects() {
 
   if (isLoading) {
     return (
-      <SidebarProvider>
-        <div className="flex min-h-screen w-full">
-          <AppSidebar />
-          <SidebarInset className="flex-1">
-            <DashboardHeader />
-            <main className="flex-1 p-4 md:p-6">
-              <div className="space-y-6">
-                <div className="flex justify-between items-center">
-                  <div className="space-y-2">
-                    <Skeleton className="h-8 w-48" />
-                    <Skeleton className="h-4 w-64" />
-                  </div>
-                  <Skeleton className="h-10 w-40" />
-                </div>
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                  {[1, 2, 3, 4, 5, 6].map((i) => (
-                    <SkeletonCard key={i} />
-                  ))}
-                </div>
-              </div>
-            </main>
-          </SidebarInset>
+      <div className="space-y-6">
+        <div className="flex justify-between items-center">
+          <div className="space-y-2">
+            <Skeleton className="h-8 w-48" />
+            <Skeleton className="h-4 w-64" />
+          </div>
+          <Skeleton className="h-10 w-40" />
         </div>
-      </SidebarProvider>
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+          {[1, 2, 3, 4, 5, 6].map((i) => (
+            <SkeletonCard key={i} />
+          ))}
+        </div>
+      </div>
     );
   }
 
   return (
-    <SidebarProvider>
-      <div className="flex min-h-screen w-full">
-        {/* Skip to main content for accessibility */}
-        <a href="#main-content" className="skip-to-content">
-          Ir para o conteúdo principal
-        </a>
-        
-        <AppSidebar />
-        <SidebarInset className="flex-1">
-          <DashboardHeader />
-          <main id="main-content" className="flex-1 p-4 md:p-6 space-y-6 animate-fade-in">
-            <div className="space-y-8">
-              {/* Header */}
-              <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
-                <div>
-                  <h1 className="text-3xl font-bold">Projetos</h1>
-                  <p className="text-muted-foreground">Gere os teus projetos e tarefas</p>
-                </div>
-                <Button onClick={() => setCreateModalOpen(true)} size="lg" className="gap-2">
-                  <Plus className="h-5 w-5" />
-                  Criar Projeto
-                </Button>
-              </div>
-
-          {/* Search and Filters - Mobile optimized */}
-          <div className="flex flex-col gap-3 mb-6">
-            <div className="relative flex-1">
-              <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-muted-foreground" />
-              <Input
-                placeholder="Pesquisar projetos..."
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-                className="pl-10 min-h-[44px] text-base"
-              />
-            </div>
-            <Select value={statusFilter} onValueChange={setStatusFilter}>
-              <SelectTrigger className="w-full min-h-[44px] active:scale-95 transition-transform">
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">Todos os Status</SelectItem>
-                <SelectItem value="active">Ativos</SelectItem>
-                <SelectItem value="on_hold">Em Pausa</SelectItem>
-                <SelectItem value="completed">Concluídos</SelectItem>
-                <SelectItem value="archived">Arquivados</SelectItem>
-              </SelectContent>
-            </Select>
+    <div className="space-y-6">
+      {/* Skip to main content for accessibility */}
+      <a href="#main-content" className="skip-to-content">
+        Ir para o conteúdo principal
+      </a>
+      
+      <div id="main-content" className="space-y-8">
+        {/* Header */}
+        <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
+          <div>
+            <h1 className="text-3xl font-bold">Projetos</h1>
+            <p className="text-muted-foreground">Gere os teus projetos e tarefas</p>
           </div>
+          <Button onClick={() => setCreateModalOpen(true)} size="lg" className="gap-2">
+            <Plus className="h-5 w-5" />
+            Criar Projeto
+          </Button>
+        </div>
 
-              {/* Projects Grid */}
-              {filteredProjects.length === 0 ? (
-                <div className="text-center py-16" role="status" aria-live="polite">
-                  <FolderOpen className="h-16 w-16 mx-auto text-muted-foreground mb-4" aria-hidden="true" />
-                  <h3 className="text-xl font-semibold mb-2">
-                    {searchQuery || statusFilter !== 'all' 
-                      ? 'Nenhum projeto encontrado'
-                      : 'Ainda não tens projetos'}
-                  </h3>
-                  <p className="text-muted-foreground mb-6">
-                    {searchQuery || statusFilter !== 'all'
-                      ? 'Tenta ajustar os filtros'
-                      : 'Cria o teu primeiro projeto para começar'}
-                  </p>
-                  {!searchQuery && statusFilter === 'all' && (
-                    <Button onClick={() => setCreateModalOpen(true)} size="lg">
-                      Criar Primeiro Projeto
-                    </Button>
-                  )}
-                </div>
-              ) : (
-                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 md:gap-6">
-                  {filteredProjects.map((project) => {
-                    const stats = getProjectStats(project.id);
-                    const daysRemaining = calculateDaysRemaining(project.due_date);
-                    
-                    return (
-                      <ProjectCard
-                        key={project.id}
-                        project={project}
-                        completionPercentage={stats.completionPercentage}
-                        totalTasks={stats.totalTasks}
-                        totalMembers={stats.totalMembers}
-                        daysRemaining={daysRemaining}
-                      />
-                    );
-                  })}
-                </div>
-              )}
+        {/* Search and Filters - Mobile optimized */}
+        <div className="flex flex-col gap-3 mb-6">
+          <div className="relative flex-1">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-muted-foreground" />
+            <Input
+              placeholder="Pesquisar projetos..."
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              className="pl-10 min-h-[44px] text-base"
+            />
+          </div>
+          <Select value={statusFilter} onValueChange={setStatusFilter}>
+            <SelectTrigger className="w-full min-h-[44px] active:scale-95 transition-transform">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">Todos os Status</SelectItem>
+              <SelectItem value="active">Ativos</SelectItem>
+              <SelectItem value="on_hold">Em Pausa</SelectItem>
+              <SelectItem value="completed">Concluídos</SelectItem>
+              <SelectItem value="archived">Arquivados</SelectItem>
+            </SelectContent>
+          </Select>
+        </div>
 
-              <CreateProjectModal
-                open={createModalOpen}
-                onClose={() => setCreateModalOpen(false)}
-              />
-            </div>
-          </main>
-        </SidebarInset>
+        {/* Projects Grid */}
+        {filteredProjects.length === 0 ? (
+          <div className="text-center py-16" role="status" aria-live="polite">
+            <FolderOpen className="h-16 w-16 mx-auto text-muted-foreground mb-4" aria-hidden="true" />
+            <h3 className="text-xl font-semibold mb-2">
+              {searchQuery || statusFilter !== 'all' 
+                ? 'Nenhum projeto encontrado'
+                : 'Ainda não tens projetos'}
+            </h3>
+            <p className="text-muted-foreground mb-6">
+              {searchQuery || statusFilter !== 'all'
+                ? 'Tenta ajustar os filtros'
+                : 'Cria o teu primeiro projeto para começar'}
+            </p>
+            {!searchQuery && statusFilter === 'all' && (
+              <Button onClick={() => setCreateModalOpen(true)} size="lg">
+                Criar Primeiro Projeto
+              </Button>
+            )}
+          </div>
+        ) : (
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 md:gap-6">
+            {filteredProjects.map((project) => {
+              const stats = getProjectStats(project.id);
+              const daysRemaining = calculateDaysRemaining(project.due_date);
+              
+              return (
+                <ProjectCard
+                  key={project.id}
+                  project={project}
+                  completionPercentage={stats.completionPercentage}
+                  totalTasks={stats.totalTasks}
+                  totalMembers={stats.totalMembers}
+                  daysRemaining={daysRemaining}
+                />
+              );
+            })}
+          </div>
+        )}
+
+        <CreateProjectModal
+          open={createModalOpen}
+          onClose={() => setCreateModalOpen(false)}
+        />
       </div>
-    </SidebarProvider>
+    </div>
   );
 }

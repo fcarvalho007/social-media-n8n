@@ -2,11 +2,8 @@ import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { supabase } from '@/integrations/supabase/client';
 import { MediaItem } from '@/types/social';
-import { AppSidebar } from '@/components/AppSidebar';
-import { DashboardHeader } from '@/components/DashboardHeader';
 import { ModeBadge } from '@/components/ModeBadge';
 import { DevHelper } from '@/components/DevHelper';
-import { SidebarProvider } from '@/components/ui/sidebar';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Label } from '@/components/ui/label';
@@ -433,21 +430,13 @@ export default function ManualCreate() {
   ];
 
   return (
-    <SidebarProvider defaultOpen={false}>
-      <div className="flex min-h-screen w-full bg-gradient-to-br from-background to-background-secondary">
-        <AppSidebar />
-        
-        <div className="flex-1 flex flex-col min-w-0">
-          <DashboardHeader />
-          
-          <main className="flex-1 p-4 sm:p-6 lg:p-8 overflow-auto">
-            <div className="max-w-7xl mx-auto space-y-6">
-              {/* Header */}
-              <div className="flex flex-col sm:flex-row items-start sm:items-center gap-4">
-                <Button 
-                  variant="ghost" 
-                  size="sm" 
-                  onClick={() => navigate('/?tab=create')} 
+    <div className="max-w-7xl mx-auto space-y-6 bg-gradient-to-br from-background to-background-secondary">
+      {/* Header */}
+      <div className="flex flex-col sm:flex-row items-start sm:items-center gap-4">
+        <Button 
+          variant="ghost" 
+          size="sm" 
+          onClick={() => navigate('/?tab=create')}
                   className="gap-2"
                   aria-label="Voltar à página anterior"
                 >
@@ -814,18 +803,14 @@ export default function ManualCreate() {
                   </Card>
                 </div>
               </div>
-            </div>
-          </main>
-        </div>
 
-        <DevHelper />
-        
-        <DraftsDialog
-          open={draftsDialogOpen}
-          onOpenChange={setDraftsDialogOpen}
-          onLoadDraft={handleLoadDraft}
-        />
-      </div>
-    </SidebarProvider>
+      <DevHelper />
+      
+      <DraftsDialog
+        open={draftsDialogOpen}
+        onOpenChange={setDraftsDialogOpen}
+        onLoadDraft={handleLoadDraft}
+      />
+    </div>
   );
 }
