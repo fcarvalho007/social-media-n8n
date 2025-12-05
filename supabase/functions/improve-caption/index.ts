@@ -1,3 +1,4 @@
+import "https://deno.land/x/xhr@0.1.0/mod.ts";
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 
 const corsHeaders = {
@@ -68,9 +69,9 @@ serve(async (req) => {
       );
     }
 
-    const LOVABLE_API_KEY = Deno.env.get('LOVABLE_API_KEY');
-    if (!LOVABLE_API_KEY) {
-      console.error('LOVABLE_API_KEY not configured');
+    const OPENAI_API_KEY = Deno.env.get('OPENAI_API_KEY');
+    if (!OPENAI_API_KEY) {
+      console.error('OPENAI_API_KEY not configured');
       return new Response(
         JSON.stringify({ error: 'Serviço de IA não configurado' }),
         { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
@@ -97,15 +98,17 @@ Responde APENAS com a legenda melhorada, sem explicações adicionais.`;
 
     console.log(`[improve-caption] Using framework: ${framework}`);
     console.log(`[improve-caption] Original caption length: ${caption.length}`);
+    console.log(`[improve-caption] Using OpenAI GPT-5-mini`);
 
-    const response = await fetch('https://ai.gateway.lovable.dev/v1/chat/completions', {
+    const response = await fetch('https://api.openai.com/v1/chat/completions', {
       method: 'POST',
       headers: {
-        'Authorization': `Bearer ${LOVABLE_API_KEY}`,
+        'Authorization': `Bearer ${OPENAI_API_KEY}`,
         'Content-Type': 'application/json',
       },
       body: JSON.stringify({
-        model: 'google/gemini-2.5-flash',
+        model: 'gpt-5-mini-2025-08-07',
+        max_completion_tokens: 2000,
         messages: [
           { role: 'system', content: systemPrompt },
           { role: 'user', content: `Melhora esta legenda:\n\n${caption}` }
@@ -114,20 +117,28 @@ Responde APENAS com a legenda melhorada, sem explicações adicionais.`;
     });
 
     if (!response.ok) {
+      const errorText = await response.text();
+      console.error('OpenAI API error:', response.status, errorText);
+      
       if (response.status === 429) {
         return new Response(
           JSON.stringify({ error: 'Limite de pedidos excedido. Tente novamente em breve.' }),
           { status: 429, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
         );
       }
-      if (response.status === 402) {
+      if (response.status === 401) {
+        return new Response(
+          JSON.stringify({ error: 'Chave API inválida. Contacte o administrador.' }),
+          { status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        );
+      }
+      if (response.status === 402 || response.status === 403) {
         return new Response(
           JSON.stringify({ error: 'Créditos insuficientes. Contacte o administrador.' }),
           { status: 402, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
         );
       }
-      const errorText = await response.text();
-      console.error('AI gateway error:', response.status, errorText);
+      
       return new Response(
         JSON.stringify({ error: 'Erro ao processar com IA' }),
         { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
