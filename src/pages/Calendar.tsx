@@ -5,9 +5,6 @@ import withDragAndDrop from 'react-big-calendar/lib/addons/dragAndDrop';
 import { format, parse, startOfWeek, getDay, isToday, isSameMonth, startOfMonth, endOfMonth } from 'date-fns';
 import { pt } from 'date-fns/locale';
 import { supabase } from '@/integrations/supabase/client';
-import { AppSidebar } from '@/components/AppSidebar';
-import { DashboardHeader } from '@/components/DashboardHeader';
-import { SidebarProvider, SidebarInset } from '@/components/ui/sidebar';
 import { Badge } from '@/components/ui/badge';
 import { Card } from '@/components/ui/card';
 import { toast } from 'sonner';
@@ -532,13 +529,9 @@ const Calendar = () => {
   );
 
   return (
-    <SidebarProvider>
-      <div className="flex min-h-screen w-full">
-        <AppSidebar />
-        <SidebarInset className="flex-1 overflow-x-hidden">
-          <DashboardHeader />
-          <main className="flex-1 w-full overflow-x-hidden p-3 sm:p-4 lg:p-6 xl:p-8 space-y-3 sm:space-y-4 lg:space-y-5 animate-fade-in bg-gradient-to-br from-white to-gray-50">
-            <div className="flex flex-col lg:flex-row gap-4 lg:gap-5 xl:gap-6 max-w-6xl xl:max-w-7xl mx-auto w-full">
+    <>
+      <div className="space-y-3 sm:space-y-4 lg:space-y-5 bg-gradient-to-br from-white to-gray-50">
+        <div className="flex flex-col lg:flex-row gap-4 lg:gap-5 xl:gap-6 max-w-6xl xl:max-w-7xl mx-auto w-full">
               {/* Main Calendar Section */}
               <div className="flex-1 animate-slide-up space-y-3 sm:space-y-4 lg:space-y-5 min-w-0 w-full lg:w-auto">
                 {/* Header */}
@@ -909,9 +902,7 @@ const Calendar = () => {
               </Card>
             </div>
           </div>
-          </main>
-        </SidebarInset>
-      </div>
+        </div>
 
       <Dialog open={!!selectedEvent} onOpenChange={() => setSelectedEvent(null)}>
         <DialogContent className="sm:max-w-lg">
@@ -1030,7 +1021,7 @@ const Calendar = () => {
           )}
         </DialogContent>
       </Dialog>
-    </SidebarProvider>
+    </>
   );
 };
 

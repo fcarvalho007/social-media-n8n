@@ -138,13 +138,8 @@ export function AppSidebar() {
           <SidebarGroup className="flex-1 flex items-center">
             <SidebarGroupContent className="w-full px-2">
               <SidebarMenu className="space-y-2">
-                {menuItems.map((item, index) => (
-                  <SidebarMenuItem 
-                    key={item.title}
-                    style={{
-                      animation: `fade-in 0.3s ease-out ${index * 0.05}s both`
-                    }}
-                  >
+                {menuItems.map((item) => (
+                  <SidebarMenuItem key={item.title}>
                     <SidebarMenuButton 
                       asChild={!item.disabled}
                       disabled={item.disabled}
