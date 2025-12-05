@@ -1,7 +1,7 @@
-import { useState, useRef } from 'react';
+import { useState, useRef, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { supabase } from '@/integrations/supabase/client';
-import { MediaItem } from '@/types/social';
+import { PostFormat, getNetworkFromFormat, getFormatConfig } from '@/types/social';
 import { ModeBadge } from '@/components/ModeBadge';
 import { DevHelper } from '@/components/DevHelper';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -14,8 +14,9 @@ import { Calendar } from '@/components/ui/calendar';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Badge } from '@/components/ui/badge';
 import { Separator } from '@/components/ui/separator';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { toast } from 'sonner';
-import { Save, Send, Calendar as CalendarIcon, ArrowLeft, Instagram, Linkedin, Upload, Clock, X, FileText, Loader2, Rocket, Smile, Bookmark, Sparkles } from 'lucide-react';
+import { Save, Send, Calendar as CalendarIcon, ArrowLeft, Instagram, Linkedin, Upload, Clock, X, FileText, Loader2, Rocket, Smile, Bookmark, Sparkles, Youtube, Facebook } from 'lucide-react';
 import { format } from 'date-fns';
 import { pt } from 'date-fns/locale';
 import { cn } from '@/lib/utils';
@@ -26,14 +27,14 @@ import LinkedInPreview from '@/components/manual-post/LinkedInPreview';
 import DraftsDialog from '@/components/manual-post/DraftsDialog';
 import SavedCaptionsDialog from '@/components/manual-post/SavedCaptionsDialog';
 import AICaptionDialog from '@/components/manual-post/AICaptionDialog';
+import { NetworkFormatSelector } from '@/components/manual-post/NetworkFormatSelector';
+import { getMediaRequirements, validateAllFormats, getValidationSummary, FormatValidationResult } from '@/lib/formatValidation';
 import { INSTAGRAM_CONFIG, LINKEDIN_CONFIG } from '@/types/publishing';
 import EmojiPicker, { EmojiClickData } from 'emoji-picker-react';
 
-type NetworkType = 'instagram-carousel' | 'instagram-stories' | 'linkedin';
-
 export default function ManualCreate() {
   const navigate = useNavigate();
-  const [selectedNetwork, setSelectedNetwork] = useState<NetworkType | null>(null);
+  const [selectedFormats, setSelectedFormats] = useState<PostFormat[]>([]);
   const [caption, setCaption] = useState('');
   const [mediaFiles, setMediaFiles] = useState<File[]>([]);
   const [mediaPreviewUrls, setMediaPreviewUrls] = useState<string[]>([]);
@@ -50,7 +51,19 @@ export default function ManualCreate() {
   const [savedCaptionsOpen, setSavedCaptionsOpen] = useState(false);
   const [aiDialogOpen, setAiDialogOpen] = useState(false);
   const [emojiPickerOpen, setEmojiPickerOpen] = useState(false);
+  const [activePreviewTab, setActivePreviewTab] = useState<string>('');
   const textareaRef = useRef<HTMLTextAreaElement>(null);
+
+  // Compute media requirements based on selected formats
+  const mediaRequirements = useMemo(() => getMediaRequirements(selectedFormats), [selectedFormats]);
+
+  // Compute validations
+  const validations = useMemo(() => {
+    if (selectedFormats.length === 0) return {} as Record<PostFormat, FormatValidationResult>;
+    return validateAllFormats(selectedFormats, caption, mediaFiles);
+  }, [selectedFormats, caption, mediaFiles]);
+
+  const validationSummary = useMemo(() => getValidationSummary(validations), [validations]);
 
   // Handle emoji insertion
   const handleEmojiClick = (emojiData: EmojiClickData) => {
@@ -62,9 +75,8 @@ export default function ManualCreate() {
       const end = textarea.selectionEnd;
       const newCaption = caption.slice(0, start) + emoji + caption.slice(end);
       
-      if (newCaption.length <= maxLength) {
+      if (newCaption.length <= mediaRequirements.maxCaptionLength) {
         setCaption(newCaption);
-        // Set cursor position after emoji
         setTimeout(() => {
           textarea.focus();
           textarea.setSelectionRange(start + emoji.length, start + emoji.length);
@@ -72,42 +84,61 @@ export default function ManualCreate() {
       }
     } else {
       const newCaption = caption + emoji;
-      if (newCaption.length <= maxLength) {
+      if (newCaption.length <= mediaRequirements.maxCaptionLength) {
         setCaption(newCaption);
       }
     }
     setEmojiPickerOpen(false);
   };
 
-  // Character limits
-  const getMaxCaptionLength = () => {
-    if (selectedNetwork === 'instagram-carousel' || selectedNetwork === 'instagram-stories') return 2200;
-    if (selectedNetwork === 'linkedin') return 3000;
-    return 2200;
-  };
-
-  const maxLength = getMaxCaptionLength();
+  const maxLength = mediaRequirements.maxCaptionLength;
   const captionLength = caption.length;
+
+  // Get unique networks from selected formats
+  const selectedNetworks = useMemo(() => {
+    const networks = new Set(selectedFormats.map(f => getNetworkFromFormat(f)));
+    return Array.from(networks);
+  }, [selectedFormats]);
+
+  // Update active preview tab when formats change
+  useMemo(() => {
+    if (selectedFormats.length > 0 && !activePreviewTab) {
+      setActivePreviewTab(selectedFormats[0]);
+    } else if (selectedFormats.length === 0) {
+      setActivePreviewTab('');
+    } else if (!selectedFormats.includes(activePreviewTab as PostFormat)) {
+      setActivePreviewTab(selectedFormats[0]);
+    }
+  }, [selectedFormats]);
 
   // Validations
   const getValidationErrors = (): string[] => {
     const errors: string[] = [];
     
-    if (!selectedNetwork) {
-      errors.push('Selecione uma rede social');
+    if (selectedFormats.length === 0) {
+      errors.push('Selecione pelo menos um formato');
     }
     
-    if (selectedNetwork === 'instagram-carousel') {
-      if (mediaFiles.length < 1) errors.push('Mínimo 1 imagem');
-      if (mediaFiles.length > 10) errors.push('Máximo 10 imagens');
+    // Check media requirements
+    const imageCount = mediaFiles.filter(f => f.type.startsWith('image/')).length;
+    const videoCount = mediaFiles.filter(f => f.type.startsWith('video/')).length;
+    const totalMedia = imageCount + videoCount;
+    
+    if (mediaRequirements.minMedia > 0 && totalMedia < mediaRequirements.minMedia) {
+      errors.push(`Mínimo ${mediaRequirements.minMedia} ficheiro(s)`);
     }
     
-    if (selectedNetwork === 'instagram-stories') {
-      if (mediaFiles.length !== 1) errors.push('Stories requer exatamente 1 imagem ou vídeo');
+    if (totalMedia > mediaRequirements.maxMedia) {
+      errors.push(`Máximo ${mediaRequirements.maxMedia} ficheiro(s)`);
     }
     
-    if (selectedNetwork === 'linkedin') {
-      if (!caption.trim()) errors.push('Legenda obrigatória para LinkedIn');
+    if (mediaRequirements.requiresVideo && videoCount === 0) {
+      errors.push('Formato selecionado requer vídeo');
+    }
+    
+    // Check if LinkedIn is selected and caption is empty
+    if (selectedNetworks.includes('linkedin') && !caption.trim()) {
+      errors.push('Legenda obrigatória para LinkedIn');
     }
     
     if (!scheduleAsap && scheduledDate) {
@@ -131,13 +162,8 @@ export default function ManualCreate() {
   const handleMediaUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const files = Array.from(e.target.files || []);
     
-    if (selectedNetwork === 'instagram-carousel' && files.length > 10) {
-      toast.error('Máximo 10 imagens para carrossel');
-      return;
-    }
-    
-    if (selectedNetwork === 'instagram-stories' && files.length > 1) {
-      toast.error('Stories permite apenas 1 ficheiro');
+    if (files.length > mediaRequirements.maxMedia) {
+      toast.error(`Máximo ${mediaRequirements.maxMedia} ficheiros`);
       return;
     }
 
@@ -151,7 +177,7 @@ export default function ManualCreate() {
 
     // Validate file types
     const validTypes = ['image/jpeg', 'image/jpg', 'image/png', 'image/webp'];
-    if (selectedNetwork === 'instagram-stories') {
+    if (!mediaRequirements.requiresImage) {
       validTypes.push('video/mp4');
     }
     const invalidTypes = files.filter(file => !validTypes.includes(file.type));
@@ -163,10 +189,8 @@ export default function ManualCreate() {
     setIsUploading(true);
     setUploadProgress(0);
 
-    // Simulate progress for preview generation
     const urls = files.map(file => URL.createObjectURL(file));
     
-    // Animate progress
     const interval = setInterval(() => {
       setUploadProgress(prev => {
         if (prev >= 100) {
@@ -193,8 +217,8 @@ export default function ManualCreate() {
   };
 
   const handleSaveDraft = async () => {
-    if (!selectedNetwork) {
-      toast.error('Selecione uma rede social');
+    if (selectedFormats.length === 0) {
+      toast.error('Selecione pelo menos um formato');
       return;
     }
 
@@ -208,7 +232,6 @@ export default function ManualCreate() {
         return;
       }
 
-      // Upload media files to storage
       const mediaUrls: string[] = [];
       const totalFiles = mediaFiles.length;
       
@@ -233,11 +256,12 @@ export default function ManualCreate() {
 
       setUploadProgress(100);
 
-      // Map selectedNetwork to platform format
+      // Save primary format for backwards compatibility
+      const primaryFormat = selectedFormats[0];
       let platform: string;
-      if (selectedNetwork === 'instagram-carousel') platform = 'instagram_carrousel';
-      else if (selectedNetwork === 'instagram-stories') platform = 'instagram_stories';
-      else platform = 'linkedin';
+      if (primaryFormat.startsWith('instagram_')) platform = 'instagram_carrousel';
+      else if (primaryFormat.startsWith('linkedin_')) platform = 'linkedin';
+      else platform = primaryFormat;
 
       const draftData = {
         user_id: user.id,
@@ -251,7 +275,6 @@ export default function ManualCreate() {
       };
 
       if (currentDraftId) {
-        // Update existing draft
         const { error } = await supabase
           .from('posts_drafts')
           .update(draftData)
@@ -259,7 +282,6 @@ export default function ManualCreate() {
         if (error) throw error;
         toast.success('Rascunho atualizado com sucesso');
       } else {
-        // Insert new draft
         const { error } = await supabase.from('posts_drafts').insert(draftData);
         if (error) throw error;
         toast.success('Rascunho guardado com sucesso');
@@ -274,13 +296,14 @@ export default function ManualCreate() {
   };
 
   const handleLoadDraft = (draft: any) => {
-    // Map platform back to NetworkType
-    let network: NetworkType;
-    if (draft.platform === 'instagram_carrousel') network = 'instagram-carousel';
-    else if (draft.platform === 'instagram_stories') network = 'instagram-stories';
-    else network = 'linkedin';
+    // Map platform back to format
+    let format: PostFormat;
+    if (draft.platform === 'instagram_carrousel') format = 'instagram_carousel';
+    else if (draft.platform === 'instagram_stories') format = 'instagram_stories';
+    else if (draft.platform === 'linkedin') format = 'linkedin_post';
+    else format = 'instagram_carousel';
 
-    setSelectedNetwork(network);
+    setSelectedFormats([format]);
     setCaption(draft.caption || '');
     setMediaPreviewUrls(draft.media_urls || []);
     setScheduleAsap(draft.publish_immediately);
@@ -298,9 +321,7 @@ export default function ManualCreate() {
   const handleSubmitForApproval = async () => {
     if (hasErrors) {
       const errorMsg = validationErrors.join(', ');
-      toast.error(`Corrija os erros: ${errorMsg}`, {
-        duration: 5000,
-      });
+      toast.error(`Corrija os erros: ${errorMsg}`, { duration: 5000 });
       return;
     }
 
@@ -308,20 +329,13 @@ export default function ManualCreate() {
       setSubmitting(true);
       setUploadProgress(0);
       
-      // Check user authentication
       const { data: { user }, error: authError } = await supabase.auth.getUser();
-      console.log('🔐 DEBUG - User:', user ? { id: user.id, email: user.email } : null);
-      console.log('🔐 DEBUG - Auth Error:', authError);
       
       if (authError || !user) {
-        console.error('❌ Authentication failed:', authError);
-        toast.error('Tem de iniciar sessão para submeter. Por favor, faça login novamente.', {
-          duration: 5000,
-        });
+        toast.error('Tem de iniciar sessão para submeter.');
         return;
       }
 
-      // Upload media to storage with progress
       toast.loading('A carregar ficheiros...', { id: 'upload' });
       const mediaUrls: string[] = [];
       const totalFiles = mediaFiles.length;
@@ -330,7 +344,7 @@ export default function ManualCreate() {
         const file = mediaFiles[i];
         const fileName = `${user.id}/${Date.now()}-${file.name}`;
         
-        setUploadProgress(Math.round((i / totalFiles) * 50)); // 0-50% for upload
+        setUploadProgress(Math.round((i / totalFiles) * 50));
         
         const { error: uploadError } = await supabase.storage
           .from('pdfs')
@@ -351,13 +365,16 @@ export default function ManualCreate() {
       toast.dismiss('upload');
       setUploadProgress(50);
 
-      // Map selectedNetwork to platform format for N8N
+      // Map formats to platform for N8N
+      const primaryFormat = selectedFormats[0];
       let platform: string;
-      if (selectedNetwork === 'instagram-carousel') platform = 'instagram_carousel';
-      else if (selectedNetwork === 'instagram-stories') platform = 'instagram_stories';
-      else platform = 'linkedin';
+      if (primaryFormat.startsWith('instagram_')) platform = 'instagram_carousel';
+      else if (primaryFormat.startsWith('linkedin_')) platform = 'linkedin';
+      else if (primaryFormat.startsWith('youtube_')) platform = 'youtube';
+      else if (primaryFormat.startsWith('tiktok_')) platform = 'tiktok';
+      else if (primaryFormat.startsWith('facebook_')) platform = 'facebook';
+      else platform = 'instagram_carousel';
 
-      // Prepare scheduled date/time
       let scheduledDateStr = '';
       let scheduledTimeStr = '';
       
@@ -368,22 +385,12 @@ export default function ManualCreate() {
 
       setUploadProgress(60);
 
-      // Get auth session
       const { data: { session } } = await supabase.auth.getSession();
-      console.log('🔐 DEBUG - Session:', session ? { 
-        access_token: session.access_token ? '✅ Presente' : '❌ Ausente',
-        expires_at: session.expires_at,
-        user_id: session.user?.id 
-      } : null);
       
       if (!session || !session.access_token) {
-        console.error('❌ Sessão inválida:', session);
         throw new Error('Sessão inválida. Faça login novamente.');
       }
-
-      console.log('✅ Autenticação válida - A submeter para n8n...');
       
-      // Call edge function to submit to N8N
       toast.loading('A submeter publicação...', { id: 'submit' });
       setUploadProgress(80);
       
@@ -395,6 +402,7 @@ export default function ManualCreate() {
           scheduled_date: scheduledDateStr || undefined,
           scheduled_time: scheduledTimeStr || undefined,
           publish_immediately: scheduleAsap,
+          formats: selectedFormats,
         },
       });
 
@@ -411,11 +419,10 @@ export default function ManualCreate() {
       toast.dismiss('submit');
       setUploadProgress(90);
 
-      // Save to database
       const postData = {
         user_id: user.id,
-        post_type: selectedNetwork === 'instagram-carousel' ? 'carousel' : selectedNetwork === 'instagram-stories' ? 'image' : 'text',
-        selected_networks: [selectedNetwork!.split('-')[0]] as any,
+        post_type: primaryFormat.includes('carousel') ? 'carousel' : primaryFormat.includes('video') || primaryFormat.includes('reel') ? 'video' : 'image',
+        selected_networks: selectedNetworks as any,
         caption,
         scheduled_date: scheduledDate?.toISOString() || null,
         schedule_asap: scheduleAsap,
@@ -432,11 +439,8 @@ export default function ManualCreate() {
 
       setUploadProgress(100);
       
-      toast.success('Publicação submetida para aprovação com sucesso!', {
-        duration: 4000,
-      });
+      toast.success('Publicação submetida para aprovação com sucesso!', { duration: 4000 });
       
-      // Clear form if it's a new draft (not updating)
       if (!currentDraftId) {
         setCaption('');
         setMediaFiles([]);
@@ -450,9 +454,7 @@ export default function ManualCreate() {
     } catch (error) {
       console.error('Error submitting:', error);
       const errorMsg = error instanceof Error ? error.message : 'Erro ao submeter. Tente novamente.';
-      toast.error(errorMsg, {
-        duration: 5000,
-      });
+      toast.error(errorMsg, { duration: 5000 });
     } finally {
       setSubmitting(false);
       setUploadProgress(0);
@@ -460,16 +462,19 @@ export default function ManualCreate() {
   };
 
   const handlePublishNow = async () => {
-    // Validate before publishing
     if (hasErrors) {
       const errorMsg = validationErrors.join(', ');
       toast.error(`Corrija os erros: ${errorMsg}`, { duration: 5000 });
       return;
     }
 
-    // Instagram Stories não é suportado para publicação direta via API
-    if (selectedNetwork === 'instagram-stories') {
-      toast.error('Instagram Stories não suporta publicação direta via API. Use "Submeter" para aprovação.', { duration: 5000 });
+    // Check for unsupported formats
+    const unsupportedFormats = selectedFormats.filter(f => 
+      f.includes('stories') || f.includes('reel') || f.includes('tiktok') || f.includes('youtube')
+    );
+    
+    if (unsupportedFormats.length > 0) {
+      toast.error('Alguns formatos não suportam publicação direta. Use "Submeter" para aprovação.', { duration: 5000 });
       return;
     }
 
@@ -477,14 +482,12 @@ export default function ManualCreate() {
       setPublishing(true);
       setUploadProgress(0);
 
-      // Check user authentication
       const { data: { user }, error: authError } = await supabase.auth.getUser();
       if (authError || !user) {
         toast.error('Tem de iniciar sessão para publicar.');
         return;
       }
 
-      // Upload media to storage
       toast.loading('A carregar ficheiros...', { id: 'publish-upload' });
       const mediaUrls: string[] = [];
       const totalFiles = mediaFiles.length;
@@ -513,11 +516,11 @@ export default function ManualCreate() {
       toast.dismiss('publish-upload');
       setUploadProgress(50);
 
-      // Determine platform for publish-proxy
-      const platform = selectedNetwork === 'linkedin' ? 'linkedin' : 'instagram';
+      // Publish to each supported platform
+      const primaryFormat = selectedFormats[0];
+      const platform = primaryFormat.startsWith('linkedin_') ? 'linkedin' : 'instagram';
       const postId = `manual-${Date.now()}`;
 
-      // Build payload for publish-proxy (same format as Review.tsx)
       const publishPayload: Record<string, any> = {
         post_id: postId,
         images: mediaUrls,
@@ -531,9 +534,6 @@ export default function ManualCreate() {
         publishPayload.member_urn = LINKEDIN_CONFIG.memberUrn;
       }
 
-      console.log(`[ManualCreate] Publishing to ${platform}:`, publishPayload);
-
-      // Call publish-proxy edge function
       toast.loading('A publicar...', { id: 'publish-now' });
       setUploadProgress(70);
 
@@ -546,23 +546,20 @@ export default function ManualCreate() {
 
       if (publishError) {
         toast.dismiss('publish-now');
-        console.error('[ManualCreate] Publish error:', publishError);
         throw new Error('Erro ao comunicar com o servidor de publicação');
       }
 
       if (!publishResult?.success) {
         toast.dismiss('publish-now');
-        console.error('[ManualCreate] Publish failed:', publishResult);
         throw new Error(publishResult?.error || 'Falha ao publicar');
       }
 
       toast.dismiss('publish-now');
       setUploadProgress(85);
 
-      // Save to database with status 'published'
       const postData = {
         user_id: user.id,
-        post_type: selectedNetwork === 'instagram-carousel' ? 'carousel' : 'text',
+        post_type: primaryFormat.includes('carousel') ? 'carousel' : 'text',
         selected_networks: [platform] as any,
         caption,
         scheduled_date: new Date().toISOString(),
@@ -582,18 +579,15 @@ export default function ManualCreate() {
       };
 
       const { error: dbError } = await supabase.from('posts').insert(postData);
-      if (dbError) {
-        console.error('[ManualCreate] DB insert error:', dbError);
-      }
+      if (dbError) console.error('[ManualCreate] DB insert error:', dbError);
 
       setUploadProgress(95);
 
-      // Increment quota
       try {
         await supabase.functions.invoke('increment-quota', {
           body: {
             platform,
-            post_type: selectedNetwork === 'instagram-carousel' ? 'carousel' : 'post',
+            post_type: primaryFormat.includes('carousel') ? 'carousel' : 'post',
           },
         });
       } catch (quotaErr) {
@@ -604,7 +598,6 @@ export default function ManualCreate() {
 
       toast.success('Publicação enviada com sucesso!', { duration: 4000 });
 
-      // Clear form
       setCaption('');
       setMediaFiles([]);
       setMediaPreviewUrls([]);
@@ -612,6 +605,7 @@ export default function ManualCreate() {
       setTime('12:00');
       setScheduleAsap(false);
       setCurrentDraftId(null);
+      setSelectedFormats([]);
 
       setTimeout(() => navigate('/calendar'), 1500);
     } catch (error) {
@@ -624,11 +618,50 @@ export default function ManualCreate() {
     }
   };
 
-  const networkOptions: { value: NetworkType; label: string; icon: any; description: string }[] = [
-    { value: 'instagram-carousel', label: 'Instagram Carrossel', icon: Instagram, description: '1-10 imagens' },
-    { value: 'instagram-stories', label: 'Instagram Stories', icon: Instagram, description: '1 imagem ou vídeo' },
-    { value: 'linkedin', label: 'LinkedIn', icon: Linkedin, description: 'Post com legenda' },
-  ];
+  // Get accept types for file input
+  const getAcceptTypes = () => {
+    if (mediaRequirements.requiresVideo) return 'video/*';
+    if (mediaRequirements.requiresImage) return 'image/*';
+    return 'image/*,video/*';
+  };
+
+  // Render preview for a format
+  const renderPreview = (format: PostFormat) => {
+    const network = getNetworkFromFormat(format);
+    
+    if (network === 'instagram') {
+      if (format === 'instagram_stories') {
+        return <InstagramStoryPreview mediaUrl={mediaPreviewUrls[0]} aspectRatioValid={true} />;
+      }
+      return <InstagramCarouselPreview mediaUrls={mediaPreviewUrls} caption={caption} />;
+    }
+    
+    if (network === 'linkedin') {
+      return <LinkedInPreview mediaUrls={mediaPreviewUrls} caption={caption} />;
+    }
+    
+    // Default preview for other networks
+    return (
+      <div className="p-4 border rounded-lg bg-muted/30">
+        <p className="text-sm text-muted-foreground mb-2">Pré-visualização: {getFormatConfig(format)?.label}</p>
+        {mediaPreviewUrls.length > 0 && (
+          <img src={mediaPreviewUrls[0]} alt="Preview" className="rounded-lg max-h-64 mx-auto" />
+        )}
+        {caption && <p className="mt-3 text-sm whitespace-pre-wrap">{caption}</p>}
+      </div>
+    );
+  };
+
+  // Get icon for network
+  const getNetworkIcon = (network: string) => {
+    switch (network) {
+      case 'instagram': return Instagram;
+      case 'linkedin': return Linkedin;
+      case 'youtube': return Youtube;
+      case 'facebook': return Facebook;
+      default: return FileText;
+    }
+  };
 
   return (
     <div className="max-w-7xl mx-auto space-y-6 bg-gradient-to-br from-background to-background-secondary">
@@ -638,453 +671,410 @@ export default function ManualCreate() {
           variant="ghost" 
           size="sm" 
           onClick={() => navigate('/?tab=create')}
-                  className="gap-2"
-                  aria-label="Voltar à página anterior"
+          className="gap-2"
+          aria-label="Voltar à página anterior"
+        >
+          <ArrowLeft className="h-4 w-4" />
+          Voltar
+        </Button>
+        <ModeBadge mode="manual" onChangeMode={() => navigate('/?tab=create')} className="flex-1" />
+      </div>
+
+      <div className="grid lg:grid-cols-2 gap-6 lg:gap-8">
+        {/* Left - Form */}
+        <div className="space-y-6">
+          {/* Network & Format Selection */}
+          <NetworkFormatSelector
+            selectedFormats={selectedFormats}
+            onFormatsChange={setSelectedFormats}
+          />
+
+          {/* Media Upload */}
+          {selectedFormats.length > 0 && (
+            <Card>
+              <CardHeader>
+                <CardTitle>Média</CardTitle>
+                <CardDescription>
+                  {mediaRequirements.requiresVideo 
+                    ? `Carregue ${mediaRequirements.minMedia} vídeo (MP4 - máx. 50MB)`
+                    : `Carregue entre ${mediaRequirements.minMedia} e ${mediaRequirements.maxMedia} ficheiros (PNG, JPG${!mediaRequirements.requiresImage ? ', MP4' : ''} - máx. 50MB cada)`
+                  }
+                </CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                <Label 
+                  htmlFor="media-upload" 
+                  className={cn(
+                    "cursor-pointer",
+                    (saving || submitting || isUploading) && "cursor-not-allowed opacity-50"
+                  )}
                 >
-                  <ArrowLeft className="h-4 w-4" />
-                  Voltar
-                </Button>
-                <ModeBadge mode="manual" onChangeMode={() => navigate('/?tab=create')} className="flex-1" />
-              </div>
+                  <div className="flex flex-col items-center justify-center gap-2 h-32 rounded-lg border-2 border-dashed border-border hover:border-primary/50 transition-colors bg-muted/30">
+                    {isUploading ? (
+                      <>
+                        <Loader2 className="h-6 w-6 text-primary animate-spin" />
+                        <span className="text-sm text-muted-foreground">A processar ficheiros...</span>
+                      </>
+                    ) : (
+                      <>
+                        <Upload className="h-6 w-6 text-muted-foreground" aria-hidden="true" />
+                        <span className="text-sm text-muted-foreground">Carregar ficheiros</span>
+                        <span className="text-xs text-muted-foreground">Arraste ou clique para selecionar</span>
+                      </>
+                    )}
+                  </div>
+                  <Input
+                    id="media-upload"
+                    type="file"
+                    multiple={mediaRequirements.maxMedia > 1}
+                    accept={getAcceptTypes()}
+                    onChange={handleMediaUpload}
+                    disabled={saving || submitting || isUploading}
+                    className="hidden"
+                    aria-label="Carregar ficheiros de média"
+                  />
+                </Label>
 
-              <div className="grid lg:grid-cols-2 gap-6 lg:gap-8">
-                {/* Left - Form */}
-                <div className="space-y-6">
-                  {/* Network Selection */}
-                  <Card>
-                    <CardHeader>
-                      <CardTitle>Rede Social</CardTitle>
-                      <CardDescription>Selecione onde pretende publicar</CardDescription>
-                    </CardHeader>
-                    <CardContent className="space-y-3">
-                      {networkOptions.map((option) => (
-                        <button
-                          key={option.value}
-                          type="button"
-                          onClick={() => setSelectedNetwork(option.value)}
-                          disabled={saving || submitting}
-                          aria-label={`Selecionar ${option.label}`}
-                          aria-pressed={selectedNetwork === option.value}
-                          className={cn(
-                            "w-full flex items-center gap-3 p-4 rounded-lg border-2 cursor-pointer transition-all disabled:opacity-50 disabled:cursor-not-allowed",
-                            selectedNetwork === option.value
-                              ? "border-primary bg-primary/5 ring-2 ring-primary/20"
-                              : "border-border hover:border-primary/50 hover:bg-accent/50"
-                          )}
-                        >
-                          <option.icon className="h-6 w-6 flex-shrink-0" aria-hidden="true" />
-                          <div className="flex-1 text-left">
-                            <p className="font-semibold text-sm">{option.label}</p>
-                            <p className="text-xs text-muted-foreground">{option.description}</p>
-                          </div>
-                        </button>
-                      ))}
-                    </CardContent>
-                  </Card>
-
-                  {/* Media Upload */}
-                  {selectedNetwork && (
-                    <Card>
-                      <CardHeader>
-                        <CardTitle>Média</CardTitle>
-                        <CardDescription>
-                          {selectedNetwork === 'instagram-carousel' && 'Carregue entre 1 e 10 imagens (PNG, JPG - máx. 50MB cada)'}
-                          {selectedNetwork === 'instagram-stories' && 'Carregue 1 imagem ou vídeo (PNG, JPG, MP4 - máx. 50MB)'}
-                          {selectedNetwork === 'linkedin' && 'Opcional: carregue imagens (PNG, JPG - máx. 50MB cada)'}
-                        </CardDescription>
-                      </CardHeader>
-                      <CardContent className="space-y-4">
-                        <Label 
-                          htmlFor="media-upload" 
-                          className={cn(
-                            "cursor-pointer",
-                            (saving || submitting || isUploading) && "cursor-not-allowed opacity-50"
-                          )}
-                        >
-                          <div className="flex flex-col items-center justify-center gap-2 h-32 rounded-lg border-2 border-dashed border-border hover:border-primary/50 transition-colors bg-muted/30">
-                            {isUploading ? (
-                              <>
-                                <Loader2 className="h-6 w-6 text-primary animate-spin" />
-                                <span className="text-sm text-muted-foreground">A processar ficheiros...</span>
-                              </>
-                            ) : (
-                              <>
-                                <Upload className="h-6 w-6 text-muted-foreground" aria-hidden="true" />
-                                <span className="text-sm text-muted-foreground">Carregar ficheiros</span>
-                                <span className="text-xs text-muted-foreground">Arraste ou clique para selecionar</span>
-                              </>
-                            )}
-                          </div>
-                          <Input
-                            id="media-upload"
-                            type="file"
-                            multiple={selectedNetwork !== 'instagram-stories'}
-                            accept={selectedNetwork === 'instagram-stories' ? 'image/*,video/*' : 'image/*'}
-                            onChange={handleMediaUpload}
-                            disabled={saving || submitting || isUploading}
-                            className="hidden"
-                            aria-label="Carregar ficheiros de média"
-                          />
-                        </Label>
-
-                        {isUploading && (
-                          <Progress value={uploadProgress} className="h-2" />
-                        )}
-                        
-                        {mediaPreviewUrls.length > 0 && (
-                          <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
-                            {mediaPreviewUrls.map((url, idx) => (
-                              <div key={idx} className="relative aspect-square rounded-lg overflow-hidden border border-border group">
-                                <img 
-                                  src={url} 
-                                  alt={`Pré-visualização ${idx + 1} de ${mediaPreviewUrls.length}`} 
-                                  className="w-full h-full object-cover" 
-                                />
-                                <button
-                                  type="button"
-                                  onClick={() => removeMedia(idx)}
-                                  disabled={saving || submitting}
-                                  aria-label={`Remover imagem ${idx + 1}`}
-                                  className="absolute top-1 right-1 p-1.5 rounded-full bg-destructive text-destructive-foreground opacity-0 group-hover:opacity-100 transition-opacity disabled:opacity-50 disabled:cursor-not-allowed hover:scale-110"
-                                >
-                                  <X className="h-3 w-3" />
-                                </button>
-                                <div className="absolute bottom-1 left-1 bg-background/80 backdrop-blur-sm px-1.5 py-0.5 rounded text-xs">
-                                  {idx + 1}/{mediaPreviewUrls.length}
-                                </div>
-                              </div>
-                            ))}
-                          </div>
-                        )}
-                      </CardContent>
-                    </Card>
-                  )}
-
-                  {/* Caption */}
-                  {selectedNetwork && (
-                    <Card>
-                      <CardHeader>
-                        <CardTitle>Legenda</CardTitle>
-                        <CardDescription>
-                          <span className={cn(
-                            "font-medium",
-                            captionLength > maxLength * 0.9 && captionLength <= maxLength && "text-orange-500",
-                            captionLength > maxLength && "text-destructive"
-                          )}>
-                            {captionLength}/{maxLength}
-                          </span>
-                          {' '}caracteres
-                          {selectedNetwork === 'linkedin' && ' (obrigatório)'}
-                        </CardDescription>
-                      </CardHeader>
-                      <CardContent className="space-y-3">
-                        {/* Caption Toolbar */}
-                        <div className="flex items-center gap-1 border rounded-lg p-1.5 bg-muted/30">
-                          {/* Emoji Picker */}
-                          <Popover open={emojiPickerOpen} onOpenChange={setEmojiPickerOpen}>
-                            <PopoverTrigger asChild>
-                              <Button variant="ghost" size="sm" className="h-8 w-8 p-0" title="Inserir emoji">
-                                <Smile className="h-4 w-4" />
-                              </Button>
-                            </PopoverTrigger>
-                            <PopoverContent className="w-auto p-0 border-0" align="start">
-                              <EmojiPicker
-                                onEmojiClick={handleEmojiClick}
-                                width={320}
-                                height={400}
-                                searchPlaceholder="Pesquisar emoji..."
-                                previewConfig={{ showPreview: false }}
-                              />
-                            </PopoverContent>
-                          </Popover>
-
-                          <Separator orientation="vertical" className="h-5 mx-1" />
-
-                          {/* Saved Captions */}
-                          <Button
-                            variant="ghost"
-                            size="sm"
-                            className="h-8 gap-1.5"
-                            onClick={() => setSavedCaptionsOpen(true)}
-                            title="Legendas guardadas"
-                          >
-                            <Bookmark className="h-4 w-4" />
-                            <span className="hidden sm:inline text-xs">Guardadas</span>
-                          </Button>
-
-                          <Separator orientation="vertical" className="h-5 mx-1" />
-
-                          {/* AI Improve Button */}
-                          <Button
-                            variant="ghost"
-                            size="sm"
-                            className="h-8 gap-1.5 bg-gradient-to-r from-purple-500/10 to-blue-500/10 hover:from-purple-500/20 hover:to-blue-500/20"
-                            onClick={() => setAiDialogOpen(true)}
-                            title="Melhorar com IA"
-                          >
-                            <Sparkles className="h-4 w-4 text-purple-500" />
-                            <span className="text-xs font-medium">IA</span>
-                          </Button>
-                        </div>
-
-                        {/* Textarea */}
-                        <Textarea
-                          ref={textareaRef}
-                          value={caption}
-                          onChange={(e) => setCaption(e.target.value.slice(0, maxLength))}
-                          placeholder={
-                            selectedNetwork === 'linkedin' 
-                              ? "Escreva o corpo do seu post no LinkedIn..." 
-                              : "Escreva a sua legenda..."
-                          }
-                          disabled={saving || submitting || publishing}
-                          className="min-h-[150px] resize-none"
-                          aria-label="Legenda da publicação"
-                          aria-describedby="caption-description"
+                {isUploading && <Progress value={uploadProgress} className="h-2" />}
+                
+                {mediaPreviewUrls.length > 0 && (
+                  <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
+                    {mediaPreviewUrls.map((url, idx) => (
+                      <div key={idx} className="relative aspect-square rounded-lg overflow-hidden border border-border group">
+                        <img 
+                          src={url} 
+                          alt={`Pré-visualização ${idx + 1} de ${mediaPreviewUrls.length}`} 
+                          className="w-full h-full object-cover" 
                         />
-                        <p id="caption-description" className="sr-only">
-                          Campo de texto para a legenda da publicação. 
-                          {selectedNetwork === 'linkedin' && ' Este campo é obrigatório para LinkedIn.'}
-                          Máximo de {maxLength} caracteres.
-                        </p>
-                      </CardContent>
-                    </Card>
-                  )}
+                        <button
+                          type="button"
+                          onClick={() => removeMedia(idx)}
+                          disabled={saving || submitting}
+                          aria-label={`Remover imagem ${idx + 1}`}
+                          className="absolute top-1 right-1 p-1.5 rounded-full bg-destructive text-destructive-foreground opacity-0 group-hover:opacity-100 transition-opacity disabled:opacity-50 disabled:cursor-not-allowed hover:scale-110"
+                        >
+                          <X className="h-3 w-3" />
+                        </button>
+                        <div className="absolute bottom-1 left-1 bg-background/80 backdrop-blur-sm px-1.5 py-0.5 rounded text-xs">
+                          {idx + 1}/{mediaPreviewUrls.length}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+          )}
 
-                  {/* Date & Time */}
-                  {selectedNetwork && (
-                    <Card>
-                      <CardHeader>
-                        <CardTitle>Agendamento</CardTitle>
-                        <CardDescription>Defina quando publicar</CardDescription>
-                      </CardHeader>
-                      <CardContent className="space-y-4">
-                        <div className="flex items-center justify-between">
-                          <Label htmlFor="asap" className="text-sm font-medium">Logo que possível</Label>
-                          <Switch
-                            id="asap"
-                            checked={scheduleAsap}
-                            onCheckedChange={setScheduleAsap}
+          {/* Caption */}
+          {selectedFormats.length > 0 && (
+            <Card>
+              <CardHeader>
+                <CardTitle>Legenda</CardTitle>
+                <CardDescription>
+                  <span className={cn(
+                    "font-medium",
+                    captionLength > maxLength * 0.9 && captionLength <= maxLength && "text-orange-500",
+                    captionLength > maxLength && "text-destructive"
+                  )}>
+                    {captionLength}/{maxLength}
+                  </span>
+                  {' '}caracteres
+                  {selectedNetworks.includes('linkedin') && ' (obrigatório para LinkedIn)'}
+                </CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-3">
+                {/* Caption Toolbar */}
+                <div className="flex items-center gap-1 border rounded-lg p-1.5 bg-muted/30">
+                  <Popover open={emojiPickerOpen} onOpenChange={setEmojiPickerOpen}>
+                    <PopoverTrigger asChild>
+                      <Button variant="ghost" size="sm" className="h-8 w-8 p-0" title="Inserir emoji">
+                        <Smile className="h-4 w-4" />
+                      </Button>
+                    </PopoverTrigger>
+                    <PopoverContent className="w-auto p-0 border-0" align="start">
+                      <EmojiPicker
+                        onEmojiClick={handleEmojiClick}
+                        width={320}
+                        height={400}
+                        searchPlaceholder="Pesquisar emoji..."
+                        previewConfig={{ showPreview: false }}
+                      />
+                    </PopoverContent>
+                  </Popover>
+
+                  <Separator orientation="vertical" className="h-5 mx-1" />
+
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    className="h-8 gap-1.5"
+                    onClick={() => setSavedCaptionsOpen(true)}
+                    title="Legendas guardadas"
+                  >
+                    <Bookmark className="h-4 w-4" />
+                    <span className="hidden sm:inline text-xs">Guardadas</span>
+                  </Button>
+
+                  <Separator orientation="vertical" className="h-5 mx-1" />
+
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    className="h-8 gap-1.5 bg-gradient-to-r from-purple-500/10 to-blue-500/10 hover:from-purple-500/20 hover:to-blue-500/20"
+                    onClick={() => setAiDialogOpen(true)}
+                    title="Melhorar com IA"
+                  >
+                    <Sparkles className="h-4 w-4 text-purple-500" />
+                    <span className="text-xs font-medium">IA</span>
+                  </Button>
+                </div>
+
+                <Textarea
+                  ref={textareaRef}
+                  value={caption}
+                  onChange={(e) => setCaption(e.target.value.slice(0, maxLength))}
+                  placeholder="Escreva a sua legenda..."
+                  disabled={saving || submitting || publishing}
+                  className="min-h-[150px] resize-none"
+                  aria-label="Legenda da publicação"
+                />
+              </CardContent>
+            </Card>
+          )}
+
+          {/* Date & Time */}
+          {selectedFormats.length > 0 && (
+            <Card>
+              <CardHeader>
+                <CardTitle>Agendamento</CardTitle>
+                <CardDescription>Defina quando publicar</CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                <div className="flex items-center justify-between">
+                  <Label htmlFor="asap" className="text-sm font-medium">Logo que possível</Label>
+                  <Switch id="asap" checked={scheduleAsap} onCheckedChange={setScheduleAsap} />
+                </div>
+                
+                {!scheduleAsap && (
+                  <div className="space-y-3">
+                    <div>
+                      <Label className="text-sm">Data</Label>
+                      <Popover>
+                        <PopoverTrigger asChild>
+                          <Button variant="outline" className="w-full justify-start text-left font-normal">
+                            <CalendarIcon className="mr-2 h-4 w-4" />
+                            {scheduledDate ? format(scheduledDate, 'dd/MM/yyyy', { locale: pt }) : 'Selecione a data'}
+                          </Button>
+                        </PopoverTrigger>
+                        <PopoverContent className="w-auto p-0" align="start">
+                          <Calendar
+                            mode="single"
+                            selected={scheduledDate}
+                            onSelect={setScheduledDate}
+                            disabled={(date) => date < new Date(new Date().setHours(0, 0, 0, 0))}
+                            initialFocus
+                            className="pointer-events-auto"
                           />
-                        </div>
-                        
-                        {!scheduleAsap && (
-                          <div className="space-y-3">
-                            <div>
-                              <Label className="text-sm">Data</Label>
-                              <Popover>
-                                <PopoverTrigger asChild>
-                                  <Button variant="outline" className="w-full justify-start text-left font-normal">
-                                    <CalendarIcon className="mr-2 h-4 w-4" />
-                                    {scheduledDate ? format(scheduledDate, 'dd/MM/yyyy', { locale: pt }) : 'Selecione a data'}
-                                  </Button>
-                                </PopoverTrigger>
-                                <PopoverContent className="w-auto p-0" align="start">
-                                  <Calendar
-                                    mode="single"
-                                    selected={scheduledDate}
-                                    onSelect={setScheduledDate}
-                                    disabled={(date) => date < new Date(new Date().setHours(0, 0, 0, 0))}
-                                    initialFocus
-                                    className="pointer-events-auto"
-                                  />
-                                </PopoverContent>
-                              </Popover>
-                            </div>
-                            
-                            <div>
-                              <Label htmlFor="time" className="text-sm">Hora</Label>
-                              <div className="relative">
-                                <Clock className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                                <Input
-                                  id="time"
-                                  type="time"
-                                  value={time}
-                                  onChange={(e) => setTime(e.target.value)}
-                                  className="pl-10"
-                                />
-                              </div>
-                            </div>
-                          </div>
-                        )}
-                      </CardContent>
-                    </Card>
-                  )}
+                        </PopoverContent>
+                      </Popover>
+                    </div>
+                    
+                    <div>
+                      <Label htmlFor="time" className="text-sm">Hora</Label>
+                      <div className="relative">
+                        <Clock className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                        <Input
+                          id="time"
+                          type="time"
+                          value={time}
+                          onChange={(e) => setTime(e.target.value)}
+                          className="pl-10"
+                        />
+                      </div>
+                    </div>
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+          )}
 
-                  {/* Actions */}
-                  {selectedNetwork && (
-                    <Card className="lg:sticky lg:bottom-4 bg-card/95 backdrop-blur-sm border-2 shadow-lg">
-                      <CardContent className="pt-6 space-y-3">
-                        {(saving || submitting || publishing) && uploadProgress > 0 && (
-                          <div className="space-y-2">
-                            <div className="flex items-center justify-between text-sm">
-                              <span className="text-muted-foreground">
-                                {saving ? 'A guardar...' : publishing ? 'A publicar...' : 'A submeter...'}
-                              </span>
-                              <span className="font-medium">{uploadProgress}%</span>
-                            </div>
-                            <Progress value={uploadProgress} className="h-2" />
-                          </div>
-                        )}
+          {/* Actions */}
+          {selectedFormats.length > 0 && (
+            <Card className="lg:sticky lg:bottom-4 bg-card/95 backdrop-blur-sm border-2 shadow-lg">
+              <CardContent className="pt-6 space-y-3">
+                {(saving || submitting || publishing) && uploadProgress > 0 && (
+                  <div className="space-y-2">
+                    <div className="flex items-center justify-between text-sm">
+                      <span className="text-muted-foreground">
+                        {saving ? 'A guardar...' : publishing ? 'A publicar...' : 'A submeter...'}
+                      </span>
+                      <span className="font-medium">{uploadProgress}%</span>
+                    </div>
+                    <Progress value={uploadProgress} className="h-2" />
+                  </div>
+                )}
 
-                        {validationErrors.length > 0 && (
-                          <div className="space-y-1" role="alert" aria-live="polite">
-                            {validationErrors.map((error, idx) => (
-                              <Badge key={idx} variant="destructive" className="text-xs block">
-                                {error}
-                              </Badge>
-                            ))}
-                          </div>
-                        )}
-                        
-                        <div className="grid grid-cols-1 gap-3">
-                          {/* Primary action: Publish Now */}
-                          <Button
-                            type="button"
-                            onClick={handlePublishNow}
-                            disabled={publishing || submitting || saving || hasErrors || isUploading || selectedNetwork === 'instagram-stories'}
-                            className="font-semibold bg-gradient-to-r from-primary to-primary/80 hover:from-primary/90 hover:to-primary/70"
-                            aria-label="Publicar agora"
-                          >
-                            {publishing ? (
-                              <>
-                                <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                                A publicar...
-                              </>
-                            ) : (
-                              <>
-                                <Rocket className="h-4 w-4 mr-2" />
-                                Publicar Agora
-                              </>
-                            )}
-                          </Button>
-                          
-                          {selectedNetwork === 'instagram-stories' && (
-                            <p className="text-xs text-muted-foreground text-center">
-                              Stories não suporta publicação direta via API
-                            </p>
-                          )}
-                        </div>
-                        
-                        <div className="grid grid-cols-2 gap-3">
-                          <Button
-                            type="button"
-                            variant="outline"
-                            onClick={handleSaveDraft}
-                            disabled={saving || submitting || publishing || !selectedNetwork || isUploading}
-                            className="font-semibold"
-                            aria-label="Guardar como rascunho"
-                          >
-                            {saving ? (
-                              <>
-                                <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                                A guardar...
-                              </>
-                            ) : (
-                              <>
-                                <Save className="h-4 w-4 mr-2" />
-                                Rascunho
-                              </>
-                            )}
-                          </Button>
-                          <Button
-                            type="button"
-                            variant="secondary"
-                            onClick={handleSubmitForApproval}
-                            disabled={submitting || saving || publishing || hasErrors || isUploading}
-                            className="font-semibold"
-                            aria-label="Submeter para aprovação"
-                          >
-                            {submitting ? (
-                              <>
-                                <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                                A submeter...
-                              </>
-                            ) : (
-                              <>
-                                <Send className="h-4 w-4 mr-2" />
-                                Submeter
-                              </>
-                            )}
-                          </Button>
-                        </div>
-                        
-                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                          <Button
-                            type="button"
-                            variant="ghost"
-                            size="sm"
-                            onClick={() => setDraftsDialogOpen(true)}
-                            disabled={saving || submitting}
-                            className="w-full text-xs"
-                            aria-label="Ver rascunhos guardados"
-                          >
-                            <FileText className="h-3 w-3 mr-1" aria-hidden="true" />
-                            Ver rascunhos
-                          </Button>
-                          <Button
-                            type="button"
-                            variant="ghost"
-                            size="sm"
-                            onClick={() => navigate('/calendar')}
-                            disabled={saving || submitting}
-                            className="w-full text-xs"
-                            aria-label="Ver calendário de publicações"
-                          >
-                            <CalendarIcon className="h-3 w-3 mr-1" aria-hidden="true" />
-                            Ver calendário
-                          </Button>
-                        </div>
-                      </CardContent>
-                    </Card>
-                  )}
+                {validationErrors.length > 0 && (
+                  <div className="space-y-1" role="alert" aria-live="polite">
+                    {validationErrors.map((error, idx) => (
+                      <Badge key={idx} variant="destructive" className="text-xs block">
+                        {error}
+                      </Badge>
+                    ))}
+                  </div>
+                )}
+                
+                <div className="grid grid-cols-1 gap-3">
+                  <Button
+                    type="button"
+                    onClick={handlePublishNow}
+                    disabled={publishing || submitting || saving || hasErrors || isUploading}
+                    className="font-semibold bg-gradient-to-r from-primary to-primary/80 hover:from-primary/90 hover:to-primary/70"
+                    aria-label="Publicar agora"
+                  >
+                    {publishing ? (
+                      <>
+                        <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                        A publicar...
+                      </>
+                    ) : (
+                      <>
+                        <Rocket className="h-4 w-4 mr-2" />
+                        Publicar Agora
+                      </>
+                    )}
+                  </Button>
                 </div>
-
-                {/* Right - Preview */}
-                <div className="lg:sticky lg:top-24 lg:h-[calc(100vh-8rem)] overflow-auto">
-                  <Card className="h-full">
-                    <CardHeader>
-                      <CardTitle>Pré-visualização</CardTitle>
-                      <CardDescription>Como ficará a sua publicação</CardDescription>
-                    </CardHeader>
-                    <CardContent>
-                      {!selectedNetwork ? (
-                        <div className="flex items-center justify-center h-64 text-muted-foreground text-sm">
-                          Selecione uma rede social para ver a pré-visualização
-                        </div>
-                      ) : (
-                        <>
-                          {selectedNetwork === 'instagram-carousel' && (
-                            <InstagramCarouselPreview
-                              mediaUrls={mediaPreviewUrls}
-                              caption={caption}
-                            />
-                          )}
-                          {selectedNetwork === 'instagram-stories' && (
-                            <InstagramStoryPreview
-                              mediaUrl={mediaPreviewUrls[0]}
-                              aspectRatioValid={true}
-                            />
-                          )}
-                          {selectedNetwork === 'linkedin' && (
-                            <LinkedInPreview
-                              mediaUrls={mediaPreviewUrls}
-                              caption={caption}
-                            />
-                          )}
-                          
-                          {scheduledDate && !scheduleAsap && (
-                            <div className="flex items-center gap-2 text-xs text-muted-foreground mt-4 justify-center">
-                              <Clock className="h-3 w-3" />
-                              <span>Agendado: {format(scheduledDate, 'dd/MM/yyyy', { locale: pt })} às {time}</span>
-                            </div>
-                          )}
-                        </>
-                      )}
-                    </CardContent>
-                  </Card>
+                
+                <div className="grid grid-cols-2 gap-3">
+                  <Button
+                    type="button"
+                    variant="outline"
+                    onClick={handleSaveDraft}
+                    disabled={saving || submitting || publishing || selectedFormats.length === 0 || isUploading}
+                    className="font-semibold"
+                    aria-label="Guardar como rascunho"
+                  >
+                    {saving ? (
+                      <>
+                        <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                        A guardar...
+                      </>
+                    ) : (
+                      <>
+                        <Save className="h-4 w-4 mr-2" />
+                        Rascunho
+                      </>
+                    )}
+                  </Button>
+                  <Button
+                    type="button"
+                    variant="secondary"
+                    onClick={handleSubmitForApproval}
+                    disabled={submitting || saving || publishing || hasErrors || isUploading}
+                    className="font-semibold"
+                    aria-label="Submeter para aprovação"
+                  >
+                    {submitting ? (
+                      <>
+                        <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                        A submeter...
+                      </>
+                    ) : (
+                      <>
+                        <Send className="h-4 w-4 mr-2" />
+                        Submeter
+                      </>
+                    )}
+                  </Button>
                 </div>
-              </div>
+                
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => setDraftsDialogOpen(true)}
+                    disabled={saving || submitting}
+                    className="w-full text-xs"
+                    aria-label="Ver rascunhos guardados"
+                  >
+                    <FileText className="h-3 w-3 mr-1" aria-hidden="true" />
+                    Ver rascunhos
+                  </Button>
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => navigate('/calendar')}
+                    disabled={saving || submitting}
+                    className="w-full text-xs"
+                    aria-label="Ver calendário de publicações"
+                  >
+                    <CalendarIcon className="h-3 w-3 mr-1" aria-hidden="true" />
+                    Ver calendário
+                  </Button>
+                </div>
+              </CardContent>
+            </Card>
+          )}
+        </div>
+
+        {/* Right - Preview */}
+        <div className="lg:sticky lg:top-24 lg:h-[calc(100vh-8rem)] overflow-auto">
+          <Card className="h-full">
+            <CardHeader>
+              <CardTitle>Pré-visualização</CardTitle>
+              <CardDescription>Como ficará a sua publicação</CardDescription>
+            </CardHeader>
+            <CardContent>
+              {selectedFormats.length === 0 ? (
+                <div className="flex items-center justify-center h-64 text-muted-foreground text-sm">
+                  Selecione um formato para ver a pré-visualização
+                </div>
+              ) : selectedFormats.length === 1 ? (
+                <>
+                  {renderPreview(selectedFormats[0])}
+                  {scheduledDate && !scheduleAsap && (
+                    <div className="flex items-center gap-2 text-xs text-muted-foreground mt-4 justify-center">
+                      <Clock className="h-3 w-3" />
+                      <span>Agendado: {format(scheduledDate, 'dd/MM/yyyy', { locale: pt })} às {time}</span>
+                    </div>
+                  )}
+                </>
+              ) : (
+                <Tabs value={activePreviewTab} onValueChange={setActivePreviewTab}>
+                  <TabsList className="w-full mb-4">
+                    {selectedFormats.map(format => {
+                      const network = getNetworkFromFormat(format);
+                      const Icon = getNetworkIcon(network);
+                      const config = getFormatConfig(format);
+                      return (
+                        <TabsTrigger key={format} value={format} className="flex-1 gap-1.5">
+                          <Icon className="h-4 w-4" />
+                          <span className="hidden sm:inline text-xs">{config?.label}</span>
+                        </TabsTrigger>
+                      );
+                    })}
+                  </TabsList>
+                  {selectedFormats.map(format => (
+                    <TabsContent key={format} value={format}>
+                      {renderPreview(format)}
+                    </TabsContent>
+                  ))}
+                  {scheduledDate && !scheduleAsap && (
+                    <div className="flex items-center gap-2 text-xs text-muted-foreground mt-4 justify-center">
+                      <Clock className="h-3 w-3" />
+                      <span>Agendado: {format(scheduledDate, 'dd/MM/yyyy', { locale: pt })} às {time}</span>
+                    </div>
+                  )}
+                </Tabs>
+              )}
+            </CardContent>
+          </Card>
+        </div>
+      </div>
 
       <DevHelper />
       
