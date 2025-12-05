@@ -3,6 +3,177 @@ export type PostType = 'image' | 'video' | 'carousel' | 'text';
 export type PostStatus = 'draft' | 'waiting_for_approval' | 'pending' | 'approved' | 'scheduled' | 'published' | 'rejected' | 'failed';
 export type ConnectionStatus = 'connected' | 'expired' | 'missing_permission';
 
+// Post format types for each network
+export type PostFormat = 
+  // Instagram
+  | 'instagram_carousel'
+  | 'instagram_image'
+  | 'instagram_stories'
+  | 'instagram_reel'
+  // LinkedIn
+  | 'linkedin_post'
+  | 'linkedin_document'
+  // YouTube
+  | 'youtube_shorts'
+  | 'youtube_video'
+  // TikTok
+  | 'tiktok_video'
+  // Facebook
+  | 'facebook_image'
+  | 'facebook_stories'
+  | 'facebook_reel';
+
+export interface PostFormatConfig {
+  format: PostFormat;
+  label: string;
+  description: string;
+  icon: string; // Lucide icon name
+  requiresVideo?: boolean;
+  requiresImage?: boolean;
+  maxMedia?: number;
+  minMedia?: number;
+  maxDuration?: number; // seconds for video
+}
+
+export const NETWORK_POST_FORMATS: Record<SocialNetwork, PostFormatConfig[]> = {
+  instagram: [
+    { 
+      format: 'instagram_carousel', 
+      label: 'Carrossel', 
+      description: '1-10 imagens', 
+      icon: 'LayoutGrid',
+      requiresImage: true,
+      minMedia: 1,
+      maxMedia: 10,
+    },
+    { 
+      format: 'instagram_image', 
+      label: 'Post de Imagem', 
+      description: 'Imagem estática', 
+      icon: 'Image',
+      requiresImage: true,
+      minMedia: 1,
+      maxMedia: 1,
+    },
+    { 
+      format: 'instagram_stories', 
+      label: 'Stories', 
+      description: 'Imagem ou vídeo', 
+      icon: 'Circle',
+      minMedia: 1,
+      maxMedia: 1,
+    },
+    { 
+      format: 'instagram_reel', 
+      label: 'Reel', 
+      description: 'Vídeo curto', 
+      icon: 'Video',
+      requiresVideo: true,
+      minMedia: 1,
+      maxMedia: 1,
+      maxDuration: 90,
+    },
+  ],
+  linkedin: [
+    { 
+      format: 'linkedin_post', 
+      label: 'Post com Legenda', 
+      description: 'Texto e imagens', 
+      icon: 'FileText',
+      minMedia: 0,
+      maxMedia: 9,
+    },
+    { 
+      format: 'linkedin_document', 
+      label: 'Documento PDF', 
+      description: 'Carrossel como PDF', 
+      icon: 'File',
+      requiresImage: true,
+      minMedia: 1,
+      maxMedia: 20,
+    },
+  ],
+  youtube: [
+    { 
+      format: 'youtube_shorts', 
+      label: 'Shorts', 
+      description: 'Vídeo ≤ 60 segundos', 
+      icon: 'Play',
+      requiresVideo: true,
+      minMedia: 1,
+      maxMedia: 1,
+      maxDuration: 60,
+    },
+    { 
+      format: 'youtube_video', 
+      label: 'Vídeo Longo', 
+      description: 'Vídeo completo', 
+      icon: 'Video',
+      requiresVideo: true,
+      minMedia: 1,
+      maxMedia: 1,
+    },
+  ],
+  tiktok: [
+    { 
+      format: 'tiktok_video', 
+      label: 'Vídeo curto', 
+      description: 'Vídeo vertical', 
+      icon: 'Video',
+      requiresVideo: true,
+      minMedia: 1,
+      maxMedia: 1,
+      maxDuration: 600,
+    },
+  ],
+  facebook: [
+    { 
+      format: 'facebook_image', 
+      label: 'Post de Imagem', 
+      description: 'Imagem ou múltiplas', 
+      icon: 'Image',
+      requiresImage: true,
+      minMedia: 1,
+      maxMedia: 10,
+    },
+    { 
+      format: 'facebook_stories', 
+      label: 'Stories', 
+      description: 'Imagem ou vídeo', 
+      icon: 'Circle',
+      minMedia: 1,
+      maxMedia: 1,
+    },
+    { 
+      format: 'facebook_reel', 
+      label: 'Reel', 
+      description: 'Vídeo curto', 
+      icon: 'Video',
+      requiresVideo: true,
+      minMedia: 1,
+      maxMedia: 1,
+      maxDuration: 90,
+    },
+  ],
+  x: [],
+};
+
+// Helper to get network from format
+export function getNetworkFromFormat(format: PostFormat): SocialNetwork {
+  if (format.startsWith('instagram_')) return 'instagram';
+  if (format.startsWith('linkedin_')) return 'linkedin';
+  if (format.startsWith('youtube_')) return 'youtube';
+  if (format.startsWith('tiktok_')) return 'tiktok';
+  if (format.startsWith('facebook_')) return 'facebook';
+  return 'instagram';
+}
+
+// Helper to get format config
+export function getFormatConfig(format: PostFormat): PostFormatConfig | undefined {
+  const network = getNetworkFromFormat(format);
+  return NETWORK_POST_FORMATS[network].find(f => f.format === format);
+}
+
 export interface SocialProfile {
   id: string;
   user_id: string;
@@ -42,6 +213,7 @@ export interface ManualPost {
   user_id?: string;
   post_type: PostType;
   selected_networks: SocialNetwork[];
+  selected_formats?: PostFormat[];
   media_items: MediaItem[];
   caption: string;
   caption_edited?: string;
