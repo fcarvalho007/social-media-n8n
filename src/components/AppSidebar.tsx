@@ -48,6 +48,10 @@ const menuItems = [
     label: 'Criar',
     icon: PlusCircle,
     url: '/pending?tab=create',
+    getSmartUrl: () => {
+      const preferredMode = localStorage.getItem('preferredCreationMode');
+      return preferredMode === 'manual' ? '/manual-create' : '/pending?tab=create';
+    },
     disabled: false,
     isMain: false,
   },
@@ -154,7 +158,7 @@ export function AppSidebar() {
                         </div>
                       ) : (
                         <NavLink
-                          to={item.url}
+                          to={(item as any).getSmartUrl ? (item as any).getSmartUrl() : item.url}
                           onClick={() => isMobile && setOpen(false)}
                           className="flex flex-col items-center gap-2.5 mx-auto group w-full py-2.5 hover:scale-[1.02] active:scale-[0.98] transition-all duration-300 ease-out min-h-[72px] touch-target rounded-2xl"
                         >

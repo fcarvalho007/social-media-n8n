@@ -60,21 +60,16 @@ const Pending = () => {
     disabled: !isMobile,
   });
 
-  // Check for preferred mode on mount
+  // Check for preferred mode on mount (only for IA mode - manual mode navigates directly from sidebar)
   useEffect(() => {
     if (activeTab === 'create') {
       const preferredMode = localStorage.getItem('preferredCreationMode') as 'manual' | 'ia' | null;
-      if (preferredMode) {
-        if (preferredMode === 'manual') {
-          // Redirect directly to manual editor
-          navigate('/manual-create');
-        } else {
-          setCreationMode(preferredMode);
-          setShowModeSelector(false);
-        }
+      if (preferredMode === 'ia') {
+        setCreationMode(preferredMode);
+        setShowModeSelector(false);
       }
     }
-  }, [activeTab, navigate]);
+  }, [activeTab]);
 
   const fetchPosts = async () => {
     setLoading(true);
@@ -169,6 +164,12 @@ const Pending = () => {
   };
 
   useEffect(() => {
+    // Only fetch data when on the approve tab
+    if (activeTab === 'create') {
+      setLoading(false);
+      return;
+    }
+
     fetchAll();
 
     const postsChannel = supabase
@@ -191,7 +192,7 @@ const Pending = () => {
       supabase.removeChannel(postsChannel);
       supabase.removeChannel(storiesChannel);
     };
-  }, [activeStatus]);
+  }, [activeStatus, activeTab]);
 
   const filteredPosts = posts.filter((post) => {
     const matchesSearch = post.tema.toLowerCase().includes(searchQuery.toLowerCase()) ||
@@ -247,7 +248,7 @@ const Pending = () => {
       <div className="space-y-4 sm:space-y-6 bg-gradient-to-br from-background via-background to-muted/10" role="main" aria-label="Conteúdo de aprovação e criação">
           {activeTab === 'create' ? (
             /* Create Tab */
-            <div className="space-y-6 animate-slide-up w-full" role="region" aria-label="Área de criação de conteúdo">
+            <div className="space-y-6 w-full" role="region" aria-label="Área de criação de conteúdo">
               {showModeSelector && !creationMode ? (
                 <div className="bg-card rounded-2xl shadow-lg p-6 sm:p-8 border-2 border-border">
                   <ModeSelector 
@@ -289,7 +290,7 @@ const Pending = () => {
             </div>
           ) : (
             /* Approve Tab */
-            <div className="space-y-6 animate-slide-up w-full">
+            <div className="space-y-6 w-full">
               {/* Filters Section - Agrupada em card */}
               <div className="bg-card rounded-xl sm:rounded-2xl p-3 sm:p-4 md:p-6 border-2 border-border shadow-lg w-full max-w-full overflow-hidden">
                 {/* Content Type Filter - Mobile optimized */}
