@@ -35,3 +35,6 @@ verify_jwt = true
 
 [functions.manage-user-role]
 verify_jwt = true
+
+[functions.improve-caption]
+verify_jwt = true

@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { supabase } from '@/integrations/supabase/client';
 import { MediaItem } from '@/types/social';
@@ -13,8 +13,9 @@ import { Switch } from '@/components/ui/switch';
 import { Calendar } from '@/components/ui/calendar';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Badge } from '@/components/ui/badge';
+import { Separator } from '@/components/ui/separator';
 import { toast } from 'sonner';
-import { Save, Send, Calendar as CalendarIcon, ArrowLeft, Instagram, Linkedin, Upload, Clock, X, FileText, Loader2, Rocket } from 'lucide-react';
+import { Save, Send, Calendar as CalendarIcon, ArrowLeft, Instagram, Linkedin, Upload, Clock, X, FileText, Loader2, Rocket, Smile, Bookmark, Sparkles } from 'lucide-react';
 import { format } from 'date-fns';
 import { pt } from 'date-fns/locale';
 import { cn } from '@/lib/utils';
@@ -23,7 +24,10 @@ import InstagramCarouselPreview from '@/components/manual-post/InstagramCarousel
 import InstagramStoryPreview from '@/components/manual-post/InstagramStoryPreview';
 import LinkedInPreview from '@/components/manual-post/LinkedInPreview';
 import DraftsDialog from '@/components/manual-post/DraftsDialog';
+import SavedCaptionsDialog from '@/components/manual-post/SavedCaptionsDialog';
+import AICaptionDialog from '@/components/manual-post/AICaptionDialog';
 import { INSTAGRAM_CONFIG, LINKEDIN_CONFIG } from '@/types/publishing';
+import EmojiPicker, { EmojiClickData } from 'emoji-picker-react';
 
 type NetworkType = 'instagram-carousel' | 'instagram-stories' | 'linkedin';
 
@@ -43,6 +47,37 @@ export default function ManualCreate() {
   const [isUploading, setIsUploading] = useState(false);
   const [draftsDialogOpen, setDraftsDialogOpen] = useState(false);
   const [currentDraftId, setCurrentDraftId] = useState<string | null>(null);
+  const [savedCaptionsOpen, setSavedCaptionsOpen] = useState(false);
+  const [aiDialogOpen, setAiDialogOpen] = useState(false);
+  const [emojiPickerOpen, setEmojiPickerOpen] = useState(false);
+  const textareaRef = useRef<HTMLTextAreaElement>(null);
+
+  // Handle emoji insertion
+  const handleEmojiClick = (emojiData: EmojiClickData) => {
+    const emoji = emojiData.emoji;
+    const textarea = textareaRef.current;
+    
+    if (textarea) {
+      const start = textarea.selectionStart;
+      const end = textarea.selectionEnd;
+      const newCaption = caption.slice(0, start) + emoji + caption.slice(end);
+      
+      if (newCaption.length <= maxLength) {
+        setCaption(newCaption);
+        // Set cursor position after emoji
+        setTimeout(() => {
+          textarea.focus();
+          textarea.setSelectionRange(start + emoji.length, start + emoji.length);
+        }, 0);
+      }
+    } else {
+      const newCaption = caption + emoji;
+      if (newCaption.length <= maxLength) {
+        setCaption(newCaption);
+      }
+    }
+    setEmojiPickerOpen(false);
+  };
 
   // Character limits
   const getMaxCaptionLength = () => {
@@ -742,8 +777,59 @@ export default function ManualCreate() {
                           {selectedNetwork === 'linkedin' && ' (obrigatório)'}
                         </CardDescription>
                       </CardHeader>
-                      <CardContent>
+                      <CardContent className="space-y-3">
+                        {/* Caption Toolbar */}
+                        <div className="flex items-center gap-1 border rounded-lg p-1.5 bg-muted/30">
+                          {/* Emoji Picker */}
+                          <Popover open={emojiPickerOpen} onOpenChange={setEmojiPickerOpen}>
+                            <PopoverTrigger asChild>
+                              <Button variant="ghost" size="sm" className="h-8 w-8 p-0" title="Inserir emoji">
+                                <Smile className="h-4 w-4" />
+                              </Button>
+                            </PopoverTrigger>
+                            <PopoverContent className="w-auto p-0 border-0" align="start">
+                              <EmojiPicker
+                                onEmojiClick={handleEmojiClick}
+                                width={320}
+                                height={400}
+                                searchPlaceholder="Pesquisar emoji..."
+                                previewConfig={{ showPreview: false }}
+                              />
+                            </PopoverContent>
+                          </Popover>
+
+                          <Separator orientation="vertical" className="h-5 mx-1" />
+
+                          {/* Saved Captions */}
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            className="h-8 gap-1.5"
+                            onClick={() => setSavedCaptionsOpen(true)}
+                            title="Legendas guardadas"
+                          >
+                            <Bookmark className="h-4 w-4" />
+                            <span className="hidden sm:inline text-xs">Guardadas</span>
+                          </Button>
+
+                          <Separator orientation="vertical" className="h-5 mx-1" />
+
+                          {/* AI Improve Button */}
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            className="h-8 gap-1.5 bg-gradient-to-r from-purple-500/10 to-blue-500/10 hover:from-purple-500/20 hover:to-blue-500/20"
+                            onClick={() => setAiDialogOpen(true)}
+                            title="Melhorar com IA"
+                          >
+                            <Sparkles className="h-4 w-4 text-purple-500" />
+                            <span className="text-xs font-medium">IA</span>
+                          </Button>
+                        </div>
+
+                        {/* Textarea */}
                         <Textarea
+                          ref={textareaRef}
                           value={caption}
                           onChange={(e) => setCaption(e.target.value.slice(0, maxLength))}
                           placeholder={
@@ -751,8 +837,8 @@ export default function ManualCreate() {
                               ? "Escreva o corpo do seu post no LinkedIn..." 
                               : "Escreva a sua legenda..."
                           }
-                          disabled={saving || submitting}
-                          className="min-h-[120px] resize-none"
+                          disabled={saving || submitting || publishing}
+                          className="min-h-[150px] resize-none"
                           aria-label="Legenda da publicação"
                           aria-describedby="caption-description"
                         />
@@ -1006,6 +1092,20 @@ export default function ManualCreate() {
         open={draftsDialogOpen}
         onOpenChange={setDraftsDialogOpen}
         onLoadDraft={handleLoadDraft}
+      />
+
+      <SavedCaptionsDialog
+        open={savedCaptionsOpen}
+        onOpenChange={setSavedCaptionsOpen}
+        currentCaption={caption}
+        onSelectCaption={setCaption}
+      />
+
+      <AICaptionDialog
+        open={aiDialogOpen}
+        onOpenChange={setAiDialogOpen}
+        currentCaption={caption}
+        onApplyCaption={setCaption}
       />
     </div>
   );
