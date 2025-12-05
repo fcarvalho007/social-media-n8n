@@ -219,53 +219,52 @@ const ReviewStory = () => {
         <span className="text-xs sm:text-sm">Voltar ao Painel</span>
       </Button>
 
-        <div className="mb-4">
-          <div className="flex items-center gap-2 mb-1.5">
-            <h2 className="text-lg sm:text-xl md:text-2xl font-bold">{story.tema || 'Story'}</h2>
-            <Badge variant="outline" className="text-xs h-5">story</Badge>
-          </div>
-          <div className="text-xs text-muted-foreground space-y-0.5">
-            <p>Criado em: {new Date(story.created_at).toLocaleString('pt-PT')}</p>
-            {story.titulo_slide && (
-              <p><strong>Título:</strong> {story.titulo_slide}</p>
-            )}
-          </div>
+      <div className="mb-4">
+        <div className="flex items-center gap-2 mb-1.5">
+          <h2 className="text-lg sm:text-xl md:text-2xl font-bold">{story.tema || 'Story'}</h2>
+          <Badge variant="outline" className="text-xs h-5">story</Badge>
         </div>
-
-        {/* Story Image Preview */}
-        <div className="max-w-[85%] sm:max-w-[480px] md:max-w-[420px] lg:max-w-[400px] mx-auto mb-5">
-          <div 
-            className="relative rounded-xl overflow-hidden bg-muted aspect-[9/16] group cursor-zoom-in shadow-lg hover:shadow-xl touch-feedback active:scale-[0.98] transition-all" 
-            onClick={() => setZoomImage(true)}
-          >
-            <img
-              src={story.story_image_url}
-              alt="Story preview"
-              className="w-full h-full object-contain"
-            />
-            <div className="absolute inset-0 bg-black/0 group-hover:bg-black/20 transition-colors flex items-center justify-center">
-              <ZoomIn className="w-10 h-10 sm:w-12 sm:h-12 text-white opacity-0 group-hover:opacity-100 transition-opacity drop-shadow-lg" />
-            </div>
-          </div>
+        <div className="text-xs text-muted-foreground space-y-0.5">
+          <p>Criado em: {new Date(story.created_at).toLocaleString('pt-PT')}</p>
+          {story.titulo_slide && (
+            <p><strong>Título:</strong> {story.titulo_slide}</p>
+          )}
         </div>
+      </div>
 
-        {/* Caption Editor */}
-        <div className="rounded-lg border border-border bg-card p-4 sm:p-5 mb-5 max-w-2xl mx-auto shadow-sm">
-          <Label htmlFor="caption" className="text-sm font-semibold mb-2 block">
-            Caption / Legenda
-          </Label>
-          <Textarea
-            id="caption"
-            value={caption}
-            onChange={(e) => setCaption(e.target.value)}
-            placeholder="Escreva a caption para o story..."
-            className="min-h-[150px] text-sm leading-relaxed"
+      {/* Story Image Preview */}
+      <div className="max-w-[85%] sm:max-w-[480px] md:max-w-[420px] lg:max-w-[400px] mx-auto mb-5">
+        <div 
+          className="relative rounded-xl overflow-hidden bg-muted aspect-[9/16] group cursor-zoom-in shadow-lg hover:shadow-xl touch-feedback active:scale-[0.98] transition-all" 
+          onClick={() => setZoomImage(true)}
+        >
+          <img
+            src={story.story_image_url}
+            alt="Story preview"
+            className="w-full h-full object-contain"
           />
-          <p className="text-xs text-muted-foreground mt-2">
-            {caption.length} caracteres
-          </p>
+          <div className="absolute inset-0 bg-black/0 group-hover:bg-black/20 transition-colors flex items-center justify-center">
+            <ZoomIn className="w-10 h-10 sm:w-12 sm:h-12 text-white opacity-0 group-hover:opacity-100 transition-opacity drop-shadow-lg" />
+          </div>
         </div>
-      </main>
+      </div>
+
+      {/* Caption Editor */}
+      <div className="rounded-lg border border-border bg-card p-4 sm:p-5 mb-5 max-w-2xl mx-auto shadow-sm">
+        <Label htmlFor="caption" className="text-sm font-semibold mb-2 block">
+          Caption / Legenda
+        </Label>
+        <Textarea
+          id="caption"
+          value={caption}
+          onChange={(e) => setCaption(e.target.value)}
+          placeholder="Escreva a caption para o story..."
+          className="min-h-[150px] text-sm leading-relaxed"
+        />
+        <p className="text-xs text-muted-foreground mt-2">
+          {caption.length} caracteres
+        </p>
+      </div>
 
       <ActionBar
         canApprove={true}
