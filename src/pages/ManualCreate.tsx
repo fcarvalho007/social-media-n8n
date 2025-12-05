@@ -14,7 +14,7 @@ import { Calendar } from '@/components/ui/calendar';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Badge } from '@/components/ui/badge';
 import { toast } from 'sonner';
-import { Save, Send, Calendar as CalendarIcon, ArrowLeft, Instagram, Linkedin, Upload, Clock, X, FileText, Loader2 } from 'lucide-react';
+import { Save, Send, Calendar as CalendarIcon, ArrowLeft, Instagram, Linkedin, Upload, Clock, X, FileText, Loader2, Rocket } from 'lucide-react';
 import { format } from 'date-fns';
 import { pt } from 'date-fns/locale';
 import { cn } from '@/lib/utils';
@@ -23,6 +23,7 @@ import InstagramCarouselPreview from '@/components/manual-post/InstagramCarousel
 import InstagramStoryPreview from '@/components/manual-post/InstagramStoryPreview';
 import LinkedInPreview from '@/components/manual-post/LinkedInPreview';
 import DraftsDialog from '@/components/manual-post/DraftsDialog';
+import { INSTAGRAM_CONFIG, LINKEDIN_CONFIG } from '@/types/publishing';
 
 type NetworkType = 'instagram-carousel' | 'instagram-stories' | 'linkedin';
 
@@ -37,6 +38,7 @@ export default function ManualCreate() {
   const [scheduleAsap, setScheduleAsap] = useState(false);
   const [saving, setSaving] = useState(false);
   const [submitting, setSubmitting] = useState(false);
+  const [publishing, setPublishing] = useState(false);
   const [uploadProgress, setUploadProgress] = useState(0);
   const [isUploading, setIsUploading] = useState(false);
   const [draftsDialogOpen, setDraftsDialogOpen] = useState(false);
@@ -422,6 +424,170 @@ export default function ManualCreate() {
     }
   };
 
+  const handlePublishNow = async () => {
+    // Validate before publishing
+    if (hasErrors) {
+      const errorMsg = validationErrors.join(', ');
+      toast.error(`Corrija os erros: ${errorMsg}`, { duration: 5000 });
+      return;
+    }
+
+    // Instagram Stories não é suportado para publicação direta via API
+    if (selectedNetwork === 'instagram-stories') {
+      toast.error('Instagram Stories não suporta publicação direta via API. Use "Submeter" para aprovação.', { duration: 5000 });
+      return;
+    }
+
+    try {
+      setPublishing(true);
+      setUploadProgress(0);
+
+      // Check user authentication
+      const { data: { user }, error: authError } = await supabase.auth.getUser();
+      if (authError || !user) {
+        toast.error('Tem de iniciar sessão para publicar.');
+        return;
+      }
+
+      // Upload media to storage
+      toast.loading('A carregar ficheiros...', { id: 'publish-upload' });
+      const mediaUrls: string[] = [];
+      const totalFiles = mediaFiles.length;
+
+      for (let i = 0; i < totalFiles; i++) {
+        const file = mediaFiles[i];
+        const fileName = `${user.id}/${Date.now()}-${file.name}`;
+        setUploadProgress(Math.round((i / totalFiles) * 40));
+
+        const { error: uploadError } = await supabase.storage
+          .from('pdfs')
+          .upload(fileName, file);
+
+        if (uploadError) {
+          toast.dismiss('publish-upload');
+          throw new Error(`Erro ao carregar ${file.name}`);
+        }
+
+        const { data: { publicUrl } } = supabase.storage
+          .from('pdfs')
+          .getPublicUrl(fileName);
+
+        mediaUrls.push(publicUrl);
+      }
+
+      toast.dismiss('publish-upload');
+      setUploadProgress(50);
+
+      // Determine platform for publish-proxy
+      const platform = selectedNetwork === 'linkedin' ? 'linkedin' : 'instagram';
+      const postId = `manual-${Date.now()}`;
+
+      // Build payload for publish-proxy (same format as Review.tsx)
+      const publishPayload: Record<string, any> = {
+        post_id: postId,
+        images: mediaUrls,
+      };
+
+      if (platform === 'instagram') {
+        publishPayload.caption_final = caption;
+        publishPayload.account_id = INSTAGRAM_CONFIG.accountId;
+      } else {
+        publishPayload.body_final = caption;
+        publishPayload.member_urn = LINKEDIN_CONFIG.memberUrn;
+      }
+
+      console.log(`[ManualCreate] Publishing to ${platform}:`, publishPayload);
+
+      // Call publish-proxy edge function
+      toast.loading('A publicar...', { id: 'publish-now' });
+      setUploadProgress(70);
+
+      const { data: publishResult, error: publishError } = await supabase.functions.invoke('publish-proxy', {
+        body: {
+          platform,
+          ...publishPayload,
+        },
+      });
+
+      if (publishError) {
+        toast.dismiss('publish-now');
+        console.error('[ManualCreate] Publish error:', publishError);
+        throw new Error('Erro ao comunicar com o servidor de publicação');
+      }
+
+      if (!publishResult?.success) {
+        toast.dismiss('publish-now');
+        console.error('[ManualCreate] Publish failed:', publishResult);
+        throw new Error(publishResult?.error || 'Falha ao publicar');
+      }
+
+      toast.dismiss('publish-now');
+      setUploadProgress(85);
+
+      // Save to database with status 'published'
+      const postData = {
+        user_id: user.id,
+        post_type: selectedNetwork === 'instagram-carousel' ? 'carousel' : 'text',
+        selected_networks: [platform] as any,
+        caption,
+        scheduled_date: new Date().toISOString(),
+        schedule_asap: true,
+        status: 'published',
+        origin_mode: 'manual',
+        tema: 'Manual post',
+        template_a_images: mediaUrls,
+        template_b_images: [],
+        workflow_id: postId,
+        published_at: new Date().toISOString(),
+        publish_metadata: {
+          published_via: 'manual_create',
+          platform,
+          result: publishResult,
+        },
+      };
+
+      const { error: dbError } = await supabase.from('posts').insert(postData);
+      if (dbError) {
+        console.error('[ManualCreate] DB insert error:', dbError);
+      }
+
+      setUploadProgress(95);
+
+      // Increment quota
+      try {
+        await supabase.functions.invoke('increment-quota', {
+          body: {
+            platform,
+            post_type: selectedNetwork === 'instagram-carousel' ? 'carousel' : 'post',
+          },
+        });
+      } catch (quotaErr) {
+        console.warn('[ManualCreate] Quota increment failed:', quotaErr);
+      }
+
+      setUploadProgress(100);
+
+      toast.success('Publicação enviada com sucesso!', { duration: 4000 });
+
+      // Clear form
+      setCaption('');
+      setMediaFiles([]);
+      setMediaPreviewUrls([]);
+      setScheduledDate(undefined);
+      setTime('12:00');
+      setScheduleAsap(false);
+      setCurrentDraftId(null);
+
+      setTimeout(() => navigate('/calendar'), 1500);
+    } catch (error) {
+      console.error('[ManualCreate] Publish error:', error);
+      const errorMsg = error instanceof Error ? error.message : 'Erro ao publicar. Tente novamente.';
+      toast.error(errorMsg, { duration: 5000 });
+    } finally {
+      setPublishing(false);
+      setUploadProgress(0);
+    }
+  };
 
   const networkOptions: { value: NetworkType; label: string; icon: any; description: string }[] = [
     { value: 'instagram-carousel', label: 'Instagram Carrossel', icon: Instagram, description: '1-10 imagens' },
@@ -663,11 +829,11 @@ export default function ManualCreate() {
                   {selectedNetwork && (
                     <Card className="lg:sticky lg:bottom-4 bg-card/95 backdrop-blur-sm border-2 shadow-lg">
                       <CardContent className="pt-6 space-y-3">
-                        {(saving || submitting) && uploadProgress > 0 && (
+                        {(saving || submitting || publishing) && uploadProgress > 0 && (
                           <div className="space-y-2">
                             <div className="flex items-center justify-between text-sm">
                               <span className="text-muted-foreground">
-                                {saving ? 'A guardar...' : 'A submeter...'}
+                                {saving ? 'A guardar...' : publishing ? 'A publicar...' : 'A submeter...'}
                               </span>
                               <span className="font-medium">{uploadProgress}%</span>
                             </div>
@@ -685,12 +851,41 @@ export default function ManualCreate() {
                           </div>
                         )}
                         
-                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                        <div className="grid grid-cols-1 gap-3">
+                          {/* Primary action: Publish Now */}
+                          <Button
+                            type="button"
+                            onClick={handlePublishNow}
+                            disabled={publishing || submitting || saving || hasErrors || isUploading || selectedNetwork === 'instagram-stories'}
+                            className="font-semibold bg-gradient-to-r from-primary to-primary/80 hover:from-primary/90 hover:to-primary/70"
+                            aria-label="Publicar agora"
+                          >
+                            {publishing ? (
+                              <>
+                                <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                                A publicar...
+                              </>
+                            ) : (
+                              <>
+                                <Rocket className="h-4 w-4 mr-2" />
+                                Publicar Agora
+                              </>
+                            )}
+                          </Button>
+                          
+                          {selectedNetwork === 'instagram-stories' && (
+                            <p className="text-xs text-muted-foreground text-center">
+                              Stories não suporta publicação direta via API
+                            </p>
+                          )}
+                        </div>
+                        
+                        <div className="grid grid-cols-2 gap-3">
                           <Button
                             type="button"
                             variant="outline"
                             onClick={handleSaveDraft}
-                            disabled={saving || submitting || !selectedNetwork || isUploading}
+                            disabled={saving || submitting || publishing || !selectedNetwork || isUploading}
                             className="font-semibold"
                             aria-label="Guardar como rascunho"
                           >
@@ -702,14 +897,15 @@ export default function ManualCreate() {
                             ) : (
                               <>
                                 <Save className="h-4 w-4 mr-2" />
-                                Guardar rascunho
+                                Rascunho
                               </>
                             )}
                           </Button>
                           <Button
                             type="button"
+                            variant="secondary"
                             onClick={handleSubmitForApproval}
-                            disabled={submitting || saving || hasErrors || isUploading}
+                            disabled={submitting || saving || publishing || hasErrors || isUploading}
                             className="font-semibold"
                             aria-label="Submeter para aprovação"
                           >
