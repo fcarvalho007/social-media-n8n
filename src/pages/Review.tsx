@@ -1254,160 +1254,158 @@ const Review = () => {
 
   return (
     <div className="pb-20 sm:pb-24">
-          
-          <main className="flex-1 animate-fade-in overflow-auto">
-            {/* Refined Header - Iconosquare Style */}
-            <div className="sticky top-0 z-20 bg-background border-b">
-              <div className="max-w-[1440px] mx-auto px-4 sm:px-6 lg:px-8">
-                {/* Breadcrumb + Back Navigation */}
-                <div className="flex items-center justify-between py-3 border-b border-border/40">
-                  <Button
-                    variant="ghost"
-                    onClick={() => navigate('/')}
-                    className="-ml-2 h-8 px-2 text-sm hover:bg-accent transition-colors duration-150 focus:ring-2 focus:ring-primary/40"
-                    size="sm"
-                  >
-                    <ArrowLeft className="mr-1.5 h-3.5 w-3.5" />
-                    <span className="font-medium">Voltar a Pendentes</span>
-                  </Button>
-                  
-                  <nav className="hidden sm:flex items-center gap-2 text-xs text-muted-foreground">
-                    <span>Painel de Conteúdo</span>
-                    <span>›</span>
-                    <span className="text-foreground font-medium">Revisão</span>
-                  </nav>
-                </div>
+      {/* Refined Header - Iconosquare Style */}
+      <div className="sticky top-0 z-20 bg-background border-b">
+        <div className="max-w-[1440px] mx-auto px-4 sm:px-6 lg:px-8">
+          {/* Breadcrumb + Back Navigation */}
+          <div className="flex items-center justify-between py-3 border-b border-border/40">
+            <Button
+              variant="ghost"
+              onClick={() => navigate('/')}
+              className="-ml-2 h-8 px-2 text-sm hover:bg-accent transition-colors duration-150 focus:ring-2 focus:ring-primary/40"
+              size="sm"
+            >
+              <ArrowLeft className="mr-1.5 h-3.5 w-3.5" />
+              <span className="font-medium">Voltar a Pendentes</span>
+            </Button>
+            
+            <nav className="hidden sm:flex items-center gap-2 text-xs text-muted-foreground">
+              <span>Painel de Conteúdo</span>
+              <span>›</span>
+              <span className="text-foreground font-medium">Revisão</span>
+            </nav>
+          </div>
 
-                {/* Header Principal */}
-                <div className="py-4">
-                  <div className="flex items-start justify-between gap-4 mb-4">
-                    <div className="flex-1 min-w-0">
-                      <h1 className="text-2xl font-bold tracking-tight leading-snug mb-1">
-                        Revisão de Publicação
-                      </h1>
-                      <p className="text-sm text-muted-foreground leading-snug truncate">
-                        {post.title}
-                      </p>
-                    </div>
-                  </div>
-
-                  {/* Platform Tabs */}
-                  <PlatformTabs
-                    selectedTargets={publishTargets}
-                    onTargetsChange={setPublishTargets}
-                    validations={validations}
-                    instagramQuotaText={quotaText}
-                    instagramCanPublish={canPublishAnywhere}
-                  />
-                </div>
+          {/* Header Principal */}
+          <div className="py-4">
+            <div className="flex items-start justify-between gap-4 mb-4">
+              <div className="flex-1 min-w-0">
+                <h1 className="text-2xl font-bold tracking-tight leading-snug mb-1">
+                  Revisão de Publicação
+                </h1>
+                <p className="text-sm text-muted-foreground leading-snug truncate">
+                  {post.title}
+                </p>
               </div>
             </div>
 
-            {/* Main Content Area - Responsive */}
-            <div className="max-w-[1440px] mx-auto px-4 sm:px-6 lg:px-8 py-6 md:py-8">
+            {/* Platform Tabs */}
+            <PlatformTabs
+              selectedTargets={publishTargets}
+              onTargetsChange={setPublishTargets}
+              validations={validations}
+              instagramQuotaText={quotaText}
+              instagramCanPublish={canPublishAnywhere}
+            />
+          </div>
+        </div>
+      </div>
 
-              {/* Templates - Side by side with equal height and responsive gap */}
-              <div ref={templatesRef} className="grid grid-cols-1 lg:grid-cols-2 gap-8 lg:gap-10 xl:gap-12 mb-6 md:mb-8 max-w-[1440px] mx-auto">
-                <div className="h-full flex flex-col min-w-0 lg:min-w-[520px] lg:max-w-[620px]">
-                  <CarouselPreview
-                    key={`template-a-${post.id}`}
-                    images={templateAImages}
-                    archivedSlides={archivedSlidesA}
-                    template="A"
-                    onSelect={() => setSelectedTemplate('A')}
-                    isSelected={selectedTemplate === 'A'}
-                    onRemoveSlide={(index) => handleRemoveSlide('A', index)}
-                    onRestoreSlide={(index) => handleRestoreSlide('A', index)}
-                    onReorderSlides={(newOrder) => handleReorderSlides('A', newOrder)}
-                    isApproved={isApproved}
-                    approvedTemplate={post.selected_template as 'A' | 'B' | null}
-                  />
-                </div>
-                <div className="h-full flex flex-col min-w-0 lg:min-w-[520px] lg:max-w-[620px]">
-                  <CarouselPreview
-                    key={`template-b-${post.id}`}
-                    images={templateBImages}
-                    archivedSlides={archivedSlidesB}
-                    template="B"
-                    onSelect={() => setSelectedTemplate('B')}
-                    isSelected={selectedTemplate === 'B'}
-                    onRemoveSlide={(index) => handleRemoveSlide('B', index)}
-                    onRestoreSlide={(index) => handleRestoreSlide('B', index)}
-                    onReorderSlides={(newOrder) => handleReorderSlides('B', newOrder)}
-                    isApproved={isApproved}
-                    approvedTemplate={post.selected_template as 'A' | 'B' | null}
-                  />
-                </div>
+      {/* Main Content Area - Responsive */}
+      <div className="max-w-[1440px] mx-auto px-4 sm:px-6 lg:px-8 py-6 md:py-8">
+
+        {/* Templates - Side by side with equal height and responsive gap */}
+        <div ref={templatesRef} className="grid grid-cols-1 lg:grid-cols-2 gap-8 lg:gap-10 xl:gap-12 mb-6 md:mb-8 max-w-[1440px] mx-auto">
+          <div className="h-full flex flex-col min-w-0 lg:min-w-[520px] lg:max-w-[620px]">
+            <CarouselPreview
+              key={`template-a-${post.id}`}
+              images={templateAImages}
+              archivedSlides={archivedSlidesA}
+              template="A"
+              onSelect={() => setSelectedTemplate('A')}
+              isSelected={selectedTemplate === 'A'}
+              onRemoveSlide={(index) => handleRemoveSlide('A', index)}
+              onRestoreSlide={(index) => handleRestoreSlide('A', index)}
+              onReorderSlides={(newOrder) => handleReorderSlides('A', newOrder)}
+              isApproved={isApproved}
+              approvedTemplate={post.selected_template as 'A' | 'B' | null}
+            />
+          </div>
+          <div className="h-full flex flex-col min-w-0 lg:min-w-[520px] lg:max-w-[620px]">
+            <CarouselPreview
+              key={`template-b-${post.id}`}
+              images={templateBImages}
+              archivedSlides={archivedSlidesB}
+              template="B"
+              onSelect={() => setSelectedTemplate('B')}
+              isSelected={selectedTemplate === 'B'}
+              onRemoveSlide={(index) => handleRemoveSlide('B', index)}
+              onRestoreSlide={(index) => handleRestoreSlide('B', index)}
+              onReorderSlides={(newOrder) => handleReorderSlides('B', newOrder)}
+              isApproved={isApproved}
+              approvedTemplate={post.selected_template as 'A' | 'B' | null}
+            />
+          </div>
+        </div>
+
+        {/* Image Validation Alert - Show when there are problems with current template images */}
+        {selectedTemplate && imageValidation.hasProblems && !validationAlertDismissed && !loading && (
+          <ImageValidationAlert
+            corsIssues={imageValidation.summary.corsIssues}
+            otherErrors={imageValidation.summary.otherErrors}
+            total={activeImagesForValidation.length}
+            validations={imageValidation.validations}
+            onDismiss={() => setValidationAlertDismissed(true)}
+          />
+        )}
+
+        {/* Slide Consistency Warning */}
+        {selectedTemplate && !validateSlideConsistency(selectedTemplate).valid && (
+          <Alert className="mb-6 border-yellow-500/50 bg-yellow-500/10">
+            <AlertTriangle className="h-4 w-4 text-yellow-600" />
+            <AlertDescription className="text-yellow-700 dark:text-yellow-500">
+              <strong>Inconsistência detetada:</strong> {validateSlideConsistency(selectedTemplate).message}
+              <br />
+              <span className="text-sm">Por favor, recarregue a página ou contacte o suporte.</span>
+            </AlertDescription>
+          </Alert>
+        )}
+
+        {/* Caption Editor with Platform Differentiation */}
+        <div className="mb-6 md:mb-8 space-y-6">
+          {/* Section Header */}
+          <div className="border-t border-border/60 pt-6">
+            <h2 className="text-lg font-semibold tracking-tight leading-snug mb-1">Legendas</h2>
+            <p className="text-sm text-muted-foreground">Configure as legendas para cada plataforma selecionada</p>
+          </div>
+          {/* Toggle for differentiated captions - Only show when both platforms active */}
+          {publishTargets.instagram && publishTargets.linkedin && (
+            <div className="flex items-center justify-between rounded-xl border border-border bg-card p-4 shadow-sm">
+            <div className="flex items-center gap-3">
+              {useDifferentCaptions ? (
+                <Unlink className="h-5 w-5 text-muted-foreground" />
+              ) : (
+                <Link2 className="h-5 w-5 text-primary" />
+              )}
+              <div>
+                <p className="font-semibold text-sm">
+                  {useDifferentCaptions ? 'Legendas Diferenciadas' : 'Mesma Legenda para Ambas'}
+                </p>
+                <p className="text-xs text-muted-foreground">
+                  {useDifferentCaptions 
+                    ? 'Cada plataforma terá sua própria legenda' 
+                    : 'Instagram e LinkedIn usarão a mesma legenda'}
+                </p>
               </div>
-
-              {/* Image Validation Alert - Show when there are problems with current template images */}
-              {selectedTemplate && imageValidation.hasProblems && !validationAlertDismissed && !loading && (
-                <ImageValidationAlert
-                  corsIssues={imageValidation.summary.corsIssues}
-                  otherErrors={imageValidation.summary.otherErrors}
-                  total={activeImagesForValidation.length}
-                  validations={imageValidation.validations}
-                  onDismiss={() => setValidationAlertDismissed(true)}
-                />
-              )}
-
-              {/* Slide Consistency Warning */}
-              {selectedTemplate && !validateSlideConsistency(selectedTemplate).valid && (
-                <Alert className="mb-6 border-yellow-500/50 bg-yellow-500/10">
-                  <AlertTriangle className="h-4 w-4 text-yellow-600" />
-                  <AlertDescription className="text-yellow-700 dark:text-yellow-500">
-                    <strong>Inconsistência detetada:</strong> {validateSlideConsistency(selectedTemplate).message}
-                    <br />
-                    <span className="text-sm">Por favor, recarregue a página ou contacte o suporte.</span>
-                  </AlertDescription>
-                </Alert>
-              )}
-
-              {/* Caption Editor with Platform Differentiation */}
-              <div className="mb-6 md:mb-8 space-y-6">
-                {/* Section Header */}
-                <div className="border-t border-border/60 pt-6">
-                  <h2 className="text-lg font-semibold tracking-tight leading-snug mb-1">Legendas</h2>
-                  <p className="text-sm text-muted-foreground">Configure as legendas para cada plataforma selecionada</p>
-                </div>
-                {/* Toggle for differentiated captions - Only show when both platforms active */}
-                {publishTargets.instagram && publishTargets.linkedin && (
-                  <div className="flex items-center justify-between rounded-xl border border-border bg-card p-4 shadow-sm">
-                  <div className="flex items-center gap-3">
-                    {useDifferentCaptions ? (
-                      <Unlink className="h-5 w-5 text-muted-foreground" />
-                    ) : (
-                      <Link2 className="h-5 w-5 text-primary" />
-                    )}
-                    <div>
-                      <p className="font-semibold text-sm">
-                        {useDifferentCaptions ? 'Legendas Diferenciadas' : 'Mesma Legenda para Ambas'}
-                      </p>
-                      <p className="text-xs text-muted-foreground">
-                        {useDifferentCaptions 
-                          ? 'Cada plataforma terá sua própria legenda' 
-                          : 'Instagram e LinkedIn usarão a mesma legenda'}
-                      </p>
-                    </div>
-                    </div>
-                    <Button
-                      variant={useDifferentCaptions ? "default" : "outline"}
-                      size="sm"
-                      onClick={() => {
-                        const newValue = !useDifferentCaptions;
-                        setUseDifferentCaptions(newValue);
-                        if (!newValue) {
-                          setLinkedinBody(caption);
-                        } else {
-                          setInstagramCaption(caption);
-                        }
-                      }}
-                      className="min-w-[100px]"
-                    >
-                      {useDifferentCaptions ? 'Unificar' : 'Diferenciar'}
-                    </Button>
-                  </div>
-                )}
+              </div>
+              <Button
+                variant={useDifferentCaptions ? "default" : "outline"}
+                size="sm"
+                onClick={() => {
+                  const newValue = !useDifferentCaptions;
+                  setUseDifferentCaptions(newValue);
+                  if (!newValue) {
+                    setLinkedinBody(caption);
+                  } else {
+                    setInstagramCaption(caption);
+                  }
+                }}
+                className="min-w-[100px]"
+              >
+                {useDifferentCaptions ? 'Unificar' : 'Diferenciar'}
+              </Button>
+            </div>
+          )}
 
                 {/* Unified Caption Editor (when both platforms + not differentiated) */}
                 {publishTargets.instagram && publishTargets.linkedin && !useDifferentCaptions && (
@@ -1658,9 +1656,8 @@ const Review = () => {
                 )}
               </div>
             </div>
-          </main>
 
-          <ActionBar
+      <ActionBar
             canApprove={
               !!selectedTemplate && 
               Object.values(publishTargets).some(active => active) &&
@@ -1687,8 +1684,6 @@ const Review = () => {
             instagramQuotaText={quotaText}
             instagramCanPublish={canPublishAnywhere}
           />
-        </div>
-      </div>
 
       {/* Publishing Modal */}
       <PublishModal
