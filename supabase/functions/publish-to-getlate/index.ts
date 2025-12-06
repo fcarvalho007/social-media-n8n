@@ -263,9 +263,13 @@ Deno.serve(async (req) => {
     const isVideoFormat = format.includes('reel') || format.includes('video') || format.includes('shorts') || format === 'tiktok_video';
     const mediaType: 'image' | 'video' = isVideoFormat ? 'video' : 'image';
 
+    // For formats that don't require captions (stories), use a space if empty
+    // Getlate API requires content to be non-empty
+    const contentToSend = caption?.trim() || ' ';
+
     // Build Getlate payload
     const getlatePayload: GetlatePostPayload = {
-      content: caption,
+      content: contentToSend,
       timezone: 'Europe/Lisbon',
       platforms: [{
         platform: network,
