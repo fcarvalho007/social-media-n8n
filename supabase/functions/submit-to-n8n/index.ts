@@ -5,20 +5,75 @@ const corsHeaders = {
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 };
 
+// All supported formats for approval workflow
+type Platform = 
+  // Instagram
+  | 'instagram_carousel'
+  | 'instagram_image'
+  | 'instagram_stories'
+  | 'instagram_reel'
+  // LinkedIn
+  | 'linkedin_post'
+  | 'linkedin_document'
+  | 'linkedin' // Legacy support
+  // YouTube
+  | 'youtube_shorts'
+  | 'youtube_video'
+  // TikTok
+  | 'tiktok_video'
+  // Facebook
+  | 'facebook_image'
+  | 'facebook_stories'
+  | 'facebook_reel';
+
 interface SubmitPayload {
-  platform: 'instagram_carousel' | 'instagram_stories' | 'linkedin';
+  platform: Platform;
   caption: string;
   media_urls: string[];
   scheduled_date?: string;
   scheduled_time?: string;
   publish_immediately: boolean;
   user_id: string;
+  formats?: string[];
 }
 
-const WEBHOOKS = {
+// Map formats to N8N webhooks
+const WEBHOOKS: Record<string, string> = {
+  // Instagram - use existing webhooks
   instagram_carousel: 'https://n8n.srv881120.hstgr.cloud/webhook/aprovacao-instagram',
+  instagram_image: 'https://n8n.srv881120.hstgr.cloud/webhook/aprovacao-instagram',
   instagram_stories: 'https://n8n.srv881120.hstgr.cloud/webhook/aprovacao-stories',
+  instagram_reel: 'https://n8n.srv881120.hstgr.cloud/webhook/aprovacao-instagram',
+  // LinkedIn - use existing webhook
   linkedin: 'https://n8n.srv881120.hstgr.cloud/webhook/aprovacao-linkedin',
+  linkedin_post: 'https://n8n.srv881120.hstgr.cloud/webhook/aprovacao-linkedin',
+  linkedin_document: 'https://n8n.srv881120.hstgr.cloud/webhook/aprovacao-linkedin',
+  // YouTube - use Instagram webhook for now (can be updated later)
+  youtube_shorts: 'https://n8n.srv881120.hstgr.cloud/webhook/aprovacao-instagram',
+  youtube_video: 'https://n8n.srv881120.hstgr.cloud/webhook/aprovacao-instagram',
+  // TikTok - use Instagram webhook for now (can be updated later)
+  tiktok_video: 'https://n8n.srv881120.hstgr.cloud/webhook/aprovacao-instagram',
+  // Facebook - use Instagram webhook for now (can be updated later)
+  facebook_image: 'https://n8n.srv881120.hstgr.cloud/webhook/aprovacao-instagram',
+  facebook_stories: 'https://n8n.srv881120.hstgr.cloud/webhook/aprovacao-stories',
+  facebook_reel: 'https://n8n.srv881120.hstgr.cloud/webhook/aprovacao-instagram',
+};
+
+// Map format to base network for quota
+const FORMAT_TO_NETWORK: Record<string, 'instagram' | 'linkedin' | 'youtube' | 'tiktok' | 'facebook'> = {
+  instagram_carousel: 'instagram',
+  instagram_image: 'instagram',
+  instagram_stories: 'instagram',
+  instagram_reel: 'instagram',
+  linkedin: 'linkedin',
+  linkedin_post: 'linkedin',
+  linkedin_document: 'linkedin',
+  youtube_shorts: 'youtube',
+  youtube_video: 'youtube',
+  tiktok_video: 'tiktok',
+  facebook_image: 'facebook',
+  facebook_stories: 'facebook',
+  facebook_reel: 'facebook',
 };
 
 async function sendToWebhook(url: string, payload: SubmitPayload, retries = 3): Promise<boolean> {
@@ -64,7 +119,7 @@ async function sendToWebhook(url: string, payload: SubmitPayload, retries = 3): 
 }
 
 // Função auxiliar para validar quota
-async function validateQuota(supabase: any, userId: string, platform: 'instagram' | 'linkedin'): Promise<{ canPublish: boolean; error?: string }> {
+async function validateQuota(supabase: any, userId: string, platform: string): Promise<{ canPublish: boolean; error?: string }> {
   try {
     const { data: override } = await supabase
       .from('quota_overrides')
@@ -89,7 +144,7 @@ async function validateQuota(supabase: any, userId: string, platform: 'instagram
 }
 
 // Função auxiliar para incrementar quota
-async function incrementQuota(supabase: any, userId: string, platform: 'instagram' | 'linkedin') {
+async function incrementQuota(supabase: any, userId: string, platform: string) {
   try {
     const { data: override } = await supabase
       .from('quota_overrides')
@@ -97,26 +152,37 @@ async function incrementQuota(supabase: any, userId: string, platform: 'instagra
       .eq('user_id', userId)
       .maybeSingle();
 
-    const fieldToUpdate = platform === 'instagram' ? 'instagram_used' : 'linkedin_used';
+    // Map platform to field name
+    const fieldMap: Record<string, string> = {
+      instagram: 'instagram_used',
+      linkedin: 'linkedin_used',
+      youtube: 'youtube_used',
+      facebook: 'facebook_used',
+      tiktok: 'tiktok_used',
+    };
+
+    const fieldToUpdate = fieldMap[platform] || 'instagram_used';
 
     if (override) {
+      const currentValue = override[fieldToUpdate] || 0;
       await supabase
         .from('quota_overrides')
         .update({ 
-          [fieldToUpdate]: override[fieldToUpdate] + 1,
+          [fieldToUpdate]: currentValue + 1,
           updated_at: new Date().toISOString()
         })
         .eq('user_id', userId);
     } else {
-      await supabase
-        .from('quota_overrides')
-        .insert({
-          user_id: userId,
-          instagram_used: platform === 'instagram' ? 1 : 0,
-          linkedin_used: platform === 'linkedin' ? 1 : 0,
-          instagram_limit: 5,
-          linkedin_limit: 5,
-        });
+      const insertData: Record<string, any> = {
+        user_id: userId,
+        instagram_used: 0,
+        linkedin_used: 0,
+        instagram_limit: 5,
+        linkedin_limit: 5,
+      };
+      insertData[fieldToUpdate] = 1;
+      
+      await supabase.from('quota_overrides').insert(insertData);
     }
 
     console.log(`✅ Quota incrementada: ${platform} para user ${userId}`);
@@ -157,13 +223,15 @@ Deno.serve(async (req) => {
     console.log(`Processing submission for platform: ${platform}`);
 
     // Validate platform
-    if (!['instagram_carousel', 'instagram_stories', 'linkedin'].includes(platform)) {
-      throw new Error('Invalid platform');
+    const validPlatforms = Object.keys(WEBHOOKS);
+    if (!validPlatforms.includes(platform)) {
+      console.log(`[submit-to-n8n] Invalid platform: ${platform}. Valid platforms: ${validPlatforms.join(', ')}`);
+      throw new Error(`Invalid platform: ${platform}`);
     }
 
     // Validar quota antes de publicar (apenas se publicação imediata)
     if (publish_immediately) {
-      const quotaPlatform = platform === 'linkedin' ? 'linkedin' : 'instagram';
+      const quotaPlatform = FORMAT_TO_NETWORK[platform] || 'instagram';
       const quotaCheck = await validateQuota(supabase, user.id, quotaPlatform);
       
       if (!quotaCheck.canPublish) {
@@ -192,7 +260,7 @@ Deno.serve(async (req) => {
 
     // Incrementar quota após sucesso (apenas se publicação imediata)
     if (publish_immediately) {
-      const quotaPlatform = platform === 'linkedin' ? 'linkedin' : 'instagram';
+      const quotaPlatform = FORMAT_TO_NETWORK[platform] || 'instagram';
       await incrementQuota(supabase, user.id, quotaPlatform);
     }
 

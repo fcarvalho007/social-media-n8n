@@ -38,3 +38,6 @@ verify_jwt = true
 
 [functions.improve-caption]
 verify_jwt = true
+
+[functions.publish-to-getlate]
+verify_jwt = true

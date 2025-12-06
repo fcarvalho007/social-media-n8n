@@ -34,7 +34,7 @@ import SavedCaptionsDialog from '@/components/manual-post/SavedCaptionsDialog';
 import AICaptionDialog from '@/components/manual-post/AICaptionDialog';
 import { NetworkFormatSelector } from '@/components/manual-post/NetworkFormatSelector';
 import { getMediaRequirements, validateAllFormats, getValidationSummary, FormatValidationResult } from '@/lib/formatValidation';
-import { INSTAGRAM_CONFIG, LINKEDIN_CONFIG } from '@/types/publishing';
+import { INSTAGRAM_CONFIG, LINKEDIN_CONFIG, FORMAT_TO_NETWORK, FORMAT_TO_ACCOUNT } from '@/types/publishing';
 import EmojiPicker, { EmojiClickData } from 'emoji-picker-react';
 
 export default function ManualCreate() {
@@ -473,16 +473,6 @@ export default function ManualCreate() {
       return;
     }
 
-    // Check for unsupported formats
-    const unsupportedFormats = selectedFormats.filter(f => 
-      f.includes('stories') || f.includes('reel') || f.includes('tiktok') || f.includes('youtube')
-    );
-    
-    if (unsupportedFormats.length > 0) {
-      toast.error('Alguns formatos não suportam publicação direta. Use "Submeter" para aprovação.', { duration: 5000 });
-      return;
-    }
-
     try {
       setPublishing(true);
       setUploadProgress(0);
@@ -521,31 +511,23 @@ export default function ManualCreate() {
       toast.dismiss('publish-upload');
       setUploadProgress(50);
 
-      // Publish to each supported platform
+      // Publish to each format using publish-to-getlate
       const primaryFormat = selectedFormats[0];
-      const platform = primaryFormat.startsWith('linkedin_') ? 'linkedin' : 'instagram';
+      const network = FORMAT_TO_NETWORK[primaryFormat] || 'instagram';
       const postId = `manual-${Date.now()}`;
-
-      const publishPayload: Record<string, any> = {
-        post_id: postId,
-        images: mediaUrls,
-      };
-
-      if (platform === 'instagram') {
-        publishPayload.caption_final = caption;
-        publishPayload.account_id = INSTAGRAM_CONFIG.accountId;
-      } else {
-        publishPayload.body_final = caption;
-        publishPayload.member_urn = LINKEDIN_CONFIG.memberUrn;
-      }
 
       toast.loading('A publicar...', { id: 'publish-now' });
       setUploadProgress(70);
 
-      const { data: publishResult, error: publishError } = await supabase.functions.invoke('publish-proxy', {
+      // Use the new publish-to-getlate edge function for direct publishing
+      const { data: publishResult, error: publishError } = await supabase.functions.invoke('publish-to-getlate', {
         body: {
-          platform,
-          ...publishPayload,
+          format: primaryFormat,
+          caption,
+          media_urls: mediaUrls,
+          scheduled_date: scheduledDate ? scheduledDate.toISOString().split('T')[0] : undefined,
+          scheduled_time: time || undefined,
+          publish_immediately: scheduleAsap || !scheduledDate,
         },
       });
 
@@ -564,11 +546,11 @@ export default function ManualCreate() {
 
       const postData = {
         user_id: user.id,
-        post_type: primaryFormat.includes('carousel') ? 'carousel' : 'text',
-        selected_networks: [platform] as any,
+        post_type: primaryFormat.includes('carousel') ? 'carousel' : primaryFormat.includes('video') || primaryFormat.includes('reel') || primaryFormat.includes('shorts') ? 'video' : 'image',
+        selected_networks: [network] as any,
         caption,
-        scheduled_date: new Date().toISOString(),
-        schedule_asap: true,
+        scheduled_date: scheduledDate?.toISOString() || new Date().toISOString(),
+        schedule_asap: scheduleAsap || !scheduledDate,
         status: 'published',
         origin_mode: 'manual',
         tema: 'Manual post',
@@ -577,8 +559,9 @@ export default function ManualCreate() {
         workflow_id: postId,
         published_at: new Date().toISOString(),
         publish_metadata: {
-          published_via: 'manual_create',
-          platform,
+          published_via: 'manual_create_getlate',
+          format: primaryFormat,
+          network,
           result: publishResult,
         },
       };
@@ -588,16 +571,7 @@ export default function ManualCreate() {
 
       setUploadProgress(95);
 
-      try {
-        await supabase.functions.invoke('increment-quota', {
-          body: {
-            platform,
-            post_type: primaryFormat.includes('carousel') ? 'carousel' : 'post',
-          },
-        });
-      } catch (quotaErr) {
-        console.warn('[ManualCreate] Quota increment failed:', quotaErr);
-      }
+      // Note: Quota is now incremented by the publish-to-getlate function
 
       setUploadProgress(100);
 
