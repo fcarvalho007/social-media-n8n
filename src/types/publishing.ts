@@ -65,6 +65,55 @@ export const LINKEDIN_CONFIG = {
   accountId: 'not-applicable',
 };
 
+export const YOUTUBE_CONFIG = {
+  accountId: '69344efdf43160a0bc99a480',
+};
+
+export const FACEBOOK_CONFIG = {
+  accountId: '69344f55f43160a0bc99a481',
+};
+
+export const TIKTOK_CONFIG = {
+  accountId: '69344fdef43160a0bc99a484',
+};
+
+// Map format to account configuration
+export const FORMAT_TO_ACCOUNT: Record<string, string> = {
+  // Instagram
+  instagram_carousel: INSTAGRAM_CONFIG.accountId,
+  instagram_image: INSTAGRAM_CONFIG.accountId,
+  instagram_stories: INSTAGRAM_CONFIG.accountId,
+  instagram_reel: INSTAGRAM_CONFIG.accountId,
+  // LinkedIn
+  linkedin_post: LINKEDIN_CONFIG.memberUrn,
+  linkedin_document: LINKEDIN_CONFIG.memberUrn,
+  // YouTube
+  youtube_shorts: YOUTUBE_CONFIG.accountId,
+  youtube_video: YOUTUBE_CONFIG.accountId,
+  // TikTok
+  tiktok_video: TIKTOK_CONFIG.accountId,
+  // Facebook
+  facebook_image: FACEBOOK_CONFIG.accountId,
+  facebook_stories: FACEBOOK_CONFIG.accountId,
+  facebook_reel: FACEBOOK_CONFIG.accountId,
+};
+
+// Map format to network name
+export const FORMAT_TO_NETWORK: Record<string, string> = {
+  instagram_carousel: 'instagram',
+  instagram_image: 'instagram',
+  instagram_stories: 'instagram',
+  instagram_reel: 'instagram',
+  linkedin_post: 'linkedin',
+  linkedin_document: 'linkedin',
+  youtube_shorts: 'youtube',
+  youtube_video: 'youtube',
+  tiktok_video: 'tiktok',
+  facebook_image: 'facebook',
+  facebook_stories: 'facebook',
+  facebook_reel: 'facebook',
+};
+
 export const PLATFORM_CONSTRAINTS = {
   instagram: {
     caption: {
