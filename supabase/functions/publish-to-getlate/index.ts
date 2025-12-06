@@ -5,13 +5,13 @@ const corsHeaders = {
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 };
 
-// Getlate.dev Account IDs
+// Getlate.dev Account IDs (obtained from GET /v1/accounts)
 const GETLATE_ACCOUNTS: Record<string, string> = {
-  instagram: '68fb951d8bbca9c10cbfef93',
-  linkedin: 'urn:li:person:ojg2Ri_Otv', // LinkedIn usa memberUrn
-  youtube: '69344efdf43160a0bc99a480',
-  facebook: '69344f55f43160a0bc99a481',
-  tiktok: '69344fdef43160a0bc99a484',
+  instagram: '68bc4a92b0781fb60ecb403f', // frederico.m.carvalho
+  linkedin: '68fb951d8bbca9c10cbfef93',  // Frederico Carvalho
+  youtube: '69344efdf43160a0bc99a480',   // fredericocarvalho
+  facebook: '69344f55f43160a0bc99a481',  // fredericodigital
+  tiktok: '69344fdef43160a0bc99a484',    // frederico.m.carvalho
 };
 
 // Map format to base network
