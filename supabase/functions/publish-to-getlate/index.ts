@@ -48,10 +48,10 @@ interface GetlatePostPayload {
   content: string;
   scheduledFor?: string;
   timezone: string;
+  type?: 'post' | 'story' | 'reel' | 'carousel';
   platforms: Array<{
     platform: string;
     accountId: string;
-    type?: 'post' | 'story' | 'reel' | 'carousel';
   }>;
   mediaItems?: Array<{
     type: 'image' | 'video';
@@ -282,10 +282,10 @@ Deno.serve(async (req) => {
     const getlatePayload: GetlatePostPayload = {
       content: contentToSend,
       timezone: 'Europe/Lisbon',
+      type: postType,
       platforms: [{
         platform: network,
         accountId: accountId,
-        type: postType,
       }],
       mediaItems: media_urls.map(url => ({
         type: mediaType,
