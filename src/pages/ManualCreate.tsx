@@ -1,4 +1,4 @@
-import { useState, useRef, useMemo } from 'react';
+import { useState, useRef, useMemo, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { supabase } from '@/integrations/supabase/client';
 import { PostFormat, getNetworkFromFormat, getFormatConfig } from '@/types/social';
@@ -35,6 +35,11 @@ import AICaptionDialog from '@/components/manual-post/AICaptionDialog';
 import { NetworkFormatSelector } from '@/components/manual-post/NetworkFormatSelector';
 import { getMediaRequirements, validateAllFormats, getValidationSummary, FormatValidationResult } from '@/lib/formatValidation';
 import { INSTAGRAM_CONFIG, LINKEDIN_CONFIG, FORMAT_TO_NETWORK, FORMAT_TO_ACCOUNT } from '@/types/publishing';
+import { PublishingOverlay } from '@/components/manual-post/PublishingOverlay';
+import { SortableMediaItem } from '@/components/manual-post/SortableMediaItem';
+import { DndContext, closestCenter, DragEndEvent, PointerSensor, useSensor, useSensors } from '@dnd-kit/core';
+import { SortableContext, arrayMove, horizontalListSortingStrategy } from '@dnd-kit/sortable';
+import { generateCarouselPDF } from '@/lib/pdfGenerator';
 import EmojiPicker, { EmojiClickData } from 'emoji-picker-react';
 
 export default function ManualCreate() {
@@ -57,7 +62,33 @@ export default function ManualCreate() {
   const [aiDialogOpen, setAiDialogOpen] = useState(false);
   const [emojiPickerOpen, setEmojiPickerOpen] = useState(false);
   const [activePreviewTab, setActivePreviewTab] = useState<string>('');
+  const [publishStage, setPublishStage] = useState<'uploading' | 'generating_pdf' | 'publishing' | 'success'>('publishing');
   const textareaRef = useRef<HTMLTextAreaElement>(null);
+
+  // DnD sensors for drag and drop
+  const sensors = useSensors(
+    useSensor(PointerSensor, {
+      activationConstraint: {
+        distance: 5,
+      },
+    })
+  );
+
+  // Handle drag end for media reordering
+  const handleDragEnd = useCallback((event: DragEndEvent) => {
+    const { active, over } = event;
+    
+    if (over && active.id !== over.id) {
+      const oldIndex = mediaPreviewUrls.findIndex((_, i) => `media-${i}` === active.id);
+      const newIndex = mediaPreviewUrls.findIndex((_, i) => `media-${i}` === over.id);
+      
+      if (oldIndex !== -1 && newIndex !== -1) {
+        setMediaPreviewUrls(prev => arrayMove(prev, oldIndex, newIndex));
+        setMediaFiles(prev => arrayMove(prev, oldIndex, newIndex));
+        toast.success('Ordem atualizada');
+      }
+    }
+  }, [mediaPreviewUrls]);
 
   // Compute media requirements based on selected formats
   const mediaRequirements = useMemo(() => getMediaRequirements(selectedFormats), [selectedFormats]);
@@ -476,6 +507,7 @@ export default function ManualCreate() {
     try {
       setPublishing(true);
       setUploadProgress(0);
+      setPublishStage('uploading');
 
       const { data: { user }, error: authError } = await supabase.auth.getUser();
       if (authError || !user) {
@@ -483,21 +515,20 @@ export default function ManualCreate() {
         return;
       }
 
-      toast.loading('A carregar ficheiros...', { id: 'publish-upload' });
       const mediaUrls: string[] = [];
       const totalFiles = mediaFiles.length;
 
+      // Upload images first
       for (let i = 0; i < totalFiles; i++) {
         const file = mediaFiles[i];
         const fileName = `${user.id}/${Date.now()}-${file.name}`;
-        setUploadProgress(Math.round((i / totalFiles) * 40));
+        setUploadProgress(Math.round((i / totalFiles) * 35));
 
         const { error: uploadError } = await supabase.storage
           .from('pdfs')
           .upload(fileName, file);
 
         if (uploadError) {
-          toast.dismiss('publish-upload');
           throw new Error(`Erro ao carregar ${file.name}`);
         }
 
@@ -508,23 +539,68 @@ export default function ManualCreate() {
         mediaUrls.push(publicUrl);
       }
 
-      toast.dismiss('publish-upload');
-      setUploadProgress(50);
+      setUploadProgress(40);
 
-      // Publish to each format using publish-to-getlate
       const primaryFormat = selectedFormats[0];
       const network = FORMAT_TO_NETWORK[primaryFormat] || 'instagram';
       const postId = `manual-${Date.now()}`;
 
-      toast.loading('A publicar...', { id: 'publish-now' });
-      setUploadProgress(70);
+      // Check if this is a LinkedIn document - need to generate PDF
+      let finalMediaUrls = mediaUrls;
+      const isLinkedInDocument = primaryFormat === 'linkedin_document';
+      
+      if (isLinkedInDocument && mediaUrls.length > 0) {
+        setPublishStage('generating_pdf');
+        setUploadProgress(50);
+        
+        try {
+          // Generate PDF from images
+          const pdfBlob = await generateCarouselPDF({ 
+            images: mediaUrls,
+            title: 'carousel',
+            quality: 0.9 
+          });
+          
+          setUploadProgress(60);
+          
+          // Upload PDF to storage
+          const pdfFileName = `${user.id}/${Date.now()}-carousel.pdf`;
+          const { error: pdfUploadError } = await supabase.storage
+            .from('pdfs')
+            .upload(pdfFileName, pdfBlob, {
+              contentType: 'application/pdf',
+            });
+          
+          if (pdfUploadError) {
+            throw new Error('Erro ao carregar PDF gerado');
+          }
+          
+          const { data: { publicUrl: pdfUrl } } = supabase.storage
+            .from('pdfs')
+            .getPublicUrl(pdfFileName);
+          
+          // Use PDF URL as the media for LinkedIn document
+          finalMediaUrls = [pdfUrl];
+          setUploadProgress(70);
+          
+          toast.success('PDF gerado com sucesso!');
+        } catch (pdfError) {
+          console.error('PDF generation error:', pdfError);
+          toast.error('Erro ao gerar PDF. A publicar imagens diretamente...');
+          // Fall back to original images
+          finalMediaUrls = mediaUrls;
+        }
+      }
 
-      // Use the new publish-to-getlate edge function for direct publishing
+      setPublishStage('publishing');
+      setUploadProgress(75);
+
+      // Use the publish-to-getlate edge function for direct publishing
       const { data: publishResult, error: publishError } = await supabase.functions.invoke('publish-to-getlate', {
         body: {
           format: primaryFormat,
           caption,
-          media_urls: mediaUrls,
+          media_urls: finalMediaUrls,
           scheduled_date: scheduledDate ? scheduledDate.toISOString().split('T')[0] : undefined,
           scheduled_time: time || undefined,
           publish_immediately: scheduleAsap || !scheduledDate,
@@ -532,21 +608,18 @@ export default function ManualCreate() {
       });
 
       if (publishError) {
-        toast.dismiss('publish-now');
         throw new Error('Erro ao comunicar com o servidor de publicação');
       }
 
       if (!publishResult?.success) {
-        toast.dismiss('publish-now');
         throw new Error(publishResult?.error || 'Falha ao publicar');
       }
 
-      toast.dismiss('publish-now');
-      setUploadProgress(85);
+      setUploadProgress(90);
 
       const postData = {
         user_id: user.id,
-        post_type: primaryFormat.includes('carousel') ? 'carousel' : primaryFormat.includes('video') || primaryFormat.includes('reel') || primaryFormat.includes('shorts') ? 'video' : 'image',
+        post_type: primaryFormat.includes('carousel') || primaryFormat === 'linkedin_document' ? 'carousel' : primaryFormat.includes('video') || primaryFormat.includes('reel') || primaryFormat.includes('shorts') ? 'video' : 'image',
         selected_networks: [network] as any,
         caption,
         scheduled_date: scheduledDate?.toISOString() || new Date().toISOString(),
@@ -563,17 +636,18 @@ export default function ManualCreate() {
           format: primaryFormat,
           network,
           result: publishResult,
+          pdf_generated: isLinkedInDocument,
         },
       };
 
       const { error: dbError } = await supabase.from('posts').insert(postData);
       if (dbError) console.error('[ManualCreate] DB insert error:', dbError);
 
-      setUploadProgress(95);
-
-      // Note: Quota is now incremented by the publish-to-getlate function
-
       setUploadProgress(100);
+      setPublishStage('success');
+
+      // Wait a moment to show success state
+      await new Promise(resolve => setTimeout(resolve, 1500));
 
       toast.success('Publicação enviada com sucesso!', { duration: 4000 });
 
@@ -586,7 +660,7 @@ export default function ManualCreate() {
       setCurrentDraftId(null);
       setSelectedFormats([]);
 
-      setTimeout(() => navigate('/calendar'), 1500);
+      setTimeout(() => navigate('/calendar'), 500);
     } catch (error) {
       console.error('[ManualCreate] Publish error:', error);
       const errorMsg = error instanceof Error ? error.message : 'Erro ao publicar. Tente novamente.';
@@ -594,6 +668,7 @@ export default function ManualCreate() {
     } finally {
       setPublishing(false);
       setUploadProgress(0);
+      setPublishStage('publishing');
     }
   };
 
@@ -739,28 +814,35 @@ export default function ManualCreate() {
                 {isUploading && <Progress value={uploadProgress} className="h-2" />}
                 
                 {mediaPreviewUrls.length > 0 && (
-                  <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
-                    {mediaPreviewUrls.map((url, idx) => (
-                      <div key={idx} className="relative aspect-square rounded-lg overflow-hidden border border-border group">
-                        <img 
-                          src={url} 
-                          alt={`Pré-visualização ${idx + 1} de ${mediaPreviewUrls.length}`} 
-                          className="w-full h-full object-cover" 
-                        />
-                        <button
-                          type="button"
-                          onClick={() => removeMedia(idx)}
-                          disabled={saving || submitting}
-                          aria-label={`Remover imagem ${idx + 1}`}
-                          className="absolute top-1 right-1 p-1.5 rounded-full bg-destructive text-destructive-foreground opacity-0 group-hover:opacity-100 transition-opacity disabled:opacity-50 disabled:cursor-not-allowed hover:scale-110"
-                        >
-                          <X className="h-3 w-3" />
-                        </button>
-                        <div className="absolute bottom-1 left-1 bg-background/80 backdrop-blur-sm px-1.5 py-0.5 rounded text-xs">
-                          {idx + 1}/{mediaPreviewUrls.length}
+                  <div className="space-y-2">
+                    <div className="flex items-center justify-between text-xs text-muted-foreground">
+                      <span>Arraste para reordenar</span>
+                      <span>{mediaPreviewUrls.length} ficheiro(s)</span>
+                    </div>
+                    <DndContext
+                      sensors={sensors}
+                      collisionDetection={closestCenter}
+                      onDragEnd={handleDragEnd}
+                    >
+                      <SortableContext
+                        items={mediaPreviewUrls.map((_, i) => `media-${i}`)}
+                        strategy={horizontalListSortingStrategy}
+                      >
+                        <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
+                          {mediaPreviewUrls.map((url, idx) => (
+                            <SortableMediaItem
+                              key={`media-${idx}`}
+                              id={`media-${idx}`}
+                              url={url}
+                              index={idx}
+                              total={mediaPreviewUrls.length}
+                              disabled={saving || submitting || publishing}
+                              onRemove={removeMedia}
+                            />
+                          ))}
                         </div>
-                      </div>
-                    ))}
+                      </SortableContext>
+                    </DndContext>
                   </div>
                 )}
               </CardContent>
@@ -1097,6 +1179,14 @@ export default function ManualCreate() {
         onOpenChange={setAiDialogOpen}
         currentCaption={caption}
         onApplyCaption={setCaption}
+      />
+
+      {/* Publishing Overlay */}
+      <PublishingOverlay
+        isVisible={publishing}
+        progress={uploadProgress}
+        currentNetwork={selectedFormats.length > 0 ? FORMAT_TO_NETWORK[selectedFormats[0]] : undefined}
+        stage={publishStage}
       />
     </div>
   );
