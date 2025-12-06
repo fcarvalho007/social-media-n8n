@@ -48,10 +48,12 @@ interface GetlatePostPayload {
   content: string;
   scheduledFor?: string;
   timezone: string;
-  type?: 'post' | 'story' | 'reel' | 'carousel';
   platforms: Array<{
     platform: string;
     accountId: string;
+    platformSpecificData?: {
+      contentType?: 'story' | 'reel';
+    };
   }>;
   mediaItems?: Array<{
     type: 'image' | 'video';
@@ -268,24 +270,23 @@ Deno.serve(async (req) => {
     // Getlate API requires content to be non-empty
     const contentToSend = caption?.trim() || ' ';
 
-    // Determine post type for platform
-    const getPostType = (format: string): 'post' | 'story' | 'reel' | 'carousel' | undefined => {
-      if (format.includes('stories')) return 'story';
-      if (format.includes('reel') || format.includes('shorts')) return 'reel';
-      if (format.includes('carousel')) return 'carousel';
-      return 'post'; // Default to regular post
+    // Determine platformSpecificData for content type
+    const getPlatformSpecificData = (format: string): { contentType?: 'story' | 'reel' } | undefined => {
+      if (format.includes('stories')) return { contentType: 'story' };
+      if (format.includes('reel') || format.includes('shorts')) return { contentType: 'reel' };
+      return undefined; // Regular post doesn't need platformSpecificData
     };
 
-    const postType = getPostType(format);
+    const platformSpecificData = getPlatformSpecificData(format);
 
     // Build Getlate payload
     const getlatePayload: GetlatePostPayload = {
       content: contentToSend,
       timezone: 'Europe/Lisbon',
-      type: postType,
       platforms: [{
         platform: network,
         accountId: accountId,
+        ...(platformSpecificData && { platformSpecificData }),
       }],
       mediaItems: media_urls.map(url => ({
         type: mediaType,
