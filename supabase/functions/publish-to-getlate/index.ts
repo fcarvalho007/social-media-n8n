@@ -59,7 +59,7 @@ interface GetlatePostPayload {
 }
 
 async function publishToGetlate(apiToken: string, payload: GetlatePostPayload, retries = 3): Promise<{ success: boolean; data?: any; error?: string }> {
-  const apiUrl = 'https://api.getlate.dev/v1/posts';
+  const apiUrl = 'https://getlate.dev/api/v1/posts';
   
   for (let attempt = 1; attempt <= retries; attempt++) {
     try {
