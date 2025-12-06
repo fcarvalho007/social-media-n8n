@@ -51,6 +51,7 @@ interface GetlatePostPayload {
   platforms: Array<{
     platform: string;
     accountId: string;
+    type?: 'post' | 'story' | 'reel' | 'carousel';
   }>;
   mediaItems?: Array<{
     type: 'image' | 'video';
@@ -267,6 +268,16 @@ Deno.serve(async (req) => {
     // Getlate API requires content to be non-empty
     const contentToSend = caption?.trim() || ' ';
 
+    // Determine post type for platform
+    const getPostType = (format: string): 'post' | 'story' | 'reel' | 'carousel' | undefined => {
+      if (format.includes('stories')) return 'story';
+      if (format.includes('reel') || format.includes('shorts')) return 'reel';
+      if (format.includes('carousel')) return 'carousel';
+      return 'post'; // Default to regular post
+    };
+
+    const postType = getPostType(format);
+
     // Build Getlate payload
     const getlatePayload: GetlatePostPayload = {
       content: contentToSend,
@@ -274,6 +285,7 @@ Deno.serve(async (req) => {
       platforms: [{
         platform: network,
         accountId: accountId,
+        type: postType,
       }],
       mediaItems: media_urls.map(url => ({
         type: mediaType,
