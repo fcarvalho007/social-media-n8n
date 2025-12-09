@@ -63,6 +63,9 @@ export default function ManualCreate() {
   const [emojiPickerOpen, setEmojiPickerOpen] = useState(false);
   const [activePreviewTab, setActivePreviewTab] = useState<string>('');
   const [publishStage, setPublishStage] = useState<'uploading' | 'generating_pdf' | 'publishing' | 'success'>('publishing');
+  const [currentPublishingNetwork, setCurrentPublishingNetwork] = useState<string>('');
+  const [completedNetworks, setCompletedNetworks] = useState<string[]>([]);
+  const [shouldCancel, setShouldCancel] = useState(false);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
 
   // DnD sensors for drag and drop
@@ -211,10 +214,14 @@ export default function ManualCreate() {
       return;
     }
 
-    // Validate file types
+    // Validate file types - support video for posts (not just carousels/documents)
     const validTypes = ['image/jpeg', 'image/jpg', 'image/png', 'image/webp'];
-    if (!mediaRequirements.requiresImage) {
-      validTypes.push('video/mp4');
+    const supportsVideo = selectedFormats.some(f => 
+      f.includes('reel') || f.includes('stories') || f.includes('shorts') || f.includes('video') ||
+      f === 'instagram_image' || f === 'linkedin_post' || f === 'facebook_image' || f === 'tiktok_video'
+    );
+    if (supportsVideo || !mediaRequirements.requiresImage) {
+      validTypes.push('video/mp4', 'video/quicktime', 'video/webm');
     }
     const invalidTypes = files.filter(file => !validTypes.includes(file.type));
     if (invalidTypes.length > 0) {
@@ -508,6 +515,8 @@ export default function ManualCreate() {
       setPublishing(true);
       setUploadProgress(0);
       setPublishStage('uploading');
+      setCompletedNetworks([]);
+      setShouldCancel(false);
 
       const { data: { user }, error: authError } = await supabase.auth.getUser();
       if (authError || !user) {
@@ -520,9 +529,13 @@ export default function ManualCreate() {
 
       // Upload images first
       for (let i = 0; i < totalFiles; i++) {
+        if (shouldCancel) {
+          toast.info('Publicação cancelada');
+          return;
+        }
         const file = mediaFiles[i];
         const fileName = `${user.id}/${Date.now()}-${file.name}`;
-        setUploadProgress(Math.round((i / totalFiles) * 35));
+        setUploadProgress(Math.round((i / totalFiles) * 25));
 
         const { error: uploadError } = await supabase.storage
           .from('pdfs')
@@ -539,118 +552,149 @@ export default function ManualCreate() {
         mediaUrls.push(publicUrl);
       }
 
-      setUploadProgress(40);
-
-      const primaryFormat = selectedFormats[0];
-      const network = FORMAT_TO_NETWORK[primaryFormat] || 'instagram';
-      const postId = `manual-${Date.now()}`;
-
-      // Check if this is a LinkedIn document - need to generate PDF
-      let finalMediaUrls = mediaUrls;
-      const isLinkedInDocument = primaryFormat === 'linkedin_document';
+      setUploadProgress(30);
       
-      if (isLinkedInDocument && mediaUrls.length > 0) {
-        setPublishStage('generating_pdf');
-        setUploadProgress(50);
+      const postId = `manual-${Date.now()}`;
+      const totalFormats = selectedFormats.length;
+      const publishResults: { format: string; success: boolean; error?: string }[] = [];
+      let pdfUrl: string | null = null;
+
+      // Publish to each selected format
+      for (let i = 0; i < totalFormats; i++) {
+        if (shouldCancel) {
+          toast.info(`Publicação cancelada. ${i} de ${totalFormats} redes publicadas.`);
+          break;
+        }
+
+        const format = selectedFormats[i];
+        const network = FORMAT_TO_NETWORK[format] || 'instagram';
+        setCurrentPublishingNetwork(network);
         
-        try {
-          // Generate PDF from images
-          const pdfBlob = await generateCarouselPDF({ 
-            images: mediaUrls,
-            title: 'carousel',
-            quality: 0.9 
-          });
+        // Calculate progress: 30% for upload, 70% for publishing split between formats
+        const progressBase = 30;
+        const progressPerFormat = 60 / totalFormats;
+        setUploadProgress(Math.round(progressBase + (i * progressPerFormat)));
+
+        let finalMediaUrls = mediaUrls;
+        const isLinkedInDocument = format === 'linkedin_document';
+
+        // Generate PDF only once for linkedin_document
+        if (isLinkedInDocument && mediaUrls.length > 0) {
+          setPublishStage('generating_pdf');
           
-          setUploadProgress(60);
-          
-          // Upload PDF to storage
-          const pdfFileName = `${user.id}/${Date.now()}-carousel.pdf`;
-          const { error: pdfUploadError } = await supabase.storage
-            .from('pdfs')
-            .upload(pdfFileName, pdfBlob, {
-              contentType: 'application/pdf',
-            });
-          
-          if (pdfUploadError) {
-            throw new Error('Erro ao carregar PDF gerado');
+          if (!pdfUrl) {
+            try {
+              const pdfBlob = await generateCarouselPDF({ 
+                images: mediaUrls,
+                title: 'carousel',
+                quality: 0.9 
+              });
+
+              const pdfFileName = `${user.id}/${Date.now()}-carousel.pdf`;
+              const { error: pdfUploadError } = await supabase.storage
+                .from('pdfs')
+                .upload(pdfFileName, pdfBlob, {
+                  contentType: 'application/pdf',
+                });
+
+              if (pdfUploadError) {
+                throw new Error('Erro ao carregar PDF gerado');
+              }
+
+              const { data: { publicUrl } } = supabase.storage
+                .from('pdfs')
+                .getPublicUrl(pdfFileName);
+
+              pdfUrl = publicUrl;
+              toast.success('PDF gerado com sucesso!');
+            } catch (pdfError) {
+              console.error('PDF generation error:', pdfError);
+              toast.error('Erro ao gerar PDF. A publicar imagens diretamente...');
+            }
           }
           
-          const { data: { publicUrl: pdfUrl } } = supabase.storage
-            .from('pdfs')
-            .getPublicUrl(pdfFileName);
-          
-          // Use PDF URL as the media for LinkedIn document
-          finalMediaUrls = [pdfUrl];
-          setUploadProgress(70);
-          
-          toast.success('PDF gerado com sucesso!');
-        } catch (pdfError) {
-          console.error('PDF generation error:', pdfError);
-          toast.error('Erro ao gerar PDF. A publicar imagens diretamente...');
-          // Fall back to original images
-          finalMediaUrls = mediaUrls;
+          if (pdfUrl) {
+            finalMediaUrls = [pdfUrl];
+          }
         }
+
+        setPublishStage('publishing');
+
+        try {
+          const { data: publishResult, error: publishError } = await supabase.functions.invoke('publish-to-getlate', {
+            body: {
+              format,
+              caption,
+              media_urls: finalMediaUrls,
+              scheduled_date: scheduledDate ? scheduledDate.toISOString().split('T')[0] : undefined,
+              scheduled_time: time || undefined,
+              publish_immediately: scheduleAsap || !scheduledDate,
+            },
+          });
+
+          if (publishError) {
+            publishResults.push({ format, success: false, error: 'Erro de comunicação' });
+          } else if (!publishResult?.success) {
+            publishResults.push({ format, success: false, error: publishResult?.error || 'Falha' });
+          } else {
+            publishResults.push({ format, success: true });
+            setCompletedNetworks(prev => [...prev, network]);
+          }
+        } catch (err) {
+          publishResults.push({ format, success: false, error: 'Erro inesperado' });
+        }
+
+        setUploadProgress(Math.round(progressBase + ((i + 1) * progressPerFormat)));
       }
 
-      setPublishStage('publishing');
-      setUploadProgress(75);
+      // Save to database
+      const successfulFormats = publishResults.filter(r => r.success);
+      const failedFormats = publishResults.filter(r => !r.success);
 
-      // Use the publish-to-getlate edge function for direct publishing
-      const { data: publishResult, error: publishError } = await supabase.functions.invoke('publish-to-getlate', {
-        body: {
-          format: primaryFormat,
+      if (successfulFormats.length > 0) {
+        const postData = {
+          user_id: user.id,
+          post_type: selectedFormats.some(f => f.includes('carousel') || f === 'linkedin_document') ? 'carousel' : 
+                     selectedFormats.some(f => f.includes('video') || f.includes('reel') || f.includes('shorts')) ? 'video' : 'image',
+          selected_networks: selectedNetworks as any,
           caption,
-          media_urls: finalMediaUrls,
-          scheduled_date: scheduledDate ? scheduledDate.toISOString().split('T')[0] : undefined,
-          scheduled_time: time || undefined,
-          publish_immediately: scheduleAsap || !scheduledDate,
-        },
-      });
+          scheduled_date: scheduledDate?.toISOString() || new Date().toISOString(),
+          schedule_asap: scheduleAsap || !scheduledDate,
+          status: 'published',
+          origin_mode: 'manual',
+          tema: 'Manual post',
+          template_a_images: mediaUrls,
+          template_b_images: [],
+          workflow_id: postId,
+          published_at: new Date().toISOString(),
+          publish_metadata: {
+            published_via: 'manual_create_getlate',
+            formats: selectedFormats,
+            results: publishResults,
+            pdf_generated: !!pdfUrl,
+          },
+        };
 
-      if (publishError) {
-        throw new Error('Erro ao comunicar com o servidor de publicação');
+        const { error: dbError } = await supabase.from('posts').insert(postData);
+        if (dbError) console.error('[ManualCreate] DB insert error:', dbError);
       }
-
-      if (!publishResult?.success) {
-        throw new Error(publishResult?.error || 'Falha ao publicar');
-      }
-
-      setUploadProgress(90);
-
-      const postData = {
-        user_id: user.id,
-        post_type: primaryFormat.includes('carousel') || primaryFormat === 'linkedin_document' ? 'carousel' : primaryFormat.includes('video') || primaryFormat.includes('reel') || primaryFormat.includes('shorts') ? 'video' : 'image',
-        selected_networks: [network] as any,
-        caption,
-        scheduled_date: scheduledDate?.toISOString() || new Date().toISOString(),
-        schedule_asap: scheduleAsap || !scheduledDate,
-        status: 'published',
-        origin_mode: 'manual',
-        tema: 'Manual post',
-        template_a_images: mediaUrls,
-        template_b_images: [],
-        workflow_id: postId,
-        published_at: new Date().toISOString(),
-        publish_metadata: {
-          published_via: 'manual_create_getlate',
-          format: primaryFormat,
-          network,
-          result: publishResult,
-          pdf_generated: isLinkedInDocument,
-        },
-      };
-
-      const { error: dbError } = await supabase.from('posts').insert(postData);
-      if (dbError) console.error('[ManualCreate] DB insert error:', dbError);
 
       setUploadProgress(100);
       setPublishStage('success');
 
-      // Wait a moment to show success state
       await new Promise(resolve => setTimeout(resolve, 1500));
 
-      toast.success('Publicação enviada com sucesso!', { duration: 4000 });
+      // Show appropriate message
+      if (failedFormats.length === 0) {
+        toast.success(`Publicado em ${successfulFormats.length} rede(s) com sucesso!`, { duration: 4000 });
+      } else if (successfulFormats.length > 0) {
+        toast.warning(`Publicado em ${successfulFormats.length} rede(s). Falhou em ${failedFormats.length}.`, { duration: 5000 });
+      } else {
+        toast.error('Falha ao publicar em todas as redes', { duration: 5000 });
+        return;
+      }
 
+      // Reset form
       setCaption('');
       setMediaFiles([]);
       setMediaPreviewUrls([]);
@@ -669,6 +713,9 @@ export default function ManualCreate() {
       setPublishing(false);
       setUploadProgress(0);
       setPublishStage('publishing');
+      setCurrentPublishingNetwork('');
+      setCompletedNetworks([]);
+      setShouldCancel(false);
     }
   };
 
@@ -1185,8 +1232,11 @@ export default function ManualCreate() {
       <PublishingOverlay
         isVisible={publishing}
         progress={uploadProgress}
-        currentNetwork={selectedFormats.length > 0 ? FORMAT_TO_NETWORK[selectedFormats[0]] : undefined}
+        selectedNetworks={selectedNetworks}
+        currentNetwork={currentPublishingNetwork}
+        completedNetworks={completedNetworks}
         stage={publishStage}
+        onCancel={() => setShouldCancel(true)}
       />
     </div>
   );
