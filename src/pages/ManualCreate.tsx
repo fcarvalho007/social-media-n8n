@@ -42,6 +42,66 @@ import { SortableContext, arrayMove, horizontalListSortingStrategy } from '@dnd-
 import { generateCarouselPDF } from '@/lib/pdfGenerator';
 import EmojiPicker, { EmojiClickData } from 'emoji-picker-react';
 
+// Extract first frame from video file
+async function extractVideoFrame(videoFile: File | string): Promise<File> {
+  return new Promise((resolve, reject) => {
+    const video = document.createElement('video');
+    video.crossOrigin = 'anonymous';
+    video.preload = 'metadata';
+    
+    const cleanup = () => {
+      if (typeof videoFile !== 'string') {
+        URL.revokeObjectURL(video.src);
+      }
+    };
+    
+    video.onloadeddata = () => {
+      video.currentTime = 0.5; // Get frame at 0.5s for better thumbnail
+    };
+    
+    video.onseeked = () => {
+      try {
+        const canvas = document.createElement('canvas');
+        canvas.width = video.videoWidth || 1280;
+        canvas.height = video.videoHeight || 720;
+        const ctx = canvas.getContext('2d');
+        if (!ctx) {
+          cleanup();
+          reject(new Error('Could not get canvas context'));
+          return;
+        }
+        ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+        canvas.toBlob(
+          blob => {
+            cleanup();
+            if (blob) {
+              const fileName = typeof videoFile === 'string' 
+                ? 'video-frame.jpg' 
+                : videoFile.name.replace(/\.[^.]+$/, '-frame.jpg');
+              resolve(new File([blob], fileName, { type: 'image/jpeg' }));
+            } else {
+              reject(new Error('Could not create blob from canvas'));
+            }
+          },
+          'image/jpeg',
+          0.9
+        );
+      } catch (err) {
+        cleanup();
+        reject(err);
+      }
+    };
+    
+    video.onerror = () => {
+      cleanup();
+      reject(new Error('Could not load video'));
+    };
+    
+    video.src = typeof videoFile === 'string' ? videoFile : URL.createObjectURL(videoFile);
+    video.load();
+  });
+}
+
 export default function ManualCreate() {
   const navigate = useNavigate();
   const [selectedFormats, setSelectedFormats] = useState<PostFormat[]>([]);
@@ -214,13 +274,16 @@ export default function ManualCreate() {
       return;
     }
 
-    // Validate file types - support video for posts (not just carousels/documents)
+    // Validate file types - support video for carousels and posts
     const validTypes = ['image/jpeg', 'image/jpg', 'image/png', 'image/webp'];
     const supportsVideo = selectedFormats.some(f => 
       f.includes('reel') || f.includes('stories') || f.includes('shorts') || f.includes('video') ||
-      f === 'instagram_image' || f === 'linkedin_post' || f === 'facebook_image' || f === 'tiktok_video'
+      f === 'instagram_image' || f === 'instagram_carousel' || f === 'linkedin_post' || 
+      f === 'facebook_image' || f === 'tiktok_video'
     );
-    if (supportsVideo || !mediaRequirements.requiresImage) {
+    // Also allow video if we have linkedin_document (will extract frame for PDF)
+    const hasLinkedInDocument = selectedFormats.includes('linkedin_document');
+    if (supportsVideo || hasLinkedInDocument || !mediaRequirements.requiresImage) {
       validTypes.push('video/mp4', 'video/quicktime', 'video/webm');
     }
     const invalidTypes = files.filter(file => !validTypes.includes(file.type));
@@ -584,8 +647,45 @@ export default function ManualCreate() {
           
           if (!pdfUrl) {
             try {
+              // Extract frames from videos for PDF (LinkedIn Document only supports images)
+              const imageUrlsForPdf: string[] = [];
+              
+              for (let j = 0; j < mediaFiles.length; j++) {
+                const file = mediaFiles[j];
+                if (file.type.startsWith('video/')) {
+                  // Extract frame from video
+                  toast.info(`A extrair frame do vídeo ${j + 1}...`);
+                  try {
+                    const frameFile = await extractVideoFrame(file);
+                    const frameName = `${user.id}/${Date.now()}-frame-${j}.jpg`;
+                    
+                    const { error: frameUploadError } = await supabase.storage
+                      .from('pdfs')
+                      .upload(frameName, frameFile, { contentType: 'image/jpeg' });
+                    
+                    if (frameUploadError) throw frameUploadError;
+                    
+                    const { data: { publicUrl } } = supabase.storage
+                      .from('pdfs')
+                      .getPublicUrl(frameName);
+                    
+                    imageUrlsForPdf.push(publicUrl);
+                  } catch (frameError) {
+                    console.error('Frame extraction error:', frameError);
+                    toast.warning(`Não foi possível extrair frame do vídeo ${j + 1}`);
+                  }
+                } else {
+                  // Use the already uploaded image URL
+                  imageUrlsForPdf.push(mediaUrls[j]);
+                }
+              }
+              
+              if (imageUrlsForPdf.length === 0) {
+                throw new Error('Nenhuma imagem disponível para o PDF');
+              }
+              
               const pdfBlob = await generateCarouselPDF({ 
-                images: mediaUrls,
+                images: imageUrlsForPdf,
                 title: 'carousel',
                 quality: 0.9 
               });
