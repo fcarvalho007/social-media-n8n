@@ -1,12 +1,17 @@
 import { useEffect, useState } from 'react';
-import { Rocket, CheckCircle, Loader2, Upload, Send } from 'lucide-react';
+import { Rocket, CheckCircle, Loader2, Upload, X, Instagram, Linkedin, Youtube, Facebook, FileText } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import { Button } from '@/components/ui/button';
+import { Badge } from '@/components/ui/badge';
 
 interface PublishingOverlayProps {
   isVisible: boolean;
   progress: number;
+  selectedNetworks: string[];
   currentNetwork?: string;
+  completedNetworks?: string[];
   stage?: 'uploading' | 'generating_pdf' | 'publishing' | 'success';
+  onCancel?: () => void;
 }
 
 const stageMessages = {
@@ -23,7 +28,29 @@ const stageIcons = {
   success: CheckCircle,
 };
 
-export function PublishingOverlay({ isVisible, progress, currentNetwork, stage = 'publishing' }: PublishingOverlayProps) {
+const networkIcons: Record<string, React.ComponentType<{ className?: string }>> = {
+  instagram: Instagram,
+  linkedin: Linkedin,
+  youtube: Youtube,
+  facebook: Facebook,
+};
+
+const networkLabels: Record<string, string> = {
+  instagram: 'Instagram',
+  linkedin: 'LinkedIn',
+  youtube: 'YouTube',
+  facebook: 'Facebook',
+};
+
+export function PublishingOverlay({ 
+  isVisible, 
+  progress, 
+  selectedNetworks, 
+  currentNetwork, 
+  completedNetworks = [],
+  stage = 'publishing',
+  onCancel 
+}: PublishingOverlayProps) {
   const [dots, setDots] = useState('');
 
   useEffect(() => {
@@ -39,8 +66,8 @@ export function PublishingOverlay({ isVisible, progress, currentNetwork, stage =
   if (!isVisible) return null;
 
   const Icon = stageIcons[stage];
-  const message = stageMessages[stage];
   const isSuccess = stage === 'success';
+  const currentNetworkLabel = currentNetwork ? networkLabels[currentNetwork] || currentNetwork : '';
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-background/80 backdrop-blur-md animate-fade-in">
@@ -79,14 +106,42 @@ export function PublishingOverlay({ isVisible, progress, currentNetwork, stage =
         {/* Message */}
         <div className="text-center space-y-2">
           <h2 className="text-2xl font-bold text-foreground">
-            {isSuccess ? message : `${message}${dots}`}
+            {isSuccess ? stageMessages[stage] : `${stageMessages[stage]}${dots}`}
           </h2>
-          {currentNetwork && !isSuccess && (
-            <p className="text-muted-foreground capitalize">
-              {currentNetwork}
+          {currentNetworkLabel && !isSuccess && (
+            <p className="text-muted-foreground">
+              A publicar no <span className="font-semibold text-foreground">{currentNetworkLabel}</span>
             </p>
           )}
         </div>
+
+        {/* Selected Networks Badges */}
+        {selectedNetworks.length > 0 && (
+          <div className="flex flex-wrap justify-center gap-2">
+            {selectedNetworks.map(network => {
+              const NetworkIcon = networkIcons[network] || FileText;
+              const isCompleted = completedNetworks.includes(network);
+              const isCurrent = network === currentNetwork;
+              
+              return (
+                <Badge 
+                  key={network}
+                  variant={isCompleted ? "default" : isCurrent ? "secondary" : "outline"}
+                  className={cn(
+                    "flex items-center gap-2 px-3 py-1.5 text-sm transition-all",
+                    isCompleted && "bg-green-500/20 text-green-700 border-green-500/30",
+                    isCurrent && !isCompleted && "animate-pulse border-primary"
+                  )}
+                >
+                  <NetworkIcon className="w-4 h-4" />
+                  <span>{networkLabels[network] || network}</span>
+                  {isCompleted && <CheckCircle className="w-3 h-3" />}
+                  {isCurrent && !isCompleted && <Loader2 className="w-3 h-3 animate-spin" />}
+                </Badge>
+              );
+            })}
+          </div>
+        )}
 
         {/* Progress bar */}
         {!isSuccess && (
@@ -102,6 +157,19 @@ export function PublishingOverlay({ isVisible, progress, currentNetwork, stage =
               <span className="font-medium text-foreground">{progress}%</span>
             </div>
           </div>
+        )}
+
+        {/* Cancel button */}
+        {!isSuccess && onCancel && (
+          <Button
+            variant="outline"
+            size="lg"
+            onClick={onCancel}
+            className="gap-2 text-destructive border-destructive/30 hover:bg-destructive/10"
+          >
+            <X className="w-4 h-4" />
+            Cancelar
+          </Button>
         )}
 
         {/* Warning message */}
