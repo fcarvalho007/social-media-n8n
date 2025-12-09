@@ -138,33 +138,49 @@ export function NetworkFormatSelector({ selectedFormats, onFormatsChange }: Netw
     return ICON_MAP[iconName] || FileText;
   };
 
+  // Check if video will be converted to image for a format
+  const willConvertVideoToImage = (format: string) => {
+    return format === 'linkedin_document' && selectedFormats.some(f => 
+      f === 'instagram_carousel' || f === 'instagram_reel' || f.includes('video') || f.includes('reel')
+    );
+  };
+
   const renderFormatItem = (formatConfig: PostFormatConfig) => {
     const Icon = getFormatIcon(formatConfig.icon);
     const isSelected = selectedFormats.includes(formatConfig.format);
+    const showVideoWarning = isSelected && formatConfig.format === 'linkedin_document' && 
+      selectedFormats.some(f => f !== 'linkedin_document');
 
     return (
       <div
         key={formatConfig.format}
         onClick={() => toggleFormat(formatConfig.format)}
         className={cn(
-          "flex items-center gap-3 p-3 rounded-lg cursor-pointer transition-all border",
+          "flex flex-col gap-1 p-3 rounded-lg cursor-pointer transition-all border",
           isSelected 
             ? "border-primary bg-primary/5" 
             : "border-transparent hover:bg-accent/50"
         )}
       >
-        <Checkbox 
-          checked={isSelected}
-          onCheckedChange={() => toggleFormat(formatConfig.format)}
-          onClick={(e) => e.stopPropagation()}
-        />
-        <Icon className="h-4 w-4 text-muted-foreground" />
-        <div className="flex-1">
-          <p className="text-sm font-medium">{formatConfig.label}</p>
-          <p className="text-xs text-muted-foreground">{formatConfig.description}</p>
+        <div className="flex items-center gap-3">
+          <Checkbox 
+            checked={isSelected}
+            onCheckedChange={() => toggleFormat(formatConfig.format)}
+            onClick={(e) => e.stopPropagation()}
+          />
+          <Icon className="h-4 w-4 text-muted-foreground" />
+          <div className="flex-1">
+            <p className="text-sm font-medium">{formatConfig.label}</p>
+            <p className="text-xs text-muted-foreground">{formatConfig.description}</p>
+          </div>
+          {formatConfig.requiresVideo && (
+            <Badge variant="outline" className="text-xs">Vídeo</Badge>
+          )}
         </div>
-        {formatConfig.requiresVideo && (
-          <Badge variant="outline" className="text-xs">Vídeo</Badge>
+        {showVideoWarning && (
+          <p className="text-xs text-amber-600 dark:text-amber-400 ml-8 mt-1">
+            ⚠️ Vídeos serão convertidos em imagens para o PDF
+          </p>
         )}
       </div>
     );
