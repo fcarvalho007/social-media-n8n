@@ -9,19 +9,20 @@ import { Button } from '@/components/ui/button';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Input } from '@/components/ui/input';
-import { Switch } from '@/components/ui/switch';
 import { Calendar } from '@/components/ui/calendar';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
+import { Switch } from '@/components/ui/switch';
 import { Badge } from '@/components/ui/badge';
 import { Separator } from '@/components/ui/separator';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { toast } from 'sonner';
-import { Save, Send, Calendar as CalendarIcon, ArrowLeft, Instagram, Linkedin, Upload, Clock, FileText, Loader2, Rocket, Smile, Bookmark, Sparkles, Youtube, Facebook, ChevronLeft, ChevronRight, Info } from 'lucide-react';
+import { Save, Send, Calendar as CalendarIcon, ArrowLeft, Instagram, Linkedin, Upload, Clock, FileText, Loader2, Rocket, Smile, Bookmark, Sparkles, Youtube, Facebook, ChevronLeft, ChevronRight, Info, CloudUpload, Image, Video, Plus, CheckCircle, Hash, AtSign } from 'lucide-react';
 import { format } from 'date-fns';
 import { pt } from 'date-fns/locale';
 import { cn } from '@/lib/utils';
 import { Progress } from '@/components/ui/progress';
 import { StepProgress } from '@/components/manual-post/StepProgress';
+import { HashtagPicker } from '@/components/manual-post/HashtagPicker';
 import InstagramCarouselPreview from '@/components/manual-post/InstagramCarouselPreview';
 import InstagramStoryPreview from '@/components/manual-post/InstagramStoryPreview';
 import InstagramReelPreview from '@/components/manual-post/InstagramReelPreview';
@@ -1021,65 +1022,78 @@ export default function ManualCreate() {
           )}>
             <Card>
 
-              <CardHeader>
-                <CardTitle className="flex items-center gap-2">
+              <CardHeader className="pb-3">
+                <CardTitle className="text-lg flex items-center gap-2">
+                  <CloudUpload className="h-5 w-5 text-primary" />
                   Média
-                  <div className="flex gap-1">
-                    <Badge variant="outline" className="text-xs font-normal">PNG</Badge>
-                    <Badge variant="outline" className="text-xs font-normal">JPG</Badge>
-                    <Badge variant="outline" className="text-xs font-normal">MP4</Badge>
-                  </div>
                 </CardTitle>
-                <CardDescription>
-                  {mediaRequirements.requiresVideo 
-                    ? `Carregue ${mediaRequirements.minMedia} vídeo (MP4 - máx. 50MB)`
-                    : `Carregue ${mediaRequirements.minMedia}-${mediaRequirements.maxMedia} ficheiros • Máx. 50MB cada`
-                  }
-                </CardDescription>
               </CardHeader>
               <CardContent className="space-y-4">
-                <Label 
-                  htmlFor="media-upload" 
-                  className={cn(
-                    "cursor-pointer",
-                    (saving || submitting || isUploading) && "cursor-not-allowed opacity-50"
-                  )}
-                >
-                  <div className="flex flex-col items-center justify-center gap-2 h-32 rounded-lg border-2 border-dashed border-border hover:border-primary/50 transition-colors bg-muted/30">
-                    {isUploading ? (
-                      <>
-                        <Loader2 className="h-6 w-6 text-primary animate-spin" />
-                        <span className="text-sm text-muted-foreground">A processar ficheiros...</span>
-                      </>
-                    ) : (
-                      <>
-                        <Upload className="h-6 w-6 text-muted-foreground" aria-hidden="true" />
-                        <span className="text-sm text-muted-foreground">Arrasta ficheiros ou clica para selecionar</span>
-                        <span className="text-xs text-muted-foreground/70">
-                          mín. {mediaRequirements.minMedia}, máx. {mediaRequirements.maxMedia}
-                        </span>
-                      </>
+                {/* Upload Zone - Empty State */}
+                {mediaPreviewUrls.length === 0 && (
+                  <Label 
+                    htmlFor="media-upload" 
+                    className={cn(
+                      "cursor-pointer block",
+                      (saving || submitting || isUploading) && "cursor-not-allowed opacity-50"
                     )}
-                  </div>
-                  <Input
-                    id="media-upload"
-                    type="file"
-                    multiple={mediaRequirements.maxMedia > 1}
-                    accept={getAcceptTypes()}
-                    onChange={handleMediaUpload}
-                    disabled={saving || submitting || isUploading}
-                    className="hidden"
-                    aria-label="Carregar ficheiros de média"
-                  />
-                </Label>
+                  >
+                    <div className={cn(
+                      "relative flex flex-col items-center justify-center gap-3 h-48 rounded-xl",
+                      "border-2 border-dashed transition-all duration-200",
+                      "hover:border-primary/50 hover:bg-primary/5",
+                      "border-primary/30 bg-gradient-to-br from-primary/5 to-transparent"
+                    )}>
+                      {isUploading ? (
+                        <>
+                          <Loader2 className="h-10 w-10 text-primary animate-spin" />
+                          <span className="text-sm text-muted-foreground">A processar ficheiros...</span>
+                        </>
+                      ) : (
+                        <>
+                          <div className="p-4 rounded-full bg-primary/10">
+                            <CloudUpload className="h-8 w-8 text-primary animate-pulse" />
+                          </div>
+                          <div className="text-center">
+                            <p className="font-medium text-foreground">Arrasta imagens ou vídeos para aqui</p>
+                            <p className="text-sm text-muted-foreground">ou clica para selecionar ficheiros</p>
+                          </div>
+                          <div className="flex gap-2">
+                            <Badge variant="outline" className="text-xs bg-background">PNG</Badge>
+                            <Badge variant="outline" className="text-xs bg-background">JPG</Badge>
+                            <Badge variant="outline" className="text-xs bg-background">MP4</Badge>
+                            <Badge variant="outline" className="text-xs bg-background">GIF</Badge>
+                          </div>
+                          <p className="text-xs text-muted-foreground/70">
+                            Máx. 50MB por ficheiro • {mediaRequirements.minMedia}-{mediaRequirements.maxMedia} ficheiros
+                          </p>
+                        </>
+                      )}
+                    </div>
+                    <Input
+                      id="media-upload"
+                      type="file"
+                      multiple={mediaRequirements.maxMedia > 1}
+                      accept={getAcceptTypes()}
+                      onChange={handleMediaUpload}
+                      disabled={saving || submitting || isUploading}
+                      className="hidden"
+                      aria-label="Carregar ficheiros de média"
+                    />
+                  </Label>
+                )}
 
                 {isUploading && <Progress value={uploadProgress} className="h-2" />}
                 
+                {/* Media Grid - With Files */}
                 {mediaPreviewUrls.length > 0 && (
-                  <div className="space-y-2">
+                  <div className="space-y-3">
                     <div className="flex items-center justify-between text-xs text-muted-foreground">
-                      <span>Arraste para reordenar</span>
-                      <span>{mediaPreviewUrls.length} ficheiro(s)</span>
+                      <span className="flex items-center gap-1.5">
+                        <span className="w-1.5 h-1.5 rounded-full bg-primary animate-pulse" />
+                        Arraste para reordenar
+                      </span>
+                      <span className="font-medium">{mediaPreviewUrls.length} de {mediaRequirements.maxMedia} ficheiros</span>
                     </div>
                     <DndContext
                       sensors={sensors}
@@ -1090,18 +1104,87 @@ export default function ManualCreate() {
                         items={mediaPreviewUrls.map((_, i) => `media-${i}`)}
                         strategy={horizontalListSortingStrategy}
                       >
-                        <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
-                          {mediaPreviewUrls.map((url, idx) => (
-                            <SortableMediaItem
-                              key={`media-${idx}`}
-                              id={`media-${idx}`}
-                              url={url}
-                              index={idx}
-                              total={mediaPreviewUrls.length}
-                              disabled={saving || submitting || publishing}
-                              onRemove={removeMedia}
-                            />
-                          ))}
+                        <div className="grid grid-cols-3 gap-3">
+                          {mediaPreviewUrls.map((url, idx) => {
+                            const isVideo = mediaFiles[idx]?.type?.startsWith('video/');
+                            return (
+                              <div key={`media-${idx}`} className="relative group aspect-square rounded-xl overflow-hidden border-2 border-border hover:border-primary/50 transition-all shadow-sm">
+                                {isVideo ? (
+                                  <video
+                                    src={url}
+                                    className="w-full h-full object-cover"
+                                    muted
+                                    loop
+                                    autoPlay
+                                    playsInline
+                                  />
+                                ) : (
+                                  <img
+                                    src={url}
+                                    alt={`Media ${idx + 1}`}
+                                    className="w-full h-full object-cover"
+                                  />
+                                )}
+                                
+                                {/* Overlay with actions */}
+                                <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity">
+                                  <Button
+                                    variant="destructive"
+                                    size="icon"
+                                    className="absolute top-2 right-2 h-7 w-7 rounded-full shadow-lg"
+                                    onClick={() => removeMedia(idx)}
+                                    disabled={saving || submitting || publishing}
+                                  >
+                                    <span className="sr-only">Remover</span>
+                                    ×
+                                  </Button>
+                                </div>
+                                
+                                {/* Type indicator */}
+                                <div className="absolute bottom-2 left-2">
+                                  <Badge variant="secondary" className="text-[10px] px-1.5 py-0.5 bg-background/80 backdrop-blur-sm">
+                                    {isVideo ? (
+                                      <><Video className="h-2.5 w-2.5 mr-1" />Vídeo</>
+                                    ) : (
+                                      <><Image className="h-2.5 w-2.5 mr-1" />Imagem</>
+                                    )}
+                                  </Badge>
+                                </div>
+                                
+                                {/* Order indicator */}
+                                <div className="absolute top-2 left-2">
+                                  <div className="w-5 h-5 rounded-full bg-primary text-primary-foreground text-xs font-bold flex items-center justify-center shadow-lg">
+                                    {idx + 1}
+                                  </div>
+                                </div>
+                                
+                                {/* Completed checkmark */}
+                                <div className="absolute bottom-2 right-2">
+                                  <CheckCircle className="h-4 w-4 text-green-500 drop-shadow-lg" />
+                                </div>
+                              </div>
+                            );
+                          })}
+                          
+                          {/* Add More Button */}
+                          {mediaPreviewUrls.length < mediaRequirements.maxMedia && (
+                            <Label 
+                              htmlFor="media-upload-more"
+                              className="aspect-square rounded-xl border-2 border-dashed border-border hover:border-primary/50 hover:bg-primary/5 flex flex-col items-center justify-center gap-1 cursor-pointer transition-all"
+                            >
+                              <Plus className="h-6 w-6 text-muted-foreground" />
+                              <span className="text-xs text-muted-foreground">Adicionar</span>
+                              <Input
+                                id="media-upload-more"
+                                type="file"
+                                multiple={mediaRequirements.maxMedia > 1}
+                                accept={getAcceptTypes()}
+                                onChange={handleMediaUpload}
+                                disabled={saving || submitting || isUploading}
+                                className="hidden"
+                              />
+                            </Label>
+                          )}
                         </div>
                       </SortableContext>
                     </DndContext>

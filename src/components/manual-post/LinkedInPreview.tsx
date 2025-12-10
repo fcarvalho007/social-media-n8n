@@ -2,6 +2,7 @@ import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { ThumbsUp, MessageSquare, Repeat2, Send, MoreHorizontal } from "lucide-react";
 import { Linkedin } from "lucide-react";
+import { DeviceFrame } from "./DeviceFrame";
 
 interface LinkedInPreviewProps {
   mediaUrls: string[];
@@ -20,93 +21,135 @@ const LinkedInPreview = ({ mediaUrls, caption }: LinkedInPreviewProps) => {
   };
 
   return (
-    <Card className="w-full max-w-xl mx-auto overflow-hidden">
-      {/* Header */}
-      <div className="flex items-start gap-3 p-4 border-b">
-        <div className="w-12 h-12 rounded-full bg-primary/10 flex items-center justify-center flex-shrink-0">
-          <Linkedin className="w-6 h-6 text-primary" />
-        </div>
-        <div className="flex-1 min-w-0">
-          <p className="text-sm font-semibold">Teu Nome</p>
-          <p className="text-xs text-muted-foreground">Teu Título Profissional</p>
-          <p className="text-xs text-muted-foreground">agora • 🌐</p>
-        </div>
-        <MoreHorizontal className="w-5 h-5 text-muted-foreground flex-shrink-0" />
-      </div>
-
-      {/* Caption */}
-      <div className="p-4">
-        <div className="flex items-center justify-between mb-2">
-          <span className={`text-xs ${getCharCountColor()}`}>
-            {captionLength}/{maxCaptionLength}
-          </span>
-        </div>
-        {caption ? (
-          <p className="text-sm whitespace-pre-wrap break-words">{caption}</p>
-        ) : (
-          <p className="text-sm text-muted-foreground">Escreve o corpo do post...</p>
-        )}
-        {captionLength > maxCaptionLength && (
-          <Badge variant="destructive" className="mt-2">
-            Texto excede o limite
-          </Badge>
-        )}
-      </div>
-
-      {/* Media */}
-      {mediaUrls.length > 0 && (
-        <div className="border-t border-b">
-          {mediaUrls.length === 1 ? (
-            <div className="w-full aspect-video bg-muted">
-              <img
-                src={mediaUrls[0]}
-                alt="Post media"
-                className="w-full h-full object-cover"
-              />
+    <DeviceFrame type="desktop">
+      <div className="bg-muted/30 min-h-[400px] p-4">
+        <Card className="w-full max-w-xl mx-auto overflow-hidden shadow-sm">
+          {/* Header */}
+          <div className="flex items-start gap-3 p-4 border-b">
+            <div className="w-12 h-12 rounded-full bg-gradient-to-br from-blue-600 to-blue-500 flex items-center justify-center flex-shrink-0 shadow-sm">
+              <Linkedin className="w-6 h-6 text-white" />
             </div>
-          ) : (
-            <div className="grid grid-cols-2 gap-0.5 p-0.5 bg-muted">
-              {mediaUrls.slice(0, 4).map((url, idx) => (
-                <div key={idx} className="relative aspect-video bg-muted">
-                  <img
-                    src={url}
-                    alt={`Media ${idx + 1}`}
-                    className="w-full h-full object-cover"
-                  />
-                  {idx === 3 && mediaUrls.length > 4 && (
-                    <div className="absolute inset-0 bg-black/60 flex items-center justify-center">
-                      <span className="text-white text-2xl font-semibold">
-                        +{mediaUrls.length - 4}
-                      </span>
-                    </div>
+            <div className="flex-1 min-w-0">
+              <p className="text-sm font-semibold">Teu Nome</p>
+              <p className="text-xs text-muted-foreground">Teu Título Profissional</p>
+              <p className="text-xs text-muted-foreground">agora • 🌐</p>
+            </div>
+            <MoreHorizontal className="w-5 h-5 text-muted-foreground flex-shrink-0" />
+          </div>
+
+          {/* Caption */}
+          <div className="p-4">
+            <div className="flex items-center justify-between mb-2">
+              <span className={`text-xs ${getCharCountColor()}`}>
+                {captionLength}/{maxCaptionLength}
+              </span>
+            </div>
+            {caption ? (
+              <p className="text-sm whitespace-pre-wrap break-words">{caption}</p>
+            ) : (
+              <p className="text-sm text-muted-foreground">Escreve o corpo do post...</p>
+            )}
+            {captionLength > maxCaptionLength && (
+              <Badge variant="destructive" className="mt-2">
+                Texto excede o limite
+              </Badge>
+            )}
+          </div>
+
+          {/* Media */}
+          {mediaUrls.length > 0 && (
+            <div className="border-t border-b">
+              {mediaUrls.length === 1 ? (
+                <div className="w-full aspect-video bg-muted">
+                  {mediaUrls[0]?.includes('.mp4') || mediaUrls[0]?.includes('video') ? (
+                    <video
+                      src={mediaUrls[0]}
+                      className="w-full h-full object-cover"
+                      muted
+                      loop
+                      autoPlay
+                      playsInline
+                    />
+                  ) : (
+                    <img
+                      src={mediaUrls[0]}
+                      alt="Post media"
+                      className="w-full h-full object-cover"
+                    />
                   )}
                 </div>
-              ))}
+              ) : (
+                <div className="grid grid-cols-2 gap-0.5 p-0.5 bg-muted">
+                  {mediaUrls.slice(0, 4).map((url, idx) => (
+                    <div key={idx} className="relative aspect-video bg-muted">
+                      {url?.includes('.mp4') || url?.includes('video') ? (
+                        <video
+                          src={url}
+                          className="w-full h-full object-cover"
+                          muted
+                          loop
+                          autoPlay
+                          playsInline
+                        />
+                      ) : (
+                        <img
+                          src={url}
+                          alt={`Media ${idx + 1}`}
+                          className="w-full h-full object-cover"
+                        />
+                      )}
+                      {idx === 3 && mediaUrls.length > 4 && (
+                        <div className="absolute inset-0 bg-black/60 flex items-center justify-center">
+                          <span className="text-white text-2xl font-semibold">
+                            +{mediaUrls.length - 4}
+                          </span>
+                        </div>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              )}
             </div>
           )}
-        </div>
-      )}
 
-      {/* Actions */}
-      <div className="flex items-center justify-around p-3 border-t">
-        <div className="flex items-center gap-2 text-muted-foreground hover:text-primary cursor-pointer">
-          <ThumbsUp className="w-5 h-5" />
-          <span className="text-sm">Gosto</span>
-        </div>
-        <div className="flex items-center gap-2 text-muted-foreground hover:text-primary cursor-pointer">
-          <MessageSquare className="w-5 h-5" />
-          <span className="text-sm">Comentar</span>
-        </div>
-        <div className="flex items-center gap-2 text-muted-foreground hover:text-primary cursor-pointer">
-          <Repeat2 className="w-5 h-5" />
-          <span className="text-sm">Partilhar</span>
-        </div>
-        <div className="flex items-center gap-2 text-muted-foreground hover:text-primary cursor-pointer">
-          <Send className="w-5 h-5" />
-          <span className="text-sm">Enviar</span>
-        </div>
+          {/* Engagement Stats */}
+          <div className="flex items-center justify-between px-4 py-2 text-xs text-muted-foreground border-b">
+            <div className="flex items-center gap-1">
+              <div className="flex -space-x-1">
+                <div className="w-4 h-4 rounded-full bg-blue-500 flex items-center justify-center">
+                  <ThumbsUp className="w-2.5 h-2.5 text-white" />
+                </div>
+                <div className="w-4 h-4 rounded-full bg-red-500 flex items-center justify-center">
+                  <span className="text-[8px]">❤️</span>
+                </div>
+              </div>
+              <span>42</span>
+            </div>
+            <span>3 comentários • 2 partilhas</span>
+          </div>
+
+          {/* Actions */}
+          <div className="flex items-center justify-around p-2 border-t">
+            <div className="flex items-center gap-1.5 text-muted-foreground hover:text-primary cursor-pointer px-3 py-2 rounded-lg hover:bg-accent transition-colors">
+              <ThumbsUp className="w-4 h-4" />
+              <span className="text-xs font-medium">Gosto</span>
+            </div>
+            <div className="flex items-center gap-1.5 text-muted-foreground hover:text-primary cursor-pointer px-3 py-2 rounded-lg hover:bg-accent transition-colors">
+              <MessageSquare className="w-4 h-4" />
+              <span className="text-xs font-medium">Comentar</span>
+            </div>
+            <div className="flex items-center gap-1.5 text-muted-foreground hover:text-primary cursor-pointer px-3 py-2 rounded-lg hover:bg-accent transition-colors">
+              <Repeat2 className="w-4 h-4" />
+              <span className="text-xs font-medium">Partilhar</span>
+            </div>
+            <div className="flex items-center gap-1.5 text-muted-foreground hover:text-primary cursor-pointer px-3 py-2 rounded-lg hover:bg-accent transition-colors">
+              <Send className="w-4 h-4" />
+              <span className="text-xs font-medium">Enviar</span>
+            </div>
+          </div>
+        </Card>
       </div>
-    </Card>
+    </DeviceFrame>
   );
 };
 
