@@ -44,6 +44,7 @@ import { NetworkFormatSelector } from '@/components/manual-post/NetworkFormatSel
 import { getMediaRequirements, validateAllFormats, getValidationSummary, FormatValidationResult } from '@/lib/formatValidation';
 import { INSTAGRAM_CONFIG, LINKEDIN_CONFIG, FORMAT_TO_NETWORK, FORMAT_TO_ACCOUNT } from '@/types/publishing';
 import { PublishingOverlay } from '@/components/manual-post/PublishingOverlay';
+import { PublishSuccessModal, PublishResult } from '@/components/publishing/PublishSuccessModal';
 import { EnhancedSortableMediaItem, MediaDragOverlay } from '@/components/manual-post/EnhancedSortableMediaItem';
 import { DragHintTooltip } from '@/components/manual-post/DragHintTooltip';
 import { DndContext, closestCenter, DragEndEvent, DragStartEvent, PointerSensor, KeyboardSensor, useSensor, useSensors, DragOverlay } from '@dnd-kit/core';
@@ -137,6 +138,8 @@ export default function ManualCreate() {
   const [completedNetworks, setCompletedNetworks] = useState<string[]>([]);
   const [shouldCancel, setShouldCancel] = useState(false);
   const [mediaValidations, setMediaValidations] = useState<MediaValidationResult[]>([]);
+  const [showSuccessModal, setShowSuccessModal] = useState(false);
+  const [publishResults, setPublishResults] = useState<PublishResult[]>([]);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
 
   // Auto-save hook
@@ -725,6 +728,21 @@ export default function ManualCreate() {
       setPublishStage('uploading');
       setCompletedNetworks([]);
       setShouldCancel(false);
+      setShowSuccessModal(true);
+
+      // Initialize publish results for tracking
+      const initialResults: PublishResult[] = selectedFormats.map(format => {
+        const network = FORMAT_TO_NETWORK[format] || 'instagram';
+        const config = getFormatConfig(format);
+        return {
+          platform: network,
+          format,
+          formatLabel: config?.label || format,
+          status: 'pending',
+          progress: 0,
+        };
+      });
+      setPublishResults(initialResults);
 
       const { data: { user }, error: authError } = await supabase.auth.getUser();
       if (authError || !user) {
@@ -758,6 +776,9 @@ export default function ManualCreate() {
           .getPublicUrl(fileName);
 
         mediaUrls.push(publicUrl);
+        
+        // Update all results progress during upload
+        setPublishResults(prev => prev.map(r => ({ ...r, progress: Math.round(((i + 1) / totalFiles) * 20) })));
       }
 
       setUploadProgress(30);
@@ -796,6 +817,11 @@ export default function ManualCreate() {
         }
         
         setCurrentPublishingNetwork(network);
+        
+        // Update this format to publishing status
+        setPublishResults(prev => prev.map(r => 
+          r.format === format ? { ...r, status: 'publishing', progress: 30 + (i * 60 / totalFormats) } : r
+        ));
         
         // Calculate progress: 30% for upload, 70% for publishing split between formats
         const progressBase = 30;
@@ -898,14 +924,31 @@ export default function ManualCreate() {
 
           if (publishError) {
             publishResults.push({ format, success: false, error: 'Erro de comunicação' });
+            setPublishResults(prev => prev.map(r => 
+              r.format === format ? { ...r, status: 'error', progress: 100, errorMessage: 'Erro de comunicação' } : r
+            ));
           } else if (!publishResult?.success) {
             publishResults.push({ format, success: false, error: publishResult?.error || 'Falha' });
+            setPublishResults(prev => prev.map(r => 
+              r.format === format ? { ...r, status: 'error', progress: 100, errorMessage: publishResult?.error || 'Falha' } : r
+            ));
           } else {
             publishResults.push({ format, success: true });
             setCompletedNetworks(prev => [...prev, network]);
+            setPublishResults(prev => prev.map(r => 
+              r.format === format ? { 
+                ...r, 
+                status: 'success', 
+                progress: 100, 
+                postUrl: publishResult?.postUrl || publishResult?.url 
+              } : r
+            ));
           }
         } catch (err) {
           publishResults.push({ format, success: false, error: 'Erro inesperado' });
+          setPublishResults(prev => prev.map(r => 
+            r.format === format ? { ...r, status: 'error', progress: 100, errorMessage: 'Erro inesperado' } : r
+          ));
         }
 
         setUploadProgress(Math.round(progressBase + ((i + 1) * progressPerFormat)));
@@ -946,36 +989,32 @@ export default function ManualCreate() {
       setUploadProgress(100);
       setPublishStage('success');
 
-      await new Promise(resolve => setTimeout(resolve, 1500));
+      await new Promise(resolve => setTimeout(resolve, 500));
 
       // Refresh quota after publishing
       await refreshQuota();
 
-      // Show appropriate message
+      // Show appropriate toast message
       if (failedFormats.length === 0) {
         toast.success(`Publicado em ${successfulFormats.length} rede(s) com sucesso!`, { duration: 4000 });
       } else if (successfulFormats.length > 0) {
         toast.warning(`Publicado em ${successfulFormats.length} rede(s). Falhou em ${failedFormats.length}.`, { duration: 5000 });
       } else {
         toast.error('Falha ao publicar em todas as redes', { duration: 5000 });
-        return;
       }
 
-      // Reset form
-      setCaption('');
-      setMediaFiles([]);
-      setMediaPreviewUrls([]);
-      setScheduledDate(undefined);
-      setTime('12:00');
-      setScheduleAsap(false);
-      setCurrentDraftId(null);
-      setSelectedFormats([]);
-
-      setTimeout(() => navigate('/calendar'), 500);
+      // Modal stays open - user will choose action
+      // Reset form only after user chooses to create new
     } catch (error) {
       console.error('[ManualCreate] Publish error:', error);
       const errorMsg = error instanceof Error ? error.message : 'Erro ao publicar. Tente novamente.';
       toast.error(errorMsg, { duration: 5000 });
+      // Update all pending results to error
+      setPublishResults(prev => prev.map(r => 
+        r.status === 'pending' || r.status === 'publishing' 
+          ? { ...r, status: 'error', progress: 100, errorMessage: errorMsg } 
+          : r
+      ));
     } finally {
       setPublishing(false);
       setUploadProgress(0);
@@ -984,6 +1023,28 @@ export default function ManualCreate() {
       setCompletedNetworks([]);
       setShouldCancel(false);
     }
+  };
+
+  // Handlers for success modal
+  const handleCreateNew = () => {
+    setShowSuccessModal(false);
+    setPublishResults([]);
+    setCaption('');
+    setMediaFiles([]);
+    setMediaPreviewUrls([]);
+    setScheduledDate(undefined);
+    setTime('12:00');
+    setScheduleAsap(false);
+    setCurrentDraftId(null);
+    setSelectedFormats([]);
+    setCurrentStep(1);
+    setVisitedSteps([1]);
+  };
+
+  const handleViewCalendar = () => {
+    setShowSuccessModal(false);
+    setPublishResults([]);
+    navigate('/calendar');
   };
 
   // Get accept types for file input - always allow both for carousel and when linkedin_document is present
@@ -1744,6 +1805,20 @@ export default function ManualCreate() {
         completedNetworks={completedNetworks}
         stage={publishStage}
         onCancel={() => setShouldCancel(true)}
+      />
+
+      {/* Publish Success Modal */}
+      <PublishSuccessModal
+        isOpen={showSuccessModal}
+        onClose={() => {
+          if (!publishing) {
+            setShowSuccessModal(false);
+            setPublishResults([]);
+          }
+        }}
+        results={publishResults}
+        onCreateNew={handleCreateNew}
+        onViewCalendar={handleViewCalendar}
       />
     </div>
   );

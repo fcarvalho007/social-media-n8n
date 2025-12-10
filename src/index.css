@@ -1,4 +1,45 @@
 @tailwind base;
+
+/* ===== PUBLISH SUCCESS MODAL ===== */
+.publish-success-modal {
+  border-radius: 20px !important;
+  overflow: hidden;
+}
+
+.confetti-container {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  overflow: hidden;
+  z-index: 50;
+}
+
+.confetti-particle {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+}
+
+.result-card {
+  background: hsl(var(--muted) / 0.3);
+  border: 2px solid hsl(var(--border));
+  transition: all 0.2s ease;
+}
+
+.result-card-success {
+  border-color: hsl(142 76% 36%);
+  background: linear-gradient(180deg, hsl(142 76% 36% / 0.08), hsl(var(--muted) / 0.3));
+}
+
+.result-card-error {
+  border-color: hsl(0 84% 60%);
+  background: linear-gradient(180deg, hsl(0 84% 60% / 0.08), hsl(var(--muted) / 0.3));
+}
+
+/* Progress bar custom color */
+.publish-success-modal [data-slot="progress-indicator"] {
+  background: var(--progress-color, hsl(var(--primary)));
+}
 @tailwind components;
 @tailwind utilities;
 
