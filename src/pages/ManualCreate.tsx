@@ -16,13 +16,17 @@ import { Badge } from '@/components/ui/badge';
 import { Separator } from '@/components/ui/separator';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { toast } from 'sonner';
-import { Save, Send, Calendar as CalendarIcon, ArrowLeft, Instagram, Linkedin, Upload, Clock, FileText, Loader2, Rocket, Smile, Bookmark, Sparkles, Youtube, Facebook, ChevronLeft, ChevronRight, Info, CloudUpload, Image, Video, Plus, CheckCircle, Hash, AtSign } from 'lucide-react';
+import { Save, Send, Calendar as CalendarIcon, ArrowLeft, Instagram, Linkedin, Upload, Clock, FileText, Loader2, Rocket, Smile, Bookmark, Sparkles, Youtube, Facebook, ChevronLeft, ChevronRight, Info, CloudUpload, Image, Video, Plus, CheckCircle, Hash, AtSign, AlertTriangle } from 'lucide-react';
 import { format } from 'date-fns';
 import { pt } from 'date-fns/locale';
 import { cn } from '@/lib/utils';
 import { Progress } from '@/components/ui/progress';
 import { StepProgress } from '@/components/manual-post/StepProgress';
 import { HashtagPicker } from '@/components/manual-post/HashtagPicker';
+import { SectionHelp, getSectionTooltip } from '@/components/manual-post/SectionHelp';
+import { AutoSaveIndicator, MediaWarning } from '@/components/manual-post/NoAccountsState';
+import { useAutoSave } from '@/hooks/useAutoSave';
+import { validateMedia, MediaValidationResult } from '@/lib/mediaValidation';
 import InstagramCarouselPreview from '@/components/manual-post/InstagramCarouselPreview';
 import InstagramStoryPreview from '@/components/manual-post/InstagramStoryPreview';
 import InstagramReelPreview from '@/components/manual-post/InstagramReelPreview';
@@ -128,7 +132,18 @@ export default function ManualCreate() {
   const [currentPublishingNetwork, setCurrentPublishingNetwork] = useState<string>('');
   const [completedNetworks, setCompletedNetworks] = useState<string[]>([]);
   const [shouldCancel, setShouldCancel] = useState(false);
+  const [mediaValidations, setMediaValidations] = useState<MediaValidationResult[]>([]);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
+
+  // Auto-save hook
+  const { lastSaved, isSaving: isAutoSaving, hasUnsavedChanges } = useAutoSave({
+    caption,
+    selectedFormats,
+    mediaUrls: mediaPreviewUrls,
+    scheduledDate: scheduledDate?.toISOString(),
+    time,
+    scheduleAsap,
+  }, { enabled: selectedFormats.length > 0 || caption.length > 0 });
 
   // Stepper state
   const [currentStep, setCurrentStep] = useState(1);
@@ -381,6 +396,22 @@ export default function ManualCreate() {
 
     setMediaFiles(files);
     setMediaPreviewUrls(urls);
+    
+    // Validate media for selected formats
+    if (selectedFormats.length > 0) {
+      const validations: MediaValidationResult[] = [];
+      for (const file of files) {
+        const result = await validateMedia(file, selectedFormats[0]);
+        validations.push(result);
+      }
+      setMediaValidations(validations);
+      
+      // Show warnings if any
+      const hasWarnings = validations.some(v => v.warnings.length > 0);
+      if (hasWarnings) {
+        toast.warning('Alguns ficheiros têm avisos de qualidade', { duration: 4000 });
+      }
+    }
     
     toast.success(`${files.length} ficheiro(s) carregado(s)`);
   };
@@ -1023,10 +1054,18 @@ export default function ManualCreate() {
             <Card>
 
               <CardHeader className="pb-3">
-                <CardTitle className="text-lg flex items-center gap-2">
-                  <CloudUpload className="h-5 w-5 text-primary" />
-                  Média
-                </CardTitle>
+                <div className="flex items-center justify-between">
+                  <CardTitle className="text-lg flex items-center gap-2">
+                    <CloudUpload className="h-5 w-5 text-primary" />
+                    Média
+                    <SectionHelp content={getSectionTooltip('media')} />
+                  </CardTitle>
+                  <AutoSaveIndicator 
+                    lastSaved={lastSaved} 
+                    isSaving={isAutoSaving} 
+                    hasUnsavedChanges={hasUnsavedChanges} 
+                  />
+                </div>
               </CardHeader>
               <CardContent className="space-y-4">
                 {/* Upload Zone - Empty State */}
@@ -1226,7 +1265,10 @@ export default function ManualCreate() {
             {/* Caption */}
             <Card>
               <CardHeader>
-                <CardTitle>Legenda</CardTitle>
+                <CardTitle className="flex items-center gap-2">
+                  Legenda
+                  <SectionHelp content={getSectionTooltip('caption')} />
+                </CardTitle>
                 <CardDescription>
                   <span className={cn(
                     "font-medium",
@@ -1301,7 +1343,10 @@ export default function ManualCreate() {
             {/* Date & Time */}
             <Card>
               <CardHeader>
-                <CardTitle>Agendamento</CardTitle>
+                <CardTitle className="flex items-center gap-2">
+                  Agendamento
+                  <SectionHelp content={getSectionTooltip('scheduling')} />
+                </CardTitle>
                 <CardDescription>Defina quando publicar</CardDescription>
               </CardHeader>
               <CardContent className="space-y-4">
