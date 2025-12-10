@@ -2,6 +2,7 @@ import { useState, useRef, useMemo, useCallback, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { supabase } from '@/integrations/supabase/client';
 import { PostFormat, getNetworkFromFormat, getFormatConfig } from '@/types/social';
+import { usePublishingQuota } from '@/hooks/usePublishingQuota';
 import { ModeBadge } from '@/components/ModeBadge';
 import { DevHelper } from '@/components/DevHelper';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -111,6 +112,7 @@ async function extractVideoFrame(videoFile: File | string): Promise<File> {
 
 export default function ManualCreate() {
   const navigate = useNavigate();
+  const { instagram, linkedin, canPublish, refresh: refreshQuota, isUnlimited } = usePublishingQuota();
   const [selectedFormats, setSelectedFormats] = useState<PostFormat[]>([]);
   const [caption, setCaption] = useState('');
   const [mediaFiles, setMediaFiles] = useState<File[]>([]);
@@ -702,6 +704,20 @@ export default function ManualCreate() {
       return;
     }
 
+    // Check quota for selected networks before publishing
+    const instagramSelected = selectedNetworks.includes('instagram');
+    const linkedinSelected = selectedNetworks.includes('linkedin');
+    
+    if (instagramSelected && !instagram.canPublish && !isUnlimited) {
+      toast.error('Quota Instagram esgotada. Não é possível publicar.', { duration: 5000 });
+      return;
+    }
+    
+    if (linkedinSelected && !linkedin.canPublish && !isUnlimited) {
+      toast.error('Quota LinkedIn esgotada. Não é possível publicar.', { duration: 5000 });
+      return;
+    }
+
     try {
       setPublishing(true);
       setUploadProgress(0);
@@ -912,6 +928,9 @@ export default function ManualCreate() {
 
       await new Promise(resolve => setTimeout(resolve, 1500));
 
+      // Refresh quota after publishing
+      await refreshQuota();
+
       // Show appropriate message
       if (failedFormats.length === 0) {
         toast.success(`Publicado em ${successfulFormats.length} rede(s) com sucesso!`, { duration: 4000 });
@@ -1044,6 +1063,24 @@ export default function ManualCreate() {
         </Button>
         <ModeBadge mode="manual" onChangeMode={() => navigate('/?tab=create')} className="flex-1" />
       </div>
+
+      {/* Quota Warning */}
+      {selectedNetworks.length > 0 && !isUnlimited && (
+        (selectedNetworks.includes('instagram') && instagram.percentage >= 80) ||
+        (selectedNetworks.includes('linkedin') && linkedin.percentage >= 80)
+      ) && (
+        <div className="flex items-center gap-2 p-3 rounded-lg bg-amber-500/10 border border-amber-500/20 text-amber-700 dark:text-amber-400">
+          <AlertTriangle className="h-4 w-4 flex-shrink-0" />
+          <span className="text-sm">
+            {selectedNetworks.includes('instagram') && instagram.percentage >= 100 && 'Quota Instagram esgotada. '}
+            {selectedNetworks.includes('linkedin') && linkedin.percentage >= 100 && 'Quota LinkedIn esgotada. '}
+            {((selectedNetworks.includes('instagram') && instagram.percentage >= 80 && instagram.percentage < 100) ||
+              (selectedNetworks.includes('linkedin') && linkedin.percentage >= 80 && linkedin.percentage < 100)) && 
+              'Atenção: quota quase esgotada. '}
+            Instagram: {instagram.quotaText} | LinkedIn: {linkedin.quotaText}
+          </span>
+        </div>
+      )}
 
       {/* Stepper */}
       <Card className="border-0 shadow-none bg-transparent">

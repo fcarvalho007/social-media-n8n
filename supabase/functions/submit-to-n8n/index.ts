@@ -59,22 +59,58 @@ const WEBHOOKS: Record<string, string> = {
   facebook_reel: 'https://n8n.srv881120.hstgr.cloud/webhook/aprovacao-instagram',
 };
 
-// Map format to base network for quota
-const FORMAT_TO_NETWORK: Record<string, 'instagram' | 'linkedin' | 'youtube' | 'tiktok' | 'facebook'> = {
-  instagram_carousel: 'instagram',
-  instagram_image: 'instagram',
-  instagram_stories: 'instagram',
-  instagram_reel: 'instagram',
-  linkedin: 'linkedin',
-  linkedin_post: 'linkedin',
-  linkedin_document: 'linkedin',
-  youtube_shorts: 'youtube',
-  youtube_video: 'youtube',
-  tiktok_video: 'tiktok',
-  facebook_image: 'facebook',
-  facebook_stories: 'facebook',
-  facebook_reel: 'facebook',
-};
+interface GetlateUsageStats {
+  usage: {
+    uploads: number;
+  };
+  limits: {
+    uploads: number; // -1 means unlimited
+  };
+}
+
+// Validate quota directly from Getlate API
+async function validateQuotaFromGetlate(apiToken: string): Promise<{ canPublish: boolean; error?: string }> {
+  try {
+    console.log('[submit-to-n8n] Validating quota from Getlate API...');
+    
+    const response = await fetch('https://getlate.dev/api/v1/usage-stats', {
+      headers: {
+        'Authorization': `Bearer ${apiToken}`,
+      },
+    });
+
+    if (!response.ok) {
+      console.error(`[submit-to-n8n] Failed to fetch usage stats: ${response.status}`);
+      // Allow on error to not block submission
+      return { canPublish: true };
+    }
+
+    const stats: GetlateUsageStats = await response.json();
+    console.log('[submit-to-n8n] Getlate usage stats:', JSON.stringify(stats));
+
+    // If uploads limit is -1, it's unlimited
+    if (stats.limits.uploads === -1) {
+      console.log('[submit-to-n8n] ✅ Unlimited plan - quota validated');
+      return { canPublish: true };
+    }
+
+    // Check if within limit
+    if (stats.usage.uploads < stats.limits.uploads) {
+      console.log(`[submit-to-n8n] ✅ Quota OK: ${stats.usage.uploads}/${stats.limits.uploads}`);
+      return { canPublish: true };
+    }
+
+    console.log(`[submit-to-n8n] ❌ Quota exceeded: ${stats.usage.uploads}/${stats.limits.uploads}`);
+    return { 
+      canPublish: false, 
+      error: `Quota Getlate esgotada: ${stats.usage.uploads}/${stats.limits.uploads} uploads` 
+    };
+  } catch (error) {
+    console.error('[submit-to-n8n] Error validating quota from Getlate:', error);
+    // Allow on error to not block submission
+    return { canPublish: true };
+  }
+}
 
 async function sendToWebhook(url: string, payload: SubmitPayload, retries = 3): Promise<boolean> {
   for (let attempt = 1; attempt <= retries; attempt++) {
@@ -118,79 +154,6 @@ async function sendToWebhook(url: string, payload: SubmitPayload, retries = 3): 
   return false;
 }
 
-// Função auxiliar para validar quota
-async function validateQuota(supabase: any, userId: string, platform: string): Promise<{ canPublish: boolean; error?: string }> {
-  try {
-    const { data: override } = await supabase
-      .from('quota_overrides')
-      .select('*')
-      .eq('user_id', userId)
-      .maybeSingle();
-
-    if (override) {
-      const used = platform === 'instagram' ? override.instagram_used : override.linkedin_used;
-      const limit = platform === 'instagram' ? override.instagram_limit : override.linkedin_limit;
-      
-      if (limit !== -1 && used >= limit) {
-        return { canPublish: false, error: `Quota ${platform} esgotada: ${used}/${limit}` };
-      }
-    }
-
-    return { canPublish: true };
-  } catch (error) {
-    console.error('⚠️ Erro ao validar quota:', error);
-    return { canPublish: true }; // Permitir em caso de erro
-  }
-}
-
-// Função auxiliar para incrementar quota
-async function incrementQuota(supabase: any, userId: string, platform: string) {
-  try {
-    const { data: override } = await supabase
-      .from('quota_overrides')
-      .select('*')
-      .eq('user_id', userId)
-      .maybeSingle();
-
-    // Map platform to field name
-    const fieldMap: Record<string, string> = {
-      instagram: 'instagram_used',
-      linkedin: 'linkedin_used',
-      youtube: 'youtube_used',
-      facebook: 'facebook_used',
-      tiktok: 'tiktok_used',
-    };
-
-    const fieldToUpdate = fieldMap[platform] || 'instagram_used';
-
-    if (override) {
-      const currentValue = override[fieldToUpdate] || 0;
-      await supabase
-        .from('quota_overrides')
-        .update({ 
-          [fieldToUpdate]: currentValue + 1,
-          updated_at: new Date().toISOString()
-        })
-        .eq('user_id', userId);
-    } else {
-      const insertData: Record<string, any> = {
-        user_id: userId,
-        instagram_used: 0,
-        linkedin_used: 0,
-        instagram_limit: 5,
-        linkedin_limit: 5,
-      };
-      insertData[fieldToUpdate] = 1;
-      
-      await supabase.from('quota_overrides').insert(insertData);
-    }
-
-    console.log(`✅ Quota incrementada: ${platform} para user ${userId}`);
-  } catch (error) {
-    console.error('⚠️ Erro ao incrementar quota:', error);
-  }
-}
-
 Deno.serve(async (req) => {
   // Handle CORS preflight
   if (req.method === 'OPTIONS') {
@@ -202,6 +165,9 @@ Deno.serve(async (req) => {
       Deno.env.get('SUPABASE_URL') ?? '',
       Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
     );
+
+    // Get Getlate API token for quota validation
+    const getlateToken = Deno.env.get('GETLATE_API_TOKEN');
 
     const authHeader = req.headers.get('Authorization');
     if (!authHeader) {
@@ -229,13 +195,12 @@ Deno.serve(async (req) => {
       throw new Error(`Invalid platform: ${platform}`);
     }
 
-    // Validar quota antes de publicar (apenas se publicação imediata)
-    if (publish_immediately) {
-      const quotaPlatform = FORMAT_TO_NETWORK[platform] || 'instagram';
-      const quotaCheck = await validateQuota(supabase, user.id, quotaPlatform);
+    // Validate quota from Getlate API (only if publishing immediately and token available)
+    if (publish_immediately && getlateToken) {
+      const quotaCheck = await validateQuotaFromGetlate(getlateToken);
       
       if (!quotaCheck.canPublish) {
-        throw new Error(quotaCheck.error || 'Quota esgotada');
+        throw new Error(quotaCheck.error || 'Quota Getlate esgotada');
       }
     }
 
@@ -258,11 +223,8 @@ Deno.serve(async (req) => {
       throw new Error('Failed to submit to N8N after 3 attempts');
     }
 
-    // Incrementar quota após sucesso (apenas se publicação imediata)
-    if (publish_immediately) {
-      const quotaPlatform = FORMAT_TO_NETWORK[platform] || 'instagram';
-      await incrementQuota(supabase, user.id, quotaPlatform);
-    }
+    // NOTE: We no longer increment local quota - Getlate tracks usage automatically
+    console.log(`[submit-to-n8n] ✅ Successfully submitted to N8N (Getlate tracks quota automatically)`);
 
     return new Response(
       JSON.stringify({ 

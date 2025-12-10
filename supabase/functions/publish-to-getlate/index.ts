@@ -62,6 +62,15 @@ interface GetlatePostPayload {
   }>;
 }
 
+interface GetlateUsageStats {
+  usage: {
+    uploads: number;
+  };
+  limits: {
+    uploads: number; // -1 means unlimited
+  };
+}
+
 // Helper function to detect media type from URL extension
 function getMediaTypeFromUrl(url: string): 'image' | 'video' | 'document' {
   const lowercaseUrl = url.toLowerCase();
@@ -71,6 +80,50 @@ function getMediaTypeFromUrl(url: string): 'image' | 'video' | 'document' {
   if (lowercaseUrl.match(/\.(mp4|mov|webm|avi|mkv|m4v|quicktime)(\?|$)/)) return 'video';
   // Default to image (PNG, JPG, JPEG, WEBP, GIF, etc.)
   return 'image';
+}
+
+// Validate quota directly from Getlate API
+async function validateQuotaFromGetlate(apiToken: string): Promise<{ canPublish: boolean; error?: string }> {
+  try {
+    console.log('[publish-to-getlate] Validating quota from Getlate API...');
+    
+    const response = await fetch('https://getlate.dev/api/v1/usage-stats', {
+      headers: {
+        'Authorization': `Bearer ${apiToken}`,
+      },
+    });
+
+    if (!response.ok) {
+      console.error(`[publish-to-getlate] Failed to fetch usage stats: ${response.status}`);
+      // Allow on error to not block publishing
+      return { canPublish: true };
+    }
+
+    const stats: GetlateUsageStats = await response.json();
+    console.log('[publish-to-getlate] Getlate usage stats:', JSON.stringify(stats));
+
+    // If uploads limit is -1, it's unlimited
+    if (stats.limits.uploads === -1) {
+      console.log('[publish-to-getlate] ✅ Unlimited plan - quota validated');
+      return { canPublish: true };
+    }
+
+    // Check if within limit
+    if (stats.usage.uploads < stats.limits.uploads) {
+      console.log(`[publish-to-getlate] ✅ Quota OK: ${stats.usage.uploads}/${stats.limits.uploads}`);
+      return { canPublish: true };
+    }
+
+    console.log(`[publish-to-getlate] ❌ Quota exceeded: ${stats.usage.uploads}/${stats.limits.uploads}`);
+    return { 
+      canPublish: false, 
+      error: `Quota Getlate esgotada: ${stats.usage.uploads}/${stats.limits.uploads} uploads` 
+    };
+  } catch (error) {
+    console.error('[publish-to-getlate] Error validating quota from Getlate:', error);
+    // Allow on error to not block publishing
+    return { canPublish: true };
+  }
 }
 
 async function publishToGetlate(apiToken: string, payload: GetlatePostPayload, retries = 3): Promise<{ success: boolean; data?: any; error?: string }> {
@@ -130,95 +183,6 @@ async function publishToGetlate(apiToken: string, payload: GetlatePostPayload, r
   return { success: false, error: 'All attempts failed' };
 }
 
-// Increment quota for a platform
-async function incrementQuota(supabase: any, userId: string, platform: string) {
-  try {
-    const { data: override } = await supabase
-      .from('quota_overrides')
-      .select('*')
-      .eq('user_id', userId)
-      .maybeSingle();
-
-    // Map platform to field name
-    const fieldMap: Record<string, string> = {
-      instagram: 'instagram_used',
-      linkedin: 'linkedin_used',
-      youtube: 'youtube_used',
-      facebook: 'facebook_used',
-      tiktok: 'tiktok_used',
-    };
-
-    const fieldToUpdate = fieldMap[platform];
-    if (!fieldToUpdate) {
-      console.warn(`[publish-to-getlate] Unknown platform for quota: ${platform}`);
-      return;
-    }
-
-    if (override) {
-      const currentValue = override[fieldToUpdate] || 0;
-      await supabase
-        .from('quota_overrides')
-        .update({ 
-          [fieldToUpdate]: currentValue + 1,
-          updated_at: new Date().toISOString()
-        })
-        .eq('user_id', userId);
-    } else {
-      // Create new quota record with default limits
-      const insertData: Record<string, any> = {
-        user_id: userId,
-        instagram_used: 0,
-        linkedin_used: 0,
-        instagram_limit: 5,
-        linkedin_limit: 5,
-      };
-      insertData[fieldToUpdate] = 1;
-      
-      await supabase.from('quota_overrides').insert(insertData);
-    }
-
-    console.log(`[publish-to-getlate] ✅ Quota incremented: ${platform} for user ${userId}`);
-  } catch (error) {
-    console.error('[publish-to-getlate] ⚠️ Error incrementing quota:', error);
-  }
-}
-
-// Validate quota for a platform
-async function validateQuota(supabase: any, userId: string, platform: string): Promise<{ canPublish: boolean; error?: string }> {
-  try {
-    const { data: override } = await supabase
-      .from('quota_overrides')
-      .select('*')
-      .eq('user_id', userId)
-      .maybeSingle();
-
-    if (override) {
-      const fieldMap: Record<string, { used: string; limit: string }> = {
-        instagram: { used: 'instagram_used', limit: 'instagram_limit' },
-        linkedin: { used: 'linkedin_used', limit: 'linkedin_limit' },
-        youtube: { used: 'youtube_used', limit: 'youtube_limit' },
-        facebook: { used: 'facebook_used', limit: 'facebook_limit' },
-        tiktok: { used: 'tiktok_used', limit: 'tiktok_limit' },
-      };
-
-      const fields = fieldMap[platform];
-      if (fields) {
-        const used = override[fields.used] || 0;
-        const limit = override[fields.limit] ?? 5; // Default to 5 if not set
-        
-        if (limit !== -1 && used >= limit) {
-          return { canPublish: false, error: `Quota ${platform} esgotada: ${used}/${limit}` };
-        }
-      }
-    }
-
-    return { canPublish: true };
-  } catch (error) {
-    console.error('[publish-to-getlate] ⚠️ Error validating quota:', error);
-    return { canPublish: true }; // Allow on error
-  }
-}
-
 Deno.serve(async (req) => {
   // Handle CORS preflight
   if (req.method === 'OPTIONS') {
@@ -268,10 +232,10 @@ Deno.serve(async (req) => {
       throw new Error(`Account not configured for network: ${network}`);
     }
 
-    // Validate quota
-    const quotaCheck = await validateQuota(supabase, user.id, network);
+    // Validate quota directly from Getlate API (not local quota_overrides)
+    const quotaCheck = await validateQuotaFromGetlate(getlateToken);
     if (!quotaCheck.canPublish) {
-      throw new Error(quotaCheck.error || 'Quota esgotada');
+      throw new Error(quotaCheck.error || 'Quota Getlate esgotada');
     }
 
     // For formats that don't require captions (stories), use a space if empty
@@ -329,10 +293,8 @@ Deno.serve(async (req) => {
       throw new Error(result.error || 'Failed to publish to Getlate');
     }
 
-    // Increment quota on success
-    await incrementQuota(supabase, user.id, network);
-
-    console.log(`[publish-to-getlate] ✅ Successfully published to ${network}`);
+    // NOTE: We no longer increment local quota - Getlate tracks usage automatically
+    console.log(`[publish-to-getlate] ✅ Successfully published to ${network} (Getlate tracks quota automatically)`);
 
     return new Response(
       JSON.stringify({ 
