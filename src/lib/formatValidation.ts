@@ -96,11 +96,11 @@ export function validateFormat(
     errors.push('Este formato requer um vídeo');
   }
 
-  // Image requirement - for carousel formats, accept either images OR videos
-  // instagram_carousel can have mixed media (images + videos)
+  // Image requirement - for carousel/document formats, accept either images OR videos
+  // instagram_carousel and linkedin_document can have mixed media (frames extracted from videos)
   if (config.requiresImage && imageCount === 0 && videoCount === 0) {
-    // Only show error if format truly requires image-only (not carousel which accepts both)
-    if (format !== 'instagram_carousel') {
+    // Only show error if format truly requires image-only (not carousel/document which accepts both)
+    if (format !== 'instagram_carousel' && format !== 'linkedin_document') {
       errors.push('Este formato requer uma imagem');
     }
   }
