@@ -126,12 +126,25 @@ async function validateQuotaFromGetlate(apiToken: string): Promise<{ canPublish:
   }
 }
 
-async function publishToGetlate(apiToken: string, payload: GetlatePostPayload, retries = 3): Promise<{ success: boolean; data?: any; error?: string }> {
+// Helper to detect rate limit errors
+function isRateLimitError(status: number, responseText: string): boolean {
+  if (status === 429) return true;
+  if (status === 400) {
+    const lowerText = responseText.toLowerCase();
+    return lowerText.includes('too many actions') || 
+           lowerText.includes('rate limit') ||
+           lowerText.includes('media container') ||
+           lowerText.includes('please wait');
+  }
+  return false;
+}
+
+async function publishToGetlate(apiToken: string, payload: GetlatePostPayload, retries = 4): Promise<{ success: boolean; data?: any; error?: string; isRateLimit?: boolean }> {
   const apiUrl = 'https://getlate.dev/api/v1/posts';
   
   for (let attempt = 1; attempt <= retries; attempt++) {
     try {
-      console.log(`[publish-to-getlate] Attempt ${attempt} - Publishing to Getlate API`);
+      console.log(`[publish-to-getlate] Attempt ${attempt}/${retries} - Publishing to Getlate API`);
       console.log(`[publish-to-getlate] Payload:`, JSON.stringify(payload, null, 2));
       
       const controller = new AbortController();
@@ -164,9 +177,27 @@ async function publishToGetlate(apiToken: string, payload: GetlatePostPayload, r
       } else {
         console.error(`[publish-to-getlate] API returned status ${response.status}: ${responseText}`);
         
-        if (attempt === retries) {
-          return { success: false, error: `Getlate API error (${response.status}): ${responseText}` };
+        // Check if it's a rate limit error
+        const rateLimited = isRateLimitError(response.status, responseText);
+        
+        if (rateLimited && attempt < retries) {
+          // Exponential backoff for rate limits: 10s, 20s, 40s
+          const backoffMs = Math.pow(2, attempt) * 5000;
+          console.log(`[publish-to-getlate] Rate limit detected! Waiting ${backoffMs/1000}s before retry...`);
+          await new Promise(resolve => setTimeout(resolve, backoffMs));
+          continue;
         }
+        
+        if (attempt === retries) {
+          return { 
+            success: false, 
+            error: `Getlate API error (${response.status}): ${responseText}`,
+            isRateLimit: rateLimited
+          };
+        }
+        
+        // Non rate-limit error, short delay before retry
+        await new Promise(resolve => setTimeout(resolve, 2000));
       }
     } catch (error) {
       console.error(`[publish-to-getlate] Attempt ${attempt} failed:`, error);
