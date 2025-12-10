@@ -166,8 +166,8 @@ const InstagramCarouselPreview = ({ mediaUrls, mediaItems, caption }: InstagramC
             </div>
           </div>
 
-          {/* Media Carousel */}
-          <div className="relative aspect-square bg-muted group">
+          {/* Media Carousel - Instagram uses 4:5 aspect ratio */}
+          <div className="relative aspect-[4/5] bg-muted group">
             {items.length > 0 ? (
               <>
                 {renderMedia(items[currentIndex], currentIndex)}

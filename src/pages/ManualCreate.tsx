@@ -32,6 +32,7 @@ import InstagramCarouselPreview from '@/components/manual-post/InstagramCarousel
 import InstagramStoryPreview from '@/components/manual-post/InstagramStoryPreview';
 import InstagramReelPreview from '@/components/manual-post/InstagramReelPreview';
 import LinkedInPreview from '@/components/manual-post/LinkedInPreview';
+import LinkedInDocumentPreview from '@/components/manual-post/LinkedInDocumentPreview';
 import YouTubeShortsPreview from '@/components/manual-post/YouTubeShortsPreview';
 import YouTubeVideoPreview from '@/components/manual-post/YouTubeVideoPreview';
 import TikTokPreview from '@/components/manual-post/TikTokPreview';
@@ -1002,6 +1003,10 @@ export default function ManualCreate() {
     }
     
     if (network === 'linkedin') {
+      // Use document preview for linkedin_document, regular preview for linkedin_post
+      if (format === 'linkedin_document') {
+        return <LinkedInDocumentPreview mediaUrls={mediaPreviewUrls} caption={caption} />;
+      }
       return <LinkedInPreview mediaUrls={mediaPreviewUrls} caption={caption} />;
     }
     
