@@ -56,9 +56,20 @@ interface GetlatePostPayload {
     };
   }>;
   mediaItems?: Array<{
-    type: 'image' | 'video';
+    type: 'image' | 'video' | 'document';
     url: string;
   }>;
+}
+
+// Helper function to detect media type from URL extension
+function getMediaTypeFromUrl(url: string): 'image' | 'video' | 'document' {
+  const lowercaseUrl = url.toLowerCase();
+  // Check for document (PDF)
+  if (lowercaseUrl.includes('.pdf')) return 'document';
+  // Check for video extensions
+  if (lowercaseUrl.match(/\.(mp4|mov|webm|avi|mkv|m4v|quicktime)(\?|$)/)) return 'video';
+  // Default to image (PNG, JPG, JPEG, WEBP, GIF, etc.)
+  return 'image';
 }
 
 async function publishToGetlate(apiToken: string, payload: GetlatePostPayload, retries = 3): Promise<{ success: boolean; data?: any; error?: string }> {
@@ -262,10 +273,6 @@ Deno.serve(async (req) => {
       throw new Error(quotaCheck.error || 'Quota esgotada');
     }
 
-    // Determine media type based on format
-    const isVideoFormat = format.includes('reel') || format.includes('video') || format.includes('shorts') || format === 'tiktok_video';
-    const mediaType: 'image' | 'video' = isVideoFormat ? 'video' : 'image';
-
     // For formats that don't require captions (stories), use a space if empty
     // Getlate API requires content to be non-empty
     const contentToSend = caption?.trim() || ' ';
@@ -279,6 +286,15 @@ Deno.serve(async (req) => {
 
     const platformSpecificData = getPlatformSpecificData(format);
 
+    // Build mediaItems with correct type per individual file (not global format)
+    const mediaItems = media_urls.map(url => {
+      const mediaType = getMediaTypeFromUrl(url);
+      console.log(`[publish-to-getlate] Media: ${url.split('/').pop()} → type: ${mediaType}`);
+      return { type: mediaType, url };
+    });
+
+    console.log(`[publish-to-getlate] Media breakdown: ${mediaItems.map(m => m.type).join(', ')}`);
+
     // Build Getlate payload
     const getlatePayload: GetlatePostPayload = {
       content: contentToSend,
@@ -288,10 +304,7 @@ Deno.serve(async (req) => {
         accountId: accountId,
         ...(platformSpecificData && { platformSpecificData }),
       }],
-      mediaItems: media_urls.map(url => ({
-        type: mediaType,
-        url,
-      })),
+      mediaItems,
     };
 
     // Add scheduling if not immediate
