@@ -639,3 +639,135 @@ All colors MUST be HSL.
 .rbc-addons-dnd-drag-preview {
   box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
 }
+
+/* ========================================
+   Platform Selector - Premium Design
+   ======================================== */
+
+/* Platform Chips */
+.platform-chips {
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+  -webkit-overflow-scrolling: touch;
+}
+
+.platform-chips::-webkit-scrollbar {
+  display: none;
+}
+
+.platform-chip {
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08);
+  min-width: 120px;
+}
+
+.platform-chip:hover {
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+}
+
+.platform-chip-expanded {
+  border-color: var(--platform-color) !important;
+  background: var(--platform-color-light) !important;
+}
+
+.platform-chip-selected .platform-chip-badge {
+  animation: badge-pop 0.3s ease;
+}
+
+@keyframes badge-pop {
+  0% { transform: scale(0.8); }
+  50% { transform: scale(1.15); }
+  100% { transform: scale(1); }
+}
+
+/* Formats Panel */
+.formats-panel {
+  animation: slide-down 0.25s ease-out;
+}
+
+@keyframes slide-down {
+  from {
+    opacity: 0;
+    max-height: 0;
+    transform: translateY(-8px);
+  }
+  to {
+    opacity: 1;
+    max-height: 600px;
+    transform: translateY(0);
+  }
+}
+
+/* Format Cards */
+.format-card {
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.06);
+}
+
+.format-card:hover {
+  border-color: hsl(var(--border)) !important;
+}
+
+.format-card-selected {
+  box-shadow: 0 0 0 3px var(--platform-color-light), 0 2px 8px rgba(0, 0, 0, 0.08) !important;
+}
+
+.format-card-selected:hover {
+  border-color: var(--platform-color) !important;
+}
+
+.format-checkbox-checked {
+  animation: checkmark-pop 0.3s ease;
+}
+
+@keyframes checkmark-pop {
+  0% { transform: scale(0.6); }
+  50% { transform: scale(1.2); }
+  100% { transform: scale(1); }
+}
+
+/* Selected Tags */
+.selected-tag {
+  animation: tag-enter 0.2s ease-out;
+}
+
+@keyframes tag-enter {
+  from {
+    opacity: 0;
+    transform: scale(0.8);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+.tag-remove:hover {
+  transform: scale(1.1);
+}
+
+/* Mobile Responsive */
+@media (max-width: 640px) {
+  .platform-chips {
+    flex-wrap: nowrap;
+    overflow-x: auto;
+    margin-left: -1rem;
+    margin-right: -1rem;
+    padding-left: 1rem;
+    padding-right: 1rem;
+  }
+  
+  .platform-chip {
+    flex-shrink: 0;
+    min-width: 100px;
+  }
+  
+  .formats-panel {
+    margin-left: -0.5rem;
+    margin-right: -0.5rem;
+    border-radius: 1rem;
+  }
+  
+  .format-card {
+    min-height: 110px;
+    padding: 12px 8px;
+  }
+}
