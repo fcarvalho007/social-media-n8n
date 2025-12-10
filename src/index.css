@@ -188,6 +188,49 @@ All colors MUST be HSL.
 }
 
 @layer utilities {
+  /* Micro-interactions */
+  .hover-lift {
+    @apply transition-all duration-200 ease-out;
+  }
+  
+  .hover-lift:hover {
+    @apply scale-[1.02] shadow-md;
+  }
+  
+  .press-effect {
+    @apply transition-transform duration-100 ease-out active:scale-[0.98];
+  }
+  
+  .toggle-spring {
+    @apply transition-all duration-300 ease-out;
+  }
+  
+  .toggle-spring[data-state="checked"] {
+    animation: spring 0.4s ease-out;
+  }
+  
+  @keyframes spring {
+    0% { transform: scale(1); }
+    30% { transform: scale(1.1); }
+    60% { transform: scale(0.95); }
+    100% { transform: scale(1); }
+  }
+  
+  /* Card selection animation */
+  .card-selected {
+    @apply ring-2 ring-primary ring-offset-2 transition-all duration-200;
+  }
+  
+  /* Pulse dot animation */
+  .pulse-dot {
+    @apply relative;
+  }
+  
+  .pulse-dot::before {
+    content: '';
+    @apply absolute inset-0 rounded-full bg-current animate-ping opacity-75;
+  }
+
   /* Mobile-specific utilities */
   .mobile-safe {
     padding-top: env(safe-area-inset-top);
