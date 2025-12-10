@@ -220,6 +220,46 @@ All colors MUST be HSL.
   .card-selected {
     @apply ring-2 ring-primary ring-offset-2 transition-all duration-200;
   }
+
+  /* Sortable/Drag & Drop Styles */
+  .sortable-item {
+    @apply transition-all duration-200 ease-out;
+  }
+
+  .sortable-item:hover:not(.sortable-dragging) {
+    @apply shadow-md;
+  }
+
+  .sortable-dragging {
+    @apply opacity-90 scale-105 shadow-2xl z-50 ring-2 ring-primary;
+    transform-origin: center center;
+  }
+
+  .sortable-item-over {
+    @apply border-dashed border-primary bg-primary/5;
+  }
+
+  /* Drag overlay animation */
+  @keyframes drag-float {
+    0%, 100% { transform: rotate(2deg) scale(1.05); }
+    50% { transform: rotate(-2deg) scale(1.08); }
+  }
+
+  .drag-overlay {
+    animation: drag-float 1s ease-in-out infinite;
+    pointer-events: none;
+  }
+
+  /* Drop zone highlight */
+  .drop-zone-active {
+    @apply border-2 border-dashed border-primary bg-primary/5;
+    animation: pulse-border 1s ease-in-out infinite;
+  }
+
+  @keyframes pulse-border {
+    0%, 100% { border-color: hsl(var(--primary) / 0.5); }
+    50% { border-color: hsl(var(--primary)); }
+  }
   
   /* Pulse dot animation */
   .pulse-dot {
