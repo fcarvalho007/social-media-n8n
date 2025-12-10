@@ -819,9 +819,15 @@ export default function ManualCreate() {
     }
   };
 
-  // Get accept types for file input
+  // Get accept types for file input - always allow both for carousel and when linkedin_document is present
   const getAcceptTypes = () => {
     if (mediaRequirements.requiresVideo) return 'video/*';
+    // Always allow video for carousel formats and when linkedin_document is selected
+    const hasCarouselOrDocument = selectedFormats.some(f => 
+      f === 'instagram_carousel' || f === 'linkedin_document' || f === 'linkedin_post' || 
+      f === 'facebook_image' || f.includes('stories')
+    );
+    if (hasCarouselOrDocument) return 'image/*,video/*';
     if (mediaRequirements.requiresImage) return 'image/*';
     return 'image/*,video/*';
   };
@@ -916,11 +922,18 @@ export default function ManualCreate() {
           {selectedFormats.length > 0 && (
             <Card>
               <CardHeader>
-                <CardTitle>Média</CardTitle>
+                <CardTitle className="flex items-center gap-2">
+                  Média
+                  <div className="flex gap-1">
+                    <Badge variant="outline" className="text-xs font-normal">PNG</Badge>
+                    <Badge variant="outline" className="text-xs font-normal">JPG</Badge>
+                    <Badge variant="outline" className="text-xs font-normal">MP4</Badge>
+                  </div>
+                </CardTitle>
                 <CardDescription>
                   {mediaRequirements.requiresVideo 
                     ? `Carregue ${mediaRequirements.minMedia} vídeo (MP4 - máx. 50MB)`
-                    : `Carregue entre ${mediaRequirements.minMedia} e ${mediaRequirements.maxMedia} ficheiros (PNG, JPG${!mediaRequirements.requiresImage ? ', MP4' : ''} - máx. 50MB cada)`
+                    : `Carregue ${mediaRequirements.minMedia}-${mediaRequirements.maxMedia} ficheiros • Máx. 50MB cada`
                   }
                 </CardDescription>
               </CardHeader>

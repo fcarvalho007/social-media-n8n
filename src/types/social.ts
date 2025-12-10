@@ -40,9 +40,8 @@ export const NETWORK_POST_FORMATS: Record<SocialNetwork, PostFormatConfig[]> = {
     { 
       format: 'instagram_carousel', 
       label: 'Carrossel', 
-      description: '1-10 imagens', 
+      description: '1-10 imagens ou vídeos', 
       icon: 'LayoutGrid',
-      requiresImage: true,
       minMedia: 1,
       maxMedia: 10,
     },
