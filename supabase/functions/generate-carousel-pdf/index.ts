@@ -257,10 +257,10 @@ serve(async (req) => {
     // Create a new PDF document
     const pdfDoc = await PDFDocument.create();
     
-    // 3:4 aspect ratio dimensions in points (1 point = 1/72 inch)
-    // Width: 595.28 (same as A4), Height: 793.70 (595.28 * 4/3 = 793.70)
+    // 4:5 aspect ratio dimensions in points (1 point = 1/72 inch)
+    // Width: 595.28 (same as A4), Height: 744.10 (595.28 / 0.8 = 744.10)
     const pageWidth = 595.28;
-    const pageHeight = 793.70; // 3:4 aspect ratio
+    const pageHeight = 744.10; // 4:5 aspect ratio
     const margin = 0; // Edge-to-edge, no margins
 
     // Generate alt texts if not provided

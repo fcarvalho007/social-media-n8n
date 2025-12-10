@@ -8,7 +8,7 @@ export interface CarouselPDFOptions {
 
 /**
  * Generates a PDF from carousel images
- * Each image becomes one page in 3:4 portrait format (optimized for LinkedIn)
+ * Each image becomes one page in 4:5 portrait format (optimized for Instagram/LinkedIn)
  */
 export async function generateCarouselPDF(options: CarouselPDFOptions): Promise<Blob> {
   const { PDF_GENERATION_MODE } = await import('@/config/pdf');
@@ -26,11 +26,11 @@ export async function generateCarouselPDF(options: CarouselPDFOptions): Promise<
   // Legacy client-side generation (disabled in server mode)
   const jsPDF = (await import('jspdf')).default;
 
-  // Use 3:4 aspect ratio (210mm width x 280mm height) instead of A4
+  // Use 4:5 aspect ratio (210mm width x 262.5mm height) for Instagram/LinkedIn
   const pdf = new jsPDF({
     orientation: 'portrait',
     unit: 'mm',
-    format: [210, 280], // 3:4 aspect ratio
+    format: [210, 262.5], // 4:5 aspect ratio
   });
 
   const pageWidth = pdf.internal.pageSize.getWidth();
