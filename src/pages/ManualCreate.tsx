@@ -767,6 +767,17 @@ export default function ManualCreate() {
       const publishResults: { format: string; success: boolean; error?: string }[] = [];
       let pdfUrl: string | null = null;
 
+      // Sort formats: LinkedIn first, Instagram last (Instagram has stricter rate limits)
+      const sortedFormats = [...selectedFormats].sort((a, b) => {
+        const aNetwork = FORMAT_TO_NETWORK[a] || 'instagram';
+        const bNetwork = FORMAT_TO_NETWORK[b] || 'instagram';
+        if (aNetwork === 'instagram' && bNetwork !== 'instagram') return 1;
+        if (bNetwork === 'instagram' && aNetwork !== 'instagram') return -1;
+        if (aNetwork === 'linkedin' && bNetwork !== 'linkedin') return -1;
+        if (bNetwork === 'linkedin' && aNetwork !== 'linkedin') return 1;
+        return 0;
+      });
+
       // Publish to each selected format
       for (let i = 0; i < totalFormats; i++) {
         if (shouldCancel) {
@@ -774,8 +785,16 @@ export default function ManualCreate() {
           break;
         }
 
-        const format = selectedFormats[i];
+        const format = sortedFormats[i];
         const network = FORMAT_TO_NETWORK[format] || 'instagram';
+        const previousNetwork = i > 0 ? (FORMAT_TO_NETWORK[sortedFormats[i - 1]] || 'instagram') : null;
+        
+        // Add delay before Instagram to avoid rate limits
+        if (network === 'instagram' && previousNetwork && previousNetwork !== 'instagram') {
+          toast.info('A aguardar 5 segundos antes de publicar no Instagram...', { duration: 5000 });
+          await new Promise(resolve => setTimeout(resolve, 5000));
+        }
+        
         setCurrentPublishingNetwork(network);
         
         // Calculate progress: 30% for upload, 70% for publishing split between formats
