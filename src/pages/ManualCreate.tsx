@@ -42,9 +42,10 @@ import { NetworkFormatSelector } from '@/components/manual-post/NetworkFormatSel
 import { getMediaRequirements, validateAllFormats, getValidationSummary, FormatValidationResult } from '@/lib/formatValidation';
 import { INSTAGRAM_CONFIG, LINKEDIN_CONFIG, FORMAT_TO_NETWORK, FORMAT_TO_ACCOUNT } from '@/types/publishing';
 import { PublishingOverlay } from '@/components/manual-post/PublishingOverlay';
-import { SortableMediaItem } from '@/components/manual-post/SortableMediaItem';
-import { DndContext, closestCenter, DragEndEvent, PointerSensor, useSensor, useSensors } from '@dnd-kit/core';
-import { SortableContext, arrayMove, horizontalListSortingStrategy } from '@dnd-kit/sortable';
+import { EnhancedSortableMediaItem, MediaDragOverlay } from '@/components/manual-post/EnhancedSortableMediaItem';
+import { DragHintTooltip } from '@/components/manual-post/DragHintTooltip';
+import { DndContext, closestCenter, DragEndEvent, DragStartEvent, PointerSensor, KeyboardSensor, useSensor, useSensors, DragOverlay } from '@dnd-kit/core';
+import { SortableContext, arrayMove, horizontalListSortingStrategy, sortableKeyboardCoordinates } from '@dnd-kit/sortable';
 import { generateCarouselPDF } from '@/lib/pdfGenerator';
 import EmojiPicker, { EmojiClickData } from 'emoji-picker-react';
 
@@ -150,18 +151,34 @@ export default function ManualCreate() {
   const [visitedSteps, setVisitedSteps] = useState<number[]>([1]);
   const [showValidation, setShowValidation] = useState(false);
 
-  // DnD sensors for drag and drop
+  // DnD sensors for drag and drop with keyboard support
+  const [activeId, setActiveId] = useState<string | null>(null);
+  
   const sensors = useSensors(
     useSensor(PointerSensor, {
       activationConstraint: {
         distance: 5,
       },
+    }),
+    useSensor(KeyboardSensor, {
+      coordinateGetter: sortableKeyboardCoordinates,
     })
   );
+
+  // Handle drag start
+  const handleDragStart = useCallback((event: DragStartEvent) => {
+    setActiveId(event.active.id as string);
+  }, []);
+
+  // Handle drag cancel
+  const handleDragCancel = useCallback(() => {
+    setActiveId(null);
+  }, []);
 
   // Handle drag end for media reordering
   const handleDragEnd = useCallback((event: DragEndEvent) => {
     const { active, over } = event;
+    setActiveId(null);
     
     if (over && active.id !== over.id) {
       const oldIndex = mediaPreviewUrls.findIndex((_, i) => `media-${i}` === active.id);
@@ -170,10 +187,19 @@ export default function ManualCreate() {
       if (oldIndex !== -1 && newIndex !== -1) {
         setMediaPreviewUrls(prev => arrayMove(prev, oldIndex, newIndex));
         setMediaFiles(prev => arrayMove(prev, oldIndex, newIndex));
-        toast.success('Ordem atualizada');
+        toast.success(`Item movido para posição ${newIndex + 1}`);
       }
     }
   }, [mediaPreviewUrls]);
+
+  // Move media item via arrow buttons
+  const moveMedia = useCallback((fromIndex: number, toIndex: number) => {
+    if (toIndex < 0 || toIndex >= mediaPreviewUrls.length) return;
+    
+    setMediaPreviewUrls(prev => arrayMove(prev, fromIndex, toIndex));
+    setMediaFiles(prev => arrayMove(prev, fromIndex, toIndex));
+    toast.success(`Item movido para posição ${toIndex + 1}`);
+  }, [mediaPreviewUrls.length]);
 
   // Compute media requirements based on selected formats
   const mediaRequirements = useMemo(() => getMediaRequirements(selectedFormats), [selectedFormats]);
@@ -1127,17 +1153,24 @@ export default function ManualCreate() {
                 {/* Media Grid - With Files */}
                 {mediaPreviewUrls.length > 0 && (
                   <div className="space-y-3">
+                    {/* Drag hint for first-time users */}
+                    {mediaPreviewUrls.length > 1 && (
+                      <DragHintTooltip show={mediaPreviewUrls.length > 1} />
+                    )}
+                    
                     <div className="flex items-center justify-between text-xs text-muted-foreground">
                       <span className="flex items-center gap-1.5">
                         <span className="w-1.5 h-1.5 rounded-full bg-primary animate-pulse" />
-                        Arraste para reordenar
+                        Arraste para reordenar ou use as setas
                       </span>
                       <span className="font-medium">{mediaPreviewUrls.length} de {mediaRequirements.maxMedia} ficheiros</span>
                     </div>
                     <DndContext
                       sensors={sensors}
                       collisionDetection={closestCenter}
+                      onDragStart={handleDragStart}
                       onDragEnd={handleDragEnd}
+                      onDragCancel={handleDragCancel}
                     >
                       <SortableContext
                         items={mediaPreviewUrls.map((_, i) => `media-${i}`)}
@@ -1147,61 +1180,18 @@ export default function ManualCreate() {
                           {mediaPreviewUrls.map((url, idx) => {
                             const isVideo = mediaFiles[idx]?.type?.startsWith('video/');
                             return (
-                              <div key={`media-${idx}`} className="relative group aspect-square rounded-xl overflow-hidden border-2 border-border hover:border-primary/50 transition-all shadow-sm">
-                                {isVideo ? (
-                                  <video
-                                    src={url}
-                                    className="w-full h-full object-cover"
-                                    muted
-                                    loop
-                                    autoPlay
-                                    playsInline
-                                  />
-                                ) : (
-                                  <img
-                                    src={url}
-                                    alt={`Media ${idx + 1}`}
-                                    className="w-full h-full object-cover"
-                                  />
-                                )}
-                                
-                                {/* Overlay with actions */}
-                                <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity">
-                                  <Button
-                                    variant="destructive"
-                                    size="icon"
-                                    className="absolute top-2 right-2 h-7 w-7 rounded-full shadow-lg"
-                                    onClick={() => removeMedia(idx)}
-                                    disabled={saving || submitting || publishing}
-                                  >
-                                    <span className="sr-only">Remover</span>
-                                    ×
-                                  </Button>
-                                </div>
-                                
-                                {/* Type indicator */}
-                                <div className="absolute bottom-2 left-2">
-                                  <Badge variant="secondary" className="text-[10px] px-1.5 py-0.5 bg-background/80 backdrop-blur-sm">
-                                    {isVideo ? (
-                                      <><Video className="h-2.5 w-2.5 mr-1" />Vídeo</>
-                                    ) : (
-                                      <><Image className="h-2.5 w-2.5 mr-1" />Imagem</>
-                                    )}
-                                  </Badge>
-                                </div>
-                                
-                                {/* Order indicator */}
-                                <div className="absolute top-2 left-2">
-                                  <div className="w-5 h-5 rounded-full bg-primary text-primary-foreground text-xs font-bold flex items-center justify-center shadow-lg">
-                                    {idx + 1}
-                                  </div>
-                                </div>
-                                
-                                {/* Completed checkmark */}
-                                <div className="absolute bottom-2 right-2">
-                                  <CheckCircle className="h-4 w-4 text-green-500 drop-shadow-lg" />
-                                </div>
-                              </div>
+                              <EnhancedSortableMediaItem
+                                key={`media-${idx}`}
+                                id={`media-${idx}`}
+                                url={url}
+                                index={idx}
+                                total={mediaPreviewUrls.length}
+                                isVideo={isVideo}
+                                disabled={saving || submitting || publishing}
+                                onRemove={() => removeMedia(idx)}
+                                onMoveUp={() => moveMedia(idx, idx - 1)}
+                                onMoveDown={() => moveMedia(idx, idx + 1)}
+                              />
                             );
                           })}
                           
@@ -1209,7 +1199,7 @@ export default function ManualCreate() {
                           {mediaPreviewUrls.length < mediaRequirements.maxMedia && (
                             <Label 
                               htmlFor="media-upload-more"
-                              className="aspect-square rounded-xl border-2 border-dashed border-border hover:border-primary/50 hover:bg-primary/5 flex flex-col items-center justify-center gap-1 cursor-pointer transition-all"
+                              className="aspect-square rounded-xl border-2 border-dashed border-border hover:border-primary/50 hover:bg-primary/5 flex flex-col items-center justify-center gap-1 cursor-pointer transition-all press-effect"
                             >
                               <Plus className="h-6 w-6 text-muted-foreground" />
                               <span className="text-xs text-muted-foreground">Adicionar</span>
@@ -1226,6 +1216,19 @@ export default function ManualCreate() {
                           )}
                         </div>
                       </SortableContext>
+                      
+                      {/* Drag Overlay - Shows preview while dragging */}
+                      <DragOverlay dropAnimation={{
+                        duration: 200,
+                        easing: 'cubic-bezier(0.18, 0.67, 0.6, 1.22)',
+                      }}>
+                        {activeId ? (
+                          <MediaDragOverlay
+                            url={mediaPreviewUrls[parseInt(activeId.replace('media-', ''))]}
+                            isVideo={mediaFiles[parseInt(activeId.replace('media-', ''))]?.type?.startsWith('video/')}
+                          />
+                        ) : null}
+                      </DragOverlay>
                     </DndContext>
                   </div>
                 )}
