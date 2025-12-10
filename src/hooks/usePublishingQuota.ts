@@ -1,25 +1,48 @@
-import { useQuery } from '@tanstack/react-query';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useCallback } from 'react';
 
 interface QuotaUsage {
   used_count: number;
   limit_count: number;
   remaining: number;
+  monthly_used?: number;
+  monthly_limit?: number;
+}
+
+interface AccountInfo {
+  id: string;
+  platform: string;
+  username: string;
+  displayName?: string;
+  profilePicture?: string;
+  isActive: boolean;
+}
+
+interface AccountBreakdown {
+  accountId: string;
+  platform: string;
+  username: string;
+  postsToday: number;
 }
 
 interface GetlateQuotaResponse {
   instagram: QuotaUsage;
   linkedin: QuotaUsage;
+  accounts: AccountInfo[];
+  accountBreakdown: AccountBreakdown[];
   planName: string;
   resetDate: string;
   isUnlimited: boolean;
+  dailyLimit: number;
+  lastUpdated: string;
   warning?: string;
   source?: 'override' | 'getlate';
 }
 
 export function usePublishingQuota() {
   const [userId, setUserId] = useState<string | null>(null);
+  const queryClient = useQueryClient();
 
   useEffect(() => {
     supabase.auth.getUser().then(({ data }) => {
@@ -27,13 +50,12 @@ export function usePublishingQuota() {
     });
   }, []);
 
-  // Query que verifica primeiro quota_overrides, depois Getlate.dev
   const quotaQuery = useQuery({
     queryKey: ['publishing-quota', userId],
     queryFn: async () => {
       if (!userId) return null;
 
-      // 1. Verificar se existe quota override personalizada
+      // 1. Check for custom quota override first
       try {
         const { data: override, error: overrideError } = await supabase
           .from('quota_overrides')
@@ -42,11 +64,11 @@ export function usePublishingQuota() {
           .maybeSingle();
 
         if (overrideError && overrideError.code !== 'PGRST116') {
-          console.warn('[Quota] Erro ao verificar override:', overrideError);
+          console.warn('[Quota] Error checking override:', overrideError);
         }
 
         if (override) {
-          console.log('[Quota] Usando quota personalizada:', override);
+          console.log('[Quota] Using custom quota:', override);
           return {
             instagram: {
               used_count: override.instagram_used,
@@ -58,39 +80,42 @@ export function usePublishingQuota() {
               limit_count: override.linkedin_limit,
               remaining: Math.max(0, override.linkedin_limit - override.linkedin_used),
             },
+            accounts: [],
+            accountBreakdown: [],
             planName: 'Quota Personalizada',
             resetDate: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString(),
             isUnlimited: false,
-            source: 'override',
+            dailyLimit: 5,
+            lastUpdated: new Date().toISOString(),
+            source: 'override' as const,
           };
         }
       } catch (err) {
-        console.warn('[Quota] Falha ao verificar override, usando Getlate.dev:', err);
+        console.warn('[Quota] Failed to check override:', err);
       }
 
-      // 2. Se não existe override, usar Getlate.dev
-      console.log('[Quota] Usando quota do Getlate.dev...');
+      // 2. Use Getlate.dev API
+      console.log('[Quota] Fetching from Getlate.dev...');
       
       const { data, error } = await supabase.functions.invoke<GetlateQuotaResponse>('get-getlate-quota');
 
       if (error) {
-        console.error('[Quota] Erro Getlate.dev:', error);
+        console.error('[Quota] Getlate error:', error);
         throw error;
       }
       
-      console.log('[Quota] Recebido do Getlate.dev:', data);
+      console.log('[Quota] Received from Getlate:', data);
       
-      // Validar dados recebidos
       if (data?.warning) {
-        console.warn('[Quota] API retornou warning:', data.warning);
+        console.warn('[Quota] API warning:', data.warning);
       }
       
-      return { ...data, source: 'getlate' };
+      return { ...data, source: 'getlate' as const };
     },
     enabled: !!userId,
     refetchOnWindowFocus: true,
-    refetchInterval: 30000, // Atualiza a cada 30 segundos
-    staleTime: 15000, // Cache de 15 segundos
+    refetchInterval: 5 * 60 * 1000, // Auto-refresh every 5 minutes
+    staleTime: 60 * 1000, // Consider stale after 1 minute
   });
 
   const formatQuotaText = (used: number, limit: number) => {
@@ -99,9 +124,31 @@ export function usePublishingQuota() {
   };
 
   const calculatePercentage = (used: number, limit: number) => {
-    if (limit === -1) return 0; // Ilimitado = sem barra de progresso
+    if (limit === -1) return 0;
     return limit > 0 ? (used / limit) * 100 : 0;
   };
+
+  const getQuotaStatus = (used: number, limit: number): 'ok' | 'warning' | 'danger' => {
+    if (limit === -1) return 'ok';
+    const percentage = (used / limit) * 100;
+    if (percentage >= 100) return 'danger';
+    if (percentage >= 80) return 'warning';
+    return 'ok';
+  };
+
+  // Check if can publish to a specific platform
+  const canPublish = useCallback((platform: 'instagram' | 'linkedin'): boolean => {
+    if (!quotaQuery.data) return false;
+    const quota = platform === 'instagram' ? quotaQuery.data.instagram : quotaQuery.data.linkedin;
+    if (!quota) return false;
+    if (quota.limit_count === -1) return true; // Unlimited
+    return quota.remaining > 0;
+  }, [quotaQuery.data]);
+
+  // Manual refresh function
+  const refresh = useCallback(async () => {
+    await queryClient.invalidateQueries({ queryKey: ['publishing-quota', userId] });
+  }, [queryClient, userId]);
 
   const defaultQuota: QuotaUsage = { used_count: 0, limit_count: 5, remaining: 5 };
 
@@ -118,6 +165,9 @@ export function usePublishingQuota() {
       percentage: quotaQuery.data?.instagram 
         ? calculatePercentage(quotaQuery.data.instagram.used_count, quotaQuery.data.instagram.limit_count)
         : 0,
+      status: quotaQuery.data?.instagram
+        ? getQuotaStatus(quotaQuery.data.instagram.used_count, quotaQuery.data.instagram.limit_count)
+        : 'ok',
     },
     linkedin: {
       quota: quotaQuery.data?.linkedin || defaultQuota,
@@ -131,9 +181,21 @@ export function usePublishingQuota() {
       percentage: quotaQuery.data?.linkedin 
         ? calculatePercentage(quotaQuery.data.linkedin.used_count, quotaQuery.data.linkedin.limit_count)
         : 0,
+      status: quotaQuery.data?.linkedin
+        ? getQuotaStatus(quotaQuery.data.linkedin.used_count, quotaQuery.data.linkedin.limit_count)
+        : 'ok',
     },
+    accounts: quotaQuery.data?.accounts || [],
+    accountBreakdown: quotaQuery.data?.accountBreakdown || [],
     planName: quotaQuery.data?.planName || 'Unknown',
     isUnlimited: quotaQuery.data?.isUnlimited || false,
+    dailyLimit: quotaQuery.data?.dailyLimit || 5,
+    lastUpdated: quotaQuery.data?.lastUpdated ? new Date(quotaQuery.data.lastUpdated) : null,
+    isLoading: quotaQuery.isLoading,
+    isRefreshing: quotaQuery.isFetching && !quotaQuery.isLoading,
+    error: quotaQuery.error?.message || null,
+    canPublish,
+    refresh,
     refetch: () => quotaQuery.refetch(),
   };
 }
