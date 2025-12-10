@@ -1,10 +1,10 @@
 import { useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { cn } from '@/lib/utils';
 import { SocialNetwork, PostFormat, NETWORK_POST_FORMATS } from '@/types/social';
 import { PlatformChip } from './PlatformChip';
 import { FormatsPanel } from './FormatsPanel';
 import { SelectedFormatsTags } from './SelectedFormatsTags';
+import { QuickPresets } from './QuickPresets';
 import { PLATFORM_CONFIGS } from './platformConfig';
 
 interface NetworkFormatSelectorProps {
@@ -44,12 +44,24 @@ export function NetworkFormatSelector({ selectedFormats, onFormatsChange }: Netw
     onFormatsChange(selectedFormats.filter(f => f !== format));
   };
 
+  // Handle preset selection
+  const handlePresetSelect = (formats: PostFormat[]) => {
+    onFormatsChange(formats);
+    setExpandedPlatform(null); // Close any open panel
+  };
+
   return (
     <Card className="overflow-hidden">
       <CardHeader className="pb-3">
         <CardTitle className="text-lg">Selecione onde pretende publicar</CardTitle>
       </CardHeader>
       <CardContent className="space-y-0">
+        {/* Quick Presets */}
+        <QuickPresets
+          selectedFormats={selectedFormats}
+          onSelectPreset={handlePresetSelect}
+        />
+
         {/* Platform Chips Bar */}
         <div 
           className="platform-chips flex gap-3 flex-wrap overflow-x-auto pb-2 -mx-2 px-2"

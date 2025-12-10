@@ -1,8 +1,7 @@
-import { Circle, CheckCircle2 } from 'lucide-react';
+import { Check } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { PostFormatConfig } from '@/types/social';
 import { FormatIllustration, getIllustrationType } from './FormatIllustration';
-import { Badge } from '@/components/ui/badge';
 
 interface FormatCardProps {
   format: PostFormatConfig;
@@ -32,36 +31,46 @@ export function FormatCard({ format, isSelected, onToggle, platformColor }: Form
         "cursor-pointer transition-all duration-200",
         "hover:shadow-lg hover:-translate-y-0.5",
         "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2",
-        "min-h-[130px] text-center",
+        "min-h-[140px] text-center",
         isSelected && "format-card-selected"
       )}
       style={{
         '--platform-color': platformColor,
-        '--platform-color-light': `${platformColor}0d`,
+        '--platform-color-light': `${platformColor}15`,
         borderColor: isSelected ? platformColor : 'hsl(var(--border))',
+        borderWidth: isSelected ? '3px' : '2px',
         backgroundColor: isSelected ? `${platformColor}08` : undefined,
+        boxShadow: isSelected 
+          ? `0 0 0 4px ${platformColor}15, 0 4px 12px rgba(0,0,0,0.1)` 
+          : undefined,
       } as React.CSSProperties}
       role="checkbox"
       aria-checked={isSelected}
       aria-label={`${format.label}: ${format.description}`}
     >
-      {/* Checkbox indicator */}
-      <div className="absolute top-2 right-2">
+      {/* Selection indicator */}
+      <div className="absolute top-2.5 right-2.5">
         {isSelected ? (
-          <CheckCircle2 
-            className="w-5 h-5 format-checkbox-checked"
-            style={{ color: platformColor }}
-          />
+          <div 
+            className="indicator-checked w-[22px] h-[22px] rounded-full flex items-center justify-center text-white"
+            style={{ backgroundColor: platformColor }}
+          >
+            <Check size={14} strokeWidth={3} />
+          </div>
         ) : (
-          <Circle className="w-5 h-5 text-muted-foreground/30 group-hover:text-muted-foreground/50 transition-colors" />
+          <div 
+            className="indicator-unchecked w-[22px] h-[22px] rounded-full border-2 bg-card transition-colors"
+            style={{ borderColor: 'hsl(var(--border))' }}
+          />
         )}
       </div>
       
       {/* Illustration */}
-      <div className="format-illustration mb-2">
+      <div className="format-illustration mb-2.5">
         <FormatIllustration 
           type={getIllustrationType(format.format)} 
           platformColor={platformColor}
+          isSelected={isSelected}
         />
       </div>
       
@@ -77,14 +86,20 @@ export function FormatCard({ format, isSelected, onToggle, platformColor }: Form
       
       {/* Badges */}
       {badges.length > 0 && (
-        <div className="flex flex-wrap gap-1 mt-2 justify-center">
+        <div className="flex flex-wrap gap-1 mt-2.5 justify-center">
           {badges.map((badge) => (
             <span 
               key={badge}
               className={cn(
-                "text-[10px] px-1.5 py-0.5 rounded",
-                "bg-muted text-muted-foreground font-medium"
+                "text-[10px] px-2 py-0.5 rounded-md font-semibold border",
+                isSelected 
+                  ? "bg-card border-current"
+                  : "bg-muted border-transparent text-muted-foreground"
               )}
+              style={isSelected ? { 
+                color: platformColor,
+                borderColor: `${platformColor}30`,
+              } : undefined}
             >
               {badge}
             </span>
