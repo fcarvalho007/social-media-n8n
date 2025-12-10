@@ -960,6 +960,14 @@ export default function ManualCreate() {
     return 'image/*,video/*';
   };
 
+  // Build mediaItems with proper isVideo detection from File types
+  const mediaItems = useMemo(() => {
+    return mediaPreviewUrls.map((url, idx) => ({
+      url,
+      isVideo: mediaFiles[idx]?.type?.startsWith('video/') || false
+    }));
+  }, [mediaPreviewUrls, mediaFiles]);
+
   // Render preview for a format
   const renderPreview = (format: PostFormat) => {
     const network = getNetworkFromFormat(format);
@@ -971,7 +979,7 @@ export default function ManualCreate() {
       if (format === 'instagram_reel') {
         return <InstagramReelPreview mediaUrl={mediaPreviewUrls[0]} caption={caption} />;
       }
-      return <InstagramCarouselPreview mediaUrls={mediaPreviewUrls} caption={caption} />;
+      return <InstagramCarouselPreview mediaItems={mediaItems} caption={caption} />;
     }
     
     if (network === 'linkedin') {
