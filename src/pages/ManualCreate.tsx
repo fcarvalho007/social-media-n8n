@@ -1105,7 +1105,7 @@ export default function ManualCreate() {
                   >
                     <div className={cn(
                       "relative flex flex-col items-center justify-center gap-3 h-48 rounded-xl",
-                      "border-2 border-dashed transition-all duration-200",
+                      "border-2 border-dashed transition-all duration-300",
                       "hover:border-primary/50 hover:bg-primary/5",
                       "border-primary/30 bg-gradient-to-br from-primary/5 to-transparent"
                     )}>
@@ -1117,7 +1117,7 @@ export default function ManualCreate() {
                       ) : (
                         <>
                           <div className="p-4 rounded-full bg-primary/10">
-                            <CloudUpload className="h-8 w-8 text-primary animate-pulse" />
+                            <CloudUpload className="h-8 w-8 text-primary animate-float" />
                           </div>
                           <div className="text-center">
                             <p className="font-medium text-foreground">Arrasta imagens ou vídeos para aqui</p>
@@ -1353,13 +1353,56 @@ export default function ManualCreate() {
                 <CardDescription>Defina quando publicar</CardDescription>
               </CardHeader>
               <CardContent className="space-y-4">
-                <div className="flex items-center justify-between">
-                  <Label htmlFor="asap" className="text-sm font-medium">Logo que possível</Label>
-                  <Switch id="asap" checked={scheduleAsap} onCheckedChange={setScheduleAsap} />
+                {/* Toggle Pill Style */}
+                <div className="flex rounded-full bg-muted p-1 gap-1">
+                  <button
+                    type="button"
+                    onClick={() => setScheduleAsap(true)}
+                    className={cn(
+                      "flex-1 py-2.5 px-4 rounded-full text-sm font-medium transition-all duration-300 flex items-center justify-center gap-2",
+                      scheduleAsap 
+                        ? "bg-background shadow-sm text-foreground" 
+                        : "text-muted-foreground hover:text-foreground"
+                    )}
+                  >
+                    <Rocket className="h-4 w-4" />
+                    Publicar agora
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setScheduleAsap(false)}
+                    className={cn(
+                      "flex-1 py-2.5 px-4 rounded-full text-sm font-medium transition-all duration-300 flex items-center justify-center gap-2",
+                      !scheduleAsap 
+                        ? "bg-background shadow-sm text-foreground" 
+                        : "text-muted-foreground hover:text-foreground"
+                    )}
+                  >
+                    <CalendarIcon className="h-4 w-4" />
+                    Agendar
+                  </button>
                 </div>
                 
-                {!scheduleAsap && (
-                  <div className="space-y-3">
+                {scheduleAsap ? (
+                  <p className="text-sm text-muted-foreground text-center py-2">
+                    Será publicado assim que clicares em Publicar
+                  </p>
+                ) : (
+                  <div className="space-y-3 animate-fade-in">
+                    {/* Smart suggestion badge */}
+                    <Badge 
+                      variant="outline" 
+                      className="cursor-pointer hover:bg-primary/10 transition-colors w-full justify-center py-2"
+                      onClick={() => {
+                        const nextTuesday = new Date();
+                        nextTuesday.setDate(nextTuesday.getDate() + ((2 + 7 - nextTuesday.getDay()) % 7 || 7));
+                        setScheduledDate(nextTuesday);
+                        setTime('18:00');
+                      }}
+                    >
+                      💡 Melhor horário sugerido: Terça 18:00
+                    </Badge>
+                    
                     <div>
                       <Label className="text-sm">Data</Label>
                       <Popover>
@@ -1394,6 +1437,7 @@ export default function ManualCreate() {
                           className="pl-10"
                         />
                       </div>
+                      <p className="text-xs text-muted-foreground mt-1">Fuso horário: Lisboa (WET)</p>
                     </div>
                   </div>
                 )}
@@ -1447,7 +1491,13 @@ export default function ManualCreate() {
                     size="lg"
                     onClick={handlePublishWithValidation}
                     disabled={publishing || submitting || saving || isUploading}
-                    className="flex-1 font-semibold bg-gradient-to-r from-primary to-primary/80 hover:from-primary/90 hover:to-primary/70"
+                    className={cn(
+                      "flex-1 font-semibold",
+                      "bg-gradient-to-r from-primary to-primary/80",
+                      "hover:from-primary/90 hover:to-primary/70 hover:shadow-lg",
+                      "active:scale-[0.98] transition-all duration-200",
+                      "disabled:opacity-50 disabled:cursor-not-allowed"
+                    )}
                     aria-label="Publicar agora"
                   >
                     {publishing ? (
@@ -1474,7 +1524,11 @@ export default function ManualCreate() {
                       handlePublishWithValidation();
                     }}
                     disabled={publishing || submitting || saving || isUploading}
-                    className="flex-1 font-semibold"
+                    className={cn(
+                      "flex-1 font-semibold border-2 border-primary text-primary",
+                      "hover:bg-primary/10 hover:shadow-md",
+                      "active:scale-[0.98] transition-all duration-200"
+                    )}
                     aria-label="Agendar publicação"
                   >
                     <CalendarIcon className="h-4 w-4 mr-2" />

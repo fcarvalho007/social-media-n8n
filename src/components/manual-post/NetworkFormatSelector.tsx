@@ -178,12 +178,23 @@ export function NetworkFormatSelector({ selectedFormats, onFormatsChange }: Netw
       <div
         key={formatConfig.format}
         onClick={() => toggleFormat(formatConfig.format)}
+        tabIndex={0}
+        onKeyDown={(e) => {
+          if (e.key === 'Enter' || e.key === ' ') {
+            e.preventDefault();
+            toggleFormat(formatConfig.format);
+          }
+        }}
+        role="checkbox"
+        aria-checked={isSelected}
         className={cn(
-          "group relative flex items-start gap-3 p-3 rounded-xl cursor-pointer transition-all duration-200",
-          "border-2",
+          "group relative flex items-start gap-3 p-3 rounded-xl cursor-pointer",
+          "border-2 transition-all duration-200",
+          // Focus state for accessibility
+          "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2",
           isSelected 
             ? cn("border-primary/50 bg-primary/5 shadow-sm", config.bgColor)
-            : "border-transparent hover:border-border hover:bg-accent/30 hover:shadow-sm"
+            : "border-transparent hover:border-border hover:bg-accent/30 hover:shadow-md hover:-translate-y-0.5"
         )}
       >
         {/* Custom Checkbox */}
