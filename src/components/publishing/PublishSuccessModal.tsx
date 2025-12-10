@@ -3,7 +3,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { 
   Check, X, ExternalLink, Plus, Calendar, 
   PartyPopper, AlertCircle, Loader2, Copy, Share2,
-  Instagram, Linkedin, Youtube, Facebook
+  Instagram, Linkedin, Youtube, Facebook, RefreshCw, Clock
 } from 'lucide-react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
@@ -27,6 +27,7 @@ interface PublishSuccessModalProps {
   results: PublishResult[];
   onCreateNew: () => void;
   onViewCalendar: () => void;
+  onRetryFormat?: (format: string) => void;
 }
 
 const platformColors: Record<string, string> = {
@@ -67,12 +68,24 @@ const getPlatformName = (platform: string): string => {
   return names[platform] || platform;
 };
 
+// Detect if error is a rate limit error
+const isRateLimitError = (errorMessage?: string): boolean => {
+  if (!errorMessage) return false;
+  const lowerMsg = errorMessage.toLowerCase();
+  return lowerMsg.includes('too many actions') || 
+         lowerMsg.includes('rate limit') ||
+         lowerMsg.includes('media container') ||
+         lowerMsg.includes('please wait') ||
+         lowerMsg.includes('429');
+};
+
 export function PublishSuccessModal({
   isOpen,
   onClose,
   results,
   onCreateNew,
-  onViewCalendar
+  onViewCalendar,
+  onRetryFormat
 }: PublishSuccessModalProps) {
   const [showConfetti, setShowConfetti] = useState(false);
   
@@ -377,9 +390,27 @@ export function PublishSuccessModal({
                         <ExternalLink className="h-3 w-3" />
                       </a>
                     ) : result.status === 'error' ? (
-                      <p className="text-xs text-red-500 mt-2 truncate" title={result.errorMessage}>
-                        {result.errorMessage || 'Erro ao publicar'}
-                      </p>
+                      <div className="mt-2 space-y-2">
+                        {isRateLimitError(result.errorMessage) ? (
+                          <div className="flex items-center justify-center gap-1.5 text-xs text-amber-600">
+                            <Clock className="h-3 w-3" />
+                            <span>Rate limit - aguarda 15min</span>
+                          </div>
+                        ) : (
+                          <p className="text-xs text-red-500 truncate" title={result.errorMessage}>
+                            {result.errorMessage || 'Erro ao publicar'}
+                          </p>
+                        )}
+                        {onRetryFormat && (
+                          <button
+                            onClick={() => onRetryFormat(result.format)}
+                            className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium rounded-lg bg-muted hover:bg-muted/80 transition-colors"
+                          >
+                            <RefreshCw className="h-3 w-3" />
+                            Tentar novamente
+                          </button>
+                        )}
+                      </div>
                     ) : null}
                   </motion.div>
                 ))}

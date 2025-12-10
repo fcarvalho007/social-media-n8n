@@ -799,6 +799,13 @@ export default function ManualCreate() {
         return 0;
       });
 
+      // Check if any format is Instagram - add initial delay to avoid rate limits
+      const hasInstagramFormat = sortedFormats.some(f => (FORMAT_TO_NETWORK[f] || 'instagram') === 'instagram');
+      if (hasInstagramFormat) {
+        toast.info('A preparar publicação no Instagram (aguarde 3s)...', { duration: 3000 });
+        await new Promise(resolve => setTimeout(resolve, 3000));
+      }
+
       // Publish to each selected format
       for (let i = 0; i < totalFormats; i++) {
         if (shouldCancel) {
@@ -811,9 +818,17 @@ export default function ManualCreate() {
         const previousNetwork = i > 0 ? (FORMAT_TO_NETWORK[sortedFormats[i - 1]] || 'instagram') : null;
         
         // Add delay before Instagram to avoid rate limits
-        if (network === 'instagram' && previousNetwork && previousNetwork !== 'instagram') {
-          toast.info('A aguardar 5 segundos antes de publicar no Instagram...', { duration: 5000 });
-          await new Promise(resolve => setTimeout(resolve, 5000));
+        if (network === 'instagram') {
+          const isConsecutiveInstagram = previousNetwork === 'instagram';
+          if (isConsecutiveInstagram) {
+            // 10 seconds between consecutive Instagram publications
+            toast.info('A aguardar 10s entre publicações Instagram...', { duration: 10000 });
+            await new Promise(resolve => setTimeout(resolve, 10000));
+          } else if (previousNetwork && previousNetwork !== 'instagram') {
+            // 8 seconds when switching from another network to Instagram
+            toast.info('A aguardar 8s antes do Instagram...', { duration: 8000 });
+            await new Promise(resolve => setTimeout(resolve, 8000));
+          }
         }
         
         setCurrentPublishingNetwork(network);
