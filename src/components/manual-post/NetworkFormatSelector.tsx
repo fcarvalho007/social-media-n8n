@@ -148,8 +148,12 @@ export function NetworkFormatSelector({ selectedFormats, onFormatsChange }: Netw
   const renderFormatItem = (formatConfig: PostFormatConfig) => {
     const Icon = getFormatIcon(formatConfig.icon);
     const isSelected = selectedFormats.includes(formatConfig.format);
-    const showVideoWarning = isSelected && formatConfig.format === 'linkedin_document' && 
-      selectedFormats.some(f => f !== 'linkedin_document');
+    // Show warning for linkedin_document when video formats are also selected
+    const hasVideoFormats = selectedFormats.some(f => 
+      f === 'instagram_carousel' || f === 'instagram_reel' || f.includes('video') || 
+      f.includes('reel') || f.includes('shorts')
+    );
+    const showVideoWarning = isSelected && formatConfig.format === 'linkedin_document' && hasVideoFormats;
 
     return (
       <div
@@ -179,7 +183,7 @@ export function NetworkFormatSelector({ selectedFormats, onFormatsChange }: Netw
         </div>
         {showVideoWarning && (
           <p className="text-xs text-amber-600 dark:text-amber-400 ml-8 mt-1">
-            ⚠️ Vídeos serão convertidos em imagens para o PDF
+            Vídeos: frame extraído automaticamente para gerar PDF
           </p>
         )}
       </div>
