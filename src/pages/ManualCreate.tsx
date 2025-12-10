@@ -1005,7 +1005,7 @@ export default function ManualCreate() {
     if (network === 'linkedin') {
       // Use document preview for linkedin_document, regular preview for linkedin_post
       if (format === 'linkedin_document') {
-        return <LinkedInDocumentPreview mediaUrls={mediaPreviewUrls} caption={caption} />;
+        return <LinkedInDocumentPreview mediaUrls={mediaPreviewUrls} mediaFiles={mediaFiles} caption={caption} />;
       }
       return <LinkedInPreview mediaUrls={mediaPreviewUrls} caption={caption} />;
     }

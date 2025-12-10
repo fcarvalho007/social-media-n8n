@@ -1,22 +1,105 @@
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { ThumbsUp, MessageSquare, Repeat2, Send, MoreHorizontal, FileText, ChevronLeft, ChevronRight } from "lucide-react";
+import { ThumbsUp, MessageSquare, Repeat2, Send, MoreHorizontal, FileText, ChevronLeft, ChevronRight, Video } from "lucide-react";
 import { Linkedin } from "lucide-react";
 import { DeviceFrame } from "./DeviceFrame";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 
 interface LinkedInDocumentPreviewProps {
   mediaUrls: string[];
+  mediaFiles?: File[];
   caption: string;
 }
 
-const LinkedInDocumentPreview = ({ mediaUrls, caption }: LinkedInDocumentPreviewProps) => {
+// Extract frame URL from video file
+async function extractVideoFrameUrl(videoFile: File): Promise<string> {
+  return new Promise((resolve, reject) => {
+    const video = document.createElement('video');
+    video.crossOrigin = 'anonymous';
+    video.preload = 'metadata';
+    
+    const cleanup = () => {
+      URL.revokeObjectURL(video.src);
+    };
+    
+    video.onloadeddata = () => {
+      video.currentTime = 0.5;
+    };
+    
+    video.onseeked = () => {
+      try {
+        const canvas = document.createElement('canvas');
+        canvas.width = video.videoWidth || 1280;
+        canvas.height = video.videoHeight || 720;
+        const ctx = canvas.getContext('2d');
+        if (!ctx) {
+          cleanup();
+          reject(new Error('Could not get canvas context'));
+          return;
+        }
+        ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+        const dataUrl = canvas.toDataURL('image/jpeg', 0.9);
+        cleanup();
+        resolve(dataUrl);
+      } catch (err) {
+        cleanup();
+        reject(err);
+      }
+    };
+    
+    video.onerror = () => {
+      cleanup();
+      reject(new Error('Could not load video'));
+    };
+    
+    video.src = URL.createObjectURL(videoFile);
+    video.load();
+  });
+}
+
+const LinkedInDocumentPreview = ({ mediaUrls, mediaFiles, caption }: LinkedInDocumentPreviewProps) => {
   const [currentPage, setCurrentPage] = useState(0);
+  const [processedUrls, setProcessedUrls] = useState<string[]>([]);
+  const [videoIndices, setVideoIndices] = useState<Set<number>>(new Set());
+  
+  // Process media to extract video frames
+  useEffect(() => {
+    async function processMedia() {
+      const urls: string[] = [];
+      const vidIndices = new Set<number>();
+      
+      for (let i = 0; i < mediaUrls.length; i++) {
+        const file = mediaFiles?.[i];
+        if (file?.type?.startsWith('video/')) {
+          vidIndices.add(i);
+          try {
+            const frameUrl = await extractVideoFrameUrl(file);
+            urls.push(frameUrl);
+          } catch {
+            // Fallback: use original URL (will show video element or placeholder)
+            urls.push(mediaUrls[i]);
+          }
+        } else {
+          urls.push(mediaUrls[i]);
+        }
+      }
+      
+      setProcessedUrls(urls);
+      setVideoIndices(vidIndices);
+    }
+    
+    if (mediaUrls.length > 0) {
+      processMedia();
+    } else {
+      setProcessedUrls([]);
+      setVideoIndices(new Set());
+    }
+  }, [mediaUrls, mediaFiles]);
   const maxCaptionLength = 3000;
   const captionLength = caption.length;
-  const pageCount = mediaUrls.length;
+  const pageCount = processedUrls.length;
   
   const getCharCountColor = () => {
     const percentage = (captionLength / maxCaptionLength) * 100;
@@ -79,12 +162,21 @@ const LinkedInDocumentPreview = ({ mediaUrls, caption }: LinkedInDocumentPreview
               {pageCount > 0 ? (
                 <>
                   {/* Document page display */}
-                  <div className="w-full h-full flex items-center justify-center bg-white">
+                  <div className="w-full h-full flex items-center justify-center bg-white relative">
                     <img
-                      src={mediaUrls[currentPage]}
+                      src={processedUrls[currentPage]}
                       alt={`Página ${currentPage + 1}`}
                       className="w-full h-full object-contain"
                     />
+                    {/* Video indicator badge on the page */}
+                    {videoIndices.has(currentPage) && (
+                      <div className="absolute bottom-3 right-3">
+                        <Badge variant="secondary" className="gap-1 bg-black/70 text-white text-xs">
+                          <Video className="h-3 w-3" />
+                          Frame extraída
+                        </Badge>
+                      </div>
+                    )}
                   </div>
                   
                   {/* Document badge */}
@@ -128,9 +220,9 @@ const LinkedInDocumentPreview = ({ mediaUrls, caption }: LinkedInDocumentPreview
                         </span>
                       </div>
                       
-                      {/* Dots indicator */}
+                    {/* Dots indicator */}
                       <div className="absolute bottom-10 left-1/2 -translate-x-1/2 flex gap-1.5">
-                        {mediaUrls.map((_, idx) => (
+                        {processedUrls.map((_, idx) => (
                           <button
                             key={idx}
                             onClick={() => setCurrentPage(idx)}
