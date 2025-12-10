@@ -85,9 +85,8 @@ export const NETWORK_POST_FORMATS: Record<SocialNetwork, PostFormatConfig[]> = {
     { 
       format: 'linkedin_document', 
       label: 'Documento PDF', 
-      description: 'Carrossel como PDF', 
+      description: 'Carrossel PDF (imagens/frames de vídeo)', 
       icon: 'File',
-      requiresImage: true,
       minMedia: 1,
       maxMedia: 20,
     },

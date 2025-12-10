@@ -48,6 +48,7 @@ interface GetlatePostPayload {
   content: string;
   scheduledFor?: string;
   timezone: string;
+  publishNow?: boolean;
   platforms: Array<{
     platform: string;
     accountId: string;
@@ -307,14 +308,18 @@ Deno.serve(async (req) => {
       mediaItems,
     };
 
-    // Add scheduling if not immediate
-    if (!publish_immediately && scheduled_date) {
+    // Add publishNow for immediate publishing, or scheduledFor for scheduled posts
+    if (publish_immediately) {
+      getlatePayload.publishNow = true;
+      console.log(`[publish-to-getlate] Immediate publishing: publishNow=true`);
+    } else if (scheduled_date) {
       let scheduledDateTime = scheduled_date;
       if (scheduled_time) {
         // Combine date and time
         scheduledDateTime = `${scheduled_date}T${scheduled_time}:00`;
       }
       getlatePayload.scheduledFor = new Date(scheduledDateTime).toISOString();
+      console.log(`[publish-to-getlate] Scheduled for: ${getlatePayload.scheduledFor}`);
     }
 
     // Publish to Getlate
