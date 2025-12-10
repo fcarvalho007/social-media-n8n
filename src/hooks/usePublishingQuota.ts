@@ -37,7 +37,6 @@ interface GetlateQuotaResponse {
   dailyLimit: number;
   lastUpdated: string;
   warning?: string;
-  source?: 'override' | 'getlate';
 }
 
 export function usePublishingQuota() {
@@ -55,47 +54,8 @@ export function usePublishingQuota() {
     queryFn: async () => {
       if (!userId) return null;
 
-      // 1. Check for custom quota override first
-      try {
-        const { data: override, error: overrideError } = await supabase
-          .from('quota_overrides')
-          .select('*')
-          .eq('user_id', userId)
-          .maybeSingle();
-
-        if (overrideError && overrideError.code !== 'PGRST116') {
-          console.warn('[Quota] Error checking override:', overrideError);
-        }
-
-        if (override) {
-          console.log('[Quota] Using custom quota:', override);
-          return {
-            instagram: {
-              used_count: override.instagram_used,
-              limit_count: override.instagram_limit,
-              remaining: Math.max(0, override.instagram_limit - override.instagram_used),
-            },
-            linkedin: {
-              used_count: override.linkedin_used,
-              limit_count: override.linkedin_limit,
-              remaining: Math.max(0, override.linkedin_limit - override.linkedin_used),
-            },
-            accounts: [],
-            accountBreakdown: [],
-            planName: 'Quota Personalizada',
-            resetDate: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString(),
-            isUnlimited: false,
-            dailyLimit: 5,
-            lastUpdated: new Date().toISOString(),
-            source: 'override' as const,
-          };
-        }
-      } catch (err) {
-        console.warn('[Quota] Failed to check override:', err);
-      }
-
-      // 2. Use Getlate.dev API
-      console.log('[Quota] Fetching from Getlate.dev...');
+      // ALWAYS fetch from Getlate.dev - this is the source of truth
+      console.log('[Quota] Fetching real-time data from Getlate.dev...');
       
       const { data, error } = await supabase.functions.invoke<GetlateQuotaResponse>('get-getlate-quota');
 
@@ -110,7 +70,7 @@ export function usePublishingQuota() {
         console.warn('[Quota] API warning:', data.warning);
       }
       
-      return { ...data, source: 'getlate' as const };
+      return data;
     },
     enabled: !!userId,
     refetchOnWindowFocus: true,
