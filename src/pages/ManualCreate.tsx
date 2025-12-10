@@ -1,4 +1,4 @@
-import { useState, useRef, useMemo, useCallback } from 'react';
+import { useState, useRef, useMemo, useCallback, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { supabase } from '@/integrations/supabase/client';
 import { PostFormat, getNetworkFromFormat, getFormatConfig } from '@/types/social';
@@ -16,11 +16,12 @@ import { Badge } from '@/components/ui/badge';
 import { Separator } from '@/components/ui/separator';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { toast } from 'sonner';
-import { Save, Send, Calendar as CalendarIcon, ArrowLeft, Instagram, Linkedin, Upload, Clock, X, FileText, Loader2, Rocket, Smile, Bookmark, Sparkles, Youtube, Facebook } from 'lucide-react';
+import { Save, Send, Calendar as CalendarIcon, ArrowLeft, Instagram, Linkedin, Upload, Clock, FileText, Loader2, Rocket, Smile, Bookmark, Sparkles, Youtube, Facebook, ChevronLeft, ChevronRight, Info } from 'lucide-react';
 import { format } from 'date-fns';
 import { pt } from 'date-fns/locale';
 import { cn } from '@/lib/utils';
 import { Progress } from '@/components/ui/progress';
+import { StepProgress } from '@/components/manual-post/StepProgress';
 import InstagramCarouselPreview from '@/components/manual-post/InstagramCarouselPreview';
 import InstagramStoryPreview from '@/components/manual-post/InstagramStoryPreview';
 import InstagramReelPreview from '@/components/manual-post/InstagramReelPreview';
@@ -128,6 +129,11 @@ export default function ManualCreate() {
   const [shouldCancel, setShouldCancel] = useState(false);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
 
+  // Stepper state
+  const [currentStep, setCurrentStep] = useState(1);
+  const [visitedSteps, setVisitedSteps] = useState<number[]>([1]);
+  const [showValidation, setShowValidation] = useState(false);
+
   // DnD sensors for drag and drop
   const sensors = useSensors(
     useSensor(PointerSensor, {
@@ -210,7 +216,52 @@ export default function ManualCreate() {
     }
   }, [selectedFormats]);
 
-  // Validations
+  // Progressive disclosure logic
+  const showStep2 = selectedFormats.length > 0;
+  const showStep3 = mediaFiles.length >= (mediaRequirements.minMedia || 1);
+  
+  // Check if can advance to next step
+  const canAdvanceToStep2 = selectedFormats.length > 0;
+  const canAdvanceToStep3 = mediaFiles.length >= (mediaRequirements.minMedia || 1);
+
+  // Update visited steps based on progress
+  useEffect(() => {
+    if (canAdvanceToStep2 && !visitedSteps.includes(2)) {
+      setVisitedSteps(prev => [...prev, 2]);
+      if (currentStep === 1) setCurrentStep(2);
+    }
+  }, [canAdvanceToStep2, visitedSteps, currentStep]);
+
+  useEffect(() => {
+    if (canAdvanceToStep3 && !visitedSteps.includes(3)) {
+      setVisitedSteps(prev => [...prev, 3]);
+      if (currentStep === 2) setCurrentStep(3);
+    }
+  }, [canAdvanceToStep3, visitedSteps, currentStep]);
+
+  // Step navigation functions
+  const goToStep = (step: number) => {
+    if (visitedSteps.includes(step)) {
+      setCurrentStep(step);
+    }
+  };
+
+  const nextStep = () => {
+    if (currentStep < 3) {
+      const nextStepNum = currentStep + 1;
+      if (!visitedSteps.includes(nextStepNum)) {
+        setVisitedSteps(prev => [...prev, nextStepNum]);
+      }
+      setCurrentStep(nextStepNum);
+    }
+  };
+
+  const previousStep = () => {
+    if (currentStep > 1) {
+      setCurrentStep(currentStep - 1);
+    }
+  };
+  // Validations - only show when user tries to proceed
   const getValidationErrors = (): string[] => {
     const errors: string[] = [];
     
@@ -256,6 +307,25 @@ export default function ManualCreate() {
 
   const validationErrors = getValidationErrors();
   const hasErrors = validationErrors.length > 0;
+
+  // Handle publish/submit with validation
+  const handlePublishWithValidation = async () => {
+    if (hasErrors) {
+      setShowValidation(true);
+      toast.error('Corrija os campos obrigatórios antes de publicar');
+      return;
+    }
+    handlePublishNow();
+  };
+
+  const handleSubmitWithValidation = async () => {
+    if (hasErrors) {
+      setShowValidation(true);
+      toast.error('Corrija os campos obrigatórios antes de submeter');
+      return;
+    }
+    handleSubmitForApproval();
+  };
 
   // Handle media upload
   const handleMediaUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -893,7 +963,7 @@ export default function ManualCreate() {
   };
 
   return (
-    <div className="max-w-7xl mx-auto space-y-6 bg-gradient-to-br from-background to-background-secondary">
+    <div className="max-w-7xl mx-auto space-y-4 bg-gradient-to-br from-background to-background-secondary">
       {/* Header */}
       <div className="flex flex-col sm:flex-row items-start sm:items-center gap-4">
         <Button 
@@ -909,18 +979,48 @@ export default function ManualCreate() {
         <ModeBadge mode="manual" onChangeMode={() => navigate('/?tab=create')} className="flex-1" />
       </div>
 
+      {/* Stepper */}
+      <Card className="border-0 shadow-none bg-transparent">
+        <StepProgress
+          currentStep={currentStep}
+          visitedSteps={visitedSteps}
+          onStepClick={goToStep}
+        />
+      </Card>
+
       <div className="grid lg:grid-cols-2 gap-6 lg:gap-8">
         {/* Left - Form */}
         <div className="space-y-6">
-          {/* Network & Format Selection */}
-          <NetworkFormatSelector
-            selectedFormats={selectedFormats}
-            onFormatsChange={setSelectedFormats}
-          />
+          {/* Step 1: Network & Format Selection */}
+          <div className="relative">
+            <NetworkFormatSelector
+              selectedFormats={selectedFormats}
+              onFormatsChange={setSelectedFormats}
+            />
+            
+            {/* Step 1 Navigation */}
+            {currentStep === 1 && selectedFormats.length > 0 && (
+              <div className="flex justify-end mt-3">
+                <Button 
+                  variant="ghost" 
+                  size="sm" 
+                  onClick={nextStep}
+                  className="text-muted-foreground hover:text-foreground"
+                >
+                  Seguinte
+                  <ChevronRight className="h-4 w-4 ml-1" />
+                </Button>
+              </div>
+            )}
+          </div>
 
-          {/* Media Upload */}
-          {selectedFormats.length > 0 && (
+          {/* Step 2: Media Upload - Progressive Disclosure */}
+          <div className={cn(
+            "transition-all duration-300 ease-out overflow-hidden",
+            showStep2 ? "opacity-100 max-h-[2000px]" : "opacity-0 max-h-0"
+          )}>
             <Card>
+
               <CardHeader>
                 <CardTitle className="flex items-center gap-2">
                   Média
@@ -954,8 +1054,10 @@ export default function ManualCreate() {
                     ) : (
                       <>
                         <Upload className="h-6 w-6 text-muted-foreground" aria-hidden="true" />
-                        <span className="text-sm text-muted-foreground">Carregar ficheiros</span>
-                        <span className="text-xs text-muted-foreground">Arraste ou clique para selecionar</span>
+                        <span className="text-sm text-muted-foreground">Arrasta ficheiros ou clica para selecionar</span>
+                        <span className="text-xs text-muted-foreground/70">
+                          mín. {mediaRequirements.minMedia}, máx. {mediaRequirements.maxMedia}
+                        </span>
                       </>
                     )}
                   </div>
@@ -1005,12 +1107,40 @@ export default function ManualCreate() {
                     </DndContext>
                   </div>
                 )}
+                
+                {/* Step 2 Navigation */}
+                <div className="flex justify-between mt-3 pt-3 border-t">
+                  <Button 
+                    variant="ghost" 
+                    size="sm" 
+                    onClick={previousStep}
+                    className="text-muted-foreground hover:text-foreground"
+                  >
+                    <ChevronLeft className="h-4 w-4 mr-1" />
+                    Anterior
+                  </Button>
+                  {mediaPreviewUrls.length >= (mediaRequirements.minMedia || 1) && (
+                    <Button 
+                      variant="ghost" 
+                      size="sm" 
+                      onClick={nextStep}
+                      className="text-muted-foreground hover:text-foreground"
+                    >
+                      Seguinte
+                      <ChevronRight className="h-4 w-4 ml-1" />
+                    </Button>
+                  )}
+                </div>
               </CardContent>
             </Card>
-          )}
+          </div>
 
-          {/* Caption */}
-          {selectedFormats.length > 0 && (
+          {/* Step 3: Caption & Scheduling - Progressive Disclosure */}
+          <div className={cn(
+            "transition-all duration-300 ease-out overflow-hidden space-y-6",
+            showStep3 ? "opacity-100 max-h-[3000px]" : "opacity-0 max-h-0"
+          )}>
+            {/* Caption */}
             <Card>
               <CardHeader>
                 <CardTitle>Legenda</CardTitle>
@@ -1084,10 +1214,8 @@ export default function ManualCreate() {
                 />
               </CardContent>
             </Card>
-          )}
 
-          {/* Date & Time */}
-          {selectedFormats.length > 0 && (
+            {/* Date & Time */}
             <Card>
               <CardHeader>
                 <CardTitle>Agendamento</CardTitle>
@@ -1138,14 +1266,25 @@ export default function ManualCreate() {
                     </div>
                   </div>
                 )}
+                
+                {/* Step 3 Navigation */}
+                <div className="flex justify-start mt-3 pt-3 border-t">
+                  <Button 
+                    variant="ghost" 
+                    size="sm" 
+                    onClick={previousStep}
+                    className="text-muted-foreground hover:text-foreground"
+                  >
+                    <ChevronLeft className="h-4 w-4 mr-1" />
+                    Anterior
+                  </Button>
+                </div>
               </CardContent>
             </Card>
-          )}
 
-          {/* Actions */}
-          {selectedFormats.length > 0 && (
+            {/* Actions - Reorganized Hierarchy */}
             <Card className="lg:sticky lg:bottom-4 bg-card/95 backdrop-blur-sm border-2 shadow-lg">
-              <CardContent className="pt-6 space-y-3">
+              <CardContent className="pt-6 space-y-4">
                 {(saving || submitting || publishing) && uploadProgress > 0 && (
                   <div className="space-y-2">
                     <div className="flex items-center justify-between text-sm">
@@ -1158,22 +1297,26 @@ export default function ManualCreate() {
                   </div>
                 )}
 
-                {validationErrors.length > 0 && (
-                  <div className="space-y-1" role="alert" aria-live="polite">
-                    {validationErrors.map((error, idx) => (
-                      <Badge key={idx} variant="destructive" className="text-xs block">
-                        {error}
-                      </Badge>
-                    ))}
+                {/* Validation - Only show when triggered */}
+                {showValidation && validationErrors.length > 0 && (
+                  <div className="flex items-start gap-2 text-sm text-blue-600 bg-blue-50 dark:bg-blue-950/30 p-3 rounded-lg" role="alert">
+                    <Info className="h-4 w-4 mt-0.5 flex-shrink-0" />
+                    <div className="space-y-1">
+                      {validationErrors.map((error, idx) => (
+                        <p key={idx}>{error}</p>
+                      ))}
+                    </div>
                   </div>
                 )}
                 
-                <div className="grid grid-cols-1 gap-3">
+                {/* Primary Actions Row */}
+                <div className="flex gap-3">
                   <Button
                     type="button"
-                    onClick={handlePublishNow}
-                    disabled={publishing || submitting || saving || hasErrors || isUploading}
-                    className="font-semibold bg-gradient-to-r from-primary to-primary/80 hover:from-primary/90 hover:to-primary/70"
+                    size="lg"
+                    onClick={handlePublishWithValidation}
+                    disabled={publishing || submitting || saving || isUploading}
+                    className="flex-1 font-semibold bg-gradient-to-r from-primary to-primary/80 hover:from-primary/90 hover:to-primary/70"
                     aria-label="Publicar agora"
                   >
                     {publishing ? (
@@ -1188,80 +1331,77 @@ export default function ManualCreate() {
                       </>
                     )}
                   </Button>
-                </div>
-                
-                <div className="grid grid-cols-2 gap-3">
                   <Button
                     type="button"
                     variant="outline"
-                    onClick={handleSaveDraft}
-                    disabled={saving || submitting || publishing || selectedFormats.length === 0 || isUploading}
-                    className="font-semibold"
-                    aria-label="Guardar como rascunho"
+                    size="lg"
+                    onClick={() => {
+                      if (!scheduledDate) {
+                        toast.info('Selecione uma data de agendamento');
+                        return;
+                      }
+                      handlePublishWithValidation();
+                    }}
+                    disabled={publishing || submitting || saving || isUploading}
+                    className="flex-1 font-semibold"
+                    aria-label="Agendar publicação"
                   >
-                    {saving ? (
-                      <>
-                        <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                        A guardar...
-                      </>
-                    ) : (
-                      <>
-                        <Save className="h-4 w-4 mr-2" />
-                        Rascunho
-                      </>
-                    )}
-                  </Button>
-                  <Button
-                    type="button"
-                    variant="secondary"
-                    onClick={handleSubmitForApproval}
-                    disabled={submitting || saving || publishing || hasErrors || isUploading}
-                    className="font-semibold"
-                    aria-label="Submeter para aprovação"
-                  >
-                    {submitting ? (
-                      <>
-                        <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                        A submeter...
-                      </>
-                    ) : (
-                      <>
-                        <Send className="h-4 w-4 mr-2" />
-                        Submeter
-                      </>
-                    )}
+                    <CalendarIcon className="h-4 w-4 mr-2" />
+                    Agendar
                   </Button>
                 </div>
                 
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                  <Button
-                    type="button"
-                    variant="ghost"
-                    size="sm"
+                {/* Secondary Actions Row */}
+                <div className="flex items-center justify-center gap-4 text-xs pt-2">
+                  <button 
+                    onClick={handleSaveDraft}
+                    disabled={saving || submitting || publishing || isUploading}
+                    className="text-muted-foreground hover:text-foreground transition-colors disabled:opacity-50"
+                  >
+                    {saving ? 'A guardar...' : 'Guardar rascunho'}
+                  </button>
+                  <span className="text-muted-foreground/50">|</span>
+                  <button 
                     onClick={() => setDraftsDialogOpen(true)}
                     disabled={saving || submitting}
-                    className="w-full text-xs"
-                    aria-label="Ver rascunhos guardados"
+                    className="text-muted-foreground hover:text-foreground transition-colors disabled:opacity-50"
                   >
-                    <FileText className="h-3 w-3 mr-1" aria-hidden="true" />
                     Ver rascunhos
-                  </Button>
-                  <Button
-                    type="button"
-                    variant="ghost"
-                    size="sm"
+                  </button>
+                  <span className="text-muted-foreground/50">|</span>
+                  <button 
                     onClick={() => navigate('/calendar')}
                     disabled={saving || submitting}
-                    className="w-full text-xs"
-                    aria-label="Ver calendário de publicações"
+                    className="text-muted-foreground hover:text-foreground transition-colors disabled:opacity-50"
                   >
-                    <CalendarIcon className="h-3 w-3 mr-1" aria-hidden="true" />
                     Ver calendário
-                  </Button>
+                  </button>
                 </div>
+
+                {/* Submit for Approval - Only if approval flow exists */}
+                <Button
+                  type="button"
+                  variant="secondary"
+                  onClick={handleSubmitWithValidation}
+                  disabled={submitting || saving || publishing || isUploading}
+                  className="w-full"
+                  aria-label="Submeter para aprovação"
+                >
+                  {submitting ? (
+                    <>
+                      <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                      A submeter...
+                    </>
+                  ) : (
+                    <>
+                      <Send className="h-4 w-4 mr-2" />
+                      Submeter para aprovação
+                    </>
+                  )}
+                </Button>
               </CardContent>
             </Card>
-          )}
+          </div>
         </div>
 
         {/* Right - Preview */}
