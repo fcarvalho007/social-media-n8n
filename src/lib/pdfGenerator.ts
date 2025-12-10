@@ -8,7 +8,7 @@ export interface CarouselPDFOptions {
 
 /**
  * Generates a PDF from carousel images
- * Each image becomes one page in portrait A4 format
+ * Each image becomes one page in 3:4 portrait format (optimized for LinkedIn)
  */
 export async function generateCarouselPDF(options: CarouselPDFOptions): Promise<Blob> {
   const { PDF_GENERATION_MODE } = await import('@/config/pdf');
@@ -26,10 +26,11 @@ export async function generateCarouselPDF(options: CarouselPDFOptions): Promise<
   // Legacy client-side generation (disabled in server mode)
   const jsPDF = (await import('jspdf')).default;
 
+  // Use 3:4 aspect ratio (210mm width x 280mm height) instead of A4
   const pdf = new jsPDF({
     orientation: 'portrait',
     unit: 'mm',
-    format: 'a4',
+    format: [210, 280], // 3:4 aspect ratio
   });
 
   const pageWidth = pdf.internal.pageSize.getWidth();
@@ -110,30 +111,35 @@ export async function generateCarouselPDF(options: CarouselPDFOptions): Promise<
       pdf.addPage();
     }
 
-    const pageWidth = pdf.internal.pageSize.getWidth();
-    const pageHeight = pdf.internal.pageSize.getHeight();
+    const currentPageWidth = pdf.internal.pageSize.getWidth();
+    const currentPageHeight = pdf.internal.pageSize.getHeight();
 
-    // Calcular proporções
+    // Calcular proporções - fill entire page (edge-to-edge)
     const imgAspect = imgWidth / imgHeight;
-    const pageAspect = pageWidth / pageHeight;
+    const pageAspect = currentPageWidth / currentPageHeight;
 
-    let finalWidth = pageWidth;
-    let finalHeight = pageHeight;
+    let finalWidth = currentPageWidth;
+    let finalHeight = currentPageHeight;
     let x = 0;
     let y = 0;
 
+    // Scale to cover the entire page (crop if needed)
     if (imgAspect > pageAspect) {
-      finalHeight = pageWidth / imgAspect;
-      y = (pageHeight - finalHeight) / 2;
+      // Image is wider - fit height, crop width
+      finalHeight = currentPageHeight;
+      finalWidth = currentPageHeight * imgAspect;
+      x = (currentPageWidth - finalWidth) / 2;
     } else {
-      finalWidth = pageHeight * imgAspect;
-      x = (pageWidth - finalWidth) / 2;
+      // Image is taller - fit width, crop height
+      finalWidth = currentPageWidth;
+      finalHeight = currentPageWidth / imgAspect;
+      y = (currentPageHeight - finalHeight) / 2;
     }
 
     // Detectar formato
     const format = (blob.type.includes('png') || imgUrl.toLowerCase().endsWith('.png')) ? 'PNG' : 'JPEG';
 
-    // Adicionar imagem ao PDF
+    // Adicionar imagem ao PDF (edge-to-edge, no margins, no page numbers)
     pdf.addImage(
       dataUrl,
       format,
@@ -143,16 +149,6 @@ export async function generateCarouselPDF(options: CarouselPDFOptions): Promise<
       finalHeight,
       undefined,
       'FAST'
-    );
-
-    // Número da página
-    pdf.setFontSize(8);
-    pdf.setTextColor(150);
-    pdf.text(
-      `${index + 1} / ${images.length}`,
-      pageWidth / 2,
-      pageHeight - 5,
-      { align: 'center' }
     );
   }
 

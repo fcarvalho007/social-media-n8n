@@ -1,5 +1,5 @@
 import { serve } from 'https://deno.land/std@0.168.0/http/server.ts';
-import { PDFDocument, rgb } from 'https://esm.sh/pdf-lib@1.17.1';
+import { PDFDocument } from 'https://esm.sh/pdf-lib@1.17.1';
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -257,10 +257,11 @@ serve(async (req) => {
     // Create a new PDF document
     const pdfDoc = await PDFDocument.create();
     
-    // A4 dimensions in points (1 point = 1/72 inch)
-    const pageWidth = 595.28; // A4 width in points
-    const pageHeight = 841.89; // A4 height in points
-    const margin = 28.35; // 10mm in points
+    // 3:4 aspect ratio dimensions in points (1 point = 1/72 inch)
+    // Width: 595.28 (same as A4), Height: 793.70 (595.28 * 4/3 = 793.70)
+    const pageWidth = 595.28;
+    const pageHeight = 793.70; // 3:4 aspect ratio
+    const margin = 0; // Edge-to-edge, no margins
 
     // Generate alt texts if not provided
     const generatedAlts = pageAlts || images.map((_, idx) => `Slide ${idx + 1}/${images.length}`);
@@ -367,41 +368,38 @@ serve(async (req) => {
       // Add a new page
       const page = pdfDoc.addPage([pageWidth, pageHeight]);
 
-      // Calculate image dimensions to fit page while maintaining aspect ratio
+      // Calculate image dimensions to fill page edge-to-edge (cover mode)
       const imgWidth = image.width;
       const imgHeight = image.height;
       const imgAspect = imgWidth / imgHeight;
+      const pageAspect = pageWidth / pageHeight;
 
-      const maxWidth = pageWidth - 2 * margin;
-      const maxHeight = pageHeight - 2 * margin - 42.52; // Reserve space for page number (15mm)
+      let finalWidth: number;
+      let finalHeight: number;
+      let x: number;
+      let y: number;
 
-      let finalWidth = maxWidth;
-      let finalHeight = finalWidth / imgAspect;
-
-      if (finalHeight > maxHeight) {
-        finalHeight = maxHeight;
-        finalWidth = finalHeight * imgAspect;
+      // Scale to cover the entire page
+      if (imgAspect > pageAspect) {
+        // Image is wider - fit height, center horizontally (may crop sides)
+        finalHeight = pageHeight;
+        finalWidth = pageHeight * imgAspect;
+        x = (pageWidth - finalWidth) / 2;
+        y = 0;
+      } else {
+        // Image is taller - fit width, center vertically (may crop top/bottom)
+        finalWidth = pageWidth;
+        finalHeight = pageWidth / imgAspect;
+        x = 0;
+        y = (pageHeight - finalHeight) / 2;
       }
 
-      const x = (pageWidth - finalWidth) / 2;
-      const y = (pageHeight - finalHeight - 42.52) / 2;
-
-      // Draw image on page
+      // Draw image on page (edge-to-edge, no page numbers)
       page.drawImage(image, {
         x,
         y,
         width: finalWidth,
         height: finalHeight,
-      });
-
-      // Add page number at bottom
-      const pageNumberText = `${i + 1} / ${images.length}`;
-      const fontSize = 10;
-      page.drawText(pageNumberText, {
-        x: pageWidth / 2 - (pageNumberText.length * fontSize * 0.3) / 2,
-        y: 14.17, // 5mm from bottom
-        size: fontSize,
-        color: rgb(0.5, 0.5, 0.5),
       });
 
       console.log(`[PDF-GEN] Successfully added image ${i + 1}/${images.length}`);
