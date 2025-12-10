@@ -1,20 +1,32 @@
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { Heart, MessageCircle, Send, Bookmark, ChevronLeft, ChevronRight, Expand } from "lucide-react";
+import { Heart, MessageCircle, Send, Bookmark, ChevronLeft, ChevronRight, Expand, ImageIcon, VideoIcon, AlertCircle } from "lucide-react";
 import { useState, useEffect, useCallback } from "react";
 import { Button } from "@/components/ui/button";
 import { DeviceFrame } from "./DeviceFrame";
 import { cn } from "@/lib/utils";
 import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
+import { Skeleton } from "@/components/ui/skeleton";
+
+export interface MediaItem {
+  url: string;
+  isVideo: boolean;
+}
 
 interface InstagramCarouselPreviewProps {
-  mediaUrls: string[];
+  mediaUrls?: string[];
+  mediaItems?: MediaItem[];
   caption: string;
 }
 
-const InstagramCarouselPreview = ({ mediaUrls, caption }: InstagramCarouselPreviewProps) => {
+const InstagramCarouselPreview = ({ mediaUrls, mediaItems, caption }: InstagramCarouselPreviewProps) => {
   const [currentIndex, setCurrentIndex] = useState(0);
   const [isFullscreen, setIsFullscreen] = useState(false);
+  const [loadingStates, setLoadingStates] = useState<Record<number, boolean>>({});
+  const [errorStates, setErrorStates] = useState<Record<number, boolean>>({});
+  
+  // Support both legacy mediaUrls and new mediaItems prop
+  const items: MediaItem[] = mediaItems || (mediaUrls?.map(url => ({ url, isVideo: false })) || []);
   
   const maxCaptionLength = 2200;
   const captionLength = caption.length;
@@ -27,10 +39,10 @@ const InstagramCarouselPreview = ({ mediaUrls, caption }: InstagramCarouselPrevi
   };
 
   const handleNext = useCallback(() => {
-    if (currentIndex < mediaUrls.length - 1) {
+    if (currentIndex < items.length - 1) {
       setCurrentIndex(currentIndex + 1);
     }
-  }, [currentIndex, mediaUrls.length]);
+  }, [currentIndex, items.length]);
 
   const handlePrev = useCallback(() => {
     if (currentIndex > 0) {
@@ -39,10 +51,20 @@ const InstagramCarouselPreview = ({ mediaUrls, caption }: InstagramCarouselPrevi
   }, [currentIndex]);
 
   const goToSlide = (index: number) => {
-    if (index >= 0 && index < mediaUrls.length) {
+    if (index >= 0 && index < items.length) {
       setCurrentIndex(index);
     }
   };
+
+  // Initialize loading states when items change
+  useEffect(() => {
+    const initialLoading: Record<number, boolean> = {};
+    items.forEach((_, idx) => {
+      initialLoading[idx] = true;
+    });
+    setLoadingStates(initialLoading);
+    setErrorStates({});
+  }, [items.length]);
 
   // Keyboard navigation
   useEffect(() => {
@@ -62,26 +84,69 @@ const InstagramCarouselPreview = ({ mediaUrls, caption }: InstagramCarouselPrevi
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, [handlePrev, handleNext, isFullscreen]);
 
-  const renderMedia = (url: string, className?: string) => {
-    const isVideo = url?.includes('.mp4') || url?.includes('video');
-    if (isVideo) {
+  const handleMediaLoad = (index: number) => {
+    setLoadingStates(prev => ({ ...prev, [index]: false }));
+  };
+
+  const handleMediaError = (index: number) => {
+    setLoadingStates(prev => ({ ...prev, [index]: false }));
+    setErrorStates(prev => ({ ...prev, [index]: true }));
+  };
+
+  const renderMedia = (item: MediaItem, index: number, className?: string) => {
+    const isLoading = loadingStates[index];
+    const hasError = errorStates[index];
+
+    if (hasError) {
       return (
-        <video
-          src={url}
-          className={cn("w-full h-full object-cover", className)}
-          muted
-          loop
-          autoPlay
-          playsInline
-        />
+        <div className={cn("w-full h-full flex flex-col items-center justify-center bg-muted/50", className)}>
+          <AlertCircle className="h-8 w-8 text-muted-foreground mb-2" />
+          <p className="text-xs text-muted-foreground">Erro ao carregar</p>
+        </div>
       );
     }
+
+    if (item.isVideo) {
+      return (
+        <div className="relative w-full h-full">
+          {isLoading && (
+            <Skeleton className="absolute inset-0 z-10" />
+          )}
+          <video
+            src={item.url}
+            className={cn("w-full h-full object-cover", className)}
+            muted
+            loop
+            autoPlay
+            playsInline
+            onLoadedData={() => handleMediaLoad(index)}
+            onError={() => handleMediaError(index)}
+          />
+          {/* Video indicator badge */}
+          <Badge 
+            variant="secondary" 
+            className="absolute bottom-2 left-2 gap-1 text-[10px] bg-black/60 text-white border-0"
+          >
+            <VideoIcon className="h-3 w-3" />
+            Vídeo
+          </Badge>
+        </div>
+      );
+    }
+    
     return (
-      <img
-        src={url}
-        alt={`Slide ${currentIndex + 1}`}
-        className={cn("w-full h-full object-cover", className)}
-      />
+      <div className="relative w-full h-full">
+        {isLoading && (
+          <Skeleton className="absolute inset-0 z-10" />
+        )}
+        <img
+          src={item.url}
+          alt={`Slide ${index + 1}`}
+          className={cn("w-full h-full object-cover", className, isLoading && "opacity-0")}
+          onLoad={() => handleMediaLoad(index)}
+          onError={() => handleMediaError(index)}
+        />
+      </div>
     );
   };
 
@@ -103,9 +168,9 @@ const InstagramCarouselPreview = ({ mediaUrls, caption }: InstagramCarouselPrevi
 
           {/* Media Carousel */}
           <div className="relative aspect-square bg-muted group">
-            {mediaUrls.length > 0 ? (
+            {items.length > 0 ? (
               <>
-                {renderMedia(mediaUrls[currentIndex])}
+                {renderMedia(items[currentIndex], currentIndex)}
                 
                 {/* Expand button */}
                 <Button
@@ -118,7 +183,7 @@ const InstagramCarouselPreview = ({ mediaUrls, caption }: InstagramCarouselPrevi
                   <Expand className="h-3.5 w-3.5" />
                 </Button>
                 
-                {mediaUrls.length > 1 && (
+                {items.length > 1 && (
                   <>
                     {/* Navigation buttons */}
                     {currentIndex > 0 && (
@@ -132,7 +197,7 @@ const InstagramCarouselPreview = ({ mediaUrls, caption }: InstagramCarouselPrevi
                         <ChevronLeft className="w-4 h-4" />
                       </Button>
                     )}
-                    {currentIndex < mediaUrls.length - 1 && (
+                    {currentIndex < items.length - 1 && (
                       <Button
                         variant="ghost"
                         size="icon"
@@ -146,12 +211,12 @@ const InstagramCarouselPreview = ({ mediaUrls, caption }: InstagramCarouselPrevi
                     {/* Counter */}
                     <div className="absolute top-2 right-2 bg-black/60 backdrop-blur-sm px-2 py-0.5 rounded-full">
                       <span className="text-xs font-medium text-white">
-                        {currentIndex + 1}/{mediaUrls.length}
+                        {currentIndex + 1}/{items.length}
                       </span>
                     </div>
                     {/* Clickable dots indicator */}
                     <div className="absolute bottom-2 left-1/2 -translate-x-1/2 flex gap-1.5">
-                      {mediaUrls.map((_, idx) => (
+                      {items.map((_, idx) => (
                         <button
                           key={idx}
                           onClick={() => goToSlide(idx)}
@@ -167,7 +232,7 @@ const InstagramCarouselPreview = ({ mediaUrls, caption }: InstagramCarouselPrevi
                     </div>
                     
                     {/* Swipe Indicator - Animated */}
-                    {mediaUrls.length > 1 && currentIndex === 0 && (
+                    {items.length > 1 && currentIndex === 0 && (
                       <div className="absolute bottom-12 left-1/2 -translate-x-1/2 flex items-center gap-1 text-white/80 animate-pulse">
                         <ChevronLeft className="h-3 w-3" />
                         <span className="text-[10px] font-medium">Desliza</span>
@@ -219,11 +284,11 @@ const InstagramCarouselPreview = ({ mediaUrls, caption }: InstagramCarouselPrevi
         <DialogContent className="max-w-4xl h-[90vh] p-0 overflow-hidden">
           <DialogTitle className="sr-only">Preview em ecrã completo</DialogTitle>
           <div className="relative w-full h-full bg-black flex items-center justify-center">
-            {mediaUrls.length > 0 && (
+            {items.length > 0 && (
               <>
-                {renderMedia(mediaUrls[currentIndex], "max-h-full max-w-full object-contain")}
+                {renderMedia(items[currentIndex], currentIndex, "max-h-full max-w-full object-contain")}
                 
-                {mediaUrls.length > 1 && (
+                {items.length > 1 && (
                   <>
                     {currentIndex > 0 && (
                       <Button
@@ -235,7 +300,7 @@ const InstagramCarouselPreview = ({ mediaUrls, caption }: InstagramCarouselPrevi
                         <ChevronLeft className="w-6 h-6" />
                       </Button>
                     )}
-                    {currentIndex < mediaUrls.length - 1 && (
+                    {currentIndex < items.length - 1 && (
                       <Button
                         variant="ghost"
                         size="icon"
@@ -249,13 +314,13 @@ const InstagramCarouselPreview = ({ mediaUrls, caption }: InstagramCarouselPrevi
                     {/* Counter */}
                     <div className="absolute top-4 right-4 bg-black/60 backdrop-blur-sm px-3 py-1 rounded-full">
                       <span className="text-sm font-medium text-white">
-                        {currentIndex + 1}/{mediaUrls.length}
+                        {currentIndex + 1}/{items.length}
                       </span>
                     </div>
                     
                     {/* Dots */}
                     <div className="absolute bottom-4 left-1/2 -translate-x-1/2 flex gap-2">
-                      {mediaUrls.map((_, idx) => (
+                      {items.map((_, idx) => (
                         <button
                           key={idx}
                           onClick={() => goToSlide(idx)}
