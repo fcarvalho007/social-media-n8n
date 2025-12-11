@@ -45,6 +45,9 @@ interface ScheduledPost {
   priority?: 'low' | 'medium' | 'high' | 'urgent';
   description?: string | null;
   project_id?: string;
+  error_log?: string | null;
+  failed_at?: string | null;
+  recovery_token?: string;
 }
 
 interface CalendarEvent extends Event {
@@ -59,7 +62,7 @@ const Calendar = () => {
   const [loading, setLoading] = useState(true);
   const [selectedEvent, setSelectedEvent] = useState<CalendarEvent | null>(null);
   const [currentMonth, setCurrentMonth] = useState(new Date());
-  const [filterType, setFilterType] = useState<'all' | 'posts' | 'stories'>('all');
+  const [filterType, setFilterType] = useState<'all' | 'posts' | 'stories' | 'failed'>('all');
   const [viewMode, setViewMode] = useState<'normal' | 'compact'>('normal');
   const [calendarView, setCalendarView] = useState<'month' | 'week' | 'day'>(isMobile ? 'day' : 'month');
   const [touchStart, setTouchStart] = useState<number | null>(null);
@@ -207,8 +210,8 @@ const Calendar = () => {
       const [{ data: posts }, { data: stories }] = await Promise.all([
         supabase
           .from('posts')
-          .select('id, tema, content_type, status, scheduled_date, reviewed_at, created_at, published_at, template_a_images')
-          .in('status', ['approved', 'published']),
+          .select('id, tema, content_type, status, scheduled_date, reviewed_at, created_at, published_at, template_a_images, error_log, failed_at, recovery_token')
+          .in('status', ['approved', 'published', 'failed']),
         supabase
           .from('stories')
           .select('id, tema, status, scheduled_date, reviewed_at, created_at, story_image_url')
@@ -217,7 +220,9 @@ const Calendar = () => {
 
       const postEvents: CalendarEvent[] = (posts || []).map((post) => {
         let eventDate: Date;
-        if (post.scheduled_date) {
+        if (post.status === 'failed' && post.failed_at) {
+          eventDate = new Date(post.failed_at);
+        } else if (post.scheduled_date) {
           eventDate = new Date(post.scheduled_date);
         } else if (post.status === 'published' && post.published_at) {
           eventDate = new Date(post.published_at);
@@ -230,7 +235,13 @@ const Calendar = () => {
           title: post.tema,
           start: eventDate,
           end: eventDate,
-          resource: { ...post, content_type: (post.content_type || 'carousel') as 'carousel' | 'stories' },
+          resource: { 
+            ...post, 
+            content_type: (post.content_type || 'carousel') as 'carousel' | 'stories',
+            error_log: post.error_log,
+            failed_at: post.failed_at,
+            recovery_token: post.recovery_token,
+          },
         };
       });
 
@@ -317,11 +328,15 @@ const Calendar = () => {
     const contentType = event.resource.content_type;
     const isPublished = event.resource.status === 'published';
     const isApproved = event.resource.status === 'approved';
+    const isFailed = event.resource.status === 'failed';
     
     let backgroundColor;
     let border = 'none';
     
-    if (isPublished) {
+    if (isFailed) {
+      backgroundColor = '#EF4444';
+      border = '2px solid #DC2626';
+    } else if (isPublished) {
       backgroundColor = '#10B981';
       border = '2px solid #059669';
     } else if (isApproved) {
@@ -348,9 +363,15 @@ const Calendar = () => {
   const filteredEvents = useMemo(() => {
     if (filterType === 'all') return events;
     if (filterType === 'posts') {
-      return events.filter(e => e.resource.content_type !== 'stories');
+      return events.filter(e => e.resource.content_type !== 'stories' && e.resource.status !== 'failed');
     }
-    return events.filter(e => e.resource.content_type === 'stories');
+    if (filterType === 'stories') {
+      return events.filter(e => e.resource.content_type === 'stories');
+    }
+    if (filterType === 'failed') {
+      return events.filter(e => e.resource.status === 'failed');
+    }
+    return events;
   }, [events, filterType]);
 
   const monthStats = useMemo(() => {
@@ -362,10 +383,11 @@ const Calendar = () => {
       return eventDate >= monthStart && eventDate <= monthEnd;
     });
 
-    const posts = monthEvents.filter(e => e.resource.content_type !== 'stories').length;
+    const posts = monthEvents.filter(e => e.resource.content_type !== 'stories' && e.resource.status !== 'failed').length;
     const stories = monthEvents.filter(e => e.resource.content_type === 'stories').length;
+    const failed = monthEvents.filter(e => e.resource.status === 'failed').length;
     
-    return { total: monthEvents.length, posts, stories };
+    return { total: monthEvents.length, posts, stories, failed };
   }, [events, currentMonth]);
 
   // Custom toolbar for better mobile navigation

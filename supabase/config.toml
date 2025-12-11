@@ -41,3 +41,6 @@ verify_jwt = true
 
 [functions.publish-to-getlate]
 verify_jwt = true
+
+[functions.notify-publication-failure]
+verify_jwt = false

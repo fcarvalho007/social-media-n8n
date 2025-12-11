@@ -19,6 +19,8 @@ import ProjectDetail from "./pages/ProjectDetail";
 import Templates from "./pages/Templates";
 import Auth from "./pages/Auth";
 import Drafts from "./pages/Drafts";
+import Recovery from "./pages/Recovery";
+import FailedPublications from "./pages/FailedPublications";
 import NotFound from "./pages/NotFound";
 const queryClient = new QueryClient();
 
@@ -46,6 +48,7 @@ const App = () => (
             <BrowserRouter>
               <Routes>
                 <Route path="/auth" element={<Auth />} />
+                <Route path="/recovery/:token" element={<Recovery />} />
                 <Route element={<ProtectedRoute><MainLayout /></ProtectedRoute>}>
                   <Route path="/" element={<Dashboard />} />
                   <Route path="/dashboard" element={<Dashboard />} />
@@ -55,6 +58,7 @@ const App = () => (
                   <Route path="/calendar" element={<Calendar />} />
                   <Route path="/manual-create" element={<ManualCreate />} />
                   <Route path="/drafts" element={<Drafts />} />
+                  <Route path="/failed-publications" element={<FailedPublications />} />
                   <Route path="/projects" element={<Projects />} />
                   <Route path="/projects/:id" element={<ProjectDetail />} />
                   <Route path="/templates" element={<Templates />} />
