@@ -2,7 +2,7 @@ import { useState, useEffect, useCallback, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Calendar as BigCalendar, dateFnsLocalizer, Event } from 'react-big-calendar';
 import withDragAndDrop from 'react-big-calendar/lib/addons/dragAndDrop';
-import { format, parse, startOfWeek, getDay, isToday, isSameMonth, startOfMonth, endOfMonth } from 'date-fns';
+import { format, parse, startOfWeek, getDay, isToday, isSameMonth, startOfMonth, endOfMonth, isPast, isFuture, startOfDay } from 'date-fns';
 import { pt } from 'date-fns/locale';
 import { supabase } from '@/integrations/supabase/client';
 import { Badge } from '@/components/ui/badge';
@@ -13,7 +13,7 @@ import 'react-big-calendar/lib/css/react-big-calendar.css';
 import 'react-big-calendar/lib/addons/dragAndDrop/styles.css';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
-import { Calendar as CalendarIcon, Clock, LayoutGrid, Video, TrendingUp, Filter, Trash2, Maximize2, Minimize2, ImageIcon, Plus, Wand2, PenTool, AlertCircle } from 'lucide-react';
+import { Calendar as CalendarIcon, Clock, LayoutGrid, Video, TrendingUp, Filter, Trash2, Maximize2, Minimize2, ImageIcon, PenTool, AlertCircle, CalendarCheck, CalendarClock, History, Instagram, Linkedin, ChevronDown } from 'lucide-react';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import { useIsMobile } from '@/hooks/use-mobile';
@@ -48,6 +48,7 @@ interface ScheduledPost {
   error_log?: string | null;
   failed_at?: string | null;
   recovery_token?: string;
+  selected_networks?: string[];
 }
 
 interface CalendarEvent extends Event {
@@ -63,6 +64,7 @@ const Calendar = () => {
   const [selectedEvent, setSelectedEvent] = useState<CalendarEvent | null>(null);
   const [currentMonth, setCurrentMonth] = useState(new Date());
   const [filterType, setFilterType] = useState<'all' | 'posts' | 'stories' | 'failed'>('all');
+  const [timeFilter, setTimeFilter] = useState<'all' | 'past' | 'today' | 'future'>('all');
   const [viewMode, setViewMode] = useState<'normal' | 'compact'>('normal');
   const [calendarView, setCalendarView] = useState<'month' | 'week' | 'day'>(isMobile ? 'day' : 'month');
   const [touchStart, setTouchStart] = useState<number | null>(null);
@@ -210,7 +212,7 @@ const Calendar = () => {
       const [{ data: posts }, { data: stories }] = await Promise.all([
         supabase
           .from('posts')
-          .select('id, tema, content_type, status, scheduled_date, reviewed_at, created_at, published_at, template_a_images, error_log, failed_at, recovery_token')
+          .select('id, tema, content_type, status, scheduled_date, reviewed_at, created_at, published_at, template_a_images, error_log, failed_at, recovery_token, selected_networks')
           .in('status', ['approved', 'published', 'failed']),
         supabase
           .from('stories')
@@ -241,6 +243,7 @@ const Calendar = () => {
             error_log: post.error_log,
             failed_at: post.failed_at,
             recovery_token: post.recovery_token,
+            selected_networks: post.selected_networks || [],
           },
         };
       });
@@ -361,22 +364,35 @@ const Calendar = () => {
   };
 
   const filteredEvents = useMemo(() => {
-    if (filterType === 'all') return events;
+    const today = startOfDay(new Date());
+    
+    let filtered = events;
+    
+    // Apply time filter first
+    if (timeFilter === 'past') {
+      filtered = filtered.filter(e => startOfDay(e.start as Date) < today);
+    } else if (timeFilter === 'today') {
+      filtered = filtered.filter(e => isToday(e.start as Date));
+    } else if (timeFilter === 'future') {
+      filtered = filtered.filter(e => startOfDay(e.start as Date) > today);
+    }
+    
+    // Then apply type filter
     if (filterType === 'posts') {
-      return events.filter(e => e.resource.content_type !== 'stories' && e.resource.status !== 'failed');
+      filtered = filtered.filter(e => e.resource.content_type !== 'stories' && e.resource.status !== 'failed');
+    } else if (filterType === 'stories') {
+      filtered = filtered.filter(e => e.resource.content_type === 'stories');
+    } else if (filterType === 'failed') {
+      filtered = filtered.filter(e => e.resource.status === 'failed');
     }
-    if (filterType === 'stories') {
-      return events.filter(e => e.resource.content_type === 'stories');
-    }
-    if (filterType === 'failed') {
-      return events.filter(e => e.resource.status === 'failed');
-    }
-    return events;
-  }, [events, filterType]);
+    
+    return filtered;
+  }, [events, filterType, timeFilter]);
 
   const monthStats = useMemo(() => {
     const monthStart = startOfMonth(currentMonth);
     const monthEnd = endOfMonth(currentMonth);
+    const today = startOfDay(new Date());
     
     const monthEvents = events.filter(e => {
       const eventDate = e.start as Date;
@@ -386,8 +402,23 @@ const Calendar = () => {
     const posts = monthEvents.filter(e => e.resource.content_type !== 'stories' && e.resource.status !== 'failed').length;
     const stories = monthEvents.filter(e => e.resource.content_type === 'stories').length;
     const failed = monthEvents.filter(e => e.resource.status === 'failed').length;
+    const scheduled = monthEvents.filter(e => {
+      const eventDate = startOfDay(e.start as Date);
+      return eventDate > today && e.resource.status === 'approved';
+    }).length;
+    const published = monthEvents.filter(e => e.resource.status === 'published').length;
     
-    return { total: monthEvents.length, posts, stories, failed };
+    // Network breakdown
+    const instagramPosts = monthEvents.filter(e => {
+      const networks = e.resource.selected_networks || [];
+      return networks.includes('instagram') || e.resource.content_type === 'stories';
+    }).length;
+    const linkedinPosts = monthEvents.filter(e => {
+      const networks = e.resource.selected_networks || [];
+      return networks.includes('linkedin');
+    }).length;
+    
+    return { total: monthEvents.length, posts, stories, failed, scheduled, published, instagramPosts, linkedinPosts };
   }, [events, currentMonth]);
 
   // Custom toolbar for better mobile navigation
@@ -603,100 +634,176 @@ const Calendar = () => {
               </div>
             </div>
 
-            {/* Stats Cards - Redesigned */}
-            <div className="grid grid-cols-3 sm:grid-cols-4 gap-3 lg:gap-4">
-              <Card className="p-4 bg-card border shadow-sm hover:shadow-md transition-shadow">
-                <div className="flex items-center justify-between">
-                  <div>
-                    <p className="text-xs font-medium text-muted-foreground">Total</p>
-                    <p className="text-2xl lg:text-3xl font-bold text-foreground">{monthStats.total}</p>
+            {/* Stats Cards - Redesigned with better layout */}
+            <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3">
+              {/* Published */}
+              <Card className="p-3 bg-gradient-to-br from-green-50 to-emerald-50 dark:from-green-950/30 dark:to-emerald-950/30 border-green-200/50 dark:border-green-800/50 shadow-sm hover:shadow-md transition-all">
+                <div className="flex items-center gap-3">
+                  <div className="h-9 w-9 rounded-lg bg-green-500/20 flex items-center justify-center">
+                    <CalendarCheck className="h-4 w-4 text-green-600 dark:text-green-400" />
                   </div>
-                  <div className="h-10 w-10 rounded-lg bg-primary/10 flex items-center justify-center">
-                    <TrendingUp className="h-5 w-5 text-primary" />
+                  <div>
+                    <p className="text-[10px] font-medium text-green-600/70 dark:text-green-400/70 uppercase tracking-wide">Publicados</p>
+                    <p className="text-xl font-bold text-green-700 dark:text-green-300">{monthStats.published}</p>
                   </div>
                 </div>
               </Card>
 
-              <Card className="p-4 bg-card border shadow-sm hover:shadow-md transition-shadow">
-                <div className="flex items-center justify-between">
-                  <div>
-                    <p className="text-xs font-medium text-muted-foreground">Posts</p>
-                    <p className="text-2xl lg:text-3xl font-bold text-blue-600">{monthStats.posts}</p>
+              {/* Scheduled */}
+              <Card className="p-3 bg-gradient-to-br from-amber-50 to-orange-50 dark:from-amber-950/30 dark:to-orange-950/30 border-amber-200/50 dark:border-amber-800/50 shadow-sm hover:shadow-md transition-all">
+                <div className="flex items-center gap-3">
+                  <div className="h-9 w-9 rounded-lg bg-amber-500/20 flex items-center justify-center">
+                    <CalendarClock className="h-4 w-4 text-amber-600 dark:text-amber-400" />
                   </div>
-                  <div className="h-10 w-10 rounded-lg bg-blue-100 flex items-center justify-center">
-                    <LayoutGrid className="h-5 w-5 text-blue-600" />
+                  <div>
+                    <p className="text-[10px] font-medium text-amber-600/70 dark:text-amber-400/70 uppercase tracking-wide">Agendados</p>
+                    <p className="text-xl font-bold text-amber-700 dark:text-amber-300">{monthStats.scheduled}</p>
                   </div>
                 </div>
               </Card>
 
-              <Card className="p-4 bg-card border shadow-sm hover:shadow-md transition-shadow">
-                <div className="flex items-center justify-between">
-                  <div>
-                    <p className="text-xs font-medium text-muted-foreground">Stories</p>
-                    <p className="text-2xl lg:text-3xl font-bold text-purple-600">{monthStats.stories}</p>
+              {/* Posts */}
+              <Card className="p-3 bg-gradient-to-br from-blue-50 to-indigo-50 dark:from-blue-950/30 dark:to-indigo-950/30 border-blue-200/50 dark:border-blue-800/50 shadow-sm hover:shadow-md transition-all">
+                <div className="flex items-center gap-3">
+                  <div className="h-9 w-9 rounded-lg bg-blue-500/20 flex items-center justify-center">
+                    <LayoutGrid className="h-4 w-4 text-blue-600 dark:text-blue-400" />
                   </div>
-                  <div className="h-10 w-10 rounded-lg bg-purple-100 flex items-center justify-center">
-                    <Video className="h-5 w-5 text-purple-600" />
+                  <div>
+                    <p className="text-[10px] font-medium text-blue-600/70 dark:text-blue-400/70 uppercase tracking-wide">Posts</p>
+                    <p className="text-xl font-bold text-blue-700 dark:text-blue-300">{monthStats.posts}</p>
                   </div>
                 </div>
               </Card>
 
-              {monthStats.failed > 0 && (
-                <Card className="p-4 bg-red-50 border-red-200 shadow-sm">
-                  <div className="flex items-center justify-between">
-                    <div>
-                      <p className="text-xs font-medium text-red-600/70">Falhados</p>
-                      <p className="text-2xl lg:text-3xl font-bold text-red-600">{monthStats.failed}</p>
+              {/* Stories */}
+              <Card className="p-3 bg-gradient-to-br from-purple-50 to-fuchsia-50 dark:from-purple-950/30 dark:to-fuchsia-950/30 border-purple-200/50 dark:border-purple-800/50 shadow-sm hover:shadow-md transition-all">
+                <div className="flex items-center gap-3">
+                  <div className="h-9 w-9 rounded-lg bg-purple-500/20 flex items-center justify-center">
+                    <Video className="h-4 w-4 text-purple-600 dark:text-purple-400" />
+                  </div>
+                  <div>
+                    <p className="text-[10px] font-medium text-purple-600/70 dark:text-purple-400/70 uppercase tracking-wide">Stories</p>
+                    <p className="text-xl font-bold text-purple-700 dark:text-purple-300">{monthStats.stories}</p>
+                  </div>
+                </div>
+              </Card>
+
+              {/* Instagram */}
+              <Card className="p-3 bg-gradient-to-br from-pink-50 to-rose-50 dark:from-pink-950/30 dark:to-rose-950/30 border-pink-200/50 dark:border-pink-800/50 shadow-sm hover:shadow-md transition-all">
+                <div className="flex items-center gap-3">
+                  <div className="h-9 w-9 rounded-lg bg-gradient-to-br from-pink-500/20 to-purple-500/20 flex items-center justify-center">
+                    <Instagram className="h-4 w-4 text-pink-600 dark:text-pink-400" />
+                  </div>
+                  <div>
+                    <p className="text-[10px] font-medium text-pink-600/70 dark:text-pink-400/70 uppercase tracking-wide">Instagram</p>
+                    <p className="text-xl font-bold text-pink-700 dark:text-pink-300">{monthStats.instagramPosts}</p>
+                  </div>
+                </div>
+              </Card>
+
+              {/* LinkedIn or Failed */}
+              {monthStats.failed > 0 ? (
+                <Card className="p-3 bg-gradient-to-br from-red-50 to-rose-50 dark:from-red-950/30 dark:to-rose-950/30 border-red-200/50 dark:border-red-800/50 shadow-sm hover:shadow-md transition-all">
+                  <div className="flex items-center gap-3">
+                    <div className="h-9 w-9 rounded-lg bg-red-500/20 flex items-center justify-center">
+                      <AlertCircle className="h-4 w-4 text-red-600 dark:text-red-400" />
                     </div>
-                    <div className="h-10 w-10 rounded-lg bg-red-100 flex items-center justify-center">
-                      <AlertCircle className="h-5 w-5 text-red-600" />
+                    <div>
+                      <p className="text-[10px] font-medium text-red-600/70 dark:text-red-400/70 uppercase tracking-wide">Falhados</p>
+                      <p className="text-xl font-bold text-red-700 dark:text-red-300">{monthStats.failed}</p>
+                    </div>
+                  </div>
+                </Card>
+              ) : (
+                <Card className="p-3 bg-gradient-to-br from-sky-50 to-blue-50 dark:from-sky-950/30 dark:to-blue-950/30 border-sky-200/50 dark:border-sky-800/50 shadow-sm hover:shadow-md transition-all">
+                  <div className="flex items-center gap-3">
+                    <div className="h-9 w-9 rounded-lg bg-sky-500/20 flex items-center justify-center">
+                      <Linkedin className="h-4 w-4 text-sky-600 dark:text-sky-400" />
+                    </div>
+                    <div>
+                      <p className="text-[10px] font-medium text-sky-600/70 dark:text-sky-400/70 uppercase tracking-wide">LinkedIn</p>
+                      <p className="text-xl font-bold text-sky-700 dark:text-sky-300">{monthStats.linkedinPosts}</p>
                     </div>
                   </div>
                 </Card>
               )}
             </div>
 
-            {/* Compact Legend + Filter Row */}
-            <div className="flex flex-wrap items-center justify-between gap-3 p-3 bg-muted/30 rounded-lg border">
-              {/* Legend */}
-              <div className="flex flex-wrap items-center gap-3 text-xs">
-                <span className="flex items-center gap-1.5">
-                  <div className="h-3 w-3 rounded-sm bg-green-500"></div>
-                  <span className="text-muted-foreground">Publicado</span>
-                </span>
-                <span className="flex items-center gap-1.5">
-                  <div className="h-3 w-3 rounded-sm bg-amber-500"></div>
-                  <span className="text-muted-foreground">Aprovado</span>
-                </span>
-                <span className="flex items-center gap-1.5">
-                  <div className="h-3 w-3 rounded-sm bg-blue-500"></div>
-                  <span className="text-muted-foreground">Post</span>
-                </span>
-                <span className="flex items-center gap-1.5">
-                  <div className="h-3 w-3 rounded-sm bg-purple-500"></div>
-                  <span className="text-muted-foreground">Story</span>
-                </span>
-                {monthStats.failed > 0 && (
-                  <span className="flex items-center gap-1.5">
-                    <div className="h-3 w-3 rounded-sm bg-red-500"></div>
-                    <span className="text-muted-foreground">Falhado</span>
-                  </span>
-                )}
+            {/* Filter Bar - Redesigned */}
+            <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 p-3 bg-muted/30 rounded-xl border">
+              {/* Time Filter Tabs */}
+              <div className="flex items-center gap-1 p-1 bg-background rounded-lg border shadow-sm">
+                <Button
+                  variant={timeFilter === 'all' ? 'default' : 'ghost'}
+                  size="sm"
+                  onClick={() => setTimeFilter('all')}
+                  className="h-7 px-3 text-xs font-medium"
+                >
+                  Todos
+                </Button>
+                <Button
+                  variant={timeFilter === 'past' ? 'default' : 'ghost'}
+                  size="sm"
+                  onClick={() => setTimeFilter('past')}
+                  className="h-7 px-3 text-xs font-medium gap-1"
+                >
+                  <History className="h-3 w-3" />
+                  Passado
+                </Button>
+                <Button
+                  variant={timeFilter === 'today' ? 'default' : 'ghost'}
+                  size="sm"
+                  onClick={() => setTimeFilter('today')}
+                  className="h-7 px-3 text-xs font-medium gap-1"
+                >
+                  <CalendarIcon className="h-3 w-3" />
+                  Hoje
+                </Button>
+                <Button
+                  variant={timeFilter === 'future' ? 'default' : 'ghost'}
+                  size="sm"
+                  onClick={() => setTimeFilter('future')}
+                  className="h-7 px-3 text-xs font-medium gap-1"
+                >
+                  <CalendarClock className="h-3 w-3" />
+                  Futuro
+                </Button>
               </div>
 
-              {/* Filter */}
-              <Select value={filterType} onValueChange={(value: any) => setFilterType(value)}>
-                <SelectTrigger className="w-[140px] h-8 text-xs">
-                  <Filter className="h-3 w-3 mr-1.5" />
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent className="bg-popover z-50">
-                  <SelectItem value="all">Todos</SelectItem>
-                  <SelectItem value="posts">Posts</SelectItem>
-                  <SelectItem value="stories">Stories</SelectItem>
-                  <SelectItem value="failed">Falhados</SelectItem>
-                </SelectContent>
-              </Select>
+              {/* Right side: Legend + Type Filter */}
+              <div className="flex flex-wrap items-center gap-4">
+                {/* Compact Legend */}
+                <div className="hidden sm:flex items-center gap-3 text-xs">
+                  <span className="flex items-center gap-1.5">
+                    <div className="h-2.5 w-2.5 rounded-full bg-green-500"></div>
+                    <span className="text-muted-foreground">Publicado</span>
+                  </span>
+                  <span className="flex items-center gap-1.5">
+                    <div className="h-2.5 w-2.5 rounded-full bg-amber-500"></div>
+                    <span className="text-muted-foreground">Agendado</span>
+                  </span>
+                  {monthStats.failed > 0 && (
+                    <span className="flex items-center gap-1.5">
+                      <div className="h-2.5 w-2.5 rounded-full bg-red-500"></div>
+                      <span className="text-muted-foreground">Falhado</span>
+                    </span>
+                  )}
+                </div>
+
+                {/* Type Filter */}
+                <Select value={filterType} onValueChange={(value: any) => setFilterType(value)}>
+                  <SelectTrigger className="w-[130px] h-8 text-xs bg-background">
+                    <Filter className="h-3 w-3 mr-1.5" />
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent className="bg-popover z-50">
+                    <SelectItem value="all">Todos os tipos</SelectItem>
+                    <SelectItem value="posts">Posts</SelectItem>
+                    <SelectItem value="stories">Stories</SelectItem>
+                    <SelectItem value="failed">Falhados</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
             </div>
 
             {/* Calendar Container */}
