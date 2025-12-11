@@ -18,8 +18,8 @@ import Projects from "./pages/Projects";
 import ProjectDetail from "./pages/ProjectDetail";
 import Templates from "./pages/Templates";
 import Auth from "./pages/Auth";
+import Drafts from "./pages/Drafts";
 import NotFound from "./pages/NotFound";
-
 const queryClient = new QueryClient();
 
 // Component to handle URL-encoded redirects
@@ -54,6 +54,7 @@ const App = () => (
                   <Route path="/review-story/:id" element={<ReviewStory />} />
                   <Route path="/calendar" element={<Calendar />} />
                   <Route path="/manual-create" element={<ManualCreate />} />
+                  <Route path="/drafts" element={<Drafts />} />
                   <Route path="/projects" element={<Projects />} />
                   <Route path="/projects/:id" element={<ProjectDetail />} />
                   <Route path="/templates" element={<Templates />} />
