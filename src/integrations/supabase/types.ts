@@ -153,7 +153,9 @@ export type Database = {
           caption_edited: string | null
           content_type: string | null
           created_at: string | null
+          error_log: string | null
           external_post_ids: Json | null
+          failed_at: string | null
           first_comment: string | null
           hashtags: string[] | null
           hashtags_edited: string[] | null
@@ -171,6 +173,8 @@ export type Database = {
           publish_metadata: Json | null
           publish_targets: Json | null
           published_at: string | null
+          recovery_token: string | null
+          retry_count: number | null
           reviewed_at: string | null
           reviewed_by: string | null
           schedule_asap: boolean | null
@@ -196,7 +200,9 @@ export type Database = {
           caption_edited?: string | null
           content_type?: string | null
           created_at?: string | null
+          error_log?: string | null
           external_post_ids?: Json | null
+          failed_at?: string | null
           first_comment?: string | null
           hashtags?: string[] | null
           hashtags_edited?: string[] | null
@@ -214,6 +220,8 @@ export type Database = {
           publish_metadata?: Json | null
           publish_targets?: Json | null
           published_at?: string | null
+          recovery_token?: string | null
+          retry_count?: number | null
           reviewed_at?: string | null
           reviewed_by?: string | null
           schedule_asap?: boolean | null
@@ -239,7 +247,9 @@ export type Database = {
           caption_edited?: string | null
           content_type?: string | null
           created_at?: string | null
+          error_log?: string | null
           external_post_ids?: Json | null
+          failed_at?: string | null
           first_comment?: string | null
           hashtags?: string[] | null
           hashtags_edited?: string[] | null
@@ -257,6 +267,8 @@ export type Database = {
           publish_metadata?: Json | null
           publish_targets?: Json | null
           published_at?: string | null
+          recovery_token?: string | null
+          retry_count?: number | null
           reviewed_at?: string | null
           reviewed_by?: string | null
           schedule_asap?: boolean | null
@@ -420,6 +432,50 @@ export type Database = {
           updated_at?: string
         }
         Relationships: []
+      }
+      publication_attempts: {
+        Row: {
+          attempted_at: string
+          created_at: string
+          error_message: string | null
+          format: string | null
+          id: string
+          platform: string
+          post_id: string | null
+          response_data: Json | null
+          status: string
+        }
+        Insert: {
+          attempted_at?: string
+          created_at?: string
+          error_message?: string | null
+          format?: string | null
+          id?: string
+          platform: string
+          post_id?: string | null
+          response_data?: Json | null
+          status?: string
+        }
+        Update: {
+          attempted_at?: string
+          created_at?: string
+          error_message?: string | null
+          format?: string | null
+          id?: string
+          platform?: string
+          post_id?: string | null
+          response_data?: Json | null
+          status?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "publication_attempts_post_id_fkey"
+            columns: ["post_id"]
+            isOneToOne: false
+            referencedRelation: "posts"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       publication_quota: {
         Row: {

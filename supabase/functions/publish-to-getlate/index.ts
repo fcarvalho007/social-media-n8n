@@ -42,6 +42,7 @@ interface PublishPayload {
   scheduled_date?: string;
   scheduled_time?: string;
   publish_immediately: boolean;
+  post_id?: string;  // Optional post ID for tracking failures
 }
 
 interface GetlatePostPayload {
@@ -247,7 +248,7 @@ Deno.serve(async (req) => {
     }
 
     const body = await req.json();
-    const { format, caption, media_urls, scheduled_date, scheduled_time, publish_immediately } = body as PublishPayload;
+    const { format, caption, media_urls, scheduled_date, scheduled_time, publish_immediately, post_id } = body as PublishPayload;
 
     console.log(`[publish-to-getlate] Processing publication for format: ${format}`);
 
@@ -317,11 +318,95 @@ Deno.serve(async (req) => {
       console.log(`[publish-to-getlate] Scheduled for: ${getlatePayload.scheduledFor}`);
     }
 
+    // Log publication attempt
+    if (post_id) {
+      await supabase.from('publication_attempts').insert({
+        post_id,
+        platform: network,
+        format,
+        status: 'pending',
+      });
+    }
+
     // Publish to Getlate
     const result = await publishToGetlate(getlateToken, getlatePayload);
 
     if (!result.success) {
+      // Record failure
+      console.error(`[publish-to-getlate] Publication failed: ${result.error}`);
+      
+      if (post_id) {
+        // Update post with failure info
+        const { data: postData } = await supabase
+          .from('posts')
+          .select('recovery_token')
+          .eq('id', post_id)
+          .single();
+        
+        await supabase
+          .from('posts')
+          .update({
+            status: 'failed',
+            error_log: result.error,
+            failed_at: new Date().toISOString(),
+          })
+          .eq('id', post_id);
+
+        // Log failed attempt
+        await supabase.from('publication_attempts').insert({
+          post_id,
+          platform: network,
+          format,
+          status: 'failed',
+          error_message: result.error,
+        });
+
+        // Send notification email
+        try {
+          const recoveryToken = postData?.recovery_token;
+          
+          // Get user email
+          const { data: userData } = await supabase.auth.admin.getUserById(user.id);
+          const userEmail = userData?.user?.email;
+
+          if (userEmail && recoveryToken) {
+            console.log(`[publish-to-getlate] Sending failure notification to ${userEmail}`);
+            
+            await fetch(`${Deno.env.get('SUPABASE_URL')}/functions/v1/notify-publication-failure`, {
+              method: 'POST',
+              headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${Deno.env.get('SUPABASE_ANON_KEY')}`,
+              },
+              body: JSON.stringify({
+                post_id,
+                error_message: result.error,
+                platform: network,
+                format,
+                recovery_token: recoveryToken,
+                user_email: userEmail,
+                post_caption: caption,
+                media_count: media_urls.length,
+              }),
+            });
+          }
+        } catch (notifyError) {
+          console.error('[publish-to-getlate] Failed to send notification:', notifyError);
+        }
+      }
+      
       throw new Error(result.error || 'Failed to publish to Getlate');
+    }
+
+    // Log successful attempt
+    if (post_id) {
+      await supabase.from('publication_attempts').insert({
+        post_id,
+        platform: network,
+        format,
+        status: 'success',
+        response_data: result.data,
+      });
     }
 
     // NOTE: We no longer increment local quota - Getlate tracks usage automatically
