@@ -379,16 +379,21 @@ export default function ManualCreate() {
 
   // Handle media upload
   const handleMediaUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const files = Array.from(e.target.files || []);
+    const newFiles = Array.from(e.target.files || []);
+    if (newFiles.length === 0) return;
     
-    if (files.length > mediaRequirements.maxMedia) {
-      toast.error(`Máximo ${mediaRequirements.maxMedia} ficheiros`);
+    const maxAllowed = mediaRequirements.maxMedia;
+    const totalAfterUpload = mediaFiles.length + newFiles.length;
+    
+    // Check if adding new files would exceed the limit
+    if (totalAfterUpload > maxAllowed) {
+      toast.error(`Máximo ${maxAllowed} ficheiros. Já tem ${mediaFiles.length}.`);
       return;
     }
 
     // Validate file sizes
     const maxSize = 50 * 1024 * 1024; // 50MB
-    const invalidFiles = files.filter(file => file.size > maxSize);
+    const invalidFiles = newFiles.filter(file => file.size > maxSize);
     if (invalidFiles.length > 0) {
       toast.error('Ficheiros não podem exceder 50MB');
       return;
@@ -406,7 +411,7 @@ export default function ManualCreate() {
     if (supportsVideo || hasLinkedInDocument || !mediaRequirements.requiresImage) {
       validTypes.push('video/mp4', 'video/quicktime', 'video/webm');
     }
-    const invalidTypes = files.filter(file => !validTypes.includes(file.type));
+    const invalidTypes = newFiles.filter(file => !validTypes.includes(file.type));
     if (invalidTypes.length > 0) {
       toast.error('Formato não suportado. Use PNG, JPG ou MP4');
       return;
@@ -415,7 +420,7 @@ export default function ManualCreate() {
     setIsUploading(true);
     setUploadProgress(0);
 
-    const urls = files.map(file => URL.createObjectURL(file));
+    const newUrls = newFiles.map(file => URL.createObjectURL(file));
     
     const interval = setInterval(() => {
       setUploadProgress(prev => {
@@ -428,13 +433,17 @@ export default function ManualCreate() {
       });
     }, 50);
 
-    setMediaFiles(files);
-    setMediaPreviewUrls(urls);
+    // APPEND new files to existing ones instead of replacing
+    const combinedFiles = [...mediaFiles, ...newFiles];
+    const combinedUrls = [...mediaPreviewUrls, ...newUrls];
     
-    // Validate media for selected formats
+    setMediaFiles(combinedFiles);
+    setMediaPreviewUrls(combinedUrls);
+    
+    // Validate ALL media for selected formats
     if (selectedFormats.length > 0) {
       const validations: MediaValidationResult[] = [];
-      for (const file of files) {
+      for (const file of combinedFiles) {
         const result = await validateMedia(file, selectedFormats[0]);
         validations.push(result);
       }
@@ -447,7 +456,7 @@ export default function ManualCreate() {
       }
     }
     
-    toast.success(`${files.length} ficheiro(s) carregado(s)`);
+    toast.success(`${newFiles.length} ficheiro(s) adicionado(s). Total: ${combinedFiles.length}`);
   };
 
   const removeMedia = (index: number) => {
