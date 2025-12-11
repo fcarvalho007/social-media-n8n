@@ -190,18 +190,46 @@ export function usePublishWithProgress() {
     setIsPublishing(true);
     setShouldCancel(false);
     
-    // Initialize platforms for phase 2
-    const initialPlatforms: PlatformResult[] = formats.map(format => ({
+    // CONSOLIDATE: Only one format per network to avoid duplicate publications
+    const uniqueNetworkFormats = new Map<string, PostFormat>();
+    for (const format of formats) {
+      const network = FORMAT_TO_NETWORK[format] || 'instagram';
+      // Keep the first format for each network (usually most specific)
+      if (!uniqueNetworkFormats.has(network)) {
+        uniqueNetworkFormats.set(network, format);
+      }
+    }
+    const consolidatedFormats = Array.from(uniqueNetworkFormats.values());
+    
+    console.log('[usePublishWithProgress] Consolidated formats:', {
+      original: formats,
+      consolidated: consolidatedFormats,
+      networks: Array.from(uniqueNetworkFormats.keys()),
+    });
+    
+    // Initialize platforms for phase 2 with consolidated formats
+    const initialPlatforms: PlatformResult[] = consolidatedFormats.map(format => ({
       platform: FORMAT_TO_NETWORK[format] || 'instagram',
       format,
       formatLabel: getFormatConfig(format)?.label || format,
       status: 'pending',
     }));
     
+    // Track results directly to avoid stale state issues
+    const platformResults: Map<string, PlatformResult> = new Map();
+    consolidatedFormats.forEach(format => {
+      platformResults.set(format, {
+        platform: FORMAT_TO_NETWORK[format] || 'instagram',
+        format,
+        formatLabel: getFormatConfig(format)?.label || format,
+        status: 'pending',
+      });
+    });
+    
     setProgress({
       phase1: { status: 'uploading', progress: 0, message: 'A enviar ficheiros...' },
       phase2: { status: 'waiting', progress: 0, message: 'A aguardar envio...', platforms: initialPlatforms },
-      summary: { totalPlatforms: formats.length, successCount: 0, failedCount: 0 },
+      summary: { totalPlatforms: consolidatedFormats.length, successCount: 0, failedCount: 0 },
     });
     
     try {
@@ -253,8 +281,8 @@ export function usePublishWithProgress() {
       // Phase 1 almost complete
       updatePhase1('sending', 90, 'A preparar publicação...');
       
-      // Sort formats: LinkedIn first, Instagram last
-      const sortedFormats = [...formats].sort((a, b) => {
+      // Sort consolidated formats: LinkedIn first, Instagram last
+      const sortedFormats = [...consolidatedFormats].sort((a, b) => {
         const aNetwork = FORMAT_TO_NETWORK[a] || 'instagram';
         const bNetwork = FORMAT_TO_NETWORK[b] || 'instagram';
         if (aNetwork === 'instagram' && bNetwork !== 'instagram') return 1;
@@ -276,7 +304,7 @@ export function usePublishWithProgress() {
       // Check if Instagram is selected - add initial delay
       const hasInstagram = sortedFormats.some(f => (FORMAT_TO_NETWORK[f] || 'instagram') === 'instagram');
       if (hasInstagram) {
-        toast.info('A preparar Instagram (aguarde 3s)...', { duration: 3000 });
+        updatePhase2('publishing', 0, 'A preparar Instagram (3s)...');
         await new Promise(resolve => setTimeout(resolve, 3000));
       }
       
@@ -289,16 +317,10 @@ export function usePublishWithProgress() {
         const network = FORMAT_TO_NETWORK[format] || 'instagram';
         const previousNetwork = i > 0 ? (FORMAT_TO_NETWORK[sortedFormats[i - 1]] || 'instagram') : null;
         
-        // Add delay before Instagram
-        if (network === 'instagram') {
-          const isConsecutiveInstagram = previousNetwork === 'instagram';
-          if (isConsecutiveInstagram) {
-            toast.info('A aguardar 10s entre publicações Instagram...', { duration: 10000 });
-            await new Promise(resolve => setTimeout(resolve, 10000));
-          } else if (previousNetwork && previousNetwork !== 'instagram') {
-            toast.info('A aguardar 8s antes do Instagram...', { duration: 8000 });
-            await new Promise(resolve => setTimeout(resolve, 8000));
-          }
+        // Add delay before Instagram with visual feedback
+        if (network === 'instagram' && previousNetwork && previousNetwork !== 'instagram') {
+          updatePhase2('publishing', Math.round((i / sortedFormats.length) * 100), 'A aguardar 8s antes do Instagram...');
+          await new Promise(resolve => setTimeout(resolve, 8000));
         }
         
         // Update platform to processing
@@ -378,28 +400,55 @@ export function usePublishWithProgress() {
           });
           
           if (publishError) {
+            platformResults.set(format, { 
+              ...platformResults.get(format)!, 
+              status: 'error', 
+              errorMessage: 'Erro de comunicação' 
+            });
             updatePlatformStatus(format, 'error', 'Erro de comunicação');
           } else if (!publishResult?.success) {
+            platformResults.set(format, { 
+              ...platformResults.get(format)!, 
+              status: 'error', 
+              errorMessage: publishResult?.error || 'Falha na publicação' 
+            });
             updatePlatformStatus(format, 'error', publishResult?.error || 'Falha na publicação');
           } else {
+            platformResults.set(format, { 
+              ...platformResults.get(format)!, 
+              status: 'success', 
+              postUrl: publishResult?.postUrl || publishResult?.url 
+            });
             updatePlatformStatus(format, 'success', undefined, publishResult?.postUrl || publishResult?.url);
           }
         } catch (err) {
+          platformResults.set(format, { 
+            ...platformResults.get(format)!, 
+            status: 'error', 
+            errorMessage: 'Erro inesperado' 
+          });
           updatePlatformStatus(format, 'error', 'Erro inesperado');
         }
       }
       
-      // Save to database
-      const finalPlatforms = progress.phase2.platforms;
-      const successfulFormats = finalPlatforms.filter(p => p.status === 'success');
+      // Use tracked results instead of stale state
+      const finalResults = Array.from(platformResults.values());
+      const successfulFormats = finalResults.filter(p => p.status === 'success');
+      const failedFormats = finalResults.filter(p => p.status === 'error');
+      
+      console.log('[usePublishWithProgress] Final results:', {
+        total: finalResults.length,
+        success: successfulFormats.length,
+        failed: failedFormats.length,
+      });
       
       if (successfulFormats.length > 0) {
-        const selectedNetworks = [...new Set(formats.map(f => FORMAT_TO_NETWORK[f] || 'instagram'))];
+        const selectedNetworks = [...new Set(consolidatedFormats.map(f => FORMAT_TO_NETWORK[f] || 'instagram'))];
         
         const postData = {
           user_id: user.id,
-          post_type: formats.some(f => f.includes('carousel') || f === 'linkedin_document') ? 'carousel' : 
-                     formats.some(f => f.includes('video') || f.includes('reel') || f.includes('shorts')) ? 'video' : 'image',
+          post_type: consolidatedFormats.some(f => f.includes('carousel') || f === 'linkedin_document') ? 'carousel' : 
+                     consolidatedFormats.some(f => f.includes('video') || f.includes('reel') || f.includes('shorts')) ? 'video' : 'image',
           selected_networks: selectedNetworks as any,
           caption,
           scheduled_date: scheduledDate?.toISOString() || new Date().toISOString(),
@@ -413,8 +462,10 @@ export function usePublishWithProgress() {
           published_at: new Date().toISOString(),
           publish_metadata: {
             published_via: 'manual_create_getlate',
-            formats,
+            formats: consolidatedFormats,
             pdf_generated: !!pdfUrl,
+            successCount: successfulFormats.length,
+            failedCount: failedFormats.length,
           },
         };
         
@@ -423,16 +474,16 @@ export function usePublishWithProgress() {
       }
       
       setIsPublishing(false);
-      return true;
+      return successfulFormats.length > 0;
       
     } catch (error) {
       console.error('[usePublishWithProgress] Error:', error);
       const errorMsg = error instanceof Error ? error.message : 'Erro inesperado';
-      updatePhase1('error', progress.phase1.progress, 'Erro', errorMsg);
+      updatePhase1('error', 0, 'Erro', errorMsg);
       setIsPublishing(false);
       return false;
     }
-  }, [shouldCancel, updatePhase1, updatePhase2, updatePlatformStatus, progress.phase2.platforms, progress.phase1.progress]);
+  }, [shouldCancel, updatePhase1, updatePhase2, updatePlatformStatus]);
   
   // Reset progress
   const resetProgress = useCallback(() => {
