@@ -469,8 +469,14 @@ export function usePublishWithProgress() {
           },
         };
         
-        const { error: dbError } = await supabase.from('posts').insert(postData);
-        if (dbError) console.error('[usePublishWithProgress] DB insert error:', dbError);
+        console.log('[usePublishWithProgress] Saving post to DB:', postData);
+        const { data: insertedPost, error: dbError } = await supabase.from('posts').insert(postData).select().single();
+        if (dbError) {
+          console.error('[usePublishWithProgress] DB insert error:', dbError);
+          toast.error('Erro ao registar publicação na base de dados');
+        } else {
+          console.log('[usePublishWithProgress] Post saved successfully:', insertedPost?.id);
+        }
       }
       
       setIsPublishing(false);
