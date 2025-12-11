@@ -404,7 +404,7 @@ export function PublishProgressModal({
           </div>
         )}
 
-        <div className="p-6 space-y-6">
+        <div className="p-6 space-y-5">
           {/* Header */}
           <motion.div 
             className="text-center"
@@ -413,7 +413,7 @@ export function PublishProgressModal({
           >
             <motion.div 
               className={cn(
-                "w-16 h-16 mx-auto rounded-full flex items-center justify-center mb-4",
+                "w-16 h-16 mx-auto rounded-2xl flex items-center justify-center mb-4 shadow-lg",
                 headerConfig.bgColor
               )}
               initial={{ scale: 0 }}
@@ -432,15 +432,18 @@ export function PublishProgressModal({
             )}
             
             {isComplete && (
-              <p className="text-sm text-muted-foreground mt-1">
-                {new Date().toLocaleString('pt-PT', {
-                  day: 'numeric',
-                  month: 'short',
-                  year: 'numeric',
-                  hour: '2-digit',
-                  minute: '2-digit'
-                })}
-              </p>
+              <div className="flex items-center justify-center gap-2 mt-2 text-muted-foreground">
+                <Clock className="h-4 w-4" />
+                <span className="text-sm">
+                  {new Date().toLocaleString('pt-PT', {
+                    day: 'numeric',
+                    month: 'short',
+                    year: 'numeric',
+                    hour: '2-digit',
+                    minute: '2-digit'
+                  })}
+                </span>
+              </div>
             )}
           </motion.div>
 
@@ -485,27 +488,32 @@ export function PublishProgressModal({
             )}
           </PhaseCard>
 
-          {/* Recovery Section - Show when failure and has media */}
+          {/* Recovery Section - Redesigned */}
           {isComplete && (hasTotalFailure || hasPartialSuccess) && mediaFiles.length > 0 && (
             <motion.div
-              className="rounded-xl border-2 border-amber-500/50 bg-amber-500/5 p-4"
+              className="rounded-xl border border-amber-500/30 bg-amber-50/50 dark:bg-amber-500/5 p-5"
               initial={{ opacity: 0, y: 10 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ delay: 0.15 }}
             >
-              <div className="flex items-center gap-2 mb-3">
-                <Download className="h-5 w-5 text-amber-600" />
-                <h3 className="font-semibold text-sm">Recuperação Rápida</h3>
+              {/* Section Header */}
+              <div className="flex items-center gap-2 mb-4">
+                <div className="w-8 h-8 rounded-lg bg-amber-500/20 flex items-center justify-center">
+                  <Download className="h-4 w-4 text-amber-600" />
+                </div>
+                <div>
+                  <h3 className="font-semibold text-sm">Recuperação Rápida</h3>
+                  <p className="text-xs text-muted-foreground">
+                    Descarregue os ficheiros para publicar manualmente
+                  </p>
+                </div>
               </div>
-              <p className="text-xs text-muted-foreground mb-4">
-                Descarregue os ficheiros para publicar manualmente
-              </p>
               
-              {/* Download buttons */}
-              <div className="flex flex-wrap gap-2 mb-4">
+              {/* Action Buttons */}
+              <div className="flex gap-3 mb-5">
                 <Button
-                  variant="outline"
-                  size="sm"
+                  variant="default"
+                  size="default"
                   onClick={async () => {
                     setIsDownloading(true);
                     try {
@@ -518,7 +526,7 @@ export function PublishProgressModal({
                     }
                   }}
                   disabled={isDownloading}
-                  className="gap-2"
+                  className="flex-1 gap-2"
                 >
                   {isDownloading ? (
                     <Loader2 className="h-4 w-4 animate-spin" />
@@ -531,7 +539,7 @@ export function PublishProgressModal({
                 {caption && (
                   <Button
                     variant="outline"
-                    size="sm"
+                    size="default"
                     onClick={async () => {
                       const success = await copyToClipboard(caption);
                       if (success) {
@@ -540,7 +548,7 @@ export function PublishProgressModal({
                         toast.error('Erro ao copiar');
                       }
                     }}
-                    className="gap-2"
+                    className="flex-1 gap-2"
                   >
                     <Copy className="h-4 w-4" />
                     Copiar Legenda
@@ -548,45 +556,74 @@ export function PublishProgressModal({
                 )}
               </div>
               
-              {/* Media preview thumbnails */}
-              <div className="flex flex-wrap gap-2">
-                {mediaFiles.slice(0, 6).map((file, idx) => {
-                  const isVideo = file.type.startsWith('video/');
-                  const previewUrl = URL.createObjectURL(file);
-                  
-                  return (
-                    <button
-                      key={idx}
-                      onClick={() => {
-                        downloadSingleFile(file);
-                        toast.success(`${file.name} descarregado`);
-                      }}
-                      className="relative w-14 h-14 rounded-lg overflow-hidden border border-border hover:border-primary transition-colors group"
-                      title={`Download ${file.name}`}
-                    >
-                      {isVideo ? (
-                        <div className="w-full h-full bg-muted flex items-center justify-center">
-                          <Video className="h-5 w-5 text-muted-foreground" />
+              {/* Media Thumbnails Grid */}
+              <div>
+                <p className="text-xs font-medium text-muted-foreground mb-3">
+                  Ficheiros ({mediaFiles.length})
+                </p>
+                <div className="grid grid-cols-5 gap-2">
+                  {mediaFiles.slice(0, 9).map((file, idx) => {
+                    const isVideo = file.type.startsWith('video/');
+                    const previewUrl = URL.createObjectURL(file);
+                    const showPlusIndicator = idx === 8 && mediaFiles.length > 9;
+                    
+                    if (showPlusIndicator) {
+                      return (
+                        <button
+                          key={idx}
+                          onClick={async () => {
+                            setIsDownloading(true);
+                            try {
+                              await downloadFailedPublicationAssets(mediaFiles, caption);
+                              toast.success('ZIP descarregado!');
+                            } catch (err) {
+                              toast.error('Erro ao criar ZIP');
+                            } finally {
+                              setIsDownloading(false);
+                            }
+                          }}
+                          className="aspect-square rounded-lg border-2 border-dashed border-border bg-muted/50 flex flex-col items-center justify-center text-muted-foreground hover:border-primary hover:text-primary transition-colors"
+                          title="Download todos os ficheiros"
+                        >
+                          <span className="text-sm font-semibold">+{mediaFiles.length - 8}</span>
+                        </button>
+                      );
+                    }
+                    
+                    return (
+                      <button
+                        key={idx}
+                        onClick={() => {
+                          downloadSingleFile(file);
+                          toast.success(`${file.name} descarregado`);
+                        }}
+                        className="relative aspect-square rounded-lg overflow-hidden border-2 border-border hover:border-primary transition-colors group"
+                        title={`Download ${file.name}`}
+                      >
+                        {isVideo ? (
+                          <div className="w-full h-full bg-muted flex items-center justify-center">
+                            <Video className="h-6 w-6 text-muted-foreground" />
+                          </div>
+                        ) : (
+                          <img
+                            src={previewUrl}
+                            alt={`Media ${idx + 1}`}
+                            className="w-full h-full object-cover"
+                            onLoad={() => URL.revokeObjectURL(previewUrl)}
+                          />
+                        )}
+                        <div className="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
+                          <Download className="h-5 w-5 text-white" />
                         </div>
-                      ) : (
-                        <img
-                          src={previewUrl}
-                          alt={`Media ${idx + 1}`}
-                          className="w-full h-full object-cover"
-                          onLoad={() => URL.revokeObjectURL(previewUrl)}
-                        />
-                      )}
-                      <div className="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
-                        <Download className="h-4 w-4 text-white" />
-                      </div>
-                    </button>
-                  );
-                })}
-                {mediaFiles.length > 6 && (
-                  <div className="w-14 h-14 rounded-lg border border-border bg-muted flex items-center justify-center text-xs text-muted-foreground">
-                    +{mediaFiles.length - 6}
-                  </div>
-                )}
+                        {isVideo && (
+                          <div className="absolute bottom-1 right-1 bg-black/60 rounded px-1.5 py-0.5">
+                            <Video className="h-3 w-3 text-white" />
+                          </div>
+                        )}
+                      </button>
+                    );
+                  })}
+                </div>
               </div>
             </motion.div>
           )}
@@ -594,7 +631,7 @@ export function PublishProgressModal({
           {/* Quick actions for links */}
           {isComplete && summary.successCount > 0 && (
             <motion.div 
-              className="flex justify-center gap-3"
+              className="flex justify-center"
               initial={{ opacity: 0, y: 10 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ delay: 0.2 }}
