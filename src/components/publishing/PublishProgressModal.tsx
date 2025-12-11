@@ -4,7 +4,7 @@ import {
   Check, X, ExternalLink, Calendar, 
   PartyPopper, AlertCircle, Loader2, Copy, Share2,
   Instagram, Linkedin, Youtube, Facebook, RefreshCw, Clock,
-  Upload, Globe, Plus
+  Upload, Globe, Plus, Download, FileText, Image, Video
 } from 'lucide-react';
 import { Dialog, DialogContent } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
@@ -12,6 +12,7 @@ import { Progress } from '@/components/ui/progress';
 import { toast } from 'sonner';
 import { cn } from '@/lib/utils';
 import { getErrorInfo, isRateLimitError } from '@/lib/publishingErrors';
+import { downloadFailedPublicationAssets, downloadSingleFile, copyToClipboard } from '@/lib/downloadUtils';
 
 // Types
 export type Phase1Status = 'idle' | 'uploading' | 'sending' | 'success' | 'error';
@@ -54,6 +55,8 @@ interface PublishProgressModalProps {
   onCreateNew: () => void;
   onViewCalendar: () => void;
   onRetryPlatform?: (format: string) => void;
+  mediaFiles?: File[];
+  caption?: string;
 }
 
 // Platform styling
@@ -261,9 +264,12 @@ export function PublishProgressModal({
   progress,
   onCreateNew,
   onViewCalendar,
-  onRetryPlatform
+  onRetryPlatform,
+  mediaFiles = [],
+  caption = ''
 }: PublishProgressModalProps) {
   const [showConfetti, setShowConfetti] = useState(false);
+  const [isDownloading, setIsDownloading] = useState(false);
   
   const { phase1, phase2, summary } = progress;
   
@@ -472,6 +478,112 @@ export function PublishProgressModal({
               </div>
             )}
           </PhaseCard>
+
+          {/* Recovery Section - Show when failure and has media */}
+          {isComplete && (hasTotalFailure || hasPartialSuccess) && mediaFiles.length > 0 && (
+            <motion.div
+              className="rounded-xl border-2 border-amber-500/50 bg-amber-500/5 p-4"
+              initial={{ opacity: 0, y: 10 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ delay: 0.15 }}
+            >
+              <div className="flex items-center gap-2 mb-3">
+                <Download className="h-5 w-5 text-amber-600" />
+                <h3 className="font-semibold text-sm">Recuperação Rápida</h3>
+              </div>
+              <p className="text-xs text-muted-foreground mb-4">
+                Descarregue os ficheiros para publicar manualmente
+              </p>
+              
+              {/* Download buttons */}
+              <div className="flex flex-wrap gap-2 mb-4">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={async () => {
+                    setIsDownloading(true);
+                    try {
+                      await downloadFailedPublicationAssets(mediaFiles, caption);
+                      toast.success('ZIP descarregado!');
+                    } catch (err) {
+                      toast.error('Erro ao criar ZIP');
+                    } finally {
+                      setIsDownloading(false);
+                    }
+                  }}
+                  disabled={isDownloading}
+                  className="gap-2"
+                >
+                  {isDownloading ? (
+                    <Loader2 className="h-4 w-4 animate-spin" />
+                  ) : (
+                    <Download className="h-4 w-4" />
+                  )}
+                  Download ZIP
+                </Button>
+                
+                {caption && (
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={async () => {
+                      const success = await copyToClipboard(caption);
+                      if (success) {
+                        toast.success('Legenda copiada!');
+                      } else {
+                        toast.error('Erro ao copiar');
+                      }
+                    }}
+                    className="gap-2"
+                  >
+                    <Copy className="h-4 w-4" />
+                    Copiar Legenda
+                  </Button>
+                )}
+              </div>
+              
+              {/* Media preview thumbnails */}
+              <div className="flex flex-wrap gap-2">
+                {mediaFiles.slice(0, 6).map((file, idx) => {
+                  const isVideo = file.type.startsWith('video/');
+                  const previewUrl = URL.createObjectURL(file);
+                  
+                  return (
+                    <button
+                      key={idx}
+                      onClick={() => {
+                        downloadSingleFile(file);
+                        toast.success(`${file.name} descarregado`);
+                      }}
+                      className="relative w-14 h-14 rounded-lg overflow-hidden border border-border hover:border-primary transition-colors group"
+                      title={`Download ${file.name}`}
+                    >
+                      {isVideo ? (
+                        <div className="w-full h-full bg-muted flex items-center justify-center">
+                          <Video className="h-5 w-5 text-muted-foreground" />
+                        </div>
+                      ) : (
+                        <img
+                          src={previewUrl}
+                          alt={`Media ${idx + 1}`}
+                          className="w-full h-full object-cover"
+                          onLoad={() => URL.revokeObjectURL(previewUrl)}
+                        />
+                      )}
+                      <div className="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
+                        <Download className="h-4 w-4 text-white" />
+                      </div>
+                    </button>
+                  );
+                })}
+                {mediaFiles.length > 6 && (
+                  <div className="w-14 h-14 rounded-lg border border-border bg-muted flex items-center justify-center text-xs text-muted-foreground">
+                    +{mediaFiles.length - 6}
+                  </div>
+                )}
+              </div>
+            </motion.div>
+          )}
 
           {/* Quick actions for links */}
           {isComplete && summary.successCount > 0 && (

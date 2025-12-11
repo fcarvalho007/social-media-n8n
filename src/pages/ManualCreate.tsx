@@ -1519,6 +1519,8 @@ export default function ManualCreate() {
         progress={publishProgress}
         onCreateNew={handleCreateNew}
         onViewCalendar={handleViewCalendar}
+        mediaFiles={mediaFiles}
+        caption={caption}
       />
     </div>
   );
