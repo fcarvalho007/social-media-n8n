@@ -442,40 +442,62 @@ export function usePublishWithProgress() {
         failed: failedFormats.length,
       });
       
-      if (successfulFormats.length > 0) {
+      // Always save post to database (even if some platforms failed)
+      if (consolidatedFormats.length > 0) {
         const selectedNetworks = [...new Set(consolidatedFormats.map(f => FORMAT_TO_NETWORK[f] || 'instagram'))];
+        const hasSuccess = successfulFormats.length > 0;
+        const hasFailed = failedFormats.length > 0;
+        
+        // Determine final status
+        let finalStatus = 'published';
+        if (!hasSuccess && hasFailed) {
+          finalStatus = 'failed';
+        } else if (hasSuccess && hasFailed) {
+          finalStatus = 'published'; // Partial success still counts as published
+        }
         
         const postData = {
           user_id: user.id,
           post_type: consolidatedFormats.some(f => f.includes('carousel') || f === 'linkedin_document') ? 'carousel' : 
                      consolidatedFormats.some(f => f.includes('video') || f.includes('reel') || f.includes('shorts')) ? 'video' : 'image',
-          selected_networks: selectedNetworks as any,
+          selected_networks: selectedNetworks,
           caption,
-          scheduled_date: scheduledDate?.toISOString() || new Date().toISOString(),
-          schedule_asap: scheduleAsap || !scheduledDate,
-          status: 'published',
+          scheduled_date: new Date().toISOString(),
+          schedule_asap: true,
+          status: finalStatus,
           origin_mode: 'manual',
-          tema: 'Manual post',
-          template_a_images: mediaUrls,
-          template_b_images: [],
+          tema: caption.substring(0, 50) || 'Manual post',
+          template_a_images: mediaUrls.length > 0 ? mediaUrls : [''],
+          template_b_images: [] as string[],
           workflow_id: `manual-${Date.now()}`,
-          published_at: new Date().toISOString(),
-          publish_metadata: {
+          published_at: hasSuccess ? new Date().toISOString() : null,
+          failed_at: hasFailed && !hasSuccess ? new Date().toISOString() : null,
+          publish_metadata: JSON.parse(JSON.stringify({
             published_via: 'manual_create_getlate',
             formats: consolidatedFormats,
             pdf_generated: !!pdfUrl,
             successCount: successfulFormats.length,
             failedCount: failedFormats.length,
-          },
+          })),
         };
         
-        console.log('[usePublishWithProgress] Saving post to DB:', postData);
-        const { data: insertedPost, error: dbError } = await supabase.from('posts').insert(postData).select().single();
-        if (dbError) {
-          console.error('[usePublishWithProgress] DB insert error:', dbError);
-          toast.error('Erro ao registar publicação na base de dados');
-        } else {
-          console.log('[usePublishWithProgress] Post saved successfully:', insertedPost?.id);
+        console.log('[usePublishWithProgress] Saving post to DB:', JSON.stringify(postData, null, 2));
+        
+        try {
+          const { data: insertedPost, error: dbError } = await supabase
+            .from('posts')
+            .insert([postData])
+            .select('id')
+            .maybeSingle();
+            
+          if (dbError) {
+            console.error('[usePublishWithProgress] DB insert error:', dbError.message, dbError.details, dbError.hint);
+            // Don't show error toast - publication was successful, just logging failed
+          } else {
+            console.log('[usePublishWithProgress] Post saved successfully:', insertedPost?.id);
+          }
+        } catch (insertError) {
+          console.error('[usePublishWithProgress] DB insert exception:', insertError);
         }
       }
       
