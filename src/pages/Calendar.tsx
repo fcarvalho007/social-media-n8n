@@ -552,188 +552,160 @@ const Calendar = () => {
 
   return (
     <>
-      <div className="space-y-3 sm:space-y-4 lg:space-y-5 bg-gradient-to-br from-white to-gray-50">
-        <div className="flex flex-col lg:flex-row gap-4 lg:gap-5 xl:gap-6 max-w-6xl xl:max-w-7xl mx-auto w-full">
-              {/* Main Calendar Section */}
-              <div className="flex-1 animate-slide-up space-y-3 sm:space-y-4 lg:space-y-5 min-w-0 w-full lg:w-auto">
-                {/* Header */}
-                <div className="flex flex-col sm:flex-row sm:items-start lg:items-center justify-between gap-3 sm:gap-4 lg:gap-5">
-                  <div className="flex-1 min-w-0 w-full sm:w-auto">
-                    <h1 className="text-xl sm:text-2xl lg:text-3xl xl:text-4xl font-bold text-foreground flex items-center gap-2 sm:gap-2.5 lg:gap-3">
-                      <div className="h-8 w-8 sm:h-10 sm:w-10 lg:h-12 lg:w-12 rounded-lg sm:rounded-xl bg-primary/10 flex items-center justify-center flex-shrink-0">
-                        <CalendarIcon className="h-4 w-4 sm:h-5 sm:w-5 lg:h-6 lg:w-6 text-primary" />
-                      </div>
-                      <span className="truncate">Calendário de Conteúdo</span>
-                    </h1>
-                    <p className="text-xs sm:text-sm text-muted-foreground mt-1 sm:mt-2 ml-10 sm:ml-12 lg:ml-[60px] hidden sm:block">
-                      Gerencie publicações agendadas • Arraste para reagendar
-                    </p>
+      <div className="space-y-4 lg:space-y-6 min-h-screen">
+        <div className="flex flex-col lg:flex-row gap-4 lg:gap-6 max-w-7xl mx-auto w-full px-2 sm:px-0">
+          {/* Main Calendar Section */}
+          <div className="flex-1 animate-fade-in space-y-4 lg:space-y-5 min-w-0 w-full">
+            {/* Header */}
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+              <div className="flex-1 min-w-0">
+                <h1 className="text-2xl lg:text-3xl font-bold text-foreground flex items-center gap-3">
+                  <div className="h-10 w-10 lg:h-12 lg:w-12 rounded-xl bg-primary/10 flex items-center justify-center flex-shrink-0">
+                    <CalendarIcon className="h-5 w-5 lg:h-6 lg:w-6 text-primary" />
                   </div>
-                  
-                  {/* Create Button + View Toggle */}
-                  <div className="flex items-center gap-2 flex-shrink-0 w-full sm:w-auto">
-                    {/* Create Content Button */}
-                    <TooltipProvider>
-                      <Tooltip>
-                        <TooltipTrigger asChild>
-                          <Button
-                            variant="default"
-                            size="sm"
-                            onClick={() => {
-                              // Show dropdown or navigate
-                              const choice = confirm('Criar conteúdo:\n\nOK = Manual\nCancelar = Com IA');
-                              if (choice) {
-                                navigate('/manual-create');
-                              } else {
-                                navigate('/');
-                              }
-                            }}
-                            className="gap-2 min-h-[44px] min-w-[44px] px-3 sm:px-4 lg:px-5 active:scale-95 transition-transform bg-gradient-to-r from-primary to-primary/80 hover:from-primary/90 hover:to-primary/70 flex-1 sm:flex-none"
-                          >
-                            <Plus className="h-4 w-4" />
-                            <span className="font-semibold">Criar</span>
-                          </Button>
-                        </TooltipTrigger>
-                        <TooltipContent side="bottom" className="max-w-xs">
-                          <p className="font-semibold mb-1">Criar Novo Conteúdo</p>
-                          <p className="text-xs text-muted-foreground">
-                            Escolha entre criação manual ou com IA
-                          </p>
-                        </TooltipContent>
-                      </Tooltip>
-                    </TooltipProvider>
+                  <span>Calendário</span>
+                </h1>
+                <p className="text-sm text-muted-foreground mt-1 ml-[52px] lg:ml-[60px] hidden sm:block">
+                  Arraste para reagendar publicações
+                </p>
+              </div>
+              
+              {/* Actions */}
+              <div className="flex items-center gap-2 flex-shrink-0">
+                <Button
+                  variant="default"
+                  size="default"
+                  onClick={() => navigate('/manual-create')}
+                  className="gap-2 shadow-sm"
+                >
+                  <Plus className="h-4 w-4" />
+                  <span className="font-medium">Criar</span>
+                </Button>
 
-                    {/* View Mode Buttons */}
-                    <div className="flex items-center gap-1 ml-0 sm:ml-2 border-l pl-2">
-                      <Button
-                        variant={viewMode === 'normal' ? 'default' : 'outline'}
-                        size="sm"
-                        onClick={() => setViewMode('normal')}
-                        className="gap-1.5 min-h-[44px] px-3 lg:px-4 active:scale-95 transition-transform"
-                      >
-                        <Maximize2 className="h-4 w-4" />
-                        <span className="hidden sm:inline text-xs sm:text-sm">Normal</span>
-                      </Button>
-                      <Button
-                        variant={viewMode === 'compact' ? 'default' : 'outline'}
-                        size="sm"
-                        onClick={() => setViewMode('compact')}
-                        className="gap-1.5 min-h-[44px] px-3 lg:px-4 active:scale-95 transition-transform"
-                      >
-                        <Minimize2 className="h-4 w-4" />
-                        <span className="hidden sm:inline text-xs sm:text-sm">Compacta</span>
-                      </Button>
-                    </div>
+                <div className="flex items-center gap-1 ml-2 border-l pl-2">
+                  <Button
+                    variant={viewMode === 'normal' ? 'default' : 'ghost'}
+                    size="sm"
+                    onClick={() => setViewMode('normal')}
+                    className="h-9 w-9 p-0"
+                  >
+                    <Maximize2 className="h-4 w-4" />
+                  </Button>
+                  <Button
+                    variant={viewMode === 'compact' ? 'default' : 'ghost'}
+                    size="sm"
+                    onClick={() => setViewMode('compact')}
+                    className="h-9 w-9 p-0"
+                  >
+                    <Minimize2 className="h-4 w-4" />
+                  </Button>
+                </div>
+              </div>
+            </div>
+
+            {/* Stats Cards - Redesigned */}
+            <div className="grid grid-cols-3 sm:grid-cols-4 gap-3 lg:gap-4">
+              <Card className="p-4 bg-card border shadow-sm hover:shadow-md transition-shadow">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className="text-xs font-medium text-muted-foreground">Total</p>
+                    <p className="text-2xl lg:text-3xl font-bold text-foreground">{monthStats.total}</p>
+                  </div>
+                  <div className="h-10 w-10 rounded-lg bg-primary/10 flex items-center justify-center">
+                    <TrendingUp className="h-5 w-5 text-primary" />
                   </div>
                 </div>
+              </Card>
 
-              {/* Stats Cards */}
-              <div className="grid grid-cols-1 sm:grid-cols-3 gap-2.5 sm:gap-3 md:gap-4 lg:gap-5">
-                <Card className="p-3 sm:p-3.5 lg:p-4 bg-gradient-to-br from-primary/5 to-primary/10 border-primary/20 border-2 hover:shadow-lg hover:shadow-primary/10 transition-all">
-                  <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
-                    <div className="flex-1 min-w-0">
-                      <p className="text-xs font-semibold text-primary/70 truncate">Total</p>
-                      <p className="text-2xl sm:text-3xl lg:text-4xl font-bold bg-gradient-to-r from-primary to-primary/80 bg-clip-text text-transparent truncate">{monthStats.total}</p>
+              <Card className="p-4 bg-card border shadow-sm hover:shadow-md transition-shadow">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className="text-xs font-medium text-muted-foreground">Posts</p>
+                    <p className="text-2xl lg:text-3xl font-bold text-blue-600">{monthStats.posts}</p>
+                  </div>
+                  <div className="h-10 w-10 rounded-lg bg-blue-100 flex items-center justify-center">
+                    <LayoutGrid className="h-5 w-5 text-blue-600" />
+                  </div>
+                </div>
+              </Card>
+
+              <Card className="p-4 bg-card border shadow-sm hover:shadow-md transition-shadow">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className="text-xs font-medium text-muted-foreground">Stories</p>
+                    <p className="text-2xl lg:text-3xl font-bold text-purple-600">{monthStats.stories}</p>
+                  </div>
+                  <div className="h-10 w-10 rounded-lg bg-purple-100 flex items-center justify-center">
+                    <Video className="h-5 w-5 text-purple-600" />
+                  </div>
+                </div>
+              </Card>
+
+              {monthStats.failed > 0 && (
+                <Card className="p-4 bg-red-50 border-red-200 shadow-sm">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <p className="text-xs font-medium text-red-600/70">Falhados</p>
+                      <p className="text-2xl lg:text-3xl font-bold text-red-600">{monthStats.failed}</p>
                     </div>
-                    <div className="h-10 w-10 sm:h-12 sm:w-12 lg:h-14 lg:w-14 rounded-lg sm:rounded-xl bg-gradient-to-br from-primary to-primary/80 flex items-center justify-center shadow-md shadow-primary/25 flex-shrink-0">
-                      <TrendingUp className="h-5 w-5 sm:h-6 sm:w-6 lg:h-7 lg:w-7 text-white" />
+                    <div className="h-10 w-10 rounded-lg bg-red-100 flex items-center justify-center">
+                      <AlertCircle className="h-5 w-5 text-red-600" />
                     </div>
                   </div>
                 </Card>
+              )}
+            </div>
 
-                <Card className="p-3 sm:p-3.5 lg:p-4 bg-gradient-to-br from-blue-50 to-blue-100 border-blue-200 border-2 hover:shadow-lg hover:shadow-blue-200/50 transition-all">
-                  <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
-                    <div className="flex-1 min-w-0">
-                      <p className="text-xs font-semibold text-blue-600/70 truncate">Posts</p>
-                      <p className="text-2xl sm:text-3xl lg:text-4xl font-bold text-blue-600 truncate">{monthStats.posts}</p>
-                    </div>
-                    <div className="h-10 w-10 sm:h-12 sm:w-12 lg:h-14 lg:w-14 rounded-lg sm:rounded-xl bg-gradient-to-br from-blue-500 to-blue-600 flex items-center justify-center shadow-md shadow-blue-400/30 flex-shrink-0">
-                      <LayoutGrid className="h-5 w-5 sm:h-6 sm:w-6 lg:h-7 lg:w-7 text-white" />
-                    </div>
-                  </div>
-                </Card>
-
-                <Card className="p-3 sm:p-3.5 lg:p-4 bg-gradient-to-br from-purple-50 to-purple-100 border-purple-200 border-2 hover:shadow-lg hover:shadow-purple-200/50 transition-all">
-                  <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
-                    <div className="flex-1 min-w-0">
-                      <p className="text-xs font-semibold text-purple-600/70 truncate">Stories</p>
-                      <p className="text-2xl sm:text-3xl lg:text-4xl font-bold text-purple-600 truncate">{monthStats.stories}</p>
-                    </div>
-                    <div className="h-10 w-10 sm:h-12 sm:w-12 lg:h-14 lg:w-14 rounded-lg sm:rounded-xl bg-gradient-to-br from-purple-500 to-purple-600 flex items-center justify-center shadow-md shadow-purple-400/30 flex-shrink-0">
-                      <Video className="h-5 w-5 sm:h-6 sm:w-6 lg:h-7 lg:w-7 text-white" />
-                    </div>
-                  </div>
-                </Card>
+            {/* Compact Legend + Filter Row */}
+            <div className="flex flex-wrap items-center justify-between gap-3 p-3 bg-muted/30 rounded-lg border">
+              {/* Legend */}
+              <div className="flex flex-wrap items-center gap-3 text-xs">
+                <span className="flex items-center gap-1.5">
+                  <div className="h-3 w-3 rounded-sm bg-green-500"></div>
+                  <span className="text-muted-foreground">Publicado</span>
+                </span>
+                <span className="flex items-center gap-1.5">
+                  <div className="h-3 w-3 rounded-sm bg-amber-500"></div>
+                  <span className="text-muted-foreground">Aprovado</span>
+                </span>
+                <span className="flex items-center gap-1.5">
+                  <div className="h-3 w-3 rounded-sm bg-blue-500"></div>
+                  <span className="text-muted-foreground">Post</span>
+                </span>
+                <span className="flex items-center gap-1.5">
+                  <div className="h-3 w-3 rounded-sm bg-purple-500"></div>
+                  <span className="text-muted-foreground">Story</span>
+                </span>
+                {monthStats.failed > 0 && (
+                  <span className="flex items-center gap-1.5">
+                    <div className="h-3 w-3 rounded-sm bg-red-500"></div>
+                    <span className="text-muted-foreground">Falhado</span>
+                  </span>
+                )}
               </div>
 
-              {/* Legend and Filters */}
-              <div className="grid grid-cols-1 lg:grid-cols-2 gap-2.5 sm:gap-3 lg:gap-4">
-                {/* Legend */}
-                <Card className="p-3 sm:p-4 lg:p-5 border-2 w-full">
-                  <h3 className="text-xs sm:text-sm font-semibold text-foreground mb-3 sm:mb-4 flex items-center gap-2">
-                    <div className="h-2 w-2 rounded-full bg-gradient-to-r from-primary to-secondary flex-shrink-0"></div>
-                    <span className="truncate">Legenda de Cores</span>
-                  </h3>
-                  <div className="space-y-2 sm:space-y-3">
-                    <div className="grid grid-cols-1 gap-2 sm:gap-3">
-                      {/* Status Colors */}
-                      <div className="space-y-2">
-                        <div className="flex items-center gap-1.5 sm:gap-2">
-                          <div className="h-3 w-6 sm:h-4 sm:w-8 rounded border-2 border-green-700 flex-shrink-0" style={{ backgroundColor: '#10B981' }}></div>
-                          <span className="text-xs sm:text-sm font-medium text-green-600 truncate">✓ Publicado</span>
-                        </div>
-                        <div className="flex items-center gap-1.5 sm:gap-2">
-                          <div className="h-3 w-6 sm:h-4 sm:w-8 rounded border-2 border-orange-700 flex-shrink-0" style={{ backgroundColor: '#F59E0B' }}></div>
-                          <span className="text-xs sm:text-sm font-medium text-orange-600 truncate">⏳ Aprovado (pendente publicação)</span>
-                        </div>
-                        <div className="flex items-center gap-1.5 sm:gap-2">
-                          <div className="h-3 w-6 sm:h-4 sm:w-8 rounded flex-shrink-0" style={{ backgroundColor: '#3B82F6' }}></div>
-                          <span className="text-xs sm:text-sm font-medium text-blue-600 truncate">📅 Agendado</span>
-                        </div>
-                        <div className="flex items-center gap-1.5 sm:gap-2">
-                          <div className="h-3 w-6 sm:h-4 sm:w-8 rounded flex-shrink-0" style={{ backgroundColor: '#8B5CF6' }}></div>
-                          <span className="text-xs sm:text-sm font-medium text-purple-600 truncate">📅 Story Agendada</span>
-                        </div>
-                      </div>
-                    </div>
-                    <div className="pt-2 border-t">
-                      <p className="text-xs text-muted-foreground flex items-center gap-1 flex-wrap">
-                        <Video className="h-3 w-3 flex-shrink-0" /> = Story • 
-                        <LayoutGrid className="h-3 w-3 ml-1 flex-shrink-0" /> = Carousel
-                      </p>
-                    </div>
-                  </div>
-                </Card>
+              {/* Filter */}
+              <Select value={filterType} onValueChange={(value: any) => setFilterType(value)}>
+                <SelectTrigger className="w-[140px] h-8 text-xs">
+                  <Filter className="h-3 w-3 mr-1.5" />
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent className="bg-popover z-50">
+                  <SelectItem value="all">Todos</SelectItem>
+                  <SelectItem value="posts">Posts</SelectItem>
+                  <SelectItem value="stories">Stories</SelectItem>
+                  <SelectItem value="failed">Falhados</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
 
-                {/* Filters */}
-                <Card className="p-3 sm:p-4 lg:p-5 border-2 flex flex-col justify-center w-full">
-                  <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
-                    <div className="flex items-center gap-2 flex-shrink-0">
-                      <Filter className="h-4 w-4 text-muted-foreground flex-shrink-0" />
-                      <span className="text-xs sm:text-sm font-medium text-muted-foreground whitespace-nowrap">Filtrar por:</span>
-                    </div>
-                    <Select value={filterType} onValueChange={(value: any) => setFilterType(value)}>
-                      <SelectTrigger className="w-full sm:w-[180px] lg:w-[200px] min-h-[44px] touch-target">
-                        <SelectValue />
-                      </SelectTrigger>
-                      <SelectContent className="bg-popover z-50">
-                        <SelectItem value="all">Todos</SelectItem>
-                        <SelectItem value="posts">Apenas Posts</SelectItem>
-                        <SelectItem value="stories">Apenas Stories</SelectItem>
-                        <SelectItem value="tasks">Apenas Tarefas</SelectItem>
-                        <SelectItem value="milestones">Apenas Marcos</SelectItem>
-                      </SelectContent>
-                    </Select>
-                  </div>
-                </Card>
-              </div>
-
-        <div 
-          className={`bg-white rounded-lg sm:rounded-xl lg:rounded-2xl shadow-md p-2 sm:p-3 md:p-4 lg:p-5 xl:p-6 border border-gray-100 overflow-hidden transition-transform w-full ${isSwipping ? 'scale-[0.98]' : ''}`}
-          onTouchStart={isMobile ? onTouchStart : undefined}
-          onTouchMove={isMobile ? onTouchMove : undefined}
-          onTouchEnd={isMobile ? onTouchEnd : undefined}
-        >
+            {/* Calendar Container */}
+            <Card 
+              className={`p-3 sm:p-4 lg:p-5 border shadow-sm overflow-hidden transition-transform ${isSwipping ? 'scale-[0.99]' : ''}`}
+              onTouchStart={isMobile ? onTouchStart : undefined}
+              onTouchMove={isMobile ? onTouchMove : undefined}
+              onTouchEnd={isMobile ? onTouchEnd : undefined}
+            >
                 {loading ? (
                   <div 
                     className="flex items-center justify-center w-full"
@@ -785,7 +757,7 @@ const Calendar = () => {
                     resizable={false}
                   />
                 )}
-              </div>
+              </Card>
             </div>
 
             {/* Side Grid Panel - Hidden on mobile/tablet, visible on large screens */}
