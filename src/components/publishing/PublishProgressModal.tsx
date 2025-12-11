@@ -181,9 +181,9 @@ function PlatformStatusRow({
   
   return (
     <div className={cn(
-      "flex items-center gap-3 p-3 rounded-lg transition-colors",
+      "flex items-center gap-3 p-3 rounded-lg transition-all duration-300",
       result.status === 'pending' && "bg-muted/30",
-      result.status === 'processing' && "bg-primary/5",
+      result.status === 'processing' && "bg-primary/5 ring-2 ring-primary/30 animate-pulse",
       result.status === 'success' && "bg-green-500/10",
       result.status === 'error' && "bg-red-500/10"
     )}>
@@ -207,10 +207,16 @@ function PlatformStatusRow({
         )}
         
         {result.status === 'processing' && (
-          <span className="text-xs text-primary flex items-center gap-1.5">
-            <Loader2 className="h-3 w-3 animate-spin" />
-            A processar...
-          </span>
+          <div className="flex items-center gap-1.5">
+            <span className="text-xs text-primary flex items-center gap-1.5">
+              <Loader2 className="h-3 w-3 animate-spin" />
+              A processar...
+            </span>
+            <span className="relative flex h-2 w-2">
+              <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-primary opacity-75"></span>
+              <span className="relative inline-flex rounded-full h-2 w-2 bg-primary"></span>
+            </span>
+          </div>
         )}
         
         {result.status === 'success' && (
