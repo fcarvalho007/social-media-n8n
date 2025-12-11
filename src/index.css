@@ -915,10 +915,14 @@ All colors MUST be HSL.
     margin-left: -0.5rem;
     margin-right: -0.5rem;
     border-radius: 1rem;
-  }
-  
-  .format-card {
-    min-height: 120px;
-    padding: 12px 8px;
-  }
+}
+
+/* Phase Progress Styles */
+.phase-card-active {
+  animation: phase-pulse 2s ease-in-out infinite;
+}
+
+@keyframes phase-pulse {
+  0%, 100% { box-shadow: 0 0 0 0 rgba(99, 102, 241, 0.2); }
+  50% { box-shadow: 0 0 0 8px rgba(99, 102, 241, 0); }
 }

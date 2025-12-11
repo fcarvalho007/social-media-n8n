@@ -44,7 +44,8 @@ import { NetworkFormatSelector } from '@/components/manual-post/NetworkFormatSel
 import { getMediaRequirements, validateAllFormats, getValidationSummary, FormatValidationResult } from '@/lib/formatValidation';
 import { INSTAGRAM_CONFIG, LINKEDIN_CONFIG, FORMAT_TO_NETWORK, FORMAT_TO_ACCOUNT } from '@/types/publishing';
 import { PublishingOverlay } from '@/components/manual-post/PublishingOverlay';
-import { PublishSuccessModal, PublishResult } from '@/components/publishing/PublishSuccessModal';
+import { PublishProgressModal } from '@/components/publishing/PublishProgressModal';
+import { usePublishWithProgress } from '@/hooks/usePublishWithProgress';
 import { EnhancedSortableMediaItem, MediaDragOverlay } from '@/components/manual-post/EnhancedSortableMediaItem';
 import { DragHintTooltip } from '@/components/manual-post/DragHintTooltip';
 import { DndContext, closestCenter, DragEndEvent, DragStartEvent, PointerSensor, KeyboardSensor, useSensor, useSensors, DragOverlay } from '@dnd-kit/core';
@@ -124,7 +125,6 @@ export default function ManualCreate() {
   const [scheduleAsap, setScheduleAsap] = useState(false);
   const [saving, setSaving] = useState(false);
   const [submitting, setSubmitting] = useState(false);
-  const [publishing, setPublishing] = useState(false);
   const [uploadProgress, setUploadProgress] = useState(0);
   const [isUploading, setIsUploading] = useState(false);
   const [draftsDialogOpen, setDraftsDialogOpen] = useState(false);
@@ -133,14 +133,16 @@ export default function ManualCreate() {
   const [aiDialogOpen, setAiDialogOpen] = useState(false);
   const [emojiPickerOpen, setEmojiPickerOpen] = useState(false);
   const [activePreviewTab, setActivePreviewTab] = useState<string>('');
-  const [publishStage, setPublishStage] = useState<'uploading' | 'generating_pdf' | 'publishing' | 'success'>('publishing');
-  const [currentPublishingNetwork, setCurrentPublishingNetwork] = useState<string>('');
-  const [completedNetworks, setCompletedNetworks] = useState<string[]>([]);
-  const [shouldCancel, setShouldCancel] = useState(false);
   const [mediaValidations, setMediaValidations] = useState<MediaValidationResult[]>([]);
-  const [showSuccessModal, setShowSuccessModal] = useState(false);
-  const [publishResults, setPublishResults] = useState<PublishResult[]>([]);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
+
+  // Publishing hook with 2-phase progress
+  const { 
+    progress: publishProgress, 
+    isPublishing: publishing, 
+    publish: executePublish, 
+    resetProgress 
+  } = usePublishWithProgress();
 
   // Auto-save hook
   const { lastSaved, isSaving: isAutoSaving, hasUnsavedChanges } = useAutoSave({
@@ -722,328 +724,24 @@ export default function ManualCreate() {
       return;
     }
 
-    try {
-      setPublishing(true);
-      setUploadProgress(0);
-      setPublishStage('uploading');
-      setCompletedNetworks([]);
-      setShouldCancel(false);
-      setShowSuccessModal(true);
+    // Use the new hook to publish
+    const success = await executePublish({
+      formats: selectedFormats,
+      caption,
+      mediaFiles,
+      scheduledDate,
+      time,
+      scheduleAsap,
+    });
 
-      // Initialize publish results for tracking
-      const initialResults: PublishResult[] = selectedFormats.map(format => {
-        const network = FORMAT_TO_NETWORK[format] || 'instagram';
-        const config = getFormatConfig(format);
-        return {
-          platform: network,
-          format,
-          formatLabel: config?.label || format,
-          status: 'pending',
-          progress: 0,
-        };
-      });
-      setPublishResults(initialResults);
-
-      const { data: { user }, error: authError } = await supabase.auth.getUser();
-      if (authError || !user) {
-        toast.error('Tem de iniciar sessão para publicar.');
-        return;
-      }
-
-      const mediaUrls: string[] = [];
-      const totalFiles = mediaFiles.length;
-
-      // Upload images first
-      for (let i = 0; i < totalFiles; i++) {
-        if (shouldCancel) {
-          toast.info('Publicação cancelada');
-          return;
-        }
-        const file = mediaFiles[i];
-        const fileName = `${user.id}/${Date.now()}-${file.name}`;
-        setUploadProgress(Math.round((i / totalFiles) * 25));
-
-        const { error: uploadError } = await supabase.storage
-          .from('pdfs')
-          .upload(fileName, file);
-
-        if (uploadError) {
-          throw new Error(`Erro ao carregar ${file.name}`);
-        }
-
-        const { data: { publicUrl } } = supabase.storage
-          .from('pdfs')
-          .getPublicUrl(fileName);
-
-        mediaUrls.push(publicUrl);
-        
-        // Update all results progress during upload
-        setPublishResults(prev => prev.map(r => ({ ...r, progress: Math.round(((i + 1) / totalFiles) * 20) })));
-      }
-
-      setUploadProgress(30);
-      
-      const postId = `manual-${Date.now()}`;
-      const totalFormats = selectedFormats.length;
-      const publishResults: { format: string; success: boolean; error?: string }[] = [];
-      let pdfUrl: string | null = null;
-
-      // Sort formats: LinkedIn first, Instagram last (Instagram has stricter rate limits)
-      const sortedFormats = [...selectedFormats].sort((a, b) => {
-        const aNetwork = FORMAT_TO_NETWORK[a] || 'instagram';
-        const bNetwork = FORMAT_TO_NETWORK[b] || 'instagram';
-        if (aNetwork === 'instagram' && bNetwork !== 'instagram') return 1;
-        if (bNetwork === 'instagram' && aNetwork !== 'instagram') return -1;
-        if (aNetwork === 'linkedin' && bNetwork !== 'linkedin') return -1;
-        if (bNetwork === 'linkedin' && aNetwork !== 'linkedin') return 1;
-        return 0;
-      });
-
-      // Check if any format is Instagram - add initial delay to avoid rate limits
-      const hasInstagramFormat = sortedFormats.some(f => (FORMAT_TO_NETWORK[f] || 'instagram') === 'instagram');
-      if (hasInstagramFormat) {
-        toast.info('A preparar publicação no Instagram (aguarde 3s)...', { duration: 3000 });
-        await new Promise(resolve => setTimeout(resolve, 3000));
-      }
-
-      // Publish to each selected format
-      for (let i = 0; i < totalFormats; i++) {
-        if (shouldCancel) {
-          toast.info(`Publicação cancelada. ${i} de ${totalFormats} redes publicadas.`);
-          break;
-        }
-
-        const format = sortedFormats[i];
-        const network = FORMAT_TO_NETWORK[format] || 'instagram';
-        const previousNetwork = i > 0 ? (FORMAT_TO_NETWORK[sortedFormats[i - 1]] || 'instagram') : null;
-        
-        // Add delay before Instagram to avoid rate limits
-        if (network === 'instagram') {
-          const isConsecutiveInstagram = previousNetwork === 'instagram';
-          if (isConsecutiveInstagram) {
-            // 10 seconds between consecutive Instagram publications
-            toast.info('A aguardar 10s entre publicações Instagram...', { duration: 10000 });
-            await new Promise(resolve => setTimeout(resolve, 10000));
-          } else if (previousNetwork && previousNetwork !== 'instagram') {
-            // 8 seconds when switching from another network to Instagram
-            toast.info('A aguardar 8s antes do Instagram...', { duration: 8000 });
-            await new Promise(resolve => setTimeout(resolve, 8000));
-          }
-        }
-        
-        setCurrentPublishingNetwork(network);
-        
-        // Update this format to publishing status
-        setPublishResults(prev => prev.map(r => 
-          r.format === format ? { ...r, status: 'publishing', progress: 30 + (i * 60 / totalFormats) } : r
-        ));
-        
-        // Calculate progress: 30% for upload, 70% for publishing split between formats
-        const progressBase = 30;
-        const progressPerFormat = 60 / totalFormats;
-        setUploadProgress(Math.round(progressBase + (i * progressPerFormat)));
-
-        let finalMediaUrls = mediaUrls;
-        const isLinkedInDocument = format === 'linkedin_document';
-
-        // Generate PDF only once for linkedin_document
-        if (isLinkedInDocument && mediaUrls.length > 0) {
-          setPublishStage('generating_pdf');
-          
-          if (!pdfUrl) {
-            try {
-              // Extract frames from videos for PDF (LinkedIn Document only supports images)
-              const imageUrlsForPdf: string[] = [];
-              
-              for (let j = 0; j < mediaFiles.length; j++) {
-                const file = mediaFiles[j];
-                if (file.type.startsWith('video/')) {
-                  // Extract frame from video
-                  toast.info(`A extrair frame do vídeo ${j + 1}...`);
-                  try {
-                    const frameFile = await extractVideoFrame(file);
-                    const frameName = `${user.id}/${Date.now()}-frame-${j}.jpg`;
-                    
-                    const { error: frameUploadError } = await supabase.storage
-                      .from('pdfs')
-                      .upload(frameName, frameFile, { contentType: 'image/jpeg' });
-                    
-                    if (frameUploadError) throw frameUploadError;
-                    
-                    const { data: { publicUrl } } = supabase.storage
-                      .from('pdfs')
-                      .getPublicUrl(frameName);
-                    
-                    imageUrlsForPdf.push(publicUrl);
-                  } catch (frameError) {
-                    console.error('Frame extraction error:', frameError);
-                    toast.warning(`Não foi possível extrair frame do vídeo ${j + 1}`);
-                  }
-                } else {
-                  // Use the already uploaded image URL
-                  imageUrlsForPdf.push(mediaUrls[j]);
-                }
-              }
-              
-              if (imageUrlsForPdf.length === 0) {
-                throw new Error('Nenhuma imagem disponível para o PDF');
-              }
-              
-              const pdfBlob = await generateCarouselPDF({ 
-                images: imageUrlsForPdf,
-                title: 'carousel',
-                quality: 0.9 
-              });
-
-              const pdfFileName = `${user.id}/${Date.now()}-carousel.pdf`;
-              const { error: pdfUploadError } = await supabase.storage
-                .from('pdfs')
-                .upload(pdfFileName, pdfBlob, {
-                  contentType: 'application/pdf',
-                });
-
-              if (pdfUploadError) {
-                throw new Error('Erro ao carregar PDF gerado');
-              }
-
-              const { data: { publicUrl } } = supabase.storage
-                .from('pdfs')
-                .getPublicUrl(pdfFileName);
-
-              pdfUrl = publicUrl;
-              toast.success('PDF gerado com sucesso!');
-            } catch (pdfError) {
-              console.error('PDF generation error:', pdfError);
-              toast.error('Erro ao gerar PDF. A publicar imagens diretamente...');
-            }
-          }
-          
-          if (pdfUrl) {
-            finalMediaUrls = [pdfUrl];
-          }
-        }
-
-        setPublishStage('publishing');
-
-        try {
-          const { data: publishResult, error: publishError } = await supabase.functions.invoke('publish-to-getlate', {
-            body: {
-              format,
-              caption,
-              media_urls: finalMediaUrls,
-              scheduled_date: scheduledDate ? scheduledDate.toISOString().split('T')[0] : undefined,
-              scheduled_time: time || undefined,
-              publish_immediately: scheduleAsap || !scheduledDate,
-            },
-          });
-
-          if (publishError) {
-            publishResults.push({ format, success: false, error: 'Erro de comunicação' });
-            setPublishResults(prev => prev.map(r => 
-              r.format === format ? { ...r, status: 'error', progress: 100, errorMessage: 'Erro de comunicação' } : r
-            ));
-          } else if (!publishResult?.success) {
-            publishResults.push({ format, success: false, error: publishResult?.error || 'Falha' });
-            setPublishResults(prev => prev.map(r => 
-              r.format === format ? { ...r, status: 'error', progress: 100, errorMessage: publishResult?.error || 'Falha' } : r
-            ));
-          } else {
-            publishResults.push({ format, success: true });
-            setCompletedNetworks(prev => [...prev, network]);
-            setPublishResults(prev => prev.map(r => 
-              r.format === format ? { 
-                ...r, 
-                status: 'success', 
-                progress: 100, 
-                postUrl: publishResult?.postUrl || publishResult?.url 
-              } : r
-            ));
-          }
-        } catch (err) {
-          publishResults.push({ format, success: false, error: 'Erro inesperado' });
-          setPublishResults(prev => prev.map(r => 
-            r.format === format ? { ...r, status: 'error', progress: 100, errorMessage: 'Erro inesperado' } : r
-          ));
-        }
-
-        setUploadProgress(Math.round(progressBase + ((i + 1) * progressPerFormat)));
-      }
-
-      // Save to database
-      const successfulFormats = publishResults.filter(r => r.success);
-      const failedFormats = publishResults.filter(r => !r.success);
-
-      if (successfulFormats.length > 0) {
-        const postData = {
-          user_id: user.id,
-          post_type: selectedFormats.some(f => f.includes('carousel') || f === 'linkedin_document') ? 'carousel' : 
-                     selectedFormats.some(f => f.includes('video') || f.includes('reel') || f.includes('shorts')) ? 'video' : 'image',
-          selected_networks: selectedNetworks as any,
-          caption,
-          scheduled_date: scheduledDate?.toISOString() || new Date().toISOString(),
-          schedule_asap: scheduleAsap || !scheduledDate,
-          status: 'published',
-          origin_mode: 'manual',
-          tema: 'Manual post',
-          template_a_images: mediaUrls,
-          template_b_images: [],
-          workflow_id: postId,
-          published_at: new Date().toISOString(),
-          publish_metadata: {
-            published_via: 'manual_create_getlate',
-            formats: selectedFormats,
-            results: publishResults,
-            pdf_generated: !!pdfUrl,
-          },
-        };
-
-        const { error: dbError } = await supabase.from('posts').insert(postData);
-        if (dbError) console.error('[ManualCreate] DB insert error:', dbError);
-      }
-
-      setUploadProgress(100);
-      setPublishStage('success');
-
-      await new Promise(resolve => setTimeout(resolve, 500));
-
-      // Refresh quota after publishing
+    if (success) {
       await refreshQuota();
-
-      // Show appropriate toast message
-      if (failedFormats.length === 0) {
-        toast.success(`Publicado em ${successfulFormats.length} rede(s) com sucesso!`, { duration: 4000 });
-      } else if (successfulFormats.length > 0) {
-        toast.warning(`Publicado em ${successfulFormats.length} rede(s). Falhou em ${failedFormats.length}.`, { duration: 5000 });
-      } else {
-        toast.error('Falha ao publicar em todas as redes', { duration: 5000 });
-      }
-
-      // Modal stays open - user will choose action
-      // Reset form only after user chooses to create new
-    } catch (error) {
-      console.error('[ManualCreate] Publish error:', error);
-      const errorMsg = error instanceof Error ? error.message : 'Erro ao publicar. Tente novamente.';
-      toast.error(errorMsg, { duration: 5000 });
-      // Update all pending results to error
-      setPublishResults(prev => prev.map(r => 
-        r.status === 'pending' || r.status === 'publishing' 
-          ? { ...r, status: 'error', progress: 100, errorMessage: errorMsg } 
-          : r
-      ));
-    } finally {
-      setPublishing(false);
-      setUploadProgress(0);
-      setPublishStage('publishing');
-      setCurrentPublishingNetwork('');
-      setCompletedNetworks([]);
-      setShouldCancel(false);
     }
   };
 
-  // Handlers for success modal
+  // Handlers for progress modal
   const handleCreateNew = () => {
-    setShowSuccessModal(false);
-    setPublishResults([]);
+    resetProgress();
     setCaption('');
     setMediaFiles([]);
     setMediaPreviewUrls([]);
@@ -1057,8 +755,7 @@ export default function ManualCreate() {
   };
 
   const handleViewCalendar = () => {
-    setShowSuccessModal(false);
-    setPublishResults([]);
+    resetProgress();
     navigate('/calendar');
   };
 
@@ -1811,27 +1508,15 @@ export default function ManualCreate() {
         onApplyCaption={setCaption}
       />
 
-      {/* Publishing Overlay */}
-      <PublishingOverlay
-        isVisible={publishing}
-        progress={uploadProgress}
-        selectedNetworks={selectedNetworks}
-        currentNetwork={currentPublishingNetwork}
-        completedNetworks={completedNetworks}
-        stage={publishStage}
-        onCancel={() => setShouldCancel(true)}
-      />
-
-      {/* Publish Success Modal */}
-      <PublishSuccessModal
-        isOpen={showSuccessModal}
+      {/* Publish Progress Modal with 2 phases */}
+      <PublishProgressModal
+        isOpen={publishing || (publishProgress.phase2.status !== 'idle' && publishProgress.phase2.status !== 'waiting')}
         onClose={() => {
           if (!publishing) {
-            setShowSuccessModal(false);
-            setPublishResults([]);
+            resetProgress();
           }
         }}
-        results={publishResults}
+        progress={publishProgress}
         onCreateNew={handleCreateNew}
         onViewCalendar={handleViewCalendar}
       />

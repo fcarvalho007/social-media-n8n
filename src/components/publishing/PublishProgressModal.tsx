@@ -1,0 +1,523 @@
+import { useState, useEffect, useMemo } from 'react';
+import { motion, AnimatePresence } from 'framer-motion';
+import { 
+  Check, X, ExternalLink, Calendar, 
+  PartyPopper, AlertCircle, Loader2, Copy, Share2,
+  Instagram, Linkedin, Youtube, Facebook, RefreshCw, Clock,
+  Upload, Globe, Plus
+} from 'lucide-react';
+import { Dialog, DialogContent } from '@/components/ui/dialog';
+import { Button } from '@/components/ui/button';
+import { Progress } from '@/components/ui/progress';
+import { toast } from 'sonner';
+import { cn } from '@/lib/utils';
+import { getErrorInfo, isRateLimitError } from '@/lib/publishingErrors';
+
+// Types
+export type Phase1Status = 'idle' | 'uploading' | 'sending' | 'success' | 'error';
+export type Phase2Status = 'idle' | 'waiting' | 'publishing' | 'success' | 'partial' | 'error';
+export type PlatformStatus = 'pending' | 'processing' | 'success' | 'error';
+
+export interface PlatformResult {
+  platform: string;
+  format: string;
+  formatLabel: string;
+  status: PlatformStatus;
+  postUrl?: string;
+  errorMessage?: string;
+}
+
+export interface PublishProgress {
+  phase1: {
+    status: Phase1Status;
+    progress: number;
+    message: string;
+    errorMessage?: string;
+  };
+  phase2: {
+    status: Phase2Status;
+    progress: number;
+    message: string;
+    platforms: PlatformResult[];
+  };
+  summary: {
+    totalPlatforms: number;
+    successCount: number;
+    failedCount: number;
+  };
+}
+
+interface PublishProgressModalProps {
+  isOpen: boolean;
+  onClose: () => void;
+  progress: PublishProgress;
+  onCreateNew: () => void;
+  onViewCalendar: () => void;
+  onRetryPlatform?: (format: string) => void;
+}
+
+// Platform styling
+const platformColors: Record<string, string> = {
+  instagram: '#E1306C',
+  linkedin: '#0A66C2',
+  youtube: '#FF0000',
+  facebook: '#1877F2',
+  tiktok: '#000000',
+};
+
+const PlatformIcon = ({ platform, size = 18, className, color }: { platform: string; size?: number; className?: string; color?: string }) => {
+  const iconProps = { size, className, style: color ? { color } : undefined };
+  switch (platform) {
+    case 'instagram': return <Instagram {...iconProps} />;
+    case 'linkedin': return <Linkedin {...iconProps} />;
+    case 'youtube': return <Youtube {...iconProps} />;
+    case 'facebook': return <Facebook {...iconProps} />;
+    default: return <Instagram {...iconProps} />;
+  }
+};
+
+const getPlatformName = (platform: string): string => {
+  const names: Record<string, string> = {
+    instagram: 'Instagram',
+    linkedin: 'LinkedIn',
+    youtube: 'YouTube',
+    facebook: 'Facebook',
+    tiktok: 'TikTok',
+  };
+  return names[platform] || platform;
+};
+
+// Phase Card Component
+function PhaseCard({ 
+  number, 
+  title, 
+  status, 
+  progress, 
+  message,
+  errorMessage,
+  children 
+}: { 
+  number: number;
+  title: string;
+  status: 'idle' | 'active' | 'success' | 'error';
+  progress: number;
+  message: string;
+  errorMessage?: string;
+  children?: React.ReactNode;
+}) {
+  return (
+    <div className={cn(
+      "rounded-xl border-2 p-4 transition-all duration-300",
+      status === 'idle' && "border-border/50 bg-muted/20 opacity-60",
+      status === 'active' && "border-primary bg-primary/5 shadow-sm",
+      status === 'success' && "border-green-500/50 bg-green-500/5",
+      status === 'error' && "border-red-500/50 bg-red-500/5"
+    )}>
+      {/* Header */}
+      <div className="flex items-center gap-3 mb-3">
+        {/* Phase badge */}
+        <div className={cn(
+          "w-7 h-7 rounded-full flex items-center justify-center text-xs font-bold transition-colors",
+          status === 'idle' && "bg-muted text-muted-foreground",
+          status === 'active' && "bg-primary text-primary-foreground",
+          status === 'success' && "bg-green-500 text-white",
+          status === 'error' && "bg-red-500 text-white"
+        )}>
+          {status === 'success' ? (
+            <Check className="h-4 w-4" strokeWidth={3} />
+          ) : status === 'error' ? (
+            <X className="h-4 w-4" strokeWidth={3} />
+          ) : (
+            number
+          )}
+        </div>
+        
+        <div className="flex-1">
+          <div className="flex items-center justify-between">
+            <span className="text-sm font-semibold">{title}</span>
+            {status === 'active' && (
+              <span className="text-xs text-muted-foreground">{progress}%</span>
+            )}
+          </div>
+          <p className={cn(
+            "text-xs mt-0.5",
+            status === 'error' ? "text-red-600" : "text-muted-foreground"
+          )}>
+            {errorMessage || message}
+          </p>
+        </div>
+      </div>
+      
+      {/* Progress bar */}
+      {(status === 'active' || status === 'success') && (
+        <Progress 
+          value={progress} 
+          className={cn(
+            "h-2",
+            status === 'success' && "[&>[data-state=complete]]:bg-green-500"
+          )}
+        />
+      )}
+      
+      {/* Children (platform list for phase 2) */}
+      {children}
+    </div>
+  );
+}
+
+// Platform Status Row
+function PlatformStatusRow({ 
+  result, 
+  onRetry 
+}: { 
+  result: PlatformResult;
+  onRetry?: () => void;
+}) {
+  const errorInfo = result.errorMessage ? getErrorInfo(result.errorMessage) : null;
+  const isRateLimit = isRateLimitError(result.errorMessage);
+  
+  return (
+    <div className={cn(
+      "flex items-center gap-3 p-3 rounded-lg transition-colors",
+      result.status === 'pending' && "bg-muted/30",
+      result.status === 'processing' && "bg-primary/5",
+      result.status === 'success' && "bg-green-500/10",
+      result.status === 'error' && "bg-red-500/10"
+    )}>
+      {/* Platform icon */}
+      <div 
+        className="w-9 h-9 rounded-lg flex items-center justify-center flex-shrink-0"
+        style={{ backgroundColor: `${platformColors[result.platform]}15` }}
+      >
+        <PlatformIcon platform={result.platform} size={18} color={platformColors[result.platform]} />
+      </div>
+      
+      {/* Info */}
+      <div className="flex-1 min-w-0">
+        <div className="flex items-center gap-2">
+          <span className="text-sm font-medium">{getPlatformName(result.platform)}</span>
+          <span className="text-xs text-muted-foreground truncate">{result.formatLabel}</span>
+        </div>
+        
+        {result.status === 'pending' && (
+          <span className="text-xs text-muted-foreground">A aguardar...</span>
+        )}
+        
+        {result.status === 'processing' && (
+          <span className="text-xs text-primary flex items-center gap-1.5">
+            <Loader2 className="h-3 w-3 animate-spin" />
+            A processar...
+          </span>
+        )}
+        
+        {result.status === 'success' && (
+          <span className="text-xs text-green-600">Publicado com sucesso</span>
+        )}
+        
+        {result.status === 'error' && (
+          <div className="space-y-1">
+            {isRateLimit ? (
+              <span className="text-xs text-amber-600 flex items-center gap-1">
+                <Clock className="h-3 w-3" />
+                {errorInfo?.description}
+              </span>
+            ) : (
+              <span className="text-xs text-red-600">
+                {errorInfo?.description || result.errorMessage || 'Erro ao publicar'}
+              </span>
+            )}
+          </div>
+        )}
+      </div>
+      
+      {/* Actions */}
+      {result.status === 'success' && result.postUrl && (
+        <a
+          href={result.postUrl}
+          target="_blank"
+          rel="noopener noreferrer"
+          className="flex items-center gap-1 text-xs text-primary hover:underline flex-shrink-0"
+        >
+          Ver <ExternalLink className="h-3 w-3" />
+        </a>
+      )}
+      
+      {result.status === 'error' && onRetry && (
+        <button
+          onClick={onRetry}
+          className="flex items-center gap-1 text-xs px-2 py-1 rounded bg-muted hover:bg-muted/80 transition-colors flex-shrink-0"
+        >
+          <RefreshCw className="h-3 w-3" />
+          Retry
+        </button>
+      )}
+    </div>
+  );
+}
+
+export function PublishProgressModal({
+  isOpen,
+  onClose,
+  progress,
+  onCreateNew,
+  onViewCalendar,
+  onRetryPlatform
+}: PublishProgressModalProps) {
+  const [showConfetti, setShowConfetti] = useState(false);
+  
+  const { phase1, phase2, summary } = progress;
+  
+  // Determine overall state
+  const isPhase1Active = phase1.status === 'uploading' || phase1.status === 'sending';
+  const isPhase1Done = phase1.status === 'success' || phase1.status === 'error';
+  const isPhase2Active = phase2.status === 'publishing';
+  const isPhase2Done = phase2.status === 'success' || phase2.status === 'partial' || phase2.status === 'error';
+  const isComplete = isPhase1Done && isPhase2Done;
+  const allSuccess = phase1.status === 'success' && phase2.status === 'success';
+  const hasPartialSuccess = phase2.status === 'partial';
+  const hasTotalFailure = phase1.status === 'error' || phase2.status === 'error';
+  
+  // Trigger confetti when all successful
+  useEffect(() => {
+    if (isComplete && allSuccess && isOpen) {
+      setShowConfetti(true);
+      const timer = setTimeout(() => setShowConfetti(false), 3000);
+      return () => clearTimeout(timer);
+    }
+  }, [isComplete, allSuccess, isOpen]);
+
+  const handleCopyAllLinks = () => {
+    const links = phase2.platforms
+      .filter(r => r.postUrl)
+      .map(r => r.postUrl)
+      .join('\n');
+    if (links) {
+      navigator.clipboard.writeText(links);
+      toast.success('Links copiados!');
+    }
+  };
+
+  // Get phase 1 display status
+  const getPhase1Status = (): 'idle' | 'active' | 'success' | 'error' => {
+    if (phase1.status === 'uploading' || phase1.status === 'sending') return 'active';
+    if (phase1.status === 'success') return 'success';
+    if (phase1.status === 'error') return 'error';
+    return 'idle';
+  };
+  
+  // Get phase 2 display status
+  const getPhase2Status = (): 'idle' | 'active' | 'success' | 'error' => {
+    if (phase2.status === 'publishing') return 'active';
+    if (phase2.status === 'success') return 'success';
+    if (phase2.status === 'partial' || phase2.status === 'error') return 'error';
+    if (phase2.status === 'waiting') return 'idle';
+    return 'idle';
+  };
+
+  // Get header config
+  const getHeaderConfig = () => {
+    if (!isComplete) {
+      return {
+        icon: <Loader2 className="h-8 w-8 text-white animate-spin" />,
+        title: isPhase1Active ? 'A enviar ficheiros...' : 'A publicar...',
+        bgColor: 'bg-primary',
+        showProgress: true,
+      };
+    }
+    
+    if (allSuccess) {
+      return {
+        icon: <PartyPopper className="h-8 w-8 text-white" />,
+        title: 'Publicado com sucesso!',
+        bgColor: 'bg-gradient-to-br from-green-400 to-emerald-600',
+        showProgress: false,
+      };
+    }
+    
+    if (hasPartialSuccess) {
+      return {
+        icon: <AlertCircle className="h-8 w-8 text-white" />,
+        title: `Publicado em ${summary.successCount} de ${summary.totalPlatforms}`,
+        bgColor: 'bg-gradient-to-br from-amber-400 to-orange-600',
+        showProgress: false,
+      };
+    }
+    
+    return {
+      icon: <X className="h-8 w-8 text-white" />,
+      title: phase1.status === 'error' ? 'Falha no envio' : 'Falha na publicação',
+      bgColor: 'bg-gradient-to-br from-red-400 to-rose-600',
+      showProgress: false,
+    };
+  };
+  
+  const headerConfig = getHeaderConfig();
+
+  return (
+    <Dialog open={isOpen} onOpenChange={() => isComplete && onClose()}>
+      <DialogContent className="sm:max-w-[480px] p-0 overflow-hidden">
+        {/* Confetti Animation */}
+        {showConfetti && (
+          <div className="absolute inset-0 overflow-hidden pointer-events-none z-50">
+            {[...Array(40)].map((_, i) => (
+              <motion.div
+                key={i}
+                className="absolute"
+                initial={{
+                  opacity: 1,
+                  x: '50%',
+                  y: 0,
+                  scale: 0,
+                }}
+                animate={{
+                  opacity: [1, 1, 0],
+                  x: `${Math.random() * 100}%`,
+                  y: [0, -20, 350],
+                  scale: [0, 1, 0.5],
+                  rotate: [0, Math.random() * 360, Math.random() * 720],
+                }}
+                transition={{
+                  duration: 2 + Math.random(),
+                  delay: Math.random() * 0.3,
+                  ease: 'easeOut',
+                }}
+                style={{
+                  background: ['#FFD700', '#FF6B6B', '#4ECDC4', '#A78BFA', '#F472B6', '#34D399'][Math.floor(Math.random() * 6)],
+                  width: 8 + Math.random() * 8,
+                  height: 8 + Math.random() * 8,
+                  borderRadius: Math.random() > 0.5 ? '50%' : '2px',
+                }}
+              />
+            ))}
+          </div>
+        )}
+
+        <div className="p-6 space-y-6">
+          {/* Header */}
+          <motion.div 
+            className="text-center"
+            initial={{ opacity: 0, y: -10 }}
+            animate={{ opacity: 1, y: 0 }}
+          >
+            <motion.div 
+              className={cn(
+                "w-16 h-16 mx-auto rounded-full flex items-center justify-center mb-4",
+                headerConfig.bgColor
+              )}
+              initial={{ scale: 0 }}
+              animate={{ scale: 1 }}
+              transition={{ type: 'spring', damping: 15 }}
+            >
+              {headerConfig.icon}
+            </motion.div>
+            
+            <h2 className="text-xl font-bold">{headerConfig.title}</h2>
+            
+            {!isComplete && (
+              <p className="text-sm text-muted-foreground mt-1">
+                Não feches esta janela
+              </p>
+            )}
+            
+            {isComplete && (
+              <p className="text-sm text-muted-foreground mt-1">
+                {new Date().toLocaleString('pt-PT', {
+                  day: 'numeric',
+                  month: 'short',
+                  year: 'numeric',
+                  hour: '2-digit',
+                  minute: '2-digit'
+                })}
+              </p>
+            )}
+          </motion.div>
+
+          {/* Phase 1: Envio para servidor */}
+          <PhaseCard
+            number={1}
+            title="Envio para servidor"
+            status={getPhase1Status()}
+            progress={phase1.progress}
+            message={phase1.message}
+            errorMessage={phase1.errorMessage}
+          />
+
+          {/* Phase 2: Publicação nas redes */}
+          <PhaseCard
+            number={2}
+            title="Publicação nas redes sociais"
+            status={getPhase2Status()}
+            progress={phase2.progress}
+            message={phase2.message}
+          >
+            {/* Platform list */}
+            {phase2.platforms.length > 0 && (phase2.status !== 'idle' && phase2.status !== 'waiting') && (
+              <div className="mt-4 space-y-2">
+                {phase2.platforms.map((result, idx) => (
+                  <motion.div
+                    key={result.format}
+                    initial={{ opacity: 0, x: -10 }}
+                    animate={{ opacity: 1, x: 0 }}
+                    transition={{ delay: idx * 0.05 }}
+                  >
+                    <PlatformStatusRow
+                      result={result}
+                      onRetry={result.status === 'error' && onRetryPlatform 
+                        ? () => onRetryPlatform(result.format) 
+                        : undefined
+                      }
+                    />
+                  </motion.div>
+                ))}
+              </div>
+            )}
+          </PhaseCard>
+
+          {/* Quick actions for links */}
+          {isComplete && summary.successCount > 0 && (
+            <motion.div 
+              className="flex justify-center gap-3"
+              initial={{ opacity: 0, y: 10 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ delay: 0.2 }}
+            >
+              <button 
+                className="inline-flex items-center gap-2 px-4 py-2 text-sm text-muted-foreground hover:text-foreground hover:bg-muted rounded-lg transition-colors"
+                onClick={handleCopyAllLinks}
+              >
+                <Copy className="h-4 w-4" />
+                Copiar links
+              </button>
+            </motion.div>
+          )}
+        </div>
+
+        {/* Footer com ações */}
+        {isComplete && (
+          <motion.div
+            className="flex gap-3 p-4 border-t bg-muted/30"
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.3 }}
+          >
+            <Button 
+              variant="outline"
+              className="flex-1"
+              onClick={onViewCalendar}
+            >
+              <Calendar className="h-4 w-4 mr-2" />
+              Ver calendário
+            </Button>
+            <Button 
+              className="flex-1 gap-2"
+              onClick={onCreateNew}
+            >
+              <Plus className="h-4 w-4" />
+              Nova publicação
+            </Button>
+          </motion.div>
+        )}
+      </DialogContent>
+    </Dialog>
+  );
+}
