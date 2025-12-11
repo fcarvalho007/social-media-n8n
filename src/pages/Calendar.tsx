@@ -66,6 +66,7 @@ const Calendar = () => {
   const [filterType, setFilterType] = useState<'all' | 'posts' | 'stories' | 'failed'>('all');
   const [timeFilter, setTimeFilter] = useState<'all' | 'past' | 'today' | 'future'>('all');
   const [viewMode, setViewMode] = useState<'normal' | 'compact'>('normal');
+  const [expandedView, setExpandedView] = useState(false);
   const [calendarView, setCalendarView] = useState<'month' | 'week' | 'day'>(isMobile ? 'day' : 'month');
   const [touchStart, setTouchStart] = useState<number | null>(null);
   const [touchEnd, setTouchEnd] = useState<number | null>(null);
@@ -614,28 +615,32 @@ const Calendar = () => {
                 </Button>
 
                 <div className="flex items-center gap-1 ml-2 border-l pl-2">
-                  <Button
-                    variant={viewMode === 'normal' ? 'default' : 'ghost'}
-                    size="sm"
-                    onClick={() => setViewMode('normal')}
-                    className="h-9 w-9 p-0"
-                  >
-                    <Maximize2 className="h-4 w-4" />
-                  </Button>
-                  <Button
-                    variant={viewMode === 'compact' ? 'default' : 'ghost'}
-                    size="sm"
-                    onClick={() => setViewMode('compact')}
-                    className="h-9 w-9 p-0"
-                  >
-                    <Minimize2 className="h-4 w-4" />
-                  </Button>
+                  <TooltipProvider>
+                    <Tooltip>
+                      <TooltipTrigger asChild>
+                        <Button
+                          variant={expandedView ? 'default' : 'ghost'}
+                          size="sm"
+                          onClick={() => setExpandedView(!expandedView)}
+                          className="h-9 w-9 p-0"
+                        >
+                          {expandedView ? <Minimize2 className="h-4 w-4" /> : <Maximize2 className="h-4 w-4" />}
+                        </Button>
+                      </TooltipTrigger>
+                      <TooltipContent>
+                        {expandedView ? 'Vista compacta' : 'Vista expandida'}
+                      </TooltipContent>
+                    </Tooltip>
+                  </TooltipProvider>
                 </div>
               </div>
             </div>
 
-            {/* Stats Cards - Redesigned with better layout */}
-            <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3">
+            {/* Stats Cards - Hidden when expanded */}
+            {!expandedView && (
+              <>
+                {/* Stats Cards - Redesigned with better layout */}
+                <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3">
               {/* Published */}
               <Card className="p-3 bg-gradient-to-br from-green-50 to-emerald-50 dark:from-green-950/30 dark:to-emerald-950/30 border-green-200/50 dark:border-green-800/50 shadow-sm hover:shadow-md transition-all">
                 <div className="flex items-center gap-3">
@@ -727,7 +732,9 @@ const Calendar = () => {
                   </div>
                 </Card>
               )}
-            </div>
+                </div>
+              </>
+            )}
 
             {/* Filter Bar - Redesigned */}
             <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 p-3 bg-muted/30 rounded-xl border">
