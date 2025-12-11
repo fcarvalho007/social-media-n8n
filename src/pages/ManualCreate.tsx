@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { supabase } from '@/integrations/supabase/client';
 import { PostFormat, getNetworkFromFormat, getFormatConfig } from '@/types/social';
 import { usePublishingQuota } from '@/hooks/usePublishingQuota';
-import { ModeBadge } from '@/components/ModeBadge';
+import { CompactModeBadge } from '@/components/CompactModeBadge';
 import { DevHelper } from '@/components/DevHelper';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -847,7 +847,7 @@ export default function ManualCreate() {
   return (
     <div className="max-w-7xl mx-auto space-y-4 bg-gradient-to-br from-background to-background-secondary">
       {/* Header */}
-      <div className="flex flex-col sm:flex-row items-start sm:items-center gap-4">
+      <div className="flex items-center justify-between">
         <Button 
           variant="ghost" 
           size="sm" 
@@ -858,7 +858,7 @@ export default function ManualCreate() {
           <ArrowLeft className="h-4 w-4" />
           Voltar
         </Button>
-        <ModeBadge mode="manual" onChangeMode={() => navigate('/?tab=create')} className="flex-1" />
+        <CompactModeBadge mode="manual" onChangeMode={() => navigate('/?tab=create')} />
       </div>
 
       {/* Quota Warning */}
