@@ -578,8 +578,8 @@ const Calendar = () => {
                   onClick={() => navigate('/manual-create')}
                   className="gap-2 shadow-sm"
                 >
-                  <Plus className="h-4 w-4" />
-                  <span className="font-medium">Criar</span>
+                  <PenTool className="h-4 w-4" />
+                  <span className="font-medium">Criar post manual</span>
                 </Button>
 
                 <div className="flex items-center gap-1 ml-2 border-l pl-2">
