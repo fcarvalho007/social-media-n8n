@@ -43,6 +43,7 @@ interface PublishPayload {
   scheduled_time?: string;
   publish_immediately: boolean;
   post_id?: string;  // Optional post ID for tracking failures
+  idempotency_key?: string; // Unique key to prevent duplicate publications
 }
 
 interface GetlatePostPayload {
@@ -61,6 +62,19 @@ interface GetlatePostPayload {
     type: 'image' | 'video' | 'document';
     url: string;
   }>;
+}
+
+// In-memory store for processed idempotency keys (with TTL of 5 minutes)
+const processedKeys = new Map<string, { timestamp: number; result: any }>();
+const IDEMPOTENCY_TTL_MS = 5 * 60 * 1000; // 5 minutes
+
+function cleanupOldKeys() {
+  const now = Date.now();
+  for (const [key, value] of processedKeys) {
+    if (now - value.timestamp > IDEMPOTENCY_TTL_MS) {
+      processedKeys.delete(key);
+    }
+  }
 }
 
 interface GetlateUsageStats {
@@ -248,9 +262,28 @@ Deno.serve(async (req) => {
     }
 
     const body = await req.json();
-    const { format, caption, media_urls, scheduled_date, scheduled_time, publish_immediately, post_id } = body as PublishPayload;
+    const { format, caption, media_urls, scheduled_date, scheduled_time, publish_immediately, post_id, idempotency_key } = body as PublishPayload;
 
     console.log(`[publish-to-getlate] Processing publication for format: ${format}`);
+    console.log(`[publish-to-getlate] Idempotency key: ${idempotency_key || 'none'}`);
+
+    // Clean up old idempotency keys
+    cleanupOldKeys();
+
+    // Check for duplicate request using idempotency key
+    if (idempotency_key) {
+      const existingResult = processedKeys.get(idempotency_key);
+      if (existingResult) {
+        console.log(`[publish-to-getlate] ⚠️ Duplicate request detected! Returning cached result for key: ${idempotency_key}`);
+        return new Response(
+          JSON.stringify(existingResult.result),
+          { 
+            headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+            status: 200 
+          }
+        );
+      }
+    }
 
     // Get network from format
     const network = FORMAT_TO_NETWORK[format];
@@ -412,14 +445,25 @@ Deno.serve(async (req) => {
     // NOTE: We no longer increment local quota - Getlate tracks usage automatically
     console.log(`[publish-to-getlate] ✅ Successfully published to ${network} (Getlate tracks quota automatically)`);
 
+    const successResponse = { 
+      success: true, 
+      message: `Publicado com sucesso em ${network}`,
+      data: result.data,
+      network,
+      format,
+    };
+
+    // Store result for idempotency
+    if (idempotency_key) {
+      processedKeys.set(idempotency_key, {
+        timestamp: Date.now(),
+        result: successResponse,
+      });
+      console.log(`[publish-to-getlate] Cached result for idempotency key: ${idempotency_key}`);
+    }
+
     return new Response(
-      JSON.stringify({ 
-        success: true, 
-        message: `Publicado com sucesso em ${network}`,
-        data: result.data,
-        network,
-        format,
-      }),
+      JSON.stringify(successResponse),
       { 
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
         status: 200 

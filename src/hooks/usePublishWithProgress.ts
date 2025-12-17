@@ -182,8 +182,25 @@ export function usePublishWithProgress() {
   const publish = useCallback(async (params: PublishParams): Promise<boolean> => {
     const { formats, caption, mediaFiles, scheduledDate, time, scheduleAsap } = params;
     
+    // Generate unique publish session ID for logging and idempotency
+    const publishSessionId = `pub_${Date.now()}_${Math.random().toString(36).substring(2, 9)}`;
+    
+    console.log(`[usePublishWithProgress] ════════════════════════════════════════`);
+    console.log(`[usePublishWithProgress] Starting publish session: ${publishSessionId}`);
+    console.log(`[usePublishWithProgress] Timestamp: ${new Date().toISOString()}`);
+    console.log(`[usePublishWithProgress] Formats requested: ${formats.join(', ')}`);
+    console.log(`[usePublishWithProgress] Media files: ${mediaFiles.length}`);
+    console.log(`[usePublishWithProgress] ════════════════════════════════════════`);
+    
     if (formats.length === 0 || mediaFiles.length === 0) {
       toast.error('Selecione formatos e adicione ficheiros');
+      return false;
+    }
+    
+    // Prevent double-publishing if already in progress
+    if (isPublishing) {
+      console.warn(`[usePublishWithProgress] ⚠️ Publish already in progress! Ignoring duplicate call.`);
+      toast.warning('Publicação já em progresso');
       return false;
     }
     
@@ -201,7 +218,7 @@ export function usePublishWithProgress() {
     }
     const consolidatedFormats = Array.from(uniqueNetworkFormats.values());
     
-    console.log('[usePublishWithProgress] Consolidated formats:', {
+    console.log(`[usePublishWithProgress] [${publishSessionId}] Consolidated formats:`, {
       original: formats,
       consolidated: consolidatedFormats,
       networks: Array.from(uniqueNetworkFormats.keys()),
@@ -386,7 +403,10 @@ export function usePublishWithProgress() {
           }
         }
         
-        // Publish to Getlate
+        // Publish to Getlate with idempotency key
+        const idempotencyKey = `${publishSessionId}_${format}_${network}`;
+        console.log(`[usePublishWithProgress] [${publishSessionId}] Publishing ${format} to ${network} with key: ${idempotencyKey}`);
+        
         try {
           const { data: publishResult, error: publishError } = await supabase.functions.invoke('publish-to-getlate', {
             body: {
@@ -396,10 +416,12 @@ export function usePublishWithProgress() {
               scheduled_date: scheduledDate ? scheduledDate.toISOString().split('T')[0] : undefined,
               scheduled_time: time || undefined,
               publish_immediately: scheduleAsap || !scheduledDate,
+              idempotency_key: idempotencyKey,
             },
           });
           
           if (publishError) {
+            console.error(`[usePublishWithProgress] [${publishSessionId}] ${format} failed with error:`, publishError);
             platformResults.set(format, { 
               ...platformResults.get(format)!, 
               status: 'error', 
@@ -407,6 +429,7 @@ export function usePublishWithProgress() {
             });
             updatePlatformStatus(format, 'error', 'Erro de comunicação');
           } else if (!publishResult?.success) {
+            console.error(`[usePublishWithProgress] [${publishSessionId}] ${format} returned failure:`, publishResult?.error);
             platformResults.set(format, { 
               ...platformResults.get(format)!, 
               status: 'error', 
@@ -414,6 +437,7 @@ export function usePublishWithProgress() {
             });
             updatePlatformStatus(format, 'error', publishResult?.error || 'Falha na publicação');
           } else {
+            console.log(`[usePublishWithProgress] [${publishSessionId}] ✅ ${format} published successfully`);
             platformResults.set(format, { 
               ...platformResults.get(format)!, 
               status: 'success', 
@@ -422,6 +446,7 @@ export function usePublishWithProgress() {
             updatePlatformStatus(format, 'success', undefined, publishResult?.postUrl || publishResult?.url);
           }
         } catch (err) {
+          console.error(`[usePublishWithProgress] [${publishSessionId}] ${format} exception:`, err);
           platformResults.set(format, { 
             ...platformResults.get(format)!, 
             status: 'error', 
@@ -436,11 +461,12 @@ export function usePublishWithProgress() {
       const successfulFormats = finalResults.filter(p => p.status === 'success');
       const failedFormats = finalResults.filter(p => p.status === 'error');
       
-      console.log('[usePublishWithProgress] Final results:', {
-        total: finalResults.length,
-        success: successfulFormats.length,
-        failed: failedFormats.length,
-      });
+      console.log(`[usePublishWithProgress] [${publishSessionId}] ════════════════════════════════════════`);
+      console.log(`[usePublishWithProgress] [${publishSessionId}] FINAL RESULTS:`);
+      console.log(`[usePublishWithProgress] [${publishSessionId}] - Total platforms: ${finalResults.length}`);
+      console.log(`[usePublishWithProgress] [${publishSessionId}] - Success: ${successfulFormats.length}`);
+      console.log(`[usePublishWithProgress] [${publishSessionId}] - Failed: ${failedFormats.length}`);
+      console.log(`[usePublishWithProgress] [${publishSessionId}] ════════════════════════════════════════`);
       
       // Always save post to database (even if some platforms failed)
       if (consolidatedFormats.length > 0) {
