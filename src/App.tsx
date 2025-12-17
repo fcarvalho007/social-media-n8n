@@ -21,6 +21,7 @@ import Auth from "./pages/Auth";
 import Drafts from "./pages/Drafts";
 import Recovery from "./pages/Recovery";
 import FailedPublications from "./pages/FailedPublications";
+import PublicationHistory from "./pages/PublicationHistory";
 import NotFound from "./pages/NotFound";
 const queryClient = new QueryClient();
 
@@ -59,6 +60,7 @@ const App = () => (
                   <Route path="/manual-create" element={<ManualCreate />} />
                   <Route path="/drafts" element={<Drafts />} />
                   <Route path="/failed-publications" element={<FailedPublications />} />
+                  <Route path="/publication-history" element={<PublicationHistory />} />
                   <Route path="/projects" element={<Projects />} />
                   <Route path="/projects/:id" element={<ProjectDetail />} />
                   <Route path="/templates" element={<Templates />} />

@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { CheckCircle2, PlusCircle, Calendar, X, FolderKanban, LayoutDashboard, FileText, LogOut, AlertTriangle } from 'lucide-react';
+import { CheckCircle2, PlusCircle, Calendar, X, FolderKanban, LayoutDashboard, FileText, LogOut, AlertTriangle, History } from 'lucide-react';
 import { NavLink, useNavigate } from 'react-router-dom';
 import {
   Sidebar,
@@ -84,6 +84,14 @@ const menuItems = [
     label: 'Falhas',
     icon: AlertTriangle,
     url: '/failed-publications',
+    disabled: false,
+    isMain: false,
+  },
+  {
+    title: 'Histórico',
+    label: 'Histórico',
+    icon: History,
+    url: '/publication-history',
     disabled: false,
     isMain: false,
   },
