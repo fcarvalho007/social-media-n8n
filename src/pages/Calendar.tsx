@@ -898,53 +898,68 @@ const Calendar = () => {
                       </h4>
                       <Badge variant="secondary">{feedPosts.length}</Badge>
                     </div>
-                    <div className="grid grid-cols-3 gap-2 xl:gap-3">
+                    <div className="grid grid-cols-2 gap-2 xl:gap-2.5">
                       {feedPosts.map((event) => {
                         const thumbnailUrl = event.resource.template_a_images?.[0];
                         const isScheduled = !!event.resource.scheduled_date;
+                        const isPublished = event.resource.status === 'published';
                         return (
                           <div
                             key={event.id}
-                            className="relative aspect-square rounded-lg overflow-hidden border-2 cursor-pointer hover:scale-105 hover:shadow-lg transition-all"
+                            className="relative aspect-square rounded-lg overflow-hidden border-2 cursor-pointer hover:scale-[1.02] hover:shadow-lg hover:border-primary/50 transition-all group bg-muted/20"
                             onClick={() => setSelectedEvent(event)}
                           >
                              {thumbnailUrl ? (
-                              <img 
-                                src={thumbnailUrl} 
-                                alt={String(event.title || '')}
-                                className="w-full h-full object-cover"
-                                onError={(e) => {
-                                  // Fallback to placeholder on image load error
-                                  e.currentTarget.style.display = 'none';
-                                  if (e.currentTarget.parentElement) {
-                                    e.currentTarget.parentElement.innerHTML = `
-                                      <div class="w-full h-full bg-gradient-to-br from-red-50 to-orange-50 flex flex-col items-center justify-center p-2">
-                                        <svg class="h-5 w-5 text-red-400 mb-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
-                                        </svg>
-                                        <span class="text-[9px] text-red-600 font-medium text-center">Imagem não disponível</span>
-                                      </div>
-                                    `;
-                                  }
-                                }}
-                              />
+                              <>
+                                <img 
+                                  src={thumbnailUrl} 
+                                  alt={String(event.title || '')}
+                                  className="w-full h-full object-cover transition-transform group-hover:scale-105"
+                                  onError={(e) => {
+                                    const target = e.currentTarget;
+                                    target.style.display = 'none';
+                                    if (target.nextElementSibling) {
+                                      (target.nextElementSibling as HTMLElement).style.display = 'flex';
+                                    }
+                                  }}
+                                />
+                                <div 
+                                  className="w-full h-full bg-gradient-to-br from-gray-100 to-gray-200 dark:from-gray-800 dark:to-gray-900 flex-col items-center justify-center p-2 gap-1"
+                                  style={{ display: 'none' }}
+                                >
+                                  <ImageIcon className="h-5 w-5 text-muted-foreground" />
+                                  <span className="text-[9px] text-muted-foreground font-medium text-center">Erro ao carregar</span>
+                                </div>
+                              </>
                             ) : (
-                              <div className="w-full h-full bg-gradient-to-br from-gray-100 to-gray-200 flex flex-col items-center justify-center p-2 gap-1">
-                                <LayoutGrid className="h-5 w-5 text-gray-400" />
-                                <span className="text-[9px] text-gray-500 font-medium text-center">Sem imagem</span>
+                              <div className="w-full h-full bg-gradient-to-br from-gray-100 to-gray-200 dark:from-gray-800 dark:to-gray-900 flex flex-col items-center justify-center p-2 gap-1">
+                                <LayoutGrid className="h-5 w-5 text-muted-foreground" />
+                                <span className="text-[9px] text-muted-foreground font-medium text-center">Sem imagem</span>
                               </div>
                             )}
-                            {isScheduled && (
-                              <div className="absolute top-1.5 right-1.5 bg-primary rounded-full p-1 shadow-md">
-                                <Clock className="h-3 w-3 text-white" />
-                              </div>
-                            )}
+                            {/* Status indicators */}
+                            <div className="absolute top-1 right-1 flex gap-1">
+                              {isPublished && (
+                                <div className="bg-green-500 rounded-full p-1 shadow-md">
+                                  <CalendarCheck className="h-2.5 w-2.5 text-white" />
+                                </div>
+                              )}
+                              {isScheduled && !isPublished && (
+                                <div className="bg-primary rounded-full p-1 shadow-md">
+                                  <Clock className="h-2.5 w-2.5 text-white" />
+                                </div>
+                              )}
+                            </div>
+                            {/* Hover overlay with title */}
+                            <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity flex items-end p-1.5">
+                              <span className="text-[9px] text-white font-medium truncate w-full">{event.title}</span>
+                            </div>
                           </div>
                         );
                       })}
                     </div>
                     {feedPosts.length === 0 && (
-                      <p className="text-xs text-muted-foreground text-center py-4">Nenhum post agendado</p>
+                      <p className="text-xs text-muted-foreground text-center py-4 bg-muted/30 rounded-lg">Nenhum post agendado</p>
                     )}
                   </div>
 
@@ -957,53 +972,64 @@ const Calendar = () => {
                       </h4>
                       <Badge variant="secondary">{stories.length}</Badge>
                     </div>
-                    <div className="grid grid-cols-3 gap-2">
+                    <div className="grid grid-cols-3 gap-1.5">
                       {stories.map((event) => {
                         const thumbnailUrl = event.resource.story_image_url;
                         const isScheduled = !!event.resource.scheduled_date;
+                        const isPublished = event.resource.status === 'published';
                         return (
                           <div
                             key={event.id}
-                            className="relative aspect-[9/16] rounded-lg overflow-hidden border-2 cursor-pointer hover:scale-105 hover:shadow-lg transition-all"
+                            className="relative aspect-[9/16] rounded-lg overflow-hidden border-2 cursor-pointer hover:scale-[1.02] hover:shadow-lg hover:border-primary/50 transition-all group bg-muted/20"
                             onClick={() => setSelectedEvent(event)}
                           >
                              {thumbnailUrl ? (
-                              <img 
-                                src={thumbnailUrl} 
-                                alt={String(event.title || '')}
-                                className="w-full h-full object-cover"
-                                onError={(e) => {
-                                  // Fallback to placeholder on image load error
-                                  e.currentTarget.style.display = 'none';
-                                  if (e.currentTarget.parentElement) {
-                                    e.currentTarget.parentElement.innerHTML = `
-                                      <div class="w-full h-full bg-gradient-to-br from-red-50 to-orange-50 flex flex-col items-center justify-center p-2">
-                                        <svg class="h-5 w-5 text-red-400 mb-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
-                                        </svg>
-                                        <span class="text-[9px] text-red-600 font-medium text-center">Imagem não disponível</span>
-                                      </div>
-                                    `;
-                                  }
-                                }}
-                              />
+                              <>
+                                <img 
+                                  src={thumbnailUrl} 
+                                  alt={String(event.title || '')}
+                                  className="w-full h-full object-cover transition-transform group-hover:scale-105"
+                                  onError={(e) => {
+                                    const target = e.currentTarget;
+                                    target.style.display = 'none';
+                                    if (target.nextElementSibling) {
+                                      (target.nextElementSibling as HTMLElement).style.display = 'flex';
+                                    }
+                                  }}
+                                />
+                                <div 
+                                  className="w-full h-full bg-gradient-to-br from-purple-100 to-purple-200 dark:from-purple-900 dark:to-purple-950 flex-col items-center justify-center p-2 gap-1"
+                                  style={{ display: 'none' }}
+                                >
+                                  <Video className="h-4 w-4 text-muted-foreground" />
+                                  <span className="text-[8px] text-muted-foreground font-medium text-center">Erro</span>
+                                </div>
+                              </>
                             ) : (
-                              <div className="w-full h-full bg-gradient-to-br from-purple-100 to-purple-200 flex flex-col items-center justify-center p-2 gap-1">
-                                <Video className="h-5 w-5 text-purple-400" />
-                                <span className="text-[9px] text-purple-600 font-medium text-center">Sem imagem</span>
+                              <div className="w-full h-full bg-gradient-to-br from-purple-100 to-purple-200 dark:from-purple-900 dark:to-purple-950 flex flex-col items-center justify-center p-2 gap-1">
+                                <Video className="h-4 w-4 text-purple-500 dark:text-purple-400" />
+                                <span className="text-[8px] text-purple-600 dark:text-purple-300 font-medium text-center">Sem imagem</span>
                               </div>
                             )}
-                            {isScheduled && (
-                              <div className="absolute top-1.5 right-1.5 bg-primary rounded-full p-1 shadow-md">
-                                <Clock className="h-3 w-3 text-white" />
-                              </div>
-                            )}
+                            {/* Status indicators */}
+                            <div className="absolute top-1 right-1 flex gap-0.5">
+                              {isPublished && (
+                                <div className="bg-green-500 rounded-full p-0.5 shadow-md">
+                                  <CalendarCheck className="h-2 w-2 text-white" />
+                                </div>
+                              )}
+                              {isScheduled && !isPublished && (
+                                <div className="bg-primary rounded-full p-0.5 shadow-md">
+                                  <Clock className="h-2 w-2 text-white" />
+                                </div>
+                              )}
+                            </div>
                           </div>
                         );
                       })}
                     </div>
                     {stories.length === 0 && (
-                      <p className="text-xs text-muted-foreground text-center py-4">Nenhuma story agendada</p>
+                      <p className="text-xs text-muted-foreground text-center py-4 bg-muted/30 rounded-lg">Nenhuma story agendada</p>
                     )}
                   </div>
                 </div>
@@ -1072,22 +1098,50 @@ const Calendar = () => {
               </div>
 
               {selectedEvent.resource.template_a_images?.[0] && (
-                <div className="relative aspect-video rounded-xl overflow-hidden border-2 shadow-md hover:shadow-lg transition-shadow">
+                <div className="relative rounded-xl overflow-hidden border-2 shadow-md hover:shadow-lg transition-shadow bg-muted/30">
                   <img
                     src={selectedEvent.resource.template_a_images[0]}
                     alt="Preview"
-                    className="object-cover w-full h-full"
+                    className="w-full h-auto max-h-[400px] object-contain mx-auto"
+                    onError={(e) => {
+                      const target = e.currentTarget;
+                      target.style.display = 'none';
+                      if (target.nextElementSibling) {
+                        (target.nextElementSibling as HTMLElement).style.display = 'flex';
+                      }
+                    }}
                   />
+                  <div 
+                    className="hidden w-full h-48 bg-gradient-to-br from-gray-100 to-gray-200 dark:from-gray-800 dark:to-gray-900 flex-col items-center justify-center gap-2"
+                    style={{ display: 'none' }}
+                  >
+                    <ImageIcon className="h-8 w-8 text-muted-foreground" />
+                    <span className="text-sm text-muted-foreground">Imagem não disponível</span>
+                  </div>
                 </div>
               )}
 
               {selectedEvent.resource.story_image_url && (
-                <div className="relative aspect-[9/16] max-h-96 rounded-xl overflow-hidden border-2 shadow-md hover:shadow-lg transition-shadow mx-auto">
+                <div className="relative max-h-[400px] rounded-xl overflow-hidden border-2 shadow-md hover:shadow-lg transition-shadow mx-auto bg-muted/30">
                   <img
                     src={selectedEvent.resource.story_image_url}
                     alt="Story Preview"
-                    className="object-cover w-full h-full"
+                    className="w-auto h-auto max-h-[400px] max-w-full object-contain mx-auto"
+                    onError={(e) => {
+                      const target = e.currentTarget;
+                      target.style.display = 'none';
+                      if (target.nextElementSibling) {
+                        (target.nextElementSibling as HTMLElement).style.display = 'flex';
+                      }
+                    }}
                   />
+                  <div 
+                    className="hidden w-48 h-80 bg-gradient-to-br from-purple-100 to-purple-200 dark:from-purple-900 dark:to-purple-950 flex-col items-center justify-center gap-2"
+                    style={{ display: 'none' }}
+                  >
+                    <Video className="h-8 w-8 text-muted-foreground" />
+                    <span className="text-sm text-muted-foreground">Story não disponível</span>
+                  </div>
                 </div>
               )}
 
