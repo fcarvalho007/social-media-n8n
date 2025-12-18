@@ -13,7 +13,7 @@ import 'react-big-calendar/lib/css/react-big-calendar.css';
 import 'react-big-calendar/lib/addons/dragAndDrop/styles.css';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
-import { Calendar as CalendarIcon, Clock, LayoutGrid, Video, TrendingUp, Filter, Trash2, Maximize2, Minimize2, ImageIcon, PenTool, AlertCircle, CalendarCheck, CalendarClock, History, Instagram, Linkedin, ChevronDown } from 'lucide-react';
+import { Calendar as CalendarIcon, Clock, LayoutGrid, Video, TrendingUp, Filter, Trash2, Maximize2, Minimize2, ImageIcon, PenTool, AlertCircle, CalendarCheck, CalendarClock, History, Instagram, Linkedin, ChevronDown, RefreshCw, WifiOff, CheckCircle } from 'lucide-react';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import { useIsMobile } from '@/hooks/use-mobile';
@@ -56,6 +56,9 @@ interface CalendarEvent extends Event {
   resource: ScheduledPost;
 }
 
+const CACHE_KEY = 'calendar_events_cache';
+const CACHE_TIMESTAMP_KEY = 'calendar_last_updated';
+
 const Calendar = () => {
   const navigate = useNavigate();
   const isMobile = useIsMobile();
@@ -72,6 +75,9 @@ const Calendar = () => {
   const [touchEnd, setTouchEnd] = useState<number | null>(null);
   const [isSwipping, setIsSwipping] = useState(false);
   const [calendarHeight, setCalendarHeight] = useState<number>(600);
+  const [lastUpdated, setLastUpdated] = useState<Date | null>(null);
+  const [fetchError, setFetchError] = useState<string | null>(null);
+  const [retryCount, setRetryCount] = useState(0);
 
   const minSwipeDistance = 50;
 
@@ -207,10 +213,14 @@ const Calendar = () => {
     };
   }, []);
 
-  const fetchScheduledContent = async () => {
-    setLoading(true);
+  const fetchScheduledContent = async (isRetry = false) => {
+    if (!isRetry) {
+      setLoading(true);
+      setFetchError(null);
+    }
+    
     try {
-      const [{ data: posts }, { data: stories }] = await Promise.all([
+      const [{ data: posts, error: postsError }, { data: stories, error: storiesError }] = await Promise.all([
         supabase
           .from('posts')
           .select('id, tema, content_type, status, scheduled_date, reviewed_at, created_at, published_at, template_a_images, error_log, failed_at, recovery_token, selected_networks')
@@ -220,6 +230,10 @@ const Calendar = () => {
           .select('id, tema, status, scheduled_date, reviewed_at, created_at, story_image_url')
           .in('status', ['approved', 'published']),
       ]);
+
+      if (postsError || storiesError) {
+        throw new Error(postsError?.message || storiesError?.message);
+      }
 
       const postEvents: CalendarEvent[] = (posts || []).map((post) => {
         let eventDate: Date;
@@ -257,14 +271,87 @@ const Calendar = () => {
         resource: { ...story, content_type: 'stories' as const },
       }));
 
-      setEvents([...postEvents, ...storyEvents]);
+      const allEvents = [...postEvents, ...storyEvents];
+      setEvents(allEvents);
+      setRetryCount(0);
+      setFetchError(null);
+      
+      // Save to localStorage cache
+      try {
+        const cacheData = allEvents.map(e => ({
+          ...e,
+          start: (e.start as Date).toISOString(),
+          end: (e.end as Date).toISOString(),
+        }));
+        localStorage.setItem(CACHE_KEY, JSON.stringify(cacheData));
+        localStorage.setItem(CACHE_TIMESTAMP_KEY, new Date().toISOString());
+        setLastUpdated(new Date());
+      } catch (cacheError) {
+        logger.warn('Failed to save cache', cacheError);
+      }
+      
     } catch (error) {
       logger.error('Erro ao carregar conteúdo agendado', error);
-      toast.error('Falha ao carregar calendário');
+      setFetchError('Falha ao carregar dados');
+      
+      // Try to load from cache if available
+      try {
+        const cachedData = localStorage.getItem(CACHE_KEY);
+        const cachedTimestamp = localStorage.getItem(CACHE_TIMESTAMP_KEY);
+        
+        if (cachedData && events.length === 0) {
+          const parsed = JSON.parse(cachedData);
+          const restoredEvents = parsed.map((e: any) => ({
+            ...e,
+            start: new Date(e.start),
+            end: new Date(e.end),
+          }));
+          setEvents(restoredEvents);
+          if (cachedTimestamp) {
+            setLastUpdated(new Date(cachedTimestamp));
+          }
+          toast.warning('A usar dados em cache. Tentando reconectar...');
+        }
+      } catch (cacheError) {
+        logger.warn('Failed to load cache', cacheError);
+      }
+      
+      // Auto-retry logic (max 3 retries)
+      if (retryCount < 3) {
+        setRetryCount(prev => prev + 1);
+        setTimeout(() => {
+          fetchScheduledContent(true);
+        }, 2000 * (retryCount + 1)); // Exponential backoff
+      } else {
+        toast.error('Falha ao carregar calendário após várias tentativas');
+      }
     } finally {
       setLoading(false);
     }
   };
+
+  // Load cache on initial mount (before fetch completes)
+  useEffect(() => {
+    try {
+      const cachedData = localStorage.getItem(CACHE_KEY);
+      const cachedTimestamp = localStorage.getItem(CACHE_TIMESTAMP_KEY);
+      
+      if (cachedData) {
+        const parsed = JSON.parse(cachedData);
+        const restoredEvents = parsed.map((e: any) => ({
+          ...e,
+          start: new Date(e.start),
+          end: new Date(e.end),
+        }));
+        setEvents(restoredEvents);
+        if (cachedTimestamp) {
+          setLastUpdated(new Date(cachedTimestamp));
+        }
+      }
+    } catch (error) {
+      logger.warn('Failed to load initial cache', error);
+    }
+  }, []);
 
   useEffect(() => {
     fetchScheduledContent();
@@ -597,9 +684,54 @@ const Calendar = () => {
                   </div>
                   <span>Calendário</span>
                 </h1>
-                <p className="text-sm text-muted-foreground mt-1 ml-[52px] lg:ml-[60px] hidden sm:block">
-                  Arraste para reagendar publicações
-                </p>
+                <div className="flex items-center gap-3 mt-1 ml-[52px] lg:ml-[60px]">
+                  <p className="text-sm text-muted-foreground hidden sm:block">
+                    Arraste para reagendar publicações
+                  </p>
+                  {/* Sync Status Indicator */}
+                  <div className="flex items-center gap-2">
+                    {loading ? (
+                      <span className="flex items-center gap-1.5 text-xs text-muted-foreground">
+                        <RefreshCw className="h-3 w-3 animate-spin" />
+                        <span className="hidden sm:inline">A sincronizar...</span>
+                      </span>
+                    ) : fetchError ? (
+                      <TooltipProvider>
+                        <Tooltip>
+                          <TooltipTrigger asChild>
+                            <button 
+                              onClick={() => fetchScheduledContent()}
+                              className="flex items-center gap-1.5 text-xs text-amber-600 dark:text-amber-400 hover:text-amber-700 dark:hover:text-amber-300 transition-colors"
+                            >
+                              <WifiOff className="h-3 w-3" />
+                              <span className="hidden sm:inline">Reconectar</span>
+                            </button>
+                          </TooltipTrigger>
+                          <TooltipContent>
+                            <p>A usar dados em cache. Clique para tentar novamente.</p>
+                          </TooltipContent>
+                        </Tooltip>
+                      </TooltipProvider>
+                    ) : lastUpdated ? (
+                      <TooltipProvider>
+                        <Tooltip>
+                          <TooltipTrigger asChild>
+                            <span className="flex items-center gap-1.5 text-xs text-green-600/70 dark:text-green-400/70">
+                              <CheckCircle className="h-3 w-3" />
+                              <span className="hidden sm:inline">
+                                {format(lastUpdated, 'HH:mm', { locale: pt })}
+                              </span>
+                            </span>
+                          </TooltipTrigger>
+                          <TooltipContent>
+                            <p>Última atualização: {format(lastUpdated, "d 'de' MMMM 'às' HH:mm", { locale: pt })}</p>
+                            <p className="text-xs text-muted-foreground mt-1">{events.length} items carregados</p>
+                          </TooltipContent>
+                        </Tooltip>
+                      </TooltipProvider>
+                    ) : null}
+                  </div>
+                </div>
               </div>
               
               {/* Actions */}
