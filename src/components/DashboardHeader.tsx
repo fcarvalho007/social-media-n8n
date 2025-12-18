@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Menu, ChevronRight, User, Settings, Search, Users } from 'lucide-react';
+import { Menu, ChevronRight, User, Settings, Search, Users, FileText, AlertTriangle, History } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { useSidebar } from '@/components/ui/sidebar';
 import { useLocation, useSearchParams, useNavigate } from 'react-router-dom';
@@ -167,6 +167,20 @@ export function DashboardHeader() {
               <DropdownMenuItem onClick={() => navigate('/users')}>
                 <Users className="mr-2 h-4 w-4" />
                 <span>Gestão de Utilizadores</span>
+              </DropdownMenuItem>
+              <DropdownMenuSeparator />
+              <DropdownMenuLabel className="text-xs text-muted-foreground">Conteúdos</DropdownMenuLabel>
+              <DropdownMenuItem onClick={() => navigate('/drafts')}>
+                <FileText className="mr-2 h-4 w-4" />
+                <span>Rascunhos</span>
+              </DropdownMenuItem>
+              <DropdownMenuItem onClick={() => navigate('/failed-publications')}>
+                <AlertTriangle className="mr-2 h-4 w-4" />
+                <span>Publicações Falhadas</span>
+              </DropdownMenuItem>
+              <DropdownMenuItem onClick={() => navigate('/publication-history')}>
+                <History className="mr-2 h-4 w-4" />
+                <span>Histórico de Publicações</span>
               </DropdownMenuItem>
             </DropdownMenuContent>
           </DropdownMenu>
