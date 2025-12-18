@@ -14,6 +14,27 @@ export type Database = {
   }
   public: {
     Tables: {
+      idempotency_keys: {
+        Row: {
+          created_at: string | null
+          expires_at: string | null
+          key: string
+          result: Json | null
+        }
+        Insert: {
+          created_at?: string | null
+          expires_at?: string | null
+          key: string
+          result?: Json | null
+        }
+        Update: {
+          created_at?: string | null
+          expires_at?: string | null
+          key?: string
+          result?: Json | null
+        }
+        Relationships: []
+      }
       media_library: {
         Row: {
           aspect_ratio: string | null
@@ -844,6 +865,7 @@ export type Database = {
         Args: { p_user_id: string }
         Returns: boolean
       }
+      cleanup_expired_idempotency_keys: { Args: never; Returns: undefined }
       get_instagram_quota_usage: {
         Args: { p_user_id: string }
         Returns: {

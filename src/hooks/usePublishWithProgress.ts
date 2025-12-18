@@ -1,4 +1,4 @@
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useRef } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { PostFormat, getFormatConfig } from '@/types/social';
 import { FORMAT_TO_NETWORK } from '@/types/publishing';
@@ -106,6 +106,10 @@ export function usePublishWithProgress() {
   const [isPublishing, setIsPublishing] = useState(false);
   const [shouldCancel, setShouldCancel] = useState(false);
   
+  // Use ref for publishing lock - more reliable than state for preventing race conditions
+  const publishingLockRef = useRef(false);
+  const lastPublishSessionRef = useRef<string | null>(null);
+  
   // Update phase 1
   const updatePhase1 = useCallback((status: Phase1Status, progressValue: number, message: string, errorMessage?: string) => {
     setProgress(prev => ({
@@ -197,15 +201,27 @@ export function usePublishWithProgress() {
       return false;
     }
     
-    // Prevent double-publishing if already in progress
+    // STRICT LOCK: Prevent double-publishing using ref (more reliable than state)
+    if (publishingLockRef.current) {
+      console.warn(`[usePublishWithProgress] ⚠️ BLOCKED! Publish lock active. Session: ${lastPublishSessionRef.current}`);
+      toast.warning('Publicação já em progresso - aguarde');
+      return false;
+    }
+    
+    // Also check state as backup
     if (isPublishing) {
-      console.warn(`[usePublishWithProgress] ⚠️ Publish already in progress! Ignoring duplicate call.`);
+      console.warn(`[usePublishWithProgress] ⚠️ BLOCKED! isPublishing state is true.`);
       toast.warning('Publicação já em progresso');
       return false;
     }
     
+    // Acquire lock IMMEDIATELY
+    publishingLockRef.current = true;
+    lastPublishSessionRef.current = publishSessionId;
     setIsPublishing(true);
     setShouldCancel(false);
+    
+    console.log(`[usePublishWithProgress] 🔒 Lock acquired for session: ${publishSessionId}`);
     
     // CONSOLIDATE: Only one format per network to avoid duplicate publications
     const uniqueNetworkFormats = new Map<string, PostFormat>();
@@ -527,14 +543,20 @@ export function usePublishWithProgress() {
         }
       }
       
+      // Release lock
+      publishingLockRef.current = false;
       setIsPublishing(false);
+      console.log(`[usePublishWithProgress] 🔓 Lock released for session: ${publishSessionId}`);
       return successfulFormats.length > 0;
       
     } catch (error) {
       console.error('[usePublishWithProgress] Error:', error);
       const errorMsg = error instanceof Error ? error.message : 'Erro inesperado';
       updatePhase1('error', 0, 'Erro', errorMsg);
+      // Release lock on error
+      publishingLockRef.current = false;
       setIsPublishing(false);
+      console.log(`[usePublishWithProgress] 🔓 Lock released due to error`);
       return false;
     }
   }, [shouldCancel, updatePhase1, updatePhase2, updatePlatformStatus]);
@@ -542,6 +564,7 @@ export function usePublishWithProgress() {
   // Reset progress
   const resetProgress = useCallback(() => {
     setProgress(initialProgress);
+    publishingLockRef.current = false;
     setIsPublishing(false);
     setShouldCancel(false);
   }, []);
