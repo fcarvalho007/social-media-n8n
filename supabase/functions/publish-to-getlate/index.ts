@@ -64,16 +64,64 @@ interface GetlatePostPayload {
   }>;
 }
 
-// In-memory store for processed idempotency keys (with TTL of 5 minutes)
-const processedKeys = new Map<string, { timestamp: number; result: any }>();
-const IDEMPOTENCY_TTL_MS = 5 * 60 * 1000; // 5 minutes
-
-function cleanupOldKeys() {
-  const now = Date.now();
-  for (const [key, value] of processedKeys) {
-    if (now - value.timestamp > IDEMPOTENCY_TTL_MS) {
-      processedKeys.delete(key);
+// Database-backed idempotency check
+async function checkIdempotencyKey(supabase: any, key: string): Promise<{ exists: boolean; result?: any }> {
+  try {
+    const { data, error } = await supabase
+      .from('idempotency_keys')
+      .select('result')
+      .eq('key', key)
+      .gt('expires_at', new Date().toISOString())
+      .maybeSingle();
+    
+    if (error) {
+      console.error('[publish-to-getlate] Error checking idempotency key:', error);
+      return { exists: false };
     }
+    
+    if (data) {
+      console.log(`[publish-to-getlate] Found existing idempotency key: ${key}`);
+      return { exists: true, result: data.result };
+    }
+    
+    return { exists: false };
+  } catch (err) {
+    console.error('[publish-to-getlate] Exception checking idempotency:', err);
+    return { exists: false };
+  }
+}
+
+async function storeIdempotencyKey(supabase: any, key: string, result: any): Promise<void> {
+  try {
+    const expiresAt = new Date(Date.now() + 5 * 60 * 1000).toISOString(); // 5 minutes
+    
+    const { error } = await supabase
+      .from('idempotency_keys')
+      .upsert({
+        key,
+        result,
+        expires_at: expiresAt,
+      }, { onConflict: 'key' });
+    
+    if (error) {
+      console.error('[publish-to-getlate] Error storing idempotency key:', error);
+    } else {
+      console.log(`[publish-to-getlate] Stored idempotency key: ${key}`);
+    }
+  } catch (err) {
+    console.error('[publish-to-getlate] Exception storing idempotency:', err);
+  }
+}
+
+// Cleanup expired keys (called periodically)
+async function cleanupExpiredKeys(supabase: any): Promise<void> {
+  try {
+    await supabase
+      .from('idempotency_keys')
+      .delete()
+      .lt('expires_at', new Date().toISOString());
+  } catch (err) {
+    // Ignore cleanup errors
   }
 }
 
@@ -154,7 +202,7 @@ function isRateLimitError(status: number, responseText: string): boolean {
   return false;
 }
 
-async function publishToGetlate(apiToken: string, payload: GetlatePostPayload, retries = 4): Promise<{ success: boolean; data?: any; error?: string; isRateLimit?: boolean }> {
+async function publishToGetlate(apiToken: string, payload: GetlatePostPayload, retries = 1): Promise<{ success: boolean; data?: any; error?: string; isRateLimit?: boolean }> {
   const apiUrl = 'https://getlate.dev/api/v1/posts';
   
   for (let attempt = 1; attempt <= retries; attempt++) {
@@ -267,16 +315,16 @@ Deno.serve(async (req) => {
     console.log(`[publish-to-getlate] Processing publication for format: ${format}`);
     console.log(`[publish-to-getlate] Idempotency key: ${idempotency_key || 'none'}`);
 
-    // Clean up old idempotency keys
-    cleanupOldKeys();
+    // Cleanup expired keys periodically (non-blocking)
+    cleanupExpiredKeys(supabase);
 
-    // Check for duplicate request using idempotency key
+    // Check for duplicate request using database-backed idempotency
     if (idempotency_key) {
-      const existingResult = processedKeys.get(idempotency_key);
-      if (existingResult) {
-        console.log(`[publish-to-getlate] ⚠️ Duplicate request detected! Returning cached result for key: ${idempotency_key}`);
+      const idempotencyCheck = await checkIdempotencyKey(supabase, idempotency_key);
+      if (idempotencyCheck.exists && idempotencyCheck.result) {
+        console.log(`[publish-to-getlate] ⚠️ DUPLICATE REQUEST BLOCKED! Returning cached result for key: ${idempotency_key}`);
         return new Response(
-          JSON.stringify(existingResult.result),
+          JSON.stringify(idempotencyCheck.result),
           { 
             headers: { ...corsHeaders, 'Content-Type': 'application/json' },
             status: 200 
@@ -453,13 +501,9 @@ Deno.serve(async (req) => {
       format,
     };
 
-    // Store result for idempotency
+    // Store result in database for idempotency
     if (idempotency_key) {
-      processedKeys.set(idempotency_key, {
-        timestamp: Date.now(),
-        result: successResponse,
-      });
-      console.log(`[publish-to-getlate] Cached result for idempotency key: ${idempotency_key}`);
+      await storeIdempotencyKey(supabase, idempotency_key, successResponse);
     }
 
     return new Response(
