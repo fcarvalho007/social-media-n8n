@@ -122,7 +122,7 @@ export default function ManualCreate() {
   const [mediaPreviewUrls, setMediaPreviewUrls] = useState<string[]>([]);
   const [scheduledDate, setScheduledDate] = useState<Date>();
   const [time, setTime] = useState('12:00');
-  const [scheduleAsap, setScheduleAsap] = useState(false);
+  const [scheduleAsap, setScheduleAsap] = useState(true);
   const [saving, setSaving] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [uploadProgress, setUploadProgress] = useState(0);
@@ -1185,10 +1185,16 @@ export default function ManualCreate() {
                 <Textarea
                   ref={textareaRef}
                   value={caption}
-                  onChange={(e) => setCaption(e.target.value.slice(0, maxLength))}
+                  onChange={(e) => {
+                    setCaption(e.target.value.slice(0, maxLength));
+                    // Auto-resize textarea
+                    const textarea = e.target;
+                    textarea.style.height = 'auto';
+                    textarea.style.height = `${Math.max(150, textarea.scrollHeight)}px`;
+                  }}
                   placeholder="Escreva a sua legenda..."
                   disabled={saving || submitting || publishing}
-                  className="min-h-[150px] resize-none"
+                  className="min-h-[150px] resize-none overflow-hidden"
                   aria-label="Legenda da publicação"
                 />
               </CardContent>
@@ -1343,9 +1349,9 @@ export default function ManualCreate() {
                     onClick={handlePublishWithValidation}
                     disabled={publishing || submitting || saving || isUploading}
                     className={cn(
-                      "flex-1 font-semibold",
-                      "bg-gradient-to-r from-primary to-primary/80",
-                      "hover:from-primary/90 hover:to-primary/70 hover:shadow-lg",
+                      "flex-1 font-semibold text-white",
+                      "bg-gradient-to-r from-green-600 to-green-500",
+                      "hover:from-green-500 hover:to-green-400 hover:shadow-lg",
                       "active:scale-[0.98] transition-all duration-200",
                       "disabled:opacity-50 disabled:cursor-not-allowed"
                     )}
