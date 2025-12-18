@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { CheckCircle2, PlusCircle, Calendar, X, FolderKanban, LayoutDashboard, FileText, LogOut, AlertTriangle, History } from 'lucide-react';
+import { CheckCircle2, PlusCircle, Calendar, X, FolderKanban, LayoutDashboard, LogOut } from 'lucide-react';
 import { NavLink, useNavigate } from 'react-router-dom';
 import {
   Sidebar,
@@ -68,30 +68,6 @@ const menuItems = [
     label: 'Projetos',
     icon: FolderKanban,
     url: '/projects',
-    disabled: false,
-    isMain: false,
-  },
-  {
-    title: 'Rascunhos',
-    label: 'Rascunhos',
-    icon: FileText,
-    url: '/drafts',
-    disabled: false,
-    isMain: false,
-  },
-  {
-    title: 'Falhas',
-    label: 'Falhas',
-    icon: AlertTriangle,
-    url: '/failed-publications',
-    disabled: false,
-    isMain: false,
-  },
-  {
-    title: 'Histórico',
-    label: 'Histórico',
-    icon: History,
-    url: '/publication-history',
     disabled: false,
     isMain: false,
   },
