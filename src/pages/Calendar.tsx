@@ -859,6 +859,8 @@ const Calendar = () => {
                       event: 'Evento',
                       noEventsInRange: 'Não há eventos neste período.',
                       showMore: (total) => `+ Ver mais (${total})`,
+                      work_week: 'Semana de trabalho',
+                      allDay: 'Todo o dia',
                     }}
                     eventPropGetter={eventStyleGetter}
                     components={{
@@ -924,7 +926,7 @@ const Calendar = () => {
                                   }}
                                 />
                                 <div 
-                                  className="w-full h-full bg-gradient-to-br from-gray-100 to-gray-200 dark:from-gray-800 dark:to-gray-900 flex-col items-center justify-center p-2 gap-1"
+                                  className="w-full h-full bg-gradient-to-br from-gray-100 to-gray-200 dark:from-gray-800 dark:to-gray-900 flex flex-col items-center justify-center p-2 gap-1"
                                   style={{ display: 'none' }}
                                 >
                                   <ImageIcon className="h-5 w-5 text-muted-foreground" />
@@ -998,7 +1000,7 @@ const Calendar = () => {
                                   }}
                                 />
                                 <div 
-                                  className="w-full h-full bg-gradient-to-br from-purple-100 to-purple-200 dark:from-purple-900 dark:to-purple-950 flex-col items-center justify-center p-2 gap-1"
+                                  className="w-full h-full bg-gradient-to-br from-purple-100 to-purple-200 dark:from-purple-900 dark:to-purple-950 flex flex-col items-center justify-center p-2 gap-1"
                                   style={{ display: 'none' }}
                                 >
                                   <Video className="h-4 w-4 text-muted-foreground" />
@@ -1097,11 +1099,57 @@ const Calendar = () => {
                 </div>
               </div>
 
-              {selectedEvent.resource.template_a_images?.[0] && (
-                <div className="relative rounded-xl overflow-hidden border-2 shadow-md hover:shadow-lg transition-shadow bg-muted/30">
+              {selectedEvent.resource.template_a_images && selectedEvent.resource.template_a_images.length > 0 && (
+                <div className="space-y-3">
+                  {selectedEvent.resource.template_a_images.length > 1 && (
+                    <div className="flex items-center justify-between text-sm text-muted-foreground">
+                      <span className="flex items-center gap-1.5">
+                        <LayoutGrid className="h-4 w-4" />
+                        Carousel com {selectedEvent.resource.template_a_images.length} imagens
+                      </span>
+                    </div>
+                  )}
+                  <div className={`${selectedEvent.resource.template_a_images.length > 1 ? 'grid grid-cols-2 gap-2' : ''}`}>
+                    {selectedEvent.resource.template_a_images.map((imgUrl, idx) => (
+                      <div 
+                        key={idx} 
+                        className="relative rounded-xl overflow-hidden border shadow-sm hover:shadow-md transition-shadow bg-muted/30"
+                      >
+                        <img
+                          src={imgUrl}
+                          alt={`Preview ${idx + 1}`}
+                          className="w-full h-auto max-h-[300px] object-contain mx-auto"
+                          onError={(e) => {
+                            const target = e.currentTarget;
+                            target.style.display = 'none';
+                            if (target.nextElementSibling) {
+                              (target.nextElementSibling as HTMLElement).style.display = 'flex';
+                            }
+                          }}
+                        />
+                        <div 
+                          className="w-full h-32 bg-gradient-to-br from-gray-100 to-gray-200 dark:from-gray-800 dark:to-gray-900 flex flex-col items-center justify-center gap-2"
+                          style={{ display: 'none' }}
+                        >
+                          <ImageIcon className="h-6 w-6 text-muted-foreground" />
+                          <span className="text-xs text-muted-foreground">Imagem não disponível</span>
+                        </div>
+                        {selectedEvent.resource.template_a_images!.length > 1 && (
+                          <div className="absolute top-2 left-2 bg-black/60 text-white text-xs px-2 py-0.5 rounded-full">
+                            {idx + 1}/{selectedEvent.resource.template_a_images!.length}
+                          </div>
+                        )}
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {selectedEvent.resource.story_image_url && (
+                <div className="relative rounded-xl overflow-hidden border-2 shadow-md hover:shadow-lg transition-shadow mx-auto bg-muted/30 max-w-[240px]">
                   <img
-                    src={selectedEvent.resource.template_a_images[0]}
-                    alt="Preview"
+                    src={selectedEvent.resource.story_image_url}
+                    alt="Story Preview"
                     className="w-full h-auto max-h-[400px] object-contain mx-auto"
                     onError={(e) => {
                       const target = e.currentTarget;
@@ -1112,31 +1160,7 @@ const Calendar = () => {
                     }}
                   />
                   <div 
-                    className="hidden w-full h-48 bg-gradient-to-br from-gray-100 to-gray-200 dark:from-gray-800 dark:to-gray-900 flex-col items-center justify-center gap-2"
-                    style={{ display: 'none' }}
-                  >
-                    <ImageIcon className="h-8 w-8 text-muted-foreground" />
-                    <span className="text-sm text-muted-foreground">Imagem não disponível</span>
-                  </div>
-                </div>
-              )}
-
-              {selectedEvent.resource.story_image_url && (
-                <div className="relative max-h-[400px] rounded-xl overflow-hidden border-2 shadow-md hover:shadow-lg transition-shadow mx-auto bg-muted/30">
-                  <img
-                    src={selectedEvent.resource.story_image_url}
-                    alt="Story Preview"
-                    className="w-auto h-auto max-h-[400px] max-w-full object-contain mx-auto"
-                    onError={(e) => {
-                      const target = e.currentTarget;
-                      target.style.display = 'none';
-                      if (target.nextElementSibling) {
-                        (target.nextElementSibling as HTMLElement).style.display = 'flex';
-                      }
-                    }}
-                  />
-                  <div 
-                    className="hidden w-48 h-80 bg-gradient-to-br from-purple-100 to-purple-200 dark:from-purple-900 dark:to-purple-950 flex-col items-center justify-center gap-2"
+                    className="w-full h-80 bg-gradient-to-br from-purple-100 to-purple-200 dark:from-purple-900 dark:to-purple-950 flex flex-col items-center justify-center gap-2"
                     style={{ display: 'none' }}
                   >
                     <Video className="h-8 w-8 text-muted-foreground" />
