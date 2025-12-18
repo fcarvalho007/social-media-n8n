@@ -211,7 +211,7 @@ async function publishToGetlate(apiToken: string, payload: GetlatePostPayload, r
       console.log(`[publish-to-getlate] Payload:`, JSON.stringify(payload, null, 2));
       
       const controller = new AbortController();
-      const timeout = setTimeout(() => controller.abort(), 60000); // 60s timeout
+      const timeout = setTimeout(() => controller.abort(), 180000); // 180s timeout for large video uploads
 
       const response = await fetch(apiUrl, {
         method: 'POST',
