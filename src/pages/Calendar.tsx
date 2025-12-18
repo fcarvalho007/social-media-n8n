@@ -690,25 +690,40 @@ const Calendar = () => {
                   </p>
                   {/* Sync Status Indicator */}
                   <div className="flex items-center gap-2">
+                    {/* Manual Refresh Button - Always visible */}
+                    <TooltipProvider>
+                      <Tooltip>
+                        <TooltipTrigger asChild>
+                          <button 
+                            onClick={() => fetchScheduledContent()}
+                            disabled={loading}
+                            className="flex items-center justify-center h-7 w-7 rounded-md border bg-background hover:bg-muted transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                          >
+                            <RefreshCw className={`h-3.5 w-3.5 text-muted-foreground ${loading ? 'animate-spin' : ''}`} />
+                          </button>
+                        </TooltipTrigger>
+                        <TooltipContent>
+                          <p>{loading ? 'A sincronizar...' : 'Atualizar calendário'}</p>
+                        </TooltipContent>
+                      </Tooltip>
+                    </TooltipProvider>
+                    
+                    {/* Status Indicator */}
                     {loading ? (
                       <span className="flex items-center gap-1.5 text-xs text-muted-foreground">
-                        <RefreshCw className="h-3 w-3 animate-spin" />
                         <span className="hidden sm:inline">A sincronizar...</span>
                       </span>
                     ) : fetchError ? (
                       <TooltipProvider>
                         <Tooltip>
                           <TooltipTrigger asChild>
-                            <button 
-                              onClick={() => fetchScheduledContent()}
-                              className="flex items-center gap-1.5 text-xs text-amber-600 dark:text-amber-400 hover:text-amber-700 dark:hover:text-amber-300 transition-colors"
-                            >
+                            <span className="flex items-center gap-1.5 text-xs text-amber-600 dark:text-amber-400">
                               <WifiOff className="h-3 w-3" />
-                              <span className="hidden sm:inline">Reconectar</span>
-                            </button>
+                              <span className="hidden sm:inline">Offline</span>
+                            </span>
                           </TooltipTrigger>
                           <TooltipContent>
-                            <p>A usar dados em cache. Clique para tentar novamente.</p>
+                            <p>A usar dados em cache. Clique no botão para atualizar.</p>
                           </TooltipContent>
                         </Tooltip>
                       </TooltipProvider>
