@@ -33,26 +33,18 @@ const FORMAT_PRESETS: FormatPreset[] = [
   {
     id: 'post-standard',
     name: 'Post Standard',
-    description: 'Todas as redes (imagem/vídeo)',
+    description: 'Todas as redes (imagem)',
     emoji: '📝',
-    formats: ['instagram_image', 'linkedin_post', 'facebook_image', 'googlebusiness_media'],
+    formats: ['instagram_image', 'linkedin_post', 'facebook_image', 'googlebusiness_post'],
     gradient: 'linear-gradient(135deg, #E1306C, #0A66C2, #1877F2, #4285F4)',
   },
   {
     id: 'stories-all',
     name: 'Stories Everywhere',
-    description: 'Instagram + Facebook Stories',
+    description: 'IG + FB Stories + Google Business',
     emoji: '⏱️',
-    formats: ['instagram_stories', 'facebook_stories'],
-    gradient: 'linear-gradient(135deg, #E1306C, #1877F2)',
-  },
-  {
-    id: 'local-business',
-    name: 'Negócio Local',
-    description: 'Google Business + Facebook',
-    emoji: '📍',
-    formats: ['googlebusiness_media', 'facebook_image'],
-    gradient: 'linear-gradient(135deg, #4285F4, #1877F2)',
+    formats: ['instagram_stories', 'facebook_stories', 'googlebusiness_post'],
+    gradient: 'linear-gradient(135deg, #E1306C, #1877F2, #4285F4)',
   },
 ];
 
