@@ -36,7 +36,7 @@ const FORMAT_TO_NETWORK: Record<string, string> = {
   facebook_reel: 'facebook',
   // Google Business
   googlebusiness_post: 'googlebusiness',
-  googlebusiness_photo: 'googlebusiness',
+  googlebusiness_media: 'googlebusiness',
 };
 
 interface PublishPayload {

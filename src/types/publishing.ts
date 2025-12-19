@@ -102,7 +102,7 @@ export const FORMAT_TO_ACCOUNT: Record<string, string> = {
   facebook_reel: FACEBOOK_CONFIG.accountId,
   // Google Business
   googlebusiness_post: GOOGLEBUSINESS_CONFIG.accountId,
-  googlebusiness_photo: GOOGLEBUSINESS_CONFIG.accountId,
+  googlebusiness_media: GOOGLEBUSINESS_CONFIG.accountId,
 };
 
 // Map format to network name
@@ -120,7 +120,7 @@ export const FORMAT_TO_NETWORK: Record<string, string> = {
   facebook_stories: 'facebook',
   facebook_reel: 'facebook',
   googlebusiness_post: 'googlebusiness',
-  googlebusiness_photo: 'googlebusiness',
+  googlebusiness_media: 'googlebusiness',
 };
 
 export const PLATFORM_CONSTRAINTS = {

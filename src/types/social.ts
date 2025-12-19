@@ -24,7 +24,7 @@ export type PostFormat =
   | 'facebook_reel'
   // Google Business
   | 'googlebusiness_post'
-  | 'googlebusiness_photo';
+  | 'googlebusiness_media';
 
 export interface PostFormatConfig {
   format: PostFormat;
@@ -161,19 +161,19 @@ export const NETWORK_POST_FORMATS: Record<SocialNetwork, PostFormatConfig[]> = {
     { 
       format: 'googlebusiness_post', 
       label: 'Post de Atualização', 
-      description: 'Texto com/sem imagem (até 1.500 chars)', 
+      description: 'Texto com/sem mídia (até 1.500 chars)', 
       icon: 'MapPin',
       minMedia: 0,
       maxMedia: 1,
     },
     { 
-      format: 'googlebusiness_photo', 
-      label: 'Foto do Negócio', 
-      description: 'Imagem JPG/PNG (720x720px)', 
-      icon: 'Image',
-      requiresImage: true,
+      format: 'googlebusiness_media', 
+      label: 'Foto ou Vídeo', 
+      description: 'Imagem ou vídeo até 30s', 
+      icon: 'Video',
       minMedia: 1,
       maxMedia: 1,
+      maxDuration: 30,
     },
   ],
 };

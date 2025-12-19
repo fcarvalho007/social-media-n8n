@@ -76,7 +76,7 @@ export const NETWORK_CONSTRAINTS: Record<SocialNetwork, NetworkConstraints> = {
     max_images: 1,
     min_images: 0,
     max_video_duration: 30,
-    supported_aspect_ratios: ['1:1'],
+    supported_aspect_ratios: ['1:1', '4:3', '16:9'],
     supports_links_in_caption: true,
     supports_first_comment: false,
     supports_carousel: false,
