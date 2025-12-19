@@ -33,9 +33,9 @@ const FORMAT_PRESETS: FormatPreset[] = [
   {
     id: 'post-standard',
     name: 'Post Standard',
-    description: 'Todas as redes (imagem)',
+    description: 'Todas as redes (imagem/vídeo)',
     emoji: '📝',
-    formats: ['instagram_image', 'linkedin_post', 'facebook_image', 'googlebusiness_photo'],
+    formats: ['instagram_image', 'linkedin_post', 'facebook_image', 'googlebusiness_media'],
     gradient: 'linear-gradient(135deg, #E1306C, #0A66C2, #1877F2, #4285F4)',
   },
   {
@@ -51,7 +51,7 @@ const FORMAT_PRESETS: FormatPreset[] = [
     name: 'Negócio Local',
     description: 'Google Business + Facebook',
     emoji: '📍',
-    formats: ['googlebusiness_photo', 'facebook_image'],
+    formats: ['googlebusiness_media', 'facebook_image'],
     gradient: 'linear-gradient(135deg, #4285F4, #1877F2)',
   },
 ];

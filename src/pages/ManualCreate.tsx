@@ -16,8 +16,9 @@ import { Switch } from '@/components/ui/switch';
 import { Badge } from '@/components/ui/badge';
 import { Separator } from '@/components/ui/separator';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
 import { toast } from 'sonner';
-import { Save, Send, Calendar as CalendarIcon, ArrowLeft, Instagram, Linkedin, Upload, Clock, FileText, Loader2, Rocket, Smile, Bookmark, Sparkles, Youtube, Facebook, ChevronLeft, ChevronRight, Info, CloudUpload, Image, Video, Plus, CheckCircle, Hash, AtSign, AlertTriangle } from 'lucide-react';
+import { Save, Send, Calendar as CalendarIcon, ArrowLeft, Instagram, Linkedin, Upload, Clock, FileText, Loader2, Rocket, Smile, Bookmark, Sparkles, Youtube, Facebook, ChevronLeft, ChevronRight, Info, CloudUpload, Image, Video, Plus, CheckCircle, Hash, AtSign, AlertTriangle, Eye, ChevronDown, MapPin } from 'lucide-react';
 import { format } from 'date-fns';
 import { pt } from 'date-fns/locale';
 import { cn } from '@/lib/utils';
@@ -37,6 +38,7 @@ import YouTubeShortsPreview from '@/components/manual-post/YouTubeShortsPreview'
 import YouTubeVideoPreview from '@/components/manual-post/YouTubeVideoPreview';
 import TikTokPreview from '@/components/manual-post/TikTokPreview';
 import FacebookPreview from '@/components/manual-post/FacebookPreview';
+import GoogleBusinessPreview from '@/components/manual-post/GoogleBusinessPreview';
 import DraftsDialog from '@/components/manual-post/DraftsDialog';
 import SavedCaptionsDialog from '@/components/manual-post/SavedCaptionsDialog';
 import AICaptionDialog from '@/components/manual-post/AICaptionDialog';
@@ -830,6 +832,14 @@ export default function ManualCreate() {
       />;
     }
     
+    if (network === 'googlebusiness') {
+      return <GoogleBusinessPreview 
+        mediaUrls={mediaPreviewUrls} 
+        caption={caption} 
+        format={format as 'googlebusiness_post' | 'googlebusiness_media'} 
+      />;
+    }
+    
     // Default preview for any other formats
     return (
       <div className="p-4 border rounded-lg bg-muted/30">
@@ -849,9 +859,13 @@ export default function ManualCreate() {
       case 'linkedin': return Linkedin;
       case 'youtube': return Youtube;
       case 'facebook': return Facebook;
+      case 'googlebusiness': return MapPin;
       default: return FileText;
     }
   };
+
+  // State for mobile preview collapsed
+  const [mobilePreviewOpen, setMobilePreviewOpen] = useState(false);
 
   return (
     <div className="max-w-7xl mx-auto space-y-4 bg-gradient-to-br from-background to-background-secondary">
@@ -897,9 +911,40 @@ export default function ManualCreate() {
         />
       </Card>
 
-      <div className="grid lg:grid-cols-2 gap-6 lg:gap-8">
+      {/* Mobile Preview - Collapsible at top */}
+      <div className="lg:hidden">
+        <Collapsible open={mobilePreviewOpen} onOpenChange={setMobilePreviewOpen}>
+          <CollapsibleTrigger asChild>
+            <Button variant="outline" className="w-full gap-2 justify-between">
+              <span className="flex items-center gap-2">
+                <Eye className="h-4 w-4" />
+                Pré-visualização
+              </span>
+              <ChevronDown className={cn(
+                "h-4 w-4 transition-transform",
+                mobilePreviewOpen && "rotate-180"
+              )} />
+            </Button>
+          </CollapsibleTrigger>
+          <CollapsibleContent className="mt-3">
+            <Card className="p-4">
+              {selectedFormats.length === 0 ? (
+                <div className="flex items-center justify-center h-32 text-muted-foreground text-sm">
+                  Selecione um formato
+                </div>
+              ) : (
+                <div className="max-h-[50vh] overflow-auto">
+                  {renderPreview(activePreviewTab as PostFormat || selectedFormats[0])}
+                </div>
+              )}
+            </Card>
+          </CollapsibleContent>
+        </Collapsible>
+      </div>
+
+      <div className="grid lg:grid-cols-2 gap-4 lg:gap-8 pb-24 lg:pb-0">
         {/* Left - Form */}
-        <div className="space-y-6">
+        <div className="space-y-4 lg:space-y-6">
           {/* Step 1: Network & Format Selection */}
           <div className="relative">
             <NetworkFormatSelector
@@ -1027,7 +1072,7 @@ export default function ManualCreate() {
                         items={mediaPreviewUrls.map((_, i) => `media-${i}`)}
                         strategy={horizontalListSortingStrategy}
                       >
-                        <div className="grid grid-cols-3 gap-3">
+                        <div className="grid grid-cols-2 sm:grid-cols-3 gap-2 sm:gap-3">
                           {mediaPreviewUrls.map((url, idx) => {
                             const isVideo = mediaFiles[idx]?.type?.startsWith('video/');
                             return (
@@ -1498,6 +1543,44 @@ export default function ManualCreate() {
               )}
             </CardContent>
           </Card>
+        </div>
+      </div>
+
+      {/* Mobile Sticky Bottom Bar */}
+      <div className="fixed bottom-0 left-0 right-0 p-3 bg-background/95 backdrop-blur-sm border-t shadow-lg lg:hidden z-50">
+        <div className="flex gap-2 max-w-lg mx-auto">
+          <Button
+            type="button"
+            size="lg"
+            onClick={handlePublishWithValidation}
+            disabled={publishing || submitting || saving || isUploading || selectedFormats.length === 0}
+            className={cn(
+              "flex-1 font-semibold text-white",
+              "bg-gradient-to-r from-green-600 to-green-500",
+              "hover:from-green-500 hover:to-green-400",
+              "active:scale-[0.98] transition-all duration-200",
+              "disabled:opacity-50"
+            )}
+          >
+            {publishing ? (
+              <Loader2 className="h-4 w-4 animate-spin" />
+            ) : (
+              <>
+                <Rocket className="h-4 w-4 mr-1.5" />
+                Publicar
+              </>
+            )}
+          </Button>
+          <Button
+            type="button"
+            variant="outline"
+            size="lg"
+            onClick={handleSaveDraft}
+            disabled={saving || submitting || publishing}
+            className="px-4"
+          >
+            <Save className="h-4 w-4" />
+          </Button>
         </div>
       </div>
 
