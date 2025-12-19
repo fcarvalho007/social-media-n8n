@@ -1,4 +1,4 @@
-export type SocialNetwork = 'instagram' | 'linkedin' | 'facebook' | 'x' | 'tiktok' | 'youtube';
+export type SocialNetwork = 'instagram' | 'linkedin' | 'facebook' | 'x' | 'tiktok' | 'youtube' | 'googlebusiness';
 export type PostType = 'image' | 'video' | 'carousel' | 'text';
 export type PostStatus = 'draft' | 'waiting_for_approval' | 'pending' | 'approved' | 'scheduled' | 'published' | 'rejected' | 'failed';
 export type ConnectionStatus = 'connected' | 'expired' | 'missing_permission';
@@ -21,7 +21,10 @@ export type PostFormat =
   // Facebook
   | 'facebook_image'
   | 'facebook_stories'
-  | 'facebook_reel';
+  | 'facebook_reel'
+  // Google Business
+  | 'googlebusiness_post'
+  | 'googlebusiness_photo';
 
 export interface PostFormatConfig {
   format: PostFormat;
@@ -154,6 +157,25 @@ export const NETWORK_POST_FORMATS: Record<SocialNetwork, PostFormatConfig[]> = {
     },
   ],
   x: [],
+  googlebusiness: [
+    { 
+      format: 'googlebusiness_post', 
+      label: 'Post de Atualização', 
+      description: 'Texto com/sem imagem (até 1.500 chars)', 
+      icon: 'MapPin',
+      minMedia: 0,
+      maxMedia: 1,
+    },
+    { 
+      format: 'googlebusiness_photo', 
+      label: 'Foto do Negócio', 
+      description: 'Imagem JPG/PNG (720x720px)', 
+      icon: 'Image',
+      requiresImage: true,
+      minMedia: 1,
+      maxMedia: 1,
+    },
+  ],
 };
 
 // Helper to get network from format
@@ -163,6 +185,7 @@ export function getNetworkFromFormat(format: PostFormat): SocialNetwork {
   if (format.startsWith('youtube_')) return 'youtube';
   if (format.startsWith('tiktok_')) return 'tiktok';
   if (format.startsWith('facebook_')) return 'facebook';
+  if (format.startsWith('googlebusiness_')) return 'googlebusiness';
   return 'instagram';
 }
 

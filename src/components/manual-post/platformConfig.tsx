@@ -1,4 +1,4 @@
-import { Instagram, Linkedin, Youtube, Facebook, Music } from 'lucide-react';
+import { Instagram, Linkedin, Youtube, Facebook, Music, MapPin } from 'lucide-react';
 import { SocialNetwork } from '@/types/social';
 import { cn } from '@/lib/utils';
 
@@ -52,6 +52,13 @@ export const PLATFORM_CONFIGS: Record<SocialNetwork, PlatformConfig> = {
     colorHex: '#000000',
     colorClass: 'text-foreground',
     enabled: false,
+  },
+  googlebusiness: {
+    name: 'Google Business',
+    icon: MapPin,
+    colorHex: '#4285F4',
+    colorClass: 'text-[#4285F4]',
+    enabled: true,
   },
 };
 

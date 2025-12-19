@@ -12,6 +12,7 @@ const GETLATE_ACCOUNTS: Record<string, string> = {
   youtube: '69344efdf43160a0bc99a480',   // fredericocarvalho
   facebook: '69344f55f43160a0bc99a481',  // fredericodigital
   tiktok: '69344fdef43160a0bc99a484',    // frederico.m.carvalho
+  googlebusiness: '694565844207e06f4ca82044', // Frederico Carvalho
 };
 
 // Map format to base network
@@ -33,6 +34,9 @@ const FORMAT_TO_NETWORK: Record<string, string> = {
   facebook_image: 'facebook',
   facebook_stories: 'facebook',
   facebook_reel: 'facebook',
+  // Google Business
+  googlebusiness_post: 'googlebusiness',
+  googlebusiness_photo: 'googlebusiness',
 };
 
 interface PublishPayload {

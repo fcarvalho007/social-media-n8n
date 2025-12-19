@@ -77,6 +77,10 @@ export const TIKTOK_CONFIG = {
   accountId: '69344fdef43160a0bc99a484',
 };
 
+export const GOOGLEBUSINESS_CONFIG = {
+  accountId: '694565844207e06f4ca82044',
+};
+
 // Map format to account configuration
 export const FORMAT_TO_ACCOUNT: Record<string, string> = {
   // Instagram
@@ -96,6 +100,9 @@ export const FORMAT_TO_ACCOUNT: Record<string, string> = {
   facebook_image: FACEBOOK_CONFIG.accountId,
   facebook_stories: FACEBOOK_CONFIG.accountId,
   facebook_reel: FACEBOOK_CONFIG.accountId,
+  // Google Business
+  googlebusiness_post: GOOGLEBUSINESS_CONFIG.accountId,
+  googlebusiness_photo: GOOGLEBUSINESS_CONFIG.accountId,
 };
 
 // Map format to network name
@@ -112,6 +119,8 @@ export const FORMAT_TO_NETWORK: Record<string, string> = {
   facebook_image: 'facebook',
   facebook_stories: 'facebook',
   facebook_reel: 'facebook',
+  googlebusiness_post: 'googlebusiness',
+  googlebusiness_photo: 'googlebusiness',
 };
 
 export const PLATFORM_CONSTRAINTS = {

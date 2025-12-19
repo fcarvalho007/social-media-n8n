@@ -1,5 +1,5 @@
 import { SocialNetwork, NetworkConstraints } from '@/types/social';
-import { Instagram, Linkedin, Facebook, Twitter, Music, Youtube } from 'lucide-react';
+import { Instagram, Linkedin, Facebook, Twitter, Music, Youtube, MapPin } from 'lucide-react';
 
 export const NETWORK_CONSTRAINTS: Record<SocialNetwork, NetworkConstraints> = {
   instagram: {
@@ -71,6 +71,17 @@ export const NETWORK_CONSTRAINTS: Record<SocialNetwork, NetworkConstraints> = {
     supports_carousel: false,
     supports_video: true,
   },
+  googlebusiness: {
+    max_caption_length: 1500,
+    max_images: 1,
+    min_images: 0,
+    max_video_duration: 30,
+    supported_aspect_ratios: ['1:1'],
+    supports_links_in_caption: true,
+    supports_first_comment: false,
+    supports_carousel: false,
+    supports_video: true,
+  },
 };
 
 export const NETWORK_INFO: Record<SocialNetwork, { 
@@ -114,6 +125,12 @@ export const NETWORK_INFO: Record<SocialNetwork, {
     icon: Youtube,
     color: 'hsl(0 100% 50%)',
     bgColor: 'hsl(0 100% 97%)',
+  },
+  googlebusiness: {
+    name: 'Google Business',
+    icon: MapPin,
+    color: 'hsl(217 89% 61%)',
+    bgColor: 'hsl(217 89% 97%)',
   },
 };
 
