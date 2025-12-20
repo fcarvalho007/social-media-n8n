@@ -2,6 +2,7 @@ import { useState, useRef, useMemo, useCallback, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { supabase } from '@/integrations/supabase/client';
 import { PostFormat, getNetworkFromFormat, getFormatConfig } from '@/types/social';
+import { MediaSource } from '@/types/media';
 import { usePublishingQuota } from '@/hooks/usePublishingQuota';
 import { CompactModeBadge } from '@/components/CompactModeBadge';
 import { DevHelper } from '@/components/DevHelper';
@@ -123,6 +124,7 @@ export default function ManualCreate() {
   const [caption, setCaption] = useState('');
   const [mediaFiles, setMediaFiles] = useState<File[]>([]);
   const [mediaPreviewUrls, setMediaPreviewUrls] = useState<string[]>([]);
+  const [mediaSources, setMediaSources] = useState<MediaSource[]>([]);
   const [scheduledDate, setScheduledDate] = useState<Date>();
   const [time, setTime] = useState('12:00');
   const [scheduleAsap, setScheduleAsap] = useState(true);
@@ -137,6 +139,7 @@ export default function ManualCreate() {
   const [emojiPickerOpen, setEmojiPickerOpen] = useState(false);
   const [activePreviewTab, setActivePreviewTab] = useState<string>('');
   const [mediaValidations, setMediaValidations] = useState<MediaValidationResult[]>([]);
+  const mediaSectionRef = useRef<HTMLDivElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
 
   // Publishing hook with 2-phase progress
@@ -198,6 +201,7 @@ export default function ManualCreate() {
       if (oldIndex !== -1 && newIndex !== -1) {
         setMediaPreviewUrls(prev => arrayMove(prev, oldIndex, newIndex));
         setMediaFiles(prev => arrayMove(prev, oldIndex, newIndex));
+        setMediaSources(prev => arrayMove(prev, oldIndex, newIndex));
         toast.success(`Item movido para posição ${newIndex + 1}`);
       }
     }
@@ -209,8 +213,16 @@ export default function ManualCreate() {
     
     setMediaPreviewUrls(prev => arrayMove(prev, fromIndex, toIndex));
     setMediaFiles(prev => arrayMove(prev, fromIndex, toIndex));
+    setMediaSources(prev => arrayMove(prev, fromIndex, toIndex));
     toast.success(`Item movido para posição ${toIndex + 1}`);
   }, [mediaPreviewUrls.length]);
+
+  // Cleanup objectURLs on unmount
+  useEffect(() => {
+    return () => {
+      mediaPreviewUrls.forEach(url => URL.revokeObjectURL(url));
+    };
+  }, []);
 
   // Compute media requirements based on selected formats
   const mediaRequirements = useMemo(() => getMediaRequirements(selectedFormats), [selectedFormats]);
@@ -442,6 +454,7 @@ export default function ManualCreate() {
     
     setMediaFiles(combinedFiles);
     setMediaPreviewUrls(combinedUrls);
+    setMediaSources(prev => [...prev, ...Array(newFiles.length).fill('upload' as MediaSource)]);
     
     // Validate ALL media for selected formats
     if (selectedFormats.length > 0) {
@@ -468,6 +481,7 @@ export default function ManualCreate() {
       URL.revokeObjectURL(prev[index]);
       return prev.filter((_, i) => i !== index);
     });
+    setMediaSources(prev => prev.filter((_, i) => i !== index));
   };
 
   const handleSaveDraft = async () => {
@@ -992,19 +1006,30 @@ export default function ManualCreate() {
               </CardHeader>
               <CardContent className="space-y-4">
                 {/* Grid Splitter - Import multiple images from a grid */}
-                <GridSplitter
-                  onAddToCarousel={(files: File[]) => {
-                    const newUrls = files.map(f => URL.createObjectURL(f));
-                    const remainingSlots = mediaRequirements.maxMedia - mediaPreviewUrls.length;
-                    const filesToAdd = files.slice(0, remainingSlots);
-                    const urlsToAdd = newUrls.slice(0, remainingSlots);
-                    
-                    setMediaFiles(prev => [...prev, ...filesToAdd]);
-                    setMediaPreviewUrls(prev => [...prev, ...urlsToAdd]);
-                  }}
-                  maxImages={mediaRequirements.maxMedia - mediaPreviewUrls.length}
-                  disabled={saving || submitting || isUploading}
-                />
+                <div ref={mediaSectionRef}>
+                  <GridSplitter
+                    onAddToCarousel={(files: File[], source: MediaSource) => {
+                      const newUrls = files.map(f => URL.createObjectURL(f));
+                      const remainingSlots = mediaRequirements.maxMedia - mediaPreviewUrls.length;
+                      const filesToAdd = files.slice(0, remainingSlots);
+                      const urlsToAdd = newUrls.slice(0, remainingSlots);
+                      
+                      setMediaFiles(prev => [...prev, ...filesToAdd]);
+                      setMediaPreviewUrls(prev => [...prev, ...urlsToAdd]);
+                      setMediaSources(prev => [...prev, ...Array(filesToAdd.length).fill(source)]);
+                      
+                      toast.success(`${filesToAdd.length} imagem(s) adicionada(s) ao carrossel`);
+                      
+                      // Smooth scroll to media section
+                      setTimeout(() => {
+                        mediaSectionRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+                      }, 100);
+                    }}
+                    maxImages={mediaRequirements.maxMedia - mediaPreviewUrls.length}
+                    disabled={saving || submitting || isUploading}
+                    selectedFormats={selectedFormats}
+                  />
+                </div>
 
                 <Separator className="my-2" />
 
@@ -1102,6 +1127,7 @@ export default function ManualCreate() {
                                 total={mediaPreviewUrls.length}
                                 isVideo={isVideo}
                                 disabled={saving || submitting || publishing}
+                                source={mediaSources[idx]}
                                 onRemove={() => removeMedia(idx)}
                                 onMoveUp={() => moveMedia(idx, idx - 1)}
                                 onMoveDown={() => moveMedia(idx, idx + 1)}

@@ -1,9 +1,10 @@
 import { useSortable } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
-import { ChevronUp, ChevronDown, X, GripVertical, Image, Video } from 'lucide-react';
+import { ChevronUp, ChevronDown, X, GripVertical, Image, Video, Sparkles, Grid3x3 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
+import { MediaSource } from '@/types/media';
 
 interface EnhancedSortableMediaItemProps {
   id: string;
@@ -12,6 +13,7 @@ interface EnhancedSortableMediaItemProps {
   total: number;
   isVideo?: boolean;
   disabled?: boolean;
+  source?: MediaSource;
   onRemove: () => void;
   onMoveUp: () => void;
   onMoveDown: () => void;
@@ -24,6 +26,7 @@ export function EnhancedSortableMediaItem({
   total,
   isVideo = false,
   disabled,
+  source,
   onRemove,
   onMoveUp,
   onMoveDown,
@@ -174,8 +177,8 @@ export function EnhancedSortableMediaItem({
         <X className="h-3.5 w-3.5" />
       </Button>
 
-      {/* Type indicator - bottom left */}
-      <div className="absolute bottom-2 left-2">
+      {/* Type and Source indicator - bottom left */}
+      <div className="absolute bottom-2 left-2 flex gap-1">
         <Badge 
           variant="secondary" 
           className="text-[10px] px-1.5 py-0.5 bg-background/80 backdrop-blur-sm"
@@ -186,6 +189,23 @@ export function EnhancedSortableMediaItem({
             <><Image className="h-2.5 w-2.5 mr-1" />Imagem</>
           )}
         </Badge>
+        {source && source !== 'upload' && (
+          <Badge 
+            variant={source === 'ai' ? 'default' : 'secondary'}
+            className={cn(
+              "text-[10px] px-1.5 py-0.5 backdrop-blur-sm",
+              source === 'ai' 
+                ? "bg-violet-500/90 text-white hover:bg-violet-500" 
+                : "bg-blue-500/90 text-white hover:bg-blue-500"
+            )}
+          >
+            {source === 'ai' ? (
+              <><Sparkles className="h-2.5 w-2.5 mr-0.5" />IA</>
+            ) : (
+              <><Grid3x3 className="h-2.5 w-2.5 mr-0.5" />Grid</>
+            )}
+          </Badge>
+        )}
       </div>
 
       {/* Drag indicator overlay */}

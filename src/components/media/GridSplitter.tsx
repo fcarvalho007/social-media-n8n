@@ -16,9 +16,10 @@ import { useGridDetection } from '@/hooks/useGridDetection';
 import { DetectedImage, GridConfig, GridDetectionProgress } from '@/types/grid-splitter';
 import { PostFormat } from '@/types/social';
 import { VIDEO_ONLY_FORMATS } from '@/lib/ai-generator/constants';
+import { MediaSource } from '@/types/media';
 
 interface GridSplitterProps {
-  onAddToCarousel: (files: File[]) => void;
+  onAddToCarousel: (files: File[], source: MediaSource) => void;
   maxImages: number;
   disabled?: boolean;
   selectedFormats?: PostFormat[];
@@ -120,7 +121,7 @@ export function GridSplitter({ onAddToCarousel, maxImages, disabled = false, sel
       return new File([img.blob], `grid-image-${idx + 1}.jpg`, { type: 'image/jpeg' });
     });
 
-    onAddToCarousel(files);
+    onAddToCarousel(files, 'grid');
     
     // Reset state
     if (uploadedImageUrl) {
@@ -350,8 +351,8 @@ export function GridSplitter({ onAddToCarousel, maxImages, disabled = false, sel
             {/* AI Generator Tab */}
             <TabsContent value="ai" className="p-4 mt-0">
               <AIGenerator
-                onAddToCarousel={(files) => {
-                  onAddToCarousel(files);
+                onAddToCarousel={(files, source) => {
+                  onAddToCarousel(files, source);
                   setIsOpen(false);
                 }}
                 maxImages={maxImages}

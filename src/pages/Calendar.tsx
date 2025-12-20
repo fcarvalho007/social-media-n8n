@@ -1316,6 +1316,25 @@ const Calendar = () => {
                 </div>
               )}
 
+              {/* Social Links for Published Posts */}
+              {selectedEvent.resource.status === 'published' && selectedEvent.resource.content_type !== 'stories' && (
+                <div className="flex flex-wrap gap-2 p-3 bg-green-50 dark:bg-green-950/30 rounded-lg border border-green-200 dark:border-green-800">
+                  <p className="w-full text-xs text-green-700 dark:text-green-300 font-medium mb-1">Publicado em:</p>
+                  {selectedEvent.resource.selected_networks?.includes('instagram') && (
+                    <Badge variant="outline" className="gap-1.5 bg-gradient-to-r from-pink-500/10 to-purple-500/10 border-pink-300 dark:border-pink-700">
+                      <Instagram className="h-3 w-3 text-pink-600" />
+                      Instagram
+                    </Badge>
+                  )}
+                  {selectedEvent.resource.selected_networks?.includes('linkedin') && (
+                    <Badge variant="outline" className="gap-1.5 bg-blue-500/10 border-blue-300 dark:border-blue-700">
+                      <Linkedin className="h-3 w-3 text-blue-600" />
+                      LinkedIn
+                    </Badge>
+                  )}
+                </div>
+              )}
+
               <div className="flex gap-3">
                 <Button
                   variant="destructive"

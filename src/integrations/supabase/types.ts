@@ -173,6 +173,7 @@ export type Database = {
           caption: string
           caption_edited: string | null
           content_type: string | null
+          cover_image_url: string | null
           created_at: string | null
           error_log: string | null
           external_post_ids: Json | null
@@ -220,6 +221,7 @@ export type Database = {
           caption: string
           caption_edited?: string | null
           content_type?: string | null
+          cover_image_url?: string | null
           created_at?: string | null
           error_log?: string | null
           external_post_ids?: Json | null
@@ -267,6 +269,7 @@ export type Database = {
           caption?: string
           caption_edited?: string | null
           content_type?: string | null
+          cover_image_url?: string | null
           created_at?: string | null
           error_log?: string | null
           external_post_ids?: Json | null
