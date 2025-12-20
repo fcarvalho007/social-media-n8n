@@ -5,11 +5,13 @@ import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
 import { Separator } from '@/components/ui/separator';
 import { Progress } from '@/components/ui/progress';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { toast } from 'sonner';
-import { Grid3x3, Upload, Sparkles, Loader2, AlertTriangle, ChevronDown, Plus } from 'lucide-react';
+import { Grid3x3, Upload, Sparkles, Loader2, AlertTriangle, ChevronDown, Plus, Wand2 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { GridControls } from './GridControls';
 import { GridPreview } from './GridPreview';
+import { AIGenerator } from './AIGenerator';
 import { useGridDetection } from '@/hooks/useGridDetection';
 import { DetectedImage, GridConfig, GridDetectionProgress } from '@/types/grid-splitter';
 
@@ -21,6 +23,7 @@ interface GridSplitterProps {
 
 export function GridSplitter({ onAddToCarousel, maxImages, disabled = false }: GridSplitterProps) {
   const [isOpen, setIsOpen] = useState(false);
+  const [activeTab, setActiveTab] = useState<'grid' | 'ai'>('grid');
   const [uploadedImage, setUploadedImage] = useState<File | null>(null);
   const [uploadedImageUrl, setUploadedImageUrl] = useState<string | null>(null);
   const [detectedImages, setDetectedImages] = useState<DetectedImage[]>([]);
@@ -154,9 +157,9 @@ export function GridSplitter({ onAddToCarousel, maxImages, disabled = false }: G
               <Grid3x3 className="h-5 w-5 text-primary" />
             </div>
             <div className="text-left">
-              <p className="font-medium">Importar Grelha de Imagens</p>
+              <p className="font-medium">Importar Imagens</p>
               <p className="text-xs text-muted-foreground">
-                Carrega uma imagem com múltiplas imagens em grelha
+                Carregar grelha ou gerar com IA
               </p>
             </div>
           </div>
@@ -168,152 +171,180 @@ export function GridSplitter({ onAddToCarousel, maxImages, disabled = false }: G
       </CollapsibleTrigger>
 
       <CollapsibleContent className="mt-3">
-        <div className="space-y-4 p-4 border rounded-xl bg-card">
-          {/* Upload Area */}
-          {!uploadedImage ? (
-            <label
-              htmlFor="grid-upload"
-              className={cn(
-                "flex flex-col items-center justify-center gap-3 p-8",
-                "border-2 border-dashed rounded-xl cursor-pointer",
-                "hover:border-primary/50 hover:bg-primary/5 transition-all",
-                disabled && "opacity-50 cursor-not-allowed"
-              )}
-            >
-              <div className="p-3 rounded-full bg-primary/10">
-                <Upload className="h-6 w-6 text-primary" />
-              </div>
-              <div className="text-center">
-                <p className="font-medium">Carregar Grelha</p>
-                <p className="text-sm text-muted-foreground">PNG, JPG ou WebP até 50MB</p>
-              </div>
-              <Input
-                ref={fileInputRef}
-                id="grid-upload"
-                type="file"
-                accept=".png,.jpg,.jpeg,.webp"
-                onChange={handleFileSelect}
-                disabled={disabled}
-                className="hidden"
-              />
-            </label>
-          ) : (
-            <>
-              {/* Image Preview with Grid Overlay */}
-              <div className="space-y-3">
-                <div className="flex items-center justify-between">
-                  <p className="text-sm font-medium">Imagem carregada</p>
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    onClick={handleClearImage}
-                    disabled={isProcessing}
-                    className="h-7 text-xs text-destructive hover:text-destructive"
-                  >
-                    Remover
-                  </Button>
-                </div>
-                
-                <GridPreview
-                  uploadedImageUrl={uploadedImageUrl}
-                  manualConfig={manualConfig}
-                  detectedImages={detectedImages}
-                  onImagesChange={setDetectedImages}
-                  disabled={disabled || isProcessing}
-                />
-              </div>
+        <div className="border rounded-xl bg-card overflow-hidden">
+          <Tabs value={activeTab} onValueChange={(v) => setActiveTab(v as 'grid' | 'ai')}>
+            <TabsList className="w-full rounded-none border-b bg-muted/30">
+              <TabsTrigger value="grid" className="flex-1 gap-2">
+                <Upload className="h-4 w-4" />
+                Carregar Grelha
+              </TabsTrigger>
+              <TabsTrigger value="ai" className="flex-1 gap-2">
+                <Wand2 className="h-4 w-4" />
+                Gerar com IA
+              </TabsTrigger>
+            </TabsList>
 
-              {/* Controls */}
-              {detectedImages.length === 0 && (
-                <>
-                  <Separator />
-                  
-                  <GridControls
-                    detectionMode={detectionMode}
-                    onDetectionModeChange={setDetectionMode}
-                    manualConfig={manualConfig}
-                    onManualConfigChange={setManualConfig}
-                    sensitivity={sensitivity}
-                    onSensitivityChange={setSensitivity}
-                    removeBorders={removeBorders}
-                    onRemoveBordersChange={setRemoveBorders}
-                    disabled={disabled || isProcessing}
+            {/* Grid Upload Tab */}
+            <TabsContent value="grid" className="p-4 space-y-4 mt-0">
+              {/* Upload Area */}
+              {!uploadedImage ? (
+                <label
+                  htmlFor="grid-upload"
+                  className={cn(
+                    "flex flex-col items-center justify-center gap-3 p-8",
+                    "border-2 border-dashed rounded-xl cursor-pointer",
+                    "hover:border-primary/50 hover:bg-primary/5 transition-all",
+                    disabled && "opacity-50 cursor-not-allowed"
+                  )}
+                >
+                  <div className="p-3 rounded-full bg-primary/10">
+                    <Upload className="h-6 w-6 text-primary" />
+                  </div>
+                  <div className="text-center">
+                    <p className="font-medium">Carregar Grelha</p>
+                    <p className="text-sm text-muted-foreground">PNG, JPG ou WebP até 50MB</p>
+                  </div>
+                  <Input
+                    ref={fileInputRef}
+                    id="grid-upload"
+                    type="file"
+                    accept=".png,.jpg,.jpeg,.webp"
+                    onChange={handleFileSelect}
+                    disabled={disabled}
+                    className="hidden"
                   />
-
-                  {/* Process Button */}
-                  <Button
-                    onClick={handleProcessGrid}
-                    disabled={disabled || isProcessing || !uploadedImage}
-                    className="w-full"
-                  >
-                    {isProcessing ? (
-                      <>
-                        <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                        A processar...
-                      </>
-                    ) : (
-                      <>
-                        <Sparkles className="h-4 w-4 mr-2" />
-                        {detectionMode === 'auto' ? 'Detetar Grelha' : 'Processar Grelha'}
-                      </>
-                    )}
-                  </Button>
-
-                  {/* Progress Bar */}
-                  {isProcessing && progress && (
-                    <div className="space-y-2">
-                      <Progress value={progress.percent} className="h-2" />
-                      <p className="text-xs text-muted-foreground text-center">
-                        {progress.message}
-                      </p>
+                </label>
+              ) : (
+                <>
+                  {/* Image Preview with Grid Overlay */}
+                  <div className="space-y-3">
+                    <div className="flex items-center justify-between">
+                      <p className="text-sm font-medium">Imagem carregada</p>
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={handleClearImage}
+                        disabled={isProcessing}
+                        className="h-7 text-xs text-destructive hover:text-destructive"
+                      >
+                        Remover
+                      </Button>
                     </div>
+                    
+                    <GridPreview
+                      uploadedImageUrl={uploadedImageUrl}
+                      manualConfig={manualConfig}
+                      detectedImages={detectedImages}
+                      onImagesChange={setDetectedImages}
+                      disabled={disabled || isProcessing}
+                    />
+                  </div>
+
+                  {/* Controls */}
+                  {detectedImages.length === 0 && (
+                    <>
+                      <Separator />
+                      
+                      <GridControls
+                        detectionMode={detectionMode}
+                        onDetectionModeChange={setDetectionMode}
+                        manualConfig={manualConfig}
+                        onManualConfigChange={setManualConfig}
+                        sensitivity={sensitivity}
+                        onSensitivityChange={setSensitivity}
+                        removeBorders={removeBorders}
+                        onRemoveBordersChange={setRemoveBorders}
+                        disabled={disabled || isProcessing}
+                      />
+
+                      {/* Process Button */}
+                      <Button
+                        onClick={handleProcessGrid}
+                        disabled={disabled || isProcessing || !uploadedImage}
+                        className="w-full"
+                      >
+                        {isProcessing ? (
+                          <>
+                            <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                            A processar...
+                          </>
+                        ) : (
+                          <>
+                            <Sparkles className="h-4 w-4 mr-2" />
+                            {detectionMode === 'auto' ? 'Detetar Grelha' : 'Processar Grelha'}
+                          </>
+                        )}
+                      </Button>
+
+                      {/* Progress Bar */}
+                      {isProcessing && progress && (
+                        <div className="space-y-2">
+                          <Progress value={progress.percent} className="h-2" />
+                          <p className="text-xs text-muted-foreground text-center">
+                            {progress.message}
+                          </p>
+                        </div>
+                      )}
+                    </>
+                  )}
+
+                  {/* Error Message */}
+                  {error && (
+                    <Alert variant="destructive">
+                      <AlertTriangle className="h-4 w-4" />
+                      <AlertDescription>{error}</AlertDescription>
+                    </Alert>
+                  )}
+
+                  {/* Add to Carousel Button */}
+                  {detectedImages.length > 0 && (
+                    <>
+                      <Separator />
+                      
+                      <div className="flex flex-col gap-2">
+                        {maxImages < selectedCount && (
+                          <p className="text-xs text-destructive text-center">
+                            Limite de {maxImages} imagens. Desselecione algumas.
+                          </p>
+                        )}
+                        
+                        <Button
+                          onClick={handleAddToCarousel}
+                          disabled={disabled || !canAddToCarousel}
+                          className="w-full"
+                        >
+                          <Plus className="h-4 w-4 mr-2" />
+                          Adicionar {selectedCount} ao Carrossel
+                        </Button>
+                        
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={handleClearImage}
+                          disabled={isProcessing}
+                          className="w-full"
+                        >
+                          Começar de novo
+                        </Button>
+                      </div>
+                    </>
                   )}
                 </>
               )}
+            </TabsContent>
 
-              {/* Error Message */}
-              {error && (
-                <Alert variant="destructive">
-                  <AlertTriangle className="h-4 w-4" />
-                  <AlertDescription>{error}</AlertDescription>
-                </Alert>
-              )}
-
-              {/* Add to Carousel Button */}
-              {detectedImages.length > 0 && (
-                <>
-                  <Separator />
-                  
-                  <div className="flex flex-col gap-2">
-                    {maxImages < selectedCount && (
-                      <p className="text-xs text-destructive text-center">
-                        Limite de {maxImages} imagens. Desselecione algumas.
-                      </p>
-                    )}
-                    
-                    <Button
-                      onClick={handleAddToCarousel}
-                      disabled={disabled || !canAddToCarousel}
-                      className="w-full"
-                    >
-                      <Plus className="h-4 w-4 mr-2" />
-                      Adicionar {selectedCount} ao Carrossel
-                    </Button>
-                    
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={handleClearImage}
-                      disabled={isProcessing}
-                      className="w-full"
-                    >
-                      Começar de novo
-                    </Button>
-                  </div>
-                </>
-              )}
-            </>
-          )}
+            {/* AI Generator Tab */}
+            <TabsContent value="ai" className="p-4 mt-0">
+              <AIGenerator
+                onAddToCarousel={(files) => {
+                  onAddToCarousel(files);
+                  setIsOpen(false);
+                }}
+                maxImages={maxImages}
+                disabled={disabled}
+              />
+            </TabsContent>
+          </Tabs>
         </div>
       </CollapsibleContent>
     </Collapsible>
