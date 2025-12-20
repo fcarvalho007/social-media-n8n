@@ -81,6 +81,7 @@ export function calculateCellBounds(
 
 /**
  * Calculate cell boundaries for manual grid split
+ * Uses exact division without border trimming for precise cuts
  */
 export function calculateManualCellBounds(
   rows: number,
@@ -92,8 +93,8 @@ export function calculateManualCellBounds(
   const cellWidth = Math.floor(imgWidth / cols);
   const cellHeight = Math.floor(imgHeight / rows);
   
-  // Border trim percentage when removeBorders is enabled
-  const borderTrim = removeBorders ? 0.02 : 0;
+  // Minimal border trim (0.5%) only when explicitly requested
+  const borderTrim = removeBorders ? 0.005 : 0;
   const trimX = Math.floor(cellWidth * borderTrim);
   const trimY = Math.floor(cellHeight * borderTrim);
 

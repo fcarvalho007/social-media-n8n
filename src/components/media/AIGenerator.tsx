@@ -13,11 +13,12 @@ import { MediaSource } from '@/types/media';
 
 interface AIGeneratorProps {
   onAddToCarousel: (files: File[], source: MediaSource) => void;
+  onSendToGridSplitter?: (imageFile: File) => void;
   maxImages: number;
   disabled?: boolean;
 }
 
-export function AIGenerator({ onAddToCarousel, maxImages, disabled }: AIGeneratorProps) {
+export function AIGenerator({ onAddToCarousel, onSendToGridSplitter, maxImages, disabled }: AIGeneratorProps) {
   const [credentialsConfigured, setCredentialsConfigured] = useState<boolean | null>(null);
   const [checkingCredentials, setCheckingCredentials] = useState(true);
 
@@ -79,6 +80,20 @@ export function AIGenerator({ onAddToCarousel, maxImages, disabled }: AIGenerato
     }
   }, [generatedImages, onAddToCarousel, clearResults]);
 
+  const handleSendToGridSplitter = useCallback(async (imageUrl: string) => {
+    if (!onSendToGridSplitter) return;
+    
+    try {
+      const response = await fetch(imageUrl);
+      const blob = await response.blob();
+      const file = new File([blob], `ai-generated-grid-${Date.now()}.png`, { type: 'image/png' });
+      onSendToGridSplitter(file);
+      clearResults();
+    } catch (err) {
+      console.error('Error sending to grid splitter:', err);
+    }
+  }, [onSendToGridSplitter, clearResults]);
+
   if (checkingCredentials) {
     return (
       <div className="space-y-4">
@@ -123,6 +138,7 @@ export function AIGenerator({ onAddToCarousel, maxImages, disabled }: AIGenerato
         onDeselectAll={deselectAll}
         onAddToCarousel={handleAddToCarousel}
         onGenerateNew={clearResults}
+        onSendToGridSplitter={onSendToGridSplitter ? handleSendToGridSplitter : undefined}
         maxImages={maxImages}
       />
     );

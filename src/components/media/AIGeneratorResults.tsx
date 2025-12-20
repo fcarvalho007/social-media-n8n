@@ -1,9 +1,10 @@
+import { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { Dialog, DialogContent, DialogTrigger } from '@/components/ui/dialog';
-import { Check, Plus, RefreshCw, ZoomIn } from 'lucide-react';
+import { Check, Plus, RefreshCw, ZoomIn, Scissors } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { AIGeneratedImage } from '@/lib/ai-generator/types';
+import { AIGeneratorPreview } from './AIGeneratorPreview';
 
 interface AIGeneratorResultsProps {
   images: AIGeneratedImage[];
@@ -12,6 +13,7 @@ interface AIGeneratorResultsProps {
   onDeselectAll: () => void;
   onAddToCarousel: () => void;
   onGenerateNew: () => void;
+  onSendToGridSplitter?: (imageUrl: string) => void;
   maxImages: number;
 }
 
@@ -22,11 +24,50 @@ export function AIGeneratorResults({
   onDeselectAll,
   onAddToCarousel,
   onGenerateNew,
+  onSendToGridSplitter,
   maxImages,
 }: AIGeneratorResultsProps) {
+  const [previewImage, setPreviewImage] = useState<AIGeneratedImage | null>(null);
+  
   const selectedCount = images.filter(img => img.selected).length;
   const allSelected = selectedCount === images.length;
   const canAddMore = selectedCount <= maxImages;
+
+  const handleImageClick = (image: AIGeneratedImage) => {
+    setPreviewImage(image);
+  };
+
+  const handleAddSingleToCarousel = () => {
+    if (previewImage) {
+      // Select only this image and add
+      images.forEach(img => {
+        if (img.id !== previewImage.id && img.selected) {
+          onToggleSelection(img.id);
+        }
+        if (img.id === previewImage.id && !img.selected) {
+          onToggleSelection(img.id);
+        }
+      });
+      setPreviewImage(null);
+      onAddToCarousel();
+    }
+  };
+
+  const handleDiscard = () => {
+    if (previewImage) {
+      // Deselect this image
+      if (previewImage.selected) {
+        onToggleSelection(previewImage.id);
+      }
+      setPreviewImage(null);
+    }
+  };
+
+  const handleSendToGrid = (imageUrl: string) => {
+    if (onSendToGridSplitter) {
+      onSendToGridSplitter(imageUrl);
+    }
+  };
 
   return (
     <div className="space-y-4">
@@ -45,7 +86,7 @@ export function AIGeneratorResults({
               "relative aspect-square rounded-lg overflow-hidden cursor-pointer group border-2 transition-all",
               image.selected ? "border-primary ring-2 ring-primary/20" : "border-transparent hover:border-muted-foreground/30"
             )}
-            onClick={() => onToggleSelection(image.id)}
+            onClick={() => handleImageClick(image)}
           >
             <img src={image.url} alt={`Generated ${image.order}`} className="w-full h-full object-cover" />
             <div className={cn(
@@ -59,16 +100,34 @@ export function AIGeneratorResults({
                 {images.filter(i => i.selected).findIndex(i => i.id === image.id) + 1}
               </Badge>
             )}
-            <Dialog>
-              <DialogTrigger asChild>
-                <Button variant="secondary" size="icon" className="absolute bottom-2 right-2 h-7 w-7 opacity-0 group-hover:opacity-100 transition-opacity" onClick={(e) => e.stopPropagation()}>
-                  <ZoomIn className="h-3.5 w-3.5" />
+            
+            {/* Hover overlay with actions */}
+            <div className="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center gap-2">
+              <Button 
+                variant="secondary" 
+                size="icon" 
+                className="h-8 w-8"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  handleImageClick(image);
+                }}
+              >
+                <ZoomIn className="h-4 w-4" />
+              </Button>
+              {onSendToGridSplitter && (
+                <Button 
+                  variant="secondary" 
+                  size="icon" 
+                  className="h-8 w-8"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    handleSendToGrid(image.url);
+                  }}
+                >
+                  <Scissors className="h-4 w-4" />
                 </Button>
-              </DialogTrigger>
-              <DialogContent className="max-w-3xl p-2">
-                <img src={image.url} alt={`Generated ${image.order}`} className="w-full h-auto rounded-lg" />
-              </DialogContent>
-            </Dialog>
+              )}
+            </div>
           </div>
         ))}
       </div>
@@ -83,6 +142,18 @@ export function AIGeneratorResults({
           <Plus className="h-3.5 w-3.5 mr-1.5" />Adicionar {selectedCount > 0 ? selectedCount : ''}
         </Button>
       </div>
+
+      {/* Preview Dialog */}
+      {previewImage && (
+        <AIGeneratorPreview
+          image={previewImage}
+          open={!!previewImage}
+          onOpenChange={(open) => !open && setPreviewImage(null)}
+          onDiscard={handleDiscard}
+          onAddToCarousel={handleAddSingleToCarousel}
+          onSendToGridSplitter={handleSendToGrid}
+        />
+      )}
     </div>
   );
 }

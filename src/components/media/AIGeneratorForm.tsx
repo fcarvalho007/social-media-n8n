@@ -3,7 +3,7 @@ import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Sparkles, Minus, Plus } from 'lucide-react';
+import { Sparkles, Minus, Plus, Coins } from 'lucide-react';
 import { 
   AI_IMAGE_MODELS,
   AI_ASPECT_RATIOS,
@@ -149,7 +149,7 @@ export function AIGeneratorForm({ onGenerate, disabled }: AIGeneratorFormProps) 
           </Button>
         </div>
 
-        {/* Generate Button */}
+        {/* Generate Button with credit count */}
         <Button 
           onClick={handleSubmit}
           disabled={disabled || !prompt.trim()}
@@ -157,13 +157,14 @@ export function AIGeneratorForm({ onGenerate, disabled }: AIGeneratorFormProps) 
           className="h-9 gap-1.5 ml-auto"
         >
           <Sparkles className="h-3.5 w-3.5" />
-          Gerar {count > 1 ? count : ''}
+          Gerar ({count} crédito{count > 1 ? 's' : ''})
         </Button>
       </div>
 
-      {/* Info */}
-      <p className="text-xs text-muted-foreground text-center">
-        Sem custos adicionais • Incluído no Lovable
+      {/* Cost Info */}
+      <p className="text-xs text-muted-foreground text-center flex items-center justify-center gap-1">
+        <Coins className="h-3 w-3" />
+        Consumo: ~1 crédito por imagem gerada
       </p>
     </div>
   );

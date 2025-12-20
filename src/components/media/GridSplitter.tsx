@@ -31,10 +31,8 @@ export function GridSplitter({ onAddToCarousel, maxImages, disabled = false, sel
   const [uploadedImage, setUploadedImage] = useState<File | null>(null);
   const [uploadedImageUrl, setUploadedImageUrl] = useState<string | null>(null);
   const [detectedImages, setDetectedImages] = useState<DetectedImage[]>([]);
-  const [detectionMode, setDetectionMode] = useState<'auto' | 'manual'>('manual');
   const [manualConfig, setManualConfig] = useState<GridConfig>({ rows: 2, cols: 2 });
-  const [sensitivity, setSensitivity] = useState(50);
-  const [removeBorders, setRemoveBorders] = useState(true);
+  const [removeBorders, setRemoveBorders] = useState(false);
   const [error, setError] = useState<string | null>(null);
   
   const { processGrid, isProcessing, progress } = useGridDetection();
@@ -45,6 +43,20 @@ export function GridSplitter({ onAddToCarousel, maxImages, disabled = false, sel
     if (selectedFormats.length === 0) return false;
     return selectedFormats.every(f => VIDEO_ONLY_FORMATS.includes(f as typeof VIDEO_ONLY_FORMATS[number]));
   }, [selectedFormats]);
+
+  // Load an image file (from file input or AI generator)
+  const loadImageFile = useCallback((file: File) => {
+    // Clean up previous URL
+    if (uploadedImageUrl) {
+      URL.revokeObjectURL(uploadedImageUrl);
+    }
+
+    const url = URL.createObjectURL(file);
+    setUploadedImage(file);
+    setUploadedImageUrl(url);
+    setDetectedImages([]);
+    setError(null);
+  }, [uploadedImageUrl]);
 
   const handleFileSelect = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -63,22 +75,20 @@ export function GridSplitter({ onAddToCarousel, maxImages, disabled = false, sel
       return;
     }
 
-    // Clean up previous URL
-    if (uploadedImageUrl) {
-      URL.revokeObjectURL(uploadedImageUrl);
-    }
-
-    const url = URL.createObjectURL(file);
-    setUploadedImage(file);
-    setUploadedImageUrl(url);
-    setDetectedImages([]);
-    setError(null);
+    loadImageFile(file);
     
     // Reset file input
     if (fileInputRef.current) {
       fileInputRef.current.value = '';
     }
-  }, [uploadedImageUrl]);
+  }, [loadImageFile]);
+
+  // Handle image from AI generator for grid cutting
+  const handleAIImageToGrid = useCallback((file: File) => {
+    loadImageFile(file);
+    setActiveTab('grid');
+    toast.success('Imagem carregada para corte em grelha');
+  }, [loadImageFile]);
 
   const handleProcessGrid = useCallback(async () => {
     if (!uploadedImage) return;
@@ -88,20 +98,18 @@ export function GridSplitter({ onAddToCarousel, maxImages, disabled = false, sel
     try {
       const images = await processGrid(
         uploadedImage,
-        detectionMode,
         manualConfig,
-        sensitivity,
         removeBorders
       );
       
       setDetectedImages(images);
-      toast.success(`${images.length} imagens detectadas!`);
+      toast.success(`${images.length} imagens extraídas!`);
     } catch (err) {
       const errorMessage = err instanceof Error ? err.message : 'Erro ao processar grelha';
       setError(errorMessage);
       toast.error(errorMessage);
     }
-  }, [uploadedImage, detectionMode, manualConfig, sensitivity, removeBorders, processGrid]);
+  }, [uploadedImage, manualConfig, removeBorders, processGrid]);
 
   const handleAddToCarousel = useCallback(async () => {
     const selectedImages = detectedImages.filter((img) => img.selected);
@@ -261,12 +269,8 @@ export function GridSplitter({ onAddToCarousel, maxImages, disabled = false, sel
                       <Separator />
                       
                       <GridControls
-                        detectionMode={detectionMode}
-                        onDetectionModeChange={setDetectionMode}
                         manualConfig={manualConfig}
                         onManualConfigChange={setManualConfig}
-                        sensitivity={sensitivity}
-                        onSensitivityChange={setSensitivity}
                         removeBorders={removeBorders}
                         onRemoveBordersChange={setRemoveBorders}
                         disabled={disabled || isProcessing}
@@ -286,7 +290,7 @@ export function GridSplitter({ onAddToCarousel, maxImages, disabled = false, sel
                         ) : (
                           <>
                             <Sparkles className="h-4 w-4 mr-2" />
-                            {detectionMode === 'auto' ? 'Detetar Grelha' : 'Processar Grelha'}
+                            Cortar em {manualConfig.rows}×{manualConfig.cols}
                           </>
                         )}
                       </Button>
@@ -355,6 +359,7 @@ export function GridSplitter({ onAddToCarousel, maxImages, disabled = false, sel
                   onAddToCarousel(files, source);
                   setIsOpen(false);
                 }}
+                onSendToGridSplitter={handleAIImageToGrid}
                 maxImages={maxImages}
                 disabled={disabled}
               />
