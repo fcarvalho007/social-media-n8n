@@ -6,6 +6,7 @@ const corsHeaders = {
 };
 
 const HIGGSFIELD_API_URL = 'https://platform.higgsfield.ai';
+const HIGGSFIELD_MODEL = 'higgsfield-ai/soul/standard';
 
 interface GenerateRequest {
   action: 'generate' | 'status' | 'cancel' | 'ping';
@@ -70,7 +71,7 @@ serve(async (req) => {
 
       console.log('[Higgsfield] Generating image with prompt:', body.prompt.substring(0, 100));
       
-      const response = await fetch(`${HIGGSFIELD_API_URL}/v1/models/higgsfield-ai/soul/standard/image`, {
+      const response = await fetch(`${HIGGSFIELD_API_URL}/${HIGGSFIELD_MODEL}`, {
         method: 'POST',
         headers: {
           'Authorization': authHeader,
@@ -118,7 +119,7 @@ serve(async (req) => {
 
       console.log('[Higgsfield] Checking status for:', body.requestId);
 
-      const response = await fetch(`${HIGGSFIELD_API_URL}/v1/requests/${body.requestId}`, {
+      const response = await fetch(`${HIGGSFIELD_API_URL}/requests/${body.requestId}/status`, {
         method: 'GET',
         headers: {
           'Authorization': authHeader,
@@ -153,18 +154,16 @@ serve(async (req) => {
       let status = data.status || 'pending';
       let imageUrl = null;
 
-      if (status === 'completed' || status === 'succeeded') {
-        status = 'completed';
-        // Try to get the image URL from various possible fields
-        imageUrl = data.output?.url || data.result?.url || data.image_url || data.url;
-        
-        // If output is an array, get the first item
-        if (Array.isArray(data.output) && data.output.length > 0) {
-          imageUrl = data.output[0].url || data.output[0];
+      if (status === 'completed') {
+        // Get image URL from the images array (per API docs)
+        if (Array.isArray(data.images) && data.images.length > 0) {
+          imageUrl = data.images[0].url || data.images[0];
         }
-      } else if (status === 'processing' || status === 'running') {
+      } else if (status === 'queued') {
+        status = 'pending';
+      } else if (status === 'in_progress') {
         status = 'in_progress';
-      } else if (status === 'failed' || status === 'error') {
+      } else if (status === 'failed') {
         status = 'failed';
       } else if (status === 'nsfw' || status === 'content_moderation') {
         status = 'nsfw';
@@ -191,9 +190,8 @@ serve(async (req) => {
 
       console.log('[Higgsfield] Cancelling job:', body.requestId);
 
-      // Note: Cancel might not be supported by all APIs
       try {
-        await fetch(`${HIGGSFIELD_API_URL}/v1/requests/${body.requestId}/cancel`, {
+        await fetch(`${HIGGSFIELD_API_URL}/requests/${body.requestId}/cancel`, {
           method: 'POST',
           headers: {
             'Authorization': authHeader,
