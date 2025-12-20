@@ -7,8 +7,9 @@ import { AlertTriangle, RefreshCw, Loader2 } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { AIGeneratorForm } from './AIGeneratorForm';
 import { AIGeneratorResults } from './AIGeneratorResults';
-import { useHiggsfieldGeneration } from '@/hooks/useHiggsfieldGeneration';
-import { HiggsfieldGenerateParams } from '@/lib/higgsfield/types';
+import { useAIImageGeneration } from '@/hooks/useAIImageGeneration';
+import { AIGenerateParams } from '@/lib/ai-generator/types';
+import { getModelById } from '@/lib/ai-generator/constants';
 import { MediaSource } from '@/types/media';
 
 interface AIGeneratorProps {
@@ -32,20 +33,23 @@ export function AIGenerator({ onAddToCarousel, onSendToGridSplitter, maxImages, 
     toggleImageSelection,
     selectAll,
     deselectAll,
-  } = useHiggsfieldGeneration();
+  } = useAIImageGeneration();
 
   useEffect(() => {
     const checkCredentials = async () => {
       try {
-        const { data, error } = await supabase.functions.invoke('higgsfield-generate', {
+        // Check Lovable AI (free model)
+        const { data, error } = await supabase.functions.invoke('ai-generate-image', {
           body: { action: 'ping' },
         });
+        
         if (error?.message?.includes('não configurada') || data?.error?.includes('não configurada')) {
           setCredentialsConfigured(false);
         } else {
           setCredentialsConfigured(true);
         }
       } catch {
+        // If ping fails, still show the form (fal.ai might work)
         setCredentialsConfigured(true);
       } finally {
         setCheckingCredentials(false);
@@ -54,7 +58,7 @@ export function AIGenerator({ onAddToCarousel, onSendToGridSplitter, maxImages, 
     checkCredentials();
   }, []);
 
-  const handleGenerate = useCallback((params: HiggsfieldGenerateParams) => {
+  const handleGenerate = useCallback((params: AIGenerateParams) => {
     generate(params);
   }, [generate]);
 

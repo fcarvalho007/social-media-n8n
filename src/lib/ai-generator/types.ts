@@ -1,6 +1,19 @@
 // AI Image Generator Types
 
-import { AIModelId, AIAspectRatio } from './constants';
+export type AIModelId = 'nano-banana-pro' | 'gpt-image-1.5';
+export type AIProvider = 'lovable' | 'fal';
+export type AIAspectRatio = '1:1' | '3:4' | '4:3' | '9:16' | '16:9';
+
+export interface AIModelConfig {
+  id: AIModelId;
+  name: string;
+  provider: AIProvider;
+  model: string;
+  icon: string;
+  description: string;
+  cost: string;
+  costPerImage: number;
+}
 
 export interface AIGenerateParams {
   prompt: string;
