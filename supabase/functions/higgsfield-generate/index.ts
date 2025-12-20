@@ -6,11 +6,12 @@ const corsHeaders = {
 };
 
 const HIGGSFIELD_API_URL = 'https://platform.higgsfield.ai';
-const HIGGSFIELD_MODEL = 'higgsfield-ai/soul/standard';
+const DEFAULT_MODEL = 'google/nano-banana-pro';
 
 interface GenerateRequest {
   action: 'generate' | 'status' | 'cancel' | 'ping';
   prompt?: string;
+  model?: string;
   aspectRatio?: string;
   resolution?: string;
   requestId?: string;
@@ -69,9 +70,10 @@ serve(async (req) => {
         );
       }
 
-      console.log('[Higgsfield] Generating image with prompt:', body.prompt.substring(0, 100));
+      const model = body.model || DEFAULT_MODEL;
+      console.log('[Higgsfield] Generating image with model:', model, 'prompt:', body.prompt.substring(0, 100));
       
-      const response = await fetch(`${HIGGSFIELD_API_URL}/${HIGGSFIELD_MODEL}`, {
+      const response = await fetch(`${HIGGSFIELD_API_URL}/${model}`, {
         method: 'POST',
         headers: {
           'Authorization': authHeader,
