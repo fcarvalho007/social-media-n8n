@@ -18,7 +18,8 @@ import { Separator } from '@/components/ui/separator';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
 import { toast } from 'sonner';
-import { Save, Send, Calendar as CalendarIcon, ArrowLeft, Instagram, Linkedin, Upload, Clock, FileText, Loader2, Rocket, Smile, Bookmark, Sparkles, Youtube, Facebook, ChevronLeft, ChevronRight, Info, CloudUpload, Image, Video, Plus, CheckCircle, Hash, AtSign, AlertTriangle, Eye, ChevronDown, MapPin } from 'lucide-react';
+import { Save, Send, Calendar as CalendarIcon, ArrowLeft, Instagram, Linkedin, Upload, Clock, FileText, Loader2, Rocket, Smile, Bookmark, Sparkles, Youtube, Facebook, ChevronLeft, ChevronRight, Info, CloudUpload, Image, Video, Plus, CheckCircle, Hash, AtSign, AlertTriangle, Eye, ChevronDown, MapPin, Grid3x3 } from 'lucide-react';
+import { GridSplitter } from '@/components/media/GridSplitter';
 import { format } from 'date-fns';
 import { pt } from 'date-fns/locale';
 import { cn } from '@/lib/utils';
@@ -990,6 +991,23 @@ export default function ManualCreate() {
                 </div>
               </CardHeader>
               <CardContent className="space-y-4">
+                {/* Grid Splitter - Import multiple images from a grid */}
+                <GridSplitter
+                  onAddToCarousel={(files: File[]) => {
+                    const newUrls = files.map(f => URL.createObjectURL(f));
+                    const remainingSlots = mediaRequirements.maxMedia - mediaPreviewUrls.length;
+                    const filesToAdd = files.slice(0, remainingSlots);
+                    const urlsToAdd = newUrls.slice(0, remainingSlots);
+                    
+                    setMediaFiles(prev => [...prev, ...filesToAdd]);
+                    setMediaPreviewUrls(prev => [...prev, ...urlsToAdd]);
+                  }}
+                  maxImages={mediaRequirements.maxMedia - mediaPreviewUrls.length}
+                  disabled={saving || submitting || isUploading}
+                />
+
+                <Separator className="my-2" />
+
                 {/* Upload Zone - Empty State */}
                 {mediaPreviewUrls.length === 0 && (
                   <Label 
