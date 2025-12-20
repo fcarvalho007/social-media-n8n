@@ -9,9 +9,10 @@ import { AIGeneratorForm } from './AIGeneratorForm';
 import { AIGeneratorResults } from './AIGeneratorResults';
 import { useAIImageGeneration } from '@/hooks/useAIImageGeneration';
 import { AIGenerateParams } from '@/lib/ai-generator/types';
+import { MediaSource } from '@/types/media';
 
 interface AIGeneratorProps {
-  onAddToCarousel: (files: File[]) => void;
+  onAddToCarousel: (files: File[], source: MediaSource) => void;
   maxImages: number;
   disabled?: boolean;
 }
@@ -73,7 +74,7 @@ export function AIGenerator({ onAddToCarousel, maxImages, disabled }: AIGenerato
     }
 
     if (files.length > 0) {
-      onAddToCarousel(files);
+      onAddToCarousel(files, 'ai');
       clearResults();
     }
   }, [generatedImages, onAddToCarousel, clearResults]);
