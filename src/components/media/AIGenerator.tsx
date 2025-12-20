@@ -7,8 +7,8 @@ import { AlertTriangle, RefreshCw, Loader2 } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { AIGeneratorForm } from './AIGeneratorForm';
 import { AIGeneratorResults } from './AIGeneratorResults';
-import { useAIImageGeneration } from '@/hooks/useAIImageGeneration';
-import { AIGenerateParams } from '@/lib/ai-generator/types';
+import { useHiggsfieldGeneration } from '@/hooks/useHiggsfieldGeneration';
+import { HiggsfieldGenerateParams } from '@/lib/higgsfield/types';
 import { MediaSource } from '@/types/media';
 
 interface AIGeneratorProps {
@@ -32,12 +32,12 @@ export function AIGenerator({ onAddToCarousel, onSendToGridSplitter, maxImages, 
     toggleImageSelection,
     selectAll,
     deselectAll,
-  } = useAIImageGeneration();
+  } = useHiggsfieldGeneration();
 
   useEffect(() => {
     const checkCredentials = async () => {
       try {
-        const { data, error } = await supabase.functions.invoke('ai-generate-image', {
+        const { data, error } = await supabase.functions.invoke('higgsfield-generate', {
           body: { action: 'ping' },
         });
         if (error?.message?.includes('não configurada') || data?.error?.includes('não configurada')) {
@@ -54,7 +54,7 @@ export function AIGenerator({ onAddToCarousel, onSendToGridSplitter, maxImages, 
     checkCredentials();
   }, []);
 
-  const handleGenerate = useCallback((params: AIGenerateParams) => {
+  const handleGenerate = useCallback((params: HiggsfieldGenerateParams) => {
     generate(params);
   }, [generate]);
 
