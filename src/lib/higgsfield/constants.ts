@@ -1,6 +1,22 @@
 // Higgsfield AI Constants
 
-import { Square, Smartphone, Monitor, MonitorPlay } from 'lucide-react';
+export const HIGGSFIELD_MODELS = [
+  { 
+    value: 'google/nano-banana-pro' as const, 
+    label: '🍌 Nano Banana Pro', 
+    description: 'Google Gemini 3.0 • Rápido' 
+  },
+  { 
+    value: 'openai/gpt-image-1-5' as const, 
+    label: '🤖 GPT Image 1.5', 
+    description: 'OpenAI • Diagramas' 
+  },
+  { 
+    value: 'higgsfield-ai/soul/standard' as const, 
+    label: '🎨 Soul Standard', 
+    description: 'Higgsfield • Versátil' 
+  },
+];
 
 export const HIGGSFIELD_ASPECT_RATIOS = [
   { value: '1:1' as const, label: 'Quadrado (1:1)', description: 'Ideal para posts do feed' },

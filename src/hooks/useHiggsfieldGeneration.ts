@@ -195,6 +195,7 @@ export function useHiggsfieldGeneration(): UseHiggsfieldGenerationReturn {
           const response = await callEdgeFunction({
             action: 'generate',
             prompt: params.prompt,
+            model: params.model,
             aspectRatio: params.aspectRatio,
             resolution: params.resolution,
           });

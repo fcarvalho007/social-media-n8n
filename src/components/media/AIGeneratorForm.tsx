@@ -5,13 +5,14 @@ import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Sparkles, Minus, Plus } from 'lucide-react';
 import { 
+  HIGGSFIELD_MODELS,
   HIGGSFIELD_ASPECT_RATIOS,
   HIGGSFIELD_RESOLUTIONS,
   HIGGSFIELD_MAX_PROMPT_LENGTH,
   HIGGSFIELD_MIN_IMAGES,
   HIGGSFIELD_MAX_IMAGES,
 } from '@/lib/higgsfield/constants';
-import { HiggsfieldGenerateParams, HiggsfieldAspectRatio, HiggsfieldResolution } from '@/lib/higgsfield/types';
+import { HiggsfieldGenerateParams, HiggsfieldAspectRatio, HiggsfieldResolution, HiggsfieldModel } from '@/lib/higgsfield/types';
 
 interface AIGeneratorFormProps {
   onGenerate: (params: HiggsfieldGenerateParams) => void;
@@ -20,6 +21,7 @@ interface AIGeneratorFormProps {
 
 export function AIGeneratorForm({ onGenerate, disabled }: AIGeneratorFormProps) {
   const [prompt, setPrompt] = useState('');
+  const [model, setModel] = useState<HiggsfieldModel>('google/nano-banana-pro');
   const [aspectRatio, setAspectRatio] = useState<HiggsfieldAspectRatio>('1:1');
   const [resolution, setResolution] = useState<HiggsfieldResolution>('720p');
   const [count, setCount] = useState(1);
@@ -31,6 +33,7 @@ export function AIGeneratorForm({ onGenerate, disabled }: AIGeneratorFormProps) 
     
     onGenerate({
       prompt: prompt.trim(),
+      model,
       aspectRatio,
       resolution,
       count,
@@ -51,6 +54,30 @@ export function AIGeneratorForm({ onGenerate, disabled }: AIGeneratorFormProps) 
 
   return (
     <div className="space-y-4">
+      {/* Model Selector */}
+      <div className="space-y-2">
+        <Label className="text-sm font-medium">Modelo</Label>
+        <Select 
+          value={model} 
+          onValueChange={(v) => setModel(v as HiggsfieldModel)}
+          disabled={disabled}
+        >
+          <SelectTrigger className="w-full h-10">
+            <SelectValue />
+          </SelectTrigger>
+          <SelectContent>
+            {HIGGSFIELD_MODELS.map((m) => (
+              <SelectItem key={m.value} value={m.value}>
+                <span className="flex items-center gap-2">
+                  <span className="text-sm">{m.label}</span>
+                  <span className="text-xs text-muted-foreground">{m.description}</span>
+                </span>
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+      </div>
+
       {/* Prompt */}
       <div className="space-y-2">
         <div className="flex items-center justify-between">

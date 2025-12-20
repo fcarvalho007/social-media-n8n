@@ -2,9 +2,11 @@
 
 export type HiggsfieldAspectRatio = '1:1' | '3:4' | '4:3' | '9:16' | '16:9';
 export type HiggsfieldResolution = '720p' | '1080p';
+export type HiggsfieldModel = 'google/nano-banana-pro' | 'openai/gpt-image-1-5' | 'higgsfield-ai/soul/standard';
 
 export interface HiggsfieldGenerateParams {
   prompt: string;
+  model: HiggsfieldModel;
   aspectRatio: HiggsfieldAspectRatio;
   resolution: HiggsfieldResolution;
   count: number; // 1-9 images
