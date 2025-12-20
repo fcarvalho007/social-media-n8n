@@ -40,13 +40,13 @@ export function AIGenerator({ onAddToCarousel, maxImages, disabled = false }: AI
   useEffect(() => {
     const checkCredentials = async () => {
       try {
-        // Try a simple call to check if credentials work
-        const { error } = await supabase.functions.invoke('higgsfield-generate', {
-          body: { action: 'status', requestId: 'test' },
+        // Use a ping action to verify credentials are configured
+        const { data, error } = await supabase.functions.invoke('higgsfield-generate', {
+          body: { action: 'ping' },
         });
 
-        // If we get a 400 error about missing credentials, they're not configured
-        if (error?.message?.includes('não configuradas')) {
+        // If we get an error about missing credentials, they're not configured
+        if (error?.message?.includes('não configuradas') || data?.error?.includes('não configuradas')) {
           setCredentialsConfigured(false);
         } else {
           setCredentialsConfigured(true);
