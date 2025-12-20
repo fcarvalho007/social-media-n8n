@@ -6,7 +6,30 @@ const corsHeaders = {
 };
 
 const HIGGSFIELD_API_URL = 'https://platform.higgsfield.ai';
-const DEFAULT_MODEL = 'google/nano-banana-pro';
+
+// Model aliases to try - multiple variants for each model
+const MODEL_ALIASES: Record<string, string[]> = {
+  'google/nano-banana-pro': [
+    'google/nano-banana-2',
+    'google/nano-banana-pro',
+    'nano-banana-2',
+    'nano-banana-pro',
+    'google/gemini-2.0-flash-exp',
+    'google/gemini-3-pro-image'
+  ],
+  'openai/gpt-image-1.5': [
+    'openai/gpt-image-1',
+    'openai/gpt-image-1.5',
+    'openai/hazelnut',
+    'gpt-image-1.5',
+    'openai/gpt-image',
+    'openai/hazel',
+    'openai/gpt-4o-image'
+  ],
+  'higgsfield-ai/soul/standard': [
+    'higgsfield-ai/soul/standard'
+  ]
+};
 
 interface GenerateRequest {
   action: 'generate' | 'status' | 'cancel' | 'ping';
@@ -15,6 +38,70 @@ interface GenerateRequest {
   aspectRatio?: string;
   resolution?: string;
   requestId?: string;
+}
+
+// Try multiple model variants until one works
+async function tryModelVariants(
+  modelId: string,
+  authHeader: string,
+  requestBody: object
+): Promise<{ response: Response; usedModelId: string; clonedResponse: Response } | null> {
+  const variants = MODEL_ALIASES[modelId] || [modelId];
+  
+  console.log(`[Higgsfield] Starting model variant testing for: ${modelId}`);
+  console.log(`[Higgsfield] Will try ${variants.length} variants: ${variants.join(', ')}`);
+  
+  for (const variant of variants) {
+    const url = `${HIGGSFIELD_API_URL}/${variant}`;
+    console.log(`[Higgsfield] ----------------------------------------`);
+    console.log(`[Higgsfield] Trying model variant: ${variant}`);
+    console.log(`[Higgsfield] Full URL: ${url}`);
+    console.log(`[Higgsfield] Request body: ${JSON.stringify(requestBody)}`);
+    
+    try {
+      const response = await fetch(url, {
+        method: 'POST',
+        headers: {
+          'Authorization': authHeader,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(requestBody),
+      });
+      
+      console.log(`[Higgsfield] Response status for ${variant}: ${response.status}`);
+      console.log(`[Higgsfield] Response headers: ${JSON.stringify(Object.fromEntries(response.headers.entries()))}`);
+      
+      // Clone response before reading body
+      const clonedResponse = response.clone();
+      
+      if (response.ok) {
+        const responseBody = await response.text();
+        console.log(`[Higgsfield] ✅ SUCCESS with model: ${variant}`);
+        console.log(`[Higgsfield] Response body: ${responseBody.substring(0, 500)}`);
+        
+        // Parse the response body and return a new Response
+        return { 
+          response: new Response(responseBody, {
+            status: response.status,
+            headers: response.headers
+          }), 
+          usedModelId: variant,
+          clonedResponse 
+        };
+      }
+      
+      const errorText = await response.text();
+      console.log(`[Higgsfield] ❌ Failed ${variant}: ${response.status}`);
+      console.log(`[Higgsfield] Error body: ${errorText.substring(0, 500)}`);
+      
+    } catch (error) {
+      console.log(`[Higgsfield] ❌ Exception for ${variant}: ${error}`);
+    }
+  }
+  
+  console.log(`[Higgsfield] ========================================`);
+  console.log(`[Higgsfield] ❌ ALL VARIANTS FAILED for model: ${modelId}`);
+  return null;
 }
 
 serve(async (req) => {
@@ -29,7 +116,10 @@ serve(async (req) => {
 
     const body: GenerateRequest = await req.json();
     
+    console.log('[Higgsfield] ========================================');
     console.log('[Higgsfield] Request action:', body.action);
+    console.log('[Higgsfield] Request model:', body.model);
+    console.log('[Higgsfield] Request prompt:', body.prompt?.substring(0, 100));
 
     // Handle ping action first (for credential check)
     if (body.action === 'ping') {
@@ -70,42 +160,43 @@ serve(async (req) => {
         );
       }
 
-      const model = body.model || DEFAULT_MODEL;
-      console.log('[Higgsfield] Generating image with model:', model, 'prompt:', body.prompt.substring(0, 100));
+      const model = body.model || 'higgsfield-ai/soul/standard';
+      console.log('[Higgsfield] Generating image with model:', model);
+      console.log('[Higgsfield] Prompt:', body.prompt);
+      console.log('[Higgsfield] Aspect ratio:', body.aspectRatio);
+      console.log('[Higgsfield] Resolution:', body.resolution);
       
-      const response = await fetch(`${HIGGSFIELD_API_URL}/${model}`, {
-        method: 'POST',
-        headers: {
-          'Authorization': authHeader,
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          prompt: body.prompt,
-          aspect_ratio: body.aspectRatio || '1:1',
-          resolution: body.resolution || '1080p',
-        }),
-      });
+      const requestBody = {
+        prompt: body.prompt,
+        aspect_ratio: body.aspectRatio || '1:1',
+        resolution: body.resolution || '1080p',
+      };
 
-      if (!response.ok) {
-        const errorText = await response.text();
-        console.error('[Higgsfield] API error:', response.status, errorText);
+      // Try model variants with fallback
+      const result = await tryModelVariants(model, authHeader, requestBody);
+      
+      if (!result) {
+        console.error('[Higgsfield] All model variants failed');
         return new Response(
           JSON.stringify({ 
             success: false, 
-            error: `Erro na API Higgsfield: ${response.status}` 
+            error: `Nenhuma variante do modelo ${model} funcionou. Verifique os logs para detalhes.` 
           }),
-          { status: response.status, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+          { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
         );
       }
 
-      const data = await response.json();
-      console.log('[Higgsfield] Generate response:', JSON.stringify(data).substring(0, 200));
+      console.log(`[Higgsfield] Using successful model: ${result.usedModelId}`);
+      
+      const data = await result.response.json();
+      console.log('[Higgsfield] Generate response:', JSON.stringify(data).substring(0, 500));
 
       return new Response(
         JSON.stringify({ 
           success: true, 
           requestId: data.request_id || data.id,
-          status: 'pending'
+          status: 'pending',
+          usedModel: result.usedModelId
         }),
         { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
@@ -127,6 +218,8 @@ serve(async (req) => {
           'Authorization': authHeader,
         },
       });
+
+      console.log('[Higgsfield] Status response code:', response.status);
 
       if (!response.ok) {
         const errorText = await response.text();
@@ -150,7 +243,7 @@ serve(async (req) => {
       }
 
       const data = await response.json();
-      console.log('[Higgsfield] Status response:', JSON.stringify(data).substring(0, 300));
+      console.log('[Higgsfield] Status response:', JSON.stringify(data).substring(0, 500));
 
       // Map Higgsfield status to our status
       let status = data.status || 'pending';
@@ -161,6 +254,7 @@ serve(async (req) => {
         if (Array.isArray(data.images) && data.images.length > 0) {
           imageUrl = data.images[0].url || data.images[0];
         }
+        console.log('[Higgsfield] Image URL:', imageUrl);
       } else if (status === 'queued') {
         status = 'pending';
       } else if (status === 'in_progress') {
