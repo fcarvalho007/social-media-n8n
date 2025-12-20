@@ -8,7 +8,7 @@ const corsHeaders = {
 const HIGGSFIELD_API_URL = 'https://platform.higgsfield.ai';
 
 interface GenerateRequest {
-  action: 'generate' | 'status' | 'cancel';
+  action: 'generate' | 'status' | 'cancel' | 'ping';
   prompt?: string;
   aspectRatio?: string;
   resolution?: string;
@@ -25,6 +25,27 @@ serve(async (req) => {
     const HF_API_KEY = Deno.env.get('HF_API_KEY');
     const HF_API_SECRET = Deno.env.get('HF_API_SECRET');
 
+    const body: GenerateRequest = await req.json();
+    
+    console.log('[Higgsfield] Request action:', body.action);
+
+    // Handle ping action first (for credential check)
+    if (body.action === 'ping') {
+      if (!HF_API_KEY || !HF_API_SECRET) {
+        return new Response(
+          JSON.stringify({ 
+            success: false, 
+            error: 'Credenciais Higgsfield não configuradas. Configure HF_API_KEY e HF_API_SECRET.' 
+          }),
+          { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        );
+      }
+      return new Response(
+        JSON.stringify({ success: true, configured: true }),
+        { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+
     if (!HF_API_KEY || !HF_API_SECRET) {
       console.error('[Higgsfield] Missing API credentials');
       return new Response(
@@ -37,9 +58,6 @@ serve(async (req) => {
     }
 
     const authHeader = `Key ${HF_API_KEY}:${HF_API_SECRET}`;
-    const body: GenerateRequest = await req.json();
-    
-    console.log('[Higgsfield] Request action:', body.action);
 
     if (body.action === 'generate') {
       // Generate new image
@@ -175,14 +193,13 @@ serve(async (req) => {
 
       // Note: Cancel might not be supported by all APIs
       try {
-        const response = await fetch(`${HIGGSFIELD_API_URL}/v1/requests/${body.requestId}/cancel`, {
+        await fetch(`${HIGGSFIELD_API_URL}/v1/requests/${body.requestId}/cancel`, {
           method: 'POST',
           headers: {
             'Authorization': authHeader,
           },
         });
 
-        const data = await response.json();
         return new Response(
           JSON.stringify({ success: true, status: 'cancelled' }),
           { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
