@@ -8,21 +8,25 @@ const corsHeaders = {
 const HIGGSFIELD_API_URL = 'https://platform.higgsfield.ai';
 
 // Model aliases to try - multiple variants for each model
+// nano-banana-pro REQUIRES resolution: 1k, 2k, or 4k (not 720p/1080p)
 const MODEL_ALIASES: Record<string, string[]> = {
   'google/nano-banana-pro': [
-    'google/nano-banana-2',
-    'google/nano-banana-pro',
+    'nano-banana-pro',  // This one works! Requires resolution 1k/2k/4k
     'nano-banana-2',
-    'nano-banana-pro',
+    'google/nano-banana-pro',
+    'google/nano-banana-2',
     'google/gemini-2.0-flash-exp',
     'google/gemini-3-pro-image'
   ],
   'openai/gpt-image-1.5': [
+    'gpt-image-1',
     'openai/gpt-image-1',
-    'openai/gpt-image-1.5',
-    'openai/hazelnut',
-    'gpt-image-1.5',
+    'gpt-image-1-5',
+    'openai/gpt-image-1-5',
+    'gpt-image',
     'openai/gpt-image',
+    'hazelnut',
+    'openai/hazelnut',
     'openai/hazel',
     'openai/gpt-4o-image'
   ],
@@ -30,6 +34,33 @@ const MODEL_ALIASES: Record<string, string[]> = {
     'higgsfield-ai/soul/standard'
   ]
 };
+
+// Resolution mapping per model - nano-banana-pro only accepts 1k, 2k, 4k
+const MODEL_RESOLUTION_MAP: Record<string, Record<string, string>> = {
+  'nano-banana-pro': {
+    '720p': '1k',
+    '1080p': '1k',
+    '4k': '4k',
+    '1k': '1k',
+    '2k': '2k'
+  },
+  'nano-banana-2': {
+    '720p': '1k',
+    '1080p': '1k',
+    '4k': '4k',
+    '1k': '1k',
+    '2k': '2k'
+  }
+};
+
+// Get the correct resolution for a model
+function getResolutionForModel(modelVariant: string, requestedResolution: string): string {
+  const mapping = MODEL_RESOLUTION_MAP[modelVariant];
+  if (mapping && mapping[requestedResolution]) {
+    return mapping[requestedResolution];
+  }
+  return requestedResolution; // Default: use as-is
+}
 
 interface GenerateRequest {
   action: 'generate' | 'status' | 'cancel' | 'ping';
@@ -44,17 +75,26 @@ interface GenerateRequest {
 async function tryModelVariants(
   modelId: string,
   authHeader: string,
-  requestBody: object
+  baseRequestBody: { prompt: string; aspect_ratio: string; resolution: string }
 ): Promise<{ response: Response; usedModelId: string; clonedResponse: Response } | null> {
   const variants = MODEL_ALIASES[modelId] || [modelId];
   
   console.log(`[Higgsfield] Starting model variant testing for: ${modelId}`);
   console.log(`[Higgsfield] Will try ${variants.length} variants: ${variants.join(', ')}`);
+  console.log(`[Higgsfield] Original resolution: ${baseRequestBody.resolution}`);
   
   for (const variant of variants) {
+    // Get the correct resolution for this model variant
+    const resolution = getResolutionForModel(variant, baseRequestBody.resolution);
+    const requestBody = {
+      ...baseRequestBody,
+      resolution
+    };
+    
     const url = `${HIGGSFIELD_API_URL}/${variant}`;
     console.log(`[Higgsfield] ----------------------------------------`);
     console.log(`[Higgsfield] Trying model variant: ${variant}`);
+    console.log(`[Higgsfield] Resolution mapped: ${baseRequestBody.resolution} → ${resolution}`);
     console.log(`[Higgsfield] Full URL: ${url}`);
     console.log(`[Higgsfield] Request body: ${JSON.stringify(requestBody)}`);
     
