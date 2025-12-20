@@ -11,6 +11,20 @@ export interface GridConfig {
   cols: number;
 }
 
+export interface GridDetectionProgress {
+  stage: 'loading' | 'preprocessing' | 'analyzing' | 'extracting' | 'complete';
+  percent: number;
+  message: string;
+}
+
+export interface GridDetectionResult {
+  cells: DetectedImage[];
+  gridStructure: { rows: number; cols: number };
+  confidence: number;
+  separatorColor?: string;
+  message?: string;
+}
+
 export interface GridSplitterState {
   uploadedImage: File | null;
   uploadedImageUrl: string | null;
@@ -28,7 +42,7 @@ export const initialGridSplitterState: GridSplitterState = {
   uploadedImageUrl: null,
   detectedImages: [],
   isProcessing: false,
-  detectionMode: 'manual', // Phase 1: manual only
+  detectionMode: 'manual',
   manualConfig: { rows: 2, cols: 2 },
   sensitivity: 50,
   removeBorders: true,

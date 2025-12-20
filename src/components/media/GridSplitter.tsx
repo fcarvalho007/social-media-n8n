@@ -4,13 +4,14 @@ import { Input } from '@/components/ui/input';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
 import { Separator } from '@/components/ui/separator';
+import { Progress } from '@/components/ui/progress';
 import { toast } from 'sonner';
 import { Grid3x3, Upload, Sparkles, Loader2, AlertTriangle, ChevronDown, Plus } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { GridControls } from './GridControls';
 import { GridPreview } from './GridPreview';
 import { useGridDetection } from '@/hooks/useGridDetection';
-import { DetectedImage, GridConfig, initialGridSplitterState } from '@/types/grid-splitter';
+import { DetectedImage, GridConfig, GridDetectionProgress } from '@/types/grid-splitter';
 
 interface GridSplitterProps {
   onAddToCarousel: (files: File[]) => void;
@@ -29,7 +30,7 @@ export function GridSplitter({ onAddToCarousel, maxImages, disabled = false }: G
   const [removeBorders, setRemoveBorders] = useState(true);
   const [error, setError] = useState<string | null>(null);
   
-  const { processGrid, isProcessing } = useGridDetection();
+  const { processGrid, isProcessing, progress } = useGridDetection();
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const handleFileSelect = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
@@ -253,10 +254,20 @@ export function GridSplitter({ onAddToCarousel, maxImages, disabled = false }: G
                     ) : (
                       <>
                         <Sparkles className="h-4 w-4 mr-2" />
-                        Processar Grelha
+                        {detectionMode === 'auto' ? 'Detetar Grelha' : 'Processar Grelha'}
                       </>
                     )}
                   </Button>
+
+                  {/* Progress Bar */}
+                  {isProcessing && progress && (
+                    <div className="space-y-2">
+                      <Progress value={progress.percent} className="h-2" />
+                      <p className="text-xs text-muted-foreground text-center">
+                        {progress.message}
+                      </p>
+                    </div>
+                  )}
                 </>
               )}
 

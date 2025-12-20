@@ -1,5 +1,17 @@
 import { useState, useCallback } from 'react';
-import { DetectedImage, GridConfig } from '@/types/grid-splitter';
+import { DetectedImage, GridConfig, GridDetectionProgress, GridDetectionResult } from '@/types/grid-splitter';
+import { loadImageToCanvas, toGrayscale, applyBoxBlur } from '@/lib/canvas/imageProcessing';
+import { 
+  detectHorizontalSeparators, 
+  detectVerticalSeparators, 
+  validateGridStructure,
+  findSeparatorColor
+} from '@/lib/canvas/gridAnalysis';
+import { 
+  calculateCellBounds, 
+  calculateManualCellBounds, 
+  extractAllCells 
+} from '@/lib/canvas/cellExtraction';
 
 interface UseGridDetectionReturn {
   processGrid: (
@@ -10,11 +22,13 @@ interface UseGridDetectionReturn {
     removeBorders: boolean
   ) => Promise<DetectedImage[]>;
   isProcessing: boolean;
+  progress: GridDetectionProgress | null;
   error: string | null;
 }
 
 export function useGridDetection(): UseGridDetectionReturn {
   const [isProcessing, setIsProcessing] = useState(false);
+  const [progress, setProgress] = useState<GridDetectionProgress | null>(null);
   const [error, setError] = useState<string | null>(null);
 
   const processGrid = useCallback(async (
@@ -26,113 +40,133 @@ export function useGridDetection(): UseGridDetectionReturn {
   ): Promise<DetectedImage[]> => {
     setIsProcessing(true);
     setError(null);
+    setProgress({ stage: 'loading', percent: 5, message: 'A carregar imagem...' });
 
     try {
-      // Phase 1: Manual split only - divides image into grid based on rows/cols
-      const detectedImages = await splitImageByGrid(image, config.rows, config.cols, removeBorders);
+      // Step 1: Load image to canvas
+      const { canvas, imageData, width, height } = await loadImageToCanvas(image);
       
-      if (detectedImages.length === 0) {
-        throw new Error('Não foram detectadas imagens na grelha');
-      }
+      setProgress({ stage: 'preprocessing', percent: 15, message: 'A pré-processar...' });
 
-      return detectedImages;
+      if (mode === 'auto') {
+        // Automatic detection mode
+        return await autoDetect(canvas, imageData, width, height, sensitivity, removeBorders, setProgress);
+      } else {
+        // Manual mode - simple grid split
+        return await manualSplit(canvas, config, width, height, removeBorders, setProgress);
+      }
     } catch (err) {
       const errorMessage = err instanceof Error ? err.message : 'Erro ao processar grelha';
       setError(errorMessage);
       throw err;
     } finally {
       setIsProcessing(false);
+      setProgress(null);
     }
   }, []);
 
-  return { processGrid, isProcessing, error };
+  return { processGrid, isProcessing, progress, error };
 }
 
 /**
- * Splits an image into a grid of rows x cols cells
- * Phase 1: Simple manual split using canvas
+ * Automatic grid detection using variance analysis
  */
-async function splitImageByGrid(
-  imageFile: File,
-  rows: number,
-  cols: number,
-  removeBorders: boolean
+async function autoDetect(
+  canvas: HTMLCanvasElement,
+  imageData: ImageData,
+  width: number,
+  height: number,
+  sensitivity: number,
+  removeBorders: boolean,
+  setProgress: (p: GridDetectionProgress) => void
 ): Promise<DetectedImage[]> {
-  return new Promise((resolve, reject) => {
-    const img = new Image();
-    const url = URL.createObjectURL(imageFile);
+  // Step 2: Convert to grayscale
+  setProgress({ stage: 'preprocessing', percent: 25, message: 'A converter para análise...' });
+  const grayData = toGrayscale(imageData);
 
-    img.onload = () => {
-      try {
-        const cellWidth = Math.floor(img.width / cols);
-        const cellHeight = Math.floor(img.height / rows);
-        
-        // Optional border removal - trim 2% from edges of each cell
-        const borderTrim = removeBorders ? 0.02 : 0;
-        const trimX = Math.floor(cellWidth * borderTrim);
-        const trimY = Math.floor(cellHeight * borderTrim);
-        
-        const detectedImages: DetectedImage[] = [];
-        let order = 0;
+  // Step 3: Apply blur based on sensitivity (lower sensitivity = more blur to reduce noise)
+  const blurRadius = sensitivity < 30 ? 2 : sensitivity < 60 ? 1 : 0;
+  const processedData = blurRadius > 0 ? applyBoxBlur(grayData, blurRadius) : grayData;
 
-        for (let row = 0; row < rows; row++) {
-          for (let col = 0; col < cols; col++) {
-            const canvas = document.createElement('canvas');
-            const ctx = canvas.getContext('2d');
-            
-            if (!ctx) {
-              throw new Error('Não foi possível criar canvas');
-            }
+  // Step 4: Detect separators
+  setProgress({ stage: 'analyzing', percent: 40, message: 'A detetar separadores horizontais...' });
+  const minCellSize = Math.min(width, height) * 0.05; // Min 5% of smallest dimension
+  const hSeparators = detectHorizontalSeparators(processedData, sensitivity, minCellSize);
 
-            // Calculate source position and dimensions with border trimming
-            const srcX = col * cellWidth + trimX;
-            const srcY = row * cellHeight + trimY;
-            const srcWidth = cellWidth - (trimX * 2);
-            const srcHeight = cellHeight - (trimY * 2);
+  setProgress({ stage: 'analyzing', percent: 55, message: 'A detetar separadores verticais...' });
+  const vSeparators = detectVerticalSeparators(processedData, sensitivity, minCellSize);
 
-            canvas.width = srcWidth;
-            canvas.height = srcHeight;
+  // Step 5: Validate grid structure
+  setProgress({ stage: 'analyzing', percent: 65, message: 'A validar estrutura da grelha...' });
+  const validation = validateGridStructure(hSeparators, vSeparators, width, height);
 
-            ctx.drawImage(
-              img,
-              srcX, srcY, srcWidth, srcHeight,
-              0, 0, srcWidth, srcHeight
-            );
+  // Check confidence
+  if (!validation.isValid) {
+    throw new Error(validation.message || 'Não foi possível detetar uma grelha. Experimente o modo manual.');
+  }
 
-            // Convert canvas to blob
-            canvas.toBlob((blob) => {
-              if (blob) {
-                const dataUrl = canvas.toDataURL('image/jpeg', 0.92);
-                detectedImages.push({
-                  id: `grid-${row}-${col}-${Date.now()}`,
-                  blob,
-                  dataUrl,
-                  order: order++,
-                  selected: true,
-                });
+  // Step 6: Calculate cell bounds
+  setProgress({ stage: 'extracting', percent: 75, message: `A extrair ${validation.rows * validation.cols} imagens...` });
+  const cells = calculateCellBounds(hSeparators, vSeparators, width, height, removeBorders);
 
-                // Check if all cells are processed
-                if (detectedImages.length === rows * cols) {
-                  // Sort by order to ensure correct sequence
-                  detectedImages.sort((a, b) => a.order - b.order);
-                  URL.revokeObjectURL(url);
-                  resolve(detectedImages);
-                }
-              }
-            }, 'image/jpeg', 0.92);
-          }
-        }
-      } catch (err) {
-        URL.revokeObjectURL(url);
-        reject(err);
-      }
-    };
+  if (cells.length === 0) {
+    throw new Error('Não foram detectadas células na grelha');
+  }
 
-    img.onerror = () => {
-      URL.revokeObjectURL(url);
-      reject(new Error('Não foi possível carregar a imagem'));
-    };
-
-    img.src = url;
+  // Step 7: Extract cells
+  const detectedImages = await extractAllCells(canvas, cells, (percent) => {
+    setProgress({ 
+      stage: 'extracting', 
+      percent: 75 + (percent * 20), 
+      message: `A extrair imagens... ${Math.round(percent * 100)}%` 
+    });
   });
+
+  // Optional: Get separator color for info
+  const separatorColor = findSeparatorColor(imageData, hSeparators, vSeparators, width, height);
+
+  setProgress({ stage: 'complete', percent: 100, message: 'Concluído!' });
+
+  // Log detection info for debugging
+  console.log('Grid Detection Result:', {
+    rows: validation.rows,
+    cols: validation.cols,
+    confidence: validation.confidence,
+    separatorColor,
+    cellCount: detectedImages.length
+  });
+
+  return detectedImages;
+}
+
+/**
+ * Manual grid split based on rows/cols configuration
+ */
+async function manualSplit(
+  canvas: HTMLCanvasElement,
+  config: GridConfig,
+  width: number,
+  height: number,
+  removeBorders: boolean,
+  setProgress: (p: GridDetectionProgress) => void
+): Promise<DetectedImage[]> {
+  setProgress({ stage: 'analyzing', percent: 50, message: `A dividir em ${config.rows}×${config.cols} células...` });
+
+  // Calculate cell bounds
+  const cells = calculateManualCellBounds(config.rows, config.cols, width, height, removeBorders);
+
+  // Extract cells
+  setProgress({ stage: 'extracting', percent: 70, message: 'A extrair imagens...' });
+  
+  const detectedImages = await extractAllCells(canvas, cells, (percent) => {
+    setProgress({ 
+      stage: 'extracting', 
+      percent: 70 + (percent * 25), 
+      message: `A extrair imagens... ${Math.round(percent * 100)}%` 
+    });
+  });
+
+  setProgress({ stage: 'complete', percent: 100, message: 'Concluído!' });
+
+  return detectedImages;
 }
