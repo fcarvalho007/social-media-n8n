@@ -12,7 +12,7 @@ export interface GridConfig {
 }
 
 export interface GridDetectionProgress {
-  stage: 'loading' | 'preprocessing' | 'analyzing' | 'extracting' | 'complete';
+  stage: 'loading' | 'analyzing' | 'extracting' | 'complete';
   percent: number;
   message: string;
 }
@@ -20,8 +20,6 @@ export interface GridDetectionProgress {
 export interface GridDetectionResult {
   cells: DetectedImage[];
   gridStructure: { rows: number; cols: number };
-  confidence: number;
-  separatorColor?: string;
   message?: string;
 }
 
@@ -30,9 +28,7 @@ export interface GridSplitterState {
   uploadedImageUrl: string | null;
   detectedImages: DetectedImage[];
   isProcessing: boolean;
-  detectionMode: 'auto' | 'manual';
   manualConfig: GridConfig;
-  sensitivity: number;
   removeBorders: boolean;
   error: string | null;
 }
@@ -42,9 +38,7 @@ export const initialGridSplitterState: GridSplitterState = {
   uploadedImageUrl: null,
   detectedImages: [],
   isProcessing: false,
-  detectionMode: 'manual',
   manualConfig: { rows: 2, cols: 2 },
-  sensitivity: 50,
-  removeBorders: true,
+  removeBorders: false,
   error: null,
 };
