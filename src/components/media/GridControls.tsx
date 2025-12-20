@@ -51,14 +51,14 @@ export function GridControls({
           id="auto-detect"
           checked={isAutoMode}
           onCheckedChange={(checked) => onDetectionModeChange(checked ? 'auto' : 'manual')}
-          disabled={disabled || true} // Disabled in Phase 1
+          disabled={disabled}
         />
       </div>
 
-      {/* Auto mode note */}
+      {/* Auto mode info */}
       {isAutoMode && (
         <p className="text-xs text-muted-foreground italic">
-          Deteção automática será implementada na Fase 2
+          O algoritmo irá detetar automaticamente os separadores da grelha
         </p>
       )}
 
@@ -126,7 +126,7 @@ export function GridControls({
             min={1}
             max={100}
             step={1}
-            disabled={disabled || true} // Disabled in Phase 1
+            disabled={disabled}
             className="w-full"
           />
         </div>
