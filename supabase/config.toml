@@ -50,3 +50,6 @@ verify_jwt = true
 
 [functions.ai-generate-image]
 verify_jwt = true
+
+[functions.fal-generate-image]
+verify_jwt = true

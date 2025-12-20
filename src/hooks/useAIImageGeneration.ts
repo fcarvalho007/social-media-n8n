@@ -5,6 +5,7 @@ import {
   AIGenerationJob, 
   AIGeneratedImage 
 } from '@/lib/ai-generator/types';
+import { AI_IMAGE_MODELS } from '@/lib/ai-generator/constants';
 
 interface UseAIImageGenerationReturn {
   generate: (params: AIGenerateParams) => Promise<void>;
@@ -34,12 +35,14 @@ export function useAIImageGeneration(): UseAIImageGenerationReturn {
     const newJobs: AIGenerationJob[] = [];
     const newImages: AIGeneratedImage[] = [];
 
-    // Get model string from model id
-    const modelMap: Record<string, string> = {
-      'nano-banana-pro': 'google/gemini-2.5-flash-image-preview',
-      'gpt-image': 'google/gemini-3-pro-image-preview',
-    };
-    const modelString = modelMap[params.model] || 'google/gemini-2.5-flash-image-preview';
+    // Find model config to determine provider
+    const modelConfig = AI_IMAGE_MODELS.find(m => m.id === params.model);
+    const provider = modelConfig?.provider || 'lovable';
+
+    // Determine which edge function to use based on provider
+    const edgeFunction = provider === 'fal' ? 'fal-generate-image' : 'ai-generate-image';
+
+    console.log(`[AI Generate] Using provider: ${provider}, edge function: ${edgeFunction}`);
 
     try {
       for (let i = 0; i < params.count; i++) {
@@ -59,13 +62,22 @@ export function useAIImageGeneration(): UseAIImageGenerationReturn {
           newJobs[i] = { ...newJobs[i], status: 'generating' };
           setJobs([...newJobs]);
 
-          const { data, error: fnError } = await supabase.functions.invoke('ai-generate-image', {
-            body: {
-              action: 'generate',
-              prompt: params.prompt,
-              model: modelString,
-              aspectRatio: params.aspectRatio,
-            },
+          // Build request body based on provider
+          const body = provider === 'fal' 
+            ? {
+                action: 'generate',
+                prompt: params.prompt,
+                aspectRatio: params.aspectRatio,
+              }
+            : {
+                action: 'generate',
+                prompt: params.prompt,
+                model: modelConfig?.model || 'google/gemini-2.5-flash-image-preview',
+                aspectRatio: params.aspectRatio,
+              };
+
+          const { data, error: fnError } = await supabase.functions.invoke(edgeFunction, {
+            body,
           });
 
           if (fnError) {

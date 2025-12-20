@@ -4,18 +4,18 @@ export const AI_IMAGE_MODELS = [
   {
     id: 'nano-banana-pro' as const,
     name: 'Nano Banana Pro',
-    provider: 'lovable',
+    provider: 'lovable' as const,
     model: 'google/gemini-2.5-flash-image-preview',
     icon: '🍌',
     description: 'Rápido e gratuito',
   },
   {
-    id: 'gpt-image' as const,
-    name: 'GPT Image',
-    provider: 'lovable',
-    model: 'google/gemini-3-pro-image-preview',
+    id: 'gpt-image-1.5' as const,
+    name: 'GPT Image 1.5',
+    provider: 'fal' as const,
+    model: 'fal-ai/gpt-image-1',
     icon: '🤖',
-    description: 'Alta qualidade',
+    description: 'Alta qualidade (fal.ai)',
   },
 ] as const;
 
