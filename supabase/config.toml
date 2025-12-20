@@ -47,3 +47,6 @@ verify_jwt = false
 
 [functions.higgsfield-generate]
 verify_jwt = true
+
+[functions.ai-generate-image]
+verify_jwt = true

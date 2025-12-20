@@ -1,15 +1,14 @@
-import { useCallback, useState, useEffect } from 'react';
+import { useState, useCallback, useEffect } from 'react';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Button } from '@/components/ui/button';
+import { Progress } from '@/components/ui/progress';
 import { Skeleton } from '@/components/ui/skeleton';
-import { AlertTriangle, ExternalLink } from 'lucide-react';
-import { toast } from 'sonner';
+import { AlertTriangle, RefreshCw, Loader2 } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { AIGeneratorForm } from './AIGeneratorForm';
-import { AIGeneratorProgress } from './AIGeneratorProgress';
 import { AIGeneratorResults } from './AIGeneratorResults';
-import { useHiggsfieldGeneration } from '@/hooks/useHiggsfieldGeneration';
-import { HiggsfieldGenerateParams, HiggsfieldGeneratedImage } from '@/lib/higgsfield/types';
+import { useAIImageGeneration } from '@/hooks/useAIImageGeneration';
+import { AIGenerateParams } from '@/lib/ai-generator/types';
 
 interface AIGeneratorProps {
   onAddToCarousel: (files: File[]) => void;
@@ -17,119 +16,89 @@ interface AIGeneratorProps {
   disabled?: boolean;
 }
 
-export function AIGenerator({ onAddToCarousel, maxImages, disabled = false }: AIGeneratorProps) {
+export function AIGenerator({ onAddToCarousel, maxImages, disabled }: AIGeneratorProps) {
   const [credentialsConfigured, setCredentialsConfigured] = useState<boolean | null>(null);
   const [checkingCredentials, setCheckingCredentials] = useState(true);
 
   const {
     generate,
-    jobs,
     generatedImages,
     isGenerating,
     progress,
     error,
-    cancelAll,
-    cancelJob,
     clearResults,
     toggleImageSelection,
     selectAll,
     deselectAll,
-  } = useHiggsfieldGeneration();
+  } = useAIImageGeneration();
 
-  // Check if credentials are configured on mount
   useEffect(() => {
     const checkCredentials = async () => {
       try {
-        // Use a ping action to verify credentials are configured
-        const { data, error } = await supabase.functions.invoke('higgsfield-generate', {
+        const { data, error } = await supabase.functions.invoke('ai-generate-image', {
           body: { action: 'ping' },
         });
-
-        // If we get an error about missing credentials, they're not configured
-        if (error?.message?.includes('não configuradas') || data?.error?.includes('não configuradas')) {
+        if (error?.message?.includes('não configurada') || data?.error?.includes('não configurada')) {
           setCredentialsConfigured(false);
         } else {
           setCredentialsConfigured(true);
         }
       } catch {
-        // Assume configured if we can't check
         setCredentialsConfigured(true);
       } finally {
         setCheckingCredentials(false);
       }
     };
-
     checkCredentials();
   }, []);
 
-  const handleGenerate = useCallback(async (params: HiggsfieldGenerateParams) => {
-    try {
-      await generate(params);
-    } catch (err) {
-      toast.error(err instanceof Error ? err.message : 'Erro ao gerar imagens');
-    }
+  const handleGenerate = useCallback((params: AIGenerateParams) => {
+    generate(params);
   }, [generate]);
 
-  const handleAddToCarousel = useCallback(async (images: HiggsfieldGeneratedImage[]) => {
-    try {
-      // Convert image URLs to Files
-      const files: File[] = [];
-      
-      for (const image of images) {
-        const response = await fetch(image.url);
-        const blob = await response.blob();
-        const file = new File([blob], `ai-generated-${image.order}.jpg`, { type: 'image/jpeg' });
-        files.push(file);
-      }
+  const handleAddToCarousel = useCallback(async () => {
+    const selectedImages = generatedImages.filter(img => img.selected);
+    if (selectedImages.length === 0) return;
 
+    const files: File[] = [];
+    for (const img of selectedImages) {
+      try {
+        const response = await fetch(img.url);
+        const blob = await response.blob();
+        const file = new File([blob], `ai-generated-${img.id}.png`, { type: 'image/png' });
+        files.push(file);
+      } catch (err) {
+        console.error('Error converting image:', err);
+      }
+    }
+
+    if (files.length > 0) {
       onAddToCarousel(files);
       clearResults();
-      toast.success(`${files.length} imagens adicionadas ao carrossel`);
-    } catch (err) {
-      toast.error('Erro ao adicionar imagens ao carrossel');
-      console.error('[AIGenerator] Add to carousel error:', err);
     }
-  }, [onAddToCarousel, clearResults]);
+  }, [generatedImages, onAddToCarousel, clearResults]);
 
-  // Loading state
   if (checkingCredentials) {
     return (
       <div className="space-y-4">
-        <Skeleton className="h-32 w-full" />
-        <Skeleton className="h-10 w-full" />
-        <Skeleton className="h-10 w-full" />
+        <Skeleton className="h-20 w-full" />
+        <Skeleton className="h-9 w-full" />
       </div>
     );
   }
 
-  // Credentials not configured
   if (credentialsConfigured === false) {
     return (
-      <Alert>
+      <Alert variant="destructive">
         <AlertTriangle className="h-4 w-4" />
-        <AlertDescription className="flex flex-col gap-2">
-          <p>
-            As credenciais da Higgsfield AI não estão configuradas. 
-            Configure <code className="bg-muted px-1 rounded">HF_API_KEY</code> e{' '}
-            <code className="bg-muted px-1 rounded">HF_API_SECRET</code> nas variáveis de ambiente.
-          </p>
-          <Button variant="outline" size="sm" asChild className="w-fit">
-            <a 
-              href="https://platform.higgsfield.ai" 
-              target="_blank" 
-              rel="noopener noreferrer"
-            >
-              <ExternalLink className="h-4 w-4 mr-2" />
-              Obter Credenciais
-            </a>
-          </Button>
+        <AlertDescription>
+          O gerador de imagens com IA não está configurado. Contacta o suporte.
         </AlertDescription>
       </Alert>
     );
   }
 
-  // Error state
-  if (error && !isGenerating && jobs.length === 0) {
+  if (error && !isGenerating && generatedImages.length === 0) {
     return (
       <div className="space-y-4">
         <Alert variant="destructive">
@@ -137,13 +106,13 @@ export function AIGenerator({ onAddToCarousel, maxImages, disabled = false }: AI
           <AlertDescription>{error}</AlertDescription>
         </Alert>
         <Button variant="outline" onClick={clearResults} className="w-full">
-          Tentar Novamente
+          <RefreshCw className="h-4 w-4 mr-2" />
+          Tentar novamente
         </Button>
       </div>
     );
   }
 
-  // Results view
   if (generatedImages.length > 0 && !isGenerating) {
     return (
       <AIGeneratorResults
@@ -152,38 +121,36 @@ export function AIGenerator({ onAddToCarousel, maxImages, disabled = false }: AI
         onSelectAll={selectAll}
         onDeselectAll={deselectAll}
         onAddToCarousel={handleAddToCarousel}
-        onStartOver={clearResults}
+        onGenerateNew={clearResults}
         maxImages={maxImages}
-        disabled={disabled}
       />
     );
   }
 
-  // Progress view
-  if (isGenerating || jobs.length > 0) {
+  if (isGenerating) {
+    const percent = progress.total > 0 ? Math.round((progress.completed / progress.total) * 100) : 0;
     return (
       <div className="space-y-4">
-        <AIGeneratorProgress
-          jobs={jobs}
-          progress={progress}
-          onCancel={cancelAll}
-          onCancelJob={cancelJob}
-        />
-        {error && (
-          <Alert variant="destructive">
-            <AlertTriangle className="h-4 w-4" />
-            <AlertDescription>{error}</AlertDescription>
-          </Alert>
+        <div className="flex items-center justify-center gap-3 py-8">
+          <Loader2 className="h-6 w-6 animate-spin text-primary" />
+          <div className="text-center">
+            <p className="font-medium">A gerar imagens...</p>
+            <p className="text-sm text-muted-foreground">{progress.completed} de {progress.total}</p>
+          </div>
+        </div>
+        <Progress value={percent} className="h-2" />
+        {generatedImages.length > 0 && (
+          <div className="grid grid-cols-3 gap-2">
+            {generatedImages.map((img) => (
+              <div key={img.id} className="aspect-square rounded-lg overflow-hidden bg-muted">
+                <img src={img.url} alt="Generated" className="w-full h-full object-cover" />
+              </div>
+            ))}
+          </div>
         )}
       </div>
     );
   }
 
-  // Form view (default)
-  return (
-    <AIGeneratorForm
-      onGenerate={handleGenerate}
-      disabled={disabled || isGenerating}
-    />
-  );
+  return <AIGeneratorForm onGenerate={handleGenerate} disabled={disabled} />;
 }

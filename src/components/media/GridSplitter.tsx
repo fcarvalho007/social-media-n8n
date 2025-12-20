@@ -1,4 +1,4 @@
-import { useState, useCallback, useRef } from 'react';
+import { useState, useCallback, useRef, useMemo } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Alert, AlertDescription } from '@/components/ui/alert';
@@ -14,14 +14,17 @@ import { GridPreview } from './GridPreview';
 import { AIGenerator } from './AIGenerator';
 import { useGridDetection } from '@/hooks/useGridDetection';
 import { DetectedImage, GridConfig, GridDetectionProgress } from '@/types/grid-splitter';
+import { PostFormat } from '@/types/social';
+import { VIDEO_ONLY_FORMATS } from '@/lib/ai-generator/constants';
 
 interface GridSplitterProps {
   onAddToCarousel: (files: File[]) => void;
   maxImages: number;
   disabled?: boolean;
+  selectedFormats?: PostFormat[];
 }
 
-export function GridSplitter({ onAddToCarousel, maxImages, disabled = false }: GridSplitterProps) {
+export function GridSplitter({ onAddToCarousel, maxImages, disabled = false, selectedFormats = [] }: GridSplitterProps) {
   const [isOpen, setIsOpen] = useState(false);
   const [activeTab, setActiveTab] = useState<'grid' | 'ai'>('grid');
   const [uploadedImage, setUploadedImage] = useState<File | null>(null);
@@ -35,6 +38,12 @@ export function GridSplitter({ onAddToCarousel, maxImages, disabled = false }: G
   
   const { processGrid, isProcessing, progress } = useGridDetection();
   const fileInputRef = useRef<HTMLInputElement>(null);
+
+  // Check if only video formats are selected (hide AI tab)
+  const isVideoOnlyFormat = useMemo(() => {
+    if (selectedFormats.length === 0) return false;
+    return selectedFormats.every(f => VIDEO_ONLY_FORMATS.includes(f as typeof VIDEO_ONLY_FORMATS[number]));
+  }, [selectedFormats]);
 
   const handleFileSelect = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -138,6 +147,11 @@ export function GridSplitter({ onAddToCarousel, maxImages, disabled = false }: G
 
   const selectedCount = detectedImages.filter((img) => img.selected).length;
   const canAddToCarousel = selectedCount > 0 && selectedCount <= maxImages;
+
+  // If only video formats, don't show the collapsible at all
+  if (isVideoOnlyFormat) {
+    return null;
+  }
 
   return (
     <Collapsible open={isOpen} onOpenChange={setIsOpen} className="w-full">
