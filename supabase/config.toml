@@ -44,3 +44,6 @@ verify_jwt = true
 
 [functions.notify-publication-failure]
 verify_jwt = false
+
+[functions.higgsfield-generate]
+verify_jwt = true
