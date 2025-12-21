@@ -52,7 +52,7 @@ import { PublishProgressModal } from '@/components/publishing/PublishProgressMod
 import { usePublishWithProgress } from '@/hooks/usePublishWithProgress';
 import { EnhancedSortableMediaItem, MediaDragOverlay } from '@/components/manual-post/EnhancedSortableMediaItem';
 import { DragHintTooltip } from '@/components/manual-post/DragHintTooltip';
-import { DndContext, closestCenter, DragEndEvent, DragStartEvent, PointerSensor, KeyboardSensor, useSensor, useSensors, DragOverlay } from '@dnd-kit/core';
+import { DndContext, closestCenter, DragEndEvent, DragStartEvent, PointerSensor, KeyboardSensor, TouchSensor, useSensor, useSensors, DragOverlay } from '@dnd-kit/core';
 import { SortableContext, arrayMove, horizontalListSortingStrategy, sortableKeyboardCoordinates } from '@dnd-kit/sortable';
 import { generateCarouselPDF } from '@/lib/pdfGenerator';
 import EmojiPicker, { EmojiClickData } from 'emoji-picker-react';
@@ -171,7 +171,13 @@ export default function ManualCreate() {
   const sensors = useSensors(
     useSensor(PointerSensor, {
       activationConstraint: {
-        distance: 5,
+        distance: 8,
+      },
+    }),
+    useSensor(TouchSensor, {
+      activationConstraint: {
+        delay: 200,
+        tolerance: 5,
       },
     }),
     useSensor(KeyboardSensor, {
@@ -1098,9 +1104,10 @@ export default function ManualCreate() {
                     <div className="flex items-center justify-between text-xs text-muted-foreground">
                       <span className="flex items-center gap-1.5">
                         <span className="w-1.5 h-1.5 rounded-full bg-primary animate-pulse" />
-                        Arraste para reordenar ou use as setas
+                        <span className="hidden sm:inline">Arraste para reordenar ou use as setas</span>
+                        <span className="sm:hidden">Pressione e arraste • Use ↑↓</span>
                       </span>
-                      <span className="font-medium">{mediaPreviewUrls.length} de {mediaRequirements.maxMedia} ficheiros</span>
+                      <span className="font-medium">{mediaPreviewUrls.length}/{mediaRequirements.maxMedia}</span>
                     </div>
                     <DndContext
                       sensors={sensors}
