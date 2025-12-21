@@ -26,14 +26,15 @@ function mapAspectRatioForNanoBanana(aspectRatio: string): string {
   return aspectRatio;
 }
 
-// Map resolution to fal.ai output_resolution for Nano Banana Pro
+// Map resolution to fal.ai format for Nano Banana Pro
+// Note: fal.ai expects lowercase values: '1k', '2k', '4k'
 function mapResolution(resolution: string): string {
   const mapping: Record<string, string> = {
     '1K': '1k',
     '2K': '2k',
     '4K': '4k',
   };
-  return mapping[resolution] || '1k';
+  return mapping[resolution] || '2k';  // Default to 2k
 }
 
 interface GenerateRequest {
@@ -104,16 +105,17 @@ serve(async (req) => {
     if (modelId === 'nano-banana-pro') {
       // Nano Banana Pro
       submitUrl = `${FAL_API_URL}/fal-ai/nano-banana-pro`;
+      const mappedResolution = mapResolution(resolution);
       requestBody = {
         prompt,
         aspect_ratio: mapAspectRatioForNanoBanana(aspectRatio),
-        output_resolution: mapResolution(resolution),
+        resolution: mappedResolution,  // CORRECTED: was output_resolution
         num_images: 1,
         output_format: 'png',
       };
       estimatedCost = NANO_BANANA_PRICING[resolution] || 0.15;
       
-      console.log(`[fal-generate-image] Nano Banana Pro - Aspect: ${aspectRatio}, Resolution: ${resolution}`);
+      console.log(`[fal-generate-image] Nano Banana Pro - Aspect: ${aspectRatio}, Resolution: ${resolution} -> ${mappedResolution}`);
     } else {
       // GPT Image 1.5
       submitUrl = `${FAL_API_URL}/fal-ai/gpt-image-1`;

@@ -1,15 +1,15 @@
 import { useState, useCallback, useEffect } from 'react';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Button } from '@/components/ui/button';
-import { Progress } from '@/components/ui/progress';
 import { Skeleton } from '@/components/ui/skeleton';
-import { AlertTriangle, RefreshCw, Loader2 } from 'lucide-react';
+import { AlertTriangle, RefreshCw } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { AIGeneratorForm } from './AIGeneratorForm';
+import { AIGeneratorProgress } from './AIGeneratorProgress';
 import { AIGeneratorResults } from './AIGeneratorResults';
 import { useAIImageGeneration } from '@/hooks/useAIImageGeneration';
 import { AIGenerateParams } from '@/lib/ai-generator/types';
-import { getModelById } from '@/lib/ai-generator/constants';
+import { getModelById, calculateNanoBananaCost, calculateGPTImageCost } from '@/lib/ai-generator/constants';
 import { MediaSource } from '@/types/media';
 
 interface AIGeneratorProps {
@@ -23,8 +23,11 @@ export function AIGenerator({ onAddToCarousel, onSendToGridSplitter, maxImages, 
   const [credentialsConfigured, setCredentialsConfigured] = useState<boolean | null>(null);
   const [checkingCredentials, setCheckingCredentials] = useState(true);
 
+  const [currentParams, setCurrentParams] = useState<AIGenerateParams | null>(null);
+
   const {
     generate,
+    jobs,
     generatedImages,
     isGenerating,
     progress,
@@ -60,8 +63,14 @@ export function AIGenerator({ onAddToCarousel, onSendToGridSplitter, maxImages, 
   }, []);
 
   const handleGenerate = useCallback((params: AIGenerateParams) => {
+    setCurrentParams(params);
     generate(params);
   }, [generate]);
+
+  const handleCancelGeneration = useCallback(() => {
+    clearResults();
+    setCurrentParams(null);
+  }, [clearResults]);
 
   const handleAddToCarousel = useCallback(async () => {
     const selectedImages = generatedImages.filter(img => img.selected);
@@ -151,17 +160,26 @@ export function AIGenerator({ onAddToCarousel, onSendToGridSplitter, maxImages, 
   }
 
   if (isGenerating) {
-    const percent = progress.total > 0 ? Math.round((progress.completed / progress.total) * 100) : 0;
+    // Calculate estimated cost per image for display
+    const estimatedCostPerImage = currentParams 
+      ? currentParams.model === 'nano-banana-pro'
+        ? calculateNanoBananaCost(currentParams.resolution || '2K', 1)
+        : calculateGPTImageCost(currentParams.quality || 'high', currentParams.imageSize || '1024x1024', 1)
+      : 0.15;
+    
+    const modelName = currentParams 
+      ? getModelById(currentParams.model)?.name || 'AI'
+      : 'AI';
+
     return (
       <div className="space-y-4">
-        <div className="flex items-center justify-center gap-3 py-8">
-          <Loader2 className="h-6 w-6 animate-spin text-primary" />
-          <div className="text-center">
-            <p className="font-medium">A gerar imagens...</p>
-            <p className="text-sm text-muted-foreground">{progress.completed} de {progress.total}</p>
-          </div>
-        </div>
-        <Progress value={percent} className="h-2" />
+        <AIGeneratorProgress
+          jobs={jobs}
+          progress={progress}
+          onCancel={handleCancelGeneration}
+          modelName={modelName}
+          estimatedCostPerImage={estimatedCostPerImage}
+        />
         {generatedImages.length > 0 && (
           <div className="grid grid-cols-3 gap-2">
             {generatedImages.map((img) => (
