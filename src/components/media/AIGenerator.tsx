@@ -29,6 +29,7 @@ export function AIGenerator({ onAddToCarousel, onSendToGridSplitter, maxImages, 
     isGenerating,
     progress,
     error,
+    totalCost,
     clearResults,
     toggleImageSelection,
     selectAll,
@@ -144,6 +145,7 @@ export function AIGenerator({ onAddToCarousel, onSendToGridSplitter, maxImages, 
         onGenerateNew={clearResults}
         onSendToGridSplitter={onSendToGridSplitter ? handleSendToGridSplitter : undefined}
         maxImages={maxImages}
+        totalCost={totalCost}
       />
     );
   }

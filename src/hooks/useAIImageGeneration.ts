@@ -5,7 +5,10 @@ import {
   AIGenerationJob, 
   AIGeneratedImage 
 } from '@/lib/ai-generator/types';
-import { AI_IMAGE_MODELS } from '@/lib/ai-generator/constants';
+import { 
+  calculateNanoBananaCost, 
+  calculateGPTImageCost 
+} from '@/lib/ai-generator/constants';
 
 interface UseAIImageGenerationReturn {
   generate: (params: AIGenerateParams) => Promise<void>;
@@ -14,6 +17,7 @@ interface UseAIImageGenerationReturn {
   isGenerating: boolean;
   progress: { completed: number; total: number; currentStatus: string };
   error: string | null;
+  totalCost: number;
   clearResults: () => void;
   toggleImageSelection: (id: string) => void;
   selectAll: () => void;
@@ -25,24 +29,24 @@ export function useAIImageGeneration(): UseAIImageGenerationReturn {
   const [generatedImages, setGeneratedImages] = useState<AIGeneratedImage[]>([]);
   const [isGenerating, setIsGenerating] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [totalCost, setTotalCost] = useState(0);
 
   const generate = useCallback(async (params: AIGenerateParams) => {
     setError(null);
     setIsGenerating(true);
     setJobs([]);
     setGeneratedImages([]);
+    setTotalCost(0);
 
     const newJobs: AIGenerationJob[] = [];
     const newImages: AIGeneratedImage[] = [];
+    let accumulatedCost = 0;
 
-    // Find model config to determine provider
-    const modelConfig = AI_IMAGE_MODELS.find(m => m.id === params.model);
-    const provider = modelConfig?.provider || 'lovable';
+    // Always use fal-generate-image since both models are on fal.ai
+    const edgeFunction = 'fal-generate-image';
+    const isNanoBanana = params.model === 'nano-banana-pro';
 
-    // Determine which edge function to use based on provider
-    const edgeFunction = provider === 'fal' ? 'fal-generate-image' : 'ai-generate-image';
-
-    console.log(`[AI Generate] Using provider: ${provider}, edge function: ${edgeFunction}`);
+    console.log(`[AI Generate] Model: ${params.model}, Edge function: ${edgeFunction}`);
 
     try {
       for (let i = 0; i < params.count; i++) {
@@ -62,19 +66,24 @@ export function useAIImageGeneration(): UseAIImageGenerationReturn {
           newJobs[i] = { ...newJobs[i], status: 'generating' };
           setJobs([...newJobs]);
 
-          // Build request body based on provider
-          const body = provider === 'fal' 
+          // Build request body based on model
+          const body = isNanoBanana 
             ? {
                 action: 'generate',
+                modelId: 'nano-banana-pro',
                 prompt: params.prompt,
-                aspectRatio: params.aspectRatio,
+                aspectRatio: params.aspectRatio || '1:1',
+                resolution: params.resolution || '1K',
               }
             : {
                 action: 'generate',
+                modelId: 'gpt-image-1.5',
                 prompt: params.prompt,
-                model: modelConfig?.model || 'google/gemini-2.5-flash-image-preview',
-                aspectRatio: params.aspectRatio,
+                imageSize: params.imageSize || '1024x1024',
+                quality: params.quality || 'high',
               };
+
+          console.log(`[AI Generate] Request body:`, body);
 
           const { data, error: fnError } = await supabase.functions.invoke(edgeFunction, {
             body,
@@ -88,11 +97,21 @@ export function useAIImageGeneration(): UseAIImageGenerationReturn {
             throw new Error(data?.error || 'Erro desconhecido');
           }
 
+          // Get cost from response or calculate it
+          const imageCost = data.cost || (isNanoBanana 
+            ? calculateNanoBananaCost(params.resolution || '1K', 1)
+            : calculateGPTImageCost(params.quality || 'high', params.imageSize || '1024x1024', 1)
+          );
+          
+          accumulatedCost += imageCost;
+          setTotalCost(accumulatedCost);
+
           // Success - add image
           newJobs[i] = { 
             ...newJobs[i], 
             status: 'completed',
-            imageUrl: data.imageUrl 
+            imageUrl: data.imageUrl,
+            cost: imageCost,
           };
           setJobs([...newJobs]);
 
@@ -101,9 +120,12 @@ export function useAIImageGeneration(): UseAIImageGenerationReturn {
             url: data.imageUrl,
             selected: true,
             order: newImages.length + 1,
+            cost: imageCost,
           };
           newImages.push(newImage);
           setGeneratedImages([...newImages]);
+
+          console.log(`[AI Generate] Image ${i + 1} generated. Cost: $${imageCost.toFixed(3)}`);
 
         } catch (err) {
           console.error(`[AI Generate] Job ${i + 1} failed:`, err);
@@ -133,6 +155,7 @@ export function useAIImageGeneration(): UseAIImageGenerationReturn {
     setJobs([]);
     setGeneratedImages([]);
     setError(null);
+    setTotalCost(0);
   }, []);
 
   const toggleImageSelection = useCallback((id: string) => {
@@ -173,6 +196,7 @@ export function useAIImageGeneration(): UseAIImageGenerationReturn {
       currentStatus 
     },
     error,
+    totalCost,
     clearResults,
     toggleImageSelection,
     selectAll,

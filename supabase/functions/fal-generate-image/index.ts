@@ -7,22 +7,45 @@ const corsHeaders = {
 
 const FAL_API_URL = 'https://queue.fal.run';
 
-// Map aspect ratios to fal.ai image_size
-function mapAspectRatioToImageSize(aspectRatio: string): string {
+// Pricing tables (as of Dec 2024)
+const NANO_BANANA_PRICING: Record<string, number> = {
+  '1K': 0.15,
+  '2K': 0.15,
+  '4K': 0.30,
+};
+
+const GPT_IMAGE_PRICING: Record<string, Record<string, number>> = {
+  low: { '1024x1024': 0.009, '1536x1024': 0.013, '1024x1536': 0.013 },
+  medium: { '1024x1024': 0.034, '1536x1024': 0.050, '1024x1536': 0.051 },
+  high: { '1024x1024': 0.133, '1536x1024': 0.199, '1024x1536': 0.200 },
+};
+
+// Map aspect ratio to fal.ai format for Nano Banana Pro
+function mapAspectRatioForNanoBanana(aspectRatio: string): string {
+  // Nano Banana Pro accepts aspect ratios in "width:height" format
+  return aspectRatio;
+}
+
+// Map resolution to fal.ai output_resolution for Nano Banana Pro
+function mapResolution(resolution: string): string {
   const mapping: Record<string, string> = {
-    '1:1': '1024x1024',
-    '3:4': '1024x1536',
-    '4:3': '1536x1024',
-    '9:16': '1024x1536',
-    '16:9': '1536x1024',
+    '1K': '1k',
+    '2K': '2k',
+    '4K': '4k',
   };
-  return mapping[aspectRatio] || '1024x1024';
+  return mapping[resolution] || '1k';
 }
 
 interface GenerateRequest {
   action: 'generate' | 'ping';
-  prompt: string;
+  modelId?: 'nano-banana-pro' | 'gpt-image-1.5';
+  prompt?: string;
+  // Nano Banana Pro params
   aspectRatio?: string;
+  resolution?: '1K' | '2K' | '4K';
+  // GPT Image 1.5 params  
+  imageSize?: string;
+  quality?: 'low' | 'medium' | 'high';
 }
 
 serve(async (req) => {
@@ -34,7 +57,15 @@ serve(async (req) => {
   try {
     const FAL_KEY = Deno.env.get('FAL_KEY');
     
-    const { action, prompt, aspectRatio = '1:1' } = await req.json() as GenerateRequest;
+    const { 
+      action, 
+      modelId = 'gpt-image-1.5', 
+      prompt, 
+      aspectRatio = '1:1',
+      resolution = '1K',
+      imageSize = '1024x1024',
+      quality = 'high',
+    } = await req.json() as GenerateRequest;
 
     // Ping action for health check
     if (action === 'ping') {
@@ -63,14 +94,42 @@ serve(async (req) => {
       );
     }
 
-    console.log(`[fal-generate-image] Starting generation with prompt: ${prompt.substring(0, 100)}...`);
-    console.log(`[fal-generate-image] Aspect ratio: ${aspectRatio}`);
+    console.log(`[fal-generate-image] Model: ${modelId}`);
+    console.log(`[fal-generate-image] Prompt: ${prompt.substring(0, 100)}...`);
 
-    const imageSize = mapAspectRatioToImageSize(aspectRatio);
-    console.log(`[fal-generate-image] Mapped to image_size: ${imageSize}`);
+    let submitUrl: string;
+    let requestBody: Record<string, unknown>;
+    let estimatedCost: number;
 
-    // Submit job to fal.ai
-    const submitUrl = `${FAL_API_URL}/fal-ai/gpt-image-1`;
+    if (modelId === 'nano-banana-pro') {
+      // Nano Banana Pro
+      submitUrl = `${FAL_API_URL}/fal-ai/nano-banana-pro`;
+      requestBody = {
+        prompt,
+        aspect_ratio: mapAspectRatioForNanoBanana(aspectRatio),
+        output_resolution: mapResolution(resolution),
+        num_images: 1,
+        output_format: 'png',
+      };
+      estimatedCost = NANO_BANANA_PRICING[resolution] || 0.15;
+      
+      console.log(`[fal-generate-image] Nano Banana Pro - Aspect: ${aspectRatio}, Resolution: ${resolution}`);
+    } else {
+      // GPT Image 1.5
+      submitUrl = `${FAL_API_URL}/fal-ai/gpt-image-1`;
+      requestBody = {
+        prompt,
+        image_size: imageSize,
+        quality,
+        num_images: 1,
+        output_format: 'png',
+      };
+      estimatedCost = GPT_IMAGE_PRICING[quality]?.[imageSize] || 0.133;
+      
+      console.log(`[fal-generate-image] GPT Image 1.5 - Size: ${imageSize}, Quality: ${quality}`);
+    }
+
+    console.log(`[fal-generate-image] Estimated cost: $${estimatedCost}`);
     console.log(`[fal-generate-image] Submitting to: ${submitUrl}`);
 
     const submitResponse = await fetch(submitUrl, {
@@ -79,13 +138,7 @@ serve(async (req) => {
         'Authorization': `Key ${FAL_KEY}`,
         'Content-Type': 'application/json',
       },
-      body: JSON.stringify({
-        prompt,
-        image_size: imageSize,
-        quality: 'high',
-        num_images: 1,
-        output_format: 'png',
-      }),
+      body: JSON.stringify(requestBody),
     });
 
     if (!submitResponse.ok) {
@@ -102,11 +155,14 @@ serve(async (req) => {
 
     // Check if we got immediate result (sync mode) or need to poll
     if (submitData.images && submitData.images.length > 0) {
-      // Immediate result
       const imageUrl = submitData.images[0].url;
       console.log(`[fal-generate-image] Got immediate result: ${imageUrl}`);
       return new Response(
-        JSON.stringify({ success: true, imageUrl }),
+        JSON.stringify({ 
+          success: true, 
+          imageUrl,
+          cost: estimatedCost,
+        }),
         { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
@@ -123,14 +179,17 @@ serve(async (req) => {
 
     console.log(`[fal-generate-image] Got request_id: ${requestId}, starting polling...`);
 
-    // Poll for result (max 60 seconds)
-    const maxAttempts = 30;
-    const pollInterval = 2000; // 2 seconds
+    // Determine the model path for polling
+    const modelPath = modelId === 'nano-banana-pro' ? 'fal-ai/nano-banana-pro' : 'fal-ai/gpt-image-1';
+
+    // Poll for result (max 120 seconds for larger resolutions)
+    const maxAttempts = 60;
+    const pollInterval = 2000;
 
     for (let attempt = 0; attempt < maxAttempts; attempt++) {
       await new Promise(resolve => setTimeout(resolve, pollInterval));
 
-      const statusUrl = `${FAL_API_URL}/fal-ai/gpt-image-1/requests/${requestId}/status`;
+      const statusUrl = `${FAL_API_URL}/${modelPath}/requests/${requestId}/status`;
       console.log(`[fal-generate-image] Polling attempt ${attempt + 1}/${maxAttempts}`);
 
       const statusResponse = await fetch(statusUrl, {
@@ -149,7 +208,7 @@ serve(async (req) => {
 
       if (statusData.status === 'COMPLETED') {
         // Fetch the result
-        const resultUrl = `${FAL_API_URL}/fal-ai/gpt-image-1/requests/${requestId}`;
+        const resultUrl = `${FAL_API_URL}/${modelPath}/requests/${requestId}`;
         const resultResponse = await fetch(resultUrl, {
           headers: {
             'Authorization': `Key ${FAL_KEY}`,
@@ -172,7 +231,11 @@ serve(async (req) => {
           const imageUrl = resultData.images[0].url;
           console.log(`[fal-generate-image] Success! Image URL: ${imageUrl}`);
           return new Response(
-            JSON.stringify({ success: true, imageUrl }),
+            JSON.stringify({ 
+              success: true, 
+              imageUrl,
+              cost: estimatedCost,
+            }),
             { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
           );
         }
