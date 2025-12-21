@@ -52,19 +52,19 @@ export function NetworkFormatSelector({ selectedFormats, onFormatsChange }: Netw
 
   return (
     <Card className="overflow-hidden">
-      <CardHeader className="pb-3">
-        <CardTitle className="text-lg">Selecione onde pretende publicar</CardTitle>
+      <CardHeader className="pb-2 sm:pb-3 px-3 sm:px-6">
+        <CardTitle className="text-base sm:text-lg">Selecione onde pretende publicar</CardTitle>
       </CardHeader>
-      <CardContent className="space-y-0">
+      <CardContent className="space-y-0 px-3 sm:px-6">
         {/* Quick Presets */}
         <QuickPresets
           selectedFormats={selectedFormats}
           onSelectPreset={handlePresetSelect}
         />
 
-        {/* Platform Chips Bar */}
+        {/* Platform Chips Bar - horizontal scroll on mobile */}
         <div 
-          className="platform-chips flex gap-3 flex-wrap overflow-x-auto pb-2 -mx-2 px-2"
+          className="platform-chips flex gap-2 sm:gap-3 overflow-x-auto pb-2 -mx-3 px-3 sm:mx-0 sm:px-0 sm:flex-wrap scrollbar-hide"
           role="tablist"
           aria-label="Plataformas disponíveis"
         >
