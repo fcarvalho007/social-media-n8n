@@ -883,72 +883,71 @@ export default function ManualCreate() {
   const [mobilePreviewOpen, setMobilePreviewOpen] = useState(false);
 
   return (
-    <div className="max-w-7xl mx-auto space-y-3 sm:space-y-4 px-2 sm:px-4 lg:px-0 bg-gradient-to-br from-background to-background-secondary">
+    <div className="max-w-7xl mx-auto space-y-2 sm:space-y-4 px-0 sm:px-4 lg:px-0 bg-gradient-to-br from-background to-background-secondary">
       {/* Header */}
-      <div className="flex items-center justify-between py-1 sm:py-0">
+      <div className="flex items-center justify-between py-1 px-2 sm:px-0">
         <Button 
           variant="ghost" 
           size="sm" 
           onClick={() => navigate('/?tab=create')}
-          className="gap-1.5 sm:gap-2 px-2 sm:px-3 -ml-2 sm:ml-0"
+          className="gap-1.5 px-2 -ml-1 sm:ml-0 h-8 sm:h-9"
           aria-label="Voltar à página anterior"
         >
           <ArrowLeft className="h-4 w-4" />
-          <span className="hidden xs:inline">Voltar</span>
+          <span className="hidden sm:inline">Voltar</span>
         </Button>
         <CompactModeBadge mode="manual" onChangeMode={() => navigate('/?tab=create')} />
       </div>
 
-      {/* Quota Warning */}
+      {/* Quota Warning - simplified on mobile */}
       {selectedNetworks.length > 0 && !isUnlimited && (
         (selectedNetworks.includes('instagram') && instagram.percentage >= 80) ||
         (selectedNetworks.includes('linkedin') && linkedin.percentage >= 80)
       ) && (
-        <div className="flex items-center gap-2 p-2 sm:p-3 rounded-lg bg-amber-500/10 border border-amber-500/20 text-amber-700 dark:text-amber-400">
-          <AlertTriangle className="h-4 w-4 flex-shrink-0" />
-          <span className="text-xs sm:text-sm">
-            {selectedNetworks.includes('instagram') && instagram.percentage >= 100 && 'Quota IG esgotada. '}
-            {selectedNetworks.includes('linkedin') && linkedin.percentage >= 100 && 'Quota LI esgotada. '}
+        <div className="flex items-center gap-1.5 sm:gap-2 p-2 mx-2 sm:mx-0 rounded-lg bg-amber-500/10 border border-amber-500/20 text-amber-700 dark:text-amber-400">
+          <AlertTriangle className="h-3.5 w-3.5 sm:h-4 sm:w-4 flex-shrink-0" />
+          <span className="text-[11px] sm:text-sm truncate">
+            {selectedNetworks.includes('instagram') && instagram.percentage >= 100 && 'Quota IG esgotada'}
+            {selectedNetworks.includes('linkedin') && linkedin.percentage >= 100 && 'Quota LI esgotada'}
             {((selectedNetworks.includes('instagram') && instagram.percentage >= 80 && instagram.percentage < 100) ||
               (selectedNetworks.includes('linkedin') && linkedin.percentage >= 80 && linkedin.percentage < 100)) && 
-              'Quota quase esgotada. '}
-            <span className="hidden sm:inline">IG: {instagram.quotaText} | LI: {linkedin.quotaText}</span>
+              'Quota quase esgotada'}
           </span>
         </div>
       )}
 
-      {/* Stepper */}
-      <Card className="border-0 shadow-none bg-transparent -mx-2 sm:mx-0">
+      {/* Stepper - more compact on mobile */}
+      <div className="px-2 sm:px-0">
         <StepProgress
           currentStep={currentStep}
           visitedSteps={visitedSteps}
           onStepClick={goToStep}
         />
-      </Card>
+      </div>
 
       {/* Mobile Preview - Collapsible at top */}
-      <div className="lg:hidden">
+      <div className="lg:hidden px-2 sm:px-0">
         <Collapsible open={mobilePreviewOpen} onOpenChange={setMobilePreviewOpen}>
           <CollapsibleTrigger asChild>
-            <Button variant="outline" className="w-full gap-2 justify-between">
-              <span className="flex items-center gap-2">
-                <Eye className="h-4 w-4" />
+            <Button variant="outline" size="sm" className="w-full gap-2 justify-between h-9">
+              <span className="flex items-center gap-2 text-sm">
+                <Eye className="h-3.5 w-3.5" />
                 Pré-visualização
               </span>
               <ChevronDown className={cn(
-                "h-4 w-4 transition-transform",
+                "h-3.5 w-3.5 transition-transform",
                 mobilePreviewOpen && "rotate-180"
               )} />
             </Button>
           </CollapsibleTrigger>
-          <CollapsibleContent className="mt-3">
-            <Card className="p-4">
+          <CollapsibleContent className="mt-2">
+            <Card className="p-3">
               {selectedFormats.length === 0 ? (
-                <div className="flex items-center justify-center h-32 text-muted-foreground text-sm">
+                <div className="flex items-center justify-center h-24 text-muted-foreground text-xs">
                   Selecione um formato
                 </div>
               ) : (
-                <div className="max-h-[50vh] overflow-auto">
+                <div className="max-h-[40vh] overflow-auto">
                   {renderPreview(activePreviewTab as PostFormat || selectedFormats[0])}
                 </div>
               )}
@@ -957,9 +956,9 @@ export default function ManualCreate() {
         </Collapsible>
       </div>
 
-      <div className="grid lg:grid-cols-2 gap-4 lg:gap-8 pb-24 lg:pb-0">
+      <div className="grid lg:grid-cols-2 gap-3 lg:gap-8 pb-20 lg:pb-0 px-2 sm:px-0">
         {/* Left - Form */}
-        <div className="space-y-4 lg:space-y-6">
+        <div className="space-y-3 lg:space-y-6">
           {/* Step 1: Network & Format Selection */}
           <div className="relative">
             <NetworkFormatSelector
@@ -1591,15 +1590,15 @@ export default function ManualCreate() {
       </div>
 
       {/* Mobile Sticky Bottom Bar */}
-      <div className="fixed bottom-0 left-0 right-0 p-2 sm:p-3 bg-background/95 backdrop-blur-sm border-t shadow-lg lg:hidden z-50 safe-area-inset-bottom">
-        <div className="flex gap-2 max-w-lg mx-auto">
+      <div className="fixed bottom-0 left-0 right-0 p-1.5 sm:p-3 bg-background/95 backdrop-blur-sm border-t shadow-lg lg:hidden z-50 safe-area-inset-bottom">
+        <div className="flex gap-1.5 sm:gap-2 max-w-lg mx-auto">
           <Button
             type="button"
             size="default"
             onClick={handlePublishWithValidation}
             disabled={publishing || submitting || saving || isUploading || selectedFormats.length === 0}
             className={cn(
-              "flex-1 font-semibold text-white h-11 sm:h-12",
+              "flex-1 font-semibold text-white h-10 sm:h-12",
               "bg-gradient-to-r from-green-600 to-green-500",
               "hover:from-green-500 hover:to-green-400",
               "active:scale-[0.98] transition-all duration-200",
@@ -1610,8 +1609,8 @@ export default function ManualCreate() {
               <Loader2 className="h-4 w-4 animate-spin" />
             ) : (
               <>
-                <Rocket className="h-4 w-4 mr-1.5" />
-                <span className="text-sm sm:text-base">Publicar</span>
+                <Rocket className="h-3.5 w-3.5 sm:h-4 sm:w-4 mr-1" />
+                <span className="text-xs sm:text-base">Publicar</span>
               </>
             )}
           </Button>
@@ -1621,9 +1620,9 @@ export default function ManualCreate() {
             size="default"
             onClick={handleSaveDraft}
             disabled={saving || submitting || publishing}
-            className="px-3 sm:px-4 h-11 sm:h-12"
+            className="px-2.5 sm:px-4 h-10 sm:h-12"
           >
-            <Save className="h-4 w-4" />
+            <Save className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
           </Button>
         </div>
       </div>

@@ -19,8 +19,8 @@ export function PlatformChip({ platform, selectedCount, isExpanded, onClick }: P
       onClick={onClick}
       className={cn(
         "platform-chip group",
-        "flex items-center gap-1.5 sm:gap-2 px-2.5 py-1.5 sm:px-3 sm:py-2",
-        "rounded-xl border-2 bg-card",
+        "flex items-center gap-1 sm:gap-2 px-2 py-1.5 sm:px-3 sm:py-2",
+        "rounded-lg sm:rounded-xl border-2 bg-card",
         "transition-all duration-200",
         "hover:shadow-md hover:-translate-y-0.5",
         "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2",
@@ -38,18 +38,18 @@ export function PlatformChip({ platform, selectedCount, isExpanded, onClick }: P
       {/* Icon Container */}
       <div 
         className={cn(
-          "w-7 h-7 sm:w-8 sm:h-8 rounded-lg flex items-center justify-center",
+          "w-6 h-6 sm:w-8 sm:h-8 rounded-md sm:rounded-lg flex items-center justify-center",
           "transition-all duration-200"
         )}
         style={{ backgroundColor: `${config.colorHex}15` }}
       >
-        <PlatformIcon platform={platform} className="w-4 h-4 sm:w-5 sm:h-5" colored />
+        <PlatformIcon platform={platform} className="w-3.5 h-3.5 sm:w-5 sm:h-5" colored />
       </div>
       
-      {/* Platform Name - hidden on small screens when not expanded */}
+      {/* Platform Name - abbreviated on mobile */}
       <span className={cn(
-        "font-medium text-xs sm:text-sm text-foreground",
-        !isExpanded && selectedCount === 0 && "hidden xs:inline"
+        "font-medium text-[11px] sm:text-sm text-foreground",
+        !isExpanded && selectedCount === 0 && "hidden sm:inline"
       )}>
         {config.name}
       </span>
@@ -57,7 +57,7 @@ export function PlatformChip({ platform, selectedCount, isExpanded, onClick }: P
       {/* Selected Badge */}
       {selectedCount > 0 && (
         <span 
-          className="platform-chip-badge px-1.5 py-0.5 rounded-full text-[10px] sm:text-[11px] font-semibold text-white"
+          className="platform-chip-badge px-1 py-0.5 sm:px-1.5 rounded-full text-[9px] sm:text-[11px] font-semibold text-white"
           style={{ backgroundColor: config.colorHex }}
         >
           ✓{selectedCount}
@@ -67,7 +67,7 @@ export function PlatformChip({ platform, selectedCount, isExpanded, onClick }: P
       {/* Chevron */}
       <ChevronDown 
         className={cn(
-          "w-3.5 h-3.5 sm:w-4 sm:h-4 text-muted-foreground transition-transform duration-200",
+          "w-3 h-3 sm:w-4 sm:h-4 text-muted-foreground transition-transform duration-200",
           isExpanded && "rotate-180"
         )} 
       />
