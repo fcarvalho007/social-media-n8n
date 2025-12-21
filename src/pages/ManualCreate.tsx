@@ -929,29 +929,29 @@ export default function ManualCreate() {
       <div className="lg:hidden px-2 sm:px-0">
         <Collapsible open={mobilePreviewOpen} onOpenChange={setMobilePreviewOpen}>
           <CollapsibleTrigger asChild>
-            <Button variant="outline" size="sm" className="w-full gap-2 justify-between h-9">
-              <span className="flex items-center gap-2 text-sm">
-                <Eye className="h-3.5 w-3.5" />
+            <Button variant="ghost" size="sm" className="w-full gap-2 justify-between h-8 bg-muted/50 hover:bg-muted">
+              <span className="flex items-center gap-1.5 text-xs font-medium">
+                <Eye className="h-3 w-3" />
                 Pré-visualização
               </span>
               <ChevronDown className={cn(
-                "h-3.5 w-3.5 transition-transform",
+                "h-3 w-3 transition-transform",
                 mobilePreviewOpen && "rotate-180"
               )} />
             </Button>
           </CollapsibleTrigger>
-          <CollapsibleContent className="mt-2">
-            <Card className="p-3">
+          <CollapsibleContent className="mt-1.5">
+            <div className="p-2 bg-muted/30 rounded-lg">
               {selectedFormats.length === 0 ? (
-                <div className="flex items-center justify-center h-24 text-muted-foreground text-xs">
+                <div className="flex items-center justify-center h-16 text-muted-foreground text-xs">
                   Selecione um formato
                 </div>
               ) : (
-                <div className="max-h-[40vh] overflow-auto">
+                <div className="max-h-[35vh] overflow-auto">
                   {renderPreview(activePreviewTab as PostFormat || selectedFormats[0])}
                 </div>
               )}
-            </Card>
+            </div>
           </CollapsibleContent>
         </Collapsible>
       </div>
@@ -987,12 +987,12 @@ export default function ManualCreate() {
             "transition-all duration-300 ease-out overflow-hidden",
             showStep2 ? "opacity-100 max-h-[2000px]" : "opacity-0 max-h-0"
           )}>
-            <Card>
+            <Card className="border-0 sm:border shadow-none sm:shadow-sm">
 
-              <CardHeader className="pb-3">
+              <CardHeader className="pb-2 sm:pb-3 px-0 sm:px-6 pt-0 sm:pt-6">
                 <div className="flex items-center justify-between">
-                  <CardTitle className="text-lg flex items-center gap-2">
-                    <CloudUpload className="h-5 w-5 text-primary" />
+                  <CardTitle className="text-base sm:text-lg flex items-center gap-1.5 sm:gap-2">
+                    <CloudUpload className="h-4 w-4 sm:h-5 sm:w-5 text-primary" />
                     Média
                     <SectionHelp content={getSectionTooltip('media')} />
                   </CardTitle>
@@ -1003,7 +1003,7 @@ export default function ManualCreate() {
                   />
                 </div>
               </CardHeader>
-              <CardContent className="space-y-4">
+              <CardContent className="space-y-3 sm:space-y-4 px-0 sm:px-6 pb-3 sm:pb-6">
                 {/* Grid Splitter - Import multiple images from a grid */}
                 <div ref={mediaSectionRef}>
                   <GridSplitter
@@ -1042,33 +1042,32 @@ export default function ManualCreate() {
                     )}
                   >
                     <div className={cn(
-                      "relative flex flex-col items-center justify-center gap-3 h-48 rounded-xl",
+                      "relative flex flex-col items-center justify-center gap-2 sm:gap-3 h-32 sm:h-48 rounded-lg sm:rounded-xl",
                       "border-2 border-dashed transition-all duration-300",
                       "hover:border-primary/50 hover:bg-primary/5",
                       "border-primary/30 bg-gradient-to-br from-primary/5 to-transparent"
                     )}>
                       {isUploading ? (
                         <>
-                          <Loader2 className="h-10 w-10 text-primary animate-spin" />
-                          <span className="text-sm text-muted-foreground">A processar ficheiros...</span>
+                          <Loader2 className="h-6 w-6 sm:h-10 sm:w-10 text-primary animate-spin" />
+                          <span className="text-xs sm:text-sm text-muted-foreground">A processar...</span>
                         </>
                       ) : (
                         <>
-                          <div className="p-4 rounded-full bg-primary/10">
-                            <CloudUpload className="h-8 w-8 text-primary animate-float" />
+                          <div className="p-2.5 sm:p-4 rounded-full bg-primary/10">
+                            <CloudUpload className="h-5 w-5 sm:h-8 sm:w-8 text-primary" />
                           </div>
-                          <div className="text-center">
-                            <p className="font-medium text-foreground">Arrasta imagens ou vídeos para aqui</p>
-                            <p className="text-sm text-muted-foreground">ou clica para selecionar ficheiros</p>
+                          <div className="text-center px-2">
+                            <p className="text-sm sm:text-base font-medium text-foreground">Arrasta ou clica</p>
+                            <p className="text-xs sm:text-sm text-muted-foreground hidden sm:block">para selecionar ficheiros</p>
                           </div>
-                          <div className="flex gap-2">
-                            <Badge variant="outline" className="text-xs bg-background">PNG</Badge>
-                            <Badge variant="outline" className="text-xs bg-background">JPG</Badge>
-                            <Badge variant="outline" className="text-xs bg-background">MP4</Badge>
-                            <Badge variant="outline" className="text-xs bg-background">GIF</Badge>
+                          <div className="flex gap-1 sm:gap-2">
+                            <Badge variant="outline" className="text-[10px] sm:text-xs bg-background px-1.5 sm:px-2">PNG</Badge>
+                            <Badge variant="outline" className="text-[10px] sm:text-xs bg-background px-1.5 sm:px-2">JPG</Badge>
+                            <Badge variant="outline" className="text-[10px] sm:text-xs bg-background px-1.5 sm:px-2">MP4</Badge>
                           </div>
-                          <p className="text-xs text-muted-foreground/70">
-                            Máx. 50MB por ficheiro • {mediaRequirements.minMedia}-{mediaRequirements.maxMedia} ficheiros
+                          <p className="text-[10px] sm:text-xs text-muted-foreground/70">
+                            {mediaRequirements.minMedia}-{mediaRequirements.maxMedia} ficheiros
                           </p>
                         </>
                       )}
@@ -1201,17 +1200,17 @@ export default function ManualCreate() {
 
           {/* Step 3: Caption & Scheduling - Progressive Disclosure */}
           <div className={cn(
-            "transition-all duration-300 ease-out overflow-hidden space-y-6",
+            "transition-all duration-300 ease-out overflow-hidden space-y-3 sm:space-y-6",
             showStep3 ? "opacity-100 max-h-[3000px]" : "opacity-0 max-h-0"
           )}>
             {/* Caption */}
-            <Card>
-              <CardHeader>
-                <CardTitle className="flex items-center gap-2">
+            <Card className="border-0 sm:border shadow-none sm:shadow-sm">
+              <CardHeader className="px-0 sm:px-6 pt-0 sm:pt-6 pb-2 sm:pb-4">
+                <CardTitle className="flex items-center gap-1.5 sm:gap-2 text-base sm:text-lg">
                   Legenda
                   <SectionHelp content={getSectionTooltip('caption')} />
                 </CardTitle>
-                <CardDescription>
+                <CardDescription className="text-xs sm:text-sm">
                   <span className={cn(
                     "font-medium",
                     captionLength > maxLength * 0.9 && captionLength <= maxLength && "text-orange-500",
@@ -1220,10 +1219,10 @@ export default function ManualCreate() {
                     {captionLength}/{maxLength}
                   </span>
                   {' '}caracteres
-                  {selectedNetworks.includes('linkedin') && ' (obrigatório para LinkedIn)'}
+                  {selectedNetworks.includes('linkedin') && <span className="hidden sm:inline"> (obrigatório para LinkedIn)</span>}
                 </CardDescription>
               </CardHeader>
-              <CardContent className="space-y-3">
+              <CardContent className="space-y-2 sm:space-y-3 px-0 sm:px-6 pb-3 sm:pb-6">
                 {/* Caption Toolbar */}
                 <div className="flex items-center gap-1 border rounded-lg p-1.5 bg-muted/30">
                   <Popover open={emojiPickerOpen} onOpenChange={setEmojiPickerOpen}>
@@ -1289,15 +1288,15 @@ export default function ManualCreate() {
             </Card>
 
             {/* Date & Time */}
-            <Card>
-              <CardHeader>
-                <CardTitle className="flex items-center gap-2">
+            <Card className="border-0 sm:border shadow-none sm:shadow-sm">
+              <CardHeader className="px-0 sm:px-6 pt-0 sm:pt-6 pb-2 sm:pb-4">
+                <CardTitle className="flex items-center gap-1.5 sm:gap-2 text-base sm:text-lg">
                   Agendamento
                   <SectionHelp content={getSectionTooltip('scheduling')} />
                 </CardTitle>
-                <CardDescription>Defina quando publicar</CardDescription>
+                <CardDescription className="text-xs sm:text-sm">Defina quando publicar</CardDescription>
               </CardHeader>
-              <CardContent className="space-y-4">
+              <CardContent className="space-y-3 sm:space-y-4 px-0 sm:px-6 pb-3 sm:pb-6">
                 {/* Toggle Pill Style */}
                 <div className="flex rounded-full bg-muted p-1 gap-1">
                   <button
@@ -1402,12 +1401,12 @@ export default function ManualCreate() {
               </CardContent>
             </Card>
 
-            {/* Actions - Reorganized Hierarchy */}
-            <Card className="lg:sticky lg:bottom-4 bg-card/95 backdrop-blur-sm border-2 shadow-lg">
-              <CardContent className="pt-6 space-y-4">
+            {/* Actions - Reorganized Hierarchy - Hidden on mobile (use bottom bar) */}
+            <Card className="hidden sm:block lg:sticky lg:bottom-4 bg-card/95 backdrop-blur-sm border-2 shadow-lg">
+              <CardContent className="pt-4 sm:pt-6 space-y-3 sm:space-y-4">
                 {(saving || submitting || publishing) && uploadProgress > 0 && (
                   <div className="space-y-2">
-                    <div className="flex items-center justify-between text-sm">
+                    <div className="flex items-center justify-between text-xs sm:text-sm">
                       <span className="text-muted-foreground">
                         {saving ? 'A guardar...' : publishing ? 'A publicar...' : 'A submeter...'}
                       </span>
@@ -1589,16 +1588,16 @@ export default function ManualCreate() {
         </div>
       </div>
 
-      {/* Mobile Sticky Bottom Bar */}
-      <div className="fixed bottom-0 left-0 right-0 p-1.5 sm:p-3 bg-background/95 backdrop-blur-sm border-t shadow-lg lg:hidden z-50 safe-area-inset-bottom">
-        <div className="flex gap-1.5 sm:gap-2 max-w-lg mx-auto">
+      {/* Mobile Sticky Bottom Bar - Enhanced */}
+      <div className="fixed bottom-0 left-0 right-0 p-2 bg-background/98 backdrop-blur-md border-t shadow-[0_-4px_20px_-4px_rgba(0,0,0,0.1)] lg:hidden z-50 safe-area-inset-bottom">
+        <div className="flex gap-2 max-w-lg mx-auto">
           <Button
             type="button"
-            size="default"
+            size="lg"
             onClick={handlePublishWithValidation}
             disabled={publishing || submitting || saving || isUploading || selectedFormats.length === 0}
             className={cn(
-              "flex-1 font-semibold text-white h-10 sm:h-12",
+              "flex-1 font-semibold text-white h-11",
               "bg-gradient-to-r from-green-600 to-green-500",
               "hover:from-green-500 hover:to-green-400",
               "active:scale-[0.98] transition-all duration-200",
@@ -1609,20 +1608,36 @@ export default function ManualCreate() {
               <Loader2 className="h-4 w-4 animate-spin" />
             ) : (
               <>
-                <Rocket className="h-3.5 w-3.5 sm:h-4 sm:w-4 mr-1" />
-                <span className="text-xs sm:text-base">Publicar</span>
+                <Rocket className="h-4 w-4 mr-1.5" />
+                <span className="text-sm font-semibold">Publicar</span>
               </>
             )}
           </Button>
           <Button
             type="button"
             variant="outline"
-            size="default"
+            size="lg"
+            onClick={() => {
+              if (!scheduledDate) {
+                toast.info('Selecione uma data');
+                return;
+              }
+              handlePublishWithValidation();
+            }}
+            disabled={publishing || submitting || saving || selectedFormats.length === 0}
+            className="h-11 px-3 border-primary/50"
+          >
+            <CalendarIcon className="h-4 w-4" />
+          </Button>
+          <Button
+            type="button"
+            variant="ghost"
+            size="lg"
             onClick={handleSaveDraft}
             disabled={saving || submitting || publishing}
-            className="px-2.5 sm:px-4 h-10 sm:h-12"
+            className="h-11 px-3"
           >
-            <Save className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
+            <Save className="h-4 w-4" />
           </Button>
         </div>
       </div>
