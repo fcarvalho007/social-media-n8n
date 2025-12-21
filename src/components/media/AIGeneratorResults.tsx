@@ -1,10 +1,11 @@
 import { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { Check, Plus, RefreshCw, ZoomIn, Scissors } from 'lucide-react';
+import { Check, Plus, RefreshCw, ZoomIn, Scissors, DollarSign } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { AIGeneratedImage } from '@/lib/ai-generator/types';
 import { AIGeneratorPreview } from './AIGeneratorPreview';
+import { formatCost } from '@/lib/ai-generator/constants';
 
 interface AIGeneratorResultsProps {
   images: AIGeneratedImage[];
@@ -15,6 +16,7 @@ interface AIGeneratorResultsProps {
   onGenerateNew: () => void;
   onSendToGridSplitter?: (imageUrl: string) => void;
   maxImages: number;
+  totalCost?: number;
 }
 
 export function AIGeneratorResults({
@@ -26,6 +28,7 @@ export function AIGeneratorResults({
   onGenerateNew,
   onSendToGridSplitter,
   maxImages,
+  totalCost = 0,
 }: AIGeneratorResultsProps) {
   const [previewImage, setPreviewImage] = useState<AIGeneratedImage | null>(null);
   
@@ -71,6 +74,22 @@ export function AIGeneratorResults({
 
   return (
     <div className="space-y-4">
+      {/* Cost Display */}
+      {totalCost > 0 && (
+        <div className="bg-green-500/10 border border-green-500/20 rounded-lg p-3">
+          <div className="flex items-center justify-between text-sm">
+            <div className="flex items-center gap-2 text-green-700 dark:text-green-400">
+              <Check className="h-4 w-4" />
+              <span className="font-medium">Imagens geradas com sucesso!</span>
+            </div>
+            <div className="flex items-center gap-1.5 text-green-700 dark:text-green-400">
+              <DollarSign className="h-3.5 w-3.5" />
+              <span className="font-semibold">{formatCost(totalCost)}</span>
+            </div>
+          </div>
+        </div>
+      )}
+      
       <div className="flex items-center justify-between">
         <Button variant="ghost" size="sm" onClick={allSelected ? onDeselectAll : onSelectAll} className="h-8 text-xs">
           {allSelected ? 'Desselecionar' : 'Selecionar todas'}
