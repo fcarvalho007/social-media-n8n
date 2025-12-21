@@ -23,7 +23,7 @@ export function FormatsPanel({
   
   return (
     <div 
-      className="formats-panel mt-3 sm:mt-4 p-3 sm:p-5 rounded-xl sm:rounded-2xl border overflow-hidden animate-slide-down"
+      className="formats-panel mt-2.5 sm:mt-4 p-2.5 sm:p-5 rounded-lg sm:rounded-2xl border overflow-hidden animate-slide-down"
       style={{
         background: `linear-gradient(to bottom, ${config.colorHex}08, transparent)`,
         borderColor: config.colorHex,
@@ -32,13 +32,13 @@ export function FormatsPanel({
       aria-labelledby={`tab-${platform}`}
     >
       {/* Header */}
-      <div className="flex items-center justify-between mb-3 sm:mb-4">
-        <div className="flex items-center gap-1.5 sm:gap-2 flex-wrap">
+      <div className="flex items-center justify-between mb-2.5 sm:mb-4">
+        <div className="flex items-center gap-1.5 flex-wrap">
           <PlatformIcon platform={platform} className="w-4 h-4 sm:w-[18px] sm:h-[18px]" colored />
-          <span className="font-semibold text-[13px] sm:text-[15px] text-foreground">
+          <span className="font-semibold text-[12px] sm:text-[15px] text-foreground">
             {config.name}
           </span>
-          <span className="text-muted-foreground text-[12px] sm:text-[15px] hidden xs:inline">
+          <span className="text-muted-foreground text-[10px] sm:text-[15px] hidden sm:inline">
             — Seleciona os formatos
           </span>
         </div>
@@ -47,7 +47,7 @@ export function FormatsPanel({
           type="button"
           onClick={onClose}
           className={cn(
-            "w-7 h-7 sm:w-8 sm:h-8 rounded-lg border-0",
+            "w-6 h-6 sm:w-8 sm:h-8 rounded-md sm:rounded-lg border-0",
             "bg-card hover:bg-accent",
             "flex items-center justify-center",
             "text-muted-foreground hover:text-foreground",
@@ -56,13 +56,13 @@ export function FormatsPanel({
           )}
           aria-label="Fechar painel de formatos"
         >
-          <X className="w-4 h-4 sm:w-[18px] sm:h-[18px]" />
+          <X className="w-3.5 h-3.5 sm:w-[18px] sm:h-[18px]" />
         </button>
       </div>
       
       {/* Formats Grid - 2 columns on mobile, auto-fill on desktop */}
       <div 
-        className="grid grid-cols-2 sm:grid-cols-none gap-2 sm:gap-3"
+        className="grid grid-cols-2 sm:grid-cols-none gap-1.5 sm:gap-3"
         style={{
           gridTemplateColumns: undefined,
         }}

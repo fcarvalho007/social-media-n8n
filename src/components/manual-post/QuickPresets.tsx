@@ -83,14 +83,14 @@ export function QuickPresets({ selectedFormats, onSelectPreset }: QuickPresetsPr
   };
 
   return (
-    <div className="quick-presets mb-4 sm:mb-5">
-      <div className="flex items-center gap-1.5 mb-2 sm:mb-3">
-        <Sparkles size={14} className="text-amber-500" />
-        <span className="text-[13px] font-medium text-muted-foreground">Seleção rápida:</span>
+    <div className="quick-presets mb-3 sm:mb-5">
+      <div className="flex items-center gap-1.5 mb-2">
+        <Sparkles size={12} className="text-amber-500 sm:w-[14px] sm:h-[14px]" />
+        <span className="text-[11px] sm:text-[13px] font-medium text-muted-foreground">Seleção rápida:</span>
       </div>
       
       {/* Horizontal scrollable on mobile, wrap on desktop */}
-      <div className="flex gap-2 sm:gap-2.5 overflow-x-auto pb-2 -mx-4 px-4 sm:mx-0 sm:px-0 sm:flex-wrap sm:overflow-visible scrollbar-hide">
+      <div className="flex gap-2 overflow-x-auto pb-1.5 sm:pb-2 sm:flex-wrap sm:overflow-visible scrollbar-hide">
         {FORMAT_PRESETS.map(preset => {
           const isActive = isPresetActive(preset);
           const isPartial = isPresetPartial(preset);
@@ -101,11 +101,11 @@ export function QuickPresets({ selectedFormats, onSelectPreset }: QuickPresetsPr
               type="button"
               className={cn(
                 "preset-card",
-                "relative flex items-center gap-2 sm:gap-2.5 px-3 py-2 sm:px-3.5 sm:py-2.5",
-                "bg-card border-2 rounded-xl",
+                "relative flex items-center gap-1.5 sm:gap-2.5 px-2.5 py-2 sm:px-3.5 sm:py-2.5",
+                "bg-card border-2 rounded-lg sm:rounded-xl",
                 "cursor-pointer transition-all duration-200",
                 "hover:shadow-lg hover:-translate-y-0.5",
-                "text-left min-w-[150px] sm:min-w-[180px] flex-shrink-0 sm:flex-shrink",
+                "text-left min-w-[130px] sm:min-w-[180px] flex-shrink-0 sm:flex-shrink",
                 isActive && "preset-card-active",
                 isPartial && "preset-card-partial"
               )}
@@ -122,18 +122,18 @@ export function QuickPresets({ selectedFormats, onSelectPreset }: QuickPresetsPr
             >
               {/* Check badge */}
               {isActive && (
-                <div className="absolute -top-1.5 -right-1.5 w-5 h-5 bg-gradient-to-br from-emerald-500 to-emerald-600 rounded-full flex items-center justify-center shadow-md">
-                  <Check size={12} className="text-white" strokeWidth={3} />
+                <div className="absolute -top-1 -right-1 sm:-top-1.5 sm:-right-1.5 w-4 h-4 sm:w-5 sm:h-5 bg-gradient-to-br from-emerald-500 to-emerald-600 rounded-full flex items-center justify-center shadow-md">
+                  <Check size={10} className="text-white sm:w-3 sm:h-3" strokeWidth={3} />
                 </div>
               )}
               
               {/* Emoji */}
-              <span className="text-xl sm:text-2xl leading-none">{preset.emoji}</span>
+              <span className="text-lg sm:text-2xl leading-none">{preset.emoji}</span>
               
               {/* Text */}
-              <div className="flex flex-col gap-0.5">
-                <span className="font-semibold text-[12px] sm:text-[13px] text-foreground whitespace-nowrap">{preset.name}</span>
-                <span className="text-[10px] sm:text-[11px] text-muted-foreground whitespace-nowrap">{preset.description}</span>
+              <div className="flex flex-col gap-0">
+                <span className="font-semibold text-[11px] sm:text-[13px] text-foreground leading-tight">{preset.name}</span>
+                <span className="text-[9px] sm:text-[11px] text-muted-foreground leading-tight truncate max-w-[90px] sm:max-w-none">{preset.description}</span>
               </div>
               
               {/* Tooltip - desktop only */}
@@ -147,8 +147,8 @@ export function QuickPresets({ selectedFormats, onSelectPreset }: QuickPresetsPr
         })}
       </div>
       
-      <div className="presets-divider mt-3 sm:mt-4">
-        <span>ou seleciona manualmente</span>
+      <div className="presets-divider mt-2.5 sm:mt-4">
+        <span className="text-[10px] sm:text-xs">ou seleciona manualmente</span>
       </div>
     </div>
   );
