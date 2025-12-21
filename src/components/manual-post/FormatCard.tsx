@@ -26,12 +26,12 @@ export function FormatCard({ format, isSelected, onToggle, platformColor }: Form
       onClick={onToggle}
       className={cn(
         "format-card group",
-        "relative flex flex-col items-center p-4",
-        "bg-card border-2 rounded-xl",
+        "relative flex flex-col items-center p-2.5 sm:p-4",
+        "bg-card border-2 rounded-lg sm:rounded-xl",
         "cursor-pointer transition-all duration-200",
         "hover:shadow-lg hover:-translate-y-0.5",
         "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2",
-        "min-h-[140px] text-center",
+        "min-h-[100px] sm:min-h-[140px] text-center",
         isSelected && "format-card-selected"
       )}
       style={{
@@ -49,24 +49,24 @@ export function FormatCard({ format, isSelected, onToggle, platformColor }: Form
       aria-label={`${format.label}: ${format.description}`}
     >
       {/* Selection indicator */}
-      <div className="absolute top-2.5 right-2.5">
+      <div className="absolute top-1.5 right-1.5 sm:top-2.5 sm:right-2.5">
         {isSelected ? (
           <div 
-            className="indicator-checked w-[22px] h-[22px] rounded-full flex items-center justify-center text-white"
+            className="indicator-checked w-5 h-5 sm:w-[22px] sm:h-[22px] rounded-full flex items-center justify-center text-white"
             style={{ backgroundColor: platformColor }}
           >
-            <Check size={14} strokeWidth={3} />
+            <Check size={12} className="sm:w-[14px] sm:h-[14px]" strokeWidth={3} />
           </div>
         ) : (
           <div 
-            className="indicator-unchecked w-[22px] h-[22px] rounded-full border-2 bg-card transition-colors"
+            className="indicator-unchecked w-5 h-5 sm:w-[22px] sm:h-[22px] rounded-full border-2 bg-card transition-colors"
             style={{ borderColor: 'hsl(var(--border))' }}
           />
         )}
       </div>
       
-      {/* Illustration */}
-      <div className="format-illustration mb-2.5">
+      {/* Illustration - smaller on mobile */}
+      <div className="format-illustration mb-1.5 sm:mb-2.5 scale-75 sm:scale-100 origin-center">
         <FormatIllustration 
           type={getIllustrationType(format.format)} 
           platformColor={platformColor}
@@ -75,23 +75,23 @@ export function FormatCard({ format, isSelected, onToggle, platformColor }: Form
       </div>
       
       {/* Format Name */}
-      <span className="format-name font-semibold text-[13px] text-foreground mb-0.5">
+      <span className="format-name font-semibold text-[11px] sm:text-[13px] text-foreground mb-0.5 leading-tight">
         {format.label}
       </span>
       
-      {/* Description */}
-      <span className="format-description text-[11px] text-muted-foreground leading-tight">
+      {/* Description - hidden on very small screens */}
+      <span className="format-description text-[9px] sm:text-[11px] text-muted-foreground leading-tight hidden xs:block">
         {format.description}
       </span>
       
-      {/* Badges */}
+      {/* Badges - simplified on mobile */}
       {badges.length > 0 && (
-        <div className="flex flex-wrap gap-1 mt-2.5 justify-center">
-          {badges.map((badge) => (
+        <div className="flex flex-wrap gap-0.5 sm:gap-1 mt-1.5 sm:mt-2.5 justify-center">
+          {badges.slice(0, 2).map((badge) => (
             <span 
               key={badge}
               className={cn(
-                "text-[10px] px-2 py-0.5 rounded-md font-semibold border",
+                "text-[8px] sm:text-[10px] px-1.5 sm:px-2 py-0.5 rounded-md font-semibold border",
                 isSelected 
                   ? "bg-card border-current"
                   : "bg-muted border-transparent text-muted-foreground"

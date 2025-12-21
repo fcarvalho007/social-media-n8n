@@ -883,18 +883,18 @@ export default function ManualCreate() {
   const [mobilePreviewOpen, setMobilePreviewOpen] = useState(false);
 
   return (
-    <div className="max-w-7xl mx-auto space-y-4 bg-gradient-to-br from-background to-background-secondary">
+    <div className="max-w-7xl mx-auto space-y-3 sm:space-y-4 px-2 sm:px-4 lg:px-0 bg-gradient-to-br from-background to-background-secondary">
       {/* Header */}
-      <div className="flex items-center justify-between">
+      <div className="flex items-center justify-between py-1 sm:py-0">
         <Button 
           variant="ghost" 
           size="sm" 
           onClick={() => navigate('/?tab=create')}
-          className="gap-2"
+          className="gap-1.5 sm:gap-2 px-2 sm:px-3 -ml-2 sm:ml-0"
           aria-label="Voltar à página anterior"
         >
           <ArrowLeft className="h-4 w-4" />
-          Voltar
+          <span className="hidden xs:inline">Voltar</span>
         </Button>
         <CompactModeBadge mode="manual" onChangeMode={() => navigate('/?tab=create')} />
       </div>
@@ -904,21 +904,21 @@ export default function ManualCreate() {
         (selectedNetworks.includes('instagram') && instagram.percentage >= 80) ||
         (selectedNetworks.includes('linkedin') && linkedin.percentage >= 80)
       ) && (
-        <div className="flex items-center gap-2 p-3 rounded-lg bg-amber-500/10 border border-amber-500/20 text-amber-700 dark:text-amber-400">
+        <div className="flex items-center gap-2 p-2 sm:p-3 rounded-lg bg-amber-500/10 border border-amber-500/20 text-amber-700 dark:text-amber-400">
           <AlertTriangle className="h-4 w-4 flex-shrink-0" />
-          <span className="text-sm">
-            {selectedNetworks.includes('instagram') && instagram.percentage >= 100 && 'Quota Instagram esgotada. '}
-            {selectedNetworks.includes('linkedin') && linkedin.percentage >= 100 && 'Quota LinkedIn esgotada. '}
+          <span className="text-xs sm:text-sm">
+            {selectedNetworks.includes('instagram') && instagram.percentage >= 100 && 'Quota IG esgotada. '}
+            {selectedNetworks.includes('linkedin') && linkedin.percentage >= 100 && 'Quota LI esgotada. '}
             {((selectedNetworks.includes('instagram') && instagram.percentage >= 80 && instagram.percentage < 100) ||
               (selectedNetworks.includes('linkedin') && linkedin.percentage >= 80 && linkedin.percentage < 100)) && 
-              'Atenção: quota quase esgotada. '}
-            Instagram: {instagram.quotaText} | LinkedIn: {linkedin.quotaText}
+              'Quota quase esgotada. '}
+            <span className="hidden sm:inline">IG: {instagram.quotaText} | LI: {linkedin.quotaText}</span>
           </span>
         </div>
       )}
 
       {/* Stepper */}
-      <Card className="border-0 shadow-none bg-transparent">
+      <Card className="border-0 shadow-none bg-transparent -mx-2 sm:mx-0">
         <StepProgress
           currentStep={currentStep}
           visitedSteps={visitedSteps}
@@ -1591,15 +1591,15 @@ export default function ManualCreate() {
       </div>
 
       {/* Mobile Sticky Bottom Bar */}
-      <div className="fixed bottom-0 left-0 right-0 p-3 bg-background/95 backdrop-blur-sm border-t shadow-lg lg:hidden z-50">
+      <div className="fixed bottom-0 left-0 right-0 p-2 sm:p-3 bg-background/95 backdrop-blur-sm border-t shadow-lg lg:hidden z-50 safe-area-inset-bottom">
         <div className="flex gap-2 max-w-lg mx-auto">
           <Button
             type="button"
-            size="lg"
+            size="default"
             onClick={handlePublishWithValidation}
             disabled={publishing || submitting || saving || isUploading || selectedFormats.length === 0}
             className={cn(
-              "flex-1 font-semibold text-white",
+              "flex-1 font-semibold text-white h-11 sm:h-12",
               "bg-gradient-to-r from-green-600 to-green-500",
               "hover:from-green-500 hover:to-green-400",
               "active:scale-[0.98] transition-all duration-200",
@@ -1611,17 +1611,17 @@ export default function ManualCreate() {
             ) : (
               <>
                 <Rocket className="h-4 w-4 mr-1.5" />
-                Publicar
+                <span className="text-sm sm:text-base">Publicar</span>
               </>
             )}
           </Button>
           <Button
             type="button"
             variant="outline"
-            size="lg"
+            size="default"
             onClick={handleSaveDraft}
             disabled={saving || submitting || publishing}
-            className="px-4"
+            className="px-3 sm:px-4 h-11 sm:h-12"
           >
             <Save className="h-4 w-4" />
           </Button>

@@ -918,6 +918,28 @@ All colors MUST be HSL.
   }
 }
 
+/* Scrollbar hide utility */
+.scrollbar-hide {
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+}
+
+.scrollbar-hide::-webkit-scrollbar {
+  display: none;
+}
+
+/* Safe area for bottom bar on mobile (notch/home indicator) */
+.safe-area-inset-bottom {
+  padding-bottom: max(env(safe-area-inset-bottom), 0.5rem);
+}
+
+/* Extra small breakpoint for xs: prefix */
+@media (min-width: 400px) {
+  .xs\:inline {
+    display: inline !important;
+  }
+}
+
 /* Phase Progress Styles */
 .phase-card-active {
   animation: phase-pulse 2s ease-in-out infinite;
