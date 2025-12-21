@@ -38,9 +38,9 @@ export function AIGeneratorForm({ onGenerate, disabled }: AIGeneratorFormProps) 
   const [prompt, setPrompt] = useState('');
   const [model, setModel] = useState<AIModelId>('nano-banana-pro');
   
-  // Nano Banana Pro options
-  const [aspectRatio, setAspectRatio] = useState<AIAspectRatio>('1:1');
-  const [resolution, setResolution] = useState<AIResolution>('1K');
+  // Nano Banana Pro options - defaults: 16:9 and 2K
+  const [aspectRatio, setAspectRatio] = useState<AIAspectRatio>('16:9');
+  const [resolution, setResolution] = useState<AIResolution>('2K');
   
   // GPT Image 1.5 options
   const [imageSize, setImageSize] = useState<AIImageSize>('1024x1024');
@@ -91,10 +91,10 @@ export function AIGeneratorForm({ onGenerate, disabled }: AIGeneratorFormProps) 
 
   const handleModelChange = (newModel: AIModelId) => {
     setModel(newModel);
-    // Reset options when switching models
+    // Reset options when switching models with correct defaults
     if (newModel === 'nano-banana-pro') {
-      setAspectRatio('1:1');
-      setResolution('1K');
+      setAspectRatio('16:9');  // Default
+      setResolution('2K');     // Default
     } else {
       setImageSize('1024x1024');
       setQuality('high');
@@ -184,6 +184,9 @@ export function AIGeneratorForm({ onGenerate, disabled }: AIGeneratorFormProps) 
                       <span className="flex items-center gap-2">
                         <span className="font-mono text-sm">{ar.label}</span>
                         <span className="text-xs text-muted-foreground">{ar.description}</span>
+                        {ar.value === '16:9' && (
+                          <Badge variant="secondary" className="text-[10px] px-1 py-0 h-4">padrão</Badge>
+                        )}
                       </span>
                     </SelectItem>
                   ))}
@@ -216,8 +219,11 @@ export function AIGeneratorForm({ onGenerate, disabled }: AIGeneratorFormProps) 
                       <span className="flex items-center gap-2">
                         <span className="font-medium">{res.label}</span>
                         <span className="text-xs text-muted-foreground">{res.description}</span>
+                        {res.value === '2K' && (
+                          <Badge variant="secondary" className="text-[10px] px-1 py-0 h-4">padrão</Badge>
+                        )}
                         {res.value === '4K' && (
-                          <Badge variant="outline" className="text-[10px] px-1 py-0">2×</Badge>
+                          <Badge variant="outline" className="text-[10px] px-1 py-0 h-4">2×</Badge>
                         )}
                       </span>
                     </SelectItem>

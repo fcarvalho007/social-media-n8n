@@ -66,14 +66,14 @@ export function useAIImageGeneration(): UseAIImageGenerationReturn {
           newJobs[i] = { ...newJobs[i], status: 'generating' };
           setJobs([...newJobs]);
 
-          // Build request body based on model
+          // Build request body based on model with correct defaults
           const body = isNanoBanana 
             ? {
                 action: 'generate',
                 modelId: 'nano-banana-pro',
                 prompt: params.prompt,
-                aspectRatio: params.aspectRatio || '1:1',
-                resolution: params.resolution || '1K',
+                aspectRatio: params.aspectRatio || '16:9',
+                resolution: params.resolution || '2K',
               }
             : {
                 action: 'generate',
@@ -97,9 +97,9 @@ export function useAIImageGeneration(): UseAIImageGenerationReturn {
             throw new Error(data?.error || 'Erro desconhecido');
           }
 
-          // Get cost from response or calculate it
+          // Get cost from response or calculate it with correct defaults
           const imageCost = data.cost || (isNanoBanana 
-            ? calculateNanoBananaCost(params.resolution || '1K', 1)
+            ? calculateNanoBananaCost(params.resolution || '2K', 1)
             : calculateGPTImageCost(params.quality || 'high', params.imageSize || '1024x1024', 1)
           );
           
