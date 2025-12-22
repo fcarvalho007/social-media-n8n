@@ -88,7 +88,7 @@ export default {
         sans: ['Montserrat', 'system-ui', 'sans-serif'],
       },
       screens: {
-        xs: '475px',
+        xs: '375px',
       },
       borderRadius: {
         lg: "var(--radius)",

@@ -90,14 +90,15 @@ export function EnhancedSortableMediaItem({
         isDragging && "opacity-100"
       )} />
 
-      {/* Slide number badge - PROMINENT at top center */}
-      <div className="absolute top-0 left-1/2 -translate-x-1/2 translate-y-1.5 sm:translate-y-2">
+      {/* Slide number badge - Compact on mobile */}
+      <div className="absolute top-0 left-1/2 -translate-x-1/2 translate-y-1 sm:translate-y-2">
         <div className={cn(
-          "px-2.5 py-1 sm:px-2 sm:py-0.5 rounded-full bg-primary text-primary-foreground font-bold shadow-lg",
-          "text-sm sm:text-xs",
+          "px-1.5 py-0.5 sm:px-2 sm:py-0.5 rounded-full bg-primary text-primary-foreground font-bold shadow-lg",
+          "text-[10px] sm:text-xs",
           isDragging && "scale-110"
         )}>
-          Slide {index + 1}
+          <span className="xs:hidden">{index + 1}</span>
+          <span className="hidden xs:inline">Slide {index + 1}</span>
         </div>
       </div>
 
