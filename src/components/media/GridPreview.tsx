@@ -1,4 +1,4 @@
-import { useCallback } from 'react';
+import { useCallback, useRef, useState, useEffect } from 'react';
 import { DetectedImage, GridConfig } from '@/types/grid-splitter';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Button } from '@/components/ui/button';
@@ -20,6 +20,13 @@ import {
   useSortable,
 } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
+
+interface ImageRect {
+  x: number;
+  y: number;
+  width: number;
+  height: number;
+}
 
 interface GridPreviewProps {
   uploadedImageUrl: string | null;
@@ -50,6 +57,13 @@ function SortableThumbnail({ image, onToggleSelect, onRemove, disabled }: Sortab
     transform: CSS.Transform.toString(transform),
     transition,
   };
+
+  // Calculate aspect ratio for display
+  const aspectRatio = image.width && image.height 
+    ? (image.width / image.height).toFixed(2) 
+    : null;
+  
+  const is3x4 = aspectRatio && Math.abs(parseFloat(aspectRatio) - 0.75) < 0.02;
 
   return (
     <div
@@ -87,6 +101,16 @@ function SortableThumbnail({ image, onToggleSelect, onRemove, disabled }: Sortab
       >
         {image.order + 1}
       </Badge>
+
+      {/* Dimensions Badge - Bottom Left */}
+      {image.width && image.height && (
+        <div className={cn(
+          "absolute bottom-1 left-1 text-[9px] px-1 py-0.5 rounded bg-background/90 backdrop-blur-sm",
+          is3x4 ? "text-green-600 dark:text-green-400" : "text-muted-foreground"
+        )}>
+          {image.width}×{image.height}
+        </div>
+      )}
 
       {/* Hover Overlay with Controls */}
       <div className={cn(
@@ -169,33 +193,115 @@ export function GridPreview({
   const selectedCount = detectedImages.filter((img) => img.selected).length;
   const totalCount = detectedImages.length;
 
-  // Original image preview with grid overlay
+  // State for precise image rect calculation
+  const containerRef = useRef<HTMLDivElement>(null);
+  const imageRef = useRef<HTMLImageElement>(null);
+  const [imageRect, setImageRect] = useState<ImageRect | null>(null);
+
+  // Calculate the actual rendered position of the image within the container
+  // This accounts for object-contain scaling
+  const calculateImageRect = useCallback(() => {
+    const container = containerRef.current;
+    const img = imageRef.current;
+    
+    if (!container || !img || !img.naturalWidth || !img.naturalHeight) {
+      return;
+    }
+
+    const containerW = container.clientWidth;
+    const containerH = container.clientHeight;
+    const imgRatio = img.naturalWidth / img.naturalHeight;
+    const containerRatio = containerW / containerH;
+
+    let renderW: number;
+    let renderH: number;
+    let offsetX: number;
+    let offsetY: number;
+
+    if (imgRatio > containerRatio) {
+      // Image is wider than container - fits width, centered vertically
+      renderW = containerW;
+      renderH = containerW / imgRatio;
+      offsetX = 0;
+      offsetY = (containerH - renderH) / 2;
+    } else {
+      // Image is taller than container - fits height, centered horizontally
+      renderH = containerH;
+      renderW = containerH * imgRatio;
+      offsetX = (containerW - renderW) / 2;
+      offsetY = 0;
+    }
+
+    setImageRect({
+      x: offsetX,
+      y: offsetY,
+      width: renderW,
+      height: renderH,
+    });
+  }, []);
+
+  // Recalculate on image load and window resize
+  useEffect(() => {
+    calculateImageRect();
+    window.addEventListener('resize', calculateImageRect);
+    return () => window.removeEventListener('resize', calculateImageRect);
+  }, [calculateImageRect, uploadedImageUrl]);
+
+  // Original image preview with PRECISE grid overlay
   if (uploadedImageUrl && detectedImages.length === 0) {
     return (
       <div className="space-y-3">
         <p className="text-sm text-muted-foreground">Pré-visualização da grelha:</p>
-        <div className="relative rounded-lg overflow-hidden border bg-muted/30">
+        <div 
+          ref={containerRef}
+          className="relative rounded-lg overflow-hidden border bg-muted/30"
+          style={{ minHeight: '200px' }}
+        >
           <img
+            ref={imageRef}
             src={uploadedImageUrl}
             alt="Imagem original"
             className="w-full max-h-[300px] object-contain"
+            onLoad={calculateImageRect}
           />
-          {/* Grid Overlay */}
-          <div
-            className="absolute inset-0 pointer-events-none"
-            style={{
-              display: 'grid',
-              gridTemplateColumns: `repeat(${manualConfig.cols}, 1fr)`,
-              gridTemplateRows: `repeat(${manualConfig.rows}, 1fr)`,
-            }}
-          >
-            {Array.from({ length: manualConfig.rows * manualConfig.cols }).map((_, idx) => (
-              <div
-                key={idx}
-                className="border border-dashed border-primary/50"
-              />
-            ))}
-          </div>
+          {/* PRECISE Grid Overlay - positioned exactly over the rendered image */}
+          {imageRect && (
+            <div
+              className="absolute pointer-events-none"
+              style={{
+                left: imageRect.x,
+                top: imageRect.y,
+                width: imageRect.width,
+                height: imageRect.height,
+                display: 'grid',
+                gridTemplateColumns: `repeat(${manualConfig.cols}, 1fr)`,
+                gridTemplateRows: `repeat(${manualConfig.rows}, 1fr)`,
+              }}
+            >
+              {Array.from({ length: manualConfig.rows * manualConfig.cols }).map((_, idx) => {
+                const row = Math.floor(idx / manualConfig.cols);
+                const col = idx % manualConfig.cols;
+                return (
+                  <div
+                    key={idx}
+                    className="border-2 border-primary/70 bg-primary/5 flex items-center justify-center"
+                    style={{ borderStyle: 'solid' }}
+                  >
+                    <span className="text-xs font-bold text-primary bg-background/80 px-1.5 py-0.5 rounded">
+                      {idx + 1}
+                    </span>
+                  </div>
+                );
+              })}
+            </div>
+          )}
+          
+          {/* Dimension info */}
+          {imageRef.current && (
+            <div className="absolute bottom-2 right-2 text-[10px] bg-background/90 px-2 py-1 rounded text-muted-foreground">
+              {imageRef.current.naturalWidth}×{imageRef.current.naturalHeight}px
+            </div>
+          )}
         </div>
       </div>
     );

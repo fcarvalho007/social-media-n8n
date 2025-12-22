@@ -1,12 +1,13 @@
-import { useState, useCallback, useEffect } from 'react';
+import { useState, useCallback, useEffect, useMemo } from 'react';
 import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { Label } from '@/components/ui/label';
 import { Badge } from '@/components/ui/badge';
-import { Loader2, Grid3x3, Grid2x2, Plus, Sparkles, Star, LayoutGrid } from 'lucide-react';
+import { Loader2, Grid3x3, Grid2x2, Plus, Sparkles, Star, LayoutGrid, Info, Crop } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { motion, AnimatePresence } from 'framer-motion';
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 
 interface CropOption {
   id: string;
@@ -66,16 +67,56 @@ export function QuickCropToInstagram({
   const [selectedOption, setSelectedOption] = useState<string>('2x3');
   const [showPreview, setShowPreview] = useState(false);
   const [hoveredSlide, setHoveredSlide] = useState<number | null>(null);
+  const [imageDimensions, setImageDimensions] = useState<{ width: number; height: number } | null>(null);
+
+  // Calculate if image needs cropping to 3:4
+  const cropInfo = useMemo(() => {
+    if (!imageDimensions) return null;
+    
+    const { width, height } = imageDimensions;
+    const currentRatio = width / height;
+    const targetRatio = 3 / 4;
+    
+    const needsCrop = Math.abs(currentRatio - targetRatio) > 0.01;
+    
+    let cropWidth: number;
+    let cropHeight: number;
+    
+    if (currentRatio > targetRatio) {
+      // Image is too wide
+      cropHeight = height;
+      cropWidth = Math.round(height * targetRatio);
+    } else {
+      // Image is too tall
+      cropWidth = width;
+      cropHeight = Math.round(width / targetRatio);
+    }
+    
+    return {
+      needsCrop,
+      originalRatio: currentRatio.toFixed(2),
+      cropWidth,
+      cropHeight,
+      croppedPercent: needsCrop ? Math.round(((width * height) - (cropWidth * cropHeight)) / (width * height) * 100) : 0,
+    };
+  }, [imageDimensions]);
 
   useEffect(() => {
-    if (open) {
+    if (open && imageUrl) {
+      const img = new Image();
+      img.onload = () => {
+        setImageDimensions({ width: img.naturalWidth, height: img.naturalHeight });
+      };
+      img.src = imageUrl;
+      
       const timer = setTimeout(() => setShowPreview(true), 100);
       return () => clearTimeout(timer);
     } else {
       setShowPreview(false);
       setHoveredSlide(null);
+      setImageDimensions(null);
     }
-  }, [open]);
+  }, [open, imageUrl]);
 
   const handleCrop = useCallback(() => {
     const option = CROP_OPTIONS.find(o => o.id === selectedOption);
@@ -124,8 +165,9 @@ export function QuickCropToInstagram({
                       <div className="ml-2 h-1.5 w-12 bg-white/60 rounded" />
                     </div>
                     
-                    {/* Image with Grid Overlay */}
+                    {/* Image with PRECISE Grid Overlay */}
                     <div className="relative w-full h-full flex items-center justify-center bg-muted/10">
+                      {/* 3:4 aspect ratio container - simulates actual Instagram crop */}
                       <div className="relative w-full aspect-[3/4] overflow-hidden">
                         <motion.img
                           src={imageUrl}
@@ -136,7 +178,7 @@ export function QuickCropToInstagram({
                           transition={{ duration: 0.5 }}
                         />
                         
-                        {/* Grid Overlay */}
+                        {/* Precise Grid Overlay */}
                         {selectedCropOption && (
                           <motion.div
                             key={selectedOption}
@@ -155,19 +197,19 @@ export function QuickCropToInstagram({
                                 initial={{ opacity: 0, scale: 0.8 }}
                                 animate={{ 
                                   opacity: 1, 
-                                  scale: hoveredSlide === i ? 1.05 : 1,
-                                  backgroundColor: hoveredSlide === i ? 'rgba(255,255,255,0.15)' : 'transparent'
+                                  scale: hoveredSlide === i ? 1.02 : 1,
+                                  backgroundColor: hoveredSlide === i ? 'rgba(255,255,255,0.2)' : 'transparent'
                                 }}
                                 transition={{ delay: 0.05 * i, duration: 0.2 }}
                                 className={cn(
-                                  "border border-white/50 flex items-center justify-center cursor-pointer transition-colors",
-                                  hoveredSlide === i && "border-white"
+                                  "border-2 border-white/60 flex items-center justify-center cursor-pointer transition-colors",
+                                  hoveredSlide === i && "border-white z-10"
                                 )}
                                 onMouseEnter={() => setHoveredSlide(i)}
                                 onMouseLeave={() => setHoveredSlide(null)}
                               >
                                 <span className={cn(
-                                  "text-white font-bold drop-shadow-lg transition-all",
+                                  "text-white font-bold drop-shadow-lg transition-all bg-black/40 rounded px-1",
                                   hoveredSlide === i ? "text-sm" : "text-[10px]"
                                 )}>
                                   {i + 1}
@@ -251,6 +293,28 @@ export function QuickCropToInstagram({
               </Label>
             ))}
           </RadioGroup>
+
+          {/* Crop Info Notice */}
+          {cropInfo?.needsCrop && (
+            <div className="flex items-center gap-2 p-2 rounded-lg bg-amber-500/10 border border-amber-500/20 text-xs text-amber-600 dark:text-amber-400">
+              <Crop className="h-4 w-4 shrink-0" />
+              <span>
+                Imagem será ajustada para 3:4 (corte de {cropInfo.croppedPercent}% centrado)
+              </span>
+              <TooltipProvider>
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <Info className="h-3.5 w-3.5 shrink-0 cursor-help" />
+                  </TooltipTrigger>
+                  <TooltipContent side="top" className="max-w-[200px]">
+                    <p className="text-xs">
+                      Proporção original: {cropInfo.originalRatio}. Será recortada para {cropInfo.cropWidth}×{cropInfo.cropHeight}px mantendo o centro.
+                    </p>
+                  </TooltipContent>
+                </Tooltip>
+              </TooltipProvider>
+            </div>
+          )}
 
           {/* Action Buttons */}
           <div className="flex flex-col gap-2 pt-2">

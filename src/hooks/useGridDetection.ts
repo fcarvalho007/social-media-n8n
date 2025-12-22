@@ -5,12 +5,14 @@ import {
   calculateManualCellBounds, 
   extractAllCells 
 } from '@/lib/canvas/cellExtraction';
+import { cropToAspectRatio } from '@/lib/canvas/aspectRatioCrop';
 
 interface UseGridDetectionReturn {
   processGrid: (
     image: File,
     config: GridConfig,
-    removeBorders: boolean
+    removeBorders: boolean,
+    forceAspectRatio?: number // e.g., 3/4 for Instagram
   ) => Promise<DetectedImage[]>;
   isProcessing: boolean;
   progress: GridDetectionProgress | null;
@@ -25,7 +27,8 @@ export function useGridDetection(): UseGridDetectionReturn {
   const processGrid = useCallback(async (
     image: File,
     config: GridConfig,
-    removeBorders: boolean
+    removeBorders: boolean,
+    forceAspectRatio?: number
   ): Promise<DetectedImage[]> => {
     setIsProcessing(true);
     setError(null);
@@ -33,12 +36,39 @@ export function useGridDetection(): UseGridDetectionReturn {
 
     try {
       // Step 1: Load image to canvas
-      const { canvas, width, height } = await loadImageToCanvas(image);
+      const { canvas: sourceCanvas, width: origWidth, height: origHeight } = await loadImageToCanvas(image);
+      
+      let canvas = sourceCanvas;
+      let width = origWidth;
+      let height = origHeight;
+
+      // Step 1.5: Force aspect ratio if specified (e.g., 3:4 for Instagram)
+      if (forceAspectRatio) {
+        setProgress({ stage: 'analyzing', percent: 25, message: 'A ajustar proporção...' });
+        
+        const { canvas: croppedCanvas, cropInfo } = cropToAspectRatio(sourceCanvas, forceAspectRatio);
+        canvas = croppedCanvas;
+        width = cropInfo.croppedWidth;
+        height = cropInfo.croppedHeight;
+        
+        console.log(`[GridDetection] Cropped from ${origWidth}×${origHeight} to ${width}×${height} (ratio: ${forceAspectRatio})`);
+      }
       
       setProgress({ stage: 'analyzing', percent: 40, message: `A dividir em ${config.rows}×${config.cols} células...` });
 
-      // Step 2: Calculate cell bounds
+      // Step 2: Calculate cell bounds with PRECISE algorithm
       const cells = calculateManualCellBounds(config.rows, config.cols, width, height, removeBorders);
+      
+      // Log cell dimensions for debugging
+      if (cells.length > 0) {
+        console.log(`[GridDetection] First cell: ${cells[0].width}×${cells[0].height}px`);
+        console.log(`[GridDetection] Last cell: ${cells[cells.length - 1].width}×${cells[cells.length - 1].height}px`);
+        
+        // Verify total coverage
+        const totalWidth = cells.filter(c => c.row === 0).reduce((sum, c) => sum + c.width, 0);
+        const totalHeight = cells.filter(c => c.col === 0).reduce((sum, c) => sum + c.height, 0);
+        console.log(`[GridDetection] Total coverage: ${totalWidth}×${totalHeight}px (source: ${width}×${height}px)`);
+      }
 
       // Step 3: Extract cells
       setProgress({ stage: 'extracting', percent: 60, message: 'A extrair imagens...' });

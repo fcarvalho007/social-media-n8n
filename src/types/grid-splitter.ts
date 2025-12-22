@@ -4,6 +4,9 @@ export interface DetectedImage {
   dataUrl: string;
   order: number;
   selected: boolean;
+  // Dimensions for validation
+  width?: number;
+  height?: number;
 }
 
 export interface GridConfig {
