@@ -62,10 +62,10 @@ export function StepProgress({ currentStep, visitedSteps, onStepClick }: StepPro
                   )}
                 </div>
 
-                {/* Inline label - hidden on very small screens */}
+                {/* Inline label - hidden on very small screens, show on xs+ */}
                 <span
                   className={cn(
-                    "text-[10px] sm:text-xs font-medium transition-all duration-300 hidden xs:inline",
+                    "text-[10px] xs:text-xs font-medium transition-all duration-300 hidden xs:inline",
                     isCurrent && "text-primary font-semibold",
                     isCompleted && "text-emerald-600 dark:text-emerald-400",
                     !isCompleted && !isCurrent && isVisited && "text-muted-foreground",

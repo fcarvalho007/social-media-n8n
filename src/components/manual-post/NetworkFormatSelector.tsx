@@ -62,9 +62,9 @@ export function NetworkFormatSelector({ selectedFormats, onFormatsChange }: Netw
           onSelectPreset={handlePresetSelect}
         />
 
-        {/* Platform Chips - Grid on mobile, flex on desktop */}
+        {/* Platform Chips - Responsive grid on mobile, flex on desktop */}
         <div 
-          className="platform-chips grid grid-cols-3 gap-1.5 sm:flex sm:gap-3 sm:flex-wrap pb-2 sm:pb-0"
+          className="platform-chips grid grid-cols-2 xs:grid-cols-3 gap-1.5 sm:flex sm:gap-3 sm:flex-wrap pb-2 sm:pb-0"
           role="tablist"
           aria-label="Plataformas disponíveis"
         >
