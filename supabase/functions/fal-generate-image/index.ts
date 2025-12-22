@@ -27,14 +27,11 @@ function mapAspectRatioForNanoBanana(aspectRatio: string): string {
 }
 
 // Map resolution to fal.ai format for Nano Banana Pro
-// Note: fal.ai expects lowercase values: '1k', '2k', '4k'
+// Note: fal.ai expects UPPERCASE values: '1K', '2K', '4K'
 function mapResolution(resolution: string): string {
-  const mapping: Record<string, string> = {
-    '1K': '1k',
-    '2K': '2k',
-    '4K': '4k',
-  };
-  return mapping[resolution] || '2k';  // Default to 2k
+  const validResolutions = ['1K', '2K', '4K'];
+  const upperRes = resolution.toUpperCase();
+  return validResolutions.includes(upperRes) ? upperRes : '2K';  // Default to 2K
 }
 
 interface GenerateRequest {
