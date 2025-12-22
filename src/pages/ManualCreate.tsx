@@ -933,7 +933,7 @@ export default function ManualCreate() {
 
       {/* Mobile Preview - Hidden by default, moved to bottom */}
 
-      <div className="grid lg:grid-cols-2 gap-2 lg:gap-8 pb-24 lg:pb-0">
+      <div className="grid lg:grid-cols-2 gap-2 lg:gap-8 pb-28 lg:pb-0">
         {/* Left - Form */}
         <div className="space-y-3 lg:space-y-6">
           {/* Step 1: Network & Format Selection */}
@@ -1561,15 +1561,15 @@ export default function ManualCreate() {
       </div>
 
       {/* Mobile Sticky Bottom Bar - Optimized with larger touch targets */}
-      <div className="fixed bottom-0 left-0 right-0 p-2.5 pb-[calc(0.75rem+env(safe-area-inset-bottom))] bg-background/98 backdrop-blur-md border-t shadow-[0_-4px_20px_-4px_rgba(0,0,0,0.15)] lg:hidden z-50">
-        <div className="flex gap-2.5 max-w-lg mx-auto">
+      <div className="fixed bottom-0 left-0 right-0 p-4 pb-[calc(1.25rem+env(safe-area-inset-bottom))] bg-background/98 backdrop-blur-md border-t shadow-[0_-4px_20px_-4px_rgba(0,0,0,0.15)] lg:hidden z-50">
+        <div className="flex gap-3 max-w-md mx-auto px-2">
           <Button
             type="button"
             size="default"
             onClick={handlePublishWithValidation}
             disabled={publishing || submitting || saving || isUploading || selectedFormats.length === 0}
             className={cn(
-              "flex-1 font-semibold text-white h-11",
+              "flex-1 font-semibold text-white h-12",
               "bg-gradient-to-r from-green-600 to-green-500",
               "hover:from-green-500 hover:to-green-400",
               "active:scale-[0.98] transition-all duration-200",
@@ -1597,7 +1597,7 @@ export default function ManualCreate() {
               handlePublishWithValidation();
             }}
             disabled={publishing || submitting || saving || selectedFormats.length === 0}
-            className="h-11 w-11 p-0 border-primary/50"
+            className="h-12 w-12 p-0 border-primary/50"
             aria-label="Agendar publicação"
           >
             <CalendarIcon className="h-5 w-5" />
@@ -1608,7 +1608,7 @@ export default function ManualCreate() {
             size="default"
             onClick={handleSaveDraft}
             disabled={saving || submitting || publishing}
-            className="h-11 w-11 p-0"
+            className="h-12 w-12 p-0"
             aria-label="Guardar rascunho"
           >
             <Save className="h-5 w-5" />
