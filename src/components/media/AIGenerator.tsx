@@ -1,9 +1,9 @@
-import { useState, useCallback, useEffect } from 'react';
+import { useState, useCallback, useEffect, useRef } from 'react';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Separator } from '@/components/ui/separator';
-import { AlertTriangle, RefreshCw } from 'lucide-react';
+import { AlertTriangle, RefreshCw, Loader2 } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 import { AIGeneratorForm } from './AIGeneratorForm';
@@ -30,6 +30,8 @@ export function AIGenerator({ onAddToCarousel, onSendToGridSplitter, maxImages, 
   const [currentParams, setCurrentParams] = useState<AIGenerateParams | null>(null);
   const [quickCropImage, setQuickCropImage] = useState<string | null>(null);
   const [isProcessingCrop, setIsProcessingCrop] = useState(false);
+  const [isSavingToHistory, setIsSavingToHistory] = useState(false);
+  const savedImagesRef = useRef<Set<string>>(new Set());
 
   const {
     generate,
@@ -74,27 +76,40 @@ export function AIGenerator({ onAddToCarousel, onSendToGridSplitter, maxImages, 
     checkCredentials();
   }, []);
 
-  // Auto-save generated images to history
+  // Auto-save generated images to history with deduplication
   useEffect(() => {
     const saveNewImages = async () => {
       if (!isGenerating && generatedImages.length > 0 && currentParams) {
-        for (const img of generatedImages) {
-          await saveToHistory(img.url, currentParams.prompt, img.cost);
+        const newImages = generatedImages.filter(img => !savedImagesRef.current.has(img.url));
+        
+        if (newImages.length === 0) return;
+        
+        setIsSavingToHistory(true);
+        try {
+          for (const img of newImages) {
+            await saveToHistory(img.url, currentParams.prompt, img.cost);
+            savedImagesRef.current.add(img.url);
+          }
+        } finally {
+          setIsSavingToHistory(false);
         }
       }
     };
     saveNewImages();
   }, [isGenerating, generatedImages.length]);
 
-  const handleGenerate = useCallback((params: AIGenerateParams) => {
-    setCurrentParams(params);
-    generate(params);
-  }, [generate]);
-
-  const handleCancelGeneration = useCallback(() => {
+  // Clear saved images ref when results are cleared
+  const handleClearResults = useCallback(() => {
+    savedImagesRef.current.clear();
     clearResults();
     setCurrentParams(null);
   }, [clearResults]);
+
+  const handleGenerate = useCallback((params: AIGenerateParams) => {
+    savedImagesRef.current.clear();
+    setCurrentParams(params);
+    generate(params);
+  }, [generate]);
 
   const handleAddToCarousel = useCallback(async () => {
     const selectedImages = generatedImages.filter(img => img.selected);
@@ -114,12 +129,11 @@ export function AIGenerator({ onAddToCarousel, onSendToGridSplitter, maxImages, 
 
     if (files.length > 0) {
       onAddToCarousel(files, 'ai');
-      clearResults();
+      handleClearResults();
     }
-  }, [generatedImages, onAddToCarousel, clearResults]);
+  }, [generatedImages, onAddToCarousel, handleClearResults]);
 
   const handleSendToGridSplitter = useCallback(async (imageUrl: string) => {
-    // Open quick crop dialog instead of sending directly
     setQuickCropImage(imageUrl);
   }, []);
 
@@ -132,7 +146,7 @@ export function AIGenerator({ onAddToCarousel, onSendToGridSplitter, maxImages, 
       const blob = await response.blob();
       const file = new File([blob], `ai-generated-grid-${Date.now()}.png`, { type: 'image/png' });
       onSendToGridSplitter(file, { rows, cols });
-      clearResults();
+      handleClearResults();
       setQuickCropImage(null);
     } catch (err) {
       console.error('Error sending to grid splitter:', err);
@@ -140,7 +154,7 @@ export function AIGenerator({ onAddToCarousel, onSendToGridSplitter, maxImages, 
     } finally {
       setIsProcessingCrop(false);
     }
-  }, [quickCropImage, onSendToGridSplitter, clearResults]);
+  }, [quickCropImage, onSendToGridSplitter, handleClearResults]);
 
   const handleAddDirect = useCallback(async () => {
     if (!quickCropImage) return;
@@ -151,7 +165,7 @@ export function AIGenerator({ onAddToCarousel, onSendToGridSplitter, maxImages, 
       const blob = await response.blob();
       const file = new File([blob], `ai-generated-${Date.now()}.png`, { type: 'image/png' });
       onAddToCarousel([file], 'ai');
-      clearResults();
+      handleClearResults();
       setQuickCropImage(null);
     } catch (err) {
       console.error('Error adding image:', err);
@@ -159,7 +173,7 @@ export function AIGenerator({ onAddToCarousel, onSendToGridSplitter, maxImages, 
     } finally {
       setIsProcessingCrop(false);
     }
-  }, [quickCropImage, onAddToCarousel, clearResults]);
+  }, [quickCropImage, onAddToCarousel, handleClearResults]);
 
   // History handlers
   const handleHistoryUseImage = useCallback(async (imageUrl: string) => {
@@ -177,6 +191,14 @@ export function AIGenerator({ onAddToCarousel, onSendToGridSplitter, maxImages, 
 
   const handleHistoryCropImage = useCallback(async (imageUrl: string) => {
     setQuickCropImage(imageUrl);
+  }, []);
+
+  // Regenerate with prompt from history
+  const handleRegeneratePrompt = useCallback((prompt: string) => {
+    // This will be handled by passing to AIGeneratorForm
+    // For now, we'll just show a toast - the form doesn't support pre-filling yet
+    navigator.clipboard.writeText(prompt);
+    toast.success('Prompt copiado! Cole-o no campo de texto.');
   }, []);
 
   if (checkingCredentials) {
@@ -206,7 +228,7 @@ export function AIGenerator({ onAddToCarousel, onSendToGridSplitter, maxImages, 
           <AlertTriangle className="h-4 w-4" />
           <AlertDescription>{error}</AlertDescription>
         </Alert>
-        <Button variant="outline" onClick={clearResults} className="w-full">
+        <Button variant="outline" onClick={handleClearResults} className="w-full">
           <RefreshCw className="h-4 w-4 mr-2" />
           Tentar novamente
         </Button>
@@ -221,6 +243,7 @@ export function AIGenerator({ onAddToCarousel, onSendToGridSplitter, maxImages, 
               onUseImage={handleHistoryUseImage}
               onCropImage={handleHistoryCropImage}
               onDeleteImage={deleteFromHistory}
+              onRegeneratePrompt={handleRegeneratePrompt}
             />
           </>
         )}
@@ -237,11 +260,19 @@ export function AIGenerator({ onAddToCarousel, onSendToGridSplitter, maxImages, 
           onSelectAll={selectAll}
           onDeselectAll={deselectAll}
           onAddToCarousel={handleAddToCarousel}
-          onGenerateNew={clearResults}
+          onGenerateNew={handleClearResults}
           onSendToGridSplitter={onSendToGridSplitter ? handleSendToGridSplitter : undefined}
           maxImages={maxImages}
           totalCost={totalCost}
         />
+        
+        {/* Saving indicator */}
+        {isSavingToHistory && (
+          <div className="flex items-center justify-center gap-2 text-xs text-muted-foreground py-2">
+            <Loader2 className="h-3 w-3 animate-spin" />
+            A guardar no histórico...
+          </div>
+        )}
         
         {/* Quick Crop Dialog */}
         {quickCropImage && (
@@ -274,7 +305,7 @@ export function AIGenerator({ onAddToCarousel, onSendToGridSplitter, maxImages, 
         <AIGeneratorProgress
           jobs={jobs}
           progress={progress}
-          onCancel={handleCancelGeneration}
+          onCancel={handleClearResults}
           modelName={modelName}
           estimatedCostPerImage={estimatedCostPerImage}
         />
@@ -305,6 +336,7 @@ export function AIGenerator({ onAddToCarousel, onSendToGridSplitter, maxImages, 
             onUseImage={handleHistoryUseImage}
             onCropImage={handleHistoryCropImage}
             onDeleteImage={deleteFromHistory}
+            onRegeneratePrompt={handleRegeneratePrompt}
           />
         </>
       )}

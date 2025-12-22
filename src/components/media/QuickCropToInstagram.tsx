@@ -3,7 +3,8 @@ import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { Label } from '@/components/ui/label';
-import { Loader2, Grid3x3, Grid2x2, Plus, Sparkles, Smartphone } from 'lucide-react';
+import { Badge } from '@/components/ui/badge';
+import { Loader2, Grid3x3, Grid2x2, Plus, Sparkles, Star, LayoutGrid } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { motion, AnimatePresence } from 'framer-motion';
 
@@ -14,29 +15,31 @@ interface CropOption {
   rows: number;
   cols: number;
   icon: React.ReactNode;
+  recommended?: boolean;
 }
 
 const CROP_OPTIONS: CropOption[] = [
   {
     id: '2x2',
-    label: '4 slides (2×2)',
-    description: 'Grid compacto',
+    label: '4 slides',
+    description: '2×2 compacto',
     rows: 2,
     cols: 2,
     icon: <Grid2x2 className="h-5 w-5" />,
   },
   {
-    id: '3x2',
-    label: '6 slides (3×2)',
-    description: 'Formato médio',
+    id: '2x3',
+    label: '6 slides',
+    description: '2×3 popular',
     rows: 3,
     cols: 2,
-    icon: <Grid3x3 className="h-5 w-5" />,
+    icon: <LayoutGrid className="h-5 w-5" />,
+    recommended: true,
   },
   {
     id: '3x3',
-    label: '9 slides (3×3)',
-    description: 'Grid completo',
+    label: '9 slides',
+    description: '3×3 completo',
     rows: 3,
     cols: 3,
     icon: <Grid3x3 className="h-5 w-5" />,
@@ -60,16 +63,17 @@ export function QuickCropToInstagram({
   onAddDirect,
   isProcessing = false,
 }: QuickCropToInstagramProps) {
-  const [selectedOption, setSelectedOption] = useState<string>('2x2');
+  const [selectedOption, setSelectedOption] = useState<string>('2x3');
   const [showPreview, setShowPreview] = useState(false);
+  const [hoveredSlide, setHoveredSlide] = useState<number | null>(null);
 
   useEffect(() => {
     if (open) {
-      // Small delay for animation
-      const timer = setTimeout(() => setShowPreview(true), 150);
+      const timer = setTimeout(() => setShowPreview(true), 100);
       return () => clearTimeout(timer);
     } else {
       setShowPreview(false);
+      setHoveredSlide(null);
     }
   }, [open]);
 
@@ -81,6 +85,7 @@ export function QuickCropToInstagram({
   }, [selectedOption, onCrop]);
 
   const selectedCropOption = CROP_OPTIONS.find(o => o.id === selectedOption);
+  const totalSlides = selectedCropOption ? selectedCropOption.rows * selectedCropOption.cols : 0;
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -91,7 +96,7 @@ export function QuickCropToInstagram({
             Imagem Gerada
           </DialogTitle>
           <DialogDescription>
-            Escolhe como adicionar ao carrossel
+            Escolhe como adicionar ao carrossel Instagram
           </DialogDescription>
         </DialogHeader>
 
@@ -100,61 +105,86 @@ export function QuickCropToInstagram({
           <AnimatePresence>
             {showPreview && (
               <motion.div
-                initial={{ opacity: 0, scale: 0.95 }}
-                animate={{ opacity: 1, scale: 1 }}
-                exit={{ opacity: 0, scale: 0.95 }}
-                transition={{ duration: 0.3, ease: 'easeOut' }}
-                className="relative mx-auto w-full max-w-[200px]"
+                initial={{ opacity: 0, scale: 0.9, y: 20 }}
+                animate={{ opacity: 1, scale: 1, y: 0 }}
+                exit={{ opacity: 0, scale: 0.9 }}
+                transition={{ type: 'spring', stiffness: 300, damping: 25 }}
+                className="relative mx-auto w-full max-w-[180px]"
               >
                 {/* Phone Frame */}
-                <div className="relative bg-gradient-to-b from-muted to-muted/80 rounded-[2rem] p-2 shadow-xl">
+                <div className="relative bg-gradient-to-b from-zinc-800 to-zinc-900 rounded-[2rem] p-1.5 shadow-2xl">
                   {/* Phone Notch */}
-                  <div className="absolute top-3 left-1/2 -translate-x-1/2 w-16 h-5 bg-black rounded-full z-10" />
+                  <div className="absolute top-2 left-1/2 -translate-x-1/2 w-12 h-4 bg-black rounded-full z-10" />
                   
                   {/* Screen */}
                   <div className="relative bg-black rounded-[1.5rem] overflow-hidden aspect-[9/16]">
+                    {/* Instagram Header */}
+                    <div className="absolute top-0 left-0 right-0 h-8 bg-gradient-to-b from-black/80 to-transparent z-10 flex items-center px-3">
+                      <div className="w-4 h-4 rounded-full bg-gradient-to-br from-yellow-400 via-pink-500 to-purple-600" />
+                      <div className="ml-2 h-1.5 w-12 bg-white/60 rounded" />
+                    </div>
+                    
                     {/* Image with Grid Overlay */}
-                    <div className="relative w-full h-full flex items-center justify-center bg-muted/20">
+                    <div className="relative w-full h-full flex items-center justify-center bg-muted/10">
                       <div className="relative w-full aspect-[3/4] overflow-hidden">
-                        <img
+                        <motion.img
                           src={imageUrl}
                           alt="Preview"
                           className="w-full h-full object-cover"
+                          initial={{ scale: 1.1 }}
+                          animate={{ scale: 1 }}
+                          transition={{ duration: 0.5 }}
                         />
                         
                         {/* Grid Overlay */}
                         {selectedCropOption && (
                           <motion.div
+                            key={selectedOption}
                             initial={{ opacity: 0 }}
                             animate={{ opacity: 1 }}
-                            transition={{ delay: 0.2 }}
+                            transition={{ delay: 0.15 }}
                             className="absolute inset-0 grid"
                             style={{
                               gridTemplateRows: `repeat(${selectedCropOption.rows}, 1fr)`,
                               gridTemplateColumns: `repeat(${selectedCropOption.cols}, 1fr)`,
                             }}
                           >
-                            {Array.from({ length: selectedCropOption.rows * selectedCropOption.cols }).map((_, i) => (
-                              <div
+                            {Array.from({ length: totalSlides }).map((_, i) => (
+                              <motion.div
                                 key={i}
-                                className="border border-white/40 flex items-center justify-center"
+                                initial={{ opacity: 0, scale: 0.8 }}
+                                animate={{ 
+                                  opacity: 1, 
+                                  scale: hoveredSlide === i ? 1.05 : 1,
+                                  backgroundColor: hoveredSlide === i ? 'rgba(255,255,255,0.15)' : 'transparent'
+                                }}
+                                transition={{ delay: 0.05 * i, duration: 0.2 }}
+                                className={cn(
+                                  "border border-white/50 flex items-center justify-center cursor-pointer transition-colors",
+                                  hoveredSlide === i && "border-white"
+                                )}
+                                onMouseEnter={() => setHoveredSlide(i)}
+                                onMouseLeave={() => setHoveredSlide(null)}
                               >
-                                <span className="text-white/80 text-xs font-bold drop-shadow-lg">
+                                <span className={cn(
+                                  "text-white font-bold drop-shadow-lg transition-all",
+                                  hoveredSlide === i ? "text-sm" : "text-[10px]"
+                                )}>
                                   {i + 1}
                                 </span>
-                              </div>
+                              </motion.div>
                             ))}
                           </motion.div>
                         )}
                       </div>
                     </div>
                     
-                    {/* Instagram UI Elements */}
-                    <div className="absolute bottom-0 left-0 right-0 p-2 bg-gradient-to-t from-black/60 to-transparent">
+                    {/* Instagram Footer */}
+                    <div className="absolute bottom-0 left-0 right-0 p-2 bg-gradient-to-t from-black/80 to-transparent">
                       <div className="flex items-center gap-2">
-                        <div className="w-6 h-6 rounded-full bg-gradient-to-br from-yellow-400 via-pink-500 to-purple-600" />
+                        <div className="w-5 h-5 rounded-full bg-gradient-to-br from-yellow-400 via-pink-500 to-purple-600" />
                         <div className="flex-1">
-                          <div className="h-2 w-16 bg-white/80 rounded" />
+                          <div className="h-1.5 w-14 bg-white/70 rounded" />
                         </div>
                       </div>
                     </div>
@@ -162,20 +192,28 @@ export function QuickCropToInstagram({
                 </div>
                 
                 {/* Slides indicator */}
-                <div className="mt-2 flex justify-center gap-1">
-                  {selectedCropOption && Array.from({ length: Math.min(selectedCropOption.rows * selectedCropOption.cols, 5) }).map((_, i) => (
-                    <div
+                <motion.div 
+                  className="mt-3 flex justify-center gap-1"
+                  initial={{ opacity: 0 }}
+                  animate={{ opacity: 1 }}
+                  transition={{ delay: 0.3 }}
+                >
+                  {Array.from({ length: Math.min(totalSlides, 6) }).map((_, i) => (
+                    <motion.div
                       key={i}
                       className={cn(
-                        "w-1.5 h-1.5 rounded-full transition-colors",
-                        i === 0 ? "bg-primary" : "bg-muted-foreground/30"
+                        "w-1.5 h-1.5 rounded-full transition-all",
+                        i === 0 ? "bg-primary w-3" : "bg-muted-foreground/30"
                       )}
+                      initial={{ scale: 0 }}
+                      animate={{ scale: 1 }}
+                      transition={{ delay: 0.35 + i * 0.05 }}
                     />
                   ))}
-                  {selectedCropOption && selectedCropOption.rows * selectedCropOption.cols > 5 && (
-                    <span className="text-xs text-muted-foreground">+{selectedCropOption.rows * selectedCropOption.cols - 5}</span>
+                  {totalSlides > 6 && (
+                    <span className="text-[10px] text-muted-foreground ml-0.5">+{totalSlides - 6}</span>
                   )}
-                </div>
+                </motion.div>
               </motion.div>
             )}
           </AnimatePresence>
@@ -191,13 +229,22 @@ export function QuickCropToInstagram({
                 key={option.id}
                 htmlFor={option.id}
                 className={cn(
-                  "flex flex-col items-center gap-1 p-3 rounded-lg border-2 cursor-pointer transition-all",
+                  "relative flex flex-col items-center gap-1 p-3 rounded-lg border-2 cursor-pointer transition-all",
                   selectedOption === option.id
-                    ? "border-primary bg-primary/5"
+                    ? "border-primary bg-primary/5 shadow-sm"
                     : "border-muted hover:border-muted-foreground/30"
                 )}
               >
                 <RadioGroupItem value={option.id} id={option.id} className="sr-only" />
+                {option.recommended && (
+                  <Badge 
+                    variant="secondary" 
+                    className="absolute -top-2 left-1/2 -translate-x-1/2 text-[9px] px-1.5 py-0 h-4 gap-0.5"
+                  >
+                    <Star className="h-2.5 w-2.5 fill-current" />
+                    Popular
+                  </Badge>
+                )}
                 {option.icon}
                 <span className="text-xs font-medium">{option.label}</span>
                 <span className="text-[10px] text-muted-foreground">{option.description}</span>
@@ -211,13 +258,14 @@ export function QuickCropToInstagram({
               onClick={handleCrop}
               disabled={isProcessing}
               className="w-full gap-2"
+              size="lg"
             >
               {isProcessing ? (
                 <Loader2 className="h-4 w-4 animate-spin" />
               ) : (
                 <Grid3x3 className="h-4 w-4" />
               )}
-              Cortar em {selectedCropOption?.rows}×{selectedCropOption?.cols} (3:4)
+              Cortar em {totalSlides} slides (3:4)
             </Button>
             
             <Button
@@ -227,7 +275,7 @@ export function QuickCropToInstagram({
               className="w-full gap-2"
             >
               <Plus className="h-4 w-4" />
-              Adicionar sem cortar
+              Adicionar imagem inteira
             </Button>
           </div>
         </div>
