@@ -81,7 +81,8 @@ export function calculateCellBounds(
 
 /**
  * Calculate cell boundaries for manual grid split
- * Uses exact division without border trimming for precise cuts
+ * PRECISE VERSION: Last cell in each row/column absorbs residual pixels
+ * This ensures NO pixels are lost during splitting
  */
 export function calculateManualCellBounds(
   rows: number,
@@ -90,33 +91,52 @@ export function calculateManualCellBounds(
   imgHeight: number,
   removeBorders: boolean
 ): CellBounds[] {
-  const cellWidth = Math.floor(imgWidth / cols);
-  const cellHeight = Math.floor(imgHeight / rows);
+  // Base cell dimensions (floor division)
+  const baseCellWidth = Math.floor(imgWidth / cols);
+  const baseCellHeight = Math.floor(imgHeight / rows);
   
-  // Minimal border trim (0.5%) only when explicitly requested
+  // Residual pixels that need to be distributed to last cells
+  const extraPixelsX = imgWidth - (baseCellWidth * cols);
+  const extraPixelsY = imgHeight - (baseCellHeight * rows);
+  
+  // Minimal border trim only when explicitly requested
   const borderTrim = removeBorders ? 0.005 : 0;
-  const trimX = Math.floor(cellWidth * borderTrim);
-  const trimY = Math.floor(cellHeight * borderTrim);
 
   const cells: CellBounds[] = [];
 
+  let currentY = 0;
   for (let row = 0; row < rows; row++) {
+    // Last row absorbs extra Y pixels
+    const isLastRow = row === rows - 1;
+    const cellHeight = isLastRow 
+      ? (imgHeight - currentY) // Use remaining height for last row
+      : baseCellHeight;
+    
+    const trimY = removeBorders ? Math.floor(cellHeight * borderTrim) : 0;
+    
+    let currentX = 0;
     for (let col = 0; col < cols; col++) {
-      const x = col * cellWidth + trimX;
-      const y = row * cellHeight + trimY;
-      const width = cellWidth - (trimX * 2);
-      const height = cellHeight - (trimY * 2);
+      // Last column absorbs extra X pixels
+      const isLastCol = col === cols - 1;
+      const cellWidth = isLastCol 
+        ? (imgWidth - currentX) // Use remaining width for last column
+        : baseCellWidth;
+      
+      const trimX = removeBorders ? Math.floor(cellWidth * borderTrim) : 0;
 
       cells.push({
-        id: `cell-${row}-${col}-${Date.now()}`,
-        x,
-        y,
-        width,
-        height,
+        id: `cell-${row}-${col}-${Date.now()}-${Math.random().toString(36).substr(2, 5)}`,
+        x: currentX + trimX,
+        y: currentY + trimY,
+        width: cellWidth - (trimX * 2),
+        height: cellHeight - (trimY * 2),
         row,
         col
       });
+      
+      currentX += baseCellWidth;
     }
+    currentY += baseCellHeight;
   }
 
   return cells;
@@ -185,7 +205,10 @@ export async function extractAllCells(
         blob,
         dataUrl,
         order: i,
-        selected: true
+        selected: true,
+        // Include dimensions for validation
+        width: cell.width,
+        height: cell.height,
       });
 
       if (onProgress) {

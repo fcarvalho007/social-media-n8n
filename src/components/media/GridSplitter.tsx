@@ -82,11 +82,12 @@ export function GridSplitter({
       setIsOpen(true);
       setActiveTab('grid');
       
-      // Auto-process the grid after a short delay
+      // Auto-process the grid after a short delay with 3:4 aspect ratio enforcement
       setTimeout(async () => {
         if (externalImage) {
           try {
-            const images = await processGrid(externalImage, externalConfig, removeBorders);
+            // Force 3:4 aspect ratio for Instagram carousel
+            const images = await processGrid(externalImage, externalConfig, removeBorders, 3/4);
             setDetectedImages(images);
             toast.success(`${images.length} imagens extraídas com ratio 3:4!`);
           } catch (err) {
@@ -98,7 +99,7 @@ export function GridSplitter({
         onExternalImageProcessed?.();
       }, 300);
     }
-  }, [externalImage, externalConfig, processGrid, removeBorders, onExternalImageProcessed]);
+  }, [externalImage, externalConfig, processGrid, removeBorders, onExternalImageProcessed, loadImageFile]);
 
   const handleFileSelect = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
