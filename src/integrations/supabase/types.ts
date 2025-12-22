@@ -37,6 +37,7 @@ export type Database = {
       }
       media_library: {
         Row: {
+          ai_prompt: string | null
           aspect_ratio: string | null
           created_at: string
           duration: number | null
@@ -47,6 +48,7 @@ export type Database = {
           height: number | null
           id: string
           is_favorite: boolean | null
+          source: string | null
           tags: string[] | null
           thumbnail_url: string | null
           updated_at: string
@@ -54,6 +56,7 @@ export type Database = {
           width: number | null
         }
         Insert: {
+          ai_prompt?: string | null
           aspect_ratio?: string | null
           created_at?: string
           duration?: number | null
@@ -64,6 +67,7 @@ export type Database = {
           height?: number | null
           id?: string
           is_favorite?: boolean | null
+          source?: string | null
           tags?: string[] | null
           thumbnail_url?: string | null
           updated_at?: string
@@ -71,6 +75,7 @@ export type Database = {
           width?: number | null
         }
         Update: {
+          ai_prompt?: string | null
           aspect_ratio?: string | null
           created_at?: string
           duration?: number | null
@@ -81,6 +86,7 @@ export type Database = {
           height?: number | null
           id?: string
           is_favorite?: boolean | null
+          source?: string | null
           tags?: string[] | null
           thumbnail_url?: string | null
           updated_at?: string

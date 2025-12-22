@@ -1,8 +1,8 @@
-import { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
-import { Scissors, Plus, X, Loader2 } from 'lucide-react';
+import { Grid3x3, Plus, X, Loader2 } from 'lucide-react';
 import { AIGeneratedImage } from '@/lib/ai-generator/types';
+import { motion, AnimatePresence } from 'framer-motion';
 
 interface AIGeneratorPreviewProps {
   image: AIGeneratedImage;
@@ -39,17 +39,42 @@ export function AIGeneratorPreview({
         </DialogHeader>
         
         <div className="space-y-4">
-          {/* Large Preview */}
-          <div className="relative aspect-square max-h-[50vh] mx-auto overflow-hidden rounded-lg border bg-muted">
-            <img 
-              src={image.url} 
-              alt="Generated preview" 
-              className="w-full h-full object-contain"
-            />
-          </div>
+          {/* Large Preview with Animation */}
+          <AnimatePresence>
+            <motion.div
+              initial={{ opacity: 0, scale: 0.95 }}
+              animate={{ opacity: 1, scale: 1 }}
+              exit={{ opacity: 0, scale: 0.95 }}
+              transition={{ duration: 0.3, ease: 'easeOut' }}
+              className="relative aspect-square max-h-[50vh] mx-auto overflow-hidden rounded-lg border bg-muted"
+            >
+              <img 
+                src={image.url} 
+                alt="Generated preview" 
+                className="w-full h-full object-contain"
+              />
+              
+              {/* 3:4 Aspect Ratio Guide Overlay */}
+              <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
+                <div 
+                  className="border-2 border-dashed border-primary/40 rounded"
+                  style={{ 
+                    width: '75%',
+                    aspectRatio: '3/4',
+                    maxHeight: '100%'
+                  }}
+                />
+              </div>
+            </motion.div>
+          </AnimatePresence>
 
           {/* Action Buttons */}
-          <div className="flex gap-2 justify-center flex-wrap">
+          <motion.div 
+            initial={{ opacity: 0, y: 10 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.2 }}
+            className="flex gap-2 justify-center flex-wrap"
+          >
             <Button 
               variant="outline" 
               onClick={onDiscard}
@@ -69,9 +94,9 @@ export function AIGeneratorPreview({
               {isProcessing ? (
                 <Loader2 className="h-4 w-4 animate-spin" />
               ) : (
-                <Scissors className="h-4 w-4" />
+                <Grid3x3 className="h-4 w-4" />
               )}
-              Cortar em Grelha
+              Cortar para Instagram (3:4)
             </Button>
             
             <Button 
@@ -82,7 +107,7 @@ export function AIGeneratorPreview({
               <Plus className="h-4 w-4" />
               Adicionar ao Carrossel
             </Button>
-          </div>
+          </motion.div>
         </div>
       </DialogContent>
     </Dialog>

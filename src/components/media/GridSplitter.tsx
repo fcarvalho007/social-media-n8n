@@ -1,4 +1,4 @@
-import { useState, useCallback, useRef, useMemo } from 'react';
+import { useState, useCallback, useRef, useMemo, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Alert, AlertDescription } from '@/components/ui/alert';
@@ -23,9 +23,21 @@ interface GridSplitterProps {
   maxImages: number;
   disabled?: boolean;
   selectedFormats?: PostFormat[];
+  // Allow external control to open with a preset image and config
+  externalImage?: File | null;
+  externalConfig?: { rows: number; cols: number } | null;
+  onExternalImageProcessed?: () => void;
 }
 
-export function GridSplitter({ onAddToCarousel, maxImages, disabled = false, selectedFormats = [] }: GridSplitterProps) {
+export function GridSplitter({ 
+  onAddToCarousel, 
+  maxImages, 
+  disabled = false, 
+  selectedFormats = [],
+  externalImage,
+  externalConfig,
+  onExternalImageProcessed,
+}: GridSplitterProps) {
   const [isOpen, setIsOpen] = useState(false);
   const [activeTab, setActiveTab] = useState<'grid' | 'ai'>('grid');
   const [uploadedImage, setUploadedImage] = useState<File | null>(null);
@@ -45,7 +57,7 @@ export function GridSplitter({ onAddToCarousel, maxImages, disabled = false, sel
   }, [selectedFormats]);
 
   // Load an image file (from file input or AI generator)
-  const loadImageFile = useCallback((file: File) => {
+  const loadImageFile = useCallback((file: File, config?: { rows: number; cols: number }) => {
     // Clean up previous URL
     if (uploadedImageUrl) {
       URL.revokeObjectURL(uploadedImageUrl);
@@ -56,7 +68,37 @@ export function GridSplitter({ onAddToCarousel, maxImages, disabled = false, sel
     setUploadedImageUrl(url);
     setDetectedImages([]);
     setError(null);
+    
+    // Apply preset config if provided
+    if (config) {
+      setManualConfig(config);
+    }
   }, [uploadedImageUrl]);
+
+  // Handle external image from AI generator with preset config
+  useEffect(() => {
+    if (externalImage && externalConfig) {
+      loadImageFile(externalImage, externalConfig);
+      setIsOpen(true);
+      setActiveTab('grid');
+      
+      // Auto-process the grid after a short delay
+      setTimeout(async () => {
+        if (externalImage) {
+          try {
+            const images = await processGrid(externalImage, externalConfig, removeBorders);
+            setDetectedImages(images);
+            toast.success(`${images.length} imagens extraídas com ratio 3:4!`);
+          } catch (err) {
+            const errorMessage = err instanceof Error ? err.message : 'Erro ao processar grelha';
+            setError(errorMessage);
+            toast.error(errorMessage);
+          }
+        }
+        onExternalImageProcessed?.();
+      }, 300);
+    }
+  }, [externalImage, externalConfig, processGrid, removeBorders, onExternalImageProcessed]);
 
   const handleFileSelect = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
