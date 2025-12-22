@@ -889,9 +889,9 @@ export default function ManualCreate() {
   const [mobilePreviewOpen, setMobilePreviewOpen] = useState(false);
 
   return (
-      <div className="max-w-7xl mx-auto space-y-1 sm:space-y-4 px-2 sm:px-4 lg:px-0 bg-gradient-to-br from-background to-background-secondary">
+      <div className="max-w-7xl mx-auto space-y-2 sm:space-y-4 px-4 sm:px-6 lg:px-0 bg-gradient-to-br from-background to-background-secondary">
       {/* Header */}
-      <div className="flex items-center justify-between py-0.5 sm:py-1">
+      <div className="flex items-center justify-between py-1 sm:py-2 gap-2">
         <Button 
           variant="ghost" 
           size="sm" 
