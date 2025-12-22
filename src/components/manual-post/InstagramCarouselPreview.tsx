@@ -56,6 +56,15 @@ const InstagramCarouselPreview = ({ mediaUrls, mediaItems, caption }: InstagramC
     }
   };
 
+  // Reset currentIndex when items change to prevent accessing undefined items
+  useEffect(() => {
+    if (items.length === 0) {
+      setCurrentIndex(0);
+    } else if (currentIndex >= items.length) {
+      setCurrentIndex(items.length - 1);
+    }
+  }, [items.length, currentIndex]);
+
   // Initialize loading states when items change
   useEffect(() => {
     const initialLoading: Record<number, boolean> = {};
@@ -93,7 +102,17 @@ const InstagramCarouselPreview = ({ mediaUrls, mediaItems, caption }: InstagramC
     setErrorStates(prev => ({ ...prev, [index]: true }));
   };
 
-  const renderMedia = (item: MediaItem, index: number, className?: string) => {
+  const renderMedia = (item: MediaItem | undefined, index: number, className?: string) => {
+    // Guard clause: return null if item is undefined
+    if (!item) {
+      return (
+        <div className={cn("w-full h-full flex flex-col items-center justify-center bg-muted/50", className)}>
+          <AlertCircle className="h-8 w-8 text-muted-foreground mb-2" />
+          <p className="text-xs text-muted-foreground">Sem média</p>
+        </div>
+      );
+    }
+
     const isLoading = loadingStates[index];
     const hasError = errorStates[index];
 

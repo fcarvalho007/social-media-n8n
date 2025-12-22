@@ -45,6 +45,14 @@ const CROP_OPTIONS: CropOption[] = [
     cols: 3,
     icon: <Grid3x3 className="h-5 w-5" />,
   },
+  {
+    id: '2x5',
+    label: '10 slides',
+    description: '2×5 panorâmico',
+    rows: 5,
+    cols: 2,
+    icon: <LayoutGrid className="h-5 w-5" />,
+  },
 ];
 
 interface QuickCropToInstagramProps {
@@ -264,14 +272,14 @@ export function QuickCropToInstagram({
           <RadioGroup
             value={selectedOption}
             onValueChange={setSelectedOption}
-            className="grid grid-cols-3 gap-2"
+            className="grid grid-cols-4 gap-2"
           >
             {CROP_OPTIONS.map((option) => (
               <Label
                 key={option.id}
                 htmlFor={option.id}
                 className={cn(
-                  "relative flex flex-col items-center gap-1 p-3 rounded-lg border-2 cursor-pointer transition-all",
+                  "relative flex flex-col items-center gap-1 p-2 rounded-lg border-2 cursor-pointer transition-all",
                   selectedOption === option.id
                     ? "border-primary bg-primary/5 shadow-sm"
                     : "border-muted hover:border-muted-foreground/30"
@@ -288,8 +296,8 @@ export function QuickCropToInstagram({
                   </Badge>
                 )}
                 {option.icon}
-                <span className="text-xs font-medium">{option.label}</span>
-                <span className="text-[10px] text-muted-foreground">{option.description}</span>
+                <span className="text-[10px] font-medium">{option.label}</span>
+                <span className="text-[9px] text-muted-foreground">{option.description}</span>
               </Label>
             ))}
           </RadioGroup>
