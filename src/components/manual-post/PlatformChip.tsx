@@ -19,7 +19,7 @@ export function PlatformChip({ platform, selectedCount, isExpanded, onClick }: P
       onClick={onClick}
       className={cn(
         "platform-chip group",
-        "flex items-center gap-1 sm:gap-2 px-2 py-1.5 sm:px-3 sm:py-2",
+        "flex items-center justify-center gap-0.5 sm:gap-2 px-1.5 py-1.5 sm:px-3 sm:py-2",
         "rounded-lg sm:rounded-xl border-2 bg-card",
         "transition-all duration-200",
         "hover:shadow-md hover:-translate-y-0.5",
@@ -35,7 +35,7 @@ export function PlatformChip({ platform, selectedCount, isExpanded, onClick }: P
       aria-expanded={isExpanded}
       aria-label={`${config.name} - ${selectedCount} formatos selecionados`}
     >
-      {/* Icon Container */}
+      {/* Icon Container - Smaller on mobile */}
       <div 
         className={cn(
           "w-6 h-6 sm:w-8 sm:h-8 rounded-md sm:rounded-lg flex items-center justify-center",
@@ -46,10 +46,10 @@ export function PlatformChip({ platform, selectedCount, isExpanded, onClick }: P
         <PlatformIcon platform={platform} className="w-3.5 h-3.5 sm:w-5 sm:h-5" colored />
       </div>
       
-      {/* Platform Name - abbreviated on mobile */}
+      {/* Platform Name - Hidden on mobile, show only on desktop */}
       <span className={cn(
         "font-medium text-[11px] sm:text-sm text-foreground",
-        !isExpanded && selectedCount === 0 && "hidden sm:inline"
+        "hidden sm:inline"
       )}>
         {config.name}
       </span>
@@ -57,17 +57,18 @@ export function PlatformChip({ platform, selectedCount, isExpanded, onClick }: P
       {/* Selected Badge */}
       {selectedCount > 0 && (
         <span 
-          className="platform-chip-badge px-1 py-0.5 sm:px-1.5 rounded-full text-[9px] sm:text-[11px] font-semibold text-white"
+          className="platform-chip-badge px-1 py-0.5 sm:px-1.5 rounded-full text-[8px] sm:text-[11px] font-semibold text-white"
           style={{ backgroundColor: config.colorHex }}
         >
           ✓{selectedCount}
         </span>
       )}
       
-      {/* Chevron */}
+      {/* Chevron - Hidden on mobile */}
       <ChevronDown 
         className={cn(
           "w-3 h-3 sm:w-4 sm:h-4 text-muted-foreground transition-transform duration-200",
+          "hidden sm:block",
           isExpanded && "rotate-180"
         )} 
       />
