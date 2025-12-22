@@ -442,6 +442,24 @@ All colors MUST be HSL.
     -webkit-overflow-scrolling: touch;
     overscroll-behavior: contain;
   }
+  
+  /* Mobile spacing adjustments for /manual-create */
+  @media (max-width: 640px) {
+    .platform-chips {
+      padding-left: 0.25rem;
+      padding-right: 0.25rem;
+    }
+    
+    .quick-presets {
+      padding-left: 0.25rem;
+      padding-right: 0.25rem;
+    }
+    
+    .platform-chip,
+    .preset-card {
+      min-height: 44px !important;
+    }
+  }
 
   /* Smooth animations */
   .animate-fade-in {

@@ -107,11 +107,12 @@ export function QuickPresets({ selectedFormats, onSelectPreset }: QuickPresetsPr
                 type="button"
                 className={cn(
                   "preset-card snap-start",
-                  "relative flex items-center gap-1 xs:gap-1.5 sm:gap-2.5 px-1.5 py-1 xs:px-2 xs:py-1.5 sm:px-3.5 sm:py-2.5",
+                  "relative flex items-center gap-2 xs:gap-1.5 sm:gap-2.5 px-2.5 py-2 xs:px-2 xs:py-1.5 sm:px-3.5 sm:py-2.5",
+                  "min-h-[48px] sm:min-h-0",
                   "bg-card border-2 rounded-lg sm:rounded-xl",
                   "cursor-pointer transition-all duration-200",
                   "hover:shadow-lg hover:-translate-y-0.5",
-                  "text-left min-w-[80px] xs:min-w-[90px] sm:min-w-[180px] flex-shrink-0 sm:flex-shrink",
+                  "text-left min-w-[100px] xs:min-w-[90px] sm:min-w-[180px] flex-shrink-0 sm:flex-shrink",
                   isActive && "preset-card-active",
                   isPartial && "preset-card-partial"
                 )}

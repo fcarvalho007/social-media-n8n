@@ -52,10 +52,10 @@ export function NetworkFormatSelector({ selectedFormats, onFormatsChange }: Netw
 
   return (
     <Card className="overflow-hidden border-0 sm:border shadow-none sm:shadow-sm">
-      <CardHeader className="pb-1 sm:pb-2 px-0 sm:px-6 pt-0 sm:pt-6">
+      <CardHeader className="pb-2 sm:pb-2 px-1 sm:px-6 pt-2 sm:pt-6">
         <CardTitle className="text-sm sm:text-lg font-semibold">Selecione onde publicar</CardTitle>
       </CardHeader>
-      <CardContent className="space-y-0 px-0 sm:px-6 pb-0 sm:pb-6">
+      <CardContent className="space-y-2 px-1 sm:px-6 pb-3 sm:pb-6">
         {/* Quick Presets */}
         <QuickPresets
           selectedFormats={selectedFormats}
@@ -64,7 +64,7 @@ export function NetworkFormatSelector({ selectedFormats, onFormatsChange }: Netw
 
         {/* Platform Chips - Responsive grid on mobile, flex on desktop */}
         <div 
-          className="platform-chips grid grid-cols-2 xs:grid-cols-3 gap-1.5 sm:flex sm:gap-3 sm:flex-wrap pb-2 sm:pb-0"
+          className="platform-chips grid grid-cols-3 gap-2 sm:flex sm:gap-3 sm:flex-wrap pb-3 sm:pb-0"
           role="tablist"
           aria-label="Plataformas disponíveis"
         >
