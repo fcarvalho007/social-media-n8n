@@ -1,4 +1,4 @@
-import { useState, useCallback, useEffect } from 'react';
+import { useState, useCallback, useEffect, useRef } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 
@@ -22,9 +22,14 @@ interface UseAIImageHistoryReturn {
 export function useAIImageHistory(): UseAIImageHistoryReturn {
   const [historyImages, setHistoryImages] = useState<AIHistoryImage[]>([]);
   const [isLoading, setIsLoading] = useState(false);
+  const savedUrlsRef = useRef<Set<string>>(new Set());
+  const isFetchingRef = useRef(false);
 
   const fetchHistory = useCallback(async () => {
+    if (isFetchingRef.current) return;
+    
     try {
+      isFetchingRef.current = true;
       setIsLoading(true);
       
       const { data: { user } } = await supabase.auth.getUser();
@@ -43,23 +48,33 @@ export function useAIImageHistory(): UseAIImageHistoryReturn {
         return;
       }
 
-      const images: AIHistoryImage[] = (data || []).map(item => ({
-        id: item.id,
-        url: item.file_url,
-        thumbnailUrl: item.thumbnail_url || item.file_url,
-        prompt: item.ai_prompt || undefined,
-        createdAt: item.created_at,
-      }));
+      const images: AIHistoryImage[] = (data || []).map(item => {
+        savedUrlsRef.current.add(item.file_url);
+        return {
+          id: item.id,
+          url: item.file_url,
+          thumbnailUrl: item.thumbnail_url || item.file_url,
+          prompt: item.ai_prompt || undefined,
+          createdAt: item.created_at,
+        };
+      });
 
       setHistoryImages(images);
     } catch (err) {
       console.error('Error fetching AI history:', err);
     } finally {
       setIsLoading(false);
+      isFetchingRef.current = false;
     }
   }, []);
 
   const saveToHistory = useCallback(async (imageUrl: string, prompt?: string, cost?: number): Promise<string | null> => {
+    // Check if already saved to prevent duplicates
+    if (savedUrlsRef.current.has(imageUrl)) {
+      console.log('[AIHistory] Image already saved, skipping');
+      return null;
+    }
+
     try {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) {
@@ -67,13 +82,16 @@ export function useAIImageHistory(): UseAIImageHistoryReturn {
         return null;
       }
 
+      // Mark as saving immediately to prevent race conditions
+      savedUrlsRef.current.add(imageUrl);
+
       // Download the image and upload to storage
       const response = await fetch(imageUrl);
       const blob = await response.blob();
       
       const fileName = `${user.id}/${Date.now()}-ai-generated.png`;
       
-      const { data: uploadData, error: uploadError } = await supabase.storage
+      const { error: uploadError } = await supabase.storage
         .from('ai-generated-images')
         .upload(fileName, blob, {
           contentType: 'image/png',
@@ -82,6 +100,7 @@ export function useAIImageHistory(): UseAIImageHistoryReturn {
 
       if (uploadError) {
         console.error('Error uploading to storage:', uploadError);
+        savedUrlsRef.current.delete(imageUrl);
         return null;
       }
 
@@ -108,18 +127,30 @@ export function useAIImageHistory(): UseAIImageHistoryReturn {
 
       if (mediaError) {
         console.error('Error saving to media_library:', mediaError);
+        savedUrlsRef.current.delete(imageUrl);
         return null;
       }
 
-      // Refresh history
-      await fetchHistory();
+      // Add to local state without full refresh
+      const newImage: AIHistoryImage = {
+        id: mediaData.id,
+        url: publicUrl,
+        thumbnailUrl: publicUrl,
+        prompt: prompt,
+        createdAt: new Date().toISOString(),
+        cost: cost,
+      };
+
+      setHistoryImages(prev => [newImage, ...prev]);
+      savedUrlsRef.current.add(publicUrl);
 
       return mediaData?.id || null;
     } catch (err) {
       console.error('Error saving to history:', err);
+      savedUrlsRef.current.delete(imageUrl);
       return null;
     }
-  }, [fetchHistory]);
+  }, []);
 
   const deleteFromHistory = useCallback(async (id: string): Promise<boolean> => {
     try {
@@ -134,6 +165,9 @@ export function useAIImageHistory(): UseAIImageHistoryReturn {
         .single();
 
       if (mediaItem?.file_url) {
+        // Remove from saved URLs cache
+        savedUrlsRef.current.delete(mediaItem.file_url);
+        
         // Extract path from URL and delete from storage
         const urlParts = mediaItem.file_url.split('/ai-generated-images/');
         if (urlParts[1]) {
