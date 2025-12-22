@@ -889,9 +889,9 @@ export default function ManualCreate() {
   const [mobilePreviewOpen, setMobilePreviewOpen] = useState(false);
 
   return (
-    <div className="max-w-7xl mx-auto space-y-2 sm:space-y-4 px-0 sm:px-4 lg:px-0 bg-gradient-to-br from-background to-background-secondary">
+      <div className="max-w-7xl mx-auto space-y-1 sm:space-y-4 px-2 sm:px-4 lg:px-0 bg-gradient-to-br from-background to-background-secondary">
       {/* Header */}
-      <div className="flex items-center justify-between py-1 px-2 sm:px-0">
+      <div className="flex items-center justify-between py-0.5 sm:py-1">
         <Button 
           variant="ghost" 
           size="sm" 
@@ -923,7 +923,7 @@ export default function ManualCreate() {
       )}
 
       {/* Stepper - more compact on mobile */}
-      <div className="px-2 sm:px-0">
+      <div className="sm:px-0">
         <StepProgress
           currentStep={currentStep}
           visitedSteps={visitedSteps}
@@ -931,38 +931,9 @@ export default function ManualCreate() {
         />
       </div>
 
-      {/* Mobile Preview - Collapsible at top */}
-      <div className="lg:hidden px-2 sm:px-0">
-        <Collapsible open={mobilePreviewOpen} onOpenChange={setMobilePreviewOpen}>
-          <CollapsibleTrigger asChild>
-            <Button variant="ghost" size="sm" className="w-full gap-2 justify-between h-8 bg-muted/50 hover:bg-muted">
-              <span className="flex items-center gap-1.5 text-xs font-medium">
-                <Eye className="h-3 w-3" />
-                Pré-visualização
-              </span>
-              <ChevronDown className={cn(
-                "h-3 w-3 transition-transform",
-                mobilePreviewOpen && "rotate-180"
-              )} />
-            </Button>
-          </CollapsibleTrigger>
-          <CollapsibleContent className="mt-1.5">
-            <div className="p-2 bg-muted/30 rounded-lg">
-              {selectedFormats.length === 0 ? (
-                <div className="flex items-center justify-center h-16 text-muted-foreground text-xs">
-                  Selecione um formato
-                </div>
-              ) : (
-                <div className="max-h-[35vh] overflow-auto">
-                  {renderPreview(activePreviewTab as PostFormat || selectedFormats[0])}
-                </div>
-              )}
-            </div>
-          </CollapsibleContent>
-        </Collapsible>
-      </div>
+      {/* Mobile Preview - Hidden by default, moved to bottom */}
 
-      <div className="grid lg:grid-cols-2 gap-3 lg:gap-8 pb-20 lg:pb-0 px-2 sm:px-0">
+      <div className="grid lg:grid-cols-2 gap-2 lg:gap-8 pb-24 lg:pb-0">
         {/* Left - Form */}
         <div className="space-y-3 lg:space-y-6">
           {/* Step 1: Network & Format Selection */}
@@ -1038,7 +1009,7 @@ export default function ManualCreate() {
 
                 <Separator className="my-2" />
 
-                {/* Upload Zone - Empty State */}
+                {/* Upload Zone - Empty State - More compact on mobile */}
                 {mediaPreviewUrls.length === 0 && (
                   <Label 
                     htmlFor="media-upload" 
@@ -1048,33 +1019,27 @@ export default function ManualCreate() {
                     )}
                   >
                     <div className={cn(
-                      "relative flex flex-col items-center justify-center gap-2 sm:gap-3 h-32 sm:h-48 rounded-lg sm:rounded-xl",
+                      "relative flex flex-col items-center justify-center gap-1.5 sm:gap-3 h-20 sm:h-48 rounded-lg sm:rounded-xl",
                       "border-2 border-dashed transition-all duration-300",
                       "hover:border-primary/50 hover:bg-primary/5",
                       "border-primary/30 bg-gradient-to-br from-primary/5 to-transparent"
                     )}>
                       {isUploading ? (
                         <>
-                          <Loader2 className="h-6 w-6 sm:h-10 sm:w-10 text-primary animate-spin" />
-                          <span className="text-xs sm:text-sm text-muted-foreground">A processar...</span>
+                          <Loader2 className="h-5 w-5 sm:h-10 sm:w-10 text-primary animate-spin" />
+                          <span className="text-[10px] sm:text-sm text-muted-foreground">A processar...</span>
                         </>
                       ) : (
                         <>
-                          <div className="p-2.5 sm:p-4 rounded-full bg-primary/10">
-                            <CloudUpload className="h-5 w-5 sm:h-8 sm:w-8 text-primary" />
+                          <div className="p-2 sm:p-4 rounded-full bg-primary/10">
+                            <CloudUpload className="h-4 w-4 sm:h-8 sm:w-8 text-primary" />
                           </div>
-                          <div className="text-center px-2">
-                            <p className="text-sm sm:text-base font-medium text-foreground">Arrasta ou clica</p>
-                            <p className="text-xs sm:text-sm text-muted-foreground hidden sm:block">para selecionar ficheiros</p>
-                          </div>
+                          <p className="text-xs sm:text-base font-medium text-foreground">Arrasta ou clica</p>
                           <div className="flex gap-1 sm:gap-2">
-                            <Badge variant="outline" className="text-[10px] sm:text-xs bg-background px-1.5 sm:px-2">PNG</Badge>
-                            <Badge variant="outline" className="text-[10px] sm:text-xs bg-background px-1.5 sm:px-2">JPG</Badge>
-                            <Badge variant="outline" className="text-[10px] sm:text-xs bg-background px-1.5 sm:px-2">MP4</Badge>
+                            <Badge variant="outline" className="text-[9px] sm:text-xs bg-background px-1 sm:px-2 py-0">PNG</Badge>
+                            <Badge variant="outline" className="text-[9px] sm:text-xs bg-background px-1 sm:px-2 py-0">JPG</Badge>
+                            <Badge variant="outline" className="text-[9px] sm:text-xs bg-background px-1 sm:px-2 py-0">MP4</Badge>
                           </div>
-                          <p className="text-[10px] sm:text-xs text-muted-foreground/70">
-                            {mediaRequirements.minMedia}-{mediaRequirements.maxMedia} ficheiros
-                          </p>
                         </>
                       )}
                     </div>
@@ -1595,16 +1560,16 @@ export default function ManualCreate() {
         </div>
       </div>
 
-      {/* Mobile Sticky Bottom Bar - Enhanced */}
-      <div className="fixed bottom-0 left-0 right-0 p-2 bg-background/98 backdrop-blur-md border-t shadow-[0_-4px_20px_-4px_rgba(0,0,0,0.1)] lg:hidden z-50 safe-area-inset-bottom">
+      {/* Mobile Sticky Bottom Bar - Optimized */}
+      <div className="fixed bottom-0 left-0 right-0 p-2 pb-[calc(0.5rem+env(safe-area-inset-bottom))] bg-background/98 backdrop-blur-md border-t shadow-[0_-4px_20px_-4px_rgba(0,0,0,0.1)] lg:hidden z-50">
         <div className="flex gap-2 max-w-lg mx-auto">
           <Button
             type="button"
-            size="lg"
+            size="default"
             onClick={handlePublishWithValidation}
             disabled={publishing || submitting || saving || isUploading || selectedFormats.length === 0}
             className={cn(
-              "flex-1 font-semibold text-white h-11",
+              "flex-1 font-semibold text-white h-10",
               "bg-gradient-to-r from-green-600 to-green-500",
               "hover:from-green-500 hover:to-green-400",
               "active:scale-[0.98] transition-all duration-200",
@@ -1623,7 +1588,7 @@ export default function ManualCreate() {
           <Button
             type="button"
             variant="outline"
-            size="lg"
+            size="default"
             onClick={() => {
               if (!scheduledDate) {
                 toast.info('Selecione uma data');
@@ -1632,17 +1597,17 @@ export default function ManualCreate() {
               handlePublishWithValidation();
             }}
             disabled={publishing || submitting || saving || selectedFormats.length === 0}
-            className="h-11 px-3 border-primary/50"
+            className="h-10 px-3 border-primary/50"
           >
             <CalendarIcon className="h-4 w-4" />
           </Button>
           <Button
             type="button"
             variant="ghost"
-            size="lg"
+            size="default"
             onClick={handleSaveDraft}
             disabled={saving || submitting || publishing}
-            className="h-11 px-3"
+            className="h-10 px-3"
           >
             <Save className="h-4 w-4" />
           </Button>

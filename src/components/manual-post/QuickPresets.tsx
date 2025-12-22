@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Check, Sparkles } from 'lucide-react';
+import { Check, Sparkles, ChevronRight } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { PostFormat } from '@/types/social';
 import { getFormatConfig } from '@/types/social';
@@ -7,6 +7,7 @@ import { getFormatConfig } from '@/types/social';
 interface FormatPreset {
   id: string;
   name: string;
+  shortName: string;
   description: string;
   emoji: string;
   formats: PostFormat[];
@@ -17,6 +18,7 @@ const FORMAT_PRESETS: FormatPreset[] = [
   {
     id: 'carousel-multi',
     name: 'Carrossel Multi-plataforma',
+    shortName: 'Carrossel',
     description: 'Instagram Carrossel + LinkedIn PDF',
     emoji: '🎠',
     formats: ['instagram_carousel', 'linkedin_document'],
@@ -25,6 +27,7 @@ const FORMAT_PRESETS: FormatPreset[] = [
   {
     id: 'video-vertical',
     name: 'Vídeo Vertical 9:16',
+    shortName: 'Vídeo 9:16',
     description: 'Reels + Shorts + TikTok',
     emoji: '📱',
     formats: ['instagram_reel', 'facebook_reel', 'youtube_shorts', 'tiktok_video'],
@@ -33,6 +36,7 @@ const FORMAT_PRESETS: FormatPreset[] = [
   {
     id: 'post-standard',
     name: 'Post Standard',
+    shortName: 'Post',
     description: 'Todas as redes (imagem)',
     emoji: '📝',
     formats: ['instagram_image', 'linkedin_post', 'facebook_image', 'googlebusiness_post'],
@@ -41,6 +45,7 @@ const FORMAT_PRESETS: FormatPreset[] = [
   {
     id: 'stories-all',
     name: 'Stories Everywhere',
+    shortName: 'Stories',
     description: 'IG + FB Stories + Google Business',
     emoji: '⏱️',
     formats: ['instagram_stories', 'facebook_stories', 'googlebusiness_post'],
@@ -83,72 +88,81 @@ export function QuickPresets({ selectedFormats, onSelectPreset }: QuickPresetsPr
   };
 
   return (
-    <div className="quick-presets mb-3 sm:mb-5">
-      <div className="flex items-center gap-1.5 mb-2">
+    <div className="quick-presets mb-2 sm:mb-5">
+      <div className="flex items-center gap-1.5 mb-1.5 sm:mb-2">
         <Sparkles size={12} className="text-amber-500 sm:w-[14px] sm:h-[14px]" />
-        <span className="text-[11px] sm:text-[13px] font-medium text-muted-foreground">Seleção rápida:</span>
+        <span className="text-[10px] sm:text-[13px] font-medium text-muted-foreground">Seleção rápida:</span>
       </div>
       
-      {/* Horizontal scrollable on mobile, wrap on desktop */}
-      <div className="flex gap-2 overflow-x-auto pb-1.5 sm:pb-2 sm:flex-wrap sm:overflow-visible scrollbar-hide">
-        {FORMAT_PRESETS.map(preset => {
-          const isActive = isPresetActive(preset);
-          const isPartial = isPresetPartial(preset);
-          
-          return (
-            <button
-              key={preset.id}
-              type="button"
-              className={cn(
-                "preset-card",
-                "relative flex items-center gap-1.5 sm:gap-2.5 px-2.5 py-2 sm:px-3.5 sm:py-2.5",
-                "bg-card border-2 rounded-lg sm:rounded-xl",
-                "cursor-pointer transition-all duration-200",
-                "hover:shadow-lg hover:-translate-y-0.5",
-                "text-left min-w-[130px] sm:min-w-[180px] flex-shrink-0 sm:flex-shrink",
-                isActive && "preset-card-active",
-                isPartial && "preset-card-partial"
-              )}
-              style={{ 
-                '--preset-gradient': preset.gradient,
-                borderColor: isActive ? 'transparent' : isPartial ? 'hsl(var(--muted-foreground))' : 'hsl(var(--border))',
-                background: isActive 
-                  ? `linear-gradient(white, white) padding-box, ${preset.gradient} border-box`
-                  : undefined,
-              } as React.CSSProperties}
-              onClick={() => handlePresetClick(preset)}
-              onMouseEnter={() => setHoveredPreset(preset.id)}
-              onMouseLeave={() => setHoveredPreset(null)}
-            >
-              {/* Check badge */}
-              {isActive && (
-                <div className="absolute -top-1 -right-1 sm:-top-1.5 sm:-right-1.5 w-4 h-4 sm:w-5 sm:h-5 bg-gradient-to-br from-emerald-500 to-emerald-600 rounded-full flex items-center justify-center shadow-md">
-                  <Check size={10} className="text-white sm:w-3 sm:h-3" strokeWidth={3} />
+      {/* Horizontal scrollable with scroll fade indicator */}
+      <div className="relative">
+        <div className="flex gap-1.5 sm:gap-2 overflow-x-auto pb-1.5 sm:pb-2 sm:flex-wrap sm:overflow-visible scrollbar-hide snap-x snap-mandatory">
+          {FORMAT_PRESETS.map(preset => {
+            const isActive = isPresetActive(preset);
+            const isPartial = isPresetPartial(preset);
+            
+            return (
+              <button
+                key={preset.id}
+                type="button"
+                className={cn(
+                  "preset-card snap-start",
+                  "relative flex items-center gap-1 sm:gap-2.5 px-2 py-1.5 sm:px-3.5 sm:py-2.5",
+                  "bg-card border-2 rounded-lg sm:rounded-xl",
+                  "cursor-pointer transition-all duration-200",
+                  "hover:shadow-lg hover:-translate-y-0.5",
+                  "text-left min-w-[100px] sm:min-w-[180px] flex-shrink-0 sm:flex-shrink",
+                  isActive && "preset-card-active",
+                  isPartial && "preset-card-partial"
+                )}
+                style={{ 
+                  '--preset-gradient': preset.gradient,
+                  borderColor: isActive ? 'transparent' : isPartial ? 'hsl(var(--muted-foreground))' : 'hsl(var(--border))',
+                  background: isActive 
+                    ? `linear-gradient(white, white) padding-box, ${preset.gradient} border-box`
+                    : undefined,
+                } as React.CSSProperties}
+                onClick={() => handlePresetClick(preset)}
+                onMouseEnter={() => setHoveredPreset(preset.id)}
+                onMouseLeave={() => setHoveredPreset(null)}
+              >
+                {/* Check badge */}
+                {isActive && (
+                  <div className="absolute -top-1 -right-1 sm:-top-1.5 sm:-right-1.5 w-3.5 h-3.5 sm:w-5 sm:h-5 bg-gradient-to-br from-emerald-500 to-emerald-600 rounded-full flex items-center justify-center shadow-md">
+                    <Check size={8} className="text-white sm:w-3 sm:h-3" strokeWidth={3} />
+                  </div>
+                )}
+                
+                {/* Emoji */}
+                <span className="text-base sm:text-2xl leading-none">{preset.emoji}</span>
+                
+                {/* Text - Short name on mobile */}
+                <div className="flex flex-col gap-0 min-w-0">
+                  <span className="font-semibold text-[10px] sm:text-[13px] text-foreground leading-tight truncate">
+                    <span className="sm:hidden">{preset.shortName}</span>
+                    <span className="hidden sm:inline">{preset.name}</span>
+                  </span>
+                  <span className="text-[8px] sm:text-[11px] text-muted-foreground leading-tight truncate hidden sm:block">{preset.description}</span>
                 </div>
-              )}
-              
-              {/* Emoji */}
-              <span className="text-lg sm:text-2xl leading-none">{preset.emoji}</span>
-              
-              {/* Text */}
-              <div className="flex flex-col gap-0">
-                <span className="font-semibold text-[11px] sm:text-[13px] text-foreground leading-tight">{preset.name}</span>
-                <span className="text-[9px] sm:text-[11px] text-muted-foreground leading-tight truncate max-w-[90px] sm:max-w-none">{preset.description}</span>
-              </div>
-              
-              {/* Tooltip - desktop only */}
-              {hoveredPreset === preset.id && (
-                <div className="preset-tooltip hidden sm:block">
-                  Inclui: {getFormatNames(preset.formats)}
-                </div>
-              )}
-            </button>
-          );
-        })}
+                
+                {/* Tooltip - desktop only */}
+                {hoveredPreset === preset.id && (
+                  <div className="preset-tooltip hidden sm:block">
+                    Inclui: {getFormatNames(preset.formats)}
+                  </div>
+                )}
+              </button>
+            );
+          })}
+        </div>
+        
+        {/* Scroll indicator - mobile only */}
+        <div className="absolute right-0 top-0 bottom-1.5 w-6 bg-gradient-to-l from-background to-transparent pointer-events-none sm:hidden" />
+        <ChevronRight className="absolute right-0 top-1/2 -translate-y-1/2 h-3 w-3 text-muted-foreground/50 sm:hidden" />
       </div>
       
-      <div className="presets-divider mt-2.5 sm:mt-4">
-        <span className="text-[10px] sm:text-xs">ou seleciona manualmente</span>
+      <div className="presets-divider mt-2 sm:mt-4">
+        <span className="text-[9px] sm:text-xs">ou seleciona manualmente</span>
       </div>
     </div>
   );
