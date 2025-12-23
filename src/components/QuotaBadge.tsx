@@ -19,7 +19,12 @@ export function QuotaBadge() {
   } = usePublishingQuota();
 
   if (instagram.isLoading || linkedin.isLoading) {
-    return <Skeleton className="h-10 w-48" />;
+    return (
+      <div className="flex items-center gap-1 px-2 py-1.5 rounded-lg bg-muted/50 border border-border">
+        <RefreshCw className="h-3 w-3 animate-spin text-muted-foreground" />
+        <span className="text-[10px] text-muted-foreground">A carregar...</span>
+      </div>
+    );
   }
 
   const formatRemaining = (remaining: number, isUnlimited: boolean) => {
