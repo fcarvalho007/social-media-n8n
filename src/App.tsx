@@ -22,6 +22,8 @@ import Drafts from "./pages/Drafts";
 import Recovery from "./pages/Recovery";
 import FailedPublications from "./pages/FailedPublications";
 import PublicationHistory from "./pages/PublicationHistory";
+import QuotaSettings from "./pages/QuotaSettings";
+import UserManagement from "./pages/UserManagement";
 import NotFound from "./pages/NotFound";
 const queryClient = new QueryClient();
 
@@ -64,6 +66,9 @@ const App = () => (
                   <Route path="/projects" element={<Projects />} />
                   <Route path="/projects/:id" element={<ProjectDetail />} />
                   <Route path="/templates" element={<Templates />} />
+                  <Route path="/quota" element={<QuotaSettings />} />
+                  <Route path="/quota-settings" element={<QuotaSettings />} />
+                  <Route path="/users" element={<UserManagement />} />
                 </Route>
                 {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
                 <Route path="*" element={<EncodedUrlRedirect />} />

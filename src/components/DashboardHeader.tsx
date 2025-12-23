@@ -140,10 +140,8 @@ export function DashboardHeader() {
           {/* Notifications */}
           <NotificationBell />
 
-          {/* Quota Badge - Hidden on small mobile */}
-          <div className="hidden xs:block">
-            <QuotaBadge />
-          </div>
+          {/* Quota Badge - Always visible */}
+          <QuotaBadge />
           
           {/* Settings Menu */}
           <DropdownMenu>
