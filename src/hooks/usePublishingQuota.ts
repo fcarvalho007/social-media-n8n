@@ -74,8 +74,8 @@ export function usePublishingQuota() {
     },
     enabled: !!userId,
     refetchOnWindowFocus: true,
-    refetchInterval: 5 * 60 * 1000, // Auto-refresh every 5 minutes
-    staleTime: 60 * 1000, // Consider stale after 1 minute
+    refetchInterval: 3 * 60 * 1000, // Auto-refresh every 3 minutes
+    staleTime: 30 * 1000, // Consider stale after 30 seconds
   });
 
   const formatQuotaText = (used: number, limit: number) => {
