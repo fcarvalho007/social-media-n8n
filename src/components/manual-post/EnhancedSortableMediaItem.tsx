@@ -31,6 +31,7 @@ const getAspectClass = (aspectRatio?: AspectRatioType): string => {
     case '4:3': return 'aspect-[4/3]';
     case '16:9': return 'aspect-video';
     case '9:16': return 'aspect-[9/16]';
+    case 'auto': return ''; // Let browser determine
     default: return 'aspect-[4/5]'; // Instagram default
   }
 };
