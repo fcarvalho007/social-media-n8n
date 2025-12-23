@@ -150,6 +150,38 @@ async function detectImageAspectRatio(file: File): Promise<string> {
   });
 }
 
+// Detect video aspect ratio from file
+async function detectVideoAspectRatio(file: File): Promise<string> {
+  return new Promise((resolve) => {
+    const video = document.createElement('video');
+    const url = URL.createObjectURL(file);
+    
+    video.onloadedmetadata = () => {
+      const { videoWidth: w, videoHeight: h } = video;
+      URL.revokeObjectURL(url);
+      
+      const ratio = w / h;
+      
+      // Map to common aspect ratios
+      if (ratio >= 0.95 && ratio <= 1.05) resolve('1:1');
+      else if (ratio >= 0.72 && ratio <= 0.78) resolve('3:4');
+      else if (ratio >= 0.78 && ratio <= 0.82) resolve('4:5');
+      else if (ratio >= 1.28 && ratio <= 1.38) resolve('4:3');
+      else if (ratio >= 1.70 && ratio <= 1.82) resolve('16:9');
+      else if (ratio >= 0.54 && ratio <= 0.58) resolve('9:16');
+      else if (ratio < 1) resolve('9:16'); // Vertical default for videos (Reels, Stories, TikTok)
+      else resolve('16:9'); // Horizontal default
+    };
+    
+    video.onerror = () => {
+      URL.revokeObjectURL(url);
+      resolve('9:16'); // Default fallback for vertical videos
+    };
+    
+    video.src = url;
+  });
+}
+
 export default function ManualCreate() {
   const navigate = useNavigate();
   const { instagram, linkedin, canPublish, refresh: refreshQuota, isUnlimited } = usePublishingQuota();
@@ -486,8 +518,11 @@ export default function ManualCreate() {
       if (file.type.startsWith('image/')) {
         const ratio = await detectImageAspectRatio(file);
         newAspectRatios.push(ratio);
+      } else if (file.type.startsWith('video/')) {
+        const ratio = await detectVideoAspectRatio(file);
+        newAspectRatios.push(ratio);
       } else {
-        newAspectRatios.push('16:9'); // Default for video
+        newAspectRatios.push('auto');
       }
     }
     
