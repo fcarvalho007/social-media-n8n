@@ -11,7 +11,7 @@ export function QuotaBadge() {
     instagram, 
     linkedin, 
     planName, 
-    isUnlimited, 
+    dailyLimit,
     accountBreakdown,
     lastUpdated,
     isRefreshing,
@@ -26,11 +26,6 @@ export function QuotaBadge() {
       </div>
     );
   }
-
-  const formatRemaining = (remaining: number, isUnlimited: boolean) => {
-    if (isUnlimited) return '∞';
-    return remaining;
-  };
 
   const getStatusClasses = (status: 'ok' | 'warning' | 'danger') => {
     switch (status) {
@@ -50,7 +45,7 @@ export function QuotaBadge() {
     <TooltipProvider>
       <div className="flex items-center gap-1 sm:gap-2 px-1.5 sm:px-3 py-1 sm:py-2 rounded-lg bg-muted/50 border border-border">
         <span className="text-xs font-medium text-muted-foreground hidden md:inline">
-          {isUnlimited ? 'Ilimitado' : 'Hoje'}:
+          Hoje:
         </span>
         
         {/* Instagram Badge */}
@@ -67,7 +62,7 @@ export function QuotaBadge() {
           <TooltipContent side="bottom" className="max-w-xs">
             <div className="text-xs space-y-2">
               <div className="font-medium">Instagram</div>
-              <p>{formatRemaining(instagram.quota?.remaining || 0, isUnlimited)} publicações restantes hoje</p>
+              <p>{instagram.quota?.remaining || 0} de {dailyLimit} publicações restantes hoje</p>
               
               {instagramAccounts.length > 0 && (
                 <div className="pt-1 border-t border-border/50">
@@ -81,7 +76,9 @@ export function QuotaBadge() {
                 </div>
               )}
               
-              <p className="text-muted-foreground pt-1 border-t border-border/50">Plano: {planName}</p>
+              <p className="text-muted-foreground pt-1 border-t border-border/50">
+                Plano: {planName} • Reset às 23:59
+              </p>
             </div>
           </TooltipContent>
         </Tooltip>
@@ -102,7 +99,7 @@ export function QuotaBadge() {
           <TooltipContent side="bottom" className="max-w-xs">
             <div className="text-xs space-y-2">
               <div className="font-medium">LinkedIn</div>
-              <p>{formatRemaining(linkedin.quota?.remaining || 0, isUnlimited)} publicações restantes hoje</p>
+              <p>{linkedin.quota?.remaining || 0} de {dailyLimit} publicações restantes hoje</p>
               
               {linkedinAccounts.length > 0 && (
                 <div className="pt-1 border-t border-border/50">
@@ -116,7 +113,9 @@ export function QuotaBadge() {
                 </div>
               )}
               
-              <p className="text-muted-foreground pt-1 border-t border-border/50">Plano: {planName}</p>
+              <p className="text-muted-foreground pt-1 border-t border-border/50">
+                Plano: {planName} • Reset às 23:59
+              </p>
             </div>
           </TooltipContent>
         </Tooltip>
