@@ -51,6 +51,7 @@ import { PublishingOverlay } from '@/components/manual-post/PublishingOverlay';
 import { PublishProgressModal } from '@/components/publishing/PublishProgressModal';
 import { usePublishWithProgress } from '@/hooks/usePublishWithProgress';
 import { EnhancedSortableMediaItem, MediaDragOverlay } from '@/components/manual-post/EnhancedSortableMediaItem';
+import { NetworkCaptionEditor } from '@/components/manual-post/NetworkCaptionEditor';
 import { DragHintTooltip } from '@/components/manual-post/DragHintTooltip';
 import { DndContext, closestCenter, DragEndEvent, DragStartEvent, PointerSensor, KeyboardSensor, TouchSensor, useSensor, useSensors, DragOverlay } from '@dnd-kit/core';
 import { SortableContext, arrayMove, horizontalListSortingStrategy, sortableKeyboardCoordinates } from '@dnd-kit/sortable';
@@ -117,6 +118,38 @@ async function extractVideoFrame(videoFile: File | string): Promise<File> {
   });
 }
 
+// Detect image aspect ratio from file
+async function detectImageAspectRatio(file: File): Promise<string> {
+  return new Promise((resolve) => {
+    const img = document.createElement('img');
+    const url = URL.createObjectURL(file);
+    
+    img.onload = () => {
+      const { naturalWidth: w, naturalHeight: h } = img;
+      URL.revokeObjectURL(url);
+      
+      const ratio = w / h;
+      
+      // Map to common aspect ratios
+      if (ratio >= 0.95 && ratio <= 1.05) resolve('1:1');
+      else if (ratio >= 0.72 && ratio <= 0.78) resolve('3:4');
+      else if (ratio >= 0.78 && ratio <= 0.82) resolve('4:5');
+      else if (ratio >= 1.28 && ratio <= 1.38) resolve('4:3');
+      else if (ratio >= 1.70 && ratio <= 1.82) resolve('16:9');
+      else if (ratio >= 0.54 && ratio <= 0.58) resolve('9:16');
+      else if (ratio < 1) resolve('4:5'); // Vertical default
+      else resolve('4:3'); // Horizontal default
+    };
+    
+    img.onerror = () => {
+      URL.revokeObjectURL(url);
+      resolve('4:5'); // Default fallback
+    };
+    
+    img.src = url;
+  });
+}
+
 export default function ManualCreate() {
   const navigate = useNavigate();
   const { instagram, linkedin, canPublish, refresh: refreshQuota, isUnlimited } = usePublishingQuota();
@@ -125,6 +158,7 @@ export default function ManualCreate() {
   const [mediaFiles, setMediaFiles] = useState<File[]>([]);
   const [mediaPreviewUrls, setMediaPreviewUrls] = useState<string[]>([]);
   const [mediaSources, setMediaSources] = useState<MediaSource[]>([]);
+  const [mediaAspectRatios, setMediaAspectRatios] = useState<string[]>([]);
   const [scheduledDate, setScheduledDate] = useState<Date>();
   const [time, setTime] = useState('12:00');
   const [scheduleAsap, setScheduleAsap] = useState(true);
@@ -139,6 +173,9 @@ export default function ManualCreate() {
   const [emojiPickerOpen, setEmojiPickerOpen] = useState(false);
   const [activePreviewTab, setActivePreviewTab] = useState<string>('');
   const [mediaValidations, setMediaValidations] = useState<MediaValidationResult[]>([]);
+  // Separate captions per network
+  const [useSeparateCaptions, setUseSeparateCaptions] = useState(false);
+  const [networkCaptions, setNetworkCaptions] = useState<Record<string, string>>({});
   const mediaSectionRef = useRef<HTMLDivElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
 
@@ -443,6 +480,17 @@ export default function ManualCreate() {
 
     const newUrls = newFiles.map(file => URL.createObjectURL(file));
     
+    // Detect aspect ratios for new files
+    const newAspectRatios: string[] = [];
+    for (const file of newFiles) {
+      if (file.type.startsWith('image/')) {
+        const ratio = await detectImageAspectRatio(file);
+        newAspectRatios.push(ratio);
+      } else {
+        newAspectRatios.push('16:9'); // Default for video
+      }
+    }
+    
     const interval = setInterval(() => {
       setUploadProgress(prev => {
         if (prev >= 100) {
@@ -461,6 +509,7 @@ export default function ManualCreate() {
     setMediaFiles(combinedFiles);
     setMediaPreviewUrls(combinedUrls);
     setMediaSources(prev => [...prev, ...Array(newFiles.length).fill('upload' as MediaSource)]);
+    setMediaAspectRatios(prev => [...prev, ...newAspectRatios]);
     
     // Validate ALL media for selected formats
     if (selectedFormats.length > 0) {
@@ -488,6 +537,7 @@ export default function ManualCreate() {
       return prev.filter((_, i) => i !== index);
     });
     setMediaSources(prev => prev.filter((_, i) => i !== index));
+    setMediaAspectRatios(prev => prev.filter((_, i) => i !== index));
   };
 
   const handleSaveDraft = async () => {
@@ -1098,6 +1148,7 @@ export default function ManualCreate() {
                                 isVideo={isVideo}
                                 disabled={saving || submitting || publishing}
                                 source={mediaSources[idx]}
+                                aspectRatio={mediaAspectRatios[idx] as any}
                                 onRemove={() => removeMedia(idx)}
                                 onMoveUp={() => moveMedia(idx, idx - 1)}
                                 onMoveDown={() => moveMedia(idx, idx + 1)}
@@ -1183,78 +1234,45 @@ export default function ManualCreate() {
                   <SectionHelp content={getSectionTooltip('caption')} />
                 </CardTitle>
                 <CardDescription className="text-xs sm:text-sm">
-                  <span className={cn(
-                    "font-medium",
-                    captionLength > maxLength * 0.9 && captionLength <= maxLength && "text-orange-500",
-                    captionLength > maxLength && "text-destructive"
-                  )}>
-                    {captionLength}/{maxLength}
-                  </span>
-                  {' '}caracteres
+                  {!useSeparateCaptions && (
+                    <>
+                      <span className={cn(
+                        "font-medium",
+                        captionLength > maxLength * 0.9 && captionLength <= maxLength && "text-orange-500",
+                        captionLength > maxLength && "text-destructive"
+                      )}>
+                        {captionLength}/{maxLength}
+                      </span>
+                      {' '}caracteres
+                    </>
+                  )}
                   {selectedNetworks.includes('linkedin') && <span className="hidden sm:inline"> (obrigatório para LinkedIn)</span>}
                 </CardDescription>
               </CardHeader>
               <CardContent className="space-y-2 sm:space-y-3 px-0 sm:px-6 pb-3 sm:pb-6">
-                {/* Caption Toolbar */}
-                <div className="flex items-center gap-1 border rounded-lg p-1.5 bg-muted/30">
-                  <Popover open={emojiPickerOpen} onOpenChange={setEmojiPickerOpen}>
-                    <PopoverTrigger asChild>
-                      <Button variant="ghost" size="sm" className="h-8 w-8 p-0" title="Inserir emoji">
-                        <Smile className="h-4 w-4" />
-                      </Button>
-                    </PopoverTrigger>
-                    <PopoverContent className="w-auto p-0 border-0" align="start">
-                      <EmojiPicker
-                        onEmojiClick={handleEmojiClick}
-                        width={320}
-                        height={400}
-                        searchPlaceholder="Pesquisar emoji..."
-                        previewConfig={{ showPreview: false }}
-                      />
-                    </PopoverContent>
-                  </Popover>
-
-                  <Separator orientation="vertical" className="h-5 mx-1" />
-
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    className="h-8 gap-1.5"
-                    onClick={() => setSavedCaptionsOpen(true)}
-                    title="Legendas guardadas"
-                  >
-                    <Bookmark className="h-4 w-4" />
-                    <span className="hidden sm:inline text-xs">Guardadas</span>
-                  </Button>
-
-                  <Separator orientation="vertical" className="h-5 mx-1" />
-
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    className="h-8 gap-1.5 bg-gradient-to-r from-purple-500/10 to-blue-500/10 hover:from-purple-500/20 hover:to-blue-500/20"
-                    onClick={() => setAiDialogOpen(true)}
-                    title="Melhorar com IA"
-                  >
-                    <Sparkles className="h-4 w-4 text-purple-500" />
-                    <span className="text-xs font-medium">IA</span>
-                  </Button>
-                </div>
-
-                <Textarea
-                  ref={textareaRef}
-                  value={caption}
-                  onChange={(e) => {
-                    setCaption(e.target.value.slice(0, maxLength));
-                    // Auto-resize textarea
-                    const textarea = e.target;
-                    textarea.style.height = 'auto';
-                    textarea.style.height = `${Math.max(150, textarea.scrollHeight)}px`;
+                <NetworkCaptionEditor
+                  caption={caption}
+                  onCaptionChange={setCaption}
+                  networkCaptions={networkCaptions}
+                  onNetworkCaptionChange={(network, value) => {
+                    setNetworkCaptions(prev => ({ ...prev, [network]: value }));
                   }}
-                  placeholder="Escreva a sua legenda..."
+                  selectedNetworks={selectedNetworks}
+                  useSeparateCaptions={useSeparateCaptions}
+                  onToggleSeparate={(value) => {
+                    setUseSeparateCaptions(value);
+                    // Initialize network captions with unified caption when enabling
+                    if (value && Object.keys(networkCaptions).length === 0) {
+                      const initial: Record<string, string> = {};
+                      selectedNetworks.forEach(network => {
+                        initial[network] = caption;
+                      });
+                      setNetworkCaptions(initial);
+                    }
+                  }}
                   disabled={saving || submitting || publishing}
-                  className="min-h-[150px] resize-none overflow-hidden"
-                  aria-label="Legenda da publicação"
+                  onOpenSavedCaptions={() => setSavedCaptionsOpen(true)}
+                  onOpenAIDialog={() => setAiDialogOpen(true)}
                 />
               </CardContent>
             </Card>

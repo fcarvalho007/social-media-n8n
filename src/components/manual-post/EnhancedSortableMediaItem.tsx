@@ -6,6 +6,8 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { MediaSource } from '@/types/media';
 
+type AspectRatioType = '1:1' | '3:4' | '4:5' | '4:3' | '16:9' | '9:16' | 'auto';
+
 interface EnhancedSortableMediaItemProps {
   id: string;
   url: string;
@@ -14,10 +16,24 @@ interface EnhancedSortableMediaItemProps {
   isVideo?: boolean;
   disabled?: boolean;
   source?: MediaSource;
+  aspectRatio?: AspectRatioType;
   onRemove: () => void;
   onMoveUp: () => void;
   onMoveDown: () => void;
 }
+
+// Helper to get aspect ratio CSS class
+const getAspectClass = (aspectRatio?: AspectRatioType): string => {
+  switch (aspectRatio) {
+    case '1:1': return 'aspect-square';
+    case '3:4': return 'aspect-[3/4]';
+    case '4:5': return 'aspect-[4/5]';
+    case '4:3': return 'aspect-[4/3]';
+    case '16:9': return 'aspect-video';
+    case '9:16': return 'aspect-[9/16]';
+    default: return 'aspect-[4/5]'; // Instagram default
+  }
+};
 
 export function EnhancedSortableMediaItem({
   id,
@@ -27,10 +43,12 @@ export function EnhancedSortableMediaItem({
   isVideo = false,
   disabled,
   source,
+  aspectRatio,
   onRemove,
   onMoveUp,
   onMoveDown,
 }: EnhancedSortableMediaItemProps) {
+  const aspectClass = getAspectClass(aspectRatio);
   const {
     attributes,
     listeners,
@@ -55,7 +73,8 @@ export function EnhancedSortableMediaItem({
       ref={setNodeRef}
       style={style}
       className={cn(
-        "relative aspect-square rounded-xl overflow-hidden border-2 group",
+        "relative rounded-xl overflow-hidden border-2 group",
+        aspectClass,
         "transition-all duration-200 ease-out",
         isDragging && "sortable-dragging scale-105 shadow-2xl ring-4 ring-primary/50 z-50",
         isOver && !isDragging && "sortable-item-over border-dashed border-primary bg-primary/5 scale-[1.02]",
