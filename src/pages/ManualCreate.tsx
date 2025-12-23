@@ -983,7 +983,7 @@ export default function ManualCreate() {
 
       {/* Mobile Preview - Hidden by default, moved to bottom */}
 
-      <div className="grid lg:grid-cols-2 gap-2 lg:gap-8 pb-28 lg:pb-0">
+      <div className="grid lg:grid-cols-2 gap-2 lg:gap-8 pb-28 lg:pb-0 px-3 sm:px-0">
         {/* Left - Form */}
         <div className="space-y-3 lg:space-y-6">
           {/* Step 1: Network & Format Selection */}
@@ -1016,7 +1016,7 @@ export default function ManualCreate() {
           )}>
             <Card className="border-0 sm:border shadow-none sm:shadow-sm">
 
-              <CardHeader className="pb-2 sm:pb-3 px-0 sm:px-6 pt-0 sm:pt-6">
+              <CardHeader className="pb-2 sm:pb-3 px-3 sm:px-6 pt-3 sm:pt-6">
                 <div className="flex items-center justify-between">
                   <CardTitle className="text-base sm:text-lg flex items-center gap-1.5 sm:gap-2">
                     <CloudUpload className="h-4 w-4 sm:h-5 sm:w-5 text-primary" />
@@ -1030,7 +1030,7 @@ export default function ManualCreate() {
                   />
                 </div>
               </CardHeader>
-              <CardContent className="space-y-3 sm:space-y-4 px-0 sm:px-6 pb-3 sm:pb-6">
+              <CardContent className="space-y-3 sm:space-y-4 px-3 sm:px-6 pb-4 sm:pb-6">
                 {/* Grid Splitter - Import multiple images from a grid */}
                 <div ref={mediaSectionRef}>
                   <GridSplitter
@@ -1228,7 +1228,7 @@ export default function ManualCreate() {
           )}>
             {/* Caption */}
             <Card className="border-0 sm:border shadow-none sm:shadow-sm">
-              <CardHeader className="px-0 sm:px-6 pt-0 sm:pt-6 pb-2 sm:pb-4">
+              <CardHeader className="px-3 sm:px-6 pt-3 sm:pt-6 pb-2 sm:pb-4">
                 <CardTitle className="flex items-center gap-1.5 sm:gap-2 text-base sm:text-lg">
                   Legenda
                   <SectionHelp content={getSectionTooltip('caption')} />
@@ -1249,7 +1249,7 @@ export default function ManualCreate() {
                   {selectedNetworks.includes('linkedin') && <span className="hidden sm:inline"> (obrigatório para LinkedIn)</span>}
                 </CardDescription>
               </CardHeader>
-              <CardContent className="space-y-2 sm:space-y-3 px-0 sm:px-6 pb-3 sm:pb-6">
+              <CardContent className="space-y-2 sm:space-y-3 px-3 sm:px-6 pb-4 sm:pb-6">
                 <NetworkCaptionEditor
                   caption={caption}
                   onCaptionChange={setCaption}
@@ -1279,14 +1279,14 @@ export default function ManualCreate() {
 
             {/* Date & Time */}
             <Card className="border-0 sm:border shadow-none sm:shadow-sm">
-              <CardHeader className="px-0 sm:px-6 pt-0 sm:pt-6 pb-2 sm:pb-4">
+              <CardHeader className="px-3 sm:px-6 pt-3 sm:pt-6 pb-2 sm:pb-4">
                 <CardTitle className="flex items-center gap-1.5 sm:gap-2 text-base sm:text-lg">
                   Agendamento
                   <SectionHelp content={getSectionTooltip('scheduling')} />
                 </CardTitle>
                 <CardDescription className="text-xs sm:text-sm">Defina quando publicar</CardDescription>
               </CardHeader>
-              <CardContent className="space-y-3 sm:space-y-4 px-0 sm:px-6 pb-3 sm:pb-6">
+              <CardContent className="space-y-3 sm:space-y-4 px-3 sm:px-6 pb-4 sm:pb-6">
                 {/* Toggle Pill Style */}
                 <div className="flex rounded-full bg-muted p-1 gap-1">
                   <button
@@ -1579,15 +1579,15 @@ export default function ManualCreate() {
       </div>
 
       {/* Mobile Sticky Bottom Bar - Optimized with larger touch targets */}
-      <div className="fixed bottom-0 left-0 right-0 p-4 pb-[calc(1.25rem+env(safe-area-inset-bottom))] bg-background/98 backdrop-blur-md border-t shadow-[0_-4px_20px_-4px_rgba(0,0,0,0.15)] lg:hidden z-50">
-        <div className="flex gap-3 max-w-md mx-auto px-2">
+      <div className="fixed bottom-0 left-0 right-0 p-4 pb-[calc(1.5rem+env(safe-area-inset-bottom))] bg-background/98 backdrop-blur-md border-t shadow-[0_-4px_20px_-4px_rgba(0,0,0,0.15)] lg:hidden z-50">
+        <div className="flex gap-3 max-w-md mx-auto">
           <Button
             type="button"
             size="default"
             onClick={handlePublishWithValidation}
             disabled={publishing || submitting || saving || isUploading || selectedFormats.length === 0}
             className={cn(
-              "flex-1 font-semibold text-white h-12",
+              "flex-1 font-semibold text-white h-14 text-base",
               "bg-gradient-to-r from-green-600 to-green-500",
               "hover:from-green-500 hover:to-green-400",
               "active:scale-[0.98] transition-all duration-200",
@@ -1595,11 +1595,11 @@ export default function ManualCreate() {
             )}
           >
             {publishing ? (
-              <Loader2 className="h-4 w-4 animate-spin" />
+              <Loader2 className="h-5 w-5 animate-spin" />
             ) : (
               <>
-                <Rocket className="h-4 w-4 mr-1.5" />
-                <span className="text-sm font-semibold">Publicar</span>
+                <Rocket className="h-5 w-5 mr-2" />
+                <span className="font-semibold">Publicar</span>
               </>
             )}
           </Button>
@@ -1615,10 +1615,10 @@ export default function ManualCreate() {
               handlePublishWithValidation();
             }}
             disabled={publishing || submitting || saving || selectedFormats.length === 0}
-            className="h-12 w-12 p-0 border-primary/50"
+            className="h-14 w-14 p-0 border-primary/50"
             aria-label="Agendar publicação"
           >
-            <CalendarIcon className="h-5 w-5" />
+            <CalendarIcon className="h-6 w-6" />
           </Button>
           <Button
             type="button"
@@ -1626,10 +1626,10 @@ export default function ManualCreate() {
             size="default"
             onClick={handleSaveDraft}
             disabled={saving || submitting || publishing}
-            className="h-12 w-12 p-0"
+            className="h-14 w-14 p-0"
             aria-label="Guardar rascunho"
           >
-            <Save className="h-5 w-5" />
+            <Save className="h-6 w-6" />
           </Button>
         </div>
       </div>

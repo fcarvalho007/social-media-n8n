@@ -52,19 +52,19 @@ export function NetworkFormatSelector({ selectedFormats, onFormatsChange }: Netw
 
   return (
     <Card className="overflow-hidden border-0 sm:border shadow-none sm:shadow-sm">
-      <CardHeader className="pb-2 sm:pb-2 px-1 sm:px-6 pt-2 sm:pt-6">
+      <CardHeader className="pb-2 sm:pb-2 px-3 sm:px-6 pt-3 sm:pt-6">
         <CardTitle className="text-sm sm:text-lg font-semibold">Selecione onde publicar</CardTitle>
       </CardHeader>
-      <CardContent className="space-y-2 px-1 sm:px-6 pb-3 sm:pb-6">
+      <CardContent className="space-y-3 px-3 sm:px-6 pb-4 sm:pb-6">
         {/* Quick Presets */}
         <QuickPresets
           selectedFormats={selectedFormats}
           onSelectPreset={handlePresetSelect}
         />
 
-        {/* Platform Chips - Responsive grid on mobile, flex on desktop */}
+        {/* Platform Chips - 2 cols on small mobile, 3 on larger, flex on desktop */}
         <div 
-          className="platform-chips grid grid-cols-3 gap-2 sm:flex sm:gap-3 sm:flex-wrap pb-3 sm:pb-0"
+          className="platform-chips grid grid-cols-2 xs:grid-cols-3 gap-2.5 sm:flex sm:gap-3 sm:flex-wrap pb-3 sm:pb-0"
           role="tablist"
           aria-label="Plataformas disponíveis"
         >

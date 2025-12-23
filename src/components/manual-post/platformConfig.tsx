@@ -4,6 +4,7 @@ import { cn } from '@/lib/utils';
 
 export interface PlatformConfig {
   name: string;
+  shortName: string;
   icon: typeof Instagram;
   colorHex: string;
   colorClass: string;
@@ -13,6 +14,7 @@ export interface PlatformConfig {
 export const PLATFORM_CONFIGS: Record<SocialNetwork, PlatformConfig> = {
   instagram: {
     name: 'Instagram',
+    shortName: 'Insta',
     icon: Instagram,
     colorHex: '#E1306C',
     colorClass: 'text-[#E1306C]',
@@ -20,6 +22,7 @@ export const PLATFORM_CONFIGS: Record<SocialNetwork, PlatformConfig> = {
   },
   linkedin: {
     name: 'LinkedIn',
+    shortName: 'LinkedIn',
     icon: Linkedin,
     colorHex: '#0A66C2',
     colorClass: 'text-[#0A66C2]',
@@ -27,6 +30,7 @@ export const PLATFORM_CONFIGS: Record<SocialNetwork, PlatformConfig> = {
   },
   youtube: {
     name: 'YouTube',
+    shortName: 'YouTube',
     icon: Youtube,
     colorHex: '#FF0000',
     colorClass: 'text-[#FF0000]',
@@ -34,6 +38,7 @@ export const PLATFORM_CONFIGS: Record<SocialNetwork, PlatformConfig> = {
   },
   tiktok: {
     name: 'TikTok',
+    shortName: 'TikTok',
     icon: Music,
     colorHex: '#000000',
     colorClass: 'text-foreground',
@@ -41,6 +46,7 @@ export const PLATFORM_CONFIGS: Record<SocialNetwork, PlatformConfig> = {
   },
   facebook: {
     name: 'Facebook',
+    shortName: 'FB',
     icon: Facebook,
     colorHex: '#1877F2',
     colorClass: 'text-[#1877F2]',
@@ -48,6 +54,7 @@ export const PLATFORM_CONFIGS: Record<SocialNetwork, PlatformConfig> = {
   },
   x: {
     name: 'X',
+    shortName: 'X',
     icon: Instagram, // placeholder
     colorHex: '#000000',
     colorClass: 'text-foreground',
@@ -55,6 +62,7 @@ export const PLATFORM_CONFIGS: Record<SocialNetwork, PlatformConfig> = {
   },
   googlebusiness: {
     name: 'Google Business',
+    shortName: 'Google',
     icon: MapPin,
     colorHex: '#4285F4',
     colorClass: 'text-[#4285F4]',
