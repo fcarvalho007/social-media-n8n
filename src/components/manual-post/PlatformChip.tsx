@@ -47,12 +47,12 @@ export function PlatformChip({ platform, selectedCount, isExpanded, onClick }: P
         <PlatformIcon platform={platform} className="w-3.5 h-3.5 sm:w-5 sm:h-5" colored />
       </div>
       
-      {/* Platform Name - Hidden on mobile, show only on desktop */}
+      {/* Platform Name - Short on mobile, full on desktop */}
       <span className={cn(
-        "font-medium text-[11px] sm:text-sm text-foreground",
-        "hidden sm:inline"
+        "font-medium text-[11px] sm:text-sm text-foreground leading-tight"
       )}>
-        {config.name}
+        <span className="sm:hidden">{config.shortName || config.name.slice(0, 5)}</span>
+        <span className="hidden sm:inline">{config.name}</span>
       </span>
       
       {/* Selected Badge */}

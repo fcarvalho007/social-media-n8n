@@ -95,15 +95,15 @@ export function NetworkCaptionEditor({
     <div className="space-y-3">
       {/* Toggle for separate captions */}
       {showToggle && (
-        <div className="flex items-center justify-between p-3 rounded-lg bg-muted/50 border">
-          <div className="flex items-center gap-2">
+        <div className="flex items-center justify-between p-4 rounded-xl bg-muted/50 border min-h-[52px]">
+          <div className="flex items-center gap-3">
             {useSeparateCaptions ? (
-              <Split className="h-4 w-4 text-primary" />
+              <Split className="h-5 w-5 text-primary" />
             ) : (
-              <Merge className="h-4 w-4 text-muted-foreground" />
+              <Merge className="h-5 w-5 text-muted-foreground" />
             )}
-            <Label htmlFor="separate-captions" className="text-sm font-medium cursor-pointer">
-              {useSeparateCaptions ? 'Legendas separadas por rede' : 'Legenda unificada'}
+            <Label htmlFor="separate-captions" className="text-sm font-medium cursor-pointer leading-tight">
+              {useSeparateCaptions ? 'Legendas separadas' : 'Legenda unificada'}
             </Label>
           </div>
           <Switch
@@ -116,11 +116,11 @@ export function NetworkCaptionEditor({
       )}
 
       {/* Toolbar */}
-      <div className="flex items-center gap-1 border rounded-lg p-1.5 bg-muted/30">
+      <div className="flex items-center gap-1.5 border rounded-xl p-2 bg-muted/30">
         <Popover open={emojiPickerOpen} onOpenChange={setEmojiPickerOpen}>
           <PopoverTrigger asChild>
-            <Button variant="ghost" size="sm" className="h-8 w-8 p-0" title="Inserir emoji" disabled={disabled}>
-              <Smile className="h-4 w-4" />
+            <Button variant="ghost" size="sm" className="h-10 w-10 sm:h-8 sm:w-8 p-0" title="Inserir emoji" disabled={disabled}>
+              <Smile className="h-5 w-5 sm:h-4 sm:w-4" />
             </Button>
           </PopoverTrigger>
           <PopoverContent className="w-auto p-0 border-0" align="start">
@@ -140,28 +140,28 @@ export function NetworkCaptionEditor({
           <Button
             variant="ghost"
             size="sm"
-            className="h-8 gap-1.5"
+            className="h-10 sm:h-8 gap-1.5 px-3 sm:px-2"
             onClick={onOpenSavedCaptions}
             title="Legendas guardadas"
             disabled={disabled}
           >
-            <Bookmark className="h-4 w-4" />
+            <Bookmark className="h-5 w-5 sm:h-4 sm:w-4" />
             <span className="hidden sm:inline text-xs">Guardadas</span>
           </Button>
         )}
 
-        <Separator orientation="vertical" className="h-5 mx-1" />
+        <Separator orientation="vertical" className="h-6 sm:h-5 mx-1" />
 
         {onOpenAIDialog && (
           <Button
             variant="ghost"
             size="sm"
-            className="h-8 gap-1.5 bg-gradient-to-r from-purple-500/10 to-blue-500/10 hover:from-purple-500/20 hover:to-blue-500/20"
+            className="h-10 sm:h-8 gap-1.5 px-3 sm:px-2 bg-gradient-to-r from-purple-500/10 to-blue-500/10 hover:from-purple-500/20 hover:to-blue-500/20"
             onClick={onOpenAIDialog}
             title="Melhorar com IA"
             disabled={disabled}
           >
-            <Sparkles className="h-4 w-4 text-purple-500" />
+            <Sparkles className="h-5 w-5 sm:h-4 sm:w-4 text-purple-500" />
             <span className="text-xs font-medium">IA</span>
           </Button>
         )}
@@ -170,7 +170,7 @@ export function NetworkCaptionEditor({
       {/* Unified Caption or Network Tabs */}
       {useSeparateCaptions && selectedNetworks.length >= 2 ? (
         <Tabs value={activeNetwork} onValueChange={(v) => setActiveNetwork(v as SocialNetwork)}>
-          <TabsList className="w-full justify-start bg-muted/50 p-1 h-auto flex-wrap gap-1">
+          <TabsList className="w-full justify-start bg-muted/50 p-1.5 h-auto flex-wrap gap-1.5">
             {selectedNetworks.map((network) => {
               const config = NETWORK_CONFIG[network];
               const Icon = config.icon;
@@ -184,7 +184,7 @@ export function NetworkCaptionEditor({
                   key={network}
                   value={network}
                   className={cn(
-                    "flex items-center gap-1.5 px-3 py-1.5 data-[state=active]:bg-background",
+                    "flex items-center gap-1.5 px-3 py-2.5 min-h-[44px] data-[state=active]:bg-background rounded-lg",
                     isOverLimit && "text-destructive"
                   )}
                 >
@@ -193,7 +193,7 @@ export function NetworkCaptionEditor({
                   <Badge
                     variant={isOverLimit ? 'destructive' : 'secondary'}
                     className={cn(
-                      "text-[10px] px-1.5 py-0 ml-1",
+                      "text-[10px] px-1.5 py-0.5 ml-1",
                       isNearLimit && "bg-orange-500/20 text-orange-600"
                     )}
                   >

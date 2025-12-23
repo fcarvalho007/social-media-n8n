@@ -107,12 +107,12 @@ export function QuickPresets({ selectedFormats, onSelectPreset }: QuickPresetsPr
                 type="button"
                 className={cn(
                   "preset-card snap-start",
-                  "relative flex items-center gap-2 xs:gap-1.5 sm:gap-2.5 px-2.5 py-2 xs:px-2 xs:py-1.5 sm:px-3.5 sm:py-2.5",
-                  "min-h-[48px] sm:min-h-0",
-                  "bg-card border-2 rounded-lg sm:rounded-xl",
+                  "relative flex items-center gap-2.5 sm:gap-2.5 px-3 py-2.5 sm:px-3.5 sm:py-2.5",
+                  "min-h-[52px] sm:min-h-0",
+                  "bg-card border-2 rounded-xl",
                   "cursor-pointer transition-all duration-200",
                   "hover:shadow-lg hover:-translate-y-0.5",
-                  "text-left min-w-[100px] xs:min-w-[90px] sm:min-w-[180px] flex-shrink-0 sm:flex-shrink",
+                  "text-left min-w-[120px] sm:min-w-[180px] flex-shrink-0 sm:flex-shrink",
                   isActive && "preset-card-active",
                   isPartial && "preset-card-partial"
                 )}
@@ -135,15 +135,15 @@ export function QuickPresets({ selectedFormats, onSelectPreset }: QuickPresetsPr
                 )}
                 
                 {/* Emoji */}
-                <span className="text-sm xs:text-base sm:text-2xl leading-none">{preset.emoji}</span>
+                <span className="text-lg sm:text-2xl leading-none">{preset.emoji}</span>
                 
                 {/* Text - Short name on mobile */}
-                <div className="flex flex-col gap-0 min-w-0">
-                  <span className="font-semibold text-[9px] xs:text-[10px] sm:text-[13px] text-foreground leading-tight truncate">
+                <div className="flex flex-col gap-0.5 min-w-0">
+                  <span className="font-semibold text-[11px] sm:text-[13px] text-foreground leading-tight truncate">
                     <span className="sm:hidden">{preset.shortName}</span>
                     <span className="hidden sm:inline">{preset.name}</span>
                   </span>
-                  <span className="text-[8px] sm:text-[11px] text-muted-foreground leading-tight truncate hidden sm:block">{preset.description}</span>
+                  <span className="text-[10px] sm:text-[11px] text-muted-foreground leading-tight truncate hidden xs:block">{preset.description}</span>
                 </div>
                 
                 {/* Tooltip - desktop only */}
@@ -163,8 +163,8 @@ export function QuickPresets({ selectedFormats, onSelectPreset }: QuickPresetsPr
         </div>
       </div>
       
-      <div className="presets-divider mt-2 sm:mt-4">
-        <span className="text-[9px] sm:text-xs">ou seleciona manualmente</span>
+      <div className="presets-divider mt-3 sm:mt-4">
+        <span className="text-[11px] sm:text-xs">ou seleciona manualmente</span>
       </div>
     </div>
   );
