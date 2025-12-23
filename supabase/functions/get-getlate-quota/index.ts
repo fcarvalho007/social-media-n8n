@@ -141,15 +141,16 @@ Deno.serve(async (req) => {
     const planName = stats?.planName || stats?.plan?.name || 'Free';
     const resetDate = stats?.resetDate || stats?.usage?.lastReset || new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString();
 
-    // Process limits: -1 means unlimited
+    // Process limits: -1 means unlimited MONTHLY (not daily)
     let monthlyLimit = stats.limits?.uploads ?? 5;
     if (monthlyLimit === 0) {
       console.warn('[Quota] API returned limit = 0, using fallback of 5');
       monthlyLimit = 5;
     }
-    const isUnlimited = monthlyLimit === -1;
+    const isMonthlyUnlimited = monthlyLimit === -1;
     
-    // Daily limit is typically 5 posts per day per account (AppSumo plan)
+    // Daily limit is ALWAYS 5 posts per day per platform (AppSumo plan restriction)
+    // This is a hard limit regardless of monthly plan
     const dailyLimitPerPlatform = 5;
     
     // Monthly usage from API
@@ -174,15 +175,15 @@ Deno.serve(async (req) => {
     const quotaData = {
       instagram: {
         used_count: instagramDailyUsed,
-        limit_count: isUnlimited ? -1 : dailyLimitPerPlatform,
-        remaining: isUnlimited ? 999999 : Math.max(0, dailyLimitPerPlatform - instagramDailyUsed),
+        limit_count: dailyLimitPerPlatform, // ALWAYS 5, never -1
+        remaining: Math.max(0, dailyLimitPerPlatform - instagramDailyUsed),
         monthly_used: totalMonthlyUsed,
         monthly_limit: monthlyLimit,
       },
       linkedin: {
         used_count: linkedinDailyUsed,
-        limit_count: isUnlimited ? -1 : dailyLimitPerPlatform,
-        remaining: isUnlimited ? 999999 : Math.max(0, dailyLimitPerPlatform - linkedinDailyUsed),
+        limit_count: dailyLimitPerPlatform, // ALWAYS 5, never -1
+        remaining: Math.max(0, dailyLimitPerPlatform - linkedinDailyUsed),
         monthly_used: totalMonthlyUsed,
         monthly_limit: monthlyLimit,
       },
@@ -197,8 +198,10 @@ Deno.serve(async (req) => {
       accountBreakdown,
       planName,
       resetDate,
-      isUnlimited,
+      isUnlimited: false, // Daily limit is NEVER unlimited
+      isMonthlyUnlimited, // Monthly can be unlimited
       dailyLimit: dailyLimitPerPlatform,
+      dailyResetTime: "23:59",
       lastUpdated: new Date().toISOString(),
     };
 

@@ -79,18 +79,19 @@ export function usePublishingQuota() {
   });
 
   const formatQuotaText = (used: number, limit: number) => {
-    if (limit === -1) return `${used}/∞`;
-    return `${used}/${limit}`;
+    // Daily limit is always 5, never unlimited
+    const effectiveLimit = limit <= 0 ? 5 : limit;
+    return `${used}/${effectiveLimit}`;
   };
 
   const calculatePercentage = (used: number, limit: number) => {
-    if (limit === -1) return 0;
-    return limit > 0 ? (used / limit) * 100 : 0;
+    const effectiveLimit = limit <= 0 ? 5 : limit;
+    return (used / effectiveLimit) * 100;
   };
 
   const getQuotaStatus = (used: number, limit: number): 'ok' | 'warning' | 'danger' => {
-    if (limit === -1) return 'ok';
-    const percentage = (used / limit) * 100;
+    const effectiveLimit = limit <= 0 ? 5 : limit;
+    const percentage = (used / effectiveLimit) * 100;
     if (percentage >= 100) return 'danger';
     if (percentage >= 80) return 'warning';
     return 'ok';
