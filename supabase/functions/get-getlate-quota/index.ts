@@ -116,16 +116,21 @@ Deno.serve(async (req) => {
         // Count by platform
         dailyUsageByPlatform[p.platform] = (dailyUsageByPlatform[p.platform] || 0) + 1;
         
+        // Extract accountId - handle both string and object formats
+        const accountId = typeof p.accountId === 'string' 
+          ? p.accountId 
+          : (p.accountId as any)?._id || (p.accountId as any)?.id || String(p.accountId);
+        
         // Count by account
-        if (!dailyUsageByAccount[p.accountId]) {
-          const account = accounts.find(a => a._id === p.accountId);
-          dailyUsageByAccount[p.accountId] = {
+        if (!dailyUsageByAccount[accountId]) {
+          const account = accounts.find(a => a._id === accountId);
+          dailyUsageByAccount[accountId] = {
             platform: p.platform,
             count: 0,
             username: account?.username || 'Unknown',
           };
         }
-        dailyUsageByAccount[p.accountId].count++;
+        dailyUsageByAccount[accountId].count++;
       });
     });
 
