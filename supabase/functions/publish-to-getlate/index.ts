@@ -402,14 +402,19 @@ Deno.serve(async (req) => {
       console.log(`[publish-to-getlate] Scheduled for: ${getlatePayload.scheduledFor}`);
     }
 
-    // Log publication attempt
-    if (post_id) {
-      await supabase.from('publication_attempts').insert({
-        post_id,
-        platform: network,
-        format,
-        status: 'pending',
-      });
+    // Log publication attempt - ALWAYS record, even without post_id
+    const attemptRecord = {
+      post_id: post_id || null,
+      platform: network,
+      format,
+      status: 'pending',
+    };
+    
+    console.log(`[publish-to-getlate] Recording initial attempt:`, JSON.stringify(attemptRecord));
+    
+    const { error: insertAttemptError } = await supabase.from('publication_attempts').insert(attemptRecord);
+    if (insertAttemptError) {
+      console.error('[publish-to-getlate] Failed to record attempt:', insertAttemptError);
     }
 
     // Publish to Getlate
@@ -418,6 +423,18 @@ Deno.serve(async (req) => {
     if (!result.success) {
       // Record failure
       console.error(`[publish-to-getlate] Publication failed: ${result.error}`);
+      
+      // Always log failed attempt
+      const failedAttempt = {
+        post_id: post_id || null,
+        platform: network,
+        format,
+        status: 'failed',
+        error_message: result.error,
+      };
+      
+      console.log(`[publish-to-getlate] Recording failed attempt:`, JSON.stringify(failedAttempt));
+      await supabase.from('publication_attempts').insert(failedAttempt);
       
       if (post_id) {
         // Update post with failure info
@@ -435,15 +452,6 @@ Deno.serve(async (req) => {
             failed_at: new Date().toISOString(),
           })
           .eq('id', post_id);
-
-        // Log failed attempt
-        await supabase.from('publication_attempts').insert({
-          post_id,
-          platform: network,
-          format,
-          status: 'failed',
-          error_message: result.error,
-        });
 
         // Send notification email
         try {
@@ -482,15 +490,20 @@ Deno.serve(async (req) => {
       throw new Error(result.error || 'Failed to publish to Getlate');
     }
 
-    // Log successful attempt
-    if (post_id) {
-      await supabase.from('publication_attempts').insert({
-        post_id,
-        platform: network,
-        format,
-        status: 'success',
-        response_data: result.data,
-      });
+    // Log successful attempt - ALWAYS record, even without post_id
+    const successAttempt = {
+      post_id: post_id || null,
+      platform: network,
+      format,
+      status: 'success',
+      response_data: result.data,
+    };
+    
+    console.log(`[publish-to-getlate] Recording success attempt:`, JSON.stringify({ ...successAttempt, response_data: '...' }));
+    
+    const { error: successAttemptError } = await supabase.from('publication_attempts').insert(successAttempt);
+    if (successAttemptError) {
+      console.error('[publish-to-getlate] Failed to record success attempt:', successAttemptError);
     }
 
     // NOTE: We no longer increment local quota - Getlate tracks usage automatically
