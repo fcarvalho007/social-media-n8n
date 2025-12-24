@@ -481,12 +481,20 @@ export default function ManualCreate() {
       return;
     }
 
-    // Validate file sizes
-    const maxSize = 50 * 1024 * 1024; // 50MB
-    const invalidFiles = newFiles.filter(file => file.size > maxSize);
-    if (invalidFiles.length > 0) {
-      toast.error('Ficheiros não podem exceder 50MB');
-      return;
+    // Validate file sizes (Getlate limits: 4MB images, 650MB videos)
+    const MAX_IMAGE_SIZE_MB = 4;
+    const MAX_VIDEO_SIZE_MB = 650;
+    
+    for (const file of newFiles) {
+      const sizeMB = file.size / (1024 * 1024);
+      const isVideo = file.type.startsWith('video/');
+      const maxSizeMB = isVideo ? MAX_VIDEO_SIZE_MB : MAX_IMAGE_SIZE_MB;
+      
+      if (sizeMB > maxSizeMB) {
+        const fileType = isVideo ? 'Vídeo' : 'Imagem';
+        toast.error(`${fileType} "${file.name}" excede ${maxSizeMB}MB (${sizeMB.toFixed(1)}MB)`);
+        return;
+      }
     }
 
     // Validate file types - support video for carousels and posts
