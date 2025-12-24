@@ -480,22 +480,9 @@ export function usePublishWithProgress() {
         }
         
         // Publish to Getlate with idempotency key
+        // NOTE: publication_attempts are now recorded ONLY in the edge function to avoid duplicates
         const idempotencyKey = `${publishSessionId}_${format}_${network}`;
         console.log(`[usePublishWithProgress] [${publishSessionId}] Publishing ${format} to ${network} with key: ${idempotencyKey}`);
-        
-        // Record attempt BEFORE publishing (pending status)
-        try {
-          await supabase.from('publication_attempts').insert({
-            post_id: createdPostId,
-            platform: network,
-            format: format,
-            status: 'pending',
-            attempted_at: new Date().toISOString(),
-          });
-          console.log(`[usePublishWithProgress] Recorded pending attempt for ${format}`);
-        } catch (attemptErr) {
-          console.warn(`[usePublishWithProgress] Could not record pending attempt:`, attemptErr);
-        }
         
         try {
           const { data: publishResult, error: publishError } = await supabase.functions.invoke('publish-to-getlate', {
@@ -519,13 +506,6 @@ export function usePublishWithProgress() {
               errorMessage: 'Erro de comunicação' 
             });
             updatePlatformStatus(format, 'error', 'Erro de comunicação');
-            
-            // Update attempt to failed
-            await supabase.from('publication_attempts')
-              .update({ status: 'failed', error_message: 'Erro de comunicação' })
-              .eq('post_id', createdPostId)
-              .eq('format', format)
-              .eq('status', 'pending');
           } else if (!publishResult?.success) {
             console.error(`[usePublishWithProgress] [${publishSessionId}] ${format} returned failure:`, publishResult?.error);
             platformResults.set(format, { 
@@ -534,17 +514,6 @@ export function usePublishWithProgress() {
               errorMessage: publishResult?.error || 'Falha na publicação' 
             });
             updatePlatformStatus(format, 'error', publishResult?.error || 'Falha na publicação');
-            
-            // Update attempt to failed
-            await supabase.from('publication_attempts')
-              .update({ 
-                status: 'failed', 
-                error_message: publishResult?.error || 'Falha na publicação',
-                response_data: publishResult ? JSON.parse(JSON.stringify(publishResult)) : null,
-              })
-              .eq('post_id', createdPostId)
-              .eq('format', format)
-              .eq('status', 'pending');
           } else {
             console.log(`[usePublishWithProgress] [${publishSessionId}] ✅ ${format} published successfully`);
             platformResults.set(format, { 
