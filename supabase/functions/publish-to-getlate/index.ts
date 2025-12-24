@@ -320,11 +320,36 @@ Deno.serve(async (req) => {
     return new Response(null, { headers: corsHeaders });
   }
 
+  const requestStartTime = Date.now();
+
   try {
     const supabase = createClient(
       Deno.env.get('SUPABASE_URL') ?? '',
       Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
     );
+
+    // Cleanup stuck "pending" publication attempts older than 10 minutes
+    // This prevents orphaned attempts from accumulating
+    try {
+      const tenMinutesAgo = new Date(Date.now() - 10 * 60 * 1000).toISOString();
+      const { data: stuckAttempts, error: cleanupError } = await supabase
+        .from('publication_attempts')
+        .update({ 
+          status: 'failed', 
+          error_message: 'Timeout - publicação não concluída após 10 minutos' 
+        })
+        .eq('status', 'pending')
+        .lt('attempted_at', tenMinutesAgo)
+        .select('id');
+      
+      if (cleanupError) {
+        console.warn('[publish-to-getlate] Cleanup of stuck attempts failed:', cleanupError);
+      } else if (stuckAttempts && stuckAttempts.length > 0) {
+        console.log(`[publish-to-getlate] Cleaned up ${stuckAttempts.length} stuck pending attempts`);
+      }
+    } catch (cleanupErr) {
+      console.warn('[publish-to-getlate] Exception during cleanup:', cleanupErr);
+    }
 
     // Get Getlate API token
     const getlateToken = Deno.env.get('GETLATE_API_TOKEN');
@@ -552,7 +577,8 @@ Deno.serve(async (req) => {
     }
 
     // NOTE: We no longer increment local quota - Getlate tracks usage automatically
-    console.log(`[publish-to-getlate] ✅ Successfully published to ${network} (Getlate tracks quota automatically)`);
+    const totalTimeMs = Date.now() - requestStartTime;
+    console.log(`[publish-to-getlate] ✅ Successfully published to ${network} in ${(totalTimeMs / 1000).toFixed(2)}s`);
 
     const successResponse = { 
       success: true, 
