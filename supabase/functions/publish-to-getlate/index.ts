@@ -205,7 +205,32 @@ function isRateLimitError(status: number, responseText: string): boolean {
   return false;
 }
 
-async function publishToGetlate(apiToken: string, payload: GetlatePostPayload, retries = 1): Promise<{ success: boolean; data?: any; error?: string; isRateLimit?: boolean }> {
+// Validate that media URLs are accessible before publishing
+async function validateMediaUrls(urls: string[]): Promise<{ valid: boolean; invalidUrls: string[] }> {
+  const invalidUrls: string[] = [];
+  
+  for (const url of urls) {
+    try {
+      const response = await fetch(url, { method: 'HEAD' });
+      if (!response.ok) {
+        console.warn(`[publish-to-getlate] Media URL not accessible (${response.status}): ${url}`);
+        invalidUrls.push(url);
+      }
+    } catch (err) {
+      console.warn(`[publish-to-getlate] Media URL check failed: ${url}`, err);
+      invalidUrls.push(url);
+    }
+  }
+  
+  return { valid: invalidUrls.length === 0, invalidUrls };
+}
+
+async function publishToGetlate(
+  apiToken: string, 
+  payload: GetlatePostPayload, 
+  idempotencyKey?: string,
+  retries = 1
+): Promise<{ success: boolean; data?: any; error?: string; isRateLimit?: boolean }> {
   const apiUrl = 'https://getlate.dev/api/v1/posts';
   
   for (let attempt = 1; attempt <= retries; attempt++) {
@@ -216,12 +241,21 @@ async function publishToGetlate(apiToken: string, payload: GetlatePostPayload, r
       const controller = new AbortController();
       const timeout = setTimeout(() => controller.abort(), 180000); // 180s timeout for large video uploads
 
+      // Build headers with Idempotency-Key per Getlate documentation
+      const headers: Record<string, string> = {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${apiToken}`,
+      };
+      
+      // Add Idempotency-Key header if provided (prevents duplicate requests)
+      if (idempotencyKey) {
+        headers['Idempotency-Key'] = idempotencyKey;
+        console.log(`[publish-to-getlate] Using Idempotency-Key header: ${idempotencyKey}`);
+      }
+
       const response = await fetch(apiUrl, {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${apiToken}`,
-        },
+        headers,
         body: JSON.stringify(payload),
         signal: controller.signal,
       });
@@ -367,6 +401,17 @@ Deno.serve(async (req) => {
 
     const platformSpecificData = getPlatformSpecificData(format);
 
+    // Validate media URLs before building payload
+    console.log(`[publish-to-getlate] Validating ${media_urls.length} media URL(s)...`);
+    const mediaValidation = await validateMediaUrls(media_urls);
+    if (!mediaValidation.valid) {
+      console.error(`[publish-to-getlate] ❌ ${mediaValidation.invalidUrls.length} media URL(s) not accessible`);
+      // Continue anyway - Getlate may still be able to fetch them
+      console.warn(`[publish-to-getlate] Proceeding despite inaccessible URLs (Getlate may retry)`);
+    } else {
+      console.log(`[publish-to-getlate] ✅ All media URLs validated successfully`);
+    }
+
     // Build mediaItems with correct type per individual file (not global format)
     const mediaItems = media_urls.map(url => {
       const mediaType = getMediaTypeFromUrl(url);
@@ -417,8 +462,8 @@ Deno.serve(async (req) => {
       console.error('[publish-to-getlate] Failed to record attempt:', insertAttemptError);
     }
 
-    // Publish to Getlate
-    const result = await publishToGetlate(getlateToken, getlatePayload);
+    // Publish to Getlate with idempotency key in header
+    const result = await publishToGetlate(getlateToken, getlatePayload, idempotency_key);
 
     if (!result.success) {
       // Record failure

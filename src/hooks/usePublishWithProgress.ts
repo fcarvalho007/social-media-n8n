@@ -392,6 +392,10 @@ export function usePublishWithProgress() {
       
       let pdfUrl: string | null = null;
       
+      // Track publishing start time for timeout warnings
+      const publishingStartTime = Date.now();
+      const LONG_PUBLISH_WARNING_MS = 60000; // 60 seconds
+      
       for (let i = 0; i < sortedFormats.length; i++) {
         if (shouldCancel) break;
         
@@ -407,6 +411,13 @@ export function usePublishWithProgress() {
         
         // Update platform to processing
         updatePlatformStatus(format, 'processing');
+        
+        // Check if publishing is taking too long and show warning
+        const elapsedTime = Date.now() - publishingStartTime;
+        if (elapsedTime > LONG_PUBLISH_WARNING_MS) {
+          updatePhase2('publishing', Math.round((i / sortedFormats.length) * 100), 
+            'A aguardar resposta da API (pode demorar para vídeos grandes)...');
+        }
         
         let finalMediaUrls = mediaUrls;
         
