@@ -831,12 +831,22 @@ export default function ManualCreate() {
     const instagramSelected = selectedNetworks.includes('instagram');
     const linkedinSelected = selectedNetworks.includes('linkedin');
     
-    if (instagramSelected && !instagram.canPublish && !isUnlimited) {
+    // Debug logging for quota issues
+    console.log('[Publish] Quota check:', {
+      instagramCanPublish: instagram.canPublish,
+      instagramLoading: instagram.isLoading,
+      linkedinCanPublish: linkedin.canPublish,
+      linkedinLoading: linkedin.isLoading,
+      isUnlimited,
+    });
+    
+    // Only block if we have confirmed data that quota is exhausted (not during loading)
+    if (instagramSelected && !instagram.isLoading && !instagram.canPublish && !isUnlimited) {
       toast.error('Quota Instagram esgotada. Não é possível publicar.', { duration: 5000 });
       return;
     }
     
-    if (linkedinSelected && !linkedin.canPublish && !isUnlimited) {
+    if (linkedinSelected && !linkedin.isLoading && !linkedin.canPublish && !isUnlimited) {
       toast.error('Quota LinkedIn esgotada. Não é possível publicar.', { duration: 5000 });
       return;
     }

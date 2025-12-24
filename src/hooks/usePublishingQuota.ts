@@ -119,9 +119,12 @@ export function usePublishingQuota() {
       quotaText: quotaQuery.data?.instagram 
         ? formatQuotaText(quotaQuery.data.instagram.used_count, quotaQuery.data.instagram.limit_count)
         : '0/5',
-      canPublish: quotaQuery.data?.instagram 
-        ? (quotaQuery.data.instagram.limit_count === -1 || quotaQuery.data.instagram.remaining > 0)
-        : false,
+      // Optimistic: allow publishing while loading or if no data yet
+      canPublish: quotaQuery.isLoading 
+        ? true 
+        : quotaQuery.data?.instagram 
+          ? (quotaQuery.data.instagram.limit_count === -1 || quotaQuery.data.instagram.remaining > 0)
+          : true,
       isLoading: quotaQuery.isLoading,
       percentage: quotaQuery.data?.instagram 
         ? calculatePercentage(quotaQuery.data.instagram.used_count, quotaQuery.data.instagram.limit_count)
@@ -135,9 +138,12 @@ export function usePublishingQuota() {
       quotaText: quotaQuery.data?.linkedin 
         ? formatQuotaText(quotaQuery.data.linkedin.used_count, quotaQuery.data.linkedin.limit_count)
         : '0/5',
-      canPublish: quotaQuery.data?.linkedin 
-        ? (quotaQuery.data.linkedin.limit_count === -1 || quotaQuery.data.linkedin.remaining > 0)
-        : false,
+      // Optimistic: allow publishing while loading or if no data yet
+      canPublish: quotaQuery.isLoading 
+        ? true 
+        : quotaQuery.data?.linkedin 
+          ? (quotaQuery.data.linkedin.limit_count === -1 || quotaQuery.data.linkedin.remaining > 0)
+          : true,
       isLoading: quotaQuery.isLoading,
       percentage: quotaQuery.data?.linkedin 
         ? calculatePercentage(quotaQuery.data.linkedin.used_count, quotaQuery.data.linkedin.limit_count)
