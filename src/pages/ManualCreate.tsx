@@ -1,5 +1,5 @@
 import { useState, useRef, useMemo, useCallback, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import { supabase } from '@/integrations/supabase/client';
 import { PostFormat, getNetworkFromFormat, getFormatConfig } from '@/types/social';
 import { MediaSource } from '@/types/media';
@@ -192,8 +192,12 @@ async function detectVideoAspectRatio(file: File): Promise<string> {
 
 export default function ManualCreate() {
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
+  const recoverPostId = searchParams.get('recover');
   const { instagram, linkedin, canPublish, refresh: refreshQuota, isUnlimited } = usePublishingQuota();
   const [selectedFormats, setSelectedFormats] = useState<PostFormat[]>([]);
+  const [isRecovering, setIsRecovering] = useState(false);
+  const [recoveredPostId, setRecoveredPostId] = useState<string | null>(null);
   const [caption, setCaption] = useState('');
   const [mediaFiles, setMediaFiles] = useState<File[]>([]);
   const [mediaPreviewUrls, setMediaPreviewUrls] = useState<string[]>([]);
@@ -306,6 +310,126 @@ export default function ManualCreate() {
       mediaPreviewUrls.forEach(url => URL.revokeObjectURL(url));
     };
   }, []);
+
+  // Load post data for recovery
+  const loadPostForRecovery = useCallback(async (postId: string) => {
+    setIsRecovering(true);
+    try {
+      const { data: post, error } = await supabase
+        .from('posts')
+        .select('*')
+        .eq('id', postId)
+        .maybeSingle();
+
+      if (error) throw error;
+      if (!post) {
+        toast.error('Post não encontrado');
+        setIsRecovering(false);
+        return;
+      }
+
+      // Set caption (prefer edited version)
+      setCaption(post.caption_edited || post.caption || '');
+
+      // Load media URLs - use template_a_images or media_items
+      const imageUrls = post.template_a_images || [];
+      const mediaItems = post.media_items as any[] || [];
+      
+      // Combine URLs from both sources
+      const allUrls = [...imageUrls];
+      mediaItems.forEach((item: any) => {
+        if (item?.url && !allUrls.includes(item.url)) {
+          allUrls.push(item.url);
+        }
+      });
+      
+      if (allUrls.length > 0) {
+        setMediaPreviewUrls(allUrls);
+        setMediaSources(allUrls.map(() => 'url' as MediaSource));
+        // Note: mediaFiles stays empty since these are URLs, not files
+        // The publish function handles URL media
+      }
+
+      // Map selected_networks to PostFormat[]
+      const networks = post.selected_networks || [];
+      const postType = post.post_type || 'carousel';
+      
+      const formats: PostFormat[] = [];
+      networks.forEach((network: string) => {
+        // Map network + post_type to format
+        const formatMap: Record<string, Record<string, PostFormat>> = {
+          instagram: {
+            carousel: 'instagram_carousel',
+            image: 'instagram_image',
+            reel: 'instagram_reel',
+            stories: 'instagram_stories',
+          },
+          linkedin: {
+            carousel: 'linkedin_document',
+            post: 'linkedin_post',
+            image: 'linkedin_post',
+          },
+          youtube: {
+            shorts: 'youtube_shorts',
+            video: 'youtube_video',
+          },
+          tiktok: {
+            video: 'tiktok_video',
+          },
+          facebook: {
+            image: 'facebook_image',
+            stories: 'facebook_stories',
+            reel: 'facebook_reel',
+          },
+          googlebusiness: {
+            post: 'googlebusiness_post',
+          },
+        };
+        
+        const networkFormats = formatMap[network];
+        if (networkFormats) {
+          const format = networkFormats[postType] || Object.values(networkFormats)[0];
+          if (format && !formats.includes(format)) {
+            formats.push(format);
+          }
+        }
+      });
+      
+      if (formats.length > 0) {
+        setSelectedFormats(formats);
+      }
+
+      // Set scheduling (default to ASAP for recovery)
+      setScheduleAsap(true);
+
+      // Mark as recovered
+      setRecoveredPostId(postId);
+      
+      // Advance to step 2 or 3 based on what's loaded
+      if (formats.length > 0) {
+        setVisitedSteps([1, 2]);
+        setCurrentStep(2);
+        if (allUrls.length > 0) {
+          setVisitedSteps([1, 2, 3]);
+          setCurrentStep(3);
+        }
+      }
+
+      toast.success('Conteúdo recuperado com sucesso!');
+    } catch (error) {
+      console.error('Error loading post for recovery:', error);
+      toast.error('Erro ao recuperar conteúdo');
+    } finally {
+      setIsRecovering(false);
+    }
+  }, []);
+
+  // Load post on mount if recover param is present
+  useEffect(() => {
+    if (recoverPostId && !recoveredPostId) {
+      loadPostForRecovery(recoverPostId);
+    }
+  }, [recoverPostId, recoveredPostId, loadPostForRecovery]);
 
   // Compute media requirements based on selected formats
   const mediaRequirements = useMemo(() => getMediaRequirements(selectedFormats), [selectedFormats]);
@@ -1004,6 +1128,21 @@ export default function ManualCreate() {
         </Button>
         <CompactModeBadge mode="manual" onChangeMode={() => navigate('/?tab=create')} />
       </div>
+
+      {/* Recovery Banner */}
+      {isRecovering && (
+        <div className="flex items-center gap-2 p-3 mx-2 sm:mx-0 rounded-lg bg-primary/10 border border-primary/20 text-primary">
+          <Loader2 className="h-4 w-4 animate-spin flex-shrink-0" />
+          <span className="text-sm">A recuperar conteúdo...</span>
+        </div>
+      )}
+      
+      {recoveredPostId && !isRecovering && (
+        <div className="flex items-center gap-2 p-3 mx-2 sm:mx-0 rounded-lg bg-green-500/10 border border-green-500/20 text-green-700 dark:text-green-400">
+          <CheckCircle className="h-4 w-4 flex-shrink-0" />
+          <span className="text-sm">Conteúdo recuperado - edite e publique novamente</span>
+        </div>
+      )}
 
       {/* Quota Warning - simplified on mobile */}
       {selectedNetworks.length > 0 && !isUnlimited && (

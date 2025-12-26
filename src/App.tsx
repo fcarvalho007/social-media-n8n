@@ -20,7 +20,6 @@ import Templates from "./pages/Templates";
 import Auth from "./pages/Auth";
 import Drafts from "./pages/Drafts";
 import Recovery from "./pages/Recovery";
-import FailedPublications from "./pages/FailedPublications";
 import PublicationHistory from "./pages/PublicationHistory";
 import QuotaSettings from "./pages/QuotaSettings";
 import UserManagement from "./pages/UserManagement";
@@ -61,7 +60,7 @@ const App = () => (
                   <Route path="/calendar" element={<Calendar />} />
                   <Route path="/manual-create" element={<ManualCreate />} />
                   <Route path="/drafts" element={<Drafts />} />
-                  <Route path="/failed-publications" element={<FailedPublications />} />
+                  <Route path="/failed-publications" element={<Navigate to="/publication-history?tab=failed" replace />} />
                   <Route path="/publication-history" element={<PublicationHistory />} />
                   <Route path="/projects" element={<Projects />} />
                   <Route path="/projects/:id" element={<ProjectDetail />} />
