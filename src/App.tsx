@@ -21,6 +21,7 @@ import Auth from "./pages/Auth";
 import Drafts from "./pages/Drafts";
 import Recovery from "./pages/Recovery";
 import PublicationHistory from "./pages/PublicationHistory";
+import MediaLibrary from "./pages/MediaLibrary";
 import QuotaSettings from "./pages/QuotaSettings";
 import UserManagement from "./pages/UserManagement";
 import NotFound from "./pages/NotFound";
@@ -62,6 +63,7 @@ const App = () => (
                   <Route path="/drafts" element={<Drafts />} />
                   <Route path="/failed-publications" element={<Navigate to="/publication-history?tab=failed" replace />} />
                   <Route path="/publication-history" element={<PublicationHistory />} />
+                  <Route path="/media-library" element={<MediaLibrary />} />
                   <Route path="/projects" element={<Projects />} />
                   <Route path="/projects/:id" element={<ProjectDetail />} />
                   <Route path="/templates" element={<Templates />} />
