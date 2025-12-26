@@ -135,11 +135,11 @@ export function EnhancedSortableMediaItem({
           )}
         </div>
 
-        {/* Right: Remove button */}
+        {/* Right: Remove button - always visible in red */}
         <Button
           variant="ghost"
           size="icon"
-          className="h-6 w-6 text-muted-foreground hover:text-destructive hover:bg-destructive/10"
+          className="h-6 w-6 bg-red-500/15 text-red-500 hover:bg-red-500/25 hover:text-red-600 dark:text-red-400 dark:hover:text-red-300"
           onClick={(e) => {
             e.stopPropagation();
             onRemove();
