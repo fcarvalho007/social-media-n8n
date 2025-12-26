@@ -3,6 +3,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { PostFormat, getFormatConfig } from '@/types/social';
 import { FORMAT_TO_NETWORK } from '@/types/publishing';
 import { generateCarouselPDF } from '@/lib/pdfGenerator';
+import { processMediaForInstagram } from '@/lib/canvas/instagramResize';
 import { 
   PublishProgress, 
   Phase1Status, 
@@ -260,7 +261,7 @@ export function usePublishWithProgress() {
     });
     
     setProgress({
-      phase1: { status: 'uploading', progress: 0, message: 'A enviar ficheiros...' },
+      phase1: { status: 'uploading', progress: 0, message: 'A preparar ficheiros...' },
       phase2: { status: 'waiting', progress: 0, message: 'A aguardar envio...', platforms: initialPlatforms },
       summary: { totalPlatforms: consolidatedFormats.length, successCount: 0, failedCount: 0 },
     });
@@ -270,7 +271,7 @@ export function usePublishWithProgress() {
     
     try {
       // ═══════════════════════════════════════════
-      // PHASE 1: Upload files
+      // PHASE 1: Process and Upload files
       // ═══════════════════════════════════════════
       
       const { data: { user }, error: authError } = await supabase.auth.getUser();
@@ -281,8 +282,31 @@ export function usePublishWithProgress() {
         return false;
       }
       
+      // Check if any Instagram format is selected
+      const hasInstagramFormat = consolidatedFormats.some(
+        format => (FORMAT_TO_NETWORK[format] || 'instagram') === 'instagram'
+      );
+      
+      // Process media for Instagram (add margins if needed)
+      let processedFiles = mediaFiles;
+      if (hasInstagramFormat) {
+        updatePhase1('uploading', 5, 'A otimizar imagens para Instagram...');
+        const { files: optimizedFiles, resizedCount } = await processMediaForInstagram(
+          mediaFiles,
+          true,
+          (current, total, message) => {
+            const optimizationProgress = Math.round((current / total) * 15);
+            updatePhase1('uploading', 5 + optimizationProgress, message);
+          }
+        );
+        processedFiles = optimizedFiles;
+        if (resizedCount > 0) {
+          console.log(`[usePublishWithProgress] [${publishSessionId}] Resized ${resizedCount} images for Instagram`);
+        }
+      }
+      
       const mediaUrls: string[] = [];
-      const totalFiles = mediaFiles.length;
+      const totalFiles = processedFiles.length;
       
       for (let i = 0; i < totalFiles; i++) {
         if (shouldCancel) {
@@ -292,9 +316,9 @@ export function usePublishWithProgress() {
           return false;
         }
         
-        const file = mediaFiles[i];
+        const file = processedFiles[i];
         const fileName = `${user.id}/${Date.now()}-${file.name}`;
-        const uploadProgress = Math.round(((i + 0.5) / totalFiles) * 80);
+        const uploadProgress = 20 + Math.round(((i + 0.5) / totalFiles) * 60);
         
         updatePhase1('uploading', uploadProgress, `A enviar ficheiro ${i + 1} de ${totalFiles}...`);
         
@@ -314,7 +338,7 @@ export function usePublishWithProgress() {
           .getPublicUrl(fileName);
         
         mediaUrls.push(publicUrl);
-        updatePhase1('uploading', Math.round(((i + 1) / totalFiles) * 80), `Ficheiro ${i + 1} de ${totalFiles} enviado`);
+        updatePhase1('uploading', 20 + Math.round(((i + 1) / totalFiles) * 60), `Ficheiro ${i + 1} de ${totalFiles} enviado`);
       }
       
       // Phase 1 almost complete
