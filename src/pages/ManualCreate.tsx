@@ -118,7 +118,7 @@ async function extractVideoFrame(videoFile: File | string): Promise<File> {
   });
 }
 
-// Detect image aspect ratio from file
+// Detect image aspect ratio from file - with wider tolerance for Grid Splitter crops
 async function detectImageAspectRatio(file: File): Promise<string> {
   return new Promise((resolve) => {
     const img = document.createElement('img');
@@ -130,20 +130,27 @@ async function detectImageAspectRatio(file: File): Promise<string> {
       
       const ratio = w / h;
       
-      // Map to common aspect ratios
-      if (ratio >= 0.95 && ratio <= 1.05) resolve('1:1');
-      else if (ratio >= 0.72 && ratio <= 0.78) resolve('3:4');
-      else if (ratio >= 0.78 && ratio <= 0.82) resolve('4:5');
-      else if (ratio >= 1.28 && ratio <= 1.38) resolve('4:3');
-      else if (ratio >= 1.70 && ratio <= 1.82) resolve('16:9');
-      else if (ratio >= 0.54 && ratio <= 0.58) resolve('9:16');
-      else if (ratio < 1) resolve('4:5'); // Vertical default
+      // Map to common aspect ratios with wider tolerance for Grid Splitter crops
+      // 1:1 = 1.0
+      if (ratio >= 0.92 && ratio <= 1.08) resolve('1:1');
+      // 3:4 = 0.75 - wider tolerance to catch Grid Splitter variations (0.68-0.82)
+      else if (ratio >= 0.68 && ratio <= 0.82) resolve('3:4');
+      // 4:5 = 0.8 - narrower window since 3:4 now covers more
+      else if (ratio >= 0.82 && ratio <= 0.88) resolve('4:5');
+      // 4:3 = 1.33
+      else if (ratio >= 1.25 && ratio <= 1.42) resolve('4:3');
+      // 16:9 = 1.78
+      else if (ratio >= 1.65 && ratio <= 1.90) resolve('16:9');
+      // 9:16 = 0.5625
+      else if (ratio >= 0.50 && ratio <= 0.62) resolve('9:16');
+      // Fallbacks
+      else if (ratio < 1) resolve('3:4'); // Vertical default - use 3:4 for carousel images
       else resolve('4:3'); // Horizontal default
     };
     
     img.onerror = () => {
       URL.revokeObjectURL(url);
-      resolve('4:5'); // Default fallback
+      resolve('3:4'); // Default fallback - 3:4 for carousel images
     };
     
     img.src = url;
