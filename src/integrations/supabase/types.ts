@@ -194,6 +194,7 @@ export type Database = {
           linkedin_permalink: string | null
           linkedin_published: boolean | null
           media_items: Json | null
+          media_urls_backup: Json | null
           network_validations: Json | null
           notes: string | null
           origin_mode: string | null
@@ -201,6 +202,7 @@ export type Database = {
           publish_metadata: Json | null
           publish_targets: Json | null
           published_at: string | null
+          recovered_from_post_id: string | null
           recovery_token: string | null
           retry_count: number | null
           reviewed_at: string | null
@@ -242,6 +244,7 @@ export type Database = {
           linkedin_permalink?: string | null
           linkedin_published?: boolean | null
           media_items?: Json | null
+          media_urls_backup?: Json | null
           network_validations?: Json | null
           notes?: string | null
           origin_mode?: string | null
@@ -249,6 +252,7 @@ export type Database = {
           publish_metadata?: Json | null
           publish_targets?: Json | null
           published_at?: string | null
+          recovered_from_post_id?: string | null
           recovery_token?: string | null
           retry_count?: number | null
           reviewed_at?: string | null
@@ -290,6 +294,7 @@ export type Database = {
           linkedin_permalink?: string | null
           linkedin_published?: boolean | null
           media_items?: Json | null
+          media_urls_backup?: Json | null
           network_validations?: Json | null
           notes?: string | null
           origin_mode?: string | null
@@ -297,6 +302,7 @@ export type Database = {
           publish_metadata?: Json | null
           publish_targets?: Json | null
           published_at?: string | null
+          recovered_from_post_id?: string | null
           recovery_token?: string | null
           retry_count?: number | null
           reviewed_at?: string | null
