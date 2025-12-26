@@ -1,5 +1,6 @@
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useEffect } from 'react';
 import { useQuery } from '@tanstack/react-query';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import { supabase } from '@/integrations/supabase/client';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -29,7 +30,9 @@ import {
   Image,
   FileImage,
   Send,
-  Loader2
+  Loader2,
+  RotateCcw,
+  Copy
 } from 'lucide-react';
 import { format, formatDistanceToNow } from 'date-fns';
 import { pt } from 'date-fns/locale';
@@ -51,16 +54,20 @@ interface PostRecord {
   id: string;
   tema: string;
   caption: string;
+  caption_edited: string | null;
   status: string | null;
   post_type: string | null;
   selected_networks: string[] | null;
   template_a_images: string[];
+  media_items: any;
   scheduled_date: string | null;
   published_at: string | null;
   failed_at: string | null;
   created_at: string | null;
   origin_mode: string | null;
   error_log: string | null;
+  first_comment: string | null;
+  linkedin_body: string | null;
 }
 
 interface CombinedHistoryItem {
@@ -106,11 +113,23 @@ const statusConfig = {
 };
 
 export default function PublicationHistory() {
+  const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
+  const initialTab = searchParams.get('tab') || 'all';
+  
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState<string>('all');
   const [platformFilter, setPlatformFilter] = useState<string>('all');
   const [expandedItems, setExpandedItems] = useState<Set<string>>(new Set());
-  const [activeTab, setActiveTab] = useState<string>('all');
+  const [activeTab, setActiveTab] = useState<string>(initialTab);
+
+  // Sync tab with URL param on mount
+  useEffect(() => {
+    const tabParam = searchParams.get('tab');
+    if (tabParam && ['all', 'success', 'failed', 'pending'].includes(tabParam)) {
+      setActiveTab(tabParam);
+    }
+  }, [searchParams]);
 
   // Fetch publication attempts
   const { data: attempts, isLoading: attemptsLoading, refetch: refetchAttempts } = useQuery({
@@ -127,13 +146,13 @@ export default function PublicationHistory() {
     },
   });
 
-  // Fetch posts with manual origin
+  // Fetch posts with manual origin - including all fields needed for recovery
   const { data: posts, isLoading: postsLoading, refetch: refetchPosts } = useQuery({
     queryKey: ['publication-posts'],
     queryFn: async () => {
       const { data, error } = await supabase
         .from('posts')
-        .select('id, tema, caption, status, post_type, selected_networks, template_a_images, scheduled_date, published_at, failed_at, created_at, origin_mode, error_log')
+        .select('id, tema, caption, caption_edited, status, post_type, selected_networks, template_a_images, media_items, scheduled_date, published_at, failed_at, created_at, origin_mode, error_log, first_comment, linkedin_body')
         .order('created_at', { ascending: false })
         .limit(200);
 
@@ -414,6 +433,30 @@ export default function PublicationHistory() {
                     <pre className="text-xs overflow-auto max-h-32 bg-background p-2 rounded border">
                       {JSON.stringify(item.response_data, null, 2)}
                     </pre>
+                  </div>
+                )}
+
+                {/* Recovery Button */}
+                {item.post_id && (
+                  <div className="flex gap-2 pt-2">
+                    <Button
+                      variant={item.status === 'failed' ? 'default' : 'outline'}
+                      size="sm"
+                      onClick={() => navigate(`/manual-create?recover=${item.post_id}`)}
+                      className="gap-2 flex-1"
+                    >
+                      {item.status === 'failed' ? (
+                        <>
+                          <RotateCcw className="h-4 w-4" />
+                          Tentar Novamente
+                        </>
+                      ) : (
+                        <>
+                          <Copy className="h-4 w-4" />
+                          Reutilizar Conteúdo
+                        </>
+                      )}
+                    </Button>
                   </div>
                 )}
               </div>
