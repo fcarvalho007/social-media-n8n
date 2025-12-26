@@ -88,6 +88,7 @@ export default function MediaLibrary() {
   const [sortBy, setSortBy] = useState<'date' | 'name' | 'size'>('date');
   const [selectedItems, setSelectedItems] = useState<Set<string>>(new Set());
   const [detailsItem, setDetailsItem] = useState<MediaItem | null>(null);
+  const [isImporting, setIsImporting] = useState(false);
 
   // Fetch media library
   const { data: mediaItems, isLoading, refetch } = useQuery({
@@ -103,6 +104,98 @@ export default function MediaLibrary() {
     },
     enabled: !!user,
   });
+
+  // Import existing publications into media library
+  const importExistingPublications = async () => {
+    if (!user) return;
+    
+    setIsImporting(true);
+    try {
+      // Fetch published posts with images
+      const { data: posts, error: postsError } = await supabase
+        .from('posts')
+        .select('id, user_id, template_a_images, created_at')
+        .eq('status', 'published')
+        .not('template_a_images', 'is', null);
+      
+      if (postsError) throw postsError;
+      
+      if (!posts || posts.length === 0) {
+        toast.info('Nenhuma publicação encontrada para importar');
+        return;
+      }
+
+      // Get existing URLs in media library to avoid duplicates
+      const { data: existingMedia } = await supabase
+        .from('media_library')
+        .select('file_url');
+      
+      const existingUrls = new Set((existingMedia || []).map(m => m.file_url));
+      
+      let importCount = 0;
+      const entriesToInsert: Array<{
+        user_id: string;
+        file_name: string;
+        file_url: string;
+        file_type: string;
+        source: string;
+        is_favorite: boolean;
+        created_at: string;
+      }> = [];
+      
+      for (const post of posts) {
+        const urls = (post.template_a_images || []) as string[];
+        
+        for (const url of urls) {
+          // Skip if already exists or empty
+          if (!url || existingUrls.has(url)) continue;
+          
+          const fileName = url.split('/').pop() || `imported-${importCount}`;
+          const isVideo = url.includes('.mp4') || url.includes('.mov') || url.includes('.webm');
+          
+          entriesToInsert.push({
+            user_id: post.user_id || user.id,
+            file_name: fileName,
+            file_url: url,
+            file_type: isVideo ? 'video/mp4' : 'image/jpeg',
+            source: 'publication',
+            is_favorite: false,
+            created_at: post.created_at || new Date().toISOString(),
+          });
+          
+          existingUrls.add(url); // Prevent duplicates within same import
+          importCount++;
+        }
+      }
+      
+      if (entriesToInsert.length === 0) {
+        toast.info('Todas as publicações já estão na biblioteca');
+        return;
+      }
+      
+      // Insert in batches of 50
+      const batchSize = 50;
+      for (let i = 0; i < entriesToInsert.length; i += batchSize) {
+        const batch = entriesToInsert.slice(i, i + batchSize);
+        const { error: insertError } = await supabase
+          .from('media_library')
+          .insert(batch);
+        
+        if (insertError) {
+          console.error('Batch insert error:', insertError);
+        }
+      }
+      
+      await refetch();
+      toast.success(`${importCount} ficheiro(s) importado(s) com sucesso!`);
+      
+    } catch (error) {
+      console.error('Import error:', error);
+      toast.error('Erro ao importar publicações');
+    } finally {
+      setIsImporting(false);
+    }
+  };
 
   // Toggle favorite mutation
   const toggleFavoriteMutation = useMutation({
@@ -286,6 +379,19 @@ export default function MediaLibrary() {
             )}
             <Button variant="outline" size="sm" onClick={() => refetch()}>
               <RefreshCw className="h-4 w-4" />
+            </Button>
+            <Button 
+              variant="secondary" 
+              size="sm" 
+              onClick={importExistingPublications}
+              disabled={isImporting}
+            >
+              {isImporting ? (
+                <RefreshCw className="h-4 w-4 mr-1 animate-spin" />
+              ) : (
+                <Download className="h-4 w-4 mr-1" />
+              )}
+              Importar publicações
             </Button>
           </div>
         </div>
