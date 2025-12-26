@@ -3,14 +3,21 @@ import { User, Session } from '@supabase/supabase-js';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 
+// Emails autorizados para acesso
+const ALLOWED_EMAILS = [
+  'comunicacao@fredericocarvalho.pt',
+  'fredericodigital@gmail.com'
+];
+
+// Password interna fixa (utilizador nunca vê)
+const INTERNAL_PASSWORD = 'internal-whitelist-auth-2024';
+
 interface AuthContextType {
   user: User | null;
   session: Session | null;
   loading: boolean;
-  signIn: (email: string, password: string) => Promise<{ error: any }>;
-  signUp: (email: string, password: string, fullName: string) => Promise<{ error: any }>;
+  signInWithEmail: (email: string) => Promise<{ error: any }>;
   signOut: () => Promise<void>;
-  resetPassword: (email: string) => Promise<{ error: any }>;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -40,58 +47,56 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
     return () => subscription.unsubscribe();
   }, []);
 
-  const signIn = async (email: string, password: string) => {
+  const signInWithEmail = async (email: string) => {
     try {
+      const normalizedEmail = email.toLowerCase().trim();
+      
+      // Verificar se está na whitelist
+      if (!ALLOWED_EMAILS.includes(normalizedEmail)) {
+        toast.error('Email não autorizado');
+        return { error: { message: 'Email não autorizado' } };
+      }
+      
+      // Tentar sign in com password interna
       const { error } = await supabase.auth.signInWithPassword({
-        email,
-        password,
+        email: normalizedEmail,
+        password: INTERNAL_PASSWORD,
       });
       
       if (error) {
+        // Se utilizador não existe, criar automaticamente
         if (error.message.includes('Invalid login credentials')) {
-          toast.error('Email ou password incorretos');
+          const { error: signUpError } = await supabase.auth.signUp({
+            email: normalizedEmail,
+            password: INTERNAL_PASSWORD,
+            options: { emailRedirectTo: window.location.origin }
+          });
+          
+          if (signUpError) {
+            toast.error('Erro ao criar conta');
+            return { error: signUpError };
+          }
+          
+          // Tentar login novamente após criar
+          const { error: retryError } = await supabase.auth.signInWithPassword({
+            email: normalizedEmail,
+            password: INTERNAL_PASSWORD,
+          });
+          
+          if (retryError) {
+            toast.error('Erro ao entrar');
+            return { error: retryError };
+          }
         } else {
           toast.error(error.message);
+          return { error };
         }
-      } else {
-        toast.success('Login efetuado com sucesso!');
       }
       
-      return { error };
+      toast.success('Bem-vindo!');
+      return { error: null };
     } catch (error: any) {
       toast.error('Erro ao fazer login');
-      return { error };
-    }
-  };
-
-  const signUp = async (email: string, password: string, fullName: string) => {
-    try {
-      const redirectUrl = `${window.location.origin}/`;
-      
-      const { error } = await supabase.auth.signUp({
-        email,
-        password,
-        options: {
-          emailRedirectTo: redirectUrl,
-          data: {
-            full_name: fullName,
-          },
-        },
-      });
-
-      if (error) {
-        if (error.message.includes('already registered')) {
-          toast.error('Este email já está registado');
-        } else {
-          toast.error(error.message);
-        }
-      } else {
-        toast.success('Conta criada com sucesso!');
-      }
-
-      return { error };
-    } catch (error: any) {
-      toast.error('Erro ao criar conta');
       return { error };
     }
   };
@@ -105,27 +110,8 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
     }
   };
 
-  const resetPassword = async (email: string) => {
-    try {
-      const { error } = await supabase.auth.resetPasswordForEmail(email, {
-        redirectTo: `${window.location.origin}/auth?mode=reset`,
-      });
-
-      if (error) {
-        toast.error(error.message);
-      } else {
-        toast.success('Email de recuperação enviado!');
-      }
-
-      return { error };
-    } catch (error: any) {
-      toast.error('Erro ao enviar email de recuperação');
-      return { error };
-    }
-  };
-
   return (
-    <AuthContext.Provider value={{ user, session, loading, signIn, signUp, signOut, resetPassword }}>
+    <AuthContext.Provider value={{ user, session, loading, signInWithEmail, signOut }}>
       {children}
     </AuthContext.Provider>
   );
