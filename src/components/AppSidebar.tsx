@@ -262,15 +262,18 @@ export function AppSidebar() {
                 {user?.email ? getInitials(user.email) : 'U'}
               </AvatarFallback>
             </Avatar>
-            <Button
-              variant="ghost"
-              size="icon"
-              onClick={handleLogout}
-              className="h-10 w-10 rounded-xl hover:bg-destructive/10 hover:text-destructive transition-all duration-300 hover:scale-105 active:scale-95"
-              title="Logout"
-            >
-              <LogOut className="h-4 w-4" />
-            </Button>
+            <div className="flex flex-col items-center gap-1">
+              <Button
+                variant="ghost"
+                size="icon"
+                onClick={handleLogout}
+                className="h-10 w-10 rounded-xl hover:bg-destructive/10 hover:text-destructive transition-all duration-300 hover:scale-105 active:scale-95"
+                title="Logout"
+              >
+                <LogOut className="h-4 w-4" />
+              </Button>
+              <span className="text-[10px] text-muted-foreground font-medium">Sair</span>
+            </div>
           </div>
         </SidebarFooter>
       </Sidebar>

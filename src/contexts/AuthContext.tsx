@@ -58,34 +58,55 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
       }
       
       // Tentar sign in com password interna
-      const { error } = await supabase.auth.signInWithPassword({
+      let { error } = await supabase.auth.signInWithPassword({
         email: normalizedEmail,
         password: INTERNAL_PASSWORD,
       });
       
       if (error) {
-        // Se utilizador não existe, criar automaticamente
         if (error.message.includes('Invalid login credentials')) {
+          // Utilizador pode existir com password diferente - tentar resetar via admin
+          const { error: resetError } = await supabase.functions.invoke('admin-reset-password', {
+            body: { 
+              email: normalizedEmail, 
+              newPassword: INTERNAL_PASSWORD 
+            }
+          });
+          
+          if (!resetError) {
+            // Tentar login novamente após reset
+            const { error: retryError } = await supabase.auth.signInWithPassword({
+              email: normalizedEmail,
+              password: INTERNAL_PASSWORD,
+            });
+            
+            if (!retryError) {
+              toast.success('Bem-vindo!');
+              return { error: null };
+            }
+          }
+          
+          // Se reset falhou, tentar criar utilizador novo
           const { error: signUpError } = await supabase.auth.signUp({
             email: normalizedEmail,
             password: INTERNAL_PASSWORD,
             options: { emailRedirectTo: window.location.origin }
           });
           
-          if (signUpError) {
+          if (signUpError && !signUpError.message.includes('already registered')) {
             toast.error('Erro ao criar conta');
             return { error: signUpError };
           }
           
           // Tentar login novamente após criar
-          const { error: retryError } = await supabase.auth.signInWithPassword({
+          const { error: finalError } = await supabase.auth.signInWithPassword({
             email: normalizedEmail,
             password: INTERNAL_PASSWORD,
           });
           
-          if (retryError) {
+          if (finalError) {
             toast.error('Erro ao entrar');
-            return { error: retryError };
+            return { error: finalError };
           }
         } else {
           toast.error(error.message);
