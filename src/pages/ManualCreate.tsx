@@ -311,7 +311,21 @@ export default function ManualCreate() {
     };
   }, []);
 
-  // Load post data for recovery
+  // Fetch image URL and convert to File
+  const fetchImageAsFile = useCallback(async (url: string): Promise<File | null> => {
+    try {
+      const response = await fetch(url);
+      if (!response.ok) throw new Error('Failed to fetch image');
+      const blob = await response.blob();
+      const fileName = url.split('/').pop() || `image-${Date.now()}.jpg`;
+      return new File([blob], fileName, { type: blob.type || 'image/jpeg' });
+    } catch (error) {
+      console.error('Error fetching image as file:', error);
+      return null;
+    }
+  }, []);
+
+  // Load post data for recovery with full field support
   const loadPostForRecovery = useCallback(async (postId: string) => {
     setIsRecovering(true);
     try {
@@ -331,12 +345,40 @@ export default function ManualCreate() {
       // Set caption (prefer edited version)
       setCaption(post.caption_edited || post.caption || '');
 
-      // Load media URLs - use template_a_images or media_items
+      // Load linkedin_body for separate captions
+      if (post.linkedin_body) {
+        setUseSeparateCaptions(true);
+        setNetworkCaptions(prev => ({
+          ...prev,
+          linkedin: post.linkedin_body || '',
+        }));
+      }
+
+      // Load first_comment (will be handled by FirstCommentInput component if available)
+      // For now, store in state if the component supports it
+      const firstComment = post.first_comment || '';
+
+      // Load hashtags
+      const hashtagsEdited = post.hashtags_edited as string[] || [];
+      const hashtagsText = post.hashtags_text || '';
+      
+      // If we have hashtags, append them to caption (if not already there)
+      if (hashtagsText && !post.caption?.includes(hashtagsText)) {
+        const fullCaption = (post.caption_edited || post.caption || '') + '\n\n' + hashtagsText;
+        setCaption(fullCaption);
+      } else if (hashtagsEdited.length > 0 && !post.caption?.includes('#')) {
+        const hashtagString = hashtagsEdited.map(h => h.startsWith('#') ? h : `#${h}`).join(' ');
+        const fullCaption = (post.caption_edited || post.caption || '') + '\n\n' + hashtagString;
+        setCaption(fullCaption);
+      }
+
+      // Load media URLs - use template_a_images, media_items, or media_urls_backup
       const imageUrls = post.template_a_images || [];
       const mediaItems = post.media_items as any[] || [];
+      const mediaBackup = post.media_urls_backup as string[] || [];
       
-      // Combine URLs from both sources
-      const allUrls = [...imageUrls];
+      // Combine URLs from all sources (prioritize backup if available)
+      const allUrls = mediaBackup.length > 0 ? [...mediaBackup] : [...imageUrls];
       mediaItems.forEach((item: any) => {
         if (item?.url && !allUrls.includes(item.url)) {
           allUrls.push(item.url);
@@ -346,9 +388,30 @@ export default function ManualCreate() {
       if (allUrls.length > 0) {
         setMediaPreviewUrls(allUrls);
         setMediaSources(allUrls.map(() => 'url' as MediaSource));
-        // Note: mediaFiles stays empty since these are URLs, not files
-        // The publish function handles URL media
+        
+        // Convert URLs to Files for proper publishing
+        toast.info('A carregar imagens...');
+        const filePromises = allUrls.map(url => fetchImageAsFile(url));
+        const files = await Promise.all(filePromises);
+        const validFiles = files.filter((f): f is File => f !== null);
+        
+        if (validFiles.length > 0) {
+          setMediaFiles(validFiles);
+          // Detect aspect ratios for each file
+          const aspectRatios = await Promise.all(
+            validFiles.map(file => 
+              file.type.startsWith('video/') 
+                ? detectVideoAspectRatio(file) 
+                : detectImageAspectRatio(file)
+            )
+          );
+          setMediaAspectRatios(aspectRatios);
+        }
       }
+
+      // Load alt_texts if available
+      const altTexts = post.alt_texts as Record<string, string> || {};
+      // These will be handled by AltTextManager if integrated
 
       // Map selected_networks to PostFormat[]
       const networks = post.selected_networks || [];
@@ -363,11 +426,13 @@ export default function ManualCreate() {
             image: 'instagram_image',
             reel: 'instagram_reel',
             stories: 'instagram_stories',
+            video: 'instagram_reel',
           },
           linkedin: {
             carousel: 'linkedin_document',
             post: 'linkedin_post',
             image: 'linkedin_post',
+            document: 'linkedin_document',
           },
           youtube: {
             shorts: 'youtube_shorts',
@@ -380,9 +445,11 @@ export default function ManualCreate() {
             image: 'facebook_image',
             stories: 'facebook_stories',
             reel: 'facebook_reel',
+            video: 'facebook_reel',
           },
           googlebusiness: {
             post: 'googlebusiness_post',
+            image: 'googlebusiness_post',
           },
         };
         
@@ -415,14 +482,16 @@ export default function ManualCreate() {
         }
       }
 
-      toast.success('Conteúdo recuperado com sucesso!');
+      toast.success('Conteúdo recuperado com sucesso!', {
+        description: `${allUrls.length} ficheiros carregados`,
+      });
     } catch (error) {
       console.error('Error loading post for recovery:', error);
       toast.error('Erro ao recuperar conteúdo');
     } finally {
       setIsRecovering(false);
     }
-  }, []);
+  }, [fetchImageAsFile]);
 
   // Load post on mount if recover param is present
   useEffect(() => {
@@ -988,6 +1057,7 @@ export default function ManualCreate() {
       scheduledDate,
       time,
       scheduleAsap,
+      recoveredFromPostId: recoveredPostId || undefined,
     });
 
     if (success) {

@@ -40,6 +40,7 @@ interface PublishParams {
   scheduledDate?: Date;
   time?: string;
   scheduleAsap: boolean;
+  recoveredFromPostId?: string; // Track if this is a recovered post
 }
 
 // Extract first frame from video file
@@ -306,7 +307,12 @@ export function usePublishWithProgress() {
       }
       
       const mediaUrls: string[] = [];
+      const originalMediaUrls: string[] = []; // Backup for recovery
       const totalFiles = processedFiles.length;
+      
+      // Determine bucket and path based on content type
+      const storageBucket = 'publications';
+      const timestamp = Date.now();
       
       for (let i = 0; i < totalFiles; i++) {
         if (shouldCancel) {
@@ -317,14 +323,32 @@ export function usePublishWithProgress() {
         }
         
         const file = processedFiles[i];
-        const fileName = `${user.id}/${Date.now()}-${file.name}`;
+        const fileType = file.type.startsWith('video/') ? 'videos' : 'images';
+        const fileName = `${user.id}/${fileType}/${timestamp}-${i}-${file.name}`;
         const uploadProgress = 20 + Math.round(((i + 0.5) / totalFiles) * 60);
         
         updatePhase1('uploading', uploadProgress, `A enviar ficheiro ${i + 1} de ${totalFiles}...`);
         
-        const { error: uploadError } = await supabase.storage
-          .from('pdfs')
+        // Try publications bucket first, fallback to pdfs if it fails
+        let uploadError = null;
+        let usedBucket = storageBucket;
+        
+        const uploadResult = await supabase.storage
+          .from(storageBucket)
           .upload(fileName, file);
+        
+        if (uploadResult.error) {
+          // Fallback to pdfs bucket if publications doesn't exist or fails
+          console.log(`[usePublishWithProgress] publications bucket failed, trying pdfs bucket...`);
+          usedBucket = 'pdfs';
+          const fallbackResult = await supabase.storage
+            .from('pdfs')
+            .upload(`${user.id}/${timestamp}-${file.name}`, file);
+          
+          if (fallbackResult.error) {
+            uploadError = fallbackResult.error;
+          }
+        }
         
         if (uploadError) {
           updatePhase1('error', uploadProgress, 'Erro no upload', `Erro ao carregar ${file.name}`);
@@ -334,10 +358,11 @@ export function usePublishWithProgress() {
         }
         
         const { data: { publicUrl } } = supabase.storage
-          .from('pdfs')
-          .getPublicUrl(fileName);
+          .from(usedBucket)
+          .getPublicUrl(usedBucket === storageBucket ? fileName : `${user.id}/${timestamp}-${file.name}`);
         
         mediaUrls.push(publicUrl);
+        originalMediaUrls.push(publicUrl);
         updatePhase1('uploading', 20 + Math.round(((i + 1) / totalFiles) * 60), `Ficheiro ${i + 1} de ${totalFiles} enviado`);
       }
       
@@ -375,10 +400,15 @@ export function usePublishWithProgress() {
         template_a_images: mediaUrls.length > 0 ? mediaUrls : [''],
         template_b_images: [] as string[],
         workflow_id: publishSessionId,
+        // Store original URLs for easy recovery
+        media_urls_backup: JSON.parse(JSON.stringify(originalMediaUrls)),
+        // Track if this was recovered from another post
+        recovered_from_post_id: params.recoveredFromPostId || null,
         publish_metadata: JSON.parse(JSON.stringify({
           published_via: 'manual_create_getlate',
           formats: consolidatedFormats,
           started_at: new Date().toISOString(),
+          recovered_from: params.recoveredFromPostId || null,
         })),
       };
       
