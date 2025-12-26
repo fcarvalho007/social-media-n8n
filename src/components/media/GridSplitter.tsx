@@ -45,6 +45,7 @@ export function GridSplitter({
   const [detectedImages, setDetectedImages] = useState<DetectedImage[]>([]);
   const [manualConfig, setManualConfig] = useState<GridConfig>({ rows: 2, cols: 2 });
   const [removeBorders, setRemoveBorders] = useState(false);
+  const [targetAspectRatio, setTargetAspectRatio] = useState<number | null>(3/4); // Default to 3:4 for Instagram
   const [error, setError] = useState<string | null>(null);
   
   const { processGrid, isProcessing, progress } = useGridDetection();
@@ -142,7 +143,9 @@ export function GridSplitter({
       const images = await processGrid(
         uploadedImage,
         manualConfig,
-        removeBorders
+        removeBorders,
+        undefined, // No global aspect ratio crop
+        targetAspectRatio // Apply aspect ratio to each cell
       );
       
       setDetectedImages(images);
@@ -152,7 +155,7 @@ export function GridSplitter({
       setError(errorMessage);
       toast.error(errorMessage);
     }
-  }, [uploadedImage, manualConfig, removeBorders, processGrid]);
+  }, [uploadedImage, manualConfig, removeBorders, targetAspectRatio, processGrid]);
 
   const handleAddToCarousel = useCallback(async () => {
     const selectedImages = detectedImages.filter((img) => img.selected);
@@ -316,6 +319,8 @@ export function GridSplitter({
                         onManualConfigChange={setManualConfig}
                         removeBorders={removeBorders}
                         onRemoveBordersChange={setRemoveBorders}
+                        targetAspectRatio={targetAspectRatio}
+                        onAspectRatioChange={setTargetAspectRatio}
                         disabled={disabled || isProcessing}
                       />
 

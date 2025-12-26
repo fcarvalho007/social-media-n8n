@@ -185,11 +185,83 @@ export async function extractCell(
 }
 
 /**
+ * Extract a cell with aspect ratio adjustment (central crop)
+ * This extracts the cell and then crops it to achieve the target aspect ratio
+ */
+export async function extractCellWithAspectRatio(
+  sourceCanvas: HTMLCanvasElement,
+  cell: CellBounds,
+  targetRatio: number,
+  quality: number = 0.92
+): Promise<{ blob: Blob; dataUrl: string; width: number; height: number }> {
+  return new Promise((resolve, reject) => {
+    const canvas = document.createElement('canvas');
+    const ctx = canvas.getContext('2d');
+    
+    if (!ctx) {
+      reject(new Error('Não foi possível criar canvas'));
+      return;
+    }
+
+    // Calculate the current cell's aspect ratio
+    const currentRatio = cell.width / cell.height;
+    
+    let srcX = cell.x;
+    let srcY = cell.y;
+    let srcWidth = cell.width;
+    let srcHeight = cell.height;
+
+    if (currentRatio > targetRatio) {
+      // Cell is too wide - crop sides (reduce width)
+      const newWidth = cell.height * targetRatio;
+      const offsetX = (cell.width - newWidth) / 2;
+      srcX = cell.x + offsetX;
+      srcWidth = newWidth;
+    } else if (currentRatio < targetRatio) {
+      // Cell is too tall - crop top/bottom (reduce height)
+      const newHeight = cell.width / targetRatio;
+      const offsetY = (cell.height - newHeight) / 2;
+      srcY = cell.y + offsetY;
+      srcHeight = newHeight;
+    }
+
+    // Final output dimensions (use the cropped dimensions)
+    const outputWidth = Math.round(srcWidth);
+    const outputHeight = Math.round(srcHeight);
+    
+    canvas.width = outputWidth;
+    canvas.height = outputHeight;
+
+    ctx.drawImage(
+      sourceCanvas,
+      srcX, srcY, srcWidth, srcHeight,
+      0, 0, outputWidth, outputHeight
+    );
+
+    const dataUrl = canvas.toDataURL('image/jpeg', quality);
+
+    canvas.toBlob(
+      (blob) => {
+        if (blob) {
+          resolve({ blob, dataUrl, width: outputWidth, height: outputHeight });
+        } else {
+          reject(new Error('Falha ao criar blob'));
+        }
+      },
+      'image/jpeg',
+      quality
+    );
+  });
+}
+
+/**
  * Extract all cells from the canvas
+ * Optionally applies aspect ratio adjustment to each cell
  */
 export async function extractAllCells(
   sourceCanvas: HTMLCanvasElement,
   cells: CellBounds[],
+  targetAspectRatio?: number | null,
   onProgress?: (percent: number) => void
 ): Promise<DetectedImage[]> {
   const detectedImages: DetectedImage[] = [];
@@ -198,17 +270,25 @@ export async function extractAllCells(
     const cell = cells[i];
     
     try {
-      const { blob, dataUrl } = await extractCell(sourceCanvas, cell);
+      let result: { blob: Blob; dataUrl: string; width?: number; height?: number };
+      
+      if (targetAspectRatio && targetAspectRatio > 0) {
+        // Extract with aspect ratio adjustment
+        result = await extractCellWithAspectRatio(sourceCanvas, cell, targetAspectRatio);
+      } else {
+        // Extract without adjustment
+        const basic = await extractCell(sourceCanvas, cell);
+        result = { ...basic, width: cell.width, height: cell.height };
+      }
       
       detectedImages.push({
         id: cell.id,
-        blob,
-        dataUrl,
+        blob: result.blob,
+        dataUrl: result.dataUrl,
         order: i,
         selected: true,
-        // Include dimensions for validation
-        width: cell.width,
-        height: cell.height,
+        width: result.width ?? cell.width,
+        height: result.height ?? cell.height,
       });
 
       if (onProgress) {
