@@ -12,7 +12,8 @@ interface UseGridDetectionReturn {
     image: File,
     config: GridConfig,
     removeBorders: boolean,
-    forceAspectRatio?: number // e.g., 3/4 for Instagram
+    forceAspectRatio?: number | null, // Aspect ratio applied to whole image first
+    cellAspectRatio?: number | null   // Aspect ratio applied to each cell individually
   ) => Promise<DetectedImage[]>;
   isProcessing: boolean;
   progress: GridDetectionProgress | null;
@@ -28,7 +29,8 @@ export function useGridDetection(): UseGridDetectionReturn {
     image: File,
     config: GridConfig,
     removeBorders: boolean,
-    forceAspectRatio?: number
+    forceAspectRatio?: number | null,
+    cellAspectRatio?: number | null
   ): Promise<DetectedImage[]> => {
     setIsProcessing(true);
     setError(null);
@@ -70,16 +72,22 @@ export function useGridDetection(): UseGridDetectionReturn {
         console.log(`[GridDetection] Total coverage: ${totalWidth}×${totalHeight}px (source: ${width}×${height}px)`);
       }
 
-      // Step 3: Extract cells
+      // Step 3: Extract cells (with optional per-cell aspect ratio adjustment)
       setProgress({ stage: 'extracting', percent: 60, message: 'A extrair imagens...' });
       
-      const detectedImages = await extractAllCells(canvas, cells, (percent) => {
+      const detectedImages = await extractAllCells(canvas, cells, cellAspectRatio, (percent) => {
         setProgress({ 
           stage: 'extracting', 
           percent: 60 + (percent * 35), 
           message: `A extrair imagens... ${Math.round(percent * 100)}%` 
         });
       });
+      
+      // Log final dimensions
+      if (detectedImages.length > 0 && cellAspectRatio) {
+        console.log(`[GridDetection] Applied cell aspect ratio: ${cellAspectRatio}`);
+        console.log(`[GridDetection] First cell output: ${detectedImages[0].width}×${detectedImages[0].height}px`);
+      }
 
       setProgress({ stage: 'complete', percent: 100, message: 'Concluído!' });
 

@@ -7,14 +7,16 @@ import {
 } from '@/components/ui/select';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Label } from '@/components/ui/label';
-import { GridConfig } from '@/types/grid-splitter';
-import { Grid3x3 } from 'lucide-react';
+import { GridConfig, ASPECT_RATIO_OPTIONS } from '@/types/grid-splitter';
+import { Grid3x3, RectangleHorizontal } from 'lucide-react';
 
 interface GridControlsProps {
   manualConfig: GridConfig;
   onManualConfigChange: (config: GridConfig) => void;
   removeBorders: boolean;
   onRemoveBordersChange: (value: boolean) => void;
+  targetAspectRatio: number | null;
+  onAspectRatioChange: (value: number | null) => void;
   disabled?: boolean;
 }
 
@@ -23,8 +25,15 @@ export function GridControls({
   onManualConfigChange,
   removeBorders,
   onRemoveBordersChange,
+  targetAspectRatio,
+  onAspectRatioChange,
   disabled = false,
 }: GridControlsProps) {
+  // Find current aspect ratio option
+  const currentAspectRatio = ASPECT_RATIO_OPTIONS.find(
+    opt => opt.value === targetAspectRatio
+  ) || ASPECT_RATIO_OPTIONS[0];
+
   return (
     <div className="space-y-4 p-4 bg-muted/30 rounded-lg border">
       {/* Rows/Cols Selectors */}
@@ -76,6 +85,39 @@ export function GridControls({
         </div>
       </div>
 
+      {/* Aspect Ratio Selector */}
+      <div className="space-y-2">
+        <Label htmlFor="aspect-ratio" className="text-xs text-muted-foreground flex items-center gap-1">
+          <RectangleHorizontal className="h-3 w-3" />
+          Proporção das células
+        </Label>
+        <Select
+          value={targetAspectRatio?.toString() ?? 'original'}
+          onValueChange={(value) => {
+            const numValue = value === 'original' ? null : parseFloat(value);
+            onAspectRatioChange(numValue);
+          }}
+          disabled={disabled}
+        >
+          <SelectTrigger id="aspect-ratio" className="h-9">
+            <SelectValue placeholder="Proporção" />
+          </SelectTrigger>
+          <SelectContent>
+            {ASPECT_RATIO_OPTIONS.map((opt) => (
+              <SelectItem 
+                key={opt.label} 
+                value={opt.value?.toString() ?? 'original'}
+              >
+                <div className="flex flex-col">
+                  <span>{opt.label}</span>
+                  <span className="text-xs text-muted-foreground">{opt.description}</span>
+                </div>
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+      </div>
+
       {/* Remove Borders Checkbox */}
       <div className="flex items-center gap-2">
         <Checkbox
@@ -90,9 +132,16 @@ export function GridControls({
       </div>
 
       {/* Grid Preview Info */}
-      <p className="text-xs text-muted-foreground text-center pt-2 border-t">
-        A grelha será dividida em <strong>{manualConfig.rows * manualConfig.cols}</strong> imagens
-      </p>
+      <div className="text-xs text-muted-foreground text-center pt-2 border-t space-y-1">
+        <p>
+          A grelha será dividida em <strong>{manualConfig.rows * manualConfig.cols}</strong> imagens
+        </p>
+        {targetAspectRatio && (
+          <p className="text-primary">
+            Cada célula terá proporção <strong>{currentAspectRatio.label}</strong>
+          </p>
+        )}
+      </div>
     </div>
   );
 }
