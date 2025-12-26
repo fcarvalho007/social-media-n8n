@@ -649,6 +649,44 @@ export function usePublishWithProgress() {
         finalStatus = 'published'; // Partial success still counts as published
       }
       
+      // ═══════════════════════════════════════════
+      // REGISTER MEDIA IN LIBRARY AFTER SUCCESSFUL PUBLICATION
+      // ═══════════════════════════════════════════
+      if (hasSuccess && user?.id && mediaUrls.length > 0) {
+        console.log(`[usePublishWithProgress] Registering ${mediaUrls.length} media files in library...`);
+        
+        try {
+          const mediaEntries = mediaUrls.map((url, index) => {
+            const fileName = url.split('/').pop() || `media-${index}`;
+            const originalFile = processedFiles[index];
+            const isVideo = url.includes('.mp4') || url.includes('.mov') || url.includes('.webm') || 
+                           (originalFile && originalFile.type.startsWith('video/'));
+            
+            return {
+              user_id: user.id,
+              file_name: fileName,
+              file_url: url,
+              file_type: isVideo ? 'video/mp4' : (originalFile?.type || 'image/jpeg'),
+              file_size: originalFile?.size || null,
+              source: 'publication',
+              is_favorite: false,
+            };
+          });
+          
+          const { error: mediaError } = await supabase
+            .from('media_library')
+            .insert(mediaEntries);
+            
+          if (mediaError) {
+            console.error('[usePublishWithProgress] Failed to register media in library:', mediaError);
+          } else {
+            console.log(`[usePublishWithProgress] ✅ Registered ${mediaEntries.length} files in media library`);
+          }
+        } catch (mediaLibError) {
+          console.error('[usePublishWithProgress] Media library registration error:', mediaLibError);
+        }
+      }
+      
       if (createdPostId) {
         // Update existing post record
         const updateData = {
