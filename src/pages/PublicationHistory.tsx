@@ -120,6 +120,7 @@ export default function PublicationHistory() {
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState<string>('all');
   const [platformFilter, setPlatformFilter] = useState<string>('all');
+  const [dateFilter, setDateFilter] = useState<string>('all');
   const [expandedItems, setExpandedItems] = useState<Set<string>>(new Set());
   const [activeTab, setActiveTab] = useState<string>(initialTab);
 
@@ -238,6 +239,23 @@ export default function PublicationHistory() {
       if (activeTab === 'failed' && item.status !== 'failed') return false;
       if (activeTab === 'pending' && !['pending', 'publishing', 'scheduled'].includes(item.status)) return false;
 
+      // Date filter
+      if (dateFilter !== 'all') {
+        const now = new Date();
+        const itemDate = new Date(item.timestamp);
+        
+        if (dateFilter === 'today') {
+          const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+          if (itemDate < today) return false;
+        } else if (dateFilter === 'week') {
+          const weekAgo = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
+          if (itemDate < weekAgo) return false;
+        } else if (dateFilter === 'month') {
+          const monthAgo = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000);
+          if (itemDate < monthAgo) return false;
+        }
+      }
+
       // Search filter
       const matchesSearch = searchTerm === '' || 
         item.platform.toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -251,7 +269,7 @@ export default function PublicationHistory() {
       
       return matchesSearch && matchesStatus && matchesPlatform;
     });
-  }, [combinedHistory, activeTab, searchTerm, statusFilter, platformFilter]);
+  }, [combinedHistory, activeTab, searchTerm, statusFilter, platformFilter, dateFilter]);
 
   // Stats
   const stats = useMemo(() => {
@@ -546,6 +564,19 @@ export default function PublicationHistory() {
             className="pl-9"
           />
         </div>
+        
+        <Select value={dateFilter} onValueChange={setDateFilter}>
+          <SelectTrigger className="w-full sm:w-[140px]">
+            <Calendar className="h-4 w-4 mr-2" />
+            <SelectValue placeholder="Data" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="all">Todas as datas</SelectItem>
+            <SelectItem value="today">Hoje</SelectItem>
+            <SelectItem value="week">Última semana</SelectItem>
+            <SelectItem value="month">Último mês</SelectItem>
+          </SelectContent>
+        </Select>
         
         <Select value={statusFilter} onValueChange={setStatusFilter}>
           <SelectTrigger className="w-full sm:w-[150px]">
