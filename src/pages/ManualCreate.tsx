@@ -49,6 +49,7 @@ import { getMediaRequirements, validateAllFormats, getValidationSummary, FormatV
 import { INSTAGRAM_CONFIG, LINKEDIN_CONFIG, FORMAT_TO_NETWORK, FORMAT_TO_ACCOUNT } from '@/types/publishing';
 import { PublishingOverlay } from '@/components/manual-post/PublishingOverlay';
 import { PublishProgressModal } from '@/components/publishing/PublishProgressModal';
+import { AspectRatioWarning } from '@/components/publishing/AspectRatioWarning';
 import { usePublishWithProgress } from '@/hooks/usePublishWithProgress';
 import { EnhancedSortableMediaItem, MediaDragOverlay } from '@/components/manual-post/EnhancedSortableMediaItem';
 import { NetworkCaptionEditor } from '@/components/manual-post/NetworkCaptionEditor';
@@ -1467,6 +1468,12 @@ export default function ManualCreate() {
                   </div>
                 )}
                 
+                {/* Aspect Ratio Warning for Instagram */}
+                <AspectRatioWarning 
+                  mediaFiles={mediaFiles} 
+                  selectedFormats={selectedFormats} 
+                />
+                
                 {/* Primary Actions Row */}
                 <div className="flex gap-3">
                   <Button
@@ -1629,7 +1636,15 @@ export default function ManualCreate() {
 
       {/* Mobile Sticky Bottom Bar - Optimized with larger touch targets */}
       <div className="fixed bottom-0 left-0 right-0 p-4 pb-[calc(1.5rem+env(safe-area-inset-bottom))] bg-background/98 backdrop-blur-md border-t shadow-[0_-4px_20px_-4px_rgba(0,0,0,0.15)] lg:hidden z-50">
-        <div className="flex gap-3 max-w-md mx-auto">
+        <div className="flex flex-col gap-2 max-w-md mx-auto">
+          {/* Aspect Ratio Warning - Mobile */}
+          <div className="flex justify-center">
+            <AspectRatioWarning 
+              mediaFiles={mediaFiles} 
+              selectedFormats={selectedFormats} 
+            />
+          </div>
+          <div className="flex gap-3">
           <Button
             type="button"
             size="default"
@@ -1680,6 +1695,7 @@ export default function ManualCreate() {
           >
             <Save className="h-6 w-6" />
           </Button>
+          </div>
         </div>
       </div>
 
