@@ -846,28 +846,14 @@ export default function ManualCreate() {
     const instagramSelected = selectedNetworks.includes('instagram');
     const linkedinSelected = selectedNetworks.includes('linkedin');
     
-    // Debug logging for quota issues
-    console.log('[Publish] Quota check:', {
-      instagramCanPublish: instagram.canPublish,
-      instagramReady: instagram.isReady,
+    // Log quota info for reference only - Getlate.dev is the sole authority for quota limits
+    console.log('[Publish] Quota info (reference only):', {
       instagramRemaining: instagram.quota.remaining,
-      linkedinCanPublish: linkedin.canPublish,
-      linkedinReady: linkedin.isReady,
       linkedinRemaining: linkedin.quota.remaining,
       isUnlimited,
     });
     
-    // Only block if we have CONFIRMED data showing remaining === 0
-    // Use isReady to ensure data is loaded, and check remaining directly for certainty
-    if (instagramSelected && instagram.isReady && instagram.quota.remaining === 0 && !isUnlimited) {
-      toast.error('Quota Instagram esgotada. Não é possível publicar.', { duration: 5000 });
-      return;
-    }
-    
-    if (linkedinSelected && linkedin.isReady && linkedin.quota.remaining === 0 && !isUnlimited) {
-      toast.error('Quota LinkedIn esgotada. Não é possível publicar.', { duration: 5000 });
-      return;
-    }
+    // NOTE: No frontend quota blocking - Getlate.dev API will reject if quota is exceeded
 
     // Use the new hook to publish
     const success = await executePublish({

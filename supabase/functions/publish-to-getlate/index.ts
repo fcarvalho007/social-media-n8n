@@ -407,11 +407,9 @@ Deno.serve(async (req) => {
       throw new Error(`Account not configured for network: ${network}`);
     }
 
-    // Validate quota directly from Getlate API (not local quota_overrides)
-    const quotaCheck = await validateQuotaFromGetlate(getlateToken);
-    if (!quotaCheck.canPublish) {
-      throw new Error(quotaCheck.error || 'Quota Getlate esgotada');
-    }
+    // NOTE: Quota validation removed - Getlate.dev API is the sole authority
+    // If quota is exceeded, the Getlate API will return an error which we handle below
+    console.log('[publish-to-getlate] Skipping pre-validation - Getlate API will enforce quota limits');
 
     // For formats that don't require captions (stories), use a space if empty
     // Getlate API requires content to be non-empty
