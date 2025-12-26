@@ -849,19 +849,22 @@ export default function ManualCreate() {
     // Debug logging for quota issues
     console.log('[Publish] Quota check:', {
       instagramCanPublish: instagram.canPublish,
-      instagramLoading: instagram.isLoading,
+      instagramReady: instagram.isReady,
+      instagramRemaining: instagram.quota.remaining,
       linkedinCanPublish: linkedin.canPublish,
-      linkedinLoading: linkedin.isLoading,
+      linkedinReady: linkedin.isReady,
+      linkedinRemaining: linkedin.quota.remaining,
       isUnlimited,
     });
     
-    // Only block if we have confirmed data that quota is exhausted (not during loading)
-    if (instagramSelected && !instagram.isLoading && !instagram.canPublish && !isUnlimited) {
+    // Only block if we have CONFIRMED data showing remaining === 0
+    // Use isReady to ensure data is loaded, and check remaining directly for certainty
+    if (instagramSelected && instagram.isReady && instagram.quota.remaining === 0 && !isUnlimited) {
       toast.error('Quota Instagram esgotada. Não é possível publicar.', { duration: 5000 });
       return;
     }
     
-    if (linkedinSelected && !linkedin.isLoading && !linkedin.canPublish && !isUnlimited) {
+    if (linkedinSelected && linkedin.isReady && linkedin.quota.remaining === 0 && !isUnlimited) {
       toast.error('Quota LinkedIn esgotada. Não é possível publicar.', { duration: 5000 });
       return;
     }

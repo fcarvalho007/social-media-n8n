@@ -113,19 +113,26 @@ export function usePublishingQuota() {
 
   const defaultQuota: QuotaUsage = { used_count: 0, limit_count: 5, remaining: 5 };
 
+  // isReady = true when we have confirmed data loaded
+  const isReady = !!userId && !quotaQuery.isLoading && !!quotaQuery.data;
+
   return {
     instagram: {
       quota: quotaQuery.data?.instagram || defaultQuota,
       quotaText: quotaQuery.data?.instagram 
         ? formatQuotaText(quotaQuery.data.instagram.used_count, quotaQuery.data.instagram.limit_count)
         : '0/5',
-      // Optimistic: allow publishing while loading or if no data yet
-      canPublish: quotaQuery.isLoading 
-        ? true 
-        : quotaQuery.data?.instagram 
-          ? (quotaQuery.data.instagram.limit_count === -1 || quotaQuery.data.instagram.remaining > 0)
-          : true,
+      // Optimistic: allow publishing while loading, no userId, or no data yet
+      // Only block when we have CONFIRMED data showing remaining === 0
+      canPublish: !userId 
+        ? true  // No userId yet, don't block
+        : quotaQuery.isLoading 
+          ? true  // Loading, don't block
+          : quotaQuery.data?.instagram 
+            ? (quotaQuery.data.instagram.limit_count === -1 || quotaQuery.data.instagram.remaining > 0)
+            : true,  // No data, don't block (optimistic fallback)
       isLoading: quotaQuery.isLoading,
+      isReady,
       percentage: quotaQuery.data?.instagram 
         ? calculatePercentage(quotaQuery.data.instagram.used_count, quotaQuery.data.instagram.limit_count)
         : 0,
@@ -138,13 +145,16 @@ export function usePublishingQuota() {
       quotaText: quotaQuery.data?.linkedin 
         ? formatQuotaText(quotaQuery.data.linkedin.used_count, quotaQuery.data.linkedin.limit_count)
         : '0/5',
-      // Optimistic: allow publishing while loading or if no data yet
-      canPublish: quotaQuery.isLoading 
-        ? true 
-        : quotaQuery.data?.linkedin 
-          ? (quotaQuery.data.linkedin.limit_count === -1 || quotaQuery.data.linkedin.remaining > 0)
-          : true,
+      // Optimistic: allow publishing while loading, no userId, or no data yet
+      canPublish: !userId 
+        ? true
+        : quotaQuery.isLoading 
+          ? true
+          : quotaQuery.data?.linkedin 
+            ? (quotaQuery.data.linkedin.limit_count === -1 || quotaQuery.data.linkedin.remaining > 0)
+            : true,
       isLoading: quotaQuery.isLoading,
+      isReady,
       percentage: quotaQuery.data?.linkedin 
         ? calculatePercentage(quotaQuery.data.linkedin.used_count, quotaQuery.data.linkedin.limit_count)
         : 0,
@@ -159,6 +169,7 @@ export function usePublishingQuota() {
     dailyLimit: quotaQuery.data?.dailyLimit || 5,
     lastUpdated: quotaQuery.data?.lastUpdated ? new Date(quotaQuery.data.lastUpdated) : null,
     isLoading: quotaQuery.isLoading,
+    isReady,
     isRefreshing: quotaQuery.isFetching && !quotaQuery.isLoading,
     error: quotaQuery.error?.message || null,
     canPublish,
