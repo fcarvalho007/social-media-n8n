@@ -22,8 +22,8 @@ export const ERROR_MESSAGES: Record<string, ErrorInfo> = {
   },
   media_error: {
     title: 'Erro no ficheiro',
-    description: 'O formato ou tamanho do ficheiro não é suportado.',
-    action: 'Verifica os requisitos',
+    description: 'O formato, tamanho ou proporção do ficheiro não é suportado pelo Instagram.',
+    action: 'Redimensiona para 4:5 (1080x1350px)',
     isRetryable: false,
   },
   network_error: {
@@ -69,7 +69,12 @@ export function classifyError(errorMessage: string | undefined): string {
   if (lower.includes('auth') || lower.includes('token') || lower.includes('session') || lower.includes('unauthorized') || lower.includes('401')) {
     return 'auth_error';
   }
-  if (lower.includes('media') || lower.includes('format') || lower.includes('size') || lower.includes('aspect') || lower.includes('unsupported')) {
+  // Enhanced media error detection for aspect ratio, dimensions, resize issues
+  if (lower.includes('media') || lower.includes('format') || lower.includes('size') || 
+      lower.includes('aspect') || lower.includes('ratio') || lower.includes('unsupported') ||
+      lower.includes('width') || lower.includes('height') || lower.includes('resize') ||
+      lower.includes('dimension') || lower.includes('resolution') || lower.includes('pixel') ||
+      lower.includes('image') || lower.includes('allowed range')) {
     return 'media_error';
   }
   if (lower.includes('network') || lower.includes('timeout') || lower.includes('connection') || lower.includes('fetch')) {
