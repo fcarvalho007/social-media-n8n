@@ -231,9 +231,22 @@ function PlatformStatusRow({
                 {errorInfo?.description}
               </span>
             ) : (
-              <span className="text-xs text-red-600">
-                {errorInfo?.description || result.errorMessage || 'Erro ao publicar'}
-              </span>
+              <div className="flex flex-col gap-0.5">
+                <span className="text-xs text-red-600 font-medium">
+                  {errorInfo?.title || 'Erro'}
+                </span>
+                <span className="text-xs text-red-600/80">
+                  {/* Show original API error if it's more specific than generic description */}
+                  {result.errorMessage && result.errorMessage.length > 20 
+                    ? result.errorMessage 
+                    : (errorInfo?.description || result.errorMessage || 'Erro ao publicar')}
+                </span>
+                {errorInfo?.action && (
+                  <span className="text-xs text-muted-foreground mt-0.5">
+                    💡 {errorInfo.action}
+                  </span>
+                )}
+              </div>
             )}
           </div>
         )}

@@ -508,12 +508,29 @@ export function usePublishWithProgress() {
             updatePlatformStatus(format, 'error', 'Erro de comunicação');
           } else if (!publishResult?.success) {
             console.error(`[usePublishWithProgress] [${publishSessionId}] ${format} returned failure:`, publishResult?.error);
+            // Extract detailed error message from API response
+            let detailedError = publishResult?.error || 'Falha na publicação';
+            
+            // Try to parse and extract more specific error from response
+            if (publishResult?.details) {
+              detailedError = publishResult.details;
+            } else if (publishResult?.error && typeof publishResult.error === 'string') {
+              // Try to extract error from JSON string if present
+              try {
+                const parsed = JSON.parse(publishResult.error);
+                if (parsed.message) detailedError = parsed.message;
+                if (parsed.error) detailedError = parsed.error;
+              } catch {
+                // Use original error if not JSON
+              }
+            }
+            
             platformResults.set(format, { 
               ...platformResults.get(format)!, 
               status: 'error', 
-              errorMessage: publishResult?.error || 'Falha na publicação' 
+              errorMessage: detailedError 
             });
-            updatePlatformStatus(format, 'error', publishResult?.error || 'Falha na publicação');
+            updatePlatformStatus(format, 'error', detailedError);
           } else {
             console.log(`[usePublishWithProgress] [${publishSessionId}] ✅ ${format} published successfully`);
             platformResults.set(format, { 
