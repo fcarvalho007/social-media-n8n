@@ -794,11 +794,14 @@ export default function ManualCreate() {
       setSaving(true);
       setUploadProgress(0);
 
-      const { data: { user } } = await supabase.auth.getUser();
-      if (!user) {
-        toast.error('Tem de iniciar sessão');
+      // Robust session check
+      const { data: sessionData, error: sessionError } = await supabase.auth.getSession();
+      if (sessionError || !sessionData.session) {
+        console.error('[handleSaveDraft] Session error:', sessionError);
+        toast.error('Sessão expirada. Por favor, faça login novamente.');
         return;
       }
+      const user = sessionData.session.user;
 
       const mediaUrls: string[] = [];
       const totalFiles = mediaFiles.length;
@@ -813,7 +816,10 @@ export default function ManualCreate() {
           .from('pdfs')
           .upload(fileName, file);
         
-        if (uploadError) throw uploadError;
+        if (uploadError) {
+          console.error('[handleSaveDraft] Upload error:', uploadError);
+          throw uploadError;
+        }
         
         const { data: { publicUrl } } = supabase.storage
           .from('pdfs')
@@ -842,21 +848,41 @@ export default function ManualCreate() {
         status: 'draft',
       };
 
-      if (currentDraftId) {
+      // Validate currentDraftId - if it's an invalid autosave ID, force insert
+      const validDraftId = currentDraftId && !currentDraftId.startsWith('autosave-') ? currentDraftId : null;
+
+      if (validDraftId) {
         const { error } = await supabase
           .from('posts_drafts')
           .update(draftData)
-          .eq('id', currentDraftId);
-        if (error) throw error;
+          .eq('id', validDraftId);
+        if (error) {
+          console.error('[handleSaveDraft] Update error:', error);
+          throw error;
+        }
         toast.success('Rascunho atualizado com sucesso');
       } else {
         const { error } = await supabase.from('posts_drafts').insert(draftData);
-        if (error) throw error;
+        if (error) {
+          console.error('[handleSaveDraft] Insert error:', error);
+          throw error;
+        }
+        // Clear invalid autosave ID if it existed
+        if (currentDraftId && currentDraftId.startsWith('autosave-')) {
+          setCurrentDraftId(null);
+        }
         toast.success('Rascunho guardado com sucesso');
       }
-    } catch (error) {
-      console.error('Error saving draft:', error);
-      toast.error('Erro ao guardar rascunho. Tente novamente.');
+    } catch (error: any) {
+      console.error('[handleSaveDraft] Error:', error);
+      if (error?.message?.includes('uuid')) {
+        toast.error('Erro interno. O rascunho será guardado como novo.');
+        setCurrentDraftId(null);
+      } else if (error?.message?.includes('JWT') || error?.message?.includes('session')) {
+        toast.error('Sessão expirada. Por favor, faça login novamente.');
+      } else {
+        toast.error('Erro ao guardar rascunho. Verifique a sua ligação.');
+      }
     } finally {
       setSaving(false);
       setUploadProgress(0);
