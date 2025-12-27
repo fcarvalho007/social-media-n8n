@@ -275,8 +275,29 @@ export function usePublishWithProgress() {
       // PHASE 1: Process and Upload files
       // ═══════════════════════════════════════════
       
-      const { data: { user }, error: authError } = await supabase.auth.getUser();
-      if (authError || !user) {
+      // Robust session check with retry
+      let user = null;
+      try {
+        const { data: sessionData, error: sessionError } = await supabase.auth.getSession();
+        if (sessionError || !sessionData.session) {
+          console.error('[usePublishWithProgress] Session error:', sessionError);
+          updatePhase1('error', 0, 'Sessão expirada', 'Por favor, faça login novamente');
+          setIsPublishing(false);
+          publishingLockRef.current = false;
+          toast.error('Sessão expirada. Por favor, faça login novamente.');
+          return false;
+        }
+        user = sessionData.session.user;
+      } catch (fetchError: any) {
+        console.error('[usePublishWithProgress] Network error during auth check:', fetchError);
+        updatePhase1('error', 0, 'Erro de ligação', 'Não foi possível comunicar com o servidor');
+        setIsPublishing(false);
+        publishingLockRef.current = false;
+        toast.error('Erro de ligação. Verifique a sua internet e tente novamente.');
+        return false;
+      }
+      
+      if (!user) {
         updatePhase1('error', 0, 'Erro de autenticação', 'Tem de iniciar sessão para publicar');
         setIsPublishing(false);
         publishingLockRef.current = false;
