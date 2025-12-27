@@ -1,5 +1,4 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
-import { supabase } from '@/integrations/supabase/client';
 import { PostFormat } from '@/types/social';
 
 interface AutoSaveData {
@@ -21,7 +20,7 @@ interface UseAutoSaveReturn {
   lastSaved: Date | null;
   isSaving: boolean;
   hasUnsavedChanges: boolean;
-  saveNow: () => Promise<void>;
+  saveNow: () => void;
   loadSavedData: () => AutoSaveData | null;
   clearSavedData: () => void;
 }
@@ -57,8 +56,8 @@ export function useAutoSave(
     }
   }, [data]);
 
-  // Save function
-  const saveToLocalStorage = useCallback(async () => {
+  // Save function - localStorage only (database drafts use explicit save)
+  const saveToLocalStorage = useCallback(() => {
     if (!enabled) return;
     
     const currentData = dataRef.current;
@@ -76,7 +75,7 @@ export function useAutoSave(
     setIsSaving(true);
     
     try {
-      // Save to localStorage
+      // Save to localStorage only - database saves are handled by handleSaveDraft
       const saveData = {
         ...currentData,
         savedAt: new Date().toISOString(),
@@ -86,25 +85,8 @@ export function useAutoSave(
       lastSavedDataRef.current = currentDataStr;
       setLastSaved(new Date());
       setHasUnsavedChanges(false);
-      
-      // Also try to save to Supabase if user is logged in
-      const { data: { user } } = await supabase.auth.getUser();
-      if (user && currentData.selectedFormats.length > 0) {
-        // Save minimal draft to database
-        await supabase.from('posts_drafts').upsert({
-          id: `autosave-${user.id}`,
-          user_id: user.id,
-          platform: currentData.selectedFormats[0]?.startsWith('instagram_') ? 'instagram_carrousel' : 'linkedin',
-          caption: currentData.caption,
-          media_urls: currentData.mediaUrls,
-          scheduled_date: currentData.scheduledDate || null,
-          scheduled_time: currentData.time || null,
-          publish_immediately: currentData.scheduleAsap,
-          status: 'autosave',
-        });
-      }
     } catch (error) {
-      console.error('[AutoSave] Error saving:', error);
+      console.error('[AutoSave] Error saving to localStorage:', error);
     } finally {
       setIsSaving(false);
     }
@@ -169,8 +151,8 @@ export function useAutoSave(
   }, [key]);
 
   // Manual save
-  const saveNow = useCallback(async () => {
-    await saveToLocalStorage();
+  const saveNow = useCallback(() => {
+    saveToLocalStorage();
   }, [saveToLocalStorage]);
 
   return {
