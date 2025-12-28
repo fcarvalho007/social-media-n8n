@@ -16,7 +16,7 @@ export const NETWORK_CONSTRAINTS: Record<SocialNetwork, NetworkConstraints> = {
   },
   linkedin: {
     max_caption_length: 3000,
-    max_images: 9,
+    max_images: 20, // LinkedIn Documents allow up to 300 pages, but 20 is practical
     min_images: 1,
     max_video_duration: 600, // 10 minutes
     supported_aspect_ratios: ['1:1', '16:9', '4:5'],
@@ -24,6 +24,10 @@ export const NETWORK_CONSTRAINTS: Record<SocialNetwork, NetworkConstraints> = {
     supports_first_comment: false,
     supports_carousel: true,
     supports_video: true,
+    // LinkedIn Document specific limits
+    max_image_size_mb: 50, // Individual image size for PDF conversion
+    max_pdf_size_mb: 100, // Final PDF size limit
+    max_pdf_pages: 300, // LinkedIn limit
   },
   facebook: {
     max_caption_length: 63206,

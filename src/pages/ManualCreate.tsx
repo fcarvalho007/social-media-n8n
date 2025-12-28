@@ -682,8 +682,12 @@ export default function ManualCreate() {
       return;
     }
 
-    // Validate file sizes (Getlate limits: 4MB images, 650MB videos)
-    const MAX_IMAGE_SIZE_MB = 4;
+    // Validate file sizes
+    // LinkedIn Documents: images are converted to PDF, so allow up to 50MB per image
+    // Direct API uploads: 4MB limit (Getlate limitation)
+    // Videos: 650MB limit
+    const isLinkedInDocument = selectedFormats.includes('linkedin_document');
+    const MAX_IMAGE_SIZE_MB = isLinkedInDocument ? 50 : 4;
     const MAX_VIDEO_SIZE_MB = 650;
     
     for (const file of newFiles) {
@@ -695,6 +699,11 @@ export default function ManualCreate() {
         const fileType = isVideo ? 'Vídeo' : 'Imagem';
         toast.error(`${fileType} "${file.name}" excede ${maxSizeMB}MB (${sizeMB.toFixed(1)}MB)`);
         return;
+      }
+      
+      // Warning for large images (may slow down PDF generation)
+      if (!isVideo && sizeMB > 10 && isLinkedInDocument) {
+        toast.warning(`Imagem "${file.name}" é grande (${sizeMB.toFixed(1)}MB). A geração do PDF pode demorar.`, { duration: 5000 });
       }
     }
 

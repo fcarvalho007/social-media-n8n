@@ -31,10 +31,11 @@ interface GeneratePDFResponse {
 
 const MAX_PAGES = 300;
 const MAX_SIZE_MB = 100;
-const IMAGE_TIMEOUT_MS = 15000; // 15s per image
+const MAX_INDIVIDUAL_IMAGE_MB = 50; // 50MB per image
+const IMAGE_TIMEOUT_MS = 30000; // 30s per image (increased for larger images)
 const MAX_RETRIES = 2;
 const IMAGE_CONCURRENCY = 3;
-const GLOBAL_TIMEOUT_MS = 90000; // 90s total job timeout
+const GLOBAL_TIMEOUT_MS = 180000; // 180s total job timeout (increased for larger images)
 const GETLATE_BASE_URL = Deno.env.get('GETLATE_BASE_URL') || 'https://getlate.dev/api';
 
 serve(async (req) => {
@@ -111,6 +112,11 @@ serve(async (req) => {
     }
 
     console.log(`[PDF-GEN] Starting PDF generation for ${images.length} images`);
+    console.log(`[PDF-GEN] Limits: ${MAX_PAGES} pages max, ${MAX_SIZE_MB}MB total, ${MAX_INDIVIDUAL_IMAGE_MB}MB per image`);
+    console.log(`[PDF-GEN] Timeouts: ${IMAGE_TIMEOUT_MS}ms per image, ${GLOBAL_TIMEOUT_MS}ms global`);
+
+    // Track total estimated size
+    let totalEstimatedSizeMB = 0;
 
     // 2. Validate each URL (200 + Content-Type: image/*) with concurrency
     console.log('[PDF-GEN] Validating image URLs...');
@@ -162,6 +168,21 @@ serve(async (req) => {
             url: imageUrl,
             reason: `http-${headResponse.status}`
           };
+        }
+
+        // Check Content-Length for size validation
+        const contentLength = headResponse.headers.get('Content-Length');
+        if (contentLength) {
+          const sizeMB = parseInt(contentLength, 10) / (1024 * 1024);
+          console.log(`[PDF-GEN] Image ${index + 1} size: ${sizeMB.toFixed(2)}MB`);
+          
+          if (sizeMB > MAX_INDIVIDUAL_IMAGE_MB) {
+            return {
+              index,
+              url: imageUrl,
+              reason: `size-exceeded: ${sizeMB.toFixed(1)}MB > ${MAX_INDIVIDUAL_IMAGE_MB}MB`
+            };
+          }
         }
 
         // Check if WEBP (not supported by pdf-lib)
