@@ -453,6 +453,29 @@ export function usePublishWithProgress() {
       } else {
         createdPostId = createdPost.id;
         console.log(`[usePublishWithProgress] Post record created with ID: ${createdPostId}`);
+        
+        // Create scheduled_job for tracking if this is a scheduled post
+        if (isScheduledForLater && scheduledDate) {
+          const { error: jobError } = await supabase.from('scheduled_jobs').insert({
+            post_id: createdPostId,
+            job_type: 'post',
+            scheduled_for: scheduledDate.toISOString(),
+            status: 'pending',
+            created_by: user.id,
+            payload: {
+              post_id: createdPostId,
+              formats: consolidatedFormats,
+              caption,
+              media_urls: mediaUrls,
+            },
+          });
+          
+          if (jobError) {
+            console.warn('[usePublishWithProgress] Failed to create scheduled_job:', jobError);
+          } else {
+            console.log(`[usePublishWithProgress] Scheduled job created for post ${createdPostId}`);
+          }
+        }
       }
       
       // Phase 1 complete
