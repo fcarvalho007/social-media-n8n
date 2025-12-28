@@ -1528,6 +1528,58 @@ export default function ManualCreate() {
                 {/* Media Grid - With Files */}
                 {mediaPreviewUrls.length > 0 && (
                   <div className="space-y-3">
+                    {/* Persistent Action Bar - Always visible with clear add more option */}
+                    <div className={cn(
+                      "flex items-center justify-between p-2.5 sm:p-3 rounded-lg border",
+                      mediaPreviewUrls.length >= mediaRequirements.maxMedia 
+                        ? "bg-amber-500/10 border-amber-500/30" 
+                        : "bg-muted/50 border-border"
+                    )}>
+                      <div className="flex items-center gap-2">
+                        <span className={cn(
+                          "text-sm font-medium",
+                          mediaPreviewUrls.length >= mediaRequirements.maxMedia && "text-amber-700 dark:text-amber-300"
+                        )}>
+                          {mediaPreviewUrls.length}/{mediaRequirements.maxMedia}
+                        </span>
+                        {mediaPreviewUrls.length < mediaRequirements.maxMedia ? (
+                          <Badge variant="secondary" className="text-xs">
+                            +{mediaRequirements.maxMedia - mediaPreviewUrls.length} disponíveis
+                          </Badge>
+                        ) : (
+                          <Badge variant="outline" className="text-xs bg-amber-500/20 text-amber-700 dark:text-amber-300 border-amber-500/30">
+                            Limite atingido
+                          </Badge>
+                        )}
+                      </div>
+                      
+                      {mediaPreviewUrls.length < mediaRequirements.maxMedia && (
+                        <Label htmlFor="media-upload-header" className="cursor-pointer">
+                          <Button 
+                            variant="secondary" 
+                            size="sm" 
+                            asChild
+                            className="gap-1.5"
+                          >
+                            <span>
+                              <Plus className="h-4 w-4" />
+                              <span className="hidden sm:inline">Adicionar mais</span>
+                              <span className="sm:hidden">Adicionar</span>
+                            </span>
+                          </Button>
+                          <Input
+                            id="media-upload-header"
+                            type="file"
+                            multiple={mediaRequirements.maxMedia > 1}
+                            accept={getAcceptTypes()}
+                            onChange={handleMediaUpload}
+                            disabled={saving || submitting || isUploading}
+                            className="hidden"
+                          />
+                        </Label>
+                      )}
+                    </div>
+                    
                     {/* Drag hint for first-time users */}
                     {mediaPreviewUrls.length > 1 && (
                       <DragHintTooltip show={mediaPreviewUrls.length > 1} />
@@ -1539,7 +1591,6 @@ export default function ManualCreate() {
                         <span className="hidden sm:inline">Arraste para reordenar ou use as setas</span>
                         <span className="sm:hidden">Pressione e arraste • Use ↑↓</span>
                       </span>
-                      <span className="font-medium">{mediaPreviewUrls.length}/{mediaRequirements.maxMedia}</span>
                     </div>
                     <DndContext
                       sensors={sensors}
@@ -1573,14 +1624,22 @@ export default function ManualCreate() {
                             );
                           })}
                           
-                          {/* Add More Button */}
+                          {/* Add More Button - Enhanced visibility */}
                           {mediaPreviewUrls.length < mediaRequirements.maxMedia && (
                             <Label 
                               htmlFor="media-upload-more"
-                              className="aspect-square rounded-xl border-2 border-dashed border-border hover:border-primary/50 hover:bg-primary/5 flex flex-col items-center justify-center gap-1 cursor-pointer transition-all press-effect"
+                              className={cn(
+                                "aspect-square rounded-xl border-2 border-dashed flex flex-col items-center justify-center gap-1.5 cursor-pointer transition-all press-effect",
+                                "border-primary/40 bg-primary/5 hover:border-primary hover:bg-primary/10",
+                                "min-h-[100px]"
+                              )}
                             >
-                              <Plus className="h-6 w-6 text-muted-foreground" />
-                              <span className="text-xs text-muted-foreground">Adicionar</span>
+                              <div className="p-2 rounded-full bg-primary/20">
+                                <Plus className="h-5 w-5 text-primary" />
+                              </div>
+                              <span className="text-xs font-medium text-primary">
+                                +{mediaRequirements.maxMedia - mediaPreviewUrls.length}
+                              </span>
                               <Input
                                 id="media-upload-more"
                                 type="file"
