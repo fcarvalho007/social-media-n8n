@@ -254,4 +254,8 @@ export interface NetworkConstraints {
   supports_carousel: boolean;
   supports_video: boolean;
   link_character_count?: number;
+  // LinkedIn Document specific limits
+  max_image_size_mb?: number; // Individual image size for PDF conversion
+  max_pdf_size_mb?: number; // Final PDF size limit
+  max_pdf_pages?: number; // Maximum pages in PDF
 }
