@@ -898,18 +898,18 @@ export default function ManualCreate() {
     }
   };
 
-  const handleLoadDraft = (draft: any) => {
+  const handleLoadDraft = useCallback(async (draft: any) => {
     // Map platform back to format
     let format: PostFormat;
     if (draft.platform === 'instagram_carrousel') format = 'instagram_carousel';
     else if (draft.platform === 'instagram_stories') format = 'instagram_stories';
     else if (draft.platform === 'linkedin') format = 'linkedin_post';
+    else if (draft.platform === 'linkedin_document') format = 'linkedin_document';
     else format = 'instagram_carousel';
 
     setSelectedFormats([format]);
     setCaption(draft.caption || '');
-    setMediaPreviewUrls(draft.media_urls || []);
-    setScheduleAsap(draft.publish_immediately);
+    setScheduleAsap(draft.publish_immediately ?? true);
     
     if (draft.scheduled_date) {
       setScheduledDate(new Date(draft.scheduled_date));
@@ -919,7 +919,65 @@ export default function ManualCreate() {
     }
 
     setCurrentDraftId(draft.id);
-  };
+
+    // Load media from URLs and convert to Files
+    const urls = draft.media_urls || [];
+    if (urls.length > 0) {
+      setMediaPreviewUrls(urls);
+      setMediaSources(urls.map(() => 'url' as MediaSource));
+      
+      // Convert URLs to Files for proper publishing
+      toast.info('A carregar ficheiros do rascunho...');
+      const filePromises = urls.map((url: string) => fetchImageAsFile(url));
+      const files = await Promise.all(filePromises);
+      const validFiles = files.filter((f): f is File => f !== null);
+      
+      if (validFiles.length > 0) {
+        setMediaFiles(validFiles);
+        // Detect aspect ratios for each file
+        const aspectRatios = await Promise.all(
+          validFiles.map(file => 
+            file.type.startsWith('video/') 
+              ? detectVideoAspectRatio(file) 
+              : detectImageAspectRatio(file)
+          )
+        );
+        setMediaAspectRatios(aspectRatios);
+        
+        // Advance to appropriate step
+        setVisitedSteps([1, 2, 3]);
+        setCurrentStep(3);
+        
+        toast.success('Rascunho carregado!', {
+          description: `${validFiles.length} ficheiros carregados`
+        });
+      } else {
+        toast.warning('Não foi possível carregar os ficheiros do rascunho');
+      }
+    } else {
+      // No media, just advance to step 2
+      setVisitedSteps([1, 2]);
+      setCurrentStep(2);
+      toast.success('Rascunho carregado!');
+    }
+  }, [fetchImageAsFile]);
+
+  // Load draft from sessionStorage (when coming from Drafts page)
+  useEffect(() => {
+    const savedDraft = sessionStorage.getItem('editDraft');
+    if (savedDraft && !recoverPostId) {
+      try {
+        const draft = JSON.parse(savedDraft);
+        sessionStorage.removeItem('editDraft'); // Clear after reading
+        
+        // Use the handleLoadDraft function to load the draft
+        handleLoadDraft(draft);
+      } catch (error) {
+        console.error('Error loading draft from sessionStorage:', error);
+        sessionStorage.removeItem('editDraft');
+      }
+    }
+  }, [handleLoadDraft, recoverPostId]);
 
   const handleSubmitForApproval = async () => {
     if (hasErrors) {
