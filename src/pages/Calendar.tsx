@@ -17,6 +17,7 @@ import { Calendar as CalendarIcon, Clock, LayoutGrid, Video, TrendingUp, Filter,
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import { useIsMobile } from '@/hooks/use-mobile';
+import { UpcomingPublications } from '@/components/calendar/UpcomingPublications';
 
 const locales = {
   'pt-PT': pt,
@@ -897,6 +898,11 @@ const Calendar = () => {
               )}
                 </div>
               </>
+            )}
+
+            {/* Upcoming Publications Panel */}
+            {!expandedView && (
+              <UpcomingPublications compact />
             )}
 
             {/* Filter Bar - Redesigned */}

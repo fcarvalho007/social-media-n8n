@@ -614,6 +614,84 @@ export type Database = {
         }
         Relationships: []
       }
+      scheduled_jobs: {
+        Row: {
+          attempts: number
+          completed_at: string | null
+          created_at: string
+          created_by: string | null
+          error_log: Json | null
+          error_message: string | null
+          id: string
+          job_type: string
+          last_attempt_at: string | null
+          max_attempts: number
+          next_retry_at: string | null
+          payload: Json | null
+          post_id: string | null
+          scheduled_for: string
+          status: string
+          story_id: string | null
+          updated_at: string
+          webhook_url: string | null
+        }
+        Insert: {
+          attempts?: number
+          completed_at?: string | null
+          created_at?: string
+          created_by?: string | null
+          error_log?: Json | null
+          error_message?: string | null
+          id?: string
+          job_type?: string
+          last_attempt_at?: string | null
+          max_attempts?: number
+          next_retry_at?: string | null
+          payload?: Json | null
+          post_id?: string | null
+          scheduled_for: string
+          status?: string
+          story_id?: string | null
+          updated_at?: string
+          webhook_url?: string | null
+        }
+        Update: {
+          attempts?: number
+          completed_at?: string | null
+          created_at?: string
+          created_by?: string | null
+          error_log?: Json | null
+          error_message?: string | null
+          id?: string
+          job_type?: string
+          last_attempt_at?: string | null
+          max_attempts?: number
+          next_retry_at?: string | null
+          payload?: Json | null
+          post_id?: string | null
+          scheduled_for?: string
+          status?: string
+          story_id?: string | null
+          updated_at?: string
+          webhook_url?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "scheduled_jobs_post_id_fkey"
+            columns: ["post_id"]
+            isOneToOne: false
+            referencedRelation: "posts"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "scheduled_jobs_story_id_fkey"
+            columns: ["story_id"]
+            isOneToOne: false
+            referencedRelation: "stories"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       social_profiles: {
         Row: {
           access_token: string | null
@@ -876,6 +954,7 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      calculate_next_retry: { Args: { attempts: number }; Returns: string }
       can_publish_to_instagram: {
         Args: { p_user_id: string }
         Returns: boolean
