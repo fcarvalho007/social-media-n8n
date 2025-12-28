@@ -408,6 +408,12 @@ export function usePublishWithProgress() {
       const postType = consolidatedFormats.some(f => f.includes('carousel') || f === 'linkedin_document') ? 'carousel' : 
                        consolidatedFormats.some(f => f.includes('video') || f.includes('reel') || f.includes('shorts')) ? 'video' : 'image';
       
+      // Determine if this is a scheduled post (future date + not ASAP)
+      const isScheduledForLater = !scheduleAsap && scheduledDate && scheduledDate > new Date();
+      const initialStatus = isScheduledForLater ? 'scheduled' : 'publishing';
+      
+      console.log(`[usePublishWithProgress] Publication mode: ${isScheduledForLater ? 'SCHEDULED' : 'IMMEDIATE'}, status: ${initialStatus}`);
+      
       const initialPostData = {
         user_id: user.id,
         post_type: postType,
@@ -415,7 +421,7 @@ export function usePublishWithProgress() {
         caption,
         scheduled_date: scheduledDate ? scheduledDate.toISOString() : new Date().toISOString(),
         schedule_asap: scheduleAsap,
-        status: 'publishing', // New status to track in-progress publications
+        status: initialStatus,
         origin_mode: 'manual',
         tema: caption.substring(0, 50) || 'Manual post',
         template_a_images: mediaUrls.length > 0 ? mediaUrls : [''],
@@ -662,12 +668,21 @@ export function usePublishWithProgress() {
       const hasSuccess = successfulFormats.length > 0;
       const hasFailed = failedFormats.length > 0;
       
-      // Determine final status
-      let finalStatus = 'published';
+      // Determine final status - consider if this was a scheduled post
+      const isScheduledPost = !scheduleAsap && scheduledDate && scheduledDate > new Date();
+      let finalStatus = isScheduledPost ? 'scheduled' : 'published';
       if (!hasSuccess && hasFailed) {
         finalStatus = 'failed';
       } else if (hasSuccess && hasFailed) {
-        finalStatus = 'published'; // Partial success still counts as published
+        finalStatus = isScheduledPost ? 'scheduled' : 'published'; // Partial success
+      }
+      
+      // Show specific toast for scheduled posts
+      if (finalStatus === 'scheduled' && hasSuccess) {
+        const formattedDate = scheduledDate ? 
+          `${scheduledDate.toLocaleDateString('pt-PT')} às ${scheduledDate.toLocaleTimeString('pt-PT', { hour: '2-digit', minute: '2-digit' })}` : 
+          '';
+        toast.success(`📅 Publicação agendada para ${formattedDate}`, { duration: 5000 });
       }
       
       // ═══════════════════════════════════════════

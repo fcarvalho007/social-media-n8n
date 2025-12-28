@@ -224,7 +224,7 @@ const Calendar = () => {
         supabase
           .from('posts')
           .select('id, tema, content_type, status, scheduled_date, reviewed_at, created_at, published_at, template_a_images, error_log, failed_at, recovery_token, selected_networks')
-          .in('status', ['approved', 'published', 'failed']),
+          .in('status', ['approved', 'published', 'failed', 'scheduled']),
         supabase
           .from('stories')
           .select('id, tema, status, scheduled_date, reviewed_at, created_at, story_image_url')
@@ -420,13 +420,25 @@ const Calendar = () => {
     const isPublished = event.resource.status === 'published';
     const isApproved = event.resource.status === 'approved';
     const isFailed = event.resource.status === 'failed';
+    const isScheduled = event.resource.status === 'scheduled';
+    
+    // Check if approved post has future scheduled_date (legacy scheduled posts)
+    const isLegacyScheduled = isApproved && 
+      event.resource.scheduled_date && 
+      new Date(event.resource.scheduled_date) > new Date();
     
     let backgroundColor;
     let border = 'none';
+    let borderStyle = 'solid';
     
     if (isFailed) {
       backgroundColor = '#EF4444';
       border = '2px solid #DC2626';
+    } else if (isScheduled || isLegacyScheduled) {
+      // Scheduled posts - blue with dashed border for clear distinction
+      backgroundColor = '#3B82F6';
+      border = '2px dashed #1D4ED8';
+      borderStyle = 'dashed';
     } else if (isPublished) {
       backgroundColor = '#10B981';
       border = '2px solid #059669';
@@ -443,6 +455,7 @@ const Calendar = () => {
         borderRadius: '8px',
         color: 'white',
         border,
+        borderStyle,
         display: 'block',
         fontSize: '13px',
         fontWeight: '600',
@@ -491,8 +504,11 @@ const Calendar = () => {
     const stories = monthEvents.filter(e => e.resource.content_type === 'stories').length;
     const failed = monthEvents.filter(e => e.resource.status === 'failed').length;
     const scheduled = monthEvents.filter(e => {
+      // Count posts with explicit 'scheduled' status + approved posts with future date
       const eventDate = startOfDay(e.start as Date);
-      return eventDate > today && e.resource.status === 'approved';
+      const isScheduledStatus = e.resource.status === 'scheduled';
+      const isLegacyScheduled = e.resource.status === 'approved' && eventDate > today;
+      return isScheduledStatus || isLegacyScheduled;
     }).length;
     const published = monthEvents.filter(e => e.resource.status === 'published').length;
     
@@ -933,8 +949,12 @@ const Calendar = () => {
                     <span className="text-muted-foreground">Publicado</span>
                   </span>
                   <span className="flex items-center gap-1.5">
-                    <div className="h-2.5 w-2.5 rounded-full bg-amber-500"></div>
+                    <div className="h-2.5 w-2.5 rounded-full bg-blue-500 border border-dashed border-blue-700"></div>
                     <span className="text-muted-foreground">Agendado</span>
+                  </span>
+                  <span className="flex items-center gap-1.5">
+                    <div className="h-2.5 w-2.5 rounded-full bg-amber-500"></div>
+                    <span className="text-muted-foreground">Aprovado</span>
                   </span>
                   {monthStats.failed > 0 && (
                     <span className="flex items-center gap-1.5">
