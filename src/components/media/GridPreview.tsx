@@ -68,9 +68,12 @@ function SortableThumbnail({ image, onToggleSelect, onRemove, disabled }: Sortab
   return (
     <div
       ref={setNodeRef}
-      style={style}
+      style={{
+        ...style,
+        aspectRatio: image.width && image.height ? `${image.width}/${image.height}` : '1/1',
+      }}
       className={cn(
-        "relative aspect-square rounded-lg border-2 overflow-hidden group",
+        "relative rounded-lg border-2 overflow-hidden group",
         "bg-muted/50 transition-all duration-200",
         isDragging && "opacity-50 scale-105 z-50 shadow-lg",
         image.selected ? "border-primary" : "border-border",
