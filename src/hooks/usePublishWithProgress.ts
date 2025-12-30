@@ -11,6 +11,7 @@ import {
   PlatformResult,
   PlatformStatus 
 } from '@/components/publishing/PublishProgressModal';
+import { parseStructuredError, type StructuredError } from '@/lib/publishingErrors';
 import { toast } from 'sonner';
 
 // Initial state
@@ -134,10 +135,16 @@ export function usePublishWithProgress() {
   }, []);
   
   // Update single platform status
-  const updatePlatformStatus = useCallback((format: string, status: PlatformStatus, errorMessage?: string, postUrl?: string) => {
+  const updatePlatformStatus = useCallback((
+    format: string, 
+    status: PlatformStatus, 
+    errorMessage?: string, 
+    postUrl?: string,
+    structuredError?: StructuredError
+  ) => {
     setProgress(prev => {
       const updatedPlatforms = prev.phase2.platforms.map(p => 
-        p.format === format ? { ...p, status, errorMessage, postUrl } : p
+        p.format === format ? { ...p, status, errorMessage, postUrl, structuredError } : p
       );
       
       const successCount = updatedPlatforms.filter(p => p.status === 'success').length;
@@ -612,29 +619,38 @@ export function usePublishWithProgress() {
             updatePlatformStatus(format, 'error', 'Erro de comunicação');
           } else if (!publishResult?.success) {
             console.error(`[usePublishWithProgress] [${publishSessionId}] ${format} returned failure:`, publishResult?.error);
-            // Extract detailed error message from API response
-            let detailedError = publishResult?.error || 'Falha na publicação';
             
-            // Try to parse and extract more specific error from response
-            if (publishResult?.details) {
-              detailedError = publishResult.details;
+            // Check if error is a structured error object from edge function
+            let detailedError = 'Falha na publicação';
+            let structuredError: StructuredError | null = null;
+            
+            if (publishResult?.error && typeof publishResult.error === 'object') {
+              // New structured error format from edge function
+              structuredError = parseStructuredError(publishResult.error);
+              detailedError = structuredError?.message || 'Falha na publicação';
             } else if (publishResult?.error && typeof publishResult.error === 'string') {
-              // Try to extract error from JSON string if present
+              detailedError = publishResult.error;
+              // Try to parse if it's a JSON string
               try {
                 const parsed = JSON.parse(publishResult.error);
                 if (parsed.message) detailedError = parsed.message;
-                if (parsed.error) detailedError = parsed.error;
+                if (parsed.code) {
+                  structuredError = parseStructuredError(parsed);
+                }
               } catch {
                 // Use original error if not JSON
               }
+            } else if (publishResult?.details) {
+              detailedError = publishResult.details;
             }
             
             platformResults.set(format, { 
               ...platformResults.get(format)!, 
               status: 'error', 
-              errorMessage: detailedError 
+              errorMessage: detailedError,
+              structuredError: structuredError || undefined,
             });
-            updatePlatformStatus(format, 'error', detailedError);
+            updatePlatformStatus(format, 'error', detailedError, undefined, structuredError || undefined);
           } else {
             console.log(`[usePublishWithProgress] [${publishSessionId}] ✅ ${format} published successfully`);
             platformResults.set(format, { 

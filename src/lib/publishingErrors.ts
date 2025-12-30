@@ -5,82 +5,180 @@ export interface ErrorInfo {
   description: string;
   action: string;
   isRetryable: boolean;
+  source?: 'getlate' | 'platform' | 'internal' | 'unknown';
+}
+
+// Structured error from edge function
+export interface StructuredError {
+  message: string;
+  code: string;
+  source: 'getlate' | 'platform' | 'internal' | 'unknown';
+  originalError: string;
+  isRetryable: boolean;
+  suggestedAction: string;
 }
 
 export const ERROR_MESSAGES: Record<string, ErrorInfo> = {
   rate_limit: {
     title: 'Limite de ações',
-    description: 'O Instagram bloqueou temporariamente. Aguarda 15-30 minutos.',
+    description: 'A plataforma bloqueou temporariamente. Aguarda 15-30 minutos.',
     action: 'Tenta novamente em 15min',
     isRetryable: true,
+    source: 'platform',
   },
   account_error: {
     title: 'Conta não associada',
     description: 'A conta de rede social não está ligada ao teu utilizador Getlate.',
     action: 'Reconecta a conta no Getlate.dev',
     isRetryable: false,
+    source: 'getlate',
+  },
+  token_expired: {
+    title: 'Token expirado',
+    description: 'A sessão com a rede social expirou. É necessário reconectar a conta.',
+    action: 'Reconecta a conta no Getlate.dev',
+    isRetryable: false,
+    source: 'platform',
   },
   auth_error: {
     title: 'Sessão expirada',
-    description: 'A ligação com a rede social expirou.',
-    action: 'Reconecta a conta',
+    description: 'A tua sessão na app expirou.',
+    action: 'Faz login novamente',
     isRetryable: false,
+    source: 'internal',
+  },
+  caption_error: {
+    title: 'Erro na legenda',
+    description: 'A legenda contém caracteres, links ou hashtags inválidos para a plataforma.',
+    action: 'Revê e edita a legenda',
+    isRetryable: false,
+    source: 'platform',
   },
   media_error: {
     title: 'Erro no ficheiro',
-    description: 'O formato, tamanho ou proporção do ficheiro não é suportado pelo Instagram.',
+    description: 'O formato, tamanho ou proporção do ficheiro não é suportado pela plataforma.',
     action: 'Redimensiona para 4:5 (1080x1350px)',
     isRetryable: false,
+    source: 'platform',
   },
   network_error: {
     title: 'Erro de ligação',
     description: 'Não foi possível comunicar com o servidor.',
-    action: 'Verifica a internet',
+    action: 'Verifica a internet e tenta novamente',
     isRetryable: true,
+    source: 'internal',
   },
   quota_exceeded: {
     title: 'Quota esgotada',
-    description: 'Atingiste o limite de publicações do plano.',
-    action: 'Aguarda pelo reset',
+    description: 'Atingiste o limite de publicações do plano Getlate.',
+    action: 'Aguarda pelo reset ou faz upgrade',
     isRetryable: false,
+    source: 'getlate',
   },
   api_error: {
-    title: 'Erro da API',
-    description: 'A API da rede social retornou um erro.',
-    action: 'Tenta novamente',
+    title: 'Erro do servidor',
+    description: 'O servidor Getlate retornou um erro temporário.',
+    action: 'Tenta novamente em alguns minutos',
     isRetryable: true,
+    source: 'getlate',
   },
   upload_error: {
     title: 'Erro no upload',
-    description: 'Não foi possível carregar os ficheiros.',
+    description: 'Não foi possível carregar os ficheiros para o servidor.',
     action: 'Tenta novamente',
     isRetryable: true,
+    source: 'internal',
   },
   unknown: {
     title: 'Erro inesperado',
     description: 'Ocorreu um problema desconhecido.',
-    action: 'Tenta novamente',
+    action: 'Tenta novamente ou contacta o suporte',
     isRetryable: true,
+    source: 'unknown',
   },
 };
+
+// Parse structured error from edge function response
+export function parseStructuredError(error: any): StructuredError | null {
+  if (error && typeof error === 'object' && error.code && error.source) {
+    return {
+      message: error.message || 'Erro desconhecido',
+      code: error.code,
+      source: error.source,
+      originalError: error.originalError || error.message,
+      isRetryable: error.isRetryable ?? true,
+      suggestedAction: error.suggestedAction || 'Tenta novamente',
+    };
+  }
+  return null;
+}
+
+// Get error info from structured error or fallback to classification
+export function getErrorInfoFromStructured(structuredError: StructuredError): ErrorInfo {
+  const codeToKey: Record<string, string> = {
+    'RATE_LIMIT': 'rate_limit',
+    'ACCOUNT_ERROR': 'account_error',
+    'TOKEN_EXPIRED': 'token_expired',
+    'AUTH_ERROR': 'auth_error',
+    'CAPTION_ERROR': 'caption_error',
+    'MEDIA_ERROR': 'media_error',
+    'NETWORK_ERROR': 'network_error',
+    'QUOTA_EXCEEDED': 'quota_exceeded',
+    'API_ERROR': 'api_error',
+    'UPLOAD_ERROR': 'upload_error',
+    'UNKNOWN': 'unknown',
+  };
+  
+  const key = codeToKey[structuredError.code] || 'unknown';
+  const baseInfo = ERROR_MESSAGES[key] || ERROR_MESSAGES.unknown;
+  
+  // Override with structured error's suggested action if more specific
+  return {
+    ...baseInfo,
+    action: structuredError.suggestedAction || baseInfo.action,
+    source: structuredError.source,
+    isRetryable: structuredError.isRetryable,
+  };
+}
 
 export function classifyError(errorMessage: string | undefined): string {
   if (!errorMessage) return 'unknown';
   
   const lower = errorMessage.toLowerCase();
   
+  // Rate limit errors
   if (lower.includes('too many actions') || lower.includes('rate limit') || lower.includes('429') || lower.includes('please wait') || lower.includes('media container')) {
     return 'rate_limit';
   }
+  
   // Account/permission errors (403, accounts not belonging to user)
   if (lower.includes('403') || lower.includes('forbidden') || 
       lower.includes('do not belong') || lower.includes('permission denied') ||
       (lower.includes('account') && lower.includes('user'))) {
     return 'account_error';
   }
-  if (lower.includes('auth') || lower.includes('token') || lower.includes('session') || lower.includes('unauthorized') || lower.includes('401')) {
+  
+  // Token/OAuth specific errors
+  if (lower.includes('token') && (lower.includes('expired') || lower.includes('invalid') || lower.includes('code 190'))) {
+    return 'token_expired';
+  }
+  if (lower.includes('oauth') || lower.includes('session has expired')) {
+    return 'token_expired';
+  }
+  
+  // Generic auth errors
+  if (lower.includes('auth') || lower.includes('session') || lower.includes('unauthorized') || lower.includes('401')) {
     return 'auth_error';
   }
+  
+  // Caption/content errors
+  if (lower.includes('caption') || lower.includes('character') || 
+      (lower.includes('text') && (lower.includes('long') || lower.includes('invalid'))) ||
+      (lower.includes('hashtag') && lower.includes('invalid')) ||
+      (lower.includes('link') && lower.includes('invalid'))) {
+    return 'caption_error';
+  }
+  
   // Enhanced media error detection for aspect ratio, dimensions, resize issues
   if (lower.includes('media') || lower.includes('format') || lower.includes('size') || 
       lower.includes('aspect') || lower.includes('ratio') || lower.includes('unsupported') ||
@@ -89,16 +187,24 @@ export function classifyError(errorMessage: string | undefined): string {
       lower.includes('image') || lower.includes('allowed range')) {
     return 'media_error';
   }
-  if (lower.includes('network') || lower.includes('timeout') || lower.includes('connection') || lower.includes('fetch')) {
+  
+  // Network/connectivity errors
+  if (lower.includes('network') || lower.includes('timeout') || lower.includes('connection') || lower.includes('fetch') || lower.includes('econnrefused')) {
     return 'network_error';
   }
-  if (lower.includes('quota') || lower.includes('limit exceeded')) {
+  
+  // Quota errors
+  if (lower.includes('quota') || lower.includes('limit exceeded') || lower.includes('upload limit')) {
     return 'quota_exceeded';
   }
+  
+  // Upload errors
   if (lower.includes('upload') || lower.includes('carregar')) {
     return 'upload_error';
   }
-  if (lower.includes('api') || lower.includes('500') || lower.includes('502') || lower.includes('503')) {
+  
+  // API/server errors
+  if (lower.includes('api') || lower.includes('500') || lower.includes('502') || lower.includes('503') || lower.includes('internal server')) {
     return 'api_error';
   }
   
@@ -112,4 +218,18 @@ export function getErrorInfo(errorMessage: string | undefined): ErrorInfo {
 
 export function isRateLimitError(errorMessage: string | undefined): boolean {
   return classifyError(errorMessage) === 'rate_limit';
+}
+
+// Get source label in Portuguese
+export function getSourceLabel(source: string): { label: string; emoji: string } {
+  switch (source) {
+    case 'getlate':
+      return { label: 'Getlate', emoji: '🔗' };
+    case 'platform':
+      return { label: 'Rede Social', emoji: '📱' };
+    case 'internal':
+      return { label: 'Interno', emoji: '⚙️' };
+    default:
+      return { label: 'Desconhecido', emoji: '❓' };
+  }
 }

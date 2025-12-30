@@ -4,14 +4,24 @@ import {
   Check, X, ExternalLink, Calendar, 
   PartyPopper, AlertCircle, Loader2, Copy, Share2,
   Instagram, Linkedin, Youtube, Facebook, RefreshCw, Clock,
-  Upload, Globe, Plus, Download, FileText, Image, Video
+  Upload, Globe, Plus, Download, FileText, Image, Video,
+  ChevronDown, ChevronUp, Info
 } from 'lucide-react';
 import { Dialog, DialogContent } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Progress } from '@/components/ui/progress';
+import { Badge } from '@/components/ui/badge';
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
 import { toast } from 'sonner';
 import { cn } from '@/lib/utils';
-import { getErrorInfo, isRateLimitError } from '@/lib/publishingErrors';
+import { 
+  getErrorInfo, 
+  isRateLimitError, 
+  parseStructuredError, 
+  getErrorInfoFromStructured,
+  getSourceLabel,
+  type StructuredError 
+} from '@/lib/publishingErrors';
 import { downloadFailedPublicationAssets, downloadSingleFile, copyToClipboard } from '@/lib/downloadUtils';
 
 // Types
@@ -26,6 +36,7 @@ export interface PlatformResult {
   status: PlatformStatus;
   postUrl?: string;
   errorMessage?: string;
+  structuredError?: StructuredError;
 }
 
 export interface PublishProgress {
@@ -168,7 +179,7 @@ function PhaseCard({
   );
 }
 
-// Platform Status Row
+// Platform Status Row with enhanced error display
 function PlatformStatusRow({ 
   result, 
   onRetry 
@@ -176,102 +187,174 @@ function PlatformStatusRow({
   result: PlatformResult;
   onRetry?: () => void;
 }) {
-  const errorInfo = result.errorMessage ? getErrorInfo(result.errorMessage) : null;
+  const [showDetails, setShowDetails] = useState(false);
+  
+  // Try to parse structured error first, then fall back to string classification
+  const structuredError = result.structuredError || (result.errorMessage ? parseStructuredError(result.errorMessage) : null);
+  const errorInfo = structuredError 
+    ? getErrorInfoFromStructured(structuredError) 
+    : (result.errorMessage ? getErrorInfo(result.errorMessage) : null);
   const isRateLimit = isRateLimitError(result.errorMessage);
+  
+  const sourceInfo = structuredError ? getSourceLabel(structuredError.source) : null;
   
   return (
     <div className={cn(
-      "flex items-center gap-3 p-3 rounded-lg transition-all duration-300",
+      "flex flex-col gap-2 p-3 rounded-lg transition-all duration-300",
       result.status === 'pending' && "bg-muted/30",
       result.status === 'processing' && "bg-primary/5 ring-2 ring-primary/30 animate-pulse",
       result.status === 'success' && "bg-green-500/10",
       result.status === 'error' && "bg-red-500/10"
     )}>
-      {/* Platform icon */}
-      <div 
-        className="w-9 h-9 rounded-lg flex items-center justify-center flex-shrink-0"
-        style={{ backgroundColor: `${platformColors[result.platform]}15` }}
-      >
-        <PlatformIcon platform={result.platform} size={18} color={platformColors[result.platform]} />
-      </div>
-      
-      {/* Info */}
-      <div className="flex-1 min-w-0">
-        <div className="flex items-center gap-2">
-          <span className="text-sm font-medium">{getPlatformName(result.platform)}</span>
-          <span className="text-xs text-muted-foreground truncate">{result.formatLabel}</span>
+      <div className="flex items-center gap-3">
+        {/* Platform icon */}
+        <div 
+          className="w-9 h-9 rounded-lg flex items-center justify-center flex-shrink-0"
+          style={{ backgroundColor: `${platformColors[result.platform]}15` }}
+        >
+          <PlatformIcon platform={result.platform} size={18} color={platformColors[result.platform]} />
         </div>
         
-        {result.status === 'pending' && (
-          <span className="text-xs text-muted-foreground">A aguardar...</span>
-        )}
-        
-        {result.status === 'processing' && (
-          <div className="flex items-center gap-1.5">
-            <span className="text-xs text-primary flex items-center gap-1.5">
-              <Loader2 className="h-3 w-3 animate-spin" />
-              A processar...
-            </span>
-            <span className="relative flex h-2 w-2">
-              <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-primary opacity-75"></span>
-              <span className="relative inline-flex rounded-full h-2 w-2 bg-primary"></span>
-            </span>
+        {/* Info */}
+        <div className="flex-1 min-w-0">
+          <div className="flex items-center gap-2">
+            <span className="text-sm font-medium">{getPlatformName(result.platform)}</span>
+            <span className="text-xs text-muted-foreground truncate">{result.formatLabel}</span>
           </div>
-        )}
-        
-        {result.status === 'success' && (
-          <span className="text-xs text-green-600">Publicado com sucesso</span>
-        )}
-        
-        {result.status === 'error' && (
-          <div className="space-y-1">
-            {isRateLimit ? (
-              <span className="text-xs text-amber-600 flex items-center gap-1">
-                <Clock className="h-3 w-3" />
-                {errorInfo?.description}
+          
+          {result.status === 'pending' && (
+            <span className="text-xs text-muted-foreground">A aguardar...</span>
+          )}
+          
+          {result.status === 'processing' && (
+            <div className="flex items-center gap-1.5">
+              <span className="text-xs text-primary flex items-center gap-1.5">
+                <Loader2 className="h-3 w-3 animate-spin" />
+                A processar...
               </span>
-            ) : (
-              <div className="flex flex-col gap-0.5">
+              <span className="relative flex h-2 w-2">
+                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-primary opacity-75"></span>
+                <span className="relative inline-flex rounded-full h-2 w-2 bg-primary"></span>
+              </span>
+            </div>
+          )}
+          
+          {result.status === 'success' && (
+            <span className="text-xs text-green-600">Publicado com sucesso</span>
+          )}
+          
+          {result.status === 'error' && (
+            <div className="space-y-1">
+              {/* Error title with source badge */}
+              <div className="flex items-center gap-2 flex-wrap">
                 <span className="text-xs text-red-600 font-medium">
                   {errorInfo?.title || 'Erro'}
                 </span>
-                <span className="text-xs text-red-600/80">
-                  {/* Show original API error if it's more specific than generic description */}
-                  {result.errorMessage && result.errorMessage.length > 20 
-                    ? result.errorMessage 
-                    : (errorInfo?.description || result.errorMessage || 'Erro ao publicar')}
-                </span>
-                {errorInfo?.action && (
-                  <span className="text-xs text-muted-foreground mt-0.5">
-                    💡 {errorInfo.action}
-                  </span>
+                {sourceInfo && (
+                  <Badge variant="outline" className="text-[10px] px-1.5 py-0 h-4 border-muted-foreground/30">
+                    {sourceInfo.emoji} {sourceInfo.label}
+                  </Badge>
                 )}
               </div>
+              
+              {/* Error description */}
+              {isRateLimit ? (
+                <span className="text-xs text-amber-600 flex items-center gap-1">
+                  <Clock className="h-3 w-3" />
+                  {errorInfo?.description}
+                </span>
+              ) : (
+                <span className="text-xs text-red-600/80">
+                  {errorInfo?.description || result.errorMessage || 'Erro ao publicar'}
+                </span>
+              )}
+              
+              {/* Suggested action */}
+              {errorInfo?.action && (
+                <span className="text-xs text-muted-foreground flex items-center gap-1">
+                  💡 {errorInfo.action}
+                </span>
+              )}
+            </div>
+          )}
+        </div>
+        
+        {/* Actions */}
+        {result.status === 'success' && result.postUrl && (
+          <a
+            href={result.postUrl}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="flex items-center gap-1 text-xs text-primary hover:underline flex-shrink-0"
+          >
+            Ver <ExternalLink className="h-3 w-3" />
+          </a>
+        )}
+        
+        {result.status === 'error' && (
+          <div className="flex items-center gap-1 flex-shrink-0">
+            {structuredError?.originalError && (
+              <button
+                onClick={() => setShowDetails(!showDetails)}
+                className="flex items-center gap-1 text-xs px-2 py-1 rounded bg-muted/50 hover:bg-muted transition-colors"
+                title="Ver detalhes técnicos"
+              >
+                <Info className="h-3 w-3" />
+                {showDetails ? <ChevronUp className="h-3 w-3" /> : <ChevronDown className="h-3 w-3" />}
+              </button>
+            )}
+            {onRetry && errorInfo?.isRetryable && (
+              <button
+                onClick={onRetry}
+                className="flex items-center gap-1 text-xs px-2 py-1 rounded bg-muted hover:bg-muted/80 transition-colors"
+              >
+                <RefreshCw className="h-3 w-3" />
+                Retry
+              </button>
             )}
           </div>
         )}
       </div>
       
-      {/* Actions */}
-      {result.status === 'success' && result.postUrl && (
-        <a
-          href={result.postUrl}
-          target="_blank"
-          rel="noopener noreferrer"
-          className="flex items-center gap-1 text-xs text-primary hover:underline flex-shrink-0"
+      {/* Technical details (collapsible) */}
+      {result.status === 'error' && showDetails && structuredError?.originalError && (
+        <motion.div
+          initial={{ opacity: 0, height: 0 }}
+          animate={{ opacity: 1, height: 'auto' }}
+          exit={{ opacity: 0, height: 0 }}
+          className="ml-12 mt-1"
         >
-          Ver <ExternalLink className="h-3 w-3" />
-        </a>
-      )}
-      
-      {result.status === 'error' && onRetry && (
-        <button
-          onClick={onRetry}
-          className="flex items-center gap-1 text-xs px-2 py-1 rounded bg-muted hover:bg-muted/80 transition-colors flex-shrink-0"
-        >
-          <RefreshCw className="h-3 w-3" />
-          Retry
-        </button>
+          <div className="bg-muted/50 rounded p-2 border border-border/50">
+            <p className="text-[10px] text-muted-foreground font-medium mb-1">Detalhes técnicos:</p>
+            <code className="text-[10px] text-muted-foreground break-all block">
+              {structuredError.originalError}
+            </code>
+          </div>
+          
+          {/* Contextual action buttons */}
+          <div className="flex gap-2 mt-2">
+            {(structuredError.code === 'ACCOUNT_ERROR' || structuredError.code === 'TOKEN_EXPIRED') && (
+              <a
+                href="https://getlate.dev/accounts"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="inline-flex items-center gap-1 text-xs px-2 py-1 rounded bg-primary/10 text-primary hover:bg-primary/20 transition-colors"
+              >
+                <ExternalLink className="h-3 w-3" />
+                Abrir Getlate.dev
+              </a>
+            )}
+            {structuredError.code === 'MEDIA_ERROR' && (
+              <button
+                onClick={() => toast.info('Dica: Usa proporção 4:5 (1080x1350px) ou 1:1 (1080x1080px) para melhor compatibilidade.')}
+                className="inline-flex items-center gap-1 text-xs px-2 py-1 rounded bg-primary/10 text-primary hover:bg-primary/20 transition-colors"
+              >
+                <Info className="h-3 w-3" />
+                Ver requisitos
+              </button>
+            )}
+          </div>
+        </motion.div>
       )}
     </div>
   );
