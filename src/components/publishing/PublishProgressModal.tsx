@@ -370,7 +370,7 @@ export function PublishProgressModal({
     
     return {
       icon: <X className="h-8 w-8 text-white" />,
-      title: phase1.status === 'error' ? 'Falha no envio' : 'Falha na publicação',
+      title: phase1.status === 'error' ? 'Falha no envio' : 'Falha na plataforma',
       bgColor: 'bg-gradient-to-br from-red-400 to-rose-600',
       showProgress: false,
     };
@@ -501,31 +501,50 @@ export function PublishProgressModal({
             )}
           </PhaseCard>
 
-          {/* Recovery Section - Redesigned */}
-          {isComplete && (hasTotalFailure || hasPartialSuccess) && mediaFiles.length > 0 && (
+          {/* Content Download Section - Always visible when complete and has media */}
+          {isComplete && mediaFiles.length > 0 && (
             <motion.div
-              className="rounded-xl border border-amber-500/30 bg-amber-50/50 dark:bg-amber-500/5 p-5"
+              className={cn(
+                "rounded-xl border p-4 sm:p-5",
+                hasTotalFailure || hasPartialSuccess 
+                  ? "border-amber-500/30 bg-amber-50/50 dark:bg-amber-500/5"
+                  : "border-border bg-muted/30"
+              )}
               initial={{ opacity: 0, y: 10 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ delay: 0.15 }}
             >
               {/* Section Header */}
               <div className="flex items-center gap-2 mb-4">
-                <div className="w-8 h-8 rounded-lg bg-amber-500/20 flex items-center justify-center">
-                  <Download className="h-4 w-4 text-amber-600" />
+                <div className={cn(
+                  "w-8 h-8 rounded-lg flex items-center justify-center",
+                  hasTotalFailure || hasPartialSuccess 
+                    ? "bg-amber-500/20"
+                    : "bg-primary/10"
+                )}>
+                  <Download className={cn(
+                    "h-4 w-4",
+                    hasTotalFailure || hasPartialSuccess 
+                      ? "text-amber-600"
+                      : "text-primary"
+                  )} />
                 </div>
                 <div>
-                  <h3 className="font-semibold text-sm">Recuperação Rápida</h3>
+                  <h3 className="font-semibold text-sm">
+                    {hasTotalFailure || hasPartialSuccess ? 'Recuperação Rápida' : 'Download do Conteúdo'}
+                  </h3>
                   <p className="text-xs text-muted-foreground">
-                    Descarregue os ficheiros para publicar manualmente
+                    {hasTotalFailure || hasPartialSuccess 
+                      ? 'Descarregue os ficheiros para publicar manualmente'
+                      : 'Guarde um ZIP com ficheiros + legenda (backup)'}
                   </p>
                 </div>
               </div>
               
-              {/* Action Buttons */}
-              <div className="flex gap-3 mb-5">
+              {/* Action Buttons - Stack on mobile */}
+              <div className="flex flex-col sm:flex-row gap-2 sm:gap-3 mb-4 sm:mb-5">
                 <Button
-                  variant="default"
+                  variant={hasTotalFailure || hasPartialSuccess ? "default" : "outline"}
                   size="default"
                   onClick={async () => {
                     setIsDownloading(true);
@@ -569,12 +588,12 @@ export function PublishProgressModal({
                 )}
               </div>
               
-              {/* Media Thumbnails Grid */}
+              {/* Media Thumbnails Grid - Responsive */}
               <div>
-                <p className="text-xs font-medium text-muted-foreground mb-3">
+                <p className="text-xs font-medium text-muted-foreground mb-2 sm:mb-3">
                   Ficheiros ({mediaFiles.length})
                 </p>
-                <div className="grid grid-cols-5 gap-2">
+                <div className="grid grid-cols-3 sm:grid-cols-5 gap-2">
                   {mediaFiles.slice(0, 9).map((file, idx) => {
                     const isVideo = file.type.startsWith('video/');
                     const previewUrl = URL.createObjectURL(file);
@@ -615,7 +634,7 @@ export function PublishProgressModal({
                       >
                         {isVideo ? (
                           <div className="w-full h-full bg-muted flex items-center justify-center">
-                            <Video className="h-6 w-6 text-muted-foreground" />
+                            <Video className="h-5 w-5 sm:h-6 sm:w-6 text-muted-foreground" />
                           </div>
                         ) : (
                           <img
@@ -626,11 +645,11 @@ export function PublishProgressModal({
                           />
                         )}
                         <div className="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
-                          <Download className="h-5 w-5 text-white" />
+                          <Download className="h-4 w-4 sm:h-5 sm:w-5 text-white" />
                         </div>
                         {isVideo && (
-                          <div className="absolute bottom-1 right-1 bg-black/60 rounded px-1.5 py-0.5">
-                            <Video className="h-3 w-3 text-white" />
+                          <div className="absolute bottom-1 right-1 bg-black/60 rounded px-1 sm:px-1.5 py-0.5">
+                            <Video className="h-2.5 w-2.5 sm:h-3 sm:w-3 text-white" />
                           </div>
                         )}
                       </button>
