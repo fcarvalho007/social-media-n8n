@@ -14,6 +14,12 @@ export const ERROR_MESSAGES: Record<string, ErrorInfo> = {
     action: 'Tenta novamente em 15min',
     isRetryable: true,
   },
+  account_error: {
+    title: 'Conta não associada',
+    description: 'A conta de rede social não está ligada ao teu utilizador Getlate.',
+    action: 'Reconecta a conta no Getlate.dev',
+    isRetryable: false,
+  },
   auth_error: {
     title: 'Sessão expirada',
     description: 'A ligação com a rede social expirou.',
@@ -65,6 +71,12 @@ export function classifyError(errorMessage: string | undefined): string {
   
   if (lower.includes('too many actions') || lower.includes('rate limit') || lower.includes('429') || lower.includes('please wait') || lower.includes('media container')) {
     return 'rate_limit';
+  }
+  // Account/permission errors (403, accounts not belonging to user)
+  if (lower.includes('403') || lower.includes('forbidden') || 
+      lower.includes('do not belong') || lower.includes('permission denied') ||
+      (lower.includes('account') && lower.includes('user'))) {
+    return 'account_error';
   }
   if (lower.includes('auth') || lower.includes('token') || lower.includes('session') || lower.includes('unauthorized') || lower.includes('401')) {
     return 'auth_error';
