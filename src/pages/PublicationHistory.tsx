@@ -33,7 +33,8 @@ import {
   Loader2,
   RotateCcw,
   Copy,
-  Download
+  Download,
+  ExternalLink
 } from 'lucide-react';
 import { downloadPublicationAssets } from '@/lib/downloadUtils';
 import { toast } from 'sonner';
@@ -72,6 +73,7 @@ interface PostRecord {
   first_comment: string | null;
   linkedin_body: string | null;
   hashtags: string[] | null;
+  external_post_ids: Record<string, string> | null;
 }
 
 interface CombinedHistoryItem {
@@ -90,6 +92,7 @@ interface CombinedHistoryItem {
   response_data?: any;
   origin_mode?: string;
   hashtags?: string[];
+  external_url?: string;
 }
 
 const platformIcons: Record<string, React.ComponentType<{ className?: string }>> = {
@@ -159,7 +162,7 @@ export default function PublicationHistory() {
     queryFn: async () => {
       const { data, error } = await supabase
         .from('posts')
-        .select('id, tema, caption, caption_edited, status, post_type, selected_networks, template_a_images, media_items, scheduled_date, published_at, failed_at, created_at, origin_mode, error_log, first_comment, linkedin_body, hashtags')
+        .select('id, tema, caption, caption_edited, status, post_type, selected_networks, template_a_images, media_items, scheduled_date, published_at, failed_at, created_at, origin_mode, error_log, first_comment, linkedin_body, hashtags, external_post_ids')
         .order('created_at', { ascending: false })
         .limit(200);
 
@@ -183,6 +186,11 @@ export default function PublicationHistory() {
     // Add publication attempts first (these are the most accurate for individual platform results)
     if (attempts) {
       for (const attempt of attempts) {
+        // Extract external URL from response_data if available
+        const responseData = attempt.response_data;
+        const externalUrl = responseData?.url || responseData?.postUrl || responseData?.permalink || 
+                           responseData?.data?.url || responseData?.data?.permalink;
+        
         items.push({
           id: `attempt-${attempt.id}`,
           type: 'attempt',
@@ -193,6 +201,7 @@ export default function PublicationHistory() {
           timestamp: attempt.attempted_at,
           post_id: attempt.post_id,
           response_data: attempt.response_data,
+          external_url: externalUrl,
         });
         
         if (attempt.post_id) {
@@ -213,6 +222,7 @@ export default function PublicationHistory() {
 
         const networks = post.selected_networks || [];
         const platform = networks[0] || 'instagram';
+        const externalIds = (post.external_post_ids as Record<string, string>) || {};
 
         items.push({
           id: `post-${post.id}`,
@@ -229,6 +239,7 @@ export default function PublicationHistory() {
           media_urls: post.template_a_images || [],
           origin_mode: post.origin_mode,
           hashtags: post.hashtags || [],
+          external_url: externalIds[platform],
         });
       }
     }
@@ -463,7 +474,26 @@ export default function PublicationHistory() {
                 )}
 
                 {/* Action Buttons */}
-                <div className="flex gap-2 pt-2">
+                <div className="flex flex-wrap gap-2 pt-2">
+                  {/* View on Platform Button - Only show for successful publications with external URL */}
+                  {item.external_url && ['success', 'published'].includes(item.status) && (
+                    <a 
+                      href={item.external_url} 
+                      target="_blank" 
+                      rel="noopener noreferrer"
+                      onClick={(e) => e.stopPropagation()}
+                    >
+                      <Button
+                        variant="default"
+                        size="sm"
+                        className="gap-2"
+                      >
+                        <ExternalLink className="h-4 w-4" />
+                        Ver publicação
+                      </Button>
+                    </a>
+                  )}
+                  
                   {/* Download Button */}
                   {item.media_urls && item.media_urls.length > 0 && (
                     <Button
