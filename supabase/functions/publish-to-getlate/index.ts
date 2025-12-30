@@ -205,6 +205,112 @@ function isRateLimitError(status: number, responseText: string): boolean {
   return false;
 }
 
+// Interface for validated Getlate response
+interface GetlateValidatedResponse {
+  isRealSuccess: boolean;
+  error?: string;
+  errorType?: 'token_expired' | 'oauth_error' | 'rate_limit' | 'validation' | 'unknown';
+  postUrl?: string;
+  originalData: any;
+}
+
+// Validate that Getlate response indicates REAL success, not hidden errors
+function validateGetlateResponse(responseData: any, responseText: string): GetlateValidatedResponse {
+  const originalData = responseData;
+  
+  // Check for explicit error field
+  if (responseData?.error) {
+    const errorMsg = typeof responseData.error === 'string' 
+      ? responseData.error 
+      : JSON.stringify(responseData.error);
+    
+    // Detect token/OAuth errors
+    if (errorMsg.toLowerCase().includes('token') || 
+        errorMsg.toLowerCase().includes('oauth') ||
+        errorMsg.toLowerCase().includes('session') ||
+        errorMsg.toLowerCase().includes('expired') ||
+        responseData.error?.code === 190) {
+      return {
+        isRealSuccess: false,
+        error: `Token inválido ou expirado: ${errorMsg}`,
+        errorType: 'token_expired',
+        originalData,
+      };
+    }
+    
+    return {
+      isRealSuccess: false,
+      error: errorMsg,
+      errorType: 'unknown',
+      originalData,
+    };
+  }
+  
+  // Check for error in message field
+  if (responseData?.message) {
+    const msg = responseData.message.toLowerCase();
+    if (msg.includes('error') || msg.includes('failed') || msg.includes('invalid')) {
+      // Check for token-specific errors
+      if (msg.includes('token') || msg.includes('oauth') || msg.includes('session') || msg.includes('expired')) {
+        return {
+          isRealSuccess: false,
+          error: `Erro de autenticação: ${responseData.message}`,
+          errorType: 'token_expired',
+          originalData,
+        };
+      }
+      return {
+        isRealSuccess: false,
+        error: responseData.message,
+        errorType: 'unknown',
+        originalData,
+      };
+    }
+  }
+  
+  // Check for failed/error status field
+  if (responseData?.status) {
+    const status = responseData.status.toLowerCase();
+    if (status === 'failed' || status === 'error' || status === 'rejected') {
+      return {
+        isRealSuccess: false,
+        error: responseData.message || responseData.error || `Status: ${status}`,
+        errorType: 'unknown',
+        originalData,
+      };
+    }
+  }
+  
+  // Check raw response for common OAuth error patterns
+  const rawLower = responseText.toLowerCase();
+  if (rawLower.includes('oauthexception') || 
+      rawLower.includes('session has expired') ||
+      rawLower.includes('token refresh failed') ||
+      rawLower.includes('error validating access token')) {
+    return {
+      isRealSuccess: false,
+      error: `Erro OAuth: ${responseText.substring(0, 300)}`,
+      errorType: 'oauth_error',
+      originalData,
+    };
+  }
+  
+  // Extract post URL if available
+  const postUrl = responseData?.url || responseData?.postUrl || responseData?.permalink || responseData?.data?.url;
+  
+  // If we got here, it looks like a real success
+  // But warn if there's no URL and status isn't clearly success
+  if (!postUrl && responseData?.status !== 'published' && responseData?.status !== 'scheduled' && responseData?.status !== 'queued') {
+    console.warn('[publish-to-getlate] ⚠️ Response has no URL and unclear status, but treating as success:', responseData);
+  }
+  
+  return {
+    isRealSuccess: true,
+    postUrl,
+    originalData,
+  };
+}
+
 // Validate that media URLs are accessible before publishing
 async function validateMediaUrls(urls: string[]): Promise<{ valid: boolean; invalidUrls: string[] }> {
   const invalidUrls: string[] = [];
@@ -230,7 +336,7 @@ async function publishToGetlate(
   payload: GetlatePostPayload, 
   idempotencyKey?: string,
   retries = 1
-): Promise<{ success: boolean; data?: any; error?: string; isRateLimit?: boolean }> {
+): Promise<{ success: boolean; data?: any; error?: string; isRateLimit?: boolean; postUrl?: string }> {
   const apiUrl = 'https://getlate.dev/api/v1/posts';
   
   for (let attempt = 1; attempt <= retries; attempt++) {
@@ -273,7 +379,25 @@ async function publishToGetlate(
         } catch {
           data = { raw: responseText };
         }
-        return { success: true, data };
+        
+        // IMPORTANT: Validate that the response is a REAL success, not a hidden error
+        const validated = validateGetlateResponse(data, responseText);
+        
+        if (!validated.isRealSuccess) {
+          console.error(`[publish-to-getlate] ❌ Response was 200 OK but contains hidden error: ${validated.error}`);
+          return { 
+            success: false, 
+            error: validated.error || 'Erro oculto na resposta do Getlate',
+            data: validated.originalData,
+          };
+        }
+        
+        console.log(`[publish-to-getlate] ✅ Response validated as real success. PostURL: ${validated.postUrl || 'not provided'}`);
+        return { 
+          success: true, 
+          data,
+          postUrl: validated.postUrl,
+        };
       } else {
         console.error(`[publish-to-getlate] API returned status ${response.status}: ${responseText}`);
         
