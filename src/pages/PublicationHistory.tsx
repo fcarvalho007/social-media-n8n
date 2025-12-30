@@ -32,8 +32,11 @@ import {
   Send,
   Loader2,
   RotateCcw,
-  Copy
+  Copy,
+  Download
 } from 'lucide-react';
+import { downloadPublicationAssets } from '@/lib/downloadUtils';
+import { toast } from 'sonner';
 import { format, formatDistanceToNow } from 'date-fns';
 import { pt } from 'date-fns/locale';
 import { cn } from '@/lib/utils';
@@ -68,6 +71,7 @@ interface PostRecord {
   error_log: string | null;
   first_comment: string | null;
   linkedin_body: string | null;
+  hashtags: string[] | null;
 }
 
 interface CombinedHistoryItem {
@@ -82,8 +86,10 @@ interface CombinedHistoryItem {
   caption?: string;
   tema?: string;
   image_url?: string;
+  media_urls?: string[];
   response_data?: any;
   origin_mode?: string;
+  hashtags?: string[];
 }
 
 const platformIcons: Record<string, React.ComponentType<{ className?: string }>> = {
@@ -153,7 +159,7 @@ export default function PublicationHistory() {
     queryFn: async () => {
       const { data, error } = await supabase
         .from('posts')
-        .select('id, tema, caption, caption_edited, status, post_type, selected_networks, template_a_images, media_items, scheduled_date, published_at, failed_at, created_at, origin_mode, error_log, first_comment, linkedin_body')
+        .select('id, tema, caption, caption_edited, status, post_type, selected_networks, template_a_images, media_items, scheduled_date, published_at, failed_at, created_at, origin_mode, error_log, first_comment, linkedin_body, hashtags')
         .order('created_at', { ascending: false })
         .limit(200);
 
@@ -220,7 +226,9 @@ export default function PublicationHistory() {
           caption: post.caption,
           tema: post.tema,
           image_url: post.template_a_images?.[0],
+          media_urls: post.template_a_images || [],
           origin_mode: post.origin_mode,
+          hashtags: post.hashtags || [],
         });
       }
     }
@@ -454,9 +462,37 @@ export default function PublicationHistory() {
                   </div>
                 )}
 
-                {/* Recovery Button */}
-                {item.post_id && (
-                  <div className="flex gap-2 pt-2">
+                {/* Action Buttons */}
+                <div className="flex gap-2 pt-2">
+                  {/* Download Button */}
+                  {item.media_urls && item.media_urls.length > 0 && (
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={async (e) => {
+                        e.stopPropagation();
+                        try {
+                          toast.loading('A preparar download...', { id: 'download' });
+                          await downloadPublicationAssets(
+                            item.media_urls || [],
+                            item.caption || '',
+                            item.tema,
+                            item.hashtags
+                          );
+                          toast.success('Download concluído!', { id: 'download' });
+                        } catch (err) {
+                          toast.error('Erro ao descarregar', { id: 'download' });
+                        }
+                      }}
+                      className="gap-2"
+                    >
+                      <Download className="h-4 w-4" />
+                      Download
+                    </Button>
+                  )}
+                  
+                  {/* Recovery/Reuse Button */}
+                  {item.post_id && (
                     <Button
                       variant={item.status === 'failed' ? 'default' : 'outline'}
                       size="sm"
@@ -475,8 +511,8 @@ export default function PublicationHistory() {
                         </>
                       )}
                     </Button>
-                  </div>
-                )}
+                  )}
+                </div>
               </div>
             </CardContent>
           </CollapsibleContent>
