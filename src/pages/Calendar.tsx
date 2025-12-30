@@ -50,6 +50,7 @@ interface ScheduledPost {
   failed_at?: string | null;
   recovery_token?: string;
   selected_networks?: string[];
+  external_post_ids?: Record<string, string>;
 }
 
 interface CalendarEvent extends Event {
@@ -224,7 +225,7 @@ const Calendar = () => {
       const [{ data: posts, error: postsError }, { data: stories, error: storiesError }] = await Promise.all([
         supabase
           .from('posts')
-          .select('id, tema, content_type, status, scheduled_date, reviewed_at, created_at, published_at, template_a_images, error_log, failed_at, recovery_token, selected_networks')
+          .select('id, tema, content_type, status, scheduled_date, reviewed_at, created_at, published_at, template_a_images, error_log, failed_at, recovery_token, selected_networks, external_post_ids')
           .in('status', ['approved', 'published', 'failed', 'scheduled']),
         supabase
           .from('stories')
@@ -260,6 +261,7 @@ const Calendar = () => {
             failed_at: post.failed_at,
             recovery_token: post.recovery_token,
             selected_networks: post.selected_networks || [],
+            external_post_ids: (post.external_post_ids as Record<string, string>) || {},
           },
         };
       });
@@ -1347,16 +1349,44 @@ const Calendar = () => {
                 <div className="flex flex-wrap gap-2 p-3 bg-green-50 dark:bg-green-950/30 rounded-lg border border-green-200 dark:border-green-800">
                   <p className="w-full text-xs text-green-700 dark:text-green-300 font-medium mb-1">Publicado em:</p>
                   {selectedEvent.resource.selected_networks?.includes('instagram') && (
-                    <Badge variant="outline" className="gap-1.5 bg-gradient-to-r from-pink-500/10 to-purple-500/10 border-pink-300 dark:border-pink-700">
-                      <Instagram className="h-3 w-3 text-pink-600" />
-                      Instagram
-                    </Badge>
+                    selectedEvent.resource.external_post_ids?.instagram ? (
+                      <a 
+                        href={selectedEvent.resource.external_post_ids.instagram} 
+                        target="_blank" 
+                        rel="noopener noreferrer"
+                        className="inline-flex"
+                      >
+                        <Badge variant="outline" className="gap-1.5 bg-gradient-to-r from-pink-500/10 to-purple-500/10 border-pink-300 dark:border-pink-700 cursor-pointer hover:bg-pink-500/20 transition-colors">
+                          <Instagram className="h-3 w-3 text-pink-600" />
+                          Ver no Instagram
+                        </Badge>
+                      </a>
+                    ) : (
+                      <Badge variant="outline" className="gap-1.5 bg-gradient-to-r from-pink-500/10 to-purple-500/10 border-pink-300 dark:border-pink-700">
+                        <Instagram className="h-3 w-3 text-pink-600" />
+                        Instagram
+                      </Badge>
+                    )
                   )}
                   {selectedEvent.resource.selected_networks?.includes('linkedin') && (
-                    <Badge variant="outline" className="gap-1.5 bg-blue-500/10 border-blue-300 dark:border-blue-700">
-                      <Linkedin className="h-3 w-3 text-blue-600" />
-                      LinkedIn
-                    </Badge>
+                    selectedEvent.resource.external_post_ids?.linkedin ? (
+                      <a 
+                        href={selectedEvent.resource.external_post_ids.linkedin} 
+                        target="_blank" 
+                        rel="noopener noreferrer"
+                        className="inline-flex"
+                      >
+                        <Badge variant="outline" className="gap-1.5 bg-blue-500/10 border-blue-300 dark:border-blue-700 cursor-pointer hover:bg-blue-500/20 transition-colors">
+                          <Linkedin className="h-3 w-3 text-blue-600" />
+                          Ver no LinkedIn
+                        </Badge>
+                      </a>
+                    ) : (
+                      <Badge variant="outline" className="gap-1.5 bg-blue-500/10 border-blue-300 dark:border-blue-700">
+                        <Linkedin className="h-3 w-3 text-blue-600" />
+                        LinkedIn
+                      </Badge>
+                    )
                   )}
                 </div>
               )}

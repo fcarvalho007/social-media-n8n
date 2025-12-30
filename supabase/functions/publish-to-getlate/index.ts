@@ -698,6 +698,39 @@ Deno.serve(async (req) => {
       console.error('[publish-to-getlate] Failed to record success attempt:', successAttemptError);
     }
 
+    // Extract and save external post URL/ID to the posts table
+    if (post_id && result.postUrl) {
+      console.log(`[publish-to-getlate] Saving external link to post ${post_id}: ${result.postUrl}`);
+      
+      // Get current external_post_ids to merge (in case of multi-network publish)
+      const { data: currentPost } = await supabase
+        .from('posts')
+        .select('external_post_ids')
+        .eq('id', post_id)
+        .single();
+      
+      const currentExternalIds = (currentPost?.external_post_ids as Record<string, string>) || {};
+      const updatedExternalIds = {
+        ...currentExternalIds,
+        [network]: result.postUrl,
+      };
+      
+      const { error: updateError } = await supabase
+        .from('posts')
+        .update({
+          external_post_ids: updatedExternalIds,
+          status: 'published',
+          published_at: new Date().toISOString(),
+        })
+        .eq('id', post_id);
+      
+      if (updateError) {
+        console.error('[publish-to-getlate] Failed to save external_post_ids:', updateError);
+      } else {
+        console.log(`[publish-to-getlate] ✅ Saved external link for ${network}: ${result.postUrl}`);
+      }
+    }
+
     // NOTE: We no longer increment local quota - Getlate tracks usage automatically
     const totalTimeMs = Date.now() - requestStartTime;
     console.log(`[publish-to-getlate] ✅ Successfully published to ${network} in ${(totalTimeMs / 1000).toFixed(2)}s`);
@@ -708,6 +741,7 @@ Deno.serve(async (req) => {
       data: result.data,
       network,
       format,
+      postUrl: result.postUrl,
     };
 
     // Store result in database for idempotency
