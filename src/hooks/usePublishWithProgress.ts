@@ -610,13 +610,65 @@ export function usePublishWithProgress() {
           });
           
           if (publishError) {
-            console.error(`[usePublishWithProgress] [${publishSessionId}] ${format} failed with error:`, publishError);
+            // Extract detailed error from publishError.context when available (HTTP 500 responses)
+            console.error(`[usePublishWithProgress] [${publishSessionId}] ${format} failed with error:`, {
+              message: publishError.message,
+              context: publishError.context,
+            });
+            
+            let detailedErrorMessage = 'Erro de comunicação';
+            let structuredError: StructuredError | null = null;
+            
+            // Try to extract structured error from context body
+            const errorContext = publishError.context as { status?: number; body?: string } | undefined;
+            if (errorContext?.body) {
+              try {
+                const bodyParsed = JSON.parse(errorContext.body);
+                if (bodyParsed.error && typeof bodyParsed.error === 'object') {
+                  structuredError = parseStructuredError(bodyParsed.error);
+                  detailedErrorMessage = structuredError?.message || bodyParsed.error?.message || detailedErrorMessage;
+                } else if (bodyParsed.message) {
+                  detailedErrorMessage = bodyParsed.message;
+                }
+                console.log(`[usePublishWithProgress] [${publishSessionId}] Extracted error from context body:`, bodyParsed);
+              } catch (parseErr) {
+                console.warn(`[usePublishWithProgress] [${publishSessionId}] Could not parse error body:`, errorContext.body);
+              }
+            }
+            
+            // Fallback: try to extract from publishError.message
+            if (!structuredError && publishError.message) {
+              // Check if message contains useful keywords
+              const msg = publishError.message.toLowerCase();
+              if (msg.includes('network') || msg.includes('fetch') || msg.includes('timeout')) {
+                structuredError = {
+                  message: 'Erro de ligação à rede',
+                  code: 'NETWORK_ERROR',
+                  source: 'internal',
+                  isRetryable: true,
+                  originalError: publishError.message,
+                  suggestedAction: 'Verifica a tua ligação à internet e tenta novamente',
+                };
+                detailedErrorMessage = structuredError.message;
+              } else {
+                structuredError = {
+                  message: detailedErrorMessage,
+                  code: 'UNKNOWN',
+                  source: 'internal',
+                  isRetryable: true,
+                  originalError: publishError.message,
+                  suggestedAction: 'Tenta novamente ou contacta o suporte',
+                };
+              }
+            }
+            
             platformResults.set(format, { 
               ...platformResults.get(format)!, 
               status: 'error', 
-              errorMessage: 'Erro de comunicação' 
+              errorMessage: detailedErrorMessage,
+              structuredError: structuredError || undefined,
             });
-            updatePlatformStatus(format, 'error', 'Erro de comunicação');
+            updatePlatformStatus(format, 'error', detailedErrorMessage, undefined, structuredError || undefined);
           } else if (!publishResult?.success) {
             console.error(`[usePublishWithProgress] [${publishSessionId}] ${format} returned failure:`, publishResult?.error);
             
@@ -672,18 +724,44 @@ export function usePublishWithProgress() {
           }
         } catch (err) {
           console.error(`[usePublishWithProgress] [${publishSessionId}] ${format} exception:`, err);
+          
+          // Create structured error from exception with full context
+          const errorMessage = err instanceof Error ? err.message : JSON.stringify(err);
+          const isNetworkError = errorMessage.toLowerCase().includes('network') || 
+                                 errorMessage.toLowerCase().includes('fetch') ||
+                                 errorMessage.toLowerCase().includes('timeout') ||
+                                 errorMessage.toLowerCase().includes('abort');
+          
+          const structuredError: StructuredError = {
+            message: isNetworkError ? 'Erro de ligação à rede' : 'Erro inesperado no processamento',
+            code: isNetworkError ? 'NETWORK_ERROR' : 'UNKNOWN',
+            source: 'internal',
+            isRetryable: true,
+            originalError: errorMessage,
+            suggestedAction: isNetworkError 
+              ? 'Verifica a tua ligação à internet e tenta novamente'
+              : 'Recarrega a página e tenta novamente. Se persistir, contacta o suporte.',
+          };
+          
           platformResults.set(format, { 
             ...platformResults.get(format)!, 
             status: 'error', 
-            errorMessage: 'Erro inesperado' 
+            errorMessage: structuredError.message,
+            structuredError,
           });
-          updatePlatformStatus(format, 'error', 'Erro inesperado');
+          updatePlatformStatus(format, 'error', structuredError.message, undefined, structuredError);
           
           // Update attempt to failed on exception
           await supabase.from('publication_attempts')
             .update({ 
               status: 'failed', 
-              error_message: err instanceof Error ? err.message : 'Erro inesperado',
+              error_message: JSON.stringify({
+                message: structuredError.message,
+                code: structuredError.code,
+                source: structuredError.source,
+                originalError: errorMessage,
+                timestamp: new Date().toISOString(),
+              }),
             })
             .eq('post_id', createdPostId)
             .eq('format', format)
