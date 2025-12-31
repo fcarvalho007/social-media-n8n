@@ -57,7 +57,7 @@ export interface PublishProgress {
 
 export const INSTAGRAM_CONFIG = {
   memberUrn: 'not-applicable',
-  accountId: '68fb951d8bbca9c10cbfef93',
+  accountId: '6953ef4d4207e06f4ca8326f', // @frederico.m.carvalho (reconectado 31/12/2024)
 };
 
 export const LINKEDIN_CONFIG = {
