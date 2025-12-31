@@ -19,7 +19,9 @@ import { Separator } from '@/components/ui/separator';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
 import { toast } from 'sonner';
-import { Save, Send, Calendar as CalendarIcon, ArrowLeft, Instagram, Linkedin, Upload, Clock, FileText, Loader2, Rocket, Smile, Bookmark, Sparkles, Youtube, Facebook, ChevronLeft, ChevronRight, Info, CloudUpload, Image, Video, Plus, CheckCircle, Hash, AtSign, AlertTriangle, Eye, ChevronDown, MapPin, Grid3x3, RefreshCw, X } from 'lucide-react';
+import { Save, Send, Calendar as CalendarIcon, ArrowLeft, Instagram, Linkedin, Upload, Clock, FileText, Loader2, Rocket, Smile, Bookmark, Sparkles, Youtube, Facebook, ChevronLeft, ChevronRight, Info, CloudUpload, Image, Video, Plus, CheckCircle, Hash, AtSign, AlertTriangle, Eye, ChevronDown, MapPin, Grid3x3, RefreshCw, X, Globe, CheckCircle2 } from 'lucide-react';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { addDays, nextDay } from 'date-fns';
 import { GridSplitter } from '@/components/media/GridSplitter';
 import { format } from 'date-fns';
 import { pt } from 'date-fns/locale';
@@ -1794,61 +1796,178 @@ export default function ManualCreate() {
                 </div>
                 
                 {scheduleAsap ? (
-                  <p className="text-sm text-muted-foreground text-center py-2">
-                    Será publicado assim que clicares em Publicar
-                  </p>
+                  <div className="text-center py-3 space-y-2">
+                    <div className="inline-flex items-center gap-2 text-sm text-muted-foreground bg-muted/50 px-4 py-2 rounded-lg">
+                      <Rocket className="h-4 w-4 text-primary" />
+                      <span>Publicação imediata após clicares em Publicar</span>
+                    </div>
+                  </div>
                 ) : (
-                  <div className="space-y-3 animate-fade-in">
-                    {/* Smart suggestion badge */}
-                    <Badge 
-                      variant="outline" 
-                      className="cursor-pointer hover:bg-primary/10 transition-colors w-full justify-center py-2"
-                      onClick={() => {
-                        const nextTuesday = new Date();
-                        nextTuesday.setDate(nextTuesday.getDate() + ((2 + 7 - nextTuesday.getDay()) % 7 || 7));
-                        setScheduledDate(nextTuesday);
-                        setTime('18:00');
-                      }}
-                    >
-                      💡 Melhor horário sugerido: Terça 18:00
-                    </Badge>
+                  <div className="space-y-4 animate-fade-in">
+                    {/* Timezone indicator */}
+                    <div className="flex items-center justify-center gap-2 text-xs text-muted-foreground bg-muted/40 px-3 py-2 rounded-lg">
+                      <Globe className="h-3.5 w-3.5" />
+                      <span>Fuso horário: <strong className="text-foreground">Lisboa (WET/WEST)</strong></span>
+                      <span className="text-muted-foreground/60">•</span>
+                      <span>Agora: {format(new Date(), 'HH:mm', { locale: pt })}</span>
+                    </div>
+
+                    {/* Quick date shortcuts */}
+                    <div className="space-y-2">
+                      <Label className="text-xs text-muted-foreground">Atalhos rápidos</Label>
+                      <div className="grid grid-cols-4 gap-1.5">
+                        <Button 
+                          type="button"
+                          variant="outline" 
+                          size="sm"
+                          onClick={() => setScheduledDate(new Date())}
+                          className={cn(
+                            "text-xs h-8",
+                            scheduledDate && format(scheduledDate, 'yyyy-MM-dd') === format(new Date(), 'yyyy-MM-dd') && "bg-primary/10 border-primary/50"
+                          )}
+                        >
+                          Hoje
+                        </Button>
+                        <Button 
+                          type="button"
+                          variant="outline" 
+                          size="sm"
+                          onClick={() => setScheduledDate(addDays(new Date(), 1))}
+                          className={cn(
+                            "text-xs h-8",
+                            scheduledDate && format(scheduledDate, 'yyyy-MM-dd') === format(addDays(new Date(), 1), 'yyyy-MM-dd') && "bg-primary/10 border-primary/50"
+                          )}
+                        >
+                          Amanhã
+                        </Button>
+                        <Button 
+                          type="button"
+                          variant="outline" 
+                          size="sm"
+                          onClick={() => setScheduledDate(nextDay(new Date(), 2))}
+                          className={cn(
+                            "text-xs h-8",
+                            scheduledDate && scheduledDate.getDay() === 2 && scheduledDate > new Date() && "bg-primary/10 border-primary/50"
+                          )}
+                        >
+                          Terça
+                        </Button>
+                        <Button 
+                          type="button"
+                          variant="outline" 
+                          size="sm"
+                          onClick={() => setScheduledDate(nextDay(new Date(), 4))}
+                          className={cn(
+                            "text-xs h-8",
+                            scheduledDate && scheduledDate.getDay() === 4 && scheduledDate > new Date() && "bg-primary/10 border-primary/50"
+                          )}
+                        >
+                          Quinta
+                        </Button>
+                      </div>
+                    </div>
                     
-                    <div>
-                      <Label className="text-sm">Data</Label>
+                    {/* Date picker */}
+                    <div className="space-y-1.5">
+                      <Label className="text-sm font-medium">Data</Label>
                       <Popover>
                         <PopoverTrigger asChild>
-                          <Button variant="outline" className="w-full justify-start text-left font-normal">
-                            <CalendarIcon className="mr-2 h-4 w-4" />
-                            {scheduledDate ? format(scheduledDate, 'dd/MM/yyyy', { locale: pt }) : 'Selecione a data'}
+                          <Button 
+                            variant="outline" 
+                            className={cn(
+                              "w-full justify-start text-left font-normal h-11",
+                              !scheduledDate && "text-muted-foreground"
+                            )}
+                          >
+                            <CalendarIcon className="mr-2 h-4 w-4 text-primary" />
+                            {scheduledDate ? (
+                              <span className="capitalize">{format(scheduledDate, "EEEE, d 'de' MMMM", { locale: pt })}</span>
+                            ) : (
+                              'Escolher data'
+                            )}
                           </Button>
                         </PopoverTrigger>
-                        <PopoverContent className="w-auto p-0" align="start">
+                        <PopoverContent className="w-auto p-0 z-50" align="start">
                           <Calendar
                             mode="single"
                             selected={scheduledDate}
                             onSelect={setScheduledDate}
                             disabled={(date) => date < new Date(new Date().setHours(0, 0, 0, 0))}
                             initialFocus
-                            className="pointer-events-auto"
                           />
                         </PopoverContent>
                       </Popover>
                     </div>
                     
-                    <div>
-                      <Label htmlFor="time" className="text-sm">Hora</Label>
-                      <div className="relative">
-                        <Clock className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                        <Input
-                          id="time"
-                          type="time"
-                          value={time}
-                          onChange={(e) => setTime(e.target.value)}
-                          className="pl-10"
-                        />
+                    {/* Time picker with presets */}
+                    <div className="space-y-1.5">
+                      <Label className="text-sm font-medium">Hora</Label>
+                      <div className="grid grid-cols-2 gap-2">
+                        <Select 
+                          value={time.split(':')[0]} 
+                          onValueChange={(hour) => setTime(`${hour}:${time.split(':')[1] || '00'}`)}
+                        >
+                          <SelectTrigger className="h-11">
+                            <Clock className="h-4 w-4 mr-2 text-primary" />
+                            <SelectValue placeholder="Hora" />
+                          </SelectTrigger>
+                          <SelectContent className="max-h-[200px]">
+                            {Array.from({ length: 24 }, (_, i) => (
+                              <SelectItem key={i} value={String(i).padStart(2, '0')}>
+                                {String(i).padStart(2, '0')}h
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                        <Select 
+                          value={time.split(':')[1] || '00'} 
+                          onValueChange={(min) => setTime(`${time.split(':')[0]}:${min}`)}
+                        >
+                          <SelectTrigger className="h-11">
+                            <SelectValue placeholder="Min" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="00">00 min</SelectItem>
+                            <SelectItem value="15">15 min</SelectItem>
+                            <SelectItem value="30">30 min</SelectItem>
+                            <SelectItem value="45">45 min</SelectItem>
+                          </SelectContent>
+                        </Select>
                       </div>
-                      <p className="text-xs text-muted-foreground mt-1">Fuso horário: Lisboa (WET)</p>
+                      
+                      {/* Time presets */}
+                      <div className="flex gap-1.5 flex-wrap mt-2">
+                        {['09:00', '12:00', '15:00', '18:00', '21:00'].map((preset) => (
+                          <Badge 
+                            key={preset}
+                            variant="outline" 
+                            className={cn(
+                              "cursor-pointer hover:bg-primary/10 transition-colors text-xs py-1 px-2",
+                              time === preset && "bg-primary/10 border-primary/50"
+                            )}
+                            onClick={() => setTime(preset)}
+                          >
+                            {preset}
+                          </Badge>
+                        ))}
+                      </div>
                     </div>
+
+                    {/* Scheduled preview */}
+                    {scheduledDate && time && (
+                      <div className="bg-gradient-to-r from-primary/5 to-primary/10 border border-primary/20 rounded-xl p-4 space-y-1">
+                        <div className="flex items-center gap-2 text-sm font-medium text-primary">
+                          <CheckCircle2 className="h-4 w-4" />
+                          Agendado para:
+                        </div>
+                        <div className="text-base font-semibold capitalize">
+                          {format(scheduledDate, "EEEE, d 'de' MMMM 'às'", { locale: pt })} {time}
+                        </div>
+                        <p className="text-xs text-muted-foreground">
+                          Fuso horário de Lisboa (WET/WEST)
+                        </p>
+                      </div>
+                    )}
                   </div>
                 )}
                 
