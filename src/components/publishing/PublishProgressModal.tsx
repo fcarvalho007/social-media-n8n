@@ -20,6 +20,7 @@ import {
   parseStructuredError, 
   getErrorInfoFromStructured,
   getSourceLabel,
+  classifyErrorFromString,
   type StructuredError 
 } from '@/lib/publishingErrors';
 import { downloadFailedPublicationAssets, downloadSingleFile, copyToClipboard } from '@/lib/downloadUtils';
@@ -189,8 +190,9 @@ function PlatformStatusRow({
 }) {
   const [showDetails, setShowDetails] = useState(false);
   
-  // Try to parse structured error first, then fall back to string classification
-  const structuredError = result.structuredError || (result.errorMessage ? parseStructuredError(result.errorMessage) : null);
+  // Try to use existing structured error, or classify from string
+  const structuredError = result.structuredError || 
+    (result.errorMessage ? classifyErrorFromString(result.errorMessage) : null);
   const errorInfo = structuredError 
     ? getErrorInfoFromStructured(structuredError) 
     : (result.errorMessage ? getErrorInfo(result.errorMessage) : null);
@@ -463,7 +465,7 @@ export function PublishProgressModal({
 
   return (
     <Dialog open={isOpen} onOpenChange={() => isComplete && onClose()}>
-      <DialogContent className="sm:max-w-[480px] p-0 overflow-hidden">
+      <DialogContent className="sm:max-w-[500px] max-h-[90vh] p-0 flex flex-col overflow-hidden">
         {/* Confetti Animation */}
         {showConfetti && (
           <div className="absolute inset-0 overflow-hidden pointer-events-none z-50">
@@ -500,7 +502,8 @@ export function PublishProgressModal({
           </div>
         )}
 
-        <div className="p-6 space-y-5">
+        {/* Scrollable content area */}
+        <div className="flex-1 overflow-y-auto p-4 sm:p-6 space-y-4 sm:space-y-5">
           {/* Header */}
           <motion.div 
             className="text-center"
@@ -676,7 +679,7 @@ export function PublishProgressModal({
                 <p className="text-xs font-medium text-muted-foreground mb-2 sm:mb-3">
                   Ficheiros ({mediaFiles.length})
                 </p>
-                <div className="grid grid-cols-3 sm:grid-cols-5 gap-2">
+                <div className="grid grid-cols-4 sm:grid-cols-5 gap-2 max-h-[140px] overflow-y-auto">
                   {mediaFiles.slice(0, 9).map((file, idx) => {
                     const isVideo = file.type.startsWith('video/');
                     const previewUrl = URL.createObjectURL(file);
@@ -762,10 +765,10 @@ export function PublishProgressModal({
           )}
         </div>
 
-        {/* Footer com ações */}
+        {/* Footer com ações - fixed at bottom */}
         {isComplete && (
           <motion.div
-            className="flex gap-3 p-4 border-t bg-muted/30"
+            className="flex-shrink-0 flex gap-3 p-4 border-t bg-muted/30"
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ delay: 0.3 }}
