@@ -220,6 +220,144 @@ export function isRateLimitError(errorMessage: string | undefined): boolean {
   return classifyError(errorMessage) === 'rate_limit';
 }
 
+// Classify error from string message and HTTP status code
+// Used when edge function returns error as string instead of structured object
+export function classifyErrorFromString(errorString: string, httpStatus?: number): StructuredError {
+  const lower = errorString.toLowerCase();
+  
+  // Account not associated (403, "do not belong")
+  if (lower.includes('do not belong') || lower.includes('not belong') || 
+      lower.includes('permission denied') || lower.includes('forbidden') ||
+      httpStatus === 403) {
+    return {
+      message: 'Conta não associada',
+      code: 'ACCOUNT_ERROR',
+      source: 'getlate',
+      isRetryable: false,
+      originalError: httpStatus ? `${httpStatus}: ${errorString}` : errorString,
+      suggestedAction: 'A conta não está ligada ao teu utilizador Getlate. Reconecta em getlate.dev/accounts',
+    };
+  }
+  
+  // Rate limit (429)
+  if (lower.includes('rate limit') || lower.includes('too many') || 
+      lower.includes('please wait') || lower.includes('media container') ||
+      httpStatus === 429) {
+    return {
+      message: 'Limite de ações atingido',
+      code: 'RATE_LIMIT',
+      source: 'platform',
+      isRetryable: true,
+      originalError: httpStatus ? `${httpStatus}: ${errorString}` : errorString,
+      suggestedAction: 'Aguarda 15-30 minutos e tenta novamente',
+    };
+  }
+  
+  // Token expired / OAuth issues
+  if (lower.includes('token') || lower.includes('expired') || 
+      lower.includes('oauth') || lower.includes('session has expired') ||
+      lower.includes('code 190')) {
+    return {
+      message: 'Sessão expirada',
+      code: 'TOKEN_EXPIRED',
+      source: 'getlate',
+      isRetryable: false,
+      originalError: httpStatus ? `${httpStatus}: ${errorString}` : errorString,
+      suggestedAction: 'Reconecta a conta no Getlate.dev',
+    };
+  }
+  
+  // Media errors (format, size, aspect ratio)
+  if (lower.includes('media') || lower.includes('image') || lower.includes('video') || 
+      lower.includes('size') || lower.includes('format') || lower.includes('aspect') ||
+      lower.includes('dimension') || lower.includes('resolution') || lower.includes('pixel') ||
+      lower.includes('width') || lower.includes('height') || lower.includes('allowed range')) {
+    return {
+      message: 'Problema com ficheiros de média',
+      code: 'MEDIA_ERROR',
+      source: 'platform',
+      isRetryable: false,
+      originalError: httpStatus ? `${httpStatus}: ${errorString}` : errorString,
+      suggestedAction: 'Verifica as dimensões (4:5 ou 1:1) e formato dos ficheiros',
+    };
+  }
+  
+  // Caption errors
+  if (lower.includes('caption') || lower.includes('character') || 
+      lower.includes('text') && (lower.includes('long') || lower.includes('invalid')) ||
+      lower.includes('hashtag') && lower.includes('invalid')) {
+    return {
+      message: 'Erro na legenda',
+      code: 'CAPTION_ERROR',
+      source: 'platform',
+      isRetryable: false,
+      originalError: httpStatus ? `${httpStatus}: ${errorString}` : errorString,
+      suggestedAction: 'Revê e edita a legenda',
+    };
+  }
+  
+  // Quota exceeded
+  if (lower.includes('quota') || lower.includes('limit exceeded') || lower.includes('upload limit')) {
+    return {
+      message: 'Quota esgotada',
+      code: 'QUOTA_EXCEEDED',
+      source: 'getlate',
+      isRetryable: false,
+      originalError: httpStatus ? `${httpStatus}: ${errorString}` : errorString,
+      suggestedAction: 'Aguarda pelo reset ou faz upgrade do plano',
+    };
+  }
+  
+  // Network errors
+  if (lower.includes('network') || lower.includes('timeout') || lower.includes('connection') || 
+      lower.includes('fetch') || lower.includes('econnrefused') || lower.includes('abort')) {
+    return {
+      message: 'Erro de ligação',
+      code: 'NETWORK_ERROR',
+      source: 'internal',
+      isRetryable: true,
+      originalError: httpStatus ? `${httpStatus}: ${errorString}` : errorString,
+      suggestedAction: 'Verifica a internet e tenta novamente',
+    };
+  }
+  
+  // API/server errors (5xx)
+  if (lower.includes('500') || lower.includes('502') || lower.includes('503') || 
+      lower.includes('internal server') || lower.includes('api error') ||
+      (httpStatus && httpStatus >= 500)) {
+    return {
+      message: 'Erro do servidor',
+      code: 'API_ERROR',
+      source: httpStatus && httpStatus >= 500 ? 'getlate' : 'internal',
+      isRetryable: true,
+      originalError: httpStatus ? `${httpStatus}: ${errorString}` : errorString,
+      suggestedAction: 'Tenta novamente em alguns minutos',
+    };
+  }
+  
+  // Edge Function specific error
+  if (lower.includes('edge function') || lower.includes('non-2xx')) {
+    return {
+      message: 'Erro na comunicação com servidor',
+      code: 'API_ERROR',
+      source: 'internal',
+      isRetryable: true,
+      originalError: httpStatus ? `${httpStatus}: ${errorString}` : errorString,
+      suggestedAction: 'Tenta novamente. Se persistir, contacta o suporte.',
+    };
+  }
+  
+  // Fallback - use short error if possible
+  return {
+    message: errorString.length < 80 ? errorString : 'Erro na publicação',
+    code: 'UNKNOWN',
+    source: httpStatus && httpStatus < 500 ? 'getlate' : 'internal',
+    isRetryable: true,
+    originalError: httpStatus ? `${httpStatus}: ${errorString}` : errorString,
+    suggestedAction: 'Tenta novamente. Se persistir, contacta o suporte.',
+  };
+}
+
 // Get source label in Portuguese
 export function getSourceLabel(source: string): { label: string; emoji: string } {
   switch (source) {

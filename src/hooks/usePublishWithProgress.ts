@@ -11,7 +11,7 @@ import {
   PlatformResult,
   PlatformStatus 
 } from '@/components/publishing/PublishProgressModal';
-import { parseStructuredError, type StructuredError } from '@/lib/publishingErrors';
+import { parseStructuredError, classifyErrorFromString, type StructuredError } from '@/lib/publishingErrors';
 import { toast } from 'sonner';
 
 // Initial state
@@ -611,55 +611,61 @@ export function usePublishWithProgress() {
           
           if (publishError) {
             // Extract detailed error from publishError.context when available (HTTP 500 responses)
-            console.error(`[usePublishWithProgress] [${publishSessionId}] ${format} failed with error:`, {
+            const errorContext = publishError.context as { status?: number; body?: string } | undefined;
+            const httpStatus = errorContext?.status || 0;
+            
+            console.error(`[usePublishWithProgress] [${publishSessionId}] ${format} failed:`, {
               message: publishError.message,
-              context: publishError.context,
+              status: httpStatus,
+              body: errorContext?.body?.substring(0, 500),
             });
             
             let detailedErrorMessage = 'Erro de comunicação';
             let structuredError: StructuredError | null = null;
             
             // Try to extract structured error from context body
-            const errorContext = publishError.context as { status?: number; body?: string } | undefined;
             if (errorContext?.body) {
               try {
                 const bodyParsed = JSON.parse(errorContext.body);
+                
+                // Handle structured error object: { error: { message, code, source } }
                 if (bodyParsed.error && typeof bodyParsed.error === 'object') {
                   structuredError = parseStructuredError(bodyParsed.error);
                   detailedErrorMessage = structuredError?.message || bodyParsed.error?.message || detailedErrorMessage;
-                } else if (bodyParsed.message) {
-                  detailedErrorMessage = bodyParsed.message;
                 }
-                console.log(`[usePublishWithProgress] [${publishSessionId}] Extracted error from context body:`, bodyParsed);
+                // Handle error as string from Getlate API: { error: "message" }
+                else if (bodyParsed.error && typeof bodyParsed.error === 'string') {
+                  structuredError = classifyErrorFromString(bodyParsed.error, httpStatus);
+                  detailedErrorMessage = structuredError.message;
+                }
+                // Handle message field: { message: "..." }
+                else if (bodyParsed.message && typeof bodyParsed.message === 'string') {
+                  structuredError = classifyErrorFromString(bodyParsed.message, httpStatus);
+                  detailedErrorMessage = structuredError.message;
+                }
+                // Handle success: false with details
+                else if (bodyParsed.details && typeof bodyParsed.details === 'string') {
+                  structuredError = classifyErrorFromString(bodyParsed.details, httpStatus);
+                  detailedErrorMessage = structuredError.message;
+                }
+                
+                console.log(`[usePublishWithProgress] [${publishSessionId}] Parsed error:`, {
+                  detailedErrorMessage,
+                  code: structuredError?.code,
+                  source: structuredError?.source,
+                });
               } catch (parseErr) {
-                console.warn(`[usePublishWithProgress] [${publishSessionId}] Could not parse error body:`, errorContext.body);
+                // Body is not JSON - use raw message
+                structuredError = classifyErrorFromString(errorContext.body, httpStatus);
+                detailedErrorMessage = structuredError.message;
+                console.warn(`[usePublishWithProgress] [${publishSessionId}] Raw error body:`, errorContext.body.substring(0, 200));
               }
             }
             
-            // Fallback: try to extract from publishError.message
+            // Fallback: use publishError.message with classifyErrorFromString
             if (!structuredError && publishError.message) {
-              // Check if message contains useful keywords
-              const msg = publishError.message.toLowerCase();
-              if (msg.includes('network') || msg.includes('fetch') || msg.includes('timeout')) {
-                structuredError = {
-                  message: 'Erro de ligação à rede',
-                  code: 'NETWORK_ERROR',
-                  source: 'internal',
-                  isRetryable: true,
-                  originalError: publishError.message,
-                  suggestedAction: 'Verifica a tua ligação à internet e tenta novamente',
-                };
-                detailedErrorMessage = structuredError.message;
-              } else {
-                structuredError = {
-                  message: detailedErrorMessage,
-                  code: 'UNKNOWN',
-                  source: 'internal',
-                  isRetryable: true,
-                  originalError: publishError.message,
-                  suggestedAction: 'Tenta novamente ou contacta o suporte',
-                };
-              }
+              structuredError = classifyErrorFromString(publishError.message, httpStatus);
+              detailedErrorMessage = structuredError.message;
             }
             
             platformResults.set(format, { 
