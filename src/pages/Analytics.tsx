@@ -1,14 +1,18 @@
-import { useState } from "react";
-import { BarChart3, RefreshCw, Trash2, Award, TrendingUp } from "lucide-react";
+import { useState, useMemo } from "react";
+import { BarChart3, Trash2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
-import { Badge } from "@/components/ui/badge";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { KPICards } from "@/components/analytics/KPICards";
 import { EngagementChart } from "@/components/analytics/EngagementChart";
 import { ContentTypeBreakdown } from "@/components/analytics/ContentTypeBreakdown";
 import { HashtagCloud } from "@/components/analytics/HashtagCloud";
 import { TopPostsTable } from "@/components/analytics/TopPostsTable";
+import { TopPostsGallery } from "@/components/analytics/TopPostsGallery";
+import { BestTimeToPost } from "@/components/analytics/BestTimeToPost";
+import { InsightsSummary } from "@/components/analytics/InsightsSummary";
+import { AnalyticsFilters, type PeriodFilter, type ContentTypeFilter } from "@/components/analytics/AnalyticsFilters";
 import { ImportInstagramExcel } from "@/components/analytics/ImportInstagramExcel";
 import { useInstagramAnalytics } from "@/hooks/useInstagramAnalytics";
 import {
@@ -34,6 +38,51 @@ export default function Analytics() {
     isDeleting,
   } = useInstagramAnalytics();
 
+  // Filters state
+  const [period, setPeriod] = useState<PeriodFilter>("all");
+  const [account, setAccount] = useState("all");
+  const [contentTypes, setContentTypes] = useState<ContentTypeFilter[]>(["Image", "Video", "Sidecar"]);
+
+  // Get unique accounts
+  const accounts = useMemo(() => {
+    const usernames = new Set<string>();
+    analytics.forEach((p) => {
+      if (p.owner_username) usernames.add(p.owner_username);
+    });
+    return Array.from(usernames);
+  }, [analytics]);
+
+  // Filter analytics data
+  const filteredAnalytics = useMemo(() => {
+    let result = [...analytics];
+
+    // Period filter
+    if (period !== "all") {
+      const now = new Date();
+      const days = period === "7d" ? 7 : period === "30d" ? 30 : period === "90d" ? 90 : 365;
+      const cutoff = new Date(now.getTime() - days * 24 * 60 * 60 * 1000);
+      result = result.filter((p) => p.posted_at && new Date(p.posted_at) >= cutoff);
+    }
+
+    // Account filter
+    if (account !== "all") {
+      result = result.filter((p) => p.owner_username === account);
+    }
+
+    // Content type filter
+    if (contentTypes.length < 3) {
+      result = result.filter((p) => contentTypes.includes((p.post_type || "Image") as ContentTypeFilter));
+    }
+
+    return result;
+  }, [analytics, period, account, contentTypes]);
+
+  const handleResetFilters = () => {
+    setPeriod("all");
+    setAccount("all");
+    setContentTypes(["Image", "Video", "Sidecar"]);
+  };
+
   const handleDeleteAll = () => {
     const ids = analytics.map((a) => a.id);
     if (ids.length > 0) {
@@ -53,10 +102,7 @@ export default function Analytics() {
             <Skeleton key={i} className="h-24" />
           ))}
         </div>
-        <div className="grid lg:grid-cols-2 gap-6">
-          <Skeleton className="h-[400px]" />
-          <Skeleton className="h-[400px]" />
-        </div>
+        <Skeleton className="h-[400px]" />
       </div>
     );
   }
@@ -64,7 +110,7 @@ export default function Analytics() {
   const isEmpty = analytics.length === 0;
 
   return (
-    <div className="container mx-auto p-6 space-y-6">
+    <div className="container mx-auto p-6 space-y-5">
       {/* Header */}
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
         <div className="flex items-center gap-3">
@@ -75,17 +121,14 @@ export default function Analytics() {
             <h1 className="text-2xl font-bold">Analytics Instagram</h1>
             <p className="text-sm text-muted-foreground">
               {isEmpty
-                ? "Importe os dados das suas publicações para começar"
+                ? "Importe os dados das suas publicações"
                 : `${stats.totalPosts} publicações analisadas`}
             </p>
           </div>
         </div>
 
         <div className="flex items-center gap-2">
-          <ImportInstagramExcel
-            onImport={importPosts}
-            isImporting={isImporting}
-          />
+          <ImportInstagramExcel onImport={importPosts} isImporting={isImporting} />
           {!isEmpty && (
             <AlertDialog>
               <AlertDialogTrigger asChild>
@@ -98,8 +141,7 @@ export default function Analytics() {
                 <AlertDialogHeader>
                   <AlertDialogTitle>Eliminar todos os dados?</AlertDialogTitle>
                   <AlertDialogDescription>
-                    Esta ação vai eliminar todos os {stats.totalPosts} registos de analytics.
-                    Esta ação não pode ser revertida.
+                    Esta ação vai eliminar todos os {stats.totalPosts} registos.
                   </AlertDialogDescription>
                 </AlertDialogHeader>
                 <AlertDialogFooter>
@@ -119,7 +161,6 @@ export default function Analytics() {
       </div>
 
       {isEmpty ? (
-        /* Empty state */
         <Card className="border-dashed">
           <CardContent className="flex flex-col items-center justify-center py-16 text-center">
             <div className="p-4 rounded-full bg-muted mb-4">
@@ -127,77 +168,63 @@ export default function Analytics() {
             </div>
             <h3 className="text-lg font-semibold mb-2">Sem dados de analytics</h3>
             <p className="text-muted-foreground mb-6 max-w-md">
-              Importe um ficheiro Excel com os dados das suas publicações do Instagram
-              para ver métricas detalhadas, gráficos e insights.
+              Importe um ficheiro Excel com os dados das suas publicações do Instagram.
             </p>
-            <ImportInstagramExcel
-              onImport={importPosts}
-              isImporting={isImporting}
-            />
+            <ImportInstagramExcel onImport={importPosts} isImporting={isImporting} />
           </CardContent>
         </Card>
       ) : (
         <>
+          {/* Filters */}
+          <AnalyticsFilters
+            period={period}
+            onPeriodChange={setPeriod}
+            account={account}
+            onAccountChange={setAccount}
+            accounts={accounts}
+            contentTypes={contentTypes}
+            onContentTypesChange={setContentTypes}
+            onReset={handleResetFilters}
+            totalPosts={analytics.length}
+            filteredPosts={filteredAnalytics.length}
+          />
+
+          {/* Insights */}
+          <InsightsSummary stats={stats} analytics={filteredAnalytics} />
+
           {/* KPI Cards */}
           <KPICards stats={stats} />
 
-          {/* Best Post Highlight */}
-          {stats.bestPost && (
-            <Card className="border-primary/20 bg-primary/5">
-              <CardHeader className="pb-2">
-                <CardTitle className="text-base flex items-center gap-2">
-                  <Award className="h-5 w-5 text-yellow-500" />
-                  Melhor Post
-                </CardTitle>
-              </CardHeader>
-              <CardContent className="flex gap-4">
-                {stats.bestPost.thumbnail_url && (
-                  <img
-                    src={stats.bestPost.thumbnail_url}
-                    alt=""
-                    className="w-20 h-20 object-cover rounded-lg"
-                  />
-                )}
-                <div className="flex-1 min-w-0">
-                  <p className="text-sm line-clamp-2 mb-2">
-                    {stats.bestPost.caption?.substring(0, 150) || "Sem legenda"}
-                  </p>
-                  <div className="flex gap-4 text-sm">
-                    <Badge variant="secondary" className="bg-red-500/10 text-red-600">
-                      ❤️ {stats.bestPost.likes_count.toLocaleString()} likes
-                    </Badge>
-                    <Badge variant="secondary" className="bg-primary/10 text-primary">
-                      💬 {stats.bestPost.comments_count.toLocaleString()} comentários
-                    </Badge>
-                    <Badge variant="outline">
-                      <TrendingUp className="h-3 w-3 mr-1" />
-                      {(stats.bestPost.likes_count + stats.bestPost.comments_count).toLocaleString()} engagement
-                    </Badge>
-                  </div>
-                </div>
-                <a
-                  href={stats.bestPost.post_url}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="text-primary hover:underline text-sm whitespace-nowrap"
-                >
-                  Ver post →
-                </a>
-              </CardContent>
-            </Card>
-          )}
+          {/* Tabs */}
+          <Tabs defaultValue="overview" className="space-y-4">
+            <TabsList>
+              <TabsTrigger value="overview">Visão Geral</TabsTrigger>
+              <TabsTrigger value="engagement">Engagement</TabsTrigger>
+              <TabsTrigger value="hashtags">Hashtags</TabsTrigger>
+              <TabsTrigger value="posts">Posts</TabsTrigger>
+            </TabsList>
 
-          {/* Charts Grid */}
-          <div className="grid lg:grid-cols-2 gap-6">
-            <EngagementChart data={stats.engagementOverTime} />
-            <ContentTypeBreakdown data={stats.contentTypeBreakdown} />
-          </div>
+            <TabsContent value="overview" className="space-y-6">
+              <div className="grid lg:grid-cols-2 gap-6">
+                <EngagementChart data={stats.engagementOverTime} />
+                <ContentTypeBreakdown data={stats.contentTypeBreakdown} />
+              </div>
+              <TopPostsGallery posts={filteredAnalytics} limit={3} />
+            </TabsContent>
 
-          {/* Hashtags */}
-          <HashtagCloud data={stats.topHashtags} />
+            <TabsContent value="engagement" className="space-y-6">
+              <EngagementChart data={stats.engagementOverTime} />
+              <BestTimeToPost analytics={filteredAnalytics} />
+            </TabsContent>
 
-          {/* Posts Table */}
-          <TopPostsTable posts={analytics} />
+            <TabsContent value="hashtags">
+              <HashtagCloud data={stats.topHashtags} />
+            </TabsContent>
+
+            <TabsContent value="posts">
+              <TopPostsTable posts={filteredAnalytics} />
+            </TabsContent>
+          </Tabs>
         </>
       )}
     </div>
