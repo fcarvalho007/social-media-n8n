@@ -389,7 +389,6 @@ export default function Analytics() {
                 <Users className="h-4 w-4" />
                 Concorrência ({accounts.length})
               </TabsTrigger>
-              <TabsTrigger value="posts">Todos os Posts ({filteredAnalytics.length})</TabsTrigger>
             </TabsList>
 
             <TabsContent value="overview" className="space-y-6">
@@ -437,6 +436,9 @@ export default function Analytics() {
                   contextLabel={account === "all" ? `${sortedAccounts.length} contas` : `@${account}`}
                 />
               </div>
+
+              {/* All Posts Table - at the end of Overview */}
+              <TopPostsTable posts={filteredAnalytics} accounts={sortedAccounts} />
             </TabsContent>
 
             <TabsContent value="competition" className="space-y-6">
@@ -522,10 +524,6 @@ export default function Analytics() {
                 accountStats={accountStats}
                 myAccount={myAccount || undefined}
               />
-            </TabsContent>
-
-            <TabsContent value="posts">
-              <TopPostsTable posts={filteredAnalytics} accounts={sortedAccounts} />
             </TabsContent>
           </Tabs>
         </>
