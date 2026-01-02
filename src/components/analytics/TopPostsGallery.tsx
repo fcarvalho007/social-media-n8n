@@ -1,13 +1,16 @@
 import { useState } from "react";
-import { ExternalLink, Heart, MessageCircle, Eye, ImageOff, Play } from "lucide-react";
+import { ExternalLink, Heart, MessageCircle, Eye, ImageOff, Play, Star } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
+import { MY_ACCOUNT_COLOR } from "@/lib/analytics/colors";
 import type { InstagramAnalyticsItem } from "@/hooks/useInstagramAnalytics";
 
 interface TopPostsGalleryProps {
   posts: InstagramAnalyticsItem[];
   limit?: number;
+  myAccount?: string;
+  showUsername?: boolean;
 }
 
 const RANKING_STYLES = [
@@ -25,7 +28,7 @@ const TYPE_LABELS: Record<string, string> = {
   Sidecar: "Carrossel",
 };
 
-export function TopPostsGallery({ posts, limit = 6 }: TopPostsGalleryProps) {
+export function TopPostsGallery({ posts, limit = 6, myAccount, showUsername = false }: TopPostsGalleryProps) {
   const [imageErrors, setImageErrors] = useState<Set<string>>(new Set());
   const [loadingImages, setLoadingImages] = useState<Set<string>>(new Set(posts.map(p => p.id)));
 
@@ -37,6 +40,8 @@ export function TopPostsGallery({ posts, limit = 6 }: TopPostsGalleryProps) {
         ((a.likes_count || 0) + (a.comments_count || 0))
     )
     .slice(0, limit);
+
+  const isMyAccountPost = (post: InstagramAnalyticsItem) => myAccount && post.owner_username === myAccount;
 
   const formatNumber = (num: number) => {
     if (num >= 1000000) return `${(num / 1000000).toFixed(1)}M`;
@@ -79,14 +84,24 @@ export function TopPostsGallery({ posts, limit = 6 }: TopPostsGalleryProps) {
             const isLoading = loadingImages.has(post.id);
             const isVideo = post.is_video || post.post_type === "Video";
 
-            return (
+              const isMyPost = isMyAccountPost(post);
+              
+              return (
               <a
                 key={post.id}
                 href={post.post_url}
                 target="_blank"
                 rel="noopener noreferrer"
-                className={`group relative rounded-xl overflow-hidden bg-muted transition-all hover:scale-[1.02] hover:shadow-lg ${style.ring} ${style.glow}`}
+                className={`group relative rounded-xl overflow-hidden bg-muted transition-all hover:scale-[1.02] hover:shadow-lg ${style.ring} ${style.glow} ${isMyPost ? 'ring-2 ring-amber-500/50' : ''}`}
+                style={isMyPost ? { boxShadow: `0 0 12px ${MY_ACCOUNT_COLOR}40` } : undefined}
               >
+                {/* My Account Badge */}
+                {isMyPost && (
+                  <div className="absolute top-1.5 right-8 z-10">
+                    <Star className="h-4 w-4 fill-amber-500 text-amber-500 drop-shadow-md" />
+                  </div>
+                )}
+
                 {/* Ranking Badge */}
                 <div className="absolute top-1.5 left-1.5 z-10">
                   {index < 3 ? (
@@ -163,6 +178,14 @@ export function TopPostsGallery({ posts, limit = 6 }: TopPostsGalleryProps) {
                       </div>
                     )}
                   </div>
+
+                  {/* Username badge */}
+                  {(showUsername || myAccount) && post.owner_username && (
+                    <div className={`flex items-center gap-1 text-[10px] truncate ${isMyPost ? 'text-amber-600 font-semibold' : 'text-muted-foreground'}`}>
+                      {isMyPost && <Star className="h-2.5 w-2.5 fill-amber-500 text-amber-500 flex-shrink-0" />}
+                      <span className="truncate">@{post.owner_username}</span>
+                    </div>
+                  )}
 
                   <div className="flex items-center justify-between">
                     <Badge variant="outline" className="text-[10px] px-1 py-0 h-4">
