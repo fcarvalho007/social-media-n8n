@@ -17,70 +17,210 @@ interface InstagramPost {
   videoViewCount?: number;
   displayUrl?: string;
   images?: string[];
+  childPosts?: { displayUrl?: string; shortCode?: string }[];
   timestamp?: string;
   locationName?: string;
   ownerUsername?: string;
+  ownerFullName?: string;
+  followersCount?: number;
+  isSponsored?: boolean;
   dimensionsWidth?: number;
   dimensionsHeight?: number;
   isVideo?: boolean;
   videoDuration?: number;
 }
 
-// Download image and upload to Supabase Storage
+// Delay helper
+const delay = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
+
+// Download image with retry logic and fallback URLs
+async function downloadWithRetry(
+  urls: string[],
+  maxRetries = 3
+): Promise<{ blob: Blob; contentType: string } | null> {
+  const userAgents = [
+    "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
+    "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.0 Safari/605.1.15",
+    "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
+  ];
+
+  for (const url of urls) {
+    if (!url || url.includes("supabase")) continue;
+    
+    for (let attempt = 1; attempt <= maxRetries; attempt++) {
+      try {
+        console.log(`Downloading image (attempt ${attempt}/${maxRetries}): ${url.substring(0, 80)}...`);
+        
+        const response = await fetch(url, {
+          headers: {
+            "User-Agent": userAgents[attempt - 1] || userAgents[0],
+            "Accept": "image/webp,image/apng,image/*,*/*;q=0.8",
+            "Accept-Language": "en-US,en;q=0.9",
+            "Cache-Control": "no-cache",
+          },
+        });
+
+        if (response.ok) {
+          const blob = await response.blob();
+          const contentType = response.headers.get("content-type") || "image/jpeg";
+          console.log(`Successfully downloaded image (${Math.round(blob.size / 1024)}KB)`);
+          return { blob, contentType };
+        }
+        
+        console.warn(`Download failed (${response.status}), retrying...`);
+        await delay(1000 * attempt); // Exponential backoff: 1s, 2s, 3s
+      } catch (error) {
+        console.warn(`Download error on attempt ${attempt}:`, error);
+        await delay(1000 * attempt);
+      }
+    }
+  }
+
+  console.warn("All download attempts failed for all URLs");
+  return null;
+}
+
+// Download image and upload to Supabase Storage with retry
 async function downloadAndUploadImage(
   supabase: any,
-  imageUrl: string,
-  shortcode: string,
+  post: InstagramPost,
   userId: string
 ): Promise<string | null> {
+  const shortcode = post.shortCode || "unknown";
+  
+  // Build list of URLs to try (priority order)
+  const urlsToTry: string[] = [];
+  
+  // 1. Primary displayUrl
+  if (post.displayUrl) {
+    urlsToTry.push(post.displayUrl);
+  }
+  
+  // 2. Images array
+  if (post.images && Array.isArray(post.images)) {
+    urlsToTry.push(...post.images.filter(Boolean));
+  }
+  
+  // 3. Child posts (for carousels)
+  if (post.childPosts && Array.isArray(post.childPosts)) {
+    for (const child of post.childPosts) {
+      if (child.displayUrl) {
+        urlsToTry.push(child.displayUrl);
+      }
+    }
+  }
+
+  if (urlsToTry.length === 0) {
+    console.warn(`No image URLs available for post ${shortcode}`);
+    return null;
+  }
+
+  // Check if already in Supabase
+  const existingUrl = urlsToTry.find(url => url.includes("supabase") && url.includes("storage"));
+  if (existingUrl) {
+    console.log(`Image already in storage: ${shortcode}`);
+    return existingUrl;
+  }
+
   try {
-    // Skip if URL is already from Supabase Storage
-    if (imageUrl.includes('supabase') && imageUrl.includes('storage')) {
-      return imageUrl;
+    const result = await downloadWithRetry(urlsToTry);
+    if (!result) {
+      return post.displayUrl || urlsToTry[0] || null; // Return original URL as fallback
     }
 
-    console.log(`Downloading image for ${shortcode}...`);
-    
-    const response = await fetch(imageUrl, {
-      headers: {
-        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
-      },
-    });
-
-    if (!response.ok) {
-      console.warn(`Failed to download image for ${shortcode}: ${response.status}`);
-      return null;
-    }
-
-    const imageBlob = await response.blob();
-    const contentType = response.headers.get('content-type') || 'image/jpeg';
-    const extension = contentType.includes('png') ? 'png' : 'jpg';
+    const { blob, contentType } = result;
+    const extension = contentType.includes("png") ? "png" : contentType.includes("webp") ? "webp" : "jpg";
     const fileName = `analytics/${userId}/${shortcode}.${extension}`;
 
     // Upload to Supabase Storage
-    const { data: uploadData, error: uploadError } = await supabase.storage
-      .from('publications')
-      .upload(fileName, imageBlob, {
+    const { error: uploadError } = await supabase.storage
+      .from("publications")
+      .upload(fileName, blob, {
         contentType,
         upsert: true,
       });
 
     if (uploadError) {
-      console.warn(`Failed to upload image for ${shortcode}:`, uploadError.message);
-      return null;
+      console.warn(`Upload failed for ${shortcode}:`, uploadError.message);
+      return post.displayUrl || null;
     }
 
     // Get public URL
     const { data: { publicUrl } } = supabase.storage
-      .from('publications')
+      .from("publications")
       .getPublicUrl(fileName);
 
-    console.log(`Successfully stored image for ${shortcode}`);
+    console.log(`Successfully stored image for ${shortcode}: ${publicUrl}`);
     return publicUrl;
   } catch (error) {
-    console.warn(`Error processing image for ${shortcode}:`, error);
-    return null;
+    console.error(`Error processing image for ${shortcode}:`, error);
+    return post.displayUrl || null;
   }
+}
+
+// Store all media URLs (for carousels)
+async function storeAllMediaUrls(
+  supabase: any,
+  post: InstagramPost,
+  userId: string
+): Promise<string[]> {
+  const storedUrls: string[] = [];
+  const shortcode = post.shortCode || "unknown";
+  
+  // Collect all image URLs
+  const allUrls: { url: string; index: number }[] = [];
+  
+  if (post.displayUrl) {
+    allUrls.push({ url: post.displayUrl, index: 0 });
+  }
+  
+  if (post.childPosts && Array.isArray(post.childPosts)) {
+    post.childPosts.forEach((child, idx) => {
+      if (child.displayUrl) {
+        allUrls.push({ url: child.displayUrl, index: idx + 1 });
+      }
+    });
+  }
+  
+  if (post.images && Array.isArray(post.images)) {
+    post.images.forEach((url, idx) => {
+      if (url && !allUrls.some(u => u.url === url)) {
+        allUrls.push({ url, index: allUrls.length });
+      }
+    });
+  }
+
+  // Download and store each image
+  for (const { url, index } of allUrls.slice(0, 10)) { // Max 10 images per post
+    if (url.includes("supabase") && url.includes("storage")) {
+      storedUrls.push(url);
+      continue;
+    }
+
+    const result = await downloadWithRetry([url], 2); // Fewer retries for secondary images
+    if (result) {
+      const { blob, contentType } = result;
+      const extension = contentType.includes("png") ? "png" : "jpg";
+      const fileName = `analytics/${userId}/${shortcode}_${index}.${extension}`;
+
+      const { error } = await supabase.storage
+        .from("publications")
+        .upload(fileName, blob, { contentType, upsert: true });
+
+      if (!error) {
+        const { data: { publicUrl } } = supabase.storage
+          .from("publications")
+          .getPublicUrl(fileName);
+        storedUrls.push(publicUrl);
+      } else {
+        storedUrls.push(url); // Keep original as fallback
+      }
+    } else {
+      storedUrls.push(url); // Keep original as fallback
+    }
+  }
+
+  return storedUrls;
 }
 
 serve(async (req) => {
@@ -144,6 +284,8 @@ serve(async (req) => {
 
     // Transform posts to database format
     const analyticsData = [];
+    let imagesStored = 0;
+    let imagesFailed = 0;
     
     for (const post of posts) {
       // Skip if already exists (duplicate)
@@ -160,28 +302,18 @@ serve(async (req) => {
         }
       }
 
-      // Build media URLs array
-      const mediaUrls: string[] = [];
-      if (post.displayUrl) mediaUrls.push(post.displayUrl);
-      if (post.images && Array.isArray(post.images)) {
-        mediaUrls.push(...post.images.filter((img) => img && !mediaUrls.includes(img)));
+      // Store thumbnail image permanently
+      const storedThumbnailUrl = await downloadAndUploadImage(supabaseAdmin, post, user.id);
+      if (storedThumbnailUrl?.includes("supabase")) {
+        imagesStored++;
+      } else if (post.displayUrl) {
+        imagesFailed++;
       }
 
-      // Try to download and store the thumbnail permanently
-      let storedThumbnailUrl = post.displayUrl || null;
-      if (post.displayUrl && post.shortCode) {
-        const permanentUrl = await downloadAndUploadImage(
-          supabaseAdmin,
-          post.displayUrl,
-          post.shortCode,
-          user.id
-        );
-        if (permanentUrl) {
-          storedThumbnailUrl = permanentUrl;
-        }
-      }
+      // Store all media URLs for carousels
+      const storedMediaUrls = await storeAllMediaUrls(supabaseAdmin, post, user.id);
 
-      // Calculate engagement rate (simplified - without followers count)
+      // Calculate engagement rate
       const totalEngagement = (post.likesCount || 0) + (post.commentsCount || 0);
       
       analyticsData.push({
@@ -195,8 +327,8 @@ serve(async (req) => {
         comments_count: post.commentsCount || 0,
         views_count: post.videoViewCount || 0,
         engagement_rate: totalEngagement,
-        media_urls: mediaUrls,
-        thumbnail_url: storedThumbnailUrl,
+        media_urls: storedMediaUrls.length > 0 ? storedMediaUrls : [post.displayUrl].filter(Boolean),
+        thumbnail_url: storedThumbnailUrl || post.displayUrl,
         posted_at: post.timestamp ? new Date(post.timestamp).toISOString() : null,
         location_name: post.locationName,
         owner_username: post.ownerUsername,
@@ -255,7 +387,7 @@ serve(async (req) => {
       }
     }
 
-    console.log(`Successfully imported ${insertedCount} posts (${duplicateCount} duplicates skipped), ${mediaImportedCount} media items`);
+    console.log(`Import complete: ${insertedCount} posts, ${imagesStored} images stored, ${imagesFailed} failed, ${duplicateCount} duplicates`);
 
     return new Response(
       JSON.stringify({
@@ -263,6 +395,8 @@ serve(async (req) => {
         imported: insertedCount,
         duplicates: duplicateCount,
         mediaImported: mediaImportedCount,
+        imagesStored,
+        imagesFailed,
         total: posts.length,
       }),
       {
