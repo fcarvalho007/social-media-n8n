@@ -104,6 +104,41 @@ async function extractVideoFrame(videoFile: File | string): Promise<File> {
   });
 }
 
+// Generate semantic PDF filename from caption
+function generateSemanticPdfFilename(caption: string): string {
+  const stopwords = ['a', 'o', 'e', 'de', 'da', 'do', 'para', 'com', 'em', 'que', 'é', 'mais', 'uma', 'um', 'os', 'as', 'no', 'na', 'por', 'se', 'ou', 'ao', 'aos', 'das', 'dos', 'seu', 'sua', 'como', 'mas', 'não', 'nao', 'isso', 'esta', 'este', 'essa', 'esse'];
+  
+  const now = new Date();
+  const month = String(now.getMonth() + 1).padStart(2, '0');
+  const year = now.getFullYear();
+  
+  if (!caption || caption.trim().length === 0) {
+    return `carousel-${month}-${year}.pdf`;
+  }
+  
+  // Remove emojis, hashtags, URLs, mentions
+  let cleaned = caption
+    .replace(/[\u{1F300}-\u{1F9FF}]|[\u{2600}-\u{26FF}]|[\u{2700}-\u{27BF}]|[\u{1F000}-\u{1F02F}]|[\u{1F0A0}-\u{1F0FF}]|[\u{1F100}-\u{1F64F}]|[\u{1F680}-\u{1F6FF}]/gu, '')
+    .replace(/#\w+/g, '')
+    .replace(/@\w+/g, '')
+    .replace(/https?:\/\/\S+/g, '')
+    .toLowerCase();
+  
+  // Normalize (remove accents)
+  cleaned = cleaned.normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+  
+  // Extract words (only alphabetic, min 3 chars, not in stopwords)
+  const words = cleaned
+    .split(/\s+/)
+    .map(w => w.replace(/[^a-z]/g, ''))
+    .filter(w => w.length >= 3 && !stopwords.includes(w))
+    .slice(0, 4);
+  
+  const slug = words.join('-').substring(0, 40) || 'carousel';
+  
+  return `${slug}-${month}-${year}-carousel.pdf`;
+}
+
 export function usePublishWithProgress() {
   const [progress, setProgress] = useState<PublishProgress>(initialProgress);
   const [isPublishing, setIsPublishing] = useState(false);
@@ -562,14 +597,16 @@ export function usePublishWithProgress() {
               }
             }
             
-            if (imageUrlsForPdf.length > 0) {
+if (imageUrlsForPdf.length > 0) {
               const pdfBlob = await generateCarouselPDF({ 
                 images: imageUrlsForPdf,
                 title: 'carousel',
                 quality: 0.9 
               });
               
-              const pdfFileName = `${user.id}/${Date.now()}-carousel.pdf`;
+              // Generate semantic PDF filename from caption
+              const semanticFilename = generateSemanticPdfFilename(caption);
+              const pdfFileName = `${user.id}/${semanticFilename}`;
               const { error: pdfUploadError } = await supabase.storage
                 .from('pdfs')
                 .upload(pdfFileName, pdfBlob, { contentType: 'application/pdf' });

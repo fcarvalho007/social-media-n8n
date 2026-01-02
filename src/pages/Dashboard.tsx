@@ -5,11 +5,12 @@ import { useCostTracking } from '@/hooks/useCostTracking';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { FileImage, ImagePlus, FileText, Calendar as CalendarIcon, ArrowRight, FolderKanban, Clock, AlertCircle, Euro, Edit3 } from 'lucide-react';
+import { FileImage, ImagePlus, FileText, Calendar as CalendarIcon, ArrowRight, FolderKanban, AlertCircle, Euro, Edit3 } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { format } from 'date-fns';
 import { pt } from 'date-fns/locale';
 import { Skeleton } from '@/components/ui/skeleton';
+import { PendingThumbnail } from '@/components/PendingThumbnail';
 
 export default function Dashboard() {
   const { projects } = useProjects();
@@ -30,26 +31,6 @@ export default function Dashboard() {
 
   // Formatar valores de custo
   const formatCurrency = (value: number) => `€${value.toFixed(2)}`;
-
-  const getTypeLabel = (type: string) => {
-    switch (type) {
-      case 'story': return 'Story';
-      case 'carousel': return 'Carrossel';
-      case 'post': return 'Post';
-      case 'draft': return 'Rascunho';
-      default: return type;
-    }
-  };
-
-  const getTypeBadgeColor = (type: string) => {
-    switch (type) {
-      case 'story': return 'bg-green-500/10 text-green-700 border-green-500/30';
-      case 'carousel': return 'bg-blue-500/10 text-blue-700 border-blue-500/30';
-      case 'post': return 'bg-purple-500/10 text-purple-700 border-purple-500/30';
-      case 'draft': return 'bg-amber-500/10 text-amber-700 border-amber-500/30';
-      default: return 'bg-muted text-muted-foreground';
-    }
-  };
 
   return (
     <div className="space-y-4 sm:space-y-6 bg-gradient-to-br from-background via-background to-muted/10">
@@ -101,48 +82,16 @@ export default function Dashboard() {
             </div>
           ) : (
             <>
-              <div className="grid grid-cols-3 sm:grid-cols-4 lg:grid-cols-6 gap-3">
+<div className="grid grid-cols-3 sm:grid-cols-4 lg:grid-cols-6 gap-3">
                 {pendingItems.map((item) => (
-                  <div
+                  <PendingThumbnail
                     key={`${item.type}-${item.id}`}
-                    onClick={() => navigate(item.route)}
-                    className="relative aspect-square rounded-lg overflow-hidden cursor-pointer 
-                               hover:ring-2 hover:ring-primary transition-all group bg-muted"
-                  >
-                    {item.thumbnail ? (
-                      <img 
-                        src={item.thumbnail} 
-                        alt="" 
-                        className="w-full h-full object-cover transition-transform group-hover:scale-105"
-                        onError={(e) => {
-                          const target = e.target as HTMLImageElement;
-                          target.style.display = 'none';
-                          const fallback = target.nextElementSibling as HTMLElement;
-                          if (fallback) fallback.style.display = 'flex';
-                        }}
-                      />
-                    ) : null}
-                    <div className={`w-full h-full flex items-center justify-center ${item.thumbnail ? 'hidden' : ''}`}>
-                      {item.type === 'story' ? (
-                        <FileImage className="h-8 w-8 text-muted-foreground/50" />
-                      ) : item.type === 'carousel' ? (
-                        <ImagePlus className="h-8 w-8 text-muted-foreground/50" />
-                      ) : (
-                        <FileText className="h-8 w-8 text-muted-foreground/50" />
-                      )}
-                    </div>
-                    {/* Badge de tipo */}
-                    <Badge 
-                      className={`absolute top-1.5 left-1.5 text-[10px] px-1.5 py-0 h-5 border ${getTypeBadgeColor(item.type)}`}
-                    >
-                      {getTypeLabel(item.type)}
-                    </Badge>
-                    {/* Hover overlay */}
-                    <div className="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 
-                                    transition-opacity flex items-center justify-center">
-                      <span className="text-white text-xs font-medium">Abrir</span>
-                    </div>
-                  </div>
+                    id={item.id}
+                    type={item.type}
+                    thumbnail={item.thumbnail}
+                    route={item.route}
+                    onNavigate={navigate}
+                  />
                 ))}
               </div>
               
