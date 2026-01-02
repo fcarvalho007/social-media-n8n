@@ -30,6 +30,7 @@ interface AnalyticsFiltersProps {
   onReset: () => void;
   totalPosts: number;
   filteredPosts: number;
+  myAccount?: string;
 }
 
 const PERIOD_LABELS: Record<PeriodFilter, string> = {
@@ -57,6 +58,7 @@ export function AnalyticsFilters({
   onReset,
   totalPosts,
   filteredPosts,
+  myAccount,
 }: AnalyticsFiltersProps) {
   const hasActiveFilters =
     period !== "all" || account !== "all" || contentTypes.length < 3;
@@ -100,14 +102,21 @@ export function AnalyticsFilters({
         <div className="flex items-center gap-2">
           <User className="h-4 w-4 text-muted-foreground" />
           <Select value={account} onValueChange={onAccountChange}>
-            <SelectTrigger className="w-[160px] h-9">
+            <SelectTrigger className={`w-[180px] h-9 ${account === myAccount ? 'border-amber-500 bg-amber-500/10' : ''}`}>
               <SelectValue placeholder="Todas as contas" />
             </SelectTrigger>
             <SelectContent>
               <SelectItem value="all">Todas as contas</SelectItem>
               {accounts.map((acc) => (
                 <SelectItem key={acc} value={acc}>
-                  @{acc}
+                  <span className="flex items-center gap-2">
+                    @{acc}
+                    {acc === myAccount && (
+                      <Badge variant="secondary" className="text-[10px] px-1 py-0 h-4 bg-amber-500/20 text-amber-700">
+                        ⭐ Você
+                      </Badge>
+                    )}
+                  </span>
                 </SelectItem>
               ))}
             </SelectContent>

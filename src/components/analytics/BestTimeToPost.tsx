@@ -1,6 +1,7 @@
 import { useMemo } from "react";
 import { Clock, Trophy, TrendingUp } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Badge } from "@/components/ui/badge";
 import {
   Tooltip,
   TooltipContent,
@@ -11,13 +12,14 @@ import type { InstagramAnalyticsItem } from "@/hooks/useInstagramAnalytics";
 
 interface BestTimeToPostProps {
   analytics: InstagramAnalyticsItem[];
+  contextLabel?: string;
 }
 
 const DAYS = ["Dom", "Seg", "Ter", "Qua", "Qui", "Sex", "Sáb"];
 const DAYS_FULL = ["Domingo", "Segunda", "Terça", "Quarta", "Quinta", "Sexta", "Sábado"];
 const HOURS = [6, 8, 10, 12, 14, 16, 18, 20, 22];
 
-export function BestTimeToPost({ analytics }: BestTimeToPostProps) {
+export function BestTimeToPost({ analytics, contextLabel }: BestTimeToPostProps) {
   const { heatmapData, averages, maxAvg, topTimes } = useMemo(() => {
     const heatmapData = new Map<string, { total: number; count: number }>();
 
@@ -92,11 +94,16 @@ export function BestTimeToPost({ analytics }: BestTimeToPostProps) {
 
   return (
     <Card>
-      <CardHeader className="pb-3">
+      <CardHeader className="pb-3 flex flex-row items-center justify-between space-y-0">
         <CardTitle className="text-base flex items-center gap-2">
           <Clock className="h-4 w-4" />
           Melhor Horário para Publicar
         </CardTitle>
+        {contextLabel && (
+          <Badge variant="outline" className="text-xs font-normal">
+            {contextLabel}
+          </Badge>
+        )}
       </CardHeader>
       <CardContent className="space-y-6">
         <TooltipProvider>
