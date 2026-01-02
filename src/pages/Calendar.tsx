@@ -333,12 +333,13 @@ const Calendar = () => {
     }
   };
 
-  // Load cache on initial mount (before fetch completes)
+  // Load cache on initial mount (before fetch completes) - only as offline fallback
   useEffect(() => {
     try {
       const cachedData = localStorage.getItem(CACHE_KEY);
       const cachedTimestamp = localStorage.getItem(CACHE_TIMESTAMP_KEY);
       
+      // Only use cache if we're offline or as initial placeholder
       if (cachedData) {
         const parsed = JSON.parse(cachedData);
         const restoredEvents = parsed.map((e: any) => ({
@@ -346,15 +347,57 @@ const Calendar = () => {
           start: new Date(e.start),
           end: new Date(e.end),
         }));
-        setEvents(restoredEvents);
-        if (cachedTimestamp) {
-          setLastUpdated(new Date(cachedTimestamp));
+        // Only set if we don't have events yet (prevents showing stale data)
+        if (events.length === 0) {
+          setEvents(restoredEvents);
+          if (cachedTimestamp) {
+            setLastUpdated(new Date(cachedTimestamp));
+          }
         }
       }
     } catch (error) {
       logger.warn('Failed to load initial cache', error);
     }
   }, []);
+
+  // Smart navigation: suggest going to month with content if current month is empty
+  const [hasShownNavigationHint, setHasShownNavigationHint] = useState(false);
+  
+  useEffect(() => {
+    if (loading || hasShownNavigationHint || events.length === 0) return;
+    
+    const currentMonthStart = startOfMonth(currentMonth);
+    const currentMonthEnd = endOfMonth(currentMonth);
+    
+    const currentMonthEvents = events.filter(e => {
+      const eventDate = e.start as Date;
+      return eventDate >= currentMonthStart && eventDate <= currentMonthEnd;
+    });
+    
+    // If current month is empty but there are events in other months
+    if (currentMonthEvents.length === 0 && events.length > 0) {
+      // Find the month with the most recent content
+      const sortedEvents = [...events].sort((a, b) => 
+        (b.start as Date).getTime() - (a.start as Date).getTime()
+      );
+      
+      const lastEventDate = sortedEvents[0].start as Date;
+      const lastEventMonth = startOfMonth(lastEventDate);
+      
+      // Only show if it's a different month
+      if (!isSameMonth(lastEventMonth, currentMonth)) {
+        setHasShownNavigationHint(true);
+        toast.info(`Nenhum conteúdo em ${format(currentMonth, 'MMMM yyyy', { locale: pt })}`, {
+          description: `Último conteúdo em ${format(lastEventMonth, 'MMMM yyyy', { locale: pt })}`,
+          action: {
+            label: 'Ir para lá',
+            onClick: () => setCurrentMonth(lastEventMonth)
+          },
+          duration: 8000
+        });
+      }
+    }
+  }, [loading, events, currentMonth, hasShownNavigationHint]);
 
   useEffect(() => {
     fetchScheduledContent();
@@ -1136,7 +1179,26 @@ const Calendar = () => {
                       })}
                     </div>
                     {feedPosts.length === 0 && (
-                      <p className="text-xs text-muted-foreground text-center py-4 bg-muted/30 rounded-lg">Nenhum post agendado</p>
+                      <div className="text-center py-4 bg-muted/30 rounded-lg space-y-2">
+                        <p className="text-xs text-muted-foreground">
+                          Nenhum post em {format(currentMonth, 'MMMM', { locale: pt })}
+                        </p>
+                        {events.filter(e => e.resource.content_type !== 'stories').length > 0 && (
+                          <>
+                            <p className="text-[10px] text-muted-foreground/70">
+                              {events.filter(e => e.resource.content_type !== 'stories').length} posts em outros meses
+                            </p>
+                            <Button 
+                              variant="link" 
+                              size="sm"
+                              className="h-6 text-xs"
+                              onClick={() => setTimeFilter('all')}
+                            >
+                              Ver todos
+                            </Button>
+                          </>
+                        )}
+                      </div>
                     )}
                   </div>
 
@@ -1206,7 +1268,35 @@ const Calendar = () => {
                       })}
                     </div>
                     {stories.length === 0 && (
-                      <p className="text-xs text-muted-foreground text-center py-4 bg-muted/30 rounded-lg">Nenhuma story agendada</p>
+                      <div className="text-center py-4 bg-muted/30 rounded-lg space-y-2">
+                        <p className="text-xs text-muted-foreground">
+                          Nenhuma story em {format(currentMonth, 'MMMM', { locale: pt })}
+                        </p>
+                        {events.filter(e => e.resource.content_type === 'stories').length > 0 && (
+                          <>
+                            <p className="text-[10px] text-muted-foreground/70">
+                              {events.filter(e => e.resource.content_type === 'stories').length} stories em outros meses
+                            </p>
+                            <Button 
+                              variant="link" 
+                              size="sm"
+                              className="h-6 text-xs"
+                              onClick={() => {
+                                // Navigate to month with stories
+                                const storiesEvents = events.filter(e => e.resource.content_type === 'stories');
+                                if (storiesEvents.length > 0) {
+                                  const sorted = [...storiesEvents].sort((a, b) => 
+                                    (b.start as Date).getTime() - (a.start as Date).getTime()
+                                  );
+                                  setCurrentMonth(startOfMonth(sorted[0].start as Date));
+                                }
+                              }}
+                            >
+                              Ver todos
+                            </Button>
+                          </>
+                        )}
+                      </div>
                     )}
                   </div>
                 </div>
