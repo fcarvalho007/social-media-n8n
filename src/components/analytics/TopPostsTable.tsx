@@ -26,31 +26,34 @@ import { pt } from "date-fns/locale";
 
 interface TopPostsTableProps {
   posts: InstagramAnalyticsItem[];
+  accounts?: string[];
 }
 
 type SortKey = "likes" | "comments" | "engagement" | "date" | "views";
 type FilterType = "all" | "Image" | "Video" | "Sidecar";
 
-export function TopPostsTable({ posts }: TopPostsTableProps) {
+export function TopPostsTable({ posts, accounts = [] }: TopPostsTableProps) {
   const [sortBy, setSortBy] = useState<SortKey>("engagement");
   const [sortOrder, setSortOrder] = useState<"asc" | "desc">("desc");
   const [filterType, setFilterType] = useState<FilterType>("all");
+  const [filterAccount, setFilterAccount] = useState<string>("all");
   const [searchQuery, setSearchQuery] = useState("");
   const [page, setPage] = useState(1);
   const [imageErrors, setImageErrors] = useState<Set<string>>(new Set());
   const [loadingImages, setLoadingImages] = useState<Set<string>>(new Set());
   const perPage = 15;
 
-  // Filter by type and search
+  // Filter by type, account, and search
   const filteredPosts = useMemo(() => {
     return posts.filter((post) => {
       const matchesType = filterType === "all" || post.post_type === filterType;
+      const matchesAccount = filterAccount === "all" || post.owner_username === filterAccount;
       const matchesSearch = searchQuery === "" || 
         post.caption?.toLowerCase().includes(searchQuery.toLowerCase()) ||
         post.hashtags?.some(h => h.toLowerCase().includes(searchQuery.toLowerCase()));
-      return matchesType && matchesSearch;
+      return matchesType && matchesAccount && matchesSearch;
     });
-  }, [posts, filterType, searchQuery]);
+  }, [posts, filterType, filterAccount, searchQuery]);
 
   const sortedPosts = useMemo(() => {
     return [...filteredPosts].sort((a, b) => {
@@ -160,6 +163,21 @@ export function TopPostsTable({ posts }: TopPostsTableProps) {
               className="pl-8 w-[180px]"
             />
           </div>
+
+          {/* Account filter */}
+          {accounts.length > 0 && (
+            <Select value={filterAccount} onValueChange={(v) => { setFilterAccount(v); setPage(1); }}>
+              <SelectTrigger className="w-[180px]">
+                <SelectValue placeholder="Conta" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">Todas as contas</SelectItem>
+                {accounts.map((acc) => (
+                  <SelectItem key={acc} value={acc}>@{acc}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          )}
 
           {/* Type filter */}
           <Select value={filterType} onValueChange={(v) => { setFilterType(v as FilterType); setPage(1); }}>
@@ -295,15 +313,15 @@ export function TopPostsTable({ posts }: TopPostsTableProps) {
                           : "-"}
                       </TableCell>
                       <TableCell>
-                        <Button
-                          variant="ghost"
-                          size="icon"
-                          className="h-8 w-8"
-                          onClick={() => window.open(post.post_url, "_blank", "noopener,noreferrer")}
+                        <a
+                          href={post.post_url}
+                          target="_blank"
+                          rel="noopener noreferrer"
                           title="Abrir post no Instagram"
+                          className="inline-flex items-center justify-center h-8 w-8 rounded-md hover:bg-accent hover:text-accent-foreground"
                         >
                           <ExternalLink className="h-4 w-4" />
-                        </Button>
+                        </a>
                       </TableCell>
                     </TableRow>
                   );

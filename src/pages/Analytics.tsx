@@ -508,7 +508,7 @@ export default function Analytics() {
             </TabsContent>
 
             <TabsContent value="posts">
-              <TopPostsTable posts={filteredAnalytics} />
+              <TopPostsTable posts={filteredAnalytics} accounts={sortedAccounts} />
             </TabsContent>
           </Tabs>
         </>
