@@ -35,6 +35,84 @@ export type Database = {
         }
         Relationships: []
       }
+      instagram_analytics: {
+        Row: {
+          caption: string | null
+          comments_count: number | null
+          created_at: string | null
+          dimensions_height: number | null
+          dimensions_width: number | null
+          engagement_rate: number | null
+          hashtags: string[] | null
+          id: string
+          imported_at: string | null
+          is_video: boolean | null
+          likes_count: number | null
+          location_name: string | null
+          media_urls: string[] | null
+          owner_username: string | null
+          post_type: string | null
+          post_url: string
+          posted_at: string | null
+          shortcode: string | null
+          thumbnail_url: string | null
+          updated_at: string | null
+          user_id: string
+          video_duration: number | null
+          views_count: number | null
+        }
+        Insert: {
+          caption?: string | null
+          comments_count?: number | null
+          created_at?: string | null
+          dimensions_height?: number | null
+          dimensions_width?: number | null
+          engagement_rate?: number | null
+          hashtags?: string[] | null
+          id?: string
+          imported_at?: string | null
+          is_video?: boolean | null
+          likes_count?: number | null
+          location_name?: string | null
+          media_urls?: string[] | null
+          owner_username?: string | null
+          post_type?: string | null
+          post_url: string
+          posted_at?: string | null
+          shortcode?: string | null
+          thumbnail_url?: string | null
+          updated_at?: string | null
+          user_id: string
+          video_duration?: number | null
+          views_count?: number | null
+        }
+        Update: {
+          caption?: string | null
+          comments_count?: number | null
+          created_at?: string | null
+          dimensions_height?: number | null
+          dimensions_width?: number | null
+          engagement_rate?: number | null
+          hashtags?: string[] | null
+          id?: string
+          imported_at?: string | null
+          is_video?: boolean | null
+          likes_count?: number | null
+          location_name?: string | null
+          media_urls?: string[] | null
+          owner_username?: string | null
+          post_type?: string | null
+          post_url?: string
+          posted_at?: string | null
+          shortcode?: string | null
+          thumbnail_url?: string | null
+          updated_at?: string | null
+          user_id?: string
+          video_duration?: number | null
+          views_count?: number | null
+        }
+        Relationships: []
+      }
       media_library: {
         Row: {
           ai_prompt: string | null
