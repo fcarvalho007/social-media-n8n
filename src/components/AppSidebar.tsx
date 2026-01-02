@@ -27,23 +27,6 @@ import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 
 const menuItems = [
   {
-    title: 'Dashboard',
-    label: 'Dashboard',
-    icon: LayoutDashboard,
-    url: '/dashboard',
-    disabled: false,
-    isMain: false,
-  },
-  {
-    title: 'Aprovação',
-    label: 'Aprovar',
-    icon: CheckCircle2,
-    url: '/pending',
-    showBadge: true,
-    disabled: false,
-    isMain: true,
-  },
-  {
     title: 'Criação',
     label: 'Criar',
     icon: PlusCircle,
@@ -52,6 +35,15 @@ const menuItems = [
       const preferredMode = localStorage.getItem('preferredCreationMode');
       return preferredMode === 'manual' ? '/manual-create' : '/pending?tab=create';
     },
+    disabled: false,
+    isMain: true,
+  },
+  {
+    title: 'Aprovação',
+    label: 'Aprovar',
+    icon: CheckCircle2,
+    url: '/pending',
+    showBadge: true,
     disabled: false,
     isMain: false,
   },
@@ -72,18 +64,18 @@ const menuItems = [
     isMain: false,
   },
   {
-    title: 'Biblioteca',
-    label: 'Biblioteca',
-    icon: Image,
-    url: '/media-library',
-    disabled: false,
-    isMain: false,
-  },
-  {
     title: 'Analytics',
     label: 'Analytics',
     icon: BarChart3,
     url: '/analytics',
+    disabled: false,
+    isMain: false,
+  },
+  {
+    title: 'Biblioteca',
+    label: 'Biblioteca',
+    icon: Image,
+    url: '/media-library',
     disabled: false,
     isMain: false,
   },
@@ -131,7 +123,7 @@ export function AppSidebar() {
         collapsible="offcanvas"
         className={cn(
           "border-none transition-all duration-300 ease-out z-50",
-          !isMobile && "w-[110px]",
+          !isMobile && "w-[88px]",
           "bg-gradient-to-b from-muted/30 via-background/50 to-background/80",
           "backdrop-blur-xl",
           "shadow-[2px_0_24px_rgba(0,0,0,0.06)]"
@@ -153,11 +145,11 @@ export function AppSidebar() {
           </Button>
         )}
 
-        <SidebarContent className="flex flex-col h-full py-8">
+        <SidebarContent className="flex flex-col h-full py-4">
           {/* Menu Items */}
           <SidebarGroup className="flex-1 flex items-center">
-            <SidebarGroupContent className="w-full px-2">
-              <SidebarMenu className="space-y-2">
+            <SidebarGroupContent className="w-full px-1.5">
+              <SidebarMenu className="space-y-0.5">
                 {menuItems.map((item) => (
                   <SidebarMenuItem key={item.title}>
                     <SidebarMenuButton 
@@ -166,17 +158,17 @@ export function AppSidebar() {
                       className="h-auto p-0 hover:bg-transparent"
                     >
                       {item.disabled ? (
-                        <div className="flex flex-col items-center gap-2.5 mx-auto opacity-40 cursor-not-allowed">
-                          <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-muted/50 relative">
-                            <item.icon className="h-5 w-5 text-muted-foreground" strokeWidth={1.5} />
+                        <div className="flex flex-col items-center gap-1.5 mx-auto opacity-40 cursor-not-allowed">
+                          <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-muted/50 relative">
+                            <item.icon className="h-4 w-4 text-muted-foreground" strokeWidth={1.5} />
                           </div>
-                          <span className="text-[11px] text-muted-foreground font-medium text-center leading-tight">{item.label}</span>
+                          <span className="text-[10px] text-muted-foreground font-medium text-center leading-tight">{item.label}</span>
                         </div>
                       ) : (
                         <NavLink
                           to={(item as any).getSmartUrl ? (item as any).getSmartUrl() : item.url}
                           onClick={() => isMobile && setOpen(false)}
-                          className="flex flex-col items-center gap-2.5 mx-auto group w-full py-2.5 hover:scale-[1.02] active:scale-[0.98] transition-all duration-300 ease-out min-h-[72px] touch-target rounded-2xl"
+                          className="flex flex-col items-center gap-1.5 mx-auto group w-full py-1.5 hover:scale-[1.02] active:scale-[0.98] transition-all duration-200 ease-out min-h-[56px] touch-target rounded-xl"
                         >
                           {({ isActive }) => {
                             const isApprovalItem = item.url === '/pending';
@@ -186,18 +178,18 @@ export function AppSidebar() {
                               <>
                                 <div 
                                   className={cn(
-                                    "flex h-[60px] w-[60px] sm:h-[64px] sm:w-[64px] items-center justify-center rounded-2xl relative transition-all duration-300 ease-out",
-                                    isActive && item.isMain && "bg-primary shadow-[0_8px_32px_-8px_hsl(var(--primary)/0.5)] ring-2 ring-primary/20 ring-offset-2 ring-offset-background",
-                                    isActive && !item.isMain && "bg-primary/10 ring-2 ring-primary/20",
-                                    !isActive && "bg-card/80 backdrop-blur-sm group-hover:bg-card group-hover:shadow-lg group-hover:ring-2 group-hover:ring-primary/10"
+                                    "flex h-10 w-10 items-center justify-center rounded-xl relative transition-all duration-200 ease-out",
+                                    isActive && item.isMain && "bg-primary shadow-[0_6px_20px_-6px_hsl(var(--primary)/0.5)] ring-1 ring-primary/20",
+                                    isActive && !item.isMain && "bg-primary/10 ring-1 ring-primary/20",
+                                    !isActive && "bg-card/80 backdrop-blur-sm group-hover:bg-card group-hover:shadow-md group-hover:ring-1 group-hover:ring-primary/10"
                                   )}
                                 >
                                   <item.icon 
                                     className={cn(
-                                      "h-6 w-6 sm:h-7 sm:w-7 transition-all duration-300",
+                                      "h-[18px] w-[18px] transition-all duration-200",
                                       isActive && item.isMain && "text-primary-foreground",
                                       isActive && !item.isMain && "text-primary",
-                                      !isActive && "text-muted-foreground group-hover:text-primary group-hover:scale-110"
+                                      !isActive && "text-muted-foreground group-hover:text-primary group-hover:scale-105"
                                     )} 
                                     strokeWidth={isActive ? 2.5 : 2}
                                   />
@@ -209,7 +201,7 @@ export function AppSidebar() {
                                         <TooltipTrigger asChild>
                                           <Badge 
                                             variant="destructive" 
-                                            className="absolute -top-1 -right-1 h-6 w-6 rounded-full p-0 flex items-center justify-center shadow-lg text-xs font-bold animate-pulse cursor-help"
+                                            className="absolute -top-0.5 -right-0.5 h-4 w-4 rounded-full p-0 flex items-center justify-center shadow-md text-[9px] font-bold animate-pulse cursor-help"
                                           >
                                             {totalPending}
                                           </Badge>
@@ -243,8 +235,8 @@ export function AppSidebar() {
                                 
                                 <span 
                                   className={cn(
-                                    "text-[11px] font-semibold text-center leading-tight transition-all duration-300 tracking-wide",
-                                    isActive && "text-primary scale-105",
+                                    "text-[10px] font-medium text-center leading-tight transition-all duration-200",
+                                    isActive && "text-primary font-semibold",
                                     !isActive && "text-muted-foreground group-hover:text-primary"
                                   )}
                                 >
@@ -263,25 +255,23 @@ export function AppSidebar() {
           </SidebarGroup>
         </SidebarContent>
         
-        <SidebarFooter className="border-t border-border/30 bg-card/40 backdrop-blur-md">
-          <div className="flex flex-col items-center gap-4 p-5">
-            <Avatar className="h-11 w-11 ring-2 ring-primary/20 ring-offset-2 ring-offset-background transition-all hover:ring-primary/40 hover:scale-105">
-              <AvatarFallback className="bg-primary/15 text-primary text-sm font-bold">
+        <SidebarFooter className="border-t border-border/20 bg-card/30 backdrop-blur-md">
+          <div className="flex flex-col items-center gap-2 p-3">
+            <Avatar className="h-8 w-8 ring-1 ring-primary/20 transition-all hover:ring-primary/40 hover:scale-105">
+              <AvatarFallback className="bg-primary/15 text-primary text-[10px] font-bold">
                 {user?.email ? getInitials(user.email) : 'U'}
               </AvatarFallback>
             </Avatar>
-            <div className="flex flex-col items-center gap-1">
-              <Button
-                variant="ghost"
-                size="icon"
-                onClick={handleLogout}
-                className="h-10 w-10 rounded-xl hover:bg-destructive/10 hover:text-destructive transition-all duration-300 hover:scale-105 active:scale-95"
-                title="Logout"
-              >
-                <LogOut className="h-4 w-4" />
-              </Button>
-              <span className="text-[10px] text-muted-foreground font-medium">Sair</span>
-            </div>
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={handleLogout}
+              className="h-7 px-2 rounded-lg hover:bg-destructive/10 hover:text-destructive transition-all duration-200 text-[10px] gap-1"
+              title="Logout"
+            >
+              <LogOut className="h-3 w-3" />
+              <span>Sair</span>
+            </Button>
           </div>
         </SidebarFooter>
       </Sidebar>
