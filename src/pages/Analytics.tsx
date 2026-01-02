@@ -1,4 +1,4 @@
-import { useState, useMemo, useEffect } from "react";
+import { useState, useMemo } from "react";
 import { BarChart3, Trash2, Users } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
@@ -24,6 +24,8 @@ import { CompetitorTopPosts } from "@/components/analytics/CompetitorTopPosts";
 import { ContentTypeComparison } from "@/components/analytics/ContentTypeComparison";
 import { HashtagComparison } from "@/components/analytics/HashtagComparison";
 import { CompetitiveInsights } from "@/components/analytics/CompetitiveInsights";
+import { PostingFrequencyHeatmap } from "@/components/analytics/PostingFrequencyHeatmap";
+import { EngagementDistribution } from "@/components/analytics/EngagementDistribution";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -53,8 +55,9 @@ export default function Analytics() {
   const [contentTypes, setContentTypes] = useState<ContentTypeFilter[]>(["Image", "Video", "Sidecar"]);
   
   // Competition tab state
+  const MY_ACCOUNT_USERNAME = "frederico.m.carvalho";
   const [selectedCompetitorAccounts, setSelectedCompetitorAccounts] = useState<string[]>([]);
-  const [myAccount, setMyAccount] = useState<string | null>(null);
+  const [myAccount, setMyAccount] = useState<string | null>(MY_ACCOUNT_USERNAME);
 
   // Get unique accounts
   const accounts = useMemo(() => {
@@ -65,12 +68,14 @@ export default function Analytics() {
     return Array.from(usernames);
   }, [analytics]);
 
-  // Auto-detect myAccount on first load (first account in the list)
-  useEffect(() => {
-    if (myAccount === null && accounts.length > 0) {
-      setMyAccount(accounts[0]);
-    }
-  }, [accounts, myAccount]);
+  // Sort accounts putting myAccount first
+  const sortedAccounts = useMemo(() => {
+    return [...accounts].sort((a, b) => {
+      if (a === MY_ACCOUNT_USERNAME) return -1;
+      if (b === MY_ACCOUNT_USERNAME) return 1;
+      return a.localeCompare(b);
+    });
+  }, [accounts]);
 
   // Filter analytics data
   const filteredAnalytics = useMemo(() => {
@@ -344,12 +349,13 @@ export default function Analytics() {
             onPeriodChange={setPeriod}
             account={account}
             onAccountChange={setAccount}
-            accounts={accounts}
+            accounts={sortedAccounts}
             contentTypes={contentTypes}
             onContentTypesChange={setContentTypes}
             onReset={handleResetFilters}
             totalPosts={analytics.length}
             filteredPosts={filteredAnalytics.length}
+            myAccount={myAccount || undefined}
           />
 
           {/* Insights */}
@@ -381,12 +387,23 @@ export default function Analytics() {
               </div>
 
               {/* Top Posts Gallery */}
-              <TopPostsGallery posts={filteredAnalytics} limit={6} />
+              <TopPostsGallery 
+                posts={filteredAnalytics} 
+                limit={6} 
+                myAccount={myAccount || undefined}
+                contextLabel={account === "all" ? `${sortedAccounts.length} contas` : `@${account}`}
+              />
 
               {/* Hashtags and Best Time */}
               <div className="grid lg:grid-cols-2 gap-6">
-                <HashtagCloud data={filteredStats.topHashtags} />
-                <BestTimeToPost analytics={filteredAnalytics} />
+                <HashtagCloud 
+                  data={filteredStats.topHashtags} 
+                  contextLabel={account === "all" ? `${sortedAccounts.length} contas` : `@${account}`}
+                />
+                <BestTimeToPost 
+                  analytics={filteredAnalytics}
+                  contextLabel={account === "all" ? `${sortedAccounts.length} contas` : `@${account}`}
+                />
               </div>
             </TabsContent>
 
@@ -433,6 +450,22 @@ export default function Analytics() {
                 postsPerAccount={3}
                 myAccount={myAccount || undefined}
               />
+
+              {/* Posting Frequency + Engagement Distribution */}
+              <div className="grid lg:grid-cols-2 gap-6">
+                <PostingFrequencyHeatmap
+                  analytics={analytics}
+                  selectedAccounts={selectedCompetitorAccounts}
+                  accountColorMap={accountColorMap}
+                  myAccount={myAccount || undefined}
+                />
+                <EngagementDistribution
+                  analytics={analytics}
+                  selectedAccounts={selectedCompetitorAccounts}
+                  accountColorMap={accountColorMap}
+                  myAccount={myAccount || undefined}
+                />
+              </div>
 
               {/* Content Type + Hashtag Comparison */}
               <div className="grid lg:grid-cols-2 gap-6">

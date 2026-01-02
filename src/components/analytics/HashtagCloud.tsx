@@ -13,9 +13,10 @@ import type { AnalyticsStats } from "@/hooks/useInstagramAnalytics";
 
 interface HashtagCloudProps {
   data: AnalyticsStats["topHashtags"];
+  contextLabel?: string;
 }
 
-export function HashtagCloud({ data }: HashtagCloudProps) {
+export function HashtagCloud({ data, contextLabel }: HashtagCloudProps) {
   if (data.length === 0) {
     return (
       <Card>
@@ -37,8 +38,13 @@ export function HashtagCloud({ data }: HashtagCloudProps) {
 
   return (
     <Card>
-      <CardHeader>
+      <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
         <CardTitle className="text-lg">Top Hashtags</CardTitle>
+        {contextLabel && (
+          <Badge variant="outline" className="text-xs font-normal">
+            {contextLabel}
+          </Badge>
+        )}
       </CardHeader>
       <CardContent>
         <ResponsiveContainer width="100%" height={280}>

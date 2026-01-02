@@ -11,6 +11,7 @@ interface TopPostsGalleryProps {
   limit?: number;
   myAccount?: string;
   showUsername?: boolean;
+  contextLabel?: string;
 }
 
 const RANKING_STYLES = [
@@ -28,7 +29,7 @@ const TYPE_LABELS: Record<string, string> = {
   Sidecar: "Carrossel",
 };
 
-export function TopPostsGallery({ posts, limit = 6, myAccount, showUsername = false }: TopPostsGalleryProps) {
+export function TopPostsGallery({ posts, limit = 6, myAccount, showUsername = false, contextLabel }: TopPostsGalleryProps) {
   const [imageErrors, setImageErrors] = useState<Set<string>>(new Set());
   const [loadingImages, setLoadingImages] = useState<Set<string>>(new Set(posts.map(p => p.id)));
 
@@ -70,10 +71,15 @@ export function TopPostsGallery({ posts, limit = 6, myAccount, showUsername = fa
 
   return (
     <Card>
-      <CardHeader className="pb-3">
+      <CardHeader className="pb-3 flex flex-row items-center justify-between space-y-0">
         <CardTitle className="text-base flex items-center gap-2">
           🏆 Top {Math.min(limit, sortedPosts.length)} Posts
         </CardTitle>
+        {contextLabel && (
+          <Badge variant="outline" className="text-xs font-normal">
+            {contextLabel}
+          </Badge>
+        )}
       </CardHeader>
       <CardContent>
         <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3">
