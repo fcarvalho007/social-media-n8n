@@ -1,5 +1,5 @@
-import { useState, useRef } from "react";
-import { Upload, FileSpreadsheet, Loader2, ImageIcon, CheckCircle2, XCircle, AlertCircle } from "lucide-react";
+import { useState, useRef, useMemo } from "react";
+import { Upload, FileSpreadsheet, Loader2, ImageIcon, CheckCircle2, XCircle, AlertCircle, Star, Calendar, Users } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -13,6 +13,8 @@ import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import { useQueryClient } from "@tanstack/react-query";
 import * as XLSX from "xlsx";
+import { format } from "date-fns";
+import { pt } from "date-fns/locale";
 
 interface ImportInstagramExcelProps {
   onImport?: (posts: any[]) => void;
@@ -35,7 +37,19 @@ interface ColumnMapping {
   excelColumn: string | null;
 }
 
+interface AccountStats {
+  username: string;
+  postCount: number;
+  oldestPost: Date | null;
+  newestPost: Date | null;
+  totalLikes: number;
+  totalComments: number;
+}
+
 const BATCH_SIZE = 25;
+
+// Main account to highlight
+const MY_ACCOUNT = "frederico.m.carvalho";
 
 export function ImportInstagramExcel({ onImport, isImporting: externalIsImporting }: ImportInstagramExcelProps) {
   const [isOpen, setIsOpen] = useState(false);
@@ -49,15 +63,90 @@ export function ImportInstagramExcel({ onImport, isImporting: externalIsImportin
   const queryClient = useQueryClient();
 
   const REQUIRED_MAPPINGS = [
-    { name: "shortCode", label: "Shortcode", keys: ["shortCode", "shortcode"] },
-    { name: "url", label: "URL", keys: ["url", "URL", "postUrl", "inputUrl"] },
-    { name: "ownerUsername", label: "Username", keys: ["ownerUsername", "username"] },
-    { name: "caption", label: "Legenda", keys: ["caption", "Caption", "text"] },
-    { name: "likesCount", label: "Likes", keys: ["likesCount", "likes", "Likes"] },
-    { name: "commentsCount", label: "Comentários", keys: ["commentsCount", "comments", "Comments"] },
-    { name: "displayUrl", label: "Imagem", keys: ["displayUrl", "imageUrl", "thumbnailUrl"] },
-    { name: "timestamp", label: "Data", keys: ["timestamp", "date", "postedAt"] },
+    { name: "shortCode", label: "Shortcode", keys: ["shortCode", "shortcode", "code"] },
+    { name: "url", label: "URL", keys: ["url", "URL", "postUrl", "inputUrl", "link"] },
+    { name: "ownerUsername", label: "Username", keys: ["ownerUsername", "username", "owner", "account"] },
+    { name: "caption", label: "Legenda", keys: ["caption", "Caption", "text", "description"] },
+    { name: "likesCount", label: "Likes", keys: ["likesCount", "likes", "Likes", "likeCount"] },
+    { name: "commentsCount", label: "Comentários", keys: ["commentsCount", "comments", "Comments", "commentCount"] },
+    { name: "displayUrl", label: "Imagem", keys: ["displayUrl", "imageUrl", "thumbnailUrl", "image", "thumbnail"] },
+    { name: "timestamp", label: "Data", keys: ["timestamp", "date", "postedAt", "createdAt", "publishedAt"] },
+    { name: "type", label: "Tipo", keys: ["type", "Type", "postType", "mediaType"] },
+    { name: "videoViewCount", label: "Views", keys: ["videoViewCount", "videoPlayCount", "views", "Views", "playCount"] },
   ];
+
+  // Calculate statistics per account
+  const accountStats = useMemo((): AccountStats[] => {
+    if (!parsedData || parsedData.length === 0) return [];
+
+    const statsMap = new Map<string, AccountStats>();
+
+    for (const post of parsedData) {
+      const username = normalizeUsername(post.ownerUsername) || "desconhecido";
+      
+      const existing = statsMap.get(username) || {
+        username,
+        postCount: 0,
+        oldestPost: null,
+        newestPost: null,
+        totalLikes: 0,
+        totalComments: 0,
+      };
+
+      existing.postCount++;
+      existing.totalLikes += post.likesCount || 0;
+      existing.totalComments += post.commentsCount || 0;
+
+      // Parse date
+      if (post.timestamp) {
+        const postDate = new Date(post.timestamp);
+        if (!isNaN(postDate.getTime())) {
+          if (!existing.oldestPost || postDate < existing.oldestPost) {
+            existing.oldestPost = postDate;
+          }
+          if (!existing.newestPost || postDate > existing.newestPost) {
+            existing.newestPost = postDate;
+          }
+        }
+      }
+
+      statsMap.set(username, existing);
+    }
+
+    // Sort: my account first, then by post count
+    return Array.from(statsMap.values()).sort((a, b) => {
+      const aIsMine = a.username.toLowerCase() === MY_ACCOUNT.toLowerCase();
+      const bIsMine = b.username.toLowerCase() === MY_ACCOUNT.toLowerCase();
+      if (aIsMine && !bIsMine) return -1;
+      if (bIsMine && !aIsMine) return 1;
+      return b.postCount - a.postCount;
+    });
+  }, [parsedData]);
+
+  // Get overall date range
+  const dateRange = useMemo(() => {
+    if (accountStats.length === 0) return null;
+    
+    let oldest: Date | null = null;
+    let newest: Date | null = null;
+    
+    for (const acc of accountStats) {
+      if (acc.oldestPost && (!oldest || acc.oldestPost < oldest)) {
+        oldest = acc.oldestPost;
+      }
+      if (acc.newestPost && (!newest || acc.newestPost > newest)) {
+        newest = acc.newestPost;
+      }
+    }
+    
+    return oldest && newest ? { oldest, newest } : null;
+  }, [accountStats]);
+
+  const normalizeUsername = (username: string | undefined): string => {
+    if (!username) return "";
+    // Remove @ if present, lowercase, trim
+    return username.replace(/^@/, "").toLowerCase().trim();
+  };
 
   const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -94,25 +183,25 @@ export function ImportInstagramExcel({ onImport, isImporting: externalIsImportin
 
       // Map Excel columns to our expected format
       const mappedData = jsonData.map((row: any) => ({
-        url: row.url || row.URL || row.postUrl || row.inputUrl,
-        shortCode: row.shortCode || row.shortcode || extractShortcode(row.url || row.inputUrl),
-        type: row.type || row.Type || "Image",
-        caption: row.caption || row.Caption || row.text || "",
+        url: row.url || row.URL || row.postUrl || row.inputUrl || row.link,
+        shortCode: row.shortCode || row.shortcode || row.code || extractShortcode(row.url || row.inputUrl || row.link),
+        type: normalizePostType(row.type || row.Type || row.postType || row.mediaType || "Image"),
+        caption: row.caption || row.Caption || row.text || row.description || "",
         hashtags: parseHashtags(row.hashtags || row.caption),
-        likesCount: parseInt(row.likesCount || row.likes || row.Likes || 0),
-        commentsCount: parseInt(row.commentsCount || row.comments || row.Comments || 0),
-        videoViewCount: parseInt(row.videoViewCount || row.views || row.Views || row.videoPlayCount || 0),
-        displayUrl: row.displayUrl || row.imageUrl || row.thumbnailUrl,
+        likesCount: parseInt(row.likesCount || row.likes || row.Likes || row.likeCount || 0),
+        commentsCount: parseInt(row.commentsCount || row.comments || row.Comments || row.commentCount || 0),
+        videoViewCount: parseInt(row.videoViewCount || row.views || row.Views || row.videoPlayCount || row.playCount || 0),
+        displayUrl: row.displayUrl || row.imageUrl || row.thumbnailUrl || row.image || row.thumbnail,
         images: parseImages(row.images),
-        timestamp: row.timestamp || row.date || row.postedAt,
+        timestamp: row.timestamp || row.date || row.postedAt || row.createdAt || row.publishedAt,
         locationName: row.locationName || row.location,
-        ownerUsername: row.ownerUsername || row.username,
+        ownerUsername: normalizeUsername(row.ownerUsername || row.username || row.owner || row.account),
         ownerFullName: row.ownerFullName || row.fullName || "",
         followersCount: parseInt(row.followersCount || row.followers || 0),
         isSponsored: row.isSponsored === true || row.isSponsored === "true",
         dimensionsWidth: parseInt(row.dimensionsWidth || row.width || 0),
         dimensionsHeight: parseInt(row.dimensionsHeight || row.height || 0),
-        isVideo: row.isVideo === true || row.type === "Video" || row.type === "Sidecar",
+        isVideo: row.isVideo === true || row.type === "Video" || row.type === "Reel",
         videoDuration: parseFloat(row.videoDuration || 0),
         childPosts: parseChildPosts(row.childPosts),
       }));
@@ -141,6 +230,14 @@ export function ImportInstagramExcel({ onImport, isImporting: externalIsImportin
     if (!url) return "";
     const match = url.match(/\/p\/([A-Za-z0-9_-]+)/) || url.match(/\/reel\/([A-Za-z0-9_-]+)/);
     return match ? match[1] : "";
+  };
+
+  const normalizePostType = (type: string): string => {
+    const lower = type.toLowerCase();
+    if (lower === "sidecar" || lower === "carousel" || lower === "album") return "Carrossel";
+    if (lower === "video" || lower === "reel") return "Video";
+    if (lower === "image" || lower === "photo") return "Image";
+    return type;
   };
 
   const parseHashtags = (text: string | undefined): string[] => {
@@ -268,12 +365,11 @@ export function ImportInstagramExcel({ onImport, isImporting: externalIsImportin
     }, 1500);
   };
 
-  const getImageCount = (post: any): number => {
-    let count = 0;
-    if (post.displayUrl) count++;
-    if (post.images?.length) count += post.images.length;
-    if (post.childPosts?.length) count += post.childPosts.length;
-    return Math.max(count, 1);
+  const formatDateRange = (oldest: Date, newest: Date): string => {
+    const oldestStr = format(oldest, "MMM yyyy", { locale: pt });
+    const newestStr = format(newest, "MMM yyyy", { locale: pt });
+    if (oldestStr === newestStr) return oldestStr;
+    return `${oldestStr} - ${newestStr}`;
   };
 
   const progressPercent = progress ? Math.round((progress.current / progress.total) * 100) : 0;
@@ -291,7 +387,7 @@ export function ImportInstagramExcel({ onImport, isImporting: externalIsImportin
       </Button>
 
       <Dialog open={isOpen} onOpenChange={(open) => !isImporting && setIsOpen(open)}>
-        <DialogContent className="sm:max-w-lg">
+        <DialogContent className="sm:max-w-xl max-h-[90vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle>Importar Dados do Instagram</DialogTitle>
             <DialogDescription>
@@ -355,13 +451,90 @@ export function ImportInstagramExcel({ onImport, isImporting: externalIsImportin
               </div>
             )}
 
+            {/* Account Statistics Summary */}
+            {!isImporting && accountStats.length > 0 && (
+              <div className="space-y-2">
+                <div className="flex items-center justify-between">
+                  <h4 className="font-medium text-sm flex items-center gap-2">
+                    <Users className="h-4 w-4" />
+                    Contas Detectadas ({accountStats.length})
+                  </h4>
+                  {dateRange && (
+                    <span className="text-xs text-muted-foreground flex items-center gap-1">
+                      <Calendar className="h-3 w-3" />
+                      {formatDateRange(dateRange.oldest, dateRange.newest)}
+                    </span>
+                  )}
+                </div>
+                <div className="border rounded-lg bg-muted/30 overflow-hidden">
+                  <table className="w-full text-xs">
+                    <thead>
+                      <tr className="border-b bg-muted/50">
+                        <th className="text-left p-2 font-medium">Conta</th>
+                        <th className="text-right p-2 font-medium">Posts</th>
+                        <th className="text-right p-2 font-medium">Período</th>
+                        <th className="text-right p-2 font-medium">Likes</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {accountStats.map((acc) => {
+                        const isMyAccount = acc.username.toLowerCase() === MY_ACCOUNT.toLowerCase();
+                        return (
+                          <tr 
+                            key={acc.username} 
+                            className={isMyAccount ? "bg-amber-500/10 border-l-2 border-l-amber-500" : ""}
+                          >
+                            <td className="p-2">
+                              <span className="flex items-center gap-1.5">
+                                {isMyAccount && <Star className="h-3 w-3 text-amber-500 fill-amber-500" />}
+                                <span className={isMyAccount ? "font-medium text-amber-700 dark:text-amber-400" : ""}>
+                                  @{acc.username}
+                                </span>
+                                {isMyAccount && (
+                                  <span className="text-[10px] bg-amber-500/20 text-amber-700 dark:text-amber-400 px-1 rounded">
+                                    Você
+                                  </span>
+                                )}
+                              </span>
+                            </td>
+                            <td className="text-right p-2 tabular-nums">{acc.postCount}</td>
+                            <td className="text-right p-2 text-muted-foreground">
+                              {acc.oldestPost && acc.newestPost 
+                                ? formatDateRange(acc.oldestPost, acc.newestPost)
+                                : "-"
+                              }
+                            </td>
+                            <td className="text-right p-2 tabular-nums">
+                              {acc.totalLikes.toLocaleString()}
+                            </td>
+                          </tr>
+                        );
+                      })}
+                    </tbody>
+                    <tfoot>
+                      <tr className="border-t bg-muted/50 font-medium">
+                        <td className="p-2">Total</td>
+                        <td className="text-right p-2 tabular-nums">
+                          {accountStats.reduce((sum, a) => sum + a.postCount, 0)}
+                        </td>
+                        <td className="text-right p-2">-</td>
+                        <td className="text-right p-2 tabular-nums">
+                          {accountStats.reduce((sum, a) => sum + a.totalLikes, 0).toLocaleString()}
+                        </td>
+                      </tr>
+                    </tfoot>
+                  </table>
+                </div>
+              </div>
+            )}
+
             {/* Column Mapping Validation */}
             {!isImporting && columnMappings.length > 0 && (
               <div className="space-y-2">
                 <h4 className="font-medium text-sm flex items-center gap-2">
                   Mapeamento de Colunas
                   <span className="text-xs text-muted-foreground">
-                    ({excelColumns.length} colunas detectadas)
+                    ({columnMappings.filter(m => m.mapped).length}/{columnMappings.length} detectadas)
                   </span>
                 </h4>
                 <div className="grid grid-cols-2 gap-1.5 p-3 border rounded-lg bg-muted/30">
@@ -393,9 +566,9 @@ export function ImportInstagramExcel({ onImport, isImporting: externalIsImportin
             {!isImporting && preview && preview.length > 0 && (
               <div className="space-y-2">
                 <h4 className="font-medium text-sm">
-                  Preview ({parsedData?.length || 0} publicações válidas)
+                  Preview dos Dados
                 </h4>
-                <div className="border rounded-lg p-3 bg-muted/30 max-h-[220px] overflow-y-auto space-y-3">
+                <div className="border rounded-lg p-3 bg-muted/30 max-h-[180px] overflow-y-auto space-y-3">
                   {preview.map((post, i) => (
                     <div key={i} className="flex gap-3 border-b border-border pb-3 last:border-0 last:pb-0">
                       <div className="w-12 h-12 rounded-lg bg-muted flex-shrink-0 overflow-hidden">
@@ -417,6 +590,9 @@ export function ImportInstagramExcel({ onImport, isImporting: externalIsImportin
                       <div className="flex-1 min-w-0">
                         <p className="font-medium text-sm truncate">
                           {post.ownerUsername ? `@${post.ownerUsername}` : "Sem username"}
+                          {post.ownerUsername?.toLowerCase() === MY_ACCOUNT.toLowerCase() && (
+                            <Star className="inline h-3 w-3 text-amber-500 fill-amber-500 ml-1" />
+                          )}
                         </p>
                         <p className="text-xs text-muted-foreground truncate">
                           {post.caption?.substring(0, 40) || "Sem legenda"}...
@@ -424,7 +600,7 @@ export function ImportInstagramExcel({ onImport, isImporting: externalIsImportin
                         <div className="flex items-center gap-2 mt-0.5 text-xs text-muted-foreground">
                           <span>❤️ {post.likesCount?.toLocaleString()}</span>
                           <span>💬 {post.commentsCount?.toLocaleString()}</span>
-                          <span>📸 {getImageCount(post)}</span>
+                          <span className="text-[10px] bg-muted px-1 rounded">{post.type}</span>
                         </div>
                       </div>
                     </div>
