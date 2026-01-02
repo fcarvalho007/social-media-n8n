@@ -1,4 +1,4 @@
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect } from "react";
 import { BarChart3, Trash2, Users } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
@@ -64,6 +64,13 @@ export default function Analytics() {
     });
     return Array.from(usernames);
   }, [analytics]);
+
+  // Auto-detect myAccount on first load (first account in the list)
+  useEffect(() => {
+    if (myAccount === null && accounts.length > 0) {
+      setMyAccount(accounts[0]);
+    }
+  }, [accounts, myAccount]);
 
   // Filter analytics data
   const filteredAnalytics = useMemo(() => {
@@ -384,6 +391,13 @@ export default function Analytics() {
             </TabsContent>
 
             <TabsContent value="competition" className="space-y-6">
+              {/* Competitive Insights Summary */}
+              <CompetitiveInsights
+                myAccount={myAccount || ""}
+                myStats={accountStats.find(a => a.username === myAccount) || null}
+                competitorStats={accountStats.filter(a => a.username !== myAccount && selectedCompetitorAccounts.includes(a.username))}
+              />
+
               {/* Account Selector + Ranking */}
               <div className="grid lg:grid-cols-3 gap-6">
                 <AccountSelector
@@ -392,20 +406,23 @@ export default function Analytics() {
                   onSelectionChange={setSelectedCompetitorAccounts}
                   accountStats={accountStatsMap}
                   maxSelectable={10}
+                  myAccount={myAccount}
+                  onMyAccountChange={setMyAccount}
                 />
                 <div className="lg:col-span-2">
-                  <AccountRanking accounts={selectedAccountStats} sortBy="avgEngagement" />
+                  <AccountRanking accounts={selectedAccountStats} sortBy="avgEngagement" myAccount={myAccount || undefined} />
                 </div>
               </div>
 
               {/* Comparison Chart */}
-              <AccountComparisonChart accounts={selectedAccountStats} />
+              <AccountComparisonChart accounts={selectedAccountStats} myAccount={myAccount || undefined} />
 
               {/* Timeline */}
               <MultiAccountTimeline
                 analytics={analytics}
                 selectedAccounts={selectedCompetitorAccounts}
                 accountColorMap={accountColorMap}
+                myAccount={myAccount || undefined}
               />
 
               {/* Top Posts per Account */}
@@ -414,6 +431,7 @@ export default function Analytics() {
                 selectedAccounts={selectedCompetitorAccounts}
                 accountColorMap={accountColorMap}
                 postsPerAccount={3}
+                myAccount={myAccount || undefined}
               />
 
               {/* Content Type + Hashtag Comparison */}
@@ -422,11 +440,13 @@ export default function Analytics() {
                   analytics={analytics}
                   selectedAccounts={selectedCompetitorAccounts}
                   accountColorMap={accountColorMap}
+                  myAccount={myAccount || undefined}
                 />
                 <HashtagComparison
                   analytics={analytics}
                   selectedAccounts={selectedCompetitorAccounts}
                   accountColorMap={accountColorMap}
+                  myAccount={myAccount || undefined}
                 />
               </div>
             </TabsContent>
