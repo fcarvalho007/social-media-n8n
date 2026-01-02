@@ -74,7 +74,16 @@ export function useInstagramAnalytics() {
     onSuccess: (data) => {
       queryClient.invalidateQueries({ queryKey: ["instagram-analytics"] });
       queryClient.invalidateQueries({ queryKey: ["media-library"] });
-      toast.success(`${data.imported} publicações importadas com sucesso!`);
+      
+      // More informative toast with duplicate info
+      if (data.duplicates > 0) {
+        toast.success(
+          `${data.imported} posts importados, ${data.duplicates} duplicados ignorados`,
+          { description: `Total processado: ${data.total}` }
+        );
+      } else {
+        toast.success(`${data.imported} publicações importadas com sucesso!`);
+      }
     },
     onError: (error: any) => {
       toast.error(`Erro ao importar: ${error.message}`);
