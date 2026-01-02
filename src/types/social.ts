@@ -84,13 +84,13 @@ export const NETWORK_POST_FORMATS: Record<SocialNetwork, PostFormatConfig[]> = {
       minMedia: 0,
       maxMedia: 9,
     },
-    { 
+  { 
       format: 'linkedin_document', 
       label: 'Documento PDF', 
-      description: 'Carrossel PDF (imagens/frames de vídeo)', 
+      description: 'Carrossel PDF (até 300 páginas, máx. 100MB)', 
       icon: 'File',
       minMedia: 1,
-      maxMedia: 20,
+      maxMedia: 300,
     },
   ],
   youtube: [
