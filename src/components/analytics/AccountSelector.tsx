@@ -100,10 +100,12 @@ export function AccountSelector({
                   <p className="font-semibold truncate">@{myAccountData}</p>
                   <Star className="h-4 w-4 fill-amber-500 text-amber-500" />
                 </div>
-                {accountStats?.get(myAccountData) && (
+                {accountStats?.get(myAccountData) ? (
                   <p className="text-xs text-muted-foreground">
-                    {accountStats.get(myAccountData)?.postCount} posts • {accountStats.get(myAccountData)?.avgEngagement.toLocaleString()} eng médio
+                    {accountStats.get(myAccountData)?.postCount ?? 0} posts • {(accountStats.get(myAccountData)?.avgEngagement ?? 0).toLocaleString()} eng médio
                   </p>
+                ) : (
+                  <p className="text-xs text-muted-foreground">A calcular...</p>
                 )}
               </div>
               {selectedAccounts.includes(myAccountData) && (
@@ -150,11 +152,9 @@ export function AccountSelector({
                   />
                   <div className="flex-1 min-w-0">
                     <p className="font-medium truncate">@{username}</p>
-                    {stats && (
-                      <p className="text-xs text-muted-foreground">
-                        {stats.postCount} posts • {stats.avgEngagement.toLocaleString()} eng médio
-                      </p>
-                    )}
+                    <p className="text-xs text-muted-foreground">
+                      {stats ? `${stats.postCount} posts • ${stats.avgEngagement.toLocaleString()} eng médio` : "A calcular..."}
+                    </p>
                   </div>
                   {onMyAccountChange && !myAccount && (
                     <Button

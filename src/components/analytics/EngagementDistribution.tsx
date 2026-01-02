@@ -1,6 +1,5 @@
 import { useMemo } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
 import {
   BarChart,
   Bar,
@@ -12,6 +11,7 @@ import {
   Legend,
 } from "recharts";
 import { MY_ACCOUNT_COLOR, getAccountColor } from "@/lib/analytics/colors";
+import { InsightBox } from "./InsightBox";
 import type { InstagramAnalyticsItem } from "@/hooks/useInstagramAnalytics";
 
 interface EngagementDistributionProps {
@@ -21,6 +21,15 @@ interface EngagementDistributionProps {
   myAccount?: string;
 }
 
+const RANGES = [
+  { min: 0, max: 100, label: "0-100" },
+  { min: 100, max: 500, label: "100-500" },
+  { min: 500, max: 1000, label: "500-1K" },
+  { min: 1000, max: 5000, label: "1K-5K" },
+  { min: 5000, max: 10000, label: "5K-10K" },
+  { min: 10000, max: Infinity, label: "10K+" },
+];
+
 export function EngagementDistribution({
   analytics,
   selectedAccounts,
@@ -28,16 +37,7 @@ export function EngagementDistribution({
   myAccount,
 }: EngagementDistributionProps) {
   const chartData = useMemo(() => {
-    const ranges = [
-      { min: 0, max: 100, label: "0-100" },
-      { min: 100, max: 500, label: "100-500" },
-      { min: 500, max: 1000, label: "500-1K" },
-      { min: 1000, max: 5000, label: "1K-5K" },
-      { min: 5000, max: 10000, label: "5K-10K" },
-      { min: 10000, max: Infinity, label: "10K+" },
-    ];
-
-    return ranges.map((range) => {
+    return RANGES.map((range) => {
       const entry: Record<string, number | string> = { range: range.label };
 
       selectedAccounts.forEach((account) => {
@@ -52,6 +52,56 @@ export function EngagementDistribution({
       return entry;
     });
   }, [analytics, selectedAccounts]);
+
+  // Generate insights
+  const insights = useMemo(() => {
+    if (selectedAccounts.length < 2 || !myAccount) {
+      return { forYou: "Selecione mais contas para comparar.", fromData: "Dados insuficientes para análise." };
+    }
+
+    const myPosts = analytics.filter(p => p.owner_username === myAccount);
+    const myHighEngagement = myPosts.filter(p => (p.likes_count || 0) + (p.comments_count || 0) >= 5000).length;
+    const myTotal = myPosts.length;
+
+    const competitorHighRatios: { username: string; ratio: number }[] = [];
+    selectedAccounts.filter(a => a !== myAccount).forEach(username => {
+      const posts = analytics.filter(p => p.owner_username === username);
+      const highEng = posts.filter(p => (p.likes_count || 0) + (p.comments_count || 0) >= 5000).length;
+      if (posts.length > 0) {
+        competitorHighRatios.push({ username, ratio: highEng / posts.length });
+      }
+    });
+
+    const myRatio = myTotal > 0 ? myHighEngagement / myTotal : 0;
+    const avgCompetitorRatio = competitorHighRatios.length > 0
+      ? competitorHighRatios.reduce((sum, c) => sum + c.ratio, 0) / competitorHighRatios.length
+      : 0;
+
+    const forYou = myTotal > 0
+      ? myRatio > avgCompetitorRatio
+        ? `${Math.round(myRatio * 100)}% dos seus posts têm alto engagement (5K+), acima da média dos concorrentes (${Math.round(avgCompetitorRatio * 100)}%).`
+        : `${Math.round(myRatio * 100)}% dos seus posts têm alto engagement (5K+), abaixo dos concorrentes (${Math.round(avgCompetitorRatio * 100)}%).`
+      : "Sem posts para analisar.";
+
+    // Find most consistent account
+    const consistencyScores = selectedAccounts.map(username => {
+      const posts = analytics.filter(p => p.owner_username === username);
+      if (posts.length === 0) return { username, variance: Infinity };
+      
+      const engagements = posts.map(p => (p.likes_count || 0) + (p.comments_count || 0));
+      const avg = engagements.reduce((a, b) => a + b, 0) / engagements.length;
+      const variance = engagements.reduce((sum, e) => sum + Math.pow(e - avg, 2), 0) / engagements.length;
+      return { username, variance };
+    });
+
+    const mostConsistent = consistencyScores.sort((a, b) => a.variance - b.variance)[0];
+
+    const fromData = mostConsistent
+      ? `@${mostConsistent.username} tem o engagement mais consistente entre posts.`
+      : "Dados insuficientes para análise de consistência.";
+
+    return { forYou, fromData };
+  }, [analytics, selectedAccounts, myAccount]);
 
   if (selectedAccounts.length === 0) {
     return (
@@ -120,7 +170,7 @@ export function EngagementDistribution({
       <CardHeader className="pb-3">
         <CardTitle className="text-base">📊 Distribuição de Engagement</CardTitle>
       </CardHeader>
-      <CardContent>
+      <CardContent className="space-y-4">
         <ResponsiveContainer width="100%" height={300}>
           <BarChart data={chartData} margin={{ top: 10, right: 10, left: -10, bottom: 0 }}>
             <CartesianGrid strokeDasharray="3 3" className="stroke-border" />
@@ -153,6 +203,12 @@ export function EngagementDistribution({
             })}
           </BarChart>
         </ResponsiveContainer>
+
+        <InsightBox
+          title="Distribuição de Engagement"
+          description="Mostra em que faixas de engagement (likes + comentários) os posts de cada conta caem. Barras mais à direita significam posts com melhor performance."
+          insights={insights}
+        />
       </CardContent>
     </Card>
   );

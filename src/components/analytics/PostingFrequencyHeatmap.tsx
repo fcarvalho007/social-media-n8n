@@ -8,6 +8,7 @@ import {
   TooltipTrigger,
 } from "@/components/ui/tooltip";
 import { MY_ACCOUNT_COLOR, getAccountColor } from "@/lib/analytics/colors";
+import { InsightBox } from "./InsightBox";
 import type { InstagramAnalyticsItem } from "@/hooks/useInstagramAnalytics";
 
 interface PostingFrequencyHeatmapProps {
@@ -18,6 +19,7 @@ interface PostingFrequencyHeatmapProps {
 }
 
 const DAYS = ["Dom", "Seg", "Ter", "Qua", "Qui", "Sex", "Sáb"];
+const DAYS_FULL = ["Domingo", "Segunda", "Terça", "Quarta", "Quinta", "Sexta", "Sábado"];
 
 export function PostingFrequencyHeatmap({
   analytics,
@@ -47,6 +49,55 @@ export function PostingFrequencyHeatmap({
     return { accountData, maxCount };
   }, [analytics, selectedAccounts]);
 
+  // Generate insights
+  const insights = useMemo(() => {
+    if (selectedAccounts.length < 1 || !myAccount) {
+      return { forYou: "Selecione contas para ver padrões.", fromData: "Dados insuficientes para análise." };
+    }
+
+    const myData = accountData[myAccount];
+    if (!myData) {
+      return { forYou: "Selecione sua conta para ver seus padrões.", fromData: "Dados insuficientes." };
+    }
+
+    // Find best day for my account
+    const myBestDay = Object.entries(myData).reduce((best, [day, count]) => 
+      count > best.count ? { day: parseInt(day), count } : best
+    , { day: 0, count: 0 });
+
+    // Find overall best day across competitors
+    const dayTotals: Record<number, number> = {};
+    DAYS.forEach((_, i) => { dayTotals[i] = 0; });
+    
+    selectedAccounts.filter(a => a !== myAccount).forEach(account => {
+      Object.entries(accountData[account] || {}).forEach(([day, count]) => {
+        dayTotals[parseInt(day)] += count;
+      });
+    });
+
+    const competitorBestDay = Object.entries(dayTotals).reduce((best, [day, count]) =>
+      count > best.count ? { day: parseInt(day), count } : best
+    , { day: 0, count: 0 });
+
+    const forYou = myBestDay.count > 0
+      ? `Você publica mais às ${DAYS_FULL[myBestDay.day]}s (${myBestDay.count} posts). ${
+          myBestDay.day !== competitorBestDay.day 
+            ? `Concorrentes preferem ${DAYS_FULL[competitorBestDay.day]}.` 
+            : "Mesmo padrão dos concorrentes."
+        }`
+      : "Sem dados suficientes para sua conta.";
+
+    const myTotal = Object.values(myData).reduce((a, b) => a + b, 0);
+    const weekdayPosts = [1, 2, 3, 4, 5].reduce((sum, d) => sum + (myData[d] || 0), 0);
+    const weekendPosts = (myData[0] || 0) + (myData[6] || 0);
+
+    const fromData = myTotal > 0
+      ? `${Math.round((weekdayPosts / myTotal) * 100)}% dos seus posts são durante a semana, ${Math.round((weekendPosts / myTotal) * 100)}% ao fim-de-semana.`
+      : "Publique mais para ver estatísticas de frequência.";
+
+    return { forYou, fromData };
+  }, [selectedAccounts, myAccount, accountData]);
+
   if (selectedAccounts.length === 0) {
     return (
       <Card>
@@ -65,7 +116,7 @@ export function PostingFrequencyHeatmap({
       <CardHeader className="pb-3">
         <CardTitle className="text-base">📅 Frequência por Dia da Semana</CardTitle>
       </CardHeader>
-      <CardContent>
+      <CardContent className="space-y-4">
         <TooltipProvider>
           <div className="overflow-x-auto">
             <table className="w-full border-collapse text-sm">
@@ -126,7 +177,7 @@ export function PostingFrequencyHeatmap({
                               <TooltipContent>
                                 <p className="font-medium">@{account}</p>
                                 <p className="text-muted-foreground">
-                                  {count} posts às {day}
+                                  {count} posts às {DAYS_FULL[dayIndex]}s
                                 </p>
                               </TooltipContent>
                             </Tooltip>
@@ -143,6 +194,12 @@ export function PostingFrequencyHeatmap({
             </table>
           </div>
         </TooltipProvider>
+
+        <InsightBox
+          title="Frequência de Publicação"
+          description="Mostra em que dias da semana cada conta publica mais. Células mais escuras indicam mais posts nesse dia."
+          insights={insights}
+        />
       </CardContent>
     </Card>
   );
