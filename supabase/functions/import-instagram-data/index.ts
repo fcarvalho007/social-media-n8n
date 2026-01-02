@@ -319,11 +319,29 @@ serve(async (req) => {
       // Calculate engagement rate (likes+comments)
       const totalEngagement = (post.likesCount || 0) + (post.commentsCount || 0);
 
+      // Normalize post type
+      const normalizePostType = (type: string | undefined): string => {
+        if (!type) return post.isVideo ? "Video" : "Image";
+        const lower = type.toLowerCase();
+        if (lower === "sidecar" || lower === "carousel" || lower === "album") return "Carrossel";
+        if (lower === "video" || lower === "reel") return "Video";
+        if (lower === "image" || lower === "photo") return "Image";
+        return type;
+      };
+
+      // Normalize username (remove @, lowercase, trim)
+      const normalizeUsername = (username: string | undefined): string | null => {
+        if (!username) return null;
+        return username.replace(/^@/, "").toLowerCase().trim();
+      };
+
+      const ownerUsername = normalizeUsername(post.ownerUsername);
+
       const row = {
         user_id: user.id,
         post_url: post.url || `https://instagram.com/p/${post.shortCode}`,
         shortcode: post.shortCode,
-        post_type: post.type || (post.isVideo ? "Video" : "Image"),
+        post_type: normalizePostType(post.type),
         caption: post.caption,
         hashtags,
         likes_count: post.likesCount || 0,
@@ -334,10 +352,10 @@ serve(async (req) => {
         thumbnail_url: storedThumbnailUrl || post.displayUrl,
         posted_at: postedAtIso,
         location_name: post.locationName,
-        owner_username: post.ownerUsername,
+        owner_username: ownerUsername,
         dimensions_width: post.dimensionsWidth,
         dimensions_height: post.dimensionsHeight,
-        is_video: post.isVideo || post.type === "Video",
+        is_video: post.isVideo || post.type === "Video" || post.type === "Reel",
         video_duration: post.videoDuration,
       };
 
