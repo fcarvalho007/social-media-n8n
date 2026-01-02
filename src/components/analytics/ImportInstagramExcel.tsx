@@ -62,6 +62,61 @@ export function ImportInstagramExcel({ onImport, isImporting: externalIsImportin
   const fileInputRef = useRef<HTMLInputElement>(null);
   const queryClient = useQueryClient();
 
+  // Helper functions - must be defined before useMemo hooks that use them
+  const normalizeUsername = (username: string | undefined): string => {
+    if (!username) return "";
+    return username.replace(/^@/, "").toLowerCase().trim();
+  };
+
+  const normalizePostType = (type: string): string => {
+    const lower = type.toLowerCase();
+    if (lower === "sidecar" || lower === "carousel" || lower === "album") return "Carrossel";
+    if (lower === "video" || lower === "reel") return "Video";
+    if (lower === "image" || lower === "photo") return "Image";
+    return type;
+  };
+
+  const extractShortcode = (url: string | undefined): string => {
+    if (!url) return "";
+    const match = url.match(/\/p\/([A-Za-z0-9_-]+)/) || url.match(/\/reel\/([A-Za-z0-9_-]+)/);
+    return match ? match[1] : "";
+  };
+
+  const parseHashtags = (text: string | undefined): string[] => {
+    if (!text) return [];
+    if (Array.isArray(text)) return text;
+    const matches = String(text).match(/#\w+/g);
+    return matches ? matches.map((h) => h.toLowerCase()) : [];
+  };
+
+  const parseImages = (images: any): string[] => {
+    if (!images) return [];
+    if (Array.isArray(images)) return images.filter(Boolean);
+    if (typeof images === "string") {
+      try {
+        const parsed = JSON.parse(images);
+        return Array.isArray(parsed) ? parsed.filter(Boolean) : [];
+      } catch {
+        return images.split(",").map((s: string) => s.trim()).filter(Boolean);
+      }
+    }
+    return [];
+  };
+
+  const parseChildPosts = (childPosts: any): any[] => {
+    if (!childPosts) return [];
+    if (Array.isArray(childPosts)) return childPosts;
+    if (typeof childPosts === "string") {
+      try {
+        const parsed = JSON.parse(childPosts);
+        return Array.isArray(parsed) ? parsed : [];
+      } catch {
+        return [];
+      }
+    }
+    return [];
+  };
+
   const REQUIRED_MAPPINGS = [
     { name: "shortCode", label: "Shortcode", keys: ["shortCode", "shortcode", "code"] },
     { name: "url", label: "URL", keys: ["url", "URL", "postUrl", "inputUrl", "link"] },
@@ -142,12 +197,6 @@ export function ImportInstagramExcel({ onImport, isImporting: externalIsImportin
     return oldest && newest ? { oldest, newest } : null;
   }, [accountStats]);
 
-  const normalizeUsername = (username: string | undefined): string => {
-    if (!username) return "";
-    // Remove @ if present, lowercase, trim
-    return username.replace(/^@/, "").toLowerCase().trim();
-  };
-
   const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
@@ -226,54 +275,6 @@ export function ImportInstagramExcel({ onImport, isImporting: externalIsImportin
     }
   };
 
-  const extractShortcode = (url: string | undefined): string => {
-    if (!url) return "";
-    const match = url.match(/\/p\/([A-Za-z0-9_-]+)/) || url.match(/\/reel\/([A-Za-z0-9_-]+)/);
-    return match ? match[1] : "";
-  };
-
-  const normalizePostType = (type: string): string => {
-    const lower = type.toLowerCase();
-    if (lower === "sidecar" || lower === "carousel" || lower === "album") return "Carrossel";
-    if (lower === "video" || lower === "reel") return "Video";
-    if (lower === "image" || lower === "photo") return "Image";
-    return type;
-  };
-
-  const parseHashtags = (text: string | undefined): string[] => {
-    if (!text) return [];
-    if (Array.isArray(text)) return text;
-    const matches = String(text).match(/#\w+/g);
-    return matches ? matches.map((h) => h.toLowerCase()) : [];
-  };
-
-  const parseImages = (images: any): string[] => {
-    if (!images) return [];
-    if (Array.isArray(images)) return images.filter(Boolean);
-    if (typeof images === "string") {
-      try {
-        const parsed = JSON.parse(images);
-        return Array.isArray(parsed) ? parsed.filter(Boolean) : [];
-      } catch {
-        return images.split(",").map((s: string) => s.trim()).filter(Boolean);
-      }
-    }
-    return [];
-  };
-
-  const parseChildPosts = (childPosts: any): any[] => {
-    if (!childPosts) return [];
-    if (Array.isArray(childPosts)) return childPosts;
-    if (typeof childPosts === "string") {
-      try {
-        const parsed = JSON.parse(childPosts);
-        return Array.isArray(parsed) ? parsed : [];
-      } catch {
-        return [];
-      }
-    }
-    return [];
-  };
 
   const handleBatchImport = async () => {
     if (!parsedData || parsedData.length === 0) {
