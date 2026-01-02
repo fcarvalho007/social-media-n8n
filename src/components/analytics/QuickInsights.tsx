@@ -8,15 +8,16 @@ interface QuickInsightsProps {
 }
 
 export function QuickInsights({ stats, analytics }: QuickInsightsProps) {
-  const insights: { icon: React.ReactNode; text: string; highlight?: string }[] = [];
+  const insights: { icon: React.ReactNode; text: string; highlight?: string; color: string }[] = [];
 
   // Best post insight
   if (stats.bestPost) {
     const bestEngagement = stats.bestPost.likes_count + stats.bestPost.comments_count;
     insights.push({
-      icon: <TrendingUp className="h-4 w-4 text-green-500" />,
+      icon: <TrendingUp className="h-4 w-4" />,
       text: "O melhor post teve",
       highlight: `${bestEngagement.toLocaleString()} interações`,
+      color: "text-emerald-500 bg-emerald-500/15",
     });
   }
 
@@ -24,9 +25,10 @@ export function QuickInsights({ stats, analytics }: QuickInsightsProps) {
   const postsPerWeek = stats.totalPosts > 0 ? Math.round((stats.totalPosts / 30) * 7) : 0;
   if (postsPerWeek > 0) {
     insights.push({
-      icon: <Calendar className="h-4 w-4 text-blue-500" />,
+      icon: <Calendar className="h-4 w-4" />,
       text: "Publica em média",
       highlight: `${postsPerWeek}x por semana`,
+      color: "text-blue-500 bg-blue-500/15",
     });
   }
 
@@ -45,9 +47,10 @@ export function QuickInsights({ stats, analytics }: QuickInsightsProps) {
       };
       const improvement = Math.round(((best.avgEngagement - worst.avgEngagement) / worst.avgEngagement) * 100);
       insights.push({
-        icon: <Zap className="h-4 w-4 text-yellow-500" />,
+        icon: <Zap className="h-4 w-4" />,
         text: `${typeLabels[best.type] || best.type} têm`,
         highlight: `+${improvement}% mais engagement`,
+        color: "text-amber-500 bg-amber-500/15",
       });
     }
   }
@@ -58,23 +61,30 @@ export function QuickInsights({ stats, analytics }: QuickInsightsProps) {
     const olderMonths = stats.engagementOverTime.slice(0, -3);
     
     if (recentMonths.length > 0 && olderMonths.length > 0) {
-      const recentAvg = recentMonths.reduce((sum, m) => sum + m.likes + m.comments, 0) / recentMonths.reduce((sum, m) => sum + m.posts, 0);
-      const olderAvg = olderMonths.reduce((sum, m) => sum + m.likes + m.comments, 0) / olderMonths.reduce((sum, m) => sum + m.posts, 0);
+      const recentTotal = recentMonths.reduce((sum, m) => sum + m.posts, 0);
+      const olderTotal = olderMonths.reduce((sum, m) => sum + m.posts, 0);
       
-      if (recentAvg > olderAvg * 1.1) {
-        const improvement = Math.round(((recentAvg - olderAvg) / olderAvg) * 100);
-        insights.push({
-          icon: <Target className="h-4 w-4 text-purple-500" />,
-          text: "Últimos meses com",
-          highlight: `+${improvement}% engagement`,
-        });
-      } else if (olderAvg > recentAvg * 1.1) {
-        const decline = Math.round(((olderAvg - recentAvg) / olderAvg) * 100);
-        insights.push({
-          icon: <Target className="h-4 w-4 text-orange-500" />,
-          text: "Engagement recente caiu",
-          highlight: `-${decline}%`,
-        });
+      if (recentTotal > 0 && olderTotal > 0) {
+        const recentAvg = recentMonths.reduce((sum, m) => sum + m.likes + m.comments, 0) / recentTotal;
+        const olderAvg = olderMonths.reduce((sum, m) => sum + m.likes + m.comments, 0) / olderTotal;
+        
+        if (recentAvg > olderAvg * 1.1) {
+          const improvement = Math.round(((recentAvg - olderAvg) / olderAvg) * 100);
+          insights.push({
+            icon: <Target className="h-4 w-4" />,
+            text: "Últimos meses com",
+            highlight: `+${improvement}% engagement`,
+            color: "text-violet-500 bg-violet-500/15",
+          });
+        } else if (olderAvg > recentAvg * 1.1) {
+          const decline = Math.round(((olderAvg - recentAvg) / olderAvg) * 100);
+          insights.push({
+            icon: <Target className="h-4 w-4" />,
+            text: "Engagement recente caiu",
+            highlight: `-${decline}%`,
+            color: "text-orange-500 bg-orange-500/15",
+          });
+        }
       }
     }
   }
@@ -83,9 +93,10 @@ export function QuickInsights({ stats, analytics }: QuickInsightsProps) {
   if (stats.topHashtags.length > 0) {
     const topHashtag = stats.topHashtags[0];
     insights.push({
-      icon: <Lightbulb className="h-4 w-4 text-amber-500" />,
+      icon: <Lightbulb className="h-4 w-4" />,
       text: `Hashtag mais usada:`,
       highlight: `#${topHashtag.tag} (${topHashtag.count}x)`,
+      color: "text-rose-500 bg-rose-500/15",
     });
   }
 
@@ -94,22 +105,27 @@ export function QuickInsights({ stats, analytics }: QuickInsightsProps) {
   }
 
   return (
-    <Card>
+    <Card className="overflow-hidden bg-gradient-to-br from-card to-muted/30">
       <CardHeader className="pb-3">
         <CardTitle className="text-lg flex items-center gap-2">
-          <Lightbulb className="h-5 w-5 text-amber-500" />
+          <div className="p-1.5 rounded-lg bg-amber-500/15">
+            <Lightbulb className="h-4 w-4 text-amber-500" />
+          </div>
           Insights Rápidos
         </CardTitle>
       </CardHeader>
       <CardContent>
-        <div className="space-y-3">
+        <div className="space-y-2">
           {insights.slice(0, 5).map((insight, index) => (
             <div
               key={index}
-              className="flex items-center gap-3 p-2 rounded-lg bg-muted/50 hover:bg-muted transition-colors"
+              className="flex items-center gap-3 p-2.5 rounded-xl bg-background/80 hover:bg-background transition-colors border border-transparent hover:border-border/50"
+              style={{ animationDelay: `${index * 50}ms` }}
             >
-              {insight.icon}
-              <span className="text-sm text-muted-foreground">
+              <div className={`p-2 rounded-lg ${insight.color}`}>
+                {insight.icon}
+              </div>
+              <span className="text-sm text-muted-foreground flex-1">
                 {insight.text}{" "}
                 <span className="font-semibold text-foreground">{insight.highlight}</span>
               </span>
