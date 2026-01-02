@@ -64,13 +64,20 @@ const LinkedInDocumentPreview = ({ mediaUrls, mediaFiles, caption }: LinkedInDoc
   const [currentPage, setCurrentPage] = useState(0);
   const [processedUrls, setProcessedUrls] = useState<string[]>([]);
   const [videoIndices, setVideoIndices] = useState<Set<number>>(new Set());
+  const [isProcessing, setIsProcessing] = useState(false);
   const thumbnailsRef = useRef<HTMLDivElement>(null);
   const mainViewRef = useRef<HTMLDivElement>(null);
   const [touchStart, setTouchStart] = useState<number | null>(null);
   
+  // Reset currentPage when media changes to prevent index out of bounds
+  useEffect(() => {
+    setCurrentPage(0);
+  }, [mediaUrls.length]);
+  
   // Process media to extract video frames
   useEffect(() => {
     async function processMedia() {
+      setIsProcessing(true);
       const urls: string[] = [];
       const vidIndices = new Set<number>();
       
@@ -91,6 +98,7 @@ const LinkedInDocumentPreview = ({ mediaUrls, mediaFiles, caption }: LinkedInDoc
       
       setProcessedUrls(urls);
       setVideoIndices(vidIndices);
+      setIsProcessing(false);
     }
     
     if (mediaUrls.length > 0) {
@@ -98,6 +106,7 @@ const LinkedInDocumentPreview = ({ mediaUrls, mediaFiles, caption }: LinkedInDoc
     } else {
       setProcessedUrls([]);
       setVideoIndices(new Set());
+      setIsProcessing(false);
     }
   }, [mediaUrls, mediaFiles]);
 
@@ -204,7 +213,12 @@ const LinkedInDocumentPreview = ({ mediaUrls, mediaFiles, caption }: LinkedInDoc
 
           {/* PDF Document Viewer */}
           <div className="border-t border-b bg-muted/20">
-            {pageCount > 0 ? (
+            {isProcessing ? (
+              <div className="aspect-[4/5] flex flex-col items-center justify-center text-muted-foreground">
+                <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary mb-2" />
+                <p className="text-sm">A processar imagens...</p>
+              </div>
+            ) : pageCount > 0 && processedUrls[currentPage] ? (
               <div className="flex flex-col">
                 {/* Main Page View - PDF-like appearance */}
                 <div 

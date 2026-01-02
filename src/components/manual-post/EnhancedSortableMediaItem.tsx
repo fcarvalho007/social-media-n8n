@@ -1,10 +1,13 @@
 import { useSortable } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
-import { ChevronUp, ChevronDown, X, GripVertical, Image, Video, Sparkles, Grid3x3 } from 'lucide-react';
+import { ChevronUp, ChevronDown, X, GripVertical, Image, Video, Sparkles, Grid3x3, ZoomIn } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { MediaSource } from '@/types/media';
+import { Dialog, DialogContent, DialogTitle } from '@/components/ui/dialog';
+import { useState } from 'react';
+import { VisuallyHidden } from '@radix-ui/react-visually-hidden';
 
 type AspectRatioType = '1:1' | '3:4' | '4:5' | '4:3' | '16:9' | '9:16' | 'auto';
 
@@ -49,6 +52,7 @@ export function EnhancedSortableMediaItem({
   onMoveUp,
   onMoveDown,
 }: EnhancedSortableMediaItemProps) {
+  const [isZoomed, setIsZoomed] = useState(false);
   const aspectClass = getAspectClass(aspectRatio);
   const {
     attributes,
@@ -152,7 +156,7 @@ export function EnhancedSortableMediaItem({
       </div>
 
       {/* Clean Media Area - No overlays */}
-      <div className={cn("relative overflow-hidden bg-muted/20", aspectClass)}>
+      <div className={cn("relative overflow-hidden bg-muted/20 group/media", aspectClass)}>
         {isVideo ? (
           <video
             src={url}
@@ -172,11 +176,61 @@ export function EnhancedSortableMediaItem({
           />
         )}
 
+        {/* Zoom button - visible on hover/always on mobile */}
+        <Button
+          variant="secondary"
+          size="icon"
+          className={cn(
+            "absolute bottom-2 right-2 h-7 w-7 rounded-full shadow-lg transition-all z-10",
+            "bg-background/90 hover:bg-background border",
+            "opacity-100 sm:opacity-0 sm:group-hover/media:opacity-100"
+          )}
+          onClick={(e) => {
+            e.stopPropagation();
+            setIsZoomed(true);
+          }}
+          aria-label="Ampliar imagem"
+        >
+          <ZoomIn className="h-3.5 w-3.5" />
+        </Button>
+
         {/* Drag indicator overlay - only when dragging */}
         {isDragging && (
           <div className="absolute inset-0 bg-primary/10 border-2 border-primary border-dashed pointer-events-none" />
         )}
       </div>
+
+      {/* Zoom Modal */}
+      <Dialog open={isZoomed} onOpenChange={setIsZoomed}>
+        <DialogContent className="max-w-[95vw] max-h-[95vh] p-0 bg-black/95 border-none overflow-hidden">
+          <VisuallyHidden>
+            <DialogTitle>Visualizar slide {index + 1}</DialogTitle>
+          </VisuallyHidden>
+          <div className="relative w-full h-[90vh] flex items-center justify-center p-4">
+            {isVideo ? (
+              <video
+                src={url}
+                className="max-w-full max-h-full object-contain"
+                controls
+                autoPlay
+                playsInline
+              />
+            ) : (
+              <img
+                src={url}
+                alt={`Slide ${index + 1} ampliado`}
+                className="max-w-full max-h-full object-contain"
+              />
+            )}
+            {/* Slide indicator */}
+            <div className="absolute bottom-4 left-1/2 -translate-x-1/2">
+              <Badge variant="secondary" className="bg-white/10 backdrop-blur-sm text-white text-sm px-3 py-1">
+                Slide {index + 1} de {total}
+              </Badge>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
 
       {/* Bottom Bar - Reorder controls */}
       <div className="flex items-center justify-center gap-1 px-2 py-1.5 bg-muted/30 border-t border-border/50">
