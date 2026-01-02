@@ -158,70 +158,29 @@ async function downloadAndUploadImage(
   }
 }
 
-// Store all media URLs (for carousels)
-async function storeAllMediaUrls(
-  supabase: any,
-  post: InstagramPost,
-  userId: string
-): Promise<string[]> {
-  const storedUrls: string[] = [];
-  const shortcode = post.shortCode || "unknown";
-  
-  // Collect all image URLs
-  const allUrls: { url: string; index: number }[] = [];
-  
-  if (post.displayUrl) {
-    allUrls.push({ url: post.displayUrl, index: 0 });
-  }
-  
+// Collect media URLs (for carousels) without downloading all of them (too slow for large imports)
+function collectMediaUrls(post: InstagramPost): string[] {
+  const urls: string[] = [];
+
+  const push = (u?: string) => {
+    if (!u) return;
+    if (!urls.includes(u)) urls.push(u);
+  };
+
+  push(post.displayUrl);
+
   if (post.childPosts && Array.isArray(post.childPosts)) {
-    post.childPosts.forEach((child, idx) => {
-      if (child.displayUrl) {
-        allUrls.push({ url: child.displayUrl, index: idx + 1 });
-      }
-    });
+    for (const child of post.childPosts) push(child.displayUrl);
   }
-  
+
   if (post.images && Array.isArray(post.images)) {
-    post.images.forEach((url, idx) => {
-      if (url && !allUrls.some(u => u.url === url)) {
-        allUrls.push({ url, index: allUrls.length });
-      }
-    });
+    for (const u of post.images) push(u);
   }
 
-  // Download and store each image
-  for (const { url, index } of allUrls.slice(0, 10)) { // Max 10 images per post
-    if (url.includes("supabase") && url.includes("storage")) {
-      storedUrls.push(url);
-      continue;
-    }
-
-    const result = await downloadWithRetry([url], 2); // Fewer retries for secondary images
-    if (result) {
-      const { blob, contentType } = result;
-      const extension = contentType.includes("png") ? "png" : "jpg";
-      const fileName = `analytics/${userId}/${shortcode}_${index}.${extension}`;
-
-      const { error } = await supabase.storage
-        .from("publications")
-        .upload(fileName, blob, { contentType, upsert: true });
-
-      if (!error) {
-        const { data: { publicUrl } } = supabase.storage
-          .from("publications")
-          .getPublicUrl(fileName);
-        storedUrls.push(publicUrl);
-      } else {
-        storedUrls.push(url); // Keep original as fallback
-      }
-    } else {
-      storedUrls.push(url); // Keep original as fallback
-    }
-  }
-
-  return storedUrls;
+  // keep it bounded
+  return urls.slice(0, 10);
 }
+
 
 serve(async (req) => {
   if (req.method === "OPTIONS") {
@@ -272,21 +231,55 @@ serve(async (req) => {
     console.log(`Processing ${posts.length} Instagram posts for user ${user.id}`);
 
     // Check for existing posts to detect duplicates
-    const shortcodes = posts.map(p => p.shortCode).filter(Boolean);
-    const { data: existingPosts } = await supabaseClient
-      .from("instagram_analytics")
-      .select("shortcode")
-      .eq("user_id", user.id)
-      .in("shortcode", shortcodes);
+    const shortcodes = posts.map((p) => p.shortCode).filter(Boolean);
+    const existingShortcodes = new Set<string>();
 
-    const existingShortcodes = new Set((existingPosts || []).map(p => p.shortcode));
-    const duplicateCount = posts.filter(p => p.shortCode && existingShortcodes.has(p.shortCode)).length;
+    if (shortcodes.length > 0) {
+      const { data: existingPosts, error: existingError } = await supabaseClient
+        .from("instagram_analytics")
+        .select("shortcode")
+        .eq("user_id", user.id)
+        .in("shortcode", shortcodes);
 
-    // Transform posts to database format
-    const analyticsData = [];
+      if (existingError) {
+        console.warn("Duplicate check warning:", existingError.message);
+      }
+
+      for (const p of existingPosts || []) {
+        if (p.shortcode) existingShortcodes.add(p.shortcode);
+      }
+    }
+
+
+    const duplicateCount = posts.filter((p) => p.shortCode && existingShortcodes.has(p.shortCode)).length;
+
+
+    // Transform posts to database format (insert in small batches to avoid timeouts)
+    const BATCH_SIZE = 10;
+    const analyticsData: any[] = [];
+    const mediaLibraryQueue: any[] = [];
+    let insertedCount = 0;
     let imagesStored = 0;
     let imagesFailed = 0;
-    
+
+    const flushBatch = async () => {
+      if (analyticsData.length === 0) return;
+
+      const { data: insertedData, error: insertError } = await supabaseClient
+        .from("instagram_analytics")
+        .insert(analyticsData)
+        .select("id");
+
+      if (insertError) {
+        console.error("Error inserting analytics batch:", insertError);
+        throw insertError;
+      }
+
+      insertedCount += insertedData?.length || 0;
+      console.log(`Inserted batch: ${insertedData?.length || 0} (total ${insertedCount})`);
+      analyticsData.length = 0;
+    };
+
     for (const post of posts) {
       // Skip if already exists (duplicate)
       if (post.shortCode && existingShortcodes.has(post.shortCode)) {
@@ -302,7 +295,7 @@ serve(async (req) => {
         }
       }
 
-      // Store thumbnail image permanently
+      // Store thumbnail image permanently (this is the critical part for the UI)
       const storedThumbnailUrl = await downloadAndUploadImage(supabaseAdmin, post, user.id);
       if (storedThumbnailUrl?.includes("supabase")) {
         imagesStored++;
@@ -310,13 +303,23 @@ serve(async (req) => {
         imagesFailed++;
       }
 
-      // Store all media URLs for carousels
-      const storedMediaUrls = await storeAllMediaUrls(supabaseAdmin, post, user.id);
+      // Keep media_urls lightweight: include thumbnail + original URLs (without downloading all)
+      const collected = collectMediaUrls(post);
+      const media_urls = Array.from(
+        new Set([storedThumbnailUrl, ...collected].filter(Boolean) as string[])
+      ).slice(0, 10);
 
-      // Calculate engagement rate
+      // Safe date parsing (avoid invalid date crashing the whole import)
+      let postedAtIso: string | null = null;
+      if (post.timestamp) {
+        const d = new Date(post.timestamp);
+        postedAtIso = Number.isFinite(d.getTime()) ? d.toISOString() : null;
+      }
+
+      // Calculate engagement rate (likes+comments)
       const totalEngagement = (post.likesCount || 0) + (post.commentsCount || 0);
-      
-      analyticsData.push({
+
+      const row = {
         user_id: user.id,
         post_url: post.url || `https://instagram.com/p/${post.shortCode}`,
         shortcode: post.shortCode,
@@ -327,63 +330,52 @@ serve(async (req) => {
         comments_count: post.commentsCount || 0,
         views_count: post.videoViewCount || 0,
         engagement_rate: totalEngagement,
-        media_urls: storedMediaUrls.length > 0 ? storedMediaUrls : [post.displayUrl].filter(Boolean),
+        media_urls: media_urls.length > 0 ? media_urls : [post.displayUrl].filter(Boolean),
         thumbnail_url: storedThumbnailUrl || post.displayUrl,
-        posted_at: post.timestamp ? new Date(post.timestamp).toISOString() : null,
+        posted_at: postedAtIso,
         location_name: post.locationName,
         owner_username: post.ownerUsername,
         dimensions_width: post.dimensionsWidth,
         dimensions_height: post.dimensionsHeight,
         is_video: post.isVideo || post.type === "Video",
         video_duration: post.videoDuration,
-      });
-    }
+      };
 
-    // Insert only new posts
-    let insertedCount = 0;
-    if (analyticsData.length > 0) {
-      const { data: insertedData, error: insertError } = await supabaseClient
-        .from("instagram_analytics")
-        .insert(analyticsData)
-        .select();
+      analyticsData.push(row);
 
-      if (insertError) {
-        console.error("Error inserting analytics:", insertError);
-        return new Response(JSON.stringify({ error: insertError.message }), {
-          status: 500,
-          headers: { ...corsHeaders, "Content-Type": "application/json" },
+      if (alsoImportToMediaLibrary && row.thumbnail_url) {
+        mediaLibraryQueue.push({
+          user_id: user.id,
+          file_url: row.thumbnail_url,
+          file_name: `instagram-${row.shortcode || row.post_url.split("/").pop()}.jpg`,
+          file_type: row.is_video ? "video/mp4" : "image/jpeg",
+          source: "instagram_import",
+          tags: row.hashtags?.slice(0, 5) || [],
         });
       }
-      insertedCount = insertedData?.length || 0;
+
+      if (analyticsData.length >= BATCH_SIZE) {
+        await flushBatch();
+      }
     }
 
-    // Optionally import images to media library
+    // flush remaining
+    await flushBatch();
+
+    // Optionally import thumbnails to media library
     let mediaImportedCount = 0;
-    if (alsoImportToMediaLibrary && analyticsData.length > 0) {
-      const mediaLibraryData = analyticsData
-        .filter((post) => post.thumbnail_url)
-        .map((post) => ({
-          user_id: user.id,
-          file_url: post.thumbnail_url!,
-          file_name: `instagram-${post.shortcode || post.post_url.split("/").pop()}.jpg`,
-          file_type: post.is_video ? "video/mp4" : "image/jpeg",
-          source: "instagram_import",
-          tags: post.hashtags?.slice(0, 5) || [],
-        }));
+    if (alsoImportToMediaLibrary && mediaLibraryQueue.length > 0) {
+      const { error: mediaError } = await supabaseClient
+        .from("media_library")
+        .upsert(mediaLibraryQueue, {
+          onConflict: "user_id,file_url",
+          ignoreDuplicates: true,
+        });
 
-      if (mediaLibraryData.length > 0) {
-        const { error: mediaError } = await supabaseClient
-          .from("media_library")
-          .upsert(mediaLibraryData, { 
-            onConflict: "user_id,file_url",
-            ignoreDuplicates: true 
-          });
-
-        if (!mediaError) {
-          mediaImportedCount = mediaLibraryData.length;
-        } else {
-          console.warn("Media library import warning:", mediaError.message);
-        }
+      if (!mediaError) {
+        mediaImportedCount = mediaLibraryQueue.length;
+      } else {
+        console.warn("Media library import warning:", mediaError.message);
       }
     }
 
