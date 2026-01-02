@@ -12,6 +12,7 @@ import { TopPostsTable } from "@/components/analytics/TopPostsTable";
 import { TopPostsGallery } from "@/components/analytics/TopPostsGallery";
 import { BestTimeToPost } from "@/components/analytics/BestTimeToPost";
 import { InsightsSummary } from "@/components/analytics/InsightsSummary";
+import { DataContextBadge } from "@/components/analytics/DataContextBadge";
 import { AnalyticsFilters, type PeriodFilter, type ContentTypeFilter } from "@/components/analytics/AnalyticsFilters";
 import { ImportInstagramExcel } from "@/components/analytics/ImportInstagramExcel";
 import { useInstagramAnalytics } from "@/hooks/useInstagramAnalytics";
@@ -77,6 +78,105 @@ export default function Analytics() {
     return result;
   }, [analytics, period, account, contentTypes]);
 
+  // Recalculate stats for filtered data
+  const filteredStats = useMemo(() => {
+    if (filteredAnalytics.length === 0) {
+      return {
+        totalPosts: 0,
+        totalLikes: 0,
+        totalComments: 0,
+        totalViews: 0,
+        avgLikes: 0,
+        avgComments: 0,
+        avgEngagement: 0,
+        bestPost: null,
+        worstPost: null,
+        topHashtags: [],
+        contentTypeBreakdown: [],
+        engagementOverTime: [],
+      };
+    }
+
+    const totalLikes = filteredAnalytics.reduce((sum, p) => sum + (p.likes_count || 0), 0);
+    const totalComments = filteredAnalytics.reduce((sum, p) => sum + (p.comments_count || 0), 0);
+    const totalViews = filteredAnalytics.reduce((sum, p) => sum + (p.views_count || 0), 0);
+
+    const sorted = [...filteredAnalytics].sort(
+      (a, b) => (b.likes_count + b.comments_count) - (a.likes_count + a.comments_count)
+    );
+
+    // Hashtag analysis
+    const hashtagMap = new Map<string, { count: number; totalLikes: number }>();
+    filteredAnalytics.forEach((post) => {
+      (post.hashtags || []).forEach((tag) => {
+        const existing = hashtagMap.get(tag) || { count: 0, totalLikes: 0 };
+        hashtagMap.set(tag, {
+          count: existing.count + 1,
+          totalLikes: existing.totalLikes + (post.likes_count || 0),
+        });
+      });
+    });
+
+    const topHashtags = Array.from(hashtagMap.entries())
+      .map(([tag, data]) => ({
+        tag,
+        count: data.count,
+        avgLikes: Math.round(data.totalLikes / data.count),
+      }))
+      .sort((a, b) => b.count - a.count)
+      .slice(0, 15);
+
+    // Content type breakdown
+    const typeMap = new Map<string, { count: number; totalEngagement: number }>();
+    filteredAnalytics.forEach((post) => {
+      const type = post.post_type || "Image";
+      const existing = typeMap.get(type) || { count: 0, totalEngagement: 0 };
+      typeMap.set(type, {
+        count: existing.count + 1,
+        totalEngagement: existing.totalEngagement + (post.likes_count || 0) + (post.comments_count || 0),
+      });
+    });
+
+    const contentTypeBreakdown = Array.from(typeMap.entries()).map(([type, data]) => ({
+      type,
+      count: data.count,
+      avgEngagement: Math.round(data.totalEngagement / data.count),
+    }));
+
+    // Engagement over time
+    const timeMap = new Map<string, { likes: number; comments: number; posts: number }>();
+    filteredAnalytics.forEach((post) => {
+      if (!post.posted_at) return;
+      const date = new Date(post.posted_at);
+      const key = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}`;
+      const existing = timeMap.get(key) || { likes: 0, comments: 0, posts: 0 };
+      timeMap.set(key, {
+        likes: existing.likes + (post.likes_count || 0),
+        comments: existing.comments + (post.comments_count || 0),
+        posts: existing.posts + 1,
+      });
+    });
+
+    const engagementOverTime = Array.from(timeMap.entries())
+      .map(([date, data]) => ({ date, ...data }))
+      .sort((a, b) => a.date.localeCompare(b.date));
+
+    return {
+      totalPosts: filteredAnalytics.length,
+      totalLikes,
+      totalComments,
+      totalViews,
+      avgLikes: Math.round(totalLikes / filteredAnalytics.length),
+      avgComments: Math.round(totalComments / filteredAnalytics.length),
+      avgEngagement: Math.round((totalLikes + totalComments) / filteredAnalytics.length),
+      bestPost: sorted[0] || null,
+      worstPost: sorted[sorted.length - 1] || null,
+      topHashtags,
+      contentTypeBreakdown,
+      engagementOverTime,
+    };
+  }, [filteredAnalytics]);
+
   const handleResetFilters = () => {
     setPeriod("all");
     setAccount("all");
@@ -122,7 +222,7 @@ export default function Analytics() {
             <p className="text-sm text-muted-foreground">
               {isEmpty
                 ? "Importe os dados das suas publicações"
-                : `${stats.totalPosts} publicações analisadas`}
+                : `${filteredStats.totalPosts} publicações analisadas`}
             </p>
           </div>
         </div>
@@ -175,6 +275,9 @@ export default function Analytics() {
         </Card>
       ) : (
         <>
+          {/* Data Context Badge */}
+          <DataContextBadge analytics={analytics} />
+
           {/* Filters */}
           <AnalyticsFilters
             period={period}
@@ -190,35 +293,37 @@ export default function Analytics() {
           />
 
           {/* Insights */}
-          <InsightsSummary stats={stats} analytics={filteredAnalytics} />
+          <InsightsSummary stats={filteredStats} analytics={filteredAnalytics} />
 
           {/* KPI Cards */}
-          <KPICards stats={stats} />
+          <KPICards stats={filteredStats} />
 
-          {/* Tabs */}
+          {/* Consolidated Tabs: Overview + All Posts */}
           <Tabs defaultValue="overview" className="space-y-4">
             <TabsList>
               <TabsTrigger value="overview">Visão Geral</TabsTrigger>
-              <TabsTrigger value="engagement">Engagement</TabsTrigger>
-              <TabsTrigger value="hashtags">Hashtags</TabsTrigger>
-              <TabsTrigger value="posts">Posts</TabsTrigger>
+              <TabsTrigger value="posts">Todos os Posts ({filteredAnalytics.length})</TabsTrigger>
             </TabsList>
 
             <TabsContent value="overview" className="space-y-6">
-              <div className="grid lg:grid-cols-2 gap-6">
-                <EngagementChart data={stats.engagementOverTime} />
-                <ContentTypeBreakdown data={stats.contentTypeBreakdown} />
+              {/* Main charts row */}
+              <div className="grid lg:grid-cols-3 gap-6">
+                <div className="lg:col-span-2">
+                  <EngagementChart data={filteredStats.engagementOverTime} />
+                </div>
+                <div className="space-y-6">
+                  <ContentTypeBreakdown data={filteredStats.contentTypeBreakdown} />
+                </div>
               </div>
-              <TopPostsGallery posts={filteredAnalytics} limit={3} />
-            </TabsContent>
 
-            <TabsContent value="engagement" className="space-y-6">
-              <EngagementChart data={stats.engagementOverTime} />
-              <BestTimeToPost analytics={filteredAnalytics} />
-            </TabsContent>
+              {/* Top Posts Gallery */}
+              <TopPostsGallery posts={filteredAnalytics} limit={6} />
 
-            <TabsContent value="hashtags">
-              <HashtagCloud data={stats.topHashtags} />
+              {/* Hashtags and Best Time */}
+              <div className="grid lg:grid-cols-2 gap-6">
+                <HashtagCloud data={filteredStats.topHashtags} />
+                <BestTimeToPost analytics={filteredAnalytics} />
+              </div>
             </TabsContent>
 
             <TabsContent value="posts">
