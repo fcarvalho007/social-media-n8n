@@ -20,6 +20,25 @@ const CONTENT_TYPE_COLORS = {
   Sidecar: "hsl(142, 71%, 45%)",
 };
 
+// Helper functions - defined before component to avoid initialization errors
+const getTypeLabel = (type: string) => {
+  switch (type) {
+    case "Image": return "Imagem";
+    case "Video": return "Vídeo";
+    case "Sidecar": return "Carrossel";
+    default: return type;
+  }
+};
+
+const getTypeIcon = (type: string) => {
+  switch (type) {
+    case "Image": return <Image className="h-3 w-3" />;
+    case "Video": return <Video className="h-3 w-3" />;
+    case "Sidecar": return <Layers className="h-3 w-3" />;
+    default: return null;
+  }
+};
+
 export function ContentTypeComparison({
   analytics,
   selectedAccounts,
@@ -96,7 +115,7 @@ export function ContentTypeComparison({
         if (leader.video.pct > myStats.video.pct + 15) {
           insightsList.push({
             icon: <Video className="h-4 w-4 text-pink-500" />,
-            text: `@${leader.username} publica ${leader.video.pct}% de vídeos vs seus ${myStats.video.pct}%`
+            text: `@${leader.username} publica ${leader.video.pct}% de vídeos vs os seus ${myStats.video.pct}%`
           });
         }
         
@@ -104,7 +123,7 @@ export function ContentTypeComparison({
         if (leader.sidecar.pct > myStats.sidecar.pct + 15) {
           insightsList.push({
             icon: <Layers className="h-4 w-4 text-green-500" />,
-            text: `@${leader.username} usa ${leader.sidecar.pct}% de carrosseis vs seus ${myStats.sidecar.pct}%`
+            text: `@${leader.username} usa ${leader.sidecar.pct}% de carrosséis vs os seus ${myStats.sidecar.pct}%`
           });
         }
 
@@ -112,28 +131,28 @@ export function ContentTypeComparison({
         if (leader.dominant !== myStats.dominant) {
           insightsList.push({
             icon: <Lightbulb className="h-4 w-4 text-amber-500" />,
-            text: `Líder aposta em ${getTypeLabel(leader.dominant)}, você em ${getTypeLabel(myStats.dominant)}`
+            text: `Líder aposta em ${getTypeLabel(leader.dominant)}, a sua conta em ${getTypeLabel(myStats.dominant)}`
           });
         }
       }
     }
 
     // Generate insights for InsightBox
-    let boxForYou = "Selecione mais contas para comparar estratégias.";
-    let boxFromData = "Dados insuficientes para análise.";
+    let boxForYou = "Analise a distribuição de formatos de conteúdo.";
+    let boxFromData = "Compare estratégias entre contas.";
 
     if (breakdowns.length >= 1 && myAccount) {
       const myStats = breakdowns.find(b => b.isMyAccount);
       const competitors = breakdowns.filter(b => !b.isMyAccount);
 
       if (myStats) {
-        boxForYou = `Sua estratégia: ${myStats.image.pct}% imagens, ${myStats.video.pct}% vídeos, ${myStats.sidecar.pct}% carrosseis. Formato dominante: ${getTypeLabel(myStats.dominant)}.`;
+        boxForYou = `A sua estratégia: ${myStats.image.pct}% imagens, ${myStats.video.pct}% vídeos, ${myStats.sidecar.pct}% carrosséis. Formato dominante: ${getTypeLabel(myStats.dominant)}.`;
       }
 
       if (competitors.length > 0) {
         const avgVideo = Math.round(competitors.reduce((sum, c) => sum + c.video.pct, 0) / competitors.length);
         const avgSidecar = Math.round(competitors.reduce((sum, c) => sum + c.sidecar.pct, 0) / competitors.length);
-        boxFromData = `Média dos concorrentes: ${avgVideo}% vídeos, ${avgSidecar}% carrosseis.`;
+        boxFromData = `Média dos concorrentes: ${avgVideo}% vídeos, ${avgSidecar}% carrosséis.`;
       }
     }
 
@@ -144,24 +163,6 @@ export function ContentTypeComparison({
       boxInsights: { forYou: boxForYou, fromData: boxFromData }
     };
   }, [analytics, selectedAccounts, accountColorMap, myAccount]);
-
-  const getTypeLabel = (type: string) => {
-    switch (type) {
-      case "Image": return "Imagem";
-      case "Video": return "Vídeo";
-      case "Sidecar": return "Carrossel";
-      default: return type;
-    }
-  };
-
-  const getTypeIcon = (type: string) => {
-    switch (type) {
-      case "Image": return <Image className="h-3 w-3" />;
-      case "Video": return <Video className="h-3 w-3" />;
-      case "Sidecar": return <Layers className="h-3 w-3" />;
-      default: return null;
-    }
-  };
 
   if (selectedAccounts.length === 0) {
     return (
@@ -174,7 +175,7 @@ export function ContentTypeComparison({
         </CardHeader>
         <CardContent>
           <p className="text-sm text-muted-foreground text-center py-8">
-            Selecione contas para comparar estratégias
+            Seleccione contas para comparar estratégias
           </p>
         </CardContent>
       </Card>

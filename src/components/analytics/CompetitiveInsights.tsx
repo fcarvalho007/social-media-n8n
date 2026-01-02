@@ -21,7 +21,7 @@ export function CompetitiveInsights({ myAccount, myStats, competitorStats }: Com
         </CardHeader>
         <CardContent>
           <p className="text-sm text-muted-foreground text-center py-4">
-            Selecione sua conta e concorrentes para ver insights
+            Seleccione a sua conta e concorrentes para ver insights
           </p>
         </CardContent>
       </Card>
@@ -55,8 +55,8 @@ export function CompetitiveInsights({ myAccount, myStats, competitorStats }: Com
       color: myRank <= 3 ? "text-yellow-500" : (myRank <= Math.ceil(totalAccounts / 2) ? "text-green-500" : "text-red-500"),
       bgColor: myRank <= 3 ? "bg-yellow-50 dark:bg-yellow-950/30" : (myRank <= Math.ceil(totalAccounts / 2) ? "bg-green-50 dark:bg-green-950/30" : "bg-red-50 dark:bg-red-950/30"),
       text: myRank === 1 
-        ? `🏆 Você lidera o ranking em engagement médio!` 
-        : `Você está em ${myRank}º lugar de ${totalAccounts} contas em engagement médio`,
+        ? `🏆 Lidera o ranking em engagement médio!` 
+        : `Está em ${myRank}º lugar de ${totalAccounts} contas em engagement médio`,
       badge: myRank <= 3 ? "Top 3" : null,
     },
     {
@@ -64,15 +64,15 @@ export function CompetitiveInsights({ myAccount, myStats, competitorStats }: Com
       color: isAboveAverage ? "text-green-500" : "text-red-500",
       bgColor: isAboveAverage ? "bg-green-50 dark:bg-green-950/30" : "bg-red-50 dark:bg-red-950/30",
       text: isAboveAverage
-        ? `Seu engagement é ${Math.abs(engagementDiff).toFixed(0)}% acima da média dos concorrentes`
-        : `Seu engagement está ${Math.abs(engagementDiff).toFixed(0)}% abaixo da média dos concorrentes`,
+        ? `O seu engagement é ${Math.abs(engagementDiff).toFixed(0)}% acima da média dos concorrentes`
+        : `O seu engagement está ${Math.abs(engagementDiff).toFixed(0)}% abaixo da média dos concorrentes`,
       badge: isAboveAverage ? "Acima" : "Abaixo",
     },
     {
       icon: Zap,
       color: "text-purple-500",
       bgColor: "bg-purple-50 dark:bg-purple-950/30",
-      text: `Seu ponto forte são os ${myBestMetric} (${myBestMetric === "likes" ? myStats.avgLikes.toLocaleString() : myStats.avgComments.toLocaleString()} por post)`,
+      text: `O seu ponto forte são os ${myBestMetric} (${myBestMetric === "likes" ? myStats.avgLikes.toLocaleString() : myStats.avgComments.toLocaleString()} por post)`,
       badge: "Força",
     },
     {
@@ -80,8 +80,8 @@ export function CompetitiveInsights({ myAccount, myStats, competitorStats }: Com
       color: "text-blue-500",
       bgColor: "bg-blue-50 dark:bg-blue-950/30",
       text: topCompetitorDiff > 0
-        ? `@${topCompetitor.username} tem ${topCompetitorDiff.toFixed(0)}% mais engagement - é seu principal rival`
-        : `Você supera @${topCompetitor.username}, o segundo melhor, em ${Math.abs(topCompetitorDiff).toFixed(0)}%`,
+        ? `@${topCompetitor.username} tem ${topCompetitorDiff.toFixed(0)}% mais engagement - é o seu principal rival`
+        : `Supera @${topCompetitor.username}, o segundo melhor, em ${Math.abs(topCompetitorDiff).toFixed(0)}%`,
       badge: "Rival",
     },
   ];
@@ -93,8 +93,8 @@ export function CompetitiveInsights({ myAccount, myStats, competitorStats }: Com
       color: "text-orange-500",
       bgColor: "bg-orange-50 dark:bg-orange-950/30",
       text: postDiff > 0
-        ? `Você publica ${Math.abs(postDiff).toFixed(0)}% mais que a média dos concorrentes`
-        : `Concorrentes publicam ${Math.abs(postDiff).toFixed(0)}% mais que você`,
+        ? `Publica ${Math.abs(postDiff).toFixed(0)}% mais que a média dos concorrentes`
+        : `Concorrentes publicam ${Math.abs(postDiff).toFixed(0)}% mais que a sua conta`,
       badge: "Frequência",
     });
   }

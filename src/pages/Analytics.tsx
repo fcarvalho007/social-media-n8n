@@ -26,6 +26,7 @@ import { HashtagComparison } from "@/components/analytics/HashtagComparison";
 import { CompetitiveInsights } from "@/components/analytics/CompetitiveInsights";
 import { PostingFrequencyHeatmap } from "@/components/analytics/PostingFrequencyHeatmap";
 import { EngagementDistribution } from "@/components/analytics/EngagementDistribution";
+import { CompetitorReportGenerator } from "@/components/analytics/CompetitorReportGenerator";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -482,6 +483,14 @@ export default function Analytics() {
                   myAccount={myAccount || undefined}
                 />
               </div>
+
+              {/* Competitor Report Generator */}
+              <CompetitorReportGenerator
+                analytics={analytics}
+                accounts={accounts}
+                accountStats={accountStats}
+                myAccount={myAccount || undefined}
+              />
             </TabsContent>
 
             <TabsContent value="posts">
