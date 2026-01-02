@@ -19,7 +19,16 @@ const TYPE_LABELS: Record<string, string> = {
 };
 
 const RANK_ICONS = [Crown, Trophy, Medal];
-const RANK_COLORS = ["text-yellow-500", "text-gray-400", "text-amber-600"];
+const RANK_COLORS = [
+  "text-yellow-500 bg-yellow-500/15",
+  "text-slate-400 bg-slate-400/15",
+  "text-amber-600 bg-amber-600/15"
+];
+const RANK_GLOWS = [
+  "shadow-[0_0_12px_rgba(234,179,8,0.4)]",
+  "shadow-[0_0_8px_rgba(148,163,184,0.3)]",
+  "shadow-[0_0_8px_rgba(217,119,6,0.3)]"
+];
 
 export function TopPostsCards({ posts, limit = 3, myAccount }: TopPostsCardsProps) {
   const topPosts = [...posts]
@@ -37,10 +46,12 @@ export function TopPostsCards({ posts, limit = 3, myAccount }: TopPostsCardsProp
   };
 
   return (
-    <Card>
+    <Card className="overflow-hidden">
       <CardHeader className="pb-3">
         <CardTitle className="text-lg flex items-center gap-2">
-          <Crown className="h-5 w-5 text-yellow-500" />
+          <div className="p-1.5 rounded-lg bg-yellow-500/15">
+            <Crown className="h-4 w-4 text-yellow-500" />
+          </div>
           Top {limit} Posts
         </CardTitle>
       </CardHeader>
@@ -48,22 +59,24 @@ export function TopPostsCards({ posts, limit = 3, myAccount }: TopPostsCardsProp
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
           {topPosts.map((post, index) => {
             const RankIcon = RANK_ICONS[index] || Medal;
-            const rankColor = RANK_COLORS[index] || "text-muted-foreground";
+            const rankColor = RANK_COLORS[index] || "text-muted-foreground bg-muted";
+            const rankGlow = RANK_GLOWS[index] || "";
             const isMyPost = post.owner_username === myAccount;
             const engagement = post.likes_count + post.comments_count;
 
             return (
               <div
                 key={post.id}
-                className="relative group rounded-lg border bg-card overflow-hidden hover:shadow-md transition-shadow"
+                className="relative group rounded-xl border bg-card overflow-hidden hover:shadow-xl hover:scale-[1.02] transition-all duration-300"
+                style={{ animationDelay: `${index * 100}ms` }}
               >
                 {/* Thumbnail */}
-                <div className="relative aspect-square bg-muted">
+                <div className="relative aspect-square bg-muted overflow-hidden">
                   {post.thumbnail_url ? (
                     <img
                       src={post.thumbnail_url}
                       alt={post.caption?.slice(0, 50) || "Post"}
-                      className="w-full h-full object-cover"
+                      className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
                       loading="lazy"
                     />
                   ) : (
@@ -72,15 +85,18 @@ export function TopPostsCards({ posts, limit = 3, myAccount }: TopPostsCardsProp
                     </div>
                   )}
                   
-                  {/* Rank badge */}
-                  <div className={`absolute top-2 left-2 p-1.5 rounded-full bg-background/90 ${rankColor}`}>
+                  {/* Gradient overlay */}
+                  <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity" />
+                  
+                  {/* Rank badge with glow */}
+                  <div className={`absolute top-2 left-2 p-2 rounded-full ${rankColor} ${rankGlow} transition-shadow`}>
                     <RankIcon className="h-4 w-4" />
                   </div>
 
                   {/* Type badge */}
                   <Badge 
                     variant="secondary" 
-                    className="absolute top-2 right-2 text-[10px] bg-background/90"
+                    className="absolute top-2 right-2 text-[10px] bg-background/90 backdrop-blur-sm"
                   >
                     {TYPE_LABELS[post.post_type || "Image"] || post.post_type}
                   </Badge>
@@ -90,9 +106,11 @@ export function TopPostsCards({ posts, limit = 3, myAccount }: TopPostsCardsProp
                     href={post.post_url}
                     target="_blank"
                     rel="noopener noreferrer"
-                    className="absolute inset-0 bg-black/0 group-hover:bg-black/30 transition-colors flex items-center justify-center opacity-0 group-hover:opacity-100"
+                    className="absolute inset-0 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity"
                   >
-                    <ExternalLink className="h-6 w-6 text-white" />
+                    <div className="p-3 rounded-full bg-white/20 backdrop-blur-sm">
+                      <ExternalLink className="h-5 w-5 text-white" />
+                    </div>
                   </a>
                 </div>
 
@@ -100,16 +118,16 @@ export function TopPostsCards({ posts, limit = 3, myAccount }: TopPostsCardsProp
                 <div className="p-3 space-y-2">
                   <div className="flex items-center justify-between">
                     <div className="flex items-center gap-3 text-sm">
-                      <span className="flex items-center gap-1">
-                        <Heart className="h-3.5 w-3.5 text-red-500" />
-                        {formatNumber(post.likes_count)}
+                      <span className="flex items-center gap-1 group/stat">
+                        <Heart className="h-3.5 w-3.5 text-rose-500 group-hover/stat:scale-110 transition-transform" />
+                        <span className="font-medium">{formatNumber(post.likes_count)}</span>
                       </span>
-                      <span className="flex items-center gap-1">
-                        <MessageCircle className="h-3.5 w-3.5 text-green-500" />
-                        {formatNumber(post.comments_count)}
+                      <span className="flex items-center gap-1 group/stat">
+                        <MessageCircle className="h-3.5 w-3.5 text-emerald-500 group-hover/stat:scale-110 transition-transform" />
+                        <span className="font-medium">{formatNumber(post.comments_count)}</span>
                       </span>
                     </div>
-                    <span className="text-xs font-medium text-primary">
+                    <span className="text-xs font-semibold px-2 py-0.5 rounded-full bg-primary/10 text-primary">
                       {formatNumber(engagement)} eng
                     </span>
                   </div>
@@ -119,7 +137,7 @@ export function TopPostsCards({ posts, limit = 3, myAccount }: TopPostsCardsProp
                       @{post.owner_username}
                     </span>
                     {post.posted_at && (
-                      <span>
+                      <span className="text-muted-foreground/70">
                         {format(new Date(post.posted_at), "d MMM", { locale: pt })}
                       </span>
                     )}

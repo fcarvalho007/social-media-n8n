@@ -19,6 +19,12 @@ const DAYS = ["Dom", "Seg", "Ter", "Qua", "Qui", "Sex", "Sáb"];
 const DAYS_FULL = ["Domingo", "Segunda", "Terça", "Quarta", "Quinta", "Sexta", "Sábado"];
 const HOURS = [6, 8, 10, 12, 14, 16, 18, 20, 22];
 
+// Vibrant gradient colors
+const HEATMAP_COLORS = {
+  low: "hsl(262, 83%, 58%)",    // Purple
+  high: "hsl(280, 87%, 65%)",   // Fuchsia
+};
+
 export function BestTimeToPost({ analytics, contextLabel }: BestTimeToPostProps) {
   const { heatmapData, averages, maxAvg, topTimes } = useMemo(() => {
     const heatmapData = new Map<string, { total: number; count: number }>();
@@ -75,7 +81,7 @@ export function BestTimeToPost({ analytics, contextLabel }: BestTimeToPostProps)
 
     const normalizedOpacity = avg / maxAvg;
     // Use a curved scale for better visual distinction
-    const opacity = Math.max(0.15, Math.pow(normalizedOpacity, 0.7));
+    const opacity = Math.max(0.15, Math.pow(normalizedOpacity, 0.6));
     const data = heatmapData.get(key) || { count: 0 };
 
     return { opacity, avg: Math.round(avg), count: data.count };
@@ -93,10 +99,12 @@ export function BestTimeToPost({ analytics, contextLabel }: BestTimeToPostProps)
   const RANKING_ICONS = ["🥇", "🥈", "🥉"];
 
   return (
-    <Card>
+    <Card className="overflow-hidden">
       <CardHeader className="pb-3 flex flex-row items-center justify-between space-y-0">
         <CardTitle className="text-base flex items-center gap-2">
-          <Clock className="h-4 w-4" />
+          <div className="p-1.5 rounded-lg bg-violet-500/15">
+            <Clock className="h-4 w-4 text-violet-500" />
+          </div>
           Melhor Horário para Publicar
         </CardTitle>
         {contextLabel && (
@@ -107,7 +115,7 @@ export function BestTimeToPost({ analytics, contextLabel }: BestTimeToPostProps)
       </CardHeader>
       <CardContent className="space-y-6">
         <TooltipProvider>
-          <div className="overflow-x-auto">
+          <div className="overflow-x-auto scrollbar-thin scrollbar-thumb-muted scrollbar-track-transparent">
             <div className="min-w-[450px]">
               {/* Header row with hours */}
               <div className="flex gap-1.5 mb-2 pl-12">
@@ -138,26 +146,26 @@ export function BestTimeToPost({ analytics, contextLabel }: BestTimeToPostProps)
                         <Tooltip key={`${dayIndex}-${hour}`}>
                           <TooltipTrigger asChild>
                             <div
-                              className={`w-11 h-10 rounded-lg transition-all cursor-pointer hover:scale-105 hover:shadow-md ${
+                              className={`w-11 h-10 rounded-xl transition-all cursor-pointer hover:scale-110 hover:shadow-lg ${
                                 isTopTime
-                                  ? "ring-2 ring-primary ring-offset-2 ring-offset-background"
+                                  ? "ring-2 ring-primary ring-offset-2 ring-offset-background animate-pulse"
                                   : ""
                               }`}
                               style={{
                                 background:
                                   count > 0
-                                    ? `linear-gradient(135deg, hsl(var(--primary) / ${opacity * 0.8}), hsl(var(--primary) / ${opacity}))`
-                                    : "hsl(var(--muted))",
+                                    ? `linear-gradient(135deg, ${HEATMAP_COLORS.low}${Math.round(opacity * 255).toString(16).padStart(2, '0')}, ${HEATMAP_COLORS.high}${Math.round(opacity * 255).toString(16).padStart(2, '0')})`
+                                    : "hsl(var(--muted) / 0.5)",
                               }}
                             />
                           </TooltipTrigger>
-                          <TooltipContent side="top">
+                          <TooltipContent side="top" className="p-3">
                             <div className="text-sm">
-                              <p className="font-medium">
+                              <p className="font-semibold">
                                 {DAYS_FULL[dayIndex]} às {hour}h
                               </p>
                               {count > 0 ? (
-                                <div className="mt-1 text-muted-foreground">
+                                <div className="mt-1 text-muted-foreground space-y-0.5">
                                   <p>{count} post{count > 1 ? "s" : ""}</p>
                                   <p className="font-medium text-foreground">
                                     {formatNumber(avg)} engagement médio
@@ -181,12 +189,12 @@ export function BestTimeToPost({ analytics, contextLabel }: BestTimeToPostProps)
               <div className="flex items-center justify-end gap-3 mt-4 text-xs text-muted-foreground">
                 <span>Menos</span>
                 <div className="flex gap-1">
-                  {[0.1, 0.25, 0.45, 0.7, 1].map((opacity) => (
+                  {[0.15, 0.35, 0.55, 0.75, 1].map((opacity) => (
                     <div
                       key={opacity}
-                      className="w-5 h-5 rounded"
+                      className="w-5 h-5 rounded-lg"
                       style={{
-                        background: `linear-gradient(135deg, hsl(var(--primary) / ${opacity * 0.8}), hsl(var(--primary) / ${opacity}))`,
+                        background: `linear-gradient(135deg, ${HEATMAP_COLORS.low}${Math.round(opacity * 255).toString(16).padStart(2, '0')}, ${HEATMAP_COLORS.high}${Math.round(opacity * 255).toString(16).padStart(2, '0')})`,
                       }}
                     />
                   ))}
@@ -199,19 +207,21 @@ export function BestTimeToPost({ analytics, contextLabel }: BestTimeToPostProps)
 
         {/* Top 3 recommendations */}
         {topTimes.length > 0 && (
-          <div className="rounded-xl border bg-gradient-to-br from-primary/5 to-primary/10 p-4">
+          <div className="rounded-2xl border bg-gradient-to-br from-violet-500/10 via-purple-500/10 to-fuchsia-500/10 p-4">
             <div className="flex items-center gap-2 mb-3">
-              <Trophy className="h-4 w-4 text-primary" />
+              <div className="p-1.5 rounded-lg bg-violet-500/15">
+                <Trophy className="h-4 w-4 text-violet-500" />
+              </div>
               <span className="font-semibold text-sm">Melhores Horários Recomendados</span>
             </div>
             <div className="grid grid-cols-3 gap-3">
               {topTimes.map((time, index) => (
                 <div
                   key={`${time.day}-${time.hour}`}
-                  className={`rounded-lg p-3 text-center transition-all ${
+                  className={`rounded-xl p-3 text-center transition-all hover:scale-105 ${
                     index === 0
-                      ? "bg-primary/15 ring-1 ring-primary/30"
-                      : "bg-card border"
+                      ? "bg-gradient-to-br from-violet-500/20 to-purple-500/20 ring-1 ring-violet-500/30 shadow-lg"
+                      : "bg-card/80 backdrop-blur-sm border"
                   }`}
                 >
                   <div className="text-2xl mb-1">{RANKING_ICONS[index]}</div>

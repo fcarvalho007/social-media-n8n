@@ -1,4 +1,4 @@
-import { Trophy, Heart, MessageCircle, BarChart3, Star, Lightbulb, TrendingUp, ChevronDown, ChevronUp, HelpCircle } from "lucide-react";
+import { Trophy, Heart, MessageCircle, BarChart3, Star, Lightbulb, TrendingUp, ChevronDown, ChevronUp } from "lucide-react";
 import { useState, useMemo } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Progress } from "@/components/ui/progress";
@@ -38,27 +38,28 @@ export function AccountRanking({ accounts, sortBy = "avgEngagement", myAccount }
     if (!myAccount || sortedAccounts.length < 2) return [];
     
     const myStats = sortedAccounts.find(a => a.username === myAccount);
-    const myRank = sortedAccounts.findIndex(a => a.username === myAccount) + 1;
     const leader = sortedAccounts[0];
     
     if (!myStats) return [];
     
-    const insightsList: { icon: React.ReactNode; text: string; highlight?: string }[] = [];
+    const insightsList: { icon: React.ReactNode; text: string; highlight?: string; color: string }[] = [];
     
     // Insight 1: Engagement comparison with leader
     if (leader.username !== myAccount) {
-      const engagementDiff = leader.avgEngagement - myStats.avgEngagement;
       const multiplier = leader.avgEngagement / Math.max(myStats.avgEngagement, 1);
       if (multiplier > 1.5) {
         insightsList.push({
-          icon: <TrendingUp className="h-4 w-4 text-amber-500" />,
+          icon: <TrendingUp className="h-4 w-4" />,
           text: `@${leader.username} tem`,
-          highlight: `${multiplier.toFixed(0)}x mais engagement`
+          highlight: `${multiplier.toFixed(0)}x mais engagement`,
+          color: "text-amber-500 bg-amber-500/15",
         });
-      } else if (engagementDiff > 0) {
+      } else if (multiplier > 1) {
+        const engagementDiff = leader.avgEngagement - myStats.avgEngagement;
         insightsList.push({
-          icon: <TrendingUp className="h-4 w-4 text-amber-500" />,
-          text: `@${leader.username} tem +${Math.round(engagementDiff)} engagement médio`
+          icon: <TrendingUp className="h-4 w-4" />,
+          text: `@${leader.username} tem +${Math.round(engagementDiff)} engagement médio`,
+          color: "text-amber-500 bg-amber-500/15",
         });
       }
     }
@@ -68,9 +69,10 @@ export function AccountRanking({ accounts, sortBy = "avgEngagement", myAccount }
       const likesDiff = leader.avgLikes - myStats.avgLikes;
       if (likesDiff > 50) {
         insightsList.push({
-          icon: <Heart className="h-4 w-4 text-red-500" />,
+          icon: <Heart className="h-4 w-4" />,
           text: `Líder recebe`,
-          highlight: `+${Math.round(likesDiff)} likes/post`
+          highlight: `+${Math.round(likesDiff)} likes/post`,
+          color: "text-rose-500 bg-rose-500/15",
         });
       }
     }
@@ -80,9 +82,10 @@ export function AccountRanking({ accounts, sortBy = "avgEngagement", myAccount }
       const commentsDiff = leader.avgComments - myStats.avgComments;
       if (commentsDiff > 10) {
         insightsList.push({
-          icon: <MessageCircle className="h-4 w-4 text-blue-500" />,
+          icon: <MessageCircle className="h-4 w-4" />,
           text: `Líder recebe`,
-          highlight: `+${Math.round(commentsDiff)} comentários/post`
+          highlight: `+${Math.round(commentsDiff)} comentários/post`,
+          color: "text-blue-500 bg-blue-500/15",
         });
       }
     }
@@ -96,9 +99,10 @@ export function AccountRanking({ accounts, sortBy = "avgEngagement", myAccount }
       
       if (leaderVideoPercent > myVideoPercent + 20) {
         insightsList.push({
-          icon: <BarChart3 className="h-4 w-4 text-purple-500" />,
+          icon: <BarChart3 className="h-4 w-4" />,
           text: `Líder publica`,
-          highlight: `${Math.round(leaderVideoPercent - myVideoPercent)}% mais vídeos`
+          highlight: `${Math.round(leaderVideoPercent - myVideoPercent)}% mais vídeos`,
+          color: "text-violet-500 bg-violet-500/15",
         });
       }
     }
@@ -108,10 +112,10 @@ export function AccountRanking({ accounts, sortBy = "avgEngagement", myAccount }
   }, [sortedAccounts, myAccount]);
 
   const getRankIcon = (index: number) => {
-    if (index === 0) return <span className="text-lg">🥇</span>;
-    if (index === 1) return <span className="text-lg">🥈</span>;
-    if (index === 2) return <span className="text-lg">🥉</span>;
-    return <span className="text-sm font-bold text-muted-foreground">{index + 1}</span>;
+    if (index === 0) return <span className="text-xl drop-shadow-sm">🥇</span>;
+    if (index === 1) return <span className="text-xl drop-shadow-sm">🥈</span>;
+    if (index === 2) return <span className="text-xl drop-shadow-sm">🥉</span>;
+    return <span className="text-sm font-bold text-muted-foreground w-6 text-center">{index + 1}</span>;
   };
 
   const formatValue = (value: number) => {
@@ -140,7 +144,9 @@ export function AccountRanking({ accounts, sortBy = "avgEngagement", myAccount }
       <Card>
         <CardHeader>
           <CardTitle className="text-base flex items-center gap-2">
-            <Trophy className="h-5 w-5 text-yellow-500" />
+            <div className="p-1.5 rounded-lg bg-yellow-500/15">
+              <Trophy className="h-4 w-4 text-yellow-500" />
+            </div>
             Ranking de Contas
           </CardTitle>
         </CardHeader>
@@ -155,17 +161,19 @@ export function AccountRanking({ accounts, sortBy = "avgEngagement", myAccount }
 
   return (
     <TooltipProvider>
-      <Card>
+      <Card className="overflow-hidden">
         <CardHeader className="pb-3">
           <div className="flex items-center justify-between">
             <CardTitle className="text-base flex items-center gap-2">
-              <Trophy className="h-5 w-5 text-yellow-500" />
+              <div className="p-1.5 rounded-lg bg-yellow-500/15">
+                <Trophy className="h-4 w-4 text-yellow-500" />
+              </div>
               Ranking de Contas
             </CardTitle>
             <span className="text-xs text-muted-foreground">por {getSortLabel()}</span>
           </div>
           {myAccount && myAccountRank && (
-            <div className="flex items-center gap-2 mt-2 p-2 rounded-lg bg-amber-50 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-800">
+            <div className="flex items-center gap-2 mt-2 p-2.5 rounded-xl bg-gradient-to-r from-amber-500/15 to-orange-500/15 border border-amber-500/30">
               <Star className="h-4 w-4 fill-amber-500 text-amber-500" />
               <span className="text-sm font-medium text-amber-700 dark:text-amber-300">
                 Está em {myAccountRank}º lugar
@@ -173,7 +181,7 @@ export function AccountRanking({ accounts, sortBy = "avgEngagement", myAccount }
             </div>
           )}
         </CardHeader>
-        <CardContent className="space-y-3">
+        <CardContent className="space-y-2">
           {sortedAccounts.map((account, index) => {
             const progress = (account[sortBy] / maxValue) * 100;
             const isMyAccount = account.username === myAccount;
@@ -182,46 +190,54 @@ export function AccountRanking({ accounts, sortBy = "avgEngagement", myAccount }
             return (
               <div 
                 key={account.username} 
-                className={`space-y-1.5 p-2 rounded-lg transition-all ${
+                className={`space-y-1.5 p-2.5 rounded-xl transition-all hover:shadow-md ${
                   isMyAccount 
-                    ? "bg-amber-50 dark:bg-amber-950/30 border-2 border-amber-300 dark:border-amber-700" 
-                    : ""
+                    ? "bg-gradient-to-r from-amber-500/10 to-orange-500/10 border-2 border-amber-400/50 shadow-sm" 
+                    : "hover:bg-muted/50"
                 }`}
+                style={{ animationDelay: `${index * 50}ms` }}
               >
                 <div className="flex items-center gap-2 md:gap-3">
-                  <div className="w-5 md:w-6 flex justify-center">{getRankIcon(index)}</div>
+                  <div className="w-6 md:w-7 flex justify-center">{getRankIcon(index)}</div>
                   <div
-                    className="w-2.5 h-2.5 md:w-3 md:h-3 rounded-full flex-shrink-0"
+                    className="w-3 h-3 rounded-full flex-shrink-0 shadow-sm ring-2 ring-background"
                     style={{ backgroundColor: color }}
                   />
                   <span className={`font-medium flex-1 truncate text-sm ${isMyAccount ? "text-amber-700 dark:text-amber-300" : ""}`}>
                     @{account.username}
                   </span>
                   {isMyAccount && (
-                    <Badge variant="outline" className="border-amber-400 text-amber-600 dark:text-amber-400 text-xs gap-1 hidden sm:flex">
+                    <Badge variant="outline" className="border-amber-400 bg-amber-500/10 text-amber-600 dark:text-amber-400 text-xs gap-1 hidden sm:flex">
                       <Star className="h-3 w-3 fill-amber-500" />
                       A sua conta
                     </Badge>
                   )}
-                  <span className="text-sm font-semibold tabular-nums">
+                  <span className="text-sm font-bold tabular-nums">
                     {formatValue(account[sortBy])}
                   </span>
                 </div>
                 <div className="flex items-center gap-2 md:gap-3">
-                  <div className="w-5 md:w-6" />
-                  <div className="w-2.5 md:w-3" />
-                  <Progress 
-                    value={progress} 
-                    className={`flex-1 h-1.5 md:h-2 ${isMyAccount ? "[&>div]:bg-amber-500" : ""}`}
-                  />
+                  <div className="w-6 md:w-7" />
+                  <div className="w-3" />
+                  <div className="flex-1 h-2 rounded-full overflow-hidden bg-muted/50">
+                    <div 
+                      className="h-full rounded-full transition-all duration-500"
+                      style={{ 
+                        width: `${progress}%`,
+                        background: isMyAccount 
+                          ? `linear-gradient(90deg, ${MY_ACCOUNT_COLOR}, ${MY_ACCOUNT_COLOR}CC)`
+                          : `linear-gradient(90deg, ${color}, ${color}CC)`
+                      }}
+                    />
+                  </div>
                 </div>
                 <div className="flex items-center gap-2 md:gap-3 text-xs text-muted-foreground">
-                  <div className="w-5 md:w-6" />
-                  <div className="w-2.5 md:w-3" />
+                  <div className="w-6 md:w-7" />
+                  <div className="w-3" />
                   <div className="flex items-center gap-2 md:gap-3 flex-wrap">
                     <Tooltip>
                       <TooltipTrigger asChild>
-                        <span className="flex items-center gap-1 cursor-help">
+                        <span className="flex items-center gap-1 cursor-help hover:text-foreground transition-colors">
                           <BarChart3 className="h-3 w-3" />
                           {account.postCount}
                         </span>
@@ -232,7 +248,7 @@ export function AccountRanking({ accounts, sortBy = "avgEngagement", myAccount }
                     </Tooltip>
                     <Tooltip>
                       <TooltipTrigger asChild>
-                        <span className="flex items-center gap-1 cursor-help">
+                        <span className="flex items-center gap-1 cursor-help hover:text-foreground transition-colors">
                           <Heart className="h-3 w-3" />
                           {formatValue(account.avgLikes)}
                         </span>
@@ -243,7 +259,7 @@ export function AccountRanking({ accounts, sortBy = "avgEngagement", myAccount }
                     </Tooltip>
                     <Tooltip>
                       <TooltipTrigger asChild>
-                        <span className="flex items-center gap-1 cursor-help hidden sm:flex">
+                        <span className="flex items-center gap-1 cursor-help hidden sm:flex hover:text-foreground transition-colors">
                           <MessageCircle className="h-3 w-3" />
                           {formatValue(account.avgComments)}
                         </span>
@@ -275,9 +291,11 @@ export function AccountRanking({ accounts, sortBy = "avgEngagement", myAccount }
           {insights.length > 0 && (
             <Collapsible open={showInsights} onOpenChange={setShowInsights} className="mt-4">
               <CollapsibleTrigger asChild>
-                <Button variant="ghost" className="w-full justify-between p-3 h-auto bg-muted/50 hover:bg-muted">
+                <Button variant="ghost" className="w-full justify-between p-3 h-auto bg-gradient-to-r from-amber-500/10 to-orange-500/10 hover:from-amber-500/15 hover:to-orange-500/15 rounded-xl">
                   <div className="flex items-center gap-2">
-                    <Lightbulb className="h-4 w-4 text-amber-500" />
+                    <div className="p-1.5 rounded-lg bg-amber-500/15">
+                      <Lightbulb className="h-4 w-4 text-amber-500" />
+                    </div>
                     <span className="text-sm font-medium">O que os líderes fazem melhor</span>
                   </div>
                   {showInsights ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
@@ -287,9 +305,11 @@ export function AccountRanking({ accounts, sortBy = "avgEngagement", myAccount }
                 {insights.map((insight, idx) => (
                   <div 
                     key={idx} 
-                    className="flex items-start gap-2 p-2 rounded-lg bg-muted/30 text-sm"
+                    className="flex items-start gap-3 p-2.5 rounded-xl bg-muted/50 text-sm"
                   >
-                    {insight.icon}
+                    <div className={`p-1.5 rounded-lg ${insight.color}`}>
+                      {insight.icon}
+                    </div>
                     <span className="text-muted-foreground">
                       {insight.text}{" "}
                       {insight.highlight && (

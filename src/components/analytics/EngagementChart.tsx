@@ -1,7 +1,7 @@
 import { useState, useMemo } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { AreaChart, LineChart as LineChartIcon, Calendar } from "lucide-react";
+import { AreaChart, LineChart as LineChartIcon } from "lucide-react";
 import {
   LineChart,
   Line,
@@ -23,6 +23,11 @@ interface EngagementChartProps {
 }
 
 type Granularity = "daily" | "weekly" | "monthly";
+
+// Vibrant colors
+const LIKES_COLOR = "#F43F5E"; // Rose-500
+const COMMENTS_COLOR = "#8B5CF6"; // Violet-500
+const POSTS_COLOR = "#64748B"; // Slate-500
 
 export function EngagementChart({ data }: EngagementChartProps) {
   const [chartType, setChartType] = useState<"line" | "area">("area");
@@ -110,19 +115,19 @@ export function EngagementChart({ data }: EngagementChartProps) {
     if (!active || !payload?.length) return null;
 
     return (
-      <div className="rounded-lg border bg-card p-3 shadow-lg">
-        <p className="font-medium mb-2">{label}</p>
-        <div className="space-y-1 text-sm">
+      <div className="rounded-xl border bg-card/95 backdrop-blur-sm p-3 shadow-xl">
+        <p className="font-semibold mb-2 text-sm">{label}</p>
+        <div className="space-y-1.5">
           {payload.map((entry: any, index: number) => (
-            <div key={index} className="flex items-center justify-between gap-4">
+            <div key={index} className="flex items-center justify-between gap-6">
               <div className="flex items-center gap-2">
                 <div
-                  className="w-2 h-2 rounded-full"
+                  className="w-2.5 h-2.5 rounded-full shadow-sm"
                   style={{ backgroundColor: entry.color }}
                 />
-                <span className="text-muted-foreground">{entry.name}</span>
+                <span className="text-xs text-muted-foreground">{entry.name}</span>
               </div>
-              <span className="font-medium">{formatNumber(entry.value)}</span>
+              <span className="font-semibold text-sm">{formatNumber(entry.value)}</span>
             </div>
           ))}
         </div>
@@ -140,7 +145,7 @@ export function EngagementChart({ data }: EngagementChartProps) {
       <XAxis
         dataKey="label"
         tick={{ fill: "hsl(var(--muted-foreground))", fontSize: 11 }}
-        axisLine={{ stroke: "hsl(var(--border))" }}
+        axisLine={{ stroke: "hsl(var(--border))", strokeOpacity: 0.5 }}
         tickLine={false}
         interval={granularity === "daily" ? "preserveStartEnd" : 0}
         angle={granularity === "daily" ? -45 : 0}
@@ -166,19 +171,21 @@ export function EngagementChart({ data }: EngagementChartProps) {
   };
 
   return (
-    <Card>
+    <Card className="overflow-hidden">
       <CardHeader className="pb-2">
         <div className="flex items-center justify-between flex-wrap gap-2">
           <CardTitle className="text-lg">Engagement ao Longo do Tempo</CardTitle>
           <div className="flex items-center gap-2">
             {/* Granularity toggle */}
-            <div className="flex items-center gap-1 bg-muted rounded-lg p-0.5">
+            <div className="flex items-center gap-1 bg-muted/80 rounded-lg p-0.5">
               {(["daily", "weekly", "monthly"] as Granularity[]).map((g) => (
                 <Button
                   key={g}
                   variant={granularity === g ? "secondary" : "ghost"}
                   size="sm"
-                  className="h-7 px-2.5 text-xs"
+                  className={`h-7 px-2.5 text-xs transition-all ${
+                    granularity === g ? "shadow-sm" : "hover:bg-muted"
+                  }`}
                   onClick={() => setGranularity(g)}
                 >
                   {granularityLabels[g]}
@@ -187,11 +194,11 @@ export function EngagementChart({ data }: EngagementChartProps) {
             </div>
 
             {/* Chart type toggle */}
-            <div className="flex items-center gap-1 bg-muted rounded-lg p-0.5">
+            <div className="flex items-center gap-1 bg-muted/80 rounded-lg p-0.5">
               <Button
                 variant={chartType === "line" ? "secondary" : "ghost"}
                 size="sm"
-                className="h-7 px-2"
+                className={`h-7 px-2 transition-all ${chartType === "line" ? "shadow-sm" : ""}`}
                 onClick={() => setChartType("line")}
               >
                 <LineChartIcon className="h-4 w-4" />
@@ -199,7 +206,7 @@ export function EngagementChart({ data }: EngagementChartProps) {
               <Button
                 variant={chartType === "area" ? "secondary" : "ghost"}
                 size="sm"
-                className="h-7 px-2"
+                className={`h-7 px-2 transition-all ${chartType === "area" ? "shadow-sm" : ""}`}
                 onClick={() => setChartType("area")}
               >
                 <AreaChart className="h-4 w-4" />
@@ -208,49 +215,56 @@ export function EngagementChart({ data }: EngagementChartProps) {
           </div>
         </div>
       </CardHeader>
-      <CardContent>
-        <ResponsiveContainer width="100%" height={280}>
+      <CardContent className="pt-2">
+        <ResponsiveContainer width="100%" height={260} className="sm:!h-[280px]">
           {chartType === "area" ? (
             <RechartsAreaChart {...commonProps}>
               <defs>
-                <linearGradient id="likesGradient" x1="0" y1="0" x2="0" y2="1">
-                  <stop offset="0%" stopColor="hsl(var(--destructive))" stopOpacity={0.3} />
-                  <stop offset="100%" stopColor="hsl(var(--destructive))" stopOpacity={0.05} />
+                <linearGradient id="likesGradientNew" x1="0" y1="0" x2="0" y2="1">
+                  <stop offset="0%" stopColor={LIKES_COLOR} stopOpacity={0.4} />
+                  <stop offset="50%" stopColor={LIKES_COLOR} stopOpacity={0.15} />
+                  <stop offset="100%" stopColor={LIKES_COLOR} stopOpacity={0.02} />
                 </linearGradient>
-                <linearGradient id="commentsGradient" x1="0" y1="0" x2="0" y2="1">
-                  <stop offset="0%" stopColor="hsl(var(--primary))" stopOpacity={0.3} />
-                  <stop offset="100%" stopColor="hsl(var(--primary))" stopOpacity={0.05} />
+                <linearGradient id="commentsGradientNew" x1="0" y1="0" x2="0" y2="1">
+                  <stop offset="0%" stopColor={COMMENTS_COLOR} stopOpacity={0.4} />
+                  <stop offset="50%" stopColor={COMMENTS_COLOR} stopOpacity={0.15} />
+                  <stop offset="100%" stopColor={COMMENTS_COLOR} stopOpacity={0.02} />
                 </linearGradient>
               </defs>
               <CartesianGrid
                 strokeDasharray="3 3"
                 stroke="hsl(var(--border))"
+                strokeOpacity={0.4}
                 vertical={false}
               />
               {commonAxisProps.xAxis}
               {commonAxisProps.yAxis}
               <Tooltip content={<CustomTooltip />} />
               <Legend
-                wrapperStyle={{ paddingTop: "16px" }}
+                wrapperStyle={{ paddingTop: "12px" }}
                 formatter={(value) => (
-                  <span className="text-sm text-muted-foreground">{value}</span>
+                  <span className="text-xs text-muted-foreground">{value}</span>
                 )}
               />
               <Area
                 type="monotone"
                 dataKey="likes"
                 name="Likes"
-                stroke="hsl(var(--destructive))"
-                fill="url(#likesGradient)"
-                strokeWidth={2}
+                stroke={LIKES_COLOR}
+                fill="url(#likesGradientNew)"
+                strokeWidth={2.5}
+                dot={false}
+                activeDot={{ r: 5, strokeWidth: 2, stroke: "#fff" }}
               />
               <Area
                 type="monotone"
                 dataKey="comments"
                 name="Comentários"
-                stroke="hsl(var(--primary))"
-                fill="url(#commentsGradient)"
-                strokeWidth={2}
+                stroke={COMMENTS_COLOR}
+                fill="url(#commentsGradientNew)"
+                strokeWidth={2.5}
+                dot={false}
+                activeDot={{ r: 5, strokeWidth: 2, stroke: "#fff" }}
               />
             </RechartsAreaChart>
           ) : (
@@ -258,40 +272,41 @@ export function EngagementChart({ data }: EngagementChartProps) {
               <CartesianGrid
                 strokeDasharray="3 3"
                 stroke="hsl(var(--border))"
+                strokeOpacity={0.4}
                 vertical={false}
               />
               {commonAxisProps.xAxis}
               {commonAxisProps.yAxis}
               <Tooltip content={<CustomTooltip />} />
               <Legend
-                wrapperStyle={{ paddingTop: "16px" }}
+                wrapperStyle={{ paddingTop: "12px" }}
                 formatter={(value) => (
-                  <span className="text-sm text-muted-foreground">{value}</span>
+                  <span className="text-xs text-muted-foreground">{value}</span>
                 )}
               />
               <Line
                 type="monotone"
                 dataKey="likes"
                 name="Likes"
-                stroke="hsl(var(--destructive))"
-                strokeWidth={2}
-                dot={{ fill: "hsl(var(--destructive))", strokeWidth: 0, r: 3 }}
-                activeDot={{ r: 5 }}
+                stroke={LIKES_COLOR}
+                strokeWidth={2.5}
+                dot={{ fill: LIKES_COLOR, strokeWidth: 0, r: 3 }}
+                activeDot={{ r: 6, strokeWidth: 2, stroke: "#fff" }}
               />
               <Line
                 type="monotone"
                 dataKey="comments"
                 name="Comentários"
-                stroke="hsl(var(--primary))"
-                strokeWidth={2}
-                dot={{ fill: "hsl(var(--primary))", strokeWidth: 0, r: 3 }}
-                activeDot={{ r: 5 }}
+                stroke={COMMENTS_COLOR}
+                strokeWidth={2.5}
+                dot={{ fill: COMMENTS_COLOR, strokeWidth: 0, r: 3 }}
+                activeDot={{ r: 6, strokeWidth: 2, stroke: "#fff" }}
               />
               <Line
                 type="monotone"
                 dataKey="posts"
                 name="Posts"
-                stroke="hsl(var(--muted-foreground))"
+                stroke={POSTS_COLOR}
                 strokeWidth={2}
                 strokeDasharray="5 5"
                 dot={false}
