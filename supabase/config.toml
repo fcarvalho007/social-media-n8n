@@ -53,3 +53,9 @@ verify_jwt = true
 
 [functions.fal-generate-image]
 verify_jwt = true
+
+[functions.generate-analytics-insights]
+verify_jwt = true
+
+[functions.generate-competitor-report]
+verify_jwt = true

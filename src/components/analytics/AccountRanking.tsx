@@ -1,10 +1,11 @@
-import { Trophy, Heart, MessageCircle, BarChart3, Star, Lightbulb, TrendingUp, ChevronDown, ChevronUp } from "lucide-react";
+import { Trophy, Heart, MessageCircle, BarChart3, Star, Lightbulb, TrendingUp, ChevronDown, ChevronUp, HelpCircle } from "lucide-react";
 import { useState, useMemo } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Progress } from "@/components/ui/progress";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { getAccountColor, MY_ACCOUNT_COLOR } from "@/lib/analytics/colors";
 
 export interface AccountStats {
@@ -145,7 +146,7 @@ export function AccountRanking({ accounts, sortBy = "avgEngagement", myAccount }
         </CardHeader>
         <CardContent>
           <p className="text-sm text-muted-foreground text-center py-4">
-            Selecione contas para ver o ranking
+            Seleccione contas para ver o ranking
           </p>
         </CardContent>
       </Card>
@@ -153,119 +154,155 @@ export function AccountRanking({ accounts, sortBy = "avgEngagement", myAccount }
   }
 
   return (
-    <Card>
-      <CardHeader className="pb-3">
-        <div className="flex items-center justify-between">
-          <CardTitle className="text-base flex items-center gap-2">
-            <Trophy className="h-5 w-5 text-yellow-500" />
-            Ranking de Contas
-          </CardTitle>
-          <span className="text-xs text-muted-foreground">por {getSortLabel()}</span>
-        </div>
-        {myAccount && myAccountRank && (
-          <div className="flex items-center gap-2 mt-2 p-2 rounded-lg bg-amber-50 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-800">
-            <Star className="h-4 w-4 fill-amber-500 text-amber-500" />
-            <span className="text-sm font-medium text-amber-700 dark:text-amber-300">
-              Você está em {myAccountRank}º lugar
+    <TooltipProvider>
+      <Card>
+        <CardHeader className="pb-3">
+          <div className="flex items-center justify-between">
+            <CardTitle className="text-base flex items-center gap-2">
+              <Trophy className="h-5 w-5 text-yellow-500" />
+              Ranking de Contas
+            </CardTitle>
+            <span className="text-xs text-muted-foreground">por {getSortLabel()}</span>
+          </div>
+          {myAccount && myAccountRank && (
+            <div className="flex items-center gap-2 mt-2 p-2 rounded-lg bg-amber-50 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-800">
+              <Star className="h-4 w-4 fill-amber-500 text-amber-500" />
+              <span className="text-sm font-medium text-amber-700 dark:text-amber-300">
+                Está em {myAccountRank}º lugar
+              </span>
+            </div>
+          )}
+        </CardHeader>
+        <CardContent className="space-y-3">
+          {sortedAccounts.map((account, index) => {
+            const progress = (account[sortBy] / maxValue) * 100;
+            const isMyAccount = account.username === myAccount;
+            const color = isMyAccount ? MY_ACCOUNT_COLOR : getAccountColor(account.colorIndex);
+
+            return (
+              <div 
+                key={account.username} 
+                className={`space-y-1.5 p-2 rounded-lg transition-all ${
+                  isMyAccount 
+                    ? "bg-amber-50 dark:bg-amber-950/30 border-2 border-amber-300 dark:border-amber-700" 
+                    : ""
+                }`}
+              >
+                <div className="flex items-center gap-2 md:gap-3">
+                  <div className="w-5 md:w-6 flex justify-center">{getRankIcon(index)}</div>
+                  <div
+                    className="w-2.5 h-2.5 md:w-3 md:h-3 rounded-full flex-shrink-0"
+                    style={{ backgroundColor: color }}
+                  />
+                  <span className={`font-medium flex-1 truncate text-sm ${isMyAccount ? "text-amber-700 dark:text-amber-300" : ""}`}>
+                    @{account.username}
+                  </span>
+                  {isMyAccount && (
+                    <Badge variant="outline" className="border-amber-400 text-amber-600 dark:text-amber-400 text-xs gap-1 hidden sm:flex">
+                      <Star className="h-3 w-3 fill-amber-500" />
+                      A sua conta
+                    </Badge>
+                  )}
+                  <span className="text-sm font-semibold tabular-nums">
+                    {formatValue(account[sortBy])}
+                  </span>
+                </div>
+                <div className="flex items-center gap-2 md:gap-3">
+                  <div className="w-5 md:w-6" />
+                  <div className="w-2.5 md:w-3" />
+                  <Progress 
+                    value={progress} 
+                    className={`flex-1 h-1.5 md:h-2 ${isMyAccount ? "[&>div]:bg-amber-500" : ""}`}
+                  />
+                </div>
+                <div className="flex items-center gap-2 md:gap-3 text-xs text-muted-foreground">
+                  <div className="w-5 md:w-6" />
+                  <div className="w-2.5 md:w-3" />
+                  <div className="flex items-center gap-2 md:gap-3 flex-wrap">
+                    <Tooltip>
+                      <TooltipTrigger asChild>
+                        <span className="flex items-center gap-1 cursor-help">
+                          <BarChart3 className="h-3 w-3" />
+                          {account.postCount}
+                        </span>
+                      </TooltipTrigger>
+                      <TooltipContent>
+                        <p>Posts publicados</p>
+                      </TooltipContent>
+                    </Tooltip>
+                    <Tooltip>
+                      <TooltipTrigger asChild>
+                        <span className="flex items-center gap-1 cursor-help">
+                          <Heart className="h-3 w-3" />
+                          {formatValue(account.avgLikes)}
+                        </span>
+                      </TooltipTrigger>
+                      <TooltipContent>
+                        <p>Média de likes por post</p>
+                      </TooltipContent>
+                    </Tooltip>
+                    <Tooltip>
+                      <TooltipTrigger asChild>
+                        <span className="flex items-center gap-1 cursor-help hidden sm:flex">
+                          <MessageCircle className="h-3 w-3" />
+                          {formatValue(account.avgComments)}
+                        </span>
+                      </TooltipTrigger>
+                      <TooltipContent>
+                        <p>Média de comentários por post</p>
+                      </TooltipContent>
+                    </Tooltip>
+                  </div>
+                </div>
+              </div>
+            );
+          })}
+
+          {/* Legend */}
+          <div className="flex items-center justify-center gap-4 pt-3 border-t text-xs text-muted-foreground">
+            <span className="flex items-center gap-1">
+              <BarChart3 className="h-3 w-3" /> Posts
+            </span>
+            <span className="flex items-center gap-1">
+              <Heart className="h-3 w-3" /> Likes/post
+            </span>
+            <span className="flex items-center gap-1 hidden sm:flex">
+              <MessageCircle className="h-3 w-3" /> Comentários/post
             </span>
           </div>
-        )}
-      </CardHeader>
-      <CardContent className="space-y-3">
-        {sortedAccounts.map((account, index) => {
-          const progress = (account[sortBy] / maxValue) * 100;
-          const isMyAccount = account.username === myAccount;
-          const color = isMyAccount ? MY_ACCOUNT_COLOR : getAccountColor(account.colorIndex);
 
-          return (
-            <div 
-              key={account.username} 
-              className={`space-y-1.5 p-2 rounded-lg transition-all ${
-                isMyAccount 
-                  ? "bg-amber-50 dark:bg-amber-950/30 border-2 border-amber-300 dark:border-amber-700" 
-                  : ""
-              }`}
-            >
-              <div className="flex items-center gap-2 md:gap-3">
-                <div className="w-5 md:w-6 flex justify-center">{getRankIcon(index)}</div>
-                <div
-                  className="w-2.5 h-2.5 md:w-3 md:h-3 rounded-full flex-shrink-0"
-                  style={{ backgroundColor: color }}
-                />
-                <span className={`font-medium flex-1 truncate text-sm ${isMyAccount ? "text-amber-700 dark:text-amber-300" : ""}`}>
-                  @{account.username}
-                </span>
-                {isMyAccount && (
-                  <Badge variant="outline" className="border-amber-400 text-amber-600 dark:text-amber-400 text-xs gap-1 hidden sm:flex">
-                    <Star className="h-3 w-3 fill-amber-500" />
-                    Você
-                  </Badge>
-                )}
-                <span className="text-sm font-semibold tabular-nums">
-                  {formatValue(account[sortBy])}
-                </span>
-              </div>
-              <div className="flex items-center gap-2 md:gap-3">
-                <div className="w-5 md:w-6" />
-                <div className="w-2.5 md:w-3" />
-                <Progress 
-                  value={progress} 
-                  className={`flex-1 h-1.5 md:h-2 ${isMyAccount ? "[&>div]:bg-amber-500" : ""}`}
-                />
-              </div>
-              <div className="flex items-center gap-2 md:gap-3 text-xs text-muted-foreground">
-                <div className="w-5 md:w-6" />
-                <div className="w-2.5 md:w-3" />
-                <div className="flex items-center gap-2 md:gap-3 flex-wrap">
-                  <span className="flex items-center gap-1">
-                    <BarChart3 className="h-3 w-3" />
-                    {account.postCount}
-                  </span>
-                  <span className="flex items-center gap-1">
-                    <Heart className="h-3 w-3" />
-                    {formatValue(account.avgLikes)}
-                  </span>
-                  <span className="flex items-center gap-1 hidden sm:flex">
-                    <MessageCircle className="h-3 w-3" />
-                    {formatValue(account.avgComments)}
-                  </span>
-                </div>
-              </div>
-            </div>
-          );
-        })}
-
-        {/* Insights Section */}
-        {insights.length > 0 && (
-          <Collapsible open={showInsights} onOpenChange={setShowInsights} className="mt-4">
-            <CollapsibleTrigger asChild>
-              <Button variant="ghost" className="w-full justify-between p-3 h-auto bg-muted/50 hover:bg-muted">
-                <div className="flex items-center gap-2">
-                  <Lightbulb className="h-4 w-4 text-amber-500" />
-                  <span className="text-sm font-medium">O que os líderes fazem melhor</span>
-                </div>
-                {showInsights ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
-              </Button>
-            </CollapsibleTrigger>
-            <CollapsibleContent className="mt-2 space-y-2">
-              {insights.map((insight, idx) => (
-                <div 
-                  key={idx} 
-                  className="flex items-start gap-2 p-2 rounded-lg bg-muted/30 text-sm"
-                >
-                  {insight.icon}
-                  <span className="text-muted-foreground">
-                    {insight.text}{" "}
-                    {insight.highlight && (
-                      <span className="font-semibold text-foreground">{insight.highlight}</span>
-                    )}
-                  </span>
-                </div>
-              ))}
-            </CollapsibleContent>
-          </Collapsible>
-        )}
-      </CardContent>
-    </Card>
+          {/* Insights Section */}
+          {insights.length > 0 && (
+            <Collapsible open={showInsights} onOpenChange={setShowInsights} className="mt-4">
+              <CollapsibleTrigger asChild>
+                <Button variant="ghost" className="w-full justify-between p-3 h-auto bg-muted/50 hover:bg-muted">
+                  <div className="flex items-center gap-2">
+                    <Lightbulb className="h-4 w-4 text-amber-500" />
+                    <span className="text-sm font-medium">O que os líderes fazem melhor</span>
+                  </div>
+                  {showInsights ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
+                </Button>
+              </CollapsibleTrigger>
+              <CollapsibleContent className="mt-2 space-y-2">
+                {insights.map((insight, idx) => (
+                  <div 
+                    key={idx} 
+                    className="flex items-start gap-2 p-2 rounded-lg bg-muted/30 text-sm"
+                  >
+                    {insight.icon}
+                    <span className="text-muted-foreground">
+                      {insight.text}{" "}
+                      {insight.highlight && (
+                        <span className="font-semibold text-foreground">{insight.highlight}</span>
+                      )}
+                    </span>
+                  </div>
+                ))}
+              </CollapsibleContent>
+            </Collapsible>
+          )}
+        </CardContent>
+      </Card>
+    </TooltipProvider>
   );
 }

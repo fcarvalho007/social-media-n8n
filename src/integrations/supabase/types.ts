@@ -14,6 +14,33 @@ export type Database = {
   }
   public: {
     Tables: {
+      analytics_insights: {
+        Row: {
+          component_name: string
+          created_at: string | null
+          data_hash: string
+          id: string
+          insights_json: Json
+          user_id: string
+        }
+        Insert: {
+          component_name: string
+          created_at?: string | null
+          data_hash: string
+          id?: string
+          insights_json: Json
+          user_id: string
+        }
+        Update: {
+          component_name?: string
+          created_at?: string | null
+          data_hash?: string
+          id?: string
+          insights_json?: Json
+          user_id?: string
+        }
+        Relationships: []
+      }
       idempotency_keys: {
         Row: {
           created_at: string | null
