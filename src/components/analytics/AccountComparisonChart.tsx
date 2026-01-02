@@ -1,14 +1,15 @@
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from "recharts";
+import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, Cell } from "recharts";
 import { BarChart3 } from "lucide-react";
-import { getAccountColorChart } from "@/lib/analytics/colors";
+import { getAccountColorChart, MY_ACCOUNT_COLOR_CHART } from "@/lib/analytics/colors";
 import type { AccountStats } from "./AccountRanking";
 
 interface AccountComparisonChartProps {
   accounts: AccountStats[];
+  myAccount?: string;
 }
 
-export function AccountComparisonChart({ accounts }: AccountComparisonChartProps) {
+export function AccountComparisonChart({ accounts, myAccount }: AccountComparisonChartProps) {
   // Transform data for grouped bar chart
   const metrics = [
     { key: "avgLikes", label: "Likes Médios" },
@@ -80,16 +81,34 @@ export function AccountComparisonChart({ accounts }: AccountComparisonChartProps
                 borderRadius: "8px",
               }}
             />
-            <Legend />
-            {accounts.map((account) => (
-              <Bar
-                key={account.username}
-                dataKey={account.username}
-                name={`@${account.username}`}
-                fill={getAccountColorChart(account.colorIndex)}
-                radius={[0, 4, 4, 0]}
-              />
-            ))}
+            <Legend 
+              formatter={(value) => {
+                const isMyAccountBar = value === myAccount;
+                return (
+                  <span className={isMyAccountBar ? "font-semibold text-amber-600" : ""}>
+                    @{value} {isMyAccountBar ? "⭐" : ""}
+                  </span>
+                );
+              }} 
+            />
+            {accounts.map((account) => {
+              const isMyAccountBar = account.username === myAccount;
+              const color = isMyAccountBar 
+                ? MY_ACCOUNT_COLOR_CHART 
+                : getAccountColorChart(account.colorIndex);
+              
+              return (
+                <Bar
+                  key={account.username}
+                  dataKey={account.username}
+                  name={account.username}
+                  fill={color}
+                  radius={[0, 4, 4, 0]}
+                  strokeWidth={isMyAccountBar ? 2 : 0}
+                  stroke={isMyAccountBar ? "#D97706" : undefined}
+                />
+              );
+            })}
           </BarChart>
         </ResponsiveContainer>
       </CardContent>

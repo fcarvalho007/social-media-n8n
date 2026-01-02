@@ -1,7 +1,8 @@
-import { Trophy, TrendingUp, Heart, MessageCircle, BarChart3 } from "lucide-react";
+import { Trophy, TrendingUp, Heart, MessageCircle, BarChart3, Star } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Progress } from "@/components/ui/progress";
-import { getAccountColor } from "@/lib/analytics/colors";
+import { Badge } from "@/components/ui/badge";
+import { getAccountColor, MY_ACCOUNT_COLOR } from "@/lib/analytics/colors";
 
 export interface AccountStats {
   username: string;
@@ -18,9 +19,10 @@ export interface AccountStats {
 interface AccountRankingProps {
   accounts: AccountStats[];
   sortBy?: "avgEngagement" | "totalLikes" | "postCount" | "avgLikes";
+  myAccount?: string;
 }
 
-export function AccountRanking({ accounts, sortBy = "avgEngagement" }: AccountRankingProps) {
+export function AccountRanking({ accounts, sortBy = "avgEngagement", myAccount }: AccountRankingProps) {
   const sortedAccounts = [...accounts].sort((a, b) => b[sortBy] - a[sortBy]);
   const maxValue = sortedAccounts[0]?.[sortBy] || 1;
 
@@ -46,6 +48,11 @@ export function AccountRanking({ accounts, sortBy = "avgEngagement" }: AccountRa
       default: return sortBy;
     }
   };
+
+  // Find my account rank
+  const myAccountRank = myAccount 
+    ? sortedAccounts.findIndex(a => a.username === myAccount) + 1 
+    : null;
 
   if (accounts.length === 0) {
     return (
@@ -75,21 +82,45 @@ export function AccountRanking({ accounts, sortBy = "avgEngagement" }: AccountRa
           </CardTitle>
           <span className="text-xs text-muted-foreground">por {getSortLabel()}</span>
         </div>
+        {myAccount && myAccountRank && (
+          <div className="flex items-center gap-2 mt-2 p-2 rounded-lg bg-amber-50 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-800">
+            <Star className="h-4 w-4 fill-amber-500 text-amber-500" />
+            <span className="text-sm font-medium text-amber-700 dark:text-amber-300">
+              Você está em {myAccountRank}º lugar
+            </span>
+          </div>
+        )}
       </CardHeader>
       <CardContent className="space-y-3">
         {sortedAccounts.map((account, index) => {
           const progress = (account[sortBy] / maxValue) * 100;
-          const color = getAccountColor(account.colorIndex);
+          const isMyAccount = account.username === myAccount;
+          const color = isMyAccount ? MY_ACCOUNT_COLOR : getAccountColor(account.colorIndex);
 
           return (
-            <div key={account.username} className="space-y-1.5">
+            <div 
+              key={account.username} 
+              className={`space-y-1.5 p-2 rounded-lg transition-all ${
+                isMyAccount 
+                  ? "bg-amber-50 dark:bg-amber-950/30 border-2 border-amber-300 dark:border-amber-700" 
+                  : ""
+              }`}
+            >
               <div className="flex items-center gap-3">
                 <div className="w-6 flex justify-center">{getRankIcon(index)}</div>
                 <div
                   className="w-3 h-3 rounded-full flex-shrink-0"
                   style={{ backgroundColor: color }}
                 />
-                <span className="font-medium flex-1 truncate">@{account.username}</span>
+                <span className={`font-medium flex-1 truncate ${isMyAccount ? "text-amber-700 dark:text-amber-300" : ""}`}>
+                  @{account.username}
+                </span>
+                {isMyAccount && (
+                  <Badge variant="outline" className="border-amber-400 text-amber-600 dark:text-amber-400 text-xs gap-1">
+                    <Star className="h-3 w-3 fill-amber-500" />
+                    Você
+                  </Badge>
+                )}
                 <span className="text-sm font-semibold tabular-nums">
                   {formatValue(account[sortBy])}
                 </span>
@@ -97,7 +128,10 @@ export function AccountRanking({ accounts, sortBy = "avgEngagement" }: AccountRa
               <div className="flex items-center gap-3">
                 <div className="w-6" />
                 <div className="w-3" />
-                <Progress value={progress} className="flex-1 h-2" />
+                <Progress 
+                  value={progress} 
+                  className={`flex-1 h-2 ${isMyAccount ? "[&>div]:bg-amber-500" : ""}`}
+                />
               </div>
               <div className="flex items-center gap-3 text-xs text-muted-foreground">
                 <div className="w-6" />

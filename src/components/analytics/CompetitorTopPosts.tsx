@@ -1,9 +1,9 @@
 import { useState } from "react";
-import { Trophy, Heart, MessageCircle, ImageOff, ExternalLink, Play } from "lucide-react";
+import { Trophy, Heart, MessageCircle, ImageOff, ExternalLink, Play, Star, Home } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { getAccountColor } from "@/lib/analytics/colors";
+import { getAccountColor, MY_ACCOUNT_COLOR } from "@/lib/analytics/colors";
 import type { InstagramAnalyticsItem } from "@/hooks/useInstagramAnalytics";
 
 interface CompetitorTopPostsProps {
@@ -11,6 +11,7 @@ interface CompetitorTopPostsProps {
   selectedAccounts: string[];
   accountColorMap: Map<string, number>;
   postsPerAccount?: number;
+  myAccount?: string;
 }
 
 export function CompetitorTopPosts({
@@ -18,6 +19,7 @@ export function CompetitorTopPosts({
   selectedAccounts,
   accountColorMap,
   postsPerAccount = 3,
+  myAccount,
 }: CompetitorTopPostsProps) {
   const [imageErrors, setImageErrors] = useState<Set<string>>(new Set());
 
@@ -80,6 +82,11 @@ export function CompetitorTopPosts({
     );
   }
 
+  // Separate my account from competitors and show my account first
+  const orderedAccounts = myAccount && selectedAccounts.includes(myAccount)
+    ? [myAccount, ...selectedAccounts.filter(a => a !== myAccount)]
+    : selectedAccounts;
+
   return (
     <Card>
       <CardHeader className="pb-3">
@@ -89,24 +96,41 @@ export function CompetitorTopPosts({
         </CardTitle>
       </CardHeader>
       <CardContent className="space-y-6">
-        {selectedAccounts.map((username) => {
+        {orderedAccounts.map((username) => {
           const posts = postsByAccount.get(username) || [];
           const colorIndex = accountColorMap.get(username) || 0;
-          const color = getAccountColor(colorIndex);
+          const isMyAccountSection = username === myAccount;
+          const color = isMyAccountSection ? MY_ACCOUNT_COLOR : getAccountColor(colorIndex);
 
           if (posts.length === 0) return null;
 
           return (
-            <div key={username} className="space-y-3">
+            <div 
+              key={username} 
+              className={`space-y-3 p-4 rounded-lg ${
+                isMyAccountSection 
+                  ? "bg-amber-50 dark:bg-amber-950/30 border-2 border-amber-300 dark:border-amber-700" 
+                  : "bg-muted/30"
+              }`}
+            >
               <div className="flex items-center gap-2">
                 <div
                   className="w-3 h-3 rounded-full flex-shrink-0"
                   style={{ backgroundColor: color }}
                 />
-                <span className="font-semibold">@{username}</span>
-                <Badge variant="secondary" className="text-xs">
-                  Top {posts.length}
-                </Badge>
+                <span className={`font-semibold ${isMyAccountSection ? "text-amber-700 dark:text-amber-300" : ""}`}>
+                  @{username}
+                </span>
+                {isMyAccountSection ? (
+                  <Badge variant="outline" className="border-amber-400 text-amber-600 dark:text-amber-400 gap-1">
+                    <Home className="h-3 w-3" />
+                    Minha Conta
+                  </Badge>
+                ) : (
+                  <Badge variant="secondary" className="text-xs">
+                    Top {posts.length}
+                  </Badge>
+                )}
               </div>
 
               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
@@ -117,7 +141,9 @@ export function CompetitorTopPosts({
                   return (
                     <div
                       key={post.id}
-                      className="relative group rounded-lg overflow-hidden border bg-muted/30"
+                      className={`relative group rounded-lg overflow-hidden border ${
+                        isMyAccountSection ? "border-amber-200 dark:border-amber-800" : "border-border"
+                      } bg-background`}
                     >
                       {/* Image */}
                       <div className="aspect-square relative">
@@ -141,6 +167,13 @@ export function CompetitorTopPosts({
                         <div className="absolute top-2 left-2">
                           <span className="text-lg">{getRankBadge(index)}</span>
                         </div>
+
+                        {/* My account star */}
+                        {isMyAccountSection && index === 0 && (
+                          <div className="absolute top-2 right-10">
+                            <Star className="h-5 w-5 fill-amber-500 text-amber-500" />
+                          </div>
+                        )}
 
                         {/* Video indicator */}
                         {post.is_video && (
