@@ -1,9 +1,10 @@
 import { useState, useMemo } from "react";
-import { Heart, MessageCircle, ExternalLink, ArrowUpDown, ImageOff, Search, Download } from "lucide-react";
+import { Heart, MessageCircle, ExternalLink, ArrowUpDown, ImageOff, Search, Download, Image as ImageIcon } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
+import { Skeleton } from "@/components/ui/skeleton";
 import {
   Select,
   SelectContent,
@@ -37,6 +38,7 @@ export function TopPostsTable({ posts }: TopPostsTableProps) {
   const [searchQuery, setSearchQuery] = useState("");
   const [page, setPage] = useState(1);
   const [imageErrors, setImageErrors] = useState<Set<string>>(new Set());
+  const [loadingImages, setLoadingImages] = useState<Set<string>>(new Set());
   const perPage = 15;
 
   // Filter by type and search
@@ -124,6 +126,23 @@ export function TopPostsTable({ posts }: TopPostsTableProps) {
     link.href = URL.createObjectURL(blob);
     link.download = `instagram-analytics-${format(new Date(), "yyyy-MM-dd")}.csv`;
     link.click();
+  };
+
+  const handleImageLoad = (id: string) => {
+    setLoadingImages((prev) => {
+      const next = new Set(prev);
+      next.delete(id);
+      return next;
+    });
+  };
+
+  const handleImageError = (id: string) => {
+    setImageErrors((prev) => new Set(prev).add(id));
+    setLoadingImages((prev) => {
+      const next = new Set(prev);
+      next.delete(id);
+      return next;
+    });
   };
 
   return (
@@ -216,62 +235,79 @@ export function TopPostsTable({ posts }: TopPostsTableProps) {
                   </TableCell>
                 </TableRow>
               ) : (
-                paginatedPosts.map((post) => (
-                  <TableRow key={post.id}>
-                    <TableCell>
-                      {post.thumbnail_url && !imageErrors.has(post.id) ? (
-                        <img
-                          src={post.thumbnail_url}
-                          alt=""
-                          className="w-10 h-10 object-cover rounded"
-                          onError={() => setImageErrors(prev => new Set(prev).add(post.id))}
-                        />
-                      ) : (
-                        <div className="w-10 h-10 bg-muted rounded flex items-center justify-center">
-                          <ImageOff className="h-4 w-4 text-muted-foreground" />
+                paginatedPosts.map((post) => {
+                  const hasError = imageErrors.has(post.id);
+                  const isLoading = loadingImages.has(post.id);
+
+                  return (
+                    <TableRow key={post.id}>
+                      <TableCell>
+                        <div className="w-10 h-10 relative rounded overflow-hidden bg-muted">
+                          {post.thumbnail_url && !hasError ? (
+                            <>
+                              {isLoading && (
+                                <Skeleton className="absolute inset-0 w-full h-full" />
+                              )}
+                              <img
+                                src={post.thumbnail_url}
+                                alt=""
+                                className={`w-full h-full object-cover transition-opacity ${
+                                  isLoading ? "opacity-0" : "opacity-100"
+                                }`}
+                                onLoad={() => handleImageLoad(post.id)}
+                                onError={() => handleImageError(post.id)}
+                                loading="lazy"
+                              />
+                            </>
+                          ) : (
+                            <div className="w-full h-full flex items-center justify-center">
+                              <ImageIcon className="h-4 w-4 text-muted-foreground" />
+                            </div>
+                          )}
                         </div>
-                      )}
-                    </TableCell>
-                    <TableCell className="max-w-[300px]">
-                      <p className="text-sm line-clamp-2">
-                        {post.caption?.substring(0, 120) || "Sem legenda"}
-                        {(post.caption?.length || 0) > 120 && "..."}
-                      </p>
-                    </TableCell>
-                    <TableCell>
-                      <Badge variant="secondary" className="text-xs">
-                        {TYPE_LABELS[post.post_type || "Image"] || post.post_type}
-                      </Badge>
-                    </TableCell>
-                    <TableCell>
-                      <span className="flex items-center gap-1 text-red-500 font-medium">
-                        <Heart className="h-3 w-3" />
-                        {formatNumber(post.likes_count)}
-                      </span>
-                    </TableCell>
-                    <TableCell>
-                      <span className="flex items-center gap-1 text-primary font-medium">
-                        <MessageCircle className="h-3 w-3" />
-                        {formatNumber(post.comments_count)}
-                      </span>
-                    </TableCell>
-                    <TableCell className="text-xs text-muted-foreground">
-                      {post.posted_at
-                        ? format(new Date(post.posted_at), "dd MMM yy", { locale: pt })
-                        : "-"}
-                    </TableCell>
-                    <TableCell>
-                      <a
-                        href={post.post_url}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="text-primary hover:text-primary/80"
-                      >
-                        <ExternalLink className="h-4 w-4" />
-                      </a>
-                    </TableCell>
-                  </TableRow>
-                ))
+                      </TableCell>
+                      <TableCell className="max-w-[300px]">
+                        <p className="text-sm line-clamp-2">
+                          {post.caption?.substring(0, 120) || "Sem legenda"}
+                          {(post.caption?.length || 0) > 120 && "..."}
+                        </p>
+                      </TableCell>
+                      <TableCell>
+                        <Badge variant="secondary" className="text-xs">
+                          {TYPE_LABELS[post.post_type || "Image"] || post.post_type}
+                        </Badge>
+                      </TableCell>
+                      <TableCell>
+                        <span className="flex items-center gap-1 text-red-500 font-medium">
+                          <Heart className="h-3 w-3" />
+                          {formatNumber(post.likes_count)}
+                        </span>
+                      </TableCell>
+                      <TableCell>
+                        <span className="flex items-center gap-1 text-primary font-medium">
+                          <MessageCircle className="h-3 w-3" />
+                          {formatNumber(post.comments_count)}
+                        </span>
+                      </TableCell>
+                      <TableCell className="text-xs text-muted-foreground">
+                        {post.posted_at
+                          ? format(new Date(post.posted_at), "dd MMM yy", { locale: pt })
+                          : "-"}
+                      </TableCell>
+                      <TableCell>
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          className="h-8 w-8"
+                          onClick={() => window.open(post.post_url, "_blank", "noopener,noreferrer")}
+                          title="Abrir post no Instagram"
+                        >
+                          <ExternalLink className="h-4 w-4" />
+                        </Button>
+                      </TableCell>
+                    </TableRow>
+                  );
+                })
               )}
             </TableBody>
           </Table>

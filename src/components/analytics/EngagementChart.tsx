@@ -1,7 +1,7 @@
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { AreaChart, LineChart as LineChartIcon } from "lucide-react";
+import { AreaChart, LineChart as LineChartIcon, Calendar } from "lucide-react";
 import {
   LineChart,
   Line,
@@ -15,45 +15,83 @@ import {
   ResponsiveContainer,
 } from "recharts";
 import type { AnalyticsStats } from "@/hooks/useInstagramAnalytics";
+import { format, startOfWeek, startOfMonth, parseISO } from "date-fns";
+import { pt } from "date-fns/locale";
 
 interface EngagementChartProps {
   data: AnalyticsStats["engagementOverTime"];
 }
 
+type Granularity = "daily" | "weekly" | "monthly";
+
 export function EngagementChart({ data }: EngagementChartProps) {
   const [chartType, setChartType] = useState<"line" | "area">("area");
-
-  const formatMonth = (dateStr: string) => {
-    const [year, month] = dateStr.split("-");
-    const monthNames = [
-      "Jan",
-      "Fev",
-      "Mar",
-      "Abr",
-      "Mai",
-      "Jun",
-      "Jul",
-      "Ago",
-      "Set",
-      "Out",
-      "Nov",
-      "Dez",
-    ];
-    return `${monthNames[parseInt(month) - 1]} ${year.slice(2)}`;
-  };
+  const [granularity, setGranularity] = useState<Granularity>("monthly");
 
   const formatNumber = (num: number) => {
     if (num >= 1000) return `${(num / 1000).toFixed(1)}K`;
     return num.toString();
   };
 
-  const chartData = data.map((item) => ({
-    ...item,
-    month: formatMonth(item.date),
-    avgLikes: Math.round(item.likes / item.posts),
-    avgComments: Math.round(item.comments / item.posts),
-    engagement: item.likes + item.comments,
-  }));
+  // Group data by granularity
+  const chartData = useMemo(() => {
+    if (data.length === 0) return [];
+
+    const grouped = new Map<string, { likes: number; comments: number; posts: number }>();
+
+    data.forEach((item) => {
+      let key: string;
+      const date = parseISO(item.date);
+
+      switch (granularity) {
+        case "daily":
+          key = item.date;
+          break;
+        case "weekly":
+          key = format(startOfWeek(date, { weekStartsOn: 1 }), "yyyy-MM-dd");
+          break;
+        case "monthly":
+        default:
+          key = format(startOfMonth(date), "yyyy-MM");
+          break;
+      }
+
+      const existing = grouped.get(key) || { likes: 0, comments: 0, posts: 0 };
+      grouped.set(key, {
+        likes: existing.likes + item.likes,
+        comments: existing.comments + item.comments,
+        posts: existing.posts + item.posts,
+      });
+    });
+
+    // Sort and format
+    return Array.from(grouped.entries())
+      .sort(([a], [b]) => a.localeCompare(b))
+      .map(([dateKey, values]) => {
+        let label: string;
+        const date = parseISO(dateKey.length === 7 ? `${dateKey}-01` : dateKey);
+
+        switch (granularity) {
+          case "daily":
+            label = format(date, "dd MMM", { locale: pt });
+            break;
+          case "weekly":
+            label = `Sem ${format(date, "dd/MM", { locale: pt })}`;
+            break;
+          case "monthly":
+          default:
+            label = format(date, "MMM yy", { locale: pt });
+            break;
+        }
+
+        return {
+          date: dateKey,
+          label,
+          ...values,
+          engagement: values.likes + values.comments,
+        };
+      });
+  }, [data, granularity]);
 
   if (chartData.length === 0) {
     return (
@@ -100,10 +138,14 @@ export function EngagementChart({ data }: EngagementChartProps) {
   const commonAxisProps = {
     xAxis: (
       <XAxis
-        dataKey="month"
+        dataKey="label"
         tick={{ fill: "hsl(var(--muted-foreground))", fontSize: 11 }}
         axisLine={{ stroke: "hsl(var(--border))" }}
         tickLine={false}
+        interval={granularity === "daily" ? "preserveStartEnd" : 0}
+        angle={granularity === "daily" ? -45 : 0}
+        textAnchor={granularity === "daily" ? "end" : "middle"}
+        height={granularity === "daily" ? 60 : 30}
       />
     ),
     yAxis: (
@@ -117,28 +159,52 @@ export function EngagementChart({ data }: EngagementChartProps) {
     ),
   };
 
+  const granularityLabels: Record<Granularity, string> = {
+    daily: "Diário",
+    weekly: "Semanal",
+    monthly: "Mensal",
+  };
+
   return (
     <Card>
       <CardHeader className="pb-2">
-        <div className="flex items-center justify-between">
+        <div className="flex items-center justify-between flex-wrap gap-2">
           <CardTitle className="text-lg">Engagement ao Longo do Tempo</CardTitle>
-          <div className="flex items-center gap-1 bg-muted rounded-lg p-0.5">
-            <Button
-              variant={chartType === "line" ? "secondary" : "ghost"}
-              size="sm"
-              className="h-7 px-2"
-              onClick={() => setChartType("line")}
-            >
-              <LineChartIcon className="h-4 w-4" />
-            </Button>
-            <Button
-              variant={chartType === "area" ? "secondary" : "ghost"}
-              size="sm"
-              className="h-7 px-2"
-              onClick={() => setChartType("area")}
-            >
-              <AreaChart className="h-4 w-4" />
-            </Button>
+          <div className="flex items-center gap-2">
+            {/* Granularity toggle */}
+            <div className="flex items-center gap-1 bg-muted rounded-lg p-0.5">
+              {(["daily", "weekly", "monthly"] as Granularity[]).map((g) => (
+                <Button
+                  key={g}
+                  variant={granularity === g ? "secondary" : "ghost"}
+                  size="sm"
+                  className="h-7 px-2.5 text-xs"
+                  onClick={() => setGranularity(g)}
+                >
+                  {granularityLabels[g]}
+                </Button>
+              ))}
+            </div>
+
+            {/* Chart type toggle */}
+            <div className="flex items-center gap-1 bg-muted rounded-lg p-0.5">
+              <Button
+                variant={chartType === "line" ? "secondary" : "ghost"}
+                size="sm"
+                className="h-7 px-2"
+                onClick={() => setChartType("line")}
+              >
+                <LineChartIcon className="h-4 w-4" />
+              </Button>
+              <Button
+                variant={chartType === "area" ? "secondary" : "ghost"}
+                size="sm"
+                className="h-7 px-2"
+                onClick={() => setChartType("area")}
+              >
+                <AreaChart className="h-4 w-4" />
+              </Button>
+            </div>
           </div>
         </div>
       </CardHeader>
