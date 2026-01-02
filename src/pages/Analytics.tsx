@@ -23,6 +23,7 @@ import { MultiAccountTimeline } from "@/components/analytics/MultiAccountTimelin
 import { CompetitorTopPosts } from "@/components/analytics/CompetitorTopPosts";
 import { ContentTypeComparison } from "@/components/analytics/ContentTypeComparison";
 import { HashtagComparison } from "@/components/analytics/HashtagComparison";
+import { CompetitiveInsights } from "@/components/analytics/CompetitiveInsights";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -53,6 +54,7 @@ export default function Analytics() {
   
   // Competition tab state
   const [selectedCompetitorAccounts, setSelectedCompetitorAccounts] = useState<string[]>([]);
+  const [myAccount, setMyAccount] = useState<string | null>(null);
 
   // Get unique accounts
   const accounts = useMemo(() => {

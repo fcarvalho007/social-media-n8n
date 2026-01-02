@@ -3,13 +3,14 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from "recharts";
 import { TrendingUp } from "lucide-react";
 import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
-import { getAccountColorChart } from "@/lib/analytics/colors";
+import { getAccountColorChart, MY_ACCOUNT_COLOR_CHART } from "@/lib/analytics/colors";
 import type { InstagramAnalyticsItem } from "@/hooks/useInstagramAnalytics";
 
 interface MultiAccountTimelineProps {
   analytics: InstagramAnalyticsItem[];
   selectedAccounts: string[];
   accountColorMap: Map<string, number>;
+  myAccount?: string;
 }
 
 type MetricType = "likes" | "engagement" | "posts";
@@ -17,7 +18,8 @@ type MetricType = "likes" | "engagement" | "posts";
 export function MultiAccountTimeline({ 
   analytics, 
   selectedAccounts, 
-  accountColorMap 
+  accountColorMap,
+  myAccount 
 }: MultiAccountTimelineProps) {
   const [metric, setMetric] = useState<MetricType>("engagement");
 
@@ -104,6 +106,11 @@ export function MultiAccountTimeline({
     );
   }
 
+  // Sort accounts so myAccount comes first in legend
+  const sortedAccounts = myAccount 
+    ? [myAccount, ...selectedAccounts.filter(a => a !== myAccount)]
+    : selectedAccounts;
+
   return (
     <Card>
       <CardHeader className="pb-2">
@@ -144,7 +151,10 @@ export function MultiAccountTimeline({
               className="text-xs"
             />
             <Tooltip
-              formatter={(value: number, name: string) => [formatValue(value), `@${name}`]}
+              formatter={(value: number, name: string) => [
+                formatValue(value), 
+                `@${name}${name === myAccount ? " ⭐" : ""}`
+              ]}
               labelFormatter={formatMonth}
               contentStyle={{
                 backgroundColor: "hsl(var(--card))",
@@ -152,19 +162,31 @@ export function MultiAccountTimeline({
                 borderRadius: "8px",
               }}
             />
-            <Legend formatter={(value) => `@${value}`} />
-            {selectedAccounts.map((username) => {
+            <Legend 
+              formatter={(value) => {
+                const isMyAccountLine = value === myAccount;
+                return (
+                  <span className={isMyAccountLine ? "font-semibold text-amber-600" : ""}>
+                    @{value} {isMyAccountLine ? "⭐" : ""}
+                  </span>
+                );
+              }} 
+            />
+            {sortedAccounts.filter(a => selectedAccounts.includes(a)).map((username) => {
               const colorIndex = accountColorMap.get(username) || 0;
+              const isMyAccountLine = username === myAccount;
+              const color = isMyAccountLine ? MY_ACCOUNT_COLOR_CHART : getAccountColorChart(colorIndex);
+              
               return (
                 <Line
                   key={username}
                   type="monotone"
                   dataKey={username}
                   name={username}
-                  stroke={getAccountColorChart(colorIndex)}
-                  strokeWidth={2}
-                  dot={{ r: 4 }}
-                  activeDot={{ r: 6 }}
+                  stroke={color}
+                  strokeWidth={isMyAccountLine ? 3 : 2}
+                  dot={{ r: isMyAccountLine ? 5 : 4, fill: color }}
+                  activeDot={{ r: isMyAccountLine ? 8 : 6 }}
                 />
               );
             })}

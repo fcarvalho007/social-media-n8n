@@ -1,19 +1,21 @@
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from "recharts";
-import { PieChart } from "lucide-react";
-import { getAccountColorChart } from "@/lib/analytics/colors";
+import { PieChart, Star } from "lucide-react";
+import { getAccountColorChart, MY_ACCOUNT_COLOR_CHART } from "@/lib/analytics/colors";
 import type { InstagramAnalyticsItem } from "@/hooks/useInstagramAnalytics";
 
 interface ContentTypeComparisonProps {
   analytics: InstagramAnalyticsItem[];
   selectedAccounts: string[];
   accountColorMap: Map<string, number>;
+  myAccount?: string;
 }
 
 export function ContentTypeComparison({
   analytics,
   selectedAccounts,
   accountColorMap,
+  myAccount,
 }: ContentTypeComparisonProps) {
   // Calculate content type breakdown per account
   const data = (() => {
@@ -35,12 +37,18 @@ export function ContentTypeComparison({
 
   // Calculate percentages for each account
   const percentageData = (() => {
-    const result: { username: string; colorIndex: number; breakdown: { type: string; count: number; percentage: number }[] }[] = [];
+    const result: { username: string; colorIndex: number; isMyAccount: boolean; breakdown: { type: string; count: number; percentage: number }[] }[] = [];
 
-    selectedAccounts.forEach((username) => {
+    // Sort so myAccount comes first
+    const sortedAccounts = myAccount && selectedAccounts.includes(myAccount)
+      ? [myAccount, ...selectedAccounts.filter(a => a !== myAccount)]
+      : selectedAccounts;
+
+    sortedAccounts.forEach((username) => {
       const accountPosts = analytics.filter((p) => p.owner_username === username);
       const total = accountPosts.length;
       const colorIndex = accountColorMap.get(username) || 0;
+      const isMyAccount = username === myAccount;
 
       const breakdown = ["Image", "Video", "Sidecar"].map((type) => {
         const count = accountPosts.filter((p) => (p.post_type || "Image") === type).length;
@@ -51,7 +59,7 @@ export function ContentTypeComparison({
         };
       });
 
-      result.push({ username, colorIndex, breakdown });
+      result.push({ username, colorIndex, isMyAccount, breakdown });
     });
 
     return result;
@@ -104,7 +112,10 @@ export function ContentTypeComparison({
             />
             <YAxis className="text-xs" />
             <Tooltip
-              formatter={(value: number, name: string) => [value, `@${name}`]}
+              formatter={(value: number, name: string) => [
+                value, 
+                `@${name}${name === myAccount ? " ⭐" : ""}`
+              ]}
               labelFormatter={getTypeLabel}
               contentStyle={{
                 backgroundColor: "hsl(var(--card))",
@@ -112,16 +123,30 @@ export function ContentTypeComparison({
                 borderRadius: "8px",
               }}
             />
-            <Legend formatter={(value) => `@${value}`} />
+            <Legend 
+              formatter={(value) => {
+                const isMyAccountBar = value === myAccount;
+                return (
+                  <span className={isMyAccountBar ? "font-semibold text-amber-600" : ""}>
+                    @{value} {isMyAccountBar ? "⭐" : ""}
+                  </span>
+                );
+              }} 
+            />
             {selectedAccounts.map((username) => {
               const colorIndex = accountColorMap.get(username) || 0;
+              const isMyAccountBar = username === myAccount;
+              const color = isMyAccountBar ? MY_ACCOUNT_COLOR_CHART : getAccountColorChart(colorIndex);
+              
               return (
                 <Bar
                   key={username}
                   dataKey={username}
                   name={username}
-                  fill={getAccountColorChart(colorIndex)}
+                  fill={color}
                   radius={[4, 4, 0, 0]}
+                  strokeWidth={isMyAccountBar ? 2 : 0}
+                  stroke={isMyAccountBar ? "#D97706" : undefined}
                 />
               );
             })}
@@ -132,14 +157,22 @@ export function ContentTypeComparison({
         <div className="space-y-3">
           <h4 className="text-sm font-medium text-muted-foreground">Distribuição por Conta</h4>
           <div className="grid gap-3">
-            {percentageData.map(({ username, colorIndex, breakdown }) => (
-              <div key={username} className="space-y-2">
+            {percentageData.map(({ username, colorIndex, isMyAccount, breakdown }) => (
+              <div 
+                key={username} 
+                className={`space-y-2 p-2 rounded-lg ${
+                  isMyAccount ? "bg-amber-50 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-800" : ""
+                }`}
+              >
                 <div className="flex items-center gap-2">
                   <div
                     className="w-2.5 h-2.5 rounded-full"
-                    style={{ backgroundColor: getAccountColorChart(colorIndex) }}
+                    style={{ backgroundColor: isMyAccount ? MY_ACCOUNT_COLOR_CHART : getAccountColorChart(colorIndex) }}
                   />
-                  <span className="text-sm font-medium">@{username}</span>
+                  <span className={`text-sm font-medium ${isMyAccount ? "text-amber-700 dark:text-amber-300" : ""}`}>
+                    @{username}
+                  </span>
+                  {isMyAccount && <Star className="h-3 w-3 fill-amber-500 text-amber-500" />}
                 </div>
                 <div className="flex gap-1 h-3 rounded-full overflow-hidden bg-muted">
                   {breakdown.map(({ type, percentage }) => (

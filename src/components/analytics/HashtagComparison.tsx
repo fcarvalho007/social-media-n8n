@@ -1,7 +1,7 @@
-import { Hash } from "lucide-react";
+import { Hash, Star } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { getAccountColor } from "@/lib/analytics/colors";
+import { getAccountColor, MY_ACCOUNT_COLOR } from "@/lib/analytics/colors";
 import type { InstagramAnalyticsItem } from "@/hooks/useInstagramAnalytics";
 
 interface HashtagComparisonProps {
@@ -9,6 +9,7 @@ interface HashtagComparisonProps {
   selectedAccounts: string[];
   accountColorMap: Map<string, number>;
   limit?: number;
+  myAccount?: string;
 }
 
 interface HashtagData {
@@ -23,6 +24,7 @@ export function HashtagComparison({
   selectedAccounts,
   accountColorMap,
   limit = 15,
+  myAccount,
 }: HashtagComparisonProps) {
   // Calculate hashtag usage across accounts
   const hashtagData = (() => {
@@ -63,6 +65,11 @@ export function HashtagComparison({
     return num.toString();
   };
 
+  // Sort accounts to show myAccount first
+  const sortedAccounts = myAccount && selectedAccounts.includes(myAccount)
+    ? [myAccount, ...selectedAccounts.filter(a => a !== myAccount)]
+    : selectedAccounts;
+
   if (selectedAccounts.length === 0) {
     return (
       <Card>
@@ -100,35 +107,43 @@ export function HashtagComparison({
               </Badge>
             </h4>
             <div className="flex flex-wrap gap-2">
-              {commonHashtags.map((hashtag) => (
-                <div
-                  key={hashtag.tag}
-                  className="inline-flex items-center gap-1.5 px-2 py-1 rounded-md bg-primary/10 border border-primary/20"
-                >
-                  <span className="text-sm font-medium">#{hashtag.tag}</span>
-                  <span className="text-xs text-muted-foreground">
-                    ({hashtag.totalCount}x)
-                  </span>
-                  <div className="flex -space-x-1 ml-1">
-                    {hashtag.accounts.slice(0, 3).map((account) => {
-                      const colorIndex = accountColorMap.get(account) || 0;
-                      return (
-                        <div
-                          key={account}
-                          className="w-3 h-3 rounded-full border border-background"
-                          style={{ backgroundColor: getAccountColor(colorIndex) }}
-                          title={`@${account}`}
-                        />
-                      );
-                    })}
-                    {hashtag.accounts.length > 3 && (
-                      <span className="text-xs text-muted-foreground ml-1">
-                        +{hashtag.accounts.length - 3}
-                      </span>
-                    )}
+              {commonHashtags.map((hashtag) => {
+                const hasMyAccount = myAccount && hashtag.accounts.includes(myAccount);
+                return (
+                  <div
+                    key={hashtag.tag}
+                    className={`inline-flex items-center gap-1.5 px-2 py-1 rounded-md border ${
+                      hasMyAccount 
+                        ? "bg-amber-50 dark:bg-amber-950/30 border-amber-300 dark:border-amber-700" 
+                        : "bg-primary/10 border-primary/20"
+                    }`}
+                  >
+                    <span className="text-sm font-medium">#{hashtag.tag}</span>
+                    <span className="text-xs text-muted-foreground">
+                      ({hashtag.totalCount}x)
+                    </span>
+                    <div className="flex -space-x-1 ml-1">
+                      {hashtag.accounts.slice(0, 3).map((account) => {
+                        const colorIndex = accountColorMap.get(account) || 0;
+                        const isMyAccountDot = account === myAccount;
+                        return (
+                          <div
+                            key={account}
+                            className="w-3 h-3 rounded-full border border-background"
+                            style={{ backgroundColor: isMyAccountDot ? MY_ACCOUNT_COLOR : getAccountColor(colorIndex) }}
+                            title={`@${account}${isMyAccountDot ? " (você)" : ""}`}
+                          />
+                        );
+                      })}
+                      {hashtag.accounts.length > 3 && (
+                        <span className="text-xs text-muted-foreground ml-1">
+                          +{hashtag.accounts.length - 3}
+                        </span>
+                      )}
+                    </div>
                   </div>
-                </div>
-              ))}
+                );
+              })}
             </div>
           </div>
         )}
@@ -138,7 +153,7 @@ export function HashtagComparison({
           <div className="space-y-3">
             <h4 className="text-sm font-medium">🎯 Hashtags Exclusivas</h4>
             <div className="space-y-3">
-              {selectedAccounts.map((username) => {
+              {sortedAccounts.map((username) => {
                 const accountHashtags = exclusiveHashtags
                   .filter((h) => h.accounts[0] === username)
                   .slice(0, 5);
@@ -146,23 +161,32 @@ export function HashtagComparison({
                 if (accountHashtags.length === 0) return null;
 
                 const colorIndex = accountColorMap.get(username) || 0;
-                const color = getAccountColor(colorIndex);
+                const isMyAccountSection = username === myAccount;
+                const color = isMyAccountSection ? MY_ACCOUNT_COLOR : getAccountColor(colorIndex);
 
                 return (
-                  <div key={username} className="space-y-1.5">
+                  <div 
+                    key={username} 
+                    className={`space-y-1.5 p-2 rounded-lg ${
+                      isMyAccountSection ? "bg-amber-50 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-800" : ""
+                    }`}
+                  >
                     <div className="flex items-center gap-2">
                       <div
                         className="w-2.5 h-2.5 rounded-full"
                         style={{ backgroundColor: color }}
                       />
-                      <span className="text-sm font-medium">@{username}</span>
+                      <span className={`text-sm font-medium ${isMyAccountSection ? "text-amber-700 dark:text-amber-300" : ""}`}>
+                        @{username}
+                      </span>
+                      {isMyAccountSection && <Star className="h-3 w-3 fill-amber-500 text-amber-500" />}
                     </div>
                     <div className="flex flex-wrap gap-1.5 pl-4">
                       {accountHashtags.map((hashtag) => (
                         <Badge
                           key={hashtag.tag}
                           variant="outline"
-                          className="text-xs"
+                          className={`text-xs ${isMyAccountSection ? "border-amber-300 dark:border-amber-700" : ""}`}
                         >
                           #{hashtag.tag}
                           <span className="text-muted-foreground ml-1">
