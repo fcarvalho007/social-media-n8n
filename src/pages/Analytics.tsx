@@ -10,6 +10,8 @@ import { ContentTypeBreakdown } from "@/components/analytics/ContentTypeBreakdow
 import { HashtagCloud } from "@/components/analytics/HashtagCloud";
 import { TopPostsTable } from "@/components/analytics/TopPostsTable";
 import { TopPostsGallery } from "@/components/analytics/TopPostsGallery";
+import { TopPostsCards } from "@/components/analytics/TopPostsCards";
+import { QuickInsights } from "@/components/analytics/QuickInsights";
 import { BestTimeToPost } from "@/components/analytics/BestTimeToPost";
 import { InsightsSummary } from "@/components/analytics/InsightsSummary";
 import { DataContextBadge } from "@/components/analytics/DataContextBadge";
@@ -391,6 +393,21 @@ export default function Analytics() {
             </TabsList>
 
             <TabsContent value="overview" className="space-y-6">
+              {/* Top 3 Posts + Quick Insights */}
+              <div className="grid lg:grid-cols-3 gap-6">
+                <div className="lg:col-span-2">
+                  <TopPostsCards 
+                    posts={filteredAnalytics} 
+                    limit={3} 
+                    myAccount={myAccount || undefined}
+                  />
+                </div>
+                <QuickInsights 
+                  stats={filteredStats} 
+                  analytics={filteredAnalytics}
+                />
+              </div>
+
               {/* Main charts row */}
               <div className="grid lg:grid-cols-3 gap-6">
                 <div className="lg:col-span-2">
