@@ -432,7 +432,7 @@ export default function Analytics() {
               </div>
 
               {/* Comparison Chart */}
-              <AccountComparisonChart accounts={selectedAccountStats} myAccount={myAccount || undefined} />
+              <AccountComparisonChart accounts={selectedAccountStats} myAccount={myAccount || undefined} analytics={analytics} />
 
               {/* Timeline */}
               <MultiAccountTimeline
@@ -447,7 +447,7 @@ export default function Analytics() {
                 analytics={analytics}
                 selectedAccounts={selectedCompetitorAccounts}
                 accountColorMap={accountColorMap}
-                postsPerAccount={3}
+                postsPerAccount={6}
                 myAccount={myAccount || undefined}
               />
 

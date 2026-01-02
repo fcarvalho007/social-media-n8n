@@ -1,7 +1,9 @@
+import { useMemo } from "react";
 import { Hash, Star } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { getAccountColor, MY_ACCOUNT_COLOR } from "@/lib/analytics/colors";
+import { InsightBox } from "./InsightBox";
 import type { InstagramAnalyticsItem } from "@/hooks/useInstagramAnalytics";
 
 interface HashtagComparisonProps {
@@ -27,7 +29,7 @@ export function HashtagComparison({
   myAccount,
 }: HashtagComparisonProps) {
   // Calculate hashtag usage across accounts
-  const hashtagData = (() => {
+  const { hashtagData, insights } = useMemo(() => {
     const hashtagMap = new Map<string, { accounts: Set<string>; count: number; totalLikes: number }>();
 
     analytics
@@ -52,8 +54,42 @@ export function HashtagComparison({
       .sort((a, b) => b.totalCount - a.totalCount)
       .slice(0, limit);
 
-    return result;
-  })();
+    // Generate insights
+    let forYou = "Selecione contas para comparar hashtags.";
+    let fromData = "Dados insuficientes para análise.";
+
+    if (selectedAccounts.length >= 1 && myAccount) {
+      const myHashtags = new Set<string>();
+      const competitorHashtags = new Set<string>();
+      
+      analytics.forEach(post => {
+        if (!post.owner_username || !selectedAccounts.includes(post.owner_username)) return;
+        (post.hashtags || []).forEach(tag => {
+          if (post.owner_username === myAccount) {
+            myHashtags.add(tag);
+          } else {
+            competitorHashtags.add(tag);
+          }
+        });
+      });
+
+      const commonWithCompetitors = [...myHashtags].filter(h => competitorHashtags.has(h));
+      const uniqueToMe = [...myHashtags].filter(h => !competitorHashtags.has(h));
+      const usedByCompetitorsNotMe = [...competitorHashtags].filter(h => !myHashtags.has(h));
+
+      forYou = myHashtags.size > 0
+        ? `Usa ${myHashtags.size} hashtags, ${commonWithCompetitors.length} em comum com concorrentes. ${uniqueToMe.length} são exclusivas suas.`
+        : "Sem hashtags nos seus posts.";
+
+      // Find best performing hashtag used by competitors but not by myAccount
+      const hashtagsToTry = result.filter(h => usedByCompetitorsNotMe.includes(h.tag)).slice(0, 3);
+      fromData = hashtagsToTry.length > 0
+        ? `Hashtags a experimentar: ${hashtagsToTry.map(h => `#${h.tag}`).join(", ")}`
+        : "Você já usa as principais hashtags dos concorrentes.";
+    }
+
+    return { hashtagData: result, insights: { forYou, fromData } };
+  }, [analytics, selectedAccounts, limit, myAccount]);
 
   // Separate common vs exclusive hashtags
   const commonHashtags = hashtagData.filter((h) => h.accounts.length > 1);
@@ -207,6 +243,12 @@ export function HashtagComparison({
             Sem hashtags encontradas nos posts selecionados
           </p>
         )}
+
+        <InsightBox
+          title="Hashtags Comparadas"
+          description="Hashtags usadas por múltiplas contas (em comum) e exclusivas de cada uma. Descubra novas hashtags para experimentar."
+          insights={insights}
+        />
       </CardContent>
     </Card>
   );

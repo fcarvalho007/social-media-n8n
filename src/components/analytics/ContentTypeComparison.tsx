@@ -1,9 +1,10 @@
 import { useMemo } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Cell } from "recharts";
-import { PieChart, Star, Lightbulb, Trophy, Image, Video, Layers } from "lucide-react";
+import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from "recharts";
+import { PieChart, Star, Lightbulb, Image, Video, Layers } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { getAccountColorChart, MY_ACCOUNT_COLOR_CHART } from "@/lib/analytics/colors";
+import { InsightBox } from "./InsightBox";
 import type { InstagramAnalyticsItem } from "@/hooks/useInstagramAnalytics";
 
 interface ContentTypeComparisonProps {
@@ -26,7 +27,7 @@ export function ContentTypeComparison({
   myAccount,
 }: ContentTypeComparisonProps) {
   // Calculate content type breakdown per account (for 100% stacked bar)
-  const { stackedData, accountBreakdowns, insights } = useMemo(() => {
+  const { stackedData, accountBreakdowns, insights, boxInsights } = useMemo(() => {
     // Sort so myAccount comes first
     const sortedAccounts = myAccount && selectedAccounts.includes(myAccount)
       ? [myAccount, ...selectedAccounts.filter(a => a !== myAccount)]
@@ -83,7 +84,7 @@ export function ContentTypeComparison({
       Sidecar: b.sidecar.pct,
     }));
 
-    // Generate insights
+    // Generate insights for the component header
     const insightsList: { icon: React.ReactNode; text: string }[] = [];
     
     if (breakdowns.length >= 2 && myAccount) {
@@ -117,7 +118,31 @@ export function ContentTypeComparison({
       }
     }
 
-    return { stackedData: stacked, accountBreakdowns: breakdowns, insights: insightsList.slice(0, 2) };
+    // Generate insights for InsightBox
+    let boxForYou = "Selecione mais contas para comparar estratégias.";
+    let boxFromData = "Dados insuficientes para análise.";
+
+    if (breakdowns.length >= 1 && myAccount) {
+      const myStats = breakdowns.find(b => b.isMyAccount);
+      const competitors = breakdowns.filter(b => !b.isMyAccount);
+
+      if (myStats) {
+        boxForYou = `Sua estratégia: ${myStats.image.pct}% imagens, ${myStats.video.pct}% vídeos, ${myStats.sidecar.pct}% carrosseis. Formato dominante: ${getTypeLabel(myStats.dominant)}.`;
+      }
+
+      if (competitors.length > 0) {
+        const avgVideo = Math.round(competitors.reduce((sum, c) => sum + c.video.pct, 0) / competitors.length);
+        const avgSidecar = Math.round(competitors.reduce((sum, c) => sum + c.sidecar.pct, 0) / competitors.length);
+        boxFromData = `Média dos concorrentes: ${avgVideo}% vídeos, ${avgSidecar}% carrosseis.`;
+      }
+    }
+
+    return { 
+      stackedData: stacked, 
+      accountBreakdowns: breakdowns, 
+      insights: insightsList.slice(0, 2),
+      boxInsights: { forYou: boxForYou, fromData: boxFromData }
+    };
   }, [analytics, selectedAccounts, accountColorMap, myAccount]);
 
   const getTypeLabel = (type: string) => {
@@ -296,7 +321,7 @@ export function ContentTypeComparison({
           </table>
         </div>
 
-        {/* Insights */}
+        {/* Original Insights */}
         {insights.length > 0 && (
           <div className="space-y-2 pt-2 border-t">
             <div className="flex items-center gap-2 text-sm font-medium text-muted-foreground">
@@ -311,8 +336,13 @@ export function ContentTypeComparison({
             ))}
           </div>
         )}
+
+        <InsightBox
+          title="Estratégia de Conteúdo"
+          description="Que tipo de conteúdo (imagem, vídeo, carrossel) cada conta mais publica. Compare estratégias e descubra oportunidades."
+          insights={boxInsights}
+        />
       </CardContent>
     </Card>
   );
 }
-

@@ -1,12 +1,13 @@
 import { useState, useMemo } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from "recharts";
-import { TrendingUp, Info, AlertCircle } from "lucide-react";
+import { TrendingUp, AlertCircle } from "lucide-react";
 import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
 import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { getAccountColorChart, MY_ACCOUNT_COLOR_CHART } from "@/lib/analytics/colors";
+import { InsightBox } from "./InsightBox";
 import type { InstagramAnalyticsItem } from "@/hooks/useInstagramAnalytics";
 
 interface MultiAccountTimelineProps {
@@ -17,6 +18,7 @@ interface MultiAccountTimelineProps {
 }
 
 type MetricType = "likes" | "engagement" | "posts";
+type GranularityType = "daily" | "weekly" | "monthly";
 
 export function MultiAccountTimeline({ 
   analytics, 
@@ -25,6 +27,7 @@ export function MultiAccountTimeline({
   myAccount 
 }: MultiAccountTimelineProps) {
   const [metric, setMetric] = useState<MetricType>("engagement");
+  const [granularity, setGranularity] = useState<GranularityType>("monthly");
   const [alignDates, setAlignDates] = useState(false);
 
   // Calculate date ranges per account
@@ -65,9 +68,30 @@ export function MultiAccountTimeline({
     return latestFirst <= earliestLast ? { start: latestFirst, end: earliestLast } : null;
   }, [accountDateRanges]);
 
-  // Group data by month and account
+  // Get date key based on granularity
+  const getDateKey = (date: Date): string => {
+    const year = date.getFullYear();
+    const month = String(date.getMonth() + 1).padStart(2, "0");
+    const day = String(date.getDate()).padStart(2, "0");
+    
+    switch (granularity) {
+      case "daily":
+        return `${year}-${month}-${day}`;
+      case "weekly":
+        // Get ISO week number
+        const firstDayOfYear = new Date(year, 0, 1);
+        const pastDaysOfYear = (date.getTime() - firstDayOfYear.getTime()) / 86400000;
+        const weekNumber = Math.ceil((pastDaysOfYear + firstDayOfYear.getDay() + 1) / 7);
+        return `${year}-W${String(weekNumber).padStart(2, "0")}`;
+      case "monthly":
+      default:
+        return `${year}-${month}`;
+    }
+  };
+
+  // Group data by period and account
   const timelineData = useMemo(() => {
-    const monthMap = new Map<string, Map<string, { likes: number; comments: number; posts: number }>>();
+    const periodMap = new Map<string, Map<string, { likes: number; comments: number; posts: number }>>();
 
     analytics
       .filter((post) => post.owner_username && selectedAccounts.includes(post.owner_username))
@@ -75,6 +99,7 @@ export function MultiAccountTimeline({
         if (!post.posted_at || !post.owner_username) return;
 
         const date = new Date(post.posted_at);
+        const periodKey = getDateKey(date);
         const monthKey = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}`;
 
         // Skip if aligning dates and outside common period
@@ -82,11 +107,11 @@ export function MultiAccountTimeline({
           if (monthKey < commonPeriod.start || monthKey > commonPeriod.end) return;
         }
 
-        if (!monthMap.has(monthKey)) {
-          monthMap.set(monthKey, new Map());
+        if (!periodMap.has(periodKey)) {
+          periodMap.set(periodKey, new Map());
         }
 
-        const accountMap = monthMap.get(monthKey)!;
+        const accountMap = periodMap.get(periodKey)!;
         const existing = accountMap.get(post.owner_username) || { likes: 0, comments: 0, posts: 0 };
         accountMap.set(post.owner_username, {
           likes: existing.likes + (post.likes_count || 0),
@@ -95,9 +120,9 @@ export function MultiAccountTimeline({
         });
       });
 
-    return Array.from(monthMap.entries())
-      .map(([month, accountMap]) => {
-        const dataPoint: any = { month };
+    return Array.from(periodMap.entries())
+      .map(([period, accountMap]) => {
+        const dataPoint: any = { period };
         selectedAccounts.forEach((username) => {
           const stats = accountMap.get(username);
           if (stats) {
@@ -112,13 +137,22 @@ export function MultiAccountTimeline({
         });
         return dataPoint;
       })
-      .sort((a, b) => a.month.localeCompare(b.month));
-  }, [analytics, selectedAccounts, metric, alignDates, commonPeriod]);
+      .sort((a, b) => a.period.localeCompare(b.period));
+  }, [analytics, selectedAccounts, metric, granularity, alignDates, commonPeriod]);
 
-  const formatMonth = (month: string) => {
-    const [year, m] = month.split("-");
+  const formatPeriod = (period: string) => {
     const months = ["Jan", "Fev", "Mar", "Abr", "Mai", "Jun", "Jul", "Ago", "Set", "Out", "Nov", "Dez"];
-    return `${months[parseInt(m) - 1]} ${year.slice(2)}`;
+    
+    if (granularity === "daily") {
+      const [year, month, day] = period.split("-");
+      return `${day}/${month}`;
+    } else if (granularity === "weekly") {
+      const [year, week] = period.split("-W");
+      return `S${week} ${year.slice(2)}`;
+    } else {
+      const [year, m] = period.split("-");
+      return `${months[parseInt(m) - 1]} ${year.slice(2)}`;
+    }
   };
 
   const formatValue = (value: number) => {
@@ -134,6 +168,58 @@ export function MultiAccountTimeline({
       case "posts": return "Nº de Posts";
     }
   };
+
+  const getGranularityLabel = () => {
+    switch (granularity) {
+      case "daily": return "diário";
+      case "weekly": return "semanal";
+      case "monthly": return "mensal";
+    }
+  };
+
+  // Generate insights
+  const insights = useMemo(() => {
+    if (selectedAccounts.length < 2 || !myAccount || timelineData.length < 2) {
+      return { forYou: "Selecione mais contas para ver tendências.", fromData: "Dados insuficientes para análise de tendências." };
+    }
+
+    // Calculate trend for each account
+    const trends: { username: string; trend: number }[] = [];
+    
+    selectedAccounts.forEach(username => {
+      const accountData = timelineData.filter(d => d[username] !== undefined);
+      if (accountData.length < 2) return;
+      
+      const firstHalf = accountData.slice(0, Math.floor(accountData.length / 2));
+      const secondHalf = accountData.slice(Math.floor(accountData.length / 2));
+      
+      const firstAvg = firstHalf.reduce((sum, d) => sum + (d[username] || 0), 0) / firstHalf.length;
+      const secondAvg = secondHalf.reduce((sum, d) => sum + (d[username] || 0), 0) / secondHalf.length;
+      
+      const trend = firstAvg > 0 ? ((secondAvg - firstAvg) / firstAvg) * 100 : 0;
+      trends.push({ username, trend });
+    });
+
+    const myTrend = trends.find(t => t.username === myAccount);
+    const growing = trends.filter(t => t.trend > 5).sort((a, b) => b.trend - a.trend);
+    const declining = trends.filter(t => t.trend < -5).sort((a, b) => a.trend - b.trend);
+
+    const forYou = myTrend
+      ? myTrend.trend > 5
+        ? `Ótimo! Seu ${getMetricLabel().toLowerCase()} está a crescer ${Math.abs(Math.round(myTrend.trend))}% no período.`
+        : myTrend.trend < -5
+          ? `Atenção: seu ${getMetricLabel().toLowerCase()} caiu ${Math.abs(Math.round(myTrend.trend))}% no período.`
+          : `Seu ${getMetricLabel().toLowerCase()} está estável no período.`
+      : "Selecione sua conta para ver sua tendência.";
+
+    const fromData = growing.length > 0
+      ? `Em crescimento: @${growing[0].username} (+${Math.round(growing[0].trend)}%)`
+      : declining.length > 0
+        ? `Em queda: @${declining[0].username} (${Math.round(declining[0].trend)}%)`
+        : "Todas as contas estão estáveis no período.";
+
+    return { forYou, fromData };
+  }, [selectedAccounts, myAccount, timelineData, metric]);
 
   if (selectedAccounts.length === 0) {
     return (
@@ -167,22 +253,40 @@ export function MultiAccountTimeline({
               <TrendingUp className="h-5 w-5 text-primary" />
               Evolução Temporal
             </CardTitle>
-            <ToggleGroup
-              type="single"
-              value={metric}
-              onValueChange={(v) => v && setMetric(v as MetricType)}
-              className="justify-start"
-            >
-              <ToggleGroupItem value="engagement" size="sm" className="text-xs">
-                Engagement
-              </ToggleGroupItem>
-              <ToggleGroupItem value="likes" size="sm" className="text-xs">
-                Likes
-              </ToggleGroupItem>
-              <ToggleGroupItem value="posts" size="sm" className="text-xs">
-                Posts
-              </ToggleGroupItem>
-            </ToggleGroup>
+            <div className="flex flex-wrap gap-2">
+              <ToggleGroup
+                type="single"
+                value={metric}
+                onValueChange={(v) => v && setMetric(v as MetricType)}
+                className="justify-start"
+              >
+                <ToggleGroupItem value="engagement" size="sm" className="text-xs">
+                  Engagement
+                </ToggleGroupItem>
+                <ToggleGroupItem value="likes" size="sm" className="text-xs">
+                  Likes
+                </ToggleGroupItem>
+                <ToggleGroupItem value="posts" size="sm" className="text-xs">
+                  Posts
+                </ToggleGroupItem>
+              </ToggleGroup>
+              <ToggleGroup
+                type="single"
+                value={granularity}
+                onValueChange={(v) => v && setGranularity(v as GranularityType)}
+                className="justify-start"
+              >
+                <ToggleGroupItem value="daily" size="sm" className="text-xs">
+                  Diário
+                </ToggleGroupItem>
+                <ToggleGroupItem value="weekly" size="sm" className="text-xs">
+                  Semanal
+                </ToggleGroupItem>
+                <ToggleGroupItem value="monthly" size="sm" className="text-xs">
+                  Mensal
+                </ToggleGroupItem>
+              </ToggleGroup>
+            </div>
           </div>
 
           {datesAreMisaligned && (
@@ -210,15 +314,15 @@ export function MultiAccountTimeline({
           )}
         </div>
       </CardHeader>
-      <CardContent>
+      <CardContent className="space-y-4">
         <div className="overflow-x-auto -mx-4 px-4">
           <div className="min-w-[400px]">
             <ResponsiveContainer width="100%" height={280}>
               <LineChart data={timelineData}>
                 <CartesianGrid strokeDasharray="3 3" className="stroke-muted" />
                 <XAxis 
-                  dataKey="month" 
-                  tickFormatter={formatMonth}
+                  dataKey="period" 
+                  tickFormatter={formatPeriod}
                   className="text-xs"
                   tick={{ fontSize: 11 }}
                 />
@@ -233,7 +337,7 @@ export function MultiAccountTimeline({
                     formatValue(value), 
                     `@${name}${name === myAccount ? " ⭐" : ""}`
                   ]}
-                  labelFormatter={formatMonth}
+                  labelFormatter={formatPeriod}
                   contentStyle={{
                     backgroundColor: "hsl(var(--card))",
                     border: "1px solid hsl(var(--border))",
@@ -265,7 +369,6 @@ export function MultiAccountTimeline({
                       name={username}
                       stroke={color}
                       strokeWidth={isMyAccountLine ? 3 : 2}
-                      strokeDasharray={alignDates ? undefined : undefined}
                       dot={{ r: isMyAccountLine ? 4 : 3, fill: color }}
                       activeDot={{ r: isMyAccountLine ? 7 : 5 }}
                       connectNulls={false}
@@ -276,9 +379,15 @@ export function MultiAccountTimeline({
             </ResponsiveContainer>
           </div>
         </div>
-        <p className="text-xs text-muted-foreground text-center mt-2">
-          {getMetricLabel()} por mês {alignDates && commonPeriod && `(${formatMonth(commonPeriod.start)} - ${formatMonth(commonPeriod.end)})`}
+        <p className="text-xs text-muted-foreground text-center">
+          {getMetricLabel()} ({getGranularityLabel()}) {alignDates && commonPeriod && `• Período alinhado`}
         </p>
+
+        <InsightBox
+          title="Evolução Temporal"
+          description="Mostra como o engagement de cada conta evoluiu ao longo do tempo, permitindo identificar tendências de crescimento ou queda."
+          insights={insights}
+        />
       </CardContent>
     </Card>
   );
