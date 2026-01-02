@@ -1702,7 +1702,7 @@ export default function ManualCreate() {
           {/* Step 3: Caption & Scheduling - Progressive Disclosure */}
           <div className={cn(
             "transition-all duration-300 ease-out overflow-hidden space-y-3 sm:space-y-6",
-            showStep3 ? "opacity-100 max-h-[3000px]" : "opacity-0 max-h-0"
+            showStep3 ? "opacity-100" : "opacity-0 max-h-0"
           )}>
             {/* Caption */}
             <Card className="border-0 sm:border shadow-none sm:shadow-sm">
