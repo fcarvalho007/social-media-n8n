@@ -87,7 +87,16 @@ export function validateFormat(
     errors.push(`Mínimo ${config.minMedia} ficheiro(s) necessário(s)`);
   }
 
-  if (config.maxMedia && totalMedia > config.maxMedia) {
+  // LinkedIn Document: validate by file size instead of count
+  if (format === 'linkedin_document') {
+    const totalSizeMB = mediaFiles.reduce((acc, f) => acc + f.size / (1024 * 1024), 0);
+    if (totalSizeMB > 100) {
+      errors.push(`PDF final não pode exceder 100MB (atual: ${totalSizeMB.toFixed(1)}MB)`);
+    }
+    if (totalMedia > 300) {
+      errors.push(`Máximo 300 páginas permitidas`);
+    }
+  } else if (config.maxMedia && totalMedia > config.maxMedia) {
     errors.push(`Máximo ${config.maxMedia} ficheiro(s) permitido(s)`);
   }
 

@@ -1431,7 +1431,7 @@ export default function ManualCreate() {
           {/* Step 2: Media Upload - Progressive Disclosure */}
           <div className={cn(
             "transition-all duration-300 ease-out overflow-hidden",
-            showStep2 ? "opacity-100 max-h-[2000px]" : "opacity-0 max-h-0"
+            showStep2 ? "opacity-100" : "opacity-0 max-h-0"
           )}>
             <Card className="border-0 sm:border shadow-none sm:shadow-sm">
 
