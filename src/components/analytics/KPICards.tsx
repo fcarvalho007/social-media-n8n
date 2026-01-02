@@ -25,6 +25,16 @@ export function KPICards({ stats, previousStats }: KPICardsProps) {
     return ((current - previous) / previous) * 100;
   };
 
+  // Calculate likes/comments ratio
+  const likesCommentsRatio = stats.totalComments > 0 
+    ? Math.round(stats.totalLikes / stats.totalComments) 
+    : 0;
+
+  // Calculate posts per week (assuming data covers at least a week)
+  const postsPerWeek = stats.totalPosts > 0 
+    ? Math.round((stats.totalPosts / 30) * 7) 
+    : 0;
+
   const kpis = [
     {
       label: "Total Posts",
@@ -72,19 +82,38 @@ export function KPICards({ stats, previousStats }: KPICardsProps) {
       tooltip: "Média de likes por publicação",
     },
     {
-      label: "Média Engagement",
-      value: stats.avgEngagement,
-      previousValue: previousStats?.avgEngagement,
-      icon: Award,
-      color: "text-yellow-500",
-      bgColor: "bg-yellow-500/10",
-      tooltip: "Média de likes + comentários por post",
+      label: "Média Comentários",
+      value: stats.avgComments,
+      previousValue: previousStats?.avgComments,
+      icon: MessageCircle,
+      color: "text-teal-500",
+      bgColor: "bg-teal-500/10",
+      tooltip: "Média de comentários por publicação",
+    },
+    {
+      label: "Rácio L/C",
+      value: likesCommentsRatio,
+      previousValue: previousStats ? (previousStats.totalComments > 0 ? Math.round(previousStats.totalLikes / previousStats.totalComments) : 0) : undefined,
+      icon: TrendingUp,
+      color: "text-indigo-500",
+      bgColor: "bg-indigo-500/10",
+      tooltip: `${likesCommentsRatio}:1 - Cada comentário recebe ~${likesCommentsRatio} likes`,
+      suffix: ":1",
+    },
+    {
+      label: "Posts/Semana",
+      value: postsPerWeek,
+      previousValue: undefined,
+      icon: BarChart3,
+      color: "text-cyan-500",
+      bgColor: "bg-cyan-500/10",
+      tooltip: "Média de posts por semana (estimado)",
     },
   ];
 
   return (
     <TooltipProvider>
-      <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3">
+      <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-8 gap-3">
         {kpis.map((kpi) => {
           const change = calculateChange(
             typeof kpi.value === "number" ? kpi.value : 0,

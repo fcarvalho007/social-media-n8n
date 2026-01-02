@@ -161,6 +161,26 @@ export function ContentTypeBreakdown({ data }: ContentTypeBreakdownProps) {
             );
           })}
         </div>
+
+        {/* Smart recommendation */}
+        {chartData.length > 1 && (() => {
+          const sorted = [...chartData].sort((a, b) => b.avgEngagement - a.avgEngagement);
+          const best = sorted[0];
+          const worst = sorted[sorted.length - 1];
+          
+          if (best && worst && best.avgEngagement > worst.avgEngagement * 1.15) {
+            const improvement = Math.round(((best.avgEngagement - worst.avgEngagement) / worst.avgEngagement) * 100);
+            return (
+              <div className="mt-4 p-3 rounded-lg bg-amber-500/10 border border-amber-500/20">
+                <p className="text-xs text-amber-700 dark:text-amber-400">
+                  💡 <strong>{best.name}</strong> têm <strong>+{improvement}%</strong> mais engagement que {worst.name.toLowerCase()}. 
+                  Considere publicar mais deste formato.
+                </p>
+              </div>
+            );
+          }
+          return null;
+        })()}
       </CardContent>
     </Card>
   );
