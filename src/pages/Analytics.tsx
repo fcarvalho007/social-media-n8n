@@ -1,5 +1,6 @@
 import { useState, useMemo } from "react";
 import { BarChart3, Trash2, Users } from "lucide-react";
+import { useAuth } from "@/contexts/AuthContext";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -42,6 +43,9 @@ import {
 } from "@/components/ui/alert-dialog";
 
 export default function Analytics() {
+  const { user } = useAuth();
+  const isPublicMode = !user;
+  
   const {
     analytics,
     stats,
@@ -50,7 +54,7 @@ export default function Analytics() {
     isImporting,
     deleteAnalytics,
     isDeleting,
-  } = useInstagramAnalytics();
+  } = useInstagramAnalytics({ publicMode: true });
 
   // Filters state
   const [period, setPeriod] = useState<PeriodFilter>("all");
@@ -309,40 +313,42 @@ export default function Analytics() {
           </div>
         </div>
 
-        <div className="flex items-center gap-2">
-          <ImportInstagramExcel onImport={importPosts} isImporting={isImporting} />
-          {!isEmpty && (
-            <AlertDialog>
-              <AlertDialogTrigger asChild>
-                <Button variant="outline" size="sm" className="gap-2 text-destructive">
-                  <Trash2 className="h-4 w-4" />
-                  Limpar
-                </Button>
-              </AlertDialogTrigger>
-              <AlertDialogContent>
-                <AlertDialogHeader>
-                  <AlertDialogTitle>Eliminar todos os dados?</AlertDialogTitle>
-                  <AlertDialogDescription>
-                    Esta ação vai eliminar todos os {stats.totalPosts} registos.
-                  </AlertDialogDescription>
-                </AlertDialogHeader>
-                <AlertDialogFooter>
-                  <AlertDialogCancel>Cancelar</AlertDialogCancel>
-                  <AlertDialogAction
-                    onClick={handleDeleteAll}
-                    disabled={isDeleting}
-                    className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
-                  >
-                    {isDeleting ? "Eliminando..." : "Eliminar Tudo"}
-                  </AlertDialogAction>
-                </AlertDialogFooter>
-              </AlertDialogContent>
-            </AlertDialog>
-          )}
-        </div>
+        {!isPublicMode && (
+          <div className="flex items-center gap-2">
+            <ImportInstagramExcel onImport={importPosts} isImporting={isImporting} />
+            {!isEmpty && (
+              <AlertDialog>
+                <AlertDialogTrigger asChild>
+                  <Button variant="outline" size="sm" className="gap-2 text-destructive">
+                    <Trash2 className="h-4 w-4" />
+                    Limpar
+                  </Button>
+                </AlertDialogTrigger>
+                <AlertDialogContent>
+                  <AlertDialogHeader>
+                    <AlertDialogTitle>Eliminar todos os dados?</AlertDialogTitle>
+                    <AlertDialogDescription>
+                      Esta ação vai eliminar todos os {stats.totalPosts} registos.
+                    </AlertDialogDescription>
+                  </AlertDialogHeader>
+                  <AlertDialogFooter>
+                    <AlertDialogCancel>Cancelar</AlertDialogCancel>
+                    <AlertDialogAction
+                      onClick={handleDeleteAll}
+                      disabled={isDeleting}
+                      className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                    >
+                      {isDeleting ? "Eliminando..." : "Eliminar Tudo"}
+                    </AlertDialogAction>
+                  </AlertDialogFooter>
+                </AlertDialogContent>
+              </AlertDialog>
+            )}
+          </div>
+        )}
       </div>
 
-      {isEmpty ? (
+      {isEmpty && !isPublicMode ? (
         <Card className="border-dashed">
           <CardContent className="flex flex-col items-center justify-center py-16 text-center">
             <div className="p-4 rounded-full bg-muted mb-4">
@@ -353,6 +359,18 @@ export default function Analytics() {
               Importe um ficheiro Excel com os dados das suas publicações do Instagram.
             </p>
             <ImportInstagramExcel onImport={importPosts} isImporting={isImporting} />
+          </CardContent>
+        </Card>
+      ) : isEmpty && isPublicMode ? (
+        <Card className="border-dashed">
+          <CardContent className="flex flex-col items-center justify-center py-16 text-center">
+            <div className="p-4 rounded-full bg-muted mb-4">
+              <BarChart3 className="h-10 w-10 text-muted-foreground" />
+            </div>
+            <h3 className="text-lg font-semibold mb-2">Sem dados de analytics</h3>
+            <p className="text-muted-foreground mb-6 max-w-md">
+              Os dados de analytics ainda não foram carregados.
+            </p>
           </CardContent>
         </Card>
       ) : (

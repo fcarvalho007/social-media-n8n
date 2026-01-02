@@ -1,5 +1,9 @@
 import { useState, useMemo } from "react";
-import { Bot, FileText, Copy, Check, Download, Loader2, Star } from "lucide-react";
+import { motion, AnimatePresence } from "framer-motion";
+import { 
+  Bot, FileText, Copy, Check, Download, Loader2, Star, 
+  Sparkles, Target, TrendingUp, Users, Megaphone, Clock 
+} from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -7,6 +11,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
+import { MarkdownRenderer } from "./MarkdownRenderer";
 import type { InstagramAnalyticsItem } from "@/hooks/useInstagramAnalytics";
 import type { AccountStats } from "./AccountRanking";
 
@@ -17,6 +22,15 @@ interface CompetitorReportGeneratorProps {
   myAccount?: string;
 }
 
+type Objective = 'leads' | 'courses' | 'authority' | 'reach';
+
+const objectives: { value: Objective; label: string; icon: React.ReactNode; description: string }[] = [
+  { value: 'leads', label: 'Leads', icon: <Target className="h-4 w-4" />, description: 'Gerar leads e consultoria' },
+  { value: 'courses', label: 'Cursos', icon: <Megaphone className="h-4 w-4" />, description: 'Vender cursos e produtos' },
+  { value: 'authority', label: 'Autoridade', icon: <TrendingUp className="h-4 w-4" />, description: 'Crescer autoridade no nicho' },
+  { value: 'reach', label: 'Alcance', icon: <Users className="h-4 w-4" />, description: 'Aumentar alcance e seguidores' },
+];
+
 export function CompetitorReportGenerator({
   analytics,
   accounts,
@@ -24,6 +38,7 @@ export function CompetitorReportGenerator({
   myAccount,
 }: CompetitorReportGeneratorProps) {
   const [selectedCompetitor, setSelectedCompetitor] = useState<string>("");
+  const [selectedObjective, setSelectedObjective] = useState<Objective>("authority");
   const [report, setReport] = useState<string>("");
   const [isGenerating, setIsGenerating] = useState(false);
   const [generatedAt, setGeneratedAt] = useState<string>("");
@@ -90,12 +105,41 @@ export function CompetitorReportGenerator({
       const competitorData = getAccountData(selectedCompetitor);
       const myAccountData = getAccountData(myAccount);
 
+      // Get detailed posts for both accounts (last 50 each)
+      const competitorPosts = analytics
+        .filter(p => p.owner_username === selectedCompetitor)
+        .slice(0, 50)
+        .map(p => ({
+          type: p.post_type,
+          likes: p.likes_count,
+          comments: p.comments_count,
+          caption: p.caption?.slice(0, 200),
+          hashtags: p.hashtags,
+          posted_at: p.posted_at,
+          url: p.post_url,
+        }));
+
+      const myPosts = analytics
+        .filter(p => p.owner_username === myAccount)
+        .slice(0, 50)
+        .map(p => ({
+          type: p.post_type,
+          likes: p.likes_count,
+          comments: p.comments_count,
+          caption: p.caption?.slice(0, 200),
+          hashtags: p.hashtags,
+          posted_at: p.posted_at,
+          url: p.post_url,
+        }));
+
       const { data, error } = await supabase.functions.invoke('generate-competitor-report', {
         body: {
           competitorUsername: selectedCompetitor,
           myAccountUsername: myAccount,
           competitorData,
           myAccountData,
+          allPosts: [...competitorPosts, ...myPosts],
+          objective: selectedObjective,
         },
       });
 
@@ -104,7 +148,7 @@ export function CompetitorReportGenerator({
       if (data.report) {
         setReport(data.report);
         setGeneratedAt(data.generatedAt);
-        toast.success("Relatório gerado com sucesso!");
+        toast.success("Relatório executivo gerado com sucesso!");
       } else if (data.error) {
         throw new Error(data.error);
       }
@@ -132,7 +176,7 @@ export function CompetitorReportGenerator({
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
     a.href = url;
-    a.download = `relatorio-${selectedCompetitor}-${new Date().toISOString().split('T')[0]}.md`;
+    a.download = `relatorio-executivo-${selectedCompetitor}-${new Date().toISOString().split('T')[0]}.md`;
     document.body.appendChild(a);
     a.click();
     document.body.removeChild(a);
@@ -141,23 +185,50 @@ export function CompetitorReportGenerator({
   };
 
   return (
-    <Card>
-      <CardHeader className="pb-3">
-        <CardTitle className="text-base flex items-center gap-2">
-          <FileText className="h-5 w-5 text-primary" />
-          Relatório de Concorrente
-          <Badge variant="outline" className="ml-2 gap-1 text-xs border-blue-400 text-blue-600">
-            <Bot className="h-3 w-3" />
-            IA
-          </Badge>
-        </CardTitle>
-      </CardHeader>
-      <CardContent className="space-y-4">
+    <Card className="overflow-hidden border-2 border-primary/20">
+      {/* Premium Header */}
+      <div className="bg-gradient-to-r from-amber-500/10 via-primary/10 to-blue-500/10 border-b border-primary/20">
+        <CardHeader className="pb-3">
+          <CardTitle className="text-base flex items-center gap-2">
+            <div className="p-1.5 rounded-lg bg-gradient-to-br from-amber-500 to-primary">
+              <Sparkles className="h-4 w-4 text-white" />
+            </div>
+            Relatório Executivo de Concorrência
+            <Badge className="ml-2 gap-1 text-xs bg-gradient-to-r from-amber-500 to-primary text-white border-0">
+              <Bot className="h-3 w-3" />
+              Premium IA
+            </Badge>
+          </CardTitle>
+        </CardHeader>
+      </div>
+
+      <CardContent className="p-4 space-y-4">
+        {/* Objective Selector */}
+        <div className="space-y-2">
+          <label className="text-xs font-medium text-muted-foreground">Objectivo para 90 dias</label>
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+            {objectives.map((obj) => (
+              <button
+                key={obj.value}
+                onClick={() => setSelectedObjective(obj.value)}
+                className={`flex flex-col items-center gap-1.5 p-3 rounded-lg border-2 transition-all ${
+                  selectedObjective === obj.value
+                    ? 'border-primary bg-primary/10 text-primary'
+                    : 'border-border bg-card hover:border-primary/50 text-muted-foreground hover:text-foreground'
+                }`}
+              >
+                {obj.icon}
+                <span className="text-xs font-medium">{obj.label}</span>
+              </button>
+            ))}
+          </div>
+        </div>
+
         {/* Selector and Generate Button */}
         <div className="flex flex-col sm:flex-row gap-3">
           <div className="flex-1">
             <Select value={selectedCompetitor} onValueChange={setSelectedCompetitor}>
-              <SelectTrigger>
+              <SelectTrigger className="bg-card">
                 <SelectValue placeholder="Seleccionar concorrente..." />
               </SelectTrigger>
               <SelectContent>
@@ -182,17 +253,17 @@ export function CompetitorReportGenerator({
           <Button 
             onClick={handleGenerateReport} 
             disabled={!selectedCompetitor || isGenerating}
-            className="gap-2"
+            className="gap-2 bg-gradient-to-r from-amber-500 to-primary hover:from-amber-600 hover:to-primary/90"
           >
             {isGenerating ? (
               <>
                 <Loader2 className="h-4 w-4 animate-spin" />
-                A gerar...
+                A gerar relatório...
               </>
             ) : (
               <>
-                <Bot className="h-4 w-4" />
-                Gerar Relatório
+                <Sparkles className="h-4 w-4" />
+                Gerar Relatório Executivo
               </>
             )}
           </Button>
@@ -200,48 +271,97 @@ export function CompetitorReportGenerator({
 
         {/* My Account Badge */}
         {myAccount && (
-          <div className="flex items-center gap-2 text-sm text-muted-foreground">
+          <div className="flex items-center gap-2 text-sm text-muted-foreground bg-amber-500/10 rounded-lg px-3 py-2">
             <Star className="h-4 w-4 fill-amber-500 text-amber-500" />
-            A comparar com a sua conta: <span className="font-medium text-foreground">@{myAccount}</span>
+            A comparar com a sua conta: <span className="font-semibold text-foreground">@{myAccount}</span>
           </div>
         )}
 
         {/* Report Display */}
-        {report && (
-          <div className="space-y-3">
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-2 text-xs text-muted-foreground">
-                <Bot className="h-4 w-4 text-blue-500" />
-                <span>Gerado por IA em {new Date(generatedAt).toLocaleString('pt-PT')}</span>
+        <AnimatePresence mode="wait">
+          {report && (
+            <motion.div
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: -20 }}
+              className="space-y-3"
+            >
+              {/* Report Header */}
+              <div className="flex items-center justify-between bg-gradient-to-r from-primary/5 to-transparent p-3 rounded-lg">
+                <div className="flex items-center gap-3">
+                  <div className="p-2 rounded-full bg-gradient-to-br from-amber-500/20 to-primary/20">
+                    <Bot className="h-5 w-5 text-primary" />
+                  </div>
+                  <div>
+                    <div className="flex items-center gap-2">
+                      <span className="text-sm font-medium">Relatório Executivo</span>
+                      <Badge variant="outline" className="text-[10px] border-amber-500/50 text-amber-600">
+                        GPT-4o
+                      </Badge>
+                    </div>
+                    <div className="flex items-center gap-1 text-xs text-muted-foreground">
+                      <Clock className="h-3 w-3" />
+                      {new Date(generatedAt).toLocaleString('pt-PT')}
+                    </div>
+                  </div>
+                </div>
+                <div className="flex items-center gap-2">
+                  <Button variant="outline" size="sm" onClick={handleCopy} className="gap-1.5 h-8">
+                    {copied ? <Check className="h-3.5 w-3.5 text-green-500" /> : <Copy className="h-3.5 w-3.5" />}
+                    {copied ? "Copiado" : "Copiar"}
+                  </Button>
+                  <Button variant="outline" size="sm" onClick={handleDownload} className="gap-1.5 h-8">
+                    <Download className="h-3.5 w-3.5" />
+                    Transferir
+                  </Button>
+                </div>
               </div>
-              <div className="flex items-center gap-2">
-                <Button variant="outline" size="sm" onClick={handleCopy} className="gap-1.5">
-                  {copied ? <Check className="h-3.5 w-3.5" /> : <Copy className="h-3.5 w-3.5" />}
-                  {copied ? "Copiado" : "Copiar"}
-                </Button>
-                <Button variant="outline" size="sm" onClick={handleDownload} className="gap-1.5">
-                  <Download className="h-3.5 w-3.5" />
-                  Transferir
-                </Button>
+
+              {/* Report Content */}
+              <ScrollArea className="h-[600px] rounded-xl border-2 border-primary/10 bg-gradient-to-b from-card to-muted/20 shadow-inner">
+                <div className="p-5">
+                  <MarkdownRenderer content={report} />
+                </div>
+              </ScrollArea>
+            </motion.div>
+          )}
+        </AnimatePresence>
+
+        {/* Loading State */}
+        {isGenerating && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            className="flex flex-col items-center justify-center py-16 text-center"
+          >
+            <div className="relative">
+              <div className="absolute inset-0 rounded-full bg-gradient-to-r from-amber-500 to-primary blur-xl opacity-30 animate-pulse" />
+              <div className="relative p-4 rounded-full bg-gradient-to-br from-amber-500/20 to-primary/20">
+                <Loader2 className="h-8 w-8 animate-spin text-primary" />
               </div>
             </div>
-
-            <ScrollArea className="h-[500px] rounded-lg border bg-muted/30 p-4">
-              <div className="prose prose-sm dark:prose-invert max-w-none">
-                <pre className="whitespace-pre-wrap font-sans text-sm leading-relaxed">
-                  {report}
-                </pre>
-              </div>
-            </ScrollArea>
-          </div>
+            <p className="mt-4 font-medium">A gerar relatório executivo...</p>
+            <p className="text-sm text-muted-foreground mt-1">
+              A analisar @{selectedCompetitor} vs @{myAccount}
+            </p>
+            <div className="flex items-center gap-2 mt-3 text-xs text-muted-foreground">
+              <Sparkles className="h-3 w-3 text-amber-500" />
+              <span>10 Quick Wins + Plano 30 dias + Análise completa</span>
+            </div>
+          </motion.div>
         )}
 
         {/* Empty State */}
         {!report && !isGenerating && (
-          <div className="text-center py-8 text-sm text-muted-foreground">
-            <FileText className="h-10 w-10 mx-auto mb-3 opacity-50" />
-            <p>Seleccione um concorrente e clique em "Gerar Relatório"</p>
-            <p className="text-xs mt-1">O relatório será gerado com base nos dados importados</p>
+          <div className="text-center py-12">
+            <div className="inline-flex p-4 rounded-2xl bg-gradient-to-br from-amber-500/10 to-primary/10 mb-4">
+              <FileText className="h-10 w-10 text-primary/60" />
+            </div>
+            <p className="font-medium text-foreground">Gere um Relatório Executivo</p>
+            <p className="text-sm text-muted-foreground mt-1 max-w-md mx-auto">
+              Seleccione um objectivo e um concorrente para receber uma análise completa 
+              com 10 Quick Wins, 5 experiências A/B e um plano de 30 dias.
+            </p>
           </div>
         )}
       </CardContent>
