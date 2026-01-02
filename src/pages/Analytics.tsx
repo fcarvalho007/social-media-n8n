@@ -1,5 +1,5 @@
 import { useState, useMemo } from "react";
-import { BarChart3, Trash2 } from "lucide-react";
+import { BarChart3, Trash2, Users } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -16,6 +16,13 @@ import { DataContextBadge } from "@/components/analytics/DataContextBadge";
 import { AnalyticsFilters, type PeriodFilter, type ContentTypeFilter } from "@/components/analytics/AnalyticsFilters";
 import { ImportInstagramExcel } from "@/components/analytics/ImportInstagramExcel";
 import { useInstagramAnalytics } from "@/hooks/useInstagramAnalytics";
+import { AccountSelector } from "@/components/analytics/AccountSelector";
+import { AccountRanking, type AccountStats } from "@/components/analytics/AccountRanking";
+import { AccountComparisonChart } from "@/components/analytics/AccountComparisonChart";
+import { MultiAccountTimeline } from "@/components/analytics/MultiAccountTimeline";
+import { CompetitorTopPosts } from "@/components/analytics/CompetitorTopPosts";
+import { ContentTypeComparison } from "@/components/analytics/ContentTypeComparison";
+import { HashtagComparison } from "@/components/analytics/HashtagComparison";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -43,6 +50,9 @@ export default function Analytics() {
   const [period, setPeriod] = useState<PeriodFilter>("all");
   const [account, setAccount] = useState("all");
   const [contentTypes, setContentTypes] = useState<ContentTypeFilter[]>(["Image", "Video", "Sidecar"]);
+  
+  // Competition tab state
+  const [selectedCompetitorAccounts, setSelectedCompetitorAccounts] = useState<string[]>([]);
 
   // Get unique accounts
   const accounts = useMemo(() => {
@@ -177,6 +187,47 @@ export default function Analytics() {
     };
   }, [filteredAnalytics]);
 
+  // Calculate account stats for competitor comparison
+  const { accountStats, accountColorMap, accountStatsMap } = useMemo(() => {
+    const colorMap = new Map<string, number>();
+    const statsMap = new Map<string, { postCount: number; avgEngagement: number }>();
+    
+    accounts.forEach((username, index) => {
+      colorMap.set(username, index);
+    });
+
+    const stats: AccountStats[] = accounts.map((username, index) => {
+      const accountPosts = analytics.filter((p) => p.owner_username === username);
+      const totalLikes = accountPosts.reduce((sum, p) => sum + (p.likes_count || 0), 0);
+      const totalComments = accountPosts.reduce((sum, p) => sum + (p.comments_count || 0), 0);
+      const totalViews = accountPosts.reduce((sum, p) => sum + (p.views_count || 0), 0);
+      const postCount = accountPosts.length;
+
+      const avgEngagement = postCount > 0 ? Math.round((totalLikes + totalComments) / postCount) : 0;
+      
+      statsMap.set(username, { postCount, avgEngagement });
+
+      return {
+        username,
+        postCount,
+        totalLikes,
+        totalComments,
+        totalViews,
+        avgLikes: postCount > 0 ? Math.round(totalLikes / postCount) : 0,
+        avgComments: postCount > 0 ? Math.round(totalComments / postCount) : 0,
+        avgEngagement,
+        colorIndex: index,
+      };
+    });
+
+    return { accountStats: stats, accountColorMap: colorMap, accountStatsMap: statsMap };
+  }, [analytics, accounts]);
+
+  // Filter account stats for selected competitor accounts
+  const selectedAccountStats = useMemo(() => {
+    return accountStats.filter((a) => selectedCompetitorAccounts.includes(a.username));
+  }, [accountStats, selectedCompetitorAccounts]);
+
   const handleResetFilters = () => {
     setPeriod("all");
     setAccount("all");
@@ -298,10 +349,14 @@ export default function Analytics() {
           {/* KPI Cards */}
           <KPICards stats={filteredStats} />
 
-          {/* Consolidated Tabs: Overview + All Posts */}
+          {/* Consolidated Tabs: Overview + Competition + All Posts */}
           <Tabs defaultValue="overview" className="space-y-4">
             <TabsList>
               <TabsTrigger value="overview">Visão Geral</TabsTrigger>
+              <TabsTrigger value="competition" className="gap-1.5">
+                <Users className="h-4 w-4" />
+                Concorrência ({accounts.length})
+              </TabsTrigger>
               <TabsTrigger value="posts">Todos os Posts ({filteredAnalytics.length})</TabsTrigger>
             </TabsList>
 
@@ -323,6 +378,54 @@ export default function Analytics() {
               <div className="grid lg:grid-cols-2 gap-6">
                 <HashtagCloud data={filteredStats.topHashtags} />
                 <BestTimeToPost analytics={filteredAnalytics} />
+              </div>
+            </TabsContent>
+
+            <TabsContent value="competition" className="space-y-6">
+              {/* Account Selector + Ranking */}
+              <div className="grid lg:grid-cols-3 gap-6">
+                <AccountSelector
+                  accounts={accounts}
+                  selectedAccounts={selectedCompetitorAccounts}
+                  onSelectionChange={setSelectedCompetitorAccounts}
+                  accountStats={accountStatsMap}
+                  maxSelectable={10}
+                />
+                <div className="lg:col-span-2">
+                  <AccountRanking accounts={selectedAccountStats} sortBy="avgEngagement" />
+                </div>
+              </div>
+
+              {/* Comparison Chart */}
+              <AccountComparisonChart accounts={selectedAccountStats} />
+
+              {/* Timeline */}
+              <MultiAccountTimeline
+                analytics={analytics}
+                selectedAccounts={selectedCompetitorAccounts}
+                accountColorMap={accountColorMap}
+              />
+
+              {/* Top Posts per Account */}
+              <CompetitorTopPosts
+                analytics={analytics}
+                selectedAccounts={selectedCompetitorAccounts}
+                accountColorMap={accountColorMap}
+                postsPerAccount={3}
+              />
+
+              {/* Content Type + Hashtag Comparison */}
+              <div className="grid lg:grid-cols-2 gap-6">
+                <ContentTypeComparison
+                  analytics={analytics}
+                  selectedAccounts={selectedCompetitorAccounts}
+                  accountColorMap={accountColorMap}
+                />
+                <HashtagComparison
+                  analytics={analytics}
+                  selectedAccounts={selectedCompetitorAccounts}
+                  accountColorMap={accountColorMap}
+                />
               </div>
             </TabsContent>
 
