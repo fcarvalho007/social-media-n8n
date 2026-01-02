@@ -13,7 +13,7 @@ import { Skeleton } from '@/components/ui/skeleton';
 
 export default function Dashboard() {
   const { projects } = useProjects();
-  const { items: pendingItems, totalCount: pendingTotal, loading: loadingPending } = usePendingContent(6);
+  const { items: pendingItems, totalCount: pendingTotal, pendingApprovalCount, draftsCount, loading: loadingPending } = usePendingContent(6);
   const { counts: scheduledCounts, loading: loadingScheduled } = useScheduledCounts();
   const { costs, loading: loadingCosts } = useCostTracking();
   const navigate = useNavigate();
@@ -70,11 +70,11 @@ export default function Dashboard() {
             </CardTitle>
             <div className="flex gap-2">
               <Button size="sm" onClick={() => navigate('/pending')} className="text-xs">
-                Aprovar
+                🤖 Aprovar {!loadingPending && `(${pendingApprovalCount})`}
                 <ArrowRight className="ml-1 h-3 w-3" />
               </Button>
               <Button size="sm" variant="outline" onClick={() => navigate('/drafts')} className="text-xs">
-                Rascunhos
+                Rascunhos {!loadingPending && `(${draftsCount})`}
               </Button>
             </div>
           </div>
@@ -114,12 +114,23 @@ export default function Dashboard() {
                         src={item.thumbnail} 
                         alt="" 
                         className="w-full h-full object-cover transition-transform group-hover:scale-105"
+                        onError={(e) => {
+                          const target = e.target as HTMLImageElement;
+                          target.style.display = 'none';
+                          const fallback = target.nextElementSibling as HTMLElement;
+                          if (fallback) fallback.style.display = 'flex';
+                        }}
                       />
-                    ) : (
-                      <div className="w-full h-full flex items-center justify-center">
+                    ) : null}
+                    <div className={`w-full h-full flex items-center justify-center ${item.thumbnail ? 'hidden' : ''}`}>
+                      {item.type === 'story' ? (
+                        <FileImage className="h-8 w-8 text-muted-foreground/50" />
+                      ) : item.type === 'carousel' ? (
+                        <ImagePlus className="h-8 w-8 text-muted-foreground/50" />
+                      ) : (
                         <FileText className="h-8 w-8 text-muted-foreground/50" />
-                      </div>
-                    )}
+                      )}
+                    </div>
                     {/* Badge de tipo */}
                     <Badge 
                       className={`absolute top-1.5 left-1.5 text-[10px] px-1.5 py-0 h-5 border ${getTypeBadgeColor(item.type)}`}

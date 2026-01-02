@@ -13,12 +13,16 @@ export interface PendingItem {
 interface PendingContentResult {
   items: PendingItem[];
   totalCount: number;
+  pendingApprovalCount: number;
+  draftsCount: number;
   loading: boolean;
 }
 
 export function usePendingContent(limit: number = 6): PendingContentResult {
   const [items, setItems] = useState<PendingItem[]>([]);
   const [totalCount, setTotalCount] = useState(0);
+  const [pendingApprovalCount, setPendingApprovalCount] = useState(0);
+  const [draftsCount, setDraftsCount] = useState(0);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -115,9 +119,13 @@ export function usePendingContent(limit: number = 6): PendingContentResult {
           .slice(0, limit);
 
         const total = (stories?.length || 0) + (posts?.length || 0) + (drafts?.length || 0);
+        const approvalCount = (stories?.length || 0) + (posts?.length || 0);
+        const draftsTotal = drafts?.length || 0;
 
         setItems(allItems);
         setTotalCount(total);
+        setPendingApprovalCount(approvalCount);
+        setDraftsCount(draftsTotal);
       } catch (error) {
         console.error('Error fetching pending content:', error);
       } finally {
@@ -153,5 +161,5 @@ export function usePendingContent(limit: number = 6): PendingContentResult {
     };
   }, [limit]);
 
-  return { items, totalCount, loading };
+  return { items, totalCount, pendingApprovalCount, draftsCount, loading };
 }
