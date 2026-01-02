@@ -1,4 +1,4 @@
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useEffect } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
@@ -83,12 +83,13 @@ export default function MediaLibrary() {
   const { user } = useAuth();
   const queryClient = useQueryClient();
   
-  const [searchTerm, setSearchTerm] = useState('');
+const [searchTerm, setSearchTerm] = useState('');
   const [activeTab, setActiveTab] = useState('all');
   const [sortBy, setSortBy] = useState<'date' | 'name' | 'size'>('date');
   const [selectedItems, setSelectedItems] = useState<Set<string>>(new Set());
   const [detailsItem, setDetailsItem] = useState<MediaItem | null>(null);
   const [isImporting, setIsImporting] = useState(false);
+  const [hasShownImportSuggestion, setHasShownImportSuggestion] = useState(false);
 
   // Fetch media library
   const { data: mediaItems, isLoading, refetch } = useQuery({
@@ -105,18 +106,18 @@ export default function MediaLibrary() {
     enabled: !!user,
   });
 
-  // Import existing publications into media library
+// Import existing publications into media library
   const importExistingPublications = async () => {
     if (!user) return;
     
     setIsImporting(true);
     try {
-      // Fetch published posts with images
+      // Fetch published AND approved posts with images (include media_items)
       const { data: posts, error: postsError } = await supabase
         .from('posts')
-        .select('id, user_id, template_a_images, created_at')
-        .eq('status', 'published')
-        .not('template_a_images', 'is', null);
+        .select('id, user_id, template_a_images, media_items, created_at, published_at')
+        .in('status', ['published', 'approved'])
+        .or('template_a_images.not.is.null,media_items.not.is.null');
       
       if (postsError) throw postsError;
       
@@ -144,11 +145,28 @@ export default function MediaLibrary() {
       }> = [];
       
       for (const post of posts) {
-        const urls = (post.template_a_images || []) as string[];
+        // Collect all URLs from both template_a_images and media_items
+        const allUrls: string[] = [];
         
-        for (const url of urls) {
-          // Skip if already exists or empty
+        // Add from template_a_images
+        if (post.template_a_images && Array.isArray(post.template_a_images)) {
+          allUrls.push(...(post.template_a_images as string[]));
+        }
+        
+        // Add from media_items (JSONB format: [{url: '...', ...}])
+        if (post.media_items && Array.isArray(post.media_items)) {
+          for (const item of post.media_items as Array<{ url?: string; preview?: string }>) {
+            if (item.url) allUrls.push(item.url);
+            else if (item.preview) allUrls.push(item.preview);
+          }
+        }
+        
+        for (const url of allUrls) {
+          // Skip if already exists, empty, or temporary URL that may have expired
           if (!url || existingUrls.has(url)) continue;
+          
+          // Skip temporary Getlate URLs (they expire)
+          if (url.includes('media.getlate.dev/temp/')) continue;
           
           const fileName = url.split('/').pop() || `imported-${importCount}`;
           const isVideo = url.includes('.mp4') || url.includes('.mov') || url.includes('.webm');
@@ -160,7 +178,7 @@ export default function MediaLibrary() {
             file_type: isVideo ? 'video/mp4' : 'image/jpeg',
             source: 'publication',
             is_favorite: false,
-            created_at: post.created_at || new Date().toISOString(),
+            created_at: post.published_at || post.created_at || new Date().toISOString(),
           });
           
           existingUrls.add(url); // Prevent duplicates within same import
@@ -196,6 +214,35 @@ export default function MediaLibrary() {
       setIsImporting(false);
     }
   };
+
+  // Auto-suggest import when library is empty but posts exist
+  const checkAndSuggestImport = async () => {
+    if (hasShownImportSuggestion || isImporting) return;
+    
+    // Check if there are published/approved posts
+    const { count } = await supabase
+      .from('posts')
+      .select('id', { count: 'exact', head: true })
+      .in('status', ['published', 'approved']);
+    
+    if (count && count > 0) {
+      setHasShownImportSuggestion(true);
+      toast.info(`Encontrámos ${count} publicações. Deseja importar para a biblioteca?`, {
+        duration: 8000,
+        action: {
+          label: 'Importar',
+          onClick: () => importExistingPublications()
+        }
+      });
+    }
+  };
+
+  // Check for import suggestion when library loads empty
+  useEffect(() => {
+    if (!isLoading && mediaItems && mediaItems.length === 0 && user && !hasShownImportSuggestion) {
+      checkAndSuggestImport();
+    }
+  }, [isLoading, mediaItems, user, hasShownImportSuggestion]);
 
   // Toggle favorite mutation
   const toggleFavoriteMutation = useMutation({

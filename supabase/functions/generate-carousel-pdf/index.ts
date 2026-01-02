@@ -11,6 +11,41 @@ interface GeneratePDFRequest {
   title: string;
   pageAlts?: string[];
   postId?: string;
+  caption?: string;
+}
+
+// Generate semantic filename from caption
+function generateSemanticFilename(caption: string | undefined, date: Date = new Date()): string {
+  const stopwords = ['a', 'o', 'e', 'de', 'da', 'do', 'para', 'com', 'em', 'que', 'é', 'mais', 'uma', 'um', 'os', 'as', 'no', 'na', 'por', 'se', 'ou', 'ao', 'aos', 'das', 'dos', 'seu', 'sua', 'como', 'mas', 'não', 'nao', 'isso', 'esta', 'este', 'essa', 'esse', 'aqui', 'ali', 'muito', 'pode', 'ser', 'ter', 'tem', 'está', 'era', 'são', 'foi', 'vai', 'cada', 'todos', 'toda', 'todas'];
+  
+  const month = String(date.getMonth() + 1).padStart(2, '0');
+  const year = date.getFullYear();
+  
+  if (!caption || caption.trim().length === 0) {
+    return `carousel-${month}-${year}.pdf`;
+  }
+  
+  // Remove emojis, hashtags, URLs, mentions
+  let cleaned = caption
+    .replace(/[\u{1F300}-\u{1F9FF}]|[\u{2600}-\u{26FF}]|[\u{2700}-\u{27BF}]|[\u{1F000}-\u{1F02F}]|[\u{1F0A0}-\u{1F0FF}]|[\u{1F100}-\u{1F64F}]|[\u{1F680}-\u{1F6FF}]/gu, '')
+    .replace(/#\w+/g, '')
+    .replace(/@\w+/g, '')
+    .replace(/https?:\/\/\S+/g, '')
+    .toLowerCase();
+  
+  // Normalize (remove accents)
+  cleaned = cleaned.normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+  
+  // Extract words (only alphabetic, min 3 chars, not in stopwords)
+  const words = cleaned
+    .split(/\s+/)
+    .map(w => w.replace(/[^a-z]/g, ''))
+    .filter(w => w.length >= 3 && !stopwords.includes(w))
+    .slice(0, 4);
+  
+  const slug = words.join('-').substring(0, 40) || 'carousel';
+  
+  return `${slug}-${month}-${year}-carousel.pdf`;
 }
 
 interface GeneratePDFResponse {
@@ -47,7 +82,7 @@ serve(async (req) => {
   const globalStartTime = Date.now();
 
   try {
-    const { images, title, pageAlts, postId }: GeneratePDFRequest = await req.json();
+    const { images, title, pageAlts, postId, caption }: GeneratePDFRequest = await req.json();
 
     // 1. Input validation (fail fast)
     if (!images || !Array.isArray(images) || images.length < 2) {
@@ -468,10 +503,11 @@ serve(async (req) => {
         );
       }
 
-      try {
+try {
         const formData = new FormData();
         const pdfBlob = new Blob([new Uint8Array(pdfBytes)], { type: 'application/pdf' });
-        const filename = `${postId || title || 'carousel'}.pdf`;
+        // Generate semantic filename from caption
+        const filename = generateSemanticFilename(caption);
         formData.append('file', pdfBlob, filename);
 
         console.log(`[PDF-GEN] Uploading to ${GETLATE_BASE_URL}/v1/media (${filename})`);
