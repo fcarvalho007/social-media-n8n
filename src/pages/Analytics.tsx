@@ -60,11 +60,25 @@ export default function Analytics() {
   const [selectedCompetitorAccounts, setSelectedCompetitorAccounts] = useState<string[]>([]);
   const [myAccount, setMyAccount] = useState<string | null>(MY_ACCOUNT_USERNAME);
 
-  // Get unique accounts
+  // Contas permitidas (principal + 7 concorrentes)
+  const ALLOWED_ACCOUNTS = [
+    'frederico.m.carvalho',
+    'mariiana.ai',
+    'marcogouveia.pt',
+    'martimsilvai',
+    'robs.cortez',
+    'escolamarketingdigital.pt',
+    'paulofaustino',
+    'samurairt'
+  ];
+
+  // Get unique accounts (filtered to allowed only)
   const accounts = useMemo(() => {
     const usernames = new Set<string>();
     analytics.forEach((p) => {
-      if (p.owner_username) usernames.add(p.owner_username);
+      if (p.owner_username && ALLOWED_ACCOUNTS.includes(p.owner_username)) {
+        usernames.add(p.owner_username);
+      }
     });
     return Array.from(usernames);
   }, [analytics]);
