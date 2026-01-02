@@ -41,13 +41,30 @@ export interface AnalyticsStats {
   engagementOverTime: { date: string; likes: number; comments: number; posts: number }[];
 }
 
-export function useInstagramAnalytics() {
+interface UseInstagramAnalyticsOptions {
+  publicMode?: boolean;
+}
+
+export function useInstagramAnalytics(options?: UseInstagramAnalyticsOptions) {
   const { user } = useAuth();
   const queryClient = useQueryClient();
+  const isPublicMode = options?.publicMode === true;
 
   const { data: analytics = [], isLoading, error } = useQuery({
-    queryKey: ["instagram-analytics", user?.id],
+    queryKey: ["instagram-analytics", user?.id, isPublicMode],
     queryFn: async () => {
+      // Public mode: fetch all data without user filter
+      if (isPublicMode && !user?.id) {
+        const { data, error } = await supabase
+          .from("instagram_analytics")
+          .select("*")
+          .order("posted_at", { ascending: false });
+
+        if (error) throw error;
+        return data as InstagramAnalyticsItem[];
+      }
+
+      // Authenticated mode: filter by user_id
       if (!user?.id) return [];
 
       const { data, error } = await supabase
@@ -59,7 +76,7 @@ export function useInstagramAnalytics() {
       if (error) throw error;
       return data as InstagramAnalyticsItem[];
     },
-    enabled: !!user?.id,
+    enabled: !!user?.id || isPublicMode,
   });
 
   const importMutation = useMutation({
@@ -214,5 +231,6 @@ export function useInstagramAnalytics() {
     isImporting: importMutation.isPending,
     deleteAnalytics: deleteMutation.mutate,
     isDeleting: deleteMutation.isPending,
+    isPublicMode,
   };
 }
