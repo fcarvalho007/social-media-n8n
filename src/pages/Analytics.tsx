@@ -546,12 +546,12 @@ export default function Analytics() {
             {/* Tabs: Overview + Competition + Profiles */}
             <Tabs defaultValue="overview" className="space-y-4">
               <TabsList className="w-full sm:w-auto flex">
-                <TabsTrigger value="overview" className="flex-1 sm:flex-none">Visão Geral</TabsTrigger>
-                <TabsTrigger value="competition" className="gap-1.5 flex-1 sm:flex-none">
+                <TabsTrigger value="overview" className="flex-1 sm:flex-none font-medium">Visão Geral</TabsTrigger>
+                <TabsTrigger value="competition" className="gap-1.5 flex-1 sm:flex-none font-medium">
                   <Users className="h-4 w-4 hidden sm:block" />
                   Concorrência
                 </TabsTrigger>
-                <TabsTrigger value="profiles" className="gap-1.5 flex-1 sm:flex-none">
+                <TabsTrigger value="profiles" className="gap-1.5 flex-1 sm:flex-none font-medium">
                   <UserCircle className="h-4 w-4 hidden sm:block" />
                   Perfis
                 </TabsTrigger>
@@ -569,8 +569,8 @@ export default function Analytics() {
                   />
                 )}
 
-                {/* 4. CONTENT ANALYSIS (2 columns) */}
-                <div className="grid grid-cols-1 lg:grid-cols-2 gap-6" id="content-analysis">
+                {/* 4. CONTENT ANALYSIS - full width each */}
+                <div id="content-analysis" className="space-y-6">
                   <ContentTypeBreakdown data={filteredStats.contentTypeBreakdown} />
                   <HashtagCloud
                     data={filteredStats.topHashtags} 

@@ -104,7 +104,7 @@ export const HashtagCloud = memo(function HashtagCloud({ data, contextLabel }: H
         )}
       </CardHeader>
       <CardContent className="pt-2">
-        <ResponsiveContainer width="100%" height={340}>
+        <ResponsiveContainer width="100%" height={400}>
           <BarChart 
             data={chartData} 
             layout="vertical" 

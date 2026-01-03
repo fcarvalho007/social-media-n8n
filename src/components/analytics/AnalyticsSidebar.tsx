@@ -54,7 +54,7 @@ export function AnalyticsSidebar({ className }: AnalyticsSidebarProps) {
       {/* Header */}
       <div className="flex items-center justify-between p-3 border-b border-sidebar-border">
         {!isCollapsed && (
-          <span className="text-sm font-medium text-sidebar-foreground/70">Navegação</span>
+          <span className="text-sm font-semibold text-sidebar-foreground">Navegação</span>
         )}
         <Button
           variant="ghost"
@@ -83,10 +83,10 @@ export function AnalyticsSidebar({ className }: AnalyticsSidebarProps) {
                 size="sm"
                 className={cn(
                   "justify-start gap-3 transition-all duration-200 rounded-lg",
-                  "text-sidebar-foreground/70 hover:text-sidebar-foreground",
+                  "text-sidebar-foreground font-medium hover:text-white",
                   isCollapsed ? "px-2 justify-center" : "px-3",
                   isActive 
-                    ? "bg-sidebar-accent/20 text-sidebar-foreground border-l-2 border-sidebar-accent" 
+                    ? "bg-sidebar-accent/20 text-white font-bold border-l-2 border-sidebar-accent" 
                     : "hover:bg-sidebar-muted"
                 )}
                 onClick={() => scrollToSection(section.id)}
@@ -94,13 +94,13 @@ export function AnalyticsSidebar({ className }: AnalyticsSidebarProps) {
                 <section.icon 
                   className={cn(
                     "h-4 w-4 flex-shrink-0 transition-colors",
-                    isActive ? "text-sidebar-accent" : ""
+                    isActive ? "text-sidebar-accent" : "text-sidebar-foreground"
                   )} 
                 />
                 {!isCollapsed && (
                   <span className={cn(
-                    "truncate text-sm",
-                    isActive && "font-medium"
+                    "truncate text-sm text-sidebar-foreground",
+                    isActive && "text-white font-bold"
                   )}>
                     {section.label}
                   </span>
@@ -114,7 +114,7 @@ export function AnalyticsSidebar({ className }: AnalyticsSidebarProps) {
       {/* Footer - mini branding */}
       {!isCollapsed && (
         <div className="p-3 border-t border-sidebar-border">
-          <p className="text-[10px] text-sidebar-foreground/40 text-center">
+          <p className="text-xs text-sidebar-foreground/60 text-center">
             Analytics v2.0
           </p>
         </div>
