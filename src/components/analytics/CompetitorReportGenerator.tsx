@@ -308,7 +308,7 @@ export function CompetitorReportGenerator({
                     <div className="flex items-center gap-2">
                       <span className="text-sm font-medium">Relatório Executivo</span>
                       <Badge variant="outline" className="text-[10px] border-amber-500/50 text-amber-600">
-                        GPT-4o
+                        GPT-5
                       </Badge>
                     </div>
                     <div className="flex items-center gap-1 text-xs text-muted-foreground">

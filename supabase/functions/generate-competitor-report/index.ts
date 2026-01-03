@@ -15,14 +15,7 @@ serve(async (req) => {
   }
 
   try {
-    const { 
-      competitorUsername, 
-      myAccountUsername, 
-      competitorData, 
-      myAccountData,
-      allPosts,
-      objective
-    } = await req.json();
+    const body = await req.json();
 
     if (!openAIApiKey) {
       console.error('OpenAI API key not configured');
@@ -34,6 +27,64 @@ serve(async (req) => {
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       });
     }
+
+    // MODO 1: Chamada genérica com prompt (ProfileReportGenerator)
+    if (body.prompt) {
+      console.log('Generic prompt mode - generating report with GPT-5');
+      
+      const response = await fetch('https://api.openai.com/v1/chat/completions', {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${openAIApiKey}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          model: 'gpt-5-2025-08-07',
+          messages: [
+            { 
+              role: 'system', 
+              content: 'Actua como consultor sénior de estratégia digital e marketing em redes sociais. Responde sempre em Português de Portugal (PT-PT), com tom profissional e objectivo. Formata o output em Markdown bem estruturado.' 
+            },
+            { role: 'user', content: body.prompt }
+          ],
+          max_completion_tokens: 6000,
+        }),
+      });
+
+      if (!response.ok) {
+        const errorText = await response.text();
+        console.error('OpenAI API error:', response.status, errorText);
+        return new Response(JSON.stringify({ 
+          error: 'OpenAI API error: ' + errorText,
+          report: ''
+        }), {
+          status: response.status,
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        });
+      }
+
+      const aiResponse = await response.json();
+      const report = aiResponse.choices[0]?.message?.content || '';
+      
+      console.log('Generated generic report length:', report.length);
+
+      return new Response(JSON.stringify({ 
+        report,
+        generatedAt: new Date().toISOString()
+      }), {
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      });
+    }
+
+    // MODO 2: Chamada tradicional com competitorData (CompetitorReportGenerator)
+    const { 
+      competitorUsername, 
+      myAccountUsername, 
+      competitorData, 
+      myAccountData,
+      allPosts,
+      objective
+    } = body;
 
     // Map objective to Portuguese
     const objectiveMap: Record<string, string> = {
@@ -162,25 +213,25 @@ ESTILO VISUAL
     const userPrompt = `Gera um relatório de análise competitiva completo para:
 
 CONCORRENTE: @${competitorUsername}
-- Posts analisados: ${competitorData.postCount || 0}
-- Total de likes: ${competitorData.totalLikes?.toLocaleString() || 0}
-- Total de comentários: ${competitorData.totalComments?.toLocaleString() || 0}
-- Média de likes por post: ${competitorData.avgLikes?.toLocaleString() || 0}
-- Média de comentários por post: ${competitorData.avgComments?.toLocaleString() || 0}
-- Engagement médio: ${competitorData.avgEngagement?.toLocaleString() || 0}
-- Tipos de conteúdo: ${JSON.stringify(competitorData.contentTypes || {})}
-- Top hashtags: ${JSON.stringify(competitorData.topHashtags || [])}
-- Período dos dados: ${competitorData.period || 'não especificado'}
+- Posts analisados: ${competitorData?.postCount || 0}
+- Total de likes: ${competitorData?.totalLikes?.toLocaleString() || 0}
+- Total de comentários: ${competitorData?.totalComments?.toLocaleString() || 0}
+- Média de likes por post: ${competitorData?.avgLikes?.toLocaleString() || 0}
+- Média de comentários por post: ${competitorData?.avgComments?.toLocaleString() || 0}
+- Engagement médio: ${competitorData?.avgEngagement?.toLocaleString() || 0}
+- Tipos de conteúdo: ${JSON.stringify(competitorData?.contentTypes || {})}
+- Top hashtags: ${JSON.stringify(competitorData?.topHashtags || [])}
+- Período dos dados: ${competitorData?.period || 'não especificado'}
 
 A MINHA CONTA: @${myAccountUsername}
-- Posts analisados: ${myAccountData.postCount || 0}
-- Total de likes: ${myAccountData.totalLikes?.toLocaleString() || 0}
-- Total de comentários: ${myAccountData.totalComments?.toLocaleString() || 0}
-- Média de likes por post: ${myAccountData.avgLikes?.toLocaleString() || 0}
-- Média de comentários por post: ${myAccountData.avgComments?.toLocaleString() || 0}
-- Engagement médio: ${myAccountData.avgEngagement?.toLocaleString() || 0}
-- Tipos de conteúdo: ${JSON.stringify(myAccountData.contentTypes || {})}
-- Top hashtags: ${JSON.stringify(myAccountData.topHashtags || [])}
+- Posts analisados: ${myAccountData?.postCount || 0}
+- Total de likes: ${myAccountData?.totalLikes?.toLocaleString() || 0}
+- Total de comentários: ${myAccountData?.totalComments?.toLocaleString() || 0}
+- Média de likes por post: ${myAccountData?.avgLikes?.toLocaleString() || 0}
+- Média de comentários por post: ${myAccountData?.avgComments?.toLocaleString() || 0}
+- Engagement médio: ${myAccountData?.avgEngagement?.toLocaleString() || 0}
+- Tipos de conteúdo: ${JSON.stringify(myAccountData?.contentTypes || {})}
+- Top hashtags: ${JSON.stringify(myAccountData?.topHashtags || [])}
 
 ${allPosts ? `DADOS DETALHADOS DOS POSTS (últimos 50 por conta):
 ${JSON.stringify(allPosts.slice(0, 100), null, 2)}` : ''}
@@ -196,13 +247,12 @@ Gera o relatório completo em Markdown seguindo EXACTAMENTE a estrutura definida
         'Content-Type': 'application/json',
       },
       body: JSON.stringify({
-        model: 'gpt-4o',
+        model: 'gpt-5-2025-08-07',
         messages: [
           { role: 'system', content: systemPrompt },
           { role: 'user', content: userPrompt }
         ],
-        temperature: 0.7,
-        max_tokens: 6000,
+        max_completion_tokens: 6000,
       }),
     });
 
