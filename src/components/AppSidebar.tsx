@@ -158,17 +158,17 @@ export function AppSidebar() {
                       className="h-auto p-0 hover:bg-transparent"
                     >
                       {item.disabled ? (
-                        <div className="flex flex-col items-center gap-1.5 mx-auto opacity-40 cursor-not-allowed">
-                          <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-muted/50 relative">
-                            <item.icon className="h-4 w-4 text-muted-foreground" strokeWidth={1.5} />
+                        <div className="flex flex-col items-center gap-2 mx-auto opacity-40 cursor-not-allowed">
+                          <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-muted/50 relative">
+                            <item.icon className="h-5 w-5 text-foreground/40" strokeWidth={1.5} />
                           </div>
-                          <span className="text-[10px] text-muted-foreground font-medium text-center leading-tight">{item.label}</span>
+                          <span className="text-xs text-foreground/40 font-medium text-center leading-tight">{item.label}</span>
                         </div>
                       ) : (
                         <NavLink
                           to={(item as any).getSmartUrl ? (item as any).getSmartUrl() : item.url}
                           onClick={() => isMobile && setOpen(false)}
-                          className="flex flex-col items-center gap-1.5 mx-auto group w-full py-1.5 hover:scale-[1.02] active:scale-[0.98] transition-all duration-200 ease-out min-h-[56px] touch-target rounded-xl"
+                          className="flex flex-col items-center gap-2 mx-auto group w-full py-1.5 hover:scale-[1.02] active:scale-[0.98] transition-all duration-200 ease-out min-h-[60px] touch-target rounded-xl"
                         >
                           {({ isActive }) => {
                             const isApprovalItem = item.url === '/pending';
@@ -178,7 +178,7 @@ export function AppSidebar() {
                               <>
                                 <div 
                                   className={cn(
-                                    "flex h-10 w-10 items-center justify-center rounded-xl relative transition-all duration-200 ease-out",
+                                    "flex h-11 w-11 items-center justify-center rounded-xl relative transition-all duration-200 ease-out",
                                     isActive && item.isMain && "bg-primary shadow-[0_6px_20px_-6px_hsl(var(--primary)/0.5)] ring-1 ring-primary/20",
                                     isActive && !item.isMain && "bg-primary/10 ring-1 ring-primary/20",
                                     !isActive && "bg-card/80 backdrop-blur-sm group-hover:bg-card group-hover:shadow-md group-hover:ring-1 group-hover:ring-primary/10"
@@ -186,10 +186,10 @@ export function AppSidebar() {
                                 >
                                   <item.icon 
                                     className={cn(
-                                      "h-[18px] w-[18px] transition-all duration-200",
+                                      "h-5 w-5 transition-all duration-200",
                                       isActive && item.isMain && "text-primary-foreground",
                                       isActive && !item.isMain && "text-primary",
-                                      !isActive && "text-muted-foreground group-hover:text-primary group-hover:scale-105"
+                                      !isActive && "text-foreground/60 group-hover:text-primary group-hover:scale-105"
                                     )} 
                                     strokeWidth={isActive ? 2.5 : 2}
                                   />
@@ -235,9 +235,9 @@ export function AppSidebar() {
                                 
                                 <span 
                                   className={cn(
-                                    "text-[10px] font-medium text-center leading-tight transition-all duration-200",
+                                    "text-xs font-medium text-center leading-tight transition-all duration-200",
                                     isActive && "text-primary font-semibold",
-                                    !isActive && "text-muted-foreground group-hover:text-primary"
+                                    !isActive && "text-foreground/70 group-hover:text-foreground"
                                   )}
                                 >
                                   {item.label}
@@ -257,8 +257,8 @@ export function AppSidebar() {
         
         <SidebarFooter className="border-t border-border/20 bg-card/30 backdrop-blur-md">
           <div className="flex flex-col items-center gap-2 p-3">
-            <Avatar className="h-8 w-8 ring-1 ring-primary/20 transition-all hover:ring-primary/40 hover:scale-105">
-              <AvatarFallback className="bg-primary/15 text-primary text-[10px] font-bold">
+            <Avatar className="h-9 w-9 ring-1 ring-primary/20 transition-all hover:ring-primary/40 hover:scale-105">
+              <AvatarFallback className="bg-primary/15 text-primary text-xs font-bold">
                 {user?.email ? getInitials(user.email) : 'U'}
               </AvatarFallback>
             </Avatar>
@@ -266,10 +266,10 @@ export function AppSidebar() {
               variant="ghost"
               size="sm"
               onClick={handleLogout}
-              className="h-7 px-2 rounded-lg hover:bg-destructive/10 hover:text-destructive transition-all duration-200 text-[10px] gap-1"
+              className="h-8 px-2.5 rounded-lg hover:bg-destructive/10 hover:text-destructive transition-all duration-200 text-xs gap-1.5"
               title="Logout"
             >
-              <LogOut className="h-3 w-3" />
+              <LogOut className="h-4 w-4" />
               <span>Sair</span>
             </Button>
           </div>
