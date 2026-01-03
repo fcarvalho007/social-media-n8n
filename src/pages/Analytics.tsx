@@ -566,13 +566,21 @@ export default function Analytics() {
             </TabsContent>
 
             <TabsContent value="profiles" className="space-y-6">
-              {/* Profile KPIs */}
-              {latestProfiles.length > 0 && (
-                <ProfileKPICards profiles={latestProfiles} />
-              )}
-
-              {/* Profile Cards */}
-              {latestProfiles.length === 0 ? (
+              {/* Loading state for profiles */}
+              {isLoadingProfiles ? (
+                <div className="space-y-6">
+                  <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+                    {[...Array(4)].map((_, i) => (
+                      <Skeleton key={i} className="h-24 rounded-xl" />
+                    ))}
+                  </div>
+                  <div className="grid lg:grid-cols-2 gap-6">
+                    {[...Array(4)].map((_, i) => (
+                      <Skeleton key={i} className="h-64 rounded-xl" />
+                    ))}
+                  </div>
+                </div>
+              ) : latestProfiles.length === 0 ? (
                 <Card className="border-dashed">
                   <CardContent className="flex flex-col items-center justify-center py-16 text-center">
                     <UserCircle className="h-12 w-12 text-muted-foreground mb-4" />
@@ -589,6 +597,9 @@ export default function Analytics() {
                 </Card>
               ) : (
                 <>
+                  {/* Profile KPIs */}
+                  <ProfileKPICards profiles={latestProfiles} />
+
                   <ProfileComparisonCards profiles={latestProfiles} mainAccount={myAccount || undefined} />
 
                   {/* Followers Chart */}

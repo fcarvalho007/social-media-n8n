@@ -37,10 +37,10 @@ export function useInstagramProfiles(options?: UseInstagramProfilesOptions) {
   const isPublicMode = options?.publicMode === true;
 
   const { data: profiles = [], isLoading, error } = useQuery({
-    queryKey: ["instagram-profiles", user?.id, isPublicMode],
+    queryKey: ["instagram-profiles", isPublicMode ? "public" : user?.id],
     queryFn: async () => {
-      // Public mode: fetch all data without user filter
-      if (isPublicMode && !user?.id) {
+      // Public mode: ALWAYS fetch global dataset (for production app)
+      if (isPublicMode) {
         const { data, error } = await supabase
           .from("instagram_profiles")
           .select("*")
@@ -50,7 +50,7 @@ export function useInstagramProfiles(options?: UseInstagramProfilesOptions) {
         return data as InstagramProfile[];
       }
 
-      // Authenticated mode: filter by user_id
+      // Private mode: filter by user_id
       if (!user?.id) return [];
 
       const { data, error } = await supabase
