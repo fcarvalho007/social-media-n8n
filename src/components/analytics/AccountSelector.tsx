@@ -69,6 +69,9 @@ export function AccountSelector({
             {selectedAccounts.length} de {accounts.length}
           </Badge>
         </div>
+        <p className="text-xs text-muted-foreground mt-2">
+          Seleccione contas para comparar com a sua conta principal (destacada em dourado ⭐)
+        </p>
       </CardHeader>
       <CardContent className="space-y-4">
         {/* My Account Section */}

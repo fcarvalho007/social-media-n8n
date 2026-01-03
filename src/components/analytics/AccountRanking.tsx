@@ -1,4 +1,4 @@
-import { Trophy, Heart, MessageCircle, BarChart3, Star, Lightbulb, TrendingUp, ChevronDown, ChevronUp } from "lucide-react";
+import { Trophy, Heart, MessageCircle, BarChart3, Star, Lightbulb, TrendingUp, ChevronDown, ChevronUp, Info } from "lucide-react";
 import { useState, useMemo } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Progress } from "@/components/ui/progress";
@@ -70,8 +70,8 @@ export function AccountRanking({ accounts, sortBy = "avgEngagement", myAccount }
       if (likesDiff > 50) {
         insightsList.push({
           icon: <Heart className="h-4 w-4" />,
-          text: `Líder recebe`,
-          highlight: `+${Math.round(likesDiff)} likes/post`,
+          text: `@${leader.username} (1º lugar) recebe`,
+          highlight: `+${Math.round(likesDiff)} likes/post vs a sua conta`,
           color: "text-rose-500 bg-rose-500/15",
         });
       }
@@ -83,8 +83,8 @@ export function AccountRanking({ accounts, sortBy = "avgEngagement", myAccount }
       if (commentsDiff > 10) {
         insightsList.push({
           icon: <MessageCircle className="h-4 w-4" />,
-          text: `Líder recebe`,
-          highlight: `+${Math.round(commentsDiff)} comentários/post`,
+          text: `@${leader.username} (1º lugar) recebe`,
+          highlight: `+${Math.round(commentsDiff)} comentários/post vs a sua conta`,
           color: "text-blue-500 bg-blue-500/15",
         });
       }
@@ -100,7 +100,7 @@ export function AccountRanking({ accounts, sortBy = "avgEngagement", myAccount }
       if (leaderVideoPercent > myVideoPercent + 20) {
         insightsList.push({
           icon: <BarChart3 className="h-4 w-4" />,
-          text: `Líder publica`,
+          text: `@${leader.username} publica`,
           highlight: `${Math.round(leaderVideoPercent - myVideoPercent)}% mais vídeos`,
           color: "text-violet-500 bg-violet-500/15",
         });
@@ -163,14 +163,26 @@ export function AccountRanking({ accounts, sortBy = "avgEngagement", myAccount }
     <TooltipProvider>
       <Card className="overflow-hidden">
         <CardHeader className="pb-3">
-          <div className="flex items-center justify-between">
+          <div className="flex items-center justify-between flex-wrap gap-2">
             <CardTitle className="text-base flex items-center gap-2">
               <div className="p-1.5 rounded-lg bg-yellow-500/15">
                 <Trophy className="h-4 w-4 text-yellow-500" />
               </div>
               Ranking de Contas
             </CardTitle>
-            <span className="text-xs text-muted-foreground">por {getSortLabel()}</span>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <span className="text-xs text-muted-foreground flex items-center gap-1 cursor-help">
+                  por {getSortLabel()}
+                  <Info className="h-3 w-3" />
+                </span>
+              </TooltipTrigger>
+              <TooltipContent className="max-w-[200px]">
+                <p className="text-xs">
+                  <strong>Engagement médio</strong> = (Likes + Comentários) ÷ Número de posts
+                </p>
+              </TooltipContent>
+            </Tooltip>
           </div>
           {myAccount && myAccountRank && (
             <div className="flex items-center gap-2 mt-2 p-2.5 rounded-xl bg-gradient-to-r from-amber-500/15 to-orange-500/15 border border-amber-500/30">
