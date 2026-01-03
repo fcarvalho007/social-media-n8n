@@ -18,6 +18,14 @@ const CONTENT_TYPE_COLORS = {
   Image: "hsl(221, 83%, 53%)",
   Video: "hsl(340, 82%, 52%)",
   Sidecar: "hsl(142, 71%, 45%)",
+  Carrossel: "hsl(142, 71%, 45%)", // Same as Sidecar (Portuguese variant)
+};
+
+// Normalize post_type to handle both "Sidecar" (English) and "Carrossel" (Portuguese)
+const normalizePostType = (postType: string | null): string => {
+  if (!postType) return "Image";
+  if (postType === "Carrossel" || postType === "Sidecar") return "Sidecar";
+  return postType;
 };
 
 // Helper functions - defined before component to avoid initialization errors
@@ -26,6 +34,7 @@ const getTypeLabel = (type: string) => {
     case "Image": return "Imagem";
     case "Video": return "Vídeo";
     case "Sidecar": return "Carrossel";
+    case "Carrossel": return "Carrossel";
     default: return type;
   }
 };
@@ -69,9 +78,9 @@ export function ContentTypeComparison({
       const colorIndex = accountColorMap.get(username) || 0;
       const isMyAccount = username === myAccount;
 
-      const imageCount = accountPosts.filter((p) => (p.post_type || "Image") === "Image").length;
-      const videoCount = accountPosts.filter((p) => p.post_type === "Video").length;
-      const sidecarCount = accountPosts.filter((p) => p.post_type === "Sidecar").length;
+      const imageCount = accountPosts.filter((p) => normalizePostType(p.post_type) === "Image").length;
+      const videoCount = accountPosts.filter((p) => normalizePostType(p.post_type) === "Video").length;
+      const sidecarCount = accountPosts.filter((p) => normalizePostType(p.post_type) === "Sidecar").length;
 
       const imagePct = total > 0 ? Math.round((imageCount / total) * 100) : 0;
       const videoPct = total > 0 ? Math.round((videoCount / total) * 100) : 0;

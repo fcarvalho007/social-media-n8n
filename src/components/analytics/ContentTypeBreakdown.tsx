@@ -44,9 +44,12 @@ export function ContentTypeBreakdown({ data }: ContentTypeBreakdownProps) {
 
   if (chartData.length === 0) {
     return (
-      <Card>
+      <Card className="col-span-full">
         <CardHeader>
-          <CardTitle className="text-lg">Tipos de Conteúdo</CardTitle>
+          <CardTitle className="text-xl font-bold flex items-center gap-2">
+            <Images className="h-6 w-6 text-primary" />
+            Tipos de Conteúdo
+          </CardTitle>
         </CardHeader>
         <CardContent className="h-[300px] flex items-center justify-center text-muted-foreground">
           Sem dados disponíveis
@@ -56,6 +59,9 @@ export function ContentTypeBreakdown({ data }: ContentTypeBreakdownProps) {
   }
 
   const total = chartData.reduce((sum, item) => sum + item.count, 0);
+  
+  // Sort by count for better visualization
+  const sortedData = [...chartData].sort((a, b) => b.count - a.count);
 
   const CustomTooltip = ({ active, payload }: any) => {
     if (!active || !payload?.length) return null;
@@ -79,84 +85,122 @@ export function ContentTypeBreakdown({ data }: ContentTypeBreakdownProps) {
     );
   };
 
+  // Find best type by engagement
+  const bestType = sortedData.reduce((best, item) => 
+    item.avgEngagement > best.avgEngagement ? item : best
+  , sortedData[0]);
+
   return (
-    <Card className="overflow-hidden">
-      <CardHeader className="pb-2">
-        <CardTitle className="text-lg">Tipos de Conteúdo</CardTitle>
+    <Card className="col-span-full overflow-hidden border-2 border-primary/20 bg-gradient-to-br from-background via-background to-primary/5">
+      <CardHeader className="pb-4 bg-gradient-to-r from-primary/5 to-transparent">
+        <div className="flex items-center justify-between">
+          <CardTitle className="text-xl font-bold flex items-center gap-3">
+            <div className="p-2 rounded-xl bg-primary/10">
+              <Images className="h-6 w-6 text-primary" />
+            </div>
+            Tipos de Conteúdo
+          </CardTitle>
+          <div className="text-right">
+            <div className="text-3xl font-bold text-primary">{total}</div>
+            <div className="text-xs text-muted-foreground">posts analisados</div>
+          </div>
+        </div>
       </CardHeader>
-      <CardContent>
-        {/* Responsive layout: vertical on mobile, horizontal on desktop */}
-        <div className="flex flex-col md:flex-row items-center md:items-start gap-4 md:gap-6">
-          {/* Donut Chart - Centered on mobile */}
-          <div className="relative flex-shrink-0 mx-auto md:mx-0">
-            <ResponsiveContainer width={140} height={140}>
+      <CardContent className="pt-0">
+        {/* Main layout - larger chart and detailed stats */}
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+          {/* Large Donut Chart */}
+          <div className="relative mx-auto">
+            <ResponsiveContainer width={280} height={280}>
               <PieChart>
                 <Pie
-                  data={chartData}
+                  data={sortedData}
                   cx="50%"
                   cy="50%"
-                  innerRadius={40}
-                  outerRadius={65}
-                  paddingAngle={4}
+                  innerRadius={70}
+                  outerRadius={120}
+                  paddingAngle={3}
                   dataKey="count"
                   strokeWidth={0}
                 >
-                  {chartData.map((entry, index) => (
+                  {sortedData.map((entry, index) => (
                     <Cell 
                       key={`cell-${index}`} 
                       fill={entry.color}
-                      className="transition-all duration-300 hover:opacity-80 cursor-pointer"
+                      className="transition-all duration-300 hover:opacity-80 cursor-pointer drop-shadow-lg"
                     />
                   ))}
                 </Pie>
                 <Tooltip content={<CustomTooltip />} />
               </PieChart>
             </ResponsiveContainer>
-            {/* Center label with animation */}
+            {/* Center label */}
             <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none">
-              <span className="text-2xl font-bold">{total}</span>
-              <span className="text-[10px] text-muted-foreground">posts</span>
+              <div className="text-center bg-background/80 backdrop-blur-sm rounded-full p-4">
+                <span className="text-4xl font-bold">{total}</span>
+                <div className="text-sm text-muted-foreground">publicações</div>
+              </div>
             </div>
           </div>
 
-          {/* Legend with stats - Responsive grid on mobile */}
-          <div className="flex-1 w-full space-y-2 py-2">
-            {chartData.map((item) => {
-              const percentage = ((item.count / total) * 100).toFixed(0);
+          {/* Detailed Stats Cards */}
+          <div className="space-y-4">
+            {sortedData.map((item, idx) => {
+              const percentage = ((item.count / total) * 100).toFixed(1);
               const Icon = TYPE_ICONS[item.type] || Image;
+              const isTop = idx === 0;
 
               return (
                 <div 
                   key={item.type} 
-                  className="flex items-center gap-2 md:gap-3 p-1.5 rounded-lg hover:bg-muted/50 transition-colors"
+                  className={`relative p-4 rounded-xl border transition-all duration-300 hover:scale-[1.02] ${
+                    isTop 
+                      ? 'bg-gradient-to-r from-primary/10 to-primary/5 border-primary/30 shadow-lg' 
+                      : 'bg-card hover:bg-muted/50 border-border'
+                  }`}
                 >
-                  {/* Color indicator */}
-                  <div
-                    className="w-3 h-3 rounded-full flex-shrink-0 shadow-sm"
-                    style={{ backgroundColor: item.color }}
-                  />
+                  {isTop && (
+                    <div className="absolute -top-2 -right-2 bg-primary text-primary-foreground text-xs px-2 py-0.5 rounded-full font-medium">
+                      #1 Formato
+                    </div>
+                  )}
+                  <div className="flex items-center gap-4">
+                    {/* Icon with color background */}
+                    <div 
+                      className="p-3 rounded-xl"
+                      style={{ backgroundColor: `${item.color}20` }}
+                    >
+                      <Icon 
+                        className="h-6 w-6" 
+                        style={{ color: item.color }}
+                      />
+                    </div>
 
-                  {/* Icon and name */}
-                  <div className="flex items-center gap-1.5 md:gap-2 min-w-[70px] md:min-w-[90px]">
-                    <Icon className="h-3.5 w-3.5 md:h-4 md:w-4 text-muted-foreground" />
-                    <span className="font-medium text-xs md:text-sm">{item.name}</span>
-                  </div>
+                    {/* Name and Count */}
+                    <div className="flex-1">
+                      <div className="flex items-center gap-2">
+                        <span className={`font-bold ${isTop ? 'text-lg' : 'text-base'}`}>{item.name}</span>
+                        <div
+                          className="w-3 h-3 rounded-full"
+                          style={{ backgroundColor: item.color }}
+                        />
+                      </div>
+                      <div className="flex items-baseline gap-2">
+                        <span className="text-2xl font-bold">{item.count}</span>
+                        <span className="text-muted-foreground">posts ({percentage}%)</span>
+                      </div>
+                    </div>
 
-                  {/* Count and percentage */}
-                  <div className="flex items-center gap-1 md:gap-2 text-xs md:text-sm">
-                    <span className="font-semibold">{item.count}</span>
-                    <span className="text-muted-foreground">({percentage}%)</span>
-                  </div>
-
-                  {/* Avg engagement */}
-                  <div 
-                    className="ml-auto text-[10px] md:text-xs font-medium px-1.5 md:px-2 py-0.5 rounded-full"
-                    style={{ 
-                      backgroundColor: `${item.color}20`,
-                      color: item.color 
-                    }}
-                  >
-                    ~{item.avgEngagement}
+                    {/* Avg engagement */}
+                    <div className="text-right">
+                      <div 
+                        className="text-xl font-bold"
+                        style={{ color: item.color }}
+                      >
+                        ~{item.avgEngagement}
+                      </div>
+                      <div className="text-xs text-muted-foreground">engagement/post</div>
+                    </div>
                   </div>
                 </div>
               );
@@ -164,40 +208,59 @@ export function ContentTypeBreakdown({ data }: ContentTypeBreakdownProps) {
           </div>
         </div>
 
-        {/* Visual bar representation with gradient */}
-        <div className="mt-4 h-3 rounded-full overflow-hidden flex bg-muted/50 shadow-inner">
-          {chartData.map((item) => {
-            const percentage = (item.count / total) * 100;
-            return (
-              <div
-                key={item.type}
-                className="h-full transition-all duration-500 hover:brightness-110"
-                style={{
-                  width: `${percentage}%`,
-                  background: `linear-gradient(135deg, ${item.color}, ${item.color}DD)`,
-                }}
-                title={`${item.name}: ${item.count} (${percentage.toFixed(1)}%)`}
-              />
-            );
-          })}
+        {/* Visual bar representation - larger */}
+        <div className="mt-8 space-y-2">
+          <div className="text-sm font-medium text-muted-foreground">Distribuição Visual</div>
+          <div className="h-6 rounded-full overflow-hidden flex bg-muted/50 shadow-inner">
+            {sortedData.map((item) => {
+              const percentage = (item.count / total) * 100;
+              return (
+                <div
+                  key={item.type}
+                  className="h-full transition-all duration-500 hover:brightness-110 relative group"
+                  style={{
+                    width: `${percentage}%`,
+                    background: `linear-gradient(135deg, ${item.color}, ${item.color}DD)`,
+                  }}
+                >
+                  <div className="absolute inset-0 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
+                    <span className="text-xs font-bold text-white drop-shadow-lg">{percentage.toFixed(0)}%</span>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+          <div className="flex justify-between text-xs text-muted-foreground">
+            {sortedData.map((item) => (
+              <div key={item.type} className="flex items-center gap-1">
+                <div className="w-2 h-2 rounded-full" style={{ backgroundColor: item.color }} />
+                <span>{item.name}</span>
+              </div>
+            ))}
+          </div>
         </div>
 
-        {/* Smart recommendation */}
-        {chartData.length > 1 && (() => {
-          const sorted = [...chartData].sort((a, b) => b.avgEngagement - a.avgEngagement);
+        {/* Smart recommendation - enhanced */}
+        {sortedData.length > 1 && (() => {
+          const sorted = [...sortedData].sort((a, b) => b.avgEngagement - a.avgEngagement);
           const best = sorted[0];
           const worst = sorted[sorted.length - 1];
           
-          if (best && worst && best.avgEngagement > worst.avgEngagement * 1.15) {
+          if (best && worst && best.avgEngagement > worst.avgEngagement * 1.1) {
             const improvement = Math.round(((best.avgEngagement - worst.avgEngagement) / worst.avgEngagement) * 100);
             return (
-              <div className="mt-4 p-3 rounded-xl bg-gradient-to-r from-amber-500/10 to-orange-500/10 border border-amber-500/20">
-                <div className="flex items-start gap-2">
-                  <Lightbulb className="h-4 w-4 text-amber-500 mt-0.5 flex-shrink-0" />
-                  <p className="text-xs text-amber-700 dark:text-amber-400">
-                    <strong>{best.name}</strong> têm <strong>+{improvement}%</strong> mais engagement que {worst.name.toLowerCase()}. 
-                    Considere publicar mais deste formato.
-                  </p>
+              <div className="mt-6 p-4 rounded-xl bg-gradient-to-r from-amber-500/15 to-orange-500/10 border border-amber-500/30">
+                <div className="flex items-start gap-3">
+                  <div className="p-2 rounded-full bg-amber-500/20">
+                    <Lightbulb className="h-5 w-5 text-amber-500" />
+                  </div>
+                  <div>
+                    <div className="font-semibold text-amber-700 dark:text-amber-300 mb-1">Recomendação</div>
+                    <p className="text-sm text-amber-700/80 dark:text-amber-400/80">
+                      <strong>{best.name}</strong> geram <strong>+{improvement}%</strong> mais engagement que {worst.name.toLowerCase()}. 
+                      Considere aumentar a frequência deste formato nas suas publicações.
+                    </p>
+                  </div>
                 </div>
               </div>
             );

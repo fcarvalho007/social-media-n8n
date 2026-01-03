@@ -171,10 +171,16 @@ export function useInstagramAnalytics(options?: UseInstagramAnalyticsOptions) {
       .sort((a, b) => b.count - a.count)
       .slice(0, 15);
 
-    // Content type breakdown
+    // Content type breakdown - normalize "Carrossel" to "Sidecar" for consistency
+    const normalizeType = (type: string | null): string => {
+      if (!type) return "Image";
+      if (type === "Carrossel") return "Sidecar";
+      return type;
+    };
+    
     const typeMap = new Map<string, { count: number; totalEngagement: number }>();
     analytics.forEach((post) => {
-      const type = post.post_type || "Image";
+      const type = normalizeType(post.post_type);
       const existing = typeMap.get(type) || { count: 0, totalEngagement: 0 };
       typeMap.set(type, {
         count: existing.count + 1,
