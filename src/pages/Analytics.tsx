@@ -18,6 +18,7 @@ import { InsightsSummary } from "@/components/analytics/InsightsSummary";
 import { DataContextBadge } from "@/components/analytics/DataContextBadge";
 import { AnalyticsFilters, type PeriodFilter, type ContentTypeFilter } from "@/components/analytics/AnalyticsFilters";
 import { ImportInstagramExcel } from "@/components/analytics/ImportInstagramExcel";
+import { ImportPostsJson } from "@/components/analytics/ImportPostsJson";
 import { useInstagramAnalytics } from "@/hooks/useInstagramAnalytics";
 import { AccountSelector } from "@/components/analytics/AccountSelector";
 import { AccountRanking, type AccountStats } from "@/components/analytics/AccountRanking";
@@ -328,6 +329,7 @@ export default function Analytics() {
         {!isPublicMode && (
           <div className="flex items-center gap-2">
             <ImportInstagramExcel onImport={importPosts} isImporting={isImporting} />
+            <ImportPostsJson />
             {!isEmpty && (
               <AlertDialog>
                 <AlertDialogTrigger asChild>
