@@ -449,14 +449,11 @@ export default function Analytics() {
               </div>
 
               {/* Main charts row */}
-              <div className="grid lg:grid-cols-3 gap-6">
-                <div className="lg:col-span-2">
-                  <EngagementChart data={filteredStats.engagementOverTime} />
-                </div>
-                <div className="space-y-6">
-                  <ContentTypeBreakdown data={filteredStats.contentTypeBreakdown} />
-                </div>
-              </div>
+            {/* Engagement ao Longo do Tempo - Linha inteira */}
+            <EngagementChart data={filteredStats.engagementOverTime} />
+
+            {/* Tipos de Conteúdo - Linha inteira separada */}
+            <ContentTypeBreakdown data={filteredStats.contentTypeBreakdown} />
 
               {/* Top Posts Gallery */}
               <TopPostsGallery 
