@@ -1,3 +1,4 @@
+import { memo, useMemo } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import {
   PieChart,
@@ -35,19 +36,19 @@ const TYPE_ICONS: Record<string, React.ComponentType<{ className?: string }>> = 
   Reel: Film,
 };
 
-export function ContentTypeBreakdown({ data }: ContentTypeBreakdownProps) {
-  const chartData = data.map((item) => ({
+export const ContentTypeBreakdown = memo(function ContentTypeBreakdown({ data }: ContentTypeBreakdownProps) {
+  const chartData = useMemo(() => data.map((item) => ({
     ...item,
     name: TYPE_LABELS[item.type] || item.type,
     color: COLORS[item.type] || "#64748B",
-  }));
+  })), [data]);
 
   if (chartData.length === 0) {
     return (
-      <Card className="col-span-full">
+      <Card className="col-span-full" role="region" aria-label="Análise de tipos de conteúdo">
         <CardHeader>
           <CardTitle className="text-xl font-bold flex items-center gap-2">
-            <Images className="h-6 w-6 text-primary" />
+            <Images className="h-6 w-6 text-primary" aria-hidden="true" />
             Tipos de Conteúdo
           </CardTitle>
         </CardHeader>
@@ -91,26 +92,30 @@ export function ContentTypeBreakdown({ data }: ContentTypeBreakdownProps) {
   , sortedData[0]);
 
   return (
-    <Card className="col-span-full overflow-hidden border-2 border-primary/20 bg-gradient-to-br from-background via-background to-primary/5">
+    <Card 
+      className="col-span-full overflow-hidden border-2 border-primary/20 bg-gradient-to-br from-background via-background to-primary/5"
+      role="region"
+      aria-label={`Análise de tipos de conteúdo: ${total} posts analisados`}
+    >
       <CardHeader className="pb-4 bg-gradient-to-r from-primary/5 to-transparent">
-        <div className="flex items-center justify-between">
-          <CardTitle className="text-xl font-bold flex items-center gap-3">
-            <div className="p-2 rounded-xl bg-primary/10">
-              <Images className="h-6 w-6 text-primary" />
+        <div className="flex items-center justify-between flex-wrap gap-2">
+          <CardTitle className="text-lg sm:text-xl font-bold flex items-center gap-3">
+            <div className="p-2 rounded-xl bg-primary/10" aria-hidden="true">
+              <Images className="h-5 sm:h-6 w-5 sm:w-6 text-primary" />
             </div>
             Tipos de Conteúdo
           </CardTitle>
           <div className="text-right">
-            <div className="text-3xl font-bold text-primary">{total}</div>
+            <div className="text-2xl sm:text-3xl font-bold text-primary">{total}</div>
             <div className="text-xs text-muted-foreground">posts analisados</div>
           </div>
         </div>
       </CardHeader>
       <CardContent className="pt-0">
         {/* Main layout - larger chart and detailed stats */}
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 sm:gap-8">
           {/* Large Donut Chart */}
-          <div className="relative mx-auto">
+          <div className="relative mx-auto" role="img" aria-label={`Gráfico de distribuição: ${sortedData.map(d => `${d.name} ${((d.count / total) * 100).toFixed(0)}%`).join(', ')}`}>
             <ResponsiveContainer width={280} height={280}>
               <PieChart>
                 <Pie
@@ -270,4 +275,4 @@ export function ContentTypeBreakdown({ data }: ContentTypeBreakdownProps) {
       </CardContent>
     </Card>
   );
-}
+});

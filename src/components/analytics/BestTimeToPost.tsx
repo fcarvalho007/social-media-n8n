@@ -1,4 +1,4 @@
-import { useMemo } from "react";
+import { useMemo, memo } from "react";
 import { Clock, Trophy, TrendingUp, Sparkles } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -22,7 +22,7 @@ const HOURS = [6, 8, 10, 12, 14, 16, 18, 20, 22];
 // Premium gradient colors for heatmap
 const HEATMAP_BASE = "#6366F1"; // Primary indigo
 
-export function BestTimeToPost({ analytics, contextLabel }: BestTimeToPostProps) {
+export const BestTimeToPost = memo(function BestTimeToPost({ analytics, contextLabel }: BestTimeToPostProps) {
   const { heatmapData, averages, maxAvg, topTimes } = useMemo(() => {
     const heatmapData = new Map<string, { total: number; count: number }>();
 
@@ -101,28 +101,33 @@ export function BestTimeToPost({ analytics, contextLabel }: BestTimeToPostProps)
   ];
 
   return (
-    <Card className="overflow-hidden" id="best-times">
-      <CardHeader className="pb-4 flex flex-row items-center justify-between space-y-0 bg-gradient-to-r from-primary/5 to-transparent">
+    <Card 
+      className="overflow-hidden" 
+      id="best-times"
+      role="region"
+      aria-label={`Melhores horários para publicar. Baseado na análise de ${analytics.length} publicações.`}
+    >
+      <CardHeader className="pb-4 flex flex-row items-center justify-between space-y-0 flex-wrap gap-2 bg-gradient-to-r from-primary/5 to-transparent">
         <CardTitle className="text-base font-bold flex items-center gap-3">
-          <div className="p-2 rounded-xl bg-primary/10">
+          <div className="p-2 rounded-xl bg-primary/10" aria-hidden="true">
             <Clock className="h-4 w-4 text-primary" />
           </div>
           Melhores Horários
         </CardTitle>
         {contextLabel && (
-          <Badge variant="outline" className="text-xs font-normal rounded-full">
+          <Badge variant="outline" className="text-xs font-normal rounded-full" role="status">
             {contextLabel}
           </Badge>
         )}
       </CardHeader>
       <CardContent className="space-y-0">
         {/* Two column layout */}
-        <div className="grid lg:grid-cols-2 gap-8">
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 lg:gap-8">
           {/* Left: Heatmap */}
           <div>
             <TooltipProvider>
-              <div className="overflow-x-auto scrollbar-thin scrollbar-thumb-muted scrollbar-track-transparent">
-                <div className="min-w-[400px]">
+              <div className="overflow-x-auto scrollbar-thin scrollbar-thumb-muted scrollbar-track-transparent -mx-2 px-2">
+                <div className="min-w-[360px]" role="grid" aria-label="Mapa de calor de engagement por dia e hora">
                   {/* Header row with hours */}
                   <div className="flex gap-1 mb-2 pl-12">
                     {HOURS.map((hour) => (
@@ -136,10 +141,10 @@ export function BestTimeToPost({ analytics, contextLabel }: BestTimeToPostProps)
                   </div>
 
                   {/* Heatmap grid */}
-                  <div className="space-y-1.5">
+                  <div className="space-y-1.5" role="rowgroup">
                     {DAYS.map((dayName, dayIndex) => (
-                      <div key={dayName} className="flex items-center gap-1">
-                        <div className="w-10 text-[11px] text-muted-foreground text-right pr-2 font-medium">
+                      <div key={dayName} className="flex items-center gap-1" role="row">
+                        <div className="w-10 text-[11px] text-muted-foreground text-right pr-2 font-medium" role="rowheader">
                           {dayName}
                         </div>
                         {HOURS.map((hour) => {
@@ -152,7 +157,10 @@ export function BestTimeToPost({ analytics, contextLabel }: BestTimeToPostProps)
                             <Tooltip key={`${dayIndex}-${hour}`}>
                               <TooltipTrigger asChild>
                                 <div
-                                  className={`w-10 h-9 rounded-lg transition-all duration-200 cursor-pointer hover:scale-110 hover:shadow-lg ${
+                                  role="gridcell"
+                                  tabIndex={0}
+                                  aria-label={`${DAYS_FULL[dayIndex]} às ${hour}h: ${count > 0 ? `${count} posts, ${formatNumber(avg)} engagement médio` : 'Sem dados'}`}
+                                  className={`w-9 sm:w-10 h-8 sm:h-9 rounded-lg transition-all duration-200 cursor-pointer hover:scale-110 hover:shadow-lg focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary ${
                                     isTopTime
                                       ? "ring-2 ring-amber-500 ring-offset-1 ring-offset-background shadow-amber-500/30 shadow-lg"
                                       : ""
@@ -166,7 +174,7 @@ export function BestTimeToPost({ analytics, contextLabel }: BestTimeToPostProps)
                                 >
                                   {isTopTime && (
                                     <div className="h-full w-full flex items-center justify-center">
-                                      <Sparkles className="h-3.5 w-3.5 text-amber-500" />
+                                      <Sparkles className="h-3.5 w-3.5 text-amber-500" aria-hidden="true" />
                                     </div>
                                   )}
                                 </div>
@@ -256,4 +264,4 @@ export function BestTimeToPost({ analytics, contextLabel }: BestTimeToPostProps)
       </CardContent>
     </Card>
   );
-}
+});

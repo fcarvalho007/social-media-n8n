@@ -1,5 +1,6 @@
-import { useState } from "react";
+import { useState, useMemo, useCallback, memo } from "react";
 import { ExternalLink, Heart, MessageCircle, Eye, ImageOff, Play, Star, ArrowUpDown, Images } from "lucide-react";
+import { LazyImage } from "@/components/LazyImage";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -49,7 +50,7 @@ const SORT_OPTIONS = [
   { value: "views", label: "Views" },
 ] as const;
 
-export function TopPostsGallery({ 
+export const TopPostsGallery = memo(function TopPostsGallery({ 
   posts, 
   limit = 10, 
   myAccount, 
@@ -59,17 +60,16 @@ export function TopPostsGallery({
   onSortChange 
 }: TopPostsGalleryProps) {
   const [imageErrors, setImageErrors] = useState<Set<string>>(new Set());
-  const [loadingImages, setLoadingImages] = useState<Set<string>>(new Set(posts.map(p => p.id)));
   const [internalSortBy, setInternalSortBy] = useState<"engagement" | "likes" | "comments" | "views">("engagement");
   
   const sortBy = externalSortBy || internalSortBy;
   
-  const handleSortChange = (newSortBy: "engagement" | "likes" | "comments" | "views") => {
+  const handleSortChange = useCallback((newSortBy: "engagement" | "likes" | "comments" | "views") => {
     setInternalSortBy(newSortBy);
     onSortChange?.(newSortBy);
-  };
+  }, [onSortChange]);
 
-  const sortedPosts = [...posts]
+  const sortedPosts = useMemo(() => [...posts]
     .sort((a, b) => {
       switch (sortBy) {
         case "likes":
@@ -86,42 +86,29 @@ export function TopPostsGallery({
           );
       }
     })
-    .slice(0, limit);
+    .slice(0, limit), [posts, sortBy, limit]);
 
-  const isMyAccountPost = (post: InstagramAnalyticsItem) => myAccount && post.owner_username === myAccount;
+  const isMyAccountPost = useCallback((post: InstagramAnalyticsItem) => myAccount && post.owner_username === myAccount, [myAccount]);
 
-  const formatNumber = (num: number) => {
+  const formatNumber = useCallback((num: number) => {
     if (num >= 1000000) return `${(num / 1000000).toFixed(1)}M`;
     if (num >= 1000) return `${(num / 1000).toFixed(1)}K`;
     return num.toString();
-  };
+  }, []);
 
-  const handleImageLoad = (id: string) => {
-    setLoadingImages((prev) => {
-      const next = new Set(prev);
-      next.delete(id);
-      return next;
-    });
-  };
-
-  const handleImageError = (id: string) => {
+  const handleImageError = useCallback((id: string) => {
     setImageErrors((prev) => new Set(prev).add(id));
-    setLoadingImages((prev) => {
-      const next = new Set(prev);
-      next.delete(id);
-      return next;
-    });
-  };
+  }, []);
 
   if (sortedPosts.length === 0) return null;
 
   const currentSortLabel = SORT_OPTIONS.find(o => o.value === sortBy)?.label || "Engagement";
 
   return (
-    <Card id="top-posts" className="overflow-hidden">
+    <Card id="top-posts" className="overflow-hidden" role="region" aria-label="Top posts por engagement">
       <CardHeader className="pb-4 flex flex-row items-center justify-between space-y-0 flex-wrap gap-2 bg-gradient-to-r from-primary/5 to-transparent">
         <CardTitle className="text-lg font-bold flex items-center gap-3">
-          <div className="p-2 rounded-xl bg-primary/10">
+          <div className="p-2 rounded-xl bg-primary/10" aria-hidden="true">
             <Images className="h-5 w-5 text-primary" />
           </div>
           Top {Math.min(limit, sortedPosts.length)} Posts
@@ -130,8 +117,13 @@ export function TopPostsGallery({
           {/* Sort dropdown */}
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
-              <Button variant="outline" size="sm" className="h-8 gap-1.5 text-xs rounded-lg border-border/60 hover:bg-muted">
-                <ArrowUpDown className="h-3.5 w-3.5" />
+              <Button 
+                variant="outline" 
+                size="sm" 
+                className="h-8 gap-1.5 text-xs rounded-lg border-border/60 hover:bg-muted"
+                aria-label={`Ordenar por ${currentSortLabel}`}
+              >
+                <ArrowUpDown className="h-3.5 w-3.5" aria-hidden="true" />
                 {currentSortLabel}
               </Button>
             </DropdownMenuTrigger>
@@ -141,6 +133,7 @@ export function TopPostsGallery({
                   key={option.value}
                   onClick={() => handleSortChange(option.value)}
                   className={`rounded-lg ${sortBy === option.value ? "bg-primary/10 text-primary" : ""}`}
+                  aria-selected={sortBy === option.value}
                 >
                   {option.label}
                 </DropdownMenuItem>
@@ -148,19 +141,18 @@ export function TopPostsGallery({
             </DropdownMenuContent>
           </DropdownMenu>
           {contextLabel && (
-            <Badge variant="outline" className="text-xs font-normal rounded-full">
+            <Badge variant="outline" className="text-xs font-normal rounded-full" role="status">
               {contextLabel}
             </Badge>
           )}
         </div>
       </CardHeader>
       <CardContent className="pt-2">
-        <div className="grid grid-cols-2 sm:grid-cols-5 gap-4">
+        <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-5 gap-3 sm:gap-4" role="list" aria-label="Lista de posts ordenados por engagement">
           {sortedPosts.map((post, index) => {
             const style = RANKING_STYLES[index] || RANKING_STYLES[5];
             const engagement = (post.likes_count || 0) + (post.comments_count || 0);
             const hasError = imageErrors.has(post.id);
-            const isLoading = loadingImages.has(post.id);
             const isVideo = post.is_video || post.post_type === "Video";
             const isSidecar = post.post_type === "Sidecar";
             const isMyPost = isMyAccountPost(post);
@@ -171,18 +163,20 @@ export function TopPostsGallery({
                 href={post.post_url}
                 target="_blank"
                 rel="noopener noreferrer"
-                className={`group relative rounded-xl overflow-hidden bg-muted transition-all duration-300 hover:scale-[1.03] hover:shadow-xl ${style.ring} ${style.glow} ${isMyPost ? 'ring-2 ring-amber-500/60' : ''}`}
+                role="listitem"
+                aria-label={`Post #${index + 1} de @${post.owner_username || 'desconhecido'} com ${formatNumber(engagement)} interações. Abrir no Instagram.`}
+                className={`group relative rounded-xl overflow-hidden bg-muted transition-all duration-300 hover:scale-[1.03] hover:shadow-xl focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 ${style.ring} ${style.glow} ${isMyPost ? 'ring-2 ring-amber-500/60' : ''}`}
                 style={isMyPost ? { boxShadow: `0 0 20px ${MY_ACCOUNT_COLOR}50` } : undefined}
               >
                 {/* My Account Badge */}
                 {isMyPost && (
-                  <div className="absolute top-2 right-9 z-20">
-                    <Star className="h-4 w-4 fill-amber-500 text-amber-500 drop-shadow-lg" />
+                  <div className="absolute top-2 right-9 z-20" aria-label="Seu post">
+                    <Star className="h-4 w-4 fill-amber-500 text-amber-500 drop-shadow-lg" aria-hidden="true" />
                   </div>
                 )}
 
                 {/* Ranking Badge */}
-                <div className="absolute top-2 left-2 z-20">
+                <div className="absolute top-2 left-2 z-20" aria-hidden="true">
                   {index < 3 ? (
                     <span className="text-xl drop-shadow-lg">{style.badge}</span>
                   ) : (
@@ -193,7 +187,7 @@ export function TopPostsGallery({
                 </div>
 
                 {/* Type Badge - Video or Carousel indicator */}
-                <div className="absolute top-2 right-2 z-20">
+                <div className="absolute top-2 right-2 z-20" aria-hidden="true">
                   {isVideo && (
                     <div className="bg-gradient-to-br from-purple-500 to-pink-500 rounded-full p-1.5 shadow-lg">
                       <Play className="h-3 w-3 text-white fill-white" />
@@ -208,25 +202,17 @@ export function TopPostsGallery({
 
                 {/* Thumbnail */}
                 <div className="aspect-square relative">
-                  {/* Loading state */}
-                  {isLoading && !hasError && (
-                    <Skeleton className="absolute inset-0 w-full h-full" />
-                  )}
-
-                  {/* Image */}
+                  {/* Image with LazyImage */}
                   {post.thumbnail_url && !hasError ? (
-                    <img
+                    <LazyImage
                       src={post.thumbnail_url}
-                      alt=""
-                      className={`w-full h-full object-cover transition-all duration-300 ${
-                        isLoading ? "opacity-0" : "opacity-100"
-                      } group-hover:scale-105`}
-                      onLoad={() => handleImageLoad(post.id)}
+                      alt={`Thumbnail do post de @${post.owner_username || 'desconhecido'}`}
+                      className="w-full h-full object-cover transition-all duration-300 group-hover:scale-105"
                       onError={() => handleImageError(post.id)}
                     />
                   ) : (
                     <div className="w-full h-full flex flex-col items-center justify-center text-muted-foreground bg-gradient-to-br from-muted to-muted/50">
-                      <ImageOff className="h-10 w-10 mb-2 opacity-50" />
+                      <ImageOff className="h-10 w-10 mb-2 opacity-50" aria-hidden="true" />
                       <span className="text-xs font-medium">
                         {TYPE_LABELS[post.post_type || "Image"] || "Post"}
                       </span>
@@ -241,7 +227,7 @@ export function TopPostsGallery({
                   </div>
 
                   {/* External link icon */}
-                  <ExternalLink className="absolute top-2 right-2 h-4 w-4 text-white opacity-0 group-hover:opacity-100 transition-opacity drop-shadow-lg z-10" />
+                  <ExternalLink className="absolute top-2 right-2 h-4 w-4 text-white opacity-0 group-hover:opacity-100 transition-opacity drop-shadow-lg z-10" aria-hidden="true" />
                 </div>
 
                 {/* Metrics - Premium card footer */}
@@ -290,4 +276,4 @@ export function TopPostsGallery({
       </CardContent>
     </Card>
   );
-}
+});

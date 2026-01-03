@@ -1,4 +1,4 @@
-import { useState, useMemo } from "react";
+import { useState, useMemo, memo } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -31,7 +31,7 @@ const LIKES_COLOR = "#F43F5E";     // Rose-500
 const COMMENTS_COLOR = "#8B5CF6"; // Violet-500
 const POSTS_COLOR = "#10B981";    // Emerald-500
 
-export function EngagementChart({ data }: EngagementChartProps) {
+export const EngagementChart = memo(function EngagementChart({ data }: EngagementChartProps) {
   const [chartType, setChartType] = useState<"line" | "area">("area");
   const [granularity, setGranularity] = useState<Granularity>("monthly");
   const [showLikes, setShowLikes] = useState(true);
@@ -181,13 +181,18 @@ export function EngagementChart({ data }: EngagementChartProps) {
   };
 
   return (
-    <Card className="overflow-hidden" id="engagement-chart">
+    <Card 
+      className="overflow-hidden" 
+      id="engagement-chart"
+      role="region"
+      aria-label="Gráfico de performance temporal"
+    >
       <CardHeader className="pb-3 bg-gradient-to-r from-primary/5 to-transparent">
         <div className="flex flex-col gap-4">
           {/* Title and controls row */}
           <div className="flex items-center justify-between flex-wrap gap-3">
             <CardTitle className="text-lg font-bold flex items-center gap-3">
-              <div className="p-2 rounded-xl bg-primary/10">
+              <div className="p-2 rounded-xl bg-primary/10" aria-hidden="true">
                 <TrendingUp className="h-5 w-5 text-primary" />
               </div>
               Performance Temporal
@@ -417,4 +422,4 @@ export function EngagementChart({ data }: EngagementChartProps) {
       </CardContent>
     </Card>
   );
-}
+});
