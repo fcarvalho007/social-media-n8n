@@ -12,6 +12,7 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { MarkdownRenderer } from "./MarkdownRenderer";
+import { generateReportPDF } from "@/lib/reportPdf";
 import type { InstagramAnalyticsItem } from "@/hooks/useInstagramAnalytics";
 import type { AccountStats } from "./AccountRanking";
 
@@ -172,16 +173,27 @@ export function CompetitorReportGenerator({
   };
 
   const handleDownload = () => {
-    const blob = new Blob([report], { type: 'text/markdown' });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = `relatorio-executivo-${selectedCompetitor}-${new Date().toISOString().split('T')[0]}.md`;
-    document.body.appendChild(a);
-    a.click();
-    document.body.removeChild(a);
-    URL.revokeObjectURL(url);
-    toast.success("Relatório transferido!");
+    try {
+      const pdfBlob = generateReportPDF({
+        title: "Relatório Executivo de Concorrência",
+        subtitle: `@${myAccount} vs @${selectedCompetitor}`,
+        content: report,
+        generatedAt: generatedAt ? new Date(generatedAt) : new Date(),
+      });
+      
+      const url = URL.createObjectURL(pdfBlob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `relatorio-executivo-${selectedCompetitor}-${new Date().toISOString().split('T')[0]}.pdf`;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+      toast.success("Relatório PDF transferido!");
+    } catch (error) {
+      console.error("Error generating PDF:", error);
+      toast.error("Erro ao gerar PDF");
+    }
   };
 
   return (

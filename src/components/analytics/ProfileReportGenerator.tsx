@@ -1,11 +1,12 @@
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Loader2, Sparkles, FileText, RefreshCw } from "lucide-react";
+import { Loader2, Sparkles, FileText, RefreshCw, Download } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { toast } from "sonner";
 import { MarkdownRenderer } from "./MarkdownRenderer";
+import { generateReportPDF } from "@/lib/reportPdf";
 import type { InstagramProfile } from "@/hooks/useInstagramProfiles";
 
 interface ProfileReportGeneratorProps {
@@ -190,7 +191,38 @@ Mantém o relatório conciso mas actionable. Usa emojis para melhorar a legibili
           </div>
         ) : (
           <div className="space-y-4">
-            <div className="flex justify-end">
+            <div className="flex justify-end gap-2">
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => {
+                  try {
+                    const pdfBlob = generateReportPDF({
+                      title: "Análise IA de Perfis",
+                      subtitle: `${profiles.length} perfis analisados`,
+                      content: report,
+                      generatedAt: generatedAt || new Date(),
+                    });
+                    
+                    const url = URL.createObjectURL(pdfBlob);
+                    const a = document.createElement('a');
+                    a.href = url;
+                    a.download = `relatorio-perfis-${new Date().toISOString().split('T')[0]}.pdf`;
+                    document.body.appendChild(a);
+                    a.click();
+                    document.body.removeChild(a);
+                    URL.revokeObjectURL(url);
+                    toast.success("PDF transferido!");
+                  } catch (error) {
+                    console.error("Error generating PDF:", error);
+                    toast.error("Erro ao gerar PDF");
+                  }
+                }}
+                className="gap-2"
+              >
+                <Download className="h-4 w-4" />
+                Transferir PDF
+              </Button>
               <Button
                 variant="outline"
                 size="sm"

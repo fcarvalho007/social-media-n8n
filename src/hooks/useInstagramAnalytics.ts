@@ -51,10 +51,10 @@ export function useInstagramAnalytics(options?: UseInstagramAnalyticsOptions) {
   const isPublicMode = options?.publicMode === true;
 
   const { data: analytics = [], isLoading, error } = useQuery({
-    queryKey: ["instagram-analytics", user?.id, isPublicMode],
+    queryKey: ["instagram-analytics", isPublicMode ? "public" : user?.id],
     queryFn: async () => {
-      // Public mode: fetch all data without user filter
-      if (isPublicMode && !user?.id) {
+      // Public mode: ALWAYS fetch all data without user filter (even if authenticated)
+      if (isPublicMode) {
         const { data, error } = await supabase
           .from("instagram_analytics")
           .select("*")
@@ -64,7 +64,7 @@ export function useInstagramAnalytics(options?: UseInstagramAnalyticsOptions) {
         return data as InstagramAnalyticsItem[];
       }
 
-      // Authenticated mode: filter by user_id
+      // Authenticated private mode: filter by user_id
       if (!user?.id) return [];
 
       const { data, error } = await supabase
@@ -76,7 +76,7 @@ export function useInstagramAnalytics(options?: UseInstagramAnalyticsOptions) {
       if (error) throw error;
       return data as InstagramAnalyticsItem[];
     },
-    enabled: !!user?.id || isPublicMode,
+    enabled: isPublicMode || !!user?.id,
   });
 
   const importMutation = useMutation({
