@@ -54,12 +54,12 @@ export function AnalyticsSidebar({ className }: AnalyticsSidebarProps) {
       {/* Header */}
       <div className="flex items-center justify-between p-3 border-b border-sidebar-border">
         {!isCollapsed && (
-          <span className="text-sm font-semibold text-sidebar-foreground">Navegação</span>
+          <span className="text-sm font-semibold text-white">Navegação</span>
         )}
         <Button
           variant="ghost"
           size="icon"
-          className="h-8 w-8 ml-auto text-sidebar-foreground/70 hover:text-sidebar-foreground hover:bg-sidebar-muted"
+          className="h-8 w-8 ml-auto text-white/70 hover:text-white hover:bg-sidebar-muted"
           onClick={() => setIsCollapsed(!isCollapsed)}
         >
           {isCollapsed ? (
@@ -83,7 +83,7 @@ export function AnalyticsSidebar({ className }: AnalyticsSidebarProps) {
                 size="sm"
                 className={cn(
                   "justify-start gap-3 transition-all duration-200 rounded-lg",
-                  "text-sidebar-foreground font-medium hover:text-white",
+                  "text-white/80 font-medium hover:text-white",
                   isCollapsed ? "px-2 justify-center" : "px-3",
                   isActive 
                     ? "bg-sidebar-accent/20 text-white font-bold border-l-2 border-sidebar-accent" 
@@ -94,13 +94,13 @@ export function AnalyticsSidebar({ className }: AnalyticsSidebarProps) {
                 <section.icon 
                   className={cn(
                     "h-4 w-4 flex-shrink-0 transition-colors",
-                    isActive ? "text-sidebar-accent" : "text-sidebar-foreground"
+                    isActive ? "text-sidebar-accent" : "text-white/80"
                   )} 
                 />
                 {!isCollapsed && (
                   <span className={cn(
-                    "truncate text-sm text-sidebar-foreground",
-                    isActive && "text-white font-bold"
+                    "truncate text-sm",
+                    isActive ? "text-white font-bold" : "text-white/80 font-medium"
                   )}>
                     {section.label}
                   </span>
@@ -114,7 +114,7 @@ export function AnalyticsSidebar({ className }: AnalyticsSidebarProps) {
       {/* Footer - mini branding */}
       {!isCollapsed && (
         <div className="p-3 border-t border-sidebar-border">
-          <p className="text-xs text-sidebar-foreground/60 text-center">
+          <p className="text-xs text-white/60 text-center">
             Analytics v2.0
           </p>
         </div>
