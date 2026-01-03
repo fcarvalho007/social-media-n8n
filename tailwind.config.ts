@@ -83,9 +83,26 @@ export default {
           primary: "hsl(var(--template-b-primary))",
           secondary: "hsl(var(--template-b-secondary))",
         },
+        // Chart gradients
+        chart: {
+          video: {
+            from: "hsl(var(--chart-video-from))",
+            to: "hsl(var(--chart-video-to))",
+          },
+          carrossel: {
+            from: "hsl(var(--chart-carrossel-from))",
+            to: "hsl(var(--chart-carrossel-to))",
+          },
+          image: {
+            from: "hsl(var(--chart-image-from))",
+            to: "hsl(var(--chart-image-to))",
+          },
+        },
       },
       fontFamily: {
-        sans: ['Montserrat', 'system-ui', 'sans-serif'],
+        sans: ['Inter', 'Montserrat', 'system-ui', 'sans-serif'],
+        display: ['Inter', 'sans-serif'],
+        mono: ['DM Sans', 'ui-monospace', 'monospace'],
       },
       screens: {
         xs: '375px',
