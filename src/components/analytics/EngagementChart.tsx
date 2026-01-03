@@ -32,6 +32,9 @@ const POSTS_COLOR = "#64748B"; // Slate-500
 export function EngagementChart({ data }: EngagementChartProps) {
   const [chartType, setChartType] = useState<"line" | "area">("area");
   const [granularity, setGranularity] = useState<Granularity>("monthly");
+  const [showLikes, setShowLikes] = useState(true);
+  const [showComments, setShowComments] = useState(true);
+  const [showViews, setShowViews] = useState(false);
 
   const formatNumber = (num: number) => {
     if (num >= 1000) return `${(num / 1000).toFixed(1)}K`;
@@ -171,47 +174,89 @@ export function EngagementChart({ data }: EngagementChartProps) {
   };
 
   return (
-    <Card className="overflow-hidden">
+    <Card className="overflow-hidden" id="engagement-chart">
       <CardHeader className="pb-2">
-        <div className="flex items-center justify-between flex-wrap gap-2">
-          <CardTitle className="text-lg">Engagement ao Longo do Tempo</CardTitle>
-          <div className="flex items-center gap-2">
-            {/* Granularity toggle */}
-            <div className="flex items-center gap-1 bg-muted/80 rounded-lg p-0.5">
-              {(["daily", "weekly", "monthly"] as Granularity[]).map((g) => (
-                <Button
-                  key={g}
-                  variant={granularity === g ? "secondary" : "ghost"}
-                  size="sm"
-                  className={`h-7 px-2.5 text-xs transition-all ${
-                    granularity === g ? "shadow-sm" : "hover:bg-muted"
-                  }`}
-                  onClick={() => setGranularity(g)}
-                >
-                  {granularityLabels[g]}
-                </Button>
-              ))}
-            </div>
+        <div className="flex flex-col gap-3">
+          <div className="flex items-center justify-between flex-wrap gap-2">
+            <CardTitle className="text-lg">Performance Temporal</CardTitle>
+            <div className="flex items-center gap-2">
+              {/* Granularity toggle */}
+              <div className="flex items-center gap-1 bg-muted/80 rounded-lg p-0.5">
+                {(["daily", "weekly", "monthly"] as Granularity[]).map((g) => (
+                  <Button
+                    key={g}
+                    variant={granularity === g ? "secondary" : "ghost"}
+                    size="sm"
+                    className={`h-7 px-2.5 text-xs transition-all ${
+                      granularity === g ? "shadow-sm" : "hover:bg-muted"
+                    }`}
+                    onClick={() => setGranularity(g)}
+                  >
+                    {granularityLabels[g]}
+                  </Button>
+                ))}
+              </div>
 
-            {/* Chart type toggle */}
-            <div className="flex items-center gap-1 bg-muted/80 rounded-lg p-0.5">
-              <Button
-                variant={chartType === "line" ? "secondary" : "ghost"}
-                size="sm"
-                className={`h-7 px-2 transition-all ${chartType === "line" ? "shadow-sm" : ""}`}
-                onClick={() => setChartType("line")}
-              >
-                <LineChartIcon className="h-4 w-4" />
-              </Button>
-              <Button
-                variant={chartType === "area" ? "secondary" : "ghost"}
-                size="sm"
-                className={`h-7 px-2 transition-all ${chartType === "area" ? "shadow-sm" : ""}`}
-                onClick={() => setChartType("area")}
-              >
-                <AreaChart className="h-4 w-4" />
-              </Button>
+              {/* Chart type toggle */}
+              <div className="flex items-center gap-1 bg-muted/80 rounded-lg p-0.5">
+                <Button
+                  variant={chartType === "line" ? "secondary" : "ghost"}
+                  size="sm"
+                  className={`h-7 px-2 transition-all ${chartType === "line" ? "shadow-sm" : ""}`}
+                  onClick={() => setChartType("line")}
+                >
+                  <LineChartIcon className="h-4 w-4" />
+                </Button>
+                <Button
+                  variant={chartType === "area" ? "secondary" : "ghost"}
+                  size="sm"
+                  className={`h-7 px-2 transition-all ${chartType === "area" ? "shadow-sm" : ""}`}
+                  onClick={() => setChartType("area")}
+                >
+                  <AreaChart className="h-4 w-4" />
+                </Button>
+              </div>
             </div>
+          </div>
+          
+          {/* Metric toggles */}
+          <div className="flex items-center gap-3">
+            <label className="flex items-center gap-2 cursor-pointer">
+              <input
+                type="checkbox"
+                checked={showLikes}
+                onChange={(e) => setShowLikes(e.target.checked)}
+                className="rounded border-border"
+              />
+              <span className="text-xs flex items-center gap-1">
+                <span className="w-2 h-2 rounded-full" style={{ backgroundColor: LIKES_COLOR }} />
+                Likes
+              </span>
+            </label>
+            <label className="flex items-center gap-2 cursor-pointer">
+              <input
+                type="checkbox"
+                checked={showComments}
+                onChange={(e) => setShowComments(e.target.checked)}
+                className="rounded border-border"
+              />
+              <span className="text-xs flex items-center gap-1">
+                <span className="w-2 h-2 rounded-full" style={{ backgroundColor: COMMENTS_COLOR }} />
+                Comentários
+              </span>
+            </label>
+            <label className="flex items-center gap-2 cursor-pointer">
+              <input
+                type="checkbox"
+                checked={showViews}
+                onChange={(e) => setShowViews(e.target.checked)}
+                className="rounded border-border"
+              />
+              <span className="text-xs flex items-center gap-1">
+                <span className="w-2 h-2 rounded-full" style={{ backgroundColor: POSTS_COLOR }} />
+                Posts
+              </span>
+            </label>
           </div>
         </div>
       </CardHeader>
@@ -230,6 +275,11 @@ export function EngagementChart({ data }: EngagementChartProps) {
                   <stop offset="50%" stopColor={COMMENTS_COLOR} stopOpacity={0.15} />
                   <stop offset="100%" stopColor={COMMENTS_COLOR} stopOpacity={0.02} />
                 </linearGradient>
+                <linearGradient id="postsGradientNew" x1="0" y1="0" x2="0" y2="1">
+                  <stop offset="0%" stopColor={POSTS_COLOR} stopOpacity={0.3} />
+                  <stop offset="50%" stopColor={POSTS_COLOR} stopOpacity={0.1} />
+                  <stop offset="100%" stopColor={POSTS_COLOR} stopOpacity={0.02} />
+                </linearGradient>
               </defs>
               <CartesianGrid
                 strokeDasharray="3 3"
@@ -246,26 +296,42 @@ export function EngagementChart({ data }: EngagementChartProps) {
                   <span className="text-xs text-muted-foreground">{value}</span>
                 )}
               />
-              <Area
-                type="monotone"
-                dataKey="likes"
-                name="Likes"
-                stroke={LIKES_COLOR}
-                fill="url(#likesGradientNew)"
-                strokeWidth={2.5}
-                dot={false}
-                activeDot={{ r: 5, strokeWidth: 2, stroke: "#fff" }}
-              />
-              <Area
-                type="monotone"
-                dataKey="comments"
-                name="Comentários"
-                stroke={COMMENTS_COLOR}
-                fill="url(#commentsGradientNew)"
-                strokeWidth={2.5}
-                dot={false}
-                activeDot={{ r: 5, strokeWidth: 2, stroke: "#fff" }}
-              />
+              {showLikes && (
+                <Area
+                  type="monotone"
+                  dataKey="likes"
+                  name="Likes"
+                  stroke={LIKES_COLOR}
+                  fill="url(#likesGradientNew)"
+                  strokeWidth={2.5}
+                  dot={false}
+                  activeDot={{ r: 5, strokeWidth: 2, stroke: "#fff" }}
+                />
+              )}
+              {showComments && (
+                <Area
+                  type="monotone"
+                  dataKey="comments"
+                  name="Comentários"
+                  stroke={COMMENTS_COLOR}
+                  fill="url(#commentsGradientNew)"
+                  strokeWidth={2.5}
+                  dot={false}
+                  activeDot={{ r: 5, strokeWidth: 2, stroke: "#fff" }}
+                />
+              )}
+              {showViews && (
+                <Area
+                  type="monotone"
+                  dataKey="posts"
+                  name="Posts"
+                  stroke={POSTS_COLOR}
+                  fill="url(#postsGradientNew)"
+                  strokeWidth={2}
+                  dot={false}
+                  activeDot={{ r: 4, strokeWidth: 2, stroke: "#fff" }}
+                />
+              )}
             </RechartsAreaChart>
           ) : (
             <LineChart {...commonProps}>

@@ -1,8 +1,15 @@
 import { useState } from "react";
-import { ExternalLink, Heart, MessageCircle, Eye, ImageOff, Play, Star } from "lucide-react";
+import { ExternalLink, Heart, MessageCircle, Eye, ImageOff, Play, Star, ArrowUpDown } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
+import { Button } from "@/components/ui/button";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import { MY_ACCOUNT_COLOR } from "@/lib/analytics/colors";
 import type { InstagramAnalyticsItem } from "@/hooks/useInstagramAnalytics";
 
@@ -12,7 +19,15 @@ interface TopPostsGalleryProps {
   myAccount?: string;
   showUsername?: boolean;
   contextLabel?: string;
+  sortBy?: "engagement" | "likes" | "comments" | "views";
+  onSortChange?: (sortBy: "engagement" | "likes" | "comments" | "views") => void;
 }
+
+const TYPE_LABELS: Record<string, string> = {
+  Image: "Imagem",
+  Video: "Vídeo",
+  Sidecar: "Carrossel",
+};
 
 const RANKING_STYLES = [
   { badge: "🥇", ring: "ring-2 ring-yellow-500/50", glow: "shadow-yellow-500/20" },
@@ -21,25 +36,56 @@ const RANKING_STYLES = [
   { badge: "4", ring: "", glow: "" },
   { badge: "5", ring: "", glow: "" },
   { badge: "6", ring: "", glow: "" },
+  { badge: "7", ring: "", glow: "" },
+  { badge: "8", ring: "", glow: "" },
+  { badge: "9", ring: "", glow: "" },
+  { badge: "10", ring: "", glow: "" },
 ];
 
-const TYPE_LABELS: Record<string, string> = {
-  Image: "Imagem",
-  Video: "Vídeo",
-  Sidecar: "Carrossel",
-};
+const SORT_OPTIONS = [
+  { value: "engagement", label: "Engagement" },
+  { value: "likes", label: "Likes" },
+  { value: "comments", label: "Comentários" },
+  { value: "views", label: "Views" },
+] as const;
 
-export function TopPostsGallery({ posts, limit = 6, myAccount, showUsername = false, contextLabel }: TopPostsGalleryProps) {
+export function TopPostsGallery({ 
+  posts, 
+  limit = 10, 
+  myAccount, 
+  showUsername = false, 
+  contextLabel,
+  sortBy: externalSortBy,
+  onSortChange 
+}: TopPostsGalleryProps) {
   const [imageErrors, setImageErrors] = useState<Set<string>>(new Set());
   const [loadingImages, setLoadingImages] = useState<Set<string>>(new Set(posts.map(p => p.id)));
+  const [internalSortBy, setInternalSortBy] = useState<"engagement" | "likes" | "comments" | "views">("engagement");
+  
+  const sortBy = externalSortBy || internalSortBy;
+  
+  const handleSortChange = (newSortBy: "engagement" | "likes" | "comments" | "views") => {
+    setInternalSortBy(newSortBy);
+    onSortChange?.(newSortBy);
+  };
 
   const sortedPosts = [...posts]
-    .sort(
-      (a, b) =>
-        (b.likes_count || 0) +
-        (b.comments_count || 0) -
-        ((a.likes_count || 0) + (a.comments_count || 0))
-    )
+    .sort((a, b) => {
+      switch (sortBy) {
+        case "likes":
+          return (b.likes_count || 0) - (a.likes_count || 0);
+        case "comments":
+          return (b.comments_count || 0) - (a.comments_count || 0);
+        case "views":
+          return (b.views_count || 0) - (a.views_count || 0);
+        case "engagement":
+        default:
+          return (
+            (b.likes_count || 0) + (b.comments_count || 0) -
+            ((a.likes_count || 0) + (a.comments_count || 0))
+          );
+      }
+    })
     .slice(0, limit);
 
   const isMyAccountPost = (post: InstagramAnalyticsItem) => myAccount && post.owner_username === myAccount;
@@ -69,20 +115,44 @@ export function TopPostsGallery({ posts, limit = 6, myAccount, showUsername = fa
 
   if (sortedPosts.length === 0) return null;
 
+  const currentSortLabel = SORT_OPTIONS.find(o => o.value === sortBy)?.label || "Engagement";
+
   return (
-    <Card>
-      <CardHeader className="pb-3 flex flex-row items-center justify-between space-y-0">
+    <Card id="top-posts">
+      <CardHeader className="pb-3 flex flex-row items-center justify-between space-y-0 flex-wrap gap-2">
         <CardTitle className="text-base flex items-center gap-2">
           🏆 Top {Math.min(limit, sortedPosts.length)} Posts
         </CardTitle>
-        {contextLabel && (
-          <Badge variant="outline" className="text-xs font-normal">
-            {contextLabel}
-          </Badge>
-        )}
+        <div className="flex items-center gap-2">
+          {/* Sort dropdown */}
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button variant="outline" size="sm" className="h-8 gap-1.5 text-xs">
+                <ArrowUpDown className="h-3.5 w-3.5" />
+                {currentSortLabel}
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end">
+              {SORT_OPTIONS.map((option) => (
+                <DropdownMenuItem
+                  key={option.value}
+                  onClick={() => handleSortChange(option.value)}
+                  className={sortBy === option.value ? "bg-muted" : ""}
+                >
+                  {option.label}
+                </DropdownMenuItem>
+              ))}
+            </DropdownMenuContent>
+          </DropdownMenu>
+          {contextLabel && (
+            <Badge variant="outline" className="text-xs font-normal">
+              {contextLabel}
+            </Badge>
+          )}
+        </div>
       </CardHeader>
       <CardContent>
-        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3">
+        <div className="grid grid-cols-2 sm:grid-cols-5 gap-3">
           {sortedPosts.map((post, index) => {
             const style = RANKING_STYLES[index] || RANKING_STYLES[5];
             const engagement = (post.likes_count || 0) + (post.comments_count || 0);

@@ -37,11 +37,11 @@ export function HashtagCloud({ data, contextLabel }: HashtagCloudProps) {
     return (
       <Card>
         <CardHeader>
-          <CardTitle className="text-lg flex items-center gap-2">
+          <CardTitle className="text-base flex items-center gap-2">
             <div className="p-1.5 rounded-lg bg-violet-500/15">
               <Hash className="h-4 w-4 text-violet-500" />
             </div>
-            Top Hashtags
+            Top 10 Hashtags
           </CardTitle>
         </CardHeader>
         <CardContent className="h-[300px] flex items-center justify-center text-muted-foreground">
@@ -51,14 +51,13 @@ export function HashtagCloud({ data, contextLabel }: HashtagCloudProps) {
     );
   }
 
-  // Show top 10 in chart
+  // Show top 10 in chart - horizontal bar chart
   const chartData = data.slice(0, 10).map((item, index) => ({
     ...item,
     tag: item.tag.replace("#", ""),
+    displayTag: `#${item.tag.length > 12 ? item.tag.slice(0, 12) + '...' : item.tag}`,
     color: BAR_COLORS[index % BAR_COLORS.length],
   }));
-
-  const maxCount = Math.max(...chartData.map(d => d.count));
 
   const CustomTooltip = ({ active, payload }: any) => {
     if (!active || !payload?.length) return null;
@@ -78,11 +77,11 @@ export function HashtagCloud({ data, contextLabel }: HashtagCloudProps) {
   return (
     <Card className="overflow-hidden">
       <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-        <CardTitle className="text-lg flex items-center gap-2">
+        <CardTitle className="text-base flex items-center gap-2">
           <div className="p-1.5 rounded-lg bg-violet-500/15">
             <Hash className="h-4 w-4 text-violet-500" />
           </div>
-          Top Hashtags
+          Top 10 Hashtags
         </CardTitle>
         {contextLabel && (
           <Badge variant="outline" className="text-xs font-normal">
@@ -91,8 +90,8 @@ export function HashtagCloud({ data, contextLabel }: HashtagCloudProps) {
         )}
       </CardHeader>
       <CardContent>
-        <ResponsiveContainer width="100%" height={260}>
-          <BarChart data={chartData} layout="vertical" margin={{ left: 10, right: 20 }}>
+        <ResponsiveContainer width="100%" height={320}>
+          <BarChart data={chartData} layout="vertical" margin={{ left: 5, right: 20, top: 5, bottom: 5 }}>
             <CartesianGrid 
               strokeDasharray="3 3" 
               stroke="hsl(var(--border))" 
@@ -102,66 +101,42 @@ export function HashtagCloud({ data, contextLabel }: HashtagCloudProps) {
             />
             <XAxis 
               type="number" 
-              tick={{ fill: "hsl(var(--muted-foreground))", fontSize: 11 }}
+              tick={{ fill: "hsl(var(--muted-foreground))", fontSize: 10 }}
               axisLine={false}
               tickLine={false}
             />
             <YAxis 
               type="category" 
-              dataKey="tag" 
-              tick={{ fill: "hsl(var(--muted-foreground))", fontSize: 11 }}
-              width={75}
+              dataKey="displayTag" 
+              tick={{ fill: "hsl(var(--muted-foreground))", fontSize: 10 }}
+              width={90}
               axisLine={false}
               tickLine={false}
-              tickFormatter={(value) => `#${value.length > 10 ? value.slice(0, 10) + '...' : value}`}
             />
             <Tooltip content={<CustomTooltip />} cursor={{ fill: 'hsl(var(--muted))', opacity: 0.3 }} />
             <Bar 
               dataKey="count" 
               radius={[0, 6, 6, 0]}
               name="count"
+              barSize={24}
             >
               {chartData.map((entry, index) => (
                 <Cell 
                   key={`cell-${index}`} 
-                  fill={`url(#gradient-${index})`}
+                  fill={`url(#hashtag-gradient-${index})`}
                 />
               ))}
             </Bar>
             <defs>
               {chartData.map((entry, index) => (
-                <linearGradient key={`gradient-${index}`} id={`gradient-${index}`} x1="0" y1="0" x2="1" y2="0">
-                  <stop offset="0%" stopColor={entry.color} stopOpacity={0.8} />
+                <linearGradient key={`hashtag-gradient-${index}`} id={`hashtag-gradient-${index}`} x1="0" y1="0" x2="1" y2="0">
+                  <stop offset="0%" stopColor={entry.color} stopOpacity={0.7} />
                   <stop offset="100%" stopColor={entry.color} stopOpacity={1} />
                 </linearGradient>
               ))}
             </defs>
           </BarChart>
         </ResponsiveContainer>
-
-        {/* Tag cloud below */}
-        <div className="mt-4 flex flex-wrap gap-2">
-          {data.slice(0, 15).map((item, index) => {
-            // Calculate opacity based on rank
-            const opacity = 1 - (index * 0.04);
-            const color = BAR_COLORS[index % BAR_COLORS.length];
-            
-            return (
-              <Badge 
-                key={item.tag} 
-                variant="secondary"
-                className="text-xs transition-transform hover:scale-105 cursor-default"
-                style={{ 
-                  backgroundColor: `${color}15`,
-                  color: color,
-                  opacity: Math.max(opacity, 0.6),
-                }}
-              >
-                #{item.tag} ({item.count})
-              </Badge>
-            );
-          })}
-        </div>
       </CardContent>
     </Card>
   );

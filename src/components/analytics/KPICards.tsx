@@ -35,6 +35,11 @@ export function KPICards({ stats, previousStats }: KPICardsProps) {
     ? Math.round((stats.totalPosts / 30) * 7) 
     : 0;
 
+  // Calculate engagement rate
+  const engagementRate = stats.totalPosts > 0 
+    ? ((stats.totalLikes + stats.totalComments) / stats.totalPosts).toFixed(0)
+    : "0";
+
   const kpis = [
     {
       label: "Total Posts",
@@ -67,6 +72,16 @@ export function KPICards({ stats, previousStats }: KPICardsProps) {
       tooltip: "Soma de todos os comentários",
     },
     {
+      label: "Eng. Médio",
+      value: Number(engagementRate),
+      previousValue: previousStats ? Math.round((previousStats.totalLikes + previousStats.totalComments) / (previousStats.totalPosts || 1)) : undefined,
+      icon: TrendingUp,
+      gradient: "from-orange-500/20 to-orange-600/10",
+      iconBg: "bg-orange-500/15",
+      iconColor: "text-orange-500",
+      tooltip: "Engagement médio por post (likes + comentários)",
+    },
+    {
       label: "Visualizações",
       value: stats.totalViews,
       previousValue: previousStats?.totalViews,
@@ -75,37 +90,6 @@ export function KPICards({ stats, previousStats }: KPICardsProps) {
       iconBg: "bg-violet-500/15",
       iconColor: "text-violet-500",
       tooltip: "Total de visualizações (vídeos)",
-    },
-    {
-      label: "Média Likes",
-      value: stats.avgLikes,
-      previousValue: previousStats?.avgLikes,
-      icon: TrendingUp,
-      gradient: "from-orange-500/20 to-orange-600/10",
-      iconBg: "bg-orange-500/15",
-      iconColor: "text-orange-500",
-      tooltip: "Média de likes por publicação",
-    },
-    {
-      label: "Média Coment.",
-      value: stats.avgComments,
-      previousValue: previousStats?.avgComments,
-      icon: MessageCircle,
-      gradient: "from-teal-500/20 to-teal-600/10",
-      iconBg: "bg-teal-500/15",
-      iconColor: "text-teal-500",
-      tooltip: "Média de comentários por publicação",
-    },
-    {
-      label: "Rácio L/C",
-      value: likesCommentsRatio,
-      previousValue: previousStats ? (previousStats.totalComments > 0 ? Math.round(previousStats.totalLikes / previousStats.totalComments) : 0) : undefined,
-      icon: Ratio,
-      gradient: "from-indigo-500/20 to-indigo-600/10",
-      iconBg: "bg-indigo-500/15",
-      iconColor: "text-indigo-500",
-      tooltip: `${likesCommentsRatio}:1 - Cada comentário recebe ~${likesCommentsRatio} likes`,
-      suffix: ":1",
     },
     {
       label: "Posts/Semana",
@@ -121,7 +105,7 @@ export function KPICards({ stats, previousStats }: KPICardsProps) {
 
   return (
     <TooltipProvider>
-      <div className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-8 gap-2 sm:gap-3">
+      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-2 sm:gap-3" id="kpi-cards">
         {kpis.map((kpi, index) => {
           const change = calculateChange(
             typeof kpi.value === "number" ? kpi.value : 0,
@@ -165,7 +149,6 @@ export function KPICards({ stats, previousStats }: KPICardsProps) {
                     </div>
                     <p className="text-xl font-bold tracking-tight group-hover:scale-105 transition-transform origin-left">
                       {formatNumber(typeof kpi.value === "number" ? kpi.value : 0)}
-                      {kpi.suffix && <span className="text-sm font-medium text-muted-foreground">{kpi.suffix}</span>}
                     </p>
                     <p className="text-[11px] text-muted-foreground truncate mt-0.5">
                       {kpi.label}
