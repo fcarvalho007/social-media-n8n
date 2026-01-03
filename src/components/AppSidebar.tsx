@@ -235,9 +235,9 @@ export function AppSidebar() {
                                 
                                 <span 
                                   className={cn(
-                                    "text-xs font-medium text-center leading-tight transition-all duration-200",
-                                    isActive && "text-primary font-semibold",
-                                    !isActive && "text-foreground/70 group-hover:text-foreground"
+                                    "text-xs text-center leading-tight transition-all duration-200",
+                                    isActive && "text-white font-bold",
+                                    !isActive && "text-white font-semibold"
                                   )}
                                 >
                                   {item.label}
@@ -266,7 +266,7 @@ export function AppSidebar() {
               variant="ghost"
               size="sm"
               onClick={handleLogout}
-              className="h-8 px-2.5 rounded-lg hover:bg-destructive/10 hover:text-destructive transition-all duration-200 text-xs gap-1.5"
+              className="h-8 px-2.5 rounded-lg hover:bg-destructive/10 hover:text-destructive transition-all duration-200 text-xs gap-1.5 text-white font-semibold"
               title="Logout"
             >
               <LogOut className="h-4 w-4" />
