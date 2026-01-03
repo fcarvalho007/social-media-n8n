@@ -1,5 +1,5 @@
 import { useState, useMemo } from "react";
-import { Heart, MessageCircle, ExternalLink, ArrowUpDown, ImageOff, Search, Download, Image as ImageIcon } from "lucide-react";
+import { Heart, MessageCircle, ExternalLink, ArrowUpDown, Search, Download, Image as ImageIcon } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -149,9 +149,9 @@ export function TopPostsTable({ posts, accounts = [] }: TopPostsTableProps) {
   };
 
   return (
-    <Card>
-      <CardHeader className="flex flex-row items-center justify-between gap-4 flex-wrap">
-        <CardTitle className="text-lg">Posts ({sortedPosts.length})</CardTitle>
+    <Card className="overflow-hidden">
+      <CardHeader className="flex flex-row items-center justify-between gap-4 flex-wrap bg-gradient-to-r from-muted/30 to-transparent pb-4">
+        <CardTitle className="text-lg font-bold">Posts ({sortedPosts.length})</CardTitle>
         <div className="flex items-center gap-2 flex-wrap">
           {/* Search */}
           <div className="relative">
@@ -160,17 +160,17 @@ export function TopPostsTable({ posts, accounts = [] }: TopPostsTableProps) {
               placeholder="Pesquisar caption..."
               value={searchQuery}
               onChange={(e) => { setSearchQuery(e.target.value); setPage(1); }}
-              className="pl-8 w-[180px]"
+              className="pl-8 w-[180px] rounded-lg"
             />
           </div>
 
           {/* Account filter */}
           {accounts.length > 0 && (
             <Select value={filterAccount} onValueChange={(v) => { setFilterAccount(v); setPage(1); }}>
-              <SelectTrigger className="w-[180px]">
+              <SelectTrigger className="w-[180px] rounded-lg">
                 <SelectValue placeholder="Conta" />
               </SelectTrigger>
-              <SelectContent>
+              <SelectContent className="rounded-xl">
                 <SelectItem value="all">Todas as contas</SelectItem>
                 {accounts.map((acc) => (
                   <SelectItem key={acc} value={acc}>@{acc}</SelectItem>
@@ -181,10 +181,10 @@ export function TopPostsTable({ posts, accounts = [] }: TopPostsTableProps) {
 
           {/* Type filter */}
           <Select value={filterType} onValueChange={(v) => { setFilterType(v as FilterType); setPage(1); }}>
-            <SelectTrigger className="w-[130px]">
+            <SelectTrigger className="w-[130px] rounded-lg">
               <SelectValue placeholder="Tipo" />
             </SelectTrigger>
-            <SelectContent>
+            <SelectContent className="rounded-xl">
               <SelectItem value="all">Todos</SelectItem>
               <SelectItem value="Image">Imagem</SelectItem>
               <SelectItem value="Video">Vídeo</SelectItem>
@@ -193,17 +193,17 @@ export function TopPostsTable({ posts, accounts = [] }: TopPostsTableProps) {
           </Select>
 
           {/* Export */}
-          <Button variant="outline" size="sm" onClick={handleExportCSV} className="gap-1.5">
+          <Button variant="outline" size="sm" onClick={handleExportCSV} className="gap-1.5 rounded-lg">
             <Download className="h-4 w-4" />
             CSV
           </Button>
         </div>
       </CardHeader>
-      <CardContent>
-        <div className="rounded-md border overflow-x-auto">
+      <CardContent className="p-0">
+        <div className="overflow-x-auto">
           <Table>
             <TableHeader>
-              <TableRow>
+              <TableRow className="bg-muted/40 hover:bg-muted/40">
                 <TableHead className="w-[60px]">Imagem</TableHead>
                 <TableHead className="min-w-[200px]">Caption</TableHead>
                 <TableHead className="w-[90px]">Tipo</TableHead>
@@ -248,19 +248,22 @@ export function TopPostsTable({ posts, accounts = [] }: TopPostsTableProps) {
             <TableBody>
               {paginatedPosts.length === 0 ? (
                 <TableRow>
-                  <TableCell colSpan={7} className="text-center py-8 text-muted-foreground">
+                  <TableCell colSpan={7} className="text-center py-12 text-muted-foreground">
                     {searchQuery ? "Nenhum post encontrado" : "Sem posts para mostrar"}
                   </TableCell>
                 </TableRow>
               ) : (
-                paginatedPosts.map((post) => {
+                paginatedPosts.map((post, index) => {
                   const hasError = imageErrors.has(post.id);
                   const isLoading = loadingImages.has(post.id);
 
                   return (
-                    <TableRow key={post.id}>
+                    <TableRow 
+                      key={post.id} 
+                      className={`border-b border-border/50 transition-colors ${index % 2 === 0 ? 'bg-background' : 'bg-muted/20'} hover:bg-primary/5`}
+                    >
                       <TableCell>
-                        <div className="w-10 h-10 relative rounded overflow-hidden bg-muted">
+                        <div className="w-10 h-10 relative rounded-lg overflow-hidden bg-muted">
                           {post.thumbnail_url && !hasError ? (
                             <>
                               {isLoading && (
@@ -291,18 +294,18 @@ export function TopPostsTable({ posts, accounts = [] }: TopPostsTableProps) {
                         </p>
                       </TableCell>
                       <TableCell>
-                        <Badge variant="secondary" className="text-xs">
+                        <Badge variant="secondary" className="text-xs rounded-full">
                           {TYPE_LABELS[post.post_type || "Image"] || post.post_type}
                         </Badge>
                       </TableCell>
                       <TableCell>
-                        <span className="flex items-center gap-1 text-red-500 font-medium">
+                        <span className="flex items-center gap-1 text-rose-500 font-semibold">
                           <Heart className="h-3 w-3" />
                           {formatNumber(post.likes_count)}
                         </span>
                       </TableCell>
                       <TableCell>
-                        <span className="flex items-center gap-1 text-primary font-medium">
+                        <span className="flex items-center gap-1 text-primary font-semibold">
                           <MessageCircle className="h-3 w-3" />
                           {formatNumber(post.comments_count)}
                         </span>
@@ -318,7 +321,7 @@ export function TopPostsTable({ posts, accounts = [] }: TopPostsTableProps) {
                           target="_blank"
                           rel="noopener noreferrer"
                           title="Abrir post no Instagram"
-                          className="inline-flex items-center justify-center h-8 w-8 rounded-md hover:bg-accent hover:text-accent-foreground"
+                          className="inline-flex items-center justify-center h-8 w-8 rounded-lg hover:bg-primary/10 hover:text-primary transition-colors"
                         >
                           <ExternalLink className="h-4 w-4" />
                         </a>
@@ -333,7 +336,7 @@ export function TopPostsTable({ posts, accounts = [] }: TopPostsTableProps) {
 
         {/* Pagination */}
         {totalPages > 1 && (
-          <div className="flex items-center justify-between mt-4">
+          <div className="flex items-center justify-between p-4 border-t border-border/50">
             <p className="text-sm text-muted-foreground">
               Página {page} de {totalPages} ({sortedPosts.length} posts)
             </p>
@@ -343,6 +346,7 @@ export function TopPostsTable({ posts, accounts = [] }: TopPostsTableProps) {
                 size="sm"
                 disabled={page <= 1}
                 onClick={() => setPage(page - 1)}
+                className="rounded-lg"
               >
                 Anterior
               </Button>
@@ -351,6 +355,7 @@ export function TopPostsTable({ posts, accounts = [] }: TopPostsTableProps) {
                 size="sm"
                 disabled={page >= totalPages}
                 onClick={() => setPage(page + 1)}
+                className="rounded-lg"
               >
                 Próximo
               </Button>

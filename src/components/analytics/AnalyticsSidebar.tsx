@@ -44,19 +44,22 @@ export function AnalyticsSidebar({ className }: AnalyticsSidebarProps) {
   return (
     <aside
       className={cn(
-        "hidden lg:flex flex-col h-[calc(100vh-4rem)] sticky top-16 border-r bg-card/50 backdrop-blur-sm transition-all duration-300",
+        "hidden lg:flex flex-col h-[calc(100vh-4rem)] sticky top-16 transition-all duration-300",
+        // Dark sidebar styling
+        "bg-sidebar text-sidebar-foreground border-r border-sidebar-border",
         isCollapsed ? "w-14" : "w-52",
         className
       )}
     >
-      <div className="flex items-center justify-between p-3 border-b">
+      {/* Header */}
+      <div className="flex items-center justify-between p-3 border-b border-sidebar-border">
         {!isCollapsed && (
-          <span className="text-sm font-medium text-muted-foreground">Navegação</span>
+          <span className="text-sm font-medium text-sidebar-foreground/70">Navegação</span>
         )}
         <Button
           variant="ghost"
           size="icon"
-          className="h-8 w-8 ml-auto"
+          className="h-8 w-8 ml-auto text-sidebar-foreground/70 hover:text-sidebar-foreground hover:bg-sidebar-muted"
           onClick={() => setIsCollapsed(!isCollapsed)}
         >
           {isCollapsed ? (
@@ -67,7 +70,8 @@ export function AnalyticsSidebar({ className }: AnalyticsSidebarProps) {
         </Button>
       </div>
 
-      <ScrollArea className="flex-1 py-2">
+      {/* Navigation items */}
+      <ScrollArea className="flex-1 py-3">
         <nav className="flex flex-col gap-1 px-2">
           {sections.map((section) => {
             const isActive = activeSection === section.id;
@@ -75,24 +79,46 @@ export function AnalyticsSidebar({ className }: AnalyticsSidebarProps) {
             return (
               <Button
                 key={section.id}
-                variant={isActive ? "secondary" : "ghost"}
+                variant="ghost"
                 size="sm"
                 className={cn(
-                  "justify-start gap-3 transition-all",
-                  isCollapsed ? "px-2" : "px-3",
-                  isActive && "bg-primary/10 text-primary"
+                  "justify-start gap-3 transition-all duration-200 rounded-lg",
+                  "text-sidebar-foreground/70 hover:text-sidebar-foreground",
+                  isCollapsed ? "px-2 justify-center" : "px-3",
+                  isActive 
+                    ? "bg-sidebar-accent/20 text-sidebar-foreground border-l-2 border-sidebar-accent" 
+                    : "hover:bg-sidebar-muted"
                 )}
                 onClick={() => scrollToSection(section.id)}
               >
-                <section.icon className={cn("h-4 w-4 flex-shrink-0", isActive && "text-primary")} />
+                <section.icon 
+                  className={cn(
+                    "h-4 w-4 flex-shrink-0 transition-colors",
+                    isActive ? "text-sidebar-accent" : ""
+                  )} 
+                />
                 {!isCollapsed && (
-                  <span className="truncate">{section.label}</span>
+                  <span className={cn(
+                    "truncate text-sm",
+                    isActive && "font-medium"
+                  )}>
+                    {section.label}
+                  </span>
                 )}
               </Button>
             );
           })}
         </nav>
       </ScrollArea>
+
+      {/* Footer - mini branding */}
+      {!isCollapsed && (
+        <div className="p-3 border-t border-sidebar-border">
+          <p className="text-[10px] text-sidebar-foreground/40 text-center">
+            Analytics v2.0
+          </p>
+        </div>
+      )}
     </aside>
   );
 }

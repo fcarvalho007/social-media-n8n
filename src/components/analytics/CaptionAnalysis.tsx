@@ -6,7 +6,8 @@ import {
   TrendingUp, 
   Lightbulb,
   Hash,
-  Type
+  Type,
+  Sparkles
 } from "lucide-react";
 import {
   ScatterChart,
@@ -146,11 +147,11 @@ export function CaptionAnalysis({ analytics, contextLabel }: CaptionAnalysisProp
     const data = payload[0].payload;
     
     return (
-      <div className="rounded-xl border bg-card/95 backdrop-blur-sm p-3 shadow-xl">
-        <p className="text-sm">
-          <span className="font-medium">{data.length}</span> caracteres
+      <div className="rounded-xl border bg-card/95 backdrop-blur-sm p-4 shadow-xl">
+        <p className="text-sm font-bold">
+          {data.length} caracteres
         </p>
-        <p className="text-sm text-muted-foreground">
+        <p className="text-sm text-muted-foreground mt-1">
           {formatNumber(data.engagement)} engagement
         </p>
       </div>
@@ -159,15 +160,15 @@ export function CaptionAnalysis({ analytics, contextLabel }: CaptionAnalysisProp
 
   return (
     <Card className="overflow-hidden" id="caption-analysis">
-      <CardHeader className="pb-3 flex flex-row items-center justify-between space-y-0">
-        <CardTitle className="text-base flex items-center gap-2">
-          <div className="p-1.5 rounded-lg bg-emerald-500/15">
+      <CardHeader className="pb-4 flex flex-row items-center justify-between space-y-0 bg-gradient-to-r from-emerald-500/5 to-transparent">
+        <CardTitle className="text-base font-bold flex items-center gap-3">
+          <div className="p-2 rounded-xl bg-emerald-500/10">
             <FileText className="h-4 w-4 text-emerald-500" />
           </div>
           Análise de Captions
         </CardTitle>
         {contextLabel && (
-          <Badge variant="outline" className="text-xs font-normal">
+          <Badge variant="outline" className="text-xs font-normal rounded-full">
             {contextLabel}
           </Badge>
         )}
@@ -175,37 +176,42 @@ export function CaptionAnalysis({ analytics, contextLabel }: CaptionAnalysisProp
       <CardContent className="space-y-6">
         {/* Quick stats */}
         <div className="grid grid-cols-2 gap-4">
-          <div className="p-4 rounded-xl bg-muted/50">
-            <div className="flex items-center gap-2 mb-1">
-              <Type className="h-4 w-4 text-muted-foreground" />
-              <span className="text-sm text-muted-foreground">Comprimento Médio</span>
+          <div className="p-4 rounded-xl bg-muted/40 hover:bg-muted/60 transition-all">
+            <div className="flex items-center gap-2 mb-2">
+              <div className="p-1.5 rounded-lg bg-blue-500/10">
+                <Type className="h-4 w-4 text-blue-500" />
+              </div>
+              <span className="text-sm font-medium text-muted-foreground">Comprimento Médio</span>
             </div>
-            <p className="text-2xl font-bold">{avgLength}</p>
-            <p className="text-xs text-muted-foreground">caracteres</p>
+            <p className="text-3xl font-bold font-mono">{avgLength}</p>
+            <p className="text-xs text-muted-foreground mt-0.5">caracteres</p>
           </div>
-          <div className="p-4 rounded-xl bg-muted/50">
-            <div className="flex items-center gap-2 mb-1">
-              <Hash className="h-4 w-4 text-muted-foreground" />
-              <span className="text-sm text-muted-foreground">Posts Analisados</span>
+          <div className="p-4 rounded-xl bg-muted/40 hover:bg-muted/60 transition-all">
+            <div className="flex items-center gap-2 mb-2">
+              <div className="p-1.5 rounded-lg bg-violet-500/10">
+                <Hash className="h-4 w-4 text-violet-500" />
+              </div>
+              <span className="text-sm font-medium text-muted-foreground">Posts Analisados</span>
             </div>
-            <p className="text-2xl font-bold">{analytics.filter(p => p.caption).length}</p>
-            <p className="text-xs text-muted-foreground">com caption</p>
+            <p className="text-3xl font-bold font-mono">{analytics.filter(p => p.caption).length}</p>
+            <p className="text-xs text-muted-foreground mt-0.5">com caption</p>
           </div>
         </div>
 
         {/* Scatter chart - Length vs Engagement */}
         {scatterData.length > 0 && (
           <div>
-            <h4 className="text-sm font-medium mb-3 flex items-center gap-2">
+            <h4 className="text-sm font-semibold mb-3 flex items-center gap-2">
               <TrendingUp className="h-4 w-4 text-muted-foreground" />
               Tamanho vs Engagement
             </h4>
-            <ResponsiveContainer width="100%" height={180}>
+            <ResponsiveContainer width="100%" height={200}>
               <ScatterChart margin={{ top: 10, right: 10, left: 0, bottom: 10 }}>
                 <CartesianGrid 
                   strokeDasharray="3 3" 
                   stroke="hsl(var(--border))" 
-                  strokeOpacity={0.3} 
+                  strokeOpacity={0.2} 
+                  vertical={false}
                 />
                 <XAxis 
                   dataKey="length" 
@@ -222,7 +228,7 @@ export function CaptionAnalysis({ analytics, contextLabel }: CaptionAnalysisProp
                   tickFormatter={formatNumber}
                   axisLine={false}
                   tickLine={false}
-                  width={45}
+                  width={50}
                 />
                 <Tooltip content={<CustomTooltip />} />
                 <Scatter 
@@ -238,18 +244,21 @@ export function CaptionAnalysis({ analytics, contextLabel }: CaptionAnalysisProp
         {/* Word frequency */}
         {wordFrequency.length > 0 && (
           <div>
-            <h4 className="text-sm font-medium mb-3">Palavras Mais Frequentes</h4>
+            <h4 className="text-sm font-semibold mb-3 flex items-center gap-2">
+              <Sparkles className="h-4 w-4 text-muted-foreground" />
+              Palavras Mais Frequentes
+            </h4>
             <div className="flex flex-wrap gap-2">
               {wordFrequency.slice(0, 12).map((item, index) => {
-                const opacity = 1 - (index * 0.06);
+                const intensity = 1 - (index * 0.05);
                 return (
                   <Badge 
                     key={item.word}
                     variant="secondary"
-                    className="text-xs transition-transform hover:scale-105"
-                    style={{ opacity: Math.max(opacity, 0.5) }}
+                    className="text-xs transition-all hover:scale-105 rounded-full px-3 py-1"
+                    style={{ opacity: Math.max(intensity, 0.5) }}
                   >
-                    {item.word} ({item.count})
+                    {item.word} <span className="ml-1 opacity-70">({item.count})</span>
                   </Badge>
                 );
               })}
@@ -261,16 +270,19 @@ export function CaptionAnalysis({ analytics, contextLabel }: CaptionAnalysisProp
         {insights.length > 0 && (
           <div className="p-4 rounded-xl bg-gradient-to-r from-amber-500/10 to-orange-500/5 border border-amber-500/20">
             <div className="flex items-start gap-3">
-              <div className="p-1.5 rounded-lg bg-amber-500/15">
-                <Lightbulb className="h-4 w-4 text-amber-500" />
+              <div className="p-2 rounded-xl bg-amber-500/15">
+                <Lightbulb className="h-5 w-5 text-amber-500" />
               </div>
               <div>
-                <p className="font-medium text-sm text-amber-700 dark:text-amber-300 mb-1">
+                <p className="font-semibold text-sm text-amber-700 dark:text-amber-300 mb-2">
                   Insights
                 </p>
-                <ul className="text-sm text-amber-700/80 dark:text-amber-400/80 space-y-1">
+                <ul className="text-sm text-amber-700/80 dark:text-amber-400/80 space-y-1.5">
                   {insights.map((insight, i) => (
-                    <li key={i}>• {insight}</li>
+                    <li key={i} className="flex items-start gap-2">
+                      <span className="text-amber-500 mt-0.5">•</span>
+                      {insight}
+                    </li>
                   ))}
                 </ul>
               </div>

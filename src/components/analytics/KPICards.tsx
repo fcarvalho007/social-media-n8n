@@ -1,4 +1,4 @@
-import { Heart, MessageCircle, Eye, TrendingUp, BarChart3, ArrowUp, ArrowDown, Ratio, Calendar } from "lucide-react";
+import { Heart, MessageCircle, Eye, TrendingUp, BarChart3, ArrowUp, ArrowDown, Calendar } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
 import {
   Tooltip,
@@ -6,6 +6,7 @@ import {
   TooltipProvider,
   TooltipTrigger,
 } from "@/components/ui/tooltip";
+import { AnimatedNumber, formatCompactNumber } from "./AnimatedNumber";
 import type { AnalyticsStats } from "@/hooks/useInstagramAnalytics";
 
 interface KPICardsProps {
@@ -14,21 +15,10 @@ interface KPICardsProps {
 }
 
 export function KPICards({ stats, previousStats }: KPICardsProps) {
-  const formatNumber = (num: number) => {
-    if (num >= 1000000) return `${(num / 1000000).toFixed(1)}M`;
-    if (num >= 1000) return `${(num / 1000).toFixed(1)}K`;
-    return num.toString();
-  };
-
   const calculateChange = (current: number, previous: number | undefined) => {
     if (!previous || previous === 0) return null;
     return ((current - previous) / previous) * 100;
   };
-
-  // Calculate likes/comments ratio
-  const likesCommentsRatio = stats.totalComments > 0 
-    ? Math.round(stats.totalLikes / stats.totalComments) 
-    : 0;
 
   // Calculate posts per week (assuming data covers at least a week)
   const postsPerWeek = stats.totalPosts > 0 
@@ -37,8 +27,8 @@ export function KPICards({ stats, previousStats }: KPICardsProps) {
 
   // Calculate engagement rate
   const engagementRate = stats.totalPosts > 0 
-    ? ((stats.totalLikes + stats.totalComments) / stats.totalPosts).toFixed(0)
-    : "0";
+    ? Math.round((stats.totalLikes + stats.totalComments) / stats.totalPosts)
+    : 0;
 
   const kpis = [
     {
@@ -46,9 +36,8 @@ export function KPICards({ stats, previousStats }: KPICardsProps) {
       value: stats.totalPosts,
       previousValue: previousStats?.totalPosts,
       icon: BarChart3,
-      gradient: "from-blue-500/20 to-blue-600/10",
-      iconBg: "bg-blue-500/15",
-      iconColor: "text-blue-500",
+      iconBg: "bg-primary/10",
+      iconColor: "text-primary",
       tooltip: "Número total de publicações analisadas",
     },
     {
@@ -56,8 +45,7 @@ export function KPICards({ stats, previousStats }: KPICardsProps) {
       value: stats.totalLikes,
       previousValue: previousStats?.totalLikes,
       icon: Heart,
-      gradient: "from-rose-500/20 to-rose-600/10",
-      iconBg: "bg-rose-500/15",
+      iconBg: "bg-rose-500/10",
       iconColor: "text-rose-500",
       tooltip: "Soma de todos os likes nas publicações",
     },
@@ -66,18 +54,16 @@ export function KPICards({ stats, previousStats }: KPICardsProps) {
       value: stats.totalComments,
       previousValue: previousStats?.totalComments,
       icon: MessageCircle,
-      gradient: "from-emerald-500/20 to-emerald-600/10",
-      iconBg: "bg-emerald-500/15",
+      iconBg: "bg-emerald-500/10",
       iconColor: "text-emerald-500",
       tooltip: "Soma de todos os comentários",
     },
     {
       label: "Eng. Médio",
-      value: Number(engagementRate),
+      value: engagementRate,
       previousValue: previousStats ? Math.round((previousStats.totalLikes + previousStats.totalComments) / (previousStats.totalPosts || 1)) : undefined,
       icon: TrendingUp,
-      gradient: "from-orange-500/20 to-orange-600/10",
-      iconBg: "bg-orange-500/15",
+      iconBg: "bg-orange-500/10",
       iconColor: "text-orange-500",
       tooltip: "Engagement médio por post (likes + comentários)",
     },
@@ -86,8 +72,7 @@ export function KPICards({ stats, previousStats }: KPICardsProps) {
       value: stats.totalViews,
       previousValue: previousStats?.totalViews,
       icon: Eye,
-      gradient: "from-violet-500/20 to-violet-600/10",
-      iconBg: "bg-violet-500/15",
+      iconBg: "bg-violet-500/10",
       iconColor: "text-violet-500",
       tooltip: "Total de visualizações (vídeos)",
     },
@@ -96,8 +81,7 @@ export function KPICards({ stats, previousStats }: KPICardsProps) {
       value: postsPerWeek,
       previousValue: undefined,
       icon: Calendar,
-      gradient: "from-cyan-500/20 to-cyan-600/10",
-      iconBg: "bg-cyan-500/15",
+      iconBg: "bg-cyan-500/10",
       iconColor: "text-cyan-500",
       tooltip: "Média de posts por semana (estimado)",
     },
@@ -105,7 +89,7 @@ export function KPICards({ stats, previousStats }: KPICardsProps) {
 
   return (
     <TooltipProvider>
-      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-2 sm:gap-3" id="kpi-cards">
+      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3 sm:gap-4" id="kpi-cards">
         {kpis.map((kpi, index) => {
           const change = calculateChange(
             typeof kpi.value === "number" ? kpi.value : 0,
@@ -118,23 +102,24 @@ export function KPICards({ stats, previousStats }: KPICardsProps) {
             <Tooltip key={kpi.label}>
               <TooltipTrigger asChild>
                 <Card 
-                  className={`relative overflow-hidden border-border/50 hover:border-border hover:shadow-lg transition-all duration-300 cursor-default group bg-gradient-to-br ${kpi.gradient}`}
+                  className="relative overflow-hidden border-border/50 bg-card hover:border-primary/30 hover:shadow-lg hover:-translate-y-0.5 transition-all duration-300 cursor-default group"
                   style={{ 
                     animationDelay: `${index * 50}ms`,
                   }}
                 >
-                  <CardContent className="p-3 relative z-10">
-                    <div className="flex items-start justify-between mb-2">
-                      <div className={`p-1.5 rounded-lg ${kpi.iconBg} transition-transform group-hover:scale-110`}>
-                        <kpi.icon className={`h-3.5 w-3.5 ${kpi.iconColor}`} />
+                  <CardContent className="p-4 sm:p-5">
+                    {/* Header with icon and change badge */}
+                    <div className="flex items-center justify-between mb-3">
+                      <div className={`p-2.5 rounded-xl ${kpi.iconBg} transition-transform group-hover:scale-110 group-hover:rotate-3`}>
+                        <kpi.icon className={`h-4 w-4 sm:h-5 sm:w-5 ${kpi.iconColor}`} />
                       </div>
                       {change !== null && Math.abs(change) >= 1 && (
                         <div
-                          className={`flex items-center gap-0.5 text-xs font-semibold px-1.5 py-0.5 rounded-full ${
+                          className={`flex items-center gap-0.5 text-xs font-semibold px-2 py-1 rounded-full ${
                             isPositive
-                              ? "text-emerald-600 bg-emerald-500/15"
+                              ? "text-emerald-600 bg-emerald-500/10"
                               : isNegative
-                              ? "text-rose-500 bg-rose-500/15"
+                              ? "text-rose-500 bg-rose-500/10"
                               : "text-muted-foreground"
                           }`}
                         >
@@ -147,16 +132,26 @@ export function KPICards({ stats, previousStats }: KPICardsProps) {
                         </div>
                       )}
                     </div>
-                    <p className="text-xl font-bold tracking-tight group-hover:scale-105 transition-transform origin-left">
-                      {formatNumber(typeof kpi.value === "number" ? kpi.value : 0)}
+                    
+                    {/* Value - large and bold with animation */}
+                    <p className="text-2xl sm:text-3xl font-bold tracking-tight font-mono text-foreground mb-1">
+                      <AnimatedNumber 
+                        value={typeof kpi.value === "number" ? kpi.value : 0}
+                        formatFn={formatCompactNumber}
+                      />
                     </p>
-                    <p className="text-[11px] text-muted-foreground truncate mt-0.5">
+                    
+                    {/* Label - uppercase tracking */}
+                    <p className="text-[10px] sm:text-xs uppercase tracking-widest text-muted-foreground font-medium">
                       {kpi.label}
                     </p>
                   </CardContent>
                 </Card>
               </TooltipTrigger>
-              <TooltipContent side="bottom" className="max-w-[200px]">
+              <TooltipContent 
+                side="bottom" 
+                className="max-w-[200px] rounded-xl shadow-xl"
+              >
                 <p>{kpi.tooltip}</p>
               </TooltipContent>
             </Tooltip>
