@@ -1,9 +1,10 @@
 import { useState, useMemo } from "react";
-import { BarChart3, Trash2, Users, UserCircle } from "lucide-react";
+import { BarChart3, Trash2, Users, UserCircle, Download, Clock } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
+import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { KPICards } from "@/components/analytics/KPICards";
 import { EngagementChart } from "@/components/analytics/EngagementChart";
@@ -11,10 +12,10 @@ import { ContentTypeBreakdown } from "@/components/analytics/ContentTypeBreakdow
 import { HashtagCloud } from "@/components/analytics/HashtagCloud";
 import { TopPostsTable } from "@/components/analytics/TopPostsTable";
 import { TopPostsGallery } from "@/components/analytics/TopPostsGallery";
-import { TopPostsCards } from "@/components/analytics/TopPostsCards";
-import { QuickInsights } from "@/components/analytics/QuickInsights";
 import { BestTimeToPost } from "@/components/analytics/BestTimeToPost";
-import { InsightsSummary } from "@/components/analytics/InsightsSummary";
+import { ProfileOverviewCard } from "@/components/analytics/ProfileOverviewCard";
+import { CaptionAnalysis } from "@/components/analytics/CaptionAnalysis";
+import { AnalyticsSidebar } from "@/components/analytics/AnalyticsSidebar";
 import { DataContextBadge } from "@/components/analytics/DataContextBadge";
 import { AnalyticsFilters, type PeriodFilter, type ContentTypeFilter } from "@/components/analytics/AnalyticsFilters";
 import { DataImportHub } from "@/components/analytics/DataImportHub";
@@ -48,6 +49,8 @@ import {
   AlertDialogTitle,
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
+import { format } from "date-fns";
+import { pt } from "date-fns/locale";
 
 export default function Analytics() {
   const { user } = useAuth();
@@ -68,6 +71,7 @@ export default function Analytics() {
 
   // Profiles data
   const {
+    profiles: allProfiles,
     latestProfiles,
     isLoading: isLoadingProfiles,
   } = useInstagramProfiles({ publicMode: true });
@@ -290,6 +294,28 @@ export default function Analytics() {
     return accountStats.filter((a) => selectedCompetitorAccounts.includes(a.username));
   }, [accountStats, selectedCompetitorAccounts]);
 
+  // Get selected profile for overview
+  const selectedProfile = useMemo(() => {
+    if (account === "all") return latestProfiles[0] || null;
+    return latestProfiles.find(p => p.username === account) || null;
+  }, [account, latestProfiles]);
+
+  // Get historical profiles for sparkline
+  const historicalProfiles = useMemo(() => {
+    if (!selectedProfile) return [];
+    return allProfiles.filter(p => p.username === selectedProfile.username);
+  }, [selectedProfile, allProfiles]);
+
+  // Last update timestamp
+  const lastUpdate = useMemo(() => {
+    if (analytics.length === 0) return null;
+    const dates = analytics
+      .map(p => p.imported_at)
+      .filter(Boolean)
+      .sort((a, b) => new Date(b!).getTime() - new Date(a!).getTime());
+    return dates[0] ? new Date(dates[0]) : null;
+  }, [analytics]);
+
   const handleResetFilters = () => {
     setPeriod("all");
     setAccount("all");
@@ -301,6 +327,32 @@ export default function Analytics() {
     if (ids.length > 0) {
       deleteAnalytics(ids);
     }
+  };
+
+  // CSV Export
+  const handleExportCSV = () => {
+    const headers = ["Data", "Username", "Tipo", "Likes", "Comentários", "Views", "Engagement", "URL"];
+    const rows = filteredAnalytics.map(post => [
+      post.posted_at ? format(new Date(post.posted_at), "yyyy-MM-dd HH:mm", { locale: pt }) : "",
+      post.owner_username || "",
+      post.post_type || "Image",
+      post.likes_count || 0,
+      post.comments_count || 0,
+      post.views_count || 0,
+      (post.likes_count || 0) + (post.comments_count || 0),
+      post.post_url || "",
+    ]);
+
+    const csvContent = [
+      headers.join(","),
+      ...rows.map(row => row.map(cell => `"${cell}"`).join(","))
+    ].join("\n");
+
+    const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8;" });
+    const link = document.createElement("a");
+    link.href = URL.createObjectURL(blob);
+    link.download = `instagram-analytics-${format(new Date(), "yyyy-MM-dd")}.csv`;
+    link.click();
   };
 
   if (isLoading) {
@@ -323,302 +375,334 @@ export default function Analytics() {
   const isEmpty = analytics.length === 0;
 
   return (
-    <div className="container mx-auto p-4 sm:p-6 space-y-5">
-      {/* Header */}
-      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
-        <div className="flex items-center gap-3">
-          <div className="p-2 rounded-lg bg-primary/10">
-            <BarChart3 className="h-6 w-6 text-primary" />
-          </div>
-          <div>
-            <h1 className="text-xl sm:text-2xl font-bold">Analytics Instagram</h1>
-            <p className="text-sm text-muted-foreground">
-              {isEmpty
-                ? "Importe os dados das suas publicações"
-                : `${filteredStats.totalPosts} publicações analisadas`}
-            </p>
+    <div className="flex">
+      {/* Sidebar navigation */}
+      <AnalyticsSidebar />
+
+      {/* Main content */}
+      <div className="flex-1 container mx-auto p-4 sm:p-6 space-y-5">
+        {/* 1. HEADER DO DASHBOARD */}
+        <div id="dashboard-header" className="flex flex-col gap-4">
+          <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+            <div className="flex items-center gap-3">
+              <div className="p-2 rounded-lg bg-primary/10">
+                <BarChart3 className="h-6 w-6 text-primary" />
+              </div>
+              <div>
+                <h1 className="text-xl sm:text-2xl font-bold">Analytics Instagram</h1>
+                <p className="text-sm text-muted-foreground">
+                  {isEmpty
+                    ? "Importe os dados das suas publicações"
+                    : `${filteredStats.totalPosts} publicações analisadas`}
+                </p>
+              </div>
+            </div>
+
+            <div className="flex items-center gap-2 flex-wrap">
+              {/* Export CSV */}
+              {!isEmpty && (
+                <Button variant="outline" size="sm" onClick={handleExportCSV} className="gap-2">
+                  <Download className="h-4 w-4" />
+                  <span className="hidden sm:inline">Exportar CSV</span>
+                </Button>
+              )}
+              
+              {/* Last update badge */}
+              {lastUpdate && (
+                <Badge variant="secondary" className="gap-1.5 text-xs">
+                  <Clock className="h-3 w-3" />
+                  {format(lastUpdate, "dd/MM HH:mm", { locale: pt })}
+                </Badge>
+              )}
+
+              {canManageData && (
+                <>
+                  <DataImportHub onImport={importPosts} isImporting={isImporting} />
+                  {!isEmpty && (
+                    <AlertDialog>
+                      <AlertDialogTrigger asChild>
+                        <Button variant="outline" size="sm" className="gap-2 text-destructive">
+                          <Trash2 className="h-4 w-4" />
+                          <span className="hidden sm:inline">Limpar</span>
+                        </Button>
+                      </AlertDialogTrigger>
+                      <AlertDialogContent>
+                        <AlertDialogHeader>
+                          <AlertDialogTitle>Eliminar todos os dados?</AlertDialogTitle>
+                          <AlertDialogDescription>
+                            Esta ação vai eliminar todos os {stats.totalPosts} registos.
+                          </AlertDialogDescription>
+                        </AlertDialogHeader>
+                        <AlertDialogFooter>
+                          <AlertDialogCancel>Cancelar</AlertDialogCancel>
+                          <AlertDialogAction
+                            onClick={handleDeleteAll}
+                            disabled={isDeleting}
+                            className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                          >
+                            {isDeleting ? "Eliminando..." : "Eliminar Tudo"}
+                          </AlertDialogAction>
+                        </AlertDialogFooter>
+                      </AlertDialogContent>
+                    </AlertDialog>
+                  )}
+                </>
+              )}
+            </div>
           </div>
         </div>
 
-        {canManageData && (
-          <div className="flex items-center gap-2 flex-wrap">
-            <DataImportHub onImport={importPosts} isImporting={isImporting} />
-            {!isEmpty && (
-              <AlertDialog>
-                <AlertDialogTrigger asChild>
-                  <Button variant="outline" size="sm" className="gap-2 text-destructive">
-                    <Trash2 className="h-4 w-4" />
-                    <span className="hidden sm:inline">Limpar</span>
-                  </Button>
-                </AlertDialogTrigger>
-                <AlertDialogContent>
-                  <AlertDialogHeader>
-                    <AlertDialogTitle>Eliminar todos os dados?</AlertDialogTitle>
-                    <AlertDialogDescription>
-                      Esta ação vai eliminar todos os {stats.totalPosts} registos.
-                    </AlertDialogDescription>
-                  </AlertDialogHeader>
-                  <AlertDialogFooter>
-                    <AlertDialogCancel>Cancelar</AlertDialogCancel>
-                    <AlertDialogAction
-                      onClick={handleDeleteAll}
-                      disabled={isDeleting}
-                      className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
-                    >
-                      {isDeleting ? "Eliminando..." : "Eliminar Tudo"}
-                    </AlertDialogAction>
-                  </AlertDialogFooter>
-                </AlertDialogContent>
-              </AlertDialog>
-            )}
-          </div>
-        )}
-      </div>
+        {isEmpty ? (
+          <Card className="border-dashed">
+            <CardContent className="flex flex-col items-center justify-center py-16 text-center">
+              <div className="p-4 rounded-full bg-muted mb-4">
+                <BarChart3 className="h-10 w-10 text-muted-foreground" />
+              </div>
+              <h3 className="text-lg font-semibold mb-2">Sem dados de analytics</h3>
+              <p className="text-muted-foreground mb-6 max-w-md">
+                {canManageData 
+                  ? "Importe um ficheiro Excel ou JSON com os dados das suas publicações do Instagram."
+                  : "Os dados de analytics ainda não foram carregados."}
+              </p>
+              {canManageData && (
+                <DataImportHub onImport={importPosts} isImporting={isImporting} />
+              )}
+            </CardContent>
+          </Card>
+        ) : (
+          <>
+            {/* Data Context Badge */}
+            <DataContextBadge analytics={analytics} />
 
-      {isEmpty ? (
-        <Card className="border-dashed">
-          <CardContent className="flex flex-col items-center justify-center py-16 text-center">
-            <div className="p-4 rounded-full bg-muted mb-4">
-              <BarChart3 className="h-10 w-10 text-muted-foreground" />
-            </div>
-            <h3 className="text-lg font-semibold mb-2">Sem dados de analytics</h3>
-            <p className="text-muted-foreground mb-6 max-w-md">
-              {canManageData 
-                ? "Importe um ficheiro Excel ou JSON com os dados das suas publicações do Instagram."
-                : "Os dados de analytics ainda não foram carregados."}
-            </p>
-            {canManageData && (
-              <DataImportHub onImport={importPosts} isImporting={isImporting} />
-            )}
-          </CardContent>
-        </Card>
-      ) : (
-        <>
-          {/* Data Context Badge */}
-          <DataContextBadge analytics={analytics} />
+            {/* Filters */}
+            <AnalyticsFilters
+              period={period}
+              onPeriodChange={setPeriod}
+              account={account}
+              onAccountChange={setAccount}
+              accounts={sortedAccounts}
+              contentTypes={contentTypes}
+              onContentTypesChange={setContentTypes}
+              onReset={handleResetFilters}
+              totalPosts={analytics.length}
+              filteredPosts={filteredAnalytics.length}
+              myAccount={myAccount || undefined}
+            />
 
-          {/* Filters */}
-          <AnalyticsFilters
-            period={period}
-            onPeriodChange={setPeriod}
-            account={account}
-            onAccountChange={setAccount}
-            accounts={sortedAccounts}
-            contentTypes={contentTypes}
-            onContentTypesChange={setContentTypes}
-            onReset={handleResetFilters}
-            totalPosts={analytics.length}
-            filteredPosts={filteredAnalytics.length}
-            myAccount={myAccount || undefined}
-          />
+            {/* Tabs: Overview + Competition + Profiles */}
+            <Tabs defaultValue="overview" className="space-y-4">
+              <TabsList className="w-full sm:w-auto flex">
+                <TabsTrigger value="overview" className="flex-1 sm:flex-none">Visão Geral</TabsTrigger>
+                <TabsTrigger value="competition" className="gap-1.5 flex-1 sm:flex-none">
+                  <Users className="h-4 w-4 hidden sm:block" />
+                  Concorrência
+                </TabsTrigger>
+                <TabsTrigger value="profiles" className="gap-1.5 flex-1 sm:flex-none">
+                  <UserCircle className="h-4 w-4 hidden sm:block" />
+                  Perfis
+                </TabsTrigger>
+              </TabsList>
 
-          {/* Insights */}
-          <InsightsSummary stats={filteredStats} analytics={filteredAnalytics} />
+              <TabsContent value="overview" className="space-y-6">
+                {/* 2. KPI CARDS (6 cards) */}
+                <KPICards stats={filteredStats} />
 
-          {/* KPI Cards */}
-          <KPICards stats={filteredStats} />
+                {/* 3. PROFILE OVERVIEW (when single account selected) */}
+                {account !== "all" && selectedProfile && (
+                  <ProfileOverviewCard 
+                    profile={selectedProfile} 
+                    historicalProfiles={historicalProfiles}
+                  />
+                )}
 
-          {/* Consolidated Tabs: Overview + Competition + Profiles */}
-          <Tabs defaultValue="overview" className="space-y-4">
-            <TabsList className="w-full sm:w-auto flex">
-              <TabsTrigger value="overview" className="flex-1 sm:flex-none">Visão Geral</TabsTrigger>
-              <TabsTrigger value="competition" className="gap-1.5 flex-1 sm:flex-none">
-                <Users className="h-4 w-4 hidden sm:block" />
-                Concorrência
-              </TabsTrigger>
-              <TabsTrigger value="profiles" className="gap-1.5 flex-1 sm:flex-none">
-                <UserCircle className="h-4 w-4 hidden sm:block" />
-                Perfis
-              </TabsTrigger>
-            </TabsList>
-
-            <TabsContent value="overview" className="space-y-6">
-              {/* Top 3 Posts + Quick Insights */}
-              <div className="grid lg:grid-cols-3 gap-6">
-                <div className="lg:col-span-2">
-                  <TopPostsCards 
-                    posts={filteredAnalytics} 
-                    limit={3} 
-                    myAccount={myAccount || undefined}
+                {/* 4. CONTENT ANALYSIS (2 columns) */}
+                <div className="grid grid-cols-1 lg:grid-cols-2 gap-6" id="content-analysis">
+                  <ContentTypeBreakdown data={filteredStats.contentTypeBreakdown} />
+                  <HashtagCloud
+                    data={filteredStats.topHashtags} 
+                    contextLabel={account === "all" ? `${sortedAccounts.length} contas` : `@${account}`}
                   />
                 </div>
-                <QuickInsights 
-                  stats={filteredStats} 
-                  analytics={filteredAnalytics}
-                />
-              </div>
 
-              {/* Main charts row */}
-            {/* Engagement ao Longo do Tempo - Linha inteira */}
-            <EngagementChart data={filteredStats.engagementOverTime} />
+                {/* 5. PERFORMANCE TEMPORAL (full width) */}
+                <EngagementChart data={filteredStats.engagementOverTime} />
 
-            {/* Tipos de Conteúdo - Linha inteira separada */}
-            <ContentTypeBreakdown data={filteredStats.contentTypeBreakdown} />
-
-              {/* Top Posts Gallery */}
-              <TopPostsGallery 
-                posts={filteredAnalytics} 
-                limit={6} 
-                myAccount={myAccount || undefined}
-                contextLabel={account === "all" ? `${sortedAccounts.length} contas` : `@${account}`}
-              />
-
-              {/* Hashtags and Best Time */}
-              <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-                <HashtagCloud
-                  data={filteredStats.topHashtags} 
+                {/* 6. TOP POSTS (full width - unified Top 10) */}
+                <TopPostsGallery 
+                  posts={filteredAnalytics} 
+                  limit={10} 
+                  myAccount={myAccount || undefined}
+                  showUsername
                   contextLabel={account === "all" ? `${sortedAccounts.length} contas` : `@${account}`}
                 />
+
+                {/* 7. BEST TIMES TO POST (2 columns internal) */}
                 <BestTimeToPost 
                   analytics={filteredAnalytics}
                   contextLabel={account === "all" ? `${sortedAccounts.length} contas` : `@${account}`}
                 />
-              </div>
 
-              {/* All Posts Table - at the end of Overview */}
-              <TopPostsTable posts={filteredAnalytics} accounts={sortedAccounts} />
-            </TabsContent>
+                {/* 8. CAPTION ANALYSIS */}
+                <CaptionAnalysis 
+                  analytics={filteredAnalytics}
+                  contextLabel={account === "all" ? `${sortedAccounts.length} contas` : `@${account}`}
+                />
 
-            <TabsContent value="competition" className="space-y-6">
-              {/* Competitive Insights Summary */}
-              <CompetitiveInsights
-                myAccount={myAccount || ""}
-                myStats={accountStats.find(a => a.username === myAccount) || null}
-                competitorStats={accountStats.filter(a => a.username !== myAccount && selectedCompetitorAccounts.includes(a.username))}
-              />
+                {/* All Posts Table */}
+                <TopPostsTable posts={filteredAnalytics} accounts={sortedAccounts} />
+              </TabsContent>
 
-              {/* Account Selector + Ranking */}
-              <div className="grid lg:grid-cols-3 gap-6">
-                <AccountSelector
+              <TabsContent value="competition" className="space-y-6">
+                {/* Competitive Insights Summary */}
+                <CompetitiveInsights
+                  myAccount={myAccount || ""}
+                  myStats={accountStats.find(a => a.username === myAccount) || null}
+                  competitorStats={accountStats.filter(a => a.username !== myAccount && selectedCompetitorAccounts.includes(a.username))}
+                />
+
+                {/* Account Selector + Ranking */}
+                <div className="grid lg:grid-cols-3 gap-6">
+                  <AccountSelector
+                    accounts={accounts}
+                    selectedAccounts={selectedCompetitorAccounts}
+                    onSelectionChange={setSelectedCompetitorAccounts}
+                    accountStats={accountStatsMap}
+                    maxSelectable={10}
+                    myAccount={myAccount}
+                    onMyAccountChange={setMyAccount}
+                    profileAvatars={profileAvatarsMap}
+                  />
+                  <div className="lg:col-span-2">
+                    <AccountRanking accounts={selectedAccountStats} sortBy="avgEngagement" myAccount={myAccount || undefined} />
+                  </div>
+                </div>
+
+                {/* Comparison Chart */}
+                <AccountComparisonChart accounts={selectedAccountStats} myAccount={myAccount || undefined} analytics={analytics} />
+
+                {/* Timeline */}
+                <MultiAccountTimeline
+                  analytics={analytics}
+                  selectedAccounts={selectedCompetitorAccounts}
+                  accountColorMap={accountColorMap}
+                  myAccount={myAccount || undefined}
+                />
+
+                {/* Top Posts per Account */}
+                <CompetitorTopPosts
+                  analytics={analytics}
+                  selectedAccounts={selectedCompetitorAccounts}
+                  accountColorMap={accountColorMap}
+                  postsPerAccount={6}
+                  myAccount={myAccount || undefined}
+                />
+
+                {/* Posting Frequency + Engagement Distribution */}
+                <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                  <PostingFrequencyHeatmap
+                    analytics={analytics}
+                    selectedAccounts={selectedCompetitorAccounts}
+                    accountColorMap={accountColorMap}
+                    myAccount={myAccount || undefined}
+                  />
+                  <EngagementDistribution
+                    analytics={analytics}
+                    selectedAccounts={selectedCompetitorAccounts}
+                    accountColorMap={accountColorMap}
+                    myAccount={myAccount || undefined}
+                  />
+                </div>
+
+                {/* Content Type + Hashtag Comparison */}
+                <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                  <ContentTypeComparison
+                    analytics={analytics}
+                    selectedAccounts={selectedCompetitorAccounts}
+                    accountColorMap={accountColorMap}
+                    myAccount={myAccount || undefined}
+                  />
+                  <HashtagComparison
+                    analytics={analytics}
+                    selectedAccounts={selectedCompetitorAccounts}
+                    accountColorMap={accountColorMap}
+                    myAccount={myAccount || undefined}
+                  />
+                </div>
+
+                {/* Competitor Report Generator */}
+                <CompetitorReportGenerator
+                  analytics={analytics}
                   accounts={accounts}
-                  selectedAccounts={selectedCompetitorAccounts}
-                  onSelectionChange={setSelectedCompetitorAccounts}
-                  accountStats={accountStatsMap}
-                  maxSelectable={10}
-                  myAccount={myAccount}
-                  onMyAccountChange={setMyAccount}
-                  profileAvatars={profileAvatarsMap}
-                />
-                <div className="lg:col-span-2">
-                  <AccountRanking accounts={selectedAccountStats} sortBy="avgEngagement" myAccount={myAccount || undefined} />
-                </div>
-              </div>
-
-              {/* Comparison Chart */}
-              <AccountComparisonChart accounts={selectedAccountStats} myAccount={myAccount || undefined} analytics={analytics} />
-
-              {/* Timeline */}
-              <MultiAccountTimeline
-                analytics={analytics}
-                selectedAccounts={selectedCompetitorAccounts}
-                accountColorMap={accountColorMap}
-                myAccount={myAccount || undefined}
-              />
-
-              {/* Top Posts per Account */}
-              <CompetitorTopPosts
-                analytics={analytics}
-                selectedAccounts={selectedCompetitorAccounts}
-                accountColorMap={accountColorMap}
-                postsPerAccount={6}
-                myAccount={myAccount || undefined}
-              />
-
-              {/* Posting Frequency + Engagement Distribution */}
-              <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-                <PostingFrequencyHeatmap
-                  analytics={analytics}
-                  selectedAccounts={selectedCompetitorAccounts}
-                  accountColorMap={accountColorMap}
+                  accountStats={accountStats}
                   myAccount={myAccount || undefined}
                 />
-                <EngagementDistribution
-                  analytics={analytics}
-                  selectedAccounts={selectedCompetitorAccounts}
-                  accountColorMap={accountColorMap}
-                  myAccount={myAccount || undefined}
-                />
-              </div>
+              </TabsContent>
 
-              {/* Content Type + Hashtag Comparison */}
-              <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-                <ContentTypeComparison
-                  analytics={analytics}
-                  selectedAccounts={selectedCompetitorAccounts}
-                  accountColorMap={accountColorMap}
-                  myAccount={myAccount || undefined}
-                />
-                <HashtagComparison
-                  analytics={analytics}
-                  selectedAccounts={selectedCompetitorAccounts}
-                  accountColorMap={accountColorMap}
-                  myAccount={myAccount || undefined}
-                />
-              </div>
-
-              {/* Competitor Report Generator */}
-              <CompetitorReportGenerator
-                analytics={analytics}
-                accounts={accounts}
-                accountStats={accountStats}
-                myAccount={myAccount || undefined}
-              />
-            </TabsContent>
-
-            <TabsContent value="profiles" className="space-y-6">
-              {/* Loading state for profiles */}
-              {isLoadingProfiles ? (
-                <div className="space-y-6">
-                  <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-                    {[...Array(4)].map((_, i) => (
-                      <Skeleton key={i} className="h-24 rounded-xl" />
-                    ))}
+              <TabsContent value="profiles" className="space-y-6">
+                {/* Loading state for profiles */}
+                {isLoadingProfiles ? (
+                  <div className="space-y-6">
+                    <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+                      {[...Array(4)].map((_, i) => (
+                        <Skeleton key={i} className="h-24 rounded-xl" />
+                      ))}
+                    </div>
+                    <div className="grid lg:grid-cols-2 gap-6">
+                      {[...Array(4)].map((_, i) => (
+                        <Skeleton key={i} className="h-64 rounded-xl" />
+                      ))}
+                    </div>
                   </div>
-                  <div className="grid lg:grid-cols-2 gap-6">
-                    {[...Array(4)].map((_, i) => (
-                      <Skeleton key={i} className="h-64 rounded-xl" />
-                    ))}
-                  </div>
-                </div>
-              ) : latestProfiles.length === 0 ? (
-                <Card className="border-dashed">
-                  <CardContent className="flex flex-col items-center justify-center py-16 text-center">
-                    <UserCircle className="h-12 w-12 text-muted-foreground mb-4" />
-                    <h3 className="text-lg font-semibold mb-2">Sem dados de perfis</h3>
-                    <p className="text-muted-foreground mb-6 max-w-md">
-                      {canManageData 
-                        ? "Importe um ficheiro JSON do Profile Scraper para ver os perfis."
-                        : "Os dados de perfis ainda não foram carregados."}
-                    </p>
-                    {canManageData && (
-                      <DataImportHub />
-                    )}
-                  </CardContent>
-                </Card>
-              ) : (
-                <>
-                  {/* Profile KPIs */}
-                  <ProfileKPICards profiles={latestProfiles} />
+                ) : latestProfiles.length === 0 ? (
+                  <Card className="border-dashed">
+                    <CardContent className="flex flex-col items-center justify-center py-16 text-center">
+                      <UserCircle className="h-12 w-12 text-muted-foreground mb-4" />
+                      <h3 className="text-lg font-semibold mb-2">Sem dados de perfis</h3>
+                      <p className="text-muted-foreground mb-6 max-w-md">
+                        {canManageData 
+                          ? "Importe um ficheiro JSON do Profile Scraper para ver os perfis."
+                          : "Os dados de perfis ainda não foram carregados."}
+                      </p>
+                      {canManageData && (
+                        <DataImportHub />
+                      )}
+                    </CardContent>
+                  </Card>
+                ) : (
+                  <>
+                    {/* Profile KPIs */}
+                    <ProfileKPICards profiles={latestProfiles} />
 
-                  <ProfileComparisonCards profiles={latestProfiles} mainAccount={myAccount || undefined} />
+                    <ProfileComparisonCards profiles={latestProfiles} mainAccount={myAccount || undefined} />
 
-                  {/* Followers Chart */}
-                  <FollowersChart profiles={latestProfiles} mainAccount={myAccount || undefined} />
+                    {/* Followers Chart */}
+                    <FollowersChart profiles={latestProfiles} mainAccount={myAccount || undefined} />
 
-                  {/* Profiles Table */}
-                  <ProfilesTable profiles={latestProfiles} mainAccount={myAccount || undefined} />
+                    {/* Profiles Table */}
+                    <ProfilesTable profiles={latestProfiles} mainAccount={myAccount || undefined} />
 
-                  {/* Bio Analysis */}
-                  <BioAnalysis profiles={latestProfiles} mainAccount={myAccount || undefined} />
+                    {/* Bio Analysis */}
+                    <BioAnalysis profiles={latestProfiles} mainAccount={myAccount || undefined} />
 
-                  {/* AI Profile Report */}
-                  <ProfileReportGenerator profiles={latestProfiles} mainAccount={myAccount || undefined} />
-                </>
+                    {/* AI Profile Report */}
+                    <ProfileReportGenerator profiles={latestProfiles} mainAccount={myAccount || undefined} />
+                  </>
+                )}
+              </TabsContent>
+            </Tabs>
+
+            {/* 9. FOOTER */}
+            <footer className="mt-12 pt-6 border-t text-center text-xs text-muted-foreground">
+              <p>Dados extraídos via Instagram Scraper • Plataforma de Analytics v1.0</p>
+              {lastUpdate && (
+                <p className="mt-1">
+                  Última sincronização: {format(lastUpdate, "dd 'de' MMMM 'de' yyyy 'às' HH:mm", { locale: pt })}
+                </p>
               )}
-            </TabsContent>
-          </Tabs>
-        </>
-      )}
+            </footer>
+          </>
+        )}
+      </div>
     </div>
   );
 }
