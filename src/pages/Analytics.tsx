@@ -51,7 +51,10 @@ import {
 
 export default function Analytics() {
   const { user } = useAuth();
-  const isPublicMode = !user;
+  
+  // Admin emails allowed to manage data (import/delete)
+  const ADMIN_EMAILS = ["frederico.m.carvalho@gmail.com"];
+  const canManageData = user?.email && ADMIN_EMAILS.includes(user.email);
   
   const {
     analytics,
@@ -337,7 +340,7 @@ export default function Analytics() {
           </div>
         </div>
 
-        {!isPublicMode && (
+        {canManageData && (
           <div className="flex items-center gap-2 flex-wrap">
             <DataImportHub onImport={importPosts} isImporting={isImporting} />
             {!isEmpty && (
@@ -372,7 +375,7 @@ export default function Analytics() {
         )}
       </div>
 
-      {isEmpty && !isPublicMode ? (
+      {isEmpty ? (
         <Card className="border-dashed">
           <CardContent className="flex flex-col items-center justify-center py-16 text-center">
             <div className="p-4 rounded-full bg-muted mb-4">
@@ -380,21 +383,13 @@ export default function Analytics() {
             </div>
             <h3 className="text-lg font-semibold mb-2">Sem dados de analytics</h3>
             <p className="text-muted-foreground mb-6 max-w-md">
-              Importe um ficheiro Excel ou JSON com os dados das suas publicações do Instagram.
+              {canManageData 
+                ? "Importe um ficheiro Excel ou JSON com os dados das suas publicações do Instagram."
+                : "Os dados de analytics ainda não foram carregados."}
             </p>
-            <DataImportHub onImport={importPosts} isImporting={isImporting} />
-          </CardContent>
-        </Card>
-      ) : isEmpty && isPublicMode ? (
-        <Card className="border-dashed">
-          <CardContent className="flex flex-col items-center justify-center py-16 text-center">
-            <div className="p-4 rounded-full bg-muted mb-4">
-              <BarChart3 className="h-10 w-10 text-muted-foreground" />
-            </div>
-            <h3 className="text-lg font-semibold mb-2">Sem dados de analytics</h3>
-            <p className="text-muted-foreground mb-6 max-w-md">
-              Os dados de analytics ainda não foram carregados.
-            </p>
+            {canManageData && (
+              <DataImportHub onImport={importPosts} isImporting={isImporting} />
+            )}
           </CardContent>
         </Card>
       ) : (
@@ -586,11 +581,11 @@ export default function Analytics() {
                     <UserCircle className="h-12 w-12 text-muted-foreground mb-4" />
                     <h3 className="text-lg font-semibold mb-2">Sem dados de perfis</h3>
                     <p className="text-muted-foreground mb-6 max-w-md">
-                      {isPublicMode 
-                        ? "Os dados de perfis ainda não foram carregados."
-                        : "Importe um ficheiro JSON do Profile Scraper para ver os perfis."}
+                      {canManageData 
+                        ? "Importe um ficheiro JSON do Profile Scraper para ver os perfis."
+                        : "Os dados de perfis ainda não foram carregados."}
                     </p>
-                    {!isPublicMode && (
+                    {canManageData && (
                       <DataImportHub />
                     )}
                   </CardContent>
