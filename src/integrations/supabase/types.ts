@@ -140,6 +140,81 @@ export type Database = {
         }
         Relationships: []
       }
+      instagram_profiles: {
+        Row: {
+          biography: string | null
+          business_category: string | null
+          created_at: string | null
+          external_url: string | null
+          external_urls: Json | null
+          followers_count: number | null
+          follows_count: number | null
+          full_name: string | null
+          highlight_reel_count: number | null
+          id: string
+          instagram_id: string
+          is_business_account: boolean | null
+          is_private: boolean | null
+          is_verified: boolean | null
+          posts_count: number | null
+          profile_pic_url: string | null
+          profile_pic_url_hd: string | null
+          scraped_at: string | null
+          scraped_date: string | null
+          updated_at: string | null
+          user_id: string
+          username: string
+        }
+        Insert: {
+          biography?: string | null
+          business_category?: string | null
+          created_at?: string | null
+          external_url?: string | null
+          external_urls?: Json | null
+          followers_count?: number | null
+          follows_count?: number | null
+          full_name?: string | null
+          highlight_reel_count?: number | null
+          id?: string
+          instagram_id: string
+          is_business_account?: boolean | null
+          is_private?: boolean | null
+          is_verified?: boolean | null
+          posts_count?: number | null
+          profile_pic_url?: string | null
+          profile_pic_url_hd?: string | null
+          scraped_at?: string | null
+          scraped_date?: string | null
+          updated_at?: string | null
+          user_id: string
+          username: string
+        }
+        Update: {
+          biography?: string | null
+          business_category?: string | null
+          created_at?: string | null
+          external_url?: string | null
+          external_urls?: Json | null
+          followers_count?: number | null
+          follows_count?: number | null
+          full_name?: string | null
+          highlight_reel_count?: number | null
+          id?: string
+          instagram_id?: string
+          is_business_account?: boolean | null
+          is_private?: boolean | null
+          is_verified?: boolean | null
+          posts_count?: number | null
+          profile_pic_url?: string | null
+          profile_pic_url_hd?: string | null
+          scraped_at?: string | null
+          scraped_date?: string | null
+          updated_at?: string | null
+          user_id?: string
+          username?: string
+        }
+        Relationships: []
+      }
       media_library: {
         Row: {
           ai_prompt: string | null
