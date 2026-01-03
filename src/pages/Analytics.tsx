@@ -1,5 +1,5 @@
 import { useState, useMemo } from "react";
-import { BarChart3, Trash2, Users } from "lucide-react";
+import { BarChart3, Trash2, Users, UserCircle } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
@@ -30,6 +30,12 @@ import { CompetitiveInsights } from "@/components/analytics/CompetitiveInsights"
 import { PostingFrequencyHeatmap } from "@/components/analytics/PostingFrequencyHeatmap";
 import { EngagementDistribution } from "@/components/analytics/EngagementDistribution";
 import { CompetitorReportGenerator } from "@/components/analytics/CompetitorReportGenerator";
+import { useInstagramProfiles } from "@/hooks/useInstagramProfiles";
+import { ImportProfilesJson } from "@/components/analytics/ImportProfilesJson";
+import { ProfileComparisonCards } from "@/components/analytics/ProfileComparisonCards";
+import { FollowersChart } from "@/components/analytics/FollowersChart";
+import { ProfilesTable } from "@/components/analytics/ProfilesTable";
+import { BioAnalysis } from "@/components/analytics/BioAnalysis";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -55,6 +61,12 @@ export default function Analytics() {
     deleteAnalytics,
     isDeleting,
   } = useInstagramAnalytics({ publicMode: true });
+
+  // Profiles data
+  const {
+    latestProfiles,
+    isLoading: isLoadingProfiles,
+  } = useInstagramProfiles({ publicMode: true });
 
   // Filters state
   const [period, setPeriod] = useState<PeriodFilter>("all");
@@ -399,13 +411,17 @@ export default function Analytics() {
           {/* KPI Cards */}
           <KPICards stats={filteredStats} />
 
-          {/* Consolidated Tabs: Overview + Competition + All Posts */}
+          {/* Consolidated Tabs: Overview + Competition + Profiles */}
           <Tabs defaultValue="overview" className="space-y-4">
             <TabsList>
               <TabsTrigger value="overview">Visão Geral</TabsTrigger>
               <TabsTrigger value="competition" className="gap-1.5">
                 <Users className="h-4 w-4" />
                 Concorrência ({accounts.length})
+              </TabsTrigger>
+              <TabsTrigger value="profiles" className="gap-1.5">
+                <UserCircle className="h-4 w-4" />
+                Perfis ({latestProfiles.length})
               </TabsTrigger>
             </TabsList>
 
@@ -542,6 +558,56 @@ export default function Analytics() {
                 accountStats={accountStats}
                 myAccount={myAccount || undefined}
               />
+            </TabsContent>
+
+            <TabsContent value="profiles" className="space-y-6">
+              {/* Import + Profile Cards */}
+              {!isPublicMode && (
+                <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
+                  <ImportProfilesJson />
+                  <div className="lg:col-span-3">
+                    {latestProfiles.length === 0 ? (
+                      <Card className="h-full flex items-center justify-center">
+                        <CardContent className="text-center py-10">
+                          <UserCircle className="h-12 w-12 text-muted-foreground mx-auto mb-3" />
+                          <p className="text-muted-foreground">
+                            Importe um ficheiro JSON do Profile Scraper para ver os perfis
+                          </p>
+                        </CardContent>
+                      </Card>
+                    ) : (
+                      <ProfileComparisonCards profiles={latestProfiles} mainAccount={myAccount || undefined} />
+                    )}
+                  </div>
+                </div>
+              )}
+
+              {isPublicMode && latestProfiles.length === 0 && (
+                <Card className="border-dashed">
+                  <CardContent className="flex flex-col items-center justify-center py-16 text-center">
+                    <UserCircle className="h-10 w-10 text-muted-foreground mb-4" />
+                    <h3 className="text-lg font-semibold mb-2">Sem dados de perfis</h3>
+                    <p className="text-muted-foreground">Os dados de perfis ainda não foram carregados.</p>
+                  </CardContent>
+                </Card>
+              )}
+
+              {isPublicMode && latestProfiles.length > 0 && (
+                <ProfileComparisonCards profiles={latestProfiles} mainAccount={myAccount || undefined} />
+              )}
+
+              {latestProfiles.length > 0 && (
+                <>
+                  {/* Followers Chart */}
+                  <FollowersChart profiles={latestProfiles} mainAccount={myAccount || undefined} />
+
+                  {/* Profiles Table */}
+                  <ProfilesTable profiles={latestProfiles} mainAccount={myAccount || undefined} />
+
+                  {/* Bio Analysis */}
+                  <BioAnalysis profiles={latestProfiles} mainAccount={myAccount || undefined} />
+                </>
+              )}
             </TabsContent>
           </Tabs>
         </>
