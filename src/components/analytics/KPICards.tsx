@@ -1,3 +1,4 @@
+import { memo, useMemo } from "react";
 import { Heart, MessageCircle, Eye, TrendingUp, BarChart3, ArrowUp, ArrowDown, Calendar } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
 import {
@@ -14,7 +15,7 @@ interface KPICardsProps {
   previousStats?: AnalyticsStats | null;
 }
 
-export function KPICards({ stats, previousStats }: KPICardsProps) {
+export const KPICards = memo(function KPICards({ stats, previousStats }: KPICardsProps) {
   const calculateChange = (current: number, previous: number | undefined) => {
     if (!previous || previous === 0) return null;
     return ((current - previous) / previous) * 100;
@@ -30,7 +31,7 @@ export function KPICards({ stats, previousStats }: KPICardsProps) {
     ? Math.round((stats.totalLikes + stats.totalComments) / stats.totalPosts)
     : 0;
 
-  const kpis = [
+  const kpis = useMemo(() => [
     {
       label: "Total Posts",
       value: stats.totalPosts,
@@ -85,11 +86,16 @@ export function KPICards({ stats, previousStats }: KPICardsProps) {
       iconColor: "text-cyan-500",
       tooltip: "Média de posts por semana (estimado)",
     },
-  ];
+  ], [stats, previousStats, engagementRate, postsPerWeek]);
 
   return (
     <TooltipProvider>
-      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3 sm:gap-4" id="kpi-cards">
+      <div 
+        className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3 sm:gap-4" 
+        id="kpi-cards"
+        role="region"
+        aria-label="Indicadores de performance"
+      >
         {kpis.map((kpi, index) => {
           const change = calculateChange(
             typeof kpi.value === "number" ? kpi.value : 0,
@@ -102,15 +108,18 @@ export function KPICards({ stats, previousStats }: KPICardsProps) {
             <Tooltip key={kpi.label}>
               <TooltipTrigger asChild>
                 <Card 
-                  className="relative overflow-hidden border-border/50 bg-card hover:border-primary/30 hover:shadow-lg hover:-translate-y-0.5 transition-all duration-300 cursor-default group"
+                  className="relative overflow-hidden border-border/50 bg-card hover:border-primary/30 hover:shadow-lg hover:-translate-y-0.5 transition-all duration-300 cursor-default group focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2"
                   style={{ 
                     animationDelay: `${index * 50}ms`,
                   }}
+                  tabIndex={0}
+                  role="article"
+                  aria-label={`${kpi.label}: ${typeof kpi.value === "number" ? formatCompactNumber(kpi.value) : kpi.value}${change !== null ? `, ${isPositive ? 'aumento' : 'diminuição'} de ${Math.abs(change).toFixed(0)}%` : ''}`}
                 >
                   <CardContent className="p-4 sm:p-5">
                     {/* Header with icon and change badge */}
                     <div className="flex items-center justify-between mb-3">
-                      <div className={`p-2.5 rounded-xl ${kpi.iconBg} transition-transform group-hover:scale-110 group-hover:rotate-3`}>
+                      <div className={`p-2.5 rounded-xl ${kpi.iconBg} transition-transform group-hover:scale-110 group-hover:rotate-3`} aria-hidden="true">
                         <kpi.icon className={`h-4 w-4 sm:h-5 sm:w-5 ${kpi.iconColor}`} />
                       </div>
                       {change !== null && Math.abs(change) >= 1 && (
@@ -122,11 +131,12 @@ export function KPICards({ stats, previousStats }: KPICardsProps) {
                               ? "text-rose-500 bg-rose-500/10"
                               : "text-muted-foreground"
                           }`}
+                          aria-label={`${isPositive ? 'Aumento' : 'Diminuição'} de ${Math.abs(change).toFixed(0)} por cento`}
                         >
                           {isPositive ? (
-                            <ArrowUp className="h-3 w-3" />
+                            <ArrowUp className="h-3 w-3" aria-hidden="true" />
                           ) : (
-                            <ArrowDown className="h-3 w-3" />
+                            <ArrowDown className="h-3 w-3" aria-hidden="true" />
                           )}
                           {Math.abs(change).toFixed(0)}%
                         </div>
@@ -160,4 +170,4 @@ export function KPICards({ stats, previousStats }: KPICardsProps) {
       </div>
     </TooltipProvider>
   );
-}
+});

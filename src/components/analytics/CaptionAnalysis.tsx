@@ -1,4 +1,4 @@
-import { useMemo } from "react";
+import { useMemo, memo } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { 
@@ -47,7 +47,7 @@ const STOP_WORDS = new Set([
   "👉", "👇", "📲", "💡", "🔥", "✨", "💪", "🎯", "📈", "🚀", "link", "bio"
 ]);
 
-export function CaptionAnalysis({ analytics, contextLabel }: CaptionAnalysisProps) {
+export const CaptionAnalysis = memo(function CaptionAnalysis({ analytics, contextLabel }: CaptionAnalysisProps) {
   const { avgLength, wordFrequency, scatterData, insights } = useMemo(() => {
     if (analytics.length === 0) {
       return { avgLength: 0, wordFrequency: [], scatterData: [], insights: [] };
@@ -292,4 +292,4 @@ export function CaptionAnalysis({ analytics, contextLabel }: CaptionAnalysisProp
       </CardContent>
     </Card>
   );
-}
+});

@@ -1,3 +1,4 @@
+import { memo, useMemo } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Hash } from "lucide-react";
@@ -33,13 +34,19 @@ const BAR_COLORS = [
   "#14B8A6", // Teal
 ];
 
-export function HashtagCloud({ data, contextLabel }: HashtagCloudProps) {
-  if (data.length === 0) {
+export const HashtagCloud = memo(function HashtagCloud({ data, contextLabel }: HashtagCloudProps) {
+  const chartData = useMemo(() => data.slice(0, 10).map((item, index) => ({
+    ...item,
+    tag: item.tag.replace("#", ""),
+    displayTag: `#${item.tag.length > 14 ? item.tag.slice(0, 14) + '...' : item.tag}`,
+    color: BAR_COLORS[index % BAR_COLORS.length],
+  })), [data]);
+  if (chartData.length === 0) {
     return (
-      <Card className="overflow-hidden">
+      <Card className="overflow-hidden" role="region" aria-label="Análise de hashtags">
         <CardHeader className="bg-gradient-to-r from-violet-500/5 to-transparent">
           <CardTitle className="text-base flex items-center gap-3">
-            <div className="p-2 rounded-xl bg-violet-500/10">
+            <div className="p-2 rounded-xl bg-violet-500/10" aria-hidden="true">
               <Hash className="h-4 w-4 text-violet-500" />
             </div>
             Top 10 Hashtags
@@ -51,14 +58,6 @@ export function HashtagCloud({ data, contextLabel }: HashtagCloudProps) {
       </Card>
     );
   }
-
-  // Show top 10 in chart - horizontal bar chart
-  const chartData = data.slice(0, 10).map((item, index) => ({
-    ...item,
-    tag: item.tag.replace("#", ""),
-    displayTag: `#${item.tag.length > 14 ? item.tag.slice(0, 14) + '...' : item.tag}`,
-    color: BAR_COLORS[index % BAR_COLORS.length],
-  }));
 
   const CustomTooltip = ({ active, payload }: any) => {
     if (!active || !payload?.length) return null;
@@ -86,16 +85,20 @@ export function HashtagCloud({ data, contextLabel }: HashtagCloudProps) {
   };
 
   return (
-    <Card className="overflow-hidden">
+    <Card 
+      className="overflow-hidden"
+      role="region"
+      aria-label={`Top 10 hashtags mais utilizadas. ${chartData[0]?.tag || ''} é a mais usada com ${chartData[0]?.count || 0} utilizações.`}
+    >
       <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-3 bg-gradient-to-r from-violet-500/5 to-transparent">
         <CardTitle className="text-base flex items-center gap-3">
-          <div className="p-2 rounded-xl bg-violet-500/10">
+          <div className="p-2 rounded-xl bg-violet-500/10" aria-hidden="true">
             <Hash className="h-4 w-4 text-violet-500" />
           </div>
           Top 10 Hashtags
         </CardTitle>
         {contextLabel && (
-          <Badge variant="outline" className="text-xs font-normal rounded-full">
+          <Badge variant="outline" className="text-xs font-normal rounded-full" role="status">
             {contextLabel}
           </Badge>
         )}
@@ -165,4 +168,4 @@ export function HashtagCloud({ data, contextLabel }: HashtagCloudProps) {
       </CardContent>
     </Card>
   );
-}
+});

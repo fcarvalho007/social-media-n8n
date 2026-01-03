@@ -1,3 +1,4 @@
+import { memo } from "react";
 import { Sparkles, TrendingUp, TrendingDown, Minus, Lightbulb } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -25,15 +26,20 @@ const CATEGORY_LABELS: Record<string, string> = {
   content: "Conteúdo",
 };
 
-export function AIInsights({ analytics }: AIInsightsProps) {
+export const AIInsights = memo(function AIInsights({ analytics }: AIInsightsProps) {
   const { insights } = useContentPatterns(analytics);
 
   if (insights.length === 0) {
     return (
-      <Card id="ai-insights" className="card-premium">
+      <Card 
+        id="ai-insights" 
+        className="card-premium"
+        role="region"
+        aria-label="Insights automáticos de conteúdo"
+      >
         <CardHeader className="card-premium-header">
           <CardTitle className="flex items-center gap-2 text-lg">
-            <div className="p-2 rounded-lg bg-gradient-to-br from-violet-500/20 to-purple-500/20">
+            <div className="p-2 rounded-lg bg-gradient-to-br from-violet-500/20 to-purple-500/20" aria-hidden="true">
               <Sparkles className="h-5 w-5 text-violet-600" />
             </div>
             Insights Automáticos
@@ -41,7 +47,7 @@ export function AIInsights({ analytics }: AIInsightsProps) {
         </CardHeader>
         <CardContent>
           <div className="flex flex-col items-center justify-center py-8 text-center">
-            <Lightbulb className="h-12 w-12 text-muted-foreground/30 mb-4" />
+            <Lightbulb className="h-12 w-12 text-muted-foreground/30 mb-4" aria-hidden="true" />
             <p className="text-muted-foreground">
               Importe mais dados para gerar insights automáticos
             </p>
@@ -55,23 +61,28 @@ export function AIInsights({ analytics }: AIInsightsProps) {
   }
 
   return (
-    <Card id="ai-insights" className="card-premium">
+    <Card 
+      id="ai-insights" 
+      className="card-premium"
+      role="region"
+      aria-label={`${insights.length} insights automáticos gerados`}
+    >
       <CardHeader className="card-premium-header">
-        <div className="flex items-center justify-between">
+        <div className="flex items-center justify-between flex-wrap gap-2">
           <CardTitle className="flex items-center gap-2 text-lg">
-            <div className="p-2 rounded-lg bg-gradient-to-br from-violet-500/20 to-purple-500/20">
+            <div className="p-2 rounded-lg bg-gradient-to-br from-violet-500/20 to-purple-500/20" aria-hidden="true">
               <Sparkles className="h-5 w-5 text-violet-600" />
             </div>
             Insights Automáticos
           </CardTitle>
-          <Badge variant="secondary" className="gap-1">
-            <Sparkles className="h-3 w-3" />
+          <Badge variant="secondary" className="gap-1" role="status">
+            <Sparkles className="h-3 w-3" aria-hidden="true" />
             {insights.length} descobertas
           </Badge>
         </div>
       </CardHeader>
       <CardContent>
-        <div className="grid gap-4 sm:grid-cols-2">
+        <div className="grid gap-3 sm:gap-4 grid-cols-1 sm:grid-cols-2" role="list" aria-label="Lista de insights">
           {insights.map((insight, index) => (
             <InsightCard key={insight.id} insight={insight} index={index} />
           ))}
@@ -79,9 +90,9 @@ export function AIInsights({ analytics }: AIInsightsProps) {
       </CardContent>
     </Card>
   );
-}
+});
 
-function InsightCard({ insight, index }: { insight: ContentInsight; index: number }) {
+const InsightCard = memo(function InsightCard({ insight, index }: { insight: ContentInsight; index: number }) {
   const ImpactIcon = insight.type === "positive" 
     ? TrendingUp 
     : insight.type === "negative" 
@@ -93,7 +104,10 @@ function InsightCard({ insight, index }: { insight: ContentInsight; index: numbe
       initial={{ opacity: 0, y: 20 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ delay: index * 0.1 }}
-      className={`p-4 rounded-xl border ${CATEGORY_COLORS[insight.category]} transition-all hover:shadow-md`}
+      role="listitem"
+      aria-label={`${insight.title}: ${insight.description}`}
+      className={`p-4 rounded-xl border ${CATEGORY_COLORS[insight.category]} transition-all hover:shadow-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary`}
+      tabIndex={0}
     >
       <div className="flex items-start gap-3">
         <div className="text-2xl">{insight.icon}</div>
@@ -127,4 +141,4 @@ function InsightCard({ insight, index }: { insight: ContentInsight; index: numbe
       </div>
     </motion.div>
   );
-}
+});
