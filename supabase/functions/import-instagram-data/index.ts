@@ -30,6 +30,9 @@ interface InstagramPost {
   videoDuration?: number;
 }
 
+// Minimum date for import (only posts from January 2025 onwards)
+const MIN_DATE = new Date('2025-01-01T00:00:00Z');
+
 // Delay helper
 const delay = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
 
@@ -261,6 +264,7 @@ serve(async (req) => {
     let insertedCount = 0;
     let imagesStored = 0;
     let imagesFailed = 0;
+    let skippedOldPosts = 0;
 
     const flushBatch = async () => {
       if (analyticsData.length === 0) return;
@@ -284,6 +288,16 @@ serve(async (req) => {
       // Skip if already exists (duplicate)
       if (post.shortCode && existingShortcodes.has(post.shortCode)) {
         continue;
+      }
+
+      // Skip posts before January 2025 (backend safety check)
+      if (post.timestamp) {
+        const postDate = new Date(post.timestamp);
+        if (!isNaN(postDate.getTime()) && postDate < MIN_DATE) {
+          console.log(`Skipping old post: ${post.shortCode} (${post.timestamp})`);
+          skippedOldPosts++;
+          continue;
+        }
       }
 
       // Extract hashtags from caption if not provided
@@ -397,13 +411,14 @@ serve(async (req) => {
       }
     }
 
-    console.log(`Import complete: ${insertedCount} posts, ${imagesStored} images stored, ${imagesFailed} failed, ${duplicateCount} duplicates`);
+    console.log(`Import complete: ${insertedCount} posts, ${imagesStored} images stored, ${imagesFailed} failed, ${duplicateCount} duplicates, ${skippedOldPosts} old posts skipped`);
 
     return new Response(
       JSON.stringify({
         success: true,
         imported: insertedCount,
         duplicates: duplicateCount,
+        skippedOldPosts,
         mediaImported: mediaImportedCount,
         imagesStored,
         imagesFailed,
