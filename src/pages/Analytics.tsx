@@ -17,8 +17,7 @@ import { BestTimeToPost } from "@/components/analytics/BestTimeToPost";
 import { InsightsSummary } from "@/components/analytics/InsightsSummary";
 import { DataContextBadge } from "@/components/analytics/DataContextBadge";
 import { AnalyticsFilters, type PeriodFilter, type ContentTypeFilter } from "@/components/analytics/AnalyticsFilters";
-import { ImportInstagramExcel } from "@/components/analytics/ImportInstagramExcel";
-import { ImportPostsJson } from "@/components/analytics/ImportPostsJson";
+import { DataImportHub } from "@/components/analytics/DataImportHub";
 import { useInstagramAnalytics } from "@/hooks/useInstagramAnalytics";
 import { AccountSelector } from "@/components/analytics/AccountSelector";
 import { AccountRanking, type AccountStats } from "@/components/analytics/AccountRanking";
@@ -32,8 +31,8 @@ import { PostingFrequencyHeatmap } from "@/components/analytics/PostingFrequency
 import { EngagementDistribution } from "@/components/analytics/EngagementDistribution";
 import { CompetitorReportGenerator } from "@/components/analytics/CompetitorReportGenerator";
 import { useInstagramProfiles } from "@/hooks/useInstagramProfiles";
-import { ImportProfilesJson } from "@/components/analytics/ImportProfilesJson";
 import { ProfileComparisonCards } from "@/components/analytics/ProfileComparisonCards";
+import { ProfileKPICards } from "@/components/analytics/ProfileKPICards";
 import { FollowersChart } from "@/components/analytics/FollowersChart";
 import { ProfilesTable } from "@/components/analytics/ProfilesTable";
 import { BioAnalysis } from "@/components/analytics/BioAnalysis";
@@ -291,7 +290,7 @@ export default function Analytics() {
 
   if (isLoading) {
     return (
-      <div className="container mx-auto p-6 space-y-6">
+      <div className="container mx-auto p-4 sm:p-6 space-y-6">
         <div className="flex justify-between items-center">
           <Skeleton className="h-8 w-48" />
           <Skeleton className="h-10 w-32" />
@@ -309,7 +308,7 @@ export default function Analytics() {
   const isEmpty = analytics.length === 0;
 
   return (
-    <div className="container mx-auto p-6 space-y-5">
+    <div className="container mx-auto p-4 sm:p-6 space-y-5">
       {/* Header */}
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
         <div className="flex items-center gap-3">
@@ -317,7 +316,7 @@ export default function Analytics() {
             <BarChart3 className="h-6 w-6 text-primary" />
           </div>
           <div>
-            <h1 className="text-2xl font-bold">Analytics Instagram</h1>
+            <h1 className="text-xl sm:text-2xl font-bold">Analytics Instagram</h1>
             <p className="text-sm text-muted-foreground">
               {isEmpty
                 ? "Importe os dados das suas publicações"
@@ -327,15 +326,14 @@ export default function Analytics() {
         </div>
 
         {!isPublicMode && (
-          <div className="flex items-center gap-2">
-            <ImportInstagramExcel onImport={importPosts} isImporting={isImporting} />
-            <ImportPostsJson />
+          <div className="flex items-center gap-2 flex-wrap">
+            <DataImportHub onImport={importPosts} isImporting={isImporting} />
             {!isEmpty && (
               <AlertDialog>
                 <AlertDialogTrigger asChild>
                   <Button variant="outline" size="sm" className="gap-2 text-destructive">
                     <Trash2 className="h-4 w-4" />
-                    Limpar
+                    <span className="hidden sm:inline">Limpar</span>
                   </Button>
                 </AlertDialogTrigger>
                 <AlertDialogContent>
@@ -370,9 +368,9 @@ export default function Analytics() {
             </div>
             <h3 className="text-lg font-semibold mb-2">Sem dados de analytics</h3>
             <p className="text-muted-foreground mb-6 max-w-md">
-              Importe um ficheiro Excel com os dados das suas publicações do Instagram.
+              Importe um ficheiro Excel ou JSON com os dados das suas publicações do Instagram.
             </p>
-            <ImportInstagramExcel onImport={importPosts} isImporting={isImporting} />
+            <DataImportHub onImport={importPosts} isImporting={isImporting} />
           </CardContent>
         </Card>
       ) : isEmpty && isPublicMode ? (
@@ -415,15 +413,15 @@ export default function Analytics() {
 
           {/* Consolidated Tabs: Overview + Competition + Profiles */}
           <Tabs defaultValue="overview" className="space-y-4">
-            <TabsList>
-              <TabsTrigger value="overview">Visão Geral</TabsTrigger>
-              <TabsTrigger value="competition" className="gap-1.5">
-                <Users className="h-4 w-4" />
-                Concorrência ({accounts.length})
+            <TabsList className="w-full sm:w-auto flex">
+              <TabsTrigger value="overview" className="flex-1 sm:flex-none">Visão Geral</TabsTrigger>
+              <TabsTrigger value="competition" className="gap-1.5 flex-1 sm:flex-none">
+                <Users className="h-4 w-4 hidden sm:block" />
+                Concorrência
               </TabsTrigger>
-              <TabsTrigger value="profiles" className="gap-1.5">
-                <UserCircle className="h-4 w-4" />
-                Perfis ({latestProfiles.length})
+              <TabsTrigger value="profiles" className="gap-1.5 flex-1 sm:flex-none">
+                <UserCircle className="h-4 w-4 hidden sm:block" />
+                Perfis
               </TabsTrigger>
             </TabsList>
 
@@ -563,43 +561,31 @@ export default function Analytics() {
             </TabsContent>
 
             <TabsContent value="profiles" className="space-y-6">
-              {/* Import + Profile Cards */}
-              {!isPublicMode && (
-                <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
-                  <ImportProfilesJson />
-                  <div className="lg:col-span-3">
-                    {latestProfiles.length === 0 ? (
-                      <Card className="h-full flex items-center justify-center">
-                        <CardContent className="text-center py-10">
-                          <UserCircle className="h-12 w-12 text-muted-foreground mx-auto mb-3" />
-                          <p className="text-muted-foreground">
-                            Importe um ficheiro JSON do Profile Scraper para ver os perfis
-                          </p>
-                        </CardContent>
-                      </Card>
-                    ) : (
-                      <ProfileComparisonCards profiles={latestProfiles} mainAccount={myAccount || undefined} />
-                    )}
-                  </div>
-                </div>
+              {/* Profile KPIs */}
+              {latestProfiles.length > 0 && (
+                <ProfileKPICards profiles={latestProfiles} />
               )}
 
-              {isPublicMode && latestProfiles.length === 0 && (
+              {/* Profile Cards */}
+              {latestProfiles.length === 0 ? (
                 <Card className="border-dashed">
                   <CardContent className="flex flex-col items-center justify-center py-16 text-center">
-                    <UserCircle className="h-10 w-10 text-muted-foreground mb-4" />
+                    <UserCircle className="h-12 w-12 text-muted-foreground mb-4" />
                     <h3 className="text-lg font-semibold mb-2">Sem dados de perfis</h3>
-                    <p className="text-muted-foreground">Os dados de perfis ainda não foram carregados.</p>
+                    <p className="text-muted-foreground mb-6 max-w-md">
+                      {isPublicMode 
+                        ? "Os dados de perfis ainda não foram carregados."
+                        : "Importe um ficheiro JSON do Profile Scraper para ver os perfis."}
+                    </p>
+                    {!isPublicMode && (
+                      <DataImportHub />
+                    )}
                   </CardContent>
                 </Card>
-              )}
-
-              {isPublicMode && latestProfiles.length > 0 && (
-                <ProfileComparisonCards profiles={latestProfiles} mainAccount={myAccount || undefined} />
-              )}
-
-              {latestProfiles.length > 0 && (
+              ) : (
                 <>
+                  <ProfileComparisonCards profiles={latestProfiles} mainAccount={myAccount || undefined} />
+
                   {/* Followers Chart */}
                   <FollowersChart profiles={latestProfiles} mainAccount={myAccount || undefined} />
 
