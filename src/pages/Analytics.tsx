@@ -1,5 +1,6 @@
-import { useState, useMemo } from "react";
-import { BarChart3, Trash2, Users, UserCircle, Download, Clock } from "lucide-react";
+import { useState, useMemo, useCallback } from "react";
+import { BarChart3, Trash2, Users, UserCircle, Download, Clock, Trophy } from "lucide-react";
+import { useNavigate } from "react-router-dom";
 import { useAuth } from "@/contexts/AuthContext";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
@@ -19,7 +20,11 @@ import { AnalyticsSidebar } from "@/components/analytics/AnalyticsSidebar";
 import { DataContextBadge } from "@/components/analytics/DataContextBadge";
 import { AnalyticsFilters, type PeriodFilter, type ContentTypeFilter } from "@/components/analytics/AnalyticsFilters";
 import { DataImportHub } from "@/components/analytics/DataImportHub";
-import { useInstagramAnalytics } from "@/hooks/useInstagramAnalytics";
+import { SmartSearch } from "@/components/analytics/SmartSearch";
+import { PostDetailDrawer } from "@/components/analytics/PostDetailDrawer";
+import { AIInsights } from "@/components/analytics/AIInsights";
+import { useInstagramAnalytics, type InstagramAnalyticsItem } from "@/hooks/useInstagramAnalytics";
+import { useAnalyticsBookmarks } from "@/hooks/useAnalyticsBookmarks";
 import { AccountSelector } from "@/components/analytics/AccountSelector";
 import { AccountRanking, type AccountStats } from "@/components/analytics/AccountRanking";
 import { AccountComparisonChart } from "@/components/analytics/AccountComparisonChart";
@@ -54,6 +59,7 @@ import { pt } from "date-fns/locale";
 
 export default function Analytics() {
   const { user } = useAuth();
+  const navigate = useNavigate();
   
   // Admin emails allowed to manage data (import/delete)
   const ADMIN_EMAILS = ["frederico.m.carvalho@gmail.com"];
@@ -69,6 +75,9 @@ export default function Analytics() {
     isDeleting,
   } = useInstagramAnalytics({ publicMode: true });
 
+  // Bookmarks hook
+  const { isBookmarked, toggleBookmark } = useAnalyticsBookmarks();
+
   // Profiles data
   const {
     profiles: allProfiles,
@@ -80,6 +89,10 @@ export default function Analytics() {
   const [period, setPeriod] = useState<PeriodFilter>("all");
   const [account, setAccount] = useState("all");
   const [contentTypes, setContentTypes] = useState<ContentTypeFilter[]>(["Image", "Video", "Sidecar"]);
+  
+  // Post detail drawer state
+  const [selectedPost, setSelectedPost] = useState<InstagramAnalyticsItem | null>(null);
+  const [isDrawerOpen, setIsDrawerOpen] = useState(false);
   
   // Competition tab state
   const MY_ACCOUNT_USERNAME = "frederico.m.carvalho";
@@ -97,6 +110,29 @@ export default function Analytics() {
     'paulofaustino',
     'samurairt'
   ];
+
+  // Handle post selection from search or gallery
+  const handleSelectPost = useCallback((post: InstagramAnalyticsItem) => {
+    setSelectedPost(post);
+    setIsDrawerOpen(true);
+  }, []);
+
+  // Handle account selection from search
+  const handleSelectAccount = useCallback((accountUsername: string) => {
+    setAccount(accountUsername);
+  }, []);
+
+  // Navigate in drawer
+  const handleDrawerNavigate = useCallback((direction: "prev" | "next") => {
+    if (!selectedPost) return;
+    const currentIndex = analytics.findIndex(p => p.id === selectedPost.id);
+    if (currentIndex === -1) return;
+    
+    const newIndex = direction === "prev" ? currentIndex - 1 : currentIndex + 1;
+    if (newIndex >= 0 && newIndex < analytics.length) {
+      setSelectedPost(analytics[newIndex]);
+    }
+  }, [selectedPost, analytics]);
 
   // Get unique accounts (filtered to allowed only)
   const accounts = useMemo(() => {
@@ -399,6 +435,24 @@ export default function Analytics() {
             </div>
 
             <div className="flex items-center gap-2 flex-wrap">
+              {/* Smart Search */}
+              {!isEmpty && (
+                <SmartSearch
+                  analytics={analytics}
+                  accounts={sortedAccounts}
+                  onSelectPost={handleSelectPost}
+                  onSelectAccount={handleSelectAccount}
+                />
+              )}
+
+              {/* Benchmark Link */}
+              {!isEmpty && (
+                <Button variant="outline" size="sm" onClick={() => navigate("/benchmark")} className="gap-2">
+                  <Trophy className="h-4 w-4" />
+                  <span className="hidden sm:inline">Benchmark</span>
+                </Button>
+              )}
+
               {/* Export CSV */}
               {!isEmpty && (
                 <Button variant="outline" size="sm" onClick={handleExportCSV} className="gap-2">
@@ -526,6 +580,9 @@ export default function Analytics() {
 
                 {/* 5. PERFORMANCE TEMPORAL (full width) */}
                 <EngagementChart data={filteredStats.engagementOverTime} />
+
+                {/* AI INSIGHTS */}
+                <AIInsights analytics={filteredAnalytics} />
 
                 {/* 6. TOP POSTS (full width - unified Top 10) */}
                 <TopPostsGallery 
@@ -703,6 +760,18 @@ export default function Analytics() {
           </>
         )}
       </div>
+
+      {/* Post Detail Drawer */}
+      <PostDetailDrawer
+        post={selectedPost}
+        isOpen={isDrawerOpen}
+        onClose={() => setIsDrawerOpen(false)}
+        onNavigate={handleDrawerNavigate}
+        hasPrev={selectedPost ? analytics.findIndex(p => p.id === selectedPost.id) > 0 : false}
+        hasNext={selectedPost ? analytics.findIndex(p => p.id === selectedPost.id) < analytics.length - 1 : false}
+        isBookmarked={selectedPost?.shortcode ? isBookmarked(selectedPost.shortcode) : false}
+        onToggleBookmark={() => selectedPost?.shortcode && toggleBookmark(selectedPost.shortcode)}
+      />
     </div>
   );
 }

@@ -26,6 +26,7 @@ import QuotaSettings from "./pages/QuotaSettings";
 import UserManagement from "./pages/UserManagement";
 import NotFound from "./pages/NotFound";
 import Analytics from "./pages/Analytics";
+import Benchmark from "./pages/Benchmark";
 const queryClient = new QueryClient();
 
 // Component to handle URL-encoded redirects
@@ -72,6 +73,7 @@ const App = () => (
                   <Route path="/quota-settings" element={<QuotaSettings />} />
                   <Route path="/users" element={<UserManagement />} />
                   <Route path="/analytics" element={<Analytics />} />
+                  <Route path="/benchmark" element={<Benchmark />} />
                 </Route>
                 {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
                 <Route path="*" element={<EncodedUrlRedirect />} />

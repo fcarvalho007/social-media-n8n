@@ -14,6 +14,69 @@ export type Database = {
   }
   public: {
     Tables: {
+      analytics_alerts: {
+        Row: {
+          account_username: string
+          created_at: string
+          id: string
+          is_active: boolean
+          last_triggered_at: string | null
+          metric: string
+          operator: string
+          threshold: number
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          account_username: string
+          created_at?: string
+          id?: string
+          is_active?: boolean
+          last_triggered_at?: string | null
+          metric: string
+          operator?: string
+          threshold: number
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          account_username?: string
+          created_at?: string
+          id?: string
+          is_active?: boolean
+          last_triggered_at?: string | null
+          metric?: string
+          operator?: string
+          threshold?: number
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
+      analytics_bookmarks: {
+        Row: {
+          created_at: string
+          id: string
+          notes: string | null
+          post_shortcode: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          notes?: string | null
+          post_shortcode: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          notes?: string | null
+          post_shortcode?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       analytics_insights: {
         Row: {
           component_name: string
