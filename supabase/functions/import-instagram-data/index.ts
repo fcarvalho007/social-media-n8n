@@ -36,15 +36,14 @@ const MIN_DATE = new Date('2025-01-01T00:00:00Z');
 // Delay helper
 const delay = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
 
-// Download image with retry logic and fallback URLs
+// Download image with retry logic, timeout, and fallback URLs
 async function downloadWithRetry(
   urls: string[],
-  maxRetries = 3
+  maxRetries = 2
 ): Promise<{ blob: Blob; contentType: string } | null> {
   const userAgents = [
     "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
     "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.0 Safari/605.1.15",
-    "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
   ];
 
   for (const url of urls) {
@@ -52,9 +51,14 @@ async function downloadWithRetry(
     
     for (let attempt = 1; attempt <= maxRetries; attempt++) {
       try {
-        console.log(`Downloading image (attempt ${attempt}/${maxRetries}): ${url.substring(0, 80)}...`);
+        console.log(`[Image] Downloading (attempt ${attempt}/${maxRetries}): ${url.substring(0, 60)}...`);
+        
+        // Add timeout using AbortController
+        const controller = new AbortController();
+        const timeoutId = setTimeout(() => controller.abort(), 10000); // 10 second timeout
         
         const response = await fetch(url, {
+          signal: controller.signal,
           headers: {
             "User-Agent": userAgents[attempt - 1] || userAgents[0],
             "Accept": "image/webp,image/apng,image/*,*/*;q=0.8",
@@ -62,24 +66,31 @@ async function downloadWithRetry(
             "Cache-Control": "no-cache",
           },
         });
+        
+        clearTimeout(timeoutId);
 
         if (response.ok) {
           const blob = await response.blob();
           const contentType = response.headers.get("content-type") || "image/jpeg";
-          console.log(`Successfully downloaded image (${Math.round(blob.size / 1024)}KB)`);
+          console.log(`[Image] Success (${Math.round(blob.size / 1024)}KB)`);
           return { blob, contentType };
         }
         
-        console.warn(`Download failed (${response.status}), retrying...`);
-        await delay(1000 * attempt); // Exponential backoff: 1s, 2s, 3s
+        console.warn(`[Image] Failed (${response.status}), retrying...`);
+        await delay(500 * attempt); // Faster backoff: 500ms, 1s
       } catch (error) {
-        console.warn(`Download error on attempt ${attempt}:`, error);
-        await delay(1000 * attempt);
+        const errMsg = error instanceof Error ? error.message : String(error);
+        if (errMsg.includes("abort")) {
+          console.warn(`[Image] Timeout on attempt ${attempt}`);
+        } else {
+          console.warn(`[Image] Error on attempt ${attempt}: ${errMsg}`);
+        }
+        await delay(500 * attempt);
       }
     }
   }
 
-  console.warn("All download attempts failed for all URLs");
+  console.warn("[Image] All download attempts failed");
   return null;
 }
 
@@ -258,7 +269,7 @@ serve(async (req) => {
 
 
     // Transform posts to database format (insert in small batches to avoid timeouts)
-    const BATCH_SIZE = 10;
+    const BATCH_SIZE = 5; // Reduced from 10 for stability
     const analyticsData: any[] = [];
     const mediaLibraryQueue: any[] = [];
     let insertedCount = 0;
@@ -310,10 +321,17 @@ serve(async (req) => {
       }
 
       // Store thumbnail image permanently (this is the critical part for the UI)
-      const storedThumbnailUrl = await downloadAndUploadImage(supabaseAdmin, post, user.id);
-      if (storedThumbnailUrl?.includes("supabase")) {
-        imagesStored++;
-      } else if (post.displayUrl) {
+      let storedThumbnailUrl: string | null = null;
+      try {
+        storedThumbnailUrl = await downloadAndUploadImage(supabaseAdmin, post, user.id);
+        if (storedThumbnailUrl?.includes("supabase")) {
+          imagesStored++;
+        } else if (post.displayUrl) {
+          imagesFailed++;
+        }
+      } catch (imgError) {
+        console.warn(`[Image] Failed for ${post.shortCode}:`, imgError);
+        storedThumbnailUrl = post.displayUrl || null;
         imagesFailed++;
       }
 

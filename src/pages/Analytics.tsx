@@ -444,8 +444,8 @@ export default function Analytics() {
               />
 
               {/* Hashtags and Best Time */}
-              <div className="grid lg:grid-cols-2 gap-6">
-                <HashtagCloud 
+              <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                <HashtagCloud
                   data={filteredStats.topHashtags} 
                   contextLabel={account === "all" ? `${sortedAccounts.length} contas` : `@${account}`}
                 />
@@ -504,7 +504,7 @@ export default function Analytics() {
               />
 
               {/* Posting Frequency + Engagement Distribution */}
-              <div className="grid lg:grid-cols-2 gap-6">
+              <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
                 <PostingFrequencyHeatmap
                   analytics={analytics}
                   selectedAccounts={selectedCompetitorAccounts}
@@ -520,7 +520,7 @@ export default function Analytics() {
               </div>
 
               {/* Content Type + Hashtag Comparison */}
-              <div className="grid lg:grid-cols-2 gap-6">
+              <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
                 <ContentTypeComparison
                   analytics={analytics}
                   selectedAccounts={selectedCompetitorAccounts}
