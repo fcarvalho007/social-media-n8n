@@ -21,15 +21,24 @@ export function QuickInsights({ stats, analytics }: QuickInsightsProps) {
     });
   }
 
-  // Posts per week
-  const postsPerWeek = stats.totalPosts > 0 ? Math.round((stats.totalPosts / 30) * 7) : 0;
-  if (postsPerWeek > 0) {
-    insights.push({
-      icon: <Calendar className="h-4 w-4" />,
-      text: "Publica em média",
-      highlight: `${postsPerWeek}x por semana`,
-      color: "text-blue-500 bg-blue-500/15",
-    });
+  // Posts per week - calculate actual weeks from data range
+  const postsWithDates = analytics.filter(p => p.posted_at);
+  if (postsWithDates.length > 0) {
+    const dates = postsWithDates.map(p => new Date(p.posted_at!).getTime()).filter(d => !isNaN(d));
+    if (dates.length > 0) {
+      const minDate = Math.min(...dates);
+      const maxDate = Math.max(...dates);
+      const msPerWeek = 7 * 24 * 60 * 60 * 1000;
+      const weeks = Math.max(1, Math.ceil((maxDate - minDate) / msPerWeek));
+      const postsPerWeek = Math.round((stats.totalPosts / weeks) * 10) / 10;
+      
+      insights.push({
+        icon: <Calendar className="h-4 w-4" />,
+        text: `Publica em média`,
+        highlight: `${postsPerWeek}x por semana`,
+        color: "text-blue-500 bg-blue-500/15",
+      });
+    }
   }
 
   // Content type comparison

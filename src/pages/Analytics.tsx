@@ -36,6 +36,7 @@ import { ProfileKPICards } from "@/components/analytics/ProfileKPICards";
 import { FollowersChart } from "@/components/analytics/FollowersChart";
 import { ProfilesTable } from "@/components/analytics/ProfilesTable";
 import { BioAnalysis } from "@/components/analytics/BioAnalysis";
+import { ProfileReportGenerator } from "@/components/analytics/ProfileReportGenerator";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -270,6 +271,17 @@ export default function Analytics() {
     return { accountStats: stats, accountColorMap: colorMap, accountStatsMap: statsMap };
   }, [analytics, accounts]);
 
+  // Build profile avatars map for AccountSelector
+  const profileAvatarsMap = useMemo(() => {
+    const map = new Map<string, string>();
+    latestProfiles.forEach(profile => {
+      if (profile.profile_pic_url) {
+        map.set(profile.username, profile.profile_pic_url);
+      }
+    });
+    return map;
+  }, [latestProfiles]);
+
   // Filter account stats for selected competitor accounts
   const selectedAccountStats = useMemo(() => {
     return accountStats.filter((a) => selectedCompetitorAccounts.includes(a.username));
@@ -493,6 +505,7 @@ export default function Analytics() {
                   maxSelectable={10}
                   myAccount={myAccount}
                   onMyAccountChange={setMyAccount}
+                  profileAvatars={profileAvatarsMap}
                 />
                 <div className="lg:col-span-2">
                   <AccountRanking accounts={selectedAccountStats} sortBy="avgEngagement" myAccount={myAccount || undefined} />
@@ -594,6 +607,9 @@ export default function Analytics() {
 
                   {/* Bio Analysis */}
                   <BioAnalysis profiles={latestProfiles} mainAccount={myAccount || undefined} />
+
+                  {/* AI Profile Report */}
+                  <ProfileReportGenerator profiles={latestProfiles} mainAccount={myAccount || undefined} />
                 </>
               )}
             </TabsContent>
