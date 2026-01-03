@@ -51,16 +51,35 @@ const BATCH_SIZE = 25;
 // Main account to highlight
 const MY_ACCOUNT = "frederico.m.carvalho";
 
+// Allowed accounts for import (only posts from these accounts will be imported)
+const ALLOWED_ACCOUNTS = [
+  "frederico.m.carvalho",
+  "mariiana.ai",
+  "marcogouveia.pt",
+  "martimsilvai",
+  "robs.cortez",
+  "escolamarketingdigital.pt",
+  "paulofaustino",
+  "samurairt",
+];
+
 export function ImportInstagramExcel({ onImport, isImporting: externalIsImporting }: ImportInstagramExcelProps) {
   const [isOpen, setIsOpen] = useState(false);
   const [preview, setPreview] = useState<any[] | null>(null);
   const [parsedData, setParsedData] = useState<any[] | null>(null);
+  const [allParsedData, setAllParsedData] = useState<any[] | null>(null); // All posts before filtering
   const [excelColumns, setExcelColumns] = useState<string[]>([]);
   const [columnMappings, setColumnMappings] = useState<ColumnMapping[]>([]);
   const [isImporting, setIsImporting] = useState(false);
   const [progress, setProgress] = useState<ImportProgress | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const queryClient = useQueryClient();
+
+  // Helper to check if account is allowed
+  const isAllowedAccount = (username: string): boolean => {
+    const normalized = username.toLowerCase().trim();
+    return ALLOWED_ACCOUNTS.some(acc => acc.toLowerCase() === normalized);
+  };
 
   // Helper functions - must be defined before useMemo hooks that use them
   const normalizeUsername = (username: string | undefined): string => {
@@ -260,9 +279,19 @@ export function ImportInstagramExcel({ onImport, isImporting: externalIsImportin
         (p) => p.shortCode || p.url
       );
 
-      setParsedData(validPosts);
-      setPreview(validPosts.slice(0, 5));
-      console.log(`Parsed ${validPosts.length} valid rows from Excel (${mappedData.length - validPosts.length} invalid)`, validPosts[0]);
+      // Store all posts for statistics
+      setAllParsedData(validPosts);
+
+      // Filter only allowed accounts
+      const allowedPosts = validPosts.filter(
+        (p) => isAllowedAccount(p.ownerUsername || "")
+      );
+
+      setParsedData(allowedPosts);
+      setPreview(allowedPosts.slice(0, 5));
+      
+      const excludedCount = validPosts.length - allowedPosts.length;
+      console.log(`Parsed ${validPosts.length} valid rows, ${allowedPosts.length} from allowed accounts (${excludedCount} excluded)`, allowedPosts[0]);
 
     } catch (error) {
       console.error("Error parsing Excel:", error);
@@ -361,6 +390,7 @@ export function ImportInstagramExcel({ onImport, isImporting: externalIsImportin
       setProgress(null);
       setPreview(null);
       setParsedData(null);
+      setAllParsedData(null);
       setColumnMappings([]);
       setExcelColumns([]);
     }, 1500);
@@ -452,13 +482,39 @@ export function ImportInstagramExcel({ onImport, isImporting: externalIsImportin
               </div>
             )}
 
+            {/* Import Summary Stats */}
+            {!isImporting && allParsedData && allParsedData.length > 0 && (
+              <div className="p-3 border rounded-lg bg-muted/30 space-y-2">
+                <h4 className="font-medium text-sm">Resumo do Ficheiro</h4>
+                <div className="grid grid-cols-3 gap-2 text-xs">
+                  <div className="flex items-center gap-1.5">
+                    <FileSpreadsheet className="h-3.5 w-3.5 text-muted-foreground" />
+                    <span>Total: <strong>{allParsedData.length}</strong></span>
+                  </div>
+                  <div className="flex items-center gap-1.5">
+                    <CheckCircle2 className="h-3.5 w-3.5 text-green-500" />
+                    <span>A importar: <strong>{parsedData?.length || 0}</strong></span>
+                  </div>
+                  <div className="flex items-center gap-1.5">
+                    <XCircle className="h-3.5 w-3.5 text-amber-500" />
+                    <span>Ignorados: <strong>{allParsedData.length - (parsedData?.length || 0)}</strong></span>
+                  </div>
+                </div>
+                {allParsedData.length !== parsedData?.length && (
+                  <p className="text-[10px] text-muted-foreground">
+                    Apenas posts das 8 contas monitorizadas são importados.
+                  </p>
+                )}
+              </div>
+            )}
+
             {/* Account Statistics Summary */}
             {!isImporting && accountStats.length > 0 && (
               <div className="space-y-2">
                 <div className="flex items-center justify-between">
                   <h4 className="font-medium text-sm flex items-center gap-2">
                     <Users className="h-4 w-4" />
-                    Contas Detectadas ({accountStats.length})
+                    Contas a Importar ({accountStats.length})
                   </h4>
                   {dateRange && (
                     <span className="text-xs text-muted-foreground flex items-center gap-1">
