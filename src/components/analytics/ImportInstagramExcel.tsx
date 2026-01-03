@@ -51,6 +51,9 @@ const BATCH_SIZE = 25;
 // Main account to highlight
 const MY_ACCOUNT = "frederico.m.carvalho";
 
+// Minimum date for import (only posts from January 2025 onwards)
+const MIN_DATE = new Date('2025-01-01T00:00:00Z');
+
 // Allowed accounts for import (only posts from these accounts will be imported)
 const ALLOWED_ACCOUNTS = [
   "frederico.m.carvalho",
@@ -68,6 +71,8 @@ export function ImportInstagramExcel({ onImport, isImporting: externalIsImportin
   const [preview, setPreview] = useState<any[] | null>(null);
   const [parsedData, setParsedData] = useState<any[] | null>(null);
   const [allParsedData, setAllParsedData] = useState<any[] | null>(null); // All posts before filtering
+  const [excludedByDate, setExcludedByDate] = useState(0);
+  const [excludedByAccount, setExcludedByAccount] = useState(0);
   const [excelColumns, setExcelColumns] = useState<string[]>([]);
   const [columnMappings, setColumnMappings] = useState<ColumnMapping[]>([]);
   const [isImporting, setIsImporting] = useState(false);
@@ -79,6 +84,13 @@ export function ImportInstagramExcel({ onImport, isImporting: externalIsImportin
   const isAllowedAccount = (username: string): boolean => {
     const normalized = username.toLowerCase().trim();
     return ALLOWED_ACCOUNTS.some(acc => acc.toLowerCase() === normalized);
+  };
+
+  // Helper to check if date is valid (>= January 2025)
+  const isValidDate = (timestamp: string | undefined): boolean => {
+    if (!timestamp) return false;
+    const postDate = new Date(timestamp);
+    return !isNaN(postDate.getTime()) && postDate >= MIN_DATE;
   };
 
   // Helper functions - must be defined before useMemo hooks that use them
@@ -282,16 +294,24 @@ export function ImportInstagramExcel({ onImport, isImporting: externalIsImportin
       // Store all posts for statistics
       setAllParsedData(validPosts);
 
-      // Filter only allowed accounts
-      const allowedPosts = validPosts.filter(
+      // Filter by allowed accounts
+      const accountFiltered = validPosts.filter(
         (p) => isAllowedAccount(p.ownerUsername || "")
       );
+      const byAccountExcluded = validPosts.length - accountFiltered.length;
+      setExcludedByAccount(byAccountExcluded);
 
-      setParsedData(allowedPosts);
-      setPreview(allowedPosts.slice(0, 5));
+      // Filter by date (>= January 2025)
+      const dateFiltered = accountFiltered.filter(
+        (p) => isValidDate(p.timestamp)
+      );
+      const byDateExcluded = accountFiltered.length - dateFiltered.length;
+      setExcludedByDate(byDateExcluded);
+
+      setParsedData(dateFiltered);
+      setPreview(dateFiltered.slice(0, 5));
       
-      const excludedCount = validPosts.length - allowedPosts.length;
-      console.log(`Parsed ${validPosts.length} valid rows, ${allowedPosts.length} from allowed accounts (${excludedCount} excluded)`, allowedPosts[0]);
+      console.log(`Parsed ${validPosts.length} valid rows → ${accountFiltered.length} allowed accounts → ${dateFiltered.length} from 2025+ (${byAccountExcluded} by account, ${byDateExcluded} by date)`, dateFiltered[0]);
 
     } catch (error) {
       console.error("Error parsing Excel:", error);
@@ -391,6 +411,8 @@ export function ImportInstagramExcel({ onImport, isImporting: externalIsImportin
       setPreview(null);
       setParsedData(null);
       setAllParsedData(null);
+      setExcludedByDate(0);
+      setExcludedByAccount(0);
       setColumnMappings([]);
       setExcelColumns([]);
     }, 1500);
@@ -484,27 +506,47 @@ export function ImportInstagramExcel({ onImport, isImporting: externalIsImportin
 
             {/* Import Summary Stats */}
             {!isImporting && allParsedData && allParsedData.length > 0 && (
-              <div className="p-3 border rounded-lg bg-muted/30 space-y-2">
+              <div className="p-3 border rounded-lg bg-muted/30 space-y-3">
                 <h4 className="font-medium text-sm">Resumo do Ficheiro</h4>
-                <div className="grid grid-cols-3 gap-2 text-xs">
+                <div className="grid grid-cols-2 gap-2 text-xs">
                   <div className="flex items-center gap-1.5">
                     <FileSpreadsheet className="h-3.5 w-3.5 text-muted-foreground" />
-                    <span>Total: <strong>{allParsedData.length}</strong></span>
+                    <span>Total no ficheiro: <strong>{allParsedData.length}</strong></span>
                   </div>
                   <div className="flex items-center gap-1.5">
                     <CheckCircle2 className="h-3.5 w-3.5 text-green-500" />
-                    <span>A importar: <strong>{parsedData?.length || 0}</strong></span>
-                  </div>
-                  <div className="flex items-center gap-1.5">
-                    <XCircle className="h-3.5 w-3.5 text-amber-500" />
-                    <span>Ignorados: <strong>{allParsedData.length - (parsedData?.length || 0)}</strong></span>
+                    <span>A importar: <strong className="text-green-600">{parsedData?.length || 0}</strong></span>
                   </div>
                 </div>
-                {allParsedData.length !== parsedData?.length && (
-                  <p className="text-[10px] text-muted-foreground">
-                    Apenas posts das 8 contas monitorizadas são importados.
-                  </p>
+                
+                {/* Exclusion details */}
+                {(excludedByAccount > 0 || excludedByDate > 0) && (
+                  <div className="border-t pt-2 space-y-1">
+                    <p className="text-[10px] text-muted-foreground font-medium">Excluídos:</p>
+                    <div className="grid grid-cols-2 gap-2 text-xs">
+                      {excludedByAccount > 0 && (
+                        <div className="flex items-center gap-1.5 text-amber-600">
+                          <XCircle className="h-3 w-3" />
+                          <span>Outras contas: <strong>{excludedByAccount}</strong></span>
+                        </div>
+                      )}
+                      {excludedByDate > 0 && (
+                        <div className="flex items-center gap-1.5 text-amber-600">
+                          <Calendar className="h-3 w-3" />
+                          <span>Antes de 2025: <strong>{excludedByDate}</strong></span>
+                        </div>
+                      )}
+                    </div>
+                  </div>
                 )}
+
+                {/* Info note about duplicates */}
+                <div className="border-t pt-2">
+                  <p className="text-[10px] text-muted-foreground flex items-center gap-1">
+                    <AlertCircle className="h-3 w-3" />
+                    Posts duplicados (mesmo shortcode) serão automaticamente ignorados durante a importação.
+                  </p>
+                </div>
               </div>
             )}
 
