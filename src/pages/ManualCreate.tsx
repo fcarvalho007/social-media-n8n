@@ -894,7 +894,7 @@ export default function ManualCreate() {
               user_id: user.id,
               file_name: fileName,
               file_url: url,
-              file_type: isVideo ? 'video/mp4' : 'image/jpeg',
+              file_type: isVideo ? 'video' : 'image',
               source: 'publication',
               is_favorite: false,
             };
@@ -1137,7 +1137,7 @@ export default function ManualCreate() {
               user_id: user.id,
               file_name: fileName,
               file_url: url,
-              file_type: isVideo ? 'video/mp4' : 'image/jpeg',
+              file_type: isVideo ? 'video' : 'image',
               source: 'publication',
               is_favorite: false,
             };

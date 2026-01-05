@@ -862,7 +862,7 @@ if (imageUrlsForPdf.length > 0) {
               user_id: user.id,
               file_name: fileName,
               file_url: url,
-              file_type: isVideo ? 'video/mp4' : (originalFile?.type || 'image/jpeg'),
+              file_type: isVideo ? 'video' : 'image',
               file_size: originalFile?.size || null,
               source: 'publication',
               is_favorite: false,
