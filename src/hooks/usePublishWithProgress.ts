@@ -875,8 +875,12 @@ if (imageUrlsForPdf.length > 0) {
             
           if (mediaError) {
             console.error('[usePublishWithProgress] Failed to register media in library:', mediaError);
+            toast.warning('Média publicada mas não registada na biblioteca', {
+              description: mediaError.message,
+            });
           } else {
             console.log(`[usePublishWithProgress] ✅ Registered ${mediaEntries.length} files in media library`);
+            toast.success(`${mediaEntries.length} ficheiro(s) adicionado(s) à biblioteca`);
           }
         } catch (mediaLibError) {
           console.error('[usePublishWithProgress] Media library registration error:', mediaLibError);

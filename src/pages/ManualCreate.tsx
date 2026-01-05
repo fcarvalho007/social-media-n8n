@@ -1097,8 +1097,12 @@ export default function ManualCreate() {
         workflow_id: 'manual-' + Date.now(),
       };
 
+      console.log('[ManualCreate] Inserting post with user_id:', user.id);
       const { error: dbError } = await supabase.from('posts').insert(postData);
-      if (dbError) console.error('DB insert error:', dbError);
+      if (dbError) {
+        console.error('DB insert error:', dbError);
+        toast.error('Erro ao guardar publicação na base de dados');
+      }
 
       setUploadProgress(100);
       
