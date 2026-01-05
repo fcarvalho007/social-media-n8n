@@ -80,6 +80,8 @@ const Calendar = () => {
   const [lastUpdated, setLastUpdated] = useState<Date | null>(null);
   const [fetchError, setFetchError] = useState<string | null>(null);
   const [retryCount, setRetryCount] = useState(0);
+  const [isSyncing, setIsSyncing] = useState(false);
+  const [hasAutoSynced, setHasAutoSynced] = useState(false);
 
   const minSwipeDistance = 50;
 
@@ -402,11 +404,61 @@ const Calendar = () => {
     }
   }, []);
 
+  // Sync from Getlate API
+  const syncFromGetlate = async () => {
+    if (isSyncing) return;
+    
+    setIsSyncing(true);
+    const toastId = toast.loading('A sincronizar com Getlate...');
+    
+    try {
+      const { data, error } = await supabase.functions.invoke('sync-getlate-posts', {
+        body: {
+          date_from: new Date(Date.now() - 180 * 24 * 60 * 60 * 1000).toISOString(), // Last 6 months
+        },
+      });
+      
+      if (error) throw error;
+      
+      toast.dismiss(toastId);
+      
+      if (data.synced > 0) {
+        toast.success(`Sincronizados ${data.synced} posts do Getlate`);
+        await fetchScheduledContent();
+      } else {
+        toast.info('Calendário já está atualizado');
+      }
+      
+      // Store last sync timestamp
+      localStorage.setItem('getlate_last_sync_at', new Date().toISOString());
+    } catch (error) {
+      console.error('Sync error:', error);
+      toast.dismiss(toastId);
+      // Silent fail for auto-sync, only show error for manual sync
+    } finally {
+      setIsSyncing(false);
+    }
+  };
+
   // Smart navigation: suggest going to month with content if current month is empty
   const [hasShownNavigationHint, setHasShownNavigationHint] = useState(false);
   
   useEffect(() => {
-    if (loading || hasShownNavigationHint || events.length === 0) return;
+    if (loading || hasShownNavigationHint) return;
+    
+    // Auto-sync from Getlate if events are empty or it's been a while
+    if (!hasAutoSynced && events.length === 0) {
+      const lastSync = localStorage.getItem('getlate_last_sync_at');
+      const shouldSync = !lastSync || (Date.now() - new Date(lastSync).getTime() > 60 * 60 * 1000); // 1 hour
+      
+      if (shouldSync) {
+        setHasAutoSynced(true);
+        syncFromGetlate();
+        return;
+      }
+    }
+    
+    if (events.length === 0) return;
     
     const currentMonthStart = startOfMonth(currentMonth);
     const currentMonthEnd = endOfMonth(currentMonth);
@@ -418,28 +470,35 @@ const Calendar = () => {
     
     // If current month is empty but there are events in other months
     if (currentMonthEvents.length === 0 && events.length > 0) {
-      // Find the month with the most recent content
-      const sortedEvents = [...events].sort((a, b) => 
-        (b.start as Date).getTime() - (a.start as Date).getTime()
-      );
+      // Find the closest month with content (prefer future, fallback to past)
+      const futureEvents = events.filter(e => (e.start as Date) > currentMonthEnd);
+      const pastEvents = events.filter(e => (e.start as Date) < currentMonthStart);
       
-      const lastEventDate = sortedEvents[0].start as Date;
-      const lastEventMonth = startOfMonth(lastEventDate);
+      let targetMonth: Date | null = null;
       
-      // Only show if it's a different month
-      if (!isSameMonth(lastEventMonth, currentMonth)) {
+      if (futureEvents.length > 0) {
+        // Sort ascending to get nearest future
+        futureEvents.sort((a, b) => (a.start as Date).getTime() - (b.start as Date).getTime());
+        targetMonth = startOfMonth(futureEvents[0].start as Date);
+      } else if (pastEvents.length > 0) {
+        // Sort descending to get most recent past
+        pastEvents.sort((a, b) => (b.start as Date).getTime() - (a.start as Date).getTime());
+        targetMonth = startOfMonth(pastEvents[0].start as Date);
+      }
+      
+      if (targetMonth && !isSameMonth(targetMonth, currentMonth)) {
         setHasShownNavigationHint(true);
         toast.info(`Nenhum conteúdo em ${format(currentMonth, 'MMMM yyyy', { locale: pt })}`, {
-          description: `Último conteúdo em ${format(lastEventMonth, 'MMMM yyyy', { locale: pt })}`,
+          description: `Conteúdo disponível em ${format(targetMonth, 'MMMM yyyy', { locale: pt })}`,
           action: {
             label: 'Ir para lá',
-            onClick: () => setCurrentMonth(lastEventMonth)
+            onClick: () => setCurrentMonth(targetMonth!)
           },
           duration: 8000
         });
       }
     }
-  }, [loading, events, currentMonth, hasShownNavigationHint]);
+  }, [loading, events, currentMonth, hasShownNavigationHint, hasAutoSynced, isSyncing]);
 
   useEffect(() => {
     fetchScheduledContent();

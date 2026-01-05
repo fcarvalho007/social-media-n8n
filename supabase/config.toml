@@ -60,5 +60,8 @@ verify_jwt = true
 [functions.generate-competitor-report]
 verify_jwt = true
 
+[functions.sync-getlate-posts]
+verify_jwt = true
+
 [functions.import-instagram-profiles]
 verify_jwt = true
