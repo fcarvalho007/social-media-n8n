@@ -91,56 +91,75 @@ Deno.serve(async (req) => {
 
     console.log(`[sync-getlate-posts] Syncing from ${dateFrom} to ${dateTo}`);
 
-    // Fetch posts from Getlate API with pagination
+    // Fetch posts from Getlate API - separate calls per status
+    // (API may not support multiple statuses in one request)
     const allGetlatePosts: GetlatePost[] = [];
-    let page = 1;
+    const statusesToSync = ['published', 'scheduled', 'queued', 'failed'];
     const limit = 50;
-    let hasMore = true;
 
-    while (hasMore) {
-      const url = new URL(`${GETLATE_BASE_URL}/v1/posts`);
-      url.searchParams.set('limit', limit.toString());
-      url.searchParams.set('page', page.toString());
-      url.searchParams.set('dateFrom', dateFrom);
-      url.searchParams.set('dateTo', dateTo);
-      // Fetch all statuses
-      url.searchParams.set('status', 'published,scheduled,queued,failed');
+    for (const status of statusesToSync) {
+      let page = 1;
+      let hasMore = true;
 
-      console.log(`[sync-getlate-posts] Fetching page ${page}: ${url.toString()}`);
+      console.log(`[sync-getlate-posts] Fetching ${status} posts...`);
 
-      const response = await fetch(url.toString(), {
-        method: 'GET',
-        headers: {
-          'Authorization': `Bearer ${GETLATE_API_TOKEN}`,
-          'Content-Type': 'application/json',
-        },
-      });
+      while (hasMore) {
+        const url = new URL(`${GETLATE_BASE_URL}/v1/posts`);
+        url.searchParams.set('limit', limit.toString());
+        url.searchParams.set('page', page.toString());
+        url.searchParams.set('dateFrom', dateFrom);
+        url.searchParams.set('dateTo', dateTo);
+        url.searchParams.set('status', status); // One status at a time
 
-      if (!response.ok) {
-        const errorText = await response.text();
-        console.error(`[sync-getlate-posts] Getlate API error: ${response.status} - ${errorText}`);
-        throw new Error(`Getlate API error: ${response.status}`);
-      }
+        console.log(`[sync-getlate-posts] Fetching ${status} page ${page}: ${url.toString()}`);
 
-      const data = await response.json();
-      const posts: GetlatePost[] = data.posts || data.data || data || [];
-      
-      console.log(`[sync-getlate-posts] Page ${page}: ${posts.length} posts`);
-      
-      allGetlatePosts.push(...posts);
-      
-      // Check if there are more pages
-      if (posts.length < limit) {
-        hasMore = false;
-      } else {
-        page++;
-        // Safety limit
-        if (page > 20) {
-          console.warn('[sync-getlate-posts] Hit page limit, stopping pagination');
+        const response = await fetch(url.toString(), {
+          method: 'GET',
+          headers: {
+            'Authorization': `Bearer ${GETLATE_API_TOKEN}`,
+            'Content-Type': 'application/json',
+          },
+        });
+
+        if (!response.ok) {
+          const errorText = await response.text();
+          console.error(`[sync-getlate-posts] Getlate API error for ${status}: ${response.status} - ${errorText}`);
+          // Continue with other statuses instead of failing completely
+          break;
+        }
+
+        const rawText = await response.text();
+        console.log(`[sync-getlate-posts] Raw ${status} response (first 500 chars):`, rawText.substring(0, 500));
+
+        let data;
+        try {
+          data = JSON.parse(rawText);
+        } catch (parseError) {
+          console.error(`[sync-getlate-posts] JSON parse error for ${status}:`, parseError);
+          break;
+        }
+
+        const posts: GetlatePost[] = data.posts || data.data || (Array.isArray(data) ? data : []);
+        
+        console.log(`[sync-getlate-posts] ${status} page ${page}: ${posts.length} posts`);
+        
+        allGetlatePosts.push(...posts);
+        
+        // Check if there are more pages
+        if (posts.length < limit) {
           hasMore = false;
+        } else {
+          page++;
+          // Safety limit per status
+          if (page > 10) {
+            console.warn(`[sync-getlate-posts] Hit page limit for ${status}, moving to next status`);
+            hasMore = false;
+          }
         }
       }
     }
+
+    console.log(`[sync-getlate-posts] Total posts from all statuses: ${allGetlatePosts.length}`);
 
     console.log(`[sync-getlate-posts] Total posts from Getlate: ${allGetlatePosts.length}`);
 
