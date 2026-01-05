@@ -40,11 +40,11 @@ export function usePendingContent(limit: number = 6): PendingContentResult {
           .order('created_at', { ascending: false })
           .limit(limit);
 
-        // Fetch pending posts (carousels and posts)
+        // Fetch pending posts (carousels and posts) - include waiting_for_approval
         const { data: posts } = await supabase
           .from('posts')
-          .select('id, template_a_images, media_items, caption, created_at, content_type')
-          .eq('status', 'pending')
+          .select('id, template_a_images, media_items, caption, created_at, content_type, status')
+          .in('status', ['pending', 'waiting_for_approval', 'publishing'])
           .order('created_at', { ascending: false })
           .limit(limit);
 

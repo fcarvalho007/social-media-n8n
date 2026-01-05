@@ -222,15 +222,21 @@ const Calendar = () => {
     }
     
     try {
-      const [{ data: posts, error: postsError }, { data: stories, error: storiesError }] = await Promise.all([
+      // Fetch posts with ALL relevant statuses (not just 4)
+      const [{ data: posts, error: postsError }, { data: stories, error: storiesError }, { data: drafts, error: draftsError }] = await Promise.all([
         supabase
           .from('posts')
           .select('id, tema, content_type, status, scheduled_date, reviewed_at, created_at, published_at, template_a_images, error_log, failed_at, recovery_token, selected_networks, external_post_ids')
-          .in('status', ['approved', 'published', 'failed', 'scheduled']),
+          .in('status', ['approved', 'published', 'failed', 'scheduled', 'waiting_for_approval', 'pending', 'publishing', 'requires_attention']),
         supabase
           .from('stories')
           .select('id, tema, status, scheduled_date, reviewed_at, created_at, story_image_url')
-          .in('status', ['approved', 'published']),
+          .in('status', ['approved', 'published', 'pending']),
+        // Also fetch drafts to show in calendar
+        supabase
+          .from('posts_drafts')
+          .select('id, caption, platform, media_urls, scheduled_date, scheduled_time, created_at, status')
+          .eq('status', 'draft'),
       ]);
 
       if (postsError || storiesError) {
@@ -274,7 +280,43 @@ const Calendar = () => {
         resource: { ...story, content_type: 'stories' as const },
       }));
 
-      const allEvents = [...postEvents, ...storyEvents];
+      // Convert drafts to calendar events
+      const draftEvents: CalendarEvent[] = (drafts || []).map((draft) => {
+        // Use scheduled_date if available, otherwise use created_at
+        let eventDate: Date;
+        if (draft.scheduled_date) {
+          // Combine scheduled_date with scheduled_time if available
+          const dateStr = draft.scheduled_date;
+          const timeStr = draft.scheduled_time || '12:00';
+          eventDate = new Date(`${dateStr}T${timeStr}:00`);
+        } else {
+          eventDate = new Date(draft.created_at);
+        }
+        
+        // Get first thumbnail from media_urls
+        let thumbnail: string | null = null;
+        if (draft.media_urls && Array.isArray(draft.media_urls) && draft.media_urls.length > 0) {
+          const first = draft.media_urls[0];
+          if (typeof first === 'string') thumbnail = first;
+          else if (first && typeof first === 'object') thumbnail = (first as { url?: string }).url || null;
+        }
+        
+        return {
+          id: draft.id,
+          title: draft.caption?.substring(0, 50) || 'Rascunho',
+          start: eventDate,
+          end: eventDate,
+          resource: {
+            id: draft.id,
+            content_type: 'carousel' as const,
+            status: 'draft',
+            template_a_images: thumbnail ? [thumbnail] : [],
+            scheduled_date: draft.scheduled_date,
+          },
+        };
+      });
+
+      const allEvents = [...postEvents, ...storyEvents, ...draftEvents];
       setEvents(allEvents);
       setRetryCount(0);
       setFetchError(null);
@@ -416,9 +458,18 @@ const Calendar = () => {
       })
       .subscribe();
 
+    // Also listen for drafts changes
+    const draftsChannel = supabase
+      .channel('calendar-drafts-changes')
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'posts_drafts' }, () => {
+        fetchScheduledContent();
+      })
+      .subscribe();
+
     return () => {
       supabase.removeChannel(postsChannel);
       supabase.removeChannel(storiesChannel);
+      supabase.removeChannel(draftsChannel);
     };
   }, []);
 
@@ -467,6 +518,10 @@ const Calendar = () => {
     const isApproved = event.resource.status === 'approved';
     const isFailed = event.resource.status === 'failed';
     const isScheduled = event.resource.status === 'scheduled';
+    const isDraft = event.resource.status === 'draft';
+    const isPending = event.resource.status === 'pending' || event.resource.status === 'waiting_for_approval';
+    const isPublishing = event.resource.status === 'publishing';
+    const isRequiresAttention = event.resource.status === 'requires_attention';
     
     // Check if approved post has future scheduled_date (legacy scheduled posts)
     const isLegacyScheduled = isApproved && 
@@ -477,9 +532,19 @@ const Calendar = () => {
     let border = 'none';
     let borderStyle = 'solid';
     
-    if (isFailed) {
+    if (isFailed || isRequiresAttention) {
       backgroundColor = '#EF4444';
       border = '2px solid #DC2626';
+    } else if (isDraft) {
+      // Drafts - gray/neutral with dotted border
+      backgroundColor = '#6B7280';
+      border = '2px dotted #4B5563';
+      borderStyle = 'dotted';
+    } else if (isPending || isPublishing) {
+      // Pending/waiting for approval - orange/amber
+      backgroundColor = '#F59E0B';
+      border = '2px dashed #D97706';
+      borderStyle = 'dashed';
     } else if (isScheduled || isLegacyScheduled) {
       // Scheduled posts - blue with dashed border for clear distinction
       backgroundColor = '#3B82F6';

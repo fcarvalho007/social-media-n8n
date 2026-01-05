@@ -873,7 +873,7 @@ export default function ManualCreate() {
         }
         toast.success('Rascunho atualizado com sucesso');
       } else {
-        const { error } = await supabase.from('posts_drafts').insert(draftData);
+        const { data: insertedDraft, error } = await supabase.from('posts_drafts').insert(draftData).select('id').single();
         if (error) {
           console.error('[handleSaveDraft] Insert error:', error);
           throw error;
@@ -883,6 +883,30 @@ export default function ManualCreate() {
           setCurrentDraftId(null);
         }
         toast.success('Rascunho guardado com sucesso');
+        
+        // Register media in library after successful draft save
+        if (mediaUrls.length > 0) {
+          const mediaEntries = mediaUrls.map((url, idx) => {
+            const fileName = url.split('/').pop() || `draft-${idx}`;
+            const file = mediaFiles[idx];
+            const isVideo = file?.type?.startsWith('video/') || url.includes('.mp4') || url.includes('.mov');
+            return {
+              user_id: user.id,
+              file_name: fileName,
+              file_url: url,
+              file_type: isVideo ? 'video/mp4' : 'image/jpeg',
+              source: 'publication',
+              is_favorite: false,
+            };
+          });
+          
+          const { error: mediaError } = await supabase.from('media_library').insert(mediaEntries);
+          if (mediaError) {
+            console.warn('[handleSaveDraft] Failed to register media in library:', mediaError);
+          } else {
+            console.log(`[handleSaveDraft] Registered ${mediaEntries.length} files in media library`);
+          }
+        }
       }
     } catch (error: any) {
       console.error('[handleSaveDraft] Error:', error);
@@ -1102,6 +1126,31 @@ export default function ManualCreate() {
       if (dbError) {
         console.error('DB insert error:', dbError);
         toast.error('Erro ao guardar publicação na base de dados');
+      } else {
+        // Register media in library after successful post insertion
+        if (mediaUrls.length > 0) {
+          const mediaEntries = mediaUrls.map((url, idx) => {
+            const fileName = url.split('/').pop() || `media-${idx}`;
+            const file = mediaFiles[idx];
+            const isVideo = file?.type?.startsWith('video/') || url.includes('.mp4') || url.includes('.mov');
+            return {
+              user_id: user.id,
+              file_name: fileName,
+              file_url: url,
+              file_type: isVideo ? 'video/mp4' : 'image/jpeg',
+              source: 'publication',
+              is_favorite: false,
+            };
+          });
+          
+          const { error: mediaError } = await supabase.from('media_library').insert(mediaEntries);
+          if (mediaError) {
+            console.warn('[ManualCreate] Failed to register media in library:', mediaError);
+            // Don't show error - the main action succeeded
+          } else {
+            console.log(`[ManualCreate] Registered ${mediaEntries.length} files in media library`);
+          }
+        }
       }
 
       setUploadProgress(100);
