@@ -291,6 +291,16 @@ Deno.serve(async (req) => {
         }
 
         // Sync media to media_library
+        // Get the post_id we just inserted/updated
+        const { data: insertedPost } = await supabase
+          .from('posts')
+          .select('id')
+          .eq('workflow_id', `getlate:${getlatePost._id}`)
+          .maybeSingle();
+        
+        // Extract publication URL from platforms
+        const publicationUrl = getlatePost.platforms?.find(p => p.publishedUrl)?.publishedUrl || null;
+        
         for (const mediaItem of getlatePost.mediaItems || []) {
           if (!mediaItem.url) continue;
           // Skip temporary URLs
@@ -317,11 +327,23 @@ Deno.serve(async (req) => {
                 source: 'publication',
                 is_favorite: false,
                 created_at: new Date(getlatePost.createdAt).toISOString(),
+                publication_url: publicationUrl,
+                post_id: insertedPost?.id || null,
               });
 
             if (!mediaError) {
               syncedMedia++;
             }
+          } else if (existingMedia && publicationUrl) {
+            // Update existing media with publication_url if missing
+            await supabase
+              .from('media_library')
+              .update({ 
+                publication_url: publicationUrl,
+                post_id: insertedPost?.id || null
+              })
+              .eq('id', existingMedia.id)
+              .is('publication_url', null);
           }
         }
       } catch (postError) {

@@ -32,7 +32,10 @@ import {
   Eye,
   MoreVertical,
   CheckCircle2,
-  X
+  X,
+  FileText,
+  ExternalLink,
+  ImageOff
 } from 'lucide-react';
 import { format, formatDistanceToNow } from 'date-fns';
 import { pt } from 'date-fns/locale';
@@ -63,7 +66,12 @@ interface MediaItem {
   is_favorite: boolean | null;
   created_at: string;
   updated_at: string;
+  publication_url: string | null;
+  post_id: string | null;
 }
+
+// Helper to detect if URL is a PDF
+const isPdfUrl = (url: string) => url.toLowerCase().endsWith('.pdf');
 
 const sourceLabels: Record<string, string> = {
   upload: 'Upload',
@@ -655,24 +663,49 @@ const [searchTerm, setSearchTerm] = useState('');
 
                     {/* Media preview */}
                     <div className="aspect-square bg-muted">
-                      {isVideo ? (
+                      {isPdfUrl(item.file_url) ? (
+                        <div className="h-full w-full flex flex-col items-center justify-center bg-muted">
+                          <FileText className="h-12 w-12 text-muted-foreground" />
+                          <span className="text-xs text-muted-foreground mt-2">PDF</span>
+                        </div>
+                      ) : isVideo ? (
                         <div className="relative h-full w-full">
-                          <video
-                            src={item.file_url}
-                            className="h-full w-full object-cover"
-                            muted
-                          />
-                          <div className="absolute inset-0 flex items-center justify-center bg-black/30">
+                          {item.thumbnail_url ? (
+                            <img
+                              src={item.thumbnail_url}
+                              alt={item.file_name}
+                              className="h-full w-full object-cover"
+                              loading="lazy"
+                              onError={(e) => {
+                                e.currentTarget.style.display = 'none';
+                                e.currentTarget.nextElementSibling?.classList.remove('hidden');
+                              }}
+                            />
+                          ) : null}
+                          <div className={cn(
+                            "absolute inset-0 flex items-center justify-center bg-black/30",
+                            item.thumbnail_url && "hidden"
+                          )}>
                             <Video className="h-8 w-8 text-white" />
                           </div>
                         </div>
                       ) : (
-                        <img
-                          src={item.thumbnail_url || item.file_url}
-                          alt={item.file_name}
-                          className="h-full w-full object-cover"
-                          loading="lazy"
-                        />
+                        <div className="relative h-full w-full">
+                          <img
+                            src={item.thumbnail_url || item.file_url}
+                            alt={item.file_name}
+                            className="h-full w-full object-cover"
+                            loading="lazy"
+                            onError={(e) => {
+                              e.currentTarget.style.display = 'none';
+                              e.currentTarget.nextElementSibling?.classList.remove('hidden');
+                            }}
+                          />
+                          <div className="hidden h-full w-full flex-col items-center justify-center bg-muted">
+                            <ImageOff className="h-10 w-10 text-muted-foreground" />
+                            <span className="text-xs text-muted-foreground mt-1">Erro ao carregar</span>
+                          </div>
+                        </div>
                       )}
                     </div>
 
@@ -720,7 +753,21 @@ const [searchTerm, setSearchTerm] = useState('');
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               {/* Preview */}
               <div className="aspect-square bg-muted rounded-lg overflow-hidden">
-                {detailsItem.file_type.startsWith('video/') ? (
+                {isPdfUrl(detailsItem.file_url) ? (
+                  <div className="h-full w-full flex flex-col items-center justify-center bg-muted">
+                    <FileText className="h-16 w-16 text-muted-foreground" />
+                    <span className="text-sm text-muted-foreground mt-2">Documento PDF</span>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      className="mt-4"
+                      onClick={() => window.open(detailsItem.file_url, '_blank')}
+                    >
+                      <ExternalLink className="h-4 w-4 mr-1" />
+                      Abrir PDF
+                    </Button>
+                  </div>
+                ) : detailsItem.file_type === 'video' || detailsItem.file_type.startsWith('video/') ? (
                   <video
                     src={detailsItem.file_url}
                     controls
@@ -731,8 +778,16 @@ const [searchTerm, setSearchTerm] = useState('');
                     src={detailsItem.file_url}
                     alt={detailsItem.file_name}
                     className="h-full w-full object-contain"
+                    onError={(e) => {
+                      e.currentTarget.style.display = 'none';
+                      e.currentTarget.nextElementSibling?.classList.remove('hidden');
+                    }}
                   />
                 )}
+                <div className="hidden h-full w-full flex-col items-center justify-center">
+                  <ImageOff className="h-12 w-12 text-muted-foreground" />
+                  <span className="text-sm text-muted-foreground mt-2">Não foi possível carregar</span>
+                </div>
               </div>
 
               {/* Details */}
@@ -787,6 +842,16 @@ const [searchTerm, setSearchTerm] = useState('');
 
                 {/* Actions */}
                 <div className="flex flex-wrap gap-2 pt-4 border-t">
+                  {detailsItem.publication_url && (
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => window.open(detailsItem.publication_url!, '_blank')}
+                    >
+                      <ExternalLink className="h-4 w-4 mr-1" />
+                      Ver publicação
+                    </Button>
+                  )}
                   <Button
                     variant="outline"
                     size="sm"
