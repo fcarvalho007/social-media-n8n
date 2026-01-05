@@ -37,7 +37,6 @@ export function useDrafts(options: UseDraftsOptions = {}) {
       const { data, error } = await supabase
         .from('posts_drafts')
         .select('*')
-        .eq('user_id', user.id)
         .eq('status', 'draft')
         .order('created_at', { ascending: false });
 
