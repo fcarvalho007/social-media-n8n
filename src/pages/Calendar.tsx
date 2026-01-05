@@ -291,8 +291,15 @@ const Calendar = () => {
           const dateStr = draft.scheduled_date;
           const timeStr = draft.scheduled_time || '12:00';
           eventDate = new Date(`${dateStr}T${timeStr}:00`);
-        } else {
+        } else if (draft.created_at) {
           eventDate = new Date(draft.created_at);
+        } else {
+          eventDate = new Date(); // Fallback to now
+        }
+        
+        // Validate date - if invalid, use current date as fallback
+        if (isNaN(eventDate.getTime())) {
+          eventDate = new Date();
         }
         
         // Get first thumbnail from media_urls
@@ -325,7 +332,15 @@ const Calendar = () => {
       
       // Save to localStorage cache
       try {
-        const cacheData = allEvents.map(e => ({
+        // Filter out events with invalid dates before caching
+        const validEvents = allEvents.filter(e => {
+          const start = e.start as Date;
+          const end = e.end as Date;
+          return start instanceof Date && !isNaN(start.getTime()) && 
+                 end instanceof Date && !isNaN(end.getTime());
+        });
+        
+        const cacheData = validEvents.map(e => ({
           ...e,
           start: (e.start as Date).toISOString(),
           end: (e.end as Date).toISOString(),
