@@ -291,6 +291,8 @@ export type Database = {
           height: number | null
           id: string
           is_favorite: boolean | null
+          post_id: string | null
+          publication_url: string | null
           source: string | null
           tags: string[] | null
           thumbnail_url: string | null
@@ -310,6 +312,8 @@ export type Database = {
           height?: number | null
           id?: string
           is_favorite?: boolean | null
+          post_id?: string | null
+          publication_url?: string | null
           source?: string | null
           tags?: string[] | null
           thumbnail_url?: string | null
@@ -329,6 +333,8 @@ export type Database = {
           height?: number | null
           id?: string
           is_favorite?: boolean | null
+          post_id?: string | null
+          publication_url?: string | null
           source?: string | null
           tags?: string[] | null
           thumbnail_url?: string | null
@@ -336,7 +342,15 @@ export type Database = {
           user_id?: string
           width?: number | null
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "media_library_post_id_fkey"
+            columns: ["post_id"]
+            isOneToOne: false
+            referencedRelation: "posts"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       milestones: {
         Row: {
