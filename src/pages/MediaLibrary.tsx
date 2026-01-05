@@ -111,18 +111,36 @@ const [searchTerm, setSearchTerm] = useState('');
     if (!user) return;
     
     setIsImporting(true);
+    let successCount = 0;
+    let failedCount = 0;
+    
     try {
-      // Fetch published AND approved posts with images (include media_items)
+      // Fetch posts with ALL relevant statuses (not just published/approved)
       const { data: posts, error: postsError } = await supabase
         .from('posts')
-        .select('id, user_id, template_a_images, media_items, created_at, published_at')
-        .in('status', ['published', 'approved'])
+        .select('id, user_id, template_a_images, media_items, created_at, published_at, status')
+        .in('status', ['published', 'approved', 'scheduled', 'waiting_for_approval', 'failed', 'publishing', 'pending'])
         .or('template_a_images.not.is.null,media_items.not.is.null');
       
-      if (postsError) throw postsError;
+      if (postsError) {
+        toast.error(`Erro ao buscar publicações: ${postsError.message}`);
+        throw postsError;
+      }
       
-      if (!posts || posts.length === 0) {
-        toast.info('Nenhuma publicação encontrada para importar');
+      // Also fetch drafts
+      const { data: drafts, error: draftsError } = await supabase
+        .from('posts_drafts')
+        .select('id, user_id, media_urls, created_at')
+        .eq('status', 'draft');
+      
+      if (draftsError) {
+        console.warn('Could not fetch drafts:', draftsError);
+      }
+      
+      const totalPosts = (posts?.length || 0) + (drafts?.length || 0);
+      
+      if (totalPosts === 0) {
+        toast.info('Nenhuma publicação ou rascunho encontrado para importar');
         return;
       }
 
@@ -133,7 +151,6 @@ const [searchTerm, setSearchTerm] = useState('');
       
       const existingUrls = new Set((existingMedia || []).map(m => m.file_url));
       
-      let importCount = 0;
       const entriesToInsert: Array<{
         user_id: string;
         file_name: string;
@@ -144,16 +161,14 @@ const [searchTerm, setSearchTerm] = useState('');
         created_at: string;
       }> = [];
       
-      for (const post of posts) {
-        // Collect all URLs from both template_a_images and media_items
+      // Process posts
+      for (const post of (posts || [])) {
         const allUrls: string[] = [];
         
-        // Add from template_a_images
         if (post.template_a_images && Array.isArray(post.template_a_images)) {
           allUrls.push(...(post.template_a_images as string[]));
         }
         
-        // Add from media_items (JSONB format: [{url: '...', ...}])
         if (post.media_items && Array.isArray(post.media_items)) {
           for (const item of post.media_items as Array<{ url?: string; preview?: string }>) {
             if (item.url) allUrls.push(item.url);
@@ -162,13 +177,10 @@ const [searchTerm, setSearchTerm] = useState('');
         }
         
         for (const url of allUrls) {
-          // Skip if already exists, empty, or temporary URL that may have expired
           if (!url || existingUrls.has(url)) continue;
-          
-          // Skip temporary Getlate URLs (they expire)
           if (url.includes('media.getlate.dev/temp/')) continue;
           
-          const fileName = url.split('/').pop() || `imported-${importCount}`;
+          const fileName = url.split('/').pop() || `imported-${entriesToInsert.length}`;
           const isVideo = url.includes('.mp4') || url.includes('.mov') || url.includes('.webm');
           
           entriesToInsert.push({
@@ -181,8 +193,36 @@ const [searchTerm, setSearchTerm] = useState('');
             created_at: post.published_at || post.created_at || new Date().toISOString(),
           });
           
-          existingUrls.add(url); // Prevent duplicates within same import
-          importCount++;
+          existingUrls.add(url);
+        }
+      }
+      
+      // Process drafts
+      for (const draft of (drafts || [])) {
+        if (!draft.media_urls || !Array.isArray(draft.media_urls)) continue;
+        
+        for (const item of draft.media_urls) {
+          let url: string | null = null;
+          if (typeof item === 'string') url = item;
+          else if (item && typeof item === 'object') url = (item as { url?: string }).url || null;
+          
+          if (!url || existingUrls.has(url)) continue;
+          if (url.includes('media.getlate.dev/temp/')) continue;
+          
+          const fileName = url.split('/').pop() || `draft-${entriesToInsert.length}`;
+          const isVideo = url.includes('.mp4') || url.includes('.mov') || url.includes('.webm');
+          
+          entriesToInsert.push({
+            user_id: draft.user_id || user.id,
+            file_name: fileName,
+            file_url: url,
+            file_type: isVideo ? 'video/mp4' : 'image/jpeg',
+            source: 'publication',
+            is_favorite: false,
+            created_at: draft.created_at || new Date().toISOString(),
+          });
+          
+          existingUrls.add(url);
         }
       }
       
@@ -191,27 +231,47 @@ const [searchTerm, setSearchTerm] = useState('');
         return;
       }
       
-      // Insert in batches of 50
+      // Insert in batches of 50 with proper error handling
       const batchSize = 50;
       for (let i = 0; i < entriesToInsert.length; i += batchSize) {
         const batch = entriesToInsert.slice(i, i + batchSize);
-        const { error: insertError } = await supabase
+        const { error: insertError, data: insertedData } = await supabase
           .from('media_library')
-          .insert(batch);
+          .insert(batch)
+          .select();
         
         if (insertError) {
           console.error('Batch insert error:', insertError);
+          failedCount += batch.length;
+          toast.warning(`Erro ao importar lote ${Math.floor(i/batchSize) + 1}: ${insertError.message}`);
+        } else {
+          successCount += insertedData?.length || batch.length;
         }
+        
+        // Show progress
+        const progress = Math.round(((i + batch.length) / entriesToInsert.length) * 100);
+        toast.loading(`A importar... ${progress}%`, { id: 'import-progress' });
       }
       
+      toast.dismiss('import-progress');
       await refetch();
-      toast.success(`${importCount} ficheiro(s) importado(s) com sucesso!`);
+      
+      // Show final result
+      if (failedCount > 0) {
+        toast.warning(`Importação parcial: ${successCount} ficheiros importados, ${failedCount} falharam`);
+      } else {
+        toast.success(`${successCount} ficheiro(s) importado(s) com sucesso!`);
+      }
+      
+      // Switch to publications tab
+      setActiveTab('publications');
       
     } catch (error) {
       console.error('Import error:', error);
-      toast.error('Erro ao importar publicações');
+      toast.error('Erro ao importar publicações. Verifique a consola para detalhes.');
     } finally {
       setIsImporting(false);
+      toast.dismiss('import-progress');
     }
   };
 
@@ -219,15 +279,23 @@ const [searchTerm, setSearchTerm] = useState('');
   const checkAndSuggestImport = async () => {
     if (hasShownImportSuggestion || isImporting) return;
     
-    // Check if there are published/approved posts
-    const { count } = await supabase
+    // Check if there are posts with any relevant status
+    const { count: postsCount } = await supabase
       .from('posts')
       .select('id', { count: 'exact', head: true })
-      .in('status', ['published', 'approved']);
+      .in('status', ['published', 'approved', 'scheduled', 'waiting_for_approval', 'failed', 'publishing', 'pending']);
     
-    if (count && count > 0) {
+    // Also check drafts
+    const { count: draftsCount } = await supabase
+      .from('posts_drafts')
+      .select('id', { count: 'exact', head: true })
+      .eq('status', 'draft');
+    
+    const totalCount = (postsCount || 0) + (draftsCount || 0);
+    
+    if (totalCount > 0) {
       setHasShownImportSuggestion(true);
-      toast.info(`Encontrámos ${count} publicações. Deseja importar para a biblioteca?`, {
+      toast.info(`Encontrámos ${totalCount} publicações/rascunhos. Deseja importar para a biblioteca?`, {
         duration: 8000,
         action: {
           label: 'Importar',
