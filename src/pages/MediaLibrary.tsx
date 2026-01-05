@@ -89,7 +89,8 @@ const [searchTerm, setSearchTerm] = useState('');
   const [selectedItems, setSelectedItems] = useState<Set<string>>(new Set());
   const [detailsItem, setDetailsItem] = useState<MediaItem | null>(null);
   const [isImporting, setIsImporting] = useState(false);
-  const [hasShownImportSuggestion, setHasShownImportSuggestion] = useState(false);
+  const [isSyncing, setIsSyncing] = useState(false);
+  const [hasAutoSynced, setHasAutoSynced] = useState(false);
 
   // Fetch media library
   const { data: mediaItems, isLoading, refetch } = useQuery({
@@ -275,42 +276,63 @@ const [searchTerm, setSearchTerm] = useState('');
     }
   };
 
-  // Auto-suggest import when library is empty but posts exist
-  const checkAndSuggestImport = async () => {
-    if (hasShownImportSuggestion || isImporting) return;
+  // Sync from Getlate API
+  const syncFromGetlate = async () => {
+    if (isSyncing) return;
     
-    // Check if there are posts with any relevant status
-    const { count: postsCount } = await supabase
-      .from('posts')
-      .select('id', { count: 'exact', head: true })
-      .in('status', ['published', 'approved', 'scheduled', 'waiting_for_approval', 'failed', 'publishing', 'pending']);
+    setIsSyncing(true);
+    const toastId = toast.loading('A sincronizar com Getlate...');
     
-    // Also check drafts
-    const { count: draftsCount } = await supabase
-      .from('posts_drafts')
-      .select('id', { count: 'exact', head: true })
-      .eq('status', 'draft');
-    
-    const totalCount = (postsCount || 0) + (draftsCount || 0);
-    
-    if (totalCount > 0) {
-      setHasShownImportSuggestion(true);
-      toast.info(`Encontrámos ${totalCount} publicações/rascunhos. Deseja importar para a biblioteca?`, {
-        duration: 8000,
-        action: {
-          label: 'Importar',
-          onClick: () => importExistingPublications()
-        }
+    try {
+      const { data, error } = await supabase.functions.invoke('sync-getlate-posts', {
+        body: {
+          date_from: new Date(Date.now() - 180 * 24 * 60 * 60 * 1000).toISOString(), // Last 6 months
+        },
       });
+      
+      if (error) throw error;
+      
+      toast.dismiss(toastId);
+      
+      if (data.synced > 0 || data.syncedMedia > 0) {
+        toast.success(`Sincronizados ${data.synced} posts e ${data.syncedMedia} ficheiros`);
+        await refetch();
+      } else {
+        toast.info('Biblioteca já está atualizada');
+      }
+      
+      // Store last sync timestamp
+      localStorage.setItem('getlate_last_sync_at', new Date().toISOString());
+    } catch (error) {
+      console.error('Sync error:', error);
+      toast.dismiss(toastId);
+      toast.error('Erro ao sincronizar com Getlate');
+    } finally {
+      setIsSyncing(false);
     }
   };
 
-  // Check for import suggestion when library loads empty
+  // Auto-sync when library is empty (no prompts, automatic)
   useEffect(() => {
-    if (!isLoading && mediaItems && mediaItems.length === 0 && user && !hasShownImportSuggestion) {
-      checkAndSuggestImport();
+    if (!isLoading && mediaItems && mediaItems.length === 0 && user && !hasAutoSynced && !isSyncing) {
+      setHasAutoSynced(true);
+      
+      // Check last sync time to avoid excessive syncs
+      const lastSync = localStorage.getItem('getlate_last_sync_at');
+      const shouldSync = !lastSync || (Date.now() - new Date(lastSync).getTime() > 30 * 60 * 1000); // 30 min
+      
+      if (shouldSync) {
+        // Auto-trigger sync
+        syncFromGetlate().then(() => {
+          // After getlate sync, also import from existing posts/drafts
+          importExistingPublications();
+        });
+      } else {
+        // Just import from local database
+        importExistingPublications();
+      }
     }
-  }, [isLoading, mediaItems, user, hasShownImportSuggestion]);
+  }, [isLoading, mediaItems, user, hasAutoSynced, isSyncing]);
 
   // Toggle favorite mutation
   const toggleFavoriteMutation = useMutation({
@@ -355,9 +377,11 @@ const [searchTerm, setSearchTerm] = useState('');
     if (activeTab === 'favorites') {
       items = items.filter(item => item.is_favorite);
     } else if (activeTab === 'images') {
-      items = items.filter(item => item.file_type.startsWith('image/'));
+      // Support both 'image' and 'image/...' formats
+      items = items.filter(item => item.file_type === 'image' || item.file_type.startsWith('image/'));
     } else if (activeTab === 'videos') {
-      items = items.filter(item => item.file_type.startsWith('video/'));
+      // Support both 'video' and 'video/...' formats
+      items = items.filter(item => item.file_type === 'video' || item.file_type.startsWith('video/'));
     } else if (activeTab === 'ai') {
       items = items.filter(item => item.source === 'ai');
     } else if (activeTab === 'publications') {
