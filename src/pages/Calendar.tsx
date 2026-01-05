@@ -420,11 +420,10 @@ const Calendar = () => {
   }, []);
 
   // Sync from Getlate API
-  const syncFromGetlate = async () => {
+  const syncFromGetlate = async (showToast = false) => {
     if (isSyncing) return;
     
     setIsSyncing(true);
-    const toastId = toast.loading('A sincronizar com Getlate...');
     
     try {
       const { data, error } = await supabase.functions.invoke('sync-getlate-posts', {
@@ -436,21 +435,35 @@ const Calendar = () => {
       
       if (error) throw error;
       
-      toast.dismiss(toastId);
+      console.log('[Calendar] Sync result:', data);
       
-      if (data.synced > 0) {
-        toast.success(`Sincronizados ${data.synced} posts do Getlate`);
+      // Always refetch if we got posts from API (even if some failed to import)
+      if (data.total > 0) {
         await fetchScheduledContent();
-      } else {
-        toast.info('Calendário já está atualizado');
       }
       
-      // Store last sync timestamp
-      localStorage.setItem('getlate_last_sync_at', new Date().toISOString());
+      // Only show toast for manual sync or if there were results
+      if (showToast) {
+        if (data.synced > 0) {
+          toast.success(`Sincronizados ${data.synced} posts`);
+        } else if (data.hadErrors) {
+          toast.warning(`Falha ao importar posts: ${data.errors?.[0] || 'erro desconhecido'}`);
+        } else if (data.total === 0) {
+          toast.info('Nenhum post encontrado no período');
+        } else {
+          toast.info('Calendário já está atualizado');
+        }
+      }
+      
+      // Only store sync timestamp if sync was successful (no errors or some posts imported)
+      if (!data.hadErrors || data.synced > 0) {
+        localStorage.setItem('getlate_last_sync_at', new Date().toISOString());
+      }
     } catch (error) {
       console.error('Sync error:', error);
-      toast.dismiss(toastId);
-      // Silent fail for auto-sync, only show error for manual sync
+      if (showToast) {
+        toast.error('Erro ao sincronizar');
+      }
     } finally {
       setIsSyncing(false);
     }
@@ -516,36 +529,7 @@ const Calendar = () => {
       return eventDate >= currentMonthStart && eventDate <= currentMonthEnd;
     });
     
-    // If current month is empty but there are events in other months
-    if (currentMonthEvents.length === 0 && events.length > 0) {
-      // Find the closest month with content (prefer future, fallback to past)
-      const futureEvents = events.filter(e => (e.start as Date) > currentMonthEnd);
-      const pastEvents = events.filter(e => (e.start as Date) < currentMonthStart);
-      
-      let targetMonth: Date | null = null;
-      
-      if (futureEvents.length > 0) {
-        // Sort ascending to get nearest future
-        futureEvents.sort((a, b) => (a.start as Date).getTime() - (b.start as Date).getTime());
-        targetMonth = startOfMonth(futureEvents[0].start as Date);
-      } else if (pastEvents.length > 0) {
-        // Sort descending to get most recent past
-        pastEvents.sort((a, b) => (b.start as Date).getTime() - (a.start as Date).getTime());
-        targetMonth = startOfMonth(pastEvents[0].start as Date);
-      }
-      
-      if (targetMonth && !isSameMonth(targetMonth, currentMonth)) {
-        setHasShownNavigationHint(true);
-        toast.info(`Nenhum conteúdo em ${format(currentMonth, 'MMMM yyyy', { locale: pt })}`, {
-          description: `Conteúdo disponível em ${format(targetMonth, 'MMMM yyyy', { locale: pt })}`,
-          action: {
-            label: 'Ir para lá',
-            onClick: () => setCurrentMonth(targetMonth!)
-          },
-          duration: 8000
-        });
-      }
-    }
+    // Navigation hint removed - user doesn't want this toast
   }, [loading, events, currentMonth, hasShownNavigationHint, hasAutoSynced, isSyncing]);
 
   useEffect(() => {

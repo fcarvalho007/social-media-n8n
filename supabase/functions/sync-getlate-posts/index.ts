@@ -225,6 +225,7 @@ Deno.serve(async (req) => {
           .maybeSingle();
 
         const postData = {
+          workflow_id: `getlate:${getlatePost._id}`,
           tema: getlatePost.content?.substring(0, 100) || 'Post sincronizado',
           caption: getlatePost.content || '',
           content_type: 'carousel',
@@ -235,10 +236,12 @@ Deno.serve(async (req) => {
             getlate: getlatePost._id,
             ...externalPostIds,
           },
-          template_a_images: mediaUrls.length > 0 ? mediaUrls : null,
+          template_a_images: mediaUrls.length > 0 ? mediaUrls : [],
+          template_b_images: [],
           scheduled_date: scheduledDate,
           published_at: publishedAt,
           updated_at: new Date().toISOString(),
+          source: 'getlate',
         };
 
         if (existingPost) {
@@ -329,13 +332,20 @@ Deno.serve(async (req) => {
 
     console.log(`[sync-getlate-posts] Sync complete: ${syncedPosts} posts, ${syncedMedia} media items`);
 
+    const hadErrors = errors.length > 0;
+    const success = !hadErrors || syncedPosts > 0;
+    
     return new Response(JSON.stringify({
-      success: true,
+      success,
       synced: syncedPosts,
       syncedMedia,
       total: allGetlatePosts.length,
-      errors: errors.length > 0 ? errors : undefined,
-      message: `Sincronizados ${syncedPosts} posts e ${syncedMedia} ficheiros de média`,
+      failed: errors.length,
+      hadErrors,
+      errors: errors.length > 0 ? errors.slice(0, 10) : undefined,
+      message: hadErrors 
+        ? `Sincronizados ${syncedPosts}/${allGetlatePosts.length} posts (${errors.length} falharam)`
+        : `Sincronizados ${syncedPosts} posts e ${syncedMedia} ficheiros de média`,
     }), {
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
     });
