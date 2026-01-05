@@ -430,6 +430,7 @@ const Calendar = () => {
       const { data, error } = await supabase.functions.invoke('sync-getlate-posts', {
         body: {
           date_from: new Date(Date.now() - 180 * 24 * 60 * 60 * 1000).toISOString(), // Last 6 months
+          date_to: new Date(Date.now() + 90 * 24 * 60 * 60 * 1000).toISOString(), // Next 3 months
         },
       });
       
@@ -461,16 +462,48 @@ const Calendar = () => {
   useEffect(() => {
     if (loading || hasShownNavigationHint) return;
     
-    // Auto-sync from Getlate if events are empty or it's been a while
-    if (!hasAutoSynced && events.length === 0) {
-      const lastSync = localStorage.getItem('getlate_last_sync_at');
-      const shouldSync = !lastSync || (Date.now() - new Date(lastSync).getTime() > 60 * 60 * 1000); // 1 hour
-      
-      if (shouldSync) {
-        setHasAutoSynced(true);
-        syncFromGetlate();
-        return;
-      }
+    // Calculate current month events
+    const nowMonthStart = startOfMonth(new Date()); // Use actual current month (January 2026)
+    const nowMonthEnd = endOfMonth(new Date());
+    const nowMonthEvents = events.filter(e => {
+      const eventDate = e.start as Date;
+      return eventDate >= nowMonthStart && eventDate <= nowMonthEnd;
+    });
+    
+    // Check if we have any events in 2026
+    const currentYear = new Date().getFullYear();
+    const hasCurrentYearEvents = events.some(e => (e.start as Date).getFullYear() >= currentYear);
+    
+    // Auto-sync from Getlate if:
+    // 1. No events at all
+    // 2. No events in current month
+    // 3. No events in current year (e.g., only old 2025 events)
+    // 4. Last sync was more than 1 hour ago
+    const lastSync = localStorage.getItem('getlate_last_sync_at');
+    const lastSyncTime = lastSync ? new Date(lastSync).getTime() : 0;
+    const syncAge = Date.now() - lastSyncTime;
+    const isOldSync = syncAge > 60 * 60 * 1000; // 1 hour
+    
+    const needsSync = events.length === 0 || 
+                      nowMonthEvents.length === 0 || 
+                      !hasCurrentYearEvents ||
+                      isOldSync;
+    
+    console.log('[Calendar] Auto-sync check:', {
+      hasAutoSynced,
+      eventsCount: events.length,
+      nowMonthEventsCount: nowMonthEvents.length,
+      hasCurrentYearEvents,
+      lastSync,
+      isOldSync,
+      needsSync
+    });
+    
+    if (!hasAutoSynced && needsSync) {
+      console.log('[Calendar] Triggering auto-sync...');
+      setHasAutoSynced(true);
+      syncFromGetlate();
+      return;
     }
     
     if (events.length === 0) return;
