@@ -27,6 +27,14 @@ import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 
 const menuItems = [
   {
+    title: 'Dashboard',
+    label: 'Início',
+    icon: LayoutDashboard,
+    url: '/',
+    disabled: false,
+    isMain: false,
+  },
+  {
     title: 'Criação',
     label: 'Criar',
     icon: PlusCircle,
