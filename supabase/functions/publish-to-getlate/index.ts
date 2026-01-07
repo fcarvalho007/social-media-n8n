@@ -7,7 +7,7 @@ const corsHeaders = {
 
 // Getlate.dev Account IDs (obtained from GET /v1/accounts)
 const GETLATE_ACCOUNTS: Record<string, string> = {
-  instagram: '6953ef4d4207e06f4ca8326f', // @frederico.m.carvalho (reconectado 31/12/2024)
+  instagram: '695d76684207e06f4ca84330', // @frederico.m.carvalho (reconectado 07/01/2025)
   linkedin: '68fb951d8bbca9c10cbfef93',  // Frederico Carvalho
   youtube: '69344efdf43160a0bc99a480',   // fredericocarvalho
   facebook: '69344f55f43160a0bc99a481',  // fredericodigital
