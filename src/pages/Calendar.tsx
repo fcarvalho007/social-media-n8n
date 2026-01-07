@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback, useMemo } from 'react';
+import { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Calendar as BigCalendar, dateFnsLocalizer, Event } from 'react-big-calendar';
 import withDragAndDrop from 'react-big-calendar/lib/addons/dragAndDrop';
@@ -82,6 +82,14 @@ const Calendar = () => {
   const [retryCount, setRetryCount] = useState(0);
   const [isSyncing, setIsSyncing] = useState(false);
   const [hasAutoSynced, setHasAutoSynced] = useState(false);
+  
+  // Ref to access events without causing re-renders in useEffect
+  const eventsRef = useRef<CalendarEvent[]>([]);
+  
+  // Update ref when events change
+  useEffect(() => {
+    eventsRef.current = events;
+  }, [events]);
 
   const minSwipeDistance = 50;
 
@@ -472,39 +480,42 @@ const Calendar = () => {
   // Smart navigation: suggest going to month with content if current month is empty
   const [hasShownNavigationHint, setHasShownNavigationHint] = useState(false);
   
+  // Auto-sync check - using ref to avoid infinite re-renders
   useEffect(() => {
-    if (loading || hasShownNavigationHint) return;
+    if (loading || hasAutoSynced || isSyncing) return;
+    
+    // Use ref to access events without triggering re-renders
+    const currentEvents = eventsRef.current;
     
     // Calculate current month events
-    const nowMonthStart = startOfMonth(new Date()); // Use actual current month (January 2026)
+    const nowMonthStart = startOfMonth(new Date());
     const nowMonthEnd = endOfMonth(new Date());
-    const nowMonthEvents = events.filter(e => {
+    const nowMonthEvents = currentEvents.filter(e => {
       const eventDate = e.start as Date;
       return eventDate >= nowMonthStart && eventDate <= nowMonthEnd;
     });
     
     // Check if we have any events in 2026
     const currentYear = new Date().getFullYear();
-    const hasCurrentYearEvents = events.some(e => (e.start as Date).getFullYear() >= currentYear);
+    const hasCurrentYearEvents = currentEvents.some(e => (e.start as Date).getFullYear() >= currentYear);
     
     // Auto-sync from Getlate if:
     // 1. No events at all
     // 2. No events in current month
     // 3. No events in current year (e.g., only old 2025 events)
-    // 4. Last sync was more than 1 hour ago
     const lastSync = localStorage.getItem('getlate_last_sync_at');
     const lastSyncTime = lastSync ? new Date(lastSync).getTime() : 0;
     const syncAge = Date.now() - lastSyncTime;
     const isOldSync = syncAge > 60 * 60 * 1000; // 1 hour
     
-    const needsSync = events.length === 0 || 
+    // Only trigger sync if it's actually needed
+    const needsSync = (currentEvents.length === 0 || 
                       nowMonthEvents.length === 0 || 
-                      !hasCurrentYearEvents ||
-                      isOldSync;
+                      !hasCurrentYearEvents) && isOldSync;
     
     console.log('[Calendar] Auto-sync check:', {
       hasAutoSynced,
-      eventsCount: events.length,
+      eventsCount: currentEvents.length,
       nowMonthEventsCount: nowMonthEvents.length,
       hasCurrentYearEvents,
       lastSync,
@@ -512,40 +523,39 @@ const Calendar = () => {
       needsSync
     });
     
-    if (!hasAutoSynced && needsSync) {
+    if (needsSync) {
       console.log('[Calendar] Triggering auto-sync...');
       setHasAutoSynced(true);
       syncFromGetlate();
-      return;
     }
-    
-    if (events.length === 0) return;
-    
-    const currentMonthStart = startOfMonth(currentMonth);
-    const currentMonthEnd = endOfMonth(currentMonth);
-    
-    const currentMonthEvents = events.filter(e => {
-      const eventDate = e.start as Date;
-      return eventDate >= currentMonthStart && eventDate <= currentMonthEnd;
-    });
-    
-    // Navigation hint removed - user doesn't want this toast
-  }, [loading, events, currentMonth, hasShownNavigationHint, hasAutoSynced, isSyncing]);
+  }, [loading, hasAutoSynced, isSyncing]);
 
+  // Debounce timer ref to avoid multiple rapid fetches
+  const fetchDebounceRef = useRef<NodeJS.Timeout | null>(null);
+  
+  const debouncedFetch = useCallback(() => {
+    if (fetchDebounceRef.current) {
+      clearTimeout(fetchDebounceRef.current);
+    }
+    fetchDebounceRef.current = setTimeout(() => {
+      fetchScheduledContent();
+    }, 2000); // 2 second debounce
+  }, []);
+  
   useEffect(() => {
     fetchScheduledContent();
 
     const postsChannel = supabase
       .channel('calendar-posts-changes')
       .on('postgres_changes', { event: '*', schema: 'public', table: 'posts' }, () => {
-        fetchScheduledContent();
+        debouncedFetch();
       })
       .subscribe();
 
     const storiesChannel = supabase
       .channel('calendar-stories-changes')
       .on('postgres_changes', { event: '*', schema: 'public', table: 'stories' }, () => {
-        fetchScheduledContent();
+        debouncedFetch();
       })
       .subscribe();
 
@@ -553,7 +563,7 @@ const Calendar = () => {
     const draftsChannel = supabase
       .channel('calendar-drafts-changes')
       .on('postgres_changes', { event: '*', schema: 'public', table: 'posts_drafts' }, () => {
-        fetchScheduledContent();
+        debouncedFetch();
       })
       .subscribe();
 
@@ -561,8 +571,11 @@ const Calendar = () => {
       supabase.removeChannel(postsChannel);
       supabase.removeChannel(storiesChannel);
       supabase.removeChannel(draftsChannel);
+      if (fetchDebounceRef.current) {
+        clearTimeout(fetchDebounceRef.current);
+      }
     };
-  }, []);
+  }, [debouncedFetch]);
 
   const handleDelete = async (id: string, contentType: string) => {
     try {
