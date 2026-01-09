@@ -183,9 +183,6 @@ export function MediaUploadSection({
                 <h4 className="font-semibold text-sm sm:text-base text-foreground">
                   Gerar com IA
                 </h4>
-                <Badge className="text-[10px] sm:text-xs shrink-0 bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400 border-0">
-                  GRÁTIS
-                </Badge>
               </div>
               <p className="text-xs sm:text-sm text-muted-foreground mt-0.5 sm:mt-1">
                 Cria imagens únicas com inteligência artificial
