@@ -1503,79 +1503,105 @@ export default function ManualCreate() {
                 </div>
               </CardHeader>
               <CardContent className="space-y-3 sm:space-y-4 px-3 sm:px-6 pb-4 sm:pb-6">
-                {/* Grid Splitter - Import multiple images from a grid */}
-                <div ref={mediaSectionRef}>
-                  <GridSplitter
-                    onAddToCarousel={(files: File[], source: MediaSource) => {
-                      const newUrls = files.map(f => URL.createObjectURL(f));
-                      const remainingSlots = mediaRequirements.maxMedia - mediaPreviewUrls.length;
-                      const filesToAdd = files.slice(0, remainingSlots);
-                      const urlsToAdd = newUrls.slice(0, remainingSlots);
-                      
-                      setMediaFiles(prev => [...prev, ...filesToAdd]);
-                      setMediaPreviewUrls(prev => [...prev, ...urlsToAdd]);
-                      setMediaSources(prev => [...prev, ...Array(filesToAdd.length).fill(source)]);
-                      
-                      toast.success(`${filesToAdd.length} imagem(s) adicionada(s) ao carrossel`);
-                      
-                      // Smooth scroll to media section
-                      setTimeout(() => {
-                        mediaSectionRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
-                      }, 100);
-                    }}
-                    maxImages={mediaRequirements.maxMedia - mediaPreviewUrls.length}
-                    disabled={saving || submitting || isUploading}
-                    selectedFormats={selectedFormats}
-                  />
-                </div>
-
-                <Separator className="my-2" />
-
-                {/* Upload Zone - Empty State - More compact on mobile */}
+                {/* Two-Card Upload Options - Side by Side */}
                 {mediaPreviewUrls.length === 0 && (
-                  <Label 
-                    htmlFor="media-upload" 
-                    className={cn(
-                      "cursor-pointer block",
-                      (saving || submitting || isUploading) && "cursor-not-allowed opacity-50"
-                    )}
-                  >
-                    <div className={cn(
-                      "relative flex flex-col items-center justify-center gap-1.5 sm:gap-3 h-20 sm:h-48 rounded-lg sm:rounded-xl",
-                      "border-2 border-dashed transition-all duration-300",
-                      "hover:border-primary/50 hover:bg-primary/5",
-                      "border-primary/30 bg-gradient-to-br from-primary/5 to-transparent"
-                    )}>
-                      {isUploading ? (
-                        <>
-                          <Loader2 className="h-5 w-5 sm:h-10 sm:w-10 text-primary animate-spin" />
-                          <span className="text-[10px] sm:text-sm text-muted-foreground">A processar...</span>
-                        </>
-                      ) : (
-                        <>
-                          <div className="p-2 sm:p-4 rounded-full bg-primary/10">
-                            <CloudUpload className="h-4 w-4 sm:h-8 sm:w-8 text-primary" />
-                          </div>
-                          <p className="text-xs sm:text-base font-medium text-foreground">Arrasta ou clica</p>
-                          <div className="flex gap-1 sm:gap-2">
-                            <Badge variant="outline" className="text-[9px] sm:text-xs bg-background px-1 sm:px-2 py-0">PNG</Badge>
-                            <Badge variant="outline" className="text-[9px] sm:text-xs bg-background px-1 sm:px-2 py-0">JPG</Badge>
-                            <Badge variant="outline" className="text-[9px] sm:text-xs bg-background px-1 sm:px-2 py-0">MP4</Badge>
-                          </div>
-                        </>
-                      )}
-                    </div>
-                    <Input
-                      id="media-upload"
-                      type="file"
-                      multiple={mediaRequirements.maxMedia > 1}
-                      accept={getAcceptTypes()}
-                      onChange={handleMediaUpload}
+                  <div ref={mediaSectionRef} className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                    {/* Card 1: Dividir Grelha */}
+                    <GridSplitter
+                      onAddToCarousel={(files: File[], source: MediaSource) => {
+                        const newUrls = files.map(f => URL.createObjectURL(f));
+                        const remainingSlots = mediaRequirements.maxMedia - mediaPreviewUrls.length;
+                        const filesToAdd = files.slice(0, remainingSlots);
+                        const urlsToAdd = newUrls.slice(0, remainingSlots);
+                        
+                        setMediaFiles(prev => [...prev, ...filesToAdd]);
+                        setMediaPreviewUrls(prev => [...prev, ...urlsToAdd]);
+                        setMediaSources(prev => [...prev, ...Array(filesToAdd.length).fill(source)]);
+                        
+                        toast.success(`${filesToAdd.length} imagem(s) adicionada(s) ao carrossel`);
+                        
+                        setTimeout(() => {
+                          mediaSectionRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+                        }, 100);
+                      }}
+                      maxImages={mediaRequirements.maxMedia - mediaPreviewUrls.length}
                       disabled={saving || submitting || isUploading}
-                      className="hidden"
-                      aria-label="Carregar ficheiros de média"
+                      selectedFormats={selectedFormats}
                     />
-                  </Label>
+
+                    {/* Card 2: Carregar Imagens Individuais */}
+                    <Label 
+                      htmlFor="media-upload" 
+                      className={cn(
+                        "cursor-pointer block",
+                        (saving || submitting || isUploading) && "cursor-not-allowed opacity-50"
+                      )}
+                    >
+                      <div className={cn(
+                        "flex flex-col items-center justify-center gap-2 p-4 sm:p-6 rounded-xl h-full min-h-[120px]",
+                        "border-2 border-dashed transition-all",
+                        "hover:border-primary hover:bg-primary/5",
+                        "border-border"
+                      )}>
+                        {isUploading ? (
+                          <>
+                            <Loader2 className="h-5 w-5 text-primary animate-spin" />
+                            <span className="text-xs text-muted-foreground">A processar...</span>
+                          </>
+                        ) : (
+                          <>
+                            <div className="p-2.5 rounded-full bg-primary/10">
+                              <CloudUpload className="h-5 w-5 text-primary" />
+                            </div>
+                            <div className="text-center">
+                              <p className="font-medium text-sm">Carregar Imagens</p>
+                              <p className="text-xs text-muted-foreground">
+                                Ficheiros individuais
+                              </p>
+                            </div>
+                            <div className="flex gap-1">
+                              <Badge variant="outline" className="text-[9px] px-1.5 py-0">PNG</Badge>
+                              <Badge variant="outline" className="text-[9px] px-1.5 py-0">JPG</Badge>
+                              <Badge variant="outline" className="text-[9px] px-1.5 py-0">MP4</Badge>
+                            </div>
+                          </>
+                        )}
+                      </div>
+                      <Input
+                        id="media-upload"
+                        type="file"
+                        multiple={mediaRequirements.maxMedia > 1}
+                        accept={getAcceptTypes()}
+                        onChange={handleMediaUpload}
+                        disabled={saving || submitting || isUploading}
+                        className="hidden"
+                        aria-label="Carregar ficheiros de média"
+                      />
+                    </Label>
+                  </div>
+                )}
+                
+                {/* Hidden Grid Splitter when media exists (for adding more via grid) */}
+                {mediaPreviewUrls.length > 0 && (
+                  <div ref={mediaSectionRef}>
+                    <GridSplitter
+                      onAddToCarousel={(files: File[], source: MediaSource) => {
+                        const newUrls = files.map(f => URL.createObjectURL(f));
+                        const remainingSlots = mediaRequirements.maxMedia - mediaPreviewUrls.length;
+                        const filesToAdd = files.slice(0, remainingSlots);
+                        const urlsToAdd = newUrls.slice(0, remainingSlots);
+                        
+                        setMediaFiles(prev => [...prev, ...filesToAdd]);
+                        setMediaPreviewUrls(prev => [...prev, ...urlsToAdd]);
+                        setMediaSources(prev => [...prev, ...Array(filesToAdd.length).fill(source)]);
+                        
+                        toast.success(`${filesToAdd.length} imagem(s) adicionada(s) ao carrossel`);
+                      }}
+                      maxImages={mediaRequirements.maxMedia - mediaPreviewUrls.length}
+                      disabled={saving || submitting || isUploading}
+                      selectedFormats={selectedFormats}
+                    />
+                  </div>
                 )}
 
                 {isUploading && <Progress value={uploadProgress} className="h-2" />}

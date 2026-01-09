@@ -6,6 +6,7 @@ import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/component
 import { Separator } from '@/components/ui/separator';
 import { Progress } from '@/components/ui/progress';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { Badge } from '@/components/ui/badge';
 import { toast } from 'sonner';
 import { Grid3x3, Upload, Sparkles, Loader2, AlertTriangle, ChevronDown, Plus, Wand2 } from 'lucide-react';
 import { cn } from '@/lib/utils';
@@ -113,9 +114,9 @@ export function GridSplitter({
       return;
     }
 
-    // Validate file size (max 50MB)
-    if (file.size > 50 * 1024 * 1024) {
-      toast.error('Ficheiro muito grande. Máximo 50MB.');
+    // Validate file size (max 200MB for grid images - they get split into smaller cells)
+    if (file.size > 200 * 1024 * 1024) {
+      toast.error('Ficheiro muito grande. Máximo 200MB.');
       return;
     }
 
@@ -211,32 +212,42 @@ export function GridSplitter({
   return (
     <Collapsible open={isOpen} onOpenChange={setIsOpen} className="w-full">
       <CollapsibleTrigger asChild>
-        <Button
-          variant="ghost"
+        <div
           className={cn(
-            "w-full justify-between p-4 h-auto",
-            "border border-dashed rounded-xl",
-            "hover:border-primary/50 hover:bg-primary/5",
-            isOpen && "border-primary/50 bg-primary/5"
+            "w-full cursor-pointer p-4 rounded-xl",
+            "border-2 border-dashed transition-all",
+            "hover:border-primary hover:bg-primary/5",
+            isOpen ? "border-primary bg-primary/5" : "border-border",
+            disabled && "opacity-50 cursor-not-allowed"
           )}
-          disabled={disabled}
+          onClick={(e) => {
+            if (disabled) {
+              e.preventDefault();
+              return;
+            }
+          }}
         >
-          <div className="flex items-center gap-3">
-            <div className="p-2 rounded-lg bg-primary/10">
-              <Grid3x3 className="h-5 w-5 text-primary" />
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-3">
+              <div className="p-2.5 rounded-full bg-primary/10 group-hover:bg-primary/20 transition-colors">
+                <Grid3x3 className="h-5 w-5 text-primary" />
+              </div>
+              <div className="text-left">
+                <p className="font-medium text-sm">Dividir Grelha</p>
+                <p className="text-xs text-muted-foreground">
+                  Separar imagem com várias fotos
+                </p>
+              </div>
             </div>
-            <div className="text-left">
-              <p className="font-medium">Importar Imagens</p>
-              <p className="text-xs text-muted-foreground">
-                Carregar grelha ou gerar com IA
-              </p>
+            <div className="flex items-center gap-2">
+              <Badge variant="outline" className="text-[10px] hidden sm:flex">até 200MB</Badge>
+              <ChevronDown className={cn(
+                "h-5 w-5 text-muted-foreground transition-transform",
+                isOpen && "rotate-180"
+              )} />
             </div>
           </div>
-          <ChevronDown className={cn(
-            "h-5 w-5 text-muted-foreground transition-transform",
-            isOpen && "rotate-180"
-          )} />
-        </Button>
+        </div>
       </CollapsibleTrigger>
 
       <CollapsibleContent className="mt-3">
@@ -271,7 +282,7 @@ export function GridSplitter({
                   </div>
                   <div className="text-center">
                     <p className="font-medium">Carregar Grelha</p>
-                    <p className="text-sm text-muted-foreground">PNG, JPG ou WebP até 50MB</p>
+                    <p className="text-sm text-muted-foreground">PNG, JPG ou WebP até 200MB</p>
                   </div>
                   <Input
                     ref={fileInputRef}
