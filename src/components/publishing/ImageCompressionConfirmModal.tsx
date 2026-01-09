@@ -1,0 +1,119 @@
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import { Button } from '@/components/ui/button';
+import { AlertTriangle, Image, Loader2, CheckCircle } from 'lucide-react';
+import { OversizedImage } from '@/lib/canvas/imageCompression';
+import { cn } from '@/lib/utils';
+
+interface ImageCompressionConfirmModalProps {
+  open: boolean;
+  onClose: () => void;
+  onConfirm: () => void;
+  oversizedImages: OversizedImage[];
+  isCompressing?: boolean;
+  compressionProgress?: { current: number; total: number; fileName: string };
+}
+
+export function ImageCompressionConfirmModal({
+  open,
+  onClose,
+  onConfirm,
+  oversizedImages,
+  isCompressing = false,
+  compressionProgress
+}: ImageCompressionConfirmModalProps) {
+  return (
+    <Dialog open={open} onOpenChange={(open) => !open && !isCompressing && onClose()}>
+      <DialogContent className="max-w-md">
+        <DialogHeader>
+          <DialogTitle className="flex items-center gap-2 text-amber-600">
+            <AlertTriangle className="h-5 w-5" />
+            Imagens Excedem Limite de 4MB
+          </DialogTitle>
+          <DialogDescription>
+            O Instagram tem um limite de 4MB por imagem. As seguintes imagens precisam de ser comprimidas:
+          </DialogDescription>
+        </DialogHeader>
+
+        <div className="my-4 space-y-2">
+          <div className="rounded-lg border bg-muted/30 divide-y">
+            {oversizedImages.map((img, idx) => {
+              const isCurrentlyCompressing = isCompressing && compressionProgress?.fileName === img.name;
+              const isCompleted = isCompressing && compressionProgress && 
+                oversizedImages.findIndex(i => i.name === compressionProgress.fileName) > idx;
+              
+              return (
+                <div 
+                  key={idx} 
+                  className={cn(
+                    "flex items-center justify-between px-3 py-2.5 text-sm transition-colors",
+                    isCurrentlyCompressing && "bg-primary/5",
+                    isCompleted && "bg-green-500/5"
+                  )}
+                >
+                  <div className="flex items-center gap-2 min-w-0">
+                    {isCompleted ? (
+                      <CheckCircle className="h-4 w-4 text-green-500 flex-shrink-0" />
+                    ) : isCurrentlyCompressing ? (
+                      <Loader2 className="h-4 w-4 text-primary animate-spin flex-shrink-0" />
+                    ) : (
+                      <Image className="h-4 w-4 text-muted-foreground flex-shrink-0" />
+                    )}
+                    <span className="truncate font-medium">{img.name}</span>
+                  </div>
+                  <span className={cn(
+                    "font-mono text-xs px-2 py-0.5 rounded",
+                    "bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400"
+                  )}>
+                    {img.sizeMB} MB
+                  </span>
+                </div>
+              );
+            })}
+          </div>
+          
+          {!isCompressing && (
+            <p className="text-xs text-muted-foreground">
+              A compressão reduz ligeiramente a qualidade mantendo uma resolução adequada para redes sociais.
+            </p>
+          )}
+          
+          {isCompressing && compressionProgress && (
+            <div className="flex items-center justify-center gap-2 text-sm text-muted-foreground py-2">
+              <Loader2 className="h-4 w-4 animate-spin" />
+              <span>
+                A comprimir {compressionProgress.current} de {compressionProgress.total}...
+              </span>
+            </div>
+          )}
+        </div>
+
+        <DialogFooter className="gap-2 sm:gap-0">
+          <Button
+            variant="outline"
+            onClick={onClose}
+            disabled={isCompressing}
+          >
+            Cancelar
+          </Button>
+          <Button
+            onClick={onConfirm}
+            disabled={isCompressing}
+            className="gap-2"
+          >
+            {isCompressing ? (
+              <>
+                <Loader2 className="h-4 w-4 animate-spin" />
+                A comprimir...
+              </>
+            ) : (
+              <>
+                <CheckCircle className="h-4 w-4" />
+                Comprimir e Continuar
+              </>
+            )}
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  );
+}
