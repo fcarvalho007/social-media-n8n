@@ -60,6 +60,8 @@ import { DndContext, closestCenter, DragEndEvent, DragStartEvent, PointerSensor,
 import { SortableContext, arrayMove, horizontalListSortingStrategy, sortableKeyboardCoordinates } from '@dnd-kit/sortable';
 import { generateCarouselPDF } from '@/lib/pdfGenerator';
 import EmojiPicker, { EmojiClickData } from 'emoji-picker-react';
+import { detectOversizedImages, compressOversizedFiles, OversizedImage } from '@/lib/canvas/imageCompression';
+import { ImageCompressionConfirmModal } from '@/components/publishing/ImageCompressionConfirmModal';
 
 // Extract first frame from video file
 async function extractVideoFrame(videoFile: File | string): Promise<File> {
@@ -224,6 +226,12 @@ export default function ManualCreate() {
   const [networkCaptions, setNetworkCaptions] = useState<Record<string, string>>({});
   const mediaSectionRef = useRef<HTMLDivElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
+  
+  // Compression confirmation state
+  const [compressionModalOpen, setCompressionModalOpen] = useState(false);
+  const [oversizedImages, setOversizedImages] = useState<OversizedImage[]>([]);
+  const [isCompressing, setIsCompressing] = useState(false);
+  const [compressionProgress, setCompressionProgress] = useState<{ current: number; total: number; fileName: string } | undefined>();
 
   // Publishing hook with 2-phase progress
   const { 
@@ -1177,17 +1185,26 @@ export default function ManualCreate() {
     }
   };
 
-  const handlePublishNow = async () => {
+  const handlePublishNow = async (filesToPublish?: File[]) => {
     if (hasErrors) {
       const errorMsg = validationErrors.join(', ');
       toast.error(`Corrija os erros: ${errorMsg}`, { duration: 5000 });
       return;
     }
 
-    // Check quota for selected networks before publishing
-    const instagramSelected = selectedNetworks.includes('instagram');
-    const linkedinSelected = selectedNetworks.includes('linkedin');
+    const files = filesToPublish || mediaFiles;
     
+    // Check for oversized images (> 4MB) - only for Instagram
+    const instagramSelected = selectedNetworks.includes('instagram');
+    if (instagramSelected && !filesToPublish) {
+      const oversized = detectOversizedImages(files, 4);
+      if (oversized.length > 0) {
+        setOversizedImages(oversized);
+        setCompressionModalOpen(true);
+        return; // Wait for user confirmation
+      }
+    }
+
     // Log quota info for reference only - Getlate.dev is the sole authority for quota limits
     console.log('[Publish] Quota info (reference only):', {
       instagramRemaining: instagram.quota.remaining,
@@ -1201,7 +1218,7 @@ export default function ManualCreate() {
     const success = await executePublish({
       formats: selectedFormats,
       caption,
-      mediaFiles,
+      mediaFiles: files,
       scheduledDate,
       time,
       scheduleAsap,
@@ -1210,6 +1227,55 @@ export default function ManualCreate() {
 
     if (success) {
       await refreshQuota();
+    }
+  };
+
+  // Handle compression confirmation
+  const handleConfirmCompression = async () => {
+    setIsCompressing(true);
+    
+    try {
+      const indicesToCompress = oversizedImages.map(img => img.index);
+      
+      const { files: compressedFiles, results } = await compressOversizedFiles(
+        mediaFiles,
+        indicesToCompress,
+        4,
+        (current, total, fileName) => {
+          setCompressionProgress({ current, total, fileName });
+        }
+      );
+      
+      // Update media files with compressed versions
+      setMediaFiles(compressedFiles);
+      
+      // Close modal
+      setCompressionModalOpen(false);
+      setIsCompressing(false);
+      setCompressionProgress(undefined);
+      setOversizedImages([]);
+      
+      // Show success message
+      const totalSaved = results.reduce((acc, r) => acc + (r.originalSizeMB - r.finalSizeMB), 0);
+      toast.success(`${results.length} imagem(ns) comprimida(s)`, {
+        description: `Poupou ${totalSaved.toFixed(1)}MB`
+      });
+      
+      // Continue with publishing using compressed files
+      await handlePublishNow(compressedFiles);
+      
+    } catch (error) {
+      console.error('[ManualCreate] Compression failed:', error);
+      toast.error('Erro ao comprimir imagens');
+      setIsCompressing(false);
+      setCompressionProgress(undefined);
+    }
+  };
+
+  const handleCancelCompression = () => {
+    if (!isCompressing) {
+      setCompressionModalOpen(false);
+      setOversizedImages([]);
     }
   };
 
@@ -2343,6 +2409,16 @@ export default function ManualCreate() {
         onOpenChange={setAiDialogOpen}
         currentCaption={caption}
         onApplyCaption={setCaption}
+      />
+
+      {/* Image Compression Confirmation Modal */}
+      <ImageCompressionConfirmModal
+        open={compressionModalOpen}
+        onClose={handleCancelCompression}
+        onConfirm={handleConfirmCompression}
+        oversizedImages={oversizedImages}
+        isCompressing={isCompressing}
+        compressionProgress={compressionProgress}
       />
 
       {/* Publish Progress Modal with 2 phases */}
