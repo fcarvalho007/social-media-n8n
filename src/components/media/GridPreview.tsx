@@ -3,8 +3,14 @@ import { DetectedImage, GridConfig } from '@/types/grid-splitter';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { X, GripVertical } from 'lucide-react';
+import { X, GripVertical, ZoomIn, ChevronLeft, ChevronRight } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog';
 import {
   DndContext,
   closestCenter,
@@ -40,10 +46,11 @@ interface SortableThumbnailProps {
   image: DetectedImage;
   onToggleSelect: (id: string) => void;
   onRemove: (id: string) => void;
+  onZoom: (image: DetectedImage) => void;
   disabled?: boolean;
 }
 
-function SortableThumbnail({ image, onToggleSelect, onRemove, disabled }: SortableThumbnailProps) {
+function SortableThumbnail({ image, onToggleSelect, onRemove, onZoom, disabled }: SortableThumbnailProps) {
   const {
     attributes,
     listeners,
@@ -129,6 +136,19 @@ function SortableThumbnail({ image, onToggleSelect, onRemove, disabled }: Sortab
           <GripVertical className="h-4 w-4 text-white" />
         </div>
 
+        {/* Zoom Button */}
+        <Button
+          variant="ghost"
+          size="icon"
+          onClick={(e) => {
+            e.stopPropagation();
+            onZoom(image);
+          }}
+          className="h-8 w-8 rounded-full bg-white/20 hover:bg-white/30 text-white"
+        >
+          <ZoomIn className="h-4 w-4" />
+        </Button>
+
         {/* Remove Button */}
         <Button
           variant="ghost"
@@ -195,6 +215,33 @@ export function GridPreview({
 
   const selectedCount = detectedImages.filter((img) => img.selected).length;
   const totalCount = detectedImages.length;
+
+  // State for zoomed image
+  const [zoomedImage, setZoomedImage] = useState<DetectedImage | null>(null);
+
+  const handleZoom = useCallback((image: DetectedImage) => {
+    setZoomedImage(image);
+  }, []);
+
+  const handlePrevImage = useCallback(() => {
+    if (!zoomedImage) return;
+    const currentIndex = detectedImages.findIndex(img => img.id === zoomedImage.id);
+    if (currentIndex > 0) {
+      setZoomedImage(detectedImages[currentIndex - 1]);
+    }
+  }, [zoomedImage, detectedImages]);
+
+  const handleNextImage = useCallback(() => {
+    if (!zoomedImage) return;
+    const currentIndex = detectedImages.findIndex(img => img.id === zoomedImage.id);
+    if (currentIndex < detectedImages.length - 1) {
+      setZoomedImage(detectedImages[currentIndex + 1]);
+    }
+  }, [zoomedImage, detectedImages]);
+
+  const zoomedIndex = zoomedImage ? detectedImages.findIndex(img => img.id === zoomedImage.id) : -1;
+  const isFirstImage = zoomedIndex === 0;
+  const isLastImage = zoomedIndex === detectedImages.length - 1;
 
   // State for precise image rect calculation
   const containerRef = useRef<HTMLDivElement>(null);
@@ -358,6 +405,7 @@ export function GridPreview({
                   image={image}
                   onToggleSelect={handleToggleSelect}
                   onRemove={handleRemove}
+                  onZoom={handleZoom}
                   disabled={disabled}
                 />
               ))}
@@ -368,6 +416,52 @@ export function GridPreview({
         <p className="text-xs text-muted-foreground text-center">
           Arraste para reordenar • Clique na checkbox para selecionar
         </p>
+
+        {/* Zoom Dialog */}
+        <Dialog open={!!zoomedImage} onOpenChange={() => setZoomedImage(null)}>
+          <DialogContent className="max-w-4xl p-4 sm:p-6">
+            <DialogHeader>
+              <DialogTitle className="flex items-center justify-between">
+                <span>Imagem {zoomedIndex + 1} de {totalCount}</span>
+                {zoomedImage?.width && zoomedImage?.height && (
+                  <Badge variant="outline" className="ml-2">
+                    {zoomedImage.width}×{zoomedImage.height}
+                  </Badge>
+                )}
+              </DialogTitle>
+            </DialogHeader>
+            
+            <div className="relative flex justify-center items-center bg-muted/30 rounded-lg p-2">
+              {zoomedImage && (
+                <img 
+                  src={zoomedImage.dataUrl} 
+                  alt={`Imagem ${zoomedIndex + 1}`}
+                  className="max-h-[70vh] w-auto object-contain rounded-lg"
+                />
+              )}
+            </div>
+            
+            {/* Navigation */}
+            <div className="flex justify-between mt-4">
+              <Button 
+                variant="outline" 
+                onClick={handlePrevImage} 
+                disabled={isFirstImage}
+                className="gap-2"
+              >
+                <ChevronLeft className="h-4 w-4" /> Anterior
+              </Button>
+              <Button 
+                variant="outline" 
+                onClick={handleNextImage} 
+                disabled={isLastImage}
+                className="gap-2"
+              >
+                Seguinte <ChevronRight className="h-4 w-4" />
+              </Button>
+            </div>
+          </DialogContent>
+        </Dialog>
       </div>
     );
   }
