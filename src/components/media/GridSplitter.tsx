@@ -28,6 +28,8 @@ interface GridSplitterProps {
   externalImage?: File | null;
   externalConfig?: { rows: number; cols: number } | null;
   onExternalImageProcessed?: () => void;
+  /** When true, renders only the grid content without the outer collapsible wrapper and tabs */
+  isEmbedded?: boolean;
 }
 
 export function GridSplitter({ 
@@ -38,6 +40,7 @@ export function GridSplitter({
   externalImage,
   externalConfig,
   onExternalImageProcessed,
+  isEmbedded = false,
 }: GridSplitterProps) {
   const [isOpen, setIsOpen] = useState(false);
   const [activeTab, setActiveTab] = useState<'grid' | 'ai'>('grid');
@@ -209,6 +212,161 @@ export function GridSplitter({
     return null;
   }
 
+  // Grid content (shared between embedded and collapsible modes)
+  const gridContent = (
+    <div className="space-y-4">
+      {/* Upload Area */}
+      {!uploadedImage ? (
+        <label
+          htmlFor={isEmbedded ? "grid-upload-embedded" : "grid-upload"}
+          className={cn(
+            "flex flex-col items-center justify-center gap-3 p-6 sm:p-8",
+            "border-2 border-dashed rounded-xl cursor-pointer",
+            "hover:border-primary/50 hover:bg-primary/5 transition-all",
+            disabled && "opacity-50 cursor-not-allowed"
+          )}
+        >
+          <div className="p-3 rounded-full bg-primary/10">
+            <Upload className="h-6 w-6 text-primary" />
+          </div>
+          <div className="text-center">
+            <p className="font-medium text-sm sm:text-base">Carregar Grelha</p>
+            <p className="text-xs sm:text-sm text-muted-foreground">PNG, JPG ou WebP até 200MB</p>
+          </div>
+          <Input
+            ref={fileInputRef}
+            id={isEmbedded ? "grid-upload-embedded" : "grid-upload"}
+            type="file"
+            accept=".png,.jpg,.jpeg,.webp"
+            onChange={handleFileSelect}
+            disabled={disabled}
+            className="hidden"
+          />
+        </label>
+      ) : (
+        <>
+          {/* Image Preview with Grid Overlay */}
+          <div className="space-y-3">
+            <div className="flex items-center justify-between">
+              <p className="text-sm font-medium">Imagem carregada</p>
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={handleClearImage}
+                disabled={isProcessing}
+                className="h-7 text-xs text-destructive hover:text-destructive"
+              >
+                Remover
+              </Button>
+            </div>
+            
+            <GridPreview
+              uploadedImageUrl={uploadedImageUrl}
+              manualConfig={manualConfig}
+              detectedImages={detectedImages}
+              onImagesChange={setDetectedImages}
+              disabled={disabled || isProcessing}
+            />
+          </div>
+
+          {/* Controls */}
+          {detectedImages.length === 0 && (
+            <>
+              <Separator />
+              
+              <GridControls
+                manualConfig={manualConfig}
+                onManualConfigChange={setManualConfig}
+                removeBorders={removeBorders}
+                onRemoveBordersChange={setRemoveBorders}
+                targetAspectRatio={targetAspectRatio}
+                onAspectRatioChange={setTargetAspectRatio}
+                disabled={disabled || isProcessing}
+              />
+
+              {/* Process Button */}
+              <Button
+                onClick={handleProcessGrid}
+                disabled={disabled || isProcessing || !uploadedImage}
+                className="w-full"
+              >
+                {isProcessing ? (
+                  <>
+                    <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                    A processar...
+                  </>
+                ) : (
+                  <>
+                    <Sparkles className="h-4 w-4 mr-2" />
+                    Cortar em {manualConfig.rows}×{manualConfig.cols}
+                  </>
+                )}
+              </Button>
+
+              {/* Progress Bar */}
+              {isProcessing && progress && (
+                <div className="space-y-2">
+                  <Progress value={progress.percent} className="h-2" />
+                  <p className="text-xs text-muted-foreground text-center">
+                    {progress.message}
+                  </p>
+                </div>
+              )}
+            </>
+          )}
+
+          {/* Error Message */}
+          {error && (
+            <Alert variant="destructive">
+              <AlertTriangle className="h-4 w-4" />
+              <AlertDescription>{error}</AlertDescription>
+            </Alert>
+          )}
+
+          {/* Add to Carousel Button */}
+          {detectedImages.length > 0 && (
+            <>
+              <Separator />
+              
+              <div className="flex flex-col gap-2">
+                {maxImages < selectedCount && (
+                  <p className="text-xs text-destructive text-center">
+                    Limite de {maxImages} imagens. Desselecione algumas.
+                  </p>
+                )}
+                
+                <Button
+                  onClick={handleAddToCarousel}
+                  disabled={disabled || !canAddToCarousel}
+                  className="w-full"
+                >
+                  <Plus className="h-4 w-4 mr-2" />
+                  Adicionar {selectedCount} ao Carrossel
+                </Button>
+                
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={handleClearImage}
+                  disabled={isProcessing}
+                  className="w-full"
+                >
+                  Começar de novo
+                </Button>
+              </div>
+            </>
+          )}
+        </>
+      )}
+    </div>
+  );
+
+  // Embedded mode - just return the grid content without wrapper
+  if (isEmbedded) {
+    return gridContent;
+  }
+
+  // Full mode with collapsible and tabs
   return (
     <Collapsible open={isOpen} onOpenChange={setIsOpen} className="w-full">
       <CollapsibleTrigger asChild>
@@ -266,149 +424,7 @@ export function GridSplitter({
 
             {/* Grid Upload Tab */}
             <TabsContent value="grid" className="p-4 space-y-4 mt-0">
-              {/* Upload Area */}
-              {!uploadedImage ? (
-                <label
-                  htmlFor="grid-upload"
-                  className={cn(
-                    "flex flex-col items-center justify-center gap-3 p-8",
-                    "border-2 border-dashed rounded-xl cursor-pointer",
-                    "hover:border-primary/50 hover:bg-primary/5 transition-all",
-                    disabled && "opacity-50 cursor-not-allowed"
-                  )}
-                >
-                  <div className="p-3 rounded-full bg-primary/10">
-                    <Upload className="h-6 w-6 text-primary" />
-                  </div>
-                  <div className="text-center">
-                    <p className="font-medium">Carregar Grelha</p>
-                    <p className="text-sm text-muted-foreground">PNG, JPG ou WebP até 200MB</p>
-                  </div>
-                  <Input
-                    ref={fileInputRef}
-                    id="grid-upload"
-                    type="file"
-                    accept=".png,.jpg,.jpeg,.webp"
-                    onChange={handleFileSelect}
-                    disabled={disabled}
-                    className="hidden"
-                  />
-                </label>
-              ) : (
-                <>
-                  {/* Image Preview with Grid Overlay */}
-                  <div className="space-y-3">
-                    <div className="flex items-center justify-between">
-                      <p className="text-sm font-medium">Imagem carregada</p>
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        onClick={handleClearImage}
-                        disabled={isProcessing}
-                        className="h-7 text-xs text-destructive hover:text-destructive"
-                      >
-                        Remover
-                      </Button>
-                    </div>
-                    
-                    <GridPreview
-                      uploadedImageUrl={uploadedImageUrl}
-                      manualConfig={manualConfig}
-                      detectedImages={detectedImages}
-                      onImagesChange={setDetectedImages}
-                      disabled={disabled || isProcessing}
-                    />
-                  </div>
-
-                  {/* Controls */}
-                  {detectedImages.length === 0 && (
-                    <>
-                      <Separator />
-                      
-                      <GridControls
-                        manualConfig={manualConfig}
-                        onManualConfigChange={setManualConfig}
-                        removeBorders={removeBorders}
-                        onRemoveBordersChange={setRemoveBorders}
-                        targetAspectRatio={targetAspectRatio}
-                        onAspectRatioChange={setTargetAspectRatio}
-                        disabled={disabled || isProcessing}
-                      />
-
-                      {/* Process Button */}
-                      <Button
-                        onClick={handleProcessGrid}
-                        disabled={disabled || isProcessing || !uploadedImage}
-                        className="w-full"
-                      >
-                        {isProcessing ? (
-                          <>
-                            <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                            A processar...
-                          </>
-                        ) : (
-                          <>
-                            <Sparkles className="h-4 w-4 mr-2" />
-                            Cortar em {manualConfig.rows}×{manualConfig.cols}
-                          </>
-                        )}
-                      </Button>
-
-                      {/* Progress Bar */}
-                      {isProcessing && progress && (
-                        <div className="space-y-2">
-                          <Progress value={progress.percent} className="h-2" />
-                          <p className="text-xs text-muted-foreground text-center">
-                            {progress.message}
-                          </p>
-                        </div>
-                      )}
-                    </>
-                  )}
-
-                  {/* Error Message */}
-                  {error && (
-                    <Alert variant="destructive">
-                      <AlertTriangle className="h-4 w-4" />
-                      <AlertDescription>{error}</AlertDescription>
-                    </Alert>
-                  )}
-
-                  {/* Add to Carousel Button */}
-                  {detectedImages.length > 0 && (
-                    <>
-                      <Separator />
-                      
-                      <div className="flex flex-col gap-2">
-                        {maxImages < selectedCount && (
-                          <p className="text-xs text-destructive text-center">
-                            Limite de {maxImages} imagens. Desselecione algumas.
-                          </p>
-                        )}
-                        
-                        <Button
-                          onClick={handleAddToCarousel}
-                          disabled={disabled || !canAddToCarousel}
-                          className="w-full"
-                        >
-                          <Plus className="h-4 w-4 mr-2" />
-                          Adicionar {selectedCount} ao Carrossel
-                        </Button>
-                        
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          onClick={handleClearImage}
-                          disabled={isProcessing}
-                          className="w-full"
-                        >
-                          Começar de novo
-                        </Button>
-                      </div>
-                    </>
-                  )}
-                </>
-              )}
+              {gridContent}
             </TabsContent>
 
             {/* AI Generator Tab */}

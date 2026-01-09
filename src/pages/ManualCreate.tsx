@@ -23,6 +23,7 @@ import { Save, Send, Calendar as CalendarIcon, ArrowLeft, Instagram, Linkedin, U
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { addDays, nextDay } from 'date-fns';
 import { GridSplitter } from '@/components/media/GridSplitter';
+import { MediaUploadSection } from '@/components/media/MediaUploadSection';
 import { format } from 'date-fns';
 import { pt } from 'date-fns/locale';
 import { cn } from '@/lib/utils';
@@ -1569,11 +1570,10 @@ export default function ManualCreate() {
                 </div>
               </CardHeader>
               <CardContent className="space-y-3 sm:space-y-4 px-3 sm:px-6 pb-4 sm:pb-6">
-                {/* Two-Card Upload Options - Side by Side */}
+                {/* 3 Card Upload Options - Vertical Stack */}
                 {mediaPreviewUrls.length === 0 && (
-                  <div ref={mediaSectionRef} className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                    {/* Card 1: Dividir Grelha */}
-                    <GridSplitter
+                  <div ref={mediaSectionRef}>
+                    <MediaUploadSection
                       onAddToCarousel={(files: File[], source: MediaSource) => {
                         const newUrls = files.map(f => URL.createObjectURL(f));
                         const remainingSlots = mediaRequirements.maxMedia - mediaPreviewUrls.length;
@@ -1593,57 +1593,11 @@ export default function ManualCreate() {
                       maxImages={mediaRequirements.maxMedia - mediaPreviewUrls.length}
                       disabled={saving || submitting || isUploading}
                       selectedFormats={selectedFormats}
+                      isUploading={isUploading}
+                      uploadProgress={uploadProgress}
+                      onFileUpload={handleMediaUpload}
+                      getAcceptTypes={getAcceptTypes}
                     />
-
-                    {/* Card 2: Carregar Imagens Individuais */}
-                    <Label 
-                      htmlFor="media-upload" 
-                      className={cn(
-                        "cursor-pointer block",
-                        (saving || submitting || isUploading) && "cursor-not-allowed opacity-50"
-                      )}
-                    >
-                      <div className={cn(
-                        "flex flex-col items-center justify-center gap-2 p-4 sm:p-6 rounded-xl h-full min-h-[120px]",
-                        "border-2 border-dashed transition-all",
-                        "hover:border-primary hover:bg-primary/5",
-                        "border-border"
-                      )}>
-                        {isUploading ? (
-                          <>
-                            <Loader2 className="h-5 w-5 text-primary animate-spin" />
-                            <span className="text-xs text-muted-foreground">A processar...</span>
-                          </>
-                        ) : (
-                          <>
-                            <div className="p-2.5 rounded-full bg-primary/10">
-                              <CloudUpload className="h-5 w-5 text-primary" />
-                            </div>
-                            <div className="text-center">
-                              <p className="font-medium text-sm">Carregar Imagens</p>
-                              <p className="text-xs text-muted-foreground">
-                                Ficheiros individuais
-                              </p>
-                            </div>
-                            <div className="flex gap-1">
-                              <Badge variant="outline" className="text-[9px] px-1.5 py-0">PNG</Badge>
-                              <Badge variant="outline" className="text-[9px] px-1.5 py-0">JPG</Badge>
-                              <Badge variant="outline" className="text-[9px] px-1.5 py-0">MP4</Badge>
-                            </div>
-                          </>
-                        )}
-                      </div>
-                      <Input
-                        id="media-upload"
-                        type="file"
-                        multiple={mediaRequirements.maxMedia > 1}
-                        accept={getAcceptTypes()}
-                        onChange={handleMediaUpload}
-                        disabled={saving || submitting || isUploading}
-                        className="hidden"
-                        aria-label="Carregar ficheiros de média"
-                      />
-                    </Label>
                   </div>
                 )}
                 
@@ -1669,8 +1623,6 @@ export default function ManualCreate() {
                     />
                   </div>
                 )}
-
-                {isUploading && <Progress value={uploadProgress} className="h-2" />}
                 
                 {/* Media Grid - With Files */}
                 {mediaPreviewUrls.length > 0 && (
