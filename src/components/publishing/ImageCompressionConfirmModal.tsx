@@ -1,6 +1,7 @@
+import { useEffect } from 'react';
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
-import { AlertTriangle, Image, Loader2, CheckCircle } from 'lucide-react';
+import { AlertTriangle, Loader2, CheckCircle } from 'lucide-react';
 import { OversizedImage } from '@/lib/canvas/imageCompression';
 import { cn } from '@/lib/utils';
 
@@ -21,6 +22,17 @@ export function ImageCompressionConfirmModal({
   isCompressing = false,
   compressionProgress
 }: ImageCompressionConfirmModalProps) {
+  // Cleanup preview URLs on unmount to prevent memory leaks
+  useEffect(() => {
+    return () => {
+      oversizedImages.forEach(img => {
+        if (img.previewUrl) {
+          URL.revokeObjectURL(img.previewUrl);
+        }
+      });
+    };
+  }, [oversizedImages]);
+
   return (
     <Dialog open={open} onOpenChange={(open) => !open && !isCompressing && onClose()}>
       <DialogContent className="max-w-md">
@@ -35,7 +47,7 @@ export function ImageCompressionConfirmModal({
         </DialogHeader>
 
         <div className="my-4 space-y-2">
-          <div className="rounded-lg border bg-muted/30 divide-y">
+          <div className="rounded-lg border bg-muted/30 divide-y max-h-[300px] overflow-y-auto">
             {oversizedImages.map((img, idx) => {
               const isCurrentlyCompressing = isCompressing && compressionProgress?.fileName === img.name;
               const isCompleted = isCompressing && compressionProgress && 
@@ -45,27 +57,63 @@ export function ImageCompressionConfirmModal({
                 <div 
                   key={idx} 
                   className={cn(
-                    "flex items-center justify-between px-3 py-2.5 text-sm transition-colors",
+                    "flex items-center gap-3 px-3 py-3 transition-colors",
                     isCurrentlyCompressing && "bg-primary/5",
                     isCompleted && "bg-green-500/5"
                   )}
                 >
-                  <div className="flex items-center gap-2 min-w-0">
-                    {isCompleted ? (
-                      <CheckCircle className="h-4 w-4 text-green-500 flex-shrink-0" />
-                    ) : isCurrentlyCompressing ? (
-                      <Loader2 className="h-4 w-4 text-primary animate-spin flex-shrink-0" />
+                  {/* Thumbnail Preview */}
+                  <div className="relative w-14 h-14 rounded-lg overflow-hidden flex-shrink-0 border bg-muted">
+                    {img.previewUrl ? (
+                      <img 
+                        src={img.previewUrl} 
+                        alt={`Imagem ${idx + 1}`}
+                        className="w-full h-full object-cover"
+                      />
                     ) : (
-                      <Image className="h-4 w-4 text-muted-foreground flex-shrink-0" />
+                      <div className="w-full h-full flex items-center justify-center text-muted-foreground text-xs">
+                        ?
+                      </div>
                     )}
-                    <span className="truncate font-medium">{img.name}</span>
+                    
+                    {/* Overlay for status */}
+                    {(isCurrentlyCompressing || isCompleted) && (
+                      <div className={cn(
+                        "absolute inset-0 flex items-center justify-center",
+                        isCompleted ? "bg-green-500/30" : "bg-primary/30"
+                      )}>
+                        {isCompleted ? (
+                          <CheckCircle className="h-6 w-6 text-white drop-shadow-md" />
+                        ) : (
+                          <Loader2 className="h-6 w-6 text-white animate-spin drop-shadow-md" />
+                        )}
+                      </div>
+                    )}
                   </div>
-                  <span className={cn(
-                    "font-mono text-xs px-2 py-0.5 rounded",
-                    "bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400"
-                  )}>
-                    {img.sizeMB} MB
-                  </span>
+                  
+                  {/* Info */}
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center justify-between gap-2">
+                      <span className="font-medium text-sm">
+                        Imagem {idx + 1}
+                      </span>
+                      <span className={cn(
+                        "font-mono text-xs px-2 py-0.5 rounded flex-shrink-0",
+                        "bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400"
+                      )}>
+                        {img.sizeMB} MB
+                      </span>
+                    </div>
+                    <p className="text-xs text-muted-foreground mt-0.5 truncate">
+                      {isCompleted ? (
+                        <span className="text-green-600 dark:text-green-400">Comprimida com sucesso</span>
+                      ) : isCurrentlyCompressing ? (
+                        <span className="text-primary">A comprimir...</span>
+                      ) : (
+                        `Excede o limite em ${(img.sizeMB - 4).toFixed(1)} MB`
+                      )}
+                    </p>
+                  </div>
                 </div>
               );
             })}
