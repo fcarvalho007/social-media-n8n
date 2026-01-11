@@ -19,6 +19,7 @@ export interface OversizedImage {
   index: number;
   sizeMB: number;
   name: string;
+  previewUrl?: string;
 }
 
 export interface CompressionResult {
@@ -33,6 +34,7 @@ export interface CompressionResult {
 /**
  * Detect images that exceed the size limit (4MB by default)
  * Only checks image files, not videos
+ * Includes preview URLs for visual identification
  */
 export function detectOversizedImages(files: File[], maxSizeMB = MAX_FILE_SIZE_MB): OversizedImage[] {
   return files
@@ -40,7 +42,8 @@ export function detectOversizedImages(files: File[], maxSizeMB = MAX_FILE_SIZE_M
       file,
       index,
       sizeMB: parseFloat((file.size / (1024 * 1024)).toFixed(2)),
-      name: file.name
+      name: file.name,
+      previewUrl: file.type.startsWith('image/') ? URL.createObjectURL(file) : undefined
     }))
     .filter(item => 
       item.file.type.startsWith('image/') && 
