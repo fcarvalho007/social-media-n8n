@@ -13,7 +13,7 @@ import 'react-big-calendar/lib/css/react-big-calendar.css';
 import 'react-big-calendar/lib/addons/dragAndDrop/styles.css';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
-import { Calendar as CalendarIcon, Clock, LayoutGrid, Video, TrendingUp, Filter, Trash2, Maximize2, Minimize2, ImageIcon, PenTool, AlertCircle, CalendarCheck, CalendarClock, History, Instagram, Linkedin, ChevronDown, RefreshCw, WifiOff, CheckCircle } from 'lucide-react';
+import { Calendar as CalendarIcon, Clock, LayoutGrid, Video, TrendingUp, Filter, Trash2, Maximize2, Minimize2, ImageIcon, PenTool, AlertCircle, CalendarCheck, CalendarClock, History, Instagram, Linkedin, ChevronDown, RefreshCw, WifiOff, CheckCircle, ChevronLeft, ChevronRight } from 'lucide-react';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import { useIsMobile } from '@/hooks/use-mobile';
@@ -67,6 +67,7 @@ const Calendar = () => {
   const [events, setEvents] = useState<CalendarEvent[]>([]);
   const [loading, setLoading] = useState(true);
   const [selectedEvent, setSelectedEvent] = useState<CalendarEvent | null>(null);
+  const [currentImageIndex, setCurrentImageIndex] = useState(0);
   const [currentMonth, setCurrentMonth] = useState(new Date());
   const [filterType, setFilterType] = useState<'all' | 'posts' | 'stories' | 'failed'>('all');
   const [timeFilter, setTimeFilter] = useState<'all' | 'past' | 'today' | 'future'>('all');
@@ -179,6 +180,32 @@ const Calendar = () => {
         font-size: 14px !important;
       }
 
+      /* Indicador "+N mais" proeminente */
+      .rbc-show-more {
+        background: linear-gradient(135deg, #6366f1 0%, #8b5cf6 100%) !important;
+        color: white !important;
+        font-weight: 600 !important;
+        padding: 4px 10px !important;
+        border-radius: 8px !important;
+        font-size: 11px !important;
+        margin-top: 4px !important;
+        display: inline-flex !important;
+        align-items: center !important;
+        gap: 4px !important;
+        box-shadow: 0 2px 4px rgba(99, 102, 241, 0.3) !important;
+        transition: transform 0.15s ease, box-shadow 0.15s ease !important;
+        text-decoration: none !important;
+      }
+
+      .rbc-show-more:hover {
+        transform: scale(1.05) !important;
+        box-shadow: 0 4px 8px rgba(99, 102, 241, 0.4) !important;
+      }
+
+      .rbc-row-segment .rbc-show-more {
+        margin-left: 4px !important;
+      }
+
       @media (max-width: 640px) {
         .rbc-day-bg,
         .rbc-time-slot {
@@ -216,6 +243,11 @@ const Calendar = () => {
         .rbc-off-range-bg {
           background: rgba(0, 0, 0, 0.02) !important;
         }
+
+        .rbc-show-more {
+          padding: 3px 8px !important;
+          font-size: 10px !important;
+        }
       }
     `;
     document.head.appendChild(styleElement);
@@ -224,6 +256,11 @@ const Calendar = () => {
       document.head.removeChild(styleElement);
     };
   }, []);
+
+  // Reset carousel index when selected event changes
+  useEffect(() => {
+    setCurrentImageIndex(0);
+  }, [selectedEvent]);
 
   const fetchScheduledContent = async (isRetry = false) => {
     if (!isRetry) {
@@ -1475,7 +1512,7 @@ const Calendar = () => {
         </div>
 
       <Dialog open={!!selectedEvent} onOpenChange={() => setSelectedEvent(null)}>
-        <DialogContent className="sm:max-w-lg">
+        <DialogContent className="sm:max-w-lg max-h-[90vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2 text-xl">
               {selectedEvent?.resource.content_type === 'stories' ? (
@@ -1533,26 +1570,92 @@ const Calendar = () => {
                 </div>
               </div>
 
+              {/* Carousel with navigation for multiple images */}
               {selectedEvent.resource.template_a_images && selectedEvent.resource.template_a_images.length > 0 && (
                 <div className="space-y-3">
-                  {selectedEvent.resource.template_a_images.length > 1 && (
-                    <div className="flex items-center justify-between text-sm text-muted-foreground">
-                      <span className="flex items-center gap-1.5">
-                        <LayoutGrid className="h-4 w-4" />
-                        Carousel com {selectedEvent.resource.template_a_images.length} imagens
-                      </span>
-                    </div>
-                  )}
-                  <div className={`${selectedEvent.resource.template_a_images.length > 1 ? 'grid grid-cols-2 gap-2' : ''}`}>
-                    {selectedEvent.resource.template_a_images.map((imgUrl, idx) => (
-                      <div 
-                        key={idx} 
-                        className="relative rounded-xl overflow-hidden border shadow-sm hover:shadow-md transition-shadow bg-muted/30"
-                      >
+                  {(() => {
+                    const images = selectedEvent.resource.template_a_images!;
+                    const hasMultipleImages = images.length > 1;
+                    const currentImage = images[currentImageIndex];
+                    
+                    return hasMultipleImages ? (
+                      <>
+                        {/* Main image with navigation */}
+                        <div className="relative">
+                          <div className="relative aspect-square max-h-[50vh] overflow-hidden rounded-xl border shadow-sm bg-muted/30">
+                            <img
+                              src={currentImage}
+                              alt={`Slide ${currentImageIndex + 1}`}
+                              className="w-full h-full object-contain"
+                              onError={(e) => {
+                                const target = e.currentTarget;
+                                target.style.display = 'none';
+                                if (target.nextElementSibling) {
+                                  (target.nextElementSibling as HTMLElement).style.display = 'flex';
+                                }
+                              }}
+                            />
+                            <div 
+                              className="w-full h-full bg-gradient-to-br from-gray-100 to-gray-200 dark:from-gray-800 dark:to-gray-900 flex flex-col items-center justify-center gap-2"
+                              style={{ display: 'none' }}
+                            >
+                              <ImageIcon className="h-8 w-8 text-muted-foreground" />
+                              <span className="text-sm text-muted-foreground">Imagem não disponível</span>
+                            </div>
+                          </div>
+                          
+                          {/* Navigation arrows */}
+                          <Button
+                            variant="secondary"
+                            size="icon"
+                            className="absolute left-2 top-1/2 -translate-y-1/2 h-10 w-10 rounded-full bg-background/90 shadow-lg hover:bg-background"
+                            onClick={() => setCurrentImageIndex(prev => prev === 0 ? images.length - 1 : prev - 1)}
+                          >
+                            <ChevronLeft className="h-6 w-6" />
+                          </Button>
+                          <Button
+                            variant="secondary"
+                            size="icon"
+                            className="absolute right-2 top-1/2 -translate-y-1/2 h-10 w-10 rounded-full bg-background/90 shadow-lg hover:bg-background"
+                            onClick={() => setCurrentImageIndex(prev => prev === images.length - 1 ? 0 : prev + 1)}
+                          >
+                            <ChevronRight className="h-6 w-6" />
+                          </Button>
+                        </div>
+                        
+                        {/* Position indicator */}
+                        <div className="text-center text-sm text-muted-foreground">
+                          {currentImageIndex + 1} de {images.length} imagens
+                        </div>
+                        
+                        {/* Thumbnail strip */}
+                        <div className="flex gap-2 overflow-x-auto pb-2 scrollbar-thin">
+                          {images.map((img, idx) => (
+                            <button
+                              key={idx}
+                              onClick={() => setCurrentImageIndex(idx)}
+                              className={`w-14 h-14 rounded-lg overflow-hidden border-2 flex-shrink-0 transition-all ${
+                                idx === currentImageIndex 
+                                  ? 'border-primary ring-2 ring-primary/20 scale-105' 
+                                  : 'border-transparent opacity-60 hover:opacity-100 hover:border-muted-foreground/30'
+                              }`}
+                            >
+                              <img 
+                                src={img} 
+                                alt={`Miniatura ${idx + 1}`} 
+                                className="w-full h-full object-cover" 
+                              />
+                            </button>
+                          ))}
+                        </div>
+                      </>
+                    ) : (
+                      /* Single image */
+                      <div className="relative rounded-xl overflow-hidden border shadow-sm bg-muted/30">
                         <img
-                          src={imgUrl}
-                          alt={`Preview ${idx + 1}`}
-                          className="w-full h-auto max-h-[300px] object-contain mx-auto"
+                          src={images[0]}
+                          alt="Preview"
+                          className="w-full h-auto max-h-[50vh] object-contain mx-auto"
                           onError={(e) => {
                             const target = e.currentTarget;
                             target.style.display = 'none';
@@ -1568,14 +1671,9 @@ const Calendar = () => {
                           <ImageIcon className="h-6 w-6 text-muted-foreground" />
                           <span className="text-xs text-muted-foreground">Imagem não disponível</span>
                         </div>
-                        {selectedEvent.resource.template_a_images!.length > 1 && (
-                          <div className="absolute top-2 left-2 bg-black/60 text-white text-xs px-2 py-0.5 rounded-full">
-                            {idx + 1}/{selectedEvent.resource.template_a_images!.length}
-                          </div>
-                        )}
                       </div>
-                    ))}
-                  </div>
+                    );
+                  })()}
                 </div>
               )}
 
