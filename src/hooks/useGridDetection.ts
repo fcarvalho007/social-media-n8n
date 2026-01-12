@@ -3,7 +3,10 @@ import { DetectedImage, GridConfig, GridDetectionProgress } from '@/types/grid-s
 import { loadImageToCanvas } from '@/lib/canvas/imageProcessing';
 import { 
   calculateManualCellBounds, 
-  extractAllCells 
+  extractAllCells,
+  detectCellMargins,
+  trimCellBounds,
+  CellBounds
 } from '@/lib/canvas/cellExtraction';
 import { cropToAspectRatio } from '@/lib/canvas/aspectRatioCrop';
 
@@ -12,18 +15,20 @@ interface UseGridDetectionReturn {
     image: File,
     config: GridConfig,
     removeBorders: boolean,
-    forceAspectRatio?: number | null, // Aspect ratio applied to whole image first
-    cellAspectRatio?: number | null   // Aspect ratio applied to each cell individually
+    forceAspectRatio?: number | null,
+    cellAspectRatio?: number | null
   ) => Promise<DetectedImage[]>;
   isProcessing: boolean;
   progress: GridDetectionProgress | null;
   error: string | null;
+  marginInfo: { detected: boolean; avgMargin: number } | null;
 }
 
 export function useGridDetection(): UseGridDetectionReturn {
   const [isProcessing, setIsProcessing] = useState(false);
   const [progress, setProgress] = useState<GridDetectionProgress | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [marginInfo, setMarginInfo] = useState<{ detected: boolean; avgMargin: number } | null>(null);
 
   const processGrid = useCallback(async (
     image: File,
@@ -34,6 +39,7 @@ export function useGridDetection(): UseGridDetectionReturn {
   ): Promise<DetectedImage[]> => {
     setIsProcessing(true);
     setError(null);
+    setMarginInfo(null);
     setProgress({ stage: 'loading', percent: 10, message: 'A carregar imagem...' });
 
     try {
@@ -58,18 +64,58 @@ export function useGridDetection(): UseGridDetectionReturn {
       
       setProgress({ stage: 'analyzing', percent: 40, message: `A dividir em ${config.rows}×${config.cols} células...` });
 
-      // Step 2: Calculate cell bounds with PRECISE algorithm
-      const cells = calculateManualCellBounds(config.rows, config.cols, width, height, removeBorders);
+      // Step 2: Calculate initial cell bounds
+      let cells = calculateManualCellBounds(config.rows, config.cols, width, height, false);
+      
+      // Step 2.5: Apply intelligent margin detection if removeBorders is enabled
+      if (removeBorders && cells.length > 0) {
+        setProgress({ stage: 'analyzing', percent: 50, message: 'A detectar margens...' });
+        
+        const trimmedCells: CellBounds[] = [];
+        let totalMarginDetected = 0;
+        let marginsFound = 0;
+        
+        for (const cell of cells) {
+          const margins = detectCellMargins(canvas, cell, 35);
+          
+          if (margins.detected) {
+            const avgMargin = (margins.top + margins.right + margins.bottom + margins.left) / 4;
+            totalMarginDetected += avgMargin;
+            marginsFound++;
+            
+            const trimmedCell = trimCellBounds(cell, margins);
+            
+            // Validate trimmed cell has reasonable dimensions
+            if (trimmedCell.width > 50 && trimmedCell.height > 50) {
+              trimmedCells.push(trimmedCell);
+              console.log(`[GridDetection] Cell ${cell.row}×${cell.col}: trimmed margins T:${margins.top} R:${margins.right} B:${margins.bottom} L:${margins.left}px`);
+            } else {
+              // Fallback to original if trimming was too aggressive
+              trimmedCells.push(cell);
+              console.log(`[GridDetection] Cell ${cell.row}×${cell.col}: margin trim skipped (would be too small)`);
+            }
+          } else {
+            trimmedCells.push(cell);
+          }
+        }
+        
+        cells = trimmedCells;
+        
+        // Report margin detection results
+        if (marginsFound > 0) {
+          const avgMargin = Math.round(totalMarginDetected / marginsFound);
+          setMarginInfo({ detected: true, avgMargin });
+          console.log(`[GridDetection] Margins detected in ${marginsFound}/${cells.length} cells, avg: ${avgMargin}px`);
+        } else {
+          setMarginInfo({ detected: false, avgMargin: 0 });
+          console.log(`[GridDetection] No margins detected - using standard cell bounds`);
+        }
+      }
       
       // Log cell dimensions for debugging
       if (cells.length > 0) {
-        console.log(`[GridDetection] First cell: ${cells[0].width}×${cells[0].height}px`);
+        console.log(`[GridDetection] First cell: ${cells[0].width}×${cells[0].height}px at (${cells[0].x}, ${cells[0].y})`);
         console.log(`[GridDetection] Last cell: ${cells[cells.length - 1].width}×${cells[cells.length - 1].height}px`);
-        
-        // Verify total coverage
-        const totalWidth = cells.filter(c => c.row === 0).reduce((sum, c) => sum + c.width, 0);
-        const totalHeight = cells.filter(c => c.col === 0).reduce((sum, c) => sum + c.height, 0);
-        console.log(`[GridDetection] Total coverage: ${totalWidth}×${totalHeight}px (source: ${width}×${height}px)`);
       }
 
       // Step 3: Extract cells (with optional per-cell aspect ratio adjustment)
@@ -102,5 +148,5 @@ export function useGridDetection(): UseGridDetectionReturn {
     }
   }, []);
 
-  return { processGrid, isProcessing, progress, error };
+  return { processGrid, isProcessing, progress, error, marginInfo };
 }
