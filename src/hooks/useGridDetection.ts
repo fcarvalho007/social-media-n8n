@@ -4,11 +4,18 @@ import { loadImageToCanvas } from '@/lib/canvas/imageProcessing';
 import { 
   calculateManualCellBounds, 
   extractAllCells,
-  detectCellMargins,
-  trimCellBounds,
-  CellBounds
+  calculateCellBoundsWithGapDetection,
+  CellBounds,
+  GridGaps
 } from '@/lib/canvas/cellExtraction';
 import { cropToAspectRatio } from '@/lib/canvas/aspectRatioCrop';
+
+interface MarginDetectionInfo {
+  detected: boolean;
+  avgMargin: number;
+  color?: string;
+  gapsFound?: { vertical: number; horizontal: number };
+}
 
 interface UseGridDetectionReturn {
   processGrid: (
@@ -21,14 +28,14 @@ interface UseGridDetectionReturn {
   isProcessing: boolean;
   progress: GridDetectionProgress | null;
   error: string | null;
-  marginInfo: { detected: boolean; avgMargin: number } | null;
+  marginInfo: MarginDetectionInfo | null;
 }
 
 export function useGridDetection(): UseGridDetectionReturn {
   const [isProcessing, setIsProcessing] = useState(false);
   const [progress, setProgress] = useState<GridDetectionProgress | null>(null);
   const [error, setError] = useState<string | null>(null);
-  const [marginInfo, setMarginInfo] = useState<{ detected: boolean; avgMargin: number } | null>(null);
+  const [marginInfo, setMarginInfo] = useState<MarginDetectionInfo | null>(null);
 
   const processGrid = useCallback(async (
     image: File,
@@ -62,54 +69,43 @@ export function useGridDetection(): UseGridDetectionReturn {
         console.log(`[GridDetection] Cropped from ${origWidth}×${origHeight} to ${width}×${height} (ratio: ${forceAspectRatio})`);
       }
       
-      setProgress({ stage: 'analyzing', percent: 40, message: `A dividir em ${config.rows}×${config.cols} células...` });
+      let cells: CellBounds[];
 
-      // Step 2: Calculate initial cell bounds
-      let cells = calculateManualCellBounds(config.rows, config.cols, width, height, false);
-      
-      // Step 2.5: Apply intelligent margin detection if removeBorders is enabled
-      if (removeBorders && cells.length > 0) {
-        setProgress({ stage: 'analyzing', percent: 50, message: 'A detectar margens...' });
+      // Step 2: Calculate cell bounds
+      if (removeBorders) {
+        setProgress({ stage: 'analyzing', percent: 40, message: 'A detectar margens e gaps...' });
         
-        const trimmedCells: CellBounds[] = [];
-        let totalMarginDetected = 0;
-        let marginsFound = 0;
+        // Use the new robust gap detection
+        const result = calculateCellBoundsWithGapDetection(canvas, config.rows, config.cols, 35);
+        cells = result.cells;
         
-        for (const cell of cells) {
-          const margins = detectCellMargins(canvas, cell, 35);
+        if (result.gaps && result.exteriorMargins) {
+          // Calculate average margin/gap size
+          const allGaps = [...result.gaps.horizontal, ...result.gaps.vertical];
+          const avgGapSize = allGaps.length > 0
+            ? allGaps.reduce((sum, g) => sum + (g.end - g.start + 1), 0) / allGaps.length
+            : 0;
           
-          if (margins.detected) {
-            const avgMargin = (margins.top + margins.right + margins.bottom + margins.left) / 4;
-            totalMarginDetected += avgMargin;
-            marginsFound++;
-            
-            const trimmedCell = trimCellBounds(cell, margins);
-            
-            // Validate trimmed cell has reasonable dimensions
-            if (trimmedCell.width > 50 && trimmedCell.height > 50) {
-              trimmedCells.push(trimmedCell);
-              console.log(`[GridDetection] Cell ${cell.row}×${cell.col}: trimmed margins T:${margins.top} R:${margins.right} B:${margins.bottom} L:${margins.left}px`);
-            } else {
-              // Fallback to original if trimming was too aggressive
-              trimmedCells.push(cell);
-              console.log(`[GridDetection] Cell ${cell.row}×${cell.col}: margin trim skipped (would be too small)`);
-            }
-          } else {
-            trimmedCells.push(cell);
-          }
-        }
-        
-        cells = trimmedCells;
-        
-        // Report margin detection results
-        if (marginsFound > 0) {
-          const avgMargin = Math.round(totalMarginDetected / marginsFound);
-          setMarginInfo({ detected: true, avgMargin });
-          console.log(`[GridDetection] Margins detected in ${marginsFound}/${cells.length} cells, avg: ${avgMargin}px`);
+          const marginColor = result.gaps.marginColor;
+          
+          setMarginInfo({
+            detected: true,
+            avgMargin: Math.round(avgGapSize + (result.exteriorMargins.top + result.exteriorMargins.bottom + result.exteriorMargins.left + result.exteriorMargins.right) / 4),
+            color: marginColor ? `rgb(${marginColor.r}, ${marginColor.g}, ${marginColor.b})` : undefined,
+            gapsFound: {
+              vertical: result.gaps.vertical.length,
+              horizontal: result.gaps.horizontal.length,
+            },
+          });
+          
+          console.log(`[GridDetection] Gap detection successful: ${result.gaps.vertical.length} vertical, ${result.gaps.horizontal.length} horizontal gaps`);
         } else {
           setMarginInfo({ detected: false, avgMargin: 0 });
-          console.log(`[GridDetection] No margins detected - using standard cell bounds`);
+          console.log('[GridDetection] Gap detection failed, using standard division');
         }
+      } else {
+        setProgress({ stage: 'analyzing', percent: 40, message: `A dividir em ${config.rows}×${config.cols} células...` });
+        cells = calculateManualCellBounds(config.rows, config.cols, width, height, false);
       }
       
       // Log cell dimensions for debugging
