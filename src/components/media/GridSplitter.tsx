@@ -8,7 +8,7 @@ import { Progress } from '@/components/ui/progress';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Badge } from '@/components/ui/badge';
 import { toast } from 'sonner';
-import { Grid3x3, Upload, Sparkles, Loader2, AlertTriangle, ChevronDown, Plus, Wand2 } from 'lucide-react';
+import { Grid3x3, Upload, Sparkles, Loader2, AlertTriangle, ChevronDown, Plus, Wand2, CheckCircle2 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { GridControls } from './GridControls';
 import { GridPreview } from './GridPreview';
@@ -52,7 +52,7 @@ export function GridSplitter({
   const [targetAspectRatio, setTargetAspectRatio] = useState<number | null>(3/4); // Default to 3:4 for Instagram
   const [error, setError] = useState<string | null>(null);
   
-  const { processGrid, isProcessing, progress } = useGridDetection();
+  const { processGrid, isProcessing, progress, marginInfo } = useGridDetection();
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   // Check if only video formats are selected (hide AI tab)
@@ -153,7 +153,13 @@ export function GridSplitter({
       );
       
       setDetectedImages(images);
-      toast.success(`${images.length} imagens extraídas!`);
+      
+      // Show toast with margin detection info
+      if (removeBorders && marginInfo?.detected) {
+        toast.success(`${images.length} imagens extraídas! Margens de ~${marginInfo.avgMargin}px removidas.`);
+      } else {
+        toast.success(`${images.length} imagens extraídas!`);
+      }
     } catch (err) {
       const errorMessage = err instanceof Error ? err.message : 'Erro ao processar grelha';
       setError(errorMessage);
@@ -310,6 +316,16 @@ export function GridSplitter({
                   <p className="text-xs text-muted-foreground text-center">
                     {progress.message}
                   </p>
+                </div>
+              )}
+
+              {/* Margin Detection Feedback */}
+              {removeBorders && marginInfo?.detected && !isProcessing && detectedImages.length > 0 && (
+                <div className="flex items-center gap-2 p-2 rounded-lg bg-emerald-500/10 text-emerald-700 dark:text-emerald-400">
+                  <CheckCircle2 className="h-4 w-4 flex-shrink-0" />
+                  <span className="text-xs">
+                    Margens detectadas e removidas (~{marginInfo.avgMargin}px)
+                  </span>
                 </div>
               )}
             </>
