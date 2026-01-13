@@ -5,13 +5,23 @@ import {
   PartyPopper, AlertCircle, Loader2, Copy, Share2,
   Instagram, Linkedin, Youtube, Facebook, RefreshCw, Clock,
   Upload, Globe, Plus, Download, FileText, Image, Video,
-  ChevronDown, ChevronUp, Info
+  ChevronDown, ChevronUp, Info, Shield, CheckCircle
 } from 'lucide-react';
 import { Dialog, DialogContent } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Progress } from '@/components/ui/progress';
 import { Badge } from '@/components/ui/badge';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import { toast } from 'sonner';
 import { cn } from '@/lib/utils';
 import { 
@@ -69,6 +79,8 @@ interface PublishProgressModalProps {
   onRetryPlatform?: (format: string) => void;
   mediaFiles?: File[];
   caption?: string;
+  onCancel?: () => Promise<void>;
+  isCancelling?: boolean;
 }
 
 // Platform styling
@@ -370,10 +382,13 @@ export function PublishProgressModal({
   onViewCalendar,
   onRetryPlatform,
   mediaFiles = [],
-  caption = ''
+  caption = '',
+  onCancel,
+  isCancelling = false
 }: PublishProgressModalProps) {
   const [showConfetti, setShowConfetti] = useState(false);
   const [isDownloading, setIsDownloading] = useState(false);
+  const [showCancelConfirm, setShowCancelConfirm] = useState(false);
   
   const { phase1, phase2, summary } = progress;
   
@@ -524,9 +539,16 @@ export function PublishProgressModal({
             
             <h2 className="text-xl font-bold">{headerConfig.title}</h2>
             
-            {!isComplete && (
+            {!isComplete && !isCancelling && (
               <p className="text-sm text-muted-foreground mt-1">
                 Não feches esta janela
+              </p>
+            )}
+            
+            {isCancelling && (
+              <p className="text-sm text-amber-600 mt-1 flex items-center justify-center gap-2">
+                <Loader2 className="h-3 w-3 animate-spin" />
+                A cancelar e guardar rascunho...
               </p>
             )}
             
@@ -765,6 +787,35 @@ export function PublishProgressModal({
           )}
         </div>
 
+        {/* Cancel button - shown when publishing is in progress */}
+        {!isComplete && onCancel && (
+          <motion.div
+            className="flex-shrink-0 p-4 border-t bg-muted/30"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+          >
+            <Button 
+              variant="outline"
+              size="lg"
+              className="w-full gap-2 text-destructive border-destructive/30 hover:bg-destructive/10 hover:text-destructive"
+              onClick={() => setShowCancelConfirm(true)}
+              disabled={isCancelling}
+            >
+              {isCancelling ? (
+                <>
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                  A cancelar...
+                </>
+              ) : (
+                <>
+                  <X className="h-4 w-4" />
+                  Cancelar Publicação
+                </>
+              )}
+            </Button>
+          </motion.div>
+        )}
+
         {/* Footer com ações - fixed at bottom */}
         {isComplete && (
           <motion.div
@@ -791,6 +842,44 @@ export function PublishProgressModal({
           </motion.div>
         )}
       </DialogContent>
+
+      {/* Cancel Confirmation Dialog */}
+      <AlertDialog open={showCancelConfirm} onOpenChange={setShowCancelConfirm}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle className="flex items-center gap-2">
+              <Shield className="h-5 w-5 text-green-500" />
+              Cancelar publicação?
+            </AlertDialogTitle>
+            <AlertDialogDescription className="space-y-3">
+              <p>A publicação será interrompida, mas não perdes o teu conteúdo.</p>
+              <div className="bg-green-50 dark:bg-green-500/10 p-3 rounded-lg border border-green-200 dark:border-green-500/20">
+                <p className="text-sm text-green-700 dark:text-green-400 flex items-center gap-2">
+                  <CheckCircle className="h-4 w-4 flex-shrink-0" />
+                  O rascunho será guardado automaticamente
+                </p>
+                <p className="text-xs text-green-600 dark:text-green-500 mt-1 ml-6">
+                  Podes mudar a data/hora e publicar novamente quando quiseres.
+                </p>
+              </div>
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Continuar a publicar</AlertDialogCancel>
+            <AlertDialogAction 
+              onClick={async () => {
+                setShowCancelConfirm(false);
+                if (onCancel) {
+                  await onCancel();
+                }
+              }}
+              className="bg-amber-500 hover:bg-amber-600 text-white"
+            >
+              Cancelar e guardar rascunho
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </Dialog>
   );
 }
