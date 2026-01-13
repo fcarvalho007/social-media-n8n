@@ -78,7 +78,7 @@ export const TIKTOK_CONFIG = {
 };
 
 export const GOOGLEBUSINESS_CONFIG = {
-  accountId: '694565844207e06f4ca82044',
+  accountId: '69666ca62b6dfd227e11c220', // @Frederico Carvalho (reconectado 13/01/2026)
 };
 
 // Map format to account configuration

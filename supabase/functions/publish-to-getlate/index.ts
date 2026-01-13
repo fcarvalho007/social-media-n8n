@@ -12,7 +12,7 @@ const GETLATE_ACCOUNTS: Record<string, string> = {
   youtube: '69344efdf43160a0bc99a480',   // fredericocarvalho
   facebook: '69344f55f43160a0bc99a481',  // fredericodigital
   tiktok: '69344fdef43160a0bc99a484',    // frederico.m.carvalho
-  googlebusiness: '694565844207e06f4ca82044', // Frederico Carvalho
+  googlebusiness: '69666ca62b6dfd227e11c220', // @Frederico Carvalho (reconectado 13/01/2026)
 };
 
 // Map format to base network
@@ -282,14 +282,17 @@ function validateGetlateResponse(responseData: any, responseText: string): Getla
   }
   
   // Check raw response for common OAuth error patterns
-  const rawLower = responseText.toLowerCase();
+  const rawLower = (typeof responseText === 'string' ? responseText : '').toLowerCase();
   if (rawLower.includes('oauthexception') || 
       rawLower.includes('session has expired') ||
       rawLower.includes('token refresh failed') ||
       rawLower.includes('error validating access token')) {
+    const errorSnippet = typeof responseText === 'string' 
+      ? responseText.substring(0, 300) 
+      : JSON.stringify(responseText).substring(0, 300);
     return {
       isRealSuccess: false,
-      error: `Erro OAuth: ${responseText.substring(0, 300)}`,
+      error: `Erro OAuth: ${errorSnippet}`,
       errorType: 'oauth_error',
       originalData,
     };
