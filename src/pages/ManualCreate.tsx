@@ -2165,46 +2165,35 @@ export default function ManualCreate() {
                     disabled={publishing || submitting || saving || isUploading}
                     className={cn(
                       "flex-1 font-semibold text-white",
-                      "bg-gradient-to-r from-green-600 to-green-500",
-                      "hover:from-green-500 hover:to-green-400 hover:shadow-lg",
-                      "active:scale-[0.98] transition-all duration-200",
+                      // Dynamic color: blue for scheduled, green for immediate
+                      !scheduleAsap && scheduledDate
+                        ? "bg-gradient-to-r from-blue-600 to-blue-500 hover:from-blue-500 hover:to-blue-400"
+                        : "bg-gradient-to-r from-green-600 to-green-500 hover:from-green-500 hover:to-green-400",
+                      "hover:shadow-lg active:scale-[0.98] transition-all duration-200",
                       "disabled:opacity-50 disabled:cursor-not-allowed"
                     )}
-                    aria-label="Publicar agora"
+                    aria-label={!scheduleAsap && scheduledDate ? "Agendar publicação" : "Publicar agora"}
                   >
                     {publishing ? (
                       <>
                         <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                        A publicar...
+                        {!scheduleAsap && scheduledDate ? 'A agendar...' : 'A publicar...'}
                       </>
                     ) : (
                       <>
-                        <Rocket className="h-4 w-4 mr-2" />
-                        Publicar Agora
+                        {!scheduleAsap && scheduledDate ? (
+                          <>
+                            <CalendarIcon className="h-4 w-4 mr-2" />
+                            Agendar para {format(scheduledDate, "d 'de' MMM", { locale: pt })}
+                          </>
+                        ) : (
+                          <>
+                            <Rocket className="h-4 w-4 mr-2" />
+                            Publicar Agora
+                          </>
+                        )}
                       </>
                     )}
-                  </Button>
-                  <Button
-                    type="button"
-                    variant="outline"
-                    size="lg"
-                    onClick={() => {
-                      if (!scheduledDate) {
-                        toast.info('Selecione uma data de agendamento');
-                        return;
-                      }
-                      handlePublishWithValidation();
-                    }}
-                    disabled={publishing || submitting || saving || isUploading}
-                    className={cn(
-                      "flex-1 font-semibold border-2 border-primary text-primary",
-                      "hover:bg-primary/10 hover:shadow-md",
-                      "active:scale-[0.98] transition-all duration-200"
-                    )}
-                    aria-label="Agendar publicação"
-                  >
-                    <CalendarIcon className="h-4 w-4 mr-2" />
-                    Agendar
                   </Button>
                 </div>
                 

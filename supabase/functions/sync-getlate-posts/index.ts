@@ -12,7 +12,7 @@ const GETLATE_ACCOUNTS: Record<string, string> = {
   youtube: '69344efdf43160a0bc99a480',
   facebook: '69344f55f43160a0bc99a481',
   tiktok: '69344fdef43160a0bc99a484',
-  googlebusiness: '694565844207e06f4ca82044',
+  googlebusiness: '69666ca62b6dfd227e11c220', // @Frederico Carvalho (reconectado 13/01/2026)
 };
 
 // Reverse map: account ID -> platform name
