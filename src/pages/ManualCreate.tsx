@@ -239,8 +239,12 @@ export default function ManualCreate() {
     progress: publishProgress, 
     isPublishing: publishing, 
     publish: executePublish, 
-    resetProgress 
+    resetProgress,
+    cancelPublishing
   } = usePublishWithProgress();
+  
+  // State for cancellation
+  const [isCancellingPublish, setIsCancellingPublish] = useState(false);
 
   // Auto-save hook
   const { lastSaved, isSaving: isAutoSaving, hasUnsavedChanges } = useAutoSave({
@@ -930,6 +934,35 @@ export default function ManualCreate() {
     } finally {
       setSaving(false);
       setUploadProgress(0);
+    }
+  };
+
+  // Handler for cancelling publication
+  const handleCancelPublishing = async () => {
+    try {
+      setIsCancellingPublish(true);
+      
+      // 1. Cancel the publishing process
+      cancelPublishing();
+      
+      // 2. Save as draft automatically (if we have content)
+      if (selectedFormats.length > 0 || mediaFiles.length > 0) {
+        await handleSaveDraft();
+      }
+      
+      // 3. Show success toast
+      toast.success('Publicação cancelada', {
+        description: 'O teu conteúdo foi guardado como rascunho. Podes editar e publicar quando quiseres.',
+        duration: 5000,
+      });
+      
+      // 4. Reset progress
+      resetProgress();
+    } catch (error) {
+      console.error('[handleCancelPublishing] Error:', error);
+      toast.error('Erro ao cancelar. Tenta novamente.');
+    } finally {
+      setIsCancellingPublish(false);
     }
   };
 
@@ -2379,6 +2412,7 @@ export default function ManualCreate() {
         onClose={() => {
           if (!publishing) {
             resetProgress();
+            setIsCancellingPublish(false);
           }
         }}
         progress={publishProgress}
@@ -2386,6 +2420,8 @@ export default function ManualCreate() {
         onViewCalendar={handleViewCalendar}
         mediaFiles={mediaFiles}
         caption={caption}
+        onCancel={handleCancelPublishing}
+        isCancelling={isCancellingPublish}
       />
     </div>
   );
