@@ -698,12 +698,11 @@ export default function ManualCreate() {
     }
 
     // Validate file sizes
-    // LinkedIn Documents: images are converted to PDF, so allow up to 50MB per image
-    // Direct API uploads: 4MB limit (Getlate limitation)
+    // Allow large images (up to 50MB) - compression will happen at publish time if needed for Instagram
     // Videos: 650MB limit
-    const isLinkedInDocument = selectedFormats.includes('linkedin_document');
-    const MAX_IMAGE_SIZE_MB = isLinkedInDocument ? 50 : 4;
+    const MAX_IMAGE_SIZE_MB = 50;
     const MAX_VIDEO_SIZE_MB = 650;
+    const isLinkedInDocument = selectedFormats.includes('linkedin_document');
     
     for (const file of newFiles) {
       const sizeMB = file.size / (1024 * 1024);
@@ -716,7 +715,15 @@ export default function ManualCreate() {
         return;
       }
       
-      // Warning for large images (may slow down PDF generation)
+      // Informative toast for images > 4MB (will be compressed at publish time)
+      if (!isVideo && sizeMB > 4) {
+        toast.info(
+          `Imagem "${file.name}" (${sizeMB.toFixed(1)}MB) será comprimida automaticamente antes da publicação.`,
+          { duration: 4000 }
+        );
+      }
+      
+      // Warning for large images in LinkedIn Document (may slow down PDF generation)
       if (!isVideo && sizeMB > 10 && isLinkedInDocument) {
         toast.warning(`Imagem "${file.name}" é grande (${sizeMB.toFixed(1)}MB). A geração do PDF pode demorar.`, { duration: 5000 });
       }
