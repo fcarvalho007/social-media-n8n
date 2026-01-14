@@ -12,6 +12,16 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
 import { Checkbox } from '@/components/ui/checkbox';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '@/components/ui/alert-dialog';
 import { toast } from 'sonner';
 import {
   Image,
@@ -73,6 +83,14 @@ interface MediaItem {
 // Helper to detect if URL is a PDF
 const isPdfUrl = (url: string) => url.toLowerCase().endsWith('.pdf');
 
+// Helper to check if item is a video (supports both 'video' and 'video/...' formats)
+const isVideoItem = (item: MediaItem) => 
+  item.file_type === 'video' || item.file_type.startsWith('video/');
+
+// Helper to check if item is an image (supports both 'image' and 'image/...' formats)
+const isImageItem = (item: MediaItem) => 
+  item.file_type === 'image' || item.file_type.startsWith('image/');
+
 const sourceLabels: Record<string, string> = {
   upload: 'Upload',
   ai: 'IA',
@@ -91,7 +109,7 @@ export default function MediaLibrary() {
   const { user } = useAuth();
   const queryClient = useQueryClient();
   
-const [searchTerm, setSearchTerm] = useState('');
+  const [searchTerm, setSearchTerm] = useState('');
   const [activeTab, setActiveTab] = useState('all');
   const [sortBy, setSortBy] = useState<'date' | 'name' | 'size'>('date');
   const [selectedItems, setSelectedItems] = useState<Set<string>>(new Set());
@@ -99,6 +117,7 @@ const [searchTerm, setSearchTerm] = useState('');
   const [isImporting, setIsImporting] = useState(false);
   const [isSyncing, setIsSyncing] = useState(false);
   const [hasAutoSynced, setHasAutoSynced] = useState(false);
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
 
   // Fetch media library
   const { data: mediaItems, isLoading, refetch } = useQuery({
@@ -115,7 +134,7 @@ const [searchTerm, setSearchTerm] = useState('');
     enabled: !!user,
   });
 
-// Import existing publications into media library
+  // Import existing publications into media library
   const importExistingPublications = async () => {
     if (!user) return;
     
@@ -356,21 +375,59 @@ const [searchTerm, setSearchTerm] = useState('');
     },
   });
 
-  // Delete mutation
+  // Delete mutation - also removes files from storage
   const deleteMutation = useMutation({
     mutationFn: async (ids: string[]) => {
+      // 1. Get items to delete (we need their URLs)
+      const itemsToDelete = mediaItems?.filter(item => ids.includes(item.id)) || [];
+      
+      // 2. Delete files from storage buckets
+      for (const item of itemsToDelete) {
+        const url = item.file_url;
+        
+        // Check if this is a URL from our Supabase storage
+        if (url.includes('supabase.co/storage/')) {
+          try {
+            // Extract bucket and path from URL
+            // Format: https://xxx.supabase.co/storage/v1/object/public/bucket-name/path/to/file.ext
+            const match = url.match(/\/storage\/v1\/object\/public\/([^/]+)\/(.+)$/);
+            if (match) {
+              const [, bucket, filePath] = match;
+              const decodedPath = decodeURIComponent(filePath);
+              
+              const { error: storageError } = await supabase.storage
+                .from(bucket)
+                .remove([decodedPath]);
+                
+              if (storageError) {
+                console.warn(`[MediaLibrary] Failed to delete from ${bucket}:`, storageError);
+              } else {
+                console.log(`[MediaLibrary] Deleted from ${bucket}: ${decodedPath}`);
+              }
+            }
+          } catch (storageError) {
+            console.warn(`[MediaLibrary] Storage delete error:`, storageError);
+            // Continue even if storage delete fails - we still want to remove DB record
+          }
+        }
+      }
+      
+      // 3. Delete records from database
       const { error } = await supabase
         .from('media_library')
         .delete()
         .in('id', ids);
+        
       if (error) throw error;
     },
     onSuccess: (_, ids) => {
       queryClient.invalidateQueries({ queryKey: ['media-library'] });
       setSelectedItems(new Set());
-      toast.success(`${ids.length} ficheiro(s) eliminado(s)`);
+      setShowDeleteConfirm(false);
+      toast.success(`${ids.length} ficheiro(s) eliminado(s) permanentemente`);
     },
-    onError: () => {
+    onError: (error) => {
+      console.error('Delete error:', error);
       toast.error('Erro ao eliminar ficheiros');
     },
   });
@@ -385,11 +442,9 @@ const [searchTerm, setSearchTerm] = useState('');
     if (activeTab === 'favorites') {
       items = items.filter(item => item.is_favorite);
     } else if (activeTab === 'images') {
-      // Support both 'image' and 'image/...' formats
-      items = items.filter(item => item.file_type === 'image' || item.file_type.startsWith('image/'));
+      items = items.filter(item => isImageItem(item));
     } else if (activeTab === 'videos') {
-      // Support both 'video' and 'video/...' formats
-      items = items.filter(item => item.file_type === 'video' || item.file_type.startsWith('video/'));
+      items = items.filter(item => isVideoItem(item));
     } else if (activeTab === 'ai') {
       items = items.filter(item => item.source === 'ai');
     } else if (activeTab === 'publications') {
@@ -423,11 +478,13 @@ const [searchTerm, setSearchTerm] = useState('');
 
   // Stats
   const stats = useMemo(() => {
-    if (!mediaItems) return { total: 0, favorites: 0, totalSize: 0 };
+    if (!mediaItems) return { total: 0, favorites: 0, totalSize: 0, videos: 0, images: 0 };
     return {
       total: mediaItems.length,
       favorites: mediaItems.filter(m => m.is_favorite).length,
       totalSize: mediaItems.reduce((acc, m) => acc + (m.file_size || 0), 0),
+      videos: mediaItems.filter(m => isVideoItem(m)).length,
+      images: mediaItems.filter(m => isImageItem(m)).length,
     };
   }, [mediaItems]);
 
@@ -495,35 +552,11 @@ const [searchTerm, setSearchTerm] = useState('');
               Biblioteca de Média
             </h1>
             <p className="text-sm text-muted-foreground mt-1">
-              {stats.total} ficheiros • {stats.favorites} favoritos • {formatSize(stats.totalSize)}
+              {stats.total} ficheiros • {stats.images} imagens • {stats.videos} vídeos • {formatSize(stats.totalSize)}
             </p>
           </div>
 
           <div className="flex items-center gap-2">
-            {selectedItems.size > 0 && (
-              <>
-                <Badge variant="secondary" className="gap-1">
-                  <CheckCircle2 className="h-3 w-3" />
-                  {selectedItems.size} selecionados
-                </Badge>
-                <Button
-                  variant="destructive"
-                  size="sm"
-                  onClick={() => deleteMutation.mutate(Array.from(selectedItems))}
-                  disabled={deleteMutation.isPending}
-                >
-                  <Trash2 className="h-4 w-4 mr-1" />
-                  Eliminar
-                </Button>
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  onClick={() => setSelectedItems(new Set())}
-                >
-                  <X className="h-4 w-4" />
-                </Button>
-              </>
-            )}
             <Button variant="outline" size="sm" onClick={() => refetch()}>
               <RefreshCw className="h-4 w-4" />
             </Button>
@@ -540,6 +573,37 @@ const [searchTerm, setSearchTerm] = useState('');
               )}
               Importar publicações
             </Button>
+            
+            {/* Actions dropdown */}
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button variant="outline" size="sm">
+                  <MoreVertical className="h-4 w-4" />
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end">
+                <DropdownMenuItem onClick={selectAll}>
+                  <CheckCircle2 className="h-4 w-4 mr-2" />
+                  {selectedItems.size === filteredItems.length && filteredItems.length > 0 
+                    ? 'Desselecionar todos' 
+                    : `Selecionar todos (${filteredItems.length})`}
+                </DropdownMenuItem>
+                <DropdownMenuSeparator />
+                <DropdownMenuItem 
+                  className="text-destructive focus:text-destructive"
+                  onClick={() => {
+                    if (filteredItems.length > 0) {
+                      setSelectedItems(new Set(filteredItems.map(item => item.id)));
+                      setShowDeleteConfirm(true);
+                    }
+                  }}
+                  disabled={filteredItems.length === 0}
+                >
+                  <Trash2 className="h-4 w-4 mr-2" />
+                  Eliminar tudo ({filteredItems.length})
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
           </div>
         </div>
       </div>
@@ -593,9 +657,6 @@ const [searchTerm, setSearchTerm] = useState('');
                 <SelectItem value="size">Tamanho</SelectItem>
               </SelectContent>
             </Select>
-            <Button variant="ghost" size="sm" onClick={selectAll}>
-              {selectedItems.size === filteredItems.length && filteredItems.length > 0 ? 'Desselecionar' : 'Selecionar todos'}
-            </Button>
           </div>
         </div>
       </div>
@@ -619,7 +680,7 @@ const [searchTerm, setSearchTerm] = useState('');
             {filteredItems.map((item) => {
               const isSelected = selectedItems.has(item.id);
               const SourceIcon = sourceIcons[item.source || 'upload'] || Upload;
-              const isVideo = item.file_type.startsWith('video/');
+              const isVideo = isVideoItem(item);
 
               return (
                 <Card
@@ -717,6 +778,12 @@ const [searchTerm, setSearchTerm] = useState('');
                           <SourceIcon className="h-3 w-3" />
                           {sourceLabels[item.source || 'upload']}
                         </Badge>
+                        {isVideo && (
+                          <Badge variant="outline" className="text-[10px] h-5 text-white/80 border-white/30">
+                            <Video className="h-3 w-3 mr-1" />
+                            Vídeo
+                          </Badge>
+                        )}
                         {item.aspect_ratio && (
                           <Badge variant="outline" className="text-[10px] h-5 text-white/80 border-white/30">
                             {item.aspect_ratio}
@@ -732,12 +799,73 @@ const [searchTerm, setSearchTerm] = useState('');
         )}
       </ScrollArea>
 
+      {/* Floating action bar when items selected */}
+      {selectedItems.size > 0 && (
+        <div className="fixed bottom-6 left-1/2 -translate-x-1/2 z-50 bg-background border shadow-lg rounded-full px-6 py-3 flex items-center gap-4">
+          <Badge variant="secondary" className="gap-1">
+            <CheckCircle2 className="h-3 w-3" />
+            {selectedItems.size} selecionado(s)
+          </Badge>
+          
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => setSelectedItems(new Set())}
+          >
+            <X className="h-4 w-4 mr-1" />
+            Limpar
+          </Button>
+          
+          <Button
+            variant="destructive"
+            size="sm"
+            onClick={() => setShowDeleteConfirm(true)}
+            disabled={deleteMutation.isPending}
+          >
+            <Trash2 className="h-4 w-4 mr-1" />
+            Eliminar {selectedItems.size}
+          </Button>
+        </div>
+      )}
+
+      {/* Delete confirmation dialog */}
+      <AlertDialog open={showDeleteConfirm} onOpenChange={setShowDeleteConfirm}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Eliminar {selectedItems.size} ficheiro(s)?</AlertDialogTitle>
+            <AlertDialogDescription>
+              Esta ação é irreversível. Os ficheiros serão eliminados permanentemente 
+              da biblioteca e do armazenamento cloud.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={deleteMutation.isPending}>Cancelar</AlertDialogCancel>
+            <AlertDialogAction 
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+              onClick={() => {
+                deleteMutation.mutate(Array.from(selectedItems));
+              }}
+              disabled={deleteMutation.isPending}
+            >
+              {deleteMutation.isPending ? (
+                <>
+                  <RefreshCw className="h-4 w-4 mr-1 animate-spin" />
+                  A eliminar...
+                </>
+              ) : (
+                'Eliminar permanentemente'
+              )}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
       {/* Details Dialog */}
       <Dialog open={!!detailsItem} onOpenChange={(open) => !open && setDetailsItem(null)}>
         <DialogContent className="max-w-2xl">
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
-              {detailsItem?.file_type.startsWith('video/') ? (
+              {detailsItem && isVideoItem(detailsItem) ? (
                 <Video className="h-5 w-5" />
               ) : (
                 <Image className="h-5 w-5" />
@@ -767,7 +895,7 @@ const [searchTerm, setSearchTerm] = useState('');
                       Abrir PDF
                     </Button>
                   </div>
-                ) : detailsItem.file_type === 'video' || detailsItem.file_type.startsWith('video/') ? (
+                ) : isVideoItem(detailsItem) ? (
                   <video
                     src={detailsItem.file_url}
                     controls
@@ -892,8 +1020,9 @@ const [searchTerm, setSearchTerm] = useState('');
                     variant="destructive"
                     size="sm"
                     onClick={() => {
-                      deleteMutation.mutate([detailsItem.id]);
+                      setSelectedItems(new Set([detailsItem.id]));
                       setDetailsItem(null);
+                      setShowDeleteConfirm(true);
                     }}
                   >
                     <Trash2 className="h-4 w-4 mr-1" />
