@@ -269,12 +269,33 @@ const Calendar = () => {
     }
     
     try {
-      // Fetch posts with ALL relevant statuses (not just 4)
-      const [{ data: posts, error: postsError }, { data: stories, error: storiesError }, { data: drafts, error: draftsError }] = await Promise.all([
+      // Fetch posts with ALL relevant statuses - prioritize scheduled/recent posts
+      // Use 2 queries: one for scheduled posts (all), one for recent non-scheduled
+      const sixMonthsAgo = new Date(Date.now() - 180 * 24 * 60 * 60 * 1000).toISOString();
+      
+      const [
+        { data: scheduledPosts, error: scheduledError },
+        { data: recentPosts, error: recentError },
+        { data: stories, error: storiesError },
+        { data: drafts, error: draftsError }
+      ] = await Promise.all([
+        // Query 1: All posts with scheduled_date (past and future)
         supabase
           .from('posts')
           .select('id, tema, content_type, status, scheduled_date, reviewed_at, created_at, published_at, template_a_images, error_log, failed_at, recovery_token, selected_networks, external_post_ids')
-          .in('status', ['approved', 'published', 'failed', 'scheduled', 'waiting_for_approval', 'pending', 'publishing', 'requires_attention']),
+          .not('scheduled_date', 'is', null)
+          .in('status', ['approved', 'published', 'failed', 'scheduled', 'waiting_for_approval', 'pending', 'publishing', 'requires_attention'])
+          .order('scheduled_date', { ascending: false })
+          .limit(500),
+        // Query 2: Recent posts without scheduled_date (last 6 months)
+        supabase
+          .from('posts')
+          .select('id, tema, content_type, status, scheduled_date, reviewed_at, created_at, published_at, template_a_images, error_log, failed_at, recovery_token, selected_networks, external_post_ids')
+          .is('scheduled_date', null)
+          .in('status', ['approved', 'published', 'failed', 'waiting_for_approval', 'pending', 'publishing', 'requires_attention'])
+          .gte('created_at', sixMonthsAgo)
+          .order('created_at', { ascending: false })
+          .limit(500),
         supabase
           .from('stories')
           .select('id, tema, status, scheduled_date, reviewed_at, created_at, story_image_url')
@@ -286,9 +307,16 @@ const Calendar = () => {
           .eq('status', 'draft'),
       ]);
 
-      if (postsError || storiesError) {
-        throw new Error(postsError?.message || storiesError?.message);
+      if (scheduledError || recentError || storiesError) {
+        throw new Error(scheduledError?.message || recentError?.message || storiesError?.message);
       }
+      
+      // Combine posts, removing duplicates (scheduled posts take priority)
+      const scheduledIds = new Set((scheduledPosts || []).map(p => p.id));
+      const uniqueRecentPosts = (recentPosts || []).filter(p => !scheduledIds.has(p.id));
+      const posts = [...(scheduledPosts || []), ...uniqueRecentPosts];
+      
+      console.log(`[Calendar] Fetched ${scheduledPosts?.length || 0} scheduled + ${uniqueRecentPosts.length} recent = ${posts.length} total posts`);
 
       const postEvents: CalendarEvent[] = (posts || []).map((post) => {
         let eventDate: Date;
