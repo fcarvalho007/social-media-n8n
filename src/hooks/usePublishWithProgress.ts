@@ -915,6 +915,15 @@ if (imageUrlsForPdf.length > 0) {
             console.error('[usePublishWithProgress] DB update error:', updateError.message);
           } else {
             console.log('[usePublishWithProgress] Post updated successfully');
+            
+            // Clear calendar cache to force refresh
+            try {
+              localStorage.removeItem('calendar_events_cache');
+              localStorage.removeItem('calendar_last_updated');
+              console.log('[usePublishWithProgress] Calendar cache cleared');
+            } catch (cacheError) {
+              console.warn('[usePublishWithProgress] Failed to clear calendar cache:', cacheError);
+            }
           }
         } catch (updateError) {
           console.error('[usePublishWithProgress] DB update exception:', updateError);
