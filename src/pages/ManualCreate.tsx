@@ -63,6 +63,8 @@ import { generateCarouselPDF } from '@/lib/pdfGenerator';
 import EmojiPicker, { EmojiClickData } from 'emoji-picker-react';
 import { detectOversizedImages, compressOversizedFiles, OversizedImage } from '@/lib/canvas/imageCompression';
 import { ImageCompressionConfirmModal } from '@/components/publishing/ImageCompressionConfirmModal';
+import { VideoValidationModal, VideoValidationIssue } from '@/components/publishing/VideoValidationModal';
+import { getVideoDimensions } from '@/lib/mediaValidation';
 
 // Extract first frame from video file
 async function extractVideoFrame(videoFile: File | string): Promise<File> {
@@ -233,6 +235,11 @@ export default function ManualCreate() {
   const [oversizedImages, setOversizedImages] = useState<OversizedImage[]>([]);
   const [isCompressing, setIsCompressing] = useState(false);
   const [compressionProgress, setCompressionProgress] = useState<{ current: number; total: number; fileName: string } | undefined>();
+  
+  // Video validation state
+  const [videoValidationModalOpen, setVideoValidationModalOpen] = useState(false);
+  const [videoValidationIssues, setVideoValidationIssues] = useState<VideoValidationIssue[]>([]);
+  const [pendingVideoFiles, setPendingVideoFiles] = useState<File[]>([]);
 
   // Publishing hook with 2-phase progress
   const { 
@@ -747,6 +754,65 @@ export default function ManualCreate() {
       return;
     }
     
+    // Validate video constraints for Instagram carousel
+    const instagramSelected = selectedFormats.some(f => f.startsWith('instagram_'));
+    const isCarousel = selectedFormats.includes('instagram_carousel');
+    const videoFiles = newFiles.filter(f => f.type.startsWith('video/'));
+    
+    if (instagramSelected && videoFiles.length > 0) {
+      const issues: VideoValidationIssue[] = [];
+      
+      for (const videoFile of videoFiles) {
+        try {
+          const videoInfo = await getVideoDimensions(videoFile);
+          
+          // Check duration for carousel (max 60s)
+          if (isCarousel && videoInfo.duration > 60) {
+            issues.push({
+              fileName: videoFile.name,
+              issue: `Duração ${Math.round(videoInfo.duration)}s excede o limite de 60s para carrossel`,
+              suggestion: 'Use vídeos mais curtos ou publique como Reel',
+              type: 'duration',
+              severity: 'warning',
+            });
+          }
+          
+          // Check aspect ratio (Instagram accepts 4:5 to 1.91:1)
+          const ratio = videoInfo.width / videoInfo.height;
+          if (ratio < 0.8 || ratio > 1.91) {
+            issues.push({
+              fileName: videoFile.name,
+              issue: `Proporção ${ratio.toFixed(2)} fora dos limites (0.8 a 1.91)`,
+              suggestion: 'O Instagram aceita vídeos entre 4:5 e 1.91:1',
+              type: 'aspectRatio',
+              severity: 'warning',
+            });
+          }
+          
+          // Check minimum resolution
+          if (videoInfo.width < 600 || videoInfo.height < 600) {
+            issues.push({
+              fileName: videoFile.name,
+              issue: `Resolução ${videoInfo.width}x${videoInfo.height}px muito baixa`,
+              suggestion: 'Recomendado mínimo 600x600px',
+              type: 'resolution',
+              severity: 'warning',
+            });
+          }
+        } catch (err) {
+          console.warn('Could not validate video:', videoFile.name, err);
+        }
+      }
+      
+      // If there are video validation issues, show modal
+      if (issues.length > 0) {
+        setPendingVideoFiles(newFiles);
+        setVideoValidationIssues(issues);
+        setVideoValidationModalOpen(true);
+        return; // Wait for user confirmation
+      }
+    }
+    
     setIsUploading(true);
     setUploadProgress(0);
 
@@ -813,6 +879,62 @@ export default function ManualCreate() {
     });
     setMediaSources(prev => prev.filter((_, i) => i !== index));
     setMediaAspectRatios(prev => prev.filter((_, i) => i !== index));
+  };
+
+  // Handle video validation continue
+  const handleVideoValidationContinue = async () => {
+    setVideoValidationModalOpen(false);
+    const filesToAdd = pendingVideoFiles;
+    setPendingVideoFiles([]);
+    setVideoValidationIssues([]);
+    
+    // Proceed with adding the files
+    setIsUploading(true);
+    setUploadProgress(0);
+
+    const newUrls = filesToAdd.map(file => URL.createObjectURL(file));
+    
+    // Detect aspect ratios for new files
+    const newAspectRatios: string[] = [];
+    for (const file of filesToAdd) {
+      if (file.type.startsWith('image/')) {
+        const ratio = await detectImageAspectRatio(file);
+        newAspectRatios.push(ratio);
+      } else if (file.type.startsWith('video/')) {
+        const ratio = await detectVideoAspectRatio(file);
+        newAspectRatios.push(ratio);
+      } else {
+        newAspectRatios.push('auto');
+      }
+    }
+    
+    const interval = setInterval(() => {
+      setUploadProgress(prev => {
+        if (prev >= 100) {
+          clearInterval(interval);
+          setIsUploading(false);
+          return 100;
+        }
+        return prev + 10;
+      });
+    }, 50);
+
+    const combinedFiles = [...mediaFiles, ...filesToAdd];
+    const combinedUrls = [...mediaPreviewUrls, ...newUrls];
+    
+    setMediaFiles(combinedFiles);
+    setMediaPreviewUrls(combinedUrls);
+    setMediaSources(prev => [...prev, ...Array(filesToAdd.length).fill('upload' as MediaSource)]);
+    setMediaAspectRatios(prev => [...prev, ...newAspectRatios]);
+    
+    toast.success(`${filesToAdd.length} ficheiro(s) adicionado(s) com avisos. Total: ${combinedFiles.length}`);
+  };
+
+  const handleVideoValidationCancel = () => {
+    setVideoValidationModalOpen(false);
+    setPendingVideoFiles([]);
+    setVideoValidationIssues([]);
+    toast.info('Upload cancelado');
   };
 
   const handleSaveDraft = async () => {
@@ -2400,6 +2522,15 @@ export default function ManualCreate() {
         oversizedImages={oversizedImages}
         isCompressing={isCompressing}
         compressionProgress={compressionProgress}
+      />
+
+      {/* Video Validation Modal */}
+      <VideoValidationModal
+        open={videoValidationModalOpen}
+        onOpenChange={setVideoValidationModalOpen}
+        issues={videoValidationIssues}
+        onContinue={handleVideoValidationContinue}
+        onCancel={handleVideoValidationCancel}
       />
 
       {/* Publish Progress Modal with 2 phases */}
