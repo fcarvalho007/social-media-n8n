@@ -26,6 +26,13 @@ export const ERROR_MESSAGES: Record<string, ErrorInfo> = {
     isRetryable: true,
     source: 'platform',
   },
+  media_processing: {
+    title: 'Processamento de vídeo em curso',
+    description: 'O Instagram está a processar o vídeo. Este processo pode demorar até 5 minutos.',
+    action: 'Aguarda e verifica no Getlate.dev ou Instagram',
+    isRetryable: true,
+    source: 'platform',
+  },
   account_error: {
     title: 'Conta não associada',
     description: 'A conta de rede social não está ligada ao teu utilizador Getlate.',
@@ -146,6 +153,11 @@ export function classifyError(errorMessage: string | undefined): string {
   
   const lower = errorMessage.toLowerCase();
   
+  // Media processing errors (Instagram video carousel)
+  if (lower.includes('media processing failed') || lower.includes('status_code":"error"')) {
+    return 'media_processing';
+  }
+  
   // Rate limit errors
   if (lower.includes('too many actions') || lower.includes('rate limit') || lower.includes('429') || lower.includes('please wait') || lower.includes('media container')) {
     return 'rate_limit';
@@ -236,6 +248,18 @@ export function classifyErrorFromString(errorString: string, httpStatus?: number
       isRetryable: false,
       originalError: httpStatus ? `${httpStatus}: ${errorString}` : errorString,
       suggestedAction: 'A conta não está ligada ao teu utilizador Getlate. Reconecta em getlate.dev/accounts',
+    };
+  }
+  
+  // Media processing failed (Instagram video carousel)
+  if (lower.includes('media processing failed') || lower.includes('status_code":"error"')) {
+    return {
+      message: 'Processamento de vídeo em curso',
+      code: 'MEDIA_PROCESSING',
+      source: 'platform',
+      isRetryable: true,
+      originalError: httpStatus ? `${httpStatus}: ${errorString}` : errorString,
+      suggestedAction: 'O Instagram pode demorar até 5 minutos a processar vídeos. Verifica o status no Getlate.dev',
     };
   }
   

@@ -119,6 +119,9 @@ const statusConfig = {
   scheduled: { label: 'Agendado', color: 'bg-purple-100 text-purple-800 dark:bg-purple-900/30 dark:text-purple-400', icon: Calendar },
   approved: { label: 'Aprovado', color: 'bg-emerald-100 text-emerald-800 dark:bg-emerald-900/30 dark:text-emerald-400', icon: CheckCircle2 },
   rejected: { label: 'Rejeitado', color: 'bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-400', icon: XCircle },
+  draft: { label: 'Rascunho', color: 'bg-gray-100 text-gray-800 dark:bg-gray-900/30 dark:text-gray-400', icon: FileText },
+  waiting_for_approval: { label: 'A aguardar', color: 'bg-orange-100 text-orange-800 dark:bg-orange-900/30 dark:text-orange-400', icon: Clock },
+  requires_attention: { label: 'Atenção', color: 'bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-400', icon: AlertTriangle },
 };
 
 export default function PublicationHistory() {
@@ -216,8 +219,12 @@ export default function PublicationHistory() {
         // Skip if we already have attempts for this post
         if (seenPostIds.has(post.id)) continue;
 
-        // Only show posts that are interesting (not just pending from workflow)
-        const showableStatuses = ['publishing', 'published', 'failed', 'scheduled', 'approved', 'rejected'];
+        // Show all relevant posts including drafts, pending, and waiting_for_approval
+        const showableStatuses = [
+          'publishing', 'published', 'failed', 'scheduled', 
+          'approved', 'rejected', 'pending', 'waiting_for_approval', 
+          'draft', 'requires_attention'
+        ];
         if (!post.status || !showableStatuses.includes(post.status)) continue;
 
         const networks = post.selected_networks || [];
