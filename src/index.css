@@ -738,6 +738,8 @@ All colors MUST be HSL.
 /* Quick Presets */
 .quick-presets {
   margin-bottom: 20px;
+  max-width: 100%;
+  overflow: hidden;
 }
 
 .preset-card {
@@ -810,6 +812,8 @@ All colors MUST be HSL.
   scrollbar-width: none;
   -ms-overflow-style: none;
   -webkit-overflow-scrolling: touch;
+  max-width: 100%;
+  overflow: hidden;
 }
 
 .platform-chips::-webkit-scrollbar {
@@ -818,6 +822,7 @@ All colors MUST be HSL.
 
 .platform-chip {
   box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08);
+  /* No min-width - controlled by Tailwind */
 }
 
 .platform-chip:hover {

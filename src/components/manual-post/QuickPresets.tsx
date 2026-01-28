@@ -88,15 +88,15 @@ export function QuickPresets({ selectedFormats, onSelectPreset }: QuickPresetsPr
   };
 
   return (
-    <div className="quick-presets mb-2 sm:mb-5 overflow-hidden">
+    <div className="quick-presets mb-2 sm:mb-5 overflow-hidden max-w-full">
       <div className="flex items-center gap-1.5 mb-1.5 sm:mb-2 px-0">
         <Sparkles size={12} className="text-amber-500 sm:w-[14px] sm:h-[14px]" />
         <span className="text-[10px] sm:text-[13px] font-medium text-muted-foreground">Seleção rápida:</span>
       </div>
       
-      {/* Horizontal scrollable with scroll fade indicator */}
-      <div className="relative -mx-3 sm:mx-0">
-        <div className="flex gap-2 overflow-x-auto px-3 pb-2 sm:px-0 sm:flex-wrap sm:overflow-visible scrollbar-hide snap-x snap-mandatory">
+      {/* Horizontal scrollable - no negative margins to prevent overflow */}
+      <div className="relative overflow-hidden">
+        <div className="flex gap-2 overflow-x-auto pb-2 sm:flex-wrap sm:overflow-visible scrollbar-hide snap-x snap-mandatory">
           {FORMAT_PRESETS.map(preset => {
             const isActive = isPresetActive(preset);
             const isPartial = isPresetPartial(preset);
@@ -163,7 +163,7 @@ export function QuickPresets({ selectedFormats, onSelectPreset }: QuickPresetsPr
       </div>
       
       <div className="presets-divider mt-2 sm:mt-4">
-        <span className="text-[10px] sm:text-xs">ou seleciona manualmente</span>
+        <span className="text-[10px] sm:text-xs text-center">ou seleciona manualmente</span>
       </div>
     </div>
   );
