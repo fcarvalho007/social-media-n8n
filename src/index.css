@@ -941,40 +941,18 @@ All colors MUST be HSL.
   transform: scale(1.1);
 }
 
-/* Mobile Responsive */
+/* Mobile Responsive - Simplified */
 @media (max-width: 640px) {
-  .quick-presets .flex {
-    flex-wrap: nowrap;
-    overflow-x: auto;
-    margin-left: -1rem;
-    margin-right: -1rem;
-    padding-left: 1rem;
-    padding-right: 1rem;
-    scrollbar-width: none;
-    -ms-overflow-style: none;
-  }
-  
-  .quick-presets .flex::-webkit-scrollbar {
-    display: none;
-  }
-  
+  /* Presets - handled by Tailwind classes now */
   .preset-card {
     flex-shrink: 0;
-    min-width: 160px;
+    min-width: unset !important;
   }
 
-  .platform-chips {
-    flex-wrap: nowrap;
-    overflow-x: auto;
-    margin-left: -1rem;
-    margin-right: -1rem;
-    padding-left: 1rem;
-    padding-right: 1rem;
-  }
-  
+  /* Platform chips - handled by Tailwind classes now */
   .platform-chip {
     flex-shrink: 0;
-    min-width: 100px;
+    min-width: unset !important;
   }
   
   .formats-panel {
