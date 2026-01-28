@@ -71,7 +71,7 @@ export function NetworkFormatSelector({ selectedFormats, onFormatsChange }: Netw
   };
 
   return (
-    <Card className="overflow-hidden border-0 sm:border shadow-none sm:shadow-sm">
+    <Card className="overflow-hidden border-0 sm:border shadow-none sm:shadow-sm max-w-full">
       <CardHeader className="pb-2 sm:pb-2 px-3 sm:px-6 pt-3 sm:pt-6">
         <div className="flex items-center justify-between">
           <CardTitle className="text-sm sm:text-lg font-semibold">Selecione onde publicar</CardTitle>
@@ -103,21 +103,23 @@ export function NetworkFormatSelector({ selectedFormats, onFormatsChange }: Netw
               onSelectPreset={handlePresetSelect}
             />
 
-            {/* Platform Chips - 2 cols on small mobile, 3 on larger, flex on desktop */}
+            {/* Platform Chips - Horizontal scroll on mobile */}
             <div 
-              className="platform-chips grid grid-cols-2 xs:grid-cols-3 gap-2.5 sm:flex sm:gap-3 sm:flex-wrap pb-3 sm:pb-0"
+              className="platform-chips -mx-3 sm:mx-0"
               role="tablist"
               aria-label="Plataformas disponíveis"
             >
-              {enabledNetworks.map((network) => (
-                <PlatformChip
-                  key={network}
-                  platform={network}
-                  selectedCount={getSelectedCount(network)}
-                  isExpanded={expandedPlatform === network}
-                  onClick={() => toggleExpand(network)}
-                />
-              ))}
+              <div className="flex gap-2 overflow-x-auto px-3 pb-2 sm:px-0 sm:flex-wrap sm:overflow-visible scrollbar-hide">
+                {enabledNetworks.map((network) => (
+                  <PlatformChip
+                    key={network}
+                    platform={network}
+                    selectedCount={getSelectedCount(network)}
+                    isExpanded={expandedPlatform === network}
+                    onClick={() => toggleExpand(network)}
+                  />
+                ))}
+              </div>
             </div>
 
             {/* Formats Panel (conditional) */}

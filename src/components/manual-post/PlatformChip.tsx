@@ -18,9 +18,11 @@ export function PlatformChip({ platform, selectedCount, isExpanded, onClick }: P
       type="button"
       onClick={onClick}
       className={cn(
-        "platform-chip group",
-        "flex items-center justify-center gap-1 sm:gap-2 px-2 py-2.5 sm:px-3 sm:py-2",
-        "min-h-[44px]",
+        "platform-chip group relative",
+        "flex flex-col sm:flex-row items-center justify-center gap-0.5 sm:gap-2",
+        "w-[72px] sm:w-auto sm:min-w-[110px]",
+        "px-2 py-2 sm:px-3 sm:py-2",
+        "min-h-[44px] sm:min-h-[44px]",
         "rounded-lg sm:rounded-xl border-2 bg-card",
         "transition-all duration-200",
         "hover:shadow-md hover:-translate-y-0.5",
@@ -36,39 +38,39 @@ export function PlatformChip({ platform, selectedCount, isExpanded, onClick }: P
       aria-expanded={isExpanded}
       aria-label={`${config.name} - ${selectedCount} formatos selecionados`}
     >
-      {/* Icon Container - Smaller on mobile */}
+      {/* Selected Badge - Positioned absolutely */}
+      {selectedCount > 0 && (
+        <span 
+          className="absolute -top-1.5 -right-1.5 min-w-[18px] h-[18px] px-1 rounded-full text-[9px] font-bold text-white flex items-center justify-center shadow-sm"
+          style={{ backgroundColor: config.colorHex }}
+        >
+          {selectedCount}
+        </span>
+      )}
+      
+      {/* Icon */}
       <div 
         className={cn(
-          "w-6 h-6 sm:w-8 sm:h-8 rounded-md sm:rounded-lg flex items-center justify-center",
+          "w-6 h-6 sm:w-7 sm:h-7 rounded-md flex items-center justify-center",
           "transition-all duration-200"
         )}
         style={{ backgroundColor: `${config.colorHex}15` }}
       >
-        <PlatformIcon platform={platform} className="w-3.5 h-3.5 sm:w-5 sm:h-5" colored />
+        <PlatformIcon platform={platform} className="w-3.5 h-3.5 sm:w-4 sm:h-4" colored />
       </div>
       
-      {/* Platform Name - Short on mobile, full on desktop */}
+      {/* Platform Name */}
       <span className={cn(
-        "font-medium text-[11px] sm:text-sm text-foreground leading-tight"
+        "font-medium text-[10px] sm:text-xs text-foreground leading-tight text-center sm:text-left truncate max-w-full"
       )}>
-        <span className="sm:hidden">{config.shortName || config.name.slice(0, 5)}</span>
+        <span className="sm:hidden">{config.shortName || config.name.slice(0, 4)}</span>
         <span className="hidden sm:inline">{config.name}</span>
       </span>
       
-      {/* Selected Badge */}
-      {selectedCount > 0 && (
-        <span 
-          className="platform-chip-badge px-1 py-0.5 sm:px-1.5 rounded-full text-[8px] sm:text-[11px] font-semibold text-white"
-          style={{ backgroundColor: config.colorHex }}
-        >
-          ✓{selectedCount}
-        </span>
-      )}
-      
-      {/* Chevron - Hidden on mobile */}
+      {/* Chevron - Desktop only */}
       <ChevronDown 
         className={cn(
-          "w-3 h-3 sm:w-4 sm:h-4 text-muted-foreground transition-transform duration-200",
+          "w-3.5 h-3.5 text-muted-foreground transition-transform duration-200",
           "hidden sm:block",
           isExpanded && "rotate-180"
         )} 
