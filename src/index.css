@@ -465,23 +465,7 @@ All colors MUST be HSL.
     overscroll-behavior: contain;
   }
   
-  /* Mobile spacing adjustments for /manual-create */
-  @media (max-width: 640px) {
-    .platform-chips {
-      padding-left: 0.25rem;
-      padding-right: 0.25rem;
-    }
-    
-    .quick-presets {
-      padding-left: 0.25rem;
-      padding-right: 0.25rem;
-    }
-    
-    .platform-chip,
-    .preset-card {
-      min-height: 44px !important;
-    }
-  }
+  /* Mobile spacing adjustments removed - controlled by Tailwind */
 
   /* Smooth animations */
   .animate-fade-in {
@@ -834,7 +818,6 @@ All colors MUST be HSL.
 
 .platform-chip {
   box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08);
-  min-width: 120px;
 }
 
 .platform-chip:hover {

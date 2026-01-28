@@ -112,7 +112,7 @@ export function QuickPresets({ selectedFormats, onSelectPreset }: QuickPresetsPr
                   "bg-card border-2 rounded-lg sm:rounded-xl",
                   "cursor-pointer transition-all duration-200",
                   "hover:shadow-lg hover:-translate-y-0.5",
-                  "text-left w-[130px] flex-shrink-0 sm:w-auto sm:min-w-[180px] sm:flex-shrink",
+                  "text-left w-[120px] flex-shrink-0 sm:w-auto sm:min-w-[180px] sm:flex-shrink",
                   isActive && "preset-card-active",
                   isPartial && "preset-card-partial"
                 )}
@@ -142,7 +142,7 @@ export function QuickPresets({ selectedFormats, onSelectPreset }: QuickPresetsPr
                   <span className="font-semibold text-[11px] sm:text-[13px] text-foreground leading-tight truncate">
                     {preset.shortName}
                   </span>
-                  <span className="text-[9px] sm:text-[11px] text-muted-foreground leading-tight truncate hidden xs:block">{preset.description}</span>
+                  <span className="text-[9px] sm:text-[11px] text-muted-foreground leading-tight truncate hidden sm:block">{preset.description}</span>
                 </div>
                 
                 {/* Tooltip - desktop only */}
@@ -163,7 +163,7 @@ export function QuickPresets({ selectedFormats, onSelectPreset }: QuickPresetsPr
       </div>
       
       <div className="presets-divider mt-2 sm:mt-4">
-        <span className="text-[10px] sm:text-xs whitespace-nowrap">ou seleciona manualmente</span>
+        <span className="text-[10px] sm:text-xs">ou seleciona manualmente</span>
       </div>
     </div>
   );
