@@ -86,30 +86,30 @@ export function EnhancedSortableMediaItem({
         disabled && "opacity-50 pointer-events-none"
       )}
     >
-      {/* Top Bar - Controls outside media */}
-      <div className="flex items-center justify-between px-2 py-1.5 bg-muted/50 border-b border-border/50">
+      {/* Top Bar - More compact on mobile */}
+      <div className="flex items-center justify-between px-1.5 sm:px-2 py-1 sm:py-1.5 bg-muted/50 border-b border-border/50">
         {/* Left: Drag handle + Slide number */}
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-1 sm:gap-2">
           <div
             {...attributes}
             {...listeners}
             className={cn(
-              "p-1 rounded cursor-grab hover:bg-background/80 active:cursor-grabbing",
+              "p-0.5 sm:p-1 rounded cursor-grab hover:bg-background/80 active:cursor-grabbing",
               "touch-none select-none transition-colors",
               isDragging && "cursor-grabbing",
               disabled && "cursor-not-allowed"
             )}
             aria-label="Arrastar para reordenar"
           >
-            <GripVertical className="h-4 w-4 text-muted-foreground" />
+            <GripVertical className="h-3.5 w-3.5 sm:h-4 sm:w-4 text-muted-foreground" />
           </div>
-          <span className="text-xs font-medium text-foreground">
-            Slide {index + 1}
+          <span className="text-[10px] sm:text-xs font-medium text-foreground">
+            {index + 1}/{total}
           </span>
         </div>
 
-        {/* Center: Type and Source badges */}
-        <div className="flex items-center gap-1">
+        {/* Center: Type and Source badges - hidden on mobile */}
+        <div className="hidden sm:flex items-center gap-1">
           <Badge 
             variant="outline" 
             className="text-[10px] px-1.5 py-0 h-5 font-normal"
@@ -139,7 +139,7 @@ export function EnhancedSortableMediaItem({
           )}
         </div>
 
-        {/* Right: Remove button - always visible in red */}
+        {/* Right: Remove button */}
         <Button
           variant="ghost"
           size="icon"
@@ -151,7 +151,7 @@ export function EnhancedSortableMediaItem({
           disabled={disabled}
           aria-label={`Remover slide ${index + 1}`}
         >
-          <X className="h-3.5 w-3.5" />
+          <X className="h-3 w-3 sm:h-3.5 sm:w-3.5" />
         </Button>
       </div>
 
@@ -232,13 +232,13 @@ export function EnhancedSortableMediaItem({
         </DialogContent>
       </Dialog>
 
-      {/* Bottom Bar - Reorder controls */}
-      <div className="flex items-center justify-center gap-1 px-2 py-1.5 bg-muted/30 border-t border-border/50">
+      {/* Bottom Bar - Compact reorder controls */}
+      <div className="flex items-center justify-center gap-0.5 sm:gap-1 px-1.5 sm:px-2 py-1 sm:py-1.5 bg-muted/30 border-t border-border/50">
         <Button
           variant="ghost"
           size="sm"
           className={cn(
-            "h-7 px-2 text-xs gap-1",
+            "h-6 sm:h-7 w-8 sm:w-auto px-0 sm:px-2 text-xs gap-0.5",
             !canMoveUp && "opacity-40 cursor-not-allowed"
           )}
           onClick={(e) => {
@@ -248,19 +248,15 @@ export function EnhancedSortableMediaItem({
           disabled={!canMoveUp || disabled}
           aria-label="Mover para cima"
         >
-          <ChevronUp className="h-3.5 w-3.5" />
-          <span className="hidden sm:inline">Subir</span>
+          <ChevronUp className="h-4 w-4" />
+          <span className="hidden sm:inline text-xs">Subir</span>
         </Button>
-        
-        <span className="text-[10px] text-muted-foreground px-2">
-          {index + 1} / {total}
-        </span>
         
         <Button
           variant="ghost"
           size="sm"
           className={cn(
-            "h-7 px-2 text-xs gap-1",
+            "h-6 sm:h-7 w-8 sm:w-auto px-0 sm:px-2 text-xs gap-0.5",
             !canMoveDown && "opacity-40 cursor-not-allowed"
           )}
           onClick={(e) => {
@@ -270,8 +266,8 @@ export function EnhancedSortableMediaItem({
           disabled={!canMoveDown || disabled}
           aria-label="Mover para baixo"
         >
-          <span className="hidden sm:inline">Descer</span>
-          <ChevronDown className="h-3.5 w-3.5" />
+          <span className="hidden sm:inline text-xs">Descer</span>
+          <ChevronDown className="h-4 w-4" />
         </Button>
       </div>
     </div>
