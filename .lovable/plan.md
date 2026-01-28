@@ -1,224 +1,155 @@
 
-## Plano de Correção - Layout Mobile `/manual-create`
+## Plano de Correção - Layout Mobile `/manual-create` (v3)
 
 ### Problemas Identificados na Imagem
 
-1. **Preset cards (Carrossel, Vídeo 9:16)**: Excedem a largura do ecrã porque têm `min-width: 160px` + `min-w-[120px]` conflitantes
-2. **Platform chips (Insta, TikTok)**: Grid 2 colunas + `min-width: 100px` causa overflow horizontal
-3. **Texto "OU SELEC..."**: Divider cortado porque o container pai está em overflow
-4. **Conflito de margens**: CSS usa `margin: -1rem` para edge-to-edge mas conflita com o layout do Card
+Analisando a screenshot, identifico os seguintes problemas:
+
+1. **Preset Cards muito grandes**: Os cards "Carrossel" e "Vídeo 9:16" estão a mostrar descrições completas ("Instagram Carros...", "Reels + Shorts +...") quando deviam mostrar apenas o nome curto
+2. **Platform Chips em grid 2x2**: Os chips Insta, LinkedIn, YouTube, TikTok estão em layout de grid em vez de scroll horizontal - ocupam demasiado espaço vertical
+3. **CSS conflitante**: A regra `.platform-chip { min-width: 120px; }` (linha 837) está a sobrepor as classes Tailwind `w-[72px]`
+4. **Divider cortado**: "OU SELECIONA MANUA..." está truncado porque o texto tem `whitespace-nowrap` mas o container não tem espaço
 
 ---
 
-### Correção 1: Presets com Scroll Horizontal Correto
+### Correção 1: Remover min-width do CSS
 
-**Ficheiro: `src/components/manual-post/QuickPresets.tsx`**
+**Ficheiro: `src/index.css`** (linha 837)
 
-O container precisa de `overflow-hidden` no pai e `overflow-x-auto` no scroll container, com larguras adequadas:
-
-```tsx
-// Linha 98 - Container relativo
-<div className="relative -mx-3 sm:mx-0">
-  <div className="flex gap-2 overflow-x-auto px-3 pb-2 sm:px-0 sm:flex-wrap sm:overflow-visible scrollbar-hide snap-x snap-mandatory">
-    {FORMAT_PRESETS.map(preset => (
-      <button
-        key={preset.id}
-        className={cn(
-          "preset-card snap-start",
-          "relative flex items-center gap-2 px-2.5 py-2",
-          "bg-card border-2 rounded-lg",
-          "cursor-pointer transition-all",
-          "text-left w-[140px] flex-shrink-0 sm:w-auto sm:min-w-[180px] sm:flex-shrink",
-          // ...resto das classes
-        )}
-      >
-        {/* Emoji mais pequeno em mobile */}
-        <span className="text-base sm:text-xl">{preset.emoji}</span>
-        
-        {/* Texto apenas nome curto em mobile */}
-        <div className="flex flex-col min-w-0 flex-1">
-          <span className="font-medium text-[11px] sm:text-[13px] truncate">
-            {preset.shortName}
-          </span>
-        </div>
-      </button>
-    ))}
-  </div>
-  
-  {/* Indicador de scroll apenas quando necessário */}
-  <div className="absolute right-0 top-0 bottom-2 w-8 bg-gradient-to-l from-background to-transparent pointer-events-none sm:hidden" />
-</div>
-```
-
----
-
-### Correção 2: Platform Chips em Grid Responsivo
-
-**Ficheiro: `src/components/manual-post/NetworkFormatSelector.tsx`**
-
-Mudar de grid para scroll horizontal em mobile para evitar overflow:
-
-```tsx
-// Linha 107-121 - Platform Chips
-<div 
-  className="platform-chips -mx-3 sm:mx-0"
-  role="tablist"
->
-  <div className="flex gap-2 overflow-x-auto px-3 pb-2 sm:px-0 sm:flex-wrap sm:overflow-visible scrollbar-hide">
-    {enabledNetworks.map((network) => (
-      <PlatformChip
-        key={network}
-        platform={network}
-        selectedCount={getSelectedCount(network)}
-        isExpanded={expandedPlatform === network}
-        onClick={() => toggleExpand(network)}
-      />
-    ))}
-  </div>
-</div>
-```
-
----
-
-### Correção 3: Platform Chip Mais Compacto
-
-**Ficheiro: `src/components/manual-post/PlatformChip.tsx`**
-
-Largura fixa em mobile para caber correctamente:
-
-```tsx
-<button
-  type="button"
-  onClick={onClick}
-  className={cn(
-    "platform-chip group",
-    "flex items-center gap-1.5 px-2.5 py-2",
-    "w-[80px] sm:w-auto sm:min-w-[110px]", // Largura fixa mobile
-    "min-h-[40px] sm:min-h-[44px]",
-    "rounded-lg border-2 bg-card flex-shrink-0",
-    "transition-all duration-200",
-    isExpanded && "platform-chip-expanded",
-    selectedCount > 0 && "platform-chip-selected"
-  )}
->
-  {/* Conteúdo vertical em mobile */}
-  <div className="flex flex-col sm:flex-row items-center gap-0.5 sm:gap-1.5 w-full">
-    <PlatformIcon platform={platform} className="w-4 h-4" colored />
-    <span className="text-[10px] sm:text-xs font-medium truncate">
-      {config.shortName || config.name.slice(0, 4)}
-    </span>
-  </div>
-  
-  {/* Badge */}
-  {selectedCount > 0 && (
-    <span className="absolute -top-1 -right-1 w-4 h-4 bg-primary text-white text-[8px] rounded-full flex items-center justify-center">
-      {selectedCount}
-    </span>
-  )}
-</button>
-```
-
----
-
-### Correção 4: CSS - Remover Conflitos de Margens
-
-**Ficheiro: `src/index.css`**
-
-Simplificar os estilos mobile para evitar conflitos:
+O CSS global tem `min-width: 120px` que conflita com o Tailwind. Precisa ser removido:
 
 ```css
-/* Mobile Responsive - SIMPLIFICADO */
-@media (max-width: 640px) {
-  /* Presets scroll horizontal */
-  .quick-presets {
-    margin-left: 0;
-    margin-right: 0;
-  }
-  
-  .preset-card {
-    flex-shrink: 0;
-    min-width: unset; /* Remover min-width conflitante */
-    width: 130px; /* Largura fixa */
-  }
+/* ANTES */
+.platform-chip {
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08);
+  min-width: 120px; /* <- PROBLEMA */
+}
 
-  /* Platform chips scroll horizontal */
-  .platform-chips {
-    margin-left: 0;
-    margin-right: 0;
-  }
-  
-  .platform-chip {
-    flex-shrink: 0;
-    min-width: unset; /* Remover min-width conflitante */
-    width: 75px; /* Largura fixa compacta */
-  }
+/* DEPOIS */
+.platform-chip {
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08);
+  /* min-width removido - controlado por Tailwind */
 }
 ```
 
 ---
 
-### Correção 5: Divider "ou seleciona manualmente"
+### Correção 2: Preset Cards Mais Compactos
 
 **Ficheiro: `src/components/manual-post/QuickPresets.tsx`**
 
-Garantir que o divider não é cortado:
+Reduzir o tamanho dos cards em mobile - esconder descrição completamente:
 
 ```tsx
-// Linha 166-168
-<div className="presets-divider mt-2 sm:mt-4 px-3 sm:px-0">
-  <span className="text-[10px] sm:text-xs whitespace-nowrap">ou seleciona manualmente</span>
+// Linha 115 - Largura mais pequena
+"text-left w-[120px] flex-shrink-0 sm:w-auto sm:min-w-[180px]"
+
+// Linha 145 - Esconder descrição em mobile (remover hidden xs:block, colocar apenas sm:block)
+<span className="text-[9px] sm:text-[11px] text-muted-foreground leading-tight truncate hidden sm:block">
+  {preset.description}
+</span>
+```
+
+---
+
+### Correção 3: Platform Chips Menores e em Scroll
+
+**Ficheiro: `src/components/manual-post/PlatformChip.tsx`**
+
+Reduzir para chips ainda mais compactos (64px):
+
+```tsx
+// Linha 23 - Largura reduzida
+"w-[64px] sm:w-auto sm:min-w-[110px]"
+
+// Linha 25 - Altura reduzida
+"min-h-[56px] sm:min-h-[44px]"
+
+// Linhas 53-56 - Ícone mais pequeno em mobile
+<div className="w-5 h-5 sm:w-7 sm:h-7 rounded-md flex items-center justify-center">
+  <PlatformIcon platform={platform} className="w-3 h-3 sm:w-4 sm:h-4" colored />
 </div>
 ```
 
 ---
 
-### Correção 6: Container Principal com overflow-hidden
+### Correção 4: Divider Responsivo
 
-**Ficheiro: `src/components/manual-post/NetworkFormatSelector.tsx`**
+**Ficheiro: `src/components/manual-post/QuickPresets.tsx`**
 
-Garantir que o Card não permite overflow:
+Permitir que o texto do divider faça wrap se necessário:
 
 ```tsx
-<Card className="overflow-hidden border-0 sm:border shadow-none sm:shadow-sm">
-  <CardContent className="space-y-2 px-3 sm:px-6 pb-4 sm:pb-6 overflow-hidden">
-    {/* Conteúdo */}
-  </CardContent>
-</Card>
+// Linha 166 - Remover whitespace-nowrap
+<div className="presets-divider mt-2 sm:mt-4">
+  <span className="text-[10px] sm:text-xs text-center">ou seleciona manualmente</span>
+</div>
+```
+
+---
+
+### Correção 5: Remover Espaçamento Extra do CSS
+
+**Ficheiro: `src/index.css`** (linhas 469-484)
+
+Remover padding extra que está a ser aplicado:
+
+```css
+/* ANTES */
+@media (max-width: 640px) {
+  .platform-chips {
+    padding-left: 0.25rem;
+    padding-right: 0.25rem;
+  }
+  
+  .quick-presets {
+    padding-left: 0.25rem;
+    padding-right: 0.25rem;
+  }
+}
+
+/* DEPOIS - Remover estas regras duplicadas */
 ```
 
 ---
 
 ### Resumo das Alterações
 
-| Ficheiro | Alteração |
-|----------|-----------|
-| `QuickPresets.tsx` | Container com `-mx-3`, cards com `w-[140px]`, scroll horizontal |
-| `NetworkFormatSelector.tsx` | Chips em scroll horizontal com `-mx-3`, container `overflow-hidden` |
-| `PlatformChip.tsx` | Largura fixa `w-[80px]`, layout vertical compacto |
-| `index.css` | Remover `min-width` conflitantes, usar larguras fixas |
+| Ficheiro | Linha | Alteração |
+|----------|-------|-----------|
+| `src/index.css` | 837 | Remover `min-width: 120px` de `.platform-chip` |
+| `src/index.css` | 469-484 | Remover padding duplicado mobile |
+| `QuickPresets.tsx` | 115 | Largura `w-[120px]` (era 130px) |
+| `QuickPresets.tsx` | 145 | Descrição apenas `sm:block` (esconder em mobile) |
+| `QuickPresets.tsx` | 166 | Remover `whitespace-nowrap` do divider |
+| `PlatformChip.tsx` | 23 | Largura `w-[64px]` (era 72px) |
+| `PlatformChip.tsx` | 25 | Altura `min-h-[56px]` para acomodar layout vertical |
+| `PlatformChip.tsx` | 53-59 | Ícone `w-5 h-5` (era w-6 h-6) |
 
 ---
 
-### Resultado Visual Esperado
+### Layout Visual Esperado
 
 ```text
-┌─────────────────────────────────┐
-│ Selecione onde publicar         │
-├─────────────────────────────────┤
-│ ✨ Seleção rápida:              │
-│ ┌────────┐ ┌────────┐ ┌────    │
-│ │🎠      │ │📱      │ │...→    │ ← scroll horizontal
-│ │Carross.│ │Vídeo   │ │        │
-│ └────────┘ └────────┘ └────    │
-│                                 │
-│ ────── ou seleciona ──────     │
-│                                 │
-│ ┌────┐ ┌────┐ ┌────┐ ┌────┐   │
-│ │ IG │ │ LI │ │ FB │ │ TT │ → │ ← scroll horizontal
+┌────────────────────────────────┐
+│ Selecione onde publicar        │
+├────────────────────────────────┤
+│ ✨ Seleção rápida:             │
+│ ┌──────┐ ┌──────┐ ┌──────┐ →  │
+│ │ 🎠   │ │ 📱   │ │ 📝   │    │
+│ │Carros│ │Vídeo │ │Post  │    │
+│ └──────┘ └──────┘ └──────┘    │
+│                                │
+│ ─── ou seleciona manualmente ──│
+│                                │
+│ ┌────┐ ┌────┐ ┌────┐ ┌────┐ → │
+│ │ IG │ │ LI │ │ YT │ │ TT │   │
 │ └────┘ └────┘ └────┘ └────┘   │
-│                                 │
+│                                │
 │ Selecionados: Nenhum formato   │
-└─────────────────────────────────┘
+└────────────────────────────────┘
 ```
 
-Ambas as secções terão scroll horizontal suave em mobile, sem exceder a largura do ecrã.
+- Preset cards: 120px x compactos (apenas emoji + nome curto)
+- Platform chips: 64px x 56px (layout vertical, scroll horizontal)
+- Divider: texto centralizado sem truncagem
