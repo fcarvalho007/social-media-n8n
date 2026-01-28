@@ -141,7 +141,7 @@ export const CreateProjectModal = ({ open, onClose }: CreateProjectModalProps) =
 
   return (
     <Dialog open={open} onOpenChange={onClose}>
-      <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto backdrop-blur-xl bg-background/95 border-2" aria-label="Modal de criar projeto">
+      <DialogContent className="max-w-2xl w-[calc(100vw-2rem)] max-h-[90vh] overflow-y-auto backdrop-blur-xl bg-background/95 border-2" aria-label="Modal de criar projeto">
         <DialogHeader>
           <DialogTitle>Criar Projeto</DialogTitle>
         </DialogHeader>
@@ -172,8 +172,8 @@ export const CreateProjectModal = ({ open, onClose }: CreateProjectModalProps) =
             />
           </div>
 
-          {/* Cor e Ícone */}
-          <div className="grid grid-cols-2 gap-4">
+          {/* Cor e Ícone - Stack on mobile */}
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div>
               <Label>Cor</Label>
               <div className="flex gap-2 flex-wrap mt-2">
@@ -181,7 +181,7 @@ export const CreateProjectModal = ({ open, onClose }: CreateProjectModalProps) =
                   <button
                     key={color}
                     type="button"
-                    className={`w-10 h-10 rounded-full border-2 transition-all ${
+                    className={`w-8 h-8 sm:w-10 sm:h-10 rounded-full border-2 transition-all ${
                       formData.color === color ? 'border-primary scale-110' : 'border-transparent'
                     }`}
                     style={{ backgroundColor: color }}
@@ -194,12 +194,12 @@ export const CreateProjectModal = ({ open, onClose }: CreateProjectModalProps) =
 
             <div>
               <Label>Ícone</Label>
-              <div className="flex gap-2 flex-wrap mt-2">
+              <div className="flex gap-1.5 sm:gap-2 flex-wrap mt-2 max-h-24 overflow-y-auto">
                 {PROJECT_ICONS.map((icon) => (
                   <button
                     key={icon}
                     type="button"
-                    className={`text-2xl p-2 rounded-lg border-2 transition-all ${
+                    className={`text-xl sm:text-2xl p-1.5 sm:p-2 rounded-lg border-2 transition-all ${
                       formData.icon === icon ? 'border-primary bg-primary/10' : 'border-transparent hover:bg-accent'
                     }`}
                     onClick={() => setFormData({ ...formData, icon })}
@@ -228,13 +228,14 @@ export const CreateProjectModal = ({ open, onClose }: CreateProjectModalProps) =
             </Select>
           </div>
 
-          {/* Datas */}
-          <div className="grid grid-cols-2 gap-4">
+          {/* Datas - Stack on mobile */}
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div>
               <Label htmlFor="start_date">Data de Início</Label>
               <Input
                 id="start_date"
                 type="date"
+                className="w-full"
                 value={formData.start_date}
                 onChange={(e) => setFormData({ ...formData, start_date: e.target.value })}
               />
@@ -244,6 +245,7 @@ export const CreateProjectModal = ({ open, onClose }: CreateProjectModalProps) =
               <Input
                 id="due_date"
                 type="date"
+                className="w-full"
                 value={formData.due_date}
                 onChange={(e) => setFormData({ ...formData, due_date: e.target.value })}
               />

@@ -71,7 +71,7 @@ export function NetworkFormatSelector({ selectedFormats, onFormatsChange }: Netw
   };
 
   return (
-    <Card className="overflow-hidden border-0 sm:border shadow-none sm:shadow-sm max-w-full">
+    <Card className="overflow-hidden border-0 sm:border shadow-none sm:shadow-sm w-full max-w-full">
       <CardHeader className="pb-2 sm:pb-2 px-3 sm:px-6 pt-3 sm:pt-6">
         <div className="flex items-center justify-between">
           <CardTitle className="text-sm sm:text-lg font-semibold">Selecione onde publicar</CardTitle>
@@ -87,7 +87,7 @@ export function NetworkFormatSelector({ selectedFormats, onFormatsChange }: Netw
           )}
         </div>
       </CardHeader>
-      <CardContent className="space-y-3 px-3 sm:px-6 pb-4 sm:pb-6">
+      <CardContent className="space-y-3 px-3 sm:px-6 pb-4 sm:pb-6 overflow-hidden">
         {/* Collapsed state */}
         {isCollapsed && selectedFormats.length > 0 ? (
           <CollapsedFormatsSummary
@@ -103,13 +103,13 @@ export function NetworkFormatSelector({ selectedFormats, onFormatsChange }: Netw
               onSelectPreset={handlePresetSelect}
             />
 
-            {/* Platform Chips - Horizontal scroll on mobile */}
+            {/* Platform Chips - Horizontal scroll on mobile - no negative margins */}
             <div 
-              className="platform-chips -mx-3 sm:mx-0"
+              className="platform-chips overflow-hidden"
               role="tablist"
               aria-label="Plataformas disponíveis"
             >
-              <div className="flex gap-2 overflow-x-auto px-3 pb-2 sm:px-0 sm:flex-wrap sm:overflow-visible scrollbar-hide">
+              <div className="flex gap-2 overflow-x-auto pb-2 sm:flex-wrap sm:overflow-visible scrollbar-hide">
                 {enabledNetworks.map((network) => (
                   <PlatformChip
                     key={network}
