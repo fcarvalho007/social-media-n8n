@@ -19,7 +19,8 @@ import { Separator } from '@/components/ui/separator';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
 import { toast } from 'sonner';
-import { Save, Send, Calendar as CalendarIcon, ArrowLeft, Instagram, Linkedin, Upload, Clock, FileText, Loader2, Rocket, Smile, Bookmark, Sparkles, Youtube, Facebook, ChevronLeft, ChevronRight, Info, CloudUpload, Image, Video, Plus, CheckCircle, Hash, AtSign, AlertTriangle, Eye, ChevronDown, MapPin, Grid3x3, RefreshCw, X, Globe, CheckCircle2 } from 'lucide-react';
+import { Save, Send, Calendar as CalendarIcon, ArrowLeft, Instagram, Linkedin, Upload, Clock, FileText, Loader2, Rocket, Smile, Bookmark, Sparkles, Youtube, Facebook, ChevronLeft, ChevronRight, Info, CloudUpload, Image, Video, Plus, CheckCircle, Hash, AtSign, AlertTriangle, Eye, ChevronDown, MapPin, Grid3x3, RefreshCw, X, Globe, CheckCircle2, Smartphone } from 'lucide-react';
+import { Drawer, DrawerContent, DrawerHeader, DrawerTitle } from '@/components/ui/drawer';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { addDays, nextDay } from 'date-fns';
 import { GridSplitter } from '@/components/media/GridSplitter';
@@ -2427,70 +2428,143 @@ export default function ManualCreate() {
         </div>
       </div>
 
-      {/* Mobile Sticky Bottom Bar - Optimized with larger touch targets */}
-      <div className="fixed bottom-0 left-0 right-0 p-4 pb-[calc(1.5rem+env(safe-area-inset-bottom))] bg-background/98 backdrop-blur-md border-t shadow-[0_-4px_20px_-4px_rgba(0,0,0,0.15)] lg:hidden z-50">
-        <div className="flex flex-col gap-2 max-w-md mx-auto">
-          {/* Aspect Ratio Warning - Mobile */}
-          <div className="flex justify-center">
-            <AspectRatioWarning 
-              mediaFiles={mediaFiles} 
-              selectedFormats={selectedFormats} 
-            />
+      {/* Mobile Sticky Bottom Bar - Enhanced with progress indicator */}
+      <div className="fixed bottom-0 left-0 right-0 bg-background/98 backdrop-blur-md border-t shadow-[0_-4px_20px_-4px_rgba(0,0,0,0.15)] lg:hidden z-50">
+        {/* Mini progress indicator */}
+        <div className="flex justify-center py-1.5 border-b border-border/50">
+          <div className="flex items-center gap-1.5">
+            {[1, 2, 3].map((step) => (
+              <div
+                key={step}
+                className={cn(
+                  "h-1.5 rounded-full transition-all duration-200",
+                  step <= currentStep ? "w-6 bg-primary" : "w-1.5 bg-muted-foreground/30"
+                )}
+              />
+            ))}
           </div>
-          <div className="flex gap-3">
+        </div>
+        
+        {/* Scheduled preview - if date selected */}
+        {!scheduleAsap && scheduledDate && (
+          <div className="px-4 py-1.5 bg-blue-50 dark:bg-blue-950/30 text-center text-xs text-blue-700 dark:text-blue-300 flex items-center justify-center gap-1.5">
+            <CalendarIcon className="h-3 w-3" />
+            <span>Agendado: {format(scheduledDate, "d MMM", { locale: pt })} às {time}</span>
+          </div>
+        )}
+        
+        {/* Aspect Ratio Warning - Mobile */}
+        <div className="flex justify-center py-1">
+          <AspectRatioWarning 
+            mediaFiles={mediaFiles} 
+            selectedFormats={selectedFormats} 
+          />
+        </div>
+        
+        {/* Action buttons */}
+        <div className="p-3 pb-[calc(0.75rem+env(safe-area-inset-bottom))] flex gap-2">
           <Button
             type="button"
-            size="default"
+            variant="outline"
+            size="icon"
+            onClick={handleSaveDraft}
+            disabled={saving || submitting || publishing}
+            className="h-12 w-12 flex-shrink-0"
+            aria-label="Guardar rascunho"
+          >
+            <Save className="h-5 w-5" />
+          </Button>
+          
+          <Button
+            type="button"
             onClick={handlePublishWithValidation}
             disabled={publishing || submitting || saving || isUploading || selectedFormats.length === 0}
             className={cn(
-              "flex-1 font-semibold text-white h-14 text-base",
-              "bg-gradient-to-r from-green-600 to-green-500",
-              "hover:from-green-500 hover:to-green-400",
-              "active:scale-[0.98] transition-all duration-200",
-              "disabled:opacity-50"
+              "flex-1 h-12 font-semibold text-white press-effect",
+              !scheduleAsap && scheduledDate
+                ? "bg-gradient-to-r from-blue-600 to-blue-500 hover:from-blue-500 hover:to-blue-400"
+                : "bg-gradient-to-r from-green-600 to-green-500 hover:from-green-500 hover:to-green-400"
             )}
           >
             {publishing ? (
               <Loader2 className="h-5 w-5 animate-spin" />
+            ) : !scheduleAsap && scheduledDate ? (
+              <>
+                <CalendarIcon className="h-5 w-5 mr-2" />
+                <span>Agendar</span>
+              </>
             ) : (
               <>
                 <Rocket className="h-5 w-5 mr-2" />
-                <span className="font-semibold">Publicar</span>
+                <span>Publicar</span>
               </>
             )}
           </Button>
-          <Button
+          
+          {/* Preview toggle for mobile */}
+          <Button 
             type="button"
-            variant="outline"
-            size="default"
-            onClick={() => {
-              if (!scheduledDate) {
-                toast.info('Selecione uma data');
-                return;
-              }
-              handlePublishWithValidation();
-            }}
-            disabled={publishing || submitting || saving || selectedFormats.length === 0}
-            className="h-14 w-14 p-0 border-primary/50"
-            aria-label="Agendar publicação"
+            variant="outline" 
+            size="icon" 
+            onClick={() => setMobilePreviewOpen(true)}
+            className="h-12 w-12 flex-shrink-0"
+            aria-label="Pré-visualizar"
           >
-            <CalendarIcon className="h-6 w-6" />
+            <Eye className="h-5 w-5" />
           </Button>
-          <Button
-            type="button"
-            variant="ghost"
-            size="default"
-            onClick={handleSaveDraft}
-            disabled={saving || submitting || publishing}
-            className="h-14 w-14 p-0"
-            aria-label="Guardar rascunho"
-          >
-            <Save className="h-6 w-6" />
-          </Button>
-          </div>
         </div>
       </div>
+
+      {/* Mobile Preview Drawer */}
+      <Drawer open={mobilePreviewOpen} onOpenChange={setMobilePreviewOpen}>
+        <DrawerContent className="max-h-[85vh]">
+          <DrawerHeader className="border-b pb-3">
+            <DrawerTitle className="flex items-center gap-2">
+              <Smartphone className="h-5 w-5" />
+              Pré-visualização
+            </DrawerTitle>
+          </DrawerHeader>
+          <div className="p-4 overflow-y-auto">
+            {selectedFormats.length === 0 ? (
+              <div className="flex flex-col items-center justify-center h-40 text-muted-foreground text-sm gap-2">
+                <Eye className="h-8 w-8 opacity-50" />
+                <span>Selecione um formato para ver a pré-visualização</span>
+              </div>
+            ) : selectedFormats.length === 1 ? (
+              <div className="space-y-4">
+                {renderPreview(selectedFormats[0])}
+                {scheduledDate && !scheduleAsap && (
+                  <div className="flex items-center gap-2 text-xs text-muted-foreground justify-center">
+                    <Clock className="h-3 w-3" />
+                    <span>Agendado: {format(scheduledDate, 'dd/MM/yyyy', { locale: pt })} às {time}</span>
+                  </div>
+                )}
+              </div>
+            ) : (
+              <Tabs value={activePreviewTab || selectedFormats[0]} onValueChange={setActivePreviewTab}>
+                <TabsList className="w-full mb-4">
+                  {selectedFormats.map(formatItem => {
+                    const network = getNetworkFromFormat(formatItem);
+                    const Icon = getNetworkIcon(network);
+                    const config = getFormatConfig(formatItem);
+                    return (
+                      <TabsTrigger key={formatItem} value={formatItem} className="flex-1 gap-1">
+                        <Icon className="h-4 w-4" />
+                        <span className="text-xs truncate">{config?.label}</span>
+                      </TabsTrigger>
+                    );
+                  })}
+                </TabsList>
+                {selectedFormats.map(formatItem => (
+                  <TabsContent key={formatItem} value={formatItem}>
+                    {renderPreview(formatItem)}
+                  </TabsContent>
+                ))}
+              </Tabs>
+            )}
+          </div>
+        </DrawerContent>
+      </Drawer>
 
       <DevHelper />
       

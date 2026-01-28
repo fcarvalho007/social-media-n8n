@@ -115,48 +115,54 @@ export function NetworkCaptionEditor({
         </div>
       )}
 
-      {/* Toolbar */}
-      <div className="flex items-center gap-1.5 border rounded-xl p-2 bg-muted/30">
+      {/* Toolbar - Touch optimized with larger targets */}
+      <div className="flex items-center gap-1 sm:gap-1.5 border rounded-xl p-1.5 sm:p-2 bg-muted/30 overflow-x-auto scrollbar-hide">
         <Popover open={emojiPickerOpen} onOpenChange={setEmojiPickerOpen}>
           <PopoverTrigger asChild>
-            <Button variant="ghost" size="sm" className="h-10 w-10 sm:h-8 sm:w-8 p-0" title="Inserir emoji" disabled={disabled}>
+            <Button 
+              variant="ghost" 
+              size="icon" 
+              className="h-11 w-11 sm:h-8 sm:w-8 flex-shrink-0" 
+              title="Inserir emoji" 
+              disabled={disabled}
+            >
               <Smile className="h-5 w-5 sm:h-4 sm:w-4" />
             </Button>
           </PopoverTrigger>
-          <PopoverContent className="w-auto p-0 border-0" align="start">
+          <PopoverContent className="w-auto p-0 border-0" align="start" side="top">
             <EmojiPicker
               onEmojiClick={handleEmojiClick}
-              width={320}
-              height={400}
-              searchPlaceholder="Pesquisar emoji..."
+              width={300}
+              height={350}
+              searchPlaceholder="Pesquisar..."
               previewConfig={{ showPreview: false }}
             />
           </PopoverContent>
         </Popover>
 
-        <Separator orientation="vertical" className="h-5 mx-1" />
+        <Separator orientation="vertical" className="h-6 mx-0.5 sm:mx-1" />
 
         {onOpenSavedCaptions && (
           <Button
             variant="ghost"
             size="sm"
-            className="h-10 sm:h-8 gap-1.5 px-3 sm:px-2"
+            className="h-11 sm:h-8 gap-1.5 px-3 flex-shrink-0"
             onClick={onOpenSavedCaptions}
             title="Legendas guardadas"
             disabled={disabled}
           >
             <Bookmark className="h-5 w-5 sm:h-4 sm:w-4" />
-            <span className="hidden sm:inline text-xs">Guardadas</span>
+            <span className="hidden xs:inline text-xs">Guardadas</span>
           </Button>
         )}
 
-        <Separator orientation="vertical" className="h-6 sm:h-5 mx-1" />
+        <Separator orientation="vertical" className="h-6 mx-0.5 sm:mx-1" />
 
         {onOpenAIDialog && (
           <Button
             variant="ghost"
             size="sm"
-            className="h-10 sm:h-8 gap-1.5 px-3 sm:px-2 bg-gradient-to-r from-purple-500/10 to-blue-500/10 hover:from-purple-500/20 hover:to-blue-500/20"
+            className="h-11 sm:h-8 gap-1.5 px-3 flex-shrink-0 bg-gradient-to-r from-purple-500/10 to-blue-500/10 hover:from-purple-500/20 hover:to-blue-500/20"
             onClick={onOpenAIDialog}
             title="Melhorar com IA"
             disabled={disabled}
