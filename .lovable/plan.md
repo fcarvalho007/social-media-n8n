@@ -1,385 +1,233 @@
 
-## Plano: Redesign Mobile de `/manual-create`
 
-### Problemas Identificados
+## Plano: Correção de Layout Mobile (360x640px) - `/manual-create`
 
-Após análise detalhada do código, identifiquei as seguintes áreas com problemas de responsividade mobile:
+### Diagnóstico
 
-| Área | Problema | Impacto |
-|------|----------|---------|
-| **Container principal** | Padding `px-4` excessivo em ecrãs pequenos | Reduz espaço útil |
-| **Grid de mídia** | `grid-cols-2` fixo pode ser apertado em ecrãs < 375px | Cards ficam muito pequenos |
-| **Barra de ação media** | Texto "Adicionar mais" não escala bem | Overflow visual |
-| **Cards de upload** | Padding inconsistente entre estados | Layout irregular |
-| **Caption toolbar** | Botões `h-11` ocupam demasiado espaço vertical | Scroll excessivo |
-| **Date shortcuts** | `grid-cols-4` fica apertado em mobile | Botões pequenos demais |
-| **Bottom bar** | Altura fixa não considera diferentes tamanhos de notch | Corte em alguns dispositivos |
+Após análise detalhada do código, identifiquei as seguintes causas de overflow horizontal em ecrãs de 360px:
+
+| Área | Problema | Ficheiro | Linha |
+|------|----------|----------|-------|
+| **Tailwind xs breakpoint** | Definido a 375px, não cobre 360px | `tailwind.config.ts` | 108 |
+| **MainLayout padding** | `p-3` base adiciona 24px (12px×2) | `MainLayout.tsx` | 13 |
+| **ManualCreate container** | `px-2` ainda adiciona 16px ao espaço | `ManualCreate.tsx` | 1575 |
+| **Platform Chips** | `w-[64px]` fixo não escala | `PlatformChip.tsx` | 23 |
+| **Quick Presets cards** | `w-[120px]` mínimo pode causar corte | `QuickPresets.tsx` | 115 |
+| **FormatsPanel** | Margem negativa `-0.5rem` em mobile | `index.css` | 947-948 |
+| **Media grid** | `grid-cols-2` com `gap-1.5` sem contenção | `ManualCreate.tsx` | 1878 |
+| **Bottom bar** | Padding acumulado de múltiplos elementos | `ManualCreate.tsx` | 2478 |
 
 ---
 
-### Correção 1: Container Principal Responsivo
+### Alteração 1: Adicionar breakpoint menor (320px)
+
+**Ficheiro: `tailwind.config.ts`**
+
+Adicionar breakpoint `2xs` para ecrãs de 320px e ajustar `xs` para 360px:
+
+```typescript
+screens: {
+  '2xs': '320px',
+  xs: '360px',  // Ajustado de 375px para 360px
+},
+```
+
+---
+
+### Alteração 2: Reduzir padding do MainLayout
+
+**Ficheiro: `src/components/MainLayout.tsx`**
+
+Reduzir padding base para `p-2` e escalar progressivamente:
+
+```tsx
+<main className="flex-1 p-2 xs:p-3 sm:p-4 md:p-6 overflow-x-hidden">
+```
+
+---
+
+### Alteração 3: Ajustar container principal
 
 **Ficheiro: `src/pages/ManualCreate.tsx`**
 
-Ajustar padding do container para ser mais agressivo em mobile:
+Eliminar padding horizontal em ecrãs muito pequenos:
 
 ```tsx
 // Linha 1575
-<div className="max-w-7xl mx-auto space-y-2 sm:space-y-4 px-2 xs:px-3 sm:px-6 lg:px-0 bg-gradient-to-br from-background to-background-secondary overflow-hidden">
-```
-
-Também ajustar o grid principal (linha 1699):
-```tsx
-<div className="grid lg:grid-cols-2 gap-2 lg:gap-8 pb-32 lg:pb-0 px-0 sm:px-0 overflow-hidden">
+<div className="max-w-7xl mx-auto space-y-2 sm:space-y-4 px-1 xs:px-2 sm:px-6 lg:px-0 bg-gradient-to-br from-background to-background-secondary overflow-hidden">
 ```
 
 ---
 
-### Correção 2: Media Grid Adaptativo
+### Alteração 4: Platform Chips responsivos
 
-**Ficheiro: `src/pages/ManualCreate.tsx`**
+**Ficheiro: `src/components/manual-post/PlatformChip.tsx`**
 
-Alterar a grid de mídia para usar 2 colunas apenas acima de 375px:
+Reduzir largura fixa para ecrãs pequenos:
 
 ```tsx
-// Linha 1879
-<div className="grid grid-cols-2 xs:grid-cols-2 sm:grid-cols-3 gap-1.5 xs:gap-2 sm:gap-3">
-```
-
-Também reduzir tamanho mínimo do botão de adicionar:
-```tsx
-// Linha 1904-1909
-<Label 
-  className={cn(
-    "aspect-square rounded-xl border-2 border-dashed flex flex-col items-center justify-center gap-1 cursor-pointer transition-all press-effect",
-    "border-primary/40 bg-primary/5 hover:border-primary hover:bg-primary/10",
-    "min-h-[80px] xs:min-h-[100px]"
-  )}
->
+// Linha 23-24
+"w-[56px] xs:w-[64px] sm:w-auto sm:min-w-[110px]",
+"px-1 py-1.5 xs:px-1.5 sm:px-3 sm:py-2",
+"min-h-[52px] xs:min-h-[56px] sm:min-h-[44px]",
 ```
 
 ---
 
-### Correção 3: Barra de Ação de Mídia Compacta
+### Alteração 5: Quick Presets mais compactos
+
+**Ficheiro: `src/components/manual-post/QuickPresets.tsx`**
+
+Reduzir largura mínima dos cards de preset:
+
+```tsx
+// Linha 115
+"text-left w-[100px] xs:w-[120px] flex-shrink-0 sm:w-auto sm:min-w-[180px] sm:flex-shrink",
+```
+
+---
+
+### Alteração 6: FormatsPanel sem margem negativa
+
+**Ficheiro: `src/index.css`**
+
+Remover margem negativa que causa overflow:
+
+```css
+/* Linhas 946-951 */
+@media (max-width: 640px) {
+  .formats-panel {
+    margin-left: 0;
+    margin-right: 0;
+    border-radius: 0.75rem;
+  }
+}
+```
+
+---
+
+### Alteração 7: Media grid com gap menor
 
 **Ficheiro: `src/pages/ManualCreate.tsx`**
 
-Tornar a barra de ação mais compacta em mobile:
+Reduzir gap em ecrãs muito pequenos:
 
 ```tsx
-// Linhas 1805-1854
-<div className={cn(
-  "flex items-center justify-between p-2 xs:p-2.5 sm:p-3 rounded-lg border",
-  mediaPreviewUrls.length >= mediaRequirements.maxMedia 
-    ? "bg-amber-500/10 border-amber-500/30" 
-    : "bg-muted/50 border-border"
-)}>
-  <div className="flex items-center gap-1.5 xs:gap-2">
-    <span className={cn(
-      "text-xs sm:text-sm font-medium",
-      mediaPreviewUrls.length >= mediaRequirements.maxMedia && "text-amber-700 dark:text-amber-300"
-    )}>
-      {mediaPreviewUrls.length}/{mediaRequirements.maxMedia}
-    </span>
-    {/* Badge só visível em sm+ */}
-    {mediaPreviewUrls.length < mediaRequirements.maxMedia && (
-      <Badge variant="secondary" className="text-[10px] hidden xs:inline-flex">
-        +{mediaRequirements.maxMedia - mediaPreviewUrls.length}
-      </Badge>
-    )}
-  </div>
+// Linha 1878
+<div className="grid grid-cols-2 gap-1 xs:gap-1.5 sm:gap-3">
+```
+
+---
+
+### Alteração 8: Bottom bar mais compacta
+
+**Ficheiro: `src/pages/ManualCreate.tsx`**
+
+Reduzir padding da barra inferior:
+
+```tsx
+// Linha 2478
+<div className="p-1.5 xs:p-2 sm:p-3 pb-[calc(0.375rem+env(safe-area-inset-bottom))] xs:pb-[calc(0.5rem+env(safe-area-inset-bottom))] flex gap-1 xs:gap-1.5 sm:gap-2">
+```
+
+Reduzir tamanho dos botões:
+
+```tsx
+// Botões
+className="h-9 w-9 xs:h-10 xs:w-10 sm:h-12 sm:w-12 flex-shrink-0"
+
+// Botão principal
+className="flex-1 h-9 xs:h-10 sm:h-12 font-semibold text-white press-effect text-xs xs:text-sm"
+```
+
+---
+
+### Alteração 9: Card headers mais compactos
+
+**Ficheiro: `src/pages/ManualCreate.tsx`**
+
+Reduzir padding dos headers de cards:
+
+```tsx
+// Linha 1732
+<CardHeader className="pb-1 sm:pb-3 px-1.5 xs:px-2 sm:px-6 pt-1.5 xs:pt-2 sm:pt-6">
+```
+
+---
+
+### Alteração 10: Scheduling card responsivo
+
+**Ficheiro: `src/pages/ManualCreate.tsx`**
+
+Ajustar o toggle e atalhos de data:
+
+```tsx
+// Linha 2039 - Toggle pill
+<div className="flex rounded-full bg-muted p-0.5 gap-0.5">
+  <button className="flex-1 py-1.5 xs:py-2 px-1.5 xs:px-2 sm:px-4 rounded-full text-[10px] xs:text-xs sm:text-sm ...">
+
+// Linha 2089 - Date shortcuts
+<div className="grid grid-cols-2 gap-1 xs:gap-1.5">
+  <Button className="text-[9px] xs:text-[10px] sm:text-xs h-7 xs:h-8">
+```
+
+---
+
+### Alteração 11: Timezone indicator compacto
+
+**Ficheiro: `src/pages/ManualCreate.tsx`**
+
+Simplificar em mobile:
+
+```tsx
+// Linha 2079
+<div className="flex items-center justify-center gap-1 xs:gap-2 text-[9px] xs:text-xs text-muted-foreground bg-muted/40 px-2 xs:px-3 py-1.5 xs:py-2 rounded-lg flex-wrap">
+  <Globe className="h-3 w-3" />
+  <span className="hidden xs:inline">Fuso: </span>
+  <strong className="text-foreground">Lisboa</strong>
+  <span className="text-muted-foreground/60">•</span>
+  <span>{format(new Date(), 'HH:mm', { locale: pt })}</span>
+</div>
+```
+
+---
+
+### Alteração 12: Stepper progress mais compacto
+
+**Ficheiro: `src/components/manual-post/StepProgress.tsx`**
+
+Reduzir tamanho dos círculos:
+
+```tsx
+// Linha 51
+"w-5 h-5 xs:w-6 xs:h-6 sm:w-7 sm:h-7 rounded-full ..."
+
+// Linha 40
+"gap-0.5 xs:gap-1 sm:gap-1.5 px-1 py-0.5 xs:px-1.5 xs:py-1 sm:px-2 sm:py-1.5 ..."
+```
+
+---
+
+### Alteração 13: Global overflow prevention
+
+**Ficheiro: `src/index.css`**
+
+Adicionar regras globais para prevenir overflow:
+
+```css
+/* Após linha 50 - Global mobile overflow prevention */
+@media (max-width: 400px) {
+  html, body {
+    overflow-x: hidden;
+    max-width: 100vw;
+  }
   
-  {mediaPreviewUrls.length < mediaRequirements.maxMedia && (
-    <Label htmlFor="media-upload-header" className="cursor-pointer">
-      <Button variant="secondary" size="sm" asChild className="gap-1 h-8 xs:h-9 px-2 xs:px-3">
-        <span>
-          <Plus className="h-3.5 w-3.5 xs:h-4 xs:w-4" />
-          <span className="text-xs">Mais</span>
-        </span>
-      </Button>
-    </Label>
-  )}
-</div>
-```
-
----
-
-### Correção 4: Caption Toolbar Otimizada
-
-**Ficheiro: `src/components/manual-post/NetworkCaptionEditor.tsx`**
-
-Reduzir altura dos botões em mobile mantendo área de toque:
-
-```tsx
-// Linha 119
-<div className="flex items-center gap-1 border rounded-lg xs:rounded-xl p-1 xs:p-1.5 sm:p-2 bg-muted/30 overflow-x-auto scrollbar-hide">
-  <Popover>
-    <PopoverTrigger asChild>
-      <Button 
-        variant="ghost" 
-        size="icon" 
-        className="h-9 w-9 xs:h-10 xs:w-10 sm:h-8 sm:w-8 flex-shrink-0"
-      >
-        <Smile className="h-4 w-4 xs:h-5 xs:w-5 sm:h-4 sm:w-4" />
-      </Button>
-    </PopoverTrigger>
-    ...
-  </Popover>
-
-  {onOpenSavedCaptions && (
-    <Button
-      variant="ghost"
-      size="sm"
-      className="h-9 xs:h-10 sm:h-8 gap-1 px-2 xs:px-3 flex-shrink-0"
-    >
-      <Bookmark className="h-4 w-4" />
-      <span className="hidden xs:inline text-xs">Guardadas</span>
-    </Button>
-  )}
-  
-  {onOpenAIDialog && (
-    <Button
-      variant="ghost"
-      size="sm"
-      className="h-9 xs:h-10 sm:h-8 gap-1 px-2 xs:px-3 flex-shrink-0 bg-gradient-to-r from-purple-500/10 to-blue-500/10"
-    >
-      <Sparkles className="h-4 w-4 text-purple-500" />
-      <span className="text-xs">IA</span>
-    </Button>
-  )}
-</div>
-```
-
----
-
-### Correção 5: Date Shortcuts Grid Responsivo
-
-**Ficheiro: `src/pages/ManualCreate.tsx`**
-
-Alterar grid de atalhos de data para 2 colunas em mobile pequeno:
-
-```tsx
-// Linha 2089
-<div className="grid grid-cols-2 xs:grid-cols-4 gap-1.5">
-  <Button 
-    type="button"
-    variant="outline" 
-    size="sm"
-    className="text-[10px] xs:text-xs h-8"
-  >
-    Hoje
-  </Button>
-  <Button 
-    type="button"
-    variant="outline" 
-    size="sm"
-    className="text-[10px] xs:text-xs h-8"
-  >
-    Amanhã
-  </Button>
-  <Button 
-    type="button"
-    variant="outline" 
-    size="sm"
-    className="text-[10px] xs:text-xs h-8"
-  >
-    Terça
-  </Button>
-  <Button 
-    type="button"
-    variant="outline" 
-    size="sm"
-    className="text-[10px] xs:text-xs h-8"
-  >
-    Quinta
-  </Button>
-</div>
-```
-
----
-
-### Correção 6: Toggle Publicar/Agendar Compacto
-
-**Ficheiro: `src/pages/ManualCreate.tsx`**
-
-Tornar o toggle mais compacto em mobile:
-
-```tsx
-// Linhas 2040-2067
-<div className="flex rounded-full bg-muted p-0.5 xs:p-1 gap-0.5 xs:gap-1">
-  <button
-    type="button"
-    onClick={() => setScheduleAsap(true)}
-    className={cn(
-      "flex-1 py-2 xs:py-2.5 px-2 xs:px-4 rounded-full text-xs xs:text-sm font-medium transition-all duration-300 flex items-center justify-center gap-1 xs:gap-2",
-      scheduleAsap 
-        ? "bg-background shadow-sm text-foreground" 
-        : "text-muted-foreground hover:text-foreground"
-    )}
-  >
-    <Rocket className="h-3.5 w-3.5 xs:h-4 xs:w-4" />
-    <span className="hidden xs:inline">Publicar agora</span>
-    <span className="xs:hidden">Agora</span>
-  </button>
-  <button
-    type="button"
-    onClick={() => setScheduleAsap(false)}
-    className={cn(
-      "flex-1 py-2 xs:py-2.5 px-2 xs:px-4 rounded-full text-xs xs:text-sm font-medium transition-all duration-300 flex items-center justify-center gap-1 xs:gap-2",
-      !scheduleAsap 
-        ? "bg-background shadow-sm text-foreground" 
-        : "text-muted-foreground hover:text-foreground"
-    )}
-  >
-    <CalendarIcon className="h-3.5 w-3.5 xs:h-4 xs:w-4" />
-    Agendar
-  </button>
-</div>
-```
-
----
-
-### Correção 7: Bottom Bar Segura
-
-**Ficheiro: `src/pages/ManualCreate.tsx`**
-
-Melhorar a barra fixa inferior para diferentes dispositivos:
-
-```tsx
-// Linhas 2442-2527
-<div className="fixed bottom-0 left-0 right-0 bg-background/98 backdrop-blur-md border-t shadow-[0_-4px_20px_-4px_rgba(0,0,0,0.15)] lg:hidden z-50">
-  {/* Mini progress indicator - mais compacto */}
-  <div className="flex justify-center py-1 xs:py-1.5 border-b border-border/50">
-    <div className="flex items-center gap-1 xs:gap-1.5">
-      {[1, 2, 3].map((step) => (
-        <div
-          key={step}
-          className={cn(
-            "h-1 xs:h-1.5 rounded-full transition-all duration-200",
-            step <= currentStep ? "w-5 xs:w-6 bg-primary" : "w-1 xs:w-1.5 bg-muted-foreground/30"
-          )}
-        />
-      ))}
-    </div>
-  </div>
-  
-  {/* Action buttons - com safe area */}
-  <div className="p-2 xs:p-3 pb-[calc(0.5rem+env(safe-area-inset-bottom))] xs:pb-[calc(0.75rem+env(safe-area-inset-bottom))] flex gap-1.5 xs:gap-2">
-    <Button
-      type="button"
-      variant="outline"
-      size="icon"
-      className="h-10 w-10 xs:h-12 xs:w-12 flex-shrink-0"
-    >
-      <Save className="h-4 w-4 xs:h-5 xs:w-5" />
-    </Button>
-    
-    <Button
-      type="button"
-      className="flex-1 h-10 xs:h-12 font-semibold text-white press-effect"
-    >
-      {publishing ? (
-        <Loader2 className="h-4 w-4 xs:h-5 xs:w-5 animate-spin" />
-      ) : !scheduleAsap && scheduledDate ? (
-        <>
-          <CalendarIcon className="h-4 w-4 xs:h-5 xs:w-5 mr-1.5 xs:mr-2" />
-          <span className="text-sm xs:text-base">Agendar</span>
-        </>
-      ) : (
-        <>
-          <Rocket className="h-4 w-4 xs:h-5 xs:w-5 mr-1.5 xs:mr-2" />
-          <span className="text-sm xs:text-base">Publicar</span>
-        </>
-      )}
-    </Button>
-    
-    <Button 
-      type="button"
-      variant="outline" 
-      size="icon" 
-      className="h-10 w-10 xs:h-12 xs:w-12 flex-shrink-0"
-    >
-      <Eye className="h-4 w-4 xs:h-5 xs:w-5" />
-    </Button>
-  </div>
-</div>
-```
-
----
-
-### Correção 8: Card Headers Compactos
-
-**Ficheiro: `src/pages/ManualCreate.tsx`**
-
-Uniformizar headers de cards em mobile:
-
-```tsx
-// Exemplo linha 1732-1745
-<CardHeader className="pb-1 xs:pb-2 sm:pb-3 px-2 xs:px-3 sm:px-6 pt-2 xs:pt-3 sm:pt-6">
-  <div className="flex items-center justify-between">
-    <CardTitle className="text-sm xs:text-base sm:text-lg flex items-center gap-1 xs:gap-1.5 sm:gap-2">
-      <CloudUpload className="h-4 w-4 sm:h-5 sm:w-5 text-primary" />
-      <span>Média</span>
-    </CardTitle>
-    <AutoSaveIndicator ... />
-  </div>
-</CardHeader>
-```
-
----
-
-### Correção 9: Separate Captions Toggle Compacto
-
-**Ficheiro: `src/components/manual-post/NetworkCaptionEditor.tsx`**
-
-Tornar o toggle de legendas separadas mais compacto:
-
-```tsx
-// Linhas 97-116
-{showToggle && (
-  <div className="flex items-center justify-between p-2.5 xs:p-3 sm:p-4 rounded-lg xs:rounded-xl bg-muted/50 border min-h-[44px] xs:min-h-[48px] sm:min-h-[52px]">
-    <div className="flex items-center gap-2 xs:gap-3">
-      {useSeparateCaptions ? (
-        <Split className="h-4 w-4 xs:h-5 xs:w-5 text-primary" />
-      ) : (
-        <Merge className="h-4 w-4 xs:h-5 xs:w-5 text-muted-foreground" />
-      )}
-      <Label className="text-xs xs:text-sm font-medium cursor-pointer leading-tight">
-        {useSeparateCaptions ? 'Separadas' : 'Unificada'}
-      </Label>
-    </div>
-    <Switch ... />
-  </div>
-)}
-```
-
----
-
-### Correção 10: Time Presets Scroll Horizontal
-
-**Ficheiro: `src/pages/ManualCreate.tsx`**
-
-Converter time presets para scroll horizontal em mobile:
-
-```tsx
-// Linhas 2210-2224
-<div className="overflow-x-auto scrollbar-hide pb-1">
-  <div className="flex gap-1 xs:gap-1.5 w-max xs:w-auto xs:flex-wrap mt-2">
-    {['09:00', '12:00', '15:00', '18:00', '21:00'].map((preset) => (
-      <Badge 
-        key={preset}
-        variant="outline" 
-        className={cn(
-          "cursor-pointer hover:bg-primary/10 transition-colors text-[10px] xs:text-xs py-0.5 xs:py-1 px-1.5 xs:px-2 flex-shrink-0",
-          time === preset && "bg-primary/10 border-primary/50"
-        )}
-        onClick={() => setTime(preset)}
-      >
-        {preset}
-      </Badge>
-    ))}
-  </div>
-</div>
+  .quick-presets,
+  .platform-chips,
+  .selected-formats {
+    max-width: calc(100vw - 1rem);
+  }
+}
 ```
 
 ---
@@ -388,15 +236,24 @@ Converter time presets para scroll horizontal em mobile:
 
 | Ficheiro | Alterações |
 |----------|------------|
-| `src/pages/ManualCreate.tsx` | Container, grid de mídia, barra de ação, date shortcuts, toggle, bottom bar, headers |
-| `src/components/manual-post/NetworkCaptionEditor.tsx` | Toolbar, toggle separadas, tabs |
+| `tailwind.config.ts` | Adicionar breakpoint `2xs: 320px`, ajustar `xs: 360px` |
+| `MainLayout.tsx` | Reduzir padding base, adicionar `overflow-x-hidden` |
+| `ManualCreate.tsx` | Container, media grid, bottom bar, card headers, scheduling |
+| `PlatformChip.tsx` | Larguras responsivas para 360px |
+| `QuickPresets.tsx` | Cards mais compactos |
+| `StepProgress.tsx` | Círculos e gaps menores |
+| `index.css` | Remover margem negativa, adicionar regras globais |
 
 ---
 
 ### Resultado Esperado
 
-- **Ecrãs < 375px (iPhone SE):** Layout compacto sem overflow, botões acessíveis
-- **Ecrãs 375-640px:** Layout equilibrado com elementos adequadamente espaçados
-- **Ecrãs > 640px:** Layout desktop mantido
+| Viewport | Estado Atual | Após Correção |
+|----------|--------------|---------------|
+| 320×568 (iPhone SE 1st) | Overflow horizontal | Layout contido, scroll vertical apenas |
+| 360×640 (Android padrão) | Overflow horizontal | Layout responsivo, sem cortes |
+| 375×667 (iPhone 8) | Borderline | Layout otimizado |
+| 390×844 (iPhone 14) | OK | Mantido |
 
-A experiência mobile será mais fluida, com elementos adequadamente dimensionados para toque e sem necessidade de scroll horizontal acidental.
+A experiência em ecrãs de 360px será equivalente à experiência em ecrãs maiores, com todos os elementos visíveis e acessíveis sem scroll horizontal.
+
