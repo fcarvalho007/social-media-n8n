@@ -118,7 +118,7 @@ export function TargetSelector({ selectedTargets, onTargetsChange, validations }
                         Instagram · Carrossel
                       </p>
                       <div className="space-y-1 text-xs text-muted-foreground">
-                        <p>• 2–10 imagens, 1080px mínimo, sRGB</p>
+                        <p>• 1-50 imagens (API IG suporta máx. 10)</p>
                         <p>• Recomendado: 4:5 (1080×1350) ou 9:16</p>
                         <p>• Caption ≤ {PLATFORM_CONSTRAINTS.instagram.caption.maxLength} caracteres</p>
                         <p>• Máximo {PLATFORM_CONSTRAINTS.instagram.hashtags.maxCount} hashtags</p>
