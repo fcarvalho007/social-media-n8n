@@ -37,7 +37,7 @@ export function StepProgress({ currentStep, visitedSteps, onStepClick }: StepPro
                 onClick={() => canClick && onStepClick(step.id)}
                 disabled={!canClick}
                 className={cn(
-                  "flex items-center gap-1 sm:gap-1.5 px-1.5 py-1 sm:px-2 sm:py-1.5 rounded-full transition-all duration-200",
+                  "flex items-center gap-0.5 xs:gap-1 sm:gap-1.5 px-1 py-0.5 xs:px-1.5 xs:py-1 sm:px-2 sm:py-1.5 rounded-full transition-all duration-200",
                   canClick && "cursor-pointer hover:bg-muted/50 active:scale-95",
                   isFuture && "cursor-not-allowed opacity-50",
                   isCurrent && "bg-primary/10"
@@ -48,7 +48,7 @@ export function StepProgress({ currentStep, visitedSteps, onStepClick }: StepPro
                 {/* Compact circle */}
                 <div
                   className={cn(
-                    "w-6 h-6 sm:w-7 sm:h-7 rounded-full flex items-center justify-center border-2 transition-all duration-200 shrink-0",
+                    "w-5 h-5 xs:w-6 xs:h-6 sm:w-7 sm:h-7 rounded-full flex items-center justify-center border-2 transition-all duration-200 shrink-0",
                     isCompleted && "bg-emerald-500 border-emerald-500 text-white",
                     isCurrent && "bg-primary border-primary text-primary-foreground",
                     !isCompleted && !isCurrent && isVisited && "bg-muted border-muted-foreground/30 text-muted-foreground",

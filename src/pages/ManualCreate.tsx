@@ -1572,7 +1572,7 @@ export default function ManualCreate() {
   const [mobilePreviewOpen, setMobilePreviewOpen] = useState(false);
 
   return (
-      <div className="max-w-7xl mx-auto space-y-2 sm:space-y-4 px-2 xs:px-3 sm:px-6 lg:px-0 bg-gradient-to-br from-background to-background-secondary overflow-hidden">
+      <div className="max-w-7xl mx-auto space-y-2 sm:space-y-4 px-1 xs:px-2 sm:px-6 lg:px-0 bg-gradient-to-br from-background to-background-secondary overflow-hidden">
       {/* Header */}
       <div className="flex items-center justify-between py-1 sm:py-2 gap-2">
         <Button 
@@ -1729,7 +1729,7 @@ export default function ManualCreate() {
           )}>
             <Card className="border-0 sm:border shadow-none sm:shadow-sm">
 
-              <CardHeader className="pb-1 xs:pb-2 sm:pb-3 px-2 xs:px-3 sm:px-6 pt-2 xs:pt-3 sm:pt-6">
+              <CardHeader className="pb-1 sm:pb-3 px-1.5 xs:px-2 sm:px-6 pt-1.5 xs:pt-2 sm:pt-6">
                 <div className="flex items-center justify-between">
                   <CardTitle className="text-sm xs:text-base sm:text-lg flex items-center gap-1 xs:gap-1.5 sm:gap-2">
                     <CloudUpload className="h-4 w-4 sm:h-5 sm:w-5 text-primary" />
@@ -1743,7 +1743,7 @@ export default function ManualCreate() {
                   />
                 </div>
               </CardHeader>
-              <CardContent className="space-y-3 sm:space-y-4 px-2 xs:px-3 sm:px-6 pb-4 sm:pb-6">
+              <CardContent className="space-y-2 xs:space-y-3 sm:space-y-4 px-1.5 xs:px-2 sm:px-6 pb-3 xs:pb-4 sm:pb-6">
                 {/* 3 Card Upload Options - Vertical Stack */}
                 {mediaPreviewUrls.length === 0 && (
                   <div ref={mediaSectionRef}>
@@ -1875,7 +1875,7 @@ export default function ManualCreate() {
                         items={mediaPreviewUrls.map((_, i) => `media-${i}`)}
                         strategy={horizontalListSortingStrategy}
                       >
-                        <div className="grid grid-cols-2 xs:grid-cols-2 sm:grid-cols-3 gap-1.5 xs:gap-2 sm:gap-3">
+                        <div className="grid grid-cols-2 gap-1 xs:gap-1.5 sm:gap-3">
                           {mediaPreviewUrls.map((url, idx) => {
                             const isVideo = mediaFiles[idx]?.type?.startsWith('video/');
                             return (
@@ -1901,7 +1901,7 @@ export default function ManualCreate() {
                             <Label 
                               htmlFor="media-upload-more"
                               className={cn(
-                                "aspect-square rounded-xl border-2 border-dashed flex flex-col items-center justify-center gap-1.5 cursor-pointer transition-all press-effect",
+                                "aspect-square rounded-lg xs:rounded-xl border-2 border-dashed flex flex-col items-center justify-center gap-1 xs:gap-1.5 cursor-pointer transition-all press-effect",
                                 "border-primary/40 bg-primary/5 hover:border-primary hover:bg-primary/10",
                                 "min-h-[100px]"
                               )}
@@ -2027,27 +2027,27 @@ export default function ManualCreate() {
 
             {/* Date & Time */}
             <Card className="border-0 sm:border shadow-none sm:shadow-sm">
-              <CardHeader className="px-3 sm:px-6 pt-3 sm:pt-6 pb-2 sm:pb-4">
-                <CardTitle className="flex items-center gap-1.5 sm:gap-2 text-base sm:text-lg">
+              <CardHeader className="px-2 xs:px-3 sm:px-6 pt-2 xs:pt-3 sm:pt-6 pb-1.5 xs:pb-2 sm:pb-4">
+                <CardTitle className="flex items-center gap-1 xs:gap-1.5 sm:gap-2 text-sm xs:text-base sm:text-lg">
                   Agendamento
                   <SectionHelp content={getSectionTooltip('scheduling')} />
                 </CardTitle>
-                <CardDescription className="text-xs sm:text-sm">Defina quando publicar</CardDescription>
+                <CardDescription className="text-[10px] xs:text-xs sm:text-sm">Defina quando publicar</CardDescription>
               </CardHeader>
-              <CardContent className="space-y-3 sm:space-y-4 px-3 sm:px-6 pb-4 sm:pb-6">
+              <CardContent className="space-y-2 xs:space-y-3 sm:space-y-4 px-2 xs:px-3 sm:px-6 pb-3 xs:pb-4 sm:pb-6">
                 {/* Toggle Pill Style */}
-                <div className="flex rounded-full bg-muted p-0.5 xs:p-1 gap-0.5 xs:gap-1">
+                <div className="flex rounded-full bg-muted p-0.5 gap-0.5">
                   <button
                     type="button"
                     onClick={() => setScheduleAsap(true)}
                     className={cn(
-                      "flex-1 py-2 xs:py-2.5 px-2 xs:px-4 rounded-full text-xs xs:text-sm font-medium transition-all duration-300 flex items-center justify-center gap-1 xs:gap-2",
+                      "flex-1 py-1.5 xs:py-2 px-1.5 xs:px-2 sm:px-4 rounded-full text-[10px] xs:text-xs sm:text-sm font-medium transition-all duration-300 flex items-center justify-center gap-0.5 xs:gap-1 sm:gap-2",
                       scheduleAsap 
                         ? "bg-background shadow-sm text-foreground" 
                         : "text-muted-foreground hover:text-foreground"
                     )}
                   >
-                    <Rocket className="h-3.5 w-3.5 xs:h-4 xs:w-4" />
+                    <Rocket className="h-3 w-3 xs:h-3.5 xs:w-3.5 sm:h-4 sm:w-4" />
                     <span className="hidden xs:inline">Publicar agora</span>
                     <span className="xs:hidden">Agora</span>
                   </button>
@@ -2055,13 +2055,13 @@ export default function ManualCreate() {
                     type="button"
                     onClick={() => setScheduleAsap(false)}
                     className={cn(
-                      "flex-1 py-2 xs:py-2.5 px-2 xs:px-4 rounded-full text-xs xs:text-sm font-medium transition-all duration-300 flex items-center justify-center gap-1 xs:gap-2",
+                      "flex-1 py-1.5 xs:py-2 px-1.5 xs:px-2 sm:px-4 rounded-full text-[10px] xs:text-xs sm:text-sm font-medium transition-all duration-300 flex items-center justify-center gap-0.5 xs:gap-1 sm:gap-2",
                       !scheduleAsap 
                         ? "bg-background shadow-sm text-foreground" 
                         : "text-muted-foreground hover:text-foreground"
                     )}
                   >
-                    <CalendarIcon className="h-3.5 w-3.5 xs:h-4 xs:w-4" />
+                    <CalendarIcon className="h-3 w-3 xs:h-3.5 xs:w-3.5 sm:h-4 sm:w-4" />
                     Agendar
                   </button>
                 </div>
@@ -2076,24 +2076,25 @@ export default function ManualCreate() {
                 ) : (
                   <div className="space-y-4 animate-fade-in">
                     {/* Timezone indicator */}
-                    <div className="flex items-center justify-center gap-2 text-xs text-muted-foreground bg-muted/40 px-3 py-2 rounded-lg">
-                      <Globe className="h-3.5 w-3.5" />
-                      <span>Fuso horário: <strong className="text-foreground">Lisboa (WET/WEST)</strong></span>
+                    <div className="flex items-center justify-center gap-1 xs:gap-2 text-[9px] xs:text-xs text-muted-foreground bg-muted/40 px-2 xs:px-3 py-1.5 xs:py-2 rounded-lg flex-wrap">
+                      <Globe className="h-3 w-3" />
+                      <span className="hidden xs:inline">Fuso: </span>
+                      <strong className="text-foreground">Lisboa</strong>
                       <span className="text-muted-foreground/60">•</span>
-                      <span>Agora: {format(new Date(), 'HH:mm', { locale: pt })}</span>
+                      <span>{format(new Date(), 'HH:mm', { locale: pt })}</span>
                     </div>
 
                     {/* Quick date shortcuts */}
                     <div className="space-y-2">
-                      <Label className="text-xs text-muted-foreground">Atalhos rápidos</Label>
-                      <div className="grid grid-cols-2 xs:grid-cols-4 gap-1.5">
+                      <Label className="text-[10px] xs:text-xs text-muted-foreground">Atalhos rápidos</Label>
+                      <div className="grid grid-cols-2 gap-1 xs:gap-1.5">
                         <Button 
                           type="button"
                           variant="outline" 
                           size="sm"
                           onClick={() => setScheduledDate(new Date())}
                           className={cn(
-                            "text-[10px] xs:text-xs h-8",
+                            "text-[9px] xs:text-[10px] sm:text-xs h-7 xs:h-8",
                             scheduledDate && format(scheduledDate, 'yyyy-MM-dd') === format(new Date(), 'yyyy-MM-dd') && "bg-primary/10 border-primary/50"
                           )}
                         >
@@ -2105,7 +2106,7 @@ export default function ManualCreate() {
                           size="sm"
                           onClick={() => setScheduledDate(addDays(new Date(), 1))}
                           className={cn(
-                            "text-[10px] xs:text-xs h-8",
+                            "text-[9px] xs:text-[10px] sm:text-xs h-7 xs:h-8",
                             scheduledDate && format(scheduledDate, 'yyyy-MM-dd') === format(addDays(new Date(), 1), 'yyyy-MM-dd') && "bg-primary/10 border-primary/50"
                           )}
                         >
@@ -2117,7 +2118,7 @@ export default function ManualCreate() {
                           size="sm"
                           onClick={() => setScheduledDate(nextDay(new Date(), 2))}
                           className={cn(
-                            "text-[10px] xs:text-xs h-8",
+                            "text-[9px] xs:text-[10px] sm:text-xs h-7 xs:h-8",
                             scheduledDate && scheduledDate.getDay() === 2 && scheduledDate > new Date() && "bg-primary/10 border-primary/50"
                           )}
                         >
@@ -2475,17 +2476,17 @@ export default function ManualCreate() {
         </div>
         
         {/* Action buttons - com safe area */}
-        <div className="p-2 xs:p-3 pb-[calc(0.5rem+env(safe-area-inset-bottom))] xs:pb-[calc(0.75rem+env(safe-area-inset-bottom))] flex gap-1.5 xs:gap-2">
+        <div className="p-1.5 xs:p-2 sm:p-3 pb-[calc(0.375rem+env(safe-area-inset-bottom))] xs:pb-[calc(0.5rem+env(safe-area-inset-bottom))] flex gap-1 xs:gap-1.5 sm:gap-2">
           <Button
             type="button"
             variant="outline"
             size="icon"
             onClick={handleSaveDraft}
             disabled={saving || submitting || publishing}
-            className="h-10 w-10 xs:h-12 xs:w-12 flex-shrink-0"
+            className="h-9 w-9 xs:h-10 xs:w-10 sm:h-12 sm:w-12 flex-shrink-0"
             aria-label="Guardar rascunho"
           >
-            <Save className="h-4 w-4 xs:h-5 xs:w-5" />
+            <Save className="h-3.5 w-3.5 xs:h-4 xs:w-4 sm:h-5 sm:w-5" />
           </Button>
           
           <Button
@@ -2493,23 +2494,23 @@ export default function ManualCreate() {
             onClick={handlePublishWithValidation}
             disabled={publishing || submitting || saving || isUploading || selectedFormats.length === 0}
             className={cn(
-              "flex-1 h-10 xs:h-12 font-semibold text-white press-effect",
+              "flex-1 h-9 xs:h-10 sm:h-12 font-semibold text-white press-effect text-xs xs:text-sm",
               !scheduleAsap && scheduledDate
                 ? "bg-gradient-to-r from-blue-600 to-blue-500 hover:from-blue-500 hover:to-blue-400"
                 : "bg-gradient-to-r from-green-600 to-green-500 hover:from-green-500 hover:to-green-400"
             )}
           >
             {publishing ? (
-              <Loader2 className="h-4 w-4 xs:h-5 xs:w-5 animate-spin" />
+              <Loader2 className="h-3.5 w-3.5 xs:h-4 xs:w-4 sm:h-5 sm:w-5 animate-spin" />
             ) : !scheduleAsap && scheduledDate ? (
               <>
-                <CalendarIcon className="h-4 w-4 xs:h-5 xs:w-5 mr-1.5 xs:mr-2" />
-                <span className="text-sm xs:text-base">Agendar</span>
+                <CalendarIcon className="h-3.5 w-3.5 xs:h-4 xs:w-4 sm:h-5 sm:w-5 mr-1 xs:mr-1.5 sm:mr-2" />
+                <span>Agendar</span>
               </>
             ) : (
               <>
-                <Rocket className="h-4 w-4 xs:h-5 xs:w-5 mr-1.5 xs:mr-2" />
-                <span className="text-sm xs:text-base">Publicar</span>
+                <Rocket className="h-3.5 w-3.5 xs:h-4 xs:w-4 sm:h-5 sm:w-5 mr-1 xs:mr-1.5 sm:mr-2" />
+                <span>Publicar</span>
               </>
             )}
           </Button>
@@ -2520,10 +2521,10 @@ export default function ManualCreate() {
             variant="outline" 
             size="icon" 
             onClick={() => setMobilePreviewOpen(true)}
-            className="h-10 w-10 xs:h-12 xs:w-12 flex-shrink-0"
+            className="h-9 w-9 xs:h-10 xs:w-10 sm:h-12 sm:w-12 flex-shrink-0"
             aria-label="Pré-visualizar"
           >
-            <Eye className="h-4 w-4 xs:h-5 xs:w-5" />
+            <Eye className="h-3.5 w-3.5 xs:h-4 xs:w-4 sm:h-5 sm:w-5" />
           </Button>
         </div>
       </div>
