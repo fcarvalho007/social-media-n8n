@@ -105,7 +105,8 @@ export default {
         mono: ['DM Sans', 'ui-monospace', 'monospace'],
       },
       screens: {
-        xs: '375px',
+        '2xs': '320px',
+        xs: '360px',
       },
       borderRadius: {
         lg: "var(--radius)",
