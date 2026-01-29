@@ -953,15 +953,30 @@ All colors MUST be HSL.
 /* Global mobile overflow prevention for small screens */
 @media (max-width: 400px) {
   html, body {
-    overflow-x: hidden;
-    max-width: 100vw;
+    overflow-x: hidden !important;
+    max-width: 100vw !important;
+    width: 100vw !important;
   }
   
+  /* Force all cards to respect viewport */
   .quick-presets,
   .platform-chips,
-  .selected-formats {
-    max-width: calc(100vw - 1rem);
+  .selected-formats,
+  .formats-panel,
+  [data-radix-popper-content-wrapper] {
+    max-width: calc(100vw - 4px) !important;
+    box-sizing: border-box !important;
   }
+  
+  /* Cards cannot exceed viewport */
+  .border, [class*="border-"] {
+    box-sizing: border-box;
+  }
+}
+
+/* Force box-sizing globally */
+*, *::before, *::after {
+  box-sizing: border-box;
 }
 
 /* Scrollbar hide utility */

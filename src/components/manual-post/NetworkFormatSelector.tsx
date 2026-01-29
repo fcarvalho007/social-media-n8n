@@ -71,7 +71,7 @@ export function NetworkFormatSelector({ selectedFormats, onFormatsChange }: Netw
   };
 
   return (
-    <Card className="overflow-hidden border-0 sm:border shadow-none sm:shadow-sm w-full max-w-full">
+    <Card className="overflow-hidden border-0 sm:border shadow-none sm:shadow-sm w-full max-w-[calc(100vw-4px)] sm:max-w-full box-border">
       <CardHeader className="pb-2 sm:pb-2 px-3 sm:px-6 pt-3 sm:pt-6">
         <div className="flex items-center justify-between">
           <CardTitle className="text-sm sm:text-lg font-semibold">Selecione onde publicar</CardTitle>

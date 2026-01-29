@@ -20,9 +20,9 @@ export function PlatformChip({ platform, selectedCount, isExpanded, onClick }: P
       className={cn(
         "platform-chip group relative",
         "flex flex-col sm:flex-row items-center justify-center gap-0.5 sm:gap-2",
-        "w-[52px] xs:w-[60px] sm:w-auto sm:min-w-[110px]",
-        "px-1 py-1 xs:px-1.5 xs:py-1.5 sm:px-3 sm:py-2",
-        "min-h-[48px] xs:min-h-[52px] sm:min-h-[44px]",
+        "w-[44px] xs:w-[52px] sm:w-auto sm:min-w-[110px]",
+        "px-0.5 py-0.5 xs:px-1 xs:py-1 sm:px-3 sm:py-2",
+        "min-h-[40px] xs:min-h-[44px] sm:min-h-[44px]",
         "rounded-lg sm:rounded-xl border-2 bg-card",
         "transition-all duration-200",
         "hover:shadow-md hover:-translate-y-0.5",

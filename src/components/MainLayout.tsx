@@ -10,7 +10,7 @@ export function MainLayout() {
         <AppSidebar />
         <SidebarInset className="flex-1 flex flex-col">
           <DashboardHeader />
-          <main className="flex-1 p-2 xs:p-3 sm:p-4 md:p-6 overflow-x-hidden">
+          <main className="flex-1 p-0 xs:p-1 sm:p-4 md:p-6 overflow-x-hidden max-w-full">
             <Outlet />
           </main>
         </SidebarInset>

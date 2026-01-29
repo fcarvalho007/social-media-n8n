@@ -88,7 +88,7 @@ export function QuickPresets({ selectedFormats, onSelectPreset }: QuickPresetsPr
   };
 
   return (
-    <div className="quick-presets mb-2 sm:mb-5 overflow-hidden max-w-full">
+    <div className="quick-presets mb-2 sm:mb-5 overflow-hidden w-full max-w-[calc(100vw-8px)] sm:max-w-full">
       <div className="flex items-center gap-1.5 mb-1.5 sm:mb-2 px-0">
         <Sparkles size={12} className="text-amber-500 sm:w-[14px] sm:h-[14px]" />
         <span className="text-[10px] sm:text-[13px] font-medium text-muted-foreground">Seleção rápida:</span>
@@ -112,7 +112,7 @@ export function QuickPresets({ selectedFormats, onSelectPreset }: QuickPresetsPr
                   "bg-card border-2 rounded-lg sm:rounded-xl",
                   "cursor-pointer transition-all duration-200",
                   "hover:shadow-lg hover:-translate-y-0.5",
-                  "text-left w-[100px] xs:w-[120px] flex-shrink-0 sm:w-auto sm:min-w-[180px] sm:flex-shrink",
+                  "text-left w-[80px] xs:w-[100px] flex-shrink-0 sm:w-auto sm:min-w-[180px] sm:flex-shrink",
                   isActive && "preset-card-active",
                   isPartial && "preset-card-partial"
                 )}
