@@ -1,222 +1,36 @@
 
 
-## Plano: Redesign Profundo do Layout Mobile (360×640) - `/manual-create`
+## Plano: Layout Mobile 360px - Abordagem Radical
 
-### Diagnóstico Confirmado
+### Problema Raiz Identificado
 
-O problema é **conteúdo cortado à direita** - o layout excede a largura do ecrã de 360px mas não permite scroll horizontal. Após análise exaustiva do código, identifiquei as causas raiz:
+Após análise visual no viewport de 360px, os problemas persistem porque:
 
----
-
-### Causas Principais
-
-| Componente | Problema | Ficheiro |
-|------------|----------|----------|
-| **SidebarInset** | Não aplica margem correta quando sidebar fecha | `sidebar.tsx` |
-| **MainLayout padding** | `p-2` base = 8px×2 = 16px reduz espaço útil para 344px | `MainLayout.tsx` |
-| **Cards com border** | Border de 2px adiciona largura não contabilizada | `ManualCreate.tsx` |
-| **Platform Chips flex** | Container flex sem `max-w-full` pode exceder bounds | `PlatformChip.tsx` |
-| **QuickPresets cards** | `w-[100px]` fixo × 4 cards = 400px+ em linha | `QuickPresets.tsx` |
-| **FormatsPanel grid** | `grid-cols-2` com gap pode exceder quando cards têm padding | `FormatsPanel.tsx` |
-| **Bottom bar** | Padding acumulado pode empurrar botões para fora | `ManualCreate.tsx` |
-| **MediaUploadSection** | Cards com `p-4` e borders adicionam largura | `MediaUploadSection.tsx` |
+1. **Elementos com largura fixa** continuam a ocupar mais espaço que o disponível
+2. **Falta de contenção absoluta** - os elementos não estão a respeitar o viewport
+3. **Estrutura de layout inadequada** - usar rows/colunas fixas não funciona bem em 360px
 
 ---
 
-### Solução: Estratégia "Box-Sizing Agressivo"
+### Estratégia: "Mobile-First Stacking"
 
-A solução envolve 3 pilares:
+Em vez de tentar encaixar múltiplos elementos lado a lado em 360px (impossível sem cortes), vou:
 
-1. **Contenção absoluta** - Forçar `max-w-full` e `overflow-hidden` em todos os containers
-2. **Padding zero nas bordas** - Remover padding do container principal em mobile
-3. **Larguras percentuais** - Substituir valores fixos (px) por percentuais ou `calc()`
-
----
-
-### Alteração 1: Container Principal Sem Padding
-
-**Ficheiro: `src/pages/ManualCreate.tsx` (linha 1575)**
-
-```tsx
-// ANTES
-<div className="max-w-7xl mx-auto space-y-2 sm:space-y-4 px-1 xs:px-2 sm:px-6 lg:px-0 ...">
-
-// DEPOIS
-<div className="max-w-7xl mx-auto space-y-2 sm:space-y-4 px-0 sm:px-6 lg:px-0 overflow-hidden w-full max-w-full">
-```
-
-**Motivo:** `px-1` em 360px ainda consome 8px. Remover completamente.
+1. **Empilhar verticalmente** os elementos que não cabem horizontalmente
+2. **Usar scroll horizontal controlado** para listas de opções
+3. **Aplicar contenção agressiva** em todos os níveis
+4. **Aumentar legibilidade** dos botões
 
 ---
 
-### Alteração 2: MainLayout Padding Zero em Mobile
-
-**Ficheiro: `src/components/MainLayout.tsx` (linha 13)**
-
-```tsx
-// ANTES
-<main className="flex-1 p-2 xs:p-3 sm:p-4 md:p-6 overflow-x-hidden">
-
-// DEPOIS
-<main className="flex-1 p-0 xs:p-1 sm:p-4 md:p-6 overflow-x-hidden">
-```
-
-**Motivo:** Cada pixel de padding conta em 360px.
-
----
-
-### Alteração 3: Cards Internos com Box-Sizing Correto
-
-**Ficheiro: `src/pages/ManualCreate.tsx`**
-
-Todos os `<Card>` precisam de `w-full max-w-full overflow-hidden`:
-
-```tsx
-// Linha 1730 - Media Card
-<Card className="border-0 sm:border shadow-none sm:shadow-sm w-full max-w-full overflow-hidden">
-
-// Linha 2020 - Scheduling Card  
-<Card className="border-0 sm:border shadow-none sm:shadow-sm w-full max-w-full overflow-hidden">
-```
-
----
-
-### Alteração 4: NetworkFormatSelector com Contenção
-
-**Ficheiro: `src/components/manual-post/NetworkFormatSelector.tsx` (linha 74)**
-
-```tsx
-// ANTES
-<Card className="overflow-hidden border-0 sm:border shadow-none sm:shadow-sm w-full max-w-full">
-
-// DEPOIS
-<Card className="overflow-hidden border-0 sm:border shadow-none sm:shadow-sm w-full max-w-[calc(100vw-8px)] sm:max-w-full box-border">
-```
-
----
-
-### Alteração 5: QuickPresets com Scroll Mais Agressivo
-
-**Ficheiro: `src/components/manual-post/QuickPresets.tsx`**
-
-Linha 91:
-```tsx
-// ANTES
-<div className="quick-presets mb-2 sm:mb-5 overflow-hidden max-w-full">
-
-// DEPOIS  
-<div className="quick-presets mb-2 sm:mb-5 overflow-hidden w-full max-w-[calc(100vw-8px)] sm:max-w-full">
-```
-
-Linha 115 - Cards mais compactos:
-```tsx
-// ANTES
-"text-left w-[100px] xs:w-[120px] flex-shrink-0 sm:w-auto sm:min-w-[180px] sm:flex-shrink",
-
-// DEPOIS
-"text-left w-[88px] xs:w-[100px] flex-shrink-0 sm:w-auto sm:min-w-[180px] sm:flex-shrink",
-```
-
----
-
-### Alteração 6: Platform Chips Mais Compactos
-
-**Ficheiro: `src/components/manual-post/PlatformChip.tsx`**
-
-Linha 23-25:
-```tsx
-// ANTES
-"w-[52px] xs:w-[60px] sm:w-auto sm:min-w-[110px]",
-"px-1 py-1 xs:px-1.5 xs:py-1.5 sm:px-3 sm:py-2",
-"min-h-[48px] xs:min-h-[52px] sm:min-h-[44px]",
-
-// DEPOIS
-"w-[48px] xs:w-[56px] sm:w-auto sm:min-w-[110px]",
-"px-0.5 py-1 xs:px-1 xs:py-1.5 sm:px-3 sm:py-2",
-"min-h-[44px] xs:min-h-[48px] sm:min-h-[44px]",
-```
-
----
-
-### Alteração 7: FormatsPanel Grid Sem Overflow
-
-**Ficheiro: `src/components/manual-post/FormatsPanel.tsx`**
-
-Linha 26:
-```tsx
-// ANTES
-<div className="formats-panel mt-2.5 sm:mt-4 p-2.5 sm:p-5 rounded-lg sm:rounded-2xl border overflow-hidden animate-slide-down"
-
-// DEPOIS
-<div className="formats-panel mt-2.5 sm:mt-4 p-1.5 xs:p-2 sm:p-5 rounded-lg sm:rounded-2xl border overflow-hidden animate-slide-down w-full max-w-full box-border"
-```
-
-Linha 64-68 - Grid com gap menor:
-```tsx
-// ANTES
-<div className="grid grid-cols-2 sm:grid-cols-none gap-1.5 sm:gap-3"
-
-// DEPOIS
-<div className="grid grid-cols-2 sm:grid-cols-none gap-1 xs:gap-1.5 sm:gap-3"
-```
-
----
-
-### Alteração 8: MediaUploadSection Compacta
-
-**Ficheiro: `src/components/media/MediaUploadSection.tsx`**
-
-Linha 100, 169, 243 - Reduzir padding:
-```tsx
-// ANTES - Cards expandíveis
-"w-full p-4 sm:p-5 flex items-start gap-3 sm:gap-4 text-left",
-
-// DEPOIS
-"w-full p-3 xs:p-4 sm:p-5 flex items-start gap-2 xs:gap-3 sm:gap-4 text-left",
-```
-
-Linha 271 - Drop zone menor:
-```tsx
-// ANTES
-<div className="mt-4 p-6 sm:p-8 rounded-lg border-2 border-dashed text-center transition-all"
-
-// DEPOIS
-<div className="mt-3 p-4 xs:p-6 sm:p-8 rounded-lg border-2 border-dashed text-center transition-all"
-```
-
----
-
-### Alteração 9: Bottom Bar Contida
-
-**Ficheiro: `src/pages/ManualCreate.tsx` (linha 2446-2530)**
-
-```tsx
-// ANTES
-<div className="fixed bottom-0 left-0 right-0 bg-background/98 backdrop-blur-md border-t shadow-[0_-4px_20px_-4px_rgba(0,0,0,0.15)] lg:hidden z-50">
-
-// DEPOIS
-<div className="fixed bottom-0 left-0 right-0 bg-background/98 backdrop-blur-md border-t shadow-[0_-4px_20px_-4px_rgba(0,0,0,0.15)] lg:hidden z-50 w-screen max-w-screen overflow-hidden">
-```
-
-Linha 2479 - Padding mais agressivo:
-```tsx
-// ANTES
-<div className="p-1.5 xs:p-2 sm:p-3 pb-[calc(0.375rem+env(safe-area-inset-bottom))] xs:pb-[calc(0.5rem+env(safe-area-inset-bottom))] flex gap-1 xs:gap-1.5 sm:gap-2">
-
-// DEPOIS
-<div className="p-1 xs:p-1.5 sm:p-3 pb-[calc(0.25rem+env(safe-area-inset-bottom))] xs:pb-[calc(0.375rem+env(safe-area-inset-bottom))] flex gap-1 xs:gap-1.5 sm:gap-2 w-full max-w-full">
-```
-
----
-
-### Alteração 10: CSS Global Mais Restritivo
+### Alteração 1: CSS Global com Contenção Absoluta
 
 **Ficheiro: `src/index.css`**
 
-Adicionar regras mais agressivas:
+Substituir regras existentes por contenção mais agressiva:
 
 ```css
-/* Linha 953-965 - Substituir regras existentes */
+/* Global containment for 360px screens */
 @media (max-width: 400px) {
   html, body {
     overflow-x: hidden !important;
@@ -224,119 +38,264 @@ Adicionar regras mais agressivas:
     width: 100vw !important;
   }
   
-  /* Force all cards to respect viewport */
+  /* Force ALL elements to respect viewport */
+  * {
+    max-width: 100vw !important;
+  }
+  
+  /* Cards cannot exceed viewport - with important */
   .quick-presets,
   .platform-chips,
   .selected-formats,
   .formats-panel,
-  [data-radix-popper-content-wrapper] {
-    max-width: calc(100vw - 4px) !important;
+  [class*="Card"] {
+    max-width: calc(100vw - 8px) !important;
     box-sizing: border-box !important;
+    overflow: hidden !important;
   }
   
-  /* Cards cannot exceed viewport */
-  .border, [class*="border-"] {
-    box-sizing: border-box;
+  /* Override any fixed widths on mobile */
+  [class*="w-["] {
+    max-width: 100% !important;
   }
 }
 
-/* Force box-sizing globally */
-*, *::before, *::after {
-  box-sizing: border-box;
+/* Specific fix for SidebarInset content */
+[data-sidebar="inset"] {
+  max-width: 100vw;
+  overflow-x: hidden;
 }
 ```
 
 ---
 
-### Alteração 11: DashboardHeader Compacto
+### Alteração 2: SidebarInset com Contenção
 
-**Ficheiro: `src/components/DashboardHeader.tsx`**
+**Ficheiro: `src/components/ui/sidebar.tsx`**
 
-Linha 87:
+A `SidebarInset` precisa de max-width absoluto:
+
 ```tsx
-// ANTES
-<div className="flex h-16 items-center justify-between px-3 sm:px-4 md:px-6 gap-2 sm:gap-3">
-
-// DEPOIS
-<div className="flex h-14 xs:h-16 items-center justify-between px-2 xs:px-3 sm:px-4 md:px-6 gap-1 xs:gap-2 sm:gap-3 w-full max-w-full">
-```
-
-Linha 128 - Botões mais compactos:
-```tsx
-// ANTES
-<div className="flex items-center gap-1.5 sm:gap-2.5 flex-shrink-0">
-
-// DEPOIS
-<div className="flex items-center gap-1 xs:gap-1.5 sm:gap-2.5 flex-shrink-0">
+// Linha 277
+className={cn(
+  "relative flex min-h-svh flex-1 flex-col bg-background max-w-[100vw] overflow-x-hidden",
+  "peer-data-[variant=inset]:min-h-[calc(100svh-theme(spacing.4))] md:peer-data-[variant=inset]:m-2 md:peer-data-[state=collapsed]:peer-data-[variant=inset]:ml-2 md:peer-data-[variant=inset]:ml-0 md:peer-data-[variant=inset]:rounded-xl md:peer-data-[variant=inset]:shadow",
+  className,
+)}
 ```
 
 ---
 
-### Alteração 12: SelectedFormatsTags Contida
+### Alteração 3: Quick Presets em Grid Vertical (mobile)
+
+**Ficheiro: `src/components/manual-post/QuickPresets.tsx`**
+
+Em mobile, usar **grid 2x2** em vez de scroll horizontal:
+
+```tsx
+// Linha 99 - Substituir flex por grid
+<div className="grid grid-cols-2 gap-1.5 sm:flex sm:gap-2 sm:overflow-x-auto sm:flex-wrap">
+```
+
+Ajustar cards para preencher cada célula:
+
+```tsx
+// Linha 115
+"text-left w-full sm:w-auto sm:min-w-[180px] sm:flex-shrink",
+```
+
+---
+
+### Alteração 4: Platform Chips em Grid 3x2 (mobile)
+
+**Ficheiro: `src/components/manual-post/NetworkFormatSelector.tsx`**
+
+```tsx
+// Linha 112 - Substituir flex por grid em mobile
+<div className="grid grid-cols-3 gap-1.5 xs:gap-2 sm:flex sm:gap-2 sm:flex-wrap">
+```
+
+E remover scroll horizontal que causa problemas:
+
+```tsx
+// Remover "overflow-x-auto" e "scrollbar-hide" do container
+```
+
+---
+
+### Alteração 5: Platform Chips com Tamanho Automático
+
+**Ficheiro: `src/components/manual-post/PlatformChip.tsx`**
+
+Remover largura fixa em mobile - usar auto:
+
+```tsx
+// Linha 22-25
+"w-auto min-w-0 sm:w-auto sm:min-w-[110px]",
+"px-2 py-2 sm:px-3 sm:py-2",
+"min-h-[52px] sm:min-h-[44px]",
+```
+
+Aumentar texto para legibilidade:
+
+```tsx
+// Linha 63-64
+"font-medium text-[11px] sm:text-xs text-foreground leading-tight text-center"
+```
+
+---
+
+### Alteração 6: Selected Formats em Grid
 
 **Ficheiro: `src/components/manual-post/SelectedFormatsTags.tsx`**
 
-Linha 26:
 ```tsx
-// ANTES
-<div className="selected-formats pt-2.5 sm:pt-4 border-t border-border mt-2.5 sm:mt-4">
-
-// DEPOIS
-<div className="selected-formats pt-2 sm:pt-4 border-t border-border mt-2 sm:mt-4 w-full max-w-full overflow-hidden">
-```
-
-Linha 31:
-```tsx
-// ANTES
-<div className="flex gap-1 sm:gap-2 overflow-x-auto pb-0.5 sm:flex-wrap scrollbar-hide">
-
-// DEPOIS
-<div className="flex gap-0.5 xs:gap-1 sm:gap-2 overflow-x-auto pb-0.5 sm:flex-wrap scrollbar-hide max-w-[calc(100vw-80px)]">
+// Linha 31 - Usar grid wrap em vez de flex scroll
+<div className="grid grid-cols-2 xs:flex gap-1 xs:gap-1.5 sm:gap-2 xs:flex-wrap">
 ```
 
 ---
 
-### Resumo de Ficheiros
+### Alteração 7: Bottom Bar Legível
+
+**Ficheiro: `src/pages/ManualCreate.tsx`**
+
+Aumentar tamanho dos botões e texto:
+
+```tsx
+// Linha 2479 - Container
+<div className="p-2 pb-[calc(0.5rem+env(safe-area-inset-bottom))] flex gap-2 w-full">
+
+// Linha 2486 - Save button
+className="h-11 w-11 flex-shrink-0"
+
+// Linha 2497 - Main button  
+className="flex-1 h-11 font-semibold text-white text-sm"
+
+// Linha 2524 - Preview button
+className="h-11 w-11 flex-shrink-0"
+```
+
+---
+
+### Alteração 8: Scheduling Toggle Mais Legível
+
+**Ficheiro: `src/pages/ManualCreate.tsx`**
+
+```tsx
+// Linha 2039-2067 - Toggle com texto maior
+<div className="flex rounded-full bg-muted p-1 gap-1">
+  <button
+    className="flex-1 py-2.5 px-3 rounded-full text-xs font-medium ..."
+  >
+    <Rocket className="h-4 w-4" />
+    <span>Agora</span>
+  </button>
+  <button
+    className="flex-1 py-2.5 px-3 rounded-full text-xs font-medium ..."
+  >
+    <CalendarIcon className="h-4 w-4" />
+    <span>Agendar</span>
+  </button>
+</div>
+```
+
+---
+
+### Alteração 9: Date Shortcuts Empilhados
+
+**Ficheiro: `src/pages/ManualCreate.tsx`**
+
+```tsx
+// Linha 2090 - Grid 2x2 com botões maiores
+<div className="grid grid-cols-2 gap-2">
+  <Button 
+    variant="outline" 
+    size="sm"
+    className="text-xs h-9"
+  >
+    Hoje
+  </Button>
+  // ... outros botões
+</div>
+```
+
+---
+
+### Alteração 10: Header Compacto mas Legível
+
+**Ficheiro: `src/components/DashboardHeader.tsx`**
+
+```tsx
+// Linha 87 - Reduzir itens da direita
+<div className="flex h-12 items-center justify-between px-2 gap-1 w-full max-w-[100vw] overflow-hidden">
+
+// Linha 128 - Esconder QuotaBadge em mobile se necessário
+<div className="hidden xs:block">
+  <QuotaBadge />
+</div>
+```
+
+---
+
+### Alteração 11: Container Principal Sem Margens
+
+**Ficheiro: `src/pages/ManualCreate.tsx`**
+
+```tsx
+// Linha 1575
+<div className="w-full max-w-full overflow-hidden space-y-2 sm:space-y-4 sm:px-6 lg:px-0">
+```
+
+---
+
+### Resumo Visual
+
+**Antes (360px):**
+```
+┌─────────────────────────────────────────┐
+│ [≡] Painel... [🔍][🔔][5][⚙]  │ ← Excede
+├─────────────────────────────────────────┤
+│ [Carrossel][Video][Post][Stories] →  │ ← Scroll
+│ [IG][LI][YT][TT][FB][GB] →           │ ← Pequeno
+└─────────────────────────────────────────┘
+```
+
+**Depois (360px):**
+```
+┌────────────────────────────────────┐
+│ [≡] Criar    [🔍][🔔][⚙]          │ ← Contido
+├────────────────────────────────────┤
+│ ┌──────────┐ ┌──────────┐         │
+│ │Carrossel │ │Video 9:16│         │ ← Grid 2x2
+│ └──────────┘ └──────────┘         │
+│ ┌──────────┐ ┌──────────┐         │
+│ │ Post     │ │ Stories  │         │
+│ └──────────┘ └──────────┘         │
+├────────────────────────────────────┤
+│ ┌────┐ ┌────┐ ┌────┐              │
+│ │ IG │ │ LI │ │ YT │              │ ← Grid 3x2
+│ └────┘ └────┘ └────┘              │
+│ ┌────┐ ┌────┐ ┌────┐              │
+│ │ TT │ │ FB │ │ GB │              │
+│ └────┘ └────┘ └────┘              │
+├────────────────────────────────────┤
+│ [💾][    Publicar    ][👁]        │ ← Legível
+└────────────────────────────────────┘
+```
+
+---
+
+### Ficheiros a Alterar
 
 | Ficheiro | Alterações |
 |----------|------------|
-| `MainLayout.tsx` | Padding zero em mobile |
-| `ManualCreate.tsx` | Container, cards, bottom bar |
-| `NetworkFormatSelector.tsx` | Max-width com calc() |
-| `QuickPresets.tsx` | Cards mais pequenos, max-width |
-| `PlatformChip.tsx` | Larguras reduzidas |
-| `FormatsPanel.tsx` | Padding e gap menores |
-| `MediaUploadSection.tsx` | Padding compacto |
-| `DashboardHeader.tsx` | Altura e gaps reduzidos |
-| `SelectedFormatsTags.tsx` | Max-width com calc() |
-| `index.css` | Regras globais mais agressivas |
+| `src/index.css` | CSS global com contenção absoluta |
+| `src/components/ui/sidebar.tsx` | SidebarInset max-width |
+| `src/components/manual-post/QuickPresets.tsx` | Grid 2x2 em mobile |
+| `src/components/manual-post/NetworkFormatSelector.tsx` | Grid 3x2 para chips |
+| `src/components/manual-post/PlatformChip.tsx` | Largura auto, texto maior |
+| `src/components/manual-post/SelectedFormatsTags.tsx` | Grid wrap |
+| `src/components/DashboardHeader.tsx` | Reduzir elementos |
+| `src/pages/ManualCreate.tsx` | Bottom bar, scheduling, container |
 
----
-
-### Resultado Esperado
-
-```text
-┌──────────────────────────────────────┐
-│  360px viewport                      │
-│  ┌────────────────────────────────┐  │
-│  │ Header (px-2, h-14)           │  │
-│  ├────────────────────────────────┤  │
-│  │ Content (px-0)                │  │
-│  │ ┌──────────────────────────┐  │  │
-│  │ │ Card (w-full, p-2)       │  │  │
-│  │ │ ┌──┐ ┌──┐ ┌──┐ ┌──┐ → →  │  │  │
-│  │ │ │IG│ │LI│ │YT│ │FB│ scroll│  │  │
-│  │ │ └──┘ └──┘ └──┘ └──┘      │  │  │
-│  │ └──────────────────────────┘  │  │
-│  │ ┌──────────────────────────┐  │  │
-│  │ │ Media (p-2)              │  │  │
-│  │ └──────────────────────────┘  │  │
-│  └────────────────────────────────┘  │
-│  ┌────────────────────────────────┐  │
-│  │ Bottom Bar (p-1, gap-1)       │  │
-│  │ [💾] [   Publicar    ] [👁]   │  │
-│  └────────────────────────────────┘  │
-└──────────────────────────────────────┘
-```
-
-Todos os elementos ficam contidos dentro dos 360px sem corte à direita.
