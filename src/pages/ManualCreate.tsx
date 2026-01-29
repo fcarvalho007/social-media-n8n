@@ -1572,7 +1572,7 @@ export default function ManualCreate() {
   const [mobilePreviewOpen, setMobilePreviewOpen] = useState(false);
 
   return (
-      <div className="max-w-7xl mx-auto space-y-2 sm:space-y-4 px-1 xs:px-2 sm:px-6 lg:px-0 bg-gradient-to-br from-background to-background-secondary overflow-hidden">
+      <div className="max-w-7xl mx-auto space-y-2 sm:space-y-4 px-0 sm:px-6 lg:px-0 bg-gradient-to-br from-background to-background-secondary overflow-hidden w-full max-w-full">
       {/* Header */}
       <div className="flex items-center justify-between py-1 sm:py-2 gap-2">
         <Button 
@@ -1727,7 +1727,7 @@ export default function ManualCreate() {
             "transition-all duration-300 ease-out overflow-hidden",
             showStep2 ? "opacity-100" : "opacity-0 max-h-0"
           )}>
-            <Card className="border-0 sm:border shadow-none sm:shadow-sm">
+            <Card className="border-0 sm:border shadow-none sm:shadow-sm w-full max-w-full overflow-hidden">
 
               <CardHeader className="pb-1 sm:pb-3 px-1.5 xs:px-2 sm:px-6 pt-1.5 xs:pt-2 sm:pt-6">
                 <div className="flex items-center justify-between">
@@ -2026,8 +2026,8 @@ export default function ManualCreate() {
             </Card>
 
             {/* Date & Time */}
-            <Card className="border-0 sm:border shadow-none sm:shadow-sm">
-              <CardHeader className="px-2 xs:px-3 sm:px-6 pt-2 xs:pt-3 sm:pt-6 pb-1.5 xs:pb-2 sm:pb-4">
+            <Card className="border-0 sm:border shadow-none sm:shadow-sm w-full max-w-full overflow-hidden">
+              <CardHeader className="px-1.5 xs:px-2 sm:px-6 pt-1.5 xs:pt-2 sm:pt-6 pb-1 xs:pb-1.5 sm:pb-4">
                 <CardTitle className="flex items-center gap-1 xs:gap-1.5 sm:gap-2 text-sm xs:text-base sm:text-lg">
                   Agendamento
                   <SectionHelp content={getSectionTooltip('scheduling')} />
@@ -2443,7 +2443,7 @@ export default function ManualCreate() {
       </div>
 
       {/* Mobile Sticky Bottom Bar - Enhanced with progress indicator */}
-      <div className="fixed bottom-0 left-0 right-0 bg-background/98 backdrop-blur-md border-t shadow-[0_-4px_20px_-4px_rgba(0,0,0,0.15)] lg:hidden z-50">
+      <div className="fixed bottom-0 left-0 right-0 bg-background/98 backdrop-blur-md border-t shadow-[0_-4px_20px_-4px_rgba(0,0,0,0.15)] lg:hidden z-50 w-screen max-w-[100vw] overflow-hidden">
         {/* Mini progress indicator - mais compacto */}
         <div className="flex justify-center py-1 xs:py-1.5 border-b border-border/50">
           <div className="flex items-center gap-1 xs:gap-1.5">
@@ -2476,7 +2476,7 @@ export default function ManualCreate() {
         </div>
         
         {/* Action buttons - com safe area */}
-        <div className="p-1.5 xs:p-2 sm:p-3 pb-[calc(0.375rem+env(safe-area-inset-bottom))] xs:pb-[calc(0.5rem+env(safe-area-inset-bottom))] flex gap-1 xs:gap-1.5 sm:gap-2">
+        <div className="p-1 xs:p-1.5 sm:p-3 pb-[calc(0.25rem+env(safe-area-inset-bottom))] xs:pb-[calc(0.375rem+env(safe-area-inset-bottom))] flex gap-1 xs:gap-1.5 sm:gap-2 w-full max-w-full">
           <Button
             type="button"
             variant="outline"

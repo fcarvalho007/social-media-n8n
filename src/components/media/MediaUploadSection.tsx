@@ -97,7 +97,7 @@ export function MediaUploadSection({
           onClick={() => handleCardToggle('grid')}
           disabled={disabled}
           className={cn(
-            "w-full p-4 sm:p-5 flex items-start gap-3 sm:gap-4 text-left",
+            "w-full p-2.5 xs:p-3.5 sm:p-5 flex items-start gap-2 xs:gap-3 sm:gap-4 text-left",
             "hover:bg-indigo-100/50 dark:hover:bg-indigo-900/30 transition-colors rounded-xl",
             disabled && "opacity-50 cursor-not-allowed"
           )}
@@ -166,7 +166,7 @@ export function MediaUploadSection({
             onClick={() => handleCardToggle('ai')}
             disabled={disabled}
             className={cn(
-              "w-full p-4 sm:p-5 flex items-start gap-3 sm:gap-4 text-left",
+              "w-full p-2.5 xs:p-3.5 sm:p-5 flex items-start gap-2 xs:gap-3 sm:gap-4 text-left",
               "hover:bg-violet-100/50 dark:hover:bg-violet-900/30 transition-colors rounded-xl",
               disabled && "opacity-50 cursor-not-allowed"
             )}
@@ -240,7 +240,7 @@ export function MediaUploadSection({
             disabled && "opacity-50 pointer-events-none"
           )}
         >
-          <div className="p-4 sm:p-5">
+          <div className="p-2.5 xs:p-3.5 sm:p-5">
             <div className="flex items-start gap-3 sm:gap-4">
               <div className={cn(
                 "p-2.5 sm:p-3 rounded-xl shrink-0",
@@ -268,7 +268,7 @@ export function MediaUploadSection({
             
             {/* Drop zone visual */}
             <div className={cn(
-              "mt-4 p-6 sm:p-8 rounded-lg border-2 border-dashed text-center transition-all",
+              "mt-3 p-4 xs:p-5 sm:p-8 rounded-lg border-2 border-dashed text-center transition-all",
               "border-slate-200 dark:border-slate-700 bg-white/50 dark:bg-slate-800/30",
               isDragging && "border-primary bg-primary/5"
             )}>

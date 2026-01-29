@@ -84,7 +84,7 @@ export function DashboardHeader() {
 
   return (
     <header className="sticky top-0 z-30 bg-card/95 backdrop-blur-lg border-b border-border shadow-sm">
-      <div className="flex h-16 items-center justify-between px-3 sm:px-4 md:px-6 gap-2 sm:gap-3">
+      <div className="flex h-14 xs:h-16 items-center justify-between px-1.5 xs:px-2 sm:px-4 md:px-6 gap-1 xs:gap-2 sm:gap-3 w-full max-w-full">
         {/* Left: Mobile Menu + Breadcrumb */}
         <div className="flex items-center gap-2 md:gap-4 flex-1 min-w-0">
           <Button
@@ -125,7 +125,7 @@ export function DashboardHeader() {
         </div>
 
         {/* Right: Search + Notifications + Quota Badge + Settings */}
-        <div className="flex items-center gap-1.5 sm:gap-2.5 flex-shrink-0">
+        <div className="flex items-center gap-0.5 xs:gap-1 sm:gap-2.5 flex-shrink-0">
           {/* Global Search Button */}
           <Button
             variant="ghost"

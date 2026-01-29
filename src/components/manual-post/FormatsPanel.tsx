@@ -23,7 +23,7 @@ export function FormatsPanel({
   
   return (
     <div 
-      className="formats-panel mt-2.5 sm:mt-4 p-2.5 sm:p-5 rounded-lg sm:rounded-2xl border overflow-hidden animate-slide-down"
+      className="formats-panel mt-2 sm:mt-4 p-1.5 xs:p-2 sm:p-5 rounded-lg sm:rounded-2xl border overflow-hidden animate-slide-down w-full max-w-full box-border"
       style={{
         background: `linear-gradient(to bottom, ${config.colorHex}08, transparent)`,
         borderColor: config.colorHex,
@@ -62,7 +62,7 @@ export function FormatsPanel({
       
       {/* Formats Grid - 2 columns on mobile, auto-fill on desktop */}
       <div 
-        className="grid grid-cols-2 sm:grid-cols-none gap-1.5 sm:gap-3"
+        className="grid grid-cols-2 sm:grid-cols-none gap-1 xs:gap-1.5 sm:gap-3"
         style={{
           gridTemplateColumns: undefined,
         }}
