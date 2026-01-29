@@ -1572,7 +1572,7 @@ export default function ManualCreate() {
   const [mobilePreviewOpen, setMobilePreviewOpen] = useState(false);
 
   return (
-      <div className="max-w-7xl mx-auto space-y-2 sm:space-y-4 px-4 sm:px-6 lg:px-0 bg-gradient-to-br from-background to-background-secondary">
+      <div className="max-w-7xl mx-auto space-y-2 sm:space-y-4 px-2 xs:px-3 sm:px-6 lg:px-0 bg-gradient-to-br from-background to-background-secondary overflow-hidden">
       {/* Header */}
       <div className="flex items-center justify-between py-1 sm:py-2 gap-2">
         <Button 
@@ -1696,7 +1696,7 @@ export default function ManualCreate() {
 
       {/* Mobile Preview - Hidden by default, moved to bottom */}
 
-      <div className="grid lg:grid-cols-2 gap-2 lg:gap-8 pb-28 lg:pb-0 px-3 sm:px-0">
+      <div className="grid lg:grid-cols-2 gap-2 lg:gap-8 pb-32 lg:pb-0 px-0 sm:px-0 overflow-hidden">
         {/* Left - Form */}
         <div className="space-y-3 lg:space-y-6">
           {/* Step 1: Network & Format Selection */}
@@ -1729,11 +1729,11 @@ export default function ManualCreate() {
           )}>
             <Card className="border-0 sm:border shadow-none sm:shadow-sm">
 
-              <CardHeader className="pb-2 sm:pb-3 px-3 sm:px-6 pt-3 sm:pt-6">
+              <CardHeader className="pb-1 xs:pb-2 sm:pb-3 px-2 xs:px-3 sm:px-6 pt-2 xs:pt-3 sm:pt-6">
                 <div className="flex items-center justify-between">
-                  <CardTitle className="text-base sm:text-lg flex items-center gap-1.5 sm:gap-2">
+                  <CardTitle className="text-sm xs:text-base sm:text-lg flex items-center gap-1 xs:gap-1.5 sm:gap-2">
                     <CloudUpload className="h-4 w-4 sm:h-5 sm:w-5 text-primary" />
-                    Média
+                    <span>Média</span>
                     <SectionHelp content={getSectionTooltip('media')} />
                   </CardTitle>
                   <AutoSaveIndicator 
@@ -1743,7 +1743,7 @@ export default function ManualCreate() {
                   />
                 </div>
               </CardHeader>
-              <CardContent className="space-y-3 sm:space-y-4 px-3 sm:px-6 pb-4 sm:pb-6">
+              <CardContent className="space-y-3 sm:space-y-4 px-2 xs:px-3 sm:px-6 pb-4 sm:pb-6">
                 {/* 3 Card Upload Options - Vertical Stack */}
                 {mediaPreviewUrls.length === 0 && (
                   <div ref={mediaSectionRef}>
@@ -1803,25 +1803,25 @@ export default function ManualCreate() {
                   <div className="space-y-3">
                     {/* Persistent Action Bar - Always visible with clear add more option */}
                     <div className={cn(
-                      "flex items-center justify-between p-2.5 sm:p-3 rounded-lg border",
+                      "flex items-center justify-between p-2 xs:p-2.5 sm:p-3 rounded-lg border",
                       mediaPreviewUrls.length >= mediaRequirements.maxMedia 
                         ? "bg-amber-500/10 border-amber-500/30" 
                         : "bg-muted/50 border-border"
                     )}>
-                      <div className="flex items-center gap-2">
+                      <div className="flex items-center gap-1.5 xs:gap-2">
                         <span className={cn(
-                          "text-sm font-medium",
+                          "text-xs sm:text-sm font-medium",
                           mediaPreviewUrls.length >= mediaRequirements.maxMedia && "text-amber-700 dark:text-amber-300"
                         )}>
                           {mediaPreviewUrls.length}/{mediaRequirements.maxMedia}
                         </span>
                         {mediaPreviewUrls.length < mediaRequirements.maxMedia ? (
-                          <Badge variant="secondary" className="text-xs">
-                            +{mediaRequirements.maxMedia - mediaPreviewUrls.length} disponíveis
+                          <Badge variant="secondary" className="text-[10px] hidden xs:inline-flex">
+                            +{mediaRequirements.maxMedia - mediaPreviewUrls.length}
                           </Badge>
                         ) : (
-                          <Badge variant="outline" className="text-xs bg-amber-500/20 text-amber-700 dark:text-amber-300 border-amber-500/30">
-                            Limite atingido
+                          <Badge variant="outline" className="text-[10px] xs:text-xs bg-amber-500/20 text-amber-700 dark:text-amber-300 border-amber-500/30">
+                            Limite
                           </Badge>
                         )}
                       </div>
@@ -1832,12 +1832,11 @@ export default function ManualCreate() {
                             variant="secondary" 
                             size="sm" 
                             asChild
-                            className="gap-1.5"
+                            className="gap-1 h-8 xs:h-9 px-2 xs:px-3"
                           >
                             <span>
-                              <Plus className="h-4 w-4" />
-                              <span className="hidden sm:inline">Adicionar mais</span>
-                              <span className="sm:hidden">Adicionar</span>
+                              <Plus className="h-3.5 w-3.5 xs:h-4 xs:w-4" />
+                              <span className="text-xs">Mais</span>
                             </span>
                           </Button>
                           <Input
@@ -1876,7 +1875,7 @@ export default function ManualCreate() {
                         items={mediaPreviewUrls.map((_, i) => `media-${i}`)}
                         strategy={horizontalListSortingStrategy}
                       >
-                        <div className="grid grid-cols-2 sm:grid-cols-3 gap-2 sm:gap-3">
+                        <div className="grid grid-cols-2 xs:grid-cols-2 sm:grid-cols-3 gap-1.5 xs:gap-2 sm:gap-3">
                           {mediaPreviewUrls.map((url, idx) => {
                             const isVideo = mediaFiles[idx]?.type?.startsWith('video/');
                             return (
@@ -2037,31 +2036,32 @@ export default function ManualCreate() {
               </CardHeader>
               <CardContent className="space-y-3 sm:space-y-4 px-3 sm:px-6 pb-4 sm:pb-6">
                 {/* Toggle Pill Style */}
-                <div className="flex rounded-full bg-muted p-1 gap-1">
+                <div className="flex rounded-full bg-muted p-0.5 xs:p-1 gap-0.5 xs:gap-1">
                   <button
                     type="button"
                     onClick={() => setScheduleAsap(true)}
                     className={cn(
-                      "flex-1 py-2.5 px-4 rounded-full text-sm font-medium transition-all duration-300 flex items-center justify-center gap-2",
+                      "flex-1 py-2 xs:py-2.5 px-2 xs:px-4 rounded-full text-xs xs:text-sm font-medium transition-all duration-300 flex items-center justify-center gap-1 xs:gap-2",
                       scheduleAsap 
                         ? "bg-background shadow-sm text-foreground" 
                         : "text-muted-foreground hover:text-foreground"
                     )}
                   >
-                    <Rocket className="h-4 w-4" />
-                    Publicar agora
+                    <Rocket className="h-3.5 w-3.5 xs:h-4 xs:w-4" />
+                    <span className="hidden xs:inline">Publicar agora</span>
+                    <span className="xs:hidden">Agora</span>
                   </button>
                   <button
                     type="button"
                     onClick={() => setScheduleAsap(false)}
                     className={cn(
-                      "flex-1 py-2.5 px-4 rounded-full text-sm font-medium transition-all duration-300 flex items-center justify-center gap-2",
+                      "flex-1 py-2 xs:py-2.5 px-2 xs:px-4 rounded-full text-xs xs:text-sm font-medium transition-all duration-300 flex items-center justify-center gap-1 xs:gap-2",
                       !scheduleAsap 
                         ? "bg-background shadow-sm text-foreground" 
                         : "text-muted-foreground hover:text-foreground"
                     )}
                   >
-                    <CalendarIcon className="h-4 w-4" />
+                    <CalendarIcon className="h-3.5 w-3.5 xs:h-4 xs:w-4" />
                     Agendar
                   </button>
                 </div>
@@ -2086,14 +2086,14 @@ export default function ManualCreate() {
                     {/* Quick date shortcuts */}
                     <div className="space-y-2">
                       <Label className="text-xs text-muted-foreground">Atalhos rápidos</Label>
-                      <div className="grid grid-cols-4 gap-1.5">
+                      <div className="grid grid-cols-2 xs:grid-cols-4 gap-1.5">
                         <Button 
                           type="button"
                           variant="outline" 
                           size="sm"
                           onClick={() => setScheduledDate(new Date())}
                           className={cn(
-                            "text-xs h-8",
+                            "text-[10px] xs:text-xs h-8",
                             scheduledDate && format(scheduledDate, 'yyyy-MM-dd') === format(new Date(), 'yyyy-MM-dd') && "bg-primary/10 border-primary/50"
                           )}
                         >
@@ -2105,7 +2105,7 @@ export default function ManualCreate() {
                           size="sm"
                           onClick={() => setScheduledDate(addDays(new Date(), 1))}
                           className={cn(
-                            "text-xs h-8",
+                            "text-[10px] xs:text-xs h-8",
                             scheduledDate && format(scheduledDate, 'yyyy-MM-dd') === format(addDays(new Date(), 1), 'yyyy-MM-dd') && "bg-primary/10 border-primary/50"
                           )}
                         >
@@ -2117,7 +2117,7 @@ export default function ManualCreate() {
                           size="sm"
                           onClick={() => setScheduledDate(nextDay(new Date(), 2))}
                           className={cn(
-                            "text-xs h-8",
+                            "text-[10px] xs:text-xs h-8",
                             scheduledDate && scheduledDate.getDay() === 2 && scheduledDate > new Date() && "bg-primary/10 border-primary/50"
                           )}
                         >
@@ -2129,7 +2129,7 @@ export default function ManualCreate() {
                           size="sm"
                           onClick={() => setScheduledDate(nextDay(new Date(), 4))}
                           className={cn(
-                            "text-xs h-8",
+                            "text-[10px] xs:text-xs h-8",
                             scheduledDate && scheduledDate.getDay() === 4 && scheduledDate > new Date() && "bg-primary/10 border-primary/50"
                           )}
                         >
@@ -2207,20 +2207,22 @@ export default function ManualCreate() {
                       </div>
                       
                       {/* Time presets */}
-                      <div className="flex gap-1.5 flex-wrap mt-2">
-                        {['09:00', '12:00', '15:00', '18:00', '21:00'].map((preset) => (
-                          <Badge 
-                            key={preset}
-                            variant="outline" 
-                            className={cn(
-                              "cursor-pointer hover:bg-primary/10 transition-colors text-xs py-1 px-2",
-                              time === preset && "bg-primary/10 border-primary/50"
-                            )}
-                            onClick={() => setTime(preset)}
-                          >
-                            {preset}
-                          </Badge>
-                        ))}
+                      <div className="overflow-x-auto scrollbar-hide pb-1">
+                        <div className="flex gap-1 xs:gap-1.5 w-max xs:w-auto xs:flex-wrap mt-2">
+                          {['09:00', '12:00', '15:00', '18:00', '21:00'].map((preset) => (
+                            <Badge 
+                              key={preset}
+                              variant="outline" 
+                              className={cn(
+                                "cursor-pointer hover:bg-primary/10 transition-colors text-[10px] xs:text-xs py-0.5 xs:py-1 px-1.5 xs:px-2 flex-shrink-0",
+                                time === preset && "bg-primary/10 border-primary/50"
+                              )}
+                              onClick={() => setTime(preset)}
+                            >
+                              {preset}
+                            </Badge>
+                          ))}
+                        </div>
                       </div>
                     </div>
 
@@ -2441,15 +2443,15 @@ export default function ManualCreate() {
 
       {/* Mobile Sticky Bottom Bar - Enhanced with progress indicator */}
       <div className="fixed bottom-0 left-0 right-0 bg-background/98 backdrop-blur-md border-t shadow-[0_-4px_20px_-4px_rgba(0,0,0,0.15)] lg:hidden z-50">
-        {/* Mini progress indicator */}
-        <div className="flex justify-center py-1.5 border-b border-border/50">
-          <div className="flex items-center gap-1.5">
+        {/* Mini progress indicator - mais compacto */}
+        <div className="flex justify-center py-1 xs:py-1.5 border-b border-border/50">
+          <div className="flex items-center gap-1 xs:gap-1.5">
             {[1, 2, 3].map((step) => (
               <div
                 key={step}
                 className={cn(
-                  "h-1.5 rounded-full transition-all duration-200",
-                  step <= currentStep ? "w-6 bg-primary" : "w-1.5 bg-muted-foreground/30"
+                  "h-1 xs:h-1.5 rounded-full transition-all duration-200",
+                  step <= currentStep ? "w-5 xs:w-6 bg-primary" : "w-1 xs:w-1.5 bg-muted-foreground/30"
                 )}
               />
             ))}
@@ -2458,32 +2460,32 @@ export default function ManualCreate() {
         
         {/* Scheduled preview - if date selected */}
         {!scheduleAsap && scheduledDate && (
-          <div className="px-4 py-1.5 bg-blue-50 dark:bg-blue-950/30 text-center text-xs text-blue-700 dark:text-blue-300 flex items-center justify-center gap-1.5">
+          <div className="px-2 xs:px-4 py-1 xs:py-1.5 bg-blue-50 dark:bg-blue-950/30 text-center text-[10px] xs:text-xs text-blue-700 dark:text-blue-300 flex items-center justify-center gap-1 xs:gap-1.5">
             <CalendarIcon className="h-3 w-3" />
             <span>Agendado: {format(scheduledDate, "d MMM", { locale: pt })} às {time}</span>
           </div>
         )}
         
         {/* Aspect Ratio Warning - Mobile */}
-        <div className="flex justify-center py-1">
+        <div className="flex justify-center py-0.5 xs:py-1">
           <AspectRatioWarning 
             mediaFiles={mediaFiles} 
             selectedFormats={selectedFormats} 
           />
         </div>
         
-        {/* Action buttons */}
-        <div className="p-3 pb-[calc(0.75rem+env(safe-area-inset-bottom))] flex gap-2">
+        {/* Action buttons - com safe area */}
+        <div className="p-2 xs:p-3 pb-[calc(0.5rem+env(safe-area-inset-bottom))] xs:pb-[calc(0.75rem+env(safe-area-inset-bottom))] flex gap-1.5 xs:gap-2">
           <Button
             type="button"
             variant="outline"
             size="icon"
             onClick={handleSaveDraft}
             disabled={saving || submitting || publishing}
-            className="h-12 w-12 flex-shrink-0"
+            className="h-10 w-10 xs:h-12 xs:w-12 flex-shrink-0"
             aria-label="Guardar rascunho"
           >
-            <Save className="h-5 w-5" />
+            <Save className="h-4 w-4 xs:h-5 xs:w-5" />
           </Button>
           
           <Button
@@ -2491,23 +2493,23 @@ export default function ManualCreate() {
             onClick={handlePublishWithValidation}
             disabled={publishing || submitting || saving || isUploading || selectedFormats.length === 0}
             className={cn(
-              "flex-1 h-12 font-semibold text-white press-effect",
+              "flex-1 h-10 xs:h-12 font-semibold text-white press-effect",
               !scheduleAsap && scheduledDate
                 ? "bg-gradient-to-r from-blue-600 to-blue-500 hover:from-blue-500 hover:to-blue-400"
                 : "bg-gradient-to-r from-green-600 to-green-500 hover:from-green-500 hover:to-green-400"
             )}
           >
             {publishing ? (
-              <Loader2 className="h-5 w-5 animate-spin" />
+              <Loader2 className="h-4 w-4 xs:h-5 xs:w-5 animate-spin" />
             ) : !scheduleAsap && scheduledDate ? (
               <>
-                <CalendarIcon className="h-5 w-5 mr-2" />
-                <span>Agendar</span>
+                <CalendarIcon className="h-4 w-4 xs:h-5 xs:w-5 mr-1.5 xs:mr-2" />
+                <span className="text-sm xs:text-base">Agendar</span>
               </>
             ) : (
               <>
-                <Rocket className="h-5 w-5 mr-2" />
-                <span>Publicar</span>
+                <Rocket className="h-4 w-4 xs:h-5 xs:w-5 mr-1.5 xs:mr-2" />
+                <span className="text-sm xs:text-base">Publicar</span>
               </>
             )}
           </Button>
@@ -2518,10 +2520,10 @@ export default function ManualCreate() {
             variant="outline" 
             size="icon" 
             onClick={() => setMobilePreviewOpen(true)}
-            className="h-12 w-12 flex-shrink-0"
+            className="h-10 w-10 xs:h-12 xs:w-12 flex-shrink-0"
             aria-label="Pré-visualizar"
           >
-            <Eye className="h-5 w-5" />
+            <Eye className="h-4 w-4 xs:h-5 xs:w-5" />
           </Button>
         </div>
       </div>

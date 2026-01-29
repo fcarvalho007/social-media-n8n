@@ -95,15 +95,15 @@ export function NetworkCaptionEditor({
     <div className="space-y-3">
       {/* Toggle for separate captions */}
       {showToggle && (
-        <div className="flex items-center justify-between p-4 rounded-xl bg-muted/50 border min-h-[52px]">
-          <div className="flex items-center gap-3">
+        <div className="flex items-center justify-between p-2.5 xs:p-3 sm:p-4 rounded-lg xs:rounded-xl bg-muted/50 border min-h-[44px] xs:min-h-[48px] sm:min-h-[52px]">
+          <div className="flex items-center gap-2 xs:gap-3">
             {useSeparateCaptions ? (
-              <Split className="h-5 w-5 text-primary" />
+              <Split className="h-4 w-4 xs:h-5 xs:w-5 text-primary" />
             ) : (
-              <Merge className="h-5 w-5 text-muted-foreground" />
+              <Merge className="h-4 w-4 xs:h-5 xs:w-5 text-muted-foreground" />
             )}
-            <Label htmlFor="separate-captions" className="text-sm font-medium cursor-pointer leading-tight">
-              {useSeparateCaptions ? 'Legendas separadas' : 'Legenda unificada'}
+            <Label htmlFor="separate-captions" className="text-xs xs:text-sm font-medium cursor-pointer leading-tight">
+              {useSeparateCaptions ? 'Separadas' : 'Unificada'}
             </Label>
           </div>
           <Switch
@@ -116,17 +116,17 @@ export function NetworkCaptionEditor({
       )}
 
       {/* Toolbar - Touch optimized with larger targets */}
-      <div className="flex items-center gap-1 sm:gap-1.5 border rounded-xl p-1.5 sm:p-2 bg-muted/30 overflow-x-auto scrollbar-hide">
+      <div className="flex items-center gap-1 border rounded-lg xs:rounded-xl p-1 xs:p-1.5 sm:p-2 bg-muted/30 overflow-x-auto scrollbar-hide">
         <Popover open={emojiPickerOpen} onOpenChange={setEmojiPickerOpen}>
           <PopoverTrigger asChild>
             <Button 
               variant="ghost" 
               size="icon" 
-              className="h-11 w-11 sm:h-8 sm:w-8 flex-shrink-0" 
+              className="h-9 w-9 xs:h-10 xs:w-10 sm:h-8 sm:w-8 flex-shrink-0" 
               title="Inserir emoji" 
               disabled={disabled}
             >
-              <Smile className="h-5 w-5 sm:h-4 sm:w-4" />
+              <Smile className="h-4 w-4 xs:h-5 xs:w-5 sm:h-4 sm:w-4" />
             </Button>
           </PopoverTrigger>
           <PopoverContent className="w-auto p-0 border-0" align="start" side="top">
@@ -140,34 +140,34 @@ export function NetworkCaptionEditor({
           </PopoverContent>
         </Popover>
 
-        <Separator orientation="vertical" className="h-6 mx-0.5 sm:mx-1" />
+        <Separator orientation="vertical" className="h-5 xs:h-6 mx-0.5" />
 
         {onOpenSavedCaptions && (
           <Button
             variant="ghost"
             size="sm"
-            className="h-11 sm:h-8 gap-1.5 px-3 flex-shrink-0"
+            className="h-9 xs:h-10 sm:h-8 gap-1 px-2 xs:px-3 flex-shrink-0"
             onClick={onOpenSavedCaptions}
             title="Legendas guardadas"
             disabled={disabled}
           >
-            <Bookmark className="h-5 w-5 sm:h-4 sm:w-4" />
+            <Bookmark className="h-4 w-4" />
             <span className="hidden xs:inline text-xs">Guardadas</span>
           </Button>
         )}
 
-        <Separator orientation="vertical" className="h-6 mx-0.5 sm:mx-1" />
+        <Separator orientation="vertical" className="h-5 xs:h-6 mx-0.5" />
 
         {onOpenAIDialog && (
           <Button
             variant="ghost"
             size="sm"
-            className="h-11 sm:h-8 gap-1.5 px-3 flex-shrink-0 bg-gradient-to-r from-purple-500/10 to-blue-500/10 hover:from-purple-500/20 hover:to-blue-500/20"
+            className="h-9 xs:h-10 sm:h-8 gap-1 px-2 xs:px-3 flex-shrink-0 bg-gradient-to-r from-purple-500/10 to-blue-500/10 hover:from-purple-500/20 hover:to-blue-500/20"
             onClick={onOpenAIDialog}
             title="Melhorar com IA"
             disabled={disabled}
           >
-            <Sparkles className="h-5 w-5 sm:h-4 sm:w-4 text-purple-500" />
+            <Sparkles className="h-4 w-4 text-purple-500" />
             <span className="text-xs font-medium">IA</span>
           </Button>
         )}
