@@ -1,260 +1,143 @@
 
-## Plano de Correção - Layout Mobile (v4)
+## Plano: Remover Limite de 10 Imagens para Instagram Carousel
 
-### Problemas Identificados
-
-Com base na tua resposta, o problema é **overflow horizontal** que acontece:
-1. **No topo (filtros)** - nas páginas `/manual-create`, `/pending`
-2. **Dentro de modais** - especialmente no modal "Criar Projeto"
+### Objetivo
+Permitir inserir mais de 10 imagens no carrossel, exibindo um aviso no momento da publicação de que a API do Instagram só aceita 10 imagens, mas prosseguindo com o envio para a Getlate.dev.
 
 ---
 
 ### Análise Técnica
 
-Após revisar o código, identifico as seguintes causas:
+A limitação de 10 imagens está implementada em 3 locais:
 
-#### `/manual-create` - QuickPresets e PlatformChips
-- **O container `-mx-3` expande para fora** mas o `parent` não tem `overflow-hidden`
-- Quando o utilizador faz scroll horizontal, o conteúdo "sai" do ecrã visualmente
-
-#### `/pending` - Filtros de Tipo e Status
-- Os botões de filtro usam `flex gap-2` com `overflow-x-auto` mas falta `overflow-hidden` no container pai
-- Alguns botões têm `px-6` que podem ser demasiado largos
-
-#### `/projects` - Modal de Criação
-- O modal `CreateProjectModal` usa `grid grid-cols-2` para cor/ícone
-- Os grids de seleção (cores e ícones) não têm `flex-wrap` adequado
-- O formulário inteiro não está a escalar bem para ecrãs pequenos
+| Ficheiro | Linha | O que faz |
+|----------|-------|-----------|
+| `src/types/social.ts` | 48 | Define `maxMedia: 10` no config do `instagram_carousel` |
+| `src/lib/formatValidation.ts` | 37, 52, 99-101 | Calcula `maxMedia` mínimo entre formatos e retorna **erro** se excedido |
+| `src/pages/ManualCreate.tsx` | 699-706, 645-647 | Bloqueia upload e mostra erro se exceder limite |
 
 ---
 
-### Correção 1: Container Principal com overflow-hidden
+### Alterações
 
-**Ficheiros afetados:**
-- `src/pages/ManualCreate.tsx`
-- `src/pages/Pending.tsx`
+#### 1. Aumentar limite no config do formato (`src/types/social.ts`)
 
-Adicionar `overflow-hidden` ao container principal da página para impedir que elementos filhos "saiam" do viewport:
+Alterar o `maxMedia` do `instagram_carousel` de 10 para um valor mais alto (ex: 50), permitindo uploads maiores:
 
-```tsx
-// ManualCreate.tsx - Container principal
-<div className="max-w-7xl mx-auto space-y-2 px-3 sm:px-6 lg:px-0 overflow-hidden">
-
-// Pending.tsx - Container de filtros (linha 295)
-<div className="bg-card rounded-xl sm:rounded-2xl p-3 sm:p-4 md:p-6 border-2 border-border shadow-lg w-full overflow-hidden">
+```typescript
+// Linha 48
+maxMedia: 50, // Permite uploads grandes, aviso será dado na publicação
 ```
 
----
+Também atualizar a descrição para refletir:
 
-### Correção 2: QuickPresets - Scroll correcto
-
-**Ficheiro: `src/components/manual-post/QuickPresets.tsx`**
-
-Garantir que o container pai tem `overflow-hidden`:
-
-```tsx
-// Linha 91 - Container principal
-<div className="quick-presets mb-2 sm:mb-5 overflow-hidden max-w-full">
-
-// Linha 98 - Remover -mx-3 que causa overflow
-<div className="relative overflow-hidden">
-  <div className="flex gap-2 overflow-x-auto pb-2 sm:flex-wrap sm:overflow-visible scrollbar-hide snap-x snap-mandatory">
-    {/* Cards com padding interno para evitar corte */}
-    {FORMAT_PRESETS.map(preset => (
-      <button className="... ml-0.5 first:ml-0 ...">
-        ...
-      </button>
-    ))}
-  </div>
-</div>
+```typescript
+// Linha 45
+description: '1-50 imagens (API IG suporta máx. 10)',
 ```
 
----
+#### 2. Converter erro em aviso na validação (`src/lib/formatValidation.ts`)
 
-### Correção 3: NetworkFormatSelector - Container seguro
+Para o formato `instagram_carousel`, quando `totalMedia > 10`:
+- **Não bloquear** (não retornar erro)
+- **Mostrar aviso** informativo
 
-**Ficheiro: `src/components/manual-post/NetworkFormatSelector.tsx`**
+```typescript
+// Dentro de validateFormat(), após validação de minMedia:
 
-```tsx
-// Linha 74 - Card com overflow protegido
-<Card className="overflow-hidden border-0 sm:border shadow-none sm:shadow-sm w-full">
-
-// Linha 90 - CardContent com protecção
-<CardContent className="space-y-3 px-3 sm:px-6 pb-4 sm:pb-6 overflow-hidden">
-
-// Linha 107-123 - Platform chips sem -mx-3
-<div 
-  className="platform-chips overflow-hidden"
-  role="tablist"
->
-  <div className="flex gap-2 overflow-x-auto pb-2 sm:flex-wrap sm:overflow-visible scrollbar-hide">
-    {enabledNetworks.map((network) => (
-      <PlatformChip ... />
-    ))}
-  </div>
-</div>
-```
-
----
-
-### Correção 4: Pending.tsx - Filtros em scroll seguro
-
-**Ficheiro: `src/pages/Pending.tsx`**
-
-```tsx
-// Linhas 301-321 - Content Type Filter
-<div className="mb-3 sm:mb-5 overflow-hidden">
-  <h3 className="...">Filtrar por Tipo</h3>
-  <div className="overflow-hidden">
-    <div className="flex overflow-x-auto snap-x snap-mandatory scrollbar-hide pb-2">
-      <div className="flex gap-1.5 sm:gap-2">
-        {contentTypes.map((type) => (
-          <Button
-            key={type.id}
-            className={cn(
-              'h-10 min-h-[44px] px-3 sm:px-5 ...', // Reduzir padding
-              '...'
-            )}
-          >
-            ...
-          </Button>
-        ))}
-      </div>
-    </div>
-  </div>
-</div>
-
-// Linhas 330-359 - Status Tabs
-<div className="overflow-hidden">
-  <div className="flex overflow-x-auto snap-x snap-mandatory scrollbar-hide pb-2">
-    <div className="flex gap-1.5 sm:gap-2">
-      {Object.entries(statusConfig).map(([key, config]) => (
-        <Button
-          key={key}
-          className={cn(
-            'h-10 min-h-[44px] px-2.5 sm:px-4 ...', // Reduzir padding em mobile
-            '...'
-          )}
-        >
-          <config.icon className="mr-1 h-4 w-4" />
-          <span className="hidden xs:inline">{config.label}</span>
-          <span className="xs:hidden">{config.label.slice(0, 4)}</span>
-          ...
-        </Button>
-      ))}
-    </div>
-  </div>
-</div>
-```
-
----
-
-### Correção 5: CreateProjectModal - Layout responsivo
-
-**Ficheiro: `src/components/projects/CreateProjectModal.tsx`**
-
-```tsx
-// Linha 144 - Modal mais estreito em mobile
-<DialogContent className="max-w-2xl w-[calc(100vw-2rem)] max-h-[90vh] overflow-y-auto ...">
-
-// Linha 176-213 - Cor e Ícone em coluna única no mobile
-<div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-  <div>
-    <Label>Cor</Label>
-    <div className="flex gap-2 flex-wrap mt-2">
-      {PROJECT_COLORS.map((color) => (
-        <button
-          key={color}
-          className="w-8 h-8 sm:w-10 sm:h-10 rounded-full ..."
-          ...
-        />
-      ))}
-    </div>
-  </div>
-
-  <div>
-    <Label>Ícone</Label>
-    <div className="flex gap-1.5 sm:gap-2 flex-wrap mt-2 max-h-24 overflow-y-auto">
-      {PROJECT_ICONS.map((icon) => (
-        <button
-          className="text-xl sm:text-2xl p-1.5 sm:p-2 ..."
-          ...
-        >
-          {icon}
-        </button>
-      ))}
-    </div>
-  </div>
-</div>
-
-// Linha 232-251 - Datas em coluna única no mobile
-<div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-  <div>
-    <Label htmlFor="start_date">Data de Início</Label>
-    <Input type="date" className="w-full" ... />
-  </div>
-  <div>
-    <Label htmlFor="due_date">Data de Entrega</Label>
-    <Input type="date" className="w-full" ... />
-  </div>
-</div>
-```
-
----
-
-### Correção 6: CSS - Remover estilos conflitantes
-
-**Ficheiro: `src/index.css`**
-
-Garantir que não há estilos globais a forçar larguras mínimas:
-
-```css
-/* Linha ~740-760 - Quick Presets */
-.quick-presets {
-  margin-bottom: 20px;
-  max-width: 100%;
-  overflow: hidden;
+// Instagram carousel: warning instead of error for >10 media
+if (format === 'instagram_carousel' && totalMedia > 10) {
+  warnings.push(`Instagram aceita máx. 10 imagens. A Getlate receberá ${totalMedia} - poderá ser necessário ajustar.`);
+} else if (format === 'linkedin_document') {
+  // LinkedIn Document validation (existing code)
+  ...
+} else if (config.maxMedia && totalMedia > config.maxMedia) {
+  errors.push(`Máximo ${config.maxMedia} ficheiro(s) permitido(s)`);
 }
+```
 
-/* Linha ~820 - Platform chips */
-.platform-chip {
-  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08);
-  /* Sem min-width - controlado por Tailwind */
-}
+#### 3. Remover bloqueio de upload (`src/pages/ManualCreate.tsx`)
 
-/* Mobile scroll containers */
-@media (max-width: 640px) {
-  .quick-presets,
-  .platform-chips {
-    max-width: 100%;
+Atualmente, o upload é bloqueado se exceder `maxAllowed`. Precisamos:
+
+1. **Permitir o upload** mesmo que exceda 10
+2. **Mostrar toast de aviso** (não erro) quando o total exceder 10 para Instagram
+
+```typescript
+// Linha 699-706 - Alterar de erro para aviso
+if (totalAfterUpload > maxAllowed) {
+  // For Instagram carousel, allow but warn
+  const hasInstagramCarousel = selectedFormats.includes('instagram_carousel');
+  if (hasInstagramCarousel && totalAfterUpload <= 50) {
+    toast.warning(
+      `Atenção: Instagram suporta máx. 10 imagens. A publicar ${totalAfterUpload} - Getlate receberá todas.`,
+      { duration: 6000 }
+    );
+    // Continue with upload - don't return
+  } else {
+    toast.error(`Máximo ${maxAllowed} ficheiros. Já tem ${mediaFiles.length}.`);
+    return;
   }
 }
 ```
 
----
+#### 4. Validação na publicação (`src/pages/ManualCreate.tsx` ou `PublishConfirmationModal`)
 
-### Resumo das Alterações
+No momento de clicar "Publicar", se houver mais de 10 imagens e Instagram estiver selecionado:
 
-| Ficheiro | Alteração |
-|----------|-----------|
-| `ManualCreate.tsx` | Adicionar `overflow-hidden` ao container principal |
-| `QuickPresets.tsx` | Remover `-mx-3`, usar container com `overflow-hidden` |
-| `NetworkFormatSelector.tsx` | Remover `-mx-3`, proteger com `overflow-hidden` |
-| `Pending.tsx` | Reduzir padding dos botões, adicionar `overflow-hidden` aos containers de scroll |
-| `CreateProjectModal.tsx` | Grids responsivos `grid-cols-1 sm:grid-cols-2`, modal mais estreito |
-| `index.css` | Garantir `max-width: 100%` e remover `min-width` conflitantes |
+```typescript
+// Em handlePublishNow() ou handlePublishWithValidation()
+const instagramSelected = selectedNetworks.includes('instagram');
+const hasMoreThan10 = mediaFiles.length > 10;
+
+if (instagramSelected && hasMoreThan10) {
+  toast.warning(
+    `⚠️ Instagram aceita máx. 10 imagens. Enviando ${mediaFiles.length} para Getlate. Poderá ser necessário ajustar no dashboard.`,
+    { duration: 8000 }
+  );
+}
+// Continue with publishing - don't block
+```
+
+#### 5. Atualizar tooltips e labels
+
+**`src/components/manual-post/SectionHelp.tsx`** - Linha 60:
+```typescript
+instagram_carousel: "1-50 imagens ou vídeos (API IG suporta máx. 10, receberá aviso)",
+```
+
+**`src/components/publishing/TargetSelector.tsx`** - Linha 121:
+```typescript
+<p>• 1-50 imagens (IG suporta máx. 10 via API)</p>
+```
 
 ---
 
 ### Resultado Esperado
 
-**Páginas `/pending` e `/manual-create`:**
-- Filtros fazem scroll horizontal suave sem "sair" do ecrã
-- Nenhum overflow horizontal visível
-- Botões mais compactos em mobile mas ainda tocáveis (44px min)
+| Cenário | Comportamento Atual | Comportamento Novo |
+|---------|---------------------|---------------------|
+| Upload 15 imagens (IG carousel) | ❌ Bloqueado com erro | ✅ Permitido com toast de aviso |
+| Validação com 15 imagens | ❌ Erro: "Máximo 10 ficheiros" | ✅ Aviso: "Instagram aceita máx. 10" |
+| Publicar com 15 imagens | ❌ Não chega aqui | ✅ Toast de aviso + envio para Getlate |
+| Download com 15 imagens | ✅ Funciona | ✅ Continua a funcionar |
+| LinkedIn Document com 50 páginas | ✅ Funciona (limite 300) | ✅ Sem alteração |
 
-**Modal "Criar Projeto":**
-- Formulário em layout de coluna única no mobile
-- Todos os elementos visíveis sem overflow
-- Scroll vertical suave quando necessário
+---
 
+### Ficheiros a Alterar
+
+1. `src/types/social.ts` - Aumentar `maxMedia` e descrição
+2. `src/lib/formatValidation.ts` - Converter erro em aviso para instagram_carousel
+3. `src/pages/ManualCreate.tsx` - Permitir upload com aviso, adicionar aviso na publicação
+4. `src/components/manual-post/SectionHelp.tsx` - Atualizar tooltip
+5. `src/components/publishing/TargetSelector.tsx` - Atualizar descrição
+
+---
+
+### Notas Técnicas
+
+- A Getlate.dev receberá todas as imagens - a limitação de 10 é apenas da API oficial do Instagram
+- O utilizador é informado em 3 momentos: upload, validação visual, e no momento de publicar
+- O download ZIP funcionará normalmente com qualquer número de ficheiros
+- O LinkedIn Document não é afetado (já suporta até 300 páginas)
