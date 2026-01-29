@@ -958,20 +958,33 @@ All colors MUST be HSL.
     width: 100vw !important;
   }
   
-  /* Force all cards to respect viewport */
+  /* Force ALL elements to respect viewport */
+  * {
+    max-width: 100vw;
+  }
+  
+  /* Cards cannot exceed viewport - with important */
   .quick-presets,
   .platform-chips,
   .selected-formats,
   .formats-panel,
+  [class*="Card"],
   [data-radix-popper-content-wrapper] {
-    max-width: calc(100vw - 4px) !important;
+    max-width: calc(100vw - 8px) !important;
     box-sizing: border-box !important;
+    overflow: hidden !important;
   }
   
-  /* Cards cannot exceed viewport */
-  .border, [class*="border-"] {
-    box-sizing: border-box;
+  /* Override any fixed widths on mobile */
+  [class*="w-["] {
+    max-width: 100% !important;
   }
+}
+
+/* Specific fix for SidebarInset content */
+[data-sidebar="inset"] {
+  max-width: 100vw;
+  overflow-x: hidden;
 }
 
 /* Force box-sizing globally */

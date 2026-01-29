@@ -83,18 +83,18 @@ export function DashboardHeader() {
     : breadcrumbs;
 
   return (
-    <header className="sticky top-0 z-30 bg-card/95 backdrop-blur-lg border-b border-border shadow-sm">
-      <div className="flex h-14 xs:h-16 items-center justify-between px-1.5 xs:px-2 sm:px-4 md:px-6 gap-1 xs:gap-2 sm:gap-3 w-full max-w-full">
+    <header className="sticky top-0 z-30 bg-card/95 backdrop-blur-lg border-b border-border shadow-sm max-w-[100vw] overflow-hidden">
+      <div className="flex h-12 xs:h-14 sm:h-16 items-center justify-between px-2 xs:px-3 sm:px-4 md:px-6 gap-1 xs:gap-2 sm:gap-3 w-full max-w-[100vw]">
         {/* Left: Mobile Menu + Breadcrumb */}
         <div className="flex items-center gap-2 md:gap-4 flex-1 min-w-0">
           <Button
             variant="ghost"
             size="icon"
-            className="h-12 w-12 min-h-[48px] min-w-[48px] touch-target rounded-lg hover:bg-primary/10 active:scale-95 transition-transform duration-150"
+            className="h-10 w-10 xs:h-11 xs:w-11 min-h-[40px] min-w-[40px] touch-target rounded-lg hover:bg-primary/10 active:scale-95 transition-transform duration-150"
             onClick={() => toggleSidebar()}
             aria-label="Menu"
           >
-            <Menu className="h-6 w-6" />
+            <Menu className="h-5 w-5 xs:h-6 xs:w-6" />
           </Button>
 
           <nav className="flex items-center gap-1 sm:gap-2 text-xs sm:text-sm overflow-x-auto scrollbar-hide">
@@ -125,23 +125,25 @@ export function DashboardHeader() {
         </div>
 
         {/* Right: Search + Notifications + Quota Badge + Settings */}
-        <div className="flex items-center gap-0.5 xs:gap-1 sm:gap-2.5 flex-shrink-0">
+        <div className="flex items-center gap-0.5 xs:gap-1 sm:gap-2 flex-shrink-0">
           {/* Global Search Button */}
           <Button
             variant="ghost"
             size="icon"
             onClick={() => setSearchOpen(true)}
-            className="h-10 w-10 min-h-[44px] min-w-[44px] touch-target rounded-lg hover:bg-primary/10 active:scale-95 transition-all duration-150"
+            className="h-9 w-9 xs:h-10 xs:w-10 min-h-[36px] min-w-[36px] touch-target rounded-lg hover:bg-primary/10 active:scale-95 transition-all duration-150"
             aria-label="Pesquisar (Cmd+K)"
           >
-            <Search className="h-5 w-5" />
+            <Search className="h-4 w-4 xs:h-5 xs:w-5" />
           </Button>
 
           {/* Notifications */}
           <NotificationBell />
 
-          {/* Quota Badge - Always visible */}
-          <QuotaBadge />
+          {/* Quota Badge - Hidden on very small screens */}
+          <div className="hidden xs:block">
+            <QuotaBadge />
+          </div>
           
           {/* Settings Menu */}
           <DropdownMenu>
@@ -149,10 +151,10 @@ export function DashboardHeader() {
               <Button
                 variant="ghost"
                 size="icon"
-                className="h-10 w-10 min-h-[44px] min-w-[44px] touch-target rounded-lg hover:bg-primary/10 active:scale-95 transition-all duration-150"
+                className="h-9 w-9 xs:h-10 xs:w-10 min-h-[36px] min-w-[36px] touch-target rounded-lg hover:bg-primary/10 active:scale-95 transition-all duration-150"
                 aria-label="Definições"
               >
-                <Settings className="h-5 w-5" />
+                <Settings className="h-4 w-4 xs:h-5 xs:w-5" />
               </Button>
             </DropdownMenuTrigger>
             <DropdownMenuContent align="end" className="w-56">
