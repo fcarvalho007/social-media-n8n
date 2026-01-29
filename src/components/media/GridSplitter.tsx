@@ -345,9 +345,9 @@ export function GridSplitter({
               <Separator />
               
               <div className="flex flex-col gap-2">
-                {maxImages < selectedCount && (
-                  <p className="text-xs text-destructive text-center">
-                    Limite de {maxImages} imagens. Desselecione algumas.
+                {maxImages < selectedCount && maxImages > 0 && (
+                  <p className="text-xs text-amber-600 dark:text-amber-400 text-center">
+                    Limite de {maxImages} imagens disponíveis. Desselecione {selectedCount - maxImages} ou adicione mesmo assim.
                   </p>
                 )}
                 
