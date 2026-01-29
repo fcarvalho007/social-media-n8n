@@ -1764,7 +1764,7 @@ export default function ManualCreate() {
                           mediaSectionRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
                         }, 100);
                       }}
-                      maxImages={mediaRequirements.maxMedia - mediaPreviewUrls.length}
+                      maxImages={selectedFormats.includes('instagram_carousel') ? 50 - mediaPreviewUrls.length : mediaRequirements.maxMedia - mediaPreviewUrls.length}
                       disabled={saving || submitting || isUploading}
                       selectedFormats={selectedFormats}
                       isUploading={isUploading}
@@ -1791,7 +1791,7 @@ export default function ManualCreate() {
                         
                         toast.success(`${filesToAdd.length} imagem(s) adicionada(s) ao carrossel`);
                       }}
-                      maxImages={mediaRequirements.maxMedia - mediaPreviewUrls.length}
+                      maxImages={selectedFormats.includes('instagram_carousel') ? 50 - mediaPreviewUrls.length : mediaRequirements.maxMedia - mediaPreviewUrls.length}
                       disabled={saving || submitting || isUploading}
                       selectedFormats={selectedFormats}
                     />
