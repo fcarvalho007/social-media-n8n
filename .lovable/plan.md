@@ -1,143 +1,402 @@
 
-## Plano: Remover Limite de 10 Imagens para Instagram Carousel
+## Plano: Redesign Mobile de `/manual-create`
 
-### Objetivo
-Permitir inserir mais de 10 imagens no carrossel, exibindo um aviso no momento da publicação de que a API do Instagram só aceita 10 imagens, mas prosseguindo com o envio para a Getlate.dev.
+### Problemas Identificados
+
+Após análise detalhada do código, identifiquei as seguintes áreas com problemas de responsividade mobile:
+
+| Área | Problema | Impacto |
+|------|----------|---------|
+| **Container principal** | Padding `px-4` excessivo em ecrãs pequenos | Reduz espaço útil |
+| **Grid de mídia** | `grid-cols-2` fixo pode ser apertado em ecrãs < 375px | Cards ficam muito pequenos |
+| **Barra de ação media** | Texto "Adicionar mais" não escala bem | Overflow visual |
+| **Cards de upload** | Padding inconsistente entre estados | Layout irregular |
+| **Caption toolbar** | Botões `h-11` ocupam demasiado espaço vertical | Scroll excessivo |
+| **Date shortcuts** | `grid-cols-4` fica apertado em mobile | Botões pequenos demais |
+| **Bottom bar** | Altura fixa não considera diferentes tamanhos de notch | Corte em alguns dispositivos |
 
 ---
 
-### Análise Técnica
+### Correção 1: Container Principal Responsivo
 
-A limitação de 10 imagens está implementada em 3 locais:
+**Ficheiro: `src/pages/ManualCreate.tsx`**
 
-| Ficheiro | Linha | O que faz |
-|----------|-------|-----------|
-| `src/types/social.ts` | 48 | Define `maxMedia: 10` no config do `instagram_carousel` |
-| `src/lib/formatValidation.ts` | 37, 52, 99-101 | Calcula `maxMedia` mínimo entre formatos e retorna **erro** se excedido |
-| `src/pages/ManualCreate.tsx` | 699-706, 645-647 | Bloqueia upload e mostra erro se exceder limite |
+Ajustar padding do container para ser mais agressivo em mobile:
+
+```tsx
+// Linha 1575
+<div className="max-w-7xl mx-auto space-y-2 sm:space-y-4 px-2 xs:px-3 sm:px-6 lg:px-0 bg-gradient-to-br from-background to-background-secondary overflow-hidden">
+```
+
+Também ajustar o grid principal (linha 1699):
+```tsx
+<div className="grid lg:grid-cols-2 gap-2 lg:gap-8 pb-32 lg:pb-0 px-0 sm:px-0 overflow-hidden">
+```
 
 ---
 
-### Alterações
+### Correção 2: Media Grid Adaptativo
 
-#### 1. Aumentar limite no config do formato (`src/types/social.ts`)
+**Ficheiro: `src/pages/ManualCreate.tsx`**
 
-Alterar o `maxMedia` do `instagram_carousel` de 10 para um valor mais alto (ex: 50), permitindo uploads maiores:
+Alterar a grid de mídia para usar 2 colunas apenas acima de 375px:
 
-```typescript
-// Linha 48
-maxMedia: 50, // Permite uploads grandes, aviso será dado na publicação
+```tsx
+// Linha 1879
+<div className="grid grid-cols-2 xs:grid-cols-2 sm:grid-cols-3 gap-1.5 xs:gap-2 sm:gap-3">
 ```
 
-Também atualizar a descrição para refletir:
-
-```typescript
-// Linha 45
-description: '1-50 imagens (API IG suporta máx. 10)',
+Também reduzir tamanho mínimo do botão de adicionar:
+```tsx
+// Linha 1904-1909
+<Label 
+  className={cn(
+    "aspect-square rounded-xl border-2 border-dashed flex flex-col items-center justify-center gap-1 cursor-pointer transition-all press-effect",
+    "border-primary/40 bg-primary/5 hover:border-primary hover:bg-primary/10",
+    "min-h-[80px] xs:min-h-[100px]"
+  )}
+>
 ```
 
-#### 2. Converter erro em aviso na validação (`src/lib/formatValidation.ts`)
+---
 
-Para o formato `instagram_carousel`, quando `totalMedia > 10`:
-- **Não bloquear** (não retornar erro)
-- **Mostrar aviso** informativo
+### Correção 3: Barra de Ação de Mídia Compacta
 
-```typescript
-// Dentro de validateFormat(), após validação de minMedia:
+**Ficheiro: `src/pages/ManualCreate.tsx`**
 
-// Instagram carousel: warning instead of error for >10 media
-if (format === 'instagram_carousel' && totalMedia > 10) {
-  warnings.push(`Instagram aceita máx. 10 imagens. A Getlate receberá ${totalMedia} - poderá ser necessário ajustar.`);
-} else if (format === 'linkedin_document') {
-  // LinkedIn Document validation (existing code)
-  ...
-} else if (config.maxMedia && totalMedia > config.maxMedia) {
-  errors.push(`Máximo ${config.maxMedia} ficheiro(s) permitido(s)`);
-}
+Tornar a barra de ação mais compacta em mobile:
+
+```tsx
+// Linhas 1805-1854
+<div className={cn(
+  "flex items-center justify-between p-2 xs:p-2.5 sm:p-3 rounded-lg border",
+  mediaPreviewUrls.length >= mediaRequirements.maxMedia 
+    ? "bg-amber-500/10 border-amber-500/30" 
+    : "bg-muted/50 border-border"
+)}>
+  <div className="flex items-center gap-1.5 xs:gap-2">
+    <span className={cn(
+      "text-xs sm:text-sm font-medium",
+      mediaPreviewUrls.length >= mediaRequirements.maxMedia && "text-amber-700 dark:text-amber-300"
+    )}>
+      {mediaPreviewUrls.length}/{mediaRequirements.maxMedia}
+    </span>
+    {/* Badge só visível em sm+ */}
+    {mediaPreviewUrls.length < mediaRequirements.maxMedia && (
+      <Badge variant="secondary" className="text-[10px] hidden xs:inline-flex">
+        +{mediaRequirements.maxMedia - mediaPreviewUrls.length}
+      </Badge>
+    )}
+  </div>
+  
+  {mediaPreviewUrls.length < mediaRequirements.maxMedia && (
+    <Label htmlFor="media-upload-header" className="cursor-pointer">
+      <Button variant="secondary" size="sm" asChild className="gap-1 h-8 xs:h-9 px-2 xs:px-3">
+        <span>
+          <Plus className="h-3.5 w-3.5 xs:h-4 xs:w-4" />
+          <span className="text-xs">Mais</span>
+        </span>
+      </Button>
+    </Label>
+  )}
+</div>
 ```
 
-#### 3. Remover bloqueio de upload (`src/pages/ManualCreate.tsx`)
+---
 
-Atualmente, o upload é bloqueado se exceder `maxAllowed`. Precisamos:
+### Correção 4: Caption Toolbar Otimizada
 
-1. **Permitir o upload** mesmo que exceda 10
-2. **Mostrar toast de aviso** (não erro) quando o total exceder 10 para Instagram
+**Ficheiro: `src/components/manual-post/NetworkCaptionEditor.tsx`**
 
-```typescript
-// Linha 699-706 - Alterar de erro para aviso
-if (totalAfterUpload > maxAllowed) {
-  // For Instagram carousel, allow but warn
-  const hasInstagramCarousel = selectedFormats.includes('instagram_carousel');
-  if (hasInstagramCarousel && totalAfterUpload <= 50) {
-    toast.warning(
-      `Atenção: Instagram suporta máx. 10 imagens. A publicar ${totalAfterUpload} - Getlate receberá todas.`,
-      { duration: 6000 }
-    );
-    // Continue with upload - don't return
-  } else {
-    toast.error(`Máximo ${maxAllowed} ficheiros. Já tem ${mediaFiles.length}.`);
-    return;
-  }
-}
+Reduzir altura dos botões em mobile mantendo área de toque:
+
+```tsx
+// Linha 119
+<div className="flex items-center gap-1 border rounded-lg xs:rounded-xl p-1 xs:p-1.5 sm:p-2 bg-muted/30 overflow-x-auto scrollbar-hide">
+  <Popover>
+    <PopoverTrigger asChild>
+      <Button 
+        variant="ghost" 
+        size="icon" 
+        className="h-9 w-9 xs:h-10 xs:w-10 sm:h-8 sm:w-8 flex-shrink-0"
+      >
+        <Smile className="h-4 w-4 xs:h-5 xs:w-5 sm:h-4 sm:w-4" />
+      </Button>
+    </PopoverTrigger>
+    ...
+  </Popover>
+
+  {onOpenSavedCaptions && (
+    <Button
+      variant="ghost"
+      size="sm"
+      className="h-9 xs:h-10 sm:h-8 gap-1 px-2 xs:px-3 flex-shrink-0"
+    >
+      <Bookmark className="h-4 w-4" />
+      <span className="hidden xs:inline text-xs">Guardadas</span>
+    </Button>
+  )}
+  
+  {onOpenAIDialog && (
+    <Button
+      variant="ghost"
+      size="sm"
+      className="h-9 xs:h-10 sm:h-8 gap-1 px-2 xs:px-3 flex-shrink-0 bg-gradient-to-r from-purple-500/10 to-blue-500/10"
+    >
+      <Sparkles className="h-4 w-4 text-purple-500" />
+      <span className="text-xs">IA</span>
+    </Button>
+  )}
+</div>
 ```
 
-#### 4. Validação na publicação (`src/pages/ManualCreate.tsx` ou `PublishConfirmationModal`)
+---
 
-No momento de clicar "Publicar", se houver mais de 10 imagens e Instagram estiver selecionado:
+### Correção 5: Date Shortcuts Grid Responsivo
 
-```typescript
-// Em handlePublishNow() ou handlePublishWithValidation()
-const instagramSelected = selectedNetworks.includes('instagram');
-const hasMoreThan10 = mediaFiles.length > 10;
+**Ficheiro: `src/pages/ManualCreate.tsx`**
 
-if (instagramSelected && hasMoreThan10) {
-  toast.warning(
-    `⚠️ Instagram aceita máx. 10 imagens. Enviando ${mediaFiles.length} para Getlate. Poderá ser necessário ajustar no dashboard.`,
-    { duration: 8000 }
-  );
-}
-// Continue with publishing - don't block
+Alterar grid de atalhos de data para 2 colunas em mobile pequeno:
+
+```tsx
+// Linha 2089
+<div className="grid grid-cols-2 xs:grid-cols-4 gap-1.5">
+  <Button 
+    type="button"
+    variant="outline" 
+    size="sm"
+    className="text-[10px] xs:text-xs h-8"
+  >
+    Hoje
+  </Button>
+  <Button 
+    type="button"
+    variant="outline" 
+    size="sm"
+    className="text-[10px] xs:text-xs h-8"
+  >
+    Amanhã
+  </Button>
+  <Button 
+    type="button"
+    variant="outline" 
+    size="sm"
+    className="text-[10px] xs:text-xs h-8"
+  >
+    Terça
+  </Button>
+  <Button 
+    type="button"
+    variant="outline" 
+    size="sm"
+    className="text-[10px] xs:text-xs h-8"
+  >
+    Quinta
+  </Button>
+</div>
 ```
 
-#### 5. Atualizar tooltips e labels
+---
 
-**`src/components/manual-post/SectionHelp.tsx`** - Linha 60:
-```typescript
-instagram_carousel: "1-50 imagens ou vídeos (API IG suporta máx. 10, receberá aviso)",
+### Correção 6: Toggle Publicar/Agendar Compacto
+
+**Ficheiro: `src/pages/ManualCreate.tsx`**
+
+Tornar o toggle mais compacto em mobile:
+
+```tsx
+// Linhas 2040-2067
+<div className="flex rounded-full bg-muted p-0.5 xs:p-1 gap-0.5 xs:gap-1">
+  <button
+    type="button"
+    onClick={() => setScheduleAsap(true)}
+    className={cn(
+      "flex-1 py-2 xs:py-2.5 px-2 xs:px-4 rounded-full text-xs xs:text-sm font-medium transition-all duration-300 flex items-center justify-center gap-1 xs:gap-2",
+      scheduleAsap 
+        ? "bg-background shadow-sm text-foreground" 
+        : "text-muted-foreground hover:text-foreground"
+    )}
+  >
+    <Rocket className="h-3.5 w-3.5 xs:h-4 xs:w-4" />
+    <span className="hidden xs:inline">Publicar agora</span>
+    <span className="xs:hidden">Agora</span>
+  </button>
+  <button
+    type="button"
+    onClick={() => setScheduleAsap(false)}
+    className={cn(
+      "flex-1 py-2 xs:py-2.5 px-2 xs:px-4 rounded-full text-xs xs:text-sm font-medium transition-all duration-300 flex items-center justify-center gap-1 xs:gap-2",
+      !scheduleAsap 
+        ? "bg-background shadow-sm text-foreground" 
+        : "text-muted-foreground hover:text-foreground"
+    )}
+  >
+    <CalendarIcon className="h-3.5 w-3.5 xs:h-4 xs:w-4" />
+    Agendar
+  </button>
+</div>
 ```
 
-**`src/components/publishing/TargetSelector.tsx`** - Linha 121:
-```typescript
-<p>• 1-50 imagens (IG suporta máx. 10 via API)</p>
+---
+
+### Correção 7: Bottom Bar Segura
+
+**Ficheiro: `src/pages/ManualCreate.tsx`**
+
+Melhorar a barra fixa inferior para diferentes dispositivos:
+
+```tsx
+// Linhas 2442-2527
+<div className="fixed bottom-0 left-0 right-0 bg-background/98 backdrop-blur-md border-t shadow-[0_-4px_20px_-4px_rgba(0,0,0,0.15)] lg:hidden z-50">
+  {/* Mini progress indicator - mais compacto */}
+  <div className="flex justify-center py-1 xs:py-1.5 border-b border-border/50">
+    <div className="flex items-center gap-1 xs:gap-1.5">
+      {[1, 2, 3].map((step) => (
+        <div
+          key={step}
+          className={cn(
+            "h-1 xs:h-1.5 rounded-full transition-all duration-200",
+            step <= currentStep ? "w-5 xs:w-6 bg-primary" : "w-1 xs:w-1.5 bg-muted-foreground/30"
+          )}
+        />
+      ))}
+    </div>
+  </div>
+  
+  {/* Action buttons - com safe area */}
+  <div className="p-2 xs:p-3 pb-[calc(0.5rem+env(safe-area-inset-bottom))] xs:pb-[calc(0.75rem+env(safe-area-inset-bottom))] flex gap-1.5 xs:gap-2">
+    <Button
+      type="button"
+      variant="outline"
+      size="icon"
+      className="h-10 w-10 xs:h-12 xs:w-12 flex-shrink-0"
+    >
+      <Save className="h-4 w-4 xs:h-5 xs:w-5" />
+    </Button>
+    
+    <Button
+      type="button"
+      className="flex-1 h-10 xs:h-12 font-semibold text-white press-effect"
+    >
+      {publishing ? (
+        <Loader2 className="h-4 w-4 xs:h-5 xs:w-5 animate-spin" />
+      ) : !scheduleAsap && scheduledDate ? (
+        <>
+          <CalendarIcon className="h-4 w-4 xs:h-5 xs:w-5 mr-1.5 xs:mr-2" />
+          <span className="text-sm xs:text-base">Agendar</span>
+        </>
+      ) : (
+        <>
+          <Rocket className="h-4 w-4 xs:h-5 xs:w-5 mr-1.5 xs:mr-2" />
+          <span className="text-sm xs:text-base">Publicar</span>
+        </>
+      )}
+    </Button>
+    
+    <Button 
+      type="button"
+      variant="outline" 
+      size="icon" 
+      className="h-10 w-10 xs:h-12 xs:w-12 flex-shrink-0"
+    >
+      <Eye className="h-4 w-4 xs:h-5 xs:w-5" />
+    </Button>
+  </div>
+</div>
 ```
+
+---
+
+### Correção 8: Card Headers Compactos
+
+**Ficheiro: `src/pages/ManualCreate.tsx`**
+
+Uniformizar headers de cards em mobile:
+
+```tsx
+// Exemplo linha 1732-1745
+<CardHeader className="pb-1 xs:pb-2 sm:pb-3 px-2 xs:px-3 sm:px-6 pt-2 xs:pt-3 sm:pt-6">
+  <div className="flex items-center justify-between">
+    <CardTitle className="text-sm xs:text-base sm:text-lg flex items-center gap-1 xs:gap-1.5 sm:gap-2">
+      <CloudUpload className="h-4 w-4 sm:h-5 sm:w-5 text-primary" />
+      <span>Média</span>
+    </CardTitle>
+    <AutoSaveIndicator ... />
+  </div>
+</CardHeader>
+```
+
+---
+
+### Correção 9: Separate Captions Toggle Compacto
+
+**Ficheiro: `src/components/manual-post/NetworkCaptionEditor.tsx`**
+
+Tornar o toggle de legendas separadas mais compacto:
+
+```tsx
+// Linhas 97-116
+{showToggle && (
+  <div className="flex items-center justify-between p-2.5 xs:p-3 sm:p-4 rounded-lg xs:rounded-xl bg-muted/50 border min-h-[44px] xs:min-h-[48px] sm:min-h-[52px]">
+    <div className="flex items-center gap-2 xs:gap-3">
+      {useSeparateCaptions ? (
+        <Split className="h-4 w-4 xs:h-5 xs:w-5 text-primary" />
+      ) : (
+        <Merge className="h-4 w-4 xs:h-5 xs:w-5 text-muted-foreground" />
+      )}
+      <Label className="text-xs xs:text-sm font-medium cursor-pointer leading-tight">
+        {useSeparateCaptions ? 'Separadas' : 'Unificada'}
+      </Label>
+    </div>
+    <Switch ... />
+  </div>
+)}
+```
+
+---
+
+### Correção 10: Time Presets Scroll Horizontal
+
+**Ficheiro: `src/pages/ManualCreate.tsx`**
+
+Converter time presets para scroll horizontal em mobile:
+
+```tsx
+// Linhas 2210-2224
+<div className="overflow-x-auto scrollbar-hide pb-1">
+  <div className="flex gap-1 xs:gap-1.5 w-max xs:w-auto xs:flex-wrap mt-2">
+    {['09:00', '12:00', '15:00', '18:00', '21:00'].map((preset) => (
+      <Badge 
+        key={preset}
+        variant="outline" 
+        className={cn(
+          "cursor-pointer hover:bg-primary/10 transition-colors text-[10px] xs:text-xs py-0.5 xs:py-1 px-1.5 xs:px-2 flex-shrink-0",
+          time === preset && "bg-primary/10 border-primary/50"
+        )}
+        onClick={() => setTime(preset)}
+      >
+        {preset}
+      </Badge>
+    ))}
+  </div>
+</div>
+```
+
+---
+
+### Resumo de Ficheiros a Alterar
+
+| Ficheiro | Alterações |
+|----------|------------|
+| `src/pages/ManualCreate.tsx` | Container, grid de mídia, barra de ação, date shortcuts, toggle, bottom bar, headers |
+| `src/components/manual-post/NetworkCaptionEditor.tsx` | Toolbar, toggle separadas, tabs |
 
 ---
 
 ### Resultado Esperado
 
-| Cenário | Comportamento Atual | Comportamento Novo |
-|---------|---------------------|---------------------|
-| Upload 15 imagens (IG carousel) | ❌ Bloqueado com erro | ✅ Permitido com toast de aviso |
-| Validação com 15 imagens | ❌ Erro: "Máximo 10 ficheiros" | ✅ Aviso: "Instagram aceita máx. 10" |
-| Publicar com 15 imagens | ❌ Não chega aqui | ✅ Toast de aviso + envio para Getlate |
-| Download com 15 imagens | ✅ Funciona | ✅ Continua a funcionar |
-| LinkedIn Document com 50 páginas | ✅ Funciona (limite 300) | ✅ Sem alteração |
+- **Ecrãs < 375px (iPhone SE):** Layout compacto sem overflow, botões acessíveis
+- **Ecrãs 375-640px:** Layout equilibrado com elementos adequadamente espaçados
+- **Ecrãs > 640px:** Layout desktop mantido
 
----
-
-### Ficheiros a Alterar
-
-1. `src/types/social.ts` - Aumentar `maxMedia` e descrição
-2. `src/lib/formatValidation.ts` - Converter erro em aviso para instagram_carousel
-3. `src/pages/ManualCreate.tsx` - Permitir upload com aviso, adicionar aviso na publicação
-4. `src/components/manual-post/SectionHelp.tsx` - Atualizar tooltip
-5. `src/components/publishing/TargetSelector.tsx` - Atualizar descrição
-
----
-
-### Notas Técnicas
-
-- A Getlate.dev receberá todas as imagens - a limitação de 10 é apenas da API oficial do Instagram
-- O utilizador é informado em 3 momentos: upload, validação visual, e no momento de publicar
-- O download ZIP funcionará normalmente com qualquer número de ficheiros
-- O LinkedIn Document não é afetado (já suporta até 300 páginas)
+A experiência mobile será mais fluida, com elementos adequadamente dimensionados para toque e sem necessidade de scroll horizontal acidental.
