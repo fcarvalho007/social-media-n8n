@@ -42,12 +42,12 @@ export const NETWORK_POST_FORMATS: Record<SocialNetwork, PostFormatConfig[]> = {
     { 
       format: 'instagram_carousel', 
       label: 'Carrossel', 
-      description: '1-10 imagens ou vídeos', 
+      description: '1-50 imagens (API IG máx. 10)', 
       icon: 'LayoutGrid',
       minMedia: 1,
-      maxMedia: 10,
+      maxMedia: 50,
     },
-    { 
+    {
       format: 'instagram_image', 
       label: 'Post de Imagem', 
       description: 'Imagem estática', 

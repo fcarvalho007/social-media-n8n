@@ -57,7 +57,7 @@ export function getSectionTooltip(section: SectionKey): string {
 
 // Format-specific tooltips for NetworkFormatSelector
 export const FORMAT_TOOLTIPS: Record<string, string> = {
-  instagram_carousel: "1-10 imagens ou vídeos, proporção 1:1 ou 4:5 recomendada",
+  instagram_carousel: "1-50 imagens ou vídeos (API IG aceita máx. 10, receberá aviso)",
   instagram_image: "1 imagem, proporção 1:1 ou 4:5 recomendada",
   instagram_reel: "Vídeo vertical, 9:16, máx. 90 segundos",
   instagram_stories: "Imagem ou vídeo, 9:16, máx. 15 segundos",

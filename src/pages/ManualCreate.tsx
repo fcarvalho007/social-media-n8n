@@ -642,7 +642,11 @@ export default function ManualCreate() {
       errors.push(`Mínimo ${mediaRequirements.minMedia} ficheiro(s)`);
     }
     
-    if (totalMedia > mediaRequirements.maxMedia) {
+    // Instagram carousel: allow >10 with warning instead of error
+    const hasInstagramCarousel = selectedFormats.includes('instagram_carousel');
+    if (hasInstagramCarousel && totalMedia > 10) {
+      // Warning will be shown, not blocking error
+    } else if (totalMedia > mediaRequirements.maxMedia) {
       errors.push(`Máximo ${mediaRequirements.maxMedia} ficheiro(s)`);
     }
     
@@ -700,9 +704,16 @@ export default function ManualCreate() {
     const totalAfterUpload = mediaFiles.length + newFiles.length;
     
     // Check if adding new files would exceed the limit
+    // For Instagram carousel, allow >10 but warn (Getlate receives all, IG API limit is 10)
+    const hasInstagramCarousel = selectedFormats.includes('instagram_carousel');
     if (totalAfterUpload > maxAllowed) {
       toast.error(`Máximo ${maxAllowed} ficheiros. Já tem ${mediaFiles.length}.`);
       return;
+    } else if (hasInstagramCarousel && totalAfterUpload > 10) {
+      toast.warning(
+        `Atenção: API Instagram aceita máx. 10 imagens. A enviar ${totalAfterUpload} para Getlate.`,
+        { duration: 6000 }
+      );
     }
 
     // Validate file sizes
