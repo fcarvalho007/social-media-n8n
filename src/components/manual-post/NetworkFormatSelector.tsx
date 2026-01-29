@@ -103,13 +103,13 @@ export function NetworkFormatSelector({ selectedFormats, onFormatsChange }: Netw
               onSelectPreset={handlePresetSelect}
             />
 
-            {/* Platform Chips - Horizontal scroll on mobile - no negative margins */}
+            {/* Platform Chips - Grid 3x2 on mobile */}
             <div 
               className="platform-chips overflow-hidden"
               role="tablist"
               aria-label="Plataformas disponíveis"
             >
-              <div className="flex gap-2 overflow-x-auto pb-2 sm:flex-wrap sm:overflow-visible scrollbar-hide">
+              <div className="grid grid-cols-3 gap-1.5 xs:gap-2 sm:flex sm:gap-2 sm:flex-wrap">
                 {enabledNetworks.map((network) => (
                   <PlatformChip
                     key={network}

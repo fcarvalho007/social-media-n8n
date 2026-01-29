@@ -2476,17 +2476,17 @@ export default function ManualCreate() {
         </div>
         
         {/* Action buttons - com safe area */}
-        <div className="p-1 xs:p-1.5 sm:p-3 pb-[calc(0.25rem+env(safe-area-inset-bottom))] xs:pb-[calc(0.375rem+env(safe-area-inset-bottom))] flex gap-1 xs:gap-1.5 sm:gap-2 w-full max-w-full">
+        <div className="p-2 xs:p-2.5 sm:p-3 pb-[calc(0.5rem+env(safe-area-inset-bottom))] xs:pb-[calc(0.625rem+env(safe-area-inset-bottom))] flex gap-2 xs:gap-2.5 sm:gap-3 w-full max-w-full">
           <Button
             type="button"
             variant="outline"
             size="icon"
             onClick={handleSaveDraft}
             disabled={saving || submitting || publishing}
-            className="h-9 w-9 xs:h-10 xs:w-10 sm:h-12 sm:w-12 flex-shrink-0"
+            className="h-11 w-11 xs:h-12 xs:w-12 sm:h-12 sm:w-12 flex-shrink-0"
             aria-label="Guardar rascunho"
           >
-            <Save className="h-3.5 w-3.5 xs:h-4 xs:w-4 sm:h-5 sm:w-5" />
+            <Save className="h-5 w-5 xs:h-5 xs:w-5 sm:h-5 sm:w-5" />
           </Button>
           
           <Button
@@ -2494,22 +2494,22 @@ export default function ManualCreate() {
             onClick={handlePublishWithValidation}
             disabled={publishing || submitting || saving || isUploading || selectedFormats.length === 0}
             className={cn(
-              "flex-1 h-9 xs:h-10 sm:h-12 font-semibold text-white press-effect text-xs xs:text-sm",
+              "flex-1 h-11 xs:h-12 sm:h-12 font-semibold text-white press-effect text-sm xs:text-base",
               !scheduleAsap && scheduledDate
                 ? "bg-gradient-to-r from-blue-600 to-blue-500 hover:from-blue-500 hover:to-blue-400"
                 : "bg-gradient-to-r from-green-600 to-green-500 hover:from-green-500 hover:to-green-400"
             )}
           >
             {publishing ? (
-              <Loader2 className="h-3.5 w-3.5 xs:h-4 xs:w-4 sm:h-5 sm:w-5 animate-spin" />
+              <Loader2 className="h-5 w-5 animate-spin" />
             ) : !scheduleAsap && scheduledDate ? (
               <>
-                <CalendarIcon className="h-3.5 w-3.5 xs:h-4 xs:w-4 sm:h-5 sm:w-5 mr-1 xs:mr-1.5 sm:mr-2" />
+                <CalendarIcon className="h-5 w-5 mr-2" />
                 <span>Agendar</span>
               </>
             ) : (
               <>
-                <Rocket className="h-3.5 w-3.5 xs:h-4 xs:w-4 sm:h-5 sm:w-5 mr-1 xs:mr-1.5 sm:mr-2" />
+                <Rocket className="h-5 w-5 mr-2" />
                 <span>Publicar</span>
               </>
             )}
@@ -2521,10 +2521,10 @@ export default function ManualCreate() {
             variant="outline" 
             size="icon" 
             onClick={() => setMobilePreviewOpen(true)}
-            className="h-9 w-9 xs:h-10 xs:w-10 sm:h-12 sm:w-12 flex-shrink-0"
+            className="h-11 w-11 xs:h-12 xs:w-12 sm:h-12 sm:w-12 flex-shrink-0"
             aria-label="Pré-visualizar"
           >
-            <Eye className="h-3.5 w-3.5 xs:h-4 xs:w-4 sm:h-5 sm:w-5" />
+            <Eye className="h-5 w-5" />
           </Button>
         </div>
       </div>

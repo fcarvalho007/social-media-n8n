@@ -23,12 +23,12 @@ export function SelectedFormatsTags({ selectedFormats, onRemove }: SelectedForma
   }
   
   return (
-    <div className="selected-formats pt-2 sm:pt-4 border-t border-border mt-2 sm:mt-4 w-full max-w-full overflow-hidden">
-      <div className="flex items-center gap-1.5 sm:gap-3 overflow-hidden">
-        <span className="text-[11px] sm:text-[13px] text-muted-foreground font-medium flex-shrink-0">Selecionados:</span>
+    <div className="selected-formats pt-3 sm:pt-4 border-t border-border mt-3 sm:mt-4 w-full max-w-full overflow-hidden">
+      <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:gap-3">
+        <span className="text-xs sm:text-[13px] text-muted-foreground font-medium flex-shrink-0">Selecionados:</span>
         
-        {/* Horizontal scroll on mobile */}
-        <div className="flex gap-0.5 xs:gap-1 sm:gap-2 overflow-x-auto pb-0.5 sm:flex-wrap scrollbar-hide max-w-[calc(100vw-90px)]">
+        {/* Grid wrap on mobile */}
+        <div className="flex flex-wrap gap-1.5 xs:gap-2 sm:gap-2">
           {selectedFormats.map((format) => {
             const network = getNetworkFromFormat(format);
             const platformConfig = getPlatformConfig(network);
