@@ -95,7 +95,7 @@ function SortableThumbnail({ image, onToggleSelect, onRemove, onZoom, disabled }
       />
 
       {/* Selection Checkbox - Top Left */}
-      <div className="absolute top-1.5 left-1.5">
+      <div className="absolute top-1.5 left-1.5 z-10">
         <Checkbox
           checked={image.selected}
           onCheckedChange={() => onToggleSelect(image.id)}
@@ -107,22 +107,41 @@ function SortableThumbnail({ image, onToggleSelect, onRemove, onZoom, disabled }
       {/* Order Badge - Top Right */}
       <Badge
         variant="secondary"
-        className="absolute top-1.5 right-1.5 h-5 min-w-[20px] px-1.5 text-xs font-bold bg-background/80 backdrop-blur-sm"
+        className="absolute top-1.5 right-1.5 h-5 min-w-[20px] px-1.5 text-xs font-bold bg-background/80 backdrop-blur-sm z-10"
       >
         {image.order + 1}
       </Badge>
 
+      {/* Zoom Button - Always visible, Bottom Right */}
+      <Button
+        variant="ghost"
+        size="icon"
+        onClick={(e) => {
+          e.stopPropagation();
+          onZoom(image);
+        }}
+        className={cn(
+          "absolute bottom-1.5 right-1.5 h-7 w-7 z-10",
+          "rounded-full bg-background/90 backdrop-blur-sm shadow-sm",
+          "hover:bg-primary hover:text-primary-foreground",
+          "border border-border/50 transition-all"
+        )}
+        title="Ver em tamanho grande"
+      >
+        <ZoomIn className="h-3.5 w-3.5" />
+      </Button>
+
       {/* Dimensions Badge - Bottom Left */}
       {image.width && image.height && (
         <div className={cn(
-          "absolute bottom-1 left-1 text-[9px] px-1 py-0.5 rounded bg-background/90 backdrop-blur-sm",
+          "absolute bottom-1.5 left-1.5 text-[9px] px-1.5 py-0.5 rounded bg-background/90 backdrop-blur-sm z-10",
           is3x4 ? "text-green-600 dark:text-green-400" : "text-muted-foreground"
         )}>
           {image.width}×{image.height}
         </div>
       )}
 
-      {/* Hover Overlay with Controls */}
+      {/* Hover Overlay with Drag Handle and Remove */}
       <div className={cn(
         "absolute inset-0 bg-black/40 opacity-0 transition-opacity flex items-center justify-center gap-2",
         !disabled && "group-hover:opacity-100"
@@ -135,19 +154,6 @@ function SortableThumbnail({ image, onToggleSelect, onRemove, onZoom, disabled }
         >
           <GripVertical className="h-4 w-4 text-white" />
         </div>
-
-        {/* Zoom Button */}
-        <Button
-          variant="ghost"
-          size="icon"
-          onClick={(e) => {
-            e.stopPropagation();
-            onZoom(image);
-          }}
-          className="h-8 w-8 rounded-full bg-white/20 hover:bg-white/30 text-white"
-        >
-          <ZoomIn className="h-4 w-4" />
-        </Button>
 
         {/* Remove Button */}
         <Button
