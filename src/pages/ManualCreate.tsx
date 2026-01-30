@@ -236,6 +236,9 @@ export default function ManualCreate() {
   const [oversizedImages, setOversizedImages] = useState<OversizedImage[]>([]);
   const [isCompressing, setIsCompressing] = useState(false);
   const [compressionProgress, setCompressionProgress] = useState<{ current: number; total: number; fileName: string } | undefined>();
+  const [compressionStep, setCompressionStep] = useState<'warning' | 'compressing' | 'confirmation'>('warning');
+  const [compressionResults, setCompressionResults] = useState<{ originalSizeMB: number; finalSizeMB: number; qualityUsed: number; wasResized: boolean }[]>([]);
+  const [pendingCompressedFiles, setPendingCompressedFiles] = useState<File[]>([]);
   
   // Video validation state
   const [videoValidationModalOpen, setVideoValidationModalOpen] = useState(false);
@@ -1420,9 +1423,10 @@ export default function ManualCreate() {
     }
   };
 
-  // Handle compression confirmation
+  // Handle compression confirmation - Step 1: Start compression
   const handleConfirmCompression = async () => {
     setIsCompressing(true);
+    setCompressionStep('compressing');
     
     try {
       const indicesToCompress = oversizedImages.map(img => img.index);
@@ -1436,36 +1440,61 @@ export default function ManualCreate() {
         }
       );
       
-      // Update media files with compressed versions
-      setMediaFiles(compressedFiles);
-      
-      // Close modal
-      setCompressionModalOpen(false);
+      // Store results for confirmation step (DON'T close modal yet)
+      setPendingCompressedFiles(compressedFiles);
+      setCompressionResults(results);
       setIsCompressing(false);
-      setCompressionProgress(undefined);
-      setOversizedImages([]);
       
-      // Show success message
-      const totalSaved = results.reduce((acc, r) => acc + (r.originalSizeMB - r.finalSizeMB), 0);
-      toast.success(`${results.length} imagem(ns) comprimida(s)`, {
-        description: `Poupou ${totalSaved.toFixed(1)}MB`
-      });
-      
-      // Continue with publishing using compressed files
-      await handlePublishNow(compressedFiles);
+      // Move to confirmation step
+      setCompressionStep('confirmation');
       
     } catch (error) {
       console.error('[ManualCreate] Compression failed:', error);
       toast.error('Erro ao comprimir imagens');
       setIsCompressing(false);
       setCompressionProgress(undefined);
+      setCompressionStep('warning');
     }
+  };
+
+  // Handle compression confirmation - Step 2: Confirm and publish
+  const handleConfirmAndPublish = async () => {
+    // Update media files with compressed versions
+    setMediaFiles(pendingCompressedFiles);
+    
+    // Close modal and reset state
+    setCompressionModalOpen(false);
+    setOversizedImages([]);
+    setCompressionStep('warning');
+    setCompressionResults([]);
+    setCompressionProgress(undefined);
+    
+    // Show success message
+    const totalSaved = compressionResults.reduce((acc, r) => acc + (r.originalSizeMB - r.finalSizeMB), 0);
+    toast.success(`${compressionResults.length} imagem(ns) comprimida(s)`, {
+      description: `Poupou ${totalSaved.toFixed(1)}MB`
+    });
+    
+    // Continue with publishing using compressed files
+    await handlePublishNow(pendingCompressedFiles);
+    
+    // Clear pending files after publishing started
+    setPendingCompressedFiles([]);
   };
 
   const handleCancelCompression = () => {
     if (!isCompressing) {
-      setCompressionModalOpen(false);
-      setOversizedImages([]);
+      // If in confirmation step, go back to warning
+      if (compressionStep === 'confirmation') {
+        setCompressionStep('warning');
+        setCompressionResults([]);
+        setPendingCompressedFiles([]);
+      } else {
+        // Close completely
+        setCompressionModalOpen(false);
+        setOversizedImages([]);
+        setCompressionStep('warning');
+      }
     }
   };
 
@@ -2622,9 +2651,13 @@ export default function ManualCreate() {
         open={compressionModalOpen}
         onClose={handleCancelCompression}
         onConfirm={handleConfirmCompression}
+        onConfirmPublish={handleConfirmAndPublish}
         oversizedImages={oversizedImages}
         isCompressing={isCompressing}
         compressionProgress={compressionProgress}
+        step={compressionStep}
+        compressionResults={compressionResults}
+        totalMediaCount={mediaFiles.length}
       />
 
       {/* Video Validation Modal */}
