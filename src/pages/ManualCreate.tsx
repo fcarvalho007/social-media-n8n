@@ -1063,14 +1063,29 @@ export default function ManualCreate() {
         }
       }
     } catch (error: any) {
-      console.error('[handleSaveDraft] Error:', error);
+      console.error('[handleSaveDraft] Error details:', {
+        message: error?.message,
+        code: error?.code,
+        statusCode: error?.statusCode,
+        details: error?.details,
+        hint: error?.hint,
+        name: error?.name,
+        stack: error?.stack,
+      });
+      
       if (error?.message?.includes('uuid')) {
         toast.error('Erro interno. O rascunho será guardado como novo.');
         setCurrentDraftId(null);
-      } else if (error?.message?.includes('JWT') || error?.message?.includes('session')) {
+      } else if (error?.message?.includes('JWT') || error?.message?.includes('session') || error?.code === 'PGRST301') {
         toast.error('Sessão expirada. Por favor, faça login novamente.');
+      } else if (error?.message?.includes('storage') || error?.message?.includes('bucket') || error?.statusCode === 413) {
+        toast.error('Erro no upload. Verifique o tamanho dos ficheiros (máx 50MB).');
+      } else if (error?.message?.includes('timeout') || error?.code === 'ETIMEDOUT') {
+        toast.error('Ligação lenta. Tente novamente com ficheiros mais pequenos.');
+      } else if (error?.statusCode === 403) {
+        toast.error('Sem permissão para guardar. Contacte o suporte.');
       } else {
-        toast.error('Erro ao guardar rascunho. Verifique a sua ligação.');
+        toast.error(`Erro ao guardar: ${error?.message || 'Verifique a sua ligação.'}`);
       }
     } finally {
       setSaving(false);
@@ -1875,7 +1890,7 @@ export default function ManualCreate() {
                         items={mediaPreviewUrls.map((_, i) => `media-${i}`)}
                         strategy={horizontalListSortingStrategy}
                       >
-                        <div className="grid grid-cols-2 gap-1 xs:gap-1.5 sm:gap-3">
+                        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-1 xs:gap-1.5 sm:gap-3">
                           {mediaPreviewUrls.map((url, idx) => {
                             const isVideo = mediaFiles[idx]?.type?.startsWith('video/');
                             return (
