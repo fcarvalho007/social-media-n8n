@@ -1,26 +1,42 @@
 import { useEffect } from 'react';
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
-import { AlertTriangle, Loader2, CheckCircle } from 'lucide-react';
+import { Badge } from '@/components/ui/badge';
+import { AlertTriangle, Loader2, CheckCircle, FileCheck, ArrowLeft } from 'lucide-react';
 import { OversizedImage } from '@/lib/canvas/imageCompression';
 import { cn } from '@/lib/utils';
+
+interface CompressionResultDisplay {
+  originalSizeMB: number;
+  finalSizeMB: number;
+  qualityUsed: number;
+  wasResized: boolean;
+}
 
 interface ImageCompressionConfirmModalProps {
   open: boolean;
   onClose: () => void;
   onConfirm: () => void;
+  onConfirmPublish?: () => void;
   oversizedImages: OversizedImage[];
   isCompressing?: boolean;
   compressionProgress?: { current: number; total: number; fileName: string };
+  step?: 'warning' | 'compressing' | 'confirmation';
+  compressionResults?: CompressionResultDisplay[];
+  totalMediaCount?: number;
 }
 
 export function ImageCompressionConfirmModal({
   open,
   onClose,
   onConfirm,
+  onConfirmPublish,
   oversizedImages,
   isCompressing = false,
-  compressionProgress
+  compressionProgress,
+  step = 'warning',
+  compressionResults = [],
+  totalMediaCount = 0
 }: ImageCompressionConfirmModalProps) {
   // Cleanup preview URLs on unmount to prevent memory leaks
   useEffect(() => {
@@ -33,6 +49,85 @@ export function ImageCompressionConfirmModal({
     };
   }, [oversizedImages]);
 
+  const totalSaved = compressionResults.reduce((acc, r) => acc + (r.originalSizeMB - r.finalSizeMB), 0);
+
+  // Confirmation step content
+  if (step === 'confirmation' && compressionResults.length > 0) {
+    return (
+      <Dialog open={open} onOpenChange={(open) => !open && onClose()}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2 text-green-600 dark:text-green-400">
+              <CheckCircle className="h-5 w-5" />
+              Compressão Concluída
+            </DialogTitle>
+            <DialogDescription>
+              Todas as imagens foram comprimidas com sucesso. Verifique os resultados abaixo:
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="my-4 space-y-3">
+            {/* Results list */}
+            <div className="rounded-lg border bg-muted/30 divide-y max-h-[200px] overflow-y-auto">
+              {compressionResults.map((result, idx) => (
+                <div key={idx} className="flex items-center gap-3 px-3 py-2.5">
+                  <div className="w-10 h-10 rounded bg-green-100 dark:bg-green-900/30 flex items-center justify-center flex-shrink-0">
+                    <CheckCircle className="h-5 w-5 text-green-600 dark:text-green-400" />
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center gap-2 flex-wrap">
+                      <span className="font-medium text-sm">Imagem {idx + 1}</span>
+                      <Badge variant="outline" className="text-green-600 border-green-200 dark:text-green-400 dark:border-green-700">
+                        -{(result.originalSizeMB - result.finalSizeMB).toFixed(1)} MB
+                      </Badge>
+                    </div>
+                    <p className="text-xs text-muted-foreground">
+                      {result.originalSizeMB.toFixed(1)} MB → {result.finalSizeMB.toFixed(1)} MB
+                      {' '}(qualidade: {Math.round(result.qualityUsed * 100)}%)
+                      {result.wasResized && ' • redimensionada'}
+                    </p>
+                  </div>
+                </div>
+              ))}
+            </div>
+
+            {/* Summary */}
+            <div className="rounded-lg bg-green-50 dark:bg-green-950/30 p-3 border border-green-200 dark:border-green-800">
+              <div className="flex items-center gap-2 text-green-700 dark:text-green-400">
+                <FileCheck className="h-4 w-4" />
+                <span className="font-medium text-sm">
+                  {totalMediaCount} {totalMediaCount === 1 ? 'imagem pronta' : 'imagens prontas'} para publicação
+                </span>
+              </div>
+              <p className="text-xs text-green-600 dark:text-green-500 mt-1">
+                Espaço poupado: {totalSaved.toFixed(1)} MB
+              </p>
+            </div>
+          </div>
+
+          <DialogFooter className="gap-2 sm:gap-0">
+            <Button
+              variant="outline"
+              onClick={onClose}
+              className="gap-2"
+            >
+              <ArrowLeft className="h-4 w-4" />
+              Voltar
+            </Button>
+            <Button
+              onClick={onConfirmPublish}
+              className="gap-2"
+            >
+              <CheckCircle className="h-4 w-4" />
+              Confirmar e Publicar
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+    );
+  }
+
+  // Warning/Compressing step content (original flow)
   return (
     <Dialog open={open} onOpenChange={(open) => !open && !isCompressing && onClose()}>
       <DialogContent className="max-w-md">
