@@ -1,4 +1,5 @@
 import { useState, useRef, useMemo, useCallback, useEffect } from 'react';
+import { generateSafeStoragePath } from '@/lib/fileNameSanitizer';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { supabase } from '@/integrations/supabase/client';
 import { PostFormat, getNetworkFromFormat, getFormatConfig } from '@/types/social';
@@ -976,7 +977,7 @@ export default function ManualCreate() {
       
       for (let i = 0; i < totalFiles; i++) {
         const file = mediaFiles[i];
-        const fileName = `${user.id}/${Date.now()}-${file.name}`;
+        const fileName = generateSafeStoragePath(user.id, file);
         
         setUploadProgress(Math.round((i / totalFiles) * 100));
         
@@ -1230,7 +1231,7 @@ export default function ManualCreate() {
       
       for (let i = 0; i < totalFiles; i++) {
         const file = mediaFiles[i];
-        const fileName = `${user.id}/${Date.now()}-${file.name}`;
+        const fileName = generateSafeStoragePath(user.id, file);
         
         setUploadProgress(Math.round((i / totalFiles) * 50));
         
