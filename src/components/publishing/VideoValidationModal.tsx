@@ -127,7 +127,7 @@ export function VideoValidationModal({
         <div className="bg-muted/50 rounded-lg p-3 flex items-start gap-2">
           <Info className="h-4 w-4 text-muted-foreground mt-0.5" />
           <p className="text-xs text-muted-foreground">
-            O Instagram pode demorar até 5 minutos a processar vídeos em carrosseis.
+            Algumas plataformas podem demorar a processar vídeos.
             Se o upload falhar, verifique os requisitos e tente novamente.
           </p>
         </div>
