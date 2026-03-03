@@ -1,32 +1,74 @@
 
 
-## Refinamentos Identificados
+## Plano: Corrigir Legendas Separadas — Persistência e Truncamento
 
-Após revisão completa do código implementado, identifiquei **3 problemas** que precisam de correcção:
+### Problemas Identificados
 
-### 1. LinkedIn sem limite de duração de vídeo em `MAX_VIDEO_DURATION`
+**Problema 1 — Truncamento destrutivo no modo unificado**: Quando o utilizador escreve uma legenda de 630 caracteres com TikTok seleccionado, a textarea unificada (linha 241-244 de `NetworkCaptionEditor.tsx`) aplica `Math.min(...)` de todos os limites → **TikTok tem 300** → o texto é cortado para 300 caracteres silenciosamente. Isto destrói o conteúdo para todas as outras redes.
 
-O `linkedin_post` foi adicionado ao preset 9:16 mas **não tem entrada** em `MAX_VIDEO_DURATION`. O LinkedIn permite vídeos de até **10 minutos (600s)**. Sem esta entrada, vídeos longos para LinkedIn não serão validados.
+**Problema 2 — Inicialização incompleta ao activar "Separadas"**: A condição `Object.keys(networkCaptions).length === 0` (ManualCreate.tsx, linha 2092) falha se o utilizador já togglou antes — redes novas adicionadas depois ficam sem legenda inicializada.
 
-**Ficheiro:** `src/lib/mediaValidation.ts`
-- Adicionar `linkedin_post: 600` ao `MAX_VIDEO_DURATION`
+**Problema 3 — Legenda da rede não persiste ao trocar de tab**: O `TabsContent` do Radix desmonta o conteúdo inactivo por defeito. Quando o utilizador troca de aba, o textarea anterior é destruído. Ao voltar, o valor é re-lido de `networkCaptions[network]` (que está correcto se o state não se perder). O problema real é que o auto-resize não se re-aplica ao voltar.
 
-### 2. Validação de aspect ratio incompleta para Reels/TikTok/LinkedIn vertical
+---
 
-A validação actual só verifica `youtube_video` (vertical → erro) e `youtube_shorts` (horizontal → erro). Falta validação para:
-- `instagram_reel` + vídeo horizontal → deveria avisar
-- `tiktok_video` + vídeo horizontal → deveria avisar
-- `facebook_reel` + vídeo horizontal → deveria avisar
+### Alterações
 
-**Ficheiro:** `src/pages/ManualCreate.tsx` (linhas 804-822)
-- Adicionar checks para formatos verticais (`instagram_reel`, `tiktok_video`, `facebook_reel`) que recebem vídeo horizontal — severity `warning` com sugestão de usar formato adequado
+#### 1. Remover truncamento na textarea unificada
 
-### 3. Texto do `VideoValidationModal` só menciona Instagram
+**Ficheiro: `src/components/manual-post/NetworkCaptionEditor.tsx`** (linhas 240-244)
 
-A nota informativa no modal (linha 129-132 de `VideoValidationModal.tsx`) diz: *"O Instagram pode demorar até 5 minutos a processar vídeos em carrosseis."* — agora que a validação é multi-plataforma, este texto deve ser genérico.
+Não truncar o texto pelo limite mínimo. Em vez disso, permitir que o utilizador escreva livremente — os badges já mostram quais redes estão acima do limite. Cada rede receberá truncamento individual apenas no momento de publicar.
 
-**Ficheiro:** `src/components/publishing/VideoValidationModal.tsx`
-- Alterar texto para: *"Algumas plataformas podem demorar a processar vídeos. Se o upload falhar, verifique os requisitos e tente novamente."*
+```tsx
+// ANTES:
+const maxLen = selectedNetworks.length > 0 
+  ? Math.min(...selectedNetworks.map(n => getMaxLength(n)))
+  : 2200;
+onCaptionChange(e.target.value.slice(0, maxLen));
+
+// DEPOIS:
+onCaptionChange(e.target.value);
+```
+
+#### 2. Corrigir inicialização ao activar "Separadas"
+
+**Ficheiro: `src/pages/ManualCreate.tsx`** (linhas 2090-2098)
+
+Sempre inicializar todas as redes seleccionadas, mesmo que `networkCaptions` já tenha algumas chaves:
+
+```tsx
+if (value) {
+  const initial: Record<string, string> = {};
+  selectedNetworks.forEach(network => {
+    initial[network] = networkCaptions[network] || caption;
+  });
+  setNetworkCaptions(initial);
+}
+```
+
+#### 3. Forçar persistência dos tabs com `forceMount`
+
+**Ficheiro: `src/components/manual-post/NetworkCaptionEditor.tsx`** (linha 216)
+
+Adicionar `forceMount` ao `TabsContent` para manter todos os textareas montados (apenas ocultos). Isto evita perda de estado/cursor e melhora a experiência:
+
+```tsx
+<TabsContent key={network} value={network} className="mt-3" forceMount
+  style={{ display: activeNetwork === network ? 'block' : 'none' }}
+>
+```
+
+#### 4. Truncar por rede apenas no momento de publicar
+
+**Ficheiro: `src/hooks/usePublishWithProgress.ts`** (linha 639)
+
+Adicionar truncamento seguro ao enviar a caption para a API:
+
+```tsx
+const maxLen = NETWORK_CONSTRAINTS[network]?.max_caption_length || 2200;
+const networkCaption = (params.networkCaptions?.[network] || caption).slice(0, maxLen);
+```
 
 ---
 
@@ -34,7 +76,7 @@ A nota informativa no modal (linha 129-132 de `VideoValidationModal.tsx`) diz: *
 
 | Ficheiro | Alteração |
 |----------|-----------|
-| `src/lib/mediaValidation.ts` | Adicionar `linkedin_post: 600` ao `MAX_VIDEO_DURATION` |
-| `src/pages/ManualCreate.tsx` | Adicionar validação de aspect ratio para reels/tiktok/facebook horizontais |
-| `src/components/publishing/VideoValidationModal.tsx` | Generalizar texto informativo |
+| `src/components/manual-post/NetworkCaptionEditor.tsx` | Remover truncamento unificado; adicionar `forceMount` aos tabs |
+| `src/pages/ManualCreate.tsx` | Corrigir inicialização de networkCaptions |
+| `src/hooks/usePublishWithProgress.ts` | Truncar caption por rede no momento de publicar |
 
