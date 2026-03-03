@@ -34,7 +34,7 @@ export interface MediaValidationResult {
 }
 
 // Ideal aspect ratios for each format
-const FORMAT_ASPECT_RATIOS: Record<string, { ratios: string[]; tolerance: number }> = {
+export const FORMAT_ASPECT_RATIOS: Record<string, { ratios: string[]; tolerance: number }> = {
   instagram_carousel: { ratios: ['1:1', '4:5'], tolerance: 0.05 },
   instagram_image: { ratios: ['1:1', '4:5'], tolerance: 0.05 },
   instagram_reel: { ratios: ['9:16'], tolerance: 0.03 },
@@ -50,7 +50,7 @@ const FORMAT_ASPECT_RATIOS: Record<string, { ratios: string[]; tolerance: number
 };
 
 // Minimum resolution recommendations
-const MIN_RESOLUTIONS: Record<string, { width: number; height: number }> = {
+export const MIN_RESOLUTIONS: Record<string, { width: number; height: number }> = {
   instagram_carousel: { width: 1080, height: 1080 },
   instagram_image: { width: 1080, height: 1080 },
   instagram_reel: { width: 1080, height: 1920 },
@@ -66,7 +66,7 @@ const MIN_RESOLUTIONS: Record<string, { width: number; height: number }> = {
 };
 
 // Max video duration in seconds
-const MAX_VIDEO_DURATION: Record<string, number> = {
+export const MAX_VIDEO_DURATION: Record<string, number> = {
   instagram_reel: 90,
   instagram_stories: 15,
   youtube_shorts: 60,

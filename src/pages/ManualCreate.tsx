@@ -66,7 +66,7 @@ import EmojiPicker, { EmojiClickData } from 'emoji-picker-react';
 import { detectOversizedImages, compressOversizedFiles, OversizedImage } from '@/lib/canvas/imageCompression';
 import { ImageCompressionConfirmModal } from '@/components/publishing/ImageCompressionConfirmModal';
 import { VideoValidationModal, VideoValidationIssue } from '@/components/publishing/VideoValidationModal';
-import { getVideoDimensions } from '@/lib/mediaValidation';
+import { getVideoDimensions, FORMAT_ASPECT_RATIOS, MAX_VIDEO_DURATION, MIN_RESOLUTIONS } from '@/lib/mediaValidation';
 
 // Extract first frame from video file
 async function extractVideoFrame(videoFile: File | string): Promise<File> {
@@ -770,50 +770,68 @@ export default function ManualCreate() {
       return;
     }
     
-    // Validate video constraints for Instagram carousel
-    const instagramSelected = selectedFormats.some(f => f.startsWith('instagram_'));
-    const isCarousel = selectedFormats.includes('instagram_carousel');
+    // Validate video constraints for ALL selected formats
     const videoFiles = newFiles.filter(f => f.type.startsWith('video/'));
     
-    if (instagramSelected && videoFiles.length > 0) {
+    const getFormatLabel = (fmt: PostFormat): string => {
+      return getFormatConfig(fmt)?.label || fmt;
+    };
+    
+    if (videoFiles.length > 0 && selectedFormats.length > 0) {
       const issues: VideoValidationIssue[] = [];
       
       for (const videoFile of videoFiles) {
         try {
           const videoInfo = await getVideoDimensions(videoFile);
+          const videoRatio = videoInfo.width / videoInfo.height;
+          const isVertical = videoRatio < 0.8; // 9:16 style
+          const isHorizontal = videoRatio > 1.2; // 16:9 style
           
-          // Check duration for carousel (max 60s)
-          if (isCarousel && videoInfo.duration > 60) {
-            issues.push({
-              fileName: videoFile.name,
-              issue: `Duração ${Math.round(videoInfo.duration)}s excede o limite de 60s para carrossel`,
-              suggestion: 'Use vídeos mais curtos ou publique como Reel',
-              type: 'duration',
-              severity: 'warning',
-            });
-          }
-          
-          // Check aspect ratio (Instagram accepts 4:5 to 1.91:1)
-          const ratio = videoInfo.width / videoInfo.height;
-          if (ratio < 0.8 || ratio > 1.91) {
-            issues.push({
-              fileName: videoFile.name,
-              issue: `Proporção ${ratio.toFixed(2)} fora dos limites (0.8 a 1.91)`,
-              suggestion: 'O Instagram aceita vídeos entre 4:5 e 1.91:1',
-              type: 'aspectRatio',
-              severity: 'warning',
-            });
-          }
-          
-          // Check minimum resolution
-          if (videoInfo.width < 600 || videoInfo.height < 600) {
-            issues.push({
-              fileName: videoFile.name,
-              issue: `Resolução ${videoInfo.width}x${videoInfo.height}px muito baixa`,
-              suggestion: 'Recomendado mínimo 600x600px',
-              type: 'resolution',
-              severity: 'warning',
-            });
+          for (const fmt of selectedFormats) {
+            const maxDuration = MAX_VIDEO_DURATION[fmt];
+            
+            // Duration check
+            if (maxDuration && videoInfo.duration > maxDuration) {
+              issues.push({
+                fileName: videoFile.name,
+                issue: `Duração ${Math.round(videoInfo.duration)}s excede ${maxDuration}s para ${getFormatLabel(fmt)}`,
+                suggestion: `Reduza para ≤ ${maxDuration}s ou remova ${getFormatLabel(fmt)}`,
+                type: 'duration',
+                severity: maxDuration <= 60 ? 'error' : 'warning',
+              });
+            }
+            
+            // Aspect ratio mismatch checks
+            if (fmt === 'youtube_video' && isVertical) {
+              issues.push({
+                fileName: videoFile.name,
+                issue: `Vídeo vertical (${videoInfo.width}x${videoInfo.height}) não é adequado para YouTube Feed`,
+                suggestion: 'Use YouTube Shorts para vídeos verticais 9:16',
+                type: 'aspectRatio',
+                severity: 'error',
+              });
+            }
+            if (fmt === 'youtube_shorts' && isHorizontal) {
+              issues.push({
+                fileName: videoFile.name,
+                issue: `Vídeo horizontal não é adequado para Shorts`,
+                suggestion: 'Use YouTube Vídeo para vídeos 16:9',
+                type: 'aspectRatio',
+                severity: 'error',
+              });
+            }
+            
+            // Resolution check
+            const minRes = MIN_RESOLUTIONS[fmt];
+            if (minRes && (videoInfo.width < minRes.width * 0.7 || videoInfo.height < minRes.height * 0.7)) {
+              issues.push({
+                fileName: videoFile.name,
+                issue: `Resolução ${videoInfo.width}x${videoInfo.height} baixa para ${getFormatLabel(fmt)}`,
+                suggestion: `Recomendado: ${minRes.width}x${minRes.height}px`,
+                type: 'resolution',
+                severity: 'warning',
+              });
+            }
           }
         } catch (err) {
           console.warn('Could not validate video:', videoFile.name, err);

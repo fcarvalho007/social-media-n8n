@@ -28,10 +28,10 @@ const FORMAT_PRESETS: FormatPreset[] = [
     id: 'video-vertical',
     name: 'Vídeo Vertical 9:16',
     shortName: 'Vídeo 9:16',
-    description: 'Reels + Shorts + TikTok',
+    description: 'Reels + Shorts + TikTok + LinkedIn',
     emoji: '📱',
-    formats: ['instagram_reel', 'facebook_reel', 'youtube_shorts', 'tiktok_video'],
-    gradient: 'linear-gradient(135deg, #E1306C, #FF0000, #000000)',
+    formats: ['instagram_reel', 'facebook_reel', 'youtube_shorts', 'tiktok_video', 'linkedin_post'],
+    gradient: 'linear-gradient(135deg, #E1306C, #FF0000, #000000, #0A66C2)',
   },
   {
     id: 'post-standard',
