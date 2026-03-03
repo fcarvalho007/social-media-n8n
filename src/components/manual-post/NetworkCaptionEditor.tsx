@@ -213,7 +213,9 @@ export function NetworkCaptionEditor({
           {selectedNetworks.map((network) => {
             const maxLength = getMaxLength(network);
             return (
-              <TabsContent key={network} value={network} className="mt-3">
+              <TabsContent key={network} value={network} className="mt-3" forceMount
+                style={{ display: activeNetwork === network ? 'block' : 'none' }}
+              >
                 <Textarea
                   ref={(el) => { networkTextareaRefs.current[network] = el; }}
                   value={networkCaptions[network] || ''}
@@ -238,10 +240,7 @@ export function NetworkCaptionEditor({
             ref={textareaRef}
             value={caption}
             onChange={(e) => {
-              const maxLen = selectedNetworks.length > 0 
-                ? Math.min(...selectedNetworks.map(n => getMaxLength(n)))
-                : 2200;
-              onCaptionChange(e.target.value.slice(0, maxLen));
+              onCaptionChange(e.target.value);
               // Auto-resize
               e.target.style.height = 'auto';
               e.target.style.height = `${Math.max(150, e.target.scrollHeight)}px`;
