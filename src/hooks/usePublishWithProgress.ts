@@ -2,6 +2,7 @@ import { useState, useCallback, useRef } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { PostFormat, getFormatConfig } from '@/types/social';
 import { FORMAT_TO_NETWORK } from '@/types/publishing';
+import { NETWORK_CONSTRAINTS } from '@/lib/socialNetworks';
 import { generateCarouselPDF } from '@/lib/pdfGenerator';
 import { processMediaForInstagram } from '@/lib/canvas/instagramResize';
 import { 
@@ -635,8 +636,9 @@ if (imageUrlsForPdf.length > 0) {
         console.log(`[usePublishWithProgress] [${publishSessionId}] Publishing ${format} to ${network} with key: ${idempotencyKey}`);
         
         try {
-          // Use network-specific caption if available
-          const networkCaption = params.networkCaptions?.[network] || caption;
+          // Use network-specific caption if available, truncated to network limit
+          const maxCaptionLen = NETWORK_CONSTRAINTS[network]?.max_caption_length || 2200;
+          const networkCaption = (params.networkCaptions?.[network] || caption).slice(0, maxCaptionLen);
           
           const { data: publishResult, error: publishError } = await supabase.functions.invoke('publish-to-getlate', {
             body: {

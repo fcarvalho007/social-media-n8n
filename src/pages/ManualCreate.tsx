@@ -2089,10 +2089,10 @@ export default function ManualCreate() {
                   onToggleSeparate={(value) => {
                     setUseSeparateCaptions(value);
                     // Initialize network captions with unified caption when enabling
-                    if (value && Object.keys(networkCaptions).length === 0) {
+                    if (value) {
                       const initial: Record<string, string> = {};
                       selectedNetworks.forEach(network => {
-                        initial[network] = caption;
+                        initial[network] = networkCaptions[network] || caption;
                       });
                       setNetworkCaptions(initial);
                     }
