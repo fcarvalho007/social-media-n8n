@@ -1006,10 +1006,12 @@ export default function ManualCreate() {
       else if (primaryFormat.startsWith('linkedin_')) platform = 'linkedin';
       else platform = primaryFormat;
 
-      const draftData = {
+      const draftData: any = {
         user_id: user.id,
         platform,
-        caption,
+        caption: useSeparateCaptions && networkCaptions[platform.replace('_carrousel', '')] 
+          ? networkCaptions[platform.replace('_carrousel', '')] 
+          : caption,
         media_urls: mediaUrls,
         scheduled_date: scheduledDate ? format(scheduledDate, 'yyyy-MM-dd') : null,
         scheduled_time: time || null,
@@ -1286,12 +1288,13 @@ export default function ManualCreate() {
       const { data, error } = await supabase.functions.invoke('submit-to-n8n', {
         body: {
           platform,
-          caption,
+          caption: useSeparateCaptions && networkCaptions[platform] ? networkCaptions[platform] : caption,
           media_urls: mediaUrls,
           scheduled_date: scheduledDateStr || undefined,
           scheduled_time: scheduledTimeStr || undefined,
           publish_immediately: scheduleAsap,
           formats: selectedFormats,
+          network_captions: useSeparateCaptions ? networkCaptions : undefined,
         },
       });
 
@@ -1313,6 +1316,7 @@ export default function ManualCreate() {
         post_type: primaryFormat.includes('carousel') ? 'carousel' : primaryFormat.includes('video') || primaryFormat.includes('reel') ? 'video' : 'image',
         selected_networks: selectedNetworks as any,
         caption,
+        linkedin_body: useSeparateCaptions && networkCaptions.linkedin ? networkCaptions.linkedin : null,
         scheduled_date: scheduledDate?.toISOString() || null,
         schedule_asap: scheduleAsap,
         status: 'waiting_for_approval',
@@ -1417,6 +1421,7 @@ export default function ManualCreate() {
       time,
       scheduleAsap,
       recoveredFromPostId: recoveredPostId || undefined,
+      networkCaptions: useSeparateCaptions ? networkCaptions : undefined,
     });
 
     if (success) {

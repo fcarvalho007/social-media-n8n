@@ -42,6 +42,7 @@ interface PublishParams {
   time?: string;
   scheduleAsap: boolean;
   recoveredFromPostId?: string; // Track if this is a recovered post
+  networkCaptions?: Record<string, string>; // Per-network captions when "Legendas separadas" is active
 }
 
 // Extract first frame from video file
@@ -461,6 +462,7 @@ export function usePublishWithProgress() {
         post_type: postType,
         selected_networks: selectedNetworks,
         caption,
+        linkedin_body: params.networkCaptions?.linkedin || null,
         scheduled_date: scheduledDate ? scheduledDate.toISOString() : new Date().toISOString(),
         schedule_asap: scheduleAsap,
         status: initialStatus,
@@ -633,10 +635,13 @@ if (imageUrlsForPdf.length > 0) {
         console.log(`[usePublishWithProgress] [${publishSessionId}] Publishing ${format} to ${network} with key: ${idempotencyKey}`);
         
         try {
+          // Use network-specific caption if available
+          const networkCaption = params.networkCaptions?.[network] || caption;
+          
           const { data: publishResult, error: publishError } = await supabase.functions.invoke('publish-to-getlate', {
             body: {
               format,
-              caption,
+              caption: networkCaption,
               media_urls: finalMediaUrls,
               scheduled_date: scheduledDate ? scheduledDate.toISOString().split('T')[0] : undefined,
               scheduled_time: time || undefined,
