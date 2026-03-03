@@ -820,6 +820,17 @@ export default function ManualCreate() {
                 severity: 'error',
               });
             }
+            // Vertical formats receiving horizontal video
+            const verticalFormats = ['instagram_reel', 'tiktok_video', 'facebook_reel'];
+            if (verticalFormats.includes(fmt) && isHorizontal) {
+              issues.push({
+                fileName: videoFile.name,
+                issue: `Vídeo horizontal (${videoInfo.width}x${videoInfo.height}) não é ideal para ${getFormatLabel(fmt)}`,
+                suggestion: 'Use um vídeo vertical 9:16 para melhores resultados',
+                type: 'aspectRatio',
+                severity: 'warning',
+              });
+            }
             
             // Resolution check
             const minRes = MIN_RESOLUTIONS[fmt];

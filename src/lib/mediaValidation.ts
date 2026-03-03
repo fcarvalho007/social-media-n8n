@@ -74,6 +74,7 @@ export const MAX_VIDEO_DURATION: Record<string, number> = {
   tiktok_video: 180, // 3 minutes
   facebook_stories: 20,
   facebook_reel: 90,
+  linkedin_post: 600, // 10 minutes
 };
 
 /**
