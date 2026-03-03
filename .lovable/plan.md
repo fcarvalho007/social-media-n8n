@@ -1,53 +1,129 @@
 
 
-## Plano: Corrigir Legendas Diferenciadas por Rede
+## Plano: LinkedIn no Preset 9:16 + Validação de Vídeo Multi-Plataforma
 
-### Problema Identificado
+### Pedido 1: Incluir LinkedIn no preset "Vídeo Vertical 9:16"
 
-Quando o utilizador activa "Legendas separadas" e escreve legendas diferentes para cada rede, o sistema **ignora** essas legendas. Em todos os fluxos (publicar, guardar rascunho, submeter para aprovação), apenas a `caption` unificada é enviada — os `networkCaptions` nunca são passados.
+O preset "Vídeo 9:16" actualmente inclui: `instagram_reel`, `facebook_reel`, `youtube_shorts`, `tiktok_video`.
 
-**Locais afectados:**
+O LinkedIn suporta vídeos verticais através do formato `linkedin_post`. Vou adicionar `linkedin_post` a este preset.
 
-1. **`handlePublishNow`** (linha 1412): passa `caption` fixa ao `executePublish`
-2. **`usePublishWithProgress.ts`** (linha 639): envia `caption` ao edge function, sem suporte para legendas por rede
-3. **`handleSaveDraft`** (linha 1012): guarda apenas `caption`, sem `linkedin_body` ou outros campos por rede
-4. **`handleSubmitForApproval`** (linha 1289/1315): idem
+**Ficheiro: `src/components/manual-post/QuickPresets.tsx`**
+- Adicionar `'linkedin_post'` ao array `formats` do preset `video-vertical`
+- Actualizar `description` para `'Reels + Shorts + TikTok + LinkedIn'`
 
 ---
 
-### Alterações a Implementar
+### Pedido 2: Validação de Vídeo Multi-Plataforma
 
-#### 1. Adicionar `networkCaptions` ao `PublishParams` e usar na publicação
+**Problema actual**: A validação de vídeo (linhas 773-830 de ManualCreate.tsx) só verifica regras do Instagram. Não verifica regras do YouTube (Shorts ≤ 60s, Feed sem limite), TikTok (≤ 180s), Facebook, LinkedIn, etc. Resultado: um vídeo de 45s 9:16 pode ser publicado como `youtube_video` (feed) quando devia ser `youtube_shorts`.
 
-**Ficheiro: `src/hooks/usePublishWithProgress.ts`**
+**Solução**: Expandir a validação para todas as plataformas seleccionadas, usando as regras já definidas em `src/lib/mediaValidation.ts` (`MAX_VIDEO_DURATION`, `FORMAT_ASPECT_RATIOS`).
 
-- Adicionar `networkCaptions?: Record<string, string>` ao `PublishParams`
-- Na publicação de cada formato (linha 639), usar a legenda específica da rede quando disponível:
-  ```tsx
-  const networkCaption = params.networkCaptions?.[network] || caption;
-  ```
-- Aplicar a mesma lógica no `initialPostData.caption` (guardar a caption principal) e adicionar `linkedin_body` quando houver legenda específica do LinkedIn
+#### Alteração 1: Expandir validação de vídeo no upload
 
-#### 2. Passar `networkCaptions` desde `handlePublishNow`
+**Ficheiro: `src/pages/ManualCreate.tsx`** (linhas 773-830)
+
+Substituir a validação actual (só Instagram) por uma validação que percorre **todos os formatos seleccionados**:
+
+```tsx
+if (videoFiles.length > 0 && selectedFormats.length > 0) {
+  const issues: VideoValidationIssue[] = [];
+  
+  for (const videoFile of videoFiles) {
+    try {
+      const videoInfo = await getVideoDimensions(videoFile);
+      const videoRatio = videoInfo.width / videoInfo.height;
+      const isVertical = videoRatio < 0.8; // 9:16 style
+      const isHorizontal = videoRatio > 1.2; // 16:9 style
+      
+      for (const format of selectedFormats) {
+        const formatConfig = FORMAT_ASPECT_RATIOS[format]; // from mediaValidation
+        const maxDuration = MAX_VIDEO_DURATION[format];
+        
+        // Duration check
+        if (maxDuration && videoInfo.duration > maxDuration) {
+          issues.push({
+            fileName: videoFile.name,
+            issue: `Duração ${Math.round(videoInfo.duration)}s excede ${maxDuration}s para ${getFormatLabel(format)}`,
+            suggestion: `Reduza para ≤ ${maxDuration}s ou remova ${getFormatLabel(format)}`,
+            type: 'duration',
+            severity: maxDuration <= 60 ? 'error' : 'warning',
+          });
+        }
+        
+        // Aspect ratio mismatch (e.g., vertical video → youtube_video feed)
+        if (format === 'youtube_video' && isVertical) {
+          issues.push({
+            fileName: videoFile.name,
+            issue: `Vídeo vertical (${videoInfo.width}x${videoInfo.height}) não é adequado para YouTube Feed`,
+            suggestion: 'Use YouTube Shorts para vídeos verticais 9:16',
+            type: 'aspectRatio',
+            severity: 'error',
+          });
+        }
+        if (format === 'youtube_shorts' && isHorizontal) {
+          issues.push({
+            fileName: videoFile.name,
+            issue: `Vídeo horizontal não é adequado para Shorts`,
+            suggestion: 'Use YouTube Vídeo para vídeos 16:9',
+            type: 'aspectRatio',
+            severity: 'error',
+          });
+        }
+        
+        // Resolution check
+        const minRes = MIN_RESOLUTIONS[format];
+        if (minRes && (videoInfo.width < minRes.width * 0.7 || videoInfo.height < minRes.height * 0.7)) {
+          issues.push({
+            fileName: videoFile.name,
+            issue: `Resolução ${videoInfo.width}x${videoInfo.height} baixa para ${getFormatLabel(format)}`,
+            suggestion: `Recomendado: ${minRes.width}x${minRes.height}px`,
+            type: 'resolution',
+            severity: 'warning',
+          });
+        }
+      }
+    } catch (err) {
+      console.warn('Could not validate video:', videoFile.name, err);
+    }
+  }
+  
+  if (issues.length > 0) {
+    setPendingVideoFiles(newFiles);
+    setVideoValidationIssues(issues);
+    setVideoValidationModalOpen(true);
+    return;
+  }
+}
+```
+
+#### Alteração 2: Exportar constantes de `mediaValidation.ts`
+
+As constantes `FORMAT_ASPECT_RATIOS`, `MAX_VIDEO_DURATION`, e `MIN_RESOLUTIONS` precisam ser exportadas (actualmente são `const` privadas).
+
+**Ficheiro: `src/lib/mediaValidation.ts`**
+- Alterar `const FORMAT_ASPECT_RATIOS` → `export const FORMAT_ASPECT_RATIOS`
+- Alterar `const MAX_VIDEO_DURATION` → `export const MAX_VIDEO_DURATION`
+- Alterar `const MIN_RESOLUTIONS` → `export const MIN_RESOLUTIONS`
+
+#### Alteração 3: Helper para label do formato
 
 **Ficheiro: `src/pages/ManualCreate.tsx`**
 
-- No `executePublish` (linha 1412), adicionar:
-  ```tsx
-  networkCaptions: useSeparateCaptions ? networkCaptions : undefined,
-  ```
+Adicionar helper usando `getFormatConfig` já existente:
 
-#### 3. Guardar `linkedin_body` no rascunho
+```tsx
+const getFormatLabel = (format: PostFormat): string => {
+  return getFormatConfig(format)?.label || format;
+};
+```
 
-**Ficheiro: `src/pages/ManualCreate.tsx`**
+#### Alteração 4: Corrigir build error do Swiper
 
-- No `draftData` (linha 1009), se `useSeparateCaptions` está activo, guardar a legenda específica de cada rede (ex: `linkedin_body`)
+**Ficheiro: `src/components/CarouselPreview.tsx`**
 
-#### 4. Incluir legendas diferenciadas na submissão para aprovação
-
-**Ficheiro: `src/pages/ManualCreate.tsx`**
-
-- No `handleSubmitForApproval`, incluir legendas por rede no body do `submit-to-n8n` e no `postData`
+Adicionar `// @ts-ignore` antes de cada import de CSS do Swiper (linhas 50-53) para resolver os erros de tipo.
 
 ---
 
@@ -55,14 +131,8 @@ Quando o utilizador activa "Legendas separadas" e escreve legendas diferentes pa
 
 | Ficheiro | Alteração |
 |----------|-----------|
-| `src/hooks/usePublishWithProgress.ts` | Adicionar `networkCaptions` ao `PublishParams`, usar legenda por rede ao publicar cada formato |
-| `src/pages/ManualCreate.tsx` | Passar `networkCaptions` no publish, draft save, e submit flows |
-
----
-
-### Resultado Esperado
-
-- Quando "Legendas separadas" está activo, cada plataforma recebe a sua legenda específica
-- Rascunhos guardam as legendas diferenciadas (campo `linkedin_body` etc.)
-- A legenda unificada continua a funcionar quando o toggle está desligado
+| `src/components/manual-post/QuickPresets.tsx` | Adicionar `linkedin_post` ao preset "Vídeo 9:16" |
+| `src/lib/mediaValidation.ts` | Exportar constantes |
+| `src/pages/ManualCreate.tsx` | Expandir validação de vídeo para todas as plataformas |
+| `src/components/CarouselPreview.tsx` | Corrigir build error do Swiper CSS |
 
