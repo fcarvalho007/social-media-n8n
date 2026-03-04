@@ -12,6 +12,7 @@ import { cn } from '@/lib/utils';
 import { Instagram, Linkedin, Youtube, Facebook, Smile, Bookmark, Sparkles, Split, Merge } from 'lucide-react';
 import { NETWORK_CONSTRAINTS } from '@/lib/socialNetworks';
 import EmojiPicker, { EmojiClickData } from 'emoji-picker-react';
+import emojiDataPt from 'emoji-picker-react/dist/data/emojis-pt';
 
 // Network labels and icons
 const NETWORK_CONFIG: Record<SocialNetwork, { label: string; icon: React.ElementType; color: string }> = {
@@ -132,10 +133,12 @@ export function NetworkCaptionEditor({
           <PopoverContent className="w-auto p-0 border-0" align="start" side="top">
             <EmojiPicker
               onEmojiClick={handleEmojiClick}
-              width={300}
+              emojiData={emojiDataPt}
+              width={320}
               height={350}
-              searchPlaceholder="Pesquisar..."
+              searchPlaceHolder="Pesquisar emoji..."
               previewConfig={{ showPreview: false }}
+              lazyLoadEmojis
             />
           </PopoverContent>
         </Popover>

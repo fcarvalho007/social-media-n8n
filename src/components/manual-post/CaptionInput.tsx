@@ -9,6 +9,7 @@ import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover
 import { AlertCircle, Smile, Bold, Italic } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import EmojiPicker, { EmojiClickData } from 'emoji-picker-react';
+import emojiDataPt from 'emoji-picker-react/dist/data/emojis-pt';
 
 interface CaptionInputProps {
   caption: string;
@@ -139,8 +140,11 @@ export function CaptionInput({ caption, onCaptionChange, selectedNetworks }: Cap
               <PopoverContent className="w-full p-0 border-0" align="start">
                 <EmojiPicker
                   onEmojiClick={handleEmojiClick}
-                  searchPlaceHolder="Procurar emoji..."
+                  emojiData={emojiDataPt}
+                  width={320}
+                  searchPlaceHolder="Pesquisar emoji..."
                   previewConfig={{ showPreview: false }}
+                  lazyLoadEmojis
                 />
               </PopoverContent>
             </Popover>
