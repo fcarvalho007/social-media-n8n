@@ -4,6 +4,7 @@ import { Button } from '@/components/ui/button';
 import { Bold, Italic, Smile } from 'lucide-react';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import EmojiPicker, { EmojiClickData } from 'emoji-picker-react';
+import emojiDataPt from 'emoji-picker-react/dist/data/emojis-pt';
 import { cn } from '@/lib/utils';
 
 interface RichTextEditorProps {
@@ -122,10 +123,12 @@ export const RichTextEditor = ({
           <PopoverContent className="w-full p-0 border-0" align="start">
             <EmojiPicker
               onEmojiClick={handleEmojiClick}
+              emojiData={emojiDataPt}
               width={320}
               height={400}
               searchPlaceHolder="Pesquisar emoji..."
               previewConfig={{ showPreview: false }}
+              lazyLoadEmojis
             />
           </PopoverContent>
         </Popover>
