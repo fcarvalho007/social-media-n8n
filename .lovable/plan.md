@@ -1,46 +1,53 @@
 
 
-## Plano: Corrigir Login "Failed to fetch" + Higiene Auth
+## Plano: Blindar Login + Validar Cleanup
 
-### Diagnóstico
+### 1. Auth — Estado Actual
 
-Os logs de rede confirmam que o browser continua a chamar `ztmoabaxvwizglkaaomw.supabase.co` (projecto antigo) em vez de `vtmrimrrppuclciolzuw.supabase.co`. **Nenhum ficheiro no código contém esta URL antiga** — o problema é 100% um bundle JavaScript em cache no browser.
+Acabei de testar ambos os sistemas directamente:
 
-Qualquer alteração ao código fonte força um rebuild com as variáveis `.env` correctas, mas o browser pode continuar a servir o bundle antigo se tiver cache agressivo (service worker, disk cache, etc.).
+- **`admin-reset-password`**: Respondeu com `success: true` para ambos os emails. Passwords sincronizadas com `internal-whitelist-auth-2024`.
+- **Ambos os utilizadores existem** na base de dados, emails confirmados.
+- **O código está correcto**: `AuthContext.tsx` e `admin-reset-password` usam a mesma password.
+- **Cache headers** já estão no `index.html` (no-cache, no-store, must-revalidate).
 
-### Alterações
+**O problema "Failed to fetch" é 100% cache do browser** — o bundle antigo (compilado com URL do projecto anterior `ztmoabax...`) está a ser servido pelo disk cache. Nenhuma alteração de código resolve isto directamente; o utilizador precisa de fazer hard refresh.
 
-#### 1. Forçar invalidação de cache (ficheiro `index.html`)
-Adicionar meta tags `Cache-Control` e `Pragma` no `<head>` do `index.html` para evitar que o browser sirva bundles antigos:
-```html
-<meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate" />
-<meta http-equiv="Pragma" content="no-cache" />
+### Refinamentos para blindar o login
+
+| Alteração | Ficheiro | Descrição |
+|-----------|----------|-----------|
+| Auto-retry com signOut + localStorage clear | `AuthContext.tsx` | Se o primeiro `signInWithPassword` falhar com `Failed to fetch`, limpar TODO o localStorage (incluindo tokens Supabase antigos) e tentar novamente uma vez |
+| Forçar reload automático se URL errada | `AuthContext.tsx` | No catch de `Failed to fetch`, verificar se `VITE_SUPABASE_URL` contém `vtmrimrr`. Se não, forçar `window.location.reload(true)` para obter o bundle novo |
+| Adicionar `?v=timestamp` no script src | `index.html` | Cache-bust no script principal para forçar download do bundle novo |
+
+### 2. Cleanup — Estado Actual
+
+Testei a edge function directamente:
+
+```text
+dryRun: true
+filesToDelete: 1,738 ficheiros
+posts falhados: 8  (>30 dias)
+posts publicados: 1,000  (limite — há mais, query limitada a 1000)
 ```
 
-#### 2. Adicionar diagnóstico visível no ecrã de login (`src/pages/Auth.tsx`)
-Quando o login falha com "Failed to fetch", mostrar na UI qual URL o Supabase client está a usar. Isto permite ao utilizador confirmar visualmente se o bundle está actualizado ou se persiste cache antigo. Exemplo:
-```
-"A tentar ligar a: vtmrimrrppuclciolzuw.supabase.co — se vir outro domínio, limpe o cache."
-```
+**Problemas detectados:**
 
-#### 3. Limpar sessão antiga antes do login (`src/contexts/AuthContext.tsx`)
-No início de `signInWithEmail`, chamar `supabase.auth.signOut()` silenciosamente para limpar qualquer token/sessão residual do projecto antigo que esteja em `localStorage`.
-
-#### 4. Melhorias de higiene na auth
-
-| Problema | Solução |
-|----------|---------|
-| Password hardcoded em 2 sítios (AuthContext + edge function) | Mover para constante partilhada; no edge function já está alinhado (`internal-whitelist-auth-2024`) |
-| Whitelist hardcoded no frontend (visível no bundle JS) | Manter whitelist no frontend para UX rápida, mas adicionar validação server-side no edge function |
-| `signUp` com `emailRedirectTo` desnecessário (auto-confirm deveria estar activo para whitelist) | Verificar config de auto-confirm; se activo, remover `emailRedirectTo` |
-| Fluxo de fallback complexo (signIn → reset → signUp → signIn) | Simplificar: tentar signIn, se falhar invocar edge function que garante user+password, depois signIn final. Máximo 2 tentativas |
-| Toast genérico "Erro ao entrar" sem contexto | Incluir `error.message` no toast para debugging |
+| Problema | Impacto | Correção |
+|----------|---------|----------|
+| Query limitada a 1000 rows (default Supabase) | Não encontra todos os posts publicados antigos | Adicionar paginação ou `.limit(10000)` |
+| `cleanup-storage` exige JWT (`verify_jwt = true`) mas na UI é chamado com token do utilizador | Funciona apenas para utilizadores autenticados — correcto, mas se a sessão expirar falha silenciosamente | OK, manter como está |
+| Storage list também limitada a 1000 | Contagem de ficheiros por bucket pode ser incorrecta | Adicionar paginação no list |
 
 ### Ficheiros a alterar
 
 | Ficheiro | Alteração |
 |----------|-----------|
-| `index.html` | Meta tags anti-cache |
-| `src/pages/Auth.tsx` | Diagnóstico visual da URL Supabase quando há erro |
-| `src/contexts/AuthContext.tsx` | Limpar sessão antiga; simplificar fluxo de fallback; melhor mensagem de erro |
+| `src/contexts/AuthContext.tsx` | No catch de "Failed to fetch": limpar localStorage, tentar reload se URL errada. Adicionar retry automático |
+| `supabase/functions/cleanup-storage/index.ts` | Adicionar paginação na query de posts publicados (loop até esgotar) e no storage list |
 
+### Resultado esperado
+
+- Login funciona **sempre** para ambos os emails, mesmo com cache antigo (auto-corrige via reload)
+- Cleanup encontra **todos** os posts elegíveis, não apenas os primeiros 1000
