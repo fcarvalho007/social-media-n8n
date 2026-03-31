@@ -2,41 +2,48 @@
 
 ## Diagnóstico: Estado Actual do Cloud Storage
 
-### Resultados da auditoria
+### Resultados
 
-**O storage NÃO diminuiu.** A limpeza nunca foi executada pelo utilizador — apenas o código foi actualizado. Os números actuais:
+**O storage DIMINUIU drasticamente.** A limpeza foi executada com sucesso:
 
-| Bucket | Ficheiros | Tamanho | > 7 dias | Tamanho > 7 dias |
-|--------|-----------|---------|----------|------------------|
-| publications | 1,834 | 2,828 MB | 1,805 | 2,697 MB |
-| pdfs | 812 | 1,287 MB | 789 | 1,270 MB |
-| ai-generated-images | 1 | 6 MB | 1 | 6 MB |
-| **Total** | **2,647** | **4,121 MB** | **2,595** | **3,973 MB** |
+| Métrica | Antes | Agora |
+|---------|-------|-------|
+| Ficheiros totais | 2,647 | **8** |
+| Espaço estimado | ~4.1 GB | **~0 MB** |
+| Buckets publications | 1,834 ficheiros | 3 ficheiros |
+| Buckets pdfs | 812 ficheiros | 4 ficheiros |
+| ai-generated-images | 1 ficheiro | 1 ficheiro |
 
-**96% dos ficheiros têm mais de 7 dias** e podem ser eliminados, libertando ~3.9 GB.
+**Redução de ~99.7% nos ficheiros.** O storage está praticamente limpo.
 
-Após limpeza, o storage ficaria com ~148 MB (29 publications + 23 pdfs recentes).
+### Problemas identificados
 
-### Bug crítico encontrado
+1. **Bug: `totalStorageBytes` e `freedBytes` mostram 0 na UI** — O `file.metadata?.size` da API do storage não está a devolver o tamanho dos ficheiros restantes. A UI mostra "0 B" em vez do valor real. Isto torna os cards "Total utilizado" e "Eliminável" inúteis.
 
-**225 de 233 posts falhados não têm `failed_at` preenchido.** O cleanup filtra por `failed_at < 7 dias`, mas esses 225 posts têm `failed_at = NULL` — são invisíveis ao cleanup e os seus ficheiros nunca serão eliminados.
+2. **Contagem inflada de "ficheiros a eliminar"** — O dry-run diz "4,594 ficheiros podem ser eliminados", mas na realidade só existem 8 ficheiros no storage. Os 4,594 vêm de URLs referenciadas nos posts da base de dados que apontam para ficheiros já eliminados. Isto confunde o utilizador.
+
+3. **Posts antigos permanecem na base de dados** — Existem 2,302 posts publicados e 233 falhados com mais de 7 dias. Os ficheiros foram eliminados, mas os registos na BD ficaram. Não é um problema de espaço significativo, mas polui os dados.
+
+4. **Comunicação na UI**: O texto "Serão eliminados aproximadamente 4594 ficheiros" no dialog de confirmação é enganador quando na realidade só há 8 ficheiros.
 
 ### Plano de refinamentos
 
 | # | Ficheiro | Alteração |
 |---|----------|-----------|
-| 1 | `supabase/functions/cleanup-storage/index.ts` | **Corrigir bug**: para posts falhados, usar `created_at` como fallback quando `failed_at` é NULL. Adicionar segunda query para posts falhados sem `failed_at`. Adicionar **limpeza directa por data** nos buckets storage — listar ficheiros e eliminar os com `created_at > 7 dias`, independentemente de estarem referenciados em posts. |
-| 2 | `supabase/functions/cleanup-storage/index.ts` | Devolver **tamanho em bytes** no resultado (não apenas contagem de ficheiros), para a UI mostrar quanto espaço foi libertado. |
-| 3 | `src/pages/QuotaSettings.tsx` | Mostrar **resumo do estado actual** do storage (tamanho total, ficheiros totais) antes dos botões de limpeza — não apenas após executar. Adicionar indicador visual de quanto espaço seria libertado. Mostrar tamanhos em MB/GB em vez de apenas contagem de ficheiros. |
-| 4 | `src/pages/QuotaSettings.tsx` | Adicionar **confirmação antes de executar limpeza real** (dialog de confirmação com texto explícito do que será eliminado). |
+| 1 | `cleanup-storage/index.ts` | **Separar contagem real vs referências**: distinguir entre ficheiros que realmente existem no storage (via `listAllFiles`) e URLs de posts que referenciam ficheiros já inexistentes. Devolver `actualFilesInStorage` e `referencedUrls` separadamente. |
+| 2 | `cleanup-storage/index.ts` | **Corrigir bytes**: usar `file.metadata?.size ?? file.metadata?.contentLength ?? 0` como fallback para o tamanho. Se mesmo assim for 0, tentar obter o tamanho via header de download individual (apenas para os poucos ficheiros restantes). |
+| 3 | `QuotaSettings.tsx` | **Mostrar contagens reais**: exibir "X ficheiros no storage" em vez da contagem inflada de URLs. Quando `totalStorageBytes` é 0 mas há ficheiros, mostrar "tamanho indisponível" em vez de "0 B". |
+| 4 | `QuotaSettings.tsx` | **Melhorar comunicação**: quando o storage está quase vazio (< 10 ficheiros), mostrar um estado de "Storage limpo" com ícone de sucesso, em vez de apresentar os mesmos cards de limpeza. |
+| 5 | `QuotaSettings.tsx` | **Atualizar dialog de confirmação**: mostrar apenas a contagem real de ficheiros existentes no storage, não as referências de posts. |
 
 ### Detalhe técnico
 
-**Correcção do bug `failed_at`**: A query de posts falhados passará a filtrar por `OR (failed_at IS NULL AND created_at < sevenDaysAgo)`, capturando os 225 posts invisíveis.
+**Contagem real vs referências**: O cleanup passará a devolver:
+- `storageFilesCount`: total de ficheiros que realmente existem nos buckets
+- `storageFilesToDelete`: ficheiros no storage com mais de 7 dias (os únicos que serão eliminados)
+- `postReferencesCount`: URLs de posts que apontam para ficheiros (informativo, podem já não existir)
 
-**Limpeza directa de storage**: Após a limpeza baseada em posts, o cleanup listará todos os ficheiros em cada bucket via `supabase.storage.from(bucket).list()` e eliminará os que tenham `created_at` anterior a 7 dias. Isto garante que ficheiros órfãos (sem post associado) também são eliminados.
+O `filesToDelete` no resultado principal passará a usar apenas `storageFilesToDelete`.
 
-**Resultado na resposta**: O cleanup passará a devolver `totalStorageBytes` e `freedBytes` para que a UI possa mostrar "3.9 GB libertados de 4.1 GB".
-
-**UI do QuotaSettings**: Ao carregar a página, faz uma chamada `dryRun: true` automática para mostrar imediatamente o estado do storage, sem o utilizador ter de clicar.
+**UI "Storage limpo"**: Quando `storageFilesCount < 10` e `storageFilesToDelete === 0`, a UI mostra um card com `CheckCircle` verde e a mensagem "O storage está limpo — apenas X ficheiros recentes".
 
