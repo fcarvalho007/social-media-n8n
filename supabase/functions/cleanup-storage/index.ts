@@ -81,8 +81,7 @@ serve(async (req) => {
     const { dryRun = true } = await req.json().catch(() => ({ dryRun: true }));
 
     const now = new Date();
-    const thirtyDaysAgo = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000).toISOString();
-    const ninetyDaysAgo = new Date(now.getTime() - 90 * 24 * 60 * 60 * 1000).toISOString();
+    const sevenDaysAgo = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000).toISOString();
 
     const results = {
       failedPostsFiles: 0,
