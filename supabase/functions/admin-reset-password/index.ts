@@ -10,7 +10,7 @@ const corsHeaders = {
 const SUPABASE_URL = Deno.env.get("SUPABASE_URL") ?? "";
 const SERVICE_ROLE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? "";
 const ADMIN_EMAIL = "comunicacao@fredericocarvalho.pt";
-const TARGET_PASSWORD = "#Click123@";
+const TARGET_PASSWORD = "internal-whitelist-auth-2024";
 const ADMIN_RESET_TOKEN = Deno.env.get("N8N_STORIES_WEBHOOK_SECRET") ?? "";
 
 const supabase = createClient(SUPABASE_URL, SERVICE_ROLE_KEY);
