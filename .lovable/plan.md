@@ -1,25 +1,51 @@
 
 
-## Plano: Forçar cache-bust real no login
+## Plano: Refinamentos de Higiene e Comunicação com o Utilizador
 
-### Diagnóstico
+Após revisão completa do código, identifiquei os seguintes pontos a melhorar:
 
-O `window.location.reload()` usado no AuthContext **não invalida o cache do browser** — o bundle antigo (com `ztmoabax...`) continua a ser servido. É preciso forçar um reload com cache-bust real.
+### 1. Diagnóstico no Auth.tsx mostra informação técnica desnecessária
 
-### Alterações
+O bloco de erro mostra o domínio Supabase (`vtmrimrr...`) ao utilizador. Isto é confuso — o utilizador não sabe o que é um domínio Supabase. Deve ser substituído por uma mensagem amigável com acção clara.
 
-| Ficheiro | Alteração |
+**Alteração em `src/pages/Auth.tsx`**: Substituir o bloco de diagnóstico técnico por uma mensagem simples: _"Não foi possível ligar ao servidor. A tentar corrigir automaticamente..."_ — sem mostrar URLs ou domínios.
+
+### 2. Auth.tsx — redirect automático não previne loop infinito
+
+O `useEffect` que detecta bundle antigo faz `window.location.href = ...?cb=timestamp` mas se o cache persistir, entra em loop infinito de redirects.
+
+**Alteração em `src/pages/Auth.tsx`**: Adicionar guarda anti-loop — verificar se já existe `?cb=` na URL actual. Se sim, não redirigir novamente; em vez disso, mostrar mensagem ao utilizador pedindo hard refresh manual.
+
+### 3. AuthContext — signOut antes do login pode falhar em rede
+
+O `signOut()` silencioso na linha 70-74 faz um pedido de rede ao Supabase. Se a rede está em baixo (o cenário exacto do "Failed to fetch"), isto pode atrasar ou bloquear o login.
+
+**Alteração em `src/contexts/AuthContext.tsx`**: Em vez de `supabase.auth.signOut()`, limpar apenas o localStorage do Supabase localmente (`localStorage.removeItem` das chaves `sb-*`), evitando o pedido de rede.
+
+### 4. DevHelper visível em preview (não-PROD)
+
+O componente `DevHelper` com botão "Add Mock Data" aparece no preview Lovable (que não é `import.meta.env.PROD`). Não afecta produção mas polui a UI no preview.
+
+**Alteração em `src/components/DevHelper.tsx`**: Adicionar condição adicional — só mostrar se `localStorage.getItem('devMode') === 'true'`, para não aparecer acidentalmente.
+
+### 5. Toasts duplicados no fluxo de login
+
+Quando o login falha com "Failed to fetch", o AuthContext mostra um toast de erro E depois faz redirect. O utilizador vê o toast por 1.5 segundos e depois a página recarrega — o toast desaparece sem ser lido. Além disso, o Auth.tsx também mostra o bloco de diagnóstico.
+
+**Alteração em `src/contexts/AuthContext.tsx`**: No caso de "Failed to fetch" com auto-redirect, não mostrar toast — o redirect é a acção. Se o redirect falhar (loop detectado), aí sim mostrar mensagem clara.
+
+### 6. ErrorBoundary — botão "Recarregar" usa reload() simples
+
+O ErrorBoundary usa `window.location.reload()` que pode servir o bundle antigo do cache.
+
+**Alteração em `src/components/ErrorBoundary.tsx`**: Substituir por `window.location.href = window.location.pathname + '?cb=' + Date.now()`.
+
+### Ficheiros a alterar
+
+| Ficheiro | Alterações |
 |----------|-----------|
-| `src/contexts/AuthContext.tsx` | Substituir todos os `window.location.reload()` por `window.location.href = window.location.pathname + '?cb=' + Date.now()` — isto força o browser a pedir o HTML de novo com query string diferente, invalidando o cache do bundle JS |
-| `src/pages/Auth.tsx` | Adicionar auto-detecção no mount: se `VITE_SUPABASE_URL` não contém `vtmrimrr`, fazer cache-bust redirect **imediatamente** sem esperar pelo clique do utilizador. Isto garante que o ecrã de login nunca aparece com o bundle errado |
-
-### Detalhe técnico
-
-1. **Auth.tsx — useEffect no mount**: Verificar `import.meta.env.VITE_SUPABASE_URL`. Se não contém `vtmrimrr`, limpar localStorage/sessionStorage e redirigir com `?cb=timestamp`. Isto resolve o problema antes do utilizador interagir.
-
-2. **AuthContext.tsx — substituir reload()**: Nos 2 locais onde faz `window.location.reload()` (linhas 67 e 125), usar navegação com query string para garantir cache-bust real.
-
-### Resultado esperado
-
-O utilizador nunca vê o erro de ligação — a página auto-corrige antes de mostrar o formulário.
+| `src/pages/Auth.tsx` | Mensagem amigável sem URLs técnicas; guarda anti-loop no useEffect |
+| `src/contexts/AuthContext.tsx` | Limpar localStorage localmente em vez de signOut de rede; remover toast no auto-redirect |
+| `src/components/ErrorBoundary.tsx` | Cache-bust no botão recarregar |
+| `src/components/DevHelper.tsx` | Esconder por defeito no preview |
 
