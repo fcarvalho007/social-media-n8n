@@ -1,53 +1,25 @@
 
 
-## Plano: Blindar Login + Validar Cleanup
+## Plano: Forçar cache-bust real no login
 
-### 1. Auth — Estado Actual
+### Diagnóstico
 
-Acabei de testar ambos os sistemas directamente:
+O `window.location.reload()` usado no AuthContext **não invalida o cache do browser** — o bundle antigo (com `ztmoabax...`) continua a ser servido. É preciso forçar um reload com cache-bust real.
 
-- **`admin-reset-password`**: Respondeu com `success: true` para ambos os emails. Passwords sincronizadas com `internal-whitelist-auth-2024`.
-- **Ambos os utilizadores existem** na base de dados, emails confirmados.
-- **O código está correcto**: `AuthContext.tsx` e `admin-reset-password` usam a mesma password.
-- **Cache headers** já estão no `index.html` (no-cache, no-store, must-revalidate).
-
-**O problema "Failed to fetch" é 100% cache do browser** — o bundle antigo (compilado com URL do projecto anterior `ztmoabax...`) está a ser servido pelo disk cache. Nenhuma alteração de código resolve isto directamente; o utilizador precisa de fazer hard refresh.
-
-### Refinamentos para blindar o login
-
-| Alteração | Ficheiro | Descrição |
-|-----------|----------|-----------|
-| Auto-retry com signOut + localStorage clear | `AuthContext.tsx` | Se o primeiro `signInWithPassword` falhar com `Failed to fetch`, limpar TODO o localStorage (incluindo tokens Supabase antigos) e tentar novamente uma vez |
-| Forçar reload automático se URL errada | `AuthContext.tsx` | No catch de `Failed to fetch`, verificar se `VITE_SUPABASE_URL` contém `vtmrimrr`. Se não, forçar `window.location.reload(true)` para obter o bundle novo |
-| Adicionar `?v=timestamp` no script src | `index.html` | Cache-bust no script principal para forçar download do bundle novo |
-
-### 2. Cleanup — Estado Actual
-
-Testei a edge function directamente:
-
-```text
-dryRun: true
-filesToDelete: 1,738 ficheiros
-posts falhados: 8  (>30 dias)
-posts publicados: 1,000  (limite — há mais, query limitada a 1000)
-```
-
-**Problemas detectados:**
-
-| Problema | Impacto | Correção |
-|----------|---------|----------|
-| Query limitada a 1000 rows (default Supabase) | Não encontra todos os posts publicados antigos | Adicionar paginação ou `.limit(10000)` |
-| `cleanup-storage` exige JWT (`verify_jwt = true`) mas na UI é chamado com token do utilizador | Funciona apenas para utilizadores autenticados — correcto, mas se a sessão expirar falha silenciosamente | OK, manter como está |
-| Storage list também limitada a 1000 | Contagem de ficheiros por bucket pode ser incorrecta | Adicionar paginação no list |
-
-### Ficheiros a alterar
+### Alterações
 
 | Ficheiro | Alteração |
 |----------|-----------|
-| `src/contexts/AuthContext.tsx` | No catch de "Failed to fetch": limpar localStorage, tentar reload se URL errada. Adicionar retry automático |
-| `supabase/functions/cleanup-storage/index.ts` | Adicionar paginação na query de posts publicados (loop até esgotar) e no storage list |
+| `src/contexts/AuthContext.tsx` | Substituir todos os `window.location.reload()` por `window.location.href = window.location.pathname + '?cb=' + Date.now()` — isto força o browser a pedir o HTML de novo com query string diferente, invalidando o cache do bundle JS |
+| `src/pages/Auth.tsx` | Adicionar auto-detecção no mount: se `VITE_SUPABASE_URL` não contém `vtmrimrr`, fazer cache-bust redirect **imediatamente** sem esperar pelo clique do utilizador. Isto garante que o ecrã de login nunca aparece com o bundle errado |
+
+### Detalhe técnico
+
+1. **Auth.tsx — useEffect no mount**: Verificar `import.meta.env.VITE_SUPABASE_URL`. Se não contém `vtmrimrr`, limpar localStorage/sessionStorage e redirigir com `?cb=timestamp`. Isto resolve o problema antes do utilizador interagir.
+
+2. **AuthContext.tsx — substituir reload()**: Nos 2 locais onde faz `window.location.reload()` (linhas 67 e 125), usar navegação com query string para garantir cache-bust real.
 
 ### Resultado esperado
 
-- Login funciona **sempre** para ambos os emails, mesmo com cache antigo (auto-corrige via reload)
-- Cleanup encontra **todos** os posts elegíveis, não apenas os primeiros 1000
+O utilizador nunca vê o erro de ligação — a página auto-corrige antes de mostrar o formulário.
+
