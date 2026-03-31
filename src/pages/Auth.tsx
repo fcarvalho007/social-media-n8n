@@ -23,6 +23,17 @@ const Auth = () => {
 
   const from = (location.state as any)?.from?.pathname || '/';
 
+  // Auto-detect stale bundle and force cache-bust before user interacts
+  useEffect(() => {
+    const supabaseUrl = import.meta.env.VITE_SUPABASE_URL || '';
+    if (!supabaseUrl.includes('vtmrimrr')) {
+      console.warn('[Auth] Stale bundle detected on mount, forcing cache-bust redirect');
+      localStorage.clear();
+      sessionStorage.clear();
+      window.location.href = window.location.pathname + '?cb=' + Date.now();
+    }
+  }, []);
+
   useEffect(() => {
     if (user) {
       navigate(from, { replace: true });
