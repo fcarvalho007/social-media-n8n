@@ -9,13 +9,65 @@ const corsHeaders = {
 const SUPABASE_URL = Deno.env.get("SUPABASE_URL") ?? "";
 const SERVICE_ROLE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? "";
 
+// Helper: paginate a query to get ALL rows beyond the 1000 default limit
+async function fetchAllRows(
+  supabase: any,
+  table: string,
+  select: string,
+  filters: { column: string; op: string; value: any }[],
+  pageSize = 500
+) {
+  const allRows: any[] = [];
+  let from = 0;
+
+  while (true) {
+    let query = supabase.from(table).select(select).range(from, from + pageSize - 1);
+    for (const f of filters) {
+      query = query.filter(f.column, f.op, f.value);
+    }
+    const { data, error } = await query;
+    if (error) {
+      console.error(`fetchAllRows error on ${table}:`, error.message);
+      break;
+    }
+    if (!data || data.length === 0) break;
+    allRows.push(...data);
+    if (data.length < pageSize) break; // last page
+    from += pageSize;
+  }
+
+  return allRows;
+}
+
+// Helper: list ALL files in a storage bucket (paginated)
+async function listAllFiles(supabase: any, bucket: string, prefix = "") {
+  const allFiles: any[] = [];
+  let offset = 0;
+  const limit = 1000;
+
+  while (true) {
+    const { data, error } = await supabase.storage
+      .from(bucket)
+      .list(prefix, { limit, offset });
+    if (error) {
+      console.error(`listAllFiles error on ${bucket}:`, error.message);
+      break;
+    }
+    if (!data || data.length === 0) break;
+    allFiles.push(...data);
+    if (data.length < limit) break;
+    offset += limit;
+  }
+
+  return allFiles;
+}
+
 serve(async (req) => {
   if (req.method === "OPTIONS") {
     return new Response(null, { headers: corsHeaders });
   }
 
   try {
-    // Validate JWT
     const authHeader = req.headers.get("authorization");
     if (!authHeader) {
       return new Response(JSON.stringify({ error: "unauthorized" }), {
@@ -40,21 +92,29 @@ serve(async (req) => {
       errors: [] as string[],
     };
 
-    // 1. Get failed posts older than 30 days
-    const { data: failedPosts } = await supabase
-      .from("posts")
-      .select("id, template_a_images, template_b_images, media_items, cover_image_url")
-      .eq("status", "failed")
-      .lt("failed_at", thirtyDaysAgo);
+    // 1. Get ALL failed posts older than 30 days (paginated)
+    const failedPosts = await fetchAllRows(
+      supabase,
+      "posts",
+      "id, template_a_images, template_b_images, media_items, cover_image_url",
+      [
+        { column: "status", op: "eq", value: "failed" },
+        { column: "failed_at", op: "lt", value: thirtyDaysAgo },
+      ]
+    );
 
-    // 2. Get published posts older than 90 days
-    const { data: publishedPosts } = await supabase
-      .from("posts")
-      .select("id, template_a_images, template_b_images, media_items, cover_image_url")
-      .eq("status", "published")
-      .lt("published_at", ninetyDaysAgo);
+    // 2. Get ALL published posts older than 90 days (paginated)
+    const publishedPosts = await fetchAllRows(
+      supabase,
+      "posts",
+      "id, template_a_images, template_b_images, media_items, cover_image_url",
+      [
+        { column: "status", op: "eq", value: "published" },
+        { column: "published_at", op: "lt", value: ninetyDaysAgo },
+      ]
+    );
 
-    const allPosts = [...(failedPosts || []), ...(publishedPosts || [])];
+    const allPosts = [...failedPosts, ...publishedPosts];
 
     // Extract storage paths from post data
     const filesToDelete: { bucket: string; path: string }[] = [];
@@ -66,7 +126,6 @@ serve(async (req) => {
         ...(post.cover_image_url ? [post.cover_image_url] : []),
       ];
 
-      // Extract from media_items
       if (Array.isArray(post.media_items)) {
         for (const item of post.media_items as any[]) {
           if (item?.url) urls.push(item.url);
@@ -76,7 +135,6 @@ serve(async (req) => {
 
       for (const url of urls) {
         if (!url || typeof url !== "string") continue;
-        // Extract bucket and path from Supabase storage URL
         const match = url.match(/\/storage\/v1\/object\/public\/([^/]+)\/(.+)/);
         if (match) {
           filesToDelete.push({ bucket: match[1], path: match[2] });
@@ -84,12 +142,11 @@ serve(async (req) => {
       }
     }
 
-    if (failedPosts) results.failedPostsFiles = failedPosts.length;
-    if (publishedPosts) results.publishedPostsFiles = publishedPosts.length;
+    results.failedPostsFiles = failedPosts.length;
+    results.publishedPostsFiles = publishedPosts.length;
 
     // 3. Delete files from storage (or just count in dry run)
     if (!dryRun && filesToDelete.length > 0) {
-      // Group by bucket
       const byBucket: Record<string, string[]> = {};
       for (const f of filesToDelete) {
         if (!byBucket[f.bucket]) byBucket[f.bucket] = [];
@@ -97,7 +154,6 @@ serve(async (req) => {
       }
 
       for (const [bucket, paths] of Object.entries(byBucket)) {
-        // Delete in batches of 100
         for (let i = 0; i < paths.length; i += 100) {
           const batch = paths.slice(i, i + 100);
           const { error } = await supabase.storage.from(bucket).remove(batch);
@@ -107,7 +163,7 @@ serve(async (req) => {
         }
       }
 
-      // Also clean up media_library records for these posts
+      // Clean up media_library records for these posts
       const postIds = allPosts.map((p) => p.id);
       for (let i = 0; i < postIds.length; i += 50) {
         const batch = postIds.slice(i, i + 50);
@@ -115,13 +171,13 @@ serve(async (req) => {
       }
     }
 
-    // 4. Get storage usage estimate
+    // 4. Get storage usage estimate (paginated)
     const buckets = ["publications", "pdfs", "post-covers", "ai-generated-images"];
     const storageInfo: Record<string, { fileCount: number }> = {};
 
     for (const bucket of buckets) {
-      const { data: files } = await supabase.storage.from(bucket).list("", { limit: 1000 });
-      storageInfo[bucket] = { fileCount: files?.length || 0 };
+      const files = await listAllFiles(supabase, bucket);
+      storageInfo[bucket] = { fileCount: files.length };
     }
 
     return new Response(
@@ -132,8 +188,8 @@ serve(async (req) => {
         results,
         storageInfo,
         posts: {
-          failed: failedPosts?.length || 0,
-          published: publishedPosts?.length || 0,
+          failed: failedPosts.length,
+          published: publishedPosts.length,
         },
       }),
       {

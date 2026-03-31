@@ -46,6 +46,8 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
   }, []);
 
   const signInWithEmail = async (email: string) => {
+    const EXPECTED_HOST = 'vtmrimrr';
+    
     try {
       const normalizedEmail = email.toLowerCase().trim();
       
@@ -54,11 +56,23 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
         return { error: { message: 'Email não autorizado' } };
       }
 
-      // Limpar sessão antiga silenciosamente (pode ter tokens do projecto anterior)
+      // Verificar se o bundle tem a URL correcta do projecto
+      const currentUrl = import.meta.env.VITE_SUPABASE_URL || '';
+      if (!currentUrl.includes(EXPECTED_HOST)) {
+        console.warn('[Auth] Bundle com URL antiga detectada, a forçar reload...');
+        toast.info('A actualizar a aplicação...');
+        // Limpar tudo e forçar reload para obter bundle novo
+        localStorage.clear();
+        sessionStorage.clear();
+        window.location.reload();
+        return { error: { message: 'A recarregar com URL correcta' } };
+      }
+
+      // Limpar sessão antiga silenciosamente
       try {
         await supabase.auth.signOut();
       } catch {
-        // Ignorar erros de signOut — pode não haver sessão
+        // Ignorar erros de signOut
       }
       
       // Tentativa 1: login directo
@@ -102,7 +116,13 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
     } catch (error: any) {
       const msg = error?.message || 'Erro desconhecido';
       if (msg.includes('Failed to fetch') || msg.includes('NetworkError') || msg.includes('ERR_NAME_NOT_RESOLVED')) {
-        toast.error('Erro de rede — limpe o cache do browser (Cmd+Shift+R) e tente novamente.');
+        console.warn('[Auth] Failed to fetch — a limpar cache local e a tentar reload...');
+        // Limpar localStorage (pode ter tokens do projecto antigo)
+        localStorage.clear();
+        sessionStorage.clear();
+        toast.error('Erro de rede — a recarregar a aplicação...');
+        // Pequeno delay para o toast ser visível, depois reload
+        setTimeout(() => window.location.reload(), 1500);
       } else {
         toast.error(`Erro ao fazer login: ${msg}`);
       }
