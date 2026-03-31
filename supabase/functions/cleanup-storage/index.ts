@@ -1,0 +1,151 @@
+import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
+import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+
+const corsHeaders = {
+  "Access-Control-Allow-Origin": "*",
+  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
+};
+
+const SUPABASE_URL = Deno.env.get("SUPABASE_URL") ?? "";
+const SERVICE_ROLE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? "";
+
+serve(async (req) => {
+  if (req.method === "OPTIONS") {
+    return new Response(null, { headers: corsHeaders });
+  }
+
+  try {
+    // Validate JWT
+    const authHeader = req.headers.get("authorization");
+    if (!authHeader) {
+      return new Response(JSON.stringify({ error: "unauthorized" }), {
+        status: 401,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+
+    const supabase = createClient(SUPABASE_URL, SERVICE_ROLE_KEY);
+
+    const { dryRun = true } = await req.json().catch(() => ({ dryRun: true }));
+
+    const now = new Date();
+    const thirtyDaysAgo = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000).toISOString();
+    const ninetyDaysAgo = new Date(now.getTime() - 90 * 24 * 60 * 60 * 1000).toISOString();
+
+    const results = {
+      failedPostsFiles: 0,
+      publishedPostsFiles: 0,
+      mediaLibraryOrphans: 0,
+      bytesFreed: 0,
+      errors: [] as string[],
+    };
+
+    // 1. Get failed posts older than 30 days
+    const { data: failedPosts } = await supabase
+      .from("posts")
+      .select("id, template_a_images, template_b_images, media_items, cover_image_url")
+      .eq("status", "failed")
+      .lt("failed_at", thirtyDaysAgo);
+
+    // 2. Get published posts older than 90 days
+    const { data: publishedPosts } = await supabase
+      .from("posts")
+      .select("id, template_a_images, template_b_images, media_items, cover_image_url")
+      .eq("status", "published")
+      .lt("published_at", ninetyDaysAgo);
+
+    const allPosts = [...(failedPosts || []), ...(publishedPosts || [])];
+
+    // Extract storage paths from post data
+    const filesToDelete: { bucket: string; path: string }[] = [];
+
+    for (const post of allPosts) {
+      const urls: string[] = [
+        ...(post.template_a_images || []),
+        ...(post.template_b_images || []),
+        ...(post.cover_image_url ? [post.cover_image_url] : []),
+      ];
+
+      // Extract from media_items
+      if (Array.isArray(post.media_items)) {
+        for (const item of post.media_items as any[]) {
+          if (item?.url) urls.push(item.url);
+          if (item?.preview) urls.push(item.preview);
+        }
+      }
+
+      for (const url of urls) {
+        if (!url || typeof url !== "string") continue;
+        // Extract bucket and path from Supabase storage URL
+        const match = url.match(/\/storage\/v1\/object\/public\/([^/]+)\/(.+)/);
+        if (match) {
+          filesToDelete.push({ bucket: match[1], path: match[2] });
+        }
+      }
+    }
+
+    if (failedPosts) results.failedPostsFiles = failedPosts.length;
+    if (publishedPosts) results.publishedPostsFiles = publishedPosts.length;
+
+    // 3. Delete files from storage (or just count in dry run)
+    if (!dryRun && filesToDelete.length > 0) {
+      // Group by bucket
+      const byBucket: Record<string, string[]> = {};
+      for (const f of filesToDelete) {
+        if (!byBucket[f.bucket]) byBucket[f.bucket] = [];
+        byBucket[f.bucket].push(f.path);
+      }
+
+      for (const [bucket, paths] of Object.entries(byBucket)) {
+        // Delete in batches of 100
+        for (let i = 0; i < paths.length; i += 100) {
+          const batch = paths.slice(i, i + 100);
+          const { error } = await supabase.storage.from(bucket).remove(batch);
+          if (error) {
+            results.errors.push(`${bucket}: ${error.message}`);
+          }
+        }
+      }
+
+      // Also clean up media_library records for these posts
+      const postIds = allPosts.map((p) => p.id);
+      for (let i = 0; i < postIds.length; i += 50) {
+        const batch = postIds.slice(i, i + 50);
+        await supabase.from("media_library").delete().in("post_id", batch);
+      }
+    }
+
+    // 4. Get storage usage estimate
+    const buckets = ["publications", "pdfs", "post-covers", "ai-generated-images"];
+    const storageInfo: Record<string, { fileCount: number }> = {};
+
+    for (const bucket of buckets) {
+      const { data: files } = await supabase.storage.from(bucket).list("", { limit: 1000 });
+      storageInfo[bucket] = { fileCount: files?.length || 0 };
+    }
+
+    return new Response(
+      JSON.stringify({
+        success: true,
+        dryRun,
+        filesToDelete: filesToDelete.length,
+        results,
+        storageInfo,
+        posts: {
+          failed: failedPosts?.length || 0,
+          published: publishedPosts?.length || 0,
+        },
+      }),
+      {
+        status: 200,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      }
+    );
+  } catch (err) {
+    console.error("cleanup-storage error:", err);
+    return new Response(JSON.stringify({ error: "internal_error" }), {
+      status: 500,
+      headers: { ...corsHeaders, "Content-Type": "application/json" },
+    });
+  }
+});
