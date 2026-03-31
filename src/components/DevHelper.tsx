@@ -29,8 +29,8 @@ export function DevHelper() {
     }
   };
 
-  // Only show in development
-  if (import.meta.env.PROD) return null;
+  // Only show if devMode flag is explicitly set
+  if (import.meta.env.PROD || localStorage.getItem('devMode') !== 'true') return null;
 
   return (
     <div className="fixed bottom-24 right-4 z-40 lg:bottom-4 lg:z-50">
