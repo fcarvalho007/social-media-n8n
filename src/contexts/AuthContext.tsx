@@ -59,12 +59,10 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
       // Verificar se o bundle tem a URL correcta do projecto
       const currentUrl = import.meta.env.VITE_SUPABASE_URL || '';
       if (!currentUrl.includes(EXPECTED_HOST)) {
-        console.warn('[Auth] Bundle com URL antiga detectada, a forçar reload...');
-        toast.info('A actualizar a aplicação...');
-        // Limpar tudo e forçar reload para obter bundle novo
+        console.warn('[Auth] Bundle com URL antiga detectada, a forçar cache-bust...');
         localStorage.clear();
         sessionStorage.clear();
-        window.location.reload();
+        window.location.href = window.location.pathname + '?cb=' + Date.now();
         return { error: { message: 'A recarregar com URL correcta' } };
       }
 
