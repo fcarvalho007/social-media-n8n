@@ -1,50 +1,53 @@
 
 
-## Plano: Melhorar Pesquisa de Emojis em /manual-create
+## Plano: Corrigir Login + Optimizar Storage
 
-### Problema
+### Problema 1: Login não funciona
 
-O `emoji-picker-react` usa dados em inglês por defeito. Quando o utilizador pesquisa "fogo" não encontra 🔥, precisa escrever "fire". A pesquisa é limitada a um único idioma.
+Os logs de rede confirmam **dois problemas críticos**:
 
-### Solução
+1. **URL errada**: O browser está a chamar `ztmoabaxvwizglkaaomw.supabase.co` em vez de `vtmrimrrppuclciolzuw.supabase.co`. Isto é um bundle antigo em cache — o `.env` e o `client.ts` estão correctos mas o browser serve um JS compilado com as credenciais do projecto anterior. **Solução**: forçar rebuild limpo (o próprio acto de editar código e fazer deploy resolve isto).
 
-A biblioteca suporta internacionalização via prop `emojiData`. Importar o pacote `emojis-pt` (Português) que já vem incluído no `emoji-picker-react`:
+2. **Password inconsistente**: `AuthContext.tsx` usa `internal-whitelist-auth-2024` mas `admin-reset-password/index.ts` tem `TARGET_PASSWORD = '#Click123@'`. Quando o fluxo tenta fazer reset da password via edge function, define uma password diferente da que o login usa. **Solução**: alinhar ambos para a mesma password.
 
-```tsx
-import pt from 'emoji-picker-react/dist/data/emojis-pt';
-
-<EmojiPicker emojiData={pt} ... />
-```
-
-Isto traduz **nomes e keywords dos emojis** para Português, permitindo pesquisar "fogo", "coração", "rir", etc.
-
-**Limitação**: com `emojiData={pt}`, a pesquisa passa a ser **apenas em PT** — pesquisar "fire" deixa de funcionar. A biblioteca não suporta pesquisa bilingue nativamente.
-
-**Solução prática**: Como o público-alvo é PT-PT, usar locale PT por defeito. Pesquisa em inglês deixará de funcionar, mas é o trade-off correcto para utilizadores portugueses.
-
-### Alterações
-
-#### 1. `src/components/manual-post/NetworkCaptionEditor.tsx`
-
-- Importar dados PT: `import pt from 'emoji-picker-react/dist/data/emojis-pt';`
-- Adicionar `emojiData={pt}` ao `<EmojiPicker>`
-- Actualizar `searchPlaceholder` para `"Pesquisar emoji..."`
-- Aumentar ligeiramente o picker: `width={320}` para melhor legibilidade
-- Adicionar `lazyLoadEmojis={true}` para performance
-
-#### 2. `src/components/manual-post/CaptionInput.tsx`
-
-- Mesma alteração: importar locale PT e passar `emojiData={pt}`
-
-#### 3. `src/components/RichTextEditor.tsx`
-
-- Mesma alteração para consistência em todos os editores
-
-### Ficheiros a Alterar
+### Alterações para corrigir login
 
 | Ficheiro | Alteração |
 |----------|-----------|
-| `src/components/manual-post/NetworkCaptionEditor.tsx` | Adicionar locale PT ao emoji picker |
-| `src/components/manual-post/CaptionInput.tsx` | Adicionar locale PT ao emoji picker |
-| `src/components/RichTextEditor.tsx` | Adicionar locale PT ao emoji picker |
+| `supabase/functions/admin-reset-password/index.ts` | Mudar `TARGET_PASSWORD` de `#Click123@` para `internal-whitelist-auth-2024` |
+| `src/contexts/AuthContext.tsx` | Adicionar melhor tratamento de erro para "Failed to fetch" (mostrar mensagem clara ao utilizador) |
+
+### Problema 2: Optimização de Storage no Cloud
+
+**Situação actual**: ~4 GB usados (67% vídeos, 20% imagens, 10% PDFs).
+
+### Opções de storage externo avaliadas
+
+| Opção | Custo | Prós | Contras |
+|-------|-------|------|---------|
+| **Cloudflare R2** | Grátis até 10 GB/mês + 0 egress | Sem custos de saída, S3-compatible, CDN integrado | Requer conta Cloudflare, migração manual |
+| **Backblaze B2** | Grátis até 10 GB | Barato, S3-compatible | Egress pago fora Cloudflare |
+| **Google Drive** (já usado) | 15 GB grátis | Já integrado via `upload-to-drive` | Não é object storage, API lenta |
+| **Manter no Cloud** + limpeza | $0 (dentro do crédito) | Zero migração | Limite de crescimento |
+
+### Recomendação: Limpeza imediata + migração futura para R2
+
+**Fase 1 — Limpeza imediata (poupa ~2 GB)**:
+- Criar edge function `cleanup-storage` que elimina ficheiros de posts `failed` (>30 dias) e `published` (>90 dias)
+- Corrigir fallback do bucket `pdfs` para não receber vídeos/imagens
+- Adicionar botão em `/quota-settings` para executar limpeza manual
+
+**Fase 2 — Quando ultrapassar 6 GB**:
+- Migrar média para Cloudflare R2 (0 custo de egress)
+- Guardar apenas URLs na base de dados
+- Edge function de proxy para upload directo ao R2
+
+### Ficheiros a alterar/criar
+
+| Ficheiro | Alteração |
+|----------|-----------|
+| `supabase/functions/admin-reset-password/index.ts` | Alinhar TARGET_PASSWORD |
+| `src/contexts/AuthContext.tsx` | Melhor erro para network failures |
+| `supabase/functions/cleanup-storage/index.ts` | **Novo** — limpeza de ficheiros antigos |
+| `src/pages/QuotaSettings.tsx` | Botão para executar limpeza + mostrar espaço usado |
 
