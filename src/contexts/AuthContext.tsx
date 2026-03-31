@@ -119,8 +119,9 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
         localStorage.clear();
         sessionStorage.clear();
         toast.error('Erro de rede — a recarregar a aplicação...');
-        // Pequeno delay para o toast ser visível, depois reload
-        setTimeout(() => window.location.reload(), 1500);
+        setTimeout(() => {
+          window.location.href = window.location.pathname + '?cb=' + Date.now();
+        }, 1500);
       } else {
         toast.error(`Erro ao fazer login: ${msg}`);
       }
