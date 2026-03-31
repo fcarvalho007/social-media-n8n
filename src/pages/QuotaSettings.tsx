@@ -1,10 +1,11 @@
 import { useState } from 'react';
 import { QuotaManagement } from '@/components/QuotaManagement';
 import { usePublishingQuota } from '@/hooks/usePublishingQuota';
-import { RefreshCw, Trash2, HardDrive, AlertTriangle, CheckCircle } from 'lucide-react';
+import { RefreshCw, Trash2, HardDrive, AlertTriangle, CheckCircle, Clock } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
+import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 
@@ -63,6 +64,15 @@ export default function QuotaSettings() {
       {/* Quota Management Component */}
       <QuotaManagement onQuotaChange={handleQuotaChange} />
 
+      {/* Retention Policy Alert */}
+      <Alert className="border-primary/30 bg-primary/5">
+        <Clock className="h-4 w-4 text-primary" />
+        <AlertTitle className="text-primary font-semibold">Política de retenção: 7 dias</AlertTitle>
+        <AlertDescription className="text-muted-foreground">
+          Todos os ficheiros (imagens, vídeos e PDFs) são automaticamente eliminados após 7 dias para manter o sistema sustentável. Faça download do conteúdo que pretende guardar antes desse prazo.
+        </AlertDescription>
+      </Alert>
+
       {/* Storage Cleanup Section */}
       <Card>
         <CardHeader>
@@ -71,7 +81,7 @@ export default function QuotaSettings() {
             Limpeza de Storage
           </CardTitle>
           <CardDescription>
-            Elimine ficheiros antigos de posts falhados (&gt;30 dias) e publicados (&gt;90 dias) para poupar espaço no Cloud.
+            Elimine ficheiros com mais de 7 dias (posts falhados e publicados) para poupar espaço no Cloud.
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">

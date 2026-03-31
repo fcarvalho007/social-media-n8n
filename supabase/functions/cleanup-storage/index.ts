@@ -81,8 +81,7 @@ serve(async (req) => {
     const { dryRun = true } = await req.json().catch(() => ({ dryRun: true }));
 
     const now = new Date();
-    const thirtyDaysAgo = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000).toISOString();
-    const ninetyDaysAgo = new Date(now.getTime() - 90 * 24 * 60 * 60 * 1000).toISOString();
+    const sevenDaysAgo = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000).toISOString();
 
     const results = {
       failedPostsFiles: 0,
@@ -92,25 +91,25 @@ serve(async (req) => {
       errors: [] as string[],
     };
 
-    // 1. Get ALL failed posts older than 30 days (paginated)
+    // 1. Get ALL failed posts older than 7 days (paginated)
     const failedPosts = await fetchAllRows(
       supabase,
       "posts",
       "id, template_a_images, template_b_images, media_items, cover_image_url",
       [
         { column: "status", op: "eq", value: "failed" },
-        { column: "failed_at", op: "lt", value: thirtyDaysAgo },
+        { column: "failed_at", op: "lt", value: sevenDaysAgo },
       ]
     );
 
-    // 2. Get ALL published posts older than 90 days (paginated)
+    // 2. Get ALL published posts older than 7 days (paginated)
     const publishedPosts = await fetchAllRows(
       supabase,
       "posts",
       "id, template_a_images, template_b_images, media_items, cover_image_url",
       [
         { column: "status", op: "eq", value: "published" },
-        { column: "published_at", op: "lt", value: ninetyDaysAgo },
+        { column: "published_at", op: "lt", value: sevenDaysAgo },
       ]
     );
 
