@@ -28,7 +28,6 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    // Set up auth state listener FIRST
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
       (event, session) => {
         setSession(session);
@@ -37,7 +36,6 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
       }
     );
 
-    // THEN check for existing session
     supabase.auth.getSession().then(({ data: { session } }) => {
       setSession(session);
       setUser(session?.user ?? null);
@@ -51,76 +49,62 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
     try {
       const normalizedEmail = email.toLowerCase().trim();
       
-      // Verificar se está na whitelist
       if (!ALLOWED_EMAILS.includes(normalizedEmail)) {
         toast.error('Email não autorizado');
         return { error: { message: 'Email não autorizado' } };
       }
+
+      // Limpar sessão antiga silenciosamente (pode ter tokens do projecto anterior)
+      try {
+        await supabase.auth.signOut();
+      } catch {
+        // Ignorar erros de signOut — pode não haver sessão
+      }
       
-      // Tentar sign in com password interna
-      let { error } = await supabase.auth.signInWithPassword({
+      // Tentativa 1: login directo
+      const { error: loginError } = await supabase.auth.signInWithPassword({
         email: normalizedEmail,
         password: INTERNAL_PASSWORD,
       });
       
-      if (error) {
-        if (error.message.includes('Invalid login credentials')) {
-          // Utilizador pode existir com password diferente - tentar resetar via admin
-          const { error: resetError } = await supabase.functions.invoke('admin-reset-password', {
-            body: { 
-              email: normalizedEmail, 
-              newPassword: INTERNAL_PASSWORD 
-            }
-          });
-          
-          if (!resetError) {
-            // Tentar login novamente após reset
-            const { error: retryError } = await supabase.auth.signInWithPassword({
-              email: normalizedEmail,
-              password: INTERNAL_PASSWORD,
-            });
-            
-            if (!retryError) {
-              toast.success('Bem-vindo!');
-              return { error: null };
-            }
-          }
-          
-          // Se reset falhou, tentar criar utilizador novo
-          const { error: signUpError } = await supabase.auth.signUp({
-            email: normalizedEmail,
-            password: INTERNAL_PASSWORD,
-            options: { emailRedirectTo: window.location.origin }
-          });
-          
-          if (signUpError && !signUpError.message.includes('already registered')) {
-            toast.error('Erro ao criar conta');
-            return { error: signUpError };
-          }
-          
-          // Tentar login novamente após criar
-          const { error: finalError } = await supabase.auth.signInWithPassword({
-            email: normalizedEmail,
-            password: INTERNAL_PASSWORD,
-          });
-          
-          if (finalError) {
-            toast.error('Erro ao entrar');
-            return { error: finalError };
-          }
-        } else {
-          toast.error(error.message);
-          return { error };
+      if (!loginError) {
+        toast.success('Bem-vindo!');
+        return { error: null };
+      }
+
+      // Tentativa 2: garantir utilizador via edge function, depois login
+      if (loginError.message.includes('Invalid login credentials') || loginError.message.includes('Email not confirmed')) {
+        const { error: resetError } = await supabase.functions.invoke('admin-reset-password', {
+          body: { email: normalizedEmail, newPassword: INTERNAL_PASSWORD }
+        });
+        
+        if (resetError) {
+          toast.error(`Erro no servidor: ${resetError.message}`);
+          return { error: resetError };
         }
+        
+        const { error: retryError } = await supabase.auth.signInWithPassword({
+          email: normalizedEmail,
+          password: INTERNAL_PASSWORD,
+        });
+        
+        if (!retryError) {
+          toast.success('Bem-vindo!');
+          return { error: null };
+        }
+        
+        toast.error(`Falha ao entrar: ${retryError.message}`);
+        return { error: retryError };
       }
       
-      toast.success('Bem-vindo!');
-      return { error: null };
+      toast.error(`Erro: ${loginError.message}`);
+      return { error: loginError };
     } catch (error: any) {
-      if (error?.message?.includes('Failed to fetch') || error?.message?.includes('NetworkError')) {
-        toast.error('Erro de rede. Limpe o cache do browser (Cmd+Shift+R) e tente novamente.');
+      const msg = error?.message || 'Erro desconhecido';
+      if (msg.includes('Failed to fetch') || msg.includes('NetworkError') || msg.includes('ERR_NAME_NOT_RESOLVED')) {
+        toast.error('Erro de rede — limpe o cache do browser (Cmd+Shift+R) e tente novamente.');
       } else {
-        toast.error('Erro ao fazer login');
+        toast.error(`Erro ao fazer login: ${msg}`);
       }
       return { error };
     }
