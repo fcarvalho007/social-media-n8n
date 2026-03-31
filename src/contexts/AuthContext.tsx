@@ -117,7 +117,11 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
       toast.success('Bem-vindo!');
       return { error: null };
     } catch (error: any) {
-      toast.error('Erro ao fazer login');
+      if (error?.message?.includes('Failed to fetch') || error?.message?.includes('NetworkError')) {
+        toast.error('Erro de rede. Limpe o cache do browser (Cmd+Shift+R) e tente novamente.');
+      } else {
+        toast.error('Erro ao fazer login');
+      }
       return { error };
     }
   };
