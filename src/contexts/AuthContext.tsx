@@ -22,6 +22,18 @@ interface AuthContextType {
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
+// Limpar tokens Supabase do localStorage sem pedido de rede
+const clearLocalSupabaseSession = () => {
+  const keysToRemove: string[] = [];
+  for (let i = 0; i < localStorage.length; i++) {
+    const key = localStorage.key(i);
+    if (key && key.startsWith('sb-')) {
+      keysToRemove.push(key);
+    }
+  }
+  keysToRemove.forEach(k => localStorage.removeItem(k));
+};
+
 export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
   const [user, setUser] = useState<User | null>(null);
   const [session, setSession] = useState<Session | null>(null);
@@ -59,6 +71,11 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
       // Verificar se o bundle tem a URL correcta do projecto
       const currentUrl = import.meta.env.VITE_SUPABASE_URL || '';
       if (!currentUrl.includes(EXPECTED_HOST)) {
+        const params = new URLSearchParams(window.location.search);
+        if (params.has('cb')) {
+          // Already tried cache-bust — don't loop
+          return { error: { message: 'Versão desatualizada. Faça hard refresh (Cmd+Shift+R).' } };
+        }
         console.warn('[Auth] Bundle com URL antiga detectada, a forçar cache-bust...');
         localStorage.clear();
         sessionStorage.clear();
@@ -66,12 +83,8 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
         return { error: { message: 'A recarregar com URL correcta' } };
       }
 
-      // Limpar sessão antiga silenciosamente
-      try {
-        await supabase.auth.signOut();
-      } catch {
-        // Ignorar erros de signOut
-      }
+      // Limpar sessão antiga localmente (sem pedido de rede)
+      clearLocalSupabaseSession();
       
       // Tentativa 1: login directo
       const { error: loginError } = await supabase.auth.signInWithPassword({
@@ -115,13 +128,16 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
       const msg = error?.message || 'Erro desconhecido';
       if (msg.includes('Failed to fetch') || msg.includes('NetworkError') || msg.includes('ERR_NAME_NOT_RESOLVED')) {
         console.warn('[Auth] Failed to fetch — a limpar cache local e a tentar reload...');
-        // Limpar localStorage (pode ter tokens do projecto antigo)
         localStorage.clear();
         sessionStorage.clear();
-        toast.error('Erro de rede — a recarregar a aplicação...');
-        setTimeout(() => {
-          window.location.href = window.location.pathname + '?cb=' + Date.now();
-        }, 1500);
+        // Check anti-loop guard
+        const params = new URLSearchParams(window.location.search);
+        if (!params.has('cb')) {
+          setTimeout(() => {
+            window.location.href = window.location.pathname + '?cb=' + Date.now();
+          }, 500);
+        }
+        // No toast — the redirect or error UI handles it
       } else {
         toast.error(`Erro ao fazer login: ${msg}`);
       }
