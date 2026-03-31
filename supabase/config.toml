@@ -65,3 +65,6 @@ verify_jwt = true
 
 [functions.import-instagram-profiles]
 verify_jwt = true
+
+[functions.cleanup-storage]
+verify_jwt = true
