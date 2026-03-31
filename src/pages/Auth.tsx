@@ -4,7 +4,7 @@ import { useAuth } from '@/contexts/AuthContext';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { Loader2, Mail } from 'lucide-react';
+import { Loader2, Mail, AlertTriangle } from 'lucide-react';
 import { z } from 'zod';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
@@ -19,6 +19,7 @@ const Auth = () => {
   const navigate = useNavigate();
   const location = useLocation();
   const [isLoading, setIsLoading] = useState(false);
+  const [diagnosticInfo, setDiagnosticInfo] = useState<string | null>(null);
 
   const from = (location.state as any)?.from?.pathname || '/';
 
@@ -37,7 +38,14 @@ const Auth = () => {
 
   const handleSubmit = async (values: z.infer<typeof emailSchema>) => {
     setIsLoading(true);
-    await signInWithEmail(values.email);
+    setDiagnosticInfo(null);
+    const result = await signInWithEmail(values.email);
+    if (result.error) {
+      // Show diagnostic info with the Supabase URL being used
+      const supabaseUrl = import.meta.env.VITE_SUPABASE_URL || 'não definida';
+      const domain = supabaseUrl.replace('https://', '').replace('http://', '');
+      setDiagnosticInfo(`A ligar a: ${domain}`);
+    }
     setIsLoading(false);
   };
 
@@ -74,6 +82,18 @@ const Auth = () => {
                   </FormItem>
                 )}
               />
+
+              {diagnosticInfo && (
+                <div className="flex items-start gap-2 rounded-md border border-destructive/30 bg-destructive/5 p-3 text-sm text-destructive">
+                  <AlertTriangle className="h-4 w-4 mt-0.5 shrink-0" />
+                  <div>
+                    <p className="font-medium">Erro de ligação</p>
+                    <p className="text-xs mt-1 font-mono">{diagnosticInfo}</p>
+                    <p className="text-xs mt-1">Se o domínio não contém <strong>vtmrimrr</strong>, limpe o cache do browser (Cmd+Shift+R ou Ctrl+Shift+R).</p>
+                  </div>
+                </div>
+              )}
+
               <Button type="submit" className="w-full" disabled={isLoading}>
                 {isLoading ? (
                   <>
