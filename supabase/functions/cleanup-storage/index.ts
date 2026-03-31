@@ -32,14 +32,14 @@ async function fetchAllRows(
     }
     if (!data || data.length === 0) break;
     allRows.push(...data);
-    if (data.length < pageSize) break; // last page
+    if (data.length < pageSize) break;
     from += pageSize;
   }
 
   return allRows;
 }
 
-// Helper: list ALL files in a storage bucket (paginated)
+// Helper: list ALL files in a storage bucket (paginated), with metadata
 async function listAllFiles(supabase: any, bucket: string, prefix = "") {
   const allFiles: any[] = [];
   let offset = 0;
@@ -86,13 +86,14 @@ serve(async (req) => {
     const results = {
       failedPostsFiles: 0,
       publishedPostsFiles: 0,
-      mediaLibraryOrphans: 0,
-      bytesFreed: 0,
+      orphanFilesDeleted: 0,
+      totalStorageBytes: 0,
+      freedBytes: 0,
       errors: [] as string[],
     };
 
-    // 1. Get ALL failed posts older than 7 days (paginated)
-    const failedPosts = await fetchAllRows(
+    // 1. Get ALL failed posts older than 7 days — using failed_at OR created_at as fallback
+    const failedPostsWithDate = await fetchAllRows(
       supabase,
       "posts",
       "id, template_a_images, template_b_images, media_items, cover_image_url",
@@ -102,7 +103,21 @@ serve(async (req) => {
       ]
     );
 
-    // 2. Get ALL published posts older than 7 days (paginated)
+    // Bug fix: also get failed posts where failed_at is NULL but created_at is old
+    const failedPostsNullDate = await fetchAllRows(
+      supabase,
+      "posts",
+      "id, template_a_images, template_b_images, media_items, cover_image_url",
+      [
+        { column: "status", op: "eq", value: "failed" },
+        { column: "failed_at", op: "is", value: "null" },
+        { column: "created_at", op: "lt", value: sevenDaysAgo },
+      ]
+    );
+
+    const failedPosts = [...failedPostsWithDate, ...failedPostsNullDate];
+
+    // 2. Get ALL published posts older than 7 days
     const publishedPosts = await fetchAllRows(
       supabase,
       "posts",
@@ -144,12 +159,54 @@ serve(async (req) => {
     results.failedPostsFiles = failedPosts.length;
     results.publishedPostsFiles = publishedPosts.length;
 
-    // 3. Delete files from storage (or just count in dry run)
-    if (!dryRun && filesToDelete.length > 0) {
+    // 3. Direct storage cleanup — list all files in each bucket and find old ones
+    const buckets = ["publications", "pdfs", "post-covers", "ai-generated-images"];
+    const storageInfo: Record<string, { fileCount: number; totalBytes: number; oldFiles: number; oldBytes: number }> = {};
+    const orphanFilesToDelete: { bucket: string; path: string }[] = [];
+    const postFilePathsSet = new Set(filesToDelete.map(f => `${f.bucket}/${f.path}`));
+
+    for (const bucket of buckets) {
+      const files = await listAllFiles(supabase, bucket);
+      let totalBytes = 0;
+      let oldFiles = 0;
+      let oldBytes = 0;
+
+      for (const file of files) {
+        // Skip folders
+        if (!file.name || file.id === null) continue;
+        const fileSize = file.metadata?.size || 0;
+        totalBytes += fileSize;
+
+        const fileCreated = file.created_at ? new Date(file.created_at) : null;
+        if (fileCreated && fileCreated < new Date(sevenDaysAgo)) {
+          oldFiles++;
+          oldBytes += fileSize;
+          // Add to orphan list if not already tracked via posts
+          const fullPath = `${bucket}/${file.name}`;
+          if (!postFilePathsSet.has(fullPath)) {
+            orphanFilesToDelete.push({ bucket, path: file.name });
+          }
+        }
+      }
+
+      storageInfo[bucket] = { fileCount: files.length, totalBytes, oldFiles, oldBytes };
+      results.totalStorageBytes += totalBytes;
+      results.freedBytes += oldBytes;
+    }
+
+    // 4. Execute deletions (or just count in dry run)
+    if (!dryRun) {
+      // Combine post-referenced files + orphan files
+      const allFilesToDelete = [...filesToDelete, ...orphanFilesToDelete];
       const byBucket: Record<string, string[]> = {};
-      for (const f of filesToDelete) {
+      for (const f of allFilesToDelete) {
         if (!byBucket[f.bucket]) byBucket[f.bucket] = [];
         byBucket[f.bucket].push(f.path);
+      }
+
+      // Deduplicate paths per bucket
+      for (const bucket of Object.keys(byBucket)) {
+        byBucket[bucket] = [...new Set(byBucket[bucket])];
       }
 
       for (const [bucket, paths] of Object.entries(byBucket)) {
@@ -168,22 +225,15 @@ serve(async (req) => {
         const batch = postIds.slice(i, i + 50);
         await supabase.from("media_library").delete().in("post_id", batch);
       }
-    }
 
-    // 4. Get storage usage estimate (paginated)
-    const buckets = ["publications", "pdfs", "post-covers", "ai-generated-images"];
-    const storageInfo: Record<string, { fileCount: number }> = {};
-
-    for (const bucket of buckets) {
-      const files = await listAllFiles(supabase, bucket);
-      storageInfo[bucket] = { fileCount: files.length };
+      results.orphanFilesDeleted = orphanFilesToDelete.length;
     }
 
     return new Response(
       JSON.stringify({
         success: true,
         dryRun,
-        filesToDelete: filesToDelete.length,
+        filesToDelete: filesToDelete.length + orphanFilesToDelete.length,
         results,
         storageInfo,
         posts: {
