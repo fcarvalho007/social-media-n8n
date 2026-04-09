@@ -502,6 +502,7 @@ Deno.serve(async (req) => {
     const { format, caption, media_urls, scheduled_date, scheduled_time, publish_immediately, post_id, idempotency_key } = body as PublishPayload;
 
     console.log(`[publish-to-getlate] Processing publication for format: ${format}`);
+    console.log(`[publish-to-getlate] post_id received: ${post_id || 'NULL ⚠️'}`);
     console.log(`[publish-to-getlate] Idempotency key: ${idempotency_key || 'none'}`);
 
     // Cleanup expired keys periodically (non-blocking)
