@@ -1,49 +1,55 @@
 
 
-## Diagnóstico: Estado Actual do Cloud Storage
+## Diagnóstico: Erro falso no Instagram
 
-### Resultados
+### O que aconteceu
 
-**O storage DIMINUIU drasticamente.** A limpeza foi executada com sucesso:
+O Instagram **foi publicado com sucesso** (o post `a19866a5` tem `status: published`, `external_post_ids: {getlate: 69d79906...}`, e `published_at: 12:22:06`). Mas o frontend mostrou "Erro inesperado / Interno" porque:
 
-| Métrica | Antes | Agora |
-|---------|-------|-------|
-| Ficheiros totais | 2,647 | **8** |
-| Espaço estimado | ~4.1 GB | **~0 MB** |
-| Buckets publications | 1,834 ficheiros | 3 ficheiros |
-| Buckets pdfs | 812 ficheiros | 4 ficheiros |
-| ai-generated-images | 1 ficheiro | 1 ficheiro |
+1. A chamada `supabase.functions.invoke('publish-to-getlate')` devolveu um erro ao frontend (timeout ou erro transiente)
+2. O edge function continuou a executar em background e acabou por publicar com sucesso
+3. O edge function atualizou o post na BD como "published", mas o frontend já tinha mostrado o erro ao utilizador
+4. **Não existe verificação pós-publicação**: o frontend confia cegamente na resposta HTTP e nunca re-verifica a BD
 
-**Redução de ~99.7% nos ficheiros.** O storage está praticamente limpo.
+### Bug adicional: `post_id` nulo
 
-### Problemas identificados
+Todos os `publication_attempts` recentes têm `post_id: nil`, o que significa que o edge function não está a receber o `post_id` correctamente, impedindo a ligação entre tentativas e posts.
 
-1. **Bug: `totalStorageBytes` e `freedBytes` mostram 0 na UI** — O `file.metadata?.size` da API do storage não está a devolver o tamanho dos ficheiros restantes. A UI mostra "0 B" em vez do valor real. Isto torna os cards "Total utilizado" e "Eliminável" inúteis.
-
-2. **Contagem inflada de "ficheiros a eliminar"** — O dry-run diz "4,594 ficheiros podem ser eliminados", mas na realidade só existem 8 ficheiros no storage. Os 4,594 vêm de URLs referenciadas nos posts da base de dados que apontam para ficheiros já eliminados. Isto confunde o utilizador.
-
-3. **Posts antigos permanecem na base de dados** — Existem 2,302 posts publicados e 233 falhados com mais de 7 dias. Os ficheiros foram eliminados, mas os registos na BD ficaram. Não é um problema de espaço significativo, mas polui os dados.
-
-4. **Comunicação na UI**: O texto "Serão eliminados aproximadamente 4594 ficheiros" no dialog de confirmação é enganador quando na realidade só há 8 ficheiros.
-
-### Plano de refinamentos
+### Plano de correcção
 
 | # | Ficheiro | Alteração |
 |---|----------|-----------|
-| 1 | `cleanup-storage/index.ts` | **Separar contagem real vs referências**: distinguir entre ficheiros que realmente existem no storage (via `listAllFiles`) e URLs de posts que referenciam ficheiros já inexistentes. Devolver `actualFilesInStorage` e `referencedUrls` separadamente. |
-| 2 | `cleanup-storage/index.ts` | **Corrigir bytes**: usar `file.metadata?.size ?? file.metadata?.contentLength ?? 0` como fallback para o tamanho. Se mesmo assim for 0, tentar obter o tamanho via header de download individual (apenas para os poucos ficheiros restantes). |
-| 3 | `QuotaSettings.tsx` | **Mostrar contagens reais**: exibir "X ficheiros no storage" em vez da contagem inflada de URLs. Quando `totalStorageBytes` é 0 mas há ficheiros, mostrar "tamanho indisponível" em vez de "0 B". |
-| 4 | `QuotaSettings.tsx` | **Melhorar comunicação**: quando o storage está quase vazio (< 10 ficheiros), mostrar um estado de "Storage limpo" com ícone de sucesso, em vez de apresentar os mesmos cards de limpeza. |
-| 5 | `QuotaSettings.tsx` | **Atualizar dialog de confirmação**: mostrar apenas a contagem real de ficheiros existentes no storage, não as referências de posts. |
+| 1 | `src/hooks/usePublishWithProgress.ts` | **Verificação pós-publicação**: Após o loop de publicação (linha ~820), se houver plataformas com status "error", re-consultar a BD (`posts` e `publication_attempts`) para verificar se o post foi realmente publicado. Se a BD diz "published" mas o frontend diz "error", corrigir o resultado para "success". |
+| 2 | `src/hooks/usePublishWithProgress.ts` | **Delay antes da verificação**: Aguardar 5-10 segundos antes da re-verificação para dar tempo ao edge function de completar a atualização na BD. |
+| 3 | `src/hooks/usePublishWithProgress.ts` | **Garantir post_id passado ao edge function**: Verificar que `createdPostId` não é nulo quando se chama `publish-to-getlate`. Adicionar log de diagnóstico. |
+| 4 | `supabase/functions/publish-to-getlate/index.ts` | **Garantir post_id nos attempts**: O edge function já passa `post_id: post_id || null` nos attempts, mas o valor chega null. Adicionar logging adicional para diagnosticar porque `post_id` é null na request body. |
 
 ### Detalhe técnico
 
-**Contagem real vs referências**: O cleanup passará a devolver:
-- `storageFilesCount`: total de ficheiros que realmente existem nos buckets
-- `storageFilesToDelete`: ficheiros no storage com mais de 7 dias (os únicos que serão eliminados)
-- `postReferencesCount`: URLs de posts que apontam para ficheiros (informativo, podem já não existir)
+**Verificação pós-publicação** (ficheiro 1): Após a linha ~820, antes de calcular `finalResults`:
 
-O `filesToDelete` no resultado principal passará a usar apenas `storageFilesToDelete`.
+```
+// Se há plataformas com erro, verificar na BD se realmente falharam
+if (createdPostId && failedFormats.length > 0) {
+  await new Promise(resolve => setTimeout(resolve, 8000)); // Aguardar edge function
+  const { data: dbPost } = await supabase.from('posts')
+    .select('status, external_post_ids, published_at')
+    .eq('id', createdPostId).single();
+  
+  if (dbPost?.status === 'published' || dbPost?.external_post_ids) {
+    // Corrigir resultados: a BD confirma sucesso
+    for (const [format, result] of platformResults) {
+      if (result.status === 'error') {
+        const network = FORMAT_TO_NETWORK[format];
+        if (dbPost.external_post_ids?.[network]) {
+          platformResults.set(format, { ...result, status: 'success', postUrl: dbPost.external_post_ids[network] });
+          updatePlatformStatus(format, 'success', undefined, dbPost.external_post_ids[network]);
+        }
+      }
+    }
+  }
+}
+```
 
-**UI "Storage limpo"**: Quando `storageFilesCount < 10` e `storageFilesToDelete === 0`, a UI mostra um card com `CheckCircle` verde e a mensagem "O storage está limpo — apenas X ficheiros recentes".
+Isto garante que o utilizador vê o resultado real, mesmo que a chamada HTTP tenha falhado transitoriamente.
 
