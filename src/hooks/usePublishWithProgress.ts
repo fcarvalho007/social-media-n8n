@@ -819,6 +819,59 @@ if (imageUrlsForPdf.length > 0) {
         }
       }
       
+      // ═══════════════════════════════════════════
+      // POST-PUBLISH VERIFICATION: Re-check DB if any platform shows error
+      // The edge function may have succeeded in the background even if the
+      // HTTP response timed out or returned a transient error.
+      // ═══════════════════════════════════════════
+      let preliminaryFailed = Array.from(platformResults.values()).filter(p => p.status === 'error');
+      
+      if (createdPostId && preliminaryFailed.length > 0) {
+        console.log(`[usePublishWithProgress] [${publishSessionId}] ⏳ ${preliminaryFailed.length} platform(s) show error — verifying DB in 8s...`);
+        updatePhase2('publishing', 95, 'A verificar estado real da publicação...');
+        
+        await new Promise(resolve => setTimeout(resolve, 8000));
+        
+        try {
+          const { data: dbPost } = await supabase
+            .from('posts')
+            .select('status, external_post_ids, published_at')
+            .eq('id', createdPostId)
+            .single();
+          
+          console.log(`[usePublishWithProgress] [${publishSessionId}] DB verification:`, {
+            status: dbPost?.status,
+            external_post_ids: dbPost?.external_post_ids,
+            published_at: dbPost?.published_at,
+          });
+          
+          if (dbPost && (dbPost.status === 'published' || (dbPost.external_post_ids && Object.keys(dbPost.external_post_ids as Record<string, string>).length > 0))) {
+            const externalIds = (dbPost.external_post_ids || {}) as Record<string, string>;
+            
+            for (const [format, result] of platformResults) {
+              if (result.status === 'error') {
+                const network = FORMAT_TO_NETWORK[format] || 'instagram';
+                const externalUrl = externalIds[network] || externalIds['getlate'];
+                
+                if (externalUrl || dbPost.status === 'published') {
+                  console.log(`[usePublishWithProgress] [${publishSessionId}] ✅ DB confirms ${format} was actually published! Correcting result.`);
+                  platformResults.set(format, { 
+                    ...result, 
+                    status: 'success', 
+                    postUrl: externalUrl || undefined,
+                    errorMessage: undefined,
+                    structuredError: undefined,
+                  });
+                  updatePlatformStatus(format, 'success', undefined, externalUrl || undefined);
+                }
+              }
+            }
+          }
+        } catch (verifyErr) {
+          console.warn(`[usePublishWithProgress] [${publishSessionId}] DB verification failed:`, verifyErr);
+        }
+      }
+      
       // Use tracked results instead of stale state
       const finalResults = Array.from(platformResults.values());
       const successfulFormats = finalResults.filter(p => p.status === 'success');
