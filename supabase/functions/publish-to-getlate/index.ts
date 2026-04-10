@@ -249,6 +249,17 @@ function validateGetlateResponse(responseData: any, responseText: string): Getla
   // Check for error in message field
   if (responseData?.message) {
     const msg = responseData.message.toLowerCase();
+    
+    // IMPORTANT: Treat "will be retried" / "temporary errors" as ACCEPTED (pending), not failure
+    // Getlate accepts the post and processes it internally, publishing ~1-5 minutes later
+    if (msg.includes('will be retried') || msg.includes('temporary errors') || msg.includes('retried automatically')) {
+      console.log(`[publish-to-getlate] ℹ️ Getlate accepted post with retry message: "${responseData.message}"`);
+      return {
+        isRealSuccess: true,
+        originalData: { ...originalData, pending: true },
+      };
+    }
+    
     if (msg.includes('error') || msg.includes('failed') || msg.includes('invalid')) {
       // Check for token-specific errors
       if (msg.includes('token') || msg.includes('oauth') || msg.includes('session') || msg.includes('expired')) {
@@ -499,6 +510,7 @@ Deno.serve(async (req) => {
     }
 
     const body = await req.json();
+    console.log(`[publish-to-getlate] BODY RECEIVED:`, JSON.stringify(body));
     const { format, caption, media_urls, scheduled_date, scheduled_time, publish_immediately, post_id, idempotency_key } = body as PublishPayload;
 
     console.log(`[publish-to-getlate] Processing publication for format: ${format}`);
@@ -737,11 +749,15 @@ Deno.serve(async (req) => {
 
     // NOTE: We no longer increment local quota - Getlate tracks usage automatically
     const totalTimeMs = Date.now() - requestStartTime;
-    console.log(`[publish-to-getlate] ✅ Successfully published to ${network} in ${(totalTimeMs / 1000).toFixed(2)}s`);
+    const isPending = result.data?.pending === true;
+    console.log(`[publish-to-getlate] ✅ ${isPending ? 'Accepted (pending)' : 'Successfully published'} to ${network} in ${(totalTimeMs / 1000).toFixed(2)}s`);
 
     const successResponse = { 
       success: true, 
-      message: `Publicado com sucesso em ${network}`,
+      pending: isPending,
+      message: isPending 
+        ? `Publicação aceite pelo ${network} — em processamento`
+        : `Publicado com sucesso em ${network}`,
       data: result.data,
       network,
       format,
