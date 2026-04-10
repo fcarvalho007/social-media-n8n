@@ -508,14 +508,20 @@ export default function PublicationHistory() {
                   
                   <div className="min-w-0 flex-1">
                     <div className="flex items-center gap-2 flex-wrap">
-                      <CardTitle className="text-sm font-semibold">
-                        <span className="text-muted-foreground font-normal">{timeStr}</span>
-                        {' · '}
+                      <CardTitle className="text-sm font-semibold truncate">
                         {item.tema || item.caption?.substring(0, 60) || 'Publicação'}
                       </CardTitle>
                     </div>
+                    {/* Summary line */}
+                    <p className="text-xs text-muted-foreground mt-0.5">
+                      {timeStr}
+                      {item.post_type && ` · ${getFormatLabel(item.post_type)}`}
+                      {item.totalPlatforms && item.totalPlatforms > 0 && (
+                        <> · {item.successCount}/{item.totalPlatforms} {item.totalPlatforms === 1 ? 'rede' : 'redes'}</>
+                      )}
+                    </p>
                     {/* Platform badges row */}
-                    <div className="flex items-center gap-1.5 mt-1 flex-wrap">
+                    <div className="flex items-center gap-1.5 mt-1.5 flex-wrap">
                       {item.platforms.map(renderPlatformBadge)}
                       {item.origin_mode && (
                         <Badge variant="secondary" className="text-[10px] px-1.5 py-0">
