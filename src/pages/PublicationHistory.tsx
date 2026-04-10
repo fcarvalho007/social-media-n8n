@@ -240,9 +240,20 @@ export default function PublicationHistory() {
       processedPostIds.add(postId);
       const post = postsMap.get(postId);
 
-      const hasSuccess = postAttempts.some(a => a.status === 'success');
-      const hasFailed = postAttempts.some(a => a.status === 'failed');
-      const hasPending = postAttempts.some(a => a.status === 'pending');
+      // DEDUPLICATION: keep only the best record per platform+format
+      const dedupedMap = new Map<string, PublicationAttempt>();
+      for (const a of postAttempts) {
+        const key = `${a.platform}-${a.format || ''}`;
+        const existing = dedupedMap.get(key);
+        if (!existing || (a.status !== 'pending' && existing.status === 'pending')) {
+          dedupedMap.set(key, a);
+        }
+      }
+      const dedupedAttempts = Array.from(dedupedMap.values());
+
+      const hasSuccess = dedupedAttempts.some(a => a.status === 'success');
+      const hasFailed = dedupedAttempts.some(a => a.status === 'failed');
+      const hasPending = dedupedAttempts.some(a => a.status === 'pending');
 
       let overallStatus = 'pending';
       if (hasSuccess && hasFailed) overallStatus = 'partial';
@@ -253,6 +264,9 @@ export default function PublicationHistory() {
       const cleanImages = (post?.template_a_images || []).filter(u => u !== 'placeholder-pending-upload');
       const externalIds = (post?.external_post_ids as Record<string, string>) || {};
 
+      const successCount = dedupedAttempts.filter(a => a.status === 'success').length;
+      const totalPlatforms = dedupedAttempts.length;
+
       items.push({
         id: `post-${postId}`,
         post_id: postId,
@@ -262,10 +276,13 @@ export default function PublicationHistory() {
         media_urls: cleanImages,
         origin_mode: post?.origin_mode || undefined,
         hashtags: post?.hashtags || [],
-        timestamp: postAttempts[0].attempted_at,
+        post_type: post?.post_type || undefined,
+        timestamp: dedupedAttempts[0].attempted_at,
         overallStatus,
         error_message: post?.error_log || undefined,
-        platforms: postAttempts.map(a => ({
+        successCount,
+        totalPlatforms,
+        platforms: dedupedAttempts.map(a => ({
           platform: a.platform,
           format: a.format,
           status: a.status,
