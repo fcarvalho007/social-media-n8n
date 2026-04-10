@@ -1,0 +1,2 @@
+ALTER TABLE public.posts DROP CONSTRAINT posts_status_check;
+ALTER TABLE public.posts ADD CONSTRAINT posts_status_check CHECK (status = ANY (ARRAY['draft'::text, 'waiting_for_approval'::text, 'pending'::text, 'approved'::text, 'scheduled'::text, 'published'::text, 'rejected'::text, 'failed'::text, 'publishing'::text]));
