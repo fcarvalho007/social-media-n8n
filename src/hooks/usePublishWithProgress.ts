@@ -314,6 +314,21 @@ export function usePublishWithProgress() {
     // Variable to track post ID for database updates
     let createdPostId: string | null = null;
     
+    // Helper to mark post as failed in DB
+    const markPostFailed = async (errorMessage: string) => {
+      if (createdPostId) {
+        try {
+          await supabase.from('posts').update({
+            status: 'failed',
+            error_log: errorMessage,
+            failed_at: new Date().toISOString(),
+          }).eq('id', createdPostId);
+        } catch (e) {
+          console.error('[usePublishWithProgress] Failed to mark post as failed:', e);
+        }
+      }
+    };
+    
     try {
       // ═══════════════════════════════════════════
       // PHASE 1: Process and Upload files
