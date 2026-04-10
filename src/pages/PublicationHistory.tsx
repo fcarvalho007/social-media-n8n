@@ -609,14 +609,40 @@ export default function PublicationHistory() {
                 )}
 
                 {/* Post-level error */}
-                {item.error_message && !item.platforms.some(p => p.error_message === item.error_message) && (
-                  <div className="bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg p-3">
-                    <div className="flex items-start gap-2">
-                      <AlertTriangle className="h-4 w-4 text-red-600 dark:text-red-400 mt-0.5 flex-shrink-0" />
-                      <p className="text-sm text-red-700 dark:text-red-300 break-all">{item.error_message}</p>
+                {item.error_message && !item.platforms.some(p => p.error_message === item.error_message) && (() => {
+                  // Try to parse structured upload error
+                  let parsed: any = null;
+                  try { parsed = JSON.parse(item.error_message!); } catch {}
+                  
+                  if (parsed?.tipo === 'upload_error') {
+                    return (
+                      <div className="bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg p-4 space-y-2">
+                        <div className="flex items-start gap-2">
+                          <AlertTriangle className="h-4 w-4 text-red-600 dark:text-red-400 mt-0.5 flex-shrink-0" />
+                          <div className="space-y-1 min-w-0">
+                            <p className="text-sm font-semibold text-red-700 dark:text-red-300">{parsed.causa}</p>
+                            <p className="text-sm text-red-600 dark:text-red-400">{parsed.detalhe}</p>
+                            <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
+                              <FileText className="h-3 w-3" />
+                              <span>Original: <code className="bg-muted px-1 rounded">{parsed.nome_original}</code></span>
+                              <span>· {parsed.tamanho_mb}MB · {parsed.tipo_ficheiro}</span>
+                            </div>
+                            <p className="text-sm text-amber-700 dark:text-amber-400 font-medium mt-1">💡 {parsed.sugestao}</p>
+                          </div>
+                        </div>
+                      </div>
+                    );
+                  }
+                  
+                  return (
+                    <div className="bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg p-3">
+                      <div className="flex items-start gap-2">
+                        <AlertTriangle className="h-4 w-4 text-red-600 dark:text-red-400 mt-0.5 flex-shrink-0" />
+                        <p className="text-sm text-red-700 dark:text-red-300 break-all">{item.error_message}</p>
+                      </div>
                     </div>
-                  </div>
-                )}
+                  );
+                })()}
                 
                 {/* Post ID */}
                 {item.post_id && (
