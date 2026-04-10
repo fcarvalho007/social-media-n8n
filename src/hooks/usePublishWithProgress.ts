@@ -243,7 +243,7 @@ export function usePublishWithProgress() {
     console.log(`[usePublishWithProgress] ════════════════════════════════════════`);
     
     if (formats.length === 0 || mediaFiles.length === 0) {
-      toast.error('Selecione formatos e adicione ficheiros');
+      toast.error('Selecione formatos e adicione ficheiros', { duration: 15000 });
       return false;
     }
     
@@ -343,7 +343,7 @@ export function usePublishWithProgress() {
           updatePhase1('error', 0, 'Sessão expirada', 'Por favor, faça login novamente');
           setIsPublishing(false);
           publishingLockRef.current = false;
-          toast.error('Sessão expirada. Por favor, faça login novamente.');
+          toast.error('Sessão expirada. Por favor, faça login novamente.', { duration: 15000 });
           return false;
         }
         user = sessionData.session.user;
@@ -352,7 +352,7 @@ export function usePublishWithProgress() {
         updatePhase1('error', 0, 'Erro de ligação', 'Não foi possível comunicar com o servidor');
         setIsPublishing(false);
         publishingLockRef.current = false;
-        toast.error('Erro de ligação. Verifique a sua internet e tente novamente.');
+        toast.error('Erro de ligação. Verifique a sua internet e tente novamente.', { duration: 15000 });
         return false;
       }
       
