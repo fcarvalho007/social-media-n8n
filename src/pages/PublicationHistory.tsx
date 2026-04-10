@@ -95,10 +95,13 @@ interface ConsolidatedItem {
   media_urls?: string[];
   origin_mode?: string;
   hashtags?: string[];
+  post_type?: string;
   timestamp: string;
   overallStatus: string;
   platforms: PlatformResult[];
   error_message?: string | null;
+  successCount?: number;
+  totalPlatforms?: number;
 }
 
 const platformIcons: Record<string, React.ComponentType<{ className?: string }>> = {
