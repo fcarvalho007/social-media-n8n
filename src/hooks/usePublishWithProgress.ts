@@ -1006,10 +1006,16 @@ if (imageUrlsForPdf.length > 0) {
       
       if (createdPostId) {
         // Update existing post record
-        const updateData = {
+        // Build error_log for partial or total failures
+        const errorLogText = hasFailed 
+          ? failedFormats.map(f => `${f.format}: ${f.errorMessage || 'Erro desconhecido'}`).join('; ')
+          : null;
+        
+        const updateData: Record<string, any> = {
           status: finalStatus,
           published_at: hasSuccess ? new Date().toISOString() : null,
           failed_at: hasFailed && !hasSuccess ? new Date().toISOString() : null,
+          error_log: errorLogText,
           publish_metadata: JSON.parse(JSON.stringify({
             published_via: 'manual_create_getlate',
             formats: consolidatedFormats,
@@ -1057,6 +1063,8 @@ if (imageUrlsForPdf.length > 0) {
       console.error('[usePublishWithProgress] Error:', error);
       const errorMsg = error instanceof Error ? error.message : 'Erro inesperado';
       updatePhase1('error', 0, 'Erro', errorMsg);
+      await markPostFailed(errorMsg);
+      toast.error(`Erro na publicação: ${errorMsg}`, { duration: 15000 });
       // Release lock on error
       publishingLockRef.current = false;
       setIsPublishing(false);
