@@ -13,6 +13,7 @@ import {
   PlatformStatus 
 } from '@/components/publishing/PublishProgressModal';
 import { parseStructuredError, classifyErrorFromString, type StructuredError } from '@/lib/publishingErrors';
+import { sanitizeFileName } from '@/lib/fileNameSanitizer';
 import { toast } from 'sonner';
 
 // Initial state
@@ -457,7 +458,9 @@ export function usePublishWithProgress() {
         
         const file = processedFiles[i];
         const fileType = file.type.startsWith('video/') ? 'videos' : 'images';
-        const fileName = `${user.id}/${fileType}/${timestamp}-${i}-${file.name}`;
+        const safeName = sanitizeFileName(file.name);
+        const fileName = `${user.id}/${fileType}/${timestamp}-${i}-${safeName}`;
+        const fallbackFileName = `${user.id}/${timestamp}-${safeName}`;
         const uploadProgress = 20 + Math.round(((i + 0.5) / totalFiles) * 60);
         
         updatePhase1('uploading', uploadProgress, `A enviar ficheiro ${i + 1} de ${totalFiles}...`);
@@ -476,7 +479,7 @@ export function usePublishWithProgress() {
           usedBucket = 'pdfs';
           const fallbackResult = await supabase.storage
             .from('pdfs')
-            .upload(`${user.id}/${timestamp}-${file.name}`, file);
+            .upload(fallbackFileName, file);
           
           if (fallbackResult.error) {
             uploadError = fallbackResult.error;
@@ -484,10 +487,10 @@ export function usePublishWithProgress() {
         }
         
         if (uploadError) {
-          const errorMsg = `Erro no upload: ${file.name} - ${uploadError.message}`;
-          updatePhase1('error', uploadProgress, 'Erro no upload', `Erro ao carregar ${file.name}`);
+          const errorMsg = `Erro no upload: original="${file.name}" sanitizado="${safeName}" - ${uploadError.message}`;
+          updatePhase1('error', uploadProgress, 'Erro no upload', `Erro ao carregar ficheiro ${i + 1}`);
           await markPostFailed(errorMsg);
-          toast.error(`Falha no upload: ${file.name}`, { duration: 15000 });
+          toast.error(`Falha no upload do ficheiro ${i + 1}. Verifique o histórico para detalhes.`, { duration: 15000 });
           setIsPublishing(false);
           publishingLockRef.current = false;
           return false;
@@ -495,7 +498,7 @@ export function usePublishWithProgress() {
         
         const { data: { publicUrl } } = supabase.storage
           .from(usedBucket)
-          .getPublicUrl(usedBucket === storageBucket ? fileName : `${user.id}/${timestamp}-${file.name}`);
+          .getPublicUrl(usedBucket === storageBucket ? fileName : fallbackFileName);
         
         mediaUrls.push(publicUrl);
         originalMediaUrls.push(publicUrl);
