@@ -1,65 +1,56 @@
 
 
-## Diagnóstico: Porque o erro falso persiste
+## Diagnóstico: Reel Instagram falhou sem registo + Erros desaparecem
 
-### Problema raiz confirmado
+### Problemas confirmados
 
-A publicação do Instagram (`a19866a5`) foi bem-sucedida no Getlate, mas o dashboard mostrou erro por **3 razões independentes**:
+**1. Tentativa de vídeo/reel não ficou registada no histórico**
+O post record é criado apenas na linha ~489 (`supabase.from('posts').insert()`), DEPOIS do upload de ficheiros. Se o upload falhar ou houver um erro de validação (ex: formato de vídeo, tamanho), o código faz `return false` (linhas 384, 419) SEM criar o registo na BD. A tentativa de publicação desaparece completamente — nenhum log, nenhum registo no histórico.
 
-1. **Getlate devolveu mensagem de retry como erro**: A API respondeu com `"Publishing encountered temporary errors. The post will be retried automatically."` — o edge function interpretou isto como falha, mas o Getlate processou internamente e publicou ~3 minutos depois.
+**2. Reel publicou no LinkedIn mas não no Instagram**
+Os formatos são processados sequencialmente (LinkedIn primeiro, Instagram depois — linhas 438-446). Se o LinkedIn publica com sucesso mas o Instagram falha (ex: erro de formato de vídeo, rate limit, ou timeout), o post é atualizado como "published" porque `hasSuccess = true` (linha 921). O erro do Instagram fica invisível no registo final.
 
-2. **Verificação pós-publicação com delay insuficiente**: O delay de 8 segundos é curto demais. O Getlate levou ~4 minutos a publicar realmente (12:18 → 12:22). Quando o frontend verificou a BD aos ~8s, o post ainda estava em `publishing`.
+**3. Mensagem de erro desaparece demasiado rápido**
+O Sonner (toast) usa duração padrão (~4 segundos). Nenhum `toast.error` no `usePublishWithProgress.ts` define `duration`. Quando o modal de progresso está aberto, o erro aparece no modal E num toast que desaparece rápido. Mas se o modal também fecha (ex: `publishing` torna-se `false` imediatamente no bloco catch), ambos desaparecem.
 
-3. **`post_id` sempre NULL nos attempts**: Todos os `publication_attempts` têm `post_id: NULL`, apesar do código passar `createdPostId`. Isto impede a verificação via attempts e quebra a rastreabilidade.
-
-### Plano de correção (3 ficheiros)
+### Plano de correção
 
 | # | Ficheiro | Alteração |
 |---|----------|-----------|
-| 1 | `supabase/functions/publish-to-getlate/index.ts` | **Tratar "retry automático" como sucesso parcial**: Quando a resposta do Getlate contém "will be retried" ou "temporary errors", NÃO tratar como falha. Devolver `{ success: true, pending: true }` ao frontend. O post foi aceite pelo Getlate e será publicado. |
-| 2 | `src/hooks/usePublishWithProgress.ts` | **Polling progressivo em vez de delay fixo**: Substituir o `setTimeout(8000)` por um loop de polling que verifica a BD a cada 5s durante até 90s. Parar assim que `status === 'published'` ou `external_post_ids` não estiver vazio. Mostrar estado "A verificar publicação..." durante o polling. |
-| 3 | `src/hooks/usePublishWithProgress.ts` | **Tratar `pending: true` do edge function**: Quando o edge function devolve `pending: true`, mostrar status "Em processamento" (amarelo) em vez de "Erro" (vermelho). Informar o utilizador que o Getlate está a processar. |
+| 1 | `src/hooks/usePublishWithProgress.ts` | **Criar post record ANTES do upload**: Mover a criação do registo na BD (linhas 448-524) para ANTES do upload de ficheiros (antes da linha 374). O post é criado com status `publishing` logo no início, garantindo que QUALQUER tentativa fica registada, mesmo que o upload falhe. Se o upload falhar, atualizar o post para `failed` com o erro. |
+| 2 | `src/hooks/usePublishWithProgress.ts` | **Registar erros pré-publicação**: Nos pontos de `return false` (linhas 329, 339, 384, 419), antes de sair, atualizar o post recém-criado com `status: 'failed'` e `error_log` com a mensagem do erro. |
+| 3 | `src/hooks/usePublishWithProgress.ts` | **Tratar parcialmente sucesso (LinkedIn OK, Instagram falhou)**: Quando `hasSuccess && hasFailed`, definir `finalStatus = 'partial'` ou manter como `published` mas persistir o `error_log` com detalhes das plataformas que falharam. Atualmente o `error_log` só é guardado se TUDO falha. |
+| 4 | `src/hooks/usePublishWithProgress.ts` | **Aumentar duração dos toasts de erro**: Em todos os `toast.error()` relacionados com publicação, definir `duration: 15000` (15 segundos). Erros de publicação são críticos e o utilizador precisa de tempo para ler. |
+| 5 | `src/components/ui/sonner.tsx` | **Aumentar duração padrão dos toasts de erro**: Configurar o Sonner com `duration` padrão mais longo para erros (10s) via `toastOptions`. |
+| 6 | `src/components/publishing/PublishProgressModal.tsx` | **Manter modal aberto em caso de erro**: Garantir que o modal NÃO fecha automaticamente quando há erros — o utilizador deve fechar manualmente. Verificar que o `isOpen` condition na ManualCreate.tsx não força o fecho quando `publishing = false` mas `phase2.status = 'error'`. |
 
 ### Detalhe técnico
 
-**1. Edge function — mensagens de retry**
+**Mover criação do post para antes do upload** (ficheiro 1):
+- Mover o bloco de criação do post (linhas 448-524) para logo depois da autenticação (após linha 342)
+- O post é criado com `status: 'publishing'`, `template_a_images: ['']` (vazio inicialmente)
+- Após o upload, atualizar o post com as URLs reais: `supabase.from('posts').update({ template_a_images: mediaUrls })`
 
-No `publishToGetlate`, quando a resposta contém "will be retried" ou "temporary errors" com status 200, tratar como aceite:
-```
-if (responseText.includes('will be retried') || responseText.includes('temporary errors')) {
-  return { success: true, data, pending: true };
+**Registar erros pré-publicação** (ficheiro 2):
+- Em cada `return false` precoce, adicionar:
+```typescript
+if (createdPostId) {
+  await supabase.from('posts').update({
+    status: 'failed',
+    error_log: 'Erro no upload: ficheiro X',
+    failed_at: new Date().toISOString(),
+  }).eq('id', createdPostId);
 }
 ```
 
-No handler principal, quando `result.pending === true`, registar attempt como `pending` (não `failed`) e devolver resposta com `pending: true` ao frontend.
-
-**2. Frontend — polling progressivo**
-
-Substituir o bloco de verificação (linhas 829-873) por:
+**Erro parcial** (ficheiro 3):
+- Quando `hasSuccess && hasFailed`, guardar no `error_log` os detalhes das plataformas que falharam:
+```typescript
+error_log: failedFormats.map(f => `${f.format}: ${f.errorMessage}`).join('; ')
 ```
-const MAX_VERIFY_TIME = 90_000; // 90 seconds
-const POLL_INTERVAL = 5_000;    // 5 seconds
-const verifyStart = Date.now();
+- Isto permite ver no histórico exactamente o que falhou em cada rede.
 
-while (Date.now() - verifyStart < MAX_VERIFY_TIME) {
-  const { data: dbPost } = await supabase.from('posts')
-    .select('status, external_post_ids')
-    .eq('id', createdPostId).single();
-  
-  if (dbPost?.status === 'published' || hasExternalIds(dbPost)) {
-    // Corrigir resultados para success
-    break;
-  }
-  
-  updatePhase2('publishing', 95, 
-    `A verificar publicação... (${Math.round((Date.now() - verifyStart) / 1000)}s)`);
-  await new Promise(r => setTimeout(r, POLL_INTERVAL));
-}
-```
-
-Isto cobre o cenário de 4 minutos de processamento do Getlate.
-
-**3. Fix `post_id` NULL**
-
-O `post_id` é passado correctamente no body (`post_id: createdPostId`), e o edge function lê-o (`body.post_id`). O deploy anterior pode não ter propagado. Re-deploy do edge function para garantir. Adicionar log mais explícito: `console.log('BODY RECEIVED:', JSON.stringify(body))` para confirmar no próximo publish.
+**Toasts duradouros** (ficheiro 4-5):
+- `toast.error('...', { duration: 15000 })` em todos os erros de publicação
+- No Sonner global: `duration={10000}` apenas para o tipo error (via configuração)
 
