@@ -1,79 +1,65 @@
 
 
-## Correcção do Histórico de Publicações — Duplicações e UX
+## Diagnóstico claro de erros no upload — saber sempre o motivo
 
-### Problemas confirmados com dados reais
+### Problema actual
 
-**Base de dados**: O post `06757d6e` (publicado com sucesso em Instagram, Facebook, YouTube, TikTok) tem **8 attempts** quando deveria ter **4**. Cada plataforma tem 2 registos: um "pending" e um "success", porque a edge function **insere um novo registo** em vez de actualizar o existente.
+Quando o upload falha, o toast diz apenas "Falha no upload do ficheiro 1. Verifique o histórico para detalhes." e o `error_log` guarda a mensagem técnica do storage (ex: `Invalid key`). O utilizador não sabe se é nome do ficheiro, tamanho, dimensão ou formato.
 
-**UI**: O ecrã mostra 9 cards separados (8 attempts + 1 post falhado anterior), quando deveria mostrar **2 cards** consolidados. A lógica de agrupamento por `post_id` existe no código mas aparenta não estar a funcionar correctamente no browser — possível problema de deploy ou cache.
-
-### Plano de implementação
+### Plano
 
 | # | Ficheiro | Alteração |
 |---|----------|-----------|
-| 1 | `supabase/functions/publish-to-getlate/index.ts` | **Corrigir duplicação na origem**: Em vez de inserir "pending" + inserir "success/failed", inserir "pending" com `id` guardado, depois fazer `UPDATE` desse registo para "success" ou "failed". Elimina duplicações futuras. |
-| 2 | Migração SQL | **Limpar duplicados existentes**: Remover attempts duplicados (manter apenas o mais recente por combinação `post_id + platform + format`). |
-| 3 | `src/pages/PublicationHistory.tsx` | **Deduplicar no UI como safety net**: Dentro de cada grupo consolidado, deduplicar platforms por `platform + format`, mantendo o registo com status final (success/failed > pending). |
-| 4 | `src/pages/PublicationHistory.tsx` | **Melhorar UX/UI dos cards**: (a) Mostrar tema/legenda de forma proeminente no título do card; (b) Mostrar todas as plataformas como badges compactos numa linha; (c) Adicionar contagem de plataformas (ex: "4 redes · Sucesso"); (d) Thumbnail maior e mais limpa; (e) Melhor hierarquia visual entre cards consolidados e detalhe expandido. |
-| 5 | `src/pages/PublicationHistory.tsx` | **Melhorar subtítulo descritivo**: Substituir "Todas as publicações e tentativas" por "Centro de comando — registo de todas as publicações e tentativas" (já parcialmente feito). |
+| 1 | `src/hooks/usePublishWithProgress.ts` | **Diagnóstico inteligente de erros de upload**: Quando o upload falha, analisar o erro e gerar uma mensagem clara com a causa provável. Criar função `diagnoseUploadError(file, error, safeName)` que verifica: (a) Se o erro contém "Invalid key" → "Nome do ficheiro incompatível"; (b) Se `file.size` excede 4MB (imagem) ou 650MB (vídeo) → "Ficheiro demasiado grande (Xmb, máx Ymb)"; (c) Se o tipo MIME não é suportado → "Formato não suportado (.xyz)"; (d) Outros → mensagem técnica original. |
+| 2 | `src/hooks/usePublishWithProgress.ts` | **Toast com causa específica**: Substituir o toast genérico por um que mostra a causa: `toast.error('Causa: Nome do ficheiro contém caracteres inválidos. O nome original "riverside_v1_[editado]..." foi corrigido mas o upload falhou.', { duration: 15000 })` |
+| 3 | `src/hooks/usePublishWithProgress.ts` | **Error log enriquecido**: Guardar no `error_log` um objecto legível com: `causa`, `nome_original`, `nome_sanitizado`, `tamanho_mb`, `tipo`, `mensagem_tecnica`. |
+| 4 | `src/lib/publishingErrors.ts` | **Adicionar classificações de upload**: Novos tipos `filename_invalid`, `file_too_large`, `file_format_unsupported` com mensagens claras e acções sugeridas (ex: "Renomeie o ficheiro removendo caracteres especiais como [ ] e acentos"). |
+| 5 | `src/pages/PublicationHistory.tsx` | **Mostrar causa no card de erro**: Quando o `error_log` tem informação estruturada de upload, mostrar a causa e sugestão directamente no card expandido em vez de apenas o texto técnico. |
 
 ### Detalhe técnico
 
-**Edge function — eliminar duplicações (ponto 1)**:
+**Função de diagnóstico (ponto 1)**:
 ```typescript
-// Inserir attempt inicial e guardar o ID
-const { data: attemptData } = await supabase
-  .from('publication_attempts')
-  .insert({ post_id, platform: network, format, status: 'pending' })
-  .select('id')
-  .single();
+function diagnoseUploadError(file: File, error: any, safeName: string): {
+  causa: string;
+  detalhe: string;
+  sugestao: string;
+} {
+  const msg = error?.message?.toLowerCase() || '';
+  const sizeMB = (file.size / (1024 * 1024)).toFixed(1);
+  const isVideo = file.type.startsWith('video/');
+  const maxMB = isVideo ? 650 : 4;
 
-const attemptId = attemptData?.id;
-
-// Após resultado da API, actualizar em vez de inserir novo
-await supabase
-  .from('publication_attempts')
-  .update({ status: 'success', response_data: result.data })
-  .eq('id', attemptId);
-```
-
-**Deduplicação no UI (ponto 3)**:
-```typescript
-// Dentro de cada grupo de attempts por post_id,
-// deduplicar por platform+format, preferindo status final
-const deduped = new Map<string, PlatformResult>();
-for (const pr of postAttempts) {
-  const key = `${pr.platform}-${pr.format}`;
-  const existing = deduped.get(key);
-  if (!existing || pr.status !== 'pending') {
-    deduped.set(key, pr);
+  if (msg.includes('invalid key')) {
+    return {
+      causa: 'Nome do ficheiro incompatível',
+      detalhe: `"${file.name}" contém caracteres especiais ([], espaços, acentos)`,
+      sugestao: 'Renomeie o ficheiro usando apenas letras, números e hífens',
+    };
   }
+  if (file.size > maxMB * 1024 * 1024) {
+    return {
+      causa: 'Ficheiro demasiado grande',
+      detalhe: `${sizeMB}MB (máximo: ${maxMB}MB para ${isVideo ? 'vídeos' : 'imagens'})`,
+      sugestao: `Reduza o tamanho do ficheiro para menos de ${maxMB}MB`,
+    };
+  }
+  // ... tipo MIME, etc.
 }
 ```
 
-**Card consolidado melhorado (ponto 4)**:
-- Título: `"15:11 · Será que o mercado precisa de um marketer T-shaped"`
-- Subtítulo: `"4 redes · Reel · Sucesso total"` ou `"3/4 redes · Falha parcial"`
-- Badges compactos: `[IG ✓] [FB ✓] [YT ✓] [TT ✓]`
-- Expandir para ver detalhes por plataforma
-
-**Limpeza de dados (ponto 2)**:
-```sql
-DELETE FROM publication_attempts a
-USING publication_attempts b
-WHERE a.post_id = b.post_id
-  AND a.platform = b.platform
-  AND a.format = b.format
-  AND a.status = 'pending'
-  AND b.status IN ('success', 'failed')
-  AND a.id <> b.id;
+**Toast melhorado**:
+```
+❌ Upload falhou: Nome do ficheiro incompatível
+   "riverside_v1_[editado]..." → Renomeie sem caracteres especiais
 ```
 
 ### Resultado esperado
 
-- Um post publicado em 4 redes = **1 card** com 4 badges de plataforma
-- Sem duplicações no histórico
-- Tema/legenda visível directamente no card
-- Contagem de stats precisa (207 → ~105 posts reais)
+Quando um upload falhar, o utilizador vê imediatamente:
+- **O quê** falhou (nome, tamanho, formato)
+- **Porquê** (mensagem clara, não técnica)
+- **Como resolver** (acção concreta)
+
+Tanto no toast imediato como no histórico de publicações.
 
