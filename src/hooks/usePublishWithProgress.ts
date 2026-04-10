@@ -754,18 +754,21 @@ if (imageUrlsForPdf.length > 0) {
             });
             updatePlatformStatus(format, 'error', detailedError, undefined, structuredError || undefined);
           } else {
-            console.log(`[usePublishWithProgress] [${publishSessionId}] ✅ ${format} published successfully`);
+            const isPending = publishResult?.pending === true;
+            console.log(`[usePublishWithProgress] [${publishSessionId}] ✅ ${format} ${isPending ? 'accepted (pending)' : 'published successfully'}`);
             platformResults.set(format, { 
               ...platformResults.get(format)!, 
-              status: 'success', 
+              status: isPending ? 'pending' : 'success',
               postUrl: publishResult?.postUrl || publishResult?.url 
             });
-            updatePlatformStatus(format, 'success', undefined, publishResult?.postUrl || publishResult?.url);
+            updatePlatformStatus(format, isPending ? 'processing' : 'success', 
+              isPending ? 'Em processamento pelo Getlate...' : undefined, 
+              publishResult?.postUrl || publishResult?.url);
             
             // Update attempt to success
             await supabase.from('publication_attempts')
               .update({ 
-                status: 'success',
+                status: isPending ? 'pending' : 'success',
                 response_data: publishResult ? JSON.parse(JSON.stringify(publishResult)) : null,
               })
               .eq('post_id', createdPostId)
@@ -820,55 +823,85 @@ if (imageUrlsForPdf.length > 0) {
       }
       
       // ═══════════════════════════════════════════
-      // POST-PUBLISH VERIFICATION: Re-check DB if any platform shows error
+      // POST-PUBLISH VERIFICATION: Progressive polling if any platform shows error/pending
       // The edge function may have succeeded in the background even if the
       // HTTP response timed out or returned a transient error.
+      // Also handles "pending" (Getlate accepted but processing internally).
       // ═══════════════════════════════════════════
-      let preliminaryFailed = Array.from(platformResults.values()).filter(p => p.status === 'error');
+      const needsVerification = Array.from(platformResults.values()).filter(
+        p => p.status === 'error' || p.status === 'pending'
+      );
       
-      if (createdPostId && preliminaryFailed.length > 0) {
-        console.log(`[usePublishWithProgress] [${publishSessionId}] ⏳ ${preliminaryFailed.length} platform(s) show error — verifying DB in 8s...`);
+      if (createdPostId && needsVerification.length > 0) {
+        const MAX_VERIFY_TIME = 90_000; // 90 seconds
+        const POLL_INTERVAL = 5_000;    // 5 seconds
+        const verifyStart = Date.now();
+        
+        console.log(`[usePublishWithProgress] [${publishSessionId}] ⏳ ${needsVerification.length} platform(s) need verification — polling DB for up to 90s...`);
         updatePhase2('publishing', 95, 'A verificar estado real da publicação...');
         
-        await new Promise(resolve => setTimeout(resolve, 8000));
+        let verified = false;
         
-        try {
-          const { data: dbPost } = await supabase
-            .from('posts')
-            .select('status, external_post_ids, published_at')
-            .eq('id', createdPostId)
-            .single();
+        while (Date.now() - verifyStart < MAX_VERIFY_TIME) {
+          await new Promise(resolve => setTimeout(resolve, POLL_INTERVAL));
           
-          console.log(`[usePublishWithProgress] [${publishSessionId}] DB verification:`, {
-            status: dbPost?.status,
-            external_post_ids: dbPost?.external_post_ids,
-            published_at: dbPost?.published_at,
-          });
-          
-          if (dbPost && (dbPost.status === 'published' || (dbPost.external_post_ids && Object.keys(dbPost.external_post_ids as Record<string, string>).length > 0))) {
-            const externalIds = (dbPost.external_post_ids || {}) as Record<string, string>;
+          try {
+            const { data: dbPost } = await supabase
+              .from('posts')
+              .select('status, external_post_ids, published_at')
+              .eq('id', createdPostId)
+              .single();
             
-            for (const [format, result] of platformResults) {
-              if (result.status === 'error') {
-                const network = FORMAT_TO_NETWORK[format] || 'instagram';
-                const externalUrl = externalIds[network] || externalIds['getlate'];
-                
-                if (externalUrl || dbPost.status === 'published') {
-                  console.log(`[usePublishWithProgress] [${publishSessionId}] ✅ DB confirms ${format} was actually published! Correcting result.`);
-                  platformResults.set(format, { 
-                    ...result, 
-                    status: 'success', 
-                    postUrl: externalUrl || undefined,
-                    errorMessage: undefined,
-                    structuredError: undefined,
-                  });
-                  updatePlatformStatus(format, 'success', undefined, externalUrl || undefined);
+            const elapsed = Math.round((Date.now() - verifyStart) / 1000);
+            console.log(`[usePublishWithProgress] [${publishSessionId}] DB poll (${elapsed}s):`, {
+              status: dbPost?.status,
+              external_post_ids: dbPost?.external_post_ids,
+            });
+            
+            if (dbPost && (dbPost.status === 'published' || (dbPost.external_post_ids && Object.keys(dbPost.external_post_ids as Record<string, string>).length > 0))) {
+              const externalIds = (dbPost.external_post_ids || {}) as Record<string, string>;
+              
+              for (const [format, result] of platformResults) {
+                if (result.status === 'error' || result.status === 'pending') {
+                  const network = FORMAT_TO_NETWORK[format] || 'instagram';
+                  const externalUrl = externalIds[network] || externalIds['getlate'];
+                  
+                  if (externalUrl || dbPost.status === 'published') {
+                    console.log(`[usePublishWithProgress] [${publishSessionId}] ✅ DB confirms ${format} was actually published! Correcting result.`);
+                    platformResults.set(format, { 
+                      ...result, 
+                      status: 'success', 
+                      postUrl: externalUrl || undefined,
+                      errorMessage: undefined,
+                      structuredError: undefined,
+                    });
+                    updatePlatformStatus(format, 'success', undefined, externalUrl || undefined);
+                  }
                 }
               }
+              verified = true;
+              break;
+            }
+            
+            updatePhase2('publishing', 95, `A verificar publicação... (${elapsed}s)`);
+          } catch (pollErr) {
+            console.warn(`[usePublishWithProgress] [${publishSessionId}] Poll error:`, pollErr);
+          }
+        }
+        
+        if (!verified) {
+          // After 90s, treat remaining "pending" as success (Getlate accepted it)
+          for (const [format, result] of platformResults) {
+            if (result.status === 'pending') {
+              console.log(`[usePublishWithProgress] [${publishSessionId}] ⏰ Timeout: treating ${format} pending as accepted`);
+              platformResults.set(format, { 
+                ...result, 
+                status: 'success',
+                errorMessage: undefined,
+              });
+              updatePlatformStatus(format, 'success');
             }
           }
-        } catch (verifyErr) {
-          console.warn(`[usePublishWithProgress] [${publishSessionId}] DB verification failed:`, verifyErr);
         }
       }
       
