@@ -243,7 +243,7 @@ export function usePublishWithProgress() {
     console.log(`[usePublishWithProgress] ════════════════════════════════════════`);
     
     if (formats.length === 0 || mediaFiles.length === 0) {
-      toast.error('Selecione formatos e adicione ficheiros');
+      toast.error('Selecione formatos e adicione ficheiros', { duration: 15000 });
       return false;
     }
     
@@ -314,6 +314,21 @@ export function usePublishWithProgress() {
     // Variable to track post ID for database updates
     let createdPostId: string | null = null;
     
+    // Helper to mark post as failed in DB
+    const markPostFailed = async (errorMessage: string) => {
+      if (createdPostId) {
+        try {
+          await supabase.from('posts').update({
+            status: 'failed',
+            error_log: errorMessage,
+            failed_at: new Date().toISOString(),
+          }).eq('id', createdPostId);
+        } catch (e) {
+          console.error('[usePublishWithProgress] Failed to mark post as failed:', e);
+        }
+      }
+    };
+    
     try {
       // ═══════════════════════════════════════════
       // PHASE 1: Process and Upload files
@@ -328,7 +343,7 @@ export function usePublishWithProgress() {
           updatePhase1('error', 0, 'Sessão expirada', 'Por favor, faça login novamente');
           setIsPublishing(false);
           publishingLockRef.current = false;
-          toast.error('Sessão expirada. Por favor, faça login novamente.');
+          toast.error('Sessão expirada. Por favor, faça login novamente.', { duration: 15000 });
           return false;
         }
         user = sessionData.session.user;
@@ -337,7 +352,7 @@ export function usePublishWithProgress() {
         updatePhase1('error', 0, 'Erro de ligação', 'Não foi possível comunicar com o servidor');
         setIsPublishing(false);
         publishingLockRef.current = false;
-        toast.error('Erro de ligação. Verifique a sua internet e tente novamente.');
+        toast.error('Erro de ligação. Verifique a sua internet e tente novamente.', { duration: 15000 });
         return false;
       }
       
@@ -348,6 +363,58 @@ export function usePublishWithProgress() {
         return false;
       }
       
+      // ═══════════════════════════════════════════
+      // CREATE POST RECORD EARLY (before upload) so ALL attempts are logged
+      // ═══════════════════════════════════════════
+      const selectedNetworks = [...new Set(consolidatedFormats.map(f => FORMAT_TO_NETWORK[f] || 'instagram'))];
+      const postType = consolidatedFormats.some(f => f.includes('carousel') || f === 'linkedin_document') ? 'carousel' : 
+                       consolidatedFormats.some(f => f.includes('video') || f.includes('reel') || f.includes('shorts')) ? 'video' : 'image';
+      
+      // Determine if this is a scheduled post (future date + not ASAP)
+      const isScheduledForLater = !scheduleAsap && scheduledDate && scheduledDate > new Date();
+      const initialStatus = isScheduledForLater ? 'scheduled' : 'publishing';
+      
+      console.log(`[usePublishWithProgress] Publication mode: ${isScheduledForLater ? 'SCHEDULED' : 'IMMEDIATE'}, status: ${initialStatus}`);
+      
+      const initialPostData = {
+        user_id: user.id,
+        post_type: postType,
+        selected_networks: selectedNetworks,
+        caption,
+        linkedin_body: params.networkCaptions?.linkedin || null,
+        scheduled_date: scheduledDate ? scheduledDate.toISOString() : new Date().toISOString(),
+        schedule_asap: scheduleAsap,
+        status: initialStatus,
+        origin_mode: 'manual',
+        tema: caption.substring(0, 50) || 'Manual post',
+        template_a_images: ['placeholder-pending-upload'],
+        template_b_images: [] as string[],
+        workflow_id: publishSessionId,
+        media_urls_backup: JSON.parse(JSON.stringify([])),
+        recovered_from_post_id: params.recoveredFromPostId || null,
+        publish_metadata: JSON.parse(JSON.stringify({
+          published_via: 'manual_create_getlate',
+          formats: consolidatedFormats,
+          started_at: new Date().toISOString(),
+          recovered_from: params.recoveredFromPostId || null,
+        })),
+      };
+      
+      console.log('[usePublishWithProgress] Creating post record BEFORE upload...');
+      
+      const { data: createdPost, error: createPostError } = await supabase
+        .from('posts')
+        .insert([initialPostData])
+        .select('id')
+        .single();
+      
+      if (createPostError) {
+        console.error('[usePublishWithProgress] Failed to create post record:', createPostError);
+      } else {
+        createdPostId = createdPost.id;
+        console.log(`[usePublishWithProgress] Post record created with ID: ${createdPostId}`);
+      }
+
       // Check if any Instagram format is selected
       const hasInstagramFormat = consolidatedFormats.some(
         format => (FORMAT_TO_NETWORK[format] || 'instagram') === 'instagram'
@@ -382,6 +449,7 @@ export function usePublishWithProgress() {
       for (let i = 0; i < totalFiles; i++) {
         if (shouldCancel) {
           updatePhase1('error', Math.round((i / totalFiles) * 80), 'Cancelado', 'Publicação cancelada');
+          await markPostFailed('Publicação cancelada pelo utilizador');
           setIsPublishing(false);
           publishingLockRef.current = false;
           return false;
@@ -416,7 +484,10 @@ export function usePublishWithProgress() {
         }
         
         if (uploadError) {
+          const errorMsg = `Erro no upload: ${file.name} - ${uploadError.message}`;
           updatePhase1('error', uploadProgress, 'Erro no upload', `Erro ao carregar ${file.name}`);
+          await markPostFailed(errorMsg);
+          toast.error(`Falha no upload: ${file.name}`, { duration: 15000 });
           setIsPublishing(false);
           publishingLockRef.current = false;
           return false;
@@ -429,6 +500,14 @@ export function usePublishWithProgress() {
         mediaUrls.push(publicUrl);
         originalMediaUrls.push(publicUrl);
         updatePhase1('uploading', 20 + Math.round(((i + 1) / totalFiles) * 60), `Ficheiro ${i + 1} de ${totalFiles} enviado`);
+      }
+      
+      // Update post record with actual media URLs
+      if (createdPostId && mediaUrls.length > 0) {
+        await supabase.from('posts').update({
+          template_a_images: mediaUrls,
+          media_urls_backup: JSON.parse(JSON.stringify(originalMediaUrls)),
+        }).eq('id', createdPostId);
       }
       
       // Phase 1 almost complete
@@ -445,81 +524,26 @@ export function usePublishWithProgress() {
         return 0;
       });
       
-      // ═══════════════════════════════════════════
-      // CREATE POST RECORD BEFORE PUBLISHING
-      // ═══════════════════════════════════════════
-      const selectedNetworks = [...new Set(consolidatedFormats.map(f => FORMAT_TO_NETWORK[f] || 'instagram'))];
-      const postType = consolidatedFormats.some(f => f.includes('carousel') || f === 'linkedin_document') ? 'carousel' : 
-                       consolidatedFormats.some(f => f.includes('video') || f.includes('reel') || f.includes('shorts')) ? 'video' : 'image';
-      
-      // Determine if this is a scheduled post (future date + not ASAP)
-      const isScheduledForLater = !scheduleAsap && scheduledDate && scheduledDate > new Date();
-      const initialStatus = isScheduledForLater ? 'scheduled' : 'publishing';
-      
-      console.log(`[usePublishWithProgress] Publication mode: ${isScheduledForLater ? 'SCHEDULED' : 'IMMEDIATE'}, status: ${initialStatus}`);
-      
-      const initialPostData = {
-        user_id: user.id,
-        post_type: postType,
-        selected_networks: selectedNetworks,
-        caption,
-        linkedin_body: params.networkCaptions?.linkedin || null,
-        scheduled_date: scheduledDate ? scheduledDate.toISOString() : new Date().toISOString(),
-        schedule_asap: scheduleAsap,
-        status: initialStatus,
-        origin_mode: 'manual',
-        tema: caption.substring(0, 50) || 'Manual post',
-        template_a_images: mediaUrls.length > 0 ? mediaUrls : [''],
-        template_b_images: [] as string[],
-        workflow_id: publishSessionId,
-        // Store original URLs for easy recovery
-        media_urls_backup: JSON.parse(JSON.stringify(originalMediaUrls)),
-        // Track if this was recovered from another post
-        recovered_from_post_id: params.recoveredFromPostId || null,
-        publish_metadata: JSON.parse(JSON.stringify({
-          published_via: 'manual_create_getlate',
-          formats: consolidatedFormats,
-          started_at: new Date().toISOString(),
-          recovered_from: params.recoveredFromPostId || null,
-        })),
-      };
-      
-      console.log('[usePublishWithProgress] Creating post record before publishing...');
-      
-      const { data: createdPost, error: createPostError } = await supabase
-        .from('posts')
-        .insert([initialPostData])
-        .select('id')
-        .single();
-      
-      if (createPostError) {
-        console.error('[usePublishWithProgress] Failed to create post record:', createPostError);
-        // Continue without post_id - we'll still try to publish
-      } else {
-        createdPostId = createdPost.id;
-        console.log(`[usePublishWithProgress] Post record created with ID: ${createdPostId}`);
-        
-        // Create scheduled_job for tracking if this is a scheduled post
-        if (isScheduledForLater && scheduledDate) {
-          const { error: jobError } = await supabase.from('scheduled_jobs').insert({
+      // Create scheduled_job for tracking if this is a scheduled post
+      if (isScheduledForLater && scheduledDate && createdPostId) {
+        const { error: jobError } = await supabase.from('scheduled_jobs').insert({
+          post_id: createdPostId,
+          job_type: 'post',
+          scheduled_for: scheduledDate.toISOString(),
+          status: 'pending',
+          created_by: user.id,
+          payload: {
             post_id: createdPostId,
-            job_type: 'post',
-            scheduled_for: scheduledDate.toISOString(),
-            status: 'pending',
-            created_by: user.id,
-            payload: {
-              post_id: createdPostId,
-              formats: consolidatedFormats,
-              caption,
-              media_urls: mediaUrls,
-            },
-          });
-          
-          if (jobError) {
-            console.warn('[usePublishWithProgress] Failed to create scheduled_job:', jobError);
-          } else {
-            console.log(`[usePublishWithProgress] Scheduled job created for post ${createdPostId}`);
-          }
+            formats: consolidatedFormats,
+            caption,
+            media_urls: mediaUrls,
+          },
+        });
+        
+        if (jobError) {
+          console.warn('[usePublishWithProgress] Failed to create scheduled_job:', jobError);
+        } else {
+          console.log(`[usePublishWithProgress] Scheduled job created for post ${createdPostId}`);
         }
       }
       
@@ -982,10 +1006,16 @@ if (imageUrlsForPdf.length > 0) {
       
       if (createdPostId) {
         // Update existing post record
-        const updateData = {
+        // Build error_log for partial or total failures
+        const errorLogText = hasFailed 
+          ? failedFormats.map(f => `${f.format}: ${f.errorMessage || 'Erro desconhecido'}`).join('; ')
+          : null;
+        
+        const updateData: Record<string, any> = {
           status: finalStatus,
           published_at: hasSuccess ? new Date().toISOString() : null,
           failed_at: hasFailed && !hasSuccess ? new Date().toISOString() : null,
+          error_log: errorLogText,
           publish_metadata: JSON.parse(JSON.stringify({
             published_via: 'manual_create_getlate',
             formats: consolidatedFormats,
@@ -1033,6 +1063,8 @@ if (imageUrlsForPdf.length > 0) {
       console.error('[usePublishWithProgress] Error:', error);
       const errorMsg = error instanceof Error ? error.message : 'Erro inesperado';
       updatePhase1('error', 0, 'Erro', errorMsg);
+      await markPostFailed(errorMsg);
+      toast.error(`Erro na publicação: ${errorMsg}`, { duration: 15000 });
       // Release lock on error
       publishingLockRef.current = false;
       setIsPublishing(false);
