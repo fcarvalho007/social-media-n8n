@@ -560,10 +560,26 @@ export function usePublishWithProgress() {
         }
         
         if (uploadError) {
-          const errorMsg = `Erro no upload: original="${file.name}" sanitizado="${safeName}" - ${uploadError.message}`;
-          updatePhase1('error', uploadProgress, 'Erro no upload', `Erro ao carregar ficheiro ${i + 1}`);
-          await markPostFailed(errorMsg);
-          toast.error(`Falha no upload do ficheiro ${i + 1}. Verifique o histórico para detalhes.`, { duration: 15000 });
+          const diagnosis = diagnoseUploadError(file, uploadError, safeName);
+          const structuredErrorLog = JSON.stringify({
+            tipo: 'upload_error',
+            causa: diagnosis.causa,
+            detalhe: diagnosis.detalhe,
+            sugestao: diagnosis.sugestao,
+            nome_original: file.name,
+            nome_sanitizado: safeName,
+            tamanho_mb: (file.size / (1024 * 1024)).toFixed(1),
+            tipo_ficheiro: file.type,
+            mensagem_tecnica: uploadError.message,
+            ficheiro_index: i + 1,
+            total_ficheiros: totalFiles,
+          });
+          updatePhase1('error', uploadProgress, diagnosis.causa, diagnosis.detalhe);
+          await markPostFailed(structuredErrorLog);
+          toast.error(`Upload falhou: ${diagnosis.causa}`, {
+            description: `${diagnosis.detalhe}\n💡 ${diagnosis.sugestao}`,
+            duration: 15000,
+          });
           setIsPublishing(false);
           publishingLockRef.current = false;
           return false;
