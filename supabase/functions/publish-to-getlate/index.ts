@@ -611,6 +611,7 @@ Deno.serve(async (req) => {
     }
 
     // Log publication attempt - ALWAYS record, even without post_id
+    // Insert pending and capture the ID so we can UPDATE later (no duplicates)
     const attemptRecord = {
       post_id: post_id || null,
       platform: network,
@@ -620,9 +621,17 @@ Deno.serve(async (req) => {
     
     console.log(`[publish-to-getlate] Recording initial attempt:`, JSON.stringify(attemptRecord));
     
-    const { error: insertAttemptError } = await supabase.from('publication_attempts').insert(attemptRecord);
+    const { data: attemptData, error: insertAttemptError } = await supabase
+      .from('publication_attempts')
+      .insert(attemptRecord)
+      .select('id')
+      .single();
+    
+    const attemptId = attemptData?.id;
     if (insertAttemptError) {
       console.error('[publish-to-getlate] Failed to record attempt:', insertAttemptError);
+    } else {
+      console.log(`[publish-to-getlate] Attempt recorded with ID: ${attemptId}`);
     }
 
     // Publish to Getlate with idempotency key in header
@@ -632,17 +641,20 @@ Deno.serve(async (req) => {
       // Record failure
       console.error(`[publish-to-getlate] Publication failed: ${result.error}`);
       
-      // Always log failed attempt
-      const failedAttempt = {
-        post_id: post_id || null,
-        platform: network,
-        format,
-        status: 'failed',
-        error_message: result.error,
-      };
-      
-      console.log(`[publish-to-getlate] Recording failed attempt:`, JSON.stringify(failedAttempt));
-      await supabase.from('publication_attempts').insert(failedAttempt);
+      // Update the existing pending attempt to failed (no duplicate insert)
+      if (attemptId) {
+        console.log(`[publish-to-getlate] Updating attempt ${attemptId} to failed`);
+        await supabase
+          .from('publication_attempts')
+          .update({ status: 'failed', error_message: result.error })
+          .eq('id', attemptId);
+      } else {
+        // Fallback: insert if we couldn't capture the initial ID
+        await supabase.from('publication_attempts').insert({
+          post_id: post_id || null, platform: network, format,
+          status: 'failed', error_message: result.error,
+        });
+      }
       
       if (post_id) {
         // Update post with failure info
@@ -698,20 +710,25 @@ Deno.serve(async (req) => {
       throw new Error(result.error || 'Failed to publish to Getlate');
     }
 
-    // Log successful attempt - ALWAYS record, even without post_id
-    const successAttempt = {
-      post_id: post_id || null,
-      platform: network,
-      format,
-      status: 'success',
-      response_data: result.data,
-    };
-    
-    console.log(`[publish-to-getlate] Recording success attempt:`, JSON.stringify({ ...successAttempt, response_data: '...' }));
-    
-    const { error: successAttemptError } = await supabase.from('publication_attempts').insert(successAttempt);
-    if (successAttemptError) {
-      console.error('[publish-to-getlate] Failed to record success attempt:', successAttemptError);
+    // Update the existing pending attempt to success (no duplicate insert)
+    if (attemptId) {
+      console.log(`[publish-to-getlate] Updating attempt ${attemptId} to success`);
+      const { error: successAttemptError } = await supabase
+        .from('publication_attempts')
+        .update({ status: 'success', response_data: result.data })
+        .eq('id', attemptId);
+      if (successAttemptError) {
+        console.error('[publish-to-getlate] Failed to update attempt to success:', successAttemptError);
+      }
+    } else {
+      // Fallback: insert if we couldn't capture the initial ID
+      const { error: successAttemptError } = await supabase.from('publication_attempts').insert({
+        post_id: post_id || null, platform: network, format,
+        status: 'success', response_data: result.data,
+      });
+      if (successAttemptError) {
+        console.error('[publish-to-getlate] Failed to record success attempt:', successAttemptError);
+      }
     }
 
     // Extract and save external post URL/ID to the posts table
