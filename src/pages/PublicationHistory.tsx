@@ -10,7 +10,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Skeleton } from '@/components/ui/skeleton';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { 
   History, 
   CheckCircle2, 
@@ -27,14 +27,14 @@ import {
   Calendar,
   FileText,
   AlertTriangle,
-  Image,
-  FileImage,
   Send,
   Loader2,
   RotateCcw,
   Copy,
   Download,
-  ExternalLink
+  ExternalLink,
+  Plus,
+  AlertCircle
 } from 'lucide-react';
 import { downloadPublicationAssets } from '@/lib/downloadUtils';
 import { toast } from 'sonner';
@@ -76,23 +76,29 @@ interface PostRecord {
   external_post_ids: Record<string, string> | null;
 }
 
-interface CombinedHistoryItem {
-  id: string;
-  type: 'attempt' | 'post';
+interface PlatformResult {
   platform: string;
   format: string | null;
   status: string;
   error_message: string | null;
-  timestamp: string;
+  response_data?: any;
+  external_url?: string;
+  attempted_at: string;
+}
+
+interface ConsolidatedItem {
+  id: string;
   post_id: string | null;
   caption?: string;
   tema?: string;
   image_url?: string;
   media_urls?: string[];
-  response_data?: any;
   origin_mode?: string;
   hashtags?: string[];
-  external_url?: string;
+  timestamp: string;
+  overallStatus: string;
+  platforms: PlatformResult[];
+  error_message?: string | null;
 }
 
 const platformIcons: Record<string, React.ComponentType<{ className?: string }>> = {
@@ -110,9 +116,10 @@ const platformColors: Record<string, string> = {
   googlebusiness: 'bg-gradient-to-br from-green-500 to-green-600',
 };
 
-const statusConfig = {
+const statusConfig: Record<string, { label: string; color: string; icon: React.ComponentType<{ className?: string }> }> = {
   success: { label: 'Sucesso', color: 'bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-400', icon: CheckCircle2 },
   published: { label: 'Publicado', color: 'bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-400', icon: CheckCircle2 },
+  partial: { label: 'Parcial', color: 'bg-orange-100 text-orange-800 dark:bg-orange-900/30 dark:text-orange-400', icon: AlertCircle },
   failed: { label: 'Falhou', color: 'bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-400', icon: XCircle },
   pending: { label: 'Pendente', color: 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900/30 dark:text-yellow-400', icon: Clock },
   publishing: { label: 'A publicar...', color: 'bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-400', icon: Loader2 },
@@ -136,7 +143,6 @@ export default function PublicationHistory() {
   const [expandedItems, setExpandedItems] = useState<Set<string>>(new Set());
   const [activeTab, setActiveTab] = useState<string>(initialTab);
 
-  // Sync tab with URL param on mount
   useEffect(() => {
     const tabParam = searchParams.get('tab');
     if (tabParam && ['all', 'success', 'failed', 'pending'].includes(tabParam)) {
@@ -144,7 +150,6 @@ export default function PublicationHistory() {
     }
   }, [searchParams]);
 
-  // Fetch publication attempts
   const { data: attempts, isLoading: attemptsLoading, refetch: refetchAttempts } = useQuery({
     queryKey: ['publication-attempts'],
     queryFn: async () => {
@@ -152,14 +157,12 @@ export default function PublicationHistory() {
         .from('publication_attempts')
         .select('*')
         .order('attempted_at', { ascending: false })
-        .limit(200);
-
+        .limit(500);
       if (error) throw error;
       return data as PublicationAttempt[];
     },
   });
 
-  // Fetch posts with manual origin - including all fields needed for recovery
   const { data: posts, isLoading: postsLoading, refetch: refetchPosts } = useQuery({
     queryKey: ['publication-posts'],
     queryFn: async () => {
@@ -167,8 +170,7 @@ export default function PublicationHistory() {
         .from('posts')
         .select('id, tema, caption, caption_edited, status, post_type, selected_networks, template_a_images, media_items, scheduled_date, published_at, failed_at, created_at, origin_mode, error_log, first_comment, linkedin_body, hashtags, external_post_ids')
         .order('created_at', { ascending: false })
-        .limit(200);
-
+        .limit(300);
       if (error) throw error;
       return data as PostRecord[];
     },
@@ -179,159 +181,6 @@ export default function PublicationHistory() {
   const refetch = () => {
     refetchAttempts();
     refetchPosts();
-  };
-
-  // Combine and deduplicate data
-  const combinedHistory = useMemo(() => {
-    const items: CombinedHistoryItem[] = [];
-    const seenPostIds = new Set<string>();
-
-    // Add publication attempts first (these are the most accurate for individual platform results)
-    if (attempts) {
-      for (const attempt of attempts) {
-        // Extract external URL from response_data if available
-        const responseData = attempt.response_data;
-        const externalUrl = responseData?.url || responseData?.postUrl || responseData?.permalink || 
-                           responseData?.data?.url || responseData?.data?.permalink;
-        
-        items.push({
-          id: `attempt-${attempt.id}`,
-          type: 'attempt',
-          platform: attempt.platform,
-          format: attempt.format,
-          status: attempt.status,
-          error_message: attempt.error_message,
-          timestamp: attempt.attempted_at,
-          post_id: attempt.post_id,
-          response_data: attempt.response_data,
-          external_url: externalUrl,
-        });
-        
-        if (attempt.post_id) {
-          seenPostIds.add(attempt.post_id);
-        }
-      }
-    }
-
-    // Add posts that don't have corresponding attempts (drafts, scheduled, etc.)
-    if (posts) {
-      for (const post of posts) {
-        // Skip if we already have attempts for this post
-        if (seenPostIds.has(post.id)) continue;
-
-        // Show all relevant posts including drafts, pending, and waiting_for_approval
-        const showableStatuses = [
-          'publishing', 'published', 'failed', 'scheduled', 
-          'approved', 'rejected', 'pending', 'waiting_for_approval', 
-          'draft', 'requires_attention'
-        ];
-        if (!post.status || !showableStatuses.includes(post.status)) continue;
-
-        const networks = post.selected_networks || [];
-        const platform = networks[0] || 'instagram';
-        const externalIds = (post.external_post_ids as Record<string, string>) || {};
-
-        items.push({
-          id: `post-${post.id}`,
-          type: 'post',
-          platform: platform,
-          format: post.post_type,
-          status: post.status || 'pending',
-          error_message: post.error_log,
-          timestamp: post.published_at || post.failed_at || post.created_at || new Date().toISOString(),
-          post_id: post.id,
-          caption: post.caption,
-          tema: post.tema,
-          image_url: post.template_a_images?.[0] === 'placeholder-pending-upload' ? undefined : post.template_a_images?.[0],
-          media_urls: (post.template_a_images || []).filter(u => u !== 'placeholder-pending-upload'),
-          origin_mode: post.origin_mode,
-          hashtags: post.hashtags || [],
-          external_url: externalIds[platform],
-        });
-      }
-    }
-
-    // Sort by timestamp
-    items.sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime());
-
-    return items;
-  }, [attempts, posts]);
-
-  // Filter based on tab and filters
-  const filteredItems = useMemo(() => {
-    return combinedHistory.filter(item => {
-      // Tab filter
-      if (activeTab === 'success' && !['success', 'published'].includes(item.status)) return false;
-      if (activeTab === 'failed' && item.status !== 'failed') return false;
-      if (activeTab === 'pending' && !['pending', 'publishing', 'scheduled'].includes(item.status)) return false;
-
-      // Date filter
-      if (dateFilter !== 'all') {
-        const now = new Date();
-        const itemDate = new Date(item.timestamp);
-        
-        if (dateFilter === 'today') {
-          const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
-          if (itemDate < today) return false;
-        } else if (dateFilter === 'week') {
-          const weekAgo = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
-          if (itemDate < weekAgo) return false;
-        } else if (dateFilter === 'month') {
-          const monthAgo = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000);
-          if (itemDate < monthAgo) return false;
-        }
-      }
-
-      // Search filter
-      const matchesSearch = searchTerm === '' || 
-        item.platform.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        (item.format?.toLowerCase().includes(searchTerm.toLowerCase())) ||
-        (item.error_message?.toLowerCase().includes(searchTerm.toLowerCase())) ||
-        (item.caption?.toLowerCase().includes(searchTerm.toLowerCase())) ||
-        (item.tema?.toLowerCase().includes(searchTerm.toLowerCase()));
-      
-      const matchesStatus = statusFilter === 'all' || item.status === statusFilter;
-      const matchesPlatform = platformFilter === 'all' || item.platform === platformFilter;
-      
-      return matchesSearch && matchesStatus && matchesPlatform;
-    });
-  }, [combinedHistory, activeTab, searchTerm, statusFilter, platformFilter, dateFilter]);
-
-  // Stats
-  const stats = useMemo(() => {
-    if (!combinedHistory) return { total: 0, success: 0, failed: 0, pending: 0 };
-    
-    return {
-      total: combinedHistory.length,
-      success: combinedHistory.filter(a => ['success', 'published'].includes(a.status)).length,
-      failed: combinedHistory.filter(a => a.status === 'failed').length,
-      pending: combinedHistory.filter(a => ['pending', 'publishing', 'scheduled'].includes(a.status)).length,
-    };
-  }, [combinedHistory]);
-
-  // Group by date
-  const groupedItems = useMemo(() => {
-    const groups: Record<string, CombinedHistoryItem[]> = {};
-    
-    filteredItems.forEach(item => {
-      const date = format(new Date(item.timestamp), 'yyyy-MM-dd');
-      if (!groups[date]) {
-        groups[date] = [];
-      }
-      groups[date].push(item);
-    });
-    
-    return groups;
-  }, [filteredItems]);
-
-  const toggleExpanded = (id: string) => {
-    const newExpanded = new Set(expandedItems);
-    if (newExpanded.has(id)) {
-      newExpanded.delete(id);
-    } else {
-      newExpanded.add(id);
-    }
-    setExpandedItems(newExpanded);
   };
 
   const getFormatLabel = (format: string | null) => {
@@ -357,86 +206,319 @@ export default function PublicationHistory() {
     return formatMap[format] || format;
   };
 
-  const renderItemCard = (item: CombinedHistoryItem) => {
-    const statusInfo = statusConfig[item.status as keyof typeof statusConfig] || statusConfig.pending;
+  const getExternalUrl = (responseData: any) => {
+    if (!responseData) return undefined;
+    return responseData?.url || responseData?.postUrl || responseData?.permalink || 
+           responseData?.data?.url || responseData?.data?.permalink;
+  };
+
+  // Build consolidated history: one entry per post, with platform results grouped
+  const consolidatedHistory = useMemo(() => {
+    const postsMap = new Map<string, PostRecord>();
+    for (const post of posts || []) {
+      postsMap.set(post.id, post);
+    }
+
+    // Group attempts by post_id
+    const attemptsByPost = new Map<string, PublicationAttempt[]>();
+    const orphanAttempts: PublicationAttempt[] = [];
+
+    for (const attempt of attempts || []) {
+      if (attempt.post_id) {
+        if (!attemptsByPost.has(attempt.post_id)) attemptsByPost.set(attempt.post_id, []);
+        attemptsByPost.get(attempt.post_id)!.push(attempt);
+      } else {
+        orphanAttempts.push(attempt);
+      }
+    }
+
+    const items: ConsolidatedItem[] = [];
+    const processedPostIds = new Set<string>();
+
+    // Process posts that have attempts — create consolidated entries
+    for (const [postId, postAttempts] of attemptsByPost) {
+      processedPostIds.add(postId);
+      const post = postsMap.get(postId);
+
+      const hasSuccess = postAttempts.some(a => a.status === 'success');
+      const hasFailed = postAttempts.some(a => a.status === 'failed');
+      const hasPending = postAttempts.some(a => a.status === 'pending');
+
+      let overallStatus = 'pending';
+      if (hasSuccess && hasFailed) overallStatus = 'partial';
+      else if (hasSuccess) overallStatus = 'published';
+      else if (hasFailed) overallStatus = 'failed';
+      else if (hasPending) overallStatus = 'publishing';
+
+      const cleanImages = (post?.template_a_images || []).filter(u => u !== 'placeholder-pending-upload');
+      const externalIds = (post?.external_post_ids as Record<string, string>) || {};
+
+      items.push({
+        id: `post-${postId}`,
+        post_id: postId,
+        caption: post?.caption,
+        tema: post?.tema,
+        image_url: cleanImages[0],
+        media_urls: cleanImages,
+        origin_mode: post?.origin_mode || undefined,
+        hashtags: post?.hashtags || [],
+        timestamp: postAttempts[0].attempted_at,
+        overallStatus,
+        error_message: post?.error_log || undefined,
+        platforms: postAttempts.map(a => ({
+          platform: a.platform,
+          format: a.format,
+          status: a.status,
+          error_message: a.error_message,
+          response_data: a.response_data,
+          external_url: getExternalUrl(a.response_data) || externalIds[a.platform],
+          attempted_at: a.attempted_at,
+        })),
+      });
+    }
+
+    // Process posts WITHOUT attempts (drafts, scheduled, publishing, etc.)
+    for (const post of posts || []) {
+      if (processedPostIds.has(post.id)) continue;
+
+      const showableStatuses = [
+        'publishing', 'published', 'failed', 'scheduled', 
+        'approved', 'rejected', 'pending', 'waiting_for_approval', 
+        'draft', 'requires_attention'
+      ];
+      if (!post.status || !showableStatuses.includes(post.status)) continue;
+
+      const networks = post.selected_networks || [];
+      const cleanImages = (post.template_a_images || []).filter(u => u !== 'placeholder-pending-upload');
+      const externalIds = (post.external_post_ids as Record<string, string>) || {};
+
+      items.push({
+        id: `post-${post.id}`,
+        post_id: post.id,
+        caption: post.caption,
+        tema: post.tema,
+        image_url: cleanImages[0],
+        media_urls: cleanImages,
+        origin_mode: post.origin_mode || undefined,
+        hashtags: post.hashtags || [],
+        timestamp: post.published_at || post.failed_at || post.created_at || new Date().toISOString(),
+        overallStatus: post.status,
+        error_message: post.error_log || undefined,
+        platforms: networks.length > 0 
+          ? networks.map(n => ({
+              platform: n,
+              format: post.post_type,
+              status: post.status!,
+              error_message: post.error_log,
+              external_url: externalIds[n],
+              attempted_at: post.published_at || post.created_at || new Date().toISOString(),
+            }))
+          : [{
+              platform: 'instagram',
+              format: post.post_type,
+              status: post.status!,
+              error_message: post.error_log,
+              external_url: undefined,
+              attempted_at: post.published_at || post.created_at || new Date().toISOString(),
+            }],
+      });
+    }
+
+    // Process orphan attempts (no post_id)
+    for (const attempt of orphanAttempts) {
+      items.push({
+        id: `attempt-${attempt.id}`,
+        post_id: null,
+        timestamp: attempt.attempted_at,
+        overallStatus: attempt.status,
+        error_message: attempt.error_message,
+        platforms: [{
+          platform: attempt.platform,
+          format: attempt.format,
+          status: attempt.status,
+          error_message: attempt.error_message,
+          response_data: attempt.response_data,
+          external_url: getExternalUrl(attempt.response_data),
+          attempted_at: attempt.attempted_at,
+        }],
+      });
+    }
+
+    items.sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime());
+    return items;
+  }, [attempts, posts]);
+
+  // Stats based on unique consolidated items
+  const stats = useMemo(() => {
+    const total = consolidatedHistory.length;
+    const success = consolidatedHistory.filter(i => ['success', 'published'].includes(i.overallStatus)).length;
+    const failed = consolidatedHistory.filter(i => i.overallStatus === 'failed').length;
+    const partial = consolidatedHistory.filter(i => i.overallStatus === 'partial').length;
+    const pending = consolidatedHistory.filter(i => ['pending', 'publishing', 'scheduled'].includes(i.overallStatus)).length;
+    return { total, success, failed, partial, pending };
+  }, [consolidatedHistory]);
+
+  // Filter
+  const filteredItems = useMemo(() => {
+    return consolidatedHistory.filter(item => {
+      // Tab filter
+      if (activeTab === 'success' && !['success', 'published', 'partial'].includes(item.overallStatus)) return false;
+      if (activeTab === 'failed' && !['failed', 'partial'].includes(item.overallStatus)) return false;
+      if (activeTab === 'pending' && !['pending', 'publishing', 'scheduled'].includes(item.overallStatus)) return false;
+
+      // Date filter
+      if (dateFilter !== 'all') {
+        const now = new Date();
+        const itemDate = new Date(item.timestamp);
+        if (dateFilter === 'today') {
+          const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+          if (itemDate < today) return false;
+        } else if (dateFilter === 'week') {
+          if (itemDate < new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000)) return false;
+        } else if (dateFilter === 'month') {
+          if (itemDate < new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000)) return false;
+        }
+      }
+
+      // Platform filter
+      if (platformFilter !== 'all') {
+        if (!item.platforms.some(p => p.platform === platformFilter)) return false;
+      }
+
+      // Status filter
+      if (statusFilter !== 'all' && item.overallStatus !== statusFilter) return false;
+
+      // Search
+      if (searchTerm) {
+        const term = searchTerm.toLowerCase();
+        const matchesCaption = item.caption?.toLowerCase().includes(term);
+        const matchesTema = item.tema?.toLowerCase().includes(term);
+        const matchesPlatform = item.platforms.some(p => p.platform.toLowerCase().includes(term));
+        const matchesError = item.platforms.some(p => p.error_message?.toLowerCase().includes(term));
+        if (!matchesCaption && !matchesTema && !matchesPlatform && !matchesError) return false;
+      }
+
+      return true;
+    });
+  }, [consolidatedHistory, activeTab, searchTerm, statusFilter, platformFilter, dateFilter]);
+
+  // Group by date
+  const groupedItems = useMemo(() => {
+    const groups: Record<string, ConsolidatedItem[]> = {};
+    filteredItems.forEach(item => {
+      const date = format(new Date(item.timestamp), 'yyyy-MM-dd');
+      if (!groups[date]) groups[date] = [];
+      groups[date].push(item);
+    });
+    return groups;
+  }, [filteredItems]);
+
+  const toggleExpanded = (id: string) => {
+    const newExpanded = new Set(expandedItems);
+    if (newExpanded.has(id)) newExpanded.delete(id);
+    else newExpanded.add(id);
+    setExpandedItems(newExpanded);
+  };
+
+  const renderPlatformBadge = (pr: PlatformResult) => {
+    const Icon = platformIcons[pr.platform] || FileText;
+    const isSuccess = pr.status === 'success' || pr.status === 'published';
+    const isFailed = pr.status === 'failed';
+    
+    return (
+      <div 
+        key={`${pr.platform}-${pr.format}`}
+        className={cn(
+          "inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium border",
+          isSuccess && "bg-green-50 text-green-700 border-green-200 dark:bg-green-900/20 dark:text-green-400 dark:border-green-800",
+          isFailed && "bg-red-50 text-red-700 border-red-200 dark:bg-red-900/20 dark:text-red-400 dark:border-red-800",
+          !isSuccess && !isFailed && "bg-muted text-muted-foreground border-border"
+        )}
+      >
+        <Icon className="h-3 w-3" />
+        <span className="capitalize">{pr.platform}</span>
+        {isSuccess && <CheckCircle2 className="h-3 w-3" />}
+        {isFailed && <XCircle className="h-3 w-3" />}
+      </div>
+    );
+  };
+
+  const renderItemCard = (item: ConsolidatedItem) => {
+    const statusInfo = statusConfig[item.overallStatus] || statusConfig.pending;
     const StatusIcon = statusInfo.icon;
-    const PlatformIcon = platformIcons[item.platform] || FileText;
     const isExpanded = expandedItems.has(item.id);
+    const isStuck = item.overallStatus === 'publishing' && new Date(item.timestamp) < new Date(Date.now() - 10 * 60 * 1000);
+    const timeStr = format(new Date(item.timestamp), 'HH:mm', { locale: pt });
+
+    // Pick the first platform icon for the main card
+    const mainPlatform = item.platforms[0]?.platform || 'instagram';
+    const MainIcon = platformIcons[mainPlatform] || FileText;
 
     return (
       <Collapsible key={item.id} open={isExpanded} onOpenChange={() => toggleExpanded(item.id)}>
         <Card className={cn(
           "transition-all duration-200 hover:shadow-md",
-          item.status === 'failed' && "border-red-200 dark:border-red-900/50",
-          ['success', 'published'].includes(item.status) && "border-green-200 dark:border-green-900/50",
-          item.status === 'publishing' && "border-blue-200 dark:border-blue-900/50"
+          item.overallStatus === 'failed' && "border-red-200 dark:border-red-900/50",
+          ['success', 'published'].includes(item.overallStatus) && "border-green-200 dark:border-green-900/50",
+          item.overallStatus === 'partial' && "border-orange-200 dark:border-orange-900/50",
+          item.overallStatus === 'publishing' && "border-blue-200 dark:border-blue-900/50"
         )}>
           <CollapsibleTrigger asChild>
             <CardHeader className="cursor-pointer hover:bg-muted/30 transition-colors rounded-t-lg p-4">
               <div className="flex items-center justify-between gap-3">
                 <div className="flex items-center gap-3 min-w-0 flex-1">
-                  {/* Image preview if available */}
-                  {item.image_url && item.image_url !== 'placeholder-pending-upload' && (
+                  {/* Image preview */}
+                  {item.image_url ? (
                     <div className="h-12 w-12 rounded-lg overflow-hidden flex-shrink-0 bg-muted">
                       <img 
                         src={item.image_url} 
                         alt="" 
                         className="h-full w-full object-cover"
-                        onError={(e) => {
-                          (e.target as HTMLImageElement).style.display = 'none';
-                        }}
+                        onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; }}
                       />
+                    </div>
+                  ) : (
+                    <div className={cn(
+                      "h-12 w-12 rounded-lg flex items-center justify-center text-white shadow-sm flex-shrink-0",
+                      platformColors[mainPlatform] || 'bg-gray-500'
+                    )}>
+                      <MainIcon className="h-6 w-6" />
                     </div>
                   )}
                   
-                  {/* Platform Icon */}
-                  <div className={cn(
-                    "h-10 w-10 rounded-xl flex items-center justify-center text-white shadow-sm flex-shrink-0",
-                    platformColors[item.platform] || 'bg-gray-500'
-                  )}>
-                    <PlatformIcon className="h-5 w-5" />
-                  </div>
-                  
                   <div className="min-w-0 flex-1">
                     <div className="flex items-center gap-2 flex-wrap">
-                      <CardTitle className="text-base capitalize">
-                        {item.platform}
+                      <CardTitle className="text-sm font-semibold">
+                        <span className="text-muted-foreground font-normal">{timeStr}</span>
+                        {' · '}
+                        {item.tema || item.caption?.substring(0, 60) || 'Publicação'}
                       </CardTitle>
-                      {item.format && (
-                        <Badge variant="outline" className="text-xs">
-                          {getFormatLabel(item.format)}
-                        </Badge>
-                      )}
+                    </div>
+                    {/* Platform badges row */}
+                    <div className="flex items-center gap-1.5 mt-1 flex-wrap">
+                      {item.platforms.map(renderPlatformBadge)}
                       {item.origin_mode && (
-                        <Badge variant="secondary" className="text-xs">
+                        <Badge variant="secondary" className="text-[10px] px-1.5 py-0">
                           {item.origin_mode === 'manual' ? 'Manual' : 'Auto'}
                         </Badge>
                       )}
                     </div>
-                    <CardDescription className="text-xs mt-0.5 truncate">
-                      {item.tema || item.caption?.substring(0, 50) || formatDistanceToNow(new Date(item.timestamp), { addSuffix: true, locale: pt })}
-                    </CardDescription>
                   </div>
                 </div>
                 
                 <div className="flex items-center gap-2 flex-shrink-0">
-                  {/* Badge "Possivelmente interrompido" para posts publishing há mais de 10 min */}
-                  {item.status === 'publishing' && new Date(item.timestamp) < new Date(Date.now() - 10 * 60 * 1000) ? (
+                  {isStuck ? (
                     <Badge className="gap-1 bg-orange-100 text-orange-800 dark:bg-orange-900/30 dark:text-orange-400">
                       <AlertTriangle className="h-3 w-3" />
                       Interrompido?
                     </Badge>
                   ) : (
                     <Badge className={cn("gap-1", statusInfo.color)}>
-                      <StatusIcon className={cn("h-3 w-3", item.status === 'publishing' && "animate-spin")} />
+                      <StatusIcon className={cn("h-3 w-3", item.overallStatus === 'publishing' && "animate-spin")} />
                       {statusInfo.label}
                     </Badge>
                   )}
-                  {isExpanded ? (
-                    <ChevronUp className="h-4 w-4 text-muted-foreground" />
-                  ) : (
-                    <ChevronDown className="h-4 w-4 text-muted-foreground" />
-                  )}
+                  {isExpanded ? <ChevronUp className="h-4 w-4 text-muted-foreground" /> : <ChevronDown className="h-4 w-4 text-muted-foreground" />}
                 </div>
               </div>
             </CardHeader>
@@ -451,11 +533,62 @@ export default function PublicationHistory() {
                   <span>{format(new Date(item.timestamp), "dd MMM yyyy 'às' HH:mm:ss", { locale: pt })}</span>
                 </div>
 
-                {/* Caption preview */}
+                {/* Caption */}
                 {item.caption && (
                   <div className="bg-muted/30 rounded-lg p-3">
                     <p className="text-xs text-muted-foreground mb-1 font-medium">Legenda:</p>
                     <p className="text-sm line-clamp-3">{item.caption}</p>
+                  </div>
+                )}
+
+                {/* Platform-by-platform details */}
+                {item.platforms.length > 0 && (
+                  <div className="space-y-2">
+                    <p className="text-xs text-muted-foreground font-medium">Detalhes por plataforma:</p>
+                    {item.platforms.map((pr, idx) => {
+                      const PlatIcon = platformIcons[pr.platform] || FileText;
+                      const prStatus = statusConfig[pr.status] || statusConfig.pending;
+                      return (
+                        <div key={idx} className="flex items-start gap-3 bg-muted/20 rounded-lg p-3 border border-border/50">
+                          <div className={cn(
+                            "h-8 w-8 rounded-lg flex items-center justify-center text-white flex-shrink-0",
+                            platformColors[pr.platform] || 'bg-gray-500'
+                          )}>
+                            <PlatIcon className="h-4 w-4" />
+                          </div>
+                          <div className="flex-1 min-w-0">
+                            <div className="flex items-center gap-2 flex-wrap">
+                              <span className="text-sm font-medium capitalize">{pr.platform}</span>
+                              {pr.format && <Badge variant="outline" className="text-[10px]">{getFormatLabel(pr.format)}</Badge>}
+                              <Badge className={cn("text-[10px]", prStatus.color)}>{prStatus.label}</Badge>
+                            </div>
+                            {pr.error_message && (
+                              <div className="mt-1 flex items-start gap-1">
+                                <AlertTriangle className="h-3 w-3 text-red-500 mt-0.5 flex-shrink-0" />
+                                <p className="text-xs text-red-600 dark:text-red-400 break-all">{pr.error_message}</p>
+                              </div>
+                            )}
+                            {pr.external_url && pr.status === 'success' && (
+                              <a href={pr.external_url} target="_blank" rel="noopener noreferrer" 
+                                className="text-xs text-primary hover:underline mt-1 inline-flex items-center gap-1"
+                                onClick={e => e.stopPropagation()}>
+                                <ExternalLink className="h-3 w-3" /> Ver publicação
+                              </a>
+                            )}
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                )}
+
+                {/* Post-level error */}
+                {item.error_message && !item.platforms.some(p => p.error_message === item.error_message) && (
+                  <div className="bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg p-3">
+                    <div className="flex items-start gap-2">
+                      <AlertTriangle className="h-4 w-4 text-red-600 dark:text-red-400 mt-0.5 flex-shrink-0" />
+                      <p className="text-sm text-red-700 dark:text-red-300 break-all">{item.error_message}</p>
+                    </div>
                   </div>
                 )}
                 
@@ -465,51 +598,9 @@ export default function PublicationHistory() {
                     Post ID: {item.post_id}
                   </div>
                 )}
-                
-                {/* Error Message */}
-                {item.error_message && (
-                  <div className="bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg p-3">
-                    <div className="flex items-start gap-2">
-                      <AlertTriangle className="h-4 w-4 text-red-600 dark:text-red-400 mt-0.5 flex-shrink-0" />
-                      <p className="text-sm text-red-700 dark:text-red-300 break-all">
-                        {item.error_message}
-                      </p>
-                    </div>
-                  </div>
-                )}
-                
-                {/* Response Data */}
-                {item.response_data && Object.keys(item.response_data).length > 0 && (
-                  <div className="bg-muted/50 rounded-lg p-3">
-                    <p className="text-xs text-muted-foreground mb-2 font-medium">Resposta da API:</p>
-                    <pre className="text-xs overflow-auto max-h-32 bg-background p-2 rounded border">
-                      {JSON.stringify(item.response_data, null, 2)}
-                    </pre>
-                  </div>
-                )}
 
                 {/* Action Buttons */}
                 <div className="flex flex-wrap gap-2 pt-2">
-                  {/* View on Platform Button - Only show for successful publications with external URL */}
-                  {item.external_url && ['success', 'published'].includes(item.status) && (
-                    <a 
-                      href={item.external_url} 
-                      target="_blank" 
-                      rel="noopener noreferrer"
-                      onClick={(e) => e.stopPropagation()}
-                    >
-                      <Button
-                        variant="default"
-                        size="sm"
-                        className="gap-2"
-                      >
-                        <ExternalLink className="h-4 w-4" />
-                        Ver publicação
-                      </Button>
-                    </a>
-                  )}
-                  
-                  {/* Download Button */}
                   {item.media_urls && item.media_urls.length > 0 && (
                     <Button
                       variant="outline"
@@ -518,14 +609,9 @@ export default function PublicationHistory() {
                         e.stopPropagation();
                         try {
                           toast.loading('A preparar download...', { id: 'download' });
-                          await downloadPublicationAssets(
-                            item.media_urls || [],
-                            item.caption || '',
-                            item.tema,
-                            item.hashtags
-                          );
+                          await downloadPublicationAssets(item.media_urls || [], item.caption || '', item.tema, item.hashtags);
                           toast.success('Download concluído!', { id: 'download' });
-                        } catch (err) {
+                        } catch {
                           toast.error('Erro ao descarregar', { id: 'download' });
                         }
                       }}
@@ -536,24 +622,17 @@ export default function PublicationHistory() {
                     </Button>
                   )}
                   
-                  {/* Recovery/Reuse Button */}
                   {item.post_id && (
                     <Button
-                      variant={item.status === 'failed' ? 'default' : 'outline'}
+                      variant={item.overallStatus === 'failed' || item.overallStatus === 'partial' ? 'default' : 'outline'}
                       size="sm"
                       onClick={() => navigate(`/manual-create?recover=${item.post_id}`)}
                       className="gap-2 flex-1"
                     >
-                      {item.status === 'failed' ? (
-                        <>
-                          <RotateCcw className="h-4 w-4" />
-                          Tentar Novamente
-                        </>
+                      {item.overallStatus === 'failed' || item.overallStatus === 'partial' ? (
+                        <><RotateCcw className="h-4 w-4" /> Tentar Novamente</>
                       ) : (
-                        <>
-                          <Copy className="h-4 w-4" />
-                          Reutilizar Conteúdo
-                        </>
+                        <><Copy className="h-4 w-4" /> Reutilizar Conteúdo</>
                       )}
                     </Button>
                   )}
@@ -576,24 +655,18 @@ export default function PublicationHistory() {
           </div>
           <div>
             <h1 className="text-2xl font-bold">Histórico de Publicações</h1>
-            <p className="text-sm text-muted-foreground">Registo de todas as publicações e tentativas, incluindo falhas</p>
+            <p className="text-sm text-muted-foreground">Centro de comando — registo de todas as publicações e tentativas</p>
           </div>
         </div>
         
-        <Button
-          variant="outline"
-          size="sm"
-          onClick={refetch}
-          disabled={isLoading}
-          className="gap-2"
-        >
+        <Button variant="outline" size="sm" onClick={refetch} disabled={isLoading} className="gap-2">
           <RefreshCw className={cn("h-4 w-4", isLoading && "animate-spin")} />
           Atualizar
         </Button>
       </div>
 
       {/* Stats Cards */}
-      <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-6">
+      <div className="grid grid-cols-2 sm:grid-cols-5 gap-3 mb-6">
         <Card className="p-4">
           <div className="text-2xl font-bold">{stats.total}</div>
           <div className="text-xs text-muted-foreground">Total</div>
@@ -601,6 +674,10 @@ export default function PublicationHistory() {
         <Card className="p-4 border-green-200 dark:border-green-900/50">
           <div className="text-2xl font-bold text-green-600">{stats.success}</div>
           <div className="text-xs text-muted-foreground">Sucesso</div>
+        </Card>
+        <Card className="p-4 border-orange-200 dark:border-orange-900/50">
+          <div className="text-2xl font-bold text-orange-600">{stats.partial}</div>
+          <div className="text-xs text-muted-foreground">Parcial</div>
         </Card>
         <Card className="p-4 border-red-200 dark:border-red-900/50">
           <div className="text-2xl font-bold text-red-600">{stats.failed}</div>
@@ -615,22 +692,10 @@ export default function PublicationHistory() {
       {/* Tabs */}
       <Tabs value={activeTab} onValueChange={setActiveTab} className="mb-4">
         <TabsList className="grid w-full grid-cols-4">
-          <TabsTrigger value="all" className="gap-1">
-            <History className="h-4 w-4" />
-            Tudo
-          </TabsTrigger>
-          <TabsTrigger value="success" className="gap-1">
-            <CheckCircle2 className="h-4 w-4" />
-            Sucesso
-          </TabsTrigger>
-          <TabsTrigger value="failed" className="gap-1">
-            <XCircle className="h-4 w-4" />
-            Falhas
-          </TabsTrigger>
-          <TabsTrigger value="pending" className="gap-1">
-            <Clock className="h-4 w-4" />
-            Pendentes
-          </TabsTrigger>
+          <TabsTrigger value="all" className="gap-1"><History className="h-4 w-4" />Tudo</TabsTrigger>
+          <TabsTrigger value="success" className="gap-1"><CheckCircle2 className="h-4 w-4" />Sucesso</TabsTrigger>
+          <TabsTrigger value="failed" className="gap-1"><XCircle className="h-4 w-4" />Falhas</TabsTrigger>
+          <TabsTrigger value="pending" className="gap-1"><Clock className="h-4 w-4" />Pendentes</TabsTrigger>
         </TabsList>
       </Tabs>
 
@@ -639,7 +704,7 @@ export default function PublicationHistory() {
         <div className="relative flex-1">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
           <Input
-            placeholder="Pesquisar por plataforma, formato, legenda ou erro..."
+            placeholder="Pesquisar por tema, legenda, plataforma ou erro..."
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
             className="pl-9"
@@ -666,8 +731,8 @@ export default function PublicationHistory() {
           </SelectTrigger>
           <SelectContent>
             <SelectItem value="all">Todos estados</SelectItem>
-            <SelectItem value="success">Sucesso</SelectItem>
             <SelectItem value="published">Publicado</SelectItem>
+            <SelectItem value="partial">Parcial</SelectItem>
             <SelectItem value="failed">Falhou</SelectItem>
             <SelectItem value="pending">Pendente</SelectItem>
             <SelectItem value="publishing">A publicar</SelectItem>
@@ -697,10 +762,10 @@ export default function PublicationHistory() {
           {[...Array(5)].map((_, i) => (
             <Card key={i} className="p-4">
               <div className="flex items-center gap-3">
-                <Skeleton className="h-10 w-10 rounded-xl" />
+                <Skeleton className="h-12 w-12 rounded-lg" />
                 <div className="space-y-2 flex-1">
-                  <Skeleton className="h-4 w-32" />
-                  <Skeleton className="h-3 w-24" />
+                  <Skeleton className="h-4 w-48" />
+                  <Skeleton className="h-3 w-32" />
                 </div>
                 <Skeleton className="h-6 w-20 rounded-full" />
               </div>
@@ -711,14 +776,20 @@ export default function PublicationHistory() {
         <Card className="p-12 text-center">
           <History className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
           <h3 className="text-lg font-semibold mb-2">Sem registos</h3>
-          <p className="text-sm text-muted-foreground">
+          <p className="text-sm text-muted-foreground mb-4">
             {searchTerm || statusFilter !== 'all' || platformFilter !== 'all' || activeTab !== 'all'
               ? 'Nenhuma publicação encontrada com os filtros aplicados'
               : 'As tuas publicações aparecerão aqui quando publicares algo'}
           </p>
+          {!searchTerm && statusFilter === 'all' && platformFilter === 'all' && activeTab === 'all' && (
+            <Button onClick={() => navigate('/manual-create')} className="gap-2">
+              <Plus className="h-4 w-4" />
+              Criar nova publicação
+            </Button>
+          )}
         </Card>
       ) : (
-        <ScrollArea className="h-[calc(100vh-500px)] pr-4">
+        <ScrollArea className="min-h-[300px] max-h-[calc(100vh-420px)] pr-4">
           <div className="space-y-6">
             {Object.entries(groupedItems).map(([date, dateItems]) => (
               <div key={date}>
