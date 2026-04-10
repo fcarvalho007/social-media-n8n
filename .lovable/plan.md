@@ -1,71 +1,79 @@
 
-Diagnóstico conclusivo
 
-O erro não é da API externa, nem de dimensão, duração ou peso do vídeo.
+## Correcção do Histórico de Publicações — Duplicações e UX
 
-A falha acontece antes de qualquer envio para a API de publicação, ainda na fase de upload para o armazenamento interno.
+### Problemas confirmados com dados reais
 
-Evidência verificada:
-- O toast mostra: “Falha no upload: riverside_v1_[editado] ... .mp4”
-- Na base de dados, o último registo falhado (`8bcd334f-0e8b-4264-bce2-7dce28b950c9`) tem `error_log` com a causa exacta:
-  `Invalid key: 194915bc-d1b9-4ef1-b440-7802e63e0d4d/1775830554880-riverside_v1_[editado] marketing para equipes pequenas_ gen_marketing_por idiot.mp4`
-- Não existem `publication_attempts` para esse `post_id`
-- Não há logs do `publish-to-getlate` para esse post
+**Base de dados**: O post `06757d6e` (publicado com sucesso em Instagram, Facebook, YouTube, TikTok) tem **8 attempts** quando deveria ter **4**. Cada plataforma tem 2 registos: um "pending" e um "success", porque a edge function **insere um novo registo** em vez de actualizar o existente.
 
-Isto confirma:
-1. o ficheiro falhou no upload local;
-2. o edge function nem chegou a ser chamado;
-3. a API de publicação não é a origem deste erro.
+**UI**: O ecrã mostra 9 cards separados (8 attempts + 1 post falhado anterior), quando deveria mostrar **2 cards** consolidados. A lógica de agrupamento por `post_id` existe no código mas aparenta não estar a funcionar correctamente no browser — possível problema de deploy ou cache.
 
-Causa raiz
+### Plano de implementação
 
-No `src/hooks/usePublishWithProgress.ts`, o upload usa o nome bruto do ficheiro:
-```ts
-const fileName = `${user.id}/${fileType}/${timestamp}-${i}-${file.name}`;
+| # | Ficheiro | Alteração |
+|---|----------|-----------|
+| 1 | `supabase/functions/publish-to-getlate/index.ts` | **Corrigir duplicação na origem**: Em vez de inserir "pending" + inserir "success/failed", inserir "pending" com `id` guardado, depois fazer `UPDATE` desse registo para "success" ou "failed". Elimina duplicações futuras. |
+| 2 | Migração SQL | **Limpar duplicados existentes**: Remover attempts duplicados (manter apenas o mais recente por combinação `post_id + platform + format`). |
+| 3 | `src/pages/PublicationHistory.tsx` | **Deduplicar no UI como safety net**: Dentro de cada grupo consolidado, deduplicar platforms por `platform + format`, mantendo o registo com status final (success/failed > pending). |
+| 4 | `src/pages/PublicationHistory.tsx` | **Melhorar UX/UI dos cards**: (a) Mostrar tema/legenda de forma proeminente no título do card; (b) Mostrar todas as plataformas como badges compactos numa linha; (c) Adicionar contagem de plataformas (ex: "4 redes · Sucesso"); (d) Thumbnail maior e mais limpa; (e) Melhor hierarquia visual entre cards consolidados e detalhe expandido. |
+| 5 | `src/pages/PublicationHistory.tsx` | **Melhorar subtítulo descritivo**: Substituir "Todas as publicações e tentativas" por "Centro de comando — registo de todas as publicações e tentativas" (já parcialmente feito). |
+
+### Detalhe técnico
+
+**Edge function — eliminar duplicações (ponto 1)**:
+```typescript
+// Inserir attempt inicial e guardar o ID
+const { data: attemptData } = await supabase
+  .from('publication_attempts')
+  .insert({ post_id, platform: network, format, status: 'pending' })
+  .select('id')
+  .single();
+
+const attemptId = attemptData?.id;
+
+// Após resultado da API, actualizar em vez de inserir novo
+await supabase
+  .from('publication_attempts')
+  .update({ status: 'success', response_data: result.data })
+  .eq('id', attemptId);
 ```
 
-Esse caminho inclui caracteres problemáticos do nome original (`[ ]`, espaços, underscores e outros padrões), e o storage rejeita a key com `Invalid key`.
+**Deduplicação no UI (ponto 3)**:
+```typescript
+// Dentro de cada grupo de attempts por post_id,
+// deduplicar por platform+format, preferindo status final
+const deduped = new Map<string, PlatformResult>();
+for (const pr of postAttempts) {
+  const key = `${pr.platform}-${pr.format}`;
+  const existing = deduped.get(key);
+  if (!existing || pr.status !== 'pending') {
+    deduped.set(key, pr);
+  }
+}
+```
 
-O próprio projeto já tem a solução correcta em:
-- `src/lib/fileNameSanitizer.ts`
-- `src/pages/ManualCreate.tsx`
+**Card consolidado melhorado (ponto 4)**:
+- Título: `"15:11 · Será que o mercado precisa de um marketer T-shaped"`
+- Subtítulo: `"4 redes · Reel · Sucesso total"` ou `"3/4 redes · Falha parcial"`
+- Badges compactos: `[IG ✓] [FB ✓] [YT ✓] [TT ✓]`
+- Expandir para ver detalhes por plataforma
 
-Nesses pontos, é usado `generateSafeStoragePath(user.id, file)`, que sanitiza o nome antes do upload. O bug está só no fluxo de publicação com progresso, que ficou inconsistente com o resto da app.
+**Limpeza de dados (ponto 2)**:
+```sql
+DELETE FROM publication_attempts a
+USING publication_attempts b
+WHERE a.post_id = b.post_id
+  AND a.platform = b.platform
+  AND a.format = b.format
+  AND a.status = 'pending'
+  AND b.status IN ('success', 'failed')
+  AND a.id <> b.id;
+```
 
-Plano de correção
+### Resultado esperado
 
-1. Corrigir `src/hooks/usePublishWithProgress.ts`
-- substituir o uso de `file.name` bruto por `generateSafeStoragePath(user.id, file)` no upload principal
-- aplicar a mesma sanitização no fallback para o bucket `pdfs`
-- manter o nome original apenas para mensagens visíveis ao utilizador
+- Um post publicado em 4 redes = **1 card** com 4 badges de plataforma
+- Sem duplicações no histórico
+- Tema/legenda visível directamente no card
+- Contagem de stats precisa (207 → ~105 posts reais)
 
-2. Unificar a lógica de paths
-- reutilizar o helper já existente de sanitização
-- evitar duplicação entre `ManualCreate.tsx` e `usePublishWithProgress.ts`
-
-3. Melhorar o diagnóstico de erro
-- quando houver erro de upload, guardar no `error_log`:
-  - nome original do ficheiro
-  - nome sanitizado
-  - mensagem técnica do storage
-- isto torna o Histórico de Publicações mais útil para suporte
-
-4. Validar no UI
-- garantir que o toast mostre algo objectivo, por exemplo:
-  “O nome do ficheiro contém caracteres incompatíveis com o upload. O sistema vai corrigir isso automaticamente.”
-- evitar mensagens genéricas como se fosse falha de rede ou da API
-
-5. Verificação após implementação
-- repetir o publish com esse mesmo vídeo
-- confirmar que:
-  - o upload já não falha
-  - o post avança para `publication_attempts`
-  - só depois aparecem logs do `publish-to-getlate`
-  - o histórico regista a tentativa completa
-
-Resumo objectivo para si
-
-- Não é a API
-- Não há evidência de ser tamanho/duração/dimensões
-- O motivo actual e comprovado é o nome do ficheiro no caminho de upload
-- A resolução é sanitizar o nome no fluxo `usePublishWithProgress`, tal como já acontece noutras partes da app
