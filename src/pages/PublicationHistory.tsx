@@ -242,8 +242,8 @@ export default function PublicationHistory() {
           post_id: post.id,
           caption: post.caption,
           tema: post.tema,
-          image_url: post.template_a_images?.[0],
-          media_urls: post.template_a_images || [],
+          image_url: post.template_a_images?.[0] === 'placeholder-pending-upload' ? undefined : post.template_a_images?.[0],
+          media_urls: (post.template_a_images || []).filter(u => u !== 'placeholder-pending-upload'),
           origin_mode: post.origin_mode,
           hashtags: post.hashtags || [],
           external_url: externalIds[platform],
@@ -376,7 +376,7 @@ export default function PublicationHistory() {
               <div className="flex items-center justify-between gap-3">
                 <div className="flex items-center gap-3 min-w-0 flex-1">
                   {/* Image preview if available */}
-                  {item.image_url && (
+                  {item.image_url && item.image_url !== 'placeholder-pending-upload' && (
                     <div className="h-12 w-12 rounded-lg overflow-hidden flex-shrink-0 bg-muted">
                       <img 
                         src={item.image_url} 
@@ -420,10 +420,18 @@ export default function PublicationHistory() {
                 </div>
                 
                 <div className="flex items-center gap-2 flex-shrink-0">
-                  <Badge className={cn("gap-1", statusInfo.color)}>
-                    <StatusIcon className={cn("h-3 w-3", item.status === 'publishing' && "animate-spin")} />
-                    {statusInfo.label}
-                  </Badge>
+                  {/* Badge "Possivelmente interrompido" para posts publishing há mais de 10 min */}
+                  {item.status === 'publishing' && new Date(item.timestamp) < new Date(Date.now() - 10 * 60 * 1000) ? (
+                    <Badge className="gap-1 bg-orange-100 text-orange-800 dark:bg-orange-900/30 dark:text-orange-400">
+                      <AlertTriangle className="h-3 w-3" />
+                      Interrompido?
+                    </Badge>
+                  ) : (
+                    <Badge className={cn("gap-1", statusInfo.color)}>
+                      <StatusIcon className={cn("h-3 w-3", item.status === 'publishing' && "animate-spin")} />
+                      {statusInfo.label}
+                    </Badge>
+                  )}
                   {isExpanded ? (
                     <ChevronUp className="h-4 w-4 text-muted-foreground" />
                   ) : (
@@ -568,7 +576,7 @@ export default function PublicationHistory() {
           </div>
           <div>
             <h1 className="text-2xl font-bold">Histórico de Publicações</h1>
-            <p className="text-sm text-muted-foreground">Todas as publicações e tentativas</p>
+            <p className="text-sm text-muted-foreground">Registo de todas as publicações e tentativas, incluindo falhas</p>
           </div>
         </div>
         

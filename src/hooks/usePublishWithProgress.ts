@@ -914,6 +914,22 @@ if (imageUrlsForPdf.length > 0) {
         }
         
         if (!verified) {
+          // Check DB one final time to determine if still processing or truly failed
+          try {
+            const { data: finalCheck } = await supabase
+              .from('posts')
+              .select('status')
+              .eq('id', createdPostId!)
+              .single();
+            
+            if (finalCheck?.status === 'publishing') {
+              // Still processing - show informative toast instead of error
+              toast.info('A publicação pode ainda estar a ser processada. Verifique o histórico em alguns minutos.', { duration: 10000 });
+            }
+          } catch (e) {
+            console.warn(`[usePublishWithProgress] [${publishSessionId}] Final check error:`, e);
+          }
+          
           // After 90s, treat remaining "pending" as success (Getlate accepted it)
           for (const [format, result] of platformResults) {
             if (result.status === 'pending') {
