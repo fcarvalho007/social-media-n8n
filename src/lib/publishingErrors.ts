@@ -96,6 +96,27 @@ export const ERROR_MESSAGES: Record<string, ErrorInfo> = {
     isRetryable: true,
     source: 'internal',
   },
+  filename_invalid: {
+    title: 'Nome do ficheiro incompatível',
+    description: 'O nome do ficheiro contém caracteres especiais ([], acentos, espaços) que impedem o upload.',
+    action: 'Renomeie o ficheiro usando apenas letras, números e hífens',
+    isRetryable: false,
+    source: 'internal',
+  },
+  file_too_large: {
+    title: 'Ficheiro demasiado grande',
+    description: 'O ficheiro excede o tamanho máximo permitido.',
+    action: 'Reduza o tamanho do ficheiro antes de enviar',
+    isRetryable: false,
+    source: 'internal',
+  },
+  file_format_unsupported: {
+    title: 'Formato não suportado',
+    description: 'O tipo de ficheiro não é suportado pela plataforma.',
+    action: 'Use formatos como JPG, PNG, MP4 ou MOV',
+    isRetryable: false,
+    source: 'internal',
+  },
   unknown: {
     title: 'Erro inesperado',
     description: 'Ocorreu um problema desconhecido.',

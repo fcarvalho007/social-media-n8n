@@ -16,6 +16,79 @@ import { parseStructuredError, classifyErrorFromString, type StructuredError } f
 import { sanitizeFileName } from '@/lib/fileNameSanitizer';
 import { toast } from 'sonner';
 
+// Supported MIME types for social media publishing
+const SUPPORTED_IMAGE_TYPES = ['image/jpeg', 'image/png', 'image/webp', 'image/gif'];
+const SUPPORTED_VIDEO_TYPES = ['video/mp4', 'video/quicktime', 'video/mov', 'video/x-m4v'];
+const MAX_IMAGE_SIZE_MB = 50; // Accept up to 50MB (compressed on publish)
+const MAX_VIDEO_SIZE_MB = 650;
+
+interface UploadDiagnosis {
+  causa: string;
+  detalhe: string;
+  sugestao: string;
+}
+
+function diagnoseUploadError(file: File, error: any, safeName: string): UploadDiagnosis {
+  const msg = (error?.message || error?.statusCode || '').toString().toLowerCase();
+  const sizeMB = (file.size / (1024 * 1024)).toFixed(1);
+  const isVideo = file.type.startsWith('video/');
+  const maxMB = isVideo ? MAX_VIDEO_SIZE_MB : MAX_IMAGE_SIZE_MB;
+  const ext = file.name.split('.').pop()?.toLowerCase() || '';
+
+  // 1. Invalid key / filename issues
+  if (msg.includes('invalid key') || msg.includes('invalid input') || msg.includes('key')) {
+    return {
+      causa: 'Nome do ficheiro incompatível',
+      detalhe: `"${file.name}" contém caracteres especiais ([], parênteses, acentos ou espaços)`,
+      sugestao: 'Renomeie o ficheiro usando apenas letras, números e hífens (ex: meu-video-final.mp4)',
+    };
+  }
+
+  // 2. File too large
+  if (file.size > maxMB * 1024 * 1024 || msg.includes('too large') || msg.includes('payload') || msg.includes('entity too large')) {
+    return {
+      causa: 'Ficheiro demasiado grande',
+      detalhe: `${sizeMB}MB (máximo: ${maxMB}MB para ${isVideo ? 'vídeos' : 'imagens'})`,
+      sugestao: `Reduza o tamanho do ficheiro para menos de ${maxMB}MB`,
+    };
+  }
+
+  // 3. Unsupported format
+  const allSupported = [...SUPPORTED_IMAGE_TYPES, ...SUPPORTED_VIDEO_TYPES];
+  if (!allSupported.includes(file.type) || msg.includes('mime') || msg.includes('unsupported') || msg.includes('content type')) {
+    return {
+      causa: 'Formato não suportado',
+      detalhe: `Tipo "${file.type || ext}" não é aceite. Formatos válidos: JPG, PNG, WebP, GIF, MP4, MOV`,
+      sugestao: 'Converta o ficheiro para MP4 (vídeos) ou JPG/PNG (imagens)',
+    };
+  }
+
+  // 4. Network/timeout errors
+  if (msg.includes('network') || msg.includes('timeout') || msg.includes('fetch') || msg.includes('abort')) {
+    return {
+      causa: 'Erro de ligação durante o upload',
+      detalhe: 'A ligação foi interrompida durante o envio do ficheiro',
+      sugestao: 'Verifique a sua internet e tente novamente',
+    };
+  }
+
+  // 5. Storage quota
+  if (msg.includes('quota') || msg.includes('storage') || msg.includes('space')) {
+    return {
+      causa: 'Armazenamento cheio',
+      detalhe: 'O espaço de armazenamento está esgotado',
+      sugestao: 'Liberte espaço nas definições de quota ou contacte o suporte',
+    };
+  }
+
+  // 6. Generic fallback
+  return {
+    causa: 'Erro no upload',
+    detalhe: `Erro técnico: ${error?.message || 'desconhecido'}`,
+    sugestao: 'Tente novamente. Se persistir, renomeie o ficheiro e reduza o tamanho',
+  };
+}
+
 // Initial state
 const initialProgress: PublishProgress = {
   phase1: {
@@ -487,10 +560,26 @@ export function usePublishWithProgress() {
         }
         
         if (uploadError) {
-          const errorMsg = `Erro no upload: original="${file.name}" sanitizado="${safeName}" - ${uploadError.message}`;
-          updatePhase1('error', uploadProgress, 'Erro no upload', `Erro ao carregar ficheiro ${i + 1}`);
-          await markPostFailed(errorMsg);
-          toast.error(`Falha no upload do ficheiro ${i + 1}. Verifique o histórico para detalhes.`, { duration: 15000 });
+          const diagnosis = diagnoseUploadError(file, uploadError, safeName);
+          const structuredErrorLog = JSON.stringify({
+            tipo: 'upload_error',
+            causa: diagnosis.causa,
+            detalhe: diagnosis.detalhe,
+            sugestao: diagnosis.sugestao,
+            nome_original: file.name,
+            nome_sanitizado: safeName,
+            tamanho_mb: (file.size / (1024 * 1024)).toFixed(1),
+            tipo_ficheiro: file.type,
+            mensagem_tecnica: uploadError.message,
+            ficheiro_index: i + 1,
+            total_ficheiros: totalFiles,
+          });
+          updatePhase1('error', uploadProgress, diagnosis.causa, diagnosis.detalhe);
+          await markPostFailed(structuredErrorLog);
+          toast.error(`Upload falhou: ${diagnosis.causa}`, {
+            description: `${diagnosis.detalhe}\n💡 ${diagnosis.sugestao}`,
+            duration: 15000,
+          });
           setIsPublishing(false);
           publishingLockRef.current = false;
           return false;
