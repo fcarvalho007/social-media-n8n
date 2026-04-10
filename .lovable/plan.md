@@ -1,79 +1,71 @@
 
+Diagnóstico conclusivo
 
-## Refinamento do Histórico de Publicações — Centro de Comando de Logs
+O erro não é da API externa, nem de dimensão, duração ou peso do vídeo.
 
-### Problemas identificados
+A falha acontece antes de qualquer envio para a API de publicação, ainda na fase de upload para o armazenamento interno.
 
-1. **Attempts sem contexto**: Quando um post tem `publication_attempts`, o post é excluído (`seenPostIds`). Os attempts aparecem sem legenda, tema, imagem ou hashtags — dados que só existem no post. O utilizador vê entradas sem contexto.
+Evidência verificada:
+- O toast mostra: “Falha no upload: riverside_v1_[editado] ... .mp4”
+- Na base de dados, o último registo falhado (`8bcd334f-0e8b-4264-bce2-7dce28b950c9`) tem `error_log` com a causa exacta:
+  `Invalid key: 194915bc-d1b9-4ef1-b440-7802e63e0d4d/1775830554880-riverside_v1_[editado] marketing para equipes pequenas_ gen_marketing_por idiot.mp4`
+- Não existem `publication_attempts` para esse `post_id`
+- Não há logs do `publish-to-getlate` para esse post
 
-2. **Dados duplicados**: Um post publicado no Instagram e LinkedIn gera 2 attempts + o post original. Se o post não é filtrado (ex: sem attempts), aparece 3 vezes.
+Isto confirma:
+1. o ficheiro falhou no upload local;
+2. o edge function nem chegou a ser chamado;
+3. a API de publicação não é a origem deste erro.
 
-3. **Falta de visão consolidada**: Cada attempt é uma linha separada. Para um carrossel Instagram + LinkedIn, o utilizador vê 2 linhas sem perceber que são do mesmo post.
+Causa raiz
 
-4. **Sem indicador de hora**: Os items mostram "há X tempo" na descrição mas não a hora exacta no card (só ao expandir).
-
-5. **ScrollArea altura fixa**: `h-[calc(100vh-500px)]` pode resultar em área muito pequena em ecrãs menores.
-
-### Plano de implementação
-
-| # | Ficheiro | Alteração |
-|---|----------|-----------|
-| 1 | `src/pages/PublicationHistory.tsx` | **Enriquecer attempts com dados do post**: Ao combinar dados, fazer lookup do post correspondente para cada attempt (via `post_id`). Adicionar caption, tema, image_url, media_urls, hashtags e origin_mode ao item do attempt. |
-| 2 | `src/pages/PublicationHistory.tsx` | **Agrupar por post_id**: Em vez de listar cada attempt separadamente, agrupar attempts do mesmo post numa única entrada. Mostrar um card por post com badges por plataforma (Instagram ✓, LinkedIn ✗). Expandir para ver detalhes de cada plataforma. |
-| 3 | `src/pages/PublicationHistory.tsx` | **Mostrar hora no card**: Adicionar a hora (HH:mm) directamente na descrição do card, sem precisar expandir. |
-| 4 | `src/pages/PublicationHistory.tsx` | **Melhorar empty state**: Mostrar sugestão de acção ("Criar nova publicação") no empty state. |
-| 5 | `src/pages/PublicationHistory.tsx` | **Fix ScrollArea**: Usar `min-h-[300px]` em vez de cálculo fixo. |
-| 6 | `src/pages/PublicationHistory.tsx` | **Stats precisas**: Recalcular stats baseadas em posts únicos (não em attempts individuais) para evitar inflação de números. |
-
-### Detalhe técnico
-
-**Enriquecimento de attempts (ponto 1 e 2)**:
-```typescript
-// Criar mapa de posts por id
-const postsMap = new Map(posts?.map(p => [p.id, p]) || []);
-
-// Agrupar attempts por post_id
-const attemptsByPost = new Map<string, PublicationAttempt[]>();
-for (const attempt of attempts || []) {
-  const key = attempt.post_id || attempt.id;
-  if (!attemptsByPost.has(key)) attemptsByPost.set(key, []);
-  attemptsByPost.get(key)!.push(attempt);
-}
-
-// Para cada grupo, criar um item consolidado
-for (const [postId, postAttempts] of attemptsByPost) {
-  const post = postsMap.get(postId);
-  const hasSuccess = postAttempts.some(a => a.status === 'success');
-  const hasFailed = postAttempts.some(a => a.status === 'failed');
-  
-  items.push({
-    // ... dados do post (caption, tema, image_url)
-    platforms: postAttempts.map(a => ({
-      platform: a.platform,
-      format: a.format,
-      status: a.status,
-      error: a.error_message,
-    })),
-    overallStatus: hasSuccess && hasFailed ? 'partial' : hasSuccess ? 'published' : 'failed',
-  });
-}
+No `src/hooks/usePublishWithProgress.ts`, o upload usa o nome bruto do ficheiro:
+```ts
+const fileName = `${user.id}/${fileType}/${timestamp}-${i}-${file.name}`;
 ```
 
-**Card consolidado com badges de plataforma**:
-Em vez de um card por plataforma, um card por post com:
-- Linha de badges: `[Instagram ✓] [LinkedIn ✗]`
-- Ao expandir: detalhes de cada plataforma separados
+Esse caminho inclui caracteres problemáticos do nome original (`[ ]`, espaços, underscores e outros padrões), e o storage rejeita a key com `Invalid key`.
 
-**Hora visível (ponto 3)**:
-```typescript
-<CardDescription>
-  {format(new Date(item.timestamp), "HH:mm", { locale: pt })} · {item.tema || item.caption?.substring(0, 50)}
-</CardDescription>
-```
+O próprio projeto já tem a solução correcta em:
+- `src/lib/fileNameSanitizer.ts`
+- `src/pages/ManualCreate.tsx`
 
-### Resultado esperado
+Nesses pontos, é usado `generateSafeStoragePath(user.id, file)`, que sanitiza o nome antes do upload. O bug está só no fluxo de publicação com progresso, que ficou inconsistente com o resto da app.
 
-O Histórico torna-se um centro de comando onde cada publicação (post) é uma entrada única que mostra:
-- Thumbnail + plataformas + estado geral + hora
-- Ao expandir: detalhes por plataforma, erros específicos, acções
+Plano de correção
 
+1. Corrigir `src/hooks/usePublishWithProgress.ts`
+- substituir o uso de `file.name` bruto por `generateSafeStoragePath(user.id, file)` no upload principal
+- aplicar a mesma sanitização no fallback para o bucket `pdfs`
+- manter o nome original apenas para mensagens visíveis ao utilizador
+
+2. Unificar a lógica de paths
+- reutilizar o helper já existente de sanitização
+- evitar duplicação entre `ManualCreate.tsx` e `usePublishWithProgress.ts`
+
+3. Melhorar o diagnóstico de erro
+- quando houver erro de upload, guardar no `error_log`:
+  - nome original do ficheiro
+  - nome sanitizado
+  - mensagem técnica do storage
+- isto torna o Histórico de Publicações mais útil para suporte
+
+4. Validar no UI
+- garantir que o toast mostre algo objectivo, por exemplo:
+  “O nome do ficheiro contém caracteres incompatíveis com o upload. O sistema vai corrigir isso automaticamente.”
+- evitar mensagens genéricas como se fosse falha de rede ou da API
+
+5. Verificação após implementação
+- repetir o publish com esse mesmo vídeo
+- confirmar que:
+  - o upload já não falha
+  - o post avança para `publication_attempts`
+  - só depois aparecem logs do `publish-to-getlate`
+  - o histórico regista a tentativa completa
+
+Resumo objectivo para si
+
+- Não é a API
+- Não há evidência de ser tamanho/duração/dimensões
+- O motivo actual e comprovado é o nome do ficheiro no caminho de upload
+- A resolução é sanitizar o nome no fluxo `usePublishWithProgress`, tal como já acontece noutras partes da app
