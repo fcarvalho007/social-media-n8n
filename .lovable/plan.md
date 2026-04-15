@@ -1,53 +1,42 @@
 
 
-## Correcção: Thumbnails de Vídeo no Calendário e Grid de Conteúdos
+## Refinamento: Fallback de vídeo na grid lateral
 
-### Causa raiz
+### Problema
+Na grid lateral (Posts Feed, linha 1509-1527), quando o `<video>` falha a carregar, o `onError` tenta navegar para `parentElement.nextElementSibling` — mas não existe um elemento de fallback. O utilizador vê uma área completamente vazia.
 
-`getPostThumbnail` **ignora propositadamente** URLs de vídeo (`.mp4`, `.mov`, etc.) e retorna `null` para posts que só contêm vídeos. O resultado: esses posts mostram um ícone genérico em vez de um thumbnail visual.
+No CustomEvent (células do calendário) este problema não existe porque o fallback `div` está como irmão directo do `<video>`.
 
-A solução aplicada na MediaLibrary (`<video preload="metadata">`) não foi replicada no Calendar.
+### Correcção (1 ficheiro, 1 local)
 
-### Plano (1 ficheiro: `src/pages/Calendar.tsx`)
+**`src/pages/Calendar.tsx` — linhas 1509-1527**
 
-**1. Adicionar helper `getFirstVideoUrl`**
+Adicionar um `div` de fallback (inicialmente `hidden`) dentro do container, e ajustar o `onError` para o mostrar:
 
-Junto aos helpers existentes (~linha 88), criar função que retorna o primeiro URL de vídeo de um post:
-```typescript
-const getFirstVideoUrl = (resource: ScheduledPost): string | null => {
-  const sources = [
-    ...(resource.template_a_images || []),
-    ...(Array.isArray(resource.media_items) ? resource.media_items : []),
-    ...(Array.isArray(resource.media_urls_backup) ? resource.media_urls_backup : []),
-  ];
-  for (const item of sources) {
-    const url = typeof item === 'string' ? item : (item?.url || item?.file_url || null);
-    if (url && isVideoUrl(url)) return url;
-  }
-  return null;
-};
+```tsx
+<div className="relative w-full h-full">
+  <video
+    src={getFirstVideoUrl(event.resource)!}
+    preload="metadata"
+    muted
+    playsInline
+    className="w-full h-full object-cover"
+    onError={(e) => {
+      const target = e.currentTarget;
+      target.style.display = 'none';
+      const fallback = target.nextElementSibling;
+      if (fallback) (fallback as HTMLElement).classList.remove('hidden');
+    }}
+  />
+  <div className="w-full h-full bg-gradient-to-br from-gray-100 to-gray-200 dark:from-gray-800 dark:to-gray-900 flex-col items-center justify-center p-2 gap-1 hidden">
+    <Video className="h-5 w-5 text-muted-foreground" />
+    <span className="text-[9px] text-muted-foreground font-medium">Vídeo</span>
+  </div>
+  <div className="absolute bottom-1 right-1 bg-black/60 rounded p-0.5">
+    <Video className="h-3 w-3 text-white" />
+  </div>
+</div>
 ```
 
-**2. CustomEvent (células do calendário) — linha ~1007**
-
-Quando `thumbnailUrl` é `null` mas `hasVideoContent` é true, em vez do ícone estático, renderizar:
-```jsx
-<video src={videoUrl} preload="metadata" muted playsInline
-  className="w-14 h-14 sm:w-16 sm:h-16 object-cover rounded-lg" />
-```
-Com overlay de ícone `Video` semi-transparente e fallback `onError` para o ícone actual.
-
-**3. Grid lateral (Posts Feed) — linha ~1471**
-
-Mesma lógica: quando `thumbnailUrl` é `null` e o post tem vídeo, usar `<video preload="metadata">` com o primeiro URL de vídeo em vez do placeholder cinzento com ícone.
-
-**4. Diálogo de detalhes — verificar consistência**
-
-O diálogo já foi corrigido anteriormente, mas confirmar que também usa `<video>` para preview quando só há vídeos.
-
-### Resultado
-- Posts com imagem → thumbnail de imagem (sem alteração)
-- Posts com vídeo → primeiro frame do vídeo como thumbnail visual
-- Posts mistos → primeira imagem (sem alteração, já funciona)
-- Ícone de `Video` como overlay em todos os thumbnails de vídeo
+Alteração mínima — apenas adiciona o fallback visual que faltava e corrige a navegação DOM do `onError`.
 
