@@ -993,8 +993,9 @@ const Calendar = () => {
               </div>
             </>
           ) : (
-            <div className="w-16 h-16 sm:w-20 sm:h-20 bg-white/20 rounded-lg flex items-center justify-center">
-              {icon}
+            <div className="w-16 h-16 sm:w-20 sm:h-20 bg-white/20 rounded-lg flex items-center justify-center flex-col gap-1">
+              {hasVideoContent(event.resource) ? <Video className="h-5 w-5" /> : icon}
+              {hasVideoContent(event.resource) && <span className="text-[8px] opacity-75">Vídeo</span>}
             </div>
           )}
         </div>
@@ -1451,13 +1452,13 @@ const Calendar = () => {
                                   className="w-full h-full bg-gradient-to-br from-gray-100 to-gray-200 dark:from-gray-800 dark:to-gray-900 flex flex-col items-center justify-center p-2 gap-1"
                                   style={{ display: 'none' }}
                                 >
-                                  <LayoutGrid className="h-5 w-5 text-muted-foreground" />
+                                  {hasVideoContent(event.resource) ? <Video className="h-5 w-5 text-muted-foreground" /> : <LayoutGrid className="h-5 w-5 text-muted-foreground" />}
                                   <span className="text-[9px] text-muted-foreground font-medium text-center line-clamp-2">{event.title || 'Post'}</span>
                                 </div>
                               </>
                             ) : (
                               <div className="w-full h-full bg-gradient-to-br from-gray-100 to-gray-200 dark:from-gray-800 dark:to-gray-900 flex flex-col items-center justify-center p-2 gap-1">
-                                <LayoutGrid className="h-5 w-5 text-muted-foreground" />
+                                {hasVideoContent(event.resource) ? <Video className="h-5 w-5 text-muted-foreground" /> : <LayoutGrid className="h-5 w-5 text-muted-foreground" />}
                                 <span className="text-[9px] text-muted-foreground font-medium text-center line-clamp-2">{event.title || 'Post'}</span>
                               </div>
                             )}
