@@ -734,14 +734,26 @@ const Calendar = () => {
   const handleEventDrop = useCallback(
     async ({ event, start }: { event: CalendarEvent; start: Date }) => {
       try {
-        const table: 'posts' | 'stories' = event.resource.content_type === 'stories' ? 'stories' : 'posts';
+        const isDraft = event.resource.status === 'draft';
         
-        const { error } = await supabase
-          .from(table)
-          .update({ scheduled_date: start.toISOString() })
-          .eq('id', event.id);
-
-        if (error) throw error;
+        if (isDraft) {
+          // Drafts use posts_drafts table with scheduled_date (date) and updated_at
+          const { error } = await supabase
+            .from('posts_drafts')
+            .update({ 
+              scheduled_date: format(start, 'yyyy-MM-dd'),
+              updated_at: new Date().toISOString()
+            })
+            .eq('id', event.id);
+          if (error) throw error;
+        } else {
+          const table: 'posts' | 'stories' = event.resource.content_type === 'stories' ? 'stories' : 'posts';
+          const { error } = await supabase
+            .from(table)
+            .update({ scheduled_date: start.toISOString() })
+            .eq('id', event.id);
+          if (error) throw error;
+        }
 
         toast.success('Data atualizada com sucesso');
         fetchScheduledContent();
@@ -976,7 +988,7 @@ const Calendar = () => {
               <img 
                 src={thumbnailUrl} 
                 alt={String(event.title || '')}
-                className="w-20 h-20 sm:w-24 sm:h-24 object-cover rounded-lg shadow-sm"
+                className="w-14 h-14 sm:w-16 sm:h-16 object-cover rounded-lg shadow-sm"
                 onError={(e) => {
                   const target = e.currentTarget;
                   target.style.display = 'none';
@@ -986,15 +998,15 @@ const Calendar = () => {
                 }}
               />
               <div 
-                className="w-20 h-20 sm:w-24 sm:h-24 bg-white/20 rounded-lg items-center justify-center"
+                className="w-14 h-14 sm:w-16 sm:h-16 bg-white/20 rounded-lg items-center justify-center"
                 style={{ display: 'none' }}
               >
                 {icon}
               </div>
             </>
           ) : (
-            <div className="w-16 h-16 sm:w-20 sm:h-20 bg-white/20 rounded-lg flex items-center justify-center flex-col gap-1">
-              {hasVideoContent(event.resource) ? <Video className="h-5 w-5" /> : icon}
+            <div className="w-12 h-12 sm:w-14 sm:h-14 bg-white/20 rounded-lg flex items-center justify-center flex-col gap-1">
+              {hasVideoContent(event.resource) ? <Video className="h-4 w-4" /> : icon}
               {hasVideoContent(event.resource) && <span className="text-[8px] opacity-75">Vídeo</span>}
             </div>
           )}
