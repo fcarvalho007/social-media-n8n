@@ -67,52 +67,62 @@ interface GetlatePostPayload {
   }>;
 }
 
-// Database-backed idempotency check
-async function checkIdempotencyKey(supabase: any, key: string): Promise<{ exists: boolean; result?: any }> {
+// Database-backed idempotency: reserve key BEFORE publishing to block concurrent requests
+async function reserveIdempotencyKey(supabase: any, key: string): Promise<{ reserved: boolean; cachedResult?: any; inProgress?: boolean }> {
   try {
-    const { data, error } = await supabase
+    const expiresAt = new Date(Date.now() + 5 * 60 * 1000).toISOString(); // 5 minutes
+
+    // Try to INSERT — if key already exists, unique constraint will fail
+    const { error: insertError } = await supabase
       .from('idempotency_keys')
-      .select('result')
-      .eq('key', key)
-      .gt('expires_at', new Date().toISOString())
-      .maybeSingle();
-    
-    if (error) {
-      console.error('[publish-to-getlate] Error checking idempotency key:', error);
-      return { exists: false };
+      .insert({ key, result: null, expires_at: expiresAt });
+
+    if (insertError) {
+      // Key already exists — check if it has a result (completed) or is still in progress
+      if (insertError.code === '23505') {
+        console.log(`[publish-to-getlate] Idempotency key already reserved: ${key}`);
+        const { data } = await supabase
+          .from('idempotency_keys')
+          .select('result')
+          .eq('key', key)
+          .gt('expires_at', new Date().toISOString())
+          .maybeSingle();
+
+        if (data?.result) {
+          console.log(`[publish-to-getlate] ✅ Returning cached result for key: ${key}`);
+          return { reserved: false, cachedResult: data.result };
+        }
+        // result is null → first request is still running
+        console.log(`[publish-to-getlate] ⏳ Key exists but no result yet — publication in progress`);
+        return { reserved: false, inProgress: true };
+      }
+      console.error('[publish-to-getlate] Error reserving idempotency key:', insertError);
+      // Allow through on unexpected errors
+      return { reserved: true };
     }
-    
-    if (data) {
-      console.log(`[publish-to-getlate] Found existing idempotency key: ${key}`);
-      return { exists: true, result: data.result };
-    }
-    
-    return { exists: false };
+
+    console.log(`[publish-to-getlate] 🔒 Reserved idempotency key: ${key}`);
+    return { reserved: true };
   } catch (err) {
-    console.error('[publish-to-getlate] Exception checking idempotency:', err);
-    return { exists: false };
+    console.error('[publish-to-getlate] Exception reserving idempotency:', err);
+    return { reserved: true };
   }
 }
 
-async function storeIdempotencyKey(supabase: any, key: string, result: any): Promise<void> {
+async function updateIdempotencyKeyResult(supabase: any, key: string, result: any): Promise<void> {
   try {
-    const expiresAt = new Date(Date.now() + 5 * 60 * 1000).toISOString(); // 5 minutes
-    
     const { error } = await supabase
       .from('idempotency_keys')
-      .upsert({
-        key,
-        result,
-        expires_at: expiresAt,
-      }, { onConflict: 'key' });
-    
+      .update({ result })
+      .eq('key', key);
+
     if (error) {
-      console.error('[publish-to-getlate] Error storing idempotency key:', error);
+      console.error('[publish-to-getlate] Error updating idempotency key result:', error);
     } else {
-      console.log(`[publish-to-getlate] Stored idempotency key: ${key}`);
+      console.log(`[publish-to-getlate] Updated idempotency key result: ${key}`);
     }
   } catch (err) {
-    console.error('[publish-to-getlate] Exception storing idempotency:', err);
+    console.error('[publish-to-getlate] Exception updating idempotency:', err);
   }
 }
 
@@ -520,18 +530,26 @@ Deno.serve(async (req) => {
     // Cleanup expired keys periodically (non-blocking)
     cleanupExpiredKeys(supabase);
 
-    // Check for duplicate request using database-backed idempotency
+    // PRE-PUBLICATION IDEMPOTENCY: Reserve key BEFORE calling Getlate API
+    // This blocks concurrent requests during the 5-30s API call window
     if (idempotency_key) {
-      const idempotencyCheck = await checkIdempotencyKey(supabase, idempotency_key);
-      if (idempotencyCheck.exists && idempotencyCheck.result) {
-        console.log(`[publish-to-getlate] ⚠️ DUPLICATE REQUEST BLOCKED! Returning cached result for key: ${idempotency_key}`);
-        return new Response(
-          JSON.stringify(idempotencyCheck.result),
-          { 
-            headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-            status: 200 
-          }
-        );
+      const reservation = await reserveIdempotencyKey(supabase, idempotency_key);
+
+      if (!reservation.reserved) {
+        if (reservation.cachedResult) {
+          console.log(`[publish-to-getlate] ⚠️ DUPLICATE REQUEST BLOCKED! Returning cached result for key: ${idempotency_key}`);
+          return new Response(
+            JSON.stringify(reservation.cachedResult),
+            { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 200 }
+          );
+        }
+        if (reservation.inProgress) {
+          console.log(`[publish-to-getlate] ⚠️ CONCURRENT REQUEST BLOCKED! Publication already in progress for key: ${idempotency_key}`);
+          return new Response(
+            JSON.stringify({ success: false, error: { message: 'Publicação já em curso para este conteúdo. Aguarda o resultado.', code: 'DUPLICATE_IN_PROGRESS', isRetryable: false } }),
+            { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 409 }
+          );
+        }
       }
     }
 
@@ -610,8 +628,30 @@ Deno.serve(async (req) => {
       console.log(`[publish-to-getlate] Scheduled for: ${getlatePayload.scheduledFor}`);
     }
 
+    // DEDUP GUARD: Check if a recent attempt already exists for this post_id + format
+    // This prevents duplicates even without idempotency keys
+    let attemptId: string | null = null;
+    
+    if (post_id) {
+      const twoMinAgo = new Date(Date.now() - 2 * 60 * 1000).toISOString();
+      const { data: existingAttempt } = await supabase
+        .from('publication_attempts')
+        .select('id, status')
+        .eq('post_id', post_id)
+        .eq('format', format)
+        .gte('attempted_at', twoMinAgo)
+        .limit(1);
+
+      if (existingAttempt && existingAttempt.length > 0) {
+        console.log(`[publish-to-getlate] ⚠️ DEDUP: Recent attempt already exists for ${post_id}/${format} (status: ${existingAttempt[0].status}). Skipping duplicate.`);
+        return new Response(
+          JSON.stringify({ success: true, deduplicated: true, message: 'Publicação já registada recentemente', existingAttemptId: existingAttempt[0].id }),
+          { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 200 }
+        );
+      }
+    }
+
     // Log publication attempt - ALWAYS record, even without post_id
-    // Insert pending and capture the ID so we can UPDATE later (no duplicates)
     const attemptRecord = {
       post_id: post_id || null,
       platform: network,
@@ -627,7 +667,7 @@ Deno.serve(async (req) => {
       .select('id')
       .single();
     
-    const attemptId = attemptData?.id;
+    attemptId = attemptData?.id;
     if (insertAttemptError) {
       console.error('[publish-to-getlate] Failed to record attempt:', insertAttemptError);
     } else {
@@ -781,9 +821,9 @@ Deno.serve(async (req) => {
       postUrl: result.postUrl,
     };
 
-    // Store result in database for idempotency
+    // Update idempotency key with the result (was reserved with null before API call)
     if (idempotency_key) {
-      await storeIdempotencyKey(supabase, idempotency_key, successResponse);
+      await updateIdempotencyKeyResult(supabase, idempotency_key, successResponse);
     }
 
     return new Response(
