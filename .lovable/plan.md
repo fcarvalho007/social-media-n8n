@@ -1,104 +1,82 @@
 
 
-## Auditoria: Chamadas Duplicadas à API Getlate
+## Auditoria: Fiabilidade do Calendário
 
-### Evidência na base de dados
+### Problemas identificados
 
-O post `06757d6e` (10 de Abril) tem **2 tentativas por plataforma** — 8 registos para 4 redes:
+| # | Problema | Gravidade |
+|---|----------|-----------|
+| 1 | **Eliminar rascunho falha silenciosamente** — `handleDelete` só gere tabelas `posts` e `stories`. Quando o utilizador clica "Eliminar" num evento de rascunho (vindo de `posts_drafts`), o sistema tenta eliminar da tabela `posts` com o ID do rascunho, que não existe lá. O delete retorna sem erro mas nada acontece. | Alta |
+| 2 | **Botão "Editar" navega para rota errada em rascunhos** — Rascunhos são redirecionados para `/review/{id}`, que espera um post da tabela `posts`. Deveria navegar para `/manual-create?draft={id}`. | Alta |
+| 3 | **Cache não é limpo imediatamente ao eliminar** — Após `handleDelete`, o `fetchScheduledContent()` actualiza o cache, mas se falhar (e.g. erro de rede), o cache antigo com o evento eliminado persiste. O utilizador verá o evento fantasma ao recarregar. | Média |
+| 4 | **`scheduled_jobs` órfãos** — Quando um post agendado é eliminado do calendário, os registos em `scheduled_jobs` (se existirem) permanecem. Não causam problemas graves porque o edge function verifica existência do post, mas sujam a BD. | Baixa |
+| 5 | **Diálogo de detalhes não distingue rascunhos** — O badge de status e a descrição do diálogo tratam rascunhos como posts normais ("Aprovada em..."), quando deveria dizer "Rascunho criado em...". | Média |
 
-| Plataforma | Intervalo entre duplicados |
-|---|---|
-| facebook_reel | 2min 18s |
-| youtube_shorts | 4s |
-| tiktok_video | 31s |
-| instagram_reel | 55s |
-
-Posts posteriores (12-14 Abril) estão limpos — 1 tentativa por plataforma. Portanto o problema ocorreu pelo menos uma vez.
-
-### Causas identificadas (3 problemas)
-
-**1. Idempotência "tarde demais" no edge function**
-A chave de idempotência só é guardada na BD **DEPOIS** de o Getlate responder (linha 786). Se duas chamadas chegarem quase simultaneamente (antes da primeira acabar), ambas passam o check e ambas publicam. A janela de race condition é o tempo de resposta do Getlate (5-30s).
-
-**2. Frontend escreve em `publication_attempts` — violando single source of truth**
-Apesar do memory documentar que "o edge function é a única fonte", o frontend ainda faz updates em `publication_attempts` (linhas 922-929 e 961-974 de `usePublishWithProgress.ts`). Isto não cria duplicados directamente, mas pode causar conflitos de estado com o edge function (ambos a escrever no mesmo registo simultaneamente).
-
-**3. Sem constraint de unicidade na BD**
-Não existe nenhum constraint que impeça dois registos `publication_attempts` com o mesmo `post_id + format` num intervalo curto. A base de dados aceita duplicados silenciosamente.
-
-### Plano de correcção (3 alterações)
+### Plano de correcção
 
 | # | Ficheiro | Alteração |
 |---|----------|-----------|
-| 1 | `supabase/functions/publish-to-getlate/index.ts` | **Idempotência pré-publicação**: Mover o `INSERT` da chave de idempotência para ANTES de chamar o Getlate. Se o insert falhar (key já existe), retornar o resultado em cache. Isto bloqueia chamadas concorrentes. |
-| 2 | `src/hooks/usePublishWithProgress.ts` | **Remover writes redundantes em `publication_attempts`**: Eliminar os blocos de update nas linhas 922-929 (success) e 961-974 (error). O edge function já gere estes estados — o frontend não deve interferir. |
-| 3 | Migration SQL | **Dedup na BD**: Adicionar verificação antes de inserir novo attempt — se já existe um com mesmo `post_id + format + platform` nos últimos 2 minutos, não inserir novo (guard no edge function). |
+| 1 | `src/pages/Calendar.tsx` — `handleDelete` | Adicionar verificação: se `resource.status === 'draft'`, eliminar de `posts_drafts` em vez de `posts`/`stories`. Limpar cache localStorage imediatamente antes do refetch. |
+| 2 | `src/pages/Calendar.tsx` — botão "Editar" | Se `resource.status === 'draft'`, navegar para `/manual-create?draft=${id}` em vez de `/review/${id}`. |
+| 3 | `src/pages/Calendar.tsx` — `handleDelete` | Após a eliminação bem-sucedida, remover imediatamente o evento do state local (`setEvents(prev => prev.filter(...))`) e limpar o cache (`localStorage.removeItem(CACHE_KEY)`). Isto garante consistência instantânea mesmo sem o refetch. |
+| 4 | `src/pages/Calendar.tsx` — `handleDelete` | Adicionar cleanup best-effort de `scheduled_jobs` quando se elimina um post: `supabase.from('scheduled_jobs').delete().eq('post_id', id)`. |
+| 5 | `src/pages/Calendar.tsx` — diálogo de detalhes | Diferenciar texto da `DialogDescription` e badges para rascunhos: mostrar "Rascunho" com badge cinzento e data de criação em vez de "Aprovada/Agendada". |
 
 ### Detalhe técnico
 
-**Ponto 1 — Reservar chave ANTES de publicar:**
-
+**Ponto 1+3 — handleDelete corrigido:**
 ```typescript
-// ANTES (race condition):
-// 1. Check key → not found
-// 2. Call Getlate API (5-30s)
-// 3. Store key with result
-
-// DEPOIS (bloqueio imediato):
-// 1. INSERT key with result=null → se falha, key já existe → retornar cache
-// 2. Call Getlate API
-// 3. UPDATE key with result
-
-// No edge function, antes de chamar publishToGetlate():
-if (idempotency_key) {
-  const { error: reserveError } = await supabase
-    .from('idempotency_keys')
-    .insert({ key: idempotency_key, result: null, expires_at: ... });
-  
-  if (reserveError?.code === '23505') { // unique violation
-    // Outro request já reservou esta key — buscar resultado
-    const { data } = await supabase.from('idempotency_keys')
-      .select('result').eq('key', idempotency_key).single();
-    if (data?.result) return cached response;
-    // Se result é null, o primeiro request ainda está a correr — rejeitar
-    return Response("Publication in progress", 409);
+const handleDelete = async (id: string, contentType: string) => {
+  try {
+    const isDraft = selectedEvent?.resource.status === 'draft';
+    
+    if (isDraft) {
+      const { error } = await supabase.from('posts_drafts').delete().eq('id', id);
+      if (error) throw error;
+    } else {
+      const table = contentType === 'stories' ? 'stories' : 'posts';
+      const { error } = await supabase.from(table).delete().eq('id', id);
+      if (error) throw error;
+      // Cleanup orphaned scheduled_jobs
+      if (table === 'posts') {
+        await supabase.from('scheduled_jobs').delete().eq('post_id', id);
+      }
+    }
+    
+    // Optimistic: remove from local state immediately
+    setEvents(prev => prev.filter(e => e.id !== id));
+    localStorage.removeItem(CACHE_KEY);
+    
+    toast.success('Publicação eliminada com sucesso');
+    setSelectedEvent(null);
+    fetchScheduledContent();
+  } catch (error) {
+    toast.error('Falha ao eliminar item');
   }
-}
+};
 ```
 
-**Ponto 2 — Remover do frontend:**
-
+**Ponto 2 — Editar rascunho:**
 ```typescript
-// REMOVER linhas 922-929:
-// await supabase.from('publication_attempts').update(...)
-
-// REMOVER linhas 961-974:
-// await supabase.from('publication_attempts').update(...)
+onClick={() => {
+  if (selectedEvent.resource.status === 'draft') {
+    navigate(`/manual-create?draft=${selectedEvent.id}`);
+  } else {
+    const path = selectedEvent.resource.content_type === 'stories'
+      ? `/review-story/${selectedEvent.id}`
+      : `/review/${selectedEvent.id}`;
+    navigate(path);
+  }
+  setSelectedEvent(null);
+}}
 ```
 
-**Ponto 3 — Guard no edge function antes de inserir attempt:**
-
+**Ponto 5 — DialogDescription para rascunhos:**
 ```typescript
-// Antes de inserir novo attempt, verificar se já existe um recente
-const twoMinAgo = new Date(Date.now() - 2 * 60 * 1000).toISOString();
-const { data: existing } = await supabase
-  .from('publication_attempts')
-  .select('id, status')
-  .eq('post_id', post_id)
-  .eq('format', format)
-  .gte('attempted_at', twoMinAgo)
-  .limit(1);
-
-if (existing?.length > 0) {
-  console.log(`[publish-to-getlate] ⚠️ DEDUP: attempt already exists for ${post_id}/${format}`);
-  return existing[0]; // Reutilizar o attempt existente
-}
+selectedEvent.resource.status === 'draft'
+  ? `Rascunho criado em ${format(...)}`
+  : // ...mensagem actual
 ```
 
-### Resultado esperado
-
-- Chamadas concorrentes ao mesmo endpoint → bloqueadas pela chave de idempotência pré-reservada
-- Edge function é a **única** entidade a escrever em `publication_attempts`
-- Guard temporal impede duplicados mesmo sem idempotency key
-- Cada publicação = exactamente 1 chamada à API Getlate por plataforma
+5 correcções cirúrgicas, todas no mesmo ficheiro `Calendar.tsx`.
 
