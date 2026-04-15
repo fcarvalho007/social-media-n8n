@@ -366,6 +366,23 @@ export default function PublicationHistory() {
     }
 
     items.sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime());
+
+    // Detect duplicates: same caption within 30 minutes
+    const THIRTY_MIN = 30 * 60 * 1000;
+    for (let i = 0; i < items.length; i++) {
+      if (!items[i].caption) continue;
+      for (let j = i + 1; j < items.length; j++) {
+        if (!items[j].caption) continue;
+        if (items[i].caption === items[j].caption) {
+          const timeDiff = Math.abs(new Date(items[i].timestamp).getTime() - new Date(items[j].timestamp).getTime());
+          if (timeDiff <= THIRTY_MIN) {
+            items[i].isDuplicate = true;
+            items[j].isDuplicate = true;
+          }
+        }
+      }
+    }
+
     return items;
   }, [attempts, posts]);
 
