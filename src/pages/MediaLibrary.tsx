@@ -49,7 +49,7 @@ import {
   Clock,
   AlertTriangle
 } from 'lucide-react';
-import { format, formatDistanceToNow } from 'date-fns';
+import { format, formatDistanceToNow, differenceInDays, addDays } from 'date-fns';
 import { pt } from 'date-fns/locale';
 import { cn } from '@/lib/utils';
 import {
@@ -105,6 +105,12 @@ const sourceIcons: Record<string, React.ComponentType<{ className?: string }>> =
   ai: Sparkles,
   publication: Image,
   'grid-splitter': Grid3x3,
+};
+
+// Calculate days remaining before file expires (7-day retention)
+const getDaysRemaining = (createdAt: string): number => {
+  const expiresAt = addDays(new Date(createdAt), 7);
+  return Math.max(0, differenceInDays(expiresAt, new Date()));
 };
 
 export default function MediaLibrary() {
@@ -765,8 +771,15 @@ export default function MediaLibrary() {
                             )}
                             onError={(e) => {
                               e.currentTarget.style.display = 'none';
+                              const expired = e.currentTarget.parentElement?.querySelector('[data-expired-fallback]') as HTMLElement;
+                              if (expired) expired.style.display = 'flex';
                             }}
                           />
+                          {/* Expired fallback */}
+                          <div data-expired-fallback className="absolute inset-0 flex-col items-center justify-center bg-muted" style={{ display: 'none' }}>
+                            <AlertTriangle className="h-8 w-8 text-destructive/60" />
+                            <span className="text-[10px] text-destructive/80 mt-1">Ficheiro expirado</span>
+                          </div>
                           <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
                             <div className="bg-black/50 rounded-full p-2">
                               <Video className="h-5 w-5 text-white" />
@@ -792,6 +805,28 @@ export default function MediaLibrary() {
                         </div>
                       )}
                     </div>
+
+                    {/* Expiration badge */}
+                    {(() => {
+                      const daysLeft = getDaysRemaining(item.created_at);
+                      if (daysLeft <= 2) return (
+                        <div className="absolute bottom-2 left-2 z-10">
+                          <Badge className="text-[10px] h-5 bg-destructive/90 text-destructive-foreground border-0">
+                            <Clock className="h-3 w-3 mr-0.5" />
+                            Expira em {daysLeft}d
+                          </Badge>
+                        </div>
+                      );
+                      if (daysLeft <= 4) return (
+                        <div className="absolute bottom-2 left-2 z-10">
+                          <Badge className="text-[10px] h-5 bg-amber-500/90 text-white border-0">
+                            <Clock className="h-3 w-3 mr-0.5" />
+                            {daysLeft}d restantes
+                          </Badge>
+                        </div>
+                      );
+                      return null;
+                    })()}
 
                     {/* Info overlay */}
                     <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/80 to-transparent p-3 translate-y-full group-hover:translate-y-0 transition-transform">
@@ -948,6 +983,17 @@ export default function MediaLibrary() {
                     <Calendar className="h-4 w-4 text-muted-foreground" />
                     <span>
                       {format(new Date(detailsItem.created_at), "dd MMM yyyy 'às' HH:mm", { locale: pt })}
+                    </span>
+                  </div>
+                  <div className="flex items-center gap-2 text-sm">
+                    <AlertTriangle className={cn(
+                      "h-4 w-4",
+                      getDaysRemaining(detailsItem.created_at) <= 2 ? "text-destructive" : "text-amber-500"
+                    )} />
+                    <span className={cn(
+                      getDaysRemaining(detailsItem.created_at) <= 2 && "text-destructive font-medium"
+                    )}>
+                      Expira em {format(addDays(new Date(detailsItem.created_at), 7), "dd MMM yyyy", { locale: pt })} ({getDaysRemaining(detailsItem.created_at)}d restantes)
                     </span>
                   </div>
                   <div className="flex items-center gap-2 text-sm">
