@@ -45,7 +45,9 @@ import {
   X,
   FileText,
   ExternalLink,
-  ImageOff
+  ImageOff,
+  Clock,
+  AlertTriangle
 } from 'lucide-react';
 import { format, formatDistanceToNow } from 'date-fns';
 import { pt } from 'date-fns/locale';
@@ -608,6 +610,14 @@ export default function MediaLibrary() {
         </div>
       </div>
 
+      {/* Retention warning */}
+      <div className="px-4 md:px-6 py-2 border-b bg-amber-500/10 border-amber-500/20">
+        <div className="flex items-center gap-2 text-xs text-amber-700 dark:text-amber-400">
+          <Clock className="h-3.5 w-3.5 shrink-0" />
+          <span>Os ficheiros são eliminados automaticamente após 7 dias para sustentabilidade do sistema</span>
+        </div>
+      </div>
+
       {/* Filters */}
       <div className="px-4 md:px-6 py-3 border-b bg-muted/30">
         <div className="flex flex-col md:flex-row md:items-center gap-3">
@@ -730,7 +740,7 @@ export default function MediaLibrary() {
                           <span className="text-xs text-muted-foreground mt-2">PDF</span>
                         </div>
                       ) : isVideo ? (
-                        <div className="relative h-full w-full">
+                        <div className="relative h-full w-full bg-black">
                           {item.thumbnail_url ? (
                             <img
                               src={item.thumbnail_url}
@@ -739,15 +749,28 @@ export default function MediaLibrary() {
                               loading="lazy"
                               onError={(e) => {
                                 e.currentTarget.style.display = 'none';
-                                e.currentTarget.nextElementSibling?.classList.remove('hidden');
+                                const videoEl = e.currentTarget.parentElement?.querySelector('video');
+                                if (videoEl) videoEl.classList.remove('hidden');
                               }}
                             />
                           ) : null}
-                          <div className={cn(
-                            "absolute inset-0 flex items-center justify-center bg-black/30",
-                            item.thumbnail_url && "hidden"
-                          )}>
-                            <Video className="h-8 w-8 text-white" />
+                          <video
+                            src={item.file_url}
+                            preload="metadata"
+                            muted
+                            playsInline
+                            className={cn(
+                              "h-full w-full object-cover",
+                              item.thumbnail_url && "hidden"
+                            )}
+                            onError={(e) => {
+                              e.currentTarget.style.display = 'none';
+                            }}
+                          />
+                          <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
+                            <div className="bg-black/50 rounded-full p-2">
+                              <Video className="h-5 w-5 text-white" />
+                            </div>
                           </div>
                         </div>
                       ) : (
