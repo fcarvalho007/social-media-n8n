@@ -258,6 +258,10 @@ export default function ManualCreate() {
   
   // State for cancellation
   const [isCancellingPublish, setIsCancellingPublish] = useState(false);
+  
+  // Duplicate detection state
+  const [duplicateWarning, setDuplicateWarning] = useState<{ id: string; created_at: string; selected_networks: string[] | null; status: string | null } | null>(null);
+  const [pendingPublishParams, setPendingPublishParams] = useState<any>(null);
 
   // Auto-save hook
   const { lastSaved, isSaving: isAutoSaving, hasUnsavedChanges } = useAutoSave({
