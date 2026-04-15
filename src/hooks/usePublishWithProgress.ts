@@ -111,6 +111,13 @@ const initialProgress: PublishProgress = {
   },
 };
 
+interface DuplicateInfo {
+  id: string;
+  created_at: string;
+  selected_networks: string[] | null;
+  status: string | null;
+}
+
 interface PublishParams {
   formats: PostFormat[];
   caption: string;
@@ -120,6 +127,7 @@ interface PublishParams {
   scheduleAsap: boolean;
   recoveredFromPostId?: string; // Track if this is a recovered post
   networkCaptions?: Record<string, string>; // Per-network captions when "Legendas separadas" is active
+  skipDuplicateCheck?: boolean; // Skip duplicate detection (user confirmed)
 }
 
 // Extract first frame from video file
