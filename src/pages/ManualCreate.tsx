@@ -2747,6 +2747,7 @@ export default function ManualCreate() {
             }
           }}
           duplicate={duplicateWarning}
+          caption={pendingPublishParams?.caption}
           onConfirm={async () => {
             setDuplicateWarning(null);
             if (pendingPublishParams) {
