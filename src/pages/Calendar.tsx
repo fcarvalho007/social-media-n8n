@@ -644,13 +644,28 @@ const Calendar = () => {
 
   const handleDelete = async (id: string, contentType: string) => {
     try {
-      const table: 'posts' | 'stories' = contentType === 'stories' ? 'stories' : 'posts';
+      const isDraft = selectedEvent?.resource.status === 'draft';
       
-      const { error } = await supabase.from(table).delete().eq('id', id);
+      if (isDraft) {
+        const { error } = await supabase.from('posts_drafts').delete().eq('id', id);
+        if (error) throw error;
+      } else {
+        const table: 'posts' | 'stories' = contentType === 'stories' ? 'stories' : 'posts';
+        const { error } = await supabase.from(table).delete().eq('id', id);
+        if (error) throw error;
+        // Cleanup orphaned scheduled_jobs (best-effort)
+        if (table === 'posts') {
+          await supabase.from('scheduled_jobs').delete().eq('post_id', id).then(() => {});
+        }
+      }
 
-      if (error) throw error;
+      // Optimistic: remove from local state immediately
+      setEvents(prev => prev.filter(e => e.id !== id));
+      // Clear cache to prevent ghost events on reload
+      localStorage.removeItem(CACHE_KEY);
+      localStorage.removeItem(CACHE_TIMESTAMP_KEY);
 
-      toast.success('Publicação eliminada com sucesso');
+      toast.success(isDraft ? 'Rascunho eliminado com sucesso' : 'Publicação eliminada com sucesso');
       setSelectedEvent(null);
       fetchScheduledContent();
     } catch (error) {
@@ -1552,11 +1567,13 @@ const Calendar = () => {
             </DialogTitle>
             {selectedEvent && (
               <DialogDescription>
-                {selectedEvent.resource.scheduled_date 
-                  ? `Agendada para ${format(selectedEvent.start as Date, "dd 'de' MMMM 'de' yyyy 'às' HH:mm", { locale: pt })}`
-                  : selectedEvent.resource.status === 'published' 
-                    ? `Publicada em ${format(selectedEvent.start as Date, "dd 'de' MMMM 'de' yyyy 'às' HH:mm", { locale: pt })}`
-                    : `Aprovada em ${format(selectedEvent.start as Date, "dd 'de' MMMM 'de' yyyy 'às' HH:mm", { locale: pt })}`
+                {selectedEvent.resource.status === 'draft'
+                  ? `Rascunho criado em ${format(selectedEvent.start as Date, "dd 'de' MMMM 'de' yyyy 'às' HH:mm", { locale: pt })}`
+                  : selectedEvent.resource.scheduled_date 
+                    ? `Agendada para ${format(selectedEvent.start as Date, "dd 'de' MMMM 'de' yyyy 'às' HH:mm", { locale: pt })}`
+                    : selectedEvent.resource.status === 'published' 
+                      ? `Publicada em ${format(selectedEvent.start as Date, "dd 'de' MMMM 'de' yyyy 'às' HH:mm", { locale: pt })}`
+                      : `Aprovada em ${format(selectedEvent.start as Date, "dd 'de' MMMM 'de' yyyy 'às' HH:mm", { locale: pt })}`
                 }
               </DialogDescription>
             )}
@@ -1566,6 +1583,11 @@ const Calendar = () => {
               <div className="bg-muted/50 rounded-lg p-4">
                 <div className="flex items-start justify-between gap-3 mb-2">
                   <h3 className="font-semibold text-lg">{selectedEvent.title}</h3>
+                  {selectedEvent.resource.status === 'draft' && (
+                    <Badge variant="outline" className="bg-muted text-muted-foreground border-muted-foreground/20">
+                      Rascunho
+                    </Badge>
+                  )}
                   {selectedEvent.resource.status === 'published' && (
                     <Badge variant="outline" className="bg-success/10 text-success border-success/20">
                       Publicada
@@ -1799,11 +1821,15 @@ const Calendar = () => {
                 <Button
                   className="flex-1"
                   onClick={() => {
-                    const path =
-                      selectedEvent.resource.content_type === 'stories'
-                        ? `/review-story/${selectedEvent.id}`
-                        : `/review/${selectedEvent.id}`;
-                    navigate(path);
+                    if (selectedEvent.resource.status === 'draft') {
+                      navigate(`/manual-create?draft=${selectedEvent.id}`);
+                    } else {
+                      const path =
+                        selectedEvent.resource.content_type === 'stories'
+                          ? `/review-story/${selectedEvent.id}`
+                          : `/review/${selectedEvent.id}`;
+                      navigate(path);
+                    }
                     setSelectedEvent(null);
                   }}
                 >
