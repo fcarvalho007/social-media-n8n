@@ -1447,7 +1447,7 @@ export default function ManualCreate() {
     // NOTE: No frontend quota blocking - Getlate.dev API will reject if quota is exceeded
 
     // Use the new hook to publish
-    const success = await executePublish({
+    const publishParams = {
       formats: selectedFormats,
       caption,
       mediaFiles: files,
@@ -1456,9 +1456,18 @@ export default function ManualCreate() {
       scheduleAsap,
       recoveredFromPostId: recoveredPostId || undefined,
       networkCaptions: useSeparateCaptions ? networkCaptions : undefined,
-    });
+    };
+    
+    const result = await executePublish(publishParams);
 
-    if (success) {
+    // Handle duplicate detection
+    if (result && typeof result === 'object' && 'duplicate' in result) {
+      setDuplicateWarning(result.duplicate);
+      setPendingPublishParams(publishParams);
+      return;
+    }
+
+    if (result === true) {
       await refreshQuota();
     }
   };
