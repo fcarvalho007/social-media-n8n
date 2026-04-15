@@ -450,7 +450,7 @@ export function usePublishWithProgress() {
       // ═══════════════════════════════════════════
       // DUPLICATE CHECK: Detect same caption published in last 30 minutes
       // ═══════════════════════════════════════════
-      if (!params.skipDuplicateCheck) {
+      if (!params.skipDuplicateCheck && caption?.trim()) {
         try {
           const thirtyMinAgo = new Date(Date.now() - 30 * 60 * 1000).toISOString();
           const { data: recentDuplicates } = await supabase
