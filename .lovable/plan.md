@@ -1,65 +1,53 @@
 
 
-## Diagnóstico claro de erros no upload — saber sempre o motivo
+## Refinamentos ao Diagnóstico de Upload
 
-### Problema actual
+### Problemas encontrados
 
-Quando o upload falha, o toast diz apenas "Falha no upload do ficheiro 1. Verifique o histórico para detalhes." e o `error_log` guarda a mensagem técnica do storage (ex: `Invalid key`). O utilizador não sabe se é nome do ficheiro, tamanho, dimensão ou formato.
+1. **Falso positivo na detecção de "Invalid key"** (linha 39 de `usePublishWithProgress.ts`): O check `msg.includes('key')` é demasiado amplo — qualquer erro que contenha a palavra "key" (ex: "API key invalid", "primary key") seria incorrectamente classificado como problema de nome de ficheiro. Deve ser mais restritivo.
 
-### Plano
+2. **Newline no toast não renderiza**: O `\n` dentro do `description` do toast sonner não cria uma quebra de linha visível — o texto aparece colado. Deve ser separado em linhas distintas ou usar outro padrão.
+
+3. **Formato não suportado dá falso positivo se MIME estiver vazio**: Quando `file.type` é vazio (acontece em alguns browsers para ficheiros arrastados), a condição `!allSupported.includes(file.type)` é verdadeira, e o diagnóstico diz "formato não suportado" mesmo que a extensão seja válida (ex: `.mp4`).
+
+### Plano de correção
 
 | # | Ficheiro | Alteração |
 |---|----------|-----------|
-| 1 | `src/hooks/usePublishWithProgress.ts` | **Diagnóstico inteligente de erros de upload**: Quando o upload falha, analisar o erro e gerar uma mensagem clara com a causa provável. Criar função `diagnoseUploadError(file, error, safeName)` que verifica: (a) Se o erro contém "Invalid key" → "Nome do ficheiro incompatível"; (b) Se `file.size` excede 4MB (imagem) ou 650MB (vídeo) → "Ficheiro demasiado grande (Xmb, máx Ymb)"; (c) Se o tipo MIME não é suportado → "Formato não suportado (.xyz)"; (d) Outros → mensagem técnica original. |
-| 2 | `src/hooks/usePublishWithProgress.ts` | **Toast com causa específica**: Substituir o toast genérico por um que mostra a causa: `toast.error('Causa: Nome do ficheiro contém caracteres inválidos. O nome original "riverside_v1_[editado]..." foi corrigido mas o upload falhou.', { duration: 15000 })` |
-| 3 | `src/hooks/usePublishWithProgress.ts` | **Error log enriquecido**: Guardar no `error_log` um objecto legível com: `causa`, `nome_original`, `nome_sanitizado`, `tamanho_mb`, `tipo`, `mensagem_tecnica`. |
-| 4 | `src/lib/publishingErrors.ts` | **Adicionar classificações de upload**: Novos tipos `filename_invalid`, `file_too_large`, `file_format_unsupported` com mensagens claras e acções sugeridas (ex: "Renomeie o ficheiro removendo caracteres especiais como [ ] e acentos"). |
-| 5 | `src/pages/PublicationHistory.tsx` | **Mostrar causa no card de erro**: Quando o `error_log` tem informação estruturada de upload, mostrar a causa e sugestão directamente no card expandido em vez de apenas o texto técnico. |
+| 1 | `src/hooks/usePublishWithProgress.ts` | **Corrigir falso positivo "key"**: Mudar `msg.includes('key')` para apenas `msg.includes('invalid key')` (remover o check solto de `'key'`). |
+| 2 | `src/hooks/usePublishWithProgress.ts` | **Corrigir toast description**: Substituir `\n` por ` — ` para manter a sugestão visível numa linha. Ex: `"ficheiro.mp4 contém caracteres especiais — Renomeie usando letras e hífens"`. |
+| 3 | `src/hooks/usePublishWithProgress.ts` | **Corrigir detecção MIME vazia**: Antes de declarar "formato não suportado", verificar se a extensão do ficheiro é válida (`.mp4`, `.jpg`, etc). Se a extensão for válida mas o MIME estiver vazio, não classificar como formato inválido — deixar cair no fallback genérico. |
 
 ### Detalhe técnico
 
-**Função de diagnóstico (ponto 1)**:
+**Ponto 1** — Linha 39:
 ```typescript
-function diagnoseUploadError(file: File, error: any, safeName: string): {
-  causa: string;
-  detalhe: string;
-  sugestao: string;
-} {
-  const msg = error?.message?.toLowerCase() || '';
-  const sizeMB = (file.size / (1024 * 1024)).toFixed(1);
-  const isVideo = file.type.startsWith('video/');
-  const maxMB = isVideo ? 650 : 4;
+// ANTES (falso positivo)
+if (msg.includes('invalid key') || msg.includes('invalid input') || msg.includes('key')) {
 
-  if (msg.includes('invalid key')) {
-    return {
-      causa: 'Nome do ficheiro incompatível',
-      detalhe: `"${file.name}" contém caracteres especiais ([], espaços, acentos)`,
-      sugestao: 'Renomeie o ficheiro usando apenas letras, números e hífens',
-    };
-  }
-  if (file.size > maxMB * 1024 * 1024) {
-    return {
-      causa: 'Ficheiro demasiado grande',
-      detalhe: `${sizeMB}MB (máximo: ${maxMB}MB para ${isVideo ? 'vídeos' : 'imagens'})`,
-      sugestao: `Reduza o tamanho do ficheiro para menos de ${maxMB}MB`,
-    };
-  }
-  // ... tipo MIME, etc.
-}
+// DEPOIS (preciso)
+if (msg.includes('invalid key') || msg.includes('invalid input')) {
 ```
 
-**Toast melhorado**:
+**Ponto 2** — Linha 580:
+```typescript
+// ANTES (newline não renderiza)
+description: `${diagnosis.detalhe}\n💡 ${diagnosis.sugestao}`,
+
+// DEPOIS
+description: `${diagnosis.detalhe} — 💡 ${diagnosis.sugestao}`,
 ```
-❌ Upload falhou: Nome do ficheiro incompatível
-   "riverside_v1_[editado]..." → Renomeie sem caracteres especiais
+
+**Ponto 3** — Linhas 57-63:
+```typescript
+// ANTES
+if (!allSupported.includes(file.type) || msg.includes('mime') || ...) {
+
+// DEPOIS — verificar se a extensão é conhecida antes de rejeitar
+const knownExts = ['jpg', 'jpeg', 'png', 'webp', 'gif', 'mp4', 'mov', 'qt', 'm4v'];
+const hasValidExt = knownExts.includes(ext);
+if ((!allSupported.includes(file.type) && !hasValidExt) || msg.includes('mime') || ...) {
 ```
 
-### Resultado esperado
-
-Quando um upload falhar, o utilizador vê imediatamente:
-- **O quê** falhou (nome, tamanho, formato)
-- **Porquê** (mensagem clara, não técnica)
-- **Como resolver** (acção concreta)
-
-Tanto no toast imediato como no histórico de publicações.
+Correcções cirúrgicas, sem alterar a estrutura existente.
 
