@@ -102,6 +102,7 @@ interface ConsolidatedItem {
   error_message?: string | null;
   successCount?: number;
   totalPlatforms?: number;
+  isDuplicate?: boolean;
 }
 
 const platformIcons: Record<string, React.ComponentType<{ className?: string }>> = {
