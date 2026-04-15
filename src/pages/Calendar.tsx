@@ -1799,7 +1799,8 @@ const Calendar = () => {
                     );
                   })()}
                 </div>
-              )}
+                );
+              })()}
 
               {selectedEvent.resource.story_image_url && (
                 <div className="relative rounded-xl overflow-hidden border-2 shadow-md hover:shadow-lg transition-shadow mx-auto bg-muted/30 max-w-[240px]">
