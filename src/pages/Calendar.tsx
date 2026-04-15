@@ -1675,13 +1675,32 @@ const Calendar = () => {
                 </div>
               </div>
 
-              {/* Carousel with navigation for multiple images */}
-              {selectedEvent.resource.template_a_images && selectedEvent.resource.template_a_images.length > 0 && (
+              {/* Carousel with navigation for multiple images (filter out videos) */}
+              {(() => {
+                const allMedia = selectedEvent.resource.template_a_images || [];
+                const imageOnly = allMedia.filter(url => !isVideoUrl(url));
+                const hasVideos = allMedia.some(url => isVideoUrl(url));
+                if (imageOnly.length === 0 && !hasVideos) return null;
+                if (imageOnly.length === 0 && hasVideos) {
+                  return (
+                    <div className="rounded-xl border bg-muted/30 p-8 flex flex-col items-center justify-center gap-2">
+                      <Video className="h-10 w-10 text-muted-foreground" />
+                      <span className="text-sm text-muted-foreground">Conteúdo de vídeo</span>
+                    </div>
+                  );
+                }
+                return null;
+              })()}
+              {(() => {
+                const allMedia = selectedEvent.resource.template_a_images || [];
+                const images = allMedia.filter(url => !isVideoUrl(url));
+                if (images.length === 0) return null;
+                return (
                 <div className="space-y-3">
                   {(() => {
-                    const images = selectedEvent.resource.template_a_images!;
                     const hasMultipleImages = images.length > 1;
-                    const currentImage = images[currentImageIndex];
+                    const safeIndex = Math.min(currentImageIndex, images.length - 1);
+                    const currentImage = images[safeIndex];
                     
                     return hasMultipleImages ? (
                       <>
