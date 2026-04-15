@@ -56,6 +56,7 @@ import { PublishingOverlay } from '@/components/manual-post/PublishingOverlay';
 import { PublishProgressModal } from '@/components/publishing/PublishProgressModal';
 import { AspectRatioWarning } from '@/components/publishing/AspectRatioWarning';
 import { usePublishWithProgress } from '@/hooks/usePublishWithProgress';
+import { DuplicateWarningDialog } from '@/components/publishing/DuplicateWarningDialog';
 import { EnhancedSortableMediaItem, MediaDragOverlay } from '@/components/manual-post/EnhancedSortableMediaItem';
 import { NetworkCaptionEditor } from '@/components/manual-post/NetworkCaptionEditor';
 import { DragHintTooltip } from '@/components/manual-post/DragHintTooltip';
@@ -257,6 +258,10 @@ export default function ManualCreate() {
   
   // State for cancellation
   const [isCancellingPublish, setIsCancellingPublish] = useState(false);
+  
+  // Duplicate detection state
+  const [duplicateWarning, setDuplicateWarning] = useState<{ id: string; created_at: string; selected_networks: string[] | null; status: string | null } | null>(null);
+  const [pendingPublishParams, setPendingPublishParams] = useState<any>(null);
 
   // Auto-save hook
   const { lastSaved, isSaving: isAutoSaving, hasUnsavedChanges } = useAutoSave({
@@ -1442,7 +1447,7 @@ export default function ManualCreate() {
     // NOTE: No frontend quota blocking - Getlate.dev API will reject if quota is exceeded
 
     // Use the new hook to publish
-    const success = await executePublish({
+    const publishParams = {
       formats: selectedFormats,
       caption,
       mediaFiles: files,
@@ -1451,9 +1456,18 @@ export default function ManualCreate() {
       scheduleAsap,
       recoveredFromPostId: recoveredPostId || undefined,
       networkCaptions: useSeparateCaptions ? networkCaptions : undefined,
-    });
+    };
+    
+    const result = await executePublish(publishParams);
 
-    if (success) {
+    // Handle duplicate detection
+    if (result && typeof result === 'object' && 'duplicate' in result) {
+      setDuplicateWarning(result.duplicate);
+      setPendingPublishParams(publishParams);
+      return;
+    }
+
+    if (result === true) {
       await refreshQuota();
     }
   };
@@ -2721,6 +2735,30 @@ export default function ManualCreate() {
         onCancel={handleCancelPublishing}
         isCancelling={isCancellingPublish}
       />
+
+      {/* Duplicate Warning Dialog */}
+      {duplicateWarning && (
+        <DuplicateWarningDialog
+          open={!!duplicateWarning}
+          onOpenChange={(open) => {
+            if (!open) {
+              setDuplicateWarning(null);
+              setPendingPublishParams(null);
+            }
+          }}
+          duplicate={duplicateWarning}
+          onConfirm={async () => {
+            setDuplicateWarning(null);
+            if (pendingPublishParams) {
+              const result = await executePublish({ ...pendingPublishParams, skipDuplicateCheck: true });
+              setPendingPublishParams(null);
+              if (result === true) {
+                await refreshQuota();
+              }
+            }
+          }}
+        />
+      )}
     </div>
   );
 }

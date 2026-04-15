@@ -111,6 +111,13 @@ const initialProgress: PublishProgress = {
   },
 };
 
+interface DuplicateInfo {
+  id: string;
+  created_at: string;
+  selected_networks: string[] | null;
+  status: string | null;
+}
+
 interface PublishParams {
   formats: PostFormat[];
   caption: string;
@@ -120,6 +127,7 @@ interface PublishParams {
   scheduleAsap: boolean;
   recoveredFromPostId?: string; // Track if this is a recovered post
   networkCaptions?: Record<string, string>; // Per-network captions when "Legendas separadas" is active
+  skipDuplicateCheck?: boolean; // Skip duplicate detection (user confirmed)
 }
 
 // Extract first frame from video file
@@ -305,7 +313,7 @@ export function usePublishWithProgress() {
   }, []);
   
   // Main publish function
-  const publish = useCallback(async (params: PublishParams): Promise<boolean> => {
+  const publish = useCallback(async (params: PublishParams): Promise<boolean | { duplicate: DuplicateInfo }> => {
     const { formats, caption, mediaFiles, scheduledDate, time, scheduleAsap } = params;
     
     // Generate unique publish session ID for logging and idempotency
@@ -439,6 +447,33 @@ export function usePublishWithProgress() {
         return false;
       }
       
+      // ═══════════════════════════════════════════
+      // DUPLICATE CHECK: Detect same caption published in last 30 minutes
+      // ═══════════════════════════════════════════
+      if (!params.skipDuplicateCheck) {
+        try {
+          const thirtyMinAgo = new Date(Date.now() - 30 * 60 * 1000).toISOString();
+          const { data: recentDuplicates } = await supabase
+            .from('posts')
+            .select('id, created_at, selected_networks, status')
+            .eq('user_id', user.id)
+            .eq('caption', caption)
+            .in('status', ['published', 'publishing'])
+            .gte('created_at', thirtyMinAgo)
+            .limit(1);
+
+          if (recentDuplicates && recentDuplicates.length > 0) {
+            console.log(`[usePublishWithProgress] Duplicate detected:`, recentDuplicates[0]);
+            // Release lock — user will decide
+            publishingLockRef.current = false;
+            setIsPublishing(false);
+            return { duplicate: recentDuplicates[0] as DuplicateInfo };
+          }
+        } catch (e) {
+          console.warn('[usePublishWithProgress] Duplicate check failed, proceeding:', e);
+        }
+      }
+
       // ═══════════════════════════════════════════
       // CREATE POST RECORD EARLY (before upload) so ALL attempts are logged
       // ═══════════════════════════════════════════
