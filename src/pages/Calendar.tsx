@@ -44,8 +44,8 @@ interface ScheduledPost {
   template_a_images?: string[];
   story_image_url?: string;
   cover_image_url?: string | null;
-  media_items?: any[] | null;
-  media_urls_backup?: any[] | null;
+  media_items?: any | null;
+  media_urls_backup?: any | null;
   priority?: 'low' | 'medium' | 'high' | 'urgent';
   description?: string | null;
   project_id?: string;
