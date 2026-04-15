@@ -1,82 +1,104 @@
 
 
-## Refinamentos à Protecção Contra Duplicados
+## Auditoria: Chamadas Duplicadas à API Getlate
 
-### Problemas identificados
+### Evidência na base de dados
 
-1. **Diálogo demasiado genérico** — Não mostra ícones das redes, nem quantas vezes foi publicado. A mensagem é text-only sem hierarquia visual.
+O post `06757d6e` (10 de Abril) tem **2 tentativas por plataforma** — 8 registos para 4 redes:
 
-2. **Caption vazia passa o check** — Se a caption for vazia (`""`), a query `.eq('caption', '')` vai encontrar todos os posts sem legenda, gerando falsos positivos.
+| Plataforma | Intervalo entre duplicados |
+|---|---|
+| facebook_reel | 2min 18s |
+| youtube_shorts | 4s |
+| tiktok_video | 31s |
+| instagram_reel | 55s |
 
-3. **Badge "Possível duplicado" sem contexto** — O badge no histórico não indica quantas vezes nem quando foi o original.
+Posts posteriores (12-14 Abril) estão limpos — 1 tentativa por plataforma. Portanto o problema ocorreu pelo menos uma vez.
 
-4. **Duplicate check O(n²)** — O loop duplo no histórico é ineficiente para muitos posts (embora aceitável para volumes normais).
+### Causas identificadas (3 problemas)
 
-5. **Diálogo não mostra o status do post anterior** — Se o anterior falhou, o aviso deveria ser diferente (não é realmente um duplicado).
+**1. Idempotência "tarde demais" no edge function**
+A chave de idempotência só é guardada na BD **DEPOIS** de o Getlate responder (linha 786). Se duas chamadas chegarem quase simultaneamente (antes da primeira acabar), ambas passam o check e ambas publicam. A janela de race condition é o tempo de resposta do Getlate (5-30s).
 
-### Plano de refinamento
+**2. Frontend escreve em `publication_attempts` — violando single source of truth**
+Apesar do memory documentar que "o edge function é a única fonte", o frontend ainda faz updates em `publication_attempts` (linhas 922-929 e 961-974 de `usePublishWithProgress.ts`). Isto não cria duplicados directamente, mas pode causar conflitos de estado com o edge function (ambos a escrever no mesmo registo simultaneamente).
+
+**3. Sem constraint de unicidade na BD**
+Não existe nenhum constraint que impeça dois registos `publication_attempts` com o mesmo `post_id + format` num intervalo curto. A base de dados aceita duplicados silenciosamente.
+
+### Plano de correcção (3 alterações)
 
 | # | Ficheiro | Alteração |
 |---|----------|-----------|
-| 1 | `src/hooks/usePublishWithProgress.ts` | **Ignorar captions vazias**: Adicionar `if (!caption?.trim()) skip duplicate check` — não faz sentido comparar legendas vazias. |
-| 2 | `src/components/publishing/DuplicateWarningDialog.tsx` | **UI melhorada**: Adicionar ícones das redes sociais (usando NETWORK_INFO), mostrar a caption truncada do post anterior, separar visualmente a informação em blocos com fundo colorido (amber-50), e melhorar o copy dos botões ("Não publicar" em vez de "Cancelar"). |
-| 3 | `src/components/publishing/DuplicateWarningDialog.tsx` | **Diferenciar status**: Se o post anterior tem status "publishing" (ainda em curso), mostrar mensagem diferente: "Este conteúdo está a ser publicado neste momento". Se for "published", manter a mensagem actual. |
-| 4 | `src/pages/PublicationHistory.tsx` | **Badge com tooltip**: Adicionar tooltip ao badge "Possível duplicado" que mostra "Mesma legenda publicada X vezes num intervalo de 30 minutos". |
-| 5 | `src/pages/PublicationHistory.tsx` | **Optimizar detecção**: Usar um Map agrupado por caption para detecção O(n log n) em vez de O(n²), e ignorar captions vazias. |
+| 1 | `supabase/functions/publish-to-getlate/index.ts` | **Idempotência pré-publicação**: Mover o `INSERT` da chave de idempotência para ANTES de chamar o Getlate. Se o insert falhar (key já existe), retornar o resultado em cache. Isto bloqueia chamadas concorrentes. |
+| 2 | `src/hooks/usePublishWithProgress.ts` | **Remover writes redundantes em `publication_attempts`**: Eliminar os blocos de update nas linhas 922-929 (success) e 961-974 (error). O edge function já gere estes estados — o frontend não deve interferir. |
+| 3 | Migration SQL | **Dedup na BD**: Adicionar verificação antes de inserir novo attempt — se já existe um com mesmo `post_id + format + platform` nos últimos 2 minutos, não inserir novo (guard no edge function). |
 
-### Detalhe — Diálogo melhorado (ponto 2)
+### Detalhe técnico
 
-```
-┌─────────────────────────────────────────┐
-│  ⚠️  Conteúdo possivelmente duplicado   │
-│                                         │
-│  ┌─────────────────────────────────────┐│
-│  │ 📋 "A legenda do post trunca..."   ││
-│  │ 🕐 Publicado há 12 minutos         ││
-│  │ 📱 Instagram, Facebook, YouTube    ││
-│  └─────────────────────────────────────┘│
-│                                         │
-│  Publicar novamente irá criar uma       │
-│  publicação duplicada.                  │
-│                                         │
-│  [Não publicar]  [Publicar mesmo assim] │
-└─────────────────────────────────────────┘
-```
-
-### Detalhe — Caption vazia (ponto 1)
+**Ponto 1 — Reservar chave ANTES de publicar:**
 
 ```typescript
-// Antes da query de duplicados
-if (!caption?.trim()) {
-  // Não verificar duplicados para captions vazias
+// ANTES (race condition):
+// 1. Check key → not found
+// 2. Call Getlate API (5-30s)
+// 3. Store key with result
+
+// DEPOIS (bloqueio imediato):
+// 1. INSERT key with result=null → se falha, key já existe → retornar cache
+// 2. Call Getlate API
+// 3. UPDATE key with result
+
+// No edge function, antes de chamar publishToGetlate():
+if (idempotency_key) {
+  const { error: reserveError } = await supabase
+    .from('idempotency_keys')
+    .insert({ key: idempotency_key, result: null, expires_at: ... });
+  
+  if (reserveError?.code === '23505') { // unique violation
+    // Outro request já reservou esta key — buscar resultado
+    const { data } = await supabase.from('idempotency_keys')
+      .select('result').eq('key', idempotency_key).single();
+    if (data?.result) return cached response;
+    // Se result é null, o primeiro request ainda está a correr — rejeitar
+    return Response("Publication in progress", 409);
+  }
 }
 ```
 
-### Detalhe — Map para detecção no histórico (ponto 5)
+**Ponto 2 — Remover do frontend:**
 
 ```typescript
-const captionGroups = new Map<string, number[]>();
-items.forEach((item, idx) => {
-  if (!item.caption?.trim()) return;
-  const key = item.caption;
-  if (!captionGroups.has(key)) captionGroups.set(key, []);
-  captionGroups.get(key)!.push(idx);
-});
+// REMOVER linhas 922-929:
+// await supabase.from('publication_attempts').update(...)
 
-captionGroups.forEach((indices) => {
-  if (indices.length < 2) return;
-  // Check time proximity within group only
-  for (let i = 0; i < indices.length; i++) {
-    for (let j = i + 1; j < indices.length; j++) {
-      const diff = Math.abs(/*...*/);
-      if (diff <= THIRTY_MIN) {
-        items[indices[i]].isDuplicate = true;
-        items[indices[j]].isDuplicate = true;
-      }
-    }
-  }
-});
+// REMOVER linhas 961-974:
+// await supabase.from('publication_attempts').update(...)
 ```
 
-Mudanças cirúrgicas em 2 ficheiros, focadas em clareza visual e precisão da detecção.
+**Ponto 3 — Guard no edge function antes de inserir attempt:**
+
+```typescript
+// Antes de inserir novo attempt, verificar se já existe um recente
+const twoMinAgo = new Date(Date.now() - 2 * 60 * 1000).toISOString();
+const { data: existing } = await supabase
+  .from('publication_attempts')
+  .select('id, status')
+  .eq('post_id', post_id)
+  .eq('format', format)
+  .gte('attempted_at', twoMinAgo)
+  .limit(1);
+
+if (existing?.length > 0) {
+  console.log(`[publish-to-getlate] ⚠️ DEDUP: attempt already exists for ${post_id}/${format}`);
+  return existing[0]; // Reutilizar o attempt existente
+}
+```
+
+### Resultado esperado
+
+- Chamadas concorrentes ao mesmo endpoint → bloqueadas pela chave de idempotência pré-reservada
+- Edge function é a **única** entidade a escrever em `publication_attempts`
+- Guard temporal impede duplicados mesmo sem idempotency key
+- Cada publicação = exactamente 1 chamada à API Getlate por plataforma
 
