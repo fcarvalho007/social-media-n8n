@@ -1,48 +1,38 @@
 
 
-## Correcção: Diálogo de Detalhes do Calendário
+## Correcções à Biblioteca de Média
 
-### Problema confirmado
+### Problema 1: Vídeos sem thumbnail
+Os vídeos mostram apenas um ícone cinzento porque `thumbnail_url` é quase sempre `null`. A solução é usar um elemento `<video>` com `preload="metadata"` para extrair o primeiro frame automaticamente, sem depender de uma imagem de thumbnail armazenada.
 
-O post "Neste primeiro episódio de 'O Que Ninguém Vê'" tem **apenas ficheiros `.mp4`** em `template_a_images` e `media_urls_backup` — zero imagens. O diálogo de detalhes deveria mostrar "Conteúdo de vídeo" com ícone, mas mostra "Imagem não disponível" porque:
+### Problema 2: Aviso de retenção de 7 dias ausente
+Conforme documentado, o sistema elimina ficheiros do Storage após 7 dias. O utilizador deve ver este aviso claramente na biblioteca.
 
-1. **O diálogo só consulta `template_a_images`** — ignora `media_urls_backup`, `cover_image_url` e `media_items`
-2. **A detecção de vídeo pode não estar activa** — se o build anterior não foi aplicado, o `isVideoUrl` não existe ainda
-3. **Falta uma imagem principal no topo do diálogo** — o `getPostThumbnail` (cascata) não é usado no diálogo
+### Plano (1 ficheiro: `src/pages/MediaLibrary.tsx`)
 
-### Plano (1 ficheiro: `src/pages/Calendar.tsx`)
+**1. Substituir placeholder de vídeo por `<video>` nativo**
 
-**1. Unificar fontes de média no diálogo**
+Na grid (linhas 732-752), quando o item é vídeo e não tem `thumbnail_url`:
+- Renderizar `<video src={item.file_url} preload="metadata" muted className="h-full w-full object-cover" />` para mostrar o primeiro frame
+- Manter o ícone de vídeo como overlay semi-transparente (para distinguir de imagens)
+- Fallback para ícone se o vídeo falhar a carregar (`onError`)
 
-O bloco de imagem/carrossel no diálogo (linhas 1678-1803) deve reunir todas as URLs de todas as fontes antes de filtrar vídeos:
+Quando o item é vídeo e tem `thumbnail_url`:
+- Manter a lógica actual (img com fallback para `<video>`)
 
-```
-allMedia = [
-  ...template_a_images,
-  ...media_urls_backup,  ← NOVO
-  ...media_items          ← NOVO
-]
-```
+**2. Adicionar banner de retenção após o header**
 
-Isto garante que se `template_a_images` só tem vídeos mas `media_urls_backup` tem imagens `.png`, essas imagens aparecem.
+Após a linha 608 (fim do header), inserir um alerta informativo:
+- Ícone de `Clock` + texto: "Os ficheiros são eliminados automaticamente após 7 dias para sustentabilidade do sistema"
+- Estilo: banner subtil (`bg-amber-500/10 border-amber-500/20`), compacto
+- Dismissível via botão X (estado local `showRetentionWarning`)
 
-**2. Garantir que `isVideoUrl` e `hasVideoContent` estão presentes**
+**3. Aplicar mesma lógica no diálogo de detalhes**
 
-Confirmar que as funções helper estão no ficheiro. Se o build anterior falhou, reintroduzi-las.
-
-**3. Mostrar placeholder de vídeo correcto**
-
-Quando todas as URLs são vídeo, o diálogo deve mostrar:
-- Ícone `Video` grande
-- Texto "Conteúdo de vídeo"
-- Não "Imagem não disponível"
-
-**4. Adicionar imagem principal via `getPostThumbnail`**
-
-Antes do carrossel, mostrar a imagem principal usando `getPostThumbnail(selectedEvent.resource)`. Se retorna `null` e o post tem vídeos, mostrar o placeholder de vídeo. Isto dá um fallback visual imediato mesmo quando o carrossel não encontra imagens.
+O modal de detalhes (linha ~900) também deve usar `<video>` para preview de vídeos em vez de tentar `<img>`.
 
 ### Resultado
-- Posts com vídeo → ícone "Conteúdo de vídeo" (não "Imagem não disponível")
-- Posts mistos → primeira imagem de qualquer fonte como thumbnail
-- Consistência entre grid lateral e diálogo de detalhes
+- Vídeos mostram o primeiro frame real na grid
+- Utilizador informado da política de 7 dias
+- Consistência visual entre grid e detalhes
 
