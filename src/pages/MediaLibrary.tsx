@@ -772,11 +772,11 @@ export default function MediaLibrary() {
                             onError={(e) => {
                               e.currentTarget.style.display = 'none';
                               const expired = e.currentTarget.parentElement?.querySelector('[data-expired-fallback]') as HTMLElement;
-                              if (expired) expired.style.display = 'flex';
+                              if (expired) expired.classList.remove('hidden');
                             }}
                           />
                           {/* Expired fallback */}
-                          <div data-expired-fallback className="absolute inset-0 flex-col items-center justify-center bg-muted" style={{ display: 'none' }}>
+                          <div data-expired-fallback className="absolute inset-0 flex flex-col items-center justify-center bg-muted hidden">
                             <AlertTriangle className="h-8 w-8 text-destructive/60" />
                             <span className="text-[10px] text-destructive/80 mt-1">Ficheiro expirado</span>
                           </div>
