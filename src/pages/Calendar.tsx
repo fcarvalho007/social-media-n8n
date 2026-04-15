@@ -56,37 +56,56 @@ interface ScheduledPost {
   external_post_ids?: Record<string, string>;
 }
 
-// Cascading thumbnail resolution: tries multiple sources before giving up
+// Video URL detection
+const isVideoUrl = (url: string): boolean => {
+  if (!url || typeof url !== 'string') return false;
+  const lower = url.toLowerCase();
+  return /\.(mp4|mov|webm|avi|mkv|m4v)(\?|$)/i.test(lower);
+};
+
+// Extract first image URL from an array, skipping videos
+const firstImageFromArray = (arr: any[] | null | undefined): string | null => {
+  if (!arr || !Array.isArray(arr)) return null;
+  for (const item of arr) {
+    const url = typeof item === 'string' ? item : (item?.url || item?.file_url || null);
+    if (url && !isVideoUrl(url)) return url;
+  }
+  return null;
+};
+
+// Check if resource has any video content
+const hasVideoContent = (resource: ScheduledPost): boolean => {
+  const allUrls = [
+    ...(resource.template_a_images || []),
+    ...(Array.isArray(resource.media_items) ? resource.media_items : []),
+    ...(Array.isArray(resource.media_urls_backup) ? resource.media_urls_backup : []),
+  ];
+  return allUrls.some(item => {
+    const url = typeof item === 'string' ? item : (item?.url || item?.file_url || '');
+    return isVideoUrl(url);
+  });
+};
+
+// Cascading thumbnail resolution: tries multiple image sources, skips videos
 const getPostThumbnail = (resource: ScheduledPost): string | null => {
   if (resource.content_type === 'stories') {
     return resource.story_image_url || null;
   }
   
   // 1. cover_image_url (designated thumbnail)
-  if (resource.cover_image_url) return resource.cover_image_url;
+  if (resource.cover_image_url && !isVideoUrl(resource.cover_image_url)) return resource.cover_image_url;
   
-  // 2. template_a_images[0] (primary source)
-  if (resource.template_a_images?.length && resource.template_a_images[0]) {
-    return resource.template_a_images[0];
-  }
+  // 2. First image in template_a_images (skip videos)
+  const fromTemplate = firstImageFromArray(resource.template_a_images);
+  if (fromTemplate) return fromTemplate;
   
-  // 3. media_items[0] (alternative with potentially different URLs)
-  if (resource.media_items && Array.isArray(resource.media_items) && resource.media_items.length > 0) {
-    const first = resource.media_items[0];
-    if (typeof first === 'string') return first;
-    if (first && typeof first === 'object') {
-      return (first as any).url || (first as any).file_url || null;
-    }
-  }
+  // 3. First image in media_urls_backup (skip videos)
+  const fromBackup = firstImageFromArray(resource.media_urls_backup);
+  if (fromBackup) return fromBackup;
   
-  // 4. media_urls_backup[0] (final backup)
-  if (resource.media_urls_backup && Array.isArray(resource.media_urls_backup) && resource.media_urls_backup.length > 0) {
-    const first = resource.media_urls_backup[0];
-    if (typeof first === 'string') return first;
-    if (first && typeof first === 'object') {
-      return (first as any).url || (first as any).file_url || null;
-    }
-  }
+  // 4. First image in media_items (skip videos)
+  const fromMedia = firstImageFromArray(resource.media_items);
+  if (fromMedia) return fromMedia;
   
   return null;
 };
@@ -974,8 +993,9 @@ const Calendar = () => {
               </div>
             </>
           ) : (
-            <div className="w-16 h-16 sm:w-20 sm:h-20 bg-white/20 rounded-lg flex items-center justify-center">
-              {icon}
+            <div className="w-16 h-16 sm:w-20 sm:h-20 bg-white/20 rounded-lg flex items-center justify-center flex-col gap-1">
+              {hasVideoContent(event.resource) ? <Video className="h-5 w-5" /> : icon}
+              {hasVideoContent(event.resource) && <span className="text-[8px] opacity-75">Vídeo</span>}
             </div>
           )}
         </div>
@@ -1432,13 +1452,13 @@ const Calendar = () => {
                                   className="w-full h-full bg-gradient-to-br from-gray-100 to-gray-200 dark:from-gray-800 dark:to-gray-900 flex flex-col items-center justify-center p-2 gap-1"
                                   style={{ display: 'none' }}
                                 >
-                                  <LayoutGrid className="h-5 w-5 text-muted-foreground" />
+                                  {hasVideoContent(event.resource) ? <Video className="h-5 w-5 text-muted-foreground" /> : <LayoutGrid className="h-5 w-5 text-muted-foreground" />}
                                   <span className="text-[9px] text-muted-foreground font-medium text-center line-clamp-2">{event.title || 'Post'}</span>
                                 </div>
                               </>
                             ) : (
                               <div className="w-full h-full bg-gradient-to-br from-gray-100 to-gray-200 dark:from-gray-800 dark:to-gray-900 flex flex-col items-center justify-center p-2 gap-1">
-                                <LayoutGrid className="h-5 w-5 text-muted-foreground" />
+                                {hasVideoContent(event.resource) ? <Video className="h-5 w-5 text-muted-foreground" /> : <LayoutGrid className="h-5 w-5 text-muted-foreground" />}
                                 <span className="text-[9px] text-muted-foreground font-medium text-center line-clamp-2">{event.title || 'Post'}</span>
                               </div>
                             )}
@@ -1655,13 +1675,32 @@ const Calendar = () => {
                 </div>
               </div>
 
-              {/* Carousel with navigation for multiple images */}
-              {selectedEvent.resource.template_a_images && selectedEvent.resource.template_a_images.length > 0 && (
+              {/* Carousel with navigation for multiple images (filter out videos) */}
+              {(() => {
+                const allMedia = selectedEvent.resource.template_a_images || [];
+                const imageOnly = allMedia.filter(url => !isVideoUrl(url));
+                const hasVideos = allMedia.some(url => isVideoUrl(url));
+                if (imageOnly.length === 0 && !hasVideos) return null;
+                if (imageOnly.length === 0 && hasVideos) {
+                  return (
+                    <div className="rounded-xl border bg-muted/30 p-8 flex flex-col items-center justify-center gap-2">
+                      <Video className="h-10 w-10 text-muted-foreground" />
+                      <span className="text-sm text-muted-foreground">Conteúdo de vídeo</span>
+                    </div>
+                  );
+                }
+                return null;
+              })()}
+              {(() => {
+                const allMedia = selectedEvent.resource.template_a_images || [];
+                const images = allMedia.filter(url => !isVideoUrl(url));
+                if (images.length === 0) return null;
+                return (
                 <div className="space-y-3">
                   {(() => {
-                    const images = selectedEvent.resource.template_a_images!;
                     const hasMultipleImages = images.length > 1;
-                    const currentImage = images[currentImageIndex];
+                    const safeIndex = Math.min(currentImageIndex, images.length - 1);
+                    const currentImage = images[safeIndex];
                     
                     return hasMultipleImages ? (
                       <>
@@ -1760,7 +1799,8 @@ const Calendar = () => {
                     );
                   })()}
                 </div>
-              )}
+                );
+              })()}
 
               {selectedEvent.resource.story_image_url && (
                 <div className="relative rounded-xl overflow-hidden border-2 shadow-md hover:shadow-lg transition-shadow mx-auto bg-muted/30 max-w-[240px]">
