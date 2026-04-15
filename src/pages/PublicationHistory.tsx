@@ -1,4 +1,5 @@
 import { useState, useMemo, useEffect } from 'react';
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import { useQuery } from '@tanstack/react-query';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { supabase } from '@/integrations/supabase/client';
@@ -367,21 +368,30 @@ export default function PublicationHistory() {
 
     items.sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime());
 
-    // Detect duplicates: same caption within 30 minutes
+    // Detect duplicates: same caption within 30 minutes (O(n log n) via Map)
     const THIRTY_MIN = 30 * 60 * 1000;
-    for (let i = 0; i < items.length; i++) {
-      if (!items[i].caption) continue;
-      for (let j = i + 1; j < items.length; j++) {
-        if (!items[j].caption) continue;
-        if (items[i].caption === items[j].caption) {
-          const timeDiff = Math.abs(new Date(items[i].timestamp).getTime() - new Date(items[j].timestamp).getTime());
-          if (timeDiff <= THIRTY_MIN) {
-            items[i].isDuplicate = true;
-            items[j].isDuplicate = true;
+    const captionGroups = new Map<string, number[]>();
+    items.forEach((item, idx) => {
+      if (!item.caption?.trim()) return;
+      const key = item.caption;
+      if (!captionGroups.has(key)) captionGroups.set(key, []);
+      captionGroups.get(key)!.push(idx);
+    });
+    captionGroups.forEach((indices) => {
+      if (indices.length < 2) return;
+      for (let i = 0; i < indices.length; i++) {
+        for (let j = i + 1; j < indices.length; j++) {
+          const diff = Math.abs(
+            new Date(items[indices[i]].timestamp).getTime() - 
+            new Date(items[indices[j]].timestamp).getTime()
+          );
+          if (diff <= THIRTY_MIN) {
+            items[indices[i]].isDuplicate = true;
+            items[indices[j]].isDuplicate = true;
           }
         }
       }
-    }
+    });
 
     return items;
   }, [attempts, posts]);
@@ -547,10 +557,19 @@ export default function PublicationHistory() {
                         </Badge>
                       )}
                       {item.isDuplicate && (
-                        <Badge className="text-[10px] px-1.5 py-0 bg-amber-100 text-amber-800 dark:bg-amber-900/30 dark:text-amber-400 border-amber-200 dark:border-amber-800 gap-0.5">
-                          <Copy className="h-2.5 w-2.5" />
-                          Possível duplicado
-                        </Badge>
+                        <TooltipProvider>
+                          <Tooltip>
+                            <TooltipTrigger asChild>
+                              <Badge className="text-[10px] px-1.5 py-0 bg-amber-100 text-amber-800 dark:bg-amber-900/30 dark:text-amber-400 border-amber-200 dark:border-amber-800 gap-0.5 cursor-help">
+                                <Copy className="h-2.5 w-2.5" />
+                                Possível duplicado
+                              </Badge>
+                            </TooltipTrigger>
+                            <TooltipContent side="top" className="max-w-xs text-xs">
+                              Mesma legenda publicada mais do que uma vez num intervalo de 30 minutos
+                            </TooltipContent>
+                          </Tooltip>
+                        </TooltipProvider>
                       )}
                     </div>
                   </div>
