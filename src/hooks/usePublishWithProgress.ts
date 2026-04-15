@@ -36,7 +36,7 @@ function diagnoseUploadError(file: File, error: any, safeName: string): UploadDi
   const ext = file.name.split('.').pop()?.toLowerCase() || '';
 
   // 1. Invalid key / filename issues
-  if (msg.includes('invalid key') || msg.includes('invalid input') || msg.includes('key')) {
+  if (msg.includes('invalid key') || msg.includes('invalid input')) {
     return {
       causa: 'Nome do ficheiro incompatível',
       detalhe: `"${file.name}" contém caracteres especiais ([], parênteses, acentos ou espaços)`,
@@ -55,7 +55,9 @@ function diagnoseUploadError(file: File, error: any, safeName: string): UploadDi
 
   // 3. Unsupported format
   const allSupported = [...SUPPORTED_IMAGE_TYPES, ...SUPPORTED_VIDEO_TYPES];
-  if (!allSupported.includes(file.type) || msg.includes('mime') || msg.includes('unsupported') || msg.includes('content type')) {
+  const knownExts = ['jpg', 'jpeg', 'png', 'webp', 'gif', 'mp4', 'mov', 'qt', 'm4v'];
+  const hasValidExt = knownExts.includes(ext);
+  if ((!allSupported.includes(file.type) && !hasValidExt) || msg.includes('mime') || msg.includes('unsupported') || msg.includes('content type')) {
     return {
       causa: 'Formato não suportado',
       detalhe: `Tipo "${file.type || ext}" não é aceite. Formatos válidos: JPG, PNG, WebP, GIF, MP4, MOV`,
@@ -577,7 +579,7 @@ export function usePublishWithProgress() {
           updatePhase1('error', uploadProgress, diagnosis.causa, diagnosis.detalhe);
           await markPostFailed(structuredErrorLog);
           toast.error(`Upload falhou: ${diagnosis.causa}`, {
-            description: `${diagnosis.detalhe}\n💡 ${diagnosis.sugestao}`,
+            description: `${diagnosis.detalhe} — 💡 ${diagnosis.sugestao}`,
             duration: 15000,
           });
           setIsPublishing(false);
