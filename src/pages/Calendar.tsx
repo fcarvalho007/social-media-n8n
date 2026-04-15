@@ -1521,12 +1521,11 @@ const Calendar = () => {
                                     }
                                   }}
                                 />
-                                <div 
+                                 <div 
                                   className="w-full h-full bg-gradient-to-br from-purple-100 to-purple-200 dark:from-purple-900 dark:to-purple-950 flex flex-col items-center justify-center p-2 gap-1"
                                   style={{ display: 'none' }}
                                 >
                                   <Video className="h-4 w-4 text-muted-foreground" />
-                                  <span className="text-[8px] text-muted-foreground font-medium text-center">Erro</span>
                                 </div>
                               </>
                             ) : (
