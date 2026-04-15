@@ -56,6 +56,7 @@ import { PublishingOverlay } from '@/components/manual-post/PublishingOverlay';
 import { PublishProgressModal } from '@/components/publishing/PublishProgressModal';
 import { AspectRatioWarning } from '@/components/publishing/AspectRatioWarning';
 import { usePublishWithProgress } from '@/hooks/usePublishWithProgress';
+import { DuplicateWarningDialog } from '@/components/publishing/DuplicateWarningDialog';
 import { EnhancedSortableMediaItem, MediaDragOverlay } from '@/components/manual-post/EnhancedSortableMediaItem';
 import { NetworkCaptionEditor } from '@/components/manual-post/NetworkCaptionEditor';
 import { DragHintTooltip } from '@/components/manual-post/DragHintTooltip';
