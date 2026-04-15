@@ -1,48 +1,48 @@
 
 
-## Refinamentos à Grid de Conteúdos e Calendário
+## Correcção: Diálogo de Detalhes do Calendário
 
-### Problemas encontrados na auditoria
+### Problema confirmado
 
-| # | Problema | Impacto |
-|---|----------|---------|
-| 1 | **`template_a_images[0]` frequentemente é um `.mp4`** — Muitos posts têm vídeos como primeiro item. O `<img>` falha silenciosamente ao tentar renderizar um vídeo. | Thumbnails aparecem em branco/erro |
-| 2 | **`getPostThumbnail` não filtra vídeos** — A cascata retorna URLs de `.mp4` que não funcionam como thumbnails em `<img>` | Fallback nunca activado para posts de vídeo |
-| 3 | **Diálogo de detalhes (linha 1659) ignora `getPostThumbnail`** — Usa `template_a_images` directamente, sem cascata nem detecção de vídeo | Inconsistência entre grid e diálogo |
-| 4 | **`cover_image_url` nunca é preenchido** — Está sempre `null` na BD. A cascata salta este passo sem efeito | Sem impacto mas inútil como fonte prioritária |
-| 5 | **Nenhum post usa `media_items`** — Sempre `[]`. A cascata tenta mas nunca encontra nada | Sem impacto prático |
-| 6 | **`media_urls_backup` tem URLs válidas** — Incluindo imagens `.png`, mas a cascata só chega lá se as anteriores falharem. Quando `template_a_images[0]` é um `.mp4`, retorna o `.mp4` sem verificar se é imagem | Backup nunca usado quando deveria |
+O post "Neste primeiro episódio de 'O Que Ninguém Vê'" tem **apenas ficheiros `.mp4`** em `template_a_images` e `media_urls_backup` — zero imagens. O diálogo de detalhes deveria mostrar "Conteúdo de vídeo" com ícone, mas mostra "Imagem não disponível" porque:
 
-### Plano de correcção (1 ficheiro: `src/pages/Calendar.tsx`)
+1. **O diálogo só consulta `template_a_images`** — ignora `media_urls_backup`, `cover_image_url` e `media_items`
+2. **A detecção de vídeo pode não estar activa** — se o build anterior não foi aplicado, o `isVideoUrl` não existe ainda
+3. **Falta uma imagem principal no topo do diálogo** — o `getPostThumbnail` (cascata) não é usado no diálogo
 
-**1. Adicionar detecção de vídeo à `getPostThumbnail`**
+### Plano (1 ficheiro: `src/pages/Calendar.tsx`)
 
-Função helper `isVideoUrl(url)` que verifica extensões `.mp4`, `.mov`, `.webm`, `.avi`. A cascata deve saltar URLs de vídeo e procurar a primeira URL de imagem em todas as fontes:
+**1. Unificar fontes de média no diálogo**
+
+O bloco de imagem/carrossel no diálogo (linhas 1678-1803) deve reunir todas as URLs de todas as fontes antes de filtrar vídeos:
 
 ```
-Ordem de prioridade:
-1. cover_image_url (se imagem)
-2. Primeira imagem em template_a_images (saltar vídeos)
-3. Primeira imagem em media_urls_backup (saltar vídeos)
-4. Primeira imagem em media_items (saltar vídeos)
-5. null → placeholder com ícone de vídeo ou título
+allMedia = [
+  ...template_a_images,
+  ...media_urls_backup,  ← NOVO
+  ...media_items          ← NOVO
+]
 ```
 
-**2. Mostrar ícone de vídeo no placeholder quando o post é vídeo**
+Isto garante que se `template_a_images` só tem vídeos mas `media_urls_backup` tem imagens `.png`, essas imagens aparecem.
 
-Se `getPostThumbnail` retorna `null` mas o post tem URLs de vídeo, o placeholder deve mostrar ícone de `Video` em vez de `LayoutGrid`, com o título do post. Isto distingue visualmente "post de vídeo sem thumbnail" de "post sem média".
+**2. Garantir que `isVideoUrl` e `hasVideoContent` estão presentes**
 
-**3. Usar `getPostThumbnail` no diálogo de detalhes**
+Confirmar que as funções helper estão no ficheiro. Se o build anterior falhou, reintroduzi-las.
 
-O diálogo (linha 1659) deve usar `getPostThumbnail` para a imagem principal. Se o post só tem vídeos, mostrar placeholder adequado em vez de tentar renderizar `.mp4` como `<img>`.
+**3. Mostrar placeholder de vídeo correcto**
 
-**4. Detectar tipo de conteúdo (vídeo vs imagem) para o carrossel do diálogo**
+Quando todas as URLs são vídeo, o diálogo deve mostrar:
+- Ícone `Video` grande
+- Texto "Conteúdo de vídeo"
+- Não "Imagem não disponível"
 
-O carrossel de imagens no diálogo deve filtrar vídeos das `template_a_images` e mostrar apenas imagens. Se todas forem vídeos, mostrar placeholder com ícone de vídeo.
+**4. Adicionar imagem principal via `getPostThumbnail`**
 
-### Resultado esperado
-- Posts com imagens → thumbnails correctos na grid e diálogo
-- Posts com vídeos → ícone de vídeo limpo + título (não "erro ao carregar")
-- Posts mistos (imagens + vídeos) → primeira imagem como thumbnail
-- Consistência visual em todos os locais (grid lateral, células do calendário, diálogo)
+Antes do carrossel, mostrar a imagem principal usando `getPostThumbnail(selectedEvent.resource)`. Se retorna `null` e o post tem vídeos, mostrar o placeholder de vídeo. Isto dá um fallback visual imediato mesmo quando o carrossel não encontra imagens.
+
+### Resultado
+- Posts com vídeo → ícone "Conteúdo de vídeo" (não "Imagem não disponível")
+- Posts mistos → primeira imagem de qualquer fonte como thumbnail
+- Consistência entre grid lateral e diálogo de detalhes
 
