@@ -2735,6 +2735,30 @@ export default function ManualCreate() {
         onCancel={handleCancelPublishing}
         isCancelling={isCancellingPublish}
       />
+
+      {/* Duplicate Warning Dialog */}
+      {duplicateWarning && (
+        <DuplicateWarningDialog
+          open={!!duplicateWarning}
+          onOpenChange={(open) => {
+            if (!open) {
+              setDuplicateWarning(null);
+              setPendingPublishParams(null);
+            }
+          }}
+          duplicate={duplicateWarning}
+          onConfirm={async () => {
+            setDuplicateWarning(null);
+            if (pendingPublishParams) {
+              const result = await executePublish({ ...pendingPublishParams, skipDuplicateCheck: true });
+              setPendingPublishParams(null);
+              if (result === true) {
+                await refreshQuota();
+              }
+            }
+          }}
+        />
+      )}
     </div>
   );
 }
