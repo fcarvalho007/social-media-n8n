@@ -1516,11 +1516,14 @@ const Calendar = () => {
                                   onError={(e) => {
                                     const target = e.currentTarget;
                                     target.style.display = 'none';
-                                    if (target.parentElement?.nextElementSibling) {
-                                      (target.parentElement.nextElementSibling as HTMLElement).style.display = 'flex';
-                                    }
+                                    const fallback = target.nextElementSibling;
+                                    if (fallback) (fallback as HTMLElement).classList.remove('hidden');
                                   }}
                                 />
+                                <div className="w-full h-full bg-gradient-to-br from-gray-100 to-gray-200 dark:from-gray-800 dark:to-gray-900 flex flex-col items-center justify-center p-2 gap-1 hidden">
+                                  <Video className="h-5 w-5 text-muted-foreground" />
+                                  <span className="text-[9px] text-muted-foreground font-medium">Vídeo</span>
+                                </div>
                                 <div className="absolute bottom-1 right-1 bg-black/60 rounded p-0.5">
                                   <Video className="h-3 w-3 text-white" />
                                 </div>
