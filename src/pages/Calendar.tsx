@@ -110,6 +110,20 @@ const getPostThumbnail = (resource: ScheduledPost): string | null => {
   return null;
 };
 
+// Extract the first video URL from a post's media sources
+const getFirstVideoUrl = (resource: ScheduledPost): string | null => {
+  const sources = [
+    ...(resource.template_a_images || []),
+    ...(Array.isArray(resource.media_items) ? resource.media_items : []),
+    ...(Array.isArray(resource.media_urls_backup) ? resource.media_urls_backup : []),
+  ];
+  for (const item of sources) {
+    const url = typeof item === 'string' ? item : ((item as any)?.url || (item as any)?.file_url || null);
+    if (url && isVideoUrl(url)) return url;
+  }
+  return null;
+};
+
 interface CalendarEvent extends Event {
   id: string;
   resource: ScheduledPost;
@@ -1004,10 +1018,33 @@ const Calendar = () => {
                 {icon}
               </div>
             </>
+          ) : hasVideoContent(event.resource) && getFirstVideoUrl(event.resource) ? (
+            <div className="relative w-14 h-14 sm:w-16 sm:h-16 rounded-lg overflow-hidden shadow-sm">
+              <video
+                src={getFirstVideoUrl(event.resource)!}
+                preload="metadata"
+                muted
+                playsInline
+                className="w-full h-full object-cover"
+                onError={(e) => {
+                  const target = e.currentTarget;
+                  target.style.display = 'none';
+                  if (target.nextElementSibling) {
+                    (target.nextElementSibling as HTMLElement).style.display = 'flex';
+                  }
+                }}
+              />
+              <div className="w-full h-full bg-white/20 items-center justify-center flex-col gap-1" style={{ display: 'none' }}>
+                <Video className="h-4 w-4" />
+                <span className="text-[8px] opacity-75">Vídeo</span>
+              </div>
+              <div className="absolute bottom-0.5 right-0.5 bg-black/60 rounded p-0.5">
+                <Video className="h-3 w-3 text-white" />
+              </div>
+            </div>
           ) : (
             <div className="w-12 h-12 sm:w-14 sm:h-14 bg-white/20 rounded-lg flex items-center justify-center flex-col gap-1">
-              {hasVideoContent(event.resource) ? <Video className="h-4 w-4" /> : icon}
-              {hasVideoContent(event.resource) && <span className="text-[8px] opacity-75">Vídeo</span>}
+              {icon}
             </div>
           )}
         </div>
@@ -1468,9 +1505,29 @@ const Calendar = () => {
                                   <span className="text-[9px] text-muted-foreground font-medium text-center line-clamp-2">{event.title || 'Post'}</span>
                                 </div>
                               </>
+                            ) : hasVideoContent(event.resource) && getFirstVideoUrl(event.resource) ? (
+                              <div className="relative w-full h-full">
+                                <video
+                                  src={getFirstVideoUrl(event.resource)!}
+                                  preload="metadata"
+                                  muted
+                                  playsInline
+                                  className="w-full h-full object-cover"
+                                  onError={(e) => {
+                                    const target = e.currentTarget;
+                                    target.style.display = 'none';
+                                    if (target.parentElement?.nextElementSibling) {
+                                      (target.parentElement.nextElementSibling as HTMLElement).style.display = 'flex';
+                                    }
+                                  }}
+                                />
+                                <div className="absolute bottom-1 right-1 bg-black/60 rounded p-0.5">
+                                  <Video className="h-3 w-3 text-white" />
+                                </div>
+                              </div>
                             ) : (
                               <div className="w-full h-full bg-gradient-to-br from-gray-100 to-gray-200 dark:from-gray-800 dark:to-gray-900 flex flex-col items-center justify-center p-2 gap-1">
-                                {hasVideoContent(event.resource) ? <Video className="h-5 w-5 text-muted-foreground" /> : <LayoutGrid className="h-5 w-5 text-muted-foreground" />}
+                                <LayoutGrid className="h-5 w-5 text-muted-foreground" />
                                 <span className="text-[9px] text-muted-foreground font-medium text-center line-clamp-2">{event.title || 'Post'}</span>
                               </div>
                             )}
