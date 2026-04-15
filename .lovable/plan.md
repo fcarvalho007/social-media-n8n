@@ -1,82 +1,41 @@
 
 
-## Auditoria: Fiabilidade do Calendário
+## Correcção da Grelha de Conteúdos do Calendário
 
-### Problemas identificados
+### Problema
 
-| # | Problema | Gravidade |
-|---|----------|-----------|
-| 1 | **Eliminar rascunho falha silenciosamente** — `handleDelete` só gere tabelas `posts` e `stories`. Quando o utilizador clica "Eliminar" num evento de rascunho (vindo de `posts_drafts`), o sistema tenta eliminar da tabela `posts` com o ID do rascunho, que não existe lá. O delete retorna sem erro mas nada acontece. | Alta |
-| 2 | **Botão "Editar" navega para rota errada em rascunhos** — Rascunhos são redirecionados para `/review/{id}`, que espera um post da tabela `posts`. Deveria navegar para `/manual-create?draft={id}`. | Alta |
-| 3 | **Cache não é limpo imediatamente ao eliminar** — Após `handleDelete`, o `fetchScheduledContent()` actualiza o cache, mas se falhar (e.g. erro de rede), o cache antigo com o evento eliminado persiste. O utilizador verá o evento fantasma ao recarregar. | Média |
-| 4 | **`scheduled_jobs` órfãos** — Quando um post agendado é eliminado do calendário, os registos em `scheduled_jobs` (se existirem) permanecem. Não causam problemas graves porque o edge function verifica existência do post, mas sujam a BD. | Baixa |
-| 5 | **Diálogo de detalhes não distingue rascunhos** — O badge de status e a descrição do diálogo tratam rascunhos como posts normais ("Aprovada em..."), quando deveria dizer "Rascunho criado em...". | Média |
+A grelha lateral "Grid de Conteúdos" mostra "Erro ao carregar" na maioria dos thumbnails porque:
 
-### Plano de correcção
+1. **URLs expiradas**: `template_a_images` contém URLs do Supabase Storage que são eliminadas após 7 dias (política de retenção). Posts mais antigos ficam sem imagem.
+2. **Fontes alternativas não consultadas**: A query não busca `media_items` nem `cover_image_url` — campos que podem conter URLs alternativas (ex: URLs externas do Getlate ou covers).
+3. **Fallback visual pobre**: Quando a imagem falha, o fallback "Erro ao carregar" ocupa o mesmo espaço visual sem informação útil.
 
-| # | Ficheiro | Alteração |
-|---|----------|-----------|
-| 1 | `src/pages/Calendar.tsx` — `handleDelete` | Adicionar verificação: se `resource.status === 'draft'`, eliminar de `posts_drafts` em vez de `posts`/`stories`. Limpar cache localStorage imediatamente antes do refetch. |
-| 2 | `src/pages/Calendar.tsx` — botão "Editar" | Se `resource.status === 'draft'`, navegar para `/manual-create?draft=${id}` em vez de `/review/${id}`. |
-| 3 | `src/pages/Calendar.tsx` — `handleDelete` | Após a eliminação bem-sucedida, remover imediatamente o evento do state local (`setEvents(prev => prev.filter(...))`) e limpar o cache (`localStorage.removeItem(CACHE_KEY)`). Isto garante consistência instantânea mesmo sem o refetch. |
-| 4 | `src/pages/Calendar.tsx` — `handleDelete` | Adicionar cleanup best-effort de `scheduled_jobs` quando se elimina um post: `supabase.from('scheduled_jobs').delete().eq('post_id', id)`. |
-| 5 | `src/pages/Calendar.tsx` — diálogo de detalhes | Diferenciar texto da `DialogDescription` e badges para rascunhos: mostrar "Rascunho" com badge cinzento e data de criação em vez de "Aprovada/Agendada". |
+### Plano (1 ficheiro: `src/pages/Calendar.tsx`)
 
-### Detalhe técnico
+**1. Expandir a query para buscar mais campos de imagem**
+- Adicionar `media_items, cover_image_url, media_urls_backup` ao `select` das 2 queries de posts
+- Adicionar estes campos à interface `ScheduledPost`
 
-**Ponto 1+3 — handleDelete corrigido:**
-```typescript
-const handleDelete = async (id: string, contentType: string) => {
-  try {
-    const isDraft = selectedEvent?.resource.status === 'draft';
-    
-    if (isDraft) {
-      const { error } = await supabase.from('posts_drafts').delete().eq('id', id);
-      if (error) throw error;
-    } else {
-      const table = contentType === 'stories' ? 'stories' : 'posts';
-      const { error } = await supabase.from(table).delete().eq('id', id);
-      if (error) throw error;
-      // Cleanup orphaned scheduled_jobs
-      if (table === 'posts') {
-        await supabase.from('scheduled_jobs').delete().eq('post_id', id);
-      }
-    }
-    
-    // Optimistic: remove from local state immediately
-    setEvents(prev => prev.filter(e => e.id !== id));
-    localStorage.removeItem(CACHE_KEY);
-    
-    toast.success('Publicação eliminada com sucesso');
-    setSelectedEvent(null);
-    fetchScheduledContent();
-  } catch (error) {
-    toast.error('Falha ao eliminar item');
-  }
-};
-```
+**2. Criar lógica de thumbnail com fallback em cascata**
+- Função `getPostThumbnail(resource)` que tenta:
+  1. `cover_image_url` (se existir — é a miniatura designada)
+  2. `template_a_images[0]` (fonte principal actual)
+  3. `media_items[0].url` ou `media_items[0]` (campo alternativo com URLs potencialmente diferentes)
+  4. `media_urls_backup[0]` (backup final)
+  5. `null` (sem imagem — mostrar placeholder limpo)
 
-**Ponto 2 — Editar rascunho:**
-```typescript
-onClick={() => {
-  if (selectedEvent.resource.status === 'draft') {
-    navigate(`/manual-create?draft=${selectedEvent.id}`);
-  } else {
-    const path = selectedEvent.resource.content_type === 'stories'
-      ? `/review-story/${selectedEvent.id}`
-      : `/review/${selectedEvent.id}`;
-    navigate(path);
-  }
-  setSelectedEvent(null);
-}}
-```
+**3. Melhorar o fallback visual**
+- Substituir "Erro ao carregar" por um placeholder mais limpo: ícone + tema/título do post em texto pequeno
+- Usar as iniciais do título como avatar quando não há imagem
+- Manter o gradiente de fundo mas sem mensagem de erro negativa
 
-**Ponto 5 — DialogDescription para rascunhos:**
-```typescript
-selectedEvent.resource.status === 'draft'
-  ? `Rascunho criado em ${format(...)}`
-  : // ...mensagem actual
-```
+**4. Aplicar a mesma lógica nos 3 locais que mostram thumbnails**
+- Grelha lateral (linha ~1372)
+- Células do calendário (linha ~912)
+- Diálogo de detalhes (linha ~1624)
 
-5 correcções cirúrgicas, todas no mesmo ficheiro `Calendar.tsx`.
+### Resultado
+- Posts recentes (< 7 dias) mostram thumbnails correctamente
+- Posts antigos mostram placeholder visual limpo com título em vez de erro
+- Todas as fontes de URLs são tentadas antes de desistir
 
