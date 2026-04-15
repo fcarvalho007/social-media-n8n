@@ -56,37 +56,56 @@ interface ScheduledPost {
   external_post_ids?: Record<string, string>;
 }
 
-// Cascading thumbnail resolution: tries multiple sources before giving up
+// Video URL detection
+const isVideoUrl = (url: string): boolean => {
+  if (!url || typeof url !== 'string') return false;
+  const lower = url.toLowerCase();
+  return /\.(mp4|mov|webm|avi|mkv|m4v)(\?|$)/i.test(lower);
+};
+
+// Extract first image URL from an array, skipping videos
+const firstImageFromArray = (arr: any[] | null | undefined): string | null => {
+  if (!arr || !Array.isArray(arr)) return null;
+  for (const item of arr) {
+    const url = typeof item === 'string' ? item : (item?.url || item?.file_url || null);
+    if (url && !isVideoUrl(url)) return url;
+  }
+  return null;
+};
+
+// Check if resource has any video content
+const hasVideoContent = (resource: ScheduledPost): boolean => {
+  const allUrls = [
+    ...(resource.template_a_images || []),
+    ...(Array.isArray(resource.media_items) ? resource.media_items : []),
+    ...(Array.isArray(resource.media_urls_backup) ? resource.media_urls_backup : []),
+  ];
+  return allUrls.some(item => {
+    const url = typeof item === 'string' ? item : (item?.url || item?.file_url || '');
+    return isVideoUrl(url);
+  });
+};
+
+// Cascading thumbnail resolution: tries multiple image sources, skips videos
 const getPostThumbnail = (resource: ScheduledPost): string | null => {
   if (resource.content_type === 'stories') {
     return resource.story_image_url || null;
   }
   
   // 1. cover_image_url (designated thumbnail)
-  if (resource.cover_image_url) return resource.cover_image_url;
+  if (resource.cover_image_url && !isVideoUrl(resource.cover_image_url)) return resource.cover_image_url;
   
-  // 2. template_a_images[0] (primary source)
-  if (resource.template_a_images?.length && resource.template_a_images[0]) {
-    return resource.template_a_images[0];
-  }
+  // 2. First image in template_a_images (skip videos)
+  const fromTemplate = firstImageFromArray(resource.template_a_images);
+  if (fromTemplate) return fromTemplate;
   
-  // 3. media_items[0] (alternative with potentially different URLs)
-  if (resource.media_items && Array.isArray(resource.media_items) && resource.media_items.length > 0) {
-    const first = resource.media_items[0];
-    if (typeof first === 'string') return first;
-    if (first && typeof first === 'object') {
-      return (first as any).url || (first as any).file_url || null;
-    }
-  }
+  // 3. First image in media_urls_backup (skip videos)
+  const fromBackup = firstImageFromArray(resource.media_urls_backup);
+  if (fromBackup) return fromBackup;
   
-  // 4. media_urls_backup[0] (final backup)
-  if (resource.media_urls_backup && Array.isArray(resource.media_urls_backup) && resource.media_urls_backup.length > 0) {
-    const first = resource.media_urls_backup[0];
-    if (typeof first === 'string') return first;
-    if (first && typeof first === 'object') {
-      return (first as any).url || (first as any).file_url || null;
-    }
-  }
+  // 4. First image in media_items (skip videos)
+  const fromMedia = firstImageFromArray(resource.media_items);
+  if (fromMedia) return fromMedia;
   
   return null;
 };
