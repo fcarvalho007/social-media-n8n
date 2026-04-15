@@ -918,15 +918,8 @@ if (imageUrlsForPdf.length > 0) {
               isPending ? 'Em processamento pelo Getlate...' : undefined, 
               publishResult?.postUrl || publishResult?.url);
             
-            // Update attempt to success
-            await supabase.from('publication_attempts')
-              .update({ 
-                status: isPending ? 'pending' : 'success',
-                response_data: publishResult ? JSON.parse(JSON.stringify(publishResult)) : null,
-              })
-              .eq('post_id', createdPostId)
-              .eq('format', format)
-              .eq('status', 'pending');
+            // NOTE: publication_attempts are now managed exclusively by the edge function
+            // No frontend writes to avoid race conditions and duplicate records
           }
         } catch (err) {
           console.error(`[usePublishWithProgress] [${publishSessionId}] ${format} exception:`, err);
@@ -957,21 +950,8 @@ if (imageUrlsForPdf.length > 0) {
           });
           updatePlatformStatus(format, 'error', structuredError.message, undefined, structuredError);
           
-          // Update attempt to failed on exception
-          await supabase.from('publication_attempts')
-            .update({ 
-              status: 'failed', 
-              error_message: JSON.stringify({
-                message: structuredError.message,
-                code: structuredError.code,
-                source: structuredError.source,
-                originalError: errorMessage,
-                timestamp: new Date().toISOString(),
-              }),
-            })
-            .eq('post_id', createdPostId)
-            .eq('format', format)
-            .eq('status', 'pending');
+          // NOTE: publication_attempts are now managed exclusively by the edge function
+          // Frontend exceptions (network errors, timeouts) are tracked via platformResults only
         }
       }
       
