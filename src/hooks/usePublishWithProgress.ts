@@ -448,6 +448,33 @@ export function usePublishWithProgress() {
       }
       
       // ═══════════════════════════════════════════
+      // DUPLICATE CHECK: Detect same caption published in last 30 minutes
+      // ═══════════════════════════════════════════
+      if (!params.skipDuplicateCheck) {
+        try {
+          const thirtyMinAgo = new Date(Date.now() - 30 * 60 * 1000).toISOString();
+          const { data: recentDuplicates } = await supabase
+            .from('posts')
+            .select('id, created_at, selected_networks, status')
+            .eq('user_id', user.id)
+            .eq('caption', caption)
+            .in('status', ['published', 'publishing'])
+            .gte('created_at', thirtyMinAgo)
+            .limit(1);
+
+          if (recentDuplicates && recentDuplicates.length > 0) {
+            console.log(`[usePublishWithProgress] Duplicate detected:`, recentDuplicates[0]);
+            // Release lock — user will decide
+            publishingLockRef.current = false;
+            setIsPublishing(false);
+            return { duplicate: recentDuplicates[0] as DuplicateInfo };
+          }
+        } catch (e) {
+          console.warn('[usePublishWithProgress] Duplicate check failed, proceeding:', e);
+        }
+      }
+
+      // ═══════════════════════════════════════════
       // CREATE POST RECORD EARLY (before upload) so ALL attempts are logged
       // ═══════════════════════════════════════════
       const selectedNetworks = [...new Set(consolidatedFormats.map(f => FORMAT_TO_NETWORK[f] || 'instagram'))];
