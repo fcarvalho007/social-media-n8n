@@ -1,50 +1,51 @@
 
 
-## Avaliação e Refinamentos
+## Auditoria dos Últimos Desenvolvimentos
 
-### Estado actual — o que está bem
-- ✅ `isVideoUrl`, `firstImageFromArray`, `getPostThumbnail` e `hasVideoContent` estão correctos no Calendar
-- ✅ Diálogo de detalhes unifica fontes de média e filtra vídeos
-- ✅ Delete handler gere `posts_drafts` para rascunhos
-- ✅ MediaLibrary usa `<video preload="metadata">` para thumbnails de vídeo
-- ✅ Banner de retenção de 7 dias presente na MediaLibrary
+### Estado actual — tudo implementado correctamente
 
-### Problemas identificados e refinamentos
+| # | Refinamento | Estado | Verificação |
+|---|-------------|--------|-------------|
+| 1 | Badge de expiração na grid MediaLibrary | ✅ OK | `getDaysRemaining` + badges vermelho/âmbar nas linhas 809-829 |
+| 2 | Fallback visual vídeo expirado | ⚠️ Bug CSS | `data-expired-fallback` usa `flex-col` sem `flex` — funciona quando JS muda `display` para `flex`, mas a classe `flex-col` sozinha não garante layout correcto em todos os browsers |
+| 3 | Data expiração no diálogo detalhes | ✅ OK | Linhas 988-997, mostra data e dias restantes |
+| 4 | Reset `currentImageIndex` no Calendar | ✅ OK | `useEffect` na linha 318-320 |
+| 5 | Drag-and-drop de rascunhos | ✅ OK | `handleEventDrop` verifica `isDraft` e usa `posts_drafts` (linhas 737-748) |
+| 6 | Thumbnails compactos no Calendar | ✅ OK | `w-14 h-14 sm:w-16 sm:h-16` (linha 991) |
 
-| # | Problema | Local |
-|---|----------|-------|
-| 1 | **Banner de retenção sem tempo restante por ficheiro** — O banner é genérico. Cada item deveria mostrar "Expira em X dias" baseado no `created_at` + 7 dias | MediaLibrary grid |
-| 2 | **Calendar: `currentImageIndex` não é resetado** quando se muda de post no diálogo — se o post A tem 5 imagens e o utilizador está no slide 4, ao abrir o post B (com 1 imagem) o `safeIndex` corrige mas a UX é confusa | Calendar dialog |
-| 3 | **Calendar: thumbnails de 80×80px na vista normal são excessivamente grandes** para células do calendário — cortam o conteúdo em monitores menores | Calendar CustomEvent |
-| 4 | **MediaLibrary: erro silencioso nos vídeos** — quando `<video>` falha a carregar (URL expirada/7 dias), esconde-se mas o overlay de ícone fica sobre fundo vazio sem explicação | MediaLibrary grid |
-| 5 | **MediaLibrary: diálogo de detalhes não mostra dias restantes** — não indica quando o ficheiro será eliminado | MediaLibrary details |
-| 6 | **Calendar: drag-and-drop de rascunhos falha** — `handleEventDrop` usa `posts`/`stories` mas não `posts_drafts`, arrastando um rascunho causa erro silencioso | Calendar DnD |
+### Helpers e cascata de média
+- ✅ `isVideoUrl`, `firstImageFromArray`, `getPostThumbnail`, `hasVideoContent` estão correctos
+- ✅ Diálogo de detalhes do Calendar unifica 3 fontes (`template_a_images`, `media_urls_backup`, `media_items`) com deduplicação
+- ✅ Grid lateral e CustomEvent usam `getPostThumbnail` consistentemente
+- ✅ `cover_image_url` é queried e usado como prioridade 1 no thumbnail
 
-### Plano de correcção (2 ficheiros)
+### Problema menor encontrado
 
-**`src/pages/MediaLibrary.tsx`**
+**MediaLibrary linha 779**: O `div[data-expired-fallback]` usa `className="... flex-col items-center justify-center ..."` mas falta a classe `flex`. Quando o JavaScript altera `style.display = 'flex'`, o inline style força o display flex, mas sem a classe `flex` no Tailwind os utilitários `flex-col` e `items-center` podem não ser aplicados consistentemente.
 
-1. **Badge de expiração na grid**: Calcular `daysRemaining = 7 - diffInDays(now, created_at)`. Mostrar badge no canto inferior esquerdo:
-   - ≤ 2 dias: badge vermelho "Expira em X d"
-   - 3-4 dias: badge âmbar "X d restantes"
-   - 5+: sem badge (suficientemente recente)
+**Correcção**: Mudar de `flex-col` para `hidden flex-col` e no `onError` usar `classList.remove('hidden')` + `classList.add('flex')` em vez de manipular `style.display`. OU simplesmente adicionar a classe base correcta.
 
-2. **Fallback visual quando vídeo falha**: Quando `<video>` dispara `onError`, mostrar placeholder com ícone de `Video` + texto "Ficheiro expirado" em vez de ficar vazio com overlay
+### Plano (1 ficheiro, 1 alteração mínima)
 
-3. **Diálogo de detalhes — data de expiração**: Adicionar linha após a data de criação: `Clock` + "Expira em dd MMM yyyy" (created_at + 7 dias)
+**`src/pages/MediaLibrary.tsx` — linha 779**
 
-**`src/pages/Calendar.tsx`**
+Corrigir a classe CSS do fallback de expiração:
+```
+// DE:
+<div data-expired-fallback className="absolute inset-0 flex-col items-center justify-center bg-muted" style={{ display: 'none' }}>
 
-4. **Reset do `currentImageIndex`**: Adicionar `useEffect` que reset para 0 quando `selectedEvent` muda
+// PARA:
+<div data-expired-fallback className="absolute inset-0 flex flex-col items-center justify-center bg-muted hidden">
+```
 
-5. **Drag-and-drop de rascunhos**: Em `handleEventDrop`, verificar se o evento é draft (`event.resource.status === 'draft'`) e usar tabela `posts_drafts` com campo `updated_at` em vez de `scheduled_date`
+E no `onError` (linha 775):
+```
+// DE:
+if (expired) expired.style.display = 'flex';
 
-6. **Thumbnails mais compactos**: Reduzir de `w-20 h-20 sm:w-24 sm:h-24` para `w-14 h-14 sm:w-16 sm:h-16` no `CustomEvent` da vista normal para evitar corte em monitores menores
+// PARA:
+if (expired) expired.classList.remove('hidden');
+```
 
-### Resultado
-- Utilizador vê claramente quando cada ficheiro expira
-- Vídeos expirados mostram estado visual adequado em vez de vazio
-- Navegação entre posts no diálogo é consistente
-- Arrastar rascunhos funciona correctamente
-- Células do calendário mais compactas e legíveis
+Isto é a única correcção necessária — tudo o resto está sólido e funcional.
 
