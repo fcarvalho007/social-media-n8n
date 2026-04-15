@@ -546,6 +546,12 @@ export default function PublicationHistory() {
                           {item.origin_mode === 'manual' ? 'Manual' : 'Auto'}
                         </Badge>
                       )}
+                      {item.isDuplicate && (
+                        <Badge className="text-[10px] px-1.5 py-0 bg-amber-100 text-amber-800 dark:bg-amber-900/30 dark:text-amber-400 border-amber-200 dark:border-amber-800 gap-0.5">
+                          <Copy className="h-2.5 w-2.5" />
+                          Possível duplicado
+                        </Badge>
+                      )}
                     </div>
                   </div>
                 </div>
