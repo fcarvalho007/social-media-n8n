@@ -43,6 +43,9 @@ interface ScheduledPost {
   status: string;
   template_a_images?: string[];
   story_image_url?: string;
+  cover_image_url?: string | null;
+  media_items?: any[] | null;
+  media_urls_backup?: any[] | null;
   priority?: 'low' | 'medium' | 'high' | 'urgent';
   description?: string | null;
   project_id?: string;
@@ -52,6 +55,41 @@ interface ScheduledPost {
   selected_networks?: string[];
   external_post_ids?: Record<string, string>;
 }
+
+// Cascading thumbnail resolution: tries multiple sources before giving up
+const getPostThumbnail = (resource: ScheduledPost): string | null => {
+  if (resource.content_type === 'stories') {
+    return resource.story_image_url || null;
+  }
+  
+  // 1. cover_image_url (designated thumbnail)
+  if (resource.cover_image_url) return resource.cover_image_url;
+  
+  // 2. template_a_images[0] (primary source)
+  if (resource.template_a_images?.length && resource.template_a_images[0]) {
+    return resource.template_a_images[0];
+  }
+  
+  // 3. media_items[0] (alternative with potentially different URLs)
+  if (resource.media_items && Array.isArray(resource.media_items) && resource.media_items.length > 0) {
+    const first = resource.media_items[0];
+    if (typeof first === 'string') return first;
+    if (first && typeof first === 'object') {
+      return (first as any).url || (first as any).file_url || null;
+    }
+  }
+  
+  // 4. media_urls_backup[0] (final backup)
+  if (resource.media_urls_backup && Array.isArray(resource.media_urls_backup) && resource.media_urls_backup.length > 0) {
+    const first = resource.media_urls_backup[0];
+    if (typeof first === 'string') return first;
+    if (first && typeof first === 'object') {
+      return (first as any).url || (first as any).file_url || null;
+    }
+  }
+  
+  return null;
+};
 
 interface CalendarEvent extends Event {
   id: string;
@@ -282,7 +320,7 @@ const Calendar = () => {
         // Query 1: All posts with scheduled_date (past and future)
         supabase
           .from('posts')
-          .select('id, tema, content_type, status, scheduled_date, reviewed_at, created_at, published_at, template_a_images, error_log, failed_at, recovery_token, selected_networks, external_post_ids')
+          .select('id, tema, content_type, status, scheduled_date, reviewed_at, created_at, published_at, template_a_images, cover_image_url, media_items, media_urls_backup, error_log, failed_at, recovery_token, selected_networks, external_post_ids')
           .not('scheduled_date', 'is', null)
           .in('status', ['approved', 'published', 'failed', 'scheduled', 'waiting_for_approval', 'pending', 'publishing', 'requires_attention'])
           .order('scheduled_date', { ascending: false })
@@ -290,7 +328,7 @@ const Calendar = () => {
         // Query 2: Recent posts without scheduled_date (last 6 months)
         supabase
           .from('posts')
-          .select('id, tema, content_type, status, scheduled_date, reviewed_at, created_at, published_at, template_a_images, error_log, failed_at, recovery_token, selected_networks, external_post_ids')
+          .select('id, tema, content_type, status, scheduled_date, reviewed_at, created_at, published_at, template_a_images, cover_image_url, media_items, media_urls_backup, error_log, failed_at, recovery_token, selected_networks, external_post_ids')
           .is('scheduled_date', null)
           .in('status', ['approved', 'published', 'failed', 'waiting_for_approval', 'pending', 'publishing', 'requires_attention'])
           .gte('created_at', sixMonthsAgo)
@@ -909,9 +947,7 @@ const Calendar = () => {
     }
     
     // Normal view: thumbnail + title (or icon for tasks/milestones)
-    const thumbnailUrl = contentType === 'stories' 
-      ? event.resource.story_image_url 
-      : event.resource.template_a_images?.[0];
+    const thumbnailUrl = getPostThumbnail(event.resource);
 
     return (
       <div className="flex items-start gap-2.5 group">
@@ -1369,7 +1405,7 @@ const Calendar = () => {
                     </div>
                     <div className="grid grid-cols-2 gap-2 xl:gap-2.5">
                       {feedPosts.map((event) => {
-                        const thumbnailUrl = event.resource.template_a_images?.[0];
+                        const thumbnailUrl = getPostThumbnail(event.resource);
                         const isScheduled = !!event.resource.scheduled_date;
                         const isPublished = event.resource.status === 'published';
                         return (
@@ -1392,18 +1428,18 @@ const Calendar = () => {
                                     }
                                   }}
                                 />
-                                <div 
+                                 <div 
                                   className="w-full h-full bg-gradient-to-br from-gray-100 to-gray-200 dark:from-gray-800 dark:to-gray-900 flex flex-col items-center justify-center p-2 gap-1"
                                   style={{ display: 'none' }}
                                 >
-                                  <ImageIcon className="h-5 w-5 text-muted-foreground" />
-                                  <span className="text-[9px] text-muted-foreground font-medium text-center">Erro ao carregar</span>
+                                  <LayoutGrid className="h-5 w-5 text-muted-foreground" />
+                                  <span className="text-[9px] text-muted-foreground font-medium text-center line-clamp-2">{event.title || 'Post'}</span>
                                 </div>
                               </>
                             ) : (
                               <div className="w-full h-full bg-gradient-to-br from-gray-100 to-gray-200 dark:from-gray-800 dark:to-gray-900 flex flex-col items-center justify-center p-2 gap-1">
                                 <LayoutGrid className="h-5 w-5 text-muted-foreground" />
-                                <span className="text-[9px] text-muted-foreground font-medium text-center">Sem imagem</span>
+                                <span className="text-[9px] text-muted-foreground font-medium text-center line-clamp-2">{event.title || 'Post'}</span>
                               </div>
                             )}
                             {/* Status indicators */}
