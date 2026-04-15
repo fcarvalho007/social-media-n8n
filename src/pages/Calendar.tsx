@@ -1677,9 +1677,23 @@ const Calendar = () => {
 
               {/* Carousel with navigation for multiple images (filter out videos) */}
               {(() => {
-                const allMedia = selectedEvent.resource.template_a_images || [];
-                const imageOnly = allMedia.filter(url => !isVideoUrl(url));
-                const hasVideos = allMedia.some(url => isVideoUrl(url));
+                const res = selectedEvent.resource;
+                // Unify all media sources
+                const backupUrls = Array.isArray(res.media_urls_backup) 
+                  ? res.media_urls_backup.map((item: any) => typeof item === 'string' ? item : (item?.url || item?.file_url || '')).filter(Boolean)
+                  : [];
+                const mediaItemUrls = Array.isArray(res.media_items)
+                  ? res.media_items.map((item: any) => typeof item === 'string' ? item : (item?.url || item?.file_url || '')).filter(Boolean)
+                  : [];
+                const allMedia = [
+                  ...(res.template_a_images || []),
+                  ...backupUrls,
+                  ...mediaItemUrls,
+                ];
+                // Deduplicate
+                const uniqueMedia = [...new Set(allMedia)];
+                const imageOnly = uniqueMedia.filter(url => !isVideoUrl(url));
+                const hasVideos = uniqueMedia.some(url => isVideoUrl(url));
                 if (imageOnly.length === 0 && !hasVideos) return null;
                 if (imageOnly.length === 0 && hasVideos) {
                   return (
@@ -1689,11 +1703,7 @@ const Calendar = () => {
                     </div>
                   );
                 }
-                return null;
-              })()}
-              {(() => {
-                const allMedia = selectedEvent.resource.template_a_images || [];
-                const images = allMedia.filter(url => !isVideoUrl(url));
+                const images = imageOnly;
                 if (images.length === 0) return null;
                 return (
                 <div className="space-y-3">
