@@ -313,7 +313,7 @@ export function usePublishWithProgress() {
   }, []);
   
   // Main publish function
-  const publish = useCallback(async (params: PublishParams): Promise<boolean> => {
+  const publish = useCallback(async (params: PublishParams): Promise<boolean | { duplicate: DuplicateInfo }> => {
     const { formats, caption, mediaFiles, scheduledDate, time, scheduleAsap } = params;
     
     // Generate unique publish session ID for logging and idempotency
