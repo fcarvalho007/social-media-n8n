@@ -1,51 +1,53 @@
 
 
-## Auditoria dos Últimos Desenvolvimentos
+## Correcção: Thumbnails de Vídeo no Calendário e Grid de Conteúdos
 
-### Estado actual — tudo implementado correctamente
+### Causa raiz
 
-| # | Refinamento | Estado | Verificação |
-|---|-------------|--------|-------------|
-| 1 | Badge de expiração na grid MediaLibrary | ✅ OK | `getDaysRemaining` + badges vermelho/âmbar nas linhas 809-829 |
-| 2 | Fallback visual vídeo expirado | ⚠️ Bug CSS | `data-expired-fallback` usa `flex-col` sem `flex` — funciona quando JS muda `display` para `flex`, mas a classe `flex-col` sozinha não garante layout correcto em todos os browsers |
-| 3 | Data expiração no diálogo detalhes | ✅ OK | Linhas 988-997, mostra data e dias restantes |
-| 4 | Reset `currentImageIndex` no Calendar | ✅ OK | `useEffect` na linha 318-320 |
-| 5 | Drag-and-drop de rascunhos | ✅ OK | `handleEventDrop` verifica `isDraft` e usa `posts_drafts` (linhas 737-748) |
-| 6 | Thumbnails compactos no Calendar | ✅ OK | `w-14 h-14 sm:w-16 sm:h-16` (linha 991) |
+`getPostThumbnail` **ignora propositadamente** URLs de vídeo (`.mp4`, `.mov`, etc.) e retorna `null` para posts que só contêm vídeos. O resultado: esses posts mostram um ícone genérico em vez de um thumbnail visual.
 
-### Helpers e cascata de média
-- ✅ `isVideoUrl`, `firstImageFromArray`, `getPostThumbnail`, `hasVideoContent` estão correctos
-- ✅ Diálogo de detalhes do Calendar unifica 3 fontes (`template_a_images`, `media_urls_backup`, `media_items`) com deduplicação
-- ✅ Grid lateral e CustomEvent usam `getPostThumbnail` consistentemente
-- ✅ `cover_image_url` é queried e usado como prioridade 1 no thumbnail
+A solução aplicada na MediaLibrary (`<video preload="metadata">`) não foi replicada no Calendar.
 
-### Problema menor encontrado
+### Plano (1 ficheiro: `src/pages/Calendar.tsx`)
 
-**MediaLibrary linha 779**: O `div[data-expired-fallback]` usa `className="... flex-col items-center justify-center ..."` mas falta a classe `flex`. Quando o JavaScript altera `style.display = 'flex'`, o inline style força o display flex, mas sem a classe `flex` no Tailwind os utilitários `flex-col` e `items-center` podem não ser aplicados consistentemente.
+**1. Adicionar helper `getFirstVideoUrl`**
 
-**Correcção**: Mudar de `flex-col` para `hidden flex-col` e no `onError` usar `classList.remove('hidden')` + `classList.add('flex')` em vez de manipular `style.display`. OU simplesmente adicionar a classe base correcta.
-
-### Plano (1 ficheiro, 1 alteração mínima)
-
-**`src/pages/MediaLibrary.tsx` — linha 779**
-
-Corrigir a classe CSS do fallback de expiração:
-```
-// DE:
-<div data-expired-fallback className="absolute inset-0 flex-col items-center justify-center bg-muted" style={{ display: 'none' }}>
-
-// PARA:
-<div data-expired-fallback className="absolute inset-0 flex flex-col items-center justify-center bg-muted hidden">
+Junto aos helpers existentes (~linha 88), criar função que retorna o primeiro URL de vídeo de um post:
+```typescript
+const getFirstVideoUrl = (resource: ScheduledPost): string | null => {
+  const sources = [
+    ...(resource.template_a_images || []),
+    ...(Array.isArray(resource.media_items) ? resource.media_items : []),
+    ...(Array.isArray(resource.media_urls_backup) ? resource.media_urls_backup : []),
+  ];
+  for (const item of sources) {
+    const url = typeof item === 'string' ? item : (item?.url || item?.file_url || null);
+    if (url && isVideoUrl(url)) return url;
+  }
+  return null;
+};
 ```
 
-E no `onError` (linha 775):
-```
-// DE:
-if (expired) expired.style.display = 'flex';
+**2. CustomEvent (células do calendário) — linha ~1007**
 
-// PARA:
-if (expired) expired.classList.remove('hidden');
+Quando `thumbnailUrl` é `null` mas `hasVideoContent` é true, em vez do ícone estático, renderizar:
+```jsx
+<video src={videoUrl} preload="metadata" muted playsInline
+  className="w-14 h-14 sm:w-16 sm:h-16 object-cover rounded-lg" />
 ```
+Com overlay de ícone `Video` semi-transparente e fallback `onError` para o ícone actual.
 
-Isto é a única correcção necessária — tudo o resto está sólido e funcional.
+**3. Grid lateral (Posts Feed) — linha ~1471**
+
+Mesma lógica: quando `thumbnailUrl` é `null` e o post tem vídeo, usar `<video preload="metadata">` com o primeiro URL de vídeo em vez do placeholder cinzento com ícone.
+
+**4. Diálogo de detalhes — verificar consistência**
+
+O diálogo já foi corrigido anteriormente, mas confirmar que também usa `<video>` para preview quando só há vídeos.
+
+### Resultado
+- Posts com imagem → thumbnail de imagem (sem alteração)
+- Posts com vídeo → primeiro frame do vídeo como thumbnail visual
+- Posts mistos → primeira imagem (sem alteração, já funciona)
+- Ícone de `Video` como overlay em todos os thumbnails de vídeo
 
