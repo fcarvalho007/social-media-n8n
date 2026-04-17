@@ -1955,10 +1955,10 @@ const Calendar = () => {
                 </div>
               )}
 
-              <div className="flex gap-3">
+              <div className="flex flex-col sm:flex-row gap-2">
                 <Button
                   variant="destructive"
-                  className="flex-1"
+                  className="w-full sm:flex-1"
                   onClick={() => {
                     if (confirm('Tem a certeza que deseja eliminar esta publicação?')) {
                       handleDelete(selectedEvent.id, selectedEvent.resource.content_type);
@@ -1970,13 +1970,13 @@ const Calendar = () => {
                 </Button>
                 <Button
                   variant="outline"
-                  className="flex-1"
+                  className="w-full sm:flex-1"
                   onClick={() => setSelectedEvent(null)}
                 >
                   Fechar
                 </Button>
                 <Button
-                  className="flex-1"
+                  className="w-full sm:flex-1"
                   onClick={() => {
                     if (selectedEvent.resource.status === 'draft') {
                       navigate(`/manual-create?draft=${selectedEvent.id}`);
