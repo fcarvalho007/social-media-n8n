@@ -89,6 +89,13 @@ export const ERROR_MESSAGES: Record<string, ErrorInfo> = {
     isRetryable: true,
     source: 'getlate',
   },
+  duplicate_content: {
+    title: 'Conteúdo duplicado',
+    description: 'Este conteúdo já foi publicado ou está em publicação nesta conta nas últimas 24h.',
+    action: 'Verifica no Instagram/Getlate se já está publicado, ou altera a legenda',
+    isRetryable: false,
+    source: 'getlate',
+  },
   upload_error: {
     title: 'Erro no upload',
     description: 'Não foi possível carregar os ficheiros para o servidor.',
@@ -154,6 +161,7 @@ export function getErrorInfoFromStructured(structuredError: StructuredError): Er
     'QUOTA_EXCEEDED': 'quota_exceeded',
     'API_ERROR': 'api_error',
     'UPLOAD_ERROR': 'upload_error',
+    'DUPLICATE_CONTENT': 'duplicate_content',
     'UNKNOWN': 'unknown',
   };
   
@@ -257,6 +265,20 @@ export function isRateLimitError(errorMessage: string | undefined): boolean {
 // Used when edge function returns error as string instead of structured object
 export function classifyErrorFromString(errorString: string, httpStatus?: number): StructuredError {
   const lower = errorString.toLowerCase();
+  
+  // Duplicate content protection (Getlate 409 anti-duplication)
+  if (lower.includes('exact content') || lower.includes('already scheduled') ||
+      lower.includes('within the last 24 hours') || lower.includes('already published') ||
+      (httpStatus === 409 && (lower.includes('content') || lower.includes('duplicate') || lower.includes('already')))) {
+    return {
+      message: 'Conteúdo duplicado',
+      code: 'DUPLICATE_CONTENT',
+      source: 'getlate',
+      isRetryable: false,
+      originalError: httpStatus ? `${httpStatus}: ${errorString}` : errorString,
+      suggestedAction: 'Verifica no Instagram se já foi publicado, ou altera ligeiramente a legenda para republicar',
+    };
+  }
   
   // Account not associated (403, "do not belong")
   if (lower.includes('do not belong') || lower.includes('not belong') || 
