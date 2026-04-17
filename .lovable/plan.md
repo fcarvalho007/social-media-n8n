@@ -1,42 +1,19 @@
 
 
-## Refinamento: Fallback de vídeo na grid lateral
+## Correcção: Botões cortados no modal de detalhes do Calendário
 
 ### Problema
-Na grid lateral (Posts Feed, linha 1509-1527), quando o `<video>` falha a carregar, o `onError` tenta navegar para `parentElement.nextElementSibling` — mas não existe um elemento de fallback. O utilizador vê uma área completamente vazia.
+O modal usa `sm:max-w-lg` (~512px) e os 3 botões ("Eliminar", "Fechar", "Editar") com `flex-1` não cabem, ficando cortados à direita — especialmente em mobile ou viewports estreitos.
 
-No CustomEvent (células do calendário) este problema não existe porque o fallback `div` está como irmão directo do `<video>`.
+### Correcção (1 ficheiro, 2 alterações)
 
-### Correcção (1 ficheiro, 1 local)
+**`src/pages/Calendar.tsx`**
 
-**`src/pages/Calendar.tsx` — linhas 1509-1527**
+1. **Linha 1685** — Alargar o modal de `sm:max-w-lg` para `sm:max-w-xl` para dar mais espaço aos botões
 
-Adicionar um `div` de fallback (inicialmente `hidden`) dentro do container, e ajustar o `onError` para o mostrar:
+2. **Linha 1958** — Tornar os botões responsivos: em mobile empilham verticalmente, em desktop ficam lado a lado:
+   - Mudar `<div className="flex gap-3">` para `<div className="flex flex-col sm:flex-row gap-2">`
+   - Remover `flex-1` dos botões e usar largura completa em mobile: `className="w-full sm:flex-1"`
 
-```tsx
-<div className="relative w-full h-full">
-  <video
-    src={getFirstVideoUrl(event.resource)!}
-    preload="metadata"
-    muted
-    playsInline
-    className="w-full h-full object-cover"
-    onError={(e) => {
-      const target = e.currentTarget;
-      target.style.display = 'none';
-      const fallback = target.nextElementSibling;
-      if (fallback) (fallback as HTMLElement).classList.remove('hidden');
-    }}
-  />
-  <div className="w-full h-full bg-gradient-to-br from-gray-100 to-gray-200 dark:from-gray-800 dark:to-gray-900 flex-col items-center justify-center p-2 gap-1 hidden">
-    <Video className="h-5 w-5 text-muted-foreground" />
-    <span className="text-[9px] text-muted-foreground font-medium">Vídeo</span>
-  </div>
-  <div className="absolute bottom-1 right-1 bg-black/60 rounded p-0.5">
-    <Video className="h-3 w-3 text-white" />
-  </div>
-</div>
-```
-
-Alteração mínima — apenas adiciona o fallback visual que faltava e corrige a navegação DOM do `onError`.
+Resultado: botões sempre visíveis e legíveis em qualquer tamanho de ecrã.
 
