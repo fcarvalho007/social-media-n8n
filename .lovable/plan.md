@@ -1,73 +1,81 @@
 
 
-## Diagnóstico: Porque é que o Instagram falhou
+## Auditoria do Projeto — Bugs e Refinamentos Detectados
 
-### O que aconteceu (factos confirmados na BD)
+### Resumo Executivo
+Encontrei **3 bugs com impacto real**, **2 problemas de dados** e **3 refinamentos UX**. Os mais urgentes são (1) e (2) abaixo, que afectam directamente a experiência de publicação.
 
-**Post:** `d0cc4979-69e4-4e7c-bb7e-495d744075e7` (carrossel IA semana — Claude Opus 4.7, Codex 2.0, Adobe Firefly)
+---
 
-| Plataforma | Resultado | Detalhe |
-|---|---|---|
-| LinkedIn (Documento PDF) | ✅ Publicado | `urn:li:ugcPost:7450941897558237184` às 16:23:00 |
-| Instagram (Carrossel) | ❌ Falhou | Getlate devolveu HTTP **409** às 16:23:12 |
+### 🔴 BUGS CRÍTICOS
 
-### Causa raíz (mensagem real do Getlate)
+**1. Posts marcados como "publicados" com `error_log` sujo**
 
-```
-"This exact content is already scheduled, publishing, or was posted 
-to this account within the last 24 hours."
-existingPostId: 69e25e7035b27f33762e021d
-```
+3 posts recentes têm `status='published'` mas guardam `error_log = "instagram_carousel: Erro inesperado no processamento"`:
+- `0bb8882a-...` (18/04 — Manual post stories)
+- `d0cc4979-...` (17/04 — newsletter IA)
+- `48642d49-...` (12/04)
 
-O Getlate detetou que **o mesmo conteúdo (mesma legenda + mesmo media)** já tinha sido enviado para o Instagram nas últimas 24h e bloqueou a publicação por **proteção anti-duplicação do lado deles**. Já existe um post com ID `69e25e7035b27f33762e021d` em curso/publicado.
+A causa é o **catch genérico em `usePublishWithProgress.ts:935`** que escreve "Erro inesperado no processamento" no `error_log` mesmo quando, segundos depois, o polling do Getlate confirma que o post saiu com sucesso. O resultado é que o `/publication-history` mostra um aviso de erro num post que está perfeitamente publicado.
 
-Provavelmente publicaste (ou tentaste publicar) este mesmo carrossel no Instagram nas últimas 24 horas — a publicação anterior pode até estar no Instagram já, ou ainda em "publishing" no Getlate.
+**Fix:** Quando o polling pós-publicação detecta sucesso (linhas 960+), limpar `error_log` no `posts` para esse formato.
 
-### Porque o modal mostrou "Erro inesperado" + badge "Interno"
+**2. Posts antigos "presos" em estado `scheduled` / `approved`**
 
-O `classifyErrorFromString` em `src/lib/publishingErrors.ts` **não tem nenhum caso para 409 + "exact content already"**. O erro caiu no fallback final:
-- código: `UNKNOWN`
-- source: `internal` (porque não detetou nenhum padrão)
-- mensagem: "Ocorreu um problema desconhecido"
+A query revela:
+- 2 posts em `scheduled` desde **06/01/2026** (3 meses — agendados para data já passada)
+- 8 posts em `approved` desde **25-26/10/2025** (6 meses)
 
-Isto é enganador — o erro **não é interno nem desconhecido**: é uma proteção legítima do Getlate, **acionável** pelo utilizador (basta esperar 24h, alterar a legenda, ou verificar se a publicação anterior já saiu).
+Estes posts nunca executam mas continuam a poluir queries do Calendário e contadores do Dashboard. Não há job de cleanup nem alerta visual.
 
-### Plano de correção (1 ficheiro)
+**Fix:** Adicionar ao `/dashboard` um aviso "Tens X posts presos há mais de 7 dias" com botão para os mover para `failed` ou `draft`. Em alternativa, um cron de limpeza.
 
-**`src/lib/publishingErrors.ts`** — adicionar:
+**3. `classifyErrorFromString` — captura demasiado agressiva como `MEDIA_ERROR`**
 
-1. **Nova entrada em `ERROR_MESSAGES`:**
-```ts
-duplicate_content: {
-  title: 'Conteúdo duplicado',
-  description: 'Este conteúdo já foi publicado ou está em publicação nesta conta nas últimas 24h.',
-  action: 'Verifica no Instagram/Getlate se já está publicado, ou altera a legenda',
-  isRetryable: false,
-  source: 'getlate',
-}
-```
+Linha 338-341: a regra `lower.includes('image') || lower.includes('video')` faz match com qualquer mensagem que mencione "image" ou "video", mesmo quando o erro real é outro (ex: "video processing rate limit"). Isto pode mascarar erros de rate-limit ou auth como sendo de média.
 
-2. **Novo bloco em `classifyErrorFromString`** (antes do fallback final), detectando:
-   - `lower.includes('exact content')` ou
-   - `lower.includes('already scheduled')` ou  
-   - `lower.includes('within the last 24 hours')` ou
-   - `httpStatus === 409` combinado com qualquer dos acima
-   
-   Devolve código `DUPLICATE_CONTENT`, source `getlate`, action específica e `isRetryable: false`.
+**Fix:** Mover o bloco `MEDIA_ERROR` para depois de `RATE_LIMIT` e `TOKEN_EXPIRED`, e exigir co-ocorrência com palavras como `format`, `size`, `aspect`, `dimension`.
 
-3. **Mapping em `getErrorInfoFromStructured`:** adicionar `'DUPLICATE_CONTENT': 'duplicate_content'`.
+---
 
-### Resultado depois da correção
+### 🟡 PROBLEMAS DE DADOS
 
-O modal passará a mostrar:
-- 🔗 **Getlate** (badge correto — não "Interno")
-- **"Conteúdo duplicado"** (título)
-- **"Este conteúdo já foi publicado ou está em publicação nesta conta nas últimas 24h."**
-- Ação: "Verifica no Instagram/Getlate se já está publicado, ou altera a legenda"
+**4. `media_library` com 2.824 MB acumulados (2.082 ficheiros > 7 dias)**
 
-### O que fazer agora (ação imediata, sem código)
+A política de retenção de 7 dias documentada em memória **não está activa**. Há 2.824 MB em `source='publication'` com mais de 7 dias. O bucket vai continuar a crescer e eventualmente atingir limites de storage.
 
-1. Verifica o Instagram `@frederico.m.carvalho` — o carrossel da newsletter DIGITALSPRINT provavelmente já está publicado (ou em processamento).
-2. Se sim, marca este post como publicado manualmente ou ignora o erro.
-3. Se queres mesmo republicar, edita ligeiramente a legenda (ex: muda emoji/ordem) para o Getlate aceitar.
+**Fix:** Activar/criar cron `cleanup-storage` para correr diariamente e apagar `media_library` + ficheiros do Storage com `created_at < NOW() - 7 days` e `source='publication'`.
+
+**5. `idempotency_keys` — apenas 2 registos, ambos expirados**
+
+Tabela está praticamente vazia. Confirma que o cleanup funciona, mas sugere que o sistema de idempotency raramente é exercitado (TTL de 5min). Não é bug, apenas validação.
+
+---
+
+### 🟢 REFINAMENTOS UX
+
+**6. Modal de erro de duplicação — adicionar botão "Marcar como publicado"**
+
+Já corrigimos o modal para mostrar "Conteúdo duplicado" correctamente. Mas quando o utilizador vê este erro, sabe que o post já está no Instagram. Falta um botão único: **"Já está publicado — fechar"** que actualize `status='published'` e remova o erro do histórico.
+
+**7. `/publication-history` — filtrar inconsistências**
+
+Devido ao bug #1, o histórico mostra posts com badge de erro que estão de facto publicados. Adicionar lógica: se `status='published'` E `published_at IS NOT NULL`, ignorar `error_log` no display do badge.
+
+**8. `scheduled_jobs` — 4 jobs em `requires_attention`**
+
+Jobs que esgotaram retries continuam na BD sem visibilidade. Adicionar um indicador no Dashboard ou em `/publication-history` para estes casos.
+
+---
+
+### Plano de Execução Recomendado
+
+Priorização sugerida (4 ordens, do mais ao menos urgente):
+
+1. **Bug #1 + Refinamento #7** (mesma origem, mesma sessão) — limpeza de `error_log` ao confirmar publicação + filtro no histórico.
+2. **Bug #3** — reordenar regras de classificação de erro.
+3. **Refinamento #6** — botão "Já está publicado" no modal de duplicação.
+4. **Bug #2 + Problema #4** — cleanup de posts presos + activação de retenção de média.
+
+Posso avançar com qualquer um destes individualmente — recomendo começar pelo **#1** porque é o que causa mais confusão visível ao utilizador (badges vermelhos em posts que correram bem).
 
