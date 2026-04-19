@@ -272,6 +272,10 @@ export default function PublicationHistory() {
       const successCount = dedupedAttempts.filter(a => a.status === 'success').length;
       const totalPlatforms = dedupedAttempts.length;
 
+      // Bug #1 fix: ignore stale error_log on confirmed-published posts
+      const isConfirmedPublished = post?.status === 'published' && !!post?.published_at;
+      const effectiveErrorLog = isConfirmedPublished ? null : (post?.error_log || null);
+
       items.push({
         id: `post-${postId}`,
         post_id: postId,
@@ -284,7 +288,7 @@ export default function PublicationHistory() {
         post_type: post?.post_type || undefined,
         timestamp: dedupedAttempts[0].attempted_at,
         overallStatus,
-        error_message: post?.error_log || undefined,
+        error_message: effectiveErrorLog || undefined,
         successCount,
         totalPlatforms,
         platforms: dedupedAttempts.map(a => ({
@@ -314,6 +318,10 @@ export default function PublicationHistory() {
       const cleanImages = (post.template_a_images || []).filter(u => u !== 'placeholder-pending-upload');
       const externalIds = (post.external_post_ids as Record<string, string>) || {};
 
+      // Bug #1 fix: ignore stale error_log on confirmed-published posts
+      const isConfirmedPublished = post.status === 'published' && !!post.published_at;
+      const effectiveErrorLog = isConfirmedPublished ? null : post.error_log;
+
       items.push({
         id: `post-${post.id}`,
         post_id: post.id,
@@ -325,13 +333,13 @@ export default function PublicationHistory() {
         hashtags: post.hashtags || [],
         timestamp: post.published_at || post.failed_at || post.created_at || new Date().toISOString(),
         overallStatus: post.status,
-        error_message: post.error_log || undefined,
+        error_message: effectiveErrorLog || undefined,
         platforms: networks.length > 0 
           ? networks.map(n => ({
               platform: n,
               format: post.post_type,
               status: post.status!,
-              error_message: post.error_log,
+              error_message: effectiveErrorLog,
               external_url: externalIds[n],
               attempted_at: post.published_at || post.created_at || new Date().toISOString(),
             }))
@@ -339,7 +347,7 @@ export default function PublicationHistory() {
               platform: 'instagram',
               format: post.post_type,
               status: post.status!,
-              error_message: post.error_log,
+              error_message: effectiveErrorLog,
               external_url: undefined,
               attempted_at: post.published_at || post.created_at || new Date().toISOString(),
             }],

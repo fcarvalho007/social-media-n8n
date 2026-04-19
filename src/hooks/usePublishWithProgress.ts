@@ -993,6 +993,7 @@ if (imageUrlsForPdf.length > 0) {
             
             if (dbPost && (dbPost.status === 'published' || (dbPost.external_post_ids && Object.keys(dbPost.external_post_ids as Record<string, string>).length > 0))) {
               const externalIds = (dbPost.external_post_ids || {}) as Record<string, string>;
+              let anyCorrected = false;
               
               for (const [format, result] of platformResults) {
                 if (result.status === 'error' || result.status === 'pending') {
@@ -1009,9 +1010,25 @@ if (imageUrlsForPdf.length > 0) {
                       structuredError: undefined,
                     });
                     updatePlatformStatus(format, 'success', undefined, externalUrl || undefined);
+                    anyCorrected = true;
                   }
                 }
               }
+              
+              // Clean up stale error_log when DB confirms success — prevents
+              // /publication-history from showing red badges on successful posts.
+              if (anyCorrected && dbPost.status === 'published') {
+                try {
+                  await supabase
+                    .from('posts')
+                    .update({ error_log: null, failed_at: null })
+                    .eq('id', createdPostId);
+                  console.log(`[usePublishWithProgress] [${publishSessionId}] 🧹 Cleared stale error_log after success confirmation.`);
+                } catch (cleanupErr) {
+                  console.warn(`[usePublishWithProgress] [${publishSessionId}] Could not clear error_log:`, cleanupErr);
+                }
+              }
+              
               verified = true;
               break;
             }
