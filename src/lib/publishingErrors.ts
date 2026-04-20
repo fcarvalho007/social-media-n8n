@@ -334,21 +334,6 @@ export function classifyErrorFromString(errorString: string, httpStatus?: number
     };
   }
   
-  // Media errors (format, size, aspect ratio)
-  if (lower.includes('media') || lower.includes('image') || lower.includes('video') || 
-      lower.includes('size') || lower.includes('format') || lower.includes('aspect') ||
-      lower.includes('dimension') || lower.includes('resolution') || lower.includes('pixel') ||
-      lower.includes('width') || lower.includes('height') || lower.includes('allowed range')) {
-    return {
-      message: 'Problema com ficheiros de média',
-      code: 'MEDIA_ERROR',
-      source: 'platform',
-      isRetryable: false,
-      originalError: httpStatus ? `${httpStatus}: ${errorString}` : errorString,
-      suggestedAction: 'Verifica as dimensões (4:5 ou 1:1) e formato dos ficheiros',
-    };
-  }
-  
   // Caption errors
   if (lower.includes('caption') || lower.includes('character') || 
       lower.includes('text') && (lower.includes('long') || lower.includes('invalid')) ||
