@@ -195,11 +195,15 @@ Deno.serve(async (req) => {
     // ========== PHASE 1: Process scheduled_jobs table (new system) ==========
     console.log('\n[Phase 1] Checking scheduled_jobs table...');
     
+    // TTL: ignore jobs older than 7 days to avoid burning invocations on stale work
+    const sevenDaysAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString();
+
     const { data: pendingJobs, error: jobsError } = await supabase
       .from('scheduled_jobs')
       .select('*')
       .in('status', ['pending', 'failed'])
       .lte('scheduled_for', now)
+      .gte('scheduled_for', sevenDaysAgo)
       .or(`next_retry_at.is.null,next_retry_at.lte.${now}`)
       .order('scheduled_for', { ascending: true })
       .limit(50);
@@ -236,12 +240,15 @@ Deno.serve(async (req) => {
     // ========== PHASE 2: Process legacy posts (backward compatibility) ==========
     console.log('\n[Phase 2] Checking legacy scheduled posts...');
     
+    // Only process posts scheduled in the last 7 days — older posts are stale and clutter logs
+    const postsTtlCutoff = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString();
     const { data: scheduledPosts, error: postsError } = await supabase
       .from('posts')
       .select('*')
       .in('status', ['approved', 'scheduled'])
       .not('scheduled_date', 'is', null)
-      .lte('scheduled_date', now);
+      .lte('scheduled_date', now)
+      .gte('scheduled_date', postsTtlCutoff);
 
     if (postsError) {
       console.error('[Phase 2] Error fetching scheduled posts:', postsError);
@@ -307,12 +314,15 @@ Deno.serve(async (req) => {
     // ========== PHASE 3: Process legacy stories (backward compatibility) ==========
     console.log('\n[Phase 3] Checking legacy scheduled stories...');
     
+    // Only process stories scheduled in the last 7 days
+    const storiesTtlCutoff = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString();
     const { data: scheduledStories, error: storiesError } = await supabase
       .from('stories')
       .select('*')
       .eq('status', 'approved')
       .not('scheduled_date', 'is', null)
-      .lte('scheduled_date', now);
+      .lte('scheduled_date', now)
+      .gte('scheduled_date', storiesTtlCutoff);
 
     if (storiesError) {
       console.error('[Phase 3] Error fetching scheduled stories:', storiesError);

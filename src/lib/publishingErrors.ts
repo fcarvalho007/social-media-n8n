@@ -334,21 +334,6 @@ export function classifyErrorFromString(errorString: string, httpStatus?: number
     };
   }
   
-  // Media errors (format, size, aspect ratio)
-  if (lower.includes('media') || lower.includes('image') || lower.includes('video') || 
-      lower.includes('size') || lower.includes('format') || lower.includes('aspect') ||
-      lower.includes('dimension') || lower.includes('resolution') || lower.includes('pixel') ||
-      lower.includes('width') || lower.includes('height') || lower.includes('allowed range')) {
-    return {
-      message: 'Problema com ficheiros de média',
-      code: 'MEDIA_ERROR',
-      source: 'platform',
-      isRetryable: false,
-      originalError: httpStatus ? `${httpStatus}: ${errorString}` : errorString,
-      suggestedAction: 'Verifica as dimensões (4:5 ou 1:1) e formato dos ficheiros',
-    };
-  }
-  
   // Caption errors
   if (lower.includes('caption') || lower.includes('character') || 
       lower.includes('text') && (lower.includes('long') || lower.includes('invalid')) ||
@@ -411,6 +396,29 @@ export function classifyErrorFromString(errorString: string, httpStatus?: number
       isRetryable: true,
       originalError: httpStatus ? `${httpStatus}: ${errorString}` : errorString,
       suggestedAction: 'Tenta novamente. Se persistir, contacta o suporte.',
+    };
+  }
+
+  // Media errors (format, size, aspect ratio) — placed AFTER rate-limit/token/quota/network
+  // to avoid masking those errors when they happen to mention image/video.
+  // Requires co-occurrence of media-related word with a technical specifier.
+  const hasMediaContext = lower.includes('media') || lower.includes('image') ||
+    lower.includes('video') || lower.includes('photo') || lower.includes('file');
+  const hasMediaSpecifier = lower.includes('format') || lower.includes('size') ||
+    lower.includes('aspect') || lower.includes('dimension') || lower.includes('resolution') ||
+    lower.includes('pixel') || lower.includes('width') || lower.includes('height') ||
+    lower.includes('allowed range') || lower.includes('ratio') || lower.includes('codec') ||
+    lower.includes('mime') || lower.includes('extension') || lower.includes('duration') ||
+    lower.includes('bitrate') || lower.includes('mb') || lower.includes('too large') ||
+    lower.includes('too small');
+  if (hasMediaContext && hasMediaSpecifier) {
+    return {
+      message: 'Problema com ficheiros de média',
+      code: 'MEDIA_ERROR',
+      source: 'platform',
+      isRetryable: false,
+      originalError: httpStatus ? `${httpStatus}: ${errorString}` : errorString,
+      suggestedAction: 'Verifica as dimensões (4:5 ou 1:1) e formato dos ficheiros',
     };
   }
   
