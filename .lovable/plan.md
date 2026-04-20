@@ -1,81 +1,87 @@
 
 
-## Auditoria do Projeto — Bugs e Refinamentos Detectados
+## Auditoria 2 — Estado Actual e Refinamentos Pendentes
 
-### Resumo Executivo
-Encontrei **3 bugs com impacto real**, **2 problemas de dados** e **3 refinamentos UX**. Os mais urgentes são (1) e (2) abaixo, que afectam directamente a experiência de publicação.
-
----
-
-### 🔴 BUGS CRÍTICOS
-
-**1. Posts marcados como "publicados" com `error_log` sujo**
-
-3 posts recentes têm `status='published'` mas guardam `error_log = "instagram_carousel: Erro inesperado no processamento"`:
-- `0bb8882a-...` (18/04 — Manual post stories)
-- `d0cc4979-...` (17/04 — newsletter IA)
-- `48642d49-...` (12/04)
-
-A causa é o **catch genérico em `usePublishWithProgress.ts:935`** que escreve "Erro inesperado no processamento" no `error_log` mesmo quando, segundos depois, o polling do Getlate confirma que o post saiu com sucesso. O resultado é que o `/publication-history` mostra um aviso de erro num post que está perfeitamente publicado.
-
-**Fix:** Quando o polling pós-publicação detecta sucesso (linhas 960+), limpar `error_log` no `posts` para esse formato.
-
-**2. Posts antigos "presos" em estado `scheduled` / `approved`**
-
-A query revela:
-- 2 posts em `scheduled` desde **06/01/2026** (3 meses — agendados para data já passada)
-- 8 posts em `approved` desde **25-26/10/2025** (6 meses)
-
-Estes posts nunca executam mas continuam a poluir queries do Calendário e contadores do Dashboard. Não há job de cleanup nem alerta visual.
-
-**Fix:** Adicionar ao `/dashboard` um aviso "Tens X posts presos há mais de 7 dias" com botão para os mover para `failed` ou `draft`. Em alternativa, um cron de limpeza.
-
-**3. `classifyErrorFromString` — captura demasiado agressiva como `MEDIA_ERROR`**
-
-Linha 338-341: a regra `lower.includes('image') || lower.includes('video')` faz match com qualquer mensagem que mencione "image" ou "video", mesmo quando o erro real é outro (ex: "video processing rate limit"). Isto pode mascarar erros de rate-limit ou auth como sendo de média.
-
-**Fix:** Mover o bloco `MEDIA_ERROR` para depois de `RATE_LIMIT` e `TOKEN_EXPIRED`, e exigir co-ocorrência com palavras como `format`, `size`, `aspect`, `dimension`.
+### Resumo
+A correção do Bug #1 (limpeza de `error_log` ao confirmar sucesso) **regrediu**: 2 posts novos publicados a 19 e 20 de Abril voltam a mostrar `error_log = "Erro inesperado no processamento"`. Além disso, há novos achados críticos: **11 jobs presos em `requires_attention` com erros 403 do n8n stories** (URL obsoleto a poluir os logs do cron a cada minuto), e os problemas #2 e #4 da auditoria anterior continuam por resolver e a piorar.
 
 ---
 
-### 🟡 PROBLEMAS DE DADOS
+### 🔴 BUG REGRESSIVO — A correção anterior não cobre todos os formatos
 
-**4. `media_library` com 2.824 MB acumulados (2.082 ficheiros > 7 dias)**
+Posts publicados com sucesso mas com `error_log` sujo:
 
-A política de retenção de 7 dias documentada em memória **não está activa**. Há 2.824 MB em `source='publication'` com mais de 7 dias. O bucket vai continuar a crescer e eventualmente atingir limites de storage.
+| Post | Formato | Publicado | Error_log |
+|---|---|---|---|
+| `1b58760a` | googlebusiness_post | 20/04 09:20 | "Erro inesperado no processamento" |
+| `8f34a979` | instagram_reel | 19/04 17:52 | "Erro inesperado no processamento" |
 
-**Fix:** Activar/criar cron `cleanup-storage` para correr diariamente e apagar `media_library` + ficheiros do Storage com `created_at < NOW() - 7 days` e `source='publication'`.
+A limpeza implementada na sessão anterior dentro do polling (linha ~1003) **só dispara quando o polling detecta sucesso após erro inicial**. Se o `published_at` é gravado pelo edge function **mas o front-end nunca entra no loop de verificação** (por o utilizador ter fechado o modal, ou porque o status mudou demasiado depressa), o `error_log` fica órfão.
 
-**5. `idempotency_keys` — apenas 2 registos, ambos expirados**
-
-Tabela está praticamente vazia. Confirma que o cleanup funciona, mas sugere que o sistema de idempotency raramente é exercitado (TTL de 5min). Não é bug, apenas validação.
-
----
-
-### 🟢 REFINAMENTOS UX
-
-**6. Modal de erro de duplicação — adicionar botão "Marcar como publicado"**
-
-Já corrigimos o modal para mostrar "Conteúdo duplicado" correctamente. Mas quando o utilizador vê este erro, sabe que o post já está no Instagram. Falta um botão único: **"Já está publicado — fechar"** que actualize `status='published'` e remova o erro do histórico.
-
-**7. `/publication-history` — filtrar inconsistências**
-
-Devido ao bug #1, o histórico mostra posts com badge de erro que estão de facto publicados. Adicionar lógica: se `status='published'` E `published_at IS NOT NULL`, ignorar `error_log` no display do badge.
-
-**8. `scheduled_jobs` — 4 jobs em `requires_attention`**
-
-Jobs que esgotaram retries continuam na BD sem visibilidade. Adicionar um indicador no Dashboard ou em `/publication-history` para estes casos.
+**Correção:** mover a limpeza do `error_log` para um **trigger BEFORE UPDATE** na BD, garantindo invariante: `WHEN status = 'published' AND published_at IS NOT NULL THEN error_log = NULL, failed_at = NULL`. Este trigger sobrepõe-se a qualquer caminho de código (front-end, edge function, sync manual). Limpa também os 2 posts existentes via UPDATE.
 
 ---
 
-### Plano de Execução Recomendado
+### 🔴 NOVO BUG CRÍTICO — Cron `send-scheduled-posts` a queimar invocações
 
-Priorização sugerida (4 ordens, do mais ao menos urgente):
+O cron corre a cada minuto e tenta processar:
+- 14 stories legacy com webhook stories `'Webhook-insta-n8n'` (string inválida, não URL)
+- 2 posts legacy com webhook que devolve **403 Forbidden** continuamente
+- 11 jobs em `requires_attention` (já esgotaram retries) que **continuam a aparecer no log de erros**
 
-1. **Bug #1 + Refinamento #7** (mesma origem, mesma sessão) — limpeza de `error_log` ao confirmar publicação + filtro no histórico.
-2. **Bug #3** — reordenar regras de classificação de erro.
-3. **Refinamento #6** — botão "Já está publicado" no modal de duplicação.
-4. **Bug #2 + Problema #4** — cleanup de posts presos + activação de retenção de média.
+Resultado: cada minuto gera ~30 linhas de erro nos logs, custos de invocação inúteis, e impossibilidade de detectar erros reais.
 
-Posso avançar com qualquer um destes individualmente — recomendo começar pelo **#1** porque é o que causa mais confusão visível ao utilizador (badges vermelhos em posts que correram bem).
+**Correção:**
+1. **Em `send-scheduled-posts/index.ts`:** adicionar filtro para excluir jobs com `status='requires_attention'` ou `attempts >= max_attempts`. Adicionar TTL: ignorar jobs com `scheduled_for < NOW() - 7 days`.
+2. **Limpeza de dados via UPDATE:** marcar como `cancelled` os 14 stories legacy + 2 posts legacy + 11 jobs requires_attention (todos com >3 meses).
+
+---
+
+### 🔴 BUG #3 (auditoria anterior) — `MEDIA_ERROR` continua agressivo
+
+`src/lib/publishingErrors.ts` linha 338-341 não foi corrigido. Continua a capturar qualquer mensagem com `image`/`video`/`media` antes de regras mais específicas (rate-limit, auth).
+
+**Correção:** mover bloco `MEDIA_ERROR` para **depois** de `TOKEN_EXPIRED`, `QUOTA_EXCEEDED` e `NETWORK_ERROR`. Restringir gatilhos largos (`image`, `video`, `media` sozinhos) — exigir co-ocorrência com `format`, `size`, `aspect`, `dimension`, `resolution`, `pixel`, `width`, `height`, `allowed range`.
+
+---
+
+### 🟡 PROBLEMA #2 (continua) — Posts presos sem cleanup
+
+| Status | Count | Mais antigo | Acção |
+|---|---|---|---|
+| `approved` | 11 | 20/10/2025 | Mover para `draft` ou `cancelled` |
+| `scheduled` | 2 | 06/01/2026 (data passada) | Mover para `failed` |
+
+**Correção:** UPDATE pontual via insert tool — mover os 11 `approved` >3 meses para `cancelled`, e os 2 `scheduled` com `scheduled_date < NOW()` para `failed` com mensagem "Agendamento expirado".
+
+---
+
+### 🟡 PROBLEMA #4 (continua a crescer) — 2.479 MB órfãos
+
+`media_library` tem **2.102 ficheiros >7 dias** ocupando 2.479 MB (cresceu desde a última auditoria). A função `cleanup-storage` existe mas **não está agendada via pg_cron**.
+
+**Correção:** agendar `cleanup-storage` para correr diariamente às 03:00 Lisboa via pg_cron + pg_net, com `dryRun: false`. Validar antes com chamada manual em modo dryRun.
+
+---
+
+### Ordem de execução recomendada
+
+Tudo num único loop (mudanças coesas, baixo risco):
+
+1. **Trigger BD** que garante invariante `published → error_log NULL` + cleanup dos 2 posts afectados (resolve regressão #1).
+2. **Filtros em `send-scheduled-posts`** + UPDATE para cancelar 27 jobs/posts/stories antigos (resolve novo bug + problema #2).
+3. **Reordenação de `classifyErrorFromString`** (resolve bug #3).
+4. **Agendamento pg_cron de `cleanup-storage`** (resolve problema #4).
+
+### Ficheiros a alterar
+- `supabase/migrations/` — novo trigger + `cleanup-storage` cron
+- `supabase/functions/send-scheduled-posts/index.ts` — filtros de exclusão
+- `src/lib/publishingErrors.ts` — reordenação e restrição de gatilhos
+- UPDATE de dados via insert tool (posts presos, jobs antigos, error_log dos 2 posts)
+
+### Resultado esperado
+- 0 logs de erro 403 do cron por minuto (poupa centenas de invocações/dia).
+- Histórico de publicações sem badges falsos vermelhos.
+- Erros classificados correctamente como Rate-limit/Auth quando aplicável.
+- Storage estabilizado a longo prazo (cresce <100 MB/semana após cleanup inicial).
 
