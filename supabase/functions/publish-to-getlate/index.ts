@@ -712,7 +712,32 @@ Deno.serve(async (req) => {
     }
 
     // Publish to Getlate with idempotency key in header
-    const result = await publishToGetlate(getlateToken, getlatePayload, idempotency_key);
+    let result = await publishToGetlate(getlateToken, getlatePayload, idempotency_key);
+
+    // 409 RETRY: Getlate blocks "exact content already scheduled within 24h".
+    // Append a zero-width space (\u200B) to caption to bypass duplicate filter
+    // and retry once with a fresh idempotency key.
+    const looksLikeDuplicate = !result.success && (
+      /409/.test(result.error || '') ||
+      /exact content/i.test(result.error || '') ||
+      /already (scheduled|posted)/i.test(result.error || '') ||
+      /duplicate/i.test(result.error || '')
+    );
+
+    if (looksLikeDuplicate) {
+      console.warn('[publish-to-getlate] 🔁 Duplicate content detected — retrying with zero-width space suffix');
+      const retryPayload: GetlatePostPayload = {
+        ...getlatePayload,
+        content: `${getlatePayload.content}\u200B`,
+      };
+      const retryKey = idempotency_key ? `${idempotency_key}-zwsp` : undefined;
+      result = await publishToGetlate(getlateToken, retryPayload, retryKey);
+      if (result.success) {
+        console.log('[publish-to-getlate] ✅ ZWSP retry succeeded after 409');
+      } else {
+        console.error('[publish-to-getlate] ❌ ZWSP retry also failed:', result.error);
+      }
+    }
 
     if (!result.success) {
       // Record failure
