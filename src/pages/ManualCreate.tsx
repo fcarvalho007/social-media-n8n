@@ -2404,6 +2404,9 @@ export default function ManualCreate() {
                 />
                 
                 {/* Primary Actions Row */}
+                {/* Aspect Ratio Warning kept as fallback (deprecated, will be removed) */}
+                <AspectRatioWarning mediaFiles={mediaFiles} selectedFormats={selectedFormats} />
+
                 <div className="flex gap-3">
                   <Button
                     type="button"
