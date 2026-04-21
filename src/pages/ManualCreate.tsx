@@ -55,6 +55,8 @@ import { INSTAGRAM_CONFIG, LINKEDIN_CONFIG, FORMAT_TO_NETWORK, FORMAT_TO_ACCOUNT
 import { PublishingOverlay } from '@/components/manual-post/PublishingOverlay';
 import { PublishProgressModal } from '@/components/publishing/PublishProgressModal';
 import { AspectRatioWarning } from '@/components/publishing/AspectRatioWarning';
+import { useSmartValidation } from '@/hooks/useSmartValidation';
+import { ValidationSidebar, ValidationMobileBadge } from '@/components/manual-post/ValidationSidebar';
 import { usePublishWithProgress } from '@/hooks/usePublishWithProgress';
 import { DuplicateWarningDialog } from '@/components/publishing/DuplicateWarningDialog';
 import { EnhancedSortableMediaItem, MediaDragOverlay } from '@/components/manual-post/EnhancedSortableMediaItem';
@@ -542,6 +544,25 @@ export default function ManualCreate() {
   }, [selectedFormats, caption, mediaFiles]);
 
   const validationSummary = useMemo(() => getValidationSummary(validations), [validations]);
+
+  // Mobile bottom-sheet state for the validation panel
+  const [validationSheetOpen, setValidationSheetOpen] = useState(false);
+
+  // Smart pre-validation (real-time)
+  const smartValidation = useSmartValidation({
+    selectedFormats,
+    caption,
+    mediaFiles,
+    hashtags: [],
+    scheduledDate: scheduledDate ?? null,
+    scheduleAsap,
+    enabled: selectedFormats.length > 0,
+    fixHelpers: {
+      setCaption,
+      setMediaFiles,
+      focusCaption: () => textareaRef.current?.focus(),
+    },
+  });
 
   // Handle emoji insertion
   const handleEmojiClick = (emojiData: EmojiClickData) => {
@@ -2368,16 +2389,12 @@ export default function ManualCreate() {
                   </div>
                 )}
 
-                {/* Validation - Only show when triggered */}
-                {showValidation && validationErrors.length > 0 && (
-                  <div className="flex items-start gap-2 text-sm text-blue-600 bg-blue-50 dark:bg-blue-950/30 p-3 rounded-lg" role="alert">
-                    <Info className="h-4 w-4 mt-0.5 flex-shrink-0" />
-                    <div className="space-y-1">
-                      {validationErrors.map((error, idx) => (
-                        <p key={idx}>{error}</p>
-                      ))}
-                    </div>
-                  </div>
+                {/* Smart Pre-Validation Panel (real-time) */}
+                {selectedFormats.length > 0 && (
+                  <ValidationSidebar
+                    validation={smartValidation}
+                    mediaFiles={mediaFiles}
+                  />
                 )}
                 
                 {/* Aspect Ratio Warning for Instagram */}
@@ -2387,12 +2404,15 @@ export default function ManualCreate() {
                 />
                 
                 {/* Primary Actions Row */}
+                {/* Aspect Ratio Warning kept as fallback (deprecated, will be removed) */}
+                <AspectRatioWarning mediaFiles={mediaFiles} selectedFormats={selectedFormats} />
+
                 <div className="flex gap-3">
                   <Button
                     type="button"
                     size="lg"
                     onClick={handlePublishWithValidation}
-                    disabled={publishing || submitting || saving || isUploading}
+                    disabled={publishing || submitting || saving || isUploading || (selectedFormats.length > 0 && !smartValidation.canPublish)}
                     className={cn(
                       "flex-1 font-semibold text-white",
                       // Dynamic color: blue for scheduled, green for immediate
@@ -2562,12 +2582,16 @@ export default function ManualCreate() {
         
         {/* Aspect Ratio Warning - Mobile */}
         <div className="flex justify-center py-0.5 xs:py-1">
-          <AspectRatioWarning 
-            mediaFiles={mediaFiles} 
-            selectedFormats={selectedFormats} 
-          />
+          {selectedFormats.length > 0 ? (
+            <ValidationMobileBadge
+              validation={smartValidation}
+              onClick={() => setValidationSheetOpen(true)}
+            />
+          ) : (
+            <AspectRatioWarning mediaFiles={mediaFiles} selectedFormats={selectedFormats} />
+          )}
         </div>
-        
+
         {/* Action buttons - com safe area */}
         <div className="p-2 xs:p-2.5 sm:p-3 pb-[calc(0.5rem+env(safe-area-inset-bottom))] xs:pb-[calc(0.625rem+env(safe-area-inset-bottom))] flex gap-2 xs:gap-2.5 sm:gap-3 w-full max-w-full">
           <Button
