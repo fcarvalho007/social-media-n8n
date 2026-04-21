@@ -224,10 +224,36 @@ interface GetlateValidatedResponse {
   originalData: any;
 }
 
+// Extract per-platform error reasons from Getlate failedPlatforms array
+function extractFailedPlatformReason(responseData: any): string | null {
+  if (!responseData) return null;
+  const failed = responseData?.failedPlatforms || responseData?.data?.failedPlatforms;
+  if (!Array.isArray(failed) || failed.length === 0) return null;
+
+  const reasons = failed.map((f: any) => {
+    const platform = f?.platform || f?.network || 'desconhecida';
+    const reason = f?.error || f?.message || f?.reason || f?.errorMessage || 'sem detalhe';
+    return `${platform}: ${reason}`;
+  });
+  return reasons.join(' | ');
+}
+
 // Validate that Getlate response indicates REAL success, not hidden errors
 function validateGetlateResponse(responseData: any, responseText: string): GetlateValidatedResponse {
   const originalData = responseData;
-  
+
+  // Check failedPlatforms FIRST — Getlate may return 200 OK but with platform-specific failures
+  const failedReason = extractFailedPlatformReason(responseData);
+  if (failedReason) {
+    console.error(`[publish-to-getlate] ⚠️ failedPlatforms detected: ${failedReason}`);
+    return {
+      isRealSuccess: false,
+      error: failedReason,
+      errorType: 'unknown',
+      originalData,
+    };
+  }
+
   // Check for explicit error field
   if (responseData?.error) {
     const errorMsg = typeof responseData.error === 'string' 
