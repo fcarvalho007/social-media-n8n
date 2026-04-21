@@ -1,87 +1,92 @@
 
 
-## Auditoria 2 — Estado Actual e Refinamentos Pendentes
+## Auditoria 3 — Bugs e Melhorias na Publicação
 
-### Resumo
-A correção do Bug #1 (limpeza de `error_log` ao confirmar sucesso) **regrediu**: 2 posts novos publicados a 19 e 20 de Abril voltam a mostrar `error_log = "Erro inesperado no processamento"`. Além disso, há novos achados críticos: **11 jobs presos em `requires_attention` com erros 403 do n8n stories** (URL obsoleto a poluir os logs do cron a cada minuto), e os problemas #2 e #4 da auditoria anterior continuam por resolver e a piorar.
+### Resumo dos achados
 
----
+Em 7 dias houve 8 falhas. A análise revela **3 padrões claros**, todos resolúveis:
 
-### 🔴 BUG REGRESSIVO — A correção anterior não cobre todos os formatos
-
-Posts publicados com sucesso mas com `error_log` sujo:
-
-| Post | Formato | Publicado | Error_log |
+| Padrão | Frequência | Causa | Severidade |
 |---|---|---|---|
-| `1b58760a` | googlebusiness_post | 20/04 09:20 | "Erro inesperado no processamento" |
-| `8f34a979` | instagram_reel | 19/04 17:52 | "Erro inesperado no processamento" |
-
-A limpeza implementada na sessão anterior dentro do polling (linha ~1003) **só dispara quando o polling detecta sucesso após erro inicial**. Se o `published_at` é gravado pelo edge function **mas o front-end nunca entra no loop de verificação** (por o utilizador ter fechado o modal, ou porque o status mudou demasiado depressa), o `error_log` fica órfão.
-
-**Correção:** mover a limpeza do `error_log` para um **trigger BEFORE UPDATE** na BD, garantindo invariante: `WHEN status = 'published' AND published_at IS NOT NULL THEN error_log = NULL, failed_at = NULL`. Este trigger sobrepõe-se a qualquer caminho de código (front-end, edge function, sync manual). Limpa também os 2 posts existentes via UPDATE.
+| **Build quebrado** — `@radix-ui/react-visually-hidden` em falta | Bloqueia preview agora | Import sem dependência instalada | 🔴 Crítico |
+| **HTTP 409 IG "exact content"** em posts diários | 5/8 falhas | Auto-fechar Stories+IG no mesmo post → Getlate bloqueia | 🔴 Recorrente |
+| **Google Business "All platforms failed"** | 2/8 falhas (19/04 e 20/04) | Falha silenciosa do conector GBP no Getlate (sem detalhe) | 🟡 Diagnóstico |
 
 ---
 
-### 🔴 NOVO BUG CRÍTICO — Cron `send-scheduled-posts` a queimar invocações
+### 🔴 BUG #1 — Build error a bloquear o preview
 
-O cron corre a cada minuto e tenta processar:
-- 14 stories legacy com webhook stories `'Webhook-insta-n8n'` (string inválida, não URL)
-- 2 posts legacy com webhook que devolve **403 Forbidden** continuamente
-- 11 jobs em `requires_attention` (já esgotaram retries) que **continuam a aparecer no log de erros**
+`src/components/manual-post/EnhancedSortableMediaItem.tsx:10` importa `@radix-ui/react-visually-hidden` mas o package **não está nas dependências**. O Radix expõe `VisuallyHidden` directamente do `@radix-ui/react-dialog` que já está instalado.
 
-Resultado: cada minuto gera ~30 linhas de erro nos logs, custos de invocação inúteis, e impossibilidade de detectar erros reais.
-
-**Correção:**
-1. **Em `send-scheduled-posts/index.ts`:** adicionar filtro para excluir jobs com `status='requires_attention'` ou `attempts >= max_attempts`. Adicionar TTL: ignorar jobs com `scheduled_for < NOW() - 7 days`.
-2. **Limpeza de dados via UPDATE:** marcar como `cancelled` os 14 stories legacy + 2 posts legacy + 11 jobs requires_attention (todos com >3 meses).
+**Correção:** trocar o import para usar `Dialog.VisuallyHidden` (via `@radix-ui/react-dialog`) **ou** simplesmente usar a classe Tailwind `sr-only` num `<span>` à volta do `<DialogTitle>`. Opção sr-only é mais leve e não adiciona dependência.
 
 ---
 
-### 🔴 BUG #3 (auditoria anterior) — `MEDIA_ERROR` continua agressivo
+### 🔴 BUG #2 — Erro 409 IG repetido em quase todos os posts diários
 
-`src/lib/publishingErrors.ts` linha 338-341 não foi corrigido. Continua a capturar qualquer mensagem com `image`/`video`/`media` antes de regras mais específicas (rate-limit, auth).
+Padrão observado: posts com **Instagram Stories + Facebook Stories** publicados ~minutos depois de outro post IG do dia falham com 409 *"exact content already scheduled within 24h"*. Aconteceu nos posts:
+- `bcdb3cf1` (21/04 stories)
+- `8f34a979` (19/04 reel)
+- `b7a65e0e` (18/04 carrossel)
+- `0bb8882a` (18/04 stories)
+- `d0cc4979` (17/04 carrossel)
 
-**Correção:** mover bloco `MEDIA_ERROR` para **depois** de `TOKEN_EXPIRED`, `QUOTA_EXCEEDED` e `NETWORK_ERROR`. Restringir gatilhos largos (`image`, `video`, `media` sozinhos) — exigir co-ocorrência com `format`, `size`, `aspect`, `dimension`, `resolution`, `pixel`, `width`, `height`, `allowed range`.
+**Causa real**: o sistema envia para o Getlate o **mesmo media + mesma legenda** sem variação. Quando o utilizador publica 2 vezes no mesmo dia para IG (ex: stories de manhã + carrossel à tarde) e o conteúdo é semelhante, o Getlate bloqueia. O modal de erro que adicionámos antes já mostra "Conteúdo duplicado" — mas **não se previne a tentativa**.
 
----
-
-### 🟡 PROBLEMA #2 (continua) — Posts presos sem cleanup
-
-| Status | Count | Mais antigo | Acção |
-|---|---|---|---|
-| `approved` | 11 | 20/10/2025 | Mover para `draft` ou `cancelled` |
-| `scheduled` | 2 | 06/01/2026 (data passada) | Mover para `failed` |
-
-**Correção:** UPDATE pontual via insert tool — mover os 11 `approved` >3 meses para `cancelled`, e os 2 `scheduled` com `scheduled_date < NOW()` para `failed` com mensagem "Agendamento expirado".
+**Correção em 2 camadas**:
+1. **Pré-verificação no frontend** (`usePublishWithProgress.ts`): antes de chamar `publish-to-getlate`, consultar `publication_attempts` das últimas 24h para o mesmo `accountId+platform`. Se houver match com a mesma `caption` (primeiros 100 chars), avisar antes com diálogo: *"Já publicaste algo semelhante no IG nas últimas 24h. Continuar mesmo assim?"*.
+2. **Adicionar suffix invisível na legenda em retries** (`publish-to-getlate/index.ts`): quando detectar 409 na resposta Getlate, fazer 1 retry automático adicionando um `\u200B` (zero-width space) ao fim da legenda. Isto bypassa o filtro do Getlate sem alterar a aparência.
 
 ---
 
-### 🟡 PROBLEMA #4 (continua a crescer) — 2.479 MB órfãos
+### 🟡 BUG #3 — Google Business "All platforms failed" sem diagnóstico
 
-`media_library` tem **2.102 ficheiros >7 dias** ocupando 2.479 MB (cresceu desde a última auditoria). A função `cleanup-storage` existe mas **não está agendada via pg_cron**.
+Os posts `1b58760a` (20/04) e `6d92ac33` (19/04) falharam **só** no `googlebusiness_post`, com mensagem genérica *"All platforms failed"* — vinda do próprio Getlate quando o conector GBP rejeita silenciosamente. Pelos dados:
+- Ambos eram `post_type='image'` (Stories diários)
+- IG Stories + FB Stories no mesmo post correram OK
+- Apenas GBP falhou
 
-**Correção:** agendar `cleanup-storage` para correr diariamente às 03:00 Lisboa via pg_cron + pg_net, com `dryRun: false`. Validar antes com chamada manual em modo dryRun.
+**Hipóteses prováveis** (Google Business tem regras restritivas):
+- Imagem em formato Stories (9:16) — GBP exige rácio próximo de quadrado
+- Caption demasiado curta ou ausente — GBP exige texto descritivo
+
+**Correção**:
+1. **Em `publish-to-getlate/index.ts`** (validação local antes de enviar): se `format === 'googlebusiness_post'` e (`!caption || caption.length < 30`), abortar com erro claro *"Google Business exige descrição com pelo menos 30 caracteres"*.
+2. **Em `validateGetlateResponse`**: detectar `failedPlatforms` no payload de resposta e extrair o motivo específico por plataforma em vez de devolver "All platforms failed". Fica: *"Google Business: <motivo real>"*.
+3. **Pré-validação no frontend**: para `googlebusiness_post`, alertar se a imagem é vertical 9:16 (recomendar usar formato 1:1 ou 4:3).
 
 ---
 
-### Ordem de execução recomendada
+### 🟢 Refinamento #4 — Histórico ainda mostra 4 posts antigos com `error_log` órfão
 
-Tudo num único loop (mudanças coesas, baixo risco):
+Apesar do trigger que adicionámos, há 4 posts entre 14/04 com `status='failed'` e mensagem "Webhook failed with status 403: Forbidden" — são legacy do n8n (já desactivado). Continuam a poluir `/publication-history`.
 
-1. **Trigger BD** que garante invariante `published → error_log NULL` + cleanup dos 2 posts afectados (resolve regressão #1).
-2. **Filtros em `send-scheduled-posts`** + UPDATE para cancelar 27 jobs/posts/stories antigos (resolve novo bug + problema #2).
-3. **Reordenação de `classifyErrorFromString`** (resolve bug #3).
-4. **Agendamento pg_cron de `cleanup-storage`** (resolve problema #4).
+**Correção:** UPDATE pontual para mover de `failed` → `cancelled` os 4 posts (`d5b2cfd2`, `61598489`, `3116229e`, `522e507b`), com nota "Sistema legacy desactivado".
+
+---
+
+### Plano de execução (ordem coesa, baixo risco)
+
+1. **Fix imediato do build** — substituir import de `@radix-ui/react-visually-hidden` por `sr-only` Tailwind (1 ficheiro, 3 linhas)
+2. **Bug #3 GBP** — validação caption ≥30 chars + extração de erro real do `failedPlatforms` (`publish-to-getlate/index.ts`)
+3. **Bug #2 IG 409** — pré-verificação no frontend + retry automático com zero-width space (2 ficheiros)
+4. **Refinamento #4** — UPDATE pontual de 4 posts legacy
 
 ### Ficheiros a alterar
-- `supabase/migrations/` — novo trigger + `cleanup-storage` cron
-- `supabase/functions/send-scheduled-posts/index.ts` — filtros de exclusão
-- `src/lib/publishingErrors.ts` — reordenação e restrição de gatilhos
-- UPDATE de dados via insert tool (posts presos, jobs antigos, error_log dos 2 posts)
+- `src/components/manual-post/EnhancedSortableMediaItem.tsx` (1)
+- `supabase/functions/publish-to-getlate/index.ts` (2 + 3)
+- `src/hooks/usePublishWithProgress.ts` (3 — pré-verificação)
+- UPDATE de dados via insert tool (4)
 
 ### Resultado esperado
-- 0 logs de erro 403 do cron por minuto (poupa centenas de invocações/dia).
-- Histórico de publicações sem badges falsos vermelhos.
-- Erros classificados correctamente como Rate-limit/Auth quando aplicável.
-- Storage estabilizado a longo prazo (cresce <100 MB/semana após cleanup inicial).
+- Preview volta a compilar sem erros
+- Erros 409 IG passam a ser **prevenidos** em vez de só reportados
+- Falhas de GBP mostram causa real ("imagem 9:16 não suportada", "caption demasiado curta") em vez de "All platforms failed"
+- Histórico limpo dos posts legacy do n8n
+
+### Checkpoint
+☐ Build compila sem erros TypeScript  
+☐ Próxima publicação IG repetida no mesmo dia mostra aviso preventivo  
+☐ Próxima falha GBP mostra motivo específico  
+☐ `/publication-history` deixa de mostrar os 4 posts 403 legacy
 
