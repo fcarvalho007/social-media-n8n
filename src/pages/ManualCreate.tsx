@@ -2389,16 +2389,12 @@ export default function ManualCreate() {
                   </div>
                 )}
 
-                {/* Validation - Only show when triggered */}
-                {showValidation && validationErrors.length > 0 && (
-                  <div className="flex items-start gap-2 text-sm text-blue-600 bg-blue-50 dark:bg-blue-950/30 p-3 rounded-lg" role="alert">
-                    <Info className="h-4 w-4 mt-0.5 flex-shrink-0" />
-                    <div className="space-y-1">
-                      {validationErrors.map((error, idx) => (
-                        <p key={idx}>{error}</p>
-                      ))}
-                    </div>
-                  </div>
+                {/* Smart Pre-Validation Panel (real-time) */}
+                {selectedFormats.length > 0 && (
+                  <ValidationSidebar
+                    validation={smartValidation}
+                    mediaFiles={mediaFiles}
+                  />
                 )}
                 
                 {/* Aspect Ratio Warning for Instagram */}
