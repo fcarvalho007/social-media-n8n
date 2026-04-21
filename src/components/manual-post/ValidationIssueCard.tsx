@@ -27,8 +27,8 @@ const SEVERITY_CONFIG: Record<
   },
   info: {
     icon: Info,
-    tone: 'bg-info/10 text-info',
-    ring: 'border-info/30',
+    tone: 'bg-primary/10 text-primary',
+    ring: 'border-primary/30',
     label: 'Info',
   },
 };

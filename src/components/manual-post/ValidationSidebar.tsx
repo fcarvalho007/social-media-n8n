@@ -278,7 +278,7 @@ export function ValidationMobileBadge({
     ? 'bg-destructive/15 text-destructive'
     : warningCount > 0
     ? 'bg-warning/15 text-warning'
-    : 'bg-info/15 text-info';
+    : 'bg-primary/15 text-primary';
 
   return (
     <button
