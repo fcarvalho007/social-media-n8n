@@ -55,6 +55,8 @@ import { INSTAGRAM_CONFIG, LINKEDIN_CONFIG, FORMAT_TO_NETWORK, FORMAT_TO_ACCOUNT
 import { PublishingOverlay } from '@/components/manual-post/PublishingOverlay';
 import { PublishProgressModal } from '@/components/publishing/PublishProgressModal';
 import { AspectRatioWarning } from '@/components/publishing/AspectRatioWarning';
+import { useSmartValidation } from '@/hooks/useSmartValidation';
+import { ValidationSidebar, ValidationMobileBadge } from '@/components/manual-post/ValidationSidebar';
 import { usePublishWithProgress } from '@/hooks/usePublishWithProgress';
 import { DuplicateWarningDialog } from '@/components/publishing/DuplicateWarningDialog';
 import { EnhancedSortableMediaItem, MediaDragOverlay } from '@/components/manual-post/EnhancedSortableMediaItem';
@@ -542,6 +544,25 @@ export default function ManualCreate() {
   }, [selectedFormats, caption, mediaFiles]);
 
   const validationSummary = useMemo(() => getValidationSummary(validations), [validations]);
+
+  // Mobile bottom-sheet state for the validation panel
+  const [validationSheetOpen, setValidationSheetOpen] = useState(false);
+
+  // Smart pre-validation (real-time)
+  const smartValidation = useSmartValidation({
+    selectedFormats,
+    caption,
+    mediaFiles,
+    hashtags: [],
+    scheduledDate: scheduledDate ?? null,
+    scheduleAsap,
+    enabled: selectedFormats.length > 0,
+    fixHelpers: {
+      setCaption,
+      setMediaFiles,
+      focusCaption: () => textareaRef.current?.focus(),
+    },
+  });
 
   // Handle emoji insertion
   const handleEmojiClick = (emojiData: EmojiClickData) => {
