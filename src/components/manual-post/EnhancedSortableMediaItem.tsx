@@ -7,7 +7,6 @@ import { Badge } from '@/components/ui/badge';
 import { MediaSource } from '@/types/media';
 import { Dialog, DialogContent, DialogTitle } from '@/components/ui/dialog';
 import { useState } from 'react';
-import { VisuallyHidden } from '@radix-ui/react-visually-hidden';
 
 type AspectRatioType = '1:1' | '3:4' | '4:5' | '4:3' | '16:9' | '9:16' | 'auto';
 
@@ -203,9 +202,7 @@ export function EnhancedSortableMediaItem({
       {/* Zoom Modal */}
       <Dialog open={isZoomed} onOpenChange={setIsZoomed}>
         <DialogContent className="max-w-[95vw] max-h-[95vh] p-0 bg-black/95 border-none overflow-hidden">
-          <VisuallyHidden>
-            <DialogTitle>Visualizar slide {index + 1}</DialogTitle>
-          </VisuallyHidden>
+          <DialogTitle className="sr-only">Visualizar slide {index + 1}</DialogTitle>
           <div className="relative w-full h-[90vh] flex items-center justify-center p-4">
             {isVideo ? (
               <video

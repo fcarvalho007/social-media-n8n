@@ -224,10 +224,36 @@ interface GetlateValidatedResponse {
   originalData: any;
 }
 
+// Extract per-platform error reasons from Getlate failedPlatforms array
+function extractFailedPlatformReason(responseData: any): string | null {
+  if (!responseData) return null;
+  const failed = responseData?.failedPlatforms || responseData?.data?.failedPlatforms;
+  if (!Array.isArray(failed) || failed.length === 0) return null;
+
+  const reasons = failed.map((f: any) => {
+    const platform = f?.platform || f?.network || 'desconhecida';
+    const reason = f?.error || f?.message || f?.reason || f?.errorMessage || 'sem detalhe';
+    return `${platform}: ${reason}`;
+  });
+  return reasons.join(' | ');
+}
+
 // Validate that Getlate response indicates REAL success, not hidden errors
 function validateGetlateResponse(responseData: any, responseText: string): GetlateValidatedResponse {
   const originalData = responseData;
-  
+
+  // Check failedPlatforms FIRST — Getlate may return 200 OK but with platform-specific failures
+  const failedReason = extractFailedPlatformReason(responseData);
+  if (failedReason) {
+    console.error(`[publish-to-getlate] ⚠️ failedPlatforms detected: ${failedReason}`);
+    return {
+      isRealSuccess: false,
+      error: failedReason,
+      errorType: 'unknown',
+      originalData,
+    };
+  }
+
   // Check for explicit error field
   if (responseData?.error) {
     const errorMsg = typeof responseData.error === 'string' 
@@ -569,6 +595,17 @@ Deno.serve(async (req) => {
     // If quota is exceeded, the Getlate API will return an error which we handle below
     console.log('[publish-to-getlate] Skipping pre-validation - Getlate API will enforce quota limits');
 
+    // GOOGLE BUSINESS PROFILE: requires descriptive caption (≥30 chars)
+    // GBP rejects silently with "All platforms failed" if caption is missing or too short
+    if (format === 'googlebusiness_post') {
+      const captionLen = (caption || '').trim().length;
+      if (captionLen < 30) {
+        const gbpError = `Google Business exige descrição com pelo menos 30 caracteres (atual: ${captionLen}). Adiciona contexto sobre a publicação para garantir que o conector aceita.`;
+        console.error(`[publish-to-getlate] ❌ GBP validation failed: ${gbpError}`);
+        throw new Error(gbpError);
+      }
+    }
+
     // For formats that don't require captions (stories), use a space if empty
     // Getlate API requires content to be non-empty
     const contentToSend = caption?.trim() || ' ';
@@ -675,7 +712,32 @@ Deno.serve(async (req) => {
     }
 
     // Publish to Getlate with idempotency key in header
-    const result = await publishToGetlate(getlateToken, getlatePayload, idempotency_key);
+    let result = await publishToGetlate(getlateToken, getlatePayload, idempotency_key);
+
+    // 409 RETRY: Getlate blocks "exact content already scheduled within 24h".
+    // Append a zero-width space (\u200B) to caption to bypass duplicate filter
+    // and retry once with a fresh idempotency key.
+    const looksLikeDuplicate = !result.success && (
+      /409/.test(result.error || '') ||
+      /exact content/i.test(result.error || '') ||
+      /already (scheduled|posted)/i.test(result.error || '') ||
+      /duplicate/i.test(result.error || '')
+    );
+
+    if (looksLikeDuplicate) {
+      console.warn('[publish-to-getlate] 🔁 Duplicate content detected — retrying with zero-width space suffix');
+      const retryPayload: GetlatePostPayload = {
+        ...getlatePayload,
+        content: `${getlatePayload.content}\u200B`,
+      };
+      const retryKey = idempotency_key ? `${idempotency_key}-zwsp` : undefined;
+      result = await publishToGetlate(getlateToken, retryPayload, retryKey);
+      if (result.success) {
+        console.log('[publish-to-getlate] ✅ ZWSP retry succeeded after 409');
+      } else {
+        console.error('[publish-to-getlate] ❌ ZWSP retry also failed:', result.error);
+      }
+    }
 
     if (!result.success) {
       // Record failure
