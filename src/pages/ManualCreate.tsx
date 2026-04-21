@@ -2412,7 +2412,7 @@ export default function ManualCreate() {
                     type="button"
                     size="lg"
                     onClick={handlePublishWithValidation}
-                    disabled={publishing || submitting || saving || isUploading}
+                    disabled={publishing || submitting || saving || isUploading || (selectedFormats.length > 0 && !smartValidation.canPublish)}
                     className={cn(
                       "flex-1 font-semibold text-white",
                       // Dynamic color: blue for scheduled, green for immediate
@@ -2582,12 +2582,16 @@ export default function ManualCreate() {
         
         {/* Aspect Ratio Warning - Mobile */}
         <div className="flex justify-center py-0.5 xs:py-1">
-          <AspectRatioWarning 
-            mediaFiles={mediaFiles} 
-            selectedFormats={selectedFormats} 
-          />
+          {selectedFormats.length > 0 ? (
+            <ValidationMobileBadge
+              validation={smartValidation}
+              onClick={() => setValidationSheetOpen(true)}
+            />
+          ) : (
+            <AspectRatioWarning mediaFiles={mediaFiles} selectedFormats={selectedFormats} />
+          )}
         </div>
-        
+
         {/* Action buttons - com safe area */}
         <div className="p-2 xs:p-2.5 sm:p-3 pb-[calc(0.5rem+env(safe-area-inset-bottom))] xs:pb-[calc(0.625rem+env(safe-area-inset-bottom))] flex gap-2 xs:gap-2.5 sm:gap-3 w-full max-w-full">
           <Button
