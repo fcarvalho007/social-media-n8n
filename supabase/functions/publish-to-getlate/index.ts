@@ -813,11 +813,12 @@ Deno.serve(async (req) => {
     }
 
     // Update the existing pending attempt to success (no duplicate insert)
+    // IMPORTANT: clear error_message so ZWSP-retry successes don't keep ghost 409 badges
     if (attemptId) {
-      console.log(`[publish-to-getlate] Updating attempt ${attemptId} to success`);
+      console.log(`[publish-to-getlate] Updating attempt ${attemptId} to success (clearing error_message)`);
       const { error: successAttemptError } = await supabase
         .from('publication_attempts')
-        .update({ status: 'success', response_data: result.data })
+        .update({ status: 'success', response_data: result.data, error_message: null })
         .eq('id', attemptId);
       if (successAttemptError) {
         console.error('[publish-to-getlate] Failed to update attempt to success:', successAttemptError);
