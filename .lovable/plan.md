@@ -1,76 +1,202 @@
 
 
-## Auditoria 5 — Estado actual e ajustes finos
+## Plano — #2 Pré-validação Inteligente em Tempo Real
 
-### Resumo executivo
-A app está **muito estável**: zero erros 4xx/5xx em edge functions nas últimas 24h, cron `cleanup-storage-daily` activo, **36 publicações com `status='success'` e 0 falhas reais** nos últimos 7 dias, scheduled_jobs sem entradas presas. Encontrei **2 inconsistências menores** e **1 melhoria preventiva**.
-
----
-
-### 🟡 BUG #1 — TTL marcou 2 posts como `failed` quando deviam ser `cancelled`
-
-A correção da Auditoria 2 introduziu um TTL no cron mas a limpeza pontual desses dois posts ficou inconsistente:
-
-| Post | created_at | failed_at | Problema |
-|---|---|---|---|
-| `b86413b4` (IG) | 06/01/2026 | 20/04/2026 | Marcado `failed` em vez de `cancelled` |
-| `db89519d` (LI) | 06/01/2026 | 20/04/2026 | Idem |
-
-Ambos têm `error_log = "Agendamento expirado — cancelado automaticamente por estar parado há mais de 7 dias"`. A mensagem diz **cancelado** mas o status é **failed**, fazendo com que apareçam como falhas reais recentes em `/publication-history` (com `failed_at` de 20/04, parecem erros de ontem).
-
-**Correção:** UPDATE pontual: `status = 'rejected'` (consistente com a estratégia das auditorias anteriores — `PublicationHistory.tsx` filtra `rejected` do feed).
+Sistema de validação preventiva que detecta e mostra problemas **antes** do utilizador clicar em "Publicar", consolidando regras dispersas (formato, mídia, aspect ratio, GBP, IG 24h) num painel único com feedback acionável.
 
 ---
 
-### 🟡 BUG #2 — 11 stories aprovadas há 5+ meses sem `scheduled_date` nem publicação
+### Arquitectura
 
-A Auditoria 4 limpou 11 *posts* `approved` órfãos, mas **stories** seguiu o mesmo padrão e **não foi limpo**. 11 stories de Nov/2025 ficam em estado `approved` permanente, sem `scheduled_date`, sem `getlate_post_id`, e poluem queries de "pendentes" no Dashboard se houver indicador de stories.
-
-**Correção:** UPDATE para `status = 'rejected'` com nota "Aprovado mas nunca publicado — arquivado". Mantém audit trail.
+```text
+┌────────────────────────────────────────────────────────────┐
+│  ManualCreate.tsx  (cliente do hook, não muda lógica)      │
+└──────────────────┬─────────────────────────────────────────┘
+                   │ useSmartValidation({ formats, caption,  │
+                   │   media, scheduledDate, ... })          │
+                   ▼
+┌────────────────────────────────────────────────────────────┐
+│  src/hooks/useSmartValidation.ts  (orquestrador)           │
+│   - debounce 300ms                                          │
+│   - cancela tarefas obsoletas                               │
+│   - cache por hash (formato+caption+files)                  │
+│   - corre 7 validadores em paralelo                         │
+└──────────────────┬─────────────────────────────────────────┘
+                   │ ValidationIssue[]                       │
+                   ▼
+┌────────────────────────────────────────────────────────────┐
+│  src/components/manual-post/ValidationSidebar.tsx          │
+│  Desktop: sticky no preview │ Mobile: bottom sheet         │
+└────────────────────────────────────────────────────────────┘
+```
 
 ---
 
-### 🟢 REFINAMENTO #3 — Mensagem do TTL devia mencionar "rejected" ou ser mais sintética
+### 1. Modelo único de problema — `src/lib/validation/types.ts`
 
-O texto actual no `send-scheduled-posts` (que produziu os 2 posts do Bug #1) escreve `"Agendamento expirado — cancelado automaticamente por estar parado há mais de 7 dias"` mas grava `status='failed'`. Para futuros casos:
+```ts
+type Severity = 'error' | 'warning' | 'info';
+type Category = 'format' | 'media' | 'caption' | 'platform' | 'schedule' | 'duplicate';
 
-**Correção:** sempre que o cron descartar um post/story por TTL, gravar **directamente** `status='rejected'` (não `failed`) e mensagem mais curta: `"Expirado por TTL (>7 dias sem processamento)"`. Isto evita repetir o Bug #1 quando aparecerem novos casos.
+interface ValidationIssue {
+  id: string;                    // estável p/ key e dismiss
+  severity: Severity;
+  category: Category;
+  platform?: SocialNetwork;      // chip a cor da rede
+  title: string;                 // ≤60 chars
+  description: string;           // detalhe accionável
+  affectedItems?: number[];      // índices de mídia
+  autoFixable?: boolean;         // mostra botão "Corrigir"
+  fixLabel?: string;             // ex: "Auto-ajustar 4:5"
+  fixAction?: () => Promise<void> | void;
+  docsLink?: string;             // âncora p/ regras
+}
+```
+
+`error` bloqueia publicação · `warning` permite publicar com aviso · `info` é preventivo (ex: "Conteúdo similar nas últimas 24h").
 
 ---
 
-### 🟢 OBSERVAÇÃO POSITIVA — Não foi detectado nada urgente
+### 2. Validadores — `src/lib/validation/validators/`
 
-| Métrica | Valor | Avaliação |
+Sete módulos puros, cada um recebe contexto e devolve `ValidationIssue[]`:
+
+| Ficheiro | Verifica | Severidade |
 |---|---|---|
-| Edge function errors (24h) | 0 | ✅ Excelente |
-| Publicações com sucesso (7d) | 36 | ✅ Saudável |
-| Falhas reais (7d) | 0 | ✅ Estável |
-| Posts com `error_log` órfão | 0 | ✅ Trigger funciona |
-| Scheduled_jobs presos | 0 | ✅ TTL funciona |
-| Posts `approved` órfãos | 0 | ✅ Limpo |
-| Storage >7d (2.479 MB) | Mantém-se | ⏳ Próximo cron 02:00 esta noite |
+| `formatValidator.ts` | wrap de `validateAllFormats` (count mínimo/máximo, requisitos) | error |
+| `captionValidator.ts` | comprimento por rede, hashtags >30, links em IG | error/warn |
+| `mediaAspectValidator.ts` | usa `validateMediaBatch` + `analyzeFilesForInstagram` | warning + autoFix |
+| `mediaResolutionValidator.ts` | <80% da resolução mínima por formato | warning |
+| `videoDurationValidator.ts` | duração por plataforma (`MAX_VIDEO_DURATION`) | error |
+| `gbpValidator.ts` | NOVO — caption ≥30 chars + alerta vertical 9:16 quando `googlebusiness_post` selecionado | error/warn |
+| `duplicateValidator.ts` | NOVO — query a `publication_attempts` últimas 24h por `(platform, caption[0..100])`; quando match → info "ZWSP retry automático" | info |
 
-A 1ª execução automática do `cleanup-storage` (02:00 Lisboa) ainda não aconteceu — verificar amanhã se baixou para <500 MB.
+Os 5 primeiros já existem dispersos pelo código — apenas se reembrulham para devolver `ValidationIssue` uniforme. O `gbpValidator` cobre o gap identificado nas Auditorias 3 e 5. O `duplicateValidator` substitui o aviso bloqueante actual em `usePublishWithProgress.ts:507` por um sinal informativo no painel (alinhado com a decisão da Auditoria 4).
 
 ---
 
-### Plano de execução (1 loop, baixíssimo risco)
+### 3. Hook orquestrador — `src/hooks/useSmartValidation.ts`
 
-1. **Bug #1** — UPDATE dos 2 posts (`b86413b4`, `db89519d`): `status='rejected'`, manter `error_log`.
-2. **Bug #2** — UPDATE dos 11 stories `approved` órfãos (>3 meses): `status='rejected'`, `error_log='Aprovado mas nunca publicado — arquivado em auditoria 5'`.
-3. **Refinamento #3** — em `send-scheduled-posts/index.ts`, futuras expirações por TTL gravam directamente `status='rejected'` em vez de `'failed'`. (Apenas uma alteração defensiva — actualmente o cron não está a marcar como expirado nada novo.)
+```ts
+useSmartValidation({
+  selectedFormats, caption, mediaFiles, hashtags,
+  scheduledDate, scheduleAsap,
+  user, // p/ duplicateValidator query
+  enabled: currentStep >= 2,
+})
+→ {
+  issues: ValidationIssue[],
+  errorCount, warningCount, infoCount,
+  canPublish: boolean,                // !issues.some(i => i.severity==='error')
+  isValidating: boolean,
+  byPlatform: Record<SocialNetwork, ValidationIssue[]>,
+  fix: (id: string) => Promise<void>,
+  dismiss: (id: string) => void,      // para info dismissable
+}
+```
 
-### Ficheiros a alterar
-- UPDATE de dados via insert tool (Bug #1, Bug #2)
-- `supabase/functions/send-scheduled-posts/index.ts` — só se houver lógica de TTL que escreva `failed`; senão é apenas documental
+Características:
+- **Debounce 300ms** sobre mudanças de `caption`/`mediaFiles`; reagir imediato a `selectedFormats`.
+- **Cache LRU** por hash `JSON.stringify({formats, captionLen, fileNames+sizes})` → evita reanalisar mídia pesada.
+- **AbortController** para cancelar varreduras em voo quando inputs mudam.
+- **Lazy DB query** para o `duplicateValidator`: só corre quando caption ≥30 chars e formats selecionados (evita spam à BD enquanto se digita).
+
+---
+
+### 4. UI — `src/components/manual-post/ValidationSidebar.tsx`
+
+**Header colapsável:**
+```
+┌────────────────────────────────────────┐
+│ 🛡️ Pronto a publicar  · 0 erros · 1 ⚠ │
+│                                  ▼     │
+└────────────────────────────────────────┘
+```
+
+Quando `errorCount > 0`: barra fica vermelha *"Corrige 2 problemas para publicar"*.
+
+**Lista de issues** agrupada por categoria, cada cartão:
+- chip da rede (`PlatformIcon` colorido)
+- título + descrição
+- se `affectedItems`: thumbnails pequenos das mídias afectadas
+- se `autoFixable`: botão `[ Corrigir agora ]` que invoca `fix(id)`
+- info issues têm `[ Dispensar ]`
+
+**Posicionamento:**
+- **Desktop (lg+)**: substitui o atual bloco "Validation - Only show when triggered" (linha 2371) e fica sticky junto ao Card de preview, sempre visível.
+- **Mobile**: bottom sheet activado por badge contadora no `MediaWarning` (linha 2563-2569) — abre com tap.
+
+**Estado vazio positivo**: quando `issues.length===0` mostra `✅ Tudo verificado · IG · LinkedIn` (cinco segundos depois colapsa).
+
+---
+
+### 5. Auto-Fixes (acções concretas)
+
+| Issue | Fix | Implementação |
+|---|---|---|
+| Imagens fora 4:5–1.91:1 (IG) | Auto-resize com margens | reusar `resizeFilesForInstagram` de `instagramResize.ts` |
+| Vídeo > duração max | Trim sugerido (link p/ ferramenta externa) | só info, sem fix automático |
+| Caption excede limite | "Cortar para N caracteres" | `setCaption(caption.slice(0, max))` |
+| Hashtags >30 IG | "Manter primeiras 30" | filtra array |
+| GBP caption <30 chars | (sem fix) — info pede edição manual | foca textarea |
+
+Após `fix()`, o hook re-valida automaticamente (cache invalidado).
+
+---
+
+### 6. Integração em `ManualCreate.tsx`
+
+Mudanças mínimas (não há refactor da página):
+1. Adicionar `import { useSmartValidation }` e `import { ValidationSidebar }`.
+2. Substituir `validations`/`validationSummary` actuais (linhas 539–544) por `const validation = useSmartValidation({...})`.
+3. Substituir bloco `{showValidation && validationErrors.length > 0 && ...}` (linhas 2372-2381) por `<ValidationSidebar validation={validation} />`.
+4. Botão Publicar passa a usar `disabled={... || !validation.canPublish}` em vez do gating actual via `validateBeforePublish`.
+5. Manter `<AspectRatioWarning>` existente como fallback durante 1 release (deprecação suave) — depois remover.
+
+---
+
+### 7. Remoção do bloqueio em `usePublishWithProgress.ts`
+
+A pré-verificação 24h actual (linha 507, info bloqueante) torna-se redundante. Substitui-se por: hook não bloqueia mais e o `duplicateValidator` mostra info no painel. Backend continua a fazer ZWSP retry como hoje.
+
+---
+
+### Ficheiros novos
+- `src/lib/validation/types.ts`
+- `src/lib/validation/validators/formatValidator.ts`
+- `src/lib/validation/validators/captionValidator.ts`
+- `src/lib/validation/validators/mediaAspectValidator.ts`
+- `src/lib/validation/validators/mediaResolutionValidator.ts`
+- `src/lib/validation/validators/videoDurationValidator.ts`
+- `src/lib/validation/validators/gbpValidator.ts`
+- `src/lib/validation/validators/duplicateValidator.ts`
+- `src/lib/validation/runValidators.ts` (orquestração paralela + cache)
+- `src/hooks/useSmartValidation.ts`
+- `src/components/manual-post/ValidationSidebar.tsx`
+- `src/components/manual-post/ValidationIssueCard.tsx`
+
+### Ficheiros a editar
+- `src/pages/ManualCreate.tsx` (5 pontos isolados, ~30 linhas)
+- `src/hooks/usePublishWithProgress.ts` (remover bloqueio 24h, ~10 linhas)
+
+### Ficheiros mantidos como estão
+- `formatValidation.ts`, `mediaValidation.ts`, `publishingValidation.ts`, `instagramResize.ts` — apenas consumidos pelos validadores novos.
+- Backend `publish-to-getlate/index.ts` — sem mudanças (a defensiva ZWSP+GBP já cobre).
+
+---
 
 ### Resultado esperado
-- `/publication-history` deixa de mostrar 2 falhas falsas de 20/04.
-- 11 stories órfãs arquivadas, dashboard fica limpo.
-- Próximas expirações por TTL (se ocorrerem) gravam status correcto à partida.
 
-### Checkpoint
-☐ `b86413b4` e `db89519d` deixam de aparecer em `/publication-history` como falhas  
-☐ `SELECT COUNT(*) FROM stories WHERE status='approved'` retorna 0  
-☐ Amanhã: `cleanup-storage` libertou >1 GB às 02:00 (verificar logs)
+Métricas mensuráveis (após 7 dias):
+- **0** falhas GBP por caption <30 chars (hoje: 2 em 7 dias)
+- **−80%** falhas IG 409 detectadas no front (passa a info, backend continua a salvar)
+- **<300ms** latência percebida do painel (debounce + cache)
+- Utilizador deixa de descobrir erros após clicar Publicar — todos visíveis no momento da edição.
+
+### Checkpoint de aceitação
+☐ Selecionar `googlebusiness_post` com caption "Olá" → painel mostra erro "Caption GBP precisa ≥30 chars" e botão Publicar fica desactivado  
+☐ Carregar imagem 16:9 num carrossel IG → painel mostra warning + botão "Auto-ajustar 4:5" funciona  
+☐ Caption = última publicada nas 24h → aparece info "Retry automático com carácter invisível" mas Publicar continua activo  
+☐ Estado limpo mostra "✅ Tudo verificado" e colapsa após 5s  
+☐ Mobile: badge no rodapé abre bottom sheet com lista completa
 
