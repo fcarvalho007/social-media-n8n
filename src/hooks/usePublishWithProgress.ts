@@ -501,14 +501,13 @@ export function usePublishWithProgress() {
             });
 
             if (dup) {
-              console.warn('[usePublishWithProgress] ⚠️ IG 24h duplicate detected:', dup);
-              publishingLockRef.current = false;
-              setIsPublishing(false);
-              toast.warning('Conteúdo semelhante publicado no Instagram nas últimas 24h', {
-                description: 'O Instagram (via Getlate) bloqueia conteúdo idêntico. Edita ligeiramente a legenda (ex: emoji, ordem das frases) e tenta novamente.',
-                duration: 18000,
+              console.warn('[usePublishWithProgress] ⚠️ IG 24h duplicate detected — proceeding (backend will retry with ZWSP):', dup);
+              // Informative only — backend automatically appends a zero-width space
+              // on 409 to bypass Getlate's duplicate filter. Do not block the user.
+              toast.info('Conteúdo semelhante publicado no IG nas últimas 24h', {
+                description: 'Vamos tentar com um carácter invisível extra na legenda. Se falhar, edita ligeiramente o texto.',
+                duration: 8000,
               });
-              return false;
             }
           }
         } catch (e) {
