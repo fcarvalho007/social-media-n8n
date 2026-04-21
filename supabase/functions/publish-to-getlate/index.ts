@@ -595,6 +595,17 @@ Deno.serve(async (req) => {
     // If quota is exceeded, the Getlate API will return an error which we handle below
     console.log('[publish-to-getlate] Skipping pre-validation - Getlate API will enforce quota limits');
 
+    // GOOGLE BUSINESS PROFILE: requires descriptive caption (≥30 chars)
+    // GBP rejects silently with "All platforms failed" if caption is missing or too short
+    if (format === 'googlebusiness_post') {
+      const captionLen = (caption || '').trim().length;
+      if (captionLen < 30) {
+        const gbpError = `Google Business exige descrição com pelo menos 30 caracteres (atual: ${captionLen}). Adiciona contexto sobre a publicação para garantir que o conector aceita.`;
+        console.error(`[publish-to-getlate] ❌ GBP validation failed: ${gbpError}`);
+        throw new Error(gbpError);
+      }
+    }
+
     // For formats that don't require captions (stories), use a space if empty
     // Getlate API requires content to be non-empty
     const contentToSend = caption?.trim() || ' ';
