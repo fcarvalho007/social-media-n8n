@@ -1,92 +1,76 @@
 
 
-## Auditoria 3 — Bugs e Melhorias na Publicação
+## Auditoria 4 — Estado actual e melhorias finas
 
-### Resumo dos achados
-
-Em 7 dias houve 8 falhas. A análise revela **3 padrões claros**, todos resolúveis:
-
-| Padrão | Frequência | Causa | Severidade |
-|---|---|---|---|
-| **Build quebrado** — `@radix-ui/react-visually-hidden` em falta | Bloqueia preview agora | Import sem dependência instalada | 🔴 Crítico |
-| **HTTP 409 IG "exact content"** em posts diários | 5/8 falhas | Auto-fechar Stories+IG no mesmo post → Getlate bloqueia | 🔴 Recorrente |
-| **Google Business "All platforms failed"** | 2/8 falhas (19/04 e 20/04) | Falha silenciosa do conector GBP no Getlate (sem detalhe) | 🟡 Diagnóstico |
+### Resumo
+A app está **estável**: cron `cleanup-storage-daily` activo, 0 erros nos logs do `send-scheduled-posts`, 0 jobs presos, trigger de limpeza de `error_log` a funcionar. Restam **3 inconsistências** com impacto visível no histórico e **1 limpeza de dados** pendente.
 
 ---
 
-### 🔴 BUG #1 — Build error a bloquear o preview
+### 🔴 BUG #1 — `publication_attempts` marcadas `failed` em posts que afinal publicaram
 
-`src/components/manual-post/EnhancedSortableMediaItem.tsx:10` importa `@radix-ui/react-visually-hidden` mas o package **não está nas dependências**. O Radix expõe `VisuallyHidden` directamente do `@radix-ui/react-dialog` que já está instalado.
+Os 7 últimos "erros" 409 IG e "All platforms failed" GBP têm todos `posts.status='published'` e `published_at` 2-3 minutos depois da tentativa. Significa que:
 
-**Correção:** trocar o import para usar `Dialog.VisuallyHidden` (via `@radix-ui/react-dialog`) **ou** simplesmente usar a classe Tailwind `sr-only` num `<span>` à volta do `<DialogTitle>`. Opção sr-only é mais leve e não adiciona dependência.
+- A **primeira** tentativa cai em 409 → atempt fica `failed`.
+- O **retry com `\u200B`** (linha 727) tem êxito → o post grava-se como publicado.
+- Mas **a tentativa original nunca é actualizada** para `success` — fica eternamente como `failed` no histórico.
 
----
+Resultado: `/publication-history` mostra 7 posts recentes com badge de erro 409 vermelho, embora estejam publicados.
 
-### 🔴 BUG #2 — Erro 409 IG repetido em quase todos os posts diários
-
-Padrão observado: posts com **Instagram Stories + Facebook Stories** publicados ~minutos depois de outro post IG do dia falham com 409 *"exact content already scheduled within 24h"*. Aconteceu nos posts:
-- `bcdb3cf1` (21/04 stories)
-- `8f34a979` (19/04 reel)
-- `b7a65e0e` (18/04 carrossel)
-- `0bb8882a` (18/04 stories)
-- `d0cc4979` (17/04 carrossel)
-
-**Causa real**: o sistema envia para o Getlate o **mesmo media + mesma legenda** sem variação. Quando o utilizador publica 2 vezes no mesmo dia para IG (ex: stories de manhã + carrossel à tarde) e o conteúdo é semelhante, o Getlate bloqueia. O modal de erro que adicionámos antes já mostra "Conteúdo duplicado" — mas **não se previne a tentativa**.
-
-**Correção em 2 camadas**:
-1. **Pré-verificação no frontend** (`usePublishWithProgress.ts`): antes de chamar `publish-to-getlate`, consultar `publication_attempts` das últimas 24h para o mesmo `accountId+platform`. Se houver match com a mesma `caption` (primeiros 100 chars), avisar antes com diálogo: *"Já publicaste algo semelhante no IG nas últimas 24h. Continuar mesmo assim?"*.
-2. **Adicionar suffix invisível na legenda em retries** (`publish-to-getlate/index.ts`): quando detectar 409 na resposta Getlate, fazer 1 retry automático adicionando um `\u200B` (zero-width space) ao fim da legenda. Isto bypassa o filtro do Getlate sem alterar a aparência.
+**Correção:** dentro do bloco do retry ZWSP (linha ~728), quando `result.success === true`, fazer `UPDATE publication_attempts SET status='success', error_message=NULL WHERE id=attemptId` em vez de deixar o registo `pending`. O mesmo para o caminho normal de sucesso (já existe, mas validar). Garantir que o campo `error_message` é limpo quando o retry passa.
 
 ---
 
-### 🟡 BUG #3 — Google Business "All platforms failed" sem diagnóstico
+### 🟡 BUG #2 — 266 posts históricos `status='failed'` poluem `/publication-history`
 
-Os posts `1b58760a` (20/04) e `6d92ac33` (19/04) falharam **só** no `googlebusiness_post`, com mensagem genérica *"All platforms failed"* — vinda do próprio Getlate quando o conector GBP rejeita silenciosamente. Pelos dados:
-- Ambos eram `post_type='image'` (Stories diários)
-- IG Stories + FB Stories no mesmo post correram OK
-- Apenas GBP falhou
+Distribuição:
+- 90 em Out/2025, 99 em Nov/2025, 45 em Dez/2025, 18 em Jan/2026, 10 em Fev/2026, 2 em Mar/2026, 2 em Abr/2026
 
-**Hipóteses prováveis** (Google Business tem regras restritivas):
-- Imagem em formato Stories (9:16) — GBP exige rácio próximo de quadrado
-- Caption demasiado curta ou ausente — GBP exige texto descritivo
+99% destes são da era pré-Getlate (n8n, sem retry, sem trigger). Continuam a aparecer em `/publication-history` como falhas vermelhas, mas já não se podem republicar (URLs de média expiraram, sistema diferente).
 
-**Correção**:
-1. **Em `publish-to-getlate/index.ts`** (validação local antes de enviar): se `format === 'googlebusiness_post'` e (`!caption || caption.length < 30`), abortar com erro claro *"Google Business exige descrição com pelo menos 30 caracteres"*.
-2. **Em `validateGetlateResponse`**: detectar `failedPlatforms` no payload de resposta e extrair o motivo específico por plataforma em vez de devolver "All platforms failed". Fica: *"Google Business: <motivo real>"*.
-3. **Pré-validação no frontend**: para `googlebusiness_post`, alertar se a imagem é vertical 9:16 (recomendar usar formato 1:1 ou 4:3).
+**Correção:** UPDATE pontual dos 264 posts `failed` com `failed_at < '2026-04-01'` para `status='rejected'` e `error_log = 'Sistema legacy n8n — arquivado em auditoria 4'`. Mantém os 2 posts recentes de Abril visíveis para diagnóstico real. O componente `PublicationHistory.tsx` já filtra `rejected` do feed principal.
 
 ---
 
-### 🟢 Refinamento #4 — Histórico ainda mostra 4 posts antigos com `error_log` órfão
+### 🟢 REFINAMENTO #3 — 11 posts `status='approved'` esquecidos desde Out/2025
 
-Apesar do trigger que adicionámos, há 4 posts entre 14/04 com `status='failed'` e mensagem "Webhook failed with status 403: Forbidden" — são legacy do n8n (já desactivado). Continuam a poluir `/publication-history`.
+Aprovados há 6 meses, sem `scheduled_date`, sem `published_at`. Fluxo legacy de aprovação manual que deixou de ser usado. Inflam contadores de "Pendentes" no Dashboard.
 
-**Correção:** UPDATE pontual para mover de `failed` → `cancelled` os 4 posts (`d5b2cfd2`, `61598489`, `3116229e`, `522e507b`), com nota "Sistema legacy desactivado".
+**Correção:** UPDATE para `status='rejected'` com `error_log='Aprovado mas nunca publicado — arquivado'`. (Não faço delete — mantém audit trail.)
 
 ---
 
-### Plano de execução (ordem coesa, baixo risco)
+### 🟢 REFINAMENTO #4 — Mensagem de erro 24h pouco accionável
 
-1. **Fix imediato do build** — substituir import de `@radix-ui/react-visually-hidden` por `sr-only` Tailwind (1 ficheiro, 3 linhas)
-2. **Bug #3 GBP** — validação caption ≥30 chars + extração de erro real do `failedPlatforms` (`publish-to-getlate/index.ts`)
-3. **Bug #2 IG 409** — pré-verificação no frontend + retry automático com zero-width space (2 ficheiros)
-4. **Refinamento #4** — UPDATE pontual de 4 posts legacy
+Quando o frontend deteta duplicado IG nas últimas 24h (linha 507 de `usePublishWithProgress.ts`), mostra um toast genérico. Como o utilizador agora sabe que o backend faz retry automático com ZWSP, o aviso devia ser **opcional/informativo** em vez de bloqueante:
+
+> *"⚠️ Conteúdo semelhante publicado no IG nas últimas 24h. Vamos tentar com um carácter invisível extra na legenda — se falhar, edita ligeiramente o texto."*
+
+E **proceder** com a publicação (não bloquear). Assim alinha o comportamento frontend↔backend (o backend já tenta o ZWSP automaticamente).
+
+---
+
+### Plano de execução (1 loop, baixo risco)
+
+1. **Bug #1** — corrigir `publish-to-getlate/index.ts`: actualizar `publication_attempts` para `success` quando o retry ZWSP passa + limpar `error_message`. Cleanup pontual: marcar como `success` os 7 attempts recentes cujos posts estão `published`.
+2. **Bug #2** — UPDATE arquivar 264 posts legacy `failed → rejected`.
+3. **Refinamento #3** — UPDATE arquivar 11 `approved` órfãos `→ rejected`.
+4. **Refinamento #4** — `usePublishWithProgress.ts`: tornar aviso 24h informativo em vez de bloqueante (deixar o backend tratar via ZWSP).
 
 ### Ficheiros a alterar
-- `src/components/manual-post/EnhancedSortableMediaItem.tsx` (1)
-- `supabase/functions/publish-to-getlate/index.ts` (2 + 3)
-- `src/hooks/usePublishWithProgress.ts` (3 — pré-verificação)
-- UPDATE de dados via insert tool (4)
+- `supabase/functions/publish-to-getlate/index.ts` (1)
+- `src/hooks/usePublishWithProgress.ts` (4)
+- UPDATE de dados via insert tool (1 cleanup, 2, 3)
 
 ### Resultado esperado
-- Preview volta a compilar sem erros
-- Erros 409 IG passam a ser **prevenidos** em vez de só reportados
-- Falhas de GBP mostram causa real ("imagem 9:16 não suportada", "caption demasiado curta") em vez de "All platforms failed"
-- Histórico limpo dos posts legacy do n8n
+- `/publication-history` deixa de mostrar badges vermelhos em posts publicados.
+- Feed do histórico foca apenas em falhas reais e recentes (≤2 entradas em vez de >270).
+- Dashboard de "Pendentes" não inclui aprovações órfãs de Outubro.
+- Publicação IG repetida no mesmo dia procede automaticamente em vez de bloquear o utilizador.
 
 ### Checkpoint
-☐ Build compila sem erros TypeScript  
-☐ Próxima publicação IG repetida no mesmo dia mostra aviso preventivo  
-☐ Próxima falha GBP mostra motivo específico  
-☐ `/publication-history` deixa de mostrar os 4 posts 403 legacy
+☐ 7 attempts 409/GBP recentes passam de `failed` para `success` no histórico  
+☐ Feed de `/publication-history` mostra apenas 2 falhas reais de Abril  
+☐ Dashboard de "Pendentes" baixa em 11 unidades  
+☐ Próximo IG repetido no dia publica sem mostrar bloqueio
 
