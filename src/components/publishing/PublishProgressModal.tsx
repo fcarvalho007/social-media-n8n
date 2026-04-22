@@ -258,10 +258,10 @@ function PlatformStatusRow({
           )}
           
           {result.status === 'error' && (
-            <div className="space-y-1">
+            <div className="space-y-1.5">
               {/* Error title with source badge */}
               <div className="flex items-center gap-2 flex-wrap">
-                <span className="text-xs text-red-600 font-medium">
+                <span className="text-xs text-foreground font-medium">
                   {errorInfo?.title || 'Erro'}
                 </span>
                 {sourceInfo && (
@@ -270,23 +270,25 @@ function PlatformStatusRow({
                   </Badge>
                 )}
               </div>
-              
-              {/* Error description */}
-              {isRateLimit ? (
-                <span className="text-xs text-amber-600 flex items-center gap-1">
-                  <Clock className="h-3 w-3" />
-                  {errorInfo?.description}
-                </span>
-              ) : (
-                <span className="text-xs text-red-600/80">
-                  {errorInfo?.description || result.errorMessage || 'Erro ao publicar'}
+
+              {/* Plain explanation (mais humano que description técnica) */}
+              <span className="text-xs text-muted-foreground block leading-snug">
+                {errorInfo?.plainExplanation || errorInfo?.description || result.errorMessage || 'Erro ao publicar'}
+              </span>
+
+              {/* Primeiro passo accionável */}
+              {errorInfo?.whatToDo && errorInfo.whatToDo.length > 0 && (
+                <span className="text-xs text-foreground/80 flex items-start gap-1">
+                  <span className="text-primary font-medium flex-shrink-0">→</span>
+                  <span>{errorInfo.whatToDo[0]}</span>
                 </span>
               )}
-              
-              {/* Suggested action */}
-              {errorInfo?.action && (
-                <span className="text-xs text-muted-foreground flex items-center gap-1">
-                  💡 {errorInfo.action}
+
+              {/* When to retry */}
+              {isRateLimit && (
+                <span className="text-xs text-amber-600 dark:text-amber-400 flex items-center gap-1">
+                  <Clock className="h-3 w-3" />
+                  Aguarda 15-30 minutos
                 </span>
               )}
             </div>
