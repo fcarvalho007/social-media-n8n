@@ -1,8 +1,10 @@
 /**
  * Sanitize filename for Supabase Storage compatibility
- * 
+ *
  * - Remove accents and special characters
  * - Replace spaces with hyphens
+ * - Explicitly strip storage-hostile characters ([], (), ?, &, =, #, !, ',
+ *   ", *, +, :, ;, <, >, @, \, ^, `, {, }, |, ~, $, %)
  * - Remove consecutive underscores/hyphens
  * - Preserve file extension
  * - Limit total length
@@ -18,16 +20,19 @@ export function sanitizeFileName(fileName: string): string {
     .normalize('NFD')
     // Remove accent marks
     .replace(/[\u0300-\u036f]/g, '')
+    // Explicit blacklist for chars that survive NFD but break Storage keys / URLs.
+    // Replaced with '-' so we keep word boundaries readable.
+    .replace(/[\[\]()?&=#!'"*+:;<>@\\^`{}|~$%]/g, '-')
     // Replace spaces with hyphens
     .replace(/\s+/g, '-')
     // Replace underscores with hyphens for consistency
     .replace(/_+/g, '-')
-    // Remove any character that's not alphanumeric or hyphen
-    .replace(/[^a-zA-Z0-9-]/g, '')
+    // Remove any remaining char that's not alphanumeric, hyphen or dot
+    .replace(/[^a-zA-Z0-9.-]/g, '')
     // Replace multiple consecutive hyphens with single
     .replace(/-+/g, '-')
-    // Remove leading/trailing hyphens
-    .replace(/^-|-$/g, '')
+    // Remove leading/trailing hyphens or dots
+    .replace(/^[-.]+|[-.]+$/g, '')
     // Truncate to reasonable length (50 chars max for name)
     .slice(0, 50)
     // Fallback if empty
