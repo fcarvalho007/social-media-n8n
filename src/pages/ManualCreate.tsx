@@ -265,6 +265,7 @@ export default function ManualCreate() {
   const {
     isRecovering,
     recoveredPostId,
+    setRecoveredPostId,
     currentDraftId,
     setCurrentDraftId,
     fetchImageAsFile,
