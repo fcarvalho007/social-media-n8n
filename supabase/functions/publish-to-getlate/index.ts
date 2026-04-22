@@ -734,30 +734,68 @@ Deno.serve(async (req) => {
 
     // Publish to Getlate with idempotency key in header
     let result = await publishToGetlate(getlateToken, getlatePayload, idempotency_key);
+    const retryLog: Array<{ strategy: string; original_error_code?: number; success: boolean; retried_at: string }> = [];
 
-    // 409 RETRY: Getlate blocks "exact content already scheduled within 24h".
-    // Append a zero-width space (\u200B) to caption to bypass duplicate filter
-    // and retry once with a fresh idempotency key.
-    const looksLikeDuplicate = !result.success && (
-      /409/.test(result.error || '') ||
-      /exact content/i.test(result.error || '') ||
-      /already (scheduled|posted)/i.test(result.error || '') ||
-      /duplicate/i.test(result.error || '')
-    );
+    // 409 RETRY chain: Getlate blocks "exact content already scheduled within 24h".
+    // Strategy 1: append U+200B (zero-width space).
+    // Strategy 2: append U+2063 (invisible separator) if first retry still 409.
+    const isDuplicateFailure = (r: typeof result) =>
+      !r.success && (
+        r.statusCode === 409 ||
+        /409/.test(r.error || '') ||
+        /exact content/i.test(r.error || '') ||
+        /already (scheduled|posted|publishing)/i.test(r.error || '') ||
+        /duplicate/i.test(r.error || '')
+      );
 
-    if (looksLikeDuplicate) {
-      console.warn('[publish-to-getlate] 🔁 Duplicate content detected — retrying with zero-width space suffix');
-      const retryPayload: GetlatePostPayload = {
+    if (isDuplicateFailure(result)) {
+      const originalErrorCode = result.statusCode;
+      console.warn(`[publish-to-getlate] 🔁 Duplicate detected (status=${originalErrorCode}) — retrying with U+200B suffix`);
+      const retryPayloadZwsp: GetlatePostPayload = {
         ...getlatePayload,
         content: `${getlatePayload.content}\u200B`,
       };
-      const retryKey = idempotency_key ? `${idempotency_key}-zwsp` : undefined;
-      result = await publishToGetlate(getlateToken, retryPayload, retryKey);
+      const retryKeyZwsp = idempotency_key ? `${idempotency_key}-zwsp` : undefined;
+      result = await publishToGetlate(getlateToken, retryPayloadZwsp, retryKeyZwsp);
+      retryLog.push({
+        strategy: 'zwsp_u200b',
+        original_error_code: originalErrorCode,
+        success: result.success,
+        retried_at: new Date().toISOString(),
+      });
       if (result.success) {
-        console.log('[publish-to-getlate] ✅ ZWSP retry succeeded after 409');
+        console.log('[publish-to-getlate] ✅ U+200B retry succeeded after duplicate');
+      } else if (isDuplicateFailure(result)) {
+        // Strategy 2: try invisible separator
+        console.warn('[publish-to-getlate] 🔁 U+200B still duplicate — retrying with U+2063 (invisible separator)');
+        const retryPayloadIs: GetlatePostPayload = {
+          ...getlatePayload,
+          content: `${getlatePayload.content}\u2063`,
+        };
+        const retryKeyIs = idempotency_key ? `${idempotency_key}-isep` : undefined;
+        result = await publishToGetlate(getlateToken, retryPayloadIs, retryKeyIs);
+        retryLog.push({
+          strategy: 'invisible_separator_u2063',
+          original_error_code: originalErrorCode,
+          success: result.success,
+          retried_at: new Date().toISOString(),
+        });
+        if (result.success) {
+          console.log('[publish-to-getlate] ✅ U+2063 retry succeeded after duplicate');
+        } else {
+          console.error('[publish-to-getlate] ❌ All duplicate-retry strategies failed:', result.error);
+        }
       } else {
-        console.error('[publish-to-getlate] ❌ ZWSP retry also failed:', result.error);
+        console.error('[publish-to-getlate] ❌ U+200B retry failed (non-duplicate):', result.error);
       }
+    }
+
+    // Persist retry telemetry to publication_attempts.response_data for analysis
+    if (attemptId && retryLog.length > 0) {
+      await supabase
+        .from('publication_attempts')
+        .update({ response_data: { retry_log: retryLog } })
+        .eq('id', attemptId);
     }
 
     if (!result.success) {
