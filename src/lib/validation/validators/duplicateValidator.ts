@@ -3,9 +3,16 @@ import { supabase } from '@/integrations/supabase/client';
 import { getNetworkFromFormat } from '@/types/social';
 
 /**
- * Replaces the legacy 24h blocking guard in usePublishWithProgress with an
- * informational signal in the validation panel. Backend keeps the ZWSP retry
- * fallback, so publication is never blocked here.
+ * Detects when the current Instagram caption matches a recent publication
+ * (success, scheduled, pending OR failed) within the last 24h. Surfaces a
+ * warning with an inline auto-fix that appends an invisible variation,
+ * preventing the Getlate 409 "exact content" rejection before it reaches
+ * the backend.
+ *
+ * Severity rules:
+ *   • Match against a successful publication → **warning** (publication still
+ *     allowed, but user must consciously dismiss / auto-fix).
+ *   • Match against a failed/pending one → **info** (lighter signal).
  */
 export async function duplicateValidator(
   ctx: ValidatorContext,
@@ -21,15 +28,15 @@ export async function duplicateValidator(
   try {
     const dayAgo = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString();
     const fingerprint = trimmed.substring(0, 100);
-    // Match against successful AND scheduled/publishing posts so the user is
-    // warned about pending duplicates too (not only already-published ones).
+    // Match against ALL recent attempts including failed — failed attempts also
+    // exhausted Getlate's 24h fingerprint window and would re-trigger 409.
     const { data } = await supabase
       .from('publication_attempts')
       .select('id, status, attempted_at, posts!inner(caption, status)')
       .eq('platform', 'instagram')
-      .in('status', ['success', 'pending', 'scheduled'])
+      .in('status', ['success', 'pending', 'scheduled', 'failed'])
       .gte('attempted_at', dayAgo)
-      .limit(30);
+      .limit(50);
 
     const dup = (data || []).find((row: any) => {
       const otherCap = (row?.posts?.caption || '').trim().substring(0, 100);
@@ -38,16 +45,37 @@ export async function duplicateValidator(
 
     if (!dup) return [];
 
+    const matchedSuccess = dup.status === 'success';
+
+    // Auto-fix appends a newline + a randomly chosen subtle variation marker.
+    // Keeps the visible caption clean while breaking Getlate's exact-match hash.
+    const VARIATION_MARKERS = ['✨', '🔹', '📍', '·'];
+    const fixAction = ctx.fixHelpers?.setCaption
+      ? async () => {
+          const marker =
+            VARIATION_MARKERS[Math.floor(Math.random() * VARIATION_MARKERS.length)];
+          ctx.fixHelpers!.setCaption!(`${ctx.caption.replace(/\s+$/, '')}\n${marker}`);
+        }
+      : undefined;
+
     return [
       {
-        id: 'duplicate:instagram:24h',
-        severity: 'info',
+        id: matchedSuccess
+          ? 'duplicate:instagram:success-24h'
+          : 'duplicate:instagram:recent-24h',
+        severity: matchedSuccess ? 'warning' : 'info',
         category: 'duplicate',
         platform: 'instagram',
-        title: 'Conteúdo similar publicado nas últimas 24h',
-        description:
-          'O Instagram bloqueia legendas idênticas. O sistema vai adicionar automaticamente um carácter invisível antes de tentar de novo. Se preferires, edita ligeiramente o texto.',
+        title: matchedSuccess
+          ? 'Legenda igual a publicação recente (24h)'
+          : 'Legenda parecida com tentativa recente',
+        description: matchedSuccess
+          ? 'O Instagram via Getlate bloqueia legendas idênticas durante 24h. O sistema vai tentar contornar com um carácter invisível, mas para garantir sucesso varia ligeiramente o texto.'
+          : 'Existe uma publicação recente com legenda idêntica. Considera variar o texto para evitar bloqueio.',
         dismissable: true,
+        autoFixable: !!fixAction,
+        fixAction,
+        fixLabel: 'Adicionar variação subtil',
       },
     ];
   } catch (err) {
