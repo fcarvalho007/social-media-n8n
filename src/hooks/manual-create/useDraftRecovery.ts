@@ -329,6 +329,7 @@ export function useDraftRecovery(params: UseDraftRecoveryParams) {
   return {
     isRecovering,
     recoveredPostId,
+    setRecoveredPostId,
     currentDraftId,
     setCurrentDraftId,
     fetchImageAsFile,

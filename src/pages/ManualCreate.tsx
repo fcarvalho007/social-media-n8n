@@ -223,16 +223,30 @@ export default function ManualCreate() {
   // Note: showValidation state was removed — smartValidation.canPublish + validationSheetOpen
   // are now the single source of truth for the publish gate.
 
-  // ── Phase 1 hook: draft + recovery (depends on setters above) ──────────
+  // ── Phase 1 hook: stepper (must come before useDraftRecovery so its setters
+  //    can be passed in) ───────────────────────────────────────────────────
+  // mediaRequirements is computed below; for canAdvance flags we re-derive
+  // the minimal info inline to avoid a forward reference.
+  const _minMediaForStepper = useMemo(
+    () => getMediaRequirements(selectedFormats).minMedia || 1,
+    [selectedFormats],
+  );
+  const stepper = useStepper({
+    canAdvanceToStep2: selectedFormats.length > 0,
+    canAdvanceToStep3: mediaFiles.length >= _minMediaForStepper,
+  });
   const {
-    isRecovering,
-    recoveredPostId,
-    currentDraftId,
-    setCurrentDraftId,
-    fetchImageAsFile,
-    loadPostForRecovery,
-    handleLoadDraft,
-  } = useDraftRecovery({
+    currentStep,
+    visitedSteps,
+    setCurrentStep,
+    setVisitedSteps,
+    goToStep,
+    nextStep,
+    previousStep,
+  } = stepper;
+
+  // ── Phase 1 hook: draft + recovery ─────────────────────────────────────
+  const recovery = useDraftRecovery({
     recoverPostId,
     setCaption,
     setUseSeparateCaptions,
@@ -245,13 +259,52 @@ export default function ManualCreate() {
     setScheduleAsap,
     setScheduledDate,
     setTime,
-    // setVisitedSteps / setCurrentStep wired below via stepper hook
-    setVisitedSteps: ((updater: any) => stepperRef.current?.setVisitedSteps(updater)) as any,
-    setCurrentStep: ((n: number) => stepperRef.current?.setCurrentStep(n)) as any,
+    setVisitedSteps,
+    setCurrentStep,
   });
+  const {
+    isRecovering,
+    recoveredPostId,
+    setRecoveredPostId,
+    currentDraftId,
+    setCurrentDraftId,
+    fetchImageAsFile,
+    loadPostForRecovery,
+    handleLoadDraft,
+  } = recovery;
 
   // Compute media requirements based on selected formats
   const mediaRequirements = useMemo(() => getMediaRequirements(selectedFormats), [selectedFormats]);
+
+  // ── Phase 1 hook: media upload + video validation ──────────────────────
+  // Owns isUploading/uploadProgress, video validation modal state, and the
+  // handleMediaUpload / handleVideoValidationContinue / handleVideoValidationCancel
+  // handlers. Mutates carousel state via the setters from useMediaManager.
+  const upload = useMediaUpload({
+    selectedFormats,
+    mediaFiles,
+    mediaPreviewUrls,
+    mediaRequirements,
+    setMediaFiles,
+    setMediaPreviewUrls,
+    setMediaSources,
+    setMediaAspectRatios,
+    setMediaValidations,
+  });
+  const {
+    uploadProgress,
+    isUploading,
+    setUploadProgress,
+    setIsUploading,
+    videoValidationModalOpen,
+    videoValidationIssues,
+    pendingVideoFiles,
+    setVideoValidationModalOpen,
+    handleMediaUpload,
+    handleVideoValidationContinue,
+    handleVideoValidationCancel,
+  } = upload;
+
 
   // Compute validations
   const validations = useMemo(() => {
@@ -334,43 +387,10 @@ export default function ManualCreate() {
   const canAdvanceToStep2 = selectedFormats.length > 0;
   const canAdvanceToStep3 = mediaFiles.length >= (mediaRequirements.minMedia || 1);
 
-  // Update visited steps based on progress
-  useEffect(() => {
-    if (canAdvanceToStep2 && !visitedSteps.includes(2)) {
-      setVisitedSteps(prev => [...prev, 2]);
-      if (currentStep === 1) setCurrentStep(2);
-    }
-  }, [canAdvanceToStep2, visitedSteps, currentStep]);
+  // Step auto-advance + navigation now provided by useStepper hook above.
+  // (currentStep, visitedSteps, setCurrentStep, setVisitedSteps, goToStep,
+  //  nextStep, previousStep are all destructured from `stepper`.)
 
-  useEffect(() => {
-    if (canAdvanceToStep3 && !visitedSteps.includes(3)) {
-      setVisitedSteps(prev => [...prev, 3]);
-      if (currentStep === 2) setCurrentStep(3);
-    }
-  }, [canAdvanceToStep3, visitedSteps, currentStep]);
-
-  // Step navigation functions
-  const goToStep = (step: number) => {
-    if (visitedSteps.includes(step)) {
-      setCurrentStep(step);
-    }
-  };
-
-  const nextStep = () => {
-    if (currentStep < 3) {
-      const nextStepNum = currentStep + 1;
-      if (!visitedSteps.includes(nextStepNum)) {
-        setVisitedSteps(prev => [...prev, nextStepNum]);
-      }
-      setCurrentStep(nextStepNum);
-    }
-  };
-
-  const previousStep = () => {
-    if (currentStep > 1) {
-      setCurrentStep(currentStep - 1);
-    }
-  };
   // Validations - only show when user tries to proceed
   const getValidationErrors = (): string[] => {
     const errors: string[] = [];
@@ -449,288 +469,6 @@ export default function ManualCreate() {
     handleSubmitForApproval();
   };
 
-  // Handle media upload
-  const handleMediaUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const newFiles = Array.from(e.target.files || []);
-    if (newFiles.length === 0) return;
-    
-    const maxAllowed = mediaRequirements.maxMedia;
-    const totalAfterUpload = mediaFiles.length + newFiles.length;
-    
-    // Check if adding new files would exceed the limit
-    // For Instagram carousel, allow >10 but warn (Getlate receives all, IG API limit is 10)
-    const hasInstagramCarousel = selectedFormats.includes('instagram_carousel');
-    if (totalAfterUpload > maxAllowed) {
-      toast.error(`Máximo ${maxAllowed} ficheiros. Já tem ${mediaFiles.length}.`);
-      return;
-    } else if (hasInstagramCarousel && totalAfterUpload > 10) {
-      toast.warning(
-        `Atenção: API Instagram aceita máx. 10 imagens. A enviar ${totalAfterUpload} para Getlate.`,
-        { duration: 6000 }
-      );
-    }
-
-    // Validate file sizes
-    // Allow large images (up to 50MB) - compression will happen at publish time if needed for Instagram
-    // Videos: 650MB limit
-    const MAX_IMAGE_SIZE_MB = 50;
-    const MAX_VIDEO_SIZE_MB = 650;
-    const isLinkedInDocument = selectedFormats.includes('linkedin_document');
-    
-    for (const file of newFiles) {
-      const sizeMB = file.size / (1024 * 1024);
-      const isVideo = file.type.startsWith('video/');
-      const maxSizeMB = isVideo ? MAX_VIDEO_SIZE_MB : MAX_IMAGE_SIZE_MB;
-      
-      if (sizeMB > maxSizeMB) {
-        const fileType = isVideo ? 'Vídeo' : 'Imagem';
-        toast.error(`${fileType} "${file.name}" excede ${maxSizeMB}MB (${sizeMB.toFixed(1)}MB)`);
-        return;
-      }
-      
-      // Informative toast for images > 4MB (will be compressed at publish time)
-      if (!isVideo && sizeMB > 4) {
-        toast.info(
-          `Imagem "${file.name}" (${sizeMB.toFixed(1)}MB) será comprimida automaticamente antes da publicação.`,
-          { duration: 4000 }
-        );
-      }
-      
-      // Warning for large images in LinkedIn Document (may slow down PDF generation)
-      if (!isVideo && sizeMB > 10 && isLinkedInDocument) {
-        toast.warning(`Imagem "${file.name}" é grande (${sizeMB.toFixed(1)}MB). A geração do PDF pode demorar.`, { duration: 5000 });
-      }
-    }
-
-    // Validate file types - support video for carousels and posts
-    const validTypes = ['image/jpeg', 'image/jpg', 'image/png', 'image/webp'];
-    const supportsVideo = selectedFormats.some(f => 
-      f.includes('reel') || f.includes('stories') || f.includes('shorts') || f.includes('video') ||
-      f === 'instagram_image' || f === 'instagram_carousel' || f === 'linkedin_post' || 
-      f === 'facebook_image' || f === 'tiktok_video'
-    );
-    // Also allow video if we have linkedin_document (will extract frame for PDF)
-    const hasLinkedInDocument = selectedFormats.includes('linkedin_document');
-    if (supportsVideo || hasLinkedInDocument || !mediaRequirements.requiresImage) {
-      validTypes.push('video/mp4', 'video/quicktime', 'video/webm');
-    }
-    const invalidTypes = newFiles.filter(file => !validTypes.includes(file.type));
-    if (invalidTypes.length > 0) {
-      toast.error('Formato não suportado. Use PNG, JPG ou MP4');
-      return;
-    }
-    
-    // Validate video constraints for ALL selected formats
-    const videoFiles = newFiles.filter(f => f.type.startsWith('video/'));
-    
-    const getFormatLabel = (fmt: PostFormat): string => {
-      return getFormatConfig(fmt)?.label || fmt;
-    };
-    
-    if (videoFiles.length > 0 && selectedFormats.length > 0) {
-      const issues: VideoValidationIssue[] = [];
-      
-      for (const videoFile of videoFiles) {
-        try {
-          const videoInfo = await getVideoDimensions(videoFile);
-          const videoRatio = videoInfo.width / videoInfo.height;
-          const isVertical = videoRatio < 0.8; // 9:16 style
-          const isHorizontal = videoRatio > 1.2; // 16:9 style
-          
-          for (const fmt of selectedFormats) {
-            const maxDuration = MAX_VIDEO_DURATION[fmt];
-            
-            // Duration check
-            if (maxDuration && videoInfo.duration > maxDuration) {
-              issues.push({
-                fileName: videoFile.name,
-                issue: `Duração ${Math.round(videoInfo.duration)}s excede ${maxDuration}s para ${getFormatLabel(fmt)}`,
-                suggestion: `Reduza para ≤ ${maxDuration}s ou remova ${getFormatLabel(fmt)}`,
-                type: 'duration',
-                severity: maxDuration <= 60 ? 'error' : 'warning',
-              });
-            }
-            
-            // Aspect ratio mismatch checks
-            if (fmt === 'youtube_video' && isVertical) {
-              issues.push({
-                fileName: videoFile.name,
-                issue: `Vídeo vertical (${videoInfo.width}x${videoInfo.height}) não é adequado para YouTube Feed`,
-                suggestion: 'Use YouTube Shorts para vídeos verticais 9:16',
-                type: 'aspectRatio',
-                severity: 'error',
-              });
-            }
-            if (fmt === 'youtube_shorts' && isHorizontal) {
-              issues.push({
-                fileName: videoFile.name,
-                issue: `Vídeo horizontal não é adequado para Shorts`,
-                suggestion: 'Use YouTube Vídeo para vídeos 16:9',
-                type: 'aspectRatio',
-                severity: 'error',
-              });
-            }
-            // Vertical formats receiving horizontal video
-            const verticalFormats = ['instagram_reel', 'tiktok_video', 'facebook_reel'];
-            if (verticalFormats.includes(fmt) && isHorizontal) {
-              issues.push({
-                fileName: videoFile.name,
-                issue: `Vídeo horizontal (${videoInfo.width}x${videoInfo.height}) não é ideal para ${getFormatLabel(fmt)}`,
-                suggestion: 'Use um vídeo vertical 9:16 para melhores resultados',
-                type: 'aspectRatio',
-                severity: 'warning',
-              });
-            }
-            
-            // Resolution check
-            const minRes = MIN_RESOLUTIONS[fmt];
-            if (minRes && (videoInfo.width < minRes.width * 0.7 || videoInfo.height < minRes.height * 0.7)) {
-              issues.push({
-                fileName: videoFile.name,
-                issue: `Resolução ${videoInfo.width}x${videoInfo.height} baixa para ${getFormatLabel(fmt)}`,
-                suggestion: `Recomendado: ${minRes.width}x${minRes.height}px`,
-                type: 'resolution',
-                severity: 'warning',
-              });
-            }
-          }
-        } catch (err) {
-          console.warn('Could not validate video:', videoFile.name, err);
-        }
-      }
-      
-      // If there are video validation issues, show modal
-      if (issues.length > 0) {
-        setPendingVideoFiles(newFiles);
-        setVideoValidationIssues(issues);
-        setVideoValidationModalOpen(true);
-        return; // Wait for user confirmation
-      }
-    }
-    
-    setIsUploading(true);
-    setUploadProgress(0);
-
-    const newUrls = newFiles.map(file => URL.createObjectURL(file));
-    
-    // Detect aspect ratios for new files
-    const newAspectRatios: string[] = [];
-    for (const file of newFiles) {
-      if (file.type.startsWith('image/')) {
-        const ratio = await detectImageAspectRatio(file);
-        newAspectRatios.push(ratio);
-      } else if (file.type.startsWith('video/')) {
-        const ratio = await detectVideoAspectRatio(file);
-        newAspectRatios.push(ratio);
-      } else {
-        newAspectRatios.push('auto');
-      }
-    }
-    
-    const interval = setInterval(() => {
-      setUploadProgress(prev => {
-        if (prev >= 100) {
-          clearInterval(interval);
-          setIsUploading(false);
-          return 100;
-        }
-        return prev + 10;
-      });
-    }, 50);
-
-    // APPEND new files to existing ones instead of replacing
-    const combinedFiles = [...mediaFiles, ...newFiles];
-    const combinedUrls = [...mediaPreviewUrls, ...newUrls];
-    
-    setMediaFiles(combinedFiles);
-    setMediaPreviewUrls(combinedUrls);
-    setMediaSources(prev => [...prev, ...Array(newFiles.length).fill('upload' as MediaSource)]);
-    setMediaAspectRatios(prev => [...prev, ...newAspectRatios]);
-    
-    // Validate ALL media for selected formats
-    if (selectedFormats.length > 0) {
-      const validations: MediaValidationResult[] = [];
-      for (const file of combinedFiles) {
-        const result = await validateMedia(file, selectedFormats[0]);
-        validations.push(result);
-      }
-      setMediaValidations(validations);
-      
-      // Show warnings if any
-      const hasWarnings = validations.some(v => v.warnings.length > 0);
-      if (hasWarnings) {
-        toast.warning('Alguns ficheiros têm avisos de qualidade', { duration: 4000 });
-      }
-    }
-    
-    toast.success(`${newFiles.length} ficheiro(s) adicionado(s). Total: ${combinedFiles.length}`);
-  };
-
-  const removeMedia = (index: number) => {
-    setMediaFiles(prev => prev.filter((_, i) => i !== index));
-    setMediaPreviewUrls(prev => {
-      URL.revokeObjectURL(prev[index]);
-      return prev.filter((_, i) => i !== index);
-    });
-    setMediaSources(prev => prev.filter((_, i) => i !== index));
-    setMediaAspectRatios(prev => prev.filter((_, i) => i !== index));
-  };
-
-  // Handle video validation continue
-  const handleVideoValidationContinue = async () => {
-    setVideoValidationModalOpen(false);
-    const filesToAdd = pendingVideoFiles;
-    setPendingVideoFiles([]);
-    setVideoValidationIssues([]);
-    
-    // Proceed with adding the files
-    setIsUploading(true);
-    setUploadProgress(0);
-
-    const newUrls = filesToAdd.map(file => URL.createObjectURL(file));
-    
-    // Detect aspect ratios for new files
-    const newAspectRatios: string[] = [];
-    for (const file of filesToAdd) {
-      if (file.type.startsWith('image/')) {
-        const ratio = await detectImageAspectRatio(file);
-        newAspectRatios.push(ratio);
-      } else if (file.type.startsWith('video/')) {
-        const ratio = await detectVideoAspectRatio(file);
-        newAspectRatios.push(ratio);
-      } else {
-        newAspectRatios.push('auto');
-      }
-    }
-    
-    const interval = setInterval(() => {
-      setUploadProgress(prev => {
-        if (prev >= 100) {
-          clearInterval(interval);
-          setIsUploading(false);
-          return 100;
-        }
-        return prev + 10;
-      });
-    }, 50);
-
-    const combinedFiles = [...mediaFiles, ...filesToAdd];
-    const combinedUrls = [...mediaPreviewUrls, ...newUrls];
-    
-    setMediaFiles(combinedFiles);
-    setMediaPreviewUrls(combinedUrls);
-    setMediaSources(prev => [...prev, ...Array(filesToAdd.length).fill('upload' as MediaSource)]);
-    setMediaAspectRatios(prev => [...prev, ...newAspectRatios]);
-    
-    toast.success(`${filesToAdd.length} ficheiro(s) adicionado(s) com avisos. Total: ${combinedFiles.length}`);
-  };
-
-  const handleVideoValidationCancel = () => {
-    setVideoValidationModalOpen(false);
-    setPendingVideoFiles([]);
-    setVideoValidationIssues([]);
-    toast.info('Upload cancelado');
-  };
 
   const handleSaveDraft = async () => {
     if (selectedFormats.length === 0) {
@@ -907,86 +645,6 @@ export default function ManualCreate() {
     }
   };
 
-  const handleLoadDraft = useCallback(async (draft: any) => {
-    // Map platform back to format
-    let format: PostFormat;
-    if (draft.platform === 'instagram_carrousel') format = 'instagram_carousel';
-    else if (draft.platform === 'instagram_stories') format = 'instagram_stories';
-    else if (draft.platform === 'linkedin') format = 'linkedin_post';
-    else if (draft.platform === 'linkedin_document') format = 'linkedin_document';
-    else format = 'instagram_carousel';
-
-    setSelectedFormats([format]);
-    setCaption(draft.caption || '');
-    setScheduleAsap(draft.publish_immediately ?? true);
-    
-    if (draft.scheduled_date) {
-      setScheduledDate(new Date(draft.scheduled_date));
-    }
-    if (draft.scheduled_time) {
-      setTime(draft.scheduled_time);
-    }
-
-    setCurrentDraftId(draft.id);
-
-    // Load media from URLs and convert to Files
-    const urls = draft.media_urls || [];
-    if (urls.length > 0) {
-      setMediaPreviewUrls(urls);
-      setMediaSources(urls.map(() => 'url' as MediaSource));
-      
-      // Convert URLs to Files for proper publishing
-      toast.info('A carregar ficheiros do rascunho...');
-      const filePromises = urls.map((url: string) => fetchImageAsFile(url));
-      const files = await Promise.all(filePromises);
-      const validFiles = files.filter((f): f is File => f !== null);
-      
-      if (validFiles.length > 0) {
-        setMediaFiles(validFiles);
-        // Detect aspect ratios for each file
-        const aspectRatios = await Promise.all(
-          validFiles.map(file => 
-            file.type.startsWith('video/') 
-              ? detectVideoAspectRatio(file) 
-              : detectImageAspectRatio(file)
-          )
-        );
-        setMediaAspectRatios(aspectRatios);
-        
-        // Advance to appropriate step
-        setVisitedSteps([1, 2, 3]);
-        setCurrentStep(3);
-        
-        toast.success('Rascunho carregado!', {
-          description: `${validFiles.length} ficheiros carregados`
-        });
-      } else {
-        toast.warning('Não foi possível carregar os ficheiros do rascunho');
-      }
-    } else {
-      // No media, just advance to step 2
-      setVisitedSteps([1, 2]);
-      setCurrentStep(2);
-      toast.success('Rascunho carregado!');
-    }
-  }, [fetchImageAsFile]);
-
-  // Load draft from sessionStorage (when coming from Drafts page)
-  useEffect(() => {
-    const savedDraft = sessionStorage.getItem('editDraft');
-    if (savedDraft && !recoverPostId) {
-      try {
-        const draft = JSON.parse(savedDraft);
-        sessionStorage.removeItem('editDraft'); // Clear after reading
-        
-        // Use the handleLoadDraft function to load the draft
-        handleLoadDraft(draft);
-      } catch (error) {
-        console.error('Error loading draft from sessionStorage:', error);
-        sessionStorage.removeItem('editDraft');
-      }
-    }
-  }, [handleLoadDraft, recoverPostId]);
 
   const handleSubmitForApproval = async () => {
     // Smart-validation gate is the source of truth; legacy hasErrors kept as
