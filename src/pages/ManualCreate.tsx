@@ -1275,6 +1275,13 @@ export default function ManualCreate() {
   }, [handleLoadDraft, recoverPostId]);
 
   const handleSubmitForApproval = async () => {
+    // Smart-validation gate is the source of truth; legacy hasErrors kept as
+    // safety net for edge cases (e.g. profile selection) not yet covered.
+    if (selectedFormats.length > 0 && !smartValidation.canPublish) {
+      setValidationSheetOpen(true);
+      toast.error('Resolve os problemas no painel de validação antes de submeter');
+      return;
+    }
     if (hasErrors) {
       const errorMsg = validationErrors.join(', ');
       toast.error(`Corrija os erros: ${errorMsg}`, { duration: 5000 });
@@ -1449,6 +1456,12 @@ export default function ManualCreate() {
   };
 
   const handlePublishNow = async (filesToPublish?: File[]) => {
+    // Smart-validation gate is the source of truth.
+    if (selectedFormats.length > 0 && !smartValidation.canPublish) {
+      setValidationSheetOpen(true);
+      toast.error('Resolve os problemas no painel de validação antes de publicar');
+      return;
+    }
     if (hasErrors) {
       const errorMsg = validationErrors.join(', ');
       toast.error(`Corrija os erros: ${errorMsg}`, { duration: 5000 });
