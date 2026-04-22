@@ -278,7 +278,8 @@ export default function ManualCreate() {
   // Stepper state
   const [currentStep, setCurrentStep] = useState(1);
   const [visitedSteps, setVisitedSteps] = useState<number[]>([1]);
-  const [showValidation, setShowValidation] = useState(false);
+  // Note: showValidation state was removed — smartValidation.canPublish + validationSheetOpen
+  // are now the single source of truth for the publish gate.
 
   // DnD sensors for drag and drop with keyboard support
   const [activeId, setActiveId] = useState<string | null>(null);
@@ -714,7 +715,6 @@ export default function ManualCreate() {
       return;
     }
     if (hasErrors) {
-      setShowValidation(true);
       toast.error('Corrija os campos obrigatórios antes de publicar');
       return;
     }
@@ -728,7 +728,6 @@ export default function ManualCreate() {
       return;
     }
     if (hasErrors) {
-      setShowValidation(true);
       toast.error('Corrija os campos obrigatórios antes de submeter');
       return;
     }
@@ -1275,6 +1274,13 @@ export default function ManualCreate() {
   }, [handleLoadDraft, recoverPostId]);
 
   const handleSubmitForApproval = async () => {
+    // Smart-validation gate is the source of truth; legacy hasErrors kept as
+    // safety net for edge cases (e.g. profile selection) not yet covered.
+    if (selectedFormats.length > 0 && !smartValidation.canPublish) {
+      setValidationSheetOpen(true);
+      toast.error('Resolve os problemas no painel de validação antes de submeter');
+      return;
+    }
     if (hasErrors) {
       const errorMsg = validationErrors.join(', ');
       toast.error(`Corrija os erros: ${errorMsg}`, { duration: 5000 });
@@ -1449,6 +1455,12 @@ export default function ManualCreate() {
   };
 
   const handlePublishNow = async (filesToPublish?: File[]) => {
+    // Smart-validation gate is the source of truth.
+    if (selectedFormats.length > 0 && !smartValidation.canPublish) {
+      setValidationSheetOpen(true);
+      toast.error('Resolve os problemas no painel de validação antes de publicar');
+      return;
+    }
     if (hasErrors) {
       const errorMsg = validationErrors.join(', ');
       toast.error(`Corrija os erros: ${errorMsg}`, { duration: 5000 });
