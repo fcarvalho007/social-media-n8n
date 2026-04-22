@@ -276,6 +276,36 @@ export default function ManualCreate() {
   // Compute media requirements based on selected formats
   const mediaRequirements = useMemo(() => getMediaRequirements(selectedFormats), [selectedFormats]);
 
+  // ── Phase 1 hook: media upload + video validation ──────────────────────
+  // Owns isUploading/uploadProgress, video validation modal state, and the
+  // handleMediaUpload / handleVideoValidationContinue / handleVideoValidationCancel
+  // handlers. Mutates carousel state via the setters from useMediaManager.
+  const upload = useMediaUpload({
+    selectedFormats,
+    mediaFiles,
+    mediaPreviewUrls,
+    mediaRequirements,
+    setMediaFiles,
+    setMediaPreviewUrls,
+    setMediaSources,
+    setMediaAspectRatios,
+    setMediaValidations,
+  });
+  const {
+    uploadProgress,
+    isUploading,
+    setUploadProgress,
+    setIsUploading,
+    videoValidationModalOpen,
+    videoValidationIssues,
+    pendingVideoFiles,
+    setVideoValidationModalOpen,
+    handleMediaUpload,
+    handleVideoValidationContinue,
+    handleVideoValidationCancel,
+  } = upload;
+
+
   // Compute validations
   const validations = useMemo(() => {
     if (selectedFormats.length === 0) return {} as Record<PostFormat, FormatValidationResult>;
