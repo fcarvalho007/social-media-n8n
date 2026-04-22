@@ -70,6 +70,11 @@ import { detectOversizedImages, compressOversizedFiles, OversizedImage } from '@
 import { ImageCompressionConfirmModal } from '@/components/publishing/ImageCompressionConfirmModal';
 import { VideoValidationModal, VideoValidationIssue } from '@/components/publishing/VideoValidationModal';
 import { getVideoDimensions, FORMAT_ASPECT_RATIOS, MAX_VIDEO_DURATION, MIN_RESOLUTIONS } from '@/lib/mediaValidation';
+import { useMediaManager } from '@/hooks/manual-create/useMediaManager';
+import { useStepper } from '@/hooks/manual-create/useStepper';
+import { useDraftRecovery } from '@/hooks/manual-create/useDraftRecovery';
+import { useMediaUpload } from '@/hooks/manual-create/useMediaUpload';
+import { detectImageAspectRatio as detectImageAspectRatioExt, detectVideoAspectRatio as detectVideoAspectRatioExt } from '@/hooks/manual-create/mediaAspectDetection';
 
 // Extract first frame from video file
 async function extractVideoFrame(videoFile: File | string): Promise<File> {
@@ -131,76 +136,10 @@ async function extractVideoFrame(videoFile: File | string): Promise<File> {
   });
 }
 
-// Detect image aspect ratio from file - with wider tolerance for Grid Splitter crops
-async function detectImageAspectRatio(file: File): Promise<string> {
-  return new Promise((resolve) => {
-    const img = document.createElement('img');
-    const url = URL.createObjectURL(file);
-    
-    img.onload = () => {
-      const { naturalWidth: w, naturalHeight: h } = img;
-      URL.revokeObjectURL(url);
-      
-      const ratio = w / h;
-      
-      // Map to common aspect ratios with wider tolerance for Grid Splitter crops
-      // 1:1 = 1.0
-      if (ratio >= 0.92 && ratio <= 1.08) resolve('1:1');
-      // 3:4 = 0.75 - wider tolerance to catch Grid Splitter variations (0.68-0.82)
-      else if (ratio >= 0.68 && ratio <= 0.82) resolve('3:4');
-      // 4:5 = 0.8 - narrower window since 3:4 now covers more
-      else if (ratio >= 0.82 && ratio <= 0.88) resolve('4:5');
-      // 4:3 = 1.33
-      else if (ratio >= 1.25 && ratio <= 1.42) resolve('4:3');
-      // 16:9 = 1.78
-      else if (ratio >= 1.65 && ratio <= 1.90) resolve('16:9');
-      // 9:16 = 0.5625
-      else if (ratio >= 0.50 && ratio <= 0.62) resolve('9:16');
-      // Fallbacks
-      else if (ratio < 1) resolve('3:4'); // Vertical default - use 3:4 for carousel images
-      else resolve('4:3'); // Horizontal default
-    };
-    
-    img.onerror = () => {
-      URL.revokeObjectURL(url);
-      resolve('3:4'); // Default fallback - 3:4 for carousel images
-    };
-    
-    img.src = url;
-  });
-}
-
-// Detect video aspect ratio from file
-async function detectVideoAspectRatio(file: File): Promise<string> {
-  return new Promise((resolve) => {
-    const video = document.createElement('video');
-    const url = URL.createObjectURL(file);
-    
-    video.onloadedmetadata = () => {
-      const { videoWidth: w, videoHeight: h } = video;
-      URL.revokeObjectURL(url);
-      
-      const ratio = w / h;
-      
-      // Map to common aspect ratios
-      if (ratio >= 0.95 && ratio <= 1.05) resolve('1:1');
-      else if (ratio >= 0.72 && ratio <= 0.78) resolve('3:4');
-      else if (ratio >= 0.78 && ratio <= 0.82) resolve('4:5');
-      else if (ratio >= 1.28 && ratio <= 1.38) resolve('4:3');
-      else if (ratio >= 1.70 && ratio <= 1.82) resolve('16:9');
-      else if (ratio >= 0.54 && ratio <= 0.58) resolve('9:16');
-      else if (ratio < 1) resolve('9:16'); // Vertical default for videos (Reels, Stories, TikTok)
-      else resolve('16:9'); // Horizontal default
-    };
-    
-    video.onerror = () => {
-      URL.revokeObjectURL(url);
-      resolve('9:16'); // Default fallback for vertical videos
-    };
-    
-    video.src = url;
-  });
-}
+// Aspect-ratio helpers were moved to '@/hooks/manual-create/mediaAspectDetection'.
+// Local aliases keep call sites unchanged inside this file.
+const detectImageAspectRatio = detectImageAspectRatioExt;
+const detectVideoAspectRatio = detectVideoAspectRatioExt;
 
 export default function ManualCreate() {
   const navigate = useNavigate();
@@ -208,22 +147,13 @@ export default function ManualCreate() {
   const recoverPostId = searchParams.get('recover');
   const { instagram, linkedin, canPublish, refresh: refreshQuota, isUnlimited } = usePublishingQuota();
   const [selectedFormats, setSelectedFormats] = useState<PostFormat[]>([]);
-  const [isRecovering, setIsRecovering] = useState(false);
-  const [recoveredPostId, setRecoveredPostId] = useState<string | null>(null);
   const [caption, setCaption] = useState('');
-  const [mediaFiles, setMediaFiles] = useState<File[]>([]);
-  const [mediaPreviewUrls, setMediaPreviewUrls] = useState<string[]>([]);
-  const [mediaSources, setMediaSources] = useState<MediaSource[]>([]);
-  const [mediaAspectRatios, setMediaAspectRatios] = useState<string[]>([]);
   const [scheduledDate, setScheduledDate] = useState<Date>();
   const [time, setTime] = useState('12:00');
   const [scheduleAsap, setScheduleAsap] = useState(true);
   const [saving, setSaving] = useState(false);
   const [submitting, setSubmitting] = useState(false);
-  const [uploadProgress, setUploadProgress] = useState(0);
-  const [isUploading, setIsUploading] = useState(false);
   const [draftsDialogOpen, setDraftsDialogOpen] = useState(false);
-  const [currentDraftId, setCurrentDraftId] = useState<string | null>(null);
   const [savedCaptionsOpen, setSavedCaptionsOpen] = useState(false);
   const [aiDialogOpen, setAiDialogOpen] = useState(false);
   const [emojiPickerOpen, setEmojiPickerOpen] = useState(false);
@@ -234,7 +164,27 @@ export default function ManualCreate() {
   const [networkCaptions, setNetworkCaptions] = useState<Record<string, string>>({});
   const mediaSectionRef = useRef<HTMLDivElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
-  
+
+  // ── Phase 1 hook: media state + DnD ────────────────────────────────────
+  const mediaManager = useMediaManager();
+  const {
+    mediaFiles,
+    mediaPreviewUrls,
+    mediaSources,
+    mediaAspectRatios,
+    activeId,
+    setMediaFiles,
+    setMediaPreviewUrls,
+    setMediaSources,
+    setMediaAspectRatios,
+    sensors,
+    handleDragStart,
+    handleDragCancel,
+    handleDragEnd,
+    moveMedia,
+    removeMedia,
+  } = mediaManager;
+
   // Compression confirmation state
   const [compressionModalOpen, setCompressionModalOpen] = useState(false);
   const [oversizedImages, setOversizedImages] = useState<OversizedImage[]>([]);
@@ -243,11 +193,6 @@ export default function ManualCreate() {
   const [compressionStep, setCompressionStep] = useState<'warning' | 'compressing' | 'confirmation'>('warning');
   const [compressionResults, setCompressionResults] = useState<{ originalSizeMB: number; finalSizeMB: number; qualityUsed: number; wasResized: boolean }[]>([]);
   const [pendingCompressedFiles, setPendingCompressedFiles] = useState<File[]>([]);
-  
-  // Video validation state
-  const [videoValidationModalOpen, setVideoValidationModalOpen] = useState(false);
-  const [videoValidationIssues, setVideoValidationIssues] = useState<VideoValidationIssue[]>([]);
-  const [pendingVideoFiles, setPendingVideoFiles] = useState<File[]>([]);
 
   // Publishing hook with 2-phase progress
   const { 
@@ -275,265 +220,35 @@ export default function ManualCreate() {
     scheduleAsap,
   }, { enabled: selectedFormats.length > 0 || caption.length > 0 });
 
-  // Stepper state
-  const [currentStep, setCurrentStep] = useState(1);
-  const [visitedSteps, setVisitedSteps] = useState<number[]>([1]);
   // Note: showValidation state was removed — smartValidation.canPublish + validationSheetOpen
   // are now the single source of truth for the publish gate.
 
-  // DnD sensors for drag and drop with keyboard support
-  const [activeId, setActiveId] = useState<string | null>(null);
-  
-  const sensors = useSensors(
-    useSensor(PointerSensor, {
-      activationConstraint: {
-        distance: 8,
-      },
-    }),
-    useSensor(TouchSensor, {
-      activationConstraint: {
-        delay: 200,
-        tolerance: 5,
-      },
-    }),
-    useSensor(KeyboardSensor, {
-      coordinateGetter: sortableKeyboardCoordinates,
-    })
-  );
-
-  // Handle drag start
-  const handleDragStart = useCallback((event: DragStartEvent) => {
-    setActiveId(event.active.id as string);
-  }, []);
-
-  // Handle drag cancel
-  const handleDragCancel = useCallback(() => {
-    setActiveId(null);
-  }, []);
-
-  // Handle drag end for media reordering
-  const handleDragEnd = useCallback((event: DragEndEvent) => {
-    const { active, over } = event;
-    setActiveId(null);
-    
-    if (over && active.id !== over.id) {
-      const oldIndex = mediaPreviewUrls.findIndex((_, i) => `media-${i}` === active.id);
-      const newIndex = mediaPreviewUrls.findIndex((_, i) => `media-${i}` === over.id);
-      
-      if (oldIndex !== -1 && newIndex !== -1) {
-        setMediaPreviewUrls(prev => arrayMove(prev, oldIndex, newIndex));
-        setMediaFiles(prev => arrayMove(prev, oldIndex, newIndex));
-        setMediaSources(prev => arrayMove(prev, oldIndex, newIndex));
-        toast.success(`Item movido para posição ${newIndex + 1}`);
-      }
-    }
-  }, [mediaPreviewUrls]);
-
-  // Move media item via arrow buttons
-  const moveMedia = useCallback((fromIndex: number, toIndex: number) => {
-    if (toIndex < 0 || toIndex >= mediaPreviewUrls.length) return;
-    
-    setMediaPreviewUrls(prev => arrayMove(prev, fromIndex, toIndex));
-    setMediaFiles(prev => arrayMove(prev, fromIndex, toIndex));
-    setMediaSources(prev => arrayMove(prev, fromIndex, toIndex));
-    toast.success(`Item movido para posição ${toIndex + 1}`);
-  }, [mediaPreviewUrls.length]);
-
-  // Cleanup objectURLs on unmount
-  useEffect(() => {
-    return () => {
-      mediaPreviewUrls.forEach(url => URL.revokeObjectURL(url));
-    };
-  }, []);
-
-  // Fetch image URL and convert to File
-  const fetchImageAsFile = useCallback(async (url: string): Promise<File | null> => {
-    try {
-      const response = await fetch(url);
-      if (!response.ok) throw new Error('Failed to fetch image');
-      const blob = await response.blob();
-      const fileName = url.split('/').pop() || `image-${Date.now()}.jpg`;
-      return new File([blob], fileName, { type: blob.type || 'image/jpeg' });
-    } catch (error) {
-      console.error('Error fetching image as file:', error);
-      return null;
-    }
-  }, []);
-
-  // Load post data for recovery with full field support
-  const loadPostForRecovery = useCallback(async (postId: string) => {
-    setIsRecovering(true);
-    try {
-      const { data: post, error } = await supabase
-        .from('posts')
-        .select('*')
-        .eq('id', postId)
-        .maybeSingle();
-
-      if (error) throw error;
-      if (!post) {
-        toast.error('Post não encontrado');
-        setIsRecovering(false);
-        return;
-      }
-
-      // Set caption (prefer edited version)
-      setCaption(post.caption_edited || post.caption || '');
-
-      // Load linkedin_body for separate captions
-      if (post.linkedin_body) {
-        setUseSeparateCaptions(true);
-        setNetworkCaptions(prev => ({
-          ...prev,
-          linkedin: post.linkedin_body || '',
-        }));
-      }
-
-      // Load first_comment (will be handled by FirstCommentInput component if available)
-      // For now, store in state if the component supports it
-      const firstComment = post.first_comment || '';
-
-      // Load hashtags
-      const hashtagsEdited = post.hashtags_edited as string[] || [];
-      const hashtagsText = post.hashtags_text || '';
-      
-      // If we have hashtags, append them to caption (if not already there)
-      if (hashtagsText && !post.caption?.includes(hashtagsText)) {
-        const fullCaption = (post.caption_edited || post.caption || '') + '\n\n' + hashtagsText;
-        setCaption(fullCaption);
-      } else if (hashtagsEdited.length > 0 && !post.caption?.includes('#')) {
-        const hashtagString = hashtagsEdited.map(h => h.startsWith('#') ? h : `#${h}`).join(' ');
-        const fullCaption = (post.caption_edited || post.caption || '') + '\n\n' + hashtagString;
-        setCaption(fullCaption);
-      }
-
-      // Load media URLs - use template_a_images, media_items, or media_urls_backup
-      const imageUrls = post.template_a_images || [];
-      const mediaItems = post.media_items as any[] || [];
-      const mediaBackup = post.media_urls_backup as string[] || [];
-      
-      // Combine URLs from all sources (prioritize backup if available)
-      const allUrls = mediaBackup.length > 0 ? [...mediaBackup] : [...imageUrls];
-      mediaItems.forEach((item: any) => {
-        if (item?.url && !allUrls.includes(item.url)) {
-          allUrls.push(item.url);
-        }
-      });
-      
-      if (allUrls.length > 0) {
-        setMediaPreviewUrls(allUrls);
-        setMediaSources(allUrls.map(() => 'url' as MediaSource));
-        
-        // Convert URLs to Files for proper publishing
-        toast.info('A carregar imagens...');
-        const filePromises = allUrls.map(url => fetchImageAsFile(url));
-        const files = await Promise.all(filePromises);
-        const validFiles = files.filter((f): f is File => f !== null);
-        
-        if (validFiles.length > 0) {
-          setMediaFiles(validFiles);
-          // Detect aspect ratios for each file
-          const aspectRatios = await Promise.all(
-            validFiles.map(file => 
-              file.type.startsWith('video/') 
-                ? detectVideoAspectRatio(file) 
-                : detectImageAspectRatio(file)
-            )
-          );
-          setMediaAspectRatios(aspectRatios);
-        }
-      }
-
-      // Load alt_texts if available
-      const altTexts = post.alt_texts as Record<string, string> || {};
-      // These will be handled by AltTextManager if integrated
-
-      // Map selected_networks to PostFormat[]
-      const networks = post.selected_networks || [];
-      const postType = post.post_type || 'carousel';
-      
-      const formats: PostFormat[] = [];
-      networks.forEach((network: string) => {
-        // Map network + post_type to format
-        const formatMap: Record<string, Record<string, PostFormat>> = {
-          instagram: {
-            carousel: 'instagram_carousel',
-            image: 'instagram_image',
-            reel: 'instagram_reel',
-            stories: 'instagram_stories',
-            video: 'instagram_reel',
-          },
-          linkedin: {
-            carousel: 'linkedin_document',
-            post: 'linkedin_post',
-            image: 'linkedin_post',
-            document: 'linkedin_document',
-          },
-          youtube: {
-            shorts: 'youtube_shorts',
-            video: 'youtube_video',
-          },
-          tiktok: {
-            video: 'tiktok_video',
-          },
-          facebook: {
-            image: 'facebook_image',
-            stories: 'facebook_stories',
-            reel: 'facebook_reel',
-            video: 'facebook_reel',
-          },
-          googlebusiness: {
-            post: 'googlebusiness_post',
-            image: 'googlebusiness_post',
-          },
-        };
-        
-        const networkFormats = formatMap[network];
-        if (networkFormats) {
-          const format = networkFormats[postType] || Object.values(networkFormats)[0];
-          if (format && !formats.includes(format)) {
-            formats.push(format);
-          }
-        }
-      });
-      
-      if (formats.length > 0) {
-        setSelectedFormats(formats);
-      }
-
-      // Set scheduling (default to ASAP for recovery)
-      setScheduleAsap(true);
-
-      // Mark as recovered
-      setRecoveredPostId(postId);
-      
-      // Advance to step 2 or 3 based on what's loaded
-      if (formats.length > 0) {
-        setVisitedSteps([1, 2]);
-        setCurrentStep(2);
-        if (allUrls.length > 0) {
-          setVisitedSteps([1, 2, 3]);
-          setCurrentStep(3);
-        }
-      }
-
-      toast.success('Conteúdo recuperado com sucesso!', {
-        description: `${allUrls.length} ficheiros carregados`,
-      });
-    } catch (error) {
-      console.error('Error loading post for recovery:', error);
-      toast.error('Erro ao recuperar conteúdo');
-    } finally {
-      setIsRecovering(false);
-    }
-  }, [fetchImageAsFile]);
-
-  // Load post on mount if recover param is present
-  useEffect(() => {
-    if (recoverPostId && !recoveredPostId) {
-      loadPostForRecovery(recoverPostId);
-    }
-  }, [recoverPostId, recoveredPostId, loadPostForRecovery]);
+  // ── Phase 1 hook: draft + recovery (depends on setters above) ──────────
+  const {
+    isRecovering,
+    recoveredPostId,
+    currentDraftId,
+    setCurrentDraftId,
+    fetchImageAsFile,
+    loadPostForRecovery,
+    handleLoadDraft,
+  } = useDraftRecovery({
+    recoverPostId,
+    setCaption,
+    setUseSeparateCaptions,
+    setNetworkCaptions,
+    setMediaPreviewUrls,
+    setMediaSources,
+    setMediaFiles,
+    setMediaAspectRatios,
+    setSelectedFormats,
+    setScheduleAsap,
+    setScheduledDate,
+    setTime,
+    // setVisitedSteps / setCurrentStep wired below via stepper hook
+    setVisitedSteps: ((updater: any) => stepperRef.current?.setVisitedSteps(updater)) as any,
+    setCurrentStep: ((n: number) => stepperRef.current?.setCurrentStep(n)) as any,
+  });
 
   // Compute media requirements based on selected formats
   const mediaRequirements = useMemo(() => getMediaRequirements(selectedFormats), [selectedFormats]);
