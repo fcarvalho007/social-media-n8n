@@ -381,12 +381,28 @@ async function validateMediaUrls(urls: string[]): Promise<{ valid: boolean; inva
   return { valid: invalidUrls.length === 0, invalidUrls };
 }
 
+/**
+ * Compute API timeout based on payload weight.
+ * Heavy carousels (IG >5 items, LinkedIn document >20 pages) need extra room.
+ * Default 3min, max 15min for heavy uploads.
+ */
+function computeApiTimeoutMs(payload: GetlatePostPayload): number {
+  const mediaCount = payload.mediaItems?.length || 0;
+  const platform = payload.platforms?.[0]?.platform;
+  const isHeavyCarousel = platform === 'instagram' && mediaCount > 5;
+  const isHeavyDocument =
+    platform === 'linkedin' &&
+    payload.mediaItems?.some(m => m.type === 'document');
+  if (isHeavyCarousel || isHeavyDocument) return 15 * 60 * 1000; // 15 min
+  return 3 * 60 * 1000; // 3 min default
+}
+
 async function publishToGetlate(
   apiToken: string, 
   payload: GetlatePostPayload, 
   idempotencyKey?: string,
   retries = 1
-): Promise<{ success: boolean; data?: any; error?: string; isRateLimit?: boolean; postUrl?: string }> {
+): Promise<{ success: boolean; data?: any; error?: string; isRateLimit?: boolean; postUrl?: string; statusCode?: number }> {
   const apiUrl = 'https://getlate.dev/api/v1/posts';
   
   for (let attempt = 1; attempt <= retries; attempt++) {
@@ -395,7 +411,9 @@ async function publishToGetlate(
       console.log(`[publish-to-getlate] Payload:`, JSON.stringify(payload, null, 2));
       
       const controller = new AbortController();
-      const timeout = setTimeout(() => controller.abort(), 180000); // 180s timeout for large video uploads
+      const timeoutMs = computeApiTimeoutMs(payload);
+      console.log(`[publish-to-getlate] Using API timeout: ${(timeoutMs / 1000).toFixed(0)}s`);
+      const timeout = setTimeout(() => controller.abort(), timeoutMs);
 
       // Build headers with Idempotency-Key per Getlate documentation
       const headers: Record<string, string> = {
