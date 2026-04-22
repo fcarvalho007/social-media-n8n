@@ -356,43 +356,10 @@ export default function ManualCreate() {
   const canAdvanceToStep2 = selectedFormats.length > 0;
   const canAdvanceToStep3 = mediaFiles.length >= (mediaRequirements.minMedia || 1);
 
-  // Update visited steps based on progress
-  useEffect(() => {
-    if (canAdvanceToStep2 && !visitedSteps.includes(2)) {
-      setVisitedSteps(prev => [...prev, 2]);
-      if (currentStep === 1) setCurrentStep(2);
-    }
-  }, [canAdvanceToStep2, visitedSteps, currentStep]);
+  // Step auto-advance + navigation now provided by useStepper hook above.
+  // (currentStep, visitedSteps, setCurrentStep, setVisitedSteps, goToStep,
+  //  nextStep, previousStep are all destructured from `stepper`.)
 
-  useEffect(() => {
-    if (canAdvanceToStep3 && !visitedSteps.includes(3)) {
-      setVisitedSteps(prev => [...prev, 3]);
-      if (currentStep === 2) setCurrentStep(3);
-    }
-  }, [canAdvanceToStep3, visitedSteps, currentStep]);
-
-  // Step navigation functions
-  const goToStep = (step: number) => {
-    if (visitedSteps.includes(step)) {
-      setCurrentStep(step);
-    }
-  };
-
-  const nextStep = () => {
-    if (currentStep < 3) {
-      const nextStepNum = currentStep + 1;
-      if (!visitedSteps.includes(nextStepNum)) {
-        setVisitedSteps(prev => [...prev, nextStepNum]);
-      }
-      setCurrentStep(nextStepNum);
-    }
-  };
-
-  const previousStep = () => {
-    if (currentStep > 1) {
-      setCurrentStep(currentStep - 1);
-    }
-  };
   // Validations - only show when user tries to proceed
   const getValidationErrors = (): string[] => {
     const errors: string[] = [];
