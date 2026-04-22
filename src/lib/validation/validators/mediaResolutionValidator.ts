@@ -1,10 +1,7 @@
 import { ValidatorContext, ValidationIssue } from '../types';
 import { getNetworkFromFormat, getFormatConfig } from '@/types/social';
-import {
-  MIN_RESOLUTIONS,
-  getImageDimensions,
-  getVideoDimensions,
-} from '@/lib/mediaValidation';
+import { MIN_RESOLUTIONS } from '@/lib/mediaValidation';
+import { getDimensionsCached } from '../dimensionCache';
 
 /**
  * Flags media whose resolution is below 80% of the format's recommended
