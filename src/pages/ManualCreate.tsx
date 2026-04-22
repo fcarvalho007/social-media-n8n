@@ -54,7 +54,7 @@ import { getMediaRequirements, validateAllFormats, getValidationSummary, FormatV
 import { INSTAGRAM_CONFIG, LINKEDIN_CONFIG, FORMAT_TO_NETWORK, FORMAT_TO_ACCOUNT } from '@/types/publishing';
 import { PublishingOverlay } from '@/components/manual-post/PublishingOverlay';
 import { PublishProgressModal } from '@/components/publishing/PublishProgressModal';
-import { AspectRatioWarning } from '@/components/publishing/AspectRatioWarning';
+
 import { useSmartValidation } from '@/hooks/useSmartValidation';
 import { ValidationSidebar, ValidationMobileBadge } from '@/components/manual-post/ValidationSidebar';
 import { usePublishWithProgress } from '@/hooks/usePublishWithProgress';
@@ -708,6 +708,11 @@ export default function ManualCreate() {
 
   // Handle publish/submit with validation
   const handlePublishWithValidation = async () => {
+    if (selectedFormats.length > 0 && !smartValidation.canPublish) {
+      setValidationSheetOpen(true);
+      toast.error('Resolve os problemas no painel de validação antes de publicar');
+      return;
+    }
     if (hasErrors) {
       setShowValidation(true);
       toast.error('Corrija os campos obrigatórios antes de publicar');
@@ -717,6 +722,11 @@ export default function ManualCreate() {
   };
 
   const handleSubmitWithValidation = async () => {
+    if (selectedFormats.length > 0 && !smartValidation.canPublish) {
+      setValidationSheetOpen(true);
+      toast.error('Resolve os problemas no painel de validação antes de submeter');
+      return;
+    }
     if (hasErrors) {
       setShowValidation(true);
       toast.error('Corrija os campos obrigatórios antes de submeter');
@@ -2397,15 +2407,7 @@ export default function ManualCreate() {
                   />
                 )}
                 
-                {/* Aspect Ratio Warning for Instagram */}
-                <AspectRatioWarning 
-                  mediaFiles={mediaFiles} 
-                  selectedFormats={selectedFormats} 
-                />
-                
                 {/* Primary Actions Row */}
-                {/* Aspect Ratio Warning kept as fallback (deprecated, will be removed) */}
-                <AspectRatioWarning mediaFiles={mediaFiles} selectedFormats={selectedFormats} />
 
                 <div className="flex gap-3">
                   <Button
@@ -2580,17 +2582,15 @@ export default function ManualCreate() {
           </div>
         )}
         
-        {/* Aspect Ratio Warning - Mobile */}
-        <div className="flex justify-center py-0.5 xs:py-1">
-          {selectedFormats.length > 0 ? (
+        {/* Validation badge - Mobile (only when formats selected) */}
+        {selectedFormats.length > 0 && (
+          <div className="flex justify-center py-0.5 xs:py-1">
             <ValidationMobileBadge
               validation={smartValidation}
               onClick={() => setValidationSheetOpen(true)}
             />
-          ) : (
-            <AspectRatioWarning mediaFiles={mediaFiles} selectedFormats={selectedFormats} />
-          )}
-        </div>
+          </div>
+        )}
 
         {/* Action buttons - com safe area */}
         <div className="p-2 xs:p-2.5 sm:p-3 pb-[calc(0.5rem+env(safe-area-inset-bottom))] xs:pb-[calc(0.625rem+env(safe-area-inset-bottom))] flex gap-2 xs:gap-2.5 sm:gap-3 w-full max-w-full">

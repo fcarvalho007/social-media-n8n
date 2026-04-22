@@ -474,46 +474,9 @@ export function usePublishWithProgress() {
         }
       }
 
-      // ═══════════════════════════════════════════
-      // INSTAGRAM 24H DUPLICATE GUARD: Getlate blocks identical content
-      // posted to IG within 24h with HTTP 409 "exact content already scheduled".
-      // Warn the user BEFORE attempting publication so they can adjust the caption.
-      // ═══════════════════════════════════════════
-      if (!params.skipDuplicateCheck && caption?.trim()) {
-        try {
-          const hasInstagramFmt = consolidatedFormats.some(
-            f => (FORMAT_TO_NETWORK[f] || 'instagram') === 'instagram'
-          );
-          if (hasInstagramFmt) {
-            const dayAgo = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString();
-            const captionFingerprint = caption.trim().substring(0, 100);
-            const { data: recentIgAttempts } = await supabase
-              .from('publication_attempts')
-              .select('id, post_id, attempted_at, posts!inner(caption, status)')
-              .eq('platform', 'instagram')
-              .eq('status', 'success')
-              .gte('attempted_at', dayAgo)
-              .limit(20);
-
-            const dup = (recentIgAttempts || []).find((row: any) => {
-              const otherCap = (row?.posts?.caption || '').trim().substring(0, 100);
-              return otherCap && otherCap === captionFingerprint;
-            });
-
-            if (dup) {
-              console.warn('[usePublishWithProgress] ⚠️ IG 24h duplicate detected — proceeding (backend will retry with ZWSP):', dup);
-              // Informative only — backend automatically appends a zero-width space
-              // on 409 to bypass Getlate's duplicate filter. Do not block the user.
-              toast.info('Conteúdo semelhante publicado no IG nas últimas 24h', {
-                description: 'Vamos tentar com um carácter invisível extra na legenda. Se falhar, edita ligeiramente o texto.',
-                duration: 8000,
-              });
-            }
-          }
-        } catch (e) {
-          console.warn('[usePublishWithProgress] IG 24h check failed, proceeding:', e);
-        }
-      }
+      // NOTE: O guard de duplicados IG 24h foi removido — o `duplicateValidator`
+      // do painel de pré-validação cobre o caso sem custo de latência no clique.
+      // O backend continua a fazer ZWSP retry automaticamente em caso de 409.
 
       // ═══════════════════════════════════════════
       // CREATE POST RECORD EARLY (before upload) so ALL attempts are logged

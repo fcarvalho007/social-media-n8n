@@ -58,17 +58,26 @@ export function useSmartValidation(
   const fixHelpersRef = useRef(fixHelpers);
   fixHelpersRef.current = fixHelpers;
 
+  // Auto-extract inline hashtags from the caption so the captionValidator can
+  // detect IG's 30-tag soft limit even when the parent doesn't track a separate
+  // hashtags array.
+  const effectiveHashtags = useMemo(() => {
+    const inline = caption.match(/#\w+/g) || [];
+    const merged = [...hashtags, ...inline.map(h => h.replace(/^#/, ''))];
+    return Array.from(new Set(merged));
+  }, [caption, hashtags]);
+
   const ctxBase = useMemo<Omit<ValidatorContext, 'signal' | 'fixHelpers'>>(
     () => ({
       selectedFormats,
       caption,
       mediaFiles,
-      hashtags,
+      hashtags: effectiveHashtags,
       scheduledDate,
       scheduleAsap,
       userId,
     }),
-    [selectedFormats, caption, mediaFiles, hashtags, scheduledDate, scheduleAsap, userId],
+    [selectedFormats, caption, mediaFiles, effectiveHashtags, scheduledDate, scheduleAsap, userId],
   );
 
   const cacheKey = useMemo(
@@ -134,6 +143,20 @@ export function useSmartValidation(
 
   useEffect(() => () => abortRef.current?.abort(), []);
 
+  // Garbage-collect dismissed IDs that no longer exist in the current issue
+  // set (e.g. media indices changed after reorder/remove).
+  useEffect(() => {
+    if (dismissed.size === 0) return;
+    const liveIds = new Set(issues.map(i => i.id));
+    let changed = false;
+    const next = new Set<string>();
+    dismissed.forEach(id => {
+      if (liveIds.has(id)) next.add(id);
+      else changed = true;
+    });
+    if (changed) setDismissed(next);
+  }, [issues, dismissed]);
+
   // Public API ------------------------------------------------------------
   const visibleIssues = useMemo(
     () => issues.filter(i => !(i.dismissable && dismissed.has(i.id))),
@@ -176,8 +199,11 @@ export function useSmartValidation(
     });
   }, []);
 
+  // Note: `mediaFiles.length > 0` is intentionally NOT enforced here.
+  // Formats that require media (e.g. IG, Reels) are blocked by `formatValidator`,
+  // while text-only formats (Google Business Profile) must remain publishable.
   const canPublish = enabled
-    ? errorCount === 0 && selectedFormats.length > 0 && mediaFiles.length > 0
+    ? errorCount === 0 && selectedFormats.length > 0
     : true;
 
   const isClean =
