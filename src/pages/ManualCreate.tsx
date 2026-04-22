@@ -278,7 +278,8 @@ export default function ManualCreate() {
   // Stepper state
   const [currentStep, setCurrentStep] = useState(1);
   const [visitedSteps, setVisitedSteps] = useState<number[]>([1]);
-  const [showValidation, setShowValidation] = useState(false);
+  // Note: showValidation state was removed — smartValidation.canPublish + validationSheetOpen
+  // are now the single source of truth for the publish gate.
 
   // DnD sensors for drag and drop with keyboard support
   const [activeId, setActiveId] = useState<string | null>(null);
