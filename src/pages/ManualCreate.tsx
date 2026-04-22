@@ -223,194 +223,32 @@ export default function ManualCreate() {
   // Note: showValidation state was removed — smartValidation.canPublish + validationSheetOpen
   // are now the single source of truth for the publish gate.
 
-  // Fetch image URL and convert to File
-  const fetchImageAsFile = useCallback(async (url: string): Promise<File | null> => {
-    try {
-      const response = await fetch(url);
-      if (!response.ok) throw new Error('Failed to fetch image');
-      const blob = await response.blob();
-      const fileName = url.split('/').pop() || `image-${Date.now()}.jpg`;
-      return new File([blob], fileName, { type: blob.type || 'image/jpeg' });
-    } catch (error) {
-      console.error('Error fetching image as file:', error);
-      return null;
-    }
-  }, []);
-
-  // Load post data for recovery with full field support
-  const loadPostForRecovery = useCallback(async (postId: string) => {
-    setIsRecovering(true);
-    try {
-      const { data: post, error } = await supabase
-        .from('posts')
-        .select('*')
-        .eq('id', postId)
-        .maybeSingle();
-
-      if (error) throw error;
-      if (!post) {
-        toast.error('Post não encontrado');
-        setIsRecovering(false);
-        return;
-      }
-
-      // Set caption (prefer edited version)
-      setCaption(post.caption_edited || post.caption || '');
-
-      // Load linkedin_body for separate captions
-      if (post.linkedin_body) {
-        setUseSeparateCaptions(true);
-        setNetworkCaptions(prev => ({
-          ...prev,
-          linkedin: post.linkedin_body || '',
-        }));
-      }
-
-      // Load first_comment (will be handled by FirstCommentInput component if available)
-      // For now, store in state if the component supports it
-      const firstComment = post.first_comment || '';
-
-      // Load hashtags
-      const hashtagsEdited = post.hashtags_edited as string[] || [];
-      const hashtagsText = post.hashtags_text || '';
-      
-      // If we have hashtags, append them to caption (if not already there)
-      if (hashtagsText && !post.caption?.includes(hashtagsText)) {
-        const fullCaption = (post.caption_edited || post.caption || '') + '\n\n' + hashtagsText;
-        setCaption(fullCaption);
-      } else if (hashtagsEdited.length > 0 && !post.caption?.includes('#')) {
-        const hashtagString = hashtagsEdited.map(h => h.startsWith('#') ? h : `#${h}`).join(' ');
-        const fullCaption = (post.caption_edited || post.caption || '') + '\n\n' + hashtagString;
-        setCaption(fullCaption);
-      }
-
-      // Load media URLs - use template_a_images, media_items, or media_urls_backup
-      const imageUrls = post.template_a_images || [];
-      const mediaItems = post.media_items as any[] || [];
-      const mediaBackup = post.media_urls_backup as string[] || [];
-      
-      // Combine URLs from all sources (prioritize backup if available)
-      const allUrls = mediaBackup.length > 0 ? [...mediaBackup] : [...imageUrls];
-      mediaItems.forEach((item: any) => {
-        if (item?.url && !allUrls.includes(item.url)) {
-          allUrls.push(item.url);
-        }
-      });
-      
-      if (allUrls.length > 0) {
-        setMediaPreviewUrls(allUrls);
-        setMediaSources(allUrls.map(() => 'url' as MediaSource));
-        
-        // Convert URLs to Files for proper publishing
-        toast.info('A carregar imagens...');
-        const filePromises = allUrls.map(url => fetchImageAsFile(url));
-        const files = await Promise.all(filePromises);
-        const validFiles = files.filter((f): f is File => f !== null);
-        
-        if (validFiles.length > 0) {
-          setMediaFiles(validFiles);
-          // Detect aspect ratios for each file
-          const aspectRatios = await Promise.all(
-            validFiles.map(file => 
-              file.type.startsWith('video/') 
-                ? detectVideoAspectRatio(file) 
-                : detectImageAspectRatio(file)
-            )
-          );
-          setMediaAspectRatios(aspectRatios);
-        }
-      }
-
-      // Load alt_texts if available
-      const altTexts = post.alt_texts as Record<string, string> || {};
-      // These will be handled by AltTextManager if integrated
-
-      // Map selected_networks to PostFormat[]
-      const networks = post.selected_networks || [];
-      const postType = post.post_type || 'carousel';
-      
-      const formats: PostFormat[] = [];
-      networks.forEach((network: string) => {
-        // Map network + post_type to format
-        const formatMap: Record<string, Record<string, PostFormat>> = {
-          instagram: {
-            carousel: 'instagram_carousel',
-            image: 'instagram_image',
-            reel: 'instagram_reel',
-            stories: 'instagram_stories',
-            video: 'instagram_reel',
-          },
-          linkedin: {
-            carousel: 'linkedin_document',
-            post: 'linkedin_post',
-            image: 'linkedin_post',
-            document: 'linkedin_document',
-          },
-          youtube: {
-            shorts: 'youtube_shorts',
-            video: 'youtube_video',
-          },
-          tiktok: {
-            video: 'tiktok_video',
-          },
-          facebook: {
-            image: 'facebook_image',
-            stories: 'facebook_stories',
-            reel: 'facebook_reel',
-            video: 'facebook_reel',
-          },
-          googlebusiness: {
-            post: 'googlebusiness_post',
-            image: 'googlebusiness_post',
-          },
-        };
-        
-        const networkFormats = formatMap[network];
-        if (networkFormats) {
-          const format = networkFormats[postType] || Object.values(networkFormats)[0];
-          if (format && !formats.includes(format)) {
-            formats.push(format);
-          }
-        }
-      });
-      
-      if (formats.length > 0) {
-        setSelectedFormats(formats);
-      }
-
-      // Set scheduling (default to ASAP for recovery)
-      setScheduleAsap(true);
-
-      // Mark as recovered
-      setRecoveredPostId(postId);
-      
-      // Advance to step 2 or 3 based on what's loaded
-      if (formats.length > 0) {
-        setVisitedSteps([1, 2]);
-        setCurrentStep(2);
-        if (allUrls.length > 0) {
-          setVisitedSteps([1, 2, 3]);
-          setCurrentStep(3);
-        }
-      }
-
-      toast.success('Conteúdo recuperado com sucesso!', {
-        description: `${allUrls.length} ficheiros carregados`,
-      });
-    } catch (error) {
-      console.error('Error loading post for recovery:', error);
-      toast.error('Erro ao recuperar conteúdo');
-    } finally {
-      setIsRecovering(false);
-    }
-  }, [fetchImageAsFile]);
-
-  // Load post on mount if recover param is present
-  useEffect(() => {
-    if (recoverPostId && !recoveredPostId) {
-      loadPostForRecovery(recoverPostId);
-    }
-  }, [recoverPostId, recoveredPostId, loadPostForRecovery]);
+  // ── Phase 1 hook: draft + recovery (depends on setters above) ──────────
+  const {
+    isRecovering,
+    recoveredPostId,
+    currentDraftId,
+    setCurrentDraftId,
+    fetchImageAsFile,
+    loadPostForRecovery,
+    handleLoadDraft,
+  } = useDraftRecovery({
+    recoverPostId,
+    setCaption,
+    setUseSeparateCaptions,
+    setNetworkCaptions,
+    setMediaPreviewUrls,
+    setMediaSources,
+    setMediaFiles,
+    setMediaAspectRatios,
+    setSelectedFormats,
+    setScheduleAsap,
+    setScheduledDate,
+    setTime,
+    // setVisitedSteps / setCurrentStep wired below via stepper hook
+    setVisitedSteps: ((updater: any) => stepperRef.current?.setVisitedSteps(updater)) as any,
+    setCurrentStep: ((n: number) => stepperRef.current?.setCurrentStep(n)) as any,
+  });
 
   // Compute media requirements based on selected formats
   const mediaRequirements = useMemo(() => getMediaRequirements(selectedFormats), [selectedFormats]);
