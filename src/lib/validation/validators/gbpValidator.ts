@@ -1,5 +1,5 @@
 import { ValidatorContext, ValidationIssue } from '../types';
-import { getImageDimensions, getVideoDimensions } from '@/lib/mediaValidation';
+import { getDimensionsCached } from '../dimensionCache';
 
 const GBP_MIN_CAPTION = 30;
 
@@ -37,9 +37,7 @@ export async function gbpValidator(
     if (ctx.signal?.aborted) break;
     const file = ctx.mediaFiles[i];
     try {
-      const dims = file.type.startsWith('video/')
-        ? await getVideoDimensions(file)
-        : await getImageDimensions(file);
+      const dims = await getDimensionsCached(file);
       const ratio = dims.width / dims.height;
       if (ratio < 0.7) {
         issues.push({

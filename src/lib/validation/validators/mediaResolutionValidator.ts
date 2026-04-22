@@ -1,10 +1,7 @@
 import { ValidatorContext, ValidationIssue } from '../types';
 import { getNetworkFromFormat, getFormatConfig } from '@/types/social';
-import {
-  MIN_RESOLUTIONS,
-  getImageDimensions,
-  getVideoDimensions,
-} from '@/lib/mediaValidation';
+import { MIN_RESOLUTIONS } from '@/lib/mediaValidation';
+import { getDimensionsCached } from '../dimensionCache';
 
 /**
  * Flags media whose resolution is below 80% of the format's recommended
@@ -33,9 +30,7 @@ export async function mediaResolutionValidator(
     if (ctx.signal?.aborted) return issues;
     const file = ctx.mediaFiles[i];
     try {
-      const dims = file.type.startsWith('video/')
-        ? await getVideoDimensions(file)
-        : await getImageDimensions(file);
+      const dims = await getDimensionsCached(file);
       if (dims.width < wThreshold || dims.height < hThreshold) {
         lowResIndices.push(i);
       }

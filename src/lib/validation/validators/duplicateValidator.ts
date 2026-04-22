@@ -21,13 +21,15 @@ export async function duplicateValidator(
   try {
     const dayAgo = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString();
     const fingerprint = trimmed.substring(0, 100);
+    // Match against successful AND scheduled/publishing posts so the user is
+    // warned about pending duplicates too (not only already-published ones).
     const { data } = await supabase
       .from('publication_attempts')
-      .select('id, attempted_at, posts!inner(caption, status)')
+      .select('id, status, attempted_at, posts!inner(caption, status)')
       .eq('platform', 'instagram')
-      .eq('status', 'success')
+      .in('status', ['success', 'pending', 'scheduled'])
       .gte('attempted_at', dayAgo)
-      .limit(20);
+      .limit(30);
 
     const dup = (data || []).find((row: any) => {
       const otherCap = (row?.posts?.caption || '').trim().substring(0, 100);
