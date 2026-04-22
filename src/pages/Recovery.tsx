@@ -21,6 +21,7 @@ import {
 } from 'lucide-react';
 import JSZip from 'jszip';
 import { saveAs } from 'file-saver';
+import { ErrorExplanationCard } from '@/components/publishing/ErrorExplanationCard';
 
 interface FailedPost {
   id: string;
@@ -278,20 +279,16 @@ const Recovery = () => {
           </div>
         </div>
 
-        {/* Error Alert */}
-        <Card className="border-destructive bg-destructive/5">
-          <CardHeader>
-            <div className="flex items-start gap-3">
-              <AlertTriangle className="h-5 w-5 text-destructive mt-0.5" />
-              <div className="flex-1">
-                <CardTitle className="text-lg text-destructive">Erro na Publicação</CardTitle>
-                <CardDescription className="mt-2 font-mono text-sm whitespace-pre-wrap break-words">
-                  {post.error_log || 'Erro desconhecido'}
-                </CardDescription>
-              </div>
-            </div>
-          </CardHeader>
-        </Card>
+        {/* Error Explanation */}
+        <ErrorExplanationCard
+          errorString={post.error_log}
+          context={{
+            postId: post.id,
+            platform: post.selected_networks?.[0],
+          }}
+          onRetry={handleRetry}
+          onOpenAccountSettings={() => navigate('/quota-settings')}
+        />
 
         <div className="grid gap-6 md:grid-cols-2">
           {/* Post Details */}
