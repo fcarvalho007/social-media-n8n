@@ -54,7 +54,7 @@ import { getMediaRequirements, validateAllFormats, getValidationSummary, FormatV
 import { INSTAGRAM_CONFIG, LINKEDIN_CONFIG, FORMAT_TO_NETWORK, FORMAT_TO_ACCOUNT } from '@/types/publishing';
 import { PublishingOverlay } from '@/components/manual-post/PublishingOverlay';
 import { PublishProgressModal } from '@/components/publishing/PublishProgressModal';
-import { AspectRatioWarning } from '@/components/publishing/AspectRatioWarning';
+
 import { useSmartValidation } from '@/hooks/useSmartValidation';
 import { ValidationSidebar, ValidationMobileBadge } from '@/components/manual-post/ValidationSidebar';
 import { usePublishWithProgress } from '@/hooks/usePublishWithProgress';
