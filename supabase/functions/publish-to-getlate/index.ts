@@ -457,6 +457,7 @@ async function publishToGetlate(
             success: false, 
             error: validated.error || 'Erro oculto na resposta do Getlate',
             data: validated.originalData,
+            statusCode: response.status,
           };
         }
         
@@ -465,6 +466,7 @@ async function publishToGetlate(
           success: true, 
           data,
           postUrl: validated.postUrl,
+          statusCode: response.status,
         };
       } else {
         console.error(`[publish-to-getlate] API returned status ${response.status}: ${responseText}`);
@@ -484,7 +486,8 @@ async function publishToGetlate(
           return { 
             success: false, 
             error: `Getlate API error (${response.status}): ${responseText}`,
-            isRateLimit: rateLimited
+            isRateLimit: rateLimited,
+            statusCode: response.status,
           };
         }
         
