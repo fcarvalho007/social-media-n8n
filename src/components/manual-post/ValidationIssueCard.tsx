@@ -38,6 +38,8 @@ interface Props {
   onFix?: (id: string) => Promise<void>;
   onDismiss?: (id: string) => void;
   mediaThumbnails?: Record<number, string>;
+  /** Index → true when the underlying file is a video (renders an icon). */
+  videoIndices?: Set<number>;
 }
 
 export function ValidationIssueCard({
@@ -45,6 +47,7 @@ export function ValidationIssueCard({
   onFix,
   onDismiss,
   mediaThumbnails,
+  videoIndices,
 }: Props) {
   const [busy, setBusy] = useState(false);
   const cfg = SEVERITY_CONFIG[issue.severity];
@@ -108,23 +111,28 @@ export function ValidationIssueCard({
               <span className="text-[10px] uppercase tracking-wider text-muted-foreground">
                 Afecta:
               </span>
-              {issue.affectedItems.slice(0, 6).map(idx => (
-                <div
-                  key={idx}
-                  className="h-7 w-7 rounded border border-border overflow-hidden bg-muted flex items-center justify-center text-[10px] font-mono text-muted-foreground"
-                  title={`Ficheiro ${idx + 1}`}
-                >
-                  {mediaThumbnails?.[idx] ? (
-                    <img
-                      src={mediaThumbnails[idx]}
-                      alt={`Ficheiro ${idx + 1}`}
-                      className="h-full w-full object-cover"
-                    />
-                  ) : (
-                    `#${idx + 1}`
-                  )}
-                </div>
-              ))}
+              {issue.affectedItems.slice(0, 6).map(idx => {
+                const isVideo = videoIndices?.has(idx);
+                return (
+                  <div
+                    key={idx}
+                    className="h-7 w-7 rounded border border-border overflow-hidden bg-muted flex items-center justify-center text-[10px] font-mono text-muted-foreground relative"
+                    title={`Ficheiro ${idx + 1}${isVideo ? ' (vídeo)' : ''}`}
+                  >
+                    {mediaThumbnails?.[idx] ? (
+                      <img
+                        src={mediaThumbnails[idx]}
+                        alt={`Ficheiro ${idx + 1}`}
+                        className="h-full w-full object-cover"
+                      />
+                    ) : isVideo ? (
+                      <Video className="h-3.5 w-3.5" aria-label="Vídeo" />
+                    ) : (
+                      `#${idx + 1}`
+                    )}
+                  </div>
+                );
+              })}
               {issue.affectedItems.length > 6 && (
                 <span className="text-[10px] text-muted-foreground">
                   +{issue.affectedItems.length - 6}
