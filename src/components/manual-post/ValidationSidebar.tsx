@@ -62,6 +62,15 @@ export function ValidationSidebar({
     return map;
   }, [mediaFiles]);
 
+  // Track which indices are videos so the IssueCard can show a video icon.
+  const videoIndices = useMemo(() => {
+    const set = new Set<number>();
+    mediaFiles.forEach((file, idx) => {
+      if (file.type.startsWith('video/')) set.add(idx);
+    });
+    return set;
+  }, [mediaFiles]);
+
   useEffect(() => {
     return () => {
       Object.values(thumbnails).forEach(url => URL.revokeObjectURL(url));
