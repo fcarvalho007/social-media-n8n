@@ -147,22 +147,13 @@ export default function ManualCreate() {
   const recoverPostId = searchParams.get('recover');
   const { instagram, linkedin, canPublish, refresh: refreshQuota, isUnlimited } = usePublishingQuota();
   const [selectedFormats, setSelectedFormats] = useState<PostFormat[]>([]);
-  const [isRecovering, setIsRecovering] = useState(false);
-  const [recoveredPostId, setRecoveredPostId] = useState<string | null>(null);
   const [caption, setCaption] = useState('');
-  const [mediaFiles, setMediaFiles] = useState<File[]>([]);
-  const [mediaPreviewUrls, setMediaPreviewUrls] = useState<string[]>([]);
-  const [mediaSources, setMediaSources] = useState<MediaSource[]>([]);
-  const [mediaAspectRatios, setMediaAspectRatios] = useState<string[]>([]);
   const [scheduledDate, setScheduledDate] = useState<Date>();
   const [time, setTime] = useState('12:00');
   const [scheduleAsap, setScheduleAsap] = useState(true);
   const [saving, setSaving] = useState(false);
   const [submitting, setSubmitting] = useState(false);
-  const [uploadProgress, setUploadProgress] = useState(0);
-  const [isUploading, setIsUploading] = useState(false);
   const [draftsDialogOpen, setDraftsDialogOpen] = useState(false);
-  const [currentDraftId, setCurrentDraftId] = useState<string | null>(null);
   const [savedCaptionsOpen, setSavedCaptionsOpen] = useState(false);
   const [aiDialogOpen, setAiDialogOpen] = useState(false);
   const [emojiPickerOpen, setEmojiPickerOpen] = useState(false);
@@ -173,7 +164,27 @@ export default function ManualCreate() {
   const [networkCaptions, setNetworkCaptions] = useState<Record<string, string>>({});
   const mediaSectionRef = useRef<HTMLDivElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
-  
+
+  // ── Phase 1 hook: media state + DnD ────────────────────────────────────
+  const mediaManager = useMediaManager();
+  const {
+    mediaFiles,
+    mediaPreviewUrls,
+    mediaSources,
+    mediaAspectRatios,
+    activeId,
+    setMediaFiles,
+    setMediaPreviewUrls,
+    setMediaSources,
+    setMediaAspectRatios,
+    sensors,
+    handleDragStart,
+    handleDragCancel,
+    handleDragEnd,
+    moveMedia,
+    removeMedia,
+  } = mediaManager;
+
   // Compression confirmation state
   const [compressionModalOpen, setCompressionModalOpen] = useState(false);
   const [oversizedImages, setOversizedImages] = useState<OversizedImage[]>([]);
@@ -182,11 +193,6 @@ export default function ManualCreate() {
   const [compressionStep, setCompressionStep] = useState<'warning' | 'compressing' | 'confirmation'>('warning');
   const [compressionResults, setCompressionResults] = useState<{ originalSizeMB: number; finalSizeMB: number; qualityUsed: number; wasResized: boolean }[]>([]);
   const [pendingCompressedFiles, setPendingCompressedFiles] = useState<File[]>([]);
-  
-  // Video validation state
-  const [videoValidationModalOpen, setVideoValidationModalOpen] = useState(false);
-  const [videoValidationIssues, setVideoValidationIssues] = useState<VideoValidationIssue[]>([]);
-  const [pendingVideoFiles, setPendingVideoFiles] = useState<File[]>([]);
 
   // Publishing hook with 2-phase progress
   const { 
@@ -214,76 +220,8 @@ export default function ManualCreate() {
     scheduleAsap,
   }, { enabled: selectedFormats.length > 0 || caption.length > 0 });
 
-  // Stepper state
-  const [currentStep, setCurrentStep] = useState(1);
-  const [visitedSteps, setVisitedSteps] = useState<number[]>([1]);
   // Note: showValidation state was removed — smartValidation.canPublish + validationSheetOpen
   // are now the single source of truth for the publish gate.
-
-  // DnD sensors for drag and drop with keyboard support
-  const [activeId, setActiveId] = useState<string | null>(null);
-  
-  const sensors = useSensors(
-    useSensor(PointerSensor, {
-      activationConstraint: {
-        distance: 8,
-      },
-    }),
-    useSensor(TouchSensor, {
-      activationConstraint: {
-        delay: 200,
-        tolerance: 5,
-      },
-    }),
-    useSensor(KeyboardSensor, {
-      coordinateGetter: sortableKeyboardCoordinates,
-    })
-  );
-
-  // Handle drag start
-  const handleDragStart = useCallback((event: DragStartEvent) => {
-    setActiveId(event.active.id as string);
-  }, []);
-
-  // Handle drag cancel
-  const handleDragCancel = useCallback(() => {
-    setActiveId(null);
-  }, []);
-
-  // Handle drag end for media reordering
-  const handleDragEnd = useCallback((event: DragEndEvent) => {
-    const { active, over } = event;
-    setActiveId(null);
-    
-    if (over && active.id !== over.id) {
-      const oldIndex = mediaPreviewUrls.findIndex((_, i) => `media-${i}` === active.id);
-      const newIndex = mediaPreviewUrls.findIndex((_, i) => `media-${i}` === over.id);
-      
-      if (oldIndex !== -1 && newIndex !== -1) {
-        setMediaPreviewUrls(prev => arrayMove(prev, oldIndex, newIndex));
-        setMediaFiles(prev => arrayMove(prev, oldIndex, newIndex));
-        setMediaSources(prev => arrayMove(prev, oldIndex, newIndex));
-        toast.success(`Item movido para posição ${newIndex + 1}`);
-      }
-    }
-  }, [mediaPreviewUrls]);
-
-  // Move media item via arrow buttons
-  const moveMedia = useCallback((fromIndex: number, toIndex: number) => {
-    if (toIndex < 0 || toIndex >= mediaPreviewUrls.length) return;
-    
-    setMediaPreviewUrls(prev => arrayMove(prev, fromIndex, toIndex));
-    setMediaFiles(prev => arrayMove(prev, fromIndex, toIndex));
-    setMediaSources(prev => arrayMove(prev, fromIndex, toIndex));
-    toast.success(`Item movido para posição ${toIndex + 1}`);
-  }, [mediaPreviewUrls.length]);
-
-  // Cleanup objectURLs on unmount
-  useEffect(() => {
-    return () => {
-      mediaPreviewUrls.forEach(url => URL.revokeObjectURL(url));
-    };
-  }, []);
 
   // Fetch image URL and convert to File
   const fetchImageAsFile = useCallback(async (url: string): Promise<File | null> => {
