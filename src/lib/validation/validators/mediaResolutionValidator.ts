@@ -33,9 +33,7 @@ export async function mediaResolutionValidator(
     if (ctx.signal?.aborted) return issues;
     const file = ctx.mediaFiles[i];
     try {
-      const dims = file.type.startsWith('video/')
-        ? await getVideoDimensions(file)
-        : await getImageDimensions(file);
+      const dims = await getDimensionsCached(file);
       if (dims.width < wThreshold || dims.height < hThreshold) {
         lowResIndices.push(i);
       }
