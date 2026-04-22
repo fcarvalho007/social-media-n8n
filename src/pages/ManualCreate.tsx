@@ -70,6 +70,11 @@ import { detectOversizedImages, compressOversizedFiles, OversizedImage } from '@
 import { ImageCompressionConfirmModal } from '@/components/publishing/ImageCompressionConfirmModal';
 import { VideoValidationModal, VideoValidationIssue } from '@/components/publishing/VideoValidationModal';
 import { getVideoDimensions, FORMAT_ASPECT_RATIOS, MAX_VIDEO_DURATION, MIN_RESOLUTIONS } from '@/lib/mediaValidation';
+import { useMediaManager } from '@/hooks/manual-create/useMediaManager';
+import { useStepper } from '@/hooks/manual-create/useStepper';
+import { useDraftRecovery } from '@/hooks/manual-create/useDraftRecovery';
+import { useMediaUpload } from '@/hooks/manual-create/useMediaUpload';
+import { detectImageAspectRatio as detectImageAspectRatioExt, detectVideoAspectRatio as detectVideoAspectRatioExt } from '@/hooks/manual-create/mediaAspectDetection';
 
 // Extract first frame from video file
 async function extractVideoFrame(videoFile: File | string): Promise<File> {
