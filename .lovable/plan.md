@@ -1,159 +1,173 @@
 
 
-## Diagnóstico — Porque é que posts não entraram corretamente
+## Plano — Mensagens de erro claras para leigos
 
-### Dados (últimos 14 dias)
+Refazer a apresentação de falhas em três pontos da app (modal de publicação, página `Recovery`, lista `FailedPublications`) para que **qualquer pessoa sem contexto técnico** perceba: **o que falhou, porquê, o que pode fazer agora e quando voltar a tentar**.
 
-| Métrica | Valor |
-|---|---|
-| Tentativas com sucesso | **51** |
-| Tentativas falhadas | **7** |
-| Taxa de sucesso real | **88%** |
-| Taxa de sucesso final do post (com retry ZWSP automático) | **~95%** |
+---
 
-### Categorização das 7 falhas
+### Diagnóstico actual
 
-| Causa | Nº | Detalhe |
+| Problema | Onde | Impacto |
 |---|---|---|
-| **Conteúdo duplicado 24h (HTTP 409)** | 3 | Getlate bloqueia mesma caption; o retry ZWSP existe mas em **2 casos não disparou** porque o `error_message` chegou como `"All platforms failed"` em vez de conter `409`/`already scheduled` |
-| **Timeout > 10 min** | 3 | Edge function aborta carrosséis pesados sem espaço para extensão |
-| **Upload falha (chave inválida no Storage)** | 1 | Nome de ficheiro com caracteres `[`, `]`, espaços e acentos — sanitização incompleta |
-
-Adicionalmente, **5 posts antigos** ficaram com `status='failed'` mas **`error_log=NULL`** — ruído visual no histórico que dificulta diagnóstico.
-
-### Padrão raiz mais relevante (caso `b4339f25` de hoje, 22/04)
-
-1. Post `226784b9` publicado com sucesso ontem 19:11 → Getlate guarda fingerprint da caption por 24h.
-2. Hoje 08:13, utilizador volta a publicar **a mesma caption** (clone/reutilização).
-3. Backend chama Getlate → recebe 409.
-4. **ZWSP retry deveria correr** (linha 720 de `publish-to-getlate/index.ts`) mas o `result.error` veio sem prefixo `409` na string serializada nesta versão, logo a regex falhou e a falha persistiu até ao utilizador.
-5. Frontend só descobriu a falha **após** clicar em Publicar → já não mostrou o aviso preventivo do `duplicateValidator` porque a query atual filtra apenas `status IN ('success','pending','scheduled')` na tabela `publication_attempts`, ignorando casos onde o post **já está em flight** sem registo final.
+| `error_log` cru em font-mono | `Recovery.tsx:287`, `FailedPublications.tsx:427` | Utilizador vê `"403: do not belong"` sem perceber |
+| Jargão técnico | `publishingErrors.ts` (Token, OAuth, Rate limit, Quota) | "Token expirado" → leigo não sabe o que é |
+| Toast genérico ao falhar | `usePublishWithProgress.ts` | "Erro ao publicar" sem causa nem ação |
+| Sem severidade visual | `PublishProgressModal.tsx` | Falha temporária parece desastre |
+| Sem cópia para suporte | Todos | Utilizador não consegue partilhar contexto |
+| Sem timestamp/retry count | `Recovery.tsx` | Não se sabe se já tentou sozinho |
 
 ---
 
-## Plano de melhorias
+### Soluções (4 eixos)
 
-### Eixo A — Fechar o retry ZWSP de forma robusta (fonte das 3 falhas 409)
+#### Eixo 1 — Reescrever copy em `publishingErrors.ts`
 
-**A1. Detecção alargada do duplicado em `supabase/functions/publish-to-getlate/index.ts`**
-
-Substituir a heurística de regex pela inspeção do código HTTP devolvido pela `publishToGetlate`:
+Cada erro passa a ter **4 campos novos**, redigidos para alguém sem conhecimento técnico:
 
 ```ts
-// Em vez de /409/.test(result.error), capturar status no objeto result
-const looksLikeDuplicate =
-  !result.success && (result.statusCode === 409 ||
-    /already (scheduled|posted|publishing)/i.test(result.error || '') ||
-    /exact content/i.test(result.error || ''));
+{
+  title: string;          // "O Instagram não aceitou esta publicação"
+  plainExplanation: string; // "Já publicaste esta legenda nas últimas 24h. O Instagram bloqueia conteúdo igual para evitar spam."
+  whatToDo: string[];     // ["Edita a legenda (acrescenta uma palavra)", "Ou usa o botão 'Adicionar variação' abaixo"]
+  whenToRetry: string;    // "Podes tentar imediatamente" | "Aguarda 15 minutos" | "Esta falha não desaparece sozinha"
+  severity: 'info' | 'warning' | 'critical'; // azul/âmbar/vermelho
+}
 ```
 
-Implica devolver `statusCode` em `publishToGetlate()` (já existe internamente como `response.status`).
+Tabela de tradução (excerto):
 
-**A2. Segundo retry com sufixo invisível alternativo**
+| Antes (técnico) | Depois (leigo) |
+|---|---|
+| "Token expirado · Reconecta no Getlate.dev" | "A ligação ao LinkedIn caducou. Vai a **Definições → Contas Sociais** e clica 'Reconectar'." |
+| "Rate limit · Aguarda 15-30 min" | "O Instagram bloqueou temporariamente por excesso de pedidos. Volta dentro de **15 minutos**. Não precisas fazer nada agora." |
+| "Quota esgotada · Aguarda reset" | "Atingiste o limite diário de publicações. Reabre amanhã ou contacta o admin para aumentar o limite." |
+| "Conteúdo duplicado · Altera legenda" | "Já publicaste esta legenda hoje. O Instagram não permite repetir. **Edita uma palavra** ou usa o botão 'Adicionar variação subtil'." |
+| "Network error · Verifica internet" | "Falhou a comunicação. Verifica se tens internet e tenta de novo (botão 'Tentar de novo' abaixo)." |
+| "Erro inesperado" | "Algo correu mal mas não conseguimos identificar o quê. Copia o código de erro abaixo e envia para suporte@..." |
 
-Se a primeira retry com `\u200B` falhar **também** com 409 (raro, mas observado), adicionar `\u2063` (Invisible Separator) e tentar terceira vez. Total: 3 tentativas, ainda dentro do timeout.
+#### Eixo 2 — Componente unificado `<ErrorExplanationCard>`
 
-**A3. Log estruturado da retry**
+Criar `src/components/publishing/ErrorExplanationCard.tsx` reutilizável nos 3 sítios:
 
-Gravar em `publication_attempts.response_data` o campo `{retry_strategy: 'zwsp', retried_at, original_error_code}` para análise futura.
+```text
+┌─────────────────────────────────────────────────┐
+│ 🟡 Aviso · Instagram                       [×] │ ← cor por severidade
+├─────────────────────────────────────────────────┤
+│ O Instagram não aceitou esta publicação        │ ← título humano
+│                                                 │
+│ Porquê?                                         │
+│ Já publicaste esta legenda nas últimas 24h.    │ ← explicação simples
+│ O Instagram bloqueia conteúdo igual para       │
+│ evitar spam.                                    │
+│                                                 │
+│ O que fazer:                                    │
+│ • Edita a legenda (acrescenta uma palavra)    │ ← passos accionáveis
+│ • Ou clica em "Adicionar variação" abaixo     │
+│                                                 │
+│ ⏱  Podes tentar imediatamente                  │ ← timing claro
+│                                                 │
+│ ┌──────────────┐  ┌─────────────────────┐    │
+│ │ Tentar agora │  │ Adicionar variação  │    │ ← CTAs primários
+│ └──────────────┘  └─────────────────────┘    │
+│                                                 │
+│ ▸ Detalhes técnicos (para suporte)            │ ← collapse fechado
+│   ⎘ Copiar código   📋 403: do not belong...  │
+└─────────────────────────────────────────────────┘
+```
 
----
+Severidade controla cor da borda + ícone:
+- `info` (azul · 🛈) — situação normal, basta esperar (vídeo a processar)
+- `warning` (âmbar · ⚠️) — acção rápida do utilizador resolve (editar legenda, reconectar)
+- `critical` (vermelho · 🛑) — bloqueio que precisa intervenção (quota, conta desligada)
 
-### Eixo B — Pré-validação preventiva (evitar 409 antes de chegar ao backend)
+#### Eixo 3 — Toast contextual no momento da falha
 
-**B1. Reforçar `duplicateValidator.ts`**
-
-A query atual filtra apenas `success/pending/scheduled`. Alargar para incluir o caso real desta semana:
+Em `usePublishWithProgress`, substituir o toast genérico por:
 
 ```ts
-.in('status', ['success', 'pending', 'scheduled', 'failed'])
-.gte('attempted_at', dayAgo)
+toast.error(errorInfo.title, {
+  description: errorInfo.plainExplanation.slice(0, 120),
+  duration: errorInfo.severity === 'critical' ? 10000 : 6000,
+  action: errorInfo.whatToDo.length > 0
+    ? { label: 'Ver como resolver', onClick: () => openErrorModal() }
+    : undefined,
+});
 ```
 
-E devolver **warning bloqueante** (em vez de info) quando a caption coincide com **publicação bem-sucedida** nas últimas 24h — não bloqueia totalmente mas exige confirmação explícita "Sim, sei que é igual".
+Se a falha for `info` (vídeo a processar), nem mostra erro vermelho — mostra `toast.info` calmo: "O Instagram está a processar o vídeo. Vamos avisar quando estiver pronto."
 
-**B2. Auto-fix "Adicionar variação subtil"**
+#### Eixo 4 — Aplicar nos 3 ecrãs
 
-Botão no card de issue que insere automaticamente uma quebra de linha + emoji aleatório no fim da caption (`✨`, `🔹`, `📍`) — torna o conteúdo único sem impacto visual significativo. Move o problema do backend para o utilizador, com escolha consciente.
-
----
-
-### Eixo C — Robustez de upload (1 falha por chave inválida)
-
-**C1. Validar sanitização ANTES do upload em `src/lib/fileNameSanitizer.ts`**
-
-Adicionar regex de blacklist explícita para `[`, `]`, `(`, `)`, `?`, `&`, `=`, `#` que escapam à normalização NFD atual. Truncar a 50 chars já existe; falta este passo.
-
-**C2. Pré-flight de upload**
-
-Antes do publish, fazer `HEAD` ao URL devolvido pelo Storage para confirmar que o ficheiro existe. Se 404 → erro claro "Reupload necessário" em vez de "Invalid key" críptico.
+| Ficheiro | Alteração |
+|---|---|
+| `src/components/publishing/PublishProgressModal.tsx` (linhas 260-293) | Substituir bloco de erro inline por `<ErrorExplanationCard>` |
+| `src/pages/Recovery.tsx` (linhas 285-292) | Substituir bloco mono por `<ErrorExplanationCard>`, passando `error_log` para `classifyErrorFromString` |
+| `src/pages/FailedPublications.tsx` (linhas 427-430) | Versão compacta: título + 1ª linha de explicação + botão "Ver detalhes" que expande para o card completo |
+| `src/hooks/usePublishWithProgress.ts` (toast de falha) | Toast contextual (Eixo 3) |
+| `src/lib/publishingErrors.ts` | Adicionar campos `plainExplanation`, `whatToDo[]`, `whenToRetry`, `severity` em todos os 14 templates |
 
 ---
 
-### Eixo D — Robustez de timeout (3 falhas por > 10min)
+### Detalhe técnico
 
-**D1. Timeout configurável por formato em `publish-to-getlate`**
+**Schema novo de `ErrorInfo`** (retrocompatível):
 
-Carrosséis de >10 imagens para Instagram e LinkedIn Document precisam de margem maior. Subir limite para **15 min** apenas para `instagram_carousel` (>5 itens) e `linkedin_document` (>20 páginas). Documentar no código.
-
-**D2. Polling progressivo do lado do frontend**
-
-Quando publish demora >2 min, mudar barra de progresso para mensagem **"A processar mídia pesada — pode demorar até 15 min. Vais receber email quando concluir"** + libertar a UI para o utilizador continuar a trabalhar.
-
----
-
-### Eixo E — Higiene de dados históricos (5 posts órfãos)
-
-**E1. Migração one-shot para limpar `failed` sem `error_log`**
-
-```sql
--- Posts em 'failed' há >30 dias sem error_log nem failed_at:
--- arquivar como 'rejected' com mensagem clara para sair do dashboard
-UPDATE posts
-SET status='rejected',
-    error_log='Marcado como falhado mas sem registo de erro — arquivado em limpeza de dados',
-    failed_at=COALESCE(failed_at, updated_at)
-WHERE status='failed'
-  AND error_log IS NULL
-  AND created_at < NOW() - INTERVAL '30 days';
+```ts
+export interface ErrorInfo {
+  title: string;
+  description: string;     // mantém — usado em modal compacto
+  action: string;          // mantém
+  isRetryable: boolean;
+  source?: ErrorSource;
+  // novos:
+  plainExplanation: string;  // 1-2 frases de "porquê", linguagem simples
+  whatToDo: string[];        // 1-3 passos numerados
+  whenToRetry: 'immediate' | 'short' | 'long' | 'never' | 'auto';
+  severity: 'info' | 'warning' | 'critical';
+}
 ```
 
-**E2. Trigger preventivo**
+`whenToRetry` mapeia para texto: `immediate → "Podes tentar agora"`, `short → "Aguarda 5-15 min"`, `long → "Aguarda 1+ hora"`, `never → "Esta falha não desaparece sozinha — segue os passos acima"`, `auto → "Vamos tentar automaticamente"`.
 
-Função PG `set_failed_at_on_status` que garante: sempre que `status` muda para `failed`, se `failed_at IS NULL` então `failed_at := NOW()`. Evita futuros órfãos.
+**Função utilitária nova**: `getCopyableErrorReport(structuredError, postId)` devolve string formatada para suporte:
+
+```text
+Código: DUPLICATE_CONTENT
+Origem: Getlate
+Post ID: a1b2c3...
+Erro técnico: 409: Exact content already scheduled
+Hora: 2026-04-22 15:32 WEST
+```
+
+Botão `📋 Copiar para suporte` usa `navigator.clipboard.writeText()`.
 
 ---
 
 ### Ficheiros a alterar
 
-| Ficheiro | Eixo |
+| Ficheiro | Tipo |
 |---|---|
-| `supabase/functions/publish-to-getlate/index.ts` | A1, A2, A3, D1 |
-| `src/lib/validation/validators/duplicateValidator.ts` | B1 |
-| `src/components/manual-post/ValidationIssueCard.tsx` | B2 (botão auto-fix) |
-| `src/hooks/useSmartValidation.ts` | B2 (handler do auto-fix) |
-| `src/lib/fileNameSanitizer.ts` | C1 |
-| `src/hooks/usePublishWithProgress.ts` | C2, D2 |
-| `supabase/migrations/<timestamp>_cleanup_failed_posts.sql` | E1, E2 |
+| `src/lib/publishingErrors.ts` | Estender 14 templates + nova função copy report |
+| `src/components/publishing/ErrorExplanationCard.tsx` | **Novo** — componente unificado |
+| `src/components/publishing/PublishProgressModal.tsx` | Trocar bloco inline pelo card |
+| `src/pages/Recovery.tsx` | Trocar `<CardDescription mono>` pelo card |
+| `src/pages/FailedPublications.tsx` | Versão compacta + expand |
+| `src/hooks/usePublishWithProgress.ts` | Toast contextual com severidade |
 
 ### Resultado esperado
 
-Após implementação, com base no histórico recente:
+- Utilizador vê **título humano** + **porquê em 1 frase** + **o que fazer em passos** + **quando tentar** — tudo no idioma do dia-a-dia
+- Falhas leves (vídeo a processar) deixam de parecer desastres
+- Erros críticos (conta desligada, quota) ficam visualmente distintos
+- Suporte recebe relatórios consistentes (botão de cópia)
+- Zero jargão de "Token", "OAuth", "Edge Function", "Rate limit" na UI principal — passa para "Detalhes técnicos" colapsado
 
-| Categoria | Antes | Depois |
-|---|---|---|
-| Falhas 409 não recuperadas | 3/14d | **0** (retry robusto + auto-fix preventivo) |
-| Falhas timeout | 3/14d | **≤1** (margem 15min para casos pesados) |
-| Falhas upload | 1/14d | **0** (sanitização + pré-flight) |
-| Posts `failed` órfãos | 5 | **0** (limpeza + trigger) |
-| **Taxa de sucesso prevista** | 88% | **≥97%** |
-
-### Checkpoint de aceitação
-
-☐ Publicar 2x a mesma caption no mesmo dia → segunda publicação tem aviso bloqueante (B1) ou aceita com auto-fix (B2)  
-☐ Forçar 409 da Getlate (caption igual a sucesso recente) → log mostra `ZWSP retry succeeded` (A1)  
-☐ Upload de ficheiro `foto [final] (v2).jpg` → sanitiza para `foto-final-v2.jpg` antes do upload (C1)  
-☐ Carrossel IG com 50 imagens → não dá timeout em <15min (D1)  
-☐ `SELECT COUNT(*) FROM posts WHERE status='failed' AND error_log IS NULL` retorna **0** (E1)  
-☐ Painel de validação detecta caption igual a publicação `success` ou `failed` das últimas 24h (B1)
+### Checkpoint
+☐ Falha 409 duplicado mostra "Já publicaste esta legenda hoje" com botão "Adicionar variação" funcional  
+☐ Vídeo IG a processar mostra **toast azul info** (não vermelho)  
+☐ Conta desligada mostra **borda vermelha + ícone 🛑** + link directo para Definições → Contas  
+☐ Em `Recovery.tsx`, `error_log` cru deixa de aparecer — substituído pelo card explicativo  
+☐ Botão "📋 Copiar para suporte" copia bloco formatado com código + origem + ID + hora  
+☐ `whenToRetry='auto'` para retries que o backend já está a fazer (ZWSP) — toast diz "Estamos a tentar de novo automaticamente"
 
