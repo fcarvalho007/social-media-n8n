@@ -715,7 +715,6 @@ export default function ManualCreate() {
       return;
     }
     if (hasErrors) {
-      setShowValidation(true);
       toast.error('Corrija os campos obrigatórios antes de publicar');
       return;
     }
@@ -729,7 +728,6 @@ export default function ManualCreate() {
       return;
     }
     if (hasErrors) {
-      setShowValidation(true);
       toast.error('Corrija os campos obrigatórios antes de submeter');
       return;
     }
