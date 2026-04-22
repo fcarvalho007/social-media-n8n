@@ -6,6 +6,7 @@ import { mediaResolutionValidator } from './validators/mediaResolutionValidator'
 import { videoDurationValidator } from './validators/videoDurationValidator';
 import { gbpValidator } from './validators/gbpValidator';
 import { duplicateValidator } from './validators/duplicateValidator';
+import { scheduleValidator } from './validators/scheduleValidator';
 
 type Validator = (ctx: ValidatorContext) => Promise<ValidationIssue[]>;
 
@@ -17,6 +18,7 @@ const VALIDATORS: Validator[] = [
   videoDurationValidator,
   gbpValidator,
   duplicateValidator,
+  scheduleValidator,
 ];
 
 /**

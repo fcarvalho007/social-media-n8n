@@ -12,6 +12,21 @@ export async function captionValidator(
   const issues: ValidationIssue[] = [];
   const networks = new Set(ctx.selectedFormats.map(f => getNetworkFromFormat(f)));
 
+  // LinkedIn requires a caption — even minimal — to publish successfully.
+  if (networks.has('linkedin') && !ctx.caption.trim()) {
+    issues.push({
+      id: 'caption:linkedin:empty',
+      severity: 'error',
+      category: 'caption',
+      platform: 'linkedin',
+      title: 'Legenda obrigatória para o LinkedIn',
+      description: 'O LinkedIn não aceita publicações sem texto. Escreve pelo menos uma frase.',
+      autoFixable: !!ctx.fixHelpers?.focusCaption,
+      fixLabel: 'Editar legenda',
+      fixAction: () => ctx.fixHelpers?.focusCaption?.(),
+    });
+  }
+
   networks.forEach(network => {
     const constraints = NETWORK_CONSTRAINTS[network];
     if (!constraints) return;
