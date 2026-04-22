@@ -1,18 +1,28 @@
 // Error classification and user-friendly messages for publishing
 
+export type ErrorSeverity = 'info' | 'warning' | 'critical';
+export type WhenToRetry = 'immediate' | 'short' | 'long' | 'never' | 'auto';
+export type ErrorSource = 'getlate' | 'platform' | 'internal' | 'unknown';
+
 export interface ErrorInfo {
+  // Legacy fields (mantidos para retrocompatibilidade)
   title: string;
   description: string;
   action: string;
   isRetryable: boolean;
-  source?: 'getlate' | 'platform' | 'internal' | 'unknown';
+  source?: ErrorSource;
+  // Novos campos para mensagens humanizadas
+  plainExplanation: string;  // 1-2 frases de "porquê", linguagem simples
+  whatToDo: string[];        // 1-3 passos accionáveis
+  whenToRetry: WhenToRetry;
+  severity: ErrorSeverity;
 }
 
 // Structured error from edge function
 export interface StructuredError {
   message: string;
   code: string;
-  source: 'getlate' | 'platform' | 'internal' | 'unknown';
+  source: ErrorSource;
   originalError: string;
   isRetryable: boolean;
   suggestedAction: string;
@@ -20,118 +30,250 @@ export interface StructuredError {
 
 export const ERROR_MESSAGES: Record<string, ErrorInfo> = {
   rate_limit: {
-    title: 'Limite de ações',
+    title: 'A rede social pediu uma pausa',
     description: 'A plataforma bloqueou temporariamente. Aguarda 15-30 minutos.',
     action: 'Tenta novamente em 15min',
     isRetryable: true,
     source: 'platform',
+    plainExplanation: 'A rede social bloqueou temporariamente os pedidos por segurança (excesso de tentativas). Não há nada de errado com a tua publicação.',
+    whatToDo: [
+      'Aguarda 15 a 30 minutos',
+      'Volta a tentar — vai funcionar normalmente',
+    ],
+    whenToRetry: 'short',
+    severity: 'warning',
   },
   media_processing: {
-    title: 'Processamento de vídeo em curso',
+    title: 'A rede social está a processar o vídeo',
     description: 'O Instagram está a processar o vídeo. Este processo pode demorar até 5 minutos.',
-    action: 'Aguarda e verifica no Getlate.dev ou Instagram',
+    action: 'Aguarda alguns minutos',
     isRetryable: true,
     source: 'platform',
+    plainExplanation: 'O Instagram está a converter o teu vídeo. Isto demora normalmente entre 1 e 5 minutos. A publicação aparece sozinha quando estiver pronta.',
+    whatToDo: [
+      'Não precisas fazer nada — aguarda',
+      'Verifica o calendário daqui a 5 minutos',
+    ],
+    whenToRetry: 'auto',
+    severity: 'info',
   },
   account_error: {
-    title: 'Conta não associada',
-    description: 'A conta de rede social não está ligada ao teu utilizador Getlate.',
-    action: 'Reconecta a conta no Getlate.dev',
+    title: 'A conta da rede social não está ligada',
+    description: 'A conta de rede social não está ligada ao teu utilizador.',
+    action: 'Reconecta a conta',
     isRetryable: false,
     source: 'getlate',
+    plainExplanation: 'A conta que estás a tentar usar para publicar não está associada à tua conta da app. Pode ter sido desligada ou nunca ter sido configurada.',
+    whatToDo: [
+      'Vai a Definições → Contas Sociais',
+      'Liga a conta clicando em "Reconectar"',
+      'Volta aqui e tenta publicar novamente',
+    ],
+    whenToRetry: 'never',
+    severity: 'critical',
   },
   token_expired: {
-    title: 'Token expirado',
+    title: 'A ligação à rede social caducou',
     description: 'A sessão com a rede social expirou. É necessário reconectar a conta.',
-    action: 'Reconecta a conta no Getlate.dev',
+    action: 'Reconecta a conta',
     isRetryable: false,
     source: 'platform',
+    plainExplanation: 'Por segurança, a rede social desliga periodicamente as ligações. Precisas de autorizar a app outra vez para publicar.',
+    whatToDo: [
+      'Vai a Definições → Contas Sociais',
+      'Clica em "Reconectar" na conta afectada',
+      'Autoriza no ecrã da rede social',
+    ],
+    whenToRetry: 'never',
+    severity: 'critical',
   },
   auth_error: {
-    title: 'Sessão expirada',
+    title: 'A tua sessão na app expirou',
     description: 'A tua sessão na app expirou.',
     action: 'Faz login novamente',
     isRetryable: false,
     source: 'internal',
+    plainExplanation: 'Por inactividade, a tua sessão na app foi terminada. Basta voltar a entrar para continuar.',
+    whatToDo: [
+      'Faz login novamente',
+      'Volta a tentar a publicação',
+    ],
+    whenToRetry: 'never',
+    severity: 'warning',
   },
   caption_error: {
-    title: 'Erro na legenda',
+    title: 'A legenda tem um problema',
     description: 'A legenda contém caracteres, links ou hashtags inválidos para a plataforma.',
     action: 'Revê e edita a legenda',
     isRetryable: false,
     source: 'platform',
+    plainExplanation: 'A rede social rejeitou a legenda. Pode ter caracteres inválidos, hashtags banidas, demasiados links, ou estar acima do limite de caracteres.',
+    whatToDo: [
+      'Revê a legenda — remove emojis ou símbolos estranhos',
+      'Reduz o número de hashtags',
+      'Encurta o texto se for muito longo',
+    ],
+    whenToRetry: 'never',
+    severity: 'warning',
   },
   media_error: {
-    title: 'Erro no ficheiro',
+    title: 'Há um problema com a imagem ou vídeo',
     description: 'O formato, tamanho ou proporção do ficheiro não é suportado pela plataforma.',
-    action: 'Redimensiona para 4:5 (1080x1350px)',
+    action: 'Verifica as dimensões',
     isRetryable: false,
     source: 'platform',
+    plainExplanation: 'A rede social não aceitou o ficheiro. Pode ser por causa do tamanho, formato (JPG, PNG, MP4) ou proporção (4:5 ou 1:1 para Instagram).',
+    whatToDo: [
+      'Para Instagram, usa imagens 4:5 (1080x1350px) ou quadradas 1:1',
+      'Verifica que o ficheiro está em JPG, PNG ou MP4',
+      'Se for vídeo, confirma que tem menos de 60 segundos para Reels',
+    ],
+    whenToRetry: 'never',
+    severity: 'warning',
   },
   network_error: {
-    title: 'Erro de ligação',
+    title: 'Falhou a comunicação',
     description: 'Não foi possível comunicar com o servidor.',
     action: 'Verifica a internet e tenta novamente',
     isRetryable: true,
     source: 'internal',
+    plainExplanation: 'Não conseguimos chegar à rede social. Pode ser problema da tua internet ou da rede social estar com problemas momentâneos.',
+    whatToDo: [
+      'Verifica que tens ligação à internet',
+      'Aguarda alguns segundos e tenta novamente',
+    ],
+    whenToRetry: 'immediate',
+    severity: 'warning',
   },
   quota_exceeded: {
-    title: 'Quota esgotada',
-    description: 'Atingiste o limite de publicações do plano Getlate.',
-    action: 'Aguarda pelo reset ou faz upgrade',
+    title: 'Atingiste o limite diário de publicações',
+    description: 'Atingiste o limite de publicações do plano.',
+    action: 'Aguarda pelo reset diário',
     isRetryable: false,
     source: 'getlate',
+    plainExplanation: 'Já fizeste o número máximo de publicações permitidas hoje. O contador é reposto à meia-noite (hora de Lisboa).',
+    whatToDo: [
+      'Aguarda até amanhã para publicar novamente',
+      'Ou contacta o admin para aumentar o limite',
+    ],
+    whenToRetry: 'long',
+    severity: 'critical',
   },
   api_error: {
-    title: 'Erro do servidor',
-    description: 'O servidor Getlate retornou um erro temporário.',
+    title: 'O serviço está com problemas momentâneos',
+    description: 'O servidor retornou um erro temporário.',
     action: 'Tenta novamente em alguns minutos',
     isRetryable: true,
     source: 'getlate',
+    plainExplanation: 'Houve um problema técnico com o serviço de publicação. Normalmente resolve-se sozinho em poucos minutos.',
+    whatToDo: [
+      'Aguarda 2 a 5 minutos',
+      'Volta a tentar',
+    ],
+    whenToRetry: 'short',
+    severity: 'warning',
   },
   duplicate_content: {
-    title: 'Conteúdo duplicado',
-    description: 'Este conteúdo já foi publicado ou está em publicação nesta conta nas últimas 24h.',
-    action: 'Verifica no Instagram/Getlate se já está publicado, ou altera a legenda',
+    title: 'Já publicaste esta legenda hoje',
+    description: 'Este conteúdo já foi publicado nesta conta nas últimas 24h.',
+    action: 'Edita a legenda ou usa "Adicionar variação"',
     isRetryable: false,
     source: 'getlate',
+    plainExplanation: 'A rede social não permite repetir exactamente a mesma legenda no mesmo dia (regra anti-spam). Basta alterar uma palavra ou adicionar uma variação subtil.',
+    whatToDo: [
+      'Edita a legenda — acrescenta ou troca uma palavra',
+      'Ou usa o botão "Adicionar variação subtil" (acrescenta um caractere invisível)',
+      'Verifica primeiro no Instagram se a publicação anterior já está visível',
+    ],
+    whenToRetry: 'immediate',
+    severity: 'warning',
   },
   upload_error: {
-    title: 'Erro no upload',
+    title: 'Não conseguimos guardar os ficheiros',
     description: 'Não foi possível carregar os ficheiros para o servidor.',
     action: 'Tenta novamente',
     isRetryable: true,
     source: 'internal',
+    plainExplanation: 'Houve um problema ao guardar as imagens ou vídeos. Pode ser por internet instável ou por algum ficheiro ter um problema.',
+    whatToDo: [
+      'Verifica a internet',
+      'Tenta publicar de novo',
+      'Se persistir, remove e volta a adicionar os ficheiros',
+    ],
+    whenToRetry: 'immediate',
+    severity: 'warning',
   },
   filename_invalid: {
-    title: 'Nome do ficheiro incompatível',
-    description: 'O nome do ficheiro contém caracteres especiais ([], acentos, espaços) que impedem o upload.',
-    action: 'Renomeie o ficheiro usando apenas letras, números e hífens',
+    title: 'O nome de um ficheiro tem caracteres não permitidos',
+    description: 'O nome contém caracteres especiais que impedem o upload.',
+    action: 'Renomeia o ficheiro',
     isRetryable: false,
     source: 'internal',
+    plainExplanation: 'Um ficheiro tem parênteses, colchetes, espaços ou acentos no nome. O servidor não consegue guardar com esses caracteres.',
+    whatToDo: [
+      'Renomeia usando apenas letras, números e hífens',
+      'Exemplo: "minha [foto] (final).jpg" → "minha-foto-final.jpg"',
+      'Volta a adicionar o ficheiro',
+    ],
+    whenToRetry: 'never',
+    severity: 'warning',
   },
   file_too_large: {
-    title: 'Ficheiro demasiado grande',
+    title: 'Um ficheiro é demasiado grande',
     description: 'O ficheiro excede o tamanho máximo permitido.',
-    action: 'Reduza o tamanho do ficheiro antes de enviar',
+    action: 'Reduz o tamanho do ficheiro',
     isRetryable: false,
     source: 'internal',
+    plainExplanation: 'A imagem (máx. 50MB) ou o vídeo (máx. 650MB) ultrapassa o limite. Tens de comprimir antes de enviar.',
+    whatToDo: [
+      'Para imagens, usa um compressor online (TinyPNG, Squoosh)',
+      'Para vídeos, exporta numa resolução menor ou usa HandBrake',
+      'Volta a adicionar o ficheiro reduzido',
+    ],
+    whenToRetry: 'never',
+    severity: 'warning',
   },
   file_format_unsupported: {
-    title: 'Formato não suportado',
+    title: 'O formato do ficheiro não é aceite',
     description: 'O tipo de ficheiro não é suportado pela plataforma.',
-    action: 'Use formatos como JPG, PNG, MP4 ou MOV',
+    action: 'Converte para JPG, PNG, MP4 ou MOV',
     isRetryable: false,
     source: 'internal',
+    plainExplanation: 'A rede social só aceita certos formatos: JPG ou PNG para imagens, MP4 ou MOV para vídeos. Tens um formato diferente (HEIC, AVI, etc.).',
+    whatToDo: [
+      'Converte a imagem para JPG ou PNG',
+      'Converte o vídeo para MP4',
+      'Volta a adicionar o ficheiro convertido',
+    ],
+    whenToRetry: 'never',
+    severity: 'warning',
   },
   unknown: {
-    title: 'Erro inesperado',
+    title: 'Algo correu mal mas não conseguimos identificar o quê',
     description: 'Ocorreu um problema desconhecido.',
     action: 'Tenta novamente ou contacta o suporte',
     isRetryable: true,
     source: 'unknown',
+    plainExplanation: 'Houve uma falha que não conseguimos classificar automaticamente. Pode ser temporária. Se persistir, copia o código de erro abaixo e envia ao suporte.',
+    whatToDo: [
+      'Tenta publicar novamente',
+      'Se voltar a falhar, copia os "Detalhes técnicos" e envia ao suporte',
+    ],
+    whenToRetry: 'short',
+    severity: 'warning',
   },
 };
+
+// Map whenToRetry → user-friendly text
+export function getRetryGuidance(when: WhenToRetry): string {
+  switch (when) {
+    case 'immediate': return 'Podes tentar agora';
+    case 'short': return 'Aguarda 5 a 15 minutos';
+    case 'long': return 'Aguarda 1 hora ou mais';
+    case 'never': return 'Esta falha não desaparece sozinha — segue os passos acima';
+    case 'auto': return 'Vamos tentar automaticamente — não precisas fazer nada';
+  }
+}
 
 // Parse structured error from edge function response
 export function parseStructuredError(error: any): StructuredError | null {
@@ -152,6 +294,7 @@ export function parseStructuredError(error: any): StructuredError | null {
 export function getErrorInfoFromStructured(structuredError: StructuredError): ErrorInfo {
   const codeToKey: Record<string, string> = {
     'RATE_LIMIT': 'rate_limit',
+    'MEDIA_PROCESSING': 'media_processing',
     'ACCOUNT_ERROR': 'account_error',
     'TOKEN_EXPIRED': 'token_expired',
     'AUTH_ERROR': 'auth_error',
@@ -168,7 +311,6 @@ export function getErrorInfoFromStructured(structuredError: StructuredError): Er
   const key = codeToKey[structuredError.code] || 'unknown';
   const baseInfo = ERROR_MESSAGES[key] || ERROR_MESSAGES.unknown;
   
-  // Override with structured error's suggested action if more specific
   return {
     ...baseInfo,
     action: structuredError.suggestedAction || baseInfo.action,
@@ -182,45 +324,32 @@ export function classifyError(errorMessage: string | undefined): string {
   
   const lower = errorMessage.toLowerCase();
   
-  // Media processing errors (Instagram video carousel)
   if (lower.includes('media processing failed') || lower.includes('status_code":"error"')) {
     return 'media_processing';
   }
-  
-  // Rate limit errors
   if (lower.includes('too many actions') || lower.includes('rate limit') || lower.includes('429') || lower.includes('please wait') || lower.includes('media container')) {
     return 'rate_limit';
   }
-  
-  // Account/permission errors (403, accounts not belonging to user)
   if (lower.includes('403') || lower.includes('forbidden') || 
       lower.includes('do not belong') || lower.includes('permission denied') ||
       (lower.includes('account') && lower.includes('user'))) {
     return 'account_error';
   }
-  
-  // Token/OAuth specific errors
   if (lower.includes('token') && (lower.includes('expired') || lower.includes('invalid') || lower.includes('code 190'))) {
     return 'token_expired';
   }
   if (lower.includes('oauth') || lower.includes('session has expired')) {
     return 'token_expired';
   }
-  
-  // Generic auth errors
   if (lower.includes('auth') || lower.includes('session') || lower.includes('unauthorized') || lower.includes('401')) {
     return 'auth_error';
   }
-  
-  // Caption/content errors
   if (lower.includes('caption') || lower.includes('character') || 
       (lower.includes('text') && (lower.includes('long') || lower.includes('invalid'))) ||
       (lower.includes('hashtag') && lower.includes('invalid')) ||
       (lower.includes('link') && lower.includes('invalid'))) {
     return 'caption_error';
   }
-  
-  // Enhanced media error detection for aspect ratio, dimensions, resize issues
   if (lower.includes('media') || lower.includes('format') || lower.includes('size') || 
       lower.includes('aspect') || lower.includes('ratio') || lower.includes('unsupported') ||
       lower.includes('width') || lower.includes('height') || lower.includes('resize') ||
@@ -228,23 +357,15 @@ export function classifyError(errorMessage: string | undefined): string {
       lower.includes('image') || lower.includes('allowed range')) {
     return 'media_error';
   }
-  
-  // Network/connectivity errors
   if (lower.includes('network') || lower.includes('timeout') || lower.includes('connection') || lower.includes('fetch') || lower.includes('econnrefused')) {
     return 'network_error';
   }
-  
-  // Quota errors
   if (lower.includes('quota') || lower.includes('limit exceeded') || lower.includes('upload limit')) {
     return 'quota_exceeded';
   }
-  
-  // Upload errors
   if (lower.includes('upload') || lower.includes('carregar')) {
     return 'upload_error';
   }
-  
-  // API/server errors
   if (lower.includes('api') || lower.includes('500') || lower.includes('502') || lower.includes('503') || lower.includes('internal server')) {
     return 'api_error';
   }
@@ -262,11 +383,9 @@ export function isRateLimitError(errorMessage: string | undefined): boolean {
 }
 
 // Classify error from string message and HTTP status code
-// Used when edge function returns error as string instead of structured object
 export function classifyErrorFromString(errorString: string, httpStatus?: number): StructuredError {
   const lower = errorString.toLowerCase();
   
-  // Duplicate content protection (Getlate 409 anti-duplication)
   if (lower.includes('exact content') || lower.includes('already scheduled') ||
       lower.includes('within the last 24 hours') || lower.includes('already published') ||
       (httpStatus === 409 && (lower.includes('content') || lower.includes('duplicate') || lower.includes('already')))) {
@@ -279,8 +398,6 @@ export function classifyErrorFromString(errorString: string, httpStatus?: number
       suggestedAction: 'Verifica no Instagram se já foi publicado, ou altera ligeiramente a legenda para republicar',
     };
   }
-  
-  // Account not associated (403, "do not belong")
   if (lower.includes('do not belong') || lower.includes('not belong') || 
       lower.includes('permission denied') || lower.includes('forbidden') ||
       httpStatus === 403) {
@@ -290,11 +407,9 @@ export function classifyErrorFromString(errorString: string, httpStatus?: number
       source: 'getlate',
       isRetryable: false,
       originalError: httpStatus ? `${httpStatus}: ${errorString}` : errorString,
-      suggestedAction: 'A conta não está ligada ao teu utilizador Getlate. Reconecta em getlate.dev/accounts',
+      suggestedAction: 'A conta não está ligada. Reconecta em Definições → Contas Sociais',
     };
   }
-  
-  // Media processing failed (Instagram video carousel)
   if (lower.includes('media processing failed') || lower.includes('status_code":"error"')) {
     return {
       message: 'Processamento de vídeo em curso',
@@ -302,11 +417,9 @@ export function classifyErrorFromString(errorString: string, httpStatus?: number
       source: 'platform',
       isRetryable: true,
       originalError: httpStatus ? `${httpStatus}: ${errorString}` : errorString,
-      suggestedAction: 'O Instagram pode demorar até 5 minutos a processar vídeos. Verifica o status no Getlate.dev',
+      suggestedAction: 'O Instagram pode demorar até 5 minutos a processar vídeos',
     };
   }
-  
-  // Rate limit (429)
   if (lower.includes('rate limit') || lower.includes('too many') || 
       lower.includes('please wait') || lower.includes('media container') ||
       httpStatus === 429) {
@@ -319,8 +432,6 @@ export function classifyErrorFromString(errorString: string, httpStatus?: number
       suggestedAction: 'Aguarda 15-30 minutos e tenta novamente',
     };
   }
-  
-  // Token expired / OAuth issues
   if (lower.includes('token') || lower.includes('expired') || 
       lower.includes('oauth') || lower.includes('session has expired') ||
       lower.includes('code 190')) {
@@ -330,11 +441,9 @@ export function classifyErrorFromString(errorString: string, httpStatus?: number
       source: 'getlate',
       isRetryable: false,
       originalError: httpStatus ? `${httpStatus}: ${errorString}` : errorString,
-      suggestedAction: 'Reconecta a conta no Getlate.dev',
+      suggestedAction: 'Reconecta a conta em Definições → Contas Sociais',
     };
   }
-  
-  // Caption errors
   if (lower.includes('caption') || lower.includes('character') || 
       lower.includes('text') && (lower.includes('long') || lower.includes('invalid')) ||
       lower.includes('hashtag') && lower.includes('invalid')) {
@@ -347,8 +456,6 @@ export function classifyErrorFromString(errorString: string, httpStatus?: number
       suggestedAction: 'Revê e edita a legenda',
     };
   }
-  
-  // Quota exceeded
   if (lower.includes('quota') || lower.includes('limit exceeded') || lower.includes('upload limit')) {
     return {
       message: 'Quota esgotada',
@@ -356,11 +463,9 @@ export function classifyErrorFromString(errorString: string, httpStatus?: number
       source: 'getlate',
       isRetryable: false,
       originalError: httpStatus ? `${httpStatus}: ${errorString}` : errorString,
-      suggestedAction: 'Aguarda pelo reset ou faz upgrade do plano',
+      suggestedAction: 'Aguarda pelo reset diário ou contacta o admin',
     };
   }
-  
-  // Network errors
   if (lower.includes('network') || lower.includes('timeout') || lower.includes('connection') || 
       lower.includes('fetch') || lower.includes('econnrefused') || lower.includes('abort')) {
     return {
@@ -372,8 +477,6 @@ export function classifyErrorFromString(errorString: string, httpStatus?: number
       suggestedAction: 'Verifica a internet e tenta novamente',
     };
   }
-  
-  // API/server errors (5xx)
   if (lower.includes('500') || lower.includes('502') || lower.includes('503') || 
       lower.includes('internal server') || lower.includes('api error') ||
       (httpStatus && httpStatus >= 500)) {
@@ -386,8 +489,6 @@ export function classifyErrorFromString(errorString: string, httpStatus?: number
       suggestedAction: 'Tenta novamente em alguns minutos',
     };
   }
-  
-  // Edge Function specific error
   if (lower.includes('edge function') || lower.includes('non-2xx')) {
     return {
       message: 'Erro na comunicação com servidor',
@@ -398,10 +499,6 @@ export function classifyErrorFromString(errorString: string, httpStatus?: number
       suggestedAction: 'Tenta novamente. Se persistir, contacta o suporte.',
     };
   }
-
-  // Media errors (format, size, aspect ratio) — placed AFTER rate-limit/token/quota/network
-  // to avoid masking those errors when they happen to mention image/video.
-  // Requires co-occurrence of media-related word with a technical specifier.
   const hasMediaContext = lower.includes('media') || lower.includes('image') ||
     lower.includes('video') || lower.includes('photo') || lower.includes('file');
   const hasMediaSpecifier = lower.includes('format') || lower.includes('size') ||
@@ -422,7 +519,6 @@ export function classifyErrorFromString(errorString: string, httpStatus?: number
     };
   }
   
-  // Fallback - use short error if possible
   return {
     message: errorString.length < 80 ? errorString : 'Erro na publicação',
     code: 'UNKNOWN',
@@ -433,16 +529,55 @@ export function classifyErrorFromString(errorString: string, httpStatus?: number
   };
 }
 
-// Get source label in Portuguese
 export function getSourceLabel(source: string): { label: string; emoji: string } {
   switch (source) {
     case 'getlate':
-      return { label: 'Getlate', emoji: '🔗' };
+      return { label: 'Serviço de publicação', emoji: '🔗' };
     case 'platform':
-      return { label: 'Rede Social', emoji: '📱' };
+      return { label: 'Rede social', emoji: '📱' };
     case 'internal':
-      return { label: 'Interno', emoji: '⚙️' };
+      return { label: 'App', emoji: '⚙️' };
     default:
       return { label: 'Desconhecido', emoji: '❓' };
   }
+}
+
+// Helper to format current time in Lisbon TZ
+function formatLisbonTime(): string {
+  try {
+    return new Intl.DateTimeFormat('pt-PT', {
+      timeZone: 'Europe/Lisbon',
+      year: 'numeric',
+      month: '2-digit',
+      day: '2-digit',
+      hour: '2-digit',
+      minute: '2-digit',
+      timeZoneName: 'short',
+    }).format(new Date());
+  } catch {
+    return new Date().toISOString();
+  }
+}
+
+// Build a copyable error report for support
+export function getCopyableErrorReport(
+  structuredError: StructuredError | null | undefined,
+  context?: { postId?: string; platform?: string; rawError?: string }
+): string {
+  const sourceLabel = structuredError ? getSourceLabel(structuredError.source).label : 'Desconhecido';
+  const lines: string[] = [
+    '── Relatório de Erro ──',
+    `Código: ${structuredError?.code || 'UNKNOWN'}`,
+    `Origem: ${sourceLabel}`,
+  ];
+  if (context?.platform) lines.push(`Plataforma: ${context.platform}`);
+  if (context?.postId) lines.push(`Post ID: ${context.postId}`);
+  lines.push(`Mensagem: ${structuredError?.message || context?.rawError || 'Sem mensagem'}`);
+  const technical = structuredError?.originalError || context?.rawError;
+  if (technical && technical !== structuredError?.message) {
+    lines.push(`Erro técnico: ${technical}`);
+  }
+  lines.push(`Hora: ${formatLisbonTime()}`);
+  lines.push('────────────────────');
+  return lines.join('\n');
 }

@@ -1210,7 +1210,23 @@ if (imageUrlsForPdf.length > 0) {
       const errorMsg = error instanceof Error ? error.message : 'Erro inesperado';
       updatePhase1('error', 0, 'Erro', errorMsg);
       await markPostFailed(errorMsg);
-      toast.error(`Erro na publicação: ${errorMsg}`, { duration: 15000 });
+
+      // Toast contextual baseado em severidade e tipo
+      const structured = classifyErrorFromString(errorMsg);
+      const { getErrorInfoFromStructured } = await import('@/lib/publishingErrors');
+      const info = getErrorInfoFromStructured(structured);
+      const description = info.plainExplanation.length > 140
+        ? info.plainExplanation.slice(0, 137) + '…'
+        : info.plainExplanation;
+      const duration = info.severity === 'critical' ? 12000 : 8000;
+      if (info.severity === 'info') {
+        toast.info(info.title, { description, duration });
+      } else if (info.severity === 'warning') {
+        toast.warning(info.title, { description, duration });
+      } else {
+        toast.error(info.title, { description, duration });
+      }
+
       // Release lock on error
       publishingLockRef.current = false;
       setIsPublishing(false);

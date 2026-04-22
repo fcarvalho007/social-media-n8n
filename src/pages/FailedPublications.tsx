@@ -24,6 +24,7 @@ import {
 } from 'lucide-react';
 import { format } from 'date-fns';
 import { pt } from 'date-fns/locale';
+import { ErrorExplanationCard } from '@/components/publishing/ErrorExplanationCard';
 
 interface FailedPost {
   id: string;
@@ -425,8 +426,15 @@ const FailedPublications = () => {
                       </div>
                       
                       {post.error_log && (
-                        <div className="mt-3 p-2 bg-destructive/10 rounded text-xs text-destructive font-mono truncate">
-                          {post.error_log}
+                        <div className="mt-3">
+                          <ErrorExplanationCard
+                            errorString={post.error_log}
+                            variant="compact"
+                            context={{
+                              postId: post.id,
+                              platform: post.selected_networks?.[0],
+                            }}
+                          />
                         </div>
                       )}
                       
