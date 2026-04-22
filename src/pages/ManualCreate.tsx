@@ -223,16 +223,30 @@ export default function ManualCreate() {
   // Note: showValidation state was removed — smartValidation.canPublish + validationSheetOpen
   // are now the single source of truth for the publish gate.
 
-  // ── Phase 1 hook: draft + recovery (depends on setters above) ──────────
+  // ── Phase 1 hook: stepper (must come before useDraftRecovery so its setters
+  //    can be passed in) ───────────────────────────────────────────────────
+  // mediaRequirements is computed below; for canAdvance flags we re-derive
+  // the minimal info inline to avoid a forward reference.
+  const _minMediaForStepper = useMemo(
+    () => getMediaRequirements(selectedFormats).minMedia || 1,
+    [selectedFormats],
+  );
+  const stepper = useStepper({
+    canAdvanceToStep2: selectedFormats.length > 0,
+    canAdvanceToStep3: mediaFiles.length >= _minMediaForStepper,
+  });
   const {
-    isRecovering,
-    recoveredPostId,
-    currentDraftId,
-    setCurrentDraftId,
-    fetchImageAsFile,
-    loadPostForRecovery,
-    handleLoadDraft,
-  } = useDraftRecovery({
+    currentStep,
+    visitedSteps,
+    setCurrentStep,
+    setVisitedSteps,
+    goToStep,
+    nextStep,
+    previousStep,
+  } = stepper;
+
+  // ── Phase 1 hook: draft + recovery ─────────────────────────────────────
+  const recovery = useDraftRecovery({
     recoverPostId,
     setCaption,
     setUseSeparateCaptions,
@@ -245,10 +259,18 @@ export default function ManualCreate() {
     setScheduleAsap,
     setScheduledDate,
     setTime,
-    // setVisitedSteps / setCurrentStep wired below via stepper hook
-    setVisitedSteps: ((updater: any) => stepperRef.current?.setVisitedSteps(updater)) as any,
-    setCurrentStep: ((n: number) => stepperRef.current?.setCurrentStep(n)) as any,
+    setVisitedSteps,
+    setCurrentStep,
   });
+  const {
+    isRecovering,
+    recoveredPostId,
+    currentDraftId,
+    setCurrentDraftId,
+    fetchImageAsFile,
+    loadPostForRecovery,
+    handleLoadDraft,
+  } = recovery;
 
   // Compute media requirements based on selected formats
   const mediaRequirements = useMemo(() => getMediaRequirements(selectedFormats), [selectedFormats]);
