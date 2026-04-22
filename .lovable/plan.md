@@ -1,173 +1,133 @@
 
 
-## Plano — Mensagens de erro claras para leigos
+## Refactor de `ManualCreate.tsx` — abordagem por fases seguras
 
-Refazer a apresentação de falhas em três pontos da app (modal de publicação, página `Recovery`, lista `FailedPublications`) para que **qualquer pessoa sem contexto técnico** perceba: **o que falhou, porquê, o que pode fazer agora e quando voltar a tentar**.
+**Estado actual:** 2801 linhas · 63 hooks · ~30 funções · ~1100 linhas de JSX num só ficheiro. Difícil de manter e arriscado de tocar.
+
+**Objetivo:** Reduzir a ~600-700 linhas (apenas orquestração + composição de slices), sem mudar nenhum comportamento visível.
+
+**Princípio:** Cada fase é independente, compila por si, e pode ser parada/aprovada antes da seguinte. Sem big-bang.
 
 ---
 
-### Diagnóstico actual
+### Fase 1 — Extrair lógica pura (sem JSX) para hooks dedicados
 
-| Problema | Onde | Impacto |
+Mover *state + handlers relacionados* para 4 custom hooks. O componente passa a chamar `const { ... } = useX()`.
+
+| Novo hook | O que move | Ganho de linhas |
 |---|---|---|
-| `error_log` cru em font-mono | `Recovery.tsx:287`, `FailedPublications.tsx:427` | Utilizador vê `"403: do not belong"` sem perceber |
-| Jargão técnico | `publishingErrors.ts` (Token, OAuth, Rate limit, Quota) | "Token expirado" → leigo não sabe o que é |
-| Toast genérico ao falhar | `usePublishWithProgress.ts` | "Erro ao publicar" sem causa nem ação |
-| Sem severidade visual | `PublishProgressModal.tsx` | Falha temporária parece desastre |
-| Sem cópia para suporte | Todos | Utilizador não consegue partilhar contexto |
-| Sem timestamp/retry count | `Recovery.tsx` | Não se sabe se já tentou sozinho |
+| `src/hooks/manual-create/useMediaManager.ts` | `mediaFiles`, `mediaPreviewUrls`, `mediaSources`, `mediaAspectRatios`, `removeMedia`, `moveMedia`, `handleDragStart/End/Cancel`, sensors DnD, cleanup de URLs | ~150 |
+| `src/hooks/manual-create/useMediaUpload.ts` | `handleMediaUpload` (linha 738-953, **216 linhas**), validações de imagem/vídeo, oversized detection, `pendingVideoFiles`, `videoValidationIssues` | ~250 |
+| `src/hooks/manual-create/useDraftRecovery.ts` | `loadPostForRecovery` (~175 linhas), `fetchImageAsFile`, `isRecovering`, `recoveredPostId`, `currentDraftId`, `handleLoadDraft`, `handleSaveDraft` | ~330 |
+| `src/hooks/manual-create/useStepper.ts` | `currentStep`, `visitedSteps`, `goToStep`, `nextStep`, `previousStep`, `canAdvanceToStep2/3`, `showStep2/3` | ~50 |
+
+**Resultado da Fase 1:** ficheiro desce de 2801 → ~2020 linhas. Zero mudanças visuais.
 
 ---
 
-### Soluções (4 eixos)
+### Fase 2 — Extrair compressão e publicação para hooks
 
-#### Eixo 1 — Reescrever copy em `publishingErrors.ts`
+| Novo hook | O que move |
+|---|---|
+| `src/hooks/manual-create/useImageCompression.ts` | `compressionModalOpen`, `oversizedImages`, `isCompressing`, `compressionProgress`, `compressionStep`, `compressionResults`, `pendingCompressedFiles`, `handleConfirmCompression`, `handleCancelCompression`, `handleConfirmAndPublish` |
+| `src/hooks/manual-create/usePublishOrchestrator.ts` | `handlePublishNow`, `handleSubmitForApproval`, `handlePublishWithValidation`, `handleSubmitWithValidation`, `handleCancelPublishing`, `duplicateWarning`, `pendingPublishParams`, `isCancellingPublish` |
 
-Cada erro passa a ter **4 campos novos**, redigidos para alguém sem conhecimento técnico:
+**Resultado da Fase 2:** ficheiro desce para ~1500 linhas.
 
-```ts
-{
-  title: string;          // "O Instagram não aceitou esta publicação"
-  plainExplanation: string; // "Já publicaste esta legenda nas últimas 24h. O Instagram bloqueia conteúdo igual para evitar spam."
-  whatToDo: string[];     // ["Edita a legenda (acrescenta uma palavra)", "Ou usa o botão 'Adicionar variação' abaixo"]
-  whenToRetry: string;    // "Podes tentar imediatamente" | "Aguarda 15 minutos" | "Esta falha não desaparece sozinha"
-  severity: 'info' | 'warning' | 'critical'; // azul/âmbar/vermelho
+---
+
+### Fase 3 — Decompor JSX em componentes por step
+
+A árvore tem 4 zonas claras (já visíveis no JSX entre linhas 1710-2801):
+
+```text
+src/components/manual-create/
+├── ManualCreateHeader.tsx          // Header + Recovery banner (linhas 1712-1820)
+├── steps/
+│   ├── Step1FormatSelection.tsx    // NetworkFormatSelector wrapper + helpers
+│   ├── Step2MediaSection.tsx       // MediaUploadSection + GridSplitter + grid de média (~600 linhas)
+│   ├── Step3CaptionSection.tsx     // Caption editor + emoji + AI + saved captions
+│   └── Step4SchedulePublish.tsx    // Date/time picker + preview tabs + botões publicar
+├── PreviewPanel.tsx                // renderPreview() + Tabs por rede + mobile drawer
+└── ManualCreateModals.tsx          // DraftsDialog + SavedCaptionsDialog + AICaptionDialog
+                                    // + DuplicateWarningDialog + CompressionModal + VideoValidationModal
+                                    // + PublishProgressModal + PublishingOverlay
+```
+
+Cada componente recebe props tipadas. Sem lógica de negócio — apenas apresentação + callbacks.
+
+**Resultado da Fase 3:** `ManualCreate.tsx` fica ~600-700 linhas de orquestração:
+```tsx
+export default function ManualCreate() {
+  const media = useMediaManager();
+  const upload = useMediaUpload(media);
+  const recovery = useDraftRecovery(...);
+  const stepper = useStepper(...);
+  const compression = useImageCompression(...);
+  const publish = usePublishOrchestrator(...);
+  // ...
+  return (
+    <div>
+      <ManualCreateHeader {...} />
+      <Step1FormatSelection {...} />
+      {stepper.showStep2 && <Step2MediaSection {...} />}
+      {stepper.showStep3 && <Step3CaptionSection {...} />}
+      <Step4SchedulePublish {...} />
+      <PreviewPanel {...} />
+      <ManualCreateModals {...} />
+    </div>
+  );
 }
 ```
 
-Tabela de tradução (excerto):
+---
 
-| Antes (técnico) | Depois (leigo) |
-|---|---|
-| "Token expirado · Reconecta no Getlate.dev" | "A ligação ao LinkedIn caducou. Vai a **Definições → Contas Sociais** e clica 'Reconectar'." |
-| "Rate limit · Aguarda 15-30 min" | "O Instagram bloqueou temporariamente por excesso de pedidos. Volta dentro de **15 minutos**. Não precisas fazer nada agora." |
-| "Quota esgotada · Aguarda reset" | "Atingiste o limite diário de publicações. Reabre amanhã ou contacta o admin para aumentar o limite." |
-| "Conteúdo duplicado · Altera legenda" | "Já publicaste esta legenda hoje. O Instagram não permite repetir. **Edita uma palavra** ou usa o botão 'Adicionar variação subtil'." |
-| "Network error · Verifica internet" | "Falhou a comunicação. Verifica se tens internet e tenta de novo (botão 'Tentar de novo' abaixo)." |
-| "Erro inesperado" | "Algo correu mal mas não conseguimos identificar o quê. Copia o código de erro abaixo e envia para suporte@..." |
+### Fase 4 — Mover utils e cleanup final
 
-#### Eixo 2 — Componente unificado `<ErrorExplanationCard>`
-
-Criar `src/components/publishing/ErrorExplanationCard.tsx` reutilizável nos 3 sítios:
-
-```text
-┌─────────────────────────────────────────────────┐
-│ 🟡 Aviso · Instagram                       [×] │ ← cor por severidade
-├─────────────────────────────────────────────────┤
-│ O Instagram não aceitou esta publicação        │ ← título humano
-│                                                 │
-│ Porquê?                                         │
-│ Já publicaste esta legenda nas últimas 24h.    │ ← explicação simples
-│ O Instagram bloqueia conteúdo igual para       │
-│ evitar spam.                                    │
-│                                                 │
-│ O que fazer:                                    │
-│ • Edita a legenda (acrescenta uma palavra)    │ ← passos accionáveis
-│ • Ou clica em "Adicionar variação" abaixo     │
-│                                                 │
-│ ⏱  Podes tentar imediatamente                  │ ← timing claro
-│                                                 │
-│ ┌──────────────┐  ┌─────────────────────┐    │
-│ │ Tentar agora │  │ Adicionar variação  │    │ ← CTAs primários
-│ └──────────────┘  └─────────────────────┘    │
-│                                                 │
-│ ▸ Detalhes técnicos (para suporte)            │ ← collapse fechado
-│   ⎘ Copiar código   📋 403: do not belong...  │
-└─────────────────────────────────────────────────┘
-```
-
-Severidade controla cor da borda + ícone:
-- `info` (azul · 🛈) — situação normal, basta esperar (vídeo a processar)
-- `warning` (âmbar · ⚠️) — acção rápida do utilizador resolve (editar legenda, reconectar)
-- `critical` (vermelho · 🛑) — bloqueio que precisa intervenção (quota, conta desligada)
-
-#### Eixo 3 — Toast contextual no momento da falha
-
-Em `usePublishWithProgress`, substituir o toast genérico por:
-
-```ts
-toast.error(errorInfo.title, {
-  description: errorInfo.plainExplanation.slice(0, 120),
-  duration: errorInfo.severity === 'critical' ? 10000 : 6000,
-  action: errorInfo.whatToDo.length > 0
-    ? { label: 'Ver como resolver', onClick: () => openErrorModal() }
-    : undefined,
-});
-```
-
-Se a falha for `info` (vídeo a processar), nem mostra erro vermelho — mostra `toast.info` calmo: "O Instagram está a processar o vídeo. Vamos avisar quando estiver pronto."
-
-#### Eixo 4 — Aplicar nos 3 ecrãs
-
-| Ficheiro | Alteração |
-|---|---|
-| `src/components/publishing/PublishProgressModal.tsx` (linhas 260-293) | Substituir bloco de erro inline por `<ErrorExplanationCard>` |
-| `src/pages/Recovery.tsx` (linhas 285-292) | Substituir bloco mono por `<ErrorExplanationCard>`, passando `error_log` para `classifyErrorFromString` |
-| `src/pages/FailedPublications.tsx` (linhas 427-430) | Versão compacta: título + 1ª linha de explicação + botão "Ver detalhes" que expande para o card completo |
-| `src/hooks/usePublishWithProgress.ts` (toast de falha) | Toast contextual (Eixo 3) |
-| `src/lib/publishingErrors.ts` | Adicionar campos `plainExplanation`, `whatToDo[]`, `whenToRetry`, `severity` em todos os 14 templates |
+- Mover `extractVideoFrame` (linhas 75-203) para `src/lib/canvas/videoFrameExtraction.ts`
+- Remover imports não usados após decomposição
+- Adicionar JSDoc nos novos hooks/componentes
+- Verificar `npx tsc --noEmit` e console em runtime
+- Atualizar memória `mem://design/space-optimization-priority` com nota da nova arquitetura
 
 ---
 
-### Detalhe técnico
+### Ordem de execução proposta
 
-**Schema novo de `ErrorInfo`** (retrocompatível):
+Fazer **Fase 1 inteira agora** (4 hooks puros, baixo risco — apenas mover state isolado). Apresentar resultado, deixar testar a app. Só depois avançar para Fase 2, depois Fase 3, depois Fase 4 — cada uma como prompt separado para evitar regressões em cascata.
 
-```ts
-export interface ErrorInfo {
-  title: string;
-  description: string;     // mantém — usado em modal compacto
-  action: string;          // mantém
-  isRetryable: boolean;
-  source?: ErrorSource;
-  // novos:
-  plainExplanation: string;  // 1-2 frases de "porquê", linguagem simples
-  whatToDo: string[];        // 1-3 passos numerados
-  whenToRetry: 'immediate' | 'short' | 'long' | 'never' | 'auto';
-  severity: 'info' | 'warning' | 'critical';
-}
-```
+### Garantias de segurança
 
-`whenToRetry` mapeia para texto: `immediate → "Podes tentar agora"`, `short → "Aguarda 5-15 min"`, `long → "Aguarda 1+ hora"`, `never → "Esta falha não desaparece sozinha — segue os passos acima"`, `auto → "Vamos tentar automaticamente"`.
+- **Zero alterações de comportamento** — refactor mecânico, não funcional
+- Nenhum dos ficheiros tocados está em `LOCKED_FILES.md` (não existe nesta app)
+- Após cada fase: `npx tsc --noEmit -p tsconfig.app.json` deve passar limpo (ignorando warnings pré-existentes em `CarouselPreview.tsx`)
+- Cada hook/componente novo é importado de um path único — fácil de reverter um por um
 
-**Função utilitária nova**: `getCopyableErrorReport(structuredError, postId)` devolve string formatada para suporte:
-
-```text
-Código: DUPLICATE_CONTENT
-Origem: Getlate
-Post ID: a1b2c3...
-Erro técnico: 409: Exact content already scheduled
-Hora: 2026-04-22 15:32 WEST
-```
-
-Botão `📋 Copiar para suporte` usa `navigator.clipboard.writeText()`.
-
----
-
-### Ficheiros a alterar
+### Ficheiros tocados na Fase 1
 
 | Ficheiro | Tipo |
 |---|---|
-| `src/lib/publishingErrors.ts` | Estender 14 templates + nova função copy report |
-| `src/components/publishing/ErrorExplanationCard.tsx` | **Novo** — componente unificado |
-| `src/components/publishing/PublishProgressModal.tsx` | Trocar bloco inline pelo card |
-| `src/pages/Recovery.tsx` | Trocar `<CardDescription mono>` pelo card |
-| `src/pages/FailedPublications.tsx` | Versão compacta + expand |
-| `src/hooks/usePublishWithProgress.ts` | Toast contextual com severidade |
+| `src/hooks/manual-create/useMediaManager.ts` | **Novo** |
+| `src/hooks/manual-create/useMediaUpload.ts` | **Novo** |
+| `src/hooks/manual-create/useDraftRecovery.ts` | **Novo** |
+| `src/hooks/manual-create/useStepper.ts` | **Novo** |
+| `src/pages/ManualCreate.tsx` | Reduzir de 2801 → ~2020 linhas (apenas substituir blocos por chamadas aos hooks) |
 
-### Resultado esperado
+### Resultado esperado da Fase 1
 
-- Utilizador vê **título humano** + **porquê em 1 frase** + **o que fazer em passos** + **quando tentar** — tudo no idioma do dia-a-dia
-- Falhas leves (vídeo a processar) deixam de parecer desastres
-- Erros críticos (conta desligada, quota) ficam visualmente distintos
-- Suporte recebe relatórios consistentes (botão de cópia)
-- Zero jargão de "Token", "OAuth", "Edge Function", "Rate limit" na UI principal — passa para "Detalhes técnicos" colapsado
+| Métrica | Antes | Depois (Fase 1) | Final (Fase 4) |
+|---|---|---|---|
+| Linhas em `ManualCreate.tsx` | 2801 | ~2020 | ~600-700 |
+| `useState` no componente | 36 | ~10 | ~5 |
+| Funções inline | 30 | ~10 | ~5 |
+| Ficheiros por responsabilidade | 1 | 5 | 13 |
 
-### Checkpoint
-☐ Falha 409 duplicado mostra "Já publicaste esta legenda hoje" com botão "Adicionar variação" funcional  
-☐ Vídeo IG a processar mostra **toast azul info** (não vermelho)  
-☐ Conta desligada mostra **borda vermelha + ícone 🛑** + link directo para Definições → Contas  
-☐ Em `Recovery.tsx`, `error_log` cru deixa de aparecer — substituído pelo card explicativo  
-☐ Botão "📋 Copiar para suporte" copia bloco formatado com código + origem + ID + hora  
-☐ `whenToRetry='auto'` para retries que o backend já está a fazer (ZWSP) — toast diz "Estamos a tentar de novo automaticamente"
+### Checkpoint Fase 1
+☐ 4 novos hooks criados em `src/hooks/manual-create/`  
+☐ `ManualCreate.tsx` compila com `npx tsc --noEmit` sem erros novos  
+☐ Upload de imagem com 5MB ainda dispara modal de compressão  
+☐ Recuperação via `?recover=<id>` ainda carrega o post  
+☐ Drag-and-drop de media items continua a funcionar  
+☐ Stepper avança normalmente entre os 4 passos  
+☐ Auto-save continua a marcar `lastSaved` quando se altera a caption
 
