@@ -13,9 +13,28 @@ import { Badge } from '@/components/ui/badge';
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from '@/components/ui/sheet';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { cn } from '@/lib/utils';
-import { ValidationSummary } from '@/lib/validation/types';
+import { ValidationCategory, ValidationSummary } from '@/lib/validation/types';
 import { NETWORK_INFO } from '@/lib/socialNetworks';
 import { ValidationIssueCard } from './ValidationIssueCard';
+
+const CATEGORY_LABELS: Record<ValidationCategory, string> = {
+  format: 'Formato',
+  media: 'Mídia',
+  caption: 'Legenda',
+  platform: 'Rede',
+  schedule: 'Agendamento',
+  duplicate: 'Duplicados',
+};
+
+// Surface errors first, info last — matches the user's mental urgency model.
+const CATEGORY_ORDER: ValidationCategory[] = [
+  'format',
+  'platform',
+  'caption',
+  'media',
+  'schedule',
+  'duplicate',
+];
 
 interface Props {
   validation: ValidationSummary;
@@ -150,16 +169,30 @@ export function ValidationSidebar({
       )}
 
       {issues.length > 0 && (
-        <div className="space-y-2">
-          {issues.map(issue => (
-            <ValidationIssueCard
-              key={issue.id}
-              issue={issue}
-              onFix={fix}
-              onDismiss={dismiss}
-              mediaThumbnails={thumbnails}
-            />
-          ))}
+        <div className="space-y-3">
+          {CATEGORY_ORDER.map(cat => {
+            const list = validation.byCategory[cat];
+            if (!list || list.length === 0) return null;
+            return (
+              <div key={cat} className="space-y-1.5">
+                <h4 className="text-[10px] uppercase tracking-wider font-semibold text-muted-foreground px-0.5">
+                  {CATEGORY_LABELS[cat]} · {list.length}
+                </h4>
+                <div className="space-y-2">
+                  {list.map(issue => (
+                    <ValidationIssueCard
+                      key={issue.id}
+                      issue={issue}
+                      onFix={fix}
+                      onDismiss={dismiss}
+                      mediaThumbnails={thumbnails}
+                      videoIndices={videoIndices}
+                    />
+                  ))}
+                </div>
+              </div>
+            );
+          })}
         </div>
       )}
 
