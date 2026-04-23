@@ -150,26 +150,33 @@ const Review = () => {
     fetchPost();
   }, [id]);
 
-  // Validate when targets or caption changes
+  // Validate when targets, caption, hashtags or template change.
+  // ⚠️ Importante: NÃO usar `caption` como guard — caption vazia também precisa revalidar.
   useEffect(() => {
-    if (post && caption) {
-      const postType: PostType = 'carousel'; // Always carousel for IA posts
-      const selectedImages = selectedTemplate === 'A' ? templateAImages : templateBImages;
-      
-      const validationResults = validateAllTargets(
-        publishTargets,
-        postType,
-        {
-          caption,
-          body: caption,
-          hashtags,
-          mediaCount: selectedImages.length,
-        }
-      );
-      
-      setValidations(validationResults);
-    }
-  }, [publishTargets, caption, hashtags, selectedTemplate, templateAImages, templateBImages, post]);
+    if (!post) return;
+
+    const postType: PostType = 'carousel'; // Always carousel for IA posts
+    const selectedImages = selectedTemplate === 'A' ? templateAImages : templateBImages;
+
+    // ✅ Single source of truth para hashtags: derivar da caption (e do linkedinBody quando diferenciado).
+    // O state `hashtags` (vindo da BD) só é usado para persistência, não para validação.
+    const captionForHashtags = useDifferentCaptions ? `${instagramCaption} ${linkedinBody}` : caption;
+    const hashtagsFromCaption = (captionForHashtags.match(/#[\w\u00C0-\u017F]+/g) || []) as string[];
+    const effectiveHashtags = hashtagsFromCaption.length > 0 ? hashtagsFromCaption : hashtags;
+
+    const validationResults = validateAllTargets(
+      publishTargets,
+      postType,
+      {
+        caption: useDifferentCaptions ? instagramCaption : caption,
+        body: useDifferentCaptions ? linkedinBody : caption,
+        hashtags: effectiveHashtags,
+        mediaCount: selectedImages.length,
+      }
+    );
+
+    setValidations(validationResults);
+  }, [publishTargets, caption, linkedinBody, instagramCaption, useDifferentCaptions, hashtags, selectedTemplate, templateAImages, templateBImages, post]);
 
   const fetchPost = async () => {
     if (!id) return;
