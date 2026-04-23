@@ -649,7 +649,7 @@ export default function ManualCreate() {
       const postData = {
         user_id: user.id,
         post_type: primaryFormat.includes('carousel') ? 'carousel' : primaryFormat.includes('video') || primaryFormat.includes('reel') ? 'video' : 'image',
-        selected_networks: selectedNetworks as any,
+        selected_networks: selectedNetworks,
         caption,
         linkedin_body: useSeparateCaptions && networkCaptions.linkedin ? networkCaptions.linkedin : null,
         scheduled_date: scheduledDate?.toISOString() || null,
