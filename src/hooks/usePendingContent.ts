@@ -6,7 +6,9 @@ export interface PendingItem {
   id: string;
   type: 'story' | 'carousel' | 'post' | 'draft' | 'scheduled';
   thumbnail: string | null;
+  mediaUrl?: string | null;
   mediaType: MediaPreviewType;
+  hasPosterPreview?: boolean;
   mediaCount: number;
   platform?: string | null;
   caption: string | null;
@@ -67,7 +69,7 @@ export function usePendingContent(limit: number = 6): PendingContentResult {
         // Rascunhos
         const { data: drafts } = await supabase
           .from('posts_drafts')
-          .select('id, media_urls, caption, created_at, platform')
+          .select('id, media_urls, media_items, caption, created_at, platform, format')
           .eq('status', 'draft')
           .order('created_at', { ascending: false })
           .limit(limit);
@@ -128,13 +130,16 @@ export function usePendingContent(limit: number = 6): PendingContentResult {
         });
 
         const draftItems: PendingItem[] = (drafts || []).map((draft) => {
-          const mediaItems = normalizeMediaList(draft.media_urls);
+          const enrichedItems = normalizeMediaList(draft.media_items);
+          const mediaItems = enrichedItems.length > 0 ? enrichedItems : normalizeMediaList(draft.media_urls);
           const primaryMedia = mediaItems[0] || getPrimaryMediaPreview([]);
           return {
             id: draft.id,
             type: 'draft' as const,
             thumbnail: primaryMedia.displayUrl,
+            mediaUrl: primaryMedia.url,
             mediaType: primaryMedia.mediaType,
+            hasPosterPreview: primaryMedia.hasPosterPreview,
             mediaCount: mediaItems.length,
             platform: draft.platform,
             caption: draft.caption,
