@@ -1,85 +1,47 @@
-## Plano de revisão e refinamento — `/create`
+# Plano: corrigir thumbnail e contexto dos rascunhos em `/dashboard`
 
-Após rever o trabalho recente na secção `/create`, há correções importantes ainda por fechar para garantir que as legendas separadas, validação, pré-visualização e rascunhos ficam coerentes.
+## O que vai ser corrigido
+1. Tornar o thumbnail de rascunhos com vídeo/reel fiável no Dashboard.
+2. Garantir que a legenda/contexto do rascunho aparece sempre no cartão.
+3. Corrigir a persistência do tipo real do draft para um reel não voltar a ser tratado como carrossel.
+4. Alinhar `/dashboard`, `/drafts` e recuperação de rascunhos para usarem a mesma lógica.
 
-### 1. Corrigir validação duplicada de legendas
+## Problemas encontrados
+- O Dashboard lê os rascunhos só com `media_urls` e `caption`, sem metadados de preview.
+- Para vídeos, o cartão tenta mostrar diretamente `<video src=...>` sem `poster`; isso depende do browser e pode ficar sem frame visível.
+- O `saveDraft` colapsa formatos Instagram para `instagram_carrousel`, o que faz um reel perder o tipo real ao ser guardado.
+- O contexto do draft não está totalmente normalizado entre Dashboard, lista de rascunhos e recuperação/edição.
 
-- Remover do `formatValidator` a validação antiga de tamanho da legenda que ainda usa sempre a legenda global.
-- Deixar o limite por rede exclusivamente no `captionValidator`, que já sabe distinguir legenda global vs legenda específica por rede.
-- Resultado esperado: se a legenda global tiver 500 caracteres, mas a legenda TikTok separada estiver válida, o TikTok deixa de ser bloqueado por um erro falso vindo da legenda global.
+## Implementação proposta
+### 1) Persistência de drafts mais completa
+- Rever o fluxo `saveDraft` para guardar o formato real do rascunho (ex.: `instagram_reel`, `instagram_carousel`, `linkedin_document`).
+- Persistir metadados de preview do media do draft, com prioridade para um thumbnail/poster de vídeo quando o ficheiro for um reel ou outro vídeo.
+- Preservar também o contexto de legenda necessário para reabrir o draft sem perda de informação.
 
-### 2. Corrigir pré-visualização por rede
+### 2) Preview fiável para vídeo no Dashboard
+- Atualizar `usePendingContent` para ler os novos metadados do draft e construir o preview com prioridade para `thumbnail/poster`, só caindo para o URL bruto quando não existir alternativa.
+- Expandir `mediaPreview.ts` para normalizar estes campos de forma consistente.
+- Ajustar `PendingThumbnail` para usar imagem-poster em vídeos sempre que existir, mantendo badge, data e excerto da legenda.
 
-- Atualizar o `previewRenderer` para receber `networkCaptions` e `useSeparateCaptions`.
-- Em modo “Separadas”, cada preview deve mostrar a legenda da respetiva rede:
-  - Instagram mostra `networkCaptions.instagram`.
-  - Facebook mostra `networkCaptions.facebook`.
-  - YouTube mostra `networkCaptions.youtube`.
-  - LinkedIn mostra `networkCaptions.linkedin`.
-  - TikTok mostra `networkCaptions.tiktok`.
-- Em modo “Unificada”, continua a usar a legenda global.
+### 3) Consistência entre Dashboard, Drafts e edição
+- Aplicar a mesma normalização em `DraftCard` e no carregamento do draft em `/create`.
+- Corrigir a recuperação de drafts para respeitar o formato guardado e não reabrir reels como carrossel.
+- Garantir que o texto apresentado no Dashboard usa a melhor legenda disponível do draft guardado.
 
-### 3. Corrigir limite visual do TikTok
+### 4) Validação final
+- Confirmar o caso reportado: reel guardado aparece com thumbnail visível em `/dashboard`.
+- Confirmar que a legenda/excerto aparece no cartão.
+- Confirmar que ao abrir o rascunho em edição o formato continua a ser reel.
+- Executar verificação de TypeScript/testes após as alterações.
 
-- Substituir o valor hardcoded `2200` no `TikTokPreview` pelo limite real em `NETWORK_CONSTRAINTS.tiktok.max_caption_length`.
-- O contador do preview passa a mostrar `x/300`, em conformidade com o fluxo de publicação.
+## Detalhes técnicos
+- Ficheiros prováveis: `src/hooks/usePendingContent.ts`, `src/components/PendingThumbnail.tsx`, `src/lib/mediaPreview.ts`, `src/hooks/manual-create/usePublishOrchestrator.ts`, `src/hooks/manual-create/useDraftRecovery.ts`, `src/components/drafts/DraftCard.tsx`.
+- Será provavelmente necessária uma migração para enriquecer `posts_drafts` com metadados de formato/preview, mantendo compatibilidade com drafts antigos.
+- Os drafts antigos continuarão a usar fallback por `media_urls` quando não tiverem os novos campos.
 
-### 4. Preservar melhor o estado de legendas separadas
-
-- Ajustar a inicialização das legendas separadas para usar fallback por rede de forma não destrutiva.
-- Garantir que alternar de “Separadas” para “Unificada” não limpa `networkCaptions`.
-- Garantir que voltar a “Separadas” recupera as versões já editadas por rede, em vez de sobrescrever tudo com a legenda global.
-
-### 5. Incluir legendas separadas no autosave local
-
-- Expandir o `useAutoSave` para guardar também:
-  - `networkCaptions`
-  - `useSeparateCaptions`
-- Isto evita perda de trabalho quando há recuperação local de conteúdo em progresso.
-
-### 6. Limpar código morto e imports obsoletos em `ManualCreate.tsx`
-
-- Remover imports e estado que ficaram sem utilização depois das extrações recentes, incluindo validações legadas e handler antigo de emoji.
-- Reduzir ruído técnico e evitar warnings/erros de TypeScript por código morto.
-
-### 7. Melhorar coerência ao guardar/submeter
-
-- Rever `saveDraft`, `submitForApproval` e `publishNow` para garantir que:
-  - a legenda principal guardada é previsível;
-  - `network_captions` continua a ser enviado quando aplicável;
-  - a publicação final continua a cortar apenas no envio para a rede com limite, especialmente TikTok.
-
-### 8. Testes e verificação
-
-- Atualizar testes existentes de `NetworkCaptionEditor` e `captionValidator`.
-- Adicionar cobertura para:
-  - erro falso do `formatValidator` removido;
-  - preview a usar legenda por rede;
-  - TikTok preview com limite de 300;
-  - alternância Unificada/Separadas sem perda das edições por rede.
-- Executar `npx tsc --noEmit` e Vitest.
-
-## Ficheiros previstos
-
-- `src/pages/ManualCreate.tsx`
-- `src/lib/validation/validators/formatValidator.ts`
-- `src/lib/manual-create/previewRenderer.tsx`
-- `src/components/manual-post/TikTokPreview.tsx`
-- `src/hooks/useAutoSave.ts`
-- `src/components/manual-post/NetworkCaptionEditor.test.tsx`
-- `src/lib/validation/validators/captionValidator.test.ts`
-- Possíveis testes novos junto dos módulos alterados
-
-## Critérios de aceitação
-
-☐ Alternar para “Separadas” mantém a legenda completa em todas as redes  
-☐ Editar TikTok não altera Instagram/Facebook/YouTube/LinkedIn  
-☐ Voltar a “Unificada” e regressar a “Separadas” não apaga edições por rede  
-☐ TikTok acusa excesso acima de 300 caracteres, mas não corta durante a edição  
-☐ O corte automático atua só na legenda da rede em causa  
-☐ O preview mostra a legenda correta de cada rede em modo “Separadas”  
-☐ O contador do TikTok preview mostra limite 300  
-☐ A validação não duplica erros de tamanho da legenda  
-☐ Rascunhos/autosave preservam legendas separadas quando aplicável  
-☐ `npx tsc --noEmit` sem erros  
-☐ Testes Vitest verdes
+## Checkpoint
+- ☐ Reel guardado mostra thumbnail fiável em `/dashboard`
+- ☐ Cartão mostra legenda/excerto quando existir
+- ☐ Draft reabre com o formato correto
+- ☐ `/dashboard` e `/drafts` usam a mesma lógica de preview
+- ☐ TypeScript/testes sem regressões
