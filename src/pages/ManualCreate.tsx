@@ -25,6 +25,11 @@ import { SectionHelp, getSectionTooltip } from '@/components/manual-post/Section
 import { MediaWarning } from '@/components/manual-post/NoAccountsState';
 import { useAutoSave } from '@/hooks/useAutoSave';
 import { validateMedia, MediaValidationResult } from '@/lib/mediaValidation';
+import { renderFormatPreview, getNetworkIcon } from '@/lib/manual-create/previewRenderer';
+import { MobileStickyActionBar } from '@/components/manual-post/steps/MobileStickyActionBar';
+import { ManualCreateModals } from '@/components/manual-post/steps/ManualCreateModals';
+import { Drawer, DrawerContent, DrawerHeader, DrawerTitle } from '@/components/ui/drawer';
+import { Smartphone, ChevronRight } from 'lucide-react';
 import { NetworkFormatSelector } from '@/components/manual-post/NetworkFormatSelector';
 import { getMediaRequirements, validateAllFormats, getValidationSummary, FormatValidationResult } from '@/lib/formatValidation';
 import { INSTAGRAM_CONFIG, LINKEDIN_CONFIG, FORMAT_TO_NETWORK, FORMAT_TO_ACCOUNT } from '@/types/publishing';
@@ -437,78 +442,11 @@ export default function ManualCreate() {
     }));
   }, [mediaPreviewUrls, mediaFiles]);
 
-  // Render preview for a format
-  const renderPreview = (format: PostFormat) => {
-    const network = getNetworkFromFormat(format);
-    
-    if (network === 'instagram') {
-      if (format === 'instagram_stories') {
-        return <InstagramStoryPreview mediaUrl={mediaPreviewUrls[0]} aspectRatioValid={true} />;
-      }
-      if (format === 'instagram_reel') {
-        return <InstagramReelPreview mediaUrl={mediaPreviewUrls[0]} caption={caption} />;
-      }
-      return <InstagramCarouselPreview mediaItems={mediaItems} caption={caption} />;
-    }
-    
-    if (network === 'linkedin') {
-      // Use document preview for linkedin_document, regular preview for linkedin_post
-      if (format === 'linkedin_document') {
-        return <LinkedInDocumentPreview mediaUrls={mediaPreviewUrls} mediaFiles={mediaFiles} caption={caption} />;
-      }
-      return <LinkedInPreview mediaUrls={mediaPreviewUrls} caption={caption} />;
-    }
-    
-    if (network === 'youtube') {
-      if (format === 'youtube_shorts') {
-        return <YouTubeShortsPreview mediaUrl={mediaPreviewUrls[0]} caption={caption} />;
-      }
-      return <YouTubeVideoPreview mediaUrl={mediaPreviewUrls[0]} caption={caption} />;
-    }
-    
-    if (network === 'tiktok') {
-      return <TikTokPreview mediaUrl={mediaPreviewUrls[0]} caption={caption} />;
-    }
-    
-    if (network === 'facebook') {
-      return <FacebookPreview 
-        mediaUrls={mediaPreviewUrls} 
-        caption={caption} 
-        format={format as 'facebook_image' | 'facebook_stories' | 'facebook_reel'} 
-      />;
-    }
-    
-    if (network === 'googlebusiness') {
-      return <GoogleBusinessPreview 
-        mediaUrls={mediaPreviewUrls} 
-        caption={caption} 
-        format={format as 'googlebusiness_post' | 'googlebusiness_media'} 
-      />;
-    }
-    
-    // Default preview for any other formats
-    return (
-      <div className="p-4 border rounded-lg bg-muted/30">
-        <p className="text-sm text-muted-foreground mb-2">Pré-visualização: {getFormatConfig(format)?.label}</p>
-        {mediaPreviewUrls.length > 0 && (
-          <img src={mediaPreviewUrls[0]} alt="Preview" className="rounded-lg max-h-64 mx-auto" />
-        )}
-        {caption && <p className="mt-3 text-sm whitespace-pre-wrap">{caption}</p>}
-      </div>
-    );
-  };
-
-  // Get icon for network
-  const getNetworkIcon = (network: string) => {
-    switch (network) {
-      case 'instagram': return Instagram;
-      case 'linkedin': return Linkedin;
-      case 'youtube': return Youtube;
-      case 'facebook': return Facebook;
-      case 'googlebusiness': return MapPin;
-      default: return FileText;
-    }
-  };
+  // Render preview delegated to extracted helper (Phase 4)
+  const renderPreview = useCallback(
+    (format: PostFormat) => renderFormatPreview(format, { caption, mediaFiles, mediaPreviewUrls, mediaItems }),
+    [caption, mediaFiles, mediaPreviewUrls, mediaItems],
+  );
 
   // State for mobile preview collapsed
   const [mobilePreviewOpen, setMobilePreviewOpen] = useState(false);
