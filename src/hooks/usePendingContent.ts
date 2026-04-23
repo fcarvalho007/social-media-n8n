@@ -3,10 +3,11 @@ import { supabase } from '@/integrations/supabase/client';
 
 export interface PendingItem {
   id: string;
-  type: 'story' | 'carousel' | 'post' | 'draft';
+  type: 'story' | 'carousel' | 'post' | 'draft' | 'scheduled';
   thumbnail: string | null;
   caption: string | null;
   createdAt: string;
+  scheduledDate?: string | null;
   route: string;
 }
 
@@ -15,6 +16,7 @@ interface PendingContentResult {
   totalCount: number;
   pendingApprovalCount: number;
   draftsCount: number;
+  scheduledCount: number;
   loading: boolean;
 }
 
@@ -23,6 +25,7 @@ export function usePendingContent(limit: number = 6): PendingContentResult {
   const [totalCount, setTotalCount] = useState(0);
   const [pendingApprovalCount, setPendingApprovalCount] = useState(0);
   const [draftsCount, setDraftsCount] = useState(0);
+  const [scheduledCount, setScheduledCount] = useState(0);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -32,7 +35,7 @@ export function usePendingContent(limit: number = 6): PendingContentResult {
       try {
         setLoading(true);
 
-        // Fetch pending stories
+        // Stories pendentes (a aguardar aprovação)
         const { data: stories } = await supabase
           .from('stories')
           .select('id, story_image_url, caption, created_at')
@@ -40,7 +43,7 @@ export function usePendingContent(limit: number = 6): PendingContentResult {
           .order('created_at', { ascending: false })
           .limit(limit);
 
-        // Fetch pending posts (carousels and posts) - include waiting_for_approval
+        // Posts a aguardar aprovação
         const { data: posts } = await supabase
           .from('posts')
           .select('id, template_a_images, media_items, caption, created_at, content_type, status')
@@ -48,7 +51,16 @@ export function usePendingContent(limit: number = 6): PendingContentResult {
           .order('created_at', { ascending: false })
           .limit(limit);
 
-        // Fetch drafts
+        // Posts agendados (scheduled futuros)
+        const { data: scheduled } = await supabase
+          .from('posts')
+          .select('id, template_a_images, media_items, caption, created_at, content_type, status, scheduled_date')
+          .eq('status', 'scheduled')
+          .gte('scheduled_date', new Date().toISOString())
+          .order('scheduled_date', { ascending: true })
+          .limit(limit);
+
+        // Rascunhos
         const { data: drafts } = await supabase
           .from('posts_drafts')
           .select('id, media_urls, caption, created_at, platform')
@@ -58,7 +70,6 @@ export function usePendingContent(limit: number = 6): PendingContentResult {
 
         if (!mounted) return;
 
-        // Transform stories
         const storyItems: PendingItem[] = (stories || []).map((story) => ({
           id: story.id,
           type: 'story' as const,
@@ -68,32 +79,38 @@ export function usePendingContent(limit: number = 6): PendingContentResult {
           route: `/review-story/${story.id}`,
         }));
 
-        // Transform posts
-        const postItems: PendingItem[] = (posts || []).map((post) => {
-          // Get thumbnail from media_items or template_a_images
+        const extractThumb = (post: { media_items?: unknown; template_a_images?: string[] | null }) => {
           let thumbnail: string | null = null;
-          
           if (post.media_items && Array.isArray(post.media_items) && post.media_items.length > 0) {
             const firstItem = post.media_items[0] as { url?: string; preview?: string };
             thumbnail = firstItem.url || firstItem.preview || null;
           } else if (post.template_a_images && post.template_a_images.length > 0) {
             thumbnail = post.template_a_images[0];
           }
+          return thumbnail;
+        };
 
-          return {
-            id: post.id,
-            type: post.content_type === 'carousel' ? 'carousel' as const : 'post' as const,
-            thumbnail,
-            caption: post.caption,
-            createdAt: post.created_at || '',
-            route: `/review/${post.id}`,
-          };
-        });
+        const postItems: PendingItem[] = (posts || []).map((post) => ({
+          id: post.id,
+          type: post.content_type === 'carousel' ? 'carousel' as const : 'post' as const,
+          thumbnail: extractThumb(post),
+          caption: post.caption,
+          createdAt: post.created_at || '',
+          route: `/review/${post.id}`,
+        }));
 
-        // Transform drafts
+        const scheduledItems: PendingItem[] = (scheduled || []).map((post) => ({
+          id: post.id,
+          type: 'scheduled' as const,
+          thumbnail: extractThumb(post),
+          caption: post.caption,
+          createdAt: post.created_at || '',
+          scheduledDate: post.scheduled_date,
+          route: `/review/${post.id}`,
+        }));
+
         const draftItems: PendingItem[] = (drafts || []).map((draft) => {
           let thumbnail: string | null = null;
-          
           if (draft.media_urls && Array.isArray(draft.media_urls) && draft.media_urls.length > 0) {
             const firstUrl = draft.media_urls[0];
             if (typeof firstUrl === 'string') {
@@ -102,29 +119,38 @@ export function usePendingContent(limit: number = 6): PendingContentResult {
               thumbnail = (firstUrl as { url?: string }).url || null;
             }
           }
-
           return {
             id: draft.id,
             type: 'draft' as const,
             thumbnail,
             caption: draft.caption,
             createdAt: draft.created_at,
-            route: `/drafts`, // Will handle navigation to edit in the component
+            route: `/drafts`,
           };
         });
 
-        // Combine and sort by date
-        const allItems = [...storyItems, ...postItems, ...draftItems]
-          .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
-          .slice(0, limit);
+        // Ordem: primeiro Por Aprovar (mais urgente), depois Agendados, depois Rascunhos
+        const approvalSorted = [...storyItems, ...postItems].sort(
+          (a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
+        );
+        const scheduledSorted = scheduledItems.sort(
+          (a, b) => new Date(a.scheduledDate || a.createdAt).getTime() - new Date(b.scheduledDate || b.createdAt).getTime()
+        );
+        const draftsSorted = draftItems.sort(
+          (a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
+        );
 
-        const total = (stories?.length || 0) + (posts?.length || 0) + (drafts?.length || 0);
+        const allItems = [...approvalSorted, ...scheduledSorted, ...draftsSorted].slice(0, limit);
+
         const approvalCount = (stories?.length || 0) + (posts?.length || 0);
+        const scheduledTotal = scheduled?.length || 0;
         const draftsTotal = drafts?.length || 0;
+        const total = approvalCount + scheduledTotal + draftsTotal;
 
         setItems(allItems);
         setTotalCount(total);
         setPendingApprovalCount(approvalCount);
+        setScheduledCount(scheduledTotal);
         setDraftsCount(draftsTotal);
       } catch (error) {
         console.error('Error fetching pending content:', error);
@@ -137,7 +163,6 @@ export function usePendingContent(limit: number = 6): PendingContentResult {
 
     fetchPendingContent();
 
-    // Set up realtime subscriptions
     const storiesChannel = supabase
       .channel('pending-stories')
       .on('postgres_changes', { event: '*', schema: 'public', table: 'stories' }, fetchPendingContent)
@@ -161,5 +186,5 @@ export function usePendingContent(limit: number = 6): PendingContentResult {
     };
   }, [limit]);
 
-  return { items, totalCount, pendingApprovalCount, draftsCount, loading };
+  return { items, totalCount, pendingApprovalCount, draftsCount, scheduledCount, loading };
 }
