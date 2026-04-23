@@ -132,7 +132,17 @@ export const RichTextEditor = ({
             />
           </PopoverContent>
         </Popover>
-        <div className="ml-auto text-xs text-muted-foreground px-2">
+        <div
+          className={cn(
+            'ml-auto text-xs px-2 font-medium tabular-nums',
+            value.length > maxLength
+              ? 'text-destructive'
+              : value.length > maxLength * 0.9
+              ? 'text-amber-500'
+              : 'text-muted-foreground'
+          )}
+          aria-live="polite"
+        >
           {value.length}/{maxLength}
         </div>
       </div>
@@ -141,10 +151,14 @@ export const RichTextEditor = ({
       <Textarea
         ref={textareaRef}
         value={value}
-        onChange={(e) => onChange(e.target.value.slice(0, maxLength))}
+        onChange={(e) => onChange(e.target.value)}
         placeholder={placeholder}
         rows={rows}
-        className="w-full font-sans resize-none"
+        aria-invalid={value.length > maxLength}
+        className={cn(
+          'w-full font-sans resize-none',
+          value.length > maxLength && 'border-destructive focus-visible:ring-destructive'
+        )}
         onKeyDown={(e) => {
           if (e.ctrlKey || e.metaKey) {
             if (e.key === 'b') {
