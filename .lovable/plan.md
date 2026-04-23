@@ -1,91 +1,90 @@
 
 
-## Fase 3 do refactor de `ManualCreate.tsx`
+## Auditoria do Refactor de `ManualCreate.tsx`
 
-**Estado actual:** 1633 linhas. Fases 1+2 completas, 7 hooks extraídos, lógica de publicação encapsulada. Falta decompor o **JSX** que ainda vive todo dentro do componente.
+### Estado actual mensurável
 
-### Diagnóstico — blocos JSX coesos
+| Métrica | Original | Após Fase 1 | Após Fase 2 | Após Fase 3 (parcial) | Meta final |
+|---|---|---|---|---|---|
+| `ManualCreate.tsx` | ~2801 linhas | ~1994 | ~1633 | **1289** | ~700 |
+| Hooks extraídos | 0 | 6 | 7 | 7 | 7 |
+| Componentes em `steps/` | 0 | 0 | 0 | **3 / 5** | 5 |
+| `npx tsc --noEmit` | — | ✅ | ✅ | **✅ 0 erros** | ✅ |
+| `bun run build:dev` | — | ✅ | ✅ | **✅ 20.3s** | ✅ |
+| ESLint nos novos ficheiros | — | — | — | **✅ 0 erros** | ✅ |
 
-| Bloco | Linhas (~) | Responsabilidade |
+### Fase 1 — Extracção de hooks · ✅ COMPLETA
+
+7 hooks bem isolados em `src/hooks/manual-create/`:
+- `mediaAspectDetection.ts` (75) — detecção de aspect ratio
+- `useStepper.ts` (69) — wizard 1→2→3
+- `useMediaManager.ts` (129) — DnD reorder + remoção
+- `useImageCompression.ts` (204) — modal Instagram >4MB
+- `useMediaUpload.ts` (308) — upload + validação vídeo
+- `useDraftRecovery.ts` (339) — recuperação via `?recover=`
+- Total: **1124 linhas** organizadas e testáveis isoladamente
+
+### Fase 2 — Orquestrador de publicação · ✅ COMPLETA
+
+- `usePublishOrchestrator.ts` (520 linhas) — encapsula `saveDraft`, `submitForApproval` e `publishNow` com detecção de duplicados, modal de progresso e reset de quota
+- Integração limpa em `ManualCreate.tsx` via `handleSaveDraft`/`handleSubmitWithValidation`/`handlePublishWithValidation`
+
+### Fase 3 — Decomposição de JSX · 🟡 PARCIAL (3 de 5)
+
+**Concluído:**
+- ✅ `Step3CaptionCard.tsx` (85) — integrado em `ManualCreate.tsx:953`
+- ✅ `Step3ScheduleCard.tsx` (291) — integrado em `ManualCreate.tsx:979`
+- ✅ `PublishActionsCard.tsx` (179) — integrado em `ManualCreate.tsx:990`
+
+**Por extrair (~500 linhas ainda inline):**
+- ☐ `Step2MediaCard.tsx` — ~245 linhas (`ManualCreate.tsx:701-946`) — upload + DnD do carrossel + GridSplitter
+- ☐ `PreviewPanel.tsx` — ~250 linhas (`ManualCreate.tsx:1010-1062` + drawer mobile 1154-1203) — Tabs com 9 previews
+
+### Pendências detectadas
+
+1. **3 erros ESLint pré-existentes em `useDraftRecovery.ts`** (linhas 112, 116, 241): `Unexpected any`. Vêm da Fase 1, não foram introduzidos agora. Devem ser tipados com `Json[]` ou interfaces concretas.
+
+2. **Duplicação de `renderPreview()` no JSX inline** — chamado 3 vezes (linhas 1024, 1049, 1171, 1196). Quando extrairmos o `PreviewPanel`, esta lógica fica num único sítio.
+
+3. **Imports órfãos potenciais** — `Tabs`, `TabsContent`, `TabsList`, `TabsTrigger`, `Drawer*`, `Smartphone`, vários ícones de redes sociais e os 9 imports de `*Preview` ainda estão em `ManualCreate.tsx` mas só servem o painel de preview. Migram com a Fase 3 final.
+
+4. **Bundle continua monolítico** (`index-*.js: 4.18 MB`) — não é objectivo desta fase, mas o aviso aparece no build. Candidato natural a `React.lazy` em prompt futuro.
+
+### Veredicto
+
+| Fase | Estado | Qualidade |
 |---|---|---|
-| **Step 2 — Média** | 698-943 (~245) | `Card` com upload + carrossel DnD + thumbnails + navegação Anterior/Seguinte |
-| **Step 3a — Legenda** | 945-999 (~55) | `Card` da legenda com `NetworkCaptionEditor` + contador caracteres |
-| **Step 3b — Agendamento** | 1001-1234 (~233) | `Card` data/hora + toggle ASAP + popover calendário + navegação Anterior |
-| **Action Card desktop** | 1237-1350 (~113) | `Card` sticky com progresso + validação + botões publicar/rascunho/submeter |
-| **Preview lateral desktop** | 1354-? (~250) | `Card` com `Tabs` por rede social a renderizar 9 previews diferentes |
+| Fase 1 | ✅ Completa | Boa, com 3 `any` por limpar |
+| Fase 2 | ✅ Completa | Boa, sem dívidas técnicas |
+| Fase 3 | 🟡 60% | Os 3 componentes extraídos estão limpos, tipados, sem regressões; faltam 2 |
 
-**Step 1** (linhas 675-696, ~22 linhas) é trivial — já é só `<NetworkFormatSelector>` + 1 botão. Não vale a pena extrair.
+### Próxima acção proposta
 
-**Total candidato:** ~900 linhas de JSX → `ManualCreate.tsx` desce para **~730 linhas**.
+Concluir a Fase 3 extraindo os 2 componentes restantes num único loop:
 
-### Princípio
+1. **`Step2MediaCard.tsx`** — recebe `mediaPreviewUrls`, `mediaFiles`, `mediaSources`, `mediaAspectRatios`, `mediaRequirements`, `selectedFormats`, callbacks (`setMediaFiles`, `setMediaPreviewUrls`, `setMediaSources`, `removeMedia`, `moveMedia`, `handleMediaUpload`, `getAcceptTypes`), estado DnD (`sensors`, `activeId`, handlers) e `lastSaved`/`isAutoSaving`/`hasUnsavedChanges`. Substitui `ManualCreate.tsx:701-946`.
 
-Cada componente recebe **dados via props**, **callbacks via props**, e não toca em estado global. O componente pai (`ManualCreate`) continua a ser o orquestrador — segura o estado, passa-o para baixo. **Sem refactor de comportamento**, só split visual.
+2. **`PreviewPanel.tsx`** — recebe `selectedFormats`, `activePreviewTab`, `setActivePreviewTab`, `scheduledDate`, `scheduleAsap`, `time`, e a função `renderPreview(format)`. Suporta as 2 vistas (sidebar desktop + drawer mobile) via prop `variant: 'desktop' | 'mobile'`. Substitui `ManualCreate.tsx:1010-1062` e `1154-1203`. Move ~12 imports de previews para fora do ficheiro principal.
 
-### Ficheiros a criar
+**Resultado esperado:** `ManualCreate.tsx` desce para **~750 linhas** (-540), 5/5 componentes da Fase 3 prontos, abrindo caminho para a Fase 4 (limpeza final + meta ≤700).
 
-```
-src/components/manual-post/steps/
-├── Step2MediaCard.tsx          (~245 linhas)
-├── Step3CaptionCard.tsx        (~55 linhas)
-├── Step3ScheduleCard.tsx       (~233 linhas)
-├── PublishActionsCard.tsx      (~113 linhas)
-└── PreviewPanel.tsx            (~250 linhas)
+### Bónus opcional (não bloqueante)
+
+Eliminar os 3 `any` em `useDraftRecovery.ts` substituindo por:
+```ts
+import type { Json } from '@/integrations/supabase/types';
+const mediaItems = (post.media_items as Array<{ url: string; type?: string }>) || [];
 ```
 
-(Pasta `steps/` para os agrupar, evitando poluir `manual-post/` que já tem 30+ ficheiros.)
+### Checkpoint da próxima acção
 
-### Estratégia
-
-Cada extracção segue o mesmo padrão:
-
-1. Identificar o JSX exacto + todas as variáveis externas que usa
-2. Criar o componente novo com interface de props tipada
-3. Substituir o JSX original por `<NovoComponente {...props} />`
-4. Validar TS + ESLint após cada extracção (5 ciclos pequenos, não 1 grande)
-
-**Ordem proposta** (do mais isolado ao mais entrelaçado):
-
-| # | Componente | Risco | Razão |
-|---|---|---|---|
-| 1 | `Step3CaptionCard` | Baixo | Só 55 linhas, props simples |
-| 2 | `PublishActionsCard` | Baixo | Botões + handlers já delegados ao orchestrator |
-| 3 | `Step3ScheduleCard` | Médio | Tem popover de calendário + estado local de hora |
-| 4 | `Step2MediaCard` | Médio-alto | Maior, integra DnD + 3 botões de upload + GridSplitter |
-| 5 | `PreviewPanel` | Médio | Tabs com 9 previews diferentes — muitos imports a mover |
-
-### Resultado esperado
-
-| Métrica | Hoje | Depois |
-|---|---|---|
-| `ManualCreate.tsx` | 1633 linhas | **~730 linhas** (-900) |
-| Componentes em `manual-post/steps/` | 0 | **5** |
-| Imports em `ManualCreate.tsx` | 76 | **~40** (previews + ícones movem-se) |
-| Erros TS / ESLint / build | 0 / 0 / ✅ | **0 / 0 / ✅** |
-
-### Risco
-
-**Médio.** Pure JSX move bem mas é grande volume e cada componente tem 8-15 props. Mitigação:
-- Extrair um de cada vez + validar TS no fim de cada um (não tudo de uma vez)
-- Usar tipos explícitos para as `Props`, não `any`
-- Manter os callbacks inline (`onChange={(v) => setX(v)}`) em vez de passar setters directamente, para evitar acoplar o componente ao tipo do estado pai
-
-### Checkpoint
-
-☐ 5 ficheiros criados em `src/components/manual-post/steps/`  
+☐ `Step2MediaCard.tsx` criado em `src/components/manual-post/steps/`  
+☐ `PreviewPanel.tsx` criado em `src/components/manual-post/steps/`  
 ☐ `ManualCreate.tsx` ≤ 800 linhas  
-☐ `npx tsc --noEmit` sem erros  
-☐ `npx eslint src/pages/ManualCreate.tsx` sem novos erros  
+☐ `npx tsc --noEmit` 0 erros  
 ☐ `bun run build:dev` passa  
-☐ Visualmente idêntico em desktop e mobile (375px)  
-☐ Step 2: upload, drag-and-drop e remoção de média continuam  
-☐ Step 3: legenda, toggle de legendas separadas e agendamento continuam  
-☐ Botões "Publicar agora", "Guardar rascunho" e "Submeter para aprovação" continuam funcionais  
-☐ Preview lateral desktop renderiza correctamente para todas as 9 redes
-
-### Fora desta fase
-
-- **Fase 4:** limpeza final de imports residuais + meta ≤700 linhas (~50 linhas extra)
-- Refactor do `PublishProgressModal.tsx` (869 linhas — prompt próprio)
-- Refactor do componente de preview de cada rede (já estão isolados em `manual-post/`, não precisam tocar agora)
+☐ Comportamento idêntico em desktop e mobile (375px)  
+☐ DnD do carrossel, upload, GridSplitter, navegação entre steps continuam  
+☐ Preview lateral desktop + drawer mobile renderizam todas as 9 redes  
+☐ (Opcional) 0 erros ESLint em `useDraftRecovery.ts`
 
