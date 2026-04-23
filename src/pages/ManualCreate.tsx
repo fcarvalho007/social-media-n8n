@@ -588,7 +588,7 @@ export default function ManualCreate() {
                 if (value) {
                   const initial: Record<string, string> = {};
                   selectedNetworks.forEach(network => {
-                    initial[network] = networkCaptions[network] || caption;
+                    initial[network] = networkCaptions[network] ?? caption;
                   });
                   setNetworkCaptions(initial);
                 }
