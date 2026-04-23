@@ -238,6 +238,8 @@ export default function ManualCreate() {
   const smartValidation = useSmartValidation({
     selectedFormats,
     caption,
+    networkCaptions,
+    useSeparateCaptions,
     mediaFiles,
     hashtags: [],
     scheduledDate: scheduledDate ?? null,
@@ -245,6 +247,9 @@ export default function ManualCreate() {
     enabled: selectedFormats.length > 0,
     fixHelpers: {
       setCaption,
+      setNetworkCaption: (network, next) => {
+        setNetworkCaptions(prev => ({ ...prev, [network]: next }));
+      },
       setMediaFiles,
       focusCaption: () => textareaRef.current?.focus(),
     },
