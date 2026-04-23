@@ -117,7 +117,9 @@ export default function Dashboard() {
                       id={item.id}
                       type={item.type}
                       thumbnail={item.thumbnail}
+                      mediaUrl={item.mediaUrl}
                       mediaType={item.mediaType}
+                      hasPosterPreview={item.hasPosterPreview}
                       mediaCount={item.mediaCount}
                       caption={item.caption}
                       createdAt={item.createdAt}

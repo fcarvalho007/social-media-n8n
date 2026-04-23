@@ -3,7 +3,8 @@ import { format } from 'date-fns';
 import { toast } from 'sonner';
 import { supabase } from '@/integrations/supabase/client';
 import { generateSafeStoragePath } from '@/lib/fileNameSanitizer';
-import { PostFormat } from '@/types/social';
+import { extractVideoFrame } from '@/lib/media/videoFrameExtractor';
+import { getNetworkFromFormat, PostFormat } from '@/types/social';
 import { ValidationSummary } from '@/lib/validation/types';
 import type { useImageCompression } from './useImageCompression';
 import type { usePublishWithProgress } from '@/hooks/usePublishWithProgress';
@@ -14,6 +15,14 @@ type CompressionApi = ReturnType<typeof useImageCompression>;
 type QuotaApi = ReturnType<typeof usePublishingQuota>;
 type DuplicateInfo = { id: string; created_at: string; selected_networks: string[] | null; status: string | null };
 type PublishParams = Parameters<ExecutePublish>[0];
+type DraftMediaItem = { url: string; type: 'image' | 'video'; thumbnail_url?: string | null; name?: string };
+
+const getDraftPlatform = (format: PostFormat) => format;
+
+const getDraftCaption = (format: PostFormat, caption: string, networkCaptions: Record<string, string>, useSeparateCaptions: boolean) => {
+  const network = getNetworkFromFormat(format);
+  return useSeparateCaptions && networkCaptions[network] ? networkCaptions[network] : caption;
+};
 
 interface OrchestratorParams {
   // Inputs (lidos a cada chamada)
@@ -113,6 +122,7 @@ export function usePublishOrchestrator(params: OrchestratorParams) {
       const user = sessionData.session.user;
 
       const mediaUrls: string[] = [];
+      const draftMediaItems: DraftMediaItem[] = [];
       const totalFiles = mediaFiles.length;
 
       for (let i = 0; i < totalFiles; i++) {
@@ -135,21 +145,46 @@ export function usePublishOrchestrator(params: OrchestratorParams) {
           .getPublicUrl(fileName);
 
         mediaUrls.push(publicUrl);
+        const isVideo = file.type.startsWith('video/');
+        let thumbnailUrl: string | null = null;
+
+        if (isVideo) {
+          try {
+            const frameFile = await extractVideoFrame(file);
+            const frameName = generateSafeStoragePath(user.id, frameFile);
+            const { error: frameUploadError } = await supabase.storage.from('post-covers').upload(frameName, frameFile);
+            if (!frameUploadError) {
+              const { data: { publicUrl: framePublicUrl } } = supabase.storage.from('post-covers').getPublicUrl(frameName);
+              thumbnailUrl = framePublicUrl;
+            }
+          } catch (frameError) {
+            console.warn('[saveDraft] Failed to generate video thumbnail:', frameError);
+          }
+        }
+
+        draftMediaItems.push({
+          url: publicUrl,
+          type: isVideo ? 'video' : 'image',
+          thumbnail_url: thumbnailUrl,
+          name: file.name,
+        });
       }
 
       setUploadProgress(100);
 
       const primaryFormat = selectedFormats[0];
-      let platform: string;
-      if (primaryFormat.startsWith('instagram_')) platform = 'instagram_carrousel';
-      else if (primaryFormat.startsWith('linkedin_')) platform = 'linkedin';
-      else platform = primaryFormat;
+      const platform = getDraftPlatform(primaryFormat);
 
       const draftData: {
         user_id: string;
         platform: string;
+        format: string;
+        formats: string[];
         caption: string;
         media_urls: string[];
+        media_items: DraftMediaItem[];
+        network_captions: Record<string, string>;
+        use_separate_captions: boolean;
         scheduled_date: string | null;
         scheduled_time: string | null;
         publish_immediately: boolean;
@@ -157,10 +192,13 @@ export function usePublishOrchestrator(params: OrchestratorParams) {
       } = {
         user_id: user.id,
         platform,
-        caption: useSeparateCaptions && networkCaptions[platform.replace('_carrousel', '')]
-          ? networkCaptions[platform.replace('_carrousel', '')]
-          : caption,
+        format: primaryFormat,
+        formats: selectedFormats,
+        caption: getDraftCaption(primaryFormat, caption, networkCaptions, useSeparateCaptions),
         media_urls: mediaUrls,
+        media_items: draftMediaItems,
+        network_captions: useSeparateCaptions ? networkCaptions : {},
+        use_separate_captions: useSeparateCaptions,
         scheduled_date: scheduledDate ? format(scheduledDate, 'yyyy-MM-dd') : null,
         scheduled_time: time || null,
         publish_immediately: scheduleAsap,
@@ -204,6 +242,7 @@ export function usePublishOrchestrator(params: OrchestratorParams) {
               file_name: fileName,
               file_url: url,
               file_type: isVideo ? 'video' : 'image',
+              thumbnail_url: draftMediaItems[idx]?.thumbnail_url || null,
               source: 'publication',
               is_favorite: false,
             };

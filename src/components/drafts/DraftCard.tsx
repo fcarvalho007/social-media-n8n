@@ -14,6 +14,8 @@ interface Draft {
   platform: string;
   caption: string | null;
   media_urls: any;
+  media_items?: any;
+  format?: string | null;
   scheduled_date: string | null;
   scheduled_time: string | null;
   created_at: string;
@@ -29,24 +31,32 @@ interface DraftCardProps {
 }
 
 const platformConfig: Record<string, { icon: React.ComponentType<any>; label: string; color: string }> = {
+  'instagram_carousel': { icon: Instagram, label: 'Instagram Carrossel', color: 'bg-pink-500/10 text-pink-600' },
   'instagram-carousel': { icon: Instagram, label: 'Instagram Carrossel', color: 'bg-pink-500/10 text-pink-600' },
+  'instagram_carrousel': { icon: Instagram, label: 'Instagram Carrossel', color: 'bg-pink-500/10 text-pink-600' },
+  'instagram_stories': { icon: Instagram, label: 'Instagram Stories', color: 'bg-purple-500/10 text-purple-600' },
   'instagram-stories': { icon: Instagram, label: 'Instagram Stories', color: 'bg-purple-500/10 text-purple-600' },
+  'instagram_reel': { icon: Instagram, label: 'Instagram Reel', color: 'bg-orange-500/10 text-orange-600' },
   'instagram-reels': { icon: Instagram, label: 'Instagram Reels', color: 'bg-orange-500/10 text-orange-600' },
+  'linkedin_post': { icon: Linkedin, label: 'LinkedIn', color: 'bg-blue-500/10 text-blue-600' },
   'linkedin': { icon: Linkedin, label: 'LinkedIn', color: 'bg-blue-500/10 text-blue-600' },
+  'linkedin_document': { icon: Linkedin, label: 'LinkedIn Documento', color: 'bg-sky-500/10 text-sky-600' },
   'linkedin-document': { icon: Linkedin, label: 'LinkedIn Documento', color: 'bg-sky-500/10 text-sky-600' },
 };
 
 export function DraftCard({ draft, isSelected, onSelect, onEdit, onDelete, view }: DraftCardProps) {
   const [imageError, setImageError] = useState(false);
   
-  const config = platformConfig[draft.platform] || { 
+  const platformKey = draft.format || draft.platform;
+  const config = platformConfig[platformKey] || { 
     icon: Image, 
-    label: draft.platform, 
+    label: platformKey, 
     color: 'bg-muted text-muted-foreground' 
   };
   const Icon = config.icon;
   
-  const mediaItems = normalizeMediaList(draft.media_urls);
+  const enrichedMediaItems = normalizeMediaList(draft.media_items);
+  const mediaItems = enrichedMediaItems.length > 0 ? enrichedMediaItems : normalizeMediaList(draft.media_urls);
   const mediaCount = mediaItems.length;
   const firstMedia = mediaItems[0];
   const firstMediaUrl = firstMedia?.displayUrl || null;
@@ -74,9 +84,23 @@ export function DraftCard({ draft, isSelected, onSelect, onEdit, onDelete, view 
             {firstMediaUrl && !imageError ? (
               <>
                 {isVideo ? (
-                  <div className="w-full h-full flex items-center justify-center bg-muted">
-                    <Play className="h-12 w-12 text-muted-foreground/50" />
-                  </div>
+                  firstMedia.hasPosterPreview ? (
+                    <img 
+                      src={firstMediaUrl}
+                      alt="Pré-visualização do vídeo"
+                      className="w-full h-full object-cover"
+                      onError={() => setImageError(true)}
+                    />
+                  ) : (
+                    <video
+                      src={firstMedia?.url || firstMediaUrl}
+                      className="w-full h-full object-cover"
+                      preload="metadata"
+                      muted
+                      playsInline
+                      onError={() => setImageError(true)}
+                    />
+                  )
                 ) : (
                   <img 
                     src={firstMediaUrl}
@@ -192,9 +216,23 @@ export function DraftCard({ draft, isSelected, onSelect, onEdit, onDelete, view 
             {firstMediaUrl && !imageError ? (
               <>
                 {isVideo ? (
-                  <div className="w-full h-full flex items-center justify-center">
-                    <Play className="h-6 w-6 text-muted-foreground/50" />
-                  </div>
+                  firstMedia.hasPosterPreview ? (
+                    <img 
+                      src={firstMediaUrl}
+                      alt="Pré-visualização do vídeo"
+                      className="w-full h-full object-cover"
+                      onError={() => setImageError(true)}
+                    />
+                  ) : (
+                    <video
+                      src={firstMedia?.url || firstMediaUrl}
+                      className="w-full h-full object-cover"
+                      preload="metadata"
+                      muted
+                      playsInline
+                      onError={() => setImageError(true)}
+                    />
+                  )
                 ) : (
                   <img 
                     src={firstMediaUrl}

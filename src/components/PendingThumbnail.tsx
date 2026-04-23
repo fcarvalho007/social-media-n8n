@@ -1,15 +1,18 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { Badge } from '@/components/ui/badge';
 import { FileImage, ImagePlus, FileText, Calendar, Play, FileVideo, Files } from 'lucide-react';
 import { format } from 'date-fns';
 import { pt } from 'date-fns/locale';
 import { MediaPreviewType } from '@/lib/mediaPreview';
+import { extractVideoFrame } from '@/lib/media/videoFrameExtractor';
 
 interface PendingThumbnailProps {
   id: string;
   type: 'story' | 'carousel' | 'post' | 'draft' | 'scheduled';
   thumbnail: string | null;
+  mediaUrl?: string | null;
   mediaType: MediaPreviewType;
+  hasPosterPreview?: boolean;
   mediaCount: number;
   caption: string | null;
   createdAt: string;
@@ -59,7 +62,9 @@ export function PendingThumbnail({
   id,
   type,
   thumbnail,
+  mediaUrl,
   mediaType,
+  hasPosterPreview,
   mediaCount,
   caption,
   createdAt,
@@ -68,10 +73,34 @@ export function PendingThumbnail({
   onNavigate,
 }: PendingThumbnailProps) {
   const [imgError, setImgError] = useState(false);
-  const showVisualMedia = thumbnail && !imgError && mediaType !== 'document';
+  const [generatedPoster, setGeneratedPoster] = useState<string | null>(null);
+  const visualSource = generatedPoster || thumbnail;
+  const showVisualMedia = visualSource && !imgError && mediaType !== 'document';
   const FallbackIcon = getFallbackIcon(type, mediaType);
   const dateLabel = getDateLabel(type, createdAt, scheduledDate);
   const captionPreview = caption?.trim() || 'Sem legenda';
+
+  useEffect(() => {
+    if (mediaType !== 'video' || hasPosterPreview || !thumbnail) return;
+
+    let active = true;
+    let objectUrl: string | null = null;
+
+    extractVideoFrame(thumbnail)
+      .then((frame) => {
+        if (!active) return;
+        objectUrl = URL.createObjectURL(frame);
+        setGeneratedPoster(objectUrl);
+      })
+      .catch(() => {
+        if (active) setGeneratedPoster(null);
+      });
+
+    return () => {
+      active = false;
+      if (objectUrl) URL.revokeObjectURL(objectUrl);
+    };
+  }, [hasPosterPreview, mediaType, thumbnail]);
 
   return (
     <div
@@ -86,9 +115,10 @@ export function PendingThumbnail({
     >
       <div className="relative aspect-square overflow-hidden bg-muted">
         {showVisualMedia ? (
-          mediaType === 'video' ? (
+          mediaType === 'video' && !hasPosterPreview && !generatedPoster ? (
             <video
-              src={thumbnail}
+              src={mediaUrl || visualSource}
+              poster={visualSource !== mediaUrl ? visualSource || undefined : undefined}
               className="h-full w-full object-cover transition-transform group-hover:scale-105"
               preload="metadata"
               muted
@@ -97,7 +127,7 @@ export function PendingThumbnail({
             />
           ) : (
             <img
-              src={thumbnail}
+              src={visualSource}
               alt="Pré-visualização do conteúdo"
               className="h-full w-full object-cover transition-transform group-hover:scale-105"
               onError={() => setImgError(true)}

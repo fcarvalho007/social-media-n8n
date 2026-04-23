@@ -586,40 +586,55 @@ export type Database = {
         Row: {
           caption: string | null
           created_at: string
+          format: string | null
+          formats: string[] | null
           id: string
+          media_items: Json | null
           media_urls: Json | null
+          network_captions: Json | null
           platform: string
           publish_immediately: boolean | null
           scheduled_date: string | null
           scheduled_time: string | null
           status: string
           updated_at: string
+          use_separate_captions: boolean | null
           user_id: string
         }
         Insert: {
           caption?: string | null
           created_at?: string
+          format?: string | null
+          formats?: string[] | null
           id?: string
+          media_items?: Json | null
           media_urls?: Json | null
+          network_captions?: Json | null
           platform: string
           publish_immediately?: boolean | null
           scheduled_date?: string | null
           scheduled_time?: string | null
           status?: string
           updated_at?: string
+          use_separate_captions?: boolean | null
           user_id: string
         }
         Update: {
           caption?: string | null
           created_at?: string
+          format?: string | null
+          formats?: string[] | null
           id?: string
+          media_items?: Json | null
           media_urls?: Json | null
+          network_captions?: Json | null
           platform?: string
           publish_immediately?: boolean | null
           scheduled_date?: string | null
           scheduled_time?: string | null
           status?: string
           updated_at?: string
+          use_separate_captions?: boolean | null
           user_id?: string
         }
         Relationships: []
