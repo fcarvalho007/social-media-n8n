@@ -797,58 +797,17 @@ export default function ManualCreate() {
         </div>
 
         {/* Right - Preview - HIDDEN on mobile */}
-        <div className="hidden lg:block lg:sticky lg:top-24 lg:h-[calc(100vh-8rem)] overflow-auto">
-          <Card className="h-full">
-            <CardHeader>
-              <CardTitle>Pré-visualização</CardTitle>
-              <CardDescription>Como ficará a sua publicação</CardDescription>
-            </CardHeader>
-            <CardContent>
-              {selectedFormats.length === 0 ? (
-                <div className="flex items-center justify-center h-64 text-muted-foreground text-sm">
-                  Selecione um formato para ver a pré-visualização
-                </div>
-              ) : selectedFormats.length === 1 ? (
-                <>
-                  {renderPreview(selectedFormats[0])}
-                  {scheduledDate && !scheduleAsap && (
-                    <div className="flex items-center gap-2 text-xs text-muted-foreground mt-4 justify-center">
-                      <Clock className="h-3 w-3" />
-                      <span>Agendado: {format(scheduledDate, 'dd/MM/yyyy', { locale: pt })} às {time}</span>
-                    </div>
-                  )}
-                </>
-              ) : (
-                <Tabs value={activePreviewTab} onValueChange={setActivePreviewTab}>
-                  <TabsList className="w-full mb-4">
-                    {selectedFormats.map(format => {
-                      const network = getNetworkFromFormat(format);
-                      const Icon = getNetworkIcon(network);
-                      const config = getFormatConfig(format);
-                      return (
-                        <TabsTrigger key={format} value={format} className="flex-1 gap-1.5">
-                          <Icon className="h-4 w-4" />
-                          <span className="hidden sm:inline text-xs">{config?.label}</span>
-                        </TabsTrigger>
-                      );
-                    })}
-                  </TabsList>
-                  {selectedFormats.map(format => (
-                    <TabsContent key={format} value={format}>
-                      {renderPreview(format)}
-                    </TabsContent>
-                  ))}
-                  {scheduledDate && !scheduleAsap && (
-                    <div className="flex items-center gap-2 text-xs text-muted-foreground mt-4 justify-center">
-                      <Clock className="h-3 w-3" />
-                      <span>Agendado: {format(scheduledDate, 'dd/MM/yyyy', { locale: pt })} às {time}</span>
-                    </div>
-                  )}
-                </Tabs>
-              )}
-            </CardContent>
-          </Card>
-        </div>
+        <PreviewPanel
+          variant="desktop"
+          selectedFormats={selectedFormats}
+          activePreviewTab={activePreviewTab}
+          onActivePreviewTabChange={setActivePreviewTab}
+          scheduledDate={scheduledDate}
+          scheduleAsap={scheduleAsap}
+          time={time}
+          renderPreview={renderPreview}
+          getNetworkIcon={getNetworkIcon}
+        />
       </div>
 
       {/* Mobile Sticky Bottom Bar - Enhanced with progress indicator */}
@@ -950,43 +909,17 @@ export default function ManualCreate() {
             </DrawerTitle>
           </DrawerHeader>
           <div className="p-4 overflow-y-auto">
-            {selectedFormats.length === 0 ? (
-              <div className="flex flex-col items-center justify-center h-40 text-muted-foreground text-sm gap-2">
-                <Eye className="h-8 w-8 opacity-50" />
-                <span>Selecione um formato para ver a pré-visualização</span>
-              </div>
-            ) : selectedFormats.length === 1 ? (
-              <div className="space-y-4">
-                {renderPreview(selectedFormats[0])}
-                {scheduledDate && !scheduleAsap && (
-                  <div className="flex items-center gap-2 text-xs text-muted-foreground justify-center">
-                    <Clock className="h-3 w-3" />
-                    <span>Agendado: {format(scheduledDate, 'dd/MM/yyyy', { locale: pt })} às {time}</span>
-                  </div>
-                )}
-              </div>
-            ) : (
-              <Tabs value={activePreviewTab || selectedFormats[0]} onValueChange={setActivePreviewTab}>
-                <TabsList className="w-full mb-4">
-                  {selectedFormats.map(formatItem => {
-                    const network = getNetworkFromFormat(formatItem);
-                    const Icon = getNetworkIcon(network);
-                    const config = getFormatConfig(formatItem);
-                    return (
-                      <TabsTrigger key={formatItem} value={formatItem} className="flex-1 gap-1">
-                        <Icon className="h-4 w-4" />
-                        <span className="text-xs truncate">{config?.label}</span>
-                      </TabsTrigger>
-                    );
-                  })}
-                </TabsList>
-                {selectedFormats.map(formatItem => (
-                  <TabsContent key={formatItem} value={formatItem}>
-                    {renderPreview(formatItem)}
-                  </TabsContent>
-                ))}
-              </Tabs>
-            )}
+            <PreviewPanel
+              variant="mobile"
+              selectedFormats={selectedFormats}
+              activePreviewTab={activePreviewTab}
+              onActivePreviewTabChange={setActivePreviewTab}
+              scheduledDate={scheduledDate}
+              scheduleAsap={scheduleAsap}
+              time={time}
+              renderPreview={renderPreview}
+              getNetworkIcon={getNetworkIcon}
+            />
           </div>
         </DrawerContent>
       </Drawer>
