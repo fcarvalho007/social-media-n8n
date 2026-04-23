@@ -109,11 +109,11 @@ export function useDraftRecovery(params: UseDraftRecoveryParams) {
         }
 
         const imageUrls = post.template_a_images || [];
-        const mediaItems = (post.media_items as any[]) || [];
+        const mediaItems = (post.media_items as Array<{ url?: string; type?: string }>) || [];
         const mediaBackup = (post.media_urls_backup as string[]) || [];
 
         const allUrls = mediaBackup.length > 0 ? [...mediaBackup] : [...imageUrls];
-        mediaItems.forEach((item: any) => {
+        mediaItems.forEach((item) => {
           if (item?.url && !allUrls.includes(item.url)) {
             allUrls.push(item.url);
           }
@@ -238,7 +238,15 @@ export function useDraftRecovery(params: UseDraftRecoveryParams) {
   }, [recoverPostId, recoveredPostId, loadPostForRecovery]);
 
   const handleLoadDraft = useCallback(
-    async (draft: any) => {
+    async (draft: {
+      id?: string;
+      platform?: string;
+      caption?: string | null;
+      publish_immediately?: boolean | null;
+      scheduled_date?: string | null;
+      scheduled_time?: string | null;
+      media_urls?: unknown;
+    }) => {
       let fmt: PostFormat;
       if (draft.platform === 'instagram_carrousel') fmt = 'instagram_carousel';
       else if (draft.platform === 'instagram_stories') fmt = 'instagram_stories';
@@ -259,7 +267,7 @@ export function useDraftRecovery(params: UseDraftRecoveryParams) {
 
       setCurrentDraftId(draft.id);
 
-      const urls = draft.media_urls || [];
+      const urls: string[] = Array.isArray(draft.media_urls) ? (draft.media_urls as string[]) : [];
       if (urls.length > 0) {
         setMediaPreviewUrls(urls);
         setMediaSources(urls.map(() => 'url' as MediaSource));

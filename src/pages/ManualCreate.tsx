@@ -14,11 +14,8 @@ import { Textarea } from '@/components/ui/textarea';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
 import { toast } from 'sonner';
-import { Save, Send, Calendar as CalendarIcon, ArrowLeft, Instagram, Linkedin, Upload, Clock, FileText, Loader2, Rocket, Smile, Bookmark, Sparkles, Youtube, Facebook, ChevronLeft, ChevronRight, Info, Image, Video, CheckCircle, Hash, AtSign, AlertTriangle, Eye, ChevronDown, MapPin, Grid3x3, RefreshCw, X, Globe, CheckCircle2, Smartphone } from 'lucide-react';
-import { Drawer, DrawerContent, DrawerHeader, DrawerTitle } from '@/components/ui/drawer';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { addDays, nextDay } from 'date-fns';
-import { format } from 'date-fns';
+import { Save, Calendar as CalendarIcon, ArrowLeft, Loader2, Smile, Bookmark, Sparkles, Info, Image, Video, AlertTriangle, ChevronDown, RefreshCw, X, Globe, CheckCircle2 } from 'lucide-react';
+import { addDays, nextDay, format } from 'date-fns';
 import { pt } from 'date-fns/locale';
 import { cn } from '@/lib/utils';
 import { Progress } from '@/components/ui/progress';
@@ -28,34 +25,22 @@ import { SectionHelp, getSectionTooltip } from '@/components/manual-post/Section
 import { MediaWarning } from '@/components/manual-post/NoAccountsState';
 import { useAutoSave } from '@/hooks/useAutoSave';
 import { validateMedia, MediaValidationResult } from '@/lib/mediaValidation';
-import InstagramCarouselPreview from '@/components/manual-post/InstagramCarouselPreview';
-import InstagramStoryPreview from '@/components/manual-post/InstagramStoryPreview';
-import InstagramReelPreview from '@/components/manual-post/InstagramReelPreview';
-import LinkedInPreview from '@/components/manual-post/LinkedInPreview';
-import LinkedInDocumentPreview from '@/components/manual-post/LinkedInDocumentPreview';
-import YouTubeShortsPreview from '@/components/manual-post/YouTubeShortsPreview';
-import YouTubeVideoPreview from '@/components/manual-post/YouTubeVideoPreview';
-import TikTokPreview from '@/components/manual-post/TikTokPreview';
-import FacebookPreview from '@/components/manual-post/FacebookPreview';
-import GoogleBusinessPreview from '@/components/manual-post/GoogleBusinessPreview';
-import DraftsDialog from '@/components/manual-post/DraftsDialog';
-import SavedCaptionsDialog from '@/components/manual-post/SavedCaptionsDialog';
-import AICaptionDialog from '@/components/manual-post/AICaptionDialog';
+import { renderFormatPreview, getNetworkIcon } from '@/lib/manual-create/previewRenderer';
+import { MobileStickyActionBar } from '@/components/manual-post/steps/MobileStickyActionBar';
+import { ManualCreateModals } from '@/components/manual-post/steps/ManualCreateModals';
+import { Drawer, DrawerContent, DrawerHeader, DrawerTitle } from '@/components/ui/drawer';
+import { Smartphone, ChevronRight } from 'lucide-react';
 import { NetworkFormatSelector } from '@/components/manual-post/NetworkFormatSelector';
 import { getMediaRequirements, validateAllFormats, getValidationSummary, FormatValidationResult } from '@/lib/formatValidation';
 import { INSTAGRAM_CONFIG, LINKEDIN_CONFIG, FORMAT_TO_NETWORK, FORMAT_TO_ACCOUNT } from '@/types/publishing';
 import { PublishingOverlay } from '@/components/manual-post/PublishingOverlay';
-import { PublishProgressModal } from '@/components/publishing/PublishProgressModal';
 
 import { useSmartValidation } from '@/hooks/useSmartValidation';
-import { ValidationMobileBadge } from '@/components/manual-post/ValidationSidebar';
 import { usePublishWithProgress } from '@/hooks/usePublishWithProgress';
-import { DuplicateWarningDialog } from '@/components/publishing/DuplicateWarningDialog';
 
 import { generateCarouselPDF } from '@/lib/pdfGenerator';
 import EmojiPicker, { EmojiClickData } from 'emoji-picker-react';
-import { ImageCompressionConfirmModal } from '@/components/publishing/ImageCompressionConfirmModal';
-import { VideoValidationModal, VideoValidationIssue } from '@/components/publishing/VideoValidationModal';
+import { VideoValidationIssue } from '@/components/publishing/VideoValidationModal';
 import { getVideoDimensions, FORMAT_ASPECT_RATIOS, MAX_VIDEO_DURATION, MIN_RESOLUTIONS } from '@/lib/mediaValidation';
 import { useMediaManager } from '@/hooks/manual-create/useMediaManager';
 import { useStepper } from '@/hooks/manual-create/useStepper';
@@ -457,78 +442,11 @@ export default function ManualCreate() {
     }));
   }, [mediaPreviewUrls, mediaFiles]);
 
-  // Render preview for a format
-  const renderPreview = (format: PostFormat) => {
-    const network = getNetworkFromFormat(format);
-    
-    if (network === 'instagram') {
-      if (format === 'instagram_stories') {
-        return <InstagramStoryPreview mediaUrl={mediaPreviewUrls[0]} aspectRatioValid={true} />;
-      }
-      if (format === 'instagram_reel') {
-        return <InstagramReelPreview mediaUrl={mediaPreviewUrls[0]} caption={caption} />;
-      }
-      return <InstagramCarouselPreview mediaItems={mediaItems} caption={caption} />;
-    }
-    
-    if (network === 'linkedin') {
-      // Use document preview for linkedin_document, regular preview for linkedin_post
-      if (format === 'linkedin_document') {
-        return <LinkedInDocumentPreview mediaUrls={mediaPreviewUrls} mediaFiles={mediaFiles} caption={caption} />;
-      }
-      return <LinkedInPreview mediaUrls={mediaPreviewUrls} caption={caption} />;
-    }
-    
-    if (network === 'youtube') {
-      if (format === 'youtube_shorts') {
-        return <YouTubeShortsPreview mediaUrl={mediaPreviewUrls[0]} caption={caption} />;
-      }
-      return <YouTubeVideoPreview mediaUrl={mediaPreviewUrls[0]} caption={caption} />;
-    }
-    
-    if (network === 'tiktok') {
-      return <TikTokPreview mediaUrl={mediaPreviewUrls[0]} caption={caption} />;
-    }
-    
-    if (network === 'facebook') {
-      return <FacebookPreview 
-        mediaUrls={mediaPreviewUrls} 
-        caption={caption} 
-        format={format as 'facebook_image' | 'facebook_stories' | 'facebook_reel'} 
-      />;
-    }
-    
-    if (network === 'googlebusiness') {
-      return <GoogleBusinessPreview 
-        mediaUrls={mediaPreviewUrls} 
-        caption={caption} 
-        format={format as 'googlebusiness_post' | 'googlebusiness_media'} 
-      />;
-    }
-    
-    // Default preview for any other formats
-    return (
-      <div className="p-4 border rounded-lg bg-muted/30">
-        <p className="text-sm text-muted-foreground mb-2">Pré-visualização: {getFormatConfig(format)?.label}</p>
-        {mediaPreviewUrls.length > 0 && (
-          <img src={mediaPreviewUrls[0]} alt="Preview" className="rounded-lg max-h-64 mx-auto" />
-        )}
-        {caption && <p className="mt-3 text-sm whitespace-pre-wrap">{caption}</p>}
-      </div>
-    );
-  };
-
-  // Get icon for network
-  const getNetworkIcon = (network: string) => {
-    switch (network) {
-      case 'instagram': return Instagram;
-      case 'linkedin': return Linkedin;
-      case 'youtube': return Youtube;
-      case 'facebook': return Facebook;
-      case 'googlebusiness': return MapPin;
-      default: return FileText;
-    }
-  };
+  // Render preview delegated to extracted helper (Phase 4)
+  const renderPreview = useCallback(
+    (format: PostFormat) => renderFormatPreview(format, { caption, mediaFiles, mediaPreviewUrls, mediaItems }),
+    [caption, mediaFiles, mediaPreviewUrls, mediaItems],
+  );
 
   // State for mobile preview collapsed
   const [mobilePreviewOpen, setMobilePreviewOpen] = useState(false);
@@ -794,94 +712,23 @@ export default function ManualCreate() {
         />
       </div>
 
-      {/* Mobile Sticky Bottom Bar - Enhanced with progress indicator */}
-      <div className="fixed bottom-0 left-0 right-0 bg-background/98 backdrop-blur-md border-t shadow-[0_-4px_20px_-4px_rgba(0,0,0,0.15)] lg:hidden z-50 w-screen max-w-[100vw] overflow-hidden">
-        {/* Mini progress indicator - mais compacto */}
-        <div className="flex justify-center py-1 xs:py-1.5 border-b border-border/50">
-          <div className="flex items-center gap-1 xs:gap-1.5">
-            {[1, 2, 3].map((step) => (
-              <div
-                key={step}
-                className={cn(
-                  "h-1 xs:h-1.5 rounded-full transition-all duration-200",
-                  step <= currentStep ? "w-5 xs:w-6 bg-primary" : "w-1 xs:w-1.5 bg-muted-foreground/30"
-                )}
-              />
-            ))}
-          </div>
-        </div>
-        
-        {/* Scheduled preview - if date selected */}
-        {!scheduleAsap && scheduledDate && (
-          <div className="px-2 xs:px-4 py-1 xs:py-1.5 bg-blue-50 dark:bg-blue-950/30 text-center text-[10px] xs:text-xs text-blue-700 dark:text-blue-300 flex items-center justify-center gap-1 xs:gap-1.5">
-            <CalendarIcon className="h-3 w-3" />
-            <span>Agendado: {format(scheduledDate, "d MMM", { locale: pt })} às {time}</span>
-          </div>
-        )}
-        
-        {/* Validation badge - Mobile (only when formats selected) */}
-        {selectedFormats.length > 0 && (
-          <div className="flex justify-center py-0.5 xs:py-1">
-            <ValidationMobileBadge
-              validation={smartValidation}
-              onClick={() => setValidationSheetOpen(true)}
-            />
-          </div>
-        )}
-
-        {/* Action buttons - com safe area */}
-        <div className="p-2 xs:p-2.5 sm:p-3 pb-[calc(0.5rem+env(safe-area-inset-bottom))] xs:pb-[calc(0.625rem+env(safe-area-inset-bottom))] flex gap-2 xs:gap-2.5 sm:gap-3 w-full max-w-full">
-          <Button
-            type="button"
-            variant="outline"
-            size="icon"
-            onClick={handleSaveDraft}
-            disabled={saving || submitting || publishing}
-            className="h-11 w-11 xs:h-12 xs:w-12 sm:h-12 sm:w-12 flex-shrink-0"
-            aria-label="Guardar rascunho"
-          >
-            <Save className="h-5 w-5 xs:h-5 xs:w-5 sm:h-5 sm:w-5" />
-          </Button>
-          
-          <Button
-            type="button"
-            onClick={handlePublishWithValidation}
-            disabled={publishing || submitting || saving || isUploading || selectedFormats.length === 0}
-            className={cn(
-              "flex-1 h-11 xs:h-12 sm:h-12 font-semibold text-white press-effect text-sm xs:text-base",
-              !scheduleAsap && scheduledDate
-                ? "bg-gradient-to-r from-blue-600 to-blue-500 hover:from-blue-500 hover:to-blue-400"
-                : "bg-gradient-to-r from-green-600 to-green-500 hover:from-green-500 hover:to-green-400"
-            )}
-          >
-            {publishing ? (
-              <Loader2 className="h-5 w-5 animate-spin" />
-            ) : !scheduleAsap && scheduledDate ? (
-              <>
-                <CalendarIcon className="h-5 w-5 mr-2" />
-                <span>Agendar</span>
-              </>
-            ) : (
-              <>
-                <Rocket className="h-5 w-5 mr-2" />
-                <span>Publicar</span>
-              </>
-            )}
-          </Button>
-          
-          {/* Preview toggle for mobile */}
-          <Button 
-            type="button"
-            variant="outline" 
-            size="icon" 
-            onClick={() => setMobilePreviewOpen(true)}
-            className="h-11 w-11 xs:h-12 xs:w-12 sm:h-12 sm:w-12 flex-shrink-0"
-            aria-label="Pré-visualizar"
-          >
-            <Eye className="h-5 w-5" />
-          </Button>
-        </div>
-      </div>
+      {/* Mobile Sticky Bottom Bar (extracted) */}
+      <MobileStickyActionBar
+        currentStep={currentStep}
+        scheduleAsap={scheduleAsap}
+        scheduledDate={scheduledDate}
+        time={time}
+        selectedFormats={selectedFormats}
+        smartValidation={smartValidation}
+        onOpenValidationSheet={() => setValidationSheetOpen(true)}
+        onSaveDraft={handleSaveDraft}
+        onPublish={handlePublishWithValidation}
+        onOpenPreview={() => setMobilePreviewOpen(true)}
+        saving={saving}
+        submitting={submitting}
+        publishing={publishing}
+        isUploading={isUploading}
+      />
 
       {/* Mobile Preview Drawer */}
       <Drawer open={mobilePreviewOpen} onOpenChange={setMobilePreviewOpen}>
@@ -909,87 +756,53 @@ export default function ManualCreate() {
       </Drawer>
 
       <DevHelper />
-      
-      <DraftsDialog
-        open={draftsDialogOpen}
-        onOpenChange={setDraftsDialogOpen}
+
+      <ManualCreateModals
+        draftsDialogOpen={draftsDialogOpen}
+        setDraftsDialogOpen={setDraftsDialogOpen}
         onLoadDraft={handleLoadDraft}
-      />
-
-      <SavedCaptionsDialog
-        open={savedCaptionsOpen}
-        onOpenChange={setSavedCaptionsOpen}
-        currentCaption={caption}
-        onSelectCaption={setCaption}
-      />
-
-      <AICaptionDialog
-        open={aiDialogOpen}
-        onOpenChange={setAiDialogOpen}
-        currentCaption={caption}
-        onApplyCaption={setCaption}
-      />
-
-      {/* Image Compression Confirmation Modal */}
-      <ImageCompressionConfirmModal
-        {...compression.modalProps}
-        onClose={handleCancelCompression}
-        onConfirm={handleConfirmCompression}
-        onConfirmPublish={handleConfirmAndPublish}
-        totalMediaCount={mediaFiles.length}
-      />
-
-      {/* Video Validation Modal */}
-      <VideoValidationModal
-        open={videoValidationModalOpen}
-        onOpenChange={setVideoValidationModalOpen}
-        issues={videoValidationIssues}
-        onContinue={handleVideoValidationContinue}
-        onCancel={handleVideoValidationCancel}
-      />
-
-      {/* Publish Progress Modal with 2 phases */}
-      <PublishProgressModal
-        isOpen={publishing || (publishProgress.phase2.status !== 'idle' && publishProgress.phase2.status !== 'waiting')}
-        onClose={() => {
-          if (!publishing) {
-            resetProgress();
-            setIsCancellingPublish(false);
-          }
-        }}
-        progress={publishProgress}
+        savedCaptionsOpen={savedCaptionsOpen}
+        setSavedCaptionsOpen={setSavedCaptionsOpen}
+        caption={caption}
+        setCaption={setCaption}
+        aiDialogOpen={aiDialogOpen}
+        setAiDialogOpen={setAiDialogOpen}
+        compressionModalProps={compression.modalProps}
+        onCancelCompression={handleCancelCompression}
+        onConfirmCompression={handleConfirmCompression}
+        onConfirmAndPublish={handleConfirmAndPublish}
+        mediaFilesCount={mediaFiles.length}
+        videoValidationModalOpen={videoValidationModalOpen}
+        setVideoValidationModalOpen={setVideoValidationModalOpen}
+        videoValidationIssues={videoValidationIssues}
+        onVideoValidationContinue={handleVideoValidationContinue}
+        onVideoValidationCancel={handleVideoValidationCancel}
+        publishing={publishing}
+        publishProgress={publishProgress}
+        onResetProgress={resetProgress}
+        setIsCancellingPublish={setIsCancellingPublish}
         onCreateNew={handleCreateNew}
         onViewCalendar={handleViewCalendar}
         mediaFiles={mediaFiles}
-        caption={caption}
-        onCancel={handleCancelPublishing}
-        isCancelling={isCancellingPublish}
+        onCancelPublishing={handleCancelPublishing}
+        isCancellingPublish={isCancellingPublish}
+        duplicateWarning={duplicateWarning}
+        onClearDuplicate={() => {
+          setDuplicateWarning(null);
+          setPendingPublishParams(null);
+        }}
+        pendingPublishCaption={pendingPublishParams?.caption}
+        onConfirmDuplicate={async () => {
+          setDuplicateWarning(null);
+          if (pendingPublishParams) {
+            const result = await executePublish({ ...pendingPublishParams, skipDuplicateCheck: true });
+            setPendingPublishParams(null);
+            if (result === true) {
+              await refreshQuota();
+            }
+          }
+        }}
       />
-
-      {/* Duplicate Warning Dialog */}
-      {duplicateWarning && (
-        <DuplicateWarningDialog
-          open={!!duplicateWarning}
-          onOpenChange={(open) => {
-            if (!open) {
-              setDuplicateWarning(null);
-              setPendingPublishParams(null);
-            }
-          }}
-          duplicate={duplicateWarning}
-          caption={pendingPublishParams?.caption}
-          onConfirm={async () => {
-            setDuplicateWarning(null);
-            if (pendingPublishParams) {
-              const result = await executePublish({ ...pendingPublishParams, skipDuplicateCheck: true });
-              setPendingPublishParams(null);
-              if (result === true) {
-                await refreshQuota();
-              }
-            }
-          }}
-        />
-      )}
     </div>
   );
 }
