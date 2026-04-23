@@ -34,4 +34,25 @@ describe('captionValidator', () => {
     expect(setNetworkCaption).toHaveBeenCalledWith('tiktok', longCaption.slice(0, 300));
     expect(setCaption).not.toHaveBeenCalled();
   });
+
+  it('não acusa TikTok quando a legenda específica está dentro do limite', async () => {
+    const longCaption = 'Legenda completa. '.repeat(35);
+    const ctx: ValidatorContext = {
+      selectedFormats: ['instagram_reel', 'tiktok_video'],
+      caption: longCaption,
+      networkCaptions: {
+        instagram: longCaption,
+        tiktok: 'Legenda curta para TikTok.',
+      },
+      useSeparateCaptions: true,
+      mediaFiles: [],
+      hashtags: [],
+      scheduledDate: null,
+      scheduleAsap: true,
+    };
+
+    const issues = await captionValidator(ctx);
+
+    expect(issues.some((issue) => issue.id === 'caption:tiktok:over-length')).toBe(false);
+  });
 });

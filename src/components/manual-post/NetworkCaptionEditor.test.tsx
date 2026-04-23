@@ -65,4 +65,23 @@ describe('NetworkCaptionEditor', () => {
     expect(tiktokTextarea).toHaveValue(revisedTikTokCaption);
     expect((tiktokTextarea as HTMLTextAreaElement).value.length).toBeGreaterThan(300);
   });
+
+  it('preserva edições por rede ao alternar entre unificada e separadas', async () => {
+    const user = userEvent.setup();
+    const longCaption = 'Legenda original completa. '.repeat(20);
+    const tiktokCaption = 'Versão específica para TikTok com ajuste editorial.';
+
+    render(<CaptionHarness caption={longCaption} />);
+
+    await user.click(screen.getByRole('switch', { name: /unificada/i }));
+    fireEvent.change(screen.getByPlaceholderText('Legenda para TikTok...'), {
+      target: { value: tiktokCaption },
+    });
+
+    await user.click(screen.getByRole('switch', { name: /separadas/i }));
+    await user.click(screen.getByRole('switch', { name: /unificada/i }));
+
+    expect(screen.getByPlaceholderText('Legenda para TikTok...')).toHaveValue(tiktokCaption);
+    expect(screen.getByPlaceholderText('Legenda para Instagram...')).toHaveValue(longCaption);
+  });
 });
