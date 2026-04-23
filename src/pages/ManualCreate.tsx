@@ -7,14 +7,14 @@ import { MediaSource } from '@/types/media';
 import { usePublishingQuota } from '@/hooks/usePublishingQuota';
 import { CompactModeBadge } from '@/components/CompactModeBadge';
 import { DevHelper } from '@/components/DevHelper';
-import { Card, CardContent } from '@/components/ui/card';
+
 import { Button } from '@/components/ui/button';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
 import { toast } from 'sonner';
-import { Save, Calendar as CalendarIcon, ArrowLeft, Loader2, Smile, Bookmark, Sparkles, Info, Image, Video, AlertTriangle, ChevronDown, RefreshCw, X, Globe, CheckCircle2 } from 'lucide-react';
+import { Save, Calendar as CalendarIcon, ArrowLeft, Loader2, Smile, Bookmark, Sparkles, Info, Image, Video, ChevronDown, Globe, CheckCircle2 } from 'lucide-react';
 import { addDays, nextDay, format } from 'date-fns';
 import { pt } from 'date-fns/locale';
 import { cn } from '@/lib/utils';
