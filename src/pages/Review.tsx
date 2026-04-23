@@ -30,6 +30,7 @@ import { formatDistanceToNow } from 'date-fns';
 import { pt } from 'date-fns/locale';
 import { PublishTarget, PostType, PublishProgress } from '@/types/publishing';
 import { validateAllTargets } from '@/lib/publishingValidation';
+import { ValidationSummary, getFirstErrorMessage } from '@/components/publishing/ValidationSummary';
 import { usePublishingQuota } from '@/hooks/usePublishingQuota';
 import { useImagePrevalidation } from '@/hooks/useImagePrevalidation';
 import { logger } from '@/lib/logger';
