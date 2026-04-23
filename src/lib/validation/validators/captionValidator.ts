@@ -2,6 +2,13 @@ import { ValidatorContext, ValidationIssue } from '../types';
 import { getNetworkFromFormat } from '@/types/social';
 import { NETWORK_CONSTRAINTS, NETWORK_INFO } from '@/lib/socialNetworks';
 
+function getCaptionForNetwork(ctx: ValidatorContext, network: string): string {
+  if (ctx.useSeparateCaptions && Object.prototype.hasOwnProperty.call(ctx.networkCaptions ?? {}, network)) {
+    return ctx.networkCaptions?.[network] ?? '';
+  }
+  return ctx.caption;
+}
+
 /**
  * Validates caption length and hashtag count per network.
  * Provides auto-fixes when the caption can be safely truncated.
@@ -13,7 +20,8 @@ export async function captionValidator(
   const networks = new Set(ctx.selectedFormats.map(f => getNetworkFromFormat(f)));
 
   // LinkedIn requires a caption — even minimal — to publish successfully.
-  if (networks.has('linkedin') && !ctx.caption.trim()) {
+  const linkedinCaption = getCaptionForNetwork(ctx, 'linkedin');
+  if (networks.has('linkedin') && !linkedinCaption.trim()) {
     issues.push({
       id: 'caption:linkedin:empty',
       severity: 'error',
@@ -31,29 +39,30 @@ export async function captionValidator(
     const constraints = NETWORK_CONSTRAINTS[network];
     if (!constraints) return;
     const networkLabel = NETWORK_INFO[network]?.name ?? network;
+    const networkCaption = getCaptionForNetwork(ctx, network);
 
     // Caption length error
-    if (ctx.caption.length > constraints.max_caption_length) {
-      const overshoot = ctx.caption.length - constraints.max_caption_length;
+    if (networkCaption.length > constraints.max_caption_length) {
+      const overshoot = networkCaption.length - constraints.max_caption_length;
       issues.push({
         id: `caption:${network}:over-length`,
         severity: 'error',
         category: 'caption',
         platform: network,
         title: `Legenda excede limite (${networkLabel})`,
-        description: `Tens ${ctx.caption.length} caracteres — máximo ${constraints.max_caption_length}. Excedido em ${overshoot}.`,
-        autoFixable: !!ctx.fixHelpers?.setCaption,
+        description: `Tens ${networkCaption.length} caracteres — máximo ${constraints.max_caption_length}. Excedido em ${overshoot}.`,
+        autoFixable: !!(ctx.useSeparateCaptions ? ctx.fixHelpers?.setNetworkCaption : ctx.fixHelpers?.setCaption),
         fixLabel: `Cortar para ${constraints.max_caption_length} caracteres`,
         fixAction: () => {
-          ctx.fixHelpers?.setCaption?.(
-            ctx.caption.slice(0, constraints.max_caption_length),
-          );
+          const next = networkCaption.slice(0, constraints.max_caption_length);
+          if (ctx.useSeparateCaptions) ctx.fixHelpers?.setNetworkCaption?.(network, next);
+          else ctx.fixHelpers?.setCaption?.(next);
         },
       });
     }
 
     // Links in non-supporting platforms (warning)
-    if (!constraints.supports_links_in_caption && /https?:\/\//i.test(ctx.caption)) {
+    if (!constraints.supports_links_in_caption && /https?:\/\//i.test(networkCaption)) {
       issues.push({
         id: `caption:${network}:links-not-clickable`,
         severity: 'warning',
@@ -66,8 +75,12 @@ export async function captionValidator(
   });
 
   // Hashtag count (Instagram limit of 30)
-  const hashtagsInCaption = (ctx.caption.match(/#\w+/g) || []).length;
-  const totalHashtags = hashtagsInCaption + ctx.hashtags.length;
+  const instagramCaption = getCaptionForNetwork(ctx, 'instagram');
+  const hashtagsInCaption = instagramCaption.match(/#\w+/g) || [];
+  const totalHashtags = new Set([
+    ...ctx.hashtags.map(tag => tag.replace(/^#/, '').toLowerCase()),
+    ...hashtagsInCaption.map(tag => tag.replace(/^#/, '').toLowerCase()),
+  ]).size;
   const hasInstagram = networks.has('instagram');
 
   if (hasInstagram && totalHashtags > 30) {

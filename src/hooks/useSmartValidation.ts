@@ -14,6 +14,8 @@ import {
 interface UseSmartValidationParams {
   selectedFormats: PostFormat[];
   caption: string;
+  networkCaptions?: Record<string, string>;
+  useSeparateCaptions?: boolean;
   mediaFiles: File[];
   hashtags: string[];
   scheduledDate: Date | null;
@@ -38,6 +40,8 @@ export function useSmartValidation(
   const {
     selectedFormats,
     caption,
+    networkCaptions = {},
+    useSeparateCaptions = false,
     mediaFiles,
     hashtags,
     scheduledDate,
@@ -58,26 +62,33 @@ export function useSmartValidation(
   const fixHelpersRef = useRef(fixHelpers);
   fixHelpersRef.current = fixHelpers;
 
-  // Auto-extract inline hashtags from the caption so the captionValidator can
-  // detect IG's 30-tag soft limit even when the parent doesn't track a separate
-  // hashtags array.
+  const captionCorpus = useMemo(
+    () => (useSeparateCaptions ? Object.values(networkCaptions).join('\n') : caption),
+    [caption, networkCaptions, useSeparateCaptions],
+  );
+
+  // Auto-extract inline hashtags from the active caption corpus so the
+  // captionValidator can detect IG's 30-tag soft limit even when the parent
+  // doesn't track a separate hashtags array.
   const effectiveHashtags = useMemo(() => {
-    const inline = caption.match(/#\w+/g) || [];
+    const inline = captionCorpus.match(/#\w+/g) || [];
     const merged = [...hashtags, ...inline.map(h => h.replace(/^#/, ''))];
     return Array.from(new Set(merged));
-  }, [caption, hashtags]);
+  }, [captionCorpus, hashtags]);
 
   const ctxBase = useMemo<Omit<ValidatorContext, 'signal' | 'fixHelpers'>>(
     () => ({
       selectedFormats,
       caption,
+      networkCaptions,
+      useSeparateCaptions,
       mediaFiles,
       hashtags: effectiveHashtags,
       scheduledDate,
       scheduleAsap,
       userId,
     }),
-    [selectedFormats, caption, mediaFiles, effectiveHashtags, scheduledDate, scheduleAsap, userId],
+    [selectedFormats, caption, networkCaptions, useSeparateCaptions, mediaFiles, effectiveHashtags, scheduledDate, scheduleAsap, userId],
   );
 
   const cacheKey = useMemo(

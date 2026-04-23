@@ -56,6 +56,12 @@ export function buildValidationCacheKey(ctx: ValidatorContext): string {
     formats: [...ctx.selectedFormats].sort(),
     captionLen: ctx.caption.length,
     captionHead: ctx.caption.slice(0, 100),
+    useSeparateCaptions: !!ctx.useSeparateCaptions,
+    networkCaptions: Object.fromEntries(
+      Object.entries(ctx.networkCaptions ?? {})
+        .sort(([a], [b]) => a.localeCompare(b))
+        .map(([network, value]) => [network, { len: value.length, head: value.slice(0, 100) }]),
+    ),
     hashtagsCount: ctx.hashtags.length,
     hashtagsHead: ctx.hashtags.slice(0, 10).join(','),
     asap: ctx.scheduleAsap,
