@@ -3,7 +3,8 @@ import { format } from 'date-fns';
 import { toast } from 'sonner';
 import { supabase } from '@/integrations/supabase/client';
 import { generateSafeStoragePath } from '@/lib/fileNameSanitizer';
-import { PostFormat } from '@/types/social';
+import { extractVideoFrame } from '@/lib/media/videoFrameExtractor';
+import { getNetworkFromFormat, PostFormat } from '@/types/social';
 import { ValidationSummary } from '@/lib/validation/types';
 import type { useImageCompression } from './useImageCompression';
 import type { usePublishWithProgress } from '@/hooks/usePublishWithProgress';
@@ -14,6 +15,14 @@ type CompressionApi = ReturnType<typeof useImageCompression>;
 type QuotaApi = ReturnType<typeof usePublishingQuota>;
 type DuplicateInfo = { id: string; created_at: string; selected_networks: string[] | null; status: string | null };
 type PublishParams = Parameters<ExecutePublish>[0];
+type DraftMediaItem = { url: string; type: 'image' | 'video'; thumbnail_url?: string | null; name?: string };
+
+const getDraftPlatform = (format: PostFormat) => format;
+
+const getDraftCaption = (format: PostFormat, caption: string, networkCaptions: Record<string, string>, useSeparateCaptions: boolean) => {
+  const network = getNetworkFromFormat(format);
+  return useSeparateCaptions && networkCaptions[network] ? networkCaptions[network] : caption;
+};
 
 interface OrchestratorParams {
   // Inputs (lidos a cada chamada)
