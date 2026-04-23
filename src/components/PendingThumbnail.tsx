@@ -102,7 +102,7 @@ export function PendingThumbnail({
               className="h-full w-full object-cover transition-transform group-hover:scale-105"
               onError={() => setImgError(true)}
             />
-          ))
+          )
         ) : (
           <div className="flex h-full w-full items-center justify-center bg-muted">
             <FallbackIcon className="h-8 w-8 text-muted-foreground/60" />
