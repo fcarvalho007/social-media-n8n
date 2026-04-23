@@ -351,13 +351,11 @@ function PlatformStatusRow({
           <div className="flex gap-2 mt-2">
             {(structuredError.code === 'ACCOUNT_ERROR' || structuredError.code === 'TOKEN_EXPIRED') && (
               <a
-                href="https://getlate.dev/accounts"
-                target="_blank"
-                rel="noopener noreferrer"
+                href="/quota-settings"
                 className="inline-flex items-center gap-1 text-xs px-2 py-1 rounded bg-primary/10 text-primary hover:bg-primary/20 transition-colors"
               >
                 <ExternalLink className="h-3 w-3" />
-                Abrir Getlate.dev
+                Reconectar conta
               </a>
             )}
             {structuredError.code === 'MEDIA_ERROR' && (

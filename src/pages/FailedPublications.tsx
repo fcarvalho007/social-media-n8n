@@ -434,6 +434,7 @@ const FailedPublications = () => {
                               postId: post.id,
                               platform: post.selected_networks?.[0],
                             }}
+                            onOpenAccountSettings={() => navigate('/quota-settings')}
                           />
                         </div>
                       )}
