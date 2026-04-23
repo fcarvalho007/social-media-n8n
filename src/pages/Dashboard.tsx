@@ -110,13 +110,18 @@ export default function Dashboard() {
               </div>
             ) : (
               <>
-                <div className="grid grid-cols-3 sm:grid-cols-4 lg:grid-cols-6 gap-3">
+                <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3">
                   {pendingItems.map((item) => (
                     <PendingThumbnail
                       key={`${item.type}-${item.id}`}
                       id={item.id}
                       type={item.type}
                       thumbnail={item.thumbnail}
+                      mediaType={item.mediaType}
+                      mediaCount={item.mediaCount}
+                      caption={item.caption}
+                      createdAt={item.createdAt}
+                      scheduledDate={item.scheduledDate}
                       route={item.route}
                       onNavigate={navigate}
                     />
