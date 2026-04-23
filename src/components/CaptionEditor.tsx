@@ -149,10 +149,40 @@ export const CaptionEditor = ({
           <Label htmlFor="caption" className="text-sm sm:text-base font-semibold">
             Legenda
           </Label>
-          <div className="flex items-center gap-2">
-            <span className={`text-xs sm:text-sm ${caption.length > maxCaptionLength ? 'text-destructive font-medium' : 'text-muted-foreground'}`}>
+          <div className="flex items-center gap-2 flex-wrap">
+            <span
+              className={cn(
+                'text-xs sm:text-sm tabular-nums',
+                caption.length > maxCaptionLength
+                  ? 'text-destructive font-medium'
+                  : caption.length > maxCaptionLength * 0.9
+                  ? 'text-amber-500 font-medium'
+                  : 'text-muted-foreground'
+              )}
+              aria-live="polite"
+            >
               {caption.length}/{maxCaptionLength}
             </span>
+            {(() => {
+              const matches = caption.match(/#[\w\u00C0-\u017F]+/g);
+              const count = matches ? matches.length : 0;
+              const colorClass =
+                count > maxHashtags
+                  ? 'text-destructive font-medium'
+                  : count > maxHashtags * 0.66
+                  ? 'text-amber-500 font-medium'
+                  : 'text-muted-foreground';
+              return (
+                <span
+                  className={cn('text-xs sm:text-sm tabular-nums inline-flex items-center gap-0.5', colorClass)}
+                  aria-live="polite"
+                  title={`${count} hashtag(s) na legenda`}
+                >
+                  <Hash className="h-3 w-3" />
+                  {count}/{maxHashtags}
+                </span>
+              );
+            })()}
             <Button
               type="button"
               variant="outline"
@@ -208,9 +238,19 @@ export const CaptionEditor = ({
           id="caption"
           value={caption}
           onChange={(e) => setCaption(e.target.value)}
-          className="min-h-[150px] sm:min-h-[200px] resize-none text-sm sm:text-base"
-          placeholder="Escreva a sua legenda do Instagram aqui... Adicione hashtags diretamente no texto ou clique nas recomendadas abaixo."
+          aria-invalid={caption.length > maxCaptionLength}
+          className={cn(
+            'min-h-[150px] sm:min-h-[200px] resize-none text-sm sm:text-base',
+            caption.length > maxCaptionLength && 'border-destructive focus-visible:ring-destructive'
+          )}
+          placeholder="Escreva a sua legenda aqui... Adicione hashtags diretamente no texto ou clique nas recomendadas abaixo."
         />
+        {caption.length > maxCaptionLength && (
+          <p className="text-xs text-destructive font-medium" role="alert">
+            Excede o limite {caption_limit_label} em {caption.length - maxCaptionLength} caracter
+            {caption.length - maxCaptionLength === 1 ? '' : 'es'}.
+          </p>
+        )}
       </div>
 
       {suggestedHashtags.length > 0 && (
