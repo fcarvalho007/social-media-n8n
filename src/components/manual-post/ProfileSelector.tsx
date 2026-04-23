@@ -28,9 +28,11 @@ export function ProfileSelector({ selectedNetworks, onNetworksChange }: ProfileS
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) return;
 
+      // Defesa em profundidade: nunca puxar access_token / refresh_token para o cliente.
+      // RLS já restringe ao próprio user, mas excluímos colunas sensíveis explicitamente.
       const { data, error } = await supabase
         .from('social_profiles')
-        .select('*')
+        .select('id, user_id, network, profile_name, profile_handle, profile_image_url, connection_status, token_expires_at, profile_metadata, created_at, updated_at')
         .eq('user_id', user.id)
         .order('created_at', { ascending: true });
 
