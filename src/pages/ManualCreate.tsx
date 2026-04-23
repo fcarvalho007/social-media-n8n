@@ -59,14 +59,17 @@ import { useSmartValidation } from '@/hooks/useSmartValidation';
 import { ValidationSidebar, ValidationMobileBadge } from '@/components/manual-post/ValidationSidebar';
 import { usePublishWithProgress } from '@/hooks/usePublishWithProgress';
 import { DuplicateWarningDialog } from '@/components/publishing/DuplicateWarningDialog';
-import { EnhancedSortableMediaItem, MediaDragOverlay } from '@/components/manual-post/EnhancedSortableMediaItem';
+import { EnhancedSortableMediaItem, MediaDragOverlay, type AspectRatioType } from '@/components/manual-post/EnhancedSortableMediaItem';
+
+const VALID_ASPECT_RATIOS = new Set<AspectRatioType>(['1:1', '3:4', '4:5', '4:3', '16:9', '9:16', 'auto']);
+const toAspectRatio = (v: string | undefined): AspectRatioType | undefined =>
+  v && VALID_ASPECT_RATIOS.has(v as AspectRatioType) ? (v as AspectRatioType) : undefined;
 import { NetworkCaptionEditor } from '@/components/manual-post/NetworkCaptionEditor';
 import { DragHintTooltip } from '@/components/manual-post/DragHintTooltip';
 import { DndContext, closestCenter, DragEndEvent, DragStartEvent, PointerSensor, KeyboardSensor, TouchSensor, useSensor, useSensors, DragOverlay } from '@dnd-kit/core';
 import { SortableContext, arrayMove, horizontalListSortingStrategy, sortableKeyboardCoordinates } from '@dnd-kit/sortable';
 import { generateCarouselPDF } from '@/lib/pdfGenerator';
 import EmojiPicker, { EmojiClickData } from 'emoji-picker-react';
-import { detectOversizedImages, compressOversizedFiles, OversizedImage } from '@/lib/canvas/imageCompression';
 import { ImageCompressionConfirmModal } from '@/components/publishing/ImageCompressionConfirmModal';
 import { VideoValidationModal, VideoValidationIssue } from '@/components/publishing/VideoValidationModal';
 import { getVideoDimensions, FORMAT_ASPECT_RATIOS, MAX_VIDEO_DURATION, MIN_RESOLUTIONS } from '@/lib/mediaValidation';
@@ -74,67 +77,10 @@ import { useMediaManager } from '@/hooks/manual-create/useMediaManager';
 import { useStepper } from '@/hooks/manual-create/useStepper';
 import { useDraftRecovery } from '@/hooks/manual-create/useDraftRecovery';
 import { useMediaUpload } from '@/hooks/manual-create/useMediaUpload';
+import { useImageCompression } from '@/hooks/manual-create/useImageCompression';
 import { detectImageAspectRatio as detectImageAspectRatioExt, detectVideoAspectRatio as detectVideoAspectRatioExt } from '@/hooks/manual-create/mediaAspectDetection';
-
-// Extract first frame from video file
-async function extractVideoFrame(videoFile: File | string): Promise<File> {
-  return new Promise((resolve, reject) => {
-    const video = document.createElement('video');
-    video.crossOrigin = 'anonymous';
-    video.preload = 'metadata';
-    
-    const cleanup = () => {
-      if (typeof videoFile !== 'string') {
-        URL.revokeObjectURL(video.src);
-      }
-    };
-    
-    video.onloadeddata = () => {
-      video.currentTime = 0.5; // Get frame at 0.5s for better thumbnail
-    };
-    
-    video.onseeked = () => {
-      try {
-        const canvas = document.createElement('canvas');
-        canvas.width = video.videoWidth || 1280;
-        canvas.height = video.videoHeight || 720;
-        const ctx = canvas.getContext('2d');
-        if (!ctx) {
-          cleanup();
-          reject(new Error('Could not get canvas context'));
-          return;
-        }
-        ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
-        canvas.toBlob(
-          blob => {
-            cleanup();
-            if (blob) {
-              const fileName = typeof videoFile === 'string' 
-                ? 'video-frame.jpg' 
-                : videoFile.name.replace(/\.[^.]+$/, '-frame.jpg');
-              resolve(new File([blob], fileName, { type: 'image/jpeg' }));
-            } else {
-              reject(new Error('Could not create blob from canvas'));
-            }
-          },
-          'image/jpeg',
-          0.9
-        );
-      } catch (err) {
-        cleanup();
-        reject(err);
-      }
-    };
-    
-    video.onerror = () => {
-      cleanup();
-      reject(new Error('Could not load video'));
-    };
-    
-    video.src = typeof videoFile === 'string' ? videoFile : URL.createObjectURL(videoFile);
-    video.load();
-  });
-}
+// `extractVideoFrame` foi consolidado em '@/lib/media/videoFrameExtractor'.
+// Este componente já não o usava localmente.
 
 // Aspect-ratio helpers were moved to '@/hooks/manual-create/mediaAspectDetection'.
 // Local aliases keep call sites unchanged inside this file.
@@ -185,14 +131,9 @@ export default function ManualCreate() {
     removeMedia,
   } = mediaManager;
 
-  // Compression confirmation state
-  const [compressionModalOpen, setCompressionModalOpen] = useState(false);
-  const [oversizedImages, setOversizedImages] = useState<OversizedImage[]>([]);
-  const [isCompressing, setIsCompressing] = useState(false);
-  const [compressionProgress, setCompressionProgress] = useState<{ current: number; total: number; fileName: string } | undefined>();
-  const [compressionStep, setCompressionStep] = useState<'warning' | 'compressing' | 'confirmation'>('warning');
-  const [compressionResults, setCompressionResults] = useState<{ originalSizeMB: number; finalSizeMB: number; qualityUsed: number; wasResized: boolean }[]>([]);
-  const [pendingCompressedFiles, setPendingCompressedFiles] = useState<File[]>([]);
+  // Image compression flow (oversized images for Instagram).
+  // Encapsulated in a single hook — see `useImageCompression`.
+  const compression = useImageCompression({ maxSizeMB: 4 });
 
   // Publishing hook with 2-phase progress
   const { 
@@ -208,7 +149,7 @@ export default function ManualCreate() {
   
   // Duplicate detection state
   const [duplicateWarning, setDuplicateWarning] = useState<{ id: string; created_at: string; selected_networks: string[] | null; status: string | null } | null>(null);
-  const [pendingPublishParams, setPendingPublishParams] = useState<any>(null);
+  const [pendingPublishParams, setPendingPublishParams] = useState<Parameters<typeof executePublish>[0] | null>(null);
 
   // Auto-save hook
   const { lastSaved, isSaving: isAutoSaving, hasUnsavedChanges } = useAutoSave({
@@ -377,7 +318,7 @@ export default function ManualCreate() {
     } else if (!selectedFormats.includes(activePreviewTab as PostFormat)) {
       setActivePreviewTab(selectedFormats[0]);
     }
-  }, [selectedFormats]);
+  }, [selectedFormats, activePreviewTab]);
 
   // Progressive disclosure logic
   const showStep2 = selectedFormats.length > 0;
@@ -472,7 +413,16 @@ export default function ManualCreate() {
       else if (primaryFormat.startsWith('linkedin_')) platform = 'linkedin';
       else platform = primaryFormat;
 
-      const draftData: any = {
+      const draftData: {
+        user_id: string;
+        platform: string;
+        caption: string;
+        media_urls: string[];
+        scheduled_date: string | null;
+        scheduled_time: string | null;
+        publish_immediately: boolean;
+        status: 'draft';
+      } = {
         user_id: user.id,
         platform,
         caption: useSeparateCaptions && networkCaptions[platform.replace('_carrousel', '')] 
@@ -534,30 +484,31 @@ export default function ManualCreate() {
           }
         }
       }
-    } catch (error: any) {
+    } catch (error: unknown) {
+      const err = error as { message?: string; code?: string; statusCode?: number; details?: string; hint?: string; name?: string; stack?: string };
       console.error('[handleSaveDraft] Error details:', {
-        message: error?.message,
-        code: error?.code,
-        statusCode: error?.statusCode,
-        details: error?.details,
-        hint: error?.hint,
-        name: error?.name,
-        stack: error?.stack,
+        message: err?.message,
+        code: err?.code,
+        statusCode: err?.statusCode,
+        details: err?.details,
+        hint: err?.hint,
+        name: err?.name,
+        stack: err?.stack,
       });
       
-      if (error?.message?.includes('uuid')) {
+      if (err?.message?.includes('uuid')) {
         toast.error('Erro interno. O rascunho será guardado como novo.');
         setCurrentDraftId(null);
-      } else if (error?.message?.includes('JWT') || error?.message?.includes('session') || error?.code === 'PGRST301') {
+      } else if (err?.message?.includes('JWT') || err?.message?.includes('session') || err?.code === 'PGRST301') {
         toast.error('Sessão expirada. Por favor, faça login novamente.');
-      } else if (error?.message?.includes('storage') || error?.message?.includes('bucket') || error?.statusCode === 413) {
+      } else if (err?.message?.includes('storage') || err?.message?.includes('bucket') || err?.statusCode === 413) {
         toast.error('Erro no upload. Verifique o tamanho dos ficheiros (máx 50MB).');
-      } else if (error?.message?.includes('timeout') || error?.code === 'ETIMEDOUT') {
+      } else if (err?.message?.includes('timeout') || err?.code === 'ETIMEDOUT') {
         toast.error('Ligação lenta. Tente novamente com ficheiros mais pequenos.');
-      } else if (error?.statusCode === 403) {
+      } else if (err?.statusCode === 403) {
         toast.error('Sem permissão para guardar. Contacte o suporte.');
       } else {
-        toast.error(`Erro ao guardar: ${error?.message || 'Verifique a sua ligação.'}`);
+        toast.error(`Erro ao guardar: ${err?.message || 'Verifique a sua ligação.'}`);
       }
     } finally {
       setSaving(false);
@@ -702,7 +653,7 @@ export default function ManualCreate() {
       const postData = {
         user_id: user.id,
         post_type: primaryFormat.includes('carousel') ? 'carousel' : primaryFormat.includes('video') || primaryFormat.includes('reel') ? 'video' : 'image',
-        selected_networks: selectedNetworks as any,
+        selected_networks: selectedNetworks,
         caption,
         linkedin_body: useSeparateCaptions && networkCaptions.linkedin ? networkCaptions.linkedin : null,
         scheduled_date: scheduledDate?.toISOString() || null,
@@ -785,12 +736,8 @@ export default function ManualCreate() {
     // Check for oversized images (> 4MB) - only for Instagram
     const instagramSelected = selectedNetworks.includes('instagram');
     if (instagramSelected && !filesToPublish) {
-      const oversized = detectOversizedImages(files, 4);
-      if (oversized.length > 0) {
-        setOversizedImages(oversized);
-        setCompressionModalOpen(true);
-        return; // Wait for user confirmation
-      }
+      const triggered = compression.requestCompressionIfNeeded(files);
+      if (triggered) return; // Wait for user confirmation in modal
     }
 
     // Log quota info for reference only - Getlate.dev is the sole authority for quota limits
@@ -828,80 +775,18 @@ export default function ManualCreate() {
     }
   };
 
-  // Handle compression confirmation - Step 1: Start compression
-  const handleConfirmCompression = async () => {
-    setIsCompressing(true);
-    setCompressionStep('compressing');
-    
-    try {
-      const indicesToCompress = oversizedImages.map(img => img.index);
-      
-      const { files: compressedFiles, results } = await compressOversizedFiles(
-        mediaFiles,
-        indicesToCompress,
-        4,
-        (current, total, fileName) => {
-          setCompressionProgress({ current, total, fileName });
-        }
-      );
-      
-      // Store results for confirmation step (DON'T close modal yet)
-      setPendingCompressedFiles(compressedFiles);
-      setCompressionResults(results);
-      setIsCompressing(false);
-      
-      // Move to confirmation step
-      setCompressionStep('confirmation');
-      
-    } catch (error) {
-      console.error('[ManualCreate] Compression failed:', error);
-      toast.error('Erro ao comprimir imagens');
-      setIsCompressing(false);
-      setCompressionProgress(undefined);
-      setCompressionStep('warning');
-    }
-  };
+  // Compression flow handlers — delegated to `useImageCompression`.
+  // The hook owns state; this component owns side-effects (mediaFiles update,
+  // chained publish call) that depend on local closures.
+  const handleConfirmCompression = () => compression.runCompression(mediaFiles);
 
-  // Handle compression confirmation - Step 2: Confirm and publish
   const handleConfirmAndPublish = async () => {
-    // Update media files with compressed versions
-    setMediaFiles(pendingCompressedFiles);
-    
-    // Close modal and reset state
-    setCompressionModalOpen(false);
-    setOversizedImages([]);
-    setCompressionStep('warning');
-    setCompressionResults([]);
-    setCompressionProgress(undefined);
-    
-    // Show success message
-    const totalSaved = compressionResults.reduce((acc, r) => acc + (r.originalSizeMB - r.finalSizeMB), 0);
-    toast.success(`${compressionResults.length} imagem(ns) comprimida(s)`, {
-      description: `Poupou ${totalSaved.toFixed(1)}MB`
-    });
-    
-    // Continue with publishing using compressed files
-    await handlePublishNow(pendingCompressedFiles);
-    
-    // Clear pending files after publishing started
-    setPendingCompressedFiles([]);
+    const compressed = compression.acceptCompressedFiles();
+    setMediaFiles(compressed);
+    await handlePublishNow(compressed);
   };
 
-  const handleCancelCompression = () => {
-    if (!isCompressing) {
-      // If in confirmation step, go back to warning
-      if (compressionStep === 'confirmation') {
-        setCompressionStep('warning');
-        setCompressionResults([]);
-        setPendingCompressedFiles([]);
-      } else {
-        // Close completely
-        setCompressionModalOpen(false);
-        setOversizedImages([]);
-        setCompressionStep('warning');
-      }
-    }
-  };
+  const handleCancelCompression = () => compression.cancel();
 
   // Handlers for progress modal
   const handleCreateNew = () => {
@@ -1337,7 +1222,7 @@ export default function ManualCreate() {
                                 isVideo={isVideo}
                                 disabled={saving || submitting || publishing}
                                 source={mediaSources[idx]}
-                                aspectRatio={mediaAspectRatios[idx] as any}
+                                aspectRatio={toAspectRatio(mediaAspectRatios[idx])}
                                 onRemove={() => removeMedia(idx)}
                                 onMoveUp={() => moveMedia(idx, idx - 1)}
                                 onMoveDown={() => moveMedia(idx, idx + 1)}
@@ -2046,15 +1931,10 @@ export default function ManualCreate() {
 
       {/* Image Compression Confirmation Modal */}
       <ImageCompressionConfirmModal
-        open={compressionModalOpen}
+        {...compression.modalProps}
         onClose={handleCancelCompression}
         onConfirm={handleConfirmCompression}
         onConfirmPublish={handleConfirmAndPublish}
-        oversizedImages={oversizedImages}
-        isCompressing={isCompressing}
-        compressionProgress={compressionProgress}
-        step={compressionStep}
-        compressionResults={compressionResults}
         totalMediaCount={mediaFiles.length}
       />
 

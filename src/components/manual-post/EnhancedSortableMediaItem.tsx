@@ -8,7 +8,7 @@ import { MediaSource } from '@/types/media';
 import { Dialog, DialogContent, DialogTitle } from '@/components/ui/dialog';
 import { useState } from 'react';
 
-type AspectRatioType = '1:1' | '3:4' | '4:5' | '4:3' | '16:9' | '9:16' | 'auto';
+export type AspectRatioType = '1:1' | '3:4' | '4:5' | '4:3' | '16:9' | '9:16' | 'auto';
 
 interface EnhancedSortableMediaItemProps {
   id: string;
