@@ -1,28 +1,15 @@
-import { useState, useRef, useMemo, useCallback, useEffect } from 'react';
-import { generateSafeStoragePath } from '@/lib/fileNameSanitizer';
+import { useState, useRef, useMemo, useCallback } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
-import { supabase } from '@/integrations/supabase/client';
-import { PostFormat, getNetworkFromFormat, getFormatConfig } from '@/types/social';
-import { MediaSource } from '@/types/media';
+import { PostFormat, getNetworkFromFormat } from '@/types/social';
 import { usePublishingQuota } from '@/hooks/usePublishingQuota';
 import { CompactModeBadge } from '@/components/CompactModeBadge';
 import { DevHelper } from '@/components/DevHelper';
 
 import { Button } from '@/components/ui/button';
-import { Label } from '@/components/ui/label';
-import { Textarea } from '@/components/ui/textarea';
-import { Input } from '@/components/ui/input';
-import { Badge } from '@/components/ui/badge';
 import { toast } from 'sonner';
-import { Save, Calendar as CalendarIcon, ArrowLeft, Loader2, Smile, Bookmark, Sparkles, Info, Image, Video, ChevronDown, Globe, CheckCircle2 } from 'lucide-react';
-import { addDays, nextDay, format } from 'date-fns';
-import { pt } from 'date-fns/locale';
+import { ArrowLeft } from 'lucide-react';
 import { cn } from '@/lib/utils';
-import { Progress } from '@/components/ui/progress';
 import { StepProgress } from '@/components/manual-post/StepProgress';
-import { HashtagPicker } from '@/components/manual-post/HashtagPicker';
-import { SectionHelp, getSectionTooltip } from '@/components/manual-post/SectionHelp';
-import { MediaWarning } from '@/components/manual-post/NoAccountsState';
 import { useAutoSave } from '@/hooks/useAutoSave';
 import { validateMedia, MediaValidationResult } from '@/lib/mediaValidation';
 import { renderFormatPreview, getNetworkIcon } from '@/lib/manual-create/previewRenderer';
@@ -33,17 +20,12 @@ import { ManualCreateModals } from '@/components/manual-post/steps/ManualCreateM
 import { Drawer, DrawerContent, DrawerHeader, DrawerTitle } from '@/components/ui/drawer';
 import { Smartphone, ChevronRight } from 'lucide-react';
 import { NetworkFormatSelector } from '@/components/manual-post/NetworkFormatSelector';
-import { getMediaRequirements, validateAllFormats, getValidationSummary, FormatValidationResult } from '@/lib/formatValidation';
-import { INSTAGRAM_CONFIG, LINKEDIN_CONFIG, FORMAT_TO_NETWORK, FORMAT_TO_ACCOUNT } from '@/types/publishing';
+import { getMediaRequirements } from '@/lib/formatValidation';
 import { PublishingOverlay } from '@/components/manual-post/PublishingOverlay';
 
 import { useSmartValidation } from '@/hooks/useSmartValidation';
 import { usePublishWithProgress } from '@/hooks/usePublishWithProgress';
 
-import { generateCarouselPDF } from '@/lib/pdfGenerator';
-import EmojiPicker, { EmojiClickData } from 'emoji-picker-react';
-import { VideoValidationIssue } from '@/components/publishing/VideoValidationModal';
-import { getVideoDimensions, FORMAT_ASPECT_RATIOS, MAX_VIDEO_DURATION, MIN_RESOLUTIONS } from '@/lib/mediaValidation';
 import { useMediaManager } from '@/hooks/manual-create/useMediaManager';
 import { useStepper } from '@/hooks/manual-create/useStepper';
 import { useDraftRecovery } from '@/hooks/manual-create/useDraftRecovery';
