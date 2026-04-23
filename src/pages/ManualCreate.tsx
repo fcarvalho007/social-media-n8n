@@ -97,8 +97,7 @@ export default function ManualCreate() {
   const [scheduledDate, setScheduledDate] = useState<Date>();
   const [time, setTime] = useState('12:00');
   const [scheduleAsap, setScheduleAsap] = useState(true);
-  const [saving, setSaving] = useState(false);
-  const [submitting, setSubmitting] = useState(false);
+  // `saving` e `submitting` são agora geridos por `usePublishOrchestrator` (Fase 2).
   const [draftsDialogOpen, setDraftsDialogOpen] = useState(false);
   const [savedCaptionsOpen, setSavedCaptionsOpen] = useState(false);
   const [aiDialogOpen, setAiDialogOpen] = useState(false);
