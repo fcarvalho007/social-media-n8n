@@ -1,5 +1,6 @@
 import { Card } from '@/components/ui/card';
 import { Heart, MessageCircle, Bookmark, Share2, Music2, Plus, Play } from 'lucide-react';
+import { NETWORK_CONSTRAINTS } from '@/lib/socialNetworks';
 
 interface TikTokPreviewProps {
   mediaUrl?: string;
@@ -7,7 +8,7 @@ interface TikTokPreviewProps {
 }
 
 export default function TikTokPreview({ mediaUrl, caption }: TikTokPreviewProps) {
-  const maxCaptionLength = 2200;
+  const maxCaptionLength = NETWORK_CONSTRAINTS.tiktok.max_caption_length;
 
   // Extract hashtags from caption
   const hashtags = caption.match(/#\w+/g) || [];

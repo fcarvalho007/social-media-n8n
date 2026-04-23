@@ -2,6 +2,12 @@ import { ValidatorContext, ValidationIssue } from '../types';
 import { validateAllFormats } from '@/lib/formatValidation';
 import { getNetworkFromFormat, getFormatConfig } from '@/types/social';
 
+const CAPTION_VALIDATION_MESSAGES = [
+  'Legenda excede',
+  'Links não são clicáveis',
+  'Muitas hashtags',
+];
+
 /**
  * Wraps the legacy `validateAllFormats` (count, requiresVideo/Image, PDF size...)
  * into the unified ValidationIssue model. Errors block publication.
@@ -29,7 +35,9 @@ export async function formatValidator(
     const config = getFormatConfig(format as any);
     const label = config?.label ?? format;
 
-    result.errors.forEach((msg, idx) => {
+    result.errors
+      .filter((msg) => !CAPTION_VALIDATION_MESSAGES.some((captionMsg) => msg.startsWith(captionMsg)))
+      .forEach((msg, idx) => {
       issues.push({
         id: `format:${format}:err:${idx}:${msg.slice(0, 24)}`,
         severity: 'error',
@@ -41,7 +49,9 @@ export async function formatValidator(
       });
     });
 
-    result.warnings.forEach((msg, idx) => {
+    result.warnings
+      .filter((msg) => !CAPTION_VALIDATION_MESSAGES.some((captionMsg) => msg.startsWith(captionMsg)))
+      .forEach((msg, idx) => {
       issues.push({
         id: `format:${format}:warn:${idx}:${msg.slice(0, 24)}`,
         severity: 'warning',

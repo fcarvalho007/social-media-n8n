@@ -13,6 +13,8 @@ import GoogleBusinessPreview from '@/components/manual-post/GoogleBusinessPrevie
 
 export interface PreviewRendererContext {
   caption: string;
+  networkCaptions?: Record<string, string>;
+  useSeparateCaptions?: boolean;
   mediaFiles: File[];
   mediaPreviewUrls: string[];
   mediaItems: Array<{ url: string; isVideo: boolean }>;
@@ -23,42 +25,43 @@ export interface PreviewRendererContext {
  * Extracted from ManualCreate.tsx (Phase 4) — pure presentation, no side-effects.
  */
 export function renderFormatPreview(format: PostFormat, ctx: PreviewRendererContext) {
-  const { caption, mediaFiles, mediaPreviewUrls, mediaItems } = ctx;
+  const { caption, networkCaptions, useSeparateCaptions, mediaFiles, mediaPreviewUrls, mediaItems } = ctx;
   const network = getNetworkFromFormat(format);
+  const previewCaption = useSeparateCaptions ? networkCaptions?.[network] ?? caption : caption;
 
   if (network === 'instagram') {
     if (format === 'instagram_stories') {
       return <InstagramStoryPreview mediaUrl={mediaPreviewUrls[0]} aspectRatioValid={true} />;
     }
     if (format === 'instagram_reel') {
-      return <InstagramReelPreview mediaUrl={mediaPreviewUrls[0]} caption={caption} />;
+      return <InstagramReelPreview mediaUrl={mediaPreviewUrls[0]} caption={previewCaption} />;
     }
-    return <InstagramCarouselPreview mediaItems={mediaItems} caption={caption} />;
+    return <InstagramCarouselPreview mediaItems={mediaItems} caption={previewCaption} />;
   }
 
   if (network === 'linkedin') {
     if (format === 'linkedin_document') {
-      return <LinkedInDocumentPreview mediaUrls={mediaPreviewUrls} mediaFiles={mediaFiles} caption={caption} />;
+      return <LinkedInDocumentPreview mediaUrls={mediaPreviewUrls} mediaFiles={mediaFiles} caption={previewCaption} />;
     }
-    return <LinkedInPreview mediaUrls={mediaPreviewUrls} caption={caption} />;
+    return <LinkedInPreview mediaUrls={mediaPreviewUrls} caption={previewCaption} />;
   }
 
   if (network === 'youtube') {
     if (format === 'youtube_shorts') {
-      return <YouTubeShortsPreview mediaUrl={mediaPreviewUrls[0]} caption={caption} />;
+      return <YouTubeShortsPreview mediaUrl={mediaPreviewUrls[0]} caption={previewCaption} />;
     }
-    return <YouTubeVideoPreview mediaUrl={mediaPreviewUrls[0]} caption={caption} />;
+    return <YouTubeVideoPreview mediaUrl={mediaPreviewUrls[0]} caption={previewCaption} />;
   }
 
   if (network === 'tiktok') {
-    return <TikTokPreview mediaUrl={mediaPreviewUrls[0]} caption={caption} />;
+    return <TikTokPreview mediaUrl={mediaPreviewUrls[0]} caption={previewCaption} />;
   }
 
   if (network === 'facebook') {
     return (
       <FacebookPreview
         mediaUrls={mediaPreviewUrls}
-        caption={caption}
+        caption={previewCaption}
         format={format as 'facebook_image' | 'facebook_stories' | 'facebook_reel'}
       />
     );
@@ -68,7 +71,7 @@ export function renderFormatPreview(format: PostFormat, ctx: PreviewRendererCont
     return (
       <GoogleBusinessPreview
         mediaUrls={mediaPreviewUrls}
-        caption={caption}
+        caption={previewCaption}
         format={format as 'googlebusiness_post' | 'googlebusiness_media'}
       />
     );
@@ -80,7 +83,7 @@ export function renderFormatPreview(format: PostFormat, ctx: PreviewRendererCont
       {mediaPreviewUrls.length > 0 && (
         <img src={mediaPreviewUrls[0]} alt="Preview" className="rounded-lg max-h-64 mx-auto" />
       )}
-      {caption && <p className="mt-3 text-sm whitespace-pre-wrap">{caption}</p>}
+      {previewCaption && <p className="mt-3 text-sm whitespace-pre-wrap">{previewCaption}</p>}
     </div>
   );
 }

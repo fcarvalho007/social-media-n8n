@@ -1,30 +1,17 @@
-import { useState, useRef, useMemo, useCallback, useEffect } from 'react';
-import { generateSafeStoragePath } from '@/lib/fileNameSanitizer';
+import { useState, useRef, useMemo, useCallback } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
-import { supabase } from '@/integrations/supabase/client';
-import { PostFormat, getNetworkFromFormat, getFormatConfig } from '@/types/social';
-import { MediaSource } from '@/types/media';
+import { PostFormat, getNetworkFromFormat } from '@/types/social';
 import { usePublishingQuota } from '@/hooks/usePublishingQuota';
 import { CompactModeBadge } from '@/components/CompactModeBadge';
 import { DevHelper } from '@/components/DevHelper';
 
 import { Button } from '@/components/ui/button';
-import { Label } from '@/components/ui/label';
-import { Textarea } from '@/components/ui/textarea';
-import { Input } from '@/components/ui/input';
-import { Badge } from '@/components/ui/badge';
 import { toast } from 'sonner';
-import { Save, Calendar as CalendarIcon, ArrowLeft, Loader2, Smile, Bookmark, Sparkles, Info, Image, Video, ChevronDown, Globe, CheckCircle2 } from 'lucide-react';
-import { addDays, nextDay, format } from 'date-fns';
-import { pt } from 'date-fns/locale';
+import { ArrowLeft } from 'lucide-react';
 import { cn } from '@/lib/utils';
-import { Progress } from '@/components/ui/progress';
 import { StepProgress } from '@/components/manual-post/StepProgress';
-import { HashtagPicker } from '@/components/manual-post/HashtagPicker';
-import { SectionHelp, getSectionTooltip } from '@/components/manual-post/SectionHelp';
-import { MediaWarning } from '@/components/manual-post/NoAccountsState';
 import { useAutoSave } from '@/hooks/useAutoSave';
-import { validateMedia, MediaValidationResult } from '@/lib/mediaValidation';
+import { MediaValidationResult } from '@/lib/mediaValidation';
 import { renderFormatPreview, getNetworkIcon } from '@/lib/manual-create/previewRenderer';
 import { RecoveryBanner } from '@/components/manual-post/steps/RecoveryBanner';
 import { QuotaWarningBanner } from '@/components/manual-post/steps/QuotaWarningBanner';
@@ -33,17 +20,11 @@ import { ManualCreateModals } from '@/components/manual-post/steps/ManualCreateM
 import { Drawer, DrawerContent, DrawerHeader, DrawerTitle } from '@/components/ui/drawer';
 import { Smartphone, ChevronRight } from 'lucide-react';
 import { NetworkFormatSelector } from '@/components/manual-post/NetworkFormatSelector';
-import { getMediaRequirements, validateAllFormats, getValidationSummary, FormatValidationResult } from '@/lib/formatValidation';
-import { INSTAGRAM_CONFIG, LINKEDIN_CONFIG, FORMAT_TO_NETWORK, FORMAT_TO_ACCOUNT } from '@/types/publishing';
-import { PublishingOverlay } from '@/components/manual-post/PublishingOverlay';
+import { getMediaRequirements } from '@/lib/formatValidation';
 
 import { useSmartValidation } from '@/hooks/useSmartValidation';
 import { usePublishWithProgress } from '@/hooks/usePublishWithProgress';
 
-import { generateCarouselPDF } from '@/lib/pdfGenerator';
-import EmojiPicker, { EmojiClickData } from 'emoji-picker-react';
-import { VideoValidationIssue } from '@/components/publishing/VideoValidationModal';
-import { getVideoDimensions, FORMAT_ASPECT_RATIOS, MAX_VIDEO_DURATION, MIN_RESOLUTIONS } from '@/lib/mediaValidation';
 import { useMediaManager } from '@/hooks/manual-create/useMediaManager';
 import { useStepper } from '@/hooks/manual-create/useStepper';
 import { useDraftRecovery } from '@/hooks/manual-create/useDraftRecovery';
@@ -78,7 +59,6 @@ export default function ManualCreate() {
   const [draftsDialogOpen, setDraftsDialogOpen] = useState(false);
   const [savedCaptionsOpen, setSavedCaptionsOpen] = useState(false);
   const [aiDialogOpen, setAiDialogOpen] = useState(false);
-  const [emojiPickerOpen, setEmojiPickerOpen] = useState(false);
   const [activePreviewTab, setActivePreviewTab] = useState<string>('');
   const [mediaValidations, setMediaValidations] = useState<MediaValidationResult[]>([]);
   // Separate captions per network
@@ -130,6 +110,8 @@ export default function ManualCreate() {
   // Auto-save hook
   const { lastSaved, isSaving: isAutoSaving, hasUnsavedChanges } = useAutoSave({
     caption,
+    networkCaptions,
+    useSeparateCaptions,
     selectedFormats,
     mediaUrls: mediaPreviewUrls,
     scheduledDate: scheduledDate?.toISOString(),
@@ -185,8 +167,6 @@ export default function ManualCreate() {
     setRecoveredPostId,
     currentDraftId,
     setCurrentDraftId,
-    fetchImageAsFile,
-    loadPostForRecovery,
     handleLoadDraft,
   } = recovery;
 
@@ -222,15 +202,6 @@ export default function ManualCreate() {
     handleVideoValidationCancel,
   } = upload;
 
-
-  // Compute validations
-  const validations = useMemo(() => {
-    if (selectedFormats.length === 0) return {} as Record<PostFormat, FormatValidationResult>;
-    return validateAllFormats(selectedFormats, caption, mediaFiles);
-  }, [selectedFormats, caption, mediaFiles]);
-
-  const validationSummary = useMemo(() => getValidationSummary(validations), [validations]);
-
   // Mobile bottom-sheet state for the validation panel
   const [validationSheetOpen, setValidationSheetOpen] = useState(false);
 
@@ -255,32 +226,6 @@ export default function ManualCreate() {
     },
   });
 
-  // Handle emoji insertion
-  const handleEmojiClick = (emojiData: EmojiClickData) => {
-    const emoji = emojiData.emoji;
-    const textarea = textareaRef.current;
-    
-    if (textarea) {
-      const start = textarea.selectionStart;
-      const end = textarea.selectionEnd;
-      const newCaption = caption.slice(0, start) + emoji + caption.slice(end);
-      
-      if (newCaption.length <= mediaRequirements.maxCaptionLength) {
-        setCaption(newCaption);
-        setTimeout(() => {
-          textarea.focus();
-          textarea.setSelectionRange(start + emoji.length, start + emoji.length);
-        }, 0);
-      }
-    } else {
-      const newCaption = caption + emoji;
-      if (newCaption.length <= mediaRequirements.maxCaptionLength) {
-        setCaption(newCaption);
-      }
-    }
-    setEmojiPickerOpen(false);
-  };
-
   const maxLength = mediaRequirements.maxCaptionLength;
   const captionLength = caption.length;
 
@@ -289,6 +234,18 @@ export default function ManualCreate() {
     const networks = new Set(selectedFormats.map(f => getNetworkFromFormat(f)));
     return Array.from(networks);
   }, [selectedFormats]);
+
+  const ensureNetworkCaptions = useCallback(() => {
+    setNetworkCaptions((prev) => {
+      const next = { ...prev };
+      selectedNetworks.forEach((network) => {
+        if (!Object.prototype.hasOwnProperty.call(next, network)) {
+          next[network] = caption;
+        }
+      });
+      return next;
+    });
+  }, [caption, selectedNetworks]);
 
   // Update active preview tab when formats change
   useMemo(() => {
@@ -304,11 +261,6 @@ export default function ManualCreate() {
   // Progressive disclosure logic
   const showStep2 = selectedFormats.length > 0;
   const showStep3 = mediaFiles.length >= (mediaRequirements.minMedia || 1);
-  
-  // Check if can advance to next step
-  const canAdvanceToStep2 = selectedFormats.length > 0;
-  const canAdvanceToStep3 = mediaFiles.length >= (mediaRequirements.minMedia || 1);
-
   // Step auto-advance + navigation now provided by useStepper hook above.
   // (currentStep, visitedSteps, setCurrentStep, setVisitedSteps, goToStep,
   //  nextStep, previousStep are all destructured from `stepper`.)
@@ -451,8 +403,8 @@ export default function ManualCreate() {
 
   // Render preview delegated to extracted helper (Phase 4)
   const renderPreview = useCallback(
-    (format: PostFormat) => renderFormatPreview(format, { caption, mediaFiles, mediaPreviewUrls, mediaItems }),
-    [caption, mediaFiles, mediaPreviewUrls, mediaItems],
+    (format: PostFormat) => renderFormatPreview(format, { caption, networkCaptions, useSeparateCaptions, mediaFiles, mediaPreviewUrls, mediaItems }),
+    [caption, networkCaptions, useSeparateCaptions, mediaFiles, mediaPreviewUrls, mediaItems],
   );
 
   // State for mobile preview collapsed
@@ -586,11 +538,7 @@ export default function ManualCreate() {
               onToggleSeparate={(value) => {
                 setUseSeparateCaptions(value);
                 if (value) {
-                  const initial: Record<string, string> = {};
-                  selectedNetworks.forEach(network => {
-                    initial[network] = networkCaptions[network] ?? caption;
-                  });
-                  setNetworkCaptions(initial);
+                  ensureNetworkCaptions();
                 }
               }}
               captionLength={captionLength}

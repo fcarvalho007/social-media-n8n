@@ -3,6 +3,8 @@ import { PostFormat } from '@/types/social';
 
 interface AutoSaveData {
   caption: string;
+  networkCaptions?: Record<string, string>;
+  useSeparateCaptions?: boolean;
   selectedFormats: PostFormat[];
   mediaUrls: string[];
   scheduledDate?: string;
@@ -64,7 +66,8 @@ export function useAutoSave(
     const currentDataStr = JSON.stringify(currentData);
     
     // Skip if nothing to save or data hasn't changed
-    if (!currentData.caption && currentData.selectedFormats.length === 0 && currentData.mediaUrls.length === 0) {
+    const hasNetworkCaptions = Object.values(currentData.networkCaptions ?? {}).some((value) => value.trim().length > 0);
+    if (!currentData.caption && !hasNetworkCaptions && currentData.selectedFormats.length === 0 && currentData.mediaUrls.length === 0) {
       return;
     }
     
@@ -129,6 +132,8 @@ export function useAutoSave(
         const parsed = JSON.parse(saved);
         return {
           caption: parsed.caption || '',
+          networkCaptions: parsed.networkCaptions || {},
+          useSeparateCaptions: parsed.useSeparateCaptions || false,
           selectedFormats: parsed.selectedFormats || [],
           mediaUrls: parsed.mediaUrls || [],
           scheduledDate: parsed.scheduledDate,
