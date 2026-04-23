@@ -1,137 +1,94 @@
 
 
-## Plano de Segurança — corrigir 9 findings sem quebrar funcionalidades
+## Correção — Thumbnails de Vídeo no Modal de Publicação
 
-### Resumo dos riscos
+### Problema
 
-| # | Finding | Severidade | Impacto funcional do fix |
-|---|---|---|---|
-| 1 | E-mails de utilizadores expostos publicamente (`profiles`) | 🔴 Erro | Nenhum — frontend só lê `id`, `full_name`, `avatar_url` |
-| 2 | Tokens OAuth de redes sociais expostos (`social_profiles`) | 🔴 Erro | Nenhum — edge functions usam service-role |
-| 3 | `idempotency_keys` com policy `USING (true)` | 🟡 Aviso | Nenhum — só edge functions escrevem (service-role bypass RLS) |
-| 4 | ~28 policies `public_*` com `USING (true)` em posts/projects/tasks/etc. | 🟡 Aviso | Nenhum — policies user-scoped já cobrem o fluxo real |
-| 5 | Extensão no schema `public` | 🟡 Aviso | Nenhum |
-| 6 | Leaked Password Protection desligado | 🟡 Aviso | Nenhum — projecto usa passwordless (não há signup com password) |
-| 7-9 | Vulnerabilidades em dependências (crit/high/medium) | 🔴/🟡/ℹ️ | A confirmar com `bun audit` local — algumas exigem `bun update` |
+No `PublishProgressModal`, secção "Download do Conteúdo" / grelha de Ficheiros (linhas 683-751 de `src/components/publishing/PublishProgressModal.tsx`):
 
----
+1. **Vídeos não geram thumbnail** — apenas mostram um ícone genérico `<Video />` num fundo cinzento, perdendo a identificação visual de cada clip (no screenshot vê-se 2 placeholders cinza entre 8 ficheiros).
+2. **Bug secundário em imagens**: `URL.createObjectURL()` é chamado dentro do `.map()` (executa em cada render) e revogado no `onLoad`, o que pode partir o `<img>` em re-renders (ex.: quando `progress` ou `currentMessage` mudam durante a publicação).
 
-### Fase 1 — RLS crítico (`profiles` + `social_profiles`)
+### Solução
 
-**1.1 `profiles` — esconder e-mails de anónimos.**
+**1. Pré-computar previews uma vez por ficheiro** com `useEffect` + `useState`:
+- Para imagens: criar `URL.createObjectURL(file)` e revogar no cleanup do efeito (não no `onLoad`).
+- Para vídeos: usar `extractVideoFrameUrl(file)` (já existe em `src/lib/media/videoFrameExtractor.ts`) para extrair o frame ~0.5s, e revogar o blob URL resultante no cleanup.
+- Guardar resultado em `previews: { url: string | null; isVideo: boolean }[]` (índice = índice do ficheiro).
 
-Substituir a policy "Users can view all profiles" (`USING true`, role `public`) por duas policies authenticated-only:
+**2. Estado de loading por thumbnail**:
+- Enquanto a extração não termina (vídeos demoram ~100-300ms), mostrar um skeleton com `<Loader2 className="animate-spin" />` em vez do ícone estático.
+- Se a extração falhar (vídeo corrompido / codec não-suportado), fallback para o ícone `<Video />` actual.
 
-```sql
-DROP POLICY "Users can view all profiles" ON public.profiles;
+**3. UI dos vídeos com thumbnail**:
+- Quando `previews[idx].url` existir, renderizar `<img src={url} className="object-cover" />` igual às imagens.
+- Manter o badge `<Video />` no canto inferior direito para distinguir de imagens fixas.
+- Adicionar um pequeno ícone de play (▶) sobreposto no centro com fundo semitransparente para reforçar que é vídeo.
 
-CREATE POLICY "Authenticated users can view profile basics"
-  ON public.profiles FOR SELECT TO authenticated
-  USING (true);  -- ainda permite ver outros utilizadores (necessário para assignees)
+### Detalhes técnicos
+
+Ficheiro único alterado: `src/components/publishing/PublishProgressModal.tsx`
+
+```tsx
+// novo: extractVideoFrameUrl + useEffect
+const [previews, setPreviews] = useState<({ url: string; isVideo: boolean } | null)[]>([]);
+
+useEffect(() => {
+  let cancelled = false;
+  const created: string[] = [];
+  
+  (async () => {
+    const next = await Promise.all(
+      mediaFiles.map(async (file) => {
+        const isVideo = file.type.startsWith('video/');
+        try {
+          const url = isVideo
+            ? await extractVideoFrameUrl(file)
+            : URL.createObjectURL(file);
+          created.push(url);
+          return { url, isVideo };
+        } catch {
+          return null; // fallback para ícone
+        }
+      })
+    );
+    if (!cancelled) setPreviews(next);
+  })();
+  
+  return () => {
+    cancelled = true;
+    created.forEach(URL.revokeObjectURL);
+  };
+}, [mediaFiles]);
 ```
 
-Adicionalmente, alterar `useProfiles.ts` para usar `select('id, full_name, avatar_url')` em vez de `select('*')` — defesa em profundidade. O e-mail só é lido em `UserManagement` (admin-only) e na UI do próprio user.
+No `.map()` da grelha (linha 689), substituir o ramo `isVideo` por:
+- Se `previews[idx]?.url` existe → `<img src={previews[idx].url} />` + badge `<Video />` + ícone play central.
+- Se `previews[idx]` é `null` (falha) → ícone `<Video />` actual.
+- Se `previews[idx]` é `undefined` (ainda a carregar) → `<Loader2 className="animate-spin" />`.
 
-Resultado: anónimos deixam de poder fazer scrape de e-mails; o picker de assignees, avatars e UserManagement continuam a funcionar.
+Para imagens, usar igualmente `previews[idx].url` (deixa de criar+revogar no render).
 
-**1.2 `social_profiles` — não devolver tokens ao browser.**
-
-Alterar `ProfileSelector.tsx` para `select('id, network, profile_name, profile_handle, profile_image_url, connection_status, token_expires_at, profile_metadata, user_id, created_at, updated_at')` — explicitamente sem `access_token` nem `refresh_token`. Adicionalmente, criar uma view `public.social_profiles_safe` exposta sem as colunas sensíveis e revogar SELECT directo aos campos token.
-
-A RLS já está correta (`auth.uid() = user_id`); este fix é **defesa em profundidade** caso outro código futuro faça `select('*')`.
-
-### Fase 2 — Limpeza de policies `public_*` (~28 redundantes)
-
-Tabelas afectadas: `posts`, `posts_drafts`, `projects`, `tasks`, `task_dependencies`, `task_milestones`, `milestones`, `stories`.
-
-Cada uma destas tabelas tem **dois conjuntos de policies**:
-- Conjunto A — user-scoped correto (`auth.uid() = user_id`, etc.)
-- Conjunto B — `public_read_*` / `public_insert_*` / `public_update_*` / `public_delete_*` com `USING (true)` para role `public` (anon + authenticated)
-
-O conjunto B foi adicionado para debug e neutraliza completamente o A. **Remover apenas o conjunto B**. Todas as queries do frontend já usam sessão autenticada e o conjunto A cobre o fluxo real (verificado em `useProjects`, `useTasks`, `usePosts`, etc.).
-
-```sql
--- Exemplo (repete-se para cada tabela acima)
-DROP POLICY IF EXISTS public_read_posts ON public.posts;
-DROP POLICY IF EXISTS public_delete_posts ON public.posts;
-DROP POLICY IF EXISTS debug_allow_all ON public.posts;
--- ... etc
-```
-
-### Fase 3 — `idempotency_keys` restrito a service-role
-
-```sql
-DROP POLICY "Service role full access" ON public.idempotency_keys;
-
-CREATE POLICY "Service role only - read"
-  ON public.idempotency_keys FOR SELECT TO service_role USING (true);
-CREATE POLICY "Service role only - write"
-  ON public.idempotency_keys FOR ALL TO service_role
-  USING (true) WITH CHECK (true);
-```
-
-Edge functions já usam `SUPABASE_SERVICE_ROLE_KEY` e `service_role` bypassa RLS para writes; mantemos a policy explícita por clareza. `anon` e `authenticated` perdem qualquer acesso — não há código frontend que toque na tabela.
-
-### Fase 4 — Auth & Schema housekeeping
-
-**4.1 Leaked Password Protection.** Ativar via `configure_auth({ password_hibp_enabled: true })`. Sem impacto: o projecto usa magic-link (passwordless) para a whitelist `comunicacao@fredericocarvalho.pt` etc.
-
-**4.2 Extension in Public.** Migrar a extensão (provavelmente `pg_net` ou `pg_cron`) do schema `public` para `extensions`:
-```sql
-ALTER EXTENSION pg_net SET SCHEMA extensions;
-```
-(Sem alterações de código — funções qualificam-se na ligação.)
-
-**4.3 Public Bucket Listing (4 ocorrências).** Os buckets `pdfs`, `post-covers`, `ai-generated-images`, `publications` estão `public`. O scanner avisa que qualquer um pode listar **nomes** de ficheiros (não acede ao conteúdo se não tiver URL). Como os ficheiros são partilhados por URL público (links em IG/LI), restringir LIST à `authenticated` mantém URLs directos a funcionar:
-
-```sql
-CREATE POLICY "Authenticated list only" ON storage.objects
-  FOR SELECT TO authenticated
-  USING (bucket_id IN ('pdfs','post-covers','ai-generated-images','publications'));
-DROP POLICY <existing public list policy> ON storage.objects;
-```
-Ou então documentar como aceitável (ficheiros já são intencionalmente públicos via URL). **Recomendação:** restringir LIST mas manter GET público.
-
-### Fase 5 — Dependências vulneráveis
-
-`bun audit` / `npm audit` não funcionam no sandbox (registry privado retorna 404). Plano:
-
-5.1. Identificar dependências com CVEs conhecidos no `package.json` actual via `npm view <pkg>` direcionado (alvos prováveis: `vite`, `esbuild`, `path-to-regexp`, `axios`, `cookie`).
-5.2. Correr `bun update <pacote>` para minor/patch bumps que **não** sejam major.
-5.3. Para majors com breaking changes (ex: `vite 5 → 6`), **não actualizar** sem migração dedicada.
-5.4. Após a Fase 5, listar resultado e marcar findings como `mark_as_fixed` ou `update_details`.
-
----
-
-### Plano de execução
-
-1. **Migração SQL** (Fases 1-4): uma única migração consolidada com `BEGIN/COMMIT`. Aprovação automática via tool de migrações.
-2. **Edits frontend** (Fase 1.1, 1.2): `useProfiles.ts`, `ProfileSelector.tsx`.
-3. **`configure_auth`** para HIBP (Fase 4.1).
-4. **Updates de dependências** (Fase 5) — separado, com `add_dependency` direcionado.
-5. **Re-scan** com `security--run_security_scan` + `mark_as_fixed` para os internal_ids resolvidos.
+Manter intacto:
+- Toda a lógica de `downloadSingleFile` no click.
+- Indicador `+N` na 9ª célula quando há mais de 9 ficheiros.
+- Markup do modal restante.
 
 ### Checkpoint
 
-☐ Policy `Users can view all profiles` substituída — anónimos não veem profiles  
-☐ `useProfiles` selecciona apenas colunas seguras  
-☐ `ProfileSelector` selecciona apenas colunas não-sensíveis de `social_profiles`  
-☐ Policy `Service role full access` em `idempotency_keys` restrita a `service_role`  
-☐ ~28 policies `public_*` e `debug_allow_all` removidas  
-☐ Extensão movida para schema `extensions`  
-☐ HIBP password protection ligado  
-☐ Buckets storage com LIST restrito a `authenticated`  
-☐ Dependências críticas/high actualizadas (minor/patch)  
-☐ `bun run build:dev` passa  
-☐ Testes Vitest 14/14 verdes  
-☐ `tsc --noEmit` 0 erros  
-☐ Re-scan de segurança: 0 críticos, ≤2 avisos restantes  
-☐ Funcionalidades validadas: criar post, ver assignees, publicar IG/LI, agendar, recuperar rascunho
+☐ Vídeos mostram primeiro frame (~0.5s) como thumbnail no modal de publicação concluída
+☐ Estado de loading visível durante extração (~100-300ms por vídeo)
+☐ Fallback para ícone `<Video />` se extração falhar
+☐ Badge `<Video />` mantido no canto para distinguir tipo
+☐ Imagens já não fazem revoke no `onLoad` (sem flicker em re-renders)
+☐ Object URLs revogados correctamente no cleanup do efeito (sem memory leak)
+☐ Click na thumbnail continua a fazer download do ficheiro original
+☐ `npx tsc --noEmit` 0 erros
+☐ Testes Vitest 14/14 verdes
 
 ### Fora do escopo
 
-- Encriptação at-rest dos tokens OAuth (requer infra Vault/PGSodium)
-- 2FA para o painel admin
-- Auditoria de ataque a edge functions (rate-limiting, JWT validation pormenorizada)
-- Rotação automática de tokens expirados (já existe `token_expires_at` mas refresh manual)
+- Cache de frames entre publicações (extracção é rápida e única por sessão)
+- Player de vídeo embebido no modal
+- Aplicar o mesmo padrão a outros modais (`PublishCompletedModal`, `FinalReviewModal`) — prompt dedicado se necessário
 
