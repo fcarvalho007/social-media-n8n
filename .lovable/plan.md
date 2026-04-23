@@ -1,90 +1,81 @@
 
 
-## Auditoria do Refactor de `ManualCreate.tsx`
+## Auditoria pós-Fase 3 — o que falta e o que vale melhorar
 
-### Estado actual mensurável
+### Estado actual
 
-| Métrica | Original | Após Fase 1 | Após Fase 2 | Após Fase 3 (parcial) | Meta final |
-|---|---|---|---|---|---|
-| `ManualCreate.tsx` | ~2801 linhas | ~1994 | ~1633 | **1289** | ~700 |
-| Hooks extraídos | 0 | 6 | 7 | 7 | 7 |
-| Componentes em `steps/` | 0 | 0 | 0 | **3 / 5** | 5 |
-| `npx tsc --noEmit` | — | ✅ | ✅ | **✅ 0 erros** | ✅ |
-| `bun run build:dev` | — | ✅ | ✅ | **✅ 20.3s** | ✅ |
-| ESLint nos novos ficheiros | — | — | — | **✅ 0 erros** | ✅ |
-
-### Fase 1 — Extracção de hooks · ✅ COMPLETA
-
-7 hooks bem isolados em `src/hooks/manual-create/`:
-- `mediaAspectDetection.ts` (75) — detecção de aspect ratio
-- `useStepper.ts` (69) — wizard 1→2→3
-- `useMediaManager.ts` (129) — DnD reorder + remoção
-- `useImageCompression.ts` (204) — modal Instagram >4MB
-- `useMediaUpload.ts` (308) — upload + validação vídeo
-- `useDraftRecovery.ts` (339) — recuperação via `?recover=`
-- Total: **1124 linhas** organizadas e testáveis isoladamente
-
-### Fase 2 — Orquestrador de publicação · ✅ COMPLETA
-
-- `usePublishOrchestrator.ts` (520 linhas) — encapsula `saveDraft`, `submitForApproval` e `publishNow` com detecção de duplicados, modal de progresso e reset de quota
-- Integração limpa em `ManualCreate.tsx` via `handleSaveDraft`/`handleSubmitWithValidation`/`handlePublishWithValidation`
-
-### Fase 3 — Decomposição de JSX · 🟡 PARCIAL (3 de 5)
-
-**Concluído:**
-- ✅ `Step3CaptionCard.tsx` (85) — integrado em `ManualCreate.tsx:953`
-- ✅ `Step3ScheduleCard.tsx` (291) — integrado em `ManualCreate.tsx:979`
-- ✅ `PublishActionsCard.tsx` (179) — integrado em `ManualCreate.tsx:990`
-
-**Por extrair (~500 linhas ainda inline):**
-- ☐ `Step2MediaCard.tsx` — ~245 linhas (`ManualCreate.tsx:701-946`) — upload + DnD do carrossel + GridSplitter
-- ☐ `PreviewPanel.tsx` — ~250 linhas (`ManualCreate.tsx:1010-1062` + drawer mobile 1154-1203) — Tabs com 9 previews
-
-### Pendências detectadas
-
-1. **3 erros ESLint pré-existentes em `useDraftRecovery.ts`** (linhas 112, 116, 241): `Unexpected any`. Vêm da Fase 1, não foram introduzidos agora. Devem ser tipados com `Json[]` ou interfaces concretas.
-
-2. **Duplicação de `renderPreview()` no JSX inline** — chamado 3 vezes (linhas 1024, 1049, 1171, 1196). Quando extrairmos o `PreviewPanel`, esta lógica fica num único sítio.
-
-3. **Imports órfãos potenciais** — `Tabs`, `TabsContent`, `TabsList`, `TabsTrigger`, `Drawer*`, `Smartphone`, vários ícones de redes sociais e os 9 imports de `*Preview` ainda estão em `ManualCreate.tsx` mas só servem o painel de preview. Migram com a Fase 3 final.
-
-4. **Bundle continua monolítico** (`index-*.js: 4.18 MB`) — não é objectivo desta fase, mas o aviso aparece no build. Candidato natural a `React.lazy` em prompt futuro.
-
-### Veredicto
-
-| Fase | Estado | Qualidade |
+| Métrica | Valor | Avaliação |
 |---|---|---|
-| Fase 1 | ✅ Completa | Boa, com 3 `any` por limpar |
-| Fase 2 | ✅ Completa | Boa, sem dívidas técnicas |
-| Fase 3 | 🟡 60% | Os 3 componentes extraídos estão limpos, tipados, sem regressões; faltam 2 |
+| `ManualCreate.tsx` | **995 linhas** | Bom (era 2801). Meta optimista era 700, mas 995 já é navegável |
+| Hooks em `manual-create/` | 7 ficheiros, 1644 linhas | Bem isolados |
+| Componentes em `steps/` | 5 ficheiros, 1080 linhas | Bem isolados |
+| `tsc --noEmit` | 0 erros | ✅ |
+| `bun run build:dev` | ✅ 33s | ✅ |
+| ESLint nos novos ficheiros | 0 erros | ✅ |
+| ESLint legado (`useDraftRecovery`) | **3 erros `any`** | 🟡 Pré-existente |
+
+### Material por concluir
+
+#### 🟡 P1 — Limpezas rápidas (15 min, baixo risco)
+
+1. **3 erros ESLint em `useDraftRecovery.ts`** (linhas 112, 116, 241): `Unexpected any`. Substituir por interface `MediaItem { url: string; type?: string }` ou `Json` do Supabase.
+
+2. **Imports duplicados de `date-fns`**: 3 linhas separadas (`addDays/nextDay`, `format`, `pt`) que cabem em 2.
+
+#### 🟡 P2 — Fase 4 do refactor (1h, baixo risco)
+
+3. **Mobile Sticky Bottom Bar inline** (`ManualCreate.tsx:797-884`, ~88 linhas) — barra fixa de acção mobile com botões Publicar/Rascunho/Pré-visualizar. **Extracção sugerida:** `MobileStickyActionBar.tsx`.
+
+4. **Bloco de modais inline** (`ManualCreate.tsx:913-985`, ~73 linhas) — agrupa 6 modais (`DraftsDialog`, `SavedCaptionsDialog`, `AICaptionDialog`, `ImageCompressionConfirmModal`, `VideoValidationModal`, `PublishProgressModal`, `DuplicateWarningDialog`). **Extracção sugerida:** `ManualCreateModals.tsx` que recebe todo o estado relevante via props.
+
+5. **Helpers `renderPreview` (60 linhas) e `getNetworkIcon` (10 linhas)** ainda vivem em `ManualCreate.tsx:461-533`. **Extracção sugerida:** `lib/manual-create/previewRenderer.ts` ou prop dedicada.
+
+**Resultado esperado se P1+P2 forem feitos:** `ManualCreate.tsx` desce para **~720 linhas**, cumprindo a meta original.
+
+#### 🟢 P3 — Melhorias de qualidade (não bloqueantes)
+
+6. **Bundle monolítico de 4.18 MB** (`index-*.js`) — o build avisa em todos os builds. `ManualCreate` carrega 9 componentes de preview imediatamente. Ganho real: lazy-loading dos previews via `React.lazy` + `Suspense` partiria ~200-400 KB do bundle inicial. Prompt próprio.
+
+7. **`PublishProgressModal.tsx` com 869 linhas** — fora do scope deste refactor mas é o próximo monstro óbvio. Candidato a Fase 5 dedicada.
+
+8. **`useDraftRecovery.ts` com 339 linhas** — o maior dos hooks; faz fetch de imagens, parsing de drafts e restore de estado. Poderia partir-se em `useFetchDraftMedia` + `useApplyDraft`.
+
+### O que NÃO precisa de melhoria
+
+- Os 3 componentes da fase anterior (`Step3Caption`, `Step3Schedule`, `PublishActions`) e os 2 novos (`Step2Media`, `PreviewPanel`) — todos ≤400 linhas, props tipadas, sem efeitos colaterais
+- `usePublishOrchestrator.ts` — encapsula bem os 3 fluxos, sem dívidas técnicas detectáveis
+- A divisão `hooks/manual-create/` vs `components/manual-post/steps/` — separação saudável
+
+### Recomendação
+
+| Prioridade | Acção | Esforço | Valor |
+|---|---|---|---|
+| **Faz já** | P1: corrigir 3 `any` + dedup imports | 15 min | Limpa ESLint a zero |
+| **Faz a seguir** | P2: Fase 4 (sticky bar + modais + helpers) | 1h | Cumpre meta ≤700, fecha o ciclo do refactor |
+| **Adia** | P3: lazy-loading, refactor PublishProgressModal, partir useDraftRecovery | 2-4h cada | Bónus, requer prompts próprios |
 
 ### Próxima acção proposta
 
-Concluir a Fase 3 extraindo os 2 componentes restantes num único loop:
+Combinar **P1 + P2 num único loop** ("Fase 4 final"):
 
-1. **`Step2MediaCard.tsx`** — recebe `mediaPreviewUrls`, `mediaFiles`, `mediaSources`, `mediaAspectRatios`, `mediaRequirements`, `selectedFormats`, callbacks (`setMediaFiles`, `setMediaPreviewUrls`, `setMediaSources`, `removeMedia`, `moveMedia`, `handleMediaUpload`, `getAcceptTypes`), estado DnD (`sensors`, `activeId`, handlers) e `lastSaved`/`isAutoSaving`/`hasUnsavedChanges`. Substitui `ManualCreate.tsx:701-946`.
+- Tipar os 3 `any` em `useDraftRecovery.ts` 
+- Consolidar imports `date-fns` em `ManualCreate.tsx`
+- Criar `src/components/manual-post/steps/MobileStickyActionBar.tsx` (~90 linhas)
+- Criar `src/components/manual-post/steps/ManualCreateModals.tsx` (~80 linhas)
+- Mover `renderPreview` + `getNetworkIcon` para `src/lib/manual-create/previewRenderer.tsx`
+- Validar `tsc` + `eslint` + `build:dev` a zero
 
-2. **`PreviewPanel.tsx`** — recebe `selectedFormats`, `activePreviewTab`, `setActivePreviewTab`, `scheduledDate`, `scheduleAsap`, `time`, e a função `renderPreview(format)`. Suporta as 2 vistas (sidebar desktop + drawer mobile) via prop `variant: 'desktop' | 'mobile'`. Substitui `ManualCreate.tsx:1010-1062` e `1154-1203`. Move ~12 imports de previews para fora do ficheiro principal.
-
-**Resultado esperado:** `ManualCreate.tsx` desce para **~750 linhas** (-540), 5/5 componentes da Fase 3 prontos, abrindo caminho para a Fase 4 (limpeza final + meta ≤700).
-
-### Bónus opcional (não bloqueante)
-
-Eliminar os 3 `any` em `useDraftRecovery.ts` substituindo por:
-```ts
-import type { Json } from '@/integrations/supabase/types';
-const mediaItems = (post.media_items as Array<{ url: string; type?: string }>) || [];
-```
-
-### Checkpoint da próxima acção
-
-☐ `Step2MediaCard.tsx` criado em `src/components/manual-post/steps/`  
-☐ `PreviewPanel.tsx` criado em `src/components/manual-post/steps/`  
-☐ `ManualCreate.tsx` ≤ 800 linhas  
-☐ `npx tsc --noEmit` 0 erros  
+### Checkpoint
+☐ 0 erros ESLint em `src/hooks/manual-create/` e `src/pages/ManualCreate.tsx`  
+☐ `ManualCreate.tsx` ≤ 750 linhas  
+☐ 2 novos componentes em `steps/` + 1 helper em `lib/manual-create/`  
+☐ `tsc --noEmit` 0 erros  
 ☐ `bun run build:dev` passa  
-☐ Comportamento idêntico em desktop e mobile (375px)  
-☐ DnD do carrossel, upload, GridSplitter, navegação entre steps continuam  
-☐ Preview lateral desktop + drawer mobile renderizam todas as 9 redes  
-☐ (Opcional) 0 erros ESLint em `useDraftRecovery.ts`
+☐ Mobile bottom bar continua funcional em 375px  
+☐ Todos os modais (drafts, IA, compressão, vídeo, progresso, duplicado) abrem normalmente
+
+### Fora do escopo desta acção (prompts dedicados)
+- Lazy-loading dos 9 previews (Fase performance)
+- Refactor de `PublishProgressModal.tsx` (869 linhas)
+- Quebra de `useDraftRecovery.ts` em sub-hooks
 
