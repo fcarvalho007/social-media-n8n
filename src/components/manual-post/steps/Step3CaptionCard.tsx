@@ -2,13 +2,14 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { cn } from '@/lib/utils';
 import { SectionHelp, getSectionTooltip } from '@/components/manual-post/SectionHelp';
 import { NetworkCaptionEditor } from '@/components/manual-post/NetworkCaptionEditor';
+import { SocialNetwork } from '@/types/social';
 
 interface Step3CaptionCardProps {
   caption: string;
   onCaptionChange: (value: string) => void;
   networkCaptions: Record<string, string>;
   onNetworkCaptionChange: (network: string, value: string) => void;
-  selectedNetworks: string[];
+  selectedNetworks: SocialNetwork[];
   useSeparateCaptions: boolean;
   onToggleSeparate: (value: boolean) => void;
   captionLength: number;
