@@ -7,6 +7,7 @@ import { Badge } from '@/components/ui/badge';
 import { cn } from '@/lib/utils';
 import { format } from 'date-fns';
 import { pt } from 'date-fns/locale';
+import { normalizeMediaList } from '@/lib/mediaPreview';
 
 interface Draft {
   id: string;
@@ -35,14 +36,6 @@ const platformConfig: Record<string, { icon: React.ComponentType<any>; label: st
   'linkedin-document': { icon: Linkedin, label: 'LinkedIn Documento', color: 'bg-sky-500/10 text-sky-600' },
 };
 
-// Check if URL is a video
-function isVideoUrl(url: string): boolean {
-  if (!url) return false;
-  const videoExtensions = ['.mp4', '.mov', '.avi', '.webm', '.mkv'];
-  const lowerUrl = url.toLowerCase();
-  return videoExtensions.some(ext => lowerUrl.includes(ext));
-}
-
 export function DraftCard({ draft, isSelected, onSelect, onEdit, onDelete, view }: DraftCardProps) {
   const [imageError, setImageError] = useState(false);
   
@@ -53,13 +46,11 @@ export function DraftCard({ draft, isSelected, onSelect, onEdit, onDelete, view 
   };
   const Icon = config.icon;
   
-  // Get media URLs array
-  const mediaUrls = Array.isArray(draft.media_urls) ? draft.media_urls : [];
-  const mediaCount = mediaUrls.length;
-  
-  // Get first media URL for thumbnail
-  const firstMediaUrl = mediaUrls.length > 0 ? mediaUrls[0] : null;
-  const isVideo = firstMediaUrl ? isVideoUrl(firstMediaUrl) : false;
+  const mediaItems = normalizeMediaList(draft.media_urls);
+  const mediaCount = mediaItems.length;
+  const firstMedia = mediaItems[0];
+  const firstMediaUrl = firstMedia?.displayUrl || null;
+  const isVideo = firstMedia?.mediaType === 'video';
   
   const createdDate = format(new Date(draft.created_at), "d MMM yyyy", { locale: pt });
   const createdTime = format(new Date(draft.created_at), "HH:mm");

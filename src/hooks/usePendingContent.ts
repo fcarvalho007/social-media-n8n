@@ -1,10 +1,14 @@
 import { useState, useEffect } from 'react';
 import { supabase } from '@/integrations/supabase/client';
+import { getPrimaryMediaPreview, inferMediaType, normalizeMediaList, MediaPreviewType } from '@/lib/mediaPreview';
 
 export interface PendingItem {
   id: string;
   type: 'story' | 'carousel' | 'post' | 'draft' | 'scheduled';
   thumbnail: string | null;
+  mediaType: MediaPreviewType;
+  mediaCount: number;
+  platform?: string | null;
   caption: string | null;
   createdAt: string;
   scheduledDate?: string | null;
@@ -74,55 +78,65 @@ export function usePendingContent(limit: number = 6): PendingContentResult {
           id: story.id,
           type: 'story' as const,
           thumbnail: story.story_image_url,
+          mediaType: inferMediaType(story.story_image_url, 'image'),
+          mediaCount: story.story_image_url ? 1 : 0,
           caption: story.caption,
           createdAt: story.created_at || '',
           route: `/review-story/${story.id}`,
         }));
 
-        const extractThumb = (post: { media_items?: unknown; template_a_images?: string[] | null }) => {
-          let thumbnail: string | null = null;
-          if (post.media_items && Array.isArray(post.media_items) && post.media_items.length > 0) {
-            const firstItem = post.media_items[0] as { url?: string; preview?: string };
-            thumbnail = firstItem.url || firstItem.preview || null;
-          } else if (post.template_a_images && post.template_a_images.length > 0) {
-            thumbnail = post.template_a_images[0];
-          }
-          return thumbnail;
+        const extractMedia = (post: { media_items?: unknown; template_a_images?: string[] | null }) => {
+          const mediaItems = normalizeMediaList(post.media_items);
+          const templateItems = normalizeMediaList(post.template_a_images || []);
+          const allMedia = mediaItems.length > 0 ? mediaItems : templateItems;
+          const primary = allMedia[0] || getPrimaryMediaPreview([]);
+
+          return {
+            thumbnail: primary.displayUrl,
+            mediaType: primary.mediaType,
+            mediaCount: allMedia.length,
+          };
         };
 
-        const postItems: PendingItem[] = (posts || []).map((post) => ({
-          id: post.id,
-          type: post.content_type === 'carousel' ? 'carousel' as const : 'post' as const,
-          thumbnail: extractThumb(post),
-          caption: post.caption,
-          createdAt: post.created_at || '',
-          route: `/review/${post.id}`,
-        }));
+        const postItems: PendingItem[] = (posts || []).map((post) => {
+          const media = extractMedia(post);
+          return {
+            id: post.id,
+            type: post.content_type === 'carousel' ? 'carousel' as const : 'post' as const,
+            thumbnail: media.thumbnail,
+            mediaType: media.mediaType,
+            mediaCount: media.mediaCount,
+            caption: post.caption,
+            createdAt: post.created_at || '',
+            route: `/review/${post.id}`,
+          };
+        });
 
-        const scheduledItems: PendingItem[] = (scheduled || []).map((post) => ({
-          id: post.id,
-          type: 'scheduled' as const,
-          thumbnail: extractThumb(post),
-          caption: post.caption,
-          createdAt: post.created_at || '',
-          scheduledDate: post.scheduled_date,
-          route: `/review/${post.id}`,
-        }));
+        const scheduledItems: PendingItem[] = (scheduled || []).map((post) => {
+          const media = extractMedia(post);
+          return {
+            id: post.id,
+            type: 'scheduled' as const,
+            thumbnail: media.thumbnail,
+            mediaType: media.mediaType,
+            mediaCount: media.mediaCount,
+            caption: post.caption,
+            createdAt: post.created_at || '',
+            scheduledDate: post.scheduled_date,
+            route: `/review/${post.id}`,
+          };
+        });
 
         const draftItems: PendingItem[] = (drafts || []).map((draft) => {
-          let thumbnail: string | null = null;
-          if (draft.media_urls && Array.isArray(draft.media_urls) && draft.media_urls.length > 0) {
-            const firstUrl = draft.media_urls[0];
-            if (typeof firstUrl === 'string') {
-              thumbnail = firstUrl;
-            } else if (firstUrl && typeof firstUrl === 'object') {
-              thumbnail = (firstUrl as { url?: string }).url || null;
-            }
-          }
+          const mediaItems = normalizeMediaList(draft.media_urls);
+          const primaryMedia = mediaItems[0] || getPrimaryMediaPreview([]);
           return {
             id: draft.id,
             type: 'draft' as const,
-            thumbnail,
+            thumbnail: primaryMedia.displayUrl,
+            mediaType: primaryMedia.mediaType,
+            mediaCount: mediaItems.length,
+            platform: draft.platform,
             caption: draft.caption,
             createdAt: draft.created_at,
             route: `/drafts`,
