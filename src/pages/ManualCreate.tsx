@@ -492,19 +492,19 @@ export default function ManualCreate() {
         stack: err?.stack,
       });
       
-      if (error?.message?.includes('uuid')) {
+      if (err?.message?.includes('uuid')) {
         toast.error('Erro interno. O rascunho será guardado como novo.');
         setCurrentDraftId(null);
-      } else if (error?.message?.includes('JWT') || error?.message?.includes('session') || error?.code === 'PGRST301') {
+      } else if (err?.message?.includes('JWT') || err?.message?.includes('session') || err?.code === 'PGRST301') {
         toast.error('Sessão expirada. Por favor, faça login novamente.');
-      } else if (error?.message?.includes('storage') || error?.message?.includes('bucket') || error?.statusCode === 413) {
+      } else if (err?.message?.includes('storage') || err?.message?.includes('bucket') || err?.statusCode === 413) {
         toast.error('Erro no upload. Verifique o tamanho dos ficheiros (máx 50MB).');
-      } else if (error?.message?.includes('timeout') || error?.code === 'ETIMEDOUT') {
+      } else if (err?.message?.includes('timeout') || err?.code === 'ETIMEDOUT') {
         toast.error('Ligação lenta. Tente novamente com ficheiros mais pequenos.');
-      } else if (error?.statusCode === 403) {
+      } else if (err?.statusCode === 403) {
         toast.error('Sem permissão para guardar. Contacte o suporte.');
       } else {
-        toast.error(`Erro ao guardar: ${error?.message || 'Verifique a sua ligação.'}`);
+        toast.error(`Erro ao guardar: ${err?.message || 'Verifique a sua ligação.'}`);
       }
     } finally {
       setSaving(false);
