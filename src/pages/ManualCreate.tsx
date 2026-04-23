@@ -66,7 +66,6 @@ import { DndContext, closestCenter, DragEndEvent, DragStartEvent, PointerSensor,
 import { SortableContext, arrayMove, horizontalListSortingStrategy, sortableKeyboardCoordinates } from '@dnd-kit/sortable';
 import { generateCarouselPDF } from '@/lib/pdfGenerator';
 import EmojiPicker, { EmojiClickData } from 'emoji-picker-react';
-import { detectOversizedImages, compressOversizedFiles, OversizedImage } from '@/lib/canvas/imageCompression';
 import { ImageCompressionConfirmModal } from '@/components/publishing/ImageCompressionConfirmModal';
 import { VideoValidationModal, VideoValidationIssue } from '@/components/publishing/VideoValidationModal';
 import { getVideoDimensions, FORMAT_ASPECT_RATIOS, MAX_VIDEO_DURATION, MIN_RESOLUTIONS } from '@/lib/mediaValidation';
@@ -74,67 +73,10 @@ import { useMediaManager } from '@/hooks/manual-create/useMediaManager';
 import { useStepper } from '@/hooks/manual-create/useStepper';
 import { useDraftRecovery } from '@/hooks/manual-create/useDraftRecovery';
 import { useMediaUpload } from '@/hooks/manual-create/useMediaUpload';
+import { useImageCompression } from '@/hooks/manual-create/useImageCompression';
 import { detectImageAspectRatio as detectImageAspectRatioExt, detectVideoAspectRatio as detectVideoAspectRatioExt } from '@/hooks/manual-create/mediaAspectDetection';
-
-// Extract first frame from video file
-async function extractVideoFrame(videoFile: File | string): Promise<File> {
-  return new Promise((resolve, reject) => {
-    const video = document.createElement('video');
-    video.crossOrigin = 'anonymous';
-    video.preload = 'metadata';
-    
-    const cleanup = () => {
-      if (typeof videoFile !== 'string') {
-        URL.revokeObjectURL(video.src);
-      }
-    };
-    
-    video.onloadeddata = () => {
-      video.currentTime = 0.5; // Get frame at 0.5s for better thumbnail
-    };
-    
-    video.onseeked = () => {
-      try {
-        const canvas = document.createElement('canvas');
-        canvas.width = video.videoWidth || 1280;
-        canvas.height = video.videoHeight || 720;
-        const ctx = canvas.getContext('2d');
-        if (!ctx) {
-          cleanup();
-          reject(new Error('Could not get canvas context'));
-          return;
-        }
-        ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
-        canvas.toBlob(
-          blob => {
-            cleanup();
-            if (blob) {
-              const fileName = typeof videoFile === 'string' 
-                ? 'video-frame.jpg' 
-                : videoFile.name.replace(/\.[^.]+$/, '-frame.jpg');
-              resolve(new File([blob], fileName, { type: 'image/jpeg' }));
-            } else {
-              reject(new Error('Could not create blob from canvas'));
-            }
-          },
-          'image/jpeg',
-          0.9
-        );
-      } catch (err) {
-        cleanup();
-        reject(err);
-      }
-    };
-    
-    video.onerror = () => {
-      cleanup();
-      reject(new Error('Could not load video'));
-    };
-    
-    video.src = typeof videoFile === 'string' ? videoFile : URL.createObjectURL(videoFile);
-    video.load();
-  });
-}
+// `extractVideoFrame` foi consolidado em '@/lib/media/videoFrameExtractor'.
+// Este componente já não o usava localmente.
 
 // Aspect-ratio helpers were moved to '@/hooks/manual-create/mediaAspectDetection'.
 // Local aliases keep call sites unchanged inside this file.
