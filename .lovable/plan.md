@@ -1,94 +1,134 @@
 
+## Correção — Validação de caracteres com legendas separadas em `/create`
 
-## Correção — Thumbnails de Vídeo no Modal de Publicação
+### Problema identificado
 
-### Problema
+Quando a opção **“Separadas”** está ativa, o editor mostra corretamente o contador por rede. No teu exemplo:
 
-No `PublishProgressModal`, secção "Download do Conteúdo" / grelha de Ficheiros (linhas 683-751 de `src/components/publishing/PublishProgressModal.tsx`):
+- TikTok mostra **293/300**
+- Ainda assim o painel de validação continua a dizer **“Legenda excede 300 caracteres”**
+- A publicação fica bloqueada
 
-1. **Vídeos não geram thumbnail** — apenas mostram um ícone genérico `<Video />` num fundo cinzento, perdendo a identificação visual de cada clip (no screenshot vê-se 2 placeholders cinza entre 8 ficheiros).
-2. **Bug secundário em imagens**: `URL.createObjectURL()` é chamado dentro do `.map()` (executa em cada render) e revogado no `onLoad`, o que pode partir o `<img>` em re-renders (ex.: quando `progress` ou `currentMessage` mudam durante a publicação).
+A causa provável está no fluxo de validação: o `useSmartValidation` e o `captionValidator` continuam a validar a legenda global (`caption`) contra todas as redes selecionadas, em vez de validar a legenda específica de cada rede (`networkCaptions.tiktok`, `networkCaptions.instagram`, etc.).
 
-### Solução
+Ou seja: mesmo que a legenda TikTok esteja com 293 caracteres, a validação ainda está a comparar o TikTok contra a legenda principal, que no screenshot tem 660 caracteres.
 
-**1. Pré-computar previews uma vez por ficheiro** com `useEffect` + `useState`:
-- Para imagens: criar `URL.createObjectURL(file)` e revogar no cleanup do efeito (não no `onLoad`).
-- Para vídeos: usar `extractVideoFrameUrl(file)` (já existe em `src/lib/media/videoFrameExtractor.ts`) para extrair o frame ~0.5s, e revogar o blob URL resultante no cleanup.
-- Guardar resultado em `previews: { url: string | null; isVideo: boolean }[]` (índice = índice do ficheiro).
+### Implementação proposta
 
-**2. Estado de loading por thumbnail**:
-- Enquanto a extração não termina (vídeos demoram ~100-300ms), mostrar um skeleton com `<Loader2 className="animate-spin" />` em vez do ícone estático.
-- Se a extração falhar (vídeo corrompido / codec não-suportado), fallback para o ícone `<Video />` actual.
+#### 1. Tornar a validação consciente de legendas separadas
 
-**3. UI dos vídeos com thumbnail**:
-- Quando `previews[idx].url` existir, renderizar `<img src={url} className="object-cover" />` igual às imagens.
-- Manter o badge `<Video />` no canto inferior direito para distinguir de imagens fixas.
-- Adicionar um pequeno ícone de play (▶) sobreposto no centro com fundo semitransparente para reforçar que é vídeo.
+Atualizar o contexto de validação para incluir:
 
-### Detalhes técnicos
-
-Ficheiro único alterado: `src/components/publishing/PublishProgressModal.tsx`
-
-```tsx
-// novo: extractVideoFrameUrl + useEffect
-const [previews, setPreviews] = useState<({ url: string; isVideo: boolean } | null)[]>([]);
-
-useEffect(() => {
-  let cancelled = false;
-  const created: string[] = [];
-  
-  (async () => {
-    const next = await Promise.all(
-      mediaFiles.map(async (file) => {
-        const isVideo = file.type.startsWith('video/');
-        try {
-          const url = isVideo
-            ? await extractVideoFrameUrl(file)
-            : URL.createObjectURL(file);
-          created.push(url);
-          return { url, isVideo };
-        } catch {
-          return null; // fallback para ícone
-        }
-      })
-    );
-    if (!cancelled) setPreviews(next);
-  })();
-  
-  return () => {
-    cancelled = true;
-    created.forEach(URL.revokeObjectURL);
-  };
-}, [mediaFiles]);
+```ts
+useSeparateCaptions: boolean
+networkCaptions: Record<string, string>
 ```
 
-No `.map()` da grelha (linha 689), substituir o ramo `isVideo` por:
-- Se `previews[idx]?.url` existe → `<img src={previews[idx].url} />` + badge `<Video />` + ícone play central.
-- Se `previews[idx]` é `null` (falha) → ícone `<Video />` actual.
-- Se `previews[idx]` é `undefined` (ainda a carregar) → `<Loader2 className="animate-spin" />`.
+Assim, cada validador consegue saber se deve usar:
 
-Para imagens, usar igualmente `previews[idx].url` (deixa de criar+revogar no render).
+```ts
+caption
+```
 
-Manter intacto:
-- Toda a lógica de `downloadSingleFile` no click.
-- Indicador `+N` na 9ª célula quando há mais de 9 ficheiros.
-- Markup do modal restante.
+ou:
 
-### Checkpoint
+```ts
+networkCaptions[network]
+```
 
-☐ Vídeos mostram primeiro frame (~0.5s) como thumbnail no modal de publicação concluída
-☐ Estado de loading visível durante extração (~100-300ms por vídeo)
-☐ Fallback para ícone `<Video />` se extração falhar
-☐ Badge `<Video />` mantido no canto para distinguir tipo
-☐ Imagens já não fazem revoke no `onLoad` (sem flicker em re-renders)
-☐ Object URLs revogados correctamente no cleanup do efeito (sem memory leak)
-☐ Click na thumbnail continua a fazer download do ficheiro original
-☐ `npx tsc --noEmit` 0 erros
-☐ Testes Vitest 14/14 verdes
+#### 2. Corrigir `captionValidator`
 
-### Fora do escopo
+Alterar a validação de comprimento para usar a legenda correta por rede:
 
-- Cache de frames entre publicações (extracção é rápida e única por sessão)
-- Player de vídeo embebido no modal
-- Aplicar o mesmo padrão a outros modais (`PublishCompletedModal`, `FinalReviewModal`) — prompt dedicado se necessário
+```ts
+const captionForNetwork =
+  ctx.useSeparateCaptions && ctx.networkCaptions?.[network]
+    ? ctx.networkCaptions[network]
+    : ctx.caption;
+```
 
+Depois, para TikTok, valida:
+
+```ts
+captionForNetwork.length > 300
+```
+
+e não o comprimento da legenda global.
+
+Isto deve fazer desaparecer o erro quando o separador TikTok estiver dentro do limite.
+
+#### 3. Corrigir hashtags e links por rede
+
+No mesmo validador, aplicar a mesma lógica a:
+
+- links não clicáveis em plataformas que não suportam links
+- contagem de hashtags do Instagram
+- legenda obrigatória do LinkedIn
+
+Exemplo: se o LinkedIn tiver legenda separada, validar a legenda do LinkedIn, não a global.
+
+#### 4. Atualizar cache da validação
+
+O `buildValidationCacheKey` atualmente considera só:
+
+```ts
+caption.length
+captionHead
+```
+
+Vou incluir também:
+
+```ts
+useSeparateCaptions
+networkCaptions
+```
+
+Isto evita validações antigas em cache quando se corrige apenas a legenda de uma rede específica.
+
+#### 5. Atualizar `ManualCreate.tsx`
+
+Passar os novos dados para o hook:
+
+```ts
+useSmartValidation({
+  selectedFormats,
+  caption,
+  networkCaptions,
+  useSeparateCaptions,
+  ...
+})
+```
+
+E adicionar helper de correção para uma rede específica, para que o botão automático “Cortar para 300 caracteres” não corte a legenda errada.
+
+#### 6. Garantir que publicação e pré-validação usam a mesma regra
+
+Validar que:
+
+- o painel lateral deixa de mostrar erro para TikTok quando a legenda TikTok tem ≤300 caracteres
+- o botão publicar/avançar deixa de estar bloqueado nesse caso
+- os restantes limites continuam ativos:
+  - Instagram: 2200
+  - Facebook: 63206
+  - YouTube: 5000
+  - LinkedIn: 3000
+  - TikTok: 300
+
+### Ficheiros a alterar
+
+- `src/lib/validation/types.ts`
+- `src/hooks/useSmartValidation.ts`
+- `src/lib/validation/runValidators.ts`
+- `src/lib/validation/validators/captionValidator.ts`
+- `src/pages/ManualCreate.tsx`
+
+### Checklist de validação
+
+☐ Com “Separadas” ativo, TikTok com 293/300 não gera erro  
+☐ TikTok com 301/300 continua a gerar erro  
+☐ Instagram, Facebook, YouTube e LinkedIn continuam a usar os seus próprios limites  
+☐ LinkedIn continua a exigir legenda quando selecionado  
+☐ Cache da validação atualiza ao editar só a legenda TikTok  
+☐ Botão de publicação deixa de bloquear quando não há erros reais  
+☐ `npx tsc --noEmit` sem erros  
+☐ Testes Vitest continuam verdes  
