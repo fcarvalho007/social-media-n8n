@@ -34,6 +34,7 @@ import {
   type StructuredError 
 } from '@/lib/publishingErrors';
 import { downloadFailedPublicationAssets, downloadSingleFile, copyToClipboard } from '@/lib/downloadUtils';
+import { ErrorExplanationCard } from './ErrorExplanationCard';
 
 // Types
 export type Phase1Status = 'idle' | 'uploading' | 'sending' | 'success' | 'error';
