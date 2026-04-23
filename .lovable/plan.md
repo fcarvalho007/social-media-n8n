@@ -1,134 +1,113 @@
 
-## Correção — Validação de caracteres com legendas separadas em `/create`
+## Correção — Alternar para “Separadas” sem apagar a legenda original
 
-### Problema identificado
+### Problema
 
-Quando a opção **“Separadas”** está ativa, o editor mostra corretamente o contador por rede. No teu exemplo:
+Em `/create`, ao alternar de **Unificada** para **Separadas**, a legenda longa deve ser copiada para cada rede sem destruição de texto.
 
-- TikTok mostra **293/300**
-- Ainda assim o painel de validação continua a dizer **“Legenda excede 300 caracteres”**
-- A publicação fica bloqueada
+O comportamento correto é:
 
-A causa provável está no fluxo de validação: o `useSmartValidation` e o `captionValidator` continuam a validar a legenda global (`caption`) contra todas as redes selecionadas, em vez de validar a legenda específica de cada rede (`networkCaptions.tiktok`, `networkCaptions.instagram`, etc.).
+- Instagram mantém a legenda completa.
+- Facebook mantém a legenda completa.
+- YouTube mantém a legenda completa.
+- LinkedIn mantém a legenda completa.
+- Apenas TikTok fica sujeito ao limite de 300 caracteres.
 
-Ou seja: mesmo que a legenda TikTok esteja com 293 caracteres, a validação ainda está a comparar o TikTok contra a legenda principal, que no screenshot tem 660 caracteres.
+Neste momento há dois pontos frágeis:
+
+1. O editor por rede corta texto no `onChange` com:
+   ```ts
+   e.target.value.slice(0, maxLength)
+   ```
+   Isto pode destruir texto quando a rede ativa tem limite baixo, como TikTok.
+
+2. A inicialização das legendas separadas deve garantir que copia a legenda global para todas as redes sem aplicar o menor limite global.
 
 ### Implementação proposta
 
-#### 1. Tornar a validação consciente de legendas separadas
+#### 1. Remover truncamento destrutivo no editor por rede
 
-Atualizar o contexto de validação para incluir:
-
-```ts
-useSeparateCaptions: boolean
-networkCaptions: Record<string, string>
-```
-
-Assim, cada validador consegue saber se deve usar:
+Em `src/components/manual-post/NetworkCaptionEditor.tsx`, alterar o `onChange` das legendas separadas para guardar exatamente o texto escrito:
 
 ```ts
-caption
+onNetworkCaptionChange(network, e.target.value)
 ```
 
-ou:
+em vez de:
 
 ```ts
-networkCaptions[network]
+onNetworkCaptionChange(network, e.target.value.slice(0, maxLength))
 ```
 
-#### 2. Corrigir `captionValidator`
+Assim, o texto nunca é apagado automaticamente enquanto o utilizador está a editar.
 
-Alterar a validação de comprimento para usar a legenda correta por rede:
+#### 2. Manter a legenda completa ao ativar “Separadas”
+
+Em `src/pages/ManualCreate.tsx`, rever o `onToggleSeparate`.
+
+Quando o utilizador liga “Separadas”:
+
+- copiar a legenda global completa para todas as redes selecionadas;
+- preservar qualquer legenda específica que já exista;
+- não aplicar limite de TikTok às outras redes;
+- não cortar Instagram/Facebook/YouTube/LinkedIn por causa do limite de TikTok.
+
+A lógica ficará alinhada com:
 
 ```ts
-const captionForNetwork =
-  ctx.useSeparateCaptions && ctx.networkCaptions?.[network]
-    ? ctx.networkCaptions[network]
-    : ctx.caption;
+selectedNetworks.forEach(network => {
+  initial[network] = networkCaptions[network] ?? caption;
+});
 ```
 
-Depois, para TikTok, valida:
+#### 3. TikTok continua a ser validado, mas sem apagar texto automaticamente
+
+Se a legenda TikTok tiver mais de 300 caracteres:
+
+- o badge TikTok mostra erro, por exemplo `661/300`;
+- o painel de validação mantém o erro “Legenda excede limite”;
+- o botão automático “Cortar para 300 caracteres” corta apenas a legenda TikTok;
+- as outras redes mantêm a legenda original.
+
+Isto evita perda de conteúdo e deixa claro que só o TikTok precisa de ajuste.
+
+#### 4. Garantir que a publicação continua segura
+
+O fluxo de publicação já limita a legenda enviada por rede antes de chamar o backend:
 
 ```ts
-captionForNetwork.length > 300
+(params.networkCaptions?.[network] || caption).slice(0, maxCaptionLen)
 ```
 
-e não o comprimento da legenda global.
+Vou confirmar que este corte final continua isolado por rede. Ou seja, se TikTok for publicado, recebe no máximo 300 caracteres; Instagram/Facebook/YouTube/LinkedIn não são afetados.
 
-Isto deve fazer desaparecer o erro quando o separador TikTok estiver dentro do limite.
+#### 5. Atualizar cobertura de testes
 
-#### 3. Corrigir hashtags e links por rede
+Adicionar teste para o editor de legendas separadas:
 
-No mesmo validador, aplicar a mesma lógica a:
-
-- links não clicáveis em plataformas que não suportam links
-- contagem de hashtags do Instagram
-- legenda obrigatória do LinkedIn
-
-Exemplo: se o LinkedIn tiver legenda separada, validar a legenda do LinkedIn, não a global.
-
-#### 4. Atualizar cache da validação
-
-O `buildValidationCacheKey` atualmente considera só:
-
-```ts
-caption.length
-captionHead
-```
-
-Vou incluir também:
-
-```ts
-useSeparateCaptions
-networkCaptions
-```
-
-Isto evita validações antigas em cache quando se corrige apenas a legenda de uma rede específica.
-
-#### 5. Atualizar `ManualCreate.tsx`
-
-Passar os novos dados para o hook:
-
-```ts
-useSmartValidation({
-  selectedFormats,
-  caption,
-  networkCaptions,
-  useSeparateCaptions,
-  ...
-})
-```
-
-E adicionar helper de correção para uma rede específica, para que o botão automático “Cortar para 300 caracteres” não corte a legenda errada.
-
-#### 6. Garantir que publicação e pré-validação usam a mesma regra
-
-Validar que:
-
-- o painel lateral deixa de mostrar erro para TikTok quando a legenda TikTok tem ≤300 caracteres
-- o botão publicar/avançar deixa de estar bloqueado nesse caso
-- os restantes limites continuam ativos:
-  - Instagram: 2200
-  - Facebook: 63206
-  - YouTube: 5000
-  - LinkedIn: 3000
-  - TikTok: 300
+- começa com legenda global de 500+ caracteres;
+- ativa “Separadas”;
+- confirma que Instagram/Facebook/YouTube/LinkedIn mantêm o texto completo;
+- confirma que TikTok não apaga automaticamente o texto no editor;
+- confirma que a validação/auto-fix de TikTok corta apenas TikTok.
 
 ### Ficheiros a alterar
 
-- `src/lib/validation/types.ts`
-- `src/hooks/useSmartValidation.ts`
-- `src/lib/validation/runValidators.ts`
-- `src/lib/validation/validators/captionValidator.ts`
+- `src/components/manual-post/NetworkCaptionEditor.tsx`
 - `src/pages/ManualCreate.tsx`
+- Possível novo teste:
+  - `src/components/manual-post/NetworkCaptionEditor.test.tsx`
+  - ou teste integrado no fluxo de `ManualCreate`, se for mais estável com a estrutura atual.
 
-### Checklist de validação
+### Checklist
 
-☐ Com “Separadas” ativo, TikTok com 293/300 não gera erro  
-☐ TikTok com 301/300 continua a gerar erro  
-☐ Instagram, Facebook, YouTube e LinkedIn continuam a usar os seus próprios limites  
-☐ LinkedIn continua a exigir legenda quando selecionado  
-☐ Cache da validação atualiza ao editar só a legenda TikTok  
-☐ Botão de publicação deixa de bloquear quando não há erros reais  
+☐ Ao ativar “Separadas”, a legenda global completa é copiada para todas as redes  
+☐ Instagram mantém 500+ caracteres quando TikTok está selecionado  
+☐ Facebook mantém 500+ caracteres quando TikTok está selecionado  
+☐ YouTube mantém 500+ caracteres quando TikTok está selecionado  
+☐ LinkedIn mantém 500+ caracteres quando TikTok está selecionado  
+☐ TikTok mostra excesso quando passa de 300 caracteres, sem apagar automaticamente  
+☐ Auto-fix “Cortar para 300 caracteres” altera só TikTok  
+☐ Publicação continua a enviar TikTok com máximo de 300 caracteres  
 ☐ `npx tsc --noEmit` sem erros  
-☐ Testes Vitest continuam verdes  
+☐ Testes Vitest verdes  
