@@ -109,11 +109,11 @@ export function useDraftRecovery(params: UseDraftRecoveryParams) {
         }
 
         const imageUrls = post.template_a_images || [];
-        const mediaItems = (post.media_items as any[]) || [];
+        const mediaItems = (post.media_items as Array<{ url?: string; type?: string }>) || [];
         const mediaBackup = (post.media_urls_backup as string[]) || [];
 
         const allUrls = mediaBackup.length > 0 ? [...mediaBackup] : [...imageUrls];
-        mediaItems.forEach((item: any) => {
+        mediaItems.forEach((item) => {
           if (item?.url && !allUrls.includes(item.url)) {
             allUrls.push(item.url);
           }
@@ -238,7 +238,15 @@ export function useDraftRecovery(params: UseDraftRecoveryParams) {
   }, [recoverPostId, recoveredPostId, loadPostForRecovery]);
 
   const handleLoadDraft = useCallback(
-    async (draft: any) => {
+    async (draft: Record<string, unknown> & {
+      id?: string;
+      platform?: string;
+      caption?: string;
+      publish_immediately?: boolean;
+      scheduled_date?: string;
+      scheduled_time?: string;
+      media_urls?: string[];
+    }) => {
       let fmt: PostFormat;
       if (draft.platform === 'instagram_carrousel') fmt = 'instagram_carousel';
       else if (draft.platform === 'instagram_stories') fmt = 'instagram_stories';
