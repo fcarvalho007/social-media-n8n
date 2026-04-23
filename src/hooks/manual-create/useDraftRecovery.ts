@@ -238,14 +238,14 @@ export function useDraftRecovery(params: UseDraftRecoveryParams) {
   }, [recoverPostId, recoveredPostId, loadPostForRecovery]);
 
   const handleLoadDraft = useCallback(
-    async (draft: Record<string, unknown> & {
+    async (draft: {
       id?: string;
       platform?: string;
-      caption?: string;
-      publish_immediately?: boolean;
-      scheduled_date?: string;
-      scheduled_time?: string;
-      media_urls?: string[];
+      caption?: string | null;
+      publish_immediately?: boolean | null;
+      scheduled_date?: string | null;
+      scheduled_time?: string | null;
+      media_urls?: unknown;
     }) => {
       let fmt: PostFormat;
       if (draft.platform === 'instagram_carrousel') fmt = 'instagram_carousel';
