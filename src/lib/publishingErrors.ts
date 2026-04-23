@@ -248,6 +248,21 @@ export const ERROR_MESSAGES: Record<string, ErrorInfo> = {
     whenToRetry: 'never',
     severity: 'warning',
   },
+  linkedin_document_error: {
+    title: 'O PDF do LinkedIn tem um problema',
+    description: 'Falhou a geração ou validação do documento PDF para LinkedIn.',
+    action: 'Verifica páginas e tamanho do PDF',
+    isRetryable: true,
+    source: 'platform',
+    plainExplanation: 'O LinkedIn rejeitou o documento. Pode ser por exceder o limite de 300 páginas, peso > 100MB, ou as imagens enviadas terem falhado a converter para PDF.',
+    whatToDo: [
+      'Confirma que o documento tem ≤ 300 páginas e ≤ 100MB',
+      'Reduz o número ou o peso das imagens originais',
+      'Volta a tentar — a maioria dos casos resolve numa segunda tentativa',
+    ],
+    whenToRetry: 'short',
+    severity: 'warning',
+  },
   unknown: {
     title: 'Algo correu mal mas não conseguimos identificar o quê',
     description: 'Ocorreu um problema desconhecido.',
@@ -305,6 +320,7 @@ export function getErrorInfoFromStructured(structuredError: StructuredError): Er
     'API_ERROR': 'api_error',
     'UPLOAD_ERROR': 'upload_error',
     'DUPLICATE_CONTENT': 'duplicate_content',
+    'LINKEDIN_DOCUMENT_ERROR': 'linkedin_document_error',
     'UNKNOWN': 'unknown',
   };
   
@@ -365,6 +381,11 @@ export function classifyError(errorMessage: string | undefined): string {
   }
   if (lower.includes('upload') || lower.includes('carregar')) {
     return 'upload_error';
+  }
+  if (lower.includes('pdf') || lower.includes('linkedin_document') ||
+      lower.includes('page count') || lower.includes('document generation') ||
+      lower.includes('linkedin document')) {
+    return 'linkedin_document_error';
   }
   if (lower.includes('api') || lower.includes('500') || lower.includes('502') || lower.includes('503') || lower.includes('internal server')) {
     return 'api_error';
@@ -518,7 +539,20 @@ export function classifyErrorFromString(errorString: string, httpStatus?: number
       suggestedAction: 'Verifica as dimensões (4:5 ou 1:1) e formato dos ficheiros',
     };
   }
-  
+
+  if (lower.includes('pdf') || lower.includes('linkedin_document') ||
+      lower.includes('page count') || lower.includes('document generation') ||
+      lower.includes('linkedin document')) {
+    return {
+      message: 'Problema com o PDF do LinkedIn',
+      code: 'LINKEDIN_DOCUMENT_ERROR',
+      source: 'platform',
+      isRetryable: true,
+      originalError: httpStatus ? `${httpStatus}: ${errorString}` : errorString,
+      suggestedAction: 'Reduz o número de páginas/peso do documento e tenta novamente',
+    };
+  }
+
   return {
     message: errorString.length < 80 ? errorString : 'Erro na publicação',
     code: 'UNKNOWN',

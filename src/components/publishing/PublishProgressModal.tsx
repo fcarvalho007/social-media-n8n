@@ -34,6 +34,7 @@ import {
   type StructuredError 
 } from '@/lib/publishingErrors';
 import { downloadFailedPublicationAssets, downloadSingleFile, copyToClipboard } from '@/lib/downloadUtils';
+import { ErrorExplanationCard } from './ErrorExplanationCard';
 
 // Types
 export type Phase1Status = 'idle' | 'uploading' | 'sending' | 'success' | 'error';
@@ -332,44 +333,25 @@ function PlatformStatusRow({
         )}
       </div>
       
-      {/* Technical details (collapsible) */}
-      {result.status === 'error' && showDetails && structuredError?.originalError && (
+      {/* Expanded view: full ErrorExplanationCard */}
+      {result.status === 'error' && showDetails && structuredError && (
         <motion.div
           initial={{ opacity: 0, height: 0 }}
           animate={{ opacity: 1, height: 'auto' }}
           exit={{ opacity: 0, height: 0 }}
-          className="ml-12 mt-1"
+          className="ml-12 mt-2"
         >
-          <div className="bg-muted/50 rounded p-2 border border-border/50">
-            <p className="text-[10px] text-muted-foreground font-medium mb-1">Detalhes técnicos:</p>
-            <code className="text-[10px] text-muted-foreground break-all block">
-              {structuredError.originalError}
-            </code>
-          </div>
-          
-          {/* Contextual action buttons */}
-          <div className="flex gap-2 mt-2">
-            {(structuredError.code === 'ACCOUNT_ERROR' || structuredError.code === 'TOKEN_EXPIRED') && (
-              <a
-                href="https://getlate.dev/accounts"
-                target="_blank"
-                rel="noopener noreferrer"
-                className="inline-flex items-center gap-1 text-xs px-2 py-1 rounded bg-primary/10 text-primary hover:bg-primary/20 transition-colors"
-              >
-                <ExternalLink className="h-3 w-3" />
-                Abrir Getlate.dev
-              </a>
-            )}
-            {structuredError.code === 'MEDIA_ERROR' && (
-              <button
-                onClick={() => toast.info('Dica: Usa proporção 4:5 (1080x1350px) ou 1:1 (1080x1080px) para melhor compatibilidade.')}
-                className="inline-flex items-center gap-1 text-xs px-2 py-1 rounded bg-primary/10 text-primary hover:bg-primary/20 transition-colors"
-              >
-                <Info className="h-3 w-3" />
-                Ver requisitos
-              </button>
-            )}
-          </div>
+          <ErrorExplanationCard
+            structuredError={structuredError}
+            errorString={result.errorMessage}
+            context={{ platform: result.platform }}
+            onRetry={onRetry}
+            onOpenAccountSettings={() => {
+              window.location.href = '/quota-settings';
+            }}
+            variant="full"
+            hideTitle={false}
+          />
         </motion.div>
       )}
     </div>

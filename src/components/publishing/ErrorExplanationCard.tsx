@@ -235,7 +235,12 @@ export function ErrorExplanationCard({
             )}
             {showAccountCTA && (
               <Button
-                onClick={onOpenAccountSettings || (() => window.open('https://getlate.dev/accounts', '_blank'))}
+                onClick={
+                  onOpenAccountSettings ||
+                  (() => {
+                    toast.info('Vai a Definições → Contas Sociais para reconectar a conta.');
+                  })
+                }
                 size="sm"
                 variant="outline"
                 className="gap-2"

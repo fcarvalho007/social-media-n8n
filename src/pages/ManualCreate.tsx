@@ -391,66 +391,19 @@ export default function ManualCreate() {
   // (currentStep, visitedSteps, setCurrentStep, setVisitedSteps, goToStep,
   //  nextStep, previousStep are all destructured from `stepper`.)
 
-  // Validations - only show when user tries to proceed
-  const getValidationErrors = (): string[] => {
-    const errors: string[] = [];
-    
-    if (selectedFormats.length === 0) {
-      errors.push('Selecione pelo menos um formato');
-    }
-    
-    // Check media requirements
-    const imageCount = mediaFiles.filter(f => f.type.startsWith('image/')).length;
-    const videoCount = mediaFiles.filter(f => f.type.startsWith('video/')).length;
-    const totalMedia = imageCount + videoCount;
-    
-    if (mediaRequirements.minMedia > 0 && totalMedia < mediaRequirements.minMedia) {
-      errors.push(`Mínimo ${mediaRequirements.minMedia} ficheiro(s)`);
-    }
-    
-    // Instagram carousel: allow >10 with warning instead of error
-    const hasInstagramCarousel = selectedFormats.includes('instagram_carousel');
-    if (hasInstagramCarousel && totalMedia > 10) {
-      // Warning will be shown, not blocking error
-    } else if (totalMedia > mediaRequirements.maxMedia) {
-      errors.push(`Máximo ${mediaRequirements.maxMedia} ficheiro(s)`);
-    }
-    
-    if (mediaRequirements.requiresVideo && videoCount === 0) {
-      errors.push('Formato selecionado requer vídeo');
-    }
-    
-    // Check if LinkedIn is selected and caption is empty
-    if (selectedNetworks.includes('linkedin') && !caption.trim()) {
-      errors.push('Legenda obrigatória para LinkedIn');
-    }
-    
-    if (!scheduleAsap && scheduledDate) {
-      const selectedDateTime = new Date(scheduledDate);
-      if (time) {
-        const [hours, minutes] = time.split(':');
-        selectedDateTime.setHours(parseInt(hours), parseInt(minutes));
-      }
-      if (selectedDateTime < new Date()) {
-        errors.push('Data/hora não pode estar no passado');
-      }
-    }
-    
-    return errors;
-  };
-
-  const validationErrors = getValidationErrors();
-  const hasErrors = validationErrors.length > 0;
+  // Note: legacy `getValidationErrors()`/`hasErrors` removed.
+  // The smart-validation panel (`smartValidation.canPublish`) is now the
+  // single source of truth for blocking publication. Coverage:
+  //   - format/min/max/requiresVideo/Image  → formatValidator
+  //   - LinkedIn requires caption           → captionValidator (M2)
+  //   - Date in the past / missing date     → scheduleValidator (M1)
+  //   - Network without account mapping     → accountValidator (A1)
 
   // Handle publish/submit with validation
   const handlePublishWithValidation = async () => {
     if (selectedFormats.length > 0 && !smartValidation.canPublish) {
       setValidationSheetOpen(true);
       toast.error('Resolve os problemas no painel de validação antes de publicar');
-      return;
-    }
-    if (hasErrors) {
-      toast.error('Corrija os campos obrigatórios antes de publicar');
       return;
     }
     handlePublishNow();
@@ -460,10 +413,6 @@ export default function ManualCreate() {
     if (selectedFormats.length > 0 && !smartValidation.canPublish) {
       setValidationSheetOpen(true);
       toast.error('Resolve os problemas no painel de validação antes de submeter');
-      return;
-    }
-    if (hasErrors) {
-      toast.error('Corrija os campos obrigatórios antes de submeter');
       return;
     }
     handleSubmitForApproval();
@@ -647,18 +596,13 @@ export default function ManualCreate() {
 
 
   const handleSubmitForApproval = async () => {
-    // Smart-validation gate is the source of truth; legacy hasErrors kept as
-    // safety net for edge cases (e.g. profile selection) not yet covered.
+    // Smart-validation panel is the single source of truth for blocking.
     if (selectedFormats.length > 0 && !smartValidation.canPublish) {
       setValidationSheetOpen(true);
       toast.error('Resolve os problemas no painel de validação antes de submeter');
       return;
     }
-    if (hasErrors) {
-      const errorMsg = validationErrors.join(', ');
-      toast.error(`Corrija os erros: ${errorMsg}`, { duration: 5000 });
-      return;
-    }
+
 
     try {
       setSubmitting(true);
@@ -828,17 +772,13 @@ export default function ManualCreate() {
   };
 
   const handlePublishNow = async (filesToPublish?: File[]) => {
-    // Smart-validation gate is the source of truth.
+    // Smart-validation panel is the single source of truth for blocking.
     if (selectedFormats.length > 0 && !smartValidation.canPublish) {
       setValidationSheetOpen(true);
       toast.error('Resolve os problemas no painel de validação antes de publicar');
       return;
     }
-    if (hasErrors) {
-      const errorMsg = validationErrors.join(', ');
-      toast.error(`Corrija os erros: ${errorMsg}`, { duration: 5000 });
-      return;
-    }
+
 
     const files = filesToPublish || mediaFiles;
     

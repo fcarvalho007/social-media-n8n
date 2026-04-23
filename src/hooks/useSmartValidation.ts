@@ -182,6 +182,12 @@ export function useSmartValidation(
       if (!issue?.fixAction) return;
       try {
         await issue.fixAction();
+        // Telemetria leve — útil para futuro analytics
+        console.debug('[smartValidation] auto-fix applied', {
+          id: issue.id,
+          category: issue.category,
+          severity: issue.severity,
+        });
         // Invalidate cache so the next validation reflects the fix
         cacheRef.current.clear();
       } catch (err) {
@@ -197,6 +203,7 @@ export function useSmartValidation(
       next.add(id);
       return next;
     });
+    console.debug('[smartValidation] issue dismissed', { id });
   }, []);
 
   // Note: `mediaFiles.length > 0` is intentionally NOT enforced here.
