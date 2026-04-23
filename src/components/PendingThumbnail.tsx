@@ -56,6 +56,8 @@ export function PendingThumbnail({ id, type, thumbnail, route, onNavigate }: Pen
             <FileImage className="h-8 w-8 text-muted-foreground/50" />
           ) : type === 'carousel' ? (
             <ImagePlus className="h-8 w-8 text-muted-foreground/50" />
+          ) : type === 'scheduled' ? (
+            <Calendar className="h-8 w-8 text-muted-foreground/50" />
           ) : (
             <FileText className="h-8 w-8 text-muted-foreground/50" />
           )}
