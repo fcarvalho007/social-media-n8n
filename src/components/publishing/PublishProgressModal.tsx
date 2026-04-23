@@ -34,7 +34,10 @@ import {
   type StructuredError 
 } from '@/lib/publishingErrors';
 import { downloadFailedPublicationAssets, downloadSingleFile, copyToClipboard } from '@/lib/downloadUtils';
+import { extractVideoFrameUrl } from '@/lib/media/videoFrameExtractor';
 import { ErrorExplanationCard } from './ErrorExplanationCard';
+
+type MediaPreview = { url: string; isVideo: boolean } | null;
 
 // Types
 export type Phase1Status = 'idle' | 'uploading' | 'sending' | 'success' | 'error';
@@ -373,6 +376,57 @@ export function PublishProgressModal({
   const [showConfetti, setShowConfetti] = useState(false);
   const [isDownloading, setIsDownloading] = useState(false);
   const [showCancelConfirm, setShowCancelConfirm] = useState(false);
+  // `undefined` = ainda a carregar; `null` = falhou (fallback para ícone); objecto = pronto
+  const [mediaPreviews, setMediaPreviews] = useState<(MediaPreview | undefined)[]>([]);
+
+  // Pré-computa previews (imagens e thumbnails de vídeo) uma vez por conjunto
+  // de ficheiros — evita recriar/revogar object URLs em cada re-render do modal
+  // (que ocorrem com o progress) e gera thumbnails reais para vídeos.
+  useEffect(() => {
+    if (!mediaFiles || mediaFiles.length === 0) {
+      setMediaPreviews([]);
+      return;
+    }
+
+    let cancelled = false;
+    const created: string[] = [];
+    // Estado inicial: todos a carregar (undefined)
+    setMediaPreviews(new Array(mediaFiles.length).fill(undefined));
+
+    mediaFiles.forEach((file, idx) => {
+      const isVideo = file.type.startsWith('video/');
+      const promise = isVideo
+        ? extractVideoFrameUrl(file)
+        : Promise.resolve(URL.createObjectURL(file));
+
+      promise
+        .then(url => {
+          if (cancelled) {
+            URL.revokeObjectURL(url);
+            return;
+          }
+          created.push(url);
+          setMediaPreviews(prev => {
+            const next = [...prev];
+            next[idx] = { url, isVideo };
+            return next;
+          });
+        })
+        .catch(() => {
+          if (cancelled) return;
+          setMediaPreviews(prev => {
+            const next = [...prev];
+            next[idx] = null;
+            return next;
+          });
+        });
+    });
+
+    return () => {
+      cancelled = true;
+      created.forEach(URL.revokeObjectURL);
+    };
+  }, [mediaFiles]);
   
   const { phase1, phase2, summary } = progress;
   
@@ -688,9 +742,9 @@ export function PublishProgressModal({
                 <div className="grid grid-cols-4 sm:grid-cols-5 gap-2 max-h-[140px] overflow-y-auto">
                   {mediaFiles.slice(0, 9).map((file, idx) => {
                     const isVideo = file.type.startsWith('video/');
-                    const previewUrl = URL.createObjectURL(file);
+                    const preview = mediaPreviews[idx];
                     const showPlusIndicator = idx === 8 && mediaFiles.length > 9;
-                    
+
                     if (showPlusIndicator) {
                       return (
                         <button
@@ -713,7 +767,10 @@ export function PublishProgressModal({
                         </button>
                       );
                     }
-                    
+
+                    const isLoading = preview === undefined;
+                    const hasThumb = preview && preview.url;
+
                     return (
                       <button
                         key={idx}
@@ -721,20 +778,40 @@ export function PublishProgressModal({
                           downloadSingleFile(file);
                           toast.success(`${file.name} descarregado`);
                         }}
-                        className="relative aspect-square rounded-lg overflow-hidden border-2 border-border hover:border-primary transition-colors group"
+                        className="relative aspect-square rounded-lg overflow-hidden border-2 border-border hover:border-primary transition-colors group bg-muted"
                         title={`Download ${file.name}`}
                       >
-                        {isVideo ? (
-                          <div className="w-full h-full bg-muted flex items-center justify-center">
-                            <Video className="h-5 w-5 sm:h-6 sm:w-6 text-muted-foreground" />
+                        {isLoading && (
+                          <div className="w-full h-full flex items-center justify-center">
+                            <Loader2 className="h-4 w-4 sm:h-5 sm:w-5 text-muted-foreground animate-spin" />
                           </div>
-                        ) : (
+                        )}
+                        {!isLoading && hasThumb && (
                           <img
-                            src={previewUrl}
+                            src={preview!.url}
                             alt={`Media ${idx + 1}`}
                             className="w-full h-full object-cover"
-                            onLoad={() => URL.revokeObjectURL(previewUrl)}
+                            loading="lazy"
                           />
+                        )}
+                        {!isLoading && !hasThumb && (
+                          <div className="w-full h-full flex items-center justify-center">
+                            <Video className="h-5 w-5 sm:h-6 sm:w-6 text-muted-foreground" />
+                          </div>
+                        )}
+                        {isVideo && hasThumb && (
+                          <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
+                            <div className="h-6 w-6 sm:h-7 sm:w-7 rounded-full bg-black/55 flex items-center justify-center">
+                              <svg
+                                viewBox="0 0 24 24"
+                                className="h-3 w-3 sm:h-3.5 sm:w-3.5 text-white"
+                                fill="currentColor"
+                                aria-hidden="true"
+                              >
+                                <path d="M8 5v14l11-7z" />
+                              </svg>
+                            </div>
+                          </div>
                         )}
                         <div className="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
                           <Download className="h-4 w-4 sm:h-5 sm:w-5 text-white" />
