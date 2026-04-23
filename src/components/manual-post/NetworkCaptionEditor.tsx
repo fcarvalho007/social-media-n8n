@@ -223,8 +223,7 @@ export function NetworkCaptionEditor({
                   ref={(el) => { networkTextareaRefs.current[network] = el; }}
                   value={networkCaptions[network] || ''}
                   onChange={(e) => {
-                    const value = e.target.value.slice(0, maxLength);
-                    onNetworkCaptionChange(network, value);
+                    onNetworkCaptionChange(network, e.target.value);
                     // Auto-resize
                     e.target.style.height = 'auto';
                     e.target.style.height = `${Math.max(150, e.target.scrollHeight)}px`;
