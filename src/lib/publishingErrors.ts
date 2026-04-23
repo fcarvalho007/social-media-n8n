@@ -539,7 +539,20 @@ export function classifyErrorFromString(errorString: string, httpStatus?: number
       suggestedAction: 'Verifica as dimensões (4:5 ou 1:1) e formato dos ficheiros',
     };
   }
-  
+
+  if (lower.includes('pdf') || lower.includes('linkedin_document') ||
+      lower.includes('page count') || lower.includes('document generation') ||
+      lower.includes('linkedin document')) {
+    return {
+      message: 'Problema com o PDF do LinkedIn',
+      code: 'LINKEDIN_DOCUMENT_ERROR',
+      source: 'platform',
+      isRetryable: true,
+      originalError: httpStatus ? `${httpStatus}: ${errorString}` : errorString,
+      suggestedAction: 'Reduz o número de páginas/peso do documento e tenta novamente',
+    };
+  }
+
   return {
     message: errorString.length < 80 ? errorString : 'Erro na publicação',
     code: 'UNKNOWN',
