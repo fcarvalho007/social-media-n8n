@@ -1,97 +1,93 @@
 
 
-## Diagnóstico — refinamentos e melhorias úteis
+## Fase 2 do refactor de `ManualCreate.tsx`
 
-Auditoria do estado actual revela três frentes com retorno claro: **qualidade de código** (TS/lint), **continuação do refactor** e **DX/observabilidade**. Nada disto é urgente — tudo é incremental e seguro.
+**Estado actual:** 1994 linhas. Fase 1 completa + 6 hooks já extraídos (incluindo `useImageCompression`).
 
-### Estado actual
+**Objectivo:** Extrair os 3 fluxos de publicação coesos (`saveDraft`, `submitForApproval`, `publishNow`) para um hook orquestrador. Liberta o componente para focar-se em UI.
 
-| Métrica | Valor |
-|---|---|
-| `ManualCreate.tsx` | 2114 linhas, 37 hooks, 76 imports |
-| Erros TS | 0 |
-| Erros ESLint | **5 `no-explicit-any` + 1 warning de deps** |
-| Hooks já extraídos | 5 |
-| Componentes em `publishing/` | 869 linhas no `PublishProgressModal` (gigante isolado) |
+### Diagnóstico — handlers a extrair
 
----
+| Handler | Linhas | Responsabilidade |
+|---|---|---|
+| `handleSaveDraft` | 363-518 (~155) | Upload média + insert/update `posts_drafts` + registo `media_library` + tratamento de 6 tipos de erro |
+| `handleSubmitForApproval` | 549-723 (~175) | Upload + invocar edge `submit-to-n8n` + insert `posts` (`waiting_for_approval`) + registo `media_library` + redirect calendário |
+| `handlePublishNow` | 725-779 (~55) | Pré-check oversized → `executePublish` + handle duplicados + refresh quota |
+| Wrappers `*WithValidation` | 344-360 (~17) | Gating de smart-validation |
 
-### Frente A — Qualidade de código (rápido, alto ROI) · ~1h
+**Total:** ~400 linhas → `ManualCreate.tsx` desce para **~1600 linhas**.
 
-| # | Refinamento | Ficheiro | Esforço |
-|---|---|---|---|
-| **A1** | Eliminar 5 `any` em `ManualCreate.tsx` (linhas 211, 475, 537, 705, 1340) — substituir por tipos reais (`MediaFile`, `PostFormat`, `unknown` + narrowing) | `src/pages/ManualCreate.tsx` | 30 min |
-| **A2** | Corrigir warning de deps em `useMemo` (linha 380, falta `activePreviewTab`) — avaliar se é dep esquecida ou se deve ser `useCallback` | `src/pages/ManualCreate.tsx` | 10 min |
-| **A3** | Extrair `extractVideoFrame()` (linhas 80-138, ~60 linhas) para `src/lib/media/videoFrameExtractor.ts` — já é função pura, partilhável | novo `src/lib/media/videoFrameExtractor.ts` + edit `ManualCreate.tsx` | 20 min |
+### Plano
 
-**Ganho:** lint limpo, tipos seguros, -60 linhas em `ManualCreate.tsx` (→ 2054).
+**Criar `src/hooks/manual-create/usePublishOrchestrator.ts`** com:
 
-### Frente B — Fase 2 do refactor (isolada e segura) · ~2h
+```text
+Inputs (estado lido por chamada):
+  selectedFormats, selectedNetworks, caption, networkCaptions,
+  useSeparateCaptions, mediaFiles, scheduledDate, time, scheduleAsap,
+  recoveredPostId, currentDraftId
 
-Extracção do bloco de **compressão de imagens** que está claramente coeso (linhas 774-940) e independente.
+Dependências (hooks):
+  smartValidation, compression, executePublish, refreshQuota
 
-| # | Refinamento | Ficheiro | Esforço |
-|---|---|---|---|
-| **B1** | Criar `useImageCompression()` — encapsula `oversizedImages`, `compressionStep`, `compressionProgress`, `compressionResults`, `pendingCompressedFiles`, `isCompressing` + `handleConfirmCompression`, `handleConfirmAndPublish`, `handleCancelCompression` | novo `src/hooks/manual-create/useImageCompression.ts` | 1h |
-| **B2** | `ManualCreate.tsx` passa a consumir `const compression = useImageCompression({ mediaFiles, setMediaFiles, onPublish: handlePublishNow })` — remove ~110 linhas | edit `ManualCreate.tsx` | 30 min |
-| **B3** | Atualizar `ImageCompressionConfirmModal` para receber props já agregados do hook (sem mudanças visuais) | edit `ImageCompressionConfirmModal.tsx` | 30 min |
+Setters (reset pós-sucesso):
+  setCurrentDraftId, setCaption, setMediaFiles, setMediaPreviewUrls,
+  setScheduledDate, setTime, setScheduleAsap
 
-**Ganho:** -110 linhas em `ManualCreate.tsx` (→ ~1944), lógica de compressão reutilizável (útil futuramente em `Recovery.tsx` quando republicar falhas).
+Callbacks UI:
+  setValidationSheetOpen, onDuplicateDetected, onNavigateAfterSubmit
 
-**Não incluído nesta fase:** `usePublishOrchestrator` — depende de muito mais estado e merece prompt dedicado depois.
+Estado exposto:
+  saving, submitting, uploadProgress
 
-### Frente C — Observabilidade & DX (opcional) · ~45min
+Acções:
+  saveDraft(), publishNow(files?), submitForApproval(),
+  publishWithValidation(), submitWithValidation()
+```
 
-| # | Refinamento | Ficheiro | Esforço |
-|---|---|---|---|
-| **C1** | Adicionar `console.debug` agrupado (`console.group('[ManualCreate]')`) nos pontos críticos: início de publicação, compressão activada, recuperação de rascunho, mudança de step. Já temos `console.debug` no `useSmartValidation` — uniformizar prefixos `[manual-create:*]` | `ManualCreate.tsx`, hooks de `manual-create/` | 30 min |
-| **C2** | Criar `LOCKED_FILES.md` na raiz (regra workspace) listando: `src/integrations/supabase/client.ts`, `src/integrations/supabase/types.ts`, `.env`, `supabase/config.toml` (project-level) | novo `LOCKED_FILES.md` | 15 min |
+**Não migrado (closures muito locais):** `handleConfirmAndPublish` (chama `setMediaFiles` + `publishNow`), `handleCancelPublishing`, `handleCreateNew`, `handleViewCalendar`.
 
-**Ganho:** debugging mais rápido em produção, conformidade com regra do workspace.
+### Estratégia de migração
 
----
+1. Criar `usePublishOrchestrator.ts` com lógica **transladada literalmente** (sem refactor de comportamento)
+2. Em `ManualCreate.tsx`: remover `useState` de `saving`/`submitting`/`uploadProgress`, substituir os 5 handlers por delegações
+3. Validar TS + ESLint + build
 
 ### Resultado esperado
 
-| Métrica | Hoje | Depois (A+B+C) |
+| Métrica | Hoje | Depois |
 |---|---|---|
-| `ManualCreate.tsx` | 2114 linhas | **~1944 linhas** |
-| Erros ESLint | 6 | **0** |
-| Hooks `manual-create/` | 5 | **6** (`useImageCompression`) |
-| Utilitários partilhados | 0 vídeo helpers | **+1** (`videoFrameExtractor`) |
-| `LOCKED_FILES.md` | ausente | **presente** |
+| `ManualCreate.tsx` | 1994 | **~1600** (-400) |
+| Hooks `manual-create/` | 6 | **7** |
+| Handlers publicação inline | 5 | **0** |
+| Erros TS / ESLint | 0 / 0 | **0 / 0** |
 
 ### Ficheiros tocados
 
 | Ficheiro | Tipo |
 |---|---|
-| `src/lib/media/videoFrameExtractor.ts` | novo |
-| `src/hooks/manual-create/useImageCompression.ts` | novo |
-| `LOCKED_FILES.md` | novo |
-| `src/pages/ManualCreate.tsx` | edit (tipos, deps, remover compression + extractVideoFrame) |
-| `src/components/publishing/ImageCompressionConfirmModal.tsx` | edit (props agregados) |
+| `src/hooks/manual-create/usePublishOrchestrator.ts` | **novo** (~430 linhas) |
+| `src/pages/ManualCreate.tsx` | edit (-~400 linhas) |
+
+### Risco
+
+**Baixo-médio.** Maior hook até agora, mas lógica idêntica à actual. Mitigação: criar hook num único `code--write` antes de tocar no componente.
 
 ### Checkpoint
 
-☐ `npx eslint src/pages/ManualCreate.tsx` → 0 errors  
-☐ `npx tsc --noEmit` sem erros novos  
-☐ Upload de imagem 5MB para Instagram ainda dispara modal de compressão  
-☐ Publicação com PDF LinkedIn ainda funciona  
-☐ `extractVideoFrame` continua a gerar thumbnails de vídeo no carrossel  
-☐ `LOCKED_FILES.md` documenta os 4 ficheiros auto-geridos  
-☐ Build (`bun run build:dev`) passa
+☐ `usePublishOrchestrator.ts` criado com 5 acções  
+☐ `saving`, `submitting`, `uploadProgress` removidos de `ManualCreate.tsx`  
+☐ 5 handlers substituídos por delegações  
+☐ `npx tsc --noEmit` sem erros  
+☐ `npx eslint src/pages/ManualCreate.tsx` sem novos erros  
+☐ `bun run build:dev` passa  
+☐ "Guardar rascunho" persiste em `posts_drafts`  
+☐ "Submeter para aprovação" invoca `submit-to-n8n` e redirige  
+☐ "Publicar agora" dispara modal de progresso + detecção de duplicados  
+☐ Modal de compressão Instagram >4MB ainda intercepta
 
-### Recomendação de execução
+### Fora desta fase
 
-- **Frente A primeiro** (1h, isolada, ganho imediato em qualidade)
-- **Frente B depois** (2h, é a Fase 2 natural do refactor)
-- **Frente C como bónus** (45min, baixo risco)
-
-Pode aprovar tudo de uma vez ou apenas a frente que prefere começar.
-
-### Fora deste plano
-
-- **Fase 3** (decompor JSX em `Step1Format`, `Step2Media`, `Step3Caption`, `Step4Schedule` — ~700 linhas)
-- **Fase 4** (`usePublishOrchestrator` — depende de muito estado)
-- Refactor do `PublishProgressModal.tsx` (869 linhas — merece prompt próprio)
+- **Fase 3:** decompor JSX em `Step1Format`/`Step2Media`/`Step3Caption`/`Step4Schedule` (~700 linhas)
+- **Fase 4:** limpeza final, meta ≤ 700 linhas
 
