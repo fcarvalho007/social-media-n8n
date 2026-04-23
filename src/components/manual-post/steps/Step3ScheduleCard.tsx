@@ -1,0 +1,291 @@
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { Button } from '@/components/ui/button';
+import { Label } from '@/components/ui/label';
+import { Badge } from '@/components/ui/badge';
+import { Calendar } from '@/components/ui/calendar';
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { addDays, nextDay, format } from 'date-fns';
+import { pt } from 'date-fns/locale';
+import { cn } from '@/lib/utils';
+import {
+  CalendarIcon,
+  ChevronLeft,
+  CheckCircle2,
+  Clock,
+  Globe,
+  Rocket,
+} from 'lucide-react';
+import { SectionHelp, getSectionTooltip } from '@/components/manual-post/SectionHelp';
+
+interface Step3ScheduleCardProps {
+  scheduleAsap: boolean;
+  onScheduleAsapChange: (asap: boolean) => void;
+  scheduledDate: Date | undefined;
+  onScheduledDateChange: (date: Date | undefined) => void;
+  time: string;
+  onTimeChange: (time: string) => void;
+  onPreviousStep: () => void;
+}
+
+/**
+ * Cartão de agendamento (Step 3b). Toggle "Agora" vs "Agendar" + atalhos de
+ * data, calendário, selectores hora/min, presets de hora e preview agendado.
+ */
+export function Step3ScheduleCard(props: Step3ScheduleCardProps) {
+  const {
+    scheduleAsap,
+    onScheduleAsapChange,
+    scheduledDate,
+    onScheduledDateChange,
+    time,
+    onTimeChange,
+    onPreviousStep,
+  } = props;
+
+  return (
+    <Card className="border-0 sm:border shadow-none sm:shadow-sm w-full max-w-full overflow-hidden">
+      <CardHeader className="px-1.5 xs:px-2 sm:px-6 pt-1.5 xs:pt-2 sm:pt-6 pb-1 xs:pb-1.5 sm:pb-4">
+        <CardTitle className="flex items-center gap-1 xs:gap-1.5 sm:gap-2 text-sm xs:text-base sm:text-lg">
+          Agendamento
+          <SectionHelp content={getSectionTooltip('scheduling')} />
+        </CardTitle>
+        <CardDescription className="text-[10px] xs:text-xs sm:text-sm">Defina quando publicar</CardDescription>
+      </CardHeader>
+      <CardContent className="space-y-2 xs:space-y-3 sm:space-y-4 px-2 xs:px-3 sm:px-6 pb-3 xs:pb-4 sm:pb-6">
+        {/* Toggle Pill Style */}
+        <div className="flex rounded-full bg-muted p-0.5 gap-0.5">
+          <button
+            type="button"
+            onClick={() => onScheduleAsapChange(true)}
+            className={cn(
+              'flex-1 py-1.5 xs:py-2 px-1.5 xs:px-2 sm:px-4 rounded-full text-[10px] xs:text-xs sm:text-sm font-medium transition-all duration-300 flex items-center justify-center gap-0.5 xs:gap-1 sm:gap-2',
+              scheduleAsap
+                ? 'bg-background shadow-sm text-foreground'
+                : 'text-muted-foreground hover:text-foreground',
+            )}
+          >
+            <Rocket className="h-3 w-3 xs:h-3.5 xs:w-3.5 sm:h-4 sm:w-4" />
+            <span className="hidden xs:inline">Publicar agora</span>
+            <span className="xs:hidden">Agora</span>
+          </button>
+          <button
+            type="button"
+            onClick={() => onScheduleAsapChange(false)}
+            className={cn(
+              'flex-1 py-1.5 xs:py-2 px-1.5 xs:px-2 sm:px-4 rounded-full text-[10px] xs:text-xs sm:text-sm font-medium transition-all duration-300 flex items-center justify-center gap-0.5 xs:gap-1 sm:gap-2',
+              !scheduleAsap
+                ? 'bg-background shadow-sm text-foreground'
+                : 'text-muted-foreground hover:text-foreground',
+            )}
+          >
+            <CalendarIcon className="h-3 w-3 xs:h-3.5 xs:w-3.5 sm:h-4 sm:w-4" />
+            Agendar
+          </button>
+        </div>
+
+        {scheduleAsap ? (
+          <div className="text-center py-3 space-y-2">
+            <div className="inline-flex items-center gap-2 text-sm text-muted-foreground bg-muted/50 px-4 py-2 rounded-lg">
+              <Rocket className="h-4 w-4 text-primary" />
+              <span>Publicação imediata após clicares em Publicar</span>
+            </div>
+          </div>
+        ) : (
+          <div className="space-y-4 animate-fade-in">
+            {/* Timezone indicator */}
+            <div className="flex items-center justify-center gap-1 xs:gap-2 text-[9px] xs:text-xs text-muted-foreground bg-muted/40 px-2 xs:px-3 py-1.5 xs:py-2 rounded-lg flex-wrap">
+              <Globe className="h-3 w-3" />
+              <span className="hidden xs:inline">Fuso: </span>
+              <strong className="text-foreground">Lisboa</strong>
+              <span className="text-muted-foreground/60">•</span>
+              <span>{format(new Date(), 'HH:mm', { locale: pt })}</span>
+            </div>
+
+            {/* Quick date shortcuts */}
+            <div className="space-y-2">
+              <Label className="text-[10px] xs:text-xs text-muted-foreground">Atalhos rápidos</Label>
+              <div className="grid grid-cols-2 gap-1 xs:gap-1.5">
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  onClick={() => onScheduledDateChange(new Date())}
+                  className={cn(
+                    'text-[9px] xs:text-[10px] sm:text-xs h-7 xs:h-8',
+                    scheduledDate &&
+                      format(scheduledDate, 'yyyy-MM-dd') === format(new Date(), 'yyyy-MM-dd') &&
+                      'bg-primary/10 border-primary/50',
+                  )}
+                >
+                  Hoje
+                </Button>
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  onClick={() => onScheduledDateChange(addDays(new Date(), 1))}
+                  className={cn(
+                    'text-[9px] xs:text-[10px] sm:text-xs h-7 xs:h-8',
+                    scheduledDate &&
+                      format(scheduledDate, 'yyyy-MM-dd') === format(addDays(new Date(), 1), 'yyyy-MM-dd') &&
+                      'bg-primary/10 border-primary/50',
+                  )}
+                >
+                  Amanhã
+                </Button>
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  onClick={() => onScheduledDateChange(nextDay(new Date(), 2))}
+                  className={cn(
+                    'text-[9px] xs:text-[10px] sm:text-xs h-7 xs:h-8',
+                    scheduledDate &&
+                      scheduledDate.getDay() === 2 &&
+                      scheduledDate > new Date() &&
+                      'bg-primary/10 border-primary/50',
+                  )}
+                >
+                  Terça
+                </Button>
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  onClick={() => onScheduledDateChange(nextDay(new Date(), 4))}
+                  className={cn(
+                    'text-[10px] xs:text-xs h-8',
+                    scheduledDate &&
+                      scheduledDate.getDay() === 4 &&
+                      scheduledDate > new Date() &&
+                      'bg-primary/10 border-primary/50',
+                  )}
+                >
+                  Quinta
+                </Button>
+              </div>
+            </div>
+
+            {/* Date picker */}
+            <div className="space-y-1.5">
+              <Label className="text-sm font-medium">Data</Label>
+              <Popover>
+                <PopoverTrigger asChild>
+                  <Button
+                    variant="outline"
+                    className={cn(
+                      'w-full justify-start text-left font-normal h-11',
+                      !scheduledDate && 'text-muted-foreground',
+                    )}
+                  >
+                    <CalendarIcon className="mr-2 h-4 w-4 text-primary" />
+                    {scheduledDate ? (
+                      <span className="capitalize">
+                        {format(scheduledDate, "EEEE, d 'de' MMMM", { locale: pt })}
+                      </span>
+                    ) : (
+                      'Escolher data'
+                    )}
+                  </Button>
+                </PopoverTrigger>
+                <PopoverContent className="w-auto p-0 z-50" align="start">
+                  <Calendar
+                    mode="single"
+                    selected={scheduledDate}
+                    onSelect={onScheduledDateChange}
+                    disabled={(date) => date < new Date(new Date().setHours(0, 0, 0, 0))}
+                    initialFocus
+                  />
+                </PopoverContent>
+              </Popover>
+            </div>
+
+            {/* Time picker with presets */}
+            <div className="space-y-1.5">
+              <Label className="text-sm font-medium">Hora</Label>
+              <div className="grid grid-cols-2 gap-2">
+                <Select
+                  value={time.split(':')[0]}
+                  onValueChange={(hour) => onTimeChange(`${hour}:${time.split(':')[1] || '00'}`)}
+                >
+                  <SelectTrigger className="h-11">
+                    <Clock className="h-4 w-4 mr-2 text-primary" />
+                    <SelectValue placeholder="Hora" />
+                  </SelectTrigger>
+                  <SelectContent className="max-h-[200px]">
+                    {Array.from({ length: 24 }, (_, i) => (
+                      <SelectItem key={i} value={String(i).padStart(2, '0')}>
+                        {String(i).padStart(2, '0')}h
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                <Select
+                  value={time.split(':')[1] || '00'}
+                  onValueChange={(min) => onTimeChange(`${time.split(':')[0]}:${min}`)}
+                >
+                  <SelectTrigger className="h-11">
+                    <SelectValue placeholder="Min" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="00">00 min</SelectItem>
+                    <SelectItem value="15">15 min</SelectItem>
+                    <SelectItem value="30">30 min</SelectItem>
+                    <SelectItem value="45">45 min</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+
+              {/* Time presets */}
+              <div className="overflow-x-auto scrollbar-hide pb-1">
+                <div className="flex gap-1 xs:gap-1.5 w-max xs:w-auto xs:flex-wrap mt-2">
+                  {['09:00', '12:00', '15:00', '18:00', '21:00'].map((preset) => (
+                    <Badge
+                      key={preset}
+                      variant="outline"
+                      className={cn(
+                        'cursor-pointer hover:bg-primary/10 transition-colors text-[10px] xs:text-xs py-0.5 xs:py-1 px-1.5 xs:px-2 flex-shrink-0',
+                        time === preset && 'bg-primary/10 border-primary/50',
+                      )}
+                      onClick={() => onTimeChange(preset)}
+                    >
+                      {preset}
+                    </Badge>
+                  ))}
+                </div>
+              </div>
+            </div>
+
+            {/* Scheduled preview */}
+            {scheduledDate && time && (
+              <div className="bg-gradient-to-r from-primary/5 to-primary/10 border border-primary/20 rounded-xl p-4 space-y-1">
+                <div className="flex items-center gap-2 text-sm font-medium text-primary">
+                  <CheckCircle2 className="h-4 w-4" />
+                  Agendado para:
+                </div>
+                <div className="text-base font-semibold capitalize">
+                  {format(scheduledDate, "EEEE, d 'de' MMMM 'às'", { locale: pt })} {time}
+                </div>
+                <p className="text-xs text-muted-foreground">Fuso horário de Lisboa (WET/WEST)</p>
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* Step 3 Navigation */}
+        <div className="flex justify-start mt-3 pt-3 border-t">
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={onPreviousStep}
+            className="text-muted-foreground hover:text-foreground"
+          >
+            <ChevronLeft className="h-4 w-4 mr-1" />
+            Anterior
+          </Button>
+        </div>
+      </CardContent>
+    </Card>
+  );
+}

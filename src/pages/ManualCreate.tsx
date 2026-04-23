@@ -79,6 +79,9 @@ import { useDraftRecovery } from '@/hooks/manual-create/useDraftRecovery';
 import { useMediaUpload } from '@/hooks/manual-create/useMediaUpload';
 import { useImageCompression } from '@/hooks/manual-create/useImageCompression';
 import { usePublishOrchestrator } from '@/hooks/manual-create/usePublishOrchestrator';
+import { Step3CaptionCard } from '@/components/manual-post/steps/Step3CaptionCard';
+import { PublishActionsCard } from '@/components/manual-post/steps/PublishActionsCard';
+import { Step3ScheduleCard } from '@/components/manual-post/steps/Step3ScheduleCard';
 import { detectImageAspectRatio as detectImageAspectRatioExt, detectVideoAspectRatio as detectVideoAspectRatioExt } from '@/hooks/manual-create/mediaAspectDetection';
 // `extractVideoFrame` foi consolidado em '@/lib/media/videoFrameExtractor'.
 // Este componente já não o usava localmente.
@@ -947,407 +950,60 @@ export default function ManualCreate() {
             "transition-all duration-300 ease-out overflow-hidden space-y-3 sm:space-y-6",
             showStep3 ? "opacity-100" : "opacity-0 max-h-0"
           )}>
-            {/* Caption */}
-            <Card className="border-0 sm:border shadow-none sm:shadow-sm">
-              <CardHeader className="px-3 sm:px-6 pt-3 sm:pt-6 pb-2 sm:pb-4">
-                <CardTitle className="flex items-center gap-1.5 sm:gap-2 text-base sm:text-lg">
-                  Legenda
-                  <SectionHelp content={getSectionTooltip('caption')} />
-                </CardTitle>
-                <CardDescription className="text-xs sm:text-sm">
-                  {!useSeparateCaptions && (
-                    <>
-                      <span className={cn(
-                        "font-medium",
-                        captionLength > maxLength * 0.9 && captionLength <= maxLength && "text-orange-500",
-                        captionLength > maxLength && "text-destructive"
-                      )}>
-                        {captionLength}/{maxLength}
-                      </span>
-                      {' '}caracteres
-                    </>
-                  )}
-                  {selectedNetworks.includes('linkedin') && <span className="hidden sm:inline"> (obrigatório para LinkedIn)</span>}
-                </CardDescription>
-              </CardHeader>
-              <CardContent className="space-y-2 sm:space-y-3 px-3 sm:px-6 pb-4 sm:pb-6">
-                <NetworkCaptionEditor
-                  caption={caption}
-                  onCaptionChange={setCaption}
-                  networkCaptions={networkCaptions}
-                  onNetworkCaptionChange={(network, value) => {
-                    setNetworkCaptions(prev => ({ ...prev, [network]: value }));
-                  }}
-                  selectedNetworks={selectedNetworks}
-                  useSeparateCaptions={useSeparateCaptions}
-                  onToggleSeparate={(value) => {
-                    setUseSeparateCaptions(value);
-                    // Initialize network captions with unified caption when enabling
-                    if (value) {
-                      const initial: Record<string, string> = {};
-                      selectedNetworks.forEach(network => {
-                        initial[network] = networkCaptions[network] || caption;
-                      });
-                      setNetworkCaptions(initial);
-                    }
-                  }}
-                  disabled={saving || submitting || publishing}
-                  onOpenSavedCaptions={() => setSavedCaptionsOpen(true)}
-                  onOpenAIDialog={() => setAiDialogOpen(true)}
-                />
-              </CardContent>
-            </Card>
+            <Step3CaptionCard
+              caption={caption}
+              onCaptionChange={setCaption}
+              networkCaptions={networkCaptions}
+              onNetworkCaptionChange={(network, value) => {
+                setNetworkCaptions(prev => ({ ...prev, [network]: value }));
+              }}
+              selectedNetworks={selectedNetworks}
+              useSeparateCaptions={useSeparateCaptions}
+              onToggleSeparate={(value) => {
+                setUseSeparateCaptions(value);
+                if (value) {
+                  const initial: Record<string, string> = {};
+                  selectedNetworks.forEach(network => {
+                    initial[network] = networkCaptions[network] || caption;
+                  });
+                  setNetworkCaptions(initial);
+                }
+              }}
+              captionLength={captionLength}
+              maxLength={maxLength}
+              disabled={saving || submitting || publishing}
+              onOpenSavedCaptions={() => setSavedCaptionsOpen(true)}
+              onOpenAIDialog={() => setAiDialogOpen(true)}
+            />
 
-            {/* Date & Time */}
-            <Card className="border-0 sm:border shadow-none sm:shadow-sm w-full max-w-full overflow-hidden">
-              <CardHeader className="px-1.5 xs:px-2 sm:px-6 pt-1.5 xs:pt-2 sm:pt-6 pb-1 xs:pb-1.5 sm:pb-4">
-                <CardTitle className="flex items-center gap-1 xs:gap-1.5 sm:gap-2 text-sm xs:text-base sm:text-lg">
-                  Agendamento
-                  <SectionHelp content={getSectionTooltip('scheduling')} />
-                </CardTitle>
-                <CardDescription className="text-[10px] xs:text-xs sm:text-sm">Defina quando publicar</CardDescription>
-              </CardHeader>
-              <CardContent className="space-y-2 xs:space-y-3 sm:space-y-4 px-2 xs:px-3 sm:px-6 pb-3 xs:pb-4 sm:pb-6">
-                {/* Toggle Pill Style */}
-                <div className="flex rounded-full bg-muted p-0.5 gap-0.5">
-                  <button
-                    type="button"
-                    onClick={() => setScheduleAsap(true)}
-                    className={cn(
-                      "flex-1 py-1.5 xs:py-2 px-1.5 xs:px-2 sm:px-4 rounded-full text-[10px] xs:text-xs sm:text-sm font-medium transition-all duration-300 flex items-center justify-center gap-0.5 xs:gap-1 sm:gap-2",
-                      scheduleAsap 
-                        ? "bg-background shadow-sm text-foreground" 
-                        : "text-muted-foreground hover:text-foreground"
-                    )}
-                  >
-                    <Rocket className="h-3 w-3 xs:h-3.5 xs:w-3.5 sm:h-4 sm:w-4" />
-                    <span className="hidden xs:inline">Publicar agora</span>
-                    <span className="xs:hidden">Agora</span>
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => setScheduleAsap(false)}
-                    className={cn(
-                      "flex-1 py-1.5 xs:py-2 px-1.5 xs:px-2 sm:px-4 rounded-full text-[10px] xs:text-xs sm:text-sm font-medium transition-all duration-300 flex items-center justify-center gap-0.5 xs:gap-1 sm:gap-2",
-                      !scheduleAsap 
-                        ? "bg-background shadow-sm text-foreground" 
-                        : "text-muted-foreground hover:text-foreground"
-                    )}
-                  >
-                    <CalendarIcon className="h-3 w-3 xs:h-3.5 xs:w-3.5 sm:h-4 sm:w-4" />
-                    Agendar
-                  </button>
-                </div>
-                
-                {scheduleAsap ? (
-                  <div className="text-center py-3 space-y-2">
-                    <div className="inline-flex items-center gap-2 text-sm text-muted-foreground bg-muted/50 px-4 py-2 rounded-lg">
-                      <Rocket className="h-4 w-4 text-primary" />
-                      <span>Publicação imediata após clicares em Publicar</span>
-                    </div>
-                  </div>
-                ) : (
-                  <div className="space-y-4 animate-fade-in">
-                    {/* Timezone indicator */}
-                    <div className="flex items-center justify-center gap-1 xs:gap-2 text-[9px] xs:text-xs text-muted-foreground bg-muted/40 px-2 xs:px-3 py-1.5 xs:py-2 rounded-lg flex-wrap">
-                      <Globe className="h-3 w-3" />
-                      <span className="hidden xs:inline">Fuso: </span>
-                      <strong className="text-foreground">Lisboa</strong>
-                      <span className="text-muted-foreground/60">•</span>
-                      <span>{format(new Date(), 'HH:mm', { locale: pt })}</span>
-                    </div>
-
-                    {/* Quick date shortcuts */}
-                    <div className="space-y-2">
-                      <Label className="text-[10px] xs:text-xs text-muted-foreground">Atalhos rápidos</Label>
-                      <div className="grid grid-cols-2 gap-1 xs:gap-1.5">
-                        <Button 
-                          type="button"
-                          variant="outline" 
-                          size="sm"
-                          onClick={() => setScheduledDate(new Date())}
-                          className={cn(
-                            "text-[9px] xs:text-[10px] sm:text-xs h-7 xs:h-8",
-                            scheduledDate && format(scheduledDate, 'yyyy-MM-dd') === format(new Date(), 'yyyy-MM-dd') && "bg-primary/10 border-primary/50"
-                          )}
-                        >
-                          Hoje
-                        </Button>
-                        <Button 
-                          type="button"
-                          variant="outline" 
-                          size="sm"
-                          onClick={() => setScheduledDate(addDays(new Date(), 1))}
-                          className={cn(
-                            "text-[9px] xs:text-[10px] sm:text-xs h-7 xs:h-8",
-                            scheduledDate && format(scheduledDate, 'yyyy-MM-dd') === format(addDays(new Date(), 1), 'yyyy-MM-dd') && "bg-primary/10 border-primary/50"
-                          )}
-                        >
-                          Amanhã
-                        </Button>
-                        <Button 
-                          type="button"
-                          variant="outline" 
-                          size="sm"
-                          onClick={() => setScheduledDate(nextDay(new Date(), 2))}
-                          className={cn(
-                            "text-[9px] xs:text-[10px] sm:text-xs h-7 xs:h-8",
-                            scheduledDate && scheduledDate.getDay() === 2 && scheduledDate > new Date() && "bg-primary/10 border-primary/50"
-                          )}
-                        >
-                          Terça
-                        </Button>
-                        <Button 
-                          type="button"
-                          variant="outline" 
-                          size="sm"
-                          onClick={() => setScheduledDate(nextDay(new Date(), 4))}
-                          className={cn(
-                            "text-[10px] xs:text-xs h-8",
-                            scheduledDate && scheduledDate.getDay() === 4 && scheduledDate > new Date() && "bg-primary/10 border-primary/50"
-                          )}
-                        >
-                          Quinta
-                        </Button>
-                      </div>
-                    </div>
-                    
-                    {/* Date picker */}
-                    <div className="space-y-1.5">
-                      <Label className="text-sm font-medium">Data</Label>
-                      <Popover>
-                        <PopoverTrigger asChild>
-                          <Button 
-                            variant="outline" 
-                            className={cn(
-                              "w-full justify-start text-left font-normal h-11",
-                              !scheduledDate && "text-muted-foreground"
-                            )}
-                          >
-                            <CalendarIcon className="mr-2 h-4 w-4 text-primary" />
-                            {scheduledDate ? (
-                              <span className="capitalize">{format(scheduledDate, "EEEE, d 'de' MMMM", { locale: pt })}</span>
-                            ) : (
-                              'Escolher data'
-                            )}
-                          </Button>
-                        </PopoverTrigger>
-                        <PopoverContent className="w-auto p-0 z-50" align="start">
-                          <Calendar
-                            mode="single"
-                            selected={scheduledDate}
-                            onSelect={setScheduledDate}
-                            disabled={(date) => date < new Date(new Date().setHours(0, 0, 0, 0))}
-                            initialFocus
-                          />
-                        </PopoverContent>
-                      </Popover>
-                    </div>
-                    
-                    {/* Time picker with presets */}
-                    <div className="space-y-1.5">
-                      <Label className="text-sm font-medium">Hora</Label>
-                      <div className="grid grid-cols-2 gap-2">
-                        <Select 
-                          value={time.split(':')[0]} 
-                          onValueChange={(hour) => setTime(`${hour}:${time.split(':')[1] || '00'}`)}
-                        >
-                          <SelectTrigger className="h-11">
-                            <Clock className="h-4 w-4 mr-2 text-primary" />
-                            <SelectValue placeholder="Hora" />
-                          </SelectTrigger>
-                          <SelectContent className="max-h-[200px]">
-                            {Array.from({ length: 24 }, (_, i) => (
-                              <SelectItem key={i} value={String(i).padStart(2, '0')}>
-                                {String(i).padStart(2, '0')}h
-                              </SelectItem>
-                            ))}
-                          </SelectContent>
-                        </Select>
-                        <Select 
-                          value={time.split(':')[1] || '00'} 
-                          onValueChange={(min) => setTime(`${time.split(':')[0]}:${min}`)}
-                        >
-                          <SelectTrigger className="h-11">
-                            <SelectValue placeholder="Min" />
-                          </SelectTrigger>
-                          <SelectContent>
-                            <SelectItem value="00">00 min</SelectItem>
-                            <SelectItem value="15">15 min</SelectItem>
-                            <SelectItem value="30">30 min</SelectItem>
-                            <SelectItem value="45">45 min</SelectItem>
-                          </SelectContent>
-                        </Select>
-                      </div>
-                      
-                      {/* Time presets */}
-                      <div className="overflow-x-auto scrollbar-hide pb-1">
-                        <div className="flex gap-1 xs:gap-1.5 w-max xs:w-auto xs:flex-wrap mt-2">
-                          {['09:00', '12:00', '15:00', '18:00', '21:00'].map((preset) => (
-                            <Badge 
-                              key={preset}
-                              variant="outline" 
-                              className={cn(
-                                "cursor-pointer hover:bg-primary/10 transition-colors text-[10px] xs:text-xs py-0.5 xs:py-1 px-1.5 xs:px-2 flex-shrink-0",
-                                time === preset && "bg-primary/10 border-primary/50"
-                              )}
-                              onClick={() => setTime(preset)}
-                            >
-                              {preset}
-                            </Badge>
-                          ))}
-                        </div>
-                      </div>
-                    </div>
-
-                    {/* Scheduled preview */}
-                    {scheduledDate && time && (
-                      <div className="bg-gradient-to-r from-primary/5 to-primary/10 border border-primary/20 rounded-xl p-4 space-y-1">
-                        <div className="flex items-center gap-2 text-sm font-medium text-primary">
-                          <CheckCircle2 className="h-4 w-4" />
-                          Agendado para:
-                        </div>
-                        <div className="text-base font-semibold capitalize">
-                          {format(scheduledDate, "EEEE, d 'de' MMMM 'às'", { locale: pt })} {time}
-                        </div>
-                        <p className="text-xs text-muted-foreground">
-                          Fuso horário de Lisboa (WET/WEST)
-                        </p>
-                      </div>
-                    )}
-                  </div>
-                )}
-                
-                {/* Step 3 Navigation */}
-                <div className="flex justify-start mt-3 pt-3 border-t">
-                  <Button 
-                    variant="ghost" 
-                    size="sm" 
-                    onClick={previousStep}
-                    className="text-muted-foreground hover:text-foreground"
-                  >
-                    <ChevronLeft className="h-4 w-4 mr-1" />
-                    Anterior
-                  </Button>
-                </div>
-              </CardContent>
-            </Card>
+            <Step3ScheduleCard
+              scheduleAsap={scheduleAsap}
+              onScheduleAsapChange={setScheduleAsap}
+              scheduledDate={scheduledDate}
+              onScheduledDateChange={setScheduledDate}
+              time={time}
+              onTimeChange={setTime}
+              onPreviousStep={previousStep}
+            />
 
             {/* Actions - Reorganized Hierarchy - Hidden on mobile (use bottom bar) */}
-            <Card className="hidden sm:block lg:sticky lg:bottom-4 bg-card/95 backdrop-blur-sm border-2 shadow-lg">
-              <CardContent className="pt-4 sm:pt-6 space-y-3 sm:space-y-4">
-                {(saving || submitting || publishing) && uploadProgress > 0 && (
-                  <div className="space-y-2">
-                    <div className="flex items-center justify-between text-xs sm:text-sm">
-                      <span className="text-muted-foreground">
-                        {saving ? 'A guardar...' : publishing ? 'A publicar...' : 'A submeter...'}
-                      </span>
-                      <span className="font-medium">{uploadProgress}%</span>
-                    </div>
-                    <Progress value={uploadProgress} className="h-2" />
-                  </div>
-                )}
-
-                {/* Smart Pre-Validation Panel (real-time) */}
-                {selectedFormats.length > 0 && (
-                  <ValidationSidebar
-                    validation={smartValidation}
-                    mediaFiles={mediaFiles}
-                  />
-                )}
-                
-                {/* Primary Actions Row */}
-
-                <div className="flex gap-3">
-                  <Button
-                    type="button"
-                    size="lg"
-                    onClick={handlePublishWithValidation}
-                    disabled={publishing || submitting || saving || isUploading || (selectedFormats.length > 0 && !smartValidation.canPublish)}
-                    className={cn(
-                      "flex-1 font-semibold text-white",
-                      // Dynamic color: blue for scheduled, green for immediate
-                      !scheduleAsap && scheduledDate
-                        ? "bg-gradient-to-r from-blue-600 to-blue-500 hover:from-blue-500 hover:to-blue-400"
-                        : "bg-gradient-to-r from-green-600 to-green-500 hover:from-green-500 hover:to-green-400",
-                      "hover:shadow-lg active:scale-[0.98] transition-all duration-200",
-                      "disabled:opacity-50 disabled:cursor-not-allowed"
-                    )}
-                    aria-label={!scheduleAsap && scheduledDate ? "Agendar publicação" : "Publicar agora"}
-                  >
-                    {publishing ? (
-                      <>
-                        <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                        {!scheduleAsap && scheduledDate ? 'A agendar...' : 'A publicar...'}
-                      </>
-                    ) : (
-                      <>
-                        {!scheduleAsap && scheduledDate ? (
-                          <>
-                            <CalendarIcon className="h-4 w-4 mr-2" />
-                            Agendar para {format(scheduledDate, "d 'de' MMM", { locale: pt })}
-                          </>
-                        ) : (
-                          <>
-                            <Rocket className="h-4 w-4 mr-2" />
-                            Publicar Agora
-                          </>
-                        )}
-                      </>
-                    )}
-                  </Button>
-                </div>
-                
-                {/* Secondary Actions Row */}
-                <div className="flex items-center justify-center gap-4 text-xs pt-2">
-                  <button 
-                    onClick={handleSaveDraft}
-                    disabled={saving || submitting || publishing || isUploading}
-                    className="text-muted-foreground hover:text-foreground transition-colors disabled:opacity-50"
-                  >
-                    {saving ? 'A guardar...' : 'Guardar rascunho'}
-                  </button>
-                  <span className="text-muted-foreground/50">|</span>
-                  <button 
-                    onClick={() => setDraftsDialogOpen(true)}
-                    disabled={saving || submitting}
-                    className="text-muted-foreground hover:text-foreground transition-colors disabled:opacity-50"
-                  >
-                    Ver rascunhos
-                  </button>
-                  <span className="text-muted-foreground/50">|</span>
-                  <button 
-                    onClick={() => navigate('/calendar')}
-                    disabled={saving || submitting}
-                    className="text-muted-foreground hover:text-foreground transition-colors disabled:opacity-50"
-                  >
-                    Ver calendário
-                  </button>
-                </div>
-
-                {/* Submit for Approval - Only if approval flow exists */}
-                <Button
-                  type="button"
-                  variant="secondary"
-                  onClick={handleSubmitWithValidation}
-                  disabled={submitting || saving || publishing || isUploading}
-                  className="w-full"
-                  aria-label="Submeter para aprovação"
-                >
-                  {submitting ? (
-                    <>
-                      <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                      A submeter...
-                    </>
-                  ) : (
-                    <>
-                      <Send className="h-4 w-4 mr-2" />
-                      Submeter para aprovação
-                    </>
-                  )}
-                </Button>
-              </CardContent>
-            </Card>
+            <PublishActionsCard
+              saving={saving}
+              submitting={submitting}
+              publishing={publishing}
+              isUploading={isUploading}
+              uploadProgress={uploadProgress}
+              selectedFormats={selectedFormats}
+              smartValidation={smartValidation}
+              mediaFiles={mediaFiles}
+              scheduleAsap={scheduleAsap}
+              scheduledDate={scheduledDate}
+              onPublish={handlePublishWithValidation}
+              onSaveDraft={handleSaveDraft}
+              onOpenDrafts={() => setDraftsDialogOpen(true)}
+              onViewCalendar={() => navigate('/calendar')}
+              onSubmitForApproval={handleSubmitWithValidation}
+            />
           </div>
         </div>
 
