@@ -130,65 +130,8 @@ interface PublishParams {
   skipDuplicateCheck?: boolean; // Skip duplicate detection (user confirmed)
 }
 
-// Extract first frame from video file
-async function extractVideoFrame(videoFile: File | string): Promise<File> {
-  return new Promise((resolve, reject) => {
-    const video = document.createElement('video');
-    video.crossOrigin = 'anonymous';
-    video.preload = 'metadata';
-    
-    const cleanup = () => {
-      if (typeof videoFile !== 'string') {
-        URL.revokeObjectURL(video.src);
-      }
-    };
-    
-    video.onloadeddata = () => {
-      video.currentTime = 0.5;
-    };
-    
-    video.onseeked = () => {
-      try {
-        const canvas = document.createElement('canvas');
-        canvas.width = video.videoWidth || 1280;
-        canvas.height = video.videoHeight || 720;
-        const ctx = canvas.getContext('2d');
-        if (!ctx) {
-          cleanup();
-          reject(new Error('Could not get canvas context'));
-          return;
-        }
-        ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
-        canvas.toBlob(
-          blob => {
-            cleanup();
-            if (blob) {
-              const fileName = typeof videoFile === 'string' 
-                ? 'video-frame.jpg' 
-                : videoFile.name.replace(/\.[^.]+$/, '-frame.jpg');
-              resolve(new File([blob], fileName, { type: 'image/jpeg' }));
-            } else {
-              reject(new Error('Could not create blob from canvas'));
-            }
-          },
-          'image/jpeg',
-          0.9
-        );
-      } catch (err) {
-        cleanup();
-        reject(err);
-      }
-    };
-    
-    video.onerror = () => {
-      cleanup();
-      reject(new Error('Could not load video'));
-    };
-    
-    video.src = typeof videoFile === 'string' ? videoFile : URL.createObjectURL(videoFile);
-    video.load();
-  });
-}
+// Extract first frame from video file — consolidated in `lib/media/videoFrameExtractor`.
+import { extractVideoFrame } from '@/lib/media/videoFrameExtractor';
 
 // Generate semantic PDF filename from caption
 function generateSemanticPdfFilename(caption: string): string {
