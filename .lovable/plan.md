@@ -1,113 +1,120 @@
+## Melhorias — contexto visual em “Conteúdo a Tratar” no `/dashboard`
 
-## Correção — Alternar para “Separadas” sem apagar a legenda original
+### Objetivo
 
-### Problema
+Quando um post é guardado como rascunho ou submetido para aprovação, o card no `/dashboard` deve permitir identificar rapidamente o conteúdo:
 
-Em `/create`, ao alternar de **Unificada** para **Separadas**, a legenda longa deve ser copiada para cada rede sem destruição de texto.
+- mostrar thumbnail real quando existe imagem;
+- indicar claramente quando é vídeo, mesmo que não exista thumbnail renderizada;
+- mostrar uma pequena caixa de contexto com data e excerto da legenda;
+- evitar cards “cegos” só com ícone genérico, sempre que houver informação disponível.
 
-O comportamento correto é:
+### Problemas encontrados
 
-- Instagram mantém a legenda completa.
-- Facebook mantém a legenda completa.
-- YouTube mantém a legenda completa.
-- LinkedIn mantém a legenda completa.
-- Apenas TikTok fica sujeito ao limite de 300 caracteres.
+1. O `/dashboard` usa `PendingThumbnail`, que recebe apenas `thumbnail`, `type` e `route`.
+2. A informação de legenda e data já é carregada em `usePendingContent`, mas não é passada para o componente visual.
+3. Rascunhos guardam `media_urls`, mas o extrator atual só assume string simples ou `{ url }`, e não distingue bem imagem/vídeo.
+4. Em vídeos, o componente tenta renderizar como imagem quando recebe URL de vídeo, falha e cai num ícone genérico.
+5. A grelha atual é só quadrada; não há espaço de enquadramento para legenda/data, como pediste.
 
-Neste momento há dois pontos frágeis:
+### Alterações propostas
 
-1. O editor por rede corta texto no `onChange` com:
-   ```ts
-   e.target.value.slice(0, maxLength)
-   ```
-   Isto pode destruir texto quando a rede ativa tem limite baixo, como TikTok.
+#### 1. Enriquecer os dados do dashboard
 
-2. A inicialização das legendas separadas deve garantir que copia a legenda global para todas as redes sem aplicar o menor limite global.
+Atualizar `src/hooks/usePendingContent.ts` para devolver, por item:
 
-### Implementação proposta
+- `caption`
+- `createdAt`
+- `scheduledDate`
+- `mediaType`: `image | video | document | unknown`
+- `mediaCount`
+- `platform`, quando disponível em rascunhos
 
-#### 1. Remover truncamento destrutivo no editor por rede
+Também melhorar a extração de média para suportar:
 
-Em `src/components/manual-post/NetworkCaptionEditor.tsx`, alterar o `onChange` das legendas separadas para guardar exatamente o texto escrito:
+- URL simples;
+- objetos `{ url }`;
+- objetos `{ preview }`;
+- objetos `{ thumbnail_url }` ou similares, se já existirem;
+- deteção por extensão para vídeo/PDF/imagem.
 
-```ts
-onNetworkCaptionChange(network, e.target.value)
+#### 2. Reestruturar `PendingThumbnail`
+
+Atualizar `src/components/PendingThumbnail.tsx` para deixar de ser apenas um quadrado e passar a ser um mini-card compacto:
+
+- thumbnail no topo, mantendo formato quadrado;
+- badge de estado no canto: `Rascunho`, `Por aprovar`, `Agendado`, etc.;
+- indicador de vídeo/documento quando aplicável;
+- pequena caixa inferior com:
+  - data: “Guardado 23 abr”, “Criado 23 abr” ou “Agendado 24 abr, 12:00”;
+  - excerto da legenda em 1–2 linhas;
+  - fallback útil: “Sem legenda”.
+
+Exemplo conceptual:
+
+```text
+┌────────────────────┐
+│ [thumbnail/vídeo]   │
+│ Rascunho      +2    │
+├────────────────────┤
+│ Guardado 23 abr     │
+│ Primeiras palavras… │
+└────────────────────┘
 ```
 
-em vez de:
+#### 3. Melhorar especificamente vídeos
 
-```ts
-onNetworkCaptionChange(network, e.target.value.slice(0, maxLength))
-```
+Para vídeos em rascunhos ou por aprovar:
 
-Assim, o texto nunca é apagado automaticamente enquanto o utilizador está a editar.
+- não tentar renderizar a URL do vídeo como `<img>`;
+- mostrar uma superfície visual própria com ícone de reprodução;
+- opcionalmente usar `<video preload="metadata">` em miniatura, se for seguro e leve;
+- manter fallback elegante quando o navegador não conseguir carregar preview.
 
-#### 2. Manter a legenda completa ao ativar “Separadas”
+A prioridade é identificação visual clara sem pesar o dashboard.
 
-Em `src/pages/ManualCreate.tsx`, rever o `onToggleSeparate`.
+#### 4. Ajustar o layout da grelha do dashboard
 
-Quando o utilizador liga “Separadas”:
+Atualizar `src/pages/Dashboard.tsx` para acomodar mini-cards com contexto:
 
-- copiar a legenda global completa para todas as redes selecionadas;
-- preservar qualquer legenda específica que já exista;
-- não aplicar limite de TikTok às outras redes;
-- não cortar Instagram/Facebook/YouTube/LinkedIn por causa do limite de TikTok.
+- trocar a grelha exclusivamente quadrada por cards ligeiramente mais altos;
+- manter layout compacto e responsivo;
+- preservar o limite de 6 itens;
+- manter botões existentes para Aprovar, Agendados e Rascunhos.
 
-A lógica ficará alinhada com:
+#### 5. Garantir coerência com `/drafts`
 
-```ts
-selectedNetworks.forEach(network => {
-  initial[network] = networkCaptions[network] ?? caption;
-});
-```
+Rever `src/components/drafts/DraftCard.tsx` para alinhar a lógica de deteção de média:
 
-#### 3. TikTok continua a ser validado, mas sem apagar texto automaticamente
+- suportar `media_urls` como string ou objeto;
+- não perder thumbnail se o formato guardado mudar;
+- indicar vídeo de forma consistente.
 
-Se a legenda TikTok tiver mais de 300 caracteres:
+Se fizer sentido, criar um pequeno helper reutilizável para normalizar media items sem introduzir dependências novas.
 
-- o badge TikTok mostra erro, por exemplo `661/300`;
-- o painel de validação mantém o erro “Legenda excede limite”;
-- o botão automático “Cortar para 300 caracteres” corta apenas a legenda TikTok;
-- as outras redes mantêm a legenda original.
+### Ficheiros previstos
 
-Isto evita perda de conteúdo e deixa claro que só o TikTok precisa de ajuste.
+- `src/hooks/usePendingContent.ts`
+- `src/components/PendingThumbnail.tsx`
+- `src/pages/Dashboard.tsx`
+- `src/components/drafts/DraftCard.tsx`
+- opcional: `src/lib/mediaPreview.ts` para helper reutilizável
 
-#### 4. Garantir que a publicação continua segura
+### Fora de âmbito nesta alteração
 
-O fluxo de publicação já limita a legenda enviada por rede antes de chamar o backend:
-
-```ts
-(params.networkCaptions?.[network] || caption).slice(0, maxCaptionLen)
-```
-
-Vou confirmar que este corte final continua isolado por rede. Ou seja, se TikTok for publicado, recebe no máximo 300 caracteres; Instagram/Facebook/YouTube/LinkedIn não são afetados.
-
-#### 5. Atualizar cobertura de testes
-
-Adicionar teste para o editor de legendas separadas:
-
-- começa com legenda global de 500+ caracteres;
-- ativa “Separadas”;
-- confirma que Instagram/Facebook/YouTube/LinkedIn mantêm o texto completo;
-- confirma que TikTok não apaga automaticamente o texto no editor;
-- confirma que a validação/auto-fix de TikTok corta apenas TikTok.
-
-### Ficheiros a alterar
-
-- `src/components/manual-post/NetworkCaptionEditor.tsx`
-- `src/pages/ManualCreate.tsx`
-- Possível novo teste:
-  - `src/components/manual-post/NetworkCaptionEditor.test.tsx`
-  - ou teste integrado no fluxo de `ManualCreate`, se for mais estável com a estrutura atual.
+- Não alterar a base de dados, salvo se for descoberto que os rascunhos não estão a guardar URLs de média.
+- Não mexer em ficheiros bloqueados.
+- Não alterar o fluxo de criação ou aprovação, exceto se for necessário para garantir que `media_urls` continua a ser persistido corretamente.
 
 ### Checklist
 
-☐ Ao ativar “Separadas”, a legenda global completa é copiada para todas as redes  
-☐ Instagram mantém 500+ caracteres quando TikTok está selecionado  
-☐ Facebook mantém 500+ caracteres quando TikTok está selecionado  
-☐ YouTube mantém 500+ caracteres quando TikTok está selecionado  
-☐ LinkedIn mantém 500+ caracteres quando TikTok está selecionado  
-☐ TikTok mostra excesso quando passa de 300 caracteres, sem apagar automaticamente  
-☐ Auto-fix “Cortar para 300 caracteres” altera só TikTok  
-☐ Publicação continua a enviar TikTok com máximo de 300 caracteres  
+☐ Rascunho com imagem mostra thumbnail real no `/dashboard`  
+☐ Rascunho com vídeo deixa de aparecer como ícone genérico sem contexto  
+☐ Conteúdo por aprovar mostra thumbnail/contexto quando disponível  
+☐ Cada card mostra data e excerto da legenda quando existir  
+☐ Cards sem legenda mostram fallback em pt-PT: “Sem legenda”  
+☐ Layout continua compacto em desktop e mobile  
+☐ `/drafts` continua a abrir e editar rascunhos corretamente  
+☐ Sem alterações em ficheiros bloqueados  
 ☐ `npx tsc --noEmit` sem erros  
-☐ Testes Vitest verdes  
+☐ Testes existentes continuam verdes
