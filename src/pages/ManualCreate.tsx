@@ -79,9 +79,11 @@ import { useDraftRecovery } from '@/hooks/manual-create/useDraftRecovery';
 import { useMediaUpload } from '@/hooks/manual-create/useMediaUpload';
 import { useImageCompression } from '@/hooks/manual-create/useImageCompression';
 import { usePublishOrchestrator } from '@/hooks/manual-create/usePublishOrchestrator';
+import { Step2MediaCard } from '@/components/manual-post/steps/Step2MediaCard';
 import { Step3CaptionCard } from '@/components/manual-post/steps/Step3CaptionCard';
 import { PublishActionsCard } from '@/components/manual-post/steps/PublishActionsCard';
 import { Step3ScheduleCard } from '@/components/manual-post/steps/Step3ScheduleCard';
+import { PreviewPanel } from '@/components/manual-post/steps/PreviewPanel';
 import { detectImageAspectRatio as detectImageAspectRatioExt, detectVideoAspectRatio as detectVideoAspectRatioExt } from '@/hooks/manual-create/mediaAspectDetection';
 // `extractVideoFrame` foi consolidado em '@/lib/media/videoFrameExtractor'.
 // Este componente já não o usava localmente.
