@@ -6,18 +6,28 @@ import { Badge } from '@/components/ui/badge';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Hash, Smile, Bold, Italic } from 'lucide-react';
 import EmojiPicker, { EmojiClickData } from 'emoji-picker-react';
+import { cn } from '@/lib/utils';
 
 interface CaptionEditorProps {
   initialCaption: string;
   initialHashtags: string[];
   onChange: (caption: string, hashtags: string[]) => void;
+  maxCaptionLength?: number;
+  maxHashtags?: number;
+  caption_limit_label?: string;
 }
 
-export const CaptionEditor = ({ initialCaption, initialHashtags, onChange }: CaptionEditorProps) => {
+export const CaptionEditor = ({
+  initialCaption,
+  initialHashtags,
+  onChange,
+  maxCaptionLength = 2200,
+  maxHashtags = 30,
+  caption_limit_label = 'Instagram',
+}: CaptionEditorProps) => {
   const [caption, setCaption] = useState(initialCaption);
   const [isEmojiPickerOpen, setIsEmojiPickerOpen] = useState(false);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
-  const maxCaptionLength = 2200;
 
   // Sync internal state when initialCaption prop changes
   useEffect(() => {
