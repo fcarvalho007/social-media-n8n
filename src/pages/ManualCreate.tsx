@@ -60,7 +60,6 @@ export default function ManualCreate() {
   const [draftsDialogOpen, setDraftsDialogOpen] = useState(false);
   const [savedCaptionsOpen, setSavedCaptionsOpen] = useState(false);
   const [aiDialogOpen, setAiDialogOpen] = useState(false);
-  const [emojiPickerOpen, setEmojiPickerOpen] = useState(false);
   const [activePreviewTab, setActivePreviewTab] = useState<string>('');
   const [mediaValidations, setMediaValidations] = useState<MediaValidationResult[]>([]);
   // Separate captions per network
@@ -239,6 +238,18 @@ export default function ManualCreate() {
     return Array.from(networks);
   }, [selectedFormats]);
 
+  const ensureNetworkCaptions = useCallback(() => {
+    setNetworkCaptions((prev) => {
+      const next = { ...prev };
+      selectedNetworks.forEach((network) => {
+        if (!Object.prototype.hasOwnProperty.call(next, network)) {
+          next[network] = caption;
+        }
+      });
+      return next;
+    });
+  }, [caption, selectedNetworks]);
+
   // Update active preview tab when formats change
   useMemo(() => {
     if (selectedFormats.length > 0 && !activePreviewTab) {
@@ -400,8 +411,8 @@ export default function ManualCreate() {
 
   // Render preview delegated to extracted helper (Phase 4)
   const renderPreview = useCallback(
-    (format: PostFormat) => renderFormatPreview(format, { caption, mediaFiles, mediaPreviewUrls, mediaItems }),
-    [caption, mediaFiles, mediaPreviewUrls, mediaItems],
+    (format: PostFormat) => renderFormatPreview(format, { caption, networkCaptions, useSeparateCaptions, mediaFiles, mediaPreviewUrls, mediaItems }),
+    [caption, networkCaptions, useSeparateCaptions, mediaFiles, mediaPreviewUrls, mediaItems],
   );
 
   // State for mobile preview collapsed
@@ -535,11 +546,7 @@ export default function ManualCreate() {
               onToggleSeparate={(value) => {
                 setUseSeparateCaptions(value);
                 if (value) {
-                  const initial: Record<string, string> = {};
-                  selectedNetworks.forEach(network => {
-                    initial[network] = networkCaptions[network] ?? caption;
-                  });
-                  setNetworkCaptions(initial);
+                  ensureNetworkCaptions();
                 }
               }}
               captionLength={captionLength}
