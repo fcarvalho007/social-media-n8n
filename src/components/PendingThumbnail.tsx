@@ -9,7 +9,9 @@ interface PendingThumbnailProps {
   id: string;
   type: 'story' | 'carousel' | 'post' | 'draft' | 'scheduled';
   thumbnail: string | null;
+  mediaUrl?: string | null;
   mediaType: MediaPreviewType;
+  hasPosterPreview?: boolean;
   mediaCount: number;
   caption: string | null;
   createdAt: string;
@@ -59,7 +61,9 @@ export function PendingThumbnail({
   id,
   type,
   thumbnail,
+  mediaUrl,
   mediaType,
+  hasPosterPreview,
   mediaCount,
   caption,
   createdAt,
@@ -86,9 +90,10 @@ export function PendingThumbnail({
     >
       <div className="relative aspect-square overflow-hidden bg-muted">
         {showVisualMedia ? (
-          mediaType === 'video' ? (
+          mediaType === 'video' && !hasPosterPreview ? (
             <video
-              src={thumbnail}
+              src={mediaUrl || thumbnail}
+              poster={thumbnail !== mediaUrl ? thumbnail || undefined : undefined}
               className="h-full w-full object-cover transition-transform group-hover:scale-105"
               preload="metadata"
               muted
