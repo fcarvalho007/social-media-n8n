@@ -1667,20 +1667,28 @@ const Review = () => {
               </div>
             </div>
 
+      {/* Resumo de validação imediato (acima do ActionBar) */}
+      {!isApproved && Object.values(publishTargets).some(active => active) && (
+        <div className="container max-w-6xl mx-auto px-3 sm:px-4 pb-2">
+          <ValidationSummary
+            validations={validations}
+            publishTargets={publishTargets}
+          />
+        </div>
+      )}
+
       <ActionBar
             canApprove={
-              !!selectedTemplate && 
+              !!selectedTemplate &&
               Object.values(publishTargets).some(active => active) &&
               !Object.values(validations).some((v: any) => v?.errors?.length > 0)
             }
             disabledReason={
-              !selectedTemplate 
-                ? 'Selecionar um template.' 
+              !selectedTemplate
+                ? 'Selecionar um template.'
                 : !Object.values(publishTargets).some(active => active)
                 ? 'Selecionar pelo menos uma plataforma.'
-                : Object.values(validations).some((v: any) => v?.errors?.length > 0)
-                ? 'Corrigir os erros indicados.'
-                : undefined
+                : (getFirstErrorMessage(validations, publishTargets) ?? undefined)
             }
             isApproved={isApproved}
             onApprove={handleApprove}
