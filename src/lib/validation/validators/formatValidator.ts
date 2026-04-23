@@ -1,12 +1,20 @@
 import { ValidatorContext, ValidationIssue } from '../types';
-import { validateAllFormats } from '@/lib/formatValidation';
-import { getNetworkFromFormat, getFormatConfig } from '@/types/social';
+import { validateFormat } from '@/lib/formatValidation';
+import { getNetworkFromFormat, getFormatConfig, PostFormat } from '@/types/social';
 
 const CAPTION_VALIDATION_MESSAGES = [
   'Legenda excede',
   'Links não são clicáveis',
   'Muitas hashtags',
 ];
+
+function getEffectiveCaption(ctx: ValidatorContext, format: PostFormat) {
+  const network = getNetworkFromFormat(format);
+  if (ctx.useSeparateCaptions && Object.prototype.hasOwnProperty.call(ctx.networkCaptions ?? {}, network)) {
+    return ctx.networkCaptions?.[network] ?? '';
+  }
+  return ctx.caption;
+}
 
 /**
  * Wraps the legacy `validateAllFormats` (count, requiresVideo/Image, PDF size...)
@@ -27,12 +35,13 @@ export async function formatValidator(
     ];
   }
 
-  const results = validateAllFormats(ctx.selectedFormats, ctx.caption, ctx.mediaFiles);
   const issues: ValidationIssue[] = [];
 
-  for (const [format, result] of Object.entries(results)) {
-    const platform = getNetworkFromFormat(format as any);
-    const config = getFormatConfig(format as any);
+  for (const format of ctx.selectedFormats) {
+    const effectiveCaption = getEffectiveCaption(ctx, format);
+    const result = validateFormat(format, effectiveCaption, ctx.mediaFiles);
+    const platform = getNetworkFromFormat(format);
+    const config = getFormatConfig(format);
     const label = config?.label ?? format;
 
     result.errors
@@ -43,7 +52,7 @@ export async function formatValidator(
         severity: 'error',
         category: 'format',
         platform,
-        format: format as any,
+        format,
         title: `${label}: requisito em falta`,
         description: msg,
       });
@@ -57,7 +66,7 @@ export async function formatValidator(
         severity: 'warning',
         category: 'format',
         platform,
-        format: format as any,
+        format,
         title: `${label}: aviso`,
         description: msg,
       });

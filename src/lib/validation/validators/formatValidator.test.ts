@@ -19,4 +19,21 @@ describe('formatValidator', () => {
 
     expect(issues.some((issue) => issue.description.includes('Legenda excede'))).toBe(false);
   });
+
+  it('valida formatos com a legenda específica da rede quando as legendas separadas estão ativas', async () => {
+    const ctx: ValidatorContext = {
+      selectedFormats: ['tiktok_video'],
+      caption: 'Legenda global demasiado longa. '.repeat(30),
+      networkCaptions: { tiktok: 'Legenda curta para TikTok.' },
+      useSeparateCaptions: true,
+      mediaFiles: [new File(['video'], 'clip.mp4', { type: 'video/mp4' })],
+      hashtags: [],
+      scheduledDate: null,
+      scheduleAsap: true,
+    };
+
+    const issues = await formatValidator(ctx);
+
+    expect(issues).toEqual([]);
+  });
 });

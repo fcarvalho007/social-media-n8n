@@ -14,6 +14,14 @@ import { NETWORK_CONSTRAINTS } from '@/lib/socialNetworks';
 import EmojiPicker, { EmojiClickData } from 'emoji-picker-react';
 import emojiDataPt from 'emoji-picker-react/dist/data/emojis-pt';
 
+const MIN_TEXTAREA_HEIGHT = 220;
+
+function resizeTextarea(textarea: HTMLTextAreaElement | null) {
+  if (!textarea) return;
+  textarea.style.height = 'auto';
+  textarea.style.height = `${Math.max(MIN_TEXTAREA_HEIGHT, textarea.scrollHeight)}px`;
+}
+
 // Network labels and icons
 const NETWORK_CONFIG: Record<SocialNetwork, { label: string; icon: React.ElementType; color: string }> = {
   instagram: { label: 'Instagram', icon: Instagram, color: 'text-pink-500' },
@@ -88,6 +96,16 @@ export function NetworkCaptionEditor({
     }
     return caption.length;
   };
+
+  useEffect(() => {
+    requestAnimationFrame(() => {
+      if (useSeparateCaptions) {
+        resizeTextarea(networkTextareaRefs.current[activeNetwork]);
+        return;
+      }
+      resizeTextarea(textareaRef.current);
+    });
+  }, [activeNetwork, caption, networkCaptions, useSeparateCaptions]);
 
   // Only show toggle if 2+ networks selected
   const showToggle = selectedNetworks.length >= 2;
@@ -224,13 +242,11 @@ export function NetworkCaptionEditor({
                   value={networkCaptions[network] || ''}
                   onChange={(e) => {
                     onNetworkCaptionChange(network, e.target.value);
-                    // Auto-resize
-                    e.target.style.height = 'auto';
-                    e.target.style.height = `${Math.max(150, e.target.scrollHeight)}px`;
+                    resizeTextarea(e.target);
                   }}
                   placeholder={`Legenda para ${NETWORK_CONFIG[network].label}...`}
                   disabled={disabled}
-                  className="min-h-[150px] resize-none overflow-hidden"
+                  className="min-h-[220px] resize-none overflow-hidden"
                 />
               </TabsContent>
             );
@@ -243,13 +259,11 @@ export function NetworkCaptionEditor({
             value={caption}
             onChange={(e) => {
               onCaptionChange(e.target.value);
-              // Auto-resize
-              e.target.style.height = 'auto';
-              e.target.style.height = `${Math.max(150, e.target.scrollHeight)}px`;
+              resizeTextarea(e.target);
             }}
             placeholder="Escreva a sua legenda..."
             disabled={disabled}
-            className="min-h-[150px] resize-none overflow-hidden"
+            className="min-h-[220px] resize-none overflow-hidden"
           />
           {/* Character counters per network */}
           {selectedNetworks.length > 0 && (
