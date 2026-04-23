@@ -84,9 +84,23 @@ export function DraftCard({ draft, isSelected, onSelect, onEdit, onDelete, view 
             {firstMediaUrl && !imageError ? (
               <>
                 {isVideo ? (
-                  <div className="w-full h-full flex items-center justify-center bg-muted">
-                    <Play className="h-12 w-12 text-muted-foreground/50" />
-                  </div>
+                  firstMedia.hasPosterPreview ? (
+                    <img 
+                      src={firstMediaUrl}
+                      alt="Pré-visualização do vídeo"
+                      className="w-full h-full object-cover"
+                      onError={() => setImageError(true)}
+                    />
+                  ) : (
+                    <video
+                      src={firstMedia?.url || firstMediaUrl}
+                      className="w-full h-full object-cover"
+                      preload="metadata"
+                      muted
+                      playsInline
+                      onError={() => setImageError(true)}
+                    />
+                  )
                 ) : (
                   <img 
                     src={firstMediaUrl}
@@ -202,9 +216,23 @@ export function DraftCard({ draft, isSelected, onSelect, onEdit, onDelete, view 
             {firstMediaUrl && !imageError ? (
               <>
                 {isVideo ? (
-                  <div className="w-full h-full flex items-center justify-center">
-                    <Play className="h-6 w-6 text-muted-foreground/50" />
-                  </div>
+                  firstMedia.hasPosterPreview ? (
+                    <img 
+                      src={firstMediaUrl}
+                      alt="Pré-visualização do vídeo"
+                      className="w-full h-full object-cover"
+                      onError={() => setImageError(true)}
+                    />
+                  ) : (
+                    <video
+                      src={firstMedia?.url || firstMediaUrl}
+                      className="w-full h-full object-cover"
+                      preload="metadata"
+                      muted
+                      playsInline
+                      onError={() => setImageError(true)}
+                    />
+                  )
                 ) : (
                   <img 
                     src={firstMediaUrl}
