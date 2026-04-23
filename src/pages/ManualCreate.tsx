@@ -78,6 +78,7 @@ import { useStepper } from '@/hooks/manual-create/useStepper';
 import { useDraftRecovery } from '@/hooks/manual-create/useDraftRecovery';
 import { useMediaUpload } from '@/hooks/manual-create/useMediaUpload';
 import { useImageCompression } from '@/hooks/manual-create/useImageCompression';
+import { usePublishOrchestrator } from '@/hooks/manual-create/usePublishOrchestrator';
 import { detectImageAspectRatio as detectImageAspectRatioExt, detectVideoAspectRatio as detectVideoAspectRatioExt } from '@/hooks/manual-create/mediaAspectDetection';
 // `extractVideoFrame` foi consolidado em '@/lib/media/videoFrameExtractor'.
 // Este componente já não o usava localmente.
