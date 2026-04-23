@@ -79,6 +79,8 @@ import { useDraftRecovery } from '@/hooks/manual-create/useDraftRecovery';
 import { useMediaUpload } from '@/hooks/manual-create/useMediaUpload';
 import { useImageCompression } from '@/hooks/manual-create/useImageCompression';
 import { usePublishOrchestrator } from '@/hooks/manual-create/usePublishOrchestrator';
+import { Step3CaptionCard } from '@/components/manual-post/steps/Step3CaptionCard';
+import { PublishActionsCard } from '@/components/manual-post/steps/PublishActionsCard';
 import { detectImageAspectRatio as detectImageAspectRatioExt, detectVideoAspectRatio as detectVideoAspectRatioExt } from '@/hooks/manual-create/mediaAspectDetection';
 // `extractVideoFrame` foi consolidado em '@/lib/media/videoFrameExtractor'.
 // Este componente já não o usava localmente.
@@ -947,56 +949,31 @@ export default function ManualCreate() {
             "transition-all duration-300 ease-out overflow-hidden space-y-3 sm:space-y-6",
             showStep3 ? "opacity-100" : "opacity-0 max-h-0"
           )}>
-            {/* Caption */}
-            <Card className="border-0 sm:border shadow-none sm:shadow-sm">
-              <CardHeader className="px-3 sm:px-6 pt-3 sm:pt-6 pb-2 sm:pb-4">
-                <CardTitle className="flex items-center gap-1.5 sm:gap-2 text-base sm:text-lg">
-                  Legenda
-                  <SectionHelp content={getSectionTooltip('caption')} />
-                </CardTitle>
-                <CardDescription className="text-xs sm:text-sm">
-                  {!useSeparateCaptions && (
-                    <>
-                      <span className={cn(
-                        "font-medium",
-                        captionLength > maxLength * 0.9 && captionLength <= maxLength && "text-orange-500",
-                        captionLength > maxLength && "text-destructive"
-                      )}>
-                        {captionLength}/{maxLength}
-                      </span>
-                      {' '}caracteres
-                    </>
-                  )}
-                  {selectedNetworks.includes('linkedin') && <span className="hidden sm:inline"> (obrigatório para LinkedIn)</span>}
-                </CardDescription>
-              </CardHeader>
-              <CardContent className="space-y-2 sm:space-y-3 px-3 sm:px-6 pb-4 sm:pb-6">
-                <NetworkCaptionEditor
-                  caption={caption}
-                  onCaptionChange={setCaption}
-                  networkCaptions={networkCaptions}
-                  onNetworkCaptionChange={(network, value) => {
-                    setNetworkCaptions(prev => ({ ...prev, [network]: value }));
-                  }}
-                  selectedNetworks={selectedNetworks}
-                  useSeparateCaptions={useSeparateCaptions}
-                  onToggleSeparate={(value) => {
-                    setUseSeparateCaptions(value);
-                    // Initialize network captions with unified caption when enabling
-                    if (value) {
-                      const initial: Record<string, string> = {};
-                      selectedNetworks.forEach(network => {
-                        initial[network] = networkCaptions[network] || caption;
-                      });
-                      setNetworkCaptions(initial);
-                    }
-                  }}
-                  disabled={saving || submitting || publishing}
-                  onOpenSavedCaptions={() => setSavedCaptionsOpen(true)}
-                  onOpenAIDialog={() => setAiDialogOpen(true)}
-                />
-              </CardContent>
-            </Card>
+            <Step3CaptionCard
+              caption={caption}
+              onCaptionChange={setCaption}
+              networkCaptions={networkCaptions}
+              onNetworkCaptionChange={(network, value) => {
+                setNetworkCaptions(prev => ({ ...prev, [network]: value }));
+              }}
+              selectedNetworks={selectedNetworks}
+              useSeparateCaptions={useSeparateCaptions}
+              onToggleSeparate={(value) => {
+                setUseSeparateCaptions(value);
+                if (value) {
+                  const initial: Record<string, string> = {};
+                  selectedNetworks.forEach(network => {
+                    initial[network] = networkCaptions[network] || caption;
+                  });
+                  setNetworkCaptions(initial);
+                }
+              }}
+              captionLength={captionLength}
+              maxLength={maxLength}
+              disabled={saving || submitting || publishing}
+              onOpenSavedCaptions={() => setSavedCaptionsOpen(true)}
+              onOpenAIDialog={() => setAiDialogOpen(true)}
+            />
 
             {/* Date & Time */}
             <Card className="border-0 sm:border shadow-none sm:shadow-sm w-full max-w-full overflow-hidden">
