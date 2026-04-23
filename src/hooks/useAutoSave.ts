@@ -66,7 +66,8 @@ export function useAutoSave(
     const currentDataStr = JSON.stringify(currentData);
     
     // Skip if nothing to save or data hasn't changed
-    if (!currentData.caption && currentData.selectedFormats.length === 0 && currentData.mediaUrls.length === 0) {
+    const hasNetworkCaptions = Object.values(currentData.networkCaptions ?? {}).some((value) => value.trim().length > 0);
+    if (!currentData.caption && !hasNetworkCaptions && currentData.selectedFormats.length === 0 && currentData.mediaUrls.length === 0) {
       return;
     }
     
