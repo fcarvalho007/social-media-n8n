@@ -267,7 +267,7 @@ export function useDraftRecovery(params: UseDraftRecoveryParams) {
 
       setCurrentDraftId(draft.id);
 
-      const urls = draft.media_urls || [];
+      const urls: string[] = Array.isArray(draft.media_urls) ? (draft.media_urls as string[]) : [];
       if (urls.length > 0) {
         setMediaPreviewUrls(urls);
         setMediaSources(urls.map(() => 'url' as MediaSource));
