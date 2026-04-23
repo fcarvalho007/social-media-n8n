@@ -51,7 +51,7 @@ interface ManualCreateModalsProps {
   onCreateNew: () => void;
   onViewCalendar: () => void;
   mediaFiles: File[];
-  onCancelPublishing: () => Promise<void> | void;
+  onCancelPublishing: () => Promise<void>;
   isCancellingPublish: boolean;
 
   // Duplicate

@@ -4,14 +4,8 @@ import { format } from 'date-fns';
 import { pt } from 'date-fns/locale';
 import { cn } from '@/lib/utils';
 import { ValidationMobileBadge } from '@/components/manual-post/ValidationSidebar';
+import type { ValidationSummary } from '@/lib/validation/types';
 import type { PostFormat } from '@/types/social';
-
-interface SmartValidationLike {
-  canPublish: boolean;
-  errorCount: number;
-  warningCount: number;
-  isReady?: boolean;
-}
 
 interface MobileStickyActionBarProps {
   currentStep: number;
@@ -19,7 +13,7 @@ interface MobileStickyActionBarProps {
   scheduledDate?: Date;
   time: string;
   selectedFormats: PostFormat[];
-  smartValidation: SmartValidationLike;
+  smartValidation: ValidationSummary;
   onOpenValidationSheet: () => void;
   onSaveDraft: () => void;
   onPublish: () => void;
