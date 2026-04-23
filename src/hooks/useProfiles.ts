@@ -14,7 +14,7 @@ export const useProfiles = () => {
     queryFn: async () => {
       const { data, error } = await supabase
         .from('profiles')
-        .select('*')
+        .select('id, full_name, avatar_url, email')
         .order('full_name');
 
       if (error) throw error;
