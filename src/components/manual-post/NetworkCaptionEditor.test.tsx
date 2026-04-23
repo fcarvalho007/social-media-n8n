@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { describe, expect, it, vi } from 'vitest';
-import { fireEvent, render, screen } from '@testing-library/react';
+import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { NetworkCaptionEditor } from './NetworkCaptionEditor';
 import { SocialNetwork } from '@/types/social';
@@ -83,5 +83,21 @@ describe('NetworkCaptionEditor', () => {
 
     expect(screen.getByPlaceholderText('Legenda para TikTok...')).toHaveValue(tiktokCaption);
     expect(screen.getByPlaceholderText('Legenda para Instagram...')).toHaveValue(longCaption);
+  });
+
+  it('mantém uma altura estável ao ativar legendas separadas com texto longo', async () => {
+    const user = userEvent.setup();
+    const longCaption = 'Legenda completa com várias linhas.\n'.repeat(18);
+
+    render(<CaptionHarness caption={longCaption} />);
+
+    await user.click(screen.getByRole('switch', { name: /unificada/i }));
+
+    const instagramTextarea = screen.getByPlaceholderText('Legenda para Instagram...') as HTMLTextAreaElement;
+
+    await waitFor(() => {
+      expect(instagramTextarea.style.height).toBe('220px');
+    });
+    expect(instagramTextarea).toHaveValue(longCaption);
   });
 });
