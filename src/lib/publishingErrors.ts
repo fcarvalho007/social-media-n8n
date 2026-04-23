@@ -382,6 +382,11 @@ export function classifyError(errorMessage: string | undefined): string {
   if (lower.includes('upload') || lower.includes('carregar')) {
     return 'upload_error';
   }
+  if (lower.includes('pdf') || lower.includes('linkedin_document') ||
+      lower.includes('page count') || lower.includes('document generation') ||
+      lower.includes('linkedin document')) {
+    return 'linkedin_document_error';
+  }
   if (lower.includes('api') || lower.includes('500') || lower.includes('502') || lower.includes('503') || lower.includes('internal server')) {
     return 'api_error';
   }
