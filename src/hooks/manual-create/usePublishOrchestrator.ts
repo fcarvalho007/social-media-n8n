@@ -242,6 +242,7 @@ export function usePublishOrchestrator(params: OrchestratorParams) {
               file_name: fileName,
               file_url: url,
               file_type: isVideo ? 'video' : 'image',
+              thumbnail_url: draftMediaItems[idx]?.thumbnail_url || null,
               source: 'publication',
               is_favorite: false,
             };
