@@ -1,83 +1,137 @@
 
 
-## Auditoria — Validações & Mensagens de Erro no Post Review (`/review/:id`)
+## Plano de Segurança — corrigir 9 findings sem quebrar funcionalidades
 
-### Problemas detectados
+### Resumo dos riscos
 
-| # | Problema | Severidade |
-|---|---|---|
-| 1 | `CaptionEditor` (IG) mostra contador a vermelho quando >2200, mas `<Textarea>` **sem `maxLength`** — permite escrever indefinidamente | Alta |
-| 2 | `RichTextEditor` (LinkedIn) usa default `maxLength=2200` quando o limite real é **3000**. Pior: trunca silenciosamente via `slice(0, maxLength)` | Alta |
-| 3 | Sem contador de hashtags (#N/30) visível — utilizador só descobre erro ao tentar aprovar | Média |
-| 4 | `useEffect` de validação tem guard `if (post && caption)` — se apagar tudo, `validations` fica **stale** | Média |
-| 5 | `disabledReason` genérico ("Corrigir os erros indicados") — não diz QUAL erro nem ONDE | Alta |
-| 6 | Quando ambas plataformas activas, contador mostra só 2200 sem indicar "limite IG mais restritivo" | Média |
-| 7 | State `hashtags` (carregado da BD) desincroniza das hashtags inline na caption | Alta |
-| 8 | Warnings (⚠️) só aparecem como ícone na badge — texto nunca é mostrado | Média |
-| 9 | `>20` hashtags = warning, `>30` = erro. Utilizador não percebe a diferença | Baixa |
+| # | Finding | Severidade | Impacto funcional do fix |
+|---|---|---|---|
+| 1 | E-mails de utilizadores expostos publicamente (`profiles`) | 🔴 Erro | Nenhum — frontend só lê `id`, `full_name`, `avatar_url` |
+| 2 | Tokens OAuth de redes sociais expostos (`social_profiles`) | 🔴 Erro | Nenhum — edge functions usam service-role |
+| 3 | `idempotency_keys` com policy `USING (true)` | 🟡 Aviso | Nenhum — só edge functions escrevem (service-role bypass RLS) |
+| 4 | ~28 policies `public_*` com `USING (true)` em posts/projects/tasks/etc. | 🟡 Aviso | Nenhum — policies user-scoped já cobrem o fluxo real |
+| 5 | Extensão no schema `public` | 🟡 Aviso | Nenhum |
+| 6 | Leaked Password Protection desligado | 🟡 Aviso | Nenhum — projecto usa passwordless (não há signup com password) |
+| 7-9 | Vulnerabilidades em dependências (crit/high/medium) | 🔴/🟡/ℹ️ | A confirmar com `bun audit` local — algumas exigem `bun update` |
 
-### Plano de correções (3 fases)
+---
 
-**Fase 1 — Limites correctos por plataforma (correcções críticas)**
+### Fase 1 — RLS crítico (`profiles` + `social_profiles`)
 
-1.1. `RichTextEditor.tsx`: remover truncagem silenciosa. Mudar `e.target.value.slice(0, maxLength)` para `e.target.value` (deixa passar; validação reporta o excesso). Contador fica vermelho quando excede, em vez de cortar.
+**1.1 `profiles` — esconder e-mails de anónimos.**
 
-1.2. `Review.tsx`: passar `maxLength={3000}` explícito ao `RichTextEditor` do LinkedIn body (linha onde for usado).
+Substituir a policy "Users can view all profiles" (`USING true`, role `public`) por duas policies authenticated-only:
 
-1.3. `CaptionEditor.tsx`: adicionar prop opcional `maxLength` (default 2200) e propagar para o `<Textarea>` (sem `maxLength` HTML — apenas validação visual). Adicionar `aria-invalid` + mensagem inline `"Excede limite IG de 2200 caracteres por X."` quando excede.
+```sql
+DROP POLICY "Users can view all profiles" ON public.profiles;
 
-**Fase 2 — Sincronizar hashtags e mostrar contador**
-
-2.1. Em `Review.tsx`, derivar `hashtags` da `caption` (regex `/#[\w\u00C0-\u017F]+/g`) **na validação**, em vez de usar o state `hashtags` (que vem da BD e nunca é actualizado quando utilizador edita inline). Manter o state apenas para guardar na BD.
-
-2.2. Adicionar contador de hashtags ao lado do contador de caracteres no `CaptionEditor`:  
-`23/30 #` — verde até 20, âmbar 20-30, vermelho >30 (para Instagram).
-
-2.3. Corrigir guard do `useEffect` (linha 155): mudar `if (post && caption)` → `if (post)`. Caption vazia deve revalidar (pode ser válido ou não consoante regras).
-
-**Fase 3 — Mensagens de erro contextuais e bloqueio claro**
-
-3.1. Criar componente `ValidationSummary.tsx` (~60 linhas) que renderiza, perto do `ActionBar`, uma lista compacta dos erros e warnings activos:
-
-```text
-❌ Instagram: legenda excede 2200 (atual: 2342)
-❌ Instagram: 32 hashtags (máximo 30)
-⚠️ LinkedIn: 7 hashtags (recomendado até 5)
+CREATE POLICY "Authenticated users can view profile basics"
+  ON public.profiles FOR SELECT TO authenticated
+  USING (true);  -- ainda permite ver outros utilizadores (necessário para assignees)
 ```
 
-3.2. Substituir `disabledReason` genérico por mensagem específica do primeiro erro:
-```ts
-disabledReason: firstErrorMessage ?? 'Selecionar template e plataforma'
+Adicionalmente, alterar `useProfiles.ts` para usar `select('id, full_name, avatar_url')` em vez de `select('*')` — defesa em profundidade. O e-mail só é lido em `UserManagement` (admin-only) e na UI do próprio user.
+
+Resultado: anónimos deixam de poder fazer scrape de e-mails; o picker de assignees, avatars e UserManagement continuam a funcionar.
+
+**1.2 `social_profiles` — não devolver tokens ao browser.**
+
+Alterar `ProfileSelector.tsx` para `select('id, network, profile_name, profile_handle, profile_image_url, connection_status, token_expires_at, profile_metadata, user_id, created_at, updated_at')` — explicitamente sem `access_token` nem `refresh_token`. Adicionalmente, criar uma view `public.social_profiles_safe` exposta sem as colunas sensíveis e revogar SELECT directo aos campos token.
+
+A RLS já está correta (`auth.uid() = user_id`); este fix é **defesa em profundidade** caso outro código futuro faça `select('*')`.
+
+### Fase 2 — Limpeza de policies `public_*` (~28 redundantes)
+
+Tabelas afectadas: `posts`, `posts_drafts`, `projects`, `tasks`, `task_dependencies`, `task_milestones`, `milestones`, `stories`.
+
+Cada uma destas tabelas tem **dois conjuntos de policies**:
+- Conjunto A — user-scoped correto (`auth.uid() = user_id`, etc.)
+- Conjunto B — `public_read_*` / `public_insert_*` / `public_update_*` / `public_delete_*` com `USING (true)` para role `public` (anon + authenticated)
+
+O conjunto B foi adicionado para debug e neutraliza completamente o A. **Remover apenas o conjunto B**. Todas as queries do frontend já usam sessão autenticada e o conjunto A cobre o fluxo real (verificado em `useProjects`, `useTasks`, `usePosts`, etc.).
+
+```sql
+-- Exemplo (repete-se para cada tabela acima)
+DROP POLICY IF EXISTS public_read_posts ON public.posts;
+DROP POLICY IF EXISTS public_delete_posts ON public.posts;
+DROP POLICY IF EXISTS debug_allow_all ON public.posts;
+-- ... etc
 ```
 
-3.3. No tooltip do botão "Aprovar" e "Agendar", mostrar a mesma mensagem (já existe a estrutura, falta o conteúdo).
+### Fase 3 — `idempotency_keys` restrito a service-role
 
-3.4. Indicador de proximidade do limite no contador de caracteres: amarelo a partir de 90% (1980/2200), vermelho a partir de 100%.
+```sql
+DROP POLICY "Service role full access" ON public.idempotency_keys;
 
-### Detalhe técnico
+CREATE POLICY "Service role only - read"
+  ON public.idempotency_keys FOR SELECT TO service_role USING (true);
+CREATE POLICY "Service role only - write"
+  ON public.idempotency_keys FOR ALL TO service_role
+  USING (true) WITH CHECK (true);
+```
 
-- **Ficheiros a editar:** `RichTextEditor.tsx`, `CaptionEditor.tsx`, `Review.tsx` (linhas 149-172, ~1660-1686).
-- **Ficheiro a criar:** `src/components/publishing/ValidationSummary.tsx`.
-- **Sem alterações a `publishingValidation.ts`** — a lógica está correcta, falta apenas expor.
-- **Tipo de hashtags:** continuar a guardar `hashtags_edited` na BD com a derivação da regex no momento do save.
+Edge functions já usam `SUPABASE_SERVICE_ROLE_KEY` e `service_role` bypassa RLS para writes; mantemos a policy explícita por clareza. `anon` e `authenticated` perdem qualquer acesso — não há código frontend que toque na tabela.
+
+### Fase 4 — Auth & Schema housekeeping
+
+**4.1 Leaked Password Protection.** Ativar via `configure_auth({ password_hibp_enabled: true })`. Sem impacto: o projecto usa magic-link (passwordless) para a whitelist `comunicacao@fredericocarvalho.pt` etc.
+
+**4.2 Extension in Public.** Migrar a extensão (provavelmente `pg_net` ou `pg_cron`) do schema `public` para `extensions`:
+```sql
+ALTER EXTENSION pg_net SET SCHEMA extensions;
+```
+(Sem alterações de código — funções qualificam-se na ligação.)
+
+**4.3 Public Bucket Listing (4 ocorrências).** Os buckets `pdfs`, `post-covers`, `ai-generated-images`, `publications` estão `public`. O scanner avisa que qualquer um pode listar **nomes** de ficheiros (não acede ao conteúdo se não tiver URL). Como os ficheiros são partilhados por URL público (links em IG/LI), restringir LIST à `authenticated` mantém URLs directos a funcionar:
+
+```sql
+CREATE POLICY "Authenticated list only" ON storage.objects
+  FOR SELECT TO authenticated
+  USING (bucket_id IN ('pdfs','post-covers','ai-generated-images','publications'));
+DROP POLICY <existing public list policy> ON storage.objects;
+```
+Ou então documentar como aceitável (ficheiros já são intencionalmente públicos via URL). **Recomendação:** restringir LIST mas manter GET público.
+
+### Fase 5 — Dependências vulneráveis
+
+`bun audit` / `npm audit` não funcionam no sandbox (registry privado retorna 404). Plano:
+
+5.1. Identificar dependências com CVEs conhecidos no `package.json` actual via `npm view <pkg>` direcionado (alvos prováveis: `vite`, `esbuild`, `path-to-regexp`, `axios`, `cookie`).
+5.2. Correr `bun update <pacote>` para minor/patch bumps que **não** sejam major.
+5.3. Para majors com breaking changes (ex: `vite 5 → 6`), **não actualizar** sem migração dedicada.
+5.4. Após a Fase 5, listar resultado e marcar findings como `mark_as_fixed` ou `update_details`.
+
+---
+
+### Plano de execução
+
+1. **Migração SQL** (Fases 1-4): uma única migração consolidada com `BEGIN/COMMIT`. Aprovação automática via tool de migrações.
+2. **Edits frontend** (Fase 1.1, 1.2): `useProfiles.ts`, `ProfileSelector.tsx`.
+3. **`configure_auth`** para HIBP (Fase 4.1).
+4. **Updates de dependências** (Fase 5) — separado, com `add_dependency` direcionado.
+5. **Re-scan** com `security--run_security_scan` + `mark_as_fixed` para os internal_ids resolvidos.
 
 ### Checkpoint
 
-☐ `RichTextEditor` deixa de truncar silenciosamente; LinkedIn passa a permitir até 3000  
-☐ `CaptionEditor` aceita `maxLength` por prop e mostra mensagem inline ao exceder  
-☐ Contador de hashtags `N/30` visível com cores semáforo (verde / âmbar / vermelho)  
-☐ Validação revalida quando caption fica vazia (guard corrigido)  
-☐ Hashtags sincronizadas a partir da caption (single source of truth)  
-☐ `ValidationSummary` renderizado acima do `ActionBar` listando erros e avisos  
-☐ `disabledReason` mostra a primeira mensagem de erro específica  
-☐ Tooltips de Aprovar e Agendar mostram a mensagem específica  
-☐ `npx tsc --noEmit` 0 erros  
+☐ Policy `Users can view all profiles` substituída — anónimos não veem profiles  
+☐ `useProfiles` selecciona apenas colunas seguras  
+☐ `ProfileSelector` selecciona apenas colunas não-sensíveis de `social_profiles`  
+☐ Policy `Service role full access` em `idempotency_keys` restrita a `service_role`  
+☐ ~28 policies `public_*` e `debug_allow_all` removidas  
+☐ Extensão movida para schema `extensions`  
+☐ HIBP password protection ligado  
+☐ Buckets storage com LIST restrito a `authenticated`  
+☐ Dependências críticas/high actualizadas (minor/patch)  
 ☐ `bun run build:dev` passa  
-☐ Testes existentes (`Recovery`, `Quota`) continuam verdes
+☐ Testes Vitest 14/14 verdes  
+☐ `tsc --noEmit` 0 erros  
+☐ Re-scan de segurança: 0 críticos, ≤2 avisos restantes  
+☐ Funcionalidades validadas: criar post, ver assignees, publicar IG/LI, agendar, recuperar rascunho
 
 ### Fora do escopo
 
-- Validações de imagem (já cobertas por `useImagePrevalidation`)
-- Refactor do tamanho de `Review.tsx` (1762 linhas) — prompt dedicado
-- Validação de caracteres especiais ou emojis múltiplos no LinkedIn
+- Encriptação at-rest dos tokens OAuth (requer infra Vault/PGSodium)
+- 2FA para o painel admin
+- Auditoria de ataque a edge functions (rate-limiting, JWT validation pormenorizada)
+- Rotação automática de tokens expirados (já existe `token_expires_at` mas refresh manual)
 
