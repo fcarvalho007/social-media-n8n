@@ -112,6 +112,8 @@ export default function ManualCreate() {
   // Auto-save hook
   const { lastSaved, isSaving: isAutoSaving, hasUnsavedChanges } = useAutoSave({
     caption,
+    networkCaptions,
+    useSeparateCaptions,
     selectedFormats,
     mediaUrls: mediaPreviewUrls,
     scheduledDate: scheduledDate?.toISOString(),
@@ -204,15 +206,6 @@ export default function ManualCreate() {
     handleVideoValidationCancel,
   } = upload;
 
-
-  // Compute validations
-  const validations = useMemo(() => {
-    if (selectedFormats.length === 0) return {} as Record<PostFormat, FormatValidationResult>;
-    return validateAllFormats(selectedFormats, caption, mediaFiles);
-  }, [selectedFormats, caption, mediaFiles]);
-
-  const validationSummary = useMemo(() => getValidationSummary(validations), [validations]);
-
   // Mobile bottom-sheet state for the validation panel
   const [validationSheetOpen, setValidationSheetOpen] = useState(false);
 
@@ -236,32 +229,6 @@ export default function ManualCreate() {
       focusCaption: () => textareaRef.current?.focus(),
     },
   });
-
-  // Handle emoji insertion
-  const handleEmojiClick = (emojiData: EmojiClickData) => {
-    const emoji = emojiData.emoji;
-    const textarea = textareaRef.current;
-    
-    if (textarea) {
-      const start = textarea.selectionStart;
-      const end = textarea.selectionEnd;
-      const newCaption = caption.slice(0, start) + emoji + caption.slice(end);
-      
-      if (newCaption.length <= mediaRequirements.maxCaptionLength) {
-        setCaption(newCaption);
-        setTimeout(() => {
-          textarea.focus();
-          textarea.setSelectionRange(start + emoji.length, start + emoji.length);
-        }, 0);
-      }
-    } else {
-      const newCaption = caption + emoji;
-      if (newCaption.length <= mediaRequirements.maxCaptionLength) {
-        setCaption(newCaption);
-      }
-    }
-    setEmojiPickerOpen(false);
-  };
 
   const maxLength = mediaRequirements.maxCaptionLength;
   const captionLength = caption.length;
