@@ -1,10 +1,10 @@
 import { useState } from 'react';
 import { Badge } from '@/components/ui/badge';
-import { FileImage, ImagePlus, FileText } from 'lucide-react';
+import { FileImage, ImagePlus, FileText, Calendar } from 'lucide-react';
 
 interface PendingThumbnailProps {
   id: string;
-  type: 'story' | 'carousel' | 'post' | 'draft';
+  type: 'story' | 'carousel' | 'post' | 'draft' | 'scheduled';
   thumbnail: string | null;
   route: string;
   onNavigate: (route: string) => void;
@@ -16,6 +16,7 @@ const getTypeLabel = (type: string) => {
     case 'carousel': return 'Carrossel';
     case 'post': return 'Post';
     case 'draft': return 'Rascunho';
+    case 'scheduled': return 'Agendado';
     default: return type;
   }
 };
@@ -26,6 +27,7 @@ const getTypeBadgeColor = (type: string) => {
     case 'carousel': return 'bg-blue-500/10 text-blue-700 border-blue-500/30';
     case 'post': return 'bg-purple-500/10 text-purple-700 border-purple-500/30';
     case 'draft': return 'bg-amber-500/10 text-amber-700 border-amber-500/30';
+    case 'scheduled': return 'bg-sky-500/10 text-sky-700 border-sky-500/30';
     default: return 'bg-muted text-muted-foreground';
   }
 };
@@ -54,6 +56,8 @@ export function PendingThumbnail({ id, type, thumbnail, route, onNavigate }: Pen
             <FileImage className="h-8 w-8 text-muted-foreground/50" />
           ) : type === 'carousel' ? (
             <ImagePlus className="h-8 w-8 text-muted-foreground/50" />
+          ) : type === 'scheduled' ? (
+            <Calendar className="h-8 w-8 text-muted-foreground/50" />
           ) : (
             <FileText className="h-8 w-8 text-muted-foreground/50" />
           )}
