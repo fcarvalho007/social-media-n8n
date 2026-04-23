@@ -320,6 +320,7 @@ export function getErrorInfoFromStructured(structuredError: StructuredError): Er
     'API_ERROR': 'api_error',
     'UPLOAD_ERROR': 'upload_error',
     'DUPLICATE_CONTENT': 'duplicate_content',
+    'LINKEDIN_DOCUMENT_ERROR': 'linkedin_document_error',
     'UNKNOWN': 'unknown',
   };
   
