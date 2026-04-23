@@ -1917,15 +1917,10 @@ export default function ManualCreate() {
 
       {/* Image Compression Confirmation Modal */}
       <ImageCompressionConfirmModal
-        open={compressionModalOpen}
+        {...compression.modalProps}
         onClose={handleCancelCompression}
         onConfirm={handleConfirmCompression}
         onConfirmPublish={handleConfirmAndPublish}
-        oversizedImages={oversizedImages}
-        isCompressing={isCompressing}
-        compressionProgress={compressionProgress}
-        step={compressionStep}
-        compressionResults={compressionResults}
         totalMediaCount={mediaFiles.length}
       />
 
