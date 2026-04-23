@@ -1,93 +1,91 @@
 
 
-## Fase 2 do refactor de `ManualCreate.tsx`
+## Fase 3 do refactor de `ManualCreate.tsx`
 
-**Estado actual:** 1994 linhas. Fase 1 completa + 6 hooks já extraídos (incluindo `useImageCompression`).
+**Estado actual:** 1633 linhas. Fases 1+2 completas, 7 hooks extraídos, lógica de publicação encapsulada. Falta decompor o **JSX** que ainda vive todo dentro do componente.
 
-**Objectivo:** Extrair os 3 fluxos de publicação coesos (`saveDraft`, `submitForApproval`, `publishNow`) para um hook orquestrador. Liberta o componente para focar-se em UI.
+### Diagnóstico — blocos JSX coesos
 
-### Diagnóstico — handlers a extrair
-
-| Handler | Linhas | Responsabilidade |
+| Bloco | Linhas (~) | Responsabilidade |
 |---|---|---|
-| `handleSaveDraft` | 363-518 (~155) | Upload média + insert/update `posts_drafts` + registo `media_library` + tratamento de 6 tipos de erro |
-| `handleSubmitForApproval` | 549-723 (~175) | Upload + invocar edge `submit-to-n8n` + insert `posts` (`waiting_for_approval`) + registo `media_library` + redirect calendário |
-| `handlePublishNow` | 725-779 (~55) | Pré-check oversized → `executePublish` + handle duplicados + refresh quota |
-| Wrappers `*WithValidation` | 344-360 (~17) | Gating de smart-validation |
+| **Step 2 — Média** | 698-943 (~245) | `Card` com upload + carrossel DnD + thumbnails + navegação Anterior/Seguinte |
+| **Step 3a — Legenda** | 945-999 (~55) | `Card` da legenda com `NetworkCaptionEditor` + contador caracteres |
+| **Step 3b — Agendamento** | 1001-1234 (~233) | `Card` data/hora + toggle ASAP + popover calendário + navegação Anterior |
+| **Action Card desktop** | 1237-1350 (~113) | `Card` sticky com progresso + validação + botões publicar/rascunho/submeter |
+| **Preview lateral desktop** | 1354-? (~250) | `Card` com `Tabs` por rede social a renderizar 9 previews diferentes |
 
-**Total:** ~400 linhas → `ManualCreate.tsx` desce para **~1600 linhas**.
+**Step 1** (linhas 675-696, ~22 linhas) é trivial — já é só `<NetworkFormatSelector>` + 1 botão. Não vale a pena extrair.
 
-### Plano
+**Total candidato:** ~900 linhas de JSX → `ManualCreate.tsx` desce para **~730 linhas**.
 
-**Criar `src/hooks/manual-create/usePublishOrchestrator.ts`** com:
+### Princípio
 
-```text
-Inputs (estado lido por chamada):
-  selectedFormats, selectedNetworks, caption, networkCaptions,
-  useSeparateCaptions, mediaFiles, scheduledDate, time, scheduleAsap,
-  recoveredPostId, currentDraftId
+Cada componente recebe **dados via props**, **callbacks via props**, e não toca em estado global. O componente pai (`ManualCreate`) continua a ser o orquestrador — segura o estado, passa-o para baixo. **Sem refactor de comportamento**, só split visual.
 
-Dependências (hooks):
-  smartValidation, compression, executePublish, refreshQuota
+### Ficheiros a criar
 
-Setters (reset pós-sucesso):
-  setCurrentDraftId, setCaption, setMediaFiles, setMediaPreviewUrls,
-  setScheduledDate, setTime, setScheduleAsap
-
-Callbacks UI:
-  setValidationSheetOpen, onDuplicateDetected, onNavigateAfterSubmit
-
-Estado exposto:
-  saving, submitting, uploadProgress
-
-Acções:
-  saveDraft(), publishNow(files?), submitForApproval(),
-  publishWithValidation(), submitWithValidation()
+```
+src/components/manual-post/steps/
+├── Step2MediaCard.tsx          (~245 linhas)
+├── Step3CaptionCard.tsx        (~55 linhas)
+├── Step3ScheduleCard.tsx       (~233 linhas)
+├── PublishActionsCard.tsx      (~113 linhas)
+└── PreviewPanel.tsx            (~250 linhas)
 ```
 
-**Não migrado (closures muito locais):** `handleConfirmAndPublish` (chama `setMediaFiles` + `publishNow`), `handleCancelPublishing`, `handleCreateNew`, `handleViewCalendar`.
+(Pasta `steps/` para os agrupar, evitando poluir `manual-post/` que já tem 30+ ficheiros.)
 
-### Estratégia de migração
+### Estratégia
 
-1. Criar `usePublishOrchestrator.ts` com lógica **transladada literalmente** (sem refactor de comportamento)
-2. Em `ManualCreate.tsx`: remover `useState` de `saving`/`submitting`/`uploadProgress`, substituir os 5 handlers por delegações
-3. Validar TS + ESLint + build
+Cada extracção segue o mesmo padrão:
+
+1. Identificar o JSX exacto + todas as variáveis externas que usa
+2. Criar o componente novo com interface de props tipada
+3. Substituir o JSX original por `<NovoComponente {...props} />`
+4. Validar TS + ESLint após cada extracção (5 ciclos pequenos, não 1 grande)
+
+**Ordem proposta** (do mais isolado ao mais entrelaçado):
+
+| # | Componente | Risco | Razão |
+|---|---|---|---|
+| 1 | `Step3CaptionCard` | Baixo | Só 55 linhas, props simples |
+| 2 | `PublishActionsCard` | Baixo | Botões + handlers já delegados ao orchestrator |
+| 3 | `Step3ScheduleCard` | Médio | Tem popover de calendário + estado local de hora |
+| 4 | `Step2MediaCard` | Médio-alto | Maior, integra DnD + 3 botões de upload + GridSplitter |
+| 5 | `PreviewPanel` | Médio | Tabs com 9 previews diferentes — muitos imports a mover |
 
 ### Resultado esperado
 
 | Métrica | Hoje | Depois |
 |---|---|---|
-| `ManualCreate.tsx` | 1994 | **~1600** (-400) |
-| Hooks `manual-create/` | 6 | **7** |
-| Handlers publicação inline | 5 | **0** |
-| Erros TS / ESLint | 0 / 0 | **0 / 0** |
-
-### Ficheiros tocados
-
-| Ficheiro | Tipo |
-|---|---|
-| `src/hooks/manual-create/usePublishOrchestrator.ts` | **novo** (~430 linhas) |
-| `src/pages/ManualCreate.tsx` | edit (-~400 linhas) |
+| `ManualCreate.tsx` | 1633 linhas | **~730 linhas** (-900) |
+| Componentes em `manual-post/steps/` | 0 | **5** |
+| Imports em `ManualCreate.tsx` | 76 | **~40** (previews + ícones movem-se) |
+| Erros TS / ESLint / build | 0 / 0 / ✅ | **0 / 0 / ✅** |
 
 ### Risco
 
-**Baixo-médio.** Maior hook até agora, mas lógica idêntica à actual. Mitigação: criar hook num único `code--write` antes de tocar no componente.
+**Médio.** Pure JSX move bem mas é grande volume e cada componente tem 8-15 props. Mitigação:
+- Extrair um de cada vez + validar TS no fim de cada um (não tudo de uma vez)
+- Usar tipos explícitos para as `Props`, não `any`
+- Manter os callbacks inline (`onChange={(v) => setX(v)}`) em vez de passar setters directamente, para evitar acoplar o componente ao tipo do estado pai
 
 ### Checkpoint
 
-☐ `usePublishOrchestrator.ts` criado com 5 acções  
-☐ `saving`, `submitting`, `uploadProgress` removidos de `ManualCreate.tsx`  
-☐ 5 handlers substituídos por delegações  
+☐ 5 ficheiros criados em `src/components/manual-post/steps/`  
+☐ `ManualCreate.tsx` ≤ 800 linhas  
 ☐ `npx tsc --noEmit` sem erros  
 ☐ `npx eslint src/pages/ManualCreate.tsx` sem novos erros  
 ☐ `bun run build:dev` passa  
-☐ "Guardar rascunho" persiste em `posts_drafts`  
-☐ "Submeter para aprovação" invoca `submit-to-n8n` e redirige  
-☐ "Publicar agora" dispara modal de progresso + detecção de duplicados  
-☐ Modal de compressão Instagram >4MB ainda intercepta
+☐ Visualmente idêntico em desktop e mobile (375px)  
+☐ Step 2: upload, drag-and-drop e remoção de média continuam  
+☐ Step 3: legenda, toggle de legendas separadas e agendamento continuam  
+☐ Botões "Publicar agora", "Guardar rascunho" e "Submeter para aprovação" continuam funcionais  
+☐ Preview lateral desktop renderiza correctamente para todas as 9 redes
 
 ### Fora desta fase
 
-- **Fase 3:** decompor JSX em `Step1Format`/`Step2Media`/`Step3Caption`/`Step4Schedule` (~700 linhas)
-- **Fase 4:** limpeza final, meta ≤ 700 linhas
+- **Fase 4:** limpeza final de imports residuais + meta ≤700 linhas (~50 linhas extra)
+- Refactor do `PublishProgressModal.tsx` (869 linhas — prompt próprio)
+- Refactor do componente de preview de cada rede (já estão isolados em `manual-post/`, não precisam tocar agora)
 
