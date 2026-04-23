@@ -15,6 +15,7 @@ import {
 import { parseStructuredError, classifyErrorFromString, type StructuredError } from '@/lib/publishingErrors';
 import { sanitizeFileName } from '@/lib/fileNameSanitizer';
 import { toast } from 'sonner';
+import { extractVideoFrame } from '@/lib/media/videoFrameExtractor';
 
 // Supported MIME types for social media publishing
 const SUPPORTED_IMAGE_TYPES = ['image/jpeg', 'image/png', 'image/webp', 'image/gif'];
@@ -130,8 +131,8 @@ interface PublishParams {
   skipDuplicateCheck?: boolean; // Skip duplicate detection (user confirmed)
 }
 
-// Extract first frame from video file — consolidated in `lib/media/videoFrameExtractor`.
-import { extractVideoFrame } from '@/lib/media/videoFrameExtractor';
+// `extractVideoFrame` foi consolidado em '@/lib/media/videoFrameExtractor'
+// (importado no topo deste ficheiro).
 
 // Generate semantic PDF filename from caption
 function generateSemanticPdfFilename(caption: string): string {
