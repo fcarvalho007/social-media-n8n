@@ -1,99 +1,82 @@
 
 
-## Plano — Fechar Fase 1 do refactor de `ManualCreate.tsx`
+## Diagnóstico — o que ficou por fazer
 
-**Estado:** ficheiro com ~70 erros TS porque os 5 hooks novos foram importados mas a fiação no JSX/handlers ficou a meio. Há duplicações (`removeMedia`, `handleLoadDraft`) e referências a identificadores que já saíram do componente (`currentStep`, `setUploadProgress`, `isUploading`, etc.).
+### Item #1 — Refactor `ManualCreate.tsx` 🟢 Fase 1 COMPLETA
 
-**Objetivo:** fechar a Fase 1 — `ManualCreate.tsx` compila limpo, mesmo comportamento, ~2020 linhas (era 2801), 5 hooks ativos.
-
----
-
-### Diagnóstico dos erros
-
-| Categoria | Nº erros | Causa |
+| Métrica | Antes | Hoje |
 |---|---|---|
-| `Cannot redeclare 'removeMedia'` | 2 | Definido localmente E em `useMediaManager` |
-| `Cannot redeclare 'handleLoadDraft'` | 2 | Definido localmente E em `useDraftRecovery` |
-| `Cannot find 'currentStep'/'visitedSteps'/'setCurrentStep'/'setVisitedSteps'` | ~20 | Migrou para `useStepper` mas JSX ainda usa nomes nus |
-| `Cannot find 'setUploadProgress'/'isUploading'/'uploadProgress'` | ~20 | Migrou para `useMediaUpload` mas handlers ainda usam nomes nus |
-| `Cannot find 'setPendingVideoFiles'/'setVideoValidationModalOpen'/'pendingVideoFiles'/'setVideoValidationIssues'` | ~6 | Idem |
-| `Cannot find 'setRecoveredPostId'` | 1 | Migrou para `useDraftRecovery` |
-| `Cannot find 'stepperRef'` | 2 | Identificador inexistente — substituir por ref local ou remover |
+| Linhas | 2801 | **2174** |
+| Hooks extraídos | 0 | 5 (`useMediaManager`, `useMediaUpload`, `useDraftRecovery`, `useStepper`, `mediaAspectDetection`) |
+| Erros TS | ~70 | **0 novos** |
+| Build | ❌ | ✅ |
+
+**Por fazer:** Fases 2, 3 e 4 (extrair `useImageCompression` + `usePublishOrchestrator`, decompor JSX em componentes por step, mover `extractVideoFrame`). Objetivo final ≤ 700 linhas.
+
+### Item #2 — Mensagens de erro claras para leigos 🟢 IMPLEMENTAÇÃO PRINCIPAL COMPLETA
+
+Tudo o que estava no plano aprovado (Eixos 1-4) foi entregue: `ErrorExplanationCard` criado, 14 templates humanizados em `publishingErrors.ts`, integrado em `Recovery.tsx`, `FailedPublications.tsx`, `PublishProgressModal.tsx` e `usePublishWithProgress.ts`.
+
+**Os "6 refinamentos opcionais" da mensagem anterior referiam-se ao sistema de smart-validation (não aos erros).** Desses 6, já foram aplicados M1-M3 (scheduleValidator, LinkedIn caption, gating unificado + remoção de `showValidation`). Restam 3 cosméticos + lacunas reais que detectei agora no código de erros:
 
 ---
 
-### Ações
+## Plano — Refinamentos pendentes (2 frentes)
 
-**1. Remover blocos duplicados em `ManualCreate.tsx`**
+### Frente A — Fechar refinamentos do smart-validation (3 itens, baixo risco)
 
-- Linha 185: apagar `const removeMedia = ...` local (já vem de `media.removeMedia`)
-- Linha 234: apagar `const handleLoadDraft = useCallback(...)` local (já vem de `recovery.handleLoadDraft`)
-- Linha 669: apagar segunda definição de `removeMedia`
-- Linha 910: apagar segunda definição de `handleLoadDraft`
+| # | Refinamento | Ficheiro | Esforço |
+|---|---|---|---|
+| **A1** | Criar `accountValidator` que verifica se há perfis seleccionados por rede (substitui linhas 395-441 de `getValidationErrors()` em `ManualCreate.tsx`). Quando ativo, painel mostra erro "Sem conta seleccionada para Instagram" com botão "Selecionar conta" | `src/lib/validation/validators/accountValidator.ts` (novo) + `runValidators.ts` | 1 hora |
+| **A2** | Após A1, remover `getValidationErrors()`, `validationErrors`, `hasErrors` de `ManualCreate.tsx` (linhas 395-465, 657, 837). Painel passa a ser fonte única absoluta | `src/pages/ManualCreate.tsx` | 30 min |
+| **A3** | Telemetria leve: log em `console.debug` quando issue é auto-corrigida vs ignorada (preparação para analytics futuro) | `useSmartValidation.ts` | 15 min |
 
-**2. Expor hooks no scope do componente com destruturação completa**
+### Frente B — Refinamentos do sistema de erros humanizados (3 itens detectados na auditoria)
 
-Logo após `const stepper = useStepper(...)` e companhia, adicionar aliases destruturados para que o JSX existente continue a funcionar com **mudança mínima**:
+Verificando o código de `ErrorExplanationCard.tsx` e `publishingErrors.ts`, há 3 melhorias úteis que ficaram fora do plano original:
 
-```tsx
-const stepper = useStepper({ canAdvanceToStep2, canAdvanceToStep3 });
-const { currentStep, visitedSteps, setCurrentStep, setVisitedSteps, goToStep, nextStep, previousStep } = stepper;
-
-const upload = useMediaUpload({ ...media, selectedFormat, profileId });
-const {
-  isUploading, uploadProgress, setUploadProgress, setIsUploading,
-  pendingVideoFiles, setPendingVideoFiles,
-  videoValidationIssues, setVideoValidationIssues,
-  videoValidationModalOpen, setVideoValidationModalOpen,
-} = upload;
-
-const recovery = useDraftRecovery({ ... });
-const { recoveredPostId, setRecoveredPostId, isRecovering, currentDraftId } = recovery;
-```
-
-Isto resolve ~50 erros sem tocar no JSX.
-
-**3. Limpar referências fantasma**
-
-- `stepperRef` (linhas 249-250): inexistente — remover ou substituir por `useRef(null)` local
-- Verificar se existe alguma referência a `setMediaSources`/`setMediaPreviewUrls` que já não está exposta — usar via `media.X`
-
-**4. Validar comportamento**
-
-- `npx tsc --noEmit -p tsconfig.app.json` deve ficar com **apenas os 4 erros pré-existentes em `CarouselPreview.tsx`** (`@ts-expect-error` não usados — ignorar)
-- Smoke test mental dos 7 checkpoints da Fase 1:
-  - Upload imagem 5MB → modal compressão
-  - `?recover=<id>` → carrega post
-  - Drag-and-drop → reordena
-  - Stepper avança 1→2→3
-  - Auto-save marca `lastSaved`
-  - Video upload → validação aparece
-  - Recovery banner aparece quando `recoveredPostId` existe
+| # | Refinamento | Ficheiro | Esforço |
+|---|---|---|---|
+| **B1** | **CTA "Reconectar conta" abre rota interna**, não link externo do Getlate. Hoje `ErrorExplanationCard:238` faz `window.open('https://getlate.dev/accounts')`. Substituir por navegação interna para `/quota-settings` (onde estão as contas) | `ErrorExplanationCard.tsx` + adicionar callback `onOpenAccountSettings` ligado em `Recovery.tsx` e `FailedPublications.tsx` com `useNavigate` | 30 min |
+| **B2** | **`PublishProgressModal` ainda só usa variant compact** — quando há 1 plataforma falhada, oferecer botão "Ver detalhes" que expande para variant full (mais útil que mostrar só o título) | `PublishProgressModal.tsx` | 45 min |
+| **B3** | **Falta o template `LINKEDIN_DOCUMENT_ERROR`** em `publishingErrors.ts` (PDFs LinkedIn falham com mensagens específicas: "page count exceeded", "PDF generation failed") que hoje caem em `unknown`. Adicionar template + classificação | `publishingErrors.ts` (`ERROR_MESSAGES` + `classifyError`) | 30 min |
 
 ---
 
 ### Ficheiros tocados
 
-| Ficheiro | Tipo de mudança |
+| Ficheiro | Tipo |
 |---|---|
-| `src/pages/ManualCreate.tsx` | Apagar 4 blocos duplicados + adicionar 3 destruturações de hooks + remover `stepperRef` fantasma |
-
-Nenhum hook novo tocado — apenas finalizar a fiação no consumidor.
+| `src/lib/validation/validators/accountValidator.ts` | novo |
+| `src/lib/validation/runValidators.ts` | edit (registar accountValidator) |
+| `src/pages/ManualCreate.tsx` | edit (remover gating legado, ~70 linhas a menos) |
+| `src/hooks/useSmartValidation.ts` | edit (telemetria debug) |
+| `src/components/publishing/ErrorExplanationCard.tsx` | edit (CTA reconectar interna) |
+| `src/pages/Recovery.tsx` | edit (passar `onOpenAccountSettings`) |
+| `src/pages/FailedPublications.tsx` | edit (idem) |
+| `src/components/publishing/PublishProgressModal.tsx` | edit (toggle compact↔full) |
+| `src/lib/publishingErrors.ts` | edit (template LinkedIn Document + classify) |
 
 ### Resultado esperado
 
-| Métrica | Antes (broken) | Depois |
+| Métrica | Hoje | Depois |
 |---|---|---|
-| Erros TS em `ManualCreate.tsx` | ~70 | **0** |
-| Linhas em `ManualCreate.tsx` | 2516 | ~2480 (remoção de duplicados) |
-| Build (`bun build:dev`) | ❌ falha | ✅ passa |
-| Comportamento runtime | quebrado | idêntico ao pré-refactor |
+| Validadores no painel | 8 | **9** (com `accountValidator`) |
+| Linhas em `ManualCreate.tsx` | 2174 | **~2100** (remover gating legado) |
+| Templates de erro classificados | 14 | **15** (LinkedIn Document) |
+| CTAs do card de erro | Externo (getlate.dev) | **Interno** (rota da app) |
 
-### Checkpoint Fase 1 (após este fix)
+### Checkpoint
 
-☐ `npx tsc --noEmit` sem erros novos em `ManualCreate.tsx`  
-☐ Build passa (`bun build:dev`)  
-☐ App carrega `/manual-create` sem console errors  
-☐ 5 hooks (`useMediaManager`, `useMediaUpload`, `useDraftRecovery`, `useStepper`, `mediaAspectDetection`) integrados e funcionais  
-☐ Próximo prompt pode avançar para **Fase 2** (extrair `useImageCompression` + `usePublishOrchestrator`)
+☐ `accountValidator` regista issues por rede sem perfil seleccionado  
+☐ `ManualCreate.tsx` deixa de ter `getValidationErrors`, `hasErrors`, `validationErrors`  
+☐ Botão "Reconectar conta" navega internamente para `/quota-settings`  
+☐ `PublishProgressModal` permite expandir erro para variant full  
+☐ Erro de PDF LinkedIn (`linkedin_document`) já não aparece como "Algo correu mal mas não conseguimos identificar"  
+☐ Build (`npx tsc --noEmit`) sem erros novos  
+☐ Toasts duplicados (legacy + smart-validation) eliminados
+
+### Fora deste plano (pedir explicitamente para avançar)
+
+- **Fases 2, 3, 4 do refactor** de `ManualCreate.tsx` (~1500 linhas a redistribuir) — são tarefas grandes que merecem prompt dedicado, uma fase por vez
 
