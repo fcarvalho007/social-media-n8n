@@ -38,6 +38,10 @@ export interface ValidationIssue {
 export interface ValidatorContext {
   selectedFormats: PostFormat[];
   caption: string;
+  /** Captions keyed by network when per-network copy is enabled. */
+  networkCaptions?: Record<string, string>;
+  /** Whether validators should prefer `networkCaptions[network]`. */
+  useSeparateCaptions?: boolean;
   mediaFiles: File[];
   hashtags: string[];
   scheduledDate: Date | null;
@@ -52,6 +56,8 @@ export interface ValidatorContext {
 export interface ValidationFixHelpers {
   /** Replace the current caption value. */
   setCaption?: (next: string) => void;
+  /** Replace the caption for one social network. */
+  setNetworkCaption?: (network: SocialNetwork, next: string) => void;
   /** Replace hashtags array. */
   setHashtags?: (next: string[]) => void;
   /** Replace the working set of media files. */
