@@ -11,7 +11,7 @@ import { ArrowLeft } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { StepProgress } from '@/components/manual-post/StepProgress';
 import { useAutoSave } from '@/hooks/useAutoSave';
-import { validateMedia, MediaValidationResult } from '@/lib/mediaValidation';
+import { MediaValidationResult } from '@/lib/mediaValidation';
 import { renderFormatPreview, getNetworkIcon } from '@/lib/manual-create/previewRenderer';
 import { RecoveryBanner } from '@/components/manual-post/steps/RecoveryBanner';
 import { QuotaWarningBanner } from '@/components/manual-post/steps/QuotaWarningBanner';
@@ -21,7 +21,6 @@ import { Drawer, DrawerContent, DrawerHeader, DrawerTitle } from '@/components/u
 import { Smartphone, ChevronRight } from 'lucide-react';
 import { NetworkFormatSelector } from '@/components/manual-post/NetworkFormatSelector';
 import { getMediaRequirements } from '@/lib/formatValidation';
-import { PublishingOverlay } from '@/components/manual-post/PublishingOverlay';
 
 import { useSmartValidation } from '@/hooks/useSmartValidation';
 import { usePublishWithProgress } from '@/hooks/usePublishWithProgress';
@@ -168,8 +167,6 @@ export default function ManualCreate() {
     setRecoveredPostId,
     currentDraftId,
     setCurrentDraftId,
-    fetchImageAsFile,
-    loadPostForRecovery,
     handleLoadDraft,
   } = recovery;
 
@@ -264,11 +261,6 @@ export default function ManualCreate() {
   // Progressive disclosure logic
   const showStep2 = selectedFormats.length > 0;
   const showStep3 = mediaFiles.length >= (mediaRequirements.minMedia || 1);
-  
-  // Check if can advance to next step
-  const canAdvanceToStep2 = selectedFormats.length > 0;
-  const canAdvanceToStep3 = mediaFiles.length >= (mediaRequirements.minMedia || 1);
-
   // Step auto-advance + navigation now provided by useStepper hook above.
   // (currentStep, visitedSteps, setCurrentStep, setVisitedSteps, goToStep,
   //  nextStep, previousStep are all destructured from `stepper`.)
