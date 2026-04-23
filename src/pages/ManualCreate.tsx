@@ -340,181 +340,45 @@ export default function ManualCreate() {
   //   - Date in the past / missing date     → scheduleValidator (M1)
   //   - Network without account mapping     → accountValidator (A1)
 
-  // Handle publish/submit with validation
-  const handlePublishWithValidation = async () => {
-    if (selectedFormats.length > 0 && !smartValidation.canPublish) {
-      setValidationSheetOpen(true);
-      toast.error('Resolve os problemas no painel de validação antes de publicar');
-      return;
-    }
-    handlePublishNow();
-  };
+  // ── Phase 2 hook: orquestrador de publicação ──────────────────────────
+  // Encapsula saveDraft, submitForApproval, publishNow + wrappers com gating
+  // de smart-validation. Mantém estado próprio (saving/submitting).
+  const orchestrator = usePublishOrchestrator({
+    selectedFormats,
+    selectedNetworks,
+    caption,
+    networkCaptions,
+    useSeparateCaptions,
+    mediaFiles,
+    scheduledDate,
+    time,
+    scheduleAsap,
+    recoveredPostId,
+    currentDraftId,
+    smartValidation,
+    compression,
+    executePublish,
+    quota: { instagram, linkedin, isUnlimited, refresh: refreshQuota },
+    setCurrentDraftId,
+    setCaption,
+    setMediaFiles,
+    setMediaPreviewUrls,
+    setScheduledDate,
+    setTime,
+    setScheduleAsap,
+    setUploadProgress,
+    setValidationSheetOpen,
+    onDuplicateDetected: (warning, params) => {
+      setDuplicateWarning(warning);
+      setPendingPublishParams(params);
+    },
+    onNavigateAfterSubmit: () => navigate('/calendar'),
+  });
+  const { saving, submitting } = orchestrator;
+  const handleSaveDraft = orchestrator.saveDraft;
+  const handlePublishWithValidation = orchestrator.publishWithValidation;
+  const handleSubmitWithValidation = orchestrator.submitWithValidation;
 
-  const handleSubmitWithValidation = async () => {
-    if (selectedFormats.length > 0 && !smartValidation.canPublish) {
-      setValidationSheetOpen(true);
-      toast.error('Resolve os problemas no painel de validação antes de submeter');
-      return;
-    }
-    handleSubmitForApproval();
-  };
-
-
-  const handleSaveDraft = async () => {
-    if (selectedFormats.length === 0) {
-      toast.error('Selecione pelo menos um formato');
-      return;
-    }
-
-    try {
-      setSaving(true);
-      setUploadProgress(0);
-
-      // Robust session check
-      const { data: sessionData, error: sessionError } = await supabase.auth.getSession();
-      if (sessionError || !sessionData.session) {
-        console.error('[handleSaveDraft] Session error:', sessionError);
-        toast.error('Sessão expirada. Por favor, faça login novamente.');
-        return;
-      }
-      const user = sessionData.session.user;
-
-      const mediaUrls: string[] = [];
-      const totalFiles = mediaFiles.length;
-      
-      for (let i = 0; i < totalFiles; i++) {
-        const file = mediaFiles[i];
-        const fileName = generateSafeStoragePath(user.id, file);
-        
-        setUploadProgress(Math.round((i / totalFiles) * 100));
-        
-        const { error: uploadError } = await supabase.storage
-          .from('pdfs')
-          .upload(fileName, file);
-        
-        if (uploadError) {
-          console.error('[handleSaveDraft] Upload error:', uploadError);
-          throw uploadError;
-        }
-        
-        const { data: { publicUrl } } = supabase.storage
-          .from('pdfs')
-          .getPublicUrl(fileName);
-        
-        mediaUrls.push(publicUrl);
-      }
-
-      setUploadProgress(100);
-
-      // Save primary format for backwards compatibility
-      const primaryFormat = selectedFormats[0];
-      let platform: string;
-      if (primaryFormat.startsWith('instagram_')) platform = 'instagram_carrousel';
-      else if (primaryFormat.startsWith('linkedin_')) platform = 'linkedin';
-      else platform = primaryFormat;
-
-      const draftData: {
-        user_id: string;
-        platform: string;
-        caption: string;
-        media_urls: string[];
-        scheduled_date: string | null;
-        scheduled_time: string | null;
-        publish_immediately: boolean;
-        status: 'draft';
-      } = {
-        user_id: user.id,
-        platform,
-        caption: useSeparateCaptions && networkCaptions[platform.replace('_carrousel', '')] 
-          ? networkCaptions[platform.replace('_carrousel', '')] 
-          : caption,
-        media_urls: mediaUrls,
-        scheduled_date: scheduledDate ? format(scheduledDate, 'yyyy-MM-dd') : null,
-        scheduled_time: time || null,
-        publish_immediately: scheduleAsap,
-        status: 'draft',
-      };
-
-      // Validate currentDraftId - if it's an invalid autosave ID, force insert
-      const validDraftId = currentDraftId && !currentDraftId.startsWith('autosave-') ? currentDraftId : null;
-
-      if (validDraftId) {
-        const { error } = await supabase
-          .from('posts_drafts')
-          .update(draftData)
-          .eq('id', validDraftId);
-        if (error) {
-          console.error('[handleSaveDraft] Update error:', error);
-          throw error;
-        }
-        toast.success('Rascunho atualizado com sucesso');
-      } else {
-        const { data: insertedDraft, error } = await supabase.from('posts_drafts').insert(draftData).select('id').single();
-        if (error) {
-          console.error('[handleSaveDraft] Insert error:', error);
-          throw error;
-        }
-        // Clear invalid autosave ID if it existed
-        if (currentDraftId && currentDraftId.startsWith('autosave-')) {
-          setCurrentDraftId(null);
-        }
-        toast.success('Rascunho guardado com sucesso');
-        
-        // Register media in library after successful draft save
-        if (mediaUrls.length > 0) {
-          const mediaEntries = mediaUrls.map((url, idx) => {
-            const fileName = url.split('/').pop() || `draft-${idx}`;
-            const file = mediaFiles[idx];
-            const isVideo = file?.type?.startsWith('video/') || url.includes('.mp4') || url.includes('.mov');
-            return {
-              user_id: user.id,
-              file_name: fileName,
-              file_url: url,
-              file_type: isVideo ? 'video' : 'image',
-              source: 'publication',
-              is_favorite: false,
-            };
-          });
-          
-          const { error: mediaError } = await supabase.from('media_library').insert(mediaEntries);
-          if (mediaError) {
-            console.warn('[handleSaveDraft] Failed to register media in library:', mediaError);
-          } else {
-            console.log(`[handleSaveDraft] Registered ${mediaEntries.length} files in media library`);
-          }
-        }
-      }
-    } catch (error: unknown) {
-      const err = error as { message?: string; code?: string; statusCode?: number; details?: string; hint?: string; name?: string; stack?: string };
-      console.error('[handleSaveDraft] Error details:', {
-        message: err?.message,
-        code: err?.code,
-        statusCode: err?.statusCode,
-        details: err?.details,
-        hint: err?.hint,
-        name: err?.name,
-        stack: err?.stack,
-      });
-      
-      if (err?.message?.includes('uuid')) {
-        toast.error('Erro interno. O rascunho será guardado como novo.');
-        setCurrentDraftId(null);
-      } else if (err?.message?.includes('JWT') || err?.message?.includes('session') || err?.code === 'PGRST301') {
-        toast.error('Sessão expirada. Por favor, faça login novamente.');
-      } else if (err?.message?.includes('storage') || err?.message?.includes('bucket') || err?.statusCode === 413) {
-        toast.error('Erro no upload. Verifique o tamanho dos ficheiros (máx 50MB).');
-      } else if (err?.message?.includes('timeout') || err?.code === 'ETIMEDOUT') {
-        toast.error('Ligação lenta. Tente novamente com ficheiros mais pequenos.');
-      } else if (err?.statusCode === 403) {
-        toast.error('Sem permissão para guardar. Contacte o suporte.');
-      } else {
-        toast.error(`Erro ao guardar: ${err?.message || 'Verifique a sua ligação.'}`);
-      }
-    } finally {
-      setSaving(false);
-      setUploadProgress(0);
-    }
-  };
 
   // Handler for cancelling publication
   const handleCancelPublishing = async () => {
@@ -546,234 +410,9 @@ export default function ManualCreate() {
   };
 
 
-  const handleSubmitForApproval = async () => {
-    // Smart-validation panel is the single source of truth for blocking.
-    if (selectedFormats.length > 0 && !smartValidation.canPublish) {
-      setValidationSheetOpen(true);
-      toast.error('Resolve os problemas no painel de validação antes de submeter');
-      return;
-    }
+  const handleSubmitForApproval = orchestrator.submitForApproval;
 
-
-    try {
-      setSubmitting(true);
-      setUploadProgress(0);
-      
-      const { data: { user }, error: authError } = await supabase.auth.getUser();
-      
-      if (authError || !user) {
-        toast.error('Tem de iniciar sessão para submeter.');
-        return;
-      }
-
-      toast.loading('A carregar ficheiros...', { id: 'upload' });
-      const mediaUrls: string[] = [];
-      const totalFiles = mediaFiles.length;
-      
-      for (let i = 0; i < totalFiles; i++) {
-        const file = mediaFiles[i];
-        const fileName = generateSafeStoragePath(user.id, file);
-        
-        setUploadProgress(Math.round((i / totalFiles) * 50));
-        
-        const { error: uploadError } = await supabase.storage
-          .from('pdfs')
-          .upload(fileName, file);
-        
-        if (uploadError) {
-          toast.dismiss('upload');
-          throw new Error(`Erro ao carregar ${file.name}`);
-        }
-        
-        const { data: { publicUrl } } = supabase.storage
-          .from('pdfs')
-          .getPublicUrl(fileName);
-        
-        mediaUrls.push(publicUrl);
-      }
-
-      toast.dismiss('upload');
-      setUploadProgress(50);
-
-      // Map formats to platform for N8N
-      const primaryFormat = selectedFormats[0];
-      let platform: string;
-      if (primaryFormat.startsWith('instagram_')) platform = 'instagram_carousel';
-      else if (primaryFormat.startsWith('linkedin_')) platform = 'linkedin';
-      else if (primaryFormat.startsWith('youtube_')) platform = 'youtube';
-      else if (primaryFormat.startsWith('tiktok_')) platform = 'tiktok';
-      else if (primaryFormat.startsWith('facebook_')) platform = 'facebook';
-      else platform = 'instagram_carousel';
-
-      let scheduledDateStr = '';
-      let scheduledTimeStr = '';
-      
-      if (!scheduleAsap && scheduledDate) {
-        scheduledDateStr = format(scheduledDate, 'yyyy-MM-dd');
-        scheduledTimeStr = time;
-      }
-
-      setUploadProgress(60);
-
-      const { data: { session } } = await supabase.auth.getSession();
-      
-      if (!session || !session.access_token) {
-        throw new Error('Sessão inválida. Faça login novamente.');
-      }
-      
-      toast.loading('A submeter publicação...', { id: 'submit' });
-      setUploadProgress(80);
-      
-      const { data, error } = await supabase.functions.invoke('submit-to-n8n', {
-        body: {
-          platform,
-          caption: useSeparateCaptions && networkCaptions[platform] ? networkCaptions[platform] : caption,
-          media_urls: mediaUrls,
-          scheduled_date: scheduledDateStr || undefined,
-          scheduled_time: scheduledTimeStr || undefined,
-          publish_immediately: scheduleAsap,
-          formats: selectedFormats,
-          network_captions: useSeparateCaptions ? networkCaptions : undefined,
-        },
-      });
-
-      if (error) {
-        toast.dismiss('submit');
-        throw new Error('Erro ao comunicar com o servidor');
-      }
-
-      if (!data?.success) {
-        toast.dismiss('submit');
-        throw new Error(data?.error || 'Falha ao submeter para aprovação');
-      }
-
-      toast.dismiss('submit');
-      setUploadProgress(90);
-
-      const postData = {
-        user_id: user.id,
-        post_type: primaryFormat.includes('carousel') ? 'carousel' : primaryFormat.includes('video') || primaryFormat.includes('reel') ? 'video' : 'image',
-        selected_networks: selectedNetworks,
-        caption,
-        linkedin_body: useSeparateCaptions && networkCaptions.linkedin ? networkCaptions.linkedin : null,
-        scheduled_date: scheduledDate?.toISOString() || null,
-        schedule_asap: scheduleAsap,
-        status: 'waiting_for_approval',
-        origin_mode: 'manual',
-        tema: 'Manual post',
-        template_a_images: mediaUrls,
-        template_b_images: [],
-        workflow_id: 'manual-' + Date.now(),
-      };
-
-      console.log('[ManualCreate] Inserting post with user_id:', user.id);
-      const { error: dbError } = await supabase.from('posts').insert(postData);
-      if (dbError) {
-        console.error('DB insert error:', dbError);
-        toast.error('Erro ao guardar publicação na base de dados');
-      } else {
-        // Register media in library after successful post insertion
-        if (mediaUrls.length > 0) {
-          const mediaEntries = mediaUrls.map((url, idx) => {
-            const fileName = url.split('/').pop() || `media-${idx}`;
-            const file = mediaFiles[idx];
-            const isVideo = file?.type?.startsWith('video/') || url.includes('.mp4') || url.includes('.mov');
-            return {
-              user_id: user.id,
-              file_name: fileName,
-              file_url: url,
-              file_type: isVideo ? 'video' : 'image',
-              source: 'publication',
-              is_favorite: false,
-            };
-          });
-          
-          const { error: mediaError } = await supabase.from('media_library').insert(mediaEntries);
-          if (mediaError) {
-            console.warn('[ManualCreate] Failed to register media in library:', mediaError);
-            // Don't show error - the main action succeeded
-          } else {
-            console.log(`[ManualCreate] Registered ${mediaEntries.length} files in media library`);
-          }
-        }
-      }
-
-      setUploadProgress(100);
-      
-      toast.success('Publicação submetida para aprovação com sucesso!', { duration: 4000 });
-      
-      if (!currentDraftId) {
-        setCaption('');
-        setMediaFiles([]);
-        setMediaPreviewUrls([]);
-        setScheduledDate(undefined);
-        setTime('12:00');
-        setScheduleAsap(false);
-      }
-      
-      setTimeout(() => navigate('/calendar'), 1500);
-    } catch (error) {
-      console.error('Error submitting:', error);
-      const errorMsg = error instanceof Error ? error.message : 'Erro ao submeter. Tente novamente.';
-      toast.error(errorMsg, { duration: 5000 });
-    } finally {
-      setSubmitting(false);
-      setUploadProgress(0);
-    }
-  };
-
-  const handlePublishNow = async (filesToPublish?: File[]) => {
-    // Smart-validation panel is the single source of truth for blocking.
-    if (selectedFormats.length > 0 && !smartValidation.canPublish) {
-      setValidationSheetOpen(true);
-      toast.error('Resolve os problemas no painel de validação antes de publicar');
-      return;
-    }
-
-
-    const files = filesToPublish || mediaFiles;
-    
-    // Check for oversized images (> 4MB) - only for Instagram
-    const instagramSelected = selectedNetworks.includes('instagram');
-    if (instagramSelected && !filesToPublish) {
-      const triggered = compression.requestCompressionIfNeeded(files);
-      if (triggered) return; // Wait for user confirmation in modal
-    }
-
-    // Log quota info for reference only - Getlate.dev is the sole authority for quota limits
-    console.log('[Publish] Quota info (reference only):', {
-      instagramRemaining: instagram.quota.remaining,
-      linkedinRemaining: linkedin.quota.remaining,
-      isUnlimited,
-    });
-    
-    // NOTE: No frontend quota blocking - Getlate.dev API will reject if quota is exceeded
-
-    // Use the new hook to publish
-    const publishParams = {
-      formats: selectedFormats,
-      caption,
-      mediaFiles: files,
-      scheduledDate,
-      time,
-      scheduleAsap,
-      recoveredFromPostId: recoveredPostId || undefined,
-      networkCaptions: useSeparateCaptions ? networkCaptions : undefined,
-    };
-    
-    const result = await executePublish(publishParams);
-
-    // Handle duplicate detection
-    if (result && typeof result === 'object' && 'duplicate' in result) {
-      setDuplicateWarning(result.duplicate);
-      setPendingPublishParams(publishParams);
-      return;
-    }
-
-    if (result === true) {
-      await refreshQuota();
-    }
-  };
+  const handlePublishNow = orchestrator.publishNow;
 
   // Compression flow handlers — delegated to `useImageCompression`.
   // The hook owns state; this component owns side-effects (mediaFiles update,
