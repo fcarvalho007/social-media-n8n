@@ -127,14 +127,9 @@ export default function ManualCreate() {
     removeMedia,
   } = mediaManager;
 
-  // Compression confirmation state
-  const [compressionModalOpen, setCompressionModalOpen] = useState(false);
-  const [oversizedImages, setOversizedImages] = useState<OversizedImage[]>([]);
-  const [isCompressing, setIsCompressing] = useState(false);
-  const [compressionProgress, setCompressionProgress] = useState<{ current: number; total: number; fileName: string } | undefined>();
-  const [compressionStep, setCompressionStep] = useState<'warning' | 'compressing' | 'confirmation'>('warning');
-  const [compressionResults, setCompressionResults] = useState<{ originalSizeMB: number; finalSizeMB: number; qualityUsed: number; wasResized: boolean }[]>([]);
-  const [pendingCompressedFiles, setPendingCompressedFiles] = useState<File[]>([]);
+  // Image compression flow (oversized images for Instagram).
+  // Encapsulated in a single hook — see `useImageCompression`.
+  const compression = useImageCompression({ maxSizeMB: 4 });
 
   // Publishing hook with 2-phase progress
   const { 
@@ -727,12 +722,8 @@ export default function ManualCreate() {
     // Check for oversized images (> 4MB) - only for Instagram
     const instagramSelected = selectedNetworks.includes('instagram');
     if (instagramSelected && !filesToPublish) {
-      const oversized = detectOversizedImages(files, 4);
-      if (oversized.length > 0) {
-        setOversizedImages(oversized);
-        setCompressionModalOpen(true);
-        return; // Wait for user confirmation
-      }
+      const triggered = compression.requestCompressionIfNeeded(files);
+      if (triggered) return; // Wait for user confirmation in modal
     }
 
     // Log quota info for reference only - Getlate.dev is the sole authority for quota limits
@@ -770,80 +761,18 @@ export default function ManualCreate() {
     }
   };
 
-  // Handle compression confirmation - Step 1: Start compression
-  const handleConfirmCompression = async () => {
-    setIsCompressing(true);
-    setCompressionStep('compressing');
-    
-    try {
-      const indicesToCompress = oversizedImages.map(img => img.index);
-      
-      const { files: compressedFiles, results } = await compressOversizedFiles(
-        mediaFiles,
-        indicesToCompress,
-        4,
-        (current, total, fileName) => {
-          setCompressionProgress({ current, total, fileName });
-        }
-      );
-      
-      // Store results for confirmation step (DON'T close modal yet)
-      setPendingCompressedFiles(compressedFiles);
-      setCompressionResults(results);
-      setIsCompressing(false);
-      
-      // Move to confirmation step
-      setCompressionStep('confirmation');
-      
-    } catch (error) {
-      console.error('[ManualCreate] Compression failed:', error);
-      toast.error('Erro ao comprimir imagens');
-      setIsCompressing(false);
-      setCompressionProgress(undefined);
-      setCompressionStep('warning');
-    }
-  };
+  // Compression flow handlers — delegated to `useImageCompression`.
+  // The hook owns state; this component owns side-effects (mediaFiles update,
+  // chained publish call) that depend on local closures.
+  const handleConfirmCompression = () => compression.runCompression(mediaFiles);
 
-  // Handle compression confirmation - Step 2: Confirm and publish
   const handleConfirmAndPublish = async () => {
-    // Update media files with compressed versions
-    setMediaFiles(pendingCompressedFiles);
-    
-    // Close modal and reset state
-    setCompressionModalOpen(false);
-    setOversizedImages([]);
-    setCompressionStep('warning');
-    setCompressionResults([]);
-    setCompressionProgress(undefined);
-    
-    // Show success message
-    const totalSaved = compressionResults.reduce((acc, r) => acc + (r.originalSizeMB - r.finalSizeMB), 0);
-    toast.success(`${compressionResults.length} imagem(ns) comprimida(s)`, {
-      description: `Poupou ${totalSaved.toFixed(1)}MB`
-    });
-    
-    // Continue with publishing using compressed files
-    await handlePublishNow(pendingCompressedFiles);
-    
-    // Clear pending files after publishing started
-    setPendingCompressedFiles([]);
+    const compressed = compression.acceptCompressedFiles();
+    setMediaFiles(compressed);
+    await handlePublishNow(compressed);
   };
 
-  const handleCancelCompression = () => {
-    if (!isCompressing) {
-      // If in confirmation step, go back to warning
-      if (compressionStep === 'confirmation') {
-        setCompressionStep('warning');
-        setCompressionResults([]);
-        setPendingCompressedFiles([]);
-      } else {
-        // Close completely
-        setCompressionModalOpen(false);
-        setOversizedImages([]);
-        setCompressionStep('warning');
-      }
-    }
-  };
+  const handleCancelCompression = () => compression.cancel();
 
   // Handlers for progress modal
   const handleCreateNew = () => {
