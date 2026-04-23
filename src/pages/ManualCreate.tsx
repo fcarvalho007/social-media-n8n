@@ -145,7 +145,7 @@ export default function ManualCreate() {
   
   // Duplicate detection state
   const [duplicateWarning, setDuplicateWarning] = useState<{ id: string; created_at: string; selected_networks: string[] | null; status: string | null } | null>(null);
-  const [pendingPublishParams, setPendingPublishParams] = useState<any>(null);
+  const [pendingPublishParams, setPendingPublishParams] = useState<Parameters<typeof executePublish>[0] | null>(null);
 
   // Auto-save hook
   const { lastSaved, isSaving: isAutoSaving, hasUnsavedChanges } = useAutoSave({
@@ -314,7 +314,7 @@ export default function ManualCreate() {
     } else if (!selectedFormats.includes(activePreviewTab as PostFormat)) {
       setActivePreviewTab(selectedFormats[0]);
     }
-  }, [selectedFormats]);
+  }, [selectedFormats, activePreviewTab]);
 
   // Progressive disclosure logic
   const showStep2 = selectedFormats.length > 0;
@@ -409,7 +409,16 @@ export default function ManualCreate() {
       else if (primaryFormat.startsWith('linkedin_')) platform = 'linkedin';
       else platform = primaryFormat;
 
-      const draftData: any = {
+      const draftData: {
+        user_id: string;
+        platform: string;
+        caption: string;
+        media_urls: string[];
+        scheduled_date: string | null;
+        scheduled_time: string | null;
+        publish_immediately: boolean;
+        status: 'draft';
+      } = {
         user_id: user.id,
         platform,
         caption: useSeparateCaptions && networkCaptions[platform.replace('_carrousel', '')] 
@@ -471,15 +480,16 @@ export default function ManualCreate() {
           }
         }
       }
-    } catch (error: any) {
+    } catch (error: unknown) {
+      const err = error as { message?: string; code?: string; statusCode?: number; details?: string; hint?: string; name?: string; stack?: string };
       console.error('[handleSaveDraft] Error details:', {
-        message: error?.message,
-        code: error?.code,
-        statusCode: error?.statusCode,
-        details: error?.details,
-        hint: error?.hint,
-        name: error?.name,
-        stack: error?.stack,
+        message: err?.message,
+        code: err?.code,
+        statusCode: err?.statusCode,
+        details: err?.details,
+        hint: err?.hint,
+        name: err?.name,
+        stack: err?.stack,
       });
       
       if (error?.message?.includes('uuid')) {
