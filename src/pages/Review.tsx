@@ -1590,6 +1590,7 @@ const Review = () => {
                       onChange={setLinkedinBody}
                       placeholder="Escreve a legenda para LinkedIn..."
                       rows={15}
+                      maxLength={3000}
                       className="text-[15px] leading-relaxed"
                     />
                     <div className="flex items-center justify-between mt-3">
