@@ -171,6 +171,11 @@ export const RichTextEditor = ({
           }
         }}
       />
+      {value.length > maxLength && (
+        <p className="text-xs text-destructive font-medium" role="alert">
+          Excede o limite em {value.length - maxLength} caracter{value.length - maxLength === 1 ? '' : 'es'}.
+        </p>
+      )}
     </div>
   );
 };
