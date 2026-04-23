@@ -468,102 +468,28 @@ export default function ManualCreate() {
         <CompactModeBadge mode="manual" onChangeMode={() => navigate('/?tab=create')} />
       </div>
 
-      {/* Recovery Banner */}
-      {isRecovering && (
-        <div className="flex items-center gap-2 p-3 mx-2 sm:mx-0 rounded-lg bg-primary/10 border border-primary/20 text-primary">
-          <Loader2 className="h-4 w-4 animate-spin flex-shrink-0" />
-          <span className="text-sm">A recuperar conteúdo...</span>
-        </div>
-      )}
-      
-      {recoveredPostId && !isRecovering && (
-        <Card className="border-blue-200 dark:border-blue-800 bg-blue-50 dark:bg-blue-900/20 mx-2 sm:mx-0">
-          <CardContent className="p-4">
-            <div className="flex items-start gap-3">
-              <RefreshCw className="h-5 w-5 text-blue-600 dark:text-blue-400 flex-shrink-0 mt-0.5" />
-              <div className="flex-1 min-w-0">
-                <p className="font-medium text-blue-900 dark:text-blue-100 text-sm">
-                  Conteúdo Recuperado
-                </p>
-                <p className="text-xs text-blue-700 dark:text-blue-300 mt-0.5">
-                  {mediaFiles.length} ficheiro(s) carregado(s) do post anterior
-                </p>
-              </div>
-              <Button 
-                variant="ghost" 
-                size="sm" 
-                onClick={() => {
-                  setRecoveredPostId(null);
-                  setMediaPreviewUrls([]);
-                  setMediaFiles([]);
-                  setMediaSources([]);
-                  setMediaAspectRatios([]);
-                  setCaption('');
-                  setSelectedFormats([]);
-                  setNetworkCaptions({});
-                  setUseSeparateCaptions(false);
-                  navigate('/manual-create', { replace: true });
-                  toast.success('Recuperação limpa');
-                }}
-                className="text-blue-700 dark:text-blue-300 hover:text-blue-900 dark:hover:text-blue-100 hover:bg-blue-100 dark:hover:bg-blue-800/50 -mr-2"
-              >
-                Limpar
-              </Button>
-            </div>
-            
-            {/* Preview grid of recovered images */}
-            {mediaPreviewUrls.length > 0 && (
-              <div className="grid grid-cols-6 sm:grid-cols-8 gap-1.5 mt-3">
-                {mediaPreviewUrls.slice(0, 7).map((url, i) => (
-                  <div key={i} className="relative aspect-square rounded-md overflow-hidden group bg-muted">
-                    {mediaFiles[i]?.type.startsWith('video/') ? (
-                      <video src={url} className="object-cover w-full h-full" muted />
-                    ) : (
-                      <img src={url} alt={`Recuperado ${i + 1}`} className="object-cover w-full h-full" />
-                    )}
-                    <button 
-                      className="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center"
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        // Remove this specific media
-                        setMediaPreviewUrls(prev => prev.filter((_, idx) => idx !== i));
-                        setMediaFiles(prev => prev.filter((_, idx) => idx !== i));
-                        setMediaSources(prev => prev.filter((_, idx) => idx !== i));
-                        setMediaAspectRatios(prev => prev.filter((_, idx) => idx !== i));
-                        toast.success('Imagem removida');
-                      }}
-                    >
-                      <X className="h-4 w-4 text-white" />
-                    </button>
-                  </div>
-                ))}
-                {mediaPreviewUrls.length > 7 && (
-                  <div className="aspect-square rounded-md bg-blue-100 dark:bg-blue-800/50 flex items-center justify-center text-blue-700 dark:text-blue-300 text-sm font-medium">
-                    +{mediaPreviewUrls.length - 7}
-                  </div>
-                )}
-              </div>
-            )}
-          </CardContent>
-        </Card>
-      )}
+      <RecoveryBanner
+        isRecovering={isRecovering}
+        recoveredPostId={recoveredPostId}
+        mediaFiles={mediaFiles}
+        mediaPreviewUrls={mediaPreviewUrls}
+        setRecoveredPostId={setRecoveredPostId}
+        setMediaPreviewUrls={setMediaPreviewUrls}
+        setMediaFiles={setMediaFiles}
+        setMediaSources={setMediaSources}
+        setMediaAspectRatios={setMediaAspectRatios}
+        setCaption={setCaption}
+        setSelectedFormats={setSelectedFormats}
+        setNetworkCaptions={setNetworkCaptions}
+        setUseSeparateCaptions={setUseSeparateCaptions}
+      />
 
-      {/* Quota Warning - simplified on mobile */}
-      {selectedNetworks.length > 0 && !isUnlimited && (
-        (selectedNetworks.includes('instagram') && instagram.percentage >= 80) ||
-        (selectedNetworks.includes('linkedin') && linkedin.percentage >= 80)
-      ) && (
-        <div className="flex items-center gap-1.5 sm:gap-2 p-2 mx-2 sm:mx-0 rounded-lg bg-amber-500/10 border border-amber-500/20 text-amber-700 dark:text-amber-400">
-          <AlertTriangle className="h-3.5 w-3.5 sm:h-4 sm:w-4 flex-shrink-0" />
-          <span className="text-[11px] sm:text-sm truncate">
-            {selectedNetworks.includes('instagram') && instagram.percentage >= 100 && 'Quota IG esgotada'}
-            {selectedNetworks.includes('linkedin') && linkedin.percentage >= 100 && 'Quota LI esgotada'}
-            {((selectedNetworks.includes('instagram') && instagram.percentage >= 80 && instagram.percentage < 100) ||
-              (selectedNetworks.includes('linkedin') && linkedin.percentage >= 80 && linkedin.percentage < 100)) && 
-              'Quota quase esgotada'}
-          </span>
-        </div>
-      )}
+      <QuotaWarningBanner
+        selectedNetworks={selectedNetworks}
+        isUnlimited={isUnlimited}
+        instagram={instagram}
+        linkedin={linkedin}
+      />
 
       {/* Stepper - more compact on mobile */}
       <div className="sm:px-0">
