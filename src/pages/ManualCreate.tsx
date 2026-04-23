@@ -59,7 +59,11 @@ import { useSmartValidation } from '@/hooks/useSmartValidation';
 import { ValidationSidebar, ValidationMobileBadge } from '@/components/manual-post/ValidationSidebar';
 import { usePublishWithProgress } from '@/hooks/usePublishWithProgress';
 import { DuplicateWarningDialog } from '@/components/publishing/DuplicateWarningDialog';
-import { EnhancedSortableMediaItem, MediaDragOverlay } from '@/components/manual-post/EnhancedSortableMediaItem';
+import { EnhancedSortableMediaItem, MediaDragOverlay, type AspectRatioType } from '@/components/manual-post/EnhancedSortableMediaItem';
+
+const VALID_ASPECT_RATIOS = new Set<AspectRatioType>(['1:1', '3:4', '4:5', '4:3', '16:9', '9:16', 'auto']);
+const toAspectRatio = (v: string | undefined): AspectRatioType | undefined =>
+  v && VALID_ASPECT_RATIOS.has(v as AspectRatioType) ? (v as AspectRatioType) : undefined;
 import { NetworkCaptionEditor } from '@/components/manual-post/NetworkCaptionEditor';
 import { DragHintTooltip } from '@/components/manual-post/DragHintTooltip';
 import { DndContext, closestCenter, DragEndEvent, DragStartEvent, PointerSensor, KeyboardSensor, TouchSensor, useSensor, useSensors, DragOverlay } from '@dnd-kit/core';
@@ -1218,7 +1222,7 @@ export default function ManualCreate() {
                                 isVideo={isVideo}
                                 disabled={saving || submitting || publishing}
                                 source={mediaSources[idx]}
-                                aspectRatio={mediaAspectRatios[idx] as any}
+                                aspectRatio={toAspectRatio(mediaAspectRatios[idx])}
                                 onRemove={() => removeMedia(idx)}
                                 onMoveUp={() => moveMedia(idx, idx - 1)}
                                 onMoveDown={() => moveMedia(idx, idx + 1)}
