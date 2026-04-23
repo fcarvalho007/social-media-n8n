@@ -4,6 +4,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { PostFormat } from '@/types/social';
 import { MediaSource } from '@/types/media';
 import { detectImageAspectRatio, detectVideoAspectRatio } from './mediaAspectDetection';
+import { normalizeMediaList } from '@/lib/mediaPreview';
 
 interface UseDraftRecoveryParams {
   recoverPostId: string | null;
@@ -246,16 +247,36 @@ export function useDraftRecovery(params: UseDraftRecoveryParams) {
       scheduled_date?: string | null;
       scheduled_time?: string | null;
       media_urls?: unknown;
+      media_items?: unknown;
+      format?: string | null;
+      formats?: string[] | null;
+      network_captions?: Record<string, string> | null;
+      use_separate_captions?: boolean | null;
     }) => {
-      let fmt: PostFormat;
-      if (draft.platform === 'instagram_carrousel') fmt = 'instagram_carousel';
-      else if (draft.platform === 'instagram_stories') fmt = 'instagram_stories';
-      else if (draft.platform === 'linkedin') fmt = 'linkedin_post';
-      else if (draft.platform === 'linkedin_document') fmt = 'linkedin_document';
-      else fmt = 'instagram_carousel';
+      const legacyPlatformMap: Record<string, PostFormat> = {
+        instagram_carrousel: 'instagram_carousel',
+        instagram_carousel: 'instagram_carousel',
+        instagram_reel: 'instagram_reel',
+        instagram_stories: 'instagram_stories',
+        linkedin: 'linkedin_post',
+        linkedin_post: 'linkedin_post',
+        linkedin_document: 'linkedin_document',
+        youtube_shorts: 'youtube_shorts',
+        youtube_video: 'youtube_video',
+        tiktok_video: 'tiktok_video',
+        facebook_image: 'facebook_image',
+        facebook_stories: 'facebook_stories',
+        facebook_reel: 'facebook_reel',
+        googlebusiness_post: 'googlebusiness_post',
+      };
+      const formats = draft.formats?.length
+        ? draft.formats as PostFormat[]
+        : [legacyPlatformMap[draft.format || draft.platform || ''] || 'instagram_carousel'];
 
-      setSelectedFormats([fmt]);
+      setSelectedFormats(formats);
       setCaption(draft.caption || '');
+      setUseSeparateCaptions(!!draft.use_separate_captions);
+      setNetworkCaptions(draft.network_captions || {});
       setScheduleAsap(draft.publish_immediately ?? true);
 
       if (draft.scheduled_date) {
@@ -267,7 +288,10 @@ export function useDraftRecovery(params: UseDraftRecoveryParams) {
 
       setCurrentDraftId(draft.id);
 
-      const urls: string[] = Array.isArray(draft.media_urls) ? (draft.media_urls as string[]) : [];
+      const enrichedMedia = normalizeMediaList(draft.media_items);
+      const urls = enrichedMedia.length > 0
+        ? enrichedMedia.map(item => item.url || item.displayUrl).filter((url): url is string => !!url)
+        : Array.isArray(draft.media_urls) ? (draft.media_urls as string[]) : [];
       if (urls.length > 0) {
         setMediaPreviewUrls(urls);
         setMediaSources(urls.map(() => 'url' as MediaSource));
