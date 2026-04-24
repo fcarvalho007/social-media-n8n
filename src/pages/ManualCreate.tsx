@@ -1053,8 +1053,21 @@ export default function ManualCreate() {
     [caption, networkCaptions, useSeparateCaptions, mediaFiles, mediaPreviewUrls, mediaItems],
   );
 
-  // State for mobile preview collapsed
-  const [mobilePreviewOpen, setMobilePreviewOpen] = useState(false);
+  const [mobilePreviewState, setMobilePreviewState] = useState<'closed' | 'peek' | 'expanded'>('closed');
+  const [previewHasUpdates, setPreviewHasUpdates] = useState(false);
+  const mobilePreviewOpen = mobilePreviewState !== 'closed';
+  const activePreviewFormat = (activePreviewTab || selectedFormats[0]) as PostFormat | undefined;
+  const activePreviewLabel = activePreviewFormat ? `${getNetworkFromFormat(activePreviewFormat)} · ${activePreviewFormat.replace(/_/g, ' ')}` : 'Pré-visualização';
+
+  useEffect(() => {
+    if (mobilePreviewOpen) return;
+    setPreviewHasUpdates(true);
+  }, [caption, networkCaptions, networkOptions, selectedFormats, mediaPreviewUrls, scheduledDate, scheduleAsap, time, mobilePreviewOpen]);
+
+  const openMobilePreview = (state: 'peek' | 'expanded' = 'expanded') => {
+    setMobilePreviewState(state);
+    setPreviewHasUpdates(false);
+  };
 
   return (
       <div className="max-w-7xl mx-auto space-y-2 sm:space-y-4 px-0 sm:px-6 lg:px-0 bg-gradient-to-br from-background to-background-secondary overflow-hidden w-full max-w-full">
