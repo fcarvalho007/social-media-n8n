@@ -20,8 +20,10 @@ Este documento define as regras visuais atuais da página `/manual-create`, cons
 ### Mobile — abaixo de 768px
 
 - Coluna única.
-- Pré-visualização em drawer inferior.
-- Barra fixa inferior mantém ações principais, validação e acesso à pré-visualização.
+- Stepper sticky no topo com 44px, fundo `background/85`, blur e barra de progresso de 2px.
+- Pré-visualização fora do fluxo vertical: FAB dedicado + drawer inferior com estados `peek` e `expanded`.
+- Barra fixa inferior mantém navegação, ação principal adaptativa e menu overflow.
+- Conteúdo deve reservar espaço inferior suficiente para não ficar tapado pela barra sticky.
 
 Classe oficial: `.manual-create-grid`.
 
@@ -90,6 +92,8 @@ Uso: wrapper shadcn para cards principais do fluxo.
 - Transição de cor: `150ms ease` (`duration-manual-color`).
 - Expansão/colapso: `200ms ease-out` (`duration-manual-expand`).
 - Focus visível: ring `2px`, cor `primary`, offset `2px`.
+- Mobile: controlos críticos usam alvo mínimo `44×44px` via `.manual-touch-target`.
+- Inputs/textareas em mobile usam `.manual-scroll-anchor` para manter o campo visível com teclado aberto.
 - Disabled: `opacity-50`, `cursor-not-allowed`.
 - Loading:
   - Upload usa progress bar.
@@ -124,6 +128,7 @@ Uso: wrapper shadcn para cards principais do fluxo.
 - `NetworkFormatSelector`: seleção compacta de rede/formato com empty state e focus consistente.
 - `PreviewPanel`: painel lateral e drawer mobile com tabs compactas, metadata e empty state ilustrado.
 - `Step2MediaCard`: upload, ferramentas de vídeo e grelha de média com contadores alinhados.
+- `MobileStickyActionBar`: barra mobile com ação primária adaptativa, botão anterior e menu overflow.
 - `Step3CaptionCard`: wrapper de legenda com toolbar, barra rápida de tons, editor unificado/diferenciado e undo de IA.
 - `CaptionToneToolbar`: barra compacta de reescrita rápida por tom; só aparece acima da textarea quando a legenda ativa tem mais de 20 caracteres.
 - `Step3ScheduleCard`: agendamento com toggle, atalhos e preview agendado.
