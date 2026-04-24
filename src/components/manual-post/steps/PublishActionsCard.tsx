@@ -57,6 +57,7 @@ export function PublishActionsCard(props: PublishActionsCardProps) {
     onViewCalendar,
     onSubmitForApproval,
   } = props;
+  const storyLinkMode = selectedFormats.includes('instagram_story_link');
 
   const publishDisabled =
     publishing ||
@@ -100,16 +101,21 @@ export function PublishActionsCard(props: PublishActionsCardProps) {
               'hover:shadow-lg active:scale-[0.98] transition-all duration-200',
               'disabled:opacity-50 disabled:cursor-not-allowed',
             )}
-            aria-label={!scheduleAsap && scheduledDate ? 'Agendar publicação' : 'Publicar agora'}
+            aria-label={storyLinkMode ? (scheduleAsap ? 'Gerar pacote e publicar' : 'Agendar lembrete') : (!scheduleAsap && scheduledDate ? 'Agendar publicação' : 'Publicar agora')}
           >
             {publishing ? (
               <>
                 <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                {!scheduleAsap && scheduledDate ? 'A agendar...' : 'A publicar...'}
+                {storyLinkMode ? 'A preparar...' : (!scheduleAsap && scheduledDate ? 'A agendar...' : 'A publicar...')}
               </>
             ) : (
               <>
-                {!scheduleAsap && scheduledDate ? (
+                {storyLinkMode ? (
+                  <>
+                    {scheduleAsap ? <Rocket className="h-4 w-4 mr-2" /> : <CalendarIcon className="h-4 w-4 mr-2" />}
+                    {scheduleAsap ? 'Gerar pacote e publicar' : 'Agendar lembrete'}
+                  </>
+                ) : !scheduleAsap && scheduledDate ? (
                   <>
                     <CalendarIcon className="h-4 w-4 mr-2" />
                     Agendar para {format(scheduledDate, "d 'de' MMM", { locale: pt })}
