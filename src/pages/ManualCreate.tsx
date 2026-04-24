@@ -1369,41 +1369,64 @@ export default function ManualCreate() {
         onOpenValidationSheet={() => setValidationSheetOpen(true)}
         onSaveDraft={handleSaveDraft}
         onPublish={handlePublishWithValidation}
-        onOpenPreview={() => setMobilePreviewOpen(true)}
+        onPreviousStep={previousStep}
+        onSubmitForApproval={handleSubmitWithValidation}
+        onOpenDrafts={() => setDraftsDialogOpen(true)}
+        onViewCalendar={() => navigate('/calendar')}
         saving={saving}
         submitting={submitting}
         publishing={publishing}
         isUploading={isUploading}
       />
 
+      <Button
+        type="button"
+        size="icon"
+        className="fixed bottom-[88px] right-4 z-40 h-12 w-12 rounded-full bg-primary text-primary-foreground shadow-lg hover:bg-primary/90 lg:hidden"
+        onClick={() => openMobilePreview('peek')}
+        aria-label="Abrir pré-visualização"
+      >
+        <Eye className="h-5 w-5" />
+        {previewHasUpdates && (
+          <span className="absolute right-0 top-0 h-3 w-3 rounded-full bg-destructive ring-2 ring-background motion-safe:animate-pulse" aria-hidden="true" />
+        )}
+      </Button>
+
       {/* Mobile Preview Drawer */}
-      <Drawer open={mobilePreviewOpen} onOpenChange={setMobilePreviewOpen}>
-        <DrawerContent className="max-h-[70vh]">
-          <DrawerHeader className="border-b pb-3">
-            <DrawerTitle className="flex items-center gap-2">
-              <Smartphone className="h-5 w-5" />
-              Pré-visualização
-            </DrawerTitle>
+      <Drawer open={mobilePreviewOpen} onOpenChange={(open) => setMobilePreviewState(open ? mobilePreviewState === 'closed' ? 'peek' : mobilePreviewState : 'closed')}>
+        <DrawerContent className={cn('transition-[height] duration-manual-expand ease-out', mobilePreviewState === 'expanded' ? 'h-[75vh]' : 'h-[140px]')}>
+          <DrawerHeader className="border-b px-4 py-3 text-left">
+            <div className="flex items-center justify-between gap-3">
+              <DrawerTitle className="flex items-center gap-2 text-base">
+                <Smartphone className="h-5 w-5" />
+                {mobilePreviewState === 'expanded' ? 'Pré-visualização' : activePreviewLabel}
+              </DrawerTitle>
+              <Button type="button" variant="ghost" size="icon" className="h-11 w-11" onClick={() => setMobilePreviewState(mobilePreviewState === 'expanded' ? 'peek' : 'expanded')} aria-label={mobilePreviewState === 'expanded' ? 'Reduzir pré-visualização' : 'Expandir pré-visualização'}>
+                <Maximize2 className="h-4 w-4" />
+              </Button>
+            </div>
           </DrawerHeader>
-          <div className="p-4 overflow-y-auto">
-            <PreviewPanel
-              variant="mobile"
-              selectedFormats={selectedFormats}
-              activePreviewTab={activePreviewTab}
-              onActivePreviewTabChange={setActivePreviewTab}
-              scheduledDate={scheduledDate}
-              scheduleAsap={scheduleAsap}
-              time={time}
-              renderPreview={renderPreview}
-              getNetworkIcon={getNetworkIcon}
-              caption={caption}
-              networkCaptions={networkCaptions}
-              useSeparateCaptions={useSeparateCaptions}
-              mediaCount={mediaFiles.length}
-              lastSaved={lastSaved}
-              isAutoSaving={isAutoSaving}
-              hasUnsavedChanges={hasUnsavedChanges}
-            />
+          <div className={cn('overflow-y-auto p-4', mobilePreviewState === 'peek' && 'max-h-[84px] overflow-hidden py-3')}>
+            {mobilePreviewOpen && (
+              <PreviewPanel
+                variant="mobile"
+                selectedFormats={selectedFormats}
+                activePreviewTab={activePreviewTab}
+                onActivePreviewTabChange={setActivePreviewTab}
+                scheduledDate={scheduledDate}
+                scheduleAsap={scheduleAsap}
+                time={time}
+                renderPreview={renderPreview}
+                getNetworkIcon={getNetworkIcon}
+                caption={caption}
+                networkCaptions={networkCaptions}
+                useSeparateCaptions={useSeparateCaptions}
+                mediaCount={mediaFiles.length}
+                lastSaved={lastSaved}
+                isAutoSaving={isAutoSaving}
+                hasUnsavedChanges={hasUnsavedChanges}
+              />
+            )}
           </div>
         </DrawerContent>
       </Drawer>
