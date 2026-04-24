@@ -1326,6 +1326,7 @@ export default function ManualCreate() {
               time={time}
               onTimeChange={setTime}
               onPreviousStep={previousStep}
+              storyLinkMode={selectedFormats.includes('instagram_story_link')}
             />
 
             {/* Actions - Reorganized Hierarchy - Hidden on mobile (use bottom bar) */}
