@@ -176,9 +176,9 @@ export function Step2MediaCard(props: Step2MediaCardProps) {
     >
       <Card className="manual-card-shell w-full max-w-full">
         <CardHeader className="manual-card-content pb-3">
-          <div className="flex items-center justify-between">
-            <CardTitle className="manual-section-title flex items-center gap-2">
-              <CloudUpload className="h-5 w-5 shrink-0 text-primary" strokeWidth={1.5} />
+          <div className="manual-card-header-row">
+            <CardTitle className="manual-section-title manual-card-title-row">
+              <span className="manual-icon-box"><CloudUpload className="h-5 w-5" strokeWidth={1.5} /></span>
               <span>Média</span>
               <SectionHelp content={getSectionTooltip('media')} />
             </CardTitle>
