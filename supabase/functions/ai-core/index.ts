@@ -35,6 +35,9 @@ type RequestBody = {
   options?: { language?: string; includeSegments?: boolean };
   caption?: string;
   transcription?: string;
+  network?: string;
+  finding?: string;
+  segments?: Array<{ start?: number; end?: number; text?: string }>;
   networks?: string[];
   brandHashtags?: string[];
 };
@@ -106,6 +109,7 @@ function validateBody(body: RequestBody) {
     return "Legenda em falta para gerar hashtags.";
   }
   if (body.action === "first_comment_generation" && (!body.caption || typeof body.caption !== "string" || body.caption.trim().length < 2)) return "Legenda em falta para gerar primeiro comentário.";
+  if (body.action === "first_comment_generation" && body.network && typeof body.network !== "string") return "Rede inválida para gerar primeiro comentário.";
   if (body.action === "insight_question_suggestions" && (!body.caption || typeof body.caption !== "string" || body.caption.trim().length < 2)) return "Legenda em falta para sugerir perguntas.";
   if ((body.action === "video_chapters" || body.action === "video_quotes") && (!body.transcription || typeof body.transcription !== "string" || body.transcription.trim().length < 20)) return "Transcrição em falta para ferramentas de vídeo.";
   return null;
@@ -161,7 +165,8 @@ async function generateText(body: RequestBody, lovableKey: string) {
   if (!aiResponse.ok) throw new Response(await aiResponse.text(), { status: aiResponse.status });
   const data = await aiResponse.json();
   const text = String(data.choices?.[0]?.message?.content || "").trim();
-  return { result: body.responseFormat === "json" ? JSON.parse(text) : text, tokens: data.usage?.total_tokens ?? null, model, provider: "lovable_ai" };
+  const cleanedJson = text.replace(/^```json\s*/i, "").replace(/^```\s*/i, "").replace(/```$/i, "").trim();
+  return { result: body.responseFormat === "json" ? JSON.parse(cleanedJson) : text, tokens: data.usage?.total_tokens ?? null, model, provider: "lovable_ai" };
 }
 
 async function generateHashtags(body: RequestBody, lovableKey: string) {
@@ -171,7 +176,8 @@ async function generateHashtags(body: RequestBody, lovableKey: string) {
 }
 
 async function generateFirstComments(body: RequestBody, lovableKey: string) {
-  const prompt = `Legenda do post:\n${body.caption}\n\nRede social: ${(body.networks || [])[0] || "instagram"}\n\nDevolve JSON com 3 opções de primeiro comentário, cada uma com abordagem diferente: {"options":[{"approach":"pergunta","text":"pergunta que convida ao debate, máx 300 chars"},{"approach":"cta_link","text":"CTA claro com link para aprofundar, máx 300 chars"},{"approach":"complemento","text":"continuação que aprofunda a ideia do post, máx 300 chars"}]}`;
+  const network = body.network || (body.networks || [])[0] || "instagram";
+  const prompt = `Legenda do post:\n${body.caption}\n\nRede social: ${network}\n\nDevolve JSON com 3 opções de primeiro comentário, cada uma com abordagem diferente: {"options":[{"approach":"pergunta","text":"pergunta que convida ao debate, máx 300 chars"},{"approach":"cta_link","text":"CTA claro com link para aprofundar, máx 300 chars"},{"approach":"complemento","text":"continuação que aprofunda a ideia do post, máx 300 chars"}]}`;
   return generateText({ ...body, prompt, systemPrompt: "És um especialista em engagement para redes sociais. Geras primeiros comentários que aumentam interação. Em PT-PT, tom natural, nunca corporativo.", responseFormat: "json", model: "fast" }, lovableKey);
 }
 

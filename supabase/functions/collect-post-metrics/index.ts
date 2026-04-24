@@ -145,35 +145,25 @@ function extractFeatures(post: PostRow, detectedTone: string) {
   };
 }
 
-async function detectTone(client: any, post: PostRow) {
+function detectTone(post: PostRow) {
   const caption = (post.caption || '').trim();
-  if (caption.length < 10) return 'neutral';
-  const { data: hasCredits } = await client.rpc('consume_ai_credits', { _user_id: post.user_id, _credits: 1 });
-  if (!hasCredits) return 'neutral';
-  const key = Deno.env.get('LOVABLE_API_KEY');
-  if (!key) return 'neutral';
-  const response = await fetch('https://ai.gateway.lovable.dev/v1/chat/completions', {
-    method: 'POST',
-    headers: { Authorization: `Bearer ${key}`, 'Content-Type': 'application/json' },
-    body: JSON.stringify({
-      model: 'google/gemini-3-flash-preview',
-      messages: [
-        { role: 'system', content: 'Classifica o tom em apenas uma palavra: direct, emotional, technical, humor ou neutral.' },
-        { role: 'user', content: `Legenda:\n${caption}` },
-      ],
-      max_tokens: 8,
-      temperature: 0,
-    }),
-  });
-  const data = await response.json().catch(() => ({}));
-  const tone = String(data.choices?.[0]?.message?.content || 'neutral').trim().toLowerCase();
-  return ['direct', 'emotional', 'technical', 'humor', 'neutral'].includes(tone) ? tone : 'neutral';
+  if (!caption) return 'neutral';
+  if (/\b(como|passos|método|framework|dados|estratégia|processo)\b/i.test(caption)) return 'technical';
+  if (/\b(sentes|emoção|história|medo|coragem|sonho|vida)\b/i.test(caption)) return 'emotional';
+  if (/\b😂|😅|ironia|humor|piada\b/i.test(caption)) return 'humor';
+  if (caption.length < 280 || /\b(faz|guarda|partilha|comenta|decide)\b/i.test(caption)) return 'direct';
+  return 'neutral';
 }
 
 Deno.serve(async (req) => {
   if (req.method === 'OPTIONS') return new Response(null, { headers: corsHeaders });
 
   try {
+    const cronSecret = Deno.env.get('AI_CRON_SECRET');
+    if (cronSecret && req.headers.get('x-cron-secret') !== cronSecret) {
+      return json({ success: false, error: 'Não autorizado' }, 401);
+    }
+
     const url = Deno.env.get('SUPABASE_URL') || Deno.env.get('VITE_SUPABASE_URL');
     const serviceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') || Deno.env.get('SERVICE_ROLE_KEY');
     if (!url || !serviceKey) throw new Error('Backend configuration missing');
@@ -209,7 +199,16 @@ Deno.serve(async (req) => {
         lastRate = engagementRate;
         lastNetwork = network;
 
-        await supabase.from('post_metrics_raw').insert({
+        const captureFrom = new Date(Date.now() - 60 * 60 * 1000).toISOString();
+        const { data: existingMetric } = await supabase
+          .from('post_metrics_raw')
+          .select('id')
+          .eq('post_id', post.id)
+          .eq('network', network)
+          .gte('captured_at', captureFrom)
+          .maybeSingle();
+
+        const metricPayload = {
           post_id: post.id,
           user_id: post.user_id,
           network,
@@ -224,7 +223,10 @@ Deno.serve(async (req) => {
           video_completion_rate: metrics.video_completion_rate,
           engagement_rate_normalized: engagementRate,
           raw_data: metrics.raw_data || {},
-        });
+        };
+
+        if (existingMetric?.id) await supabase.from('post_metrics_raw').update(metricPayload).eq('id', existingMetric.id);
+        else await supabase.from('post_metrics_raw').insert(metricPayload);
 
         if ((metrics.raw_data as any)?.status === 'skipped') skipped.push({ post_id: post.id, network, reason: (metrics.raw_data as any).reason });
       }
@@ -242,7 +244,7 @@ Deno.serve(async (req) => {
           .limit(30);
         const classification = classifyPerformance(lastRate, (previous || []).map((item: any) => Number(item.engagement_rate)));
         const updatePayload: Record<string, unknown> = { engagement_rate: lastRate, performance_classification: classification, metrics_captured_at: new Date().toISOString() };
-        if (insightsEnabled) updatePayload.ai_features_extracted = extractFeatures(post, await detectTone(supabase, post));
+        if (insightsEnabled) updatePayload.ai_features_extracted = extractFeatures(post, detectTone(post));
         await supabase.from('posts').update(updatePayload).eq('id', post.id);
       }
       processed += 1;

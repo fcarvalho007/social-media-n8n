@@ -125,7 +125,7 @@ export default function ManualCreate() {
   const [searchParams] = useSearchParams();
   const recoverPostId = searchParams.get('recover');
   const { instagram, linkedin, canPublish, refresh: refreshQuota, isUnlimited } = usePublishingQuota();
-  const { preferences: aiPreferences } = useAiPreferences();
+  const { preferences: aiPreferences, savePreferences: saveAiPreferences } = useAiPreferences();
   const { credits: aiCredits, refresh: refreshAiCredits } = useAICredits();
   const { user } = useAuth();
   const [selectedFormats, setSelectedFormats] = useState<PostFormat[]>([]);
@@ -384,13 +384,16 @@ export default function ManualCreate() {
         .limit(5);
       const { data } = await query;
       if (cancelled) return;
-      const selected = ((data ?? []) as unknown as AccountInsight[]).find((insight) => !insight.network || selectedNetworks.length === 0 || selectedNetworks.includes(insight.network)) ?? null;
+      const mutedTypes = new Set(aiPreferences.muted_insight_types ?? []);
+      const selected = ((data ?? []) as unknown as AccountInsight[])
+        .filter((insight) => !mutedTypes.has(insight.insight_type))
+        .find((insight) => !insight.network || selectedNetworks.length === 0 || selectedNetworks.includes(insight.network)) ?? null;
       setActiveInsight(selected);
     };
 
     loadInsight();
     return () => { cancelled = true; };
-  }, [aiPreferences.insights_enabled, insightDismissedThisSession, selectedNetworks, user?.id]);
+  }, [aiPreferences.insights_enabled, aiPreferences.muted_insight_types, insightDismissedThisSession, selectedNetworks, user?.id]);
 
   const ensureNetworkCaptions = useCallback(() => {
     setNetworkCaptions((prev) => {
@@ -878,21 +881,29 @@ export default function ManualCreate() {
 
   const handleDismissInsight = useCallback(async () => {
     if (!activeInsight) return;
-    const nextCount = (activeInsight.dismissed_count ?? 0) + 1;
-    await supabase.from('account_insights' as any).update({
-      dismissed_count: nextCount,
-      dismissed_until: nextCount >= 3 ? new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString() : activeInsight.dismissed_until ?? null,
-    }).eq('id', activeInsight.id);
+    const { error } = await supabase.rpc('update_account_insight_visibility' as any, { _insight_id: activeInsight.id, _action: 'dismiss' });
+    if (error) {
+      toast.error('Não foi possível dispensar este insight.');
+      return;
+    }
     setInsightDismissedThisSession(true);
     setActiveInsight(null);
+    toast.success('Insight dispensado.');
   }, [activeInsight]);
 
   const handleMuteInsight = useCallback(async () => {
     if (!activeInsight) return;
-    await supabase.from('account_insights' as any).update({ never_show: true }).eq('id', activeInsight.id);
+    const muted = Array.from(new Set([...(aiPreferences.muted_insight_types ?? []), activeInsight.insight_type]));
+    const { error } = await supabase.rpc('update_account_insight_visibility' as any, { _insight_id: activeInsight.id, _action: 'mute' });
+    if (error) {
+      toast.error('Não foi possível silenciar este tipo de insight.');
+      return;
+    }
+    await saveAiPreferences({ muted_insight_types: muted });
     setInsightDismissedThisSession(true);
     setActiveInsight(null);
-  }, [activeInsight]);
+    toast.success('Tipo de insight silenciado.');
+  }, [activeInsight, aiPreferences.muted_insight_types, saveAiPreferences]);
 
   const applyInsightQuestion = useCallback((question: string) => {
     const clean = question.trim();
