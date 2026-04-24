@@ -27,6 +27,23 @@ const getDraftCaption = (format: PostFormat, caption: string, networkCaptions: R
   return useSeparateCaptions && networkCaptions[network] ? networkCaptions[network] : caption;
 };
 
+const getStoryStickerText = (linkUrl: string, explicitText?: string) => {
+  if (explicitText?.trim()) return explicitText.trim();
+  try {
+    return new URL(linkUrl).hostname.replace(/^www\./, '');
+  } catch {
+    return 'Abrir link';
+  }
+};
+
+const buildScheduledDateTime = (date: Date | undefined, time: string) => {
+  if (!date) return undefined;
+  const [hour, minute] = time.split(':').map((part) => Number(part));
+  const next = new Date(date);
+  next.setHours(Number.isFinite(hour) ? hour : 12, Number.isFinite(minute) ? minute : 0, 0, 0);
+  return next;
+};
+
 const showValidationToast = (validation: ValidationSummary, action: 'publicar' | 'submeter') => {
   const firstError = validation.issues.find((issue) => issue.severity === 'error');
   if (!firstError) {
@@ -129,6 +146,73 @@ export function usePublishOrchestrator(params: OrchestratorParams) {
 
   const [saving, setSaving] = useState(false);
   const [submitting, setSubmitting] = useState(false);
+
+  const prepareStoryLink = useCallback(async (files: File[]) => {
+    if (selectedFormats.length !== 1 || selectedFormats[0] !== 'instagram_story_link') return false;
+    const linkUrl = networkOptions.instagram?.storyLinkUrl?.trim() ?? '';
+    if (!linkUrl || files.length !== 1) return false;
+
+    try {
+      setSubmitting(true);
+      setUploadProgress(10);
+      const { data: { user }, error: authError } = await supabase.auth.getUser();
+      if (authError || !user) throw new Error('Tem de iniciar sessão para preparar a Story.');
+
+      const file = files[0];
+      const fileName = generateSafeStoragePath(user.id, file);
+      const { error: uploadError } = await supabase.storage.from('pdfs').upload(fileName, file);
+      if (uploadError) throw uploadError;
+
+      const { data: { publicUrl } } = supabase.storage.from('pdfs').getPublicUrl(fileName);
+      setUploadProgress(45);
+
+      const stickerText = getStoryStickerText(linkUrl, networkOptions.instagram?.storyLinkStickerText);
+      const { data: inserted, error: insertError } = await supabase
+        .from('story_link_publications')
+        .insert({
+          user_id: user.id,
+          media_url: publicUrl,
+          media_type: file.type.startsWith('video/') ? 'video' : 'image',
+          link_url: linkUrl,
+          sticker_text: stickerText,
+          overlay_text: networkOptions.instagram?.storyLinkOverlayText?.trim() || null,
+          caption: getDraftCaption('instagram_story_link', caption, networkCaptions, useSeparateCaptions),
+          status: 'draft',
+        } as any)
+        .select('id')
+        .single();
+      if (insertError || !inserted?.id) throw insertError ?? new Error('Não foi possível criar a Story com Link.');
+
+      setUploadProgress(70);
+      const targetAt = scheduleAsap ? undefined : buildScheduledDateTime(scheduledDate, time)?.toISOString();
+      const { error: scheduleError } = await supabase.functions.invoke('schedule_story_reminder', {
+        body: { story_id: inserted.id, target_at: targetAt },
+      });
+      if (scheduleError) throw scheduleError;
+
+      setUploadProgress(100);
+      toast.success(scheduleAsap ? 'Story preparada e lembrete criado.' : 'Story preparada e lembrete agendado.');
+      await consumeCurrentDraft();
+      setCaption('');
+      setMediaFiles([]);
+      setMediaPreviewUrls([]);
+      setScheduledDate(undefined);
+      setTime('12:00');
+      setScheduleAsap(true);
+      return true;
+    } catch (error) {
+      console.error('[prepareStoryLink]', error);
+      toast.error(error instanceof Error ? error.message : 'Erro ao preparar Story com Link.');
+      return true;
+    } finally {
+      setSubmitting(false);
+      setUploadProgress(0);
+    }
+  }, [
+    selectedFormats, networkOptions, caption, networkCaptions, useSeparateCaptions,
+    scheduleAsap, scheduledDate, time, setUploadProgress, consumeCurrentDraft,
+    setCaption, setMediaFiles, setMediaPreviewUrls, setScheduledDate, setTime, setScheduleAsap,
+  ]);
 
   const consumeCurrentDraft = useCallback(async () => {
     const validDraftId = currentDraftId && !currentDraftId.startsWith('autosave-') ? currentDraftId : null;
