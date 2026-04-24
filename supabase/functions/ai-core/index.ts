@@ -169,6 +169,18 @@ async function generateHashtags(body: RequestBody, lovableKey: string) {
   return { ...output, result: { ...(output.result as Record<string, unknown>), generated_at: new Date().toISOString() } };
 }
 
+async function generateFirstComments(body: RequestBody, lovableKey: string) {
+  const prompt = `Legenda do post:\n${body.caption}\n\nRede social: ${(body.networks || [])[0] || "instagram"}\n\nDevolve JSON com 3 opções de primeiro comentário, cada uma com abordagem diferente: {"options":[{"approach":"pergunta","text":"pergunta que convida ao debate, máx 300 chars"},{"approach":"cta_link","text":"CTA claro com link para aprofundar, máx 300 chars"},{"approach":"complemento","text":"continuação que aprofunda a ideia do post, máx 300 chars"}]}`;
+  return generateText({ ...body, prompt, systemPrompt: "És um especialista em engagement para redes sociais. Geras primeiros comentários que aumentam interação. Em PT-PT, tom natural, nunca corporativo.", responseFormat: "json", model: "fast" }, lovableKey);
+}
+
+async function generateVideoTool(body: RequestBody, lovableKey: string, kind: "chapters" | "quotes") {
+  const prompt = kind === "chapters"
+    ? `Transcrição:\n${body.transcription}\n\nSegmentos com timestamps:\n${JSON.stringify((body as Record<string, unknown>).segments || [])}\n\nDevolve JSON com capítulos YouTube: {"chapters":[{"time":"00:00","title":"Título curto"}]}. O primeiro capítulo deve começar em 00:00.`
+    : `Transcrição:\n${body.transcription}\n\nSegmentos com timestamps:\n${JSON.stringify((body as Record<string, unknown>).segments || [])}\n\nDevolve JSON com 3 a 5 frases citáveis: {"quotes":[{"time":"00:45","text":"frase dita"}]}. Usa frases fiéis à transcrição.`;
+  return generateText({ ...body, prompt, systemPrompt: "És um editor de vídeo. Respondes apenas com JSON válido em português de Portugal e nunca inventas frases ou timestamps.", responseFormat: "json", model: "fast" }, lovableKey);
+}
+
 async function analyzeImage(body: RequestBody, lovableKey: string) {
   const model = MODEL_MAP.smart;
   const aiResponse = await retry(() => fetchWithTimeout("https://ai.gateway.lovable.dev/v1/chat/completions", {
