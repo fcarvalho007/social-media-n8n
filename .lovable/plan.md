@@ -1,126 +1,154 @@
-## Avaliação UX/UI de `/manual-create`
+# Plano — Refinar espaçamentos, opções visuais e iconografia em `/manual-create`
 
-A secção está parcialmente consistente: a estrutura geral está alinhada com os prompts anteriores, há um fluxo progressivo claro, cartões reutilizam `manual-card-shell`, os textos estão maioritariamente em pt-PT e a versão mobile já tem stepper sticky, FAB de pré-visualização e barra inferior. No entanto, ainda há inconsistências suficientes para não considerar a experiência “polida” ou pronta como referência de qualidade.
+## Diagnóstico
 
-O principal problema não é falta de funcionalidade; é excesso de micro-variações e alguns estados mobile incompletos.
+A página já está funcional e mais mobile-first, mas ainda há inconsistências visuais entre secções:
 
-## Pontos fortes encontrados
+- Alguns cartões usam `p-5`, outros `p-4`, `p-3`, `p-2` e `h-8`, criando ritmo irregular.
+- Há iconografia pouco consistente: secções principais sem ícone em alguns casos, emojis nos presets, siglas como `TT`, `G`, `X` nalguns pontos e tamanhos de ícones diferentes.
+- Existem opções visuais com estilos muito diferentes entre si: presets com gradientes inline, formatos com cores inline da plataforma, badges pequenos, tabs compactas e botões com alturas diferentes.
+- Em mobile, há elementos abaixo do alvo recomendado de 44px: presets de hora, tags selecionadas, chips de hashtags, botões de reescrita por tom e alguns triggers/tabs.
+- A captura visual mostra que o topo mobile está a funcionar, mas o conteúdo abaixo parece denso e pouco hierarquizado, sobretudo na secção “Seleciona onde publicar”.
 
-- Fluxo principal está bem dividido: plataformas, média, legenda/opções/agendamento e publicação.
-- Desktop mantém a lógica 2/3 + 1/3 com preview lateral em `lg+`.
-- Mobile tem intenção correta: stepper compacto no topo, FAB para preview e ações no fundo.
-- `NetworkCaptionEditor` está bastante mais coerente: toolbar compacta, textarea com `scroll-margin`, ações de IA acima do campo.
-- A maioria dos inputs críticos usa altura confortável (`min-h-11` / `h-11`).
-- O viewport permite zoom (`maximum-scale=5.0`, `user-scalable=yes`), o que é positivo para acessibilidade.
+## Objetivo
 
-## Inconsistências e riscos de qualidade
+Consolidar `/manual-create` para parecer uma experiência única e intencional: espaçamentos previsíveis, hierarquia clara, iconografia coerente e opções visuais fáceis de perceber em desktop e telemóvel, sem alterar lógica de negócio nem funcionalidades.
 
-### 1. Layout tablet inconsistente
-`manual-create-grid` passa para duas colunas em `md`, mas o `PreviewPanel` desktop só aparece em `lg`. Entre 768px e 1023px, há risco de uma grelha de duas colunas com a coluna de preview escondida, desperdiçando espaço e comprimindo o formulário.
+## Alterações propostas
 
-Correção recomendada: a grelha deve continuar single-column até `lg`; só em `lg+` deve aplicar 2 colunas.
+### 1. Criar um padrão visual único para cabeçalhos de cards
 
-### 2. Barra inferior mobile demasiado carregada
-A `MobileStickyActionBar` duplica informação do stepper e pode incluir:
-- mini progresso;
-- aviso de agendamento;
-- badge de validação;
-- botões.
+Aplicar um padrão consistente nas secções principais:
 
-Isto torna a barra mais alta do que o objetivo de 72px e reduz demasiado a área útil em telemóveis pequenos.
+- “Seleciona onde publicar”
+- “Média”
+- “Legenda”
+- “Opções por rede”
+- “Agendamento”
+- “Pré-visualização”
 
-Correção recomendada: deixar a barra apenas com `[Anterior] [Ação principal] [Mais ações]`. O estado de erro deve estar no botão principal e abrir o sheet de validação.
+Cada cabeçalho passa a ter:
 
-### 3. Painel de validação mobile não está ligado no fluxo
-Existe estado `validationSheetOpen` e a barra chama `setValidationSheetOpen(true)`, mas não há renderização visível do `ValidationSidebar` em modo mobile no final de `ManualCreate.tsx`.
+- ícone lucide de 20px com `strokeWidth={1.5}`;
+- título com `manual-section-title`;
+- ajuda/contexto alinhado;
+- descrição curta quando fizer sentido;
+- espaçamento inferior consistente (`pb-3`).
 
-Risco: tocar em “Corrige antes de publicar” pode não abrir feedback útil.
+Exemplo visual pretendido:
 
-Correção recomendada: renderizar `ValidationSidebar` com `mobileOpen`, `onMobileOpenChange` e `mediaFiles`.
+```text
+[ícone] Título                    [?]
+Descrição curta em muted, se existir
+```
 
-### 4. Preview drawer mobile tem estado “peek” pouco intencional
-O estado parcial usa o `PreviewPanel` completo cortado por altura. Isto não cria uma pré-visualização “peek” clara; parece um painel truncado.
+### 2. Normalizar espaçamentos dos cartões e subsecções
 
-Correção recomendada: criar conteúdo específico para o peek:
-- rede/formato atual com label em pt-PT;
-- mini resumo de legenda/média/agendamento;
-- CTA “Toca para expandir”.
+Ajustar o ritmo visual sem aumentar desperdício vertical:
 
-Renderizar o `PreviewPanel` completo apenas no estado expanded.
+- cards principais continuam com `manual-card-shell` e `manual-card-content`;
+- conteúdo interno usa `manual-group-stack` para blocos e `manual-field-stack` para campo + label;
+- subcards passam a usar um padrão coerente: `rounded-lg border bg-muted/20 p-3 sm:p-4`;
+- separadores só aparecem quando há mudança estrutural real;
+- evitar margens soltas (`mt-4`, `mb-5`) quando já existe stack tokenizada.
 
-### 5. Indicador do FAB pode aparecer sem edição real
-`previewHasUpdates` é ativado por efeito assim que dependências mudam, sem distinguir estado inicial de edição do utilizador.
+### 3. Redesenhar “Seleciona onde publicar” sem parecer colagem de estilos
 
-Correção recomendada: guardar uma assinatura inicial do conteúdo e só ativar o dot quando houver alteração real depois do primeiro render.
+Refinar `NetworkFormatSelector`, `QuickPresets` e `SelectedFormatsTags`:
 
-### 6. Upload mobile ainda não representa três ações reais
-Os botões “Câmara”, “Galeria” e “Ficheiros” são `span` dentro do mesmo `label`; todos acionam o mesmo input. Além disso, o input principal tem `capture="environment"`, o que pode forçar câmara quando o utilizador queria galeria.
+- substituir emojis dos presets por ícones lucide consistentes (`LayoutGrid`, `Video`, `Image`, `Clock`/`Layers` conforme o preset);
+- remover gradientes inline dos presets e usar estados semânticos (`border-primary`, `bg-primary/10`, `bg-muted/30`);
+- manter cores oficiais apenas nos ícones/logótipos das redes, como definido no design system;
+- aumentar legibilidade dos presets em mobile mantendo layout compacto;
+- alinhar “Redes” e “Formatos” como dois blocos com altura e padding consistentes;
+- tornar os chips de formatos selecionados mais tocáveis em mobile, com botão remover de 44px no toque mas visual compacto.
 
-Correção recomendada:
-- Câmara: input próprio com `capture="environment"`.
-- Galeria: input próprio sem `capture`, `accept="image/*,video/*"`.
-- Ficheiros: input próprio sem `capture`, usando `getAcceptTypes()`.
-- Ajustar copy mobile para não falar em “arrastar”.
+### 4. Harmonizar opções visuais e iconografia de formatos
 
-### 7. Tags de fotografia têm conflito modal/drawer
-`Dialog` desktop e `Drawer` mobile são ambos controlados por `tagModalOpen`. Mesmo com classes `hidden`, o portal/focus trap do Dialog pode interferir no mobile.
+Rever `FormatCard`, `PreviewPanel`, tabs e badges:
 
-Correção recomendada: renderizar apenas uma variante consoante breakpoint, ou extrair um componente `PhotoTagSheet` que decide internamente.
+- ícones de formato com tamanhos consistentes;
+- estados selecionado/não selecionado mais subtis e menos “pesados”;
+- evitar `borderWidth: 3px` em seleção para não causar saltos visuais;
+- badges com altura e texto coerentes (`manual-chip`);
+- tabs de pré-visualização com alvos 44px em mobile e 40px em desktop.
 
-### 8. Alvos de toque ainda não estão uniformes
-Ainda há controlos abaixo dos 44px em mobile:
-- tabs de preview (`h-10 w-10`);
-- atalhos rápidos de agendamento (`h-8`);
-- botão “Reverter última reescrita” (`h-8`);
-- botão “Adicionar mais” em média (`h-8/h-9`);
-- chips/botões de remoção de tags do YouTube.
+### 5. Melhorar ergonomia mobile de microcontrolos
 
-Correção recomendada: aplicar `manual-touch-target`/`h-11` em mobile e manter versão compacta apenas em `sm+`.
+Corrigir os elementos que ainda estão pequenos:
 
-### 9. `NetworkOptionsCard` tem dívida técnica visível
-O componente concentra demasiada lógica e JSX numa só linha para Instagram, LinkedIn, Facebook, YouTube, Google Business e tags. Isto aumenta o risco de regressões em mobile, acessibilidade e copy.
+- `CaptionToneToolbar`: botões 44px em mobile, 32/36px apenas em desktop;
+- `HashtagSuggestions`: chips `min-h-11` em mobile;
+- presets de hora no agendamento: passar de badge clicável pequeno para botões/chips tocáveis;
+- tabs em `NetworkOptionsCard`: altura mínima 44px em mobile;
+- botões “Anterior” internos: ocultar ou suavizar em mobile onde a sticky bar já existe, para reduzir duplicação visual.
 
-Correção recomendada: extrair subcomponentes pequenos sem alterar funcionalidade.
+### 6. Polir `NetworkOptionsCard`
 
-## Plano de refinamento proposto
+Sem reescrever a lógica, melhorar a estrutura visual:
 
-### Fase 1 — Coerência estrutural e bugs UX
-1. Ajustar `.manual-create-grid` para só usar duas colunas em `lg+`.
-2. Simplificar `MobileStickyActionBar` para altura real de barra de ação.
-3. Renderizar corretamente o `ValidationSidebar` mobile.
-4. Fazer o botão com erro abrir o sheet de validação e, ao tocar num erro, aplicar o respetivo fix/focus.
+- cabeçalho com ícone de sliders/settings;
+- accordion trigger com altura mínima e chevron bem alinhado;
+- conteúdo com padding consistente;
+- inputs e labels sempre alinhados;
+- tags e colaboradores com remover tocável e visual menos apertado;
+- manter bottom sheet de tags em mobile, mas com espaçamento e CTA sticky mais claro.
 
-### Fase 2 — Preview mobile
-1. Criar um componente/resumo `MobilePreviewPeek`.
-2. Renderizar `PreviewPanel` completo só quando o drawer estiver expanded.
-3. Corrigir `activePreviewLabel` para usar labels de formato (`getFormatConfig`) em vez de strings com underscores.
-4. Corrigir o dot do FAB para só aparecer após alterações reais.
+### 7. Ajustar CSS utilitário manual
 
-### Fase 3 — Upload e ergonomia de toque
-1. Substituir os três spans mobile por três inputs reais: Câmara, Galeria, Ficheiros.
-2. Remover `capture` do input genérico.
-3. Ajustar copy mobile/desktop do upload.
-4. Uniformizar alvos mobile para mínimo 44×44px nos botões ainda pequenos.
+Adicionar/ajustar utilitários locais em `src/index.css` para evitar estilos soltos:
 
-### Fase 4 — Opções por rede e tags
-1. Separar `Dialog` desktop e `Drawer` mobile para tags de fotografia.
-2. Manter, neste ciclo, tap-to-position simples e robusto sem pinch zoom.
-3. Corrigir copy da tag desktop para não prometer “ponto escolhido” se não houver escolha manual.
-4. Extrair subcomponentes do `NetworkOptionsCard` para reduzir dívida técnica.
+- `.manual-card-header-row`
+- `.manual-subcard`
+- `.manual-option-button`
+- `.manual-icon-box`
+- `.manual-touch-chip`
 
-### Fase 5 — Polimento final e documentação
-1. Rever microcopy pt-PT e remover vestígios de inglês ou copy genérica.
-2. Atualizar `DESIGN_SYSTEM.md` com as regras finais de mobile para `/manual-create`.
-3. Validar visualmente em 375px, 390px, 414px, 768px e desktop.
+Todos usando tokens existentes: `bg-card`, `bg-muted`, `border`, `primary`, `muted-foreground`, `rounded-lg`, `manual-*`.
 
-## Decisão recomendada
+## Ficheiros previstos
 
-Para este ciclo, recomendo tap-to-position simples para tags em fotografia, sem pinch zoom. É a opção mais estável e suficiente para uso mobile real. O pinch zoom pode ficar declarado como débito técnico se for necessário depois.
+- `src/index.css`
+- `src/components/manual-post/NetworkFormatSelector.tsx`
+- `src/components/manual-post/QuickPresets.tsx`
+- `src/components/manual-post/SelectedFormatsTags.tsx`
+- `src/components/manual-post/FormatCard.tsx`
+- `src/components/manual-post/NetworkCaptionEditor.tsx`
+- `src/components/manual-post/ai/CaptionToneToolbar.tsx`
+- `src/components/manual-post/ai/HashtagSuggestions.tsx`
+- `src/components/manual-post/steps/Step2MediaCard.tsx`
+- `src/components/manual-post/steps/Step3CaptionCard.tsx`
+- `src/components/manual-post/steps/Step3ScheduleCard.tsx`
+- `src/components/manual-post/steps/NetworkOptionsCard.tsx`
+- `src/components/manual-post/steps/PreviewPanel.tsx`
 
-## Checklist de qualidade
+Nenhum ficheiro bloqueado será alterado.
 
-☐ `/manual-create` avaliado em estrutura, mobile, preview, upload, validação e opções por rede  
-☐ Inconsistências críticas identificadas  
-☐ Plano de refinamento proposto sem alterações aplicadas  
-☐ Nenhum ficheiro bloqueado precisa de edição direta  
-☐ Aguardando aprovação para implementar as correções
+## Fora de âmbito
+
+- Não alterar lógica de publicação, validação, IA, créditos ou backend.
+- Não adicionar dependências.
+- Não alterar o design global fora de `/manual-create`.
+- Não mexer em ficheiros auto-gerados ou bloqueados.
+- Não adicionar novas funcionalidades.
+
+## Validação
+
+Após aprovação e implementação:
+
+- executar TypeScript/lint nos ficheiros alterados;
+- verificar `/manual-create` em 390×844 e desktop;
+- confirmar que não há scroll horizontal em mobile;
+- confirmar targets de toque mínimos nos elementos interativos principais;
+- confirmar pt-PT e Acordo Ortográfico nas novas microcopies.
+
+## Checkpoint
+
+☐ Cabeçalhos de cards normalizados com iconografia coerente  
+☐ Espaçamentos internos alinhados com tokens `manual-*`  
+☐ Presets rápidos sem emojis/gradientes inline e com visual consistente  
+☐ Chips, tabs e botões pequenos corrigidos para mobile  
+☐ `NetworkOptionsCard` visualmente mais legível e menos denso  
+☐ Pré-visualização e formatos com estados selecionados mais subtis  
+☐ Sem alterações de lógica de negócio ou backend  
+☐ TypeScript/lint e verificação visual mobile/desktop concluídos

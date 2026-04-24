@@ -329,6 +329,30 @@ All colors MUST be HSL.
     @apply p-5;
   }
 
+  .manual-card-header-row {
+    @apply flex items-start justify-between gap-3;
+  }
+
+  .manual-card-title-row {
+    @apply flex min-w-0 items-center gap-2;
+  }
+
+  .manual-icon-box {
+    @apply inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-md bg-primary/10 text-primary;
+  }
+
+  .manual-subcard {
+    @apply rounded-lg border border-border/60 bg-muted/20 p-3 sm:p-4;
+  }
+
+  .manual-option-button {
+    @apply rounded-md border border-border bg-background transition-colors duration-manual-color hover:bg-muted/50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2;
+  }
+
+  .manual-touch-chip {
+    @apply inline-flex min-h-11 items-center rounded-md px-3 py-1.5 text-manual-micro leading-[1.35] sm:min-h-0 sm:px-2 sm:py-0.5;
+  }
+
   .manual-group-stack {
     @apply space-y-manual-field-group;
   }
