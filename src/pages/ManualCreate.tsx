@@ -384,13 +384,16 @@ export default function ManualCreate() {
         .limit(5);
       const { data } = await query;
       if (cancelled) return;
-      const selected = ((data ?? []) as unknown as AccountInsight[]).find((insight) => !insight.network || selectedNetworks.length === 0 || selectedNetworks.includes(insight.network)) ?? null;
+      const mutedTypes = new Set(aiPreferences.muted_insight_types ?? []);
+      const selected = ((data ?? []) as unknown as AccountInsight[])
+        .filter((insight) => !mutedTypes.has(insight.insight_type))
+        .find((insight) => !insight.network || selectedNetworks.length === 0 || selectedNetworks.includes(insight.network)) ?? null;
       setActiveInsight(selected);
     };
 
     loadInsight();
     return () => { cancelled = true; };
-  }, [aiPreferences.insights_enabled, insightDismissedThisSession, selectedNetworks, user?.id]);
+  }, [aiPreferences.insights_enabled, aiPreferences.muted_insight_types, insightDismissedThisSession, selectedNetworks, user?.id]);
 
   const ensureNetworkCaptions = useCallback(() => {
     setNetworkCaptions((prev) => {
