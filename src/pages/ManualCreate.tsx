@@ -373,7 +373,8 @@ export default function ManualCreate() {
         .select('id', { count: 'exact', head: true })
         .eq('user_id', user.id)
         .eq('status', 'published')
-        .not('performance_classification', 'is', null);
+        .not('performance_classification', 'is', null)
+        .gte('published_at', new Date(Date.now() - 90 * 24 * 60 * 60 * 1000).toISOString());
       if (cancelled) return;
       setClassifiedPostCount(count ?? 0);
       if ((count ?? 0) < 30) {
@@ -634,12 +635,11 @@ export default function ManualCreate() {
 
   const assistantBlockedMessage = useMemo(() => {
     if (!showAiUploadAssistant) return null;
-    if (!aiPreferences.insights_enabled) return 'As preferências de IA estão desligadas. Podes continuar manualmente.';
     if (assistantVideoDuration !== null && assistantVideoDuration < 5) return 'O vídeo é demasiado curto para este assistente. Podes escrever a legenda manualmente.';
     if (assistantVideoDuration !== null && assistantVideoDuration > 600) return 'Este vídeo ultrapassa o limite de 10 minutos. Divide o vídeo em partes mais curtas.';
     if (aiCredits.credits_remaining < AI_CREDIT_COSTS.full_assistant_flow) return 'Não tens créditos suficientes para este fluxo. Podes continuar manualmente ou ver planos.';
     return null;
-  }, [aiCredits.credits_remaining, aiPreferences.insights_enabled, assistantVideoDuration, showAiUploadAssistant]);
+  }, [aiCredits.credits_remaining, assistantVideoDuration, showAiUploadAssistant]);
 
   const uploadAssistantMedia = useCallback(async (file: File) => {
     const { data: sessionData, error: sessionError } = await supabase.auth.getSession();
