@@ -46,16 +46,20 @@ export function MediaUploadSection({
     ['instagram_reel', 'instagram_stories', 'youtube_shorts', 'youtube_video', 'tiktok_video'].includes(format)
   );
 
+  const isTouchDevice = typeof window !== 'undefined' && window.matchMedia('(pointer: coarse)').matches;
+
   const handleDragOver = useCallback((e: React.DragEvent) => {
     e.preventDefault();
     e.stopPropagation();
+    if (isTouchDevice) return;
     setIsDragging(true);
-  }, []);
+  }, [isTouchDevice]);
 
   const handleDragLeave = useCallback((e: React.DragEvent) => {
     e.preventDefault();
     e.stopPropagation();
     setIsDragging(false);
+    if (isTouchDevice) return;
   }, []);
 
   const handleDrop = useCallback((e: React.DragEvent) => {
@@ -73,7 +77,7 @@ export function MediaUploadSection({
 
       onFileUpload({ target: input, currentTarget: input } as React.ChangeEvent<HTMLInputElement>);
     }
-  }, [onFileUpload]);
+  }, [isTouchDevice, onFileUpload]);
 
   return (
     <div className="grid gap-4 lg:grid-cols-[minmax(0,7fr)_minmax(220px,3fr)]">
@@ -119,10 +123,15 @@ export function MediaUploadSection({
                 <>
                   <CloudUpload className={cn('mb-3 h-10 w-10 transition-colors', isDragging ? 'text-primary' : 'text-muted-foreground')} strokeWidth={1.5} />
                   <p className="text-sm text-muted-foreground">
-                    {isDragging ? <span className="font-medium text-primary">Larga para carregar</span> : <>Arrasta aqui ou <span className="font-medium text-primary">seleciona no computador</span></>}
+                    {isDragging ? <span className="font-medium text-primary">Larga para carregar</span> : <><span className="hidden sm:inline">Arrasta aqui ou </span><span className="font-medium text-primary">seleciona no dispositivo</span></>}
                   </p>
                 </>
               )}
+            </div>
+            <div className="mt-4 grid grid-cols-3 gap-2 sm:hidden">
+              <span className="manual-touch-target inline-flex items-center justify-center rounded-md border bg-background px-2 text-sm font-medium">Câmara</span>
+              <span className="manual-touch-target inline-flex items-center justify-center rounded-md border bg-background px-2 text-sm font-medium">Galeria</span>
+              <span className="manual-touch-target inline-flex items-center justify-center rounded-md border bg-background px-2 text-sm font-medium">Ficheiros</span>
             </div>
           </div>
         </div>
@@ -132,6 +141,7 @@ export function MediaUploadSection({
           type="file"
           multiple
           accept={getAcceptTypes()}
+          capture="environment"
           onChange={onFileUpload}
           disabled={disabled || isUploading}
           className="hidden"
