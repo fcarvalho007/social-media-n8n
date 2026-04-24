@@ -1106,6 +1106,13 @@ if (imageUrlsForPdf.length > 0) {
           published_at: hasSuccess ? new Date().toISOString() : null,
           failed_at: hasFailed && !hasSuccess ? new Date().toISOString() : null,
           error_log: errorLogText,
+          external_post_ids: JSON.parse(JSON.stringify(finalResults.reduce((acc, result) => {
+            if (result.status === 'success') {
+              const network = FORMAT_TO_NETWORK[result.format] || result.platform;
+              acc[network] = result.postUrl || `published:${result.format}`;
+            }
+            return acc;
+          }, {} as Record<string, string>))),
           publish_metadata: JSON.parse(JSON.stringify({
             published_via: 'manual_create_getlate',
             formats: consolidatedFormats,

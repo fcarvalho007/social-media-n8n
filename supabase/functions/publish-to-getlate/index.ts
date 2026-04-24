@@ -243,6 +243,21 @@ function extractPostUrl(responseData: any): string | undefined {
     nestedPlatform?.permalink;
 }
 
+function extractExternalReference(responseData: any): string | undefined {
+  const nestedPlatform = responseData?.post?.platforms?.find((platform: any) =>
+    platform?.platformPostId || platform?.platformSpecificData?.tiktokPublishId || platform?._id || platform?.status === 'published'
+  );
+
+  return extractPostUrl(responseData) ||
+    responseData?.post?.platformPostId ||
+    responseData?.post?._id ||
+    responseData?.data?._id ||
+    nestedPlatform?.platformPostUrl ||
+    nestedPlatform?.platformPostId ||
+    nestedPlatform?.platformSpecificData?.tiktokPublishId ||
+    nestedPlatform?._id;
+}
+
 function classifyPublishError(msg: string): { code: string; source: string; isRetryable: boolean; suggestedAction: string } {
   const lower = msg.toLowerCase();
 
@@ -565,7 +580,7 @@ async function publishToGetlate(
         return { 
           success: true, 
           data,
-          postUrl: validated.postUrl,
+      postUrl: validated.postUrl || extractExternalReference(data),
           statusCode: response.status,
         };
       } else {
@@ -919,21 +934,13 @@ Deno.serve(async (req) => {
       }
       
       if (post_id) {
-        // Update post with failure info
+        // Keep the attempt as failed, but do not mark the whole post as failed here.
+        // Multi-network publishing is aggregated by the frontend after all platforms finish.
         const { data: postData } = await supabase
           .from('posts')
           .select('recovery_token')
           .eq('id', post_id)
           .single();
-        
-        await supabase
-          .from('posts')
-          .update({
-            status: 'failed',
-            error_log: failureMessage,
-            failed_at: new Date().toISOString(),
-          })
-          .eq('id', post_id);
 
         // Send notification email
         try {
@@ -1013,8 +1020,10 @@ Deno.serve(async (req) => {
     }
 
     // Extract and save external post URL/ID to the posts table
-    if (post_id && result.postUrl) {
-      console.log(`[publish-to-getlate] Saving external link to post ${post_id}: ${result.postUrl}`);
+    const externalReference = result.postUrl || extractExternalReference(result.data);
+    if (post_id) {
+      const referenceToSave = externalReference || `published:${network}:${format}`;
+      console.log(`[publish-to-getlate] Saving external reference to post ${post_id}: ${referenceToSave}`);
       
       // Get current external_post_ids to merge (in case of multi-network publish)
       const { data: currentPost } = await supabase
@@ -1026,7 +1035,7 @@ Deno.serve(async (req) => {
       const currentExternalIds = (currentPost?.external_post_ids as Record<string, string>) || {};
       const updatedExternalIds = {
         ...currentExternalIds,
-        [network]: result.postUrl,
+        [network]: referenceToSave,
       };
       
       const { error: updateError } = await supabase
@@ -1035,13 +1044,14 @@ Deno.serve(async (req) => {
           external_post_ids: updatedExternalIds,
           status: 'published',
           published_at: new Date().toISOString(),
+          failed_at: null,
         })
         .eq('id', post_id);
       
       if (updateError) {
         console.error('[publish-to-getlate] Failed to save external_post_ids:', updateError);
       } else {
-        console.log(`[publish-to-getlate] ✅ Saved external link for ${network}: ${result.postUrl}`);
+        console.log(`[publish-to-getlate] ✅ Saved external reference for ${network}: ${referenceToSave}`);
       }
     }
 
@@ -1059,7 +1069,7 @@ Deno.serve(async (req) => {
       data: result.data,
       network,
       format,
-      postUrl: result.postUrl,
+      postUrl: externalReference,
     };
 
     // Update idempotency key with the result (was reserved with null before API call)

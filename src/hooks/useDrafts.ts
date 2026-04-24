@@ -2,6 +2,7 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 import { useMemo } from 'react';
+import { filterConsumedDrafts } from '@/lib/drafts/reconciliation';
 
 interface Draft {
   id: string;
@@ -41,7 +42,27 @@ export function useDrafts(options: UseDraftsOptions = {}) {
         .order('created_at', { ascending: false });
 
       if (error) throw error;
-      return data as Draft[];
+      const drafts = (data || []) as Draft[];
+      if (drafts.length === 0) return [];
+
+      const earliestDraftDate = drafts.reduce((earliest, draft) => (
+        new Date(draft.created_at) < new Date(earliest) ? draft.created_at : earliest
+      ), drafts[0].created_at);
+
+      const captions = Array.from(new Set(drafts.map((draft) => draft.caption?.trim()).filter(Boolean))) as string[];
+      const { data: matchingPosts } = await supabase
+        .from('posts')
+        .select('id, user_id, caption, status, created_at')
+        .eq('user_id', user.id)
+        .in('caption', captions.length > 0 ? captions : ['__no_caption__'])
+        .gte('created_at', new Date(new Date(earliestDraftDate).getTime() - 5 * 60 * 1000).toISOString());
+
+      const postIds = (matchingPosts || []).map((post) => post.id);
+      const { data: successfulAttempts } = postIds.length > 0
+        ? await supabase.from('publication_attempts').select('post_id').in('post_id', postIds).eq('status', 'success')
+        : { data: [] };
+
+      return filterConsumedDrafts(drafts, matchingPosts || [], new Set((successfulAttempts || []).map((attempt) => attempt.post_id).filter(Boolean)));
     },
   });
 
@@ -113,6 +134,8 @@ export function useDrafts(options: UseDraftsOptions = {}) {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['drafts'] });
+      localStorage.removeItem('calendar_events_cache');
+      localStorage.removeItem('calendar_last_updated');
       toast.success('Rascunho eliminado');
     },
     onError: (error) => {
@@ -132,6 +155,8 @@ export function useDrafts(options: UseDraftsOptions = {}) {
     },
     onSuccess: (_, ids) => {
       queryClient.invalidateQueries({ queryKey: ['drafts'] });
+      localStorage.removeItem('calendar_events_cache');
+      localStorage.removeItem('calendar_last_updated');
       toast.success(`${ids.length} rascunhos eliminados`);
     },
     onError: (error) => {
