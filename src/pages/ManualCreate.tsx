@@ -893,7 +893,10 @@ export default function ManualCreate() {
               ref={networkOptionsRef}
               selectedNetworks={selectedNetworks}
               networkOptions={networkOptions}
-              onNetworkOptionsChange={(next) => setNetworkOptions(normalizeNetworkOptions(next))}
+              onNetworkOptionsChange={(next) => {
+                setNetworkOptions(normalizeNetworkOptions(next));
+                setAiGeneratedEdited(prev => ({ ...prev, 'instagram.firstComment': true, 'linkedin.firstComment': true, 'facebook.firstComment': true }));
+              }}
               caption={caption}
               onCaptionChange={setCaption}
               networkCaptions={networkCaptions}
@@ -903,6 +906,8 @@ export default function ManualCreate() {
               useSeparateCaptions={useSeparateCaptions}
               mediaPreviewUrls={mediaPreviewUrls}
               disabled={saving || submitting || publishing}
+              generatedAt={assistantGeneratedAt}
+              generatedEdited={aiGeneratedEdited}
             />
 
             <Step3ScheduleCard
