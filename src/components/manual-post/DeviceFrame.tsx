@@ -5,22 +5,23 @@ interface DeviceFrameProps {
   type: 'phone' | 'desktop';
   children: ReactNode;
   className?: string;
+  size?: 'compact' | 'expanded';
 }
 
-export function DeviceFrame({ type, children, className }: DeviceFrameProps) {
+export function DeviceFrame({ type, children, className, size = 'compact' }: DeviceFrameProps) {
   if (type === 'phone') {
     return (
-      <div className={cn("relative mx-auto", className)} style={{ maxWidth: '320px' }}>
+      <div className={cn("relative mx-auto w-full", className)} style={{ maxWidth: size === 'expanded' ? '360px' : '260px' }}>
         {/* Phone Frame */}
-        <div className="rounded-[2.5rem] border-[10px] border-gray-900 dark:border-gray-700 bg-gray-900 dark:bg-gray-700 shadow-xl">
+        <div className="rounded-[2rem] border-[8px] border-foreground/85 bg-foreground/85 shadow-xl dark:border-muted dark:bg-muted">
           {/* Notch */}
-          <div className="absolute top-0 left-1/2 -translate-x-1/2 w-24 h-5 bg-gray-900 dark:bg-gray-700 rounded-b-2xl z-10" />
+          <div className="absolute top-0 left-1/2 -translate-x-1/2 w-20 h-4 bg-foreground/85 dark:bg-muted rounded-b-2xl z-10" />
           
           {/* Dynamic Island indicator */}
-          <div className="absolute top-1.5 left-1/2 -translate-x-1/2 w-16 h-3 bg-black rounded-full z-20" />
+          <div className="absolute top-1 left-1/2 -translate-x-1/2 w-14 h-2.5 bg-background rounded-full z-20" />
           
           {/* Screen */}
-          <div className="rounded-[1.75rem] overflow-hidden bg-background relative">
+          <div className="rounded-[1.5rem] overflow-hidden bg-background relative">
             {/* Status Bar */}
             <div className="flex items-center justify-between px-6 py-1.5 bg-background text-xs">
               <span className="font-medium">9:41</span>
@@ -41,7 +42,7 @@ export function DeviceFrame({ type, children, className }: DeviceFrameProps) {
             </div>
             
             {/* Content */}
-            <div className="overflow-y-auto max-h-[540px]">
+            <div className={cn("overflow-y-auto", size === 'expanded' ? 'max-h-[640px]' : 'max-h-[440px]')}>
               {children}
             </div>
           </div>
