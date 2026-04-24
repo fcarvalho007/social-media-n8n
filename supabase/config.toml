@@ -68,3 +68,9 @@ verify_jwt = true
 
 [functions.cleanup-storage]
 verify_jwt = true
+
+[functions.collect-post-metrics]
+verify_jwt = false
+
+[functions.generate-insights]
+verify_jwt = false
