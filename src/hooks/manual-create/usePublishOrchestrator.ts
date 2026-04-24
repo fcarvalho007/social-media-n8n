@@ -224,7 +224,7 @@ export function usePublishOrchestrator(params: OrchestratorParams) {
         media_items: DraftMediaItem[];
         network_captions: Record<string, string>;
         use_separate_captions: boolean;
-        network_options: NetworkOptions;
+        network_options: Record<string, unknown>;
         scheduled_date: string | null;
         scheduled_time: string | null;
         publish_immediately: boolean;
