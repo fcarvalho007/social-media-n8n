@@ -1,293 +1,160 @@
-## Plano — Fundações partilhadas para o módulo de IA
+# Plano — Prompt 1: Assistente desde o upload
 
-Vou implementar isto como infraestrutura transversal, sem adicionar funcionalidades visíveis das Fases 1–4 e sem alterar visualmente o fluxo `/manual-create`.
+## Estado atual confirmado
 
-### Ajustes necessários face ao estado atual
+- Já existe infraestrutura do Prompt 0: `aiService`, custos em `AI_CREDIT_COSTS`, `useAICredits`, preferências de IA, `AIGeneratedField` e função backend `ai-core`.
+- Já existe um card inicial `AiUploadAssistantCard`, mas ainda está numa versão simples: não valida créditos/duração/preferências, chama uma função antiga (`ai-editorial-assistant`) e faz transcrição+geração num único passo.
+- `/manual-create` já guarda `rawTranscription` e `aiMetadata` no autosave/rascunho, o que permite retomar parte do estado.
+- Existe `AltTextPanel`, mas ainda não está integrado no bloco de média.
+- `src/integrations/supabase/types.ts` está em `LOCKED_FILES.md`; não será editado manualmente.
 
-Há alguns pontos do prompt que entram em conflito com o projeto atual ou com regras de segurança:
+## Implementação proposta
 
-1. **Tabelas já existentes**
-   - Já existem `ai_preferences`, `ai_credit_usage`, `account_insights`, `hashtag_intelligence`, `posts.raw_transcription` e `posts.ai_metadata`.
-   - Em vez de duplicar tabelas, vou migrar/estender o que já existe para chegar ao modelo pretendido.
+### 1. Modelo de estado do assistente
 
-2. **Referências diretas a `auth.users`**
-   - Não vou criar foreign keys para `auth.users`. O projeto já segue o padrão seguro de guardar `user_id uuid` e proteger com RLS.
-   - Isto evita acoplamento indevido a tabelas geridas pela autenticação.
+Criar/normalizar estado específico no `/manual-create` para o fluxo:
 
-3. **Fornecedor de IA**
-   - O projeto já usa Lovable AI para geração de texto e visão, e OpenAI apenas para transcrição Whisper.
-   - `OPENAI_API_KEY` já existe. `ANTHROPIC_API_KEY` não está configurada.
-   - Para não bloquear a infraestrutura, vou implementar uma camada de provider extensível, mas usar por defeito:
-     - transcrição: OpenAI Whisper;
-     - texto/visão: Lovable AI, que já está configurado e não requer nova chave.
-   - Deixo os nomes `provider`, `model` e `model: 'fast' | 'smart'` prontos para suportar OpenAI/Anthropic depois, se for necessário.
+- `idle`: card visível e pronto a iniciar.
+- `dismissed`: utilizador escolheu “Já tenho a legenda”.
+- `transcribing`: passo 1 de 2.
+- `generating`: passo 2 de 2.
+- `done`: campos preenchidos.
+- `error`: falha com retry.
+- `blocked`: vídeo fora dos critérios ou créditos insuficientes.
 
-4. **Storybook**
-   - O projeto não tem Storybook configurado e não vou adicionar dependências novas sem aprovação explícita.
-   - Em alternativa, criarei uma página interna de demo para os padrões de UI de IA.
+Persistir o estado mínimo em `aiMetadata`/autosave para permitir retoma após reload:
 
----
+- transcrição já concluída;
+- fase em curso ou último passo concluído;
+- sugestões geradas;
+- card fechado para o rascunho atual.
 
-## 1. Base de dados e créditos
+### 2. Deteção de contexto após upload
 
-### 1.1 Criar/normalizar créditos por utilizador
+Substituir a lógica atual de `showAiUploadAssistant` por uma validação completa:
 
-Criar tabela `user_ai_credits` com RLS:
+- apenas 1 ficheiro;
+- `video/mp4`, `video/quicktime` ou `video/webm`;
+- duração entre 5 e 600 segundos, usando a leitura de metadata do vídeo;
+- não carrossel/documento;
+- créditos disponíveis >= `AI_CREDIT_COSTS.full_assistant_flow`;
+- preferências de IA permitem o fluxo.
 
-- `user_id uuid primary key`
-- `credits_remaining integer not null default 0`
-- `credits_monthly_allowance integer not null default 0`
-- `last_reset_at timestamptz`
-- `plan_tier text not null default 'free'`
-- `updated_at timestamptz default now()`
+Nota sobre preferências: a tabela atual não tem um campo explícito “permitir assistente desde upload”. Para não criar schema desnecessário nesta fase, vou interpretar a preferência existente `insights_enabled` como permissão geral para sugestões/assistência de IA. Se no futuro quiseres granularidade, adicionamos um toggle próprio.
 
-Políticas:
+### 3. Novo `<AIAssistantCard />`
 
-- utilizador autenticado pode ver os próprios créditos;
-- escrita/alteração apenas por funções backend com permissões internas.
+Substituir/refatorar `AiUploadAssistantCard` para o comportamento pedido, mantendo copy em pt-PT:
 
-Adicionar função segura para consumir créditos de forma atómica:
+- Estado inicial com custo e créditos restantes:
+  - “Custa 5 créditos. Tens X restantes.”
+  - botões “Já tenho a legenda” e “Transcrever”.
+- Estados loading com barra/progresso textual:
+  - “A ouvir o vídeo…”
+  - “Passo 1 de 2: transcrever áudio”
+  - “Passo 2 de 2: a preparar os campos”
+- Estados de erro:
+  - vídeo demasiado longo;
+  - áudio impercetível;
+  - créditos insuficientes;
+  - falha de API com retry até 2 tentativas.
+- Estado final:
+  - “Pronto! Campos preenchidos.”
+  - botões “Ver transcrição” e “Fechar”.
 
-- valida saldo;
-- desconta antes da chamada de IA;
-- devolve erro claro quando o saldo é insuficiente;
-- evita race conditions em chamadas simultâneas.
+Adicionar modal de transcrição com texto completo e botão “Copiar”.
 
-### 1.2 Criar/normalizar logs de IA
+### 4. Chamada IA em dois passos através de `aiService`
 
-O projeto já tem `ai_credit_usage`. Vou criar a tabela pedida `ai_usage_log` como log principal, em vez de reaproveitar uma tabela com semântica incompleta.
+Remover do fluxo novo a chamada direta à função antiga `ai-editorial-assistant`.
 
-Campos:
+Fluxo:
 
-- `id`
-- `user_id`
-- `action_type`
-- `feature`
-- `credits_consumed`
-- `tokens_used`
-- `provider`
-- `model`
-- `success`
-- `error_message`
-- `metadata jsonb`
-- `created_at`
+1. `aiService.transcribeMedia(videoUrl)`
+   - usar o URL disponível no preview/upload;
+   - guardar em `rawTranscription`;
+   - se resultado vazio ou < 20 caracteres, mostrar erro de áudio impercetível.
 
-RLS:
+2. `aiService.generateText(...)`
+   - `systemPrompt` no formato do prompt;
+   - `prompt` com transcrição, nome do utilizador, marca e hashtags de marca;
+   - `responseFormat: 'json'`;
+   - `model: 'smart'`;
+   - `feature: 'upload_assistant'`.
 
-- utilizador pode consultar apenas os próprios logs;
-- escrita apenas por backend.
+Atenção: a infraestrutura atual cobra transcrição e geração separadamente. O custo esperado do fluxo é 5 créditos; vou ajustar `aiService`/`ai-core` para suportar um custo fixo por feature `full_assistant_flow`, evitando cobrar mais do que 5 no total.
 
-### 1.3 Tabelas partilhadas entre fases
+### 5. Preenchimento dos campos
 
-Aplicar migrações idempotentes:
+Com o JSON recebido:
 
-- `posts.ai_generated_fields jsonb default '{}'`
-- `posts.ai_features_extracted jsonb default '{}'`
-- `posts.performance_classification text`
-- `posts.engagement_rate numeric`
-- `posts.metrics_captured_at timestamptz`
+- preencher legenda base com `base_caption`;
+- preencher variantes por rede apenas se o toggle de legendas separadas estiver ativo;
+- guardar hashtags sugeridas em cache/metadata para a Fase 2, sem as inserir na legenda;
+- preencher primeiro comentário em Instagram/Facebook/LinkedIn quando aplicável;
+- guardar `alt_text` e mostrar no bloco de média através do painel de alt text;
+- guardar `key_quotes` em `ai_generated_fields`/`aiMetadata` para uso futuro;
+- guardar `draft_title` em metadata como título interno, sem alterar visualmente o fluxo se não existir campo visível próprio no ecrã.
 
-`raw_transcription` já existe, por isso não será recriada.
+### 6. Indicadores “gerado por IA”
 
-Atualizar `account_insights` existente com os campos em falta:
+Integrar `AIGeneratedField` nos campos preenchidos pelo assistente:
 
-- `delta_percentage numeric`
-- `dismissed_count integer default 0`
-- `dismissed_until timestamptz`
-- `never_show boolean default false`
+- legenda base;
+- variantes por rede, quando estiverem visíveis;
+- primeiro comentário;
+- alt text.
 
-Criar `user_brand_hashtags` com RLS por utilizador.
+O indicador desaparece quando o utilizador edita manualmente o campo. Para isso, será guardado um timestamp/campo gerado e um estado local de edição por campo.
 
-Criar `hashtag_metadata` como cache partilhada. Como já existe `hashtag_intelligence`, vou manter ambas apenas se fizer sentido funcionalmente:
+### 7. Retoma após reload
 
-- `hashtag_metadata`: cache genérica e simples para Fase 2;
-- `hashtag_intelligence`: fonte já existente com metadados mais ricos.
+Aproveitar `useAutoSave`, `rawTranscription` e `aiMetadata` para retomar:
 
-### 1.4 Utilizador de teste com 100 créditos
+- se já existe transcrição mas faltam campos, retoma no passo 2;
+- se já existem campos gerados, mostra estado final ou mantém campos preenchidos;
+- se o utilizador fechou o card neste rascunho, não volta a aparecer até mudar o ficheiro.
 
-Depois da migração, criar um registo inicial de 100 créditos para o utilizador de teste/contas existentes permitidas, sem alterar regras de autenticação.
+### 8. Backend e créditos
 
----
+Atualizar a função `ai-core` para permitir cobrança coordenada do fluxo completo:
 
-## 2. Serviço centralizado de IA
+- aceitar metadados/feature para `full_assistant_flow`;
+- garantir que o fluxo consome exatamente 5 créditos;
+- registar `ai_usage_log` com `feature = upload_assistant`;
+- manter mensagens de erro em pt-PT e sem expor detalhes técnicos.
 
-Criar `src/services/ai/aiService.ts` como API única do frontend.
+Se a solução mais segura exigir uma ação composta no backend, criarei/ajustarei uma função específica para o fluxo completo, mantendo o cliente a chamar apenas o serviço centralizado.
 
-Funções expostas:
+## Ficheiros previstos
 
-```ts
-transcribeMedia(fileUrl: string, options?: { language?: string }): Promise<string>
+- `src/pages/ManualCreate.tsx`
+- `src/components/manual-post/ai/AiUploadAssistantCard.tsx` ou novo `AIAssistantCard.tsx`
+- `src/components/manual-post/steps/Step3CaptionCard.tsx`
+- `src/components/manual-post/steps/NetworkOptionsCard.tsx`
+- `src/components/manual-post/steps/Step2MediaCard.tsx` ou integração do `AltTextPanel`
+- `src/services/ai/aiService.ts`
+- `src/types/aiEditorial.ts`
+- `src/hooks/useAutoSave.ts`
+- `src/hooks/manual-create/useDraftRecovery.ts`
+- `supabase/functions/ai-core/index.ts`
 
-generateText(params: {
-  prompt: string
-  systemPrompt?: string
-  maxTokens?: number
-  temperature?: number
-  responseFormat?: 'text' | 'json'
-  model?: 'fast' | 'smart'
-  feature?: string
-}): Promise<string | unknown>
+Não editarei:
 
-analyzeImage(imageUrl: string, prompt: string): Promise<string>
-```
+- `src/integrations/supabase/client.ts`
+- `src/integrations/supabase/types.ts`
+- `.env`
+- chaves de projeto em `supabase/config.toml`
 
-Importante: o frontend não chamará fornecedores externos diretamente. O serviço chamará uma função backend central, por exemplo `ai-core`, através do cliente já existente.
+## Testes/checkpoint
 
-No backend (`supabase/functions/ai-core/index.ts`):
-
-- validar autenticação;
-- validar input;
-- calcular custo em créditos;
-- descontar créditos antes da chamada;
-- executar chamada com timeout de 60s;
-- retry com backoff exponencial até 3 tentativas;
-- registar `ai_usage_log` em sucesso e falha;
-- devolver mensagens de erro seguras em PT-PT.
-
-As funções antigas de IA (`ai-caption-rewriter`, `ai-editorial-assistant`) não serão removidas neste prompt, para evitar regressões. A integração delas no serviço centralizado pode ser feita numa fase seguinte, controlada.
-
----
-
-## 3. Custos de créditos
-
-Criar `src/config/aiCreditCosts.ts`:
-
-```ts
-export const AI_CREDIT_COSTS = {
-  transcription_per_minute: 1,
-  text_generation_fast: 1,
-  text_generation_smart: 3,
-  vision_analysis: 2,
-  full_assistant_flow: 5,
-} as const
-```
-
-Criar tipos auxiliares para evitar strings soltas de `action_type`, `feature`, `provider` e `model`.
-
----
-
-## 4. Tratamento de erros e logs
-
-Criar `src/lib/errorHandler.ts` com `handleAIError` para uso no frontend:
-
-- mapear erros técnicos para mensagens amigáveis;
-- não expor detalhes internos;
-- uniformizar toasts e mensagens visíveis.
-
-Mensagens:
-
-- rate limit: “A IA está ocupada. Tenta novamente em alguns segundos.”
-- créditos insuficientes: “Não tens créditos suficientes. Vê planos.”
-- timeout: “A IA demorou demasiado. Tenta novamente.”
-- genérico: “A IA está temporariamente indisponível.”
-
-No backend, o log real fica em `ai_usage_log` com `success=false` e `error_message` técnico reduzido.
-
----
-
-## 5. Componentes UI reutilizáveis
-
-Criar componentes em `src/components/ai/`:
-
-### `AICreditsBadge`
-
-- mostra créditos restantes;
-- barra de progresso mensal;
-- tooltip com plano, limite mensal e último reset;
-- estado de alerta abaixo de 20%;
-- link para upgrade/configuração quando aplicável.
-
-Será adicionado ao topo da aplicação de forma compacta, junto ao badge de quota, sem alterar páginas de criação.
-
-### `AIActionButton`
-
-- botão padrão para ações de IA;
-- mostra custo em créditos;
-- desativa se não houver saldo;
-- loading state;
-- toast de erro padronizado.
-
-### `AIGeneratedField`
-
-- wrapper visual para campos gerados por IA;
-- indicador subtil quando veio da IA;
-- tooltip “Gerado por IA a [data]”;
-- botão “Regenerar” opcional;
-- remove o indicador quando o utilizador edita.
-
-### `InsightBanner`
-
-- banner discreto para insights futuros;
-- ações: aceitar, dispensar, nunca mostrar;
-- sem ligar ainda a uma feature da Fase 4.
-
----
-
-## 6. Página interna de demo
-
-Criar página interna, por exemplo `/ai-demo`, protegida por autenticação, para validar os padrões de UI sem mexer no `/manual-create`.
-
-A página terá:
-
-- `AICreditsBadge`;
-- exemplos de `AIActionButton`;
-- exemplo de `AIGeneratedField`;
-- exemplo de `InsightBanner`;
-- uma chamada de teste simples ao `generateText` para confirmar logs e consumo de créditos.
-
-Se preferires que esta página não fique no menu, ficará apenas acessível por URL direta.
-
----
-
-## 7. Preferências de IA
-
-O projeto já tem `ai_preferences`. Vou estendê-la em vez de criar `user_preferences` duplicada, porque ela já representa preferências de IA por utilizador.
-
-Adicionar campos:
-
-- `preferred_model text default 'fast'`
-- `auto_alt_text boolean default false`
-- `auto_first_comment boolean default false`
-
-A página de preferências de IA ficará em `/ai-settings` ou integrada nas definições existentes, com:
-
-- Idioma das gerações: PT-PT, EN, ES, FR;
-- Tom por defeito: Neutro, Direto, Emocional, Técnico, Humor;
-- Modelo preferido: Rápido / Melhor qualidade;
-- Ativar banners de insights;
-- Gerar alt text automaticamente;
-- Gerar primeiro comentário automaticamente.
-
-Também atualizarei `useAiPreferences` e os tipos em `src/types/aiEditorial.ts`.
-
----
-
-## 8. Validação
-
-No fim da implementação:
-
-- correr build TypeScript;
-- testar chamada de exemplo do `aiService.generateText` pela demo interna;
-- confirmar criação de registo em `ai_usage_log`;
-- confirmar desconto em `user_ai_credits`;
-- confirmar erro amigável quando os créditos forem insuficientes;
-- confirmar que `/manual-create` não recebeu alterações visuais deste prompt.
-
----
-
-## Fora de âmbito neste prompt
-
-- Não implementar Fase 1, 2, 3 ou 4.
-- Não refatorar agora todas as funções de IA existentes para o novo `ai-core`, salvo ligação mínima de teste.
-- Não adicionar Storybook.
-- Não pedir nem configurar `ANTHROPIC_API_KEY` agora.
-- Não alterar ficheiros bloqueados como `src/integrations/supabase/client.ts`, `src/integrations/supabase/types.ts` ou `.env`.
-
----
-
-## Checkpoint
-
-☐ Confirmar que posso avançar com a infraestrutura usando `ai_preferences` existente em vez de criar `user_preferences` duplicada.  
-☐ Confirmar que aceitas usar Lovable AI para texto/visão e OpenAI Whisper para transcrição nesta fase.  
-☐ Confirmar que a demo interna pode ficar numa rota protegida, sem aparecer no menu principal.  
-☐ Após aprovação, implemento as migrações, backend, serviço frontend, componentes, preferências e validação.
+☐ Upload de imagem não mostra o card.
+☐ Upload de carrossel não mostra o card.
+☐ Upload de vídeo curto mostra o card.
+☐ Vídeo fora de 5–600s bloqueia o assistente com mensagem útil.
+☐ Fluxo completo consome exatamente 5 créditos.
+☐ Transcrição fica guardada e visível no modal.
+☐ Campos gerados aparecem preenchidos e editáveis.
+☐ Indicador “gerado por IA” desaparece após edição manual.
+☐ Reload a meio do fluxo retoma do último passo possível.
+☐ Build/typecheck sem erros.
