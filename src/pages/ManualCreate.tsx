@@ -1523,6 +1523,8 @@ export default function ManualCreate() {
         />
       </div>
       {/* /manual-create-grid */}
+      </div>
+      {/* /coluna-esquerda */}
 
       {/* Barra fixa global de acções — Prompt 3/4 */}
       <PublishActionsCard
