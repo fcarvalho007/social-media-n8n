@@ -49,6 +49,7 @@ import { useAICredits } from '@/hooks/useAICredits';
 import { AI_CREDIT_COSTS } from '@/config/aiCreditCosts';
 import { aiService } from '@/services/ai/aiService';
 import { useAuth } from '@/contexts/AuthContext';
+import { generateSafeStoragePath } from '@/lib/fileNameSanitizer';
 // `extractVideoFrame` foi consolidado em '@/lib/media/videoFrameExtractor'.
 // Este componente já não o usava localmente.
 
