@@ -702,6 +702,7 @@ export default function ManualCreate() {
         }));
       }
       setAltText((result.alt_text || '').slice(0, 125));
+      if (result.alt_text) setAltTexts(prev => ({ ...prev, 'media-0': result.alt_text.slice(0, 125) }));
       setAssistantGeneratedAt(generatedAt);
       setAiGeneratedEdited({});
       setHashtagSuggestions(suggestedTags.map((tag, index) => applySafety({ tag, group: index < 6 ? 'reach' : 'niche', source: 'ai_editorial', reason: 'Sugerida a partir da transcrição.' })));
