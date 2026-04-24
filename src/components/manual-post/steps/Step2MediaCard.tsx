@@ -413,7 +413,7 @@ export function Step2MediaCard(props: Step2MediaCardProps) {
                   </div>
                 </SortableContext>
 
-                {onMediaAltTextChange && mediaPreviewUrls.length > 0 && (
+                {altTextSupport.hasSupported && onMediaAltTextChange && mediaPreviewUrls.length > 0 && (
                   <div className="grid gap-4 sm:grid-cols-2">
                     {mediaPreviewUrls.map((url, idx) => {
                       const key = `media-${idx}`;
@@ -429,6 +429,7 @@ export function Step2MediaCard(props: Step2MediaCardProps) {
                             onChange={(next) => onMediaAltTextChange(key, next)}
                             onRegenerate={() => onGenerateAltText?.(idx)}
                             onApplyAllChange={(checked) => { if (checked) mediaPreviewUrls.forEach((_, applyIdx) => onMediaAltTextChange(`media-${applyIdx}`, value)); }}
+                            microcopy={idx === 0 ? altTextSupport.microcopy : null}
                           />
                         </AIGeneratedField>
                       );
