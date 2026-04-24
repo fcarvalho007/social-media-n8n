@@ -1403,7 +1403,7 @@ export default function ManualCreate() {
         onLoadDraft={handleLoadDraft}
         savedCaptionsOpen={savedCaptionsOpen}
         setSavedCaptionsOpen={setSavedCaptionsOpen}
-        caption={caption}
+        caption={useSeparateCaptions ? networkCaptions[captionEditorRef.current?.getActiveNetwork() ?? selectedNetworks[0]] || caption : caption}
         onSelectSavedCaption={setCaption}
         onApplyAiCaption={handleApplyAiCaption}
         aiDialogOpen={aiDialogOpen}
