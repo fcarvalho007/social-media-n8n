@@ -97,7 +97,7 @@ export function MobileStickyActionBar({
         <Button
           type="button"
           onClick={onPublish}
-          disabled={publishing || submitting || saving || isUploading || selectedFormats.length === 0}
+          disabled={publishing || submitting || saving || isUploading || selectedFormats.length === 0 || !smartValidation.canPublish}
           className={cn(
             'flex-1 h-11 xs:h-12 sm:h-12 font-semibold text-white press-effect text-sm xs:text-base',
             !scheduleAsap && scheduledDate
