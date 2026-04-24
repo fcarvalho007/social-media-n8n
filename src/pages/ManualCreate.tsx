@@ -567,28 +567,46 @@ export default function ManualCreate() {
     const file = mediaFiles[0];
     if (!file) return;
     try {
-      setAiAssistantLoading(true);
-      const fileBase64 = await fileToBase64(file);
-      const { data, error } = await supabase.functions.invoke('ai-editorial-assistant', {
-        body: {
-          fileBase64,
-          fileName: file.name,
-          mimeType: file.type,
-          networks: selectedNetworks,
-          language: 'pt-PT',
-        },
+      if (assistantBlockedMessage) {
+        setAiAssistantStatus('blocked');
+        setAiAssistantError(assistantBlockedMessage);
+        return;
+      }
+
+      setAiAssistantStatus('transcribing');
+      setAiAssistantError(null);
+      const mediaUrl = await uploadAssistantMedia(file);
+      const transcription = rawTranscription || await aiService.transcribeMedia(mediaUrl, {
+        language: 'pt-PT',
+        feature: 'upload_assistant_transcription',
+        creditCostOverride: 2,
       });
 
-      if (error || !data?.success) throw new Error(data?.error || error?.message || 'A IA está indisponível.');
+      if (!transcription || transcription.trim().length < 20) {
+        throw new Error('Não consegui perceber o áudio do vídeo. Queres escrever a legenda manualmente?');
+      }
 
-      const result = data.result as EditorialAssistantResult;
-      const groupedHashtags = getUniqueHashtags(result);
-      const nextCaption = [result.base_caption, groupedHashtags.join(' ')].filter(Boolean).join('\n\n');
+      setRawTranscription(transcription);
+      setAiMetadata(prev => ({ ...(prev ?? {}), raw_transcription: transcription, upload_assistant: { status: 'transcribed' } }));
+      setAiAssistantStatus('generating');
 
-      setCaption(nextCaption);
-      if (result.captions_per_network && Object.keys(result.captions_per_network).length > 0) {
+      const systemPrompt = `És um assistente editorial para redes sociais. Recebes a transcrição de um vídeo e devolves JSON estruturado com campos prontos para publicação. Escreves em português de Portugal, tom ${aiPreferences.default_tone}. Respeitas limites de caracteres de cada rede. Nunca inventas factos que não estão na transcrição.`;
+      const prompt = `Transcrição do vídeo:\n---\n${transcription}\n---\n\nContexto do utilizador:\n- Nome: ${user?.user_metadata?.full_name || user?.email || 'Utilizador'}\n- Marca: ${user?.user_metadata?.full_name || 'Marca'}\n- Hashtags de marca: ${aiPreferences.brand_hashtags.join(', ') || 'nenhuma'}\n\nDevolve APENAS JSON válido, sem texto antes ou depois, com esta estrutura exata:\n{\n  "draft_title": "título interno do rascunho, máx 60 chars",\n  "base_caption": "legenda neutra que funciona em qualquer rede, máx 500 chars",\n  "captions_per_network": {\n    "instagram": "versão para Instagram, máx 2200 chars, com quebra de linha antes do ver mais",\n    "linkedin": "versão LinkedIn, parágrafos curtos, máx 3000 chars",\n    "tiktok": "versão TikTok, direta, máx 300 chars",\n    "x": "versão X/Twitter, máx 280 chars",\n    "facebook": "versão Facebook, máx 8000 chars"\n  },\n  "hashtags_suggested": ["array de 10-15 hashtags relevantes em português, sem #"],\n  "first_comment": "primeiro comentário com pergunta ou CTA, máx 500 chars",\n  "alt_text": "descrição do conteúdo visual para acessibilidade, máx 125 chars",\n  "key_quotes": ["array de 2-3 frases citáveis extraídas da transcrição"]\n}`;
+
+      const generated = await aiService.generateText({
+        systemPrompt,
+        prompt,
+        responseFormat: 'json',
+        model: 'smart',
+        feature: 'upload_assistant_generation',
+        creditCostOverride: 3,
+      });
+      const result = generated as EditorialAssistantResult;
+      const generatedAt = new Date().toISOString();
+
+      setCaption(result.base_caption || '');
+      if (useSeparateCaptions && result.captions_per_network && Object.keys(result.captions_per_network).length > 0) {
         setNetworkCaptions(result.captions_per_network as Record<string, string>);
-        setUseSeparateCaptions(true);
       }
       if (result.first_comment) {
         setNetworkOptions((prev) => normalizeNetworkOptions({
@@ -598,17 +616,36 @@ export default function ManualCreate() {
           linkedin: { ...prev.linkedin, firstComment: result.first_comment },
         }));
       }
-      setRawTranscription(result.raw_transcription || '');
-      setAiMetadata(result);
-      setAiAssistantDismissed(true);
+      setAltText((result.alt_text || '').slice(0, 125));
+      setAssistantGeneratedAt(generatedAt);
+      setAiGeneratedEdited({});
+      setAiMetadata(prev => ({
+        ...(prev ?? {}),
+        ...result,
+        raw_transcription: transcription,
+        upload_assistant: {
+          status: 'done',
+          generated_at: generatedAt,
+          suggestions: {
+            hashtags_suggested: result.hashtags_suggested ?? getUniqueHashtags(result).map(tag => tag.replace(/^#/, '')),
+            key_quotes: result.key_quotes ?? [],
+            draft_title: result.draft_title,
+            alt_text: result.alt_text,
+          },
+        },
+      }));
+      setAiAssistantStatus('done');
+      await refreshAiCredits();
       toast.success('Assistente de IA aplicado', { description: 'A legenda e os campos editoriais foram preenchidos.' });
     } catch (error) {
       console.error('[ManualCreate] AI assistant error:', error);
-      toast.error(error instanceof Error ? error.message : 'A IA está indisponível. Podes preencher manualmente ou tentar de novo.');
-    } finally {
-      setAiAssistantLoading(false);
+      const message = error instanceof Error ? error.message : 'A IA está indisponível. Podes preencher manualmente ou tentar de novo.';
+      setAiAssistantStatus('error');
+      setAiAssistantError(message);
+      setAiAssistantRetries(prev => prev + 1);
+      toast.error(message);
     }
-  }, [fileToBase64, mediaFiles, selectedNetworks]);
+  }, [aiPreferences, assistantBlockedMessage, mediaFiles, rawTranscription, refreshAiCredits, uploadAssistantMedia, user, useSeparateCaptions]);
 
   const handleRewriteCaption = useCallback(async () => {
     const activeNetwork = useSeparateCaptions
