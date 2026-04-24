@@ -34,10 +34,21 @@ interface NetworkOptionsCardProps {
 }
 
 const youtubeCategories = [
-  'Film & Animation', 'Autos & Vehicles', 'Music', 'Pets & Animals', 'Sports',
-  'Travel & Events', 'Gaming', 'People & Blogs', 'Comedy', 'Entertainment',
-  'News & Politics', 'Howto & Style', 'Education', 'Science & Technology',
-  'Nonprofits & Activism',
+  { id: '1', label: 'Cinema e animação' },
+  { id: '2', label: 'Automóveis e veículos' },
+  { id: '10', label: 'Música' },
+  { id: '15', label: 'Animais de estimação' },
+  { id: '17', label: 'Desporto' },
+  { id: '19', label: 'Viagens e eventos' },
+  { id: '20', label: 'Gaming' },
+  { id: '22', label: 'Pessoas e blogues' },
+  { id: '23', label: 'Comédia' },
+  { id: '24', label: 'Entretenimento' },
+  { id: '25', label: 'Notícias e política' },
+  { id: '26', label: 'Como fazer e estilo' },
+  { id: '27', label: 'Educação' },
+  { id: '28', label: 'Ciência e tecnologia' },
+  { id: '29', label: 'Organizações sem fins lucrativos' },
 ];
 
 const usernameRegex = /^@[A-Za-z0-9._]{1,30}$/;
@@ -86,7 +97,7 @@ export const NetworkOptionsCard = forwardRef<NetworkOptionsCardHandle, NetworkOp
     const overBy = value.length - limit;
     return (
       <div className="space-y-2">
-        <Label htmlFor={`${network}-first-comment`}>First comment</Label>
+        <Label htmlFor={`${network}-first-comment`}>Primeiro comentário</Label>
         <Textarea
           id={`${network}-first-comment`}
           ref={setFieldRef(fieldKey(network, 'firstComment')) as React.Ref<HTMLTextAreaElement>}
@@ -153,7 +164,7 @@ export const NetworkOptionsCard = forwardRef<NetworkOptionsCardHandle, NetworkOp
       </Tabs>
       {renderFirstComment('instagram')}
       <div className="space-y-2">
-        <Label>Collaborators (máx. 3)</Label>
+        <Label>Colaboradores (máx. 3)</Label>
         <div className="flex gap-2"><Input ref={setFieldRef(fieldKey('instagram', 'collaborators')) as React.Ref<HTMLInputElement>} value={draftCollaborator} onChange={(e) => setDraftCollaborator(e.target.value)} placeholder="@username" disabled={disabled || (networkOptions.instagram?.collaborators?.length ?? 0) >= 3} onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); addCollaborator(); } }} /><Button type="button" onClick={addCollaborator} disabled={disabled}>Adicionar</Button></div>
         <div className="flex flex-wrap gap-2">{(networkOptions.instagram?.collaborators ?? []).map((name) => <Badge key={name} variant="secondary" className="gap-1">{name}<button type="button" onClick={() => updateNetwork('instagram', { collaborators: (networkOptions.instagram?.collaborators ?? []).filter(n => n !== name) })}>×</button></Badge>)}</div>
       </div>
@@ -173,8 +184,8 @@ export const NetworkOptionsCard = forwardRef<NetworkOptionsCardHandle, NetworkOp
   );
 
   const renderFacebook = () => <div className="space-y-4"><Tabs value={networkOptions.facebook?.formatVariant ?? 'feed'} onValueChange={(value) => updateNetwork('facebook', { formatVariant: value as never })}><TabsList className="w-full justify-start"><TabsTrigger value="feed">Feed</TabsTrigger><TabsTrigger value="story">Story</TabsTrigger><TabsTrigger value="reel">Reel</TabsTrigger></TabsList></Tabs>{renderFirstComment('facebook')}</div>;
-  const renderYoutube = () => <div className="space-y-4"><div className="space-y-2"><Label>Título</Label><Input ref={setFieldRef(fieldKey('youtube', 'youtubeTitle')) as React.Ref<HTMLInputElement>} value={networkOptions.youtube?.title ?? ''} onChange={(e) => updateNetwork('youtube', { title: e.target.value })} maxLength={100} disabled={disabled} /><p className="text-xs text-muted-foreground">{(networkOptions.youtube?.title ?? '').length}/100</p></div><div className="space-y-2"><Label>Tags</Label><Input ref={setFieldRef(fieldKey('youtube', 'youtubeTags')) as React.Ref<HTMLInputElement>} placeholder="Enter para adicionar" disabled={disabled} onKeyDown={(e) => { if (e.key === 'Enter' && e.currentTarget.value.trim()) { e.preventDefault(); updateNetwork('youtube', { tags: [...(networkOptions.youtube?.tags ?? []), e.currentTarget.value.trim()] }); e.currentTarget.value = ''; } }} /><div className="flex flex-wrap gap-2">{(networkOptions.youtube?.tags ?? []).map((tag) => <Badge key={tag} variant="secondary" className="gap-1">{tag}<button type="button" onClick={() => updateNetwork('youtube', { tags: (networkOptions.youtube?.tags ?? []).filter(t => t !== tag) })}>×</button></Badge>)}</div></div><div className="space-y-2"><Label>Visibilidade</Label><Tabs value={networkOptions.youtube?.visibility ?? 'public'} onValueChange={(value) => updateNetwork('youtube', { visibility: value as never })}><TabsList className="w-full justify-start h-auto flex-wrap"><TabsTrigger value="public">Public (Anyone)</TabsTrigger><TabsTrigger value="unlisted">Unlisted (Link only)</TabsTrigger><TabsTrigger value="private">Private (Only you)</TabsTrigger></TabsList></Tabs></div><div className="space-y-2"><Label>Categoria</Label><Select value={networkOptions.youtube?.category ?? 'People & Blogs'} onValueChange={(value) => updateNetwork('youtube', { category: value })}><SelectTrigger ref={setFieldRef(fieldKey('youtube', 'youtubeCategory')) as React.Ref<HTMLButtonElement>}><SelectValue /></SelectTrigger><SelectContent>{youtubeCategories.map(category => <SelectItem key={category} value={category}>{category}</SelectItem>)}</SelectContent></Select></div></div>;
-  const renderGoogleBusiness = () => <div className="space-y-4"><label className="flex items-center gap-2 text-sm"><Checkbox ref={setFieldRef(fieldKey('googlebusiness', 'googleBusinessCta')) as React.Ref<HTMLButtonElement>} checked={!!networkOptions.googlebusiness?.ctaEnabled} onCheckedChange={(checked) => updateNetwork('googlebusiness', { ctaEnabled: checked === true })} disabled={disabled} />Adicionar botão de call-to-action (opcional)</label>{networkOptions.googlebusiness?.ctaEnabled && <div className="grid sm:grid-cols-2 gap-2"><Select value={networkOptions.googlebusiness?.ctaType ?? 'learn_more'} onValueChange={(value) => updateNetwork('googlebusiness', { ctaType: value as never })}><SelectTrigger><SelectValue /></SelectTrigger><SelectContent><SelectItem value="book">Book</SelectItem><SelectItem value="order_online">Order online</SelectItem><SelectItem value="buy">Buy</SelectItem><SelectItem value="learn_more">Learn more</SelectItem><SelectItem value="sign_up">Sign up</SelectItem><SelectItem value="call_now">Call now</SelectItem></SelectContent></Select>{networkOptions.googlebusiness?.ctaType !== 'call_now' && <Input value={networkOptions.googlebusiness?.ctaUrl ?? ''} onChange={(e) => updateNetwork('googlebusiness', { ctaUrl: e.target.value })} placeholder="https://..." disabled={disabled} />}</div>}</div>;
+  const renderYoutube = () => <div className="space-y-4"><div className="space-y-2"><Label>Título</Label><Input ref={setFieldRef(fieldKey('youtube', 'youtubeTitle')) as React.Ref<HTMLInputElement>} value={networkOptions.youtube?.title ?? ''} onChange={(e) => updateNetwork('youtube', { title: e.target.value })} maxLength={100} disabled={disabled} /><p className="text-xs text-muted-foreground">{(networkOptions.youtube?.title ?? '').length}/100</p></div><div className="space-y-2"><Label>Tags</Label><Input ref={setFieldRef(fieldKey('youtube', 'youtubeTags')) as React.Ref<HTMLInputElement>} placeholder="Enter para adicionar" disabled={disabled} onKeyDown={(e) => { if (e.key === 'Enter' && e.currentTarget.value.trim()) { e.preventDefault(); updateNetwork('youtube', { tags: [...(networkOptions.youtube?.tags ?? []), e.currentTarget.value.trim()] }); e.currentTarget.value = ''; } }} /><div className="flex flex-wrap gap-2">{(networkOptions.youtube?.tags ?? []).map((tag) => <Badge key={tag} variant="secondary" className="gap-1">{tag}<button type="button" onClick={() => updateNetwork('youtube', { tags: (networkOptions.youtube?.tags ?? []).filter(t => t !== tag) })}>×</button></Badge>)}</div></div><div className="space-y-2"><Label>Visibilidade</Label><Tabs value={networkOptions.youtube?.visibility ?? 'public'} onValueChange={(value) => updateNetwork('youtube', { visibility: value as never })}><TabsList className="w-full justify-start h-auto flex-wrap"><TabsTrigger value="public">Público</TabsTrigger><TabsTrigger value="unlisted">Não listado</TabsTrigger><TabsTrigger value="private">Privado</TabsTrigger></TabsList></Tabs></div><div className="space-y-2"><Label>Categoria</Label><Select value={networkOptions.youtube?.categoryId ?? '22'} onValueChange={(value) => updateNetwork('youtube', { categoryId: value })}><SelectTrigger ref={setFieldRef(fieldKey('youtube', 'youtubeCategory')) as React.Ref<HTMLButtonElement>}><SelectValue /></SelectTrigger><SelectContent>{youtubeCategories.map(category => <SelectItem key={category.id} value={category.id}>{category.label}</SelectItem>)}</SelectContent></Select></div></div>;
+  const renderGoogleBusiness = () => <div className="space-y-4"><label className="flex items-center gap-2 text-sm"><Checkbox ref={setFieldRef(fieldKey('googlebusiness', 'googleBusinessCta')) as React.Ref<HTMLButtonElement>} checked={!!networkOptions.googlebusiness?.ctaEnabled} onCheckedChange={(checked) => updateNetwork('googlebusiness', { ctaEnabled: checked === true })} disabled={disabled} />Adicionar botão de ação (opcional)</label>{networkOptions.googlebusiness?.ctaEnabled && <div className="grid sm:grid-cols-2 gap-2"><Select value={networkOptions.googlebusiness?.ctaType ?? 'learn_more'} onValueChange={(value) => updateNetwork('googlebusiness', { ctaType: value as never })}><SelectTrigger><SelectValue /></SelectTrigger><SelectContent><SelectItem value="book">Reservar</SelectItem><SelectItem value="order_online">Encomendar online</SelectItem><SelectItem value="buy">Comprar</SelectItem><SelectItem value="learn_more">Saber mais</SelectItem><SelectItem value="sign_up">Inscrever</SelectItem><SelectItem value="call_now">Ligar agora</SelectItem></SelectContent></Select>{networkOptions.googlebusiness?.ctaType !== 'call_now' && <Input value={networkOptions.googlebusiness?.ctaUrl ?? ''} onChange={(e) => updateNetwork('googlebusiness', { ctaUrl: e.target.value })} placeholder="https://..." disabled={disabled} />}</div>}</div>;
 
   if (selectedNetworks.length === 0) return null;
 
@@ -188,7 +199,7 @@ export const NetworkOptionsCard = forwardRef<NetworkOptionsCardHandle, NetworkOp
           </AccordionContent>
         </AccordionItem>
       </Accordion>
-      <Dialog open={tagModalOpen} onOpenChange={setTagModalOpen}><DialogContent><DialogHeader><DialogTitle>Adicionar tag na fotografia</DialogTitle><DialogDescription>Define a pessoa e a posição aproximada na imagem.</DialogDescription></DialogHeader><div className="space-y-4"><div className="rounded-md border border-primary/30 bg-primary/5 p-3 text-sm text-muted-foreground flex gap-2"><Info className="h-4 w-4 text-primary shrink-0 mt-0.5" />Clica na imagem para definir coordenadas entre 0.0 e 1.0. Nesta versão, o botão adiciona a tag ao centro.</div><Input value={photoTagUsername} onChange={(e) => setPhotoTagUsername(e.target.value)} placeholder="@username" />{mediaPreviewUrls.length > 1 && <Select value={photoTagSlide} onValueChange={setPhotoTagSlide}><SelectTrigger><SelectValue /></SelectTrigger><SelectContent>{mediaPreviewUrls.map((_, index) => <SelectItem key={index} value={String(index)}>Slide {index + 1}</SelectItem>)}</SelectContent></Select>}<Button type="button" onClick={addPhotoTagAtCenter}>Adicionar no centro</Button></div></DialogContent></Dialog>
+      <Dialog open={tagModalOpen} onOpenChange={setTagModalOpen}><DialogContent><DialogHeader><DialogTitle>Adicionar tag na fotografia</DialogTitle><DialogDescription>Define a pessoa e o slide onde a tag será aplicada.</DialogDescription></DialogHeader><div className="space-y-4"><div className="rounded-md border border-primary/30 bg-primary/5 p-3 text-sm text-muted-foreground flex gap-2"><Info className="h-4 w-4 text-primary shrink-0 mt-0.5" />Nesta versão, a tag é adicionada automaticamente ao centro da imagem.</div><Input value={photoTagUsername} onChange={(e) => setPhotoTagUsername(e.target.value)} placeholder="@username" />{mediaPreviewUrls.length > 1 && <Select value={photoTagSlide} onValueChange={setPhotoTagSlide}><SelectTrigger><SelectValue /></SelectTrigger><SelectContent>{mediaPreviewUrls.map((_, index) => <SelectItem key={index} value={String(index)}>Slide {index + 1}</SelectItem>)}</SelectContent></Select>}<Button type="button" onClick={addPhotoTagAtCenter}>Adicionar no centro</Button></div></DialogContent></Dialog>
     </Card>
   );
 });
