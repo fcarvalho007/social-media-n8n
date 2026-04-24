@@ -51,21 +51,21 @@ export function AiUploadAssistantCard({
 
   return (
     <>
-      <Card className="border-primary/30 bg-gradient-to-br from-primary/10 via-card to-card shadow-sm">
-        <CardContent className="space-y-4 p-4 sm:p-5">
+      <Card className="card-accent">
+        <CardContent className="manual-group-stack p-0">
           <div className="flex items-start gap-3">
             <div className="rounded-lg bg-primary/10 p-2 text-primary">
               {status === 'done' ? <CheckCircle2 className="h-5 w-5" /> : status === 'error' || status === 'blocked' ? <AlertTriangle className="h-5 w-5" /> : <Sparkles className="h-5 w-5" />}
             </div>
             <div className="space-y-1">
-              <h3 className="text-base font-semibold">
+              <h3 className="manual-section-title">
                 {status === 'transcribing' && 'A ouvir o vídeo...'}
                 {status === 'generating' && 'A preparar os campos...'}
                 {status === 'done' && 'Pronto! Campos preenchidos.'}
                 {(status === 'idle' || status === 'blocked') && 'Queres que a IA prepare tudo por ti?'}
                 {status === 'error' && 'Não foi possível concluir.'}
               </h3>
-              <p className="text-sm text-muted-foreground">
+              <p className="manual-section-description">
                 {status === 'done'
                   ? 'Revê, edita o que quiseres e publica quando estiver ao teu gosto.'
                   : status === 'error' || status === 'blocked'

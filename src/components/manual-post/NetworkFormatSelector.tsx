@@ -54,18 +54,18 @@ export function NetworkFormatSelector({ selectedFormats, onFormatsChange }: Netw
   };
 
   return (
-    <Card className="overflow-hidden border-0 sm:border shadow-none sm:shadow-sm w-full max-w-[calc(100vw-4px)] sm:max-w-full box-border">
-      <CardHeader className="pb-2 sm:pb-2 px-3 sm:px-6 pt-3 sm:pt-6">
+    <Card className="manual-card-shell w-full max-w-[calc(100vw-4px)] box-border sm:max-w-full">
+      <CardHeader className="manual-card-content pb-2">
         <div className="flex items-center justify-between">
-          <CardTitle className="text-sm sm:text-lg font-semibold">Selecione onde publicar</CardTitle>
+          <CardTitle className="manual-section-title">Seleciona onde publicar</CardTitle>
         </div>
       </CardHeader>
-      <CardContent className="space-y-3 px-3 sm:px-6 pb-4 sm:pb-6 overflow-hidden">
+      <CardContent className="manual-card-content manual-group-stack pt-0 overflow-hidden">
         <QuickPresets selectedFormats={selectedFormats} onSelectPreset={handlePresetSelect} />
 
         <div className="grid overflow-hidden rounded-md border bg-muted/30 md:grid-cols-[minmax(180px,0.85fr)_minmax(0,1.15fr)]">
           <div className="border-b bg-background/70 p-2 md:border-b-0 md:border-r">
-            <p className="px-2 pb-2 text-xs font-medium text-muted-foreground">Redes</p>
+            <p className="manual-microcopy px-2 pb-2 font-medium">Redes</p>
             <div className="space-y-1">
               {enabledNetworks.map((network) => {
                 const config = PLATFORM_CONFIGS[network];
@@ -74,7 +74,7 @@ export function NetworkFormatSelector({ selectedFormats, onFormatsChange }: Netw
                   <label
                     key={network}
                     className={cn(
-                      'flex min-h-10 cursor-pointer items-center gap-2 rounded-md px-2 py-2 text-sm transition-colors hover:bg-muted/60',
+                      'flex min-h-10 cursor-pointer items-center gap-2 rounded-md px-2 py-2 text-sm transition-colors duration-manual-color hover:bg-muted/60 focus-within:ring-2 focus-within:ring-primary focus-within:ring-offset-2',
                       checked && 'bg-primary/10 text-foreground'
                     )}
                   >
@@ -87,9 +87,9 @@ export function NetworkFormatSelector({ selectedFormats, onFormatsChange }: Netw
             </div>
           </div>
 
-          <div className="min-h-[220px] p-3">
+          <div className="min-h-[220px] p-4">
             {enabledNetworks.some((network) => getSelectedCount(network) > 0) ? (
-              <div className="space-y-4">
+              <div className="manual-group-stack manual-enter">
                 {enabledNetworks.filter((network) => getSelectedCount(network) > 0).map((network) => {
                   const config = PLATFORM_CONFIGS[network];
                   const selected = NETWORK_POST_FORMATS[network].find((item) => selectedFormats.includes(item.format))?.format;
@@ -101,7 +101,7 @@ export function NetworkFormatSelector({ selectedFormats, onFormatsChange }: Netw
                       </div>
                       <RadioGroup value={selected} onValueChange={(value) => selectNetworkFormat(network, value as PostFormat)} className="grid gap-2 sm:grid-cols-2">
                         {NETWORK_POST_FORMATS[network].map((format) => (
-                          <label key={format.format} className="flex cursor-pointer items-start gap-2 rounded-md border bg-background p-2 text-sm transition-colors hover:bg-muted/40">
+                          <label key={format.format} className="flex cursor-pointer items-start gap-2 rounded-md border bg-background p-2 text-sm transition-colors duration-manual-color hover:bg-muted/40 focus-within:ring-2 focus-within:ring-primary focus-within:ring-offset-2">
                             <RadioGroupItem value={format.format} className="mt-0.5" />
                             <span className="min-w-0">
                               <span className="block font-medium leading-none">{format.label}</span>

@@ -100,7 +100,7 @@ export function PreviewPanel(props: PreviewPanelProps) {
                 <TabsTrigger
                   value={formatItem}
                   className={cn(
-                    'relative h-10 w-10 shrink-0 snap-start rounded-md border border-border bg-background p-0 text-muted-foreground shadow-none transition-colors',
+                     'relative h-10 w-10 shrink-0 snap-start rounded-md border border-border bg-background p-0 text-muted-foreground shadow-none transition-colors duration-manual-color focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2',
                     'data-[state=active]:border-primary data-[state=active]:bg-primary data-[state=active]:text-primary-foreground data-[state=active]:shadow-none'
                   )}
                   aria-label={config?.label ?? formatItem}
@@ -122,8 +122,8 @@ export function PreviewPanel(props: PreviewPanelProps) {
   );
 
   const Metadata = () => (
-    <div className="mt-4 border-t pt-3">
-      <div className="grid grid-cols-3 gap-2 text-[13px]">
+    <div className="mt-4 border-t border-border/40 pt-3">
+      <div className="grid grid-cols-3 gap-2 text-manual-hint">
         <div>
           <p className="text-muted-foreground">Legenda</p>
           <p className={cn('font-medium', activeCaption.length >= 2090 && 'text-destructive', activeCaption.length >= 1760 && activeCaption.length < 2090 && 'text-warning')}>{activeCaption.length} / 2200</p>
@@ -137,7 +137,7 @@ export function PreviewPanel(props: PreviewPanelProps) {
           <p className="font-medium truncate">{scheduleLabel}</p>
         </div>
       </div>
-      <p className="mt-2 text-xs text-muted-foreground">{mediaCount} {mediaCount === 1 ? 'ficheiro' : 'ficheiros'}</p>
+      <p className="manual-microcopy mt-2">{mediaCount} {mediaCount === 1 ? 'ficheiro' : 'ficheiros'}</p>
     </div>
   );
 
@@ -155,15 +155,16 @@ export function PreviewPanel(props: PreviewPanelProps) {
     if (selectedFormats.length === 0) {
       if (variant === 'mobile') {
         return (
-          <div className="flex flex-col items-center justify-center h-40 text-muted-foreground text-sm gap-2">
-            <Eye className="h-8 w-8 opacity-50" />
-            <span>Selecione um formato para ver a pré-visualização</span>
+          <div className="flex h-40 flex-col items-center justify-center gap-3 text-center text-sm text-muted-foreground">
+            <Eye className="h-12 w-12 opacity-40" />
+            <span className="max-w-52 leading-relaxed">Seleciona uma rede para ver a pré-visualização.</span>
           </div>
         );
       }
       return (
-        <div className="flex items-center justify-center h-64 text-muted-foreground text-sm">
-          Selecione um formato para ver a pré-visualização
+        <div className="flex h-64 flex-col items-center justify-center gap-3 text-center text-sm text-muted-foreground">
+          <Eye className="h-14 w-14 opacity-40" />
+          <span className="max-w-56 leading-relaxed">Seleciona uma rede para ver a pré-visualização.</span>
         </div>
       );
     }
@@ -200,11 +201,11 @@ export function PreviewPanel(props: PreviewPanelProps) {
   }
 
   return (
-    <div className="hidden lg:block lg:sticky lg:top-24 lg:h-[calc(100vh-8rem)] overflow-auto">
-      <Card className="card-secondary h-full">
-        <CardHeader className="pb-3">
+    <div className="hidden overflow-auto lg:sticky lg:top-24 lg:block lg:h-[calc(100vh-8rem)]">
+      <Card className="card-secondary h-full shadow-[0_18px_45px_hsl(var(--foreground)/0.08)]">
+        <CardHeader className="p-5 pb-3">
           <div className="flex items-start justify-between gap-3">
-            <CardTitle className="text-base">Pré-visualização</CardTitle>
+            <CardTitle className="manual-section-title">Pré-visualização</CardTitle>
             <div className="flex items-center gap-1.5">
               <AutoSaveIndicator lastSaved={lastSaved} isSaving={isAutoSaving} hasUnsavedChanges={hasUnsavedChanges} />
               <Button type="button" variant="ghost" size="icon" className="h-7 w-7" onClick={() => setExpandedOpen(true)} aria-label="Expandir pré-visualização">
@@ -213,7 +214,7 @@ export function PreviewPanel(props: PreviewPanelProps) {
             </div>
           </div>
         </CardHeader>
-        <CardContent>{body}</CardContent>
+        <CardContent className="p-5 pt-0">{body}</CardContent>
       </Card>
       <Dialog open={expandedOpen} onOpenChange={setExpandedOpen}>
         <DialogContent className="h-[92vh] max-w-[96vw] overflow-hidden p-4 sm:p-6">
@@ -232,7 +233,7 @@ export function PreviewPanel(props: PreviewPanelProps) {
                 </div>
               </Tabs>
             ) : (
-              <div className="flex h-64 items-center justify-center text-sm text-muted-foreground">Selecione um formato para ver a pré-visualização</div>
+              <div className="flex h-64 flex-col items-center justify-center gap-3 text-center text-sm text-muted-foreground"><Eye className="h-14 w-14 opacity-40" />Seleciona uma rede para ver a pré-visualização.</div>
             )}
           </div>
         </DialogContent>

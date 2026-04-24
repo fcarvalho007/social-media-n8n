@@ -28,11 +28,11 @@ function resizeTextarea(textarea: HTMLTextAreaElement | null) {
 
 // Network labels and icons
 const NETWORK_CONFIG: Record<SocialNetwork, { label: string; icon: React.ElementType; color: string }> = {
-  instagram: { label: 'Instagram', icon: Instagram, color: 'text-pink-500' },
-  linkedin: { label: 'LinkedIn', icon: Linkedin, color: 'text-blue-600' },
-  youtube: { label: 'YouTube', icon: Youtube, color: 'text-red-500' },
+  instagram: { label: 'Instagram', icon: Instagram, color: 'text-[hsl(var(--color-instagram))]' },
+  linkedin: { label: 'LinkedIn', icon: Linkedin, color: 'text-[hsl(var(--color-linkedin))]' },
+  youtube: { label: 'YouTube', icon: Youtube, color: 'text-[hsl(var(--color-youtube))]' },
   tiktok: { label: 'TikTok', icon: () => <span className="text-xs font-bold">TT</span>, color: 'text-foreground' },
-  facebook: { label: 'Facebook', icon: Facebook, color: 'text-blue-500' },
+  facebook: { label: 'Facebook', icon: Facebook, color: 'text-[hsl(var(--color-facebook))]' },
   googlebusiness: { label: 'Google', icon: () => <span className="text-xs font-bold">G</span>, color: 'text-foreground' },
   x: { label: 'X', icon: () => <span className="text-xs font-bold">X</span>, color: 'text-foreground' },
 };
@@ -161,17 +161,17 @@ export const NetworkCaptionEditor = forwardRef<NetworkCaptionEditorHandle, Netwo
   const showToggle = selectedNetworks.length >= 2;
 
   return (
-    <div className="space-y-3">
+    <div className="manual-group-stack">
       {/* Toggle for separate captions */}
       {showToggle && (
-        <div className="flex items-center justify-between p-2.5 xs:p-3 sm:p-4 rounded-lg xs:rounded-xl bg-muted/50 border min-h-[44px] xs:min-h-[48px] sm:min-h-[52px]">
+        <div className="flex min-h-12 items-center justify-between rounded-lg border bg-muted/50 p-4">
           <div className="flex items-center gap-2 xs:gap-3">
             {useSeparateCaptions ? (
-              <Split className="h-4 w-4 xs:h-5 xs:w-5 text-primary" />
+              <Split className="h-5 w-5 text-primary" strokeWidth={1.5} />
             ) : (
-              <Merge className="h-4 w-4 xs:h-5 xs:w-5 text-muted-foreground" />
+              <Merge className="h-5 w-5 text-muted-foreground" strokeWidth={1.5} />
             )}
-            <Label htmlFor="separate-captions" className="text-xs xs:text-sm font-medium cursor-pointer leading-tight">
+            <Label htmlFor="separate-captions" className="manual-field-label cursor-pointer">
               {useSeparateCaptions ? 'Separadas' : 'Unificada'}
             </Label>
           </div>
@@ -185,17 +185,17 @@ export const NetworkCaptionEditor = forwardRef<NetworkCaptionEditorHandle, Netwo
       )}
 
       {/* Toolbar - Touch optimized with larger targets */}
-      <div className="flex items-center gap-1 border rounded-lg xs:rounded-xl p-1 xs:p-1.5 sm:p-2 bg-muted/30 overflow-x-auto scrollbar-hide">
+      <div className="flex items-center gap-1 overflow-x-auto rounded-lg border bg-muted/30 p-2 scrollbar-hide">
         <Popover open={emojiPickerOpen} onOpenChange={setEmojiPickerOpen}>
           <PopoverTrigger asChild>
             <Button 
               variant="ghost" 
               size="icon" 
-              className="h-9 w-9 xs:h-10 xs:w-10 sm:h-8 sm:w-8 flex-shrink-0" 
+              className="h-9 w-9 flex-shrink-0" 
               title="Inserir emoji" 
               disabled={disabled}
             >
-              <Smile className="h-4 w-4 xs:h-5 xs:w-5 sm:h-4 sm:w-4" />
+              <Smile className="h-4 w-4" strokeWidth={1.5} />
             </Button>
           </PopoverTrigger>
           <PopoverContent className="w-auto p-0 border-0" align="start" side="top">
@@ -217,13 +217,13 @@ export const NetworkCaptionEditor = forwardRef<NetworkCaptionEditorHandle, Netwo
           <Button
             variant="ghost"
             size="sm"
-            className="h-9 xs:h-10 sm:h-8 gap-1 px-2 xs:px-3 flex-shrink-0"
+            className="h-9 flex-shrink-0 gap-1 px-3"
             onClick={onOpenSavedCaptions}
             title="Legendas guardadas"
             disabled={disabled}
           >
             <Bookmark className="h-4 w-4" />
-            <span className="hidden xs:inline text-xs">Guardadas</span>
+            <span className="hidden text-xs xs:inline">Guardadas</span>
           </Button>
         )}
 
@@ -233,12 +233,12 @@ export const NetworkCaptionEditor = forwardRef<NetworkCaptionEditorHandle, Netwo
           <Button
             variant="ghost"
             size="sm"
-            className="h-9 xs:h-10 sm:h-8 gap-1 px-2 xs:px-3 flex-shrink-0 bg-gradient-to-r from-purple-500/10 to-blue-500/10 hover:from-purple-500/20 hover:to-blue-500/20"
+            className="h-9 flex-shrink-0 gap-1 border border-primary/20 bg-primary/10 px-3 hover:bg-primary/15"
             onClick={onOpenAIDialog}
             title="Melhorar com IA"
             disabled={disabled}
           >
-            <Sparkles className="h-4 w-4 text-purple-500" />
+            <Sparkles className="h-4 w-4 text-primary" strokeWidth={1.5} />
             <span className="text-xs font-medium">IA</span>
           </Button>
         )}
@@ -247,7 +247,7 @@ export const NetworkCaptionEditor = forwardRef<NetworkCaptionEditorHandle, Netwo
       {/* Unified Caption or Network Tabs */}
       {useSeparateCaptions && selectedNetworks.length >= 2 ? (
         <Tabs value={activeNetwork} onValueChange={(v) => setActiveNetwork(v as SocialNetwork)}>
-          <TabsList className="w-full justify-start bg-muted/50 p-1.5 h-auto flex-wrap gap-1.5">
+          <TabsList className="h-auto w-full justify-start gap-1.5 overflow-x-auto bg-muted/50 p-1.5 scrollbar-hide sm:flex-wrap">
             {selectedNetworks.map((network) => {
               const config = NETWORK_CONFIG[network];
               const Icon = config.icon;
@@ -261,7 +261,7 @@ export const NetworkCaptionEditor = forwardRef<NetworkCaptionEditorHandle, Netwo
                   key={network}
                   value={network}
                   className={cn(
-                    "flex items-center gap-1.5 px-3 py-2.5 min-h-[44px] data-[state=active]:bg-background rounded-lg",
+                    "flex min-h-10 items-center gap-1.5 rounded-md px-3 py-2 data-[state=active]:bg-background",
                     isOverLimit && "text-destructive"
                   )}
                 >
@@ -270,8 +270,8 @@ export const NetworkCaptionEditor = forwardRef<NetworkCaptionEditorHandle, Netwo
                   <Badge
                     variant={isOverLimit ? 'destructive' : 'secondary'}
                     className={cn(
-                      "text-[10px] px-1.5 py-0.5 ml-1",
-                      isNearLimit && "bg-orange-500/20 text-orange-600"
+                      "manual-chip ml-1",
+                      isNearLimit && "bg-warning/20 text-warning"
                     )}
                   >
                     {currentLength}/{maxLength}
@@ -289,7 +289,7 @@ export const NetworkCaptionEditor = forwardRef<NetworkCaptionEditorHandle, Netwo
               <TabsContent key={network} value={network} className="mt-3" forceMount
                 style={{ display: activeNetwork === network ? 'block' : 'none' }}
               >
-                <div className="space-y-2">
+                <div className="manual-field-stack">
                   <Textarea
                     ref={(el) => { networkTextareaRefs.current[network] = el; }}
                     value={currentValue}
@@ -299,9 +299,9 @@ export const NetworkCaptionEditor = forwardRef<NetworkCaptionEditorHandle, Netwo
                     }}
                     placeholder={`Legenda para ${NETWORK_CONFIG[network].label}...`}
                     disabled={disabled}
-                    className="min-h-[220px] max-h-[420px] resize-none"
+                    className="manual-input-radius min-h-[220px] max-h-[420px] resize-none"
                   />
-                  <div className="flex flex-wrap items-center justify-between gap-2 text-xs">
+                  <div className="flex flex-wrap items-center justify-between gap-2 text-manual-micro">
                     <span className={cn('text-muted-foreground', overBy > 0 && 'text-destructive font-medium')}>
                       {NETWORK_CONFIG[network].label}: {currentValue.length}/{maxLength}
                       {overBy > 0 && ` · excede ${overBy} caracteres`}
@@ -322,7 +322,7 @@ export const NetworkCaptionEditor = forwardRef<NetworkCaptionEditorHandle, Netwo
           })}
         </Tabs>
       ) : (
-        <div className="space-y-2">
+        <div className="manual-field-stack">
           <Textarea
             ref={textareaRef}
             value={caption}
@@ -332,7 +332,7 @@ export const NetworkCaptionEditor = forwardRef<NetworkCaptionEditorHandle, Netwo
             }}
             placeholder="Escreva a sua legenda..."
             disabled={disabled}
-            className="min-h-[220px] max-h-[420px] resize-none"
+            className="manual-input-radius min-h-[220px] max-h-[420px] resize-none"
           />
           {/* Character counters per network */}
           {selectedNetworks.length > 0 && (
@@ -349,8 +349,8 @@ export const NetworkCaptionEditor = forwardRef<NetworkCaptionEditorHandle, Netwo
                     key={network}
                     variant={isOverLimit ? 'destructive' : 'secondary'}
                     className={cn(
-                      "text-xs",
-                      isNearLimit && "bg-orange-500/20 text-orange-600"
+                      "manual-chip",
+                      isNearLimit && "bg-warning/20 text-warning"
                     )}
                   >
                     <Icon className={cn("h-3 w-3 mr-1", config.color)} />

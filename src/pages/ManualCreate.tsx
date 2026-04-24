@@ -1103,7 +1103,7 @@ export default function ManualCreate() {
 
       <div className="manual-create-grid px-0 sm:px-0 overflow-hidden">
         {/* Left - Form */}
-        <div className="space-y-3 lg:space-y-6">
+        <div className="space-y-6">
           {/* Step 1: Network & Format Selection */}
           <div className="relative">
             <NetworkFormatSelector
@@ -1113,7 +1113,7 @@ export default function ManualCreate() {
             
             {/* Step 1 Navigation */}
             {currentStep === 1 && selectedFormats.length > 0 && (
-              <div className="flex justify-end mt-3">
+              <div className="mt-4 flex justify-end">
                 <Button 
                   variant="default" 
                   onClick={nextStep}
@@ -1184,8 +1184,8 @@ export default function ManualCreate() {
 
           {/* Step 3: Caption & Scheduling - Progressive Disclosure */}
           <div className={cn(
-            "transition-all duration-300 ease-out overflow-hidden space-y-3 sm:space-y-6",
-            showStep3 ? "opacity-100" : "opacity-0 max-h-0"
+            "overflow-hidden space-y-6 transition-all duration-manual-expand ease-out",
+            showStep3 ? "manual-enter opacity-100" : "opacity-0 max-h-0"
           )}>
             <AiUploadAssistantCard
               visible={showAiUploadAssistant || aiAssistantStatus === 'transcribing' || aiAssistantStatus === 'generating' || aiAssistantStatus === 'done'}

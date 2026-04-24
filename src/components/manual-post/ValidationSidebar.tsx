@@ -143,7 +143,7 @@ export function ValidationSidebar({
   }, [validation.byPlatform]);
 
   const body = (
-    <div className="space-y-2.5">
+    <div className="manual-field-stack">
       {isClean && (
         <div className="rounded-lg border border-success/30 bg-success/5 p-3 flex items-start gap-2.5">
           <CheckCircle2 className="h-4 w-4 text-success mt-0.5 shrink-0" />
@@ -174,8 +174,8 @@ export function ValidationSidebar({
             const list = validation.byCategory[cat];
             if (!list || list.length === 0) return null;
             return (
-              <div key={cat} className="space-y-1.5">
-                <h4 className="text-[10px] uppercase tracking-wider font-semibold text-muted-foreground px-0.5">
+              <div key={cat} className="manual-field-stack">
+                <h4 className="manual-microcopy px-0.5 font-semibold uppercase tracking-normal">
                   {CATEGORY_LABELS[cat]} · {list.length}
                 </h4>
                 <div className="space-y-2">
@@ -247,19 +247,19 @@ export function ValidationSidebar({
         </span>
         <div className="flex items-center gap-1.5">
           {errorCount > 0 && (
-            <Badge variant="destructive" className="h-5 text-[10px] px-1.5">
+            <Badge variant="destructive" className="manual-chip h-5 px-1.5">
               {errorCount} erro{errorCount > 1 ? 's' : ''}
             </Badge>
           )}
           {warningCount > 0 && (
             <Badge
-              className="h-5 text-[10px] px-1.5 bg-warning/20 text-warning hover:bg-warning/30"
+              className="manual-chip h-5 bg-warning/20 px-1.5 text-warning hover:bg-warning/30"
             >
               {warningCount} aviso{warningCount > 1 ? 's' : ''}
             </Badge>
           )}
           {infoCount > 0 && (
-            <Badge variant="secondary" className="h-5 text-[10px] px-1.5">
+            <Badge variant="secondary" className="manual-chip h-5 px-1.5">
               {infoCount} info
             </Badge>
           )}
@@ -297,7 +297,7 @@ export function ValidationMobileBadge({
       <button
         type="button"
         onClick={onClick}
-        className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-success/15 text-success text-[11px] font-medium"
+          className="inline-flex items-center gap-1.5 rounded bg-success/15 px-2.5 py-1 text-xs font-medium text-success"
       >
         <CheckCircle2 className="h-3 w-3" />
         Tudo verificado
@@ -307,7 +307,7 @@ export function ValidationMobileBadge({
 
   if (isValidating && total === 0) {
     return (
-      <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-muted text-muted-foreground text-[11px]">
+      <span className="inline-flex items-center gap-1.5 rounded bg-muted px-2.5 py-1 text-xs text-muted-foreground">
         <Loader2 className="h-3 w-3 animate-spin" />
         A validar...
       </span>
@@ -327,7 +327,7 @@ export function ValidationMobileBadge({
       type="button"
       onClick={onClick}
       className={cn(
-        'inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[11px] font-medium',
+        'inline-flex items-center gap-1.5 rounded px-2.5 py-1 text-xs font-medium',
         tone,
       )}
     >
