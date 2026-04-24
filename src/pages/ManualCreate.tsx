@@ -345,10 +345,36 @@ export default function ManualCreate() {
       setRawTranscription('');
       setAiMetadata(null);
       setAiAssistantDismissed(false);
+      setAiAssistantStatus('idle');
+      setAiAssistantError(null);
+      setAiAssistantRetries(0);
+      setAssistantVideoDuration(null);
+      setAssistantGeneratedAt(null);
+      setAiGeneratedEdited({});
+      setAltText('');
     }
 
     aiMediaSignatureRef.current = nextSignature;
   }, [mediaFiles]);
+
+  useEffect(() => {
+    const file = mediaFiles[0];
+    if (mediaFiles.length !== 1 || !file?.type?.startsWith('video/')) return;
+    let cancelled = false;
+    getVideoDuration(file)
+      .then((duration) => { if (!cancelled) setAssistantVideoDuration(duration); })
+      .catch(() => { if (!cancelled) setAssistantVideoDuration(null); });
+    return () => { cancelled = true; };
+  }, [mediaFiles]);
+
+  useEffect(() => {
+    if (aiMetadata?.upload_assistant?.generated_at) {
+      setAssistantGeneratedAt(aiMetadata.upload_assistant.generated_at);
+      setAiAssistantStatus('done');
+    } else if (rawTranscription && rawTranscription.length >= 20) {
+      setAiAssistantStatus('idle');
+    }
+  }, [aiMetadata, rawTranscription]);
 
   // Update active preview tab when formats change
   useEffect(() => {
