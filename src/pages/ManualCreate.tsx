@@ -334,9 +334,12 @@ export default function ManualCreate() {
   // complete quando carregadas via rascunho — gerido pelos handlers de
   // navegação do stepper).
   const { activeSection, activate } = useActiveSection('networks');
-  const networksState = activeSection === 'networks'
-    ? 'active'
-    : (selectedFormats.length > 0 ? 'complete' : 'inactive');
+  const networksState =
+    selectedFormats.length === 0
+      ? (activeSection === 'networks' ? 'active' : 'inactive')
+      : activeSection === 'networks'
+        ? 'active'
+        : 'complete';
 
   // Smart pre-validation (real-time)
   const smartValidation = useSmartValidation({
