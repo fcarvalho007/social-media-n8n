@@ -374,6 +374,42 @@ function buildFailureResponse(message: string, status = 200): Response {
   );
 }
 
+const LEGACY_YOUTUBE_CATEGORY_IDS: Record<string, string> = {
+  'Film & Animation': '1',
+  'Autos & Vehicles': '2',
+  Music: '10',
+  'Pets & Animals': '15',
+  Sports: '17',
+  'Travel & Events': '19',
+  Gaming: '20',
+  'People & Blogs': '22',
+  Comedy: '23',
+  Entertainment: '24',
+  'News & Politics': '25',
+  'Howto & Style': '26',
+  Education: '27',
+  'Science & Technology': '28',
+  'Nonprofits & Activism': '29',
+};
+
+const GOOGLE_BUSINESS_CTA_TYPES: Record<GoogleBusinessCtaType, string> = {
+  book: 'BOOK',
+  order_online: 'ORDER',
+  buy: 'SHOP',
+  learn_more: 'LEARN_MORE',
+  sign_up: 'SIGN_UP',
+  call_now: 'CALL',
+};
+
+function assertValidUrl(value: string): boolean {
+  try {
+    const url = new URL(value);
+    return url.protocol === 'http:' || url.protocol === 'https:';
+  } catch {
+    return false;
+  }
+}
+
 // Extract per-platform error reasons from Getlate failedPlatforms array
 function extractFailedPlatformReason(responseData: any): string | null {
   if (!responseData) return null;
