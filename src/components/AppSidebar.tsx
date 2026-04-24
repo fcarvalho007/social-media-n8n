@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { CheckCircle2, PlusCircle, Calendar, X, FolderKanban, LayoutDashboard, LogOut, Image, BarChart3 } from 'lucide-react';
+import { CheckCircle2, PlusCircle, Calendar, X, FolderKanban, LayoutDashboard, LogOut, Image, BarChart3, Lightbulb } from 'lucide-react';
 import { NavLink, useNavigate } from 'react-router-dom';
 import {
   Sidebar,
@@ -76,6 +76,14 @@ const menuItems = [
     label: 'Analytics',
     icon: BarChart3,
     url: '/analytics',
+    disabled: false,
+    isMain: false,
+  },
+  {
+    title: 'Insights',
+    label: 'Insights',
+    icon: Lightbulb,
+    url: '/insights',
     disabled: false,
     isMain: false,
   },
