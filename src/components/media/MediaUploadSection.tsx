@@ -59,7 +59,6 @@ export function MediaUploadSection({
     e.preventDefault();
     e.stopPropagation();
     setIsDragging(false);
-    if (isTouchDevice) return;
   }, []);
 
   const handleDrop = useCallback((e: React.DragEvent) => {
@@ -77,7 +76,13 @@ export function MediaUploadSection({
 
       onFileUpload({ target: input, currentTarget: input } as React.ChangeEvent<HTMLInputElement>);
     }
-  }, [isTouchDevice, onFileUpload]);
+  }, [onFileUpload]);
+
+  const mobileUploadOptions = [
+    { id: 'media-upload-camera', label: 'Câmara', accept: 'image/*,video/*', capture: 'environment' as const },
+    { id: 'media-upload-gallery', label: 'Galeria', accept: 'image/*,video/*' },
+    { id: 'media-upload-files', label: 'Ficheiros', accept: getAcceptTypes() },
+  ];
 
   return (
     <div className="grid gap-4 lg:grid-cols-[minmax(0,7fr)_minmax(220px,3fr)]">
@@ -108,7 +113,8 @@ export function MediaUploadSection({
                     <Badge variant="outline" className="manual-chip">MOV</Badge>
                   </div>
                 </div>
-                <p className="mt-1 text-sm text-muted-foreground">Arrasta ficheiros para esta área ou clica para selecionar.</p>
+                <p className="mt-1 hidden text-sm text-muted-foreground sm:block">Arrasta ficheiros para esta área ou clica para selecionar.</p>
+                <p className="mt-1 text-sm text-muted-foreground sm:hidden">Escolhe a origem dos ficheiros.</p>
               </div>
             </div>
 
@@ -129,9 +135,12 @@ export function MediaUploadSection({
               )}
             </div>
             <div className="mt-4 grid grid-cols-3 gap-2 sm:hidden">
-              <span className="manual-touch-target inline-flex items-center justify-center rounded-md border bg-background px-2 text-sm font-medium">Câmara</span>
-              <span className="manual-touch-target inline-flex items-center justify-center rounded-md border bg-background px-2 text-sm font-medium">Galeria</span>
-              <span className="manual-touch-target inline-flex items-center justify-center rounded-md border bg-background px-2 text-sm font-medium">Ficheiros</span>
+              {mobileUploadOptions.map((option) => (
+                <Label key={option.id} htmlFor={option.id} className={cn('manual-touch-target inline-flex items-center justify-center rounded-md border bg-background px-2 text-sm font-medium', disabled && 'pointer-events-none opacity-50')}>
+                  {option.label}
+                  <Input id={option.id} type="file" multiple accept={option.accept} capture={option.capture} onChange={onFileUpload} disabled={disabled || isUploading} className="hidden" aria-label={`Carregar a partir de ${option.label.toLowerCase()}`} />
+                </Label>
+              ))}
             </div>
           </div>
         </div>
@@ -141,7 +150,6 @@ export function MediaUploadSection({
           type="file"
           multiple
           accept={getAcceptTypes()}
-          capture="environment"
           onChange={onFileUpload}
           disabled={disabled || isUploading}
           className="hidden"

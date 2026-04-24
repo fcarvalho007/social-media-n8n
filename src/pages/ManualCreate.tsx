@@ -1,6 +1,6 @@
 import { useState, useRef, useMemo, useCallback, useEffect } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
-import { PostFormat, getNetworkFromFormat } from '@/types/social';
+import { PostFormat, getNetworkFromFormat, getFormatConfig } from '@/types/social';
 import { usePublishingQuota } from '@/hooks/usePublishingQuota';
 import { CompactModeBadge } from '@/components/CompactModeBadge';
 import { DevHelper } from '@/components/DevHelper';
@@ -10,6 +10,7 @@ import { toast } from 'sonner';
 import { ArrowLeft, Eye, Maximize2, Smartphone } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { StepProgress } from '@/components/manual-post/StepProgress';
+import { ValidationSidebar } from '@/components/manual-post/ValidationSidebar';
 import { useAutoSave } from '@/hooks/useAutoSave';
 import { MediaValidationResult } from '@/lib/mediaValidation';
 import { renderFormatPreview, getNetworkIcon } from '@/lib/manual-create/previewRenderer';
@@ -1055,14 +1056,24 @@ export default function ManualCreate() {
 
   const [mobilePreviewState, setMobilePreviewState] = useState<'closed' | 'peek' | 'expanded'>('closed');
   const [previewHasUpdates, setPreviewHasUpdates] = useState(false);
+  const previewSignatureRef = useRef<string | null>(null);
   const mobilePreviewOpen = mobilePreviewState !== 'closed';
   const activePreviewFormat = (activePreviewTab || selectedFormats[0]) as PostFormat | undefined;
-  const activePreviewLabel = activePreviewFormat ? `${getNetworkFromFormat(activePreviewFormat)} · ${activePreviewFormat.replace(/_/g, ' ')}` : 'Pré-visualização';
+  const activePreviewLabel = activePreviewFormat ? `${getNetworkFromFormat(activePreviewFormat)} · ${getFormatConfig(activePreviewFormat)?.label ?? 'Formato'}` : 'Pré-visualização';
+  const activePreviewCaption = activePreviewFormat ? (useSeparateCaptions ? networkCaptions[getNetworkFromFormat(activePreviewFormat)] || caption : caption) : caption;
+  const mobilePreviewSummary = selectedFormats.length > 0
+    ? `${mediaFiles.length} ${mediaFiles.length === 1 ? 'ficheiro' : 'ficheiros'} · ${activePreviewCaption.length} caracteres · ${!scheduleAsap && scheduledDate ? `Agendado ${time}` : 'Imediato'}`
+    : 'Seleciona uma rede para pré-visualizar.';
 
   useEffect(() => {
-    if (mobilePreviewOpen) return;
+    const signature = JSON.stringify({ caption, networkCaptions, networkOptions, selectedFormats, media: getMediaSignature(mediaFiles), scheduledDate: scheduledDate?.toISOString(), scheduleAsap, time });
+    if (previewSignatureRef.current === null) {
+      previewSignatureRef.current = signature;
+      return;
+    }
+    if (mobilePreviewOpen || signature === previewSignatureRef.current) return;
     setPreviewHasUpdates(true);
-  }, [caption, networkCaptions, networkOptions, selectedFormats, mediaPreviewUrls, scheduledDate, scheduleAsap, time, mobilePreviewOpen]);
+  }, [caption, networkCaptions, networkOptions, selectedFormats, mediaFiles, scheduledDate, scheduleAsap, time, mobilePreviewOpen]);
 
   const openMobilePreview = (state: 'peek' | 'expanded' = 'expanded') => {
     setMobilePreviewState(state);
@@ -1379,6 +1390,13 @@ export default function ManualCreate() {
         isUploading={isUploading}
       />
 
+      <ValidationSidebar
+        validation={smartValidation}
+        mediaFiles={mediaFiles}
+        mobileOpen={validationSheetOpen}
+        onMobileOpenChange={setValidationSheetOpen}
+      />
+
       <Button
         type="button"
         size="icon"
@@ -1394,7 +1412,7 @@ export default function ManualCreate() {
 
       {/* Mobile Preview Drawer */}
       <Drawer open={mobilePreviewOpen} onOpenChange={(open) => setMobilePreviewState(open ? mobilePreviewState === 'closed' ? 'peek' : mobilePreviewState : 'closed')}>
-        <DrawerContent className={cn('transition-[height] duration-manual-expand ease-out', mobilePreviewState === 'expanded' ? 'h-[75vh]' : 'h-[140px]')}>
+        <DrawerContent className={cn('transition-[height] duration-manual-expand ease-out', mobilePreviewState === 'expanded' ? 'h-[75vh]' : 'h-[180px]')}>
           <DrawerHeader className="border-b px-4 py-3 text-left">
             <div className="flex items-center justify-between gap-3">
               <DrawerTitle className="flex items-center gap-2 text-base">
@@ -1406,8 +1424,15 @@ export default function ManualCreate() {
               </Button>
             </div>
           </DrawerHeader>
-          <div className={cn('overflow-y-auto p-4', mobilePreviewState === 'peek' && 'max-h-[84px] overflow-hidden py-3')}>
-            {mobilePreviewOpen && (
+          <div className="overflow-y-auto p-4">
+            {mobilePreviewOpen && mobilePreviewState === 'peek' && (
+              <button type="button" className="w-full rounded-lg border bg-muted/30 p-3 text-left" onClick={() => openMobilePreview('expanded')}>
+                <p className="text-sm font-medium text-foreground">{activePreviewLabel}</p>
+                <p className="mt-1 text-xs text-muted-foreground">{mobilePreviewSummary}</p>
+                <p className="mt-2 text-xs font-medium text-primary">Toca para expandir</p>
+              </button>
+            )}
+            {mobilePreviewOpen && mobilePreviewState === 'expanded' && (
               <PreviewPanel
                 variant="mobile"
                 selectedFormats={selectedFormats}

@@ -4,7 +4,6 @@ import { Save, Calendar as CalendarIcon, Clock, FileText, Loader2, MoreHorizonta
 import { format } from 'date-fns';
 import { pt } from 'date-fns/locale';
 import { cn } from '@/lib/utils';
-import { ValidationMobileBadge } from '@/components/manual-post/ValidationSidebar';
 import type { ValidationSummary } from '@/lib/validation/types';
 import type { PostFormat } from '@/types/social';
 import { useState } from 'react';
@@ -77,38 +76,6 @@ export function MobileStickyActionBar({
 
   return (
     <div className="fixed bottom-0 left-0 right-0 z-50 w-screen max-w-[100vw] overflow-hidden border-t bg-background/98 shadow-[0_-4px_20px_-4px_hsl(var(--foreground)/0.15)] backdrop-blur-md lg:hidden">
-      {/* Mini progress indicator */}
-      <div className="flex justify-center py-1 xs:py-1.5 border-b border-border/50">
-        <div className="flex items-center gap-1 xs:gap-1.5">
-          {[1, 2, 3].map((step) => (
-            <div
-              key={step}
-              className={cn(
-                'h-1 xs:h-1.5 rounded-full transition-all duration-200',
-                step <= currentStep ? 'w-5 xs:w-6 bg-primary' : 'w-1 xs:w-1.5 bg-muted-foreground/30',
-              )}
-            />
-          ))}
-        </div>
-      </div>
-
-      {/* Scheduled preview */}
-      {!scheduleAsap && scheduledDate && (
-        <div className="px-2 xs:px-4 py-1 xs:py-1.5 bg-blue-50 dark:bg-blue-950/30 text-center text-[10px] xs:text-xs text-blue-700 dark:text-blue-300 flex items-center justify-center gap-1 xs:gap-1.5">
-          <CalendarIcon className="h-3 w-3" />
-          <span>
-            Agendado: {format(scheduledDate, 'd MMM', { locale: pt })} às {time}
-          </span>
-        </div>
-      )}
-
-      {/* Validation badge */}
-      {selectedFormats.length > 0 && (
-        <div className="flex justify-center py-0.5 xs:py-1">
-          <ValidationMobileBadge validation={smartValidation} onClick={onOpenValidationSheet} />
-        </div>
-      )}
-
       {/* Action buttons */}
       <div className="flex min-h-[72px] w-full max-w-full gap-2 px-4 py-3 pb-[calc(12px+env(safe-area-inset-bottom))]">
         <Button
