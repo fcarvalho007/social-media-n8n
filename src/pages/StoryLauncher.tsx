@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import { useNavigate, useParams } from 'react-router-dom';
+import { useNavigate, useParams, useSearchParams } from 'react-router-dom';
 import { QRCodeSVG } from 'qrcode.react';
 import { CheckCircle2, Clipboard, Download, ExternalLink, Instagram, Link2, Loader2, SkipForward, Smartphone } from 'lucide-react';
 import { toast } from 'sonner';
@@ -34,6 +34,7 @@ const vibrate = (pattern: VibratePattern) => {
 
 export default function StoryLauncher() {
   const { id } = useParams();
+  const [searchParams] = useSearchParams();
   const navigate = useNavigate();
   const [story, setStory] = useState<StoryLinkPublication | null>(null);
   const [loading, setLoading] = useState(true);
@@ -51,11 +52,9 @@ export default function StoryLauncher() {
     const loadStory = async () => {
       if (!id) return;
       setLoading(true);
-      const { data, error } = await supabase
-        .from('story_link_publications')
-        .select('id,media_url,media_type,link_url,sticker_text,overlay_text,status')
-        .eq('id', id)
-        .maybeSingle();
+      const { data, error } = await supabase.functions.invoke('get_story_link_package', {
+        body: { story_id: id, token: searchParams.get('token') ?? undefined },
+      });
       if (!cancelled) {
         if (error || !data) toast.error('Não foi possível abrir este pacote de Story.');
         setStory((data as StoryLinkPublication) ?? null);
@@ -64,7 +63,7 @@ export default function StoryLauncher() {
     };
     loadStory();
     return () => { cancelled = true; };
-  }, [id]);
+  }, [id, searchParams]);
 
   const copyLink = useCallback(async (silent = false) => {
     if (!story?.link_url) return false;
