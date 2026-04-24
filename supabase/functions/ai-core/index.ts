@@ -255,6 +255,10 @@ serve(async (req) => {
       const lovableKey = Deno.env.get("LOVABLE_API_KEY");
       if (!lovableKey) throw new Response("missing_lovable_key", { status: 500 });
       output = await analyzeImage(body, lovableKey);
+    } else if (body.action === "hashtag_generation") {
+      const lovableKey = Deno.env.get("LOVABLE_API_KEY");
+      if (!lovableKey) throw new Response("missing_lovable_key", { status: 500 });
+      output = await generateHashtags(body, lovableKey);
     } else {
       const lovableKey = Deno.env.get("LOVABLE_API_KEY");
       if (!lovableKey) throw new Response("missing_lovable_key", { status: 500 });
