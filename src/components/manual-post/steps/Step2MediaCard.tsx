@@ -28,6 +28,8 @@ import {
 } from '@/components/manual-post/EnhancedSortableMediaItem';
 import { MediaSource } from '@/types/media';
 import { PostFormat } from '@/types/social';
+import { AltTextPanel } from '@/components/manual-post/ai/AltTextPanel';
+import { AIGeneratedField } from '@/components/ai/AIGeneratedField';
 
 const VALID_ASPECT_RATIOS = new Set<AspectRatioType>([
   '1:1', '3:4', '4:5', '4:3', '16:9', '9:16', 'auto',
@@ -49,6 +51,9 @@ interface Step2MediaCardProps {
   mediaPreviewUrls: string[];
   mediaSources: MediaSource[];
   mediaAspectRatios: string[];
+  altText?: string;
+  altTextGeneratedAt?: string | null;
+  altTextEdited?: boolean;
   mediaRequirements: MediaRequirements;
   selectedFormats: PostFormat[];
 
@@ -56,6 +61,7 @@ interface Step2MediaCardProps {
   setMediaFiles: React.Dispatch<React.SetStateAction<File[]>>;
   setMediaPreviewUrls: React.Dispatch<React.SetStateAction<string[]>>;
   setMediaSources: React.Dispatch<React.SetStateAction<MediaSource[]>>;
+  onAltTextChange?: (value: string) => void;
   removeMedia: (idx: number) => void;
   moveMedia: (from: number, to: number) => void;
 
@@ -101,11 +107,15 @@ export function Step2MediaCard(props: Step2MediaCardProps) {
     mediaPreviewUrls,
     mediaSources,
     mediaAspectRatios,
+    altText = '',
+    altTextGeneratedAt,
+    altTextEdited,
     mediaRequirements,
     selectedFormats,
     setMediaFiles,
     setMediaPreviewUrls,
     setMediaSources,
+    onAltTextChange,
     removeMedia,
     moveMedia,
     isUploading,
@@ -209,6 +219,21 @@ export function Step2MediaCard(props: Step2MediaCardProps) {
           {/* Media Grid - With Files */}
           {mediaPreviewUrls.length > 0 && (
             <div className="space-y-3">
+              {onAltTextChange && mediaPreviewUrls.length === 1 && (
+                <AIGeneratedField generatedAt={altTextGeneratedAt} edited={altTextEdited} className="border-0 bg-transparent">
+                  <AltTextPanel
+                    visible
+                    value={altText}
+                    isCarousel={false}
+                    applyAll={false}
+                    loading={false}
+                    onChange={onAltTextChange}
+                    onRegenerate={() => undefined}
+                    onApplyAllChange={() => undefined}
+                  />
+                </AIGeneratedField>
+              )}
+
               {/* Persistent Action Bar */}
               <div
                 className={cn(

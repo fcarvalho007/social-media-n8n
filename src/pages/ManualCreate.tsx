@@ -40,11 +40,16 @@ import { Step3ScheduleCard } from '@/components/manual-post/steps/Step3ScheduleC
 import { PreviewPanel } from '@/components/manual-post/steps/PreviewPanel';
 import { createDefaultNetworkOptions, normalizeNetworkOptions } from '@/types/networkOptions';
 import { detectImageAspectRatio as detectImageAspectRatioExt, detectVideoAspectRatio as detectVideoAspectRatioExt } from '@/hooks/manual-create/mediaAspectDetection';
-import { AiUploadAssistantCard } from '@/components/manual-post/ai/AiUploadAssistantCard';
+import { AiUploadAssistantCard, AiUploadAssistantStatus } from '@/components/manual-post/ai/AiUploadAssistantCard';
 import { CaptionRewritePreviewDialog } from '@/components/manual-post/ai/CaptionRewritePreviewDialog';
 import type { CaptionRewriteMetadata, CaptionRewriteTone, EditorialAssistantResult } from '@/types/aiEditorial';
 import { supabase } from '@/integrations/supabase/client';
 import { useAiPreferences } from '@/hooks/ai/useAiPreferences';
+import { useAICredits } from '@/hooks/useAICredits';
+import { AI_CREDIT_COSTS } from '@/config/aiCreditCosts';
+import { aiService } from '@/services/ai/aiService';
+import { useAuth } from '@/contexts/AuthContext';
+import { generateSafeStoragePath } from '@/lib/fileNameSanitizer';
 // `extractVideoFrame` foi consolidado em '@/lib/media/videoFrameExtractor'.
 // Este componente já não o usava localmente.
 
@@ -78,12 +83,31 @@ const getUniqueHashtags = (result: EditorialAssistantResult) => {
     .filter((tag) => !existing.has(tag.toLowerCase()));
 };
 
+const SUPPORTED_ASSISTANT_VIDEO_TYPES = new Set(['video/mp4', 'video/quicktime', 'video/webm']);
+
+const getVideoDuration = (file: File) => new Promise<number>((resolve, reject) => {
+  const url = URL.createObjectURL(file);
+  const video = document.createElement('video');
+  video.preload = 'metadata';
+  video.onloadedmetadata = () => {
+    URL.revokeObjectURL(url);
+    resolve(video.duration || 0);
+  };
+  video.onerror = () => {
+    URL.revokeObjectURL(url);
+    reject(new Error('Não foi possível ler a duração do vídeo.'));
+  };
+  video.src = url;
+});
+
 export default function ManualCreate() {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   const recoverPostId = searchParams.get('recover');
   const { instagram, linkedin, canPublish, refresh: refreshQuota, isUnlimited } = usePublishingQuota();
   const { preferences: aiPreferences } = useAiPreferences();
+  const { credits: aiCredits, refresh: refreshAiCredits } = useAICredits();
+  const { user } = useAuth();
   const [selectedFormats, setSelectedFormats] = useState<PostFormat[]>([]);
   const [caption, setCaption] = useState('');
   const [scheduledDate, setScheduledDate] = useState<Date>();
@@ -101,8 +125,14 @@ export default function ManualCreate() {
   const [networkOptions, setNetworkOptions] = useState(createDefaultNetworkOptions);
   const [rawTranscription, setRawTranscription] = useState('');
   const [aiMetadata, setAiMetadata] = useState<Partial<EditorialAssistantResult> | null>(null);
-  const [aiAssistantLoading, setAiAssistantLoading] = useState(false);
+  const [aiAssistantStatus, setAiAssistantStatus] = useState<AiUploadAssistantStatus>('idle');
   const [aiAssistantDismissed, setAiAssistantDismissed] = useState(false);
+  const [aiAssistantError, setAiAssistantError] = useState<string | null>(null);
+  const [aiAssistantRetries, setAiAssistantRetries] = useState(0);
+  const [assistantVideoDuration, setAssistantVideoDuration] = useState<number | null>(null);
+  const [assistantGeneratedAt, setAssistantGeneratedAt] = useState<string | null>(null);
+  const [aiGeneratedEdited, setAiGeneratedEdited] = useState<Record<string, boolean>>({});
+  const [altText, setAltText] = useState('');
   const [rewriteTone, setRewriteTone] = useState<CaptionRewriteTone>('neutro');
   const [rewriteLoading, setRewriteLoading] = useState(false);
   const [rewritePreview, setRewritePreview] = useState<{
@@ -316,10 +346,36 @@ export default function ManualCreate() {
       setRawTranscription('');
       setAiMetadata(null);
       setAiAssistantDismissed(false);
+      setAiAssistantStatus('idle');
+      setAiAssistantError(null);
+      setAiAssistantRetries(0);
+      setAssistantVideoDuration(null);
+      setAssistantGeneratedAt(null);
+      setAiGeneratedEdited({});
+      setAltText('');
     }
 
     aiMediaSignatureRef.current = nextSignature;
   }, [mediaFiles]);
+
+  useEffect(() => {
+    const file = mediaFiles[0];
+    if (mediaFiles.length !== 1 || !file?.type?.startsWith('video/')) return;
+    let cancelled = false;
+    getVideoDuration(file)
+      .then((duration) => { if (!cancelled) setAssistantVideoDuration(duration); })
+      .catch(() => { if (!cancelled) setAssistantVideoDuration(null); });
+    return () => { cancelled = true; };
+  }, [mediaFiles]);
+
+  useEffect(() => {
+    if (aiMetadata?.upload_assistant?.generated_at) {
+      setAssistantGeneratedAt(aiMetadata.upload_assistant.generated_at);
+      setAiAssistantStatus('done');
+    } else if (rawTranscription && rawTranscription.length >= 20) {
+      setAiAssistantStatus('idle');
+    }
+  }, [aiMetadata, rawTranscription]);
 
   // Update active preview tab when formats change
   useEffect(() => {
@@ -479,48 +535,78 @@ export default function ManualCreate() {
   }, [mediaPreviewUrls, mediaFiles]);
 
   const showAiUploadAssistant = useMemo(() => {
-    if (aiAssistantDismissed || aiAssistantLoading || rawTranscription) return false;
-    if (mediaFiles.length !== 1 || !mediaFiles[0]?.type?.startsWith('video/')) return false;
-    if (selectedFormats.some((format) => format.includes('document'))) return false;
-    const hasVideoFormat = selectedFormats.some((format) =>
+    if (aiAssistantDismissed) return false;
+    if (mediaFiles.length !== 1) return false;
+    const file = mediaFiles[0];
+    if (!file?.type?.startsWith('video/') || !SUPPORTED_ASSISTANT_VIDEO_TYPES.has(file.type)) return false;
+    if (selectedFormats.some((format) => format.includes('carousel') || format.includes('document'))) return false;
+    return selectedFormats.some((format) =>
       format.includes('video') || format.includes('reel') || format.includes('shorts') || format.includes('stories') || format === 'linkedin_post',
     );
-    return hasVideoFormat || mediaAspectRatios[0] === '9:16';
-  }, [aiAssistantDismissed, aiAssistantLoading, rawTranscription, mediaFiles, selectedFormats, mediaAspectRatios]);
+  }, [aiAssistantDismissed, mediaFiles, selectedFormats]);
 
-  const fileToBase64 = useCallback((file: File) => new Promise<string>((resolve, reject) => {
-    const reader = new FileReader();
-    reader.onload = () => resolve(String(reader.result || '').split(',')[1] || '');
-    reader.onerror = () => reject(reader.error || new Error('Erro ao ler ficheiro'));
-    reader.readAsDataURL(file);
-  }), []);
+  const assistantBlockedMessage = useMemo(() => {
+    if (!showAiUploadAssistant) return null;
+    if (!aiPreferences.insights_enabled) return 'As preferências de IA estão desligadas. Podes continuar manualmente.';
+    if (assistantVideoDuration !== null && assistantVideoDuration < 5) return 'O vídeo é demasiado curto para este assistente. Podes escrever a legenda manualmente.';
+    if (assistantVideoDuration !== null && assistantVideoDuration > 600) return 'Este vídeo ultrapassa o limite de 10 minutos. Divide o vídeo em partes mais curtas.';
+    if (aiCredits.credits_remaining < AI_CREDIT_COSTS.full_assistant_flow) return 'Não tens créditos suficientes para este fluxo. Podes continuar manualmente ou ver planos.';
+    return null;
+  }, [aiCredits.credits_remaining, aiPreferences.insights_enabled, assistantVideoDuration, showAiUploadAssistant]);
+
+  const uploadAssistantMedia = useCallback(async (file: File) => {
+    const { data: sessionData, error: sessionError } = await supabase.auth.getSession();
+    if (sessionError || !sessionData.session) throw new Error('Sessão expirada. Inicia sessão novamente.');
+    const fileName = generateSafeStoragePath(sessionData.session.user.id, file);
+    const { error: uploadError } = await supabase.storage.from('pdfs').upload(fileName, file, { upsert: true });
+    if (uploadError) throw uploadError;
+    return supabase.storage.from('pdfs').getPublicUrl(fileName).data.publicUrl;
+  }, []);
 
   const handleAiTranscribe = useCallback(async () => {
     const file = mediaFiles[0];
     if (!file) return;
     try {
-      setAiAssistantLoading(true);
-      const fileBase64 = await fileToBase64(file);
-      const { data, error } = await supabase.functions.invoke('ai-editorial-assistant', {
-        body: {
-          fileBase64,
-          fileName: file.name,
-          mimeType: file.type,
-          networks: selectedNetworks,
-          language: 'pt-PT',
-        },
+      if (assistantBlockedMessage) {
+        setAiAssistantStatus('blocked');
+        setAiAssistantError(assistantBlockedMessage);
+        return;
+      }
+
+      setAiAssistantStatus('transcribing');
+      setAiAssistantError(null);
+      const mediaUrl = await uploadAssistantMedia(file);
+      const transcription = rawTranscription || await aiService.transcribeMedia(mediaUrl, {
+        language: 'pt-PT',
+        feature: 'upload_assistant_transcription',
+        creditCostOverride: 2,
       });
 
-      if (error || !data?.success) throw new Error(data?.error || error?.message || 'A IA está indisponível.');
+      if (!transcription || transcription.trim().length < 20) {
+        throw new Error('Não consegui perceber o áudio do vídeo. Queres escrever a legenda manualmente?');
+      }
 
-      const result = data.result as EditorialAssistantResult;
-      const groupedHashtags = getUniqueHashtags(result);
-      const nextCaption = [result.base_caption, groupedHashtags.join(' ')].filter(Boolean).join('\n\n');
+      setRawTranscription(transcription);
+      setAiMetadata(prev => ({ ...(prev ?? {}), raw_transcription: transcription, upload_assistant: { status: 'transcribed' } }));
+      setAiAssistantStatus('generating');
 
-      setCaption(nextCaption);
-      if (result.captions_per_network && Object.keys(result.captions_per_network).length > 0) {
+      const systemPrompt = `És um assistente editorial para redes sociais. Recebes a transcrição de um vídeo e devolves JSON estruturado com campos prontos para publicação. Escreves em português de Portugal, tom ${aiPreferences.default_tone}. Respeitas limites de caracteres de cada rede. Nunca inventas factos que não estão na transcrição.`;
+      const prompt = `Transcrição do vídeo:\n---\n${transcription}\n---\n\nContexto do utilizador:\n- Nome: ${user?.user_metadata?.full_name || user?.email || 'Utilizador'}\n- Marca: ${user?.user_metadata?.full_name || 'Marca'}\n- Hashtags de marca: ${aiPreferences.brand_hashtags.join(', ') || 'nenhuma'}\n\nDevolve APENAS JSON válido, sem texto antes ou depois, com esta estrutura exata:\n{\n  "draft_title": "título interno do rascunho, máx 60 chars",\n  "base_caption": "legenda neutra que funciona em qualquer rede, máx 500 chars",\n  "captions_per_network": {\n    "instagram": "versão para Instagram, máx 2200 chars, com quebra de linha antes do ver mais",\n    "linkedin": "versão LinkedIn, parágrafos curtos, máx 3000 chars",\n    "tiktok": "versão TikTok, direta, máx 300 chars",\n    "x": "versão X/Twitter, máx 280 chars",\n    "facebook": "versão Facebook, máx 8000 chars"\n  },\n  "hashtags_suggested": ["array de 10-15 hashtags relevantes em português, sem #"],\n  "first_comment": "primeiro comentário com pergunta ou CTA, máx 500 chars",\n  "alt_text": "descrição do conteúdo visual para acessibilidade, máx 125 chars",\n  "key_quotes": ["array de 2-3 frases citáveis extraídas da transcrição"]\n}`;
+
+      const generated = await aiService.generateText({
+        systemPrompt,
+        prompt,
+        responseFormat: 'json',
+        model: 'smart',
+        feature: 'upload_assistant_generation',
+        creditCostOverride: 3,
+      });
+      const result = generated as EditorialAssistantResult;
+      const generatedAt = new Date().toISOString();
+
+      setCaption(result.base_caption || '');
+      if (useSeparateCaptions && result.captions_per_network && Object.keys(result.captions_per_network).length > 0) {
         setNetworkCaptions(result.captions_per_network as Record<string, string>);
-        setUseSeparateCaptions(true);
       }
       if (result.first_comment) {
         setNetworkOptions((prev) => normalizeNetworkOptions({
@@ -530,17 +616,36 @@ export default function ManualCreate() {
           linkedin: { ...prev.linkedin, firstComment: result.first_comment },
         }));
       }
-      setRawTranscription(result.raw_transcription || '');
-      setAiMetadata(result);
-      setAiAssistantDismissed(true);
+      setAltText((result.alt_text || '').slice(0, 125));
+      setAssistantGeneratedAt(generatedAt);
+      setAiGeneratedEdited({});
+      setAiMetadata(prev => ({
+        ...(prev ?? {}),
+        ...result,
+        raw_transcription: transcription,
+        upload_assistant: {
+          status: 'done',
+          generated_at: generatedAt,
+          suggestions: {
+            hashtags_suggested: result.hashtags_suggested ?? getUniqueHashtags(result).map(tag => tag.replace(/^#/, '')),
+            key_quotes: result.key_quotes ?? [],
+            draft_title: result.draft_title,
+            alt_text: result.alt_text,
+          },
+        },
+      }));
+      setAiAssistantStatus('done');
+      await refreshAiCredits();
       toast.success('Assistente de IA aplicado', { description: 'A legenda e os campos editoriais foram preenchidos.' });
     } catch (error) {
       console.error('[ManualCreate] AI assistant error:', error);
-      toast.error(error instanceof Error ? error.message : 'A IA está indisponível. Podes preencher manualmente ou tentar de novo.');
-    } finally {
-      setAiAssistantLoading(false);
+      const message = error instanceof Error ? error.message : 'A IA está indisponível. Podes preencher manualmente ou tentar de novo.';
+      setAiAssistantStatus('error');
+      setAiAssistantError(message);
+      setAiAssistantRetries(prev => prev + 1);
+      toast.error(message);
     }
-  }, [fileToBase64, mediaFiles, selectedNetworks]);
+  }, [aiPreferences, assistantBlockedMessage, mediaFiles, rawTranscription, refreshAiCredits, uploadAssistantMedia, user, useSeparateCaptions]);
 
   const handleRewriteCaption = useCallback(async () => {
     const activeNetwork = useSeparateCaptions
@@ -700,11 +805,18 @@ export default function ManualCreate() {
             mediaPreviewUrls={mediaPreviewUrls}
             mediaSources={mediaSources}
             mediaAspectRatios={mediaAspectRatios}
+            altText={altText}
+            altTextGeneratedAt={assistantGeneratedAt}
+            altTextEdited={aiGeneratedEdited.altText}
             mediaRequirements={mediaRequirements}
             selectedFormats={selectedFormats}
             setMediaFiles={setMediaFiles}
             setMediaPreviewUrls={setMediaPreviewUrls}
             setMediaSources={setMediaSources}
+            onAltTextChange={(value) => {
+              setAltText(value);
+              setAiGeneratedEdited(prev => ({ ...prev, altText: true }));
+            }}
             removeMedia={removeMedia}
             moveMedia={moveMedia}
             isUploading={isUploading}
@@ -733,19 +845,33 @@ export default function ManualCreate() {
             showStep3 ? "opacity-100" : "opacity-0 max-h-0"
           )}>
             <AiUploadAssistantCard
-              visible={showAiUploadAssistant || aiAssistantLoading}
-              loading={aiAssistantLoading}
-              onDismiss={() => setAiAssistantDismissed(true)}
+              visible={showAiUploadAssistant || aiAssistantStatus === 'transcribing' || aiAssistantStatus === 'generating' || aiAssistantStatus === 'done'}
+              status={assistantBlockedMessage && aiAssistantStatus === 'idle' ? 'blocked' : aiAssistantStatus}
+              creditsRemaining={aiCredits.credits_remaining}
+              creditCost={AI_CREDIT_COSTS.full_assistant_flow}
+              errorMessage={aiAssistantError || assistantBlockedMessage}
+              retryCount={aiAssistantRetries}
+              transcription={rawTranscription}
+              onDismiss={() => {
+                setAiAssistantDismissed(true);
+                setAiAssistantStatus('idle');
+                setAiMetadata(prev => ({ ...(prev ?? {}), upload_assistant: { ...(prev?.upload_assistant ?? {}), status: 'dismissed' } }));
+              }}
               onTranscribe={handleAiTranscribe}
+              onRetry={handleAiTranscribe}
             />
 
             <Step3CaptionCard
               ref={captionEditorRef}
               caption={caption}
-              onCaptionChange={setCaption}
+              onCaptionChange={(value) => {
+                setCaption(value);
+                setAiGeneratedEdited(prev => ({ ...prev, caption: true }));
+              }}
               networkCaptions={networkCaptions}
               onNetworkCaptionChange={(network, value) => {
                 setNetworkCaptions(prev => ({ ...prev, [network]: value }));
+                setAiGeneratedEdited(prev => ({ ...prev, [`caption.${network}`]: true }));
               }}
               selectedNetworks={selectedNetworks}
               useSeparateCaptions={useSeparateCaptions}
@@ -759,13 +885,18 @@ export default function ManualCreate() {
               onRewriteToneChange={setRewriteTone}
               onRewriteCaption={handleRewriteCaption}
               rewriteLoading={rewriteLoading}
+              generatedAt={assistantGeneratedAt}
+              generatedEdited={aiGeneratedEdited.caption}
             />
 
             <NetworkOptionsCard
               ref={networkOptionsRef}
               selectedNetworks={selectedNetworks}
               networkOptions={networkOptions}
-              onNetworkOptionsChange={(next) => setNetworkOptions(normalizeNetworkOptions(next))}
+              onNetworkOptionsChange={(next) => {
+                setNetworkOptions(normalizeNetworkOptions(next));
+                setAiGeneratedEdited(prev => ({ ...prev, 'instagram.firstComment': true, 'linkedin.firstComment': true, 'facebook.firstComment': true }));
+              }}
               caption={caption}
               onCaptionChange={setCaption}
               networkCaptions={networkCaptions}
@@ -775,6 +906,8 @@ export default function ManualCreate() {
               useSeparateCaptions={useSeparateCaptions}
               mediaPreviewUrls={mediaPreviewUrls}
               disabled={saving || submitting || publishing}
+              generatedAt={assistantGeneratedAt}
+              generatedEdited={aiGeneratedEdited}
             />
 
             <Step3ScheduleCard

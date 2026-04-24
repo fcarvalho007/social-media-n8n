@@ -31,6 +31,7 @@ type RequestBody = {
   responseFormat?: "text" | "json";
   model?: "fast" | "smart";
   feature?: string;
+  creditCostOverride?: number;
   options?: { language?: string };
 };
 
@@ -76,6 +77,9 @@ function estimateTranscriptionCredits(metadata?: { durationSeconds?: number }) {
 }
 
 function resolveCost(body: RequestBody) {
+  if (Number.isFinite(body.creditCostOverride) && body.creditCostOverride! >= 0 && body.creditCostOverride! <= 20) {
+    return Math.round(body.creditCostOverride!);
+  }
   if (body.action === "transcription") return estimateTranscriptionCredits();
   if (body.action === "vision") return COSTS.vision_analysis;
   return body.model === "smart" ? COSTS.text_generation_smart : COSTS.text_generation_fast;

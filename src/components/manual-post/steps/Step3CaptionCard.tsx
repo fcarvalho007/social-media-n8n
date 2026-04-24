@@ -6,6 +6,7 @@ import { NetworkCaptionEditor, NetworkCaptionEditorHandle } from '@/components/m
 import { SocialNetwork } from '@/types/social';
 import { CaptionRewritePanel } from '@/components/manual-post/ai/CaptionRewritePanel';
 import { CaptionRewriteTone } from '@/types/aiEditorial';
+import { AIGeneratedField } from '@/components/ai/AIGeneratedField';
 
 interface Step3CaptionCardProps {
   caption: string;
@@ -24,6 +25,8 @@ interface Step3CaptionCardProps {
   onRewriteToneChange: (tone: CaptionRewriteTone) => void;
   onRewriteCaption: () => void;
   rewriteLoading: boolean;
+  generatedAt?: string | null;
+  generatedEdited?: boolean;
 }
 
 /**
@@ -48,6 +51,8 @@ export const Step3CaptionCard = forwardRef<NetworkCaptionEditorHandle, Step3Capt
     onRewriteToneChange,
     onRewriteCaption,
     rewriteLoading,
+    generatedAt,
+    generatedEdited,
   } = props;
 
   return (
@@ -78,19 +83,21 @@ export const Step3CaptionCard = forwardRef<NetworkCaptionEditorHandle, Step3Capt
         </CardDescription>
       </CardHeader>
       <CardContent className="space-y-2 sm:space-y-3 px-3 sm:px-6 pb-4 sm:pb-6">
-        <NetworkCaptionEditor
-          ref={ref}
-          caption={caption}
-          onCaptionChange={onCaptionChange}
-          networkCaptions={networkCaptions}
-          onNetworkCaptionChange={onNetworkCaptionChange}
-          selectedNetworks={selectedNetworks}
-          useSeparateCaptions={useSeparateCaptions}
-          onToggleSeparate={onToggleSeparate}
-          disabled={disabled}
-          onOpenSavedCaptions={onOpenSavedCaptions}
-          onOpenAIDialog={onOpenAIDialog}
-        />
+        <AIGeneratedField generatedAt={generatedAt} edited={generatedEdited} className="border-0 bg-transparent">
+          <NetworkCaptionEditor
+            ref={ref}
+            caption={caption}
+            onCaptionChange={onCaptionChange}
+            networkCaptions={networkCaptions}
+            onNetworkCaptionChange={onNetworkCaptionChange}
+            selectedNetworks={selectedNetworks}
+            useSeparateCaptions={useSeparateCaptions}
+            onToggleSeparate={onToggleSeparate}
+            disabled={disabled}
+            onOpenSavedCaptions={onOpenSavedCaptions}
+            onOpenAIDialog={onOpenAIDialog}
+          />
+        </AIGeneratedField>
         <CaptionRewritePanel
           tone={rewriteTone}
           onToneChange={onRewriteToneChange}

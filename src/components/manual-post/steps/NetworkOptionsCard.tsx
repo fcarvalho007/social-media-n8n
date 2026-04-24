@@ -15,6 +15,7 @@ import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Textarea } from '@/components/ui/textarea';
+import { AIGeneratedField } from '@/components/ai/AIGeneratedField';
 
 export interface NetworkOptionsCardHandle {
   focusField: (network: SocialNetwork, field?: NetworkOptionField) => void;
@@ -31,6 +32,8 @@ interface NetworkOptionsCardProps {
   useSeparateCaptions: boolean;
   mediaPreviewUrls: string[];
   disabled?: boolean;
+  generatedAt?: string | null;
+  generatedEdited?: Record<string, boolean>;
 }
 
 const youtubeCategories = [
@@ -64,6 +67,8 @@ export const NetworkOptionsCard = forwardRef<NetworkOptionsCardHandle, NetworkOp
   useSeparateCaptions,
   mediaPreviewUrls,
   disabled,
+  generatedAt,
+  generatedEdited = {},
 }, ref) {
   const [rootOpen, setRootOpen] = useState<string[]>([]);
   const [openNetworks, setOpenNetworks] = useState<string[]>([]);
@@ -96,21 +101,23 @@ export const NetworkOptionsCard = forwardRef<NetworkOptionsCardHandle, NetworkOp
     const value = networkOptions[network]?.firstComment ?? '';
     const overBy = value.length - limit;
     return (
-      <div className="space-y-2">
-        <Label htmlFor={`${network}-first-comment`}>Primeiro comentário</Label>
-        <Textarea
-          id={`${network}-first-comment`}
-          ref={setFieldRef(fieldKey(network, 'firstComment')) as React.Ref<HTMLTextAreaElement>}
-          value={value}
-          onChange={(e) => updateNetwork(network, { firstComment: e.target.value } as never)}
-          placeholder="Adiciona contexto extra ou um CTA aqui."
-          disabled={disabled}
-          className={cn('min-h-[96px] resize-none', overBy > 0 && 'border-destructive focus-visible:ring-destructive')}
-        />
-        <p className={cn('text-xs text-muted-foreground', overBy > 0 && 'text-destructive font-medium')}>
-          {value.length}/{limit}{overBy > 0 && ` · excede ${overBy} caracteres`}
-        </p>
-      </div>
+      <AIGeneratedField generatedAt={generatedAt} edited={generatedEdited[`${network}.firstComment`]} className="border-0 bg-transparent">
+        <div className="space-y-2">
+          <Label htmlFor={`${network}-first-comment`}>Primeiro comentário</Label>
+          <Textarea
+            id={`${network}-first-comment`}
+            ref={setFieldRef(fieldKey(network, 'firstComment')) as React.Ref<HTMLTextAreaElement>}
+            value={value}
+            onChange={(e) => updateNetwork(network, { firstComment: e.target.value } as never)}
+            placeholder="Adiciona contexto extra ou um CTA aqui."
+            disabled={disabled}
+            className={cn('min-h-[96px] resize-none', overBy > 0 && 'border-destructive focus-visible:ring-destructive')}
+          />
+          <p className={cn('text-xs text-muted-foreground', overBy > 0 && 'text-destructive font-medium')}>
+            {value.length}/{limit}{overBy > 0 && ` · excede ${overBy} caracteres`}
+          </p>
+        </div>
+      </AIGeneratedField>
     );
   };
 
