@@ -1,5 +1,5 @@
 import { forwardRef, useImperativeHandle, useRef, useState, type PointerEvent } from 'react';
-import { Info, Plus, Settings2, Sparkles, Trash2 } from 'lucide-react';
+import { Info, Link2, Plus, Settings2, Sparkles, Trash2 } from 'lucide-react';
 import { SocialNetwork } from '@/types/social';
 import { NetworkOptionField, NetworkOptions, firstCommentLimit } from '@/types/networkOptions';
 import { NETWORK_INFO } from '@/lib/socialNetworks';
@@ -28,6 +28,7 @@ export interface NetworkOptionsCardHandle {
 
 interface NetworkOptionsCardProps {
   selectedNetworks: SocialNetwork[];
+  selectedFormats?: string[];
   networkOptions: NetworkOptions;
   onNetworkOptionsChange: (next: NetworkOptions) => void;
   caption: string;
@@ -63,6 +64,7 @@ const usernameRegex = /^@[A-Za-z0-9._]{1,30}$/;
 
 export const NetworkOptionsCard = forwardRef<NetworkOptionsCardHandle, NetworkOptionsCardProps>(function NetworkOptionsCard({
   selectedNetworks,
+  selectedFormats = [],
   networkOptions,
   onNetworkOptionsChange,
   caption,
@@ -187,6 +189,16 @@ export const NetworkOptionsCard = forwardRef<NetworkOptionsCardHandle, NetworkOp
     updateNetwork('instagram', { photoTags: (networkOptions.instagram?.photoTags ?? []).filter((_, i) => i !== index) });
   };
 
+  const isStoryLinkSelected = selectedFormats.includes('instagram_story_link');
+  const storyLinkUrl = networkOptions.instagram?.storyLinkUrl ?? '';
+  const derivedStickerText = (() => {
+    try {
+      return storyLinkUrl ? new URL(storyLinkUrl).hostname.replace(/^www\./, '') : '';
+    } catch {
+      return '';
+    }
+  })();
+
   const renderNetworkHeader = (network: SocialNetwork) => {
     const info = NETWORK_INFO[network];
     const Icon = info.icon;
@@ -198,6 +210,30 @@ export const NetworkOptionsCard = forwardRef<NetworkOptionsCardHandle, NetworkOp
       <Tabs value={networkOptions.instagram?.formatVariant ?? 'feed'} onValueChange={(value) => updateNetwork('instagram', { formatVariant: value as never })}>
         <TabsList className="h-auto w-full justify-start gap-1 overflow-x-auto p-1 scrollbar-hide sm:flex-wrap"><TabsTrigger value="feed">Feed</TabsTrigger><TabsTrigger value="story">Story</TabsTrigger><TabsTrigger value="reel">Reel</TabsTrigger><TabsTrigger value="carousel">Carousel</TabsTrigger></TabsList>
       </Tabs>
+      {isStoryLinkSelected && (
+        <div className="manual-field-stack rounded-lg border border-primary/20 bg-primary/5 p-3">
+          <div className="flex items-start gap-2">
+            <span className="manual-icon-box h-8 w-8"><Link2 className="h-4 w-4" strokeWidth={1.5} /></span>
+            <div className="min-w-0 flex-1 space-y-3">
+              <div>
+                <Label htmlFor="instagram-story-link-url" className="manual-field-label">Link sticker</Label>
+                <p className="manual-microcopy">Preparação semi-automática: a app agenda o lembrete e o link é adicionado manualmente no Instagram.</p>
+              </div>
+              <Input id="instagram-story-link-url" ref={setFieldRef(fieldKey('instagram', 'instagramStoryLink')) as React.Ref<HTMLInputElement>} className="manual-input-radius manual-scroll-anchor min-h-11" inputMode="url" placeholder="https://..." value={storyLinkUrl} onChange={(e) => updateNetwork('instagram', { storyLinkUrl: e.target.value })} disabled={disabled} />
+              <div className="grid gap-2 sm:grid-cols-2">
+                <div className="manual-field-stack gap-1">
+                  <Label htmlFor="instagram-story-sticker-text" className="manual-field-label">Texto do sticker</Label>
+                  <Input id="instagram-story-sticker-text" className="manual-input-radius min-h-11" placeholder={derivedStickerText || 'Ex: Reservar agora'} value={networkOptions.instagram?.storyLinkStickerText ?? ''} onChange={(e) => updateNetwork('instagram', { storyLinkStickerText: e.target.value })} disabled={disabled} maxLength={48} />
+                </div>
+                <div className="manual-field-stack gap-1">
+                  <Label htmlFor="instagram-story-overlay-text" className="manual-field-label">Texto sobreposto</Label>
+                  <Input id="instagram-story-overlay-text" className="manual-input-radius min-h-11" placeholder="Opcional" value={networkOptions.instagram?.storyLinkOverlayText ?? ''} onChange={(e) => updateNetwork('instagram', { storyLinkOverlayText: e.target.value })} disabled={disabled} maxLength={90} />
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
       {renderFirstComment('instagram')}
         <div className="manual-field-stack">
         <Label className="manual-field-label">Colaboradores (máx. 3)</Label>
