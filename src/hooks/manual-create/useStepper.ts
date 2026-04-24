@@ -91,10 +91,18 @@ export function useStepper({
     if (currentStep > 1) setCurrentStep((currentStep - 1) as StepNumber);
   }, [currentStep]);
 
+  // Wrapper que aceita `number` para retrocompat com `useDraftRecovery`,
+  // que carrega o passo a partir de um rascunho serializado (1-5).
+  const setCurrentStepNum = useCallback((n: number) => {
+    const clamped = Math.min(Math.max(1, Math.round(n)), TOTAL_STEPS) as StepNumber;
+    setCurrentStep(clamped);
+    setVisitedSteps((prev) => (prev.includes(clamped) ? prev : [...prev, clamped]));
+  }, []);
+
   return {
     currentStep,
     visitedSteps,
-    setCurrentStep,
+    setCurrentStep: setCurrentStepNum,
     setVisitedSteps,
     goToStep,
     nextStep,
