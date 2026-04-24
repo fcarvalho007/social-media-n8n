@@ -417,10 +417,6 @@ export default function ManualCreate() {
   }, [caption, selectedNetworks]);
 
   useEffect(() => {
-    setRewriteTone(aiPreferences.default_tone);
-  }, [aiPreferences.default_tone]);
-
-  useEffect(() => {
     const nextSignature = getMediaSignature(mediaFiles);
     const previousSignature = aiMediaSignatureRef.current;
 
@@ -763,7 +759,7 @@ export default function ManualCreate() {
     }
 
     try {
-      setRewriteLoading(true);
+      setRewriteLoading(tone as ToneAction);
       const tonePrompts: Record<string, string> = {
         direct: 'Reescreve a legenda num tom mais direto e objetivo. Remove floreados. Mantém factos e CTAs.',
         emotional: 'Reescreve a legenda com um tom mais emocional e pessoal. Usa narrativa. Mantém factos.',
@@ -775,7 +771,7 @@ export default function ManualCreate() {
       };
       const rewritten = await aiService.generateText({
         model: 'fast',
-        feature: 'caption_tone_rewrite',
+        feature: 'caption_rewrite_tone',
         creditCostOverride: 1,
         systemPrompt: 'És um editor sénior de redes sociais. Reescreves em português de Portugal. Não inventes factos. Mantém URLs, menções e CTAs quando fizer sentido. Devolve apenas a legenda final.',
         prompt: `Rede alvo: ${activeNetwork || 'geral'}\n${rawTranscription ? `Contexto da transcrição:\n${rawTranscription}\n\n` : ''}Instrução: ${tonePrompts[tone] || tonePrompts.direct}\n\nLegenda atual:\n${text}`,
@@ -787,12 +783,12 @@ export default function ManualCreate() {
       else setCaption(nextText);
       setAiMetadata(prev => ({ ...(prev ?? {}), rewrites: [...((prev as EditorialAssistantResult | null)?.rewrites ?? []), { network: activeNetwork, tone, created_at: new Date().toISOString(), source: 'caption_rewriter' }] }));
       await refreshAiCredits();
-      toast.success('Legenda reescrita. Usa Ctrl+Z para reverter.');
+      toast.success('Legenda ajustada. Ctrl+Z para reverter.');
     } catch (error) {
       console.error('[ManualCreate] caption rewrite error:', error);
       toast.error(error instanceof Error ? error.message : 'Não foi possível reescrever a legenda.');
     } finally {
-      setRewriteLoading(false);
+      setRewriteLoading(null);
     }
   }, [caption, networkCaptions, rawTranscription, refreshAiCredits, selectedNetworks, useSeparateCaptions]);
 
