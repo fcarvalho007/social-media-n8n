@@ -835,7 +835,7 @@ Deno.serve(async (req) => {
 
     const body = await req.json();
     console.log(`[publish-to-getlate] BODY RECEIVED:`, JSON.stringify(body));
-    const { format, caption, media_urls, scheduled_date, scheduled_time, publish_immediately, post_id, idempotency_key } = body as PublishPayload;
+    const { format, caption, media_urls, scheduled_date, scheduled_time, publish_immediately, post_id, idempotency_key, network_options } = body as PublishPayload;
 
     console.log(`[publish-to-getlate] Processing publication for format: ${format}`);
     console.log(`[publish-to-getlate] post_id received: ${post_id || 'NULL ⚠️'}`);
@@ -898,15 +898,6 @@ Deno.serve(async (req) => {
     // Getlate API requires content to be non-empty
     const contentToSend = caption?.trim() || ' ';
 
-    // Determine platformSpecificData for content type
-    const getPlatformSpecificData = (format: string): { contentType?: 'story' | 'reel' } | undefined => {
-      if (format.includes('stories')) return { contentType: 'story' };
-      if (format.includes('reel') || format.includes('shorts')) return { contentType: 'reel' };
-      return undefined; // Regular post doesn't need platformSpecificData
-    };
-
-    const platformSpecificData = getPlatformSpecificData(format);
-
     // Validate media URLs before building payload
     console.log(`[publish-to-getlate] Validating ${media_urls.length} media URL(s)...`);
     const mediaValidation = await validateMediaUrls(media_urls);
@@ -926,6 +917,9 @@ Deno.serve(async (req) => {
     });
 
     console.log(`[publish-to-getlate] Media breakdown: ${mediaItems.map(m => m.type).join(', ')}`);
+
+    const platformSpecificData = buildPlatformSpecificData(network, format, network_options, mediaItems);
+    console.log(`[publish-to-getlate] platformSpecificData:`, JSON.stringify(platformSpecificData ?? {}));
 
     // Build Getlate payload
     const getlatePayload: GetlatePostPayload = {
