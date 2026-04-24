@@ -209,7 +209,8 @@ async function transcribeMedia(body: RequestBody, openAiKey: string) {
   form.append("file", new File([blob], "media", { type: blob.type || "audio/mpeg" }));
   form.append("model", "whisper-1");
   form.append("language", (body.options?.language || "pt").slice(0, 2));
-  form.append("response_format", "json");
+  form.append("response_format", body.options?.includeSegments ? "verbose_json" : "json");
+  if (body.options?.includeSegments) form.append("timestamp_granularities[]", "segment");
 
   const transcriptionResponse = await retry(() => fetchWithTimeout("https://api.openai.com/v1/audio/transcriptions", {
     method: "POST",
@@ -219,7 +220,11 @@ async function transcribeMedia(body: RequestBody, openAiKey: string) {
 
   if (!transcriptionResponse.ok) throw new Response(await transcriptionResponse.text(), { status: transcriptionResponse.status });
   const data = await transcriptionResponse.json();
-  return { result: String(data.text || "").trim(), tokens: null, model: "whisper-1", provider: "openai" };
+  const text = String(data.text || "").trim();
+  if (body.options?.includeSegments) {
+    return { result: { text, segments: Array.isArray(data.segments) ? data.segments.map((s: Record<string, unknown>) => ({ id: s.id, start: s.start, end: s.end, text: String(s.text || "").trim() })) : [] }, tokens: null, model: "whisper-1", provider: "openai" };
+  }
+  return { result: text, tokens: null, model: "whisper-1", provider: "openai" };
 }
 
 serve(async (req) => {
