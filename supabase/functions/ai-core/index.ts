@@ -19,7 +19,7 @@ const MODEL_MAP = {
   smart: "openai/gpt-5-mini",
 } as const;
 
-type AIAction = "transcription" | "text_generation" | "vision" | "hashtag_generation";
+type AIAction = "transcription" | "text_generation" | "vision" | "hashtag_generation" | "first_comment_generation" | "video_chapters" | "video_quotes";
 type RequestBody = {
   action?: AIAction;
   fileUrl?: string;
@@ -32,7 +32,7 @@ type RequestBody = {
   model?: "fast" | "smart";
   feature?: string;
   creditCostOverride?: number;
-  options?: { language?: string };
+  options?: { language?: string; includeSegments?: boolean };
   caption?: string;
   transcription?: string;
   networks?: string[];
@@ -90,7 +90,7 @@ function resolveCost(body: RequestBody) {
 }
 
 function validateBody(body: RequestBody) {
-  if (!body.action || !["transcription", "text_generation", "vision", "hashtag_generation"].includes(body.action)) {
+  if (!body.action || !["transcription", "text_generation", "vision", "hashtag_generation", "first_comment_generation", "video_chapters", "video_quotes"].includes(body.action)) {
     return "Tipo de ação de IA inválido.";
   }
   if (body.action === "transcription" && (!body.fileUrl || typeof body.fileUrl !== "string")) {
@@ -105,6 +105,8 @@ function validateBody(body: RequestBody) {
   if (body.action === "hashtag_generation" && (!body.caption || typeof body.caption !== "string" || body.caption.trim().length < 2)) {
     return "Legenda em falta para gerar hashtags.";
   }
+  if (body.action === "first_comment_generation" && (!body.caption || typeof body.caption !== "string" || body.caption.trim().length < 2)) return "Legenda em falta para gerar primeiro comentário.";
+  if ((body.action === "video_chapters" || body.action === "video_quotes") && (!body.transcription || typeof body.transcription !== "string" || body.transcription.trim().length < 20)) return "Transcrição em falta para ferramentas de vídeo.";
   return null;
 }
 
