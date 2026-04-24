@@ -6,6 +6,7 @@ import {
   ValidationSummary,
   ValidatorContext,
 } from '@/lib/validation/types';
+import { NetworkOptions } from '@/types/networkOptions';
 import {
   buildValidationCacheKey,
   runAllValidators,
@@ -16,6 +17,7 @@ interface UseSmartValidationParams {
   caption: string;
   networkCaptions?: Record<string, string>;
   useSeparateCaptions?: boolean;
+  networkOptions?: NetworkOptions;
   mediaFiles: File[];
   hashtags: string[];
   scheduledDate: Date | null;
@@ -42,6 +44,7 @@ export function useSmartValidation(
     caption,
     networkCaptions = {},
     useSeparateCaptions = false,
+    networkOptions = {},
     mediaFiles,
     hashtags,
     scheduledDate,
@@ -82,13 +85,14 @@ export function useSmartValidation(
       caption,
       networkCaptions,
       useSeparateCaptions,
+      networkOptions,
       mediaFiles,
       hashtags: effectiveHashtags,
       scheduledDate,
       scheduleAsap,
       userId,
     }),
-    [selectedFormats, caption, networkCaptions, useSeparateCaptions, mediaFiles, effectiveHashtags, scheduledDate, scheduleAsap, userId],
+    [selectedFormats, caption, networkCaptions, useSeparateCaptions, networkOptions, mediaFiles, effectiveHashtags, scheduledDate, scheduleAsap, userId],
   );
 
   const cacheKey = useMemo(
