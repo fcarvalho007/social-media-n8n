@@ -970,6 +970,8 @@ export default function ManualCreate() {
               rewriteTone={rewriteTone}
               onRewriteToneChange={setRewriteTone}
               onRewriteCaption={handleRewriteCaption}
+              onRevertRewrite={handleRevertRewrite}
+              canRevertRewrite={rewriteHistory.length > 0}
               rewriteLoading={rewriteLoading}
               generatedAt={assistantGeneratedAt}
               generatedEdited={aiGeneratedEdited.caption}
