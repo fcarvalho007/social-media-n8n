@@ -52,6 +52,7 @@ import { aiService } from '@/services/ai/aiService';
 import { useAuth } from '@/contexts/AuthContext';
 import { generateSafeStoragePath } from '@/lib/fileNameSanitizer';
 import { applySafety, getHashtagsFromText, normalizeHashtag as normalizeSuggestedHashtag } from '@/lib/hashtags/safety';
+import { extractVideoFrame } from '@/lib/media/videoFrameExtractor';
 // `extractVideoFrame` foi consolidado em '@/lib/media/videoFrameExtractor'.
 // Este componente já não o usava localmente.
 
@@ -102,6 +103,22 @@ const getVideoDuration = (file: File) => new Promise<number>((resolve, reject) =
   video.src = url;
 });
 
+const toDataUrl = (file: File) => new Promise<string>((resolve, reject) => {
+  const reader = new FileReader();
+  reader.onload = () => resolve(String(reader.result));
+  reader.onerror = () => reject(reader.error ?? new Error('Não foi possível ler o ficheiro.'));
+  reader.readAsDataURL(file);
+});
+
+const formatSrtTime = (seconds: number) => {
+  const safe = Math.max(0, seconds || 0);
+  const hh = Math.floor(safe / 3600);
+  const mm = Math.floor((safe % 3600) / 60);
+  const ss = Math.floor(safe % 60);
+  const ms = Math.floor((safe - Math.floor(safe)) * 1000);
+  return `${String(hh).padStart(2, '0')}:${String(mm).padStart(2, '0')}:${String(ss).padStart(2, '0')},${String(ms).padStart(3, '0')}`;
+};
+
 export default function ManualCreate() {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
@@ -135,8 +152,11 @@ export default function ManualCreate() {
   const [assistantGeneratedAt, setAssistantGeneratedAt] = useState<string | null>(null);
   const [aiGeneratedEdited, setAiGeneratedEdited] = useState<Record<string, boolean>>({});
   const [altText, setAltText] = useState('');
+  const [altTexts, setAltTexts] = useState<Record<string, string>>({});
+  const [altTextLoadingKey, setAltTextLoadingKey] = useState<string | null>(null);
   const [rewriteTone, setRewriteTone] = useState<CaptionRewriteTone>('neutro');
   const [rewriteLoading, setRewriteLoading] = useState(false);
+  const [rewriteHistory, setRewriteHistory] = useState<Array<{ network?: ReturnType<typeof getNetworkFromFormat>; text: string }>>([]);
   const [hashtagSuggestions, setHashtagSuggestions] = useState<SuggestedHashtag[]>([]);
   const [hashtagsLoading, setHashtagsLoading] = useState(false);
   const [rewritePreview, setRewritePreview] = useState<{
@@ -582,18 +602,21 @@ export default function ManualCreate() {
       setAiAssistantStatus('transcribing');
       setAiAssistantError(null);
       const mediaUrl = await uploadAssistantMedia(file);
-      const transcription = rawTranscription || await aiService.transcribeMedia(mediaUrl, {
+      const transcriptionResult = rawTranscription || await aiService.transcribeMedia(mediaUrl, {
         language: 'pt-PT',
         feature: 'upload_assistant_transcription',
         creditCostOverride: 2,
+        includeSegments: true,
       });
+      const transcription = typeof transcriptionResult === 'string' ? transcriptionResult : transcriptionResult.text;
+      const transcriptionSegments = typeof transcriptionResult === 'string' ? aiMetadata?.transcription_segments : transcriptionResult.segments;
 
       if (!transcription || transcription.trim().length < 20) {
         throw new Error('Não consegui perceber o áudio do vídeo. Queres escrever a legenda manualmente?');
       }
 
       setRawTranscription(transcription);
-      setAiMetadata(prev => ({ ...(prev ?? {}), raw_transcription: transcription, upload_assistant: { status: 'transcribed' } }));
+      setAiMetadata(prev => ({ ...(prev ?? {}), raw_transcription: transcription, transcription_segments: transcriptionSegments, upload_assistant: { status: 'transcribed' } }));
       setAiAssistantStatus('generating');
 
       const systemPrompt = `És um assistente editorial para redes sociais. Recebes a transcrição de um vídeo e devolves JSON estruturado com campos prontos para publicação. Escreves em português de Portugal, tom ${aiPreferences.default_tone}. Respeitas limites de caracteres de cada rede. Nunca inventas factos que não estão na transcrição.`;
@@ -632,6 +655,7 @@ export default function ManualCreate() {
         ...(prev ?? {}),
         ...result,
         raw_transcription: transcription,
+        transcription_segments: transcriptionSegments,
         upload_assistant: {
           status: 'done',
           generated_at: generatedAt,
@@ -663,7 +687,7 @@ export default function ManualCreate() {
     }
   }, [aiPreferences, assistantBlockedMessage, mediaFiles, rawTranscription, refreshAiCredits, uploadAssistantMedia, user, useSeparateCaptions]);
 
-  const handleRewriteCaption = useCallback(async () => {
+  const handleRewriteCaption = useCallback(async (tone: CaptionRewriteTone) => {
     const activeNetwork = useSeparateCaptions
       ? captionEditorRef.current?.getActiveNetwork() ?? selectedNetworks[0]
       : selectedNetworks[0];
@@ -678,32 +702,37 @@ export default function ManualCreate() {
 
     try {
       setRewriteLoading(true);
-      const { data, error } = await supabase.functions.invoke('ai-caption-rewriter', {
-        body: {
-          text,
-          network: activeNetwork,
-          tone: rewriteTone,
-          formats: selectedFormats,
-          rawTranscription: rawTranscription || undefined,
-          language: 'pt-PT',
-        },
+      const tonePrompts: Record<string, string> = {
+        direct: 'Reescreve a legenda num tom mais direto e objetivo. Remove floreados. Mantém factos e CTAs.',
+        emotional: 'Reescreve a legenda com um tom mais emocional e pessoal. Usa narrativa. Mantém factos.',
+        technical: 'Reescreve a legenda num tom mais técnico e preciso. Usa terminologia da área. Mantém factos.',
+        shorter: 'Reescreve a legenda de forma mais curta, mantendo a mensagem essencial. Objetivo: reduzir 40%.',
+        longer: 'Expande a legenda com mais contexto e detalhe, mantendo o tom original. Objetivo: aumentar 50%.',
+        linkedin: 'Adapta a legenda ao estilo LinkedIn: parágrafos curtos, storytelling profissional, quebra de linha após a primeira frase de gancho.',
+        instagram: 'Adapta a legenda ao estilo Instagram: emojis pontuais, quebra visual, primeira linha que prende atenção.',
+      };
+      const rewritten = await aiService.generateText({
+        model: 'fast',
+        feature: 'caption_tone_rewrite',
+        creditCostOverride: 1,
+        systemPrompt: 'És um editor sénior de redes sociais. Reescreves em português de Portugal. Não inventes factos. Mantém URLs, menções e CTAs quando fizer sentido. Devolve apenas a legenda final.',
+        prompt: `Rede alvo: ${activeNetwork || 'geral'}\n${rawTranscription ? `Contexto da transcrição:\n${rawTranscription}\n\n` : ''}Instrução: ${tonePrompts[tone] || tonePrompts.direct}\n\nLegenda atual:\n${text}`,
       });
-
-      if (error || !data?.success) throw new Error(data?.error || error?.message || 'Não foi possível reescrever a legenda.');
-
-      setRewritePreview({
-        originalText: text,
-        rewrittenText: String(data.rewrittenText || '').trim(),
-        tone: rewriteTone,
-        network: activeNetwork,
-      });
+      const nextText = String(rewritten || '').trim();
+      if (!nextText) throw new Error('A IA não devolveu uma legenda válida.');
+      setRewriteHistory(prev => [{ network: useSeparateCaptions ? activeNetwork : undefined, text }, ...prev].slice(0, 5));
+      if (useSeparateCaptions && activeNetwork) setNetworkCaptions(prev => ({ ...prev, [activeNetwork]: nextText }));
+      else setCaption(nextText);
+      setAiMetadata(prev => ({ ...(prev ?? {}), rewrites: [...((prev as EditorialAssistantResult | null)?.rewrites ?? []), { network: activeNetwork, tone, created_at: new Date().toISOString(), source: 'caption_rewriter' }] }));
+      await refreshAiCredits();
+      toast.success('Legenda reescrita. Usa Ctrl+Z para reverter.');
     } catch (error) {
       console.error('[ManualCreate] caption rewrite error:', error);
       toast.error(error instanceof Error ? error.message : 'Não foi possível reescrever a legenda.');
     } finally {
       setRewriteLoading(false);
     }
-  }, [caption, networkCaptions, rawTranscription, rewriteTone, selectedFormats, selectedNetworks, useSeparateCaptions]);
+  }, [caption, networkCaptions, rawTranscription, refreshAiCredits, selectedNetworks, useSeparateCaptions]);
 
   const handleApplyRewrite = useCallback(() => {
     if (!rewritePreview?.rewrittenText.trim()) return;
@@ -727,6 +756,28 @@ export default function ManualCreate() {
     setRewritePreview(null);
     toast.success('Versão reescrita aplicada.');
   }, [rewritePreview, useSeparateCaptions]);
+
+  const handleRevertRewrite = useCallback(() => {
+    const [last, ...rest] = rewriteHistory;
+    if (!last) return;
+    if (last.network) setNetworkCaptions(prev => ({ ...prev, [last.network!]: last.text }));
+    else setCaption(last.text);
+    setRewriteHistory(rest);
+    toast.success('Legenda revertida.');
+  }, [rewriteHistory]);
+
+  useEffect(() => {
+    const onKeyDown = (event: KeyboardEvent) => {
+      if ((event.ctrlKey || event.metaKey) && event.key.toLowerCase() === 'z' && rewriteHistory.length > 0) {
+        const target = event.target as HTMLElement | null;
+        if (target?.tagName === 'TEXTAREA' || target?.tagName === 'INPUT') return;
+        event.preventDefault();
+        handleRevertRewrite();
+      }
+    };
+    window.addEventListener('keydown', onKeyDown);
+    return () => window.removeEventListener('keydown', onKeyDown);
+  }, [handleRevertRewrite, rewriteHistory.length]);
 
   const toggleHashtag = useCallback((tag: string) => {
     const normalized = normalizeSuggestedHashtag(tag);
@@ -762,6 +813,56 @@ export default function ManualCreate() {
       setHashtagsLoading(false);
     }
   }, [aiPreferences.brand_hashtags, caption, rawTranscription, refreshAiCredits, selectedNetworks, useSeparateCaptions]);
+
+  const generateAltTextForMedia = useCallback(async (index: number) => {
+    const file = mediaFiles[index];
+    if (!file) return;
+    const key = `media-${index}`;
+    try {
+      setAltTextLoadingKey(key);
+      const sourceFile = file.type.startsWith('video/') ? await extractVideoFrame(file) : file;
+      const imageUrl = await toDataUrl(sourceFile);
+      const generated = await aiService.analyzeImage(imageUrl, 'Descreve objetivamente o que vês nesta imagem para acessibilidade (alt text). Máximo 125 caracteres. Em PT-PT. Sem introduções tipo "Esta imagem mostra". Direto ao conteúdo.');
+      const next = generated.slice(0, 125);
+      setAltTexts(prev => ({ ...prev, [key]: next }));
+      if (index === 0) setAltText(next);
+      setAiMetadata(prev => ({ ...(prev ?? {}), alt_text: index === 0 ? next : prev?.alt_text || '', alt_texts: { ...(prev?.alt_texts ?? {}), [key]: next }, generated_fields: { ...(prev?.generated_fields ?? {}), [`altText.${key}`]: { generated_at: new Date().toISOString(), edited: false } } }));
+      await refreshAiCredits();
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : 'Não foi possível gerar alt text.');
+    } finally {
+      setAltTextLoadingKey(null);
+    }
+  }, [mediaFiles, refreshAiCredits]);
+
+  const handleGenerateSrt = useCallback(() => {
+    const segments = aiMetadata?.transcription_segments ?? [];
+    if (!segments.length) {
+      toast.error('É preciso gerar uma transcrição com timestamps antes do SRT.');
+      return;
+    }
+    const srt = segments.map((segment, index) => `${index + 1}\n${formatSrtTime(segment.start)} --> ${formatSrtTime(segment.end)}\n${segment.text.trim()}\n`).join('\n');
+    const url = URL.createObjectURL(new Blob([srt], { type: 'text/plain;charset=utf-8' }));
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = 'legendas.srt';
+    link.click();
+    URL.revokeObjectURL(url);
+  }, [aiMetadata?.transcription_segments]);
+
+  const handleGenerateChapters = useCallback(async () => {
+    const result = await aiService.generateVideoChapters({ transcription: rawTranscription, segments: aiMetadata?.transcription_segments });
+    await navigator.clipboard.writeText((result.chapters ?? []).map(item => `${item.time} ${item.title}`).join('\n'));
+    await refreshAiCredits();
+    toast.success('Capítulos copiados.');
+  }, [aiMetadata?.transcription_segments, rawTranscription, refreshAiCredits]);
+
+  const handleExtractQuotes = useCallback(async () => {
+    const result = await aiService.extractVideoQuotes({ transcription: rawTranscription, segments: aiMetadata?.transcription_segments });
+    await navigator.clipboard.writeText((result.quotes ?? []).map(item => `${item.time} — ${item.text}`).join('\n'));
+    await refreshAiCredits();
+    toast.success('Frases copiadas.');
+  }, [aiMetadata?.transcription_segments, rawTranscription, refreshAiCredits]);
 
   // Render preview delegated to extracted helper (Phase 4)
   const renderPreview = useCallback(
@@ -857,6 +958,7 @@ export default function ManualCreate() {
             mediaSources={mediaSources}
             mediaAspectRatios={mediaAspectRatios}
             altText={altText}
+            altTexts={altTexts}
             altTextGeneratedAt={assistantGeneratedAt}
             altTextEdited={aiGeneratedEdited.altText}
             mediaRequirements={mediaRequirements}
@@ -866,9 +968,21 @@ export default function ManualCreate() {
             setMediaSources={setMediaSources}
             onAltTextChange={(value) => {
               setAltText(value);
+              setAltTexts(prev => ({ ...prev, 'media-0': value }));
               setAiGeneratedEdited(prev => ({ ...prev, altText: true }));
               setAiMetadata(prev => ({ ...(prev ?? {}), generated_fields: { ...(prev?.generated_fields ?? {}), altText: { ...(prev?.generated_fields?.altText ?? {}), edited: true } } }));
             }}
+            onMediaAltTextChange={(key, value) => {
+              setAltTexts(prev => ({ ...prev, [key]: value }));
+              if (key === 'media-0') setAltText(value);
+              setAiGeneratedEdited(prev => ({ ...prev, [`altText.${key}`]: true }));
+              setAiMetadata(prev => ({ ...(prev ?? {}), alt_texts: { ...(prev?.alt_texts ?? {}), [key]: value }, generated_fields: { ...(prev?.generated_fields ?? {}), [`altText.${key}`]: { ...(prev?.generated_fields?.[`altText.${key}`] ?? {}), edited: true } } }));
+            }}
+            onGenerateAltText={generateAltTextForMedia}
+            altTextLoadingKey={altTextLoadingKey}
+            onGenerateSrt={handleGenerateSrt}
+            onGenerateChapters={handleGenerateChapters}
+            onExtractQuotes={handleExtractQuotes}
             removeMedia={removeMedia}
             moveMedia={moveMedia}
             isUploading={isUploading}
@@ -938,6 +1052,8 @@ export default function ManualCreate() {
               rewriteTone={rewriteTone}
               onRewriteToneChange={setRewriteTone}
               onRewriteCaption={handleRewriteCaption}
+              onRevertRewrite={handleRevertRewrite}
+              canRevertRewrite={rewriteHistory.length > 0}
               rewriteLoading={rewriteLoading}
               generatedAt={assistantGeneratedAt}
               generatedEdited={aiGeneratedEdited.caption}

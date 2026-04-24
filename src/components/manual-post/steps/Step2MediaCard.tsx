@@ -4,7 +4,7 @@ import { Button } from '@/components/ui/button';
 import { Label } from '@/components/ui/label';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
-import { CloudUpload, ChevronLeft, ChevronRight, Plus } from 'lucide-react';
+import { CloudUpload, ChevronLeft, ChevronRight, Plus, Sparkles, Video } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import {
   DndContext,
@@ -30,6 +30,7 @@ import { MediaSource } from '@/types/media';
 import { PostFormat } from '@/types/social';
 import { AltTextPanel } from '@/components/manual-post/ai/AltTextPanel';
 import { AIGeneratedField } from '@/components/ai/AIGeneratedField';
+import { AIActionButton } from '@/components/ai/AIActionButton';
 
 const VALID_ASPECT_RATIOS = new Set<AspectRatioType>([
   '1:1', '3:4', '4:5', '4:3', '16:9', '9:16', 'auto',
@@ -52,6 +53,7 @@ interface Step2MediaCardProps {
   mediaSources: MediaSource[];
   mediaAspectRatios: string[];
   altText?: string;
+  altTexts?: Record<string, string>;
   altTextGeneratedAt?: string | null;
   altTextEdited?: boolean;
   mediaRequirements: MediaRequirements;
@@ -62,6 +64,12 @@ interface Step2MediaCardProps {
   setMediaPreviewUrls: React.Dispatch<React.SetStateAction<string[]>>;
   setMediaSources: React.Dispatch<React.SetStateAction<MediaSource[]>>;
   onAltTextChange?: (value: string) => void;
+  onMediaAltTextChange?: (key: string, value: string) => void;
+  onGenerateAltText?: (index: number) => Promise<unknown>;
+  altTextLoadingKey?: string | null;
+  onGenerateSrt?: () => void;
+  onGenerateChapters?: () => Promise<unknown>;
+  onExtractQuotes?: () => Promise<unknown>;
   removeMedia: (idx: number) => void;
   moveMedia: (from: number, to: number) => void;
 
@@ -108,6 +116,7 @@ export function Step2MediaCard(props: Step2MediaCardProps) {
     mediaSources,
     mediaAspectRatios,
     altText = '',
+    altTexts = {},
     altTextGeneratedAt,
     altTextEdited,
     mediaRequirements,
@@ -116,6 +125,12 @@ export function Step2MediaCard(props: Step2MediaCardProps) {
     setMediaPreviewUrls,
     setMediaSources,
     onAltTextChange,
+    onMediaAltTextChange,
+    onGenerateAltText,
+    altTextLoadingKey,
+    onGenerateSrt,
+    onGenerateChapters,
+    onExtractQuotes,
     removeMedia,
     moveMedia,
     isUploading,
@@ -139,6 +154,7 @@ export function Step2MediaCard(props: Step2MediaCardProps) {
   } = props;
 
   const isInstagramCarousel = selectedFormats.includes('instagram_carousel');
+  const hasVideo = mediaFiles.some(file => file.type?.startsWith('video/'));
   const maxRemaining = isInstagramCarousel
     ? 50 - mediaPreviewUrls.length
     : mediaRequirements.maxMedia - mediaPreviewUrls.length;
@@ -219,7 +235,7 @@ export function Step2MediaCard(props: Step2MediaCardProps) {
           {/* Media Grid - With Files */}
           {mediaPreviewUrls.length > 0 && (
             <div className="space-y-3">
-              {onAltTextChange && mediaPreviewUrls.length === 1 && (
+              {onAltTextChange && !onMediaAltTextChange && mediaPreviewUrls.length === 1 && (
                 <AIGeneratedField generatedAt={altTextGeneratedAt} edited={altTextEdited} className="border-0 bg-transparent">
                   <AltTextPanel
                     visible
@@ -232,6 +248,15 @@ export function Step2MediaCard(props: Step2MediaCardProps) {
                     onApplyAllChange={() => undefined}
                   />
                 </AIGeneratedField>
+              )}
+
+              {hasVideo && (
+                <div className="flex flex-wrap items-center gap-2 rounded-lg border bg-muted/30 p-2">
+                  <span className="inline-flex items-center gap-1.5 text-sm font-medium"><Video className="h-4 w-4" />Ferramentas</span>
+                  <Button type="button" variant="outline" size="sm" onClick={onGenerateSrt}>Gerar ficheiro SRT</Button>
+                  <AIActionButton icon={<Sparkles className="h-4 w-4" />} label="Capítulos" creditCost={2} variant="secondary" onClick={onGenerateChapters ?? (async () => undefined)} />
+                  <AIActionButton icon={<Sparkles className="h-4 w-4" />} label="Frases" creditCost={1} variant="secondary" onClick={onExtractQuotes ?? (async () => undefined)} />
+                </div>
               )}
 
               {/* Persistent Action Bar */}
@@ -366,6 +391,29 @@ export function Step2MediaCard(props: Step2MediaCardProps) {
                     )}
                   </div>
                 </SortableContext>
+
+                {onMediaAltTextChange && mediaPreviewUrls.length > 0 && (
+                  <div className="grid gap-3 sm:grid-cols-2">
+                    {mediaPreviewUrls.map((url, idx) => {
+                      const key = `media-${idx}`;
+                      const value = altTexts[key] ?? (idx === 0 ? altText : '');
+                      return (
+                        <AIGeneratedField key={key} generatedAt={altTextGeneratedAt} edited={altTextEdited} className="border-0 bg-transparent">
+                          <AltTextPanel
+                            visible
+                            value={value}
+                            isCarousel={mediaPreviewUrls.length > 1}
+                            applyAll={false}
+                            loading={altTextLoadingKey === key}
+                            onChange={(next) => onMediaAltTextChange(key, next)}
+                            onRegenerate={() => onGenerateAltText?.(idx)}
+                            onApplyAllChange={(checked) => { if (checked) mediaPreviewUrls.forEach((_, applyIdx) => onMediaAltTextChange(`media-${applyIdx}`, value)); }}
+                          />
+                        </AIGeneratedField>
+                      );
+                    })}
+                  </div>
+                )}
 
                 {/* Drag Overlay */}
                 <DragOverlay

@@ -19,7 +19,7 @@ const MODEL_MAP = {
   smart: "openai/gpt-5-mini",
 } as const;
 
-type AIAction = "transcription" | "text_generation" | "vision" | "hashtag_generation";
+type AIAction = "transcription" | "text_generation" | "vision" | "hashtag_generation" | "first_comment_generation" | "video_chapters" | "video_quotes";
 type RequestBody = {
   action?: AIAction;
   fileUrl?: string;
@@ -32,7 +32,7 @@ type RequestBody = {
   model?: "fast" | "smart";
   feature?: string;
   creditCostOverride?: number;
-  options?: { language?: string };
+  options?: { language?: string; includeSegments?: boolean };
   caption?: string;
   transcription?: string;
   networks?: string[];
@@ -90,7 +90,7 @@ function resolveCost(body: RequestBody) {
 }
 
 function validateBody(body: RequestBody) {
-  if (!body.action || !["transcription", "text_generation", "vision", "hashtag_generation"].includes(body.action)) {
+  if (!body.action || !["transcription", "text_generation", "vision", "hashtag_generation", "first_comment_generation", "video_chapters", "video_quotes"].includes(body.action)) {
     return "Tipo de ação de IA inválido.";
   }
   if (body.action === "transcription" && (!body.fileUrl || typeof body.fileUrl !== "string")) {
@@ -105,6 +105,8 @@ function validateBody(body: RequestBody) {
   if (body.action === "hashtag_generation" && (!body.caption || typeof body.caption !== "string" || body.caption.trim().length < 2)) {
     return "Legenda em falta para gerar hashtags.";
   }
+  if (body.action === "first_comment_generation" && (!body.caption || typeof body.caption !== "string" || body.caption.trim().length < 2)) return "Legenda em falta para gerar primeiro comentário.";
+  if ((body.action === "video_chapters" || body.action === "video_quotes") && (!body.transcription || typeof body.transcription !== "string" || body.transcription.trim().length < 20)) return "Transcrição em falta para ferramentas de vídeo.";
   return null;
 }
 
@@ -167,6 +169,18 @@ async function generateHashtags(body: RequestBody, lovableKey: string) {
   return { ...output, result: { ...(output.result as Record<string, unknown>), generated_at: new Date().toISOString() } };
 }
 
+async function generateFirstComments(body: RequestBody, lovableKey: string) {
+  const prompt = `Legenda do post:\n${body.caption}\n\nRede social: ${(body.networks || [])[0] || "instagram"}\n\nDevolve JSON com 3 opções de primeiro comentário, cada uma com abordagem diferente: {"options":[{"approach":"pergunta","text":"pergunta que convida ao debate, máx 300 chars"},{"approach":"cta_link","text":"CTA claro com link para aprofundar, máx 300 chars"},{"approach":"complemento","text":"continuação que aprofunda a ideia do post, máx 300 chars"}]}`;
+  return generateText({ ...body, prompt, systemPrompt: "És um especialista em engagement para redes sociais. Geras primeiros comentários que aumentam interação. Em PT-PT, tom natural, nunca corporativo.", responseFormat: "json", model: "fast" }, lovableKey);
+}
+
+async function generateVideoTool(body: RequestBody, lovableKey: string, kind: "chapters" | "quotes") {
+  const prompt = kind === "chapters"
+    ? `Transcrição:\n${body.transcription}\n\nSegmentos com timestamps:\n${JSON.stringify((body as Record<string, unknown>).segments || [])}\n\nDevolve JSON com capítulos YouTube: {"chapters":[{"time":"00:00","title":"Título curto"}]}. O primeiro capítulo deve começar em 00:00.`
+    : `Transcrição:\n${body.transcription}\n\nSegmentos com timestamps:\n${JSON.stringify((body as Record<string, unknown>).segments || [])}\n\nDevolve JSON com 3 a 5 frases citáveis: {"quotes":[{"time":"00:45","text":"frase dita"}]}. Usa frases fiéis à transcrição.`;
+  return generateText({ ...body, prompt, systemPrompt: "És um editor de vídeo. Respondes apenas com JSON válido em português de Portugal e nunca inventas frases ou timestamps.", responseFormat: "json", model: "fast" }, lovableKey);
+}
+
 async function analyzeImage(body: RequestBody, lovableKey: string) {
   const model = MODEL_MAP.smart;
   const aiResponse = await retry(() => fetchWithTimeout("https://ai.gateway.lovable.dev/v1/chat/completions", {
@@ -195,7 +209,8 @@ async function transcribeMedia(body: RequestBody, openAiKey: string) {
   form.append("file", new File([blob], "media", { type: blob.type || "audio/mpeg" }));
   form.append("model", "whisper-1");
   form.append("language", (body.options?.language || "pt").slice(0, 2));
-  form.append("response_format", "json");
+  form.append("response_format", body.options?.includeSegments ? "verbose_json" : "json");
+  if (body.options?.includeSegments) form.append("timestamp_granularities[]", "segment");
 
   const transcriptionResponse = await retry(() => fetchWithTimeout("https://api.openai.com/v1/audio/transcriptions", {
     method: "POST",
@@ -205,7 +220,11 @@ async function transcribeMedia(body: RequestBody, openAiKey: string) {
 
   if (!transcriptionResponse.ok) throw new Response(await transcriptionResponse.text(), { status: transcriptionResponse.status });
   const data = await transcriptionResponse.json();
-  return { result: String(data.text || "").trim(), tokens: null, model: "whisper-1", provider: "openai" };
+  const text = String(data.text || "").trim();
+  if (body.options?.includeSegments) {
+    return { result: { text, segments: Array.isArray(data.segments) ? data.segments.map((s: Record<string, unknown>) => ({ id: s.id, start: s.start, end: s.end, text: String(s.text || "").trim() })) : [] }, tokens: null, model: "whisper-1", provider: "openai" };
+  }
+  return { result: text, tokens: null, model: "whisper-1", provider: "openai" };
 }
 
 serve(async (req) => {
@@ -259,6 +278,14 @@ serve(async (req) => {
       const lovableKey = Deno.env.get("LOVABLE_API_KEY");
       if (!lovableKey) throw new Response("missing_lovable_key", { status: 500 });
       output = await generateHashtags(body, lovableKey);
+    } else if (body.action === "first_comment_generation") {
+      const lovableKey = Deno.env.get("LOVABLE_API_KEY");
+      if (!lovableKey) throw new Response("missing_lovable_key", { status: 500 });
+      output = await generateFirstComments(body, lovableKey);
+    } else if (body.action === "video_chapters" || body.action === "video_quotes") {
+      const lovableKey = Deno.env.get("LOVABLE_API_KEY");
+      if (!lovableKey) throw new Response("missing_lovable_key", { status: 500 });
+      output = await generateVideoTool(body, lovableKey, body.action === "video_chapters" ? "chapters" : "quotes");
     } else {
       const lovableKey = Deno.env.get("LOVABLE_API_KEY");
       if (!lovableKey) throw new Response("missing_lovable_key", { status: 500 });

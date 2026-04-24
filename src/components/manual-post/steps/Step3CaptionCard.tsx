@@ -23,7 +23,9 @@ interface Step3CaptionCardProps {
   onOpenAIDialog: () => void;
   rewriteTone: CaptionRewriteTone;
   onRewriteToneChange: (tone: CaptionRewriteTone) => void;
-  onRewriteCaption: () => void;
+  onRewriteCaption: (tone: CaptionRewriteTone) => Promise<unknown>;
+  onRevertRewrite: () => void;
+  canRevertRewrite: boolean;
   rewriteLoading: boolean;
   generatedAt?: string | null;
   generatedEdited?: boolean;
@@ -50,6 +52,8 @@ export const Step3CaptionCard = forwardRef<NetworkCaptionEditorHandle, Step3Capt
     rewriteTone,
     onRewriteToneChange,
     onRewriteCaption,
+    onRevertRewrite,
+    canRevertRewrite,
     rewriteLoading,
     generatedAt,
     generatedEdited,
@@ -99,10 +103,9 @@ export const Step3CaptionCard = forwardRef<NetworkCaptionEditorHandle, Step3Capt
           />
         </AIGeneratedField>
         <CaptionRewritePanel
-          tone={rewriteTone}
-          onToneChange={onRewriteToneChange}
           onRewrite={onRewriteCaption}
-          loading={rewriteLoading}
+          onRevert={onRevertRewrite}
+          canRevert={canRevertRewrite}
           disabled={disabled}
         />
       </CardContent>
