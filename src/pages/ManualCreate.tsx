@@ -7,7 +7,7 @@ import { DevHelper } from '@/components/DevHelper';
 
 import { Button } from '@/components/ui/button';
 import { toast } from 'sonner';
-import { ArrowLeft } from 'lucide-react';
+import { ArrowLeft, Eye, Maximize2, Smartphone } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { StepProgress } from '@/components/manual-post/StepProgress';
 import { useAutoSave } from '@/hooks/useAutoSave';
@@ -18,7 +18,7 @@ import { QuotaWarningBanner } from '@/components/manual-post/steps/QuotaWarningB
 import { MobileStickyActionBar } from '@/components/manual-post/steps/MobileStickyActionBar';
 import { ManualCreateModals } from '@/components/manual-post/steps/ManualCreateModals';
 import { Drawer, DrawerContent, DrawerHeader, DrawerTitle } from '@/components/ui/drawer';
-import { Smartphone, ChevronRight } from 'lucide-react';
+import { ChevronRight } from 'lucide-react';
 import { NetworkFormatSelector } from '@/components/manual-post/NetworkFormatSelector';
 import { getMediaRequirements } from '@/lib/formatValidation';
 
