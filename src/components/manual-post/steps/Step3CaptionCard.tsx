@@ -7,7 +7,7 @@ import { SocialNetwork } from '@/types/social';
 import { CaptionRewriteTone } from '@/types/aiEditorial';
 import { AIGeneratedField } from '@/components/ai/AIGeneratedField';
 import { Button } from '@/components/ui/button';
-import { RotateCcw } from 'lucide-react';
+import { MessageSquareText, RotateCcw } from 'lucide-react';
 import { ToneAction } from '@/components/manual-post/ai/CaptionToneToolbar';
 
 interface Step3CaptionCardProps {
@@ -62,8 +62,9 @@ export const Step3CaptionCard = forwardRef<NetworkCaptionEditorHandle, Step3Capt
   return (
     <Card className="manual-card-shell">
       <CardHeader className="manual-card-content pb-3">
-        <CardTitle className="manual-section-title flex items-center gap-2">
-          Legenda
+        <CardTitle className="manual-section-title manual-card-title-row">
+          <span className="manual-icon-box"><MessageSquareText className="h-5 w-5" strokeWidth={1.5} /></span>
+          <span>Legenda</span>
           <SectionHelp content={getSectionTooltip('caption')} />
         </CardTitle>
         <CardDescription className="manual-section-description">
