@@ -44,28 +44,28 @@ export function Step3ScheduleCard(props: Step3ScheduleCardProps) {
   } = props;
 
   return (
-    <Card className="border-0 sm:border shadow-none sm:shadow-sm w-full max-w-full overflow-hidden">
-      <CardHeader className="px-1.5 xs:px-2 sm:px-6 pt-1.5 xs:pt-2 sm:pt-6 pb-1 xs:pb-1.5 sm:pb-4">
-        <CardTitle className="flex items-center gap-1 xs:gap-1.5 sm:gap-2 text-sm xs:text-base sm:text-lg">
+    <Card className="manual-card-shell w-full max-w-full">
+      <CardHeader className="manual-card-content pb-3">
+        <CardTitle className="manual-section-title flex items-center gap-2">
           Agendamento
           <SectionHelp content={getSectionTooltip('scheduling')} />
         </CardTitle>
-        <CardDescription className="text-[10px] xs:text-xs sm:text-sm">Defina quando publicar</CardDescription>
+        <CardDescription className="manual-section-description">Define quando publicar</CardDescription>
       </CardHeader>
-      <CardContent className="space-y-2 xs:space-y-3 sm:space-y-4 px-2 xs:px-3 sm:px-6 pb-3 xs:pb-4 sm:pb-6">
+      <CardContent className="manual-card-content manual-group-stack pt-0">
         {/* Toggle Pill Style */}
-        <div className="flex rounded-full bg-muted p-0.5 gap-0.5">
+        <div className="flex gap-1 rounded-lg bg-muted p-1">
           <button
             type="button"
             onClick={() => onScheduleAsapChange(true)}
             className={cn(
-              'flex-1 py-1.5 xs:py-2 px-1.5 xs:px-2 sm:px-4 rounded-full text-[10px] xs:text-xs sm:text-sm font-medium transition-all duration-300 flex items-center justify-center gap-0.5 xs:gap-1 sm:gap-2',
+              'flex-1 rounded-md px-3 py-2 text-sm font-medium transition-all duration-manual-expand flex items-center justify-center gap-2',
               scheduleAsap
                 ? 'bg-background shadow-sm text-foreground'
                 : 'text-muted-foreground hover:text-foreground',
             )}
           >
-            <Rocket className="h-3 w-3 xs:h-3.5 xs:w-3.5 sm:h-4 sm:w-4" />
+            <Rocket className="h-4 w-4" strokeWidth={1.5} />
             <span className="hidden xs:inline">Publicar agora</span>
             <span className="xs:hidden">Agora</span>
           </button>
@@ -73,28 +73,28 @@ export function Step3ScheduleCard(props: Step3ScheduleCardProps) {
             type="button"
             onClick={() => onScheduleAsapChange(false)}
             className={cn(
-              'flex-1 py-1.5 xs:py-2 px-1.5 xs:px-2 sm:px-4 rounded-full text-[10px] xs:text-xs sm:text-sm font-medium transition-all duration-300 flex items-center justify-center gap-0.5 xs:gap-1 sm:gap-2',
+              'flex-1 rounded-md px-3 py-2 text-sm font-medium transition-all duration-manual-expand flex items-center justify-center gap-2',
               !scheduleAsap
                 ? 'bg-background shadow-sm text-foreground'
                 : 'text-muted-foreground hover:text-foreground',
             )}
           >
-            <CalendarIcon className="h-3 w-3 xs:h-3.5 xs:w-3.5 sm:h-4 sm:w-4" />
+            <CalendarIcon className="h-4 w-4" strokeWidth={1.5} />
             Agendar
           </button>
         </div>
 
         {scheduleAsap ? (
-          <div className="text-center py-3 space-y-2">
+          <div className="space-y-2 py-3 text-center">
             <div className="inline-flex items-center gap-2 text-sm text-muted-foreground bg-muted/50 px-4 py-2 rounded-lg">
               <Rocket className="h-4 w-4 text-primary" />
               <span>Publicação imediata após clicares em Publicar</span>
             </div>
           </div>
         ) : (
-          <div className="space-y-4 animate-fade-in">
+          <div className="manual-group-stack manual-enter">
             {/* Timezone indicator */}
-            <div className="flex items-center justify-center gap-1 xs:gap-2 text-[9px] xs:text-xs text-muted-foreground bg-muted/40 px-2 xs:px-3 py-1.5 xs:py-2 rounded-lg flex-wrap">
+            <div className="flex flex-wrap items-center justify-center gap-2 rounded-lg bg-muted/40 px-3 py-2 text-manual-micro text-muted-foreground">
               <Globe className="h-3 w-3" />
               <span className="hidden xs:inline">Fuso: </span>
               <strong className="text-foreground">Lisboa</strong>
@@ -103,8 +103,8 @@ export function Step3ScheduleCard(props: Step3ScheduleCardProps) {
             </div>
 
             {/* Quick date shortcuts */}
-            <div className="space-y-2">
-              <Label className="text-[10px] xs:text-xs text-muted-foreground">Atalhos rápidos</Label>
+            <div className="manual-field-stack">
+              <Label className="manual-field-label text-muted-foreground">Atalhos rápidos</Label>
               <div className="grid grid-cols-2 gap-1 xs:gap-1.5">
                 <Button
                   type="button"
@@ -112,7 +112,7 @@ export function Step3ScheduleCard(props: Step3ScheduleCardProps) {
                   size="sm"
                   onClick={() => onScheduledDateChange(new Date())}
                   className={cn(
-                    'text-[9px] xs:text-[10px] sm:text-xs h-7 xs:h-8',
+                    'h-8 text-xs',
                     scheduledDate &&
                       format(scheduledDate, 'yyyy-MM-dd') === format(new Date(), 'yyyy-MM-dd') &&
                       'bg-primary/10 border-primary/50',
@@ -126,7 +126,7 @@ export function Step3ScheduleCard(props: Step3ScheduleCardProps) {
                   size="sm"
                   onClick={() => onScheduledDateChange(addDays(new Date(), 1))}
                   className={cn(
-                    'text-[9px] xs:text-[10px] sm:text-xs h-7 xs:h-8',
+                    'h-8 text-xs',
                     scheduledDate &&
                       format(scheduledDate, 'yyyy-MM-dd') === format(addDays(new Date(), 1), 'yyyy-MM-dd') &&
                       'bg-primary/10 border-primary/50',
@@ -140,7 +140,7 @@ export function Step3ScheduleCard(props: Step3ScheduleCardProps) {
                   size="sm"
                   onClick={() => onScheduledDateChange(nextDay(new Date(), 2))}
                   className={cn(
-                    'text-[9px] xs:text-[10px] sm:text-xs h-7 xs:h-8',
+                    'h-8 text-xs',
                     scheduledDate &&
                       scheduledDate.getDay() === 2 &&
                       scheduledDate > new Date() &&
@@ -155,7 +155,7 @@ export function Step3ScheduleCard(props: Step3ScheduleCardProps) {
                   size="sm"
                   onClick={() => onScheduledDateChange(nextDay(new Date(), 4))}
                   className={cn(
-                    'text-[10px] xs:text-xs h-8',
+                    'h-8 text-xs',
                     scheduledDate &&
                       scheduledDate.getDay() === 4 &&
                       scheduledDate > new Date() &&
@@ -168,8 +168,8 @@ export function Step3ScheduleCard(props: Step3ScheduleCardProps) {
             </div>
 
             {/* Date picker */}
-            <div className="space-y-1.5">
-              <Label className="text-sm font-medium">Data</Label>
+            <div className="manual-field-stack">
+              <Label className="manual-field-label">Data</Label>
               <Popover>
                 <PopoverTrigger asChild>
                   <Button
@@ -202,8 +202,8 @@ export function Step3ScheduleCard(props: Step3ScheduleCardProps) {
             </div>
 
             {/* Time picker with presets */}
-            <div className="space-y-1.5">
-              <Label className="text-sm font-medium">Hora</Label>
+            <div className="manual-field-stack">
+              <Label className="manual-field-label">Hora</Label>
               <div className="grid grid-cols-2 gap-2">
                 <Select
                   value={time.split(':')[0]}
@@ -245,7 +245,7 @@ export function Step3ScheduleCard(props: Step3ScheduleCardProps) {
                       key={preset}
                       variant="outline"
                       className={cn(
-                        'cursor-pointer hover:bg-primary/10 transition-colors text-[10px] xs:text-xs py-0.5 xs:py-1 px-1.5 xs:px-2 flex-shrink-0',
+                        'manual-chip flex-shrink-0 cursor-pointer transition-colors hover:bg-primary/10',
                         time === preset && 'bg-primary/10 border-primary/50',
                       )}
                       onClick={() => onTimeChange(preset)}
@@ -259,7 +259,7 @@ export function Step3ScheduleCard(props: Step3ScheduleCardProps) {
 
             {/* Scheduled preview */}
             {scheduledDate && time && (
-              <div className="bg-gradient-to-r from-primary/5 to-primary/10 border border-primary/20 rounded-xl p-4 space-y-1">
+              <div className="space-y-1 rounded-lg border border-primary/20 bg-primary/5 p-4">
                 <div className="flex items-center gap-2 text-sm font-medium text-primary">
                   <CheckCircle2 className="h-4 w-4" />
                   Agendado para:
@@ -274,7 +274,7 @@ export function Step3ScheduleCard(props: Step3ScheduleCardProps) {
         )}
 
         {/* Step 3 Navigation */}
-        <div className="flex justify-start mt-3 pt-3 border-t">
+        <div className="mt-4 flex justify-start border-t border-border/40 pt-4">
           <Button
             variant="ghost"
             size="sm"
