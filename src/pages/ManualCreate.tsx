@@ -166,6 +166,8 @@ export default function ManualCreate() {
     setUseSeparateCaptions,
     setNetworkCaptions,
     setNetworkOptions,
+    setRawTranscription,
+    setAiMetadata,
     setMediaPreviewUrls,
     setMediaSources,
     setMediaFiles,
