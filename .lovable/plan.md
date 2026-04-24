@@ -1,108 +1,115 @@
-
 ## Diagnóstico
 
-O problema principal não é o thumbnail em si: o rascunho continua a aparecer no Dashboard porque o fluxo de publicação cria um novo registo de publicação, mas não elimina nem invalida o rascunho original depois de publicar com sucesso.
+Na secção **Legenda** de `/manual-create`, a base já tem algumas correções recentes: as legendas separadas são copiadas sem corte e a validação de formato já evita duplicar alguns erros de legenda. Ainda assim, há pontos frágeis:
 
-Encontrei também um segundo problema relacionado: o post associado ficou com estado `failed` porque uma rede falhou primeiro, mas depois outras redes foram publicadas com sucesso. O sistema atual permite que uma falha parcial marque a publicação inteira como falhada antes de o resultado agregado estar concluído.
+- o editor não tem um aviso inline suficientemente claro quando uma rede excede o limite, sobretudo TikTok/X;
+- o botão de correção automática “Cortar para X caracteres” é destrutivo e pode contrariar a regra de não apagar texto sem intenção explícita;
+- ao alternar entre legenda unificada e separada, a lógica de inicialização está no `ManualCreate.tsx`, não no editor, e pode ficar inconsistente em casos de seleção/troca de redes;
+- o foco da validação de legenda usa uma `textareaRef` que não está ligada ao `NetworkCaptionEditor`, por isso “Editar legenda” pode não levar o utilizador ao campo certo;
+- as notificações de erro de publicação/submissão são genéricas e não indicam qual problema está a bloquear a ação;
+- no mobile, o botão “Publicar” não respeita `smartValidation.canPublish` no estado disabled, dependendo do clique para abrir o painel de validação.
 
-## Plano de correção
+## Plano de melhorias
 
-### 1. Remover automaticamente o rascunho após publicação bem-sucedida
+### 1. Reforçar a secção “Legenda”
 
-Atualizar o fluxo de `/manual-create` para que, quando um rascunho carregado for publicado com sucesso:
+Atualizar `NetworkCaptionEditor` para:
 
-- apague o registo correspondente em `posts_drafts`;
-- limpe o `currentDraftId`;
-- invalide a cache de rascunhos;
-- limpe a cache do calendário;
-- atualize imediatamente o Dashboard sem depender apenas de realtime.
-
-Também aplicar a mesma regra quando um rascunho for submetido para aprovação com sucesso.
-
-### 2. Corrigir a lógica de estado em publicações multi-rede
-
-Ajustar o fluxo de publicação para evitar que uma falha isolada marque o post inteiro como `failed` enquanto ainda existem redes em processamento.
-
-Nova regra:
+- manter sempre o texto completo ao alternar entre unificada/separadas;
+- preservar edições específicas por rede mesmo quando se desliga e volta a ligar o modo separado;
+- aumentar/estabilizar a altura mínima da caixa e permitir scroll interno quando o texto é muito longo, em vez de parecer que o texto foi cortado;
+- mostrar, junto da caixa ativa, um aviso claro quando a rede excede o limite:
 
 ```text
-Todas falharam       -> failed
-Alguma publicou      -> published
-Agendada aceite      -> scheduled
-Ainda a processar    -> publishing / scheduled
+TikTok: 428/300 · excede 128 caracteres
+Edita manualmente ou usa “Duplicar da legenda geral”.
 ```
 
-Isto evita que casos como “LinkedIn falhou, mas TikTok/YouTube/Facebook publicaram” fiquem presos como falha total.
+- adicionar ações não destrutivas úteis:
+  - “Duplicar da legenda geral” para repor uma rede a partir da legenda unificada;
+  - “Copiar texto” para guardar a versão longa antes de qualquer ajuste;
+  - manter o corte automático apenas como ação explícita de validação, nunca ao trocar o switch.
 
-### 3. Melhorar a função de publicação
+### 2. Melhorar o switch de legendas separadas
 
-Na backend function `publish-to-getlate`:
+Centralizar a inicialização das legendas separadas para garantir que:
 
-- deixar de marcar o post como `failed` de forma definitiva quando apenas uma plataforma falha;
-- registar a falha em `publication_attempts`;
-- deixar o estado final do post para o agregador do frontend;
-- quando uma plataforma publica sem URL externo, guardar pelo menos o identificador da plataforma/Getlate nos metadados;
-- marcar o post como `published` quando há confirmação real de sucesso, mesmo que a API não devolva link público.
+- ao ligar o switch, cada rede recebe a legenda global completa se ainda não tiver texto próprio;
+- redes já editadas mantêm a sua versão;
+- novas redes selecionadas depois também recebem uma legenda completa inicial;
+- ao desligar o switch, o texto das redes não é apagado, apenas deixa de ser usado até voltar a ligar.
 
-### 4. Reconciliar dados antigos ou inconsistentes
+### 3. Corrigir o foco e a navegação dos erros de legenda
 
-Adicionar uma rotina de reconciliação leve no carregamento do Dashboard e/ou Histórico:
+Ligar o `focusCaption` real ao editor, para que os botões de erro consigam:
 
-- se um post estiver `failed`, mas tiver `publication_attempts.status = success`, corrigir visualmente o estado para “Parcial/Publicado”;
-- não mostrar como rascunho pendente um rascunho que corresponde claramente a uma publicação já criada/publicada;
-- aplicar uma limpeza pontual ao rascunho atual que já foi usado para publicar, para sair imediatamente do Dashboard.
+- abrir/focar a caixa de legenda unificada;
+- no modo separado, focar a rede afetada pelo erro, por exemplo TikTok;
+- opcionalmente ativar a aba dessa rede antes de focar.
 
-### 5. Melhorar a deteção futura no Dashboard
+Isto torna mensagens como “Legenda obrigatória para LinkedIn” ou “Legenda excede limite (TikTok)” acionáveis.
 
-Atualizar `usePendingContent` para não depender apenas de `posts_drafts.status = draft`.
+### 4. Melhorar notificações de erro
 
-A listagem de rascunhos deve excluir automaticamente rascunhos que tenham:
+Atualizar o gating de publicação/submissão para mostrar mensagens mais úteis:
 
-- mesma legenda;
-- mesmo utilizador;
-- publicação criada depois do rascunho;
-- tentativa de publicação bem-sucedida ou estado `published/scheduled/publishing`.
+- se houver 1 erro: mostrar o título do erro principal;
+- se houver vários: mostrar “Há X problemas a corrigir” e abrir o painel;
+- usar descrição curta com a primeira ação recomendada;
+- evitar toasts genéricos repetidos quando o painel já está aberto.
 
-Isto funciona como rede de segurança caso uma eliminação automática falhe por cache, ligação ou mudança de página.
+Exemplo:
 
-### 6. Melhorar a página de Rascunhos
+```text
+Não é possível publicar ainda
+Legenda excede limite (TikTok): tens 428 caracteres — máximo 300.
+```
 
-Atualizar `useDrafts` para seguir a mesma regra de exclusão, evitando que `/drafts` mostre rascunhos já consumidos pela publicação.
+### 5. Corrigir o estado do botão mobile
 
-Também adicionar invalidação de cache após:
+Atualizar `MobileStickyActionBar` para:
 
-- publicar;
-- submeter para aprovação;
-- eliminar rascunho;
-- mover/agendar no calendário.
+- desativar “Publicar” quando `smartValidation.canPublish` é falso;
+- manter o badge “toca para ver” como caminho principal para ver os detalhes;
+- garantir que o clique no botão, se permitido, não passa por validações inconsistentes entre desktop e mobile.
 
-### 7. Testes e validação
+### 6. Ajustar copy pt-PT e ortografia
 
-Validar:
+Corrigir textos existentes na área de validação:
 
-- publicar a partir de rascunho remove o rascunho do Dashboard;
-- publicar a partir de rascunho remove o rascunho de `/drafts`;
-- falha parcial não deixa o post como falha total se alguma rede publicou;
-- respostas de sucesso sem URL continuam a marcar o post como publicado;
-- Dashboard não mostra rascunhos “fantasma” após refresh;
-- TypeScript sem erros;
-- testes unitários dos helpers de reconciliação passam.
+- “mídia” → “média”;
+- “detectados” → “detetados”;
+- manter tom impessoal/pt-PT.
+
+### 7. Testes
+
+Adicionar/atualizar testes para:
+
+- ligar legendas separadas não corta texto longo;
+- alternar separadas/unificada/separadas preserva edições por rede;
+- erro de TikTok usa a legenda específica e foca a aba correta;
+- o botão mobile fica bloqueado quando há erros de validação;
+- notificações de validação mostram o erro principal, não apenas uma mensagem genérica.
 
 ## Ficheiros previstos
 
+- `src/components/manual-post/NetworkCaptionEditor.tsx`
+- `src/components/manual-post/NetworkCaptionEditor.test.tsx`
+- `src/components/manual-post/steps/Step3CaptionCard.tsx`
+- `src/pages/ManualCreate.tsx`
 - `src/hooks/manual-create/usePublishOrchestrator.ts`
-- `src/hooks/usePublishWithProgress.ts`
-- `src/hooks/usePendingContent.ts`
-- `src/hooks/useDrafts.ts`
-- `supabase/functions/publish-to-getlate/index.ts`
-- testes associados aos helpers de publicação/rascunhos
+- `src/components/manual-post/ValidationSidebar.tsx`
+- `src/components/manual-post/ValidationIssueCard.tsx`
+- `src/components/manual-post/steps/MobileStickyActionBar.tsx`
+- testes associados aos componentes/hook afetados
 
 ## Checkpoint
 
-- ☐ Rascunho publicado deixa de aparecer no Dashboard.
-- ☐ Rascunho publicado deixa de aparecer em `/drafts`.
-- ☐ Publicação parcial deixa de ficar marcada como falha total.
-- ☐ Sucessos sem URL externo continuam a atualizar o estado da publicação.
-- ☐ Dashboard passa a filtrar rascunhos fantasma automaticamente.
-- ☐ O rascunho antigo já publicado é limpo dos dados atuais.
-- ☐ Validação TypeScript e testes ficam verdes.
+- ☐ O switch de legendas separadas nunca corta nem apaga texto.
+- ☐ A caixa de legenda mantém tamanho/scroll adequado com texto longo.
+- ☐ Cada rede mostra limite, excesso e aviso inline claro.
+- ☐ Erros de legenda focam a rede/campo correto.
+- ☐ Toasts de erro mostram a causa principal em vez de mensagem genérica.
+- ☐ Desktop e mobile bloqueiam publicação com a mesma regra.
+- ☐ Copy da área de validação fica em pt-PT consistente.
+- ☐ Testes relevantes e TypeScript ficam verdes.
