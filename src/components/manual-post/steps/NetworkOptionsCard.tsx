@@ -1,5 +1,5 @@
 import { forwardRef, useImperativeHandle, useRef, useState, type PointerEvent } from 'react';
-import { Info, Plus, Sparkles, Trash2 } from 'lucide-react';
+import { Info, Plus, Settings2, Sparkles, Trash2 } from 'lucide-react';
 import { SocialNetwork } from '@/types/social';
 import { NetworkOptionField, NetworkOptions, firstCommentLimit } from '@/types/networkOptions';
 import { NETWORK_INFO } from '@/lib/socialNetworks';
@@ -229,9 +229,9 @@ export const NetworkOptionsCard = forwardRef<NetworkOptionsCardHandle, NetworkOp
     <Card className="manual-card-shell manual-enter">
       <Accordion type="multiple" value={rootOpen} onValueChange={setRootOpen}>
         <AccordionItem value="network-options" className="border-b-0">
-          <CardHeader className="manual-card-content pb-0"><AccordionTrigger className="py-0 hover:no-underline"><CardTitle className="manual-section-title">Opções por rede</CardTitle></AccordionTrigger></CardHeader>
+          <CardHeader className="manual-card-content pb-0"><AccordionTrigger className="min-h-11 py-0 hover:no-underline"><CardTitle className="manual-section-title manual-card-title-row"><span className="manual-icon-box"><Settings2 className="h-5 w-5" strokeWidth={1.5} /></span><span>Opções por rede</span></CardTitle></AccordionTrigger></CardHeader>
           <AccordionContent className="manual-card-content pt-4">
-            <CardContent className="p-0"><Accordion type="multiple" value={openNetworks} onValueChange={setOpenNetworks} className="space-y-2">{selectedNetworks.map(network => <AccordionItem key={network} value={network} className="rounded-lg border border-border/60 px-3"><AccordionTrigger ref={setFieldRef(fieldKey(network)) as React.Ref<HTMLButtonElement>} className="hover:no-underline focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2">{renderNetworkHeader(network)}</AccordionTrigger><AccordionContent className="pt-2">{network === 'instagram' && renderInstagram()}{network === 'linkedin' && renderLinkedIn()}{network === 'facebook' && renderFacebook()}{network === 'youtube' && renderYoutube()}{network === 'googlebusiness' && renderGoogleBusiness()}</AccordionContent></AccordionItem>)}</Accordion></CardContent>
+            <CardContent className="p-0"><Accordion type="multiple" value={openNetworks} onValueChange={setOpenNetworks} className="space-y-2">{selectedNetworks.map(network => <AccordionItem key={network} value={network} className="rounded-lg border border-border/60 bg-muted/20 px-3"><AccordionTrigger ref={setFieldRef(fieldKey(network)) as React.Ref<HTMLButtonElement>} className="min-h-11 hover:no-underline focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2">{renderNetworkHeader(network)}</AccordionTrigger><AccordionContent className="pt-2 pb-3">{network === 'instagram' && renderInstagram()}{network === 'linkedin' && renderLinkedIn()}{network === 'facebook' && renderFacebook()}{network === 'youtube' && renderYoutube()}{network === 'googlebusiness' && renderGoogleBusiness()}</AccordionContent></AccordionItem>)}</Accordion></CardContent>
           </AccordionContent>
         </AccordionItem>
       </Accordion>
