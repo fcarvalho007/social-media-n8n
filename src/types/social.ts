@@ -9,6 +9,7 @@ export type PostFormat =
   | 'instagram_carousel'
   | 'instagram_image'
   | 'instagram_stories'
+  | 'instagram_story_link'
   | 'instagram_reel'
   // LinkedIn
   | 'linkedin_post'
@@ -61,6 +62,14 @@ export const NETWORK_POST_FORMATS: Record<SocialNetwork, PostFormatConfig[]> = {
       label: 'Stories', 
       description: 'Imagem ou vídeo', 
       icon: 'Circle',
+      minMedia: 1,
+      maxMedia: 1,
+    },
+    {
+      format: 'instagram_story_link',
+      label: 'Story com Link',
+      description: 'Story manual com link sticker',
+      icon: 'Link',
       minMedia: 1,
       maxMedia: 1,
     },
