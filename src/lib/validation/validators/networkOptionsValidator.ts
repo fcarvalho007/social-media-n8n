@@ -19,18 +19,6 @@ export async function networkOptionsValidator(ctx: ValidatorContext): Promise<Va
   const options = ctx.networkOptions ?? {};
   const storyLinkSelected = ctx.selectedFormats.includes('instagram_story_link');
 
-  if (storyLinkSelected && ctx.selectedFormats.length > 1) {
-    issues.push({
-      id: 'network-options:instagram-story-link:exclusive-format',
-      severity: 'error',
-      category: 'platform',
-      platform: 'instagram',
-      format: 'instagram_story_link',
-      title: 'Story com Link deve ser isolada',
-      description: 'Cria a Story com Link separadamente para manter o fluxo semi-automático e evitar publicação direta por engano.',
-    });
-  }
-
   (['instagram', 'linkedin', 'facebook'] as SocialNetwork[]).forEach((network) => {
     if (!networks.has(network)) return;
     const value = network === 'instagram'
@@ -57,6 +45,8 @@ export async function networkOptionsValidator(ctx: ValidatorContext): Promise<Va
   if (networks.has('instagram')) {
     if (storyLinkSelected) {
       const linkUrl = options.instagram?.storyLinkUrl?.trim() ?? '';
+      const stickerText = options.instagram?.storyLinkStickerText ?? '';
+      const overlayText = options.instagram?.storyLinkOverlayText ?? '';
       if (!linkUrl || invalidUrl(linkUrl)) {
         issues.push({
           id: 'network-options:instagram-story-link:invalid-url',
@@ -70,6 +60,12 @@ export async function networkOptionsValidator(ctx: ValidatorContext): Promise<Va
           fixLabel: 'Editar link',
           fixAction: () => ctx.fixHelpers?.focusNetworkOption?.('instagram', 'instagramStoryLink'),
         });
+      }
+      if (stickerText.length > 30) {
+        issues.push({ id: 'network-options:instagram-story-link:sticker-length', severity: 'error', category: 'platform', platform: 'instagram', format: 'instagram_story_link', title: 'Texto do sticker demasiado longo', description: `O texto do sticker tem ${stickerText.length}/30 caracteres.`, autoFixable: !!ctx.fixHelpers?.focusNetworkOption, fixLabel: 'Editar sticker', fixAction: () => ctx.fixHelpers?.focusNetworkOption?.('instagram', 'instagramStoryLink') });
+      }
+      if (overlayText.length > 100) {
+        issues.push({ id: 'network-options:instagram-story-link:overlay-length', severity: 'error', category: 'platform', platform: 'instagram', format: 'instagram_story_link', title: 'Texto sobreposto demasiado longo', description: `O texto sobreposto tem ${overlayText.length}/100 caracteres.`, autoFixable: !!ctx.fixHelpers?.focusNetworkOption, fixLabel: 'Editar overlay', fixAction: () => ctx.fixHelpers?.focusNetworkOption?.('instagram', 'instagramStoryLink') });
       }
     }
 
