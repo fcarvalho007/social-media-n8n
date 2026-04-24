@@ -28,11 +28,11 @@ function resizeTextarea(textarea: HTMLTextAreaElement | null) {
 
 // Network labels and icons
 const NETWORK_CONFIG: Record<SocialNetwork, { label: string; icon: React.ElementType; color: string }> = {
-  instagram: { label: 'Instagram', icon: Instagram, color: 'text-pink-500' },
-  linkedin: { label: 'LinkedIn', icon: Linkedin, color: 'text-blue-600' },
-  youtube: { label: 'YouTube', icon: Youtube, color: 'text-red-500' },
+  instagram: { label: 'Instagram', icon: Instagram, color: 'text-[hsl(var(--color-instagram))]' },
+  linkedin: { label: 'LinkedIn', icon: Linkedin, color: 'text-[hsl(var(--color-linkedin))]' },
+  youtube: { label: 'YouTube', icon: Youtube, color: 'text-[hsl(var(--color-youtube))]' },
   tiktok: { label: 'TikTok', icon: () => <span className="text-xs font-bold">TT</span>, color: 'text-foreground' },
-  facebook: { label: 'Facebook', icon: Facebook, color: 'text-blue-500' },
+  facebook: { label: 'Facebook', icon: Facebook, color: 'text-[hsl(var(--color-facebook))]' },
   googlebusiness: { label: 'Google', icon: () => <span className="text-xs font-bold">G</span>, color: 'text-foreground' },
   x: { label: 'X', icon: () => <span className="text-xs font-bold">X</span>, color: 'text-foreground' },
 };
