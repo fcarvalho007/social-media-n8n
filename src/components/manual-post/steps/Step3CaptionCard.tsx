@@ -8,6 +8,7 @@ import { CaptionRewriteTone } from '@/types/aiEditorial';
 import { AIGeneratedField } from '@/components/ai/AIGeneratedField';
 import { Button } from '@/components/ui/button';
 import { RotateCcw } from 'lucide-react';
+import { ToneAction } from '@/components/manual-post/ai/CaptionToneToolbar';
 
 interface Step3CaptionCardProps {
   caption: string;
@@ -25,7 +26,7 @@ interface Step3CaptionCardProps {
   onRewriteCaption: (tone: CaptionRewriteTone) => Promise<unknown>;
   onRevertRewrite: () => void;
   canRevertRewrite: boolean;
-  rewriteLoading: CaptionRewriteTone | null;
+  rewriteLoading: ToneAction | null;
   generatedAt?: string | null;
   generatedEdited?: boolean;
   insightBanner?: ReactNode;
