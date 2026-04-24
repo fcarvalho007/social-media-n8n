@@ -84,9 +84,13 @@ export const NetworkOptionsCard = forwardRef<NetworkOptionsCardHandle, NetworkOp
   disabled,
   generatedAt,
   generatedEdited = {},
+  state = 'active',
+  stepNumber,
+  onActivate,
+  onEdit,
 }, ref) {
-  const [rootOpen, setRootOpen] = useState<string[]>([]);
-  const [openNetworks, setOpenNetworks] = useState<string[]>([]);
+  // Sub-acordeões single-expand: apenas uma rede aberta de cada vez.
+  const [openNetwork, setOpenNetwork] = useState<string>('');
   const [draftCollaborator, setDraftCollaborator] = useState('');
   const [mentionProfile, setMentionProfile] = useState('');
   const [mentionName, setMentionName] = useState('');
