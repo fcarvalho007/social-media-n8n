@@ -137,6 +137,7 @@ export default function ManualCreate() {
   const [altText, setAltText] = useState('');
   const [rewriteTone, setRewriteTone] = useState<CaptionRewriteTone>('neutro');
   const [rewriteLoading, setRewriteLoading] = useState(false);
+  const [rewriteHistory, setRewriteHistory] = useState<Array<{ network?: ReturnType<typeof getNetworkFromFormat>; text: string }>>([]);
   const [hashtagSuggestions, setHashtagSuggestions] = useState<SuggestedHashtag[]>([]);
   const [hashtagsLoading, setHashtagsLoading] = useState(false);
   const [rewritePreview, setRewritePreview] = useState<{
