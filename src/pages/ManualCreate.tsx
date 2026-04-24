@@ -1220,7 +1220,7 @@ export default function ManualCreate() {
   };
 
   return (
-      <div className="max-w-7xl mx-auto space-y-2 sm:space-y-4 px-0 sm:px-6 lg:px-0 bg-gradient-to-br from-background to-background-secondary overflow-hidden w-full max-w-full">
+      <div className="max-w-7xl mx-auto space-y-2 sm:space-y-4 px-0 sm:px-6 lg:px-0 pb-44 sm:pb-32 bg-gradient-to-br from-background to-background-secondary overflow-hidden w-full max-w-full">
       {/* Header */}
       <div className="flex items-center justify-between py-1 sm:py-2 gap-2">
         <Button 
