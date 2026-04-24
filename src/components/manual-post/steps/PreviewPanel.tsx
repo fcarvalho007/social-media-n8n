@@ -106,7 +106,7 @@ export function PreviewPanel(props: PreviewPanelProps) {
                   aria-label={config?.label ?? formatItem}
                 >
                   <NetworkIcon className="h-5 w-5" />
-                  <span className="absolute bottom-0.5 right-0.5 rounded-sm bg-muted p-0.5 text-muted-foreground data-[state=active]:bg-primary-foreground/20">
+                  <span className="absolute bottom-0.5 right-0.5 rounded-sm bg-muted p-0.5 text-muted-foreground group-data-[state=active]:bg-primary-foreground/20 group-data-[state=active]:text-primary-foreground">
                     <FormatIcon className="h-2.5 w-2.5" />
                   </span>
                 </TabsTrigger>
@@ -172,6 +172,7 @@ export function PreviewPanel(props: PreviewPanelProps) {
       return (
         <div className={variant === 'mobile' ? 'space-y-4' : undefined}>
           {renderPreview(selectedFormats[0])}
+          <Metadata />
           <ScheduledLabel />
         </div>
       );
@@ -224,6 +225,7 @@ export function PreviewPanel(props: PreviewPanelProps) {
                 <div className="grid gap-4 xl:grid-cols-2">
                   {selectedFormats.map((formatItem) => (
                     <TabsContent key={formatItem} value={formatItem} className="mt-0 rounded-md border bg-muted/30 p-4">
+                      <p className="mb-3 text-sm font-medium text-muted-foreground">{getFormatConfig(formatItem)?.label}</p>
                       {renderPreview(formatItem)}
                     </TabsContent>
                   ))}
