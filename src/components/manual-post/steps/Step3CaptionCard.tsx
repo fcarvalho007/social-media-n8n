@@ -90,6 +90,15 @@ export const Step3CaptionCard = forwardRef<NetworkCaptionEditorHandle, Step3Capt
       </CardHeader>
       <CardContent className="space-y-2 sm:space-y-3 px-3 sm:px-6 pb-4 sm:pb-6">
         {insightBanner}
+        <CaptionRewritePanel
+          onRewrite={onRewriteCaption}
+          onRevert={onRevertRewrite}
+          canRevert={canRevertRewrite}
+          disabled={disabled}
+        />
+        {canRevertRewrite && (
+          <p className="text-xs text-muted-foreground">Podes reverter a última reescrita com o botão Reverter.</p>
+        )}
         <AIGeneratedField generatedAt={generatedAt} edited={generatedEdited} className="border-0 bg-transparent">
           <NetworkCaptionEditor
             ref={ref}
@@ -105,12 +114,6 @@ export const Step3CaptionCard = forwardRef<NetworkCaptionEditorHandle, Step3Capt
             onOpenAIDialog={onOpenAIDialog}
           />
         </AIGeneratedField>
-        <CaptionRewritePanel
-          onRewrite={onRewriteCaption}
-          onRevert={onRevertRewrite}
-          canRevert={canRevertRewrite}
-          disabled={disabled}
-        />
       </CardContent>
     </Card>
   );
