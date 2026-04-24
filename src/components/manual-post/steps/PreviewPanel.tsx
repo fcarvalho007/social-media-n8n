@@ -83,6 +83,21 @@ export function PreviewPanel(props: PreviewPanelProps) {
     ? `${format(scheduledDate, 'dd/MM', { locale: pt })} · ${time}`
     : 'Imediato';
 
+  // Limite de legenda por rede activa (em chars). YouTube usa descrição.
+  const CAPTION_LIMITS: Record<string, number> = {
+    instagram: 2200,
+    linkedin: 3000,
+    facebook: 63206,
+    x: 280,
+    tiktok: 2200,
+    youtube: 5000,
+    googlebusiness: 1500,
+  };
+  const activeNetwork = activeFormat ? getNetworkFromFormat(activeFormat) : 'instagram';
+  const activeLimit = CAPTION_LIMITS[activeNetwork] ?? 2200;
+  const overLimit = activeCaption.length > activeLimit;
+  const nearLimit = activeCaption.length > activeLimit * 0.8 && !overLimit;
+
   const PreviewTabs = ({ compact = true }: { compact?: boolean }) => (
     <TabsList className={cn(
       'mb-4 h-auto w-full justify-start gap-2 overflow-x-auto rounded-none bg-transparent p-0 scrollbar-hide',
