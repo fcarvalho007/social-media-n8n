@@ -165,7 +165,7 @@ export function AutoSaveIndicator({ lastSaved, isSaving, hasUnsavedChanges }: Au
     
     return (
       <div className="flex items-center gap-2 text-xs text-muted-foreground">
-        <div className="w-1.5 h-1.5 rounded-full bg-green-500" />
+        <div className="w-1.5 h-1.5 rounded-full bg-success animate-pulse" />
         <span>Rascunho guardado às {timeStr}</span>
         {hasUnsavedChanges && (
           <span className="text-warning">• Alterações não guardadas</span>
