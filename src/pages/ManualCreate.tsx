@@ -376,6 +376,8 @@ export default function ManualCreate() {
     if (aiMetadata?.upload_assistant?.generated_at) {
       setAssistantGeneratedAt(aiMetadata.upload_assistant.generated_at);
       setAiAssistantStatus('done');
+      setAiGeneratedEdited(Object.fromEntries(Object.entries(aiMetadata.generated_fields ?? {}).map(([key, value]) => [key, !!value.edited])));
+      setHashtagSuggestions((aiMetadata.hashtag_assistant?.hashtags ?? []).map(applySafety));
     } else if (rawTranscription && rawTranscription.length >= 20) {
       setAiAssistantStatus('idle');
     }
