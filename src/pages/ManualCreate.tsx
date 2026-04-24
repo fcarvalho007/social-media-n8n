@@ -881,21 +881,28 @@ export default function ManualCreate() {
 
   const handleDismissInsight = useCallback(async () => {
     if (!activeInsight) return;
-    const nextCount = (activeInsight.dismissed_count ?? 0) + 1;
-    await supabase.from('account_insights' as any).update({
-      dismissed_count: nextCount,
-      dismissed_until: nextCount >= 3 ? new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString() : activeInsight.dismissed_until ?? null,
-    }).eq('id', activeInsight.id);
+    const { error } = await supabase.rpc('update_account_insight_visibility' as any, { _insight_id: activeInsight.id, _action: 'dismiss' });
+    if (error) {
+      toast.error('Não foi possível dispensar este insight.');
+      return;
+    }
     setInsightDismissedThisSession(true);
     setActiveInsight(null);
+    toast.success('Insight dispensado.');
   }, [activeInsight]);
 
   const handleMuteInsight = useCallback(async () => {
     if (!activeInsight) return;
-    await supabase.from('account_insights' as any).update({ never_show: true }).eq('id', activeInsight.id);
+    const muted = Array.from(new Set([...(aiPreferences.muted_insight_types ?? []), activeInsight.insight_type]));
+    const { error } = await supabase.rpc('update_account_insight_visibility' as any, { _insight_id: activeInsight.id, _action: 'mute' });
+    if (error) {
+      toast.error('Não foi possível silenciar este tipo de insight.');
+      return;
+    }
     setInsightDismissedThisSession(true);
     setActiveInsight(null);
-  }, [activeInsight]);
+    toast.success('Tipo de insight silenciado.');
+  }, [activeInsight, aiPreferences.muted_insight_types]);
 
   const applyInsightQuestion = useCallback((question: string) => {
     const clean = question.trim();
