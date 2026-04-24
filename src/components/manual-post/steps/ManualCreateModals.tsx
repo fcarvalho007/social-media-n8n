@@ -22,7 +22,7 @@ interface ManualCreateModalsProps {
   savedCaptionsOpen: boolean;
   setSavedCaptionsOpen: (open: boolean) => void;
   caption: string;
-  setCaption: (c: string) => void;
+  onApplyCaption: (c: string) => void;
 
   aiDialogOpen: boolean;
   setAiDialogOpen: (open: boolean) => void;
@@ -73,7 +73,7 @@ export function ManualCreateModals(props: ManualCreateModalsProps) {
     savedCaptionsOpen,
     setSavedCaptionsOpen,
     caption,
-    setCaption,
+    onApplyCaption,
     aiDialogOpen,
     setAiDialogOpen,
     compressionModalProps,
@@ -109,14 +109,14 @@ export function ManualCreateModals(props: ManualCreateModalsProps) {
         open={savedCaptionsOpen}
         onOpenChange={setSavedCaptionsOpen}
         currentCaption={caption}
-        onSelectCaption={setCaption}
+        onSelectCaption={onApplyCaption}
       />
 
       <AICaptionDialog
         open={aiDialogOpen}
         onOpenChange={setAiDialogOpen}
         currentCaption={caption}
-        onApplyCaption={setCaption}
+        onApplyCaption={onApplyCaption}
       />
 
       <ImageCompressionConfirmModal
