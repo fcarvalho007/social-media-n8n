@@ -1291,6 +1291,10 @@ export default function ManualCreate() {
             mediaSectionRef={mediaSectionRef}
             onPreviousStep={previousStep}
             onNextStep={nextStep}
+            state={mediaState}
+            onActivate={() => activate('media')}
+            onEdit={() => activate('media')}
+            stepNumber={2}
           />
 
           {/* Step 3: Caption & Scheduling - Progressive Disclosure */}
