@@ -237,11 +237,70 @@ export const NetworkOptionsCard = forwardRef<NetworkOptionsCardHandle, NetworkOp
     }
   })();
 
-  const renderNetworkHeader = (network: SocialNetwork) => {
-    const info = NETWORK_INFO[network];
-    const Icon = info.icon;
-    return <span className="flex items-center gap-2"><Icon className="h-4 w-4 shrink-0" style={{ color: info.color }} strokeWidth={1.5} />{info.name}</span>;
+  // ── Resumo por rede (badges + summary agregado) ────────────────────────
+  const networkSummaryTokens = (network: SocialNetwork): string[] => {
+    const tokens: string[] = [];
+    if (network === 'instagram') {
+      const opts = networkOptions.instagram ?? {};
+      if (isStoryLinkSelected) {
+        if (opts.storyLinkUrl) tokens.push('Link OK');
+        if (opts.storyLinkStickerText) tokens.push('Sticker');
+        if (opts.storyLinkOverlayText) tokens.push('Overlay');
+      } else {
+        if (opts.formatVariant && opts.formatVariant !== 'feed') tokens.push(opts.formatVariant);
+        if (opts.firstComment?.trim()) tokens.push('1.º comentário');
+        if ((opts.collaborators?.length ?? 0) > 0) tokens.push(`${opts.collaborators!.length} colab.`);
+        if ((opts.photoTags?.length ?? 0) > 0) tokens.push(`${opts.photoTags!.length} tag(s)`);
+      }
+    } else if (network === 'linkedin') {
+      const opts = networkOptions.linkedin ?? {};
+      if (opts.firstComment?.trim()) tokens.push('1.º comentário');
+      if ((opts.mentions?.length ?? 0) > 0) tokens.push(`${opts.mentions!.length} menção(ões)`);
+      if (opts.disableLinkPreview) tokens.push('sem preview');
+    } else if (network === 'facebook') {
+      const opts = networkOptions.facebook ?? {};
+      if (opts.formatVariant && opts.formatVariant !== 'feed') tokens.push(opts.formatVariant);
+      if (opts.firstComment?.trim()) tokens.push('1.º comentário');
+    } else if (network === 'youtube') {
+      const opts = networkOptions.youtube ?? {};
+      if (opts.title?.trim()) tokens.push('título');
+      if ((opts.tags?.length ?? 0) > 0) tokens.push(`${opts.tags!.length} tag(s)`);
+      if (opts.visibility && opts.visibility !== 'public') tokens.push(opts.visibility);
+    } else if (network === 'googlebusiness') {
+      const opts = networkOptions.googlebusiness ?? {};
+      if (opts.ctaEnabled) tokens.push('CTA');
+    }
+    return tokens;
   };
+
+  const aggregatedSummary = useMemo(() => {
+    const parts = selectedNetworks
+      .map((network) => ({ network, tokens: networkSummaryTokens(network) }))
+      .filter((entry) => entry.tokens.length > 0);
+
+    if (parts.length === 0) {
+      return <span className="text-muted-foreground">Sem opções configuradas — vais usar os predefinidos.</span>;
+    }
+
+    return (
+      <div className="flex flex-wrap items-center gap-2">
+        {parts.map(({ network, tokens }) => {
+          const info = NETWORK_INFO[network];
+          const Icon = info.icon;
+          return (
+            <span key={network} className="inline-flex items-center gap-1.5 rounded-md bg-muted/50 px-2 py-1 text-xs">
+              <Icon className="h-3.5 w-3.5" style={{ color: info.color }} strokeWidth={1.5} />
+              <span className="font-medium">{info.name}</span>
+              <span className="text-muted-foreground">·</span>
+              <span className="text-muted-foreground">{tokens.join(' · ')}</span>
+            </span>
+          );
+        })}
+      </div>
+    );
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [selectedNetworks, networkOptions, isStoryLinkSelected]);
+
 
   const renderInstagram = () => (
     <div className="manual-group-stack">
