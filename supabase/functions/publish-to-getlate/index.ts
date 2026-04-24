@@ -583,6 +583,87 @@ function computeApiTimeoutMs(payload: GetlatePostPayload): number {
   return 3 * 60 * 1000; // 3 min default
 }
 
+function buildPlatformSpecificData(network: string, format: string, options: NetworkOptions | undefined, mediaItems: GetlatePostPayload['mediaItems']) {
+  const mediaCount = mediaItems?.length ?? 0;
+  const hasVideo = mediaItems?.some(item => item.type === 'video') ?? false;
+  const data: Record<string, unknown> = {};
+
+  if (network === 'instagram') {
+    const instagram = options?.instagram ?? {};
+    const variant = instagram.formatVariant;
+    if (format.includes('stories') || variant === 'story') data.contentType = 'story';
+    if (format.includes('reel') || variant === 'reel') data.contentType = 'reels';
+    const isStory = data.contentType === 'story';
+
+    const firstComment = instagram.firstComment?.trim();
+    if (firstComment && !isStory) data.firstComment = firstComment;
+
+    const collaborators = (instagram.collaborators ?? []).filter(name => /^@[A-Za-z0-9._]{1,30}$/.test(name)).slice(0, 3);
+    if (collaborators.length > 0 && !isStory) data.collaborators = collaborators;
+
+    const rawTags = instagram.photoTags ?? [];
+    if (rawTags.length > 0 && (hasVideo || data.contentType === 'reels')) {
+      throw new Error('Tags de fotografia do Instagram só podem ser usadas em imagens ou carrosséis de imagem.');
+    }
+    const userTags = rawTags.map(tag => {
+      const username = (tag.username ?? '').trim();
+      const mediaIndex = Number.isFinite(tag.mediaIndex) ? Number(tag.mediaIndex) : Number(tag.slideIndex ?? 0);
+      const x = Number(tag.x);
+      const y = Number(tag.y);
+      if (!/^@[A-Za-z0-9._]{1,30}$/.test(username)) throw new Error(`Tag de Instagram inválida: ${username || 'sem username'}.`);
+      if (!Number.isFinite(x) || x < 0 || x > 1 || !Number.isFinite(y) || y < 0 || y > 1) throw new Error(`Coordenadas inválidas para a tag ${username}.`);
+      if (!Number.isInteger(mediaIndex) || mediaIndex < 0 || mediaIndex >= mediaCount) throw new Error(`Slide inválido para a tag ${username}.`);
+      return { username, x, y, mediaIndex };
+    });
+    if (userTags.length > 0) data.userTags = userTags;
+  }
+
+  if (network === 'facebook') {
+    const facebook = options?.facebook ?? {};
+    const variant = facebook.formatVariant;
+    if (format.includes('stories') || variant === 'story') data.contentType = 'story';
+    if (format.includes('reel') || variant === 'reel') data.contentType = 'reel';
+    const firstComment = facebook.firstComment?.trim();
+    if (firstComment && data.contentType !== 'story') data.firstComment = firstComment;
+  }
+
+  if (network === 'linkedin') {
+    const linkedin = options?.linkedin ?? {};
+    const firstComment = linkedin.firstComment?.trim();
+    if (firstComment) data.firstComment = firstComment;
+    if (linkedin.disableLinkPreview === true) data.disableLinkPreview = true;
+  }
+
+  if (network === 'youtube') {
+    const youtube = options?.youtube ?? {};
+    const title = youtube.title?.trim();
+    if (title) {
+      if (title.length > 100) throw new Error('O título do YouTube não pode exceder 100 caracteres.');
+      data.title = title;
+    }
+    if (youtube.visibility && ['public', 'unlisted', 'private'].includes(youtube.visibility)) data.visibility = youtube.visibility;
+    const categoryId = youtube.categoryId ?? (youtube.category ? LEGACY_YOUTUBE_CATEGORY_IDS[youtube.category] : undefined);
+    if (categoryId) data.categoryId = categoryId;
+  }
+
+  if (network === 'googlebusiness') {
+    const googlebusiness = options?.googlebusiness ?? {};
+    if (googlebusiness.ctaEnabled) {
+      const type = GOOGLE_BUSINESS_CTA_TYPES[googlebusiness.ctaType ?? 'learn_more'];
+      if (!type) throw new Error('Tipo de botão do Google Business inválido.');
+      const callToAction: Record<string, string> = { type };
+      if (type !== 'CALL') {
+        const url = googlebusiness.ctaUrl?.trim() ?? '';
+        if (!assertValidUrl(url)) throw new Error('O botão do Google Business precisa de um URL válido.');
+        callToAction.url = url;
+      }
+      data.callToAction = callToAction;
+    }
+  }
+
+  return Object.keys(data).length > 0 ? data : undefined;
+}
+
 async function publishToGetlate(
   apiToken: string, 
   payload: GetlatePostPayload, 
