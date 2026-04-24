@@ -330,6 +330,14 @@ export default function ManualCreate() {
   // Mobile bottom-sheet state for the validation panel
   const [validationSheetOpen, setValidationSheetOpen] = useState(false);
 
+  // Progressive disclosure: secção 1 começa active; outras inactive (ou
+  // complete quando carregadas via rascunho — gerido pelos handlers de
+  // navegação do stepper).
+  const { activeSection, activate } = useActiveSection('networks');
+  const networksState = activeSection === 'networks'
+    ? 'active'
+    : (selectedFormats.length > 0 ? 'complete' : 'inactive');
+
   // Smart pre-validation (real-time)
   const smartValidation = useSmartValidation({
     selectedFormats,
@@ -1140,14 +1148,21 @@ export default function ManualCreate() {
             <NetworkFormatSelector
               selectedFormats={selectedFormats}
               onFormatsChange={setSelectedFormats}
+              state={networksState}
+              stepNumber={1}
+              onActivate={() => activate('networks')}
+              onEdit={() => activate('networks')}
             />
-            
+
             {/* Step 1 Navigation */}
-            {currentStep === 1 && selectedFormats.length > 0 && (
+            {currentStep === 1 && selectedFormats.length > 0 && networksState === 'active' && (
               <div className="mt-4 flex justify-end">
-                <Button 
-                  variant="default" 
-                  onClick={nextStep}
+                <Button
+                  variant="default"
+                  onClick={() => {
+                    activate('media');
+                    nextStep();
+                  }}
                   className="h-10"
                 >
                   Seguinte
