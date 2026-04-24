@@ -136,12 +136,19 @@ export function PreviewPanel(props: PreviewPanelProps) {
     </TabsList>
   );
 
+  // Versão inline (usada em mobile dentro do Drawer).
   const Metadata = () => (
     <div className="mt-4 border-t border-border/40 pt-3">
       <div className="grid grid-cols-3 gap-2 text-manual-hint">
         <div>
           <p className="text-muted-foreground">Legenda</p>
-          <p className={cn('font-medium', activeCaption.length >= 2090 && 'text-destructive', activeCaption.length >= 1760 && activeCaption.length < 2090 && 'text-warning')}>{activeCaption.length} / 2200</p>
+          <p className={cn(
+            'font-medium',
+            overLimit && 'text-destructive',
+            nearLimit && 'text-warning',
+          )}>
+            {activeCaption.length} / {activeLimit}
+          </p>
         </div>
         <div>
           <p className="text-muted-foreground">Hashtags</p>
@@ -153,6 +160,39 @@ export function PreviewPanel(props: PreviewPanelProps) {
         </div>
       </div>
       <p className="manual-microcopy mt-2">{mediaCount} {mediaCount === 1 ? 'ficheiro' : 'ficheiros'}</p>
+    </div>
+  );
+
+  // Barra sticky de 52px no rodapé do painel desktop.
+  const StickyMetadataBar = () => (
+    <div
+      className="flex h-[52px] shrink-0 items-center gap-4 border-t border-border/40 bg-background/95 px-5 backdrop-blur-sm"
+      role="status"
+      aria-live="polite"
+    >
+      {selectedFormats.length === 0 ? (
+        <span className="text-sm text-muted-foreground" aria-label="Sem rede seleccionada">—</span>
+      ) : (
+        <>
+          <span
+            className={cn(
+              'text-xs font-medium tabular-nums',
+              overLimit && 'text-destructive',
+              nearLimit && 'text-warning',
+            )}
+            title={`Limite da rede ${activeNetwork}`}
+          >
+            {activeCaption.length}/{activeLimit}
+          </span>
+          <span className="text-xs text-muted-foreground tabular-nums">
+            {hashtagCount} #
+          </span>
+          <span className="ml-auto flex items-center gap-3 text-xs text-muted-foreground">
+            <span className="truncate">{scheduleLabel}</span>
+            <span className="tabular-nums">{mediaCount} {mediaCount === 1 ? 'ficheiro' : 'ficheiros'}</span>
+          </span>
+        </>
+      )}
     </div>
   );
 
