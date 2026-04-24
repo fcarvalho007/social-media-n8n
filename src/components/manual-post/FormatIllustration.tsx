@@ -1,4 +1,4 @@
-import { Image, Play, FileText, Clock, Music2, Zap, Mountain, Sun } from 'lucide-react';
+import { Image, Play, FileText, Link, Music2, Zap, Mountain, Sun } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
 interface FormatIllustrationProps {
@@ -102,6 +102,26 @@ export function FormatIllustration({ type, platformColor = '#6B7280', isSelected
           className="absolute -bottom-1 -right-2 px-1 py-0.5 rounded text-[8px] font-bold text-amber-600 bg-white shadow-sm"
         >
           24h
+        </div>
+      </div>
+    ),
+
+    'story-link': (
+      <div className="relative">
+        <div
+          className="flex h-11 w-7 flex-col gap-1 rounded-md p-1"
+          style={{ background: `linear-gradient(180deg, ${isSelected ? platformColor : 'hsl(var(--foreground))'}, ${isSelected ? `${platformColor}cc` : 'hsl(var(--muted-foreground))'})` }}
+        >
+          <div className="flex gap-0.5">
+            <span className="h-[3px] flex-1 rounded-full bg-primary-foreground" />
+            <span className="h-[3px] flex-1 rounded-full bg-primary-foreground/30" />
+          </div>
+          <div className="flex flex-1 items-center justify-center rounded-sm bg-primary-foreground/10">
+            <Link className="h-3.5 w-3.5 text-primary-foreground" />
+          </div>
+        </div>
+        <div className="absolute -bottom-1 -right-2 flex h-[18px] w-[18px] items-center justify-center rounded-full bg-background shadow-sm" style={{ color: platformColor }}>
+          <Link size={11} />
         </div>
       </div>
     ),
@@ -309,6 +329,7 @@ export function getIllustrationType(format: string): string {
     'instagram_carousel': 'carousel',
     'instagram_image': 'post',
     'instagram_stories': 'stories',
+    'instagram_story_link': 'story-link',
     'instagram_reel': 'reels',
     'linkedin_post': 'linkedin-post',
     'linkedin_document': 'linkedin-pdf',
