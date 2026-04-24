@@ -499,11 +499,7 @@ export default function ManualCreate() {
       if (error || !data?.success) throw new Error(data?.error || error?.message || 'A IA está indisponível.');
 
       const result = data.result as EditorialAssistantResult;
-      const groupedHashtags = [
-        ...(result.hashtags?.reach ?? []),
-        ...(result.hashtags?.niche ?? []),
-        ...(result.hashtags?.brand ?? []),
-      ].map((tag) => tag.startsWith('#') ? tag : `#${tag}`);
+      const groupedHashtags = getUniqueHashtags(result);
       const nextCaption = [result.base_caption, groupedHashtags.join(' ')].filter(Boolean).join('\n\n');
 
       setCaption(nextCaption);
@@ -525,7 +521,7 @@ export default function ManualCreate() {
       toast.success('Assistente de IA aplicado', { description: 'A legenda e os campos editoriais foram preenchidos.' });
     } catch (error) {
       console.error('[ManualCreate] AI assistant error:', error);
-      toast.error('A IA está indisponível. Podes preencher manualmente ou tentar de novo.');
+      toast.error(error instanceof Error ? error.message : 'A IA está indisponível. Podes preencher manualmente ou tentar de novo.');
     } finally {
       setAiAssistantLoading(false);
     }
