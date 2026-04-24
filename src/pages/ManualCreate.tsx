@@ -958,6 +958,7 @@ export default function ManualCreate() {
             mediaSources={mediaSources}
             mediaAspectRatios={mediaAspectRatios}
             altText={altText}
+            altTexts={altTexts}
             altTextGeneratedAt={assistantGeneratedAt}
             altTextEdited={aiGeneratedEdited.altText}
             mediaRequirements={mediaRequirements}
@@ -967,9 +968,21 @@ export default function ManualCreate() {
             setMediaSources={setMediaSources}
             onAltTextChange={(value) => {
               setAltText(value);
+              setAltTexts(prev => ({ ...prev, 'media-0': value }));
               setAiGeneratedEdited(prev => ({ ...prev, altText: true }));
               setAiMetadata(prev => ({ ...(prev ?? {}), generated_fields: { ...(prev?.generated_fields ?? {}), altText: { ...(prev?.generated_fields?.altText ?? {}), edited: true } } }));
             }}
+            onMediaAltTextChange={(key, value) => {
+              setAltTexts(prev => ({ ...prev, [key]: value }));
+              if (key === 'media-0') setAltText(value);
+              setAiGeneratedEdited(prev => ({ ...prev, [`altText.${key}`]: true }));
+              setAiMetadata(prev => ({ ...(prev ?? {}), alt_texts: { ...(prev?.alt_texts ?? {}), [key]: value }, generated_fields: { ...(prev?.generated_fields ?? {}), [`altText.${key}`]: { ...(prev?.generated_fields?.[`altText.${key}`] ?? {}), edited: true } } }));
+            }}
+            onGenerateAltText={generateAltTextForMedia}
+            altTextLoadingKey={altTextLoadingKey}
+            onGenerateSrt={handleGenerateSrt}
+            onGenerateChapters={handleGenerateChapters}
+            onExtractQuotes={handleExtractQuotes}
             removeMedia={removeMedia}
             moveMedia={moveMedia}
             isUploading={isUploading}
