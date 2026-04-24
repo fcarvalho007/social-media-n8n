@@ -161,6 +161,12 @@ async function generateText(body: RequestBody, lovableKey: string) {
   return { result: body.responseFormat === "json" ? JSON.parse(text) : text, tokens: data.usage?.total_tokens ?? null, model, provider: "lovable_ai" };
 }
 
+async function generateHashtags(body: RequestBody, lovableKey: string) {
+  const prompt = `Legenda:\n${body.caption}\n\nTranscrição opcional:\n${body.transcription || ""}\n\nRedes: ${(body.networks || []).join(", ") || "instagram"}\nHashtags de marca: ${(body.brandHashtags || []).join(", ") || "nenhuma"}\n\nDevolve APENAS JSON válido com esta estrutura: {"hashtags":[{"tag":"#exemplo","group":"reach|niche|brand","status":"neutral|risk","reason":"razão curta","riskReason":"só se houver risco","source":"ai_editorial|brand"}],"selectedTags":["#exemplo"]}. Não atribuas scores, volume, tendência, saturação, popularidade nem desempenho de mercado. Usa português de Portugal e evita spam.`;
+  const output = await generateText({ ...body, prompt, responseFormat: "json", model: "fast" }, lovableKey);
+  return { ...output, result: { ...(output.result as Record<string, unknown>), generated_at: new Date().toISOString() } };
+}
+
 async function analyzeImage(body: RequestBody, lovableKey: string) {
   const model = MODEL_MAP.smart;
   const aiResponse = await retry(() => fetchWithTimeout("https://ai.gateway.lovable.dev/v1/chat/completions", {
