@@ -125,7 +125,10 @@ Uso: wrapper shadcn para cards principais do fluxo.
 
 ## Componentes prontos para reuso
 
-- `NetworkFormatSelector`: seleção compacta de rede/formato com empty state e focus consistente.
+- `SectionCard` (`src/components/manual-post/ui/SectionCard.tsx`): wrapper visual base do padrão de progressive disclosure (ver secção dedicada abaixo).
+- `useActiveSection` (`src/hooks/useActiveSection.ts`): hook que garante que apenas uma secção está `active` em simultâneo.
+- `NETWORK_ICONS` (`src/lib/networkIcons.ts`): mapa central de ícone + cor por rede social. Substitui leituras dispersas a `platformConfig` quando só são precisos ícone/cor.
+- `NetworkFormatSelector`: seleção compacta de rede/formato com empty state e focus consistente. Migrado para `SectionCard` no Prompt 1/4.
 - `PreviewPanel`: painel lateral e drawer mobile com tabs compactas, metadata e empty state ilustrado.
 - `Step2MediaCard`: upload, ferramentas de vídeo e grelha de média com contadores alinhados.
 - `MobileStickyActionBar`: barra mobile com ação primária adaptativa, botão anterior e menu overflow.
@@ -135,6 +138,102 @@ Uso: wrapper shadcn para cards principais do fluxo.
 - `NetworkOptionsCard`: opções avançadas por rede com acordeões, feedback visual e campos padronizados.
 - `PublishActionsCard`: ações finais com validação, loading e hierarquia primária/secundária.
 - `HashtagSuggestions`: grupos de hashtags com chips acessíveis e estados de risco.
+
+## Padrão `<SectionCard>` (progressive disclosure)
+
+Componente visual base usado em todas as secções principais do fluxo
+`/manual-create`. Reduz densidade visual aplicando o princípio de "uma
+secção em foco de cada vez".
+
+### Estados
+
+| Estado | Aparência | Quando |
+| --- | --- | --- |
+| `inactive` | Header subtil, conteúdo escondido, opacity 0.65, hover 0.85 | Secção ainda não tocada e sem foco actual |
+| `active` | Header destacado (ponto primary com número), conteúdo expandido, opacity 1 | Secção em foco — onde o utilizador está a editar |
+| `complete` | Badge verde com check, summary visível, botão "Editar", borda success/40 | Secção válida e fora de foco |
+| `error` | Badge vermelho com `AlertCircle`, conteúdo expandido, borda destructive/60, mensagem de erro inline | Validação falhou; nunca colapsa |
+
+### Props principais
+
+- `id` — identificador estável (usado em `aria-labelledby`).
+- `stepNumber` — número ordinal mostrado no header (1., 2., …).
+- `title` — texto do header. Convém incluir resumo curto quando completo (ex.: `"Seleciona onde publicar · 3 formatos"`).
+- `icon` — ícone Lucide opcional.
+- `state` — `'inactive' | 'active' | 'complete' | 'error'` (controlado pelo pai).
+- `errorMessage` — mostrado abaixo do título quando `state === 'error'`.
+- `summary` — conteúdo compacto mostrado no estado `complete`.
+- `onActivate` — chamado quando utilizador clica num header `inactive`.
+- `onEdit` — chamado quando utilizador clica em "Editar" num header `complete`.
+- `neverAutoCollapse` — flag semântica para a secção de Agendamento (Prompt 3/4); o componente em si não tem temporizador interno.
+
+### Animações
+
+- Expand/collapse: `280ms ease-out` (height + opacity, via `framer-motion` `AnimatePresence`).
+- Fade interno: 200ms.
+- Transição de opacity entre estados: 250ms.
+- Respeita `prefers-reduced-motion` (anima apenas opacity).
+
+### Acessibilidade
+
+- Header é `role="button"` quando interactivo, com `tabIndex={0}` e suporte a `Enter`/`Space`.
+- `aria-expanded` reflecte estado expandido.
+- `aria-controls` aponta para o id do conteúdo.
+- Foco automático é movido para o header quando uma secção transita para `active` (50ms delay).
+
+### Uso típico
+
+```tsx
+const { activeSection, activate } = useActiveSection('networks');
+const state =
+  selectedFormats.length === 0
+    ? activeSection === 'networks' ? 'active' : 'inactive'
+    : activeSection === 'networks' ? 'active' : 'complete';
+
+<SectionCard
+  id="networks"
+  stepNumber={1}
+  icon={Share2}
+  title="Seleciona onde publicar"
+  state={state}
+  onActivate={() => activate('networks')}
+  onEdit={() => activate('networks')}
+  summary={<ChipsResumo />}
+>
+  <ConteudoEditavel />
+</SectionCard>
+```
+
+### `useActiveSection`
+
+Hook minimalista que mantém um único `activeSection: string | null`. Não
+controla `complete`/`error`/`inactive` — esses estados são derivados pelo
+consumidor a partir da própria validação local.
+
+API:
+
+- `activeSection` — id da secção activa (ou `null`).
+- `activate(id)` — define uma nova secção activa.
+- `deactivate(id)` — limpa a secção activa se corresponder a `id`.
+- `isActive(id)` — helper booleano.
+
+### `NETWORK_ICONS`
+
+Mapa central `Record<SocialNetwork, { icon, color, label }>`. Cores actuais:
+
+| Rede | Cor |
+| --- | --- |
+| Instagram | `#E1306C` |
+| LinkedIn | `#0A66C2` |
+| YouTube | `#FF0000` |
+| TikTok | `#000000` (ícone Lucide `Music2`) |
+| Facebook | `#1877F2` |
+| Google Business | `#4285F4` |
+
+Notas:
+
+- Cor Instagram mantida em `#E1306C` para consistência com `PublishSuccessModal`, `PublishProgressModal` e `platformConfig`. Trocar para `#E4405F` exigiria normalizar 3 ficheiros adicionais e fica como dívida técnica.
+- TikTok usa `Music2` por proxy semântico até existir biblioteca oficial. O brief proibiu adicionar `@icons-pack/react-simple-icons` só para isto.
 
 ## Hierarquia do card “Legenda”
 
