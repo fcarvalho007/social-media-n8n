@@ -1,152 +1,108 @@
-## Diagnóstico — o que ficou por fazer
+## Avaliação do estado atual
 
-O trabalho anterior deixou a base montada, mas não deixou a funcionalidade pronta para uso em rascunhos reais.
+A Fase 1 está parcialmente funcional: o cartão `AiUploadAssistantCard` já aparece em `/manual-create`, chama `ai-editorial-assistant`, aplica legenda, variantes por rede, hashtags simples no fim da legenda, primeiro comentário, `raw_transcription` e `ai_metadata`.
 
-### Já feito
+Ainda não marcaria a fase como fechada porque existem lacunas de produto, robustez e consistência com a especificação original.
 
-- Esquema de dados criado para IA editorial:
-  - `posts.raw_transcription`
-  - `posts.ai_metadata`
-  - `posts_drafts.raw_transcription`
-  - `posts_drafts.ai_metadata`
-  - `ai_preferences`, `ai_credit_usage`, `hashtag_intelligence`, `post_performance`, `account_insights`
-- Componentes visuais criados:
-  - `AiUploadAssistantCard`
-  - `CaptionToneToolbar`
-  - `HashtagSuggestions`
-  - `AltTextPanel`
-  - `VideoAiTools`
-  - `EditorialInsightBanner`
-- Tipos e hook de preferências de IA criados.
-- Buckets/funções existem como pastas, mas as três funções principais ainda estão vazias.
+## O que está bem encaminhado
 
-### Ainda por fazer
-
-1. As funções backend `ai-editorial-assistant`, `ai-caption-tools` e `ai-generate-alt-text` existem como diretórios vazios, sem `index.ts`.
-2. Os componentes de IA ainda não estão ligados ao fluxo `/manual-create`.
-3. O estado de `/manual-create` ainda não guarda nem transporta:
-   - transcrição;
-   - metadados de IA;
-   - alt text gerado;
-   - primeiro comentário gerado.
-4. `useAutoSave`, `useDraftRecovery` e `usePublishOrchestrator` ainda não persistem totalmente os novos campos de IA.
-5. A UI de legenda ainda usa apenas `NetworkCaptionEditor`, sem barra de reescrita por tom nem hashtags inteligentes.
-6. O cartão “Queres que a IA prepare tudo por ti?” ainda não aparece depois de upload de vídeo elegível.
-7. A segurança reportada pelo linter continua pendente:
-   - 6 policies com `true` em operações de escrita/atualização;
-   - 4 buckets públicos com listagem ampla;
-   - 1 aviso de extensão no schema público.
-
----
-
-## Proposta de execução agora
-
-Como pediste “avaliar o que ficou por fazer e executar”, a próxima execução deve fechar primeiro a Fase 1 funcional, sem misturar a correção de segurança em produção sem aprovação explícita.
-
-### Fase a executar: Fase 1 — Assistente desde o upload
-
-#### 1. Backend funcional
-
-Criar `supabase/functions/ai-editorial-assistant/index.ts` para:
-
-- validar sessão do utilizador no backend;
-- aceitar um ficheiro de vídeo ou URL de média já carregada;
-- transcrever o áudio com Whisper usando o segredo existente `OPENAI_API_KEY`;
-- gerar estrutura editorial com IA:
-  - título do rascunho;
-  - legenda base;
-  - legendas por rede;
-  - hashtags por grupo;
-  - primeiro comentário;
-  - alt text;
-  - frases citáveis;
-  - transcrição bruta;
-- devolver erros claros em pt-PT;
-- não expor prompts nem chaves no frontend.
-
-#### 2. Integração no `/manual-create`
-
-Adicionar estado em `ManualCreate.tsx` para:
-
-- `rawTranscription`;
-- `aiMetadata`;
-- loading/erro do assistente;
-- estado de dispensa do card.
-
-Detetar vídeo elegível:
-
-- exatamente 1 ficheiro;
-- `type` começa por `video/`;
-- rácio vertical preferencialmente `9:16` ou formato de vídeo selecionado;
-- excluir imagens, PDFs e carrosséis múltiplos.
-
-#### 3. UI do assistente
-
-Ligar `AiUploadAssistantCard` no fluxo, imediatamente antes da secção “Legenda”, quando elegível.
-
-Ações:
-
-- “Já tenho a legenda”: esconde o card.
-- “Transcrever com IA”: chama a função backend, mostra loading e preenche:
+- Cartão IA criado e integrado antes da secção “Legenda”.
+- Ação “Já tenho a legenda” esconde o cartão.
+- Ação “Transcrever com IA” chama uma função backend.
+- Resultado da IA preenche:
   - legenda principal;
-  - legendas por rede, se houver redes selecionadas;
-  - primeiro comentário em `networkOptions`, quando aplicável;
-  - `rawTranscription`;
-  - `aiMetadata`.
+  - legendas por rede;
+  - primeiro comentário;
+  - transcrição bruta;
+  - metadados IA.
+- `useAutoSave`, `useDraftRecovery`, `usePublishOrchestrator` e `usePublishWithProgress` já transportam os campos principais de IA.
+- `ai-caption-tools` e `ai-generate-alt-text` continuam vazias, portanto as fases seguintes ainda não estão implementadas.
 
-#### 4. Persistência em rascunhos e publicações
+## Refinamentos prioritários antes de avançar
 
-Atualizar:
+### 1. Estabilizar a Fase 1 — Assistente desde o upload
 
-- `useAutoSave` para incluir `rawTranscription` e `aiMetadata`;
-- `useDraftRecovery` para recuperar esses campos de rascunhos e posts;
-- `usePublishOrchestrator` para guardar em `posts_drafts` e `posts`.
+Implementar uma mini-fase de fecho com estes ajustes:
 
-Sem editar ficheiros gerados automaticamente (`src/integrations/supabase/client.ts`, `types.ts`, `.env`).
+- Reset automático do estado IA quando o utilizador remove ou troca o ficheiro de vídeo:
+  - limpar `rawTranscription`;
+  - limpar `aiMetadata`;
+  - voltar a permitir mostrar o cartão IA para o novo vídeo.
+- Melhorar o tratamento de erros do cartão:
+  - mostrar a mensagem específica devolvida pela função, em vez de sempre “A IA está indisponível”.
+  - diferenciar limite de IA, créditos insuficientes, vídeo grande e sessão expirada.
+- Evitar duplicação de hashtags:
+  - se a legenda devolvida pela IA já trouxer hashtags, não duplicar as mesmas no fim.
+  - normalizar hashtags com `#` e sem espaços inválidos.
+- Guardar o `alt_text` gerado dentro de `aiMetadata`, mas não fingir que já está aplicado a média enquanto não houver UI própria para alt text.
+- Atualizar `.lovable/plan.md`, que está desatualizado: ainda diz que `ai-editorial-assistant` está vazia, mas já existe e funciona.
 
-#### 5. Teste isolado da Fase 1
+### 2. Corrigir inconsistências técnicas no backend IA
 
-Depois da implementação:
+Na função `ai-editorial-assistant`:
 
-- testar upload de vídeo vertical válido;
-- confirmar que o card só aparece nesse caso;
-- confirmar preenchimento da legenda, variantes por rede, hashtags e primeiro comentário;
-- guardar rascunho;
-- carregar rascunho e confirmar persistência da transcrição/metadados;
-- confirmar que falha da IA não apaga conteúdo existente.
+- Validar melhor o corpo do pedido:
+  - `fileBase64` obrigatório;
+  - `mimeType` só vídeo/áudio;
+  - `networks` com lista controlada;
+  - limite claro de tamanho.
+- Melhorar CORS para incluir headers usados pelo cliente moderno.
+- Manter prompts e chaves apenas no backend.
+- Não mexer nos ficheiros bloqueados:
+  - `src/integrations/supabase/client.ts`;
+  - `src/integrations/supabase/types.ts`;
+  - `.env`;
+  - chaves de projeto em `supabase/config.toml`.
 
----
+### 3. Preparar a próxima fase sem a misturar já
 
-## O que não vou executar nesta passagem
+Depois da estabilização, a próxima fase mais útil é **Fase 3.2 — Reescrita por tom**, porque já existe o componente `CaptionToneToolbar`, mas ainda não está ligado.
 
-Não vou corrigir ainda as RLS policies nem buckets públicos sem aprovação explícita, porque tinhas pedido anteriormente diagnóstico e aprovação antes de alterar políticas em produção.
+Nessa fase seguinte, implementar:
 
-Também não vou avançar já para:
+- `supabase/functions/ai-caption-tools/index.ts`.
+- Ações:
+  - “Mais direto”;
+  - “Mais emocional”;
+  - “Mais técnico”;
+  - “Mais curto”;
+  - “Mais longo”;
+  - “Tom LinkedIn”;
+  - “Tom Instagram”.
+- Integração no editor de legenda:
+  - funciona em legenda unificada;
+  - funciona na rede ativa quando “Legendas separadas” está ligado;
+  - inclui estado de loading por ação;
+  - inclui “Desfazer”.
+- Substituir gradualmente o fluxo antigo `AICaptionDialog`/`improve-caption`, que ainda usa uma função separada e menos alinhada com a nova arquitetura.
 
-- Fase 3.2 — reescrita por tom;
-- Fase 3.4 — alt text automático;
-- Fase 2 — hashtags inteligentes;
-- Fase 3.3 — primeiro comentário com IA;
-- Fase 3.1 — SRT/capítulos;
-- Fase 4 — aprendizagem contínua.
+## O que não recomendo fazer já
 
-Essas fases ficam depois da Fase 1 estar funcional e testada em rascunho real.
+- Não avançar para hashtags inteligentes antes de fechar a Fase 1. O componente `HashtagSuggestions` existe, mas os dados reais de performance/volume ainda precisam de regras claras para não inventar scores.
+- Não avançar para alt text automático completo antes de decidir como guardar `alt_texts` por item de média.
+- Não corrigir RLS policies e buckets públicos nesta mesma passagem, porque isso é uma intervenção de segurança em produção e já tinha ficado condicionado a aprovação específica.
 
----
+## Plano de execução recomendado agora
 
-## Riscos/decisões a ter em conta
+### Passo 1 — Fecho da Fase 1
 
-- A transcrição de vídeo no browser para backend pode ser pesada. Se o ficheiro for grande, pode ser necessário usar URL já carregada em storage em vez de enviar o ficheiro diretamente para a função.
-- Os buckets estão atualmente públicos; a Fase 1 pode usar o comportamento existente, mas isto deve ser revisto na correção de segurança seguinte.
-- A geração de hashtags será inicialmente editorial/contextual, sem scores de saturação inventados. Scores reais só entram na Fase 2 com `hashtag_intelligence` verificada.
+- Corrigir reset do cartão IA quando a média muda.
+- Melhorar mensagens de erro no frontend.
+- Normalizar hashtags e evitar duplicados.
+- Atualizar documentação de estado em `.lovable/plan.md`.
+- Fazer build para validar TypeScript.
 
----
+### Passo 2 — Só depois, avançar para Fase 3.2
+
+- Criar a função `ai-caption-tools`.
+- Ligar `CaptionToneToolbar` ao `NetworkCaptionEditor`.
+- Implementar reescrita por tom com undo.
+- Fazer build e teste manual do fluxo unificado/separado.
 
 ## Checkpoint
 
-☐ Diagnóstico do estado atual concluído  
-☐ Confirmado que as funções backend de IA estão vazias  
-☐ Confirmado que os componentes de IA existem mas não estão ligados ao fluxo  
-☐ Plano propõe executar apenas a Fase 1 funcional  
-☐ Correções de segurança ficam bloqueadas até aprovação específica  
-☐ A aguardar aprovação para implementar
+☐ Fase 1 revista e parcialmente validada  
+☐ Identificados refinamentos em reset, erros e hashtags  
+☐ Confirmado que `ai-caption-tools` e `ai-generate-alt-text` ainda estão vazias  
+☐ Próxima execução recomendada: estabilizar Fase 1 antes de nova funcionalidade  
+☐ Correções de segurança continuam fora desta passagem até aprovação explícita

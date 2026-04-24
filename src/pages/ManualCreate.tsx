@@ -51,6 +51,31 @@ import { supabase } from '@/integrations/supabase/client';
 const detectImageAspectRatio = detectImageAspectRatioExt;
 const detectVideoAspectRatio = detectVideoAspectRatioExt;
 
+const getMediaSignature = (files: File[]) =>
+  files.map((file) => `${file.name}:${file.size}:${file.type}:${file.lastModified}`).join('|');
+
+const normalizeHashtag = (value: string) => {
+  const clean = value
+    .trim()
+    .replace(/^#+/, '')
+    .replace(/\s+/g, '')
+    .replace(/[^\p{L}\p{N}_]/gu, '');
+
+  return clean ? `#${clean}` : '';
+};
+
+const getUniqueHashtags = (result: EditorialAssistantResult) => {
+  const existing = new Set((result.base_caption.match(/#[\p{L}\p{N}_]+/gu) ?? []).map((tag) => tag.toLowerCase()));
+  const tags = [
+    ...(result.hashtags?.reach ?? []),
+    ...(result.hashtags?.niche ?? []),
+    ...(result.hashtags?.brand ?? []),
+  ];
+
+  return Array.from(new Set(tags.map(normalizeHashtag).filter(Boolean)))
+    .filter((tag) => !existing.has(tag.toLowerCase()));
+};
+
 export default function ManualCreate() {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
@@ -78,6 +103,7 @@ export default function ManualCreate() {
   const mediaSectionRef = useRef<HTMLDivElement>(null);
   const captionEditorRef = useRef<NetworkCaptionEditorHandle>(null);
   const networkOptionsRef = useRef<NetworkOptionsCardHandle>(null);
+  const aiMediaSignatureRef = useRef('');
 
   // ── Phase 1 hook: media state + DnD ────────────────────────────────────
   const mediaManager = useMediaManager();
@@ -266,6 +292,19 @@ export default function ManualCreate() {
       return next;
     });
   }, [caption, selectedNetworks]);
+
+  useEffect(() => {
+    const nextSignature = getMediaSignature(mediaFiles);
+    const previousSignature = aiMediaSignatureRef.current;
+
+    if (previousSignature && previousSignature !== nextSignature) {
+      setRawTranscription('');
+      setAiMetadata(null);
+      setAiAssistantDismissed(false);
+    }
+
+    aiMediaSignatureRef.current = nextSignature;
+  }, [mediaFiles]);
 
   // Update active preview tab when formats change
   useEffect(() => {
@@ -460,11 +499,7 @@ export default function ManualCreate() {
       if (error || !data?.success) throw new Error(data?.error || error?.message || 'A IA está indisponível.');
 
       const result = data.result as EditorialAssistantResult;
-      const groupedHashtags = [
-        ...(result.hashtags?.reach ?? []),
-        ...(result.hashtags?.niche ?? []),
-        ...(result.hashtags?.brand ?? []),
-      ].map((tag) => tag.startsWith('#') ? tag : `#${tag}`);
+      const groupedHashtags = getUniqueHashtags(result);
       const nextCaption = [result.base_caption, groupedHashtags.join(' ')].filter(Boolean).join('\n\n');
 
       setCaption(nextCaption);
@@ -486,7 +521,7 @@ export default function ManualCreate() {
       toast.success('Assistente de IA aplicado', { description: 'A legenda e os campos editoriais foram preenchidos.' });
     } catch (error) {
       console.error('[ManualCreate] AI assistant error:', error);
-      toast.error('A IA está indisponível. Podes preencher manualmente ou tentar de novo.');
+      toast.error(error instanceof Error ? error.message : 'A IA está indisponível. Podes preencher manualmente ou tentar de novo.');
     } finally {
       setAiAssistantLoading(false);
     }
