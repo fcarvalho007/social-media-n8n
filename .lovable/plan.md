@@ -1,98 +1,164 @@
-## Plano — Correção ao Prompt 3: reescrita por tom em `/manual-create`
+## Plano: RLS de IA + tabela `user_hashtag_history`
 
-### Objetivo
-Ajustar a UX do card “Legenda” para separar claramente dois usos de IA:
+Vou separar isto em duas partes: (1) confirmar/normalizar as policies de `user_ai_credits` e `ai_usage_log`; (2) criar apenas a estrutura da nova tabela `user_hashtag_history`, sem implementar funcionalidade no frontend ainda.
 
-- Modal “Gerar Legenda com IA”: continua como ferramenta de geração estruturada.
-- Nova barra rápida de tons: ajustes rápidos sobre legenda já existente.
-- Remover a secção redundante “Tom da reescrita” no fim do card.
+## SQL proposto para validação
 
-### Alterações propostas
+### 1. `user_ai_credits`
 
-1. **Manter o modal existente**
-   - Não alterar o conteúdo nem o fluxo do modal `Gerar Legenda com IA`.
-   - Apenas adaptar a função de aplicação da legenda para integrar o histórico de undo e o toast correto.
-   - Toast ao aplicar sugestão do modal: `Legenda gerada com IA.`
+Objetivo: o utilizador autenticado só pode ler os próprios créditos. Não pode inserir, alterar ou apagar créditos diretamente. A escrita fica limitada ao backend através de `service_role` e das funções backend existentes.
 
-2. **Criar/ajustar a barra rápida de tons**
-   - Usar o componente existente `CaptionToneToolbar` como base, reposicionando-o para ficar dentro do editor, imediatamente acima da textarea.
-   - A barra só aparece quando a legenda ativa tem mais de 20 caracteres.
-   - Botões finais:
-     - `Curto`
-     - `Longo`
-     - `Direto`
-     - `Emocional`
-     - `Técnico`
-     - `LinkedIn`
-     - `Instagram`
-   - Usar ícones `lucide-react`, não emojis, para cumprir o design system.
-   - Cada clique continua a consumir 1 crédito.
+```sql
+ALTER TABLE public.user_ai_credits ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.user_ai_credits FORCE ROW LEVEL SECURITY;
 
-3. **Remover a reescrita redundante no fim do card**
-   - Remover `CaptionRewritePanel` do topo/fim do conteúdo do card “Legenda”.
-   - Remover props antigas sem uso em `Step3CaptionCard`: `rewriteTone`, `onRewriteToneChange`, `rewriteLoading`, se deixarem de ser necessárias.
-   - Manter apenas o controlo de reverter quando existir histórico.
+DROP POLICY IF EXISTS "Users can view their own AI credits" ON public.user_ai_credits;
+DROP POLICY IF EXISTS "Service role manages AI credits" ON public.user_ai_credits;
+DROP POLICY IF EXISTS "Users can insert their own AI credits" ON public.user_ai_credits;
+DROP POLICY IF EXISTS "Users can update their own AI credits" ON public.user_ai_credits;
+DROP POLICY IF EXISTS "Users can delete their own AI credits" ON public.user_ai_credits;
 
-4. **Respeitar legenda unificada vs separada por rede**
-   - A barra rápida vai atuar sobre a legenda ativa:
-     - modo unificado: `caption`.
-     - modo separado: legenda da tab/rede ativa.
-   - A integração vai continuar a usar `captionEditorRef.current?.getActiveNetwork()` para decidir a rede ativa.
+CREATE POLICY "Users can view their own AI credits"
+ON public.user_ai_credits
+AS PERMISSIVE
+FOR SELECT
+TO authenticated
+USING (auth.uid() = user_id);
 
-5. **Unificar histórico de undo**
-   - Antes de qualquer escrita feita por IA, guardar o estado anterior na stack `rewriteHistory`, com máximo de 5 estados.
-   - Isto aplica-se a:
-     - aplicação de sugestão vinda do modal.
-     - clique na barra rápida de tons.
-   - O botão “Reverter última reescrita” e `Ctrl+Z` revertem a última alteração feita por IA.
-   - Ajustar `Ctrl+Z` para funcionar mesmo com foco na textarea, evitando conflito apenas quando o browser já tiver undo nativo disponível se necessário.
+CREATE POLICY "Service role manages AI credits"
+ON public.user_ai_credits
+AS PERMISSIVE
+FOR ALL
+TO service_role
+USING (true)
+WITH CHECK (true);
+```
 
-6. **Logging de uso de IA**
-   - Barra rápida: alterar `feature` enviada para o backend para `caption_rewrite_tone`.
-   - Modal: manter o fluxo atual do modal, mas garantir que o uso fica identificado como `caption_generation` se o fluxo passar por chamada de IA própria deste modal.
-   - Confirmar que o registo continua a passar pelo backend de IA já existente, que escreve em `ai_usage_log`.
+Notas de segurança:
+- Não será criada nenhuma policy de `INSERT`, `UPDATE` ou `DELETE` para `authenticated`.
+- Como RLS bloqueia por defeito tudo o que não está permitido, o utilizador não consegue alterar créditos diretamente.
+- `PERMISSIVE` aqui é seguro porque só existe uma policy de leitura para `authenticated`; não há uma segunda policy permissiva que alargue escrita ao utilizador.
+- `FORCE ROW LEVEL SECURITY` reforça que o acesso passa pelas policies, mantendo o `service_role` como canal de gestão backend.
 
-7. **Toasts e microcopy**
-   - Barra rápida: `Legenda ajustada. Ctrl+Z para reverter.`
-   - Modal: `Legenda gerada com IA.`
-   - Botão de undo visível apenas após uma alteração por IA, com label: `Reverter última reescrita`.
+### 2. `ai_usage_log`
 
-8. **Documentação**
-   - Atualizar `DESIGN_SYSTEM.md` para declarar a hierarquia final do card “Legenda”:
-     - toolbar existente.
-     - barra rápida condicional.
-     - textarea.
-     - contadores.
-     - undo condicional.
-   - Declarar `CaptionToneToolbar` como componente pronto para reuso no contexto de reescrita rápida.
+Objetivo: o utilizador autenticado só pode ler os próprios logs. Não pode criar/alterar/apagar logs diretamente. A escrita fica limitada ao backend via `service_role`/funções.
 
-### Ficheiros previstos
+```sql
+ALTER TABLE public.ai_usage_log ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.ai_usage_log FORCE ROW LEVEL SECURITY;
 
-- `src/components/manual-post/NetworkCaptionEditor.tsx`
-- `src/components/manual-post/ai/CaptionToneToolbar.tsx`
-- `src/components/manual-post/steps/Step3CaptionCard.tsx`
-- `src/components/manual-post/steps/ManualCreateModals.tsx`
-- `src/components/manual-post/AICaptionDialog.tsx` apenas se for necessário expor callback sem alterar o modal visual
-- `src/pages/ManualCreate.tsx`
-- `src/types/aiEditorial.ts` se for necessário normalizar tipos de origem/feature
-- `DESIGN_SYSTEM.md`
+DROP POLICY IF EXISTS "Users can view their own AI usage log" ON public.ai_usage_log;
+DROP POLICY IF EXISTS "Service role manages AI usage log" ON public.ai_usage_log;
+DROP POLICY IF EXISTS "Users can insert their own AI usage log" ON public.ai_usage_log;
+DROP POLICY IF EXISTS "Users can update their own AI usage log" ON public.ai_usage_log;
+DROP POLICY IF EXISTS "Users can delete their own AI usage log" ON public.ai_usage_log;
 
-### Validação
+CREATE POLICY "Users can view their own AI usage log"
+ON public.ai_usage_log
+AS PERMISSIVE
+FOR SELECT
+TO authenticated
+USING (auth.uid() = user_id);
 
-- Confirmar que o modal abre pelo botão “IA” e mantém o fluxo visual atual.
-- Confirmar que a barra rápida não aparece com texto até 20 caracteres.
-- Confirmar que a barra aparece acima da textarea com texto superior a 20 caracteres.
-- Confirmar que cada tom substitui a legenda ativa correta.
-- Confirmar que `Ctrl+Z` e o botão “Reverter última reescrita” revertem alterações vindas do modal e da barra.
-- Executar build/typecheck disponível.
+CREATE POLICY "Service role manages AI usage log"
+ON public.ai_usage_log
+AS PERMISSIVE
+FOR ALL
+TO service_role
+USING (true)
+WITH CHECK (true);
+```
 
-### Checklist
+Notas de segurança:
+- O frontend pode consultar apenas logs do próprio utilizador.
+- Não há policies de escrita para `authenticated`.
+- A função backend `log_ai_usage(...)` continua a poder gravar logs porque é executada como fluxo backend/definer, não por mutação direta do cliente.
+- Não será usada policy `TO public` para evitar expor dados a sessões anónimas.
 
-- [ ] Modal “Gerar Legenda com IA” mantido sem redesenho.
-- [ ] Barra rápida de tons implementada acima da textarea.
-- [ ] Barra condicional para texto com mais de 20 caracteres.
-- [ ] Secção antiga “Tom da reescrita” removida.
-- [ ] Undo unificado para modal e barra.
-- [ ] Toasts diferenciados implementados.
-- [ ] `ai_usage_log` distinguido por feature: `caption_generation` e `caption_rewrite_tone`.
-- [ ] `DESIGN_SYSTEM.md` atualizado.
+### 3. Nova tabela `user_hashtag_history`
+
+Objetivo: preparar dados reais para uma futura categoria “As tuas mais usadas”, sem providers externos pagos.
+
+```sql
+CREATE TABLE IF NOT EXISTS public.user_hashtag_history (
+  id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  user_id uuid NOT NULL,
+  hashtag text NOT NULL,
+  times_used integer NOT NULL DEFAULT 1,
+  last_used_at timestamp with time zone NOT NULL DEFAULT now(),
+  created_at timestamp with time zone NOT NULL DEFAULT now(),
+  updated_at timestamp with time zone NOT NULL DEFAULT now(),
+  CONSTRAINT user_hashtag_history_unique_user_hashtag UNIQUE (user_id, hashtag),
+  CONSTRAINT user_hashtag_history_hashtag_not_blank CHECK (length(trim(hashtag)) > 0),
+  CONSTRAINT user_hashtag_history_times_used_positive CHECK (times_used > 0)
+);
+
+ALTER TABLE public.user_hashtag_history ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.user_hashtag_history FORCE ROW LEVEL SECURITY;
+
+DROP POLICY IF EXISTS "Users can view their own hashtag history" ON public.user_hashtag_history;
+DROP POLICY IF EXISTS "Users can create their own hashtag history" ON public.user_hashtag_history;
+DROP POLICY IF EXISTS "Users can update their own hashtag history" ON public.user_hashtag_history;
+DROP POLICY IF EXISTS "Users can delete their own hashtag history" ON public.user_hashtag_history;
+
+CREATE POLICY "Users can view their own hashtag history"
+ON public.user_hashtag_history
+AS PERMISSIVE
+FOR SELECT
+TO authenticated
+USING (auth.uid() = user_id);
+
+CREATE POLICY "Users can create their own hashtag history"
+ON public.user_hashtag_history
+AS PERMISSIVE
+FOR INSERT
+TO authenticated
+WITH CHECK (auth.uid() = user_id);
+
+CREATE POLICY "Users can update their own hashtag history"
+ON public.user_hashtag_history
+AS PERMISSIVE
+FOR UPDATE
+TO authenticated
+USING (auth.uid() = user_id)
+WITH CHECK (auth.uid() = user_id);
+
+CREATE POLICY "Users can delete their own hashtag history"
+ON public.user_hashtag_history
+AS PERMISSIVE
+FOR DELETE
+TO authenticated
+USING (auth.uid() = user_id);
+
+CREATE INDEX IF NOT EXISTS idx_user_hashtag_history_user_last_used
+ON public.user_hashtag_history(user_id, last_used_at DESC);
+
+CREATE INDEX IF NOT EXISTS idx_user_hashtag_history_user_times_used
+ON public.user_hashtag_history(user_id, times_used DESC, last_used_at DESC);
+
+DROP TRIGGER IF EXISTS update_user_hashtag_history_updated_at ON public.user_hashtag_history;
+CREATE TRIGGER update_user_hashtag_history_updated_at
+BEFORE UPDATE ON public.user_hashtag_history
+FOR EACH ROW
+EXECUTE FUNCTION public.update_updated_at_column();
+```
+
+Nota: para `user_hashtag_history`, vou permitir `SELECT/INSERT/UPDATE/DELETE` ao próprio utilizador porque o teu requisito diz “só o próprio utilizador vê/modifica os seus dados”. Isto é diferente de `user_ai_credits`, onde a escrita direta fica bloqueada.
+
+## Implementação após aprovação
+
+1. Criar uma migração com o SQL acima.
+2. Não alterar `src/integrations/supabase/types.ts` nem ficheiros bloqueados.
+3. Não implementar ainda leitura/escrita de `user_hashtag_history` no frontend; fica apenas preparado para o Prompt 2.
+4. Se necessário, atualizar `DESIGN_SYSTEM.md` ou documentação técnica apenas para mencionar que a categoria futura “As tuas mais usadas” terá dados próprios, sem providers externos.
+5. Validar que não foram introduzidas policies permissivas de escrita em `user_ai_credits` ou `ai_usage_log` para utilizadores autenticados.
+
+## Checklist
+
+☐ Validar contigo o SQL das RLS policies antes de executar migração.
+☐ Aplicar migração apenas depois de aprovação explícita.
+☐ Garantir leitura própria em `user_ai_credits` e `ai_usage_log`.
+☐ Garantir escrita direta bloqueada em `user_ai_credits` e `ai_usage_log` para utilizadores.
+☐ Criar `user_hashtag_history` com RLS por `auth.uid() = user_id`.
+☐ Não implementar funcionalidade de hashtags ainda.
