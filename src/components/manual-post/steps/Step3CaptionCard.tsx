@@ -4,9 +4,10 @@ import { cn } from '@/lib/utils';
 import { SectionHelp, getSectionTooltip } from '@/components/manual-post/SectionHelp';
 import { NetworkCaptionEditor, NetworkCaptionEditorHandle } from '@/components/manual-post/NetworkCaptionEditor';
 import { SocialNetwork } from '@/types/social';
-import { CaptionRewritePanel } from '@/components/manual-post/ai/CaptionRewritePanel';
 import { CaptionRewriteTone } from '@/types/aiEditorial';
 import { AIGeneratedField } from '@/components/ai/AIGeneratedField';
+import { Button } from '@/components/ui/button';
+import { RotateCcw } from 'lucide-react';
 
 interface Step3CaptionCardProps {
   caption: string;
@@ -21,12 +22,10 @@ interface Step3CaptionCardProps {
   disabled: boolean;
   onOpenSavedCaptions: () => void;
   onOpenAIDialog: () => void;
-  rewriteTone: CaptionRewriteTone;
-  onRewriteToneChange: (tone: CaptionRewriteTone) => void;
   onRewriteCaption: (tone: CaptionRewriteTone) => Promise<unknown>;
   onRevertRewrite: () => void;
   canRevertRewrite: boolean;
-  rewriteLoading: boolean;
+  rewriteLoading: CaptionRewriteTone | null;
   generatedAt?: string | null;
   generatedEdited?: boolean;
   insightBanner?: ReactNode;
@@ -50,8 +49,6 @@ export const Step3CaptionCard = forwardRef<NetworkCaptionEditorHandle, Step3Capt
     disabled,
     onOpenSavedCaptions,
     onOpenAIDialog,
-    rewriteTone,
-    onRewriteToneChange,
     onRewriteCaption,
     onRevertRewrite,
     canRevertRewrite,
@@ -90,15 +87,6 @@ export const Step3CaptionCard = forwardRef<NetworkCaptionEditorHandle, Step3Capt
       </CardHeader>
       <CardContent className="manual-card-content manual-group-stack pt-0">
         {insightBanner}
-        <CaptionRewritePanel
-          onRewrite={onRewriteCaption}
-          onRevert={onRevertRewrite}
-          canRevert={canRevertRewrite}
-          disabled={disabled}
-        />
-        {canRevertRewrite && (
-          <p className="manual-microcopy">Podes reverter a última reescrita com o botão Reverter.</p>
-        )}
         <AIGeneratedField generatedAt={generatedAt} edited={generatedEdited} className="border-0 bg-transparent">
           <NetworkCaptionEditor
             ref={ref}
@@ -112,8 +100,18 @@ export const Step3CaptionCard = forwardRef<NetworkCaptionEditorHandle, Step3Capt
             disabled={disabled}
             onOpenSavedCaptions={onOpenSavedCaptions}
             onOpenAIDialog={onOpenAIDialog}
+            toneRewriteLoading={rewriteLoading}
+            onRewriteTone={onRewriteCaption}
           />
         </AIGeneratedField>
+        {canRevertRewrite && (
+          <div className="flex justify-end">
+            <Button type="button" variant="ghost" size="sm" className="h-8 gap-1.5 px-2 text-xs" onClick={onRevertRewrite} disabled={disabled}>
+              <RotateCcw className="h-3.5 w-3.5" strokeWidth={1.5} />
+              Reverter última reescrita
+            </Button>
+          </div>
+        )}
       </CardContent>
     </Card>
   );
