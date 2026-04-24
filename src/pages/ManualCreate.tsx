@@ -41,8 +41,10 @@ import { PreviewPanel } from '@/components/manual-post/steps/PreviewPanel';
 import { createDefaultNetworkOptions, normalizeNetworkOptions } from '@/types/networkOptions';
 import { detectImageAspectRatio as detectImageAspectRatioExt, detectVideoAspectRatio as detectVideoAspectRatioExt } from '@/hooks/manual-create/mediaAspectDetection';
 import { AiUploadAssistantCard } from '@/components/manual-post/ai/AiUploadAssistantCard';
-import type { EditorialAssistantResult } from '@/types/aiEditorial';
+import { CaptionRewritePreviewDialog } from '@/components/manual-post/ai/CaptionRewritePreviewDialog';
+import type { CaptionRewriteMetadata, CaptionRewriteTone, EditorialAssistantResult } from '@/types/aiEditorial';
 import { supabase } from '@/integrations/supabase/client';
+import { useAiPreferences } from '@/hooks/ai/useAiPreferences';
 // `extractVideoFrame` foi consolidado em '@/lib/media/videoFrameExtractor'.
 // Este componente já não o usava localmente.
 
