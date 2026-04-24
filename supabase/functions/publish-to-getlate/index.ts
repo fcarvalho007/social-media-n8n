@@ -224,6 +224,102 @@ interface GetlateValidatedResponse {
   originalData: any;
 }
 
+function extractPostUrl(responseData: any): string | undefined {
+  return responseData?.url ||
+    responseData?.postUrl ||
+    responseData?.permalink ||
+    responseData?.data?.url ||
+    responseData?.post?.url ||
+    responseData?.post?.postUrl ||
+    responseData?.post?.permalink ||
+    responseData?.post?.platformPostUrl ||
+    responseData?.post?.platforms?.find((platform: any) => platform?.platformPostUrl || platform?.postUrl || platform?.url || platform?.permalink)?.platformPostUrl ||
+    responseData?.post?.platforms?.find((platform: any) => platform?.platformPostUrl || platform?.postUrl || platform?.url || platform?.permalink)?.postUrl ||
+    responseData?.post?.platforms?.find((platform: any) => platform?.platformPostUrl || platform?.postUrl || platform?.url || platform?.permalink)?.url ||
+    responseData?.post?.platforms?.find((platform: any) => platform?.platformPostUrl || platform?.postUrl || platform?.url || platform?.permalink)?.permalink;
+}
+
+function classifyPublishError(msg: string): { code: string; source: string; isRetryable: boolean; suggestedAction: string } {
+  const lower = msg.toLowerCase();
+
+  if (lower.includes('all platforms failed') || lower.includes('failedplatforms')) {
+    return {
+      code: 'API_ERROR',
+      source: 'getlate',
+      isRetryable: true,
+      suggestedAction: 'Verifica o histórico antes de repetir. Se não aparecer publicado, tenta novamente dentro de alguns minutos',
+    };
+  }
+
+  if (lower.includes('too many actions') || lower.includes('rate limit') || lower.includes('429') || lower.includes('please wait') || lower.includes('media container')) {
+    return { code: 'RATE_LIMIT', source: 'platform', isRetryable: true, suggestedAction: 'Aguarda 15-30 minutos e tenta novamente' };
+  }
+
+  if (lower.includes('403') || lower.includes('forbidden') || lower.includes('do not belong') || lower.includes('permission denied')) {
+    return { code: 'ACCOUNT_ERROR', source: 'getlate', isRetryable: false, suggestedAction: 'Reconecta a conta no serviço de publicação' };
+  }
+
+  if (lower.includes('token') || lower.includes('oauth') || lower.includes('session') || lower.includes('expired') || lower.includes('code 190')) {
+    return { code: 'TOKEN_EXPIRED', source: 'platform', isRetryable: false, suggestedAction: 'Reconecta a conta no serviço de publicação' };
+  }
+
+  if (lower.includes('unauthorized') || lower.includes('missing authorization') || lower.includes('401')) {
+    return { code: 'AUTH_ERROR', source: 'internal', isRetryable: false, suggestedAction: 'Faz login novamente' };
+  }
+
+  if (lower.includes('invalid or unsupported format')) {
+    return { code: 'MEDIA_ERROR', source: 'internal', isRetryable: false, suggestedAction: 'Escolhe um formato suportado e tenta novamente' };
+  }
+
+  if (lower.includes('caption') || lower.includes('content') || lower.includes('text') || lower.includes('character') || lower.includes('hashtag') || lower.includes('link')) {
+    return { code: 'CAPTION_ERROR', source: 'platform', isRetryable: false, suggestedAction: 'Revê a legenda e remove caracteres especiais ou links inválidos' };
+  }
+
+  if (lower.includes('media') || lower.includes('format') || lower.includes('size') || lower.includes('aspect') || lower.includes('ratio') ||
+      lower.includes('unsupported') || lower.includes('width') || lower.includes('height') || lower.includes('resize') ||
+      lower.includes('dimension') || lower.includes('resolution') || lower.includes('pixel') || lower.includes('image') || lower.includes('allowed range')) {
+    return { code: 'MEDIA_ERROR', source: 'platform', isRetryable: false, suggestedAction: 'Verifica o formato, tamanho e proporção dos ficheiros' };
+  }
+
+  if (lower.includes('quota') || lower.includes('limit exceeded') || lower.includes('upload limit')) {
+    return { code: 'QUOTA_EXCEEDED', source: 'getlate', isRetryable: false, suggestedAction: 'Aguarda o reset de quota ou faz upgrade do plano' };
+  }
+
+  if (lower.includes('network') || lower.includes('timeout') || lower.includes('connection') || lower.includes('fetch') || lower.includes('econnrefused')) {
+    return { code: 'NETWORK_ERROR', source: 'internal', isRetryable: true, suggestedAction: 'Verifica a ligação à internet e tenta novamente' };
+  }
+
+  if (lower.includes('500') || lower.includes('502') || lower.includes('503') || lower.includes('internal server')) {
+    return { code: 'API_ERROR', source: 'getlate', isRetryable: true, suggestedAction: 'O serviço está indisponível. Tenta novamente em alguns minutos' };
+  }
+
+  return { code: 'UNKNOWN', source: 'unknown', isRetryable: true, suggestedAction: 'Tenta novamente ou contacta o suporte' };
+}
+
+function buildFailureResponse(message: string, status = 200): Response {
+  const errorClassification = classifyPublishError(message);
+  return new Response(
+    JSON.stringify({
+      success: false,
+      fallback: errorClassification.isRetryable,
+      error: {
+        message: message.includes('All platforms failed')
+          ? 'O serviço de publicação rejeitou temporariamente esta rede. A publicação pode já estar em processamento; verifica o histórico antes de repetir.'
+          : message,
+        code: errorClassification.code,
+        source: errorClassification.source,
+        originalError: message,
+        isRetryable: errorClassification.isRetryable,
+        suggestedAction: errorClassification.suggestedAction,
+      }
+    }),
+    {
+      headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      status,
+    }
+  );
+}
+
 // Extract per-platform error reasons from Getlate failedPlatforms array
 function extractFailedPlatformReason(responseData: any): string | null {
   if (!responseData) return null;
