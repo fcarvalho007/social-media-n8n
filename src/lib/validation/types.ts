@@ -1,4 +1,5 @@
 import { SocialNetwork, PostFormat } from '@/types/social';
+import { NetworkOptionField, NetworkOptions } from '@/types/networkOptions';
 
 export type ValidationSeverity = 'error' | 'warning' | 'info';
 
@@ -42,6 +43,8 @@ export interface ValidatorContext {
   networkCaptions?: Record<string, string>;
   /** Whether validators should prefer `networkCaptions[network]`. */
   useSeparateCaptions?: boolean;
+  /** Advanced per-network options from /manual-create. */
+  networkOptions?: NetworkOptions;
   mediaFiles: File[];
   hashtags: string[];
   scheduledDate: Date | null;
@@ -64,6 +67,8 @@ export interface ValidationFixHelpers {
   setMediaFiles?: (next: File[]) => void;
   /** Focus the caption editor so the user can manually edit. */
   focusCaption?: (network?: SocialNetwork) => void;
+  /** Focus one advanced per-network option field. */
+  focusNetworkOption?: (network: SocialNetwork, field?: NetworkOptionField) => void;
 }
 
 export interface ValidationSummary {
