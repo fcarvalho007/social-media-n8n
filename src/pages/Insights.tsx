@@ -75,16 +75,18 @@ export default function Insights() {
         <Button type="button" variant="outline" className="gap-2" onClick={exportPdf} disabled={!filtered.length}><Download className="h-4 w-4" />Exportar relatório PDF</Button>
       </div>
 
-      <div className="grid gap-2 sm:grid-cols-3">
-        <Select value={network} onValueChange={setNetwork}><SelectTrigger><SelectValue /></SelectTrigger><SelectContent>{networks.map(item => <SelectItem key={item} value={item}>{networkLabels[item]}</SelectItem>)}</SelectContent></Select>
-        <Select value={category} onValueChange={setCategory}><SelectTrigger><SelectValue /></SelectTrigger><SelectContent>{categories.map(item => <SelectItem key={item} value={item}>{categoryLabels[item]}</SelectItem>)}</SelectContent></Select>
-        <Select value={period} onValueChange={setPeriod}><SelectTrigger><SelectValue /></SelectTrigger><SelectContent><SelectItem value="30">30 dias</SelectItem><SelectItem value="60">60 dias</SelectItem><SelectItem value="90">90 dias</SelectItem></SelectContent></Select>
-      </div>
+      {(data?.classifiedCount ?? 0) >= 30 && (
+        <div className="grid gap-2 sm:grid-cols-3">
+          <Select value={network} onValueChange={setNetwork}><SelectTrigger><SelectValue /></SelectTrigger><SelectContent>{networks.map(item => <SelectItem key={item} value={item}>{networkLabels[item]}</SelectItem>)}</SelectContent></Select>
+          <Select value={category} onValueChange={setCategory}><SelectTrigger><SelectValue /></SelectTrigger><SelectContent>{categories.map(item => <SelectItem key={item} value={item}>{categoryLabels[item]}</SelectItem>)}</SelectContent></Select>
+          <Select value={period} onValueChange={setPeriod}><SelectTrigger><SelectValue /></SelectTrigger><SelectContent><SelectItem value="30">30 dias</SelectItem><SelectItem value="60">60 dias</SelectItem><SelectItem value="90">90 dias</SelectItem></SelectContent></Select>
+        </div>
+      )}
 
-      {(data?.classifiedCount ?? 0) < 30 ? (
-        <Card><CardHeader><CardTitle>Estamos a aprender sobre o teu conteúdo.</CardTitle><CardDescription>Vais começar a ver insights quando tiveres 30 posts publicados. Atualmente: {data?.classifiedCount ?? 0}/30.</CardDescription></CardHeader></Card>
-      ) : isLoading ? (
+      {isLoading ? (
         <p className="text-sm text-muted-foreground">A carregar insights...</p>
+      ) : (data?.classifiedCount ?? 0) < 30 ? (
+        <Card><CardHeader><CardTitle>Modo silencioso ativo</CardTitle><CardDescription>Estamos a aprender sobre o teu conteúdo. Os insights aparecem quando houver 30 publicações classificadas neste período. Progresso atual: {data?.classifiedCount ?? 0}/30.</CardDescription></CardHeader></Card>
       ) : filtered.length === 0 ? (
         <Card><CardHeader><CardTitle>Ainda não há insights válidos para estes filtros.</CardTitle><CardDescription>Continua a publicar e a recolher métricas. Só mostramos padrões com amostra suficiente e confiança mínima.</CardDescription></CardHeader></Card>
       ) : (
