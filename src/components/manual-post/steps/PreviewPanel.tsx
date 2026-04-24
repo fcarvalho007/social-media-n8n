@@ -228,7 +228,7 @@ export function PreviewPanel(props: PreviewPanelProps) {
       return (
         <div className={variant === 'mobile' ? 'space-y-4' : undefined}>
           {renderPreview(selectedFormats[0])}
-          <Metadata />
+          {variant === 'mobile' && <Metadata />}
           <ScheduledLabel />
         </div>
       );
@@ -245,7 +245,7 @@ export function PreviewPanel(props: PreviewPanelProps) {
             {renderPreview(formatItem)}
           </TabsContent>
         ))}
-        <Metadata />
+        {variant === 'mobile' && <Metadata />}
         {variant === 'desktop' && <ScheduledLabel />}
       </Tabs>
     );
@@ -257,8 +257,8 @@ export function PreviewPanel(props: PreviewPanelProps) {
 
   return (
     <div className="hidden overflow-auto lg:sticky lg:top-24 lg:block lg:h-[calc(100vh-8rem)]">
-      <Card className="card-secondary h-full shadow-[0_18px_45px_hsl(var(--foreground)/0.08)]">
-        <CardHeader className="p-5 pb-3">
+      <Card className="card-secondary flex h-full flex-col shadow-[0_18px_45px_hsl(var(--foreground)/0.08)]">
+        <CardHeader className="shrink-0 p-5 pb-3">
           <div className="manual-card-header-row">
             <CardTitle className="manual-section-title manual-card-title-row">
               <span className="manual-icon-box"><Eye className="h-5 w-5" strokeWidth={1.5} /></span>
@@ -272,7 +272,8 @@ export function PreviewPanel(props: PreviewPanelProps) {
             </div>
           </div>
         </CardHeader>
-        <CardContent className="p-5 pt-0">{body}</CardContent>
+        <CardContent className="flex-1 overflow-auto p-5 pt-0">{body}</CardContent>
+        <StickyMetadataBar />
       </Card>
       <Dialog open={expandedOpen} onOpenChange={setExpandedOpen}>
         <DialogContent className="h-[92vh] max-w-[96vw] overflow-hidden p-4 sm:p-6">
