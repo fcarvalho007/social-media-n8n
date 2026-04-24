@@ -28,7 +28,7 @@ import { MediaSource } from '@/types/media';
 import { PostFormat } from '@/types/social';
 import { AltTextPanel } from '@/components/manual-post/ai/AltTextPanel';
 import { AIGeneratedField } from '@/components/ai/AIGeneratedField';
-import { VideoAiTools } from '@/components/manual-post/ai/VideoAiTools';
+
 import { getAltTextSupportContext } from '@/lib/altTextSupport';
 import { SectionCard, SectionState } from '@/components/manual-post/ui/SectionCard';
 
