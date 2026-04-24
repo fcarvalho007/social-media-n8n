@@ -1050,7 +1050,7 @@ export default function ManualCreate() {
 
       {/* Mobile Preview - Hidden by default, moved to bottom */}
 
-      <div className="grid lg:grid-cols-2 gap-2 lg:gap-8 pb-32 lg:pb-0 px-0 sm:px-0 overflow-hidden">
+      <div className="grid lg:grid-cols-[minmax(0,2fr)_minmax(280px,1fr)] gap-2 lg:gap-8 pb-32 lg:pb-0 px-0 sm:px-0 overflow-hidden">
         {/* Left - Form */}
         <div className="space-y-3 lg:space-y-6">
           {/* Step 1: Network & Format Selection */}
@@ -1280,6 +1280,13 @@ export default function ManualCreate() {
           time={time}
           renderPreview={renderPreview}
           getNetworkIcon={getNetworkIcon}
+          caption={caption}
+          networkCaptions={networkCaptions}
+          useSeparateCaptions={useSeparateCaptions}
+          mediaCount={mediaFiles.length}
+          lastSaved={lastSaved}
+          isAutoSaving={isAutoSaving}
+          hasUnsavedChanges={hasUnsavedChanges}
         />
       </div>
 
@@ -1303,7 +1310,7 @@ export default function ManualCreate() {
 
       {/* Mobile Preview Drawer */}
       <Drawer open={mobilePreviewOpen} onOpenChange={setMobilePreviewOpen}>
-        <DrawerContent className="max-h-[85vh]">
+        <DrawerContent className="max-h-[70vh]">
           <DrawerHeader className="border-b pb-3">
             <DrawerTitle className="flex items-center gap-2">
               <Smartphone className="h-5 w-5" />
@@ -1321,6 +1328,13 @@ export default function ManualCreate() {
               time={time}
               renderPreview={renderPreview}
               getNetworkIcon={getNetworkIcon}
+              caption={caption}
+              networkCaptions={networkCaptions}
+              useSeparateCaptions={useSeparateCaptions}
+              mediaCount={mediaFiles.length}
+              lastSaved={lastSaved}
+              isAutoSaving={isAutoSaving}
+              hasUnsavedChanges={hasUnsavedChanges}
             />
           </div>
         </DrawerContent>
