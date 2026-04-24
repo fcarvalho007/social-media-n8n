@@ -30,6 +30,8 @@ import Benchmark from "./pages/Benchmark";
 import AISettings from "./pages/AISettings";
 import AIDemo from "./pages/AIDemo";
 import Insights from "./pages/Insights";
+import NotificationSettings from "./pages/NotificationSettings";
+import StoryConfirm from "./pages/StoryConfirm";
 const queryClient = new QueryClient();
 
 // Component to handle URL-encoded redirects
@@ -57,6 +59,7 @@ const App = () => (
               <Routes>
                 <Route path="/auth" element={<Auth />} />
                 <Route path="/recovery/:token" element={<Recovery />} />
+                <Route path="/stories/confirm" element={<StoryConfirm />} />
                 <Route element={<ProtectedRoute><MainLayout /></ProtectedRoute>}>
                   <Route path="/" element={<Dashboard />} />
                   <Route path="/dashboard" element={<Dashboard />} />
@@ -74,6 +77,7 @@ const App = () => (
                   <Route path="/templates" element={<Templates />} />
                   <Route path="/quota" element={<QuotaSettings />} />
                   <Route path="/quota-settings" element={<QuotaSettings />} />
+                  <Route path="/settings/notifications" element={<NotificationSettings />} />
                   <Route path="/users" element={<UserManagement />} />
                   <Route path="/analytics" element={<Analytics />} />
                   <Route path="/insights" element={<Insights />} />

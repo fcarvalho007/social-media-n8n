@@ -71,3 +71,13 @@ Yes, you can!
 To connect a domain, navigate to Project > Settings > Domains and click Connect Domain.
 
 Read more here: [Setting up a custom domain](https://docs.lovable.dev/features/custom-domain#custom-domain)
+
+## Story com Link
+
+O formato **Instagram · Story com Link** é semi-automático: a app prepara a média, guarda o URL do link sticker e agenda um lembrete para o utilizador publicar manualmente no Instagram.
+
+- Canal ativo nesta fase: email.
+- Canais reservados para fases futuras: WhatsApp, Telegram e Push.
+- Definições do utilizador: `/settings/notifications`.
+- Confirmação manual: `/stories/confirm?id=...&token=...`.
+- Segredos usados pelas funções: `RESEND_API_KEY`, `SUPABASE_SERVICE_ROLE_KEY` e `AI_CRON_SECRET`.

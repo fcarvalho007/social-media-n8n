@@ -1,239 +1,126 @@
-# Plano — Prompt 1: Fundações do módulo “Story com Link Sticker”
+## Auditoria do último prompt
 
-## Respostas às perguntas antes de avançar
+Ficou parcialmente feito.
 
-1. **Provider de email atual:** o projeto já tem `RESEND_API_KEY` configurada e já existe uma função que usa Resend para emails de falha de publicação. Vou usar **Resend** para o canal email end-to-end desta fase, sem pedir nova chave.
-2. **Push notifications existentes:** existe apenas o sistema interno de notificações na app (`notifications` + `useNotifications` com realtime/toasts). Não encontrei infraestrutura Web Push/VAPID existente. Vou deixar Push visível como “em breve/não configurado” ou desativado nesta fundação, sem implementar Web Push agora.
-3. **WhatsApp:** para este prompt não implementarei WhatsApp end-to-end. Como resposta técnica: eu recomendaria **WhatsApp Cloud API** para produção se o objetivo for custo baixo e controlo direto; **Twilio** é mais rápido de integrar, mas tem custo por mensagem. Como o prompt exige pelo menos email funcional, WhatsApp fica preparado na preferência mas não validável até decisão posterior.
-4. **Tabelas equivalentes:** já existe `stories`, mas é para aprovação/publicação de stories simples e não cobre link sticker, lembrete, confirmação manual, métricas manuais nem deep link. Também existe `notifications`, mas não guarda preferências de canal. Vou criar tabelas novas e isoladas.
+Concluído:
+- Tabelas `story_link_publications` e `user_notification_preferences` existem com RLS, índices, triggers de `updated_at` e confirmação por token.
+- O formato `instagram_story_link` foi adicionado aos tipos e aparece como “Story com Link”.
+- As funções `generate_story_deeplink`, `schedule_story_reminder` e `send_story_reminder` existem.
+- Há validação base para 1 ficheiro, imagem/vídeo e rácio 9:16.
+- O segredo de email já existe, por isso não é necessário pedir credenciais.
 
-## Nota de segurança e ajuste ao SQL proposto
+Pendente / incompleto:
+- Falta página `/settings/notifications`.
+- Falta integrar a página nas rotas e, opcionalmente, no acesso de navegação/definições.
+- Falta UI em `/manual-create` para “URL do link”, “Texto do sticker” e “Texto sobreposto”. Os campos existem no tipo, mas não aparecem ao utilizador.
+- Falta impedir que “Story com Link” siga pelo fluxo normal de publicação Getlate; deve criar uma preparação/lembrete, não publicar diretamente.
+- Falta criar o registo em `story_link_publications` a partir de `/manual-create` e chamar o agendamento do lembrete.
+- Falta QR code no desktop. A dependência `qrcode.react` ainda não está instalada.
+- Falta página/link de confirmação `/stories/confirm` para “Já publiquei”, “Não publiquei” e “Mais tarde”. Embora fosse descrita no prompt, ainda não há rota; sem isto o botão do email aponta para uma página inexistente.
+- Falta documentação no README.
+- O envio de lembretes existe, mas ainda precisa de teste/deploy end-to-end e de um mecanismo de chamada agendada/cron verificado.
 
-Vou adaptar ligeiramente o SQL para seguir as regras do projeto:
+## Plano de conclusão
 
-- Evitar `check (... now())` ou validações temporais em constraints.
-- Usar trigger `updated_at` em vez de depender do frontend.
-- Em RLS de `user_notification_preferences`, usar `USING` e `WITH CHECK` para `INSERT/UPDATE`, para impedir trocar `user_id` para outro utilizador.
-- Criar token de confirmação como hash guardado na base de dados, não token em texto claro. O link público usará token assinado/aleatório e a função backend validará sem expor permissões diretas na tabela.
+### 1. Fechar a experiência de notificações
+- Criar `src/pages/NotificationSettings.tsx` em pt-PT.
+- Carregar e guardar preferências do utilizador em `user_notification_preferences`.
+- Permitir configurar:
+  - canal preferido, com Email ativo;
+  - WhatsApp, Telegram e Push visíveis mas desativados/“em breve” nesta fase;
+  - minutos antes do lembrete;
+  - horas de silêncio;
+  - dias da semana;
+  - botão “Enviar email de teste”.
+- Integrar rota `/settings/notifications` no `App.tsx`.
 
-## 1. Base de dados
+### 2. Completar os campos de “Story com Link” em `/manual-create`
+- Quando o formato `instagram_story_link` estiver selecionado, mostrar um bloco específico em “Opções por rede”:
+  - URL do link obrigatório;
+  - texto do sticker opcional;
+  - texto sobreposto opcional.
+- Derivar o texto do sticker a partir do domínio quando o campo estiver vazio.
+- Manter o visual compacto e consistente com os refinamentos recentes do módulo.
 
-Criar migração com:
+### 3. Regras de validação específicas
+- Validar URL obrigatória e válida para `instagram_story_link`.
+- Manter 1 único ficheiro e 9:16 obrigatório.
+- Acrescentar uma mensagem clara de que este formato é semi-automático e usa lembrete, não publicação direta no Instagram.
+- Ajustar agendamento: quando for “Story com Link”, o agendamento passa a significar “agendar lembrete”.
 
-### `story_link_publications`
+### 4. Fluxo de criação da Story com Link
+- No clique principal de publicação/agendamento, se a seleção for apenas `instagram_story_link`:
+  - carregar a média para storage como já acontece noutros fluxos;
+  - criar registo em `story_link_publications` com `media_url`, `media_type`, `link_url`, `sticker_text`, `overlay_text`, `caption` e `user_id`;
+  - chamar `schedule_story_reminder` com a data/hora escolhida ou preferência default;
+  - mostrar confirmação ao utilizador: “Story preparada e lembrete agendado”.
+- Evitar enviar `instagram_story_link` para `publish-to-getlate`.
+- Se o utilizador misturar Story com Link com outros formatos, manter fora deste ciclo ou bloquear com mensagem clara para evitar comportamento ambíguo.
 
-Campos do prompt, mais estes ajustes:
+### 5. Confirmação manual
+- Criar página `/stories/confirm` acessível pelo link do lembrete.
+- Ler `id` e `token` da URL.
+- Permitir ações:
+  - “Publiquei”;
+  - “Não publiquei”;
+  - “Lembrar daqui a 1 hora”.
+- Chamar a função segura da base de dados via RPC para atualizar o estado sem expor permissões indevidas.
 
-- `confirmation_token_hash text` para confirmação por link sem login.
-- `confirmation_token_expires_at timestamptz` para limitar validade.
-- `reminder_channel text` opcional para guardar o canal usado no envio.
-- `last_error text` opcional para debug de envio.
-- `updated_at` atualizado por trigger.
+### 6. QR code desktop e deep link
+- Instalar `qrcode.react`.
+- Criar um pequeno componente reutilizável para mostrar QR code/deep link na experiência de confirmação/teste desktop.
+- Usar `generate_story_deeplink` para devolver instruções e fallback apropriado.
 
-RLS:
+### 7. Backend e deploy
+- Rever as três funções backend para:
+  - validar inputs de forma mais explícita;
+  - manter CORS em todas as respostas;
+  - evitar placeholders visíveis em emails de teste quando possível;
+  - garantir texto pt-PT.
+- Fazer deploy das funções alteradas.
+- Verificar se existe agendamento/cron para `send_story_reminder`; se não existir, criar/ativar a chamada periódica adequada.
 
-```sql
-alter table public.story_link_publications enable row level security;
-
-create policy "Users can view their own story link publications"
-on public.story_link_publications
-for select
-to authenticated
-using (auth.uid() = user_id);
-
-create policy "Users can insert their own story link publications"
-on public.story_link_publications
-for insert
-to authenticated
-with check (auth.uid() = user_id);
-
-create policy "Users can update their own story link publications"
-on public.story_link_publications
-for update
-to authenticated
-using (auth.uid() = user_id)
-with check (auth.uid() = user_id);
-
-create policy "Users can delete their own story link publications"
-on public.story_link_publications
-for delete
-to authenticated
-using (auth.uid() = user_id);
-```
-
-### `user_notification_preferences`
-
-Criar se não existir com os campos do prompt e RLS robusta:
-
-```sql
-alter table public.user_notification_preferences enable row level security;
-
-create policy "Users can view their own notification preferences"
-on public.user_notification_preferences
-for select
-to authenticated
-using (auth.uid() = user_id);
-
-create policy "Users can insert their own notification preferences"
-on public.user_notification_preferences
-for insert
-to authenticated
-with check (auth.uid() = user_id);
-
-create policy "Users can update their own notification preferences"
-on public.user_notification_preferences
-for update
-to authenticated
-using (auth.uid() = user_id)
-with check (auth.uid() = user_id);
-
-create policy "Users can delete their own notification preferences"
-on public.user_notification_preferences
-for delete
-to authenticated
-using (auth.uid() = user_id);
-```
-
-### Funções auxiliares
-
-- `update_story_link_publications_updated_at()`
-- `update_user_notification_preferences_updated_at()`
-- Função RPC segura para marcar story como `published`, `skipped` ou reagendar, validando token quando usado via link público.
-
-## 2. Novo formato em `/manual-create`
-
-Adicionar formato novo em Instagram:
-
-- tipo: `instagram_story_link`
-- label: `Story com Link`
-- descrição: `Story manual com link sticker`
-- ícone distintivo com Lucide (`Link`, `Badge`, ou composição visual no card), sem emoji solto para manter a iconografia consistente.
-
-Impactos:
-
-- Atualizar `PostFormat` e `NETWORK_POST_FORMATS`.
-- Atualizar labels de preview/publicação onde necessário.
-- Garantir que só aparece em Instagram e não quebra os formatos existentes.
-- UI apenas nesta fase, como pedido: seleção visível e persistível em drafts, mas sem fluxo completo de criação/publicação.
-
-## 3. Validações base para o novo formato
-
-Embora o fluxo completo fique para o Prompt 2, vou adicionar validações mínimas para não deixar o formato incoerente:
-
-- `maxMedia = 1`, `minMedia = 1`.
-- Aceitar imagem ou vídeo.
-- Validar rácio 9:16 com os validadores de média existentes, quando possível.
-- Bloquear “publicação automática/agora” para este formato e orientar para “lembrete”.
-
-Como o prompt diz que a URL e textos específicos só entram no fluxo posterior, nesta fase a validação de `link_url` ficará preparada no backend/tabela, mas a UI completa do campo só será criada no Prompt 2.
-
-## 4. Opções por rede: fundação visual
-
-Em `NetworkOptionsCard`, adicionar indicação contextual quando o formato `instagram_story_link` estiver selecionado:
-
-- Bloco informativo em Instagram: “Este formato prepara o Story e agenda um lembrete; a publicação final é feita manualmente no Instagram.”
-- Não adicionar ainda os campos definitivos de URL/sticker/overlay se forem parte do fluxo de criação do Prompt 2.
-
-## 5. Edge Functions
-
-Criar três funções:
-
-### `generate-story-deeplink`
-
-- Valida JWT em código.
-- Input: `media_url`, `platform` (`ios`, `android`, `web`).
-- Output: deep link/fallback/instruções.
-- Para web: devolve URL a usar no QR code; não tenta usar deep link impossível em desktop.
-- Sem dependências novas obrigatórias.
-
-### `schedule-story-reminder`
-
-- Valida JWT em código.
-- Recebe `story_id` e data pretendida.
-- Lê preferências do utilizador.
-- Ajusta horário para Lisboa, quiet hours e dias permitidos.
-- Atualiza `reminder_scheduled_at` e `status = 'ready'`.
-- Não cria ainda um cron project-specific em migração; deixo preparado para `send-story-reminder` processar itens `ready` vencidos.
-
-### `send-story-reminder`
-
-- Função backend que procura stories `ready` com `reminder_scheduled_at <= now()`.
-- Nesta fase implementa **email** end-to-end com Resend.
-- Envia template HTML com:
-  - preview da média,
-  - link a copiar,
-  - instruções curtas,
-  - botão “Abrir no telemóvel” / “Já publiquei”.
-- Atualiza `reminder_sent_at`, `status = 'reminder_sent'`.
-- Canais WhatsApp/Telegram/Push ficam explicitamente como não configurados, sem falhar o email.
-
-## 6. Página `/settings/notifications`
-
-Criar página protegida com UI compacta e pt-PT:
-
-- Canal preferido: Email ativo; WhatsApp/Telegram/Push visíveis mas marcados como “não configurado nesta fase” ou desativados.
-- Campos condicionais:
-  - WhatsApp: número internacional, desativado até integração futura.
-  - Telegram: chat id/bot, desativado até integração futura.
-- Minutos antes do lembrete: slider ou select 5–60.
-- Horas de silêncio: início/fim.
-- Dias da semana: checkboxes.
-- Botão “Enviar email de teste”.
-
-Adicionar rota em `App.tsx`. Se fizer sentido, adicionar entrada discreta no menu/sidebar ou usar acesso direto por URL, sem poluir a navegação principal.
-
-## 7. Email de teste
-
-Para cumprir “email 100% funcional end-to-end” nesta fundação:
-
-- Criar endpoint/função ou modo em `send-story-reminder` para teste autenticado.
-- A página chama a função e envia email para o email do utilizador autenticado.
-- Mostrar toast de sucesso/erro em pt-PT.
-
-## 8. QR code desktop
-
-O package `qrcode.react` não existe atualmente. Como a regra do workspace diz para não adicionar dependências sem aprovação explícita, vou evitar nova dependência neste prompt.
-
-Alternativa sem dependência nova:
-
-- Criar componente `QRCodeSvg` simples local, suficiente para teste? Isto pode ser arriscado se implementado de raiz.
-- Melhor: gerar um “QR de teste” via endpoint backend que devolve uma URL para mobile e, na UI, mostrar link copiável nesta fase.
-
-Para cumprir literalmente “QR code de teste”, preciso de autorização para adicionar `qrcode.react` ou `qrcode`.
-
-Proposta: **não adiciono dependência nesta execução sem a tua confirmação**. Implemento o fallback com link copiável e deixo o QR como ponto dependente de aprovação. Se aprovares também a dependência, adiciono `qrcode.react` e uso no teste desktop.
-
-## 9. README
-
-Atualizar documentação com:
-
-- Novo formato “Story com Link”.
-- Variáveis/segredos esperados.
-- Estado dos canais:
-  - Email: funcional via Resend existente.
-  - WhatsApp/Telegram/Push: preparados para fases seguintes.
-- Limitação oficial do Instagram: publicação final do link sticker é manual.
+### 8. Documentação e QA
+- Atualizar README com as variáveis/segredos usados pelo módulo e estado dos canais:
+  - Email ativo;
+  - WhatsApp, Telegram e Push reservados para fases futuras.
+- Executar type-check/build.
+- Testar fluxo mínimo:
+  - abrir `/manual-create`;
+  - selecionar Story com Link;
+  - preencher URL;
+  - criar lembrete;
+  - enviar email de teste em `/settings/notifications`;
+  - abrir `/stories/confirm` com token válido.
 
 ## Ficheiros previstos
 
-- `supabase/migrations/...story_link_publications.sql`
-- `supabase/functions/generate-story-deeplink/index.ts`
-- `supabase/functions/schedule-story-reminder/index.ts`
-- `supabase/functions/send-story-reminder/index.ts`
-- `src/types/social.ts`
-- `src/types/networkOptions.ts`
-- `src/lib/formatValidation.ts`
-- `src/lib/validation/validators/...` se necessário para 9:16/lembrete
-- `src/components/manual-post/NetworkFormatSelector.tsx`
-- `src/components/manual-post/steps/NetworkOptionsCard.tsx`
-- `src/pages/NotificationSettings.tsx`
 - `src/App.tsx`
+- `src/pages/NotificationSettings.tsx`
+- `src/pages/StoryConfirm.tsx`
+- `src/components/manual-post/steps/NetworkOptionsCard.tsx`
+- `src/hooks/manual-create/usePublishOrchestrator.ts`
+- `src/lib/validation/validators/formatValidator.ts`
+- `src/lib/validation/validators/scheduleValidator.ts`
+- `src/types/networkOptions.ts`
+- `src/types/social.ts` apenas se for necessário ajustar labels/microcopy
+- `supabase/functions/generate_story_deeplink/index.ts`
+- `supabase/functions/schedule_story_reminder/index.ts`
+- `supabase/functions/send_story_reminder/index.ts`
 - `README.md`
+- `package.json` / lockfile para `qrcode.react`
 
-## Checkpoint de aprovação
+Nota: `src/integrations/supabase/types.ts` está em `LOCKED_FILES.md` e não será editado manualmente.
 
-☐ Aprovar criação das tabelas e RLS propostas.
-☐ Confirmar que o canal email deve usar Resend existente.
-☐ Confirmar se posso adicionar `qrcode.react` para cumprir o QR code de teste.
-☐ Confirmar se WhatsApp/Telegram/Push ficam apenas preparados/desativados nesta fase.
-☐ Após aprovação, implemento e valido build/type-check.
+## Checkpoint
+
+☐ Página `/settings/notifications` criada e funcional
+☐ Campos de Story com Link adicionados em `/manual-create`
+☐ Story com Link bloqueada no fluxo Getlate e tratada como lembrete semi-automático
+☐ Registo em `story_link_publications` criado a partir do formulário
+☐ Email de teste funcional
+☐ Página `/stories/confirm` criada
+☐ QR code desktop adicionado
+☐ Funções backend revistas e publicadas
+☐ README atualizado
+☐ Build/type-check executado

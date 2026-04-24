@@ -17,7 +17,9 @@ export async function scheduleValidator(
         severity: 'error',
         category: 'schedule',
         title: 'Data de agendamento em falta',
-        description: 'Activa "Publicar imediatamente" ou escolhe uma data/hora futura.',
+        description: ctx.selectedFormats.includes('instagram_story_link')
+          ? 'Ativa "Publicar agora" para preparar já o lembrete ou escolhe uma data/hora futura.'
+          : 'Ativa "Publicar agora" ou escolhe uma data/hora futura.',
       },
     ];
   }

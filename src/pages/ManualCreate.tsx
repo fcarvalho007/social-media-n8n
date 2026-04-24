@@ -1298,6 +1298,7 @@ export default function ManualCreate() {
             <NetworkOptionsCard
               ref={networkOptionsRef}
               selectedNetworks={selectedNetworks}
+              selectedFormats={selectedFormats}
               networkOptions={networkOptions}
               onNetworkOptionsChange={(next) => {
                 setNetworkOptions(normalizeNetworkOptions(next));
