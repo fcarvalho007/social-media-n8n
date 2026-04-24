@@ -1523,7 +1523,34 @@ export default function ManualCreate() {
         />
       </div>
 
+      {/* Barra fixa global de acções — Prompt 3/4 */}
+      <PublishActionsCard
+        fixedBottom
+        completedSteps={completedSections}
+        totalSteps={5}
+        hasErrors={selectedFormats.length > 0 && !smartValidation.canPublish}
+        onShowValidationIssues={() => setValidationSheetOpen(true)}
+        guidedEnabled={guided.enabled}
+        onToggleGuided={guided.toggle}
+        saving={saving}
+        submitting={submitting}
+        publishing={publishing}
+        isUploading={isUploading}
+        uploadProgress={uploadProgress}
+        selectedFormats={selectedFormats}
+        smartValidation={smartValidation}
+        mediaFiles={mediaFiles}
+        scheduleAsap={scheduleAsap}
+        scheduledDate={scheduledDate}
+        onPublish={handlePublishWithValidation}
+        onSaveDraft={handleSaveDraft}
+        onOpenDrafts={() => setDraftsDialogOpen(true)}
+        onViewCalendar={() => navigate('/calendar')}
+        onSubmitForApproval={handleSubmitWithValidation}
+      />
+
       {/* Mobile Sticky Bottom Bar (extracted) */}
+
       <MobileStickyActionBar
         currentStep={currentStep}
         scheduleAsap={scheduleAsap}
