@@ -4,7 +4,7 @@ import { Button } from '@/components/ui/button';
 import { Label } from '@/components/ui/label';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
-import { CloudUpload, ChevronLeft, ChevronRight, Plus, Sparkles, Video } from 'lucide-react';
+import { CloudUpload, ChevronLeft, ChevronRight, Plus, Video } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import {
   DndContext,
@@ -30,7 +30,7 @@ import { MediaSource } from '@/types/media';
 import { PostFormat } from '@/types/social';
 import { AltTextPanel } from '@/components/manual-post/ai/AltTextPanel';
 import { AIGeneratedField } from '@/components/ai/AIGeneratedField';
-import { AIActionButton } from '@/components/ai/AIActionButton';
+import { VideoAiTools } from '@/components/manual-post/ai/VideoAiTools';
 
 const formatFileSize = (size: number) => {
   if (!size) return '0 KB';
@@ -73,6 +73,7 @@ interface Step2MediaCardProps {
   onMediaAltTextChange?: (key: string, value: string) => void;
   onGenerateAltText?: (index: number) => Promise<unknown>;
   altTextLoadingKey?: string | null;
+  videoToolsLoadingAction?: string | null;
   onGenerateSrt?: () => void;
   onGenerateChapters?: () => Promise<unknown>;
   onExtractQuotes?: () => Promise<unknown>;
@@ -134,6 +135,7 @@ export function Step2MediaCard(props: Step2MediaCardProps) {
     onMediaAltTextChange,
     onGenerateAltText,
     altTextLoadingKey,
+    videoToolsLoadingAction,
     onGenerateSrt,
     onGenerateChapters,
     onExtractQuotes,
@@ -259,9 +261,14 @@ export function Step2MediaCard(props: Step2MediaCardProps) {
               {hasVideo && (
                 <div className="flex flex-wrap items-center gap-2 rounded-lg border bg-muted/30 p-2">
                   <span className="inline-flex items-center gap-1.5 text-sm font-medium"><Video className="h-4 w-4" />Ferramentas</span>
-                  <Button type="button" variant="outline" size="sm" onClick={onGenerateSrt}>Gerar ficheiro SRT</Button>
-                  <AIActionButton icon={<Sparkles className="h-4 w-4" />} label="Capítulos" creditCost={2} variant="secondary" onClick={onGenerateChapters ?? (async () => undefined)} />
-                  <AIActionButton icon={<Sparkles className="h-4 w-4" />} label="Frases" creditCost={1} variant="secondary" onClick={onExtractQuotes ?? (async () => undefined)} />
+                  <VideoAiTools
+                    visible={hasVideo}
+                    loadingAction={videoToolsLoadingAction ?? null}
+                    disabled={saving || submitting || publishing}
+                    onGenerateSrt={onGenerateSrt ?? (() => undefined)}
+                    onGenerateChapters={onGenerateChapters ?? (() => undefined)}
+                    onExtractQuotes={onExtractQuotes ?? (() => undefined)}
+                  />
                 </div>
               )}
 

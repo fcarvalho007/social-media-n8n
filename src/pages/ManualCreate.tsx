@@ -44,6 +44,7 @@ import { AiUploadAssistantCard, AiUploadAssistantStatus } from '@/components/man
 import { CaptionRewritePreviewDialog } from '@/components/manual-post/ai/CaptionRewritePreviewDialog';
 import { HashtagSuggestions } from '@/components/manual-post/ai/HashtagSuggestions';
 import { EditorialInsightBanner } from '@/components/manual-post/ai/EditorialInsightBanner';
+import { VideoToolsReviewDialog } from '@/components/manual-post/ai/VideoToolsReviewDialog';
 import type { AccountInsight, CaptionRewriteMetadata, CaptionRewriteTone, EditorialAssistantResult, SuggestedHashtag } from '@/types/aiEditorial';
 import { supabase } from '@/integrations/supabase/client';
 import { useAiPreferences } from '@/hooks/ai/useAiPreferences';
@@ -171,6 +172,12 @@ export default function ManualCreate() {
   const [insightDismissedThisSession, setInsightDismissedThisSession] = useState(false);
   const [insightQuestions, setInsightQuestions] = useState<string[]>([]);
   const [insightQuestionLoading, setInsightQuestionLoading] = useState(false);
+  const [videoToolsLoadingAction, setVideoToolsLoadingAction] = useState<string | null>(null);
+  const [videoToolsReview, setVideoToolsReview] = useState<
+    | { type: 'chapters'; items: Array<{ time: string; title: string }> }
+    | { type: 'quotes'; items: Array<{ time: string; text: string }> }
+    | null
+  >(null);
   const mediaSectionRef = useRef<HTMLDivElement>(null);
   const captionEditorRef = useRef<NetworkCaptionEditorHandle>(null);
   const networkOptionsRef = useRef<NetworkOptionsCardHandle>(null);
@@ -366,7 +373,8 @@ export default function ManualCreate() {
         .select('id', { count: 'exact', head: true })
         .eq('user_id', user.id)
         .eq('status', 'published')
-        .not('performance_classification', 'is', null);
+        .not('performance_classification', 'is', null)
+        .gte('published_at', new Date(Date.now() - 90 * 24 * 60 * 60 * 1000).toISOString());
       if (cancelled) return;
       setClassifiedPostCount(count ?? 0);
       if ((count ?? 0) < 30) {
@@ -627,12 +635,11 @@ export default function ManualCreate() {
 
   const assistantBlockedMessage = useMemo(() => {
     if (!showAiUploadAssistant) return null;
-    if (!aiPreferences.insights_enabled) return 'As preferências de IA estão desligadas. Podes continuar manualmente.';
     if (assistantVideoDuration !== null && assistantVideoDuration < 5) return 'O vídeo é demasiado curto para este assistente. Podes escrever a legenda manualmente.';
     if (assistantVideoDuration !== null && assistantVideoDuration > 600) return 'Este vídeo ultrapassa o limite de 10 minutos. Divide o vídeo em partes mais curtas.';
     if (aiCredits.credits_remaining < AI_CREDIT_COSTS.full_assistant_flow) return 'Não tens créditos suficientes para este fluxo. Podes continuar manualmente ou ver planos.';
     return null;
-  }, [aiCredits.credits_remaining, aiPreferences.insights_enabled, assistantVideoDuration, showAiUploadAssistant]);
+  }, [aiCredits.credits_remaining, assistantVideoDuration, showAiUploadAssistant]);
 
   const uploadAssistantMedia = useCallback(async (file: File) => {
     const { data: sessionData, error: sessionError } = await supabase.auth.getSession();
@@ -961,12 +968,15 @@ export default function ManualCreate() {
     void handleAiTranscribe();
   }, [aiAssistantStatus, aiMetadata?.upload_assistant?.status, handleAiTranscribe, rawTranscription]);
 
+  const hasUsableTranscription = useCallback(() => rawTranscription.trim().length >= 40, [rawTranscription]);
+
   const handleGenerateSrt = useCallback(() => {
     const segments = aiMetadata?.transcription_segments ?? [];
     if (!segments.length) {
-      toast.error('É preciso gerar uma transcrição com timestamps antes do SRT.');
+      toast.error(rawTranscription.trim() ? 'A transcrição atual não tem timestamps. Volta a transcrever o vídeo com o assistente para gerar SRT.' : 'Gera primeiro a transcrição do vídeo com o assistente.');
       return;
     }
+    setVideoToolsLoadingAction('srt');
     const srt = segments.map((segment, index) => `${index + 1}\n${formatSrtTime(segment.start)} --> ${formatSrtTime(segment.end)}\n${segment.text.trim()}\n`).join('\n');
     const url = URL.createObjectURL(new Blob([srt], { type: 'text/plain;charset=utf-8' }));
     const link = document.createElement('a');
@@ -974,21 +984,62 @@ export default function ManualCreate() {
     link.download = 'legendas.srt';
     link.click();
     URL.revokeObjectURL(url);
-  }, [aiMetadata?.transcription_segments]);
+    setVideoToolsLoadingAction(null);
+  }, [aiMetadata?.transcription_segments, rawTranscription]);
 
   const handleGenerateChapters = useCallback(async () => {
-    const result = await aiService.generateVideoChapters({ transcription: rawTranscription, segments: aiMetadata?.transcription_segments });
-    await navigator.clipboard.writeText((result.chapters ?? []).map(item => `${item.time} ${item.title}`).join('\n'));
-    await refreshAiCredits();
-    toast.success('Capítulos copiados.');
-  }, [aiMetadata?.transcription_segments, rawTranscription, refreshAiCredits]);
+    if (!hasUsableTranscription()) {
+      toast.error('Gera primeiro a transcrição do vídeo com o assistente.');
+      return;
+    }
+    if (assistantVideoDuration !== null && assistantVideoDuration < 120) {
+      toast.error('Os capítulos só fazem sentido para vídeos com mais de 2 minutos.');
+      return;
+    }
+    try {
+      setVideoToolsLoadingAction('chapters');
+      const result = await aiService.generateVideoChapters({ transcription: rawTranscription, segments: aiMetadata?.transcription_segments });
+      const chapters = (result.chapters ?? []).filter(item => item.time && item.title);
+      if (!chapters.length) throw new Error('A IA não devolveu capítulos válidos.');
+      setVideoToolsReview({ type: 'chapters', items: chapters });
+      setAiMetadata(prev => ({ ...(prev ?? {}), video_tools: { ...(prev?.video_tools ?? {}), chapters } }));
+      await refreshAiCredits();
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : 'Não foi possível gerar capítulos.');
+    } finally {
+      setVideoToolsLoadingAction(null);
+    }
+  }, [aiMetadata?.transcription_segments, assistantVideoDuration, hasUsableTranscription, rawTranscription, refreshAiCredits]);
 
   const handleExtractQuotes = useCallback(async () => {
-    const result = await aiService.extractVideoQuotes({ transcription: rawTranscription, segments: aiMetadata?.transcription_segments });
-    await navigator.clipboard.writeText((result.quotes ?? []).map(item => `${item.time} — ${item.text}`).join('\n'));
-    await refreshAiCredits();
-    toast.success('Frases copiadas.');
-  }, [aiMetadata?.transcription_segments, rawTranscription, refreshAiCredits]);
+    if (!hasUsableTranscription()) {
+      toast.error('Gera primeiro a transcrição do vídeo com o assistente.');
+      return;
+    }
+    try {
+      setVideoToolsLoadingAction('quotes');
+      const result = await aiService.extractVideoQuotes({ transcription: rawTranscription, segments: aiMetadata?.transcription_segments });
+      const quotes = (result.quotes ?? []).filter(item => item.time && item.text);
+      if (!quotes.length) throw new Error('A IA não devolveu frases válidas.');
+      setVideoToolsReview({ type: 'quotes', items: quotes });
+      setAiMetadata(prev => ({ ...(prev ?? {}), video_tools: { ...(prev?.video_tools ?? {}), quotes } }));
+      await refreshAiCredits();
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : 'Não foi possível extrair frases.');
+    } finally {
+      setVideoToolsLoadingAction(null);
+    }
+  }, [aiMetadata?.transcription_segments, hasUsableTranscription, rawTranscription, refreshAiCredits]);
+
+  const copyVideoToolsReview = useCallback(async () => {
+    if (!videoToolsReview) return;
+    const text = videoToolsReview.type === 'chapters'
+      ? videoToolsReview.items.map(item => `${item.time} ${item.title}`).join('\n')
+      : videoToolsReview.items.map(item => `${item.time} — ${item.text}`).join('\n');
+    await navigator.clipboard.writeText(text);
+    toast.success(videoToolsReview.type === 'chapters' ? 'Capítulos copiados.' : 'Frases copiadas.');
+    setVideoToolsReview(null);
+  }, [videoToolsReview]);
 
   // Render preview delegated to extracted helper (Phase 4)
   const renderPreview = useCallback(
@@ -1105,6 +1156,7 @@ export default function ManualCreate() {
             }}
             onGenerateAltText={generateAltTextForMedia}
             altTextLoadingKey={altTextLoadingKey}
+            videoToolsLoadingAction={videoToolsLoadingAction}
             onGenerateSrt={handleGenerateSrt}
             onGenerateChapters={handleGenerateChapters}
             onExtractQuotes={handleExtractQuotes}
@@ -1396,6 +1448,12 @@ export default function ManualCreate() {
         onRewrittenTextChange={(value) => setRewritePreview(prev => prev ? { ...prev, rewrittenText: value } : prev)}
         onApply={handleApplyRewrite}
         onKeepOriginal={() => setRewritePreview(null)}
+      />
+
+      <VideoToolsReviewDialog
+        result={videoToolsReview}
+        onOpenChange={(open) => { if (!open) setVideoToolsReview(null); }}
+        onCopy={copyVideoToolsReview}
       />
     </div>
   );

@@ -63,6 +63,10 @@ export interface EditorialAssistantResult {
   rewrites?: CaptionRewriteMetadata[];
   hashtag_assistant?: HashtagAssistantResult;
   generated_fields?: Record<string, GeneratedFieldState>;
+  video_tools?: {
+    chapters?: Array<{ time: string; title: string }>;
+    quotes?: Array<{ time: string; text: string }>;
+  };
   upload_assistant?: {
     status?: 'dismissed' | 'transcribed' | 'done';
     generated_at?: string;
