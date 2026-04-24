@@ -29,6 +29,7 @@ import Analytics from "./pages/Analytics";
 import Benchmark from "./pages/Benchmark";
 import AISettings from "./pages/AISettings";
 import AIDemo from "./pages/AIDemo";
+import Insights from "./pages/Insights";
 const queryClient = new QueryClient();
 
 // Component to handle URL-encoded redirects
@@ -75,6 +76,7 @@ const App = () => (
                   <Route path="/quota-settings" element={<QuotaSettings />} />
                   <Route path="/users" element={<UserManagement />} />
                   <Route path="/analytics" element={<Analytics />} />
+                  <Route path="/insights" element={<Insights />} />
                   <Route path="/benchmark" element={<Benchmark />} />
                   <Route path="/ai-settings" element={<AISettings />} />
                   <Route path="/ai-demo" element={<AIDemo />} />
