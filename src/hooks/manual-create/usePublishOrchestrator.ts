@@ -1,5 +1,6 @@
 import { useState, useCallback } from 'react';
 import { format } from 'date-fns';
+import { useNavigate } from 'react-router-dom';
 import { toast } from 'sonner';
 import { supabase } from '@/integrations/supabase/client';
 import { generateSafeStoragePath } from '@/lib/fileNameSanitizer';
@@ -112,6 +113,7 @@ interface OrchestratorParams {
  */
 export function usePublishOrchestrator(params: OrchestratorParams) {
   const queryClient = useQueryClient();
+  const navigate = useNavigate();
   const {
     selectedFormats,
     selectedNetworks,
@@ -164,9 +166,9 @@ export function usePublishOrchestrator(params: OrchestratorParams) {
   }, [currentDraftId, queryClient, setCurrentDraftId]);
 
   const prepareStoryLink = useCallback(async (files: File[]) => {
-    if (selectedFormats.length !== 1 || selectedFormats[0] !== 'instagram_story_link') return false;
+    if (!selectedFormats.includes('instagram_story_link')) return null;
     const linkUrl = networkOptions.instagram?.storyLinkUrl?.trim() ?? '';
-    if (!linkUrl || files.length !== 1) return false;
+    if (!linkUrl || files.length < 1) return null;
 
     try {
       setSubmitting(true);
@@ -193,33 +195,29 @@ export function usePublishOrchestrator(params: OrchestratorParams) {
           sticker_text: stickerText,
           overlay_text: networkOptions.instagram?.storyLinkOverlayText?.trim() || null,
           caption: getDraftCaption('instagram_story_link', caption, networkCaptions, useSeparateCaptions),
-          status: 'draft',
+          status: 'ready',
         } as any)
         .select('id')
         .single();
       if (insertError || !inserted?.id) throw insertError ?? new Error('Não foi possível criar a Story com Link.');
 
       setUploadProgress(70);
-      const targetAt = scheduleAsap ? undefined : buildScheduledDateTime(scheduledDate, time)?.toISOString();
-      const { error: scheduleError } = await supabase.functions.invoke('schedule_story_reminder', {
-        body: { story_id: inserted.id, target_at: targetAt },
-      });
-      if (scheduleError) throw scheduleError;
+      if (!scheduleAsap) {
+        const targetAt = buildScheduledDateTime(scheduledDate, time)?.toISOString();
+        const { error: scheduleError } = await supabase.functions.invoke('schedule_story_reminder', {
+          body: { story_id: inserted.id, target_at: targetAt },
+        });
+        if (scheduleError) throw scheduleError;
+      }
 
       setUploadProgress(100);
-      toast.success(scheduleAsap ? 'Story preparada e lembrete criado.' : 'Story preparada e lembrete agendado.');
+      toast.success(scheduleAsap ? 'Pacote de Story preparado.' : 'Lembrete da Story agendado.');
       await consumeCurrentDraft();
-      setCaption('');
-      setMediaFiles([]);
-      setMediaPreviewUrls([]);
-      setScheduledDate(undefined);
-      setTime('12:00');
-      setScheduleAsap(true);
-      return true;
+      return String(inserted.id);
     } catch (error) {
       console.error('[prepareStoryLink]', error);
       toast.error(error instanceof Error ? error.message : 'Erro ao preparar Story com Link.');
-      return true;
+      return 'error';
     } finally {
       setSubmitting(false);
       setUploadProgress(0);
@@ -227,7 +225,6 @@ export function usePublishOrchestrator(params: OrchestratorParams) {
   }, [
     selectedFormats, networkOptions, caption, networkCaptions, useSeparateCaptions,
     scheduleAsap, scheduledDate, time, setUploadProgress, consumeCurrentDraft,
-    setCaption, setMediaFiles, setMediaPreviewUrls, setScheduledDate, setTime, setScheduleAsap,
   ]);
 
   // ── saveDraft ──────────────────────────────────────────────────────────
@@ -628,8 +625,13 @@ export function usePublishOrchestrator(params: OrchestratorParams) {
 
     const files = filesToPublish || mediaFiles;
 
-    const storyPrepared = await prepareStoryLink(files);
-    if (storyPrepared) return;
+    const storyPreparedId = await prepareStoryLink(files);
+    if (storyPreparedId === 'error') return;
+    if (storyPreparedId && selectedFormats.length === 1) {
+      if (scheduleAsap) navigate(`/stories/launch/${storyPreparedId}`);
+      else navigate('/publication-history');
+      return;
+    }
 
     // Pré-check de imagens grandes (>4MB) — apenas para Instagram
     const instagramSelected = selectedNetworks.includes('instagram');
@@ -645,7 +647,7 @@ export function usePublishOrchestrator(params: OrchestratorParams) {
     });
 
     const publishParams: PublishParams = {
-      formats: selectedFormats,
+      formats: selectedFormats.filter(formatItem => formatItem !== 'instagram_story_link'),
       caption,
       mediaFiles: files,
       scheduledDate,
@@ -673,7 +675,7 @@ export function usePublishOrchestrator(params: OrchestratorParams) {
     selectedFormats, smartValidation.canPublish, mediaFiles, selectedNetworks,
     compression, quota, caption, scheduledDate, time, scheduleAsap, prepareStoryLink,
     recoveredPostId, useSeparateCaptions, networkCaptions, networkOptions, rawTranscription, aiMetadata, executePublish,
-    setValidationSheetOpen, onDuplicateDetected, consumeCurrentDraft,
+    setValidationSheetOpen, onDuplicateDetected, consumeCurrentDraft, navigate,
   ]);
 
   // ── Wrappers com gating de smart-validation ────────────────────────────
