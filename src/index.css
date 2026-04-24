@@ -306,6 +306,51 @@ All colors MUST be HSL.
   .manual-microcopy {
     @apply text-manual-micro text-muted-foreground;
   }
+
+  .manual-card-shell {
+    @apply overflow-hidden rounded-lg border border-border bg-card text-card-foreground shadow-sm;
+  }
+
+  .manual-card-content {
+    @apply p-5;
+  }
+
+  .manual-group-stack {
+    @apply space-y-manual-field-group;
+  }
+
+  .manual-field-stack {
+    @apply space-y-manual-label-field;
+  }
+
+  .manual-chip {
+    @apply rounded px-2 py-0.5 text-manual-micro leading-[1.35];
+  }
+
+  .manual-input-radius {
+    @apply rounded-md;
+  }
+
+  .manual-enter {
+    animation: manual-enter 200ms ease-out both;
+  }
+}
+
+@keyframes manual-enter {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .manual-enter {
+    animation: none;
+  }
 }
 
 @layer utilities {
