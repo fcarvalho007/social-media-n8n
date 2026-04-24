@@ -35,6 +35,7 @@ interface MobileStickyActionBarProps {
  * Extracted from ManualCreate.tsx (Phase 4) — purely presentational.
  */
 export function MobileStickyActionBar({
+  currentStep,
   scheduleAsap,
   scheduledDate,
   time,
