@@ -1401,6 +1401,10 @@ export default function ManualCreate() {
               disabled={saving || submitting || publishing}
               generatedAt={assistantGeneratedAt}
               generatedEdited={aiGeneratedEdited}
+              state={optionsState}
+              stepNumber={4}
+              onActivate={() => activate('options')}
+              onEdit={() => activate('options')}
             />
 
             <Step3ScheduleCard
@@ -1410,8 +1414,11 @@ export default function ManualCreate() {
               onScheduledDateChange={setScheduledDate}
               time={time}
               onTimeChange={setTime}
-              onPreviousStep={previousStep}
               storyLinkMode={selectedFormats.includes('instagram_story_link')}
+              state={scheduleState}
+              stepNumber={5}
+              onActivate={() => activate('schedule')}
+              onEdit={() => activate('schedule')}
             />
 
             {/* Actions - Reorganized Hierarchy - Hidden on mobile (use bottom bar) */}
