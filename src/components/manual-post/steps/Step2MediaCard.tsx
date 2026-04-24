@@ -351,23 +351,24 @@ export function Step2MediaCard(props: Step2MediaCardProps) {
                     {mediaPreviewUrls.map((url, idx) => {
                       const isVideo = mediaFiles[idx]?.type?.startsWith('video/');
                       return (
-                        <EnhancedSortableMediaItem
-                          key={`media-${idx}`}
-                          id={`media-${idx}`}
-                          url={url}
-                          index={idx}
-                          total={mediaPreviewUrls.length}
-                          isVideo={isVideo}
-                          disabled={saving || submitting || publishing}
-                          source={mediaSources[idx]}
-                          aspectRatio={toAspectRatio(mediaAspectRatios[idx])}
-                          onRemove={() => removeMedia(idx)}
-                          onMoveUp={() => moveMedia(idx, idx - 1)}
-                          onMoveDown={() => moveMedia(idx, idx + 1)}
-                        />
-                        <div className="mt-1 min-w-0 text-xs">
-                          <p className="truncate font-medium">{mediaFiles[idx]?.name ?? `Ficheiro ${idx + 1}`}</p>
-                          <p className="text-muted-foreground">{formatFileSize(mediaFiles[idx]?.size ?? 0)}</p>
+                        <div key={`media-wrap-${idx}`} className="min-w-0">
+                          <EnhancedSortableMediaItem
+                            id={`media-${idx}`}
+                            url={url}
+                            index={idx}
+                            total={mediaPreviewUrls.length}
+                            isVideo={isVideo}
+                            disabled={saving || submitting || publishing}
+                            source={mediaSources[idx]}
+                            aspectRatio={toAspectRatio(mediaAspectRatios[idx])}
+                            onRemove={() => removeMedia(idx)}
+                            onMoveUp={() => moveMedia(idx, idx - 1)}
+                            onMoveDown={() => moveMedia(idx, idx + 1)}
+                          />
+                          <div className="mt-1 min-w-0 text-xs">
+                            <p className="truncate font-medium">{mediaFiles[idx]?.name ?? `Ficheiro ${idx + 1}`}</p>
+                            <p className="text-muted-foreground">{formatFileSize(mediaFiles[idx]?.size ?? 0)}</p>
+                          </div>
                         </div>
                       );
                     })}
