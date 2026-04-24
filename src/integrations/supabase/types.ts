@@ -14,6 +14,117 @@ export type Database = {
   }
   public: {
     Tables: {
+      account_insights: {
+        Row: {
+          confidence: number
+          created_at: string
+          finding: string
+          format: string | null
+          id: string
+          insight_type: string
+          last_updated: string
+          metadata: Json
+          network: string | null
+          p_value: number | null
+          sample_size: number
+          user_id: string
+        }
+        Insert: {
+          confidence: number
+          created_at?: string
+          finding: string
+          format?: string | null
+          id?: string
+          insight_type: string
+          last_updated?: string
+          metadata?: Json
+          network?: string | null
+          p_value?: number | null
+          sample_size: number
+          user_id: string
+        }
+        Update: {
+          confidence?: number
+          created_at?: string
+          finding?: string
+          format?: string | null
+          id?: string
+          insight_type?: string
+          last_updated?: string
+          metadata?: Json
+          network?: string | null
+          p_value?: number | null
+          sample_size?: number
+          user_id?: string
+        }
+        Relationships: []
+      }
+      ai_credit_usage: {
+        Row: {
+          action: string
+          created_at: string
+          credits: number
+          id: string
+          metadata: Json
+          user_id: string
+        }
+        Insert: {
+          action: string
+          created_at?: string
+          credits: number
+          id?: string
+          metadata?: Json
+          user_id: string
+        }
+        Update: {
+          action?: string
+          created_at?: string
+          credits?: number
+          id?: string
+          metadata?: Json
+          user_id?: string
+        }
+        Relationships: []
+      }
+      ai_preferences: {
+        Row: {
+          brand_hashtags: string[]
+          created_at: string
+          default_tone: string
+          dismissed_insights: Json
+          id: string
+          insights_enabled: boolean
+          muted_insight_types: string[]
+          preferred_language: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          brand_hashtags?: string[]
+          created_at?: string
+          default_tone?: string
+          dismissed_insights?: Json
+          id?: string
+          insights_enabled?: boolean
+          muted_insight_types?: string[]
+          preferred_language?: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          brand_hashtags?: string[]
+          created_at?: string
+          default_tone?: string
+          dismissed_insights?: Json
+          id?: string
+          insights_enabled?: boolean
+          muted_insight_types?: string[]
+          preferred_language?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       analytics_alerts: {
         Row: {
           account_username: string
@@ -101,6 +212,42 @@ export type Database = {
           id?: string
           insights_json?: Json
           user_id?: string
+        }
+        Relationships: []
+      }
+      hashtag_intelligence: {
+        Row: {
+          created_at: string
+          hashtag: string
+          id: string
+          metadata: Json
+          source: string
+          status: string | null
+          updated_at: string
+          verified_at: string
+          volume_estimate: number | null
+        }
+        Insert: {
+          created_at?: string
+          hashtag: string
+          id?: string
+          metadata?: Json
+          source: string
+          status?: string | null
+          updated_at?: string
+          verified_at: string
+          volume_estimate?: number | null
+        }
+        Update: {
+          created_at?: string
+          hashtag?: string
+          id?: string
+          metadata?: Json
+          source?: string
+          status?: string | null
+          updated_at?: string
+          verified_at?: string
+          volume_estimate?: number | null
         }
         Relationships: []
       }
@@ -429,8 +576,66 @@ export type Database = {
         }
         Relationships: []
       }
+      post_performance: {
+        Row: {
+          captured_at: string
+          classification: string
+          comments: number
+          completion_rate: number | null
+          created_at: string
+          engagement_rate: number
+          features_extracted: Json
+          id: string
+          impressions: number | null
+          likes: number
+          network: string
+          post_id: string | null
+          reach: number | null
+          saves: number
+          shares: number
+          user_id: string
+        }
+        Insert: {
+          captured_at?: string
+          classification?: string
+          comments?: number
+          completion_rate?: number | null
+          created_at?: string
+          engagement_rate?: number
+          features_extracted?: Json
+          id?: string
+          impressions?: number | null
+          likes?: number
+          network: string
+          post_id?: string | null
+          reach?: number | null
+          saves?: number
+          shares?: number
+          user_id: string
+        }
+        Update: {
+          captured_at?: string
+          classification?: string
+          comments?: number
+          completion_rate?: number | null
+          created_at?: string
+          engagement_rate?: number
+          features_extracted?: Json
+          id?: string
+          impressions?: number | null
+          likes?: number
+          network?: string
+          post_id?: string | null
+          reach?: number | null
+          saves?: number
+          shares?: number
+          user_id?: string
+        }
+        Relationships: []
+      }
       posts: {
         Row: {
+          ai_metadata: Json
           alt_texts: Json | null
           approval_comments: string | null
           caption: string
@@ -460,6 +665,7 @@ export type Database = {
           publish_metadata: Json | null
           publish_targets: Json | null
           published_at: string | null
+          raw_transcription: string | null
           recovered_from_post_id: string | null
           recovery_token: string | null
           retry_count: number | null
@@ -482,6 +688,7 @@ export type Database = {
           workflow_id: string
         }
         Insert: {
+          ai_metadata?: Json
           alt_texts?: Json | null
           approval_comments?: string | null
           caption: string
@@ -511,6 +718,7 @@ export type Database = {
           publish_metadata?: Json | null
           publish_targets?: Json | null
           published_at?: string | null
+          raw_transcription?: string | null
           recovered_from_post_id?: string | null
           recovery_token?: string | null
           retry_count?: number | null
@@ -533,6 +741,7 @@ export type Database = {
           workflow_id: string
         }
         Update: {
+          ai_metadata?: Json
           alt_texts?: Json | null
           approval_comments?: string | null
           caption?: string
@@ -562,6 +771,7 @@ export type Database = {
           publish_metadata?: Json | null
           publish_targets?: Json | null
           published_at?: string | null
+          raw_transcription?: string | null
           recovered_from_post_id?: string | null
           recovery_token?: string | null
           retry_count?: number | null
@@ -587,6 +797,7 @@ export type Database = {
       }
       posts_drafts: {
         Row: {
+          ai_metadata: Json
           caption: string | null
           created_at: string
           format: string | null
@@ -598,6 +809,7 @@ export type Database = {
           network_options: Json | null
           platform: string
           publish_immediately: boolean | null
+          raw_transcription: string | null
           scheduled_date: string | null
           scheduled_time: string | null
           status: string
@@ -606,6 +818,7 @@ export type Database = {
           user_id: string
         }
         Insert: {
+          ai_metadata?: Json
           caption?: string | null
           created_at?: string
           format?: string | null
@@ -617,6 +830,7 @@ export type Database = {
           network_options?: Json | null
           platform: string
           publish_immediately?: boolean | null
+          raw_transcription?: string | null
           scheduled_date?: string | null
           scheduled_time?: string | null
           status?: string
@@ -625,6 +839,7 @@ export type Database = {
           user_id: string
         }
         Update: {
+          ai_metadata?: Json
           caption?: string | null
           created_at?: string
           format?: string | null
@@ -636,6 +851,7 @@ export type Database = {
           network_options?: Json | null
           platform?: string
           publish_immediately?: boolean | null
+          raw_transcription?: string | null
           scheduled_date?: string | null
           scheduled_time?: string | null
           status?: string
@@ -1232,6 +1448,15 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      calculate_ai_credit_usage: {
+        Args: {
+          _action: string
+          _credits: number
+          _metadata?: Json
+          _user_id: string
+        }
+        Returns: undefined
+      }
       calculate_next_retry: { Args: { attempts: number }; Returns: string }
       can_publish_to_instagram: {
         Args: { p_user_id: string }
