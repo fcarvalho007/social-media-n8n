@@ -64,6 +64,8 @@ interface NetworkCaptionEditorProps {
   onOpenAIDialog?: () => void;
   toneRewriteLoading?: ToneAction | null;
   onRewriteTone?: (tone: ToneAction) => void;
+  /** Reservado para futura versão minimalista no estado active. Não usado actualmente. */
+  minimalCounters?: unknown;
 }
 
 export interface NetworkCaptionEditorHandle {
