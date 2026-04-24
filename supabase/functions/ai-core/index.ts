@@ -278,6 +278,14 @@ serve(async (req) => {
       const lovableKey = Deno.env.get("LOVABLE_API_KEY");
       if (!lovableKey) throw new Response("missing_lovable_key", { status: 500 });
       output = await generateHashtags(body, lovableKey);
+    } else if (body.action === "first_comment_generation") {
+      const lovableKey = Deno.env.get("LOVABLE_API_KEY");
+      if (!lovableKey) throw new Response("missing_lovable_key", { status: 500 });
+      output = await generateFirstComments(body, lovableKey);
+    } else if (body.action === "video_chapters" || body.action === "video_quotes") {
+      const lovableKey = Deno.env.get("LOVABLE_API_KEY");
+      if (!lovableKey) throw new Response("missing_lovable_key", { status: 500 });
+      output = await generateVideoTool(body, lovableKey, body.action === "video_chapters" ? "chapters" : "quotes");
     } else {
       const lovableKey = Deno.env.get("LOVABLE_API_KEY");
       if (!lovableKey) throw new Response("missing_lovable_key", { status: 500 });
