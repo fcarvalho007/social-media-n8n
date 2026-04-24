@@ -22,6 +22,7 @@ import { Drawer, DrawerContent, DrawerHeader, DrawerTitle } from '@/components/u
 import { ChevronRight } from 'lucide-react';
 import { NetworkFormatSelector } from '@/components/manual-post/NetworkFormatSelector';
 import { useActiveSection } from '@/hooks/useActiveSection';
+import { useGuidedFlow } from '@/hooks/manual-create/useGuidedFlow';
 import { GlobalProgressBar } from '@/components/manual-post/ui/GlobalProgressBar';
 import { getMediaRequirements } from '@/lib/formatValidation';
 
@@ -336,6 +337,11 @@ export default function ManualCreate() {
   // navegação do stepper).
   const { activeSection, activate } = useActiveSection('networks');
 
+  // Modo guiado (transições cinematográficas entre secções).
+  const guided = useGuidedFlow();
+  // Garante que cada transição automática só dispara uma vez por sessão.
+  const guidedFiredRef = useRef<Set<string>>(new Set());
+
   // Sincroniza foco com stepper: ao avançar para passo > 1 com formatos
   // escolhidos, a secção 'networks' liberta foco automaticamente e passa a
   // complete. Ao voltar a passo 1, foca novamente 'networks'.
@@ -562,6 +568,56 @@ export default function ManualCreate() {
       : (scheduleAsap || !!scheduledDate)
         ? 'complete'
         : 'inactive';
+
+  // ── Contagem de secções concluídas para a barra global ────────────────
+  const completedSections = [
+    networksState,
+    mediaState,
+    captionState,
+    optionsState,
+    scheduleState,
+  ].filter((s) => s === 'complete').length;
+
+  // ── Modo guiado: transições only-forward ──────────────────────────────
+  // Cada transição dispara uma única vez por sessão (Set ref).
+  // 1 → 2 (Networks → Media)
+  useEffect(() => {
+    if (selectedFormats.length > 0 && !guidedFiredRef.current.has('media')) {
+      guidedFiredRef.current.add('media');
+      guided.transitionTo('media', () => activate('media'));
+    }
+  }, [selectedFormats.length, guided, activate]);
+
+  // 2 → 3 (Media → Caption)
+  useEffect(() => {
+    if (mediaFiles.length > 0 && !guidedFiredRef.current.has('caption')) {
+      guidedFiredRef.current.add('caption');
+      guided.transitionTo('caption', () => activate('caption'));
+    }
+  }, [mediaFiles.length, guided, activate]);
+
+  // 3 → 4 (Caption → Options) com debounce de 1.5s para evitar disparar
+  // logo no primeiro carácter.
+  useEffect(() => {
+    if (hasAnyCaption && !guidedFiredRef.current.has('options')) {
+      const timer = window.setTimeout(() => {
+        if (!guidedFiredRef.current.has('options')) {
+          guidedFiredRef.current.add('options');
+          guided.transitionTo('network-options', () => activate('options'));
+        }
+      }, 1500);
+      return () => window.clearTimeout(timer);
+    }
+  }, [hasAnyCaption, guided, activate]);
+
+  // 4 → 5 (Options → Schedule)
+  useEffect(() => {
+    if (hasOptionsConfigured && !guidedFiredRef.current.has('schedule')) {
+      guidedFiredRef.current.add('schedule');
+      guided.transitionTo('schedule', () => activate('schedule'));
+    }
+  }, [hasOptionsConfigured, guided, activate]);
+
 
   // Note: legacy `getValidationErrors()`/`hasErrors` removed.
   // The smart-validation panel (`smartValidation.canPublish`) is now the
@@ -1164,7 +1220,7 @@ export default function ManualCreate() {
   };
 
   return (
-      <div className="max-w-7xl mx-auto space-y-2 sm:space-y-4 px-0 sm:px-6 lg:px-0 bg-gradient-to-br from-background to-background-secondary overflow-hidden w-full max-w-full">
+      <div className="max-w-7xl mx-auto space-y-2 sm:space-y-4 px-0 sm:px-6 lg:px-0 pb-44 sm:pb-32 bg-gradient-to-br from-background to-background-secondary overflow-hidden w-full max-w-full">
       {/* Header */}
       <div className="flex items-center justify-between py-1 sm:py-2 gap-2">
         <Button 
@@ -1442,26 +1498,9 @@ export default function ManualCreate() {
               onEdit={() => activate('schedule')}
             />
 
-            {/* Actions - Reorganized Hierarchy - Hidden on mobile (use bottom bar) */}
-            <PublishActionsCard
-              saving={saving}
-              submitting={submitting}
-              publishing={publishing}
-              isUploading={isUploading}
-              uploadProgress={uploadProgress}
-              selectedFormats={selectedFormats}
-              smartValidation={smartValidation}
-              mediaFiles={mediaFiles}
-              scheduleAsap={scheduleAsap}
-              scheduledDate={scheduledDate}
-              onPublish={handlePublishWithValidation}
-              onSaveDraft={handleSaveDraft}
-              onOpenDrafts={() => setDraftsDialogOpen(true)}
-              onViewCalendar={() => navigate('/calendar')}
-              onSubmitForApproval={handleSubmitWithValidation}
-            />
+            {/* Acções primárias movidas para a barra fixa global
+                (renderizada como `fixedBottom` mais abaixo, fora do grid). */}
           </div>
-        </div>
 
         {/* Right - Preview - HIDDEN on mobile */}
         <PreviewPanel
@@ -1483,8 +1522,37 @@ export default function ManualCreate() {
           hasUnsavedChanges={hasUnsavedChanges}
         />
       </div>
+      {/* /manual-create-grid */}
+
+
+      {/* Barra fixa global de acções — Prompt 3/4 */}
+      <PublishActionsCard
+        fixedBottom
+        completedSteps={completedSections}
+        totalSteps={5}
+        hasErrors={selectedFormats.length > 0 && !smartValidation.canPublish}
+        onShowValidationIssues={() => setValidationSheetOpen(true)}
+        guidedEnabled={guided.enabled}
+        onToggleGuided={guided.toggle}
+        saving={saving}
+        submitting={submitting}
+        publishing={publishing}
+        isUploading={isUploading}
+        uploadProgress={uploadProgress}
+        selectedFormats={selectedFormats}
+        smartValidation={smartValidation}
+        mediaFiles={mediaFiles}
+        scheduleAsap={scheduleAsap}
+        scheduledDate={scheduledDate}
+        onPublish={handlePublishWithValidation}
+        onSaveDraft={handleSaveDraft}
+        onOpenDrafts={() => setDraftsDialogOpen(true)}
+        onViewCalendar={() => navigate('/calendar')}
+        onSubmitForApproval={handleSubmitWithValidation}
+      />
 
       {/* Mobile Sticky Bottom Bar (extracted) */}
+
       <MobileStickyActionBar
         currentStep={currentStep}
         scheduleAsap={scheduleAsap}
@@ -1636,6 +1704,7 @@ export default function ManualCreate() {
         onOpenChange={(open) => { if (!open) setVideoToolsReview(null); }}
         onCopy={copyVideoToolsReview}
       />
+    </div>
     </div>
   );
 }
