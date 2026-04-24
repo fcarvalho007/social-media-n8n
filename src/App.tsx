@@ -32,6 +32,7 @@ import AIDemo from "./pages/AIDemo";
 import Insights from "./pages/Insights";
 import NotificationSettings from "./pages/NotificationSettings";
 import StoryConfirm from "./pages/StoryConfirm";
+import StoryLauncher from "./pages/StoryLauncher";
 const queryClient = new QueryClient();
 
 // Component to handle URL-encoded redirects
@@ -78,6 +79,7 @@ const App = () => (
                   <Route path="/quota" element={<QuotaSettings />} />
                   <Route path="/quota-settings" element={<QuotaSettings />} />
                   <Route path="/settings/notifications" element={<NotificationSettings />} />
+                  <Route path="/stories/launch/:id" element={<StoryLauncher />} />
                   <Route path="/users" element={<UserManagement />} />
                   <Route path="/analytics" element={<Analytics />} />
                   <Route path="/insights" element={<Insights />} />
