@@ -61,6 +61,7 @@ const App = () => (
                 <Route path="/auth" element={<Auth />} />
                 <Route path="/recovery/:token" element={<Recovery />} />
                 <Route path="/stories/confirm" element={<StoryConfirm />} />
+                <Route path="/stories/launch/:id" element={<StoryLauncher />} />
                 <Route element={<ProtectedRoute><MainLayout /></ProtectedRoute>}>
                   <Route path="/" element={<Dashboard />} />
                   <Route path="/dashboard" element={<Dashboard />} />
@@ -79,7 +80,6 @@ const App = () => (
                   <Route path="/quota" element={<QuotaSettings />} />
                   <Route path="/quota-settings" element={<QuotaSettings />} />
                   <Route path="/settings/notifications" element={<NotificationSettings />} />
-                  <Route path="/stories/launch/:id" element={<StoryLauncher />} />
                   <Route path="/users" element={<UserManagement />} />
                   <Route path="/analytics" element={<Analytics />} />
                   <Route path="/insights" element={<Insights />} />
