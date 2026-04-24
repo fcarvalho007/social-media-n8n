@@ -1394,7 +1394,8 @@ export default function ManualCreate() {
         savedCaptionsOpen={savedCaptionsOpen}
         setSavedCaptionsOpen={setSavedCaptionsOpen}
         caption={caption}
-        setCaption={setCaption}
+        onSelectSavedCaption={setCaption}
+        onApplyAiCaption={handleApplyAiCaption}
         aiDialogOpen={aiDialogOpen}
         setAiDialogOpen={setAiDialogOpen}
         compressionModalProps={compression.modalProps}
