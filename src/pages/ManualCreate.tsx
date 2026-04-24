@@ -867,6 +867,7 @@ export default function ManualCreate() {
             onAltTextChange={(value) => {
               setAltText(value);
               setAiGeneratedEdited(prev => ({ ...prev, altText: true }));
+              setAiMetadata(prev => ({ ...(prev ?? {}), generated_fields: { ...(prev?.generated_fields ?? {}), altText: { ...(prev?.generated_fields?.altText ?? {}), edited: true } } }));
             }}
             removeMedia={removeMedia}
             moveMedia={moveMedia}
