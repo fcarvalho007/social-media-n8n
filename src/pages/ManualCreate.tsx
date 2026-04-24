@@ -34,9 +34,11 @@ import { usePublishOrchestrator } from '@/hooks/manual-create/usePublishOrchestr
 import { Step2MediaCard } from '@/components/manual-post/steps/Step2MediaCard';
 import { Step3CaptionCard } from '@/components/manual-post/steps/Step3CaptionCard';
 import type { NetworkCaptionEditorHandle } from '@/components/manual-post/NetworkCaptionEditor';
+import { NetworkOptionsCard, NetworkOptionsCardHandle } from '@/components/manual-post/steps/NetworkOptionsCard';
 import { PublishActionsCard } from '@/components/manual-post/steps/PublishActionsCard';
 import { Step3ScheduleCard } from '@/components/manual-post/steps/Step3ScheduleCard';
 import { PreviewPanel } from '@/components/manual-post/steps/PreviewPanel';
+import { createDefaultNetworkOptions, normalizeNetworkOptions } from '@/types/networkOptions';
 import { detectImageAspectRatio as detectImageAspectRatioExt, detectVideoAspectRatio as detectVideoAspectRatioExt } from '@/hooks/manual-create/mediaAspectDetection';
 // `extractVideoFrame` foi consolidado em '@/lib/media/videoFrameExtractor'.
 // Este componente já não o usava localmente.
@@ -65,8 +67,10 @@ export default function ManualCreate() {
   // Separate captions per network
   const [useSeparateCaptions, setUseSeparateCaptions] = useState(false);
   const [networkCaptions, setNetworkCaptions] = useState<Record<string, string>>({});
+  const [networkOptions, setNetworkOptions] = useState(createDefaultNetworkOptions);
   const mediaSectionRef = useRef<HTMLDivElement>(null);
   const captionEditorRef = useRef<NetworkCaptionEditorHandle>(null);
+  const networkOptionsRef = useRef<NetworkOptionsCardHandle>(null);
 
   // ── Phase 1 hook: media state + DnD ────────────────────────────────────
   const mediaManager = useMediaManager();
@@ -113,6 +117,7 @@ export default function ManualCreate() {
     caption,
     networkCaptions,
     useSeparateCaptions,
+    networkOptions,
     selectedFormats,
     mediaUrls: mediaPreviewUrls,
     scheduledDate: scheduledDate?.toISOString(),
@@ -151,6 +156,7 @@ export default function ManualCreate() {
     setCaption,
     setUseSeparateCaptions,
     setNetworkCaptions,
+    setNetworkOptions,
     setMediaPreviewUrls,
     setMediaSources,
     setMediaFiles,
@@ -212,6 +218,7 @@ export default function ManualCreate() {
     caption,
     networkCaptions,
     useSeparateCaptions,
+    networkOptions,
     mediaFiles,
     hashtags: [],
     scheduledDate: scheduledDate ?? null,
@@ -224,6 +231,7 @@ export default function ManualCreate() {
       },
       setMediaFiles,
       focusCaption: (network) => captionEditorRef.current?.focusCaption(network),
+      focusNetworkOption: (network, field) => networkOptionsRef.current?.focusField(network, field),
     },
   });
 
@@ -283,6 +291,7 @@ export default function ManualCreate() {
     caption,
     networkCaptions,
     useSeparateCaptions,
+    networkOptions,
     mediaFiles,
     scheduledDate,
     time,
@@ -543,6 +552,22 @@ export default function ManualCreate() {
               disabled={saving || submitting || publishing}
               onOpenSavedCaptions={() => setSavedCaptionsOpen(true)}
               onOpenAIDialog={() => setAiDialogOpen(true)}
+            />
+
+            <NetworkOptionsCard
+              ref={networkOptionsRef}
+              selectedNetworks={selectedNetworks}
+              networkOptions={networkOptions}
+              onNetworkOptionsChange={(next) => setNetworkOptions(normalizeNetworkOptions(next))}
+              caption={caption}
+              onCaptionChange={setCaption}
+              networkCaptions={networkCaptions}
+              onNetworkCaptionChange={(network, value) => {
+                setNetworkCaptions(prev => ({ ...prev, [network]: value }));
+              }}
+              useSeparateCaptions={useSeparateCaptions}
+              mediaPreviewUrls={mediaPreviewUrls}
+              disabled={saving || submitting || publishing}
             />
 
             <Step3ScheduleCard

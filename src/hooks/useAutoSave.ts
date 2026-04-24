@@ -1,10 +1,12 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { PostFormat } from '@/types/social';
+import { NetworkOptions, normalizeNetworkOptions } from '@/types/networkOptions';
 
 interface AutoSaveData {
   caption: string;
   networkCaptions?: Record<string, string>;
   useSeparateCaptions?: boolean;
+  networkOptions?: NetworkOptions;
   selectedFormats: PostFormat[];
   mediaUrls: string[];
   scheduledDate?: string;
@@ -134,6 +136,7 @@ export function useAutoSave(
           caption: parsed.caption || '',
           networkCaptions: parsed.networkCaptions || {},
           useSeparateCaptions: parsed.useSeparateCaptions || false,
+          networkOptions: normalizeNetworkOptions(parsed.networkOptions),
           selectedFormats: parsed.selectedFormats || [],
           mediaUrls: parsed.mediaUrls || [],
           scheduledDate: parsed.scheduledDate,

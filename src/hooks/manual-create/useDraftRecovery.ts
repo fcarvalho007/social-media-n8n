@@ -3,6 +3,7 @@ import { toast } from 'sonner';
 import { supabase } from '@/integrations/supabase/client';
 import { PostFormat } from '@/types/social';
 import { MediaSource } from '@/types/media';
+import { NetworkOptions, normalizeNetworkOptions } from '@/types/networkOptions';
 import { detectImageAspectRatio, detectVideoAspectRatio } from './mediaAspectDetection';
 import { normalizeMediaList } from '@/lib/mediaPreview';
 
@@ -11,6 +12,7 @@ interface UseDraftRecoveryParams {
   setCaption: (next: string) => void;
   setUseSeparateCaptions: (next: boolean) => void;
   setNetworkCaptions: React.Dispatch<React.SetStateAction<Record<string, string>>>;
+  setNetworkOptions: React.Dispatch<React.SetStateAction<NetworkOptions>>;
   setMediaPreviewUrls: React.Dispatch<React.SetStateAction<string[]>>;
   setMediaSources: React.Dispatch<React.SetStateAction<MediaSource[]>>;
   setMediaFiles: React.Dispatch<React.SetStateAction<File[]>>;
@@ -39,6 +41,7 @@ export function useDraftRecovery(params: UseDraftRecoveryParams) {
     setCaption,
     setUseSeparateCaptions,
     setNetworkCaptions,
+    setNetworkOptions,
     setMediaPreviewUrls,
     setMediaSources,
     setMediaFiles,
@@ -252,6 +255,7 @@ export function useDraftRecovery(params: UseDraftRecoveryParams) {
       formats?: string[] | null;
       network_captions?: Record<string, string> | null;
       use_separate_captions?: boolean | null;
+      network_options?: unknown;
     }) => {
       const legacyPlatformMap: Record<string, PostFormat> = {
         instagram_carrousel: 'instagram_carousel',
@@ -277,6 +281,7 @@ export function useDraftRecovery(params: UseDraftRecoveryParams) {
       setCaption(draft.caption || '');
       setUseSeparateCaptions(!!draft.use_separate_captions);
       setNetworkCaptions(draft.network_captions || {});
+      setNetworkOptions(normalizeNetworkOptions(draft.network_options));
       setScheduleAsap(draft.publish_immediately ?? true);
 
       if (draft.scheduled_date) {

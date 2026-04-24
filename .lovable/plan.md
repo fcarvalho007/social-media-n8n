@@ -1,115 +1,395 @@
-## Diagnóstico
+## Plano de implementação — Opções por rede em `/manual-create`
 
-Na secção **Legenda** de `/manual-create`, a base já tem algumas correções recentes: as legendas separadas são copiadas sem corte e a validação de formato já evita duplicar alguns erros de legenda. Ainda assim, há pontos frágeis:
+### Enquadramento importante
+A UI e a persistência dos novos campos são diretas. A parte de publicação real para comentários, colaboradores, tags em fotografia, YouTube e Google Business depende do que o conector de publicação atual aceita. Hoje o fluxo publica através da função `publish-to-getlate`, que envia um payload genérico para a API de publicação. Não existe, no código atual, chamada direta à Meta Graph API, LinkedIn API, YouTube Data API v3 ou Google Business Profile API.
 
-- o editor não tem um aviso inline suficientemente claro quando uma rede excede o limite, sobretudo TikTok/X;
-- o botão de correção automática “Cortar para X caracteres” é destrutivo e pode contrariar a regra de não apagar texto sem intenção explícita;
-- ao alternar entre legenda unificada e separada, a lógica de inicialização está no `ManualCreate.tsx`, não no editor, e pode ficar inconsistente em casos de seleção/troca de redes;
-- o foco da validação de legenda usa uma `textareaRef` que não está ligada ao `NetworkCaptionEditor`, por isso “Editar legenda” pode não levar o utilizador ao campo certo;
-- as notificações de erro de publicação/submissão são genéricas e não indicam qual problema está a bloquear a ação;
-- no mobile, o botão “Publicar” não respeita `smartValidation.canPublish` no estado disabled, dependendo do clique para abrir o painel de validação.
+Por isso, a implementação deve ser faseada:
 
-## Plano de melhorias
+1. Primeiro criar a UI, estado, rascunhos e validações.
+2. Depois passar os metadados avançados para a função de publicação.
+3. Só ativar envio real para cada campo quando houver suporte confirmado no conector/API. Quando não houver suporte, guardar como metadado e apresentar aviso não bloqueante em vez de prometer que foi publicado.
 
-### 1. Reforçar a secção “Legenda”
+---
 
-Atualizar `NetworkCaptionEditor` para:
+## Fase 1 — Base técnica e estrutura visual
 
-- manter sempre o texto completo ao alternar entre unificada/separadas;
-- preservar edições específicas por rede mesmo quando se desliga e volta a ligar o modo separado;
-- aumentar/estabilizar a altura mínima da caixa e permitir scroll interno quando o texto é muito longo, em vez de parecer que o texto foi cortado;
-- mostrar, junto da caixa ativa, um aviso claro quando a rede excede o limite:
+### 1. Criar modelo único de dados
+Criar um tipo central para as opções avançadas por rede, por exemplo:
 
-```text
-TikTok: 428/300 · excede 128 caracteres
-Edita manualmente ou usa “Duplicar da legenda geral”.
+```ts
+networkOptions = {
+  instagram: {
+    firstComment: string,
+    collaborators: string[],
+    formatVariant: 'feed' | 'story' | 'reel' | 'carousel',
+    photoTags: [{ username, x, y, slideIndex }]
+  },
+  linkedin: {
+    firstComment: string,
+    mentions: [{ profile, displayName }],
+    disableLinkPreview: boolean
+  },
+  facebook: {
+    firstComment: string,
+    formatVariant: 'feed' | 'story' | 'reel'
+  },
+  youtube: {
+    title: string,
+    tags: string[],
+    visibility: 'public' | 'unlisted' | 'private',
+    category: string
+  },
+  googlebusiness: {
+    ctaEnabled: boolean,
+    ctaType: 'book' | 'order_online' | 'buy' | 'learn_more' | 'sign_up' | 'call_now',
+    ctaUrl: string
+  }
+}
 ```
 
-- adicionar ações não destrutivas úteis:
-  - “Duplicar da legenda geral” para repor uma rede a partir da legenda unificada;
-  - “Copiar texto” para guardar a versão longa antes de qualquer ajuste;
-  - manter o corte automático apenas como ação explícita de validação, nunca ao trocar o switch.
+### 2. Adicionar a secção “Opções por rede”
+Criar um novo componente entre “Legenda” e “Agendamento”:
 
-### 2. Melhorar o switch de legendas separadas
+- Secção principal colapsável: “Opções por rede”.
+- Fechada por defeito.
+- Dentro, um accordion por cada rede selecionada.
+- Cada bloco mostra ícone + nome da rede.
+- Se a rede não estiver selecionada, o bloco não aparece.
+- Todos os campos continuam opcionais, exceto os defaults obrigatórios de YouTube: visibilidade e categoria.
 
-Centralizar a inicialização das legendas separadas para garantir que:
-
-- ao ligar o switch, cada rede recebe a legenda global completa se ainda não tiver texto próprio;
-- redes já editadas mantêm a sua versão;
-- novas redes selecionadas depois também recebem uma legenda completa inicial;
-- ao desligar o switch, o texto das redes não é apagado, apenas deixa de ser usado até voltar a ligar.
-
-### 3. Corrigir o foco e a navegação dos erros de legenda
-
-Ligar o `focusCaption` real ao editor, para que os botões de erro consigam:
-
-- abrir/focar a caixa de legenda unificada;
-- no modo separado, focar a rede afetada pelo erro, por exemplo TikTok;
-- opcionalmente ativar a aba dessa rede antes de focar.
-
-Isto torna mensagens como “Legenda obrigatória para LinkedIn” ou “Legenda excede limite (TikTok)” acionáveis.
-
-### 4. Melhorar notificações de erro
-
-Atualizar o gating de publicação/submissão para mostrar mensagens mais úteis:
-
-- se houver 1 erro: mostrar o título do erro principal;
-- se houver vários: mostrar “Há X problemas a corrigir” e abrir o painel;
-- usar descrição curta com a primeira ação recomendada;
-- evitar toasts genéricos repetidos quando o painel já está aberto.
-
-Exemplo:
+Estrutura prevista:
 
 ```text
-Não é possível publicar ainda
-Legenda excede limite (TikTok): tens 428 caracteres — máximo 300.
+Legenda
+
+Opções por rede
+  Instagram
+    First comment
+    Collaborators
+    Variante de formato
+    Tag people in photo
+  LinkedIn
+    First comment
+    @mention
+    Disable link preview
+  Facebook
+    First comment
+    Variante de formato
+  YouTube
+    Título
+    Tags
+    Visibilidade
+    Categoria
+  Google Business
+    Call-to-action button
+
+Agendamento
 ```
 
-### 5. Corrigir o estado do botão mobile
+---
 
-Atualizar `MobileStickyActionBar` para:
+## Fase 1.1 — First comment
 
-- desativar “Publicar” quando `smartValidation.canPublish` é falso;
-- manter o badge “toca para ver” como caminho principal para ver os detalhes;
-- garantir que o clique no botão, se permitido, não passa por validações inconsistentes entre desktop e mobile.
+### UI
+Adicionar `First comment` nos blocos:
 
-### 6. Ajustar copy pt-PT e ortografia
+- Instagram: limite 2200.
+- LinkedIn: limite 1250.
+- Facebook: limite 8000.
 
-Corrigir textos existentes na área de validação:
+Cada campo terá:
 
-- “mídia” → “média”;
-- “detectados” → “detetados”;
-- manter tom impessoal/pt-PT.
+- Textarea.
+- Placeholder: “Adiciona contexto extra ou um CTA aqui.”
+- Contador de caracteres.
+- Estado visual de erro se exceder o limite.
 
-### 7. Testes
+Nota: o componente antigo `FirstCommentInput.tsx` existe, mas está desalinhado com a nova regra porque só mostra um campo global e atualmente considera LinkedIn/Facebook como não suportados. A nova implementação deve substituir esse padrão por campos por rede.
 
-Adicionar/atualizar testes para:
+### Validação
+Integrar no painel “Corrige X problemas para publicar”:
 
-- ligar legendas separadas não corta texto longo;
-- alternar separadas/unificada/separadas preserva edições por rede;
-- erro de TikTok usa a legenda específica e foca a aba correta;
-- o botão mobile fica bloqueado quando há erros de validação;
-- notificações de validação mostram o erro principal, não apenas uma mensagem genérica.
+- First comment acima do limite da rede → erro bloqueante.
+- Botão “Corrigir” foca diretamente o campo da rede correspondente.
 
-## Ficheiros previstos
+### Publicação
+- Guardar os first comments no post/draft.
+- Enviar para a função de publicação dentro de `network_options`.
+- Se o conector suportar primeiro comentário por rede, publicar após o post principal.
+- Se não suportar, guardar aviso em `publish_metadata` e não marcar a publicação como falhada.
 
-- `src/components/manual-post/NetworkCaptionEditor.tsx`
-- `src/components/manual-post/NetworkCaptionEditor.test.tsx`
-- `src/components/manual-post/steps/Step3CaptionCard.tsx`
+---
+
+## Fase 1.2 — Mentions e colaboradores
+
+### Instagram — Collaborators
+Adicionar no bloco Instagram:
+
+- Input para `@username`.
+- Botão para adicionar.
+- Lista de colaboradores adicionados.
+- Máximo 3.
+- Validação: tem de começar por `@`, sem espaços, com username válido.
+
+Erros:
+
+- Mais de 3 colaboradores → erro bloqueante.
+- Formato inválido → erro bloqueante ou aviso, conforme severidade final escolhida no validador.
+
+### LinkedIn — @mention
+Adicionar no bloco LinkedIn:
+
+- Campo “username ou URL do perfil”.
+- Campo “nome a apresentar”.
+- Botão “Inserir”.
+
+Comportamento:
+
+- Ao clicar em “Inserir”, a menção é inserida na legenda LinkedIn na posição atual do cursor quando possível.
+- Se o editor estiver em legenda unificada, insere na legenda geral.
+- Se estiver em legendas separadas, insere na legenda LinkedIn.
+
+Validação:
+
+- Perfil/URL com formato inválido → aviso.
+- Nome a apresentar vazio quando se tenta inserir → aviso ou bloqueio local do botão.
+
+---
+
+## Fase 1.3 — LinkedIn “Disable link preview”
+
+Adicionar checkbox no bloco LinkedIn:
+
+- Texto: “Desativar pré-visualização do link”.
+- Guardar em `networkOptions.linkedin.disableLinkPreview`.
+- Enviar no payload avançado de publicação.
+- Se o conector/API atual não suportar esta opção, registar como aviso de capacidade, sem bloquear publicação.
+
+---
+
+## Fase 2 — YouTube
+
+### Campos
+No bloco YouTube:
+
+- Título opcional, contador `0/100`.
+  - Se vazio, usar os primeiros 100 caracteres da legenda no payload.
+- Tags em chips, adicionadas com Enter.
+  - Validar total máximo de 500 caracteres.
+- Visibilidade obrigatória:
+  - Public (Anyone)
+  - Unlisted (Link only)
+  - Private (Only you)
+  - Default: Public.
+- Categoria obrigatória:
+  - Film & Animation
+  - Autos & Vehicles
+  - Music
+  - Pets & Animals
+  - Sports
+  - Travel & Events
+  - Gaming
+  - People & Blogs
+  - Comedy
+  - Entertainment
+  - News & Politics
+  - Howto & Style
+  - Education
+  - Science & Technology
+  - Nonprofits & Activism
+  - Default: People & Blogs.
+
+### Validações
+- YouTube selecionado sem categoria → erro bloqueante.
+- Tags YouTube acima de 500 caracteres no total → erro bloqueante.
+- Título acima de 100 caracteres → erro bloqueante.
+
+---
+
+## Fase 3 — Instagram avançado, Facebook e Google Business
+
+### Instagram — Variante de formato
+Adicionar tabs no bloco Instagram:
+
+- Feed
+- Story
+- Reel
+- Carousel
+
+A escolha deve sincronizar, sempre que possível, com o formato selecionado em “Selecione onde publicar”. Se houver conflito, mostrar aviso em vez de alterar silenciosamente.
+
+### Instagram — Tag people in photo
+Adicionar:
+
+- Botão “+ Adicionar tag”.
+- Modal com:
+  - Campo `@username`.
+  - Seleção de slide para carrossel.
+  - Clique na imagem para gravar coordenadas `x` e `y` entre `0.0` e `1.0`.
+  - Box informativa azul com instruções.
+- Lista de tags adicionadas.
+- Botão remover.
+
+Validação:
+
+- Coordenadas fora de `0.0–1.0` → erro bloqueante.
+- Username inválido → erro bloqueante.
+
+### Facebook — Variante de formato
+Adicionar tabs:
+
+- Feed
+- Story
+- Reel
+
+Sincronizar com formatos selecionados quando possível.
+
+### Google Business — CTA
+Adicionar:
+
+- Checkbox: “Adicionar botão de call-to-action (opcional)”.
+- Quando ativo:
+  - Dropdown: Book, Order online, Buy, Learn more, Sign up, Call now.
+  - Input URL, exceto para Call now.
+
+Validação:
+
+- CTA ativo sem URL quando o tipo não é “Call now” → erro bloqueante.
+- URL inválida → erro bloqueante.
+
+---
+
+## Persistência em rascunhos e posts
+
+### Base de dados
+Adicionar colunas JSONB para evitar multiplicar colunas por rede:
+
+- `posts_drafts.network_options jsonb default '{}'`
+- `posts.network_options jsonb default '{}'`
+
+Opcionalmente, se preferirmos reaproveitar campos existentes:
+
+- `posts.first_comment` já existe, mas é global e não chega para first comment por rede.
+- `posts.publish_metadata` já existe, mas misturar dados editáveis do utilizador com telemetria de publicação torna o histórico mais confuso.
+
+Recomendação: criar `network_options` para dados de criação/publicação e deixar `publish_metadata` para resultado técnico.
+
+### Rascunhos
+Atualizar:
+
+- Auto-save local.
+- Guardar rascunho explícito.
+- Carregar rascunho.
+- Recuperar/reutilizar post.
+
+---
+
+## Validação e foco direto no campo
+
+Criar um novo validador, por exemplo `networkOptionsValidator`, integrado no sistema existente.
+
+Novos problemas no painel:
+
+- YouTube selecionado sem categoria → erro.
+- LinkedIn @mention com formato inválido → aviso.
+- Instagram com mais de 3 colaboradores → erro.
+- First comment acima do limite da rede → erro.
+- Tag de pessoa em foto com coordenadas fora de `0.0–1.0` → erro.
+- Google Business CTA ativo com URL inválida → erro.
+
+Adicionar `fixHelpers.focusNetworkOption(network, field)` para os botões “Corrigir” abrirem:
+
+1. A secção “Opções por rede”.
+2. O accordion da rede.
+3. O campo específico.
+
+---
+
+## Publicação e limitações da API
+
+### Frontend
+Atualizar `usePublishWithProgress` para enviar:
+
+```ts
+network_options: networkOptions
+```
+
+em cada chamada à função de publicação.
+
+### Função de publicação
+Atualizar `publish-to-getlate` para:
+
+- Validar o novo payload no servidor.
+- Incluir opções suportadas no payload enviado ao conector.
+- Guardar opções e avisos em `posts.network_options` e `posts.publish_metadata`.
+- Tratar falhas secundárias, como first comment, como aviso e não como falha total.
+
+### Nota crítica
+A instrução “usar Meta Graph API, LinkedIn API, YouTube Data API v3, Google Business Profile API” não pode ser implementada diretamente sem autenticação/tokens dessas APIs por rede. O projeto atual publica através do conector existente. Portanto:
+
+- Se o conector suportar estes campos, mapeio diretamente.
+- Se não suportar, deixo os campos guardados e validados, mas marco como “não enviado por falta de suporte do conector” em `publish_metadata`.
+- Não vou criar integrações OAuth novas para Meta/LinkedIn/YouTube/Google nesta fase, porque isso seria uma feature separada de autenticação por rede.
+
+---
+
+## Ficheiros prováveis a alterar
+
 - `src/pages/ManualCreate.tsx`
+- `src/components/manual-post/steps/Step3CaptionCard.tsx`
+- Novo componente: `src/components/manual-post/steps/NetworkOptionsCard.tsx`
+- Possíveis subcomponentes:
+  - `InstagramOptions.tsx`
+  - `LinkedInOptions.tsx`
+  - `FacebookOptions.tsx`
+  - `YouTubeOptions.tsx`
+  - `GoogleBusinessOptions.tsx`
+- `src/hooks/useAutoSave.ts`
+- `src/hooks/manual-create/useDraftRecovery.ts`
 - `src/hooks/manual-create/usePublishOrchestrator.ts`
-- `src/components/manual-post/ValidationSidebar.tsx`
-- `src/components/manual-post/ValidationIssueCard.tsx`
-- `src/components/manual-post/steps/MobileStickyActionBar.tsx`
-- testes associados aos componentes/hook afetados
+- `src/hooks/usePublishWithProgress.ts`
+- `src/hooks/useSmartValidation.ts`
+- `src/lib/validation/types.ts`
+- `src/lib/validation/runValidators.ts`
+- Novo validador: `src/lib/validation/validators/networkOptionsValidator.ts`
+- Testes de validação novos
+- `supabase/functions/publish-to-getlate/index.ts`
+- Migração de base de dados para `network_options`
+
+Não serão editados ficheiros bloqueados como `src/integrations/supabase/client.ts`, `src/integrations/supabase/types.ts` ou `.env`.
+
+---
+
+## Ordem de execução recomendada
+
+1. Implementar Fase 1.1: first comment por rede, persistência e validação.
+2. Testar guardar/carregar rascunho com first comment.
+3. Implementar Fase 1.2 e 1.3: colaboradores, mentions LinkedIn e disable link preview.
+4. Testar rascunho e validação.
+5. Implementar Fase 2: YouTube.
+6. Testar rascunho e validação YouTube.
+7. Implementar Fase 3: Instagram/Facebook variants, tags em fotografia e Google Business CTA.
+8. Atualizar publicação e metadados avançados.
+9. Validar TypeScript e testes.
+
+---
 
 ## Checkpoint
 
-- ☐ O switch de legendas separadas nunca corta nem apaga texto.
-- ☐ A caixa de legenda mantém tamanho/scroll adequado com texto longo.
-- ☐ Cada rede mostra limite, excesso e aviso inline claro.
-- ☐ Erros de legenda focam a rede/campo correto.
-- ☐ Toasts de erro mostram a causa principal em vez de mensagem genérica.
-- ☐ Desktop e mobile bloqueiam publicação com a mesma regra.
-- ☐ Copy da área de validação fica em pt-PT consistente.
-- ☐ Testes relevantes e TypeScript ficam verdes.
+- ☐ Nova secção “Opções por rede” aparece entre “Legenda” e “Agendamento”.
+- ☐ A secção e os blocos por rede ficam colapsados por defeito.
+- ☐ Só aparecem blocos das redes selecionadas.
+- ☐ First comment existe por Instagram, LinkedIn e Facebook com limites próprios.
+- ☐ Colaboradores Instagram aceitam no máximo 3 usernames válidos.
+- ☐ Menção LinkedIn pode ser inserida na legenda.
+- ☐ LinkedIn permite desativar preview de link.
+- ☐ YouTube tem título, tags, visibilidade e categoria com defaults corretos.
+- ☐ Instagram tem variante de formato e tags em fotografia com coordenadas.
+- ☐ Facebook tem variante de formato.
+- ☐ Google Business tem CTA opcional com validação de URL.
+- ☐ Todos os campos são guardados e recuperados em rascunhos.
+- ☐ Validações aparecem no painel “Corrige X problemas para publicar”.
+- ☐ Botões “Corrigir” abrem diretamente o campo certo.
+- ☐ Publicação envia `network_options` para a função backend.
+- ☐ Falha de first comment gera aviso, não falha total.
+- ☐ TypeScript e testes ficam verdes.

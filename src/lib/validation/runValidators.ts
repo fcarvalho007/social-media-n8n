@@ -8,6 +8,7 @@ import { gbpValidator } from './validators/gbpValidator';
 import { duplicateValidator } from './validators/duplicateValidator';
 import { scheduleValidator } from './validators/scheduleValidator';
 import { accountValidator } from './validators/accountValidator';
+import { networkOptionsValidator } from './validators/networkOptionsValidator';
 
 type Validator = (ctx: ValidatorContext) => Promise<ValidationIssue[]>;
 
@@ -18,6 +19,7 @@ const VALIDATORS: Validator[] = [
   mediaResolutionValidator,
   videoDurationValidator,
   gbpValidator,
+  networkOptionsValidator,
   duplicateValidator,
   scheduleValidator,
   accountValidator,
@@ -62,6 +64,7 @@ export function buildValidationCacheKey(ctx: ValidatorContext): string {
         .sort(([a], [b]) => a.localeCompare(b))
         .map(([network, value]) => [network, { len: value.length, head: value.slice(0, 100) }]),
     ),
+    networkOptions: ctx.networkOptions ?? {},
     hashtagsCount: ctx.hashtags.length,
     hashtagsHead: ctx.hashtags.slice(0, 10).join(','),
     asap: ctx.scheduleAsap,

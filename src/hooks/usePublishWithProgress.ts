@@ -16,6 +16,7 @@ import { parseStructuredError, classifyErrorFromString, type StructuredError } f
 import { sanitizeFileName } from '@/lib/fileNameSanitizer';
 import { toast } from 'sonner';
 import { extractVideoFrame } from '@/lib/media/videoFrameExtractor';
+import { NetworkOptions } from '@/types/networkOptions';
 
 // Supported MIME types for social media publishing
 const SUPPORTED_IMAGE_TYPES = ['image/jpeg', 'image/png', 'image/webp', 'image/gif'];
@@ -128,6 +129,7 @@ interface PublishParams {
   scheduleAsap: boolean;
   recoveredFromPostId?: string; // Track if this is a recovered post
   networkCaptions?: Record<string, string>; // Per-network captions when "Legendas separadas" is active
+  networkOptions?: NetworkOptions;
   skipDuplicateCheck?: boolean; // Skip duplicate detection (user confirmed)
 }
 
@@ -441,6 +443,7 @@ export function usePublishWithProgress() {
         selected_networks: selectedNetworks,
         caption,
         linkedin_body: params.networkCaptions?.linkedin || null,
+        network_options: JSON.parse(JSON.stringify(params.networkOptions ?? {})),
         scheduled_date: scheduledDate ? scheduledDate.toISOString() : new Date().toISOString(),
         schedule_asap: scheduleAsap,
         status: initialStatus,
@@ -750,6 +753,7 @@ if (imageUrlsForPdf.length > 0) {
               scheduled_time: time || undefined,
               publish_immediately: scheduleAsap || !scheduledDate,
               idempotency_key: idempotencyKey,
+              network_options: params.networkOptions,
               post_id: createdPostId, // Pass post_id for tracking in publication_attempts
             },
           });
