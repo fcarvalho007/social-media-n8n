@@ -1222,8 +1222,6 @@ export default function ManualCreate() {
               disabled={saving || submitting || publishing}
               onOpenSavedCaptions={() => setSavedCaptionsOpen(true)}
               onOpenAIDialog={() => setAiDialogOpen(true)}
-              rewriteTone={rewriteTone}
-              onRewriteToneChange={setRewriteTone}
               onRewriteCaption={handleRewriteCaption}
               onRevertRewrite={handleRevertRewrite}
               canRevertRewrite={rewriteHistory.length > 0}
@@ -1440,7 +1438,7 @@ export default function ManualCreate() {
         open={!!rewritePreview}
         originalText={rewritePreview?.originalText ?? ''}
         rewrittenText={rewritePreview?.rewrittenText ?? ''}
-        tone={rewritePreview?.tone ?? rewriteTone}
+        tone={rewritePreview?.tone ?? 'direct'}
         onRewrittenTextChange={(value) => setRewritePreview(prev => prev ? { ...prev, rewrittenText: value } : prev)}
         onApply={handleApplyRewrite}
         onKeepOriginal={() => setRewritePreview(null)}
