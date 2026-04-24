@@ -47,6 +47,40 @@ interface PublishPayload {
   publish_immediately: boolean;
   post_id?: string;  // Optional post ID for tracking failures
   idempotency_key?: string; // Unique key to prevent duplicate publications
+  network_options?: NetworkOptions;
+}
+
+type InstagramFormatVariant = 'feed' | 'story' | 'reel' | 'carousel';
+type FacebookFormatVariant = 'feed' | 'story' | 'reel';
+type YouTubeVisibility = 'public' | 'unlisted' | 'private';
+type GoogleBusinessCtaType = 'book' | 'order_online' | 'buy' | 'learn_more' | 'sign_up' | 'call_now';
+
+interface NetworkOptions {
+  instagram?: {
+    firstComment?: string;
+    collaborators?: string[];
+    formatVariant?: InstagramFormatVariant;
+    photoTags?: Array<{ username?: string; x?: number; y?: number; slideIndex?: number; mediaIndex?: number }>;
+  };
+  linkedin?: {
+    firstComment?: string;
+    disableLinkPreview?: boolean;
+  };
+  facebook?: {
+    firstComment?: string;
+    formatVariant?: FacebookFormatVariant;
+  };
+  youtube?: {
+    title?: string;
+    visibility?: YouTubeVisibility;
+    categoryId?: string;
+    category?: string;
+  };
+  googlebusiness?: {
+    ctaEnabled?: boolean;
+    ctaType?: GoogleBusinessCtaType;
+    ctaUrl?: string;
+  };
 }
 
 interface GetlatePostPayload {
@@ -58,7 +92,8 @@ interface GetlatePostPayload {
     platform: string;
     accountId: string;
     platformSpecificData?: {
-      contentType?: 'story' | 'reel';
+      [key: string]: unknown;
+      contentType?: string;
     };
   }>;
   mediaItems?: Array<{
@@ -339,6 +374,42 @@ function buildFailureResponse(message: string, status = 200): Response {
   );
 }
 
+const LEGACY_YOUTUBE_CATEGORY_IDS: Record<string, string> = {
+  'Film & Animation': '1',
+  'Autos & Vehicles': '2',
+  Music: '10',
+  'Pets & Animals': '15',
+  Sports: '17',
+  'Travel & Events': '19',
+  Gaming: '20',
+  'People & Blogs': '22',
+  Comedy: '23',
+  Entertainment: '24',
+  'News & Politics': '25',
+  'Howto & Style': '26',
+  Education: '27',
+  'Science & Technology': '28',
+  'Nonprofits & Activism': '29',
+};
+
+const GOOGLE_BUSINESS_CTA_TYPES: Record<GoogleBusinessCtaType, string> = {
+  book: 'BOOK',
+  order_online: 'ORDER',
+  buy: 'SHOP',
+  learn_more: 'LEARN_MORE',
+  sign_up: 'SIGN_UP',
+  call_now: 'CALL',
+};
+
+function assertValidUrl(value: string): boolean {
+  try {
+    const url = new URL(value);
+    return url.protocol === 'http:' || url.protocol === 'https:';
+  } catch {
+    return false;
+  }
+}
+
 // Extract per-platform error reasons from Getlate failedPlatforms array
 function extractFailedPlatformReason(responseData: any): string | null {
   if (!responseData) return null;
@@ -512,6 +583,87 @@ function computeApiTimeoutMs(payload: GetlatePostPayload): number {
   return 3 * 60 * 1000; // 3 min default
 }
 
+function buildPlatformSpecificData(network: string, format: string, options: NetworkOptions | undefined, mediaItems: GetlatePostPayload['mediaItems']) {
+  const mediaCount = mediaItems?.length ?? 0;
+  const hasVideo = mediaItems?.some(item => item.type === 'video') ?? false;
+  const data: Record<string, unknown> = {};
+
+  if (network === 'instagram') {
+    const instagram = options?.instagram ?? {};
+    const variant = instagram.formatVariant;
+    if (format.includes('stories') || variant === 'story') data.contentType = 'story';
+    if (format.includes('reel') || variant === 'reel') data.contentType = 'reels';
+    const isStory = data.contentType === 'story';
+
+    const firstComment = instagram.firstComment?.trim();
+    if (firstComment && !isStory) data.firstComment = firstComment;
+
+    const collaborators = (instagram.collaborators ?? []).filter(name => /^@[A-Za-z0-9._]{1,30}$/.test(name)).slice(0, 3);
+    if (collaborators.length > 0 && !isStory) data.collaborators = collaborators;
+
+    const rawTags = instagram.photoTags ?? [];
+    if (rawTags.length > 0 && (hasVideo || data.contentType === 'reels')) {
+      throw new Error('Tags de fotografia do Instagram só podem ser usadas em imagens ou carrosséis de imagem.');
+    }
+    const userTags = rawTags.map(tag => {
+      const username = (tag.username ?? '').trim();
+      const mediaIndex = Number.isFinite(tag.mediaIndex) ? Number(tag.mediaIndex) : Number(tag.slideIndex ?? 0);
+      const x = Number(tag.x);
+      const y = Number(tag.y);
+      if (!/^@[A-Za-z0-9._]{1,30}$/.test(username)) throw new Error(`Tag de Instagram inválida: ${username || 'sem username'}.`);
+      if (!Number.isFinite(x) || x < 0 || x > 1 || !Number.isFinite(y) || y < 0 || y > 1) throw new Error(`Coordenadas inválidas para a tag ${username}.`);
+      if (!Number.isInteger(mediaIndex) || mediaIndex < 0 || mediaIndex >= mediaCount) throw new Error(`Slide inválido para a tag ${username}.`);
+      return { username, x, y, mediaIndex };
+    });
+    if (userTags.length > 0) data.userTags = userTags;
+  }
+
+  if (network === 'facebook') {
+    const facebook = options?.facebook ?? {};
+    const variant = facebook.formatVariant;
+    if (format.includes('stories') || variant === 'story') data.contentType = 'story';
+    if (format.includes('reel') || variant === 'reel') data.contentType = 'reel';
+    const firstComment = facebook.firstComment?.trim();
+    if (firstComment && data.contentType !== 'story') data.firstComment = firstComment;
+  }
+
+  if (network === 'linkedin') {
+    const linkedin = options?.linkedin ?? {};
+    const firstComment = linkedin.firstComment?.trim();
+    if (firstComment) data.firstComment = firstComment;
+    if (linkedin.disableLinkPreview === true) data.disableLinkPreview = true;
+  }
+
+  if (network === 'youtube') {
+    const youtube = options?.youtube ?? {};
+    const title = youtube.title?.trim();
+    if (title) {
+      if (title.length > 100) throw new Error('O título do YouTube não pode exceder 100 caracteres.');
+      data.title = title;
+    }
+    if (youtube.visibility && ['public', 'unlisted', 'private'].includes(youtube.visibility)) data.visibility = youtube.visibility;
+    const categoryId = youtube.categoryId ?? (youtube.category ? LEGACY_YOUTUBE_CATEGORY_IDS[youtube.category] : undefined);
+    if (categoryId) data.categoryId = categoryId;
+  }
+
+  if (network === 'googlebusiness') {
+    const googlebusiness = options?.googlebusiness ?? {};
+    if (googlebusiness.ctaEnabled) {
+      const type = GOOGLE_BUSINESS_CTA_TYPES[googlebusiness.ctaType ?? 'learn_more'];
+      if (!type) throw new Error('Tipo de botão do Google Business inválido.');
+      const callToAction: Record<string, string> = { type };
+      if (type !== 'CALL') {
+        const url = googlebusiness.ctaUrl?.trim() ?? '';
+        if (!assertValidUrl(url)) throw new Error('O botão do Google Business precisa de um URL válido.');
+        callToAction.url = url;
+      }
+      data.callToAction = callToAction;
+    }
+  }
+
+  return Object.keys(data).length > 0 ? data : undefined;
+}
+
 async function publishToGetlate(
   apiToken: string, 
   payload: GetlatePostPayload, 
@@ -683,7 +835,7 @@ Deno.serve(async (req) => {
 
     const body = await req.json();
     console.log(`[publish-to-getlate] BODY RECEIVED:`, JSON.stringify(body));
-    const { format, caption, media_urls, scheduled_date, scheduled_time, publish_immediately, post_id, idempotency_key } = body as PublishPayload;
+    const { format, caption, media_urls, scheduled_date, scheduled_time, publish_immediately, post_id, idempotency_key, network_options } = body as PublishPayload;
 
     console.log(`[publish-to-getlate] Processing publication for format: ${format}`);
     console.log(`[publish-to-getlate] post_id received: ${post_id || 'NULL ⚠️'}`);
@@ -746,15 +898,6 @@ Deno.serve(async (req) => {
     // Getlate API requires content to be non-empty
     const contentToSend = caption?.trim() || ' ';
 
-    // Determine platformSpecificData for content type
-    const getPlatformSpecificData = (format: string): { contentType?: 'story' | 'reel' } | undefined => {
-      if (format.includes('stories')) return { contentType: 'story' };
-      if (format.includes('reel') || format.includes('shorts')) return { contentType: 'reel' };
-      return undefined; // Regular post doesn't need platformSpecificData
-    };
-
-    const platformSpecificData = getPlatformSpecificData(format);
-
     // Validate media URLs before building payload
     console.log(`[publish-to-getlate] Validating ${media_urls.length} media URL(s)...`);
     const mediaValidation = await validateMediaUrls(media_urls);
@@ -774,6 +917,9 @@ Deno.serve(async (req) => {
     });
 
     console.log(`[publish-to-getlate] Media breakdown: ${mediaItems.map(m => m.type).join(', ')}`);
+
+    const platformSpecificData = buildPlatformSpecificData(network, format, network_options, mediaItems);
+    console.log(`[publish-to-getlate] platformSpecificData:`, JSON.stringify(platformSpecificData ?? {}));
 
     // Build Getlate payload
     const getlatePayload: GetlatePostPayload = {
@@ -999,11 +1145,16 @@ Deno.serve(async (req) => {
 
     // Update the existing pending attempt to success (no duplicate insert)
     // IMPORTANT: clear error_message so ZWSP-retry successes don't keep ghost 409 badges
+    const successResponseData = {
+      ...(result.data && typeof result.data === 'object' && !Array.isArray(result.data) ? result.data : { raw: result.data }),
+      network_options_applied: platformSpecificData ?? {},
+      ...(retryLog.length > 0 ? { retry_log: retryLog } : {}),
+    };
     if (attemptId) {
       console.log(`[publish-to-getlate] Updating attempt ${attemptId} to success (clearing error_message)`);
       const { error: successAttemptError } = await supabase
         .from('publication_attempts')
-        .update({ status: 'success', response_data: result.data, error_message: null })
+        .update({ status: 'success', response_data: successResponseData, error_message: null })
         .eq('id', attemptId);
       if (successAttemptError) {
         console.error('[publish-to-getlate] Failed to update attempt to success:', successAttemptError);
@@ -1012,7 +1163,7 @@ Deno.serve(async (req) => {
       // Fallback: insert if we couldn't capture the initial ID
       const { error: successAttemptError } = await supabase.from('publication_attempts').insert({
         post_id: post_id || null, platform: network, format,
-        status: 'success', response_data: result.data,
+        status: 'success', response_data: successResponseData,
       });
       if (successAttemptError) {
         console.error('[publish-to-getlate] Failed to record success attempt:', successAttemptError);

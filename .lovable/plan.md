@@ -1,108 +1,155 @@
-## Avaliação do estado atual
+## Objetivo
 
-A Fase 1 está parcialmente funcional: o cartão `AiUploadAssistantCard` já aparece em `/manual-create`, chama `ai-editorial-assistant`, aplica legenda, variantes por rede, hashtags simples no fim da legenda, primeiro comentário, `raw_transcription` e `ai_metadata`.
+Fechar as fases que ficaram apenas na UI/persistência, ligando `network_options` ao payload real enviado ao Getlate e corrigindo a interface para pt-PT.
 
-Ainda não marcaria a fase como fechada porque existem lacunas de produto, robustez e consistência com a especificação original.
+## Constatação atual
 
-## O que está bem encaminhado
+As opções por rede já existem na interface, são validadas e são enviadas do frontend para `publish-to-getlate`. O bloqueio principal está no backend: a função recebe `network_options`, mas o payload final ainda usa quase só `content`, `platforms`, `mediaItems`, `publishNow`/`scheduledFor` e `contentType` básico.
 
-- Cartão IA criado e integrado antes da secção “Legenda”.
-- Ação “Já tenho a legenda” esconde o cartão.
-- Ação “Transcrever com IA” chama uma função backend.
-- Resultado da IA preenche:
-  - legenda principal;
-  - legendas por rede;
-  - primeiro comentário;
-  - transcrição bruta;
-  - metadados IA.
-- `useAutoSave`, `useDraftRecovery`, `usePublishOrchestrator` e `usePublishWithProgress` já transportam os campos principais de IA.
-- `ai-caption-tools` e `ai-generate-alt-text` continuam vazias, portanto as fases seguintes ainda não estão implementadas.
+## Plano de execução
 
-## Refinamentos prioritários antes de avançar
+### 1. Corrigir copy pt-PT na secção “Opções por rede”
 
-### 1. Estabilizar a Fase 1 — Assistente desde o upload
+Atualizar `src/components/manual-post/steps/NetworkOptionsCard.tsx` para remover texto em inglês visível:
 
-Implementar uma mini-fase de fecho com estes ajustes:
+- “First comment” → “Primeiro comentário”
+- “Collaborators” → “Colaboradores”
+- “Public (Anyone)” → “Público”
+- “Unlisted (Link only)” → “Não listado”
+- “Private (Only you)” → “Privado”
+- categorias YouTube com labels em pt-PT, mantendo os IDs/valores técnicos corretos
+- CTAs Google Business em pt-PT:
+  - Reservar
+  - Encomendar online
+  - Comprar
+  - Saber mais
+  - Inscrever
+  - Ligar agora
 
-- Reset automático do estado IA quando o utilizador remove ou troca o ficheiro de vídeo:
-  - limpar `rawTranscription`;
-  - limpar `aiMetadata`;
-  - voltar a permitir mostrar o cartão IA para o novo vídeo.
-- Melhorar o tratamento de erros do cartão:
-  - mostrar a mensagem específica devolvida pela função, em vez de sempre “A IA está indisponível”.
-  - diferenciar limite de IA, créditos insuficientes, vídeo grande e sessão expirada.
-- Evitar duplicação de hashtags:
-  - se a legenda devolvida pela IA já trouxer hashtags, não duplicar as mesmas no fim.
-  - normalizar hashtags com `#` e sem espaços inválidos.
-- Guardar o `alt_text` gerado dentro de `aiMetadata`, mas não fingir que já está aplicado a média enquanto não houver UI própria para alt text.
-- Atualizar `.lovable/plan.md`, que está desatualizado: ainda diz que `ai-editorial-assistant` está vazia, mas já existe e funciona.
+Também corrigir a mensagem das tags de fotografia: a UI deve dizer claramente que, nesta versão, a tag é adicionada ao centro, sem prometer clique direto na imagem.
 
-### 2. Corrigir inconsistências técnicas no backend IA
+### 2. Normalizar os tipos de opções para o contrato Getlate
 
-Na função `ai-editorial-assistant`:
+Atualizar `src/types/networkOptions.ts` para alinhar os valores guardados com o que a API aceita:
 
-- Validar melhor o corpo do pedido:
-  - `fileBase64` obrigatório;
-  - `mimeType` só vídeo/áudio;
-  - `networks` com lista controlada;
-  - limite claro de tamanho.
-- Melhorar CORS para incluir headers usados pelo cliente moderno.
-- Manter prompts e chaves apenas no backend.
-- Não mexer nos ficheiros bloqueados:
-  - `src/integrations/supabase/client.ts`;
-  - `src/integrations/supabase/types.ts`;
-  - `.env`;
-  - chaves de projeto em `supabase/config.toml`.
+- YouTube:
+  - `categoryId` em vez de categoria por nome, usando IDs oficiais comuns.
+  - manter `visibility` como `public | unlisted | private`.
+- Google Business:
+  - mapear os valores atuais (`book`, `order_online`, `buy`, `learn_more`, `sign_up`, `call_now`) para o contrato Getlate:
+    - `BOOK`
+    - `ORDER`
+    - `SHOP`
+    - `LEARN_MORE`
+    - `SIGN_UP`
+    - `CALL`
+- Instagram:
+  - transformar `photoTags.slideIndex` para `mediaIndex` no payload.
+  - transformar `formatVariant: reel` para `contentType: reels` e `story` para `contentType: story`.
 
-### 3. Preparar a próxima fase sem a misturar já
+### 3. Ligar `network_options` dentro de `publish-to-getlate`
 
-Depois da estabilização, a próxima fase mais útil é **Fase 3.2 — Reescrita por tom**, porque já existe o componente `CaptionToneToolbar`, mas ainda não está ligado.
+Atualizar `supabase/functions/publish-to-getlate/index.ts` para:
 
-Nessa fase seguinte, implementar:
+- aceitar `network_options` no `PublishPayload`;
+- validar defensivamente os campos usados;
+- construir `platformSpecificData` a partir da rede/formato/opções;
+- anexar esse objeto no payload final enviado ao Getlate.
 
-- `supabase/functions/ai-caption-tools/index.ts`.
-- Ações:
-  - “Mais direto”;
-  - “Mais emocional”;
-  - “Mais técnico”;
-  - “Mais curto”;
-  - “Mais longo”;
-  - “Tom LinkedIn”;
-  - “Tom Instagram”.
-- Integração no editor de legenda:
-  - funciona em legenda unificada;
-  - funciona na rede ativa quando “Legendas separadas” está ligado;
-  - inclui estado de loading por ação;
-  - inclui “Desfazer”.
-- Substituir gradualmente o fluxo antigo `AICaptionDialog`/`improve-caption`, que ainda usa uma função separada e menos alinhada com a nova arquitetura.
+Mapeamento previsto:
 
-## O que não recomendo fazer já
+```text
+Instagram
+- firstComment -> platformSpecificData.firstComment
+- collaborators -> platformSpecificData.collaborators
+- photoTags -> platformSpecificData.userTags[{ username, x, y, mediaIndex }]
+- story -> contentType: "story"
+- reel -> contentType: "reels"
 
-- Não avançar para hashtags inteligentes antes de fechar a Fase 1. O componente `HashtagSuggestions` existe, mas os dados reais de performance/volume ainda precisam de regras claras para não inventar scores.
-- Não avançar para alt text automático completo antes de decidir como guardar `alt_texts` por item de média.
-- Não corrigir RLS policies e buckets públicos nesta mesma passagem, porque isso é uma intervenção de segurança em produção e já tinha ficado condicionado a aprovação específica.
+Facebook
+- firstComment -> platformSpecificData.firstComment
+- story -> contentType: "story"
+- reel -> contentType: "reel"
 
-## Plano de execução recomendado agora
+LinkedIn
+- firstComment -> platformSpecificData.firstComment
+- disableLinkPreview -> platformSpecificData.disableLinkPreview
+- mentions ficam preservadas no texto já inserido; não serão convertidas para URNs nesta fase sem validação adicional
 
-### Passo 1 — Fecho da Fase 1
+YouTube
+- title -> platformSpecificData.title
+- visibility -> platformSpecificData.visibility
+- categoryId -> platformSpecificData.categoryId
+- firstComment só será adicionado se vier a existir no tipo; nesta fase a UI atual não expõe primeiro comentário para YouTube
+- tags: não aparecem no contrato de criação consultado; ficam guardadas, mas não serão enviadas até confirmar campo oficial
 
-- Corrigir reset do cartão IA quando a média muda.
-- Melhorar mensagens de erro no frontend.
-- Normalizar hashtags e evitar duplicados.
-- Atualizar documentação de estado em `.lovable/plan.md`.
-- Fazer build para validar TypeScript.
+Google Business
+- ctaEnabled + ctaType + ctaUrl -> platformSpecificData.callToAction
+- CALL não envia URL
+- restantes CTAs exigem URL válido
+```
 
-### Passo 2 — Só depois, avançar para Fase 3.2
+### 4. Corrigir validações finais antes de publicar
 
-- Criar a função `ai-caption-tools`.
-- Ligar `CaptionToneToolbar` ao `NetworkCaptionEditor`.
-- Implementar reescrita por tom com undo.
-- Fazer build e teste manual do fluxo unificado/separado.
+Adicionar validações no backend para evitar payloads inválidos:
+
+- ignorar first comment em Stories;
+- limitar colaboradores Instagram a 3;
+- só enviar tags de fotografia Instagram em imagens/carrosséis, não em vídeos/Reels;
+- garantir `x` e `y` entre 0 e 1;
+- garantir `mediaIndex` dentro do número de média;
+- garantir título YouTube até 100 caracteres;
+- garantir CTA Google Business com URL quando o tipo não é chamada telefónica.
+
+Se uma opção avançada estiver inválida, a publicação deve falhar antes de chamar o Getlate com uma mensagem clara em pt-PT.
+
+### 5. Registar avisos e telemetria
+
+Persistir no `publication_attempts.response_data` o payload efetivo ou, pelo menos, uma secção `network_options_applied` para permitir auditoria posterior.
+
+Para first comment: como o Getlate trata o first comment dentro da mesma criação do post, não haverá uma chamada separada nesta fase. Se o Getlate devolver falha específica do comentário dentro de `failedPlatforms`, será registada como erro da tentativa. A regra “post publicado com aviso se o comentário falhar” só é possível se a API devolver sucesso do post e aviso separado do comentário; se esse padrão aparecer nos logs, tratamos numa fase posterior.
+
+### 6. Validar compilação e fluxo crítico
+
+Depois das alterações:
+
+- correr build TypeScript;
+- testar o payload gerado para pelo menos:
+  - Instagram feed com primeiro comentário e colaboradores;
+  - Instagram story sem primeiro comentário;
+  - LinkedIn com primeiro comentário e link preview desligado;
+  - YouTube com título, visibilidade e categoria;
+  - Google Business com CTA.
+
+## Fora desta execução
+
+- Menções LinkedIn com URNs reais: manteremos inserção textual, porque exige validação/lookup de perfis.
+- Tags Instagram por clique real na imagem: manter “adicionar no centro” com copy honesta.
+- Tags YouTube no payload: a documentação consultada não confirma campo oficial para criação, apesar de indicar limite de tags; evitar enviar campos inventados.
+- Correções RLS/buckets públicos: continuam fora desta fase por serem intervenção de segurança separada.
+- Fase 3.2 de reescrita por tom: só avançar depois desta ligação final de publicação estar fechada.
+
+## Ficheiros previstos
+
+- `src/components/manual-post/steps/NetworkOptionsCard.tsx`
+- `src/types/networkOptions.ts`
+- `supabase/functions/publish-to-getlate/index.ts`
+- `.lovable/plan.md`
+
+Não serão editados ficheiros bloqueados:
+
+- `src/integrations/supabase/client.ts`
+- `src/integrations/supabase/types.ts`
+- `.env`
+- chaves de projeto em `supabase/config.toml`
 
 ## Checkpoint
 
-☐ Fase 1 revista e parcialmente validada  
-☐ Identificados refinamentos em reset, erros e hashtags  
-☐ Confirmado que `ai-caption-tools` e `ai-generate-alt-text` ainda estão vazias  
-☐ Próxima execução recomendada: estabilizar Fase 1 antes de nova funcionalidade  
-☐ Correções de segurança continuam fora desta passagem até aprovação explícita
+☐ Textos da secção “Opções por rede” corrigidos para pt-PT  
+☐ `network_options` mapeado para `platformSpecificData` no payload Getlate  
+☐ YouTube envia título, visibilidade e categoria por ID  
+☐ Instagram envia first comment, colaboradores, user tags e tipo correto quando aplicável  
+☐ LinkedIn envia first comment e `disableLinkPreview`  
+☐ Facebook envia first comment e tipo correto quando aplicável  
+☐ Google Business envia CTA no formato aceite  
+☐ Build executado e fluxo crítico validado antes de avançar para nova fase
