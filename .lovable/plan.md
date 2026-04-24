@@ -1,395 +1,332 @@
-## Plano de implementação — Opções por rede em `/manual-create`
+## Plano — transformar `/manual-create` em assistente editorial com IA
 
-### Enquadramento importante
-A UI e a persistência dos novos campos são diretas. A parte de publicação real para comentários, colaboradores, tags em fotografia, YouTube e Google Business depende do que o conector de publicação atual aceita. Hoje o fluxo publica através da função `publish-to-getlate`, que envia um payload genérico para a API de publicação. Não existe, no código atual, chamada direta à Meta Graph API, LinkedIn API, YouTube Data API v3 ou Google Business Profile API.
+### Observações importantes antes de implementar
 
-Por isso, a implementação deve ser faseada:
-
-1. Primeiro criar a UI, estado, rascunhos e validações.
-2. Depois passar os metadados avançados para a função de publicação.
-3. Só ativar envio real para cada campo quando houver suporte confirmado no conector/API. Quando não houver suporte, guardar como metadado e apresentar aviso não bloqueante em vez de prometer que foi publicado.
-
----
-
-## Fase 1 — Base técnica e estrutura visual
-
-### 1. Criar modelo único de dados
-Criar um tipo central para as opções avançadas por rede, por exemplo:
-
-```ts
-networkOptions = {
-  instagram: {
-    firstComment: string,
-    collaborators: string[],
-    formatVariant: 'feed' | 'story' | 'reel' | 'carousel',
-    photoTags: [{ username, x, y, slideIndex }]
-  },
-  linkedin: {
-    firstComment: string,
-    mentions: [{ profile, displayName }],
-    disableLinkPreview: boolean
-  },
-  facebook: {
-    firstComment: string,
-    formatVariant: 'feed' | 'story' | 'reel'
-  },
-  youtube: {
-    title: string,
-    tags: string[],
-    visibility: 'public' | 'unlisted' | 'private',
-    category: string
-  },
-  googlebusiness: {
-    ctaEnabled: boolean,
-    ctaType: 'book' | 'order_online' | 'buy' | 'learn_more' | 'sign_up' | 'call_now',
-    ctaUrl: string
-  }
-}
-```
-
-### 2. Adicionar a secção “Opções por rede”
-Criar um novo componente entre “Legenda” e “Agendamento”:
-
-- Secção principal colapsável: “Opções por rede”.
-- Fechada por defeito.
-- Dentro, um accordion por cada rede selecionada.
-- Cada bloco mostra ícone + nome da rede.
-- Se a rede não estiver selecionada, o bloco não aparece.
-- Todos os campos continuam opcionais, exceto os defaults obrigatórios de YouTube: visibilidade e categoria.
-
-Estrutura prevista:
-
-```text
-Legenda
-
-Opções por rede
-  Instagram
-    First comment
-    Collaborators
-    Variante de formato
-    Tag people in photo
-  LinkedIn
-    First comment
-    @mention
-    Disable link preview
-  Facebook
-    First comment
-    Variante de formato
-  YouTube
-    Título
-    Tags
-    Visibilidade
-    Categoria
-  Google Business
-    Call-to-action button
-
-Agendamento
-```
+- O projeto já tem uma função `improve-caption` com OpenAI, mas a regra atual do produto recomenda usar Lovable AI por defeito para novas funcionalidades. Vou criar novas funções de backend com Lovable AI para texto/visão, mantendo a função antiga intacta.
+- Para transcrição de vídeo, Lovable AI não substitui diretamente Whisper. Como já existe `OPENAI_API_KEY`, a transcrição pode usar Whisper no backend, apenas para áudio extraído/ficheiro enviado. A geração textual seguinte usa Lovable AI.
+- Não vou inventar scores de hashtags. A Fase 2 só mostra círculos de saturação quando houver fonte verificada; caso contrário, mostra chips sem score.
+- A Fase 4 depende de métricas reais das redes. Como o projeto publica via Getlate e nem todas as APIs analíticas estão configuradas, vou implementar a estrutura, jobs e fallback seguro; a recolha real por rede fica ativada apenas onde houver credenciais/dados disponíveis.
+- Não vou editar ficheiros bloqueados: `src/integrations/supabase/client.ts`, `src/integrations/supabase/types.ts`, `.env` nem chaves globais em `supabase/config.toml`.
 
 ---
 
-## Fase 1.1 — First comment
+## Fase 1 — Assistente desde o upload
+
+### UI no `/manual-create`
+
+- Detetar após upload se existe exatamente 1 ficheiro e se é vídeo elegível:
+  - vídeo vertical ou formato de vídeo isolado;
+  - duração entre 5 segundos e 10 minutos;
+  - excluir imagens, PDFs, carrosséis e vídeos fora do intervalo.
+- Mostrar card destacado acima da secção “Legenda”:
+  - título: “Queres que a IA prepare tudo por ti?”
+  - botões: “Já tenho a legenda” e “Transcrever com IA”
+  - texto de apoio conforme especificação.
+- Se escolher “Já tenho a legenda”, esconder o card e manter o fluxo normal.
+- Se escolher “Transcrever com IA”, mostrar skeleton/loading nos campos que serão preenchidos com a mensagem:
+  - “A ouvir o vídeo e a preparar os campos… (15-20 segundos)”
+
+### Backend IA
+
+- Criar função backend `ai-editorial-assistant` para:
+  1. receber vídeo/URL ou ficheiro preparado pelo frontend;
+  2. transcrever áudio com Whisper usando segredo já existente;
+  3. chamar Lovable AI uma vez para devolver estrutura com:
+     - título do rascunho;
+     - legenda base;
+     - variantes por rede;
+     - hashtags por grupo;
+     - primeiro comentário;
+     - alt text;
+     - frases citáveis.
+- Validar inputs e devolver erros pt-PT claros.
+- Não bloquear o fluxo se a IA falhar; mostrar toast:
+  - “A IA está indisponível. Podes preencher manualmente ou tentar de novo.”
+
+### Persistência
+
+- Adicionar campos necessários por migração:
+  - `posts_drafts.raw_transcription`;
+  - `posts.raw_transcription`;
+  - metadados de IA em JSON, se necessário, para título/frases/estado.
+- Garantir que rascunhos e publicações transportam a transcrição.
+- Adicionar botão “Ver transcrição” de forma discreta, não visível por defeito.
+
+### Teste isolado da Fase 1
+
+- Testar upload de vídeo vertical válido.
+- Confirmar que o card aparece só nos casos elegíveis.
+- Confirmar que a IA preenche legenda, legendas por rede, hashtags e primeiro comentário.
+- Guardar rascunho e recarregar para confirmar persistência da transcrição.
+
+---
+
+## Fase 3.2 — Reescrita por tom
 
 ### UI
-Adicionar `First comment` nos blocos:
 
-- Instagram: limite 2200.
-- LinkedIn: limite 1250.
-- Facebook: limite 8000.
+- Adicionar barra compacta acima do textarea da legenda com botões:
+  - “Mais direto”
+  - “Mais emocional”
+  - “Mais técnico”
+  - “Mais curto”
+  - “Mais longo”
+  - “Tom LinkedIn”
+  - “Tom Instagram”
+- Cada botão terá loading próprio.
+- A resposta substitui a legenda atual.
+- Guardar histórico local das últimas 5 versões para permitir desfazer.
 
-Cada campo terá:
+### Backend
 
-- Textarea.
-- Placeholder: “Adiciona contexto extra ou um CTA aqui.”
-- Contador de caracteres.
-- Estado visual de erro se exceder o limite.
+- Criar/reutilizar função backend para reescrever texto com Lovable AI.
+- Enviar apenas legenda atual, rede/contexto e instrução de tom.
+- Prompt fica no backend, não no cliente.
 
-Nota: o componente antigo `FirstCommentInput.tsx` existe, mas está desalinhado com a nova regra porque só mostra um campo global e atualmente considera LinkedIn/Facebook como não suportados. A nova implementação deve substituir esse padrão por campos por rede.
+### Teste isolado
 
-### Validação
-Integrar no painel “Corrige X problemas para publicar”:
-
-- First comment acima do limite da rede → erro bloqueante.
-- Botão “Corrigir” foca diretamente o campo da rede correspondente.
-
-### Publicação
-- Guardar os first comments no post/draft.
-- Enviar para a função de publicação dentro de `network_options`.
-- Se o conector suportar primeiro comentário por rede, publicar após o post principal.
-- Se não suportar, guardar aviso em `publish_metadata` e não marcar a publicação como falhada.
+- Testar cada tom com legenda curta e longa.
+- Confirmar que Ctrl+Z/desfazer recupera versões anteriores.
+- Confirmar que erros de IA não apagam a legenda original.
 
 ---
 
-## Fase 1.2 — Mentions e colaboradores
+## Fase 3.4 — Alt text automático
 
-### Instagram — Collaborators
-Adicionar no bloco Instagram:
+### UI
 
-- Input para `@username`.
-- Botão para adicionar.
-- Lista de colaboradores adicionados.
-- Máximo 3.
-- Validação: tem de começar por `@`, sem espaços, com username válido.
+- Na secção “Média”, abaixo do preview, adicionar campo “Alt text”.
+- Mostrar:
+  - texto gerado;
+  - botão “Regenerar”;
+  - contador 0/125;
+  - checkbox “Aplicar a todas as imagens do carrossel” quando aplicável.
 
-Erros:
+### Backend
 
-- Mais de 3 colaboradores → erro bloqueante.
-- Formato inválido → erro bloqueante ou aviso, conforme severidade final escolhida no validador.
+- Criar função `ai-generate-alt-text` com Lovable AI multimodal.
+- Para vídeo, usar o primeiro frame já extraído ou gerar frame antes de enviar.
+- Guardar resultado em `alt_texts` existente, sem alterar a estrutura principal se não for necessário.
 
-### LinkedIn — @mention
-Adicionar no bloco LinkedIn:
+### Teste isolado
 
-- Campo “username ou URL do perfil”.
-- Campo “nome a apresentar”.
-- Botão “Inserir”.
-
-Comportamento:
-
-- Ao clicar em “Inserir”, a menção é inserida na legenda LinkedIn na posição atual do cursor quando possível.
-- Se o editor estiver em legenda unificada, insere na legenda geral.
-- Se estiver em legendas separadas, insere na legenda LinkedIn.
-
-Validação:
-
-- Perfil/URL com formato inválido → aviso.
-- Nome a apresentar vazio quando se tenta inserir → aviso ou bloqueio local do botão.
+- Testar imagem única.
+- Testar primeiro frame de vídeo.
+- Testar carrossel com “Aplicar a todas”.
+- Confirmar limite de 125 caracteres.
 
 ---
 
-## Fase 1.3 — LinkedIn “Disable link preview”
+## Fase 2 — Caixa de hashtags inteligente
 
-Adicionar checkbox no bloco LinkedIn:
+### UI dentro de “Legenda”
 
-- Texto: “Desativar pré-visualização do link”.
-- Guardar em `networkOptions.linkedin.disableLinkPreview`.
-- Enviar no payload avançado de publicação.
-- Se o conector/API atual não suportar esta opção, registar como aviso de capacidade, sem bloquear publicação.
+- Criar secção “Hashtags sugeridas” imediatamente abaixo do textarea principal.
+- Organizar em 3 grupos:
+  - “Alcance” — “Volume alto · Maior exposição”;
+  - “Nicho” — “Volume médio · Comunidade ativa”;
+  - “Marca” — “As tuas fixas”.
+- Chips clicáveis:
+  - clicar adiciona ao fim da legenda;
+  - clicar novamente remove;
+  - estado visual claro selecionado/não selecionado.
+- Adaptar por rede ativa:
+  - Instagram: até 30, recomendado 8-15;
+  - TikTok: 3-5;
+  - LinkedIn: 3-5;
+  - X: 1-2;
+  - Facebook: 2-3.
+- Mostrar contador, por exemplo:
+  - “5/15 selecionadas para Instagram”.
 
----
+### Scores reais de saturação
 
-## Fase 2 — YouTube
+- Criar modelo de dados para `hashtag_intelligence` com:
+  - hashtag;
+  - estado verificado;
+  - volume estimado;
+  - fonte;
+  - última verificação.
+- Só mostrar círculo colorido quando existir dado verificado.
+- Se não houver fonte ligada, os chips aparecem sem círculo.
+- Não inventar nem simular volume/shadowban.
 
-### Campos
-No bloco YouTube:
+### Hashtags de marca
 
-- Título opcional, contador `0/100`.
-  - Se vazio, usar os primeiros 100 caracteres da legenda no payload.
-- Tags em chips, adicionadas com Enter.
-  - Validar total máximo de 500 caracteres.
-- Visibilidade obrigatória:
-  - Public (Anyone)
-  - Unlisted (Link only)
-  - Private (Only you)
-  - Default: Public.
-- Categoria obrigatória:
-  - Film & Animation
-  - Autos & Vehicles
-  - Music
-  - Pets & Animals
-  - Sports
-  - Travel & Events
-  - Gaming
-  - People & Blogs
-  - Comedy
-  - Entertainment
-  - News & Politics
-  - Howto & Style
-  - Education
-  - Science & Technology
-  - Nonprofits & Activism
-  - Default: People & Blogs.
+- Criar preferências de IA/perfil com campo de hashtags fixas.
+- Essas hashtags aparecem sempre no grupo “Marca”.
 
-### Validações
-- YouTube selecionado sem categoria → erro bloqueante.
-- Tags YouTube acima de 500 caracteres no total → erro bloqueante.
-- Título acima de 100 caracteres → erro bloqueante.
+### Teste isolado
+
+- Testar adicionar/remover chips.
+- Testar contadores por rede.
+- Testar ausência de scores sem dados verificados.
+- Testar hashtags de marca guardadas no perfil/preferências.
 
 ---
 
-## Fase 3 — Instagram avançado, Facebook e Google Business
+## Fase 3.3 — Primeiro comentário com IA
 
-### Instagram — Variante de formato
-Adicionar tabs no bloco Instagram:
+### UI
 
-- Feed
-- Story
-- Reel
-- Carousel
+- No campo “Primeiro comentário” já existente, adicionar botão pequeno “IA”.
+- Ao clicar, gerar 3 opções:
+  - pergunta de engagement;
+  - CTA;
+  - continuação/complemento da ideia principal.
+- Mostrar dropdown/popover para o utilizador escolher.
+- Não inserir automaticamente sem escolha.
 
-A escolha deve sincronizar, sempre que possível, com o formato selecionado em “Selecione onde publicar”. Se houver conflito, mostrar aviso em vez de alterar silenciosamente.
+### Backend
 
-### Instagram — Tag people in photo
-Adicionar:
+- Criar endpoint Lovable AI para gerar opções com base em:
+  - legenda;
+  - rede;
+  - tipo de post;
+  - limite de caracteres da rede.
 
-- Botão “+ Adicionar tag”.
-- Modal com:
-  - Campo `@username`.
-  - Seleção de slide para carrossel.
-  - Clique na imagem para gravar coordenadas `x` e `y` entre `0.0` e `1.0`.
-  - Box informativa azul com instruções.
-- Lista de tags adicionadas.
-- Botão remover.
+### Teste isolado
 
-Validação:
-
-- Coordenadas fora de `0.0–1.0` → erro bloqueante.
-- Username inválido → erro bloqueante.
-
-### Facebook — Variante de formato
-Adicionar tabs:
-
-- Feed
-- Story
-- Reel
-
-Sincronizar com formatos selecionados quando possível.
-
-### Google Business — CTA
-Adicionar:
-
-- Checkbox: “Adicionar botão de call-to-action (opcional)”.
-- Quando ativo:
-  - Dropdown: Book, Order online, Buy, Learn more, Sign up, Call now.
-  - Input URL, exceto para Call now.
-
-Validação:
-
-- CTA ativo sem URL quando o tipo não é “Call now” → erro bloqueante.
-- URL inválida → erro bloqueante.
+- Testar Instagram, LinkedIn e Facebook.
+- Confirmar respeito pelos limites de caracteres.
+- Confirmar que escolher opção preenche apenas o campo certo.
 
 ---
 
-## Persistência em rascunhos e posts
+## Fase 3.1 — SRT, capítulos e frases citáveis
 
-### Base de dados
-Adicionar colunas JSONB para evitar multiplicar colunas por rede:
+### UI
 
-- `posts_drafts.network_options jsonb default '{}'`
-- `posts.network_options jsonb default '{}'`
+- No painel do vídeo, adicionar botão “Ferramentas de IA”.
+- Menu com:
+  - “Gerar ficheiro SRT”;
+  - “Gerar capítulos”;
+  - “Extrair frases citáveis”.
+- Se não houver transcrição, oferecer gerar primeiro.
 
-Opcionalmente, se preferirmos reaproveitar campos existentes:
+### Backend
 
-- `posts.first_comment` já existe, mas é global e não chega para first comment por rede.
-- `posts.publish_metadata` já existe, mas misturar dados editáveis do utilizador com telemetria de publicação torna o histórico mais confuso.
+- Reutilizar `raw_transcription` da Fase 1.
+- Para SRT, guardar/gerar ficheiro `.srt` descarregável.
+- Para capítulos, devolver lista com timestamps e títulos.
+- Para frases citáveis, reaproveitar ou gerar 2-3 frases.
 
-Recomendação: criar `network_options` para dados de criação/publicação e deixar `publish_metadata` para resultado técnico.
+### Teste isolado
 
-### Rascunhos
-Atualizar:
-
-- Auto-save local.
-- Guardar rascunho explícito.
-- Carregar rascunho.
-- Recuperar/reutilizar post.
-
----
-
-## Validação e foco direto no campo
-
-Criar um novo validador, por exemplo `networkOptionsValidator`, integrado no sistema existente.
-
-Novos problemas no painel:
-
-- YouTube selecionado sem categoria → erro.
-- LinkedIn @mention com formato inválido → aviso.
-- Instagram com mais de 3 colaboradores → erro.
-- First comment acima do limite da rede → erro.
-- Tag de pessoa em foto com coordenadas fora de `0.0–1.0` → erro.
-- Google Business CTA ativo com URL inválida → erro.
-
-Adicionar `fixHelpers.focusNetworkOption(network, field)` para os botões “Corrigir” abrirem:
-
-1. A secção “Opções por rede”.
-2. O accordion da rede.
-3. O campo específico.
+- Testar vídeo com transcrição existente.
+- Testar vídeo sem transcrição.
+- Confirmar download de `.srt`.
 
 ---
 
-## Publicação e limitações da API
+## Fase 4 — Aprendizagem contínua
 
-### Frontend
-Atualizar `usePublishWithProgress` para enviar:
+### 4.1 Dados e classificação
 
-```ts
-network_options: networkOptions
-```
+- Criar tabela `post_performance` com:
+  - `post_id`, `network`, `engagement_rate`, `classification`, `captured_at`, `features_extracted`.
+- Criar função agendada para correr a cada 6 horas.
+- Recolher métricas onde houver fonte real disponível.
+- Calcular:
+  - `engagement_rate = (likes + 2*comentários + 3*partilhas + 2*guardados) / alcance`.
+- Classificar face à média móvel dos últimos 30 posts da mesma conta/rede.
 
-em cada chamada à função de publicação.
+### 4.2 Features dos posts
 
-### Função de publicação
-Atualizar `publish-to-getlate` para:
+- Extrair:
+  - começa com pergunta;
+  - começa com número;
+  - emoji no início;
+  - número de hashtags;
+  - tem primeiro comentário;
+  - comprimento da legenda;
+  - hora/dia de publicação;
+  - formato;
+  - tom detetado por IA.
 
-- Validar o novo payload no servidor.
-- Incluir opções suportadas no payload enviado ao conector.
-- Guardar opções e avisos em `posts.network_options` e `posts.publish_metadata`.
-- Tratar falhas secundárias, como first comment, como aviso e não como falha total.
+### 4.3 Insights
 
-### Nota crítica
-A instrução “usar Meta Graph API, LinkedIn API, YouTube Data API v3, Google Business Profile API” não pode ser implementada diretamente sem autenticação/tokens dessas APIs por rede. O projeto atual publica através do conector existente. Portanto:
+- Criar tabela `account_insights`.
+- Gerar insights semanais apenas com:
+  - amostra mínima de 20 posts;
+  - diferença estatisticamente relevante, p < 0.1.
 
-- Se o conector suportar estes campos, mapeio diretamente.
-- Se não suportar, deixo os campos guardados e validados, mas marco como “não enviado por falta de suporte do conector” em `publish_metadata`.
-- Não vou criar integrações OAuth novas para Meta/LinkedIn/YouTube/Google nesta fase, porque isso seria uma feature separada de autenticação por rede.
+### 4.4 Banner no `/manual-create`
+
+- Mostrar um banner discreto acima da legenda com o insight mais relevante.
+- Máximo um banner por sessão.
+- Ações:
+  - “Sim, sugere uma”;
+  - “Não, obrigado”;
+  - “Nunca mostrar”.
+- Guardar dispensas e bloquear por 30 dias após 3 recusas seguidas.
+
+### 4.5 Página `/insights`
+
+- Nova rota com:
+  - lista de insights;
+  - filtros por rede e tipo;
+  - gráficos simples;
+  - exportação PDF mensal.
+
+### Teste isolado
+
+- Testar com dados reais existentes onde possível.
+- Testar fallback sem métricas disponíveis.
+- Confirmar que insights não são inventados sem amostra suficiente.
 
 ---
 
-## Ficheiros prováveis a alterar
+## Custos e créditos de IA
 
-- `src/pages/ManualCreate.tsx`
-- `src/components/manual-post/steps/Step3CaptionCard.tsx`
-- Novo componente: `src/components/manual-post/steps/NetworkOptionsCard.tsx`
-- Possíveis subcomponentes:
-  - `InstagramOptions.tsx`
-  - `LinkedInOptions.tsx`
-  - `FacebookOptions.tsx`
-  - `YouTubeOptions.tsx`
-  - `GoogleBusinessOptions.tsx`
-- `src/hooks/useAutoSave.ts`
-- `src/hooks/manual-create/useDraftRecovery.ts`
-- `src/hooks/manual-create/usePublishOrchestrator.ts`
-- `src/hooks/usePublishWithProgress.ts`
-- `src/hooks/useSmartValidation.ts`
-- `src/lib/validation/types.ts`
-- `src/lib/validation/runValidators.ts`
-- Novo validador: `src/lib/validation/validators/networkOptionsValidator.ts`
-- Testes de validação novos
-- `supabase/functions/publish-to-getlate/index.ts`
-- Migração de base de dados para `network_options`
-
-Não serão editados ficheiros bloqueados como `src/integrations/supabase/client.ts`, `src/integrations/supabase/types.ts` ou `.env`.
+- Criar tabela de consumo de IA por utilizador.
+- Registar ações:
+  - transcrição: 1 crédito/minuto;
+  - geração de campos: 2 créditos;
+  - reescrita por tom: 1 crédito;
+  - alt text: 0,5 créditos/imagem;
+  - primeiro comentário: 1 crédito.
+- Mostrar CTA de upgrade quando esgotar, sem destruir o fluxo manual.
+- Como os planos/créditos mensais ainda serão definidos depois, vou implementar a infraestrutura com limites configuráveis.
 
 ---
 
-## Ordem de execução recomendada
+## Preferências de IA
 
-1. Implementar Fase 1.1: first comment por rede, persistência e validação.
-2. Testar guardar/carregar rascunho com first comment.
-3. Implementar Fase 1.2 e 1.3: colaboradores, mentions LinkedIn e disable link preview.
-4. Testar rascunho e validação.
-5. Implementar Fase 2: YouTube.
-6. Testar rascunho e validação YouTube.
-7. Implementar Fase 3: Instagram/Facebook variants, tags em fotografia e Google Business CTA.
-8. Atualizar publicação e metadados avançados.
-9. Validar TypeScript e testes.
+- Criar secção “Preferências de IA” no perfil/definições.
+- Campos:
+  - idioma preferido, default PT-PT;
+  - tom por defeito;
+  - hashtags de marca fixas;
+  - ativar/desativar banners de insights.
+
+---
+
+## Ordem de implementação proposta
+
+1. Fase 1 — Assistente desde upload.
+2. Fase 3.2 — Reescrita por tom.
+3. Fase 3.4 — Alt text automático.
+4. Fase 2 — Hashtags inteligentes sem scores inventados.
+5. Fase 3.3 — Primeiro comentário com IA.
+6. Fase 3.1 — SRT, capítulos e frases citáveis.
+7. Fase 4 — Aprendizagem contínua e página `/insights`.
 
 ---
 
 ## Checkpoint
 
-- ☐ Nova secção “Opções por rede” aparece entre “Legenda” e “Agendamento”.
-- ☐ A secção e os blocos por rede ficam colapsados por defeito.
-- ☐ Só aparecem blocos das redes selecionadas.
-- ☐ First comment existe por Instagram, LinkedIn e Facebook com limites próprios.
-- ☐ Colaboradores Instagram aceitam no máximo 3 usernames válidos.
-- ☐ Menção LinkedIn pode ser inserida na legenda.
-- ☐ LinkedIn permite desativar preview de link.
-- ☐ YouTube tem título, tags, visibilidade e categoria com defaults corretos.
-- ☐ Instagram tem variante de formato e tags em fotografia com coordenadas.
-- ☐ Facebook tem variante de formato.
-- ☐ Google Business tem CTA opcional com validação de URL.
-- ☐ Todos os campos são guardados e recuperados em rascunhos.
-- ☐ Validações aparecem no painel “Corrige X problemas para publicar”.
-- ☐ Botões “Corrigir” abrem diretamente o campo certo.
-- ☐ Publicação envia `network_options` para a função backend.
-- ☐ Falha de first comment gera aviso, não falha total.
-- ☐ TypeScript e testes ficam verdes.
+- ☐ Card “Queres que a IA prepare tudo por ti?” aparece só para vídeos elegíveis.
+- ☐ Transcrição é gerada, guardada em rascunho e acessível via “Ver transcrição”.
+- ☐ IA preenche legenda, variantes por rede, hashtags, primeiro comentário, alt text e título.
+- ☐ Reescrita por tom funciona com histórico de 5 versões.
+- ☐ Alt text automático funciona para imagem e primeiro frame de vídeo.
+- ☐ Hashtags sugeridas funcionam sem inventar scores.
+- ☐ Hashtags de marca são configuráveis nas preferências.
+- ☐ Primeiro comentário por IA mostra 3 opções antes de inserir.
+- ☐ SRT, capítulos e frases citáveis reutilizam a transcrição guardada.
+- ☐ Créditos de IA são registados por ação.
+- ☐ Erros de IA não bloqueiam publicação manual.
+- ☐ Fase 4 só gera insights com dados reais e amostra mínima.
+- ☐ Nova página `/insights` lista e exporta conclusões reais.
+- ☐ Interface mantém pt-PT, visual compacto e mobile-first.
