@@ -175,6 +175,10 @@ export default {
             height: "500px",
             opacity: "0"
           }
+        },
+        "pulse-subtle": {
+          "0%, 100%": { boxShadow: "0 0 0 0 hsl(var(--primary) / 0.25)" },
+          "50%": { boxShadow: "0 0 0 6px hsl(var(--primary) / 0)" }
         }
       },
       animation: {
@@ -183,6 +187,7 @@ export default {
         "fade-in": "fade-in 0.3s ease-out",
         "slide-in-right": "slide-in-right 0.3s ease-out",
         "ripple": "ripple 0.6s ease-out",
+        "pulse-subtle": "pulse-subtle 2s ease-in-out infinite",
       },
     },
   },
