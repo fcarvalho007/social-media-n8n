@@ -6,6 +6,7 @@ import { generateSafeStoragePath } from '@/lib/fileNameSanitizer';
 import { extractVideoFrame } from '@/lib/media/videoFrameExtractor';
 import { getNetworkFromFormat, PostFormat } from '@/types/social';
 import { ValidationSummary } from '@/lib/validation/types';
+import { NetworkOptions } from '@/types/networkOptions';
 import type { useImageCompression } from './useImageCompression';
 import type { usePublishWithProgress } from '@/hooks/usePublishWithProgress';
 import type { usePublishingQuota } from '@/hooks/usePublishingQuota';
@@ -50,6 +51,7 @@ interface OrchestratorParams {
   caption: string;
   networkCaptions: Record<string, string>;
   useSeparateCaptions: boolean;
+  networkOptions: NetworkOptions;
   mediaFiles: File[];
   scheduledDate: Date | undefined;
   time: string;
@@ -96,6 +98,7 @@ export function usePublishOrchestrator(params: OrchestratorParams) {
     caption,
     networkCaptions,
     useSeparateCaptions,
+    networkOptions,
     mediaFiles,
     scheduledDate,
     time,
@@ -221,6 +224,7 @@ export function usePublishOrchestrator(params: OrchestratorParams) {
         media_items: DraftMediaItem[];
         network_captions: Record<string, string>;
         use_separate_captions: boolean;
+        network_options: NetworkOptions;
         scheduled_date: string | null;
         scheduled_time: string | null;
         publish_immediately: boolean;
@@ -235,6 +239,7 @@ export function usePublishOrchestrator(params: OrchestratorParams) {
         media_items: draftMediaItems,
         network_captions: useSeparateCaptions ? networkCaptions : {},
         use_separate_captions: useSeparateCaptions,
+        network_options: networkOptions,
         scheduled_date: scheduledDate ? format(scheduledDate, 'yyyy-MM-dd') : null,
         scheduled_time: time || null,
         publish_immediately: scheduleAsap,
@@ -323,7 +328,7 @@ export function usePublishOrchestrator(params: OrchestratorParams) {
       setUploadProgress(0);
     }
   }, [
-    selectedFormats, mediaFiles, useSeparateCaptions, networkCaptions, caption,
+    selectedFormats, mediaFiles, useSeparateCaptions, networkCaptions, networkOptions, caption,
     scheduledDate, time, scheduleAsap, currentDraftId,
     setUploadProgress, setCurrentDraftId,
   ]);
@@ -414,6 +419,7 @@ export function usePublishOrchestrator(params: OrchestratorParams) {
           publish_immediately: scheduleAsap,
           formats: selectedFormats,
           network_captions: useSeparateCaptions ? networkCaptions : undefined,
+          network_options: networkOptions,
         },
       });
 
@@ -440,6 +446,7 @@ export function usePublishOrchestrator(params: OrchestratorParams) {
         selected_networks: selectedNetworks,
         caption,
         linkedin_body: useSeparateCaptions && networkCaptions.linkedin ? networkCaptions.linkedin : null,
+        network_options: networkOptions,
         scheduled_date: scheduledDate?.toISOString() || null,
         schedule_asap: scheduleAsap,
         status: 'waiting_for_approval',
@@ -505,7 +512,7 @@ export function usePublishOrchestrator(params: OrchestratorParams) {
     }
   }, [
     selectedFormats, smartValidation.canPublish, mediaFiles, scheduleAsap,
-    scheduledDate, time, useSeparateCaptions, networkCaptions, caption,
+    scheduledDate, time, useSeparateCaptions, networkCaptions, networkOptions, caption,
     selectedNetworks, currentDraftId,
     setValidationSheetOpen, setUploadProgress, setCaption, setMediaFiles,
     setMediaPreviewUrls, setScheduledDate, setTime, setScheduleAsap,
@@ -544,6 +551,7 @@ export function usePublishOrchestrator(params: OrchestratorParams) {
       scheduleAsap,
       recoveredFromPostId: recoveredPostId || undefined,
       networkCaptions: useSeparateCaptions ? networkCaptions : undefined,
+      networkOptions,
     };
 
     const result = await executePublish(publishParams);
@@ -560,7 +568,7 @@ export function usePublishOrchestrator(params: OrchestratorParams) {
   }, [
     selectedFormats, smartValidation.canPublish, mediaFiles, selectedNetworks,
     compression, quota, caption, scheduledDate, time, scheduleAsap,
-    recoveredPostId, useSeparateCaptions, networkCaptions, executePublish,
+    recoveredPostId, useSeparateCaptions, networkCaptions, networkOptions, executePublish,
     setValidationSheetOpen, onDuplicateDetected, consumeCurrentDraft,
   ]);
 
