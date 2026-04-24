@@ -40,11 +40,15 @@ import { Step3ScheduleCard } from '@/components/manual-post/steps/Step3ScheduleC
 import { PreviewPanel } from '@/components/manual-post/steps/PreviewPanel';
 import { createDefaultNetworkOptions, normalizeNetworkOptions } from '@/types/networkOptions';
 import { detectImageAspectRatio as detectImageAspectRatioExt, detectVideoAspectRatio as detectVideoAspectRatioExt } from '@/hooks/manual-create/mediaAspectDetection';
-import { AiUploadAssistantCard } from '@/components/manual-post/ai/AiUploadAssistantCard';
+import { AiUploadAssistantCard, AiUploadAssistantStatus } from '@/components/manual-post/ai/AiUploadAssistantCard';
 import { CaptionRewritePreviewDialog } from '@/components/manual-post/ai/CaptionRewritePreviewDialog';
 import type { CaptionRewriteMetadata, CaptionRewriteTone, EditorialAssistantResult } from '@/types/aiEditorial';
 import { supabase } from '@/integrations/supabase/client';
 import { useAiPreferences } from '@/hooks/ai/useAiPreferences';
+import { useAICredits } from '@/hooks/useAICredits';
+import { AI_CREDIT_COSTS } from '@/config/aiCreditCosts';
+import { aiService } from '@/services/ai/aiService';
+import { useAuth } from '@/contexts/AuthContext';
 // `extractVideoFrame` foi consolidado em '@/lib/media/videoFrameExtractor'.
 // Este componente já não o usava localmente.
 
@@ -77,6 +81,23 @@ const getUniqueHashtags = (result: EditorialAssistantResult) => {
   return Array.from(new Set(tags.map(normalizeHashtag).filter(Boolean)))
     .filter((tag) => !existing.has(tag.toLowerCase()));
 };
+
+const SUPPORTED_ASSISTANT_VIDEO_TYPES = new Set(['video/mp4', 'video/quicktime', 'video/webm']);
+
+const getVideoDuration = (file: File) => new Promise<number>((resolve, reject) => {
+  const url = URL.createObjectURL(file);
+  const video = document.createElement('video');
+  video.preload = 'metadata';
+  video.onloadedmetadata = () => {
+    URL.revokeObjectURL(url);
+    resolve(video.duration || 0);
+  };
+  video.onerror = () => {
+    URL.revokeObjectURL(url);
+    reject(new Error('Não foi possível ler a duração do vídeo.'));
+  };
+  video.src = url;
+});
 
 export default function ManualCreate() {
   const navigate = useNavigate();
