@@ -243,6 +243,21 @@ function extractPostUrl(responseData: any): string | undefined {
     nestedPlatform?.permalink;
 }
 
+function extractExternalReference(responseData: any): string | undefined {
+  const nestedPlatform = responseData?.post?.platforms?.find((platform: any) =>
+    platform?.platformPostId || platform?.platformSpecificData?.tiktokPublishId || platform?._id || platform?.status === 'published'
+  );
+
+  return extractPostUrl(responseData) ||
+    responseData?.post?.platformPostId ||
+    responseData?.post?._id ||
+    responseData?.data?._id ||
+    nestedPlatform?.platformPostUrl ||
+    nestedPlatform?.platformPostId ||
+    nestedPlatform?.platformSpecificData?.tiktokPublishId ||
+    nestedPlatform?._id;
+}
+
 function classifyPublishError(msg: string): { code: string; source: string; isRetryable: boolean; suggestedAction: string } {
   const lower = msg.toLowerCase();
 
@@ -565,7 +580,7 @@ async function publishToGetlate(
         return { 
           success: true, 
           data,
-          postUrl: validated.postUrl,
+      postUrl: validated.postUrl || extractExternalReference(data),
           statusCode: response.status,
         };
       } else {
