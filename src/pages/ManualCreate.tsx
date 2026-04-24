@@ -755,6 +755,10 @@ export default function ManualCreate() {
               disabled={saving || submitting || publishing}
               onOpenSavedCaptions={() => setSavedCaptionsOpen(true)}
               onOpenAIDialog={() => setAiDialogOpen(true)}
+              rewriteTone={rewriteTone}
+              onRewriteToneChange={setRewriteTone}
+              onRewriteCaption={handleRewriteCaption}
+              rewriteLoading={rewriteLoading}
             />
 
             <NetworkOptionsCard
@@ -908,6 +912,16 @@ export default function ManualCreate() {
             }
           }
         }}
+      />
+
+      <CaptionRewritePreviewDialog
+        open={!!rewritePreview}
+        originalText={rewritePreview?.originalText ?? ''}
+        rewrittenText={rewritePreview?.rewrittenText ?? ''}
+        tone={rewritePreview?.tone ?? rewriteTone}
+        onRewrittenTextChange={(value) => setRewritePreview(prev => prev ? { ...prev, rewrittenText: value } : prev)}
+        onApply={handleApplyRewrite}
+        onKeepOriginal={() => setRewritePreview(null)}
       />
     </div>
   );
