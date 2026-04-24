@@ -31,10 +31,13 @@ export async function mediaAspectValidator(
   }
 
   if (storyLinkSelected) {
-    const nonStoryRatio = analysis.results.filter(result => Math.abs(result.aspectRatio - 9 / 16) > 0.02);
+    const nonStoryRatio = images.filter((file) => {
+      const item = analysis.analysis.get(file.name);
+      return item ? Math.abs(item.originalRatio - 9 / 16) > 0.02 : false;
+    });
     if (nonStoryRatio.length > 0) {
       issues.push({
-        id: `media:instagram-story-link:aspect:${nonStoryRatio.map(item => item.file.name).join(',')}`,
+        id: `media:instagram-story-link:aspect:${nonStoryRatio.map(file => file.name).join(',')}`,
         severity: 'warning',
         category: 'media',
         platform: 'instagram',
