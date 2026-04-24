@@ -11,10 +11,10 @@ import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Input } from '@/components/ui/input';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
-import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 import { Sparkles, Loader2, RefreshCw, Check, ArrowRight, Briefcase, Smile, PartyPopper } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import { aiService } from '@/services/ai/aiService';
 
 interface AICaptionDialogProps {
   open: boolean;
@@ -95,30 +95,35 @@ export default function AICaptionDialog({
     setSelectedSuggestion(null);
 
     try {
-      // Generate 3 suggestions with different variations
-      const generatedSuggestions: Suggestion[] = [];
-      
-      for (let i = 0; i < 3; i++) {
-        const { data, error } = await supabase.functions.invoke('improve-caption', {
-          body: {
-            caption: currentCaption || topicDescription,
-            framework: selectedFramework,
-            tone: selectedTone,
-            variation: i + 1,
-            topic: topicDescription,
-          },
-        });
+      const framework = FRAMEWORKS.find((fw) => fw.id === selectedFramework);
+      const tone = TONES.find((item) => item.id === selectedTone);
+      const result = await aiService.generateText({
+        model: 'fast',
+        feature: 'caption_generation',
+        creditCostOverride: 1,
+        responseFormat: 'json',
+        systemPrompt: 'És um copywriter sénior de redes sociais. Escreves em português de Portugal, sem inventar factos, e devolves apenas JSON válido.',
+        prompt: `Gera 3 sugestões de legenda diferentes para redes sociais.
 
-        if (error) throw error;
+Tema descrito: ${topicDescription || 'não indicado'}
+Legenda original como referência: ${currentCaption || 'sem legenda original'}
+Tom: ${tone?.name ?? selectedTone} — ${tone?.description ?? ''}
+Framework: ${framework?.name ?? selectedFramework} — ${framework?.description ?? ''}
 
-        if (data?.improvedCaption) {
-          generatedSuggestions.push({
-            id: `suggestion-${i}`,
-            caption: data.improvedCaption,
-            tone: selectedTone,
-          });
-        }
-      }
+Regras:
+- cada sugestão deve ser completa e pronta a publicar;
+- mantém português de Portugal;
+- não inventes factos;
+- usa quebras de linha quando melhorarem a leitura;
+- máximo 2200 caracteres por sugestão.
+
+Devolve JSON com esta estrutura: {"suggestions":[{"caption":"texto"},{"caption":"texto"},{"caption":"texto"}]}`,
+      }) as { suggestions?: Array<{ caption?: string }> };
+
+      const generatedSuggestions: Suggestion[] = (result.suggestions ?? [])
+        .map((suggestion, index) => ({ id: `suggestion-${index}`, caption: String(suggestion.caption || '').trim(), tone: selectedTone }))
+        .filter((suggestion) => suggestion.caption)
+        .slice(0, 3);
 
       if (generatedSuggestions.length > 0) {
         setSuggestions(generatedSuggestions);

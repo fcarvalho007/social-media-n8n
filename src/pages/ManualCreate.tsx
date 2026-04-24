@@ -45,6 +45,7 @@ import { CaptionRewritePreviewDialog } from '@/components/manual-post/ai/Caption
 import { HashtagSuggestions } from '@/components/manual-post/ai/HashtagSuggestions';
 import { EditorialInsightBanner } from '@/components/manual-post/ai/EditorialInsightBanner';
 import { VideoToolsReviewDialog } from '@/components/manual-post/ai/VideoToolsReviewDialog';
+import type { ToneAction } from '@/components/manual-post/ai/CaptionToneToolbar';
 import type { AccountInsight, CaptionRewriteMetadata, CaptionRewriteTone, EditorialAssistantResult, SuggestedHashtag } from '@/types/aiEditorial';
 import { supabase } from '@/integrations/supabase/client';
 import { useAiPreferences } from '@/hooks/ai/useAiPreferences';
@@ -156,8 +157,7 @@ export default function ManualCreate() {
   const [altText, setAltText] = useState('');
   const [altTexts, setAltTexts] = useState<Record<string, string>>({});
   const [altTextLoadingKey, setAltTextLoadingKey] = useState<string | null>(null);
-  const [rewriteTone, setRewriteTone] = useState<CaptionRewriteTone>('neutro');
-  const [rewriteLoading, setRewriteLoading] = useState(false);
+  const [rewriteLoading, setRewriteLoading] = useState<ToneAction | null>(null);
   const [rewriteHistory, setRewriteHistory] = useState<Array<{ network?: ReturnType<typeof getNetworkFromFormat>; text: string }>>([]);
   const [hashtagSuggestions, setHashtagSuggestions] = useState<SuggestedHashtag[]>([]);
   const [hashtagsLoading, setHashtagsLoading] = useState(false);
@@ -415,10 +415,6 @@ export default function ManualCreate() {
       return next;
     });
   }, [caption, selectedNetworks]);
-
-  useEffect(() => {
-    setRewriteTone(aiPreferences.default_tone);
-  }, [aiPreferences.default_tone]);
 
   useEffect(() => {
     const nextSignature = getMediaSignature(mediaFiles);
@@ -763,7 +759,7 @@ export default function ManualCreate() {
     }
 
     try {
-      setRewriteLoading(true);
+      setRewriteLoading(tone as ToneAction);
       const tonePrompts: Record<string, string> = {
         direct: 'Reescreve a legenda num tom mais direto e objetivo. Remove floreados. Mantém factos e CTAs.',
         emotional: 'Reescreve a legenda com um tom mais emocional e pessoal. Usa narrativa. Mantém factos.',
@@ -775,7 +771,7 @@ export default function ManualCreate() {
       };
       const rewritten = await aiService.generateText({
         model: 'fast',
-        feature: 'caption_tone_rewrite',
+        feature: 'caption_rewrite_tone',
         creditCostOverride: 1,
         systemPrompt: 'És um editor sénior de redes sociais. Reescreves em português de Portugal. Não inventes factos. Mantém URLs, menções e CTAs quando fizer sentido. Devolve apenas a legenda final.',
         prompt: `Rede alvo: ${activeNetwork || 'geral'}\n${rawTranscription ? `Contexto da transcrição:\n${rawTranscription}\n\n` : ''}Instrução: ${tonePrompts[tone] || tonePrompts.direct}\n\nLegenda atual:\n${text}`,
@@ -787,12 +783,12 @@ export default function ManualCreate() {
       else setCaption(nextText);
       setAiMetadata(prev => ({ ...(prev ?? {}), rewrites: [...((prev as EditorialAssistantResult | null)?.rewrites ?? []), { network: activeNetwork, tone, created_at: new Date().toISOString(), source: 'caption_rewriter' }] }));
       await refreshAiCredits();
-      toast.success('Legenda reescrita. Usa Ctrl+Z para reverter.');
+      toast.success('Legenda ajustada. Ctrl+Z para reverter.');
     } catch (error) {
       console.error('[ManualCreate] caption rewrite error:', error);
       toast.error(error instanceof Error ? error.message : 'Não foi possível reescrever a legenda.');
     } finally {
-      setRewriteLoading(false);
+      setRewriteLoading(null);
     }
   }, [caption, networkCaptions, rawTranscription, refreshAiCredits, selectedNetworks, useSeparateCaptions]);
 
@@ -806,8 +802,10 @@ export default function ManualCreate() {
     };
 
     if (useSeparateCaptions && rewritePreview.network) {
+      setRewriteHistory(prev => [{ network: rewritePreview.network, text: rewritePreview.originalText }, ...prev].slice(0, 5));
       setNetworkCaptions(prev => ({ ...prev, [rewritePreview.network!]: rewritePreview.rewrittenText }));
     } else {
+      setRewriteHistory(prev => [{ text: rewritePreview.originalText }, ...prev].slice(0, 5));
       setCaption(rewritePreview.rewrittenText);
     }
 
@@ -816,7 +814,7 @@ export default function ManualCreate() {
       rewrites: [...((prev as EditorialAssistantResult | null)?.rewrites ?? []), metadata],
     }));
     setRewritePreview(null);
-    toast.success('Versão reescrita aplicada.');
+    toast.success('Legenda ajustada. Ctrl+Z para reverter.');
   }, [rewritePreview, useSeparateCaptions]);
 
   const handleRevertRewrite = useCallback(() => {
@@ -828,11 +826,19 @@ export default function ManualCreate() {
     toast.success('Legenda revertida.');
   }, [rewriteHistory]);
 
+  const handleApplyAiCaption = useCallback((nextCaption: string) => {
+    const activeNetwork = useSeparateCaptions ? captionEditorRef.current?.getActiveNetwork() ?? selectedNetworks[0] : undefined;
+    const previousText = activeNetwork ? (networkCaptions[activeNetwork] || caption) : caption;
+
+    setRewriteHistory(prev => [{ network: activeNetwork, text: previousText }, ...prev].slice(0, 5));
+    if (activeNetwork) setNetworkCaptions(prev => ({ ...prev, [activeNetwork]: nextCaption }));
+    else setCaption(nextCaption);
+    toast.success('Legenda gerada com IA.');
+  }, [caption, networkCaptions, selectedNetworks, useSeparateCaptions]);
+
   useEffect(() => {
     const onKeyDown = (event: KeyboardEvent) => {
       if ((event.ctrlKey || event.metaKey) && event.key.toLowerCase() === 'z' && rewriteHistory.length > 0) {
-        const target = event.target as HTMLElement | null;
-        if (target?.tagName === 'TEXTAREA' || target?.tagName === 'INPUT') return;
         event.preventDefault();
         handleRevertRewrite();
       }
@@ -1226,8 +1232,6 @@ export default function ManualCreate() {
               disabled={saving || submitting || publishing}
               onOpenSavedCaptions={() => setSavedCaptionsOpen(true)}
               onOpenAIDialog={() => setAiDialogOpen(true)}
-              rewriteTone={rewriteTone}
-              onRewriteToneChange={setRewriteTone}
               onRewriteCaption={handleRewriteCaption}
               onRevertRewrite={handleRevertRewrite}
               canRevertRewrite={rewriteHistory.length > 0}
@@ -1399,8 +1403,9 @@ export default function ManualCreate() {
         onLoadDraft={handleLoadDraft}
         savedCaptionsOpen={savedCaptionsOpen}
         setSavedCaptionsOpen={setSavedCaptionsOpen}
-        caption={caption}
-        setCaption={setCaption}
+        caption={useSeparateCaptions ? networkCaptions[captionEditorRef.current?.getActiveNetwork() ?? selectedNetworks[0]] || caption : caption}
+        onSelectSavedCaption={setCaption}
+        onApplyAiCaption={handleApplyAiCaption}
         aiDialogOpen={aiDialogOpen}
         setAiDialogOpen={setAiDialogOpen}
         compressionModalProps={compression.modalProps}
@@ -1444,7 +1449,7 @@ export default function ManualCreate() {
         open={!!rewritePreview}
         originalText={rewritePreview?.originalText ?? ''}
         rewrittenText={rewritePreview?.rewrittenText ?? ''}
-        tone={rewritePreview?.tone ?? rewriteTone}
+        tone={rewritePreview?.tone ?? 'direct'}
         onRewrittenTextChange={(value) => setRewritePreview(prev => prev ? { ...prev, rewrittenText: value } : prev)}
         onApply={handleApplyRewrite}
         onKeepOriginal={() => setRewritePreview(null)}

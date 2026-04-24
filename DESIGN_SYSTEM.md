@@ -124,11 +124,22 @@ Uso: wrapper shadcn para cards principais do fluxo.
 - `NetworkFormatSelector`: seleção compacta de rede/formato com empty state e focus consistente.
 - `PreviewPanel`: painel lateral e drawer mobile com tabs compactas, metadata e empty state ilustrado.
 - `Step2MediaCard`: upload, ferramentas de vídeo e grelha de média com contadores alinhados.
-- `Step3CaptionCard`: wrapper de legenda com assistente de reescrita e editor unificado/diferenciado.
+- `Step3CaptionCard`: wrapper de legenda com toolbar, barra rápida de tons, editor unificado/diferenciado e undo de IA.
+- `CaptionToneToolbar`: barra compacta de reescrita rápida por tom; só aparece acima da textarea quando a legenda ativa tem mais de 20 caracteres.
 - `Step3ScheduleCard`: agendamento com toggle, atalhos e preview agendado.
 - `NetworkOptionsCard`: opções avançadas por rede com acordeões, feedback visual e campos padronizados.
 - `PublishActionsCard`: ações finais com validação, loading e hierarquia primária/secundária.
 - `HashtagSuggestions`: grupos de hashtags com chips acessíveis e estados de risco.
+
+## Hierarquia do card “Legenda”
+
+- Cabeçalho com contador global e nota de obrigatoriedade para LinkedIn.
+- Banner editorial opcional.
+- Toggle “Unificada/Separadas” quando há duas ou mais redes.
+- Toolbar principal: emojis, legendas guardadas e botão `IA` que abre o modal “Gerar Legenda com IA”.
+- Barra rápida de tons imediatamente acima da textarea, apenas com texto superior a 20 caracteres.
+- Textarea da legenda ativa e contadores por rede.
+- Botão `Reverter última reescrita` apenas após alteração feita por IA; também deve funcionar com `Ctrl+Z`.
 
 ## Dívida técnica declarada para fase futura
 
