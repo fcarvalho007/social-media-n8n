@@ -1,5 +1,5 @@
 import { forwardRef, useImperativeHandle, useRef, useState } from 'react';
-import { Info, Plus, Trash2 } from 'lucide-react';
+import { Info, Plus, Sparkles, Trash2 } from 'lucide-react';
 import { SocialNetwork } from '@/types/social';
 import { NetworkOptionField, NetworkOptions, firstCommentLimit } from '@/types/networkOptions';
 import { NETWORK_INFO } from '@/lib/socialNetworks';
@@ -16,6 +16,10 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Textarea } from '@/components/ui/textarea';
 import { AIGeneratedField } from '@/components/ai/AIGeneratedField';
+import { AIActionButton } from '@/components/ai/AIActionButton';
+import { FirstCommentOptionsDialog } from '@/components/manual-post/ai/FirstCommentOptionsDialog';
+import { aiService } from '@/services/ai/aiService';
+import type { FirstCommentOption } from '@/types/aiEditorial';
 
 export interface NetworkOptionsCardHandle {
   focusField: (network: SocialNetwork, field?: NetworkOptionField) => void;
@@ -78,6 +82,8 @@ export const NetworkOptionsCard = forwardRef<NetworkOptionsCardHandle, NetworkOp
   const [tagModalOpen, setTagModalOpen] = useState(false);
   const [photoTagUsername, setPhotoTagUsername] = useState('');
   const [photoTagSlide, setPhotoTagSlide] = useState('0');
+  const [commentOptions, setCommentOptions] = useState<FirstCommentOption[]>([]);
+  const [commentTarget, setCommentTarget] = useState<'instagram' | 'linkedin' | 'facebook' | null>(null);
   const fieldRefs = useRef<Record<string, HTMLElement | null>>({});
 
   const setFieldRef = (key: string) => (node: HTMLElement | null) => { fieldRefs.current[key] = node; };
@@ -96,6 +102,15 @@ export const NetworkOptionsCard = forwardRef<NetworkOptionsCardHandle, NetworkOp
     update({ ...networkOptions, [network]: { ...(networkOptions[network] ?? {}), ...patch } });
   };
 
+  const generateFirstComment = async (network: 'instagram' | 'linkedin' | 'facebook') => {
+    const baseCaption = useSeparateCaptions ? networkCaptions[network] || caption : caption;
+    const result = await aiService.generateFirstComments({ caption: baseCaption, network });
+    const options = (result.options ?? []).filter(option => option.text?.trim()).slice(0, 3);
+    if (options.length !== 3) throw new Error('A IA não devolveu 3 opções válidas.');
+    setCommentOptions(options);
+    setCommentTarget(network);
+  };
+
   const renderFirstComment = (network: 'instagram' | 'linkedin' | 'facebook') => {
     const limit = firstCommentLimit(network) ?? 0;
     const value = networkOptions[network]?.firstComment ?? '';
@@ -103,7 +118,10 @@ export const NetworkOptionsCard = forwardRef<NetworkOptionsCardHandle, NetworkOp
     return (
       <AIGeneratedField generatedAt={generatedAt} edited={generatedEdited[`${network}.firstComment`]} className="border-0 bg-transparent">
         <div className="space-y-2">
-          <Label htmlFor={`${network}-first-comment`}>Primeiro comentário</Label>
+          <div className="flex items-center justify-between gap-2">
+            <Label htmlFor={`${network}-first-comment`}>Primeiro comentário</Label>
+            <AIActionButton icon={<Sparkles className="h-4 w-4" />} label="Gerar" creditCost={1} variant="ghost" disabled={disabled || !caption.trim()} onClick={() => generateFirstComment(network)} />
+          </div>
           <Textarea
             id={`${network}-first-comment`}
             ref={setFieldRef(fieldKey(network, 'firstComment')) as React.Ref<HTMLTextAreaElement>}
@@ -207,6 +225,7 @@ export const NetworkOptionsCard = forwardRef<NetworkOptionsCardHandle, NetworkOp
         </AccordionItem>
       </Accordion>
       <Dialog open={tagModalOpen} onOpenChange={setTagModalOpen}><DialogContent><DialogHeader><DialogTitle>Adicionar tag na fotografia</DialogTitle><DialogDescription>Define a pessoa e o slide onde a tag será aplicada.</DialogDescription></DialogHeader><div className="space-y-4"><div className="rounded-md border border-primary/30 bg-primary/5 p-3 text-sm text-muted-foreground flex gap-2"><Info className="h-4 w-4 text-primary shrink-0 mt-0.5" />Nesta versão, a tag é adicionada automaticamente ao centro da imagem.</div><Input value={photoTagUsername} onChange={(e) => setPhotoTagUsername(e.target.value)} placeholder="@username" />{mediaPreviewUrls.length > 1 && <Select value={photoTagSlide} onValueChange={setPhotoTagSlide}><SelectTrigger><SelectValue /></SelectTrigger><SelectContent>{mediaPreviewUrls.map((_, index) => <SelectItem key={index} value={String(index)}>Slide {index + 1}</SelectItem>)}</SelectContent></Select>}<Button type="button" onClick={addPhotoTagAtCenter}>Adicionar no centro</Button></div></DialogContent></Dialog>
+      <FirstCommentOptionsDialog open={!!commentTarget} options={commentOptions} onOpenChange={(open) => !open && setCommentTarget(null)} onSelect={(text) => { if (commentTarget) updateNetwork(commentTarget, { firstComment: text } as never); setCommentTarget(null); }} />
     </Card>
   );
 });
