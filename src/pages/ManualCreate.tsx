@@ -105,6 +105,8 @@ export default function ManualCreate() {
   const recoverPostId = searchParams.get('recover');
   const { instagram, linkedin, canPublish, refresh: refreshQuota, isUnlimited } = usePublishingQuota();
   const { preferences: aiPreferences } = useAiPreferences();
+  const { credits: aiCredits, refresh: refreshAiCredits } = useAICredits();
+  const { user } = useAuth();
   const [selectedFormats, setSelectedFormats] = useState<PostFormat[]>([]);
   const [caption, setCaption] = useState('');
   const [scheduledDate, setScheduledDate] = useState<Date>();
@@ -122,8 +124,14 @@ export default function ManualCreate() {
   const [networkOptions, setNetworkOptions] = useState(createDefaultNetworkOptions);
   const [rawTranscription, setRawTranscription] = useState('');
   const [aiMetadata, setAiMetadata] = useState<Partial<EditorialAssistantResult> | null>(null);
-  const [aiAssistantLoading, setAiAssistantLoading] = useState(false);
+  const [aiAssistantStatus, setAiAssistantStatus] = useState<AiUploadAssistantStatus>('idle');
   const [aiAssistantDismissed, setAiAssistantDismissed] = useState(false);
+  const [aiAssistantError, setAiAssistantError] = useState<string | null>(null);
+  const [aiAssistantRetries, setAiAssistantRetries] = useState(0);
+  const [assistantVideoDuration, setAssistantVideoDuration] = useState<number | null>(null);
+  const [assistantGeneratedAt, setAssistantGeneratedAt] = useState<string | null>(null);
+  const [aiGeneratedEdited, setAiGeneratedEdited] = useState<Record<string, boolean>>({});
+  const [altText, setAltText] = useState('');
   const [rewriteTone, setRewriteTone] = useState<CaptionRewriteTone>('neutro');
   const [rewriteLoading, setRewriteLoading] = useState(false);
   const [rewritePreview, setRewritePreview] = useState<{
