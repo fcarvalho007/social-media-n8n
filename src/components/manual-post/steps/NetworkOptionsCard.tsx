@@ -10,6 +10,7 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import { Drawer, DrawerContent, DrawerHeader, DrawerTitle } from '@/components/ui/drawer';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
@@ -82,6 +83,7 @@ export const NetworkOptionsCard = forwardRef<NetworkOptionsCardHandle, NetworkOp
   const [tagModalOpen, setTagModalOpen] = useState(false);
   const [photoTagUsername, setPhotoTagUsername] = useState('');
   const [photoTagSlide, setPhotoTagSlide] = useState('0');
+  const [photoTagPoint, setPhotoTagPoint] = useState({ x: 0.5, y: 0.5 });
   const [commentOptions, setCommentOptions] = useState<FirstCommentOption[]>([]);
   const [commentTarget, setCommentTarget] = useState<'instagram' | 'linkedin' | 'facebook' | null>(null);
   const fieldRefs = useRef<Record<string, HTMLElement | null>>({});
@@ -166,10 +168,19 @@ export const NetworkOptionsCard = forwardRef<NetworkOptionsCardHandle, NetworkOp
     const username = photoTagUsername.trim();
     if (!usernameRegex.test(username)) return;
     updateNetwork('instagram', {
-      photoTags: [...(networkOptions.instagram?.photoTags ?? []), { username, x: 0.5, y: 0.5, slideIndex: Number(photoTagSlide) || 0 }],
+      photoTags: [...(networkOptions.instagram?.photoTags ?? []), { username, x: photoTagPoint.x, y: photoTagPoint.y, slideIndex: Number(photoTagSlide) || 0 }],
     });
     setPhotoTagUsername('');
+    setPhotoTagPoint({ x: 0.5, y: 0.5 });
     setTagModalOpen(false);
+  };
+
+  const handlePhotoTagTap = (event: React.PointerEvent<HTMLDivElement>) => {
+    const rect = event.currentTarget.getBoundingClientRect();
+    setPhotoTagPoint({
+      x: Math.min(1, Math.max(0, (event.clientX - rect.left) / rect.width)),
+      y: Math.min(1, Math.max(0, (event.clientY - rect.top) / rect.height)),
+    });
   };
 
   const removeInstagramTag = (index: number) => {
@@ -188,14 +199,14 @@ export const NetworkOptionsCard = forwardRef<NetworkOptionsCardHandle, NetworkOp
         <TabsList className="h-auto w-full justify-start gap-1 overflow-x-auto p-1 scrollbar-hide sm:flex-wrap"><TabsTrigger value="feed">Feed</TabsTrigger><TabsTrigger value="story">Story</TabsTrigger><TabsTrigger value="reel">Reel</TabsTrigger><TabsTrigger value="carousel">Carousel</TabsTrigger></TabsList>
       </Tabs>
       {renderFirstComment('instagram')}
-      <div className="manual-field-stack">
+        <div className="manual-field-stack">
         <Label className="manual-field-label">Colaboradores (máx. 3)</Label>
-        <div className="flex gap-2"><Input className="manual-input-radius" ref={setFieldRef(fieldKey('instagram', 'collaborators')) as React.Ref<HTMLInputElement>} value={draftCollaborator} onChange={(e) => setDraftCollaborator(e.target.value)} placeholder="@username" disabled={disabled || (networkOptions.instagram?.collaborators?.length ?? 0) >= 3} onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); addCollaborator(); } }} /><Button type="button" className="h-10" onClick={addCollaborator} disabled={disabled}>Adicionar</Button></div>
-        <div className="flex flex-wrap gap-2">{(networkOptions.instagram?.collaborators ?? []).map((name) => <Badge key={name} variant="secondary" className="manual-chip manual-enter gap-1">{name}<button type="button" aria-label={`Remover ${name}`} onClick={() => updateNetwork('instagram', { collaborators: (networkOptions.instagram?.collaborators ?? []).filter(n => n !== name) })}>×</button></Badge>)}</div>
+        <div className="flex gap-2"><Input className="manual-input-radius manual-scroll-anchor min-h-11" ref={setFieldRef(fieldKey('instagram', 'collaborators')) as React.Ref<HTMLInputElement>} value={draftCollaborator} onChange={(e) => setDraftCollaborator(e.target.value)} placeholder="@username" autoCapitalize="none" autoCorrect="off" disabled={disabled || (networkOptions.instagram?.collaborators?.length ?? 0) >= 3} onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); addCollaborator(); } }} /><Button type="button" className="manual-touch-target h-11" onClick={addCollaborator} disabled={disabled}>Adicionar</Button></div>
+        <div className="flex flex-wrap gap-2">{(networkOptions.instagram?.collaborators ?? []).map((name) => <Badge key={name} variant="secondary" className="manual-chip manual-enter min-h-11 gap-2 px-3 sm:min-h-0">{name}<button type="button" className="manual-touch-target -mr-2 inline-flex items-center justify-center sm:min-h-0 sm:min-w-0" aria-label={`Remover ${name}`} onClick={() => updateNetwork('instagram', { collaborators: (networkOptions.instagram?.collaborators ?? []).filter(n => n !== name) })}>×</button></Badge>)}</div>
       </div>
       <div className="space-y-2">
-        <Button type="button" variant="outline" size="sm" onClick={() => setTagModalOpen(true)} disabled={disabled}><Plus className="h-4 w-4 mr-1" />Adicionar tag</Button>
-        {(networkOptions.instagram?.photoTags ?? []).map((tag, index) => <div key={`${tag.username}-${index}`} className="flex items-center justify-between rounded-md border p-2 text-sm"><span>{tag.username} · slide {tag.slideIndex + 1} · {tag.x.toFixed(2)}, {tag.y.toFixed(2)}</span><Button type="button" variant="ghost" size="icon" onClick={() => removeInstagramTag(index)}><Trash2 className="h-4 w-4" /></Button></div>)}
+        <Button type="button" variant="outline" size="sm" className="manual-touch-target h-11" onClick={() => setTagModalOpen(true)} disabled={disabled}><Plus className="h-4 w-4 mr-1" />Adicionar tag</Button>
+        {(networkOptions.instagram?.photoTags ?? []).map((tag, index) => <div key={`${tag.username}-${index}`} className="flex min-h-11 items-center justify-between rounded-md border p-2 text-sm"><span>{tag.username} · slide {tag.slideIndex + 1} · {tag.x.toFixed(2)}, {tag.y.toFixed(2)}</span><Button type="button" variant="ghost" size="icon" className="manual-touch-target" onClick={() => removeInstagramTag(index)}><Trash2 className="h-4 w-4" /></Button></div>)}
       </div>
     </div>
   );
