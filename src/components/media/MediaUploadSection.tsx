@@ -59,7 +59,6 @@ export function MediaUploadSection({
     e.preventDefault();
     e.stopPropagation();
     setIsDragging(false);
-    if (isTouchDevice) return;
   }, []);
 
   const handleDrop = useCallback((e: React.DragEvent) => {
@@ -77,7 +76,7 @@ export function MediaUploadSection({
 
       onFileUpload({ target: input, currentTarget: input } as React.ChangeEvent<HTMLInputElement>);
     }
-  }, [isTouchDevice, onFileUpload]);
+  }, [onFileUpload]);
 
   const mobileUploadOptions = [
     { id: 'media-upload-camera', label: 'Câmara', accept: 'image/*,video/*', capture: 'environment' as const },
