@@ -583,18 +583,21 @@ export default function ManualCreate() {
       setAiAssistantStatus('transcribing');
       setAiAssistantError(null);
       const mediaUrl = await uploadAssistantMedia(file);
-      const transcription = rawTranscription || await aiService.transcribeMedia(mediaUrl, {
+      const transcriptionResult = rawTranscription || await aiService.transcribeMedia(mediaUrl, {
         language: 'pt-PT',
         feature: 'upload_assistant_transcription',
         creditCostOverride: 2,
+        includeSegments: true,
       });
+      const transcription = typeof transcriptionResult === 'string' ? transcriptionResult : transcriptionResult.text;
+      const transcriptionSegments = typeof transcriptionResult === 'string' ? aiMetadata?.transcription_segments : transcriptionResult.segments;
 
       if (!transcription || transcription.trim().length < 20) {
         throw new Error('Não consegui perceber o áudio do vídeo. Queres escrever a legenda manualmente?');
       }
 
       setRawTranscription(transcription);
-      setAiMetadata(prev => ({ ...(prev ?? {}), raw_transcription: transcription, upload_assistant: { status: 'transcribed' } }));
+      setAiMetadata(prev => ({ ...(prev ?? {}), raw_transcription: transcription, transcription_segments: transcriptionSegments, upload_assistant: { status: 'transcribed' } }));
       setAiAssistantStatus('generating');
 
       const systemPrompt = `És um assistente editorial para redes sociais. Recebes a transcrição de um vídeo e devolves JSON estruturado com campos prontos para publicação. Escreves em português de Portugal, tom ${aiPreferences.default_tone}. Respeitas limites de caracteres de cada rede. Nunca inventas factos que não estão na transcrição.`;
@@ -633,6 +636,7 @@ export default function ManualCreate() {
         ...(prev ?? {}),
         ...result,
         raw_transcription: transcription,
+        transcription_segments: transcriptionSegments,
         upload_assistant: {
           status: 'done',
           generated_at: generatedAt,
