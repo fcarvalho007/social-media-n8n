@@ -1522,6 +1522,7 @@ export default function ManualCreate() {
           hasUnsavedChanges={hasUnsavedChanges}
         />
       </div>
+      {/* /manual-create-grid */}
 
       {/* Barra fixa global de acções — Prompt 3/4 */}
       <PublishActionsCard
