@@ -1056,14 +1056,24 @@ export default function ManualCreate() {
 
   const [mobilePreviewState, setMobilePreviewState] = useState<'closed' | 'peek' | 'expanded'>('closed');
   const [previewHasUpdates, setPreviewHasUpdates] = useState(false);
+  const previewSignatureRef = useRef<string | null>(null);
   const mobilePreviewOpen = mobilePreviewState !== 'closed';
   const activePreviewFormat = (activePreviewTab || selectedFormats[0]) as PostFormat | undefined;
-  const activePreviewLabel = activePreviewFormat ? `${getNetworkFromFormat(activePreviewFormat)} · ${activePreviewFormat.replace(/_/g, ' ')}` : 'Pré-visualização';
+  const activePreviewLabel = activePreviewFormat ? `${getNetworkFromFormat(activePreviewFormat)} · ${getFormatConfig(activePreviewFormat)?.label ?? 'Formato'}` : 'Pré-visualização';
+  const activePreviewCaption = activePreviewFormat ? (useSeparateCaptions ? networkCaptions[getNetworkFromFormat(activePreviewFormat)] || caption : caption) : caption;
+  const mobilePreviewSummary = selectedFormats.length > 0
+    ? `${mediaFiles.length} ${mediaFiles.length === 1 ? 'ficheiro' : 'ficheiros'} · ${activePreviewCaption.length} caracteres · ${!scheduleAsap && scheduledDate ? `Agendado ${time}` : 'Imediato'}`
+    : 'Seleciona uma rede para pré-visualizar.';
 
   useEffect(() => {
-    if (mobilePreviewOpen) return;
+    const signature = JSON.stringify({ caption, networkCaptions, networkOptions, selectedFormats, media: getMediaSignature(mediaFiles), scheduledDate: scheduledDate?.toISOString(), scheduleAsap, time });
+    if (previewSignatureRef.current === null) {
+      previewSignatureRef.current = signature;
+      return;
+    }
+    if (mobilePreviewOpen || signature === previewSignatureRef.current) return;
     setPreviewHasUpdates(true);
-  }, [caption, networkCaptions, networkOptions, selectedFormats, mediaPreviewUrls, scheduledDate, scheduleAsap, time, mobilePreviewOpen]);
+  }, [caption, networkCaptions, networkOptions, selectedFormats, mediaFiles, scheduledDate, scheduleAsap, time, mobilePreviewOpen]);
 
   const openMobilePreview = (state: 'peek' | 'expanded' = 'expanded') => {
     setMobilePreviewState(state);
