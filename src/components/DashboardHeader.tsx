@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Menu, ChevronRight, User, Settings, Search, Users, FileText, AlertTriangle, History } from 'lucide-react';
+import { Menu, ChevronRight, Settings, Search, Users, FileText, AlertTriangle, History, Sparkles } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { useSidebar } from '@/components/ui/sidebar';
 import { useLocation, useSearchParams, useNavigate } from 'react-router-dom';
@@ -16,6 +16,7 @@ import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import { QuotaBadge } from '@/components/QuotaBadge';
 import { GlobalSearch } from '@/components/GlobalSearch';
 import { NotificationBell } from '@/components/NotificationBell';
+import { AICreditsBadge } from '@/components/ai/AICreditsBadge';
 
 export function DashboardHeader() {
   const { setOpen, toggleSidebar } = useSidebar();
@@ -144,6 +145,9 @@ export function DashboardHeader() {
           <div className="hidden xs:block">
             <QuotaBadge />
           </div>
+          <div className="hidden sm:block">
+            <AICreditsBadge />
+          </div>
           
           {/* Settings Menu */}
           <DropdownMenu>
@@ -163,6 +167,10 @@ export function DashboardHeader() {
               <DropdownMenuItem onClick={() => navigate('/quota')}>
                 <Settings className="mr-2 h-4 w-4" />
                 <span>Configurações de Quota</span>
+              </DropdownMenuItem>
+              <DropdownMenuItem onClick={() => navigate('/ai-settings')}>
+                <Sparkles className="mr-2 h-4 w-4" />
+                <span>Preferências de IA</span>
               </DropdownMenuItem>
               <DropdownMenuItem onClick={() => navigate('/users')}>
                 <Users className="mr-2 h-4 w-4" />

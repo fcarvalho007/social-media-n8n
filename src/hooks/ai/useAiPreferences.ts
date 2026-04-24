@@ -5,8 +5,11 @@ import { AiPreferences } from '@/types/aiEditorial';
 const defaults: AiPreferences = {
   preferred_language: 'pt-PT',
   default_tone: 'neutro',
+  preferred_model: 'fast',
   brand_hashtags: [],
   insights_enabled: true,
+  auto_alt_text: false,
+  auto_first_comment: false,
   muted_insight_types: [],
   dismissed_insights: {},
 };
