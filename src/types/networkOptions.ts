@@ -79,6 +79,7 @@ export type NetworkOptionField =
   | 'youtubeCategory'
   | 'instagramFormatVariant'
   | 'instagramPhotoTags'
+  | 'instagramStoryLink'
   | 'facebookFormatVariant'
   | 'googleBusinessCta';
 
