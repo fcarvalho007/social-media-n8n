@@ -1,6 +1,6 @@
 import { useState, useRef, useMemo, useCallback, useEffect } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
-import { PostFormat, getNetworkFromFormat } from '@/types/social';
+import { PostFormat, getNetworkFromFormat, getFormatConfig } from '@/types/social';
 import { usePublishingQuota } from '@/hooks/usePublishingQuota';
 import { CompactModeBadge } from '@/components/CompactModeBadge';
 import { DevHelper } from '@/components/DevHelper';
@@ -10,6 +10,7 @@ import { toast } from 'sonner';
 import { ArrowLeft, Eye, Maximize2, Smartphone } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { StepProgress } from '@/components/manual-post/StepProgress';
+import { ValidationSidebar } from '@/components/manual-post/ValidationSidebar';
 import { useAutoSave } from '@/hooks/useAutoSave';
 import { MediaValidationResult } from '@/lib/mediaValidation';
 import { renderFormatPreview, getNetworkIcon } from '@/lib/manual-create/previewRenderer';
