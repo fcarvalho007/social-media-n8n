@@ -728,6 +728,41 @@ export default function ManualCreate() {
     toast.success('Versão reescrita aplicada.');
   }, [rewritePreview, useSeparateCaptions]);
 
+  const toggleHashtag = useCallback((tag: string) => {
+    const normalized = normalizeSuggestedHashtag(tag);
+    const applyToText = (text: string) => {
+      const existing = getHashtagsFromText(text).map(item => item.toLowerCase());
+      if (existing.includes(normalized.toLowerCase())) {
+        return text.replace(new RegExp(`\\s*${normalized.replace('#', '#')}(?=\\s|$)`, 'giu'), '').trim();
+      }
+      return `${text.trim()}${text.trim() ? ' ' : ''}${normalized}`;
+    };
+    const activeNetwork = useSeparateCaptions ? captionEditorRef.current?.getActiveNetwork() : undefined;
+    if (useSeparateCaptions && activeNetwork) {
+      setNetworkCaptions(prev => ({ ...prev, [activeNetwork]: applyToText(prev[activeNetwork] || caption) }));
+    } else {
+      setCaption(prev => applyToText(prev));
+    }
+    setAiGeneratedEdited(prev => ({ ...prev, hashtags: true }));
+  }, [caption, useSeparateCaptions]);
+
+  const regenerateHashtags = useCallback(async () => {
+    const activeNetwork = useSeparateCaptions ? captionEditorRef.current?.getActiveNetwork() ?? selectedNetworks[0] : selectedNetworks[0];
+    try {
+      setHashtagsLoading(true);
+      const result = await aiService.generateHashtags({ caption, transcription: rawTranscription || undefined, networks: selectedNetworks, brandHashtags: aiPreferences.brand_hashtags, creditCostOverride: 1 });
+      const next = (result.hashtags ?? []).map(applySafety).filter(item => item.tag);
+      setHashtagSuggestions(next);
+      setAiMetadata(prev => ({ ...(prev ?? {}), hashtag_assistant: { hashtags: next, selectedTags: result.selectedTags ?? [], generated_at: result.generated_at ?? new Date().toISOString() } }));
+      await refreshAiCredits();
+      toast.success(`Hashtags atualizadas para ${activeNetwork || 'a publicação'}.`);
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : 'Não foi possível gerar hashtags.');
+    } finally {
+      setHashtagsLoading(false);
+    }
+  }, [aiPreferences.brand_hashtags, caption, rawTranscription, refreshAiCredits, selectedNetworks, useSeparateCaptions]);
+
   // Render preview delegated to extracted helper (Phase 4)
   const renderPreview = useCallback(
     (format: PostFormat) => renderFormatPreview(format, { caption, networkCaptions, useSeparateCaptions, mediaFiles, mediaPreviewUrls, mediaItems }),
