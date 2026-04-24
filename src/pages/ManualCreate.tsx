@@ -615,6 +615,13 @@ export default function ManualCreate() {
             "transition-all duration-300 ease-out overflow-hidden space-y-3 sm:space-y-6",
             showStep3 ? "opacity-100" : "opacity-0 max-h-0"
           )}>
+            <AiUploadAssistantCard
+              visible={showAiUploadAssistant || aiAssistantLoading}
+              loading={aiAssistantLoading}
+              onDismiss={() => setAiAssistantDismissed(true)}
+              onTranscribe={handleAiTranscribe}
+            />
+
             <Step3CaptionCard
               ref={captionEditorRef}
               caption={caption}
