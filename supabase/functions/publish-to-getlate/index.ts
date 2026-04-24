@@ -1075,79 +1075,8 @@ Deno.serve(async (req) => {
     console.error('[publish-to-getlate] Error:', error);
     
     const errorMessage = error instanceof Error ? error.message : 'Erro ao publicar. Tenta novamente.';
-    
-    // Classify error for better frontend display
-    const classifyPublishError = (msg: string): { code: string; source: string; isRetryable: boolean; suggestedAction: string } => {
-      const lower = msg.toLowerCase();
-      
-      // Rate limit errors
-      if (lower.includes('too many actions') || lower.includes('rate limit') || lower.includes('429') || lower.includes('please wait') || lower.includes('media container')) {
-        return { code: 'RATE_LIMIT', source: 'platform', isRetryable: true, suggestedAction: 'Aguarda 15-30 minutos e tenta novamente' };
-      }
-      
-      // Account/permission errors (403, accounts not belonging to user)
-      if (lower.includes('403') || lower.includes('forbidden') || lower.includes('do not belong') || lower.includes('permission denied')) {
-        return { code: 'ACCOUNT_ERROR', source: 'getlate', isRetryable: false, suggestedAction: 'Reconecta a conta no Getlate.dev' };
-      }
-      
-      // Token/OAuth errors
-      if (lower.includes('token') || lower.includes('oauth') || lower.includes('session') || lower.includes('expired') || lower.includes('code 190')) {
-        return { code: 'TOKEN_EXPIRED', source: 'platform', isRetryable: false, suggestedAction: 'Reconecta a conta no Getlate.dev' };
-      }
-      
-      // Auth errors
-      if (lower.includes('unauthorized') || lower.includes('401')) {
-        return { code: 'AUTH_ERROR', source: 'internal', isRetryable: false, suggestedAction: 'Faz login novamente' };
-      }
-      
-      // Caption/content errors
-      if (lower.includes('caption') || lower.includes('content') || lower.includes('text') || lower.includes('character') || lower.includes('hashtag') || lower.includes('link')) {
-        return { code: 'CAPTION_ERROR', source: 'platform', isRetryable: false, suggestedAction: 'Revê a legenda e remove caracteres especiais ou links inválidos' };
-      }
-      
-      // Media/dimension errors
-      if (lower.includes('media') || lower.includes('format') || lower.includes('size') || lower.includes('aspect') || lower.includes('ratio') || 
-          lower.includes('unsupported') || lower.includes('width') || lower.includes('height') || lower.includes('resize') || 
-          lower.includes('dimension') || lower.includes('resolution') || lower.includes('pixel') || lower.includes('image') || lower.includes('allowed range')) {
-        return { code: 'MEDIA_ERROR', source: 'platform', isRetryable: false, suggestedAction: 'Redimensiona para proporção 4:5 (1080x1350px)' };
-      }
-      
-      // Quota errors
-      if (lower.includes('quota') || lower.includes('limit exceeded') || lower.includes('upload limit')) {
-        return { code: 'QUOTA_EXCEEDED', source: 'getlate', isRetryable: false, suggestedAction: 'Aguarda o reset de quota ou faz upgrade do plano' };
-      }
-      
-      // Network/connectivity errors
-      if (lower.includes('network') || lower.includes('timeout') || lower.includes('connection') || lower.includes('fetch') || lower.includes('econnrefused')) {
-        return { code: 'NETWORK_ERROR', source: 'internal', isRetryable: true, suggestedAction: 'Verifica a ligação à internet e tenta novamente' };
-      }
-      
-      // API/server errors
-      if (lower.includes('500') || lower.includes('502') || lower.includes('503') || lower.includes('internal server')) {
-        return { code: 'API_ERROR', source: 'getlate', isRetryable: true, suggestedAction: 'O servidor está indisponível. Tenta novamente em alguns minutos' };
-      }
-      
-      return { code: 'UNKNOWN', source: 'unknown', isRetryable: true, suggestedAction: 'Tenta novamente ou contacta o suporte' };
-    };
-    
-    const errorClassification = classifyPublishError(errorMessage);
-    
-    return new Response(
-      JSON.stringify({ 
-        success: false, 
-        error: {
-          message: errorMessage,
-          code: errorClassification.code,
-          source: errorClassification.source,
-          originalError: errorMessage,
-          isRetryable: errorClassification.isRetryable,
-          suggestedAction: errorClassification.suggestedAction,
-        }
-      }),
-      { 
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-        status: 500 
-      }
-    );
+    const classification = classifyPublishError(errorMessage);
+    const status = classification.code === 'AUTH_ERROR' ? 401 : classification.isRetryable ? 200 : 400;
+    return buildFailureResponse(errorMessage, status);
   }
 });
