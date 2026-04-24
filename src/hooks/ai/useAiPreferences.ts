@@ -30,8 +30,8 @@ export function useAiPreferences() {
         supabase.from('ai_preferences' as any).select('*').eq('user_id', user.id).maybeSingle(),
         supabase.from('user_brand_hashtags' as any).select('hashtag').eq('user_id', user.id).limit(5),
       ]);
-      if (!cancelled && data) {
-        setPreferences({ ...defaults, ...(data as any), brand_hashtags: (brandRows as any[] | null)?.map(row => row.hashtag) ?? (data as any).brand_hashtags ?? [] });
+      if (!cancelled) {
+        setPreferences({ ...defaults, ...((data as any) ?? {}), brand_hashtags: (brandRows as any[] | null)?.map(row => row.hashtag) ?? (data as any)?.brand_hashtags ?? [] });
       }
       setLoading(false);
     }
