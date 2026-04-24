@@ -45,6 +45,7 @@ import { CaptionRewritePreviewDialog } from '@/components/manual-post/ai/Caption
 import { HashtagSuggestions } from '@/components/manual-post/ai/HashtagSuggestions';
 import { EditorialInsightBanner } from '@/components/manual-post/ai/EditorialInsightBanner';
 import { VideoToolsReviewDialog } from '@/components/manual-post/ai/VideoToolsReviewDialog';
+import type { ToneAction } from '@/components/manual-post/ai/CaptionToneToolbar';
 import type { AccountInsight, CaptionRewriteMetadata, CaptionRewriteTone, EditorialAssistantResult, SuggestedHashtag } from '@/types/aiEditorial';
 import { supabase } from '@/integrations/supabase/client';
 import { useAiPreferences } from '@/hooks/ai/useAiPreferences';
@@ -156,8 +157,7 @@ export default function ManualCreate() {
   const [altText, setAltText] = useState('');
   const [altTexts, setAltTexts] = useState<Record<string, string>>({});
   const [altTextLoadingKey, setAltTextLoadingKey] = useState<string | null>(null);
-  const [rewriteTone, setRewriteTone] = useState<CaptionRewriteTone>('neutro');
-  const [rewriteLoading, setRewriteLoading] = useState(false);
+  const [rewriteLoading, setRewriteLoading] = useState<ToneAction | null>(null);
   const [rewriteHistory, setRewriteHistory] = useState<Array<{ network?: ReturnType<typeof getNetworkFromFormat>; text: string }>>([]);
   const [hashtagSuggestions, setHashtagSuggestions] = useState<SuggestedHashtag[]>([]);
   const [hashtagsLoading, setHashtagsLoading] = useState(false);
