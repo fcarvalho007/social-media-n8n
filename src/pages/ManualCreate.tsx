@@ -569,6 +569,56 @@ export default function ManualCreate() {
         ? 'complete'
         : 'inactive';
 
+  // ── Contagem de secções concluídas para a barra global ────────────────
+  const completedSections = [
+    networksState,
+    mediaState,
+    captionState,
+    optionsState,
+    scheduleState,
+  ].filter((s) => s === 'complete').length;
+
+  // ── Modo guiado: transições only-forward ──────────────────────────────
+  // Cada transição dispara uma única vez por sessão (Set ref).
+  // 1 → 2 (Networks → Media)
+  useEffect(() => {
+    if (selectedFormats.length > 0 && !guidedFiredRef.current.has('media')) {
+      guidedFiredRef.current.add('media');
+      guided.transitionTo('media', () => activate('media'));
+    }
+  }, [selectedFormats.length, guided, activate]);
+
+  // 2 → 3 (Media → Caption)
+  useEffect(() => {
+    if (mediaFiles.length > 0 && !guidedFiredRef.current.has('caption')) {
+      guidedFiredRef.current.add('caption');
+      guided.transitionTo('caption', () => activate('caption'));
+    }
+  }, [mediaFiles.length, guided, activate]);
+
+  // 3 → 4 (Caption → Options) com debounce de 1.5s para evitar disparar
+  // logo no primeiro carácter.
+  useEffect(() => {
+    if (hasAnyCaption && !guidedFiredRef.current.has('options')) {
+      const timer = window.setTimeout(() => {
+        if (!guidedFiredRef.current.has('options')) {
+          guidedFiredRef.current.add('options');
+          guided.transitionTo('network-options', () => activate('options'));
+        }
+      }, 1500);
+      return () => window.clearTimeout(timer);
+    }
+  }, [hasAnyCaption, guided, activate]);
+
+  // 4 → 5 (Options → Schedule)
+  useEffect(() => {
+    if (hasOptionsConfigured && !guidedFiredRef.current.has('schedule')) {
+      guidedFiredRef.current.add('schedule');
+      guided.transitionTo('schedule', () => activate('schedule'));
+    }
+  }, [hasOptionsConfigured, guided, activate]);
+
+
   // Note: legacy `getValidationErrors()`/`hasErrors` removed.
   // The smart-validation panel (`smartValidation.canPublish`) is now the
   // single source of truth for blocking publication. Coverage:
