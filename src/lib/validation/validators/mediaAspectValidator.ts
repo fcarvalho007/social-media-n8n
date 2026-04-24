@@ -15,6 +15,7 @@ export async function mediaAspectValidator(
   const issues: ValidationIssue[] = [];
   const networks = new Set(ctx.selectedFormats.map(f => getNetworkFromFormat(f)));
   if (!networks.has('instagram')) return issues;
+  const storyLinkSelected = ctx.selectedFormats.includes('instagram_story_link');
 
   const images = ctx.mediaFiles.filter(f => f.type.startsWith('image/'));
   if (images.length === 0) return issues;
@@ -26,6 +27,22 @@ export async function mediaAspectValidator(
     analysis = await analyzeFilesForInstagram(images);
   } catch (err) {
     console.warn('[mediaAspectValidator] analysis failed', err);
+    return issues;
+  }
+
+  if (storyLinkSelected) {
+    const nonStoryRatio = analysis.results.filter(result => Math.abs(result.aspectRatio - 9 / 16) > 0.02);
+    if (nonStoryRatio.length > 0) {
+      issues.push({
+        id: `media:instagram-story-link:aspect:${nonStoryRatio.map(item => item.file.name).join(',')}`,
+        severity: 'warning',
+        category: 'media',
+        platform: 'instagram',
+        format: 'instagram_story_link',
+        title: 'Story fora do rácio 9:16',
+        description: 'O Instagram pode cortar a média automaticamente. Para maior controlo, usa uma imagem ou vídeo vertical 9:16.',
+      });
+    }
     return issues;
   }
 
