@@ -1,152 +1,121 @@
-# Plano de execução — sequência única sem paragens
+## 🎯 Objectivo
 
-Executar 3 fases em cadeia, com `tsc --noEmit` no fim. Sem paragens intermédias para confirmação — só reporto no fim.
+Fechar os 2 itens em falta do Prompt 3/4:
 
----
+1. Barra fixa global de acções com contador "X/5" e estado de erro
+2. Toggle "Modo guiado" + integração de `transitionTo` (só para a frente)
 
-## Fase 1 — Lote B-bis (refinamentos alt-text)
-
-### 1.1 `src/lib/altTextSupport.ts` — fallback defensivo
-No `else` do loop, garantir que rede desconhecida não produz `undefined`:
-```ts
-unsupportedLabels.push(NETWORK_LABELS[getNetworkFromFormat(format)] ?? format);
-```
-E o mesmo no ramo dos `supportedNetworks` por simetria.
-
-### 1.2 `src/components/manual-post/ai/AltTextPanel.tsx` — acessibilidade
-- Adicionar `id="alt-text-microcopy"` ao `<p>` que mostra o microtexto.
-- Adicionar `aria-describedby={microcopy ? 'alt-text-microcopy' : undefined}` ao `Textarea`.
-
-### 1.3 `src/lib/altTextSupport.test.ts` (novo) — testes unitários
-8 casos cobrindo todas as branches:
-1. `[]` → `hasSupported: false, microcopy: null`
-2. `['instagram_image']` → `microcopy: null` (todas suportam)
-3. `['instagram_stories']` → `hasSupported: false`
-4. `['instagram_image', 'tiktok_video']` → `"Usado em Instagram. Ignorado em TikTok."`
-5. `['instagram_image', 'linkedin_post', 'instagram_stories']` → `"Usado em Instagram e LinkedIn. Ignorado em Stories."`
-6. `['instagram_image', 'linkedin_post', 'instagram_stories', 'tiktok_video']` → ambos lados com 2 itens
-7. `['instagram_image', 'linkedin_post', 'facebook_image']` + 3 não-suportados → colapsa para "3 redes" do lado dos ignorados
-8. `['instagram_image', 'instagram_carousel']` (rede duplicada) → deduplica para "Instagram"
+E validar (já confirmado) que `SectionCard` aplica `opacity-65` em estado inactive.
 
 ---
 
-## Fase 2 — Lote A-bis #2 (validação YouTube por tag)
+## 📦 Ficheiros a editar
 
-### 2.1 `src/lib/validation/validators/networkOptionsValidator.ts`
-Adicionar regra dentro do bloco `if (networks.has('youtube'))` — depois da regra existente de 500 caracteres totais:
-```ts
-(youtube?.tags ?? []).forEach((tag, idx) => {
-  if (tag.length > 100) {
-    issues.push({
-      id: `network-options:youtube:tag-too-long:${idx}`,
-      severity: 'error',
-      category: 'platform',
-      platform: 'youtube',
-      title: 'Tag YouTube demasiado longa',
-      description: `A tag «${tag.slice(0, 30)}${tag.length > 30 ? '…' : ''}» tem ${tag.length}/100 caracteres.`,
-      autoFixable: !!ctx.fixHelpers?.focusNetworkOption,
-      fixLabel: 'Editar tags',
-      fixAction: () => ctx.fixHelpers?.focusNetworkOption?.('youtube', 'youtubeTags'),
-    });
-  }
-});
-```
+### 1. `src/components/manual-post/steps/PublishActionsCard.tsx` — refactor
+- **Adicionar props opcionais** (não-breaking):
+  ```ts
+  completedSteps?: number;
+  totalSteps?: number;          // default 5
+  fixedBottom?: boolean;
+  hasErrors?: boolean;
+  onShowValidationIssues?: () => void;
+  guidedEnabled?: boolean;
+  onToggleGuided?: () => void;
+  ```
+- Quando `fixedBottom !== true`: comportamento idêntico ao actual (zero regressão).
+- Quando `fixedBottom === true`:
+  - Wrapper passa de `<Card>` para `<div className="fixed inset-x-0 bottom-0 z-30 border-t border-border bg-background/95 backdrop-blur-md shadow-[0_-4px_24px_rgba(0,0,0,0.08)]">`.
+  - Container interno: `max-w-screen-xl mx-auto px-4 py-3 space-y-2`.
+  - **Linha de topo compacta**: contador esquerda (`✅ {completedSteps}/{totalSteps} secções completas`) + barra `Progress` fina (h-1) + `Switch` "Modo guiado" à direita.
+  - **Linha primária**: CTA principal (Publicar/Agendar) ocupa flex-1; botão "Submeter para aprovação" em variant="secondary" lado a lado em desktop, empilhado em mobile (`flex-col sm:flex-row`).
+  - **Linha secundária**: Guardar rascunho · Ver rascunhos · Ver calendário (links discretos).
+  - **Estado de erro** (`hasErrors=true`): CTA principal vira `bg-destructive text-destructive-foreground`, label "Corrige antes de publicar", `onClick → onShowValidationIssues` (em vez de `onPublish`).
+
+### 2. `src/pages/ManualCreate.tsx` — integração
+1. **Importar** `useGuidedFlow` e instanciar uma vez:
+   ```ts
+   const guided = useGuidedFlow();
+   ```
+2. **Calcular `completedSections`** a partir dos states já existentes:
+   ```ts
+   const completedSections = [
+     networksState, mediaState, captionState, optionsState, scheduleState
+   ].filter(s => s === 'complete').length;
+   ```
+3. **Passar props ao `PublishActionsCard`**:
+   ```tsx
+   fixedBottom
+   completedSteps={completedSections}
+   totalSteps={5}
+   hasErrors={selectedFormats.length > 0 && !smartValidation.canPublish}
+   onShowValidationIssues={() => setValidationSheetOpen(true)}
+   guidedEnabled={guided.enabled}
+   onToggleGuided={guided.toggle}
+   ```
+4. **Adicionar padding inferior** ao container principal (linha 1167) para evitar que a barra fixa tape conteúdo:
+   - `pb-40 sm:pb-32` no wrapper raiz.
+5. **Remover** o `MobileStickyActionBar` (passa a ser substituído pela barra global única) — **OU** mantê-lo apenas para a navegação entre passos do stepper. **Decisão segura**: manter o `MobileStickyActionBar` porque tem lógica de stepper distinta; a nova barra fica acima dele em mobile (`bottom-16`) ou substitui-o quando `currentStep >= 3`.
+   - **Plano conservador**: ajustar a barra fixa para `bottom-16 sm:bottom-0` em mobile para não colidir com `MobileStickyActionBar`.
+6. **Aplicar `transitionTo`** com `useRef<Set<string>>` para garantir disparo único por sessão:
+   ```ts
+   const guidedFiredRef = useRef<Set<string>>(new Set());
+
+   // 1 → 2 (Networks → Media)
+   useEffect(() => {
+     if (selectedFormats.length > 0 && !guidedFiredRef.current.has('media')) {
+       guidedFiredRef.current.add('media');
+       guided.transitionTo('section-media', () => activate('media'));
+     }
+   }, [selectedFormats.length]);
+
+   // 2 → 3 (Media → Caption)
+   useEffect(() => {
+     if (mediaFiles.length > 0 && !guidedFiredRef.current.has('caption')) {
+       guidedFiredRef.current.add('caption');
+       guided.transitionTo('section-caption', () => activate('caption'));
+     }
+   }, [mediaFiles.length]);
+
+   // 3 → 4 (Caption → Options) — debounce 1.5s
+   useEffect(() => {
+     if (hasAnyCaption && !guidedFiredRef.current.has('options')) {
+       const t = window.setTimeout(() => {
+         guidedFiredRef.current.add('options');
+         guided.transitionTo('section-options', () => activate('options'));
+       }, 1500);
+       return () => window.clearTimeout(t);
+     }
+   }, [hasAnyCaption]);
+
+   // 4 → 5 (Options → Schedule)
+   useEffect(() => {
+     if (hasOptionsConfigured && !guidedFiredRef.current.has('schedule')) {
+       guidedFiredRef.current.add('schedule');
+       guided.transitionTo('section-schedule', () => activate('schedule'));
+     }
+   }, [hasOptionsConfigured]);
+   ```
+   **Nota**: confirmar IDs reais usados nos `<SectionCard id="...">` (provavelmente `networks`, `media`, `caption`, `options`, `schedule` — sem prefixo). Será validado durante a implementação.
+
+### 3. Validação visual `SectionCard`
+✅ **Já confirmado** durante a inspecção: linhas 113-114 aplicam `opacity-65` em inactive e `opacity-100` em active/complete. **Nenhuma alteração necessária**.
+
+### 4. Toaster (Sonner)
+- Sonner default-renderiza em `top-right` → **sem colisão** com a barra inferior. Nenhuma alteração necessária.
 
 ---
 
-## Fase 3 — Lote C (refactor + metadata bar + drop area)
+## ✅ Checkpoint final do Prompt 3/4
 
-### 3.1 Auditar e completar toque mínimo 44×44
-Rever rapidamente e aplicar `min-h-11 min-w-11` (ou equivalentes `h-11 w-11`) em botões de acção primária dos seguintes ficheiros, **apenas onde faltar**:
-- `Step2MediaCard.tsx`
-- `Step3CaptionCard.tsx`
-- `Step3ScheduleCard.tsx`
-- `MobileStickyActionBar.tsx`
-- `NetworkOptionsCard.tsx`
+- ☐ `PublishActionsCard` suporta modo `fixedBottom` com contador X/5
+- ☐ Estado de erro mostra CTA vermelho "Corrige antes de publicar"
+- ☐ Toggle "Modo guiado" visível no header da barra, persistido em localStorage
+- ☐ `transitionTo` dispara apenas para a frente (Set ref garante uma vez por sessão)
+- ☐ Padding inferior do container evita conteúdo tapado
+- ☐ `tsc --noEmit` compila sem erros
+- ☐ Sem regressões em desktop ou mobile
 
-Não tocar em ícones secundários (e.g. trash dentro de chips) onde 32px é deliberado.
-
-### 3.2 Extracção de subcomponentes do `NetworkOptionsCard`
-Criar `src/components/manual-post/network-options/`:
-- `LinkedInOptions.tsx` — mentions (com handler `insertLinkedInMention` e microcopy "admin de organização" já existente) + first comment.
-- `YouTubeOptions.tsx` — categoria + título + descrição + tags + privacidade.
-- `InstagramOptions.tsx` — first comment + collaborators + photo tags + story link.
-- `FacebookOptions.tsx` — first comment.
-- `GoogleBusinessOptions.tsx` — CTA.
-
-`NetworkOptionsCard.tsx` torna-se orquestrador puro. **API pública (props + ref handle) inalterada** para não partir consumidor (`ManualCreate.tsx`).
-
-### 3.3 Metadata bar fixa no `PreviewPanel`
-Substituir o bloco `Metadata` actual (linhas 124-142) por uma barra **sticky no rodapé** apenas para a variante `desktop` (em mobile mantém-se inline porque já vai dentro de `Drawer` com scroll natural).
-
-Na variante `desktop`:
-```tsx
-<div className="sticky bottom-0 -mx-5 -mb-5 h-[52px] border-t border-border/40 bg-background/95 backdrop-blur px-5 flex items-center gap-4">
-  {selectedFormats.length === 0 ? (
-    <span className="text-sm text-muted-foreground">—</span>
-  ) : (
-    <>
-      <span className={cn('text-xs font-medium', activeCaption.length > activeLimit && 'text-destructive')}>
-        {activeCaption.length}/{activeLimit}
-      </span>
-      <span className="text-xs text-muted-foreground">{hashtagCount} hashtags</span>
-      <span className="text-xs text-muted-foreground truncate">{scheduleLabel}</span>
-      <span className="text-xs text-muted-foreground ml-auto">{mediaCount} {mediaCount === 1 ? 'ficheiro' : 'ficheiros'}</span>
-    </>
-  )}
-</div>
-```
-
-`activeLimit` derivado de `getNetworkFromFormat(activeFormat)`:
-- Instagram: 2200
-- LinkedIn: 3000
-- Facebook: 63206
-- X: 280
-- TikTok: 2200
-- YouTube: 5000 (descrição) — mas título é 100; usar 5000 por defeito
-- Google Business: 1500
-
-Helper inline (~10 linhas) ou novo `src/lib/manual-create/captionLimits.ts`. Vou inline por simplicidade.
-
-### 3.4 Drop area mobile polish
-Em `Step2MediaCard.tsx`, confirmar que a drop area:
-- Tem `min-h-[120px]` em mobile.
-- Texto pt-PT claro: "Toca para adicionar média ou arrasta aqui".
-- Ícone visível.
-
-Se já estiver bem, só validar e seguir.
-
----
-
-## Fase 4 — Validação final
-- `tsc --noEmit` (Lovable corre automático).
-- `vitest run src/lib/altTextSupport.test.ts` para confirmar que os 8 testes passam.
-- Reportar resumo consolidado.
-
----
-
-## Ficheiros tocados
-**Novos (6):**
-- `src/lib/altTextSupport.test.ts`
-- `src/components/manual-post/network-options/LinkedInOptions.tsx`
-- `src/components/manual-post/network-options/YouTubeOptions.tsx`
-- `src/components/manual-post/network-options/InstagramOptions.tsx`
-- `src/components/manual-post/network-options/FacebookOptions.tsx`
-- `src/components/manual-post/network-options/GoogleBusinessOptions.tsx`
-
-**Editados (~5):**
-- `src/lib/altTextSupport.ts`
-- `src/components/manual-post/ai/AltTextPanel.tsx`
-- `src/lib/validation/validators/networkOptionsValidator.ts`
-- `src/components/manual-post/steps/NetworkOptionsCard.tsx` (refactor extenso)
-- `src/components/manual-post/steps/PreviewPanel.tsx` (metadata bar)
-- `src/components/manual-post/steps/Step2MediaCard.tsx` (apenas se drop area precisar)
-
-## Riscos
-- **Refactor `NetworkOptionsCard`** é o ponto de risco. Mitigação: manter API pública (props + `NetworkOptionsCardHandle.focusField`) idêntica e mover apenas lógica interna.
-- **Metadata bar sticky** dentro de `Card`/`CardContent` requer que o pai não tenha `overflow-hidden`. O wrapper actual usa `overflow-auto` (linha 204), portanto sticky funciona contra o scroll do próprio painel.
-
-## Não fazer
-- Não tentar autocomplete de menções LinkedIn (Fase 2 futura).
-- Não mexer em espaçamentos/iconografia globais (outro prompt em standby).
-- Não avançar para Stories Fase B/C.
+## 🔒 Diferido para Prompt 4 (já acordado)
+- Detecção de "desistência" (toast 10s sem editar)
+- Atalhos de teclado
+- Screenshots comparativos
