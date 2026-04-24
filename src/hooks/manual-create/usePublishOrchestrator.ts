@@ -628,6 +628,9 @@ export function usePublishOrchestrator(params: OrchestratorParams) {
 
     const files = filesToPublish || mediaFiles;
 
+    const storyPrepared = await prepareStoryLink(files);
+    if (storyPrepared) return;
+
     // Pré-check de imagens grandes (>4MB) — apenas para Instagram
     const instagramSelected = selectedNetworks.includes('instagram');
     if (instagramSelected && !filesToPublish) {
@@ -668,7 +671,7 @@ export function usePublishOrchestrator(params: OrchestratorParams) {
     }
   }, [
     selectedFormats, smartValidation.canPublish, mediaFiles, selectedNetworks,
-    compression, quota, caption, scheduledDate, time, scheduleAsap,
+    compression, quota, caption, scheduledDate, time, scheduleAsap, prepareStoryLink,
     recoveredPostId, useSeparateCaptions, networkCaptions, networkOptions, rawTranscription, aiMetadata, executePublish,
     setValidationSheetOpen, onDuplicateDetected, consumeCurrentDraft,
   ]);
