@@ -1146,11 +1146,23 @@ export default function ManualCreate() {
         linkedin={linkedin}
       />
 
-      {/* Stepper - more compact on mobile */}
+      {/* Global progress bar (5 bolas) — Prompt 2/4 */}
       <div className="sm:px-0">
-        <StepProgress
+        <GlobalProgressBar
+          steps={[
+            { number: 1, label: 'Onde publicar' },
+            { number: 2, label: 'Média' },
+            { number: 3, label: 'Legenda' },
+            { number: 4, label: 'Opções por rede' },
+            { number: 5, label: 'Agendamento' },
+          ]}
           currentStep={currentStep}
           visitedSteps={visitedSteps}
+          completedSteps={[
+            ...(selectedFormats.length > 0 ? [1] : []),
+            ...(mediaFiles.length >= (mediaRequirements.minMedia || 1) ? [2] : []),
+            ...((caption?.trim().length ?? 0) > 0 ? [3] : []),
+          ]}
           onStepClick={goToStep}
         />
       </div>
