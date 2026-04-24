@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { getPrimaryMediaPreview, inferMediaType, normalizeMediaList, MediaPreviewType } from '@/lib/mediaPreview';
+import { filterConsumedDrafts } from '@/lib/drafts/reconciliation';
 
 export interface PendingItem {
   id: string;
@@ -69,10 +70,32 @@ export function usePendingContent(limit: number = 6): PendingContentResult {
         // Rascunhos
         const { data: drafts } = await supabase
           .from('posts_drafts')
-          .select('id, media_urls, media_items, caption, created_at, platform, format')
+          .select('id, user_id, media_urls, media_items, caption, created_at, platform, format')
           .eq('status', 'draft')
           .order('created_at', { ascending: false })
-          .limit(limit);
+          .limit(Math.max(limit * 3, 20));
+
+        const rawDrafts = drafts || [];
+        const captions = Array.from(new Set(rawDrafts.map((draft) => draft.caption?.trim()).filter(Boolean))) as string[];
+        const earliestDraftDate = rawDrafts.length > 0
+          ? rawDrafts.reduce((earliest, draft) => new Date(draft.created_at) < new Date(earliest) ? draft.created_at : earliest, rawDrafts[0].created_at)
+          : null;
+        const { data: matchingPosts } = earliestDraftDate && captions.length > 0
+          ? await supabase
+              .from('posts')
+              .select('id, user_id, caption, status, created_at')
+              .in('caption', captions)
+              .gte('created_at', new Date(new Date(earliestDraftDate).getTime() - 5 * 60 * 1000).toISOString())
+          : { data: [] };
+        const postIds = (matchingPosts || []).map((post) => post.id);
+        const { data: successfulAttempts } = postIds.length > 0
+          ? await supabase.from('publication_attempts').select('post_id').in('post_id', postIds).eq('status', 'success')
+          : { data: [] };
+        const visibleDrafts = filterConsumedDrafts(
+          rawDrafts,
+          matchingPosts || [],
+          new Set((successfulAttempts || []).map((attempt) => attempt.post_id).filter(Boolean)),
+        );
 
         if (!mounted) return;
 
@@ -129,7 +152,7 @@ export function usePendingContent(limit: number = 6): PendingContentResult {
           };
         });
 
-        const draftItems: PendingItem[] = (drafts || []).map((draft) => {
+        const draftItems: PendingItem[] = visibleDrafts.slice(0, limit).map((draft) => {
           const enrichedItems = normalizeMediaList(draft.media_items);
           const mediaItems = enrichedItems.length > 0 ? enrichedItems : normalizeMediaList(draft.media_urls);
           const primaryMedia = mediaItems[0] || getPrimaryMediaPreview([]);
@@ -163,7 +186,7 @@ export function usePendingContent(limit: number = 6): PendingContentResult {
 
         const approvalCount = (stories?.length || 0) + (posts?.length || 0);
         const scheduledTotal = scheduled?.length || 0;
-        const draftsTotal = drafts?.length || 0;
+        const draftsTotal = visibleDrafts.length;
         const total = approvalCount + scheduledTotal + draftsTotal;
 
         setItems(allItems);
