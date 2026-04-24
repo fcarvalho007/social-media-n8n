@@ -814,6 +814,56 @@ export default function ManualCreate() {
     }
   }, [aiPreferences.brand_hashtags, caption, rawTranscription, refreshAiCredits, selectedNetworks, useSeparateCaptions]);
 
+  const generateAltTextForMedia = useCallback(async (index: number) => {
+    const file = mediaFiles[index];
+    if (!file) return;
+    const key = `media-${index}`;
+    try {
+      setAltTextLoadingKey(key);
+      const sourceFile = file.type.startsWith('video/') ? await extractVideoFrame(file) : file;
+      const imageUrl = await toDataUrl(sourceFile);
+      const generated = await aiService.analyzeImage(imageUrl, 'Descreve objetivamente o que vês nesta imagem para acessibilidade (alt text). Máximo 125 caracteres. Em PT-PT. Sem introduções tipo "Esta imagem mostra". Direto ao conteúdo.');
+      const next = generated.slice(0, 125);
+      setAltTexts(prev => ({ ...prev, [key]: next }));
+      if (index === 0) setAltText(next);
+      setAiMetadata(prev => ({ ...(prev ?? {}), alt_text: index === 0 ? next : prev?.alt_text || '', alt_texts: { ...(prev?.alt_texts ?? {}), [key]: next }, generated_fields: { ...(prev?.generated_fields ?? {}), [`altText.${key}`]: { generated_at: new Date().toISOString(), edited: false } } }));
+      await refreshAiCredits();
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : 'Não foi possível gerar alt text.');
+    } finally {
+      setAltTextLoadingKey(null);
+    }
+  }, [mediaFiles, refreshAiCredits]);
+
+  const handleGenerateSrt = useCallback(() => {
+    const segments = aiMetadata?.transcription_segments ?? [];
+    if (!segments.length) {
+      toast.error('É preciso gerar uma transcrição com timestamps antes do SRT.');
+      return;
+    }
+    const srt = segments.map((segment, index) => `${index + 1}\n${formatSrtTime(segment.start)} --> ${formatSrtTime(segment.end)}\n${segment.text.trim()}\n`).join('\n');
+    const url = URL.createObjectURL(new Blob([srt], { type: 'text/plain;charset=utf-8' }));
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = 'legendas.srt';
+    link.click();
+    URL.revokeObjectURL(url);
+  }, [aiMetadata?.transcription_segments]);
+
+  const handleGenerateChapters = useCallback(async () => {
+    const result = await aiService.generateVideoChapters({ transcription: rawTranscription, segments: aiMetadata?.transcription_segments });
+    await navigator.clipboard.writeText((result.chapters ?? []).map(item => `${item.time} ${item.title}`).join('\n'));
+    await refreshAiCredits();
+    toast.success('Capítulos copiados.');
+  }, [aiMetadata?.transcription_segments, rawTranscription, refreshAiCredits]);
+
+  const handleExtractQuotes = useCallback(async () => {
+    const result = await aiService.extractVideoQuotes({ transcription: rawTranscription, segments: aiMetadata?.transcription_segments });
+    await navigator.clipboard.writeText((result.quotes ?? []).map(item => `${item.time} — ${item.text}`).join('\n'));
+    await refreshAiCredits();
+    toast.success('Frases copiadas.');
+  }, [aiMetadata?.transcription_segments, rawTranscription, refreshAiCredits]);
+
   // Render preview delegated to extracted helper (Phase 4)
   const renderPreview = useCallback(
     (format: PostFormat) => renderFormatPreview(format, { caption, networkCaptions, useSeparateCaptions, mediaFiles, mediaPreviewUrls, mediaItems }),
