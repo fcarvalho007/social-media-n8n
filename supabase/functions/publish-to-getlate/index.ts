@@ -225,6 +225,10 @@ interface GetlateValidatedResponse {
 }
 
 function extractPostUrl(responseData: any): string | undefined {
+  const nestedPlatform = responseData?.post?.platforms?.find((platform: any) =>
+    platform?.platformPostUrl || platform?.postUrl || platform?.url || platform?.permalink
+  );
+
   return responseData?.url ||
     responseData?.postUrl ||
     responseData?.permalink ||
@@ -233,10 +237,10 @@ function extractPostUrl(responseData: any): string | undefined {
     responseData?.post?.postUrl ||
     responseData?.post?.permalink ||
     responseData?.post?.platformPostUrl ||
-    responseData?.post?.platforms?.find((platform: any) => platform?.platformPostUrl || platform?.postUrl || platform?.url || platform?.permalink)?.platformPostUrl ||
-    responseData?.post?.platforms?.find((platform: any) => platform?.platformPostUrl || platform?.postUrl || platform?.url || platform?.permalink)?.postUrl ||
-    responseData?.post?.platforms?.find((platform: any) => platform?.platformPostUrl || platform?.postUrl || platform?.url || platform?.permalink)?.url ||
-    responseData?.post?.platforms?.find((platform: any) => platform?.platformPostUrl || platform?.postUrl || platform?.url || platform?.permalink)?.permalink;
+    nestedPlatform?.platformPostUrl ||
+    nestedPlatform?.postUrl ||
+    nestedPlatform?.url ||
+    nestedPlatform?.permalink;
 }
 
 function classifyPublishError(msg: string): { code: string; source: string; isRetryable: boolean; suggestedAction: string } {
