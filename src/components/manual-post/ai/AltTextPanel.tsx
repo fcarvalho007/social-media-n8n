@@ -14,9 +14,11 @@ interface AltTextPanelProps {
   onChange: (value: string) => void;
   onRegenerate: () => void;
   onApplyAllChange: (value: boolean) => void;
+  /** Microtexto adaptativo: ex. "Usado em Instagram. Ignorado em Stories." */
+  microcopy?: string | null;
 }
 
-export function AltTextPanel({ visible, value, isCarousel, applyAll, loading, onChange, onRegenerate, onApplyAllChange }: AltTextPanelProps) {
+export function AltTextPanel({ visible, value, isCarousel, applyAll, loading, onChange, onRegenerate, onApplyAllChange, microcopy }: AltTextPanelProps) {
   if (!visible) return null;
   const over = value.length > 125;
   return (
@@ -29,6 +31,9 @@ export function AltTextPanel({ visible, value, isCarousel, applyAll, loading, on
         </Button>
       </div>
       <Textarea id="alt-text-ai" value={value} onChange={(e) => onChange(e.target.value.slice(0, 180))} className={cn('min-h-20 resize-none', over && 'border-destructive')} placeholder="Descrição acessível da imagem ou do primeiro frame." />
+      {microcopy && (
+        <p className="text-xs text-muted-foreground">{microcopy}</p>
+      )}
       <div className="flex flex-wrap items-center justify-between gap-2 text-xs text-muted-foreground">
         <span className={cn(over && 'font-medium text-destructive')}>{value.length}/125 caracteres</span>
         {isCarousel && (

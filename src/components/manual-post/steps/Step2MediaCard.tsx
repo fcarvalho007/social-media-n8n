@@ -31,6 +31,7 @@ import { PostFormat } from '@/types/social';
 import { AltTextPanel } from '@/components/manual-post/ai/AltTextPanel';
 import { AIGeneratedField } from '@/components/ai/AIGeneratedField';
 import { VideoAiTools } from '@/components/manual-post/ai/VideoAiTools';
+import { getAltTextSupportContext } from '@/lib/altTextSupport';
 
 const formatFileSize = (size: number) => {
   if (!size) return '0 KB';
@@ -166,6 +167,7 @@ export function Step2MediaCard(props: Step2MediaCardProps) {
   const maxRemaining = isInstagramCarousel
     ? 50 - mediaPreviewUrls.length
     : mediaRequirements.maxMedia - mediaPreviewUrls.length;
+  const altTextSupport = getAltTextSupportContext(selectedFormats);
 
   return (
     <div
@@ -243,7 +245,7 @@ export function Step2MediaCard(props: Step2MediaCardProps) {
           {/* Media Grid - With Files */}
           {mediaPreviewUrls.length > 0 && (
               <div className="manual-group-stack">
-              {onAltTextChange && !onMediaAltTextChange && mediaPreviewUrls.length === 1 && (
+              {altTextSupport.hasSupported && onAltTextChange && !onMediaAltTextChange && mediaPreviewUrls.length === 1 && (
                 <AIGeneratedField generatedAt={altTextGeneratedAt} edited={altTextEdited} className="border-0 bg-transparent">
                   <AltTextPanel
                     visible
@@ -254,6 +256,7 @@ export function Step2MediaCard(props: Step2MediaCardProps) {
                     onChange={onAltTextChange}
                     onRegenerate={() => undefined}
                     onApplyAllChange={() => undefined}
+                    microcopy={altTextSupport.microcopy}
                   />
                 </AIGeneratedField>
               )}
@@ -410,7 +413,7 @@ export function Step2MediaCard(props: Step2MediaCardProps) {
                   </div>
                 </SortableContext>
 
-                {onMediaAltTextChange && mediaPreviewUrls.length > 0 && (
+                {altTextSupport.hasSupported && onMediaAltTextChange && mediaPreviewUrls.length > 0 && (
                   <div className="grid gap-4 sm:grid-cols-2">
                     {mediaPreviewUrls.map((url, idx) => {
                       const key = `media-${idx}`;
@@ -426,6 +429,7 @@ export function Step2MediaCard(props: Step2MediaCardProps) {
                             onChange={(next) => onMediaAltTextChange(key, next)}
                             onRegenerate={() => onGenerateAltText?.(idx)}
                             onApplyAllChange={(checked) => { if (checked) mediaPreviewUrls.forEach((_, applyIdx) => onMediaAltTextChange(`media-${applyIdx}`, value)); }}
+                            microcopy={idx === 0 ? altTextSupport.microcopy : null}
                           />
                         </AIGeneratedField>
                       );
