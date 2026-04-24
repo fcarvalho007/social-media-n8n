@@ -668,7 +668,7 @@ export default function ManualCreate() {
     }
   }, [aiPreferences, assistantBlockedMessage, mediaFiles, rawTranscription, refreshAiCredits, uploadAssistantMedia, user, useSeparateCaptions]);
 
-  const handleRewriteCaption = useCallback(async () => {
+  const handleRewriteCaption = useCallback(async (tone: CaptionRewriteTone) => {
     const activeNetwork = useSeparateCaptions
       ? captionEditorRef.current?.getActiveNetwork() ?? selectedNetworks[0]
       : selectedNetworks[0];
@@ -683,32 +683,37 @@ export default function ManualCreate() {
 
     try {
       setRewriteLoading(true);
-      const { data, error } = await supabase.functions.invoke('ai-caption-rewriter', {
-        body: {
-          text,
-          network: activeNetwork,
-          tone: rewriteTone,
-          formats: selectedFormats,
-          rawTranscription: rawTranscription || undefined,
-          language: 'pt-PT',
-        },
+      const tonePrompts: Record<string, string> = {
+        direct: 'Reescreve a legenda num tom mais direto e objetivo. Remove floreados. Mantém factos e CTAs.',
+        emotional: 'Reescreve a legenda com um tom mais emocional e pessoal. Usa narrativa. Mantém factos.',
+        technical: 'Reescreve a legenda num tom mais técnico e preciso. Usa terminologia da área. Mantém factos.',
+        shorter: 'Reescreve a legenda de forma mais curta, mantendo a mensagem essencial. Objetivo: reduzir 40%.',
+        longer: 'Expande a legenda com mais contexto e detalhe, mantendo o tom original. Objetivo: aumentar 50%.',
+        linkedin: 'Adapta a legenda ao estilo LinkedIn: parágrafos curtos, storytelling profissional, quebra de linha após a primeira frase de gancho.',
+        instagram: 'Adapta a legenda ao estilo Instagram: emojis pontuais, quebra visual, primeira linha que prende atenção.',
+      };
+      const rewritten = await aiService.generateText({
+        model: 'fast',
+        feature: 'caption_tone_rewrite',
+        creditCostOverride: 1,
+        systemPrompt: 'És um editor sénior de redes sociais. Reescreves em português de Portugal. Não inventes factos. Mantém URLs, menções e CTAs quando fizer sentido. Devolve apenas a legenda final.',
+        prompt: `Rede alvo: ${activeNetwork || 'geral'}\n${rawTranscription ? `Contexto da transcrição:\n${rawTranscription}\n\n` : ''}Instrução: ${tonePrompts[tone] || tonePrompts.direct}\n\nLegenda atual:\n${text}`,
       });
-
-      if (error || !data?.success) throw new Error(data?.error || error?.message || 'Não foi possível reescrever a legenda.');
-
-      setRewritePreview({
-        originalText: text,
-        rewrittenText: String(data.rewrittenText || '').trim(),
-        tone: rewriteTone,
-        network: activeNetwork,
-      });
+      const nextText = String(rewritten || '').trim();
+      if (!nextText) throw new Error('A IA não devolveu uma legenda válida.');
+      setRewriteHistory(prev => [{ network: useSeparateCaptions ? activeNetwork : undefined, text }, ...prev].slice(0, 5));
+      if (useSeparateCaptions && activeNetwork) setNetworkCaptions(prev => ({ ...prev, [activeNetwork]: nextText }));
+      else setCaption(nextText);
+      setAiMetadata(prev => ({ ...(prev ?? {}), rewrites: [...((prev as EditorialAssistantResult | null)?.rewrites ?? []), { network: activeNetwork, tone, created_at: new Date().toISOString(), source: 'caption_rewriter' }] }));
+      await refreshAiCredits();
+      toast.success('Legenda reescrita. Usa Ctrl+Z para reverter.');
     } catch (error) {
       console.error('[ManualCreate] caption rewrite error:', error);
       toast.error(error instanceof Error ? error.message : 'Não foi possível reescrever a legenda.');
     } finally {
       setRewriteLoading(false);
     }
-  }, [caption, networkCaptions, rawTranscription, rewriteTone, selectedFormats, selectedNetworks, useSeparateCaptions]);
+  }, [caption, networkCaptions, rawTranscription, refreshAiCredits, selectedNetworks, useSeparateCaptions]);
 
   const handleApplyRewrite = useCallback(() => {
     if (!rewritePreview?.rewrittenText.trim()) return;
