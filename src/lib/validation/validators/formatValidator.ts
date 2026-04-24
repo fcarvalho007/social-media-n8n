@@ -44,6 +44,19 @@ export async function formatValidator(
     const config = getFormatConfig(format);
     const label = config?.label ?? format;
 
+    if (format === 'instagram_story_link') {
+      issues.push({
+        id: 'format:instagram_story_link:manual-flow-info',
+        severity: 'info',
+        category: 'format',
+        platform,
+        format,
+        title: 'Publicação semi-automática',
+        description: 'A app prepara a Story e agenda um lembrete; o link sticker é aplicado manualmente no Instagram.',
+        dismissable: true,
+      });
+    }
+
     result.errors
       .filter((msg) => !CAPTION_VALIDATION_MESSAGES.some((captionMsg) => msg.startsWith(captionMsg)))
       .forEach((msg, idx) => {
