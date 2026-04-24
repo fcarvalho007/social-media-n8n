@@ -104,6 +104,10 @@ export function validateFormat(
     errors.push(`Máximo ${config.maxMedia} ficheiro(s) permitido(s)`);
   }
 
+  if (format === 'instagram_story_link' && imageCount > 0 && videoCount > 0) {
+    errors.push('Story com Link aceita apenas uma imagem ou um vídeo');
+  }
+
   // Video requirement
   if (config.requiresVideo && videoCount === 0) {
     errors.push('Este formato requer um vídeo');
@@ -125,7 +129,7 @@ export function validateFormat(
 
   // Warnings
   if (!constraints.supports_links_in_caption && caption.includes('http')) {
-    warnings.push('Links não são clicáveis nesta plataforma');
+    warnings.push(format === 'instagram_story_link' ? 'O link será usado no sticker manual, não na legenda.' : 'Links não são clicáveis nesta plataforma');
   }
 
   // Hashtag warning
