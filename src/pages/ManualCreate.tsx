@@ -940,6 +940,15 @@ export default function ManualCreate() {
               generatedEdited={aiGeneratedEdited.caption}
             />
 
+            <HashtagSuggestions
+              hashtags={hashtagSuggestions}
+              selectedTags={getHashtagsFromText(useSeparateCaptions ? networkCaptions[captionEditorRef.current?.getActiveNetwork() ?? selectedNetworks[0]] || caption : caption)}
+              activeNetwork={captionEditorRef.current?.getActiveNetwork() ?? selectedNetworks[0] ?? 'instagram'}
+              onToggleTag={toggleHashtag}
+              onRegenerate={regenerateHashtags}
+              regenerating={hashtagsLoading}
+            />
+
             <NetworkOptionsCard
               ref={networkOptionsRef}
               selectedNetworks={selectedNetworks}
