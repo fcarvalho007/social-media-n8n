@@ -1,4 +1,4 @@
-import { forwardRef, useImperativeHandle, useRef, useState, type PointerEvent } from 'react';
+import { forwardRef, useImperativeHandle, useMemo, useRef, useState, type PointerEvent } from 'react';
 import { Info, Link2, Plus, Settings2, Sparkles, Trash2 } from 'lucide-react';
 import { SocialNetwork } from '@/types/social';
 import { NetworkOptionField, NetworkOptions, firstCommentLimit } from '@/types/networkOptions';
@@ -7,8 +7,9 @@ import { cn } from '@/lib/utils';
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@/components/ui/accordion';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { CardContent } from '@/components/ui/card';
 import { Checkbox } from '@/components/ui/checkbox';
+import { SectionCard, SectionState } from '@/components/manual-post/ui/SectionCard';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Drawer, DrawerContent, DrawerHeader, DrawerTitle } from '@/components/ui/drawer';
 import { Input } from '@/components/ui/input';
