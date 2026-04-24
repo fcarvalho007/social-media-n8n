@@ -452,6 +452,7 @@ export type Database = {
           linkedin_published: boolean | null
           media_items: Json | null
           media_urls_backup: Json | null
+          network_options: Json | null
           network_validations: Json | null
           notes: string | null
           origin_mode: string | null
@@ -502,6 +503,7 @@ export type Database = {
           linkedin_published?: boolean | null
           media_items?: Json | null
           media_urls_backup?: Json | null
+          network_options?: Json | null
           network_validations?: Json | null
           notes?: string | null
           origin_mode?: string | null
@@ -552,6 +554,7 @@ export type Database = {
           linkedin_published?: boolean | null
           media_items?: Json | null
           media_urls_backup?: Json | null
+          network_options?: Json | null
           network_validations?: Json | null
           notes?: string | null
           origin_mode?: string | null
@@ -592,6 +595,7 @@ export type Database = {
           media_items: Json | null
           media_urls: Json | null
           network_captions: Json | null
+          network_options: Json | null
           platform: string
           publish_immediately: boolean | null
           scheduled_date: string | null
@@ -610,6 +614,7 @@ export type Database = {
           media_items?: Json | null
           media_urls?: Json | null
           network_captions?: Json | null
+          network_options?: Json | null
           platform: string
           publish_immediately?: boolean | null
           scheduled_date?: string | null
@@ -628,6 +633,7 @@ export type Database = {
           media_items?: Json | null
           media_urls?: Json | null
           network_captions?: Json | null
+          network_options?: Json | null
           platform?: string
           publish_immediately?: boolean | null
           scheduled_date?: string | null
