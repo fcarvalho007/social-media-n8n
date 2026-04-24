@@ -1,7 +1,5 @@
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { ReactNode, forwardRef } from 'react';
+import { ReactNode, forwardRef, useMemo } from 'react';
 import { cn } from '@/lib/utils';
-import { SectionHelp, getSectionTooltip } from '@/components/manual-post/SectionHelp';
 import { NetworkCaptionEditor, NetworkCaptionEditorHandle } from '@/components/manual-post/NetworkCaptionEditor';
 import { SocialNetwork } from '@/types/social';
 import { CaptionRewriteTone } from '@/types/aiEditorial';
@@ -9,6 +7,9 @@ import { AIGeneratedField } from '@/components/ai/AIGeneratedField';
 import { Button } from '@/components/ui/button';
 import { MessageSquareText, RotateCcw } from 'lucide-react';
 import { ToneAction } from '@/components/manual-post/ai/CaptionToneToolbar';
+import { SectionCard, SectionState } from '@/components/manual-post/ui/SectionCard';
+import { NETWORK_CONSTRAINTS } from '@/lib/socialNetworks';
+import { NETWORK_ICONS } from '@/lib/networkIcons';
 
 interface Step3CaptionCardProps {
   caption: string;
@@ -30,11 +31,31 @@ interface Step3CaptionCardProps {
   generatedAt?: string | null;
   generatedEdited?: boolean;
   insightBanner?: ReactNode;
+
+  // Progressive disclosure
+  state?: SectionState;
+  onActivate?: () => void;
+  onEdit?: () => void;
+  stepNumber?: number;
+}
+
+const CAPTION_EXCERPT_LIMIT = 120;
+
+/**
+ * Trunca legenda em palavra completa para usar no summary do estado complete.
+ */
+function truncateAtWord(text: string, max: number): string {
+  const trimmed = text.trim();
+  if (trimmed.length <= max) return trimmed;
+  const slice = trimmed.slice(0, max);
+  const lastSpace = slice.lastIndexOf(' ');
+  return `${(lastSpace > 40 ? slice.slice(0, lastSpace) : slice).trim()}…`;
 }
 
 /**
- * Cartão da legenda (Step 3a). Apresenta contador de caracteres e o
- * `NetworkCaptionEditor` que suporta legenda unificada ou diferenciada por rede.
+ * Cartão da legenda (Step 3a). Migrado para `<SectionCard>` no Prompt 2/4 do
+ * progressive disclosure: summary em estilo citação, contadores minimalistas
+ * (apenas redes que excedem 70% do limite ou estado complete) e numeração 3.
  */
 export const Step3CaptionCard = forwardRef<NetworkCaptionEditorHandle, Step3CaptionCardProps>(function Step3CaptionCard(props, ref) {
   const {
@@ -57,38 +78,108 @@ export const Step3CaptionCard = forwardRef<NetworkCaptionEditorHandle, Step3Capt
     generatedAt,
     generatedEdited,
     insightBanner,
+    state = 'active',
+    onActivate,
+    onEdit,
+    stepNumber = 3,
   } = props;
 
-  return (
-    <Card className="manual-card-shell">
-      <CardHeader className="manual-card-content pb-3">
-        <CardTitle className="manual-section-title manual-card-title-row">
-          <span className="manual-icon-box"><MessageSquareText className="h-5 w-5" strokeWidth={1.5} /></span>
-          <span>Legenda</span>
-          <SectionHelp content={getSectionTooltip('caption')} />
-        </CardTitle>
-        <CardDescription className="manual-section-description">
-          {!useSeparateCaptions && (
-            <>
+  // Contadores minimalistas: só mostrar redes onde a legenda excede 70%.
+  const minimalCounters = useMemo(() => {
+    return selectedNetworks
+      .map((network) => {
+        const text = useSeparateCaptions ? (networkCaptions[network] || '') : caption;
+        const limit = NETWORK_CONSTRAINTS[network]?.max_caption_length || 2200;
+        const ratio = limit > 0 ? text.length / limit : 0;
+        const config = NETWORK_ICONS[network];
+        return { network, length: text.length, limit, ratio, config };
+      })
+      .filter(({ ratio }) => ratio > 0.7);
+  }, [selectedNetworks, useSeparateCaptions, networkCaptions, caption]);
+
+  const titleSuffix = caption.trim().length > 0
+    ? ` · ${captionLength} caracter${captionLength === 1 ? '' : 'es'}`
+    : '';
+
+  const summary = (
+    <div className="space-y-2">
+      {useSeparateCaptions ? (
+        <p className="text-sm text-muted-foreground">
+          Legenda personalizada · {selectedNetworks.length} redes
+        </p>
+      ) : (
+        <blockquote className="border-l-2 border-primary/40 pl-3 text-sm italic text-foreground/85">
+          "{truncateAtWord(caption, CAPTION_EXCERPT_LIMIT)}"
+        </blockquote>
+      )}
+      {selectedNetworks.length > 0 && (
+        <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-xs">
+          {selectedNetworks.map((network) => {
+            const text = useSeparateCaptions ? (networkCaptions[network] || '') : caption;
+            const limit = NETWORK_CONSTRAINTS[network]?.max_caption_length || 2200;
+            const ratio = limit > 0 ? text.length / limit : 0;
+            const config = NETWORK_ICONS[network];
+            const Icon = config.icon;
+            const over = text.length > limit;
+            const warn = ratio > 0.95;
+            const near = ratio > 0.7 && !warn;
+            return (
               <span
+                key={network}
                 className={cn(
-                  'font-medium',
-                  captionLength > maxLength * 0.9 && captionLength <= maxLength && 'text-orange-500',
-                  captionLength > maxLength && 'text-destructive',
+                  'inline-flex items-center gap-1 font-medium',
+                  over && 'text-destructive',
+                  warn && !over && 'text-destructive',
+                  near && 'text-warning',
+                  !near && !warn && !over && 'text-muted-foreground',
                 )}
               >
-                {captionLength}/{maxLength}
+                <Icon
+                  className="h-3.5 w-3.5"
+                  style={{ color: !near && !warn && !over ? config.color : undefined }}
+                  strokeWidth={1.75}
+                />
+                {text.length}/{limit}
               </span>
-              {' '}caracteres
-            </>
-          )}
-          {selectedNetworks.includes('linkedin') && (
-            <span className="hidden sm:inline"> (obrigatório para LinkedIn)</span>
-          )}
-        </CardDescription>
-      </CardHeader>
-      <CardContent className="manual-card-content manual-group-stack pt-0">
+            );
+          })}
+        </div>
+      )}
+    </div>
+  );
+
+  return (
+    <SectionCard
+      id="caption"
+      stepNumber={stepNumber}
+      icon={MessageSquareText}
+      title={`Legenda${titleSuffix}`}
+      state={state}
+      onActivate={onActivate}
+      onEdit={onEdit}
+      summary={caption.trim().length > 0 || useSeparateCaptions ? summary : undefined}
+    >
+      <div className="manual-group-stack">
         {insightBanner}
+
+        {!useSeparateCaptions && (
+          <p className="manual-section-description text-xs text-muted-foreground">
+            <span
+              className={cn(
+                'font-medium',
+                captionLength > maxLength * 0.9 && captionLength <= maxLength && 'text-warning',
+                captionLength > maxLength && 'text-destructive',
+              )}
+            >
+              {captionLength}/{maxLength}
+            </span>
+            {' '}caracteres
+            {selectedNetworks.includes('linkedin') && (
+              <span className="hidden sm:inline"> · obrigatório para LinkedIn</span>
+            )}
+          </p>
+        )}
+
         <AIGeneratedField generatedAt={generatedAt} edited={generatedEdited} className="border-0 bg-transparent">
           <NetworkCaptionEditor
             ref={ref}
@@ -104,8 +195,10 @@ export const Step3CaptionCard = forwardRef<NetworkCaptionEditorHandle, Step3Capt
             onOpenAIDialog={onOpenAIDialog}
             toneRewriteLoading={rewriteLoading}
             onRewriteTone={onRewriteCaption}
+            minimalCounters={minimalCounters}
           />
         </AIGeneratedField>
+
         {canRevertRewrite && (
           <div className="flex justify-end">
             <Button type="button" variant="ghost" size="sm" className="h-8 gap-1.5 px-2 text-xs" onClick={onRevertRewrite} disabled={disabled}>
@@ -114,7 +207,7 @@ export const Step3CaptionCard = forwardRef<NetworkCaptionEditorHandle, Step3Capt
             </Button>
           </div>
         )}
-      </CardContent>
-    </Card>
+      </div>
+    </SectionCard>
   );
 });
