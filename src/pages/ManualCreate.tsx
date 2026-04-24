@@ -1705,5 +1705,6 @@ export default function ManualCreate() {
         onCopy={copyVideoToolsReview}
       />
     </div>
+    </div>
   );
 }
