@@ -9,6 +9,7 @@ export const captionRewriteToneLabels: Record<CaptionRewriteTone, string> = {
   emocional: 'Emocional',
   técnico: 'Técnico',
   neutro: 'Neutro',
+  humor: 'Humor',
   mais_curto: 'Mais curto',
   mais_forte: 'Mais forte',
 };
