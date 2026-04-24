@@ -34,7 +34,7 @@ export function HashtagSuggestions({ hashtags, selectedTags, activeNetwork, onTo
   const limit = NETWORK_HASHTAG_LIMITS[activeNetwork as keyof typeof NETWORK_HASHTAG_LIMITS] ?? { max: 10, recommended: 10 };
 
   return (
-    <section className="manual-group-stack rounded-lg border bg-muted/20 p-4">
+    <section className="manual-group-stack manual-subcard">
       <div className="flex flex-wrap items-center justify-between gap-2">
         <div>
           <h4 className="text-sm font-semibold">Hashtags sugeridas</h4>
@@ -52,7 +52,7 @@ export function HashtagSuggestions({ hashtags, selectedTags, activeNetwork, onTo
           const items = hashtags.filter((item) => item.group === group);
           if (items.length === 0) return null;
           return (
-            <div key={group} className="manual-field-stack rounded-md border bg-background/60 p-3">
+             <div key={group} className="manual-field-stack rounded-lg border bg-background/60 p-3">
               <div className="flex items-start gap-2">
                 <Icon className="mt-0.5 h-4 w-4 shrink-0 text-primary" strokeWidth={1.5} />
                 <div>
@@ -69,7 +69,7 @@ export function HashtagSuggestions({ hashtags, selectedTags, activeNetwork, onTo
                       type="button"
                       onClick={() => onToggleTag(item.tag)}
                       className={cn(
-                        'manual-enter inline-flex min-h-8 items-center gap-1.5 rounded border px-2.5 text-xs transition-colors',
+                        'manual-enter inline-flex min-h-11 items-center gap-1.5 rounded-md border px-3 text-xs transition-colors sm:min-h-8 sm:px-2.5',
                         selected ? 'border-primary bg-primary text-primary-foreground' : 'border-border bg-background hover:bg-muted',
                       )}
                     >
