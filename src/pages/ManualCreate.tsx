@@ -511,6 +511,32 @@ export default function ManualCreate() {
   // (currentStep, visitedSteps, setCurrentStep, setVisitedSteps, goToStep,
   //  nextStep, previousStep are all destructured from `stepper`.)
 
+  // Estados derivados para `<SectionCard>` (progressive disclosure).
+  // - 'inactive' enquanto o utilizador não chega à secção.
+  // - 'active'   quando é a secção em foco.
+  // - 'complete' quando há dados válidos e está fora de foco.
+  const minMediaRequired = mediaRequirements.minMedia || 1;
+  const hasMedia = mediaFiles.length >= minMediaRequired;
+  const hasAnyCaption = useSeparateCaptions
+    ? selectedNetworks.some((n) => (networkCaptions[n] || '').trim().length > 0)
+    : caption.trim().length > 0;
+
+  const mediaState: 'inactive' | 'active' | 'complete' = !showStep2
+    ? 'inactive'
+    : activeSection === 'media'
+      ? 'active'
+      : hasMedia
+        ? 'complete'
+        : 'inactive';
+
+  const captionState: 'inactive' | 'active' | 'complete' = !showStep3
+    ? 'inactive'
+    : activeSection === 'caption'
+      ? 'active'
+      : hasAnyCaption
+        ? 'complete'
+        : 'inactive';
+
   // Note: legacy `getValidationErrors()`/`hasErrors` removed.
   // The smart-validation panel (`smartValidation.canPublish`) is now the
   // single source of truth for blocking publication. Coverage:
