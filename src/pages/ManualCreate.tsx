@@ -1064,10 +1064,9 @@ export default function ManualCreate() {
             {currentStep === 1 && selectedFormats.length > 0 && (
               <div className="flex justify-end mt-3">
                 <Button 
-                  variant="ghost" 
-                  size="sm" 
+                  variant="default" 
                   onClick={nextStep}
-                  className="text-muted-foreground hover:text-foreground"
+                  className="h-10"
                 >
                   Seguinte
                   <ChevronRight className="h-4 w-4 ml-1" />
