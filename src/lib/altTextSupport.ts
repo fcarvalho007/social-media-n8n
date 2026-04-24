@@ -80,14 +80,15 @@ export function getAltTextSupportContext(selectedFormats: PostFormat[]): AltText
 
   for (const format of selectedFormats) {
     if (ALT_TEXT_SUPPORTED_FORMATS.has(format)) {
-      supportedNetworks.push(NETWORK_LABELS[getNetworkFromFormat(format)]);
+      // Defesa em profundidade: rede desconhecida cai no próprio formato.
+      supportedNetworks.push(NETWORK_LABELS[getNetworkFromFormat(format)] ?? format);
     } else {
       // Preferir rótulo de formato (Stories/Reels) quando disponível.
       const formatLabel = FORMAT_LABELS[format];
       if (formatLabel) {
         unsupportedLabels.push(formatLabel);
       } else {
-        unsupportedLabels.push(NETWORK_LABELS[getNetworkFromFormat(format)]);
+        unsupportedLabels.push(NETWORK_LABELS[getNetworkFromFormat(format)] ?? format);
       }
     }
   }
