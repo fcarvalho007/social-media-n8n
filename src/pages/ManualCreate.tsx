@@ -802,8 +802,10 @@ export default function ManualCreate() {
     };
 
     if (useSeparateCaptions && rewritePreview.network) {
+      setRewriteHistory(prev => [{ network: rewritePreview.network, text: rewritePreview.originalText }, ...prev].slice(0, 5));
       setNetworkCaptions(prev => ({ ...prev, [rewritePreview.network!]: rewritePreview.rewrittenText }));
     } else {
+      setRewriteHistory(prev => [{ text: rewritePreview.originalText }, ...prev].slice(0, 5));
       setCaption(rewritePreview.rewrittenText);
     }
 
@@ -812,7 +814,7 @@ export default function ManualCreate() {
       rewrites: [...((prev as EditorialAssistantResult | null)?.rewrites ?? []), metadata],
     }));
     setRewritePreview(null);
-    toast.success('Versão reescrita aplicada.');
+    toast.success('Legenda ajustada. Ctrl+Z para reverter.');
   }, [rewritePreview, useSeparateCaptions]);
 
   const handleRevertRewrite = useCallback(() => {
@@ -837,8 +839,6 @@ export default function ManualCreate() {
   useEffect(() => {
     const onKeyDown = (event: KeyboardEvent) => {
       if ((event.ctrlKey || event.metaKey) && event.key.toLowerCase() === 'z' && rewriteHistory.length > 0) {
-        const target = event.target as HTMLElement | null;
-        if (target?.tagName === 'TEXTAREA' || target?.tagName === 'INPUT') return;
         event.preventDefault();
         handleRevertRewrite();
       }
