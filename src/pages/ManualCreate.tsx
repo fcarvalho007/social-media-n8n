@@ -824,6 +824,16 @@ export default function ManualCreate() {
     toast.success('Legenda revertida.');
   }, [rewriteHistory]);
 
+  const handleApplyAiCaption = useCallback((nextCaption: string) => {
+    const activeNetwork = useSeparateCaptions ? captionEditorRef.current?.getActiveNetwork() ?? selectedNetworks[0] : undefined;
+    const previousText = activeNetwork ? (networkCaptions[activeNetwork] || caption) : caption;
+
+    setRewriteHistory(prev => [{ network: activeNetwork, text: previousText }, ...prev].slice(0, 5));
+    if (activeNetwork) setNetworkCaptions(prev => ({ ...prev, [activeNetwork]: nextCaption }));
+    else setCaption(nextCaption);
+    toast.success('Legenda gerada com IA.');
+  }, [caption, networkCaptions, selectedNetworks, useSeparateCaptions]);
+
   useEffect(() => {
     const onKeyDown = (event: KeyboardEvent) => {
       if ((event.ctrlKey || event.metaKey) && event.key.toLowerCase() === 'z' && rewriteHistory.length > 0) {
