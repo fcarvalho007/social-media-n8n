@@ -75,7 +75,7 @@ export const aiService = {
   },
 
   generateFirstComments(params: { caption: string; network: SocialNetwork }) {
-    return invokeAICore<{ options: FirstCommentOption[] }>({ action: 'first_comment_generation', ...params, feature: 'first_comment_ai', model: 'fast', creditCostOverride: 1 });
+    return invokeAICore<{ options: FirstCommentOption[] }>({ action: 'first_comment_generation', caption: params.caption, network: params.network, networks: [params.network], feature: 'first_comment_ai', model: 'fast', creditCostOverride: 1 });
   },
 
   generateVideoChapters(params: { transcription: string; segments?: TranscriptSegment[] }) {
