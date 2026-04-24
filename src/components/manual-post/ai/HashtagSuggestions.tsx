@@ -6,9 +6,9 @@ import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip
 import { cn } from '@/lib/utils';
 
 const groupConfig = {
-  reach: { title: 'Alcance', subtitle: 'Volume alto · Maior exposição', icon: Megaphone },
-  niche: { title: 'Nicho', subtitle: 'Volume médio · Comunidade ativa', icon: Target },
-  brand: { title: 'Marca', subtitle: 'As tuas fixas', icon: Star },
+  reach: { title: 'Alcance', subtitle: 'Temas amplos e fáceis de descobrir', icon: Megaphone },
+  niche: { title: 'Nicho', subtitle: 'Contexto específico do conteúdo', icon: Target },
+  brand: { title: 'Marca', subtitle: 'Hashtags definidas nas preferências', icon: Star },
 };
 
 const networkLimits: Partial<Record<SocialNetwork, { max: number; recommended: number }>> = {
@@ -20,9 +20,10 @@ const networkLimits: Partial<Record<SocialNetwork, { max: number; recommended: n
 };
 
 const statusClass = {
-  good: 'bg-emerald-500',
-  saturated: 'bg-amber-500',
+  neutral: 'bg-muted-foreground',
   risk: 'bg-destructive',
+  banned: 'bg-destructive',
+  over_limit: 'bg-destructive',
 };
 
 interface HashtagSuggestionsProps {
@@ -43,7 +44,7 @@ export function HashtagSuggestions({ hashtags, selectedTags, activeNetwork, onTo
           <h4 className="text-sm font-semibold">Hashtags sugeridas</h4>
           <p className="text-xs text-muted-foreground">{selectedTags.length}/{limit.recommended} selecionadas para {activeNetwork}</p>
         </div>
-        <p className="text-xs text-muted-foreground">Scores só aparecem com dados verificados.</p>
+        <p className="text-xs text-muted-foreground">Sugestões editoriais, sem volume nem desempenho de mercado.</p>
       </div>
       <div className="grid gap-3 md:grid-cols-3">
         {(['reach', 'niche', 'brand'] as const).map((group) => {
@@ -73,19 +74,19 @@ export function HashtagSuggestions({ hashtags, selectedTags, activeNetwork, onTo
                         selected ? 'border-primary bg-primary text-primary-foreground' : 'border-border bg-background hover:bg-muted',
                       )}
                     >
-                      {item.status && item.source && item.verifiedAt ? <span className={cn('h-2 w-2 rounded-full', statusClass[item.status])} /> : null}
+                      {item.status && item.status !== 'neutral' ? <span className={cn('h-2 w-2 rounded-full', statusClass[item.status])} /> : null}
                       {item.tag}
                     </button>
                   );
-                  if (!item.status || !item.source || !item.verifiedAt) return chip;
+                  if (!item.status || item.status === 'neutral') return chip;
                   return (
                     <Tooltip key={item.tag}>
                       <TooltipTrigger asChild>{chip}</TooltipTrigger>
                       <TooltipContent>
                         <div className="space-y-1 text-xs">
-                          <p>Volume estimado: {item.volumeEstimate ?? 'não disponível'}</p>
-                          <p>Fonte: {item.source}</p>
-                          <p>Última verificação: {new Date(item.verifiedAt).toLocaleDateString('pt-PT')}</p>
+                          <p>{item.riskReason || item.reason || 'Rever antes de publicar.'}</p>
+                          {item.source && <p>Fonte: {item.source}</p>}
+                          {item.verifiedAt && <p>Última verificação: {new Date(item.verifiedAt).toLocaleDateString('pt-PT')}</p>}
                         </div>
                       </TooltipContent>
                     </Tooltip>
