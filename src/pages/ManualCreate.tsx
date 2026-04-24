@@ -337,6 +337,11 @@ export default function ManualCreate() {
   // navegação do stepper).
   const { activeSection, activate } = useActiveSection('networks');
 
+  // Modo guiado (transições cinematográficas entre secções).
+  const guided = useGuidedFlow();
+  // Garante que cada transição automática só dispara uma vez por sessão.
+  const guidedFiredRef = useRef<Set<string>>(new Set());
+
   // Sincroniza foco com stepper: ao avançar para passo > 1 com formatos
   // escolhidos, a secção 'networks' liberta foco automaticamente e passa a
   // complete. Ao voltar a passo 1, foca novamente 'networks'.
