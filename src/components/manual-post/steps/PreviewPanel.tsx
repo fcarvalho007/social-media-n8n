@@ -201,7 +201,7 @@ export function PreviewPanel(props: PreviewPanelProps) {
 
   return (
     <div className="hidden lg:block lg:sticky lg:top-24 lg:h-[calc(100vh-8rem)] overflow-auto">
-      <Card className="h-full">
+      <Card className="card-secondary h-full">
         <CardHeader className="pb-3">
           <div className="flex items-start justify-between gap-3">
             <CardTitle className="text-base">Pré-visualização</CardTitle>
