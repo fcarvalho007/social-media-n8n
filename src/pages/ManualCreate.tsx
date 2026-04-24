@@ -40,6 +40,9 @@ import { Step3ScheduleCard } from '@/components/manual-post/steps/Step3ScheduleC
 import { PreviewPanel } from '@/components/manual-post/steps/PreviewPanel';
 import { createDefaultNetworkOptions, normalizeNetworkOptions } from '@/types/networkOptions';
 import { detectImageAspectRatio as detectImageAspectRatioExt, detectVideoAspectRatio as detectVideoAspectRatioExt } from '@/hooks/manual-create/mediaAspectDetection';
+import { AiUploadAssistantCard } from '@/components/manual-post/ai/AiUploadAssistantCard';
+import type { EditorialAssistantResult } from '@/types/aiEditorial';
+import { supabase } from '@/integrations/supabase/client';
 // `extractVideoFrame` foi consolidado em '@/lib/media/videoFrameExtractor'.
 // Este componente já não o usava localmente.
 
@@ -68,6 +71,10 @@ export default function ManualCreate() {
   const [useSeparateCaptions, setUseSeparateCaptions] = useState(false);
   const [networkCaptions, setNetworkCaptions] = useState<Record<string, string>>({});
   const [networkOptions, setNetworkOptions] = useState(createDefaultNetworkOptions);
+  const [rawTranscription, setRawTranscription] = useState('');
+  const [aiMetadata, setAiMetadata] = useState<Partial<EditorialAssistantResult> | null>(null);
+  const [aiAssistantLoading, setAiAssistantLoading] = useState(false);
+  const [aiAssistantDismissed, setAiAssistantDismissed] = useState(false);
   const mediaSectionRef = useRef<HTMLDivElement>(null);
   const captionEditorRef = useRef<NetworkCaptionEditorHandle>(null);
   const networkOptionsRef = useRef<NetworkOptionsCardHandle>(null);
@@ -123,6 +130,8 @@ export default function ManualCreate() {
     scheduledDate: scheduledDate?.toISOString(),
     time,
     scheduleAsap,
+    rawTranscription,
+    aiMetadata,
   }, { enabled: selectedFormats.length > 0 || caption.length > 0 });
 
   // Note: showValidation state was removed — smartValidation.canPublish + validationSheetOpen
@@ -157,6 +166,8 @@ export default function ManualCreate() {
     setUseSeparateCaptions,
     setNetworkCaptions,
     setNetworkOptions,
+    setRawTranscription,
+    setAiMetadata,
     setMediaPreviewUrls,
     setMediaSources,
     setMediaFiles,
@@ -298,6 +309,8 @@ export default function ManualCreate() {
     scheduleAsap,
     recoveredPostId,
     currentDraftId,
+    rawTranscription,
+    aiMetadata,
     smartValidation,
     compression,
     executePublish,
@@ -410,6 +423,74 @@ export default function ManualCreate() {
       isVideo: mediaFiles[idx]?.type?.startsWith('video/') || false
     }));
   }, [mediaPreviewUrls, mediaFiles]);
+
+  const showAiUploadAssistant = useMemo(() => {
+    if (aiAssistantDismissed || aiAssistantLoading || rawTranscription) return false;
+    if (mediaFiles.length !== 1 || !mediaFiles[0]?.type?.startsWith('video/')) return false;
+    if (selectedFormats.some((format) => format.includes('document'))) return false;
+    const hasVideoFormat = selectedFormats.some((format) =>
+      format.includes('video') || format.includes('reel') || format.includes('shorts') || format.includes('stories') || format === 'linkedin_post',
+    );
+    return hasVideoFormat || mediaAspectRatios[0] === '9:16';
+  }, [aiAssistantDismissed, aiAssistantLoading, rawTranscription, mediaFiles, selectedFormats, mediaAspectRatios]);
+
+  const fileToBase64 = useCallback((file: File) => new Promise<string>((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => resolve(String(reader.result || '').split(',')[1] || '');
+    reader.onerror = () => reject(reader.error || new Error('Erro ao ler ficheiro'));
+    reader.readAsDataURL(file);
+  }), []);
+
+  const handleAiTranscribe = useCallback(async () => {
+    const file = mediaFiles[0];
+    if (!file) return;
+    try {
+      setAiAssistantLoading(true);
+      const fileBase64 = await fileToBase64(file);
+      const { data, error } = await supabase.functions.invoke('ai-editorial-assistant', {
+        body: {
+          fileBase64,
+          fileName: file.name,
+          mimeType: file.type,
+          networks: selectedNetworks,
+          language: 'pt-PT',
+        },
+      });
+
+      if (error || !data?.success) throw new Error(data?.error || error?.message || 'A IA está indisponível.');
+
+      const result = data.result as EditorialAssistantResult;
+      const groupedHashtags = [
+        ...(result.hashtags?.reach ?? []),
+        ...(result.hashtags?.niche ?? []),
+        ...(result.hashtags?.brand ?? []),
+      ].map((tag) => tag.startsWith('#') ? tag : `#${tag}`);
+      const nextCaption = [result.base_caption, groupedHashtags.join(' ')].filter(Boolean).join('\n\n');
+
+      setCaption(nextCaption);
+      if (result.captions_per_network && Object.keys(result.captions_per_network).length > 0) {
+        setNetworkCaptions(result.captions_per_network as Record<string, string>);
+        setUseSeparateCaptions(true);
+      }
+      if (result.first_comment) {
+        setNetworkOptions((prev) => normalizeNetworkOptions({
+          ...prev,
+          instagram: { ...prev.instagram, firstComment: result.first_comment },
+          facebook: { ...prev.facebook, firstComment: result.first_comment },
+          linkedin: { ...prev.linkedin, firstComment: result.first_comment },
+        }));
+      }
+      setRawTranscription(result.raw_transcription || '');
+      setAiMetadata(result);
+      setAiAssistantDismissed(true);
+      toast.success('Assistente de IA aplicado', { description: 'A legenda e os campos editoriais foram preenchidos.' });
+    } catch (error) {
+      console.error('[ManualCreate] AI assistant error:', error);
+      toast.error('A IA está indisponível. Podes preencher manualmente ou tentar de novo.');
+    } finally {
+      setAiAssistantLoading(false);
+    }
+  }, [fileToBase64, mediaFiles, selectedNetworks]);
 
   // Render preview delegated to extracted helper (Phase 4)
   const renderPreview = useCallback(
@@ -536,6 +617,13 @@ export default function ManualCreate() {
             "transition-all duration-300 ease-out overflow-hidden space-y-3 sm:space-y-6",
             showStep3 ? "opacity-100" : "opacity-0 max-h-0"
           )}>
+            <AiUploadAssistantCard
+              visible={showAiUploadAssistant || aiAssistantLoading}
+              loading={aiAssistantLoading}
+              onDismiss={() => setAiAssistantDismissed(true)}
+              onTranscribe={handleAiTranscribe}
+            />
+
             <Step3CaptionCard
               ref={captionEditorRef}
               caption={caption}

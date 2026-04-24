@@ -11,6 +11,7 @@ import type { useImageCompression } from './useImageCompression';
 import type { usePublishWithProgress } from '@/hooks/usePublishWithProgress';
 import type { usePublishingQuota } from '@/hooks/usePublishingQuota';
 import { useQueryClient } from '@tanstack/react-query';
+import type { EditorialAssistantResult } from '@/types/aiEditorial';
 
 type ExecutePublish = ReturnType<typeof usePublishWithProgress>['publish'];
 type CompressionApi = ReturnType<typeof useImageCompression>;
@@ -58,6 +59,8 @@ interface OrchestratorParams {
   scheduleAsap: boolean;
   recoveredPostId: string | null;
   currentDraftId: string | null;
+  rawTranscription: string;
+  aiMetadata: Partial<EditorialAssistantResult> | null;
 
   // Dependências (hooks)
   smartValidation: ValidationSummary;
@@ -105,6 +108,8 @@ export function usePublishOrchestrator(params: OrchestratorParams) {
     scheduleAsap,
     recoveredPostId,
     currentDraftId,
+    rawTranscription,
+    aiMetadata,
     smartValidation,
     compression,
     executePublish,
@@ -228,6 +233,8 @@ export function usePublishOrchestrator(params: OrchestratorParams) {
         scheduled_date: string | null;
         scheduled_time: string | null;
         publish_immediately: boolean;
+        raw_transcription: string | null;
+        ai_metadata: Record<string, unknown>;
         status: 'draft';
       } = {
         user_id: user.id,
@@ -243,6 +250,8 @@ export function usePublishOrchestrator(params: OrchestratorParams) {
         scheduled_date: scheduledDate ? format(scheduledDate, 'yyyy-MM-dd') : null,
         scheduled_time: time || null,
         publish_immediately: scheduleAsap,
+        raw_transcription: rawTranscription || null,
+        ai_metadata: JSON.parse(JSON.stringify(aiMetadata ?? {})),
         status: 'draft',
       };
 
@@ -329,6 +338,7 @@ export function usePublishOrchestrator(params: OrchestratorParams) {
     }
   }, [
     selectedFormats, mediaFiles, useSeparateCaptions, networkCaptions, networkOptions, caption,
+    rawTranscription, aiMetadata,
     scheduledDate, time, scheduleAsap, currentDraftId,
     setUploadProgress, setCurrentDraftId,
   ]);
@@ -420,6 +430,8 @@ export function usePublishOrchestrator(params: OrchestratorParams) {
           formats: selectedFormats,
           network_captions: useSeparateCaptions ? networkCaptions : undefined,
           network_options: networkOptions,
+          raw_transcription: rawTranscription || undefined,
+          ai_metadata: aiMetadata || undefined,
         },
       });
 
@@ -447,6 +459,8 @@ export function usePublishOrchestrator(params: OrchestratorParams) {
         caption,
         linkedin_body: useSeparateCaptions && networkCaptions.linkedin ? networkCaptions.linkedin : null,
         network_options: JSON.parse(JSON.stringify(networkOptions)),
+        raw_transcription: rawTranscription || null,
+        ai_metadata: JSON.parse(JSON.stringify(aiMetadata ?? {})),
         scheduled_date: scheduledDate?.toISOString() || null,
         schedule_asap: scheduleAsap,
         status: 'waiting_for_approval',
@@ -513,6 +527,7 @@ export function usePublishOrchestrator(params: OrchestratorParams) {
   }, [
     selectedFormats, smartValidation.canPublish, mediaFiles, scheduleAsap,
     scheduledDate, time, useSeparateCaptions, networkCaptions, networkOptions, caption,
+    rawTranscription, aiMetadata,
     selectedNetworks, currentDraftId,
     setValidationSheetOpen, setUploadProgress, setCaption, setMediaFiles,
     setMediaPreviewUrls, setScheduledDate, setTime, setScheduleAsap,
@@ -552,6 +567,8 @@ export function usePublishOrchestrator(params: OrchestratorParams) {
       recoveredFromPostId: recoveredPostId || undefined,
       networkCaptions: useSeparateCaptions ? networkCaptions : undefined,
       networkOptions,
+      rawTranscription,
+      aiMetadata,
     };
 
     const result = await executePublish(publishParams);
@@ -568,7 +585,7 @@ export function usePublishOrchestrator(params: OrchestratorParams) {
   }, [
     selectedFormats, smartValidation.canPublish, mediaFiles, selectedNetworks,
     compression, quota, caption, scheduledDate, time, scheduleAsap,
-    recoveredPostId, useSeparateCaptions, networkCaptions, networkOptions, executePublish,
+    recoveredPostId, useSeparateCaptions, networkCaptions, networkOptions, rawTranscription, aiMetadata, executePublish,
     setValidationSheetOpen, onDuplicateDetected, consumeCurrentDraft,
   ]);
 

@@ -6,6 +6,7 @@ import { MediaSource } from '@/types/media';
 import { NetworkOptions, normalizeNetworkOptions } from '@/types/networkOptions';
 import { detectImageAspectRatio, detectVideoAspectRatio } from './mediaAspectDetection';
 import { normalizeMediaList } from '@/lib/mediaPreview';
+import type { EditorialAssistantResult } from '@/types/aiEditorial';
 
 interface UseDraftRecoveryParams {
   recoverPostId: string | null;
@@ -13,6 +14,8 @@ interface UseDraftRecoveryParams {
   setUseSeparateCaptions: (next: boolean) => void;
   setNetworkCaptions: React.Dispatch<React.SetStateAction<Record<string, string>>>;
   setNetworkOptions: React.Dispatch<React.SetStateAction<NetworkOptions>>;
+  setRawTranscription: (next: string) => void;
+  setAiMetadata: React.Dispatch<React.SetStateAction<Partial<EditorialAssistantResult> | null>>;
   setMediaPreviewUrls: React.Dispatch<React.SetStateAction<string[]>>;
   setMediaSources: React.Dispatch<React.SetStateAction<MediaSource[]>>;
   setMediaFiles: React.Dispatch<React.SetStateAction<File[]>>;
@@ -42,6 +45,8 @@ export function useDraftRecovery(params: UseDraftRecoveryParams) {
     setUseSeparateCaptions,
     setNetworkCaptions,
     setNetworkOptions,
+    setRawTranscription,
+    setAiMetadata,
     setMediaPreviewUrls,
     setMediaSources,
     setMediaFiles,
@@ -89,6 +94,8 @@ export function useDraftRecovery(params: UseDraftRecoveryParams) {
         }
 
         setCaption(post.caption_edited || post.caption || '');
+        setRawTranscription(post.raw_transcription || '');
+        setAiMetadata((post.ai_metadata as Partial<EditorialAssistantResult>) || null);
 
         if (post.linkedin_body) {
           setUseSeparateCaptions(true);
@@ -256,6 +263,8 @@ export function useDraftRecovery(params: UseDraftRecoveryParams) {
       network_captions?: Record<string, string> | null;
       use_separate_captions?: boolean | null;
       network_options?: unknown;
+      raw_transcription?: string | null;
+      ai_metadata?: unknown;
     }) => {
       const legacyPlatformMap: Record<string, PostFormat> = {
         instagram_carrousel: 'instagram_carousel',
@@ -282,6 +291,8 @@ export function useDraftRecovery(params: UseDraftRecoveryParams) {
       setUseSeparateCaptions(!!draft.use_separate_captions);
       setNetworkCaptions(draft.network_captions || {});
       setNetworkOptions(normalizeNetworkOptions(draft.network_options));
+      setRawTranscription(draft.raw_transcription || '');
+      setAiMetadata((draft.ai_metadata as Partial<EditorialAssistantResult>) || null);
       setScheduleAsap(draft.publish_immediately ?? true);
 
       if (draft.scheduled_date) {
