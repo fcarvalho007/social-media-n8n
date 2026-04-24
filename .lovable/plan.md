@@ -1,194 +1,293 @@
-## Revisão do que ficou feito
+## Plano — Fundações partilhadas para o módulo de IA
 
-### Fase fechada: opções por rede ligadas à publicação real
+Vou implementar isto como infraestrutura transversal, sem adicionar funcionalidades visíveis das Fases 1–4 e sem alterar visualmente o fluxo `/manual-create`.
 
-Confirmei no código que a fase anterior já ficou implementada nos pontos críticos:
+### Ajustes necessários face ao estado atual
 
-- A secção “Opções por rede” está localizada em pt-PT.
-- `network_options` é guardado em rascunhos e publicações.
-- `network_options` é enviado pelo frontend para a função `publish-to-getlate`.
-- A função `publish-to-getlate` transforma essas opções em `platformSpecificData` no payload real enviado ao Getlate.
-- Foram adicionadas validações defensivas no backend antes de chamar o Getlate.
-- `publication_attempts.response_data` guarda `network_options_applied`, permitindo auditoria posterior.
+Há alguns pontos do prompt que entram em conflito com o projeto atual ou com regras de segurança:
 
-Mapeamento confirmado:
+1. **Tabelas já existentes**
+   - Já existem `ai_preferences`, `ai_credit_usage`, `account_insights`, `hashtag_intelligence`, `posts.raw_transcription` e `posts.ai_metadata`.
+   - Em vez de duplicar tabelas, vou migrar/estender o que já existe para chegar ao modelo pretendido.
 
-```text
-Instagram
-- firstComment
-- collaborators
-- userTags com mediaIndex/x/y
-- contentType story/reels quando aplicável
+2. **Referências diretas a `auth.users`**
+   - Não vou criar foreign keys para `auth.users`. O projeto já segue o padrão seguro de guardar `user_id uuid` e proteger com RLS.
+   - Isto evita acoplamento indevido a tabelas geridas pela autenticação.
 
-Facebook
-- firstComment
-- contentType story/reel quando aplicável
+3. **Fornecedor de IA**
+   - O projeto já usa Lovable AI para geração de texto e visão, e OpenAI apenas para transcrição Whisper.
+   - `OPENAI_API_KEY` já existe. `ANTHROPIC_API_KEY` não está configurada.
+   - Para não bloquear a infraestrutura, vou implementar uma camada de provider extensível, mas usar por defeito:
+     - transcrição: OpenAI Whisper;
+     - texto/visão: Lovable AI, que já está configurado e não requer nova chave.
+   - Deixo os nomes `provider`, `model` e `model: 'fast' | 'smart'` prontos para suportar OpenAI/Anthropic depois, se for necessário.
 
-LinkedIn
-- firstComment
-- disableLinkPreview
+4. **Storybook**
+   - O projeto não tem Storybook configurado e não vou adicionar dependências novas sem aprovação explícita.
+   - Em alternativa, criarei uma página interna de demo para os padrões de UI de IA.
 
-YouTube
-- title
-- visibility
-- categoryId
+---
 
-Google Business
-- callToAction com type/url quando aplicável
+## 1. Base de dados e créditos
+
+### 1.1 Criar/normalizar créditos por utilizador
+
+Criar tabela `user_ai_credits` com RLS:
+
+- `user_id uuid primary key`
+- `credits_remaining integer not null default 0`
+- `credits_monthly_allowance integer not null default 0`
+- `last_reset_at timestamptz`
+- `plan_tier text not null default 'free'`
+- `updated_at timestamptz default now()`
+
+Políticas:
+
+- utilizador autenticado pode ver os próprios créditos;
+- escrita/alteração apenas por funções backend com permissões internas.
+
+Adicionar função segura para consumir créditos de forma atómica:
+
+- valida saldo;
+- desconta antes da chamada de IA;
+- devolve erro claro quando o saldo é insuficiente;
+- evita race conditions em chamadas simultâneas.
+
+### 1.2 Criar/normalizar logs de IA
+
+O projeto já tem `ai_credit_usage`. Vou criar a tabela pedida `ai_usage_log` como log principal, em vez de reaproveitar uma tabela com semântica incompleta.
+
+Campos:
+
+- `id`
+- `user_id`
+- `action_type`
+- `feature`
+- `credits_consumed`
+- `tokens_used`
+- `provider`
+- `model`
+- `success`
+- `error_message`
+- `metadata jsonb`
+- `created_at`
+
+RLS:
+
+- utilizador pode consultar apenas os próprios logs;
+- escrita apenas por backend.
+
+### 1.3 Tabelas partilhadas entre fases
+
+Aplicar migrações idempotentes:
+
+- `posts.ai_generated_fields jsonb default '{}'`
+- `posts.ai_features_extracted jsonb default '{}'`
+- `posts.performance_classification text`
+- `posts.engagement_rate numeric`
+- `posts.metrics_captured_at timestamptz`
+
+`raw_transcription` já existe, por isso não será recriada.
+
+Atualizar `account_insights` existente com os campos em falta:
+
+- `delta_percentage numeric`
+- `dismissed_count integer default 0`
+- `dismissed_until timestamptz`
+- `never_show boolean default false`
+
+Criar `user_brand_hashtags` com RLS por utilizador.
+
+Criar `hashtag_metadata` como cache partilhada. Como já existe `hashtag_intelligence`, vou manter ambas apenas se fizer sentido funcionalmente:
+
+- `hashtag_metadata`: cache genérica e simples para Fase 2;
+- `hashtag_intelligence`: fonte já existente com metadados mais ricos.
+
+### 1.4 Utilizador de teste com 100 créditos
+
+Depois da migração, criar um registo inicial de 100 créditos para o utilizador de teste/contas existentes permitidas, sem alterar regras de autenticação.
+
+---
+
+## 2. Serviço centralizado de IA
+
+Criar `src/services/ai/aiService.ts` como API única do frontend.
+
+Funções expostas:
+
+```ts
+transcribeMedia(fileUrl: string, options?: { language?: string }): Promise<string>
+
+generateText(params: {
+  prompt: string
+  systemPrompt?: string
+  maxTokens?: number
+  temperature?: number
+  responseFormat?: 'text' | 'json'
+  model?: 'fast' | 'smart'
+  feature?: string
+}): Promise<string | unknown>
+
+analyzeImage(imageUrl: string, prompt: string): Promise<string>
 ```
 
-### Pontos ainda frágeis detetados
+Importante: o frontend não chamará fornecedores externos diretamente. O serviço chamará uma função backend central, por exemplo `ai-core`, através do cliente já existente.
 
-Há alguns refinamentos que não bloqueiam a fase anterior, mas convém resolver quando tocarmos nesta área:
+No backend (`supabase/functions/ai-core/index.ts`):
 
-- `publish-to-getlate` ainda usa CORS manual com menos headers do que outras funções recentes. Deve ser alinhado para evitar falhas em clientes mais novos.
-- A validação de `network_options` no backend é funcional, mas não está tão estruturada como uma validação por schema. Nesta próxima fase podemos reforçar apenas o que for tocado.
-- A UI de tags Instagram continua limitada a “adicionar no centro”, de forma assumida e honesta. Não mexer nisto nesta fase, salvo bug.
+- validar autenticação;
+- validar input;
+- calcular custo em créditos;
+- descontar créditos antes da chamada;
+- executar chamada com timeout de 60s;
+- retry com backoff exponencial até 3 tentativas;
+- registar `ai_usage_log` em sucesso e falha;
+- devolver mensagens de erro seguras em PT-PT.
 
-## Próxima fase proposta: Reescrita por tom
+As funções antigas de IA (`ai-caption-rewriter`, `ai-editorial-assistant`) não serão removidas neste prompt, para evitar regressões. A integração delas no serviço centralizado pode ser feita numa fase seguinte, controlada.
 
-Objetivo: permitir ao utilizador reescrever a legenda com IA diretamente em `/manual-create`, mantendo controlo editorial e evitando substituir conteúdo sem confirmação.
+---
 
-## Plano de execução
+## 3. Custos de créditos
 
-### 1. Criar ação de reescrita junto da legenda
+Criar `src/config/aiCreditCosts.ts`:
 
-Adicionar uma pequena área compacta na secção de legenda com opções de tom:
-
-- Direto
-- Emocional
-- Técnico
-- Neutro
-- Mais curto
-- Mais forte
-
-Com botão principal:
-
-- “Reescrever com IA”
-
-A ação deve funcionar tanto para:
-
-- legenda única;
-- legendas separadas por rede.
-
-No caso de legendas separadas, a reescrita deve aplicar-se à rede ativa/selecionada, não a todas sem confirmação.
-
-### 2. Criar função backend para reescrita editorial
-
-Criar uma função backend dedicada, por exemplo `ai-caption-rewriter`, que recebe:
-
-- texto atual;
-- rede social alvo;
-- tom escolhido;
-- formatos selecionados;
-- contexto opcional da transcrição já existente;
-- idioma fixo `pt-PT`.
-
-A função deve:
-
-- validar sessão do utilizador;
-- validar tamanho mínimo/máximo do texto;
-- chamar a IA pelo gateway já configurado;
-- devolver apenas texto reescrito e metadados simples;
-- escrever sempre em Português de Portugal, Acordo Ortográfico de 1990;
-- não inventar dados, números, resultados ou promessas.
-
-### 3. Mostrar pré-visualização antes de aplicar
-
-Depois da resposta da IA, abrir uma confirmação simples:
-
-- texto atual;
-- nova versão;
-- botões:
-  - “Aplicar versão”;
-  - “Manter original”.
-
-Isto evita que a IA substitua uma legenda boa sem controlo do utilizador.
-
-### 4. Integrar com metadados de IA
-
-Ao aplicar uma versão reescrita:
-
-- atualizar a legenda certa;
-- anexar em `aiMetadata` um registo leve, por exemplo:
-
-```text
-rewrites: [
-  {
-    network,
-    tone,
-    created_at,
-    source: "caption_rewriter"
-  }
-]
+```ts
+export const AI_CREDIT_COSTS = {
+  transcription_per_minute: 1,
+  text_generation_fast: 1,
+  text_generation_smart: 3,
+  vision_analysis: 2,
+  full_assistant_flow: 5,
+} as const
 ```
 
-Isto mantém histórico técnico sem criar novas tabelas.
+Criar tipos auxiliares para evitar strings soltas de `action_type`, `feature`, `provider` e `model`.
 
-### 5. Respeitar preferências de IA existentes
+---
 
-O projeto já tem `ai_preferences` e `default_tone`.
+## 4. Tratamento de erros e logs
 
-Nesta fase:
+Criar `src/lib/errorHandler.ts` com `handleAIError` para uso no frontend:
 
-- usar `default_tone` como tom pré-selecionado quando existir;
-- manter `pt-PT` como idioma fixo;
-- não criar novo ecrã de preferências.
+- mapear erros técnicos para mensagens amigáveis;
+- não expor detalhes internos;
+- uniformizar toasts e mensagens visíveis.
 
-### 6. Reforçar UX e erros
+Mensagens:
 
-Adicionar estados claros:
+- rate limit: “A IA está ocupada. Tenta novamente em alguns segundos.”
+- créditos insuficientes: “Não tens créditos suficientes. Vê planos.”
+- timeout: “A IA demorou demasiado. Tenta novamente.”
+- genérico: “A IA está temporariamente indisponível.”
 
-- “A reescrever…”;
-- erro de sessão expirada;
-- erro de créditos/limite;
-- erro de texto demasiado curto;
-- erro genérico com opção de tentar novamente.
+No backend, o log real fica em `ai_usage_log` com `success=false` e `error_message` técnico reduzido.
 
-Toda a copy deve ficar em pt-PT.
+---
 
-### 7. Validação
+## 5. Componentes UI reutilizáveis
 
-Depois da implementação:
+Criar componentes em `src/components/ai/`:
+
+### `AICreditsBadge`
+
+- mostra créditos restantes;
+- barra de progresso mensal;
+- tooltip com plano, limite mensal e último reset;
+- estado de alerta abaixo de 20%;
+- link para upgrade/configuração quando aplicável.
+
+Será adicionado ao topo da aplicação de forma compacta, junto ao badge de quota, sem alterar páginas de criação.
+
+### `AIActionButton`
+
+- botão padrão para ações de IA;
+- mostra custo em créditos;
+- desativa se não houver saldo;
+- loading state;
+- toast de erro padronizado.
+
+### `AIGeneratedField`
+
+- wrapper visual para campos gerados por IA;
+- indicador subtil quando veio da IA;
+- tooltip “Gerado por IA a [data]”;
+- botão “Regenerar” opcional;
+- remove o indicador quando o utilizador edita.
+
+### `InsightBanner`
+
+- banner discreto para insights futuros;
+- ações: aceitar, dispensar, nunca mostrar;
+- sem ligar ainda a uma feature da Fase 4.
+
+---
+
+## 6. Página interna de demo
+
+Criar página interna, por exemplo `/ai-demo`, protegida por autenticação, para validar os padrões de UI sem mexer no `/manual-create`.
+
+A página terá:
+
+- `AICreditsBadge`;
+- exemplos de `AIActionButton`;
+- exemplo de `AIGeneratedField`;
+- exemplo de `InsightBanner`;
+- uma chamada de teste simples ao `generateText` para confirmar logs e consumo de créditos.
+
+Se preferires que esta página não fique no menu, ficará apenas acessível por URL direta.
+
+---
+
+## 7. Preferências de IA
+
+O projeto já tem `ai_preferences`. Vou estendê-la em vez de criar `user_preferences` duplicada, porque ela já representa preferências de IA por utilizador.
+
+Adicionar campos:
+
+- `preferred_model text default 'fast'`
+- `auto_alt_text boolean default false`
+- `auto_first_comment boolean default false`
+
+A página de preferências de IA ficará em `/ai-settings` ou integrada nas definições existentes, com:
+
+- Idioma das gerações: PT-PT, EN, ES, FR;
+- Tom por defeito: Neutro, Direto, Emocional, Técnico, Humor;
+- Modelo preferido: Rápido / Melhor qualidade;
+- Ativar banners de insights;
+- Gerar alt text automaticamente;
+- Gerar primeiro comentário automaticamente.
+
+Também atualizarei `useAiPreferences` e os tipos em `src/types/aiEditorial.ts`.
+
+---
+
+## 8. Validação
+
+No fim da implementação:
 
 - correr build TypeScript;
-- testar legenda única;
-- testar legenda separada por rede;
-- testar texto curto/inválido;
-- testar aplicação e rejeição da sugestão;
-- confirmar que `aiMetadata` continua a ser guardado em rascunhos/publicações.
+- testar chamada de exemplo do `aiService.generateText` pela demo interna;
+- confirmar criação de registo em `ai_usage_log`;
+- confirmar desconto em `user_ai_credits`;
+- confirmar erro amigável quando os créditos forem insuficientes;
+- confirmar que `/manual-create` não recebeu alterações visuais deste prompt.
 
-## Ficheiros previstos
+---
 
-- `src/pages/ManualCreate.tsx`
-- `src/components/manual-post/steps/Step3CaptionCard.tsx`
-- possível novo componente em `src/components/manual-post/ai/`
-- `src/types/aiEditorial.ts`
-- `supabase/functions/ai-caption-rewriter/index.ts`
-- `.lovable/plan.md`
+## Fora de âmbito neste prompt
 
-Não serão editados ficheiros bloqueados:
+- Não implementar Fase 1, 2, 3 ou 4.
+- Não refatorar agora todas as funções de IA existentes para o novo `ai-core`, salvo ligação mínima de teste.
+- Não adicionar Storybook.
+- Não pedir nem configurar `ANTHROPIC_API_KEY` agora.
+- Não alterar ficheiros bloqueados como `src/integrations/supabase/client.ts`, `src/integrations/supabase/types.ts` ou `.env`.
 
-- `src/integrations/supabase/client.ts`
-- `src/integrations/supabase/types.ts`
-- `.env`
-- chaves de projeto em `supabase/config.toml`
-
-## Fora desta fase
-
-- Geração automática de calendário editorial.
-- Reescrita em lote para todas as redes de uma só vez.
-- Scoring de performance ou previsão de alcance.
-- Lookup real de menções LinkedIn/Instagram.
-- Alterações de base de dados, salvo se for detetado bloqueio técnico inesperado.
+---
 
 ## Checkpoint
 
-☐ Rever e confirmar fase anterior como concluída  
-☐ Criar ação “Reescrever com IA” na legenda  
-☐ Criar função backend `ai-caption-rewriter`  
-☐ Suportar tons: Direto, Emocional, Técnico, Neutro, Mais curto e Mais forte  
-☐ Mostrar pré-visualização antes de aplicar  
-☐ Aplicar em legenda única ou rede ativa quando há legendas separadas  
-☐ Guardar metadados da reescrita em `aiMetadata`  
-☐ Validar build e fluxo crítico antes de avançar para a fase seguinte
+☐ Confirmar que posso avançar com a infraestrutura usando `ai_preferences` existente em vez de criar `user_preferences` duplicada.  
+☐ Confirmar que aceitas usar Lovable AI para texto/visão e OpenAI Whisper para transcrição nesta fase.  
+☐ Confirmar que a demo interna pode ficar numa rota protegida, sem aparecer no menu principal.  
+☐ Após aprovação, implemento as migrações, backend, serviço frontend, componentes, preferências e validação.
