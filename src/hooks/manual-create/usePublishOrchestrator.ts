@@ -147,6 +147,22 @@ export function usePublishOrchestrator(params: OrchestratorParams) {
   const [saving, setSaving] = useState(false);
   const [submitting, setSubmitting] = useState(false);
 
+  const consumeCurrentDraft = useCallback(async () => {
+    const validDraftId = currentDraftId && !currentDraftId.startsWith('autosave-') ? currentDraftId : null;
+    if (!validDraftId) return;
+
+    const { error } = await supabase.from('posts_drafts').delete().eq('id', validDraftId);
+    if (error) {
+      console.warn('[usePublishOrchestrator] Failed to remove consumed draft:', error);
+      return;
+    }
+
+    setCurrentDraftId(null);
+    queryClient.invalidateQueries({ queryKey: ['drafts'] });
+    localStorage.removeItem('calendar_events_cache');
+    localStorage.removeItem('calendar_last_updated');
+  }, [currentDraftId, queryClient, setCurrentDraftId]);
+
   const prepareStoryLink = useCallback(async (files: File[]) => {
     if (selectedFormats.length !== 1 || selectedFormats[0] !== 'instagram_story_link') return false;
     const linkUrl = networkOptions.instagram?.storyLinkUrl?.trim() ?? '';
@@ -213,22 +229,6 @@ export function usePublishOrchestrator(params: OrchestratorParams) {
     scheduleAsap, scheduledDate, time, setUploadProgress, consumeCurrentDraft,
     setCaption, setMediaFiles, setMediaPreviewUrls, setScheduledDate, setTime, setScheduleAsap,
   ]);
-
-  const consumeCurrentDraft = useCallback(async () => {
-    const validDraftId = currentDraftId && !currentDraftId.startsWith('autosave-') ? currentDraftId : null;
-    if (!validDraftId) return;
-
-    const { error } = await supabase.from('posts_drafts').delete().eq('id', validDraftId);
-    if (error) {
-      console.warn('[usePublishOrchestrator] Failed to remove consumed draft:', error);
-      return;
-    }
-
-    setCurrentDraftId(null);
-    queryClient.invalidateQueries({ queryKey: ['drafts'] });
-    localStorage.removeItem('calendar_events_cache');
-    localStorage.removeItem('calendar_last_updated');
-  }, [currentDraftId, queryClient, setCurrentDraftId]);
 
   // ── saveDraft ──────────────────────────────────────────────────────────
   const saveDraft = useCallback(async () => {
