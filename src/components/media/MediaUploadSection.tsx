@@ -76,7 +76,7 @@ export function MediaUploadSection({
   }, [onFileUpload]);
 
   return (
-    <div className="grid gap-3 lg:grid-cols-[minmax(0,7fr)_minmax(220px,3fr)]">
+    <div className="grid gap-4 lg:grid-cols-[minmax(0,7fr)_minmax(220px,3fr)]">
       <Label htmlFor="media-upload-section" className={cn('block cursor-pointer lg:row-span-2', disabled && 'cursor-not-allowed')}>
         <div
           ref={dropRef}
@@ -89,7 +89,7 @@ export function MediaUploadSection({
             disabled && 'pointer-events-none opacity-50'
           )}
         >
-          <div className="flex h-full min-h-[260px] flex-col p-4 sm:p-6">
+          <div className="flex h-full min-h-[260px] flex-col p-5">
             <div className="flex items-start gap-3 sm:gap-4">
               <div className="rounded-md bg-background p-3 shadow-sm">
                 <CloudUpload className="h-6 w-6 text-primary" />
@@ -98,10 +98,10 @@ export function MediaUploadSection({
                 <div className="flex flex-wrap items-center justify-between gap-2">
                   <h4 className="text-base font-semibold text-foreground">Carregar ficheiros</h4>
                   <div className="flex flex-wrap gap-1">
-                    <Badge variant="outline" className="text-[10px]">PNG</Badge>
-                    <Badge variant="outline" className="text-[10px]">JPG</Badge>
-                    <Badge variant="outline" className="text-[10px]">MP4</Badge>
-                    <Badge variant="outline" className="text-[10px]">MOV</Badge>
+                    <Badge variant="outline" className="manual-chip">PNG</Badge>
+                    <Badge variant="outline" className="manual-chip">JPG</Badge>
+                    <Badge variant="outline" className="manual-chip">MP4</Badge>
+                    <Badge variant="outline" className="manual-chip">MOV</Badge>
                   </div>
                 </div>
                 <p className="mt-1 text-sm text-muted-foreground">Arrasta ficheiros para esta área ou clica para selecionar.</p>
@@ -111,13 +111,13 @@ export function MediaUploadSection({
             <div className={cn('mt-4 flex flex-1 flex-col items-center justify-center rounded-md border border-dashed bg-background/70 p-6 text-center transition-all', isDragging && 'border-primary bg-primary/5')}>
               {isUploading ? (
                 <div className="w-full max-w-xs space-y-3">
-                  <Loader2 className="mx-auto h-8 w-8 animate-spin text-primary" />
+                  <Loader2 className="mx-auto h-8 w-8 animate-spin text-primary" strokeWidth={1.5} />
                   <p className="text-sm text-muted-foreground">A processar...</p>
                   <Progress value={uploadProgress} className="h-2" />
                 </div>
               ) : (
                 <>
-                  <CloudUpload className={cn('mb-3 h-10 w-10 transition-colors', isDragging ? 'text-primary' : 'text-muted-foreground')} />
+                  <CloudUpload className={cn('mb-3 h-10 w-10 transition-colors', isDragging ? 'text-primary' : 'text-muted-foreground')} strokeWidth={1.5} />
                   <p className="text-sm text-muted-foreground">
                     {isDragging ? <span className="font-medium text-primary">Larga para carregar</span> : <>Arrasta aqui ou <span className="font-medium text-primary">seleciona no computador</span></>}
                   </p>
@@ -152,7 +152,7 @@ export function MediaUploadSection({
           <div className="min-w-0 flex-1">
             <div className="flex flex-wrap items-center justify-between gap-2">
               <h4 className="text-sm font-semibold text-foreground">Dividir grelha</h4>
-              <Badge variant="outline" className="shrink-0 text-[10px]">até 200MB</Badge>
+              <Badge variant="outline" className="manual-chip shrink-0">até 200MB</Badge>
             </div>
             <p className="mt-1 text-xs text-muted-foreground">Separa uma imagem com múltiplas fotos em slides individuais</p>
           </div>
