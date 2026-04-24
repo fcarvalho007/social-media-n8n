@@ -352,6 +352,46 @@ export default function ManualCreate() {
     return Array.from(networks);
   }, [selectedFormats]);
 
+  useEffect(() => {
+    if (!user?.id || !aiPreferences.insights_enabled || insightDismissedThisSession) {
+      setActiveInsight(null);
+      return;
+    }
+
+    let cancelled = false;
+    const loadInsight = async () => {
+      const { count } = await supabase
+        .from('posts')
+        .select('id', { count: 'exact', head: true })
+        .eq('user_id', user.id)
+        .eq('status', 'published')
+        .not('performance_classification', 'is', null);
+      if (cancelled) return;
+      setClassifiedPostCount(count ?? 0);
+      if ((count ?? 0) < 30) {
+        setActiveInsight(null);
+        return;
+      }
+
+      const now = new Date().toISOString();
+      let query = supabase
+        .from('account_insights' as any)
+        .select('*')
+        .eq('user_id', user.id)
+        .eq('never_show', false)
+        .or(`dismissed_until.is.null,dismissed_until.lt.${now}`)
+        .order('confidence', { ascending: false })
+        .limit(5);
+      const { data } = await query;
+      if (cancelled) return;
+      const selected = ((data ?? []) as AccountInsight[]).find((insight) => !insight.network || selectedNetworks.length === 0 || selectedNetworks.includes(insight.network)) ?? null;
+      setActiveInsight(selected);
+    };
+
+    loadInsight();
+    return () => { cancelled = true; };
+  }, [aiPreferences.insights_enabled, insightDismissedThisSession, selectedNetworks, user?.id]);
+
   const ensureNetworkCaptions = useCallback(() => {
     setNetworkCaptions((prev) => {
       const next = { ...prev };
