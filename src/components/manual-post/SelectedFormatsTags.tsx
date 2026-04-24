@@ -11,10 +11,10 @@ interface SelectedFormatsTagsProps {
 export function SelectedFormatsTags({ selectedFormats, onRemove }: SelectedFormatsTagsProps) {
   if (selectedFormats.length === 0) {
     return (
-      <div className="selected-formats pt-2.5 sm:pt-4 border-t border-border mt-2.5 sm:mt-4">
+      <div className="selected-formats border-t border-border/40 pt-3">
         <div className="flex items-center gap-2">
-          <span className="text-[11px] sm:text-[13px] text-muted-foreground font-medium">Selecionados:</span>
-          <span className="text-[11px] sm:text-[13px] text-muted-foreground/60 italic">
+          <span className="manual-field-label text-muted-foreground">Selecionados:</span>
+          <span className="manual-microcopy italic text-muted-foreground/60">
             Nenhum formato
           </span>
         </div>
@@ -23,9 +23,9 @@ export function SelectedFormatsTags({ selectedFormats, onRemove }: SelectedForma
   }
   
   return (
-    <div className="selected-formats pt-3 sm:pt-4 border-t border-border mt-3 sm:mt-4 w-full max-w-full overflow-hidden">
+    <div className="selected-formats w-full max-w-full overflow-hidden border-t border-border/40 pt-3">
       <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:gap-3">
-        <span className="text-xs sm:text-[13px] text-muted-foreground font-medium flex-shrink-0">Selecionados:</span>
+        <span className="manual-field-label flex-shrink-0 text-muted-foreground">Selecionados:</span>
         
         {/* Grid wrap on mobile */}
         <div className="flex flex-wrap gap-1.5 xs:gap-2 sm:gap-2">
@@ -41,10 +41,9 @@ export function SelectedFormatsTags({ selectedFormats, onRemove }: SelectedForma
                 key={format}
                 className={cn(
                   "selected-tag group",
-                  "flex items-center gap-1 flex-shrink-0",
-                  "px-1.5 py-0.5 sm:px-2.5 sm:py-1.5 pr-1 sm:pr-2",
-                  "bg-card border rounded-md sm:rounded-lg",
-                  "text-[10px] sm:text-[13px] font-medium text-foreground",
+                  "manual-touch-chip flex-shrink-0 gap-1.5 pr-1 sm:pr-2",
+                  "bg-card border",
+                  "font-medium text-foreground",
                   "animate-tag-enter"
                 )}
                 style={{ borderColor: platformConfig.colorHex }}
@@ -60,6 +59,7 @@ export function SelectedFormatsTags({ selectedFormats, onRemove }: SelectedForma
                   onClick={() => onRemove(format)}
                   className={cn(
                     "tag-remove w-3.5 h-3.5 sm:w-[18px] sm:h-[18px] rounded",
+                    "manual-touch-target sm:min-h-0 sm:min-w-0",
                     "flex items-center justify-center",
                     "text-muted-foreground",
                     "hover:bg-destructive/10 hover:text-destructive",

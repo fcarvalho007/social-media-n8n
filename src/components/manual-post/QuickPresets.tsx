@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Check, Sparkles, ChevronRight } from 'lucide-react';
+import { Check, Clock3, Image, Layers3, Sparkles, Video, type LucideIcon } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { PostFormat } from '@/types/social';
 import { getFormatConfig } from '@/types/social';
@@ -9,9 +9,8 @@ interface FormatPreset {
   name: string;
   shortName: string;
   description: string;
-  emoji: string;
+  icon: LucideIcon;
   formats: PostFormat[];
-  gradient: string;
 }
 
 const FORMAT_PRESETS: FormatPreset[] = [
@@ -20,36 +19,32 @@ const FORMAT_PRESETS: FormatPreset[] = [
     name: 'Carrossel Multi-plataforma',
     shortName: 'Carrossel',
     description: 'Instagram Carrossel + LinkedIn PDF',
-    emoji: '🎠',
+    icon: Layers3,
     formats: ['instagram_carousel', 'linkedin_document'],
-    gradient: 'linear-gradient(135deg, #E1306C, #0A66C2)',
   },
   {
     id: 'video-vertical',
     name: 'Vídeo Vertical 9:16',
     shortName: 'Vídeo 9:16',
     description: 'Reels + Shorts + TikTok + LinkedIn',
-    emoji: '📱',
+    icon: Video,
     formats: ['instagram_reel', 'facebook_reel', 'youtube_shorts', 'tiktok_video', 'linkedin_post'],
-    gradient: 'linear-gradient(135deg, #E1306C, #FF0000, #000000, #0A66C2)',
   },
   {
     id: 'post-standard',
     name: 'Post Standard',
     shortName: 'Post',
     description: 'Todas as redes (imagem)',
-    emoji: '📝',
+    icon: Image,
     formats: ['instagram_image', 'linkedin_post', 'facebook_image', 'googlebusiness_post'],
-    gradient: 'linear-gradient(135deg, #E1306C, #0A66C2, #1877F2, #4285F4)',
   },
   {
     id: 'stories-all',
     name: 'Stories Everywhere',
     shortName: 'Stories',
     description: 'IG + FB Stories + Google Business',
-    emoji: '⏱️',
+    icon: Clock3,
     formats: ['instagram_stories', 'facebook_stories', 'googlebusiness_post'],
-    gradient: 'linear-gradient(135deg, #E1306C, #1877F2, #4285F4)',
   },
 ];
 
@@ -88,10 +83,10 @@ export function QuickPresets({ selectedFormats, onSelectPreset }: QuickPresetsPr
   };
 
   return (
-    <div className="quick-presets mb-2 sm:mb-5 overflow-hidden w-full max-w-[calc(100vw-8px)] sm:max-w-full">
-      <div className="flex items-center gap-1.5 mb-1.5 sm:mb-2 px-0">
-        <Sparkles size={12} className="text-amber-500 sm:w-[14px] sm:h-[14px]" />
-        <span className="text-[10px] sm:text-[13px] font-medium text-muted-foreground">Seleção rápida:</span>
+    <div className="quick-presets manual-field-stack w-full max-w-[calc(100vw-8px)] overflow-hidden sm:max-w-full">
+      <div className="flex items-center gap-1.5 px-0">
+        <Sparkles className="h-3.5 w-3.5 text-primary" strokeWidth={1.5} />
+        <span className="manual-field-label text-muted-foreground">Seleção rápida</span>
       </div>
       
       {/* Grid 2x2 on mobile, flex wrap on larger screens */}
@@ -100,6 +95,7 @@ export function QuickPresets({ selectedFormats, onSelectPreset }: QuickPresetsPr
           {FORMAT_PRESETS.map(preset => {
             const isActive = isPresetActive(preset);
             const isPartial = isPresetPartial(preset);
+            const Icon = preset.icon;
             
             return (
               <button
@@ -107,42 +103,33 @@ export function QuickPresets({ selectedFormats, onSelectPreset }: QuickPresetsPr
                 type="button"
                 className={cn(
                   "preset-card",
-                  "relative flex items-center gap-1.5 xs:gap-2 px-2.5 py-2 xs:px-3 xs:py-2.5 sm:px-3.5 sm:py-2.5",
-                  "min-h-[52px] xs:min-h-[56px] sm:min-h-0",
-                  "bg-card border-2 rounded-lg sm:rounded-xl",
-                  "cursor-pointer transition-all duration-200",
-                  "hover:shadow-lg hover:-translate-y-0.5",
+                  "manual-option-button relative flex min-h-14 items-center gap-2 px-3 py-2.5",
                   "text-left w-full sm:w-auto sm:min-w-[180px]",
-                  isActive && "preset-card-active",
-                  isPartial && "preset-card-partial"
+                  "hover:border-primary/40",
+                  isActive && "border-primary bg-primary/10 text-foreground",
+                  isPartial && "border-primary/50 bg-primary/5"
                 )}
-                style={{ 
-                  '--preset-gradient': preset.gradient,
-                  borderColor: isActive ? 'transparent' : isPartial ? 'hsl(var(--muted-foreground))' : 'hsl(var(--border))',
-                  background: isActive 
-                    ? `linear-gradient(white, white) padding-box, ${preset.gradient} border-box`
-                    : undefined,
-                } as React.CSSProperties}
                 onClick={() => handlePresetClick(preset)}
                 onMouseEnter={() => setHoveredPreset(preset.id)}
                 onMouseLeave={() => setHoveredPreset(null)}
               >
                 {/* Check badge */}
                 {isActive && (
-                  <div className="absolute -top-1 -right-1 sm:-top-1.5 sm:-right-1.5 w-3.5 h-3.5 sm:w-5 sm:h-5 bg-gradient-to-br from-emerald-500 to-emerald-600 rounded-full flex items-center justify-center shadow-md">
-                    <Check size={8} className="text-white sm:w-3 sm:h-3" strokeWidth={3} />
+                  <div className="absolute -right-1 -top-1 flex h-3.5 w-3.5 items-center justify-center rounded-full bg-primary shadow-sm sm:-right-1.5 sm:-top-1.5 sm:h-5 sm:w-5">
+                    <Check size={8} className="text-primary-foreground sm:w-3 sm:h-3" strokeWidth={3} />
                   </div>
                 )}
-                
-                {/* Emoji */}
-                <span className="text-base sm:text-2xl leading-none">{preset.emoji}</span>
+
+                <span className={cn('manual-icon-box h-8 w-8', isActive && 'bg-primary text-primary-foreground')}>
+                  <Icon className="h-4 w-4" strokeWidth={1.5} />
+                </span>
                 
                 {/* Text - Full name visible on mobile grid */}
                 <div className="flex flex-col gap-0.5 min-w-0 flex-1">
-                  <span className="font-semibold text-xs xs:text-[13px] sm:text-[13px] text-foreground leading-tight">
+                  <span className="text-xs font-semibold leading-tight text-foreground xs:text-[13px]">
                     {preset.shortName}
                   </span>
-                  <span className="text-[10px] xs:text-[11px] sm:text-[11px] text-muted-foreground leading-tight truncate">{preset.description}</span>
+                  <span className="truncate text-[10px] leading-tight text-muted-foreground xs:text-[11px]">{preset.description}</span>
                 </div>
                 
                 {/* Tooltip - desktop only */}
@@ -157,8 +144,8 @@ export function QuickPresets({ selectedFormats, onSelectPreset }: QuickPresetsPr
         </div>
       </div>
       
-      <div className="presets-divider mt-2 sm:mt-4">
-        <span className="text-[10px] sm:text-xs text-center">ou seleciona manualmente</span>
+      <div className="presets-divider pt-1">
+        <span className="manual-microcopy text-center">ou seleciona manualmente</span>
       </div>
     </div>
   );

@@ -172,7 +172,7 @@ export const NetworkCaptionEditor = forwardRef<NetworkCaptionEditorHandle, Netwo
     <div className="manual-group-stack">
       {/* Toggle for separate captions */}
       {showToggle && (
-        <div className="flex min-h-12 items-center justify-between rounded-lg border bg-muted/50 p-4">
+        <div className="manual-subcard flex min-h-12 items-center justify-between">
           <div className="flex items-center gap-2 xs:gap-3">
             {useSeparateCaptions ? (
               <Split className="h-5 w-5 text-primary" strokeWidth={1.5} />
@@ -193,7 +193,7 @@ export const NetworkCaptionEditor = forwardRef<NetworkCaptionEditorHandle, Netwo
       )}
 
       {/* Toolbar - Touch optimized with larger targets */}
-      <div className="flex items-center gap-1 overflow-x-auto rounded-lg border bg-muted/30 p-2 scrollbar-hide">
+      <div className="flex items-center gap-1 overflow-x-auto rounded-lg border bg-muted/20 p-2 scrollbar-hide">
         <Popover open={emojiPickerOpen} onOpenChange={setEmojiPickerOpen}>
           <PopoverTrigger asChild>
             <Button 
@@ -263,7 +263,7 @@ export const NetworkCaptionEditor = forwardRef<NetworkCaptionEditorHandle, Netwo
       {/* Unified Caption or Network Tabs */}
       {useSeparateCaptions && selectedNetworks.length >= 2 ? (
         <Tabs value={activeNetwork} onValueChange={(v) => setActiveNetwork(v as SocialNetwork)}>
-          <TabsList className="h-auto w-full justify-start gap-1.5 overflow-x-auto bg-muted/50 p-1.5 scrollbar-hide sm:flex-wrap">
+          <TabsList className="h-auto w-full justify-start gap-1.5 overflow-x-auto bg-muted/40 p-1.5 scrollbar-hide sm:flex-wrap">
             {selectedNetworks.map((network) => {
               const config = NETWORK_CONFIG[network];
               const Icon = config.icon;

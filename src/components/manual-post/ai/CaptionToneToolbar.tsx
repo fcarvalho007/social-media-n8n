@@ -21,7 +21,7 @@ interface CaptionToneToolbarProps {
 
 export function CaptionToneToolbar({ loadingAction, disabled, onRewrite }: CaptionToneToolbarProps) {
   return (
-    <div className="flex items-center gap-1 overflow-x-auto rounded-lg border bg-muted/30 p-1.5 scrollbar-hide sm:flex-wrap">
+    <div className="flex items-center gap-1 overflow-x-auto rounded-lg border bg-muted/20 p-1.5 scrollbar-hide sm:flex-wrap">
       {actions.map((action) => {
         const Icon = action.icon;
         return (
@@ -30,7 +30,7 @@ export function CaptionToneToolbar({ loadingAction, disabled, onRewrite }: Capti
             type="button"
             variant="ghost"
             size="sm"
-            className="h-8 min-w-max gap-1.5 px-2 text-xs"
+            className="manual-touch-target h-11 min-w-max gap-1.5 px-3 text-xs sm:h-8 sm:min-h-0 sm:px-2"
             disabled={disabled || !!loadingAction}
             onClick={() => onRewrite(action.id)}
             title={`Ajustar legenda: ${action.label}`}
