@@ -1,11 +1,13 @@
 import { Button } from '@/components/ui/button';
-import { Save, Calendar as CalendarIcon, Loader2, Rocket, Eye } from 'lucide-react';
+import { Drawer, DrawerContent, DrawerHeader, DrawerTitle } from '@/components/ui/drawer';
+import { Save, Calendar as CalendarIcon, Clock, FileText, Loader2, MoreHorizontal, Rocket, Send, CalendarDays, ArrowLeft, AlertCircle } from 'lucide-react';
 import { format } from 'date-fns';
 import { pt } from 'date-fns/locale';
 import { cn } from '@/lib/utils';
 import { ValidationMobileBadge } from '@/components/manual-post/ValidationSidebar';
 import type { ValidationSummary } from '@/lib/validation/types';
 import type { PostFormat } from '@/types/social';
+import { useState } from 'react';
 
 interface MobileStickyActionBarProps {
   currentStep: number;
@@ -17,7 +19,10 @@ interface MobileStickyActionBarProps {
   onOpenValidationSheet: () => void;
   onSaveDraft: () => void;
   onPublish: () => void;
-  onOpenPreview: () => void;
+  onPreviousStep: () => void;
+  onSubmitForApproval: () => void;
+  onOpenDrafts: () => void;
+  onViewCalendar: () => void;
   saving: boolean;
   submitting: boolean;
   publishing: boolean;
@@ -40,14 +45,38 @@ export function MobileStickyActionBar({
   onOpenValidationSheet,
   onSaveDraft,
   onPublish,
-  onOpenPreview,
+  onPreviousStep,
+  onSubmitForApproval,
+  onOpenDrafts,
+  onViewCalendar,
   saving,
   submitting,
   publishing,
   isUploading,
 }: MobileStickyActionBarProps) {
+  const [overflowOpen, setOverflowOpen] = useState(false);
+  const hasContent = selectedFormats.length > 0;
+  const hasBlockingErrors = hasContent && !smartValidation.canPublish;
+  const isFutureSchedule = !scheduleAsap && !!scheduledDate;
+  const disabled = publishing || submitting || saving || isUploading || !hasContent;
+  const primaryLabel = !hasContent
+    ? 'Continuar'
+    : hasBlockingErrors
+      ? 'Corrige antes de publicar'
+      : isFutureSchedule
+        ? 'Agendar'
+        : 'Publicar agora';
+
+  const handlePrimary = () => {
+    if (hasBlockingErrors) {
+      onOpenValidationSheet();
+      return;
+    }
+    onPublish();
+  };
+
   return (
-    <div className="fixed bottom-0 left-0 right-0 bg-background/98 backdrop-blur-md border-t shadow-[0_-4px_20px_-4px_rgba(0,0,0,0.15)] lg:hidden z-50 w-screen max-w-[100vw] overflow-hidden">
+    <div className="fixed bottom-0 left-0 right-0 z-50 w-screen max-w-[100vw] overflow-hidden border-t bg-background/98 shadow-[0_-4px_20px_-4px_hsl(var(--foreground)/0.15)] backdrop-blur-md lg:hidden">
       {/* Mini progress indicator */}
       <div className="flex justify-center py-1 xs:py-1.5 border-b border-border/50">
         <div className="flex items-center gap-1 xs:gap-1.5">
@@ -81,41 +110,46 @@ export function MobileStickyActionBar({
       )}
 
       {/* Action buttons */}
-      <div className="p-2 xs:p-2.5 sm:p-3 pb-[calc(0.5rem+env(safe-area-inset-bottom))] xs:pb-[calc(0.625rem+env(safe-area-inset-bottom))] flex gap-2 xs:gap-2.5 sm:gap-3 w-full max-w-full">
+      <div className="flex min-h-[72px] w-full max-w-full gap-2 px-4 py-3 pb-[calc(12px+env(safe-area-inset-bottom))]">
         <Button
           type="button"
           variant="outline"
           size="icon"
-          onClick={onSaveDraft}
-          disabled={saving || submitting || publishing}
-          className="h-11 w-11 xs:h-12 xs:w-12 sm:h-12 sm:w-12 flex-shrink-0"
-          aria-label="Guardar rascunho"
+          onClick={onPreviousStep}
+          disabled={currentStep <= 1 || saving || submitting || publishing}
+          className="h-11 w-11 flex-shrink-0"
+          aria-label="Passo anterior"
         >
-          <Save className="h-5 w-5 xs:h-5 xs:w-5 sm:h-5 sm:w-5" />
+          <ArrowLeft className="h-5 w-5" />
         </Button>
 
         <Button
           type="button"
-          onClick={onPublish}
-          disabled={publishing || submitting || saving || isUploading || selectedFormats.length === 0 || !smartValidation.canPublish}
+          onClick={handlePrimary}
+          disabled={disabled && !hasBlockingErrors}
           className={cn(
-            'flex-1 h-11 xs:h-12 sm:h-12 font-semibold text-white press-effect text-sm xs:text-base',
-            !scheduleAsap && scheduledDate
-              ? 'bg-gradient-to-r from-blue-600 to-blue-500 hover:from-blue-500 hover:to-blue-400'
-              : 'bg-gradient-to-r from-green-600 to-green-500 hover:from-green-500 hover:to-green-400',
+            'h-11 flex-1 gap-2 font-semibold press-effect text-sm',
+            hasBlockingErrors
+              ? 'bg-destructive text-destructive-foreground hover:bg-destructive/90'
+              : 'bg-primary text-primary-foreground hover:bg-primary/90',
           )}
         >
           {publishing ? (
             <Loader2 className="h-5 w-5 animate-spin" />
-          ) : !scheduleAsap && scheduledDate ? (
+          ) : hasBlockingErrors ? (
             <>
-              <CalendarIcon className="h-5 w-5 mr-2" />
-              <span>Agendar</span>
+              <AlertCircle className="h-5 w-5" />
+              <span>{primaryLabel}</span>
+            </>
+          ) : isFutureSchedule ? (
+            <>
+              <CalendarIcon className="h-5 w-5" />
+              <span>{primaryLabel}</span>
             </>
           ) : (
             <>
-              <Rocket className="h-5 w-5 mr-2" />
-              <span>Publicar</span>
+              <Rocket className="h-5 w-5" />
+              <span>{primaryLabel}</span>
             </>
           )}
         </Button>
@@ -124,13 +158,40 @@ export function MobileStickyActionBar({
           type="button"
           variant="outline"
           size="icon"
-          onClick={onOpenPreview}
-          className="h-11 w-11 xs:h-12 xs:w-12 sm:h-12 sm:w-12 flex-shrink-0"
-          aria-label="Pré-visualizar"
+          onClick={() => setOverflowOpen(true)}
+          className="h-11 w-11 flex-shrink-0"
+          aria-label="Mais ações"
         >
-          <Eye className="h-5 w-5" />
+          <MoreHorizontal className="h-5 w-5" />
         </Button>
       </div>
+
+      <Drawer open={overflowOpen} onOpenChange={setOverflowOpen}>
+        <DrawerContent className="manual-mobile-sheet-safe">
+          <DrawerHeader className="border-b pb-3 text-left">
+            <DrawerTitle>Mais ações</DrawerTitle>
+          </DrawerHeader>
+          <div className="grid gap-2 p-4">
+            <Button type="button" variant="outline" className="manual-touch-target justify-start gap-2" onClick={() => { setOverflowOpen(false); onSaveDraft(); }} disabled={saving || submitting || publishing}>
+              <Save className="h-4 w-4" />Guardar rascunho
+            </Button>
+            <Button type="button" variant="outline" className="manual-touch-target justify-start gap-2" onClick={() => { setOverflowOpen(false); onSubmitForApproval(); }} disabled={saving || submitting || publishing || !hasContent}>
+              <Send className="h-4 w-4" />Submeter para aprovação
+            </Button>
+            <Button type="button" variant="outline" className="manual-touch-target justify-start gap-2" onClick={() => { setOverflowOpen(false); onOpenDrafts(); }}>
+              <FileText className="h-4 w-4" />Ver rascunhos
+            </Button>
+            <Button type="button" variant="outline" className="manual-touch-target justify-start gap-2" onClick={() => { setOverflowOpen(false); onViewCalendar(); }}>
+              <CalendarDays className="h-4 w-4" />Ver calendário
+            </Button>
+            {!scheduleAsap && scheduledDate && (
+              <div className="mt-2 flex items-center gap-2 rounded-md bg-muted p-3 text-sm text-muted-foreground">
+                <Clock className="h-4 w-4" />Agendado para {format(scheduledDate, 'd MMM', { locale: pt })} às {time}
+              </div>
+            )}
+          </div>
+        </DrawerContent>
+      </Drawer>
     </div>
   );
 }

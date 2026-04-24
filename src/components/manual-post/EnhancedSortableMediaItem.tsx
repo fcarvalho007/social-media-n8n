@@ -93,7 +93,7 @@ export function EnhancedSortableMediaItem({
             {...attributes}
             {...listeners}
             className={cn(
-              "p-0.5 sm:p-1 rounded cursor-grab hover:bg-background/80 active:cursor-grabbing",
+              "manual-touch-target p-2 sm:min-h-0 sm:min-w-0 sm:p-1 rounded cursor-grab hover:bg-background/80 active:cursor-grabbing",
               "touch-none select-none transition-colors",
               isDragging && "cursor-grabbing",
               disabled && "cursor-not-allowed"
@@ -142,7 +142,7 @@ export function EnhancedSortableMediaItem({
         <Button
           variant="ghost"
           size="icon"
-          className="h-6 w-6 bg-red-500/15 text-red-500 hover:bg-red-500/25 hover:text-red-600 dark:text-red-400 dark:hover:text-red-300"
+          className="manual-touch-target h-11 w-11 bg-destructive/15 text-destructive hover:bg-destructive/25 sm:h-6 sm:w-6"
           onClick={(e) => {
             e.stopPropagation();
             onRemove();
@@ -180,7 +180,7 @@ export function EnhancedSortableMediaItem({
           variant="secondary"
           size="icon"
           className={cn(
-            "absolute bottom-2 right-2 h-7 w-7 rounded-full shadow-lg transition-all z-10",
+            "absolute bottom-2 right-2 h-11 w-11 rounded-full shadow-lg transition-all z-10 sm:h-7 sm:w-7",
             "bg-background/90 hover:bg-background border",
             "opacity-100 sm:opacity-0 sm:group-hover/media:opacity-100"
           )}
@@ -235,7 +235,7 @@ export function EnhancedSortableMediaItem({
           variant="ghost"
           size="sm"
           className={cn(
-            "h-6 sm:h-7 w-8 sm:w-auto px-0 sm:px-2 text-xs gap-0.5",
+            "manual-touch-target h-11 w-11 px-0 text-xs gap-0.5 sm:h-7 sm:w-auto sm:px-2 sm:min-h-0 sm:min-w-0",
             !canMoveUp && "opacity-40 cursor-not-allowed"
           )}
           onClick={(e) => {
@@ -253,7 +253,7 @@ export function EnhancedSortableMediaItem({
           variant="ghost"
           size="sm"
           className={cn(
-            "h-6 sm:h-7 w-8 sm:w-auto px-0 sm:px-2 text-xs gap-0.5",
+            "manual-touch-target h-11 w-11 px-0 text-xs gap-0.5 sm:h-7 sm:w-auto sm:px-2 sm:min-h-0 sm:min-w-0",
             !canMoveDown && "opacity-40 cursor-not-allowed"
           )}
           onClick={(e) => {

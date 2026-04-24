@@ -20,9 +20,24 @@ interface StepProgressProps {
 }
 
 export function StepProgress({ currentStep, visitedSteps, onStepClick }: StepProgressProps) {
+  const activeStep = steps.find((step) => step.id === currentStep) ?? steps[0];
+  const progress = `${(currentStep / steps.length) * 100}%`;
+
   return (
-    <div className="w-full py-1 sm:py-2">
-      <div className="flex items-center justify-between px-1 sm:justify-center sm:gap-3">
+    <div className="w-full">
+      <div className="sticky top-0 z-40 flex h-11 items-center border-b border-border/60 bg-background/85 px-4 backdrop-blur-md md:hidden">
+        <div className="w-full space-y-2" aria-label={`Passo ${currentStep} de ${steps.length}: ${activeStep.label}`}>
+          <div className="flex items-center justify-between gap-3 text-sm">
+            <span className="font-semibold text-foreground">{currentStep} de {steps.length} · {activeStep.label}</span>
+            <span className="manual-microcopy">{Math.round((currentStep / steps.length) * 100)}%</span>
+          </div>
+          <div className="h-0.5 overflow-hidden rounded-full bg-border">
+            <div className="h-full rounded-full bg-primary transition-[width] duration-manual-expand ease-out" style={{ width: progress }} />
+          </div>
+        </div>
+      </div>
+
+      <div className="hidden items-center justify-between px-1 py-1 sm:justify-center sm:gap-3 md:flex md:py-2">
         {steps.map((step, index) => {
           const isCompleted = visitedSteps.includes(step.id) && step.id < currentStep;
           const isCurrent = step.id === currentStep;

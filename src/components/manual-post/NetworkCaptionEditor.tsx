@@ -199,7 +199,7 @@ export const NetworkCaptionEditor = forwardRef<NetworkCaptionEditorHandle, Netwo
             <Button 
               variant="ghost" 
               size="icon" 
-              className="h-9 w-9 flex-shrink-0" 
+              className="manual-touch-target h-11 w-11 flex-shrink-0 sm:h-9 sm:w-9" 
               title="Inserir emoji" 
               disabled={disabled}
             >
@@ -225,7 +225,7 @@ export const NetworkCaptionEditor = forwardRef<NetworkCaptionEditorHandle, Netwo
           <Button
             variant="ghost"
             size="sm"
-            className="h-9 flex-shrink-0 gap-1 px-3"
+            className="manual-touch-target h-11 flex-shrink-0 gap-1 px-3 sm:h-9"
             onClick={onOpenSavedCaptions}
             title="Legendas guardadas"
             disabled={disabled}
@@ -241,7 +241,7 @@ export const NetworkCaptionEditor = forwardRef<NetworkCaptionEditorHandle, Netwo
           <Button
             variant="ghost"
             size="sm"
-            className="h-9 flex-shrink-0 gap-1 border border-primary/20 bg-primary/10 px-3 hover:bg-primary/15"
+            className="manual-touch-target h-11 flex-shrink-0 gap-1 border border-primary/20 bg-primary/10 px-3 hover:bg-primary/15 sm:h-9"
             onClick={onOpenAIDialog}
             title="Melhorar com IA"
             disabled={disabled}
@@ -277,7 +277,7 @@ export const NetworkCaptionEditor = forwardRef<NetworkCaptionEditorHandle, Netwo
                   key={network}
                   value={network}
                   className={cn(
-                    "flex min-h-10 items-center gap-1.5 rounded-md px-3 py-2 data-[state=active]:bg-background",
+                    "flex min-h-11 items-center gap-1.5 rounded-md px-3 py-2 data-[state=active]:bg-background sm:min-h-10",
                     isOverLimit && "text-destructive"
                   )}
                 >
@@ -315,7 +315,8 @@ export const NetworkCaptionEditor = forwardRef<NetworkCaptionEditorHandle, Netwo
                     }}
                     placeholder={`Legenda para ${NETWORK_CONFIG[network].label}...`}
                     disabled={disabled}
-                    className="manual-input-radius min-h-[220px] max-h-[420px] resize-none"
+                    autoCapitalize="sentences"
+                    className="manual-input-radius manual-scroll-anchor min-h-[220px] max-h-[420px] resize-none"
                   />
                   <div className="flex flex-wrap items-center justify-between gap-2 text-manual-micro">
                     <span className={cn('text-muted-foreground', overBy > 0 && 'text-destructive font-medium')}>
@@ -323,11 +324,11 @@ export const NetworkCaptionEditor = forwardRef<NetworkCaptionEditorHandle, Netwo
                       {overBy > 0 && ` · excede ${overBy} caracteres`}
                     </span>
                     <div className="flex flex-wrap items-center gap-1.5">
-                      <Button type="button" variant="ghost" size="sm" className="h-7 px-2 text-xs" onClick={() => copyText(currentValue)} disabled={!currentValue}>
+                      <Button type="button" variant="ghost" size="sm" className="manual-touch-target h-11 px-2 text-xs sm:h-7" onClick={() => copyText(currentValue)} disabled={!currentValue}>
                         <Copy className="h-3.5 w-3.5 mr-1" />
                         Copiar texto
                       </Button>
-                      <Button type="button" variant="outline" size="sm" className="h-7 px-2 text-xs" onClick={() => onNetworkCaptionChange(network, caption)} disabled={disabled}>
+                      <Button type="button" variant="outline" size="sm" className="manual-touch-target h-11 px-2 text-xs sm:h-7" onClick={() => onNetworkCaptionChange(network, caption)} disabled={disabled}>
                         Duplicar da legenda geral
                       </Button>
                     </div>
@@ -348,7 +349,8 @@ export const NetworkCaptionEditor = forwardRef<NetworkCaptionEditorHandle, Netwo
             }}
             placeholder="Escreva a sua legenda..."
             disabled={disabled}
-            className="manual-input-radius min-h-[220px] max-h-[420px] resize-none"
+            autoCapitalize="sentences"
+            className="manual-input-radius manual-scroll-anchor min-h-[220px] max-h-[420px] resize-none"
           />
           {/* Character counters per network */}
           {selectedNetworks.length > 0 && (

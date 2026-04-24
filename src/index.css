@@ -43,6 +43,20 @@
 @tailwind components;
 @tailwind utilities;
 
+@layer components {
+  .manual-touch-target {
+    @apply min-h-11 min-w-11;
+  }
+
+  .manual-scroll-anchor {
+    scroll-margin-top: 68px;
+  }
+
+  .manual-mobile-sheet-safe {
+    @apply pb-[calc(12px+env(safe-area-inset-bottom))];
+  }
+}
+
 /* Definition of the design system. All colors, gradients, fonts, etc should be defined here. 
 All colors MUST be HSL.
 */
