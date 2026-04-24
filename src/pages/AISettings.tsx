@@ -9,10 +9,14 @@ import { Switch } from '@/components/ui/switch';
 import { Separator } from '@/components/ui/separator';
 import { AICreditsBadge } from '@/components/ai/AICreditsBadge';
 import { useAiPreferences } from '@/hooks/ai/useAiPreferences';
+import { Input } from '@/components/ui/input';
+import { Badge } from '@/components/ui/badge';
+import { normalizeHashtag } from '@/lib/hashtags/safety';
 
 export default function AISettings() {
   const { preferences, loading, savePreferences } = useAiPreferences();
   const [saving, setSaving] = useState(false);
+  const [brandDraft, setBrandDraft] = useState('');
 
   const updatePreference = async (patch: Partial<typeof preferences>) => {
     setSaving(true);
@@ -24,6 +28,13 @@ export default function AISettings() {
     } finally {
       setSaving(false);
     }
+  };
+
+  const addBrandHashtag = async () => {
+    const tag = normalizeHashtag(brandDraft);
+    if (!tag || preferences.brand_hashtags.includes(tag) || preferences.brand_hashtags.length >= 5) return;
+    setBrandDraft('');
+    await updatePreference({ brand_hashtags: [...preferences.brand_hashtags, tag] });
   };
 
   return (
@@ -82,6 +93,27 @@ export default function AISettings() {
                   <SelectItem value="smart">Melhor qualidade — consome mais créditos</SelectItem>
                 </SelectContent>
               </Select>
+            </div>
+          </div>
+
+          <Separator />
+
+          <div className="space-y-3">
+            <div>
+              <Label>Hashtags de marca</Label>
+              <p className="text-sm text-muted-foreground">Até 5 hashtags fixas para sugestões editoriais.</p>
+            </div>
+            <div className="flex gap-2">
+              <Input value={brandDraft} onChange={(event) => setBrandDraft(event.target.value)} placeholder="#aminhamarca" disabled={loading || saving || preferences.brand_hashtags.length >= 5} onKeyDown={(event) => { if (event.key === 'Enter') { event.preventDefault(); addBrandHashtag(); } }} />
+              <Button type="button" variant="outline" onClick={addBrandHashtag} disabled={loading || saving || preferences.brand_hashtags.length >= 5}>Adicionar</Button>
+            </div>
+            <div className="flex flex-wrap gap-2">
+              {preferences.brand_hashtags.map((tag) => (
+                <Badge key={tag} variant="secondary" className="gap-1">
+                  {tag}
+                  <button type="button" onClick={() => updatePreference({ brand_hashtags: preferences.brand_hashtags.filter(item => item !== tag) })} aria-label={`Remover ${tag}`}>×</button>
+                </Badge>
+              ))}
             </div>
           </div>
 
