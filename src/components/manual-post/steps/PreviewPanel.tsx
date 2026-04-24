@@ -1,10 +1,16 @@
 import { type ReactNode } from 'react';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Clock, Eye, type LucideIcon } from 'lucide-react';
+import { Button } from '@/components/ui/button';
+import { Dialog, DialogContent, DialogTitle } from '@/components/ui/dialog';
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
+import { Clock, Eye, Expand, File, FileText, Image, LayoutGrid, MapPin, Play, Video, Circle, type LucideIcon } from 'lucide-react';
+import { useState } from 'react';
 import { format } from 'date-fns';
 import { pt } from 'date-fns/locale';
 import { PostFormat, getNetworkFromFormat, getFormatConfig } from '@/types/social';
+import { cn } from '@/lib/utils';
+import { AutoSaveIndicator } from '@/components/manual-post/NoAccountsState';
 
 interface PreviewPanelProps {
   /** `desktop` para o painel lateral fixo, `mobile` para o conteúdo do drawer. */
@@ -17,6 +23,13 @@ interface PreviewPanelProps {
   time: string;
   renderPreview: (format: PostFormat) => ReactNode;
   getNetworkIcon: (network: string) => LucideIcon;
+  caption: string;
+  networkCaptions: Record<string, string>;
+  useSeparateCaptions: boolean;
+  mediaCount: number;
+  lastSaved: Date | null;
+  isAutoSaving: boolean;
+  hasUnsavedChanges: boolean;
 }
 
 /**
@@ -35,7 +48,98 @@ export function PreviewPanel(props: PreviewPanelProps) {
     time,
     renderPreview,
     getNetworkIcon,
+    caption,
+    networkCaptions,
+    useSeparateCaptions,
+    mediaCount,
+    lastSaved,
+    isAutoSaving,
+    hasUnsavedChanges,
   } = props;
+  const [expandedOpen, setExpandedOpen] = useState(false);
+
+  const getFormatIcon = (icon?: string): LucideIcon => {
+    switch (icon) {
+      case 'LayoutGrid': return LayoutGrid;
+      case 'Image': return Image;
+      case 'Video': return Video;
+      case 'Play': return Play;
+      case 'File': return File;
+      case 'MapPin': return MapPin;
+      case 'Circle': return Circle;
+      default: return FileText;
+    }
+  };
+
+  const getPreviewCaption = (formatItem: PostFormat) => {
+    const network = getNetworkFromFormat(formatItem);
+    return useSeparateCaptions ? networkCaptions[network] || caption : caption;
+  };
+
+  const activeFormat = (variant === 'mobile' ? activePreviewTab || selectedFormats[0] : activePreviewTab || selectedFormats[0]) as PostFormat | undefined;
+  const activeCaption = activeFormat ? getPreviewCaption(activeFormat) : caption;
+  const hashtagCount = (activeCaption.match(/#[\p{L}\p{N}_]+/gu) ?? []).length;
+  const scheduleLabel = scheduledDate && !scheduleAsap
+    ? `${format(scheduledDate, 'dd/MM', { locale: pt })} · ${time}`
+    : 'Imediato';
+
+  const PreviewTabs = ({ compact = true }: { compact?: boolean }) => (
+    <TabsList className={cn(
+      'mb-4 h-auto w-full justify-start gap-2 overflow-x-auto rounded-none bg-transparent p-0 scrollbar-hide',
+      compact ? 'snap-x' : 'flex-wrap'
+    )}>
+      {selectedFormats.map((formatItem) => {
+        const network = getNetworkFromFormat(formatItem);
+        const NetworkIcon = getNetworkIcon(network);
+        const config = getFormatConfig(formatItem);
+        const FormatIcon = getFormatIcon(config?.icon);
+        return (
+          <TooltipProvider key={formatItem} delayDuration={120}>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <TabsTrigger
+                  value={formatItem}
+                  className={cn(
+                    'relative h-10 w-10 shrink-0 snap-start rounded-md border border-border bg-background p-0 text-muted-foreground shadow-none transition-colors',
+                    'data-[state=active]:border-primary data-[state=active]:bg-primary data-[state=active]:text-primary-foreground data-[state=active]:shadow-none'
+                  )}
+                  aria-label={config?.label ?? formatItem}
+                >
+                  <NetworkIcon className="h-5 w-5" />
+                  <span className="absolute bottom-0.5 right-0.5 rounded-sm bg-muted p-0.5 text-muted-foreground data-[state=active]:bg-primary-foreground/20">
+                    <FormatIcon className="h-2.5 w-2.5" />
+                  </span>
+                </TabsTrigger>
+              </TooltipTrigger>
+              <TooltipContent side="bottom">
+                <p>{config?.label ?? formatItem}</p>
+              </TooltipContent>
+            </Tooltip>
+          </TooltipProvider>
+        );
+      })}
+    </TabsList>
+  );
+
+  const Metadata = () => (
+    <div className="mt-4 border-t pt-3">
+      <div className="grid grid-cols-3 gap-2 text-[13px]">
+        <div>
+          <p className="text-muted-foreground">Legenda</p>
+          <p className={cn('font-medium', activeCaption.length >= 2090 && 'text-destructive', activeCaption.length >= 1760 && activeCaption.length < 2090 && 'text-warning')}>{activeCaption.length} / 2200</p>
+        </div>
+        <div>
+          <p className="text-muted-foreground">Hashtags</p>
+          <p className="font-medium">{hashtagCount}</p>
+        </div>
+        <div>
+          <p className="text-muted-foreground">Agendamento</p>
+          <p className="font-medium truncate">{scheduleLabel}</p>
+        </div>
+      </div>
+      <p className="mt-2 text-xs text-muted-foreground">{mediaCount} {mediaCount === 1 ? 'ficheiro' : 'ficheiros'}</p>
+    </div>
+  );
 
   const ScheduledLabel = () =>
     scheduledDate && !scheduleAsap ? (
@@ -78,38 +182,13 @@ export function PreviewPanel(props: PreviewPanelProps) {
 
     return (
       <Tabs value={tabValue} onValueChange={onActivePreviewTabChange}>
-        <TabsList className="w-full mb-4">
-          {selectedFormats.map((formatItem) => {
-            const network = getNetworkFromFormat(formatItem);
-            const Icon = getNetworkIcon(network);
-            const config = getFormatConfig(formatItem);
-            return (
-              <TabsTrigger
-                key={formatItem}
-                value={formatItem}
-                className={
-                  variant === 'mobile' ? 'flex-1 gap-1' : 'flex-1 gap-1.5'
-                }
-              >
-                <Icon className="h-4 w-4" />
-                <span
-                  className={
-                    variant === 'mobile'
-                      ? 'text-xs truncate'
-                      : 'hidden sm:inline text-xs'
-                  }
-                >
-                  {config?.label}
-                </span>
-              </TabsTrigger>
-            );
-          })}
-        </TabsList>
+        <PreviewTabs />
         {selectedFormats.map((formatItem) => (
-          <TabsContent key={formatItem} value={formatItem}>
+          <TabsContent key={formatItem} value={formatItem} className="mt-0">
             {renderPreview(formatItem)}
           </TabsContent>
         ))}
+        <Metadata />
         {variant === 'desktop' && <ScheduledLabel />}
       </Tabs>
     );
@@ -122,12 +201,40 @@ export function PreviewPanel(props: PreviewPanelProps) {
   return (
     <div className="hidden lg:block lg:sticky lg:top-24 lg:h-[calc(100vh-8rem)] overflow-auto">
       <Card className="h-full">
-        <CardHeader>
-          <CardTitle>Pré-visualização</CardTitle>
-          <CardDescription>Como ficará a sua publicação</CardDescription>
+        <CardHeader className="pb-3">
+          <div className="flex items-start justify-between gap-3">
+            <CardTitle className="text-base">Pré-visualização</CardTitle>
+            <div className="flex items-center gap-1.5">
+              <AutoSaveIndicator lastSaved={lastSaved} isSaving={isAutoSaving} hasUnsavedChanges={hasUnsavedChanges} />
+              <Button type="button" variant="ghost" size="icon" className="h-7 w-7" onClick={() => setExpandedOpen(true)} aria-label="Expandir pré-visualização">
+                <Expand className="h-3.5 w-3.5" />
+              </Button>
+            </div>
+          </div>
         </CardHeader>
         <CardContent>{body}</CardContent>
       </Card>
+      <Dialog open={expandedOpen} onOpenChange={setExpandedOpen}>
+        <DialogContent className="h-[92vh] max-w-[96vw] overflow-hidden p-4 sm:p-6">
+          <DialogTitle>Pré-visualização expandida</DialogTitle>
+          <div className="h-full overflow-auto pr-1">
+            {selectedFormats.length > 0 ? (
+              <Tabs value={activePreviewTab || selectedFormats[0]} onValueChange={onActivePreviewTabChange}>
+                <PreviewTabs compact={false} />
+                <div className="grid gap-4 xl:grid-cols-2">
+                  {selectedFormats.map((formatItem) => (
+                    <TabsContent key={formatItem} value={formatItem} className="mt-0 rounded-md border bg-muted/30 p-4">
+                      {renderPreview(formatItem)}
+                    </TabsContent>
+                  ))}
+                </div>
+              </Tabs>
+            ) : (
+              <div className="flex h-64 items-center justify-center text-sm text-muted-foreground">Selecione um formato para ver a pré-visualização</div>
+            )}
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
