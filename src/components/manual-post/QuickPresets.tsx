@@ -106,7 +106,6 @@ export function QuickPresets({ selectedFormats, onSelectPreset }: QuickPresetsPr
                   "manual-option-button relative flex min-h-14 items-center gap-2 px-3 py-2.5",
                   "text-left w-full sm:w-auto sm:min-w-[180px]",
                   "hover:border-primary/40",
-                  "text-left w-full sm:w-auto sm:min-w-[180px]",
                   isActive && "border-primary bg-primary/10 text-foreground",
                   isPartial && "border-primary/50 bg-primary/5"
                 )}
@@ -116,7 +115,7 @@ export function QuickPresets({ selectedFormats, onSelectPreset }: QuickPresetsPr
               >
                 {/* Check badge */}
                 {isActive && (
-                  <div className="absolute -top-1 -right-1 sm:-top-1.5 sm:-right-1.5 w-3.5 h-3.5 sm:w-5 sm:h-5 bg-gradient-to-br from-emerald-500 to-emerald-600 rounded-full flex items-center justify-center shadow-md">
+                  <div className="absolute -right-1 -top-1 flex h-3.5 w-3.5 items-center justify-center rounded-full bg-primary shadow-sm sm:-right-1.5 sm:-top-1.5 sm:h-5 sm:w-5">
                     <Check size={8} className="text-primary-foreground sm:w-3 sm:h-3" strokeWidth={3} />
                   </div>
                 )}
