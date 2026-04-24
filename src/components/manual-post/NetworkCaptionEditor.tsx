@@ -280,22 +280,41 @@ export const NetworkCaptionEditor = forwardRef<NetworkCaptionEditorHandle, Netwo
           </TabsList>
 
           {selectedNetworks.map((network) => {
+            const currentValue = networkCaptions[network] || '';
             const maxLength = getMaxLength(network);
+            const overBy = currentValue.length - maxLength;
             return (
               <TabsContent key={network} value={network} className="mt-3" forceMount
                 style={{ display: activeNetwork === network ? 'block' : 'none' }}
               >
-                <Textarea
-                  ref={(el) => { networkTextareaRefs.current[network] = el; }}
-                  value={networkCaptions[network] || ''}
-                  onChange={(e) => {
-                    onNetworkCaptionChange(network, e.target.value);
-                    resizeTextarea(e.target);
-                  }}
-                  placeholder={`Legenda para ${NETWORK_CONFIG[network].label}...`}
-                  disabled={disabled}
-                  className="min-h-[220px] resize-none overflow-hidden"
-                />
+                <div className="space-y-2">
+                  <Textarea
+                    ref={(el) => { networkTextareaRefs.current[network] = el; }}
+                    value={currentValue}
+                    onChange={(e) => {
+                      onNetworkCaptionChange(network, e.target.value);
+                      resizeTextarea(e.target);
+                    }}
+                    placeholder={`Legenda para ${NETWORK_CONFIG[network].label}...`}
+                    disabled={disabled}
+                    className="min-h-[220px] max-h-[420px] resize-none"
+                  />
+                  <div className="flex flex-wrap items-center justify-between gap-2 text-xs">
+                    <span className={cn('text-muted-foreground', overBy > 0 && 'text-destructive font-medium')}>
+                      {NETWORK_CONFIG[network].label}: {currentValue.length}/{maxLength}
+                      {overBy > 0 && ` · excede ${overBy} caracteres`}
+                    </span>
+                    <div className="flex flex-wrap items-center gap-1.5">
+                      <Button type="button" variant="ghost" size="sm" className="h-7 px-2 text-xs" onClick={() => copyText(currentValue)} disabled={!currentValue}>
+                        <Copy className="h-3.5 w-3.5 mr-1" />
+                        Copiar texto
+                      </Button>
+                      <Button type="button" variant="outline" size="sm" className="h-7 px-2 text-xs" onClick={() => onNetworkCaptionChange(network, caption)} disabled={disabled}>
+                        Duplicar da legenda geral
+                      </Button>
+                    </div>
+                  </div>
+                </div>
               </TabsContent>
             );
           })}
@@ -311,7 +330,7 @@ export const NetworkCaptionEditor = forwardRef<NetworkCaptionEditorHandle, Netwo
             }}
             placeholder="Escreva a sua legenda..."
             disabled={disabled}
-            className="min-h-[220px] resize-none overflow-hidden"
+            className="min-h-[220px] max-h-[420px] resize-none"
           />
           {/* Character counters per network */}
           {selectedNetworks.length > 0 && (
@@ -343,4 +362,4 @@ export const NetworkCaptionEditor = forwardRef<NetworkCaptionEditorHandle, Netwo
       )}
     </div>
   );
-}
+});
