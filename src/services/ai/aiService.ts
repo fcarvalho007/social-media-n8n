@@ -12,6 +12,7 @@ export interface GenerateTextParams {
   responseFormat?: AIResponseFormat;
   model?: AIModelAlias;
   feature?: string;
+  creditCostOverride?: number;
 }
 
 type AICoreResponse<T> = {
@@ -36,8 +37,14 @@ async function invokeAICore<T>(body: Record<string, unknown>): Promise<T> {
 }
 
 export const aiService = {
-  transcribeMedia(fileUrl: string, options?: { language?: string }) {
-    return invokeAICore<string>({ action: 'transcription', fileUrl, options: options || {}, feature: 'shared_ai_service' });
+  transcribeMedia(fileUrl: string, options?: { language?: string; feature?: string; creditCostOverride?: number }) {
+    return invokeAICore<string>({
+      action: 'transcription',
+      fileUrl,
+      options: { language: options?.language },
+      feature: options?.feature || 'shared_ai_service',
+      creditCostOverride: options?.creditCostOverride,
+    });
   },
 
   generateText(params: GenerateTextParams) {
