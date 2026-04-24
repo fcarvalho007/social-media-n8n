@@ -1021,8 +1021,9 @@ Deno.serve(async (req) => {
 
     // Extract and save external post URL/ID to the posts table
     const externalReference = result.postUrl || extractExternalReference(result.data);
-    if (post_id && externalReference) {
-      console.log(`[publish-to-getlate] Saving external reference to post ${post_id}: ${externalReference}`);
+    if (post_id) {
+      const referenceToSave = externalReference || `published:${network}:${format}`;
+      console.log(`[publish-to-getlate] Saving external reference to post ${post_id}: ${referenceToSave}`);
       
       // Get current external_post_ids to merge (in case of multi-network publish)
       const { data: currentPost } = await supabase
@@ -1034,7 +1035,7 @@ Deno.serve(async (req) => {
       const currentExternalIds = (currentPost?.external_post_ids as Record<string, string>) || {};
       const updatedExternalIds = {
         ...currentExternalIds,
-        [network]: externalReference,
+        [network]: referenceToSave,
       };
       
       const { error: updateError } = await supabase
@@ -1050,7 +1051,7 @@ Deno.serve(async (req) => {
       if (updateError) {
         console.error('[publish-to-getlate] Failed to save external_post_ids:', updateError);
       } else {
-        console.log(`[publish-to-getlate] ✅ Saved external reference for ${network}: ${externalReference}`);
+        console.log(`[publish-to-getlate] ✅ Saved external reference for ${network}: ${referenceToSave}`);
       }
     }
 
