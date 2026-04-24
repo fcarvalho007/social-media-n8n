@@ -805,11 +805,18 @@ export default function ManualCreate() {
             mediaPreviewUrls={mediaPreviewUrls}
             mediaSources={mediaSources}
             mediaAspectRatios={mediaAspectRatios}
+            altText={altText}
+            altTextGeneratedAt={assistantGeneratedAt}
+            altTextEdited={aiGeneratedEdited.altText}
             mediaRequirements={mediaRequirements}
             selectedFormats={selectedFormats}
             setMediaFiles={setMediaFiles}
             setMediaPreviewUrls={setMediaPreviewUrls}
             setMediaSources={setMediaSources}
+            onAltTextChange={(value) => {
+              setAltText(value);
+              setAiGeneratedEdited(prev => ({ ...prev, altText: true }));
+            }}
             removeMedia={removeMedia}
             moveMedia={moveMedia}
             isUploading={isUploading}
@@ -838,19 +845,33 @@ export default function ManualCreate() {
             showStep3 ? "opacity-100" : "opacity-0 max-h-0"
           )}>
             <AiUploadAssistantCard
-              visible={showAiUploadAssistant || aiAssistantLoading}
-              loading={aiAssistantLoading}
-              onDismiss={() => setAiAssistantDismissed(true)}
+              visible={showAiUploadAssistant || aiAssistantStatus === 'transcribing' || aiAssistantStatus === 'generating' || aiAssistantStatus === 'done'}
+              status={assistantBlockedMessage && aiAssistantStatus === 'idle' ? 'blocked' : aiAssistantStatus}
+              creditsRemaining={aiCredits.credits_remaining}
+              creditCost={AI_CREDIT_COSTS.full_assistant_flow}
+              errorMessage={aiAssistantError || assistantBlockedMessage}
+              retryCount={aiAssistantRetries}
+              transcription={rawTranscription}
+              onDismiss={() => {
+                setAiAssistantDismissed(true);
+                setAiAssistantStatus('idle');
+                setAiMetadata(prev => ({ ...(prev ?? {}), upload_assistant: { ...(prev?.upload_assistant ?? {}), status: 'dismissed' } }));
+              }}
               onTranscribe={handleAiTranscribe}
+              onRetry={handleAiTranscribe}
             />
 
             <Step3CaptionCard
               ref={captionEditorRef}
               caption={caption}
-              onCaptionChange={setCaption}
+              onCaptionChange={(value) => {
+                setCaption(value);
+                setAiGeneratedEdited(prev => ({ ...prev, caption: true }));
+              }}
               networkCaptions={networkCaptions}
               onNetworkCaptionChange={(network, value) => {
                 setNetworkCaptions(prev => ({ ...prev, [network]: value }));
+                setAiGeneratedEdited(prev => ({ ...prev, [`caption.${network}`]: true }));
               }}
               selectedNetworks={selectedNetworks}
               useSeparateCaptions={useSeparateCaptions}
@@ -864,6 +885,8 @@ export default function ManualCreate() {
               onRewriteToneChange={setRewriteTone}
               onRewriteCaption={handleRewriteCaption}
               rewriteLoading={rewriteLoading}
+              generatedAt={assistantGeneratedAt}
+              generatedEdited={aiGeneratedEdited.caption}
             />
 
             <NetworkOptionsCard
