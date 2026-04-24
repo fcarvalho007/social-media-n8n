@@ -1,4 +1,4 @@
-import { useState, useRef, useEffect } from 'react';
+import { forwardRef, useEffect, useImperativeHandle, useRef, useState } from 'react';
 import { SocialNetwork } from '@/types/social';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Textarea } from '@/components/ui/textarea';
@@ -9,17 +9,21 @@ import { Button } from '@/components/ui/button';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Separator } from '@/components/ui/separator';
 import { cn } from '@/lib/utils';
-import { Instagram, Linkedin, Youtube, Facebook, Smile, Bookmark, Sparkles, Split, Merge } from 'lucide-react';
+import { Copy, Instagram, Linkedin, Youtube, Facebook, Smile, Bookmark, Sparkles, Split, Merge } from 'lucide-react';
 import { NETWORK_CONSTRAINTS } from '@/lib/socialNetworks';
 import EmojiPicker, { EmojiClickData } from 'emoji-picker-react';
 import emojiDataPt from 'emoji-picker-react/dist/data/emojis-pt';
+import { toast } from 'sonner';
 
 const MIN_TEXTAREA_HEIGHT = 220;
+const MAX_TEXTAREA_HEIGHT = 420;
 
 function resizeTextarea(textarea: HTMLTextAreaElement | null) {
   if (!textarea) return;
   textarea.style.height = 'auto';
-  textarea.style.height = `${Math.max(MIN_TEXTAREA_HEIGHT, textarea.scrollHeight)}px`;
+  const nextHeight = Math.min(MAX_TEXTAREA_HEIGHT, Math.max(MIN_TEXTAREA_HEIGHT, textarea.scrollHeight));
+  textarea.style.height = `${nextHeight}px`;
+  textarea.style.overflowY = textarea.scrollHeight > MAX_TEXTAREA_HEIGHT ? 'auto' : 'hidden';
 }
 
 // Network labels and icons
@@ -46,7 +50,11 @@ interface NetworkCaptionEditorProps {
   onOpenAIDialog?: () => void;
 }
 
-export function NetworkCaptionEditor({
+export interface NetworkCaptionEditorHandle {
+  focusCaption: (network?: SocialNetwork) => void;
+}
+
+export const NetworkCaptionEditor = forwardRef<NetworkCaptionEditorHandle, NetworkCaptionEditorProps>(function NetworkCaptionEditor({
   caption,
   onCaptionChange,
   networkCaptions,
@@ -57,7 +65,7 @@ export function NetworkCaptionEditor({
   disabled,
   onOpenSavedCaptions,
   onOpenAIDialog,
-}: NetworkCaptionEditorProps) {
+}, ref) {
   const [activeNetwork, setActiveNetwork] = useState<SocialNetwork>(selectedNetworks[0] || 'instagram');
   const [emojiPickerOpen, setEmojiPickerOpen] = useState(false);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
@@ -72,6 +80,46 @@ export function NetworkCaptionEditor({
 
   const getMaxLength = (network: SocialNetwork): number => {
     return NETWORK_CONSTRAINTS[network]?.max_caption_length || 2200;
+  };
+
+  useImperativeHandle(ref, () => ({
+    focusCaption: (network?: SocialNetwork) => {
+      if (useSeparateCaptions && network) {
+        setActiveNetwork(network);
+        requestAnimationFrame(() => networkTextareaRefs.current[network]?.focus());
+        return;
+      }
+      requestAnimationFrame(() => textareaRef.current?.focus());
+    },
+  }), [useSeparateCaptions]);
+
+  useEffect(() => {
+    if (!useSeparateCaptions) return;
+    selectedNetworks.forEach((network) => {
+      if (!Object.prototype.hasOwnProperty.call(networkCaptions, network)) {
+        onNetworkCaptionChange(network, caption);
+      }
+    });
+  }, [caption, networkCaptions, onNetworkCaptionChange, selectedNetworks, useSeparateCaptions]);
+
+  const handleToggleSeparate = (next: boolean) => {
+    if (next) {
+      selectedNetworks.forEach((network) => {
+        if (!Object.prototype.hasOwnProperty.call(networkCaptions, network)) {
+          onNetworkCaptionChange(network, caption);
+        }
+      });
+    }
+    onToggleSeparate(next);
+  };
+
+  const copyText = async (text: string) => {
+    try {
+      await navigator.clipboard.writeText(text);
+      toast.success('Legenda copiada');
+    } catch {
+      toast.error('Não foi possível copiar a legenda');
+    }
   };
 
   const handleEmojiClick = (emojiData: EmojiClickData) => {
@@ -128,7 +176,7 @@ export function NetworkCaptionEditor({
           <Switch
             id="separate-captions"
             checked={useSeparateCaptions}
-            onCheckedChange={onToggleSeparate}
+            onCheckedChange={handleToggleSeparate}
             disabled={disabled}
           />
         </div>
