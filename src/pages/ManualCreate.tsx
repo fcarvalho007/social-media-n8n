@@ -21,6 +21,7 @@ import { ManualCreateModals } from '@/components/manual-post/steps/ManualCreateM
 import { Drawer, DrawerContent, DrawerHeader, DrawerTitle } from '@/components/ui/drawer';
 import { ChevronRight } from 'lucide-react';
 import { NetworkFormatSelector } from '@/components/manual-post/NetworkFormatSelector';
+import { useActiveSection } from '@/hooks/useActiveSection';
 import { getMediaRequirements } from '@/lib/formatValidation';
 
 import { useSmartValidation } from '@/hooks/useSmartValidation';
