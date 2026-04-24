@@ -245,7 +245,7 @@ export function Step2MediaCard(props: Step2MediaCardProps) {
           {/* Media Grid - With Files */}
           {mediaPreviewUrls.length > 0 && (
               <div className="manual-group-stack">
-              {onAltTextChange && !onMediaAltTextChange && mediaPreviewUrls.length === 1 && (
+              {altTextSupport.hasSupported && onAltTextChange && !onMediaAltTextChange && mediaPreviewUrls.length === 1 && (
                 <AIGeneratedField generatedAt={altTextGeneratedAt} edited={altTextEdited} className="border-0 bg-transparent">
                   <AltTextPanel
                     visible
@@ -256,6 +256,7 @@ export function Step2MediaCard(props: Step2MediaCardProps) {
                     onChange={onAltTextChange}
                     onRegenerate={() => undefined}
                     onApplyAllChange={() => undefined}
+                    microcopy={altTextSupport.microcopy}
                   />
                 </AIGeneratedField>
               )}
