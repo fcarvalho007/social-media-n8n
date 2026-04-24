@@ -41,8 +41,10 @@ import { PreviewPanel } from '@/components/manual-post/steps/PreviewPanel';
 import { createDefaultNetworkOptions, normalizeNetworkOptions } from '@/types/networkOptions';
 import { detectImageAspectRatio as detectImageAspectRatioExt, detectVideoAspectRatio as detectVideoAspectRatioExt } from '@/hooks/manual-create/mediaAspectDetection';
 import { AiUploadAssistantCard } from '@/components/manual-post/ai/AiUploadAssistantCard';
-import type { EditorialAssistantResult } from '@/types/aiEditorial';
+import { CaptionRewritePreviewDialog } from '@/components/manual-post/ai/CaptionRewritePreviewDialog';
+import type { CaptionRewriteMetadata, CaptionRewriteTone, EditorialAssistantResult } from '@/types/aiEditorial';
 import { supabase } from '@/integrations/supabase/client';
+import { useAiPreferences } from '@/hooks/ai/useAiPreferences';
 // `extractVideoFrame` foi consolidado em '@/lib/media/videoFrameExtractor'.
 // Este componente já não o usava localmente.
 
@@ -81,6 +83,7 @@ export default function ManualCreate() {
   const [searchParams] = useSearchParams();
   const recoverPostId = searchParams.get('recover');
   const { instagram, linkedin, canPublish, refresh: refreshQuota, isUnlimited } = usePublishingQuota();
+  const { preferences: aiPreferences } = useAiPreferences();
   const [selectedFormats, setSelectedFormats] = useState<PostFormat[]>([]);
   const [caption, setCaption] = useState('');
   const [scheduledDate, setScheduledDate] = useState<Date>();
@@ -100,6 +103,14 @@ export default function ManualCreate() {
   const [aiMetadata, setAiMetadata] = useState<Partial<EditorialAssistantResult> | null>(null);
   const [aiAssistantLoading, setAiAssistantLoading] = useState(false);
   const [aiAssistantDismissed, setAiAssistantDismissed] = useState(false);
+  const [rewriteTone, setRewriteTone] = useState<CaptionRewriteTone>('neutro');
+  const [rewriteLoading, setRewriteLoading] = useState(false);
+  const [rewritePreview, setRewritePreview] = useState<{
+    originalText: string;
+    rewrittenText: string;
+    tone: CaptionRewriteTone;
+    network?: ReturnType<typeof getNetworkFromFormat>;
+  } | null>(null);
   const mediaSectionRef = useRef<HTMLDivElement>(null);
   const captionEditorRef = useRef<NetworkCaptionEditorHandle>(null);
   const networkOptionsRef = useRef<NetworkOptionsCardHandle>(null);
@@ -292,6 +303,10 @@ export default function ManualCreate() {
       return next;
     });
   }, [caption, selectedNetworks]);
+
+  useEffect(() => {
+    setRewriteTone(aiPreferences.default_tone);
+  }, [aiPreferences.default_tone]);
 
   useEffect(() => {
     const nextSignature = getMediaSignature(mediaFiles);
@@ -527,6 +542,71 @@ export default function ManualCreate() {
     }
   }, [fileToBase64, mediaFiles, selectedNetworks]);
 
+  const handleRewriteCaption = useCallback(async () => {
+    const activeNetwork = useSeparateCaptions
+      ? captionEditorRef.current?.getActiveNetwork() ?? selectedNetworks[0]
+      : selectedNetworks[0];
+    const text = useSeparateCaptions && activeNetwork
+      ? networkCaptions[activeNetwork] || caption
+      : caption;
+
+    if (!text.trim() || text.trim().length < 10) {
+      toast.error('Escreve uma legenda com pelo menos 10 caracteres antes de reescrever.');
+      return;
+    }
+
+    try {
+      setRewriteLoading(true);
+      const { data, error } = await supabase.functions.invoke('ai-caption-rewriter', {
+        body: {
+          text,
+          network: activeNetwork,
+          tone: rewriteTone,
+          formats: selectedFormats,
+          rawTranscription: rawTranscription || undefined,
+          language: 'pt-PT',
+        },
+      });
+
+      if (error || !data?.success) throw new Error(data?.error || error?.message || 'Não foi possível reescrever a legenda.');
+
+      setRewritePreview({
+        originalText: text,
+        rewrittenText: String(data.rewrittenText || '').trim(),
+        tone: rewriteTone,
+        network: activeNetwork,
+      });
+    } catch (error) {
+      console.error('[ManualCreate] caption rewrite error:', error);
+      toast.error(error instanceof Error ? error.message : 'Não foi possível reescrever a legenda.');
+    } finally {
+      setRewriteLoading(false);
+    }
+  }, [caption, networkCaptions, rawTranscription, rewriteTone, selectedFormats, selectedNetworks, useSeparateCaptions]);
+
+  const handleApplyRewrite = useCallback(() => {
+    if (!rewritePreview?.rewrittenText.trim()) return;
+    const metadata: CaptionRewriteMetadata = {
+      network: rewritePreview.network,
+      tone: rewritePreview.tone,
+      created_at: new Date().toISOString(),
+      source: 'caption_rewriter',
+    };
+
+    if (useSeparateCaptions && rewritePreview.network) {
+      setNetworkCaptions(prev => ({ ...prev, [rewritePreview.network!]: rewritePreview.rewrittenText }));
+    } else {
+      setCaption(rewritePreview.rewrittenText);
+    }
+
+    setAiMetadata(prev => ({
+      ...(prev ?? {}),
+      rewrites: [...((prev as EditorialAssistantResult | null)?.rewrites ?? []), metadata],
+    }));
+    setRewritePreview(null);
+    toast.success('Versão reescrita aplicada.');
+  }, [rewritePreview, useSeparateCaptions]);
+
   // Render preview delegated to extracted helper (Phase 4)
   const renderPreview = useCallback(
     (format: PostFormat) => renderFormatPreview(format, { caption, networkCaptions, useSeparateCaptions, mediaFiles, mediaPreviewUrls, mediaItems }),
@@ -675,6 +755,10 @@ export default function ManualCreate() {
               disabled={saving || submitting || publishing}
               onOpenSavedCaptions={() => setSavedCaptionsOpen(true)}
               onOpenAIDialog={() => setAiDialogOpen(true)}
+              rewriteTone={rewriteTone}
+              onRewriteToneChange={setRewriteTone}
+              onRewriteCaption={handleRewriteCaption}
+              rewriteLoading={rewriteLoading}
             />
 
             <NetworkOptionsCard
@@ -828,6 +912,16 @@ export default function ManualCreate() {
             }
           }
         }}
+      />
+
+      <CaptionRewritePreviewDialog
+        open={!!rewritePreview}
+        originalText={rewritePreview?.originalText ?? ''}
+        rewrittenText={rewritePreview?.rewrittenText ?? ''}
+        tone={rewritePreview?.tone ?? rewriteTone}
+        onRewrittenTextChange={(value) => setRewritePreview(prev => prev ? { ...prev, rewrittenText: value } : prev)}
+        onApply={handleApplyRewrite}
+        onKeepOriginal={() => setRewritePreview(null)}
       />
     </div>
   );

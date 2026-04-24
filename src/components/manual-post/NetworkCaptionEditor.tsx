@@ -52,6 +52,7 @@ interface NetworkCaptionEditorProps {
 
 export interface NetworkCaptionEditorHandle {
   focusCaption: (network?: SocialNetwork) => void;
+  getActiveNetwork: () => SocialNetwork;
 }
 
 export const NetworkCaptionEditor = forwardRef<NetworkCaptionEditorHandle, NetworkCaptionEditorProps>(function NetworkCaptionEditor({
@@ -91,7 +92,8 @@ export const NetworkCaptionEditor = forwardRef<NetworkCaptionEditorHandle, Netwo
       }
       requestAnimationFrame(() => textareaRef.current?.focus());
     },
-  }), [useSeparateCaptions]);
+    getActiveNetwork: () => activeNetwork,
+  }), [activeNetwork, useSeparateCaptions]);
 
   useEffect(() => {
     if (!useSeparateCaptions) return;

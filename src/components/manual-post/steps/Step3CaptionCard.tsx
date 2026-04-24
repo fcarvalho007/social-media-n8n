@@ -4,6 +4,8 @@ import { cn } from '@/lib/utils';
 import { SectionHelp, getSectionTooltip } from '@/components/manual-post/SectionHelp';
 import { NetworkCaptionEditor, NetworkCaptionEditorHandle } from '@/components/manual-post/NetworkCaptionEditor';
 import { SocialNetwork } from '@/types/social';
+import { CaptionRewritePanel } from '@/components/manual-post/ai/CaptionRewritePanel';
+import { CaptionRewriteTone } from '@/types/aiEditorial';
 
 interface Step3CaptionCardProps {
   caption: string;
@@ -18,6 +20,10 @@ interface Step3CaptionCardProps {
   disabled: boolean;
   onOpenSavedCaptions: () => void;
   onOpenAIDialog: () => void;
+  rewriteTone: CaptionRewriteTone;
+  onRewriteToneChange: (tone: CaptionRewriteTone) => void;
+  onRewriteCaption: () => void;
+  rewriteLoading: boolean;
 }
 
 /**
@@ -38,6 +44,10 @@ export const Step3CaptionCard = forwardRef<NetworkCaptionEditorHandle, Step3Capt
     disabled,
     onOpenSavedCaptions,
     onOpenAIDialog,
+    rewriteTone,
+    onRewriteToneChange,
+    onRewriteCaption,
+    rewriteLoading,
   } = props;
 
   return (
@@ -80,6 +90,13 @@ export const Step3CaptionCard = forwardRef<NetworkCaptionEditorHandle, Step3Capt
           disabled={disabled}
           onOpenSavedCaptions={onOpenSavedCaptions}
           onOpenAIDialog={onOpenAIDialog}
+        />
+        <CaptionRewritePanel
+          tone={rewriteTone}
+          onToneChange={onRewriteToneChange}
+          onRewrite={onRewriteCaption}
+          loading={rewriteLoading}
+          disabled={disabled}
         />
       </CardContent>
     </Card>

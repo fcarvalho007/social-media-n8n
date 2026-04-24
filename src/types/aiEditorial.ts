@@ -2,6 +2,14 @@ import { SocialNetwork } from '@/types/social';
 
 export type HashtagGroup = 'reach' | 'niche' | 'brand';
 export type HashtagStatus = 'good' | 'saturated' | 'risk';
+export type CaptionRewriteTone = 'direto' | 'emocional' | 'técnico' | 'neutro' | 'mais_curto' | 'mais_forte';
+
+export interface CaptionRewriteMetadata {
+  network?: SocialNetwork;
+  tone: CaptionRewriteTone;
+  created_at: string;
+  source: 'caption_rewriter';
+}
 
 export interface SuggestedHashtag {
   tag: string;
@@ -25,6 +33,7 @@ export interface EditorialAssistantResult {
   alt_text: string;
   key_quotes: string[];
   raw_transcription: string;
+  rewrites?: CaptionRewriteMetadata[];
 }
 
 export interface AiPreferences {
