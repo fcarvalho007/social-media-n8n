@@ -19,7 +19,7 @@ const MODEL_MAP = {
   smart: "openai/gpt-5-mini",
 } as const;
 
-type AIAction = "transcription" | "text_generation" | "vision";
+type AIAction = "transcription" | "text_generation" | "vision" | "hashtag_generation";
 type RequestBody = {
   action?: AIAction;
   fileUrl?: string;
@@ -33,6 +33,10 @@ type RequestBody = {
   feature?: string;
   creditCostOverride?: number;
   options?: { language?: string };
+  caption?: string;
+  transcription?: string;
+  networks?: string[];
+  brandHashtags?: string[];
 };
 
 const responseJson = (body: unknown, status = 200) =>
@@ -86,7 +90,7 @@ function resolveCost(body: RequestBody) {
 }
 
 function validateBody(body: RequestBody) {
-  if (!body.action || !["transcription", "text_generation", "vision"].includes(body.action)) {
+  if (!body.action || !["transcription", "text_generation", "vision", "hashtag_generation"].includes(body.action)) {
     return "Tipo de ação de IA inválido.";
   }
   if (body.action === "transcription" && (!body.fileUrl || typeof body.fileUrl !== "string")) {
@@ -97,6 +101,9 @@ function validateBody(body: RequestBody) {
   }
   if (body.action === "text_generation" && (!body.prompt || typeof body.prompt !== "string" || body.prompt.trim().length < 2)) {
     return "Instrução de geração de texto em falta.";
+  }
+  if (body.action === "hashtag_generation" && (!body.caption || typeof body.caption !== "string" || body.caption.trim().length < 2)) {
+    return "Legenda em falta para gerar hashtags.";
   }
   return null;
 }
