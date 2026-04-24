@@ -109,7 +109,7 @@ export function ValidationIssueCard({
           {issue.affectedItems && issue.affectedItems.length > 0 && (
             <div className="flex items-center gap-1 pt-1 flex-wrap">
               <span className="text-[10px] uppercase tracking-wider text-muted-foreground">
-                Afecta:
+                Afeta:
               </span>
               {issue.affectedItems.slice(0, 6).map(idx => {
                 const isVideo = videoIndices?.has(idx);
