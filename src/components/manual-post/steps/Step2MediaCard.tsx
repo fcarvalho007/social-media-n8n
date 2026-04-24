@@ -314,7 +314,7 @@ export function Step2MediaCard(props: Step2MediaCardProps) {
                       variant="secondary"
                       size="sm"
                       asChild
-                      className="gap-1 h-8 xs:h-9 px-2 xs:px-3"
+                      className="gap-1 h-11 xs:h-9 px-3"
                     >
                       <span>
                         <Plus className="h-3.5 w-3.5 xs:h-4 xs:w-4" />
@@ -462,7 +462,7 @@ export function Step2MediaCard(props: Step2MediaCardProps) {
             <Button
               variant="ghost"
               onClick={onPreviousStep}
-              className="h-10 text-muted-foreground hover:text-foreground"
+              className="h-11 text-muted-foreground hover:text-foreground"
             >
               <ChevronLeft className="h-4 w-4 mr-1" />
               Anterior
@@ -471,7 +471,7 @@ export function Step2MediaCard(props: Step2MediaCardProps) {
               <Button
                 variant="default"
                 onClick={onNextStep}
-                className="h-10"
+                className="h-11"
               >
                 Seguinte
                 <ChevronRight className="h-4 w-4 ml-1" />
