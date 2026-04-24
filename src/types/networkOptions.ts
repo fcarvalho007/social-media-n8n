@@ -41,6 +41,9 @@ export interface NetworkOptions {
     collaborators?: string[];
     formatVariant?: InstagramFormatVariant;
     photoTags?: InstagramPhotoTag[];
+    storyLinkUrl?: string;
+    storyLinkStickerText?: string;
+    storyLinkOverlayText?: string;
   };
   linkedin?: {
     firstComment?: string;

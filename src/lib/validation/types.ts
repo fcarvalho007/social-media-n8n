@@ -45,6 +45,7 @@ export interface ValidatorContext {
   useSeparateCaptions?: boolean;
   /** Advanced per-network options from /manual-create. */
   networkOptions?: NetworkOptions;
+  /** Active selected formats, used by presentation components with network-specific options. */
   mediaFiles: File[];
   hashtags: string[];
   scheduledDate: Date | null;

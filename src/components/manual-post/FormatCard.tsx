@@ -14,7 +14,8 @@ export function FormatCard({ format, isSelected, onToggle, platformColor }: Form
   // Build badges
   const badges: string[] = [];
   if (format.requiresVideo) badges.push('Vídeo');
-  if (format.format.includes('stories')) badges.push('24h');
+  if (format.format.includes('stories') || format.format === 'instagram_story_link') badges.push('24h');
+  if (format.format === 'instagram_story_link') badges.push('Link');
   if (format.format.includes('reel') || format.format.includes('shorts') || format.format.includes('tiktok')) badges.push('9:16');
   if (format.maxDuration && format.maxDuration <= 60) badges.push(`≤${format.maxDuration}s`);
   if (format.format === 'instagram_carousel') badges.push('Popular');
