@@ -9,6 +9,7 @@ import { ValidationSummary } from '@/lib/validation/types';
 import type { useImageCompression } from './useImageCompression';
 import type { usePublishWithProgress } from '@/hooks/usePublishWithProgress';
 import type { usePublishingQuota } from '@/hooks/usePublishingQuota';
+import { useQueryClient } from '@tanstack/react-query';
 
 type ExecutePublish = ReturnType<typeof usePublishWithProgress>['publish'];
 type CompressionApi = ReturnType<typeof useImageCompression>;
@@ -70,6 +71,7 @@ interface OrchestratorParams {
  * Lógica trasladada literalmente da versão inline em `ManualCreate.tsx` (Fase 2).
  */
 export function usePublishOrchestrator(params: OrchestratorParams) {
+  const queryClient = useQueryClient();
   const {
     selectedFormats,
     selectedNetworks,
@@ -101,6 +103,22 @@ export function usePublishOrchestrator(params: OrchestratorParams) {
 
   const [saving, setSaving] = useState(false);
   const [submitting, setSubmitting] = useState(false);
+
+  const consumeCurrentDraft = useCallback(async () => {
+    const validDraftId = currentDraftId && !currentDraftId.startsWith('autosave-') ? currentDraftId : null;
+    if (!validDraftId) return;
+
+    const { error } = await supabase.from('posts_drafts').delete().eq('id', validDraftId);
+    if (error) {
+      console.warn('[usePublishOrchestrator] Failed to remove consumed draft:', error);
+      return;
+    }
+
+    setCurrentDraftId(null);
+    queryClient.invalidateQueries({ queryKey: ['drafts'] });
+    localStorage.removeItem('calendar_events_cache');
+    localStorage.removeItem('calendar_last_updated');
+  }, [currentDraftId, queryClient, setCurrentDraftId]);
 
   // ── saveDraft ──────────────────────────────────────────────────────────
   const saveDraft = useCallback(async () => {
@@ -447,6 +465,7 @@ export function usePublishOrchestrator(params: OrchestratorParams) {
       setUploadProgress(100);
 
       toast.success('Publicação submetida para aprovação com sucesso!', { duration: 4000 });
+      await consumeCurrentDraft();
 
       if (!currentDraftId) {
         setCaption('');
@@ -472,7 +491,7 @@ export function usePublishOrchestrator(params: OrchestratorParams) {
     selectedNetworks, currentDraftId,
     setValidationSheetOpen, setUploadProgress, setCaption, setMediaFiles,
     setMediaPreviewUrls, setScheduledDate, setTime, setScheduleAsap,
-    onNavigateAfterSubmit,
+    onNavigateAfterSubmit, consumeCurrentDraft,
   ]);
 
   // ── publishNow ─────────────────────────────────────────────────────────
@@ -517,13 +536,14 @@ export function usePublishOrchestrator(params: OrchestratorParams) {
     }
 
     if (result === true) {
+      await consumeCurrentDraft();
       await quota.refresh();
     }
   }, [
     selectedFormats, smartValidation.canPublish, mediaFiles, selectedNetworks,
     compression, quota, caption, scheduledDate, time, scheduleAsap,
     recoveredPostId, useSeparateCaptions, networkCaptions, executePublish,
-    setValidationSheetOpen, onDuplicateDetected,
+    setValidationSheetOpen, onDuplicateDetected, consumeCurrentDraft,
   ]);
 
   // ── Wrappers com gating de smart-validation ────────────────────────────
