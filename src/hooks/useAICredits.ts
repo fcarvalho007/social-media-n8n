@@ -35,7 +35,7 @@ export function useAICredits() {
       .eq('user_id', user.id)
       .maybeSingle();
 
-    setCredits(data ? data as AICreditsState : fallbackCredits);
+    setCredits(data ? (data as unknown as AICreditsState) : fallbackCredits);
     setLoading(false);
   };
 
