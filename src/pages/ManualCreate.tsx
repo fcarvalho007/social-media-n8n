@@ -738,6 +738,28 @@ export default function ManualCreate() {
     toast.success('Versão reescrita aplicada.');
   }, [rewritePreview, useSeparateCaptions]);
 
+  const handleRevertRewrite = useCallback(() => {
+    const [last, ...rest] = rewriteHistory;
+    if (!last) return;
+    if (last.network) setNetworkCaptions(prev => ({ ...prev, [last.network!]: last.text }));
+    else setCaption(last.text);
+    setRewriteHistory(rest);
+    toast.success('Legenda revertida.');
+  }, [rewriteHistory]);
+
+  useEffect(() => {
+    const onKeyDown = (event: KeyboardEvent) => {
+      if ((event.ctrlKey || event.metaKey) && event.key.toLowerCase() === 'z' && rewriteHistory.length > 0) {
+        const target = event.target as HTMLElement | null;
+        if (target?.tagName === 'TEXTAREA' || target?.tagName === 'INPUT') return;
+        event.preventDefault();
+        handleRevertRewrite();
+      }
+    };
+    window.addEventListener('keydown', onKeyDown);
+    return () => window.removeEventListener('keydown', onKeyDown);
+  }, [handleRevertRewrite, rewriteHistory.length]);
+
   const toggleHashtag = useCallback((tag: string) => {
     const normalized = normalizeSuggestedHashtag(tag);
     const applyToText = (text: string) => {
