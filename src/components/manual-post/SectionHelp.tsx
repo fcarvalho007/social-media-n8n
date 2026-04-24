@@ -1,10 +1,9 @@
 import { HelpCircle } from 'lucide-react';
 import {
-  Tooltip,
-  TooltipContent,
-  TooltipProvider,
-  TooltipTrigger,
-} from '@/components/ui/tooltip';
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from '@/components/ui/popover';
 import { cn } from '@/lib/utils';
 
 interface SectionHelpProps {
@@ -23,9 +22,8 @@ export type SectionKey = keyof typeof SECTION_TOOLTIPS;
 
 export function SectionHelp({ content, className }: SectionHelpProps) {
   return (
-    <TooltipProvider>
-      <Tooltip>
-        <TooltipTrigger asChild>
+      <Popover>
+        <PopoverTrigger asChild>
           <button 
             type="button" 
             className={cn(
@@ -38,16 +36,43 @@ export function SectionHelp({ content, className }: SectionHelpProps) {
           >
             <HelpCircle className="h-4 w-4" />
           </button>
-        </TooltipTrigger>
-        <TooltipContent 
-          side="right" 
-          className="max-w-xs text-sm"
-          sideOffset={5}
-        >
-          <p>{content}</p>
-        </TooltipContent>
-      </Tooltip>
-    </TooltipProvider>
+        </PopoverTrigger>
+        <PopoverContent side="right" align="start" className="w-80 text-sm">
+          {content === SECTION_TOOLTIPS.media ? (
+            <div className="space-y-3">
+              <div>
+                <p className="font-medium">Tamanho máximo</p>
+                <p className="text-muted-foreground">200MB por carregamento.</p>
+              </div>
+              <div>
+                <p className="font-medium">Formatos aceites</p>
+                <p className="text-muted-foreground">PNG, JPG, MP4 e MOV.</p>
+              </div>
+              <div>
+                <p className="font-medium">Dimensões recomendadas</p>
+                <ul className="mt-1 space-y-1 text-muted-foreground">
+                  <li>Reels: 1080x1920</li>
+                  <li>Feed: 1080x1080</li>
+                  <li>Stories: 1080x1920</li>
+                </ul>
+              </div>
+            </div>
+          ) : content === SECTION_TOOLTIPS.scheduling ? (
+            <div className="space-y-3">
+              <div>
+                <p className="font-medium">Fuso horário</p>
+                <p className="text-muted-foreground">Todas as horas usam Lisboa (WET/WEST).</p>
+              </div>
+              <div>
+                <p className="font-medium">Publicar agora ou agendar</p>
+                <p className="text-muted-foreground">“Publicar agora” envia assim que confirmares. “Agendar” guarda a publicação para a data e hora escolhidas.</p>
+              </div>
+            </div>
+          ) : (
+            <p className="text-muted-foreground">{content}</p>
+          )}
+        </PopoverContent>
+      </Popover>
   );
 }
 

@@ -32,6 +32,12 @@ import { AltTextPanel } from '@/components/manual-post/ai/AltTextPanel';
 import { AIGeneratedField } from '@/components/ai/AIGeneratedField';
 import { AIActionButton } from '@/components/ai/AIActionButton';
 
+const formatFileSize = (size: number) => {
+  if (!size) return '0 KB';
+  if (size < 1024 * 1024) return `${Math.round(size / 1024)} KB`;
+  return `${(size / (1024 * 1024)).toFixed(1)} MB`;
+};
+
 const VALID_ASPECT_RATIOS = new Set<AspectRatioType>([
   '1:1', '3:4', '4:5', '4:3', '16:9', '9:16', 'auto',
 ]);
@@ -262,7 +268,7 @@ export function Step2MediaCard(props: Step2MediaCardProps) {
               {/* Persistent Action Bar */}
               <div
                 className={cn(
-                  'flex items-center justify-between p-2 xs:p-2.5 sm:p-3 rounded-lg border',
+                  'flex items-center justify-between p-2 rounded-md border',
                   mediaPreviewUrls.length >= mediaRequirements.maxMedia
                     ? 'bg-amber-500/10 border-amber-500/30'
                     : 'bg-muted/50 border-border',
@@ -302,7 +308,7 @@ export function Step2MediaCard(props: Step2MediaCardProps) {
                     >
                       <span>
                         <Plus className="h-3.5 w-3.5 xs:h-4 xs:w-4" />
-                        <span className="text-xs">Mais</span>
+                        <span className="text-xs">Adicionar mais</span>
                       </span>
                     </Button>
                     <Input
@@ -345,20 +351,25 @@ export function Step2MediaCard(props: Step2MediaCardProps) {
                     {mediaPreviewUrls.map((url, idx) => {
                       const isVideo = mediaFiles[idx]?.type?.startsWith('video/');
                       return (
-                        <EnhancedSortableMediaItem
-                          key={`media-${idx}`}
-                          id={`media-${idx}`}
-                          url={url}
-                          index={idx}
-                          total={mediaPreviewUrls.length}
-                          isVideo={isVideo}
-                          disabled={saving || submitting || publishing}
-                          source={mediaSources[idx]}
-                          aspectRatio={toAspectRatio(mediaAspectRatios[idx])}
-                          onRemove={() => removeMedia(idx)}
-                          onMoveUp={() => moveMedia(idx, idx - 1)}
-                          onMoveDown={() => moveMedia(idx, idx + 1)}
-                        />
+                        <div key={`media-wrap-${idx}`} className="min-w-0">
+                          <EnhancedSortableMediaItem
+                            id={`media-${idx}`}
+                            url={url}
+                            index={idx}
+                            total={mediaPreviewUrls.length}
+                            isVideo={isVideo}
+                            disabled={saving || submitting || publishing}
+                            source={mediaSources[idx]}
+                            aspectRatio={toAspectRatio(mediaAspectRatios[idx])}
+                            onRemove={() => removeMedia(idx)}
+                            onMoveUp={() => moveMedia(idx, idx - 1)}
+                            onMoveDown={() => moveMedia(idx, idx + 1)}
+                          />
+                          <div className="mt-1 min-w-0 text-xs">
+                            <p className="truncate font-medium">{mediaFiles[idx]?.name ?? `Ficheiro ${idx + 1}`}</p>
+                            <p className="text-muted-foreground">{formatFileSize(mediaFiles[idx]?.size ?? 0)}</p>
+                          </div>
+                        </div>
                       );
                     })}
 
@@ -439,19 +450,17 @@ export function Step2MediaCard(props: Step2MediaCardProps) {
           <div className="flex justify-between mt-3 pt-3 border-t">
             <Button
               variant="ghost"
-              size="sm"
               onClick={onPreviousStep}
-              className="text-muted-foreground hover:text-foreground"
+              className="h-10 text-muted-foreground hover:text-foreground"
             >
               <ChevronLeft className="h-4 w-4 mr-1" />
               Anterior
             </Button>
             {mediaPreviewUrls.length >= (mediaRequirements.minMedia || 1) && (
               <Button
-                variant="ghost"
-                size="sm"
+                variant="default"
                 onClick={onNextStep}
-                className="text-muted-foreground hover:text-foreground"
+                className="h-10"
               >
                 Seguinte
                 <ChevronRight className="h-4 w-4 ml-1" />
