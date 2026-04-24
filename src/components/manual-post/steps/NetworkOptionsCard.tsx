@@ -43,6 +43,11 @@ interface NetworkOptionsCardProps {
   disabled?: boolean;
   generatedAt?: string | null;
   generatedEdited?: Record<string, boolean>;
+  /** Estado para o padrão de progressive disclosure. */
+  state?: SectionState;
+  stepNumber?: number;
+  onActivate?: () => void;
+  onEdit?: () => void;
 }
 
 const youtubeCategories = [
