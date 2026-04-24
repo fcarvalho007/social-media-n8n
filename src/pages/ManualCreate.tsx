@@ -43,7 +43,8 @@ import { detectImageAspectRatio as detectImageAspectRatioExt, detectVideoAspectR
 import { AiUploadAssistantCard, AiUploadAssistantStatus } from '@/components/manual-post/ai/AiUploadAssistantCard';
 import { CaptionRewritePreviewDialog } from '@/components/manual-post/ai/CaptionRewritePreviewDialog';
 import { HashtagSuggestions } from '@/components/manual-post/ai/HashtagSuggestions';
-import type { CaptionRewriteMetadata, CaptionRewriteTone, EditorialAssistantResult, SuggestedHashtag } from '@/types/aiEditorial';
+import { EditorialInsightBanner } from '@/components/manual-post/ai/EditorialInsightBanner';
+import type { AccountInsight, CaptionRewriteMetadata, CaptionRewriteTone, EditorialAssistantResult, SuggestedHashtag } from '@/types/aiEditorial';
 import { supabase } from '@/integrations/supabase/client';
 import { useAiPreferences } from '@/hooks/ai/useAiPreferences';
 import { useAICredits } from '@/hooks/useAICredits';
@@ -165,6 +166,11 @@ export default function ManualCreate() {
     tone: CaptionRewriteTone;
     network?: ReturnType<typeof getNetworkFromFormat>;
   } | null>(null);
+  const [activeInsight, setActiveInsight] = useState<AccountInsight | null>(null);
+  const [classifiedPostCount, setClassifiedPostCount] = useState(0);
+  const [insightDismissedThisSession, setInsightDismissedThisSession] = useState(false);
+  const [insightQuestions, setInsightQuestions] = useState<string[]>([]);
+  const [insightQuestionLoading, setInsightQuestionLoading] = useState(false);
   const mediaSectionRef = useRef<HTMLDivElement>(null);
   const captionEditorRef = useRef<NetworkCaptionEditorHandle>(null);
   const networkOptionsRef = useRef<NetworkOptionsCardHandle>(null);
