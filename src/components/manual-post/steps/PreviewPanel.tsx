@@ -100,7 +100,7 @@ export function PreviewPanel(props: PreviewPanelProps) {
                 <TabsTrigger
                   value={formatItem}
                   className={cn(
-                     'relative h-10 w-10 shrink-0 snap-start rounded-md border border-border bg-background p-0 text-muted-foreground shadow-none transition-colors duration-manual-color focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2',
+                      'relative h-11 w-11 shrink-0 snap-start rounded-md border border-border bg-background p-0 text-muted-foreground shadow-none transition-colors duration-manual-color focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 sm:h-10 sm:w-10',
                     'data-[state=active]:border-primary data-[state=active]:bg-primary data-[state=active]:text-primary-foreground data-[state=active]:shadow-none'
                   )}
                   aria-label={config?.label ?? formatItem}
@@ -204,8 +204,11 @@ export function PreviewPanel(props: PreviewPanelProps) {
     <div className="hidden overflow-auto lg:sticky lg:top-24 lg:block lg:h-[calc(100vh-8rem)]">
       <Card className="card-secondary h-full shadow-[0_18px_45px_hsl(var(--foreground)/0.08)]">
         <CardHeader className="p-5 pb-3">
-          <div className="flex items-start justify-between gap-3">
-            <CardTitle className="manual-section-title">Pré-visualização</CardTitle>
+          <div className="manual-card-header-row">
+            <CardTitle className="manual-section-title manual-card-title-row">
+              <span className="manual-icon-box"><Eye className="h-5 w-5" strokeWidth={1.5} /></span>
+              <span>Pré-visualização</span>
+            </CardTitle>
             <div className="flex items-center gap-1.5">
               <AutoSaveIndicator lastSaved={lastSaved} isSaving={isAutoSaving} hasUnsavedChanges={hasUnsavedChanges} />
               <Button type="button" variant="ghost" size="icon" className="h-7 w-7" onClick={() => setExpandedOpen(true)} aria-label="Expandir pré-visualização">
