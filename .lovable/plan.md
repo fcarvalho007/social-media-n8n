@@ -1,183 +1,126 @@
-# Plano — Prompt 2.5: experiência mobile e responsivo em `/manual-create`
+## Avaliação UX/UI de `/manual-create`
 
-## Objetivo
-Transformar a experiência mobile de `/manual-create` numa interface pensada para telemóvel: coluna única, stepper sticky compacto, pré-visualização em drawer inferior, barra de ações fixa, alvos de toque confortáveis e melhor comportamento com teclado/upload. O desktop 2/3 + 1/3 será preservado.
+A secção está parcialmente consistente: a estrutura geral está alinhada com os prompts anteriores, há um fluxo progressivo claro, cartões reutilizam `manual-card-shell`, os textos estão maioritariamente em pt-PT e a versão mobile já tem stepper sticky, FAB de pré-visualização e barra inferior. No entanto, ainda há inconsistências suficientes para não considerar a experiência “polida” ou pronta como referência de qualidade.
 
-## Inconsistências/decisões encontradas antes de implementar
+O principal problema não é falta de funcionalidade; é excesso de micro-variações e alguns estados mobile incompletos.
 
-1. **Pré-visualização mobile já existe, mas só tem 1 estado**
-   - Atualmente há um drawer simples (`mobilePreviewOpen`) aberto/fechado, com altura `70vh`.
-   - Vou evoluir para 3 estados: fechado, peek 140px e expanded 75vh.
+## Pontos fortes encontrados
 
-2. **Botão de pré-visualização está dentro da barra sticky**
-   - O pedido pede FAB separado no canto inferior direito, acima da barra.
-   - Vou remover a pré-visualização da barra inferior e criar um FAB dedicado com dot de atualização.
+- Fluxo principal está bem dividido: plataformas, média, legenda/opções/agendamento e publicação.
+- Desktop mantém a lógica 2/3 + 1/3 com preview lateral em `lg+`.
+- Mobile tem intenção correta: stepper compacto no topo, FAB para preview e ações no fundo.
+- `NetworkCaptionEditor` está bastante mais coerente: toolbar compacta, textarea com `scroll-margin`, ações de IA acima do campo.
+- A maioria dos inputs críticos usa altura confortável (`min-h-11` / `h-11`).
+- O viewport permite zoom (`maximum-scale=5.0`, `user-scalable=yes`), o que é positivo para acessibilidade.
 
-3. **Stepper mobile atual ainda é uma versão compactada do desktop**
-   - Vou criar comportamento mobile específico: `2 de 3 · Conteúdo` + barra de progresso de 2px, sticky no topo com blur, 44px de altura.
-   - Em desktop mantém a versão atual.
+## Inconsistências e riscos de qualidade
 
-4. **Modal de tags em fotografia usa coordenadas automáticas ao centro**
-   - O pedido fala em pinch-to-zoom e tap para marcar posição. Isto não é “cortar funcionalidade”; é melhorar a versão mobile.
-   - Vou implementar bottom sheet mobile com imagem grande, tap para posição normalizada (`x/y`) e input `@username`. Em desktop mantém modal central.
+### 1. Layout tablet inconsistente
+`manual-create-grid` passa para duas colunas em `md`, mas o `PreviewPanel` desktop só aparece em `lg`. Entre 768px e 1023px, há risco de uma grelha de duas colunas com a coluna de preview escondida, desperdiçando espaço e comprimindo o formulário.
 
-5. **Screenshots/vídeo em dispositivos físicos**
-   - Posso preparar e validar visualmente em viewports no preview, mas não consigo gravar vídeo em iPhone/Android físicos a partir daqui.
-   - Vou deixar no documento final o checklist de QA manual para os testes físicos.
+Correção recomendada: a grelha deve continuar single-column até `lg`; só em `lg+` deve aplicar 2 colunas.
 
-## Implementação proposta
+### 2. Barra inferior mobile demasiado carregada
+A `MobileStickyActionBar` duplica informação do stepper e pode incluir:
+- mini progresso;
+- aviso de agendamento;
+- badge de validação;
+- botões.
 
-### 1. Estrutura mobile de `/manual-create`
-- Ajustar o contentor principal para mobile com `px-0`/`px-3` conforme o padrão aprovado, sem tocar no layout desktop.
-- Garantir a ordem mobile:
-  1. Stepper sticky
-  2. Seleção de redes
-  3. Média
-  4. Legenda
-  5. Hashtags
-  6. Opções por rede
-  7. Agendamento
-  8. Validação via sheet/bottom sheet
-  9. Ações sticky no fundo
-- Adicionar espaço inferior ao conteúdo para não ficar tapado pela barra sticky.
+Isto torna a barra mais alta do que o objetivo de 72px e reduz demasiado a área útil em telemóveis pequenos.
 
-### 2. Stepper sticky mobile
-- Atualizar `StepProgress` para renderizar:
-  - Desktop/tablet: stepper atual.
-  - Mobile `<768px`: `Passo X de 3 · Nome do passo` + barra fina de progresso.
-- Aplicar `sticky top-0 z-40`, blur e fundo `hsl(var(--background) / 0.85)`.
-- Altura máxima visual: 44px.
+Correção recomendada: deixar a barra apenas com `[Anterior] [Ação principal] [Mais ações]`. O estado de erro deve estar no botão principal e abrir o sheet de validação.
 
-### 3. Drawer de pré-visualização mobile com 3 estados
-- Criar/ajustar um componente local para o preview mobile:
-  - Fechado: FAB 48x48, `aria-label="Abrir pré-visualização"`, `bottom: 88px`, `right: 16px`.
-  - Peek: drawer com 140px, miniatura do preview atual + nome da rede/formato.
-  - Expanded: drawer com 75vh, tabs horizontais, mockup legível e metadados.
-- Usar o componente `Drawer` existente (Vaul) e manter swipe down/tap fora via comportamento nativo do Vaul.
-- Lazy-render: em mobile, o `PreviewPanel` só renderiza quando o drawer estiver em peek/expanded.
-- Adicionar dot pulsante no FAB quando legenda, hashtags, redes, média ou agendamento mudarem; o dot desaparece ao abrir o drawer.
-- Respeitar `prefers-reduced-motion` via CSS.
+### 3. Painel de validação mobile não está ligado no fluxo
+Existe estado `validationSheetOpen` e a barra chama `setValidationSheetOpen(true)`, mas não há renderização visível do `ValidationSidebar` em modo mobile no final de `ManualCreate.tsx`.
 
-### 4. Barra de ações sticky no fundo
-- Refatorar `MobileStickyActionBar`:
-  - Remover botão de pré-visualização da barra.
-  - Estrutura: `[Anterior] [Botão principal adaptativo] [⋯]`.
-  - Altura/padding com safe-area: `px-4 py-3 pb-[calc(12px+env(safe-area-inset-bottom))]`.
-  - Botão principal muda texto:
-    - Sem conteúdo: `Continuar` disabled.
-    - Com erros: `Corrige antes de publicar` em tom destructive e abre validação.
-    - Válido + imediato: `Publicar agora`.
-    - Válido + futuro: `Agendar`.
-- Adicionar bottom sheet de overflow com:
-  - Guardar rascunho
-  - Submeter para aprovação
-  - Ver rascunhos
-  - Ver calendário
-- Passar os handlers necessários desde `ManualCreate.tsx`.
+Risco: tocar em “Corrige antes de publicar” pode não abrir feedback útil.
 
-### 5. Painel de validação mobile
-- Manter `ValidationSidebar` como bottom sheet, mas otimizar para mobile:
-  - Estado colapsado por defeito via badge/contador na barra.
-  - Tap em erro chama `fix` existente e fecha/ancora na secção adequada.
-  - Após correção, usar `navigator.vibrate?.(10)` quando disponível.
-- Evitar que fique tapado pela barra sticky.
+Correção recomendada: renderizar `ValidationSidebar` com `mobileOpen`, `onMobileOpenChange` e `mediaFiles`.
 
-### 6. Formulários e toque mobile
-- Auditar e ajustar targets móveis para mínimo 44x44px em:
-  - botões da toolbar de legenda;
-  - chips e botões `x` de hashtags/colaboradores/tags;
-  - tabs de preview;
-  - botões de reordenação/remover média;
-  - accordion headers.
-- Adicionar classes utilitárias mobile no `index.css`:
-  - `.manual-touch-target`
-  - `.manual-scroll-anchor`
-  - `.manual-mobile-sheet-safe`
-- Adicionar `scroll-margin-top` aos inputs/textarea relevantes para manter o campo visível com teclado aberto.
-- Aplicar atributos de teclado:
-  - `inputMode="url"` no CTA URL do Google Business.
-  - `autoCapitalize="none"` e `autoCorrect="off"` para usernames.
-  - `autoCapitalize="sentences"` nas legendas/texto livre.
+### 4. Preview drawer mobile tem estado “peek” pouco intencional
+O estado parcial usa o `PreviewPanel` completo cortado por altura. Isto não cria uma pré-visualização “peek” clara; parece um painel truncado.
 
-### 7. Upload mobile
-- Atualizar `MediaUploadSection` para mobile:
-  - Texto mobile deixa de mencionar drag-and-drop.
-  - Manter drag-and-drop apenas em `sm`/desktop.
-  - Input com `accept="image/*,video/*"` quando aplicável e suporte a captura nativa via opção dedicada.
-- Adicionar botões/labels mobile para escolher:
-  - Câmara
-  - Galeria
-  - Ficheiros
-- Não introduzir novas dependências para compressão neste prompt, porque a regra do workspace exige aprovação explícita para dependências novas. A compressão existente continua a ser usada.
+Correção recomendada: criar conteúdo específico para o peek:
+- rede/formato atual com label em pt-PT;
+- mini resumo de legenda/média/agendamento;
+- CTA “Toca para expandir”.
 
-### 8. Opções por rede mobile
-- Ajustar `NetworkOptionsCard`:
-  - Headers de accordion com largura total e 44px mínimo.
-  - Conteúdo mobile sem padding lateral excessivo.
-  - Chevrons/áreas clicáveis confortáveis.
-  - Contadores abaixo dos campos, não à direita.
-  - Inputs com altura mínima de 44px.
-- Redesenhar a tag em fotografia em mobile como bottom sheet:
-  - Imagem grande.
-  - Tap define `x/y`.
-  - Ponto pulsante na posição selecionada.
-  - Input `@username` acima da ação.
-  - Botão `Confirmar tag` sticky no fundo do sheet.
+Renderizar o `PreviewPanel` completo apenas no estado expanded.
 
-### 9. Acessibilidade mobile
-- Garantir:
-  - labels ARIA no FAB, drawer, overflow menu e ações icon-only;
-  - `aria-live="polite"` para mensagens de estado rápidas quando fizer sentido;
-  - focus trap do drawer/sheets via componentes existentes;
-  - sem bloqueio de zoom no viewport.
+### 5. Indicador do FAB pode aparecer sem edição real
+`previewHasUpdates` é ativado por efeito assim que dependências mudam, sem distinguir estado inicial de edição do utilizador.
 
-### 10. Performance visual
-- Lazy-render da pré-visualização mobile até abrir o drawer.
-- Tabs de preview com scroll horizontal e targets adequados.
-- Importações lucide continuam nomeadas, sem `import * as`.
-- Evitar dynamic imports neste prompt se adicionarem complexidade desnecessária; aplicar apenas se for seguro para componentes raros como o sheet de tags.
+Correção recomendada: guardar uma assinatura inicial do conteúdo e só ativar o dot quando houver alteração real depois do primeiro render.
 
-### 11. Documentação e validação
-- Atualizar `DESIGN_SYSTEM.md` com as regras mobile novas:
-  - stepper sticky;
-  - drawer de preview;
-  - sticky action bar;
-  - touch targets;
-  - teclado/inputmode;
-  - comportamento de upload mobile.
-- Validar com build/typecheck disponível.
-- Fazer QA visual em viewports: 375px, 390px, 412px e 768px no preview quando possível.
+### 6. Upload mobile ainda não representa três ações reais
+Os botões “Câmara”, “Galeria” e “Ficheiros” são `span` dentro do mesmo `label`; todos acionam o mesmo input. Além disso, o input principal tem `capture="environment"`, o que pode forçar câmara quando o utilizador queria galeria.
 
-## Ficheiros previstos
-- `src/pages/ManualCreate.tsx`
-- `src/components/manual-post/StepProgress.tsx`
-- `src/components/manual-post/steps/MobileStickyActionBar.tsx`
-- `src/components/manual-post/steps/PreviewPanel.tsx`
-- `src/components/manual-post/steps/NetworkOptionsCard.tsx`
-- `src/components/manual-post/steps/Step2MediaCard.tsx`
-- `src/components/manual-post/NetworkCaptionEditor.tsx`
-- `src/components/media/MediaUploadSection.tsx`
-- `src/components/manual-post/EnhancedSortableMediaItem.tsx`
-- `src/components/manual-post/ValidationSidebar.tsx`
-- `src/index.css`
-- `DESIGN_SYSTEM.md`
+Correção recomendada:
+- Câmara: input próprio com `capture="environment"`.
+- Galeria: input próprio sem `capture`, `accept="image/*,video/*"`.
+- Ficheiros: input próprio sem `capture`, usando `getAcceptTypes()`.
+- Ajustar copy mobile para não falar em “arrastar”.
 
-## Fora de âmbito neste prompt
-- Não alterar desktop para além de preservar compatibilidade.
-- Não adicionar novas funcionalidades de produto.
-- Não adicionar dependências novas.
-- Não implementar compressão nova com biblioteca externa.
-- Não produzir vídeo real em dispositivos físicos dentro do ambiente Lovable.
+### 7. Tags de fotografia têm conflito modal/drawer
+`Dialog` desktop e `Drawer` mobile são ambos controlados por `tagModalOpen`. Mesmo com classes `hidden`, o portal/focus trap do Dialog pode interferir no mobile.
 
-## Checklist de entrega
-- [ ] Stepper sticky mobile funcional.
-- [ ] Drawer da pré-visualização com fechado/peek/expanded.
-- [ ] FAB de pré-visualização com indicador de alterações.
-- [ ] Barra de ações sticky com safe-area e menu overflow.
-- [ ] Toques críticos com mínimo 44x44px.
-- [ ] Upload mobile com opções Câmara/Galeria/Ficheiros.
-- [ ] Tags em imagem com bottom sheet mobile e tap para posição.
-- [ ] Painel de validação mobile colapsável/tocável.
-- [ ] Inputs com teclado adequado e scroll anchoring.
-- [ ] `DESIGN_SYSTEM.md` atualizado.
-- [ ] Build/typecheck sem erros.
+Correção recomendada: renderizar apenas uma variante consoante breakpoint, ou extrair um componente `PhotoTagSheet` que decide internamente.
+
+### 8. Alvos de toque ainda não estão uniformes
+Ainda há controlos abaixo dos 44px em mobile:
+- tabs de preview (`h-10 w-10`);
+- atalhos rápidos de agendamento (`h-8`);
+- botão “Reverter última reescrita” (`h-8`);
+- botão “Adicionar mais” em média (`h-8/h-9`);
+- chips/botões de remoção de tags do YouTube.
+
+Correção recomendada: aplicar `manual-touch-target`/`h-11` em mobile e manter versão compacta apenas em `sm+`.
+
+### 9. `NetworkOptionsCard` tem dívida técnica visível
+O componente concentra demasiada lógica e JSX numa só linha para Instagram, LinkedIn, Facebook, YouTube, Google Business e tags. Isto aumenta o risco de regressões em mobile, acessibilidade e copy.
+
+Correção recomendada: extrair subcomponentes pequenos sem alterar funcionalidade.
+
+## Plano de refinamento proposto
+
+### Fase 1 — Coerência estrutural e bugs UX
+1. Ajustar `.manual-create-grid` para só usar duas colunas em `lg+`.
+2. Simplificar `MobileStickyActionBar` para altura real de barra de ação.
+3. Renderizar corretamente o `ValidationSidebar` mobile.
+4. Fazer o botão com erro abrir o sheet de validação e, ao tocar num erro, aplicar o respetivo fix/focus.
+
+### Fase 2 — Preview mobile
+1. Criar um componente/resumo `MobilePreviewPeek`.
+2. Renderizar `PreviewPanel` completo só quando o drawer estiver expanded.
+3. Corrigir `activePreviewLabel` para usar labels de formato (`getFormatConfig`) em vez de strings com underscores.
+4. Corrigir o dot do FAB para só aparecer após alterações reais.
+
+### Fase 3 — Upload e ergonomia de toque
+1. Substituir os três spans mobile por três inputs reais: Câmara, Galeria, Ficheiros.
+2. Remover `capture` do input genérico.
+3. Ajustar copy mobile/desktop do upload.
+4. Uniformizar alvos mobile para mínimo 44×44px nos botões ainda pequenos.
+
+### Fase 4 — Opções por rede e tags
+1. Separar `Dialog` desktop e `Drawer` mobile para tags de fotografia.
+2. Manter, neste ciclo, tap-to-position simples e robusto sem pinch zoom.
+3. Corrigir copy da tag desktop para não prometer “ponto escolhido” se não houver escolha manual.
+4. Extrair subcomponentes do `NetworkOptionsCard` para reduzir dívida técnica.
+
+### Fase 5 — Polimento final e documentação
+1. Rever microcopy pt-PT e remover vestígios de inglês ou copy genérica.
+2. Atualizar `DESIGN_SYSTEM.md` com as regras finais de mobile para `/manual-create`.
+3. Validar visualmente em 375px, 390px, 414px, 768px e desktop.
+
+## Decisão recomendada
+
+Para este ciclo, recomendo tap-to-position simples para tags em fotografia, sem pinch zoom. É a opção mais estável e suficiente para uso mobile real. O pinch zoom pode ficar declarado como débito técnico se for necessário depois.
+
+## Checklist de qualidade
+
+☐ `/manual-create` avaliado em estrutura, mobile, preview, upload, validação e opções por rede  
+☐ Inconsistências críticas identificadas  
+☐ Plano de refinamento proposto sem alterações aplicadas  
+☐ Nenhum ficheiro bloqueado precisa de edição direta  
+☐ Aguardando aprovação para implementar as correções
