@@ -1470,6 +1470,92 @@ export type Database = {
         }
         Relationships: []
       }
+      story_link_publications: {
+        Row: {
+          caption: string | null
+          confirmation_token_expires_at: string | null
+          confirmation_token_hash: string | null
+          created_at: string
+          id: string
+          last_error: string | null
+          link_url: string
+          manual_link_clicks: number | null
+          manual_metrics_captured_at: string | null
+          manual_views: number | null
+          media_type: string
+          media_url: string
+          overlay_text: string | null
+          post_id: string | null
+          published_at: string | null
+          published_by_device: string | null
+          reminder_channel: string | null
+          reminder_scheduled_at: string | null
+          reminder_sent_at: string | null
+          status: string
+          sticker_text: string | null
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          caption?: string | null
+          confirmation_token_expires_at?: string | null
+          confirmation_token_hash?: string | null
+          created_at?: string
+          id?: string
+          last_error?: string | null
+          link_url: string
+          manual_link_clicks?: number | null
+          manual_metrics_captured_at?: string | null
+          manual_views?: number | null
+          media_type: string
+          media_url: string
+          overlay_text?: string | null
+          post_id?: string | null
+          published_at?: string | null
+          published_by_device?: string | null
+          reminder_channel?: string | null
+          reminder_scheduled_at?: string | null
+          reminder_sent_at?: string | null
+          status?: string
+          sticker_text?: string | null
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          caption?: string | null
+          confirmation_token_expires_at?: string | null
+          confirmation_token_hash?: string | null
+          created_at?: string
+          id?: string
+          last_error?: string | null
+          link_url?: string
+          manual_link_clicks?: number | null
+          manual_metrics_captured_at?: string | null
+          manual_views?: number | null
+          media_type?: string
+          media_url?: string
+          overlay_text?: string | null
+          post_id?: string | null
+          published_at?: string | null
+          published_by_device?: string | null
+          reminder_channel?: string | null
+          reminder_scheduled_at?: string | null
+          reminder_sent_at?: string | null
+          status?: string
+          sticker_text?: string | null
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "story_link_publications_post_id_fkey"
+            columns: ["post_id"]
+            isOneToOne: false
+            referencedRelation: "posts"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       task_dependencies: {
         Row: {
           created_at: string
@@ -1679,6 +1765,57 @@ export type Database = {
         }
         Relationships: []
       }
+      user_notification_preferences: {
+        Row: {
+          created_at: string
+          email_tested_at: string | null
+          push_tested_at: string | null
+          quiet_hours_end: string
+          quiet_hours_start: string
+          reminder_channel: string
+          reminder_minutes_before: number
+          reminder_telegram_chat_id: string | null
+          reminder_weekdays: number[]
+          reminder_whatsapp_number: string | null
+          telegram_tested_at: string | null
+          updated_at: string
+          user_id: string
+          whatsapp_tested_at: string | null
+        }
+        Insert: {
+          created_at?: string
+          email_tested_at?: string | null
+          push_tested_at?: string | null
+          quiet_hours_end?: string
+          quiet_hours_start?: string
+          reminder_channel?: string
+          reminder_minutes_before?: number
+          reminder_telegram_chat_id?: string | null
+          reminder_weekdays?: number[]
+          reminder_whatsapp_number?: string | null
+          telegram_tested_at?: string | null
+          updated_at?: string
+          user_id: string
+          whatsapp_tested_at?: string | null
+        }
+        Update: {
+          created_at?: string
+          email_tested_at?: string | null
+          push_tested_at?: string | null
+          quiet_hours_end?: string
+          quiet_hours_start?: string
+          reminder_channel?: string
+          reminder_minutes_before?: number
+          reminder_telegram_chat_id?: string | null
+          reminder_weekdays?: number[]
+          reminder_whatsapp_number?: string | null
+          telegram_tested_at?: string | null
+          updated_at?: string
+          user_id?: string
+          whatsapp_tested_at?: string | null
+        }
+        Relationships: []
+      }
       user_roles: {
         Row: {
           created_at: string
@@ -1720,6 +1857,15 @@ export type Database = {
         Returns: boolean
       }
       cleanup_expired_idempotency_keys: { Args: never; Returns: undefined }
+      confirm_story_link_publication: {
+        Args: {
+          _action: string
+          _device?: string
+          _story_id: string
+          _token: string
+        }
+        Returns: boolean
+      }
       consume_ai_credits: {
         Args: { _credits: number; _user_id: string }
         Returns: boolean
