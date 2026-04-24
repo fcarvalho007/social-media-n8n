@@ -542,6 +542,27 @@ export default function ManualCreate() {
         ? 'complete'
         : 'inactive';
 
+  // Estados para Opções por rede e Agendamento (Prompt 3/4).
+  const hasOptionsConfigured =
+    selectedNetworks.length > 0 &&
+    Object.values(networkOptions).some((opts) => opts && Object.values(opts).some((v) => Array.isArray(v) ? v.length > 0 : typeof v === 'string' ? v.trim().length > 0 : v === true));
+
+  const optionsState: 'inactive' | 'active' | 'complete' = !showStep3
+    ? 'inactive'
+    : activeSection === 'options'
+      ? 'active'
+      : hasOptionsConfigured
+        ? 'complete'
+        : 'inactive';
+
+  const scheduleState: 'inactive' | 'active' | 'complete' = !showStep3
+    ? 'inactive'
+    : activeSection === 'schedule'
+      ? 'active'
+      : (scheduleAsap || !!scheduledDate)
+        ? 'complete'
+        : 'inactive';
+
   // Note: legacy `getValidationErrors()`/`hasErrors` removed.
   // The smart-validation panel (`smartValidation.canPublish`) is now the
   // single source of truth for blocking publication. Coverage:
