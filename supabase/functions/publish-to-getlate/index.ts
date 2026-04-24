@@ -1145,11 +1145,16 @@ Deno.serve(async (req) => {
 
     // Update the existing pending attempt to success (no duplicate insert)
     // IMPORTANT: clear error_message so ZWSP-retry successes don't keep ghost 409 badges
+    const successResponseData = {
+      ...(result.data && typeof result.data === 'object' && !Array.isArray(result.data) ? result.data : { raw: result.data }),
+      network_options_applied: platformSpecificData ?? {},
+      ...(retryLog.length > 0 ? { retry_log: retryLog } : {}),
+    };
     if (attemptId) {
       console.log(`[publish-to-getlate] Updating attempt ${attemptId} to success (clearing error_message)`);
       const { error: successAttemptError } = await supabase
         .from('publication_attempts')
-        .update({ status: 'success', response_data: result.data, error_message: null })
+        .update({ status: 'success', response_data: successResponseData, error_message: null })
         .eq('id', attemptId);
       if (successAttemptError) {
         console.error('[publish-to-getlate] Failed to update attempt to success:', successAttemptError);
@@ -1158,7 +1163,7 @@ Deno.serve(async (req) => {
       // Fallback: insert if we couldn't capture the initial ID
       const { error: successAttemptError } = await supabase.from('publication_attempts').insert({
         post_id: post_id || null, platform: network, format,
-        status: 'success', response_data: result.data,
+        status: 'success', response_data: successResponseData,
       });
       if (successAttemptError) {
         console.error('[publish-to-getlate] Failed to record success attempt:', successAttemptError);
