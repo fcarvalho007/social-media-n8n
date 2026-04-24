@@ -334,6 +334,20 @@ export default function ManualCreate() {
   // complete quando carregadas via rascunho — gerido pelos handlers de
   // navegação do stepper).
   const { activeSection, activate } = useActiveSection('networks');
+
+  // Sincroniza foco com stepper: ao avançar para passo > 1 com formatos
+  // escolhidos, a secção 'networks' liberta foco automaticamente e passa a
+  // complete. Ao voltar a passo 1, foca novamente 'networks'.
+  useEffect(() => {
+    if (currentStep > 1 && activeSection === 'networks' && selectedFormats.length > 0) {
+      activate('media');
+    }
+    if (currentStep === 1 && activeSection !== 'networks') {
+      activate('networks');
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [currentStep]);
+
   const networksState =
     selectedFormats.length === 0
       ? (activeSection === 'networks' ? 'active' : 'inactive')
