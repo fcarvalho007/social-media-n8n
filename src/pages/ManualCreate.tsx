@@ -42,7 +42,8 @@ import { createDefaultNetworkOptions, normalizeNetworkOptions } from '@/types/ne
 import { detectImageAspectRatio as detectImageAspectRatioExt, detectVideoAspectRatio as detectVideoAspectRatioExt } from '@/hooks/manual-create/mediaAspectDetection';
 import { AiUploadAssistantCard, AiUploadAssistantStatus } from '@/components/manual-post/ai/AiUploadAssistantCard';
 import { CaptionRewritePreviewDialog } from '@/components/manual-post/ai/CaptionRewritePreviewDialog';
-import type { CaptionRewriteMetadata, CaptionRewriteTone, EditorialAssistantResult } from '@/types/aiEditorial';
+import { HashtagSuggestions } from '@/components/manual-post/ai/HashtagSuggestions';
+import type { CaptionRewriteMetadata, CaptionRewriteTone, EditorialAssistantResult, SuggestedHashtag } from '@/types/aiEditorial';
 import { supabase } from '@/integrations/supabase/client';
 import { useAiPreferences } from '@/hooks/ai/useAiPreferences';
 import { useAICredits } from '@/hooks/useAICredits';
@@ -50,6 +51,7 @@ import { AI_CREDIT_COSTS } from '@/config/aiCreditCosts';
 import { aiService } from '@/services/ai/aiService';
 import { useAuth } from '@/contexts/AuthContext';
 import { generateSafeStoragePath } from '@/lib/fileNameSanitizer';
+import { applySafety, getHashtagsFromText, normalizeHashtag } from '@/lib/hashtags/safety';
 // `extractVideoFrame` foi consolidado em '@/lib/media/videoFrameExtractor'.
 // Este componente já não o usava localmente.
 
@@ -135,6 +137,8 @@ export default function ManualCreate() {
   const [altText, setAltText] = useState('');
   const [rewriteTone, setRewriteTone] = useState<CaptionRewriteTone>('neutro');
   const [rewriteLoading, setRewriteLoading] = useState(false);
+  const [hashtagSuggestions, setHashtagSuggestions] = useState<SuggestedHashtag[]>([]);
+  const [hashtagsLoading, setHashtagsLoading] = useState(false);
   const [rewritePreview, setRewritePreview] = useState<{
     originalText: string;
     rewrittenText: string;
