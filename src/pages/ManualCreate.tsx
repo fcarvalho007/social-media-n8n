@@ -1,4 +1,4 @@
-import { useState, useRef, useMemo, useCallback } from 'react';
+import { useState, useRef, useMemo, useCallback, useEffect } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { PostFormat, getNetworkFromFormat } from '@/types/social';
 import { usePublishingQuota } from '@/hooks/usePublishingQuota';
@@ -249,7 +249,7 @@ export default function ManualCreate() {
   }, [caption, selectedNetworks]);
 
   // Update active preview tab when formats change
-  useMemo(() => {
+  useEffect(() => {
     if (selectedFormats.length > 0 && !activePreviewTab) {
       setActivePreviewTab(selectedFormats[0]);
     } else if (selectedFormats.length === 0) {
