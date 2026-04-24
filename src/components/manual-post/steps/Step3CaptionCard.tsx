@@ -1,7 +1,8 @@
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { forwardRef } from 'react';
 import { cn } from '@/lib/utils';
 import { SectionHelp, getSectionTooltip } from '@/components/manual-post/SectionHelp';
-import { NetworkCaptionEditor } from '@/components/manual-post/NetworkCaptionEditor';
+import { NetworkCaptionEditor, NetworkCaptionEditorHandle } from '@/components/manual-post/NetworkCaptionEditor';
 import { SocialNetwork } from '@/types/social';
 
 interface Step3CaptionCardProps {
@@ -23,7 +24,7 @@ interface Step3CaptionCardProps {
  * Cartão da legenda (Step 3a). Apresenta contador de caracteres e o
  * `NetworkCaptionEditor` que suporta legenda unificada ou diferenciada por rede.
  */
-export function Step3CaptionCard(props: Step3CaptionCardProps) {
+export const Step3CaptionCard = forwardRef<NetworkCaptionEditorHandle, Step3CaptionCardProps>(function Step3CaptionCard(props, ref) {
   const {
     caption,
     onCaptionChange,
@@ -68,6 +69,7 @@ export function Step3CaptionCard(props: Step3CaptionCardProps) {
       </CardHeader>
       <CardContent className="space-y-2 sm:space-y-3 px-3 sm:px-6 pb-4 sm:pb-6">
         <NetworkCaptionEditor
+          ref={ref}
           caption={caption}
           onCaptionChange={onCaptionChange}
           networkCaptions={networkCaptions}
@@ -82,4 +84,4 @@ export function Step3CaptionCard(props: Step3CaptionCardProps) {
       </CardContent>
     </Card>
   );
-}
+});
