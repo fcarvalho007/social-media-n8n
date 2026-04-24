@@ -1,6 +1,7 @@
 import { useMemo, useState } from 'react';
 import { CheckCircle2, Clock3, Instagram, XCircle } from 'lucide-react';
 import { useSearchParams } from 'react-router-dom';
+import { QRCodeSVG } from 'qrcode.react';
 import { toast } from 'sonner';
 import { supabase } from '@/integrations/supabase/client';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -53,6 +54,10 @@ export default function StoryConfirm() {
             </div>
           ) : (
             <div className="grid gap-3">
+              <div className="hidden rounded-lg border bg-muted/30 p-4 text-center sm:block">
+                <QRCodeSVG value={window.location.href} size={132} className="mx-auto rounded-md bg-background p-2" />
+                <p className="mt-3 text-xs text-muted-foreground">Se estiveres no desktop, lê o QR code no telemóvel para confirmar depois de publicar.</p>
+              </div>
               <Button type="button" className="min-h-12 gap-2" onClick={() => confirm('published')} disabled={!!loading}>
                 <CheckCircle2 className="h-4 w-4" /> Publiquei
               </Button>
