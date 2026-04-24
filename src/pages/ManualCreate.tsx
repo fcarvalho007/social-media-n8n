@@ -175,6 +175,7 @@ export default function ManualCreate() {
   const captionEditorRef = useRef<NetworkCaptionEditorHandle>(null);
   const networkOptionsRef = useRef<NetworkOptionsCardHandle>(null);
   const aiMediaSignatureRef = useRef('');
+  const autoAltTextSignatureRef = useRef('');
 
   // ── Phase 1 hook: media state + DnD ────────────────────────────────────
   const mediaManager = useMediaManager();
@@ -426,6 +427,7 @@ export default function ManualCreate() {
       setAssistantGeneratedAt(null);
       setAiGeneratedEdited({});
       setAltText('');
+      setAltTexts({});
     }
 
     aiMediaSignatureRef.current = nextSignature;
@@ -442,13 +444,16 @@ export default function ManualCreate() {
   }, [mediaFiles]);
 
   useEffect(() => {
-    if (aiMetadata?.upload_assistant?.generated_at) {
+    if (aiMetadata?.upload_assistant?.status === 'dismissed') {
+      setAiAssistantDismissed(true);
+      setAiAssistantStatus('idle');
+    } else if (aiMetadata?.upload_assistant?.generated_at) {
       setAssistantGeneratedAt(aiMetadata.upload_assistant.generated_at);
       setAiAssistantStatus('done');
       setAiGeneratedEdited(Object.fromEntries(Object.entries(aiMetadata.generated_fields ?? {}).map(([key, value]) => [key, !!value.edited])));
       setHashtagSuggestions((aiMetadata.hashtag_assistant?.hashtags ?? []).map(applySafety));
     } else if (rawTranscription && rawTranscription.length >= 20) {
-      setAiAssistantStatus('idle');
+      setAiAssistantStatus(aiMetadata?.upload_assistant?.status === 'transcribed' ? 'generating' : 'idle');
     }
   }, [aiMetadata, rawTranscription]);
 
