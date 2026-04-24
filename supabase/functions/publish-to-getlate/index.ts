@@ -72,6 +72,7 @@ interface NetworkOptions {
   };
   youtube?: {
     title?: string;
+    tags?: string[];
     visibility?: YouTubeVisibility;
     categoryId?: string;
     category?: string;
@@ -641,6 +642,11 @@ function buildPlatformSpecificData(network: string, format: string, options: Net
       if (title.length > 100) throw new Error('O título do YouTube não pode exceder 100 caracteres.');
       data.title = title;
     }
+    // YouTube tags: array de strings, total ≤ 500 chars (validado no frontend)
+    const tags = (youtube.tags ?? [])
+      .map((t) => (typeof t === 'string' ? t.trim() : ''))
+      .filter((t) => t.length > 0);
+    if (tags.length > 0) data.tags = tags;
     if (youtube.visibility && ['public', 'unlisted', 'private'].includes(youtube.visibility)) data.visibility = youtube.visibility;
     const categoryId = youtube.categoryId ?? (youtube.category ? LEGACY_YOUTUBE_CATEGORY_IDS[youtube.category] : undefined);
     if (categoryId) data.categoryId = categoryId;

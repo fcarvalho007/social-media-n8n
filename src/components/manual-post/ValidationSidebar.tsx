@@ -207,6 +207,67 @@ export function ValidationSidebar({
 
   // ── Mobile (Bottom Sheet) ───────────────────────────────────────────────
   if (typeof mobileOpen === 'boolean') {
+    // Wraps `fix` so the mobile sheet closes (with haptic feedback) right
+    // after the user taps "Corrigir" — keeps focus on the underlying field.
+    const handleMobileFix = (issueId: string) => {
+      try {
+        navigator.vibrate?.(10);
+      } catch {
+        // Some browsers (Safari iOS) reject vibrate(); ignore silently.
+      }
+      fix(issueId);
+      onMobileOpenChange?.(false);
+    };
+
+    const mobileBody = (
+      <div className="manual-field-stack">
+        {isClean && (
+          <div className="rounded-lg border border-success/30 bg-success/5 p-3 flex items-start gap-2.5">
+            <CheckCircle2 className="h-4 w-4 text-success mt-0.5 shrink-0" />
+            <div className="text-xs space-y-1">
+              <p className="font-medium text-success">Tudo verificado</p>
+              <p className="text-muted-foreground">
+                Formato, média, legenda e regras das redes — tudo conforme.
+              </p>
+            </div>
+          </div>
+        )}
+        {issues.length > 0 && (
+          <div className="space-y-3">
+            {CATEGORY_ORDER.map(cat => {
+              const list = validation.byCategory[cat];
+              if (!list || list.length === 0) return null;
+              return (
+                <div key={cat} className="manual-field-stack">
+                  <h4 className="manual-microcopy px-0.5 font-semibold uppercase tracking-normal">
+                    {CATEGORY_LABELS[cat]} · {list.length}
+                  </h4>
+                  <div className="space-y-2">
+                    {list.map(issue => (
+                      <ValidationIssueCard
+                        key={issue.id}
+                        issue={issue}
+                        onFix={handleMobileFix}
+                        onDismiss={dismiss}
+                        mediaThumbnails={thumbnails}
+                        videoIndices={videoIndices}
+                      />
+                    ))}
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        )}
+        {isValidating && issues.length === 0 && !isClean && (
+          <div className="flex items-center gap-2 text-xs text-muted-foreground p-3">
+            <Loader2 className="h-3.5 w-3.5 animate-spin" />
+            A analisar legenda e média...
+          </div>
+        )}
+      </div>
+    );
+
     return (
       <Sheet open={mobileOpen} onOpenChange={onMobileOpenChange}>
         <SheetContent side="bottom" className="max-h-[80vh] flex flex-col">
@@ -217,7 +278,7 @@ export function ValidationSidebar({
             </SheetTitle>
           </SheetHeader>
           <ScrollArea className="flex-1 mt-3 pr-3">
-            {body}
+            {mobileBody}
           </ScrollArea>
         </SheetContent>
       </Sheet>

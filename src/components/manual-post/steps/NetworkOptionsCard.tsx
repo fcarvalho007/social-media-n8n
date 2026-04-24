@@ -152,18 +152,44 @@ export const NetworkOptionsCard = forwardRef<NetworkOptionsCardHandle, NetworkOp
     setDraftCollaborator('');
   };
 
-  const insertLinkedInMention = () => {
-    if (!mentionProfile.trim() || !mentionName.trim()) return;
-    const mentionText = `@[${mentionName.trim()}](${mentionProfile.trim()})`;
-    if (useSeparateCaptions) {
-      const current = networkCaptions.linkedin ?? caption;
-      onNetworkCaptionChange('linkedin', `${current}${current ? ' ' : ''}${mentionText}`);
-    } else {
-      onCaptionChange(`${caption}${caption ? ' ' : ''}${mentionText}`);
+  const [isResolvingMention, setIsResolvingMention] = useState(false);
+
+  const insertLinkedInMention = async () => {
+    const profile = mentionProfile.trim();
+    const name = mentionName.trim();
+    if (!profile || !name) return;
+    setIsResolvingMention(true);
+    try {
+      // Resolve URN via Getlate (cached server-side). Sem URN, a menção
+      // não dispara notificação no LinkedIn — por isso bloqueamos a inserção.
+      const { data, error } = await supabase.functions.invoke(
+        'getlate-linkedin-mention',
+        { body: { profileUrl: profile, displayName: name } },
+      );
+      if (error || !data?.mentionFormat) {
+        const message =
+          (data && typeof (data as { error?: unknown }).error === 'string'
+            ? (data as { error: string }).error
+            : null) ??
+          error?.message ??
+          'Não foi possível resolver esta menção. Tenta novamente.';
+        toast({ title: 'Menção LinkedIn', description: message, variant: 'destructive' });
+        return;
+      }
+      const mentionText = data.mentionFormat as string;
+      if (useSeparateCaptions) {
+        const current = networkCaptions.linkedin ?? caption;
+        onNetworkCaptionChange('linkedin', `${current}${current ? ' ' : ''}${mentionText}`);
+      } else {
+        onCaptionChange(`${caption}${caption ? ' ' : ''}${mentionText}`);
+      }
+      // Mantém um registo interno para re-edição futura. NÃO é enviado ao publish-to-getlate.
+      updateNetwork('linkedin', { mentions: [...(networkOptions.linkedin?.mentions ?? []), { profile, displayName: name }] });
+      setMentionProfile('');
+      setMentionName('');
+    } finally {
+      setIsResolvingMention(false);
     }
-    updateNetwork('linkedin', { mentions: [...(networkOptions.linkedin?.mentions ?? []), { profile: mentionProfile.trim(), displayName: mentionName.trim() }] });
-    setMentionProfile('');
-    setMentionName('');
   };
 
   const addPhotoTagAtCenter = () => {
