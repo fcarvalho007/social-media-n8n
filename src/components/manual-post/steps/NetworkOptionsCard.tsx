@@ -117,9 +117,9 @@ export const NetworkOptionsCard = forwardRef<NetworkOptionsCardHandle, NetworkOp
     const overBy = value.length - limit;
     return (
       <AIGeneratedField generatedAt={generatedAt} edited={generatedEdited[`${network}.firstComment`]} className="border-0 bg-transparent">
-        <div className="space-y-2">
+        <div className="manual-field-stack">
           <div className="flex items-center justify-between gap-2">
-            <Label htmlFor={`${network}-first-comment`}>Primeiro comentário</Label>
+            <Label htmlFor={`${network}-first-comment`} className="manual-field-label">Primeiro comentário</Label>
             <AIActionButton icon={<Sparkles className="h-4 w-4" />} label="Gerar" creditCost={1} variant="ghost" disabled={disabled || !caption.trim()} onClick={() => generateFirstComment(network)} />
           </div>
           <Textarea
@@ -129,9 +129,9 @@ export const NetworkOptionsCard = forwardRef<NetworkOptionsCardHandle, NetworkOp
             onChange={(e) => updateNetwork(network, { firstComment: e.target.value } as never)}
             placeholder="Adiciona contexto extra ou um CTA aqui."
             disabled={disabled}
-            className={cn('min-h-[96px] resize-none', overBy > 0 && 'border-destructive focus-visible:ring-destructive')}
+            className={cn('manual-input-radius min-h-[96px] resize-none', overBy > 0 && 'border-destructive focus-visible:ring-destructive')}
           />
-          <p className={cn('text-xs text-muted-foreground', overBy > 0 && 'text-destructive font-medium')}>
+          <p className={cn('manual-microcopy', overBy > 0 && 'text-destructive font-medium')}>
             {value.length}/{limit}{overBy > 0 && ` · excede ${overBy} caracteres`}
           </p>
         </div>
@@ -179,19 +179,19 @@ export const NetworkOptionsCard = forwardRef<NetworkOptionsCardHandle, NetworkOp
   const renderNetworkHeader = (network: SocialNetwork) => {
     const info = NETWORK_INFO[network];
     const Icon = info.icon;
-    return <span className="flex items-center gap-2"><Icon className="h-4 w-4" style={{ color: info.color }} />{info.name}</span>;
+    return <span className="flex items-center gap-2"><Icon className="h-4 w-4 shrink-0" style={{ color: info.color }} strokeWidth={1.5} />{info.name}</span>;
   };
 
   const renderInstagram = () => (
-    <div className="space-y-4">
+    <div className="manual-group-stack">
       <Tabs value={networkOptions.instagram?.formatVariant ?? 'feed'} onValueChange={(value) => updateNetwork('instagram', { formatVariant: value as never })}>
-        <TabsList className="w-full justify-start h-auto flex-wrap"><TabsTrigger value="feed">Feed</TabsTrigger><TabsTrigger value="story">Story</TabsTrigger><TabsTrigger value="reel">Reel</TabsTrigger><TabsTrigger value="carousel">Carousel</TabsTrigger></TabsList>
+        <TabsList className="h-auto w-full justify-start gap-1 overflow-x-auto p-1 scrollbar-hide sm:flex-wrap"><TabsTrigger value="feed">Feed</TabsTrigger><TabsTrigger value="story">Story</TabsTrigger><TabsTrigger value="reel">Reel</TabsTrigger><TabsTrigger value="carousel">Carousel</TabsTrigger></TabsList>
       </Tabs>
       {renderFirstComment('instagram')}
-      <div className="space-y-2">
-        <Label>Colaboradores (máx. 3)</Label>
-        <div className="flex gap-2"><Input ref={setFieldRef(fieldKey('instagram', 'collaborators')) as React.Ref<HTMLInputElement>} value={draftCollaborator} onChange={(e) => setDraftCollaborator(e.target.value)} placeholder="@username" disabled={disabled || (networkOptions.instagram?.collaborators?.length ?? 0) >= 3} onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); addCollaborator(); } }} /><Button type="button" onClick={addCollaborator} disabled={disabled}>Adicionar</Button></div>
-        <div className="flex flex-wrap gap-2">{(networkOptions.instagram?.collaborators ?? []).map((name) => <Badge key={name} variant="secondary" className="gap-1">{name}<button type="button" onClick={() => updateNetwork('instagram', { collaborators: (networkOptions.instagram?.collaborators ?? []).filter(n => n !== name) })}>×</button></Badge>)}</div>
+      <div className="manual-field-stack">
+        <Label className="manual-field-label">Colaboradores (máx. 3)</Label>
+        <div className="flex gap-2"><Input className="manual-input-radius" ref={setFieldRef(fieldKey('instagram', 'collaborators')) as React.Ref<HTMLInputElement>} value={draftCollaborator} onChange={(e) => setDraftCollaborator(e.target.value)} placeholder="@username" disabled={disabled || (networkOptions.instagram?.collaborators?.length ?? 0) >= 3} onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); addCollaborator(); } }} /><Button type="button" className="h-10" onClick={addCollaborator} disabled={disabled}>Adicionar</Button></div>
+        <div className="flex flex-wrap gap-2">{(networkOptions.instagram?.collaborators ?? []).map((name) => <Badge key={name} variant="secondary" className="manual-chip manual-enter gap-1">{name}<button type="button" aria-label={`Remover ${name}`} onClick={() => updateNetwork('instagram', { collaborators: (networkOptions.instagram?.collaborators ?? []).filter(n => n !== name) })}>×</button></Badge>)}</div>
       </div>
       <div className="space-y-2">
         <Button type="button" variant="outline" size="sm" onClick={() => setTagModalOpen(true)} disabled={disabled}><Plus className="h-4 w-4 mr-1" />Adicionar tag</Button>
