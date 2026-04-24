@@ -1146,6 +1146,28 @@ export default function ManualCreate() {
               rewriteLoading={rewriteLoading}
               generatedAt={assistantGeneratedAt}
               generatedEdited={aiGeneratedEdited.caption}
+              insightBanner={(
+                <div className="space-y-2">
+                  <EditorialInsightBanner
+                    insight={activeInsight}
+                    visible={!!activeInsight && aiPreferences.insights_enabled && classifiedPostCount >= 30 && !insightDismissedThisSession}
+                    onAccept={handleSuggestInsightQuestion}
+                    onDismiss={handleDismissInsight}
+                    onMute={handleMuteInsight}
+                    onViewAll={() => navigate('/insights')}
+                  />
+                  {insightQuestionLoading && <p className="text-xs text-muted-foreground">A gerar perguntas...</p>}
+                  {insightQuestions.length > 0 && (
+                    <div className="flex flex-col gap-1.5 rounded-md border border-border bg-muted/30 p-2">
+                      {insightQuestions.map((question) => (
+                        <Button key={question} type="button" variant="ghost" size="sm" className="h-auto justify-start whitespace-normal text-left" onClick={() => applyInsightQuestion(question)}>
+                          {question}
+                        </Button>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              )}
             />
 
             <HashtagSuggestions
