@@ -8,7 +8,7 @@ const corsHeaders = {
 };
 
 const ALLOWED_NETWORKS = new Set(["instagram", "linkedin", "youtube", "tiktok", "facebook", "googlebusiness", "x"]);
-const ALLOWED_TONES = new Set(["direto", "emocional", "técnico", "neutro", "mais_curto", "mais_forte"]);
+const ALLOWED_TONES = new Set(["direto", "emocional", "técnico", "neutro", "humor", "mais_curto", "mais_forte"]);
 
 type RequestBody = {
   text?: string;
@@ -43,6 +43,7 @@ const toneGuidance: Record<string, string> = {
   emocional: "mais humano, próximo e emocional, sem exagero ou sentimentalismo artificial",
   técnico: "mais preciso, estruturado e profissional, sem jargão desnecessário",
   neutro: "equilibrado, natural e editorialmente limpo",
+  humor: "mais leve e bem-humorado, sem perder rigor nem soar forçado",
   mais_curto: "mais curto e denso, preservando a ideia central",
   mais_forte: "mais assertivo, memorável e persuasivo, sem promessas inventadas",
 };
