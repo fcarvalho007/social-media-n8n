@@ -125,7 +125,7 @@ export default function ManualCreate() {
   const [searchParams] = useSearchParams();
   const recoverPostId = searchParams.get('recover');
   const { instagram, linkedin, canPublish, refresh: refreshQuota, isUnlimited } = usePublishingQuota();
-  const { preferences: aiPreferences } = useAiPreferences();
+  const { preferences: aiPreferences, savePreferences: saveAiPreferences } = useAiPreferences();
   const { credits: aiCredits, refresh: refreshAiCredits } = useAICredits();
   const { user } = useAuth();
   const [selectedFormats, setSelectedFormats] = useState<PostFormat[]>([]);
@@ -899,10 +899,11 @@ export default function ManualCreate() {
       toast.error('Não foi possível silenciar este tipo de insight.');
       return;
     }
+    await saveAiPreferences({ muted_insight_types: muted });
     setInsightDismissedThisSession(true);
     setActiveInsight(null);
     toast.success('Tipo de insight silenciado.');
-  }, [activeInsight, aiPreferences.muted_insight_types]);
+  }, [activeInsight, aiPreferences.muted_insight_types, saveAiPreferences]);
 
   const applyInsightQuestion = useCallback((question: string) => {
     const clean = question.trim();
