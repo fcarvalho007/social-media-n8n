@@ -57,11 +57,14 @@ export function MobileStickyActionBar({
   const hasContent = selectedFormats.length > 0;
   const hasBlockingErrors = hasContent && !smartValidation.canPublish;
   const isFutureSchedule = !scheduleAsap && !!scheduledDate;
+  const storyLinkMode = selectedFormats.includes('instagram_story_link');
   const disabled = publishing || submitting || saving || isUploading || !hasContent;
   const primaryLabel = !hasContent
     ? 'Continuar'
     : hasBlockingErrors
       ? 'Corrige antes de publicar'
+      : storyLinkMode
+        ? scheduleAsap ? 'Gerar pacote' : 'Agendar lembrete'
       : isFutureSchedule
         ? 'Agendar'
         : 'Publicar agora';

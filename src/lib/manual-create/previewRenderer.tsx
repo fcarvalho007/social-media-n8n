@@ -10,6 +10,7 @@ import YouTubeVideoPreview from '@/components/manual-post/YouTubeVideoPreview';
 import TikTokPreview from '@/components/manual-post/TikTokPreview';
 import FacebookPreview from '@/components/manual-post/FacebookPreview';
 import GoogleBusinessPreview from '@/components/manual-post/GoogleBusinessPreview';
+import { NetworkOptions } from '@/types/networkOptions';
 
 export interface PreviewRendererContext {
   caption: string;
@@ -18,6 +19,7 @@ export interface PreviewRendererContext {
   mediaFiles: File[];
   mediaPreviewUrls: string[];
   mediaItems: Array<{ url: string; isVideo: boolean }>;
+  networkOptions?: NetworkOptions;
 }
 
 /**
@@ -25,11 +27,23 @@ export interface PreviewRendererContext {
  * Extracted from ManualCreate.tsx (Phase 4) — pure presentation, no side-effects.
  */
 export function renderFormatPreview(format: PostFormat, ctx: PreviewRendererContext) {
-  const { caption, networkCaptions, useSeparateCaptions, mediaFiles, mediaPreviewUrls, mediaItems } = ctx;
+  const { caption, networkCaptions, useSeparateCaptions, mediaFiles, mediaPreviewUrls, mediaItems, networkOptions } = ctx;
   const network = getNetworkFromFormat(format);
   const previewCaption = useSeparateCaptions ? networkCaptions?.[network] ?? caption : caption;
 
   if (network === 'instagram') {
+    if (format === 'instagram_story_link') {
+      return (
+        <InstagramStoryPreview
+          mediaUrl={mediaPreviewUrls[0]}
+          aspectRatioValid={true}
+          isVideo={mediaFiles[0]?.type.startsWith('video/')}
+          linkUrl={networkOptions?.instagram?.storyLinkUrl}
+          stickerText={networkOptions?.instagram?.storyLinkStickerText}
+          overlayText={networkOptions?.instagram?.storyLinkOverlayText}
+        />
+      );
+    }
     if (format === 'instagram_stories') {
       return <InstagramStoryPreview mediaUrl={mediaPreviewUrls[0]} aspectRatioValid={true} />;
     }

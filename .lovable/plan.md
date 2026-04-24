@@ -1,126 +1,122 @@
-## Auditoria do último prompt
+## Plano — Prompt 2: Fluxo completo de Story com Link
 
-Ficou parcialmente feito.
+### Observações antes de implementar
+- O Prompt 1 está parcialmente concluído: existem tabela, preferências, funções, formato `instagram_story_link`, campos iniciais e página de confirmação.
+- Ainda faltam peças centrais do Prompt 2: preview especial com sticker, UI de agendamento adaptada, launcher real de publicação manual, confirmação integrada ao ecrã do pacote, QR code com URL correto e micro-interações.
+- O pedido de “vídeo de 30 segundos em iPhone real” não pode ser cumprido diretamente por mim aqui: não tenho acesso físico a um iPhone/Android real nem consigo gravar vídeo de dispositivo externo. Posso deixar o fluxo pronto e fornecer uma checklist objetiva para validação em dispositivos reais; se partilhares o vídeo ou feedback, ajusto o que for necessário.
+- Há ficheiros bloqueados no projeto. Não vou editar `src/integrations/supabase/client.ts`, `src/integrations/supabase/types.ts`, `.env` nem definições de projeto em `supabase/config.toml`.
 
-Concluído:
-- Tabelas `story_link_publications` e `user_notification_preferences` existem com RLS, índices, triggers de `updated_at` e confirmação por token.
-- O formato `instagram_story_link` foi adicionado aos tipos e aparece como “Story com Link”.
-- As funções `generate_story_deeplink`, `schedule_story_reminder` e `send_story_reminder` existem.
-- Há validação base para 1 ficheiro, imagem/vídeo e rácio 9:16.
-- O segredo de email já existe, por isso não é necessário pedir credenciais.
+### 1. Refinar “Story com Link” em `/manual-create`
+- Manter o formato selecionável, mas tornar o modo visualmente inequívoco quando `instagram_story_link` está ativo.
+- No bloco “Opções por rede”, esconder opções irrelevantes para Instagram Story com Link:
+  - primeiro comentário;
+  - colaboradores;
+  - tags de fotografia;
+  - tabs de variante de formato que não se aplicam.
+- Reorganizar o grupo “Conteúdo do Link Sticker” com copy pt-PT, estados de erro e contadores:
+  - URL obrigatório;
+  - texto do sticker opcional, máximo 30 caracteres;
+  - texto sobreposto opcional, máximo 100 caracteres;
+  - texto auxiliar: se estiver vazio, usa o domínio do URL.
+- Corrigir os limites atuais que ficaram desalinhados: sticker está a 48 e overlay a 90; passar para 30 e 100.
 
-Pendente / incompleto:
-- Falta página `/settings/notifications`.
-- Falta integrar a página nas rotas e, opcionalmente, no acesso de navegação/definições.
-- Falta UI em `/manual-create` para “URL do link”, “Texto do sticker” e “Texto sobreposto”. Os campos existem no tipo, mas não aparecem ao utilizador.
-- Falta impedir que “Story com Link” siga pelo fluxo normal de publicação Getlate; deve criar uma preparação/lembrete, não publicar diretamente.
-- Falta criar o registo em `story_link_publications` a partir de `/manual-create` e chamar o agendamento do lembrete.
-- Falta QR code no desktop. A dependência `qrcode.react` ainda não está instalada.
-- Falta página/link de confirmação `/stories/confirm` para “Já publiquei”, “Não publiquei” e “Mais tarde”. Embora fosse descrita no prompt, ainda não há rota; sem isto o botão do email aponta para uma página inexistente.
-- Falta documentação no README.
-- O envio de lembretes existe, mas ainda precisa de teste/deploy end-to-end e de um mecanismo de chamada agendada/cron verificado.
+### 2. Validações específicas
+- Atualizar validações de `instagram_story_link` para:
+  - exigir 1 ficheiro de média;
+  - aceitar imagem ou vídeo;
+  - validar URL com `http/https`;
+  - avisar, sem bloquear, quando a média não for 9:16;
+  - limitar sticker a 30 caracteres;
+  - limitar overlay a 100 caracteres.
+- Rever a regra atual que obriga “Story com Link” a estar isolada. O Prompt 2 permite cross-network; por isso vou alterar para permitir outros formatos em paralelo, garantindo que apenas o Instagram Story com Link sai pelo fluxo manual.
 
-## Plano de conclusão
+### 3. Preview dedicado com mockup de Story
+- Expandir `InstagramStoryPreview` para suportar modo “Story com Link”:
+  - imagem/vídeo como fundo;
+  - texto sobreposto no mockup;
+  - sticker de link com ícone e texto/domínio;
+  - legenda “Simulação aproximada. O resultado final depende do teu Instagram.”
+- Atualizar `previewRenderer` para renderizar este preview quando o formato for `instagram_story_link`.
+- Manter visual compacto e mobile-first, usando tokens/classes existentes em vez de hardcodes novos.
 
-### 1. Fechar a experiência de notificações
-- Criar `src/pages/NotificationSettings.tsx` em pt-PT.
-- Carregar e guardar preferências do utilizador em `user_notification_preferences`.
-- Permitir configurar:
-  - canal preferido, com Email ativo;
-  - WhatsApp, Telegram e Push visíveis mas desativados/“em breve” nesta fase;
-  - minutos antes do lembrete;
-  - horas de silêncio;
-  - dias da semana;
-  - botão “Enviar email de teste”.
-- Integrar rota `/settings/notifications` no `App.tsx`.
+### 4. Agendamento adaptado
+- Adaptar `Step3ScheduleCard` quando `instagram_story_link` estiver selecionado:
+  - título/copy “Quando queres publicar?”;
+  - opção “Agora, vou publicar já”;
+  - opção “Agendar lembrete para”;
+  - mostrar canal atual “Email” e link/atalho para alterar em `/settings/notifications`;
+  - mostrar antecedência configurada, quando disponível.
+- Clarificar que o agendamento é do lembrete, não de publicação automática.
+- Manter Lisboa como fuso horário.
 
-### 2. Completar os campos de “Story com Link” em `/manual-create`
-- Quando o formato `instagram_story_link` estiver selecionado, mostrar um bloco específico em “Opções por rede”:
-  - URL do link obrigatório;
-  - texto do sticker opcional;
-  - texto sobreposto opcional.
-- Derivar o texto do sticker a partir do domínio quando o campo estiver vazio.
-- Manter o visual compacto e consistente com os refinamentos recentes do módulo.
+### 5. Fluxo de preparação e redirecionamento
+- Ajustar `usePublishOrchestrator` para o novo comportamento:
+  - criar registo `story_link_publications` com `status = ready`;
+  - se for “Agora”, redirecionar imediatamente para o Story Launcher;
+  - se for agendado, agendar lembrete e redirecionar para `/stories` ou, se a página ainda não existir, para uma rota segura temporária com feedback claro.
+- Alterar o comportamento atual que limpa tudo sem levar o utilizador ao ecrã de publicação manual.
+- Manter cross-network: formatos automáticos continuam pelo fluxo normal; `instagram_story_link` gera pacote manual em paralelo.
 
-### 3. Regras de validação específicas
-- Validar URL obrigatória e válida para `instagram_story_link`.
-- Manter 1 único ficheiro e 9:16 obrigatório.
-- Acrescentar uma mensagem clara de que este formato é semi-automático e usa lembrete, não publicação direta no Instagram.
-- Ajustar agendamento: quando for “Story com Link”, o agendamento passa a significar “agendar lembrete”.
+### 6. Criar o Story Launcher
+- Criar rota dedicada, por exemplo `/stories/launch/:id`, protegida por sessão quando aberto pela app.
+- Também suportar entrada por token a partir de email, reaproveitando a confirmação segura já existente quando aplicável.
+- UI mobile full-screen:
+  - preview 9:16;
+  - link visível;
+  - tentativa automática de copiar link;
+  - passos: descarregar média, abrir Instagram, colar link sticker;
+  - botões “Já publiquei” e “Pular desta vez”.
+- UI desktop:
+  - preview;
+  - QR code que abre o launcher no telemóvel;
+  - botões “Descarregar média” e “Copiar link”;
+  - sem botão de deep link para Instagram no desktop.
 
-### 4. Fluxo de criação da Story com Link
-- No clique principal de publicação/agendamento, se a seleção for apenas `instagram_story_link`:
-  - carregar a média para storage como já acontece noutros fluxos;
-  - criar registo em `story_link_publications` com `media_url`, `media_type`, `link_url`, `sticker_text`, `overlay_text`, `caption` e `user_id`;
-  - chamar `schedule_story_reminder` com a data/hora escolhida ou preferência default;
-  - mostrar confirmação ao utilizador: “Story preparada e lembrete agendado”.
-- Evitar enviar `instagram_story_link` para `publish-to-getlate`.
-- Se o utilizador misturar Story com Link com outros formatos, manter fora deste ciclo ou bloquear com mensagem clara para evitar comportamento ambíguo.
+### 7. Comportamento dos botões e micro-interações
+- “Copiar link” com Clipboard API, feedback “Copiado” por 2 segundos e fallback se o browser bloquear.
+- Tentativa de copiar ao abrir o ecrã, sem assumir sucesso.
+- “Descarregar média” com `<a download>` e feedback.
+- “Abrir no Instagram”:
+  - iOS: tentar `instagram://story-camera`, fallback `instagram://app`;
+  - Android: intent para `com.instagram.android`;
+  - desktop: QR code em vez de deep link.
+- Haptic feedback em mobile com `navigator.vibrate`, sempre com fallback silencioso.
+- Estado visual dos passos: ativo, concluído e destaque final em “Já publiquei”.
 
-### 5. Confirmação manual
-- Criar página `/stories/confirm` acessível pelo link do lembrete.
-- Ler `id` e `token` da URL.
-- Permitir ações:
-  - “Publiquei”;
-  - “Não publiquei”;
-  - “Lembrar daqui a 1 hora”.
-- Chamar a função segura da base de dados via RPC para atualizar o estado sem expor permissões indevidas.
+### 8. Confirmação e skip
+- “Já publiquei” atualiza `status = published`, `published_at` e `published_by_device`.
+- Depois de publicar, pedir feedback simples “Correu bem?” com Sim/Não, sem bloquear o fluxo.
+- “Pular desta vez” abre confirmação antes de marcar `status = skipped`.
+- Preservar a página `/stories/confirm` para links de email, mas evoluir a experiência para abrir o launcher quando houver pacote completo.
 
-### 6. QR code desktop e deep link
-- Instalar `qrcode.react`.
-- Criar um pequeno componente reutilizável para mostrar QR code/deep link na experiência de confirmação/teste desktop.
-- Usar `generate_story_deeplink` para devolver instruções e fallback apropriado.
+### 9. Backend e email
+- Rever `generate_story_deeplink` para devolver URLs úteis ao launcher, não apenas `/manual-create?storyMedia=...`.
+- Rever `send_story_reminder` para incluir botão “Abrir pacote no telemóvel” apontando para o Story Launcher e manter “Já publiquei” como ação secundária.
+- Se houver alterações em funções backend, será necessário redeploy das funções alteradas.
+- Verificar se falta cron ativo para enviar lembretes; se continuar ausente, criar/ativar o agendamento operacional de envio de lembretes.
 
-### 7. Backend e deploy
-- Rever as três funções backend para:
-  - validar inputs de forma mais explícita;
-  - manter CORS em todas as respostas;
-  - evitar placeholders visíveis em emails de teste quando possível;
-  - garantir texto pt-PT.
-- Fazer deploy das funções alteradas.
-- Verificar se existe agendamento/cron para `send_story_reminder`; se não existir, criar/ativar a chamada periódica adequada.
+### 10. Qualidade e validação
+- Executar build.
+- Verificar UI mobile a 375px e desktop.
+- Testar por ferramentas disponíveis:
+  - seleção do formato;
+  - campos e validações;
+  - preview;
+  - criação do pacote;
+  - launcher com QR/copy/download;
+  - confirmação de estado.
+- Entregar uma checklist curta para teste real em iPhone e Android, porque deep links para Instagram só ficam validados com dispositivos reais.
 
-### 8. Documentação e QA
-- Atualizar README com as variáveis/segredos usados pelo módulo e estado dos canais:
-  - Email ativo;
-  - WhatsApp, Telegram e Push reservados para fases futuras.
-- Executar type-check/build.
-- Testar fluxo mínimo:
-  - abrir `/manual-create`;
-  - selecionar Story com Link;
-  - preencher URL;
-  - criar lembrete;
-  - enviar email de teste em `/settings/notifications`;
-  - abrir `/stories/confirm` com token válido.
-
-## Ficheiros previstos
-
-- `src/App.tsx`
-- `src/pages/NotificationSettings.tsx`
-- `src/pages/StoryConfirm.tsx`
-- `src/components/manual-post/steps/NetworkOptionsCard.tsx`
-- `src/hooks/manual-create/usePublishOrchestrator.ts`
-- `src/lib/validation/validators/formatValidator.ts`
-- `src/lib/validation/validators/scheduleValidator.ts`
-- `src/types/networkOptions.ts`
-- `src/types/social.ts` apenas se for necessário ajustar labels/microcopy
-- `supabase/functions/generate_story_deeplink/index.ts`
-- `supabase/functions/schedule_story_reminder/index.ts`
-- `supabase/functions/send_story_reminder/index.ts`
-- `README.md`
-- `package.json` / lockfile para `qrcode.react`
-
-Nota: `src/integrations/supabase/types.ts` está em `LOCKED_FILES.md` e não será editado manualmente.
-
-## Checkpoint
-
-☐ Página `/settings/notifications` criada e funcional
-☐ Campos de Story com Link adicionados em `/manual-create`
-☐ Story com Link bloqueada no fluxo Getlate e tratada como lembrete semi-automático
-☐ Registo em `story_link_publications` criado a partir do formulário
-☐ Email de teste funcional
-☐ Página `/stories/confirm` criada
-☐ QR code desktop adicionado
-☐ Funções backend revistas e publicadas
-☐ README atualizado
-☐ Build/type-check executado
+### Checklist de entrega
+- [ ] Campos específicos completos e validados.
+- [ ] Opções irrelevantes escondidas em Story com Link.
+- [ ] Preview dedicado com overlay e link sticker.
+- [ ] Agendamento adaptado para lembrete.
+- [ ] Story Launcher mobile e desktop.
+- [ ] QR code aponta para o launcher correto.
+- [ ] Copy/download/deep link com feedback e haptics.
+- [ ] “Já publiquei” e “Pular” atualizam estado.
+- [ ] Cross-network preservado.
+- [ ] Funções backend ajustadas e redeploy quando necessário.
+- [ ] Build e revisão visual concluídos.
+- [ ] Checklist para validação real em iPhone/Android entregue.

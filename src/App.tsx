@@ -32,6 +32,7 @@ import AIDemo from "./pages/AIDemo";
 import Insights from "./pages/Insights";
 import NotificationSettings from "./pages/NotificationSettings";
 import StoryConfirm from "./pages/StoryConfirm";
+import StoryLauncher from "./pages/StoryLauncher";
 const queryClient = new QueryClient();
 
 // Component to handle URL-encoded redirects
@@ -60,6 +61,7 @@ const App = () => (
                 <Route path="/auth" element={<Auth />} />
                 <Route path="/recovery/:token" element={<Recovery />} />
                 <Route path="/stories/confirm" element={<StoryConfirm />} />
+                <Route path="/stories/launch/:id" element={<StoryLauncher />} />
                 <Route element={<ProtectedRoute><MainLayout /></ProtectedRoute>}>
                   <Route path="/" element={<Dashboard />} />
                   <Route path="/dashboard" element={<Dashboard />} />
