@@ -918,11 +918,13 @@ export default function ManualCreate() {
               onCaptionChange={(value) => {
                 setCaption(value);
                 setAiGeneratedEdited(prev => ({ ...prev, caption: true }));
+                setAiMetadata(prev => ({ ...(prev ?? {}), generated_fields: { ...(prev?.generated_fields ?? {}), caption: { ...(prev?.generated_fields?.caption ?? {}), edited: true } } }));
               }}
               networkCaptions={networkCaptions}
               onNetworkCaptionChange={(network, value) => {
                 setNetworkCaptions(prev => ({ ...prev, [network]: value }));
                 setAiGeneratedEdited(prev => ({ ...prev, [`caption.${network}`]: true }));
+                setAiMetadata(prev => ({ ...(prev ?? {}), generated_fields: { ...(prev?.generated_fields ?? {}), [`caption.${network}`]: { ...(prev?.generated_fields?.[`caption.${network}`] ?? {}), edited: true } } }));
               }}
               selectedNetworks={selectedNetworks}
               useSeparateCaptions={useSeparateCaptions}
@@ -956,6 +958,7 @@ export default function ManualCreate() {
               onNetworkOptionsChange={(next) => {
                 setNetworkOptions(normalizeNetworkOptions(next));
                 setAiGeneratedEdited(prev => ({ ...prev, 'instagram.firstComment': true, 'linkedin.firstComment': true, 'facebook.firstComment': true }));
+                setAiMetadata(prev => ({ ...(prev ?? {}), generated_fields: { ...(prev?.generated_fields ?? {}), firstComment: { ...(prev?.generated_fields?.firstComment ?? {}), edited: true } } }));
               }}
               caption={caption}
               onCaptionChange={setCaption}
