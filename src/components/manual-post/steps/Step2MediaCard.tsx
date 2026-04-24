@@ -300,20 +300,19 @@ export function Step2MediaCard(props: Step2MediaCardProps) {
         {/* Media Grid - With Files */}
         {mediaPreviewUrls.length > 0 && (
           <div className="manual-group-stack">
-            {/* Video AI tools (mantido como bloco dedicado) */}
-            {hasVideo && (
-              <div className="flex flex-wrap items-center gap-2 rounded-lg border border-primary/20 bg-primary/5 p-3">
-                <span className="inline-flex items-center gap-1.5 text-sm font-medium">
-                  <Sparkles className="h-4 w-4 shrink-0" strokeWidth={1.5} />
-                  Ferramentas
-                </span>
-                <VideoAiTools
-                  visible={hasVideo}
+            {/* Ferramentas (popover unificado adaptativo) */}
+            {(hasVideo || mediaPreviewUrls.length > 0) && (
+              <div className="flex items-center justify-end">
+                <MediaToolsPopover
+                  hasVideo={hasVideo}
+                  hasImages={mediaFiles.some((f) => f.type?.startsWith('image/'))}
                   loadingAction={videoToolsLoadingAction ?? null}
                   disabled={saving || submitting || publishing}
-                  onGenerateSrt={onGenerateSrt ?? (() => undefined)}
-                  onGenerateChapters={onGenerateChapters ?? (() => undefined)}
-                  onExtractQuotes={onExtractQuotes ?? (() => undefined)}
+                  onGenerateSrt={onGenerateSrt}
+                  onGenerateChapters={onGenerateChapters ? () => { void onGenerateChapters(); } : undefined}
+                  onExtractQuotes={onExtractQuotes ? () => { void onExtractQuotes(); } : undefined}
+                  onRegenerateAllAltText={onGenerateAltText ? () => { void onGenerateAltText(0); } : undefined}
+                  altTextLoading={!!altTextLoadingKey}
                 />
               </div>
             )}
