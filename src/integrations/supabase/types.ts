@@ -1729,6 +1729,10 @@ export type Database = {
         }
         Returns: undefined
       }
+      update_account_insight_visibility: {
+        Args: { _action: string; _insight_id: string }
+        Returns: undefined
+      }
     }
     Enums: {
       app_role: "admin" | "editor" | "viewer"
