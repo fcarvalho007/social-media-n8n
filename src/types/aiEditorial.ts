@@ -24,6 +24,7 @@ export interface EditorialAssistantResult {
   draft_title: string;
   base_caption: string;
   captions_per_network: Partial<Record<SocialNetwork, string>>;
+  hashtags_suggested?: string[];
   hashtags: {
     reach: string[];
     niche: string[];
@@ -34,6 +35,16 @@ export interface EditorialAssistantResult {
   key_quotes: string[];
   raw_transcription: string;
   rewrites?: CaptionRewriteMetadata[];
+  upload_assistant?: {
+    status?: 'dismissed' | 'transcribed' | 'done';
+    generated_at?: string;
+    suggestions?: {
+      hashtags_suggested?: string[];
+      key_quotes?: string[];
+      draft_title?: string;
+      alt_text?: string;
+    };
+  };
 }
 
 export interface AiPreferences {
