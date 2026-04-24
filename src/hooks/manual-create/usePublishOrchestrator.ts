@@ -251,7 +251,7 @@ export function usePublishOrchestrator(params: OrchestratorParams) {
       if (validDraftId) {
         const { error } = await supabase
           .from('posts_drafts')
-          .update(draftData)
+          .update(draftData as any)
           .eq('id', validDraftId);
         if (error) {
           console.error('[saveDraft] Update error:', error);
@@ -261,7 +261,7 @@ export function usePublishOrchestrator(params: OrchestratorParams) {
       } else {
         const { data: insertedDraft, error } = await supabase
           .from('posts_drafts')
-          .insert(draftData)
+          .insert(draftData as any)
           .select('id')
           .single();
         if (error) {
