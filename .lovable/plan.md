@@ -1,139 +1,170 @@
-## Objetivo
+## Revisão do que ficou feito
 
-Fechar as fases que ficaram apenas na UI/persistência, ligando `network_options` ao payload real enviado ao Getlate e corrigindo a interface para pt-PT.
+### Fase fechada: opções por rede ligadas à publicação real
 
-## Constatação atual
+Confirmei no código que a fase anterior já ficou implementada nos pontos críticos:
 
-As opções por rede já existem na interface, são validadas e são enviadas do frontend para `publish-to-getlate`. O bloqueio principal está no backend: a função recebe `network_options`, mas o payload final ainda usa quase só `content`, `platforms`, `mediaItems`, `publishNow`/`scheduledFor` e `contentType` básico.
+- A secção “Opções por rede” está localizada em pt-PT.
+- `network_options` é guardado em rascunhos e publicações.
+- `network_options` é enviado pelo frontend para a função `publish-to-getlate`.
+- A função `publish-to-getlate` transforma essas opções em `platformSpecificData` no payload real enviado ao Getlate.
+- Foram adicionadas validações defensivas no backend antes de chamar o Getlate.
+- `publication_attempts.response_data` guarda `network_options_applied`, permitindo auditoria posterior.
 
-## Plano de execução
-
-### 1. Corrigir copy pt-PT na secção “Opções por rede”
-
-Atualizar `src/components/manual-post/steps/NetworkOptionsCard.tsx` para remover texto em inglês visível:
-
-- “First comment” → “Primeiro comentário”
-- “Collaborators” → “Colaboradores”
-- “Public (Anyone)” → “Público”
-- “Unlisted (Link only)” → “Não listado”
-- “Private (Only you)” → “Privado”
-- categorias YouTube com labels em pt-PT, mantendo os IDs/valores técnicos corretos
-- CTAs Google Business em pt-PT:
-  - Reservar
-  - Encomendar online
-  - Comprar
-  - Saber mais
-  - Inscrever
-  - Ligar agora
-
-Também corrigir a mensagem das tags de fotografia: a UI deve dizer claramente que, nesta versão, a tag é adicionada ao centro, sem prometer clique direto na imagem.
-
-### 2. Normalizar os tipos de opções para o contrato Getlate
-
-Atualizar `src/types/networkOptions.ts` para alinhar os valores guardados com o que a API aceita:
-
-- YouTube:
-  - `categoryId` em vez de categoria por nome, usando IDs oficiais comuns.
-  - manter `visibility` como `public | unlisted | private`.
-- Google Business:
-  - mapear os valores atuais (`book`, `order_online`, `buy`, `learn_more`, `sign_up`, `call_now`) para o contrato Getlate:
-    - `BOOK`
-    - `ORDER`
-    - `SHOP`
-    - `LEARN_MORE`
-    - `SIGN_UP`
-    - `CALL`
-- Instagram:
-  - transformar `photoTags.slideIndex` para `mediaIndex` no payload.
-  - transformar `formatVariant: reel` para `contentType: reels` e `story` para `contentType: story`.
-
-### 3. Ligar `network_options` dentro de `publish-to-getlate`
-
-Atualizar `supabase/functions/publish-to-getlate/index.ts` para:
-
-- aceitar `network_options` no `PublishPayload`;
-- validar defensivamente os campos usados;
-- construir `platformSpecificData` a partir da rede/formato/opções;
-- anexar esse objeto no payload final enviado ao Getlate.
-
-Mapeamento previsto:
+Mapeamento confirmado:
 
 ```text
 Instagram
-- firstComment -> platformSpecificData.firstComment
-- collaborators -> platformSpecificData.collaborators
-- photoTags -> platformSpecificData.userTags[{ username, x, y, mediaIndex }]
-- story -> contentType: "story"
-- reel -> contentType: "reels"
+- firstComment
+- collaborators
+- userTags com mediaIndex/x/y
+- contentType story/reels quando aplicável
 
 Facebook
-- firstComment -> platformSpecificData.firstComment
-- story -> contentType: "story"
-- reel -> contentType: "reel"
+- firstComment
+- contentType story/reel quando aplicável
 
 LinkedIn
-- firstComment -> platformSpecificData.firstComment
-- disableLinkPreview -> platformSpecificData.disableLinkPreview
-- mentions ficam preservadas no texto já inserido; não serão convertidas para URNs nesta fase sem validação adicional
+- firstComment
+- disableLinkPreview
 
 YouTube
-- title -> platformSpecificData.title
-- visibility -> platformSpecificData.visibility
-- categoryId -> platformSpecificData.categoryId
-- firstComment só será adicionado se vier a existir no tipo; nesta fase a UI atual não expõe primeiro comentário para YouTube
-- tags: não aparecem no contrato de criação consultado; ficam guardadas, mas não serão enviadas até confirmar campo oficial
+- title
+- visibility
+- categoryId
 
 Google Business
-- ctaEnabled + ctaType + ctaUrl -> platformSpecificData.callToAction
-- CALL não envia URL
-- restantes CTAs exigem URL válido
+- callToAction com type/url quando aplicável
 ```
 
-### 4. Corrigir validações finais antes de publicar
+### Pontos ainda frágeis detetados
 
-Adicionar validações no backend para evitar payloads inválidos:
+Há alguns refinamentos que não bloqueiam a fase anterior, mas convém resolver quando tocarmos nesta área:
 
-- ignorar first comment em Stories;
-- limitar colaboradores Instagram a 3;
-- só enviar tags de fotografia Instagram em imagens/carrosséis, não em vídeos/Reels;
-- garantir `x` e `y` entre 0 e 1;
-- garantir `mediaIndex` dentro do número de média;
-- garantir título YouTube até 100 caracteres;
-- garantir CTA Google Business com URL quando o tipo não é chamada telefónica.
+- `publish-to-getlate` ainda usa CORS manual com menos headers do que outras funções recentes. Deve ser alinhado para evitar falhas em clientes mais novos.
+- A validação de `network_options` no backend é funcional, mas não está tão estruturada como uma validação por schema. Nesta próxima fase podemos reforçar apenas o que for tocado.
+- A UI de tags Instagram continua limitada a “adicionar no centro”, de forma assumida e honesta. Não mexer nisto nesta fase, salvo bug.
 
-Se uma opção avançada estiver inválida, a publicação deve falhar antes de chamar o Getlate com uma mensagem clara em pt-PT.
+## Próxima fase proposta: Reescrita por tom
 
-### 5. Registar avisos e telemetria
+Objetivo: permitir ao utilizador reescrever a legenda com IA diretamente em `/manual-create`, mantendo controlo editorial e evitando substituir conteúdo sem confirmação.
 
-Persistir no `publication_attempts.response_data` o payload efetivo ou, pelo menos, uma secção `network_options_applied` para permitir auditoria posterior.
+## Plano de execução
 
-Para first comment: como o Getlate trata o first comment dentro da mesma criação do post, não haverá uma chamada separada nesta fase. Se o Getlate devolver falha específica do comentário dentro de `failedPlatforms`, será registada como erro da tentativa. A regra “post publicado com aviso se o comentário falhar” só é possível se a API devolver sucesso do post e aviso separado do comentário; se esse padrão aparecer nos logs, tratamos numa fase posterior.
+### 1. Criar ação de reescrita junto da legenda
 
-### 6. Validar compilação e fluxo crítico
+Adicionar uma pequena área compacta na secção de legenda com opções de tom:
 
-Depois das alterações:
+- Direto
+- Emocional
+- Técnico
+- Neutro
+- Mais curto
+- Mais forte
+
+Com botão principal:
+
+- “Reescrever com IA”
+
+A ação deve funcionar tanto para:
+
+- legenda única;
+- legendas separadas por rede.
+
+No caso de legendas separadas, a reescrita deve aplicar-se à rede ativa/selecionada, não a todas sem confirmação.
+
+### 2. Criar função backend para reescrita editorial
+
+Criar uma função backend dedicada, por exemplo `ai-caption-rewriter`, que recebe:
+
+- texto atual;
+- rede social alvo;
+- tom escolhido;
+- formatos selecionados;
+- contexto opcional da transcrição já existente;
+- idioma fixo `pt-PT`.
+
+A função deve:
+
+- validar sessão do utilizador;
+- validar tamanho mínimo/máximo do texto;
+- chamar a IA pelo gateway já configurado;
+- devolver apenas texto reescrito e metadados simples;
+- escrever sempre em Português de Portugal, Acordo Ortográfico de 1990;
+- não inventar dados, números, resultados ou promessas.
+
+### 3. Mostrar pré-visualização antes de aplicar
+
+Depois da resposta da IA, abrir uma confirmação simples:
+
+- texto atual;
+- nova versão;
+- botões:
+  - “Aplicar versão”;
+  - “Manter original”.
+
+Isto evita que a IA substitua uma legenda boa sem controlo do utilizador.
+
+### 4. Integrar com metadados de IA
+
+Ao aplicar uma versão reescrita:
+
+- atualizar a legenda certa;
+- anexar em `aiMetadata` um registo leve, por exemplo:
+
+```text
+rewrites: [
+  {
+    network,
+    tone,
+    created_at,
+    source: "caption_rewriter"
+  }
+]
+```
+
+Isto mantém histórico técnico sem criar novas tabelas.
+
+### 5. Respeitar preferências de IA existentes
+
+O projeto já tem `ai_preferences` e `default_tone`.
+
+Nesta fase:
+
+- usar `default_tone` como tom pré-selecionado quando existir;
+- manter `pt-PT` como idioma fixo;
+- não criar novo ecrã de preferências.
+
+### 6. Reforçar UX e erros
+
+Adicionar estados claros:
+
+- “A reescrever…”;
+- erro de sessão expirada;
+- erro de créditos/limite;
+- erro de texto demasiado curto;
+- erro genérico com opção de tentar novamente.
+
+Toda a copy deve ficar em pt-PT.
+
+### 7. Validação
+
+Depois da implementação:
 
 - correr build TypeScript;
-- testar o payload gerado para pelo menos:
-  - Instagram feed com primeiro comentário e colaboradores;
-  - Instagram story sem primeiro comentário;
-  - LinkedIn com primeiro comentário e link preview desligado;
-  - YouTube com título, visibilidade e categoria;
-  - Google Business com CTA.
-
-## Fora desta execução
-
-- Menções LinkedIn com URNs reais: manteremos inserção textual, porque exige validação/lookup de perfis.
-- Tags Instagram por clique real na imagem: manter “adicionar no centro” com copy honesta.
-- Tags YouTube no payload: a documentação consultada não confirma campo oficial para criação, apesar de indicar limite de tags; evitar enviar campos inventados.
-- Correções RLS/buckets públicos: continuam fora desta fase por serem intervenção de segurança separada.
-- Fase 3.2 de reescrita por tom: só avançar depois desta ligação final de publicação estar fechada.
+- testar legenda única;
+- testar legenda separada por rede;
+- testar texto curto/inválido;
+- testar aplicação e rejeição da sugestão;
+- confirmar que `aiMetadata` continua a ser guardado em rascunhos/publicações.
 
 ## Ficheiros previstos
 
-- `src/components/manual-post/steps/NetworkOptionsCard.tsx`
-- `src/types/networkOptions.ts`
-- `supabase/functions/publish-to-getlate/index.ts`
+- `src/pages/ManualCreate.tsx`
+- `src/components/manual-post/steps/Step3CaptionCard.tsx`
+- possível novo componente em `src/components/manual-post/ai/`
+- `src/types/aiEditorial.ts`
+- `supabase/functions/ai-caption-rewriter/index.ts`
 - `.lovable/plan.md`
 
 Não serão editados ficheiros bloqueados:
@@ -143,13 +174,21 @@ Não serão editados ficheiros bloqueados:
 - `.env`
 - chaves de projeto em `supabase/config.toml`
 
+## Fora desta fase
+
+- Geração automática de calendário editorial.
+- Reescrita em lote para todas as redes de uma só vez.
+- Scoring de performance ou previsão de alcance.
+- Lookup real de menções LinkedIn/Instagram.
+- Alterações de base de dados, salvo se for detetado bloqueio técnico inesperado.
+
 ## Checkpoint
 
-☐ Textos da secção “Opções por rede” corrigidos para pt-PT  
-☐ `network_options` mapeado para `platformSpecificData` no payload Getlate  
-☐ YouTube envia título, visibilidade e categoria por ID  
-☐ Instagram envia first comment, colaboradores, user tags e tipo correto quando aplicável  
-☐ LinkedIn envia first comment e `disableLinkPreview`  
-☐ Facebook envia first comment e tipo correto quando aplicável  
-☐ Google Business envia CTA no formato aceite  
-☐ Build executado e fluxo crítico validado antes de avançar para nova fase
+☐ Rever e confirmar fase anterior como concluída  
+☐ Criar ação “Reescrever com IA” na legenda  
+☐ Criar função backend `ai-caption-rewriter`  
+☐ Suportar tons: Direto, Emocional, Técnico, Neutro, Mais curto e Mais forte  
+☐ Mostrar pré-visualização antes de aplicar  
+☐ Aplicar em legenda única ou rede ativa quando há legendas separadas  
+☐ Guardar metadados da reescrita em `aiMetadata`  
+☐ Validar build e fluxo crítico antes de avançar para a fase seguinte
