@@ -263,6 +263,8 @@ export function useDraftRecovery(params: UseDraftRecoveryParams) {
       network_captions?: Record<string, string> | null;
       use_separate_captions?: boolean | null;
       network_options?: unknown;
+      raw_transcription?: string | null;
+      ai_metadata?: unknown;
     }) => {
       const legacyPlatformMap: Record<string, PostFormat> = {
         instagram_carrousel: 'instagram_carousel',
