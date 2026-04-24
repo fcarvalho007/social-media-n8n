@@ -62,13 +62,13 @@ export const Step3CaptionCard = forwardRef<NetworkCaptionEditorHandle, Step3Capt
   } = props;
 
   return (
-    <Card className="border-0 sm:border shadow-none sm:shadow-sm">
-      <CardHeader className="px-3 sm:px-6 pt-3 sm:pt-6 pb-2 sm:pb-4">
-        <CardTitle className="flex items-center gap-1.5 sm:gap-2 text-base sm:text-lg">
+    <Card className="manual-card-shell">
+      <CardHeader className="manual-card-content pb-3">
+        <CardTitle className="manual-section-title flex items-center gap-2">
           Legenda
           <SectionHelp content={getSectionTooltip('caption')} />
         </CardTitle>
-        <CardDescription className="text-xs sm:text-sm">
+        <CardDescription className="manual-section-description">
           {!useSeparateCaptions && (
             <>
               <span
@@ -88,7 +88,7 @@ export const Step3CaptionCard = forwardRef<NetworkCaptionEditorHandle, Step3Capt
           )}
         </CardDescription>
       </CardHeader>
-      <CardContent className="space-y-2 sm:space-y-3 px-3 sm:px-6 pb-4 sm:pb-6">
+      <CardContent className="manual-card-content manual-group-stack pt-0">
         {insightBanner}
         <CaptionRewritePanel
           onRewrite={onRewriteCaption}
@@ -97,7 +97,7 @@ export const Step3CaptionCard = forwardRef<NetworkCaptionEditorHandle, Step3Capt
           disabled={disabled}
         />
         {canRevertRewrite && (
-          <p className="text-xs text-muted-foreground">Podes reverter a última reescrita com o botão Reverter.</p>
+          <p className="manual-microcopy">Podes reverter a última reescrita com o botão Reverter.</p>
         )}
         <AIGeneratedField generatedAt={generatedAt} edited={generatedEdited} className="border-0 bg-transparent">
           <NetworkCaptionEditor
