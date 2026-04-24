@@ -66,11 +66,11 @@ export function PublishActionsCard(props: PublishActionsCardProps) {
     (selectedFormats.length > 0 && !smartValidation.canPublish);
 
   return (
-    <Card className="hidden sm:block lg:sticky lg:bottom-4 bg-card/95 backdrop-blur-sm border-2 shadow-lg">
-      <CardContent className="pt-4 sm:pt-6 space-y-3 sm:space-y-4">
+    <Card className="manual-card-shell hidden border-2 bg-card/95 shadow-lg backdrop-blur-sm sm:block lg:sticky lg:bottom-4">
+      <CardContent className="manual-card-content manual-group-stack">
         {(saving || submitting || publishing) && uploadProgress > 0 && (
           <div className="space-y-2">
-            <div className="flex items-center justify-between text-xs sm:text-sm">
+            <div className="flex items-center justify-between text-manual-micro sm:text-sm">
               <span className="text-muted-foreground">
                 {saving ? 'A guardar...' : publishing ? 'A publicar...' : 'A submeter...'}
               </span>
@@ -93,10 +93,10 @@ export function PublishActionsCard(props: PublishActionsCardProps) {
             onClick={onPublish}
             disabled={publishDisabled}
             className={cn(
-              'flex-1 font-semibold text-white',
+              'flex-1 font-semibold',
               !scheduleAsap && scheduledDate
-                ? 'bg-gradient-to-r from-blue-600 to-blue-500 hover:from-blue-500 hover:to-blue-400'
-                : 'bg-gradient-to-r from-green-600 to-green-500 hover:from-green-500 hover:to-green-400',
+                ? 'bg-primary text-primary-foreground hover:bg-primary/90'
+                : 'bg-success text-success-foreground hover:bg-success/90',
               'hover:shadow-lg active:scale-[0.98] transition-all duration-200',
               'disabled:opacity-50 disabled:cursor-not-allowed',
             )}
@@ -126,7 +126,7 @@ export function PublishActionsCard(props: PublishActionsCardProps) {
         </div>
 
         {/* Secondary Actions Row */}
-        <div className="flex items-center justify-center gap-4 text-xs pt-2">
+        <div className="flex items-center justify-center gap-4 pt-2 text-manual-micro">
           <button
             onClick={onSaveDraft}
             disabled={saving || submitting || publishing || isUploading}
