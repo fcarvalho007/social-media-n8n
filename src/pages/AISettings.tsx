@@ -121,8 +121,8 @@ export default function AISettings() {
 
           <div className="space-y-4">
             <PreferenceToggle
-              label="Ativar banners de insights"
-              description="Permite mostrar recomendações editoriais quando existirem dados suficientes."
+              label="Usar as minhas publicações para gerar insights"
+              description="Os insights são calculados apenas para a tua conta. Os dados nunca são partilhados com outros utilizadores nem usados para treinar modelos externos."
               checked={preferences.insights_enabled}
               disabled={loading || saving}
               onCheckedChange={(checked) => updatePreference({ insights_enabled: checked })}
