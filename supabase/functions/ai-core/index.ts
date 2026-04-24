@@ -182,6 +182,19 @@ async function generateVideoTool(body: RequestBody, lovableKey: string, kind: "c
   return generateText({ ...body, prompt, systemPrompt: "És um editor de vídeo. Respondes apenas com JSON válido em português de Portugal e nunca inventas frases ou timestamps.", responseFormat: "json", model: "fast" }, lovableKey);
 }
 
+async function generateInsightQuestions(body: RequestBody, lovableKey: string) {
+  const prompt = `Insight a aplicar: ${String((body as Record<string, unknown>).finding || "Posts com pergunta no início tendem a gerar mais comentários.")}
+
+Legenda atual:
+${body.caption}
+
+Transcrição opcional:
+${body.transcription || ""}
+
+Gera 2 a 3 perguntas iniciais que possam abrir esta legenda. Devem ser específicas ao conteúdo, naturais em português de Portugal e não podem inventar factos. Devolve JSON: {"questions":["pergunta 1","pergunta 2"]}`;
+  return generateText({ ...body, prompt, systemPrompt: "És um editor de redes sociais. Escreves perguntas curtas, específicas e conversacionais em PT-PT. Respondes apenas com JSON válido.", responseFormat: "json", model: "fast" }, lovableKey);
+}
+
 async function analyzeImage(body: RequestBody, lovableKey: string) {
   const model = MODEL_MAP.smart;
   const aiResponse = await retry(() => fetchWithTimeout("https://ai.gateway.lovable.dev/v1/chat/completions", {
