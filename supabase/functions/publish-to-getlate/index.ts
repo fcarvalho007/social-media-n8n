@@ -442,7 +442,7 @@ function validateGetlateResponse(responseData: any, responseText: string): Getla
   }
   
   // Extract post URL if available
-  const postUrl = responseData?.url || responseData?.postUrl || responseData?.permalink || responseData?.data?.url;
+  const postUrl = extractPostUrl(responseData);
   
   // If we got here, it looks like a real success
   // But warn if there's no URL and status isn't clearly success
@@ -645,12 +645,12 @@ Deno.serve(async (req) => {
     // Get Getlate API token
     const getlateToken = Deno.env.get('GETLATE_API_TOKEN');
     if (!getlateToken) {
-      throw new Error('GETLATE_API_TOKEN not configured');
+      return buildFailureResponse('GETLATE_API_TOKEN not configured', 500);
     }
 
     const authHeader = req.headers.get('Authorization');
     if (!authHeader) {
-      throw new Error('Missing authorization header');
+      return buildFailureResponse('Missing authorization header', 401);
     }
 
     // Verify user
@@ -659,7 +659,7 @@ Deno.serve(async (req) => {
     );
 
     if (authError || !user) {
-      throw new Error('Unauthorized');
+      return buildFailureResponse('Unauthorized', 401);
     }
 
     const body = await req.json();
@@ -699,13 +699,13 @@ Deno.serve(async (req) => {
     // Get network from format
     const network = FORMAT_TO_NETWORK[format];
     if (!network) {
-      throw new Error(`Invalid or unsupported format: ${format}`);
+      return buildFailureResponse(`Invalid or unsupported format: ${format}`, 400);
     }
 
     // Get account ID for the network
     const accountId = GETLATE_ACCOUNTS[network];
     if (!accountId) {
-      throw new Error(`Account not configured for network: ${network}`);
+      return buildFailureResponse(`Account not configured for network: ${network}`, 400);
     }
 
     // NOTE: Quota validation removed - Getlate.dev API is the sole authority
@@ -719,7 +719,7 @@ Deno.serve(async (req) => {
       if (captionLen < 30) {
         const gbpError = `Google Business exige descrição com pelo menos 30 caracteres (atual: ${captionLen}). Adiciona contexto sobre a publicação para garantir que o conector aceita.`;
         console.error(`[publish-to-getlate] ❌ GBP validation failed: ${gbpError}`);
-        throw new Error(gbpError);
+        return buildFailureResponse(gbpError, 400);
       }
     }
 
