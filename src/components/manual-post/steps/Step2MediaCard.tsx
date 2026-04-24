@@ -167,6 +167,7 @@ export function Step2MediaCard(props: Step2MediaCardProps) {
   const maxRemaining = isInstagramCarousel
     ? 50 - mediaPreviewUrls.length
     : mediaRequirements.maxMedia - mediaPreviewUrls.length;
+  const altTextSupport = getAltTextSupportContext(selectedFormats);
 
   return (
     <div
