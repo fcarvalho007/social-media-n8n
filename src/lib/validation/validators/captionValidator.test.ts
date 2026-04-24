@@ -3,9 +3,10 @@ import { captionValidator } from './captionValidator';
 import { ValidatorContext } from '../types';
 
 describe('captionValidator', () => {
-  it('corta apenas a legenda TikTok quando as legendas separadas estão ativas', async () => {
+  it('foca a legenda TikTok sem cortar texto quando excede o limite', async () => {
     const setCaption = vi.fn();
     const setNetworkCaption = vi.fn();
+    const focusCaption = vi.fn();
     const longCaption = 'Legenda completa. '.repeat(35);
     const ctx: ValidatorContext = {
       selectedFormats: ['instagram_reel', 'tiktok_video'],
@@ -22,6 +23,7 @@ describe('captionValidator', () => {
       fixHelpers: {
         setCaption,
         setNetworkCaption,
+        focusCaption,
       },
     };
 
@@ -31,7 +33,8 @@ describe('captionValidator', () => {
     expect(tiktokIssue).toBeDefined();
     tiktokIssue?.fixAction?.();
 
-    expect(setNetworkCaption).toHaveBeenCalledWith('tiktok', longCaption.slice(0, 300));
+    expect(focusCaption).toHaveBeenCalledWith('tiktok');
+    expect(setNetworkCaption).not.toHaveBeenCalled();
     expect(setCaption).not.toHaveBeenCalled();
   });
 
