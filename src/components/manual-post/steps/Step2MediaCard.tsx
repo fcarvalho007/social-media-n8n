@@ -174,11 +174,11 @@ export function Step2MediaCard(props: Step2MediaCardProps) {
         visible ? 'opacity-100' : 'opacity-0 max-h-0',
       )}
     >
-      <Card className="border-0 sm:border shadow-none sm:shadow-sm w-full max-w-full overflow-hidden">
-        <CardHeader className="pb-1 sm:pb-3 px-1.5 xs:px-2 sm:px-6 pt-1.5 xs:pt-2 sm:pt-6">
+      <Card className="manual-card-shell w-full max-w-full">
+        <CardHeader className="manual-card-content pb-3">
           <div className="flex items-center justify-between">
-            <CardTitle className="text-sm xs:text-base sm:text-lg flex items-center gap-1 xs:gap-1.5 sm:gap-2">
-              <CloudUpload className="h-4 w-4 sm:h-5 sm:w-5 text-primary" />
+            <CardTitle className="manual-section-title flex items-center gap-2">
+              <CloudUpload className="h-5 w-5 shrink-0 text-primary" strokeWidth={1.5} />
               <span>Média</span>
               <SectionHelp content={getSectionTooltip('media')} />
             </CardTitle>
@@ -189,7 +189,7 @@ export function Step2MediaCard(props: Step2MediaCardProps) {
             />
           </div>
         </CardHeader>
-        <CardContent className="space-y-2 xs:space-y-3 sm:space-y-4 px-1.5 xs:px-2 sm:px-6 pb-3 xs:pb-4 sm:pb-6">
+        <CardContent className="manual-card-content manual-group-stack pt-0">
           {/* 3 Card Upload Options - Vertical Stack */}
           {mediaPreviewUrls.length === 0 && (
             <div ref={mediaSectionRef}>
@@ -242,7 +242,7 @@ export function Step2MediaCard(props: Step2MediaCardProps) {
 
           {/* Media Grid - With Files */}
           {mediaPreviewUrls.length > 0 && (
-            <div className="space-y-3">
+              <div className="manual-group-stack">
               {onAltTextChange && !onMediaAltTextChange && mediaPreviewUrls.length === 1 && (
                 <AIGeneratedField generatedAt={altTextGeneratedAt} edited={altTextEdited} className="border-0 bg-transparent">
                   <AltTextPanel
@@ -259,8 +259,8 @@ export function Step2MediaCard(props: Step2MediaCardProps) {
               )}
 
               {hasVideo && (
-                <div className="flex flex-wrap items-center gap-2 rounded-lg border bg-muted/30 p-2">
-                  <span className="inline-flex items-center gap-1.5 text-sm font-medium"><Video className="h-4 w-4" />Ferramentas</span>
+                <div className="flex flex-wrap items-center gap-2 rounded-lg border border-primary/20 bg-primary/5 p-3">
+                  <span className="inline-flex items-center gap-1.5 text-sm font-medium"><Video className="h-4 w-4 shrink-0" strokeWidth={1.5} />Ferramentas</span>
                   <VideoAiTools
                     visible={hasVideo}
                     loadingAction={videoToolsLoadingAction ?? null}
@@ -275,9 +275,9 @@ export function Step2MediaCard(props: Step2MediaCardProps) {
               {/* Persistent Action Bar */}
               <div
                 className={cn(
-                  'flex items-center justify-between p-2 rounded-md border',
+                  'flex items-center justify-between rounded-md border p-3',
                   mediaPreviewUrls.length >= mediaRequirements.maxMedia
-                    ? 'bg-amber-500/10 border-amber-500/30'
+                    ? 'border-warning/30 bg-warning/10'
                     : 'bg-muted/50 border-border',
                 )}
               >
@@ -286,19 +286,19 @@ export function Step2MediaCard(props: Step2MediaCardProps) {
                     className={cn(
                       'text-xs sm:text-sm font-medium',
                       mediaPreviewUrls.length >= mediaRequirements.maxMedia &&
-                        'text-amber-700 dark:text-amber-300',
+                        'text-warning',
                     )}
                   >
                     {mediaPreviewUrls.length}/{mediaRequirements.maxMedia}
                   </span>
                   {mediaPreviewUrls.length < mediaRequirements.maxMedia ? (
-                    <Badge variant="secondary" className="text-[10px] hidden xs:inline-flex">
+                    <Badge variant="secondary" className="manual-chip hidden xs:inline-flex">
                       +{mediaRequirements.maxMedia - mediaPreviewUrls.length}
                     </Badge>
                   ) : (
                     <Badge
                       variant="outline"
-                      className="text-[10px] xs:text-xs bg-amber-500/20 text-amber-700 dark:text-amber-300 border-amber-500/30"
+                      className="manual-chip border-warning/30 bg-warning/20 text-warning"
                     >
                       Limite
                     </Badge>
@@ -336,7 +336,7 @@ export function Step2MediaCard(props: Step2MediaCardProps) {
                 <DragHintTooltip show={mediaPreviewUrls.length > 1} />
               )}
 
-              <div className="flex items-center justify-between text-xs text-muted-foreground">
+                <div className="flex items-center justify-between text-manual-micro text-muted-foreground">
                 <span className="flex items-center gap-1.5">
                   <span className="w-1.5 h-1.5 rounded-full bg-primary animate-pulse" />
                   <span className="hidden sm:inline">Arraste para reordenar ou use as setas</span>
@@ -354,7 +354,7 @@ export function Step2MediaCard(props: Step2MediaCardProps) {
                   items={mediaPreviewUrls.map((_, i) => `media-${i}`)}
                   strategy={horizontalListSortingStrategy}
                 >
-                  <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-1 xs:gap-1.5 sm:gap-3">
+                  <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4">
                     {mediaPreviewUrls.map((url, idx) => {
                       const isVideo = mediaFiles[idx]?.type?.startsWith('video/');
                       return (
@@ -385,13 +385,13 @@ export function Step2MediaCard(props: Step2MediaCardProps) {
                       <Label
                         htmlFor="media-upload-more"
                         className={cn(
-                          'aspect-square rounded-lg xs:rounded-xl border-2 border-dashed flex flex-col items-center justify-center gap-1 xs:gap-1.5 cursor-pointer transition-all press-effect',
+                          'aspect-square rounded-lg border-2 border-dashed flex flex-col items-center justify-center gap-2 cursor-pointer transition-all press-effect',
                           'border-primary/40 bg-primary/5 hover:border-primary hover:bg-primary/10',
                           'min-h-[100px]',
                         )}
                       >
                         <div className="p-2 rounded-full bg-primary/20">
-                          <Plus className="h-5 w-5 text-primary" />
+                          <Plus className="h-5 w-5 text-primary" strokeWidth={1.5} />
                         </div>
                         <span className="text-xs font-medium text-primary">
                           +{mediaRequirements.maxMedia - mediaPreviewUrls.length}
@@ -411,7 +411,7 @@ export function Step2MediaCard(props: Step2MediaCardProps) {
                 </SortableContext>
 
                 {onMediaAltTextChange && mediaPreviewUrls.length > 0 && (
-                  <div className="grid gap-3 sm:grid-cols-2">
+                  <div className="grid gap-4 sm:grid-cols-2">
                     {mediaPreviewUrls.map((url, idx) => {
                       const key = `media-${idx}`;
                       const value = altTexts[key] ?? (idx === 0 ? altText : '');
@@ -454,7 +454,7 @@ export function Step2MediaCard(props: Step2MediaCardProps) {
           )}
 
           {/* Step 2 Navigation */}
-          <div className="flex justify-between mt-3 pt-3 border-t">
+          <div className="mt-4 flex justify-between border-t border-border/40 pt-4">
             <Button
               variant="ghost"
               onClick={onPreviousStep}
