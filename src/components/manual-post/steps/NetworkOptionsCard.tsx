@@ -20,6 +20,8 @@ import { AIGeneratedField } from '@/components/ai/AIGeneratedField';
 import { AIActionButton } from '@/components/ai/AIActionButton';
 import { FirstCommentOptionsDialog } from '@/components/manual-post/ai/FirstCommentOptionsDialog';
 import { aiService } from '@/services/ai/aiService';
+import { supabase } from '@/integrations/supabase/client';
+import { toast } from '@/hooks/use-toast';
 import type { FirstCommentOption } from '@/types/aiEditorial';
 
 export interface NetworkOptionsCardHandle {
@@ -152,18 +154,44 @@ export const NetworkOptionsCard = forwardRef<NetworkOptionsCardHandle, NetworkOp
     setDraftCollaborator('');
   };
 
-  const insertLinkedInMention = () => {
-    if (!mentionProfile.trim() || !mentionName.trim()) return;
-    const mentionText = `@[${mentionName.trim()}](${mentionProfile.trim()})`;
-    if (useSeparateCaptions) {
-      const current = networkCaptions.linkedin ?? caption;
-      onNetworkCaptionChange('linkedin', `${current}${current ? ' ' : ''}${mentionText}`);
-    } else {
-      onCaptionChange(`${caption}${caption ? ' ' : ''}${mentionText}`);
+  const [isResolvingMention, setIsResolvingMention] = useState(false);
+
+  const insertLinkedInMention = async () => {
+    const profile = mentionProfile.trim();
+    const name = mentionName.trim();
+    if (!profile || !name) return;
+    setIsResolvingMention(true);
+    try {
+      // Resolve URN via Getlate (cached server-side). Sem URN, a menção
+      // não dispara notificação no LinkedIn — por isso bloqueamos a inserção.
+      const { data, error } = await supabase.functions.invoke(
+        'getlate-linkedin-mention',
+        { body: { profileUrl: profile, displayName: name } },
+      );
+      if (error || !data?.mentionFormat) {
+        const message =
+          (data && typeof (data as { error?: unknown }).error === 'string'
+            ? (data as { error: string }).error
+            : null) ??
+          error?.message ??
+          'Não foi possível resolver esta menção. Tenta novamente.';
+        toast({ title: 'Menção LinkedIn', description: message, variant: 'destructive' });
+        return;
+      }
+      const mentionText = data.mentionFormat as string;
+      if (useSeparateCaptions) {
+        const current = networkCaptions.linkedin ?? caption;
+        onNetworkCaptionChange('linkedin', `${current}${current ? ' ' : ''}${mentionText}`);
+      } else {
+        onCaptionChange(`${caption}${caption ? ' ' : ''}${mentionText}`);
+      }
+      // Mantém um registo interno para re-edição futura. NÃO é enviado ao publish-to-getlate.
+      updateNetwork('linkedin', { mentions: [...(networkOptions.linkedin?.mentions ?? []), { profile, displayName: name }] });
+      setMentionProfile('');
+      setMentionName('');
+    } finally {
+      setIsResolvingMention(false);
     }
-    updateNetwork('linkedin', { mentions: [...(networkOptions.linkedin?.mentions ?? []), { profile: mentionProfile.trim(), displayName: mentionName.trim() }] });
-    setMentionProfile('');
-    setMentionName('');
   };
 
   const addPhotoTagAtCenter = () => {
@@ -261,7 +289,19 @@ export const NetworkOptionsCard = forwardRef<NetworkOptionsCardHandle, NetworkOp
   const renderLinkedIn = () => (
     <div className="manual-group-stack">
       {renderFirstComment('linkedin')}
-      <div className="manual-field-stack"><Label className="manual-field-label">@mention</Label><div className="grid gap-2 sm:grid-cols-2"><Input className="manual-input-radius manual-scroll-anchor min-h-11" ref={setFieldRef(fieldKey('linkedin', 'linkedinMention')) as React.Ref<HTMLInputElement>} value={mentionProfile} onChange={(e) => setMentionProfile(e.target.value)} placeholder="username ou URL do perfil" autoCapitalize="none" autoCorrect="off" disabled={disabled} /><Input className="manual-input-radius manual-scroll-anchor min-h-11" value={mentionName} onChange={(e) => setMentionName(e.target.value)} placeholder="nome a apresentar" autoCapitalize="words" disabled={disabled} /></div><Button type="button" size="sm" className="manual-touch-target h-11 sm:h-9" onClick={insertLinkedInMention} disabled={disabled}>Inserir</Button></div>
+      <div className="manual-field-stack">
+        <Label className="manual-field-label">@mention</Label>
+        <div className="grid gap-2 sm:grid-cols-2">
+          <Input className="manual-input-radius manual-scroll-anchor min-h-11" ref={setFieldRef(fieldKey('linkedin', 'linkedinMention')) as React.Ref<HTMLInputElement>} value={mentionProfile} onChange={(e) => setMentionProfile(e.target.value)} placeholder="username ou URL do perfil" autoCapitalize="none" autoCorrect="off" disabled={disabled || isResolvingMention} />
+          <Input className="manual-input-radius manual-scroll-anchor min-h-11" value={mentionName} onChange={(e) => setMentionName(e.target.value)} placeholder="nome a apresentar" autoCapitalize="words" disabled={disabled || isResolvingMention} />
+        </div>
+        <Button type="button" size="sm" className="manual-touch-target h-11 sm:h-9" onClick={insertLinkedInMention} disabled={disabled || isResolvingMention}>
+          {isResolvingMention ? 'A resolver...' : 'Inserir'}
+        </Button>
+        <p className="manual-microcopy">
+          Menções de pessoas exigem que a tua conta LinkedIn seja admin de pelo menos uma organização. Menções de empresas funcionam sem esse requisito.
+        </p>
+      </div>
       <label className="flex min-h-11 items-center gap-2 text-sm"><Checkbox ref={setFieldRef(fieldKey('linkedin', 'disableLinkPreview')) as React.Ref<HTMLButtonElement>} checked={!!networkOptions.linkedin?.disableLinkPreview} onCheckedChange={(checked) => updateNetwork('linkedin', { disableLinkPreview: checked === true })} disabled={disabled} />Desativar pré-visualização do link</label>
     </div>
   );

@@ -74,3 +74,6 @@ verify_jwt = false
 
 [functions.generate-insights]
 verify_jwt = false
+
+[functions.getlate-linkedin-mention]
+verify_jwt = true

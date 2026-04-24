@@ -518,6 +518,33 @@ export type Database = {
         }
         Relationships: []
       }
+      linkedin_mention_cache: {
+        Row: {
+          display_name_hint: string | null
+          expires_at: string
+          mention_format: string
+          profile_url: string
+          resolved_at: string
+          urn: string
+        }
+        Insert: {
+          display_name_hint?: string | null
+          expires_at?: string
+          mention_format: string
+          profile_url: string
+          resolved_at?: string
+          urn: string
+        }
+        Update: {
+          display_name_hint?: string | null
+          expires_at?: string
+          mention_format?: string
+          profile_url?: string
+          resolved_at?: string
+          urn?: string
+        }
+        Relationships: []
+      }
       media_library: {
         Row: {
           ai_prompt: string | null
