@@ -104,6 +104,26 @@ export default {
         display: ['Inter', 'sans-serif'],
         mono: ['DM Sans', 'ui-monospace', 'monospace'],
       },
+      spacing: {
+        'manual-card': '24px',
+        'manual-card-inner': '20px',
+        'manual-field-group': '16px',
+        'manual-label-field': '8px',
+        'manual-gap-desktop': '32px',
+        'manual-gap-tablet': '24px',
+        'manual-preview-min': '360px',
+      },
+      fontSize: {
+        'manual-section': ['18px', { lineHeight: '1.3', fontWeight: '600' }],
+        'manual-description': ['14px', { lineHeight: '1.5', fontWeight: '400' }],
+        'manual-label': ['13px', { lineHeight: '1.35', fontWeight: '500' }],
+        'manual-hint': ['13px', { lineHeight: '1.4', fontWeight: '400' }],
+        'manual-micro': ['12px', { lineHeight: '1.35', fontWeight: '400' }],
+      },
+      transitionDuration: {
+        'manual-color': '150ms',
+        'manual-expand': '200ms',
+      },
       screens: {
         '2xs': '320px',
         xs: '360px',

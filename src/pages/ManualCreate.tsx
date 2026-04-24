@@ -1101,7 +1101,7 @@ export default function ManualCreate() {
 
       {/* Mobile Preview - Hidden by default, moved to bottom */}
 
-      <div className="grid lg:grid-cols-[minmax(0,2fr)_minmax(280px,1fr)] gap-2 lg:gap-8 pb-32 lg:pb-0 px-0 sm:px-0 overflow-hidden">
+      <div className="manual-create-grid px-0 sm:px-0 overflow-hidden">
         {/* Left - Form */}
         <div className="space-y-3 lg:space-y-6">
           {/* Step 1: Network & Format Selection */}
