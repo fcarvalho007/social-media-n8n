@@ -46,15 +46,16 @@ export function Step3ScheduleCard(props: Step3ScheduleCardProps) {
   return (
     <Card className="manual-card-shell w-full max-w-full">
       <CardHeader className="manual-card-content pb-3">
-        <CardTitle className="manual-section-title flex items-center gap-2">
-          Agendamento
+        <CardTitle className="manual-section-title manual-card-title-row">
+          <span className="manual-icon-box"><CalendarIcon className="h-5 w-5" strokeWidth={1.5} /></span>
+          <span>Agendamento</span>
           <SectionHelp content={getSectionTooltip('scheduling')} />
         </CardTitle>
         <CardDescription className="manual-section-description">Define quando publicar</CardDescription>
       </CardHeader>
       <CardContent className="manual-card-content manual-group-stack pt-0">
         {/* Toggle Pill Style */}
-        <div className="flex gap-1 rounded-lg bg-muted p-1">
+        <div className="flex gap-1 rounded-lg bg-muted/60 p-1">
           <button
             type="button"
             onClick={() => onScheduleAsapChange(true)}
@@ -238,14 +239,14 @@ export function Step3ScheduleCard(props: Step3ScheduleCardProps) {
               </div>
 
               {/* Time presets */}
-              <div className="overflow-x-auto scrollbar-hide pb-1">
-                <div className="flex gap-1 xs:gap-1.5 w-max xs:w-auto xs:flex-wrap mt-2">
+            <div className="overflow-x-auto scrollbar-hide pb-1">
+                <div className="mt-2 flex w-max gap-1.5 xs:w-auto xs:flex-wrap">
                   {['09:00', '12:00', '15:00', '18:00', '21:00'].map((preset) => (
                     <Badge
                       key={preset}
                       variant="outline"
                       className={cn(
-                        'manual-chip flex-shrink-0 cursor-pointer transition-colors hover:bg-primary/10',
+                        'manual-touch-chip flex-shrink-0 cursor-pointer border transition-colors hover:bg-primary/10',
                         time === preset && 'bg-primary/10 border-primary/50',
                       )}
                       onClick={() => onTimeChange(preset)}
