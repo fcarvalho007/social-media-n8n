@@ -17,6 +17,19 @@ export async function networkOptionsValidator(ctx: ValidatorContext): Promise<Va
   const issues: ValidationIssue[] = [];
   const networks = new Set(ctx.selectedFormats.map(f => getNetworkFromFormat(f)));
   const options = ctx.networkOptions ?? {};
+  const storyLinkSelected = ctx.selectedFormats.includes('instagram_story_link');
+
+  if (storyLinkSelected && ctx.selectedFormats.length > 1) {
+    issues.push({
+      id: 'network-options:instagram-story-link:exclusive-format',
+      severity: 'error',
+      category: 'platform',
+      platform: 'instagram',
+      format: 'instagram_story_link',
+      title: 'Story com Link deve ser isolada',
+      description: 'Cria a Story com Link separadamente para manter o fluxo semi-automático e evitar publicação direta por engano.',
+    });
+  }
 
   (['instagram', 'linkedin', 'facebook'] as SocialNetwork[]).forEach((network) => {
     if (!networks.has(network)) return;
@@ -42,6 +55,24 @@ export async function networkOptionsValidator(ctx: ValidatorContext): Promise<Va
   });
 
   if (networks.has('instagram')) {
+    if (storyLinkSelected) {
+      const linkUrl = options.instagram?.storyLinkUrl?.trim() ?? '';
+      if (!linkUrl || invalidUrl(linkUrl)) {
+        issues.push({
+          id: 'network-options:instagram-story-link:invalid-url',
+          severity: 'error',
+          category: 'platform',
+          platform: 'instagram',
+          format: 'instagram_story_link',
+          title: 'Link sticker obrigatório',
+          description: 'Adiciona um URL válido para preparar a Story com Link.',
+          autoFixable: !!ctx.fixHelpers?.focusNetworkOption,
+          fixLabel: 'Editar link',
+          fixAction: () => ctx.fixHelpers?.focusNetworkOption?.('instagram', 'instagramStoryLink'),
+        });
+      }
+    }
+
     const collaborators = options.instagram?.collaborators ?? [];
     if (collaborators.length > 3) {
       issues.push({ id: 'network-options:instagram:too-many-collaborators', severity: 'error', category: 'platform', platform: 'instagram', title: 'Demasiados colaboradores', description: 'O Instagram permite no máximo 3 colaboradores por publicação.', autoFixable: !!ctx.fixHelpers?.focusNetworkOption, fixLabel: 'Editar colaboradores', fixAction: () => ctx.fixHelpers?.focusNetworkOption?.('instagram', 'collaborators') });
