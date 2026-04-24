@@ -14,6 +14,7 @@ import { NETWORK_CONSTRAINTS } from '@/lib/socialNetworks';
 import EmojiPicker, { EmojiClickData } from 'emoji-picker-react';
 import emojiDataPt from 'emoji-picker-react/dist/data/emojis-pt';
 import { toast } from 'sonner';
+import { CaptionToneToolbar, ToneAction } from '@/components/manual-post/ai/CaptionToneToolbar';
 
 const MIN_TEXTAREA_HEIGHT = 220;
 const MAX_TEXTAREA_HEIGHT = 420;
@@ -48,6 +49,8 @@ interface NetworkCaptionEditorProps {
   disabled?: boolean;
   onOpenSavedCaptions?: () => void;
   onOpenAIDialog?: () => void;
+  toneRewriteLoading?: ToneAction | null;
+  onRewriteTone?: (tone: ToneAction) => void;
 }
 
 export interface NetworkCaptionEditorHandle {
@@ -66,6 +69,8 @@ export const NetworkCaptionEditor = forwardRef<NetworkCaptionEditorHandle, Netwo
   disabled,
   onOpenSavedCaptions,
   onOpenAIDialog,
+  toneRewriteLoading = null,
+  onRewriteTone,
 }, ref) {
   const [activeNetwork, setActiveNetwork] = useState<SocialNetwork>(selectedNetworks[0] || 'instagram');
   const [emojiPickerOpen, setEmojiPickerOpen] = useState(false);
@@ -146,6 +151,9 @@ export const NetworkCaptionEditor = forwardRef<NetworkCaptionEditorHandle, Netwo
     }
     return caption.length;
   };
+
+  const activeCaption = useSeparateCaptions ? (networkCaptions[activeNetwork] || '') : caption;
+  const showToneToolbar = activeCaption.trim().length > 20 && !!onRewriteTone;
 
   useEffect(() => {
     requestAnimationFrame(() => {
@@ -243,6 +251,14 @@ export const NetworkCaptionEditor = forwardRef<NetworkCaptionEditorHandle, Netwo
           </Button>
         )}
       </div>
+
+      {showToneToolbar && (
+        <CaptionToneToolbar
+          loadingAction={toneRewriteLoading}
+          disabled={disabled}
+          onRewrite={onRewriteTone}
+        />
+      )}
 
       {/* Unified Caption or Network Tabs */}
       {useSeparateCaptions && selectedNetworks.length >= 2 ? (
