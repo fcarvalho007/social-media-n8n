@@ -11,6 +11,7 @@ import type { useImageCompression } from './useImageCompression';
 import type { usePublishWithProgress } from '@/hooks/usePublishWithProgress';
 import type { usePublishingQuota } from '@/hooks/usePublishingQuota';
 import { useQueryClient } from '@tanstack/react-query';
+import type { EditorialAssistantResult } from '@/types/aiEditorial';
 
 type ExecutePublish = ReturnType<typeof usePublishWithProgress>['publish'];
 type CompressionApi = ReturnType<typeof useImageCompression>;
@@ -58,6 +59,8 @@ interface OrchestratorParams {
   scheduleAsap: boolean;
   recoveredPostId: string | null;
   currentDraftId: string | null;
+  rawTranscription: string;
+  aiMetadata: Partial<EditorialAssistantResult> | null;
 
   // Dependências (hooks)
   smartValidation: ValidationSummary;
@@ -105,6 +108,8 @@ export function usePublishOrchestrator(params: OrchestratorParams) {
     scheduleAsap,
     recoveredPostId,
     currentDraftId,
+    rawTranscription,
+    aiMetadata,
     smartValidation,
     compression,
     executePublish,
@@ -228,6 +233,8 @@ export function usePublishOrchestrator(params: OrchestratorParams) {
         scheduled_date: string | null;
         scheduled_time: string | null;
         publish_immediately: boolean;
+        raw_transcription: string | null;
+        ai_metadata: Record<string, unknown>;
         status: 'draft';
       } = {
         user_id: user.id,
@@ -243,6 +250,8 @@ export function usePublishOrchestrator(params: OrchestratorParams) {
         scheduled_date: scheduledDate ? format(scheduledDate, 'yyyy-MM-dd') : null,
         scheduled_time: time || null,
         publish_immediately: scheduleAsap,
+        raw_transcription: rawTranscription || null,
+        ai_metadata: JSON.parse(JSON.stringify(aiMetadata ?? {})),
         status: 'draft',
       };
 
@@ -329,6 +338,7 @@ export function usePublishOrchestrator(params: OrchestratorParams) {
     }
   }, [
     selectedFormats, mediaFiles, useSeparateCaptions, networkCaptions, networkOptions, caption,
+    rawTranscription, aiMetadata,
     scheduledDate, time, scheduleAsap, currentDraftId,
     setUploadProgress, setCurrentDraftId,
   ]);
