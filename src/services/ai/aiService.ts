@@ -1,6 +1,6 @@
 import { supabase } from '@/integrations/supabase/client';
 import { AIServiceError } from '@/lib/errorHandler';
-import type { HashtagAssistantResult } from '@/types/aiEditorial';
+import type { FirstCommentOption, HashtagAssistantResult, TranscriptSegment } from '@/types/aiEditorial';
 import type { SocialNetwork } from '@/types/social';
 
 export type AIModelAlias = 'fast' | 'smart';
@@ -25,6 +25,11 @@ export interface GenerateHashtagsParams {
   creditCostOverride?: number;
 }
 
+export interface TranscriptionResult {
+  text: string;
+  segments?: TranscriptSegment[];
+}
+
 type AICoreResponse<T> = {
   success?: boolean;
   result?: T;
@@ -47,11 +52,11 @@ async function invokeAICore<T>(body: Record<string, unknown>): Promise<T> {
 }
 
 export const aiService = {
-  transcribeMedia(fileUrl: string, options?: { language?: string; feature?: string; creditCostOverride?: number }) {
-    return invokeAICore<string>({
+  transcribeMedia(fileUrl: string, options?: { language?: string; feature?: string; creditCostOverride?: number; includeSegments?: boolean }) {
+    return invokeAICore<string | TranscriptionResult>({
       action: 'transcription',
       fileUrl,
-      options: { language: options?.language },
+      options: { language: options?.language, includeSegments: options?.includeSegments },
       feature: options?.feature || 'shared_ai_service',
       creditCostOverride: options?.creditCostOverride,
     });
@@ -67,5 +72,17 @@ export const aiService = {
 
   generateHashtags(params: GenerateHashtagsParams) {
     return invokeAICore<HashtagAssistantResult>({ action: 'hashtag_generation', ...params, feature: 'hashtag_assistant', creditCostOverride: params.creditCostOverride ?? 1 });
+  },
+
+  generateFirstComments(params: { caption: string; network: SocialNetwork }) {
+    return invokeAICore<{ options: FirstCommentOption[] }>({ action: 'first_comment_generation', ...params, feature: 'first_comment_ai', model: 'fast', creditCostOverride: 1 });
+  },
+
+  generateVideoChapters(params: { transcription: string; segments?: TranscriptSegment[] }) {
+    return invokeAICore<{ chapters: { time: string; title: string }[] }>({ action: 'video_chapters', ...params, feature: 'video_chapters', model: 'fast', creditCostOverride: 2 });
+  },
+
+  extractVideoQuotes(params: { transcription: string; segments?: TranscriptSegment[] }) {
+    return invokeAICore<{ quotes: { time: string; text: string }[] }>({ action: 'video_quotes', ...params, feature: 'video_quotes', model: 'fast', creditCostOverride: 1 });
   },
 };
