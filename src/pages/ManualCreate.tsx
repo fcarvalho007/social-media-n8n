@@ -609,8 +609,10 @@ export default function ManualCreate() {
       });
       const result = generated as EditorialAssistantResult;
       const generatedAt = new Date().toISOString();
+      const suggestedTags = Array.from(new Set((result.hashtags_suggested ?? getUniqueHashtags(result).map(tag => tag.replace(/^#/, ''))).map(normalizeSuggestedHashtag).filter(Boolean)));
+      const captionWithTags = [result.base_caption || '', suggestedTags.join(' ')].filter(Boolean).join('\n\n');
 
-      setCaption(result.base_caption || '');
+      setCaption(captionWithTags);
       if (useSeparateCaptions && result.captions_per_network && Object.keys(result.captions_per_network).length > 0) {
         setNetworkCaptions(result.captions_per_network as Record<string, string>);
       }
@@ -625,6 +627,7 @@ export default function ManualCreate() {
       setAltText((result.alt_text || '').slice(0, 125));
       setAssistantGeneratedAt(generatedAt);
       setAiGeneratedEdited({});
+      setHashtagSuggestions(suggestedTags.map((tag, index) => applySafety({ tag, group: index < 6 ? 'reach' : 'niche', source: 'ai_editorial', reason: 'Sugerida a partir da transcrição.' })));
       setAiMetadata(prev => ({
         ...(prev ?? {}),
         ...result,
@@ -633,11 +636,18 @@ export default function ManualCreate() {
           status: 'done',
           generated_at: generatedAt,
           suggestions: {
-            hashtags_suggested: result.hashtags_suggested ?? getUniqueHashtags(result).map(tag => tag.replace(/^#/, '')),
+            hashtags_suggested: suggestedTags,
             key_quotes: result.key_quotes ?? [],
             draft_title: result.draft_title,
             alt_text: result.alt_text,
           },
+        },
+        hashtag_assistant: { hashtags: suggestedTags.map((tag, index) => applySafety({ tag, group: index < 6 ? 'reach' : 'niche', source: 'ai_editorial', reason: 'Sugerida a partir da transcrição.' })), selectedTags: suggestedTags, generated_at: generatedAt },
+        generated_fields: {
+          caption: { generated_at: generatedAt, edited: false },
+          hashtags: { generated_at: generatedAt, edited: false },
+          firstComment: { generated_at: generatedAt, edited: false },
+          altText: { generated_at: generatedAt, edited: false },
         },
       }));
       setAiAssistantStatus('done');
