@@ -107,8 +107,8 @@ export const NetworkOptionsCard = forwardRef<NetworkOptionsCardHandle, NetworkOp
 
   useImperativeHandle(ref, () => ({
     focusField: (network, field) => {
-      setRootOpen(['network-options']);
-      setOpenNetworks(prev => Array.from(new Set([...prev, network])));
+      onActivate?.();
+      setOpenNetwork(network);
       requestAnimationFrame(() => fieldRefs.current[fieldKey(network, field)]?.focus());
     },
   }));
