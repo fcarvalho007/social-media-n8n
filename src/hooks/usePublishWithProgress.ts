@@ -18,12 +18,26 @@ import { toast } from 'sonner';
 import { extractVideoFrame } from '@/lib/media/videoFrameExtractor';
 import { NetworkOptions } from '@/types/networkOptions';
 import type { EditorialAssistantResult } from '@/types/aiEditorial';
+import { getHashtagsFromText, NETWORK_HASHTAG_LIMITS } from '@/lib/hashtags/safety';
 
 // Supported MIME types for social media publishing
 const SUPPORTED_IMAGE_TYPES = ['image/jpeg', 'image/png', 'image/webp', 'image/gif'];
 const SUPPORTED_VIDEO_TYPES = ['video/mp4', 'video/quicktime', 'video/mov', 'video/x-m4v'];
 const MAX_IMAGE_SIZE_MB = 50; // Accept up to 50MB (compressed on publish)
 const MAX_VIDEO_SIZE_MB = 650;
+
+function enforceNetworkHashtagLimit(text: string, network: string) {
+  const limit = NETWORK_HASHTAG_LIMITS[network as keyof typeof NETWORK_HASHTAG_LIMITS]?.max;
+  if (!limit) return text;
+  const hashtags = getHashtagsFromText(text);
+  if (hashtags.length <= limit) return text;
+
+  let kept = 0;
+  return text.replace(/#[\p{L}\p{N}_]+/gu, (tag) => {
+    kept += 1;
+    return kept <= limit ? tag : '';
+  }).replace(/[ \t]{2,}/g, ' ').replace(/\n{3,}/g, '\n\n').trim();
+}
 
 interface UploadDiagnosis {
   causa: string;
@@ -747,7 +761,7 @@ if (imageUrlsForPdf.length > 0) {
         try {
           // Use network-specific caption if available, truncated to network limit
           const maxCaptionLen = NETWORK_CONSTRAINTS[network]?.max_caption_length || 2200;
-          const networkCaption = (params.networkCaptions?.[network] || caption).slice(0, maxCaptionLen);
+          const networkCaption = enforceNetworkHashtagLimit(params.networkCaptions?.[network] || caption, network).slice(0, maxCaptionLen);
           
           const { data: publishResult, error: publishError } = await supabase.functions.invoke('publish-to-getlate', {
             body: {

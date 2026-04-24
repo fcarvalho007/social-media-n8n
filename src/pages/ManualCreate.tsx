@@ -175,6 +175,7 @@ export default function ManualCreate() {
   const captionEditorRef = useRef<NetworkCaptionEditorHandle>(null);
   const networkOptionsRef = useRef<NetworkOptionsCardHandle>(null);
   const aiMediaSignatureRef = useRef('');
+  const autoAltTextSignatureRef = useRef('');
 
   // ── Phase 1 hook: media state + DnD ────────────────────────────────────
   const mediaManager = useMediaManager();
@@ -426,6 +427,7 @@ export default function ManualCreate() {
       setAssistantGeneratedAt(null);
       setAiGeneratedEdited({});
       setAltText('');
+      setAltTexts({});
     }
 
     aiMediaSignatureRef.current = nextSignature;
@@ -442,13 +444,16 @@ export default function ManualCreate() {
   }, [mediaFiles]);
 
   useEffect(() => {
-    if (aiMetadata?.upload_assistant?.generated_at) {
+    if (aiMetadata?.upload_assistant?.status === 'dismissed') {
+      setAiAssistantDismissed(true);
+      setAiAssistantStatus('idle');
+    } else if (aiMetadata?.upload_assistant?.generated_at) {
       setAssistantGeneratedAt(aiMetadata.upload_assistant.generated_at);
       setAiAssistantStatus('done');
       setAiGeneratedEdited(Object.fromEntries(Object.entries(aiMetadata.generated_fields ?? {}).map(([key, value]) => [key, !!value.edited])));
       setHashtagSuggestions((aiMetadata.hashtag_assistant?.hashtags ?? []).map(applySafety));
     } else if (rawTranscription && rawTranscription.length >= 20) {
-      setAiAssistantStatus('idle');
+      setAiAssistantStatus(aiMetadata?.upload_assistant?.status === 'transcribed' ? 'generating' : 'idle');
     }
   }, [aiMetadata, rawTranscription]);
 
@@ -697,6 +702,7 @@ export default function ManualCreate() {
         }));
       }
       setAltText((result.alt_text || '').slice(0, 125));
+      if (result.alt_text) setAltTexts(prev => ({ ...prev, 'media-0': result.alt_text.slice(0, 125) }));
       setAssistantGeneratedAt(generatedAt);
       setAiGeneratedEdited({});
       setHashtagSuggestions(suggestedTags.map((tag, index) => applySafety({ tag, group: index < 6 ? 'reach' : 'niche', source: 'ai_editorial', reason: 'Sugerida a partir da transcrição.' })));
@@ -934,6 +940,26 @@ export default function ManualCreate() {
       setAltTextLoadingKey(null);
     }
   }, [mediaFiles, refreshAiCredits]);
+
+  useEffect(() => {
+    if (!aiPreferences.auto_alt_text || mediaFiles.length === 0) return;
+    const signature = getMediaSignature(mediaFiles);
+    if (!signature || autoAltTextSignatureRef.current === signature) return;
+    autoAltTextSignatureRef.current = signature;
+
+    mediaFiles.forEach((file, index) => {
+      const key = `media-${index}`;
+      if ((file.type.startsWith('image/') || file.type.startsWith('video/')) && !altTexts[key]) {
+        void generateAltTextForMedia(index);
+      }
+    });
+  }, [aiPreferences.auto_alt_text, altTexts, generateAltTextForMedia, mediaFiles]);
+
+  useEffect(() => {
+    if (aiMetadata?.upload_assistant?.status !== 'transcribed') return;
+    if (!rawTranscription || aiAssistantStatus !== 'generating') return;
+    void handleAiTranscribe();
+  }, [aiAssistantStatus, aiMetadata?.upload_assistant?.status, handleAiTranscribe, rawTranscription]);
 
   const handleGenerateSrt = useCallback(() => {
     const segments = aiMetadata?.transcription_segments ?? [];

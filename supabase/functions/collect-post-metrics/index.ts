@@ -2,7 +2,7 @@ import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.83.0';
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
-  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version',
+  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type, x-cron-secret, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version',
 };
 
 const NETWORKS = ['instagram', 'facebook', 'linkedin', 'tiktok', 'youtube'] as const;
@@ -160,7 +160,11 @@ Deno.serve(async (req) => {
 
   try {
     const cronSecret = Deno.env.get('AI_CRON_SECRET');
-    if (cronSecret && req.headers.get('x-cron-secret') !== cronSecret) {
+    if (!cronSecret) {
+      console.error('[collect-post-metrics] AI_CRON_SECRET missing');
+      return json({ success: false, error: 'Segredo interno não configurado' }, 500);
+    }
+    if (req.headers.get('x-cron-secret') !== cronSecret) {
       return json({ success: false, error: 'Não autorizado' }, 401);
     }
 
@@ -196,17 +200,11 @@ Deno.serve(async (req) => {
         const externalId = externalReference(post, network);
         const metrics = await fetchMetrics(network, externalId);
         const engagementRate = calculateEngagementRate(metrics);
+        const capturedAt = new Date();
+        const capturedHour = new Date(capturedAt);
+        capturedHour.setUTCMinutes(0, 0, 0);
         lastRate = engagementRate;
         lastNetwork = network;
-
-        const captureFrom = new Date(Date.now() - 60 * 60 * 1000).toISOString();
-        const { data: existingMetric } = await supabase
-          .from('post_metrics_raw')
-          .select('id')
-          .eq('post_id', post.id)
-          .eq('network', network)
-          .gte('captured_at', captureFrom)
-          .maybeSingle();
 
         const metricPayload = {
           post_id: post.id,
@@ -223,10 +221,11 @@ Deno.serve(async (req) => {
           video_completion_rate: metrics.video_completion_rate,
           engagement_rate_normalized: engagementRate,
           raw_data: metrics.raw_data || {},
+          captured_at: capturedAt.toISOString(),
+          captured_hour: capturedHour.toISOString(),
         };
 
-        if (existingMetric?.id) await supabase.from('post_metrics_raw').update(metricPayload).eq('id', existingMetric.id);
-        else await supabase.from('post_metrics_raw').insert(metricPayload);
+        await supabase.from('post_metrics_raw').upsert(metricPayload, { onConflict: 'post_id,network,captured_hour' });
 
         if ((metrics.raw_data as any)?.status === 'skipped') skipped.push({ post_id: post.id, network, reason: (metrics.raw_data as any).reason });
       }

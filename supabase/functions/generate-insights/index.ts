@@ -2,7 +2,7 @@ import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.83.0';
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
-  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version',
+  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type, x-cron-secret, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version',
 };
 
 type FeatureRecord = Record<string, any>;
@@ -167,7 +167,11 @@ Deno.serve(async (req) => {
 
   try {
     const cronSecret = Deno.env.get('AI_CRON_SECRET');
-    if (cronSecret && req.headers.get('x-cron-secret') !== cronSecret) {
+    if (!cronSecret) {
+      console.error('[generate-insights] AI_CRON_SECRET missing');
+      return json({ success: false, error: 'Segredo interno não configurado' }, 500);
+    }
+    if (req.headers.get('x-cron-secret') !== cronSecret) {
       return json({ success: false, error: 'Não autorizado' }, 401);
     }
 
