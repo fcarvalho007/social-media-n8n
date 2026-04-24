@@ -340,11 +340,16 @@ export default function ManualCreate() {
   // escolhidos, a secção 'networks' liberta foco automaticamente e passa a
   // complete. Ao voltar a passo 1, foca novamente 'networks'.
   useEffect(() => {
-    if (currentStep > 1 && activeSection === 'networks' && selectedFormats.length > 0) {
-      activate('media');
-    }
     if (currentStep === 1 && activeSection !== 'networks') {
       activate('networks');
+      return;
+    }
+    if (currentStep === 2 && activeSection !== 'media' && selectedFormats.length > 0) {
+      activate('media');
+      return;
+    }
+    if (currentStep >= 3 && activeSection !== 'caption' && mediaFiles.length > 0) {
+      activate('caption');
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [currentStep]);
@@ -355,6 +360,10 @@ export default function ManualCreate() {
       : activeSection === 'networks'
         ? 'active'
         : 'complete';
+
+  // Derivar estado de Media e Caption para o padrão progressive disclosure.
+  // Cálculo inicial (mediaState/captionState) é feito mais abaixo no componente
+  // depois de termos `mediaRequirements` (que depende de `selectedFormats`).
 
   // Smart pre-validation (real-time)
   const smartValidation = useSmartValidation({
@@ -506,6 +515,32 @@ export default function ManualCreate() {
   // Step auto-advance + navigation now provided by useStepper hook above.
   // (currentStep, visitedSteps, setCurrentStep, setVisitedSteps, goToStep,
   //  nextStep, previousStep are all destructured from `stepper`.)
+
+  // Estados derivados para `<SectionCard>` (progressive disclosure).
+  // - 'inactive' enquanto o utilizador não chega à secção.
+  // - 'active'   quando é a secção em foco.
+  // - 'complete' quando há dados válidos e está fora de foco.
+  const minMediaRequired = mediaRequirements.minMedia || 1;
+  const hasMedia = mediaFiles.length >= minMediaRequired;
+  const hasAnyCaption = useSeparateCaptions
+    ? selectedNetworks.some((n) => (networkCaptions[n] || '').trim().length > 0)
+    : caption.trim().length > 0;
+
+  const mediaState: 'inactive' | 'active' | 'complete' = !showStep2
+    ? 'inactive'
+    : activeSection === 'media'
+      ? 'active'
+      : hasMedia
+        ? 'complete'
+        : 'inactive';
+
+  const captionState: 'inactive' | 'active' | 'complete' = !showStep3
+    ? 'inactive'
+    : activeSection === 'caption'
+      ? 'active'
+      : hasAnyCaption
+        ? 'complete'
+        : 'inactive';
 
   // Note: legacy `getValidationErrors()`/`hasErrors` removed.
   // The smart-validation panel (`smartValidation.canPublish`) is now the
@@ -1256,6 +1291,10 @@ export default function ManualCreate() {
             mediaSectionRef={mediaSectionRef}
             onPreviousStep={previousStep}
             onNextStep={nextStep}
+            state={mediaState}
+            onActivate={() => activate('media')}
+            onEdit={() => activate('media')}
+            stepNumber={2}
           />
 
           {/* Step 3: Caption & Scheduling - Progressive Disclosure */}

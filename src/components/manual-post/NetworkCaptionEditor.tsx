@@ -9,12 +9,25 @@ import { Button } from '@/components/ui/button';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Separator } from '@/components/ui/separator';
 import { cn } from '@/lib/utils';
-import { Copy, Instagram, Linkedin, Youtube, Facebook, Smile, Bookmark, Sparkles, Split, Merge } from 'lucide-react';
+import {
+  Copy, Instagram, Linkedin, Youtube, Facebook, Smile, Bookmark, Sparkles, Split, Merge,
+  Wand2, Loader2, Target, Heart, GraduationCap, Scissors, BookOpen,
+} from 'lucide-react';
 import { NETWORK_CONSTRAINTS } from '@/lib/socialNetworks';
 import EmojiPicker, { EmojiClickData } from 'emoji-picker-react';
 import emojiDataPt from 'emoji-picker-react/dist/data/emojis-pt';
 import { toast } from 'sonner';
-import { CaptionToneToolbar, ToneAction } from '@/components/manual-post/ai/CaptionToneToolbar';
+import { ToneAction } from '@/components/manual-post/ai/CaptionToneToolbar';
+
+const TONE_OPTIONS: Array<{ id: ToneAction; label: string; description: string; icon: React.ElementType }> = [
+  { id: 'direct', label: 'Mais direto', description: 'Frases curtas, sem rodeios', icon: Target },
+  { id: 'emotional', label: 'Mais emocional', description: 'Tom caloroso e pessoal', icon: Heart },
+  { id: 'technical', label: 'Mais técnico', description: 'Terminologia precisa', icon: GraduationCap },
+  { id: 'shorter', label: 'Mais curto', description: 'Reduzir comprimento', icon: Scissors },
+  { id: 'longer', label: 'Mais longo', description: 'Expandir com contexto', icon: BookOpen },
+  { id: 'linkedin', label: 'Tom LinkedIn', description: 'Profissional, business', icon: Linkedin },
+  { id: 'instagram', label: 'Tom Instagram', description: 'Conversacional, quente', icon: Instagram },
+];
 
 const MIN_TEXTAREA_HEIGHT = 220;
 const MAX_TEXTAREA_HEIGHT = 420;
@@ -51,6 +64,8 @@ interface NetworkCaptionEditorProps {
   onOpenAIDialog?: () => void;
   toneRewriteLoading?: ToneAction | null;
   onRewriteTone?: (tone: ToneAction) => void;
+  /** Reservado para futura versão minimalista no estado active. Não usado actualmente. */
+  minimalCounters?: unknown;
 }
 
 export interface NetworkCaptionEditorHandle {
@@ -253,11 +268,68 @@ export const NetworkCaptionEditor = forwardRef<NetworkCaptionEditorHandle, Netwo
       </div>
 
       {showToneToolbar && (
-        <CaptionToneToolbar
-          loadingAction={toneRewriteLoading}
-          disabled={disabled}
-          onRewrite={onRewriteTone}
-        />
+        <div className="flex justify-end">
+          <Popover>
+            <PopoverTrigger asChild>
+              <Button
+                type="button"
+                variant="ghost"
+                size="sm"
+                disabled={disabled || !!toneRewriteLoading}
+                className="h-9 gap-1.5 border border-primary/20 bg-primary/5 px-3 text-xs hover:bg-primary/10"
+                title="Ajustar tom da legenda"
+              >
+                {toneRewriteLoading ? (
+                  <Loader2 className="h-3.5 w-3.5 animate-spin" strokeWidth={1.5} />
+                ) : (
+                  <Wand2 className="h-3.5 w-3.5 text-primary" strokeWidth={1.5} />
+                )}
+                Ajustar tom
+              </Button>
+            </PopoverTrigger>
+            <PopoverContent align="end" side="top" className="w-72 p-2">
+              <div className="space-y-1">
+                <p className="px-2 py-1 text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
+                  Ajustar tom da legenda
+                </p>
+                {TONE_OPTIONS.map((option, idx) => {
+                  const Icon = option.icon;
+                  const isLoading = toneRewriteLoading === option.id;
+                  const isSeparator = idx === 5; // separar tons absolutos dos por-rede
+                  return (
+                    <div key={option.id}>
+                      {isSeparator && <Separator className="my-1" />}
+                      <button
+                        type="button"
+                        disabled={disabled || !!toneRewriteLoading}
+                        onClick={() => onRewriteTone?.(option.id)}
+                        className={cn(
+                          'flex w-full items-start gap-2.5 rounded-md px-2 py-2 text-left text-sm transition-colors',
+                          'hover:bg-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring',
+                          'disabled:cursor-not-allowed disabled:opacity-60',
+                        )}
+                      >
+                        {isLoading ? (
+                          <Loader2 className="mt-0.5 h-4 w-4 shrink-0 animate-spin text-primary" strokeWidth={1.5} />
+                        ) : (
+                          <Icon className="mt-0.5 h-4 w-4 shrink-0 text-muted-foreground" strokeWidth={1.5} />
+                        )}
+                        <span className="min-w-0 flex-1">
+                          <span className="block font-medium leading-tight">{option.label}</span>
+                          <span className="block text-[11px] text-muted-foreground">{option.description}</span>
+                        </span>
+                      </button>
+                    </div>
+                  );
+                })}
+                <Separator className="my-1" />
+                <p className="px-2 py-1 text-[11px] text-muted-foreground">
+                  Consome 1 crédito de IA por uso.
+                </p>
+              </div>
+            </PopoverContent>
+          </Popover>
+        </div>
       )}
 
       {/* Unified Caption or Network Tabs */}
