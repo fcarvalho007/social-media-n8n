@@ -52,6 +52,7 @@ import { aiService } from '@/services/ai/aiService';
 import { useAuth } from '@/contexts/AuthContext';
 import { generateSafeStoragePath } from '@/lib/fileNameSanitizer';
 import { applySafety, getHashtagsFromText, normalizeHashtag as normalizeSuggestedHashtag } from '@/lib/hashtags/safety';
+import { extractVideoFrame } from '@/lib/media/videoFrameExtractor';
 // `extractVideoFrame` foi consolidado em '@/lib/media/videoFrameExtractor'.
 // Este componente já não o usava localmente.
 
@@ -135,6 +136,8 @@ export default function ManualCreate() {
   const [assistantGeneratedAt, setAssistantGeneratedAt] = useState<string | null>(null);
   const [aiGeneratedEdited, setAiGeneratedEdited] = useState<Record<string, boolean>>({});
   const [altText, setAltText] = useState('');
+  const [altTexts, setAltTexts] = useState<Record<string, string>>({});
+  const [altTextLoadingKey, setAltTextLoadingKey] = useState<string | null>(null);
   const [rewriteTone, setRewriteTone] = useState<CaptionRewriteTone>('neutro');
   const [rewriteLoading, setRewriteLoading] = useState(false);
   const [rewriteHistory, setRewriteHistory] = useState<Array<{ network?: ReturnType<typeof getNetworkFromFormat>; text: string }>>([]);
