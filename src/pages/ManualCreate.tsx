@@ -33,6 +33,7 @@ import { useImageCompression } from '@/hooks/manual-create/useImageCompression';
 import { usePublishOrchestrator } from '@/hooks/manual-create/usePublishOrchestrator';
 import { Step2MediaCard } from '@/components/manual-post/steps/Step2MediaCard';
 import { Step3CaptionCard } from '@/components/manual-post/steps/Step3CaptionCard';
+import type { NetworkCaptionEditorHandle } from '@/components/manual-post/NetworkCaptionEditor';
 import { PublishActionsCard } from '@/components/manual-post/steps/PublishActionsCard';
 import { Step3ScheduleCard } from '@/components/manual-post/steps/Step3ScheduleCard';
 import { PreviewPanel } from '@/components/manual-post/steps/PreviewPanel';
@@ -65,7 +66,7 @@ export default function ManualCreate() {
   const [useSeparateCaptions, setUseSeparateCaptions] = useState(false);
   const [networkCaptions, setNetworkCaptions] = useState<Record<string, string>>({});
   const mediaSectionRef = useRef<HTMLDivElement>(null);
-  const textareaRef = useRef<HTMLTextAreaElement>(null);
+  const captionEditorRef = useRef<NetworkCaptionEditorHandle>(null);
 
   // ── Phase 1 hook: media state + DnD ────────────────────────────────────
   const mediaManager = useMediaManager();
@@ -222,7 +223,7 @@ export default function ManualCreate() {
         setNetworkCaptions(prev => ({ ...prev, [network]: next }));
       },
       setMediaFiles,
-      focusCaption: () => textareaRef.current?.focus(),
+      focusCaption: (network) => captionEditorRef.current?.focusCaption(network),
     },
   });
 
@@ -527,6 +528,7 @@ export default function ManualCreate() {
             showStep3 ? "opacity-100" : "opacity-0 max-h-0"
           )}>
             <Step3CaptionCard
+              ref={captionEditorRef}
               caption={caption}
               onCaptionChange={setCaption}
               networkCaptions={networkCaptions}
@@ -535,12 +537,7 @@ export default function ManualCreate() {
               }}
               selectedNetworks={selectedNetworks}
               useSeparateCaptions={useSeparateCaptions}
-              onToggleSeparate={(value) => {
-                setUseSeparateCaptions(value);
-                if (value) {
-                  ensureNetworkCaptions();
-                }
-              }}
+              onToggleSeparate={setUseSeparateCaptions}
               captionLength={captionLength}
               maxLength={maxLength}
               disabled={saving || submitting || publishing}
