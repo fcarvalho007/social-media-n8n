@@ -4,10 +4,11 @@ import { createClient } from "https://esm.sh/@supabase/supabase-js@2.83.0";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
-  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
+  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version",
 };
 
 const MAX_VIDEO_BYTES = 25 * 1024 * 1024;
+const ALLOWED_NETWORKS = new Set(["instagram", "linkedin", "youtube", "tiktok", "facebook", "googlebusiness", "x"]);
 
 type RequestBody = {
   fileBase64?: string;
@@ -30,6 +31,28 @@ const decodeBase64 = (value: string) => {
   const bytes = new Uint8Array(binary.length);
   for (let i = 0; i < binary.length; i += 1) bytes[i] = binary.charCodeAt(i);
   return bytes;
+};
+
+const validateRequestBody = (body: RequestBody) => {
+  if (!body.fileBase64 || typeof body.fileBase64 !== "string") {
+    return { valid: false, status: 400, error: "Ficheiro de vídeo em falta." };
+  }
+
+  const mimeType = typeof body.mimeType === "string" && body.mimeType.trim() ? body.mimeType : "video/mp4";
+  if (!mimeType.startsWith("video/") && !mimeType.startsWith("audio/")) {
+    return { valid: false, status: 400, error: "O assistente só aceita vídeo ou áudio." };
+  }
+
+  const networks = Array.isArray(body.networks)
+    ? body.networks.filter((network): network is string => typeof network === "string" && ALLOWED_NETWORKS.has(network))
+    : [];
+
+  return {
+    valid: true,
+    mimeType,
+    fileName: typeof body.fileName === "string" && body.fileName.trim() ? body.fileName : "video.mp4",
+    networks: networks.length > 0 ? Array.from(new Set(networks)) : ["instagram"],
+  };
 };
 
 const buildFallbackResult = (transcription: string, networks: string[]) => {
