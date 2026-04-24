@@ -40,6 +40,9 @@ import { Step3ScheduleCard } from '@/components/manual-post/steps/Step3ScheduleC
 import { PreviewPanel } from '@/components/manual-post/steps/PreviewPanel';
 import { createDefaultNetworkOptions, normalizeNetworkOptions } from '@/types/networkOptions';
 import { detectImageAspectRatio as detectImageAspectRatioExt, detectVideoAspectRatio as detectVideoAspectRatioExt } from '@/hooks/manual-create/mediaAspectDetection';
+import { AiUploadAssistantCard } from '@/components/manual-post/ai/AiUploadAssistantCard';
+import type { EditorialAssistantResult } from '@/types/aiEditorial';
+import { supabase } from '@/integrations/supabase/client';
 // `extractVideoFrame` foi consolidado em '@/lib/media/videoFrameExtractor'.
 // Este componente já não o usava localmente.
 
@@ -68,6 +71,10 @@ export default function ManualCreate() {
   const [useSeparateCaptions, setUseSeparateCaptions] = useState(false);
   const [networkCaptions, setNetworkCaptions] = useState<Record<string, string>>({});
   const [networkOptions, setNetworkOptions] = useState(createDefaultNetworkOptions);
+  const [rawTranscription, setRawTranscription] = useState('');
+  const [aiMetadata, setAiMetadata] = useState<Partial<EditorialAssistantResult> | null>(null);
+  const [aiAssistantLoading, setAiAssistantLoading] = useState(false);
+  const [aiAssistantDismissed, setAiAssistantDismissed] = useState(false);
   const mediaSectionRef = useRef<HTMLDivElement>(null);
   const captionEditorRef = useRef<NetworkCaptionEditorHandle>(null);
   const networkOptionsRef = useRef<NetworkOptionsCardHandle>(null);
@@ -123,6 +130,8 @@ export default function ManualCreate() {
     scheduledDate: scheduledDate?.toISOString(),
     time,
     scheduleAsap,
+    rawTranscription,
+    aiMetadata,
   }, { enabled: selectedFormats.length > 0 || caption.length > 0 });
 
   // Note: showValidation state was removed — smartValidation.canPublish + validationSheetOpen
@@ -298,6 +307,8 @@ export default function ManualCreate() {
     scheduleAsap,
     recoveredPostId,
     currentDraftId,
+    rawTranscription,
+    aiMetadata,
     smartValidation,
     compression,
     executePublish,
