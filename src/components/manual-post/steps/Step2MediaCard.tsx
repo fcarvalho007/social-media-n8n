@@ -235,7 +235,7 @@ export function Step2MediaCard(props: Step2MediaCardProps) {
           {/* Media Grid - With Files */}
           {mediaPreviewUrls.length > 0 && (
             <div className="space-y-3">
-              {onAltTextChange && mediaPreviewUrls.length === 1 && (
+              {onAltTextChange && !onMediaAltTextChange && mediaPreviewUrls.length === 1 && (
                 <AIGeneratedField generatedAt={altTextGeneratedAt} edited={altTextEdited} className="border-0 bg-transparent">
                   <AltTextPanel
                     visible
