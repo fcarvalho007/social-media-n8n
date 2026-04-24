@@ -535,21 +535,33 @@ export default function ManualCreate() {
   }, [mediaPreviewUrls, mediaFiles]);
 
   const showAiUploadAssistant = useMemo(() => {
-    if (aiAssistantDismissed || aiAssistantLoading || rawTranscription) return false;
-    if (mediaFiles.length !== 1 || !mediaFiles[0]?.type?.startsWith('video/')) return false;
-    if (selectedFormats.some((format) => format.includes('document'))) return false;
-    const hasVideoFormat = selectedFormats.some((format) =>
+    if (aiAssistantDismissed) return false;
+    if (mediaFiles.length !== 1) return false;
+    const file = mediaFiles[0];
+    if (!file?.type?.startsWith('video/') || !SUPPORTED_ASSISTANT_VIDEO_TYPES.has(file.type)) return false;
+    if (selectedFormats.some((format) => format.includes('carousel') || format.includes('document'))) return false;
+    return selectedFormats.some((format) =>
       format.includes('video') || format.includes('reel') || format.includes('shorts') || format.includes('stories') || format === 'linkedin_post',
     );
-    return hasVideoFormat || mediaAspectRatios[0] === '9:16';
-  }, [aiAssistantDismissed, aiAssistantLoading, rawTranscription, mediaFiles, selectedFormats, mediaAspectRatios]);
+  }, [aiAssistantDismissed, mediaFiles, selectedFormats]);
 
-  const fileToBase64 = useCallback((file: File) => new Promise<string>((resolve, reject) => {
-    const reader = new FileReader();
-    reader.onload = () => resolve(String(reader.result || '').split(',')[1] || '');
-    reader.onerror = () => reject(reader.error || new Error('Erro ao ler ficheiro'));
-    reader.readAsDataURL(file);
-  }), []);
+  const assistantBlockedMessage = useMemo(() => {
+    if (!showAiUploadAssistant) return null;
+    if (!aiPreferences.insights_enabled) return 'As preferências de IA estão desligadas. Podes continuar manualmente.';
+    if (assistantVideoDuration !== null && assistantVideoDuration < 5) return 'O vídeo é demasiado curto para este assistente. Podes escrever a legenda manualmente.';
+    if (assistantVideoDuration !== null && assistantVideoDuration > 600) return 'Este vídeo ultrapassa o limite de 10 minutos. Divide o vídeo em partes mais curtas.';
+    if (aiCredits.credits_remaining < AI_CREDIT_COSTS.full_assistant_flow) return 'Não tens créditos suficientes para este fluxo. Podes continuar manualmente ou ver planos.';
+    return null;
+  }, [aiCredits.credits_remaining, aiPreferences.insights_enabled, assistantVideoDuration, showAiUploadAssistant]);
+
+  const uploadAssistantMedia = useCallback(async (file: File) => {
+    const { data: sessionData, error: sessionError } = await supabase.auth.getSession();
+    if (sessionError || !sessionData.session) throw new Error('Sessão expirada. Inicia sessão novamente.');
+    const fileName = generateSafeStoragePath(sessionData.session.user.id, file);
+    const { error: uploadError } = await supabase.storage.from('pdfs').upload(fileName, file, { upsert: true });
+    if (uploadError) throw uploadError;
+    return supabase.storage.from('pdfs').getPublicUrl(fileName).data.publicUrl;
+  }, []);
 
   const handleAiTranscribe = useCallback(async () => {
     const file = mediaFiles[0];
