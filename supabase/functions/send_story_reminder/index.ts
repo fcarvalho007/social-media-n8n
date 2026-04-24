@@ -29,12 +29,12 @@ async function sha256(value: string) {
   return Array.from(new Uint8Array(digest)).map((byte) => byte.toString(16).padStart(2, '0')).join('');
 }
 
-function storyEmailHtml(params: { mediaUrl: string; linkUrl: string; stickerText: string; overlayText?: string | null; confirmUrl: string; fallbackUrl: string }) {
+function storyEmailHtml(params: { mediaUrl: string; linkUrl: string; stickerText: string; overlayText?: string | null; confirmUrl: string; launcherUrl: string; fallbackUrl: string }) {
   const preview = params.mediaUrl.match(/\.(mp4|mov|webm)(\?|$)/i)
     ? `<p style="margin:0;color:#64748b;font-size:14px;">Vídeo preparado: <a href="${escapeHtml(params.mediaUrl)}" style="color:#2563eb;">abrir ficheiro</a></p>`
     : `<img src="${escapeHtml(params.mediaUrl)}" alt="Pré-visualização da Story" style="width:100%;max-width:260px;border-radius:16px;display:block;margin:0 auto 20px;" />`;
 
-  return `<!doctype html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Story com Link pronta</title></head><body style="margin:0;background:#f8fafc;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;color:#0f172a;"><table role="presentation" width="100%" cellspacing="0" cellpadding="0"><tr><td align="center" style="padding:32px 16px;"><table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="max-width:560px;background:#ffffff;border:1px solid #e2e8f0;border-radius:20px;overflow:hidden;"><tr><td style="padding:28px 28px 10px;"><h1 style="margin:0 0 8px;font-size:24px;line-height:1.2;color:#0f172a;">Story com Link pronta</h1><p style="margin:0;color:#475569;font-size:15px;line-height:1.6;">A tua Story está preparada. Abre no telemóvel, adiciona o link sticker no Instagram e confirma quando estiver publicada.</p></td></tr><tr><td style="padding:18px 28px;text-align:center;">${preview}</td></tr><tr><td style="padding:0 28px 24px;"><div style="background:#f1f5f9;border-radius:14px;padding:16px;margin-bottom:16px;"><p style="margin:0 0 8px;color:#64748b;font-size:12px;font-weight:700;text-transform:uppercase;">Link sticker</p><p style="margin:0;font-size:16px;word-break:break-word;"><a href="${escapeHtml(params.linkUrl)}" style="color:#2563eb;">${escapeHtml(params.linkUrl)}</a></p><p style="margin:10px 0 0;color:#334155;font-size:14px;">Texto: <strong>${escapeHtml(params.stickerText)}</strong></p>${params.overlayText ? `<p style="margin:8px 0 0;color:#334155;font-size:14px;">Overlay: ${escapeHtml(params.overlayText)}</p>` : ''}</div><ol style="margin:0 0 22px 20px;padding:0;color:#334155;font-size:15px;line-height:1.7;"><li>Guarda ou partilha a média para Instagram Stories.</li><li>Adiciona o link sticker com o link acima.</li><li>Publica e confirma na app.</li></ol><div style="text-align:center;"><a href="${escapeHtml(params.fallbackUrl)}" style="display:inline-block;background:#2563eb;color:#ffffff;text-decoration:none;border-radius:12px;padding:14px 22px;font-weight:700;margin:0 6px 10px;">Abrir Instagram</a><a href="${escapeHtml(params.confirmUrl)}" style="display:inline-block;background:#0f172a;color:#ffffff;text-decoration:none;border-radius:12px;padding:14px 22px;font-weight:700;margin:0 6px 10px;">Já publiquei</a></div></td></tr><tr><td style="padding:18px 28px;background:#f8fafc;border-top:1px solid #e2e8f0;"><p style="margin:0;color:#94a3b8;font-size:12px;text-align:center;">Lembrete automático do sistema de publicação.</p></td></tr></table></td></tr></table></body></html>`;
+  return `<!doctype html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Story com Link pronta</title></head><body style="margin:0;background:#f8fafc;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;color:#0f172a;"><table role="presentation" width="100%" cellspacing="0" cellpadding="0"><tr><td align="center" style="padding:32px 16px;"><table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="max-width:560px;background:#ffffff;border:1px solid #e2e8f0;border-radius:20px;overflow:hidden;"><tr><td style="padding:28px 28px 10px;"><h1 style="margin:0 0 8px;font-size:24px;line-height:1.2;color:#0f172a;">Story com Link pronta</h1><p style="margin:0;color:#475569;font-size:15px;line-height:1.6;">A tua Story está preparada. Abre o pacote no telemóvel, guarda a média, adiciona o link sticker e confirma quando estiver publicada.</p></td></tr><tr><td style="padding:18px 28px;text-align:center;">${preview}</td></tr><tr><td style="padding:0 28px 24px;"><div style="background:#f1f5f9;border-radius:14px;padding:16px;margin-bottom:16px;"><p style="margin:0 0 8px;color:#64748b;font-size:12px;font-weight:700;text-transform:uppercase;">Link sticker</p><p style="margin:0;font-size:16px;word-break:break-word;"><a href="${escapeHtml(params.linkUrl)}" style="color:#2563eb;">${escapeHtml(params.linkUrl)}</a></p><p style="margin:10px 0 0;color:#334155;font-size:14px;">Texto: <strong>${escapeHtml(params.stickerText)}</strong></p>${params.overlayText ? `<p style="margin:8px 0 0;color:#334155;font-size:14px;">Overlay: ${escapeHtml(params.overlayText)}</p>` : ''}</div><ol style="margin:0 0 22px 20px;padding:0;color:#334155;font-size:15px;line-height:1.7;"><li>Abre o pacote no telemóvel.</li><li>Descarrega a média e abre o Instagram.</li><li>Cola o link no sticker e confirma.</li></ol><div style="text-align:center;"><a href="${escapeHtml(params.launcherUrl)}" style="display:inline-block;background:#2563eb;color:#ffffff;text-decoration:none;border-radius:12px;padding:14px 22px;font-weight:700;margin:0 6px 10px;">Abrir pacote no telemóvel</a><a href="${escapeHtml(params.confirmUrl)}" style="display:inline-block;background:#0f172a;color:#ffffff;text-decoration:none;border-radius:12px;padding:14px 22px;font-weight:700;margin:0 6px 10px;">Já publiquei</a></div></td></tr><tr><td style="padding:18px 28px;background:#f8fafc;border-top:1px solid #e2e8f0;"><p style="margin:0;color:#94a3b8;font-size:12px;text-align:center;">Lembrete automático do sistema de publicação.</p></td></tr></table></td></tr></table></body></html>`;
 }
 
 serve(async (req) => {
@@ -70,6 +70,7 @@ serve(async (req) => {
           stickerText: payload.sticker_text || 'digitalfc.pt',
           overlayText: 'Teste de lembrete',
           confirmUrl: payload.confirm_url || 'https://social-media-n8n.lovable.app/settings/notifications',
+          launcherUrl: payload.confirm_url || 'https://social-media-n8n.lovable.app/settings/notifications',
           fallbackUrl: 'https://www.instagram.com/',
         }),
       });
@@ -102,6 +103,7 @@ serve(async (req) => {
         const tokenValue = randomToken();
         const tokenHash = await sha256(tokenValue);
         const confirmUrl = `https://social-media-n8n.lovable.app/stories/confirm?id=${story.id}&token=${tokenValue}`;
+        const launcherUrl = `https://social-media-n8n.lovable.app/stories/launch/${story.id}?token=${tokenValue}`;
         const stickerText = story.sticker_text || new URL(story.link_url).hostname.replace(/^www\./, '');
 
         await supabase.from('story_link_publications').update({
@@ -119,6 +121,7 @@ serve(async (req) => {
             stickerText,
             overlayText: story.overlay_text,
             confirmUrl,
+            launcherUrl,
             fallbackUrl: 'https://www.instagram.com/',
           }),
         });
