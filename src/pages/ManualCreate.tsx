@@ -940,6 +940,26 @@ export default function ManualCreate() {
     }
   }, [mediaFiles, refreshAiCredits]);
 
+  useEffect(() => {
+    if (!aiPreferences.auto_alt_text || mediaFiles.length === 0) return;
+    const signature = getMediaSignature(mediaFiles);
+    if (!signature || autoAltTextSignatureRef.current === signature) return;
+    autoAltTextSignatureRef.current = signature;
+
+    mediaFiles.forEach((file, index) => {
+      const key = `media-${index}`;
+      if ((file.type.startsWith('image/') || file.type.startsWith('video/')) && !altTexts[key]) {
+        void generateAltTextForMedia(index);
+      }
+    });
+  }, [aiPreferences.auto_alt_text, altTexts, generateAltTextForMedia, mediaFiles]);
+
+  useEffect(() => {
+    if (aiMetadata?.upload_assistant?.status !== 'transcribed') return;
+    if (!rawTranscription || aiAssistantStatus !== 'generating') return;
+    void handleAiTranscribe();
+  }, [aiAssistantStatus, aiMetadata?.upload_assistant?.status, handleAiTranscribe, rawTranscription]);
+
   const handleGenerateSrt = useCallback(() => {
     const segments = aiMetadata?.transcription_segments ?? [];
     if (!segments.length) {
