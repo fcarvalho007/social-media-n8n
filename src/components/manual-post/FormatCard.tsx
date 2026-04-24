@@ -46,7 +46,7 @@ export function FormatCard({ format, isSelected, onToggle, platformColor }: Form
       <div className="absolute top-1 right-1 sm:top-2.5 sm:right-2.5">
         {isSelected ? (
           <div 
-            className="indicator-checked w-4 h-4 sm:w-[22px] sm:h-[22px] rounded-full flex items-center justify-center text-white"
+            className="indicator-checked flex h-4 w-4 items-center justify-center rounded-full bg-primary text-primary-foreground sm:h-[22px] sm:w-[22px]"
           >
             <Check size={10} className="sm:w-[14px] sm:h-[14px]" strokeWidth={3} />
           </div>
