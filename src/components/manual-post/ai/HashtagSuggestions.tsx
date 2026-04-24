@@ -2,21 +2,15 @@ import { Megaphone, Target, Star, Info } from 'lucide-react';
 import { SuggestedHashtag } from '@/types/aiEditorial';
 import { SocialNetwork } from '@/types/social';
 import { Badge } from '@/components/ui/badge';
+import { Button } from '@/components/ui/button';
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
 import { cn } from '@/lib/utils';
+import { NETWORK_HASHTAG_LIMITS } from '@/lib/hashtags/safety';
 
 const groupConfig = {
   reach: { title: 'Alcance', subtitle: 'Temas amplos e fáceis de descobrir', icon: Megaphone },
   niche: { title: 'Nicho', subtitle: 'Contexto específico do conteúdo', icon: Target },
   brand: { title: 'Marca', subtitle: 'Hashtags definidas nas preferências', icon: Star },
-};
-
-const networkLimits: Partial<Record<SocialNetwork, { max: number; recommended: number }>> = {
-  instagram: { max: 30, recommended: 15 },
-  tiktok: { max: 5, recommended: 5 },
-  linkedin: { max: 5, recommended: 5 },
-  x: { max: 2, recommended: 2 },
-  facebook: { max: 3, recommended: 3 },
 };
 
 const statusClass = {
@@ -31,11 +25,13 @@ interface HashtagSuggestionsProps {
   selectedTags: string[];
   activeNetwork: SocialNetwork;
   onToggleTag: (tag: string) => void;
+  onRegenerate?: () => void;
+  regenerating?: boolean;
 }
 
-export function HashtagSuggestions({ hashtags, selectedTags, activeNetwork, onToggleTag }: HashtagSuggestionsProps) {
+export function HashtagSuggestions({ hashtags, selectedTags, activeNetwork, onToggleTag, onRegenerate, regenerating }: HashtagSuggestionsProps) {
   if (hashtags.length === 0) return null;
-  const limit = networkLimits[activeNetwork] ?? { max: 10, recommended: 10 };
+  const limit = NETWORK_HASHTAG_LIMITS[activeNetwork as keyof typeof NETWORK_HASHTAG_LIMITS] ?? { max: 10, recommended: 10 };
 
   return (
     <section className="space-y-3 rounded-lg border bg-muted/20 p-3">
@@ -44,7 +40,10 @@ export function HashtagSuggestions({ hashtags, selectedTags, activeNetwork, onTo
           <h4 className="text-sm font-semibold">Hashtags sugeridas</h4>
           <p className="text-xs text-muted-foreground">{selectedTags.length}/{limit.recommended} selecionadas para {activeNetwork}</p>
         </div>
-        <p className="text-xs text-muted-foreground">Sugestões editoriais, sem volume nem desempenho de mercado.</p>
+        <div className="flex items-center gap-2">
+          <p className="text-xs text-muted-foreground">Sem volume nem desempenho de mercado.</p>
+          {onRegenerate && <Button type="button" variant="outline" size="sm" onClick={onRegenerate} disabled={regenerating}>{regenerating ? 'A gerar...' : 'Regenerar · 1 crédito'}</Button>}
+        </div>
       </div>
       <div className="grid gap-3 md:grid-cols-3">
         {(['reach', 'niche', 'brand'] as const).map((group) => {
