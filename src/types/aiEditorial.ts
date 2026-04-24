@@ -2,7 +2,7 @@ import { SocialNetwork } from '@/types/social';
 
 export type HashtagGroup = 'reach' | 'niche' | 'brand';
 export type HashtagStatus = 'good' | 'saturated' | 'risk';
-export type CaptionRewriteTone = 'direto' | 'emocional' | 'técnico' | 'neutro' | 'mais_curto' | 'mais_forte';
+export type CaptionRewriteTone = 'direto' | 'emocional' | 'técnico' | 'neutro' | 'humor' | 'mais_curto' | 'mais_forte';
 
 export interface CaptionRewriteMetadata {
   network?: SocialNetwork;
@@ -38,9 +38,12 @@ export interface EditorialAssistantResult {
 
 export interface AiPreferences {
   preferred_language: string;
-  default_tone: 'direto' | 'emocional' | 'técnico' | 'neutro';
+  default_tone: 'direto' | 'emocional' | 'técnico' | 'neutro' | 'humor';
+  preferred_model: 'fast' | 'smart';
   brand_hashtags: string[];
   insights_enabled: boolean;
+  auto_alt_text: boolean;
+  auto_first_comment: boolean;
   muted_insight_types: string[];
   dismissed_insights: Record<string, unknown>;
 }
