@@ -9,12 +9,25 @@ import { Button } from '@/components/ui/button';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Separator } from '@/components/ui/separator';
 import { cn } from '@/lib/utils';
-import { Copy, Instagram, Linkedin, Youtube, Facebook, Smile, Bookmark, Sparkles, Split, Merge } from 'lucide-react';
+import {
+  Copy, Instagram, Linkedin, Youtube, Facebook, Smile, Bookmark, Sparkles, Split, Merge,
+  Wand2, Loader2, Target, Heart, GraduationCap, Scissors, BookOpen,
+} from 'lucide-react';
 import { NETWORK_CONSTRAINTS } from '@/lib/socialNetworks';
 import EmojiPicker, { EmojiClickData } from 'emoji-picker-react';
 import emojiDataPt from 'emoji-picker-react/dist/data/emojis-pt';
 import { toast } from 'sonner';
-import { CaptionToneToolbar, ToneAction } from '@/components/manual-post/ai/CaptionToneToolbar';
+import { ToneAction } from '@/components/manual-post/ai/CaptionToneToolbar';
+
+const TONE_OPTIONS: Array<{ id: ToneAction; label: string; description: string; icon: React.ElementType }> = [
+  { id: 'direct', label: 'Mais direto', description: 'Frases curtas, sem rodeios', icon: Target },
+  { id: 'emotional', label: 'Mais emocional', description: 'Tom caloroso e pessoal', icon: Heart },
+  { id: 'technical', label: 'Mais técnico', description: 'Terminologia precisa', icon: GraduationCap },
+  { id: 'shorter', label: 'Mais curto', description: 'Reduzir comprimento', icon: Scissors },
+  { id: 'longer', label: 'Mais longo', description: 'Expandir com contexto', icon: BookOpen },
+  { id: 'linkedin', label: 'Tom LinkedIn', description: 'Profissional, business', icon: Linkedin },
+  { id: 'instagram', label: 'Tom Instagram', description: 'Conversacional, quente', icon: Instagram },
+];
 
 const MIN_TEXTAREA_HEIGHT = 220;
 const MAX_TEXTAREA_HEIGHT = 420;
