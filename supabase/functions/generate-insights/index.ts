@@ -166,12 +166,17 @@ Deno.serve(async (req) => {
   if (req.method === 'OPTIONS') return new Response(null, { headers: corsHeaders });
 
   try {
+    const cronSecret = Deno.env.get('AI_CRON_SECRET');
+    if (cronSecret && req.headers.get('x-cron-secret') !== cronSecret) {
+      return json({ success: false, error: 'Não autorizado' }, 401);
+    }
+
     const url = Deno.env.get('SUPABASE_URL') || Deno.env.get('VITE_SUPABASE_URL');
     const serviceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') || Deno.env.get('SERVICE_ROLE_KEY');
     if (!url || !serviceKey) throw new Error('Backend configuration missing');
     const supabase = createClient(url, serviceKey);
 
-    const { data: prefs, error: prefsError } = await supabase.from('ai_preferences').select('user_id, insights_enabled').eq('insights_enabled', true);
+    const { data: prefs, error: prefsError } = await supabase.from('ai_preferences').select('user_id, insights_enabled, muted_insight_types').eq('insights_enabled', true);
     if (prefsError) throw prefsError;
     const since = new Date(Date.now() - 90 * 24 * 60 * 60 * 1000).toISOString();
     let generated = 0;
@@ -199,7 +204,8 @@ Deno.serve(async (req) => {
       for (const network of networks) {
         const scoped = network === 'all' ? userPosts : userPosts.filter(post => (post.selected_networks || []).includes(network));
         if (scoped.length < 30) continue;
-        for (const insight of buildInsights(scoped)) {
+        const mutedTypes = Array.isArray((pref as any).muted_insight_types) ? (pref as any).muted_insight_types : [];
+        for (const insight of buildInsights(scoped).filter(item => !mutedTypes.includes(item.insight_type))) {
           await upsertInsight(supabase, pref.user_id, network, insight);
           generated += 1;
         }
