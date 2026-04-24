@@ -13,6 +13,7 @@ import {
   ChevronLeft,
   CheckCircle2,
   Clock,
+  Mail,
   Globe,
   Rocket,
 } from 'lucide-react';
@@ -26,6 +27,7 @@ interface Step3ScheduleCardProps {
   time: string;
   onTimeChange: (time: string) => void;
   onPreviousStep: () => void;
+  storyLinkMode?: boolean;
 }
 
 /**
@@ -41,6 +43,7 @@ export function Step3ScheduleCard(props: Step3ScheduleCardProps) {
     time,
     onTimeChange,
     onPreviousStep,
+    storyLinkMode = false,
   } = props;
 
   return (
@@ -48,10 +51,10 @@ export function Step3ScheduleCard(props: Step3ScheduleCardProps) {
       <CardHeader className="manual-card-content pb-3">
         <CardTitle className="manual-section-title manual-card-title-row">
           <span className="manual-icon-box"><CalendarIcon className="h-5 w-5" strokeWidth={1.5} /></span>
-          <span>Agendamento</span>
+          <span>{storyLinkMode ? 'Quando queres publicar?' : 'Agendamento'}</span>
           <SectionHelp content={getSectionTooltip('scheduling')} />
         </CardTitle>
-        <CardDescription className="manual-section-description">Define quando publicar</CardDescription>
+        <CardDescription className="manual-section-description">{storyLinkMode ? 'Define se queres abrir o pacote já ou receber um lembrete.' : 'Define quando publicar'}</CardDescription>
       </CardHeader>
       <CardContent className="manual-card-content manual-group-stack pt-0">
         {/* Toggle Pill Style */}
@@ -67,7 +70,7 @@ export function Step3ScheduleCard(props: Step3ScheduleCardProps) {
             )}
           >
             <Rocket className="h-4 w-4" strokeWidth={1.5} />
-            <span className="hidden xs:inline">Publicar agora</span>
+            <span className="hidden xs:inline">{storyLinkMode ? 'Agora' : 'Publicar agora'}</span>
             <span className="xs:hidden">Agora</span>
           </button>
           <button
@@ -81,7 +84,7 @@ export function Step3ScheduleCard(props: Step3ScheduleCardProps) {
             )}
           >
             <CalendarIcon className="h-4 w-4" strokeWidth={1.5} />
-            Agendar
+            {storyLinkMode ? 'Agendar lembrete' : 'Agendar'}
           </button>
         </div>
 
@@ -89,7 +92,7 @@ export function Step3ScheduleCard(props: Step3ScheduleCardProps) {
           <div className="space-y-2 py-3 text-center">
             <div className="inline-flex items-center gap-2 text-sm text-muted-foreground bg-muted/50 px-4 py-2 rounded-lg">
               <Rocket className="h-4 w-4 text-primary" />
-              <span>Publicação imediata após clicares em Publicar</span>
+              <span>{storyLinkMode ? 'O pacote abre imediatamente para publicares manualmente.' : 'Publicação imediata após clicares em Publicar'}</span>
             </div>
           </div>
         ) : (
@@ -263,12 +266,13 @@ export function Step3ScheduleCard(props: Step3ScheduleCardProps) {
               <div className="space-y-1 rounded-lg border border-primary/20 bg-primary/5 p-4">
                 <div className="flex items-center gap-2 text-sm font-medium text-primary">
                   <CheckCircle2 className="h-4 w-4" />
-                  Agendado para:
+                  {storyLinkMode ? 'Lembrete agendado para:' : 'Agendado para:'}
                 </div>
                 <div className="text-base font-semibold capitalize">
                   {format(scheduledDate, "EEEE, d 'de' MMMM 'às'", { locale: pt })} {time}
                 </div>
                 <p className="text-xs text-muted-foreground">Fuso horário de Lisboa (WET/WEST)</p>
+                {storyLinkMode && <p className="flex items-center gap-1 text-xs text-muted-foreground"><Mail className="h-3 w-3" />Pacote enviado por email · 15 min antes, se definido nas preferências.</p>}
               </div>
             )}
           </div>
