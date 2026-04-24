@@ -422,6 +422,74 @@ export default function ManualCreate() {
     }));
   }, [mediaPreviewUrls, mediaFiles]);
 
+  const showAiUploadAssistant = useMemo(() => {
+    if (aiAssistantDismissed || aiAssistantLoading || rawTranscription) return false;
+    if (mediaFiles.length !== 1 || !mediaFiles[0]?.type?.startsWith('video/')) return false;
+    if (selectedFormats.some((format) => format.includes('document'))) return false;
+    const hasVideoFormat = selectedFormats.some((format) =>
+      format.includes('video') || format.includes('reel') || format.includes('shorts') || format.includes('stories') || format === 'linkedin_post',
+    );
+    return hasVideoFormat || mediaAspectRatios[0] === '9:16';
+  }, [aiAssistantDismissed, aiAssistantLoading, rawTranscription, mediaFiles, selectedFormats, mediaAspectRatios]);
+
+  const fileToBase64 = useCallback((file: File) => new Promise<string>((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => resolve(String(reader.result || '').split(',')[1] || '');
+    reader.onerror = () => reject(reader.error || new Error('Erro ao ler ficheiro'));
+    reader.readAsDataURL(file);
+  }), []);
+
+  const handleAiTranscribe = useCallback(async () => {
+    const file = mediaFiles[0];
+    if (!file) return;
+    try {
+      setAiAssistantLoading(true);
+      const fileBase64 = await fileToBase64(file);
+      const { data, error } = await supabase.functions.invoke('ai-editorial-assistant', {
+        body: {
+          fileBase64,
+          fileName: file.name,
+          mimeType: file.type,
+          networks: selectedNetworks,
+          language: 'pt-PT',
+        },
+      });
+
+      if (error || !data?.success) throw new Error(data?.error || error?.message || 'A IA está indisponível.');
+
+      const result = data.result as EditorialAssistantResult;
+      const groupedHashtags = [
+        ...(result.hashtags?.reach ?? []),
+        ...(result.hashtags?.niche ?? []),
+        ...(result.hashtags?.brand ?? []),
+      ].map((tag) => tag.startsWith('#') ? tag : `#${tag}`);
+      const nextCaption = [result.base_caption, groupedHashtags.join(' ')].filter(Boolean).join('\n\n');
+
+      setCaption(nextCaption);
+      if (result.captions_per_network && Object.keys(result.captions_per_network).length > 0) {
+        setNetworkCaptions(result.captions_per_network as Record<string, string>);
+        setUseSeparateCaptions(true);
+      }
+      if (result.first_comment) {
+        setNetworkOptions((prev) => normalizeNetworkOptions({
+          ...prev,
+          instagram: { ...prev.instagram, firstComment: result.first_comment },
+          facebook: { ...prev.facebook, firstComment: result.first_comment },
+          linkedin: { ...prev.linkedin, firstComment: result.first_comment },
+        }));
+      }
+      setRawTranscription(result.raw_transcription || '');
+      setAiMetadata(result);
+      setAiAssistantDismissed(true);
+      toast.success('Assistente de IA aplicado', { description: 'A legenda e os campos editoriais foram preenchidos.' });
+    } catch (error) {
+      console.error('[ManualCreate] AI assistant error:', error);
+      toast.error('A IA está indisponível. Podes preencher manualmente ou tentar de novo.');
+    } finally {
+      setAiAssistantLoading(false);
+    }
+  }, [fileToBase64, mediaFiles, selectedNetworks]);
+
   // Render preview delegated to extracted helper (Phase 4)
   const renderPreview = useCallback(
     (format: PostFormat) => renderFormatPreview(format, { caption, networkCaptions, useSeparateCaptions, mediaFiles, mediaPreviewUrls, mediaItems }),
