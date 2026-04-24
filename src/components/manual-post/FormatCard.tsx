@@ -27,22 +27,16 @@ export function FormatCard({ format, isSelected, onToggle, platformColor }: Form
       className={cn(
         "format-card group",
         "relative flex flex-col items-center p-2 sm:p-4",
-        "bg-card border-2 rounded-lg sm:rounded-xl",
-        "cursor-pointer transition-all duration-200",
-        "hover:shadow-lg hover:-translate-y-0.5",
+        "bg-card border rounded-lg",
+        "cursor-pointer transition-colors duration-manual-color",
+        "hover:border-primary/40 hover:bg-muted/20",
         "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2",
         "min-h-[80px] sm:min-h-[140px] text-center",
-        isSelected && "format-card-selected"
+        isSelected && "border-primary bg-primary/10 ring-1 ring-primary/20"
       )}
       style={{
         '--platform-color': platformColor,
         '--platform-color-light': `${platformColor}15`,
-        borderColor: isSelected ? platformColor : 'hsl(var(--border))',
-        borderWidth: isSelected ? '3px' : '2px',
-        backgroundColor: isSelected ? `${platformColor}08` : undefined,
-        boxShadow: isSelected 
-          ? `0 0 0 4px ${platformColor}15, 0 4px 12px rgba(0,0,0,0.1)` 
-          : undefined,
       } as React.CSSProperties}
       role="checkbox"
       aria-checked={isSelected}
@@ -53,7 +47,6 @@ export function FormatCard({ format, isSelected, onToggle, platformColor }: Form
         {isSelected ? (
           <div 
             className="indicator-checked w-4 h-4 sm:w-[22px] sm:h-[22px] rounded-full flex items-center justify-center text-white"
-            style={{ backgroundColor: platformColor }}
           >
             <Check size={10} className="sm:w-[14px] sm:h-[14px]" strokeWidth={3} />
           </div>
@@ -90,16 +83,12 @@ export function FormatCard({ format, isSelected, onToggle, platformColor }: Form
           {badges.slice(0, 1).map((badge) => (
             <span 
               key={badge}
-              className={cn(
-                "text-[7px] sm:text-[10px] px-1 sm:px-2 py-0.5 rounded-md font-semibold border",
+            className={cn(
+                "manual-chip border font-semibold",
                 isSelected 
-                  ? "bg-card border-current"
+                  ? "bg-primary/10 border-primary/30 text-primary"
                   : "bg-muted border-transparent text-muted-foreground"
               )}
-              style={isSelected ? { 
-                color: platformColor,
-                borderColor: `${platformColor}30`,
-              } : undefined}
             >
               {badge}
             </span>
@@ -113,15 +102,11 @@ export function FormatCard({ format, isSelected, onToggle, platformColor }: Form
             <span 
               key={badge}
               className={cn(
-                "hidden sm:inline text-[10px] px-2 py-0.5 rounded-md font-semibold border",
+                "manual-chip hidden border font-semibold sm:inline",
                 isSelected 
-                  ? "bg-card border-current"
+                  ? "bg-primary/10 border-primary/30 text-primary"
                   : "bg-muted border-transparent text-muted-foreground"
               )}
-              style={isSelected ? { 
-                color: platformColor,
-                borderColor: `${platformColor}30`,
-              } : undefined}
             >
               {badge}
             </span>
