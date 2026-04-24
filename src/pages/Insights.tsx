@@ -10,12 +10,16 @@ import { Button } from '@/components/ui/button';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Badge } from '@/components/ui/badge';
 import type { AccountInsight } from '@/types/aiEditorial';
+import { useAiPreferences } from '@/hooks/ai/useAiPreferences';
 
 const categories = ['todas', 'conteúdo', 'timing', 'formato', 'tom'];
 const networks = ['todas', 'instagram', 'linkedin', 'facebook', 'youtube', 'tiktok'];
+const networkLabels: Record<string, string> = { todas: 'Todas as redes', instagram: 'Instagram', linkedin: 'LinkedIn', facebook: 'Facebook', youtube: 'YouTube', tiktok: 'TikTok' };
+const categoryLabels: Record<string, string> = { todas: 'Todas as categorias', conteúdo: 'Conteúdo', timing: 'Timing', formato: 'Formato', tom: 'Tom' };
 
 export default function Insights() {
   const { user } = useAuth();
+  const { preferences } = useAiPreferences();
   const [network, setNetwork] = useState('todas');
   const [category, setCategory] = useState('todas');
   const [period, setPeriod] = useState('90');
@@ -34,17 +38,18 @@ export default function Insights() {
   });
 
   const filtered = useMemo(() => (data?.insights ?? []).filter((insight) => {
+    if ((preferences.muted_insight_types ?? []).includes(insight.insight_type)) return false;
     if (network !== 'todas' && insight.network !== network) return false;
     if (category !== 'todas' && insight.format !== category && insight.metadata?.category !== category) return false;
     return true;
-  }), [category, data?.insights, network]);
+  }), [category, data?.insights, network, preferences.muted_insight_types]);
 
   const exportPdf = () => {
     const doc = new jsPDF();
     doc.setFontSize(18);
     doc.text('Relatório de insights', 14, 20);
     doc.setFontSize(10);
-    doc.text(`Base: ${data?.classifiedCount ?? 0} publicações · Período: ${period} dias`, 14, 28);
+    doc.text(`Base: ${data?.classifiedCount ?? 0} publicações · Período: ${period} dias · Rede: ${networkLabels[network]} · Categoria: ${categoryLabels[category]}`, 14, 28);
     let y = 42;
     filtered.forEach((insight, index) => {
       if (y > 270) { doc.addPage(); y = 20; }
@@ -55,7 +60,7 @@ export default function Insights() {
       doc.text(`Amostra: ${insight.sample_size} · Confiança: ${Math.round((insight.confidence || 0) * 100)}% · Rede: ${insight.network || 'todas'}`, 14, y);
       y += 12;
     });
-    doc.save('relatorio-insights.pdf');
+    doc.save(`relatorio-insights-${network}-${period}dias.pdf`);
   };
 
   if (!user) return null;
@@ -71,8 +76,8 @@ export default function Insights() {
       </div>
 
       <div className="grid gap-2 sm:grid-cols-3">
-        <Select value={network} onValueChange={setNetwork}><SelectTrigger><SelectValue /></SelectTrigger><SelectContent>{networks.map(item => <SelectItem key={item} value={item}>{item === 'todas' ? 'Todas as redes' : item}</SelectItem>)}</SelectContent></Select>
-        <Select value={category} onValueChange={setCategory}><SelectTrigger><SelectValue /></SelectTrigger><SelectContent>{categories.map(item => <SelectItem key={item} value={item}>{item === 'todas' ? 'Todas as categorias' : item}</SelectItem>)}</SelectContent></Select>
+        <Select value={network} onValueChange={setNetwork}><SelectTrigger><SelectValue /></SelectTrigger><SelectContent>{networks.map(item => <SelectItem key={item} value={item}>{networkLabels[item]}</SelectItem>)}</SelectContent></Select>
+        <Select value={category} onValueChange={setCategory}><SelectTrigger><SelectValue /></SelectTrigger><SelectContent>{categories.map(item => <SelectItem key={item} value={item}>{categoryLabels[item]}</SelectItem>)}</SelectContent></Select>
         <Select value={period} onValueChange={setPeriod}><SelectTrigger><SelectValue /></SelectTrigger><SelectContent><SelectItem value="30">30 dias</SelectItem><SelectItem value="60">60 dias</SelectItem><SelectItem value="90">90 dias</SelectItem></SelectContent></Select>
       </div>
 
@@ -80,6 +85,8 @@ export default function Insights() {
         <Card><CardHeader><CardTitle>Estamos a aprender sobre o teu conteúdo.</CardTitle><CardDescription>Vais começar a ver insights quando tiveres 30 posts publicados. Atualmente: {data?.classifiedCount ?? 0}/30.</CardDescription></CardHeader></Card>
       ) : isLoading ? (
         <p className="text-sm text-muted-foreground">A carregar insights...</p>
+      ) : filtered.length === 0 ? (
+        <Card><CardHeader><CardTitle>Ainda não há insights válidos para estes filtros.</CardTitle><CardDescription>Continua a publicar e a recolher métricas. Só mostramos padrões com amostra suficiente e confiança mínima.</CardDescription></CardHeader></Card>
       ) : (
         <div className="grid gap-3 lg:grid-cols-2">
           {filtered.map((insight) => {
