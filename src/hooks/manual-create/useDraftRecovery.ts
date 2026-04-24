@@ -255,6 +255,7 @@ export function useDraftRecovery(params: UseDraftRecoveryParams) {
       formats?: string[] | null;
       network_captions?: Record<string, string> | null;
       use_separate_captions?: boolean | null;
+      network_options?: unknown;
     }) => {
       const legacyPlatformMap: Record<string, PostFormat> = {
         instagram_carrousel: 'instagram_carousel',
