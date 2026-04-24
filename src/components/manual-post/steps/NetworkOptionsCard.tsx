@@ -207,34 +207,43 @@ export const NetworkOptionsCard = forwardRef<NetworkOptionsCardHandle, NetworkOp
 
   const renderInstagram = () => (
     <div className="manual-group-stack">
-      <Tabs value={networkOptions.instagram?.formatVariant ?? 'feed'} onValueChange={(value) => updateNetwork('instagram', { formatVariant: value as never })}>
-        <TabsList className="h-auto w-full justify-start gap-1 overflow-x-auto p-1 scrollbar-hide sm:flex-wrap"><TabsTrigger value="feed">Feed</TabsTrigger><TabsTrigger value="story">Story</TabsTrigger><TabsTrigger value="reel">Reel</TabsTrigger><TabsTrigger value="carousel">Carousel</TabsTrigger></TabsList>
-      </Tabs>
+      {!isStoryLinkSelected && (
+        <Tabs value={networkOptions.instagram?.formatVariant ?? 'feed'} onValueChange={(value) => updateNetwork('instagram', { formatVariant: value as never })}>
+          <TabsList className="h-auto w-full justify-start gap-1 overflow-x-auto p-1 scrollbar-hide sm:flex-wrap"><TabsTrigger value="feed">Feed</TabsTrigger><TabsTrigger value="story">Story</TabsTrigger><TabsTrigger value="reel">Reel</TabsTrigger><TabsTrigger value="carousel">Carousel</TabsTrigger></TabsList>
+        </Tabs>
+      )}
       {isStoryLinkSelected && (
         <div className="manual-field-stack rounded-lg border border-primary/20 bg-primary/5 p-3">
           <div className="flex items-start gap-2">
             <span className="manual-icon-box h-8 w-8"><Link2 className="h-4 w-4" strokeWidth={1.5} /></span>
             <div className="min-w-0 flex-1 space-y-3">
               <div>
-                <Label htmlFor="instagram-story-link-url" className="manual-field-label">Link sticker</Label>
-                <p className="manual-microcopy">Preparação semi-automática: a app agenda o lembrete e o link é adicionado manualmente no Instagram.</p>
+                <Label htmlFor="instagram-story-link-url" className="manual-field-label">Conteúdo do Link Sticker</Label>
+                <p className="manual-microcopy">As Stories com link sticker são publicadas manualmente. O sistema prepara o pacote e o lembrete.</p>
               </div>
-              <Input id="instagram-story-link-url" ref={setFieldRef(fieldKey('instagram', 'instagramStoryLink')) as React.Ref<HTMLInputElement>} className="manual-input-radius manual-scroll-anchor min-h-11" inputMode="url" placeholder="https://..." value={storyLinkUrl} onChange={(e) => updateNetwork('instagram', { storyLinkUrl: e.target.value })} disabled={disabled} />
+              <div className="manual-field-stack gap-1">
+                <Label htmlFor="instagram-story-link-url" className="manual-field-label">URL do link *</Label>
+                <Input id="instagram-story-link-url" ref={setFieldRef(fieldKey('instagram', 'instagramStoryLink')) as React.Ref<HTMLInputElement>} className="manual-input-radius manual-scroll-anchor min-h-11" inputMode="url" placeholder="https://..." value={storyLinkUrl} onChange={(e) => updateNetwork('instagram', { storyLinkUrl: e.target.value })} disabled={disabled} />
+              </div>
               <div className="grid gap-2 sm:grid-cols-2">
                 <div className="manual-field-stack gap-1">
-                  <Label htmlFor="instagram-story-sticker-text" className="manual-field-label">Texto do sticker</Label>
-                  <Input id="instagram-story-sticker-text" className="manual-input-radius min-h-11" placeholder={derivedStickerText || 'Ex: Reservar agora'} value={networkOptions.instagram?.storyLinkStickerText ?? ''} onChange={(e) => updateNetwork('instagram', { storyLinkStickerText: e.target.value })} disabled={disabled} maxLength={48} />
+                  <Label htmlFor="instagram-story-sticker-text" className="manual-field-label">Texto no sticker</Label>
+                  <Input id="instagram-story-sticker-text" className="manual-input-radius min-h-11" placeholder={derivedStickerText || 'Ex: Ler no blog'} value={networkOptions.instagram?.storyLinkStickerText ?? ''} onChange={(e) => updateNetwork('instagram', { storyLinkStickerText: e.target.value })} disabled={disabled} maxLength={30} />
+                  <p className="manual-microcopy">{(networkOptions.instagram?.storyLinkStickerText ?? '').length}/30 · se ficar vazio, usa o domínio.</p>
                 </div>
                 <div className="manual-field-stack gap-1">
                   <Label htmlFor="instagram-story-overlay-text" className="manual-field-label">Texto sobreposto</Label>
-                  <Input id="instagram-story-overlay-text" className="manual-input-radius min-h-11" placeholder="Opcional" value={networkOptions.instagram?.storyLinkOverlayText ?? ''} onChange={(e) => updateNetwork('instagram', { storyLinkOverlayText: e.target.value })} disabled={disabled} maxLength={90} />
+                  <Input id="instagram-story-overlay-text" className="manual-input-radius min-h-11" placeholder="Ex: Novo artigo 👇" value={networkOptions.instagram?.storyLinkOverlayText ?? ''} onChange={(e) => updateNetwork('instagram', { storyLinkOverlayText: e.target.value })} disabled={disabled} maxLength={100} />
+                  <p className="manual-microcopy">{(networkOptions.instagram?.storyLinkOverlayText ?? '').length}/100</p>
                 </div>
               </div>
             </div>
           </div>
         </div>
       )}
-      {renderFirstComment('instagram')}
+      {!isStoryLinkSelected && renderFirstComment('instagram')}
+      {!isStoryLinkSelected && (
+      <>
         <div className="manual-field-stack">
         <Label className="manual-field-label">Colaboradores (máx. 3)</Label>
         <div className="flex gap-2"><Input className="manual-input-radius manual-scroll-anchor min-h-11" ref={setFieldRef(fieldKey('instagram', 'collaborators')) as React.Ref<HTMLInputElement>} value={draftCollaborator} onChange={(e) => setDraftCollaborator(e.target.value)} placeholder="@username" autoCapitalize="none" autoCorrect="off" disabled={disabled || (networkOptions.instagram?.collaborators?.length ?? 0) >= 3} onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); addCollaborator(); } }} /><Button type="button" className="manual-touch-target h-11" onClick={addCollaborator} disabled={disabled}>Adicionar</Button></div>
@@ -244,6 +253,8 @@ export const NetworkOptionsCard = forwardRef<NetworkOptionsCardHandle, NetworkOp
         <Button type="button" variant="outline" size="sm" className="manual-touch-target h-11" onClick={() => setTagModalOpen(true)} disabled={disabled}><Plus className="h-4 w-4 mr-1" />Adicionar tag</Button>
         {(networkOptions.instagram?.photoTags ?? []).map((tag, index) => <div key={`${tag.username}-${index}`} className="flex min-h-11 items-center justify-between rounded-md border p-2 text-sm"><span>{tag.username} · slide {tag.slideIndex + 1} · {tag.x.toFixed(2)}, {tag.y.toFixed(2)}</span><Button type="button" variant="ghost" size="icon" className="manual-touch-target" onClick={() => removeInstagramTag(index)}><Trash2 className="h-4 w-4" /></Button></div>)}
       </div>
+      </>
+      )}
     </div>
   );
 
