@@ -22,6 +22,7 @@ import { Drawer, DrawerContent, DrawerHeader, DrawerTitle } from '@/components/u
 import { ChevronRight } from 'lucide-react';
 import { NetworkFormatSelector } from '@/components/manual-post/NetworkFormatSelector';
 import { useActiveSection } from '@/hooks/useActiveSection';
+import { GlobalProgressBar } from '@/components/manual-post/ui/GlobalProgressBar';
 import { getMediaRequirements } from '@/lib/formatValidation';
 
 import { useSmartValidation } from '@/hooks/useSmartValidation';
