@@ -340,11 +340,16 @@ export default function ManualCreate() {
   // escolhidos, a secção 'networks' liberta foco automaticamente e passa a
   // complete. Ao voltar a passo 1, foca novamente 'networks'.
   useEffect(() => {
-    if (currentStep > 1 && activeSection === 'networks' && selectedFormats.length > 0) {
-      activate('media');
-    }
     if (currentStep === 1 && activeSection !== 'networks') {
       activate('networks');
+      return;
+    }
+    if (currentStep === 2 && activeSection !== 'media' && selectedFormats.length > 0) {
+      activate('media');
+      return;
+    }
+    if (currentStep >= 3 && activeSection !== 'caption' && mediaFiles.length > 0) {
+      activate('caption');
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [currentStep]);
