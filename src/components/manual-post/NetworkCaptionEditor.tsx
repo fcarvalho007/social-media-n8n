@@ -199,7 +199,7 @@ export const NetworkCaptionEditor = forwardRef<NetworkCaptionEditorHandle, Netwo
             <Button 
               variant="ghost" 
               size="icon" 
-              className="h-9 w-9 flex-shrink-0" 
+              className="manual-touch-target h-11 w-11 flex-shrink-0 sm:h-9 sm:w-9" 
               title="Inserir emoji" 
               disabled={disabled}
             >
@@ -225,7 +225,7 @@ export const NetworkCaptionEditor = forwardRef<NetworkCaptionEditorHandle, Netwo
           <Button
             variant="ghost"
             size="sm"
-            className="h-9 flex-shrink-0 gap-1 px-3"
+            className="manual-touch-target h-11 flex-shrink-0 gap-1 px-3 sm:h-9"
             onClick={onOpenSavedCaptions}
             title="Legendas guardadas"
             disabled={disabled}
@@ -241,7 +241,7 @@ export const NetworkCaptionEditor = forwardRef<NetworkCaptionEditorHandle, Netwo
           <Button
             variant="ghost"
             size="sm"
-            className="h-9 flex-shrink-0 gap-1 border border-primary/20 bg-primary/10 px-3 hover:bg-primary/15"
+            className="manual-touch-target h-11 flex-shrink-0 gap-1 border border-primary/20 bg-primary/10 px-3 hover:bg-primary/15 sm:h-9"
             onClick={onOpenAIDialog}
             title="Melhorar com IA"
             disabled={disabled}
