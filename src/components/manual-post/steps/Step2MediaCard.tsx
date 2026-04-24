@@ -31,6 +31,7 @@ import { PostFormat } from '@/types/social';
 import { AltTextPanel } from '@/components/manual-post/ai/AltTextPanel';
 import { AIGeneratedField } from '@/components/ai/AIGeneratedField';
 import { VideoAiTools } from '@/components/manual-post/ai/VideoAiTools';
+import { getAltTextSupportContext } from '@/lib/altTextSupport';
 
 const formatFileSize = (size: number) => {
   if (!size) return '0 KB';
