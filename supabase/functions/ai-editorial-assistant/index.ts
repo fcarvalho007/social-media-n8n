@@ -91,14 +91,9 @@ serve(async (req) => {
     }
 
     const body = (await req.json()) as RequestBody;
-    const networks = Array.isArray(body.networks) && body.networks.length > 0 ? body.networks : ["instagram"];
-    const mimeType = body.mimeType || "video/mp4";
-    const fileName = body.fileName || "video.mp4";
-
-    if (!body.fileBase64) return responseJson({ success: false, error: "Ficheiro de vídeo em falta." }, 400);
-    if (!mimeType.startsWith("video/") && !mimeType.startsWith("audio/")) {
-      return responseJson({ success: false, error: "O assistente só aceita vídeo ou áudio." }, 400);
-    }
+    const validated = validateRequestBody(body);
+    if (!validated.valid) return responseJson({ success: false, error: validated.error }, validated.status);
+    const { networks, mimeType, fileName } = validated;
 
     const openAiKey = Deno.env.get("OPENAI_API_KEY");
     if (!openAiKey) return responseJson({ success: false, error: "Serviço de transcrição não configurado." }, 500);
