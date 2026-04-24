@@ -897,6 +897,7 @@ Deno.serve(async (req) => {
     if (!result.success) {
       // Record failure
       console.error(`[publish-to-getlate] Publication failed: ${result.error}`);
+      const failureMessage = result.error || 'Failed to publish to Getlate';
       
       // Update the existing pending attempt to failed (no duplicate insert)
       if (attemptId) {
@@ -925,7 +926,7 @@ Deno.serve(async (req) => {
           .from('posts')
           .update({
             status: 'failed',
-            error_log: result.error,
+            error_log: failureMessage,
             failed_at: new Date().toISOString(),
           })
           .eq('id', post_id);
@@ -949,7 +950,7 @@ Deno.serve(async (req) => {
               },
               body: JSON.stringify({
                 post_id,
-                error_message: result.error,
+                error_message: failureMessage,
                 platform: network,
                 format,
                 recovery_token: recoveryToken,
@@ -963,8 +964,26 @@ Deno.serve(async (req) => {
           console.error('[publish-to-getlate] Failed to send notification:', notifyError);
         }
       }
-      
-      throw new Error(result.error || 'Failed to publish to Getlate');
+
+      if (idempotency_key) {
+        const failureResponse = {
+          success: false,
+          fallback: classifyPublishError(failureMessage).isRetryable,
+          error: {
+            message: failureMessage.includes('All platforms failed')
+              ? 'O serviço de publicação rejeitou temporariamente esta rede. A publicação pode já estar em processamento; verifica o histórico antes de repetir.'
+              : failureMessage,
+            code: classifyPublishError(failureMessage).code,
+            source: classifyPublishError(failureMessage).source,
+            originalError: failureMessage,
+            isRetryable: classifyPublishError(failureMessage).isRetryable,
+            suggestedAction: classifyPublishError(failureMessage).suggestedAction,
+          }
+        };
+        await updateIdempotencyKeyResult(supabase, idempotency_key, failureResponse);
+      }
+
+      return buildFailureResponse(failureMessage, classifyPublishError(failureMessage).isRetryable ? 200 : 400);
     }
 
     // Update the existing pending attempt to success (no duplicate insert)
