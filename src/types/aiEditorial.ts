@@ -2,7 +2,19 @@ import { SocialNetwork } from '@/types/social';
 
 export type HashtagGroup = 'reach' | 'niche' | 'brand';
 export type HashtagStatus = 'neutral' | 'risk' | 'banned' | 'over_limit';
-export type CaptionRewriteTone = 'direto' | 'emocional' | 'técnico' | 'neutro' | 'humor' | 'mais_curto' | 'mais_forte';
+export type CaptionRewriteTone = 'direct' | 'emotional' | 'technical' | 'shorter' | 'longer' | 'linkedin' | 'instagram' | 'direto' | 'emocional' | 'técnico' | 'neutro' | 'humor' | 'mais_curto' | 'mais_forte';
+
+export interface TranscriptSegment {
+  id?: number;
+  start: number;
+  end: number;
+  text: string;
+}
+
+export interface FirstCommentOption {
+  approach: 'pergunta' | 'cta_link' | 'complemento';
+  text: string;
+}
 
 export interface CaptionRewriteMetadata {
   network?: SocialNetwork;
@@ -44,8 +56,10 @@ export interface EditorialAssistantResult {
   };
   first_comment: string;
   alt_text: string;
+  alt_texts?: Record<string, string>;
   key_quotes: string[];
   raw_transcription: string;
+  transcription_segments?: TranscriptSegment[];
   rewrites?: CaptionRewriteMetadata[];
   hashtag_assistant?: HashtagAssistantResult;
   generated_fields?: Record<string, GeneratedFieldState>;
