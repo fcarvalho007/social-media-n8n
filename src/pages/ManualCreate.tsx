@@ -356,6 +356,10 @@ export default function ManualCreate() {
         ? 'active'
         : 'complete';
 
+  // Derivar estado de Media e Caption para o padrão progressive disclosure.
+  // Cálculo inicial (mediaState/captionState) é feito mais abaixo no componente
+  // depois de termos `mediaRequirements` (que depende de `selectedFormats`).
+
   // Smart pre-validation (real-time)
   const smartValidation = useSmartValidation({
     selectedFormats,
