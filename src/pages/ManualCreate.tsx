@@ -542,6 +542,71 @@ export default function ManualCreate() {
     }
   }, [fileToBase64, mediaFiles, selectedNetworks]);
 
+  const handleRewriteCaption = useCallback(async () => {
+    const activeNetwork = useSeparateCaptions
+      ? captionEditorRef.current?.getActiveNetwork() ?? selectedNetworks[0]
+      : selectedNetworks[0];
+    const text = useSeparateCaptions && activeNetwork
+      ? networkCaptions[activeNetwork] || caption
+      : caption;
+
+    if (!text.trim() || text.trim().length < 10) {
+      toast.error('Escreve uma legenda com pelo menos 10 caracteres antes de reescrever.');
+      return;
+    }
+
+    try {
+      setRewriteLoading(true);
+      const { data, error } = await supabase.functions.invoke('ai-caption-rewriter', {
+        body: {
+          text,
+          network: activeNetwork,
+          tone: rewriteTone,
+          formats: selectedFormats,
+          rawTranscription: rawTranscription || undefined,
+          language: 'pt-PT',
+        },
+      });
+
+      if (error || !data?.success) throw new Error(data?.error || error?.message || 'Não foi possível reescrever a legenda.');
+
+      setRewritePreview({
+        originalText: text,
+        rewrittenText: String(data.rewrittenText || '').trim(),
+        tone: rewriteTone,
+        network: activeNetwork,
+      });
+    } catch (error) {
+      console.error('[ManualCreate] caption rewrite error:', error);
+      toast.error(error instanceof Error ? error.message : 'Não foi possível reescrever a legenda.');
+    } finally {
+      setRewriteLoading(false);
+    }
+  }, [caption, networkCaptions, rawTranscription, rewriteTone, selectedFormats, selectedNetworks, useSeparateCaptions]);
+
+  const handleApplyRewrite = useCallback(() => {
+    if (!rewritePreview?.rewrittenText.trim()) return;
+    const metadata: CaptionRewriteMetadata = {
+      network: rewritePreview.network,
+      tone: rewritePreview.tone,
+      created_at: new Date().toISOString(),
+      source: 'caption_rewriter',
+    };
+
+    if (useSeparateCaptions && rewritePreview.network) {
+      setNetworkCaptions(prev => ({ ...prev, [rewritePreview.network!]: rewritePreview.rewrittenText }));
+    } else {
+      setCaption(rewritePreview.rewrittenText);
+    }
+
+    setAiMetadata(prev => ({
+      ...(prev ?? {}),
+      rewrites: [...((prev as EditorialAssistantResult | null)?.rewrites ?? []), metadata],
+    }));
+    setRewritePreview(null);
+    toast.success('Versão reescrita aplicada.');
+  }, [rewritePreview, useSeparateCaptions]);
+
   // Render preview delegated to extracted helper (Phase 4)
   const renderPreview = useCallback(
     (format: PostFormat) => renderFormatPreview(format, { caption, networkCaptions, useSeparateCaptions, mediaFiles, mediaPreviewUrls, mediaItems }),
