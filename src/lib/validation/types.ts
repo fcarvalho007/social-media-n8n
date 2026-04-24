@@ -63,7 +63,7 @@ export interface ValidationFixHelpers {
   /** Replace the working set of media files. */
   setMediaFiles?: (next: File[]) => void;
   /** Focus the caption editor so the user can manually edit. */
-  focusCaption?: () => void;
+  focusCaption?: (network?: SocialNetwork) => void;
 }
 
 export interface ValidationSummary {
