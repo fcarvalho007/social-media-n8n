@@ -21,6 +21,7 @@ import { ManualCreateModals } from '@/components/manual-post/steps/ManualCreateM
 import { Drawer, DrawerContent, DrawerHeader, DrawerTitle } from '@/components/ui/drawer';
 import { ChevronRight } from 'lucide-react';
 import { NetworkFormatSelector } from '@/components/manual-post/NetworkFormatSelector';
+import { useActiveSection } from '@/hooks/useActiveSection';
 import { getMediaRequirements } from '@/lib/formatValidation';
 
 import { useSmartValidation } from '@/hooks/useSmartValidation';
@@ -328,6 +329,31 @@ export default function ManualCreate() {
 
   // Mobile bottom-sheet state for the validation panel
   const [validationSheetOpen, setValidationSheetOpen] = useState(false);
+
+  // Progressive disclosure: secção 1 começa active; outras inactive (ou
+  // complete quando carregadas via rascunho — gerido pelos handlers de
+  // navegação do stepper).
+  const { activeSection, activate } = useActiveSection('networks');
+
+  // Sincroniza foco com stepper: ao avançar para passo > 1 com formatos
+  // escolhidos, a secção 'networks' liberta foco automaticamente e passa a
+  // complete. Ao voltar a passo 1, foca novamente 'networks'.
+  useEffect(() => {
+    if (currentStep > 1 && activeSection === 'networks' && selectedFormats.length > 0) {
+      activate('media');
+    }
+    if (currentStep === 1 && activeSection !== 'networks') {
+      activate('networks');
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [currentStep]);
+
+  const networksState =
+    selectedFormats.length === 0
+      ? (activeSection === 'networks' ? 'active' : 'inactive')
+      : activeSection === 'networks'
+        ? 'active'
+        : 'complete';
 
   // Smart pre-validation (real-time)
   const smartValidation = useSmartValidation({
@@ -1139,14 +1165,21 @@ export default function ManualCreate() {
             <NetworkFormatSelector
               selectedFormats={selectedFormats}
               onFormatsChange={setSelectedFormats}
+              state={networksState}
+              stepNumber={1}
+              onActivate={() => activate('networks')}
+              onEdit={() => activate('networks')}
             />
-            
+
             {/* Step 1 Navigation */}
-            {currentStep === 1 && selectedFormats.length > 0 && (
+            {currentStep === 1 && selectedFormats.length > 0 && networksState === 'active' && (
               <div className="mt-4 flex justify-end">
-                <Button 
-                  variant="default" 
-                  onClick={nextStep}
+                <Button
+                  variant="default"
+                  onClick={() => {
+                    activate('media');
+                    nextStep();
+                  }}
                   className="h-10"
                 >
                   Seguinte
