@@ -1,5 +1,7 @@
 import { supabase } from '@/integrations/supabase/client';
 import { AIServiceError } from '@/lib/errorHandler';
+import type { HashtagAssistantResult } from '@/types/aiEditorial';
+import type { SocialNetwork } from '@/types/social';
 
 export type AIModelAlias = 'fast' | 'smart';
 export type AIResponseFormat = 'text' | 'json';
@@ -12,6 +14,14 @@ export interface GenerateTextParams {
   responseFormat?: AIResponseFormat;
   model?: AIModelAlias;
   feature?: string;
+  creditCostOverride?: number;
+}
+
+export interface GenerateHashtagsParams {
+  caption: string;
+  transcription?: string;
+  networks: SocialNetwork[];
+  brandHashtags?: string[];
   creditCostOverride?: number;
 }
 
@@ -53,5 +63,9 @@ export const aiService = {
 
   analyzeImage(imageUrl: string, prompt: string) {
     return invokeAICore<string>({ action: 'vision', imageUrl, prompt, feature: 'shared_ai_service' });
+  },
+
+  generateHashtags(params: GenerateHashtagsParams) {
+    return invokeAICore<HashtagAssistantResult>({ action: 'hashtag_generation', ...params, feature: 'hashtag_assistant', creditCostOverride: params.creditCostOverride ?? 1 });
   },
 };

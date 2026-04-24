@@ -42,7 +42,8 @@ import { createDefaultNetworkOptions, normalizeNetworkOptions } from '@/types/ne
 import { detectImageAspectRatio as detectImageAspectRatioExt, detectVideoAspectRatio as detectVideoAspectRatioExt } from '@/hooks/manual-create/mediaAspectDetection';
 import { AiUploadAssistantCard, AiUploadAssistantStatus } from '@/components/manual-post/ai/AiUploadAssistantCard';
 import { CaptionRewritePreviewDialog } from '@/components/manual-post/ai/CaptionRewritePreviewDialog';
-import type { CaptionRewriteMetadata, CaptionRewriteTone, EditorialAssistantResult } from '@/types/aiEditorial';
+import { HashtagSuggestions } from '@/components/manual-post/ai/HashtagSuggestions';
+import type { CaptionRewriteMetadata, CaptionRewriteTone, EditorialAssistantResult, SuggestedHashtag } from '@/types/aiEditorial';
 import { supabase } from '@/integrations/supabase/client';
 import { useAiPreferences } from '@/hooks/ai/useAiPreferences';
 import { useAICredits } from '@/hooks/useAICredits';
@@ -50,6 +51,7 @@ import { AI_CREDIT_COSTS } from '@/config/aiCreditCosts';
 import { aiService } from '@/services/ai/aiService';
 import { useAuth } from '@/contexts/AuthContext';
 import { generateSafeStoragePath } from '@/lib/fileNameSanitizer';
+import { applySafety, getHashtagsFromText, normalizeHashtag as normalizeSuggestedHashtag } from '@/lib/hashtags/safety';
 // `extractVideoFrame` foi consolidado em '@/lib/media/videoFrameExtractor'.
 // Este componente já não o usava localmente.
 
@@ -79,7 +81,7 @@ const getUniqueHashtags = (result: EditorialAssistantResult) => {
     ...(result.hashtags?.brand ?? []),
   ];
 
-  return Array.from(new Set(tags.map(normalizeHashtag).filter(Boolean)))
+  return Array.from(new Set(tags.map(normalizeSuggestedHashtag).filter(Boolean)))
     .filter((tag) => !existing.has(tag.toLowerCase()));
 };
 
@@ -135,6 +137,8 @@ export default function ManualCreate() {
   const [altText, setAltText] = useState('');
   const [rewriteTone, setRewriteTone] = useState<CaptionRewriteTone>('neutro');
   const [rewriteLoading, setRewriteLoading] = useState(false);
+  const [hashtagSuggestions, setHashtagSuggestions] = useState<SuggestedHashtag[]>([]);
+  const [hashtagsLoading, setHashtagsLoading] = useState(false);
   const [rewritePreview, setRewritePreview] = useState<{
     originalText: string;
     rewrittenText: string;
@@ -372,6 +376,8 @@ export default function ManualCreate() {
     if (aiMetadata?.upload_assistant?.generated_at) {
       setAssistantGeneratedAt(aiMetadata.upload_assistant.generated_at);
       setAiAssistantStatus('done');
+      setAiGeneratedEdited(Object.fromEntries(Object.entries(aiMetadata.generated_fields ?? {}).map(([key, value]) => [key, !!value.edited])));
+      setHashtagSuggestions((aiMetadata.hashtag_assistant?.hashtags ?? []).map(applySafety));
     } else if (rawTranscription && rawTranscription.length >= 20) {
       setAiAssistantStatus('idle');
     }
@@ -603,8 +609,10 @@ export default function ManualCreate() {
       });
       const result = generated as EditorialAssistantResult;
       const generatedAt = new Date().toISOString();
+      const suggestedTags = Array.from(new Set((result.hashtags_suggested ?? getUniqueHashtags(result).map(tag => tag.replace(/^#/, ''))).map(normalizeSuggestedHashtag).filter(Boolean)));
+      const captionWithTags = [result.base_caption || '', suggestedTags.join(' ')].filter(Boolean).join('\n\n');
 
-      setCaption(result.base_caption || '');
+      setCaption(captionWithTags);
       if (useSeparateCaptions && result.captions_per_network && Object.keys(result.captions_per_network).length > 0) {
         setNetworkCaptions(result.captions_per_network as Record<string, string>);
       }
@@ -619,6 +627,7 @@ export default function ManualCreate() {
       setAltText((result.alt_text || '').slice(0, 125));
       setAssistantGeneratedAt(generatedAt);
       setAiGeneratedEdited({});
+      setHashtagSuggestions(suggestedTags.map((tag, index) => applySafety({ tag, group: index < 6 ? 'reach' : 'niche', source: 'ai_editorial', reason: 'Sugerida a partir da transcrição.' })));
       setAiMetadata(prev => ({
         ...(prev ?? {}),
         ...result,
@@ -627,11 +636,18 @@ export default function ManualCreate() {
           status: 'done',
           generated_at: generatedAt,
           suggestions: {
-            hashtags_suggested: result.hashtags_suggested ?? getUniqueHashtags(result).map(tag => tag.replace(/^#/, '')),
+            hashtags_suggested: suggestedTags,
             key_quotes: result.key_quotes ?? [],
             draft_title: result.draft_title,
             alt_text: result.alt_text,
           },
+        },
+        hashtag_assistant: { hashtags: suggestedTags.map((tag, index) => applySafety({ tag, group: index < 6 ? 'reach' : 'niche', source: 'ai_editorial', reason: 'Sugerida a partir da transcrição.' })), selectedTags: suggestedTags, generated_at: generatedAt },
+        generated_fields: {
+          caption: { generated_at: generatedAt, edited: false },
+          hashtags: { generated_at: generatedAt, edited: false },
+          firstComment: { generated_at: generatedAt, edited: false },
+          altText: { generated_at: generatedAt, edited: false },
         },
       }));
       setAiAssistantStatus('done');
@@ -711,6 +727,41 @@ export default function ManualCreate() {
     setRewritePreview(null);
     toast.success('Versão reescrita aplicada.');
   }, [rewritePreview, useSeparateCaptions]);
+
+  const toggleHashtag = useCallback((tag: string) => {
+    const normalized = normalizeSuggestedHashtag(tag);
+    const applyToText = (text: string) => {
+      const existing = getHashtagsFromText(text).map(item => item.toLowerCase());
+      if (existing.includes(normalized.toLowerCase())) {
+        return text.replace(new RegExp(`\\s*${normalized.replace('#', '#')}(?=\\s|$)`, 'giu'), '').trim();
+      }
+      return `${text.trim()}${text.trim() ? ' ' : ''}${normalized}`;
+    };
+    const activeNetwork = useSeparateCaptions ? captionEditorRef.current?.getActiveNetwork() : undefined;
+    if (useSeparateCaptions && activeNetwork) {
+      setNetworkCaptions(prev => ({ ...prev, [activeNetwork]: applyToText(prev[activeNetwork] || caption) }));
+    } else {
+      setCaption(prev => applyToText(prev));
+    }
+    setAiGeneratedEdited(prev => ({ ...prev, hashtags: true }));
+  }, [caption, useSeparateCaptions]);
+
+  const regenerateHashtags = useCallback(async () => {
+    const activeNetwork = useSeparateCaptions ? captionEditorRef.current?.getActiveNetwork() ?? selectedNetworks[0] : selectedNetworks[0];
+    try {
+      setHashtagsLoading(true);
+      const result = await aiService.generateHashtags({ caption, transcription: rawTranscription || undefined, networks: selectedNetworks, brandHashtags: aiPreferences.brand_hashtags, creditCostOverride: 1 });
+      const next = (result.hashtags ?? []).map(applySafety).filter(item => item.tag);
+      setHashtagSuggestions(next);
+      setAiMetadata(prev => ({ ...(prev ?? {}), hashtag_assistant: { hashtags: next, selectedTags: result.selectedTags ?? [], generated_at: result.generated_at ?? new Date().toISOString() } }));
+      await refreshAiCredits();
+      toast.success(`Hashtags atualizadas para ${activeNetwork || 'a publicação'}.`);
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : 'Não foi possível gerar hashtags.');
+    } finally {
+      setHashtagsLoading(false);
+    }
+  }, [aiPreferences.brand_hashtags, caption, rawTranscription, refreshAiCredits, selectedNetworks, useSeparateCaptions]);
 
   // Render preview delegated to extracted helper (Phase 4)
   const renderPreview = useCallback(
@@ -816,6 +867,7 @@ export default function ManualCreate() {
             onAltTextChange={(value) => {
               setAltText(value);
               setAiGeneratedEdited(prev => ({ ...prev, altText: true }));
+              setAiMetadata(prev => ({ ...(prev ?? {}), generated_fields: { ...(prev?.generated_fields ?? {}), altText: { ...(prev?.generated_fields?.altText ?? {}), edited: true } } }));
             }}
             removeMedia={removeMedia}
             moveMedia={moveMedia}
@@ -867,11 +919,13 @@ export default function ManualCreate() {
               onCaptionChange={(value) => {
                 setCaption(value);
                 setAiGeneratedEdited(prev => ({ ...prev, caption: true }));
+                setAiMetadata(prev => ({ ...(prev ?? {}), generated_fields: { ...(prev?.generated_fields ?? {}), caption: { ...(prev?.generated_fields?.caption ?? {}), edited: true } } }));
               }}
               networkCaptions={networkCaptions}
               onNetworkCaptionChange={(network, value) => {
                 setNetworkCaptions(prev => ({ ...prev, [network]: value }));
                 setAiGeneratedEdited(prev => ({ ...prev, [`caption.${network}`]: true }));
+                setAiMetadata(prev => ({ ...(prev ?? {}), generated_fields: { ...(prev?.generated_fields ?? {}), [`caption.${network}`]: { ...(prev?.generated_fields?.[`caption.${network}`] ?? {}), edited: true } } }));
               }}
               selectedNetworks={selectedNetworks}
               useSeparateCaptions={useSeparateCaptions}
@@ -889,6 +943,15 @@ export default function ManualCreate() {
               generatedEdited={aiGeneratedEdited.caption}
             />
 
+            <HashtagSuggestions
+              hashtags={hashtagSuggestions}
+              selectedTags={getHashtagsFromText(useSeparateCaptions ? networkCaptions[captionEditorRef.current?.getActiveNetwork() ?? selectedNetworks[0]] || caption : caption)}
+              activeNetwork={captionEditorRef.current?.getActiveNetwork() ?? selectedNetworks[0] ?? 'instagram'}
+              onToggleTag={toggleHashtag}
+              onRegenerate={regenerateHashtags}
+              regenerating={hashtagsLoading}
+            />
+
             <NetworkOptionsCard
               ref={networkOptionsRef}
               selectedNetworks={selectedNetworks}
@@ -896,6 +959,7 @@ export default function ManualCreate() {
               onNetworkOptionsChange={(next) => {
                 setNetworkOptions(normalizeNetworkOptions(next));
                 setAiGeneratedEdited(prev => ({ ...prev, 'instagram.firstComment': true, 'linkedin.firstComment': true, 'facebook.firstComment': true }));
+                setAiMetadata(prev => ({ ...(prev ?? {}), generated_fields: { ...(prev?.generated_fields ?? {}), firstComment: { ...(prev?.generated_fields?.firstComment ?? {}), edited: true } } }));
               }}
               caption={caption}
               onCaptionChange={setCaption}

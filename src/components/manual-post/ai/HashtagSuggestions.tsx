@@ -2,27 +2,22 @@ import { Megaphone, Target, Star, Info } from 'lucide-react';
 import { SuggestedHashtag } from '@/types/aiEditorial';
 import { SocialNetwork } from '@/types/social';
 import { Badge } from '@/components/ui/badge';
+import { Button } from '@/components/ui/button';
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
 import { cn } from '@/lib/utils';
+import { NETWORK_HASHTAG_LIMITS } from '@/lib/hashtags/safety';
 
 const groupConfig = {
-  reach: { title: 'Alcance', subtitle: 'Volume alto · Maior exposição', icon: Megaphone },
-  niche: { title: 'Nicho', subtitle: 'Volume médio · Comunidade ativa', icon: Target },
-  brand: { title: 'Marca', subtitle: 'As tuas fixas', icon: Star },
-};
-
-const networkLimits: Partial<Record<SocialNetwork, { max: number; recommended: number }>> = {
-  instagram: { max: 30, recommended: 15 },
-  tiktok: { max: 5, recommended: 5 },
-  linkedin: { max: 5, recommended: 5 },
-  x: { max: 2, recommended: 2 },
-  facebook: { max: 3, recommended: 3 },
+  reach: { title: 'Alcance', subtitle: 'Temas amplos e fáceis de descobrir', icon: Megaphone },
+  niche: { title: 'Nicho', subtitle: 'Contexto específico do conteúdo', icon: Target },
+  brand: { title: 'Marca', subtitle: 'Hashtags definidas nas preferências', icon: Star },
 };
 
 const statusClass = {
-  good: 'bg-emerald-500',
-  saturated: 'bg-amber-500',
+  neutral: 'bg-muted-foreground',
   risk: 'bg-destructive',
+  banned: 'bg-destructive',
+  over_limit: 'bg-destructive',
 };
 
 interface HashtagSuggestionsProps {
@@ -30,11 +25,13 @@ interface HashtagSuggestionsProps {
   selectedTags: string[];
   activeNetwork: SocialNetwork;
   onToggleTag: (tag: string) => void;
+  onRegenerate?: () => void;
+  regenerating?: boolean;
 }
 
-export function HashtagSuggestions({ hashtags, selectedTags, activeNetwork, onToggleTag }: HashtagSuggestionsProps) {
+export function HashtagSuggestions({ hashtags, selectedTags, activeNetwork, onToggleTag, onRegenerate, regenerating }: HashtagSuggestionsProps) {
   if (hashtags.length === 0) return null;
-  const limit = networkLimits[activeNetwork] ?? { max: 10, recommended: 10 };
+  const limit = NETWORK_HASHTAG_LIMITS[activeNetwork as keyof typeof NETWORK_HASHTAG_LIMITS] ?? { max: 10, recommended: 10 };
 
   return (
     <section className="space-y-3 rounded-lg border bg-muted/20 p-3">
@@ -43,7 +40,10 @@ export function HashtagSuggestions({ hashtags, selectedTags, activeNetwork, onTo
           <h4 className="text-sm font-semibold">Hashtags sugeridas</h4>
           <p className="text-xs text-muted-foreground">{selectedTags.length}/{limit.recommended} selecionadas para {activeNetwork}</p>
         </div>
-        <p className="text-xs text-muted-foreground">Scores só aparecem com dados verificados.</p>
+        <div className="flex items-center gap-2">
+          <p className="text-xs text-muted-foreground">Sem volume nem desempenho de mercado.</p>
+          {onRegenerate && <Button type="button" variant="outline" size="sm" onClick={onRegenerate} disabled={regenerating}>{regenerating ? 'A gerar...' : 'Regenerar · 1 crédito'}</Button>}
+        </div>
       </div>
       <div className="grid gap-3 md:grid-cols-3">
         {(['reach', 'niche', 'brand'] as const).map((group) => {
@@ -73,19 +73,19 @@ export function HashtagSuggestions({ hashtags, selectedTags, activeNetwork, onTo
                         selected ? 'border-primary bg-primary text-primary-foreground' : 'border-border bg-background hover:bg-muted',
                       )}
                     >
-                      {item.status && item.source && item.verifiedAt ? <span className={cn('h-2 w-2 rounded-full', statusClass[item.status])} /> : null}
+                      {item.status && item.status !== 'neutral' ? <span className={cn('h-2 w-2 rounded-full', statusClass[item.status])} /> : null}
                       {item.tag}
                     </button>
                   );
-                  if (!item.status || !item.source || !item.verifiedAt) return chip;
+                  if (!item.status || item.status === 'neutral') return chip;
                   return (
                     <Tooltip key={item.tag}>
                       <TooltipTrigger asChild>{chip}</TooltipTrigger>
                       <TooltipContent>
                         <div className="space-y-1 text-xs">
-                          <p>Volume estimado: {item.volumeEstimate ?? 'não disponível'}</p>
-                          <p>Fonte: {item.source}</p>
-                          <p>Última verificação: {new Date(item.verifiedAt).toLocaleDateString('pt-PT')}</p>
+                          <p>{item.riskReason || item.reason || 'Rever antes de publicar.'}</p>
+                          {item.source && <p>Fonte: {item.source}</p>}
+                          {item.verifiedAt && <p>Última verificação: {new Date(item.verifiedAt).toLocaleDateString('pt-PT')}</p>}
                         </div>
                       </TooltipContent>
                     </Tooltip>

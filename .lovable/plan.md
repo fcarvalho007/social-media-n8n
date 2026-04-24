@@ -1,230 +1,207 @@
-# Plano revisto — Prompt 2: Caixa de hashtags inteligente sem providers pagos
+# Auditoria e plano refinado
 
-## Decisão de princípio
+## Estado encontrado
 
-Não integrar RiteTag, Display Purposes, scraping nem qualquer provider que dependa de subscrição. A caixa passa a ser uma ferramenta editorial assistida por IA, não uma ferramenta de métricas de mercado.
+### Prompt 1 — Assistente desde o upload
 
-Regra central: **a IA pode sugerir e classificar por relevância editorial, mas não pode inventar volume, alcance, dificuldade ou score.**
+Implementado parcialmente e com boa base:
 
-## Refinamentos propostos
+- Existe `AiUploadAssistantCard` em `/manual-create`.
+- O cartão aparece depois de upload de vídeo em contextos compatíveis.
+- A IA transcreve e gera campos editoriais.
+- O fluxo consome 2 créditos na transcrição + 3 créditos na geração = 5 créditos.
+- `raw_transcription` e `ai_metadata` são guardados em rascunhos e posts.
+- A recuperação de rascunhos carrega `raw_transcription` e `ai_metadata`.
+- Existem indicadores “Gerado por IA” em legenda, alt text e primeiro comentário.
 
-### 1. Renomear o conceito visual para evitar promessa falsa
+Lacunas/refinamentos necessários:
 
-Substituir termos como “score”, “saúde” ou “volume” por linguagem mais honesta:
+- O assistente ainda não aplica as hashtags sugeridas na legenda; apenas as guarda em `ai_metadata.upload_assistant.suggestions`.
+- O prompt pede `hashtags_suggested`, mas o tipo `EditorialAssistantResult` ainda espera também `hashtags.reach/niche/brand`; isto pode gerar inconsistências.
+- O estado `aiGeneratedEdited` só existe no estado local. Ao recarregar a página, os indicadores podem voltar a aparecer porque o estado de edição não é persistido.
+- O autosave local tem `loadSavedData`, mas `/manual-create` não parece restaurar automaticamente esse autosave ao abrir a página; a recuperação forte está sobretudo em rascunhos explícitos/base de dados.
+- A transcrição é guardada, mas o estado “a meio do processo” ainda não é totalmente retomável se o recarregamento acontecer entre transcrição e geração.
+- O upload temporário para transcrição usa o bucket `pdfs`; funciona, mas é semanticamente fraco para vídeo e deve ser encapsulado/clarificado para evitar confusão futura.
 
-- “Relevância editorial”
-- “Tipo de hashtag”
-- “Risco”
-- “Origem da sugestão”
+### Prompt 2 — Caixa de hashtags inteligente
 
-Na interface, mostrar uma nota curta:
+Ainda não está implementado de ponta a ponta:
 
-> Sugestões editoriais por IA. Não incluem dados reais de volume ou alcance.
+- Existe um componente `HashtagSuggestions`, mas não está ligado a nenhuma página.
+- O componente atual ainda fala em “volume alto/médio” e `good/saturated`, o que contraria a regra “sem métricas inventadas”.
+- Existem sugestões antigas hardcoded em `CaptionEditor` e `HashtagManager`, com termos pt-BR como “planejamento”.
+- `/ai-settings` ainda não tem gestão de hashtags de marca.
+- `user_brand_hashtags` existe no schema, mas não está a ser usado no frontend atual.
+- `hashtag_metadata` existe, mas ainda não há fluxo de cache de 7 dias para metadados internos.
+- `ai-core` só suporta ações genéricas; não há ação dedicada para hashtags editoriais.
 
-### 2. Três grupos mantidos, mas com significado editorial
+## Princípio refinado para Prompt 2
 
-Manter a organização em três grupos:
+Implementar uma caixa de hashtags editorial, sem providers pagos e sem métricas de mercado.
 
-1. **Alcance**
-   - Hashtags mais amplas e reconhecíveis.
-   - Sem cor de desempenho.
-   - Exemplo: `#marketingdigital`, `#redessociais`.
+A IA pode classificar por intenção editorial:
 
-2. **Nicho**
-   - Hashtags específicas ao tema, setor, formato ou audiência.
-   - Geralmente as mais úteis para qualidade editorial.
+- Alcance: hashtags mais amplas e compreensíveis.
+- Nicho: hashtags mais específicas ao tema/transcrição.
+- Marca: hashtags fixas/preferidas do utilizador.
 
-3. **Marca**
-   - Hashtags definidas pelo utilizador.
-   - Respeitam preferência e limite máximo configurável.
-   - Nunca são inventadas como sendo da marca.
+A IA não deve atribuir scores, volume, popularidade, saturação, tendência ou desempenho.
 
-### 3. Estados permitidos das hashtags
+Indicadores visuais:
 
-Cada hashtag pode ter apenas estes indicadores:
+- Neutro: hashtag editorialmente válida, sem score.
+- Vermelho: hashtag banida, arriscada, spammy ou excesso de limite da rede.
+- Sem verde/amarelo por “saúde” quando não há dados verificados.
 
-- **Neutro**: sugestão editorial sem dados externos.
-- **Risco**: potencialmente spam, genérica demais, engagement-bait ou má prática.
-- **Banida/evitar**: presente num ficheiro local de hashtags proibidas/sensíveis.
-- **Marca**: vem das preferências do utilizador.
-- **Já usada**: já existe na legenda atual.
+## Plano de implementação
 
-Não haverá:
+### 1. Fechar lacunas do Prompt 1
 
-- verde por “boa performance”;
-- amarelo por “saturada” com base em volume;
-- números de alcance;
-- scores de 0–100;
-- estimativas inventadas.
+1. Normalizar o resultado do assistente de upload:
+   - aceitar `hashtags_suggested` como formato principal;
+   - não depender de `hashtags.reach/niche/brand` quando o prompt não garante esses grupos;
+   - guardar um objeto consistente em `ai_metadata`.
 
-### 4. Cache de 7 dias com outro propósito
+2. Aplicar hashtags sugeridas de forma segura:
+   - quando a IA gera hashtags, acrescentar à legenda apenas se ainda não existirem;
+   - limitar por rede ativa quando aplicável;
+   - manter o utilizador livre para remover/editar.
 
-A tabela `hashtag_metadata` continua útil, mas muda de função:
+3. Persistir estado editorial gerado/editado:
+   - guardar em `ai_metadata.generated_fields` ou estrutura equivalente:
+     - `caption.generated_at`, `caption.edited`;
+     - `first_comment.generated_at`, `first_comment.edited`;
+     - `alt_text.generated_at`, `alt_text.edited`;
+     - `hashtags.generated_at`, `hashtags.edited`.
+   - restaurar estes estados ao carregar rascunhos.
 
-- guardar normalização da hashtag;
-- guardar classificação editorial feita pela IA;
-- guardar flags locais: spam, banida, sensível, genérica;
-- guardar `last_verified` para evitar reavaliar a mesma hashtag durante 7 dias.
+4. Melhorar retoma a meio do processo:
+   - se já existir `raw_transcription` e `upload_assistant.status = transcribed`, mostrar opção “Continuar a preparar campos” sem cobrar novamente a transcrição;
+   - manter o custo total do fluxo completo em 5 créditos apenas quando executa transcrição + geração;
+   - se só faltar geração, cobrar apenas 3 créditos.
 
-O campo `volume_estimate` não será usado nesta fase, salvo se no futuro existir uma fonte fiável. Se estiver vazio, a UI não mostra nada relacionado com volume.
+### 2. Criar modelo editorial de hashtags
 
-### 5. IA como classificador editorial, não como fonte estatística
+1. Atualizar tipos em `aiEditorial.ts`:
+   - substituir `HashtagStatus = good | saturated | risk` por estados seguros, por exemplo:
+     - `none`, `risk`, `banned`, `over_limit`;
+   - remover `volumeEstimate` como dado exibível salvo se vier de fonte verificada;
+   - adicionar campos editoriais: `reason`, `riskReason`, `source = ai_editorial | brand | internal_safety`.
 
-A IA será usada para:
+2. Criar lista local de segurança:
+   - ficheiro com hashtags banidas/spam/arriscadas comuns;
+   - normalização robusta: minúsculas, sem acentos problemáticos quando necessário, sempre com `#` no UI;
+   - sem scraping e sem APIs pagas.
 
-- sugerir hashtags em pt-PT a partir de legenda, transcrição e redes selecionadas;
-- separar em alcance/nicho/marca;
-- justificar brevemente porque uma hashtag é adequada;
-- marcar hashtags demasiado vagas, repetidas, desalinhadas ou com cheiro a spam;
-- devolver output estruturado através da função `ai-core` ou de uma nova função dedicada.
+3. Usar `hashtag_metadata` apenas como cache interno:
+   - guardar classificação editorial e data de verificação;
+   - validade de 7 dias;
+   - não guardar “volume” inventado;
+   - `source` deve indicar `ai_editorial` ou `internal_safety`.
 
-A prompt terá instrução explícita:
+### 3. Backend/IA para hashtags
 
-- não estimar volume;
-- não afirmar tendências reais;
-- não dizer que uma hashtag é popular sem prova;
-- não inventar dados de mercado;
-- devolver “unknown” quando não houver base fiável.
+1. Estender `ai-core` com ação dedicada, por exemplo `hashtag_generation`:
+   - input: legenda, transcrição opcional, redes selecionadas, hashtags de marca, idioma `pt-PT`;
+   - output JSON estruturado com grupos `reach`, `niche`, `brand`;
+   - custo: 1 crédito por regeneração.
 
-### 6. Fonte local de risco/banidas
+2. Prompt da IA:
+   - português de Portugal;
+   - nunca inventar métricas;
+   - classificar por relevância editorial;
+   - devolver razões curtas;
+   - evitar hashtags genéricas em excesso;
+   - respeitar hashtags de marca do utilizador.
 
-Criar uma lista local versionada, por exemplo:
+3. Cache:
+   - antes de chamar IA, consultar metadados internos recentes para hashtags já vistas;
+   - depois da resposta, atualizar `hashtag_metadata` com metadados internos e `last_verified`.
 
-- hashtags spam: `#followback`, `#likeforlike`, `#follow4follow`, etc.;
-- hashtags sensíveis ou inseguras para marca;
-- padrões suspeitos: excesso de números, tags demasiado genéricas, tags não pt-PT quando a fase é só pt-PT.
+### 4. UI da caixa de hashtags inteligente em `/manual-create`
 
-O vermelho fica reservado apenas para estes casos de risco ou excesso de limite.
+1. Criar/substituir componente `HashtagSuggestionsBox`:
+   - compacto e mobile-first;
+   - três grupos: Alcance, Nicho, Marca;
+   - chips selecionáveis;
+   - botão “Adicionar à legenda”;
+   - botão “Regenerar” com badge “1 crédito”.
 
-### 7. Integração na criação manual
+2. Integração com `NetworkCaptionEditor`/`Step3CaptionCard`:
+   - mostrar por baixo do editor de legenda;
+   - ao clicar numa hashtag, inserir/remover da legenda ativa;
+   - em legendas separadas, aplicar à rede ativa;
+   - em legenda unificada, aplicar à legenda principal.
 
-Na etapa da legenda em `/manual-create`, adicionar uma caixa compacta abaixo ou junto do editor de legenda:
+3. Limites por rede:
+   - Instagram: máximo 30;
+   - TikTok/LinkedIn: recomendado/máximo operacional 5;
+   - X: 2;
+   - Facebook: 3;
+   - excesso marcado a vermelho, sem bloquear imediatamente.
 
-- aparece quando há legenda, transcrição ou sugestão do assistente de upload;
-- mostra sugestões agrupadas;
-- permite adicionar/remover hashtags;
-- evita duplicados;
-- respeita modo de legendas separadas por rede;
-- mostra contador por rede.
+4. Transparência no UI:
+   - texto curto: “Sugestões editoriais da IA. Não incluem volume nem desempenho de mercado.”
+   - remover qualquer copy como “volume alto”, “saturada”, “boa performance” ou “score”.
 
-Ao adicionar uma hashtag, a regra será explícita:
+### 5. Gestão de hashtags de marca em `/ai-settings`
 
-- Instagram: adicionar ao fim da legenda ou bloco de hashtags;
-- LinkedIn/Facebook: adicionar com moderação;
-- X/Twitter: limite muito curto;
-- TikTok: lista curta.
+1. Adicionar secção “Hashtags de marca”:
+   - até 5 hashtags;
+   - adicionar/remover;
+   - normalização automática com `#`;
+   - mensagens pt-PT.
 
-### 8. Limites por rede social
+2. Persistência:
+   - usar `user_brand_hashtags` como fonte principal, se disponível;
+   - manter compatibilidade com `ai_preferences.brand_hashtags` apenas se necessário para não quebrar fluxos existentes.
 
-Implementar limites editoriais por rede:
+3. Integração:
+   - carregar hashtags de marca no assistente de upload e na caixa de hashtags;
+   - permitir que o grupo “Marca” respeite a preferência do utilizador.
 
-- Instagram: máximo técnico/editorial 30; excesso marcado a vermelho.
-- TikTok: limite recomendado baixo, por exemplo 5.
-- LinkedIn: limite recomendado baixo, por exemplo 5.
-- Facebook: limite recomendado baixo, por exemplo 5.
-- X: máximo recomendado 2 devido ao limite de caracteres.
+### 6. Remover/neutralizar sugestões antigas
 
-O sistema deve avisar antes de publicar quando uma rede ultrapassa o limite relevante.
+1. Substituir sugestões hardcoded antigas:
+   - `CaptionEditor` e `HashtagManager` não devem continuar a recomendar hashtags por mapa estático;
+   - remover termos pt-BR como “planejamento”.
 
-### 9. Regenerar sugestões consome 1 crédito
+2. Garantir que o fluxo antigo de Review não perde funcionalidade:
+   - se ainda precisar de sugestões, usar o novo componente ou deixar apenas gestão manual.
 
-Adicionar custo dedicado:
+## Ficheiros prováveis a alterar
 
-- `hashtag_suggestions`: 1 crédito.
-
-A regeneração chama IA e grava log em `ai_usage_log` com feature própria, por exemplo `hashtag_suggestions`.
-
-### 10. Preferências de hashtags de marca
-
-A página `/ai-settings` deve ganhar uma secção simples:
-
-- gerir até 5 hashtags de marca;
-- validar formato;
-- evitar duplicados;
-- guardar na infraestrutura existente (`ai_preferences.brand_hashtags` e/ou `user_brand_hashtags`, conforme o estado real da base de dados);
-- usar essas hashtags no grupo “Marca”.
-
-## Alterações técnicas previstas
-
-### Frontend
-
-Criar/alterar:
-
-- `src/lib/hashtags.ts`
-  - normalização;
-  - extração de hashtags da legenda;
-  - deduplicação;
-  - limites por rede;
-  - aplicação/remoção de hashtags na legenda.
-
-- `src/data/bannedHashtags.ts` ou JSON local equivalente
-  - lista inicial curta e conservadora.
-
-- `src/services/hashtags/hashtagService.ts`
-  - obter sugestões;
-  - consultar cache;
-  - regenerar;
-  - aplicar classificação local.
-
-- `src/components/manual-post/ai/HashtagSuggestionsBox.tsx`
-  - layout compacto;
-  - três grupos;
-  - badges neutras/risco/marca;
-  - ações “Adicionar”, “Remover”, “Regenerar”.
-
+- `src/types/aiEditorial.ts`
+- `src/services/ai/aiService.ts`
+- `supabase/functions/ai-core/index.ts`
 - `src/pages/ManualCreate.tsx`
-  - integrar caixa sem alterar o fluxo visual principal;
-  - persistir sugestões em `ai_metadata` para retomar rascunhos;
-  - marcar campos como editados quando o utilizador altera hashtags.
-
+- `src/components/manual-post/steps/Step3CaptionCard.tsx`
+- `src/components/manual-post/NetworkCaptionEditor.tsx`
+- `src/components/manual-post/ai/HashtagSuggestions.tsx` ou novo `HashtagSuggestionsBox.tsx`
 - `src/pages/AISettings.tsx`
-  - secção “Hashtags de marca”.
+- `src/hooks/ai/useAiPreferences.ts` ou novo hook dedicado a hashtags de marca
+- `src/components/CaptionEditor.tsx`
+- `src/components/HashtagManager.tsx`
 
-### Backend / IA
+Não alterar ficheiros bloqueados:
 
-Preferência técnica: criar uma função dedicada `ai-hashtag-suggestions` para manter a prompt fora do cliente e não misturar responsabilidades com outras features.
+- `src/integrations/supabase/client.ts`
+- `src/integrations/supabase/types.ts`
+- `.env`
+- chaves de projeto em `supabase/config.toml`
 
-A função deve:
+## Critérios de aceitação refinados
 
-- autenticar utilizador;
-- validar créditos;
-- usar Lovable AI via backend;
-- devolver output estruturado;
-- não chamar APIs externas;
-- consultar/gravar `hashtag_metadata` apenas com metadados internos;
-- respeitar cache de 7 dias;
-- registar uso em `ai_usage_log`.
-
-### Base de dados
-
-A princípio não é necessário criar nova tabela. Usar:
-
-- `hashtag_metadata` para cache interna;
-- `ai_usage_log` para auditoria;
-- `ai_preferences.brand_hashtags` e/ou `user_brand_hashtags` para marca;
-- `posts.ai_metadata` e `posts_drafts.ai_metadata` para persistência por rascunho.
-
-Se a tabela `user_brand_hashtags` existir e estiver com RLS correta, ela será usada para gestão estruturada. Caso contrário, manter em `ai_preferences.brand_hashtags` para evitar migração desnecessária nesta fase.
-
-## Pontos de atenção
-
-1. O Prompt 1 já pede `hashtags_suggested`, mas não as aplica visualmente. Esta fase deve consumir essas sugestões como ponto de partida.
-2. A regra “não inventar scores” deve ser aplicada tanto na UI como na prompt da IA.
-3. O `volume_estimate` existente não deve aparecer enquanto não houver fonte fiável.
-4. O excesso de 30 hashtags no Instagram deve ser tratado como erro/aviso forte, não como “score baixo”.
-5. A caixa deve ser compacta e mobile-first para não pesar no `/manual-create`.
-
-## Checklist de aceitação
-
-☐ Não há integração com providers pagos, scraping ou APIs externas de hashtags.  
-☐ A UI não mostra scores, volume, alcance estimado ou cores de performance inventadas.  
-☐ Hashtags aparecem em três grupos: Alcance, Nicho e Marca.  
-☐ Vermelho é usado apenas para risco, banida/evitar ou excesso de limite.  
-☐ A IA sugere e classifica editorialmente em pt-PT.  
-☐ Hashtags de marca respeitam as preferências do utilizador.  
-☐ Regenerar sugestões consome exatamente 1 crédito.  
-☐ Segunda consulta à mesma hashtag dentro de 7 dias reutiliza cache interno.  
-☐ Exceder 30 hashtags no Instagram é assinalado claramente.  
-☐ Se o utilizador editar/remover hashtags, o estado gerado por IA é atualizado.  
-☐ Sugestões vindas do assistente de upload são reaproveitadas quando existirem.  
-☐ Nenhuma feature das Fases 3 ou 4 é implementada neste prompt.
+☐ Prompt 1 mantém fluxo completo com custo máximo de 5 créditos.
+☐ Se a página recarregar depois da transcrição, permite continuar sem cobrar nova transcrição.
+☐ Transcrição fica disponível para fases seguintes via `raw_transcription` e `ai_metadata`.
+☐ Indicadores “Gerado por IA” desaparecem depois de edição e são restaurados corretamente em rascunhos.
+☐ Hashtags sugeridas pela IA podem ser aplicadas/removidas da legenda.
+☐ Caixa mostra Alcance, Nicho e Marca sem scores inventados.
+☐ Sem cores de “saúde” quando não há fonte verificável.
+☐ Vermelho só aparece para risco, banida/spam ou excesso de limite.
+☐ Regenerar hashtags consome 1 crédito.
+☐ Hashtags de marca são geridas em `/ai-settings`, máximo 5.
+☐ Cache interna de 7 dias usa `hashtag_metadata` sem métricas de mercado inventadas.
+☐ Interface e mensagens em pt-PT, sem pt-BR.
+☐ Sem integração RiteTag, Display Purposes, scraping ou qualquer provider pago.

@@ -1,7 +1,7 @@
 import { SocialNetwork } from '@/types/social';
 
 export type HashtagGroup = 'reach' | 'niche' | 'brand';
-export type HashtagStatus = 'good' | 'saturated' | 'risk';
+export type HashtagStatus = 'neutral' | 'risk' | 'banned' | 'over_limit';
 export type CaptionRewriteTone = 'direto' | 'emocional' | 'técnico' | 'neutro' | 'humor' | 'mais_curto' | 'mais_forte';
 
 export interface CaptionRewriteMetadata {
@@ -15,9 +15,21 @@ export interface SuggestedHashtag {
   tag: string;
   group: HashtagGroup;
   status?: HashtagStatus;
-  volumeEstimate?: number;
-  source?: string;
+  reason?: string;
+  riskReason?: string;
+  source?: 'ai_editorial' | 'brand' | 'internal_safety' | 'cache';
   verifiedAt?: string;
+}
+
+export interface HashtagAssistantResult {
+  hashtags: SuggestedHashtag[];
+  selectedTags?: string[];
+  generated_at?: string;
+}
+
+export interface GeneratedFieldState {
+  generated_at?: string;
+  edited?: boolean;
 }
 
 export interface EditorialAssistantResult {
@@ -25,7 +37,7 @@ export interface EditorialAssistantResult {
   base_caption: string;
   captions_per_network: Partial<Record<SocialNetwork, string>>;
   hashtags_suggested?: string[];
-  hashtags: {
+  hashtags?: {
     reach: string[];
     niche: string[];
     brand: string[];
@@ -35,6 +47,8 @@ export interface EditorialAssistantResult {
   key_quotes: string[];
   raw_transcription: string;
   rewrites?: CaptionRewriteMetadata[];
+  hashtag_assistant?: HashtagAssistantResult;
+  generated_fields?: Record<string, GeneratedFieldState>;
   upload_assistant?: {
     status?: 'dismissed' | 'transcribed' | 'done';
     generated_at?: string;
