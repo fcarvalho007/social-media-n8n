@@ -384,7 +384,7 @@ export default function ManualCreate() {
         .limit(5);
       const { data } = await query;
       if (cancelled) return;
-      const selected = ((data ?? []) as AccountInsight[]).find((insight) => !insight.network || selectedNetworks.length === 0 || selectedNetworks.includes(insight.network)) ?? null;
+      const selected = ((data ?? []) as unknown as AccountInsight[]).find((insight) => !insight.network || selectedNetworks.length === 0 || selectedNetworks.includes(insight.network)) ?? null;
       setActiveInsight(selected);
     };
 
