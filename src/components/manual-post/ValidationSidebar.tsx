@@ -19,7 +19,7 @@ import { ValidationIssueCard } from './ValidationIssueCard';
 
 const CATEGORY_LABELS: Record<ValidationCategory, string> = {
   format: 'Formato',
-  media: 'Mídia',
+  media: 'Média',
   caption: 'Legenda',
   platform: 'Rede',
   schedule: 'Agendamento',
@@ -123,7 +123,7 @@ export function ValidationSidebar({
     ? 'Tudo verificado · pronto a publicar'
     : isValidating
     ? 'A validar...'
-    : 'Sem problemas detectados';
+    : 'Sem problemas detetados';
 
   const HeaderIcon = errorCount > 0
     ? AlertCircle
@@ -150,7 +150,7 @@ export function ValidationSidebar({
           <div className="text-xs space-y-1">
             <p className="font-medium text-success">Tudo verificado</p>
             <p className="text-muted-foreground">
-              Formato, mídia, legenda e regras das redes — tudo conforme.
+              Formato, média, legenda e regras das redes — tudo conforme.
               {platformChips.length > 0 && (
                 <>
                   {' '}Pronto para{' '}
@@ -199,7 +199,7 @@ export function ValidationSidebar({
       {isValidating && issues.length === 0 && !isClean && (
         <div className="flex items-center gap-2 text-xs text-muted-foreground p-3">
           <Loader2 className="h-3.5 w-3.5 animate-spin" />
-          A analisar legenda e mídia...
+          A analisar legenda e média...
         </div>
       )}
     </div>

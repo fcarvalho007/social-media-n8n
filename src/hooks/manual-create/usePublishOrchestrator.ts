@@ -25,6 +25,24 @@ const getDraftCaption = (format: PostFormat, caption: string, networkCaptions: R
   return useSeparateCaptions && networkCaptions[network] ? networkCaptions[network] : caption;
 };
 
+const showValidationToast = (validation: ValidationSummary, action: 'publicar' | 'submeter') => {
+  const firstError = validation.issues.find((issue) => issue.severity === 'error');
+  if (!firstError) {
+    toast.error(`Resolve os problemas no painel de validação antes de ${action}`);
+    return;
+  }
+
+  const title = validation.errorCount === 1
+    ? `Não é possível ${action} ainda`
+    : `Há ${validation.errorCount} problemas a corrigir`;
+
+  toast.error(title, {
+    description: `${firstError.title}: ${firstError.description}`,
+    id: `manual-create-validation-${action}`,
+    duration: 6000,
+  });
+};
+
 interface OrchestratorParams {
   // Inputs (lidos a cada chamada)
   selectedFormats: PostFormat[];
@@ -314,7 +332,7 @@ export function usePublishOrchestrator(params: OrchestratorParams) {
   const submitForApproval = useCallback(async () => {
     if (selectedFormats.length > 0 && !smartValidation.canPublish) {
       setValidationSheetOpen(true);
-      toast.error('Resolve os problemas no painel de validação antes de submeter');
+      showValidationToast(smartValidation, 'submeter');
       return;
     }
 
@@ -498,7 +516,7 @@ export function usePublishOrchestrator(params: OrchestratorParams) {
   const publishNow = useCallback(async (filesToPublish?: File[]) => {
     if (selectedFormats.length > 0 && !smartValidation.canPublish) {
       setValidationSheetOpen(true);
-      toast.error('Resolve os problemas no painel de validação antes de publicar');
+      showValidationToast(smartValidation, 'publicar');
       return;
     }
 
@@ -550,7 +568,7 @@ export function usePublishOrchestrator(params: OrchestratorParams) {
   const publishWithValidation = useCallback(async () => {
     if (selectedFormats.length > 0 && !smartValidation.canPublish) {
       setValidationSheetOpen(true);
-      toast.error('Resolve os problemas no painel de validação antes de publicar');
+      showValidationToast(smartValidation, 'publicar');
       return;
     }
     await publishNow();
@@ -559,7 +577,7 @@ export function usePublishOrchestrator(params: OrchestratorParams) {
   const submitWithValidation = useCallback(async () => {
     if (selectedFormats.length > 0 && !smartValidation.canPublish) {
       setValidationSheetOpen(true);
-      toast.error('Resolve os problemas no painel de validação antes de submeter');
+      showValidationToast(smartValidation, 'submeter');
       return;
     }
     await submitForApproval();
