@@ -305,6 +305,10 @@ export default function ManualCreate() {
   }, [caption, selectedNetworks]);
 
   useEffect(() => {
+    setRewriteTone(aiPreferences.default_tone);
+  }, [aiPreferences.default_tone]);
+
+  useEffect(() => {
     const nextSignature = getMediaSignature(mediaFiles);
     const previousSignature = aiMediaSignatureRef.current;
 
