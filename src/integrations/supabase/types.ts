@@ -727,7 +727,15 @@ export type Database = {
           user_id?: string
           video_completion_rate?: number | null
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "post_metrics_raw_post_id_fkey"
+            columns: ["post_id"]
+            isOneToOne: false
+            referencedRelation: "posts"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       post_performance: {
         Row: {
