@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { PostFormat } from '@/types/social';
 import { NetworkOptions, normalizeNetworkOptions } from '@/types/networkOptions';
+import type { EditorialAssistantResult } from '@/types/aiEditorial';
 
 interface AutoSaveData {
   caption: string;
@@ -12,6 +13,8 @@ interface AutoSaveData {
   scheduledDate?: string;
   time?: string;
   scheduleAsap: boolean;
+  rawTranscription?: string;
+  aiMetadata?: Partial<EditorialAssistantResult> | null;
 }
 
 interface UseAutoSaveOptions {
@@ -142,6 +145,8 @@ export function useAutoSave(
           scheduledDate: parsed.scheduledDate,
           time: parsed.time,
           scheduleAsap: parsed.scheduleAsap || false,
+          rawTranscription: parsed.rawTranscription || '',
+          aiMetadata: parsed.aiMetadata || null,
         };
       }
     } catch (error) {
