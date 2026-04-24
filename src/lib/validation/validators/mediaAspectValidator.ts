@@ -5,6 +5,21 @@ import {
   resizeForInstagram,
 } from '@/lib/canvas/instagramResize';
 
+const getVideoRatio = (file: File) => new Promise<number | null>((resolve) => {
+  const video = document.createElement('video');
+  const url = URL.createObjectURL(file);
+  video.preload = 'metadata';
+  video.onloadedmetadata = () => {
+    URL.revokeObjectURL(url);
+    resolve(video.videoWidth && video.videoHeight ? video.videoWidth / video.videoHeight : null);
+  };
+  video.onerror = () => {
+    URL.revokeObjectURL(url);
+    resolve(null);
+  };
+  video.src = url;
+});
+
 /**
  * Detects images outside Instagram's 0.8–1.91 aspect range and offers a
  * one-click auto-resize using letterbox/pillarbox margins.
@@ -18,13 +33,14 @@ export async function mediaAspectValidator(
   const storyLinkSelected = ctx.selectedFormats.includes('instagram_story_link');
 
   const images = ctx.mediaFiles.filter(f => f.type.startsWith('image/'));
-  if (images.length === 0) return issues;
+  const videos = ctx.mediaFiles.filter(f => f.type.startsWith('video/'));
+  if (images.length === 0 && videos.length === 0) return issues;
 
   if (ctx.signal?.aborted) return issues;
 
-  let analysis;
+  let analysis = { needsResize: [] as File[], analysis: new Map<string, { originalRatio: number }>() };
   try {
-    analysis = await analyzeFilesForInstagram(images);
+    if (images.length > 0) analysis = await analyzeFilesForInstagram(images);
   } catch (err) {
     console.warn('[mediaAspectValidator] analysis failed', err);
     return issues;
@@ -35,9 +51,12 @@ export async function mediaAspectValidator(
       const item = analysis.analysis.get(file.name);
       return item ? Math.abs(item.originalRatio - 9 / 16) > 0.02 : false;
     });
-    if (nonStoryRatio.length > 0) {
+    const videoRatios = await Promise.all(videos.map(async file => ({ file, ratio: await getVideoRatio(file) })));
+    const nonStoryVideos = videoRatios.filter(item => item.ratio !== null && Math.abs(item.ratio - 9 / 16) > 0.02).map(item => item.file);
+    const affected = [...nonStoryRatio, ...nonStoryVideos];
+    if (affected.length > 0) {
       issues.push({
-        id: `media:instagram-story-link:aspect:${nonStoryRatio.map(file => file.name).join(',')}`,
+        id: `media:instagram-story-link:aspect:${affected.map(file => file.name).join(',')}`,
         severity: 'warning',
         category: 'media',
         platform: 'instagram',
