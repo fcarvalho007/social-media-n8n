@@ -761,7 +761,7 @@ if (imageUrlsForPdf.length > 0) {
         try {
           // Use network-specific caption if available, truncated to network limit
           const maxCaptionLen = NETWORK_CONSTRAINTS[network]?.max_caption_length || 2200;
-          const networkCaption = (params.networkCaptions?.[network] || caption).slice(0, maxCaptionLen);
+          const networkCaption = enforceNetworkHashtagLimit(params.networkCaptions?.[network] || caption, network).slice(0, maxCaptionLen);
           
           const { data: publishResult, error: publishError } = await supabase.functions.invoke('publish-to-getlate', {
             body: {
