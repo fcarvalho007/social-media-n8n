@@ -1,332 +1,152 @@
-## Plano — transformar `/manual-create` em assistente editorial com IA
+## Diagnóstico — o que ficou por fazer
 
-### Observações importantes antes de implementar
+O trabalho anterior deixou a base montada, mas não deixou a funcionalidade pronta para uso em rascunhos reais.
 
-- O projeto já tem uma função `improve-caption` com OpenAI, mas a regra atual do produto recomenda usar Lovable AI por defeito para novas funcionalidades. Vou criar novas funções de backend com Lovable AI para texto/visão, mantendo a função antiga intacta.
-- Para transcrição de vídeo, Lovable AI não substitui diretamente Whisper. Como já existe `OPENAI_API_KEY`, a transcrição pode usar Whisper no backend, apenas para áudio extraído/ficheiro enviado. A geração textual seguinte usa Lovable AI.
-- Não vou inventar scores de hashtags. A Fase 2 só mostra círculos de saturação quando houver fonte verificada; caso contrário, mostra chips sem score.
-- A Fase 4 depende de métricas reais das redes. Como o projeto publica via Getlate e nem todas as APIs analíticas estão configuradas, vou implementar a estrutura, jobs e fallback seguro; a recolha real por rede fica ativada apenas onde houver credenciais/dados disponíveis.
-- Não vou editar ficheiros bloqueados: `src/integrations/supabase/client.ts`, `src/integrations/supabase/types.ts`, `.env` nem chaves globais em `supabase/config.toml`.
+### Já feito
 
----
+- Esquema de dados criado para IA editorial:
+  - `posts.raw_transcription`
+  - `posts.ai_metadata`
+  - `posts_drafts.raw_transcription`
+  - `posts_drafts.ai_metadata`
+  - `ai_preferences`, `ai_credit_usage`, `hashtag_intelligence`, `post_performance`, `account_insights`
+- Componentes visuais criados:
+  - `AiUploadAssistantCard`
+  - `CaptionToneToolbar`
+  - `HashtagSuggestions`
+  - `AltTextPanel`
+  - `VideoAiTools`
+  - `EditorialInsightBanner`
+- Tipos e hook de preferências de IA criados.
+- Buckets/funções existem como pastas, mas as três funções principais ainda estão vazias.
 
-## Fase 1 — Assistente desde o upload
+### Ainda por fazer
 
-### UI no `/manual-create`
-
-- Detetar após upload se existe exatamente 1 ficheiro e se é vídeo elegível:
-  - vídeo vertical ou formato de vídeo isolado;
-  - duração entre 5 segundos e 10 minutos;
-  - excluir imagens, PDFs, carrosséis e vídeos fora do intervalo.
-- Mostrar card destacado acima da secção “Legenda”:
-  - título: “Queres que a IA prepare tudo por ti?”
-  - botões: “Já tenho a legenda” e “Transcrever com IA”
-  - texto de apoio conforme especificação.
-- Se escolher “Já tenho a legenda”, esconder o card e manter o fluxo normal.
-- Se escolher “Transcrever com IA”, mostrar skeleton/loading nos campos que serão preenchidos com a mensagem:
-  - “A ouvir o vídeo e a preparar os campos… (15-20 segundos)”
-
-### Backend IA
-
-- Criar função backend `ai-editorial-assistant` para:
-  1. receber vídeo/URL ou ficheiro preparado pelo frontend;
-  2. transcrever áudio com Whisper usando segredo já existente;
-  3. chamar Lovable AI uma vez para devolver estrutura com:
-     - título do rascunho;
-     - legenda base;
-     - variantes por rede;
-     - hashtags por grupo;
-     - primeiro comentário;
-     - alt text;
-     - frases citáveis.
-- Validar inputs e devolver erros pt-PT claros.
-- Não bloquear o fluxo se a IA falhar; mostrar toast:
-  - “A IA está indisponível. Podes preencher manualmente ou tentar de novo.”
-
-### Persistência
-
-- Adicionar campos necessários por migração:
-  - `posts_drafts.raw_transcription`;
-  - `posts.raw_transcription`;
-  - metadados de IA em JSON, se necessário, para título/frases/estado.
-- Garantir que rascunhos e publicações transportam a transcrição.
-- Adicionar botão “Ver transcrição” de forma discreta, não visível por defeito.
-
-### Teste isolado da Fase 1
-
-- Testar upload de vídeo vertical válido.
-- Confirmar que o card aparece só nos casos elegíveis.
-- Confirmar que a IA preenche legenda, legendas por rede, hashtags e primeiro comentário.
-- Guardar rascunho e recarregar para confirmar persistência da transcrição.
+1. As funções backend `ai-editorial-assistant`, `ai-caption-tools` e `ai-generate-alt-text` existem como diretórios vazios, sem `index.ts`.
+2. Os componentes de IA ainda não estão ligados ao fluxo `/manual-create`.
+3. O estado de `/manual-create` ainda não guarda nem transporta:
+   - transcrição;
+   - metadados de IA;
+   - alt text gerado;
+   - primeiro comentário gerado.
+4. `useAutoSave`, `useDraftRecovery` e `usePublishOrchestrator` ainda não persistem totalmente os novos campos de IA.
+5. A UI de legenda ainda usa apenas `NetworkCaptionEditor`, sem barra de reescrita por tom nem hashtags inteligentes.
+6. O cartão “Queres que a IA prepare tudo por ti?” ainda não aparece depois de upload de vídeo elegível.
+7. A segurança reportada pelo linter continua pendente:
+   - 6 policies com `true` em operações de escrita/atualização;
+   - 4 buckets públicos com listagem ampla;
+   - 1 aviso de extensão no schema público.
 
 ---
 
-## Fase 3.2 — Reescrita por tom
+## Proposta de execução agora
 
-### UI
+Como pediste “avaliar o que ficou por fazer e executar”, a próxima execução deve fechar primeiro a Fase 1 funcional, sem misturar a correção de segurança em produção sem aprovação explícita.
 
-- Adicionar barra compacta acima do textarea da legenda com botões:
-  - “Mais direto”
-  - “Mais emocional”
-  - “Mais técnico”
-  - “Mais curto”
-  - “Mais longo”
-  - “Tom LinkedIn”
-  - “Tom Instagram”
-- Cada botão terá loading próprio.
-- A resposta substitui a legenda atual.
-- Guardar histórico local das últimas 5 versões para permitir desfazer.
+### Fase a executar: Fase 1 — Assistente desde o upload
 
-### Backend
+#### 1. Backend funcional
 
-- Criar/reutilizar função backend para reescrever texto com Lovable AI.
-- Enviar apenas legenda atual, rede/contexto e instrução de tom.
-- Prompt fica no backend, não no cliente.
+Criar `supabase/functions/ai-editorial-assistant/index.ts` para:
 
-### Teste isolado
+- validar sessão do utilizador no backend;
+- aceitar um ficheiro de vídeo ou URL de média já carregada;
+- transcrever o áudio com Whisper usando o segredo existente `OPENAI_API_KEY`;
+- gerar estrutura editorial com IA:
+  - título do rascunho;
+  - legenda base;
+  - legendas por rede;
+  - hashtags por grupo;
+  - primeiro comentário;
+  - alt text;
+  - frases citáveis;
+  - transcrição bruta;
+- devolver erros claros em pt-PT;
+- não expor prompts nem chaves no frontend.
 
-- Testar cada tom com legenda curta e longa.
-- Confirmar que Ctrl+Z/desfazer recupera versões anteriores.
-- Confirmar que erros de IA não apagam a legenda original.
+#### 2. Integração no `/manual-create`
 
----
+Adicionar estado em `ManualCreate.tsx` para:
 
-## Fase 3.4 — Alt text automático
+- `rawTranscription`;
+- `aiMetadata`;
+- loading/erro do assistente;
+- estado de dispensa do card.
 
-### UI
+Detetar vídeo elegível:
 
-- Na secção “Média”, abaixo do preview, adicionar campo “Alt text”.
-- Mostrar:
-  - texto gerado;
-  - botão “Regenerar”;
-  - contador 0/125;
-  - checkbox “Aplicar a todas as imagens do carrossel” quando aplicável.
+- exatamente 1 ficheiro;
+- `type` começa por `video/`;
+- rácio vertical preferencialmente `9:16` ou formato de vídeo selecionado;
+- excluir imagens, PDFs e carrosséis múltiplos.
 
-### Backend
+#### 3. UI do assistente
 
-- Criar função `ai-generate-alt-text` com Lovable AI multimodal.
-- Para vídeo, usar o primeiro frame já extraído ou gerar frame antes de enviar.
-- Guardar resultado em `alt_texts` existente, sem alterar a estrutura principal se não for necessário.
+Ligar `AiUploadAssistantCard` no fluxo, imediatamente antes da secção “Legenda”, quando elegível.
 
-### Teste isolado
+Ações:
 
-- Testar imagem única.
-- Testar primeiro frame de vídeo.
-- Testar carrossel com “Aplicar a todas”.
-- Confirmar limite de 125 caracteres.
+- “Já tenho a legenda”: esconde o card.
+- “Transcrever com IA”: chama a função backend, mostra loading e preenche:
+  - legenda principal;
+  - legendas por rede, se houver redes selecionadas;
+  - primeiro comentário em `networkOptions`, quando aplicável;
+  - `rawTranscription`;
+  - `aiMetadata`.
 
----
+#### 4. Persistência em rascunhos e publicações
 
-## Fase 2 — Caixa de hashtags inteligente
+Atualizar:
 
-### UI dentro de “Legenda”
+- `useAutoSave` para incluir `rawTranscription` e `aiMetadata`;
+- `useDraftRecovery` para recuperar esses campos de rascunhos e posts;
+- `usePublishOrchestrator` para guardar em `posts_drafts` e `posts`.
 
-- Criar secção “Hashtags sugeridas” imediatamente abaixo do textarea principal.
-- Organizar em 3 grupos:
-  - “Alcance” — “Volume alto · Maior exposição”;
-  - “Nicho” — “Volume médio · Comunidade ativa”;
-  - “Marca” — “As tuas fixas”.
-- Chips clicáveis:
-  - clicar adiciona ao fim da legenda;
-  - clicar novamente remove;
-  - estado visual claro selecionado/não selecionado.
-- Adaptar por rede ativa:
-  - Instagram: até 30, recomendado 8-15;
-  - TikTok: 3-5;
-  - LinkedIn: 3-5;
-  - X: 1-2;
-  - Facebook: 2-3.
-- Mostrar contador, por exemplo:
-  - “5/15 selecionadas para Instagram”.
+Sem editar ficheiros gerados automaticamente (`src/integrations/supabase/client.ts`, `types.ts`, `.env`).
 
-### Scores reais de saturação
+#### 5. Teste isolado da Fase 1
 
-- Criar modelo de dados para `hashtag_intelligence` com:
-  - hashtag;
-  - estado verificado;
-  - volume estimado;
-  - fonte;
-  - última verificação.
-- Só mostrar círculo colorido quando existir dado verificado.
-- Se não houver fonte ligada, os chips aparecem sem círculo.
-- Não inventar nem simular volume/shadowban.
+Depois da implementação:
 
-### Hashtags de marca
-
-- Criar preferências de IA/perfil com campo de hashtags fixas.
-- Essas hashtags aparecem sempre no grupo “Marca”.
-
-### Teste isolado
-
-- Testar adicionar/remover chips.
-- Testar contadores por rede.
-- Testar ausência de scores sem dados verificados.
-- Testar hashtags de marca guardadas no perfil/preferências.
+- testar upload de vídeo vertical válido;
+- confirmar que o card só aparece nesse caso;
+- confirmar preenchimento da legenda, variantes por rede, hashtags e primeiro comentário;
+- guardar rascunho;
+- carregar rascunho e confirmar persistência da transcrição/metadados;
+- confirmar que falha da IA não apaga conteúdo existente.
 
 ---
 
-## Fase 3.3 — Primeiro comentário com IA
+## O que não vou executar nesta passagem
 
-### UI
+Não vou corrigir ainda as RLS policies nem buckets públicos sem aprovação explícita, porque tinhas pedido anteriormente diagnóstico e aprovação antes de alterar políticas em produção.
 
-- No campo “Primeiro comentário” já existente, adicionar botão pequeno “IA”.
-- Ao clicar, gerar 3 opções:
-  - pergunta de engagement;
-  - CTA;
-  - continuação/complemento da ideia principal.
-- Mostrar dropdown/popover para o utilizador escolher.
-- Não inserir automaticamente sem escolha.
+Também não vou avançar já para:
 
-### Backend
+- Fase 3.2 — reescrita por tom;
+- Fase 3.4 — alt text automático;
+- Fase 2 — hashtags inteligentes;
+- Fase 3.3 — primeiro comentário com IA;
+- Fase 3.1 — SRT/capítulos;
+- Fase 4 — aprendizagem contínua.
 
-- Criar endpoint Lovable AI para gerar opções com base em:
-  - legenda;
-  - rede;
-  - tipo de post;
-  - limite de caracteres da rede.
-
-### Teste isolado
-
-- Testar Instagram, LinkedIn e Facebook.
-- Confirmar respeito pelos limites de caracteres.
-- Confirmar que escolher opção preenche apenas o campo certo.
+Essas fases ficam depois da Fase 1 estar funcional e testada em rascunho real.
 
 ---
 
-## Fase 3.1 — SRT, capítulos e frases citáveis
+## Riscos/decisões a ter em conta
 
-### UI
-
-- No painel do vídeo, adicionar botão “Ferramentas de IA”.
-- Menu com:
-  - “Gerar ficheiro SRT”;
-  - “Gerar capítulos”;
-  - “Extrair frases citáveis”.
-- Se não houver transcrição, oferecer gerar primeiro.
-
-### Backend
-
-- Reutilizar `raw_transcription` da Fase 1.
-- Para SRT, guardar/gerar ficheiro `.srt` descarregável.
-- Para capítulos, devolver lista com timestamps e títulos.
-- Para frases citáveis, reaproveitar ou gerar 2-3 frases.
-
-### Teste isolado
-
-- Testar vídeo com transcrição existente.
-- Testar vídeo sem transcrição.
-- Confirmar download de `.srt`.
-
----
-
-## Fase 4 — Aprendizagem contínua
-
-### 4.1 Dados e classificação
-
-- Criar tabela `post_performance` com:
-  - `post_id`, `network`, `engagement_rate`, `classification`, `captured_at`, `features_extracted`.
-- Criar função agendada para correr a cada 6 horas.
-- Recolher métricas onde houver fonte real disponível.
-- Calcular:
-  - `engagement_rate = (likes + 2*comentários + 3*partilhas + 2*guardados) / alcance`.
-- Classificar face à média móvel dos últimos 30 posts da mesma conta/rede.
-
-### 4.2 Features dos posts
-
-- Extrair:
-  - começa com pergunta;
-  - começa com número;
-  - emoji no início;
-  - número de hashtags;
-  - tem primeiro comentário;
-  - comprimento da legenda;
-  - hora/dia de publicação;
-  - formato;
-  - tom detetado por IA.
-
-### 4.3 Insights
-
-- Criar tabela `account_insights`.
-- Gerar insights semanais apenas com:
-  - amostra mínima de 20 posts;
-  - diferença estatisticamente relevante, p < 0.1.
-
-### 4.4 Banner no `/manual-create`
-
-- Mostrar um banner discreto acima da legenda com o insight mais relevante.
-- Máximo um banner por sessão.
-- Ações:
-  - “Sim, sugere uma”;
-  - “Não, obrigado”;
-  - “Nunca mostrar”.
-- Guardar dispensas e bloquear por 30 dias após 3 recusas seguidas.
-
-### 4.5 Página `/insights`
-
-- Nova rota com:
-  - lista de insights;
-  - filtros por rede e tipo;
-  - gráficos simples;
-  - exportação PDF mensal.
-
-### Teste isolado
-
-- Testar com dados reais existentes onde possível.
-- Testar fallback sem métricas disponíveis.
-- Confirmar que insights não são inventados sem amostra suficiente.
-
----
-
-## Custos e créditos de IA
-
-- Criar tabela de consumo de IA por utilizador.
-- Registar ações:
-  - transcrição: 1 crédito/minuto;
-  - geração de campos: 2 créditos;
-  - reescrita por tom: 1 crédito;
-  - alt text: 0,5 créditos/imagem;
-  - primeiro comentário: 1 crédito.
-- Mostrar CTA de upgrade quando esgotar, sem destruir o fluxo manual.
-- Como os planos/créditos mensais ainda serão definidos depois, vou implementar a infraestrutura com limites configuráveis.
-
----
-
-## Preferências de IA
-
-- Criar secção “Preferências de IA” no perfil/definições.
-- Campos:
-  - idioma preferido, default PT-PT;
-  - tom por defeito;
-  - hashtags de marca fixas;
-  - ativar/desativar banners de insights.
-
----
-
-## Ordem de implementação proposta
-
-1. Fase 1 — Assistente desde upload.
-2. Fase 3.2 — Reescrita por tom.
-3. Fase 3.4 — Alt text automático.
-4. Fase 2 — Hashtags inteligentes sem scores inventados.
-5. Fase 3.3 — Primeiro comentário com IA.
-6. Fase 3.1 — SRT, capítulos e frases citáveis.
-7. Fase 4 — Aprendizagem contínua e página `/insights`.
+- A transcrição de vídeo no browser para backend pode ser pesada. Se o ficheiro for grande, pode ser necessário usar URL já carregada em storage em vez de enviar o ficheiro diretamente para a função.
+- Os buckets estão atualmente públicos; a Fase 1 pode usar o comportamento existente, mas isto deve ser revisto na correção de segurança seguinte.
+- A geração de hashtags será inicialmente editorial/contextual, sem scores de saturação inventados. Scores reais só entram na Fase 2 com `hashtag_intelligence` verificada.
 
 ---
 
 ## Checkpoint
 
-- ☐ Card “Queres que a IA prepare tudo por ti?” aparece só para vídeos elegíveis.
-- ☐ Transcrição é gerada, guardada em rascunho e acessível via “Ver transcrição”.
-- ☐ IA preenche legenda, variantes por rede, hashtags, primeiro comentário, alt text e título.
-- ☐ Reescrita por tom funciona com histórico de 5 versões.
-- ☐ Alt text automático funciona para imagem e primeiro frame de vídeo.
-- ☐ Hashtags sugeridas funcionam sem inventar scores.
-- ☐ Hashtags de marca são configuráveis nas preferências.
-- ☐ Primeiro comentário por IA mostra 3 opções antes de inserir.
-- ☐ SRT, capítulos e frases citáveis reutilizam a transcrição guardada.
-- ☐ Créditos de IA são registados por ação.
-- ☐ Erros de IA não bloqueiam publicação manual.
-- ☐ Fase 4 só gera insights com dados reais e amostra mínima.
-- ☐ Nova página `/insights` lista e exporta conclusões reais.
-- ☐ Interface mantém pt-PT, visual compacto e mobile-first.
+☐ Diagnóstico do estado atual concluído  
+☐ Confirmado que as funções backend de IA estão vazias  
+☐ Confirmado que os componentes de IA existem mas não estão ligados ao fluxo  
+☐ Plano propõe executar apenas a Fase 1 funcional  
+☐ Correções de segurança ficam bloqueadas até aprovação específica  
+☐ A aguardar aprovação para implementar
