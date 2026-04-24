@@ -1,4 +1,4 @@
-import { forwardRef, useImperativeHandle, useRef, useState, type PointerEvent } from 'react';
+import { forwardRef, useImperativeHandle, useMemo, useRef, useState, type PointerEvent } from 'react';
 import { Info, Link2, Plus, Settings2, Sparkles, Trash2 } from 'lucide-react';
 import { SocialNetwork } from '@/types/social';
 import { NetworkOptionField, NetworkOptions, firstCommentLimit } from '@/types/networkOptions';
@@ -7,8 +7,9 @@ import { cn } from '@/lib/utils';
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@/components/ui/accordion';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { CardContent } from '@/components/ui/card';
 import { Checkbox } from '@/components/ui/checkbox';
+import { SectionCard, SectionState } from '@/components/manual-post/ui/SectionCard';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Drawer, DrawerContent, DrawerHeader, DrawerTitle } from '@/components/ui/drawer';
 import { Input } from '@/components/ui/input';
@@ -42,6 +43,11 @@ interface NetworkOptionsCardProps {
   disabled?: boolean;
   generatedAt?: string | null;
   generatedEdited?: Record<string, boolean>;
+  /** Estado para o padrão de progressive disclosure. */
+  state?: SectionState;
+  stepNumber?: number;
+  onActivate?: () => void;
+  onEdit?: () => void;
 }
 
 const youtubeCategories = [
@@ -78,9 +84,13 @@ export const NetworkOptionsCard = forwardRef<NetworkOptionsCardHandle, NetworkOp
   disabled,
   generatedAt,
   generatedEdited = {},
+  state = 'active',
+  stepNumber,
+  onActivate,
+  onEdit,
 }, ref) {
-  const [rootOpen, setRootOpen] = useState<string[]>([]);
-  const [openNetworks, setOpenNetworks] = useState<string[]>([]);
+  // Sub-acordeões single-expand: apenas uma rede aberta de cada vez.
+  const [openNetwork, setOpenNetwork] = useState<string>('');
   const [draftCollaborator, setDraftCollaborator] = useState('');
   const [mentionProfile, setMentionProfile] = useState('');
   const [mentionName, setMentionName] = useState('');
@@ -97,8 +107,8 @@ export const NetworkOptionsCard = forwardRef<NetworkOptionsCardHandle, NetworkOp
 
   useImperativeHandle(ref, () => ({
     focusField: (network, field) => {
-      setRootOpen(['network-options']);
-      setOpenNetworks(prev => Array.from(new Set([...prev, network])));
+      onActivate?.();
+      setOpenNetwork(network);
       requestAnimationFrame(() => fieldRefs.current[fieldKey(network, field)]?.focus());
     },
   }));
@@ -227,11 +237,70 @@ export const NetworkOptionsCard = forwardRef<NetworkOptionsCardHandle, NetworkOp
     }
   })();
 
-  const renderNetworkHeader = (network: SocialNetwork) => {
-    const info = NETWORK_INFO[network];
-    const Icon = info.icon;
-    return <span className="flex items-center gap-2"><Icon className="h-4 w-4 shrink-0" style={{ color: info.color }} strokeWidth={1.5} />{info.name}</span>;
+  // ── Resumo por rede (badges + summary agregado) ────────────────────────
+  const networkSummaryTokens = (network: SocialNetwork): string[] => {
+    const tokens: string[] = [];
+    if (network === 'instagram') {
+      const opts = networkOptions.instagram ?? {};
+      if (isStoryLinkSelected) {
+        if (opts.storyLinkUrl) tokens.push('Link OK');
+        if (opts.storyLinkStickerText) tokens.push('Sticker');
+        if (opts.storyLinkOverlayText) tokens.push('Overlay');
+      } else {
+        if (opts.formatVariant && opts.formatVariant !== 'feed') tokens.push(opts.formatVariant);
+        if (opts.firstComment?.trim()) tokens.push('1.º comentário');
+        if ((opts.collaborators?.length ?? 0) > 0) tokens.push(`${opts.collaborators!.length} colab.`);
+        if ((opts.photoTags?.length ?? 0) > 0) tokens.push(`${opts.photoTags!.length} tag(s)`);
+      }
+    } else if (network === 'linkedin') {
+      const opts = networkOptions.linkedin ?? {};
+      if (opts.firstComment?.trim()) tokens.push('1.º comentário');
+      if ((opts.mentions?.length ?? 0) > 0) tokens.push(`${opts.mentions!.length} menção(ões)`);
+      if (opts.disableLinkPreview) tokens.push('sem preview');
+    } else if (network === 'facebook') {
+      const opts = networkOptions.facebook ?? {};
+      if (opts.formatVariant && opts.formatVariant !== 'feed') tokens.push(opts.formatVariant);
+      if (opts.firstComment?.trim()) tokens.push('1.º comentário');
+    } else if (network === 'youtube') {
+      const opts = networkOptions.youtube ?? {};
+      if (opts.title?.trim()) tokens.push('título');
+      if ((opts.tags?.length ?? 0) > 0) tokens.push(`${opts.tags!.length} tag(s)`);
+      if (opts.visibility && opts.visibility !== 'public') tokens.push(opts.visibility);
+    } else if (network === 'googlebusiness') {
+      const opts = networkOptions.googlebusiness ?? {};
+      if (opts.ctaEnabled) tokens.push('CTA');
+    }
+    return tokens;
   };
+
+  const aggregatedSummary = useMemo(() => {
+    const parts = selectedNetworks
+      .map((network) => ({ network, tokens: networkSummaryTokens(network) }))
+      .filter((entry) => entry.tokens.length > 0);
+
+    if (parts.length === 0) {
+      return <span className="text-muted-foreground">Sem opções configuradas — vais usar os predefinidos.</span>;
+    }
+
+    return (
+      <div className="flex flex-wrap items-center gap-2">
+        {parts.map(({ network, tokens }) => {
+          const info = NETWORK_INFO[network];
+          const Icon = info.icon;
+          return (
+            <span key={network} className="inline-flex items-center gap-1.5 rounded-md bg-muted/50 px-2 py-1 text-xs">
+              <Icon className="h-3.5 w-3.5" style={{ color: info.color }} strokeWidth={1.5} />
+              <span className="font-medium">{info.name}</span>
+              <span className="text-muted-foreground">·</span>
+              <span className="text-muted-foreground">{tokens.join(' · ')}</span>
+            </span>
+          );
+        })}
+      </div>
+    );
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [selectedNetworks, networkOptions, isStoryLinkSelected]);
+
 
   const renderInstagram = () => (
     <div className="manual-group-stack">
@@ -312,19 +381,81 @@ export const NetworkOptionsCard = forwardRef<NetworkOptionsCardHandle, NetworkOp
 
   if (selectedNetworks.length === 0) return null;
 
+  const renderNetworkBody = (network: SocialNetwork) => {
+    if (network === 'instagram') return renderInstagram();
+    if (network === 'linkedin') return renderLinkedIn();
+    if (network === 'facebook') return renderFacebook();
+    if (network === 'youtube') return renderYoutube();
+    if (network === 'googlebusiness') return renderGoogleBusiness();
+    return null;
+  };
+
   return (
-    <Card className="manual-card-shell manual-enter">
-      <Accordion type="multiple" value={rootOpen} onValueChange={setRootOpen}>
-        <AccordionItem value="network-options" className="border-b-0">
-          <CardHeader className="manual-card-content pb-0"><AccordionTrigger className="min-h-11 py-0 hover:no-underline"><CardTitle className="manual-section-title manual-card-title-row"><span className="manual-icon-box"><Settings2 className="h-5 w-5" strokeWidth={1.5} /></span><span>Opções por rede</span></CardTitle></AccordionTrigger></CardHeader>
-          <AccordionContent className="manual-card-content pt-4">
-            <CardContent className="p-0"><Accordion type="multiple" value={openNetworks} onValueChange={setOpenNetworks} className="space-y-2">{selectedNetworks.map(network => <AccordionItem key={network} value={network} className="rounded-lg border border-border/60 bg-muted/20 px-3"><AccordionTrigger ref={setFieldRef(fieldKey(network)) as React.Ref<HTMLButtonElement>} className="min-h-11 hover:no-underline focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2">{renderNetworkHeader(network)}</AccordionTrigger><AccordionContent className="pt-2 pb-3">{network === 'instagram' && renderInstagram()}{network === 'linkedin' && renderLinkedIn()}{network === 'facebook' && renderFacebook()}{network === 'youtube' && renderYoutube()}{network === 'googlebusiness' && renderGoogleBusiness()}</AccordionContent></AccordionItem>)}</Accordion></CardContent>
-          </AccordionContent>
-        </AccordionItem>
-      </Accordion>
+    <SectionCard
+      id="network-options"
+      stepNumber={stepNumber}
+      title="Opções por rede"
+      icon={Settings2}
+      state={state}
+      onActivate={onActivate}
+      onEdit={onEdit}
+      summary={aggregatedSummary}
+    >
+      <CardContent className="manual-card-content p-0">
+        <Accordion
+          type="single"
+          collapsible
+          value={openNetwork}
+          onValueChange={setOpenNetwork}
+          className="space-y-2"
+        >
+          {selectedNetworks.map((network) => {
+            const info = NETWORK_INFO[network];
+            const Icon = info.icon;
+            const tokens = networkSummaryTokens(network);
+            return (
+              <AccordionItem
+                key={network}
+                value={network}
+                className="rounded-lg border border-border/60 bg-muted/20 px-3"
+              >
+                <AccordionTrigger
+                  ref={setFieldRef(fieldKey(network)) as React.Ref<HTMLButtonElement>}
+                  className="min-h-11 hover:no-underline focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2"
+                >
+                  <span className="flex flex-1 items-center justify-between gap-3 pr-2">
+                    <span className="flex items-center gap-2">
+                      <Icon className="h-4 w-4 shrink-0" style={{ color: info.color }} strokeWidth={1.5} />
+                      <span>{info.name}</span>
+                    </span>
+                    {tokens.length > 0 && (
+                      <span className="hidden flex-wrap justify-end gap-1 sm:flex">
+                        {tokens.slice(0, 3).map((token) => (
+                          <Badge key={token} variant="secondary" className="px-1.5 py-0 text-[10px] font-normal">
+                            {token}
+                          </Badge>
+                        ))}
+                        {tokens.length > 3 && (
+                          <Badge variant="secondary" className="px-1.5 py-0 text-[10px] font-normal">
+                            +{tokens.length - 3}
+                          </Badge>
+                        )}
+                      </span>
+                    )}
+                  </span>
+                </AccordionTrigger>
+                <AccordionContent className="pt-2 pb-3">
+                  {renderNetworkBody(network)}
+                </AccordionContent>
+              </AccordionItem>
+            );
+          })}
+        </Accordion>
+      </CardContent>
+
       <Dialog open={tagModalOpen} onOpenChange={setTagModalOpen}><DialogContent className="hidden sm:block"><DialogHeader><DialogTitle>Adicionar tag na fotografia</DialogTitle><DialogDescription>Define a pessoa e o slide onde a tag será aplicada.</DialogDescription></DialogHeader><div className="manual-group-stack"><div className="flex gap-2 rounded-md border border-primary/30 bg-primary/5 p-3 text-sm text-muted-foreground"><Info className="mt-0.5 h-4 w-4 shrink-0 text-primary" strokeWidth={1.5} />Nesta versão, a tag é adicionada automaticamente ao ponto escolhido.</div><Input className="manual-input-radius" value={photoTagUsername} onChange={(e) => setPhotoTagUsername(e.target.value)} placeholder="@username" autoCapitalize="none" autoCorrect="off" />{mediaPreviewUrls.length > 1 && <Select value={photoTagSlide} onValueChange={setPhotoTagSlide}><SelectTrigger className="manual-input-radius"><SelectValue /></SelectTrigger><SelectContent>{mediaPreviewUrls.map((_, index) => <SelectItem key={index} value={String(index)}>Slide {index + 1}</SelectItem>)}</SelectContent></Select>}<Button type="button" onClick={addPhotoTagAtCenter}>Confirmar tag</Button></div></DialogContent></Dialog>
       <Drawer open={tagModalOpen} onOpenChange={setTagModalOpen}><DrawerContent className="manual-mobile-sheet-safe sm:hidden"><DrawerHeader className="border-b pb-3 text-left"><DrawerTitle>Adicionar tag</DrawerTitle></DrawerHeader><div className="manual-group-stack p-4"><div className="relative max-h-[42vh] touch-pan-x touch-pan-y overflow-hidden rounded-lg border bg-muted" onPointerDown={handlePhotoTagTap}>{mediaPreviewUrls[Number(photoTagSlide)] ? <img src={mediaPreviewUrls[Number(photoTagSlide)]} alt="Imagem para marcar tag" className="h-full max-h-[42vh] w-full object-contain" /> : <div className="flex h-48 items-center justify-center text-sm text-muted-foreground">Sem imagem</div>}<span className="absolute h-4 w-4 -translate-x-1/2 -translate-y-1/2 rounded-full border-2 border-primary-foreground bg-primary shadow-lg motion-safe:animate-pulse" style={{ left: `${photoTagPoint.x * 100}%`, top: `${photoTagPoint.y * 100}%` }} /></div><Input className="manual-input-radius manual-scroll-anchor min-h-11" value={photoTagUsername} onChange={(e) => setPhotoTagUsername(e.target.value)} placeholder="@username" autoCapitalize="none" autoCorrect="off" />{mediaPreviewUrls.length > 1 && <Select value={photoTagSlide} onValueChange={setPhotoTagSlide}><SelectTrigger className="manual-input-radius min-h-11"><SelectValue /></SelectTrigger><SelectContent>{mediaPreviewUrls.map((_, index) => <SelectItem key={index} value={String(index)}>Slide {index + 1}</SelectItem>)}</SelectContent></Select>}<Button type="button" className="manual-touch-target sticky bottom-0" onClick={addPhotoTagAtCenter}>Confirmar tag</Button></div></DrawerContent></Drawer>
       <FirstCommentOptionsDialog open={!!commentTarget} options={commentOptions} onOpenChange={(open) => !open && setCommentTarget(null)} onSelect={(text) => { if (commentTarget) updateNetwork(commentTarget, { firstComment: text } as never); setCommentTarget(null); }} />
-    </Card>
+    </SectionCard>
   );
 });

@@ -1,4 +1,3 @@
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Label } from '@/components/ui/label';
 import { Badge } from '@/components/ui/badge';
@@ -8,16 +7,8 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { addDays, nextDay, format } from 'date-fns';
 import { pt } from 'date-fns/locale';
 import { cn } from '@/lib/utils';
-import {
-  CalendarIcon,
-  ChevronLeft,
-  CheckCircle2,
-  Clock,
-  Mail,
-  Globe,
-  Rocket,
-} from 'lucide-react';
-import { SectionHelp, getSectionTooltip } from '@/components/manual-post/SectionHelp';
+import { CalendarIcon, CheckCircle2, Clock, Mail, Globe, Rocket } from 'lucide-react';
+import { SectionCard, SectionState } from '@/components/manual-post/ui/SectionCard';
 
 interface Step3ScheduleCardProps {
   scheduleAsap: boolean;
@@ -26,13 +17,25 @@ interface Step3ScheduleCardProps {
   onScheduledDateChange: (date: Date | undefined) => void;
   time: string;
   onTimeChange: (time: string) => void;
-  onPreviousStep: () => void;
   storyLinkMode?: boolean;
+  /** Estado para o padrão de progressive disclosure. */
+  state?: SectionState;
+  stepNumber?: number;
+  onActivate?: () => void;
+  onEdit?: () => void;
 }
 
 /**
- * Cartão de agendamento (Step 3b). Toggle "Agora" vs "Agendar" + atalhos de
- * data, calendário, selectores hora/min, presets de hora e preview agendado.
+ * Cartão de agendamento (Step 3b) integrado no padrão de progressive
+ * disclosure. Toggle "Agora" vs "Agendar" + atalhos de data, calendário,
+ * selectores hora/min, presets de hora.
+ *
+ * Removido o card redundante de "Publicar agora" — quando `scheduleAsap`
+ * é true, basta o toggle e uma única linha de confirmação.
+ *
+ * Esta secção usa `neverAutoCollapse` na SectionCard porque o utilizador
+ * costuma alternar várias vezes entre "agora" e "agendar" antes de
+ * publicar — colapsar prematuramente atrapalha o fluxo.
  */
 export function Step3ScheduleCard(props: Step3ScheduleCardProps) {
   const {
@@ -42,21 +45,44 @@ export function Step3ScheduleCard(props: Step3ScheduleCardProps) {
     onScheduledDateChange,
     time,
     onTimeChange,
-    onPreviousStep,
     storyLinkMode = false,
+    state = 'active',
+    stepNumber,
+    onActivate,
+    onEdit,
   } = props;
 
+  // Resumo mostrado no estado `complete` da SectionCard (caso esteja activo).
+  const summary = scheduleAsap ? (
+    <span className="flex items-center gap-2 text-foreground">
+      <Rocket className="h-4 w-4 text-primary" />
+      {storyLinkMode ? 'Pacote abre imediatamente' : 'Publicar imediatamente'}
+    </span>
+  ) : scheduledDate ? (
+    <span className="flex items-center gap-2 text-foreground">
+      <CalendarIcon className="h-4 w-4 text-primary" />
+      <span className="capitalize">
+        {format(scheduledDate, "EEEE, d 'de' MMM 'às'", { locale: pt })} {time}
+      </span>
+      <span className="text-muted-foreground">· Lisboa</span>
+    </span>
+  ) : (
+    <span className="text-muted-foreground">Por definir</span>
+  );
+
   return (
-    <Card className="manual-card-shell w-full max-w-full">
-      <CardHeader className="manual-card-content pb-3">
-        <CardTitle className="manual-section-title manual-card-title-row">
-          <span className="manual-icon-box"><CalendarIcon className="h-5 w-5" strokeWidth={1.5} /></span>
-          <span>{storyLinkMode ? 'Quando queres publicar?' : 'Agendamento'}</span>
-          <SectionHelp content={getSectionTooltip('scheduling')} />
-        </CardTitle>
-        <CardDescription className="manual-section-description">{storyLinkMode ? 'Define se queres abrir o pacote já ou receber um lembrete.' : 'Define quando publicar'}</CardDescription>
-      </CardHeader>
-      <CardContent className="manual-card-content manual-group-stack pt-0">
+    <SectionCard
+      id="schedule"
+      stepNumber={stepNumber}
+      title={storyLinkMode ? 'Quando queres publicar?' : 'Agendamento'}
+      icon={CalendarIcon}
+      state={state}
+      onActivate={onActivate}
+      onEdit={onEdit}
+      summary={summary}
+      neverAutoCollapse
+    >
+      <div className="manual-group-stack">
         {/* Toggle Pill Style */}
         <div className="flex gap-1 rounded-lg bg-muted/60 p-1">
           <button
@@ -89,12 +115,15 @@ export function Step3ScheduleCard(props: Step3ScheduleCardProps) {
         </div>
 
         {scheduleAsap ? (
-          <div className="space-y-2 py-3 text-center">
-            <div className="inline-flex items-center gap-2 text-sm text-muted-foreground bg-muted/50 px-4 py-2 rounded-lg">
-              <Rocket className="h-4 w-4 text-primary" />
-              <span>{storyLinkMode ? 'O pacote abre imediatamente para publicares manualmente.' : 'Publicação imediata após clicares em Publicar'}</span>
-            </div>
-          </div>
+          // Linha simples — sem card redundante
+          <p className="flex items-center justify-center gap-2 py-2 text-sm text-muted-foreground">
+            <Rocket className="h-4 w-4 text-primary" />
+            <span>
+              {storyLinkMode
+                ? 'O pacote abre imediatamente para publicares manualmente.'
+                : 'A publicação ocorre assim que clicares em Publicar.'}
+            </span>
+          </p>
         ) : (
           <div className="manual-group-stack manual-enter">
             {/* Timezone indicator */}
@@ -106,68 +135,29 @@ export function Step3ScheduleCard(props: Step3ScheduleCardProps) {
               <span>{format(new Date(), 'HH:mm', { locale: pt })}</span>
             </div>
 
-            {/* Quick date shortcuts */}
+            {/* Quick date shortcuts — 44px touch targets */}
             <div className="manual-field-stack">
               <Label className="manual-field-label text-muted-foreground">Atalhos rápidos</Label>
-              <div className="grid grid-cols-2 gap-1 xs:gap-1.5">
-                <Button
-                  type="button"
-                  variant="outline"
-                  size="sm"
-                  onClick={() => onScheduledDateChange(new Date())}
-                  className={cn(
-                    'h-8 text-xs',
-                    scheduledDate &&
-                      format(scheduledDate, 'yyyy-MM-dd') === format(new Date(), 'yyyy-MM-dd') &&
-                      'bg-primary/10 border-primary/50',
-                  )}
-                >
-                  Hoje
-                </Button>
-                <Button
-                  type="button"
-                  variant="outline"
-                  size="sm"
-                  onClick={() => onScheduledDateChange(addDays(new Date(), 1))}
-                  className={cn(
-                    'h-8 text-xs',
-                    scheduledDate &&
-                      format(scheduledDate, 'yyyy-MM-dd') === format(addDays(new Date(), 1), 'yyyy-MM-dd') &&
-                      'bg-primary/10 border-primary/50',
-                  )}
-                >
-                  Amanhã
-                </Button>
-                <Button
-                  type="button"
-                  variant="outline"
-                  size="sm"
-                  onClick={() => onScheduledDateChange(nextDay(new Date(), 2))}
-                  className={cn(
-                    'h-8 text-xs',
-                    scheduledDate &&
-                      scheduledDate.getDay() === 2 &&
-                      scheduledDate > new Date() &&
-                      'bg-primary/10 border-primary/50',
-                  )}
-                >
-                  Terça
-                </Button>
-                <Button
-                  type="button"
-                  variant="outline"
-                  size="sm"
-                  onClick={() => onScheduledDateChange(nextDay(new Date(), 4))}
-                  className={cn(
-                    'h-8 text-xs',
-                    scheduledDate &&
-                      scheduledDate.getDay() === 4 &&
-                      scheduledDate > new Date() &&
-                      'bg-primary/10 border-primary/50',
-                  )}
-                >
-                  Quinta
-                </Button>
+              <div className="grid grid-cols-2 gap-1.5 xs:gap-2">
+                {([
+                  { label: 'Hoje', date: new Date(), match: (d: Date) => format(d, 'yyyy-MM-dd') === format(new Date(), 'yyyy-MM-dd') },
+                  { label: 'Amanhã', date: addDays(new Date(), 1), match: (d: Date) => format(d, 'yyyy-MM-dd') === format(addDays(new Date(), 1), 'yyyy-MM-dd') },
+                  { label: 'Terça', date: nextDay(new Date(), 2), match: (d: Date) => d.getDay() === 2 && d > new Date() },
+                  { label: 'Quinta', date: nextDay(new Date(), 4), match: (d: Date) => d.getDay() === 4 && d > new Date() },
+                ] as const).map(({ label, date, match }) => (
+                  <Button
+                    key={label}
+                    type="button"
+                    variant="outline"
+                    onClick={() => onScheduledDateChange(date)}
+                    className={cn(
+                      'h-11 text-sm',
+                      scheduledDate && match(scheduledDate) && 'bg-primary/10 border-primary/50',
+                    )}
+                  >
+                    {label}
+                  </Button>
+                ))}
               </div>
             </div>
 
@@ -200,6 +190,7 @@ export function Step3ScheduleCard(props: Step3ScheduleCardProps) {
                     onSelect={onScheduledDateChange}
                     disabled={(date) => date < new Date(new Date().setHours(0, 0, 0, 0))}
                     initialFocus
+                    className={cn('p-3 pointer-events-auto')}
                   />
                 </PopoverContent>
               </Popover>
@@ -241,15 +232,15 @@ export function Step3ScheduleCard(props: Step3ScheduleCardProps) {
                 </Select>
               </div>
 
-              {/* Time presets */}
-            <div className="overflow-x-auto scrollbar-hide pb-1">
+              {/* Time presets — chips de 44px */}
+              <div className="overflow-x-auto scrollbar-hide pb-1">
                 <div className="mt-2 flex w-max gap-1.5 xs:w-auto xs:flex-wrap">
                   {['09:00', '12:00', '15:00', '18:00', '21:00'].map((preset) => (
                     <Badge
                       key={preset}
                       variant="outline"
                       className={cn(
-                        'manual-touch-chip flex-shrink-0 cursor-pointer border transition-colors hover:bg-primary/10',
+                        'flex h-11 min-w-[60px] flex-shrink-0 cursor-pointer items-center justify-center border px-3 text-sm transition-colors hover:bg-primary/10',
                         time === preset && 'bg-primary/10 border-primary/50',
                       )}
                       onClick={() => onTimeChange(preset)}
@@ -272,25 +263,17 @@ export function Step3ScheduleCard(props: Step3ScheduleCardProps) {
                   {format(scheduledDate, "EEEE, d 'de' MMMM 'às'", { locale: pt })} {time}
                 </div>
                 <p className="text-xs text-muted-foreground">Fuso horário de Lisboa (WET/WEST)</p>
-                {storyLinkMode && <p className="flex items-center gap-1 text-xs text-muted-foreground"><Mail className="h-3 w-3" />Pacote enviado por email · 15 min antes, se definido nas preferências.</p>}
+                {storyLinkMode && (
+                  <p className="flex items-center gap-1 text-xs text-muted-foreground">
+                    <Mail className="h-3 w-3" />
+                    Pacote enviado por email · 15 min antes, se definido nas preferências.
+                  </p>
+                )}
               </div>
             )}
           </div>
         )}
-
-        {/* Step 3 Navigation */}
-        <div className="mt-4 flex justify-start border-t border-border/40 pt-4">
-          <Button
-            variant="ghost"
-            size="sm"
-            onClick={onPreviousStep}
-            className="text-muted-foreground hover:text-foreground"
-          >
-            <ChevronLeft className="h-4 w-4 mr-1" />
-            Anterior
-          </Button>
-        </div>
-      </CardContent>
-    </Card>
+      </div>
+    </SectionCard>
   );
 }

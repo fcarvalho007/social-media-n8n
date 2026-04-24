@@ -542,6 +542,27 @@ export default function ManualCreate() {
         ? 'complete'
         : 'inactive';
 
+  // Estados para Opções por rede e Agendamento (Prompt 3/4).
+  const hasOptionsConfigured =
+    selectedNetworks.length > 0 &&
+    Object.values(networkOptions).some((opts) => opts && Object.values(opts).some((v) => Array.isArray(v) ? v.length > 0 : typeof v === 'string' ? v.trim().length > 0 : v === true));
+
+  const optionsState: 'inactive' | 'active' | 'complete' = !showStep3
+    ? 'inactive'
+    : activeSection === 'options'
+      ? 'active'
+      : hasOptionsConfigured
+        ? 'complete'
+        : 'inactive';
+
+  const scheduleState: 'inactive' | 'active' | 'complete' = !showStep3
+    ? 'inactive'
+    : activeSection === 'schedule'
+      ? 'active'
+      : (scheduleAsap || !!scheduledDate)
+        ? 'complete'
+        : 'inactive';
+
   // Note: legacy `getValidationErrors()`/`hasErrors` removed.
   // The smart-validation panel (`smartValidation.canPublish`) is now the
   // single source of truth for blocking publication. Coverage:
@@ -1401,6 +1422,10 @@ export default function ManualCreate() {
               disabled={saving || submitting || publishing}
               generatedAt={assistantGeneratedAt}
               generatedEdited={aiGeneratedEdited}
+              state={optionsState}
+              stepNumber={4}
+              onActivate={() => activate('options')}
+              onEdit={() => activate('options')}
             />
 
             <Step3ScheduleCard
@@ -1410,8 +1435,11 @@ export default function ManualCreate() {
               onScheduledDateChange={setScheduledDate}
               time={time}
               onTimeChange={setTime}
-              onPreviousStep={previousStep}
               storyLinkMode={selectedFormats.includes('instagram_story_link')}
+              state={scheduleState}
+              stepNumber={5}
+              onActivate={() => activate('schedule')}
+              onEdit={() => activate('schedule')}
             />
 
             {/* Actions - Reorganized Hierarchy - Hidden on mobile (use bottom bar) */}
