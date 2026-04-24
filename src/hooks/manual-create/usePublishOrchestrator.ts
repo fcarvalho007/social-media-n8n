@@ -430,6 +430,8 @@ export function usePublishOrchestrator(params: OrchestratorParams) {
           formats: selectedFormats,
           network_captions: useSeparateCaptions ? networkCaptions : undefined,
           network_options: networkOptions,
+          raw_transcription: rawTranscription || undefined,
+          ai_metadata: aiMetadata || undefined,
         },
       });
 
@@ -457,6 +459,8 @@ export function usePublishOrchestrator(params: OrchestratorParams) {
         caption,
         linkedin_body: useSeparateCaptions && networkCaptions.linkedin ? networkCaptions.linkedin : null,
         network_options: JSON.parse(JSON.stringify(networkOptions)),
+        raw_transcription: rawTranscription || null,
+        ai_metadata: JSON.parse(JSON.stringify(aiMetadata ?? {})),
         scheduled_date: scheduledDate?.toISOString() || null,
         schedule_asap: scheduleAsap,
         status: 'waiting_for_approval',
@@ -523,6 +527,7 @@ export function usePublishOrchestrator(params: OrchestratorParams) {
   }, [
     selectedFormats, smartValidation.canPublish, mediaFiles, scheduleAsap,
     scheduledDate, time, useSeparateCaptions, networkCaptions, networkOptions, caption,
+    rawTranscription, aiMetadata,
     selectedNetworks, currentDraftId,
     setValidationSheetOpen, setUploadProgress, setCaption, setMediaFiles,
     setMediaPreviewUrls, setScheduledDate, setTime, setScheduleAsap,
@@ -562,6 +567,8 @@ export function usePublishOrchestrator(params: OrchestratorParams) {
       recoveredFromPostId: recoveredPostId || undefined,
       networkCaptions: useSeparateCaptions ? networkCaptions : undefined,
       networkOptions,
+      rawTranscription,
+      aiMetadata,
     };
 
     const result = await executePublish(publishParams);
@@ -578,7 +585,7 @@ export function usePublishOrchestrator(params: OrchestratorParams) {
   }, [
     selectedFormats, smartValidation.canPublish, mediaFiles, selectedNetworks,
     compression, quota, caption, scheduledDate, time, scheduleAsap,
-    recoveredPostId, useSeparateCaptions, networkCaptions, networkOptions, executePublish,
+    recoveredPostId, useSeparateCaptions, networkCaptions, networkOptions, rawTranscription, aiMetadata, executePublish,
     setValidationSheetOpen, onDuplicateDetected, consumeCurrentDraft,
   ]);
 
