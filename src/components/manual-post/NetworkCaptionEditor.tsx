@@ -268,11 +268,68 @@ export const NetworkCaptionEditor = forwardRef<NetworkCaptionEditorHandle, Netwo
       </div>
 
       {showToneToolbar && (
-        <CaptionToneToolbar
-          loadingAction={toneRewriteLoading}
-          disabled={disabled}
-          onRewrite={onRewriteTone}
-        />
+        <div className="flex justify-end">
+          <Popover>
+            <PopoverTrigger asChild>
+              <Button
+                type="button"
+                variant="ghost"
+                size="sm"
+                disabled={disabled || !!toneRewriteLoading}
+                className="h-9 gap-1.5 border border-primary/20 bg-primary/5 px-3 text-xs hover:bg-primary/10"
+                title="Ajustar tom da legenda"
+              >
+                {toneRewriteLoading ? (
+                  <Loader2 className="h-3.5 w-3.5 animate-spin" strokeWidth={1.5} />
+                ) : (
+                  <Wand2 className="h-3.5 w-3.5 text-primary" strokeWidth={1.5} />
+                )}
+                Ajustar tom
+              </Button>
+            </PopoverTrigger>
+            <PopoverContent align="end" side="top" className="w-72 p-2">
+              <div className="space-y-1">
+                <p className="px-2 py-1 text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
+                  Ajustar tom da legenda
+                </p>
+                {TONE_OPTIONS.map((option, idx) => {
+                  const Icon = option.icon;
+                  const isLoading = toneRewriteLoading === option.id;
+                  const isSeparator = idx === 5; // separar tons absolutos dos por-rede
+                  return (
+                    <div key={option.id}>
+                      {isSeparator && <Separator className="my-1" />}
+                      <button
+                        type="button"
+                        disabled={disabled || !!toneRewriteLoading}
+                        onClick={() => onRewriteTone?.(option.id)}
+                        className={cn(
+                          'flex w-full items-start gap-2.5 rounded-md px-2 py-2 text-left text-sm transition-colors',
+                          'hover:bg-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring',
+                          'disabled:cursor-not-allowed disabled:opacity-60',
+                        )}
+                      >
+                        {isLoading ? (
+                          <Loader2 className="mt-0.5 h-4 w-4 shrink-0 animate-spin text-primary" strokeWidth={1.5} />
+                        ) : (
+                          <Icon className="mt-0.5 h-4 w-4 shrink-0 text-muted-foreground" strokeWidth={1.5} />
+                        )}
+                        <span className="min-w-0 flex-1">
+                          <span className="block font-medium leading-tight">{option.label}</span>
+                          <span className="block text-[11px] text-muted-foreground">{option.description}</span>
+                        </span>
+                      </button>
+                    </div>
+                  );
+                })}
+                <Separator className="my-1" />
+                <p className="px-2 py-1 text-[11px] text-muted-foreground">
+                  Consome 1 crédito de IA por uso.
+                </p>
+              </div>
+            </PopoverContent>
+          </Popover>
+        </div>
       )}
 
       {/* Unified Caption or Network Tabs */}
