@@ -1050,8 +1050,8 @@ export default function ManualCreate() {
 
   // Render preview delegated to extracted helper (Phase 4)
   const renderPreview = useCallback(
-    (format: PostFormat) => renderFormatPreview(format, { caption, networkCaptions, useSeparateCaptions, mediaFiles, mediaPreviewUrls, mediaItems }),
-    [caption, networkCaptions, useSeparateCaptions, mediaFiles, mediaPreviewUrls, mediaItems],
+    (format: PostFormat) => renderFormatPreview(format, { caption, networkCaptions, useSeparateCaptions, mediaFiles, mediaPreviewUrls, mediaItems, networkOptions }),
+    [caption, networkCaptions, useSeparateCaptions, mediaFiles, mediaPreviewUrls, mediaItems, networkOptions],
   );
 
   const [mobilePreviewState, setMobilePreviewState] = useState<'closed' | 'peek' | 'expanded'>('closed');
