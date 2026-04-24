@@ -412,7 +412,7 @@ export const NetworkOptionsCard = forwardRef<NetworkOptionsCardHandle, NetworkOp
           {selectedNetworks.map((network) => {
             const info = NETWORK_INFO[network];
             const Icon = info.icon;
-            const tokens = networkSummary(network);
+            const tokens = networkSummaryTokens(network);
             return (
               <AccordionItem
                 key={network}
