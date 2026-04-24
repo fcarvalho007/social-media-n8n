@@ -1156,6 +1156,7 @@ export default function ManualCreate() {
             }}
             onGenerateAltText={generateAltTextForMedia}
             altTextLoadingKey={altTextLoadingKey}
+            videoToolsLoadingAction={videoToolsLoadingAction}
             onGenerateSrt={handleGenerateSrt}
             onGenerateChapters={handleGenerateChapters}
             onExtractQuotes={handleExtractQuotes}
@@ -1447,6 +1448,12 @@ export default function ManualCreate() {
         onRewrittenTextChange={(value) => setRewritePreview(prev => prev ? { ...prev, rewrittenText: value } : prev)}
         onApply={handleApplyRewrite}
         onKeepOriginal={() => setRewritePreview(null)}
+      />
+
+      <VideoToolsReviewDialog
+        result={videoToolsReview}
+        onOpenChange={(open) => { if (!open) setVideoToolsReview(null); }}
+        onCopy={copyVideoToolsReview}
       />
     </div>
   );
