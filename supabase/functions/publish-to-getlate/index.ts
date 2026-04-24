@@ -47,6 +47,40 @@ interface PublishPayload {
   publish_immediately: boolean;
   post_id?: string;  // Optional post ID for tracking failures
   idempotency_key?: string; // Unique key to prevent duplicate publications
+  network_options?: NetworkOptions;
+}
+
+type InstagramFormatVariant = 'feed' | 'story' | 'reel' | 'carousel';
+type FacebookFormatVariant = 'feed' | 'story' | 'reel';
+type YouTubeVisibility = 'public' | 'unlisted' | 'private';
+type GoogleBusinessCtaType = 'book' | 'order_online' | 'buy' | 'learn_more' | 'sign_up' | 'call_now';
+
+interface NetworkOptions {
+  instagram?: {
+    firstComment?: string;
+    collaborators?: string[];
+    formatVariant?: InstagramFormatVariant;
+    photoTags?: Array<{ username?: string; x?: number; y?: number; slideIndex?: number; mediaIndex?: number }>;
+  };
+  linkedin?: {
+    firstComment?: string;
+    disableLinkPreview?: boolean;
+  };
+  facebook?: {
+    firstComment?: string;
+    formatVariant?: FacebookFormatVariant;
+  };
+  youtube?: {
+    title?: string;
+    visibility?: YouTubeVisibility;
+    categoryId?: string;
+    category?: string;
+  };
+  googlebusiness?: {
+    ctaEnabled?: boolean;
+    ctaType?: GoogleBusinessCtaType;
+    ctaUrl?: string;
+  };
 }
 
 interface GetlatePostPayload {
@@ -58,7 +92,8 @@ interface GetlatePostPayload {
     platform: string;
     accountId: string;
     platformSpecificData?: {
-      contentType?: 'story' | 'reel';
+      [key: string]: unknown;
+      contentType?: string;
     };
   }>;
   mediaItems?: Array<{
