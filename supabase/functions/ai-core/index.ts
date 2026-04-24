@@ -19,7 +19,7 @@ const MODEL_MAP = {
   smart: "openai/gpt-5-mini",
 } as const;
 
-type AIAction = "transcription" | "text_generation" | "vision" | "hashtag_generation" | "first_comment_generation" | "video_chapters" | "video_quotes";
+type AIAction = "transcription" | "text_generation" | "vision" | "hashtag_generation" | "first_comment_generation" | "video_chapters" | "video_quotes" | "insight_question_suggestions";
 type RequestBody = {
   action?: AIAction;
   fileUrl?: string;
@@ -90,7 +90,7 @@ function resolveCost(body: RequestBody) {
 }
 
 function validateBody(body: RequestBody) {
-  if (!body.action || !["transcription", "text_generation", "vision", "hashtag_generation", "first_comment_generation", "video_chapters", "video_quotes"].includes(body.action)) {
+  if (!body.action || !["transcription", "text_generation", "vision", "hashtag_generation", "first_comment_generation", "video_chapters", "video_quotes", "insight_question_suggestions"].includes(body.action)) {
     return "Tipo de ação de IA inválido.";
   }
   if (body.action === "transcription" && (!body.fileUrl || typeof body.fileUrl !== "string")) {
@@ -106,6 +106,7 @@ function validateBody(body: RequestBody) {
     return "Legenda em falta para gerar hashtags.";
   }
   if (body.action === "first_comment_generation" && (!body.caption || typeof body.caption !== "string" || body.caption.trim().length < 2)) return "Legenda em falta para gerar primeiro comentário.";
+  if (body.action === "insight_question_suggestions" && (!body.caption || typeof body.caption !== "string" || body.caption.trim().length < 2)) return "Legenda em falta para sugerir perguntas.";
   if ((body.action === "video_chapters" || body.action === "video_quotes") && (!body.transcription || typeof body.transcription !== "string" || body.transcription.trim().length < 20)) return "Transcrição em falta para ferramentas de vídeo.";
   return null;
 }
@@ -179,6 +180,19 @@ async function generateVideoTool(body: RequestBody, lovableKey: string, kind: "c
     ? `Transcrição:\n${body.transcription}\n\nSegmentos com timestamps:\n${JSON.stringify((body as Record<string, unknown>).segments || [])}\n\nDevolve JSON com capítulos YouTube: {"chapters":[{"time":"00:00","title":"Título curto"}]}. O primeiro capítulo deve começar em 00:00.`
     : `Transcrição:\n${body.transcription}\n\nSegmentos com timestamps:\n${JSON.stringify((body as Record<string, unknown>).segments || [])}\n\nDevolve JSON com 3 a 5 frases citáveis: {"quotes":[{"time":"00:45","text":"frase dita"}]}. Usa frases fiéis à transcrição.`;
   return generateText({ ...body, prompt, systemPrompt: "És um editor de vídeo. Respondes apenas com JSON válido em português de Portugal e nunca inventas frases ou timestamps.", responseFormat: "json", model: "fast" }, lovableKey);
+}
+
+async function generateInsightQuestions(body: RequestBody, lovableKey: string) {
+  const prompt = `Insight a aplicar: ${String((body as Record<string, unknown>).finding || "Posts com pergunta no início tendem a gerar mais comentários.")}
+
+Legenda atual:
+${body.caption}
+
+Transcrição opcional:
+${body.transcription || ""}
+
+Gera 2 a 3 perguntas iniciais que possam abrir esta legenda. Devem ser específicas ao conteúdo, naturais em português de Portugal e não podem inventar factos. Devolve JSON: {"questions":["pergunta 1","pergunta 2"]}`;
+  return generateText({ ...body, prompt, systemPrompt: "És um editor de redes sociais. Escreves perguntas curtas, específicas e conversacionais em PT-PT. Respondes apenas com JSON válido.", responseFormat: "json", model: "fast" }, lovableKey);
 }
 
 async function analyzeImage(body: RequestBody, lovableKey: string) {
@@ -286,6 +300,10 @@ serve(async (req) => {
       const lovableKey = Deno.env.get("LOVABLE_API_KEY");
       if (!lovableKey) throw new Response("missing_lovable_key", { status: 500 });
       output = await generateVideoTool(body, lovableKey, body.action === "video_chapters" ? "chapters" : "quotes");
+    } else if (body.action === "insight_question_suggestions") {
+      const lovableKey = Deno.env.get("LOVABLE_API_KEY");
+      if (!lovableKey) throw new Response("missing_lovable_key", { status: 500 });
+      output = await generateInsightQuestions(body, lovableKey);
     } else {
       const lovableKey = Deno.env.get("LOVABLE_API_KEY");
       if (!lovableKey) throw new Response("missing_lovable_key", { status: 500 });

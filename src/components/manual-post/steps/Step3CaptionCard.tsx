@@ -1,5 +1,5 @@
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { forwardRef } from 'react';
+import { ReactNode, forwardRef } from 'react';
 import { cn } from '@/lib/utils';
 import { SectionHelp, getSectionTooltip } from '@/components/manual-post/SectionHelp';
 import { NetworkCaptionEditor, NetworkCaptionEditorHandle } from '@/components/manual-post/NetworkCaptionEditor';
@@ -29,6 +29,7 @@ interface Step3CaptionCardProps {
   rewriteLoading: boolean;
   generatedAt?: string | null;
   generatedEdited?: boolean;
+  insightBanner?: ReactNode;
 }
 
 /**
@@ -57,6 +58,7 @@ export const Step3CaptionCard = forwardRef<NetworkCaptionEditorHandle, Step3Capt
     rewriteLoading,
     generatedAt,
     generatedEdited,
+    insightBanner,
   } = props;
 
   return (
@@ -87,6 +89,7 @@ export const Step3CaptionCard = forwardRef<NetworkCaptionEditorHandle, Step3Capt
         </CardDescription>
       </CardHeader>
       <CardContent className="space-y-2 sm:space-y-3 px-3 sm:px-6 pb-4 sm:pb-6">
+        {insightBanner}
         <AIGeneratedField generatedAt={generatedAt} edited={generatedEdited} className="border-0 bg-transparent">
           <NetworkCaptionEditor
             ref={ref}

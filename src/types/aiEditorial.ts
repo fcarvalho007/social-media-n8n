@@ -95,6 +95,10 @@ export interface AccountInsight {
   finding: string;
   confidence: number;
   sample_size: number;
+  delta_percentage?: number | null;
+  dismissed_until?: string | null;
+  dismissed_count?: number;
+  never_show?: boolean;
   metadata?: Record<string, unknown>;
   last_updated: string;
 }

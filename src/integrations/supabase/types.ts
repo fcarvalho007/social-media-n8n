@@ -669,6 +669,74 @@ export type Database = {
         }
         Relationships: []
       }
+      post_metrics_raw: {
+        Row: {
+          captured_at: string
+          clicks: number | null
+          comments: number | null
+          created_at: string
+          engagement_rate_normalized: number | null
+          external_post_id: string | null
+          id: string
+          impressions: number | null
+          likes: number | null
+          network: string
+          post_id: string
+          raw_data: Json
+          reach: number | null
+          saves: number | null
+          shares: number | null
+          user_id: string
+          video_completion_rate: number | null
+        }
+        Insert: {
+          captured_at?: string
+          clicks?: number | null
+          comments?: number | null
+          created_at?: string
+          engagement_rate_normalized?: number | null
+          external_post_id?: string | null
+          id?: string
+          impressions?: number | null
+          likes?: number | null
+          network: string
+          post_id: string
+          raw_data?: Json
+          reach?: number | null
+          saves?: number | null
+          shares?: number | null
+          user_id: string
+          video_completion_rate?: number | null
+        }
+        Update: {
+          captured_at?: string
+          clicks?: number | null
+          comments?: number | null
+          created_at?: string
+          engagement_rate_normalized?: number | null
+          external_post_id?: string | null
+          id?: string
+          impressions?: number | null
+          likes?: number | null
+          network?: string
+          post_id?: string
+          raw_data?: Json
+          reach?: number | null
+          saves?: number | null
+          shares?: number | null
+          user_id?: string
+          video_completion_rate?: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "post_metrics_raw_post_id_fkey"
+            columns: ["post_id"]
+            isOneToOne: false
+            referencedRelation: "posts"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       post_performance: {
         Row: {
           captured_at: string

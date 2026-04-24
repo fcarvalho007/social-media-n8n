@@ -43,7 +43,8 @@ import { detectImageAspectRatio as detectImageAspectRatioExt, detectVideoAspectR
 import { AiUploadAssistantCard, AiUploadAssistantStatus } from '@/components/manual-post/ai/AiUploadAssistantCard';
 import { CaptionRewritePreviewDialog } from '@/components/manual-post/ai/CaptionRewritePreviewDialog';
 import { HashtagSuggestions } from '@/components/manual-post/ai/HashtagSuggestions';
-import type { CaptionRewriteMetadata, CaptionRewriteTone, EditorialAssistantResult, SuggestedHashtag } from '@/types/aiEditorial';
+import { EditorialInsightBanner } from '@/components/manual-post/ai/EditorialInsightBanner';
+import type { AccountInsight, CaptionRewriteMetadata, CaptionRewriteTone, EditorialAssistantResult, SuggestedHashtag } from '@/types/aiEditorial';
 import { supabase } from '@/integrations/supabase/client';
 import { useAiPreferences } from '@/hooks/ai/useAiPreferences';
 import { useAICredits } from '@/hooks/useAICredits';
@@ -165,6 +166,11 @@ export default function ManualCreate() {
     tone: CaptionRewriteTone;
     network?: ReturnType<typeof getNetworkFromFormat>;
   } | null>(null);
+  const [activeInsight, setActiveInsight] = useState<AccountInsight | null>(null);
+  const [classifiedPostCount, setClassifiedPostCount] = useState(0);
+  const [insightDismissedThisSession, setInsightDismissedThisSession] = useState(false);
+  const [insightQuestions, setInsightQuestions] = useState<string[]>([]);
+  const [insightQuestionLoading, setInsightQuestionLoading] = useState(false);
   const mediaSectionRef = useRef<HTMLDivElement>(null);
   const captionEditorRef = useRef<NetworkCaptionEditorHandle>(null);
   const networkOptionsRef = useRef<NetworkOptionsCardHandle>(null);
@@ -345,6 +351,46 @@ export default function ManualCreate() {
     const networks = new Set(selectedFormats.map(f => getNetworkFromFormat(f)));
     return Array.from(networks);
   }, [selectedFormats]);
+
+  useEffect(() => {
+    if (!user?.id || !aiPreferences.insights_enabled || insightDismissedThisSession) {
+      setActiveInsight(null);
+      return;
+    }
+
+    let cancelled = false;
+    const loadInsight = async () => {
+      const { count } = await supabase
+        .from('posts')
+        .select('id', { count: 'exact', head: true })
+        .eq('user_id', user.id)
+        .eq('status', 'published')
+        .not('performance_classification', 'is', null);
+      if (cancelled) return;
+      setClassifiedPostCount(count ?? 0);
+      if ((count ?? 0) < 30) {
+        setActiveInsight(null);
+        return;
+      }
+
+      const now = new Date().toISOString();
+      let query = supabase
+        .from('account_insights' as any)
+        .select('*')
+        .eq('user_id', user.id)
+        .eq('never_show', false)
+        .or(`dismissed_until.is.null,dismissed_until.lt.${now}`)
+        .order('confidence', { ascending: false })
+        .limit(5);
+      const { data } = await query;
+      if (cancelled) return;
+      const selected = ((data ?? []) as unknown as AccountInsight[]).find((insight) => !insight.network || selectedNetworks.length === 0 || selectedNetworks.includes(insight.network)) ?? null;
+      setActiveInsight(selected);
+    };
+
+    loadInsight();
+    return () => { cancelled = true; };
+  }, [aiPreferences.insights_enabled, insightDismissedThisSession, selectedNetworks, user?.id]);
 
   const ensureNetworkCaptions = useCallback(() => {
     setNetworkCaptions((prev) => {
@@ -814,6 +860,49 @@ export default function ManualCreate() {
     }
   }, [aiPreferences.brand_hashtags, caption, rawTranscription, refreshAiCredits, selectedNetworks, useSeparateCaptions]);
 
+  const handleSuggestInsightQuestion = useCallback(async () => {
+    if (!activeInsight) return;
+    try {
+      setInsightQuestionLoading(true);
+      const result = await aiService.generateInsightQuestions({ caption, transcription: rawTranscription || undefined, finding: activeInsight.finding });
+      const questions = (result.questions || []).map(String).filter(Boolean).slice(0, 3);
+      if (!questions.length) throw new Error('A IA não devolveu perguntas válidas.');
+      setInsightQuestions(questions);
+      await refreshAiCredits();
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : 'Não foi possível sugerir perguntas.');
+    } finally {
+      setInsightQuestionLoading(false);
+    }
+  }, [activeInsight, caption, rawTranscription, refreshAiCredits]);
+
+  const handleDismissInsight = useCallback(async () => {
+    if (!activeInsight) return;
+    const nextCount = (activeInsight.dismissed_count ?? 0) + 1;
+    await supabase.from('account_insights' as any).update({
+      dismissed_count: nextCount,
+      dismissed_until: nextCount >= 3 ? new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString() : activeInsight.dismissed_until ?? null,
+    }).eq('id', activeInsight.id);
+    setInsightDismissedThisSession(true);
+    setActiveInsight(null);
+  }, [activeInsight]);
+
+  const handleMuteInsight = useCallback(async () => {
+    if (!activeInsight) return;
+    await supabase.from('account_insights' as any).update({ never_show: true }).eq('id', activeInsight.id);
+    setInsightDismissedThisSession(true);
+    setActiveInsight(null);
+  }, [activeInsight]);
+
+  const applyInsightQuestion = useCallback((question: string) => {
+    const clean = question.trim();
+    if (!clean) return;
+    setCaption(prev => `${clean}\n\n${prev}`.trim());
+    setInsightQuestions([]);
+    setInsightDismissedThisSession(true);
+    toast.success('Pergunta inserida no início da legenda.');
+  }, []);
+
   const generateAltTextForMedia = useCallback(async (index: number) => {
     const file = mediaFiles[index];
     if (!file) return;
@@ -1057,6 +1146,28 @@ export default function ManualCreate() {
               rewriteLoading={rewriteLoading}
               generatedAt={assistantGeneratedAt}
               generatedEdited={aiGeneratedEdited.caption}
+              insightBanner={(
+                <div className="space-y-2">
+                  <EditorialInsightBanner
+                    insight={activeInsight}
+                    visible={!!activeInsight && aiPreferences.insights_enabled && classifiedPostCount >= 30 && !insightDismissedThisSession}
+                    onAccept={handleSuggestInsightQuestion}
+                    onDismiss={handleDismissInsight}
+                    onMute={handleMuteInsight}
+                    onViewAll={() => navigate('/insights')}
+                  />
+                  {insightQuestionLoading && <p className="text-xs text-muted-foreground">A gerar perguntas...</p>}
+                  {insightQuestions.length > 0 && (
+                    <div className="flex flex-col gap-1.5 rounded-md border border-border bg-muted/30 p-2">
+                      {insightQuestions.map((question) => (
+                        <Button key={question} type="button" variant="ghost" size="sm" className="h-auto justify-start whitespace-normal text-left" onClick={() => applyInsightQuestion(question)}>
+                          {question}
+                        </Button>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              )}
             />
 
             <HashtagSuggestions

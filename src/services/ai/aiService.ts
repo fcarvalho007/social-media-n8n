@@ -85,4 +85,8 @@ export const aiService = {
   extractVideoQuotes(params: { transcription: string; segments?: TranscriptSegment[] }) {
     return invokeAICore<{ quotes: { time: string; text: string }[] }>({ action: 'video_quotes', ...params, feature: 'video_quotes', model: 'fast', creditCostOverride: 1 });
   },
+
+  generateInsightQuestions(params: { caption: string; transcription?: string; finding: string }) {
+    return invokeAICore<{ questions: string[] }>({ action: 'insight_question_suggestions', ...params, feature: 'insight_question_suggestions', model: 'fast', creditCostOverride: 1 });
+  },
 };
