@@ -44,6 +44,7 @@ import { AiUploadAssistantCard, AiUploadAssistantStatus } from '@/components/man
 import { CaptionRewritePreviewDialog } from '@/components/manual-post/ai/CaptionRewritePreviewDialog';
 import { HashtagSuggestions } from '@/components/manual-post/ai/HashtagSuggestions';
 import { EditorialInsightBanner } from '@/components/manual-post/ai/EditorialInsightBanner';
+import { VideoToolsReviewDialog } from '@/components/manual-post/ai/VideoToolsReviewDialog';
 import type { AccountInsight, CaptionRewriteMetadata, CaptionRewriteTone, EditorialAssistantResult, SuggestedHashtag } from '@/types/aiEditorial';
 import { supabase } from '@/integrations/supabase/client';
 import { useAiPreferences } from '@/hooks/ai/useAiPreferences';
@@ -171,6 +172,12 @@ export default function ManualCreate() {
   const [insightDismissedThisSession, setInsightDismissedThisSession] = useState(false);
   const [insightQuestions, setInsightQuestions] = useState<string[]>([]);
   const [insightQuestionLoading, setInsightQuestionLoading] = useState(false);
+  const [videoToolsLoadingAction, setVideoToolsLoadingAction] = useState<string | null>(null);
+  const [videoToolsReview, setVideoToolsReview] = useState<
+    | { type: 'chapters'; items: Array<{ time: string; title: string }> }
+    | { type: 'quotes'; items: Array<{ time: string; text: string }> }
+    | null
+  >(null);
   const mediaSectionRef = useRef<HTMLDivElement>(null);
   const captionEditorRef = useRef<NetworkCaptionEditorHandle>(null);
   const networkOptionsRef = useRef<NetworkOptionsCardHandle>(null);
