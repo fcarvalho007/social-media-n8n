@@ -860,6 +860,49 @@ export default function ManualCreate() {
     }
   }, [aiPreferences.brand_hashtags, caption, rawTranscription, refreshAiCredits, selectedNetworks, useSeparateCaptions]);
 
+  const handleSuggestInsightQuestion = useCallback(async () => {
+    if (!activeInsight) return;
+    try {
+      setInsightQuestionLoading(true);
+      const result = await aiService.generateInsightQuestions({ caption, transcription: rawTranscription || undefined, finding: activeInsight.finding });
+      const questions = (result.questions || []).map(String).filter(Boolean).slice(0, 3);
+      if (!questions.length) throw new Error('A IA não devolveu perguntas válidas.');
+      setInsightQuestions(questions);
+      await refreshAiCredits();
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : 'Não foi possível sugerir perguntas.');
+    } finally {
+      setInsightQuestionLoading(false);
+    }
+  }, [activeInsight, caption, rawTranscription, refreshAiCredits]);
+
+  const handleDismissInsight = useCallback(async () => {
+    if (!activeInsight) return;
+    const nextCount = (activeInsight.dismissed_count ?? 0) + 1;
+    await supabase.from('account_insights' as any).update({
+      dismissed_count: nextCount,
+      dismissed_until: nextCount >= 3 ? new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString() : activeInsight.dismissed_until ?? null,
+    }).eq('id', activeInsight.id);
+    setInsightDismissedThisSession(true);
+    setActiveInsight(null);
+  }, [activeInsight]);
+
+  const handleMuteInsight = useCallback(async () => {
+    if (!activeInsight) return;
+    await supabase.from('account_insights' as any).update({ never_show: true }).eq('id', activeInsight.id);
+    setInsightDismissedThisSession(true);
+    setActiveInsight(null);
+  }, [activeInsight]);
+
+  const applyInsightQuestion = useCallback((question: string) => {
+    const clean = question.trim();
+    if (!clean) return;
+    setCaption(prev => `${clean}\n\n${prev}`.trim());
+    setInsightQuestions([]);
+    setInsightDismissedThisSession(true);
+    toast.success('Pergunta inserida no início da legenda.');
+  }, []);
+
   const generateAltTextForMedia = useCallback(async (index: number) => {
     const file = mediaFiles[index];
     if (!file) return;
