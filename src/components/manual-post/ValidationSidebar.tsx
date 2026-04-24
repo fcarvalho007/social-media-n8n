@@ -209,13 +209,13 @@ export function ValidationSidebar({
   if (typeof mobileOpen === 'boolean') {
     // Wraps `fix` so the mobile sheet closes (with haptic feedback) right
     // after the user taps "Corrigir" — keeps focus on the underlying field.
-    const handleMobileFix = (issueId: string) => {
+    const handleMobileFix = async (issueId: string) => {
       try {
         navigator.vibrate?.(10);
       } catch {
         // Some browsers (Safari iOS) reject vibrate(); ignore silently.
       }
-      fix(issueId);
+      await fix(issueId);
       onMobileOpenChange?.(false);
     };
 

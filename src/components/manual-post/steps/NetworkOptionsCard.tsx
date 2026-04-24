@@ -20,6 +20,8 @@ import { AIGeneratedField } from '@/components/ai/AIGeneratedField';
 import { AIActionButton } from '@/components/ai/AIActionButton';
 import { FirstCommentOptionsDialog } from '@/components/manual-post/ai/FirstCommentOptionsDialog';
 import { aiService } from '@/services/ai/aiService';
+import { supabase } from '@/integrations/supabase/client';
+import { toast } from '@/hooks/use-toast';
 import type { FirstCommentOption } from '@/types/aiEditorial';
 
 export interface NetworkOptionsCardHandle {
