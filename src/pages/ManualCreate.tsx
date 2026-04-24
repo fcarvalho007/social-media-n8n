@@ -1390,6 +1390,13 @@ export default function ManualCreate() {
         isUploading={isUploading}
       />
 
+      <ValidationSidebar
+        validation={smartValidation}
+        mediaFiles={mediaFiles}
+        mobileOpen={validationSheetOpen}
+        onMobileOpenChange={setValidationSheetOpen}
+      />
+
       <Button
         type="button"
         size="icon"
@@ -1405,7 +1412,7 @@ export default function ManualCreate() {
 
       {/* Mobile Preview Drawer */}
       <Drawer open={mobilePreviewOpen} onOpenChange={(open) => setMobilePreviewState(open ? mobilePreviewState === 'closed' ? 'peek' : mobilePreviewState : 'closed')}>
-        <DrawerContent className={cn('transition-[height] duration-manual-expand ease-out', mobilePreviewState === 'expanded' ? 'h-[75vh]' : 'h-[140px]')}>
+        <DrawerContent className={cn('transition-[height] duration-manual-expand ease-out', mobilePreviewState === 'expanded' ? 'h-[75vh]' : 'h-[180px]')}>
           <DrawerHeader className="border-b px-4 py-3 text-left">
             <div className="flex items-center justify-between gap-3">
               <DrawerTitle className="flex items-center gap-2 text-base">
@@ -1417,8 +1424,15 @@ export default function ManualCreate() {
               </Button>
             </div>
           </DrawerHeader>
-          <div className={cn('overflow-y-auto p-4', mobilePreviewState === 'peek' && 'max-h-[84px] overflow-hidden py-3')}>
-            {mobilePreviewOpen && (
+          <div className="overflow-y-auto p-4">
+            {mobilePreviewOpen && mobilePreviewState === 'peek' && (
+              <button type="button" className="w-full rounded-lg border bg-muted/30 p-3 text-left" onClick={() => openMobilePreview('expanded')}>
+                <p className="text-sm font-medium text-foreground">{activePreviewLabel}</p>
+                <p className="mt-1 text-xs text-muted-foreground">{mobilePreviewSummary}</p>
+                <p className="mt-2 text-xs font-medium text-primary">Toca para expandir</p>
+              </button>
+            )}
+            {mobilePreviewOpen && mobilePreviewState === 'expanded' && (
               <PreviewPanel
                 variant="mobile"
                 selectedFormats={selectedFormats}
