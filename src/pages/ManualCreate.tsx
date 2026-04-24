@@ -51,7 +51,7 @@ import { AI_CREDIT_COSTS } from '@/config/aiCreditCosts';
 import { aiService } from '@/services/ai/aiService';
 import { useAuth } from '@/contexts/AuthContext';
 import { generateSafeStoragePath } from '@/lib/fileNameSanitizer';
-import { applySafety, getHashtagsFromText, normalizeHashtag } from '@/lib/hashtags/safety';
+import { applySafety, getHashtagsFromText, normalizeHashtag as normalizeSuggestedHashtag } from '@/lib/hashtags/safety';
 // `extractVideoFrame` foi consolidado em '@/lib/media/videoFrameExtractor'.
 // Este componente já não o usava localmente.
 
@@ -81,7 +81,7 @@ const getUniqueHashtags = (result: EditorialAssistantResult) => {
     ...(result.hashtags?.brand ?? []),
   ];
 
-  return Array.from(new Set(tags.map(normalizeHashtag).filter(Boolean)))
+  return Array.from(new Set(tags.map(normalizeSuggestedHashtag).filter(Boolean)))
     .filter((tag) => !existing.has(tag.toLowerCase()));
 };
 
