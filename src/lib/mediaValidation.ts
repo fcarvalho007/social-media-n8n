@@ -39,6 +39,7 @@ export const FORMAT_ASPECT_RATIOS: Record<string, { ratios: string[]; tolerance:
   instagram_image: { ratios: ['1:1', '4:5'], tolerance: 0.05 },
   instagram_reel: { ratios: ['9:16'], tolerance: 0.03 },
   instagram_stories: { ratios: ['9:16'], tolerance: 0.03 },
+  instagram_story_link: { ratios: ['9:16'], tolerance: 0.03 },
   linkedin_post: { ratios: ['1:1', '4:5', '16:9', '1.91:1'], tolerance: 0.1 },
   linkedin_document: { ratios: ['1:1', '4:5', '16:9'], tolerance: 0.1 },
   youtube_shorts: { ratios: ['9:16'], tolerance: 0.03 },
@@ -55,6 +56,7 @@ export const MIN_RESOLUTIONS: Record<string, { width: number; height: number }> 
   instagram_image: { width: 1080, height: 1080 },
   instagram_reel: { width: 1080, height: 1920 },
   instagram_stories: { width: 1080, height: 1920 },
+  instagram_story_link: { width: 1080, height: 1920 },
   linkedin_post: { width: 1200, height: 627 },
   linkedin_document: { width: 1080, height: 1080 },
   youtube_shorts: { width: 1080, height: 1920 },
@@ -69,6 +71,7 @@ export const MIN_RESOLUTIONS: Record<string, { width: number; height: number }> 
 export const MAX_VIDEO_DURATION: Record<string, number> = {
   instagram_reel: 90,
   instagram_stories: 15,
+  instagram_story_link: 15,
   youtube_shorts: 60,
   youtube_video: 43200, // 12 hours
   tiktok_video: 180, // 3 minutes
