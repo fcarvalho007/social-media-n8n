@@ -672,6 +672,7 @@ export type Database = {
       post_metrics_raw: {
         Row: {
           captured_at: string
+          captured_hour: string | null
           clicks: number | null
           comments: number | null
           created_at: string
@@ -691,6 +692,7 @@ export type Database = {
         }
         Insert: {
           captured_at?: string
+          captured_hour?: string | null
           clicks?: number | null
           comments?: number | null
           created_at?: string
@@ -710,6 +712,7 @@ export type Database = {
         }
         Update: {
           captured_at?: string
+          captured_hour?: string | null
           clicks?: number | null
           comments?: number | null
           created_at?: string
