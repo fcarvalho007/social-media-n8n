@@ -99,6 +99,21 @@ export async function networkOptionsValidator(ctx: ValidatorContext): Promise<Va
     if (!youtube?.category) issues.push({ id: 'network-options:youtube:missing-category', severity: 'error', category: 'platform', platform: 'youtube', title: 'Categoria YouTube obrigatória', description: 'Escolhe uma categoria para publicar no YouTube.', autoFixable: !!ctx.fixHelpers?.focusNetworkOption, fixLabel: 'Escolher categoria', fixAction: () => ctx.fixHelpers?.focusNetworkOption?.('youtube', 'youtubeCategory') });
     if ((youtube?.title ?? '').length > 100) issues.push({ id: 'network-options:youtube:title-length', severity: 'error', category: 'caption', platform: 'youtube', title: 'Título YouTube demasiado longo', description: 'O título do YouTube pode ter no máximo 100 caracteres.', autoFixable: !!ctx.fixHelpers?.focusNetworkOption, fixLabel: 'Editar título', fixAction: () => ctx.fixHelpers?.focusNetworkOption?.('youtube', 'youtubeTitle') });
     if (tagsTotal > 500) issues.push({ id: 'network-options:youtube:tags-length', severity: 'error', category: 'platform', platform: 'youtube', title: 'Tags YouTube demasiado longas', description: `As tags têm ${tagsTotal}/500 caracteres no total.`, autoFixable: !!ctx.fixHelpers?.focusNetworkOption, fixLabel: 'Editar tags', fixAction: () => ctx.fixHelpers?.focusNetworkOption?.('youtube', 'youtubeTags') });
+    (youtube?.tags ?? []).forEach((tag, idx) => {
+      if (tag.length > 100) {
+        issues.push({
+          id: `network-options:youtube:tag-too-long:${idx}`,
+          severity: 'error',
+          category: 'platform',
+          platform: 'youtube',
+          title: 'Tag YouTube demasiado longa',
+          description: `A tag «${tag.slice(0, 30)}${tag.length > 30 ? '…' : ''}» tem ${tag.length}/100 caracteres. O máximo por tag individual é 100.`,
+          autoFixable: !!ctx.fixHelpers?.focusNetworkOption,
+          fixLabel: 'Editar tags',
+          fixAction: () => ctx.fixHelpers?.focusNetworkOption?.('youtube', 'youtubeTags'),
+        });
+      }
+    });
   }
 
   if (networks.has('googlebusiness')) {

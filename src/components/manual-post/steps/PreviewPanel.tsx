@@ -83,6 +83,21 @@ export function PreviewPanel(props: PreviewPanelProps) {
     ? `${format(scheduledDate, 'dd/MM', { locale: pt })} · ${time}`
     : 'Imediato';
 
+  // Limite de legenda por rede activa (em chars). YouTube usa descrição.
+  const CAPTION_LIMITS: Record<string, number> = {
+    instagram: 2200,
+    linkedin: 3000,
+    facebook: 63206,
+    x: 280,
+    tiktok: 2200,
+    youtube: 5000,
+    googlebusiness: 1500,
+  };
+  const activeNetwork = activeFormat ? getNetworkFromFormat(activeFormat) : 'instagram';
+  const activeLimit = CAPTION_LIMITS[activeNetwork] ?? 2200;
+  const overLimit = activeCaption.length > activeLimit;
+  const nearLimit = activeCaption.length > activeLimit * 0.8 && !overLimit;
+
   const PreviewTabs = ({ compact = true }: { compact?: boolean }) => (
     <TabsList className={cn(
       'mb-4 h-auto w-full justify-start gap-2 overflow-x-auto rounded-none bg-transparent p-0 scrollbar-hide',
@@ -121,12 +136,19 @@ export function PreviewPanel(props: PreviewPanelProps) {
     </TabsList>
   );
 
+  // Versão inline (usada em mobile dentro do Drawer).
   const Metadata = () => (
     <div className="mt-4 border-t border-border/40 pt-3">
       <div className="grid grid-cols-3 gap-2 text-manual-hint">
         <div>
           <p className="text-muted-foreground">Legenda</p>
-          <p className={cn('font-medium', activeCaption.length >= 2090 && 'text-destructive', activeCaption.length >= 1760 && activeCaption.length < 2090 && 'text-warning')}>{activeCaption.length} / 2200</p>
+          <p className={cn(
+            'font-medium',
+            overLimit && 'text-destructive',
+            nearLimit && 'text-warning',
+          )}>
+            {activeCaption.length} / {activeLimit}
+          </p>
         </div>
         <div>
           <p className="text-muted-foreground">Hashtags</p>
@@ -138,6 +160,39 @@ export function PreviewPanel(props: PreviewPanelProps) {
         </div>
       </div>
       <p className="manual-microcopy mt-2">{mediaCount} {mediaCount === 1 ? 'ficheiro' : 'ficheiros'}</p>
+    </div>
+  );
+
+  // Barra sticky de 52px no rodapé do painel desktop.
+  const StickyMetadataBar = () => (
+    <div
+      className="flex h-[52px] shrink-0 items-center gap-4 border-t border-border/40 bg-background/95 px-5 backdrop-blur-sm"
+      role="status"
+      aria-live="polite"
+    >
+      {selectedFormats.length === 0 ? (
+        <span className="text-sm text-muted-foreground" aria-label="Sem rede seleccionada">—</span>
+      ) : (
+        <>
+          <span
+            className={cn(
+              'text-xs font-medium tabular-nums',
+              overLimit && 'text-destructive',
+              nearLimit && 'text-warning',
+            )}
+            title={`Limite da rede ${activeNetwork}`}
+          >
+            {activeCaption.length}/{activeLimit}
+          </span>
+          <span className="text-xs text-muted-foreground tabular-nums">
+            {hashtagCount} #
+          </span>
+          <span className="ml-auto flex items-center gap-3 text-xs text-muted-foreground">
+            <span className="truncate">{scheduleLabel}</span>
+            <span className="tabular-nums">{mediaCount} {mediaCount === 1 ? 'ficheiro' : 'ficheiros'}</span>
+          </span>
+        </>
+      )}
     </div>
   );
 
@@ -173,7 +228,7 @@ export function PreviewPanel(props: PreviewPanelProps) {
       return (
         <div className={variant === 'mobile' ? 'space-y-4' : undefined}>
           {renderPreview(selectedFormats[0])}
-          <Metadata />
+          {variant === 'mobile' && <Metadata />}
           <ScheduledLabel />
         </div>
       );
@@ -190,7 +245,7 @@ export function PreviewPanel(props: PreviewPanelProps) {
             {renderPreview(formatItem)}
           </TabsContent>
         ))}
-        <Metadata />
+        {variant === 'mobile' && <Metadata />}
         {variant === 'desktop' && <ScheduledLabel />}
       </Tabs>
     );
@@ -202,8 +257,8 @@ export function PreviewPanel(props: PreviewPanelProps) {
 
   return (
     <div className="hidden overflow-auto lg:sticky lg:top-24 lg:block lg:h-[calc(100vh-8rem)]">
-      <Card className="card-secondary h-full shadow-[0_18px_45px_hsl(var(--foreground)/0.08)]">
-        <CardHeader className="p-5 pb-3">
+      <Card className="card-secondary flex h-full flex-col shadow-[0_18px_45px_hsl(var(--foreground)/0.08)]">
+        <CardHeader className="shrink-0 p-5 pb-3">
           <div className="manual-card-header-row">
             <CardTitle className="manual-section-title manual-card-title-row">
               <span className="manual-icon-box"><Eye className="h-5 w-5" strokeWidth={1.5} /></span>
@@ -217,7 +272,8 @@ export function PreviewPanel(props: PreviewPanelProps) {
             </div>
           </div>
         </CardHeader>
-        <CardContent className="p-5 pt-0">{body}</CardContent>
+        <CardContent className="flex-1 overflow-auto p-5 pt-0">{body}</CardContent>
+        <StickyMetadataBar />
       </Card>
       <Dialog open={expandedOpen} onOpenChange={setExpandedOpen}>
         <DialogContent className="h-[92vh] max-w-[96vw] overflow-hidden p-4 sm:p-6">
