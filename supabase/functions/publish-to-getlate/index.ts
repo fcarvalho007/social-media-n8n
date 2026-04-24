@@ -224,6 +224,106 @@ interface GetlateValidatedResponse {
   originalData: any;
 }
 
+function extractPostUrl(responseData: any): string | undefined {
+  const nestedPlatform = responseData?.post?.platforms?.find((platform: any) =>
+    platform?.platformPostUrl || platform?.postUrl || platform?.url || platform?.permalink
+  );
+
+  return responseData?.url ||
+    responseData?.postUrl ||
+    responseData?.permalink ||
+    responseData?.data?.url ||
+    responseData?.post?.url ||
+    responseData?.post?.postUrl ||
+    responseData?.post?.permalink ||
+    responseData?.post?.platformPostUrl ||
+    nestedPlatform?.platformPostUrl ||
+    nestedPlatform?.postUrl ||
+    nestedPlatform?.url ||
+    nestedPlatform?.permalink;
+}
+
+function classifyPublishError(msg: string): { code: string; source: string; isRetryable: boolean; suggestedAction: string } {
+  const lower = msg.toLowerCase();
+
+  if (lower.includes('all platforms failed') || lower.includes('failedplatforms')) {
+    return {
+      code: 'API_ERROR',
+      source: 'getlate',
+      isRetryable: true,
+      suggestedAction: 'Verifica o histórico antes de repetir. Se não aparecer publicado, tenta novamente dentro de alguns minutos',
+    };
+  }
+
+  if (lower.includes('too many actions') || lower.includes('rate limit') || lower.includes('429') || lower.includes('please wait') || lower.includes('media container')) {
+    return { code: 'RATE_LIMIT', source: 'platform', isRetryable: true, suggestedAction: 'Aguarda 15-30 minutos e tenta novamente' };
+  }
+
+  if (lower.includes('403') || lower.includes('forbidden') || lower.includes('do not belong') || lower.includes('permission denied')) {
+    return { code: 'ACCOUNT_ERROR', source: 'getlate', isRetryable: false, suggestedAction: 'Reconecta a conta no serviço de publicação' };
+  }
+
+  if (lower.includes('token') || lower.includes('oauth') || lower.includes('session') || lower.includes('expired') || lower.includes('code 190')) {
+    return { code: 'TOKEN_EXPIRED', source: 'platform', isRetryable: false, suggestedAction: 'Reconecta a conta no serviço de publicação' };
+  }
+
+  if (lower.includes('unauthorized') || lower.includes('missing authorization') || lower.includes('401')) {
+    return { code: 'AUTH_ERROR', source: 'internal', isRetryable: false, suggestedAction: 'Faz login novamente' };
+  }
+
+  if (lower.includes('invalid or unsupported format')) {
+    return { code: 'MEDIA_ERROR', source: 'internal', isRetryable: false, suggestedAction: 'Escolhe um formato suportado e tenta novamente' };
+  }
+
+  if (lower.includes('caption') || lower.includes('content') || lower.includes('text') || lower.includes('character') || lower.includes('hashtag') || lower.includes('link')) {
+    return { code: 'CAPTION_ERROR', source: 'platform', isRetryable: false, suggestedAction: 'Revê a legenda e remove caracteres especiais ou links inválidos' };
+  }
+
+  if (lower.includes('media') || lower.includes('format') || lower.includes('size') || lower.includes('aspect') || lower.includes('ratio') ||
+      lower.includes('unsupported') || lower.includes('width') || lower.includes('height') || lower.includes('resize') ||
+      lower.includes('dimension') || lower.includes('resolution') || lower.includes('pixel') || lower.includes('image') || lower.includes('allowed range')) {
+    return { code: 'MEDIA_ERROR', source: 'platform', isRetryable: false, suggestedAction: 'Verifica o formato, tamanho e proporção dos ficheiros' };
+  }
+
+  if (lower.includes('quota') || lower.includes('limit exceeded') || lower.includes('upload limit')) {
+    return { code: 'QUOTA_EXCEEDED', source: 'getlate', isRetryable: false, suggestedAction: 'Aguarda o reset de quota ou faz upgrade do plano' };
+  }
+
+  if (lower.includes('network') || lower.includes('timeout') || lower.includes('connection') || lower.includes('fetch') || lower.includes('econnrefused')) {
+    return { code: 'NETWORK_ERROR', source: 'internal', isRetryable: true, suggestedAction: 'Verifica a ligação à internet e tenta novamente' };
+  }
+
+  if (lower.includes('500') || lower.includes('502') || lower.includes('503') || lower.includes('internal server')) {
+    return { code: 'API_ERROR', source: 'getlate', isRetryable: true, suggestedAction: 'O serviço está indisponível. Tenta novamente em alguns minutos' };
+  }
+
+  return { code: 'UNKNOWN', source: 'unknown', isRetryable: true, suggestedAction: 'Tenta novamente ou contacta o suporte' };
+}
+
+function buildFailureResponse(message: string, status = 200): Response {
+  const errorClassification = classifyPublishError(message);
+  return new Response(
+    JSON.stringify({
+      success: false,
+      fallback: errorClassification.isRetryable,
+      error: {
+        message: message.includes('All platforms failed')
+          ? 'O serviço de publicação rejeitou temporariamente esta rede. A publicação pode já estar em processamento; verifica o histórico antes de repetir.'
+          : message,
+        code: errorClassification.code,
+        source: errorClassification.source,
+        originalError: message,
+        isRetryable: errorClassification.isRetryable,
+        suggestedAction: errorClassification.suggestedAction,
+      }
+    }),
+    {
+      headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      status,
+    }
+  );
+}
+
 // Extract per-platform error reasons from Getlate failedPlatforms array
 function extractFailedPlatformReason(responseData: any): string | null {
   if (!responseData) return null;
@@ -346,7 +446,7 @@ function validateGetlateResponse(responseData: any, responseText: string): Getla
   }
   
   // Extract post URL if available
-  const postUrl = responseData?.url || responseData?.postUrl || responseData?.permalink || responseData?.data?.url;
+  const postUrl = extractPostUrl(responseData);
   
   // If we got here, it looks like a real success
   // But warn if there's no URL and status isn't clearly success
@@ -549,12 +649,12 @@ Deno.serve(async (req) => {
     // Get Getlate API token
     const getlateToken = Deno.env.get('GETLATE_API_TOKEN');
     if (!getlateToken) {
-      throw new Error('GETLATE_API_TOKEN not configured');
+      return buildFailureResponse('GETLATE_API_TOKEN not configured', 500);
     }
 
     const authHeader = req.headers.get('Authorization');
     if (!authHeader) {
-      throw new Error('Missing authorization header');
+      return buildFailureResponse('Missing authorization header', 401);
     }
 
     // Verify user
@@ -563,7 +663,7 @@ Deno.serve(async (req) => {
     );
 
     if (authError || !user) {
-      throw new Error('Unauthorized');
+      return buildFailureResponse('Unauthorized', 401);
     }
 
     const body = await req.json();
@@ -603,13 +703,13 @@ Deno.serve(async (req) => {
     // Get network from format
     const network = FORMAT_TO_NETWORK[format];
     if (!network) {
-      throw new Error(`Invalid or unsupported format: ${format}`);
+      return buildFailureResponse(`Invalid or unsupported format: ${format}`, 400);
     }
 
     // Get account ID for the network
     const accountId = GETLATE_ACCOUNTS[network];
     if (!accountId) {
-      throw new Error(`Account not configured for network: ${network}`);
+      return buildFailureResponse(`Account not configured for network: ${network}`, 400);
     }
 
     // NOTE: Quota validation removed - Getlate.dev API is the sole authority
@@ -623,7 +723,7 @@ Deno.serve(async (req) => {
       if (captionLen < 30) {
         const gbpError = `Google Business exige descrição com pelo menos 30 caracteres (atual: ${captionLen}). Adiciona contexto sobre a publicação para garantir que o conector aceita.`;
         console.error(`[publish-to-getlate] ❌ GBP validation failed: ${gbpError}`);
-        throw new Error(gbpError);
+        return buildFailureResponse(gbpError, 400);
       }
     }
 
@@ -801,6 +901,7 @@ Deno.serve(async (req) => {
     if (!result.success) {
       // Record failure
       console.error(`[publish-to-getlate] Publication failed: ${result.error}`);
+      const failureMessage = result.error || 'Failed to publish to Getlate';
       
       // Update the existing pending attempt to failed (no duplicate insert)
       if (attemptId) {
@@ -829,7 +930,7 @@ Deno.serve(async (req) => {
           .from('posts')
           .update({
             status: 'failed',
-            error_log: result.error,
+            error_log: failureMessage,
             failed_at: new Date().toISOString(),
           })
           .eq('id', post_id);
@@ -853,7 +954,7 @@ Deno.serve(async (req) => {
               },
               body: JSON.stringify({
                 post_id,
-                error_message: result.error,
+                error_message: failureMessage,
                 platform: network,
                 format,
                 recovery_token: recoveryToken,
@@ -867,8 +968,26 @@ Deno.serve(async (req) => {
           console.error('[publish-to-getlate] Failed to send notification:', notifyError);
         }
       }
-      
-      throw new Error(result.error || 'Failed to publish to Getlate');
+
+      if (idempotency_key) {
+        const failureResponse = {
+          success: false,
+          fallback: classifyPublishError(failureMessage).isRetryable,
+          error: {
+            message: failureMessage.includes('All platforms failed')
+              ? 'O serviço de publicação rejeitou temporariamente esta rede. A publicação pode já estar em processamento; verifica o histórico antes de repetir.'
+              : failureMessage,
+            code: classifyPublishError(failureMessage).code,
+            source: classifyPublishError(failureMessage).source,
+            originalError: failureMessage,
+            isRetryable: classifyPublishError(failureMessage).isRetryable,
+            suggestedAction: classifyPublishError(failureMessage).suggestedAction,
+          }
+        };
+        await updateIdempotencyKeyResult(supabase, idempotency_key, failureResponse);
+      }
+
+      return buildFailureResponse(failureMessage, classifyPublishError(failureMessage).isRetryable ? 200 : 400);
     }
 
     // Update the existing pending attempt to success (no duplicate insert)
@@ -960,79 +1079,8 @@ Deno.serve(async (req) => {
     console.error('[publish-to-getlate] Error:', error);
     
     const errorMessage = error instanceof Error ? error.message : 'Erro ao publicar. Tenta novamente.';
-    
-    // Classify error for better frontend display
-    const classifyPublishError = (msg: string): { code: string; source: string; isRetryable: boolean; suggestedAction: string } => {
-      const lower = msg.toLowerCase();
-      
-      // Rate limit errors
-      if (lower.includes('too many actions') || lower.includes('rate limit') || lower.includes('429') || lower.includes('please wait') || lower.includes('media container')) {
-        return { code: 'RATE_LIMIT', source: 'platform', isRetryable: true, suggestedAction: 'Aguarda 15-30 minutos e tenta novamente' };
-      }
-      
-      // Account/permission errors (403, accounts not belonging to user)
-      if (lower.includes('403') || lower.includes('forbidden') || lower.includes('do not belong') || lower.includes('permission denied')) {
-        return { code: 'ACCOUNT_ERROR', source: 'getlate', isRetryable: false, suggestedAction: 'Reconecta a conta no Getlate.dev' };
-      }
-      
-      // Token/OAuth errors
-      if (lower.includes('token') || lower.includes('oauth') || lower.includes('session') || lower.includes('expired') || lower.includes('code 190')) {
-        return { code: 'TOKEN_EXPIRED', source: 'platform', isRetryable: false, suggestedAction: 'Reconecta a conta no Getlate.dev' };
-      }
-      
-      // Auth errors
-      if (lower.includes('unauthorized') || lower.includes('401')) {
-        return { code: 'AUTH_ERROR', source: 'internal', isRetryable: false, suggestedAction: 'Faz login novamente' };
-      }
-      
-      // Caption/content errors
-      if (lower.includes('caption') || lower.includes('content') || lower.includes('text') || lower.includes('character') || lower.includes('hashtag') || lower.includes('link')) {
-        return { code: 'CAPTION_ERROR', source: 'platform', isRetryable: false, suggestedAction: 'Revê a legenda e remove caracteres especiais ou links inválidos' };
-      }
-      
-      // Media/dimension errors
-      if (lower.includes('media') || lower.includes('format') || lower.includes('size') || lower.includes('aspect') || lower.includes('ratio') || 
-          lower.includes('unsupported') || lower.includes('width') || lower.includes('height') || lower.includes('resize') || 
-          lower.includes('dimension') || lower.includes('resolution') || lower.includes('pixel') || lower.includes('image') || lower.includes('allowed range')) {
-        return { code: 'MEDIA_ERROR', source: 'platform', isRetryable: false, suggestedAction: 'Redimensiona para proporção 4:5 (1080x1350px)' };
-      }
-      
-      // Quota errors
-      if (lower.includes('quota') || lower.includes('limit exceeded') || lower.includes('upload limit')) {
-        return { code: 'QUOTA_EXCEEDED', source: 'getlate', isRetryable: false, suggestedAction: 'Aguarda o reset de quota ou faz upgrade do plano' };
-      }
-      
-      // Network/connectivity errors
-      if (lower.includes('network') || lower.includes('timeout') || lower.includes('connection') || lower.includes('fetch') || lower.includes('econnrefused')) {
-        return { code: 'NETWORK_ERROR', source: 'internal', isRetryable: true, suggestedAction: 'Verifica a ligação à internet e tenta novamente' };
-      }
-      
-      // API/server errors
-      if (lower.includes('500') || lower.includes('502') || lower.includes('503') || lower.includes('internal server')) {
-        return { code: 'API_ERROR', source: 'getlate', isRetryable: true, suggestedAction: 'O servidor está indisponível. Tenta novamente em alguns minutos' };
-      }
-      
-      return { code: 'UNKNOWN', source: 'unknown', isRetryable: true, suggestedAction: 'Tenta novamente ou contacta o suporte' };
-    };
-    
-    const errorClassification = classifyPublishError(errorMessage);
-    
-    return new Response(
-      JSON.stringify({ 
-        success: false, 
-        error: {
-          message: errorMessage,
-          code: errorClassification.code,
-          source: errorClassification.source,
-          originalError: errorMessage,
-          isRetryable: errorClassification.isRetryable,
-          suggestedAction: errorClassification.suggestedAction,
-        }
-      }),
-      { 
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-        status: 500 
-      }
-    );
+    const classification = classifyPublishError(errorMessage);
+    const status = classification.code === 'AUTH_ERROR' ? 401 : classification.isRetryable ? 200 : 400;
+    return buildFailureResponse(errorMessage, status);
   }
 });

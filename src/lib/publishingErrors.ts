@@ -173,6 +173,20 @@ export const ERROR_MESSAGES: Record<string, ErrorInfo> = {
     whenToRetry: 'short',
     severity: 'warning',
   },
+  all_platforms_failed: {
+    title: 'A rede social rejeitou temporariamente a publicação',
+    description: 'O serviço de publicação devolveu uma falha temporária para esta rede.',
+    action: 'Verifica o histórico antes de repetir',
+    isRetryable: true,
+    source: 'getlate',
+    plainExplanation: 'A publicação foi enviada, mas o serviço devolveu uma falha genérica da rede social. Como algumas redes processam vídeo em segundo plano, pode ainda aparecer no histórico dentro de poucos minutos.',
+    whatToDo: [
+      'Verifica o histórico antes de repetir',
+      'Se não aparecer publicado, aguarda 5 minutos e tenta novamente',
+    ],
+    whenToRetry: 'short',
+    severity: 'warning',
+  },
   duplicate_content: {
     title: 'Já publicaste esta legenda hoje',
     description: 'Este conteúdo já foi publicado nesta conta nas últimas 24h.',
@@ -318,6 +332,7 @@ export function getErrorInfoFromStructured(structuredError: StructuredError): Er
     'NETWORK_ERROR': 'network_error',
     'QUOTA_EXCEEDED': 'quota_exceeded',
     'API_ERROR': 'api_error',
+    'ALL_PLATFORMS_FAILED': 'all_platforms_failed',
     'UPLOAD_ERROR': 'upload_error',
     'DUPLICATE_CONTENT': 'duplicate_content',
     'LINKEDIN_DOCUMENT_ERROR': 'linkedin_document_error',
@@ -342,6 +357,9 @@ export function classifyError(errorMessage: string | undefined): string {
   
   if (lower.includes('media processing failed') || lower.includes('status_code":"error"')) {
     return 'media_processing';
+  }
+  if (lower.includes('all platforms failed') || lower.includes('failedplatforms')) {
+    return 'all_platforms_failed';
   }
   if (lower.includes('too many actions') || lower.includes('rate limit') || lower.includes('429') || lower.includes('please wait') || lower.includes('media container')) {
     return 'rate_limit';
@@ -406,6 +424,17 @@ export function isRateLimitError(errorMessage: string | undefined): boolean {
 // Classify error from string message and HTTP status code
 export function classifyErrorFromString(errorString: string, httpStatus?: number): StructuredError {
   const lower = errorString.toLowerCase();
+
+  if (lower.includes('all platforms failed') || lower.includes('failedplatforms')) {
+    return {
+      message: 'Falha temporária da rede social',
+      code: 'ALL_PLATFORMS_FAILED',
+      source: 'getlate',
+      isRetryable: true,
+      originalError: httpStatus ? `${httpStatus}: ${errorString}` : errorString,
+      suggestedAction: 'Verifica o histórico antes de repetir. Se não aparecer publicado, tenta novamente dentro de alguns minutos',
+    };
+  }
   
   if (lower.includes('exact content') || lower.includes('already scheduled') ||
       lower.includes('within the last 24 hours') || lower.includes('already published') ||
