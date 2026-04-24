@@ -83,6 +83,7 @@ export default function ManualCreate() {
   const [searchParams] = useSearchParams();
   const recoverPostId = searchParams.get('recover');
   const { instagram, linkedin, canPublish, refresh: refreshQuota, isUnlimited } = usePublishingQuota();
+  const { preferences: aiPreferences } = useAiPreferences();
   const [selectedFormats, setSelectedFormats] = useState<PostFormat[]>([]);
   const [caption, setCaption] = useState('');
   const [scheduledDate, setScheduledDate] = useState<Date>();
@@ -102,6 +103,14 @@ export default function ManualCreate() {
   const [aiMetadata, setAiMetadata] = useState<Partial<EditorialAssistantResult> | null>(null);
   const [aiAssistantLoading, setAiAssistantLoading] = useState(false);
   const [aiAssistantDismissed, setAiAssistantDismissed] = useState(false);
+  const [rewriteTone, setRewriteTone] = useState<CaptionRewriteTone>('neutro');
+  const [rewriteLoading, setRewriteLoading] = useState(false);
+  const [rewritePreview, setRewritePreview] = useState<{
+    originalText: string;
+    rewrittenText: string;
+    tone: CaptionRewriteTone;
+    network?: ReturnType<typeof getNetworkFromFormat>;
+  } | null>(null);
   const mediaSectionRef = useRef<HTMLDivElement>(null);
   const captionEditorRef = useRef<NetworkCaptionEditorHandle>(null);
   const networkOptionsRef = useRef<NetworkOptionsCardHandle>(null);
