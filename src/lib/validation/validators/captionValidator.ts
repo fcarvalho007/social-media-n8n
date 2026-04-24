@@ -31,7 +31,7 @@ export async function captionValidator(
       description: 'O LinkedIn não aceita publicações sem texto. Escreve pelo menos uma frase.',
       autoFixable: !!ctx.fixHelpers?.focusCaption,
       fixLabel: 'Editar legenda',
-      fixAction: () => ctx.fixHelpers?.focusCaption?.(),
+      fixAction: () => ctx.fixHelpers?.focusCaption?.('linkedin'),
     });
   }
 
@@ -51,13 +51,9 @@ export async function captionValidator(
         platform: network,
         title: `Legenda excede limite (${networkLabel})`,
         description: `Tens ${networkCaption.length} caracteres — máximo ${constraints.max_caption_length}. Excedido em ${overshoot}.`,
-        autoFixable: !!(ctx.useSeparateCaptions ? ctx.fixHelpers?.setNetworkCaption : ctx.fixHelpers?.setCaption),
-        fixLabel: `Cortar para ${constraints.max_caption_length} caracteres`,
-        fixAction: () => {
-          const next = networkCaption.slice(0, constraints.max_caption_length);
-          if (ctx.useSeparateCaptions) ctx.fixHelpers?.setNetworkCaption?.(network, next);
-          else ctx.fixHelpers?.setCaption?.(next);
-        },
+        autoFixable: !!ctx.fixHelpers?.focusCaption,
+        fixLabel: 'Editar legenda',
+        fixAction: () => ctx.fixHelpers?.focusCaption?.(network),
       });
     }
 
