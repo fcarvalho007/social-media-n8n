@@ -10,6 +10,10 @@ import { useEffect } from 'react';
  *    `<textarea>` (evita conflito com edição activa).
  *  - **Esc**              → callback opcional para fechar overlays
  *    customizados; modais Radix já tratam de Esc internamente.
+ *  - **?** (sem modificadores) → abre modal de descoberta de atalhos.
+ *    Padrão GitHub/Linear/Slack. Não dispara em inputs.
+ *  - **Cmd/Ctrl + /**     → abre painel de "Ajustar tom" da legenda
+ *    (callback opcional). Útil para utilizadores que escrevem muito.
  *
  * Todos os atalhos são desactivados quando `enabled=false`.
  */
@@ -18,6 +22,8 @@ export interface UseKeyboardShortcutsOptions {
   onPublish?: () => void;
   onSaveDraft?: () => void;
   onEscape?: () => void;
+  onShowShortcuts?: () => void;
+  onAdjustTone?: () => void;
 }
 
 const isEditableTarget = (target: EventTarget | null): boolean => {
@@ -33,6 +39,8 @@ export function useKeyboardShortcuts({
   onPublish,
   onSaveDraft,
   onEscape,
+  onShowShortcuts,
+  onAdjustTone,
 }: UseKeyboardShortcutsOptions) {
   useEffect(() => {
     if (!enabled || typeof window === 'undefined') return;
@@ -50,13 +58,35 @@ export function useKeyboardShortcuts({
       }
 
       // Cmd/Ctrl + S → guardar rascunho.
-      // Em textareas mantemos o atalho activo, mas evitamos colidir com
-      // edição complexa: o utilizador beneficia mais de não perder o
-      // trabalho do que de manter o save-page do browser.
       if (meta && (event.key === 's' || event.key === 'S')) {
         if (onSaveDraft) {
           event.preventDefault();
           onSaveDraft();
+        }
+        return;
+      }
+
+      // Cmd/Ctrl + / → ajustar tom da legenda.
+      if (meta && event.key === '/') {
+        if (onAdjustTone) {
+          event.preventDefault();
+          onAdjustTone();
+        }
+        return;
+      }
+
+      // ? (sem modificadores) → abrir modal de atalhos. Não disparar
+      // em inputs (caso contrário não se consegue escrever "?").
+      // Aceita "?" directamente ou Shift+/ em layouts US.
+      if (
+        !meta &&
+        !event.altKey &&
+        event.key === '?' &&
+        !isEditableTarget(event.target)
+      ) {
+        if (onShowShortcuts) {
+          event.preventDefault();
+          onShowShortcuts();
         }
         return;
       }
@@ -72,5 +102,5 @@ export function useKeyboardShortcuts({
 
     window.addEventListener('keydown', handler);
     return () => window.removeEventListener('keydown', handler);
-  }, [enabled, onPublish, onSaveDraft, onEscape]);
+  }, [enabled, onPublish, onSaveDraft, onEscape, onShowShortcuts, onAdjustTone]);
 }
