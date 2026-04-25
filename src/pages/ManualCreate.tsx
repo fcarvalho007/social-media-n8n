@@ -1823,6 +1823,5 @@ export default function ManualCreate() {
         onOpenChange={setShortcutsDialogOpen}
       />
     </div>
-    </div>
   );
 }
