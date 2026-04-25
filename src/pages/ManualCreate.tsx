@@ -596,14 +596,15 @@ export default function ManualCreate() {
     }
   }, [mediaFiles.length, guided, activate]);
 
-  // 3 → 4 (Caption → Options) com debounce de 1.5s para evitar disparar
-  // logo no primeiro carácter.
+  // 3 → 4 (Caption → Network Options) com debounce de 1.5s para evitar
+  // disparar logo no primeiro carácter.
+  // ID canónico: 'network-options' (ver DESIGN_SYSTEM.md → SectionCard IDs).
   useEffect(() => {
-    if (hasAnyCaption && !guidedFiredRef.current.has('options')) {
+    if (hasAnyCaption && !guidedFiredRef.current.has('network-options')) {
       const timer = window.setTimeout(() => {
-        if (!guidedFiredRef.current.has('options')) {
-          guidedFiredRef.current.add('options');
-          guided.transitionTo('network-options', () => activate('options'));
+        if (!guidedFiredRef.current.has('network-options')) {
+          guidedFiredRef.current.add('network-options');
+          guided.transitionTo('network-options', () => activate('network-options'));
         }
       }, 1500);
       return () => window.clearTimeout(timer);
@@ -1480,8 +1481,8 @@ export default function ManualCreate() {
               generatedEdited={aiGeneratedEdited}
               state={optionsState}
               stepNumber={4}
-              onActivate={() => activate('options')}
-              onEdit={() => activate('options')}
+              onActivate={() => activate('network-options')}
+              onEdit={() => activate('network-options')}
             />
 
             <Step3ScheduleCard
