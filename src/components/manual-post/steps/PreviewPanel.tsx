@@ -76,7 +76,7 @@ export function PreviewPanel(props: PreviewPanelProps) {
     return useSeparateCaptions ? networkCaptions[network] || caption : caption;
   };
 
-  const activeFormat = (variant === 'mobile' ? activePreviewTab || selectedFormats[0] : activePreviewTab || selectedFormats[0]) as PostFormat | undefined;
+  const activeFormat = (activePreviewTab || selectedFormats[0]) as PostFormat | undefined;
   const activeCaption = activeFormat ? getPreviewCaption(activeFormat) : caption;
   const hashtagCount = (activeCaption.match(/#[\p{L}\p{N}_]+/gu) ?? []).length;
   const scheduleLabel = scheduledDate && !scheduleAsap
