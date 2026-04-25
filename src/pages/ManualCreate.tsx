@@ -678,8 +678,10 @@ export default function ManualCreate() {
 
   // ── Atalhos de teclado (Prompt 4) ────────────────────────────────────
   // Cmd/Ctrl+Enter → publica (ou abre validação se há erros bloqueantes).
-  // Cmd/Ctrl+S    → guarda rascunho.
-  // Esc           → fecha modais (Radix já trata da maioria).
+  // Cmd/Ctrl+S     → guarda rascunho.
+  // Cmd/Ctrl+/     → foca a secção da legenda (revela "Ajustar tom").
+  // ?              → abre modal de descoberta de atalhos.
+  // Esc            → fecha modais (Radix já trata da maioria).
   useKeyboardShortcuts({
     enabled: !publishing && !submitting,
     onPublish: () => {
@@ -694,29 +696,55 @@ export default function ManualCreate() {
       if (saving) return;
       void handleSaveDraft();
     },
+    onShowShortcuts: () => setShortcutsDialogOpen(true),
+    onAdjustTone: () => {
+      // Foca a secção da legenda — onde vive o CaptionToneToolbar.
+      // Decisão UX: scroll/focus em vez de abrir popover programaticamente,
+      // para evitar acoplamento profundo com o estado interno do toolbar.
+      guided.transitionTo('caption', () => activate('caption'));
+    },
   });
 
-  // ── Detecção de desistência (Prompt 4) ────────────────────────────────
-  // Após 10s de inactividade com trabalho em curso, oferece guardar
-  // rascunho. Cooldown de 60s evita repetições agressivas.
+  // ── Auto-save silencioso (Prompt 4 — revisto) ────────────────────────
+  // Padrão Notion/Linear/Figma: após 60s de inactividade com trabalho em
+  // curso, guarda automaticamente em background e mostra toast informativo
+  // sem fricção. Cooldown 5min + signature evitam repetições redundantes.
   const hasWorkInProgress =
     selectedFormats.length > 0 || mediaFiles.length > 0 || caption.trim().length > 0;
 
+  // Signature compacta do estado relevante — se nada mudou desde o último
+  // auto-save, não disparamos novamente.
+  const draftSignature = useMemo(
+    () => JSON.stringify({
+      f: selectedFormats,
+      c: caption,
+      m: mediaFiles.map((file) => file.url ?? file.id ?? file.name).filter(Boolean),
+      d: scheduledDate,
+      t: time,
+    }),
+    [selectedFormats, caption, mediaFiles, scheduledDate, time],
+  );
+
   useIdleDetection({
     enabled: hasWorkInProgress && !publishing && !submitting && !saving,
-    timeout: 10_000,
-    cooldown: 60_000,
+    timeout: 60_000,
+    cooldown: 300_000,
+    signature: draftSignature,
     onIdle: () => {
-      toast.info('Precisas de uma pausa?', {
-        description: 'Tens trabalho em curso. Queres guardar como rascunho?',
-        duration: 8000,
-        action: {
-          label: 'Guardar rascunho',
-          onClick: () => void handleSaveDraft(),
-        },
-      });
+      void (async () => {
+        try {
+          await handleSaveDraft();
+          toast.info('Rascunho guardado.', {
+            description: 'Disponível em Rascunhos.',
+            duration: 4000,
+          });
+        } catch (error) {
+          console.error('[ManualCreate] auto-save silencioso falhou:', error);
+        }
+      })();
     },
   });
+
 
 
   // Handler for cancelling publication
