@@ -1427,7 +1427,9 @@ export default function ManualCreate() {
                 <Button
                   variant="default"
                   onClick={() => {
-                    activate('media');
+                    // `activate('media')` é tratado pelo useEffect que observa
+                    // `currentStep` (e também pelo guided flow). Evitar dupla
+                    // activação que pode contribuir para race conditions.
                     nextStep();
                   }}
                   className="h-10"
