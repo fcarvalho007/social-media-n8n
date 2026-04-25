@@ -1523,6 +1523,7 @@ export default function ManualCreate() {
               onRetry={handleAiTranscribe}
             />
 
+            <div className="mx-auto w-full max-w-3xl">
             <Step3CaptionCard
               ref={captionEditorRef}
               caption={caption}
