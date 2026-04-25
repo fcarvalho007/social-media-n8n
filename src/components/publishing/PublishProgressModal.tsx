@@ -89,7 +89,7 @@ interface PublishProgressModalProps {
 
 // Platform styling
 const platformColors: Record<string, string> = {
-  instagram: '#E1306C',
+  instagram: '#E4405F',
   linkedin: '#0A66C2',
   youtube: '#FF0000',
   facebook: '#1877F2',

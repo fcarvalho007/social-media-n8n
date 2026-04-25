@@ -16,8 +16,8 @@ export const PLATFORM_CONFIGS: Record<SocialNetwork, PlatformConfig> = {
     name: 'Instagram',
     shortName: 'Insta',
     icon: Instagram,
-    colorHex: '#E1306C',
-    colorClass: 'text-[#E1306C]',
+    colorHex: '#E4405F',
+    colorClass: 'text-[#E4405F]',
     enabled: true,
   },
   linkedin: {

@@ -17,10 +17,9 @@ import { PLATFORM_CONFIGS } from './platformConfig';
  *   A) Chips horizontais 80x80 com ícone colorido + nome (toggle).
  *   B) Para cada rede seleccionada, um bloco com radio grande de formatos.
  *
- * Substitui a antiga UI de duas colunas (NetworkFormatSelector) por uma
- * estrutura mais directa e visualmente coerente. NÃO contém lógica de
- * seleção própria — recebe `selectedFormats` e emite alterações via
- * callbacks.
+ * Substitui a antiga UI de duas colunas por uma estrutura mais directa
+ * e visualmente coerente. NÃO contém lógica de seleção própria — recebe
+ * `selectedFormats` e emite alterações via callbacks.
  */
 interface NetworkChipSelectorProps {
   selectedFormats: PostFormat[];
@@ -125,6 +124,12 @@ function NetworkChip({ network, selected, onToggle }: NetworkChipProps) {
       )}
       <Icon className="h-7 w-7" strokeWidth={1.5} style={{ color }} aria-hidden="true" />
       <span className="text-[11px] font-medium leading-none text-foreground">{config.shortName}</span>
+      {/* Estado anunciado a leitores de ecrã (complementa `aria-pressed`
+          e prepara o terreno para conexão real via social_profiles). */}
+      <span className="sr-only">
+        {isConnected ? 'Conta conectada' : 'Conta não conectada — abre Definições para conectar'}
+        {selected ? ' · selecionada' : ''}
+      </span>
     </button>
   );
 

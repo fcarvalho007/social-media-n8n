@@ -31,7 +31,7 @@ interface PublishSuccessModalProps {
 }
 
 const platformColors: Record<string, string> = {
-  instagram: '#E1306C',
+  instagram: '#E4405F',
   linkedin: '#0A66C2',
   youtube: '#FF0000',
   facebook: '#1877F2',
@@ -39,7 +39,7 @@ const platformColors: Record<string, string> = {
 };
 
 const platformGradients: Record<string, string> = {
-  instagram: 'linear-gradient(135deg, #E1306C, #F77737)',
+  instagram: 'linear-gradient(135deg, #E4405F, #F77737)',
   linkedin: 'linear-gradient(135deg, #0A66C2, #0073b1)',
   youtube: 'linear-gradient(135deg, #FF0000, #CC0000)',
   facebook: 'linear-gradient(135deg, #1877F2, #0866FF)',

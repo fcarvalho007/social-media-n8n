@@ -94,7 +94,12 @@ export function NetworkFormatSelector({
           className="inline-flex items-center gap-1.5 rounded-md border border-border/60 bg-muted/40 px-2 py-1 text-xs font-medium text-foreground"
           style={{ borderColor: `${item.color}40` }}
         >
-          <item.Icon className="h-3 w-3" strokeWidth={1.5} style={{ color: item.color }} aria-hidden="true" />
+          <item.Icon
+            className="h-3 w-3"
+            strokeWidth={1.5}
+            style={{ color: item.color }}
+            aria-hidden="true"
+          />
           <span>{item.label}</span>
         </span>
       ))}

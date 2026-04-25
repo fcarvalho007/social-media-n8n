@@ -1,4 +1,3 @@
-import { useMemo } from 'react';
 import { Check } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { PostFormat } from '@/types/social';
@@ -94,10 +93,9 @@ interface PresetCardProps {
 }
 
 function PresetCard({ preset, selectedFormats, onSelectPreset }: PresetCardProps) {
-  const isActive = useMemo(
-    () => preset.formats.every((f) => selectedFormats.includes(f)),
-    [preset.formats, selectedFormats],
-  );
+  // Cálculo trivial sobre arrays de 2-4 elementos — `useMemo` aqui dá
+  // overhead sem ganho mensurável.
+  const isActive = preset.formats.every((f) => selectedFormats.includes(f));
 
   const handleClick = () => {
     if (isActive) {
@@ -113,7 +111,9 @@ function PresetCard({ preset, selectedFormats, onSelectPreset }: PresetCardProps
       onClick={handleClick}
       aria-pressed={isActive}
       className={cn(
-        'group relative flex min-h-[140px] flex-col items-start gap-2 overflow-hidden rounded-xl border bg-card p-3 text-left transition-all duration-200',
+        // Sem `overflow-hidden`: o glow de seleção é uma sombra externa
+        // e não há conteúdo interno a clipar. Evita flicker no hover.
+        'group relative flex min-h-[140px] flex-col items-start gap-2 rounded-xl border bg-card p-3 text-left transition-all duration-200',
         'hover:-translate-y-0.5 hover:border-primary/40 hover:shadow-md',
         'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2',
         isActive && 'border-primary bg-primary/5 shadow-[0_0_24px_-8px_hsl(var(--primary)/0.4)]',
@@ -173,7 +173,14 @@ function PresetIllustration({ kind }: { kind: VisualPreset['illustration'] }) {
     case 'carousel':
       // 3 quadrados sobrepostos em perspetiva (carrossel)
       return (
-        <svg viewBox="0 0 56 40" fill="none" stroke="currentColor" strokeWidth={1.5} aria-hidden="true" className="h-full w-auto">
+        <svg
+          viewBox="0 0 56 40"
+          fill="none"
+          stroke="currentColor"
+          strokeWidth={1.5}
+          aria-hidden="true"
+          className="h-full w-auto"
+        >
           <rect x="6" y="8" width="22" height="24" rx="3" opacity="0.4" />
           <rect x="14" y="6" width="22" height="26" rx="3" opacity="0.7" />
           <rect x="22" y="4" width="22" height="28" rx="3" />
@@ -184,7 +191,14 @@ function PresetIllustration({ kind }: { kind: VisualPreset['illustration'] }) {
     case 'shortVideo':
       // Telemóvel vertical 9:16 com play
       return (
-        <svg viewBox="0 0 56 40" fill="none" stroke="currentColor" strokeWidth={1.5} aria-hidden="true" className="h-full w-auto">
+        <svg
+          viewBox="0 0 56 40"
+          fill="none"
+          stroke="currentColor"
+          strokeWidth={1.5}
+          aria-hidden="true"
+          className="h-full w-auto"
+        >
           <rect x="20" y="3" width="16" height="34" rx="3" />
           <line x1="24" y1="6" x2="32" y2="6" opacity="0.5" />
           <polygon points="25,16 25,28 33,22" fill="currentColor" stroke="none" />
@@ -193,7 +207,14 @@ function PresetIllustration({ kind }: { kind: VisualPreset['illustration'] }) {
     case 'photo':
       // Quadrado 1:1 com placeholder
       return (
-        <svg viewBox="0 0 56 40" fill="none" stroke="currentColor" strokeWidth={1.5} aria-hidden="true" className="h-full w-auto">
+        <svg
+          viewBox="0 0 56 40"
+          fill="none"
+          stroke="currentColor"
+          strokeWidth={1.5}
+          aria-hidden="true"
+          className="h-full w-auto"
+        >
           <rect x="14" y="6" width="28" height="28" rx="3" />
           <circle cx="22" cy="16" r="2.5" />
           <path d="M16 30 L24 22 L30 27 L36 21 L40 25" />
@@ -202,7 +223,14 @@ function PresetIllustration({ kind }: { kind: VisualPreset['illustration'] }) {
     case 'stories':
       // Vertical com timer no topo (ring indicator)
       return (
-        <svg viewBox="0 0 56 40" fill="none" stroke="currentColor" strokeWidth={1.5} aria-hidden="true" className="h-full w-auto">
+        <svg
+          viewBox="0 0 56 40"
+          fill="none"
+          stroke="currentColor"
+          strokeWidth={1.5}
+          aria-hidden="true"
+          className="h-full w-auto"
+        >
           <rect x="20" y="3" width="16" height="34" rx="3" />
           <line x1="22" y1="6" x2="27" y2="6" strokeWidth={2} />
           <line x1="29" y1="6" x2="34" y2="6" opacity="0.3" strokeWidth={2} />
