@@ -334,6 +334,9 @@ export default function ManualCreate() {
   // Mobile bottom-sheet state for the validation panel
   const [validationSheetOpen, setValidationSheetOpen] = useState(false);
 
+  // Modal de descoberta de atalhos de teclado (aberto via "?")
+  const [shortcutsDialogOpen, setShortcutsDialogOpen] = useState(false);
+
   // Progressive disclosure: secção 1 começa active; outras inactive (ou
   // complete quando carregadas via rascunho — gerido pelos handlers de
   // navegação do stepper).
