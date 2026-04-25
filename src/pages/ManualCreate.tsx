@@ -26,6 +26,7 @@ import { useGuidedFlow } from '@/hooks/manual-create/useGuidedFlow';
 import { useIdleDetection } from '@/hooks/manual-create/useIdleDetection';
 import { useKeyboardShortcuts } from '@/hooks/manual-create/useKeyboardShortcuts';
 import { GlobalProgressBar } from '@/components/manual-post/ui/GlobalProgressBar';
+import { KeyboardShortcutsDialog } from '@/components/manual-post/KeyboardShortcutsDialog';
 import { getMediaRequirements } from '@/lib/formatValidation';
 
 import { useSmartValidation } from '@/hooks/useSmartValidation';
