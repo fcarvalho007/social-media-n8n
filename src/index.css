@@ -304,9 +304,9 @@ All colors MUST be HSL.
   .manual-create-grid {
     /* overflow-visible é essencial para `position: sticky` funcionar dentro
        da coluna direita em desktop. Não adicionar overflow-hidden aqui.
-       Breakpoint xl (1280px+) garante espaço para preview sticky à direita
-       sem comprimir a coluna do formulário. */
-    @apply grid grid-cols-1 gap-6 overflow-visible pb-32 xl:grid-cols-[minmax(0,1.55fr)_minmax(380px,0.95fr)] xl:gap-manual-gap-desktop xl:pb-0;
+       Breakpoint lg (1024px+) — preview sticky à direita assim que houver
+       espaço útil suficiente, considerando sidebar + paddings da app. */
+    @apply grid grid-cols-1 gap-6 overflow-visible pb-32 lg:grid-cols-[minmax(0,1.55fr)_minmax(360px,0.95fr)] lg:gap-manual-gap-desktop lg:pb-0;
   }
 
   .manual-section-title {
