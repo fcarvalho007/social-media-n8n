@@ -1,121 +1,102 @@
-## 🎯 Objectivo
+Plano de correção para `/manual-create`
 
-Fechar os 2 itens em falta do Prompt 3/4:
+Diagnóstico confirmado em preview 1462x905:
 
-1. Barra fixa global de acções com contador "X/5" e estado de erro
-2. Toggle "Modo guiado" + integração de `transitionTo` (só para a frente)
+- Depois de selecionar “Carrossel”, a secção Média chega a ficar `active`, mas logo a seguir `activeSection` passa para `schedule` sem existir média carregada.
+- A causa provável está no auto-avanço 4 → 5: `hasOptionsConfigured` trata valores default como configuração real (`instagram.formatVariant = 'feed'`, `youtube.visibility = 'public'`, etc.). Como `showStep3` depende de média, as secções 3/4/5 ficam escondidas, mas a secção ativa passa para Agendamento. Resultado visual: Média volta a `inactive`/colapsada e o fluxo “salta”.
+- A pré-visualização está dentro da coluna esquerda por estrutura JSX: o `PreviewPanel` foi renderizado antes de fechar a div da coluna do formulário. Por isso aparece empilhado por baixo em vez de ocupar a coluna direita sticky.
 
-E validar (já confirmado) que `SectionCard` aplica `opacity-65` em estado inactive.
+## Alterações propostas
 
----
+### 1. Corrigir progressive disclosure: Média não pode ser saltada
 
-## 📦 Ficheiros a editar
+Em `src/pages/ManualCreate.tsx`:
 
-### 1. `src/components/manual-post/steps/PublishActionsCard.tsx` — refactor
-- **Adicionar props opcionais** (não-breaking):
-  ```ts
-  completedSteps?: number;
-  totalSteps?: number;          // default 5
-  fixedBottom?: boolean;
-  hasErrors?: boolean;
-  onShowValidationIssues?: () => void;
-  guidedEnabled?: boolean;
-  onToggleGuided?: () => void;
-  ```
-- Quando `fixedBottom !== true`: comportamento idêntico ao actual (zero regressão).
-- Quando `fixedBottom === true`:
-  - Wrapper passa de `<Card>` para `<div className="fixed inset-x-0 bottom-0 z-30 border-t border-border bg-background/95 backdrop-blur-md shadow-[0_-4px_24px_rgba(0,0,0,0.08)]">`.
-  - Container interno: `max-w-screen-xl mx-auto px-4 py-3 space-y-2`.
-  - **Linha de topo compacta**: contador esquerda (`✅ {completedSteps}/{totalSteps} secções completas`) + barra `Progress` fina (h-1) + `Switch` "Modo guiado" à direita.
-  - **Linha primária**: CTA principal (Publicar/Agendar) ocupa flex-1; botão "Submeter para aprovação" em variant="secondary" lado a lado em desktop, empilhado em mobile (`flex-col sm:flex-row`).
-  - **Linha secundária**: Guardar rascunho · Ver rascunhos · Ver calendário (links discretos).
-  - **Estado de erro** (`hasErrors=true`): CTA principal vira `bg-destructive text-destructive-foreground`, label "Corrige antes de publicar", `onClick → onShowValidationIssues` (em vez de `onPublish`).
+- Alterar a transição automática 4 → 5 para só poder disparar quando a secção 4 estiver realmente disponível:
+  - exigir `showStep3 === true`;
+  - exigir `hasAnyCaption === true` ou `activeSection === 'network-options'` conforme a regra final do fluxo;
+  - nunca permitir `schedule` antes de haver pelo menos `minMediaRequired` ficheiros carregados.
+- Corrigir `hasOptionsConfigured` para contar apenas opções editadas pelo utilizador, não defaults técnicos:
+  - contar `firstComment` com texto;
+  - contar `collaborators`, `mentions`, `photoTags`, `tags` com itens;
+  - contar `storyLinkUrl`, `storyLinkStickerText`, `storyLinkOverlayText`, `youtube.title`, `googlebusiness.ctaUrl` com texto;
+  - contar booleans apenas quando forem ativações reais de feature, como `ctaEnabled === true` ou `disableLinkPreview === true`;
+  - não contar `formatVariant: 'feed'`, `visibility: 'public'`, `categoryId: '22'`, `ctaType: 'learn_more'`.
+- Manter `mediaState` com prioridade ao foco, mas garantir que nenhuma transição posterior rouba o foco antes da média existir.
+- Remover o `console.debug` temporário depois de validar a correção.
 
-### 2. `src/pages/ManualCreate.tsx` — integração
-1. **Importar** `useGuidedFlow` e instanciar uma vez:
-   ```ts
-   const guided = useGuidedFlow();
-   ```
-2. **Calcular `completedSections`** a partir dos states já existentes:
-   ```ts
-   const completedSections = [
-     networksState, mediaState, captionState, optionsState, scheduleState
-   ].filter(s => s === 'complete').length;
-   ```
-3. **Passar props ao `PublishActionsCard`**:
-   ```tsx
-   fixedBottom
-   completedSteps={completedSections}
-   totalSteps={5}
-   hasErrors={selectedFormats.length > 0 && !smartValidation.canPublish}
-   onShowValidationIssues={() => setValidationSheetOpen(true)}
-   guidedEnabled={guided.enabled}
-   onToggleGuided={guided.toggle}
-   ```
-4. **Adicionar padding inferior** ao container principal (linha 1167) para evitar que a barra fixa tape conteúdo:
-   - `pb-40 sm:pb-32` no wrapper raiz.
-5. **Remover** o `MobileStickyActionBar` (passa a ser substituído pela barra global única) — **OU** mantê-lo apenas para a navegação entre passos do stepper. **Decisão segura**: manter o `MobileStickyActionBar` porque tem lógica de stepper distinta; a nova barra fica acima dele em mobile (`bottom-16`) ou substitui-o quando `currentStep >= 3`.
-   - **Plano conservador**: ajustar a barra fixa para `bottom-16 sm:bottom-0` em mobile para não colidir com `MobileStickyActionBar`.
-6. **Aplicar `transitionTo`** com `useRef<Set<string>>` para garantir disparo único por sessão:
-   ```ts
-   const guidedFiredRef = useRef<Set<string>>(new Set());
+### 2. Restaurar layout desktop com preview sempre visível à direita
 
-   // 1 → 2 (Networks → Media)
-   useEffect(() => {
-     if (selectedFormats.length > 0 && !guidedFiredRef.current.has('media')) {
-       guidedFiredRef.current.add('media');
-       guided.transitionTo('section-media', () => activate('media'));
-     }
-   }, [selectedFormats.length]);
+Em `src/pages/ManualCreate.tsx`:
 
-   // 2 → 3 (Media → Caption)
-   useEffect(() => {
-     if (mediaFiles.length > 0 && !guidedFiredRef.current.has('caption')) {
-       guidedFiredRef.current.add('caption');
-       guided.transitionTo('section-caption', () => activate('caption'));
-     }
-   }, [mediaFiles.length]);
+- Corrigir a hierarquia JSX para que `PreviewPanel` seja sibling da coluna esquerda, não filho dela.
 
-   // 3 → 4 (Caption → Options) — debounce 1.5s
-   useEffect(() => {
-     if (hasAnyCaption && !guidedFiredRef.current.has('options')) {
-       const t = window.setTimeout(() => {
-         guidedFiredRef.current.add('options');
-         guided.transitionTo('section-options', () => activate('options'));
-       }, 1500);
-       return () => window.clearTimeout(t);
-     }
-   }, [hasAnyCaption]);
+Estrutura pretendida:
 
-   // 4 → 5 (Options → Schedule)
-   useEffect(() => {
-     if (hasOptionsConfigured && !guidedFiredRef.current.has('schedule')) {
-       guidedFiredRef.current.add('schedule');
-       guided.transitionTo('section-schedule', () => activate('schedule'));
-     }
-   }, [hasOptionsConfigured]);
-   ```
-   **Nota**: confirmar IDs reais usados nos `<SectionCard id="...">` (provavelmente `networks`, `media`, `caption`, `options`, `schedule` — sem prefixo). Será validado durante a implementação.
+```text
+manual-create-grid
+  left column: NetworkFormatSelector + Step2MediaCard + Caption/Options/Schedule
+  right column: PreviewPanel desktop sticky
+```
 
-### 3. Validação visual `SectionCard`
-✅ **Já confirmado** durante a inspecção: linhas 113-114 aplicam `opacity-65` em inactive e `opacity-100` em active/complete. **Nenhuma alteração necessária**.
+Em `src/index.css` e/ou classes Tailwind existentes:
 
-### 4. Toaster (Sonner)
-- Sonner default-renderiza em `top-right` → **sem colisão** com a barra inferior. Nenhuma alteração necessária.
+- Mudar o breakpoint da grelha de desktop para `xl` (>=1280px), não `lg`, para cumprir a regra:
+  - <1280px: single column + preview via FAB/Drawer;
+  - >=1280px: duas colunas + preview sticky.
+- Usar proporção aproximada 60/40 ou 65/35:
+  - esquerda: `minmax(0, 1.55fr)` ou equivalente;
+  - direita: `minmax(360px, 0.95fr)`.
+- Manter `overflow-visible` nos ancestrais do sticky.
 
----
+Em `src/components/manual-post/steps/PreviewPanel.tsx`:
 
-## ✅ Checkpoint final do Prompt 3/4
+- Alterar visibilidade desktop de `lg:*` para `xl:*`.
+- Manter `position: sticky`, com `top` alinhado ao header (`top-24` ou equivalente existente) e `h-[calc(100vh-8rem)]`.
 
-- ☐ `PublishActionsCard` suporta modo `fixedBottom` com contador X/5
-- ☐ Estado de erro mostra CTA vermelho "Corrige antes de publicar"
-- ☐ Toggle "Modo guiado" visível no header da barra, persistido em localStorage
-- ☐ `transitionTo` dispara apenas para a frente (Set ref garante uma vez por sessão)
-- ☐ Padding inferior do container evita conteúdo tapado
-- ☐ `tsc --noEmit` compila sem erros
-- ☐ Sem regressões em desktop ou mobile
+### 3. Ajustar largura desktop sem desperdiçar espaço
 
-## 🔒 Diferido para Prompt 4 (já acordado)
-- Detecção de "desistência" (toast 10s sem editar)
-- Atalhos de teclado
-- Screenshots comparativos
+Em `ManualCreate.tsx`:
+
+- Manter container máximo em torno de `max-w-[1600px]`.
+- Preservar padding responsivo atual.
+- Remover/ajustar o limite `2xl:max-w-3xl` se estiver a estreitar demasiado a coluna esquerda dentro da grelha. Em vez disso, limitar apenas blocos de texto internos quando necessário, não a coluna inteira.
+
+### 4. Validar e entregar evidência
+
+Após implementação em build mode:
+
+- Correr `npx tsc --noEmit`.
+- Correr testes Vitest existentes.
+- Testar em preview:
+  - 375px: mobile preservado, preview por FAB/Drawer;
+  - 768px: single column, preview por Drawer;
+  - 1280px: preview aparece na coluna direita sticky;
+  - 1462px: selecionar Carrossel mantém Média ativa/expandida e preview à direita;
+  - 1900px: container limitado, sem espaço branco excessivo.
+- Cenário crítico:
+  - abrir `/manual-create` vazio;
+  - clicar “Carrossel”;
+  - confirmar Secção 1 `complete`;
+  - confirmar Secção 2 `active`/expandida sem média carregada;
+  - confirmar que não salta para Legenda/Opções/Agendamento;
+  - confirmar scroll suave para Média;
+  - confirmar preview visível à direita no desktop.
+
+## Ficheiros previstos
+
+- `src/pages/ManualCreate.tsx`
+- `src/index.css`
+- `src/components/manual-post/steps/PreviewPanel.tsx`
+
+Não vou alterar `SectionCard`, `useGuidedFlow`, validação, publicação, nem adicionar dependências.
+
+Checklist de aprovação:
+
+☐ Corrigir transição indevida para `schedule` antes de haver média.
+☐ Corrigir `hasOptionsConfigured` para ignorar defaults técnicos.
+☐ Corrigir hierarquia JSX para PreviewPanel ficar na coluna direita.
+☐ Ajustar breakpoint desktop para `xl`/1280px.
+☐ Validar 375, 768, 1280, 1462 e 1900px.
+☐ Remover logs temporários após validação.
+☐ Executar tsc + vitest.

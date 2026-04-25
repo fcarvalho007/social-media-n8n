@@ -561,9 +561,36 @@ export default function ManualCreate() {
           : 'inactive';
 
   // Estados para Opções por rede e Agendamento (Prompt 3/4).
-  const hasOptionsConfigured =
-    selectedNetworks.length > 0 &&
-    Object.values(networkOptions).some((opts) => opts && Object.values(opts).some((v) => Array.isArray(v) ? v.length > 0 : typeof v === 'string' ? v.trim().length > 0 : v === true));
+  // IMPORTANTE: só conta opções genuinamente editadas pelo utilizador.
+  // Defaults técnicos (formatVariant: 'feed', visibility: 'public',
+  // categoryId: '22', ctaType: 'learn_more') NÃO devem ser interpretados
+  // como configuração — caso contrário a transição 4→5 dispara logo após
+  // selecionar formatos e a Secção 5 (Agendamento) rouba foco indevidamente,
+  // saltando a Média.
+  const hasOptionsConfigured = useMemo(() => {
+    if (selectedNetworks.length === 0) return false;
+    const ig = networkOptions.instagram;
+    const li = networkOptions.linkedin;
+    const fb = networkOptions.facebook;
+    const yt = networkOptions.youtube;
+    const gb = networkOptions.googlebusiness;
+    return Boolean(
+      (ig?.firstComment ?? '').trim() ||
+      (ig?.collaborators?.length ?? 0) > 0 ||
+      (ig?.photoTags?.length ?? 0) > 0 ||
+      (ig?.storyLinkUrl ?? '').trim() ||
+      (ig?.storyLinkStickerText ?? '').trim() ||
+      (ig?.storyLinkOverlayText ?? '').trim() ||
+      (li?.firstComment ?? '').trim() ||
+      (li?.mentions?.length ?? 0) > 0 ||
+      li?.disableLinkPreview === true ||
+      (fb?.firstComment ?? '').trim() ||
+      (yt?.title ?? '').trim() ||
+      (yt?.tags?.length ?? 0) > 0 ||
+      gb?.ctaEnabled === true ||
+      (gb?.ctaUrl ?? '').trim()
+    );
+  }, [networkOptions, selectedNetworks.length]);
 
   const optionsState: 'inactive' | 'active' | 'complete' =
     activeSection === 'network-options'
@@ -583,16 +610,6 @@ export default function ManualCreate() {
           ? 'complete'
           : 'inactive';
 
-  // [DEV] Diagnóstico temporário do progressive disclosure (Problema 1).
-  // Remover após confirmação do fix em produção.
-  if (import.meta.env.DEV) {
-    // eslint-disable-next-line no-console
-    console.debug('[ManualCreate] activeSection:', activeSection,
-      '| mediaState:', mediaState,
-      '| showStep2:', showStep2,
-      '| selectedFormats:', selectedFormats.length);
-  }
-
   // ── Contagem de secções concluídas para a barra global ────────────────
   const completedSections = [
     networksState,
@@ -603,7 +620,10 @@ export default function ManualCreate() {
   ].filter((s) => s === 'complete').length;
 
   // ── Modo guiado: transições only-forward ──────────────────────────────
-  // Cada transição dispara uma única vez por sessão (Set ref).
+  // Cada transição dispara uma única vez por sessão (Set ref) e respeita
+  // a ordem real do fluxo: nenhuma secção pode ganhar foco se a anterior
+  // não estiver realmente desbloqueada (ex.: Schedule não pode roubar foco
+  // antes de existir média carregada).
   // 1 → 2 (Networks → Media)
   useEffect(() => {
     if (selectedFormats.length > 0 && !guidedFiredRef.current.has('media')) {
@@ -612,19 +632,19 @@ export default function ManualCreate() {
     }
   }, [selectedFormats.length, guided, activate]);
 
-  // 2 → 3 (Media → Caption)
+  // 2 → 3 (Media → Caption) — só quando média mínima está cumprida
   useEffect(() => {
-    if (mediaFiles.length > 0 && !guidedFiredRef.current.has('caption')) {
+    if (showStep3 && !guidedFiredRef.current.has('caption')) {
       guidedFiredRef.current.add('caption');
       guided.transitionTo('caption', () => activate('caption'));
     }
-  }, [mediaFiles.length, guided, activate]);
+  }, [showStep3, guided, activate]);
 
   // 3 → 4 (Caption → Network Options) com debounce de 1.5s para evitar
-  // disparar logo no primeiro carácter.
+  // disparar logo no primeiro carácter. Só corre se a Média já está cumprida.
   // ID canónico: 'network-options' (ver DESIGN_SYSTEM.md → SectionCard IDs).
   useEffect(() => {
-    if (hasAnyCaption && !guidedFiredRef.current.has('network-options')) {
+    if (showStep3 && hasAnyCaption && !guidedFiredRef.current.has('network-options')) {
       const timer = window.setTimeout(() => {
         if (!guidedFiredRef.current.has('network-options')) {
           guidedFiredRef.current.add('network-options');
@@ -633,15 +653,20 @@ export default function ManualCreate() {
       }, 1500);
       return () => window.clearTimeout(timer);
     }
-  }, [hasAnyCaption, guided, activate]);
+  }, [showStep3, hasAnyCaption, guided, activate]);
 
-  // 4 → 5 (Options → Schedule)
+  // 4 → 5 (Options → Schedule) — exige média + legenda + opções reais.
   useEffect(() => {
-    if (hasOptionsConfigured && !guidedFiredRef.current.has('schedule')) {
+    if (
+      showStep3 &&
+      hasAnyCaption &&
+      hasOptionsConfigured &&
+      !guidedFiredRef.current.has('schedule')
+    ) {
       guidedFiredRef.current.add('schedule');
       guided.transitionTo('schedule', () => activate('schedule'));
     }
-  }, [hasOptionsConfigured, guided, activate]);
+  }, [showStep3, hasAnyCaption, hasOptionsConfigured, guided, activate]);
 
 
   // Note: legacy `getValidationErrors()`/`hasErrors` removed.
@@ -1381,9 +1406,9 @@ export default function ManualCreate() {
       {/* Mobile Preview - Hidden by default, moved to bottom */}
 
       <div className="manual-create-grid">
-        {/* Left - Form (limitado a max-w-3xl em viewports muito largos para
-            preservar legibilidade — linhas de texto não devem exceder ~75 ch). */}
-        <div className="space-y-6 min-w-0 2xl:max-w-3xl">
+        {/* Left - Form. A largura máxima é controlada pela coluna do grid;
+            blocos de texto internos limitam-se a si próprios quando preciso. */}
+        <div className="space-y-6 min-w-0">
 
           {/* Step 1: Network & Format Selection */}
           <div className="relative">
