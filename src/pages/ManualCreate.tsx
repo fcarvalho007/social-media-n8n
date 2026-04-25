@@ -1767,6 +1767,11 @@ export default function ManualCreate() {
         onOpenChange={(open) => { if (!open) setVideoToolsReview(null); }}
         onCopy={copyVideoToolsReview}
       />
+
+      <KeyboardShortcutsDialog
+        open={shortcutsDialogOpen}
+        onOpenChange={setShortcutsDialogOpen}
+      />
     </div>
     </div>
   );
