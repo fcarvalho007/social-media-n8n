@@ -1,7 +1,7 @@
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Heart, MessageCircle, Send, Bookmark, ChevronLeft, ChevronRight, Expand, ImageIcon, VideoIcon, AlertCircle } from "lucide-react";
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useMemo, useRef } from "react";
 import { Button } from "@/components/ui/button";
 import { DeviceFrame } from "./DeviceFrame";
 import { cn } from "@/lib/utils";
@@ -25,9 +25,21 @@ const InstagramCarouselPreview = ({ mediaUrls, mediaItems, caption }: InstagramC
   const [loadingStates, setLoadingStates] = useState<Record<number, boolean>>({});
   const [errorStates, setErrorStates] = useState<Record<number, boolean>>({});
   
-  // Support both legacy mediaUrls and new mediaItems prop
-  const items: MediaItem[] = mediaItems || (mediaUrls?.map(url => ({ url, isVideo: false })) || []);
-  
+  // Fingerprint estável do conjunto de média. Evita que `items` mude de
+  // referência em cada render do pai (que reinicializava `loadingStates`
+  // → `<Skeleton>` sobrepunha o conteúdo → flicker contínuo + setas
+  // inutilizáveis).
+  const itemsFingerprint = useMemo(() => {
+    const source = mediaItems ?? mediaUrls?.map((url) => ({ url, isVideo: false })) ?? [];
+    return source.map((i) => `${i.url}|${i.isVideo}`).join('§');
+  }, [mediaItems, mediaUrls]);
+
+  const items: MediaItem[] = useMemo(
+    () => mediaItems ?? mediaUrls?.map((url) => ({ url, isVideo: false })) ?? [],
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [itemsFingerprint],
+  );
+
   const maxCaptionLength = 2200;
   const captionLength = caption.length;
   const getCharCountColor = () => {
@@ -56,24 +68,33 @@ const InstagramCarouselPreview = ({ mediaUrls, mediaItems, caption }: InstagramC
     }
   };
 
-  // Reset currentIndex when items change to prevent accessing undefined items
+  // Reset currentIndex apenas quando o conjunto real muda — usa o
+  // fingerprint, não a referência do array.
+  const prevFingerprintRef = useRef<string>(itemsFingerprint);
   useEffect(() => {
     if (items.length === 0) {
       setCurrentIndex(0);
     } else if (currentIndex >= items.length) {
       setCurrentIndex(items.length - 1);
     }
-  }, [items.length, currentIndex]);
+  }, [itemsFingerprint, items.length, currentIndex]);
 
-  // Initialize loading states when items change
+  // Inicializar loading apenas quando o conjunto de URLs muda. Isto evita
+  // o flicker que acontecia quando o pai re-renderizava (caption typing,
+  // schedule changes, etc.) e re-criava o array `items` inline.
   useEffect(() => {
+    if (prevFingerprintRef.current === itemsFingerprint && Object.keys(loadingStates).length > 0) {
+      return;
+    }
+    prevFingerprintRef.current = itemsFingerprint;
     const initialLoading: Record<number, boolean> = {};
     items.forEach((_, idx) => {
       initialLoading[idx] = true;
     });
     setLoadingStates(initialLoading);
     setErrorStates({});
-  }, [items.length]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [itemsFingerprint]);
 
   // Keyboard navigation
   useEffect(() => {
@@ -171,7 +192,7 @@ const InstagramCarouselPreview = ({ mediaUrls, mediaItems, caption }: InstagramC
 
   return (
     <>
-      <DeviceFrame type="phone">
+      <DeviceFrame type="phone" size="expanded">
         <Card className="w-full overflow-hidden border-0 rounded-none shadow-none">
           {/* Header */}
           <div className="flex items-center gap-3 p-3 border-b">

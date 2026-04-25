@@ -1,6 +1,32 @@
 import { PostFormat, getFormatConfig, getNetworkFromFormat } from '@/types/social';
 import { NETWORK_CONSTRAINTS } from '@/lib/socialNetworks';
 
+/**
+ * Formatos que, embora a API aceite tecnicamente 1 ficheiro (ex.: o
+ * Instagram aceita um carrossel de 1), são *semanticamente* destinados a
+ * múltiplos ficheiros. O fluxo de UX exige ≥2 antes de avançar para o
+ * próximo passo, evitando que o utilizador caia no Step 3 com apenas 1
+ * imagem quando escolheu "Carrossel" ou "Documento PDF".
+ *
+ * NÃO altera a validação de publicação (continua a aceitar o que o
+ * formato permite — ver `validateFormat`).
+ */
+const MULTI_MEDIA_FORMATS = new Set<PostFormat>([
+  'instagram_carousel',
+  'linkedin_document',
+]);
+
+/**
+ * Mínimo de média *efectivo* para o progressive disclosure.
+ * Devolve `Math.max(minMedia, 2)` se algum formato seleccionado pertencer
+ * à lista de "multi-media", caso contrário devolve o `minMedia` natural.
+ */
+export function getEffectiveMinMedia(formats: PostFormat[]): number {
+  const base = getMediaRequirements(formats).minMedia || 1;
+  const needsMulti = formats.some((f) => MULTI_MEDIA_FORMATS.has(f));
+  return needsMulti ? Math.max(base, 2) : base;
+}
+
 export interface FormatValidationResult {
   format: PostFormat;
   valid: boolean;
