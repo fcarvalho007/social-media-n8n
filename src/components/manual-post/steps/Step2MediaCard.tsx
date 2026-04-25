@@ -190,6 +190,10 @@ export function Step2MediaCard(props: Step2MediaCardProps) {
       ? mediaFiles.length === 1 ? 'imagem' : 'imagens'
       : 'ficheiros';
 
+  // Sufixo do título: "· N ficheiros · TAM" + indicação de mínimo quando
+  // o formato exige múltiplos ficheiros (ex.: Carrossel/Documento PDF).
+  const requiresMultiple = mediaRequirements.minMedia >= 2;
+  const belowMinimum = requiresMultiple && mediaFiles.length < mediaRequirements.minMedia;
   const titleSuffix = mediaFiles.length > 0
     ? ` · ${mediaFiles.length} ${mediaKindLabel} · ${formatFileSize(totalBytes)}`
     : '';
