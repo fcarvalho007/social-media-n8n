@@ -1555,27 +1555,9 @@ export default function ManualCreate() {
         onSubmitForApproval={handleSubmitWithValidation}
       />
 
-      {/* Mobile Sticky Bottom Bar (extracted) */}
+      {/* Nota: `MobileStickyActionBar` removido — substituído pela
+          `PublishActionsCard fixedBottom` (Prompt 4). */}
 
-      <MobileStickyActionBar
-        currentStep={currentStep}
-        scheduleAsap={scheduleAsap}
-        scheduledDate={scheduledDate}
-        time={time}
-        selectedFormats={selectedFormats}
-        smartValidation={smartValidation}
-        onOpenValidationSheet={() => setValidationSheetOpen(true)}
-        onSaveDraft={handleSaveDraft}
-        onPublish={handlePublishWithValidation}
-        onPreviousStep={previousStep}
-        onSubmitForApproval={handleSubmitWithValidation}
-        onOpenDrafts={() => setDraftsDialogOpen(true)}
-        onViewCalendar={() => navigate('/calendar')}
-        saving={saving}
-        submitting={submitting}
-        publishing={publishing}
-        isUploading={isUploading}
-      />
 
       <ValidationSidebar
         validation={smartValidation}
