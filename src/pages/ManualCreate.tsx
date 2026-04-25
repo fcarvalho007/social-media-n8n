@@ -16,7 +16,7 @@ import { MediaValidationResult } from '@/lib/mediaValidation';
 import { renderFormatPreview, getNetworkIcon } from '@/lib/manual-create/previewRenderer';
 import { RecoveryBanner } from '@/components/manual-post/steps/RecoveryBanner';
 import { QuotaWarningBanner } from '@/components/manual-post/steps/QuotaWarningBanner';
-import { MobileStickyActionBar } from '@/components/manual-post/steps/MobileStickyActionBar';
+
 import { ManualCreateModals } from '@/components/manual-post/steps/ManualCreateModals';
 import { Drawer, DrawerContent, DrawerHeader, DrawerTitle } from '@/components/ui/drawer';
 import { ChevronRight } from 'lucide-react';
