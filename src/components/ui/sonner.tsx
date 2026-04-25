@@ -9,13 +9,17 @@ const Toaster = ({ ...props }: ToasterProps) => {
   const isMobile = useIsMobile();
 
   // Posicionamento responsivo:
-  //  - Mobile → topo-centro (longe da barra fixa global de acções).
+  //  - Mobile → topo-centro com `env(safe-area-inset-top)` para nunca
+  //    ficar tapado pelo notch/Dynamic Island do iPhone (ou status bar
+  //    do Android). Fallback 12px quando o inset é 0.
   //  - Desktop → canto inferior-direito, com offset dinâmico para nunca
   //    ficar tapado pela `PublishActionsCard` (`--sticky-bar-height`,
   //    actualizada via ResizeObserver). Fallback 72px para o primeiro
   //    paint antes do observer correr.
   const position: ToasterProps["position"] = isMobile ? "top-center" : "bottom-right";
-  const offset = isMobile ? undefined : "calc(var(--sticky-bar-height, 72px) + 16px)";
+  const offset = isMobile
+    ? "calc(env(safe-area-inset-top, 0px) + 12px)"
+    : "calc(var(--sticky-bar-height, 72px) + 16px)";
 
   return (
     <Sonner
