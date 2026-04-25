@@ -23,6 +23,8 @@ import { ChevronRight } from 'lucide-react';
 import { NetworkFormatSelector } from '@/components/manual-post/NetworkFormatSelector';
 import { useActiveSection } from '@/hooks/useActiveSection';
 import { useGuidedFlow } from '@/hooks/manual-create/useGuidedFlow';
+import { useIdleDetection } from '@/hooks/manual-create/useIdleDetection';
+import { useKeyboardShortcuts } from '@/hooks/manual-create/useKeyboardShortcuts';
 import { GlobalProgressBar } from '@/components/manual-post/ui/GlobalProgressBar';
 import { getMediaRequirements } from '@/lib/formatValidation';
 
@@ -669,6 +671,48 @@ export default function ManualCreate() {
   const handleSaveDraft = orchestrator.saveDraft;
   const handlePublishWithValidation = orchestrator.publishWithValidation;
   const handleSubmitWithValidation = orchestrator.submitWithValidation;
+
+  // ── Atalhos de teclado (Prompt 4) ────────────────────────────────────
+  // Cmd/Ctrl+Enter → publica (ou abre validação se há erros bloqueantes).
+  // Cmd/Ctrl+S    → guarda rascunho.
+  // Esc           → fecha modais (Radix já trata da maioria).
+  useKeyboardShortcuts({
+    enabled: !publishing && !submitting,
+    onPublish: () => {
+      if (selectedFormats.length === 0) return;
+      if (!smartValidation.canPublish) {
+        setValidationSheetOpen(true);
+        return;
+      }
+      handlePublishWithValidation();
+    },
+    onSaveDraft: () => {
+      if (saving) return;
+      void handleSaveDraft();
+    },
+  });
+
+  // ── Detecção de desistência (Prompt 4) ────────────────────────────────
+  // Após 10s de inactividade com trabalho em curso, oferece guardar
+  // rascunho. Cooldown de 60s evita repetições agressivas.
+  const hasWorkInProgress =
+    selectedFormats.length > 0 || mediaFiles.length > 0 || caption.trim().length > 0;
+
+  useIdleDetection({
+    enabled: hasWorkInProgress && !publishing && !submitting && !saving,
+    timeout: 10_000,
+    cooldown: 60_000,
+    onIdle: () => {
+      toast.info('Precisas de uma pausa?', {
+        description: 'Tens trabalho em curso. Queres guardar como rascunho?',
+        duration: 8000,
+        action: {
+          label: 'Guardar rascunho',
+          onClick: () => void handleSaveDraft(),
+        },
+      });
+    },
+  });
 
 
   // Handler for cancelling publication
