@@ -1380,9 +1380,11 @@ export default function ManualCreate() {
 
       {/* Mobile Preview - Hidden by default, moved to bottom */}
 
-      <div className="manual-create-grid px-0 sm:px-0 overflow-hidden">
-        {/* Left - Form */}
-        <div className="space-y-6">
+      <div className="manual-create-grid">
+        {/* Left - Form (limitado a max-w-3xl em viewports muito largos para
+            preservar legibilidade — linhas de texto não devem exceder ~75 ch). */}
+        <div className="space-y-6 min-w-0 2xl:max-w-3xl">
+
           {/* Step 1: Network & Format Selection */}
           <div className="relative">
             <NetworkFormatSelector
