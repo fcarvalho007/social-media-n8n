@@ -718,7 +718,7 @@ export default function ManualCreate() {
     () => JSON.stringify({
       f: selectedFormats,
       c: caption,
-      m: mediaFiles.map((file) => file.url ?? file.id ?? file.name).filter(Boolean),
+      m: mediaFiles.map((file) => `${file.name}:${file.size}`),
       d: scheduledDate,
       t: time,
     }),
