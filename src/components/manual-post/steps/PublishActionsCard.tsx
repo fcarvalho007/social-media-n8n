@@ -230,6 +230,7 @@ export function PublishActionsCard(props: PublishActionsCardProps) {
                       ? 'Agendar publicação'
                       : 'Publicar agora'
               }
+              title={showError ? undefined : 'Atalho: ⌘/Ctrl + Enter'}
             >
               {showError ? (
                 <>
