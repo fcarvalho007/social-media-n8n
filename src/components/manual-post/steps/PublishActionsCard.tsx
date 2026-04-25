@@ -98,6 +98,45 @@ export function PublishActionsCard(props: PublishActionsCardProps) {
     (selectedFormats.length > 0 && !smartValidation.canPublish);
 
   // ── MODO BARRA FIXA GLOBAL ────────────────────────────────────────────
+  // NOTA TÉCNICA (Prompt 4):
+  // Esta abordagem assume uma única instância de `PublishActionsCard` com
+  // `fixedBottom=true` activa em simultâneo (SPA com `/manual-create` como
+  // única página que usa este componente). Se no futuro existirem múltiplas
+  // instâncias em paralelo (ex.: split-view, modais com formulários
+  // completos), migrar para:
+  //   - Contexto React (StickyBarHeightContext) para coordenar consumidores;
+  //   - OU scoped CSS via styled-component / CSS Module com altura local.
+  // A variável CSS global `--sticky-bar-height` é actualizada via
+  // ResizeObserver e consumida por:
+  //   - `src/pages/ManualCreate.tsx` (paddingBottom do container);
+  //   - `src/components/ui/sonner.tsx` (offset dos toasts).
+  // Ver DESIGN_SYSTEM.md → "SectionCard IDs canónicos" para contexto.
+  const barRef = useRef<HTMLDivElement | null>(null);
+
+  useEffect(() => {
+    if (!fixedBottom) return;
+    const node = barRef.current;
+    if (!node || typeof ResizeObserver === 'undefined') return;
+
+    const apply = (height: number) => {
+      document.documentElement.style.setProperty('--sticky-bar-height', `${Math.round(height)}px`);
+    };
+
+    apply(node.offsetHeight);
+
+    const observer = new ResizeObserver((entries) => {
+      for (const entry of entries) {
+        apply(entry.contentRect.height);
+      }
+    });
+    observer.observe(node);
+
+    return () => {
+      observer.disconnect();
+      document.documentElement.style.removeProperty('--sticky-bar-height');
+    };
+  }, [fixedBottom]);
+
   if (fixedBottom) {
     const progressPct = totalSteps > 0 ? Math.round((completedSteps / totalSteps) * 100) : 0;
     const showError = hasErrors && selectedFormats.length > 0;
@@ -105,17 +144,15 @@ export function PublishActionsCard(props: PublishActionsCardProps) {
 
     return (
       <div
+        ref={barRef}
         className={cn(
-          'fixed inset-x-0 z-30 border-t border-border bg-background/95 backdrop-blur-md',
+          'fixed inset-x-0 bottom-0 z-30 border-t border-border bg-background/95 backdrop-blur-md',
           'shadow-[0_-4px_24px_rgba(0,0,0,0.08)]',
-          // Em mobile, o `MobileStickyActionBar` ocupa o fundo (h-16). Levantamos
-          // a nova barra para evitar colisão. Em desktop, fica em bottom-0.
-          'bottom-16 sm:bottom-0',
         )}
         role="region"
         aria-label="Acções de publicação"
       >
-        <div className="manual-create-action-bar mx-auto w-full max-w-screen-xl space-y-2 px-4 py-3">
+        <div className="manual-create-action-bar mx-auto w-full max-w-screen-xl space-y-2 px-4 py-3 pb-[calc(12px+env(safe-area-inset-bottom))]">
           {/* Linha de topo: contador + progresso + toggle modo guiado */}
           <div className="flex items-center gap-4">
             <div className="flex min-w-0 flex-1 items-center gap-3">
