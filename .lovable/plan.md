@@ -1,58 +1,59 @@
-# Diagnóstico
+# Refinamentos /manual-create — Polish final
 
-A pré-visualização não aparece na coluna direita sticky por causa de **um `</div>` em falta** em `src/pages/ManualCreate.tsx`. A barra cinzenta visível no screenshot é a 2ª coluna do grid, vazia.
+## R1 — Eliminar warning "ResizeObserver loop limit exceeded"
+- Localizar `ResizeObserver` em `src/pages/ManualCreate.tsx` (mede altura da action bar fixa para expor `--manual-action-bar-height`).
+- Envolver o callback em `requestAnimationFrame` para diferir a actualização do CSS variable até ao próximo frame.
+- Eliminar o warning recorrente em consola sem mudar comportamento.
 
-## Estrutura actual (linhas 1408–1649)
+## R2 — Restaurar legibilidade em viewports >1536px
+- Em `src/pages/ManualCreate.tsx`, **não** restringir a coluna esquerda inteira (manter `min-w-0` para o grid funcionar correctamente).
+- Aplicar `max-w-3xl mx-auto` apenas aos sub-blocos textuais densos:
+  - Wrapper do `Step3CaptionCard`.
+  - Wrapper do `Step3ScheduleCard`.
+- Mantém uso eficiente do espaço sem prejudicar leitura de legendas longas em ecrãs ultra-wide.
 
-```
-<div className="manual-create-grid">           ← grid 2 cols (lg+)
-  <div className="space-y-6 min-w-0">          ← 1411: COL ESQUERDA
-    ...NetworkFormatSelector / Step2 ...
-    <div className={cn("overflow-hidden ...")}>← 1503: wrapper Step 3
-      ...Caption / NetworkOptions / Schedule
-    </div>                                      ← 1628: fecha wrapper Step 3
-                                                ← FALTA </div> da col esquerda
-    <PreviewPanel variant="desktop" ... />     ← 1631: cai DENTRO da col esquerda
-  </div>                                        ← 1649: fecha grid
-```
+## R3 — Altura do PreviewPanel respeita action bar fixa
+- Em `src/components/manual-post/steps/PreviewPanel.tsx`, substituir:
+  ```
+  lg:h-[calc(100vh-8rem)]
+  ```
+  Por:
+  ```
+  lg:h-[calc(100vh-8rem-var(--manual-action-bar-height,0px))]
+  ```
+- Garantir que o rodapé do preview nunca fica tapado pela barra de acções fixa.
 
-Como o `PreviewPanel` é renderizado como filho único da 1ª coluna (não como irmão), herda toda a largura desta e renderiza por baixo do formulário, sem nunca activar `lg:sticky lg:top-24` (que só funciona quando vive directamente como filho de uma célula do grid com `overflow-visible`).
+## R4 — Simplificar StickyMetadataBar
+- Manter a barra mas reduzir conteúdo a duas peças apenas:
+  - Contador de caracteres com cor `over/near limit` (único sítio onde aparece em desktop).
+  - Contador de hashtags.
+- Remover o schedule label e o file count (já visíveis no formulário Step3 e na lista de média).
+- Justificação: evita duplicação visual e foca a barra no que é crítico para validação rápida (limite por rede).
 
-CSS, `PreviewPanel` interno e `MainLayout` já estão correctos das iterações anteriores — só falta corrigir a hierarquia JSX.
+## R5 — Limpar tautologia em PreviewPanel.tsx
+- Linha ~80 actualmente:
+  ```ts
+  const activeFormat = (variant === 'mobile' ? activePreviewTab || selectedFormats[0] : activePreviewTab || selectedFormats[0]) as PostFormat | undefined;
+  ```
+- Substituir por:
+  ```ts
+  const activeFormat = (activePreviewTab || selectedFormats[0]) as PostFormat | undefined;
+  ```
 
-## Correção
-
-Ficheiro único: `src/pages/ManualCreate.tsx`.
-
-1. Adicionar `</div>` entre as linhas 1628 e 1630 (antes do comentário `{/* Right - Preview ... */}`), fechando a coluna esquerda (`space-y-6 min-w-0`).
-2. Estrutura final:
-   ```
-   <div manual-create-grid>
-     <div col-esquerda>
-       ...
-       <div Step 3 wrapper>...</div>
-     </div>                  ← NOVA: fecha col esquerda
-     <PreviewPanel desktop /> ← agora filho directo do grid → 2ª coluna
-   </div>
-   ```
-3. Não tocar em mais nada.
+## R6 — Remover `activate('media')` redundante em ManualCreate.tsx
+- Localizar chamada manual a `activate('media')` no handler de selecção de formatos.
+- Confirmar que `useGuidedFlow` já dispara essa transição via `transitionTo('media')`.
+- Remover linha duplicada para evitar dupla activação (potencial fonte de race conditions).
 
 ## Validação
+- `npx tsc --noEmit` sem erros.
+- `vitest run` 37/37 verdes.
+- Smoke mental:
+  - **1462px**: sticky preview à direita, sem warning de ResizeObserver na consola.
+  - **1900px**: sub-blocos textuais limitados a `max-w-3xl`, restante coluna usa o espaço.
+  - **StickyMetadataBar**: mostra apenas `1234/2200` + `5 #`.
+  - **Selecção de formato**: `activeSection` muda uma só vez para `'media'`.
 
-- [ ] `npx tsc --noEmit` verde
-- [ ] `npx vitest run` 37/37
-- [ ] 1462px: preview aparece à direita desde o início; barra cinzenta vazia desaparece
-- [ ] Scroll do formulário: preview mantém-se sticky a `top: 96px`
-- [ ] <1024px: preview some da direita; FAB de Drawer mobile continua a funcionar
-- [ ] Progressive disclosure: seleccionar Carrossel + Documento PDF → Secção 2 entra em `active` e preview à direita actualiza ao adicionar média
-
-## Não tocar
-
-- `useActiveSection`, `useGuidedFlow`, validação, publicação
-- CSS `manual-create-grid` (já tem `overflow-visible` e `lg:grid-cols-[minmax(0,1.55fr)_minmax(360px,0.95fr)]`)
-- `MainLayout` (já sem `overflow-x-hidden`)
-- `PreviewPanel` interno (já tem `lg:sticky lg:top-24 lg:h-[calc(100vh-8rem)]`)
-
-## Risco
-
-Mínimo — alteração de uma única tag de fecho. Erro de JSX seria apanhado imediatamente pelo TypeScript/Vite.
+## Não alterar
+- Lógica de validação, publicação, `useGuidedFlow`, `SectionCard`, ou estrutura JSX do grid.
+- Comportamento mobile (Drawer/FAB).

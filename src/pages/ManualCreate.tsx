@@ -1427,7 +1427,9 @@ export default function ManualCreate() {
                 <Button
                   variant="default"
                   onClick={() => {
-                    activate('media');
+                    // `activate('media')` é tratado pelo useEffect que observa
+                    // `currentStep` (e também pelo guided flow). Evitar dupla
+                    // activação que pode contribuir para race conditions.
                     nextStep();
                   }}
                   className="h-10"
@@ -1521,6 +1523,7 @@ export default function ManualCreate() {
               onRetry={handleAiTranscribe}
             />
 
+            <div className="mx-auto w-full max-w-3xl">
             <Step3CaptionCard
               ref={captionEditorRef}
               caption={caption}
@@ -1572,6 +1575,7 @@ export default function ManualCreate() {
                 </div>
               )}
             />
+            </div>
 
             <HashtagSuggestions
               hashtags={hashtagSuggestions}
@@ -1609,6 +1613,7 @@ export default function ManualCreate() {
               onEdit={() => activate('network-options')}
             />
 
+            <div className="mx-auto w-full max-w-3xl">
             <Step3ScheduleCard
               scheduleAsap={scheduleAsap}
               onScheduleAsapChange={setScheduleAsap}
@@ -1622,6 +1627,7 @@ export default function ManualCreate() {
               onActivate={() => activate('schedule')}
               onEdit={() => activate('schedule')}
             />
+            </div>
 
             {/* Acções primárias movidas para a barra fixa global
                 (renderizada como `fixedBottom` mais abaixo, fora do grid). */}

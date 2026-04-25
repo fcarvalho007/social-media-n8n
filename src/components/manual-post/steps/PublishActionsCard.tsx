@@ -124,14 +124,23 @@ export function PublishActionsCard(props: PublishActionsCardProps) {
 
     apply(node.offsetHeight);
 
+    let rafId: number | null = null;
     const observer = new ResizeObserver((entries) => {
-      for (const entry of entries) {
-        apply(entry.contentRect.height);
-      }
+      // Diferir a leitura/escrita para o próximo frame: evita o warning
+      // "ResizeObserver loop limit exceeded" quando a altura muda em
+      // resposta a layout síncrono (ex.: aparição/desaparição de erros).
+      if (rafId !== null) return;
+      const lastEntry = entries[entries.length - 1];
+      const height = lastEntry?.contentRect.height ?? node.offsetHeight;
+      rafId = window.requestAnimationFrame(() => {
+        rafId = null;
+        apply(height);
+      });
     });
     observer.observe(node);
 
     return () => {
+      if (rafId !== null) window.cancelAnimationFrame(rafId);
       observer.disconnect();
       document.documentElement.style.removeProperty('--sticky-bar-height');
     };

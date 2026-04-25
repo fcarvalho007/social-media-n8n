@@ -76,7 +76,7 @@ export function PreviewPanel(props: PreviewPanelProps) {
     return useSeparateCaptions ? networkCaptions[network] || caption : caption;
   };
 
-  const activeFormat = (variant === 'mobile' ? activePreviewTab || selectedFormats[0] : activePreviewTab || selectedFormats[0]) as PostFormat | undefined;
+  const activeFormat = (activePreviewTab || selectedFormats[0]) as PostFormat | undefined;
   const activeCaption = activeFormat ? getPreviewCaption(activeFormat) : caption;
   const hashtagCount = (activeCaption.match(/#[\p{L}\p{N}_]+/gu) ?? []).length;
   const scheduleLabel = scheduledDate && !scheduleAsap
@@ -163,10 +163,13 @@ export function PreviewPanel(props: PreviewPanelProps) {
     </div>
   );
 
-  // Barra sticky de 52px no rodapé do painel desktop.
+  // Barra sticky no rodapé do painel desktop.
+  // Simplificada: mostra apenas validação de limite + hashtags. Schedule e
+  // contagem de ficheiros já estão visíveis no formulário (Step 3) e na
+  // lista de média, evitando duplicação visual.
   const StickyMetadataBar = () => (
     <div
-      className="flex h-[52px] shrink-0 items-center gap-4 border-t border-border/40 bg-background/95 px-5 backdrop-blur-sm"
+      className="flex h-[44px] shrink-0 items-center gap-4 border-t border-border/40 bg-background/95 px-5 backdrop-blur-sm"
       role="status"
       aria-live="polite"
     >
@@ -180,16 +183,12 @@ export function PreviewPanel(props: PreviewPanelProps) {
               overLimit && 'text-destructive',
               nearLimit && 'text-warning',
             )}
-            title={`Limite da rede ${activeNetwork}`}
+            title={`Limite de caracteres da rede ${activeNetwork}`}
           >
             {activeCaption.length}/{activeLimit}
           </span>
-          <span className="text-xs text-muted-foreground tabular-nums">
+          <span className="text-xs text-muted-foreground tabular-nums" title="Hashtags na legenda activa">
             {hashtagCount} #
-          </span>
-          <span className="ml-auto flex items-center gap-3 text-xs text-muted-foreground">
-            <span className="truncate">{scheduleLabel}</span>
-            <span className="tabular-nums">{mediaCount} {mediaCount === 1 ? 'ficheiro' : 'ficheiros'}</span>
           </span>
         </>
       )}
@@ -256,7 +255,7 @@ export function PreviewPanel(props: PreviewPanelProps) {
   }
 
   return (
-    <div className="hidden overflow-auto lg:sticky lg:top-24 lg:block lg:h-[calc(100vh-8rem)]">
+    <div className="hidden overflow-auto lg:sticky lg:top-24 lg:block lg:h-[calc(100vh-8rem-var(--sticky-bar-height,0px))]">
       <Card className="card-secondary flex h-full flex-col shadow-[0_18px_45px_hsl(var(--foreground)/0.08)]">
         <CardHeader className="shrink-0 p-5 pb-3">
           <div className="manual-card-header-row">
