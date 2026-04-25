@@ -555,7 +555,7 @@ export default function ManualCreate() {
 
   const optionsState: 'inactive' | 'active' | 'complete' = !showStep3
     ? 'inactive'
-    : activeSection === 'options'
+    : activeSection === 'network-options'
       ? 'active'
       : hasOptionsConfigured
         ? 'complete'
