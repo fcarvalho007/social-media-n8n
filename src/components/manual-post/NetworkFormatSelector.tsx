@@ -1,27 +1,40 @@
 import { useMemo } from 'react';
 import { Share2 } from 'lucide-react';
-import { SocialNetwork, PostFormat, NETWORK_POST_FORMATS, getNetworkFromFormat, getFormatConfig } from '@/types/social';
-import { Checkbox } from '@/components/ui/checkbox';
-import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
-import { SelectedFormatsTags } from './SelectedFormatsTags';
-import { QuickPresets } from './QuickPresets';
-import { PLATFORM_CONFIGS } from './platformConfig';
+import {
+  SocialNetwork,
+  PostFormat,
+  NETWORK_POST_FORMATS,
+  getNetworkFromFormat,
+  getFormatConfig,
+} from '@/types/social';
+import { VisualPresets } from './VisualPresets';
+import { NetworkChipSelector, SelectionSummaryBar } from './NetworkChipSelector';
 import { SectionCard, SectionState } from './ui/SectionCard';
 import { NETWORK_ICONS } from '@/lib/networkIcons';
-import { cn } from '@/lib/utils';
+
+/**
+ * Secção 1 — "Seleciona onde publicar".
+ *
+ * Estrutura visual (redesenho 2026-04):
+ *   1. Presets visuais ricos (`VisualPresets`) com SVG + ícones de rede.
+ *   2. `NetworkChipSelector` — chips 80x80 + blocos condicionais de
+ *      formato por rede.
+ *   3. `SelectionSummaryBar` — barra de sucesso só visível com ≥1 seleção.
+ *
+ * A lógica de seleção, validação e progressive disclosure permanece
+ * inalterada: este componente é uma fina camada de apresentação que
+ * chama `onFormatsChange` com o array final de formatos.
+ */
+const MAX_VISIBLE_CHIPS = 8;
 
 interface NetworkFormatSelectorProps {
   selectedFormats: PostFormat[];
   onFormatsChange: (formats: PostFormat[]) => void;
-  /** Estado de progressive disclosure controlado pelo pai. */
   state?: SectionState;
   onActivate?: () => void;
   onEdit?: () => void;
-  /** Número ordinal mostrado no header da SectionCard. */
   stepNumber?: number;
 }
-
-const MAX_VISIBLE_CHIPS = 8;
 
 export function NetworkFormatSelector({
   selectedFormats,
@@ -31,22 +44,16 @@ export function NetworkFormatSelector({
   onEdit,
   stepNumber = 1,
 }: NetworkFormatSelectorProps) {
-  const enabledNetworks = (Object.keys(PLATFORM_CONFIGS) as SocialNetwork[]).filter(
-    (network) => PLATFORM_CONFIGS[network].enabled && NETWORK_POST_FORMATS[network].length > 0,
-  );
+  const getNetworkFormats = (network: SocialNetwork) =>
+    NETWORK_POST_FORMATS[network].map((item) => item.format);
 
-  const getSelectedCount = (network: SocialNetwork): number => {
-    const networkFormats = NETWORK_POST_FORMATS[network];
-    return networkFormats.filter((f) => selectedFormats.includes(f.format)).length;
-  };
-
-  const getNetworkFormats = (network: SocialNetwork) => NETWORK_POST_FORMATS[network].map((item) => item.format);
-
-  const toggleNetwork = (network: SocialNetwork, checked: boolean | string) => {
+  // Toggle network: ao activar, adiciona o primeiro formato; ao desactivar,
+  // remove todos os formatos dessa rede do array global.
+  const handleToggleNetwork = (network: SocialNetwork, checked: boolean) => {
     const networkFormats = getNetworkFormats(network);
     if (checked) {
       const firstFormat = NETWORK_POST_FORMATS[network][0]?.format;
-      if (firstFormat && !selectedFormats.some((format) => networkFormats.includes(format))) {
+      if (firstFormat && !selectedFormats.some((f) => networkFormats.includes(f))) {
         onFormatsChange([...selectedFormats, firstFormat]);
       }
       return;
@@ -54,20 +61,16 @@ export function NetworkFormatSelector({
     onFormatsChange(selectedFormats.filter((format) => !networkFormats.includes(format)));
   };
 
-  const selectNetworkFormat = (network: SocialNetwork, format: PostFormat) => {
+  // Trocar o formato dentro de uma rede (mantém apenas 1 por rede).
+  const handleSelectFormat = (network: SocialNetwork, format: PostFormat) => {
     const networkFormats = getNetworkFormats(network);
-    onFormatsChange([...selectedFormats.filter((item) => !networkFormats.includes(item)), format]);
+    onFormatsChange([
+      ...selectedFormats.filter((item) => !networkFormats.includes(item)),
+      format,
+    ]);
   };
 
-  const removeFormat = (format: PostFormat) => {
-    onFormatsChange(selectedFormats.filter((f) => f !== format));
-  };
-
-  const handlePresetSelect = (formats: PostFormat[]) => {
-    onFormatsChange(formats);
-  };
-
-  // Summary: chips coloridos por formato seleccionado, com cap em 8 + "+N".
+  // Summary (estado collapsed) — chips coloridos com cap em 8.
   const summaryItems = useMemo(() => {
     return selectedFormats.map((format) => {
       const config = getFormatConfig(format);
@@ -91,7 +94,12 @@ export function NetworkFormatSelector({
           className="inline-flex items-center gap-1.5 rounded-md border border-border/60 bg-muted/40 px-2 py-1 text-xs font-medium text-foreground"
           style={{ borderColor: `${item.color}40` }}
         >
-          <item.Icon className="h-3 w-3" strokeWidth={1.5} style={{ color: item.color }} aria-hidden="true" />
+          <item.Icon
+            className="h-3 w-3"
+            strokeWidth={1.5}
+            style={{ color: item.color }}
+            aria-hidden="true"
+          />
           <span>{item.label}</span>
         </span>
       ))}
@@ -119,85 +127,18 @@ export function NetworkFormatSelector({
       summary={summaryItems.length > 0 ? summary : undefined}
     >
       <div className="manual-group-stack overflow-hidden">
-        <QuickPresets selectedFormats={selectedFormats} onSelectPreset={handlePresetSelect} />
+        <VisualPresets
+          selectedFormats={selectedFormats}
+          onSelectPreset={onFormatsChange}
+        />
 
-        <div className="grid overflow-hidden rounded-lg border bg-muted/20 md:grid-cols-[minmax(180px,0.85fr)_minmax(0,1.15fr)]">
-          <div className="border-b bg-background/70 p-3 md:border-b-0 md:border-r">
-            <p className="manual-field-label px-1 pb-2 text-muted-foreground">Redes</p>
-            <div className="space-y-1">
-              {enabledNetworks.map((network) => {
-                const config = PLATFORM_CONFIGS[network];
-                const checked = getSelectedCount(network) > 0;
-                const Icon = NETWORK_ICONS[network].icon;
-                const color = NETWORK_ICONS[network].color;
-                return (
-                  <label
-                    key={network}
-                    className={cn(
-                      'flex min-h-11 cursor-pointer items-center gap-2 rounded-md px-2.5 py-2 text-sm transition-colors duration-manual-color hover:bg-muted/60 focus-within:ring-2 focus-within:ring-primary focus-within:ring-offset-2',
-                      checked && 'bg-primary/10 text-foreground',
-                    )}
-                  >
-                    <Checkbox checked={checked} onCheckedChange={(value) => toggleNetwork(network, value)} />
-                    <Icon className="h-4 w-4" strokeWidth={1.5} style={{ color }} aria-hidden="true" />
-                    <span className="truncate font-medium">{config.name}</span>
-                  </label>
-                );
-              })}
-            </div>
-          </div>
+        <NetworkChipSelector
+          selectedFormats={selectedFormats}
+          onToggleNetwork={handleToggleNetwork}
+          onSelectFormat={handleSelectFormat}
+        />
 
-          <div className="min-h-[220px] p-3 sm:p-4">
-            {enabledNetworks.some((network) => getSelectedCount(network) > 0) ? (
-              <div className="manual-group-stack manual-enter">
-                {enabledNetworks
-                  .filter((network) => getSelectedCount(network) > 0)
-                  .map((network) => {
-                    const config = PLATFORM_CONFIGS[network];
-                    const Icon = NETWORK_ICONS[network].icon;
-                    const color = NETWORK_ICONS[network].color;
-                    const selected = NETWORK_POST_FORMATS[network].find((item) =>
-                      selectedFormats.includes(item.format),
-                    )?.format;
-                    return (
-                      <div key={network} className="manual-field-stack">
-                        <div className="flex items-center gap-2 text-sm font-semibold">
-                          <Icon className="h-4 w-4" strokeWidth={1.5} style={{ color }} aria-hidden="true" />
-                          {config.name}
-                        </div>
-                        <RadioGroup
-                          value={selected}
-                          onValueChange={(value) => selectNetworkFormat(network, value as PostFormat)}
-                          className="grid gap-2 sm:grid-cols-2"
-                        >
-                          {NETWORK_POST_FORMATS[network].map((format) => (
-                            <label
-                              key={format.format}
-                              className="manual-option-button flex min-h-14 cursor-pointer items-start gap-2 p-3 text-sm"
-                            >
-                              <RadioGroupItem value={format.format} className="mt-0.5" />
-                              <span className="min-w-0">
-                                <span className="block font-medium leading-none">{format.label}</span>
-                                <span className="mt-1 block text-xs leading-snug text-muted-foreground">
-                                  {format.description}
-                                </span>
-                              </span>
-                            </label>
-                          ))}
-                        </RadioGroup>
-                      </div>
-                    );
-                  })}
-              </div>
-            ) : (
-              <div className="flex h-full min-h-[180px] items-center justify-center text-center text-sm text-muted-foreground">
-                Seleciona uma rede para escolher o formato.
-              </div>
-            )}
-          </div>
-        </div>
-
-        <SelectedFormatsTags selectedFormats={selectedFormats} onRemove={removeFormat} />
+        <SelectionSummaryBar selectedFormats={selectedFormats} />
       </div>
     </SectionCard>
   );
