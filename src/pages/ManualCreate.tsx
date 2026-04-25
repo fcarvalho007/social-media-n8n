@@ -1406,9 +1406,9 @@ export default function ManualCreate() {
       {/* Mobile Preview - Hidden by default, moved to bottom */}
 
       <div className="manual-create-grid">
-        {/* Left - Form (limitado a max-w-3xl em viewports muito largos para
-            preservar legibilidade — linhas de texto não devem exceder ~75 ch). */}
-        <div className="space-y-6 min-w-0 2xl:max-w-3xl">
+        {/* Left - Form. A largura máxima é controlada pela coluna do grid;
+            blocos de texto internos limitam-se a si próprios quando preciso. */}
+        <div className="space-y-6 min-w-0">
 
           {/* Step 1: Network & Format Selection */}
           <div className="relative">
