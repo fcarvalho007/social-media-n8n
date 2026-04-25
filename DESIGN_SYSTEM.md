@@ -217,19 +217,6 @@ API:
 - `deactivate(id)` — limpa a secção activa se corresponder a `id`.
 - `isActive(id)` — helper booleano.
 
-### `useActiveSection`
-
-Hook minimalista que mantém um único `activeSection: string | null`. Não
-controla `complete`/`error`/`inactive` — esses estados são derivados pelo
-consumidor a partir da própria validação local.
-
-API:
-
-- `activeSection` — id da secção activa (ou `null`).
-- `activate(id)` — define uma nova secção activa.
-- `deactivate(id)` — limpa a secção activa se corresponder a `id`.
-- `isActive(id)` — helper booleano.
-
 ### SectionCard IDs canónicos (Manual Create)
 
 Os 5 IDs estáveis usados no fluxo `/manual-create` para coordenar
