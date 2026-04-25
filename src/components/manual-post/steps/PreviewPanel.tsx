@@ -296,6 +296,6 @@ export function PreviewPanel(props: PreviewPanelProps) {
           </div>
         </DialogContent>
       </Dialog>
-    </div>
+    </aside>
   );
 }
