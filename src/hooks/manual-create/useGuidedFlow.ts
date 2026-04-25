@@ -54,23 +54,37 @@ export function useGuidedFlow() {
     (nextSectionId: string, activate: () => void) => {
       if (!enabled) {
         activate();
+        // Mesmo com modo guiado off, faz scroll suave para a próxima
+        // secção para manter a continuidade visual.
+        const target = document.getElementById(nextSectionId);
+        if (target) {
+          target.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        }
         return;
       }
 
       const reduced = reducedMotionRef.current;
-      const pause = reduced ? 0 : 400;
+      // 320ms permite a animação de colapso da secção anterior (280ms)
+      // terminar antes de começarmos a nova transição.
+      const pause = reduced ? 0 : 320;
 
       window.setTimeout(() => {
-        const target = document.getElementById(nextSectionId);
-        if (target) {
-          target.scrollIntoView({
-            behavior: reduced ? 'auto' : 'smooth',
-            block: 'start',
-          });
-        }
-        // Pequeno delay extra para o scroll começar antes de expandirmos
-        // a próxima secção (mais coerente visualmente).
-        window.setTimeout(() => activate(), reduced ? 0 : 120);
+        // Ordem crítica:
+        // 1) Activar PRIMEIRO — garante que `activeSection` muda já no
+        //    próximo tick e o `mediaState` calcula 'active' antes do
+        //    scroll/render.
+        activate();
+        // 2) Scroll a seguir, num requestAnimationFrame para apanhar o
+        //    layout pós-render do estado expandido.
+        window.requestAnimationFrame(() => {
+          const target = document.getElementById(nextSectionId);
+          if (target) {
+            target.scrollIntoView({
+              behavior: reduced ? 'auto' : 'smooth',
+              block: 'start',
+            });
+          }
+        });
       }, pause);
     },
     [enabled],

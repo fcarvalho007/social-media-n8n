@@ -538,42 +538,60 @@ export default function ManualCreate() {
     ? selectedNetworks.some((n) => (networkCaptions[n] || '').trim().length > 0)
     : caption.trim().length > 0;
 
-  const mediaState: 'inactive' | 'active' | 'complete' = !showStep2
-    ? 'inactive'
-    : activeSection === 'media'
+  // Prioridade ao foco: se a secção está em activeSection, é sempre 'active'
+  // independentemente das condições showStep* (que controlam visibilidade).
+  // Isto evita race conditions entre o transitionTo (que activa) e o cálculo
+  // do estado derivado (que poderia devolver 'inactive' por milissegundos).
+  const mediaState: 'inactive' | 'active' | 'complete' =
+    activeSection === 'media'
       ? 'active'
-      : hasMedia
-        ? 'complete'
-        : 'inactive';
+      : !showStep2
+        ? 'inactive'
+        : hasMedia
+          ? 'complete'
+          : 'inactive';
 
-  const captionState: 'inactive' | 'active' | 'complete' = !showStep3
-    ? 'inactive'
-    : activeSection === 'caption'
+  const captionState: 'inactive' | 'active' | 'complete' =
+    activeSection === 'caption'
       ? 'active'
-      : hasAnyCaption
-        ? 'complete'
-        : 'inactive';
+      : !showStep3
+        ? 'inactive'
+        : hasAnyCaption
+          ? 'complete'
+          : 'inactive';
 
   // Estados para Opções por rede e Agendamento (Prompt 3/4).
   const hasOptionsConfigured =
     selectedNetworks.length > 0 &&
     Object.values(networkOptions).some((opts) => opts && Object.values(opts).some((v) => Array.isArray(v) ? v.length > 0 : typeof v === 'string' ? v.trim().length > 0 : v === true));
 
-  const optionsState: 'inactive' | 'active' | 'complete' = !showStep3
-    ? 'inactive'
-    : activeSection === 'network-options'
+  const optionsState: 'inactive' | 'active' | 'complete' =
+    activeSection === 'network-options'
       ? 'active'
-      : hasOptionsConfigured
-        ? 'complete'
-        : 'inactive';
+      : !showStep3
+        ? 'inactive'
+        : hasOptionsConfigured
+          ? 'complete'
+          : 'inactive';
 
-  const scheduleState: 'inactive' | 'active' | 'complete' = !showStep3
-    ? 'inactive'
-    : activeSection === 'schedule'
+  const scheduleState: 'inactive' | 'active' | 'complete' =
+    activeSection === 'schedule'
       ? 'active'
-      : (scheduleAsap || !!scheduledDate)
-        ? 'complete'
-        : 'inactive';
+      : !showStep3
+        ? 'inactive'
+        : (scheduleAsap || !!scheduledDate)
+          ? 'complete'
+          : 'inactive';
+
+  // [DEV] Diagnóstico temporário do progressive disclosure (Problema 1).
+  // Remover após confirmação do fix em produção.
+  if (import.meta.env.DEV) {
+    // eslint-disable-next-line no-console
+    console.debug('[ManualCreate] activeSection:', activeSection,
+      '| mediaState:', mediaState,
+      '| showStep2:', showStep2,
+      '| selectedFormats:', selectedFormats.length);
+  }
 
   // ── Contagem de secções concluídas para a barra global ────────────────
   const completedSections = [
@@ -1298,7 +1316,7 @@ export default function ManualCreate() {
 
   return (
       <div
-        className="max-w-7xl mx-auto space-y-2 sm:space-y-4 px-0 sm:px-6 lg:px-0 bg-gradient-to-br from-background to-background-secondary overflow-hidden w-full max-w-full"
+        className="mx-auto w-full max-w-[1600px] space-y-2 sm:space-y-4 px-3 sm:px-6 lg:px-8 bg-gradient-to-br from-background to-background-secondary"
         style={{ paddingBottom: 'calc(var(--sticky-bar-height, 96px) + 16px)' }}
       >
       {/* Header */}
@@ -1362,9 +1380,11 @@ export default function ManualCreate() {
 
       {/* Mobile Preview - Hidden by default, moved to bottom */}
 
-      <div className="manual-create-grid px-0 sm:px-0 overflow-hidden">
-        {/* Left - Form */}
-        <div className="space-y-6">
+      <div className="manual-create-grid">
+        {/* Left - Form (limitado a max-w-3xl em viewports muito largos para
+            preservar legibilidade — linhas de texto não devem exceder ~75 ch). */}
+        <div className="space-y-6 min-w-0 2xl:max-w-3xl">
+
           {/* Step 1: Network & Format Selection */}
           <div className="relative">
             <NetworkFormatSelector
