@@ -1613,6 +1613,7 @@ export default function ManualCreate() {
               onEdit={() => activate('network-options')}
             />
 
+            <div className="mx-auto w-full max-w-3xl">
             <Step3ScheduleCard
               scheduleAsap={scheduleAsap}
               onScheduleAsapChange={setScheduleAsap}
@@ -1626,6 +1627,7 @@ export default function ManualCreate() {
               onActivate={() => activate('schedule')}
               onEdit={() => activate('schedule')}
             />
+            </div>
 
             {/* Acções primárias movidas para a barra fixa global
                 (renderizada como `fixedBottom` mais abaixo, fora do grid). */}
