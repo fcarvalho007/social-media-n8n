@@ -163,10 +163,13 @@ export function PreviewPanel(props: PreviewPanelProps) {
     </div>
   );
 
-  // Barra sticky de 52px no rodapé do painel desktop.
+  // Barra sticky no rodapé do painel desktop.
+  // Simplificada: mostra apenas validação de limite + hashtags. Schedule e
+  // contagem de ficheiros já estão visíveis no formulário (Step 3) e na
+  // lista de média, evitando duplicação visual.
   const StickyMetadataBar = () => (
     <div
-      className="flex h-[52px] shrink-0 items-center gap-4 border-t border-border/40 bg-background/95 px-5 backdrop-blur-sm"
+      className="flex h-[44px] shrink-0 items-center gap-4 border-t border-border/40 bg-background/95 px-5 backdrop-blur-sm"
       role="status"
       aria-live="polite"
     >
@@ -180,16 +183,12 @@ export function PreviewPanel(props: PreviewPanelProps) {
               overLimit && 'text-destructive',
               nearLimit && 'text-warning',
             )}
-            title={`Limite da rede ${activeNetwork}`}
+            title={`Limite de caracteres da rede ${activeNetwork}`}
           >
             {activeCaption.length}/{activeLimit}
           </span>
-          <span className="text-xs text-muted-foreground tabular-nums">
+          <span className="text-xs text-muted-foreground tabular-nums" title="Hashtags na legenda activa">
             {hashtagCount} #
-          </span>
-          <span className="ml-auto flex items-center gap-3 text-xs text-muted-foreground">
-            <span className="truncate">{scheduleLabel}</span>
-            <span className="tabular-nums">{mediaCount} {mediaCount === 1 ? 'ficheiro' : 'ficheiros'}</span>
           </span>
         </>
       )}
