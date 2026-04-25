@@ -16,13 +16,15 @@ import { MediaValidationResult } from '@/lib/mediaValidation';
 import { renderFormatPreview, getNetworkIcon } from '@/lib/manual-create/previewRenderer';
 import { RecoveryBanner } from '@/components/manual-post/steps/RecoveryBanner';
 import { QuotaWarningBanner } from '@/components/manual-post/steps/QuotaWarningBanner';
-import { MobileStickyActionBar } from '@/components/manual-post/steps/MobileStickyActionBar';
+
 import { ManualCreateModals } from '@/components/manual-post/steps/ManualCreateModals';
 import { Drawer, DrawerContent, DrawerHeader, DrawerTitle } from '@/components/ui/drawer';
 import { ChevronRight } from 'lucide-react';
 import { NetworkFormatSelector } from '@/components/manual-post/NetworkFormatSelector';
 import { useActiveSection } from '@/hooks/useActiveSection';
 import { useGuidedFlow } from '@/hooks/manual-create/useGuidedFlow';
+import { useIdleDetection } from '@/hooks/manual-create/useIdleDetection';
+import { useKeyboardShortcuts } from '@/hooks/manual-create/useKeyboardShortcuts';
 import { GlobalProgressBar } from '@/components/manual-post/ui/GlobalProgressBar';
 import { getMediaRequirements } from '@/lib/formatValidation';
 
@@ -555,7 +557,7 @@ export default function ManualCreate() {
 
   const optionsState: 'inactive' | 'active' | 'complete' = !showStep3
     ? 'inactive'
-    : activeSection === 'options'
+    : activeSection === 'network-options'
       ? 'active'
       : hasOptionsConfigured
         ? 'complete'
@@ -596,14 +598,15 @@ export default function ManualCreate() {
     }
   }, [mediaFiles.length, guided, activate]);
 
-  // 3 → 4 (Caption → Options) com debounce de 1.5s para evitar disparar
-  // logo no primeiro carácter.
+  // 3 → 4 (Caption → Network Options) com debounce de 1.5s para evitar
+  // disparar logo no primeiro carácter.
+  // ID canónico: 'network-options' (ver DESIGN_SYSTEM.md → SectionCard IDs).
   useEffect(() => {
-    if (hasAnyCaption && !guidedFiredRef.current.has('options')) {
+    if (hasAnyCaption && !guidedFiredRef.current.has('network-options')) {
       const timer = window.setTimeout(() => {
-        if (!guidedFiredRef.current.has('options')) {
-          guidedFiredRef.current.add('options');
-          guided.transitionTo('network-options', () => activate('options'));
+        if (!guidedFiredRef.current.has('network-options')) {
+          guidedFiredRef.current.add('network-options');
+          guided.transitionTo('network-options', () => activate('network-options'));
         }
       }, 1500);
       return () => window.clearTimeout(timer);
@@ -668,6 +671,48 @@ export default function ManualCreate() {
   const handleSaveDraft = orchestrator.saveDraft;
   const handlePublishWithValidation = orchestrator.publishWithValidation;
   const handleSubmitWithValidation = orchestrator.submitWithValidation;
+
+  // ── Atalhos de teclado (Prompt 4) ────────────────────────────────────
+  // Cmd/Ctrl+Enter → publica (ou abre validação se há erros bloqueantes).
+  // Cmd/Ctrl+S    → guarda rascunho.
+  // Esc           → fecha modais (Radix já trata da maioria).
+  useKeyboardShortcuts({
+    enabled: !publishing && !submitting,
+    onPublish: () => {
+      if (selectedFormats.length === 0) return;
+      if (!smartValidation.canPublish) {
+        setValidationSheetOpen(true);
+        return;
+      }
+      handlePublishWithValidation();
+    },
+    onSaveDraft: () => {
+      if (saving) return;
+      void handleSaveDraft();
+    },
+  });
+
+  // ── Detecção de desistência (Prompt 4) ────────────────────────────────
+  // Após 10s de inactividade com trabalho em curso, oferece guardar
+  // rascunho. Cooldown de 60s evita repetições agressivas.
+  const hasWorkInProgress =
+    selectedFormats.length > 0 || mediaFiles.length > 0 || caption.trim().length > 0;
+
+  useIdleDetection({
+    enabled: hasWorkInProgress && !publishing && !submitting && !saving,
+    timeout: 10_000,
+    cooldown: 60_000,
+    onIdle: () => {
+      toast.info('Precisas de uma pausa?', {
+        description: 'Tens trabalho em curso. Queres guardar como rascunho?',
+        duration: 8000,
+        action: {
+          label: 'Guardar rascunho',
+          onClick: () => void handleSaveDraft(),
+        },
+      });
+    },
+  });
 
 
   // Handler for cancelling publication
@@ -1220,7 +1265,10 @@ export default function ManualCreate() {
   };
 
   return (
-      <div className="max-w-7xl mx-auto space-y-2 sm:space-y-4 px-0 sm:px-6 lg:px-0 pb-44 sm:pb-32 bg-gradient-to-br from-background to-background-secondary overflow-hidden w-full max-w-full">
+      <div
+        className="max-w-7xl mx-auto space-y-2 sm:space-y-4 px-0 sm:px-6 lg:px-0 bg-gradient-to-br from-background to-background-secondary overflow-hidden w-full max-w-full"
+        style={{ paddingBottom: 'calc(var(--sticky-bar-height, 96px) + 16px)' }}
+      >
       {/* Header */}
       <div className="flex items-center justify-between py-1 sm:py-2 gap-2">
         <Button 
@@ -1480,8 +1528,8 @@ export default function ManualCreate() {
               generatedEdited={aiGeneratedEdited}
               state={optionsState}
               stepNumber={4}
-              onActivate={() => activate('options')}
-              onEdit={() => activate('options')}
+              onActivate={() => activate('network-options')}
+              onEdit={() => activate('network-options')}
             />
 
             <Step3ScheduleCard
@@ -1551,27 +1599,9 @@ export default function ManualCreate() {
         onSubmitForApproval={handleSubmitWithValidation}
       />
 
-      {/* Mobile Sticky Bottom Bar (extracted) */}
+      {/* Nota: `MobileStickyActionBar` removido — substituído pela
+          `PublishActionsCard fixedBottom` (Prompt 4). */}
 
-      <MobileStickyActionBar
-        currentStep={currentStep}
-        scheduleAsap={scheduleAsap}
-        scheduledDate={scheduledDate}
-        time={time}
-        selectedFormats={selectedFormats}
-        smartValidation={smartValidation}
-        onOpenValidationSheet={() => setValidationSheetOpen(true)}
-        onSaveDraft={handleSaveDraft}
-        onPublish={handlePublishWithValidation}
-        onPreviousStep={previousStep}
-        onSubmitForApproval={handleSubmitWithValidation}
-        onOpenDrafts={() => setDraftsDialogOpen(true)}
-        onViewCalendar={() => navigate('/calendar')}
-        saving={saving}
-        submitting={submitting}
-        publishing={publishing}
-        isUploading={isUploading}
-      />
 
       <ValidationSidebar
         validation={smartValidation}
@@ -1583,7 +1613,8 @@ export default function ManualCreate() {
       <Button
         type="button"
         size="icon"
-        className="fixed bottom-[88px] right-4 z-40 h-12 w-12 rounded-full bg-primary text-primary-foreground shadow-lg hover:bg-primary/90 lg:hidden"
+        className="fixed right-4 z-40 h-12 w-12 rounded-full bg-primary text-primary-foreground shadow-lg hover:bg-primary/90 lg:hidden"
+        style={{ bottom: 'calc(var(--sticky-bar-height, 96px) + 16px)' }}
         onClick={() => openMobilePreview('peek')}
         aria-label="Abrir pré-visualização"
       >

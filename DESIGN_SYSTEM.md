@@ -217,6 +217,24 @@ API:
 - `deactivate(id)` — limpa a secção activa se corresponder a `id`.
 - `isActive(id)` — helper booleano.
 
+### SectionCard IDs canónicos (Manual Create)
+
+Os 5 IDs estáveis usados no fluxo `/manual-create` para coordenar
+`useActiveSection` ↔ `SectionCard.id` ↔ `useGuidedFlow.transitionTo()`.
+**Não inventar variantes**: qualquer divergência (ex.: `options` vs
+`network-options`) quebra silenciosamente o foco e o scroll guiado.
+
+| Ordem | ID canónico | Componente | Ficheiro |
+| ----- | ----------- | ---------- | -------- |
+| 1 | `networks` | `NetworkFormatSelector` | `src/components/manual-post/NetworkFormatSelector.tsx` |
+| 2 | `media` | `Step2MediaCard` | `src/components/manual-post/steps/Step2MediaCard.tsx` |
+| 3 | `caption` | `Step3CaptionCard` | `src/components/manual-post/steps/Step3CaptionCard.tsx` |
+| 4 | `network-options` | `NetworkOptionsCard` | `src/components/manual-post/steps/NetworkOptionsCard.tsx` |
+| 5 | `schedule` | `Step3ScheduleCard` | `src/components/manual-post/steps/Step3ScheduleCard.tsx` |
+
+Regra: ao adicionar uma nova secção principal ao fluxo, registar aqui o
+ID antes de o usar em `activate()`/`transitionTo()`.
+
 ### `NETWORK_ICONS`
 
 Mapa central `Record<SocialNetwork, { icon, color, label }>`. Cores actuais:
