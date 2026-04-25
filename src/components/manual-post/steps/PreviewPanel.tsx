@@ -255,7 +255,7 @@ export function PreviewPanel(props: PreviewPanelProps) {
   }
 
   return (
-    <div className="hidden overflow-auto lg:sticky lg:top-24 lg:block lg:h-[calc(100vh-8rem)]">
+    <div className="hidden overflow-auto lg:sticky lg:top-24 lg:block lg:h-[calc(100vh-8rem-var(--sticky-bar-height,0px))]">
       <Card className="card-secondary flex h-full flex-col shadow-[0_18px_45px_hsl(var(--foreground)/0.08)]">
         <CardHeader className="shrink-0 p-5 pb-3">
           <div className="manual-card-header-row">
