@@ -561,9 +561,36 @@ export default function ManualCreate() {
           : 'inactive';
 
   // Estados para Opções por rede e Agendamento (Prompt 3/4).
-  const hasOptionsConfigured =
-    selectedNetworks.length > 0 &&
-    Object.values(networkOptions).some((opts) => opts && Object.values(opts).some((v) => Array.isArray(v) ? v.length > 0 : typeof v === 'string' ? v.trim().length > 0 : v === true));
+  // IMPORTANTE: só conta opções genuinamente editadas pelo utilizador.
+  // Defaults técnicos (formatVariant: 'feed', visibility: 'public',
+  // categoryId: '22', ctaType: 'learn_more') NÃO devem ser interpretados
+  // como configuração — caso contrário a transição 4→5 dispara logo após
+  // selecionar formatos e a Secção 5 (Agendamento) rouba foco indevidamente,
+  // saltando a Média.
+  const hasOptionsConfigured = useMemo(() => {
+    if (selectedNetworks.length === 0) return false;
+    const ig = networkOptions.instagram;
+    const li = networkOptions.linkedin;
+    const fb = networkOptions.facebook;
+    const yt = networkOptions.youtube;
+    const gb = networkOptions.googlebusiness;
+    return Boolean(
+      (ig?.firstComment ?? '').trim() ||
+      (ig?.collaborators?.length ?? 0) > 0 ||
+      (ig?.photoTags?.length ?? 0) > 0 ||
+      (ig?.storyLinkUrl ?? '').trim() ||
+      (ig?.storyLinkStickerText ?? '').trim() ||
+      (ig?.storyLinkOverlayText ?? '').trim() ||
+      (li?.firstComment ?? '').trim() ||
+      (li?.mentions?.length ?? 0) > 0 ||
+      li?.disableLinkPreview === true ||
+      (fb?.firstComment ?? '').trim() ||
+      (yt?.title ?? '').trim() ||
+      (yt?.tags?.length ?? 0) > 0 ||
+      gb?.ctaEnabled === true ||
+      (gb?.ctaUrl ?? '').trim()
+    );
+  }, [networkOptions, selectedNetworks.length]);
 
   const optionsState: 'inactive' | 'active' | 'complete' =
     activeSection === 'network-options'
