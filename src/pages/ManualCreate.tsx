@@ -610,16 +610,6 @@ export default function ManualCreate() {
           ? 'complete'
           : 'inactive';
 
-  // [DEV] Diagnóstico temporário do progressive disclosure (Problema 1).
-  // Remover após confirmação do fix em produção.
-  if (import.meta.env.DEV) {
-    // eslint-disable-next-line no-console
-    console.debug('[ManualCreate] activeSection:', activeSection,
-      '| mediaState:', mediaState,
-      '| showStep2:', showStep2,
-      '| selectedFormats:', selectedFormats.length);
-  }
-
   // ── Contagem de secções concluídas para a barra global ────────────────
   const completedSections = [
     networksState,
@@ -630,7 +620,10 @@ export default function ManualCreate() {
   ].filter((s) => s === 'complete').length;
 
   // ── Modo guiado: transições only-forward ──────────────────────────────
-  // Cada transição dispara uma única vez por sessão (Set ref).
+  // Cada transição dispara uma única vez por sessão (Set ref) e respeita
+  // a ordem real do fluxo: nenhuma secção pode ganhar foco se a anterior
+  // não estiver realmente desbloqueada (ex.: Schedule não pode roubar foco
+  // antes de existir média carregada).
   // 1 → 2 (Networks → Media)
   useEffect(() => {
     if (selectedFormats.length > 0 && !guidedFiredRef.current.has('media')) {
@@ -639,19 +632,19 @@ export default function ManualCreate() {
     }
   }, [selectedFormats.length, guided, activate]);
 
-  // 2 → 3 (Media → Caption)
+  // 2 → 3 (Media → Caption) — só quando média mínima está cumprida
   useEffect(() => {
-    if (mediaFiles.length > 0 && !guidedFiredRef.current.has('caption')) {
+    if (showStep3 && !guidedFiredRef.current.has('caption')) {
       guidedFiredRef.current.add('caption');
       guided.transitionTo('caption', () => activate('caption'));
     }
-  }, [mediaFiles.length, guided, activate]);
+  }, [showStep3, guided, activate]);
 
   // 3 → 4 (Caption → Network Options) com debounce de 1.5s para evitar
-  // disparar logo no primeiro carácter.
+  // disparar logo no primeiro carácter. Só corre se a Média já está cumprida.
   // ID canónico: 'network-options' (ver DESIGN_SYSTEM.md → SectionCard IDs).
   useEffect(() => {
-    if (hasAnyCaption && !guidedFiredRef.current.has('network-options')) {
+    if (showStep3 && hasAnyCaption && !guidedFiredRef.current.has('network-options')) {
       const timer = window.setTimeout(() => {
         if (!guidedFiredRef.current.has('network-options')) {
           guidedFiredRef.current.add('network-options');
@@ -660,15 +653,20 @@ export default function ManualCreate() {
       }, 1500);
       return () => window.clearTimeout(timer);
     }
-  }, [hasAnyCaption, guided, activate]);
+  }, [showStep3, hasAnyCaption, guided, activate]);
 
-  // 4 → 5 (Options → Schedule)
+  // 4 → 5 (Options → Schedule) — exige média + legenda + opções reais.
   useEffect(() => {
-    if (hasOptionsConfigured && !guidedFiredRef.current.has('schedule')) {
+    if (
+      showStep3 &&
+      hasAnyCaption &&
+      hasOptionsConfigured &&
+      !guidedFiredRef.current.has('schedule')
+    ) {
       guidedFiredRef.current.add('schedule');
       guided.transitionTo('schedule', () => activate('schedule'));
     }
-  }, [hasOptionsConfigured, guided, activate]);
+  }, [showStep3, hasAnyCaption, hasOptionsConfigured, guided, activate]);
 
 
   // Note: legacy `getValidationErrors()`/`hasErrors` removed.
