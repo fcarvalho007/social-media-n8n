@@ -1575,6 +1575,7 @@ export default function ManualCreate() {
                 </div>
               )}
             />
+            </div>
 
             <HashtagSuggestions
               hashtags={hashtagSuggestions}
