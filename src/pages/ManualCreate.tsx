@@ -1626,8 +1626,13 @@ export default function ManualCreate() {
             {/* Acções primárias movidas para a barra fixa global
                 (renderizada como `fixedBottom` mais abaixo, fora do grid). */}
           </div>
+        </div>
+        {/* /coluna esquerda */}
 
-        {/* Right - Preview - HIDDEN on mobile */}
+        {/* Right - Preview - HIDDEN on mobile.
+            DEVE ser sibling directo do `.manual-create-grid` para ocupar a
+            2ª coluna e activar `lg:sticky`. Se for filho da coluna esquerda,
+            renderiza por baixo do formulário e a 2ª coluna fica vazia. */}
         <PreviewPanel
           variant="desktop"
           selectedFormats={selectedFormats}
