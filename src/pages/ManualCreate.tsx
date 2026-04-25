@@ -1690,7 +1690,7 @@ export default function ManualCreate() {
       <Button
         type="button"
         size="icon"
-        className="fixed right-4 z-40 h-12 w-12 rounded-full bg-primary text-primary-foreground shadow-lg hover:bg-primary/90 xl:hidden"
+        className="fixed right-4 z-40 h-12 w-12 rounded-full bg-primary text-primary-foreground shadow-lg hover:bg-primary/90 lg:hidden"
         style={{ bottom: 'calc(var(--sticky-bar-height, 96px) + 16px)' }}
         onClick={() => openMobilePreview('peek')}
         aria-label="Abrir pré-visualização"
