@@ -300,8 +300,14 @@ export default function ManualCreate() {
     handleLoadDraft,
   } = recovery;
 
-  // Compute media requirements based on selected formats
-  const mediaRequirements = useMemo(() => getMediaRequirements(selectedFormats), [selectedFormats]);
+  // Compute media requirements based on selected formats.
+  // O `minMedia` é sobrescrito pelo *efectivo* (ver getEffectiveMinMedia)
+  // para que carrosséis e PDFs comuniquem ≥2 ficheiros à UI (Step2 microcopy,
+  // validação de progressive disclosure, etc.).
+  const mediaRequirements = useMemo(() => {
+    const base = getMediaRequirements(selectedFormats);
+    return { ...base, minMedia: getEffectiveMinMedia(selectedFormats) };
+  }, [selectedFormats]);
 
   // ── Phase 1 hook: media upload + video validation ──────────────────────
   // Owns isUploading/uploadProgress, video validation modal state, and the
