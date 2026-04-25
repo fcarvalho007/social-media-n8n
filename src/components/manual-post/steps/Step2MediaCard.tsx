@@ -251,6 +251,29 @@ export function Step2MediaCard(props: Step2MediaCardProps) {
       summary={mediaPreviewUrls.length > 0 ? summary : undefined}
     >
       <div className="manual-group-stack">
+        {/* Aviso quando o formato exige múltiplos ficheiros (ex.: Carrossel,
+            Documento PDF) e o utilizador ainda não atingiu o mínimo. */}
+        {requiresMultiple && (
+          <div
+            className={cn(
+              'flex items-center gap-2 rounded-md border px-3 py-2 text-xs',
+              belowMinimum
+                ? 'border-warning/40 bg-warning/10 text-warning-foreground'
+                : 'border-border bg-muted/40 text-muted-foreground',
+            )}
+            role="status"
+            aria-live="polite"
+          >
+            <span aria-hidden="true">{belowMinimum ? '⚠' : '✓'}</span>
+            <span>
+              {belowMinimum
+                ? `Este formato exige no mínimo ${mediaRequirements.minMedia} ficheiros — `
+                : 'Mínimo cumprido — '}
+              <strong className="tabular-nums">{mediaFiles.length}/{mediaRequirements.minMedia}</strong>
+              {belowMinimum ? ' carregados.' : ' ficheiros prontos.'}
+            </span>
+          </div>
+        )}
         {/* Upload zone */}
         {mediaPreviewUrls.length === 0 && (
           <div ref={mediaSectionRef}>
