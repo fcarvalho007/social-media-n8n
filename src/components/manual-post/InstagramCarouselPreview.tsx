@@ -192,7 +192,7 @@ const InstagramCarouselPreview = ({ mediaUrls, mediaItems, caption }: InstagramC
 
   return (
     <>
-      <DeviceFrame type="phone">
+      <DeviceFrame type="phone" size="expanded">
         <Card className="w-full overflow-hidden border-0 rounded-none shadow-none">
           {/* Header */}
           <div className="flex items-center gap-3 p-3 border-b">
