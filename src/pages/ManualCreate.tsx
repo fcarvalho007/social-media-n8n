@@ -538,42 +538,60 @@ export default function ManualCreate() {
     ? selectedNetworks.some((n) => (networkCaptions[n] || '').trim().length > 0)
     : caption.trim().length > 0;
 
-  const mediaState: 'inactive' | 'active' | 'complete' = !showStep2
-    ? 'inactive'
-    : activeSection === 'media'
+  // Prioridade ao foco: se a secção está em activeSection, é sempre 'active'
+  // independentemente das condições showStep* (que controlam visibilidade).
+  // Isto evita race conditions entre o transitionTo (que activa) e o cálculo
+  // do estado derivado (que poderia devolver 'inactive' por milissegundos).
+  const mediaState: 'inactive' | 'active' | 'complete' =
+    activeSection === 'media'
       ? 'active'
-      : hasMedia
-        ? 'complete'
-        : 'inactive';
+      : !showStep2
+        ? 'inactive'
+        : hasMedia
+          ? 'complete'
+          : 'inactive';
 
-  const captionState: 'inactive' | 'active' | 'complete' = !showStep3
-    ? 'inactive'
-    : activeSection === 'caption'
+  const captionState: 'inactive' | 'active' | 'complete' =
+    activeSection === 'caption'
       ? 'active'
-      : hasAnyCaption
-        ? 'complete'
-        : 'inactive';
+      : !showStep3
+        ? 'inactive'
+        : hasAnyCaption
+          ? 'complete'
+          : 'inactive';
 
   // Estados para Opções por rede e Agendamento (Prompt 3/4).
   const hasOptionsConfigured =
     selectedNetworks.length > 0 &&
     Object.values(networkOptions).some((opts) => opts && Object.values(opts).some((v) => Array.isArray(v) ? v.length > 0 : typeof v === 'string' ? v.trim().length > 0 : v === true));
 
-  const optionsState: 'inactive' | 'active' | 'complete' = !showStep3
-    ? 'inactive'
-    : activeSection === 'network-options'
+  const optionsState: 'inactive' | 'active' | 'complete' =
+    activeSection === 'network-options'
       ? 'active'
-      : hasOptionsConfigured
-        ? 'complete'
-        : 'inactive';
+      : !showStep3
+        ? 'inactive'
+        : hasOptionsConfigured
+          ? 'complete'
+          : 'inactive';
 
-  const scheduleState: 'inactive' | 'active' | 'complete' = !showStep3
-    ? 'inactive'
-    : activeSection === 'schedule'
+  const scheduleState: 'inactive' | 'active' | 'complete' =
+    activeSection === 'schedule'
       ? 'active'
-      : (scheduleAsap || !!scheduledDate)
-        ? 'complete'
-        : 'inactive';
+      : !showStep3
+        ? 'inactive'
+        : (scheduleAsap || !!scheduledDate)
+          ? 'complete'
+          : 'inactive';
+
+  // [DEV] Diagnóstico temporário do progressive disclosure (Problema 1).
+  // Remover após confirmação do fix em produção.
+  if (import.meta.env.DEV) {
+    // eslint-disable-next-line no-console
+    console.debug('[ManualCreate] activeSection:', activeSection,
+      '| mediaState:', mediaState,
+      '| showStep2:', showStep2,
+      '| selectedFormats:', selectedFormats.length);
+  }
 
   // ── Contagem de secções concluídas para a barra global ────────────────
   const completedSections = [
