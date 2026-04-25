@@ -11,7 +11,7 @@ interface DeviceFrameProps {
 export function DeviceFrame({ type, children, className, size = 'compact' }: DeviceFrameProps) {
   if (type === 'phone') {
     return (
-      <div className={cn("relative mx-auto w-full", className)} style={{ maxWidth: size === 'expanded' ? '360px' : '260px' }}>
+      <div className={cn("relative mx-auto w-full", className)} style={{ maxWidth: size === 'expanded' ? '420px' : '260px' }}>
         {/* Phone Frame */}
         <div className="rounded-[2rem] border-[8px] border-foreground/85 bg-foreground/85 shadow-xl dark:border-muted dark:bg-muted">
           {/* Notch */}
@@ -42,7 +42,7 @@ export function DeviceFrame({ type, children, className, size = 'compact' }: Dev
             </div>
             
             {/* Content */}
-            <div className={cn("overflow-y-auto", size === 'expanded' ? 'max-h-[640px]' : 'max-h-[440px]')}>
+            <div className={cn("overflow-y-auto", size === 'expanded' ? 'max-h-[720px]' : 'max-h-[440px]')}>
               {children}
             </div>
           </div>
