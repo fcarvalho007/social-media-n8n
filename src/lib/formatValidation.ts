@@ -67,6 +67,9 @@ export function getMediaRequirements(formats: PostFormat[]): MediaRequirements {
     }
     
     if (constraints) {
+      // NOTE: tiktok.max_caption_length = 2200 (video). Photo carousel allows 4000
+      // (max_caption_length_video field). When `tiktok_photo` format is added,
+      // override here based on format.
       maxCaptionLength = Math.min(maxCaptionLength, constraints.max_caption_length);
     }
   });
