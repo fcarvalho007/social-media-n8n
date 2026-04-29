@@ -39,6 +39,11 @@ export async function videoDurationValidator(
     });
 
     if (offenders.length > 0) {
+      const isStories = format.endsWith('_stories');
+      const description = isStories
+        ? `${offenders.length} vídeo(s) acima do limite de ${max}s. O Meta divide automaticamente vídeos longos em segmentos — encurta para ≤${max}s para publicar como segmento único.`
+        : `${offenders.length} vídeo(s) acima do limite. Aparas o vídeo num editor externo antes de publicar.`;
+
       issues.push({
         id: `media:video-duration:${format}:${offenders.join(',')}`,
         severity: 'error',
@@ -46,7 +51,7 @@ export async function videoDurationValidator(
         platform,
         format,
         title: `Vídeo excede ${max}s para ${label}`,
-        description: `${offenders.length} vídeo(s) acima do limite. Aparas o vídeo num editor externo antes de publicar.`,
+        description,
         affectedItems: offenders,
       });
     }
