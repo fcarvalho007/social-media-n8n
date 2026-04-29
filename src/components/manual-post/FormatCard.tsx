@@ -17,7 +17,14 @@ export function FormatCard({ format, isSelected, onToggle, platformColor }: Form
   if (format.format.includes('stories') || format.format === 'instagram_story_link') badges.push('24h');
   if (format.format === 'instagram_story_link') badges.push('Link');
   if (format.format.includes('reel') || format.format.includes('shorts') || format.format.includes('tiktok')) badges.push('9:16');
-  if (format.maxDuration && format.maxDuration <= 60) badges.push(`≤${format.maxDuration}s`);
+  if (format.maxDuration) {
+    // Show seconds for ≤60s, minutes otherwise
+    const label = format.maxDuration <= 60
+      ? `≤${format.maxDuration}s`
+      : `≤${Math.round(format.maxDuration / 60)}m`;
+    badges.push(label);
+  }
+  if (format.format === 'googlebusiness_post') badges.push('Apenas imagem');
   if (format.format === 'instagram_carousel') badges.push('Popular');
   if (format.format === 'linkedin_document') badges.push('PDF');
   

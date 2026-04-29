@@ -56,21 +56,16 @@ export default function GoogleBusinessPreview({
         {hasMedia && (
           <div className="relative aspect-square bg-muted">
             {isVideo ? (
-              <div className="relative w-full h-full">
-                <video 
-                  src={mediaUrls[0]} 
-                  className="w-full h-full object-cover"
-                  muted
-                  playsInline
-                />
-                <div className="absolute inset-0 flex items-center justify-center bg-black/20">
-                  <div className="w-14 h-14 rounded-full bg-white/90 flex items-center justify-center shadow-lg">
-                    <Play className="h-7 w-7 text-[#4285F4] ml-1" fill="currentColor" />
-                  </div>
+              <div className="w-full h-full flex flex-col items-center justify-center text-center p-6 bg-muted/40">
+                <div className="w-12 h-12 rounded-full bg-destructive/10 flex items-center justify-center mb-3">
+                  <Play className="h-6 w-6 text-destructive" />
                 </div>
-                <div className="absolute bottom-2 right-2 bg-black/70 text-white text-xs px-2 py-0.5 rounded">
-                  0:30
-                </div>
+                <p className="text-sm font-medium text-foreground mb-1">
+                  Vídeo não suportado
+                </p>
+                <p className="text-xs text-muted-foreground">
+                  O Google Business aceita apenas imagens. Substitui por uma foto ou desmarca a plataforma.
+                </p>
               </div>
             ) : (
               <img 
@@ -81,11 +76,13 @@ export default function GoogleBusinessPreview({
             )}
             
             {/* Format Badge */}
-            <div className="absolute top-2 left-2">
-              <span className="bg-[#4285F4] text-white text-xs font-medium px-2 py-1 rounded-full">
-                {format === 'googlebusiness_media' ? (isVideo ? 'Vídeo' : 'Foto') : 'Post'}
-              </span>
-            </div>
+            {!isVideo && (
+              <div className="absolute top-2 left-2">
+                <span className="bg-[#4285F4] text-white text-xs font-medium px-2 py-1 rounded-full">
+                  Post
+                </span>
+              </div>
+            )}
           </div>
         )}
 
@@ -96,8 +93,8 @@ export default function GoogleBusinessPreview({
               "text-sm text-foreground whitespace-pre-wrap break-words",
               isOverLimit && "text-destructive"
             )}>
-              {caption.slice(0, 300)}
-              {caption.length > 300 && (
+              {caption.slice(0, 250)}
+              {caption.length > 250 && (
                 <span className="text-muted-foreground">... ver mais</span>
               )}
             </p>
