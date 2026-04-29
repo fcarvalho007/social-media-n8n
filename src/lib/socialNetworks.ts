@@ -58,8 +58,8 @@ export const NETWORK_CONSTRAINTS: Record<SocialNetwork, NetworkConstraints> = {
     link_character_count: 23,
   },
   tiktok: {
-    max_caption_length: 4000, // Photo carousel description (upper bound)
-    max_caption_length_video: 2200, // Video caption limit
+    max_caption_length: 2200, // TikTok video caption (safe default; photo carousel allows 4.000)
+    max_caption_length_video: 2200,
     max_images: 35,
     min_images: 0,
     min_video_duration: 3, // TikTok rejects videos shorter than 3s
