@@ -67,17 +67,24 @@ export const MIN_RESOLUTIONS: Record<string, { width: number; height: number }> 
   facebook_reel: { width: 1080, height: 1920 },
 };
 
-// Max video duration in seconds
+// Max video duration in seconds (per Getlate API authoritative values)
 export const MAX_VIDEO_DURATION: Record<string, number> = {
   instagram_reel: 90,
-  instagram_stories: 60, // Meta unificou Stories/Reels: 60s por segmento
+  instagram_stories: 60,
   instagram_story_link: 60,
+  instagram_image: 3600, // Feed video up to 60min
   youtube_shorts: 60,
-  youtube_video: 43200, // 12 hours
-  tiktok_video: 600, // 10 minutos (alinhado com social.ts)
-  facebook_stories: 60, // Meta unificou Stories/Reels: 60s por segmento
+  youtube_video: 900, // 15 min default (unverified). Verified up to 12h.
+  tiktok_video: 600, // 10 min
+  facebook_image: 14400, // Feed: 240 min
+  facebook_stories: 120, // Facebook Stories: 120s per Getlate
   facebook_reel: 90,
-  linkedin_post: 600, // 10 minutes
+  linkedin_post: 600, // 10 min personal (30 min company)
+};
+
+// Min video duration in seconds (some APIs reject very short clips)
+export const MIN_VIDEO_DURATION: Record<string, number> = {
+  tiktok_video: 3,
 };
 
 /**

@@ -60,7 +60,7 @@ export const NETWORK_POST_FORMATS: Record<SocialNetwork, PostFormatConfig[]> = {
     { 
       format: 'instagram_stories', 
       label: 'Stories', 
-      description: 'Imagem ou vídeo até 60s', 
+      description: 'Imagem ou vídeo vertical até 60s', 
       icon: 'Circle',
       minMedia: 1,
       maxMedia: 1,
@@ -69,7 +69,7 @@ export const NETWORK_POST_FORMATS: Record<SocialNetwork, PostFormatConfig[]> = {
     {
       format: 'instagram_story_link',
       label: 'Story com Link',
-      description: 'Story manual com link sticker',
+      description: 'Story vertical até 60s com link sticker',
       icon: 'Link',
       minMedia: 1,
       maxMedia: 1,
@@ -118,11 +118,12 @@ export const NETWORK_POST_FORMATS: Record<SocialNetwork, PostFormatConfig[]> = {
     { 
       format: 'youtube_video', 
       label: 'Vídeo Longo', 
-      description: 'Vídeo completo', 
+      description: 'Vídeo completo (canal não verificado: máx. 15 min)', 
       icon: 'Video',
       requiresVideo: true,
       minMedia: 1,
       maxMedia: 1,
+      maxDuration: 900, // 15min default (unverified). Verified channels up to 12h.
     },
   ],
   tiktok: [
@@ -150,11 +151,11 @@ export const NETWORK_POST_FORMATS: Record<SocialNetwork, PostFormatConfig[]> = {
     { 
       format: 'facebook_stories', 
       label: 'Stories', 
-      description: 'Imagem ou vídeo até 60s', 
+      description: 'Imagem ou vídeo vertical até 2 min', 
       icon: 'Circle',
       minMedia: 1,
       maxMedia: 1,
-      maxDuration: 60,
+      maxDuration: 120, // Facebook Stories: 120s per Getlate API
     },
     { 
       format: 'facebook_reel', 
@@ -172,11 +173,12 @@ export const NETWORK_POST_FORMATS: Record<SocialNetwork, PostFormatConfig[]> = {
     { 
       format: 'googlebusiness_post', 
       label: 'Post', 
-      description: 'Imagem ou vídeo até 30s (até 1.500 chars)', 
+      description: 'Apenas imagem (5MB, mín. 400×300) — vídeo não suportado', 
       icon: 'MapPin',
+      requiresImage: true,
       minMedia: 0,
       maxMedia: 1,
-      maxDuration: 30,
+      // No maxDuration — Google Business API does not support video.
     },
   ],
 };
@@ -260,14 +262,22 @@ export interface NetworkConstraints {
   max_images: number;
   min_images: number;
   max_video_duration?: number; // seconds
+  min_video_duration?: number; // seconds (TikTok requires ≥3s)
   supported_aspect_ratios: string[];
   supports_links_in_caption: boolean;
   supports_first_comment: boolean;
   supports_carousel: boolean;
   supports_video: boolean;
   link_character_count?: number;
+  // Per-platform media limits (Getlate API authoritative values)
+  max_image_size_mb?: number; // Single image size limit
+  min_image_dimensions?: { width: number; height: number };
+  max_title_length?: number; // YouTube title
+  max_thumbnail_size_mb?: number; // YouTube thumbnail
+  max_video_duration_company?: number; // LinkedIn company page videos
+  max_video_duration_verified?: number; // YouTube verified channels
+  max_caption_length_video?: number; // TikTok: 2.200 video vs 4.000 photo
   // LinkedIn Document specific limits
-  max_image_size_mb?: number; // Individual image size for PDF conversion
   max_pdf_size_mb?: number; // Final PDF size limit
   max_pdf_pages?: number; // Maximum pages in PDF
 }

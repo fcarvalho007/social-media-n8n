@@ -7,7 +7,8 @@ export const NETWORK_CONSTRAINTS: Record<SocialNetwork, NetworkConstraints> = {
     max_first_comment_length: 2200,
     max_images: 10,
     min_images: 1,
-    max_video_duration: 60,
+    max_video_duration: 3600, // 60min feed (Reel/Story validated by format)
+    max_image_size_mb: 8,
     supported_aspect_ratios: ['1:1', '4:5', '9:16', '16:9'],
     supports_links_in_caption: false,
     supports_first_comment: true,
@@ -16,16 +17,17 @@ export const NETWORK_CONSTRAINTS: Record<SocialNetwork, NetworkConstraints> = {
   },
   linkedin: {
     max_caption_length: 3000,
-    max_images: 20, // LinkedIn Documents allow up to 300 pages, but 20 is practical
+    max_images: 20, // Per Getlate; documents go up to 300 pages separately
     min_images: 1,
-    max_video_duration: 600, // 10 minutes
+    max_video_duration: 600, // 10 min (personal profile default)
+    max_video_duration_company: 1800, // 30 min for company pages
+    max_image_size_mb: 8,
     supported_aspect_ratios: ['1:1', '16:9', '4:5'],
     supports_links_in_caption: true,
     supports_first_comment: false,
     supports_carousel: true,
     supports_video: true,
     // LinkedIn Document specific limits
-    max_image_size_mb: 50, // Individual image size for PDF conversion
     max_pdf_size_mb: 100, // Final PDF size limit
     max_pdf_pages: 300, // LinkedIn limit
   },
@@ -33,7 +35,8 @@ export const NETWORK_CONSTRAINTS: Record<SocialNetwork, NetworkConstraints> = {
     max_caption_length: 63206,
     max_images: 10,
     min_images: 1,
-    max_video_duration: 240 * 60, // 240 minutes
+    max_video_duration: 240 * 60, // 240 min feed (Stories validated by format = 120s)
+    max_image_size_mb: 4, // Getlate: FB rejects >4MB in practice
     supported_aspect_ratios: ['1:1', '16:9', '4:5', '9:16'],
     supports_links_in_caption: true,
     supports_first_comment: false,
@@ -46,6 +49,7 @@ export const NETWORK_CONSTRAINTS: Record<SocialNetwork, NetworkConstraints> = {
     max_images: 4,
     min_images: 1,
     max_video_duration: 140,
+    max_image_size_mb: 5,
     supported_aspect_ratios: ['1:1', '16:9', '4:5'],
     supports_links_in_caption: true,
     supports_first_comment: true,
@@ -54,10 +58,13 @@ export const NETWORK_CONSTRAINTS: Record<SocialNetwork, NetworkConstraints> = {
     link_character_count: 23,
   },
   tiktok: {
-    max_caption_length: 300,
+    max_caption_length: 4000, // Photo carousel description (upper bound)
+    max_caption_length_video: 2200, // Video caption limit
     max_images: 35,
     min_images: 0,
+    min_video_duration: 3, // TikTok rejects videos shorter than 3s
     max_video_duration: 600, // 10 minutes
+    max_image_size_mb: 20,
     supported_aspect_ratios: ['9:16'],
     supports_links_in_caption: false,
     supports_first_comment: false,
@@ -66,10 +73,13 @@ export const NETWORK_CONSTRAINTS: Record<SocialNetwork, NetworkConstraints> = {
   },
   youtube: {
     max_caption_length: 5000,
+    max_title_length: 100,
     max_images: 0,
     min_images: 0,
-    max_video_duration: 60,
-    supported_aspect_ratios: ['9:16'],
+    max_video_duration: 900, // 15 min default (unverified channels)
+    max_video_duration_verified: 43200, // 12h for verified channels
+    max_thumbnail_size_mb: 2,
+    supported_aspect_ratios: ['9:16', '16:9'],
     supports_links_in_caption: true,
     supports_first_comment: false,
     supports_carousel: false,
@@ -79,12 +89,14 @@ export const NETWORK_CONSTRAINTS: Record<SocialNetwork, NetworkConstraints> = {
     max_caption_length: 1500,
     max_images: 1,
     min_images: 0,
-    max_video_duration: 30,
+    // GBP API does NOT support video. Do not advertise it.
     supported_aspect_ratios: ['1:1', '4:3', '16:9'],
+    max_image_size_mb: 5,
+    min_image_dimensions: { width: 400, height: 300 },
     supports_links_in_caption: true,
     supports_first_comment: false,
     supports_carousel: false,
-    supports_video: true,
+    supports_video: false,
   },
 };
 
