@@ -39,22 +39,44 @@ export async function mediaResolutionValidator(
     }
   }
 
-  if (lowResIndices.length === 0) return issues;
+  if (lowResIndices.length > 0) {
+    // Pick the first selected format as the "reference" platform for the chip
+    const refFormat = ctx.selectedFormats[0];
+    const platform = getNetworkFromFormat(refFormat);
+    const formatLabel = getFormatConfig(refFormat)?.label ?? refFormat;
 
-  // Pick the first selected format as the "reference" platform for the chip
-  const refFormat = ctx.selectedFormats[0];
-  const platform = getNetworkFromFormat(refFormat);
-  const formatLabel = getFormatConfig(refFormat)?.label ?? refFormat;
+    issues.push({
+      id: `media:resolution:${lowResIndices.join(',')}`,
+      severity: 'warning',
+      category: 'media',
+      platform,
+      title: `${lowResIndices.length} ficheiro(s) com resolução baixa`,
+      description: `Recomendado mínimo ${minWidth}×${minHeight}px (${formatLabel}). Resoluções inferiores podem aparecer pixelizadas.`,
+      affectedItems: lowResIndices,
+    });
+  }
 
-  issues.push({
-    id: `media:resolution:${lowResIndices.join(',')}`,
-    severity: 'warning',
-    category: 'media',
-    platform,
-    title: `${lowResIndices.length} ficheiro(s) com resolução baixa`,
-    description: `Recomendado mínimo ${minWidth}×${minHeight}px (${formatLabel}). Resoluções inferiores podem aparecer pixelizadas.`,
-    affectedItems: lowResIndices,
-  });
+  // Facebook image size warning (>4MB rejected in practice per Getlate)
+  const hasFacebook = ctx.selectedFormats.some(f => f.startsWith('facebook_'));
+  if (hasFacebook) {
+    const heavyImages: number[] = [];
+    ctx.mediaFiles.forEach((file, i) => {
+      if (file.type.startsWith('image/') && file.size / (1024 * 1024) > 4) {
+        heavyImages.push(i);
+      }
+    });
+    if (heavyImages.length > 0) {
+      issues.push({
+        id: `media:fb-image-heavy:${heavyImages.join(',')}`,
+        severity: 'warning',
+        category: 'media',
+        platform: 'facebook',
+        title: `${heavyImages.length} imagem(ns) acima de 4MB no Facebook`,
+        description: 'O Facebook frequentemente rejeita imagens superiores a 4MB. Recomenda-se comprimir antes de publicar.',
+        affectedItems: heavyImages,
+      });
+    }
+  }
 
   return issues;
 }

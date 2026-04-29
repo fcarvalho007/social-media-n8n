@@ -19,7 +19,7 @@ describe('renderFormatPreview', () => {
     expect(screen.queryByText('Legenda global que não deve aparecer.')).not.toBeInTheDocument();
   });
 
-  it('mostra o limite real de 300 caracteres no preview do TikTok', () => {
+  it('mostra o limite real de 2200 caracteres no preview do TikTok', () => {
     render(
       renderFormatPreview('tiktok_video', {
         caption: 'abc',
@@ -29,6 +29,6 @@ describe('renderFormatPreview', () => {
       }),
     );
 
-    expect(screen.getByText('3/300')).toBeInTheDocument();
+    expect(screen.getByText('3/2200')).toBeInTheDocument();
   });
 });
