@@ -7,7 +7,7 @@ describe('captionValidator', () => {
     const setCaption = vi.fn();
     const setNetworkCaption = vi.fn();
     const focusCaption = vi.fn();
-    const longCaption = 'Legenda completa. '.repeat(35);
+    const longCaption = 'Legenda completa. '.repeat(200); // ~3.400 chars to exceed TikTok 2200
     const ctx: ValidatorContext = {
       selectedFormats: ['instagram_reel', 'tiktok_video'],
       caption: longCaption,
@@ -39,7 +39,7 @@ describe('captionValidator', () => {
   });
 
   it('não acusa TikTok quando a legenda específica está dentro do limite', async () => {
-    const longCaption = 'Legenda completa. '.repeat(35);
+    const longCaption = 'Legenda completa. '.repeat(200);
     const ctx: ValidatorContext = {
       selectedFormats: ['instagram_reel', 'tiktok_video'],
       caption: longCaption,
