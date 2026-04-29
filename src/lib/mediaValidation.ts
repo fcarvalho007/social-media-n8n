@@ -70,12 +70,12 @@ export const MIN_RESOLUTIONS: Record<string, { width: number; height: number }> 
 // Max video duration in seconds
 export const MAX_VIDEO_DURATION: Record<string, number> = {
   instagram_reel: 90,
-  instagram_stories: 15,
-  instagram_story_link: 15,
+  instagram_stories: 60, // Meta unificou Stories/Reels: 60s por segmento
+  instagram_story_link: 60,
   youtube_shorts: 60,
   youtube_video: 43200, // 12 hours
-  tiktok_video: 180, // 3 minutes
-  facebook_stories: 20,
+  tiktok_video: 600, // 10 minutos (alinhado com social.ts)
+  facebook_stories: 60, // Meta unificou Stories/Reels: 60s por segmento
   facebook_reel: 90,
   linkedin_post: 600, // 10 minutes
 };
