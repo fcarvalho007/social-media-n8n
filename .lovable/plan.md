@@ -1,123 +1,55 @@
-# Plano — Refinamentos da Secção 1 (`/manual-create`)
+## Problema
 
-Baseado na avaliação do estado actual do redesenho. **Nenhuma alteração funcional ou de lógica de seleção.** Apenas qualidade de código, consistência cromática, A11y e limpeza.
+O utilizador tentou publicar um vídeo de 40s e o sistema bloqueou com "Vídeo excede 15s para Stories" (Instagram) e "Vídeo excede 20s para Stories" (Facebook). Estes limites estão **desatualizados**: desde a unificação Stories/Reels (Meta, 2023+), tanto Instagram Stories como Facebook Stories aceitam **até 60 segundos** por segmento de vídeo. Acima disso são partidos automaticamente em segmentos pelo próprio Meta — não devem ser rejeitados pelo nosso lado.
 
----
+Adicionalmente, há outras regras a confirmar/corrigir:
 
-## R1 — Apagar 4 ficheiros legados órfãos 🔴
+| Formato | Atual | Correto (2026) |
+|---|---|---|
+| Instagram Stories | 15s ❌ | **60s** |
+| Facebook Stories | 20s ❌ | **60s** |
+| Instagram Reel | 90s | 90s ✅ |
+| Facebook Reel | 90s | 90s ✅ |
+| YouTube Shorts | 60s | 60s ✅ (mantém — embora YT aceite 180s, a categoria "Shorts" estrita continua 60s) |
+| TikTok | 180s (`mediaValidation`) vs 600s (`social.ts`) ❌ inconsistente | **600s** (10 min, suportado oficialmente) |
+| LinkedIn vídeo | 600s | 600s ✅ |
+| Google Business | 30s | 30s ✅ |
 
-Ficheiros sem qualquer import no projeto (confirmado via `rg`):
+Existe ainda **inconsistência entre duas fontes de verdade**: `src/lib/mediaValidation.ts` (`MAX_VIDEO_DURATION`) e `src/types/social.ts` (`maxDuration` por formato). O TikTok tem 180s num e 600s no outro. É preciso alinhar.
 
-- `src/components/manual-post/QuickPresets.tsx`
-- `src/components/manual-post/FormatsPanel.tsx`
-- `src/components/manual-post/SelectedFormatsTags.tsx`
-- `src/components/manual-post/PostTypeSelector.tsx`
+## Correções
 
-**Acção:** apagar os 4 ficheiros. Reduz ruído em pesquisas, evita reusos acidentais e mantém o tree limpo.
+### 1. `src/lib/mediaValidation.ts` — atualizar `MAX_VIDEO_DURATION`
+- `instagram_stories`: 15 → **60**
+- `instagram_story_link`: 15 → **60**
+- `facebook_stories`: 20 → **60**
+- `tiktok_video`: 180 → **600** (alinhar com `social.ts`)
 
----
+### 2. `src/types/social.ts` — adicionar `maxDuration` em falta
+Os formatos Stories não têm `maxDuration` definido (cai para o validador via `MAX_VIDEO_DURATION`). Para coerência, adicionar:
+- `instagram_stories.maxDuration = 60`
+- `instagram_story_link.maxDuration = 60`
+- `facebook_stories.maxDuration = 60`
 
-## R2 — Harmonizar cor Instagram (`#E4405F`) 🔴
+### 3. `src/components/manual-post/SectionHelp.tsx`
+- Atualizar texto: `"Imagem ou vídeo, 9:16, máx. 15 segundos"` → `"Imagem ou vídeo, 9:16, máx. 60 segundos"` (Instagram Stories).
+- Verificar e atualizar equivalente do Facebook Stories se existir.
 
-O brief pediu explicitamente `#E4405F` mas o `networkIcons.ts` usa `#E1306C` "por consistência com 3 ficheiros já existentes". Isto **inverte a hierarquia**: o brief deve ditar, não os ficheiros legados.
+### 4. Mensagem de erro mais útil
+Em `src/lib/validation/validators/videoDurationValidator.ts`, a mensagem atual é "Aparas o vídeo num editor externo antes de publicar." Acrescentar nota informativa para Stories: "O Meta divide automaticamente vídeos longos em segmentos de 60s — encurta para ≤60s para publicar como segmento único." (apenas para `*_stories`).
 
-**Acção:** numa única passagem, substituir `#E1306C` → `#E4405F` em:
+### 5. Validação
+- `tsc` + `vitest` (37 testes existentes)
+- Verificar que os testes em `src/lib/validation/validators/formatValidator.test.ts` continuam a passar (ou ajustar se hard-codarem 15/20s).
+- Confirmar com `rg "15.*segundos|20.*segundos"` que não restam strings antigas.
 
-- `src/lib/networkIcons.ts` (fonte de verdade)
-- `src/components/manual-post/platformConfig.tsx` (verificar com `rg`)
-- `src/components/publishing/PublishSuccessModal.tsx`
-- `src/components/publishing/PublishProgressModal.tsx`
-- Qualquer outro hit de `rg "E1306C" src/`
+## Ficheiros a editar
 
-Actualizar o comentário em `networkIcons.ts` para reflectir a decisão.
+- `src/lib/mediaValidation.ts` (limites)
+- `src/types/social.ts` (maxDuration por formato)
+- `src/components/manual-post/SectionHelp.tsx` (texto de ajuda)
+- `src/lib/validation/validators/videoDurationValidator.ts` (mensagem informativa para Stories)
 
----
+## Resultado esperado
 
-## R3 — Ícone TikTok decente (SVG inline) 🟡
-
-`Music2` (nota musical) não comunica TikTok. Como o brief proíbe novas dependências:
-
-**Acção:** criar `src/components/icons/TikTokIcon.tsx` com SVG inline do logótipo TikTok (path `d` standard, ~15 linhas), interface compatível com `LucideIcon` (`className`, `strokeWidth`, `style`, `aria-hidden`, `aria-label`). Substituir referência em `NETWORK_ICONS.tiktok.icon`.
-
-Para evitar dor de tipos: como `LucideIcon` é um tipo específico do package, o `TikTokIcon` será tipado como `React.FC<React.SVGProps<SVGSVGElement> & { strokeWidth?: number }>` e o tipo do campo `icon` em `NetworkIconConfig` muda para uma união (`LucideIcon | typeof TikTokIcon`) ou para `React.ComponentType<...>` mais genérico.
-
----
-
-## R4 — A11y dos chips de rede 🟡
-
-Estado de conexão actualmente não chega a leitores de ecrã (apenas visual via `opacity-50`). O gancho `isConnected` existe mas está hard-coded a `true`.
-
-**Acção** em `NetworkChipSelector.tsx > NetworkChip`:
-
-- Adicionar `<span className="sr-only">` interno com texto "Conta conectada" / "Conta não conectada — clica para conectar nas Definições" conforme estado.
-- Quando seleccionado, adicionar também `<span className="sr-only">selecionado</span>` (complementa `aria-pressed`).
-
-Não alterar a lógica de `isConnected` (continua sempre `true`); apenas preparar a infra-estrutura semântica para quando ligar a `social_profiles.connection_status`.
-
----
-
-## R5 — Remover `overflow-hidden` no cartão de preset 🟡
-
-`PresetCard` tem `overflow-hidden` mas:
-- Não existe conteúdo interno que precise de clipping.
-- O glow `shadow-[0_0_24px_-8px_...]` no estado activo é uma sombra externa que pode parecer cortada visualmente em hover (a transição combinada com `-translate-y-0.5` cria leve flicker da sombra).
-
-**Acção:** remover `overflow-hidden` do `className` na linha 116 de `VisualPresets.tsx`.
-
----
-
-## R6 — Remover `useMemo` micro-overhead 🟢
-
-```tsx
-const isActive = useMemo(
-  () => preset.formats.every((f) => selectedFormats.includes(f)),
-  [preset.formats, selectedFormats],
-);
-```
-
-Para 4 cartões com arrays de 2-4 formatos, o overhead do hook (criação de cell + comparação de deps) supera o ganho. Simplificar para:
-
-```tsx
-const isActive = preset.formats.every((f) => selectedFormats.includes(f));
-```
-
-Remover também o `import { useMemo }` (passa a ser só `import { Check }`).
-
----
-
-## Validação final (build mode)
-
-- `npx tsc --noEmit` — verde
-- `bunx vitest run` — 37/37 verde
-- `rg "E1306C" src/` — sem hits
-- `rg "QuickPresets|FormatsPanel|SelectedFormatsTags|PostTypeSelector" src/` — sem hits
-- Visual check: presets continuam a alternar selecção, glow não pisca em hover, ícone TikTok mostra logo correcto, leitores de ecrã anunciam estado.
-
-## NÃO mexer
-
-- Lógica de seleção, `useActiveSection`, `SectionCard`, progressive disclosure, `NetworkFormatSelector` (já está limpo).
-- Qualquer ficheiro listado em `LOCKED_FILES.md` (verificar antes de tocar nos modais de Publish).
-
-## Ficheiros editados
-
-1. `src/components/manual-post/QuickPresets.tsx` — **DELETE**
-2. `src/components/manual-post/FormatsPanel.tsx` — **DELETE**
-3. `src/components/manual-post/SelectedFormatsTags.tsx` — **DELETE**
-4. `src/components/manual-post/PostTypeSelector.tsx` — **DELETE**
-5. `src/lib/networkIcons.ts` — cor IG + ícone TikTok + comentários
-6. `src/components/icons/TikTokIcon.tsx` — **NOVO**
-7. `src/components/manual-post/platformConfig.tsx` — cor IG (se aplicável)
-8. `src/components/publishing/PublishSuccessModal.tsx` — cor IG (se aplicável e não locked)
-9. `src/components/publishing/PublishProgressModal.tsx` — cor IG (se aplicável e não locked)
-10. `src/components/manual-post/VisualPresets.tsx` — remover `overflow-hidden` + `useMemo`
-11. `src/components/manual-post/NetworkChipSelector.tsx` — `sr-only` para A11y
-
-## Checkpoint
-
-- ☐ R1 — 4 ficheiros legados apagados
-- ☐ R2 — `#E4405F` aplicado em todos os locais (verificado via `rg`)
-- ☐ R3 — `TikTokIcon` criado e integrado
-- ☐ R4 — `sr-only` para estado de conexão e selecção
-- ☐ R5 — `overflow-hidden` removido do PresetCard
-- ☐ R6 — `useMemo` removido em PresetCard
-- ☐ tsc + vitest verdes
+Vídeo de 40s passa a ser aceite em Instagram Stories e Facebook Stories sem aviso de erro. Vídeos >60s continuam bloqueados com mensagem clara que explica o porquê e sugere encurtar.

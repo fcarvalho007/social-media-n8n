@@ -60,10 +60,11 @@ export const NETWORK_POST_FORMATS: Record<SocialNetwork, PostFormatConfig[]> = {
     { 
       format: 'instagram_stories', 
       label: 'Stories', 
-      description: 'Imagem ou vídeo', 
+      description: 'Imagem ou vídeo até 60s', 
       icon: 'Circle',
       minMedia: 1,
       maxMedia: 1,
+      maxDuration: 60,
     },
     {
       format: 'instagram_story_link',
@@ -72,6 +73,7 @@ export const NETWORK_POST_FORMATS: Record<SocialNetwork, PostFormatConfig[]> = {
       icon: 'Link',
       minMedia: 1,
       maxMedia: 1,
+      maxDuration: 60,
     },
     { 
       format: 'instagram_reel', 
@@ -148,10 +150,11 @@ export const NETWORK_POST_FORMATS: Record<SocialNetwork, PostFormatConfig[]> = {
     { 
       format: 'facebook_stories', 
       label: 'Stories', 
-      description: 'Imagem ou vídeo', 
+      description: 'Imagem ou vídeo até 60s', 
       icon: 'Circle',
       minMedia: 1,
       maxMedia: 1,
+      maxDuration: 60,
     },
     { 
       format: 'facebook_reel', 
