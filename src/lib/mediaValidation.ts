@@ -112,6 +112,7 @@ export function calculateAspectRatio(width: number, height: number): string {
   
   if (Math.abs(decimal - 1) < 0.02) return '1:1';
   if (Math.abs(decimal - 0.8) < 0.02) return '4:5';
+  if (Math.abs(decimal - 0.75) < 0.02) return '3:4';
   if (Math.abs(decimal - 0.5625) < 0.02) return '9:16';
   if (Math.abs(decimal - 1.7778) < 0.02) return '16:9';
   if (Math.abs(decimal - 1.91) < 0.05) return '1.91:1';
