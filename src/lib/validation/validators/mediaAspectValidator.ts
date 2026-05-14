@@ -21,8 +21,9 @@ const getVideoRatio = (file: File) => new Promise<number | null>((resolve) => {
 });
 
 /**
- * Detects images outside Instagram's 0.75–1.91 aspect range (3:4 a 1.91:1)
- * and offers a one-click auto-resize using letterbox/pillarbox margins.
+ * Format-aware aspect ratio validator for Instagram:
+ * - instagram_reel / instagram_stories / instagram_story_link → 9:16 estrito (warning, sem auto-fix)
+ * - instagram_image / instagram_carousel → intervalo 0.75–1.91 com auto-fix letterbox/pillarbox
  */
 export async function mediaAspectValidator(
   ctx: ValidatorContext,
@@ -30,7 +31,12 @@ export async function mediaAspectValidator(
   const issues: ValidationIssue[] = [];
   const networks = new Set(ctx.selectedFormats.map(f => getNetworkFromFormat(f)));
   if (!networks.has('instagram')) return issues;
-  const storyLinkSelected = ctx.selectedFormats.includes('instagram_story_link');
+
+  const VERTICAL_FORMATS: string[] = ['instagram_reel', 'instagram_stories', 'instagram_story_link'];
+  const verticalFormatSelected = ctx.selectedFormats.find(f => VERTICAL_FORMATS.includes(f));
+  const feedFormatSelected = ctx.selectedFormats.some(
+    f => f === 'instagram_image' || f === 'instagram_carousel',
+  );
 
   const images = ctx.mediaFiles.filter(f => f.type.startsWith('image/'));
   const videos = ctx.mediaFiles.filter(f => f.type.startsWith('video/'));
@@ -46,29 +52,45 @@ export async function mediaAspectValidator(
     return issues;
   }
 
-  if (storyLinkSelected) {
-    const nonStoryRatio = images.filter((file) => {
+  // ─── Vertical formats (Reel / Stories / Story Link): 9:16 estrito ───
+  if (verticalFormatSelected) {
+    const TARGET = 9 / 16; // 0.5625
+    const TOLERANCE = 0.02;
+    const nonVerticalImages = images.filter((file) => {
       const item = analysis.analysis.get(file.name);
-      return item ? Math.abs(item.originalRatio - 9 / 16) > 0.02 : false;
+      return item ? Math.abs(item.originalRatio - TARGET) > TOLERANCE : false;
     });
-    const videoRatios = await Promise.all(videos.map(async file => ({ file, ratio: await getVideoRatio(file) })));
-    const nonStoryVideos = videoRatios.filter(item => item.ratio !== null && Math.abs(item.ratio - 9 / 16) > 0.02).map(item => item.file);
-    const affected = [...nonStoryRatio, ...nonStoryVideos];
+    const videoRatios = await Promise.all(
+      videos.map(async file => ({ file, ratio: await getVideoRatio(file) })),
+    );
+    const nonVerticalVideos = videoRatios
+      .filter(item => item.ratio !== null && Math.abs(item.ratio - TARGET) > TOLERANCE)
+      .map(item => item.file);
+    const affected = [...nonVerticalImages, ...nonVerticalVideos];
+
     if (affected.length > 0) {
+      const formatLabel =
+        verticalFormatSelected === 'instagram_reel' ? 'Reel'
+        : verticalFormatSelected === 'instagram_stories' ? 'Story'
+        : 'Story com Link';
       issues.push({
-        id: `media:instagram-story-link:aspect:${affected.map(file => file.name).join(',')}`,
+        id: `media:${verticalFormatSelected}:aspect:${affected.map(f => f.name).join(',')}`,
         severity: 'warning',
         category: 'media',
         platform: 'instagram',
-        format: 'instagram_story_link',
-        title: 'Story fora do rácio 9:16',
-        description: 'O Instagram pode cortar a média automaticamente. Para maior controlo, usa uma imagem ou vídeo vertical 9:16.',
+        format: verticalFormatSelected as any,
+        title: `${formatLabel} fora do rácio 9:16`,
+        description:
+          'O Instagram exige 9:16 (1080×1920) para este formato. A média será cortada/escalada automaticamente. Para controlo total, sobe um ficheiro vertical 9:16.',
       });
     }
-    return issues;
+
+    // Se só há formato vertical seleccionado, não corre o bloco de feed
+    if (!feedFormatSelected) return issues;
   }
 
-  if (analysis.needsResize.length === 0) return issues;
+  // ─── Feed formats (image / carousel): 0.75 – 1.91 com auto-fix ───
+  if (!feedFormatSelected || analysis.needsResize.length === 0) return issues;
 
   // Map back from filtered images to indices in ctx.mediaFiles
   const affectedIndices: number[] = [];
