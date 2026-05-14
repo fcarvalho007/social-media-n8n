@@ -35,8 +35,8 @@ export interface MediaValidationResult {
 
 // Ideal aspect ratios for each format
 export const FORMAT_ASPECT_RATIOS: Record<string, { ratios: string[]; tolerance: number }> = {
-  instagram_carousel: { ratios: ['1:1', '4:5'], tolerance: 0.05 },
-  instagram_image: { ratios: ['1:1', '4:5'], tolerance: 0.05 },
+  instagram_carousel: { ratios: ['1:1', '4:5', '3:4'], tolerance: 0.05 },
+  instagram_image: { ratios: ['1:1', '4:5', '3:4'], tolerance: 0.05 },
   instagram_reel: { ratios: ['9:16'], tolerance: 0.03 },
   instagram_stories: { ratios: ['9:16'], tolerance: 0.03 },
   instagram_story_link: { ratios: ['9:16'], tolerance: 0.03 },
