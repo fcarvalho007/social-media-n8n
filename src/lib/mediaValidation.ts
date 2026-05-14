@@ -57,7 +57,7 @@ export const MIN_RESOLUTIONS: Record<string, { width: number; height: number }> 
   instagram_reel: { width: 1080, height: 1920 },
   instagram_stories: { width: 1080, height: 1920 },
   instagram_story_link: { width: 1080, height: 1920 },
-  linkedin_post: { width: 1200, height: 627 },
+  linkedin_post: { width: 1080, height: 1080 },
   linkedin_document: { width: 1080, height: 1080 },
   youtube_shorts: { width: 1080, height: 1920 },
   youtube_video: { width: 1920, height: 1080 },
