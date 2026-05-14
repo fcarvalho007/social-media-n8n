@@ -38,6 +38,7 @@ export const NETWORK_CONSTRAINTS: Record<SocialNetwork, NetworkConstraints> = {
     max_images: 10,
     min_images: 1,
     max_video_duration: 240 * 60, // 240 min feed (Stories validated by format = 120s)
+    min_video_duration: 3, // FB Reels rejeita < 3s
     max_image_size_mb: 4, // Getlate: FB rejects >4MB in practice
     supported_aspect_ratios: ['1:1', '16:9', '4:5', '9:16'],
     supports_links_in_caption: true,
