@@ -21,8 +21,8 @@ const getVideoRatio = (file: File) => new Promise<number | null>((resolve) => {
 });
 
 /**
- * Detects images outside Instagram's 0.8–1.91 aspect range and offers a
- * one-click auto-resize using letterbox/pillarbox margins.
+ * Detects images outside Instagram's 0.75–1.91 aspect range (3:4 a 1.91:1)
+ * and offers a one-click auto-resize using letterbox/pillarbox margins.
  */
 export async function mediaAspectValidator(
   ctx: ValidatorContext,
