@@ -40,7 +40,7 @@ export const FORMAT_ASPECT_RATIOS: Record<string, { ratios: string[]; tolerance:
   instagram_reel: { ratios: ['9:16'], tolerance: 0.03 },
   instagram_stories: { ratios: ['9:16'], tolerance: 0.03 },
   instagram_story_link: { ratios: ['9:16'], tolerance: 0.03 },
-  linkedin_post: { ratios: ['1:1', '4:5', '16:9', '1.91:1'], tolerance: 0.1 },
+  linkedin_post: { ratios: ['1:1', '4:5', '16:9', '9:16', '1.91:1'], tolerance: 0.1 },
   linkedin_document: { ratios: ['1:1', '4:5', '16:9'], tolerance: 0.1 },
   youtube_shorts: { ratios: ['9:16'], tolerance: 0.03 },
   youtube_video: { ratios: ['16:9'], tolerance: 0.05 },
@@ -57,7 +57,7 @@ export const MIN_RESOLUTIONS: Record<string, { width: number; height: number }> 
   instagram_reel: { width: 1080, height: 1920 },
   instagram_stories: { width: 1080, height: 1920 },
   instagram_story_link: { width: 1080, height: 1920 },
-  linkedin_post: { width: 1200, height: 627 },
+  linkedin_post: { width: 1080, height: 1080 },
   linkedin_document: { width: 1080, height: 1080 },
   youtube_shorts: { width: 1080, height: 1920 },
   youtube_video: { width: 1920, height: 1080 },
@@ -85,6 +85,9 @@ export const MAX_VIDEO_DURATION: Record<string, number> = {
 // Min video duration in seconds (some APIs reject very short clips)
 export const MIN_VIDEO_DURATION: Record<string, number> = {
   tiktok_video: 3,
+  instagram_reel: 3,
+  facebook_reel: 3,
+  linkedin_post: 3,
 };
 
 /**

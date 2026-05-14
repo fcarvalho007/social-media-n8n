@@ -16,10 +16,11 @@ export function AspectRatioWarning({ mediaFiles, selectedFormats }: AspectRatioW
   const [isAnalyzing, setIsAnalyzing] = useState(false);
   const [analysisResults, setAnalysisResults] = useState<Map<string, AspectRatioAnalysis>>(new Map());
   
-  // Check if any Instagram format is selected
-  const hasInstagram = selectedFormats.some(
-    format => (FORMAT_TO_NETWORK[format] || 'instagram') === 'instagram'
+  // Only relevant for feed formats — Reel/Stories are validated separately at 9:16
+  const hasInstagramFeed = selectedFormats.some(
+    format => format === 'instagram_image' || format === 'instagram_carousel',
   );
+  const hasInstagram = hasInstagramFeed;
   
   // Analyze files when they change
   useEffect(() => {
