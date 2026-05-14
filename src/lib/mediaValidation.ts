@@ -85,6 +85,9 @@ export const MAX_VIDEO_DURATION: Record<string, number> = {
 // Min video duration in seconds (some APIs reject very short clips)
 export const MIN_VIDEO_DURATION: Record<string, number> = {
   tiktok_video: 3,
+  instagram_reel: 3,
+  facebook_reel: 3,
+  linkedin_post: 3,
 };
 
 /**
