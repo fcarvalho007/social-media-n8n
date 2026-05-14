@@ -9,7 +9,8 @@ export const NETWORK_CONSTRAINTS: Record<SocialNetwork, NetworkConstraints> = {
     min_images: 1,
     max_video_duration: 3600, // 60min feed (Reel/Story validated by format)
     max_image_size_mb: 8,
-    supported_aspect_ratios: ['1:1', '4:5', '9:16', '16:9'],
+    supported_aspect_ratios: ['1:1', '4:5', '3:4', '9:16', '16:9'],
+    min_video_duration: 3, // Getlate/IG rejeita Reels/feed video < 3s
     supports_links_in_caption: false,
     supports_first_comment: true,
     supports_carousel: true,
@@ -19,10 +20,11 @@ export const NETWORK_CONSTRAINTS: Record<SocialNetwork, NetworkConstraints> = {
     max_caption_length: 3000,
     max_images: 20, // Per Getlate; documents go up to 300 pages separately
     min_images: 1,
+    min_video_duration: 3, // Getlate rejeita vídeo < 3s
     max_video_duration: 600, // 10 min (personal profile default)
     max_video_duration_company: 1800, // 30 min for company pages
     max_image_size_mb: 8,
-    supported_aspect_ratios: ['1:1', '16:9', '4:5'],
+    supported_aspect_ratios: ['1:1', '16:9', '4:5', '9:16'],
     supports_links_in_caption: true,
     supports_first_comment: false,
     supports_carousel: true,
