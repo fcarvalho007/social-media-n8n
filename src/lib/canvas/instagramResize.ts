@@ -6,8 +6,8 @@
  * Instead, it adds margins (black or white) to achieve the target ratio.
  */
 
-// Instagram aspect ratio limits
-const INSTAGRAM_MIN_RATIO = 0.8;  // 4:5 (portrait) - minimum allowed
+// Instagram aspect ratio limits (Getlate API + Instagram Graph aceitam 3:4 a 1.91:1)
+const INSTAGRAM_MIN_RATIO = 0.75; // 3:4 (portrait) - minimum allowed
 const INSTAGRAM_MAX_RATIO = 1.91; // landscape - maximum allowed
 const TARGET_WIDTH = 1080;
 
