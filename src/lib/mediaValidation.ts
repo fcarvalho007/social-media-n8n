@@ -40,7 +40,7 @@ export const FORMAT_ASPECT_RATIOS: Record<string, { ratios: string[]; tolerance:
   instagram_reel: { ratios: ['9:16'], tolerance: 0.03 },
   instagram_stories: { ratios: ['9:16'], tolerance: 0.03 },
   instagram_story_link: { ratios: ['9:16'], tolerance: 0.03 },
-  linkedin_post: { ratios: ['1:1', '4:5', '16:9', '1.91:1'], tolerance: 0.1 },
+  linkedin_post: { ratios: ['1:1', '4:5', '16:9', '9:16', '1.91:1'], tolerance: 0.1 },
   linkedin_document: { ratios: ['1:1', '4:5', '16:9'], tolerance: 0.1 },
   youtube_shorts: { ratios: ['9:16'], tolerance: 0.03 },
   youtube_video: { ratios: ['16:9'], tolerance: 0.05 },
