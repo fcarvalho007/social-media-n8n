@@ -1,69 +1,63 @@
-## Refinamentos pendentes — auditoria pós-correções
+# Correções: agendamento e rácio Instagram
 
-Após a primeira ronda de alinhamento com a Getlate API, ainda restam **5 inconsistências de UI/preview** e **2 melhorias de robustez**.
+## Diagnóstico
 
-### 🔴 Bugs de UI (mostram informação desatualizada/inválida)
+### a) "Data/hora no passado" às 21:00 de hoje
+O estado `scheduledDate` em `ManualCreate.tsx` guarda apenas a **data** (com a hora em que o objeto `Date` foi criado, ex.: 19:26 ao clicar em "Hoje"). A **hora escolhida** vive num estado separado `time` (`'21:00'`).
 
-**1. `GoogleBusinessPreview.tsx` ainda renderiza vídeo**
-- Linhas 16-20: detecta vídeo e mostra `<video>` no preview com badge "0:30" hardcoded.
-- A API GBP **não suporta vídeo** (já bloqueamos no validador).
-- **Correção:** se `isVideo`, mostrar fallback "Vídeo não suportado pelo Google Business — só imagem é publicada" em vez de renderizar vídeo. Remover badge "0:30" e o caso `'Vídeo'` no badge linha 86.
+O `useSmartValidation` recebe só `scheduledDate` — nunca a `time`. O `scheduleValidator` faz:
+```
+ctx.scheduledDate.getTime() < Date.now()
+```
+Como `scheduledDate` ficou com a hora 19:26 e agora são 19:27, é considerado passado mesmo com 21:00 escolhido no time picker.
 
-**2. `GoogleBusinessPreview.tsx` truncação inconsistente**
-- Linha 99-102: trunca caption a `300` caracteres com "ver mais".
-- O Google Business mostra ≈100-125 chars antes do "more". Mas mais grave: a UI diz `maxChars = 1500` e depois trunca a 300 visualmente — confunde o utilizador.
-- **Correção:** alinhar truncação a 250 chars (visual real do GBP) ou simplesmente mostrar tudo até 1500 sem truncação artificial.
+A combinação correta só acontece tarde demais, dentro do `usePublishOrchestrator` (`buildScheduledDateTime`), depois de o utilizador já estar bloqueado pelo botão.
 
-**3. `FormatIllustration.tsx` linha 240 — YouTube Shorts mostra badge "≤60s"**
-- ✅ Continua correto (Shorts limit é 60s). Sem alteração.
+Como o JS `Date` já corre na timezone local do browser (Lisboa para o utilizador), não é preciso conversões extra — basta combinar `date + time` antes de validar.
 
-**4. `FormatCard.tsx` linha 20 — badge `≤Xs` só aparece se `maxDuration <= 60`**
-- Como Reels (90s), TikTok (600s), YouTube Long (900s), FB Stories (120s) têm `maxDuration > 60`, **nenhuma badge é mostrada** para esses formatos.
-- **Correção:** mostrar badge sempre que houver `maxDuration`, formatando `≤Xs` para <60, `≤Xm` para >=60. Ex: `≤90s`, `≤2m` (FB Stories), `≤10m` (TikTok), `≤15m` (YT Vídeo).
+### b) Instagram aceita 3:4
+Hoje a app força [4:5 … 1.91:1] (`0.8 … 1.91`). O utilizador confirma que a Getlate API + Instagram aceitam também 3:4 (`0.75`), que é um rácio comum em retrato. Vamos relaxar o limite mínimo para `0.75` mantendo o limite máximo (1.91:1) e o ideal (4:5/1:1) para os avisos suaves.
 
-### 🟡 Inconsistências internas (não bloqueiam mas confundem)
+## Alterações
 
-**5. `formatValidation.ts` linha 70 — não considera `max_caption_length_video`**
-- Para TikTok com formato vídeo, usa `constraints.max_caption_length` (2200) que já está correto. Mas se algum dia adicionarmos formato `tiktok_photo`, o limite mudaria para 4000 e isto teria de derivar via `max_caption_length_video` vs `max_caption_length`.
-- **Correção mínima:** acrescentar comentário documentando que `tiktok.max_caption_length` representa o caminho de vídeo (default), e que photo carousel iria precisar de override por formato. **Sem mudança de código** (não há `tiktok_photo` ainda).
+### 1. `src/pages/ManualCreate.tsx`
+- Adicionar `useMemo` que combina `scheduledDate + time` num único `Date` (`effectiveScheduledDate`).
+  - Se `scheduledDate` for `undefined` → `null`.
+  - Caso contrário, clonar e aplicar `setHours(hh, mm, 0, 0)`.
+- Passar `effectiveScheduledDate` ao `useSmartValidation` em vez de `scheduledDate ?? null`.
+- Incluir `time` nas dependências relevantes do `useMemo`.
 
-**6. `formatValidation.ts` — combinação de `maxDuration` com `Math.min` pode dar resultado errado**
-- Linha 64-66: faz `Math.min` entre `maxDuration` quando múltiplos formatos selecionados.
-- Cenário: utilizador seleciona IG Reel (90s) + TikTok Vídeo (600s) → resultado é 90s ✅ (correto, é o mais restritivo).
-- Mas com IG Stories (60s) + IG Reel (90s) → 60s ✅ correto.
-- ✅ **Está correto, sem alteração.**
+### 2. `src/lib/canvas/instagramResize.ts`
+- `INSTAGRAM_MIN_RATIO = 0.75` (3:4) em vez de `0.8`.
+- Manter `INSTAGRAM_MAX_RATIO = 1.91`.
+- Ajustar comentários de cabeçalho.
 
-### 🟢 Melhorias de robustez
+### 3. `src/lib/validation/validators/mediaAspectValidator.ts`
+- Atualizar limites usados na deteção (3:4 a 1.91:1) e o copy do issue para:
+  > "O Instagram aceita rácios entre 3:4 e 1.91:1. Posso adicionar margens automáticas (letterbox/pillarbox) sem cortar conteúdo."
+- Manter o auto-fix existente (resize com letterbox).
 
-**7. `FormatCard.tsx` — falta badge "Sem vídeo" para Google Business**
-- Para deixar evidente ao utilizador que GBP não aceita vídeo antes de tentar.
-- **Correção:** se `format === 'googlebusiness_post'`, adicionar badge `"Apenas imagem"`.
+### 4. `src/lib/mediaValidation.ts`
+- Adicionar `'3:4'` à lista `IDEAL_RATIOS.instagram_carousel` e `instagram_image` (continua a sugerir 1:1/4:5 como ideal mas não acusa 3:4 como erro duro).
+- Em `detectAspectRatio`, reconhecer `0.75 → '3:4'`.
 
-**8. Memória stale — `mem://integrations/google-business-profile-v2`**
-- Diz: *"Supports text + optional image or **max 30s video**"* — agora **falso**.
-- **Correção:** atualizar para refletir que vídeo já não é suportado.
+### 5. `src/lib/validation/validators/scheduleValidator.ts`
+- Sem mudança lógica, mas reforçar a mensagem de erro "Data/hora no passado" para incluir a hora composta visível ao utilizador (opcional, baixa prioridade).
 
----
+### 6. Memória
+- Atualizar `mem://features/instagram-media-optimization` para refletir 3:4 como aceitável (era "0.8:1–1.91:1").
+- Atualizar `mem://integrations/getlate-platform-limits-authoritative` (Instagram aspect range 0.75–1.91).
 
-## Ficheiros a editar
+## Validação
 
-1. **`src/components/manual-post/GoogleBusinessPreview.tsx`**
-   - Remover render de `<video>` e badge "0:30" / "Vídeo".
-   - Substituir por estado vazio com mensagem informativa quando o ficheiro for vídeo.
-   - Trocar truncação `slice(0, 300)` por `slice(0, 250)` (mais realista).
+- ☐ Vitest: `bunx vitest run` (esperar 37/37, sem regressão).
+- ☐ Smoke manual no preview:
+  - Selecionar "Hoje" + 21:00 → smart validation deve passar.
+  - Selecionar "Hoje" + hora já passada → continua a bloquear.
+  - Imagem 3:4 (1080×1440) no Instagram → sem aviso de "fora do rácio".
+  - Imagem 2:3 (0.66) → continua a oferecer auto-fix.
 
-2. **`src/components/manual-post/FormatCard.tsx`**
-   - Linha 20: substituir `if (format.maxDuration && format.maxDuration <= 60)` por lógica que formata para minutos quando >60s.
-   - Acrescentar badge "Apenas imagem" para `googlebusiness_post`.
-
-3. **`src/lib/formatValidation.ts`**
-   - Adicionar comentário no linha 70 a documentar a estratégia para futuro `tiktok_photo`.
-
-4. **`mem://integrations/google-business-profile-v2`**
-   - Atualizar para "Supports text + image only (5MB, min 400×300). Video NOT supported."
-
-## Não-objetivos
-
-- Não refazer ilustrações estáticas (`FormatIllustration.tsx`) — visual continua válido para todos.
-- Não alterar `TikTokPreview.tsx` — já lê dinamicamente `NETWORK_CONSTRAINTS.tiktok.max_caption_length` (2200, correto).
-- Não introduzir formato `tiktok_photo` (fora do scope atual).
+## Fora de âmbito
+- Não alterar lógica de publicação/Edge functions.
+- Não mexer noutras plataformas (LinkedIn/Facebook).
+- Sem mudanças visuais no DateTimePicker.
