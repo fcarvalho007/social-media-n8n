@@ -383,6 +383,15 @@ export default function ManualCreate() {
   // Cálculo inicial (mediaState/captionState) é feito mais abaixo no componente
   // depois de termos `mediaRequirements` (que depende de `selectedFormats`).
 
+  // Combine date + time into a single Date for validation (Lisbon local time).
+  const effectiveScheduledDate = useMemo(() => {
+    if (!scheduledDate) return null;
+    const [hh, mm] = (time || '12:00').split(':').map((p) => Number(p));
+    const merged = new Date(scheduledDate);
+    merged.setHours(Number.isFinite(hh) ? hh : 12, Number.isFinite(mm) ? mm : 0, 0, 0);
+    return merged;
+  }, [scheduledDate, time]);
+
   // Smart pre-validation (real-time)
   const smartValidation = useSmartValidation({
     selectedFormats,
@@ -392,7 +401,7 @@ export default function ManualCreate() {
     networkOptions,
     mediaFiles,
     hashtags: [],
-    scheduledDate: scheduledDate ?? null,
+    scheduledDate: effectiveScheduledDate,
     scheduleAsap,
     enabled: selectedFormats.length > 0,
     fixHelpers: {
