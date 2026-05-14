@@ -85,7 +85,7 @@ export async function mediaAspectValidator(
     platform: 'instagram',
     title: `${analysis.needsResize.length} imagem(s) fora do rácio Instagram`,
     description:
-      'O Instagram aceita rácios entre 4:5 e 1.91:1. Posso adicionar margens automáticas (letterbox/pillarbox) sem cortar conteúdo.',
+      'O Instagram aceita rácios entre 3:4 e 1.91:1. Posso adicionar margens automáticas (letterbox/pillarbox) sem cortar conteúdo.',
     affectedItems: affectedIndices,
     autoFixable: !!ctx.fixHelpers?.setMediaFiles,
     fixLabel: `Ajustar ${analysis.needsResize.length} imagem(s) automaticamente`,
