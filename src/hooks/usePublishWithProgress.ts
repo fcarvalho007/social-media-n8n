@@ -769,7 +769,7 @@ if (imageUrlsForPdf.length > 0) {
               caption: networkCaption,
               media_urls: finalMediaUrls,
               scheduled_date: scheduledDate ? scheduledDate.toISOString().split('T')[0] : undefined,
-              scheduled_time: time || undefined,
+              scheduled_time: time ? time.slice(0, 5) : undefined,
               publish_immediately: scheduleAsap || !scheduledDate,
               idempotency_key: idempotencyKey,
               network_options: params.networkOptions,
