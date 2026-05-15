@@ -63,6 +63,7 @@ import { useAuth } from '@/contexts/AuthContext';
 import { generateSafeStoragePath } from '@/lib/fileNameSanitizer';
 import { applySafety, getHashtagsFromText, normalizeHashtag as normalizeSuggestedHashtag } from '@/lib/hashtags/safety';
 import { extractVideoFrame } from '@/lib/media/videoFrameExtractor';
+import { combineDateAndTime } from '@/lib/scheduling/time';
 // `extractVideoFrame` foi consolidado em '@/lib/media/videoFrameExtractor'.
 // Este componente já não o usava localmente.
 
