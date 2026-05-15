@@ -297,6 +297,15 @@ function extractExternalReference(responseData: any): string | undefined {
 function classifyPublishError(msg: string): { code: string; source: string; isRetryable: boolean; suggestedAction: string } {
   const lower = msg.toLowerCase();
 
+  if (lower.includes('invalid time value') || lower.includes('hora de agendamento') || lower.includes('data/hora de agendamento')) {
+    return {
+      code: 'SCHEDULE_ERROR',
+      source: 'internal',
+      isRetryable: false,
+      suggestedAction: 'Volta à secção "Agendamento" e seleciona novamente a hora pretendida',
+    };
+  }
+
   if (lower.includes('all platforms failed') || lower.includes('failedplatforms')) {
     return {
       code: 'API_ERROR',
