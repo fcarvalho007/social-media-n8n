@@ -944,13 +944,28 @@ Deno.serve(async (req) => {
       getlatePayload.publishNow = true;
       console.log(`[publish-to-getlate] Immediate publishing: publishNow=true`);
     } else if (scheduled_date) {
-      let scheduledDateTime = scheduled_date;
-      if (scheduled_time) {
-        // Combine date and time
-        scheduledDateTime = `${scheduled_date}T${scheduled_time}:00`;
+      // Normalize time to HH:mm to avoid "Invalid time value" from "HH:mm:ss" or other formats
+      const rawTime = (scheduled_time || '').trim();
+      const timeMatch = rawTime.match(/^(\d{1,2})(?::(\d{1,2}))?(?::\d{1,2}(?:\.\d+)?)?$/);
+      let normalizedTime = '12:00';
+      if (timeMatch) {
+        const h = Number(timeMatch[1]);
+        const m = timeMatch[2] != null ? Number(timeMatch[2]) : 0;
+        if (h >= 0 && h <= 23 && m >= 0 && m <= 59) {
+          normalizedTime = `${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}`;
+        } else {
+          return buildFailureResponse(`Hora de agendamento inválida: "${scheduled_time}". Usa o formato HH:mm.`, 400);
+        }
+      } else if (rawTime) {
+        return buildFailureResponse(`Hora de agendamento inválida: "${scheduled_time}". Usa o formato HH:mm.`, 400);
       }
-      getlatePayload.scheduledFor = new Date(scheduledDateTime).toISOString();
-      console.log(`[publish-to-getlate] Scheduled for: ${getlatePayload.scheduledFor}`);
+      const scheduledDateTime = `${scheduled_date}T${normalizedTime}:00`;
+      const parsed = new Date(scheduledDateTime);
+      if (Number.isNaN(parsed.getTime())) {
+        return buildFailureResponse(`Data/hora de agendamento inválida: ${scheduledDateTime}`, 400);
+      }
+      getlatePayload.scheduledFor = parsed.toISOString();
+      console.log(`[publish-to-getlate] Scheduled for: ${getlatePayload.scheduledFor} (raw time: "${scheduled_time}" → "${normalizedTime}")`);
     }
 
     // DEDUP GUARD: Check if a recent attempt already exists for this post_id + format
