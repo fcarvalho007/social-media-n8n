@@ -277,6 +277,21 @@ export const ERROR_MESSAGES: Record<string, ErrorInfo> = {
     whenToRetry: 'short',
     severity: 'warning',
   },
+  schedule_error: {
+    title: 'Data ou hora de agendamento inválida',
+    description: 'A data ou hora escolhida está num formato que não conseguimos processar.',
+    action: 'Volta a escolher a hora',
+    isRetryable: false,
+    source: 'internal',
+    plainExplanation: 'A hora guardada no rascunho ficou num formato inválido (provavelmente "HH:mm:ss" em vez de "HH:mm"). Basta voltares a abrir o agendamento e selecionar a hora.',
+    whatToDo: [
+      'Vai à secção "Agendamento"',
+      'Volta a escolher a hora pretendida',
+      'Tenta publicar de novo',
+    ],
+    whenToRetry: 'never',
+    severity: 'warning',
+  },
   unknown: {
     title: 'Algo correu mal mas não conseguimos identificar o quê',
     description: 'Ocorreu um problema desconhecido.',
@@ -336,6 +351,7 @@ export function getErrorInfoFromStructured(structuredError: StructuredError): Er
     'UPLOAD_ERROR': 'upload_error',
     'DUPLICATE_CONTENT': 'duplicate_content',
     'LINKEDIN_DOCUMENT_ERROR': 'linkedin_document_error',
+    'SCHEDULE_ERROR': 'schedule_error',
     'UNKNOWN': 'unknown',
   };
   
@@ -354,7 +370,10 @@ export function classifyError(errorMessage: string | undefined): string {
   if (!errorMessage) return 'unknown';
   
   const lower = errorMessage.toLowerCase();
-  
+
+  if (lower.includes('invalid time value') || lower.includes('hora de agendamento') || lower.includes('data/hora de agendamento')) {
+    return 'schedule_error';
+  }
   if (lower.includes('media processing failed') || lower.includes('status_code":"error"')) {
     return 'media_processing';
   }
@@ -424,6 +443,17 @@ export function isRateLimitError(errorMessage: string | undefined): boolean {
 // Classify error from string message and HTTP status code
 export function classifyErrorFromString(errorString: string, httpStatus?: number): StructuredError {
   const lower = errorString.toLowerCase();
+
+  if (lower.includes('invalid time value') || lower.includes('hora de agendamento') || lower.includes('data/hora de agendamento')) {
+    return {
+      message: 'Data/hora de agendamento inválida',
+      code: 'SCHEDULE_ERROR',
+      source: 'internal',
+      isRetryable: false,
+      originalError: httpStatus ? `${httpStatus}: ${errorString}` : errorString,
+      suggestedAction: 'Volta à secção "Agendamento" e seleciona novamente a hora',
+    };
+  }
 
   if (lower.includes('all platforms failed') || lower.includes('failedplatforms')) {
     return {
