@@ -13,6 +13,7 @@ import type { usePublishWithProgress } from '@/hooks/usePublishWithProgress';
 import type { usePublishingQuota } from '@/hooks/usePublishingQuota';
 import { useQueryClient } from '@tanstack/react-query';
 import type { EditorialAssistantResult } from '@/types/aiEditorial';
+import { normalizeTime } from '@/lib/scheduling/time';
 
 type ExecutePublish = ReturnType<typeof usePublishWithProgress>['publish'];
 type CompressionApi = ReturnType<typeof useImageCompression>;
@@ -37,11 +38,11 @@ const getStoryStickerText = (linkUrl: string, explicitText?: string) => {
   }
 };
 
-const buildScheduledDateTime = (date: Date | undefined, time: string) => {
+const buildScheduledDateTime = (date: Date | undefined, time: unknown) => {
   if (!date) return undefined;
-  const [hour, minute] = time.split(':').map((part) => Number(part));
+  const [hour, minute] = normalizeTime(time).split(':').map(Number);
   const next = new Date(date);
-  next.setHours(Number.isFinite(hour) ? hour : 12, Number.isFinite(minute) ? minute : 0, 0, 0);
+  next.setHours(hour, minute, 0, 0);
   return next;
 };
 
@@ -329,7 +330,7 @@ export function usePublishOrchestrator(params: OrchestratorParams) {
         use_separate_captions: useSeparateCaptions,
         network_options: JSON.parse(JSON.stringify(networkOptions)),
         scheduled_date: scheduledDate ? format(scheduledDate, 'yyyy-MM-dd') : null,
-        scheduled_time: time || null,
+        scheduled_time: time ? normalizeTime(time) : null,
         publish_immediately: scheduleAsap,
         raw_transcription: rawTranscription || null,
         ai_metadata: JSON.parse(JSON.stringify(aiMetadata ?? {})),
@@ -486,7 +487,7 @@ export function usePublishOrchestrator(params: OrchestratorParams) {
 
       if (!scheduleAsap && scheduledDate) {
         scheduledDateStr = format(scheduledDate, 'yyyy-MM-dd');
-        scheduledTimeStr = time;
+        scheduledTimeStr = normalizeTime(time);
       }
 
       setUploadProgress(60);
@@ -651,7 +652,7 @@ export function usePublishOrchestrator(params: OrchestratorParams) {
       caption,
       mediaFiles: files,
       scheduledDate,
-      time,
+      time: normalizeTime(time),
       scheduleAsap,
       recoveredFromPostId: recoveredPostId || undefined,
       networkCaptions: useSeparateCaptions ? networkCaptions : undefined,
