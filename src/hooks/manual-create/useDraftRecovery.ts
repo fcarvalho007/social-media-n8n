@@ -7,6 +7,7 @@ import { NetworkOptions, normalizeNetworkOptions } from '@/types/networkOptions'
 import { detectImageAspectRatio, detectVideoAspectRatio } from './mediaAspectDetection';
 import { normalizeMediaList } from '@/lib/mediaPreview';
 import type { EditorialAssistantResult } from '@/types/aiEditorial';
+import { normalizeTime } from '@/lib/scheduling/time';
 
 interface UseDraftRecoveryParams {
   recoverPostId: string | null;
@@ -299,7 +300,7 @@ export function useDraftRecovery(params: UseDraftRecoveryParams) {
         setScheduledDate(new Date(draft.scheduled_date));
       }
       if (draft.scheduled_time) {
-        setTime(draft.scheduled_time);
+        setTime(normalizeTime(draft.scheduled_time));
       }
 
       setCurrentDraftId(draft.id);
