@@ -63,6 +63,7 @@ import { useAuth } from '@/contexts/AuthContext';
 import { generateSafeStoragePath } from '@/lib/fileNameSanitizer';
 import { applySafety, getHashtagsFromText, normalizeHashtag as normalizeSuggestedHashtag } from '@/lib/hashtags/safety';
 import { extractVideoFrame } from '@/lib/media/videoFrameExtractor';
+import { combineDateAndTime } from '@/lib/scheduling/time';
 // `extractVideoFrame` foi consolidado em '@/lib/media/videoFrameExtractor'.
 // Este componente já não o usava localmente.
 
@@ -384,13 +385,11 @@ export default function ManualCreate() {
   // depois de termos `mediaRequirements` (que depende de `selectedFormats`).
 
   // Combine date + time into a single Date for validation (Lisbon local time).
-  const effectiveScheduledDate = useMemo(() => {
-    if (!scheduledDate) return null;
-    const [hh, mm] = (time || '12:00').split(':').map((p) => Number(p));
-    const merged = new Date(scheduledDate);
-    merged.setHours(Number.isFinite(hh) ? hh : 12, Number.isFinite(mm) ? mm : 0, 0, 0);
-    return merged;
-  }, [scheduledDate, time]);
+  // Usa helper centralizado para tolerar formatos inesperados (HH:mm:ss, etc.).
+  const effectiveScheduledDate = useMemo(
+    () => combineDateAndTime(scheduledDate ?? null, time),
+    [scheduledDate, time],
+  );
 
   // Smart pre-validation (real-time)
   const smartValidation = useSmartValidation({

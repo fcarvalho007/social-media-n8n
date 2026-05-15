@@ -1,56 +1,60 @@
-## Contexto
+## Diagnóstico
 
-A validação atual de aspect ratio para Instagram só distingue dois casos: `instagram_story_link` (9:16 estrito) e "resto" (intervalo 0.75–1.91). Falham casos importantes confirmados pela Graph API e Getlate:
+O último post não foi publicado por uma falha interna antes de chegar ao serviço de publicação:
 
-- **Instagram Reels** e **Stories** exigem 9:16 estrito (1080×1920). Hoje, se o utilizador escolher Reel e enviar uma imagem 1:1, **nenhum aviso aparece** e o auto-resize aplicaria 0.75 (errado para Reel).
-- **YouTube Shorts** e **TikTok video** exigem 9:16; **YouTube long-form** prefere 16:9. Sem aviso na UI hoje (só `formatValidation` valida count/duration).
-- **LinkedIn** aceita 9:16 para vídeo vertical (ver memória `linkedin-vertical-video-integration`), mas `socialNetworks.ts` lista apenas `['1:1','16:9','4:5']`.
-- **`MIN_RESOLUTIONS.linkedin_post = 1200×627`** (rácio ~1.91:1) impõe resolução mínima incompatível com 1:1 e 4:5 — deve ser quadrado mínimo 1080×1080.
-- **Instagram Reel sem `MIN_VIDEO_DURATION`**: API rejeita <3s, mas só TikTok tem mínimo configurado.
+- Post afetado: `A Netflix está a montar uma nova unidade interna...`
+- Estado final na base de dados: `failed`
+- Erro registado: `instagram_carousel: Invalid time value; linkedin_document: Invalid time value`
+- Hora pretendida no rascunho: `21:00:00` Lisboa
+- Data guardada no post falhado: `2026-05-14 00:00:00+00`
+- Não há registos de tentativa em `publication_attempts` para esse post, o que confirma que a falha aconteceu no frontend antes da função de publicação conseguir registar a tentativa.
 
-## Refinamentos (sem inventar dados — todos confirmados nas memórias `getlate-platform-limits-authoritative`, `instagram-media-optimization`, `linkedin-vertical-video-integration` e docs oficiais Meta/Google)
+A causa provável é incompatibilidade de formato de hora: a UI trabalha com `HH:mm`, mas rascunhos recuperados da base de dados podem trazer `HH:mm:ss`. Esse valor é passado para os seletores e para a serialização de agendamento. Em certos caminhos, isso gera `Invalid time value`.
 
-### 1. `src/lib/validation/validators/mediaAspectValidator.ts`
-Tornar o validador format-aware:
-- Se `instagram_reel` ou `instagram_stories` selecionado → reaproveitar a lógica do bloco `storyLinkSelected` (warning fora de 9:16, sem auto-fix porque o letterbox 9:16 estraga Reels — recomendar reupload).
-- Caso `instagram_image` / `instagram_carousel` → manter o bloco atual (0.75–1.91 com auto-fix pillarbox/letterbox).
-- Os blocos são mutuamente exclusivos; o existing `storyLinkSelected` fica como subcaso.
+## Correções propostas
 
-### 2. `src/lib/canvas/instagramResize.ts`
-Adicionar `processMediaForInstagram` opcionalmente parametrizável por formato — quando `targetFormat === 'instagram_reel' | 'instagram_stories'`, **não chamar resize automático** (return original + flag). Isto previne pillarbox 0.75 numa imagem destinada a Reel.
+1. Normalizar a hora num único helper seguro
+   - Aceitar `HH:mm`, `HH:mm:ss`, `Date`, `null` e valores inválidos.
+   - Converter sempre para `HH:mm` para a UI.
+   - Validar limites reais: `00-23` e `00-59`.
+   - Usar fallback seguro `12:00` apenas quando o valor estiver inválido.
 
-### 3. `src/lib/socialNetworks.ts`
-- `instagram.supported_aspect_ratios`: adicionar `'3:4'` → `['1:1', '4:5', '3:4', '9:16', '16:9']`.
-- `linkedin.supported_aspect_ratios`: adicionar `'9:16'` → `['1:1', '16:9', '4:5', '9:16']`.
-- `linkedin.min_video_duration: 3` (Getlate rejeita <3s tal como TikTok).
+2. Aplicar a normalização nos pontos críticos
+   - Ao carregar rascunhos em `useDraftRecovery`.
+   - Antes de construir `effectiveScheduledDate` em `ManualCreate`.
+   - Antes de chamar `executePublish` em `usePublishOrchestrator`.
+   - Antes de enviar `scheduled_time` para a função `publish-to-getlate` em `usePublishWithProgress`.
 
-### 4. `src/lib/mediaValidation.ts`
-- `MIN_RESOLUTIONS.linkedin_post`: `1200×627` → `1080×1080` (compatível com 1:1, 4:5, 16:9 e 1.91:1).
-- `MIN_VIDEO_DURATION.instagram_reel = 3`, `linkedin_post = 3`, `facebook_reel = 3` (todos via Getlate).
-- `FORMAT_ASPECT_RATIOS.linkedin_post`: adicionar `'9:16'` para suportar vídeo vertical.
+3. Corrigir o agendamento de publicação imediata vs agendada
+   - Para posts agendados, enviar a data/hora combinada corretamente em Lisboa.
+   - Evitar passar apenas a data a `scheduledDate` quando `scheduleAsap=false`.
+   - Garantir que o cálculo “data futura” usa a data + hora, não apenas meia-noite do dia.
 
-### 5. `src/components/publishing/AspectRatioWarning.tsx`
-Atualizar copy: "Instagram aceita rácios entre **3:4 e 1.91:1**" (já corrigido em parte; confirmar consistência). Esconder o badge se o único formato IG selecionado for Reel/Stories (nesses casos o warning vem do validador novo).
+4. Tornar a função `publish-to-getlate` mais tolerante
+   - Normalizar `scheduled_time` no backend antes de fazer `new Date(...)`.
+   - Se a hora vier inválida, devolver erro claro: “Hora de agendamento inválida”, em vez de cair em “Desconhecido”.
+   - Manter `timezone: Europe/Lisbon` no payload.
 
-### 6. Memórias
-Atualizar `mem://integrations/getlate-platform-limits-authoritative` com:
-- LinkedIn aspect ratios incluem 9:16 (vídeo).
-- min_video_duration aplicável: TikTok, IG Reel, FB Reel, LinkedIn = 3s.
+5. Melhorar o feedback de erro
+   - Classificar `Invalid time value` como erro de agendamento, não como erro desconhecido.
+   - Mostrar uma mensagem útil: “A hora guardada no rascunho estava num formato inválido. Escolhe novamente a hora.”
 
-## Validação (antes de fechar)
+6. Validação
+   - Criar testes unitários para normalização de hora: `21:00`, `21:00:00`, `9:5`, inválidos e vazios.
+   - Testar manualmente o fluxo com rascunho agendado para hoje às 21:00 Lisboa.
+   - Confirmar que a publicação já regista tentativa em `publication_attempts` antes de qualquer falha externa.
 
-1. `bunx vitest run` — confirmar 37/37 passa (nenhum teste assume `1200×627` para LinkedIn — verificar `mediaResolutionValidator.test` se existir).
-2. Smoke manual no preview:
-   - Selecionar Reel + carregar imagem 1:1 → deve aparecer warning "Reel fora do rácio 9:16".
-   - Selecionar Carrossel + imagem 3:4 → **sem** warning (passa nos limites IG).
-   - Selecionar LinkedIn + vídeo 9:16 → sem erro de aspect ratio.
+## Ficheiros previstos
 
-## Não-objetivos
+- `src/lib/scheduling/time.ts` ou helper equivalente novo
+- `src/pages/ManualCreate.tsx`
+- `src/hooks/manual-create/useDraftRecovery.ts`
+- `src/hooks/manual-create/usePublishOrchestrator.ts`
+- `src/hooks/usePublishWithProgress.ts`
+- `supabase/functions/publish-to-getlate/index.ts`
+- `src/lib/publishingErrors.ts`
+- testes unitários correspondentes
 
-- Não alterar a UI do GridSplitter, AI generator, ou QuickCrop (já corretos em 3:4).
-- Não tocar em `src/lib/formatValidation.ts` (caption/count) nem em edge functions.
-- Não reformular a estrutura de `mediaAspectValidator` para outras redes além de Instagram nesta iteração — fica como follow-up se quiseres avisos format-aware para TikTok/YouTube/Facebook/LinkedIn.
+## Nota operacional
 
-## Pergunta de scope
-
-Queres incluir **avisos de aspect ratio para TikTok / YouTube Shorts / Facebook Reel** (todos 9:16 estrito) nesta iteração, ou ficamos só com o Instagram nesta passagem?
+Não vou marcar automaticamente o post antigo como publicado, porque não há evidência de envio para Instagram/LinkedIn. A correção evita que o mesmo rascunho volte a falhar por hora inválida; depois poderás republicar a partir do rascunho/recuperação.
