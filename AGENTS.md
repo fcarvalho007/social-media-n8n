@@ -23,3 +23,5 @@
 - Social draft lists and Studio counts read team drafts filtered server-side by project only (cache keyed by user + project; old drafts without project only under "todos", never auto-assigned); keeps counts and lists consistent without narrowing team visibility.
 - The graphics proof uses DocumentoGrafico v1 in browser/server at /estudio/editor-prova and stays separate from legacy flows.
 - Content engine (mc_*): clients only SELECT; writes via owner+editor RPCs; versions append-only; leases/AI service-role.
+- Every runtime link (newsletter and social edge functions) derives from NL_PUBLIC_BASE_URL via _shared/app-publico.ts or nl-publico-config.ts; no hardcoded app host, enforced by src/test/links-publicos.test.ts.
+- Chunk-load recovery reloads at most once per failing asset, guarded in localStorage forever (no time window), so a missing file can never loop.
