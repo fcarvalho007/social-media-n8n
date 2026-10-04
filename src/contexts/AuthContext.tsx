@@ -3,21 +3,14 @@ import { User, Session } from '@supabase/supabase-js';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 
-// UX pre-check only; real authorisation is the existing account + server-side roles.
-const ALLOWED_EMAILS = [
-  'comunicacao@fredericocarvalho.pt',
-  'fredericodigital@gmail.com'
-];
-
 interface AuthResult { error: { message: string } | null }
 
 interface AuthContextType {
   user: User | null;
   session: Session | null;
   loading: boolean;
-  /** Sends a one-time code/link to an existing authorised account. Never creates users. */
-  requestEmailCode: (email: string) => Promise<AuthResult>;
-  verifyEmailCode: (email: string, code: string) => Promise<AuthResult>;
+  /** Email-only sign-in; the allowlist and account check live in the entrar-email function. */
+  signInWithEmail: (email: string) => Promise<AuthResult>;
   signOut: () => Promise<void>;
 }
 
