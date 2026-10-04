@@ -61,7 +61,7 @@ export async function lerPdf(ficheiro: File): Promise<PdfLido> {
       try {
         const pg = await doc.getPage(n);
         const tc = await pg.getTextContent();
-        const texto = textoDaPagina(tc.items.filter((i): i is ItemTexto => "str" in i) as ItemTexto[]);
+        const texto = textoDaPagina(tc.items.filter((i) => "str" in i) as unknown as ItemTexto[]);
         const paragrafos = normalizarFonte(texto).paragrafos;
         let estado: EstadoPagina = "texto";
         if (!paragrafos.length) {

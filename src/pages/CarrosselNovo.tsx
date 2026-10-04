@@ -14,7 +14,7 @@ import { useProjeto } from "@/contexts/ProjetoContext";
 import { chaveRecuperacao, guardarRecuperacao, lerRecuperacao, limparRecuperacao } from "@/lib/recuperacaoLocal";
 import { criarTrabalho, lerLinkFonte, type OrcamentoIa } from "@/services/motor";
 import { comporFontePdf, ErroPdf, lerPdf, NOME_ESTADO_PAGINA, type PdfLido } from "@/features/motor/fontePdf";
-import { HOSTS_LINK, intervalos, type LinkLido, type MetaLink, type MetaPdf } from "../../supabase/functions/_shared/motor/fontes";
+import { HOSTS_LINK, intervalos, type LinkFalhado, type LinkLido, type MetaLink, type MetaPdf } from "../../supabase/functions/_shared/motor/fontes";
 import { LimitesIa } from "@/features/motor/LimitesIa";
 import { BarraAcoes, Cabecalho, Etapas, Grupo, Quadro } from "@/features/motor/Estudio";
 import { cn } from "@/lib/utils";
@@ -137,7 +137,7 @@ export default function CarrosselNovo() {
         const l = r as LinkLido;
         setTexto(l.texto); setOriginal(l.texto); setSlides(null);
         setLinkMeta({ tipo: "link", modo: "extraido", url: url.trim(), url_final: l.url_final, titulo_pagina: l.titulo, bytes: l.bytes, truncado: l.truncado, editado: false, lido_em: new Date().toISOString() });
-      } else setFalhaFonte(r.mensagem);
+      } else setFalhaFonte((r as LinkFalhado).mensagem);
     } catch (e) {
       if (n === pedido.current) setFalhaFonte((e as Error).message);
     } finally {
