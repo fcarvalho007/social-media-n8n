@@ -310,6 +310,20 @@ Deno.serve(async (req) => {
           if (rep.error) throw new Error(rep.error.message);
           const sus = await sb.rpc("nl_import_suspender_agendamentos");
           if (sus.error) throw new Error(sus.error.message);
+          // All imported editions belong to the DIGITALSPRINT identity (row triggers are off during
+          // import). Only fills empty values; IDs and relations are untouched.
+          const { data: ident, error: eI } = await sb.from("estudio_identidades").select("id").eq("chave", "digitalsprint").single();
+          if (eI || !ident) throw new Error("Identidade DIGITALSPRINT em falta");
+          const idsEd = (p.dados.edicoes ?? []).map((r) => String(r.id));
+          let identidadeAtribuida = 0;
+          for (let i = 0; i < idsEd.length; i += 500) {
+            const { data: upd, error: eU } = await sb.from("nl_edicoes").update({ identidade_id: (ident as { id: string }).id })
+              .in("id", idsEd.slice(i, i + 500)).is("identidade_id", null).select("id");
+            if (eU) throw new Error(`identidade: ${eU.message}`);
+            identidadeAtribuida += upd?.length ?? 0;
+          }
+          const { count: semIdent } = await sb.from("nl_edicoes").select("id", { count: "exact", head: true }).in("id", idsEd.length ? idsEd : ["00000000-0000-0000-0000-000000000000"]).is("identidade_id", null);
+          if ((semIdent ?? 0) > 0) throw new Error(`${semIdent} edições ficaram sem identidade`);
           // Source profiles: recorded for manual mapping only. Existing rows (and any chosen
           // target_user_id / historico) are never overwritten. Never creates roles.
           const perfis = p.dados.perfis ?? [];
