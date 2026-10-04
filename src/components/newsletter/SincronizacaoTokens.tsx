@@ -8,7 +8,7 @@ import {
 } from "@/components/ui/alert-dialog";
 
 type Progresso = { estado: string; offset_proximo: number; total_egoi: number | null; actualizados: number; ja_correctos: number; ignorados: number; ultimo_erro: string | null; concluido_em: string | null };
-type ListaEstado = { nome: string; egoi_lista_id: string; progresso: Progresso | null; falhas_pendentes: number };
+type ListaEstado = { nome: string; egoi_lista_id: string; campo?: number | null; progresso: Progresso | null; falhas_pendentes: number };
 type Resposta = { ok: boolean; configurado?: boolean; tag?: string | null; listas: ListaEstado[]; problemas?: string[]; terminado?: boolean; resultado?: { estado: string; erro?: string } | null; error?: string };
 
 const ESTADOS: Record<string, string> = { por_iniciar: "Por iniciar", em_curso: "Em curso", concluida: "Concluída", campo_invalido: "Campo inválido" };
@@ -68,7 +68,6 @@ export function SincronizacaoTokens() {
     <section className="space-y-2 rounded-md border p-3 text-sm">
       <h2 className="font-medium">Tokens de subscrição na E-goi</h2>
       <p className="text-muted-foreground">Escreve em cada contacto das listas reais o token assinado das ligações «Gerir a subscrição» e «Cancelar». Avança por lotes e guarda a posição: pode parar e retomar sem voltar ao início. Não envia emails.</p>
-      <p>Código nos emails: <code>{r?.tag ?? "por configurar"}</code></p>
       {r && (
         <p className={r.ok ? "text-primary" : "text-destructive"}>
           {r.ok ? "Pronto para envio real." : `Envio real bloqueado: ${(r.problemas ?? []).join(" ") || "por verificar."}`}
@@ -78,6 +77,7 @@ export function SincronizacaoTokens() {
         {(r?.listas ?? []).map((l) => (
           <li key={l.egoi_lista_id} className="flex flex-wrap items-center gap-x-3 gap-y-1 border-t pt-1">
             <span className="font-medium">{l.nome}</span>
+            <span className="text-xs text-muted-foreground">{l.campo ? <>Código <code>!extra_field_{l.campo}</code></> : <span className="text-destructive">Sem campo do token: não é sincronizada</span>}</span>
             <span>{ESTADOS[l.progresso?.estado ?? "por_iniciar"]}</span>
             <span className="text-muted-foreground">{l.progresso ? `${l.progresso.offset_proximo}${l.progresso.total_egoi !== null ? ` de ${l.progresso.total_egoi}` : ""} contactos · ${l.progresso.actualizados} escritos · ${l.progresso.ja_correctos} já certos · ${l.falhas_pendentes} falha(s)` : "—"}</span>
             {l.progresso?.ultimo_erro && <span className="text-destructive">{l.progresso.ultimo_erro}</span>}

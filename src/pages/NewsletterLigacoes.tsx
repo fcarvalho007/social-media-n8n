@@ -4,6 +4,8 @@ import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
+import { Label } from "@/components/ui/label";
+import { toast } from "sonner";
 import { SincronizacaoTokens } from "@/components/newsletter/SincronizacaoTokens";
 import { UltimasEntradas } from "@/components/newsletter/UltimasEntradas";
 
@@ -13,15 +15,15 @@ interface Estado {
   automatismos_activos: boolean;
   segredos: Record<string, boolean>;
   validacoes?: Record<string, { validado: boolean; detalhe: string }>;
+  listas_token?: Array<{ id: string; nome: string; campo: number | null; origem: "lista" | "legado" | null; campo_nome: string | null }>;
   endpoints: { email_entrada: string; egoi_cancelamentos: string; um_clique: string; sitemap: string; automatismos: string[] };
 }
 
+interface CampoLista { id: number; nome: string; formato: string; texto: boolean; dedicado: boolean }
 interface CamposEgoi {
   ok: boolean;
   problema?: string;
-  configurado?: number | null;
-  ids_texto_comuns?: number[];
-  listas?: Array<{ nome: string; erro?: string; campos: Array<{ id: number; nome: string; formato: string; texto: boolean; sugerido: boolean }> }>;
+  listas?: Array<{ id: string; nome: string; campo_atual: number | null; erro?: string; campos: CampoLista[] }>;
 }
 
 type Nivel = "falta" | "configurado" | "validado";
@@ -42,7 +44,7 @@ const SECCOES: Seccao[] = [
     descricao: "Sem isto não há envios reais. Os bloqueios ficam ativos até tudo estar validado.",
     servicos: [
       { nome: "Endereço público", uso: "Base de todos os links (newsletter e avisos sociais)", chaves: ["NL_PUBLIC_BASE_URL"], acao: "Define o endereço público onde a app está publicada." },
-      { nome: "E-goi", uso: "Envio e confirmação de entrega", chaves: ["EGOI_API_KEY", "NL_EGOI_CAMPO_TOKEN_ID"], validacao: "egoi_tokens", acao: "Escolhe o campo de texto da E-goi em «Procurar campos na E-goi» e guarda o número como NL_EGOI_CAMPO_TOKEN_ID." },
+      { nome: "E-goi", uso: "Envio e confirmação de entrega", chaves: ["EGOI_API_KEY"], validacao: "egoi_tokens", acao: "Copia a chave da API da conta E-goi para os segredos do projeto." },
       { nome: "Ligações de subscrição", uso: "Assinatura dos links de cancelar/gerir", chaves: ["SUBSCRICAO_SEGREDO"], acao: "Não alterar: trocar invalida links já enviados." },
       { nome: "Avisos de cancelamento da E-goi", uso: "Receber cancelamentos feitos na E-goi", chaves: ["NL_EGOI_WEBHOOK_CHAVE"], acao: "Cria um valor aleatório, guarda-o no servidor e configura o mesmo valor no webhook da E-goi." },
     ],
@@ -84,6 +86,8 @@ export default function NewsletterLigacoes() {
   const [aCarregar, setACarregar] = useState(true);
   const [campos, setCampos] = useState<CamposEgoi | null>(null);
   const [aProcurar, setAProcurar] = useState(false);
+  const [escolha, setEscolha] = useState<Record<string, string>>({});
+  const [aGuardar, setAGuardar] = useState<string | null>(null);
 
   const carregar = useCallback(async () => {
     setACarregar(true); setErro(null);
@@ -105,6 +109,19 @@ export default function NewsletterLigacoes() {
     setAProcurar(false);
   };
 
+  const guardarCampo = async (listaId: string, campo: number | null) => {
+    setAGuardar(listaId);
+    const { data, error } = await supabase.functions.invoke("nl-hooks/campo-token-lista", { body: { lista_id: listaId, campo_id: campo, confirmar: "configurar-campo-token" } });
+    setAGuardar(null);
+    if (error) {
+      const corpo = await (error as { context?: Response }).context?.json?.().catch(() => null) as { error?: string } | null;
+      toast.error(corpo?.error ?? "Não foi possível guardar o campo.");
+      return;
+    }
+    toast.success(campo ? `Campo ${(data as { nome?: string }).nome ?? campo} guardado.` : "Campo removido.");
+    await Promise.all([carregar(), procurarCampos()]);
+  };
+
   if (aCarregar && !estado) return <div className="mx-auto max-w-3xl space-y-2 p-4">{[0, 1, 2, 3].map((i) => <Skeleton key={i} className="h-12 w-full" />)}</div>;
   if (erro && !estado) return (
     <div className="mx-auto max-w-xl p-4">
@@ -124,7 +141,10 @@ export default function NewsletterLigacoes() {
     return s.validacao && estado.validacoes?.[s.validacao]?.validado ? "validado" : "configurado";
   };
   const bloqueios = SECCOES.filter((x) => x.obrigatoria).flatMap((x) => x.servicos.filter((s) => nivel(s) === "falta").map((s) => ({ ...s, area: x.titulo })));
-  const egoiSemCampo = !estado.segredos.NL_EGOI_CAMPO_TOKEN_ID;
+  const listasToken = estado.listas_token ?? [];
+  const listasSemCampo = listasToken.filter((l) => !l.campo);
+  const egoiSemCampo = listasSemCampo.length > 0;
+  for (const l of listasSemCampo) bloqueios.push({ nome: `Lista «${l.nome}»`, uso: "", chaves: [], acao: "Falta o campo do token. Cria-o na E-goi e escolhe-o abaixo.", area: "Envio da newsletter" });
 
   return (
     <div className="w-full min-w-0 max-w-3xl space-y-4 p-4">
@@ -182,6 +202,31 @@ export default function NewsletterLigacoes() {
           {sec.titulo === "Envio da newsletter" && (
             <div className="space-y-2 border-t p-3 text-sm">
               <p className="text-xs text-muted-foreground">{estado.automatismos_activos ? "Automatismos da newsletter ativos." : "Automatismos da newsletter inativos (ligam-se depois de validar a E-goi)."}</p>
+              <div className="space-y-2">
+                <h3 className="text-sm font-medium">Campo do token por lista</h3>
+                <p className="text-xs text-muted-foreground">Cada lista da E-goi atribui os seus próprios números aos campos, por isso cada lista tem o seu campo. Uma lista sem campo fica bloqueada para envio real.</p>
+                <ul className="divide-y rounded-md border">
+                  {listasToken.map((l) => (
+                    <li key={l.id} className="flex flex-wrap items-center gap-x-3 gap-y-1 p-2 text-xs">
+                      <span className="font-medium">{l.nome}</span>
+                      {l.campo
+                        ? <span>Campo {l.campo}{l.campo_nome ? ` · ${l.campo_nome}` : ""}{l.origem === "legado" ? " · configuração antiga, confirmada na verificação" : ""}</span>
+                        : <span className="text-destructive">Sem campo: bloqueada</span>}
+                    </li>
+                  ))}
+                  {listasToken.length === 0 && <li className="p-2 text-xs text-muted-foreground">Sem listas reais ativas.</li>}
+                </ul>
+                {egoiSemCampo && (
+                  <details className="text-xs" open>
+                    <summary className="cursor-pointer font-medium">Como criar o campo na E-goi</summary>
+                    <ol className="mt-1 list-decimal space-y-0.5 pl-4 text-muted-foreground">
+                      <li>Na E-goi, abre cada lista sem campo e cria um campo extra novo, de texto, com um nome que contenha «token» (por exemplo «token_subscricao»).</li>
+                      <li>Não reutilizes campos que já guardam dados dos contactos.</li>
+                      <li>Volta aqui, carrega em «Procurar campos na E-goi» e escolhe esse campo para cada lista.</li>
+                    </ol>
+                  </details>
+                )}
+              </div>
               {estado.segredos.EGOI_API_KEY && (
                 <div className="space-y-2">
                   <Button size="sm" variant={egoiSemCampo ? "default" : "outline"} onClick={procurarCampos} disabled={aProcurar}>
@@ -189,26 +234,36 @@ export default function NewsletterLigacoes() {
                   </Button>
                   <p className="text-xs text-muted-foreground">Só leitura: não cria campos, não altera contactos e não envia emails.</p>
                   {campos && !campos.ok && <p role="alert" className="text-xs text-destructive">{campos.problema}</p>}
-                  {campos?.ok && (
-                    <div className="space-y-2 text-xs">
-                      {campos.ids_texto_comuns && campos.ids_texto_comuns.length > 0
-                        ? <p>Campos de texto presentes em todas as listas: <span className="font-medium">{campos.ids_texto_comuns.join(", ")}</span>. Escolhe um vazio, dedicado ao token, e guarda o número como NL_EGOI_CAMPO_TOKEN_ID.</p>
-                        : <p className="text-destructive">Nenhum campo de texto comum a todas as listas. É preciso criar na E-goi um campo extra de texto (por exemplo «token_subscricao») em cada lista, com o mesmo número.</p>}
-                      {campos.listas?.map((l) => (
-                        <details key={l.nome}>
-                          <summary className="cursor-pointer">{l.nome} · {l.erro ? "erro de leitura" : `${l.campos.length} campos extra`}</summary>
-                          {l.erro ? <p className="text-destructive">{l.erro}</p> : (
-                            <ul className="mt-1 space-y-0.5 text-muted-foreground">
-                              {l.campos.map((c) => <li key={c.id}>#{c.id} · {c.nome} · {c.formato}{c.sugerido && " · sugerido"}</li>)}
-                            </ul>
-                          )}
-                        </details>
-                      ))}
-                    </div>
-                  )}
+                  {campos?.ok && campos.listas?.map((l) => {
+                    const dedicados = l.campos.filter((c) => c.dedicado);
+                    const sel = escolha[l.id] ?? "";
+                    return (
+                      <div key={l.id} className="space-y-1 rounded-md border p-2 text-xs">
+                        <p className="font-medium">{l.nome}</p>
+                        {l.erro ? <p className="text-destructive">Não foi possível ler esta lista: {l.erro}</p>
+                          : dedicados.length === 0
+                            ? <p className="text-destructive">Nenhum campo de texto dedicado ao token nesta lista ({l.campos.length} campos extra, nenhum com «token» no nome). Cria-o na E-goi primeiro.</p>
+                            : (
+                              <div className="flex flex-wrap items-center gap-2">
+                                <Label htmlFor={`campo-${l.id}`} className="sr-only">Campo do token de {l.nome}</Label>
+                                <select id={`campo-${l.id}`} className="h-9 rounded-md border border-input bg-background px-2" value={sel} onChange={(e) => setEscolha((x) => ({ ...x, [l.id]: e.target.value }))}>
+                                  <option value="">Escolhe o campo</option>
+                                  {dedicados.map((c) => <option key={c.id} value={c.id}>{c.nome} (#{c.id})</option>)}
+                                </select>
+                                <Button size="sm" disabled={!sel || aGuardar === l.id} onClick={() => guardarCampo(l.id, Number(sel))}>{aGuardar === l.id ? "A guardar…" : "Guardar"}</Button>
+                              </div>
+                            )}
+                        {l.campo_atual && <Button size="sm" variant="ghost" disabled={aGuardar === l.id} onClick={() => guardarCampo(l.id, null)}>Remover campo atual ({l.campo_atual})</Button>}
+                        {!l.erro && (
+                          <details>
+                            <summary className="cursor-pointer text-muted-foreground">Todos os campos extra ({l.campos.length})</summary>
+                            <ul className="mt-1 space-y-0.5 text-muted-foreground">{l.campos.map((c) => <li key={c.id}>#{c.id} · {c.nome} · {c.formato}{c.dedicado ? " · dedicado ao token" : ""}</li>)}</ul>
+                          </details>
+                        )}
+                      </div>
+                    );
+                  })}
                 </div>
-              )}
-            </div>
           )}
         </section>
       ))}
