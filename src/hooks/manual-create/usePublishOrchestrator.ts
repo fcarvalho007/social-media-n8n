@@ -1,3 +1,4 @@
+import { getMarca } from '@/services/estudio';
 import { useState, useCallback } from 'react';
 import { format } from 'date-fns';
 import { useNavigate } from 'react-router-dom';
@@ -340,9 +341,11 @@ export function usePublishOrchestrator(params: OrchestratorParams) {
       const validDraftId = currentDraftId && !currentDraftId.startsWith('autosave-') ? currentDraftId : null;
 
       if (validDraftId) {
+        // Keep authorship (user_id) and project_id of existing drafts untouched.
+        const { user_id: _autor, ...camposAtualizaveis } = draftData;
         const { error } = await supabase
           .from('posts_drafts')
-          .update(draftData as any)
+          .update(camposAtualizaveis as any)
           .eq('id', validDraftId);
         if (error) {
           console.error('[saveDraft] Update error:', error);
@@ -352,7 +355,7 @@ export function usePublishOrchestrator(params: OrchestratorParams) {
       } else {
         const { data: insertedDraft, error } = await supabase
           .from('posts_drafts')
-          .insert(draftData as any)
+          .insert({ ...draftData, project_id: await getMarca().catch(() => null) } as any)
           .select('id')
           .single();
         if (error) {

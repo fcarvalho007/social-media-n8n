@@ -29,7 +29,18 @@ export interface ConteudoCompleto {
   job: Pick<JobResumo, "id" | "estado" | "erro" | "tentativas" | "max_tentativas" | "proxima_tentativa_em"> | null;
 }
 
-export const listarConteudos = () => chamar<{ conteudos: ConteudoResumo[]; jobs: JobResumo[]; edicoes: EdicaoEnviada[] }>({ acao: "listar" });
+export interface Listagem {
+  conteudos: ConteudoResumo[]; jobs: JobResumo[]; edicoes: EdicaoEnviada[];
+  sem_identidade: boolean; credenciais: { deepseek: boolean; egoi: boolean };
+}
+export const listarConteudos = (project_id: string | null = null) => chamar<Listagem>({ acao: "listar", project_id });
+
+/** Distinguishes confirmed new sends from historical/manual preparation. */
+export const ORIGENS_JOB: Record<string, string> = {
+  envio: "Novo envio confirmado",
+  reconciliacao: "Novo envio confirmado",
+  manual: "Histórico · preparado à mão",
+};
 export const obterConteudo = (conteudo_id: string) => chamar<ConteudoCompleto>({ acao: "obter", conteudo_id });
 export const prepararCarrossel = (edicao_id: string) => chamar<{ conteudo_id: string }>({ acao: "preparar", edicao_id });
 export const aceitarFonte = (conteudo_id: string) => chamar<{ ok: true }>({ acao: "aceitar_fonte", conteudo_id });

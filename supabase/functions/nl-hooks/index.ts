@@ -40,6 +40,22 @@ function cronAutorizado(req: Request): boolean {
   return igual(bearer, sr);
 }
 
+async function validacoes(sb: ReturnType<typeof createClient>): Promise<Record<string, { validado: boolean; detalhe: string }>> {
+  const [l, t] = await Promise.all([
+    sb.from("nl_egoi_listas").select("egoi_lista_id").eq("activa", true),
+    sb.from("nl_egoi_tokens_sync").select("egoi_lista_id, estado, campo_validado, verificado_leitura"),
+  ]);
+  if (l.error || t.error) return { egoi_tokens: { validado: false, detalhe: "Não foi possível ler o estado da sincronização." } };
+  const listas = (l.data ?? []) as Array<{ egoi_lista_id: string }>;
+  const sync = (t.data ?? []) as Array<{ egoi_lista_id: string; estado: string; campo_validado: boolean; verificado_leitura: boolean }>;
+  const ok = listas.filter((x) => sync.some((s) => s.egoi_lista_id === x.egoi_lista_id && s.estado === "concluida" && s.campo_validado && s.verificado_leitura)).length;
+  return {
+    egoi_tokens: listas.length === 0
+      ? { validado: false, detalhe: "Sem listas E-goi ativas registadas." }
+      : { validado: ok === listas.length, detalhe: `${ok} de ${listas.length} listas com tokens sincronizados e confirmados por leitura.` },
+  };
+}
+
 async function estado(req: Request): Promise<Response> {
   const auth = req.headers.get("Authorization");
   if (!auth) return json({ error: "Sessão em falta" }, 401);
@@ -63,7 +79,13 @@ async function estado(req: Request): Promise<Response> {
       EGOI_API_KEY: tem("EGOI_API_KEY"),
       NL_EGOI_CAMPO_TOKEN_ID: tem("NL_EGOI_CAMPO_TOKEN_ID"),
       DEEPSEEK_API_KEY: tem("DEEPSEEK_API_KEY"),
+      WORDPRESS_SITE_URL: tem("WORDPRESS_SITE_URL"),
+      WORDPRESS_APP_USER: tem("WORDPRESS_APP_USER"),
+      WORDPRESS_APP_PASSWORD: tem("WORDPRESS_APP_PASSWORD"),
+      PEXELS_API_KEY: tem("PEXELS_API_KEY"),
     },
+    // Validation evidence only from real recorded state; "configured" never implies "validated".
+    validacoes: await validacoes(sb),
     endpoints: {
       email_entrada: `${f}/nl-hooks/email-newsletter`,
       egoi_cancelamentos: `${f}/nl-hooks/egoi-subscricao?k=<NL_EGOI_WEBHOOK_CHAVE>`,

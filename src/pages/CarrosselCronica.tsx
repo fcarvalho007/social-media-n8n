@@ -28,10 +28,17 @@ export default function CarrosselCronica() {
   const [alterado, setAlterado] = useState(false);
   const [acao, setAcao] = useState<string | null>(null);
   const [erro, setErro] = useState<string | null>(null);
+  const [erroPreview, setErroPreview] = useState<string | null>(null);
+  const [erroCarregar, setErroCarregar] = useState<string | null>(null);
+  const [sairPendente, setSairPendente] = useState<string | null>(null);
   const [confirmar, setConfirmar] = useState<null | "gerar" | "social" | "fonte">(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
 
-  const carregar = () => obterConteudo(id).then((d) => { setDados(d); setCarrossel(d.conteudo.carrossel); setAlterado(false); }).catch((e: Error) => setErro(e.message));
+  // substituir=false keeps the editor text (used after failures/refresh with local edits).
+  const carregar = (substituir = true) => obterConteudo(id).then((d) => {
+    setDados(d); setErroCarregar(null);
+    if (substituir) { setCarrossel(d.conteudo.carrossel); setAlterado(false); }
+  }).catch((e: Error) => setErroCarregar(e.message));
   useEffect(() => { carregar(); }, [id]); // eslint-disable-line react-hooks/exhaustive-deps
 
   useEffect(() => {
@@ -50,13 +57,21 @@ export default function CarrosselCronica() {
         if (!vivo || !canvasRef.current) return;
         canvasRef.current.width = c.width; canvasRef.current.height = c.height;
         canvasRef.current.getContext("2d")?.drawImage(c, 0, 0);
-        setErro(null);
-      }).catch((e: Error) => vivo && setErro(e.message));
+        setErroPreview(null);
+      }).catch((e: Error) => vivo && setErroPreview(e.message));
     }
     return () => { vivo = false; };
   }, [carrossel, fonte, indice]);
 
-  if (!dados || !fonte) return <div className="p-4 text-sm text-muted-foreground">{erro ?? "A carregar…"}</div>;
+  if (!dados || !fonte) {
+    if (erroCarregar) return (
+      <div className="mx-auto max-w-xl space-y-2 p-4">
+        <Alert variant="destructive"><AlertTitle>Não foi possível abrir o carrossel</AlertTitle><AlertDescription>{erroCarregar}</AlertDescription></Alert>
+        <Button variant="outline" onClick={() => carregar()}>Tentar de novo</Button>
+      </div>
+    );
+    return <div className="p-4 text-sm text-muted-foreground">A carregar…</div>;
+  }
   const c = dados.conteudo;
   const fontePorRever = fonte.origem === "historico_actual" && !c.fonte_aceite_em;
   const slide = carrossel?.slides[indice];
@@ -79,8 +94,14 @@ export default function CarrosselCronica() {
   const guardar = () => executar("guardar", async () => {
     if (!carrossel) return;
     validarCarrossel(carrossel, fonte);
-    await guardarCarrossel(c.id, c.versao, carrossel, origemProposta);
-    toast.success("Rascunho guardado");
+    try {
+      await guardarCarrossel(c.id, c.versao, carrossel, origemProposta);
+    } catch (e) {
+      // Text stays in the editor; refresh metadata only so the user sees the newer server version.
+      await carregar(false);
+      throw new Error(`Não foi guardado — o teu texto continua no editor. ${(e as Error).message}`);
+    }
+    toast.success("Carrossel guardado");
     setOrigemProposta("edicao");
     await carregar();
   });
@@ -95,8 +116,8 @@ export default function CarrosselCronica() {
     legendaComLink(carrossel, fonte);
     const { pngs, pdf } = await gerarFicheiros(carrossel, fonte);
     const r = await enviarParaEstudioSocial(c.id, c.versao, fonte.numero, pngs, pdf, !!c.social_draft_id);
-    toast.success(r.existente ? "O rascunho social já existia" : "Rascunho criado no estúdio social");
-    await carregar();
+    toast.success(r.existente ? "O rascunho social desta versão já existia" : c.social_draft_id ? "Rascunho social atualizado" : "Rascunho social criado");
+    nav(`/manual-create?draft=${r.draft_id}`);
   });
   const abrirNoSocial = async () => {
     if (!c.social_draft_id) return;
@@ -107,11 +128,12 @@ export default function CarrosselCronica() {
     <div className="mx-auto max-w-6xl space-y-4 p-4">
       <header className="flex flex-wrap items-start justify-between gap-3">
         <div className="min-w-0">
-          <Link to="/estudio/redes-sociais" className="text-xs text-muted-foreground hover:underline">← Redes sociais</Link>
+          <Link to="/estudio/redes-sociais" className="text-xs text-muted-foreground hover:underline"
+            onClick={(e) => { if (alterado) { e.preventDefault(); setSairPendente("/estudio/redes-sociais"); } }}>← Carrosséis</Link>
           <h1 className="text-2xl font-semibold">Carrossel da crónica</h1>
           <p className="text-sm text-muted-foreground">Edição #{fonte.numero} · {fonte.titulo}</p>
           <p className="text-xs text-muted-foreground">
-            Versão {c.versao}{dados.job ? ` · ${ESTADOS_JOB[dados.job.estado] ?? dados.job.estado}` : ""} ·{" "}
+            <span className={alterado ? "font-medium text-destructive" : ""}>{alterado ? "Alterações por guardar" : c.versao ? "Guardado" : "Sem versão guardada"}</span> · Versão {c.versao}{dados.job ? ` · ${ESTADOS_JOB[dados.job.estado] ?? dados.job.estado}` : ""} ·{" "}
             <a href={fonte.url} target="_blank" rel="noreferrer" className="underline">abrir crónica</a>
           </p>
         </div>
@@ -123,7 +145,7 @@ export default function CarrosselCronica() {
           {carrossel && <Button variant="outline" disabled={!!acao || !alterado} onClick={guardar}><Save className="mr-1 h-4 w-4" />{acao === "guardar" ? "A guardar…" : "Guardar"}</Button>}
           {carrossel && (
             <Button disabled={!!acao || alterado || c.versao === 0} onClick={() => setConfirmar("social")}>
-              {acao === "social" ? <Loader2 className="mr-1 h-4 w-4 animate-spin" /> : <Send className="mr-1 h-4 w-4" />}Enviar para o estúdio social
+              {acao === "social" ? <Loader2 className="mr-1 h-4 w-4 animate-spin" /> : <Send className="mr-1 h-4 w-4" />}{c.social_draft_id ? "Atualizar rascunho social" : "Criar rascunho social"}
             </Button>
           )}
         </div>
@@ -135,7 +157,7 @@ export default function CarrosselCronica() {
           <AlertDescription className="flex flex-wrap items-center gap-2">
             <span>{dados.job.erro}</span>
             {["erro", "aguarda_credencial", "aguarda_confirmacao"].includes(dados.job.estado) && (
-              <Button size="sm" variant="outline" disabled={!!acao} onClick={() => executar("retomar", async () => { await retomarJob(dados.job!.id); await carregar(); })}>Retomar</Button>
+              <Button size="sm" variant="outline" disabled={!!acao} onClick={() => executar("retomar", async () => { await retomarJob(dados.job!.id); await carregar(!alterado); })}>Retomar</Button>
             )}
           </AlertDescription>
         </Alert>
@@ -155,11 +177,12 @@ export default function CarrosselCronica() {
           <AlertTitle>Rascunho social criado</AlertTitle>
           <AlertDescription className="flex flex-wrap items-center gap-2">
             <span>Imagens para Instagram e documento para LinkedIn. Revê e publica no fluxo social habitual.</span>
-            <Button size="sm" variant="outline" onClick={abrirNoSocial}>Abrir no estúdio social</Button>
+            <Button size="sm" variant="outline" onClick={abrirNoSocial}>Abrir revisão do rascunho</Button>
           </AlertDescription>
         </Alert>
       )}
       {erro && <Alert variant="destructive"><AlertTitle>Não foi possível concluir</AlertTitle><AlertDescription>{erro}</AlertDescription></Alert>}
+      {erroCarregar && <Alert variant="destructive"><AlertTitle>Falha ao atualizar dados do servidor</AlertTitle><AlertDescription>{erroCarregar}</AlertDescription></Alert>}
 
       {!carrossel && (
         <p className="rounded-md border p-4 text-sm text-muted-foreground">
@@ -177,6 +200,7 @@ export default function CarrosselCronica() {
                 <Button size="icon" variant="outline" aria-label="Slide seguinte" disabled={indice === carrossel.slides.length - 1} onClick={() => setIndice(indice + 1)}><ChevronRight className="h-4 w-4" /></Button>
               </div>
             </div>
+            {erroPreview && <p role="alert" className="text-xs text-destructive">Pré-visualização indisponível: {erroPreview}</p>}
             <canvas ref={canvasRef} className="mx-auto w-full max-w-[420px] rounded-md border" aria-label={`Pré-visualização do slide ${indice + 1}`} />
             <div className="flex flex-wrap justify-center gap-2">
               <Button size="sm" variant="outline" disabled={!!acao} onClick={() => executar("zip", async () => { validarCarrossel(carrossel, fonte); await exportarCarrossel("zip", carrossel, fonte); })}><Download className="mr-1 h-4 w-4" />PNG (ZIP)</Button>
@@ -221,16 +245,29 @@ export default function CarrosselCronica() {
         </div>
       )}
 
+      <AlertDialog open={!!sairPendente} onOpenChange={(o) => !o && setSairPendente(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Sair sem guardar?</AlertDialogTitle>
+            <AlertDialogDescription>As alterações ao carrossel perdem-se.</AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Ficar</AlertDialogCancel>
+            <AlertDialogAction onClick={() => { const d = sairPendente; setSairPendente(null); setAlterado(false); if (d) nav(d); }}>Sair</AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
       <AlertDialog open={confirmar !== null} onOpenChange={(o) => !o && setConfirmar(null)}>
         <AlertDialogContent className={confirmar === "fonte" ? "max-w-2xl" : undefined}>
           <AlertDialogHeader>
             <AlertDialogTitle>
-              {confirmar === "gerar" ? "Gerar nova proposta?" : confirmar === "social" ? "Enviar para o estúdio social?" : "Confirmar a fonte histórica"}
+              {confirmar === "gerar" ? "Gerar nova proposta?" : confirmar === "social" ? (c.social_draft_id ? "Atualizar o rascunho social?" : "Criar rascunho social?") : "Confirmar a fonte histórica"}
             </AlertDialogTitle>
             <AlertDialogDescription asChild>
               <div className="space-y-2">
                 {confirmar === "gerar" && <p>A geração consome IA. O rascunho guardado só muda quando voltares a guardar.</p>}
-                {confirmar === "social" && <p>Será criado um rascunho no fluxo social existente com {carrossel?.slides.length} imagens para Instagram e o documento para LinkedIn. Nada é publicado: revês e publicas depois no estúdio social.</p>}
+                {confirmar === "social" && <p>Será criado um rascunho no fluxo social existente com {carrossel?.slides.length} imagens para Instagram e o documento para LinkedIn. Nada é publicado: a seguir abre-se a revisão do rascunho no estúdio social.</p>}
                 {confirmar === "fonte" && (
                   <div className="max-h-[50vh] space-y-2 overflow-y-auto rounded-md border p-2 text-left text-xs">
                     <p className="font-medium">{fonte.titulo}</p>

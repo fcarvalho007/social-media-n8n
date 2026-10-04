@@ -6,6 +6,7 @@ import { BrowserRouter, Routes, Route, Navigate, useLocation } from "react-route
 import { ThemeProvider } from "next-themes";
 import { ErrorBoundary } from "@/components/ErrorBoundary";
 import { AuthProvider } from "@/contexts/AuthContext";
+import { ProjetoProvider } from "@/contexts/ProjetoContext";
 import { ProtectedRoute } from "@/components/ProtectedRoute";
 import { MainLayout } from "@/components/MainLayout";
 import Dashboard from "./pages/Dashboard";
@@ -82,7 +83,7 @@ const App = () => (
                 <Route path="/brief/:slug" element={<Suspense fallback={null}><BriefPublico /></Suspense>} />
                 <Route path="/subscricao" element={<Suspense fallback={null}><SubscricaoPublica /></Suspense>} />
                 <Route path="/stories/launch/:id" element={<StoryLauncher />} />
-                <Route element={<ProtectedRoute><MainLayout /></ProtectedRoute>}>
+                <Route element={<ProtectedRoute><ProjetoProvider><MainLayout /></ProjetoProvider></ProtectedRoute>}>
                   <Route path="/" element={<Estudio />} />
                   <Route path="/redes-sociais" element={<Dashboard />} />
                   <Route path="/dashboard" element={<Navigate to="/redes-sociais" replace />} />
@@ -113,6 +114,7 @@ const App = () => (
                   <Route path="/newsletter/*" element={<Suspense fallback={<p className="p-4 text-sm text-muted-foreground">A carregar a newsletter…</p>}><NewsletterApp /></Suspense>} />
                   <Route path="/artigos" element={<Artigos />} />
                   <Route path="/definicoes/seguranca" element={<SegurancaConta />} />
+                  <Route path="/estudio/migracao" element={<Navigate to="/newsletter/migracao" replace />} />
                   <Route path="/estudio/ligacoes" element={<Suspense fallback={null}><NewsletterLigacoes /></Suspense>} />
                 </Route>
                 {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}

@@ -27,60 +27,41 @@ export function DashboardHeader() {
   
   const [searchOpen, setSearchOpen] = useState(false);
   const activeTab = searchParams.get('tab');
-  const getBreadcrumbs = () => {
-    if (location.pathname === '/dashboard') {
-      return [{ label: 'Dashboard', path: null }];
-    }
-    if (location.pathname === '/users') {
-      return [
-        { label: 'Dashboard', path: '/dashboard' },
-        { label: 'Utilizadores', path: null },
-      ];
-    }
-    if (location.pathname === '/projects') {
-      return [
-        { label: 'Dashboard', path: '/dashboard' },
-        { label: 'Projetos', path: null },
-      ];
-    }
-    if (location.pathname.startsWith('/projects/')) {
-      return [
-        { label: 'Dashboard', path: '/dashboard' },
-        { label: 'Projetos', path: '/projects' },
-        { label: 'Detalhes', path: null },
-      ];
-    }
-    if (location.pathname === '/' || location.pathname === '/pending') {
+  const getBreadcrumbs = (): { label: string; path: string | null }[] => {
+    const p = location.pathname;
+    const E = { label: 'Estúdio', path: '/' };
+    const S = { label: 'Painel social', path: '/redes-sociais' };
+    if (p === '/') return [{ label: 'Estúdio', path: null }];
+    if (p === '/redes-sociais') return [E, { label: 'Painel social', path: null }];
+    if (p === '/estudio/redes-sociais') return [E, { label: 'Carrosséis', path: null }];
+    if (p.startsWith('/estudio/redes-sociais/')) return [E, { label: 'Carrosséis', path: '/estudio/redes-sociais' }, { label: 'Editor', path: null }];
+    if (p === '/estudio/ligacoes') return [E, { label: 'Ligações', path: null }];
+    if (p === '/newsletter/migracao') return [E, { label: 'Newsletter', path: '/newsletter' }, { label: 'Migração', path: null }];
+    if (p.startsWith('/newsletter/')) return [E, { label: 'Newsletter', path: '/newsletter' }, { label: 'Detalhe', path: null }];
+    if (p === '/newsletter') return [E, { label: 'Newsletter', path: null }];
+    if (p === '/artigos') return [E, { label: 'Artigos', path: null }];
+    if (p === '/manual-create') return [E, { label: 'Publicação livre', path: null }];
+    if (p === '/definicoes/seguranca') return [E, { label: 'Segurança da conta', path: null }];
+    if (p === '/users') return [S, { label: 'Utilizadores', path: null }];
+    if (p === '/projects') return [E, { label: 'Projetos', path: null }];
+    if (p.startsWith('/projects/')) return [E, { label: 'Projetos', path: '/projects' }, { label: 'Detalhes', path: null }];
+    if (p === '/pending') {
       if (activeTab === 'create') {
         const mode = localStorage.getItem('preferredCreationMode');
         const modeLabel = mode === 'manual' ? 'Manual' : mode === 'ia' ? 'IA' : '';
-        
-        return [
-          { label: 'Painel de Conteúdo', path: '/' },
-          { label: 'Criar', path: null },
-          ...(modeLabel ? [{ label: modeLabel, path: null }] : []),
-        ];
+        return [S, { label: 'Criar', path: null }, ...(modeLabel ? [{ label: modeLabel, path: null }] : [])];
       }
-      return [
-        { label: 'Painel de Conteúdo', path: null },
-      ];
+      return [S, { label: 'Pendentes', path: null }];
     }
-    if (location.pathname.startsWith('/review')) {
-      return [
-        { label: 'Painel de Conteúdo', path: '/' },
-        { label: 'Revisão', path: null },
-      ];
-    }
-    return [
-      { label: 'Painel de Conteúdo', path: null },
-    ];
+    if (p.startsWith('/review')) return [S, { label: 'Revisão', path: null }];
+    return [S];
   };
 
   const breadcrumbs = getBreadcrumbs();
 
   // Em mobile, esconder "Painel de Conteúdo" quando é o único breadcrumb
   const displayBreadcrumbs = isMobile 
-    ? breadcrumbs.filter(crumb => !(breadcrumbs.length === 1 && crumb.label === 'Painel de Conteúdo'))
+    ? breadcrumbs.length > 2 ? breadcrumbs.slice(-2) : breadcrumbs
     : breadcrumbs;
 
   return (
