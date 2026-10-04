@@ -31,7 +31,9 @@ function Conteudo({ c, pacote, medidor, imagens }: { c: Camada; pacote: PacotePr
       : <Ellipse x={c.w / 2} y={c.h / 2} radiusX={c.w / 2} radiusY={c.h / 2} fill={c.estilo.cor} />;
   }
   if (c.tipo === "imagem") {
-    const a = pacote.assets[c.asset_id];
+    const a = pacote.assets?.[c.asset_id];
+    // Previews built without asset bytes (library covers) show a neutral block, never crash.
+    if (!a) return <Rect width={c.w} height={c.h} fill="#d9dcd6" />;
     const k = calcularRecorte(a, c);
     return (
       <>

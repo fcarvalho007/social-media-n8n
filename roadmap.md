@@ -44,6 +44,8 @@
 - [x] R3: Carrosséis no Estúdio (texto colado, fila no servidor, retoma de 5 em 5 min, editor ligado com versões)
 - [x] R4: IA real no motor com limites por projeto (≤10/dia, ≤2/carrossel)
 - [x] R6: exportação no servidor (PNG/PDF/ZIP por versão) e rascunho social idempotente
-- [ ] Fontes link/PDF
+- [x] R7/R8a: fontes link/PDF e imagens autorizadas
+- [x] Tema clean claro em todo o módulo carrosséis (#F6F7F5 / #FFFFFF / #202823 / acento #3E5B46)
+- [x] R8b: verificação global com «R8 — prova final» (PDF 4 parágrafos, 1 geração real, ≤2 chamadas)
 - [x] Redesign cinematográfico e progressivo dos carrosséis
 - [x] Pendentes do redesign (barra visível, conflito MC409, tipos, nomes A/B, contraste)

@@ -4,6 +4,7 @@
 import type { SupabaseClient } from "npm:@supabase/supabase-js@2.57.4";
 import { PDFDocument } from "npm:pdf-lib@1.17.1";
 import { zipSync } from "npm:fflate@0.8.2";
+import { adicionarPaginaRgb, pngParaRgb } from "./pngPdf.ts";
 import { renderizarPaginaPng } from "../documento-grafico/render.server.ts";
 import type { DocumentoGrafico, Variante } from "../documento-grafico/nucleo.ts";
 import type { PropostaEditorial } from "./proposta.ts";
@@ -99,11 +100,7 @@ async function processarJob(sb: SupabaseClient, j: Job): Promise<string> {
       pdf.setTitle(pacote.nome);
       pdf.setCreator("Estúdio — motor de carrosséis");
       pdf.setProducer("pdf-lib");
-      for (const b of bytesPng) {
-        const img = await pdf.embedPng(b);
-        const pg = pdf.addPage([1080, 1350]);
-        pg.drawImage(img, { x: 0, y: 0, width: 1080, height: 1350 });
-      }
+      for (const b of bytesPng) adicionarPaginaRgb(pdf, await pngParaRgb(b), 1080, 1350);
       const out = await pdf.save({ useObjectStreams: true });
       const hash = await sha256(out);
       const path = caminhoFicheiro(j.project_id, j.documento_id, j.documento_versao, "linkedin.pdf", hash);

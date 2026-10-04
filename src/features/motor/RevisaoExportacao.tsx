@@ -8,6 +8,7 @@ import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Label } from "@/components/ui/label";
 import { PaginaCanvas } from "@/features/editor-grafico/PaginaCanvas";
+import { carregarImagens } from "@/features/editor-grafico/desenho";
 import { NOME_VARIANTE } from "@/features/editor-grafico/EditorGrafico";
 import { lerExportacao, pedirExportacao, prepararRascunho, type EstadoExportacao, type TrabalhoCompleto } from "@/services/motor";
 import type { Medidor, PacoteProva, Variante } from "../../../supabase/functions/_shared/documento-grafico/nucleo";
@@ -32,6 +33,8 @@ export function RevisaoExportacao({ dados, pacote, medidor, guardado }: Props) {
   const [draft, setDraft] = useState<string | null>(null);
   const [pagina, setPagina] = useState(0);
   const [palcoRef, palcoW] = useLargura<HTMLDivElement>();
+  const [imagens, setImagens] = useState<Record<string, HTMLImageElement>>({});
+  useEffect(() => { let vivo = true; carregarImagens(pacote).then((i) => { if (vivo) setImagens(i); }).catch(() => undefined); return () => { vivo = false; }; }, [pacote]);
 
   const ler = useCallback(async () => {
     if (!doc) return;
@@ -87,7 +90,7 @@ export function RevisaoExportacao({ dados, pacote, medidor, guardado }: Props) {
           <div className="flex items-center justify-center rounded-[var(--mc-r-lg)] p-4 sm:p-8" style={{ background: "hsl(var(--mc-palco))" }}>
             {medidor ? (
               <div ref={palcoRef} className="w-full max-w-[420px] overflow-hidden rounded-[var(--mc-r-sm)]">
-                {palcoW > 0 && <PaginaCanvas pacote={pacote} variante={variante} indice={iPag} medidor={medidor} imagens={{}} escala={palcoW / 1080} />}
+                {palcoW > 0 && <PaginaCanvas pacote={pacote} variante={variante} indice={iPag} medidor={medidor} imagens={imagens} escala={palcoW / 1080} />}
               </div>
             ) : <p className="py-24 text-sm text-muted-foreground">A carregar fontes…</p>}
           </div>
@@ -102,7 +105,7 @@ export function RevisaoExportacao({ dados, pacote, medidor, guardado }: Props) {
                 <li key={p.id} className="shrink-0">
                   <button type="button" aria-label={`Página ${i + 1}`} aria-current={i === iPag ? "true" : undefined} onClick={() => setPagina(i)}
                     className={cn("mc-trans block w-16 overflow-hidden rounded-[var(--mc-r-sm)] border-2 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring", i === iPag ? "border-primary" : "border-transparent opacity-70 hover:opacity-100")}>
-                    <PaginaCanvas pacote={pacote} variante={variante} indice={i} medidor={medidor} imagens={{}} escala={60 / 1080} />
+                    <PaginaCanvas pacote={pacote} variante={variante} indice={i} medidor={medidor} imagens={imagens} escala={60 / 1080} />
                   </button>
                 </li>
               ))}
@@ -117,7 +120,7 @@ export function RevisaoExportacao({ dados, pacote, medidor, guardado }: Props) {
               {(["A", "B"] as const).map((v) => (
                 <button key={v} type="button" role="radio" aria-checked={variante === v} disabled={!dados.documentos[v]} onClick={() => { setVariante(v); setPagina(0); }}
                   className={cn("mc-trans flex items-center gap-2 rounded-[var(--mc-r-md)] border p-2 text-left text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:opacity-50", variante === v ? "border-primary bg-primary/10" : "border-input")}>
-                  {medidor && <span className="block w-10 shrink-0 overflow-hidden rounded-[var(--mc-r-sm)]"><PaginaCanvas pacote={pacote} variante={v} indice={0} medidor={medidor} imagens={{}} escala={40 / 1080} /></span>}
+                  {medidor && <span className="block w-10 shrink-0 overflow-hidden rounded-[var(--mc-r-sm)]"><PaginaCanvas pacote={pacote} variante={v} indice={0} medidor={medidor} imagens={imagens} escala={40 / 1080} /></span>}
                   <span><span className="block text-xs text-muted-foreground">Variante {v}</span>{NOME_VARIANTE[v]}</span>
                 </button>
               ))}
