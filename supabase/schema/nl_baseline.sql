@@ -1,4 +1,5 @@
 -- Newsletter (nl_*) + Estudio baseline, regenerated from the live Cloud catalog (read-only export, no reset).
+-- Objects created by drizzle 0004 (estudio_*, nl_conteudos_*) are excluded on purpose.
 -- Recovers DDL whose original migrations were lost in a fallback sync. Idempotent: safe on the live DB.
 -- Clean checkout order: social migrations (supabase/migrations) -> this file -> drizzle/migrations (0000..).
 -- Do not edit by hand: regenerate with scripts/exportar-esquema-nl.sql via `lovable supabase query`.
@@ -83,19 +84,6 @@ BEGIN
   END LOOP;
 END;
 $function$
-;
-
-CREATE OR REPLACE FUNCTION public.nl_edicao_identidade_padrao()
- RETURNS trigger
- LANGUAGE plpgsql
- SET search_path TO 'public'
-AS $function$
-BEGIN
-  IF NEW.identidade_id IS NULL THEN
-    SELECT id INTO NEW.identidade_id FROM public.estudio_identidades WHERE chave = 'digitalsprint';
-  END IF;
-  RETURN NEW;
-END $function$
 ;
 
 CREATE OR REPLACE FUNCTION public.nl_encontrar_candidatos_repeticao(_titulo text, _categoria text, _limiar real DEFAULT 0.30)
@@ -622,24 +610,6 @@ END;
 $function$
 ;
 
-CREATE OR REPLACE FUNCTION public.nl_proteger_conteudo()
- RETURNS trigger
- LANGUAGE plpgsql
- SET search_path TO 'public'
-AS $function$
-BEGIN
-  IF NEW.fonte IS DISTINCT FROM OLD.fonte OR NEW.fonte_hash IS DISTINCT FROM OLD.fonte_hash
-     OR NEW.edicao_id IS DISTINCT FROM OLD.edicao_id OR NEW.tipo IS DISTINCT FROM OLD.tipo THEN
-    RAISE EXCEPTION 'A fonte de um conteúdo derivado é imutável';
-  END IF;
-  IF NEW.carrossel IS DISTINCT FROM OLD.carrossel AND NEW.versao <> OLD.versao + 1 THEN
-    RAISE EXCEPTION 'Versão de conteúdo inválida';
-  END IF;
-  NEW.actualizado_em := now();
-  RETURN NEW;
-END $function$
-;
-
 CREATE OR REPLACE FUNCTION public.nl_registar_evento_brief(_evento text, _slug text, _edicao_numero integer)
  RETURNS void
  LANGUAGE plpgsql
@@ -790,23 +760,6 @@ CREATE TABLE IF NOT EXISTS public.art_rascunhos (
   updated_at timestamp with time zone DEFAULT now() NOT NULL
 );
 
-CREATE TABLE IF NOT EXISTS public.estudio_identidades (
-  id uuid DEFAULT gen_random_uuid() NOT NULL,
-  chave text NOT NULL,
-  nome text NOT NULL,
-  tipo text NOT NULL,
-  project_id uuid,
-  created_at timestamp with time zone DEFAULT now() NOT NULL,
-  updated_at timestamp with time zone DEFAULT now() NOT NULL
-);
-
-CREATE TABLE IF NOT EXISTS public.estudio_preferencias (
-  user_id uuid NOT NULL,
-  project_id uuid,
-  identidade_id uuid,
-  updated_at timestamp with time zone DEFAULT now() NOT NULL
-);
-
 CREATE TABLE IF NOT EXISTS public.nl_audit_log (
   id bigint GENERATED ALWAYS AS IDENTITY NOT NULL,
   quem text,
@@ -887,54 +840,6 @@ CREATE TABLE IF NOT EXISTS public.nl_configuracoes (
   chave text NOT NULL,
   valor text,
   actualizado_em timestamp with time zone DEFAULT now() NOT NULL
-);
-
-CREATE TABLE IF NOT EXISTS public.nl_conteudos_derivados (
-  id uuid DEFAULT gen_random_uuid() NOT NULL,
-  edicao_id uuid NOT NULL,
-  tipo text NOT NULL,
-  identidade_id uuid,
-  project_id uuid,
-  fonte jsonb NOT NULL,
-  fonte_hash text NOT NULL,
-  fonte_aceite_por uuid,
-  fonte_aceite_em timestamp with time zone,
-  carrossel jsonb,
-  versao integer DEFAULT 0 NOT NULL,
-  social_draft_id uuid,
-  social_enviado_em timestamp with time zone,
-  created_at timestamp with time zone DEFAULT now() NOT NULL,
-  actualizado_em timestamp with time zone DEFAULT now() NOT NULL,
-  actualizado_por uuid
-);
-
-CREATE TABLE IF NOT EXISTS public.nl_conteudos_jobs (
-  id uuid DEFAULT gen_random_uuid() NOT NULL,
-  edicao_id uuid NOT NULL,
-  tipo text NOT NULL,
-  fonte_hash text NOT NULL,
-  conteudo_id uuid NOT NULL,
-  origem text NOT NULL,
-  estado text NOT NULL,
-  campanhas jsonb DEFAULT '[]'::jsonb NOT NULL,
-  confirmado_em timestamp with time zone,
-  tentativas integer DEFAULT 0 NOT NULL,
-  max_tentativas integer DEFAULT 5 NOT NULL,
-  proxima_tentativa_em timestamp with time zone DEFAULT now() NOT NULL,
-  reservado_ate timestamp with time zone,
-  erro text,
-  created_at timestamp with time zone DEFAULT now() NOT NULL,
-  actualizado_em timestamp with time zone DEFAULT now() NOT NULL
-);
-
-CREATE TABLE IF NOT EXISTS public.nl_conteudos_versoes (
-  id uuid DEFAULT gen_random_uuid() NOT NULL,
-  conteudo_id uuid NOT NULL,
-  versao integer NOT NULL,
-  carrossel jsonb NOT NULL,
-  origem text NOT NULL,
-  criado_por uuid,
-  criado_em timestamp with time zone DEFAULT now() NOT NULL
 );
 
 CREATE TABLE IF NOT EXISTS public.nl_cronicas (
@@ -1347,14 +1252,6 @@ DO $$ BEGIN ALTER TABLE public.art_rascunhos ADD CONSTRAINT art_rascunhos_estado
 
 DO $$ BEGIN ALTER TABLE public.art_rascunhos ADD CONSTRAINT art_rascunhos_pkey PRIMARY KEY (id); EXCEPTION WHEN duplicate_object OR duplicate_table OR invalid_table_definition THEN NULL; END $$;
 
-DO $$ BEGIN ALTER TABLE public.estudio_identidades ADD CONSTRAINT estudio_identidades_chave_key UNIQUE (chave); EXCEPTION WHEN duplicate_object OR duplicate_table OR invalid_table_definition THEN NULL; END $$;
-
-DO $$ BEGIN ALTER TABLE public.estudio_identidades ADD CONSTRAINT estudio_identidades_pkey PRIMARY KEY (id); EXCEPTION WHEN duplicate_object OR duplicate_table OR invalid_table_definition THEN NULL; END $$;
-
-DO $$ BEGIN ALTER TABLE public.estudio_identidades ADD CONSTRAINT estudio_identidades_tipo_check CHECK ((tipo = ANY (ARRAY['newsletter'::text, 'blog'::text, 'social'::text]))); EXCEPTION WHEN duplicate_object OR duplicate_table OR invalid_table_definition THEN NULL; END $$;
-
-DO $$ BEGIN ALTER TABLE public.estudio_preferencias ADD CONSTRAINT estudio_preferencias_pkey PRIMARY KEY (user_id); EXCEPTION WHEN duplicate_object OR duplicate_table OR invalid_table_definition THEN NULL; END $$;
-
 DO $$ BEGIN ALTER TABLE public.nl_audit_log ADD CONSTRAINT nl_audit_log_pkey PRIMARY KEY (id); EXCEPTION WHEN duplicate_object OR duplicate_table OR invalid_table_definition THEN NULL; END $$;
 
 DO $$ BEGIN ALTER TABLE public.nl_brief_edicoes ADD CONSTRAINT nl_brief_edicoes_brief_id_edicao_id_key UNIQUE (brief_id, edicao_id); EXCEPTION WHEN duplicate_object OR duplicate_table OR invalid_table_definition THEN NULL; END $$;
@@ -1380,36 +1277,6 @@ DO $$ BEGIN ALTER TABLE public.nl_briefs ADD CONSTRAINT nl_briefs_pkey PRIMARY K
 DO $$ BEGIN ALTER TABLE public.nl_briefs ADD CONSTRAINT nl_briefs_slug_key UNIQUE (slug); EXCEPTION WHEN duplicate_object OR duplicate_table OR invalid_table_definition THEN NULL; END $$;
 
 DO $$ BEGIN ALTER TABLE public.nl_configuracoes ADD CONSTRAINT nl_configuracoes_pkey PRIMARY KEY (chave); EXCEPTION WHEN duplicate_object OR duplicate_table OR invalid_table_definition THEN NULL; END $$;
-
-DO $$ BEGIN ALTER TABLE public.nl_conteudos_derivados ADD CONSTRAINT nl_conteudos_derivados_carrossel_check CHECK (((carrossel IS NULL) OR (jsonb_typeof(carrossel) = 'object'::text))); EXCEPTION WHEN duplicate_object OR duplicate_table OR invalid_table_definition THEN NULL; END $$;
-
-DO $$ BEGIN ALTER TABLE public.nl_conteudos_derivados ADD CONSTRAINT nl_conteudos_derivados_edicao_id_tipo_fonte_hash_key UNIQUE (edicao_id, tipo, fonte_hash); EXCEPTION WHEN duplicate_object OR duplicate_table OR invalid_table_definition THEN NULL; END $$;
-
-DO $$ BEGIN ALTER TABLE public.nl_conteudos_derivados ADD CONSTRAINT nl_conteudos_derivados_fonte_check CHECK ((jsonb_typeof(fonte) = 'object'::text)); EXCEPTION WHEN duplicate_object OR duplicate_table OR invalid_table_definition THEN NULL; END $$;
-
-DO $$ BEGIN ALTER TABLE public.nl_conteudos_derivados ADD CONSTRAINT nl_conteudos_derivados_fonte_hash_check CHECK ((length(fonte_hash) = 64)); EXCEPTION WHEN duplicate_object OR duplicate_table OR invalid_table_definition THEN NULL; END $$;
-
-DO $$ BEGIN ALTER TABLE public.nl_conteudos_derivados ADD CONSTRAINT nl_conteudos_derivados_pkey PRIMARY KEY (id); EXCEPTION WHEN duplicate_object OR duplicate_table OR invalid_table_definition THEN NULL; END $$;
-
-DO $$ BEGIN ALTER TABLE public.nl_conteudos_derivados ADD CONSTRAINT nl_conteudos_derivados_tipo_check CHECK ((tipo = 'carrossel_cronica'::text)); EXCEPTION WHEN duplicate_object OR duplicate_table OR invalid_table_definition THEN NULL; END $$;
-
-DO $$ BEGIN ALTER TABLE public.nl_conteudos_derivados ADD CONSTRAINT nl_conteudos_derivados_versao_check CHECK ((versao >= 0)); EXCEPTION WHEN duplicate_object OR duplicate_table OR invalid_table_definition THEN NULL; END $$;
-
-DO $$ BEGIN ALTER TABLE public.nl_conteudos_jobs ADD CONSTRAINT nl_conteudos_jobs_edicao_id_tipo_fonte_hash_key UNIQUE (edicao_id, tipo, fonte_hash); EXCEPTION WHEN duplicate_object OR duplicate_table OR invalid_table_definition THEN NULL; END $$;
-
-DO $$ BEGIN ALTER TABLE public.nl_conteudos_jobs ADD CONSTRAINT nl_conteudos_jobs_estado_check CHECK ((estado = ANY (ARRAY['aguarda_confirmacao'::text, 'aguarda_revisao_fonte'::text, 'pendente'::text, 'aguarda_credencial'::text, 'a_processar'::text, 'concluido'::text, 'erro'::text, 'cancelado'::text]))); EXCEPTION WHEN duplicate_object OR duplicate_table OR invalid_table_definition THEN NULL; END $$;
-
-DO $$ BEGIN ALTER TABLE public.nl_conteudos_jobs ADD CONSTRAINT nl_conteudos_jobs_origem_check CHECK ((origem = ANY (ARRAY['envio'::text, 'reconciliacao'::text, 'manual'::text]))); EXCEPTION WHEN duplicate_object OR duplicate_table OR invalid_table_definition THEN NULL; END $$;
-
-DO $$ BEGIN ALTER TABLE public.nl_conteudos_jobs ADD CONSTRAINT nl_conteudos_jobs_pkey PRIMARY KEY (id); EXCEPTION WHEN duplicate_object OR duplicate_table OR invalid_table_definition THEN NULL; END $$;
-
-DO $$ BEGIN ALTER TABLE public.nl_conteudos_jobs ADD CONSTRAINT nl_conteudos_jobs_tipo_check CHECK ((tipo = 'carrossel_cronica'::text)); EXCEPTION WHEN duplicate_object OR duplicate_table OR invalid_table_definition THEN NULL; END $$;
-
-DO $$ BEGIN ALTER TABLE public.nl_conteudos_versoes ADD CONSTRAINT nl_conteudos_versoes_conteudo_id_versao_key UNIQUE (conteudo_id, versao); EXCEPTION WHEN duplicate_object OR duplicate_table OR invalid_table_definition THEN NULL; END $$;
-
-DO $$ BEGIN ALTER TABLE public.nl_conteudos_versoes ADD CONSTRAINT nl_conteudos_versoes_origem_check CHECK ((origem = ANY (ARRAY['ia_automatica'::text, 'ia_manual'::text, 'edicao'::text]))); EXCEPTION WHEN duplicate_object OR duplicate_table OR invalid_table_definition THEN NULL; END $$;
-
-DO $$ BEGIN ALTER TABLE public.nl_conteudos_versoes ADD CONSTRAINT nl_conteudos_versoes_pkey PRIMARY KEY (id); EXCEPTION WHEN duplicate_object OR duplicate_table OR invalid_table_definition THEN NULL; END $$;
 
 DO $$ BEGIN ALTER TABLE public.nl_cronicas ADD CONSTRAINT nl_cronicas_edicao_id_key UNIQUE (edicao_id); EXCEPTION WHEN duplicate_object OR duplicate_table OR invalid_table_definition THEN NULL; END $$;
 
@@ -1547,14 +1414,6 @@ DO $$ BEGIN ALTER TABLE public.nl_user_mapping ADD CONSTRAINT nl_user_mapping_pk
 
 DO $$ BEGIN ALTER TABLE public.art_rascunhos ADD CONSTRAINT art_rascunhos_project_id_fkey FOREIGN KEY (project_id) REFERENCES projects(id) ON DELETE SET NULL; EXCEPTION WHEN duplicate_object OR duplicate_table OR invalid_table_definition THEN NULL; END $$;
 
-DO $$ BEGIN ALTER TABLE public.estudio_identidades ADD CONSTRAINT estudio_identidades_project_id_fkey FOREIGN KEY (project_id) REFERENCES projects(id) ON DELETE SET NULL; EXCEPTION WHEN duplicate_object OR duplicate_table OR invalid_table_definition THEN NULL; END $$;
-
-DO $$ BEGIN ALTER TABLE public.estudio_preferencias ADD CONSTRAINT estudio_preferencias_identidade_id_fkey FOREIGN KEY (identidade_id) REFERENCES estudio_identidades(id) ON DELETE SET NULL; EXCEPTION WHEN duplicate_object OR duplicate_table OR invalid_table_definition THEN NULL; END $$;
-
-DO $$ BEGIN ALTER TABLE public.estudio_preferencias ADD CONSTRAINT estudio_preferencias_project_id_fkey FOREIGN KEY (project_id) REFERENCES projects(id) ON DELETE SET NULL; EXCEPTION WHEN duplicate_object OR duplicate_table OR invalid_table_definition THEN NULL; END $$;
-
-DO $$ BEGIN ALTER TABLE public.estudio_preferencias ADD CONSTRAINT estudio_preferencias_user_id_fkey FOREIGN KEY (user_id) REFERENCES auth.users(id) ON DELETE CASCADE; EXCEPTION WHEN duplicate_object OR duplicate_table OR invalid_table_definition THEN NULL; END $$;
-
 DO $$ BEGIN ALTER TABLE public.nl_brief_edicoes ADD CONSTRAINT nl_brief_edicoes_brief_id_fkey FOREIGN KEY (brief_id) REFERENCES nl_briefs(id) ON DELETE CASCADE; EXCEPTION WHEN duplicate_object OR duplicate_table OR invalid_table_definition THEN NULL; END $$;
 
 DO $$ BEGIN ALTER TABLE public.nl_brief_edicoes ADD CONSTRAINT nl_brief_edicoes_edicao_id_fkey FOREIGN KEY (edicao_id) REFERENCES nl_edicoes(id) ON DELETE CASCADE; EXCEPTION WHEN duplicate_object OR duplicate_table OR invalid_table_definition THEN NULL; END $$;
@@ -1562,18 +1421,6 @@ DO $$ BEGIN ALTER TABLE public.nl_brief_edicoes ADD CONSTRAINT nl_brief_edicoes_
 DO $$ BEGIN ALTER TABLE public.nl_brief_versoes ADD CONSTRAINT nl_brief_versoes_brief_id_fkey FOREIGN KEY (brief_id) REFERENCES nl_briefs(id) ON DELETE CASCADE; EXCEPTION WHEN duplicate_object OR duplicate_table OR invalid_table_definition THEN NULL; END $$;
 
 DO $$ BEGIN ALTER TABLE public.nl_briefs ADD CONSTRAINT nl_briefs_noticia_id_fkey FOREIGN KEY (noticia_id) REFERENCES nl_noticias(id) ON DELETE SET NULL; EXCEPTION WHEN duplicate_object OR duplicate_table OR invalid_table_definition THEN NULL; END $$;
-
-DO $$ BEGIN ALTER TABLE public.nl_conteudos_derivados ADD CONSTRAINT nl_conteudos_derivados_edicao_id_fkey FOREIGN KEY (edicao_id) REFERENCES nl_edicoes(id) ON DELETE RESTRICT; EXCEPTION WHEN duplicate_object OR duplicate_table OR invalid_table_definition THEN NULL; END $$;
-
-DO $$ BEGIN ALTER TABLE public.nl_conteudos_derivados ADD CONSTRAINT nl_conteudos_derivados_identidade_id_fkey FOREIGN KEY (identidade_id) REFERENCES estudio_identidades(id) ON DELETE SET NULL; EXCEPTION WHEN duplicate_object OR duplicate_table OR invalid_table_definition THEN NULL; END $$;
-
-DO $$ BEGIN ALTER TABLE public.nl_conteudos_derivados ADD CONSTRAINT nl_conteudos_derivados_project_id_fkey FOREIGN KEY (project_id) REFERENCES projects(id) ON DELETE SET NULL; EXCEPTION WHEN duplicate_object OR duplicate_table OR invalid_table_definition THEN NULL; END $$;
-
-DO $$ BEGIN ALTER TABLE public.nl_conteudos_jobs ADD CONSTRAINT nl_conteudos_jobs_conteudo_id_fkey FOREIGN KEY (conteudo_id) REFERENCES nl_conteudos_derivados(id) ON DELETE CASCADE; EXCEPTION WHEN duplicate_object OR duplicate_table OR invalid_table_definition THEN NULL; END $$;
-
-DO $$ BEGIN ALTER TABLE public.nl_conteudos_jobs ADD CONSTRAINT nl_conteudos_jobs_edicao_id_fkey FOREIGN KEY (edicao_id) REFERENCES nl_edicoes(id) ON DELETE RESTRICT; EXCEPTION WHEN duplicate_object OR duplicate_table OR invalid_table_definition THEN NULL; END $$;
-
-DO $$ BEGIN ALTER TABLE public.nl_conteudos_versoes ADD CONSTRAINT nl_conteudos_versoes_conteudo_id_fkey FOREIGN KEY (conteudo_id) REFERENCES nl_conteudos_derivados(id) ON DELETE CASCADE; EXCEPTION WHEN duplicate_object OR duplicate_table OR invalid_table_definition THEN NULL; END $$;
 
 DO $$ BEGIN ALTER TABLE public.nl_cronicas ADD CONSTRAINT nl_cronicas_edicao_id_fkey FOREIGN KEY (edicao_id) REFERENCES nl_edicoes(id) ON DELETE CASCADE; EXCEPTION WHEN duplicate_object OR duplicate_table OR invalid_table_definition THEN NULL; END $$;
 
@@ -1584,8 +1431,6 @@ DO $$ BEGIN ALTER TABLE public.nl_curadoria_fila ADD CONSTRAINT nl_curadoria_fil
 DO $$ BEGIN ALTER TABLE public.nl_curadoria_fila ADD CONSTRAINT nl_curadoria_fila_noticia_id_fkey FOREIGN KEY (noticia_id) REFERENCES nl_noticias(id) ON DELETE SET NULL; EXCEPTION WHEN duplicate_object OR duplicate_table OR invalid_table_definition THEN NULL; END $$;
 
 DO $$ BEGIN ALTER TABLE public.nl_edicoes ADD CONSTRAINT nl_edicoes_episodio_podcast_id_fkey FOREIGN KEY (episodio_podcast_id) REFERENCES nl_episodios_podcast(id) ON DELETE SET NULL; EXCEPTION WHEN duplicate_object OR duplicate_table OR invalid_table_definition THEN NULL; END $$;
-
-DO $$ BEGIN ALTER TABLE public.nl_edicoes ADD CONSTRAINT nl_edicoes_identidade_id_fkey FOREIGN KEY (identidade_id) REFERENCES estudio_identidades(id) ON DELETE SET NULL; EXCEPTION WHEN duplicate_object OR duplicate_table OR invalid_table_definition THEN NULL; END $$;
 
 DO $$ BEGIN ALTER TABLE public.nl_egoi_campanhas ADD CONSTRAINT nl_egoi_campanhas_edicao_id_fkey FOREIGN KEY (edicao_id) REFERENCES nl_edicoes(id) ON DELETE CASCADE; EXCEPTION WHEN duplicate_object OR duplicate_table OR invalid_table_definition THEN NULL; END $$;
 
@@ -1632,8 +1477,6 @@ CREATE INDEX IF NOT EXISTS nl_briefs_estado_idx ON public.nl_briefs USING btree 
 CREATE INDEX IF NOT EXISTS nl_briefs_fonte_url_norm_idx ON public.nl_briefs USING btree (fonte_url_norm);
 
 CREATE INDEX IF NOT EXISTS nl_briefs_noticia_idx ON public.nl_briefs USING btree (noticia_id);
-
-CREATE INDEX IF NOT EXISTS nl_conteudos_jobs_fila ON public.nl_conteudos_jobs USING btree (estado, proxima_tentativa_em);
 
 CREATE INDEX IF NOT EXISTS nl_cronicas_busca_gin ON public.nl_cronicas USING gin (busca);
 
@@ -1715,31 +1558,7 @@ CREATE UNIQUE INDEX IF NOT EXISTS nl_uniq_secoes_padrao_por_edicao ON public.nl_
 
 CREATE UNIQUE INDEX IF NOT EXISTS nl_ux_fontes_remetente_email ON public.nl_fontes_curadoria USING btree (lower(remetente_email)) WHERE ((tipo = 'newsletter'::text) AND (remetente_email IS NOT NULL));
 
-CREATE OR REPLACE FUNCTION public.nl_reservar_jobs_conteudos(_limite integer)
- RETURNS SETOF nl_conteudos_jobs
- LANGUAGE sql
- SECURITY DEFINER
- SET search_path TO 'public'
-AS $function$
-  UPDATE public.nl_conteudos_jobs j SET reservado_ate = now() + interval '5 minutes', actualizado_em = now()
-  WHERE j.id IN (
-    SELECT id FROM public.nl_conteudos_jobs
-    WHERE estado IN ('aguarda_confirmacao','pendente','aguarda_credencial')
-      AND proxima_tentativa_em <= now()
-      AND (reservado_ate IS NULL OR reservado_ate < now())
-    ORDER BY proxima_tentativa_em
-    LIMIT greatest(1, least(_limite, 5))
-    FOR UPDATE SKIP LOCKED
-  )
-  RETURNING j.*;
-$function$
-;
-
 ALTER TABLE public.art_rascunhos ENABLE ROW LEVEL SECURITY;
-
-ALTER TABLE public.estudio_identidades ENABLE ROW LEVEL SECURITY;
-
-ALTER TABLE public.estudio_preferencias ENABLE ROW LEVEL SECURITY;
 
 ALTER TABLE public.nl_audit_log ENABLE ROW LEVEL SECURITY;
 
@@ -1752,12 +1571,6 @@ ALTER TABLE public.nl_brief_versoes ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.nl_briefs ENABLE ROW LEVEL SECURITY;
 
 ALTER TABLE public.nl_configuracoes ENABLE ROW LEVEL SECURITY;
-
-ALTER TABLE public.nl_conteudos_derivados ENABLE ROW LEVEL SECURITY;
-
-ALTER TABLE public.nl_conteudos_jobs ENABLE ROW LEVEL SECURITY;
-
-ALTER TABLE public.nl_conteudos_versoes ENABLE ROW LEVEL SECURITY;
 
 ALTER TABLE public.nl_cronicas ENABLE ROW LEVEL SECURITY;
 
@@ -1811,11 +1624,7 @@ DROP TRIGGER IF EXISTS nl_brief_edicoes_validar_tg ON public.nl_brief_edicoes; C
 
 DROP TRIGGER IF EXISTS nl_briefs_validar_tg ON public.nl_briefs; CREATE TRIGGER nl_briefs_validar_tg BEFORE INSERT OR UPDATE ON public.nl_briefs FOR EACH ROW EXECUTE FUNCTION nl_briefs_validar();
 
-DROP TRIGGER IF EXISTS nl_conteudos_proteger ON public.nl_conteudos_derivados; CREATE TRIGGER nl_conteudos_proteger BEFORE UPDATE ON public.nl_conteudos_derivados FOR EACH ROW EXECUTE FUNCTION nl_proteger_conteudo();
-
 DROP TRIGGER IF EXISTS nl_curadoria_ferramentas_config_updated ON public.nl_curadoria_ferramentas_config; CREATE TRIGGER nl_curadoria_ferramentas_config_updated BEFORE UPDATE ON public.nl_curadoria_ferramentas_config FOR EACH ROW EXECUTE FUNCTION nl_tg_curadoria_config_updated();
-
-DROP TRIGGER IF EXISTS nl_edicoes_identidade ON public.nl_edicoes; CREATE TRIGGER nl_edicoes_identidade BEFORE INSERT ON public.nl_edicoes FOR EACH ROW EXECUTE FUNCTION nl_edicao_identidade_padrao();
 
 DROP TRIGGER IF EXISTS nl_egoi_campanhas_set_actualizado_em ON public.nl_egoi_campanhas; CREATE TRIGGER nl_egoi_campanhas_set_actualizado_em BEFORE UPDATE ON public.nl_egoi_campanhas FOR EACH ROW EXECUTE FUNCTION nl_set_actualizado_em();
 
@@ -1851,16 +1660,6 @@ DROP TRIGGER IF EXISTS nl_user_mapping_updated_at ON public.nl_user_mapping; CRE
 
 DROP POLICY IF EXISTS art_rascunhos_equipa ON public.art_rascunhos; CREATE POLICY art_rascunhos_equipa ON public.art_rascunhos AS PERMISSIVE FOR ALL TO authenticated USING (nl_is_staff()) WITH CHECK (nl_is_staff());
 
-DROP POLICY IF EXISTS ident_editar ON public.estudio_identidades; CREATE POLICY ident_editar ON public.estudio_identidades AS PERMISSIVE FOR UPDATE TO authenticated USING (nl_is_staff()) WITH CHECK (nl_is_staff());
-
-DROP POLICY IF EXISTS ident_ler ON public.estudio_identidades; CREATE POLICY ident_ler ON public.estudio_identidades AS PERMISSIVE FOR SELECT TO authenticated USING (true);
-
-DROP POLICY IF EXISTS pref_criar ON public.estudio_preferencias; CREATE POLICY pref_criar ON public.estudio_preferencias AS PERMISSIVE FOR INSERT TO authenticated WITH CHECK ((user_id = auth.uid()));
-
-DROP POLICY IF EXISTS pref_editar ON public.estudio_preferencias; CREATE POLICY pref_editar ON public.estudio_preferencias AS PERMISSIVE FOR UPDATE TO authenticated USING ((user_id = auth.uid())) WITH CHECK ((user_id = auth.uid()));
-
-DROP POLICY IF EXISTS pref_ler ON public.estudio_preferencias; CREATE POLICY pref_ler ON public.estudio_preferencias AS PERMISSIVE FOR SELECT TO authenticated USING ((user_id = auth.uid()));
-
 DROP POLICY IF EXISTS nl_audit_admin_leitura ON public.nl_audit_log; CREATE POLICY nl_audit_admin_leitura ON public.nl_audit_log AS PERMISSIVE FOR SELECT TO authenticated USING (nl_is_admin());
 
 DROP POLICY IF EXISTS nl_audit_equipa_insere ON public.nl_audit_log; CREATE POLICY nl_audit_equipa_insere ON public.nl_audit_log AS PERMISSIVE FOR INSERT TO authenticated WITH CHECK (nl_is_staff());
@@ -1880,12 +1679,6 @@ DROP POLICY IF EXISTS nl_equipa_total ON public.nl_briefs; CREATE POLICY nl_equi
 DROP POLICY IF EXISTS nl_publico_briefs ON public.nl_briefs; CREATE POLICY nl_publico_briefs ON public.nl_briefs AS PERMISSIVE FOR SELECT TO anon USING ((estado = 'publicado'::text));
 
 DROP POLICY IF EXISTS nl_admin_total ON public.nl_configuracoes; CREATE POLICY nl_admin_total ON public.nl_configuracoes AS PERMISSIVE FOR ALL TO authenticated USING (nl_is_admin()) WITH CHECK (nl_is_admin());
-
-DROP POLICY IF EXISTS cd_ler ON public.nl_conteudos_derivados; CREATE POLICY cd_ler ON public.nl_conteudos_derivados AS PERMISSIVE FOR SELECT TO authenticated USING (nl_is_staff());
-
-DROP POLICY IF EXISTS cj_ler ON public.nl_conteudos_jobs; CREATE POLICY cj_ler ON public.nl_conteudos_jobs AS PERMISSIVE FOR SELECT TO authenticated USING (nl_is_staff());
-
-DROP POLICY IF EXISTS cv_ler ON public.nl_conteudos_versoes; CREATE POLICY cv_ler ON public.nl_conteudos_versoes AS PERMISSIVE FOR SELECT TO authenticated USING (nl_is_staff());
 
 DROP POLICY IF EXISTS nl_equipa_total ON public.nl_cronicas; CREATE POLICY nl_equipa_total ON public.nl_cronicas AS PERMISSIVE FOR ALL TO authenticated USING (nl_is_staff()) WITH CHECK (nl_is_staff());
 
@@ -1971,18 +1764,6 @@ GRANT DELETE, INSERT, MAINTAIN, REFERENCES, SELECT, TRIGGER, TRUNCATE, UPDATE ON
 
 GRANT DELETE, INSERT, MAINTAIN, REFERENCES, SELECT, TRIGGER, TRUNCATE, UPDATE ON public.art_rascunhos TO service_role;
 
-GRANT DELETE, INSERT, MAINTAIN, REFERENCES, SELECT, TRIGGER, TRUNCATE, UPDATE ON public.estudio_identidades TO anon;
-
-GRANT DELETE, INSERT, MAINTAIN, REFERENCES, SELECT, TRIGGER, TRUNCATE, UPDATE ON public.estudio_identidades TO authenticated;
-
-GRANT DELETE, INSERT, MAINTAIN, REFERENCES, SELECT, TRIGGER, TRUNCATE, UPDATE ON public.estudio_identidades TO service_role;
-
-GRANT DELETE, INSERT, MAINTAIN, REFERENCES, SELECT, TRIGGER, TRUNCATE, UPDATE ON public.estudio_preferencias TO anon;
-
-GRANT DELETE, INSERT, MAINTAIN, REFERENCES, SELECT, TRIGGER, TRUNCATE, UPDATE ON public.estudio_preferencias TO authenticated;
-
-GRANT DELETE, INSERT, MAINTAIN, REFERENCES, SELECT, TRIGGER, TRUNCATE, UPDATE ON public.estudio_preferencias TO service_role;
-
 GRANT DELETE, INSERT, MAINTAIN, REFERENCES, SELECT, TRIGGER, TRUNCATE, UPDATE ON public.nl_audit_log TO anon;
 
 GRANT DELETE, INSERT, MAINTAIN, REFERENCES, SELECT, TRIGGER, TRUNCATE, UPDATE ON public.nl_audit_log TO authenticated;
@@ -2018,24 +1799,6 @@ GRANT DELETE, INSERT, MAINTAIN, REFERENCES, SELECT, TRIGGER, TRUNCATE, UPDATE ON
 GRANT DELETE, INSERT, MAINTAIN, REFERENCES, SELECT, TRIGGER, TRUNCATE, UPDATE ON public.nl_configuracoes TO authenticated;
 
 GRANT DELETE, INSERT, MAINTAIN, REFERENCES, SELECT, TRIGGER, TRUNCATE, UPDATE ON public.nl_configuracoes TO service_role;
-
-GRANT DELETE, INSERT, MAINTAIN, REFERENCES, SELECT, TRIGGER, TRUNCATE, UPDATE ON public.nl_conteudos_derivados TO anon;
-
-GRANT DELETE, INSERT, MAINTAIN, REFERENCES, SELECT, TRIGGER, TRUNCATE, UPDATE ON public.nl_conteudos_derivados TO authenticated;
-
-GRANT DELETE, INSERT, MAINTAIN, REFERENCES, SELECT, TRIGGER, TRUNCATE, UPDATE ON public.nl_conteudos_derivados TO service_role;
-
-GRANT DELETE, INSERT, MAINTAIN, REFERENCES, SELECT, TRIGGER, TRUNCATE, UPDATE ON public.nl_conteudos_jobs TO anon;
-
-GRANT DELETE, INSERT, MAINTAIN, REFERENCES, SELECT, TRIGGER, TRUNCATE, UPDATE ON public.nl_conteudos_jobs TO authenticated;
-
-GRANT DELETE, INSERT, MAINTAIN, REFERENCES, SELECT, TRIGGER, TRUNCATE, UPDATE ON public.nl_conteudos_jobs TO service_role;
-
-GRANT DELETE, INSERT, MAINTAIN, REFERENCES, SELECT, TRIGGER, TRUNCATE, UPDATE ON public.nl_conteudos_versoes TO anon;
-
-GRANT DELETE, INSERT, MAINTAIN, REFERENCES, SELECT, TRIGGER, TRUNCATE, UPDATE ON public.nl_conteudos_versoes TO authenticated;
-
-GRANT DELETE, INSERT, MAINTAIN, REFERENCES, SELECT, TRIGGER, TRUNCATE, UPDATE ON public.nl_conteudos_versoes TO service_role;
 
 GRANT DELETE, INSERT, MAINTAIN, REFERENCES, SELECT, TRIGGER, TRUNCATE, UPDATE ON public.nl_cronicas TO anon;
 
@@ -2187,8 +1950,6 @@ REVOKE ALL ON FUNCTION nl_criar_seccoes_padrao(uuid) FROM PUBLIC, anon; GRANT EX
 
 REVOKE ALL ON FUNCTION nl_criar_seccoes_padrao(uuid) FROM PUBLIC, anon; GRANT EXECUTE ON FUNCTION nl_criar_seccoes_padrao(uuid) TO service_role;
 
-REVOKE ALL ON FUNCTION nl_edicao_identidade_padrao() FROM PUBLIC, anon; GRANT EXECUTE ON FUNCTION nl_edicao_identidade_padrao() TO service_role;
-
 REVOKE ALL ON FUNCTION nl_encontrar_candidatos_repeticao(text,text,real) FROM PUBLIC, anon; GRANT EXECUTE ON FUNCTION nl_encontrar_candidatos_repeticao(text,text,real) TO authenticated;
 
 REVOKE ALL ON FUNCTION nl_encontrar_candidatos_repeticao(text,text,real) FROM PUBLIC, anon; GRANT EXECUTE ON FUNCTION nl_encontrar_candidatos_repeticao(text,text,real) TO service_role;
@@ -2265,8 +2026,6 @@ REVOKE ALL ON FUNCTION nl_pesquisar_global(text,text[],uuid,integer) FROM PUBLIC
 
 REVOKE ALL ON FUNCTION nl_pesquisar_global(text,text[],uuid,integer) FROM PUBLIC, anon; GRANT EXECUTE ON FUNCTION nl_pesquisar_global(text,text[],uuid,integer) TO service_role;
 
-REVOKE ALL ON FUNCTION nl_proteger_conteudo() FROM PUBLIC, anon; GRANT EXECUTE ON FUNCTION nl_proteger_conteudo() TO service_role;
-
 REVOKE ALL ON FUNCTION nl_registar_evento_brief(text,text,integer) FROM PUBLIC, anon; GRANT EXECUTE ON FUNCTION nl_registar_evento_brief(text,text,integer) TO service_role;
 
 REVOKE ALL ON FUNCTION nl_reordenar_noticias(uuid,uuid[]) FROM PUBLIC, anon; GRANT EXECUTE ON FUNCTION nl_reordenar_noticias(uuid,uuid[]) TO authenticated;
@@ -2276,8 +2035,6 @@ REVOKE ALL ON FUNCTION nl_reordenar_noticias(uuid,uuid[]) FROM PUBLIC, anon; GRA
 REVOKE ALL ON FUNCTION nl_reordenar_seccoes(uuid,uuid[]) FROM PUBLIC, anon; GRANT EXECUTE ON FUNCTION nl_reordenar_seccoes(uuid,uuid[]) TO authenticated;
 
 REVOKE ALL ON FUNCTION nl_reordenar_seccoes(uuid,uuid[]) FROM PUBLIC, anon; GRANT EXECUTE ON FUNCTION nl_reordenar_seccoes(uuid,uuid[]) TO service_role;
-
-REVOKE ALL ON FUNCTION nl_reservar_jobs_conteudos(integer) FROM PUBLIC, anon; GRANT EXECUTE ON FUNCTION nl_reservar_jobs_conteudos(integer) TO service_role;
 
 REVOKE ALL ON FUNCTION nl_set_actualizado_em() FROM PUBLIC, anon; GRANT EXECUTE ON FUNCTION nl_set_actualizado_em() TO service_role;
 
