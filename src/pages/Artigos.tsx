@@ -8,12 +8,12 @@ import { apagarArtigo, getMarca, guardarArtigo, listarArtigos, type Artigo } fro
 const vazio = { titulo: "", resumo: "", corpo: "" };
 
 export default function Artigos() {
-  const marca = getMarca();
+  const [marca, setMarcaLocal] = useState<string | null>(null);
   const [artigos, setArtigos] = useState<Artigo[]>([]);
   const [edit, setEdit] = useState<Partial<Artigo> & { titulo: string }>(vazio);
 
-  const carregar = () => listarArtigos(marca).then(setArtigos).catch((e) => toast.error(e.message));
-  useEffect(() => { carregar(); }, []); // eslint-disable-line react-hooks/exhaustive-deps
+  const carregar = (m = marca) => listarArtigos(m).then(setArtigos).catch((e) => toast.error(e.message));
+  useEffect(() => { getMarca().then((m) => { setMarcaLocal(m); carregar(m); }); }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   const guardar = async () => {
     if (!edit.titulo.trim()) return toast.error("Indica um título");

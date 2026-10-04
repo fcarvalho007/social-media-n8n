@@ -34,6 +34,8 @@ import NotificationSettings from "./pages/NotificationSettings";
 import StoryConfirm from "./pages/StoryConfirm";
 import StoryLauncher from "./pages/StoryLauncher";
 import Estudio from "./pages/Estudio";
+import ConteudosSociais from "./pages/ConteudosSociais";
+import CarrosselCronica from "./pages/CarrosselCronica";
 import { lazy, Suspense } from "react";
 const NewsletterApp = lazy(() => import("./newsletter/NewsletterApp"));
 import Artigos from "./pages/Artigos";
@@ -92,6 +94,8 @@ const App = () => (
                   <Route path="/ai-settings" element={<AISettings />} />
                   <Route path="/ai-demo" element={<AIDemo />} />
                   <Route path="/estudio" element={<Estudio />} />
+                  <Route path="/estudio/redes-sociais" element={<ConteudosSociais />} />
+                  <Route path="/estudio/redes-sociais/:id" element={<CarrosselCronica />} />
                   <Route path="/newsletter/*" element={<Suspense fallback={<p className="p-4 text-sm text-muted-foreground">A carregar a newsletter…</p>}><NewsletterApp /></Suspense>} />
                   <Route path="/artigos" element={<Artigos />} />
                   <Route path="/definicoes/seguranca" element={<SegurancaConta />} />
