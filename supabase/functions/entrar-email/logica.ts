@@ -29,12 +29,46 @@ export function comLimite<T>(p: Promise<T>, ms: number): Promise<T> {
   return Promise.race([p, expira]).finally(() => clearTimeout(t));
 }
 
+/**
+ * Maps any failure to a fixed, non-sensitive class: never the free-text message.
+ * Output is one of: tempo_esgotado | http_<3 digits> | pg_<SQLSTATE> | codigo_<snake_case> | rede_<ErrorName> | desconhecida.
+ */
+export function classificarFalha(e: unknown): string {
+  if (e instanceof LimiteExpirado) return 'tempo_esgotado';
+  if (!e || typeof e !== 'object') return 'desconhecida';
+  const o = e as { status?: unknown; code?: unknown; name?: unknown };
+  const partes: string[] = [];
+  if (typeof o.status === 'number' && o.status >= 100 && o.status <= 599) partes.push(`http_${o.status}`);
+  if (typeof o.code === 'string') {
+    if (/^[0-9A-Z]{5}$/.test(o.code)) partes.push(`pg_${o.code}`);
+    else if (/^[a-z_]{1,40}$/.test(o.code)) partes.push(`codigo_${o.code}`);
+  }
+  if (!partes.length && typeof o.name === 'string' && /^[A-Za-z]{1,40}$/.test(o.name) && o.name !== 'Error') partes.push(`rede_${o.name}`);
+  return partes.length ? partes.join('+') : 'desconhecida';
+}
+
+/** Fixed step log: step name, outcome class and duration only. */
+export type RegistoEtapa = (etapa: string, resultado: string, ms: number) => void;
+
 /** Any dependency failure or timeout yields 503; never a fake success, never account data to the visitor. */
-export async function entrar(emailBruto: unknown, ip: string | null, d: Dependencias, limiteMs = LIMITE_MS): Promise<Resultado> {
+export async function entrar(
+  emailBruto: unknown, ip: string | null, d: Dependencias, limiteMs = LIMITE_MS, registo: RegistoEtapa = () => {},
+): Promise<Resultado> {
   const email = typeof emailBruto === 'string' ? emailBruto.trim().toLowerCase() : '';
   if (!email || email.length > 254) return { status: 400, body: { error: 'Email inválido' } };
   let etapa = 'inicio';
-  const L = <T,>(p: Promise<T>, nome: string) => { etapa = nome; return comLimite(p, limiteMs); };
+  const L = async <T,>(p: Promise<T>, nome: string): Promise<T> => {
+    etapa = nome;
+    const t0 = Date.now();
+    try {
+      const v = await comLimite(p, limiteMs);
+      registo(nome, 'ok', Date.now() - t0);
+      return v;
+    } catch (e) {
+      registo(nome, classificarFalha(e), Date.now() - t0);
+      throw e;
+    }
+  };
   try {
     if (ip && (await L(d.contarFalhasIp(ip), 'limite_ip')) >= MAX_FALHAS_IP) return { status: 429, body: MUITAS };
     if (!PERMITIDOS.includes(email)) { await L(d.registar(false), 'registar'); return { status: 403, body: SEM_ACESSO }; }
@@ -47,6 +81,6 @@ export async function entrar(emailBruto: unknown, ip: string | null, d: Dependen
     return { status: 200, body: sessao };
   } catch (e) {
     // Timeouts are service failures, not user failures: nothing is recorded against the visitor.
-    return { status: 503, body: INDISPONIVEL, causa: `${etapa}:${e instanceof LimiteExpirado ? 'tempo_esgotado' : 'erro'}` };
+    return { status: 503, body: INDISPONIVEL, causa: `${etapa}:${classificarFalha(e)}` };
   }
 }

@@ -68,3 +68,23 @@ describe("entrar-email: limite de tempo", () => {
     expect(d.emitirSessao).not.toHaveBeenCalled();
   });
 });
+
+import { classificarFalha } from "../../supabase/functions/entrar-email/logica";
+describe("entrar-email: diagnóstico fixo", () => {
+  it("classifica sem texto livre", () => {
+    expect(classificarFalha({ status: 504, message: "fredericodigital@gmail.com tok_123" })).toBe("http_504");
+    expect(classificarFalha({ code: "57014", message: "segredo" })).toBe("pg_57014");
+    expect(classificarFalha({ code: "request_timeout", status: 504 })).toBe("http_504+codigo_request_timeout");
+    expect(classificarFalha({ name: "AuthRetryableFetchError" })).toBe("rede_AuthRetryableFetchError");
+    expect(classificarFalha(new Error("x@y.pt"))).toBe("desconhecida");
+    expect(classificarFalha({ code: "Bearer abc.def" })).toBe("desconhecida");
+  });
+  it("regista cada etapa só com nome, classe e duração", async () => {
+    const linhas: string[] = [];
+    const d = deps({ contaExiste: vi.fn(async () => { throw { code: "PGRST301", status: 401, message: "chave" }; }) });
+    const r = await entrar("fredericodigital@gmail.com", "1.1.1.1", d, 50, (e, res) => linhas.push(`${e}=${res}`));
+    expect(r.status).toBe(503);
+    expect(linhas).toEqual(["limite_ip=ok", "limite_email=ok", "conta_existe=http_401"]);
+    expect(linhas.join()).not.toMatch(/@|1\.1\.1\.1|chave/);
+  });
+});
