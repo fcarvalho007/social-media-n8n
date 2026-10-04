@@ -1,7 +1,7 @@
 // Newsletter migration importer (server-side). Contract: digital-sprint-migracao/1
 // Reads the confidential package only from the private staging bucket, validates hashes,
 // and writes through admin-checked RPCs using the caller's own JWT (DB re-checks nl_is_admin()).
-import { createClient, type SupabaseClient } from "npm:@supabase/supabase-js@2";
+import { createClient } from "npm:@supabase/supabase-js@2";
 import { corsHeaders } from "npm:@supabase/supabase-js@2/cors";
 import { z } from "npm:zod@3.23.8";
 import { encodeHex } from "jsr:@std/encoding@1/hex";
@@ -131,22 +131,10 @@ async function verificar(p: PacoteT, ficheiroSha: string) {
   return { erros, avisos, tabelas, ficheiros, hash_global_ok: global === p.manifest.verificacao.sha256_global, ficheiro_sha256: ficheiroSha };
 }
 
-async function colunasDestino(admin: SupabaseClient, tabela: string): Promise<Set<string>> {
-  // Introspect destination via a zero-row select; unknown keys in the package are dropped and reported.
-  const { data, error } = await admin.rpc("nl_import_relatorio").select?.() ?? { data: null, error: null };
-  void data; void error;
-  return new Set<string>(COLS[tabela] ?? []);
-}
 let COLS: Record<string, string[]> = {};
 
-async function carregarColunas(admin: SupabaseClient) {
+async function carregarColunas() {
   const out: Record<string, string[]> = {};
-  for (const t of TABELAS) {
-    if (!t.destino) continue;
-    const { data, error } = await admin.from(t.destino).select("*").limit(0);
-    if (error) throw new Error(`Esquema ${t.destino}: ${error.message}`);
-    void data;
-  }
   // PostgREST does not return column names on empty selects; use OpenAPI definitions instead.
   const url = `${Deno.env.get("SUPABASE_URL")}/rest/v1/`;
   const r = await fetch(url, { headers: { apikey: Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!, Authorization: `Bearer ${Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")}` } });
@@ -219,8 +207,7 @@ Deno.serve(async (req) => {
     const pk = Pacote.safeParse(raw);
     if (!pk.success) return json(400, { error: "Estrutura do pacote incompatível", detalhe: pk.error.issues.slice(0, 5) });
     const p = pk.data;
-    await carregarColunas(admin);
-    void colunasDestino;
+    await carregarColunas();
 
     const verif = await verificar(p, ficheiroSha);
     const { data: perfisDestino } = await admin.from("profiles").select("id,email");
