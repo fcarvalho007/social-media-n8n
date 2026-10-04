@@ -77,3 +77,6 @@ verify_jwt = false
 
 [functions.getlate-linkedin-mention]
 verify_jwt = true
+
+[functions.nl-imagem]
+verify_jwt = false
