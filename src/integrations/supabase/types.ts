@@ -1935,6 +1935,52 @@ export type Database = {
         }
         Returns: undefined
       }
+      nl_contar_dados_antigos: { Args: { _dias?: number }; Returns: Json }
+      nl_criar_seccoes_padrao: {
+        Args: { _edicao_id: string }
+        Returns: undefined
+      }
+      nl_encontrar_candidatos_repeticao: {
+        Args: { _categoria: string; _limiar?: number; _titulo: string }
+        Returns: {
+          created_at: string
+          edicao_id: string
+          edicao_numero: number
+          id: string
+          score: number
+          titulo: string
+        }[]
+      }
+      nl_f_unaccent: { Args: { "": string }; Returns: string }
+      nl_is_admin: { Args: never; Returns: boolean }
+      nl_is_staff: { Args: never; Returns: boolean }
+      nl_limpar_dados_antigos: { Args: { _dias?: number }; Returns: Json }
+      nl_me_papel: { Args: never; Returns: string }
+      nl_mover_seccao: {
+        Args: { _direccao: string; _seccao_id: string }
+        Returns: undefined
+      }
+      nl_normalizar_url_sql: { Args: { _url: string }; Returns: string }
+      nl_registar_evento_brief: {
+        Args: { _edicao_numero: number; _evento: string; _slug: string }
+        Returns: undefined
+      }
+      nl_reordenar_noticias: {
+        Args: { _edicao_id: string; _ids: string[] }
+        Returns: undefined
+      }
+      nl_reordenar_seccoes: {
+        Args: { _edicao_id: string; _ids: string[] }
+        Returns: undefined
+      }
+      nl_stats_fontes_30d: {
+        Args: never
+        Returns: {
+          aprovadas_30d: number
+          fonte_id: string
+          sugeridas_30d: number
+        }[]
+      }
       update_account_insight_visibility: {
         Args: { _action: string; _insight_id: string }
         Returns: undefined
