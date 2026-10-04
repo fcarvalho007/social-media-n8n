@@ -556,6 +556,13 @@ export async function dispararLista(opts: {
 
   const { apiKey } = await credenciaisEgoi(sb);
 
+  // Re-checked right before dispatching (new contacts may have arrived since preparation).
+  if (lista.tipo === "real") {
+    const { problemasTokensEnvio } = await import("../nl-egoi-tokens-gate.ts");
+    const p = await problemasTokensEnvio(sb, apiKey, [lista]);
+    if (p.length) return { lista_id: lista.id, lista_nome: lista.nome, ok: false, sincronizada: false, erro: `Tokens de subscrição por validar: ${p.join(" ")}` };
+  }
+
   const { data: campRaw } = await sb.from("nl_egoi_campanhas")
     .select("campaign_hash").eq("edicao_id", opts.edicaoId).eq("lista_id", lista.id).maybeSingle();
   const hash = (campRaw as { campaign_hash?: string } | null)?.campaign_hash;
