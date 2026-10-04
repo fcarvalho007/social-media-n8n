@@ -157,7 +157,24 @@ function mapearUtilizadores(p: PacoteT, perfisDestino: { id: string; email: stri
   });
 }
 
-function prepararLinhas(nome: string, destino: string, linhas: Linha[], ctx: { users: Map<string, string | null>; urls: Map<string, string> }) {
+
+// Old image URLs (app endpoint /api/public/imagem/<path> or direct/signed storage URLs of the old
+// "imagens-edicao" bucket) become stable URLs served by this backend's nl-imagem function.
+const IMG_BASE = `${Deno.env.get("SUPABASE_URL")}/functions/v1/nl-imagem/`;
+const RE_APP = /https?:\/\/[^\s"'<>()\\]+?\/api\/public\/imagem\/([A-Za-z0-9._\-/]+)/g;
+const RE_STORAGE = /https?:\/\/[^\s"'<>()\\]+?\/storage\/v1\/object\/(?:public|sign|authenticated)\/imagens-edicao\/([A-Za-z0-9._\-/]+)(?:\?[^\s"'<>()\\]*)?/g;
+function reescrever(v: unknown, stats: { n: number }): unknown {
+  if (typeof v === "string") {
+    if (!v.includes("/api/public/imagem/") && !v.includes("/imagens-edicao/")) return v;
+    return v.replace(RE_APP, (_m, c) => { stats.n++; return IMG_BASE + c; })
+            .replace(RE_STORAGE, (_m, c) => { stats.n++; return IMG_BASE + c; });
+  }
+  if (Array.isArray(v)) return v.map((x) => reescrever(x, stats));
+  if (v && typeof v === "object") return Object.fromEntries(Object.entries(v).map(([k, x]) => [k, reescrever(x, stats)]));
+  return v;
+}
+
+function prepararLinhas(nome: string, destino: string, linhas: Linha[], ctx: { users: Map<string, string | null>; stats: { n: number } }) {
   const permitidas = new Set(COLS[destino] ?? []);
   const descartadas = new Set<string>();
   const out = linhas.map((l) => {
@@ -171,9 +188,7 @@ function prepararLinhas(nome: string, destino: string, linhas: Linha[], ctx: { u
       r.agendamento_erro = `Suspenso na migração (era ${String(r.agendamento_estado)})`;
       r.agendamento_estado = "nenhum";
     }
-    if (nome === "revista_edicao" && typeof r.cronica_imagem_url === "string") {
-      for (const [antigo, novo] of ctx.urls) if (r.cronica_imagem_url.includes(antigo)) r.cronica_imagem_url = novo;
-    }
+    for (const k of Object.keys(r)) r[k] = reescrever(r[k], ctx.stats);
     return r;
   });
   return { out, descartadas: [...descartadas] };
@@ -286,16 +301,7 @@ Deno.serve(async (req) => {
       if (error) throw new Error(`Mapeamento: ${error.message}`);
       progresso.mapping = true; await guardar();
     }
-    const urls = new Map<string, string>();
-    for (const f of p.ficheiros) urls.set(`/imagens-edicao/${f.caminho}`, `${IMAGENS}/${f.caminho}`);
-    // Rewrite full old URLs: match by suffix inside the row value
-    const ctxUrls = new Map<string, string>();
-    for (const l of p.dados.revista_edicao ?? []) {
-      const v = l.cronica_imagem_url;
-      if (typeof v !== "string") continue;
-      for (const [suf, novo] of urls) if (v.includes(suf)) ctxUrls.set(v, novo);
-    }
-
+    const stats = { n: 0 };
     if (!progresso.ficheiros) {
       for (const f of p.ficheiros) {
         const { error } = await admin.storage.from(IMAGENS).upload(f.caminho, decodeBase64(f.base64), { contentType: f.content_type, upsert: true });
@@ -310,11 +316,12 @@ Deno.serve(async (req) => {
       let feito = progresso.tabelas[t.nome] ?? 0;
       while (feito < linhas.length) {
         if (Date.now() - inicio > BUDGET_MS) { await guardar(); return json(200, { run_id: runId, concluido: false, progresso }); }
-        const { out } = prepararLinhas(t.nome, t.destino, linhas.slice(feito, feito + LOTE), { users, urls: ctxUrls });
+        const { out } = prepararLinhas(t.nome, t.destino, linhas.slice(feito, feito + LOTE), { users, stats });
         const { data, error } = await asUser.rpc("nl_import_rows", { _tabela: t.destino, _linhas: out });
         if (error) { await guardar({ estado: "falhada", relatorio: { erro: `${t.nome}: ${error.message}` } }); return json(500, { error: `${t.nome}: ${error.message}` }); }
         const acc = (progresso.resultados[t.nome] as { inseridos: number; existentes: number } | undefined) ?? { inseridos: 0, existentes: 0 };
         const d = data as { inseridos: number; existentes: number };
+        progresso.resultados.urls_reescritas = Number(progresso.resultados.urls_reescritas ?? 0) + stats.n; stats.n = 0;
         progresso.resultados[t.nome] = { inseridos: acc.inseridos + d.inseridos, existentes: acc.existentes + d.existentes };
         feito = Math.min(linhas.length, feito + LOTE);
         progresso.tabelas[t.nome] = feito;
