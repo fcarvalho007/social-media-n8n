@@ -1,10 +1,11 @@
+import * as React from "react";
 import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import { FlaskConical, Layers, Loader2, Plus } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useProjeto } from "@/contexts/ProjetoContext";
 import { LimitesIa } from "@/features/motor/LimitesIa";
-import { Grupo } from "@/features/motor/Estudio";
+import { Grupo, useLargura } from "@/features/motor/Estudio";
 import { PaginaCanvas } from "@/features/editor-grafico/PaginaCanvas";
 import { carregarMedidor } from "@/features/editor-grafico/fontes";
 import { lerCapas, listarTrabalhos, type Capa, type EstadoTrabalho, type TrabalhoResumo } from "@/services/motor";
@@ -24,7 +25,10 @@ export function etiquetaTeste(t: TrabalhoResumo, capa?: Capa): string | null {
   return null;
 }
 
-const THUMB_W = 180;
+function Miniatura({ render }: { render: (w: number) => React.ReactNode }) {
+  const [ref, w] = useLargura<HTMLDivElement>();
+  return <div ref={ref} className="absolute inset-0">{w > 0 && render(w)}</div>;
+}
 
 export default function Carrosseis() {
   const { projetoId, projetos, estado: estadoProj } = useProjeto();
@@ -85,9 +89,7 @@ export default function Carrosseis() {
                   <Link to={`/estudio/carrosseis/${t.id}`} className="group block rounded-[var(--mc-r-lg)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring">
                     <div className="mc-trans relative aspect-[4/5] overflow-hidden rounded-[var(--mc-r-md)] border border-border bg-card group-hover:border-muted-foreground/60">
                       {capa && medidor ? (
-                        <div className="absolute inset-0 [&_canvas]:!h-full [&_canvas]:!w-full [&>div]:!h-full [&>div]:!w-full">
-                          <PaginaCanvas pacote={paraPacote(t.id, titulo, capa.conteudo, { A: capa.documento, B: capa.documento })} variante="A" indice={0} medidor={medidor} imagens={{}} escala={THUMB_W / 1080} />
-                        </div>
+                        <Miniatura render={(w) => <PaginaCanvas pacote={paraPacote(t.id, titulo, capa.conteudo, { A: capa.documento, B: capa.documento })} variante="A" indice={0} medidor={medidor} imagens={{}} escala={w / 1080} />} />
                       ) : (
                         <div className="flex h-full items-center justify-center p-3 text-center text-xs text-muted-foreground">
                           {t.estado === "pendente" || t.estado === "a_processar" ? "A preparar…" : falhou ? "Sem composição" : ""}

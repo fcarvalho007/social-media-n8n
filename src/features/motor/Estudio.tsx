@@ -1,3 +1,4 @@
+import * as React from "react";
 import type { ReactNode } from "react";
 import { Link } from "react-router-dom";
 import { ArrowLeft, Check } from "lucide-react";
@@ -103,3 +104,17 @@ export function Grupo({ titulo, resumo, children, aberto }: { titulo: string; re
 }
 
 export const PAPEL: Record<string, string> = { capa: "Capa", contexto: "Contexto", desenvolvimento: "Ideia", fecho: "Fecho" };
+
+/** Measures an element's width so canvases render at the real available size (no CSS scaling). */
+export function useLargura<T extends HTMLElement>(): [React.RefObject<T>, number] {
+  const ref = React.useRef<T>(null);
+  const [w, setW] = React.useState(0);
+  React.useEffect(() => {
+    const el = ref.current;
+    if (!el) return;
+    const ro = new ResizeObserver(([e]) => setW(Math.floor(e.contentRect.width)));
+    ro.observe(el);
+    return () => ro.disconnect();
+  }, []);
+  return [ref, w];
+}
