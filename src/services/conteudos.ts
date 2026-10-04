@@ -1,4 +1,5 @@
 import { supabase } from "@/integrations/supabase/client";
+import { tratarSessaoRecusada } from "@/lib/sessaoRecusada";
 import type { Carrossel, FonteCronica } from "../../supabase/functions/_shared/conteudos/carrossel";
 
 export type { Carrossel, FonteCronica, Slide } from "../../supabase/functions/_shared/conteudos/carrossel";
@@ -8,6 +9,9 @@ async function chamar<T>(body: object): Promise<T> {
   const { data, error } = await supabase.functions.invoke("nl-conteudos", { body });
   if (error) {
     const ctx = (error as { context?: Response }).context;
+    if (ctx instanceof Response && ctx.status === 401 && (await tratarSessaoRecusada())) {
+      throw new Error("A sessão terminou. Entra de novo.");
+    }
     const msg = ctx ? (await ctx.json().catch(() => null))?.error : null;
     throw new Error(msg ?? error.message);
   }

@@ -2,6 +2,11 @@ import { createContext, useContext, useEffect, useState } from 'react';
 import { User, Session } from '@supabase/supabase-js';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
+import { comLimite } from '../../supabase/functions/entrar-email/logica';
+
+/** Client-side ceiling, above the server's per-call limit, so the button never stays disabled for minutes. */
+export const LIMITE_ENTRADA_MS = 20_000;
+export const SERVICO_INDISPONIVEL = 'Serviço indisponível. Tenta daqui a um minuto.';
 
 interface AuthResult { error: { message: string } | null }
 
@@ -40,9 +45,16 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
   }, []);
 
   const signInWithEmail = async (email: string): Promise<AuthResult> => {
-    const { data, error } = await supabase.functions.invoke('entrar-email', {
-      body: { email: email.toLowerCase().trim() },
-    });
+    let resposta: Awaited<ReturnType<typeof supabase.functions.invoke>>;
+    try {
+      resposta = await comLimite(
+        supabase.functions.invoke('entrar-email', { body: { email: email.toLowerCase().trim() } }),
+        LIMITE_ENTRADA_MS,
+      );
+    } catch {
+      return { error: { message: SERVICO_INDISPONIVEL } };
+    }
+    const { data, error } = resposta;
     if (error) {
       let message = 'Não foi possível entrar. Tenta de novo.';
       const ctx = (error as { context?: unknown }).context;
