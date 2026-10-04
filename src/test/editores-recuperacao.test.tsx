@@ -108,6 +108,18 @@ describe("Carrossel — gravação e refetch", () => {
     expect(ler(chaves()[0]).slides[0].texto).toBe("rápido");
   });
 
+  it("a primeira abertura não apaga a cópia local: oferece Restaurar e repõe o texto", async () => {
+    const { chaveRecuperacao, guardarRecuperacao } = await import("@/lib/recuperacaoLocal");
+    const copia = { legenda: "L", slides: [{ titulo: "T", texto: "texto local", fontes: [] }] };
+    guardarRecuperacao(chaveRecuperacao("u1", "carrossel", "c1", null), copia);
+    conteudos.obterConteudo.mockResolvedValueOnce(conteudo(1, "original"));
+    renderCarrossel();
+    const restaurar = await screen.findByRole("button", { name: "Restaurar" });
+    expect(chaves()).toHaveLength(1);
+    fireEvent.click(restaurar);
+    expect((screen.getByLabelText(/^Texto/) as HTMLTextAreaElement).value).toBe("texto local");
+  });
+
   it("resposta antiga é ignorada quando chega depois de uma mais recente", async () => {
     const lenta = deferred<ReturnType<typeof conteudo>>();
     conteudos.obterConteudo.mockReturnValueOnce(lenta.promise);

@@ -66,7 +66,7 @@ export default function CarrosselCronica() {
       if (meu !== pedido.current || paraId !== idRef.current) return;
       setDados(d); setErroCarregar(null);
       const trocar = typeof substituir === "function" ? substituir() : substituir;
-      if (trocar) { setCarrossel(d.conteudo.carrossel); setAlterado(false); if (chaveRef.current) limparRecuperacao(chaveRef.current); }
+      if (trocar) { setCarrossel(d.conteudo.carrossel); setAlterado(false); }
     }).catch((e: Error) => { if (meu === pedido.current && paraId === idRef.current) setErroCarregar(e.message); });
   };
   useEffect(() => { setDados(null); setCarrossel(null); setAlterado(false); setOferta(null); }, [id]);
@@ -137,7 +137,10 @@ export default function CarrosselCronica() {
     setOrigemProposta("edicao");
     // Edits made while saving or while refetching are kept (still unsaved, recovery kept);
     // the server copy is adopted only if the editor still holds exactly what was sent when it arrives.
-    await carregar(() => JSON.stringify(carrosselRef.current) === enviado);
+    const semTextoPosterior = () => JSON.stringify(carrosselRef.current) === enviado;
+    await carregar(semTextoPosterior);
+    // Clear the local copy only after a confirmed save with no text typed afterwards.
+    if (semTextoPosterior() && chaveRef.current) limparRecuperacao(chaveRef.current);
   });
   const gerar = () => executar("gerar", async () => {
     const r = await gerarNovaProposta(c.id);
