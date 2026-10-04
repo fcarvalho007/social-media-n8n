@@ -41,6 +41,12 @@ Deno.serve(async (req) => {
 
   try {
     const out = await requestStore.run(req, () => runServerFn(fn, body?.data ?? null));
+    // After a send is closed/reconciled, process derived-content jobs in the background
+    // (bounded; never inside the send response path).
+    if (/^envio:(finalizar|reconciliar|disparar)/i.test(id)) {
+      const bg = import("../_shared/conteudos/jobs.server.ts").then((m) => m.processarJobs(2)).catch(() => {});
+      (globalThis as { EdgeRuntime?: { waitUntil: (p: Promise<unknown>) => void } }).EdgeRuntime?.waitUntil(bg);
+    }
     return json(out);
   } catch (e) {
     const msg = (e as Error).message ?? "Erro";
