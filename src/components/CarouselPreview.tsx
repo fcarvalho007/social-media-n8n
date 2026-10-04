@@ -47,13 +47,9 @@ import {
 } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
 
-// @ts-expect-error - Swiper CSS modules lack type declarations
 import 'swiper/css';
-// @ts-expect-error - Swiper CSS modules lack type declarations
 import 'swiper/css/navigation';
-// @ts-expect-error - Swiper CSS modules lack type declarations
 import 'swiper/css/pagination';
-// @ts-expect-error - Swiper CSS modules lack type declarations
 import 'swiper/css/thumbs';
 import JSZip from 'jszip';
 import { saveAs } from 'file-saver';

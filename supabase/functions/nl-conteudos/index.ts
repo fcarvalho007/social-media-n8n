@@ -18,7 +18,30 @@ const carrosselZ = z.object({
   slides: z.array(z.object({ titulo: z.string(), texto: z.string(), fontes: z.array(z.number().int()) }).strict()).min(1).max(12),
   legenda: z.string(),
 }).strict();
-const urlPdfs = z.string().url().max(1000).refine((u) => u.includes("/storage/v1/object/public/pdfs/"), "Endereço inválido");
+const urlPdfs = z.string().url().max(1000);
+const PREFIXO_PDFS = "/storage/v1/object/public/pdfs/";
+
+/** Exact origin + bucket + owner folder + extension, then owner and MIME checked against storage itself. */
+async function validarFicheiros(sb: ReturnType<typeof admin>, userId: string, imagens: string[], pdf: string) {
+  const origem = new URL(Deno.env.get("SUPABASE_URL")!).origin;
+  const pastas = new Set<string>();
+  const verificar = async (u: string, ext: string, mime: string) => {
+    const url = new URL(u);
+    if (url.origin !== origem || url.search || url.hash || !url.pathname.startsWith(PREFIXO_PDFS)) throw Object.assign(new Error("Endereço de ficheiro inválido."), { status: 400 });
+    const nome = decodeURIComponent(url.pathname.slice(PREFIXO_PDFS.length));
+    const partes = nome.split("/");
+    if (partes.length !== 4 || partes[0] !== userId || partes[1] !== "estudio" || partes.some((p) => !p || p === "." || p === "..") || !/^[\w.-]+$/.test(partes[3]) || !partes[3].toLowerCase().endsWith(ext)) {
+      throw Object.assign(new Error("O ficheiro não pertence à pasta do utilizador."), { status: 400 });
+    }
+    pastas.add(partes[2]);
+    const { data } = await sb.rpc("nl_storage_objeto", { _bucket: "pdfs", _nome: nome });
+    const o = (data as Array<{ owner_id: string | null; mimetype: string | null }> | null)?.[0];
+    if (!o || o.owner_id !== userId || o.mimetype !== mime) throw Object.assign(new Error("Ficheiro inexistente, de outro utilizador ou com tipo inválido."), { status: 400 });
+  };
+  for (const u of imagens) await verificar(u, ".png", "image/png");
+  await verificar(pdf, ".pdf", "application/pdf");
+  if (pastas.size !== 1) throw Object.assign(new Error("Os ficheiros têm de vir do mesmo envio."), { status: 400 });
+}
 
 const Body = z.discriminatedUnion("acao", [
   z.object({ acao: z.literal("listar") }),
@@ -102,10 +125,13 @@ Deno.serve(async (req) => {
         return json({ ...r, ...rec });
       }
       case "retomar": {
-        await sb.from("nl_conteudos_jobs").update({ estado: "pendente", tentativas: 0, erro: null, proxima_tentativa_em: new Date().toISOString(), reservado_ate: null })
-          .eq("id", b.job_id).in("estado", ["erro", "aguarda_credencial"]);
-        await sb.from("nl_conteudos_jobs").update({ proxima_tentativa_em: new Date().toISOString(), reservado_ate: null })
-          .eq("id", b.job_id).eq("estado", "aguarda_confirmacao");
+        // Never steals an active lease (another worker may be mid-processing).
+        const agora = new Date().toISOString();
+        const livre = `reservado_ate.is.null,reservado_ate.lt.${agora}`;
+        await sb.from("nl_conteudos_jobs").update({ estado: "pendente", tentativas: 0, erro: null, proxima_tentativa_em: agora, reservado_ate: null, lease_token: null })
+          .eq("id", b.job_id).in("estado", ["erro", "aguarda_credencial"]).or(livre);
+        await sb.from("nl_conteudos_jobs").update({ proxima_tentativa_em: agora })
+          .eq("id", b.job_id).eq("estado", "aguarda_confirmacao").or(livre);
         return json(await processarJobs(1));
       }
       case "gerar": {
@@ -119,12 +145,13 @@ Deno.serve(async (req) => {
         const c = await lerConteudo(b.conteudo_id);
         exigirFonte(c);
         const carrossel = validarCarrossel(b.carrossel, c.fonte);
-        const versao = b.versao + 1;
-        const { data: upd } = await sb.from("nl_conteudos_derivados")
-          .update({ carrossel, versao, actualizado_por: userId }).eq("id", c.id).eq("versao", b.versao).select("versao, actualizado_em");
-        if (!upd?.length) return json({ error: "Outro editor guardou uma versão mais recente. Recarrega antes de guardar." }, 409);
-        await sb.from("nl_conteudos_versoes").insert({ conteudo_id: c.id, versao, carrossel, origem: b.origem, criado_por: userId });
-        return json(upd[0]);
+        const { data: upd, error: casErr } = await sb.rpc("nl_conteudos_guardar_versao", {
+          _conteudo_id: c.id, _versao_esperada: b.versao, _carrossel: carrossel, _origem: b.origem, _utilizador: userId, _so_se_vazio: false,
+        });
+        if (casErr) throw new Error(casErr.message);
+        const linhas = upd as Array<{ versao: number; actualizado_em: string }> | null;
+        if (!linhas?.length) return json({ error: "Outro editor guardou uma versão mais recente. Recarrega antes de guardar." }, 409);
+        return json(linhas[0]);
       }
       case "enviar_social": {
         const c = await lerConteudo(b.conteudo_id);
@@ -133,9 +160,21 @@ Deno.serve(async (req) => {
         const carrossel = validarCarrossel(c.carrossel, c.fonte);
         if (b.imagens.length !== carrossel.slides.length) return json({ error: "O número de imagens não corresponde aos slides." }, 400);
         const legenda = legendaComLink(carrossel, c.fonte);
-        if (c.social_draft_id && !b.substituir) {
-          const { data: existe } = await sb.from("posts_drafts").select("id").eq("id", c.social_draft_id).maybeSingle();
-          if (existe) return json({ draft_id: c.social_draft_id, existente: true });
+        await validarFicheiros(sb, userId, b.imagens, b.pdf_url);
+        const existente = async () => {
+          const { data } = await sb.from("posts_drafts").select("id")
+            .eq("origem->>tipo", TIPO).eq("origem->>conteudo_id", c.id).eq("origem->>versao", String(c.versao)).maybeSingle();
+          return (data as { id: string } | null)?.id ?? null;
+        };
+        if (!b.substituir) {
+          const id = await existente();
+          if (id) return json({ draft_id: id, existente: true });
+        }
+        const { data: token } = await sb.rpc("nl_conteudos_reservar_envio_social", { _conteudo_id: c.id, _versao: c.versao, _substituir: b.substituir });
+        if (!token) {
+          const id = await existente();
+          if (id && !b.substituir) return json({ draft_id: id, existente: true });
+          return json({ error: "Já está a decorrer um envio deste carrossel. Aguarda uns segundos." }, 409);
         }
         const media_items = b.imagens.map((url, i) => ({ url, type: "image", mediaType: "image", source: "estudio", name: `slide-${String(i + 1).padStart(2, "0")}.png` }));
         const linha = {
@@ -158,9 +197,18 @@ Deno.serve(async (req) => {
           ? sb.from("posts_drafts").update(linha).eq("id", c.social_draft_id).select("id")
           : sb.from("posts_drafts").insert(linha).select("id");
         const { data: d, error } = await q;
-        if (error || !d?.length) throw new Error(error?.message ?? "Não foi possível criar o rascunho social.");
+        if (error?.code === "23505") {
+          await sb.from("nl_conteudos_derivados").update({ social_envio_token: null, social_envio_ate: null }).eq("id", c.id).eq("social_envio_token", token);
+          return json({ draft_id: await existente(), existente: true });
+        }
+        if (error || !d?.length) {
+          await sb.from("nl_conteudos_derivados").update({ social_envio_token: null, social_envio_ate: null }).eq("id", c.id).eq("social_envio_token", token);
+          throw new Error(error?.message ?? "Não foi possível criar o rascunho social.");
+        }
         const draftId = (d[0] as { id: string }).id;
-        await sb.from("nl_conteudos_derivados").update({ social_draft_id: draftId, social_enviado_em: new Date().toISOString() }).eq("id", c.id);
+        await sb.from("nl_conteudos_derivados")
+          .update({ social_draft_id: draftId, social_draft_versao: c.versao, social_enviado_em: new Date().toISOString(), social_envio_token: null, social_envio_ate: null })
+          .eq("id", c.id).eq("social_envio_token", token);
         return json({ draft_id: draftId, existente: false });
       }
     }
