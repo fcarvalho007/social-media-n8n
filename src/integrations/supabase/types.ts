@@ -690,6 +690,583 @@ export type Database = {
         }
         Relationships: []
       }
+      mc_chamadas_ia: {
+        Row: {
+          actualizado_em: string
+          cache_chave: string
+          criado_em: string
+          custo_eur: number | null
+          custo_incerto: boolean
+          erro: string | null
+          estado: string
+          id: string
+          modelo: string
+          project_id: string
+          resposta_bruta: string | null
+          tentativa: number
+          tokens_entrada: number | null
+          tokens_saida: number | null
+          trabalho_id: string
+        }
+        Insert: {
+          actualizado_em?: string
+          cache_chave: string
+          criado_em?: string
+          custo_eur?: number | null
+          custo_incerto?: boolean
+          erro?: string | null
+          estado?: string
+          id?: string
+          modelo: string
+          project_id: string
+          resposta_bruta?: string | null
+          tentativa: number
+          tokens_entrada?: number | null
+          tokens_saida?: number | null
+          trabalho_id: string
+        }
+        Update: {
+          actualizado_em?: string
+          cache_chave?: string
+          criado_em?: string
+          custo_eur?: number | null
+          custo_incerto?: boolean
+          erro?: string | null
+          estado?: string
+          id?: string
+          modelo?: string
+          project_id?: string
+          resposta_bruta?: string | null
+          tentativa?: number
+          tokens_entrada?: number | null
+          tokens_saida?: number | null
+          trabalho_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "mc_chamadas_ia_project_id_fkey"
+            columns: ["project_id"]
+            isOneToOne: false
+            referencedRelation: "projects"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "mc_chamadas_ia_trabalho_id_fkey"
+            columns: ["trabalho_id"]
+            isOneToOne: false
+            referencedRelation: "mc_trabalhos"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      mc_documentos: {
+        Row: {
+          actualizado_em: string
+          aprovada_em: string | null
+          aprovada_por: string | null
+          aprovada_versao: number | null
+          criado_em: string
+          id: string
+          project_id: string
+          proposta_id: string
+          variante: string
+          versao_actual: number
+        }
+        Insert: {
+          actualizado_em?: string
+          aprovada_em?: string | null
+          aprovada_por?: string | null
+          aprovada_versao?: number | null
+          criado_em?: string
+          id?: string
+          project_id: string
+          proposta_id: string
+          variante: string
+          versao_actual?: number
+        }
+        Update: {
+          actualizado_em?: string
+          aprovada_em?: string | null
+          aprovada_por?: string | null
+          aprovada_versao?: number | null
+          criado_em?: string
+          id?: string
+          project_id?: string
+          proposta_id?: string
+          variante?: string
+          versao_actual?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "mc_documentos_project_id_fkey"
+            columns: ["project_id"]
+            isOneToOne: false
+            referencedRelation: "projects"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "mc_documentos_proposta_id_fkey"
+            columns: ["proposta_id"]
+            isOneToOne: false
+            referencedRelation: "mc_propostas"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      mc_documentos_versoes: {
+        Row: {
+          criado_em: string
+          criado_por: string | null
+          documento: Json
+          documento_id: string
+          hash: string
+          proposta_versao: number
+          versao: number
+        }
+        Insert: {
+          criado_em?: string
+          criado_por?: string | null
+          documento: Json
+          documento_id: string
+          hash: string
+          proposta_versao: number
+          versao: number
+        }
+        Update: {
+          criado_em?: string
+          criado_por?: string | null
+          documento?: Json
+          documento_id?: string
+          hash?: string
+          proposta_versao?: number
+          versao?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "mc_documentos_versoes_documento_id_fkey"
+            columns: ["documento_id"]
+            isOneToOne: false
+            referencedRelation: "mc_documentos"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      mc_etapas: {
+        Row: {
+          criado_em: string
+          detalhe: Json
+          estado: string
+          etapa: string
+          id: number
+          trabalho_id: string
+        }
+        Insert: {
+          criado_em?: string
+          detalhe?: Json
+          estado: string
+          etapa: string
+          id?: never
+          trabalho_id: string
+        }
+        Update: {
+          criado_em?: string
+          detalhe?: Json
+          estado?: string
+          etapa?: string
+          id?: never
+          trabalho_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "mc_etapas_trabalho_id_fkey"
+            columns: ["trabalho_id"]
+            isOneToOne: false
+            referencedRelation: "mc_trabalhos"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      mc_exportacoes: {
+        Row: {
+          bytes: number | null
+          criado_em: string
+          criado_por: string | null
+          documento_id: string
+          documento_versao: number
+          formato: string
+          hash: string
+          id: string
+          pagina: number | null
+          project_id: string
+          storage_bucket: string
+          storage_path: string
+        }
+        Insert: {
+          bytes?: number | null
+          criado_em?: string
+          criado_por?: string | null
+          documento_id: string
+          documento_versao: number
+          formato: string
+          hash: string
+          id?: string
+          pagina?: number | null
+          project_id: string
+          storage_bucket: string
+          storage_path: string
+        }
+        Update: {
+          bytes?: number | null
+          criado_em?: string
+          criado_por?: string | null
+          documento_id?: string
+          documento_versao?: number
+          formato?: string
+          hash?: string
+          id?: string
+          pagina?: number | null
+          project_id?: string
+          storage_bucket?: string
+          storage_path?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "mc_exportacoes_documento_id_documento_versao_fkey"
+            columns: ["documento_id", "documento_versao"]
+            isOneToOne: false
+            referencedRelation: "mc_documentos_versoes"
+            referencedColumns: ["documento_id", "versao"]
+          },
+          {
+            foreignKeyName: "mc_exportacoes_project_id_fkey"
+            columns: ["project_id"]
+            isOneToOne: false
+            referencedRelation: "projects"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      mc_fontes: {
+        Row: {
+          criado_em: string
+          criado_por: string | null
+          hash: string
+          id: string
+          metadados: Json
+          origem_url: string | null
+          project_id: string
+          texto: string
+          tipo: string
+          titulo: string | null
+        }
+        Insert: {
+          criado_em?: string
+          criado_por?: string | null
+          hash: string
+          id?: string
+          metadados?: Json
+          origem_url?: string | null
+          project_id: string
+          texto: string
+          tipo: string
+          titulo?: string | null
+        }
+        Update: {
+          criado_em?: string
+          criado_por?: string | null
+          hash?: string
+          id?: string
+          metadados?: Json
+          origem_url?: string | null
+          project_id?: string
+          texto?: string
+          tipo?: string
+          titulo?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "mc_fontes_project_id_fkey"
+            columns: ["project_id"]
+            isOneToOne: false
+            referencedRelation: "projects"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      mc_ligacoes_sociais: {
+        Row: {
+          criado_em: string
+          criado_por: string | null
+          destino: string
+          documento_id: string
+          documento_versao: number
+          draft_id: string | null
+          id: string
+          project_id: string
+        }
+        Insert: {
+          criado_em?: string
+          criado_por?: string | null
+          destino: string
+          documento_id: string
+          documento_versao: number
+          draft_id?: string | null
+          id?: string
+          project_id: string
+        }
+        Update: {
+          criado_em?: string
+          criado_por?: string | null
+          destino?: string
+          documento_id?: string
+          documento_versao?: number
+          draft_id?: string | null
+          id?: string
+          project_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "mc_ligacoes_sociais_documento_id_documento_versao_fkey"
+            columns: ["documento_id", "documento_versao"]
+            isOneToOne: false
+            referencedRelation: "mc_documentos_versoes"
+            referencedColumns: ["documento_id", "versao"]
+          },
+          {
+            foreignKeyName: "mc_ligacoes_sociais_draft_id_fkey"
+            columns: ["draft_id"]
+            isOneToOne: false
+            referencedRelation: "posts_drafts"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "mc_ligacoes_sociais_project_id_fkey"
+            columns: ["project_id"]
+            isOneToOne: false
+            referencedRelation: "projects"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      mc_orcamentos: {
+        Row: {
+          actualizado_em: string
+          max_chamadas_dia: number
+          max_chamadas_trabalho: number
+          max_custo_dia_eur: number
+          project_id: string
+        }
+        Insert: {
+          actualizado_em?: string
+          max_chamadas_dia?: number
+          max_chamadas_trabalho?: number
+          max_custo_dia_eur?: number
+          project_id: string
+        }
+        Update: {
+          actualizado_em?: string
+          max_chamadas_dia?: number
+          max_chamadas_trabalho?: number
+          max_custo_dia_eur?: number
+          project_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "mc_orcamentos_project_id_fkey"
+            columns: ["project_id"]
+            isOneToOne: true
+            referencedRelation: "projects"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      mc_propostas: {
+        Row: {
+          actualizado_em: string
+          aprovada_em: string | null
+          aprovada_por: string | null
+          aprovada_versao: number | null
+          criado_em: string
+          id: string
+          project_id: string
+          trabalho_id: string
+          versao_actual: number
+        }
+        Insert: {
+          actualizado_em?: string
+          aprovada_em?: string | null
+          aprovada_por?: string | null
+          aprovada_versao?: number | null
+          criado_em?: string
+          id?: string
+          project_id: string
+          trabalho_id: string
+          versao_actual?: number
+        }
+        Update: {
+          actualizado_em?: string
+          aprovada_em?: string | null
+          aprovada_por?: string | null
+          aprovada_versao?: number | null
+          criado_em?: string
+          id?: string
+          project_id?: string
+          trabalho_id?: string
+          versao_actual?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "mc_propostas_project_id_fkey"
+            columns: ["project_id"]
+            isOneToOne: false
+            referencedRelation: "projects"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "mc_propostas_trabalho_id_fkey"
+            columns: ["trabalho_id"]
+            isOneToOne: true
+            referencedRelation: "mc_trabalhos"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      mc_propostas_versoes: {
+        Row: {
+          chamada_id: string | null
+          conteudo: Json
+          criado_em: string
+          criado_por: string | null
+          hash: string
+          origem: string
+          proposta_id: string
+          versao: number
+        }
+        Insert: {
+          chamada_id?: string | null
+          conteudo: Json
+          criado_em?: string
+          criado_por?: string | null
+          hash: string
+          origem: string
+          proposta_id: string
+          versao: number
+        }
+        Update: {
+          chamada_id?: string | null
+          conteudo?: Json
+          criado_em?: string
+          criado_por?: string | null
+          hash?: string
+          origem?: string
+          proposta_id?: string
+          versao?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "mc_propostas_versoes_chamada_id_fkey"
+            columns: ["chamada_id"]
+            isOneToOne: false
+            referencedRelation: "mc_chamadas_ia"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "mc_propostas_versoes_proposta_id_fkey"
+            columns: ["proposta_id"]
+            isOneToOne: false
+            referencedRelation: "mc_propostas"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      mc_trabalhos: {
+        Row: {
+          actualizado_em: string
+          brief: Json
+          cache_chave: string
+          criado_em: string
+          criado_por: string | null
+          edicao_id: string | null
+          erro: string | null
+          estado: string
+          etapa: string
+          explicito: boolean
+          fonte_id: string
+          id: string
+          lease_ate: string | null
+          lease_token: string | null
+          modelo: string
+          parametros: Json
+          project_id: string
+          prompt_versao: string
+          tentativas: number
+        }
+        Insert: {
+          actualizado_em?: string
+          brief?: Json
+          cache_chave: string
+          criado_em?: string
+          criado_por?: string | null
+          edicao_id?: string | null
+          erro?: string | null
+          estado?: string
+          etapa?: string
+          explicito?: boolean
+          fonte_id: string
+          id?: string
+          lease_ate?: string | null
+          lease_token?: string | null
+          modelo: string
+          parametros?: Json
+          project_id: string
+          prompt_versao: string
+          tentativas?: number
+        }
+        Update: {
+          actualizado_em?: string
+          brief?: Json
+          cache_chave?: string
+          criado_em?: string
+          criado_por?: string | null
+          edicao_id?: string | null
+          erro?: string | null
+          estado?: string
+          etapa?: string
+          explicito?: boolean
+          fonte_id?: string
+          id?: string
+          lease_ate?: string | null
+          lease_token?: string | null
+          modelo?: string
+          parametros?: Json
+          project_id?: string
+          prompt_versao?: string
+          tentativas?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "mc_trabalhos_edicao_id_fkey"
+            columns: ["edicao_id"]
+            isOneToOne: false
+            referencedRelation: "nl_edicoes"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "mc_trabalhos_fonte_id_fkey"
+            columns: ["fonte_id"]
+            isOneToOne: false
+            referencedRelation: "mc_fontes"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "mc_trabalhos_project_id_fkey"
+            columns: ["project_id"]
+            isOneToOne: false
+            referencedRelation: "projects"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       media_library: {
         Row: {
           ai_prompt: string | null
@@ -4120,6 +4697,148 @@ export type Database = {
         }
         Returns: undefined
       }
+      mc_aprovar_documento: {
+        Args: { _documento_id: string; _versao: number }
+        Returns: undefined
+      }
+      mc_aprovar_proposta: {
+        Args: { _proposta_id: string; _versao: number }
+        Returns: undefined
+      }
+      mc_avancar_trabalho: {
+        Args: {
+          _erro?: string
+          _estado: string
+          _etapa: string
+          _lease: string
+          _trabalho_id: string
+        }
+        Returns: boolean
+      }
+      mc_criar_trabalho: {
+        Args: {
+          _brief?: Json
+          _edicao_id?: string
+          _modelo?: string
+          _nova?: boolean
+          _origem_url?: string
+          _parametros?: Json
+          _project_id: string
+          _prompt_versao?: string
+          _texto: string
+          _tipo: string
+          _titulo?: string
+        }
+        Returns: {
+          cache_chave: string
+          fonte_id: string
+          reutilizado: boolean
+          trabalho_id: string
+        }[]
+      }
+      mc_gravar_documento: {
+        Args: {
+          _documento: Json
+          _proposta_id: string
+          _variante: string
+          _versao_esperada: number
+        }
+        Returns: {
+          documento_id: string
+          versao: number
+        }[]
+      }
+      mc_gravar_proposta: {
+        Args: {
+          _conteudo: Json
+          _origem?: string
+          _proposta_id: string
+          _versao_esperada: number
+        }
+        Returns: number
+      }
+      mc_gravar_proposta_ia: {
+        Args: {
+          _chamada_id: string
+          _conteudo: Json
+          _lease: string
+          _trabalho_id: string
+        }
+        Returns: number
+      }
+      mc_hash: { Args: { _v: Json }; Returns: string }
+      mc_ligar_social: {
+        Args: {
+          _destino: string
+          _documento_id: string
+          _draft_id?: string
+          _versao: number
+        }
+        Returns: string
+      }
+      mc_pode_escrever: { Args: { _project_id: string }; Returns: boolean }
+      mc_pode_ler: { Args: { _project_id: string }; Returns: boolean }
+      mc_registar_chamada: {
+        Args: {
+          _chamada_id: string
+          _custo_eur?: number
+          _custo_incerto?: boolean
+          _erro?: string
+          _estado: string
+          _resposta?: string
+          _tokens_entrada?: number
+          _tokens_saida?: number
+        }
+        Returns: undefined
+      }
+      mc_registar_exportacao: {
+        Args: {
+          _bucket: string
+          _bytes: number
+          _documento_id: string
+          _formato: string
+          _hash: string
+          _pagina: number
+          _path: string
+          _versao: number
+        }
+        Returns: string
+      }
+      mc_reservar_chamada: {
+        Args: { _lease: string; _trabalho_id: string }
+        Returns: string
+      }
+      mc_reservar_trabalhos: {
+        Args: { _limite?: number; _segundos?: number }
+        Returns: {
+          actualizado_em: string
+          brief: Json
+          cache_chave: string
+          criado_em: string
+          criado_por: string | null
+          edicao_id: string | null
+          erro: string | null
+          estado: string
+          etapa: string
+          explicito: boolean
+          fonte_id: string
+          id: string
+          lease_ate: string | null
+          lease_token: string | null
+          modelo: string
+          parametros: Json
+          project_id: string
+          prompt_versao: string
+          tentativas: number
+        }[]
+        SetofOptions: {
+          from: "*"
+          to: "mc_trabalhos"
+          isOneToOne: false
+          isSetofReturn: true
+        }
+      }
+      mc_validar_documento: { Args: { _d: Json }; Returns: undefined }
       nl_contar_dados_antigos: { Args: { _dias?: number }; Returns: Json }
       nl_conteudos_guardar_versao: {
         Args: {

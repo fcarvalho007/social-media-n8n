@@ -85,6 +85,20 @@
       "when": 1791125748815,
       "tag": "0011_migration",
       "breakpoints": true
+    },
+    {
+      "idx": 12,
+      "version": "7",
+      "when": 1791139020559,
+      "tag": "0012_r2_motor_conteudos",
+      "breakpoints": true
+    },
+    {
+      "idx": 13,
+      "version": "7",
+      "when": 1791139069071,
+      "tag": "0013_r2_motor_conteudos_revogar_defaults",
+      "breakpoints": true
     }
   ]
 }
