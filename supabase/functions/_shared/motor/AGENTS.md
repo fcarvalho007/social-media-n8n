@@ -1,1 +1,2 @@
 - Engine AI limits are per-project call counts (mc_definir_orcamento, enforced in mc_reservar_chamada); no monetary cap, since the gateway gives no reliable price.
+- Engine exports run server-side per frozen document version (mc_export_trabalhos lease + content-addressed files in the existing social bucket, manifest committed only when complete); social drafts reuse one reserved id per version via mc_preparar_social, so retries/concurrency never duplicate.
