@@ -3,7 +3,10 @@
 // gera uma sessão real via API de administração e devolve os tokens.
 // Nunca cria utilizadores nem envia emails.
 import { createClient } from "npm:@supabase/supabase-js@2.57.4";
-import { corsHeaders } from "npm:@supabase/supabase-js@2/cors";
+const corsHeaders = {
+  "Access-Control-Allow-Origin": "*",
+  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
+};
 
 const EMAILS_AUTORIZADOS = [
   "comunicacao@fredericocarvalho.pt",
