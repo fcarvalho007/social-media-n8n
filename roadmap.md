@@ -35,4 +35,8 @@
 - [x] DocumentoGrafico v1, cinco fixtures sintéticas e editor protegido em /estudio/editor-prova
 - [x] Edição, histórico, JSON, recuperação local e comparação protegida navegador/servidor
 - [x] Composição desktop, telemóvel e largura intermédia com propriedades contextuais
-- [ ] R2 — fora do âmbito desta entrega
+
+## R2 — persistência do motor
+- [x] Tabelas mc_* (fontes, trabalhos/etapas, propostas e versões, documentos A/B e versões, chamadas IA, orçamentos, exportações, ligações sociais)
+- [x] Funções com versão esperada, aprovação invalidada por alteração, reserva/lease e teto de chamadas
+- [ ] Ligar o editor e o processador às novas funções (R3)
