@@ -4,7 +4,7 @@ import {
 } from "../../supabase/functions/_shared/motor/fontes";
 import { pacoteParaExportar } from "../../supabase/functions/_shared/motor/exportacao";
 import { classificarFalha } from "../../supabase/functions/_shared/motor/exportacao";
-import { comporA, estruturarSemIa, marcaDoProjeto, normalizarFonte } from "../../supabase/functions/_shared/motor/proposta";
+import { comporDocumentos, estruturarSemIa, marcaDoProjeto, normalizarFonte } from "../../supabase/functions/_shared/motor/proposta";
 import { estadoInicial, reduzir } from "@/features/editor-grafico/estado";
 import { comporFontePdf, textoDaPagina, type PdfLido } from "@/features/motor/fontePdf";
 
@@ -47,7 +47,7 @@ describe("R7 metadados de fonte", () => {
   });
   it("recusa correspondência de parágrafos que não confere e PDF sem texto", () => {
     expect(() => validarMetaFonte({ ...base, paginas, parcial_confirmado: true }, "pdf", 5)).toThrow(/correspondência/);
-    expect(() => validarMetaFonte({ ...base, total_paginas: 1, paginas: [paginas[1]], parcial_confirmado: true }, "pdf", 0)).toThrow(/sem texto|não tem texto/);
+    expect(() => validarMetaFonte({ ...base, total_paginas: 1, paginas: [{ ...paginas[1], n: 1 }], parcial_confirmado: true }, "pdf", 0)).toThrow(/não tem texto/);
   });
   it("link: atribuição com URL final", () => {
     const m = validarMetaFonte({ tipo: "link", modo: "extraido", url: "https://tek.sapo.pt/a", url_final: "https://tek.sapo.pt/b", titulo_pagina: "T", bytes: 10, truncado: false, editado: false, lido_em: null }, "link", 1);
@@ -105,8 +105,8 @@ describe("R8a imagens autorizadas", () => {
   it("adicionar imagem cria camada de capa atrás do texto e exporta com o recurso verificado", () => {
     const f = normalizarFonte("Um facto sintético R8 para testar imagens no desenho do carrossel.\n\nSegundo facto sintético.");
     const p = estruturarSemIa(f, { slides: 3 }, { titulo: null, url: null }, marcaDoProjeto(null));
-    const docA = comporA(p);
-    const pac = { v: 1 as const, id: "t", nome: "t", sintetico: false, conteudo: { slides: p.slides }, assets: {}, variantes: { A: docA, B: { ...docA, variante: "B" as const } } };
+    const docs = comporDocumentos(p);
+    const pac = { v: 1 as const, id: "t", nome: "t", sintetico: false, conteudo: { slides: p.slides }, assets: {}, variantes: docs };
     const asset = { id: "11111111-1111-4111-8111-111111111111", mime: "image/png" as const, largura: 1, altura: 1, dados: btoa(String.fromCharCode(...PNG)) };
     const s = reduzir(estadoInicial(pac), { tipo: "adicionarImagem", asset, nome: "capa" });
     const camadas = s.pacote.variantes.A.paginas[0].camadas;
