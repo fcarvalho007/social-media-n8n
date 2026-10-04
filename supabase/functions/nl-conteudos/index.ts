@@ -70,6 +70,7 @@ Deno.serve(async (req) => {
   const { data: staff } = await userSb.rpc("nl_is_staff");
   if (!staff) return json({ error: "Sem permissão para preparar conteúdos" }, 403);
 
+  if (Number(req.headers.get("content-length") ?? 0) > 4_000_000) return json({ error: "Pedido demasiado grande" }, 413);
   const parsed = Body.safeParse(await req.json().catch(() => null));
   if (!parsed.success) return json({ error: "Pedido inválido", detalhe: parsed.error.flatten() }, 400);
   const b = parsed.data;
