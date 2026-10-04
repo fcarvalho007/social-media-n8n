@@ -5,6 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { SincronizacaoTokens } from "@/components/newsletter/SincronizacaoTokens";
+import { UltimasEntradas } from "@/components/newsletter/UltimasEntradas";
 
 interface Estado {
   endereco_publico: string | null;
@@ -122,6 +123,8 @@ export default function NewsletterLigacoes() {
       </section>
 
       <SincronizacaoTokens />
+
+      <UltimasEntradas />
     </div>
   );
 }

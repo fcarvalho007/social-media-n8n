@@ -107,6 +107,17 @@ export default {
         sidebar: {
           DEFAULT: "hsl(var(--sidebar-background))",
           border: "hsl(var(--sidebar-border))",
+          foreground: "hsl(var(--sidebar-foreground))",
+          muted: "hsl(var(--sidebar-muted))",
+          accent: {
+            DEFAULT: "hsl(var(--sidebar-muted))",
+            foreground: "hsl(var(--sidebar-foreground))",
+          },
+          primary: {
+            DEFAULT: "hsl(var(--sidebar-accent))",
+            foreground: "hsl(var(--sidebar-foreground))",
+          },
+          ring: "hsl(var(--sidebar-accent))",
         },
         'template-a': {
           primary: "hsl(var(--template-a-primary))",
