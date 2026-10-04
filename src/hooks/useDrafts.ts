@@ -28,18 +28,23 @@ export interface UseDraftsOptions {
 export function useDrafts(options: UseDraftsOptions = {}) {
   const queryClient = useQueryClient();
   const { search = '', platform = 'all', dateFilter = 'all', sortBy = 'newest' } = options;
+  const { user } = useAuth();
+  const ctx = useProjeto();
+  const filtro: FiltroRascunhos | null = user && ctx.estado === 'pronto' ? { userId: user.id, projetoId: ctx.projetoId } : null;
 
-  const { data: drafts = [], isLoading, error } = useQuery({
-    queryKey: ['drafts'],
+  const { data: drafts = [], isLoading, error, refetch, isFetching } = useQuery({
+    queryKey: chaveRascunhos(filtro),
+    enabled: filtro !== null,
     queryFn: async () => {
-      const { data: { user } } = await supabase.auth.getUser();
-      if (!user) return [];
+      if (!filtro) return [];
 
-      const { data, error } = await supabase
+      let q = supabase
         .from('posts_drafts')
         .select('*')
         .eq('status', 'draft')
-        .order('created_at', { ascending: false });
+        .eq('user_id', filtro.userId);
+      if (filtro.projetoId) q = q.eq('project_id', filtro.projetoId);
+      const { data, error } = await q.order('created_at', { ascending: false });
 
       if (error) throw error;
       const drafts = (data || []) as Draft[];
