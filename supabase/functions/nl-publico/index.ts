@@ -105,7 +105,7 @@ Deno.serve(async (req) => {
         if (!tokenValido(t)) return new Response("Pedido inválido", { status: 400 });
         const { aplicarAccao } = await import("../_shared/nl-app/lib/subscricao.server.ts");
         const r = await aplicarAccao({ token: t, email: null, accao: "cancelar", motivo: "Cancelamento de um clique no cliente de email", origem: "um_clique" });
-        return new Response(r.ok ? "OK" : "Registado", { status: r.ok ? 200 : 400 });
+        return new Response(r.ok ? "OK" : "Pedido inválido", { status: r.ok ? 200 : 400 });
       }
     }
 
