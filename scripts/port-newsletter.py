@@ -243,6 +243,23 @@ HOOKS_INTERNOS = ("curadoria-ferramentas", "curadoria-rss", "email-newsletter", 
 # Targeted server fixes so the strict type-check (and declaration emit) passes. Patterns must exist.
 SERVER_FIXES = {
     "lib/organizar-edicao.functions.ts": [
+        ('    const aprovadas = noticias ?? [];',
+         '    const aprovadas = (noticias ?? []) as Array<{ id: string; titulo: string; descricao: string | null; categoria: string | null; destaque: boolean | null; destino: string | null }>;'),
+        ('      .map((p) => `- "${p.palavra_chave}"', '      .map((p: { palavra_chave: string; peso: number }) => `- "${p.palavra_chave}"'),
+    ],
+    "lib/newsletter-ia.functions.ts": [
+        ('    const todas = noticias ?? [];',
+         '    const todas = (noticias ?? []) as Array<{ titulo: string; descricao: string | null; categoria: string | null; destaque: boolean | null; destino: string | null; ordem: number | null }>;'),
+        ('(ferramentas ?? []).filter((f) =>', '((ferramentas ?? []) as Array<{ nome: string | null; descricao: string | null; emoji: string | null; posicao: number | null }>).filter((f) =>'),
+    ],
+    "lib/ferramentas.functions.ts": [
+        ('new Set((ocupados ?? []).map((r) => r.posicao))', 'new Set(((ocupados ?? []) as Array<{ posicao: number }>).map((r) => r.posicao))'),
+    ],
+    "lib/emails-recebidos.functions.ts": [
+        ('(rows ?? []).map((r) => {', '(rows ?? []).map((r: unknown) => {'),
+        ('(audit ?? []).find((a) => {', '(audit ?? []).find((a: { detalhe?: unknown }) => {'),
+    ],
+    "lib/organizar-edicao.functions.ts": [
         ("const porId = new Map(aprovadas.map((n) => [n.id, n]));",
          "const porId = new Map<string, (typeof aprovadas)[number]>(aprovadas.map((n) => [n.id, n]));"),
     ],

@@ -164,7 +164,7 @@ export const aprovarFerramentaParaRascunho = createServerFn({ method: "POST" })
       .from("nl_ferramentas_semana")
       .select("posicao")
       .eq("edicao_id", ed.id);
-    const posicoes = new Set((ocupados ?? []).map((r) => r.posicao));
+    const posicoes = new Set(((ocupados ?? []) as Array<{ posicao: number }>).map((r) => r.posicao));
     const posicao: 1 | 2 | null = !posicoes.has(1) ? 1 : !posicoes.has(2) ? 2 : null;
     if (posicao === null) return { ok: false, motivo: "Ambos os slots da edição estão ocupados." };
 

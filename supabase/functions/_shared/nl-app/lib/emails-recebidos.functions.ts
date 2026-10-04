@@ -228,7 +228,7 @@ export const listarNoticiasDoEmail = createServerFn({ method: "GET" })
       .order("created_at", { ascending: true });
     if (error) throw new Error(error.message);
 
-    const noticias: NoticiaDoEmail[] = (rows ?? []).map((r) => {
+    const noticias: NoticiaDoEmail[] = (rows ?? []).map((r: unknown) => {
       const rec = r as Record<string, unknown> & { edicoes?: { numero?: number } | null };
       return {
         id: rec.id as string,
@@ -291,7 +291,7 @@ export const listarNoticiasDoEmail = createServerFn({ method: "GET" })
           .lte("criado_em", fim)
           .order("criado_em", { ascending: false })
           .limit(5);
-        const alvo = (audit ?? []).find((a) => {
+        const alvo = (audit ?? []).find((a: { detalhe?: unknown }) => {
           const d = (a.detalhe ?? {}) as Record<string, unknown>;
           return d.assunto === emailRow.assunto
             || d.email_original_id === data.emailId
