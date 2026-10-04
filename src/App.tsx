@@ -46,6 +46,7 @@ import CarrosselCronica from "./pages/CarrosselCronica";
 import { lazy, Suspense } from "react";
 import { FronteiraProjetoNewsletter } from "./features/newsletter/FronteiraProjeto";
 const NewsletterApp = lazy(() => import("./newsletter/NewsletterApp"));
+const EditorProva = lazy(() => import("./pages/EditorProva"));
 import Artigos from "./pages/Artigos";
 import SegurancaConta from "./pages/SegurancaConta";
 import { useParams } from "react-router-dom";
@@ -118,6 +119,7 @@ const App = () => (
                   <Route path="/estudio" element={<Navigate to="/" replace />} />
                   <Route path="/estudio/redes-sociais" element={<ConteudosSociais />} />
                   <Route path="/estudio/redes-sociais/:id" element={<CarrosselCronica />} />
+                  <Route path="/estudio/editor-prova" element={<Suspense fallback={<p className="p-4 text-sm text-muted-foreground">A carregar o editor…</p>}><EditorProva /></Suspense>} />
                   <Route path="/newsletter/*" element={<FronteiraProjetoNewsletter><Suspense fallback={<p className="p-4 text-sm text-muted-foreground">A carregar a newsletter…</p>}><NewsletterApp /></Suspense></FronteiraProjetoNewsletter>} />
                   <Route path="/artigos" element={<Artigos />} />
                   <Route path="/definicoes/seguranca" element={<SegurancaConta />} />
