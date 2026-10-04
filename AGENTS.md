@@ -10,3 +10,4 @@
 - E-goi campaign state is rascunho -> aceite -> enviada; only "sent" reported by E-goi counts as delivered, and editions close/carousel jobs start only after reconciliation.
 - "/" is the Estudio; the social dashboard lives at /redes-sociais.
 - Public newsletter reads go only through the nl-publico edge function (sent editions only, token-signed subscription actions); webhooks/cron go through nl-hooks with their own auth; keeps nl-api staff-only.
+- scripts/verificar-grafo-edge.py (run by the generator) walks every edge entrypoint including literal dynamic imports and runs deno check on nl-* functions; tsc/Vite alone miss Deno-only and lazily-loaded failures.
