@@ -25,7 +25,7 @@ export type DestinoNoticia = "news" | "site";
 export type OrigemNoticia = "form_unica" | "form_bloco" | "whatsapp" | "curadoria_ia" | "manual" | "manual_ia" | "email_newsletter";
 export type EstadoEdicao = "rascunho" | "enviada";
 
-export type Noticia = Database["public"]["Tables"]["noticias"]["Row"];
+export type Noticia = Database["public"]["Tables"]["nl_noticias"]["Row"];
 // `Pendente` estende a Row com colunas novas (email_remetente/email_assunto)
 // e o join opcional com fontes_curadoria — só para os cards da fila de
 // pendentes. Não usar em inserts/updates.
@@ -40,13 +40,13 @@ export type Pendente = Noticia & {
   repeticao?: { titulo: string; edicao?: { numero: number | null } | null } | null;
 };
 
-export type Cronica = Database["public"]["Tables"]["cronicas"]["Row"];
-export type Episodio = Database["public"]["Tables"]["episodios_podcast"]["Row"];
-export type Fonte = Database["public"]["Tables"]["fontes_curadoria"]["Row"];
-export type Audit = Database["public"]["Tables"]["audit_log"]["Row"];
-export type EdicaoRow = Database["public"]["Tables"]["edicoes"]["Row"];
-export type SeccaoRow = Database["public"]["Tables"]["secoes_edicao"]["Row"];
-export type Ferramenta = Database["public"]["Tables"]["ferramentas_semana"]["Row"];
+export type Cronica = Database["public"]["Tables"]["nl_cronicas"]["Row"];
+export type Episodio = Database["public"]["Tables"]["nl_episodios_podcast"]["Row"];
+export type Fonte = Database["public"]["Tables"]["nl_fontes_curadoria"]["Row"];
+export type Audit = Database["public"]["Tables"]["nl_audit_log"]["Row"];
+export type EdicaoRow = Database["public"]["Tables"]["nl_edicoes"]["Row"];
+export type SeccaoRow = Database["public"]["Tables"]["nl_secoes_edicao"]["Row"];
+export type Ferramenta = Database["public"]["Tables"]["nl_ferramentas_semana"]["Row"];
 
 export type SeccaoTipo =
   | "destaques" | "contadores" | "cronica" | "consultoria" | "podcast" | "categorias"

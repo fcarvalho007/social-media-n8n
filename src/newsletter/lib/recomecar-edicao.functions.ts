@@ -3,7 +3,7 @@ import { nlServerFn } from "@/newsletter/shim/start";
 import type { Database } from "@/integrations/supabase/types";
 
 
-type RevistaUpdate = Database["public"]["Tables"]["revista_edicao"]["Update"];
+type RevistaUpdate = Database["public"]["Tables"]["nl_revista_edicao"]["Update"];
 
 export const AMBITOS_RECOMECO = ["noticias", "cronica", "blocos", "assunto", "briefs"] as const;
 export type AmbitoRecomeco = (typeof AMBITOS_RECOMECO)[number];
