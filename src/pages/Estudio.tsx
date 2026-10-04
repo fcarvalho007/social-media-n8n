@@ -16,6 +16,7 @@ const dataPt = (s: string) => new Date(s).toLocaleDateString("pt-PT", { timeZone
 
 interface Acao { titulo: string; desc: string; icon: typeof Mail; url: string }
 const PRODUCAO: Acao[] = [
+  { titulo: "Carrossel", desc: "A partir de texto, link ou PDF", icon: GalleryHorizontal, url: "/estudio/carrosseis" },
   { titulo: "Newsletter", desc: "Edições, crónica e arquivo", icon: Mail, url: "/newsletter" },
   { titulo: "Carrosséis da crónica", desc: "A partir de edições enviadas", icon: Images, url: "/estudio/redes-sociais" },
   { titulo: "Publicação livre", desc: "Um post do zero", icon: PenSquare, url: "/manual-create" },
