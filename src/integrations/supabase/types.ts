@@ -2659,6 +2659,7 @@ export type Database = {
           actualizado_em: string
           chave: string
           lease_ate: string | null
+          lease_token: string | null
           nome: string
           pausa_motivo: string | null
           ultima_execucao: string | null
@@ -2668,6 +2669,7 @@ export type Database = {
           actualizado_em?: string
           chave?: string
           lease_ate?: string | null
+          lease_token?: string | null
           nome: string
           pausa_motivo?: string | null
           ultima_execucao?: string | null
@@ -2677,6 +2679,7 @@ export type Database = {
           actualizado_em?: string
           chave?: string
           lease_ate?: string | null
+          lease_token?: string | null
           nome?: string
           pausa_motivo?: string | null
           ultima_execucao?: string | null
@@ -4151,6 +4154,16 @@ export type Database = {
         Args: { _nome: string; _segundos: number }
         Returns: boolean
       }
+      nl_worker_libertar: {
+        Args: { _nome: string; _resultado: Json; _token: string }
+        Returns: boolean
+      }
+      nl_worker_reservar: {
+        Args: { _nome: string; _segundos: number }
+        Returns: string
+      }
+      social_pode_escrever: { Args: never; Returns: boolean }
+      social_tem_papel: { Args: never; Returns: boolean }
       update_account_insight_visibility: {
         Args: { _action: string; _insight_id: string }
         Returns: undefined
