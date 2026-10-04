@@ -5,7 +5,7 @@
 // Generation always runs server-side; the browser only polls persisted state.
 import { createClient } from "npm:@supabase/supabase-js@2.57.4";
 import { admin, processarLote } from "../_shared/motor/worker.server.ts";
-import { avaliarFonte, MARCADOR_FIXTURE, MODELO_DEMO, MODELO_ESTRUTURACAO, normalizarFonte } from "../_shared/motor/proposta.ts";
+import { avaliarFonte, MARCADOR_FIXTURE, MODELO_DEMO, MODELO_ESTRUTURACAO, MODELO_IA, normalizarFonte } from "../_shared/motor/proposta.ts";
 
 const cors = {
   "Access-Control-Allow-Origin": "*",
@@ -73,17 +73,22 @@ Deno.serve(async (req) => {
     const objetivo = typeof body.objetivo === "string" ? body.objetivo.slice(0, 200) : "";
     const tom = typeof body.tom === "string" ? body.tom.slice(0, 80) : "";
     const slides = Number(body.slides);
-    const modo = body.modo === "demonstracao" ? "demonstracao" : "estruturacao";
+    const modo = body.modo === "demonstracao" ? "demonstracao" : body.modo === "ia" ? "ia" : "estruturacao";
     if (!UUID.test(projectId)) return json({ error: "Projeto inválido" }, 400);
     const fonte = normalizarFonte(texto);
     const av = avaliarFonte(fonte);
     if (!av.ok) return json({ error: av.motivo }, 400);
     if (!Number.isInteger(slides) || slides < 2 || slides > av.slidesMax) return json({ error: `Escolhe entre 2 e ${av.slidesMax} slides para este texto.` }, 400);
     if (modo === "demonstracao" && !texto.startsWith(MARCADOR_FIXTURE)) return json({ error: "A demonstração só aceita a fixture sintética de testes." }, 400);
+    if (modo === "ia") {
+      // Refuse before queueing when the project's AI budget is zero (the reservation re-checks atomically).
+      const { data: o } = await user.from("mc_orcamentos").select("max_chamadas_dia").eq("project_id", projectId).maybeSingle();
+      if (!o || o.max_chamadas_dia < 1) return json({ error: "A IA está desligada neste projeto. Define um limite diário em «Limites da IA»." }, 409);
+    }
     const { data, error } = await user.rpc("mc_criar_trabalho", {
       _project_id: projectId, _tipo: "texto", _texto: modo === "demonstracao" ? texto : fonte.texto, _titulo: titulo, _origem_url: null,
-      _brief: { objetivo, tom, slides, titulo }, _prompt_versao: "r3-v1",
-      _modelo: modo === "demonstracao" ? MODELO_DEMO : MODELO_ESTRUTURACAO, _parametros: { slides }, _nova: body.nova === true,
+      _brief: { objetivo, tom, slides, titulo }, _prompt_versao: modo === "ia" ? "r4-v1" : "r3-v1",
+      _modelo: modo === "demonstracao" ? MODELO_DEMO : modo === "ia" ? MODELO_IA : MODELO_ESTRUTURACAO, _parametros: { slides }, _nova: body.nova === true,
     });
     if (error) return json({ error: error.code === "42501" ? "Sem acesso a este projeto." : "Não foi possível criar o trabalho." }, error.code === "42501" ? 403 : 500);
     const linha = (data as Array<{ trabalho_id: string; reutilizado: boolean }>)[0];

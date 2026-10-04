@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { Link, useParams } from "react-router-dom";
+import { Link, useNavigate, useParams } from "react-router-dom";
 import { AlertTriangle, ArrowLeft, Check, CloudOff, History, Loader2, RotateCw } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
@@ -11,8 +11,9 @@ import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, D
 import { DropdownMenuItem, DropdownMenuSeparator } from "@/components/ui/dropdown-menu";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { useAuth } from "@/contexts/AuthContext";
+import { useProjeto } from "@/contexts/ProjetoContext";
 import { chaveRecuperacao, guardarRecuperacao, limparRecuperacao } from "@/lib/recuperacaoLocal";
-import { abrirTrabalho, acordarFila, ConflitoVersao, gravarEdicao, lerVersao, listarVersoes, retomarTrabalho, type TrabalhoCompleto, type VersaoDoc } from "@/services/motor";
+import { abrirTrabalho, acordarFila, ConflitoVersao, gravarEdicao, lerVersao, listarVersoes, retomarTrabalho, criarTrabalho, type TrabalhoCompleto, type VersaoDoc } from "@/services/motor";
 import { EditorGrafico } from "@/features/editor-grafico/EditorGrafico";
 import { PaginaCanvas } from "@/features/editor-grafico/PaginaCanvas";
 import { carregarMedidor } from "@/features/editor-grafico/fontes";
@@ -48,6 +49,8 @@ function gravadoDe(d: TrabalhoCompleto): Gravado | null {
 
 export default function CarrosselTrabalho() {
   const { id = "" } = useParams();
+  const nav = useNavigate();
+  const { projetoId } = useProjeto();
   const { user } = useAuth();
   const [dados, setDados] = useState<TrabalhoCompleto | null>(null);
   const [erro, setErro] = useState<string | null>(null);
@@ -299,11 +302,23 @@ export default function CarrosselTrabalho() {
           {t.estado === "pendente" ? "Na fila do servidor." : t.etapa === "documento" ? "A compor as variantes A e B…" : "A preparar a proposta editorial…"} Podes sair desta página; o trabalho continua no servidor.
         </p>
       )}
+      {projetoId && t.project_id !== projetoId && (
+        <p className="rounded-md border border-border bg-muted p-3 text-xs" role="note">Este carrossel pertence a outro projeto, diferente do que está escolhido em «Para quem?».</p>
+      )}
       {(t.estado === "erro" || t.estado === "desconhecido") && (
         <div className="rounded-md border border-destructive/50 p-3 text-sm" role="alert">
-          <p className="font-medium">{t.estado === "erro" ? "O trabalho parou." : "O resultado da última chamada é incerto e não será repetido automaticamente."}</p>
+          <p className="font-medium">{t.estado === "erro" ? "O trabalho parou." : "Não se sabe se a IA chegou a responder. O pedido conta para o limite e não é repetido automaticamente, para não gastar duas vezes."}</p>
           {t.erro && <p className="text-muted-foreground">{t.erro}</p>}
-          {t.estado === "erro" && <Button size="sm" variant="outline" className="mt-2 h-11 lg:h-8" onClick={async () => { try { await retomarTrabalho(id); setPolls(0); await carregar(); } catch (e) { toast.error((e as Error).message); } }}><RotateCw className="mr-1.5 h-4 w-4" />Tentar de novo</Button>}
+          <div className="mt-2 flex flex-wrap gap-2">
+            {t.estado === "erro" && <Button size="sm" variant="outline" className="h-11 lg:h-8" onClick={async () => { try { await retomarTrabalho(id); setPolls(0); await carregar(); } catch (e) { toast.error((e as Error).message); } }}><RotateCw className="mr-1.5 h-4 w-4" />Tentar de novo</Button>}
+            <Button size="sm" variant="outline" className="h-11 lg:h-8" onClick={async () => {
+              try {
+                const b = (t as unknown as { brief?: { slides?: number; objetivo?: string; tom?: string; titulo?: string | null } }).brief ?? {};
+                const r = await criarTrabalho({ project_id: t.project_id, texto: dados.fonte.texto, titulo: b.titulo ?? "", objetivo: b.objetivo ?? "", tom: b.tom ?? "", slides: b.slides ?? 3, modo: "estruturacao" });
+                nav(`/estudio/carrosseis/${r.trabalho_id}`);
+              } catch (e) { toast.error((e as Error).message); }
+            }}>Fazer sem IA a partir da mesma fonte</Button>
+          </div>
         </div>
       )}
 

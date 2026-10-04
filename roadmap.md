@@ -42,4 +42,6 @@
 - [ ] Ligar o editor e o processador às novas funções (R3)
 
 - [x] R3: Carrosséis no Estúdio (texto colado, fila no servidor, retoma de 5 em 5 min, editor ligado com versões)
-- [ ] R4+: fontes link/PDF, IA real com orçamento > 0, exportação e rascunho social (R6)
+- [x] R4: IA real no motor com limites por projeto (≤10/dia, ≤2/carrossel)
+- [ ] R6: exportação no servidor e rascunho social
+- [ ] Fontes link/PDF

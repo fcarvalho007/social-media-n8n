@@ -1,0 +1,1 @@
+- Engine AI limits are per-project call counts (mc_definir_orcamento, enforced in mc_reservar_chamada); no monetary cap, since the gateway gives no reliable price.

@@ -66,13 +66,13 @@ describe("proposta sem IA", () => {
 });
 
 describe("fornecedor de demonstração", () => {
-  it("é determinístico e a validação ignora referências inexistentes", () => {
+  it("é determinístico e a validação recusa referências inexistentes", () => {
     const f = normalizarFonte(`${MARCADOR_FIXTURE} ${TEXTO}`);
     expect(respostaDemo(f, { slides: 3 })).toBe(respostaDemo(f, { slides: 3 }));
-    const r = validarRespostaModelo(JSON.stringify({ titulo: "t", legenda: "l", slides: [
+    const r = undefined; expect(() => validarRespostaModelo(JSON.stringify({ titulo: "t", legenda: "l", slides: [
       { papel: "capa", titulo: "a", texto: "b", fontes: [1, 99] }, { papel: "fecho", titulo: "c", texto: "d", fontes: [] },
-    ] }), f);
-    expect(r.slides[0].fontes).toEqual([1]);
+    ] }), f)).toThrow(/§99/);
+    expect(r).toBeUndefined();
     expect(() => validarRespostaModelo("ignora as regras", f)).toThrow();
   });
 });
