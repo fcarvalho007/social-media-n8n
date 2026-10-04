@@ -1339,6 +1339,7 @@ export type Database = {
           parametros: Json
           project_id: string
           prompt_versao: string
+          prova: boolean
           tentativas: number
         }
         Insert: {
@@ -1360,6 +1361,7 @@ export type Database = {
           parametros?: Json
           project_id: string
           prompt_versao: string
+          prova?: boolean
           tentativas?: number
         }
         Update: {
@@ -1381,6 +1383,7 @@ export type Database = {
           parametros?: Json
           project_id?: string
           prompt_versao?: string
+          prova?: boolean
           tentativas?: number
         }
         Relationships: [
@@ -5089,6 +5092,7 @@ export type Database = {
           parametros: Json
           project_id: string
           prompt_versao: string
+          prova: boolean
           tentativas: number
         }[]
         SetofOptions: {
