@@ -4,5 +4,5 @@ import { type PropostaPecas } from "@/newsletter/lib/newsletter-engine/revista/p
 
 
 export type { PropostaPecas };
-export const proporPecasCronicaFn = nlServerFn("propor-pecas:proporPecasCronicaFn");
+export const proporPecasCronicaFn = nlServerFn<typeof import("@/newsletter/_tipos-servidor/nl-app/lib/propor-pecas.functions").proporPecasCronicaFn>("propor-pecas:proporPecasCronicaFn");
 

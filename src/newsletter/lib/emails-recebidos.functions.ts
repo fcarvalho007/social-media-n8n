@@ -63,12 +63,12 @@ export type FiltrosListagem = {
   classe?: FiltroClasse;
   q?: string | null;
 };
-export const listarEmailsRecebidos = nlServerFn("emails-recebidos:listarEmailsRecebidos");
+export const listarEmailsRecebidos = nlServerFn<typeof import("@/newsletter/_tipos-servidor/nl-app/lib/emails-recebidos.functions").listarEmailsRecebidos>("emails-recebidos:listarEmailsRecebidos");
 
 
 export type FonteEmail = { chave: string; nome: string | null; email: string | null; total: number; ultimo: string };
-export const listarFontesEmail = nlServerFn("emails-recebidos:listarFontesEmail");
-export const apagarEmailRecebido = nlServerFn("emails-recebidos:apagarEmailRecebido");
+export const listarFontesEmail = nlServerFn<typeof import("@/newsletter/_tipos-servidor/nl-app/lib/emails-recebidos.functions").listarFontesEmail>("emails-recebidos:listarFontesEmail");
+export const apagarEmailRecebido = nlServerFn<typeof import("@/newsletter/_tipos-servidor/nl-app/lib/emails-recebidos.functions").apagarEmailRecebido>("emails-recebidos:apagarEmailRecebido");
 
 export type NoticiaDoEmail = {
   id: string;
@@ -102,7 +102,7 @@ export type NoticiasDoEmail = {
   motivo_sem_resultado: MotivoSemResultado;
   fonte: FonteDoEmail;
 };
-export const listarNoticiasDoEmail = nlServerFn("emails-recebidos:listarNoticiasDoEmail");
+export const listarNoticiasDoEmail = nlServerFn<typeof import("@/newsletter/_tipos-servidor/nl-app/lib/emails-recebidos.functions").listarNoticiasDoEmail>("emails-recebidos:listarNoticiasDoEmail");
 
 export type ResultadoReprocessar = {
   ok: true;
@@ -112,6 +112,6 @@ export type ResultadoReprocessar = {
   usou_fallback: boolean;
   motivo_sem_resultado: MotivoSemResultado;
 };
-export const reprocessarEmail = nlServerFn("emails-recebidos:reprocessarEmail");
-export const activarFonteEReprocessar = nlServerFn("emails-recebidos:activarFonteEReprocessar");
+export const reprocessarEmail = nlServerFn<typeof import("@/newsletter/_tipos-servidor/nl-app/lib/emails-recebidos.functions").reprocessarEmail>("emails-recebidos:reprocessarEmail");
+export const activarFonteEReprocessar = nlServerFn<typeof import("@/newsletter/_tipos-servidor/nl-app/lib/emails-recebidos.functions").activarFonteEReprocessar>("emails-recebidos:activarFonteEReprocessar");
 

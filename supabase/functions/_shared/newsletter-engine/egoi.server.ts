@@ -255,7 +255,7 @@ export async function disparaCampanha(cfg: EgoiConfig, hash: string, listaId: st
 export async function estadoCampanha(
   cfg: EgoiConfig,
   hash: string,
-): Promise<{ ok: true; estado: "enviada" | "rascunho" | "desconhecido"; bruto: string } | EgoiErro> {
+): Promise<{ ok: true; estado: "enviada" | "a_enviar" | "rascunho" | "desconhecido"; bruto: string } | EgoiErro> {
   const p = await pedidoComRepeticao(() =>
     fetch(`${BASE}/campaigns/email/${hash}`, { method: "GET", headers: headers(cfg.apiKey) }),
   );
@@ -264,11 +264,13 @@ export async function estadoCampanha(
   if (!r.ok) return parseErro(r, "E-goi (estado da campanha)");
   const body = (await r.json().catch(() => ({}))) as { status?: string; state?: string };
   const bruto = String(body.status ?? body.state ?? "").toLowerCase();
-  // A E-goi usa "sent" para campanhas já disparadas; "sending" também conta,
-  // porque a ordem de envio já foi aceite e repetir duplicaria os emails.
-  const estado = bruto === "sent" || bruto === "sending" || bruto === "processing"
+  // Só "sent" confirma a entrega. "sending"/"processing" = ordem aceite e em curso:
+  // não é entrega, mas repetir duplicaria os emails (tratado como "a_enviar").
+  const estado = bruto === "sent"
     ? "enviada"
-    : bruto === "draft" || bruto === "scheduled"
+    : bruto === "sending" || bruto === "processing"
+      ? "a_enviar"
+      : bruto === "draft" || bruto === "scheduled"
       ? "rascunho"
       : "desconhecido";
   return { ok: true, estado, bruto };

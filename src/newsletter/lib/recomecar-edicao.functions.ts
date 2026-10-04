@@ -7,5 +7,5 @@ type RevistaUpdate = Database["public"]["Tables"]["nl_revista_edicao"]["Update"]
 
 export const AMBITOS_RECOMECO = ["noticias", "cronica", "blocos", "assunto", "briefs"] as const;
 export type AmbitoRecomeco = (typeof AMBITOS_RECOMECO)[number];
-export const recomecarEdicaoFn = nlServerFn("recomecar-edicao:recomecarEdicaoFn");
+export const recomecarEdicaoFn = nlServerFn<typeof import("@/newsletter/_tipos-servidor/nl-app/lib/recomecar-edicao.functions").recomecarEdicaoFn>("recomecar-edicao:recomecarEdicaoFn");
 

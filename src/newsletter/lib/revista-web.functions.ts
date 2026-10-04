@@ -7,7 +7,7 @@ type VizinhaPublica = any; // eslint-disable-line @typescript-eslint/no-explicit
 
 
 export type { PaginaEdicaoPublica, ResumoEdicaoPublica, GrupoAtualidades, VizinhaPublica };
-export const baseUrlEdicoesFn = nlServerFn("revista-web:baseUrlEdicoesFn");
-export const listarEdicoesPublicasFn = nlServerFn("revista-web:listarEdicoesPublicasFn");
-export const obterEdicaoPublicaFn = nlServerFn("revista-web:obterEdicaoPublicaFn");
+export const baseUrlEdicoesFn = nlServerFn<typeof import("@/newsletter/_tipos-servidor/nl-app/lib/revista-web.functions").baseUrlEdicoesFn>("revista-web:baseUrlEdicoesFn");
+export const listarEdicoesPublicasFn = nlServerFn<typeof import("@/newsletter/_tipos-servidor/nl-app/lib/revista-web.functions").listarEdicoesPublicasFn>("revista-web:listarEdicoesPublicasFn");
+export const obterEdicaoPublicaFn = nlServerFn<typeof import("@/newsletter/_tipos-servidor/nl-app/lib/revista-web.functions").obterEdicaoPublicaFn>("revista-web:obterEdicaoPublicaFn");
 

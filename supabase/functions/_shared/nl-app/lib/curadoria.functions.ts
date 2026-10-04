@@ -184,7 +184,7 @@ async function urlAppFromRequest(): Promise<string> {
 }
 
 async function requireAdmin(context: { supabase: unknown }) {
-  const sb = context.supabase as { rpc: (fn: "me_papel") => PromiseLike<{ data: unknown }> };
+  const sb = context.supabase as { rpc: (fn: "nl_me_papel") => PromiseLike<{ data: unknown }> };
   const { data: papel } = await sb.rpc("nl_me_papel");
   if (papel !== "admin") throw new Error("Só administradores podem gerir fontes");
 }

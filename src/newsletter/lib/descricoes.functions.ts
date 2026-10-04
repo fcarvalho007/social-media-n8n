@@ -2,5 +2,5 @@
 import { nlServerFn } from "@/newsletter/shim/start";
 
 
-export const corrigirDescricoes = nlServerFn("descricoes:corrigirDescricoes");
+export const corrigirDescricoes = nlServerFn<typeof import("@/newsletter/_tipos-servidor/nl-app/lib/descricoes.functions").corrigirDescricoes>("descricoes:corrigirDescricoes");
 

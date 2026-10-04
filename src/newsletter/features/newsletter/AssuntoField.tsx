@@ -1,4 +1,3 @@
-// @ts-nocheck — type drift vs origin library versions; see scripts/port-newsletter.py
 import { useEffect, useRef, useState } from "react";
 import { Pencil, Sparkles, Loader2, Check, X, Wand2 } from "lucide-react";
 import { toast } from "sonner";
@@ -36,7 +35,7 @@ interface Props {
 const MIN_CHARS = 10;
 const MAX_CHARS = 90;
 
-type Validacao = { ok: true } | { ok: false; erro: string };
+type Validacao = { ok: boolean; erro?: string };
 
 function validar(rascunho: string): Validacao {
   const limpo = rascunho.replace(/[\u0000-\u001F\u007F]/g, "").trim();

@@ -2,5 +2,5 @@
 import { nlServerFn } from "@/newsletter/shim/start";
 
 
-export const previsualizarEdicaoWebFn = nlServerFn("revista-preview:previsualizarEdicaoWebFn");
+export const previsualizarEdicaoWebFn = nlServerFn<typeof import("@/newsletter/_tipos-servidor/nl-app/lib/revista-preview.functions").previsualizarEdicaoWebFn>("revista-preview:previsualizarEdicaoWebFn");
 

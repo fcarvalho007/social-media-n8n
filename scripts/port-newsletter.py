@@ -23,14 +23,20 @@ SKIP_LIB = ("auth-email.", "error-capture", "error-page", "lovable-error-reporti
 def tables(s: str) -> str:
     s = re.sub(r'\.from\((["\'])(%s)\1\)' % "|".join(TABLES), lambda m: '.from("nl_%s")' % m.group(2), s)
     s = re.sub(r'\.rpc\((["\'])(%s)\1' % "|".join(RPCS), lambda m: '.rpc("nl_%s"' % m.group(2), s)
+    s = re.sub(r'(\(fn: )"(%s)"\)' % "|".join(RPCS), lambda m: '%s"nl_%s")' % (m.group(1), m.group(2)), s)
     s = re.sub(r'(postgres_changes"?,\s*\{[^}]*table:\s*["\'])(%s)(["\'])' % "|".join(TABLES), lambda m: m.group(1) + "nl_" + m.group(2) + m.group(3), s)
     s = re.sub(r'((?:foreignTable|referencedTable):\s*["\'])(%s)(["\'])' % "|".join(TABLES), lambda m: m.group(1) + "nl_" + m.group(2) + m.group(3), s)
     s = re.sub(r'(\.(?:eq|neq|in|is|gt|gte|lt|lte|not|like|ilike|filter|contains)\(\s*["\'])(%s)\.' % "|".join(TABLES), lambda m: m.group(1) + "nl_" + m.group(2) + ".", s)
     # PostgREST orders embedded rows by the alias, not the table name (alias "edicao" in the archive query)
     s = s.replace('.order("enviada_em", { foreignTable: "nl_edicoes",', '.order("enviada_em", { referencedTable: "edicao",')
     # embedded resources inside .select("...") strings: alias:table(...) / table!hint(...)
-    emb = re.compile(r'(?<![\w.])(%s)(?=\s*[(!])' % "|".join(TABLES))
-    s = re.sub(r'(\.select\(\s*)(["`\'])([\s\S]*?)\2', lambda m: m.group(1) + m.group(2) + emb.sub(lambda x: "nl_" + x.group(1), m.group(3)) + m.group(2), s)
+    # Keep the original JSON key: "edicoes(numero)" -> "edicoes:nl_edicoes(numero)", "alias:edicoes(" -> "alias:nl_edicoes(".
+    emb_alias = re.compile(r'(?<=:)\s*(%s)(?=\s*[(!])' % "|".join(TABLES))
+    emb_bare = re.compile(r'(?<![\w.:])(%s)(?=\s*[(!])' % "|".join(TABLES))
+    def emb(sel):
+        sel = emb_alias.sub(lambda x: "nl_" + x.group(1), sel)
+        return emb_bare.sub(lambda x: "%s:nl_%s" % (x.group(1), x.group(1)), sel)
+    s = re.sub(r'(\.select\(\s*)(["`\'])([\s\S]*?)\2', lambda m: m.group(1) + m.group(2) + emb(m.group(3)) + m.group(2), s)
     return s
 
 def read(p):
@@ -52,21 +58,54 @@ def server_fn_exports(s):
     return re.findall(r"export const (\w+)\s*=\s*createServerFn\(", s)
 
 # ---------------- client ----------------
-# Origin files whose types drift against this project's library versions (lucide-react, TS settings).
-# Runtime behaviour is unchanged; type checking is suspended only for these files.
-TS_NOCHECK = {"features/definicoes/SubscricoesCard.tsx", "features/newsletter/AssuntoField.tsx",
-              "features/newsletter/EditorNewsletter.tsx", "features/newsletter/SeccaoPersonalizadaCard.tsx",
-              "features/newsletter/partilhado/Pendentes.tsx", "features/newsletter/partilhado/Podcast.tsx",
-              "features/newsletter/partilhado/modais/Fontes.tsx", "features/newsletter/partilhado/useEnvioNewsletter.ts",
-              "routes/_authenticated/emails.tsx"}
+# Targeted type fixes for origin code that relied on strict-mode narrowing or older lucide-react
+# prop types. Each pattern must exist (the port fails loudly otherwise) so drift is never hidden.
+CLIENT_FIXES = {
+    "features/newsletter/AssuntoField.tsx": [
+        ("type Validacao = { ok: true } | { ok: false; erro: string };", "type Validacao = { ok: boolean; erro?: string };"),
+    ],
+    "routes/_authenticated/ferramentas.tsx": [
+        ('setFeedback({ tipo: "erro", msg: r.motivo });', 'setFeedback({ tipo: "erro", msg: "motivo" in r ? r.motivo : "" });'),
+    ],
+    "features/newsletter/partilhado/useEnvioNewsletter.ts": [
+        ("opcoes?.publicarConteudos === true", "(opcoes || undefined)?.publicarConteudos === true"),
+    ],
+}
+LUCIDE_OLD = "ComponentType<{ size?: number; color?: string }>"
+LUCIDE_NEW = "ComponentType<{ size?: number | string; color?: string }>"
 
-def client_alias(s: str) -> str:
+def apply_client_fixes(rel, body):
+    body = body.replace(LUCIDE_OLD, LUCIDE_NEW)
+    for old, new in CLIENT_FIXES.get(rel, []):
+        if old not in body:
+            raise SystemExit("port-newsletter: fix pattern not found in %s: %s" % (rel, old))
+        body = body.replace(old, new)
+    return body
+
+TIPOS = "@/newsletter/_tipos-servidor"  # declarations emitted from the server tree by tsc
+
+def server_type_spec(rel, spec):
+    """Maps an origin `*.server` type import to the declaration emitted from the ported server code."""
+    if spec.startswith("@/"):
+        o = spec[2:]
+    else:
+        o = os.path.normpath(os.path.join(os.path.dirname(rel or "lib/x"), spec)).replace(os.sep, "/")
+    if o.startswith("lib/newsletter-engine/"):
+        return TIPOS + "/newsletter-engine/" + o[len("lib/newsletter-engine/"):]
+    if o.startswith("lib/auth-email"):
+        raise SystemExit("port-newsletter: auth-email is not ported (%s)" % rel)
+    return TIPOS + "/nl-app/" + o
+
+def typed_stubs(body, mod):
+    return re.sub(r'nlServerFn\("%s:(\w+)"\)' % re.escape(mod),
+                  lambda m: 'nlServerFn<typeof import("%s/nl-app/lib/%s.functions").%s>("%s:%s")' % (TIPOS, mod, m.group(1), mod, m.group(1)), body)
+
+def client_alias(s: str, rel: str = "") -> str:
     s = s.replace('"@tanstack/react-router"', '"@/newsletter/shim/router"')
     s = s.replace('"@tanstack/react-start"', '"@/newsletter/shim/start"')
     s = s.replace('"@tanstack/zod-adapter"', '"@/newsletter/shim/zod-adapter"')
     s = re.sub(r'\["(Tables|Views)"\]\["(\w+)"\]', lambda m: '["%s"]["%s"]' % (m.group(1), ("nl_" + m.group(2)) if m.group(2) in TABLES else m.group(2)), s)
-    s = re.sub(r'import type \{([^}]*)\} from "[^"]*\.server";',
-               lambda m: " ".join("type %s = any; // eslint-disable-line @typescript-eslint/no-explicit-any" % n.strip().split(" as ")[-1] for n in m.group(1).split(",") if n.strip()), s)
+    s = re.sub(r'import type \{([^}]*)\} from "([^"]*\.server)";', lambda m: 'import type {%s} from "%s";' % (m.group(1), server_type_spec(rel, m.group(2))), s)
     s = re.sub(r'"(?:\.\./)+supabase/functions/_shared/', '"@/newsletter/edge-shared/', s)
     s = re.sub(r'"@/features/', '"@/newsletter/features/', s)
     s = re.sub(r'"@/lib/(?!utils")', '"@/newsletter/lib/', s)
@@ -80,10 +119,8 @@ def build_client():
     shutil.rmtree(os.path.join(CLI, "routes"), ignore_errors=True)
     for f in walk(os.path.join(SRC, "features")):
         rel = os.path.relpath(f, SRC)[:-4]
-        body = client_alias(read(f))
-        if rel.replace(os.sep, "/") in TS_NOCHECK:
-            body = "// @ts-nocheck — type drift vs origin library versions; see scripts/port-newsletter.py\n" + body
-        write(os.path.join(CLI, rel), body)
+        body = client_alias(read(f), rel)
+        write(os.path.join(CLI, rel), apply_client_fixes(rel.replace(os.sep, "/"), body))
     for f in walk(os.path.join(SRC, "lib")):
         rel = os.path.relpath(f, SRC)[:-4]
         name = os.path.basename(rel)
@@ -94,21 +131,19 @@ def build_client():
             mod = name.split(".functions.")[0]
             exps = server_fn_exports(s)
             body = subprocess.run(["node", os.path.join(ROOT, "scripts/nl-stub.cjs"), mod], input=s, capture_output=True, text=True, check=True).stdout
-            body = client_alias(body)
+            body = typed_stubs(client_alias(body, rel), mod)
             out = ["// GENERATED by scripts/port-newsletter.py — RPC stubs; real handlers run in nl-api.",
                    'import { nlServerFn } from "@/newsletter/shim/start";', body]
             write(os.path.join(CLI, rel), "\n".join(out) + "\n")
         else:
-            write(os.path.join(CLI, rel), client_alias(s))
+            write(os.path.join(CLI, rel), client_alias(s, rel))
     os.makedirs(os.path.join(CLI, "edge-shared"), exist_ok=True)
     for name in ("design-tokens", "ia-limpeza"):
         write(os.path.join(CLI, "edge-shared", name + ".ts"), read(os.path.join(ROOT, "migration-reference/code/newsletter/supabase/functions/_shared", name + ".ts.txt")))
     for f in walk(os.path.join(SRC, "routes/_authenticated")):
         rel = os.path.relpath(f, SRC)[:-4]
-        body = client_alias(read(f))
-        if rel.replace(os.sep, "/") in TS_NOCHECK:
-            body = "// @ts-nocheck — type drift vs origin library versions; see scripts/port-newsletter.py\n" + body
-        write(os.path.join(CLI, rel), body)
+        body = client_alias(read(f), rel)
+        write(os.path.join(CLI, rel), apply_client_fixes(rel.replace(os.sep, "/"), body))
 
 
 def top_level_statements(s):
@@ -177,6 +212,8 @@ def server_rewrite(s: str, here: str) -> str:
     s = re.sub(r'"@/lib/', '"%s/' % rel_to(os.path.join(SRV, "lib")), s)
     s = re.sub(r'"@/features/', '"%s/' % rel_to(os.path.join(SRV, "features")), s)
     s = re.sub(r'"(\.\./)+supabase/functions/_shared/', '"%s/' % rel_to(os.path.join(SRV, "edge-shared")), s)
+    s = s.replace('"@tanstack/react-router"', '"%s"' % rel_to(os.path.join(SRV, "_shim/router.ts")))
+    s = re.sub(r'"@/routes/api/public/hooks/', '"%s/' % rel_to(os.path.join(SRV, "hooks")), s)
     s = s.replace('"@/integrations/supabase/types"', '"%s"' % rel_to(os.path.join(SRV, "_shim/types.ts")))
     s = s.replace('"zod"', '"npm:zod@3.25.76"')
     s = s.replace('"@supabase/supabase-js"', '"npm:@supabase/supabase-js@2.57.4"').replace("'@supabase/supabase-js'", '"npm:@supabase/supabase-js@2.57.4"')
@@ -197,11 +234,26 @@ def server_rewrite(s: str, here: str) -> str:
         s = 'import process from "node:process";\n' + s
     return s
 
+HOOKS_INTERNOS = ("curadoria-ferramentas",)
+
+# Targeted server fixes so the strict type-check (and declaration emit) passes. Patterns must exist.
+SERVER_FIXES = {
+    "lib/organizar-edicao.functions.ts": [
+        ("const porId = new Map(aprovadas.map((n) => [n.id, n]));",
+         "const porId = new Map<string, (typeof aprovadas)[number]>(aprovadas.map((n) => [n.id, n]));"),
+    ],
+    "lib/subscricao.server.ts": [("\ninterface ResultadoAccao {", "\nexport interface ResultadoAccao {")],
+}
+
 def build_server():
     shutil.rmtree(os.path.join(SRV, "lib"), ignore_errors=True)
     shutil.rmtree(os.path.join(SRV, "features"), ignore_errors=True)
     shutil.rmtree(os.path.join(SRV, "edge-shared"), ignore_errors=True)
+    shutil.rmtree(os.path.join(SRV, "hooks"), ignore_errors=True)
     files = []
+    # Internal hook handlers that server functions call directly (no public route here).
+    for name in HOOKS_INTERNOS:
+        files.append((os.path.join(SRC, "routes/api/public/hooks", name + ".ts.txt"), os.path.join(SRV, "hooks", name + ".ts")))
     for f in walk(os.path.join(SRC, "lib")):
         rel = os.path.relpath(f, SRC)[:-4]
         if rel.startswith("lib/newsletter-engine") or os.path.basename(rel).startswith(SKIP_LIB):
@@ -220,7 +272,12 @@ def build_server():
     for src, dst in files:
         write(dst, "")  # create first so dir-vs-file resolution works
     for src, dst in files:
-        write(dst, server_rewrite(read(src), dst))
+        body = server_rewrite(read(src), dst)
+        for old, new in SERVER_FIXES.get(os.path.relpath(dst, SRV).replace(os.sep, "/"), []):
+            if old not in body:
+                raise SystemExit("port-newsletter: server fix pattern not found in %s: %s" % (dst, old))
+            body = body.replace(old, new)
+        write(dst, body)
     mods = sorted(glob.glob(os.path.join(SRV, "lib/*.functions.ts")))
     lines = ["// GENERATED by scripts/port-newsletter.py — registry of server functions."]
     names = []
@@ -231,7 +288,23 @@ def build_server():
     lines.append("export const MODULES: Record<string, Record<string, unknown>> = {\n%s\n};" % "\n".join(names))
     write(os.path.join(SRV, "registry.ts"), "\n".join(lines) + "\n")
 
+def emit_server_types():
+    """Type-checks the server tree (strict) and emits declarations the client stubs import."""
+    out = os.path.join(CLI, "_tipos-servidor")
+    shutil.rmtree(out, ignore_errors=True)
+    r = subprocess.run(["npx", "tsc", "-p", os.path.join(ROOT, "tsconfig.nl-server.json"), "--noEmit", "false",
+                        "--declaration", "--emitDeclarationOnly", "--outDir", out, "--rootDir", os.path.join(ROOT, "supabase/functions/_shared")],
+                       cwd=ROOT, capture_output=True, text=True)
+    if r.returncode != 0:
+        print(r.stdout[-6000:], r.stderr[-2000:])
+        raise SystemExit("port-newsletter: server type-check failed")
+    for d, _, fs in os.walk(out):
+        for f in fs:
+            p = os.path.join(d, f)
+            write(p, "// GENERATED by scripts/port-newsletter.py from the server tree — do not edit.\n" + read(p))
+
 if __name__ == "__main__":
-    build_client()
     build_server()
+    emit_server_types()
+    build_client()
     print("ok")

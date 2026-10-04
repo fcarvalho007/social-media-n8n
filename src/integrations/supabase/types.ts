@@ -1491,6 +1491,8 @@ export type Database = {
           envio_em_curso: string | null
           episodio_podcast_id: string | null
           estado: string
+          fecho_pendente_em: string | null
+          fecho_pendente_por: string | null
           id: string
           identidade_id: string | null
           links_ignorados: Json
@@ -1524,6 +1526,8 @@ export type Database = {
           envio_em_curso?: string | null
           episodio_podcast_id?: string | null
           estado?: string
+          fecho_pendente_em?: string | null
+          fecho_pendente_por?: string | null
           id?: string
           identidade_id?: string | null
           links_ignorados?: Json
@@ -1557,6 +1561,8 @@ export type Database = {
           envio_em_curso?: string | null
           episodio_podcast_id?: string | null
           estado?: string
+          fecho_pendente_em?: string | null
+          fecho_pendente_por?: string | null
           id?: string
           identidade_id?: string | null
           links_ignorados?: Json
@@ -1588,29 +1594,38 @@ export type Database = {
       }
       nl_egoi_campanhas: {
         Row: {
+          aceite_em: string | null
           actualizado_em: string
           campaign_hash: string
+          confirmado_em: string | null
           criado_em: string
           edicao_id: string
           estado: string
+          estado_egoi: string | null
           id: string
           lista_id: string
         }
         Insert: {
+          aceite_em?: string | null
           actualizado_em?: string
           campaign_hash: string
+          confirmado_em?: string | null
           criado_em?: string
           edicao_id: string
           estado?: string
+          estado_egoi?: string | null
           id?: string
           lista_id: string
         }
         Update: {
+          aceite_em?: string | null
           actualizado_em?: string
           campaign_hash?: string
+          confirmado_em?: string | null
           criado_em?: string
           edicao_id?: string
           estado?: string
+          estado_egoi?: string | null
           id?: string
           lista_id?: string
         }

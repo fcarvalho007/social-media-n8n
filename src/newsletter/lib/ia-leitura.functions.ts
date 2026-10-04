@@ -12,5 +12,5 @@ interface LeituraInput {
   edicao_id: string | null;
   noticia_id: string | null;
 }
-export const gerarMinhaLeitura = nlServerFn("ia-leitura:gerarMinhaLeitura");
+export const gerarMinhaLeitura = nlServerFn<typeof import("@/newsletter/_tipos-servidor/nl-app/lib/ia-leitura.functions").gerarMinhaLeitura>("ia-leitura:gerarMinhaLeitura");
 

@@ -1,4 +1,3 @@
-// @ts-nocheck — type drift vs origin library versions; see scripts/port-newsletter.py
 import { Link } from "@/newsletter/shim/router";
 import { Check, Loader2, Mic, RefreshCw } from "lucide-react";
 import type { Episodio } from "../data";

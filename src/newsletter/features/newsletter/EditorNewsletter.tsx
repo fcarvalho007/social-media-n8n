@@ -1,4 +1,3 @@
-// @ts-nocheck — type drift vs origin library versions; see scripts/port-newsletter.py
 import { memo, useCallback, useEffect, useMemo, useRef, useState, type ReactNode, type ComponentType } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useNavigate, useSearch } from "@/newsletter/shim/router";

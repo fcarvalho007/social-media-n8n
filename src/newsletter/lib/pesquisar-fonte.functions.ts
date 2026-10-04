@@ -35,5 +35,5 @@ type MetaPagina = {
   urlFinal?: string;
   status?: number;
 };
-export const pesquisarFonteIA = nlServerFn("pesquisar-fonte:pesquisarFonteIA");
+export const pesquisarFonteIA = nlServerFn<typeof import("@/newsletter/_tipos-servidor/nl-app/lib/pesquisar-fonte.functions").pesquisarFonteIA>("pesquisar-fonte:pesquisarFonteIA");
 

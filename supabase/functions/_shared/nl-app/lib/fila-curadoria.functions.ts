@@ -64,7 +64,7 @@ export const definirModoManualCuradoria = createServerFn({ method: "POST" })
   .inputValidator((data: { manual: boolean }) => ({ manual: Boolean(data?.manual) }))
   .middleware([requireSupabaseAuth])
   .handler(async ({ data, context }) => {
-    const sb = context.supabase as { rpc: (fn: "me_papel") => PromiseLike<{ data: unknown }> };
+    const sb = context.supabase as { rpc: (fn: "nl_me_papel") => PromiseLike<{ data: unknown }> };
     const { data: papel } = await sb.rpc("nl_me_papel");
     if (papel !== "admin") throw new Error("Só administradores podem alterar este modo");
     const { supabaseAdmin } = await import("../_shim/admin.ts");

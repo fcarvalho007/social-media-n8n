@@ -8,7 +8,7 @@ type ResultadoVerificarLinks = any; // eslint-disable-line @typescript-eslint/no
 
 
 export type { ItemLink, ContextoLink, EstadoLink, ResumoLinks, ResultadoVerificarLinks };
-export const verificarLinksEdicao = nlServerFn("verificar-links:verificarLinksEdicao");
+export const verificarLinksEdicao = nlServerFn<typeof import("@/newsletter/_tipos-servidor/nl-app/lib/verificar-links.functions").verificarLinksEdicao>("verificar-links:verificarLinksEdicao");
 
 /* ─── Verificação de um único URL (para o UrlEditor) ─── */
 
@@ -18,7 +18,7 @@ export interface ResultadoUmLink {
   status: number;
   redirect_para?: string;
 }
-export const verificarUmLink = nlServerFn("verificar-links:verificarUmLink");
-export const ignorarLink = nlServerFn("verificar-links:ignorarLink");
-export const reactivarLink = nlServerFn("verificar-links:reactivarLink");
+export const verificarUmLink = nlServerFn<typeof import("@/newsletter/_tipos-servidor/nl-app/lib/verificar-links.functions").verificarUmLink>("verificar-links:verificarUmLink");
+export const ignorarLink = nlServerFn<typeof import("@/newsletter/_tipos-servidor/nl-app/lib/verificar-links.functions").ignorarLink>("verificar-links:ignorarLink");
+export const reactivarLink = nlServerFn<typeof import("@/newsletter/_tipos-servidor/nl-app/lib/verificar-links.functions").reactivarLink>("verificar-links:reactivarLink");
 

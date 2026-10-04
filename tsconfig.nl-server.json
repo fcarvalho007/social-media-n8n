@@ -1,0 +1,13 @@
+{
+  "compilerOptions": {
+    "target": "ES2022", "module": "ESNext", "moduleResolution": "bundler", "lib": ["ES2022", "DOM", "DOM.Iterable"],
+    "allowImportingTsExtensions": true, "noEmit": true, "skipLibCheck": true, "strict": true, "noImplicitAny": false, "isolatedModules": true,
+    "types": ["node"],
+    "paths": {
+      "npm:zod@3.25.76": ["./node_modules/zod"],
+      "npm:@supabase/supabase-js@2.57.4": ["./node_modules/@supabase/supabase-js"],
+      "https://esm.sh/@supabase/supabase-js@2.45.0": ["./node_modules/@supabase/supabase-js"]
+    }
+  },
+  "include": ["supabase/functions/_shared/nl-app/registry.ts", "supabase/functions/_shared/nl-app/_types/*.d.ts"]
+}

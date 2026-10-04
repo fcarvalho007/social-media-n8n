@@ -5,7 +5,7 @@
 // Os textos nunca inferem números a partir dos exemplos: quando não há
 // contagem fiável, usam-se as formulações sem número.
 
-type EdicaoRevista = any; // eslint-disable-line @typescript-eslint/no-explicit-any
+import type { EdicaoRevista } from "@/newsletter/_tipos-servidor/newsletter-engine/revista/compose.server";
 
 export interface ContagemSeleccao {
   total: number;

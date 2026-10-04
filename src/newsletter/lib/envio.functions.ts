@@ -2,15 +2,15 @@
 import { nlServerFn } from "@/newsletter/shim/start";
 
 
-export const previewEdicaoFn = nlServerFn("envio:previewEdicaoFn");
-export const sincronizarRascunhoFn = nlServerFn("envio:sincronizarRascunhoFn");
-export const dispararEgoiFn = nlServerFn("envio:dispararEgoiFn");
-export const prepararEnvioFn = nlServerFn("envio:prepararEnvioFn");
-export const dispararListaFn = nlServerFn("envio:dispararListaFn");
-export const repetirListaFn = nlServerFn("envio:repetirListaFn");
-export const reconciliarEdicaoFn = nlServerFn("envio:reconciliarEdicaoFn");
-export const finalizarEnvioFn = nlServerFn("envio:finalizarEnvioFn");
-export const publicarWordpressFn = nlServerFn("envio:publicarWordpressFn");
-export const agendarEnvioFn = nlServerFn("envio:agendarEnvioFn");
-export const cancelarAgendamentoFn = nlServerFn("envio:cancelarAgendamentoFn");
+export const previewEdicaoFn = nlServerFn<typeof import("@/newsletter/_tipos-servidor/nl-app/lib/envio.functions").previewEdicaoFn>("envio:previewEdicaoFn");
+export const sincronizarRascunhoFn = nlServerFn<typeof import("@/newsletter/_tipos-servidor/nl-app/lib/envio.functions").sincronizarRascunhoFn>("envio:sincronizarRascunhoFn");
+export const dispararEgoiFn = nlServerFn<typeof import("@/newsletter/_tipos-servidor/nl-app/lib/envio.functions").dispararEgoiFn>("envio:dispararEgoiFn");
+export const prepararEnvioFn = nlServerFn<typeof import("@/newsletter/_tipos-servidor/nl-app/lib/envio.functions").prepararEnvioFn>("envio:prepararEnvioFn");
+export const dispararListaFn = nlServerFn<typeof import("@/newsletter/_tipos-servidor/nl-app/lib/envio.functions").dispararListaFn>("envio:dispararListaFn");
+export const repetirListaFn = nlServerFn<typeof import("@/newsletter/_tipos-servidor/nl-app/lib/envio.functions").repetirListaFn>("envio:repetirListaFn");
+export const reconciliarEdicaoFn = nlServerFn<typeof import("@/newsletter/_tipos-servidor/nl-app/lib/envio.functions").reconciliarEdicaoFn>("envio:reconciliarEdicaoFn");
+export const finalizarEnvioFn = nlServerFn<typeof import("@/newsletter/_tipos-servidor/nl-app/lib/envio.functions").finalizarEnvioFn>("envio:finalizarEnvioFn");
+export const publicarWordpressFn = nlServerFn<typeof import("@/newsletter/_tipos-servidor/nl-app/lib/envio.functions").publicarWordpressFn>("envio:publicarWordpressFn");
+export const agendarEnvioFn = nlServerFn<typeof import("@/newsletter/_tipos-servidor/nl-app/lib/envio.functions").agendarEnvioFn>("envio:agendarEnvioFn");
+export const cancelarAgendamentoFn = nlServerFn<typeof import("@/newsletter/_tipos-servidor/nl-app/lib/envio.functions").cancelarAgendamentoFn>("envio:cancelarAgendamentoFn");
 

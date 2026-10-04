@@ -55,7 +55,7 @@ export const Link = forwardRef<HTMLAnchorElement, LinkProps>(function Link(
 });
 
 type NavOpts = { to?: string; params?: Params; search?: Search; hash?: string; replace?: boolean };
-export function useNavigate() {
+export function useNavigate(_opts?: { from?: string }) {
   const nav = useRNavigate();
   const loc = useLocation();
   return (o: NavOpts | string) => {

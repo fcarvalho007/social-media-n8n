@@ -47,7 +47,7 @@ const ReviewStory = () => {
     } catch (error) {
       console.error('Erro ao carregar story:', error);
       toast.error('Falha ao carregar story');
-      navigate('/');
+      navigate('/redes-sociais');
     } finally {
       setLoading(false);
     }
@@ -140,7 +140,7 @@ const ReviewStory = () => {
         ? 'Story agendado com sucesso!' 
         : 'Story aprovado com sucesso!';
       toast.success(successMessage);
-      navigate('/');
+      navigate('/redes-sociais');
     } catch (error) {
       console.error('Erro ao aprovar:', error);
       toast.error('Falha ao aprovar story');
@@ -164,7 +164,7 @@ const ReviewStory = () => {
       if (error) throw error;
 
       toast.success('Story rejeitado');
-      navigate('/');
+      navigate('/redes-sociais');
     } catch (error) {
       console.error('Erro ao rejeitar:', error);
       toast.error('Falha ao rejeitar story');
@@ -186,7 +186,7 @@ const ReviewStory = () => {
       if (error) throw error;
 
       toast.success('Story voltou para pendentes');
-      navigate('/');
+      navigate('/redes-sociais');
     } catch (error) {
       console.error('Erro ao voltar para pendentes:', error);
       toast.error('Falha ao voltar para pendentes');
@@ -211,7 +211,7 @@ const ReviewStory = () => {
     <div className="pb-20">
       <Button
         variant="ghost"
-        onClick={() => navigate('/')}
+        onClick={() => navigate('/redes-sociais')}
         className="mb-3 h-9 px-3 -ml-3"
         size="sm"
       >

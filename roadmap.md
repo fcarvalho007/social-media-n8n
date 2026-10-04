@@ -9,3 +9,9 @@
 - [x] Ecrãs originais da newsletter montados em /newsletter/* (editor, Revista, arquivo, curadoria, fontes/emails, ferramentas, custos, definições, briefs, edição web)
 - [ ] Testar fluxos de curadoria/edição com conta admin ou editor (a conta de teste injetada não tem papel)
 - [ ] Envio E-goi/WordPress: ligar só após aprovação explícita e com segredos no servidor (EGOI_API_KEY, WORDPRESS_*, FREDERICO_WP_*, DEEPSEEK_API_KEY)
+- [ ] Revisão 265257033: (1) mapa explícito das operações nl-api (leitura/editor/admin/externa) com confirmação verificada no servidor
+- [ ] (2) dispararLista não marca "enviada" só por aceitação; reconciliação antes de fechar edição/gerar carrossel
+- [ ] (3) Gerador sem @ts-nocheck; tipos explícitos nas operações críticas (NlCall sem any)
+- [ ] (4) Formulário de password com SDK que suporta current_password sem casts
+- [ ] (5) "/" passa a ser o Estúdio; painel social em rota própria
+- [ ] (6) Esquema da newsletter reproduzível num checkout limpo (DDL aplicado reunido em migrações)

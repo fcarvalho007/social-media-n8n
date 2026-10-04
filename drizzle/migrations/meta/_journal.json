@@ -36,6 +36,13 @@
       "when": 1791109236525,
       "tag": "0004_estudio_conteudos_carrossel",
       "breakpoints": true
+    },
+    {
+      "idx": 5,
+      "version": "7",
+      "when": 1791110471769,
+      "tag": "0005_nl_egoi_aceite_confirmacao",
+      "breakpoints": true
     }
   ]
 }
