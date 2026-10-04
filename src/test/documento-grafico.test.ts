@@ -52,6 +52,29 @@ describe("DocumentoGrafico v1", () => {
     expect(d.length).toBeGreaterThan(100);
   });
 
+  it("regressão: preserva especificamente o «a» de «longas» entre os glifos adjacentes", () => {
+    const esquerda = medidor.largura("long", 44, 400);
+    const larguraA = medidor.largura("a", 44, 400);
+    const caminho = medidor.caminho("longas", 0, 50, 44, 400);
+    const movimentos = [...caminho.matchAll(/M\s+(-?\d+(?:\.\d+)?)\s+(-?\d+(?:\.\d+)?)/g)].map((m) => Number(m[1]));
+    expect(caminho).not.toMatch(/NaN/);
+    expect(movimentos.some((x) => x >= esquerda - 2 && x <= esquerda + larguraA + 2)).toBe(true);
+  });
+
+  it("mantém métricas e quebras determinísticas nas cinco fixtures e variantes", () => {
+    for (const f of FIXTURES) for (const v of ["A", "B"] as const) {
+      const pagina = f.variantes[v].paginas[0];
+      for (const c of pagina.camadas) if (c.tipo === "texto") {
+        const texto = c.ref ? f.conteudo.slides[0][c.ref.endsWith("titulo") ? "titulo" : "texto"] : c.texto ?? "";
+        const a = layoutTexto(texto, c.estilo, c.w, c.h, medidor);
+        const b = layoutTexto(texto, c.estilo, c.w, c.h, medidor);
+        expect(b).toEqual(a);
+        expect(a.linhas.every((linha) => linha.largura <= c.w + 0.01)).toBe(true);
+        expect(a.linhas.map((linha) => linha.texto).join(" ").length).toBeGreaterThan(0);
+      }
+    }
+  });
+
   it("recorte cover respeita o foco e contain mostra a imagem inteira", () => {
     const a = { largura: 800, altura: 600 };
     const cover = calcularRecorte(a, { w: 1080, h: 1350, recorte: "cover", foco: { x: 1, y: 0.5 } });
@@ -87,6 +110,24 @@ describe("estado do editor", () => {
     expect(s.pacote.conteudo.slides[0].titulo).toBe(FIXTURES[0].conteudo.slides[0].titulo);
     s = reduzir(s, { tipo: "refazer" });
     expect(s.pacote.conteudo.slides[0].titulo).toBe("Novo título");
+  });
+
+  it("editar, desfazer, refazer e guardar/reabrir JSON preserva o texto", () => {
+    let s = estadoInicial(FIXTURES[1]);
+    s = reduzir(s, { tipo: "texto", slide: "s1", campo: "texto", valor: "Texto escrito por toque e teclado virtual", agrupar: "teclado:s1" });
+    const guardado = JSON.stringify(s.pacote);
+    s = reduzir(s, { tipo: "desfazer" });
+    expect(s.pacote.conteudo.slides[0].texto).not.toContain("teclado virtual");
+    s = reduzir(s, { tipo: "refazer" });
+    expect(s.pacote.conteudo.slides[0].texto).toContain("teclado virtual");
+    expect(validarPacote(JSON.parse(guardado)).conteudo.slides[0].texto).toContain("teclado virtual");
+  });
+
+  it("documento inválido é recusado sem substituir o rascunho corrente", () => {
+    const s = reduzir(estadoInicial(FIXTURES[0]), { tipo: "texto", slide: "s1", campo: "titulo", valor: "Rascunho intacto" });
+    const antes = JSON.stringify(s.pacote);
+    expect(() => validarPacote({ ...JSON.parse(antes), sintetico: false })).toThrow();
+    expect(JSON.stringify(s.pacote)).toBe(antes);
   });
 
   it("ordem, duplicar e reordenar páginas", () => {
