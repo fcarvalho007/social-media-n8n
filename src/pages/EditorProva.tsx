@@ -14,7 +14,6 @@ import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } f
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useAuth } from "@/contexts/AuthContext";
-import { useIsMobile } from "@/hooks/use-mobile";
 import { chaveRecuperacao, guardarRecuperacao, lerRecuperacao, limparRecuperacao } from "@/lib/recuperacaoLocal";
 import { renderProvaServidor } from "@/services/conteudos";
 import { ALTURA, LARGURA, layoutTexto, resolverTexto, validarPacote, type Camada, type Medidor, type PacoteProva } from "../../supabase/functions/_shared/documento-grafico/nucleo";
@@ -248,7 +247,7 @@ interface Comparacao { navegador: string; servidor: string; diferenca: string; f
 
 export default function EditorProva() {
   const { user } = useAuth();
-  const movel = useIsMobile();
+  const [compacto, setCompacto] = useState(() => typeof window !== "undefined" && window.innerWidth < 1180);
   const [estado, despachar] = useReducer(reduzir, FIXTURES[0], estadoInicial);
   const { pacote, variante, pagina, selecao } = estado;
   const [medidor, setMedidor] = useState<Medidor | null>(null);
@@ -262,6 +261,8 @@ export default function EditorProva() {
   const [comparacao, setComparacao] = useState<Comparacao | null>(null);
   const [erroComparacao, setErroComparacao] = useState<string | null>(null);
   const [painelMovel, setPainelMovel] = useState("pagina");
+  const [painelAberto, setPainelAberto] = useState(false);
+  const [alturaVisual, setAlturaVisual] = useState<number | null>(null);
   const areaRef = useRef<HTMLDivElement>(null);
   const ficheiroRef = useRef<HTMLInputElement>(null);
   const corSelecao = useMemo(() => corToken("--primary", "#6366f1"), []);
@@ -270,6 +271,22 @@ export default function EditorProva() {
 
   useEffect(() => {
     carregarMedidor().then(setMedidor).catch((e: Error) => setErroFontes(e.message));
+  }, []);
+
+  useEffect(() => {
+    const atualizar = () => setCompacto(window.innerWidth < 1180);
+    atualizar();
+    window.addEventListener("resize", atualizar);
+    return () => window.removeEventListener("resize", atualizar);
+  }, []);
+
+  useEffect(() => {
+    const vv = window.visualViewport;
+    if (!vv) return;
+    const atualizar = () => setAlturaVisual(vv.height);
+    atualizar();
+    vv.addEventListener("resize", atualizar);
+    return () => vv.removeEventListener("resize", atualizar);
   }, []);
 
   useEffect(() => {
@@ -300,7 +317,7 @@ export default function EditorProva() {
     const ro = new ResizeObserver(([e]) => setArea({ w: e.contentRect.width, h: e.contentRect.height }));
     ro.observe(el);
     return () => ro.disconnect();
-  }, [movel, preview]);
+  }, [compacto, preview, painelAberto]);
 
   const escalaAjuste = Math.max(ZOOM_MIN, Math.min((area.w - 32) / LARGURA, (area.h - 32) / ALTURA));
   const escala = zoom === "ajustar" ? escalaAjuste : zoom;
@@ -310,7 +327,12 @@ export default function EditorProva() {
   const paginaAtual = paginas[pagina];
   const camada = paginaAtual?.camadas.find((c) => c.id === selecao) ?? null;
 
-  useEffect(() => { if (movel && selecao) setPainelMovel("camada"); }, [selecao, movel]);
+  useEffect(() => {
+    if (compacto && selecao) {
+      setPainelMovel("camada");
+      setPainelAberto(true);
+    }
+  }, [selecao, compacto]);
 
   // Keyboard shortcuts (ignored while typing in a field).
   useEffect(() => {
@@ -468,7 +490,7 @@ export default function EditorProva() {
         <div className="shadow-lg ring-1 ring-border" aria-label={`Página ${pagina + 1} de ${paginas.length}, variante ${variante}, 1080 por 1350`} role="img">
           {medidor ? (
             <PaginaCanvas pacote={pacote} variante={variante} indice={pagina} medidor={medidor} imagens={imagens} escala={escala}
-              interativo={!preview} selecao={preview ? null : selecao} toque={movel} corSelecao={corSelecao}
+              interativo={!preview} selecao={preview ? null : selecao} toque={compacto} corSelecao={corSelecao}
               onSelecionar={(id) => despachar({ tipo: "selecionar", id })}
               onAlterar={(id, patch) => despachar({ tipo: "camada", id, patch })} />
           ) : (
@@ -542,45 +564,53 @@ export default function EditorProva() {
     );
   }
 
-  if (movel) {
+  if (compacto) {
     return (
-      <div className="flex h-[calc(100dvh-4rem)] flex-col">
+      <div className="relative flex min-h-0 flex-col overflow-hidden" style={{ height: alturaVisual ? `${alturaVisual}px` : "100dvh" }}>
         {inputFicheiro}
-        <header className="space-y-2 border-b border-border bg-background px-3 py-2">
+        <header className="space-y-2 border-b border-border bg-background px-2 py-2">
           <div className="flex items-center justify-between gap-2">
-            <h1 className="text-base font-semibold">Editor de carrosséis <span className="font-normal text-muted-foreground">· prova</span></h1>
+            <h1 className="truncate text-sm font-semibold">Editor de carrosséis <span className="font-normal text-muted-foreground">· prova</span></h1>
             <div className="flex items-center gap-1">
               {barraAcoes}
               <Button variant="ghost" size="icon" className="h-11 w-11" aria-label="Pré-visualizar" onClick={() => { setPreview(true); setZoom("ajustar"); }}><Eye className="h-4 w-4" /></Button>
               {menuDocumento}
             </div>
           </div>
-          <div className="flex items-center gap-2">{seletorDoc}{seletorVariante}</div>
+          <div className="flex min-w-0 items-center gap-2">{seletorDoc}{seletorVariante}</div>
         </header>
         {avisoRecuperacao}
-        {tela}
-        <div className="flex items-center justify-between border-t border-border bg-background px-2">{zoomControlos}</div>
-        <div className="border-t border-border bg-background">{miniaturas(true)}</div>
-        <section className="max-h-[42dvh] overflow-y-auto border-t border-border bg-background pb-[env(safe-area-inset-bottom)]" aria-label="Ferramentas">
+        <div className="shrink-0 border-b border-border bg-background">{miniaturas(true)}</div>
+        <div className="min-h-0 flex-1">{tela}</div>
+        <div className="flex shrink-0 items-center justify-between border-t border-border bg-background px-1 pb-[env(safe-area-inset-bottom)]">
+          {zoomControlos}
+          <Button variant={painelAberto ? "secondary" : "ghost"} size="sm" className="h-11" onClick={() => setPainelAberto((v) => !v)} aria-expanded={painelAberto} aria-controls="painel-propriedades">
+            {camada ? "Propriedades" : "Página"}
+          </Button>
+        </div>
+        {painelAberto && <section id="painel-propriedades" className="absolute inset-x-0 bottom-[calc(2.75rem+env(safe-area-inset-bottom))] z-30 max-h-[min(52dvh,32rem)] overflow-y-auto border-t border-border bg-background shadow-lg" aria-label="Ferramentas">
           <Tabs value={painelMovel} onValueChange={setPainelMovel}>
-            <TabsList className="sticky top-0 z-10 grid h-12 w-full grid-cols-2 rounded-none">
+            <div className="sticky top-0 z-10 flex items-center border-b border-border bg-background">
+            <TabsList className="grid h-12 flex-1 grid-cols-2 rounded-none">
               <TabsTrigger value="pagina" className="h-10">Página</TabsTrigger>
               <TabsTrigger value="camada" className="h-10" disabled={!camada}>Camada</TabsTrigger>
             </TabsList>
+            <Button variant="ghost" size="icon" className="mr-1 h-11 w-11" aria-label="Fechar propriedades" onClick={() => setPainelAberto(false)}><X className="h-4 w-4" /></Button>
+            </div>
             <TabsContent value="pagina" className="space-y-4 p-3">
               {acoesPagina}
               {medidor && paginaAtual && <PainelPropriedades pacote={pacote} camada={null} fundo={paginaAtual.fundo} medidor={medidor} despachar={despachar} camadasPagina={paginaAtual.camadas} />}
             </TabsContent>
             <TabsContent value="camada" className="p-3">{camada && propriedades}</TabsContent>
           </Tabs>
-        </section>
+        </section>}
         {dialogoComparacao}
       </div>
     );
   }
 
   return (
-    <div className="flex h-[calc(100vh-4rem)] flex-col">
+    <div className="flex h-screen min-h-0 flex-col overflow-hidden">
       {inputFicheiro}
       <header className="flex flex-wrap items-center gap-3 border-b border-border bg-background px-4 py-2">
         <h1 className="mr-2 text-base font-semibold">Editor de carrosséis <span className="font-normal text-muted-foreground">· prova isolada</span></h1>

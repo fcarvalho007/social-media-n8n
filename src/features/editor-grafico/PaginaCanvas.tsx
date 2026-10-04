@@ -98,11 +98,13 @@ export function PaginaCanvas({ pacote, variante, indice, medidor, imagens, escal
             rotateEnabled={false}
             keepRatio={false}
             flipEnabled={false}
-            anchorSize={(toque ? 28 : 12) / escala * escala}
-            anchorCornerRadius={toque ? 14 : 2}
+            // Transformer dimensions live in stage coordinates, so divide by
+            // zoom to keep the visible handles constant on screen.
+            anchorSize={(toque ? 28 : 12) / escala}
+            anchorCornerRadius={(toque ? 14 : 2) / escala}
             borderStroke={corSelecao}
             anchorStroke={corSelecao}
-            borderStrokeWidth={2}
+            borderStrokeWidth={2 / escala}
             ignoreStroke
             boundBoxFunc={(antes, depois) => (depois.width < 20 || depois.height < 20 ? antes : depois)}
           />
