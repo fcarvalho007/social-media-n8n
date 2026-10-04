@@ -20,13 +20,21 @@ export function createMiddleware(_o?: unknown) {
   return { server: (fn: NlMiddleware["__mw"]): NlMiddleware => ({ __mw: fn }) };
 }
 
-export function createServerFn(_o?: unknown) {
+// deno-lint-ignore no-explicit-any
+type Any = any;
+interface Builder<I> {
+  middleware(m: NlMiddleware[]): Builder<I>;
+  inputValidator<V>(v: (x: Any) => V): Builder<V>;
+  validator<V>(v: (x: Any) => V): Builder<V>;
+  handler<R>(h: (a: { data: I; context: Any }) => R): NlServerFn;
+}
+export function createServerFn(_o?: unknown): Builder<Any> {
   const d: NlServerFn = { __nl: true, middlewares: [], validator: (x) => x, handler: async () => undefined };
-  const b = {
-    middleware(m: NlMiddleware[]) { d.middlewares = m; return b; },
-    inputValidator(v: (x: never) => unknown) { d.validator = v as (x: unknown) => unknown; return b; },
-    validator(v: (x: never) => unknown) { d.validator = v as (x: unknown) => unknown; return b; },
-    handler(h: NlServerFn["handler"]) { d.handler = h; return d; },
+  const b: Builder<Any> = {
+    middleware(m) { d.middlewares = m; return b; },
+    inputValidator(v) { d.validator = v; return b; },
+    validator(v) { d.validator = v; return b; },
+    handler(h) { d.handler = async (a) => await h(a as Any); return d; },
   };
   return b;
 }

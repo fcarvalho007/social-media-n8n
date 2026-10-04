@@ -1,5 +1,5 @@
 import { supabase } from "@/integrations/supabase/client";
-import type { Database } from "@/integrations/supabase/types";
+import type { Database } from "../../_shim/types.ts";
 
 /**
  * Remove um emoji/símbolo decorativo (e espaços/pontuação leve) do início

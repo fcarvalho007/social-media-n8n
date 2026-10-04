@@ -2,8 +2,8 @@
 // número, data e formato. As notícias voltam a pendentes (nada é apagado).
 import { createServerFn } from "../_shim/start.ts";
 import { requireSupabaseAuth } from "../_shim/auth.ts";
-import { z } from "zod";
-import type { Database } from "@/integrations/supabase/types";
+import { z } from "npm:zod@3.25.76";
+import type { Database } from "../_shim/types.ts";
 
 type RevistaUpdate = Database["public"]["Tables"]["revista_edicao"]["Update"];
 import {

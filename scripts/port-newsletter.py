@@ -95,6 +95,8 @@ def server_rewrite(s: str, here: str) -> str:
     s = re.sub(r'"@/lib/', '"%s/' % rel_to(os.path.join(SRV, "lib")), s)
     s = re.sub(r'"@/features/', '"%s/' % rel_to(os.path.join(SRV, "features")), s)
     s = re.sub(r'"(\.\./)+supabase/functions/_shared/', '"%s/' % rel_to(os.path.join(SRV, "edge-shared")), s)
+    s = s.replace('"@/integrations/supabase/types"', '"%s"' % rel_to(os.path.join(SRV, "_shim/types.ts")))
+    s = s.replace('"zod"', '"npm:zod@3.25.76"')
     s = s.replace('"@supabase/supabase-js"', '"npm:@supabase/supabase-js@2.57.4"').replace("'@supabase/supabase-js'", '"npm:@supabase/supabase-js@2.57.4"')
     s = re.sub(r'from "crypto"', 'from "node:crypto"', s)
     s = tables(s)
