@@ -111,7 +111,7 @@ describe("Carrossel — gravação e refetch", () => {
   it("a primeira abertura não apaga a cópia local: oferece Restaurar e repõe o texto", async () => {
     const { chaveRecuperacao, guardarRecuperacao } = await import("@/lib/recuperacaoLocal");
     const copia = { legenda: "L", slides: [{ titulo: "T", texto: "texto local", fontes: [] }] };
-    guardarRecuperacao(chaveRecuperacao("u1", "carrossel", "c1", "p1"), copia);
+    guardarRecuperacao(chaveRecuperacao("u1", "carrossel", "c1", null), copia);
     conteudos.obterConteudo.mockResolvedValueOnce(conteudo(1, "original"));
     renderCarrossel();
     const restaurar = await screen.findByRole("button", { name: "Restaurar" });
