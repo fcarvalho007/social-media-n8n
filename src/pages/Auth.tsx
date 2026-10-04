@@ -29,9 +29,14 @@ const Auth = () => {
     const parsed = emailSchema.safeParse(email);
     if (!parsed.success) { setError('Email inválido'); return; }
     setIsLoading(true); setError(null);
-    const r = await signInWithEmail(parsed.data);
-    setIsLoading(false);
-    if (r.error) setError(r.error.message);
+    try {
+      const r = await signInWithEmail(parsed.data);
+      if (r.error) setError(r.error.message);
+    } catch {
+      setError('Não foi possível entrar. Tenta de novo.');
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   return (
