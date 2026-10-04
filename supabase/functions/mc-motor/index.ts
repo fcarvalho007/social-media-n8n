@@ -215,6 +215,19 @@ Deno.serve(async (req) => {
     // preparar_social: explicit review of the current versions; approval + reservation are atomic in the RPC.
     const propostaVersao = Number(body.proposta_versao);
     if (body.revisto !== true || !Number.isInteger(propostaVersao)) return json({ error: "Confirma que reviste esta versão." }, 400);
+    // Quality gate: text that does not fit blocks approval of THIS version (older drafts untouched).
+    {
+      const [{ data: dvx }, { data: pvx }] = await Promise.all([
+        user.from("mc_documentos_versoes").select("documento").eq("documento_id", docId).eq("versao", versao).maybeSingle(),
+        user.from("mc_propostas_versoes").select("conteudo").eq("proposta_id", doc.proposta_id).eq("versao", propostaVersao).maybeSingle(),
+      ]);
+      if (!dvx || !pvx) return json({ error: "A versão mudou entretanto. Revê a versão atual antes de preparar." }, 409);
+      const { paginasComTransbordo } = await import("../_shared/motor/transbordo.server.ts");
+      let pags: number[];
+      try { pags = paginasComTransbordo(docId, pvx.conteudo as unknown as PropostaEditorial, dvx.documento as never); }
+      catch { return json({ error: "Não foi possível verificar o texto desta versão." }, 503); }
+      if (pags.length) return json({ error: `O texto não cabe na página ${pags.join(", ")}. Encurta o texto na Narrativa ou ajusta as caixas na Composição antes de aprovar.`, codigo: "texto_nao_cabe", paginas: pags }, 422);
+    }
     const { data: r, error: er } = await user.rpc("mc_preparar_social", { _documento_id: docId, _versao: versao, _proposta_versao: propostaVersao });
     if (er) {
       const st = er.code === "42501" ? 403 : er.code === "MC409" ? 409 : 400;
