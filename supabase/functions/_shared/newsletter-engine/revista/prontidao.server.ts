@@ -1,3 +1,4 @@
+import process from "node:process";
 // Prontidão (readiness) do workflow Revista — Fase E3.
 //
 // Um único sítio responde à pergunta «esta edição pode seguir?». É lido pelo
@@ -8,14 +9,14 @@
 // Regra de ouro: só bloqueia o que é mesmo crítico. Backup, Rank Math e
 // diagnósticos acessórios nunca impedem o envio.
 
-import { encontrarDominiosBloqueados, lerListaDominios } from "./dominios-bloqueados";
-import { createClient, type SupabaseClient } from "@supabase/supabase-js";
+import { encontrarDominiosBloqueados, lerListaDominios } from "./dominios-bloqueados.ts";
+import { createClient, type SupabaseClient } from "npm:@supabase/supabase-js@2.57.4";
 
-import { composeRevistaEdition, lerSnapshotRevista } from "./compose.server";
-import { estadoDestinos, urlCanonicaEdicao, caminhoCanonicoEdicao } from "./destinos.server";
-import { rotuloWorkflow, type EstadoWorkflow } from "./prontidao-rotulos";
-import { briefsActivos } from "./brief/modelo.server";
-import { validarBriefsDaEdicao } from "./brief/publicacao.server";
+import { composeRevistaEdition, lerSnapshotRevista } from "./compose.server.ts";
+import { estadoDestinos, urlCanonicaEdicao, caminhoCanonicoEdicao } from "./destinos.server.ts";
+import { rotuloWorkflow, type EstadoWorkflow } from "./prontidao-rotulos.ts";
+import { briefsActivos } from "./brief/modelo.server.ts";
+import { validarBriefsDaEdicao } from "./brief/publicacao.server.ts";
 
 export { rotuloWorkflow };
 export type { EstadoWorkflow };
@@ -123,7 +124,7 @@ export async function avaliarProntidao(
   const sb = admin();
 
   const { data: edRaw } = await sb
-    .from("edicoes")
+    .from("nl_edicoes")
     .select("numero, assunto, estado, template_version, envio_em_curso")
     .eq("id", edicaoId)
     .maybeSingle();
@@ -156,7 +157,7 @@ export async function avaliarProntidao(
   };
 
   /* — domínios em lista negra na E-goi: a campanha seria pausada — */
-  const { data: cfgDom } = await sb.from("configuracoes").select("valor").eq("chave", "dominios_bloqueados_egoi").maybeSingle();
+  const { data: cfgDom } = await sb.from("nl_configuracoes").select("valor").eq("chave", "dominios_bloqueados_egoi").maybeSingle();
   const achados = estrutura
     ? encontrarDominiosBloqueados(estrutura, lerListaDominios((cfgDom as { valor: string | null } | null)?.valor))
     : [];

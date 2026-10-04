@@ -3,7 +3,7 @@
 // Se a edição já tem `wordpress_post_id`, actualiza (PUT) em vez de criar (POST) —
 // garante que "Criar rascunho" e "Criar e enviar" partilham a mesma Lição.
 
-import { gerarHtmlEdicaoWeb } from "./gerar-html-web.server";
+import { gerarHtmlEdicaoWeb } from "./gerar-html-web.server.ts";
 // deno-lint-ignore no-explicit-any
 type Admin = any;
 
@@ -107,7 +107,7 @@ export async function publicarOuActualizarLicaoEdicao(
   | { ok: false; tentado: true; mensagem: string; post_url: string | null }
 > {
   const { data: ed } = await admin
-    .from("edicoes")
+    .from("nl_edicoes")
     .select("numero, assunto, wordpress_post_id")
     .eq("id", opts.edicaoId)
     .maybeSingle();
@@ -128,7 +128,7 @@ export async function publicarOuActualizarLicaoEdicao(
 
   if (!r.ok) {
     if (opts.quem) {
-      await admin.from("audit_log").insert({
+      await admin.from("nl_audit_log").insert({
         quem: opts.quem,
         accao: `WordPress falhou (${opts.status})`,
         detalhe: r.mensagem,
@@ -138,12 +138,12 @@ export async function publicarOuActualizarLicaoEdicao(
   }
 
   await admin
-    .from("edicoes")
+    .from("nl_edicoes")
     .update({ wordpress_post_id: r.post_id, wordpress_post_url: r.post_url })
     .eq("id", opts.edicaoId);
 
   if (opts.quem) {
-    await admin.from("audit_log").insert({
+    await admin.from("nl_audit_log").insert({
       quem: opts.quem,
       accao: r.actualizada
         ? `WordPress actualizado (${r.status})`

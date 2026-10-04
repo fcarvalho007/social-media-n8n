@@ -4,7 +4,7 @@
 // barra final — tem de devolver a mesma impressão digital, para nunca criar
 // um segundo Brief nem um segundo endereço.
 
-import { normalizarUrl } from "../../ia-limpeza";
+import { normalizarUrl } from "../../ia-limpeza.ts";
 
 /** Forma canónica do URL da fonte (reutiliza a normalização já usada na curadoria). */
 export function urlFonteCanonico(url: string | null | undefined): string | null {

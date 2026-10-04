@@ -1,15 +1,16 @@
+import process from "node:process";
 // Domínio do Brief — CRUD e ciclo de vida. Server-only.
 //
 // Fase 2A: sem IA. Este módulo prova a relação notícia → Brief → edição e é
 // o único sítio onde se escreve nas tabelas `briefs`, `brief_edicoes` e
 // `brief_versoes`. Nada aqui toca no email, no envio, no snapshot ou no hub.
 
-import { createHash } from "crypto";
-import { createClient, type SupabaseClient } from "@supabase/supabase-js";
+import { createHash } from "node:crypto";
+import { createClient, type SupabaseClient } from "npm:@supabase/supabase-js@2.57.4";
 
-import { calcularFingerprint } from "./fingerprint";
-import { derivarSlug, slugUnico } from "./slug";
-import { garantirTransicao } from "./estados";
+import { calcularFingerprint } from "./fingerprint.ts";
+import { derivarSlug, slugUnico } from "./slug.ts";
+import { garantirTransicao } from "./estados.ts";
 import {
   LIMITES_BRIEF_PADRAO,
   type Brief,
@@ -19,7 +20,7 @@ import {
   type LimitesBrief,
   type ParagrafoBrief,
   type TipoBrief,
-} from "./tipos";
+} from "./tipos.ts";
 
 function admin(): SupabaseClient {
   return createClient(process.env.SUPABASE_URL!, process.env.SUPABASE_SERVICE_ROLE_KEY!, {
@@ -93,7 +94,7 @@ export function alteradoAposPublicacao(b: Brief): boolean {
 export async function limitesBrief(sb?: SupabaseClient): Promise<LimitesBrief> {
   const db = sb ?? admin();
   const { data } = await db
-    .from("configuracoes")
+    .from("nl_configuracoes")
     .select("valor")
     .eq("chave", "brief_limites")
     .maybeSingle();
@@ -114,7 +115,7 @@ export async function limitesBrief(sb?: SupabaseClient): Promise<LimitesBrief> {
 export async function briefsActivos(sb?: SupabaseClient): Promise<boolean> {
   const db = sb ?? admin();
   const { data } = await db
-    .from("configuracoes")
+    .from("nl_configuracoes")
     .select("valor")
     .eq("chave", "briefs_activos")
     .maybeSingle();
@@ -152,7 +153,7 @@ export async function resolverNoticiaCanonica(
 
   for (let salto = 0; salto < 5; salto++) {
     const { data } = await db
-      .from("noticias")
+      .from("nl_noticias")
       .select("id, titulo, url, repeticao_de")
       .eq("id", id)
       .maybeSingle();
@@ -184,17 +185,17 @@ export async function obterOuCriarBrief(
   pedido = { ...pedido, noticiaId: canonica.id, titulo, url };
   const fingerprint = calcularFingerprint({ url, titulo });
 
-  const existente = await db.from("briefs").select(COLUNAS).eq("fingerprint", fingerprint).maybeSingle();
+  const existente = await db.from("nl_briefs").select(COLUNAS).eq("fingerprint", fingerprint).maybeSingle();
   if (existente.data) {
     return { brief: normalizar(existente.data as Record<string, unknown>), criado: false };
   }
 
-  const { data: slugs } = await db.from("briefs").select("slug");
+  const { data: slugs } = await db.from("nl_briefs").select("slug");
   const slug = slugUnico(pedido.titulo, ((slugs ?? []) as { slug: string }[]).map((s) => s.slug));
 
   const indexavel = pedido.tipo === "destaque";
   const inserido = await db
-    .from("briefs")
+    .from("nl_briefs")
     .insert({
       noticia_id: pedido.noticiaId,
       fingerprint,
@@ -213,7 +214,7 @@ export async function obterOuCriarBrief(
 
   if (inserido.error) {
     // Corrida: outra chamada criou o mesmo Brief entretanto.
-    const recuperado = await db.from("briefs").select(COLUNAS).eq("fingerprint", fingerprint).maybeSingle();
+    const recuperado = await db.from("nl_briefs").select(COLUNAS).eq("fingerprint", fingerprint).maybeSingle();
     if (recuperado.data) {
       return { brief: normalizar(recuperado.data as Record<string, unknown>), criado: false };
     }
@@ -232,7 +233,7 @@ export async function associarBriefAEdicao(
   const db = sb ?? admin();
 
   const jaLa = await db
-    .from("brief_edicoes")
+    .from("nl_brief_edicoes")
     .select("id")
     .eq("brief_id", args.briefId)
     .eq("edicao_id", args.edicaoId)
@@ -241,7 +242,7 @@ export async function associarBriefAEdicao(
   const limites = await limitesBrief(db);
   if (!jaLa.data) {
     const { count } = await db
-      .from("brief_edicoes")
+      .from("nl_brief_edicoes")
       .select("id", { count: "exact", head: true })
       .eq("edicao_id", args.edicaoId)
       .eq("papel", args.papel);
@@ -264,12 +265,12 @@ export async function associarBriefAEdicao(
   };
 
   const { error } = jaLa.data
-    ? await db.from("brief_edicoes").update(registo).eq("id", (jaLa.data as { id: string }).id)
-    : await db.from("brief_edicoes").insert(registo);
+    ? await db.from("nl_brief_edicoes").update(registo).eq("id", (jaLa.data as { id: string }).id)
+    : await db.from("nl_brief_edicoes").insert(registo);
   if (error) throw error;
 
   // O tipo do Brief acompanha o papel na edição mais recente.
-  await db.from("briefs").update({ tipo: args.papel, indexavel: args.papel === "destaque" }).eq("id", args.briefId);
+  await db.from("nl_briefs").update({ tipo: args.papel, indexavel: args.papel === "destaque" }).eq("id", args.briefId);
 }
 
 export async function desassociarBriefDaEdicao(
@@ -278,7 +279,7 @@ export async function desassociarBriefDaEdicao(
 ): Promise<void> {
   const db = sb ?? admin();
   const { error } = await db
-    .from("brief_edicoes")
+    .from("nl_brief_edicoes")
     .delete()
     .eq("brief_id", args.briefId)
     .eq("edicao_id", args.edicaoId);
@@ -301,7 +302,7 @@ export async function sincronizarPapelBrief(
   if (!args.papel) {
     const fingerprint = calcularFingerprint({ url: canonica.url, titulo });
     const { data } = await db
-      .from("briefs")
+      .from("nl_briefs")
       .select("id")
       .eq("fingerprint", fingerprint)
       .maybeSingle();
@@ -329,7 +330,7 @@ export async function listarBriefsDaEdicao(
 ): Promise<BriefDaEdicao[]> {
   const db = sb ?? admin();
   const { data, error } = await db
-    .from("brief_edicoes")
+    .from("nl_brief_edicoes")
     .select("papel, ordem, titulo_apresentado, brief:briefs(*)")
     .eq("edicao_id", edicaoId)
     .order("ordem", { ascending: true });
@@ -356,12 +357,12 @@ export async function listarBriefsDaEdicao(
 
 export async function obterBriefPorSlug(slug: string, sb?: SupabaseClient): Promise<Brief | null> {
   const db = sb ?? admin();
-  const { data } = await db.from("briefs").select(COLUNAS).eq("slug", slug).maybeSingle();
+  const { data } = await db.from("nl_briefs").select(COLUNAS).eq("slug", slug).maybeSingle();
   return data ? normalizar(data as Record<string, unknown>) : null;
 }
 
 async function obterBrief(id: string, db: SupabaseClient): Promise<Brief> {
-  const { data, error } = await db.from("briefs").select(COLUNAS).eq("id", id).single();
+  const { data, error } = await db.from("nl_briefs").select(COLUNAS).eq("id", id).single();
   if (error) throw error;
   return normalizar(data as Record<string, unknown>);
 }
@@ -406,7 +407,7 @@ export async function actualizarConteudo(
     registo.estado = "gerado";
   }
 
-  const { data, error } = await db.from("briefs").update(registo).eq("id", id).select(COLUNAS).single();
+  const { data, error } = await db.from("nl_briefs").update(registo).eq("id", id).select(COLUNAS).single();
   if (error) throw error;
   return normalizar(data as Record<string, unknown>);
 }
@@ -423,7 +424,7 @@ export async function aprovarLeitura(
   garantirTransicao(actual.estado, "aprovado");
 
   const { data, error } = await db
-    .from("briefs")
+    .from("nl_briefs")
     .update({
       leitura_aprovada: texto,
       aprovada_em: new Date().toISOString(),
@@ -440,7 +441,7 @@ export async function aprovarLeitura(
 export async function revogarAprovacao(id: string, sb?: SupabaseClient): Promise<Brief> {
   const db = sb ?? admin();
   const { data, error } = await db
-    .from("briefs")
+    .from("nl_briefs")
     .update({ aprovada_em: null, aprovada_por: null, estado: "por_rever" })
     .eq("id", id)
     .select(COLUNAS)
@@ -464,7 +465,7 @@ export async function transitarEstado(
     registo.hash_publicado = hashConteudo(actual);
   }
 
-  const { data, error } = await db.from("briefs").update(registo).eq("id", args.id).select(COLUNAS).single();
+  const { data, error } = await db.from("nl_briefs").update(registo).eq("id", args.id).select(COLUNAS).single();
   if (error) throw error;
   return normalizar(data as Record<string, unknown>);
 }
@@ -479,7 +480,7 @@ export async function registarVersao(
   const b = await obterBrief(args.id, db);
 
   const { data: ultima } = await db
-    .from("brief_versoes")
+    .from("nl_brief_versoes")
     .select("versao")
     .eq("brief_id", args.id)
     .order("versao", { ascending: false })
@@ -488,7 +489,7 @@ export async function registarVersao(
 
   const versao = ((ultima as { versao: number } | null)?.versao ?? 0) + 1;
 
-  const { error } = await db.from("brief_versoes").insert({
+  const { error } = await db.from("nl_brief_versoes").insert({
     brief_id: args.id,
     versao,
     conteudo: {
@@ -534,7 +535,7 @@ export async function guardarLeituraSugerida(
     registo.estado = "por_rever";
   }
 
-  const { data, error } = await db.from("briefs").update(registo).eq("id", args.id).select(COLUNAS).single();
+  const { data, error } = await db.from("nl_briefs").update(registo).eq("id", args.id).select(COLUNAS).single();
   if (error) throw error;
   const b = normalizar(data as Record<string, unknown>);
   return { estado: b.estado, aprovada: Boolean(b.aprovada_em), revogou };
@@ -556,7 +557,7 @@ export async function guardarIdentidadeEditorial(
   if (args.teseEditorial !== undefined) registo.tese_editorial = args.teseEditorial.trim();
   if (!Object.keys(registo).length) return obterBrief(args.id, db);
 
-  const { data, error } = await db.from("briefs").update(registo).eq("id", args.id).select(COLUNAS).single();
+  const { data, error } = await db.from("nl_briefs").update(registo).eq("id", args.id).select(COLUNAS).single();
   if (error) throw error;
   return normalizar(data as Record<string, unknown>);
 }

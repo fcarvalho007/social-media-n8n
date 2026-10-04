@@ -5,13 +5,13 @@
 // «Todas as atualidades desta edição», que inclui as notícias «só site».
 // É para aqui que aponta o CTA «Ver todas as atualidades selecionadas».
 
-import type { EdicaoRevista, AtualidadeRevista } from "./compose.server";
-import { R, SANS, SERIF, ctaRecomendacao, CTA_NOTICIA_PADRAO } from "./tokens";
-import { esc, fmtDataLonga } from "./render-email.server";
-import { sequenciaCronica } from "./sequencia-cronica";
-import { contagemSeleccao } from "./contagens";
-import { ROTULOS_REVISTA } from "./rotulos";
-import { paletaFerramenta } from "./cores-ferramenta";
+import type { EdicaoRevista, AtualidadeRevista } from "./compose.server.ts";
+import { R, SANS, SERIF, ctaRecomendacao, CTA_NOTICIA_PADRAO } from "./tokens.ts";
+import { esc, fmtDataLonga } from "./render-email.server.ts";
+import { sequenciaCronica } from "./sequencia-cronica.ts";
+import { contagemSeleccao } from "./contagens.ts";
+import { ROTULOS_REVISTA } from "./rotulos.ts";
+import { paletaFerramenta } from "./cores-ferramenta.ts";
 
 export interface HtmlRevistaWeb {
   html: string;

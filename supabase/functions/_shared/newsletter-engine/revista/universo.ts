@@ -41,7 +41,7 @@ export async function carregarNoticiasDaEdicao(
   edicaoId: string,
 ): Promise<NoticiaDaEdicao[]> {
   const { data, error } = await sb
-    .from("noticias")
+    .from("nl_noticias")
     .select(COLUNAS_NOTICIA_EDICAO)
     .eq("edicao_id", edicaoId)
     .in("estado", ESTADOS_NOTICIA_EDICAO)

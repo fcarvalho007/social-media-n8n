@@ -1,3 +1,4 @@
+import process from "node:process";
 // Camada pública dos Briefs (Fase 3A).
 //
 // Responde a três perguntas, sempre do lado do servidor:
@@ -13,11 +14,11 @@
 // Nada aqui devolve leitura sugerida, factos, verificação ou custos: o DTO é
 // construído campo a campo.
 
-import { createClient, type SupabaseClient } from "@supabase/supabase-js";
+import { createClient, type SupabaseClient } from "npm:@supabase/supabase-js@2.57.4";
 
-import { CATEGORIAS } from "../../design-tokens.server";
-import type { ImplicacaoBrief, ParagrafoBrief, TipoBrief } from "./tipos";
-import { avaliarPublicacao, briefIndexavel } from "../regras-publicacao";
+import { CATEGORIAS } from "../../design-tokens.server.ts";
+import type { ImplicacaoBrief, ParagrafoBrief, TipoBrief } from "./tipos.ts";
+import { avaliarPublicacao, briefIndexavel } from "../regras-publicacao.ts";
 
 function admin(): SupabaseClient {
   return createClient(process.env.SUPABASE_URL!, process.env.SUPABASE_SERVICE_ROLE_KEY!, {
@@ -109,7 +110,7 @@ async function edicoesPublicas(
   preview = false,
 ): Promise<Map<string, LinhaEdicaoLeve>> {
   let consulta = sb
-    .from("edicoes")
+    .from("nl_edicoes")
     .select(
       "id, numero, data_envio_prevista, estado, template_version, destinos, snap_estado:revista_snapshot->>estado, tem_snap:revista_snapshot",
     )
@@ -185,7 +186,7 @@ async function indicePublico(sb: SupabaseClient, preview = false): Promise<Candi
   if (!publicas.size) return [];
 
   const { data: assoc, error: eAssoc } = await sb
-    .from("brief_edicoes")
+    .from("nl_brief_edicoes")
     .select("brief_id, edicao_id, ordem, titulo_apresentado")
     .in("edicao_id", [...publicas.keys()]);
   if (eAssoc) throw new Error(eAssoc.message);
@@ -199,7 +200,7 @@ async function indicePublico(sb: SupabaseClient, preview = false): Promise<Candi
   if (!linhas.length) return [];
 
   const { data: briefs, error: eBriefs } = await sb
-    .from("briefs")
+    .from("nl_briefs")
     .select(CAMPOS_BRIEF)
     .in("id", [...new Set(linhas.map((l) => l.brief_id))]);
   if (eBriefs) throw new Error(eBriefs.message);
@@ -211,7 +212,7 @@ async function indicePublico(sb: SupabaseClient, preview = false): Promise<Candi
   const noticiaIds = [...new Set([...porId.values()].map((b) => b.noticia_id).filter(Boolean))] as string[];
   const noticias = new Map<string, { categoria: string | null; titulo: string }>();
   if (noticiaIds.length) {
-    const { data: ns } = await sb.from("noticias").select("id, categoria, titulo").in("id", noticiaIds);
+    const { data: ns } = await sb.from("nl_noticias").select("id, categoria, titulo").in("id", noticiaIds);
     for (const n of (ns ?? []) as Array<{ id: string; categoria: string | null; titulo: string }>) {
       noticias.set(n.id, { categoria: n.categoria, titulo: n.titulo });
     }

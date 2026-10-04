@@ -4,9 +4,9 @@
 // gera a alternativa em texto a partir dos MESMOS dados que o HTML, para que
 // as duas versões nunca divirjam.
 
-import type { DadosEdicao } from "./gerar-html-newsletter.server";
-import { construirPreheader, fmtData, limparTitulo } from "./gerar-html-newsletter.server";
-import { CATEGORIAS } from "./design-tokens.server";
+import type { DadosEdicao } from "./gerar-html-newsletter.server.ts";
+import { construirPreheader, fmtData, limparTitulo } from "./gerar-html-newsletter.server.ts";
+import { CATEGORIAS } from "./design-tokens.server.ts";
 
 function htmlParaTexto(html: string | null | undefined): string {
   if (!html) return "";

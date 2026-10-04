@@ -1,3 +1,4 @@
+import process from "node:process";
 // Destinos de publicação da Revista — orquestração server-side.
 //
 // Uma edição Revista produz quatro outputs. Este módulo é o único sítio onde
@@ -10,10 +11,10 @@
 //   cronica  → artigo autónomo em FredericoCarvalho.pt (por agora, URL manual)
 //   backup   → Lição no WordPress actual (nunca bloqueante)
 
-import { mensagemErroBackup } from "./erro-backup";
-import { createClient, type SupabaseClient } from "@supabase/supabase-js";
+import { mensagemErroBackup } from "./erro-backup.ts";
+import { createClient, type SupabaseClient } from "npm:@supabase/supabase-js@2.57.4";
 
-import { construirPayloadArtigo, impressaoArtigo } from "./artigo-cronica";
+import { construirPayloadArtigo, impressaoArtigo } from "./artigo-cronica.ts";
 
 export type EstadoWeb = "preparada" | "publica" | "erro" | "por_preparar";
 export type EstadoCronica =
@@ -95,7 +96,7 @@ export function caminhoCanonicoEdicao(numero: number): string {
 export async function baseUrlEdicoes(sb?: SupabaseClient): Promise<string> {
   const db = sb ?? admin();
   const { data } = await db
-    .from("configuracoes")
+    .from("nl_configuracoes")
     .select("valor")
     .eq("chave", "edicoes_base_url")
     .maybeSingle();
@@ -173,11 +174,11 @@ export async function impressaoCronicaActual(
   sb?: SupabaseClient,
 ): Promise<string | null> {
   const db = sb ?? admin();
-  const { lerCronicaCanonica } = await import("./cronica-canonica.server");
+  const { lerCronicaCanonica } = await import("./cronica-canonica.server.ts");
   const fonte = await lerCronicaCanonica(db, edicaoId);
   if (!fonte.corpoHtml && !fonte.titulo) return null;
   const categoria = ((await db
-    .from("configuracoes")
+    .from("nl_configuracoes")
     .select("valor")
     .eq("chave", "frederico_wp_categoria")
     .maybeSingle()).data as { valor?: string | null } | null)?.valor ?? null;
@@ -193,8 +194,8 @@ export async function impressaoCronicaActual(
 export async function estadoDestinos(edicaoId: string): Promise<DestinosEdicao> {
   const sb = admin();
   const [{ data: edRaw }, { data: cfgRaw }] = await Promise.all([
-    sb.from("edicoes").select(SELECT_EDICAO).eq("id", edicaoId).maybeSingle(),
-    sb.from("revista_edicao").select("cronica_url").eq("edicao_id", edicaoId).maybeSingle(),
+    sb.from("nl_edicoes").select(SELECT_EDICAO).eq("id", edicaoId).maybeSingle(),
+    sb.from("nl_revista_edicao").select("cronica_url").eq("edicao_id", edicaoId).maybeSingle(),
   ]);
   const l = (edRaw ?? {}) as LinhaEdicao;
   const guardado = (l.destinos && typeof l.destinos === "object" ? l.destinos : {}) as Record<string, unknown>;
@@ -262,18 +263,18 @@ export async function gravarDestino(
   sb?: SupabaseClient,
 ): Promise<void> {
   const db = sb ?? admin();
-  const { data } = await db.from("edicoes").select("destinos").eq("id", edicaoId).maybeSingle();
+  const { data } = await db.from("nl_edicoes").select("destinos").eq("id", edicaoId).maybeSingle();
   const actual = ((data as { destinos?: unknown } | null)?.destinos ?? {}) as Record<string, unknown>;
   const anterior = normalizarDestino(actual[chave], VAZIO.estado);
   const novo: DestinoEstado = { ...anterior, ...patch, tentado_em: patch.tentado_em ?? new Date().toISOString() };
   await db
-    .from("edicoes")
+    .from("nl_edicoes")
     .update({ destinos: { ...actual, [chave]: novo } })
     .eq("id", edicaoId);
 }
 
 async function registar(sb: SupabaseClient, quem: string | null, accao: string, detalhe?: string) {
-  await sb.from("audit_log").insert({ quem: quem ?? "sistema", accao, detalhe: detalhe ?? null });
+  await sb.from("nl_audit_log").insert({ quem: quem ?? "sistema", accao, detalhe: detalhe ?? null });
 }
 
 /* ─────────── acções por destino ─────────── */
@@ -294,7 +295,7 @@ export async function guardarUrlCronica(opts: {
   }
   const sb = admin();
   const { error } = await sb
-    .from("revista_edicao")
+    .from("nl_revista_edicao")
     .upsert({ edicao_id: opts.edicaoId, cronica_url: url }, { onConflict: "edicao_id" });
   if (error) throw new Error(error.message);
 
@@ -324,9 +325,9 @@ export async function criarBackup(opts: {
 }): Promise<{ ok: boolean; url: string | null; mensagem: string }> {
   const sb = admin();
   try {
-    const { publicarWordpress } = await import("../envio.server");
+    const { publicarWordpress } = await import("../envio.server.ts");
     const { data: edRaw } = await sb
-      .from("edicoes")
+      .from("nl_edicoes")
       .select("numero")
       .eq("id", opts.edicaoId)
       .maybeSingle();

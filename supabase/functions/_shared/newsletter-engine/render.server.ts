@@ -1,13 +1,14 @@
+import process from "node:process";
 // Despacho por versão de template.
 // `classic` mantém exactamente o motor anterior; `revista` usa o composer e o
 // renderer próprios. Nenhum código do sistema clássico é alterado.
 
-import { createClient } from "@supabase/supabase-js";
-import { gerarHtmlNewsletter } from "./gerar-html-newsletter.server";
-import { montarTexto } from "./gerar-texto-newsletter.server";
-import { composeRevistaEdition, lerSnapshotRevista } from "./revista/compose.server";
-import { montarHtmlRevista } from "./revista/render-email.server";
-import { montarTextoRevista } from "./revista/texto.server";
+import { createClient } from "npm:@supabase/supabase-js@2.57.4";
+import { gerarHtmlNewsletter } from "./gerar-html-newsletter.server.ts";
+import { montarTexto } from "./gerar-texto-newsletter.server.ts";
+import { composeRevistaEdition, lerSnapshotRevista } from "./revista/compose.server.ts";
+import { montarHtmlRevista } from "./revista/render-email.server.ts";
+import { montarTextoRevista } from "./revista/texto.server.ts";
 
 export type VersaoTemplate = "classic" | "revista";
 
@@ -15,7 +16,7 @@ export async function lerVersaoTemplate(edicaoId: string): Promise<VersaoTemplat
   const sb = createClient(process.env.SUPABASE_URL!, process.env.SUPABASE_SERVICE_ROLE_KEY!, {
     auth: { persistSession: false },
   });
-  const { data } = await sb.from("edicoes").select("template_version").eq("id", edicaoId).maybeSingle();
+  const { data } = await sb.from("nl_edicoes").select("template_version").eq("id", edicaoId).maybeSingle();
   const v = (data as { template_version?: string } | null)?.template_version;
   return v === "revista" ? "revista" : "classic";
 }

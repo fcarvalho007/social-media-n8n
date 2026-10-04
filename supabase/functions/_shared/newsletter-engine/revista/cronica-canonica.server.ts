@@ -5,10 +5,10 @@
 // `edicao_id`. Não existe qualquer fallback para outra edição: quando a
 // crónica não existe, o corpo vem vazio e a escrita é bloqueada a jusante.
 
-import type { SupabaseClient } from "@supabase/supabase-js";
+import type { SupabaseClient } from "npm:@supabase/supabase-js@2.57.4";
 
-import type { DadosArtigoCronica } from "./artigo-cronica";
-import { urlCanonicaEdicao } from "./destinos.server";
+import type { DadosArtigoCronica } from "./artigo-cronica.ts";
+import { urlCanonicaEdicao } from "./destinos.server.ts";
 
 export interface CronicaCanonica extends DadosArtigoCronica {
   /** `destinos.cronica.external_id` guardado nesta edição. */
@@ -29,14 +29,14 @@ export async function lerCronicaCanonica(
   if (!alvo) throw new Error("Integridade: edição não identificada.");
 
   const [{ data: ed }, { data: rev }, { data: cro }] = await Promise.all([
-    sb.from("edicoes").select("id, numero, destinos").eq("id", alvo).maybeSingle(),
+    sb.from("nl_edicoes").select("id, numero, destinos").eq("id", alvo).maybeSingle(),
     sb
-      .from("revista_edicao")
+      .from("nl_revista_edicao")
       .select("edicao_id, cronica_titulo, cronica_subtitulo, cronica_lede")
       .eq("edicao_id", alvo)
       .maybeSingle(),
     sb
-      .from("cronicas")
+      .from("nl_cronicas")
       .select("id, edicao_id, titulo, conteudo_html, conteudo")
       .eq("edicao_id", alvo)
       .maybeSingle(),

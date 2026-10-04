@@ -1,5 +1,5 @@
 // Motor de agendamento: executa edições cujo `agendado_para` já passou.
-import { admin, dispararEgoi, publicarWordpress } from "./envio.server";
+import { admin, dispararEgoi, publicarWordpress } from "./envio.server.ts";
 
 export interface ResultadoAgendamento {
   processadas: number;
@@ -11,7 +11,7 @@ export async function executarAgendamentos(): Promise<ResultadoAgendamento> {
   const sb = admin();
   const agora = new Date().toISOString();
 
-  const { data } = await sb.from("edicoes")
+  const { data } = await sb.from("nl_edicoes")
     .select("id, numero, agendamento_listas, agendamento_wordpress, agendado_por, estado")
     .eq("agendamento_estado", "agendado")
     .lte("agendado_para", agora)
@@ -27,7 +27,7 @@ export async function executarAgendamentos(): Promise<ResultadoAgendamento> {
 
   for (const ed of pendentes) {
     // Claim: só avança quem conseguir mudar o estado de 'agendado' para 'a_executar'.
-    const { data: claim } = await sb.from("edicoes")
+    const { data: claim } = await sb.from("nl_edicoes")
       .update({ agendamento_estado: "a_executar", agendamento_iniciado_em: new Date().toISOString() })
       .eq("id", ed.id).eq("agendamento_estado", "agendado")
       .select("id").maybeSingle();
@@ -44,7 +44,7 @@ export async function executarAgendamentos(): Promise<ResultadoAgendamento> {
         try {
           await publicarWordpress({ edicaoId: ed.id, quemNome: quem });
         } catch (e) {
-          await sb.from("audit_log").insert({
+          await sb.from("nl_audit_log").insert({
             quem, accao: `WordPress falhou no envio agendado da edição #${ed.numero}`,
             detalhe: (e as Error).message,
           });
@@ -58,20 +58,20 @@ export async function executarAgendamentos(): Promise<ResultadoAgendamento> {
         exigirConfirmacao: false,
       });
 
-      await sb.from("edicoes").update({
+      await sb.from("nl_edicoes").update({
         agendamento_estado: r.ok ? "executado" : "falhou",
         agendamento_erro: r.ok ? null : r.mensagem,
       }).eq("id", ed.id);
 
-      await sb.from("audit_log").insert({
+      await sb.from("nl_audit_log").insert({
         quem, accao: `Envio agendado da edição #${ed.numero} ${r.ok ? "concluído" : "com falhas"}`,
         detalhe: r.mensagem,
       });
       detalhes.push({ edicao_id: ed.id, numero: ed.numero, ok: r.ok, mensagem: r.mensagem });
     } catch (e) {
       const msg = (e as Error).message;
-      await sb.from("edicoes").update({ agendamento_estado: "falhou", agendamento_erro: msg }).eq("id", ed.id);
-      await sb.from("audit_log").insert({ quem, accao: `Envio agendado da edição #${ed.numero} falhou`, detalhe: msg });
+      await sb.from("nl_edicoes").update({ agendamento_estado: "falhou", agendamento_erro: msg }).eq("id", ed.id);
+      await sb.from("nl_audit_log").insert({ quem, accao: `Envio agendado da edição #${ed.numero} falhou`, detalhe: msg });
       detalhes.push({ edicao_id: ed.id, numero: ed.numero, ok: false, mensagem: msg });
     }
   }

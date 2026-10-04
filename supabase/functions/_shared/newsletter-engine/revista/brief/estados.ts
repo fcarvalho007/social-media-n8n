@@ -4,7 +4,7 @@
 // hash do conteúdo actual com `hash_publicado` (o mesmo padrão já usado na
 // crónica).
 
-import type { Brief, EstadoBrief, TipoBrief } from "./tipos";
+import type { Brief, EstadoBrief, TipoBrief } from "./tipos.ts";
 
 const TRANSICOES: Record<EstadoBrief, EstadoBrief[]> = {
   por_gerar: ["a_gerar", "gerado", "erro"],

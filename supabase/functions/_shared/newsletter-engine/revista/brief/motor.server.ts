@@ -4,27 +4,27 @@
 // verificação factual → proximidade textual → estado editorial.
 // Nada aqui publica seja o que for.
 
-import type { SupabaseClient } from "@supabase/supabase-js";
+import type { SupabaseClient } from "npm:@supabase/supabase-js@2.57.4";
 
-import { extrairFactos } from "./extraccao.server";
-import { identificarFontePrimaria } from "./fonte-primaria.server";
-import { recolherFonte, type MaterialFonte } from "./fontes.server";
-import { clienteBrief } from "./modelo.server";
-import { avaliarProximidade } from "./proximidade";
+import { extrairFactos } from "./extraccao.server.ts";
+import { identificarFontePrimaria } from "./fonte-primaria.server.ts";
+import { recolherFonte, type MaterialFonte } from "./fontes.server.ts";
+import { clienteBrief } from "./modelo.server.ts";
+import { avaliarProximidade } from "./proximidade.ts";
 import {
   gerarEmTrintaSegundos,
   gerarLeituraSugerida,
   gerarPorqueInteressa,
   type Intencao,
-} from "./redaccao.server";
-import { verificarFactualidade } from "./verificacao.server";
+} from "./redaccao.server.ts";
+import { verificarFactualidade } from "./verificacao.server.ts";
 import type {
   Brief,
   FactoBrief,
   ImplicacaoBrief,
   ParagrafoBrief,
   VerificacaoBrief,
-} from "./tipos";
+} from "./tipos.ts";
 
 export type ComponenteBrief = "tudo" | "em_30_segundos" | "porque_interessa" | "leitura_sugerida";
 
@@ -44,7 +44,7 @@ export interface ResultadoGeracao {
 const COLUNAS = "*";
 
 async function carregar(db: SupabaseClient, id: string): Promise<Brief> {
-  const { data, error } = await db.from("briefs").select(COLUNAS).eq("id", id).single();
+  const { data, error } = await db.from("nl_briefs").select(COLUNAS).eq("id", id).single();
   if (error) throw error;
   const linha = data as Record<string, unknown>;
   return {
@@ -69,7 +69,7 @@ async function carregar(db: SupabaseClient, id: string): Promise<Brief> {
 }
 
 async function gravar(db: SupabaseClient, id: string, registo: Record<string, unknown>): Promise<Brief> {
-  const { error } = await db.from("briefs").update(registo).eq("id", id);
+  const { error } = await db.from("nl_briefs").update(registo).eq("id", id);
   if (error) throw error;
   return carregar(db, id);
 }

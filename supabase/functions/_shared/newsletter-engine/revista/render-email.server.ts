@@ -4,12 +4,12 @@
 // ferramentas em duas colunas, podcast amarelo, livro e serviços.
 // 640px, tabelas, estilos inline, modo escuro por melhoria progressiva.
 
-import type { EdicaoRevista, ServicoRevista } from "./compose.server";
-import { R, SANS, BLACK, SERIF, CTA_NOTICIA_PADRAO, ctaRecomendacao } from "./tokens";
-import { paragrafosCronica, sequenciaCronica } from "./sequencia-cronica";
-import { contagemSeleccao } from "./contagens";
-import { ROTULOS_REVISTA } from "./rotulos";
-import { paletaFerramenta } from "./cores-ferramenta";
+import type { EdicaoRevista, ServicoRevista } from "./compose.server.ts";
+import { R, SANS, BLACK, SERIF, CTA_NOTICIA_PADRAO, ctaRecomendacao } from "./tokens.ts";
+import { paragrafosCronica, sequenciaCronica } from "./sequencia-cronica.ts";
+import { contagemSeleccao } from "./contagens.ts";
+import { ROTULOS_REVISTA } from "./rotulos.ts";
+import { paletaFerramenta } from "./cores-ferramenta.ts";
 
 const URL_CANCELAR = "https://edicoes.digitalsprint.pt/subscricao?a=cancelar&e={!email:URLENCODE}";
 const ENTIDADE = "Digital Sprint · Frederico Carvalho · Digital FC · Portugal";

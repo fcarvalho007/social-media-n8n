@@ -2,7 +2,7 @@
 // Brief. Não há coluna «precisa de atenção»: lê-se sempre do estado, do erro
 // e das notas de verificação, para nunca haver duas versões da verdade.
 
-import type { Brief, EstadoBrief, TipoBrief } from "./tipos";
+import type { Brief, EstadoBrief, TipoBrief } from "./tipos.ts";
 
 export type MotivoAtencao =
   | "geracao_falhou"

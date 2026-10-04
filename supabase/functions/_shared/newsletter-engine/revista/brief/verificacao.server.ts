@@ -3,10 +3,10 @@
 // Passagem separada da escrita: quem escreveu não se verifica a si próprio.
 // Compara o texto redigido com os factos estruturados e o material da fonte.
 
-import type { SupabaseClient } from "@supabase/supabase-js";
+import type { SupabaseClient } from "npm:@supabase/supabase-js@2.57.4";
 
-import { chamarIaBrief } from "./adaptador-ia.server";
-import type { EstadoAfirmacao, FactoBrief, ItemVerificado, VerificacaoFactual } from "./tipos";
+import { chamarIaBrief } from "./adaptador-ia.server.ts";
+import type { EstadoAfirmacao, FactoBrief, ItemVerificado, VerificacaoFactual } from "./tipos.ts";
 
 const ESTADOS: EstadoAfirmacao[] = [
   "suportado",

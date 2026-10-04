@@ -3,10 +3,10 @@
 // Cada peça tem uma chamada própria, para se poder regenerar só essa peça.
 // A escrita parte dos factos estruturados, nunca do artigo original.
 
-import type { SupabaseClient } from "@supabase/supabase-js";
+import type { SupabaseClient } from "npm:@supabase/supabase-js@2.57.4";
 
-import { chamarIaBrief } from "./adaptador-ia.server";
-import type { FactoBrief, ImplicacaoBrief, ParagrafoBrief, TipoBrief } from "./tipos";
+import { chamarIaBrief } from "./adaptador-ia.server.ts";
+import type { FactoBrief, ImplicacaoBrief, ParagrafoBrief, TipoBrief } from "./tipos.ts";
 
 export type Intencao =
   | "normal"

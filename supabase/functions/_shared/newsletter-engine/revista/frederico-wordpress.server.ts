@@ -1,3 +1,4 @@
+import process from "node:process";
 // Publicador da crónica em FredericoCarvalho.pt.
 //
 // Destino próprio, com contrato próprio: publica APENAS a crónica como artigo
@@ -8,7 +9,7 @@
 // «não configurada» e nunca lança erro de runtime. Os segredos são lidos
 // apenas aqui, dentro dos handlers, e nunca chegam ao browser.
 
-import { createClient, type SupabaseClient } from "@supabase/supabase-js";
+import { createClient, type SupabaseClient } from "npm:@supabase/supabase-js@2.57.4";
 
 import {
   construirPayloadArtigo,
@@ -18,9 +19,9 @@ import {
   validarArtigo,
   type DiferencaArtigo,
   type ArtigoCronica,
-} from "./artigo-cronica";
-import { lerCronicaCanonica } from "./cronica-canonica.server";
-import { gravarDestino } from "./destinos.server";
+} from "./artigo-cronica.ts";
+import { lerCronicaCanonica } from "./cronica-canonica.server.ts";
+import { gravarDestino } from "./destinos.server.ts";
 
 /**
  * Fase E2B: o artigo é sempre escrito como rascunho, mesmo que a configuração
@@ -58,7 +59,7 @@ const CHAVES = [
 ] as const;
 
 async function lerConfig(sb: SupabaseClient): Promise<ConfigFrederico> {
-  const { data } = await sb.from("configuracoes").select("chave, valor").in("chave", CHAVES as unknown as string[]);
+  const { data } = await sb.from("nl_configuracoes").select("chave, valor").in("chave", CHAVES as unknown as string[]);
   const map = new Map(((data ?? []) as { chave: string; valor: string | null }[]).map((r) => [r.chave, (r.valor ?? "").trim()]));
   const num = (k: string, fallback: number) => {
     const n = Number.parseInt(map.get(k) ?? "", 10);
@@ -145,7 +146,7 @@ export async function construirArtigoCronica(edicaoId: string): Promise<ArtigoPr
 
 async function registar(sb: SupabaseClient, quem: string | null, accao: string, detalhe?: string) {
   // Nunca registamos credenciais: só acção, edição e mensagem já higienizada.
-  await sb.from("audit_log").insert({ quem: quem ?? "sistema", accao, detalhe: detalhe ?? null });
+  await sb.from("nl_audit_log").insert({ quem: quem ?? "sistema", accao, detalhe: detalhe ?? null });
 }
 
 interface RespostaWp {
@@ -384,7 +385,7 @@ export async function resolverCategoriaCronicas(
     const cat = lista[0]!;
     // Cache do ID; o slug continua a ser a fonte de verdade.
     await db
-      .from("configuracoes")
+      .from("nl_configuracoes")
       .upsert({ chave: "frederico_wp_categoria_id", valor: String(cat.id) }, { onConflict: "chave" });
     return { ok: true, id: cat.id, nome: cat.name, slug: cat.slug, mensagem: `Categoria ${cat.name} (#${cat.id}).` };
   } catch (e) {
@@ -566,7 +567,7 @@ export async function guardaExternalId(
     return `O artigo lido (#${remoto.id}) não é o artigo guardado (#${externalId}). Escrita bloqueada.`;
   }
 
-  const { data } = await sb.from("edicoes").select("id, numero, destinos");
+  const { data } = await sb.from("nl_edicoes").select("id, numero, destinos");
   const linhas = (data ?? []) as Array<{ id: string; numero: number; destinos?: Record<string, unknown> | null }>;
   const guardado = linhas.find((l) => l.id === edicaoId);
   const outra = linhas.find((l) => {
@@ -738,7 +739,7 @@ export async function publicarCronica(opts: {
     // A URL editorial continua a ser uma só.
     if (url) {
       await sb
-        .from("revista_edicao")
+        .from("nl_revista_edicao")
         .upsert({ edicao_id: opts.edicaoId, cronica_url: url }, { onConflict: "edicao_id" });
     }
     await registar(
@@ -778,7 +779,7 @@ export async function publicarCronica(opts: {
         );
         if (url) {
           await sb
-            .from("revista_edicao")
+            .from("nl_revista_edicao")
             .upsert({ edicao_id: opts.edicaoId, cronica_url: url }, { onConflict: "edicao_id" });
         }
         await registar(
@@ -951,7 +952,7 @@ export async function publicarArtigoCronica(opts: {
     );
     if (url) {
       await sb
-        .from("revista_edicao")
+        .from("nl_revista_edicao")
         .upsert({ edicao_id: opts.edicaoId, cronica_url: url }, { onConflict: "edicao_id" });
     }
     await registar(
@@ -1132,7 +1133,7 @@ export async function actualizarArtigoCronica(opts: {
     );
     if (url) {
       await sb
-        .from("revista_edicao")
+        .from("nl_revista_edicao")
         .upsert({ edicao_id: opts.edicaoId, cronica_url: url }, { onConflict: "edicao_id" });
     }
     await registar(

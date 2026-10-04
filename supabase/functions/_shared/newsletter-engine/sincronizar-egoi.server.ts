@@ -2,9 +2,9 @@
 // como por `disparar-egoi`. Cria ou actualiza (PATCH) a campanha na E-goi
 // por par (edicao_id, lista_id) e devolve o resultado por lista.
 
-import { createClient, SupabaseClient } from "@supabase/supabase-js";
-import { renderEdicaoEmail } from "./render.server";
-import { criarCampanha, patchCampanha } from "./egoi.server";
+import { createClient, SupabaseClient } from "npm:@supabase/supabase-js@2.57.4";
+import { renderEdicaoEmail } from "./render.server.ts";
+import { criarCampanha, patchCampanha } from "./egoi.server.ts";
 
 const DELAY_ENTRE_LISTAS_MS = 6000;
 
@@ -45,7 +45,7 @@ export async function resolverListas(admin: SupabaseClient, listaIds: string[]):
   if (ids.length === 0) return { ok: false, mensagem: "lista_ids é obrigatório" };
   if (ids.length > 5) return { ok: false, mensagem: "Máximo 5 listas por envio" };
 
-  const { data, error } = await admin.from("egoi_listas")
+  const { data, error } = await admin.from("nl_egoi_listas")
     .select("id, nome, egoi_lista_id, tipo, activa").in("id", ids);
   if (error) return { ok: false, mensagem: `Falha a carregar listas: ${error.message}` };
   const rows = (data ?? []) as { id: string; nome: string; egoi_lista_id: string; tipo: string; activa: boolean }[];
@@ -66,14 +66,14 @@ export async function resolverListas(admin: SupabaseClient, listaIds: string[]):
 }
 
 export async function lerConfig(admin: SupabaseClient): Promise<Record<string, string>> {
-  const { data } = await admin.from("configuracoes").select("chave, valor");
+  const { data } = await admin.from("nl_configuracoes").select("chave, valor");
   const map: Record<string, string> = {};
   for (const row of (data ?? []) as { chave: string; valor: string | null }[]) map[row.chave] = row.valor ?? "";
   return map;
 }
 
 async function lerEdicao(admin: SupabaseClient, edicaoId: string, permitirEnviada = false) {
-  const { data: edicao, error } = await admin.from("edicoes")
+  const { data: edicao, error } = await admin.from("nl_edicoes")
     .select("id, numero, assunto, estado").eq("id", edicaoId).maybeSingle();
   if (error || !edicao) return { ok: false as const, status: 404, mensagem: "Edição não encontrada" };
   if (!permitirEnviada && (edicao as { estado: string }).estado === "enviada") {
@@ -117,7 +117,7 @@ async function sincronizarLista(admin: SupabaseClient, opts: {
   const { edicao, html } = opts;
   const plainText = opts.plainText;
 
-  const { data: existenteRaw } = await admin.from("egoi_campanhas")
+  const { data: existenteRaw } = await admin.from("nl_egoi_campanhas")
     .select("id, campaign_hash, estado")
     .eq("edicao_id", edicao.id).eq("lista_id", l.id).maybeSingle();
   const existente = existenteRaw as { id: string; campaign_hash: string; estado: string } | null;
@@ -129,13 +129,13 @@ async function sincronizarLista(admin: SupabaseClient, opts: {
     const internalNameNovo = `${nomeInternoCampanha(edicao.numero, l.nome, edicao.assunto)} (nova ${new Date().toISOString().slice(11, 19)})`;
     const rReenvio = await criarCampanha(cfg, { listaId: l.egoi_lista_id, internalName: internalNameNovo, subject: edicao.assunto, senderId: opts.senderId, html, plainText });
     if (!rReenvio.ok) {
-      await admin.from("audit_log").insert({ quem: opts.quem, accao: `Falha a recriar campanha de teste «${l.nome}»`, detalhe: rReenvio.mensagem });
+      await admin.from("nl_audit_log").insert({ quem: opts.quem, accao: `Falha a recriar campanha de teste «${l.nome}»`, detalhe: rReenvio.mensagem });
       return { lista_id: l.id, lista_nome: l.nome, ok: false, erro: rReenvio.mensagem, campaign_hash: existente.campaign_hash };
     }
-    const { data: reenvUpd } = await admin.from("egoi_campanhas")
+    const { data: reenvUpd } = await admin.from("nl_egoi_campanhas")
       .update({ campaign_hash: rReenvio.campaign_hash, estado: "rascunho", actualizado_em: new Date().toISOString() })
       .eq("id", existente.id).select("actualizado_em").maybeSingle();
-    await admin.from("audit_log").insert({ quem: opts.quem, accao: `Nova campanha de teste criada para «${l.nome}» (reenvio)`, detalhe: `campaign_hash ${rReenvio.campaign_hash}` });
+    await admin.from("nl_audit_log").insert({ quem: opts.quem, accao: `Nova campanha de teste criada para «${l.nome}» (reenvio)`, detalhe: `campaign_hash ${rReenvio.campaign_hash}` });
     return {
       lista_id: l.id, lista_nome: l.nome, ok: true, criado_agora: true,
       campaign_hash: rReenvio.campaign_hash,
@@ -148,13 +148,13 @@ async function sincronizarLista(admin: SupabaseClient, opts: {
   if (existente) {
     const rM = await patchCampanha(cfg, existente.campaign_hash, { internalName, subject: edicao.assunto, senderId: opts.senderId, html, plainText });
     if (!rM.ok) {
-      await admin.from("audit_log").insert({ quem: opts.quem, accao: `Falha a actualizar rascunho «${l.nome}»`, detalhe: rM.mensagem });
+      await admin.from("nl_audit_log").insert({ quem: opts.quem, accao: `Falha a actualizar rascunho «${l.nome}»`, detalhe: rM.mensagem });
       return { lista_id: l.id, lista_nome: l.nome, ok: false, erro: rM.mensagem, campaign_hash: existente.campaign_hash };
     }
-    const { data: updated } = await admin.from("egoi_campanhas")
+    const { data: updated } = await admin.from("nl_egoi_campanhas")
       .update({ actualizado_em: new Date().toISOString() })
       .eq("id", existente.id).select("actualizado_em").maybeSingle();
-    await admin.from("audit_log").insert({ quem: opts.quem, accao: `Rascunho actualizado na E-goi para «${l.nome}»`, detalhe: `campaign_hash ${existente.campaign_hash}` });
+    await admin.from("nl_audit_log").insert({ quem: opts.quem, accao: `Rascunho actualizado na E-goi para «${l.nome}»`, detalhe: `campaign_hash ${existente.campaign_hash}` });
     return {
       lista_id: l.id, lista_nome: l.nome, ok: true,
       campaign_hash: existente.campaign_hash,
@@ -165,20 +165,20 @@ async function sincronizarLista(admin: SupabaseClient, opts: {
   // Não existe: cria (com conteúdo já no POST inicial — evita "content isEmpty")
   const rN = await criarCampanha(cfg, { listaId: l.egoi_lista_id, internalName, subject: edicao.assunto, senderId: opts.senderId, html, plainText });
   if (!rN.ok) {
-    await admin.from("audit_log").insert({ quem: opts.quem, accao: `Falha a criar campanha «${l.nome}»`, detalhe: rN.mensagem });
+    await admin.from("nl_audit_log").insert({ quem: opts.quem, accao: `Falha a criar campanha «${l.nome}»`, detalhe: rN.mensagem });
     return { lista_id: l.id, lista_nome: l.nome, ok: false, erro: rN.mensagem };
   }
 
 
   const nowIso = new Date().toISOString();
-  const { data: inserted } = await admin.from("egoi_campanhas")
+  const { data: inserted } = await admin.from("nl_egoi_campanhas")
     .insert({
       edicao_id: edicao.id,
       lista_id: l.id,
       campaign_hash: rN.campaign_hash,
       estado: "rascunho",
     }).select("actualizado_em").maybeSingle();
-  await admin.from("audit_log").insert({ quem: opts.quem, accao: `Rascunho criado na E-goi para «${l.nome}»`, detalhe: `campaign_hash ${rN.campaign_hash}` });
+  await admin.from("nl_audit_log").insert({ quem: opts.quem, accao: `Rascunho criado na E-goi para «${l.nome}»`, detalhe: `campaign_hash ${rN.campaign_hash}` });
   return {
     lista_id: l.id, lista_nome: l.nome, ok: true, criado_agora: true,
     campaign_hash: rN.campaign_hash,
@@ -227,7 +227,7 @@ export async function autorizar(SUPABASE_URL: string, ANON_KEY: string, SERVICE_
   const { data: ures } = await sb.auth.getUser();
   if (!ures.user) return { ok: false, status: 401, mensagem: "Sessão inválida" };
   const admin = createClient(SUPABASE_URL, SERVICE_KEY, { auth: { persistSession: false } });
-  const { data: perfil } = await admin.from("perfis").select("nome, papel").eq("id", ures.user.id).maybeSingle();
+  const { data: perfil } = await admin.from("nl_perfis").select("nome, papel").eq("id", ures.user.id).maybeSingle();
   const papel = (perfil?.papel ?? "") as string;
   if (papel !== "admin" && papel !== "curador") return { ok: false, status: 403, mensagem: "Sem permissão" };
   if (modo === "real" && papel !== "admin") return { ok: false, status: 403, mensagem: "Apenas o admin pode enviar para subscritores" };

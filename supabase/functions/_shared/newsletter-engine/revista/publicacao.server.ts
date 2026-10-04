@@ -1,3 +1,4 @@
+import process from "node:process";
 // Camada web pública do Sistema Revista.
 //
 // Não decide nada de editorial: a estrutura vem sempre de
@@ -16,11 +17,11 @@
 // pública alguns instantes antes de sair o email. Só depois de efectivamente
 // enviada (estado 'enviada' + snapshot bloqueado) é que fica indexável.
 
-import { createClient, type SupabaseClient } from "@supabase/supabase-js";
-import { CATEGORIAS } from "../design-tokens.server";
-import { lerEnvelope, type EdicaoRevista, type AtualidadeRevista } from "./compose.server";
-import type { TipoBrief } from "./brief/tipos";
-import { avaliarPublicacao } from "./regras-publicacao";
+import { createClient, type SupabaseClient } from "npm:@supabase/supabase-js@2.57.4";
+import { CATEGORIAS } from "../design-tokens.server.ts";
+import { lerEnvelope, type EdicaoRevista, type AtualidadeRevista } from "./compose.server.ts";
+import type { TipoBrief } from "./brief/tipos.ts";
+import { avaliarPublicacao } from "./regras-publicacao.ts";
 
 function admin(): SupabaseClient {
   return createClient(process.env.SUPABASE_URL!, process.env.SUPABASE_SERVICE_ROLE_KEY!, {
@@ -94,7 +95,7 @@ function destinoWeb(v: unknown): string {
 async function carregarPublicadas(): Promise<EdicaoPublicaInterna[]> {
   const sb = admin();
   const { data, error } = await sb
-    .from("edicoes")
+    .from("nl_edicoes")
     .select(SELECT)
     .eq("template_version", "revista")
     .not("revista_snapshot", "is", null)
@@ -183,7 +184,7 @@ export async function obterPaginaEdicaoPublica(numero: number): Promise<PaginaEd
   // estado editorial corrente, que é o que faz sentido pré-visualizar.
   let briefs = briefsDoSnapshot(alvo.estrutura);
   if (!alvo.enviada) {
-    const { mapaBriefsDaEdicao } = await import("./brief/publico.server");
+    const { mapaBriefsDaEdicao } = await import("./brief/publico.server.ts");
     briefs = await mapaBriefsDaEdicao(numero);
   }
 

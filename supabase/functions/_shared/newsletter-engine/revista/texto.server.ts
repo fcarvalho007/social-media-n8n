@@ -1,10 +1,10 @@
 // Versão em texto simples do formato Revista (multipart do envio E-goi).
 
-import type { EdicaoRevista } from "./compose.server";
-import { fmtDataLonga, urlBriefEmail } from "./render-email.server";
-import { sequenciaCronica } from "./sequencia-cronica";
-import { ctaRecomendacao } from "./tokens";
-import { contagemSeleccao } from "./contagens";
+import type { EdicaoRevista } from "./compose.server.ts";
+import { fmtDataLonga, urlBriefEmail } from "./render-email.server.ts";
+import { sequenciaCronica } from "./sequencia-cronica.ts";
+import { ctaRecomendacao } from "./tokens.ts";
+import { contagemSeleccao } from "./contagens.ts";
 
 export function montarTextoRevista(e: EdicaoRevista): string {
   const L: string[] = [];

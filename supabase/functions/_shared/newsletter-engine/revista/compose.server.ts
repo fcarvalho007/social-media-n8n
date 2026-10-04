@@ -1,3 +1,4 @@
+import process from "node:process";
 // Composição do formato Revista — FONTE ÚNICA DE VERDADE.
 //
 // `composeRevistaEdition()` devolve a estrutura final da edição e alimenta,
@@ -6,14 +7,14 @@
 //
 // O sistema Clássico não passa por aqui.
 
-import { excertoDaCronica } from "./sequencia-cronica";
-import { createClient, type SupabaseClient } from "@supabase/supabase-js";
-import { CATEGORIAS } from "../design-tokens.server";
-import { carregarNoticiasDaEdicao, type NoticiaDaEdicao } from "./universo";
-import { caminhoCanonicoEdicao, urlCanonicaEdicao } from "./destinos.server";
-import { POSICAO_FIM } from "./sequencia-cronica";
-import { LIMITES_REVISTA, ROTULOS_REVISTA } from "./rotulos";
-import { ligacoesBriefsDaEdicao, type LigacaoBrief } from "./brief/publicacao.server";
+import { excertoDaCronica } from "./sequencia-cronica.ts";
+import { createClient, type SupabaseClient } from "npm:@supabase/supabase-js@2.57.4";
+import { CATEGORIAS } from "../design-tokens.server.ts";
+import { carregarNoticiasDaEdicao, type NoticiaDaEdicao } from "./universo.ts";
+import { caminhoCanonicoEdicao, urlCanonicaEdicao } from "./destinos.server.ts";
+import { POSICAO_FIM } from "./sequencia-cronica.ts";
+import { LIMITES_REVISTA, ROTULOS_REVISTA } from "./rotulos.ts";
+import { ligacoesBriefsDaEdicao, type LigacaoBrief } from "./brief/publicacao.server.ts";
 
 export type { LigacaoBrief };
 
@@ -561,15 +562,15 @@ export async function composeRevistaEdition(
   const sb = admin();
 
   const [edRes, cfgRes, itRes, feRes, universo] = await Promise.all([
-    sb.from("edicoes")
+    sb.from("nl_edicoes")
       .select("id, numero, assunto, data_envio_prevista, wordpress_post_url, revista_snapshot")
       .eq("id", edicaoId).single(),
-    sb.from("revista_edicao").select("*").eq("edicao_id", edicaoId).maybeSingle(),
-    sb.from("revista_itens")
+    sb.from("nl_revista_edicao").select("*").eq("edicao_id", edicaoId).maybeSingle(),
+    sb.from("nl_revista_itens")
       .select("id, noticia_id, papel, ordem, titulo_override, resumo_factual, minha_leitura, cta_rotulo, radar_nota")
       .eq("edicao_id", edicaoId)
       .order("ordem", { ascending: true }),
-    sb.from("ferramentas_semana")
+    sb.from("nl_ferramentas_semana")
       .select("nome, descricao, url, posicao, etiqueta, cta_rotulo, cor")
       .eq("edicao_id", edicaoId)
       .order("posicao", { ascending: true }),
@@ -589,7 +590,7 @@ export async function composeRevistaEdition(
 
   let noticias: NoticiaRow[] = [];
   if (itens.length) {
-    const { data } = await sb.from("noticias")
+    const { data } = await sb.from("nl_noticias")
       .select("id, titulo, descricao, url, url_curto, categoria, created_at")
       .in("id", itens.map((i) => i.noticia_id));
     noticias = (data ?? []) as NoticiaRow[];
@@ -760,7 +761,7 @@ export async function composeRevistaEdition(
   let cronicaTituloRecurso = "";
   let cronicaExcertoRecurso = "";
   if (!cfg.cronica_titulo.trim() || !cfg.cronica_excerto.trim()) {
-    const { data: cr } = await sb.from("cronicas")
+    const { data: cr } = await sb.from("nl_cronicas")
       .select("titulo, conteudo, conteudo_html").eq("edicao_id", edicaoId).maybeSingle();
     const c = cr as { titulo: string | null; conteudo: string | null; conteudo_html: string | null } | null;
     cronicaTituloRecurso = (c?.titulo ?? "").trim();
@@ -853,7 +854,7 @@ export async function prepararSnapshotRevista(
   };
   const sb = admin();
   const { error } = await sb
-    .from("edicoes")
+    .from("nl_edicoes")
     .update({ revista_snapshot: envelope as unknown as Record<string, unknown> })
     .eq("id", edicaoId);
   if (error) throw new Error(`Não foi possível fixar a edição: ${error.message}`);
@@ -870,7 +871,7 @@ export async function bloquearSnapshotRevista(edicaoId: string): Promise<void> {
     estado: "bloqueado",
     bloqueado_em: new Date().toISOString(),
   };
-  await sb.from("edicoes")
+  await sb.from("nl_edicoes")
     .update({ revista_snapshot: envelope as unknown as Record<string, unknown> })
     .eq("id", edicaoId);
 }
@@ -883,14 +884,14 @@ export async function descartarSnapshotPreparado(edicaoId: string): Promise<bool
   const actual = await lerSnapshotRevista(edicaoId);
   if (!actual || actual.estado === "bloqueado") return false;
   const sb = admin();
-  await sb.from("edicoes").update({ revista_snapshot: null }).eq("id", edicaoId);
+  await sb.from("nl_edicoes").update({ revista_snapshot: null }).eq("id", edicaoId);
   return true;
 }
 
 /** Envelope gravado desta edição, ou `null` quando ainda não existe. */
 export async function lerSnapshotRevista(edicaoId: string): Promise<SnapshotRevista | null> {
   const sb = admin();
-  const { data } = await sb.from("edicoes").select("revista_snapshot, template_version").eq("id", edicaoId).maybeSingle();
+  const { data } = await sb.from("nl_edicoes").select("revista_snapshot, template_version").eq("id", edicaoId).maybeSingle();
   const linha = data as { revista_snapshot?: unknown; template_version?: string } | null;
   if (!linha || linha.template_version !== "revista") return null;
   return lerEnvelope(linha.revista_snapshot);
@@ -903,4 +904,4 @@ export async function edicaoRevistaBloqueada(edicaoId: string): Promise<boolean>
 }
 
 
-export { excertoDaCronica } from "./sequencia-cronica";
+export { excertoDaCronica } from "./sequencia-cronica.ts";

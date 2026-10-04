@@ -7,19 +7,19 @@
 //
 // Nada aqui corre com o interruptor `briefs_activos` desligado.
 
-import type { SupabaseClient } from "@supabase/supabase-js";
+import type { SupabaseClient } from "npm:@supabase/supabase-js@2.57.4";
 
-import { baseUrlEdicoes } from "../destinos.server";
-import { prontoParaPublicar } from "./estados";
-import { avaliarAtencao } from "./atencao";
+import { baseUrlEdicoes } from "../destinos.server.ts";
+import { prontoParaPublicar } from "./estados.ts";
+import { avaliarAtencao } from "./atencao.ts";
 import {
   briefsActivos,
   clienteBrief,
   listarBriefsDaEdicao,
   registarVersao,
   transitarEstado,
-} from "./modelo.server";
-import type { BriefDaEdicao, TipoBrief } from "./tipos";
+} from "./modelo.server.ts";
+import type { BriefDaEdicao, TipoBrief } from "./tipos.ts";
 
 /** Bloco congelado no snapshot, por peça. */
 export interface LigacaoBrief {
@@ -225,7 +225,7 @@ function ligacao(b: BriefDaEdicao, versao: number, base: string): LigacaoBrief {
 
 async function versaoActual(db: SupabaseClient, briefId: string): Promise<number> {
   const { data } = await db
-    .from("brief_versoes")
+    .from("nl_brief_versoes")
     .select("versao")
     .eq("brief_id", briefId)
     .order("versao", { ascending: false })

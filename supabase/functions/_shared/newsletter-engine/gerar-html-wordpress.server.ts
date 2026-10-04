@@ -17,14 +17,14 @@ import {
   blocoConsultoria, blocoRecursos, blocoFerramentasSemana, blocoPersonalizada,
   carregarDadosEdicao,
   type DadosEdicao,
-} from "./gerar-html-newsletter.server";
+} from "./gerar-html-newsletter.server.ts";
 
 function hostname(url: string): string {
   try { return new URL(url).hostname.replace(/^www\./, ""); } catch { return ""; }
 }
-import { normalizarConsultoria } from "./gerar-html-newsletter.server";
-import { CATEGORIAS, FONT_CORPO, FONT_TITULO } from "./design-tokens.server";
-import { ajustarDescricao } from "./ajustar-descricao.server";
+import { normalizarConsultoria } from "./gerar-html-newsletter.server.ts";
+import { CATEGORIAS, FONT_CORPO, FONT_TITULO } from "./design-tokens.server.ts";
+import { ajustarDescricao } from "./ajustar-descricao.server.ts";
 
 
 

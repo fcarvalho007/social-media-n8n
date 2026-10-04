@@ -1,21 +1,22 @@
+import process from "node:process";
 // Implementação servidor do fluxo de preview / sincronização / envio.
 // Porta directa das antigas Edge Functions (preview-edicao,
 // sincronizar-rascunho-egoi, disparar-egoi, publicar-wordpress) para o
 // runtime da aplicação, mantendo exactamente as mesmas regras.
 
-import { createClient, type SupabaseClient } from "@supabase/supabase-js";
-import { renderEdicaoEmail } from "./render.server";
-import { gerarHtmlEdicaoWeb } from "./gerar-html-web.server";
+import { createClient, type SupabaseClient } from "npm:@supabase/supabase-js@2.57.4";
+import { renderEdicaoEmail } from "./render.server.ts";
+import { gerarHtmlEdicaoWeb } from "./gerar-html-web.server.ts";
 import {
   bloquearSnapshotRevista, composeRevistaEdition, descartarSnapshotPreparado,
   lerSnapshotRevista, prepararSnapshotRevista,
-} from "./revista/compose.server";
-import { montarHtmlRevista } from "./revista/render-email.server";
-import { montarTextoRevista } from "./revista/texto.server";
-import { lerConfig, resolverListas, sincronizar, sincronizarUmaLista } from "./sincronizar-egoi.server";
-import { disparaCampanha, estadoCampanha } from "./egoi.server";
-import { lerConfigWp, publicarOuActualizarLicaoEdicao } from "./wordpress.server";
-import { caminhoCanonicoEdicao, criarBackup, gravarDestino } from "./revista/destinos.server";
+} from "./revista/compose.server.ts";
+import { montarHtmlRevista } from "./revista/render-email.server.ts";
+import { montarTextoRevista } from "./revista/texto.server.ts";
+import { lerConfig, resolverListas, sincronizar, sincronizarUmaLista } from "./sincronizar-egoi.server.ts";
+import { disparaCampanha, estadoCampanha } from "./egoi.server.ts";
+import { lerConfigWp, publicarOuActualizarLicaoEdicao } from "./wordpress.server.ts";
+import { caminhoCanonicoEdicao, criarBackup, gravarDestino } from "./revista/destinos.server.ts";
 
 export class ErroEnvio extends Error {
   status: number;
@@ -35,7 +36,7 @@ export interface Utilizador { id: string; nome: string; papel: "admin" | "curado
 
 /** Confirma papel do utilizador autenticado; `real` exige admin. */
 export async function autorizar(sb: SupabaseClient, userId: string, modo: "teste" | "real"): Promise<Utilizador> {
-  const { data: perfil } = await sb.from("perfis").select("nome, papel").eq("id", userId).maybeSingle();
+  const { data: perfil } = await sb.from("nl_perfis").select("nome, papel").eq("id", userId).maybeSingle();
   const papel = (perfil?.papel ?? "") as string;
   if (papel !== "admin" && papel !== "curador") throw new ErroEnvio("Sem permissão", 403);
   if (modo === "real" && papel !== "admin") throw new ErroEnvio("Apenas o admin pode enviar para subscritores", 403);
@@ -107,14 +108,14 @@ function proximaQuinta(): string {
 
 /** Cria a edição seguinte em rascunho (idempotente: não cria se já houver rascunho). */
 export async function garantirEdicaoSeguinte(sb: SupabaseClient, quem: string) {
-  const { data: rasc } = await sb.from("edicoes").select("id").eq("estado", "rascunho").limit(1).maybeSingle();
+  const { data: rasc } = await sb.from("nl_edicoes").select("id").eq("estado", "rascunho").limit(1).maybeSingle();
   if (rasc) return null;
 
-  const { data: max } = await sb.from("edicoes").select("numero").order("numero", { ascending: false }).limit(1).maybeSingle();
+  const { data: max } = await sb.from("nl_edicoes").select("numero").order("numero", { ascending: false }).limit(1).maybeSingle();
   const numero = ((max as { numero: number } | null)?.numero ?? 0) + 1;
 
   // As novas edições nascem no formato Revista (padrão actual).
-  const { data: nova, error } = await sb.from("edicoes").insert({
+  const { data: nova, error } = await sb.from("nl_edicoes").insert({
     numero,
     data_envio_prevista: proximaQuinta(),
     assunto: `Edição #${numero}`,
@@ -125,10 +126,10 @@ export async function garantirEdicaoSeguinte(sb: SupabaseClient, quem: string) {
   }).select("id").single();
   if (error || !nova) return null;
 
-  await sb.from("cronicas").insert({ edicao_id: nova.id, conteudo: "", conteudo_html: "", leituras_recomendadas: "" });
-  await sb.rpc("criar_seccoes_padrao", { _edicao_id: nova.id });
-  await sb.from("revista_edicao").insert({ edicao_id: nova.id });
-  await sb.from("audit_log").insert({ quem, accao: `Edição #${numero} criada automaticamente após o envio` });
+  await sb.from("nl_cronicas").insert({ edicao_id: nova.id, conteudo: "", conteudo_html: "", leituras_recomendadas: "" });
+  await sb.rpc("nl_criar_seccoes_padrao", { _edicao_id: nova.id });
+  await sb.from("nl_revista_edicao").insert({ edicao_id: nova.id });
+  await sb.from("nl_audit_log").insert({ quem, accao: `Edição #${numero} criada automaticamente após o envio` });
   return { id: nova.id as string, numero };
 }
 
@@ -143,7 +144,7 @@ export async function fecharEdicaoEnviada(sb: SupabaseClient, edicaoId: string, 
   sucessos: Array<{ campaign_hash?: string; lista_id: string; lista_nome: string }>;
   falhas: Array<{ lista_id: string; lista_nome: string; erro?: string }>;
 }) {
-  const { data: actual } = await sb.from("edicoes")
+  const { data: actual } = await sb.from("nl_edicoes")
     .select("snapshot_envio, enviada_em, wordpress_post_id, wordpress_post_url").eq("id", edicaoId).maybeSingle();
   if (!actual) return false;
   // Idempotente pelo snapshot: o estado pode já ter sido marcado a meio do disparo.
@@ -154,7 +155,7 @@ export async function fecharEdicaoEnviada(sb: SupabaseClient, edicaoId: string, 
     ? { post_id: wp.wordpress_post_id, post_url: wp.wordpress_post_url ?? "", status: "publish" }
     : null;
 
-  const { error, data: linhas } = await sb.from("edicoes").update({
+  const { error, data: linhas } = await sb.from("nl_edicoes").update({
     estado: "enviada",
     enviada_em: wp.enviada_em ?? new Date().toISOString(),
     snapshot_envio: {
@@ -169,7 +170,7 @@ export async function fecharEdicaoEnviada(sb: SupabaseClient, edicaoId: string, 
   }).eq("id", edicaoId).select("id");
 
   if (error || !linhas?.length) {
-    await sb.from("audit_log").insert({
+    await sb.from("nl_audit_log").insert({
       quem: dados.quem,
       accao: "ERRO: a edição foi enviada mas não ficou marcada como enviada",
       detalhe: error?.message ?? "nenhuma linha actualizada",
@@ -177,7 +178,7 @@ export async function fecharEdicaoEnviada(sb: SupabaseClient, edicaoId: string, 
     return false;
   }
 
-  await sb.from("noticias").update({ estado: "enviada" }).eq("edicao_id", edicaoId).eq("estado", "aprovada");
+  await sb.from("nl_noticias").update({ estado: "enviada" }).eq("edicao_id", edicaoId).eq("estado", "aprovada");
   await garantirEdicaoSeguinte(sb, dados.quem);
   return true;
 }
@@ -203,7 +204,7 @@ export async function reconciliarEdicao(edicaoId: string): Promise<{
   actualizadas: Array<{ lista_id: string; lista_nome: string }>;
 }> {
   const sb = admin();
-  const { data: campsRaw } = await sb.from("egoi_campanhas")
+  const { data: campsRaw } = await sb.from("nl_egoi_campanhas")
     .select("lista_id, campaign_hash, estado, egoi_listas(nome)").eq("edicao_id", edicaoId);
   const camps = (campsRaw ?? []) as unknown as Array<{
     lista_id: string; campaign_hash: string; estado: string;
@@ -223,13 +224,13 @@ export async function reconciliarEdicao(edicaoId: string): Promise<{
   for (const c of pendentes) {
     const r = await estadoCampanha({ apiKey }, c.campaign_hash);
     if (!r.ok || r.estado !== "enviada") continue;
-    await sb.from("egoi_campanhas")
+    await sb.from("nl_egoi_campanhas")
       .update({ estado: "enviada", actualizado_em: new Date().toISOString() })
       .eq("edicao_id", edicaoId).eq("lista_id", c.lista_id);
     const rel = Array.isArray(c.egoi_listas) ? c.egoi_listas[0] : c.egoi_listas;
     const nome = rel?.nome ?? "lista";
     actualizadas.push({ lista_id: c.lista_id, lista_nome: nome });
-    await sb.from("audit_log").insert({
+    await sb.from("nl_audit_log").insert({
       quem: "sistema",
       accao: `Estado alinhado com a E-goi: «${nome}» já tinha recebido esta edição`,
       detalhe: `campaign_hash ${c.campaign_hash}`,
@@ -266,7 +267,7 @@ async function prepararEdicaoRevista(
   quem: string,
   listaIds: string[],
 ): Promise<void> {
-  const { data: edRaw } = await sb.from("edicoes")
+  const { data: edRaw } = await sb.from("nl_edicoes")
     .select("template_version").eq("id", edicaoId).maybeSingle();
   const ed = edRaw as { template_version?: string } | null;
   if (!ed || ed.template_version !== "revista") return;
@@ -274,22 +275,22 @@ async function prepararEdicaoRevista(
   const existente = await lerSnapshotRevista(edicaoId);
   if (existente) return; // bloqueada (histórico) ou já preparada nesta tentativa
 
-  await sb.from("audit_log").insert({ quem, accao: "Workflow Revista iniciado" });
+  await sb.from("nl_audit_log").insert({ quem, accao: "Workflow Revista iniciado" });
 
   // 1) Prontidão completa ANTES de qualquer escrita externa. Os avisos não
   //    travam (a decisão é editorial, confirmada no modal); os bloqueios
   //    rígidos dos Briefs travam mesmo — nada segue para a E-goi.
-  const { avaliarProntidao } = await import("./revista/prontidao.server");
+  const { avaliarProntidao } = await import("./revista/prontidao.server.ts");
   const pront = await avaliarProntidao(edicaoId, { listaIds });
   if (pront.bloqueiosRigidos.length) {
-    await sb.from("audit_log").insert({
+    await sb.from("nl_audit_log").insert({
       quem,
       accao: "Envio Revista travado pelos Briefs",
       detalhe: pront.bloqueiosRigidos.join(" · ").slice(0, 500),
     });
     throw new ErroEnvio(pront.bloqueiosRigidos.join(" · "), 409);
   }
-  await sb.from("audit_log").insert({
+  await sb.from("nl_audit_log").insert({
     quem,
     accao: pront.ok ? "Prontidão Revista verificada" : "Envio Revista prosseguiu com avisos",
     detalhe: pront.ok ? null : pront.bloqueios.join(" · ").slice(0, 500),
@@ -298,7 +299,7 @@ async function prepararEdicaoRevista(
   // 2) Briefs: publicar o que está pronto e confirmar que cada página responde
   //    ANTES de o endereço entrar no email. Com o interruptor desligado, nada
   //    disto corre.
-  const { publicarBriefsDaEdicao, confirmarUrlsPublicas } = await import("./revista/brief/publicacao.server");
+  const { publicarBriefsDaEdicao, confirmarUrlsPublicas } = await import("./revista/brief/publicacao.server.ts");
   const briefs = await publicarBriefsDaEdicao(edicaoId, sb);
   if (briefs.naoCongelaveis.length) {
     throw new ErroEnvio(
@@ -308,7 +309,7 @@ async function prepararEdicaoRevista(
   }
   const nLigacoes = Object.keys(briefs.ligacoes).length;
   if (nLigacoes > 0) {
-    await sb.from("audit_log").insert({
+    await sb.from("nl_audit_log").insert({
       quem,
       accao: "Briefs publicados",
       detalhe: `${briefs.publicados} publicados · ${briefs.reutilizados} reutilizados`,
@@ -316,7 +317,7 @@ async function prepararEdicaoRevista(
     // 3) confirmação das páginas públicas — uma página nossa que não responde
     //    é bloqueio real: nunca entra um endereço morto no email.
     const confirmacao = await confirmarUrlsPublicas(briefs.ligacoes);
-    await sb.from("audit_log").insert({
+    await sb.from("nl_audit_log").insert({
       quem,
       accao: confirmacao.ok ? "Endereços dos Briefs confirmados" : "Endereços de Brief sem resposta",
       detalhe: confirmacao.ok
@@ -335,7 +336,7 @@ async function prepararEdicaoRevista(
   //    depende de nenhum CMS externo, por isso já está pronta aqui.
   const estrutura = await composeRevistaEdition(edicaoId, { ignorarSnapshot: true });
   await gravarDestino(edicaoId, "web", { estado: "preparada", url: caminhoCanonicoEdicao(estrutura.edicao.numero), erro: null }, sb);
-  await sb.from("audit_log").insert({
+  await sb.from("nl_audit_log").insert({
     quem, accao: "Edição web preparada", detalhe: estrutura.urlPagina,
   });
 
@@ -346,7 +347,7 @@ async function prepararEdicaoRevista(
     urlWeb: estrutura.urlPagina,
   });
 
-  await sb.from("audit_log").insert({
+  await sb.from("nl_audit_log").insert({
     quem,
     accao: "Edição Revista preparada (fotografia guardada)",
     detalhe: estrutura.urlPagina,
@@ -355,13 +356,13 @@ async function prepararEdicaoRevista(
   // 6) publicação web: a página passa a responder já, antes do email. Fica
   //    fora dos motores de busca até a edição ser efectivamente enviada.
   await gravarDestino(edicaoId, "web", { estado: "publica", erro: null }, sb);
-  await sb.from("audit_log").insert({
+  await sb.from("nl_audit_log").insert({
     quem, accao: "Edição web publicada (ainda fora dos motores de busca)", detalhe: estrutura.urlPagina,
   });
 
   // 7) confirmar que a página da edição responde antes de a anunciar no email.
   const web = await confirmarUrl(estrutura.urlPagina);
-  await sb.from("audit_log").insert({
+  await sb.from("nl_audit_log").insert({
     quem,
     accao: web.ok ? "Endereço da edição web confirmado" : "Endereço da edição web sem resposta",
     detalhe: `${estrutura.urlPagina} (${web.status})`,
@@ -372,7 +373,7 @@ async function prepararEdicaoRevista(
 
   // 8) backup no WordPress — tolerante: nunca impede o envio.
   const backup = await criarBackup({ edicaoId, quem });
-  await sb.from("audit_log").insert({
+  await sb.from("nl_audit_log").insert({
     quem,
     accao: backup.ok ? "Backup DigitalSprint.pt actualizado" : "Backup DigitalSprint.pt adiado (envio prossegue)",
     detalhe: backup.mensagem,
@@ -416,7 +417,7 @@ export async function prepararEnvio(opts: {
 
   const { apiKey, senderId } = await credenciaisEgoi(sb);
 
-  const { data: edRaw } = await sb.from("edicoes")
+  const { data: edRaw } = await sb.from("nl_edicoes")
     .select("numero, estado, assunto, envio_em_curso").eq("id", opts.edicaoId).maybeSingle();
   if (!edRaw) throw new ErroEnvio("Edição não encontrada", 404);
   const ed = edRaw as { numero: number; estado: string; assunto: string | null; envio_em_curso: string | null };
@@ -427,13 +428,13 @@ export async function prepararEnvio(opts: {
   if (listasR.modo === "real" && ed.envio_em_curso && Date.now() - new Date(ed.envio_em_curso).getTime() < LOCK_MS) {
     throw new ErroEnvio("Já existe um envio em curso para esta edição. Aguarda que termine.", 409);
   }
-  const { data: formatoRaw } = await sb.from("edicoes")
+  const { data: formatoRaw } = await sb.from("nl_edicoes")
     .select("template_version").eq("id", opts.edicaoId).maybeSingle();
   const revista = (formatoRaw as { template_version?: string } | null)?.template_version === "revista";
 
   if (revista && opts.publicarConteudos) {
-    const { estadoDestinos } = await import("./revista/destinos.server");
-    const { publicarArtigoCronica, actualizarArtigoCronica } = await import("./revista/frederico-wordpress.server");
+    const { estadoDestinos } = await import("./revista/destinos.server.ts");
+    const { publicarArtigoCronica, actualizarArtigoCronica } = await import("./revista/frederico-wordpress.server.ts");
     const antes = await estadoDestinos(opts.edicaoId);
     if (antes.cronica.estado !== "publicada" && antes.cronica.estado !== "manual") {
       const resultadoCronica = antes.cronica.estado === "desactualizada"
@@ -446,7 +447,7 @@ export async function prepararEnvio(opts: {
   }
 
   if (listasR.modo === "real") {
-    await sb.from("edicoes").update({ envio_em_curso: new Date().toISOString() }).eq("id", opts.edicaoId);
+    await sb.from("nl_edicoes").update({ envio_em_curso: new Date().toISOString() }).eq("id", opts.edicaoId);
   }
   // Nos testes Revista também se confirma a experiência pública completa.
   // A pessoa autorizou explicitamente esta publicação no modal; a versão web
@@ -465,7 +466,7 @@ export async function prepararEnvio(opts: {
     const s = await sincronizarUmaLista(sb, { edicaoId: opts.edicaoId, lista, apiKey, senderId, quem, permitirEnviada: true });
     if (!s.ok) {
       listas.push({ lista_id: lista.id, lista_nome: lista.nome, ok: false, erro: s.mensagem });
-      await sb.from("audit_log").insert({ quem, accao: `Erro a preparar campanha «${lista.nome}»`, detalhe: s.mensagem });
+      await sb.from("nl_audit_log").insert({ quem, accao: `Erro a preparar campanha «${lista.nome}»`, detalhe: s.mensagem });
       continue;
     }
     const sr = s.resultado;
@@ -504,14 +505,14 @@ export async function dispararLista(opts: {
 
   const { apiKey } = await credenciaisEgoi(sb);
 
-  const { data: campRaw } = await sb.from("egoi_campanhas")
+  const { data: campRaw } = await sb.from("nl_egoi_campanhas")
     .select("campaign_hash").eq("edicao_id", opts.edicaoId).eq("lista_id", lista.id).maybeSingle();
   const hash = (campRaw as { campaign_hash?: string } | null)?.campaign_hash;
   if (!hash) {
     return { lista_id: lista.id, lista_nome: lista.nome, ok: false, sincronizada: false, erro: "Campanha não preparada para esta lista." };
   }
 
-  const { data: edRaw } = await sb.from("edicoes").select("numero").eq("id", opts.edicaoId).maybeSingle();
+  const { data: edRaw } = await sb.from("nl_edicoes").select("numero").eq("id", opts.edicaoId).maybeSingle();
   const numero = (edRaw as { numero: number } | null)?.numero ?? 0;
 
   // Dá tempo à E-goi para consolidar o conteúdo antes da ordem de envio.
@@ -524,26 +525,26 @@ export async function dispararLista(opts: {
     const est = await estadoCampanha({ apiKey }, hash);
     if (est.ok && est.estado === "enviada") {
       confirmadoNaEgoi = true;
-      await sb.from("audit_log").insert({
+      await sb.from("nl_audit_log").insert({
         quem,
         accao: `Disparo sem resposta para «${lista.nome}», mas a E-goi confirma o envio`,
         detalhe: `campaign_hash ${hash} · ${rD.mensagem}`,
       });
     } else {
-      await sb.from("audit_log").insert({
+      await sb.from("nl_audit_log").insert({
         quem, accao: `Falha no disparo para «${lista.nome}»`, detalhe: `campaign_hash ${hash} · ${rD.mensagem}`,
       });
       return { lista_id: lista.id, lista_nome: lista.nome, ok: false, sincronizada: true, campaign_hash: hash, erro: rD.mensagem };
     }
   }
 
-  await sb.from("egoi_campanhas")
+  await sb.from("nl_egoi_campanhas")
     .update({ estado: "enviada", actualizado_em: new Date().toISOString() })
     .eq("edicao_id", opts.edicaoId).eq("lista_id", lista.id);
   // Primeira lista aceite pela E-goi: a fotografia passa a definitiva e as
   // listas em falta receberão obrigatoriamente esta mesma versão.
   if (listasR.modo === "real") await bloquearSnapshotRevista(opts.edicaoId);
-  await sb.from("audit_log").insert({
+  await sb.from("nl_audit_log").insert({
     quem,
     accao: listasR.modo === "real"
       ? `Enviou a edição #${numero} para «${lista.nome}»${confirmadoNaEgoi ? " (confirmado na E-goi)" : ""}`
@@ -577,7 +578,7 @@ export async function repetirLista(opts: {
   // duplicaria os emails.
   await reconciliarEdicao(opts.edicaoId);
 
-  const { data: campRaw } = await sb.from("egoi_campanhas")
+  const { data: campRaw } = await sb.from("nl_egoi_campanhas")
     .select("estado").eq("edicao_id", opts.edicaoId).eq("lista_id", lista.id).maybeSingle();
   if ((campRaw as { estado?: string } | null)?.estado === "enviada") {
     return {
@@ -591,7 +592,7 @@ export async function repetirLista(opts: {
     edicaoId: opts.edicaoId, lista, apiKey, senderId, quem, permitirEnviada: true,
   });
   if (!s.ok) {
-    await sb.from("audit_log").insert({ quem, accao: `Repetição falhou a preparar «${lista.nome}»`, detalhe: s.mensagem });
+    await sb.from("nl_audit_log").insert({ quem, accao: `Repetição falhou a preparar «${lista.nome}»`, detalhe: s.mensagem });
     return { lista_id: lista.id, lista_nome: lista.nome, ok: false, sincronizada: false, erro: s.mensagem };
   }
   if (!s.resultado.ok || !s.resultado.campaign_hash) {
@@ -601,7 +602,7 @@ export async function repetirLista(opts: {
     };
   }
 
-  await sb.from("audit_log").insert({ quem, accao: `Repetiu o envio da lista «${lista.nome}»` });
+  await sb.from("nl_audit_log").insert({ quem, accao: `Repetiu o envio da lista «${lista.nome}»` });
   return dispararLista({ userId: opts.userId, quemNome: opts.quemNome, edicaoId: opts.edicaoId, listaId: lista.id });
 }
 
@@ -622,7 +623,7 @@ export async function finalizarEnvio(opts: {
     ? (await autorizar(sb, opts.userId, listasR.modo)).nome
     : (opts.quemNome ?? "agendamento");
 
-  await sb.from("edicoes").update({ envio_em_curso: null }).eq("id", opts.edicaoId);
+  await sb.from("nl_edicoes").update({ envio_em_curso: null }).eq("id", opts.edicaoId);
   if (listasR.modo !== "real") return { ok: true as const, fechada: false };
   // Com listas por repetir, a edição fica aberta para que a repetição consiga
   // voltar a preparar a campanha em falta.
@@ -630,7 +631,7 @@ export async function finalizarEnvio(opts: {
 
 
   const nomes = new Map(listasR.listas.map((l) => [l.id, l.nome]));
-  const { data: campsRaw } = await sb.from("egoi_campanhas")
+  const { data: campsRaw } = await sb.from("nl_egoi_campanhas")
     .select("lista_id, campaign_hash, estado").eq("edicao_id", opts.edicaoId);
   const camps = (campsRaw ?? []) as { lista_id: string; campaign_hash: string; estado: string }[];
   const sucessos = camps
@@ -640,7 +641,7 @@ export async function finalizarEnvio(opts: {
     // Nenhuma lista aceite: a fotografia preparada é descartada e a edição
     // volta a ser editável para se corrigir e voltar a tentar.
     if (await descartarSnapshotPreparado(opts.edicaoId)) {
-      await sb.from("audit_log").insert({
+      await sb.from("nl_audit_log").insert({
         quem,
         accao: "Envio sem sucesso — fotografia da edição descartada, edição de novo editável",
       });
@@ -648,7 +649,7 @@ export async function finalizarEnvio(opts: {
     // A página web preparada deixa de ser servida ao público. Os Briefs
     // mantêm estado, texto e histórico: ficam apenas sem edição pública.
     await gravarDestino(opts.edicaoId, "web", { estado: "preparada", erro: null }, sb);
-    await sb.from("audit_log").insert({
+    await sb.from("nl_audit_log").insert({
       quem,
       accao: "Edição web despublicada — os Briefs mantêm-se, sem página pública",
     });
@@ -659,7 +660,7 @@ export async function finalizarEnvio(opts: {
     .filter((l) => !sucessos.some((s) => s.lista_id === l.id))
     .map((l) => ({ lista_id: l.id, lista_nome: l.nome }));
 
-  const { data: edRaw } = await sb.from("edicoes").select("numero, assunto").eq("id", opts.edicaoId).maybeSingle();
+  const { data: edRaw } = await sb.from("nl_edicoes").select("numero, assunto").eq("id", opts.edicaoId).maybeSingle();
   const ed = edRaw as { numero: number; assunto: string | null } | null;
   const assunto = (ed?.assunto ?? "").trim() || `Edição #${ed?.numero ?? ""}`;
   const { html } = await renderEdicaoEmail(opts.edicaoId);

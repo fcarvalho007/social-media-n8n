@@ -1,3 +1,4 @@
+import process from "node:process";
 // Gera o HTML do email DIGITAL SPRINT — Opção C refinada.
 //
 // Regras visuais (referência canónica: opcao-C-refinada-edicao-220.html):
@@ -11,10 +12,10 @@
 // resultado desta função (via preview-edicao) e o envio E-goi consome o mesmo
 // output byte a byte.
 
-import { createClient, SupabaseClient } from "@supabase/supabase-js";
-import { CATEGORIAS, FONT_CORPO, FONT_TITULO } from "./design-tokens.server";
-import { ajustarDescricao, ajustarDescricaoDestaque } from "./ajustar-descricao.server";
-import { resolverDestinos } from "./resolver-destinos.server";
+import { createClient, SupabaseClient } from "npm:@supabase/supabase-js@2.57.4";
+import { CATEGORIAS, FONT_CORPO, FONT_TITULO } from "./design-tokens.server.ts";
+import { ajustarDescricao, ajustarDescricaoDestaque } from "./ajustar-descricao.server.ts";
+import { resolverDestinos } from "./resolver-destinos.server.ts";
 
 /* ─── paleta ─── */
 const BG_PAGINA = "#EEF1F5";
@@ -134,17 +135,17 @@ export async function carregarDadosEdicao(edicaoId: string, opts: CarregarOpts =
     { auth: { persistSession: false } },
   );
   const [edRes, crRes, noRes, seRes, feRes] = await Promise.all([
-    sb.from("edicoes").select("id, numero, assunto, data_envio_prevista, episodio_podcast_id, bloco_consultoria, categorias_ocultas_email, wordpress_post_url").eq("id", edicaoId).single(),
-    sb.from("cronicas").select("titulo, conteudo_html, conteudo, leituras_recomendadas").eq("edicao_id", edicaoId).maybeSingle(),
-    sb.from("noticias").select("id, titulo, descricao, url, categoria, destaque, destino, override_destino, ordem, estado").eq("edicao_id", edicaoId).eq("estado", "aprovada").order("ordem", { ascending: true }),
-    sb.from("secoes_edicao").select("*").eq("edicao_id", edicaoId).eq("activo", true).order("ordem", { ascending: true }),
-    sb.from("ferramentas_semana").select("posicao, nome, descricao, url, emoji, cor").eq("edicao_id", edicaoId).order("posicao", { ascending: true }),
+    sb.from("nl_edicoes").select("id, numero, assunto, data_envio_prevista, episodio_podcast_id, bloco_consultoria, categorias_ocultas_email, wordpress_post_url").eq("id", edicaoId).single(),
+    sb.from("nl_cronicas").select("titulo, conteudo_html, conteudo, leituras_recomendadas").eq("edicao_id", edicaoId).maybeSingle(),
+    sb.from("nl_noticias").select("id, titulo, descricao, url, categoria, destaque, destino, override_destino, ordem, estado").eq("edicao_id", edicaoId).eq("estado", "aprovada").order("ordem", { ascending: true }),
+    sb.from("nl_secoes_edicao").select("*").eq("edicao_id", edicaoId).eq("activo", true).order("ordem", { ascending: true }),
+    sb.from("nl_ferramentas_semana").select("posicao, nome, descricao, url, emoji, cor").eq("edicao_id", edicaoId).order("posicao", { ascending: true }),
   ]);
   if (edRes.error) throw new Error("Edição não encontrada");
 
   let episodio: DadosEdicao["episodio"] = null;
   if (edRes.data.episodio_podcast_id) {
-    const ep = await sb.from("episodios_podcast").select("titulo, codigo, url").eq("id", edRes.data.episodio_podcast_id).maybeSingle();
+    const ep = await sb.from("nl_episodios_podcast").select("titulo, codigo, url").eq("id", edRes.data.episodio_podcast_id).maybeSingle();
     episodio = ep.data ?? null;
   }
   const todasAprovadas = noRes.data ?? [];

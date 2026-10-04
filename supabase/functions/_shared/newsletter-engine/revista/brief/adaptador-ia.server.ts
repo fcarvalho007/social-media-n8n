@@ -5,7 +5,7 @@
 // de cada papel são configuráveis em `configuracoes.brief_modelos`; por
 // omissão usa-se o cliente já existente do projecto.
 
-import type { SupabaseClient } from "@supabase/supabase-js";
+import type { SupabaseClient } from "npm:@supabase/supabase-js@2.57.4";
 
 export type PapelIa = "extraccao" | "redaccao" | "verificacao";
 
@@ -31,7 +31,7 @@ async function modelosPadrao(): Promise<ModelosBrief> {
 export async function modelosBrief(sb: SupabaseClient): Promise<ModelosBrief> {
   const padrao = await modelosPadrao();
   const { data } = await sb
-    .from("configuracoes")
+    .from("nl_configuracoes")
     .select("valor")
     .eq("chave", "brief_modelos")
     .maybeSingle();
@@ -114,8 +114,8 @@ async function registarUso(args: {
   erro?: string;
 }): Promise<void> {
   try {
-    const { custoUsd } = await import("../../../../../supabase/functions/_shared/custos-ia");
-    await args.sb.from("ia_uso").insert({
+    const { custoUsd } = await import("../../../../../supabase/functions/_shared/custos-ia.ts");
+    await args.sb.from("nl_ia_uso").insert({
       modelo: args.modelo,
       tokens_entrada_cache_hit: args.usage.cacheHit,
       tokens_entrada_cache_miss: args.usage.cacheMiss,

@@ -1,7 +1,7 @@
 // Validação determinística da proposta de peças móveis devolvida pela IA.
 // Client-safe: usado pela função de servidor e pelos testes.
 
-import { posicaoValida } from "./sequencia-cronica";
+import { posicaoValida } from "./sequencia-cronica.ts";
 
 export interface PropostaPecas {
   lede: string;

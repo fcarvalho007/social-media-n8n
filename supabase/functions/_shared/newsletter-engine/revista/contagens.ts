@@ -5,7 +5,7 @@
 // Os textos nunca inferem números a partir dos exemplos: quando não há
 // contagem fiável, usam-se as formulações sem número.
 
-import type { EdicaoRevista } from "./compose.server";
+import type { EdicaoRevista } from "./compose.server.ts";
 
 export interface ContagemSeleccao {
   total: number;

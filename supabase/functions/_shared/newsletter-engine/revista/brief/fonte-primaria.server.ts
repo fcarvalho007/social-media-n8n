@@ -5,10 +5,10 @@
 // endereço só é aceite depois de resolvido. A fonte jornalística nunca é
 // substituída — a primária acrescenta-se.
 
-import type { SupabaseClient } from "@supabase/supabase-js";
+import type { SupabaseClient } from "npm:@supabase/supabase-js@2.57.4";
 
-import { chamarIaBrief } from "./adaptador-ia.server";
-import { ligacoesExternas, validarCandidato, publisherDeUrl } from "./fontes.server";
+import { chamarIaBrief } from "./adaptador-ia.server.ts";
+import { ligacoesExternas, validarCandidato, publisherDeUrl } from "./fontes.server.ts";
 
 const SISTEMA = `És um investigador de fontes. Recebes o título e os factos de uma notícia e uma lista de endereços citados pelo artigo.
 
