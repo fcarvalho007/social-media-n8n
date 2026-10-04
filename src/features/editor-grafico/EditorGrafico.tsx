@@ -16,7 +16,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useAuth } from "@/contexts/AuthContext";
 import { guardarRecuperacao, lerRecuperacao, limparRecuperacao } from "@/lib/recuperacaoLocal";
 import { renderProvaServidor } from "@/services/conteudos";
-import { ALTURA, LARGURA, layoutTexto, resolverTexto, validarPacote, type Camada, type Medidor, type PacoteProva } from "../../../supabase/functions/_shared/documento-grafico/nucleo";
+import { ALTURA, LARGURA, layoutTexto, resolverTexto, validarPacote, type Asset, type Camada, type Medidor, type PacoteProva } from "../../../supabase/functions/_shared/documento-grafico/nucleo";
 import { carregarMedidor } from "@/features/editor-grafico/fontes";
 import { carregarImagens, compararPng, renderizarPaginaPng } from "@/features/editor-grafico/desenho";
 import { estadoInicial, reduzir, type Acao } from "@/features/editor-grafico/estado";
