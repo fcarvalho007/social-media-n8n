@@ -7,7 +7,7 @@ import { createClient } from "npm:@supabase/supabase-js@2.57.4";
 import { timingSafeEqual } from "node:crypto";
 import { Buffer } from "node:buffer";
 import { baseFuncoes, basePublica, campoTokenEgoi, idCampoValido, resolverCampoLista, tagTokenEgoi } from "../_shared/nl-publico-config.ts";
-import { clienteEgoiHttp, executarLote, impressaoSegredo, repetirFalhas, verificarProntidao } from "../_shared/nl-egoi-tokens.ts";
+import { clienteEgoiHttp, executarLote, impressaoSegredo, repetirFalhas } from "../_shared/nl-egoi-tokens.ts";
 import { armazemSupabase } from "../_shared/nl-egoi-tokens-armazem.ts";
 
 type Handler = (ctx: { request: Request }) => Promise<Response> | Response;
