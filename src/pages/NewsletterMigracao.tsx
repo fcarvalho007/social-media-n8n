@@ -89,8 +89,8 @@ export default function NewsletterMigracao() {
       <div className="rounded-md border border-destructive/40 bg-destructive/5 p-3 text-sm">
         <p className="font-medium">Antes de importar dados reais</p>
         <ul className="mt-1 list-disc pl-5 text-muted-foreground">
-          <li>As passwords antigas, que estiveram expostas, têm de ser mudadas por cada utilizador em Definições → Segurança.</li>
-          <li>Faz primeiro uma simulação e uma importação com um pacote de teste.</li>
+          <li>Faz primeiro uma simulação e uma importação com um pacote de teste; o hash do pacote é verificado na simulação e antes de cada passo.</li>
+
           <li>Se o pacote mudar depois da simulação, a importação para e é preciso simular outra vez.</li>
         </ul>
       </div>
