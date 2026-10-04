@@ -25,9 +25,9 @@ describe("R7 link — destinos", () => {
     }
   });
   it("bloqueia IPs privados, loopback, link-local, CGNAT, metadados e IPv6 internos", () => {
-    for (const ip of ["10.0.0.1", "127.0.0.1", "169.254.169.254", "172.16.5.4", "192.168.1.1", "100.64.0.1", "0.0.0.0", "224.0.0.1", "::1", "fd00::1", "fe80::1", "::ffff:10.0.0.1", "64:ff9b::a00:1", "300.1.1.1"])
+    for (const ip of ["10.0.0.1", "192.0.2.5", "192.0.0.8", "127.0.0.1", "169.254.169.254", "172.16.5.4", "192.168.1.1", "100.64.0.1", "0.0.0.0", "224.0.0.1", "::1", "fd00::1", "fe80::1", "::ffff:10.0.0.1", "64:ff9b::a00:1", "300.1.1.1"])
       expect(ipBloqueado(ip), ip).toBe(true);
-    for (const ip of ["104.18.1.1", "2606:4700::6810:1"]) expect(ipBloqueado(ip), ip).toBe(false);
+    for (const ip of ["192.0.78.190", "104.18.1.1", "2606:4700::6810:1"]) expect(ipBloqueado(ip), ip).toBe(false);
     expect(pareceIp("017700000001")).toBe(true);
   });
 });
