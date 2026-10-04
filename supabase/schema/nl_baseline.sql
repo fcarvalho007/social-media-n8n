@@ -938,7 +938,6 @@ CREATE TABLE IF NOT EXISTS public.nl_edicoes (
   template_version text DEFAULT 'revista'::text NOT NULL,
   revista_snapshot jsonb,
   destinos jsonb DEFAULT '{}'::jsonb NOT NULL,
-  identidade_id uuid,
   fecho_pendente_em timestamp with time zone,
   fecho_pendente_por text
 );
