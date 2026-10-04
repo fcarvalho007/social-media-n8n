@@ -1,12 +1,39 @@
 // Email-only sign-in for two allowlisted existing accounts (owner's explicit decision).
 // Mitigations: server-side allowlist, explicit existence check (never creates users), rate limit, audit log.
-import { createClient } from 'npm:@supabase/supabase-js@2';
-import { corsHeaders } from 'npm:@supabase/supabase-js@2/cors';
+// Pinned to the same SDK version as the nl-* functions that respond normally (was a floating @2).
+import { createClient } from 'npm:@supabase/supabase-js@2.57.4';
 import { classificarFalha, entrar } from './logica.ts';
+
+const corsHeaders = {
+  'Access-Control-Allow-Origin': '*',
+  'Access-Control-Allow-Headers':
+    'authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version',
+  'Access-Control-Allow-Methods': 'POST, OPTIONS',
+};
 
 // Fixed diagnostic line: no email, IP, key, hash, token or free-text message.
 const log = (etapa: string, resultado: string, ms: number) =>
   console.log(`[entrar-email] etapa=${etapa} resultado=${resultado} ms=${ms}`);
+
+/** Logs only the backend service (rest/auth/outro), start and HTTP status: no URL query, body or headers. */
+const servico = (u: string) => {
+  const p = new URL(u).pathname;
+  return p.startsWith('/rest/v1/rpc/') ? 'rest_rpc' : p.startsWith('/rest/') ? 'rest' : p.startsWith('/auth/') ? 'auth' : 'outro';
+};
+const fetchDiag: typeof fetch = async (input, init) => {
+  const url = typeof input === 'string' ? input : input instanceof URL ? input.href : input.url;
+  const s = servico(url);
+  const t0 = Date.now();
+  log(`fetch_${s}`, 'inicio', 0);
+  try {
+    const r = await fetch(input, init);
+    log(`fetch_${s}`, `http_${r.status}`, Date.now() - t0);
+    return r;
+  } catch (e) {
+    log(`fetch_${s}`, classificarFalha(e), Date.now() - t0);
+    throw e;
+  }
+};
 
 const JANELA_MIN = 15;
 
@@ -29,6 +56,7 @@ Deno.serve(async (req) => {
   const url = Deno.env.get('SUPABASE_URL')!;
   const admin = createClient(url, Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!, {
     auth: { persistSession: false, autoRefreshToken: false },
+    global: { fetch: fetchDiag },
   });
   const ip = (req.headers.get('x-forwarded-for') ?? '').split(',')[0].trim() || null;
   const navegador = (req.headers.get('user-agent') ?? '').slice(0, 300) || null;
@@ -64,7 +92,7 @@ Deno.serve(async (req) => {
       const hash = link?.properties?.hashed_token;
       log('auth_generate_link', error ? classificarFalha(error) : hash ? 'ok' : 'sem_hash', Date.now() - t0);
       if (error || !hash) return null;
-      const anon = createClient(url, Deno.env.get('SUPABASE_ANON_KEY')!, { auth: { persistSession: false, autoRefreshToken: false } });
+      const anon = createClient(url, Deno.env.get('SUPABASE_ANON_KEY')!, { auth: { persistSession: false, autoRefreshToken: false }, global: { fetch: fetchDiag } });
       t0 = Date.now();
       const { data: v, error: vErr } = await anon.auth.verifyOtp({ type: 'magiclink', token_hash: hash });
       log('auth_verify_otp', vErr ? classificarFalha(vErr) : v.session ? 'ok' : 'sem_sessao', Date.now() - t0);
