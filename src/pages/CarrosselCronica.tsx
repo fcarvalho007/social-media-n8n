@@ -40,11 +40,15 @@ export default function CarrosselCronica() {
   carrosselRef.current = carrossel;
   const chave = user && id ? chaveRecuperacao(user.id, "carrossel", id, null) : null;
   const [oferta, setOferta] = useState<Recuperacao<Carrossel> | null>(null);
+  // Synchronous recovery copy on every change + flush on unmount (no debounce that could be cancelled).
+  const alteradoRef = useRef(alterado); alteradoRef.current = alterado;
+  const chaveRef = useRef(chave); chaveRef.current = chave;
   useEffect(() => {
-    if (!alterado || !chave || !carrossel) return;
-    const t = setTimeout(() => guardarRecuperacao(chave, carrossel), 300);
-    return () => clearTimeout(t);
+    if (alterado && chave && carrossel) guardarRecuperacao(chave, carrossel);
   }, [alterado, chave, carrossel]);
+  useEffect(() => () => {
+    if (alteradoRef.current && chaveRef.current && carrosselRef.current) guardarRecuperacao(chaveRef.current, carrosselRef.current);
+  }, []);
   const servidor = dados?.conteudo.carrossel;
   useEffect(() => {
     if (!chave || !user || alterado || !servidor) return;
@@ -52,11 +56,20 @@ export default function CarrosselCronica() {
     setOferta(r && JSON.stringify(r.dados) !== JSON.stringify(servidor) ? r : null);
   }, [chave, servidor]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  // substituir=false keeps the editor text (used after failures/refresh with local edits).
-  const carregar = (substituir = true) => obterConteudo(id).then((d) => {
-    setDados(d); setErroCarregar(null);
-    if (substituir) { setCarrossel(d.conteudo.carrossel); setAlterado(false); }
-  }).catch((e: Error) => setErroCarregar(e.message));
+  // substituir=false keeps the editor text; a function decides at response time (so text typed during
+  // the refetch is never overwritten). Responses for an older request or another id are ignored.
+  const pedido = useRef(0);
+  const idRef = useRef(id); idRef.current = id;
+  const carregar = (substituir: boolean | (() => boolean) = true) => {
+    const meu = ++pedido.current; const paraId = id;
+    return obterConteudo(paraId).then((d) => {
+      if (meu !== pedido.current || paraId !== idRef.current) return;
+      setDados(d); setErroCarregar(null);
+      const trocar = typeof substituir === "function" ? substituir() : substituir;
+      if (trocar) { setCarrossel(d.conteudo.carrossel); setAlterado(false); if (chaveRef.current) limparRecuperacao(chaveRef.current); }
+    }).catch((e: Error) => { if (meu === pedido.current && paraId === idRef.current) setErroCarregar(e.message); });
+  };
+  useEffect(() => { setDados(null); setCarrossel(null); setAlterado(false); setOferta(null); }, [id]);
   useEffect(() => { carregar(); }, [id]); // eslint-disable-line react-hooks/exhaustive-deps
 
   useEffect(() => {
@@ -122,10 +135,9 @@ export default function CarrosselCronica() {
     }
     toast.success("Carrossel guardado");
     setOrigemProposta("edicao");
-    if (chave) limparRecuperacao(chave);
-    // Edits made while saving are kept (still unsaved); only identical text adopts the server copy.
-    const semNovas = JSON.stringify(carrosselRef.current) === enviado;
-    await carregar(semNovas);
+    // Edits made while saving or while refetching are kept (still unsaved, recovery kept);
+    // the server copy is adopted only if the editor still holds exactly what was sent when it arrives.
+    await carregar(() => JSON.stringify(carrosselRef.current) === enviado);
   });
   const gerar = () => executar("gerar", async () => {
     const r = await gerarNovaProposta(c.id);
