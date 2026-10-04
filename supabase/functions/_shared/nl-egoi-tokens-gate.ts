@@ -1,17 +1,15 @@
-// Pre-send gate shared by the send engine: blocks real sends until tokens/field/tag are validated.
+// Pre-send gate shared by the send engine: blocks real sends until, FOR EACH LIST, its own token field
+// is configured, validated and fully synced. No field id is ever borrowed from another list.
 import process from "node:process";
 import type { SupabaseClient } from "npm:@supabase/supabase-js@2.57.4";
-import { campoTokenEgoi } from "./nl-publico-config.ts";
-import { clienteEgoiHttp, impressaoSegredo, verificarProntidao } from "./nl-egoi-tokens.ts";
+import { clienteEgoiHttp, impressaoSegredo } from "./nl-egoi-tokens.ts";
+import { problemasPorLista, type ListaGate } from "./nl-egoi-tokens-gate-core.ts";
+export { problemasPorLista, type ListaGate };
 import { armazemSupabase } from "./nl-egoi-tokens-armazem.ts";
 
-export async function problemasTokensEnvio(sb: SupabaseClient, apiKey: string, listas: Array<{ egoi_lista_id: string; nome: string }>): Promise<string[]> {
-  const campo = campoTokenEgoi();
+export async function problemasTokensEnvio(sb: SupabaseClient, apiKey: string, listas: ListaGate[]): Promise<string[]> {
   const segredo = process.env.SUBSCRICAO_SEGREDO ?? "";
-  if (!campo || !segredo) return ["Campo do token ou segredo das subscrições por configurar."];
+  if (!segredo) return ["Segredo das subscrições por configurar."];
   if (!listas.length) return [];
-  return verificarProntidao(
-    { egoi: clienteEgoiHttp(apiKey), armazem: armazemSupabase(sb) },
-    { listas, campo, fp: await impressaoSegredo(segredo) },
-  );
+  return problemasPorLista({ egoi: clienteEgoiHttp(apiKey), armazem: armazemSupabase(sb) }, listas, await impressaoSegredo(segredo));
 }

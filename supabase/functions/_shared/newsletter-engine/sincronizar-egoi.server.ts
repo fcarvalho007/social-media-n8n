@@ -5,6 +5,7 @@
 import { createClient, SupabaseClient } from "npm:@supabase/supabase-js@2.57.4";
 import { renderEdicaoEmail } from "./render.server.ts";
 import { criarCampanha, patchCampanha } from "./egoi.server.ts";
+import { aplicarTokenLista, resolverCampoLista } from "../nl-publico-config.ts";
 
 const DELAY_ENTRE_LISTAS_MS = 6000;
 
@@ -21,7 +22,7 @@ export function nomeInternoCampanha(numero: number, nomeLista: string, assunto?:
 }
 const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
 
-export interface ListaAlvo { id: string; nome: string; egoi_lista_id: string; tipo: "teste" | "real"; }
+export interface ListaAlvo { id: string; nome: string; egoi_lista_id: string; tipo: "teste" | "real"; campo_token_id: number | null; }
 
 export interface ResultadoSync {
   lista_id: string;
@@ -46,9 +47,9 @@ export async function resolverListas(admin: SupabaseClient, listaIds: string[]):
   if (ids.length > 5) return { ok: false, mensagem: "Máximo 5 listas por envio" };
 
   const { data, error } = await admin.from("nl_egoi_listas")
-    .select("id, nome, egoi_lista_id, tipo, activa").in("id", ids);
+    .select("id, nome, egoi_lista_id, tipo, activa, campo_token_id").in("id", ids);
   if (error) return { ok: false, mensagem: `Falha a carregar listas: ${error.message}` };
-  const rows = (data ?? []) as { id: string; nome: string; egoi_lista_id: string; tipo: string; activa: boolean }[];
+  const rows = (data ?? []) as { id: string; nome: string; egoi_lista_id: string; tipo: string; activa: boolean; campo_token_id: number | null }[];
 
   const inactivas = rows.filter((r) => !r.activa);
   if (inactivas.length) return { ok: false, mensagem: `Listas inactivas: ${inactivas.map((r) => r.nome).join(", ")}` };
@@ -59,7 +60,7 @@ export async function resolverListas(admin: SupabaseClient, listaIds: string[]):
   const porId = new Map(rows.map((r) => [r.id, r]));
   const listas: ListaAlvo[] = ids.map((id) => {
     const r = porId.get(id)!;
-    return { id: r.id, nome: r.nome, egoi_lista_id: r.egoi_lista_id, tipo: r.tipo as "teste" | "real" };
+    return { id: r.id, nome: r.nome, egoi_lista_id: r.egoi_lista_id, tipo: r.tipo as "teste" | "real", campo_token_id: r.campo_token_id };
   });
   const modo: "teste" | "real" = listas.some((l) => l.tipo === "real") ? "real" : "teste";
   return { ok: true, modo, listas };
@@ -114,8 +115,15 @@ async function sincronizarLista(admin: SupabaseClient, opts: {
 }): Promise<ResultadoSync> {
   const cfg = { apiKey: opts.apiKey };
   const l = opts.lista;
-  const { edicao, html } = opts;
-  const plainText = opts.plainText;
+  const { edicao } = opts;
+  // Token merge code of THIS list only; a real list without its own field never receives a campaign.
+  const resolvido = resolverCampoLista(l);
+  if (l.tipo === "real" && !resolvido) {
+    return { lista_id: l.id, lista_nome: l.nome, ok: false, erro: `Lista «${l.nome}»: falta o campo do token.` };
+  }
+  const campoToken = resolvido?.campo ?? null;
+  const html = aplicarTokenLista(opts.html, campoToken);
+  const plainText = aplicarTokenLista(opts.plainText, campoToken);
 
   const { data: existenteRaw } = await admin.from("nl_egoi_campanhas")
     .select("id, campaign_hash, estado")
@@ -127,7 +135,7 @@ async function sincronizarLista(admin: SupabaseClient, opts: {
     // marcada como enviada, criamos uma nova campanha e substituímos o hash.
     // Criamos uma nova campanha e substituímos o hash na linha existente.
     const internalNameNovo = `${nomeInternoCampanha(edicao.numero, l.nome, edicao.assunto)} (nova ${new Date().toISOString().slice(11, 19)})`;
-    const rReenvio = await criarCampanha(cfg, { listaId: l.egoi_lista_id, internalName: internalNameNovo, subject: edicao.assunto, senderId: opts.senderId, html, plainText });
+    const rReenvio = await criarCampanha(cfg, { listaId: l.egoi_lista_id, internalName: internalNameNovo, subject: edicao.assunto, senderId: opts.senderId, html, plainText, campoToken });
     if (!rReenvio.ok) {
       await admin.from("nl_audit_log").insert({ quem: opts.quem, accao: `Falha a recriar campanha de teste «${l.nome}»`, detalhe: rReenvio.mensagem });
       return { lista_id: l.id, lista_nome: l.nome, ok: false, erro: rReenvio.mensagem, campaign_hash: existente.campaign_hash };
@@ -163,7 +171,7 @@ async function sincronizarLista(admin: SupabaseClient, opts: {
   }
 
   // Não existe: cria (com conteúdo já no POST inicial — evita "content isEmpty")
-  const rN = await criarCampanha(cfg, { listaId: l.egoi_lista_id, internalName, subject: edicao.assunto, senderId: opts.senderId, html, plainText });
+  const rN = await criarCampanha(cfg, { listaId: l.egoi_lista_id, internalName, subject: edicao.assunto, senderId: opts.senderId, html, plainText, campoToken });
   if (!rN.ok) {
     await admin.from("nl_audit_log").insert({ quem: opts.quem, accao: `Falha a criar campanha «${l.nome}»`, detalhe: rN.mensagem });
     return { lista_id: l.id, lista_nome: l.nome, ok: false, erro: rN.mensagem };

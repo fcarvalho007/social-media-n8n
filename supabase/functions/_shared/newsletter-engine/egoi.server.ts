@@ -1,15 +1,14 @@
-import { linkUmClique } from "../nl-publico-config.ts";
+import { aplicarTokenLista, linkUmClique } from "../nl-publico-config.ts";
 import { consultarEstadoCampanha } from "./egoi-estado.ts";
 // Helpers partilhados para chamadas à API E-goi.
 // A API separa metadados de campanha (subject, sender, list) do conteúdo HTML.
 // Para "actualizar rascunho" fazemos PATCH aos dois recursos.
 
 /** Cabeçalhos de cancelamento de um clique enviados com a campanha. */
-const URL_UM_CLIQUE = linkUmClique();
-const CABECALHOS_UNSUBSCRIBE = {
-  "List-Unsubscribe": `<${URL_UM_CLIQUE}>`,
+const cabecalhosUnsubscribe = (campo: number | null) => ({
+  "List-Unsubscribe": `<${aplicarTokenLista(linkUmClique(), campo)}>`,
   "List-Unsubscribe-Post": "List-Unsubscribe=One-Click",
-};
+});
 
 const BASE = "https://api.egoiapp.com";
 
@@ -142,6 +141,8 @@ export async function criarCampanha(cfg: EgoiConfig, opts: {
   senderId: string;
   html: string;
   plainText?: string;
+  /** Token field id of this list (per list); null only for test lists. */
+  campoToken?: number | null;
 }): Promise<OkCriacao | EgoiErro> {
   if (!opts.html || !opts.html.trim()) {
     return { ok: false, status: 400, mensagem: "HTML da newsletter não foi gerado — verifica se a edição tem conteúdo" };
@@ -160,7 +161,7 @@ export async function criarCampanha(cfg: EgoiConfig, opts: {
       : { type: "html", body: opts.html },
     // Cancelamento de um clique (RFC 8058). Se a conta não aceitar cabeçalhos
     // personalizados, repetimos sem eles — a E-goi injecta o link nativo.
-    ...(comCabecalhos ? { headers: CABECALHOS_UNSUBSCRIBE } : {}),
+    ...(comCabecalhos ? { headers: cabecalhosUnsubscribe(opts.campoToken ?? null) } : {}),
   });
 
   // Ordem de tentativa: tudo → sem cabeçalhos → sem texto simples.

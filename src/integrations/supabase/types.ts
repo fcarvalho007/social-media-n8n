@@ -2408,6 +2408,8 @@ export type Database = {
       nl_egoi_listas: {
         Row: {
           activa: boolean
+          campo_token_id: number | null
+          campo_token_nome: string | null
           created_at: string
           egoi_lista_id: string
           id: string
@@ -2417,6 +2419,8 @@ export type Database = {
         }
         Insert: {
           activa?: boolean
+          campo_token_id?: number | null
+          campo_token_nome?: string | null
           created_at?: string
           egoi_lista_id: string
           id?: string
@@ -2426,6 +2430,8 @@ export type Database = {
         }
         Update: {
           activa?: boolean
+          campo_token_id?: number | null
+          campo_token_nome?: string | null
           created_at?: string
           egoi_lista_id?: string
           id?: string
