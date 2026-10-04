@@ -8,9 +8,12 @@ export declare function basePublicaObrigatoria(): string;
 export declare function baseParaLinks(): string;
 /** Edge functions base (public endpoints of this project). */
 export declare function baseFuncoes(): string;
+/** E-goi extra field id that stores each contact's signed token (NL_EGOI_CAMPO_TOKEN_ID); null when invalid. */
+export declare function campoTokenEgoi(): number | null;
 /**
- * E-goi merge tag that holds each contact's signed subscription token (e.g. "{!extra_3}").
- * Subscription links never carry the e-mail alone; without this tag configured, sending is blocked.
+ * E-goi merge code of the token field, derived from the field id. Official format (E-goi helpdesk,
+ * "Using merge codes"): `!extra_field_X`, X = extra field number. NL_EGOI_TAG_TOKEN is only an optional
+ * cross-check: if set and different from the derived code, the tag is treated as missing (send blocked).
  */
 export declare function tagTokenEgoi(): string;
 /** Footer link to the subscription page, authenticated only by the signed token merge tag. */

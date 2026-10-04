@@ -80,3 +80,29 @@ verify_jwt = true
 
 [functions.nl-imagem]
 verify_jwt = false
+
+# Newsletter functions: deployed with gateway JWT check off (signing keys); each handler authenticates itself.
+# nl-publico: public, sent editions only + signed-token subscription actions.
+[functions.nl-publico]
+verify_jwt = false
+
+# nl-hooks: cron = NL_CRON_SEGREDO/service role; webhooks = BasicAuth / shared key; estado/sync = admin session.
+[functions.nl-hooks]
+verify_jwt = false
+
+# Staff/admin-only: session + role validated in code (fail-closed).
+[functions.nl-api]
+verify_jwt = false
+
+[functions.nl-import]
+verify_jwt = false
+
+[functions.nl-conteudos]
+verify_jwt = false
+
+[functions.nl-newsletter]
+verify_jwt = false
+
+# Worker: nl_worker_estado key or service role only.
+[functions.nl-worker-conteudos]
+verify_jwt = false
