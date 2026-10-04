@@ -1,0 +1,1 @@
+DELETE FROM public.subscricao_eventos WHERE email = 'teste+sub@example.com';

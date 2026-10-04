@@ -1,0 +1,75 @@
+// Sitemap público: arquivo + edições Revista publicadas.
+// A regra de publicação é a mesma de `publicacao.server.ts` (revista + enviada
+// + snapshot bloqueado). Sem `lastmod`: não há timestamp fiável por edição.
+
+import { createFileRoute } from "@tanstack/react-router";
+import type {} from "@tanstack/react-start";
+
+export const Route = createFileRoute("/sitemap.xml")({
+  server: {
+    handlers: {
+      GET: async () => {
+        const { baseUrlEdicoes } = await import(
+          "@/lib/newsletter-engine/revista/destinos.server"
+        );
+        const { listarEdicoesPublicas } = await import(
+          "@/lib/newsletter-engine/revista/publicacao.server"
+        );
+
+        const { briefsActivos } = await import(
+          "@/lib/newsletter-engine/revista/brief/modelo.server"
+        );
+
+        const base = await baseUrlEdicoes();
+        const edicoes = await listarEdicoesPublicas();
+
+        // Só Destaques indexáveis entram no mapa, e apenas com a camada
+        // pública dos Briefs ligada. Radar é sempre noindex.
+        const briefs = (await briefsActivos())
+          ? await (async () => {
+              const { listarBriefsIndexaveis } = await import(
+                "@/lib/newsletter-engine/revista/brief/publico.server"
+              );
+              return listarBriefsIndexaveis();
+            })()
+          : [];
+
+        const entradas = [
+          { loc: `${base}/edicoes`, changefreq: "weekly", priority: "1.0" },
+          ...edicoes.map((e) => ({
+            loc: `${base}/edicoes/${e.numero}`,
+            changefreq: "yearly",
+            priority: "0.8",
+          })),
+          ...briefs.map((b) => ({
+            loc: `${base}/brief/${b.slug}`,
+            changefreq: "yearly",
+            priority: "0.7",
+          })),
+        ];
+
+        const xml = [
+          `<?xml version="1.0" encoding="UTF-8"?>`,
+          `<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">`,
+          ...entradas.map((e) =>
+            [
+              `  <url>`,
+              `    <loc>${e.loc}</loc>`,
+              `    <changefreq>${e.changefreq}</changefreq>`,
+              `    <priority>${e.priority}</priority>`,
+              `  </url>`,
+            ].join("\n"),
+          ),
+          `</urlset>`,
+        ].join("\n");
+
+        return new Response(xml, {
+          headers: {
+            "Content-Type": "application/xml",
+            "Cache-Control": "public, max-age=3600",
+          },
+        });
+      },
+    },
+  },
+});

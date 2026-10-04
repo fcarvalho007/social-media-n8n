@@ -1,0 +1,105 @@
+// Fase 3B — integração no envio: o que fica congelado, o que trava e o que
+// apenas avisa, e a marca de origem nos endereços enviados por email.
+
+import { describe, expect, it } from "vitest";
+
+import { briefsDoSnapshot } from "../publicacao.server";
+import { urlBriefEmail } from "../render-email.server";
+import {
+  avisosConfirmaveisDe,
+  bloqueiosRigidosDe,
+  rotuloAccaoProntidao,
+  type LinhaProntidao,
+} from "../prontidao-rotulos";
+import type { EdicaoRevista } from "../compose.server";
+
+/** Bloco congelado tal como a versão 3 da fotografia o guarda. */
+const ligacaoV3 = {
+  briefId: "b1",
+  versao: 4,
+  tipo: "destaque",
+  papel: "destaque",
+  ordem: 1,
+  slug: "o-luxo-de-esperar",
+  url: "https://edicoes.digitalsprint.pt/brief/o-luxo-de-esperar",
+  tituloEditorial: "O luxo de esperar",
+  tituloApresentado: "O luxo de esperar — título desta edição",
+  fonteUrl: "https://exemplo.pt/noticia",
+};
+
+function edicao(brief: Record<string, unknown> | undefined): EdicaoRevista {
+  return {
+    destaques: [{ itemId: "i1", noticiaId: "n1", titulo: "Peça", ...(brief ? { brief } : {}) }],
+    radar: [],
+  } as unknown as EdicaoRevista;
+}
+
+describe("fotografia da edição com Briefs", () => {
+  it("congela tudo o que o histórico precisa por peça", () => {
+    const congelado = edicao(ligacaoV3).destaques[0].brief!;
+    expect(Object.keys(congelado).sort()).toEqual(
+      [
+        "briefId",
+        "fonteUrl",
+        "ordem",
+        "papel",
+        "slug",
+        "tipo",
+        "tituloApresentado",
+        "tituloEditorial",
+        "url",
+        "versao",
+      ].sort(),
+    );
+    expect(congelado.versao).toBe(4);
+    expect(congelado.tituloEditorial).not.toBe(congelado.tituloApresentado);
+  });
+
+  it("fotografias antigas (versões 1 e 2) continuam a ser lidas", () => {
+    const v2 = {
+      briefId: "b1",
+      versao: 1,
+      tipo: "destaque",
+      slug: "o-luxo-de-esperar",
+      url: "https://edicoes.digitalsprint.pt/brief/o-luxo-de-esperar",
+      tituloApresentado: "O luxo de esperar",
+      fonteUrl: "https://exemplo.pt/noticia",
+    };
+    expect(briefsDoSnapshot(edicao(v2))).toEqual({ n1: { slug: "o-luxo-de-esperar", tipo: "destaque" } });
+    expect(briefsDoSnapshot(edicao(undefined))).toEqual({});
+  });
+});
+
+describe("marca de origem nos endereços do email", () => {
+  it("acrescenta a origem sem partir endereços que já têm parâmetros", () => {
+    expect(urlBriefEmail(ligacaoV3.url)).toBe(`${ligacaoV3.url}?o=email`);
+    expect(urlBriefEmail("https://edicoes.digitalsprint.pt/brief/x?a=1")).toBe(
+      "https://edicoes.digitalsprint.pt/brief/x?a=1&o=email",
+    );
+    expect(urlBriefEmail("")).toBe("");
+  });
+});
+
+describe("bloqueios rígidos e avisos confirmáveis", () => {
+  const areas: LinhaProntidao[] = [
+    { estado: "pronta", mensagem: "Crónica publicada" },
+    { estado: "bloqueada", mensagem: "Faltam Briefs prontos: 7/8.", severidade: "bloqueio" },
+    { estado: "bloqueada", mensagem: "O email ainda não tem assunto." },
+    { estado: "aviso", mensagem: "Backup adiado" },
+  ];
+
+  it("só os pontos dos Briefs travam o envio", () => {
+    expect(bloqueiosRigidosDe(areas)).toEqual(["Faltam Briefs prontos: 7/8."]);
+  });
+
+  it("os restantes continuam confirmáveis com «Enviar mesmo assim»", () => {
+    expect(avisosConfirmaveisDe(areas)).toEqual(["O email ainda não tem assunto."]);
+  });
+
+  it("cada acção tem um rótulo em português", () => {
+    expect(rotuloAccaoProntidao("gerar_brief")).toBe("Gerar Brief");
+    expect(rotuloAccaoProntidao("rever_leitura")).toBe("Rever leitura");
+    expect(rotuloAccaoProntidao("corrigir_fonte")).toBe("Corrigir fonte");
+    expect(rotuloAccaoProntidao(undefined)).toBeNull();
+  });
+});

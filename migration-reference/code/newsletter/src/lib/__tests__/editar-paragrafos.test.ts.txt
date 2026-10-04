@@ -1,0 +1,25 @@
+import { describe, expect, it } from "vitest";
+import { editarParagrafos } from "@/lib/newsletter-engine/revista/sequencia-cronica";
+
+const base = { paragrafos: ["a", "b", "c"], ledePos: 0, quotePos: 2, momentoPos: 3 };
+
+describe("editarParagrafos", () => {
+  it("inserir desloca peças posteriores", () => {
+    const r = editarParagrafos(base, { op: "inserir", indice: 1, texto: "x" });
+    expect(r.paragrafos).toEqual(["a", "x", "b", "c"]);
+    expect([r.ledePos, r.quotePos, r.momentoPos]).toEqual([0, 3, 4]);
+  });
+  it("apagar recua peças posteriores", () => {
+    const r = editarParagrafos(base, { op: "apagar", indice: 0 });
+    expect(r.paragrafos).toEqual(["b", "c"]);
+    expect([r.ledePos, r.quotePos, r.momentoPos]).toEqual([0, 1, 2]);
+  });
+  it("mover troca parágrafos sem mexer nas peças", () => {
+    const r = editarParagrafos(base, { op: "mover", indice: 0, delta: 1 });
+    expect(r.paragrafos).toEqual(["b", "a", "c"]);
+    expect(r.quotePos).toBe(2);
+  });
+  it("ignora operações fora de limites", () => {
+    expect(editarParagrafos(base, { op: "mover", indice: 2, delta: 1 })).toBe(base);
+  });
+});

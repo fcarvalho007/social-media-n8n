@@ -1,0 +1,274 @@
+import { useEffect, useState } from "react";
+import { createFileRoute, useNavigate } from "@tanstack/react-router";
+import { useServerFn } from "@tanstack/react-start";
+import { AlertCircle, Loader2, Mail } from "lucide-react";
+import { supabase } from "@/integrations/supabase/client";
+import { entrarPorEmail } from "@/lib/auth-email.functions";
+
+const TITLE = "Entrar · DIGITAL SPRINT";
+const MSG_SESSAO = "Não foi possível abrir a sessão. Recarrega a página e tenta de novo.";
+
+export const Route = createFileRoute("/auth")({
+  ssr: false,
+  head: () => ({
+    meta: [
+      { title: TITLE },
+      { name: "description", content: "Acesso ao editor da newsletter Digital Sprint." },
+      { name: "robots", content: "noindex, nofollow" },
+    ],
+  }),
+  component: AuthPage,
+});
+
+function AuthPage() {
+  const navigate = useNavigate();
+  const entrar = useServerFn(entrarPorEmail);
+  const [email, setEmail] = useState("");
+  const [erro, setErro] = useState<string | null>(null);
+  const [aCarregar, setACarregar] = useState(false);
+
+  useEffect(() => {
+    supabase.auth.getSession().then(({ data }) => {
+      if (data.session) navigate({ to: "/", replace: true });
+    });
+  }, [navigate]);
+
+  /**
+   * O servidor pode estar a reiniciar quando o pedido sai (falha de rede
+   * imediata, "Failed to fetch"). Nesse caso repetimos até 3 vezes com pausas
+   * curtas em vez de mostrar um erro técnico.
+   */
+  const entrarComRepeticao = async (valor: string) => {
+    let ultimoErro: unknown = null;
+    for (let tentativa = 0; tentativa < 3; tentativa += 1) {
+      try {
+        return await entrar({ data: { email: valor } });
+      } catch (err) {
+        ultimoErro = err;
+        const msg = String((err as Error)?.message ?? "").toLowerCase();
+        const falhaDeRede = msg.includes("fetch") || msg.includes("network") || msg.includes("load failed");
+        if (!falhaDeRede) throw err;
+        await new Promise((r) => setTimeout(r, 900 * (tentativa + 1)));
+      }
+    }
+    throw ultimoErro instanceof Error
+      ? new Error("A ligação ao servidor falhou. Aguarda uns segundos e tenta de novo.")
+      : new Error("A ligação ao servidor falhou. Aguarda uns segundos e tenta de novo.");
+  };
+
+  const submeter = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setErro(null);
+    setACarregar(true);
+    try {
+      const sessao = await entrarComRepeticao(email.trim());
+      if (!sessao.ok) {
+        setErro(sessao.mensagem);
+        return;
+      }
+      const { error } = await supabase.auth.setSession({
+        access_token: sessao.access_token,
+        refresh_token: sessao.refresh_token,
+      });
+      if (error) throw new Error(MSG_SESSAO);
+      // Confirma que a sessão ficou mesmo activa antes de entrar no editor.
+      const { data: verificacao } = await supabase.auth.getUser();
+      if (!verificacao.user) throw new Error(MSG_SESSAO);
+      navigate({ to: "/", replace: true });
+    } catch (err) {
+      setErro((err as Error)?.message || "Servidor indisponível. Tenta de novo dentro de momentos.");
+    } finally {
+      setACarregar(false);
+    }
+  };
+
+
+  return (
+    <div
+      className="relative min-h-screen overflow-hidden font-sans"
+      style={{ background: "#050510", color: "#F1F2F8" }}
+    >
+      {/* Halos radiais cinemáticos */}
+      <div
+        aria-hidden="true"
+        className="pointer-events-none absolute -top-40 -left-40 h-[560px] w-[560px] rounded-full"
+        style={{
+          background: "radial-gradient(circle, rgba(99,102,241,0.35) 0%, rgba(99,102,241,0) 65%)",
+          filter: "blur(20px)",
+        }}
+      />
+      <div
+        aria-hidden="true"
+        className="pointer-events-none absolute -bottom-40 -right-32 h-[620px] w-[620px] rounded-full"
+        style={{
+          background: "radial-gradient(circle, rgba(236,72,153,0.28) 0%, rgba(236,72,153,0) 65%)",
+          filter: "blur(20px)",
+        }}
+      />
+      <div
+        aria-hidden="true"
+        className="pointer-events-none absolute inset-0 opacity-[0.05] mix-blend-overlay"
+        style={{
+          backgroundImage:
+            "url(\"data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='160' height='160'><filter id='n'><feTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='2' stitchTiles='stitch'/></filter><rect width='100%' height='100%' filter='url(%23n)' opacity='0.6'/></svg>\")",
+        }}
+      />
+      {/* Linhas widescreen */}
+      <div aria-hidden="true" className="pointer-events-none absolute inset-x-0 top-0 h-px" style={{ background: "linear-gradient(90deg, transparent, rgba(255,255,255,0.14), transparent)" }} />
+      <div aria-hidden="true" className="pointer-events-none absolute inset-x-0 bottom-0 h-px" style={{ background: "linear-gradient(90deg, transparent, rgba(255,255,255,0.10), transparent)" }} />
+
+      <main className="relative z-10 mx-auto grid min-h-screen max-w-6xl grid-cols-1 items-center gap-14 px-6 py-16 md:grid-cols-[1.15fr_1fr] md:gap-20 md:px-10">
+        {/* Coluna editorial */}
+        <section className="anim-rise">
+          <div className="flex items-center gap-3">
+            <div
+              className="grid h-14 w-14 place-items-center rounded-2xl text-white font-display font-bold text-lg ds-gradient"
+              style={{ boxShadow: "0 20px 60px -10px rgba(139,92,246,0.55)" }}
+            >
+              DS
+            </div>
+            <span
+              className="text-[11px] font-bold uppercase tracking-[0.24em]"
+              style={{ color: "#7A7F9E" }}
+            >
+              Digital Sprint · v1
+            </span>
+          </div>
+
+          <h1
+            className="mt-10 font-display font-bold leading-[0.92] text-[56px] sm:text-[76px] md:text-[92px]"
+            style={{ letterSpacing: "-0.035em", color: "#F8FAFC" }}
+          >
+            <span className="block">Digital</span>
+            <span className="block bg-clip-text text-transparent" style={{ backgroundImage: "linear-gradient(135deg, #6366F1, #8B5CF6, #EC4899)" }}>
+              Sprint.
+            </span>
+          </h1>
+
+          <div className="mt-8 h-[3px] w-24 rounded-full ds-gradient" />
+
+          <p className="mt-8 max-w-md text-[15px] leading-relaxed" style={{ color: "#9CA0B8" }}>
+            Cockpit interno de curadoria e envio da newsletter semanal.
+            Um sítio calmo para escolher bem o que vale a pena partilhar.
+          </p>
+
+          <ul className="mt-8 hidden md:flex items-center gap-6 text-[11px] font-semibold uppercase tracking-[0.18em]" style={{ color: "#4A4F6B" }}>
+            <li>Curadoria</li>
+            <li aria-hidden="true">·</li>
+            <li>Crónica</li>
+            <li aria-hidden="true">·</li>
+            <li>Envio</li>
+          </ul>
+        </section>
+
+        {/* Coluna formulário */}
+        <section className="anim-rise" style={{ animationDelay: "80ms" }}>
+          <div
+            className="relative rounded-3xl p-8 sm:p-10"
+            style={{
+              background: "rgba(15,15,31,0.72)",
+              border: "1px solid rgba(255,255,255,0.06)",
+              boxShadow:
+                "0 40px 120px -20px rgba(99,102,241,0.25), 0 0 0 1px rgba(255,255,255,0.02) inset",
+              backdropFilter: "blur(20px) saturate(140%)",
+            }}
+          >
+            {/* Fio superior gradiente */}
+            <div className="absolute inset-x-8 top-0 h-px" style={{ background: "linear-gradient(90deg, transparent, rgba(139,92,246,0.6), transparent)" }} />
+
+            <h2
+              className="font-display font-bold text-[34px] leading-none"
+              style={{ letterSpacing: "-0.02em", color: "#F8FAFC" }}
+            >
+              Entrar
+            </h2>
+            <p className="mt-3 text-[14px]" style={{ color: "#9CA0B8" }}>
+              Só utilizadores autorizados. Sessão privada.
+            </p>
+
+            <form onSubmit={submeter} className="mt-8 space-y-5">
+              <label className="block">
+                <span className="text-[11px] font-bold uppercase tracking-[0.16em]" style={{ color: "#7A7F9E" }}>
+                  Email
+                </span>
+                <div className="relative mt-2">
+                  <Mail size={16} className="absolute left-4 top-1/2 -translate-y-1/2" style={{ color: "#6B7090" }} />
+                  <input
+                    type="email"
+                    autoComplete="email"
+                    required
+                    value={email}
+                    onChange={(e) => setEmail(e.target.value)}
+                    placeholder="tu@dominio.pt"
+                    className="w-full h-12 text-[15px] rounded-xl pl-11 pr-4 outline-none transition-all focus:ring-2"
+                    style={{
+                      border: "1px solid rgba(255,255,255,0.08)",
+                      background: "rgba(255,255,255,0.03)",
+                      color: "#F1F2F8",
+                      // @ts-expect-error CSS custom prop for focus ring color
+                      "--tw-ring-color": "rgba(139,92,246,0.55)",
+                    }}
+                  />
+                </div>
+              </label>
+
+              <p className="text-[12.5px] leading-relaxed" style={{ color: "#6B7090" }}>
+                Sem password. Escreve o teu email autorizado e entras direito ao editor.
+              </p>
+
+
+              {erro && (
+                <p
+                  className="flex items-center gap-2 text-[13px] font-semibold px-3.5 py-2.5 rounded-xl"
+                  style={{ background: "rgba(239,68,68,0.10)", color: "#FCA5A5", border: "1px solid rgba(239,68,68,0.25)" }}
+                >
+                  <AlertCircle size={14} />
+                  <span className="flex-1">{erro}</span>
+                  {erro === MSG_SESSAO && (
+                    <button
+                      type="button"
+                      onClick={() => window.location.reload()}
+                      className="shrink-0 underline underline-offset-2 font-bold"
+                    >
+                      Recarregar página
+                    </button>
+                  )}
+                </p>
+              )}
+
+              <button
+                type="submit"
+                disabled={aCarregar || !email}
+                className="btn-cinema group relative w-full h-[52px] mt-2 rounded-xl text-white text-[15px] font-bold ds-gradient overflow-hidden disabled:opacity-50 disabled:cursor-not-allowed transition-transform hover:translate-y-[-1px]"
+                style={{
+                  boxShadow: "0 20px 40px -12px rgba(139,92,246,0.55), 0 0 0 1px rgba(255,255,255,0.06) inset",
+                }}
+              >
+                <span className="relative z-10 inline-flex items-center justify-center gap-2">
+                  {aCarregar && <Loader2 size={15} className="animate-spin" />}
+                  {aCarregar ? "A entrar…" : "Entrar"}
+                </span>
+                <span
+                  aria-hidden="true"
+                  className="absolute inset-y-0 -left-1/3 w-1/3 skew-x-[-20deg] opacity-0 group-hover:opacity-100 group-hover:animate-[cinema-shimmer_1.1s_ease-out]"
+                  style={{ background: "linear-gradient(90deg, transparent, rgba(255,255,255,0.35), transparent)" }}
+                />
+              </button>
+            </form>
+          </div>
+
+          <p className="mt-6 text-center text-[11px] font-medium uppercase tracking-[0.2em]" style={{ color: "#3F4360" }}>
+            © Frederico Carvalho · Digital Sprint
+          </p>
+        </section>
+      </main>
+
+      <style>{`
+        @keyframes cinema-shimmer {
+          0%   { transform: translateX(0) skewX(-20deg); }
+          100% { transform: translateX(500%) skewX(-20deg); }
+        }
+      `}</style>
+    </div>
+  );
+}

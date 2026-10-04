@@ -1,0 +1,171 @@
+// Funções de servidor que substituem a antiga Edge Function `processar-noticias`.
+// Ficheiro fino: só declarações `createServerFn` — a lógica vive em
+// `processar-noticias.server.ts`.
+
+import { createServerFn } from "@tanstack/react-start";
+import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
+import {
+  confirmarNoticiasNaFila,
+  extrairNoticiasDoTexto,
+  normalizarModelo,
+  registarUso,
+  extrairComIA,
+  type ItemExtraido,
+  type ResultadoConfirmacao,
+  type ResultadoExtraccao,
+} from "@/lib/processar-noticias.server";
+
+type Papel = "admin" | "curador";
+
+async function contexto(supabase: {
+  from: (t: string) => {
+    select: (c: string) => {
+      eq: (
+        col: string,
+        v: string,
+      ) => { maybeSingle: () => Promise<{ data: { papel?: string; nome?: string } | null }> };
+    };
+  };
+}, userId: string, email: string | null) {
+  const { data } = await supabase.from("perfis").select("papel, nome").eq("id", userId).maybeSingle();
+  const papel = (data?.papel ?? null) as Papel | null;
+  if (papel !== "admin" && papel !== "curador") throw new Error("Sem permissão.");
+  return { papel, nome: data?.nome ?? email ?? "utilizador" };
+}
+
+async function definicoes(admin: {
+  from: (t: string) => {
+    select: (c: string) => {
+      eq: (col: string, v: string) => { maybeSingle: () => Promise<{ data: Record<string, unknown> | null }> };
+    };
+  };
+}) {
+  const { data } = await admin.from("definicoes_ia").select("*").eq("id", "default").maybeSingle();
+  return {
+    modelo: normalizarModelo(data?.modelo),
+    estado: (data?.estado as string | undefined) ?? "nao_configurada",
+  };
+}
+
+export const extrairNoticias = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .validator((input: unknown): { texto: string; url_manual?: string } => {
+    const o = (input ?? {}) as { texto?: unknown; url_manual?: unknown };
+    const texto = typeof o.texto === "string" ? o.texto : "";
+    if (texto.trim().length < 3) throw new Error("Texto demasiado curto.");
+    const url = typeof o.url_manual === "string" && o.url_manual.trim() ? o.url_manual.trim() : undefined;
+    return { texto, url_manual: url };
+  })
+  .handler(async ({ data, context }): Promise<ResultadoExtraccao> => {
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    const { nome } = await contexto(
+      context.supabase as never,
+      context.userId,
+      (context.claims?.email as string | undefined) ?? null,
+    );
+    const { modelo, estado } = await definicoes(supabaseAdmin as never);
+    if (estado !== "configurada") {
+      throw new Error("Integração de IA não configurada. Vai a Definições.");
+    }
+    return extrairNoticiasDoTexto(supabaseAdmin as never, modelo, nome, data.texto, data.url_manual);
+  });
+
+export const confirmarNoticias = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .validator((input: unknown): { itens: ItemExtraido[] } => {
+    const o = (input ?? {}) as { itens?: unknown };
+    const itens = Array.isArray(o.itens) ? (o.itens as Record<string, unknown>[]) : [];
+    if (itens.length === 0) throw new Error("Sem itens para inserir.");
+    return {
+      itens: itens.map((i) => ({
+        titulo: String(i.titulo ?? ""),
+        descricao: String(i.descricao ?? ""),
+        url: String(i.url ?? ""),
+        categoria: String(i.categoria ?? "ia"),
+      })),
+    };
+  })
+  .handler(async ({ data, context }): Promise<ResultadoConfirmacao> => {
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    const { nome } = await contexto(
+      context.supabase as never,
+      context.userId,
+      (context.claims?.email as string | undefined) ?? null,
+    );
+    const { modelo } = await definicoes(supabaseAdmin as never);
+    return confirmarNoticiasNaFila(supabaseAdmin as never, modelo, nome, data.itens);
+  });
+
+export const guardarModeloIA = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .validator((input: unknown): { modelo: string } => {
+    const o = (input ?? {}) as { modelo?: unknown };
+    return { modelo: typeof o.modelo === "string" ? o.modelo : "" };
+  })
+  .handler(async ({ data, context }): Promise<{ provider: string; modelo: string; configurada: boolean }> => {
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    const { papel, nome } = await contexto(
+      context.supabase as never,
+      context.userId,
+      (context.claims?.email as string | undefined) ?? null,
+    );
+    if (papel !== "admin") throw new Error("Só o admin pode alterar definições.");
+
+    const novoModelo = normalizarModelo(data.modelo);
+    const chaveOk = !!process.env.DEEPSEEK_API_KEY;
+    const { error } = await supabaseAdmin.from("definicoes_ia").upsert({
+      id: "default",
+      provider: "deepseek",
+      modelo: novoModelo,
+      estado: chaveOk ? "configurada" : "nao_configurada",
+      ultimo_erro: chaveOk ? null : "Falta a variável DEEPSEEK_API_KEY.",
+      actualizado_por: context.userId,
+      updated_at: new Date().toISOString(),
+    });
+    if (error) throw new Error(error.message);
+    await supabaseAdmin.from("audit_log").insert({
+      quem: nome,
+      accao: "definicoes_ia_guardadas",
+      detalhe: { provider: "deepseek", modelo: novoModelo },
+    });
+    return { provider: "deepseek", modelo: novoModelo, configurada: chaveOk };
+  });
+
+export const testarModeloIA = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .handler(async ({ context }): Promise<{ provider: string; modelo: string }> => {
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    const { papel } = await contexto(
+      context.supabase as never,
+      context.userId,
+      (context.claims?.email as string | undefined) ?? null,
+    );
+    if (papel !== "admin") throw new Error("Só o admin pode testar.");
+
+    const { modelo } = await definicoes(supabaseAdmin as never);
+    try {
+      const chamada = await extrairComIA(
+        modelo,
+        "Teste rápido: OpenAI lança nova versão. https://openai.com",
+        undefined,
+      );
+      await registarUso(supabaseAdmin as never, modelo, chamada.usage, "colagem_manual", null);
+      const r = chamada.resultado;
+      const ok = !!(r && (r.titulo || r.descricao));
+      await supabaseAdmin.from("definicoes_ia").update({
+        estado: ok ? "configurada" : "erro",
+        ultimo_teste_em: new Date().toISOString(),
+        ultimo_erro: ok ? null : "Resposta vazia ou inválida.",
+      }).eq("id", "default");
+      if (!ok) throw new Error("Resposta vazia ou inválida.");
+      return { provider: "deepseek", modelo };
+    } catch (e) {
+      const msg = (e as Error).message;
+      await supabaseAdmin.from("definicoes_ia").update({
+        estado: "erro",
+        ultimo_teste_em: new Date().toISOString(),
+        ultimo_erro: msg,
+      }).eq("id", "default");
+      throw new Error(msg);
+    }
+  });

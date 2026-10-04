@@ -1,0 +1,146 @@
+// Funções de servidor do fluxo de envio (substituem as Edge Functions).
+import { createServerFn } from "@tanstack/react-start";
+import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
+
+export const previewEdicaoFn = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((d: { edicao_id: string; destino?: "email" | "wordpress" }) => d)
+  .handler(async ({ data }) => {
+    const { previewHtml } = await import("./newsletter-engine/envio.server");
+    if (!data.edicao_id) throw new Error("edicao_id em falta");
+    return previewHtml(data.edicao_id, data.destino === "wordpress" ? "wordpress" : "email");
+  });
+
+export const sincronizarRascunhoFn = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((d: { edicao_id: string; lista_ids: string[] }) => d)
+  .handler(async ({ data, context }) => {
+    const { sincronizarRascunho } = await import("./newsletter-engine/envio.server");
+    return sincronizarRascunho(context.userId, data.edicao_id, data.lista_ids ?? []);
+  });
+
+export const dispararEgoiFn = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((d: { edicao_id: string; lista_ids: string[]; confirmacao_numero?: number }) => d)
+  .handler(async ({ data, context }) => {
+    const { dispararEgoi } = await import("./newsletter-engine/envio.server");
+    return dispararEgoi({
+      userId: context.userId,
+      edicaoId: data.edicao_id,
+      listaIds: data.lista_ids ?? [],
+      confirmacaoNumero: data.confirmacao_numero,
+    });
+  });
+
+/** Fase 1 do envio: prepara (cria/actualiza) as campanhas de todas as listas. */
+export const prepararEnvioFn = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((d: { edicao_id: string; lista_ids: string[]; confirmacao_numero?: number; publicar_conteudos?: boolean }) => d)
+  .handler(async ({ data, context }) => {
+    const { prepararEnvio } = await import("./newsletter-engine/envio.server");
+    return prepararEnvio({
+      userId: context.userId,
+      edicaoId: data.edicao_id,
+      listaIds: data.lista_ids ?? [],
+      confirmacaoNumero: data.confirmacao_numero,
+      publicarConteudos: data.publicar_conteudos === true,
+    });
+  });
+
+/** Fase 2 do envio: dispara uma lista já preparada. */
+export const dispararListaFn = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((d: { edicao_id: string; lista_id: string }) => d)
+  .handler(async ({ data, context }) => {
+    const { dispararLista } = await import("./newsletter-engine/envio.server");
+    return dispararLista({ userId: context.userId, edicaoId: data.edicao_id, listaId: data.lista_id });
+  });
+
+/** Repete apenas uma lista que falhou (prepara + dispara). */
+export const repetirListaFn = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((d: { edicao_id: string; lista_id: string }) => d)
+  .handler(async ({ data, context }) => {
+    const { repetirLista } = await import("./newsletter-engine/envio.server");
+    return repetirLista({ userId: context.userId, edicaoId: data.edicao_id, listaId: data.lista_id });
+  });
+
+/** Pergunta à E-goi o estado real das campanhas e alinha a base de dados. */
+export const reconciliarEdicaoFn = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((d: { edicao_id: string }) => d)
+  .handler(async ({ data }) => {
+    const { reconciliarEdicao } = await import("./newsletter-engine/envio.server");
+    if (!data.edicao_id) throw new Error("edicao_id em falta");
+    return reconciliarEdicao(data.edicao_id);
+  });
+
+
+/** Fase 3 do envio: liberta o bloqueio e fecha a edição. */
+export const finalizarEnvioFn = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((d: { edicao_id: string; lista_ids: string[]; adiar_fecho?: boolean }) => d)
+  .handler(async ({ data, context }) => {
+    const { finalizarEnvio } = await import("./newsletter-engine/envio.server");
+    return finalizarEnvio({ userId: context.userId, edicaoId: data.edicao_id, listaIds: data.lista_ids ?? [], adiarFecho: data.adiar_fecho === true });
+  });
+
+
+
+export const publicarWordpressFn = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((d: { edicao_id: string }) => d)
+  .handler(async ({ data, context }) => {
+    const { publicarWordpress } = await import("./newsletter-engine/envio.server");
+    return publicarWordpress({ edicaoId: data.edicao_id, userId: context.userId });
+  });
+
+/** Agenda o envio de uma edição (apenas admin). */
+export const agendarEnvioFn = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((d: { edicao_id: string; agendado_para: string; lista_ids: string[]; wordpress: boolean }) => d)
+  .handler(async ({ data, context }) => {
+    const { admin, autorizar, ErroEnvio } = await import("./newsletter-engine/envio.server");
+    const sb = admin();
+    const user = await autorizar(sb, context.userId, "real");
+    if (!data.lista_ids?.length) throw new ErroEnvio("Escolhe pelo menos uma lista.");
+    const quando = new Date(data.agendado_para);
+    if (Number.isNaN(quando.getTime())) throw new ErroEnvio("Data inválida.");
+    if (quando.getTime() < Date.now() + 60_000) throw new ErroEnvio("Escolhe uma data no futuro (pelo menos 1 minuto).");
+
+    const { data: ed } = await sb.from("edicoes").select("estado, numero").eq("id", data.edicao_id).maybeSingle();
+    if (!ed) throw new ErroEnvio("Edição não encontrada", 404);
+    if ((ed as { estado: string }).estado === "enviada") throw new ErroEnvio("Edição já foi enviada.", 409);
+
+    await sb.from("edicoes").update({
+      agendado_para: quando.toISOString(),
+      agendamento_estado: "agendado",
+      agendamento_listas: data.lista_ids,
+      agendamento_wordpress: !!data.wordpress,
+      agendamento_erro: null,
+      agendado_por: user.nome,
+    }).eq("id", data.edicao_id);
+
+    await sb.from("audit_log").insert({
+      quem: user.nome,
+      accao: `Agendou o envio da edição #${(ed as { numero: number }).numero}`,
+      detalhe: quando.toISOString(),
+    });
+    return { ok: true as const, agendado_para: quando.toISOString() };
+  });
+
+/** Cancela o agendamento de uma edição (apenas admin). */
+export const cancelarAgendamentoFn = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((d: { edicao_id: string }) => d)
+  .handler(async ({ data, context }) => {
+    const { admin, autorizar } = await import("./newsletter-engine/envio.server");
+    const sb = admin();
+    const user = await autorizar(sb, context.userId, "real");
+    await sb.from("edicoes").update({
+      agendado_para: null, agendamento_estado: "nenhum", agendamento_erro: null,
+    }).eq("id", data.edicao_id).neq("agendamento_estado", "a_executar");
+    await sb.from("audit_log").insert({ quem: user.nome, accao: "Cancelou o agendamento de envio" });
+    return { ok: true as const };
+  });
+

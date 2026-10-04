@@ -1,0 +1,21 @@
+
+-- Grants + políticas para anon (cockpit sem auth por agora)
+GRANT SELECT, INSERT, UPDATE, DELETE ON public.edicoes TO anon;
+GRANT SELECT, INSERT, UPDATE, DELETE ON public.noticias TO anon;
+GRANT SELECT, INSERT, UPDATE, DELETE ON public.cronicas TO anon;
+GRANT SELECT, INSERT, UPDATE, DELETE ON public.episodios_podcast TO anon;
+GRANT SELECT, INSERT, UPDATE, DELETE ON public.fontes_curadoria TO anon;
+GRANT SELECT, INSERT, UPDATE, DELETE ON public.audit_log TO anon;
+
+CREATE POLICY "anon full access edicoes" ON public.edicoes FOR ALL TO anon USING (true) WITH CHECK (true);
+CREATE POLICY "anon full access noticias" ON public.noticias FOR ALL TO anon USING (true) WITH CHECK (true);
+CREATE POLICY "anon full access cronicas" ON public.cronicas FOR ALL TO anon USING (true) WITH CHECK (true);
+CREATE POLICY "anon full access episodios_podcast" ON public.episodios_podcast FOR ALL TO anon USING (true) WITH CHECK (true);
+CREATE POLICY "anon full access fontes_curadoria" ON public.fontes_curadoria FOR ALL TO anon USING (true) WITH CHECK (true);
+CREATE POLICY "anon full access audit_log" ON public.audit_log FOR ALL TO anon USING (true) WITH CHECK (true);
+
+-- Realtime
+ALTER TABLE public.noticias REPLICA IDENTITY FULL;
+ALTER TABLE public.audit_log REPLICA IDENTITY FULL;
+ALTER PUBLICATION supabase_realtime ADD TABLE public.noticias;
+ALTER PUBLICATION supabase_realtime ADD TABLE public.audit_log;

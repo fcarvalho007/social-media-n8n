@@ -1,0 +1,2 @@
+ALTER TABLE public.emails_recebidos
+  ADD COLUMN IF NOT EXISTS classificacao_detalhe jsonb NOT NULL DEFAULT '{}'::jsonb;

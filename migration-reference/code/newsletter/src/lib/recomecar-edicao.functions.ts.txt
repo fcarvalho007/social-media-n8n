@@ -1,0 +1,100 @@
+// Recomeçar uma edição em rascunho: limpa o conteúdo escolhido, mantendo
+// número, data e formato. As notícias voltam a pendentes (nada é apagado).
+import { createServerFn } from "@tanstack/react-start";
+import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
+import { z } from "zod";
+import type { Database } from "@/integrations/supabase/types";
+
+type RevistaUpdate = Database["public"]["Tables"]["revista_edicao"]["Update"];
+import {
+  VALORES_LIVRO, VALORES_PROMOCAO, VALORES_SERVICOS, PODCAST_CTA, PODCAST_ETIQUETA, PODCAST_PROGRAMA,
+} from "@/features/newsletter/revista/valores-habituais";
+
+export const AMBITOS_RECOMECO = ["noticias", "cronica", "blocos", "assunto", "briefs"] as const;
+export type AmbitoRecomeco = (typeof AMBITOS_RECOMECO)[number];
+
+const schema = z.object({
+  edicaoId: z.string().uuid(),
+  ambitos: z.array(z.enum(AMBITOS_RECOMECO)).min(1),
+  confirmacao: z.string(),
+  quem: z.string().max(200),
+});
+
+export const recomecarEdicaoFn = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((d: unknown) => schema.parse(d))
+  .handler(async ({ data, context }) => {
+    const sb = context.supabase;
+    const { data: ed, error } = await sb
+      .from("edicoes")
+      .select("id, numero, estado, agendamento_estado, envio_em_curso")
+      .eq("id", data.edicaoId)
+      .maybeSingle();
+    if (error) throw new Error(error.message);
+    if (!ed) throw new Error("Edição não encontrada");
+    if (ed.estado !== "rascunho") throw new Error("Só é possível recomeçar edições em rascunho");
+    if (ed.agendamento_estado === "agendado" || ed.envio_em_curso)
+      throw new Error("A edição está agendada ou em envio");
+    if (data.confirmacao.trim() !== String(ed.numero))
+      throw new Error("O número de confirmação não corresponde à edição");
+
+    const id = ed.id;
+    const a = new Set(data.ambitos);
+    const ok = (r: { error: { message: string } | null }) => {
+      if (r.error) throw new Error(r.error.message);
+    };
+
+    if (a.has("noticias")) {
+      ok(await sb.from("revista_itens").delete().eq("edicao_id", id));
+      ok(await sb.from("noticias")
+        .update({ edicao_id: null, estado: "pendente", destaque: false })
+        .eq("edicao_id", id));
+    }
+    if (a.has("briefs")) {
+      ok(await sb.from("brief_edicoes").delete().eq("edicao_id", id));
+    }
+    const revista: RevistaUpdate = {};
+    if (a.has("cronica")) {
+      ok(await sb.from("cronicas").update({
+        titulo: null, conteudo: null, conteudo_html: null, leituras_recomendadas: null, concluida: false,
+      }).eq("edicao_id", id));
+      Object.assign(revista, {
+        cronica_titulo: "", cronica_subtitulo: "", cronica_lede: "", cronica_excerto: "",
+        cronica_url: "", cronica_imagem_url: "", cronica_imagem_alt: "",
+        cronica_imagem_credito: "", cronica_imagem_credito_url: "", cronica_imagem_fonte: "",
+        cronica_imagem_recorte_url: "", cronica_imagem_enquadramento: {},
+        momento_activo: false, momento_etiqueta: "", momento_valor: "", momento_descricao: "",
+        pull_quote: "",
+      });
+    }
+    if (a.has("blocos")) {
+      ok(await sb.from("ferramentas_semana").delete().eq("edicao_id", id));
+      ok(await sb.from("edicoes").update({ episodio_podcast_id: null }).eq("id", id));
+      Object.assign(revista, {
+        ...VALORES_PROMOCAO, ...VALORES_LIVRO, ...VALORES_SERVICOS,
+        podcast_activo: true, podcast_etiqueta: PODCAST_ETIQUETA, podcast_programa: PODCAST_PROGRAMA,
+        podcast_cta: PODCAST_CTA, podcast_tema: "", podcast_convidado: "", podcast_pergunta: "",
+        podcast_url: "",
+        recomendacao_activa: false, recomendacao_tipo: "", recomendacao_meta: "",
+        recomendacao_titulo: "", recomendacao_url: "", recomendacao_nota: "",
+      });
+    }
+    if (a.has("assunto")) {
+      ok(await sb.from("edicoes").update({ assunto: null }).eq("id", id));
+      revista.preheader = "";
+    }
+    if (Object.keys(revista).length > 0) {
+      ok(await sb.from("revista_edicao").update(revista).eq("edicao_id", id));
+    }
+    // Dados derivados deixam de ser válidos.
+    ok(await sb.from("edicoes").update({
+      snapshot_envio: null, revista_snapshot: null, links_verificados: null, links_verificados_em: null,
+    }).eq("id", id));
+
+    await sb.from("audit_log").insert({
+      quem: data.quem || "utilizador",
+      accao: `Recomeçou a edição #${ed.numero} do zero`,
+      detalhe: { edicao_id: id, ambitos: data.ambitos },
+    });
+    return { ok: true, numero: ed.numero };
+  });

@@ -1,0 +1,63 @@
+import { describe, expect, it } from "vitest";
+
+import { compararArtigoRemoto, normalizarParaComparacao } from "../artigo-cronica";
+
+const local = {
+  title: "A geração das cinco horas",
+  excerpt: "Uma tese curta sobre o tempo que sobra antes de o mundo acordar.",
+  content: "<p>Primeiro parágrafo.</p>\n<p>Segundo parágrafo com <strong>ênfase</strong>.</p>",
+};
+
+const remotoIgual = {
+  titulo: "A geração das cinco horas",
+  excerpt: "Uma tese curta sobre o tempo que sobra antes de o mundo acordar.",
+  conteudo: "<p>Primeiro parágrafo.</p>\n\n\n<p>Segundo parágrafo com <strong>ênfase</strong>.</p>\n",
+  categorias: [2731],
+};
+
+describe("compararArtigoRemoto", () => {
+  it("não vê diferenças quando o conteúdo é o mesmo", () => {
+    expect(compararArtigoRemoto(local, remotoIgual, { categoriaId: 2731 })).toEqual([]);
+  });
+
+  it("ignora ruído de formatação devolvido pelo WordPress", () => {
+    const ruidoso = {
+      ...remotoIgual,
+      conteudo: "<p>Primeiro&nbsp;parágrafo.</p><p>Segundo parágrafo com <b>ênfase</b>.</p>",
+      titulo: "A geração das cinco horas ",
+    };
+    expect(compararArtigoRemoto(local, ruidoso, { categoriaId: 2731 })).toEqual([]);
+  });
+
+  it("detecta diferença de título", () => {
+    const r = compararArtigoRemoto(local, { ...remotoIgual, titulo: "Outro título" }, { categoriaId: 2731 });
+    expect(r.map((d) => d.campo)).toEqual(["titulo"]);
+  });
+
+  it("detecta diferença de corpo", () => {
+    const r = compararArtigoRemoto(
+      local,
+      { ...remotoIgual, conteudo: "<p>Primeiro parágrafo.</p>" },
+      { categoriaId: 2731 },
+    );
+    expect(r.map((d) => d.campo)).toEqual(["corpo"]);
+  });
+
+  it("detecta diferença de excerpt", () => {
+    const r = compararArtigoRemoto(local, { ...remotoIgual, excerpt: "Outra coisa." }, { categoriaId: 2731 });
+    expect(r.map((d) => d.campo)).toEqual(["excerpt"]);
+  });
+
+  it("detecta categoria em falta", () => {
+    const r = compararArtigoRemoto(local, { ...remotoIgual, categorias: [15] }, { categoriaId: 2731 });
+    expect(r.map((d) => d.campo)).toEqual(["categoria"]);
+  });
+
+  it("ignora a categoria quando não há id resolvido", () => {
+    expect(compararArtigoRemoto(local, { ...remotoIgual, categorias: [15] })).toEqual([]);
+  });
+
+  it("normaliza aspas tipográficas e travessões", () => {
+    expect(normalizarParaComparacao("“Bom dia” — disse")).toBe('"bom dia" - disse');
+  });
+});

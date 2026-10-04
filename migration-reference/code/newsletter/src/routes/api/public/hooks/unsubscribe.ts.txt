@@ -1,0 +1,63 @@
+// Cancelamento de um clique (RFC 8058) e ligação directa a partir do email.
+//
+// POST -> executado pelo cliente de email (Gmail/Outlook) sem abrir o browser.
+// GET  -> encaminha para a página de gestão, onde há alternativas ao cancelamento.
+
+import { createFileRoute } from "@tanstack/react-router";
+
+const PAGINA = "https://newsletter-digital-sprint.lovable.app/subscricao";
+
+function identificar(url: URL): { token: string | null; email: string | null } {
+  const token = url.searchParams.get("t");
+  const email = url.searchParams.get("e");
+  return { token: token || null, email: email && email.includes("@") ? email : null };
+}
+
+export const Route = createFileRoute("/api/public/hooks/unsubscribe")({
+  server: {
+    handlers: {
+      POST: async ({ request }) => {
+        const url = new URL(request.url);
+        let { token, email } = identificar(url);
+
+        // O one-click envia "List-Unsubscribe=One-Click" no corpo; alguns
+        // clientes reencaminham também os parâmetros aqui.
+        if (!token && !email) {
+          const corpo = await request.text().catch(() => "");
+          const p = new URLSearchParams(corpo);
+          token = p.get("t");
+          const e = p.get("e");
+          email = e && e.includes("@") ? e : null;
+        }
+
+        if (!token && !email) return new Response("Pedido inválido", { status: 400 });
+
+        try {
+          const { aplicarAccao } = await import("@/lib/subscricao.server");
+          const r = await aplicarAccao({
+            token,
+            email,
+            accao: "cancelar",
+            motivo: "Cancelamento de um clique no cliente de email",
+            origem: "um_clique",
+          });
+          // Responder 200 mesmo com aviso da E-goi: o evento fica registado e
+          // o cliente de email não deve mostrar erro ao subscritor.
+          return new Response(r.ok ? "OK" : "Registado", { status: 200 });
+        } catch (err) {
+          console.error("[unsubscribe] falha:", (err as Error).message);
+          return new Response("Erro interno", { status: 500 });
+        }
+      },
+      GET: ({ request }) => {
+        const url = new URL(request.url);
+        const { token, email } = identificar(url);
+        const destino = new URL(PAGINA);
+        if (token) destino.searchParams.set("t", token);
+        if (email) destino.searchParams.set("e", email);
+        destino.searchParams.set("a", "cancelar");
+        return new Response(null, { status: 302, headers: { Location: destino.toString() } });
+      },
+    },
+  },
+});

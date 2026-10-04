@@ -1,0 +1,16 @@
+
+DO $$
+DECLARE
+  v_subs text;
+BEGIN
+  SELECT valor INTO v_subs FROM public.configuracoes WHERE chave = 'egoi_lista_subscritores_id';
+
+  INSERT INTO public.configuracoes (chave, valor) VALUES
+    ('egoi_lista_1_id', COALESCE(v_subs, '')),
+    ('egoi_lista_1_nome', 'Subscritores Digital Sprint'),
+    ('egoi_lista_2_id', ''),
+    ('egoi_lista_2_nome', 'Lista 2'),
+    ('egoi_lista_3_id', ''),
+    ('egoi_lista_3_nome', 'Lista 3')
+  ON CONFLICT (chave) DO NOTHING;
+END $$;

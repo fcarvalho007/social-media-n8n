@@ -1,0 +1,26 @@
+import { describe, expect, it } from "vitest";
+
+import { hashPublicadoParaEstado } from "../frederico-wordpress.server";
+
+const HASH_A = "a".repeat(64);
+const HASH_B = "b".repeat(64);
+
+describe("hashPublicadoParaEstado", () => {
+  it("criar rascunho não grava hash", () => {
+    expect(hashPublicadoParaEstado("draft", HASH_A)).toBeNull();
+  });
+
+  it("actualizar rascunho mantém-se a null e limpa valor herdado", () => {
+    expect(hashPublicadoParaEstado("draft", HASH_B)).toBeNull();
+    expect(hashPublicadoParaEstado("pending", HASH_B)).toBeNull();
+  });
+
+  it("publicação confirmada grava o hash", () => {
+    expect(hashPublicadoParaEstado("publish", HASH_A)).toBe(HASH_A);
+  });
+
+  it("actualização de artigo publicado acompanha a mudança de payload", () => {
+    expect(hashPublicadoParaEstado("publish", HASH_B)).toBe(HASH_B);
+    expect(hashPublicadoParaEstado("publish", HASH_B)).not.toBe(HASH_A);
+  });
+});

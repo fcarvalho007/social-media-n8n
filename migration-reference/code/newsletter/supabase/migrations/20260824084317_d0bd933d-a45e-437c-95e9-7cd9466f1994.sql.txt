@@ -1,0 +1,40 @@
+ALTER TABLE public.curadoria_config
+  ADD COLUMN IF NOT EXISTS max_por_email integer NOT NULL DEFAULT 4,
+  ADD COLUMN IF NOT EXISTS max_por_dia integer NOT NULL DEFAULT 25,
+  ADD COLUMN IF NOT EXISTS max_por_fonte integer NOT NULL DEFAULT 2,
+  ADD COLUMN IF NOT EXISTS max_por_categoria integer NOT NULL DEFAULT 3;
+
+ALTER TABLE public.fontes_curadoria
+  ADD COLUMN IF NOT EXISTS grupo text;
+
+UPDATE public.fontes_curadoria
+SET grupo = COALESCE(
+  NULLIF(regexp_replace(COALESCE(remetente_dominio, ''), '^(mail|email|insight|news|newsletter|link|click|e|go)\.', ''), ''),
+  NULLIF(remetente_dominio, ''),
+  nome
+)
+WHERE grupo IS NULL;
+
+CREATE OR REPLACE FUNCTION public.fontes_curadoria_set_grupo()
+RETURNS trigger
+LANGUAGE plpgsql
+SET search_path = public
+AS $$
+BEGIN
+  IF NEW.grupo IS NULL OR NEW.grupo = '' THEN
+    NEW.grupo := COALESCE(
+      NULLIF(regexp_replace(COALESCE(NEW.remetente_dominio, ''), '^(mail|email|insight|news|newsletter|link|click|e|go)\.', ''), ''),
+      NULLIF(NEW.remetente_dominio, ''),
+      NEW.nome
+    );
+  END IF;
+  RETURN NEW;
+END;
+$$;
+
+DROP TRIGGER IF EXISTS trg_fontes_curadoria_grupo ON public.fontes_curadoria;
+CREATE TRIGGER trg_fontes_curadoria_grupo
+  BEFORE INSERT OR UPDATE ON public.fontes_curadoria
+  FOR EACH ROW EXECUTE FUNCTION public.fontes_curadoria_set_grupo();
+
+CREATE INDEX IF NOT EXISTS idx_fontes_curadoria_grupo ON public.fontes_curadoria(grupo);

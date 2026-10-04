@@ -1,0 +1,17 @@
+ALTER TABLE public.edicoes
+  ADD COLUMN IF NOT EXISTS agendado_para timestamptz,
+  ADD COLUMN IF NOT EXISTS agendamento_estado text NOT NULL DEFAULT 'nenhum',
+  ADD COLUMN IF NOT EXISTS agendamento_listas jsonb NOT NULL DEFAULT '[]'::jsonb,
+  ADD COLUMN IF NOT EXISTS agendamento_wordpress boolean NOT NULL DEFAULT true,
+  ADD COLUMN IF NOT EXISTS agendamento_erro text,
+  ADD COLUMN IF NOT EXISTS agendado_por text,
+  ADD COLUMN IF NOT EXISTS agendamento_iniciado_em timestamptz;
+
+DO $$ BEGIN
+  ALTER TABLE public.edicoes
+    ADD CONSTRAINT edicoes_agendamento_estado_chk
+    CHECK (agendamento_estado IN ('nenhum','agendado','a_executar','executado','falhou'));
+EXCEPTION WHEN duplicate_object THEN NULL; END $$;
+
+CREATE INDEX IF NOT EXISTS edicoes_agendamento_idx
+  ON public.edicoes (agendamento_estado, agendado_para);

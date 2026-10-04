@@ -1,0 +1,295 @@
+// Testes do motor editorial do Brief (Fase 2B).
+// Todas as chamadas de IA e de rede são simuladas: nada sai daqui.
+
+import { beforeEach, describe, expect, it, vi } from "vitest";
+
+import { avaliarProximidade } from "../proximidade";
+
+vi.mock("../fontes.server", () => ({ recolherFonte: vi.fn() }));
+vi.mock("../extraccao.server", () => ({ extrairFactos: vi.fn() }));
+vi.mock("../fonte-primaria.server", () => ({ identificarFontePrimaria: vi.fn() }));
+vi.mock("../redaccao.server", () => ({
+  gerarEmTrintaSegundos: vi.fn(),
+  gerarPorqueInteressa: vi.fn(),
+  gerarLeituraSugerida: vi.fn(),
+}));
+vi.mock("../verificacao.server", () => ({ verificarFactualidade: vi.fn() }));
+vi.mock("../modelo.server", () => ({ clienteBrief: () => clienteFalso }));
+
+const { recolherFonte } = await import("../fontes.server");
+const { extrairFactos } = await import("../extraccao.server");
+const { identificarFontePrimaria } = await import("../fonte-primaria.server");
+const { gerarEmTrintaSegundos, gerarPorqueInteressa, gerarLeituraSugerida } = await import(
+  "../redaccao.server"
+);
+const { verificarFactualidade } = await import("../verificacao.server");
+const { gerarBrief, reformularBrief } = await import("../motor.server");
+
+/* ─────────── base de dados simulada, com uma única linha ─────────── */
+
+let linha: Record<string, unknown>;
+
+const clienteFalso = {
+  from() {
+    let porGravar: Record<string, unknown> | null = null;
+    const api: Record<string, unknown> = {};
+    api.select = () => api;
+    api.update = (r: Record<string, unknown>) => {
+      porGravar = r;
+      return api;
+    };
+    api.eq = () => {
+      if (porGravar) {
+        Object.assign(linha, porGravar);
+        porGravar = null;
+        return Promise.resolve({ error: null });
+      }
+      return api;
+    };
+    api.single = () => Promise.resolve({ data: { ...linha }, error: null });
+    api.maybeSingle = () => Promise.resolve({ data: { ...linha }, error: null });
+    return api;
+  },
+} as never;
+
+const TEXTO_FONTE =
+  "A empresa anunciou esta quarta-feira que vai abrir o serviço a 12 países europeus, com um preço de 19 euros por mês e uma janela de testes até Março. A decisão surge depois de meses de pressão regulatória e de um crescimento de 34 por cento na base de utilizadores.";
+
+function briefBase(extra: Record<string, unknown> = {}): void {
+  linha = {
+    id: "b1",
+    noticia_id: "n1",
+    fingerprint: "url:exemplo.pt/noticia",
+    slug: "servico-abre-a-doze-paises",
+    slug_congelado: false,
+    tipo: "destaque",
+    estado: "por_gerar",
+    indexavel: true,
+    em_30_segundos: [],
+    porque_interessa: [],
+    factos: [],
+    contexto: [],
+    incertezas: [],
+    leitura_sugerida: "",
+    leitura_aprovada: "",
+    pull_quote_sugerida: "",
+    aprovada_em: null,
+    aprovada_por: null,
+    fonte_url: "https://exemplo.pt/noticia",
+    fonte_primaria_url: null,
+    fontes_adicionais: [],
+    verificacao: {},
+    ia: {},
+    hash_publicado: null,
+    publicado_em: null,
+    erro: null,
+    tentativas: 0,
+    ...extra,
+  };
+}
+
+function fonteOk(corpo = TEXTO_FONTE) {
+  return {
+    ok: true,
+    url: "https://exemplo.pt/noticia",
+    urlFinal: "https://exemplo.pt/noticia",
+    titulo: "Serviço abre a doze países",
+    publisher: "Exemplo",
+    data: "2026-09-10T10:00:00.000Z",
+    corpo,
+    html: "<html></html>",
+  };
+}
+
+const FACTOS = [
+  {
+    afirmacao: "O serviço abre a 12 países europeus",
+    tipo: "numero" as const,
+    valor: "12",
+    fonte: "https://exemplo.pt/noticia",
+    evidencia: "vai abrir o serviço a 12 países europeus",
+    confianca: 0.9,
+  },
+  {
+    afirmacao: "O preço é de 19 euros por mês",
+    tipo: "preco" as const,
+    valor: "19 EUR",
+    fonte: "https://exemplo.pt/noticia",
+    evidencia: "um preço de 19 euros por mês",
+    confianca: 0.8,
+  },
+];
+
+function redaccaoNormal() {
+  vi.mocked(gerarEmTrintaSegundos).mockResolvedValue([
+    { texto: "O serviço passa a estar disponível em doze mercados europeus." },
+    { texto: "A mensalidade fica em dezanove euros e os testes duram até Março." },
+  ]);
+  vi.mocked(gerarPorqueInteressa).mockResolvedValue([
+    { ordem: 1, rotulo: "Orçamento", texto: "Obriga a rever o custo por equipa já este trimestre." },
+  ]);
+  vi.mocked(gerarLeituraSugerida).mockResolvedValue({
+    leitura: "O preço é o sinal: a pressão regulatória tornou-se linha orçamental.",
+    pullQuote: "A pressão regulatória tornou-se linha orçamental.",
+  });
+}
+
+function verificacaoOk() {
+  vi.mocked(verificarFactualidade).mockResolvedValue({
+    estado: "suportado",
+    itens: [{ afirmacao: "doze mercados europeus", estado: "suportado" }],
+    bloqueia: false,
+  });
+}
+
+beforeEach(() => {
+  vi.clearAllMocks();
+  briefBase();
+  vi.mocked(recolherFonte).mockResolvedValue(fonteOk());
+  vi.mocked(extrairFactos).mockResolvedValue({ factos: FACTOS, contexto: [], incertezas: [] });
+  vi.mocked(identificarFontePrimaria).mockResolvedValue({
+    url: "https://empresa.com/newsroom/anuncio",
+    publisher: "Empresa",
+    reportagemPropria: false,
+    adicionais: [],
+  });
+  redaccaoNormal();
+  verificacaoOk();
+});
+
+describe("motor do Brief", () => {
+  it("A · fonte válida gera o Brief completo", async () => {
+    const r = await gerarBrief({ briefId: "b1" });
+    expect(r.bloqueado).toBe(false);
+    expect(r.brief.em_30_segundos).toHaveLength(2);
+    expect(r.brief.porque_interessa).toHaveLength(1);
+    expect(r.brief.fonte_primaria_url).toBe("https://empresa.com/newsroom/anuncio");
+    expect(r.brief.verificacao.fonte_estado).toBe("ok");
+  });
+
+  it("B · fonte inacessível não inventa conteúdo", async () => {
+    vi.mocked(recolherFonte).mockResolvedValue({
+      ok: false,
+      url: "https://exemplo.pt/noticia",
+      urlFinal: null,
+      titulo: null,
+      publisher: null,
+      data: null,
+      corpo: "",
+      motivo: "A fonte respondeu 403",
+    });
+    const r = await gerarBrief({ briefId: "b1" });
+    expect(r.brief.estado).toBe("erro");
+    expect(r.brief.verificacao.fonte_estado).toBe("indisponivel");
+    expect(r.brief.em_30_segundos).toHaveLength(0);
+    expect(gerarEmTrintaSegundos).not.toHaveBeenCalled();
+  });
+
+  it("C · guarda os factos com números e preços", async () => {
+    const r = await gerarBrief({ briefId: "b1" });
+    expect(r.brief.factos.map((f) => f.tipo)).toEqual(["numero", "preco"]);
+    expect(r.brief.factos[0]?.valor).toBe("12");
+  });
+
+  it("D · afirmação sem suporte bloqueia o Brief", async () => {
+    vi.mocked(verificarFactualidade).mockResolvedValue({
+      estado: "nao_suportado",
+      itens: [
+        { afirmacao: "É o primeiro serviço do mundo", estado: "nao_suportado", nota: "Não consta da fonte." },
+      ],
+      bloqueia: true,
+    });
+    const r = await gerarBrief({ briefId: "b1" });
+    expect(r.bloqueado).toBe(true);
+    expect(r.brief.verificacao.factual).toBe("falhou");
+    expect(r.brief.estado).toBe("por_rever");
+  });
+
+  it("E · proximidade alta bloqueia", async () => {
+    vi.mocked(gerarEmTrintaSegundos).mockResolvedValue([{ texto: TEXTO_FONTE }]);
+    const r = await gerarBrief({ briefId: "b1" });
+    expect(r.brief.verificacao.proximidade_detalhe?.decisao).toBe("bloqueado");
+    expect(r.motivos.join(" ")).toContain("demasiado perto");
+  });
+
+  it("F · reformular baixa a proximidade", async () => {
+    vi.mocked(gerarEmTrintaSegundos).mockResolvedValue([{ texto: TEXTO_FONTE }]);
+    const antes = await gerarBrief({ briefId: "b1" });
+    redaccaoNormal();
+    const depois = await reformularBrief("b1");
+    expect(depois.brief.verificacao.proximidade ?? 1).toBeLessThan(
+      antes.brief.verificacao.proximidade ?? 1,
+    );
+    expect(depois.brief.verificacao.proximidade_detalhe?.decisao).toBe("ok");
+  });
+
+  it("G · o Radar não gera leitura", async () => {
+    briefBase({ tipo: "radar", indexavel: false });
+    const r = await gerarBrief({ briefId: "b1" });
+    expect(gerarLeituraSugerida).not.toHaveBeenCalled();
+    expect(r.brief.leitura_sugerida).toBe("");
+    expect(r.brief.estado).toBe("aprovado");
+  });
+
+  it("H · o Destaque fica sempre por rever", async () => {
+    const r = await gerarBrief({ briefId: "b1" });
+    expect(r.brief.estado).toBe("por_rever");
+  });
+
+  it("I · volta a tentar depois de um erro", async () => {
+    vi.mocked(extrairFactos).mockRejectedValueOnce(new Error("limite de pedidos da IA"));
+    const falhou = await gerarBrief({ briefId: "b1" });
+    expect(falhou.brief.estado).toBe("erro");
+    expect(falhou.brief.tentativas).toBe(1);
+
+    const segunda = await gerarBrief({ briefId: "b1" });
+    expect(segunda.brief.estado).toBe("por_rever");
+    expect(segunda.brief.erro).toBeNull();
+  });
+
+  it("J · duas gerações trabalham sempre sobre o mesmo Brief", async () => {
+    const primeira = await gerarBrief({ briefId: "b1" });
+    const segunda = await gerarBrief({ briefId: "b1" });
+    expect(segunda.brief.id).toBe(primeira.brief.id);
+    expect(segunda.brief.slug).toBe(primeira.brief.slug);
+    expect(segunda.brief.ia.geracoes).toBe(2);
+  });
+
+  it("J2 · uma geração em curso não arranca outra", async () => {
+    briefBase({ estado: "a_gerar" });
+    const r = await gerarBrief({ briefId: "b1" });
+    expect(r.bloqueado).toBe(true);
+    expect(recolherFonte).not.toHaveBeenCalled();
+  });
+
+  it("K · regenerar a leitura revoga a aprovação", async () => {
+    briefBase({
+      estado: "aprovado",
+      leitura_aprovada: "Leitura aprovada pelo editor.",
+      aprovada_em: "2026-09-12T09:00:00.000Z",
+      aprovada_por: "frederico",
+      factos: FACTOS,
+      em_30_segundos: [{ texto: "O serviço passa a estar disponível em doze mercados." }],
+      porque_interessa: [{ ordem: 1, rotulo: "Orçamento", texto: "Obriga a rever o custo por equipa." }],
+    });
+    const r = await gerarBrief({ briefId: "b1", componente: "leitura_sugerida" });
+    expect(r.brief.aprovada_em).toBeNull();
+    expect(r.brief.estado).toBe("por_rever");
+  });
+});
+
+describe("proximidade textual", () => {
+  it("texto copiado é bloqueado", () => {
+    expect(avaliarProximidade(TEXTO_FONTE, TEXTO_FONTE).decisao).toBe("bloqueado");
+  });
+
+  it("texto original passa", () => {
+    const nosso =
+      "Doze mercados europeus passam a ter acesso ao serviço. A mensalidade fixa-se nos dezanove euros e os testes terminam em Março.";
+    expect(avaliarProximidade(nosso, TEXTO_FONTE).decisao).toBe("ok");
+  });
+
+  it("texto curto ou fonte vazia não é avaliado", () => {
+    expect(avaliarProximidade("Três palavras aqui", "").score).toBe(0);
+  });
+});

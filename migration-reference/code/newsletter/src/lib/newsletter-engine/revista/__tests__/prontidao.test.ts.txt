@@ -1,0 +1,300 @@
+import { beforeEach, describe, expect, it, vi } from "vitest";
+
+// Dependências externas do módulo de prontidão. Mockadas para que os testes
+// descrevam cenários editoriais, não infra-estrutura.
+const estadoDestinos = vi.fn();
+const composeRevistaEdition = vi.fn();
+const lerSnapshotRevista = vi.fn();
+const maybeSingle = vi.fn();
+
+vi.mock("@supabase/supabase-js", () => ({
+  createClient: () => ({
+    from: () => ({ select: () => ({ eq: () => ({ maybeSingle }) }) }),
+  }),
+}));
+
+vi.mock("../destinos.server", () => ({
+  estadoDestinos: (...a: unknown[]) => estadoDestinos(...a),
+  urlCanonicaEdicao: async (n: number) => `https://edicoes.digitalsprint.pt/edicoes/${n}`,
+  caminhoCanonicoEdicao: (n: number) => `/edicoes/${n}`,
+}));
+
+vi.mock("../compose.server", () => ({
+  composeRevistaEdition: (...a: unknown[]) => composeRevistaEdition(...a),
+  lerSnapshotRevista: (...a: unknown[]) => lerSnapshotRevista(...a),
+}));
+
+const briefsActivos = vi.fn();
+const validarBriefsDaEdicao = vi.fn();
+
+vi.mock("../brief/modelo.server", () => ({
+  briefsActivos: (...a: unknown[]) => briefsActivos(...a),
+}));
+
+vi.mock("../brief/publicacao.server", () => ({
+  validarBriefsDaEdicao: (...a: unknown[]) => validarBriefsDaEdicao(...a),
+}));
+
+const { avaliarProntidao, derivarEstadoWorkflow, urlCronicaPublica } = await import(
+  "../prontidao.server"
+);
+
+const URL_CRONICA = "https://fredericocarvalho.pt/o-luxo-de-nao-responder-imediatamente/";
+
+function destinos(over?: Record<string, unknown>) {
+  return {
+    email: { estado: "nao_enviado", erro: null, tentado_em: null, url: null, external_id: null },
+    web: { estado: "por_preparar", url: null, external_id: null, erro: null, tentado_em: null },
+    cronica: {
+      estado: "publicada", url: URL_CRONICA, external_id: 99037, erro: null, tentado_em: null,
+      hash_publicado: "a".repeat(64),
+    },
+    backup: { estado: "guardado", url: null, external_id: 4941, erro: null, tentado_em: null },
+    ...over,
+  };
+}
+
+function estrutura(over?: Record<string, unknown>) {
+  return {
+    edicao: { numero: 318, data_envio_prevista: "2026-09-10" },
+    cronica: { titulo: "O luxo de não responder imediatamente", url: URL_CRONICA },
+    destaques: [1, 2, 3],
+    radar: [1, 2, 3, 4, 5],
+    problemas: [],
+    urlPagina: "https://edicoes.digitalsprint.pt/edicoes/318",
+    ...over,
+  };
+}
+
+beforeEach(() => {
+  vi.clearAllMocks();
+  maybeSingle.mockResolvedValue({
+    data: {
+      numero: 318, assunto: "Digital Sprint #318 — o luxo de esperar",
+      estado: "rascunho", template_version: "revista", envio_em_curso: null,
+    },
+  });
+  estadoDestinos.mockResolvedValue(destinos());
+  composeRevistaEdition.mockResolvedValue(estrutura());
+  lerSnapshotRevista.mockResolvedValue(null);
+  briefsActivos.mockResolvedValue(false);
+  validarBriefsDaEdicao.mockResolvedValue(validacao());
+});
+
+/** Oito peças com Brief pronto, tudo verificado. */
+function validacao(over?: Record<string, unknown>) {
+  return {
+    prontos: Array.from({ length: 8 }, (_, i) => ({ id: `b${i}` })),
+    leiturasPorAprovar: [],
+    fontes: [],
+    verificacoes: [],
+    incompletos: [],
+    totalDestaques: 3,
+    totalRadar: 5,
+    total: 8,
+    factualidadeOk: 8,
+    fontesOk: 8,
+    ...over,
+  };
+}
+
+const problema = (motivo: string) => ({ noticiaId: "n1", titulo: "Peça", motivo });
+
+describe("prontidão dos Briefs (Fase 3B)", () => {
+  it("com o interruptor desligado as áreas dos Briefs não se aplicam", async () => {
+    const p = await avaliarProntidao("ed-318", { listaIds: ["l1"] });
+    expect(p.bloqueiosRigidos).toEqual([]);
+    for (const chave of ["briefs", "leituras", "factualidade", "fontes"]) {
+      expect(p.areas.find((a) => a.chave === chave)?.estado).toBe("nao_aplicavel");
+    }
+  });
+
+  it("com o interruptor ligado e tudo pronto mostra as contagens", async () => {
+    briefsActivos.mockResolvedValue(true);
+    const p = await avaliarProntidao("ed-318", { listaIds: ["l1"] });
+    expect(p.ok).toBe(true);
+    expect(p.bloqueiosRigidos).toEqual([]);
+    expect(p.areas.find((a) => a.chave === "briefs")?.mensagem).toBe("8/8 Briefs prontos");
+    expect(p.areas.find((a) => a.chave === "leituras")?.mensagem).toBe("3/3 leituras aprovadas");
+    expect(p.areas.find((a) => a.chave === "factualidade")?.mensagem).toBe("8/8 peças verificadas");
+    expect(p.areas.find((a) => a.chave === "fontes")?.mensagem).toBe("8/8 fontes válidas");
+  });
+
+  it("Destaque sem Brief trava o envio, com acção concreta", async () => {
+    briefsActivos.mockResolvedValue(true);
+    validarBriefsDaEdicao.mockResolvedValue(validacao({ prontos: [{ id: "b1" }] }));
+    const p = await avaliarProntidao("ed-318", { listaIds: ["l1"] });
+    const area = p.areas.find((a) => a.chave === "briefs");
+    expect(area?.severidade).toBe("bloqueio");
+    expect(area?.accao).toBe("gerar_brief");
+    expect(p.bloqueiosRigidos.some((m) => m.includes("1/8"))).toBe(true);
+  });
+
+  it("leitura por aprovar trava e aponta para «Rever leitura»", async () => {
+    briefsActivos.mockResolvedValue(true);
+    validarBriefsDaEdicao.mockResolvedValue(
+      validacao({ leiturasPorAprovar: [problema("Leitura por aprovar.")] }),
+    );
+    const p = await avaliarProntidao("ed-318", { listaIds: ["l1"] });
+    const area = p.areas.find((a) => a.chave === "leituras");
+    expect(area?.accao).toBe("rever_leitura");
+    expect(p.bloqueiosRigidos).toContain("Leituras por aprovar: 2/3.");
+  });
+
+  it("proximidade bloqueada pede reformulação", async () => {
+    briefsActivos.mockResolvedValue(true);
+    validarBriefsDaEdicao.mockResolvedValue(
+      validacao({
+        verificacoes: [problema("O texto está demasiado perto do original.")],
+        factualidadeOk: 7,
+      }),
+    );
+    const p = await avaliarProntidao("ed-318", { listaIds: ["l1"] });
+    expect(p.areas.find((a) => a.chave === "factualidade")?.accao).toBe("reformular_brief");
+  });
+
+  it("fonte inválida trava e pede correcção da fonte", async () => {
+    briefsActivos.mockResolvedValue(true);
+    validarBriefsDaEdicao.mockResolvedValue(
+      validacao({ fontes: [problema("Fonte original em falta.")], fontesOk: 7 }),
+    );
+    const p = await avaliarProntidao("ed-318", { listaIds: ["l1"] });
+    const area = p.areas.find((a) => a.chave === "fontes");
+    expect(area?.severidade).toBe("bloqueio");
+    expect(area?.accao).toBe("corrigir_fonte");
+    expect(p.bloqueiosRigidos.some((m) => m.includes("7/8"))).toBe(true);
+  });
+
+  it("avisos editoriais continuam confirmáveis: não entram nos bloqueios rígidos", async () => {
+    briefsActivos.mockResolvedValue(true);
+    composeRevistaEdition.mockResolvedValue(estrutura({ problemas: ["O Radar tem 4/5 notícias."] }));
+    const p = await avaliarProntidao("ed-318", { listaIds: ["l1"] });
+    expect(p.bloqueios).toContain("O Radar tem 4/5 notícias.");
+    expect(p.bloqueiosRigidos).toEqual([]);
+  });
+});
+
+describe("urlCronicaPublica", () => {
+  it("aceita o URL público real", () => {
+    expect(urlCronicaPublica(URL_CRONICA).ok).toBe(true);
+  });
+
+  it("rejeita permalinks internos e placeholders", () => {
+    expect(urlCronicaPublica("https://fredericocarvalho.pt/?p=99037").ok).toBe(false);
+    expect(urlCronicaPublica("https://exemplo.pt/cronica").ok).toBe(false);
+    expect(urlCronicaPublica("").ok).toBe(false);
+    expect(urlCronicaPublica("http://fredericocarvalho.pt/cronica").ok).toBe(false);
+  });
+});
+
+describe("avaliarProntidao", () => {
+  it("A — tudo pronto: não há bloqueios", async () => {
+    const p = await avaliarProntidao("ed-318", { listaIds: ["l1", "l2"] });
+    expect(p.ok).toBe(true);
+    expect(p.bloqueios).toEqual([]);
+    expect(p.estadoWorkflow).toBe("pronta_para_enviar");
+    expect(p.areas.find((a) => a.chave === "egoi")?.mensagem).toBe("2 listas E-goi");
+  });
+
+  it("B — crónica desactualizada bloqueia e sugere actualizar", async () => {
+    estadoDestinos.mockResolvedValue(destinos({
+      cronica: { estado: "desactualizada", url: URL_CRONICA, external_id: 99037, erro: null, tentado_em: null },
+    }));
+    const p = await avaliarProntidao("ed-318", { listaIds: ["l1"] });
+    expect(p.ok).toBe(false);
+    expect(p.areas.find((a) => a.chave === "cronica")?.accao).toBe("actualizar_cronica");
+  });
+
+  it("crónica ainda não publicada bloqueia sem publicar automaticamente", async () => {
+    estadoDestinos.mockResolvedValue(destinos({
+      cronica: { estado: "rascunho", url: null, external_id: 99037, erro: null, tentado_em: null },
+    }));
+    const p = await avaliarProntidao("ed-318", { listaIds: ["l1"] });
+    expect(p.bloqueios).toContain("Crónica ainda não publicada");
+    expect(p.areas.find((a) => a.chave === "cronica")?.accao).toBe("publicar_cronica");
+  });
+
+  it("URL manual antigo não substitui o artigo publicado", async () => {
+    composeRevistaEdition.mockResolvedValue(estrutura({
+      cronica: { titulo: "x", url: "https://fredericocarvalho.pt/cronica-antiga/" },
+    }));
+    const p = await avaliarProntidao("ed-318", { listaIds: ["l1"] });
+    expect(p.ok).toBe(false);
+    expect(p.areas.find((a) => a.chave === "cronica")?.accao).toBe("corrigir_url_cronica");
+  });
+
+  it("C — backup em erro nunca bloqueia o envio", async () => {
+    estadoDestinos.mockResolvedValue(destinos({
+      backup: { estado: "erro", url: null, external_id: 4941, erro: "timeout", tentado_em: null },
+    }));
+    const p = await avaliarProntidao("ed-318", { listaIds: ["l1"] });
+    expect(p.ok).toBe(true);
+    expect(p.areas.find((a) => a.chave === "backup")?.estado).toBe("aviso");
+  });
+
+  it("H — snapshot bloqueado é reutilizado, não recriado", async () => {
+    lerSnapshotRevista.mockResolvedValue({ estado: "bloqueado", email_html: "<html>", email_text: "t" });
+    const p = await avaliarProntidao("ed-318", { listaIds: ["l1"] });
+    expect(p.ok).toBe(true);
+    expect(p.areas.find((a) => a.chave === "snapshot")?.mensagem).toMatch(/reutilizada/i);
+  });
+
+  it("problemas editoriais e assunto em falta bloqueiam", async () => {
+    composeRevistaEdition.mockResolvedValue(estrutura({ problemas: ["O Radar tem 4/5 notícias."] }));
+    maybeSingle.mockResolvedValue({
+      data: { numero: 318, assunto: "curto", estado: "rascunho", template_version: "revista", envio_em_curso: null },
+    });
+    const p = await avaliarProntidao("ed-318", { listaIds: ["l1"] });
+    expect(p.bloqueios).toContain("O Radar tem 4/5 notícias.");
+    expect(p.bloqueios).toContain("O email ainda não tem assunto.");
+  });
+
+  it("sem listas escolhidas o envio fica bloqueado", async () => {
+    const p = await avaliarProntidao("ed-318", { listaIds: [] });
+    expect(p.ok).toBe(false);
+    expect(p.areas.find((a) => a.chave === "egoi")?.accao).toBe("escolher_listas");
+  });
+
+  it("leitura de cabeçalho (sem listas definidas) não bloqueia por listas", async () => {
+    const p = await avaliarProntidao("ed-318");
+    expect(p.ok).toBe(true);
+    expect(p.areas.find((a) => a.chave === "egoi")?.estado).toBe("nao_aplicavel");
+  });
+
+  it("edição Clássica não é avaliada por este workflow", async () => {
+    maybeSingle.mockResolvedValue({
+      data: { numero: 300, assunto: "x", estado: "rascunho", template_version: "classico", envio_em_curso: null },
+    });
+    const p = await avaliarProntidao("ed-300", { listaIds: ["l1"] });
+    expect(p.naoAplicavel).toBe(true);
+    expect(p.ok).toBe(true);
+  });
+});
+
+describe("derivarEstadoWorkflow", () => {
+  const base = {
+    estadoEdicao: "rascunho", envioEmCurso: null as string | null,
+    estadoEmail: "nao_enviado", snapshotBloqueado: false, ok: true,
+  };
+
+  it("distingue validação de prontidão", () => {
+    expect(derivarEstadoWorkflow({ ...base, ok: false })).toBe("a_validar");
+    expect(derivarEstadoWorkflow(base)).toBe("pronta_para_enviar");
+  });
+
+  it("G — durante o processo mostra preparação e envio", () => {
+    expect(derivarEstadoWorkflow({ ...base, envioEmCurso: "2026-09-04T08:00:00Z" })).toBe("a_preparar");
+    expect(derivarEstadoWorkflow({ ...base, envioEmCurso: "2026-09-04T08:00:00Z", snapshotBloqueado: true }))
+      .toBe("a_enviar");
+  });
+
+  it("D/F — envio parcial é recuperável após refresh", () => {
+    expect(derivarEstadoWorkflow({ ...base, snapshotBloqueado: true })).toBe("envio_parcial");
+    expect(derivarEstadoWorkflow({ ...base, estadoEmail: "parcial" })).toBe("envio_parcial");
+  });
+
+  it("estados finais", () => {
+    expect(derivarEstadoWorkflow({ ...base, estadoEdicao: "enviada", estadoEmail: "enviado" })).toBe("enviada");
+    expect(derivarEstadoWorkflow({ ...base, estadoEmail: "erro" })).toBe("erro");
+  });
+});

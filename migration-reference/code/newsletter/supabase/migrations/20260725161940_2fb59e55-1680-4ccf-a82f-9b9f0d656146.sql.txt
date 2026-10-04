@@ -1,0 +1,100 @@
+
+CREATE EXTENSION IF NOT EXISTS unaccent;
+
+-- Wrapper imutável para permitir uso em colunas geradas STORED
+CREATE OR REPLACE FUNCTION public.f_unaccent(text)
+RETURNS text LANGUAGE sql IMMUTABLE PARALLEL SAFE STRICT
+SET search_path = public
+AS $$ SELECT public.unaccent('public.unaccent'::regdictionary, $1) $$;
+
+-- Colunas geradas para busca full-text
+ALTER TABLE public.noticias
+  ADD COLUMN IF NOT EXISTS busca tsvector
+  GENERATED ALWAYS AS (
+    to_tsvector('portuguese',
+      public.f_unaccent(coalesce(titulo,'') || ' ' || coalesce(descricao,'')))
+  ) STORED;
+
+ALTER TABLE public.cronicas
+  ADD COLUMN IF NOT EXISTS busca tsvector
+  GENERATED ALWAYS AS (
+    to_tsvector('portuguese',
+      public.f_unaccent(coalesce(titulo,'') || ' ' || coalesce(conteudo,'')))
+  ) STORED;
+
+CREATE INDEX IF NOT EXISTS noticias_busca_gin ON public.noticias USING GIN (busca);
+CREATE INDEX IF NOT EXISTS cronicas_busca_gin ON public.cronicas USING GIN (busca);
+
+-- RPC de pesquisa
+CREATE OR REPLACE FUNCTION public.pesquisar_arquivo(query text, limite int DEFAULT 20)
+RETURNS TABLE(
+  edicao_id uuid,
+  edicao_numero int,
+  edicao_data timestamptz,
+  tipo text,
+  titulo text,
+  trecho text,
+  url text,
+  rank real
+)
+LANGUAGE plpgsql
+STABLE
+SECURITY DEFINER
+SET search_path = public
+AS $$
+DECLARE
+  tsq tsquery;
+  q text;
+BEGIN
+  q := coalesce(btrim(query), '');
+  IF length(q) < 2 THEN
+    RETURN;
+  END IF;
+  tsq := plainto_tsquery('portuguese', public.f_unaccent(q));
+  IF tsq IS NULL OR tsq::text = '' THEN
+    RETURN;
+  END IF;
+
+  RETURN QUERY
+  SELECT
+    e.id AS edicao_id,
+    e.numero AS edicao_numero,
+    e.enviada_em AS edicao_data,
+    'noticia'::text AS tipo,
+    n.titulo AS titulo,
+    ts_headline('portuguese',
+      public.f_unaccent(coalesce(n.titulo,'') || ' — ' || coalesce(n.descricao,'')),
+      tsq,
+      'StartSel=<mark>,StopSel=</mark>,MaxWords=25,MinWords=10,ShortWord=3,MaxFragments=1'
+    ) AS trecho,
+    n.url AS url,
+    ts_rank(n.busca, tsq) AS rank
+  FROM public.noticias n
+  JOIN public.edicoes e ON e.id = n.edicao_id
+  WHERE e.estado = 'enviada' AND n.busca @@ tsq
+
+  UNION ALL
+
+  SELECT
+    e.id AS edicao_id,
+    e.numero AS edicao_numero,
+    e.enviada_em AS edicao_data,
+    'cronica'::text AS tipo,
+    coalesce(c.titulo, 'Crónica') AS titulo,
+    ts_headline('portuguese',
+      public.f_unaccent(coalesce(c.titulo,'') || ' — ' || coalesce(c.conteudo,'')),
+      tsq,
+      'StartSel=<mark>,StopSel=</mark>,MaxWords=25,MinWords=10,ShortWord=3,MaxFragments=1'
+    ) AS trecho,
+    NULL::text AS url,
+    ts_rank(c.busca, tsq) AS rank
+  FROM public.cronicas c
+  JOIN public.edicoes e ON e.id = c.edicao_id
+  WHERE e.estado = 'enviada' AND c.busca @@ tsq
+
+  ORDER BY rank DESC, edicao_numero DESC
+  LIMIT greatest(1, coalesce(limite, 20));
+END;
+$$;
+
+GRANT EXECUTE ON FUNCTION public.pesquisar_arquivo(text, int) TO authenticated;

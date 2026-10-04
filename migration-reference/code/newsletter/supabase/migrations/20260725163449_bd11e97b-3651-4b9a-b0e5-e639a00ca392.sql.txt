@@ -1,0 +1,63 @@
+
+-- 1) Config única da curadoria
+CREATE TABLE IF NOT EXISTS public.curadoria_config (
+  id smallint PRIMARY KEY DEFAULT 1 CHECK (id = 1),
+  max_insercoes_por_corrida int NOT NULL DEFAULT 15 CHECK (max_insercoes_por_corrida BETWEEN 1 AND 100),
+  janela_horas int NOT NULL DEFAULT 24 CHECK (janela_horas BETWEEN 1 AND 168),
+  actualizado_em timestamptz NOT NULL DEFAULT now()
+);
+
+GRANT SELECT ON public.curadoria_config TO authenticated;
+GRANT ALL ON public.curadoria_config TO service_role;
+
+ALTER TABLE public.curadoria_config ENABLE ROW LEVEL SECURITY;
+
+CREATE POLICY "config_select_auth" ON public.curadoria_config
+  FOR SELECT TO authenticated USING (true);
+
+CREATE POLICY "config_admin_update" ON public.curadoria_config
+  FOR UPDATE TO authenticated
+  USING (public.is_admin()) WITH CHECK (public.is_admin());
+
+CREATE POLICY "config_admin_insert" ON public.curadoria_config
+  FOR INSERT TO authenticated
+  WITH CHECK (public.is_admin());
+
+INSERT INTO public.curadoria_config (id, max_insercoes_por_corrida, janela_horas)
+VALUES (1, 15, 24)
+ON CONFLICT (id) DO NOTHING;
+
+-- Trigger para actualizado_em
+CREATE OR REPLACE FUNCTION public.tg_curadoria_config_updated()
+RETURNS trigger LANGUAGE plpgsql SET search_path = public AS $$
+BEGIN
+  NEW.actualizado_em = now();
+  RETURN NEW;
+END;
+$$;
+
+DROP TRIGGER IF EXISTS trg_curadoria_config_updated ON public.curadoria_config;
+CREATE TRIGGER trg_curadoria_config_updated
+  BEFORE UPDATE ON public.curadoria_config
+  FOR EACH ROW EXECUTE FUNCTION public.tg_curadoria_config_updated();
+
+-- 2) Marca de criação das fontes
+ALTER TABLE public.fontes_curadoria
+  ADD COLUMN IF NOT EXISTS criada_em timestamptz NOT NULL DEFAULT now();
+
+-- 3) Estatísticas agregadas por fonte (últimos 30 dias)
+CREATE OR REPLACE FUNCTION public.stats_fontes_30d()
+RETURNS TABLE (fonte_id uuid, sugeridas_30d bigint, aprovadas_30d bigint)
+LANGUAGE sql STABLE SECURITY DEFINER SET search_path = public
+AS $$
+  SELECT
+    n.fonte_id,
+    COUNT(*) FILTER (WHERE n.origem = 'curadoria_ia') AS sugeridas_30d,
+    COUNT(*) FILTER (WHERE n.estado = 'aprovada')     AS aprovadas_30d
+  FROM public.noticias n
+  WHERE n.fonte_id IS NOT NULL
+    AND n.created_at >= now() - interval '30 days'
+  GROUP BY n.fonte_id;
+$$;
+
+GRANT EXECUTE ON FUNCTION public.stats_fontes_30d() TO authenticated;

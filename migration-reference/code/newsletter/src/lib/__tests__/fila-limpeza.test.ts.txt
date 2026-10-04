@@ -1,0 +1,105 @@
+import { describe, expect, it } from "vitest";
+
+import { contarFila, DIAS_LIMPEZA_FILA, limparFilaAntiga } from "../fila-curadoria.server";
+
+type Filtro = { coluna: string; valor: unknown; op: "in" | "lt" };
+
+function adminFalso(linhas: Array<{ origem: string; estado: string; publicado_em: string }>) {
+  const chamadas: { delete?: { filtros: Filtro[] }; audit?: unknown } = {};
+  const admin = {
+    from(tabela: string) {
+      if (tabela === "audit_log") {
+        return {
+          insert: async (linha: unknown) => {
+            chamadas.audit = linha;
+            return { error: null };
+          },
+        };
+      }
+      const filtros: Filtro[] = [];
+      const aplicar = () =>
+        linhas.filter((l) =>
+          filtros.every((f) => {
+            const v = (l as Record<string, unknown>)[f.coluna];
+            if (f.op === "in") return (f.valor as string[]).includes(v as string);
+            if (f.op === "lt") return String(v) < String(f.valor);
+            return true;
+          }),
+        );
+      const q = {
+        select: () => q,
+        in: (c: string, v: string[]) => {
+          filtros.push({ coluna: c, valor: v, op: "in" as const });
+          return q;
+        },
+        lt: (c: string, v: string) => {
+          filtros.push({ coluna: c, valor: v, op: "lt" as const });
+          return q;
+        },
+        order: () => q,
+        limit: async () => ({ data: aplicar() }),
+        delete: () => {
+          const q2 = {
+            in: (c: string, v: string[]) => {
+              filtros.push({ coluna: c, valor: v, op: "in" as const });
+              return q2;
+            },
+            lt: async (c: string, v: string) => {
+              filtros.push({ coluna: c, valor: v, op: "lt" as const });
+              chamadas.delete = { filtros };
+              return { error: null, count: aplicar().length };
+            },
+          };
+          return q2;
+        },
+      };
+      return q;
+    },
+  };
+  return { admin: admin as never, chamadas };
+}
+
+const ha = (dias: number) => new Date(Date.now() - dias * 24 * 60 * 60 * 1000).toISOString();
+
+describe("limpeza de itens antigos da fila", () => {
+  it("a contagem marca itens com mais de 20 dias", async () => {
+    const { admin } = adminFalso([
+      { origem: "rss", estado: "em_fila", publicado_em: ha(30) },
+      { origem: "rss", estado: "em_fila", publicado_em: ha(5) },
+      { origem: "email", estado: "falhado", publicado_em: ha(25) },
+    ]);
+    const c = await contarFila(admin);
+    expect(c.total).toBe(2);
+    expect(c.falhados).toBe(1);
+    expect(c.antigas).toBe(2);
+    expect(DIAS_LIMPEZA_FILA).toBe(20);
+  });
+
+  it("apaga apenas itens à espera ou falhados com mais de 20 dias e regista atividade", async () => {
+    const { admin, chamadas } = adminFalso([
+      { origem: "rss", estado: "em_fila", publicado_em: ha(30) },
+      { origem: "rss", estado: "em_fila", publicado_em: ha(5) },
+      { origem: "rss", estado: "processado", publicado_em: ha(40) },
+      { origem: "email", estado: "falhado", publicado_em: ha(21) },
+    ]);
+    const r = await limparFilaAntiga(admin, { quem: "Frederico" });
+    expect(r.apagados).toBe(2);
+    const filtros = chamadas.delete!.filtros;
+    expect(filtros).toContainEqual({ coluna: "estado", valor: ["em_fila", "falhado"], op: "in" });
+    const corte = filtros.find((f) => f.coluna === "publicado_em");
+    expect(corte).toBeDefined();
+    const diasCorte = (Date.now() - Date.parse(String(corte!.valor))) / (24 * 60 * 60 * 1000);
+    expect(diasCorte).toBeGreaterThan(19.9);
+    expect(diasCorte).toBeLessThan(20.1);
+    expect(chamadas.audit).toMatchObject({ quem: "Frederico" });
+  });
+
+  it("não regista atividade quando não há nada para apagar", async () => {
+    const { admin, chamadas } = adminFalso([
+      { origem: "rss", estado: "em_fila", publicado_em: ha(3) },
+    ]);
+    const r = await limparFilaAntiga(admin, { quem: "Frederico" });
+    expect(r.apagados).toBe(0);
+    expect(chamadas.audit).toBeUndefined();
+  });
+});

@@ -1,0 +1,75 @@
+CREATE OR REPLACE FUNCTION public.contar_dados_antigos(_dias integer DEFAULT 30)
+RETURNS jsonb
+LANGUAGE sql
+STABLE
+SECURITY DEFINER
+SET search_path = public
+AS $$
+  SELECT jsonb_build_object(
+    'dias', _dias,
+    'noticias', (
+      SELECT count(*) FROM public.noticias n
+      WHERE n.edicao_id IS NULL
+        AND n.estado IN ('rejeitada', 'descartada')
+        AND n.created_at < now() - make_interval(days => _dias)
+    ),
+    'fila', (
+      SELECT count(*) FROM public.curadoria_fila f
+      WHERE f.estado IN ('processado', 'falhado', 'descartado')
+        AND f.created_at < now() - make_interval(days => _dias)
+    ),
+    'emails', (
+      SELECT count(*) FROM public.emails_recebidos e
+      WHERE e.recebido_em < now() - make_interval(days => _dias)
+        AND NOT EXISTS (SELECT 1 FROM public.noticias n WHERE n.email_recebido_id = e.id)
+        AND NOT EXISTS (SELECT 1 FROM public.ferramentas_sugeridas fs WHERE fs.fonte_email_id = e.id)
+    )
+  )
+$$;
+
+CREATE OR REPLACE FUNCTION public.limpar_dados_antigos(_dias integer DEFAULT 30)
+RETURNS jsonb
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = public
+AS $$
+DECLARE
+  n_noticias integer := 0;
+  n_fila integer := 0;
+  n_emails integer := 0;
+BEGIN
+  IF _dias < 7 THEN
+    RAISE EXCEPTION 'Retenção mínima de 7 dias';
+  END IF;
+
+  DELETE FROM public.curadoria_fila f
+  WHERE f.estado IN ('processado', 'falhado', 'descartado')
+    AND f.created_at < now() - make_interval(days => _dias);
+  GET DIAGNOSTICS n_fila = ROW_COUNT;
+
+  DELETE FROM public.noticias n
+  WHERE n.edicao_id IS NULL
+    AND n.estado IN ('rejeitada', 'descartada')
+    AND n.created_at < now() - make_interval(days => _dias);
+  GET DIAGNOSTICS n_noticias = ROW_COUNT;
+
+  DELETE FROM public.emails_recebidos e
+  WHERE e.recebido_em < now() - make_interval(days => _dias)
+    AND NOT EXISTS (SELECT 1 FROM public.noticias n WHERE n.email_recebido_id = e.id)
+    AND NOT EXISTS (SELECT 1 FROM public.ferramentas_sugeridas fs WHERE fs.fonte_email_id = e.id);
+  GET DIAGNOSTICS n_emails = ROW_COUNT;
+
+  INSERT INTO public.audit_log (quem, accao, detalhe)
+  VALUES ('sistema', 'Limpeza automática de dados antigos',
+          jsonb_build_object('dias', _dias, 'noticias', n_noticias, 'fila', n_fila, 'emails', n_emails));
+
+  RETURN jsonb_build_object('dias', _dias, 'noticias', n_noticias, 'fila', n_fila, 'emails', n_emails);
+END;
+$$;
+
+REVOKE ALL ON FUNCTION public.limpar_dados_antigos(integer) FROM public, anon;
+REVOKE ALL ON FUNCTION public.contar_dados_antigos(integer) FROM public, anon;
+GRANT EXECUTE ON FUNCTION public.limpar_dados_antigos(integer) TO authenticated, service_role;
+GRANT EXECUTE ON FUNCTION public.contar_dados_antigos(integer) TO authenticated, service_role;
+
+SELECT cron.schedule('limpeza-dados-antigos', '10 4 * * *', $$SELECT public.limpar_dados_antigos(30);$$);

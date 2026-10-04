@@ -1,0 +1,410 @@
+import { createFileRoute, useNavigate, Link } from "@tanstack/react-router";
+import { useMemo, useState } from "react";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
+import {
+  History, Loader2, RotateCcw, Copy, ExternalLink, Newspaper, PenLine, Mail, Search, AlertTriangle, X,
+} from "lucide-react";
+import {
+  listarEdicoesPassadas, clonarEdicao, reabrirEdicao, type EdicaoPassada,
+} from "@/features/newsletter/data";
+
+const TITLE = "Edições passadas · DIGITAL SPRINT";
+const DESCRIPTION = "Repescar uma edição já enviada: clonar como nova edição ou reabrir para reenviar.";
+
+const T = {
+  bg: "#F7F8FA",
+  card: "#FFFFFF",
+  line: "#E4E7EC",
+  ink: "#101828",
+  muted: "#667085",
+  primary: "#6366F1",
+  danger: "#B42318",
+  dangerSoft: "#FEF3F2",
+  grad: "linear-gradient(135deg,#6366F1 0%,#8B5CF6 50%,#EC4899 100%)",
+};
+
+export const Route = createFileRoute("/_authenticated/edicoes-passadas")({
+  head: () => ({
+    meta: [
+      { title: TITLE },
+      { name: "description", content: DESCRIPTION },
+      { name: "robots", content: "noindex, nofollow" },
+      { property: "og:title", content: TITLE },
+      { property: "og:description", content: DESCRIPTION },
+      { property: "og:type", content: "website" },
+      { name: "twitter:card", content: "summary" },
+    ],
+  }),
+  component: EdicoesPassadasPage,
+});
+
+function fmtData(iso: string | null | undefined): string {
+  if (!iso) return "—";
+  const d = new Date(iso);
+  if (Number.isNaN(d.getTime())) return "—";
+  return new Intl.DateTimeFormat("pt-PT", { day: "2-digit", month: "2-digit", year: "numeric" }).format(d);
+}
+
+function normalizar(v: string | null | undefined): string {
+  return (v ?? "").normalize("NFD").replace(/\p{Diacritic}/gu, "").toLowerCase();
+}
+
+type Periodo = "tudo" | "90d" | "ano" | "anoAnt";
+const PERIODOS: Array<{ id: Periodo; label: string }> = [
+  { id: "tudo", label: "Todo o tempo" },
+  { id: "90d", label: "Últimos 90 dias" },
+  { id: "ano", label: "Este ano" },
+  { id: "anoAnt", label: "Ano anterior" },
+];
+
+function dentroPeriodo(iso: string | null, p: Periodo): boolean {
+  if (p === "tudo") return true;
+  if (!iso) return false;
+  const d = new Date(iso);
+  if (Number.isNaN(d.getTime())) return false;
+  const agora = new Date();
+  if (p === "90d") return (agora.getTime() - d.getTime()) / 86_400_000 <= 90;
+  if (p === "ano") return d.getFullYear() === agora.getFullYear();
+  return d.getFullYear() === agora.getFullYear() - 1;
+}
+
+function EdicoesPassadasPage() {
+  const qc = useQueryClient();
+  const navigate = useNavigate();
+  const [q, setQ] = useState("");
+  const [periodo, setPeriodo] = useState<Periodo>("tudo");
+  const [formato, setFormato] = useState<"todas" | "revista" | "classic">("todas");
+  const [alvo, setAlvo] = useState<EdicaoPassada | null>(null);
+  const [aCorrer, setACorrer] = useState<"clonar" | "reabrir" | "retomar" | null>(null);
+  const [erro, setErro] = useState<string | null>(null);
+
+  const listaQ = useQuery({ queryKey: ["edicoes-passadas"], queryFn: listarEdicoesPassadas });
+  const todas = listaQ.data ?? [];
+
+  const filtradas = useMemo(() => {
+    const termo = normalizar(q).trim();
+    return todas.filter((e) => {
+      if (!dentroPeriodo(e.enviada_em, periodo)) return false;
+      if (formato !== "todas") {
+        const f = e.template_version === "revista" ? "revista" : "classic";
+        if (f !== formato) return false;
+      }
+      if (!termo) return true;
+      return normalizar(e.assunto).includes(termo) || String(e.numero).includes(termo);
+    });
+  }, [todas, q, periodo, formato]);
+
+  const contagens = useMemo(() => ({
+    todas: todas.length,
+    revista: todas.filter((e) => e.template_version === "revista").length,
+    classic: todas.filter((e) => e.template_version !== "revista").length,
+  }), [todas]);
+
+  async function repescar(modo: "clonar" | "reabrir" | "retomar") {
+    if (!alvo) return;
+    setACorrer(modo);
+    setErro(null);
+    try {
+      if (modo === "clonar") {
+        const novaId = await clonarEdicao(alvo.id);
+        await qc.invalidateQueries();
+        setAlvo(null);
+        void navigate({ to: "/", search: { edicao: novaId } });
+      } else if (modo === "retomar") {
+        // Já está em rascunho (envio parcial): basta abrir e retomar.
+        const id = alvo.id;
+        setAlvo(null);
+        void navigate({ to: "/", search: { edicao: id, retomar: "1" } });
+      } else {
+        await reabrirEdicao(alvo.id);
+        await qc.invalidateQueries();
+        const id = alvo.id;
+        setAlvo(null);
+        void navigate({ to: "/", search: { edicao: id } });
+      }
+    } catch (e) {
+      setErro(e instanceof Error ? e.message : "Falha a repescar a edição");
+    } finally {
+      setACorrer(null);
+    }
+  }
+
+
+  return (
+    <div style={{ background: T.bg, minHeight: "100vh" }}>
+      <div className="max-w-[1100px] mx-auto px-3 md:px-6 py-5 md:py-8">
+        <header className="mb-5">
+          <h1 className="font-display text-2xl md:text-3xl font-bold flex items-center gap-2" style={{ color: T.ink }}>
+            <History size={24} style={{ color: T.primary }} />
+            Edições passadas
+          </h1>
+          <p className="text-[15px] mt-1" style={{ color: T.muted }}>
+            Tudo o que já saiu, incluindo envios parciais ainda em rascunho: clona como nova edição, retoma o
+            envio ou reabre para reenviar.
+          </p>
+
+        </header>
+
+        {/* Tipo de edição */}
+        <div className="flex flex-wrap gap-1.5 mb-4" role="tablist" aria-label="Formato das edições">
+          {([
+            ["todas", "Todas"],
+            ["revista", "Revista"],
+            ["classic", "Clássico"],
+          ] as const).map(([id, label]) => {
+            const activo = formato === id;
+            return (
+              <button
+                key={id}
+                role="tab"
+                aria-selected={activo}
+                onClick={() => setFormato(id)}
+                className="h-11 px-4 rounded-lg text-[14px] font-semibold"
+                style={{
+                  border: `1px solid ${activo ? T.primary : T.line}`,
+                  background: activo ? "#EEF2FF" : T.card,
+                  color: activo ? T.primary : T.muted,
+                }}
+              >
+                {label}
+                <span className="ml-1.5 text-[12.5px] font-bold opacity-70">{contagens[id]}</span>
+              </button>
+            );
+          })}
+        </div>
+
+        {/* Filtros */}
+        <div className="flex flex-wrap items-center gap-2 mb-4">
+          <div className="relative flex-1 min-w-[220px]">
+            <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2" style={{ color: T.muted }} />
+            <input
+              value={q}
+              onChange={(e) => setQ(e.target.value)}
+              placeholder="Procurar por número ou assunto"
+              className="w-full h-11 rounded-lg pl-9 pr-3 text-[15px]"
+              style={{ border: `1px solid ${T.line}`, background: T.card, color: T.ink }}
+              aria-label="Procurar edições passadas"
+            />
+          </div>
+          <div className="flex flex-wrap gap-1.5">
+            {PERIODOS.map((p) => {
+              const activo = p.id === periodo;
+              return (
+                <button
+                  key={p.id}
+                  onClick={() => setPeriodo(p.id)}
+                  className="h-11 px-3 rounded-lg text-[13.5px] font-semibold"
+                  style={{
+                    border: `1px solid ${activo ? T.primary : T.line}`,
+                    background: activo ? "#EEF2FF" : T.card,
+                    color: activo ? T.primary : T.muted,
+                  }}
+                >
+                  {p.label}
+                </button>
+              );
+            })}
+          </div>
+        </div>
+
+        {listaQ.isLoading && (
+          <div className="flex items-center gap-2 text-[15px]" style={{ color: T.muted }}>
+            <Loader2 size={16} className="animate-spin" /> A carregar edições…
+          </div>
+        )}
+
+        {!listaQ.isLoading && filtradas.length === 0 && (
+          <div className="rounded-xl p-6 text-[15px]" style={{ background: T.card, border: `1px solid ${T.line}`, color: T.muted }}>
+            Ainda não há edições enviadas que correspondam a este filtro.
+          </div>
+        )}
+
+        <div className="grid gap-3">
+          {filtradas.map((e) => (
+            <article
+              key={e.id}
+              className="rounded-xl p-4 md:p-5"
+              style={{ background: T.card, border: `1px solid ${T.line}`, boxShadow: "0 1px 2px rgba(16,24,40,0.04)" }}
+            >
+              <div className="flex flex-wrap items-start gap-3">
+                <div className="flex items-center gap-2 shrink-0">
+                  <span
+                    className="font-display font-bold text-white text-[13px] px-2.5 py-1 rounded-lg"
+                    style={{ background: T.grad }}
+                  >
+                    #{e.numero}
+                  </span>
+                  <span
+                    className="inline-flex items-center h-6 px-2 rounded-md text-[11.5px] font-bold uppercase tracking-wide"
+                    style={e.template_version === "revista"
+                      ? { background: "#EFF4FF", color: "#1A5FC4", border: "1px solid #C7D7FE" }
+                      : { background: "#F2F4F7", color: "#475467", border: "1px solid #E4E7EC" }}
+                  >
+                    {e.template_version === "revista" ? "Revista" : "Clássico"}
+                  </span>
+                </div>
+                <div className="min-w-0 flex-1">
+                  <div className="flex flex-wrap items-center gap-2">
+                    <h2 className="font-semibold text-[17px] leading-snug" style={{ color: T.ink }}>
+                      {e.assunto ?? "Sem assunto"}
+                    </h2>
+                    <span
+                      className="inline-flex items-center h-6 px-2 rounded-md text-[11.5px] font-bold uppercase tracking-wide"
+                      style={e.estado_envio === "enviada"
+                        ? { background: "#ECFDF3", color: "#067647", border: "1px solid #ABEFC6" }
+                        : { background: "#FFFAEB", color: "#93370D", border: "1px solid #FEDF89" }}
+                    >
+                      {e.estado_envio === "enviada" ? "Enviada" : "Envio parcial"}
+                    </span>
+                  </div>
+                  <div className="flex flex-wrap items-center gap-x-4 gap-y-1 mt-1.5 text-[13.5px]" style={{ color: T.muted }}>
+                    <span>
+                      {e.estado_envio === "enviada" ? "Enviada a " : "Último disparo a "}
+                      {fmtData(e.enviada_em ?? e.ultimo_disparo)}
+                    </span>
+                    <span className="inline-flex items-center gap-1"><Newspaper size={14} /> {e.n_noticias} notícias</span>
+                    <span className="inline-flex items-center gap-1">
+                      <PenLine size={14} /> {e.tem_cronica ? "com crónica" : "sem crónica"}
+                    </span>
+                    {e.listas.length > 0 && (
+                      <span className="inline-flex items-center gap-1">
+                        <Mail size={14} /> {e.listas.join(" · ")}
+                      </span>
+                    )}
+                    {e.wordpress_post_url && (
+                      <a
+                        href={e.wordpress_post_url}
+                        target="_blank"
+                        rel="noreferrer"
+                        className="inline-flex items-center gap-1 font-semibold underline"
+                        style={{ color: T.primary }}
+                      >
+                        Ver no site <ExternalLink size={13} />
+                      </a>
+                    )}
+                  </div>
+                  {e.estado_envio === "parcial" && e.listas_em_falta.length > 0 && (
+                    <p className="text-[13.5px] mt-1.5" style={{ color: "#93370D" }}>
+                      Por enviar: <strong>{e.listas_em_falta.join(", ")}</strong>
+                    </p>
+                  )}
+                </div>
+
+                <button
+                  onClick={() => { setErro(null); setAlvo(e); }}
+                  className="h-11 px-4 rounded-lg text-[14.5px] font-bold text-white inline-flex items-center gap-2 shrink-0"
+                  style={{ background: T.grad }}
+                >
+                  <RotateCcw size={16} /> Repescar
+                </button>
+              </div>
+            </article>
+          ))}
+        </div>
+
+        <p className="text-[13.5px] mt-6" style={{ color: T.muted }}>
+          À procura de notícias soltas em vez de edições completas? Vê o{" "}
+          <Link to="/arquivo" className="font-semibold underline" style={{ color: T.primary }}>arquivo</Link>.
+        </p>
+      </div>
+
+      {/* Diálogo de repescagem */}
+      {alvo && (
+        <div
+          className="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-0 sm:p-4"
+          style={{ background: "rgba(16,24,40,0.55)" }}
+          role="dialog"
+          aria-modal="true"
+          aria-label={`Repescar a edição ${alvo.numero}`}
+        >
+          <div
+            className="w-full sm:max-w-[560px] rounded-t-2xl sm:rounded-2xl p-5 max-h-[92vh] overflow-y-auto"
+            style={{ background: T.card }}
+          >
+            <div className="flex items-start justify-between gap-3 mb-2">
+              <h3 className="font-display text-xl font-bold" style={{ color: T.ink }}>
+                Repescar a edição #{alvo.numero}
+              </h3>
+              <button onClick={() => setAlvo(null)} aria-label="Fechar" className="h-9 w-9 rounded-lg flex items-center justify-center" style={{ color: T.muted }}>
+                <X size={18} />
+              </button>
+            </div>
+            <p className="text-[14.5px] mb-4" style={{ color: T.muted }}>
+              {alvo.assunto ?? "Sem assunto"} · enviada a {fmtData(alvo.enviada_em)}
+            </p>
+
+            {erro && (
+              <div className="rounded-lg p-3 mb-3 text-[14px]" style={{ background: T.dangerSoft, color: T.danger }}>
+                {erro}
+              </div>
+            )}
+
+            <div className="grid gap-3">
+              <button
+                onClick={() => void repescar("clonar")}
+                disabled={aCorrer !== null}
+                className="text-left rounded-xl p-4 disabled:opacity-60"
+                style={{ border: `1px solid ${T.line}` }}
+              >
+                <span className="flex items-center gap-2 font-bold text-[16px]" style={{ color: T.ink }}>
+                  {aCorrer === "clonar" ? <Loader2 size={17} className="animate-spin" /> : <Copy size={17} style={{ color: T.primary }} />}
+                  Clonar como nova edição
+                </span>
+                <span className="block text-[14px] mt-1" style={{ color: T.muted }}>
+                  Cria um rascunho novo com o número seguinte e todo o conteúdo copiado: notícias, crónica,
+                  secções, ferramentas e blocos. A edição #{alvo.numero} fica intacta.
+                </span>
+              </button>
+
+              {alvo.estado_envio === "parcial" ? (
+                <button
+                  onClick={() => void repescar("retomar")}
+                  disabled={aCorrer !== null}
+                  className="text-left rounded-xl p-4 disabled:opacity-60"
+                  style={{ border: `1px solid ${T.line}` }}
+                >
+                  <span className="flex items-center gap-2 font-bold text-[16px]" style={{ color: T.ink }}>
+                    {aCorrer === "retomar" ? <Loader2 size={17} className="animate-spin" /> : <RotateCcw size={17} style={{ color: T.primary }} />}
+                    Abrir no editor e retomar o envio
+                  </span>
+                  <span className="block text-[14px] mt-1" style={{ color: T.muted }}>
+                    A edição #{alvo.numero} continua em rascunho e já saiu para algumas listas. Abre o painel de
+                    envio com as listas em falta pré-seleccionadas
+                    {alvo.listas_em_falta.length > 0 ? `: ${alvo.listas_em_falta.join(", ")}` : ""}.
+                  </span>
+                </button>
+              ) : (
+                <button
+                  onClick={() => void repescar("reabrir")}
+                  disabled={aCorrer !== null}
+                  className="text-left rounded-xl p-4 disabled:opacity-60"
+                  style={{ border: `1px solid ${T.line}` }}
+                >
+                  <span className="flex items-center gap-2 font-bold text-[16px]" style={{ color: T.ink }}>
+                    {aCorrer === "reabrir" ? <Loader2 size={17} className="animate-spin" /> : <RotateCcw size={17} style={{ color: T.primary }} />}
+                    Reabrir para reenviar
+                  </span>
+                  <span className="block text-[14px] mt-1" style={{ color: T.muted }}>
+                    Devolve a edição #{alvo.numero} a rascunho, com o mesmo número e assunto, pronta para novo
+                    disparo. Usa isto quando o envio anterior falhou.
+                  </span>
+                </button>
+              )}
+
+            </div>
+
+            {alvo.listas.length > 0 && (
+              <div className="mt-4 rounded-lg p-3 text-[13.5px] flex gap-2" style={{ background: "#FFFAEB", color: "#93370D" }}>
+                <AlertTriangle size={16} className="shrink-0 mt-0.5" />
+                <span>
+                  Esta edição já foi disparada para: <strong>{alvo.listas.join(", ")}</strong>. Ao reenviar,
+                  estes contactos recebem-na outra vez.
+                </span>
+              </div>
+            )}
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}

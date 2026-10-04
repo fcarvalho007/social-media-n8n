@@ -1,0 +1,18 @@
+import { createFileRoute } from "@tanstack/react-router";
+
+import { HubBriefPreview } from "@/features/brief/HubBriefPreview";
+
+export const Route = createFileRoute("/preview/brief/hub")({
+  head: () => ({
+    meta: [
+      { title: "Hub editorial Brief — Preview QA · Digital Sprint" },
+      { name: "description", content: "Protótipo interno do hub editorial Digital Sprint Brief." },
+      { property: "og:title", content: "Hub editorial Brief — Preview QA · Digital Sprint" },
+      { property: "og:description", content: "Protótipo interno do hub editorial Digital Sprint Brief." },
+      { property: "og:type", content: "website" },
+      { name: "twitter:card", content: "summary" },
+      { name: "robots", content: "noindex, nofollow" },
+    ],
+  }),
+  component: HubBriefPreview,
+});

@@ -1,0 +1,462 @@
+import { useEffect, useRef, useState } from "react";
+import { useBlocker } from "@tanstack/react-router";
+import {
+  ChevronLeft,
+  ChevronRight,
+  Download,
+  FileText,
+  Loader2,
+  Save,
+  Sparkles,
+} from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Textarea } from "@/components/ui/textarea";
+import { Label } from "@/components/ui/label";
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
+import { Separator } from "@/components/ui/separator";
+import { validarCarrossel } from "@/lib/conteudos/carrossel";
+import type { FonteCronica, RascunhoCarrossel } from "@/lib/conteudos/carrossel";
+import { descarregar, desenharSlide, exportarCarrossel, legendaComLink } from "./exportar";
+
+interface Props {
+  fonte: FonteCronica;
+  inicial: RascunhoCarrossel | null;
+  demonstracao?: boolean;
+  onGerar?: (aceitarHistorico: boolean) => Promise<RascunhoCarrossel>;
+  onGuardar?: (
+    rascunho: RascunhoCarrossel,
+    aceitarHistorico: boolean,
+  ) => Promise<{ versao: number; actualizadoEm: string }>;
+}
+
+export function CarrosselEditor({
+  fonte,
+  inicial,
+  demonstracao = false,
+  onGerar,
+  onGuardar,
+}: Props) {
+  const [rascunho, setRascunho] = useState(inicial);
+  const [indice, setIndice] = useState(0);
+  const [aceitarHistorico, setAceitarHistorico] = useState(false);
+  const [alterado, setAlterado] = useState(false);
+  const [acao, setAcao] = useState<string | null>(null);
+  const [erro, setErro] = useState<string | null>(null);
+  const [confirmarGeracao, setConfirmarGeracao] = useState(false);
+  const canvasRef = useRef<HTMLCanvasElement>(null);
+  const carrossel = rascunho?.carrossel;
+  const slide = carrossel?.slides[indice];
+  const fonteGuardada = rascunho?.fonte ?? fonte;
+  const blocker = useBlocker({
+    shouldBlockFn: () => !demonstracao && (alterado || !!acao),
+    enableBeforeUnload: !demonstracao && (alterado || !!acao),
+    withResolver: true,
+  });
+
+  useEffect(() => {
+    let activo = true;
+    if (canvasRef.current && carrossel) {
+      // A pré-visualização é a mesma imagem usada na exportação.
+      const canvas = document.createElement("canvas");
+      void desenharSlide(canvas, carrossel, fonteGuardada, indice)
+        .then(() => {
+          if (!activo || !canvasRef.current) return;
+          canvasRef.current.width = canvas.width;
+          canvasRef.current.height = canvas.height;
+          canvasRef.current.getContext("2d")?.drawImage(canvas, 0, 0);
+        })
+        .catch((e: Error) => {
+          if (activo) setErro(e.message);
+        });
+    }
+    return () => {
+      activo = false;
+    };
+  }, [carrossel, fonteGuardada, indice]);
+
+  async function executar(nome: string, tarefa: () => Promise<void>) {
+    setAcao(nome);
+    setErro(null);
+    try {
+      await tarefa();
+    } catch (e) {
+      setErro(e instanceof Error ? e.message : "Não foi possível concluir. Tenta novamente.");
+    } finally {
+      setAcao(null);
+    }
+  }
+  function editar(campo: "titulo" | "texto", valor: string) {
+    if (!rascunho) return;
+    setRascunho({
+      ...rascunho,
+      carrossel: {
+        ...rascunho.carrossel,
+        slides: rascunho.carrossel.slides.map((s, i) =>
+          i === indice ? { ...s, [campo]: valor } : s,
+        ),
+      },
+    });
+    setAlterado(true);
+    setErro(null);
+  }
+  async function gerar() {
+    if (!onGerar) return;
+    await executar("gerar", async () => {
+      const proposta = await onGerar(aceitarHistorico);
+      setRascunho(proposta);
+      setIndice(0);
+      setAlterado(true);
+      setConfirmarGeracao(false);
+    });
+  }
+  async function exportar(tipo: "pdf" | "png") {
+    if (!rascunho) return;
+    await executar(tipo, async () => {
+      validarCarrossel(rascunho.carrossel, fonteGuardada);
+      await exportarCarrossel(tipo, rascunho.carrossel, fonteGuardada);
+    });
+  }
+
+  return (
+    <section
+      className="ds-conteudos flex flex-col gap-6"
+      aria-label="Editor do carrossel da crónica"
+    >
+      {demonstracao && (
+        <Alert>
+          <AlertTitle>Exemplo demonstrativo</AlertTitle>
+          <AlertDescription>
+            Conteúdo fictício para testar a composição e as exportações. Não consulta a base de
+            dados nem utiliza IA.
+          </AlertDescription>
+        </Alert>
+      )}
+      <header className="flex flex-wrap items-start justify-between gap-4">
+        <div className="min-w-0 max-w-2xl">
+          <h1 className="font-display text-2xl font-bold md:text-3xl">Carrossel da crónica</h1>
+          <p className="mt-2 text-muted-foreground">
+            Edição #{fonte.numero} · {fonte.titulo}
+          </p>
+          <p className="mt-2 text-sm text-muted-foreground">
+            1080 × 1350 · Instagram e LinkedIn · revisão editorial antes de publicar
+          </p>
+        </div>
+        <div className="flex flex-wrap gap-2">
+          {!demonstracao && (
+            <Button
+              disabled={
+                !!acao || (fonteGuardada.origem === "historico_actual" && !aceitarHistorico)
+              }
+              onClick={() => (rascunho ? setConfirmarGeracao(true) : void gerar())}
+            >
+              {acao === "gerar" ? (
+                <Loader2 className="animate-spin" data-icon="inline-start" />
+              ) : (
+                <Sparkles data-icon="inline-start" />
+              )}
+              {acao === "gerar"
+                ? "A preparar proposta…"
+                : rascunho
+                  ? "Gerar nova proposta"
+                  : "Gerar proposta"}
+            </Button>
+          )}
+          {carrossel && !demonstracao && (
+            <Button
+              variant="outline"
+              disabled={!!acao || !alterado}
+              onClick={() =>
+                void executar("guardar", async () => {
+                  if (!onGuardar || !rascunho) return;
+                  const guardado = await onGuardar(rascunho, aceitarHistorico);
+                  setRascunho({ ...rascunho, ...guardado });
+                  setAlterado(false);
+                })
+              }
+            >
+              <Save data-icon="inline-start" />
+              {acao === "guardar" ? "A guardar…" : "Guardar rascunho"}
+            </Button>
+          )}
+        </div>
+      </header>
+
+      {fonteGuardada.origem === "historico_actual" && (
+        <Alert>
+          <AlertTitle>A crónica integral não foi congelada no envio</AlertTitle>
+          <AlertDescription>
+            <p>
+              Será utilizado o texto atualmente guardado nesta edição. Confirma que corresponde à
+              crónica publicada.
+            </p>
+            <label className="mt-3 flex items-start gap-2">
+              <input
+                type="checkbox"
+                checked={aceitarHistorico}
+                disabled={!!acao}
+                onChange={(e) => setAceitarHistorico(e.target.checked)}
+              />
+              Confirmo a utilização deste texto histórico.
+            </label>
+          </AlertDescription>
+        </Alert>
+      )}
+      {confirmarGeracao && (
+        <Alert>
+          <AlertTitle>Substituir este rascunho por uma nova proposta?</AlertTitle>
+          <AlertDescription>
+            <p>
+              A geração consome IA. Podes descarregar o rascunho atual antes de o substituir. O
+              rascunho guardado na base de dados só muda quando voltares a guardar.
+            </p>
+            <div className="mt-3 flex flex-wrap gap-2">
+              <Button disabled={!!acao} onClick={() => void gerar()}>
+                Gerar e substituir
+              </Button>
+              <Button
+                variant="outline"
+                disabled={!!acao}
+                onClick={() => setConfirmarGeracao(false)}
+              >
+                Manter rascunho
+              </Button>
+            </div>
+          </AlertDescription>
+        </Alert>
+      )}
+      {erro && (
+        <Alert variant="destructive">
+          <AlertTitle>Não foi possível concluir</AlertTitle>
+          <AlertDescription>{erro}</AlertDescription>
+        </Alert>
+      )}
+      {blocker.status === "blocked" && (
+        <Alert>
+          <AlertTitle>{acao ? "Há uma operação em curso" : "Há alterações por guardar"}</AlertTitle>
+          <AlertDescription>
+            <p>
+              {acao
+                ? "Espera pela conclusão antes de mudar de edição ou sair."
+                : "Guarda ou descarrega o rascunho antes de sair para conservar as tuas alterações."}
+            </p>
+            <div className="mt-3 flex gap-2">
+              <Button variant="outline" onClick={() => blocker.reset()}>
+                Continuar a editar
+              </Button>
+              {!acao && (
+                <Button variant="outline" onClick={() => blocker.proceed()}>
+                  Sair sem guardar
+                </Button>
+              )}
+            </div>
+          </AlertDescription>
+        </Alert>
+      )}
+
+      {!carrossel && (
+        <div className="py-10">
+          <h2 className="font-display text-xl font-semibold">
+            Da crónica para uma sequência de ideias
+          </h2>
+          <p className="mt-3 max-w-prose text-muted-foreground">
+            A proposta terá 6 a 8 slides: uma capa, o argumento da crónica e um convite à leitura.
+            Revê os textos e as referências antes de exportar.
+          </p>
+        </div>
+      )}
+
+      {carrossel && slide && (
+        <>
+          <div className="grid items-start gap-8 lg:grid-cols-[minmax(0,1fr)_minmax(0,1fr)]">
+            <div className="flex min-w-0 flex-col gap-4">
+              <div className="flex items-center justify-between gap-2">
+                <h2 className="font-semibold">Pré-visualização</h2>
+                <div className="flex items-center gap-2">
+                  <Button
+                    size="icon"
+                    variant="outline"
+                    aria-label="Slide anterior"
+                    disabled={indice === 0 || !!acao}
+                    onClick={() => setIndice(indice - 1)}
+                  >
+                    <ChevronLeft />
+                  </Button>
+                  <span className="text-sm tabular-nums" aria-live="polite">
+                    {indice + 1} / {carrossel.slides.length}
+                  </span>
+                  <Button
+                    size="icon"
+                    variant="outline"
+                    aria-label="Slide seguinte"
+                    disabled={indice === carrossel.slides.length - 1 || !!acao}
+                    onClick={() => setIndice(indice + 1)}
+                  >
+                    <ChevronRight />
+                  </Button>
+                </div>
+              </div>
+              <canvas
+                ref={canvasRef}
+                className="w-full max-w-[480px] self-center"
+                style={{ aspectRatio: "4 / 5" }}
+                role="img"
+                aria-label={`Slide ${indice + 1}: ${slide.titulo}. ${slide.texto}`}
+              />
+            </div>
+            <div className="flex min-w-0 flex-col gap-5">
+              <h2 className="font-semibold">Editar slide {indice + 1}</h2>
+              <fieldset disabled={!!acao} className="flex min-w-0 flex-col gap-5">
+                <legend className="sr-only">Texto do slide {indice + 1}</legend>
+                <div className="flex flex-col gap-2">
+                  <Label htmlFor="slide-titulo">Título</Label>
+                  <Input
+                    id="slide-titulo"
+                    value={slide.titulo}
+                    maxLength={100}
+                    onChange={(e) => editar("titulo", e.target.value)}
+                  />
+                  <span className="text-xs text-muted-foreground">
+                    {slide.titulo.length} / 100 caracteres
+                  </span>
+                </div>
+                <div className="flex flex-col gap-2">
+                  <Label htmlFor="slide-texto">Texto</Label>
+                  <Textarea
+                    id="slide-texto"
+                    value={slide.texto}
+                    maxLength={360}
+                    rows={5}
+                    onChange={(e) => editar("texto", e.target.value)}
+                  />
+                  <span className="text-xs text-muted-foreground">
+                    {slide.texto.length} / 360 caracteres
+                  </span>
+                </div>
+              </fieldset>
+              <div>
+                <h3 className="text-sm font-semibold">Referências na crónica</h3>
+                {slide.fontes.length ? (
+                  slide.fontes.map((n) => (
+                    <blockquote
+                      key={n}
+                      className="mt-2 text-sm leading-relaxed text-muted-foreground"
+                    >
+                      Parágrafo {n}: {fonteGuardada.paragrafos[n - 1]}
+                    </blockquote>
+                  ))
+                ) : (
+                  <p className="mt-2 text-sm text-muted-foreground">
+                    {indice === 0
+                      ? "Capa editorial — conferir com o título e a tese da crónica."
+                      : "Convite à leitura — usa o endereço associado à edição."}
+                  </p>
+                )}
+              </div>
+              <Separator />
+              <div className="flex flex-col gap-2">
+                <Label htmlFor="carrossel-legenda">Legenda da publicação</Label>
+                <Textarea
+                  id="carrossel-legenda"
+                  value={carrossel.legenda}
+                  disabled={!!acao}
+                  rows={5}
+                  maxLength={2200}
+                  onChange={(e) => {
+                    if (rascunho) {
+                      setRascunho({
+                        ...rascunho,
+                        carrossel: { ...carrossel, legenda: e.target.value },
+                      });
+                      setAlterado(true);
+                    }
+                  }}
+                />
+                <p className="text-xs text-muted-foreground">
+                  O endereço da crónica é acrescentado à legenda exportada.
+                </p>
+              </div>
+            </div>
+          </div>
+          <Separator />
+          <footer className="flex flex-wrap items-center justify-between gap-4">
+            <p className="text-sm text-muted-foreground" role="status">
+              {demonstracao
+                ? "Exemplo editável; alterações apenas nesta sessão."
+                : alterado
+                  ? "Há alterações por guardar."
+                  : rascunho?.actualizadoEm
+                    ? "Rascunho guardado."
+                    : "Proposta por guardar."}
+            </p>
+            <div className="flex flex-wrap gap-2">
+              <Button
+                variant="outline"
+                disabled={!!acao}
+                onClick={() =>
+                  void executar("legenda", async () => {
+                    descarregar(
+                      new Blob([legendaComLink(carrossel, fonteGuardada)], {
+                        type: "text/plain;charset=utf-8",
+                      }),
+                      `digitalsprint-${fonte.numero}-legenda.txt`,
+                    );
+                  })
+                }
+              >
+                Descarregar legenda
+              </Button>
+              <Button variant="outline" disabled={!!acao} onClick={() => void exportar("png")}>
+                <Download data-icon="inline-start" />
+                {acao === "png" ? "A exportar…" : "Imagens PNG · ZIP"}
+              </Button>
+              <Button variant="outline" disabled={!!acao} onClick={() => void exportar("pdf")}>
+                <FileText data-icon="inline-start" />
+                {acao === "pdf" ? "A exportar…" : "PDF para LinkedIn"}
+              </Button>
+              <Button
+                variant="outline"
+                disabled={!!acao}
+                onClick={() =>
+                  void executar("rascunho", async () => {
+                    if (rascunho)
+                      descarregar(
+                        new Blob(
+                          [
+                            JSON.stringify(
+                              {
+                                ...rascunho,
+                                legendaComLink: legendaComLink(carrossel, fonteGuardada),
+                              },
+                              null,
+                              2,
+                            ),
+                          ],
+                          { type: "application/json" },
+                        ),
+                        `digitalsprint-${fonte.numero}-rascunho.json`,
+                      );
+                  })
+                }
+              >
+                Descarregar rascunho
+              </Button>
+            </div>
+          </footer>
+        </>
+      )}
+      <details>
+        <summary className="cursor-pointer py-2 font-semibold">
+          Consultar a crónica integral
+        </summary>
+        <div className="mt-3 flex max-w-prose flex-col gap-4 text-sm leading-relaxed text-muted-foreground">
+          {fonteGuardada.paragrafos.map((p, i) => (
+            <p key={i}>
+              {i + 1}. {p}
+            </p>
+          ))}
+        </div>
+      </details>
+    </section>
+  );
+}

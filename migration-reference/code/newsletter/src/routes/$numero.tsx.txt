@@ -1,0 +1,16 @@
+// Atalho de partilha: /318 → /edicoes/318 (301 permanente).
+// Só aceita inteiros; qualquer outro segmento cai no 404 normal.
+
+import { createFileRoute, notFound, redirect } from "@tanstack/react-router";
+
+export const Route = createFileRoute("/$numero")({
+  loader: ({ params }) => {
+    const numero = Number(params.numero);
+    if (!/^\d+$/.test(params.numero) || !Number.isInteger(numero) || numero <= 0) throw notFound();
+    throw redirect({
+      to: "/edicoes/$numero",
+      params: { numero: String(numero) },
+      statusCode: 301,
+    });
+  },
+});

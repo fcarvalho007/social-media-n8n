@@ -1,0 +1,1 @@
+ALTER TABLE public.edicoes ADD COLUMN IF NOT EXISTS descricoes_ajustadas_em timestamptz;

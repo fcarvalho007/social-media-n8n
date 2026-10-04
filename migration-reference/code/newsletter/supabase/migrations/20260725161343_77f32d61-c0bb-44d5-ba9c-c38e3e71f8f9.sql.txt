@@ -1,0 +1,3 @@
+ALTER TABLE public.edicoes
+  ADD COLUMN IF NOT EXISTS links_verificados jsonb,
+  ADD COLUMN IF NOT EXISTS links_verificados_em timestamptz;

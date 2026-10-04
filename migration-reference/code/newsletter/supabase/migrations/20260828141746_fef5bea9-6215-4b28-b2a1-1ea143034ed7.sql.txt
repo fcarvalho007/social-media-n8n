@@ -1,0 +1,102 @@
+ALTER TABLE public.edicoes
+  ADD COLUMN IF NOT EXISTS template_version text NOT NULL DEFAULT 'revista';
+
+UPDATE public.edicoes SET template_version = 'classic' WHERE created_at < now();
+
+ALTER TABLE public.edicoes
+  ADD CONSTRAINT edicoes_template_version_chk CHECK (template_version IN ('classic','revista'));
+
+CREATE TABLE public.revista_edicao (
+  edicao_id uuid PRIMARY KEY REFERENCES public.edicoes(id) ON DELETE CASCADE,
+  preheader text NOT NULL DEFAULT '',
+  cronica_titulo text NOT NULL DEFAULT '',
+  cronica_subtitulo text NOT NULL DEFAULT '',
+  cronica_lede text NOT NULL DEFAULT '',
+  cronica_excerto text NOT NULL DEFAULT '',
+  cronica_url text NOT NULL DEFAULT '',
+  momento_activo boolean NOT NULL DEFAULT false,
+  momento_etiqueta text NOT NULL DEFAULT 'O número da semana',
+  momento_valor text NOT NULL DEFAULT '',
+  momento_descricao text NOT NULL DEFAULT '',
+  pull_quote text NOT NULL DEFAULT '',
+  recomendacao_tipo text NOT NULL DEFAULT '',
+  recomendacao_meta text NOT NULL DEFAULT '',
+  recomendacao_titulo text NOT NULL DEFAULT '',
+  recomendacao_url text NOT NULL DEFAULT '',
+  recomendacao_nota text NOT NULL DEFAULT '',
+  bloco_ferramentas boolean NOT NULL DEFAULT false,
+  created_at timestamptz NOT NULL DEFAULT now(),
+  updated_at timestamptz NOT NULL DEFAULT now()
+);
+
+GRANT SELECT, INSERT, UPDATE, DELETE ON public.revista_edicao TO authenticated;
+GRANT ALL ON public.revista_edicao TO service_role;
+ALTER TABLE public.revista_edicao ENABLE ROW LEVEL SECURITY;
+
+CREATE POLICY revista_edicao_read_auth ON public.revista_edicao
+  FOR SELECT TO authenticated USING (true);
+CREATE POLICY revista_edicao_insert_rascunho ON public.revista_edicao
+  FOR INSERT TO authenticated WITH CHECK (
+    EXISTS (SELECT 1 FROM public.edicoes e WHERE e.id = revista_edicao.edicao_id AND e.estado = 'rascunho')
+    AND me_papel() = ANY (ARRAY['admin','curador'])
+  );
+CREATE POLICY revista_edicao_update_rascunho ON public.revista_edicao
+  FOR UPDATE TO authenticated USING (
+    EXISTS (SELECT 1 FROM public.edicoes e WHERE e.id = revista_edicao.edicao_id AND e.estado = 'rascunho')
+    AND me_papel() = ANY (ARRAY['admin','curador'])
+  ) WITH CHECK (
+    EXISTS (SELECT 1 FROM public.edicoes e WHERE e.id = revista_edicao.edicao_id AND e.estado = 'rascunho')
+    AND me_papel() = ANY (ARRAY['admin','curador'])
+  );
+CREATE POLICY revista_edicao_delete_admin ON public.revista_edicao
+  FOR DELETE TO authenticated USING (is_admin());
+
+CREATE TRIGGER revista_edicao_updated_at
+  BEFORE UPDATE ON public.revista_edicao
+  FOR EACH ROW EXECUTE FUNCTION public.set_updated_at();
+
+CREATE TABLE public.revista_itens (
+  id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  edicao_id uuid NOT NULL REFERENCES public.edicoes(id) ON DELETE CASCADE,
+  noticia_id uuid NOT NULL REFERENCES public.noticias(id) ON DELETE CASCADE,
+  papel text NOT NULL CHECK (papel IN ('destaque','radar')),
+  ordem integer NOT NULL DEFAULT 0,
+  titulo_override text,
+  resumo_factual text NOT NULL DEFAULT '',
+  minha_leitura text NOT NULL DEFAULT '',
+  created_at timestamptz NOT NULL DEFAULT now(),
+  updated_at timestamptz NOT NULL DEFAULT now(),
+  UNIQUE (edicao_id, noticia_id)
+);
+
+CREATE INDEX revista_itens_edicao_papel_ordem_idx
+  ON public.revista_itens (edicao_id, papel, ordem);
+
+GRANT SELECT, INSERT, UPDATE, DELETE ON public.revista_itens TO authenticated;
+GRANT ALL ON public.revista_itens TO service_role;
+ALTER TABLE public.revista_itens ENABLE ROW LEVEL SECURITY;
+
+CREATE POLICY revista_itens_read_auth ON public.revista_itens
+  FOR SELECT TO authenticated USING (true);
+CREATE POLICY revista_itens_insert_rascunho ON public.revista_itens
+  FOR INSERT TO authenticated WITH CHECK (
+    EXISTS (SELECT 1 FROM public.edicoes e WHERE e.id = revista_itens.edicao_id AND e.estado = 'rascunho')
+    AND me_papel() = ANY (ARRAY['admin','curador'])
+  );
+CREATE POLICY revista_itens_update_rascunho ON public.revista_itens
+  FOR UPDATE TO authenticated USING (
+    EXISTS (SELECT 1 FROM public.edicoes e WHERE e.id = revista_itens.edicao_id AND e.estado = 'rascunho')
+    AND me_papel() = ANY (ARRAY['admin','curador'])
+  ) WITH CHECK (
+    EXISTS (SELECT 1 FROM public.edicoes e WHERE e.id = revista_itens.edicao_id AND e.estado = 'rascunho')
+    AND me_papel() = ANY (ARRAY['admin','curador'])
+  );
+CREATE POLICY revista_itens_delete_rascunho ON public.revista_itens
+  FOR DELETE TO authenticated USING (
+    EXISTS (SELECT 1 FROM public.edicoes e WHERE e.id = revista_itens.edicao_id AND e.estado = 'rascunho')
+    AND me_papel() = ANY (ARRAY['admin','curador'])
+  );
+
+CREATE TRIGGER revista_itens_updated_at
+  BEFORE UPDATE ON public.revista_itens
+  FOR EACH ROW EXECUTE FUNCTION public.set_updated_at();

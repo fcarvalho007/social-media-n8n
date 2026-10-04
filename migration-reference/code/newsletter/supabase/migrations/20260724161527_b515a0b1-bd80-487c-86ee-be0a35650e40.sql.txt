@@ -1,0 +1,8 @@
+
+INSERT INTO public.configuracoes (chave, valor) VALUES
+  ('egoi_lista_teste_id', ''),
+  ('egoi_lista_subscritores_id', ''),
+  ('egoi_remetente_id', ''),
+  ('wordpress_categoria_id', ''),
+  ('wordpress_auto_publish', 'false')
+ON CONFLICT (chave) DO NOTHING;

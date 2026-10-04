@@ -1,0 +1,136 @@
+// Gera «A minha leitura» de um destaque da edição Revista.
+//
+// Fonte de IA: DeepSeek (única IA autorizada no projecto). A função devolve
+// apenas uma proposta — quem grava é o editor, no cliente.
+
+import { createServerFn } from "@tanstack/react-start";
+import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
+import { chamarDeepSeek, parseJsonTolerante, MODELO_DEEPSEEK_PADRAO } from "@/lib/deepseek.server";
+import { custoUsd } from "../../supabase/functions/_shared/custos-ia";
+import { sanitizarSaidaIA } from "@/lib/sanitizar-ia";
+import { normalizarLexico, contarPalavras } from "@/lib/validar-descricao";
+import {
+  PROMPT_LEITURA, PROMPT_LEITURA_CURTA, PROMPT_LEITURA_LONGA,
+  MIN_PALAVRAS_LEITURA, MAX_PALAVRAS_LEITURA,
+} from "@/lib/ia-leitura-prompt";
+
+interface LeituraInput {
+  titulo: string;
+  resumo: string;
+  descricao: string;
+  categoria: string;
+  url: string;
+  edicao_id: string | null;
+  noticia_id: string | null;
+}
+
+/** Limite de contexto do artigo: chega para interpretar sem inflacionar o custo. */
+const MAX_CORPO_LEITURA = 6000;
+
+function contexto(data: LeituraInput, corpo: string): string {
+  const linhas = [
+    `Título da notícia: ${data.titulo}`,
+    data.categoria ? `Categoria: ${data.categoria}` : "",
+    data.resumo ? `Resumo factual já escrito no email (NÃO repetir): ${data.resumo}` : "",
+    data.descricao ? `Descrição de origem: ${data.descricao}` : "",
+    data.url ? `Endereço: ${data.url}` : "",
+    corpo ? `Artigo original (material factual, base da tua leitura):\n${corpo}` : "",
+  ].filter(Boolean);
+  return linhas.join("\n");
+}
+
+async function gerar(prompt: string, data: LeituraInput, corpo: string) {
+  const r = await chamarDeepSeek(prompt, contexto(data, corpo), {
+    modelo: MODELO_DEEPSEEK_PADRAO,
+    responseJson: true,
+    temperatura: 0.8,
+  });
+  const parsed = parseJsonTolerante<{ leitura?: unknown }>(r.conteudo);
+  const bruto = typeof parsed?.leitura === "string" ? parsed.leitura : "";
+  return { texto: normalizarLexico(sanitizarSaidaIA(bruto)), usage: r.usage, modelo: r.modelo };
+}
+
+export const gerarMinhaLeitura = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((input: unknown): LeituraInput => {
+    if (!input || typeof input !== "object") throw new Error("Entrada inválida");
+    const o = input as Record<string, unknown>;
+    const texto = (v: unknown) => (typeof v === "string" ? v.trim() : "");
+    const titulo = texto(o.titulo);
+    if (!titulo) throw new Error("Título em falta");
+    return {
+      titulo,
+      resumo: texto(o.resumo).slice(0, 1200),
+      descricao: texto(o.descricao).slice(0, 2000),
+      categoria: texto(o.categoria),
+      url: texto(o.url),
+      edicao_id: typeof o.edicao_id === "string" && o.edicao_id ? o.edicao_id : null,
+      noticia_id: typeof o.noticia_id === "string" && o.noticia_id ? o.noticia_id : null,
+    };
+  })
+  .handler(async ({ data }) => {
+    const registarUso = async (
+      usage: { cacheHit: number; cacheMiss: number; saida: number },
+      modelo: string,
+    ) => {
+      try {
+        const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+        await supabaseAdmin.from("ia_uso").insert({
+          modelo,
+          tokens_entrada_cache_hit: usage.cacheHit,
+          tokens_entrada_cache_miss: usage.cacheMiss,
+          tokens_saida: usage.saida,
+          custo_usd: custoUsd(modelo, usage.cacheHit, usage.cacheMiss, usage.saida),
+          origem: "minha_leitura",
+          edicao_id: data.edicao_id,
+        });
+      } catch (e) {
+        console.error("[minha-leitura] falha a registar ia_uso:", (e as Error).message);
+      }
+    };
+
+    // Corpo do artigo: usa o que já foi guardado na importação e, se não
+    // existir, vai buscá-lo agora e guarda-o para as próximas gerações.
+    let corpo = "";
+    try {
+      const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+      if (data.noticia_id) {
+        const { data: n } = await supabaseAdmin
+          .from("noticias").select("corpo_artigo").eq("id", data.noticia_id).maybeSingle();
+        corpo = ((n as { corpo_artigo?: string | null } | null)?.corpo_artigo ?? "").trim();
+      }
+      if (!corpo && data.url) {
+        const { lerArtigo } = await import("@/lib/ler-artigo.server");
+        const lido = await lerArtigo(data.url);
+        corpo = lido.corpo;
+        if (corpo && data.noticia_id) {
+          await supabaseAdmin.from("noticias")
+            .update({ corpo_artigo: corpo } as never).eq("id", data.noticia_id);
+        }
+      }
+    } catch (e) {
+      console.error("[minha-leitura] artigo não lido:", (e as Error).message);
+    }
+    corpo = corpo.slice(0, MAX_CORPO_LEITURA);
+
+    const r1 = await gerar(PROMPT_LEITURA, data, corpo);
+    await registarUso(r1.usage, r1.modelo);
+    if (!r1.texto) throw new Error("A IA não devolveu uma leitura utilizável.");
+
+    let final = r1.texto;
+    const n1 = contarPalavras(final);
+
+    // Uma única repetição quando fica fora do intervalo pedido.
+    if (n1 < MIN_PALAVRAS_LEITURA || n1 > MAX_PALAVRAS_LEITURA) {
+      const r2 = await gerar(n1 < MIN_PALAVRAS_LEITURA ? PROMPT_LEITURA_CURTA : PROMPT_LEITURA_LONGA, data, corpo);
+      await registarUso(r2.usage, r2.modelo);
+      if (r2.texto) {
+        const n2 = contarPalavras(r2.texto);
+        const dist = (n: number) =>
+          n < MIN_PALAVRAS_LEITURA ? MIN_PALAVRAS_LEITURA - n : n > MAX_PALAVRAS_LEITURA ? n - MAX_PALAVRAS_LEITURA : 0;
+        if (dist(n2) <= dist(n1)) final = r2.texto;
+      }
+    }
+
+    return { leitura: final, palavras: contarPalavras(final) };
+  });

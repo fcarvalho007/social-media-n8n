@@ -1,0 +1,106 @@
+// Orientação em páginas longas: filete de progresso e barra superior fixa com
+// as âncoras da edição. Substitui o antigo índice lateral, que só existia
+// acima de 1280px e ficava invisível na maioria dos ecrãs.
+
+import { Link } from "@tanstack/react-router";
+import { useEffect, useState } from "react";
+
+export interface AncoraSeccao {
+  id: string;
+  rotulo: string;
+}
+
+/** Filete de progresso no topo. Um listener passivo, sem estado por scroll frame pesado. */
+export function ProgressoLeitura() {
+  const [pct, setPct] = useState(0);
+
+  useEffect(() => {
+    let raf = 0;
+    const medir = () => {
+      raf = 0;
+      const h = document.documentElement;
+      const total = h.scrollHeight - h.clientHeight;
+      setPct(total > 0 ? Math.min(100, Math.max(0, (h.scrollTop / total) * 100)) : 0);
+    };
+    const onScroll = () => {
+      if (!raf) raf = requestAnimationFrame(medir);
+    };
+    medir();
+    window.addEventListener("scroll", onScroll, { passive: true });
+    window.addEventListener("resize", onScroll, { passive: true });
+    return () => {
+      if (raf) cancelAnimationFrame(raf);
+      window.removeEventListener("scroll", onScroll);
+      window.removeEventListener("resize", onScroll);
+    };
+  }, []);
+
+  return (
+    <div aria-hidden className="rw-nao-imprimir fixed inset-x-0 top-0 z-50 h-[3px] bg-transparent">
+      <div className="h-full bg-rw-blue transition-[width] duration-150" style={{ width: `${pct}%` }} />
+    </div>
+  );
+}
+
+/** Barra superior fixa: tema da edição à esquerda, âncoras à direita. */
+export function BarraTopo({ ancoras }: { ancoras: AncoraSeccao[] }) {
+  const [activa, setActiva] = useState<string>(ancoras[0]?.id ?? "");
+
+  useEffect(() => {
+    let raf = 0;
+    const medir = () => {
+      raf = 0;
+      const limite = window.innerHeight * 0.35;
+      let corrente = ancoras[0]?.id ?? "";
+      for (const a of ancoras) {
+        const el = document.getElementById(a.id);
+        if (el && el.getBoundingClientRect().top <= limite) corrente = a.id;
+      }
+      setActiva(corrente);
+    };
+    const onScroll = () => {
+      if (!raf) raf = requestAnimationFrame(medir);
+    };
+    medir();
+    window.addEventListener("scroll", onScroll, { passive: true });
+    window.addEventListener("resize", onScroll, { passive: true });
+    return () => {
+      if (raf) cancelAnimationFrame(raf);
+      window.removeEventListener("scroll", onScroll);
+      window.removeEventListener("resize", onScroll);
+    };
+  }, [ancoras]);
+
+  return (
+    <div className="rw-nao-imprimir sticky top-0 z-40 bg-rw-ink text-white">
+      <div className="mx-auto flex min-h-[48px] w-full max-w-[79rem] items-center justify-between gap-4 px-5 sm:min-h-[54px] sm:px-8 lg:px-12">
+        <span className="hidden shrink-0 text-[11px] font-semibold uppercase tracking-[0.16em] text-white/70 sm:block">
+          Marketing / Tecnologia / Negócio
+        </span>
+        <nav aria-label="Nesta edição" className="-mx-1 flex min-w-0 items-center gap-1 overflow-x-auto sm:mx-0">
+          {ancoras.map((a) => {
+            const on = a.id === activa;
+            return (
+              <a
+                key={a.id}
+                href={`#${a.id}`}
+                aria-current={on ? "true" : undefined}
+                className={`inline-flex min-h-[44px] shrink-0 items-center px-2 text-[13px] transition-colors sm:px-3 sm:text-[14px] ${
+                  on ? "font-bold text-white underline decoration-rw-blue decoration-2 underline-offset-[10px]" : "text-white/70 hover:text-white"
+                }`}
+              >
+                {a.rotulo}
+              </a>
+            );
+          })}
+          <Link
+            to="/edicoes"
+            className="inline-flex min-h-[44px] shrink-0 items-center px-2 text-[13px] text-white/70 hover:text-white sm:px-3 sm:text-[14px]"
+          >
+            Arquivo
+          </Link>
+        </nav>
+      </div>
+    </div>
+  );
+}

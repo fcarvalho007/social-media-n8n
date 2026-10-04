@@ -1,0 +1,27 @@
+
+ALTER TABLE public.fontes_curadoria
+  ADD COLUMN IF NOT EXISTS foca_ferramentas boolean NOT NULL DEFAULT false,
+  ADD COLUMN IF NOT EXISTS zeros_consecutivos int NOT NULL DEFAULT 0;
+
+UPDATE public.fontes_curadoria
+   SET url_feed = 'https://www.toolify.ai/new',
+       url_listagem = 'https://www.toolify.ai/new'
+ WHERE lower(nome) LIKE '%toolify%';
+
+UPDATE public.fontes_curadoria
+   SET foca_ferramentas = true
+ WHERE tipo = 'newsletter'
+   AND (
+     lower(nome) LIKE '%ai pulse%'
+     OR lower(nome) LIKE '%ben%bite%'
+     OR lower(nome) LIKE '%rundown%'
+     OR lower(remetente_email) LIKE '%theaipulse%'
+     OR lower(remetente_email) LIKE '%bensbites%'
+     OR lower(remetente_email) LIKE '%therundown%'
+   );
+
+INSERT INTO public.fontes_curadoria (nome, url_feed, activa, tipo, foca_ferramentas)
+SELECT 'The AI Pulse (RSS)', 'https://theaipulse.beehiiv.com/rss', true, 'rss', true
+WHERE NOT EXISTS (
+  SELECT 1 FROM public.fontes_curadoria WHERE url_feed = 'https://theaipulse.beehiiv.com/rss'
+);

@@ -1,0 +1,30 @@
+-- 1. Pin manual do destino da notícia. 'auto' = decidido pela ordem (top-2/categoria);
+--    'email' = forçada no email; 'site' = forçada só no site.
+ALTER TABLE public.noticias
+  ADD COLUMN IF NOT EXISTS override_destino text NOT NULL DEFAULT 'auto';
+
+ALTER TABLE public.noticias
+  DROP CONSTRAINT IF EXISTS noticias_override_destino_check;
+ALTER TABLE public.noticias
+  ADD CONSTRAINT noticias_override_destino_check
+  CHECK (override_destino IN ('auto', 'email', 'site'));
+
+-- Backfill: preserva a intenção actual — quem já estava como 'site' fica pinado como 'site'.
+UPDATE public.noticias
+SET override_destino = 'site'
+WHERE override_destino = 'auto'
+  AND destino = 'site';
+
+CREATE INDEX IF NOT EXISTS idx_noticias_override_destino
+  ON public.noticias (edicao_id, override_destino);
+
+-- 2. Categorias ocultas no email — por edição.
+ALTER TABLE public.edicoes
+  ADD COLUMN IF NOT EXISTS categorias_ocultas_email jsonb NOT NULL DEFAULT '[]'::jsonb;
+
+-- 3. Config global (tectos ajustáveis).
+INSERT INTO public.configuracoes (chave, valor)
+VALUES
+  ('noticias_max_email', '12'),
+  ('noticias_aviso_email', '10')
+ON CONFLICT (chave) DO NOTHING;

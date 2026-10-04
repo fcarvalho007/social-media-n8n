@@ -1,0 +1,129 @@
+import { describe, expect, it, vi, beforeEach } from "vitest";
+
+const chamarIaExtrator = vi.fn();
+const reescreverDescricao = vi.fn();
+const lerArtigo = vi.fn();
+
+vi.mock("@/lib/ia-extractor.server", () => ({ chamarIaExtrator, reescreverDescricao }));
+vi.mock("@/lib/ler-artigo.server", () => ({ lerArtigo }));
+
+const usage = { cacheHit: 0, cacheMiss: 10, saida: 5 };
+
+beforeEach(() => {
+  chamarIaExtrator.mockReset();
+  reescreverDescricao.mockReset();
+  lerArtigo.mockReset();
+});
+
+describe("extrairNoticiaComCorpo", () => {
+  it("lê o artigo e passa o corpo à IA", async () => {
+    const { extrairNoticiaComCorpo } = await import("@/lib/extrair-noticia.server");
+    lerArtigo.mockResolvedValue({ corpo: "Texto real do artigo.", ok: true });
+    chamarIaExtrator.mockResolvedValue({
+      resultado: { titulo: "Meta lança agente", descricao: "Disponível nos EUA em iOS e Android a partir de hoje." },
+      modelo: "deepseek-chat",
+      usage,
+    });
+
+    const usos: string[] = [];
+    const r = await extrairNoticiaComCorpo(
+      { titulo: "t", descricao: "d", url: "https://exemplo.pt/a", origemUso: "curadoria_rss" },
+      (u) => { usos.push(u.origem); },
+    );
+
+    expect(chamarIaExtrator).toHaveBeenCalledWith("t\n\nd\n\nhttps://exemplo.pt/a", undefined, "Texto real do artigo.");
+    expect(r.corpo).toBe("Texto real do artigo.");
+    expect(r.repete).toBe(false);
+    expect(usos).toEqual(["curadoria_rss"]);
+  });
+
+  it("reescreve uma vez quando a descrição repete o título", async () => {
+    const { extrairNoticiaComCorpo } = await import("@/lib/extrair-noticia.server");
+    lerArtigo.mockResolvedValue({ corpo: "", ok: false });
+    chamarIaExtrator.mockResolvedValue({
+      resultado: {
+        titulo: "Google adiciona contagem de visualizações às publicações de perfil de empresa",
+        descricao: "A Google está a lançar a contagem de visualizações nas publicações de perfil de empresa.",
+      },
+      modelo: "deepseek-chat",
+      usage,
+    });
+    reescreverDescricao.mockResolvedValue({
+      descricao: "A métrica cobre 28 dias e só aparece em contas verificadas, sem exportação para o Analytics.",
+      modelo: "deepseek-chat",
+      usage,
+    });
+
+    const usos: string[] = [];
+    const r = await extrairNoticiaComCorpo(
+      { titulo: "t", descricao: "d", url: "https://exemplo.pt/a" },
+      (u) => { usos.push(u.origem); },
+    );
+
+    expect(reescreverDescricao).toHaveBeenCalledTimes(1);
+    expect(r.descricao).toContain("28 dias");
+    expect(r.repete).toBe(false);
+    expect(usos).toEqual(["extraccao_noticia", "descricao_reescrita"]);
+  });
+
+  it("não vai à rede quando já há corpo conhecido", async () => {
+    const { extrairNoticiaComCorpo } = await import("@/lib/extrair-noticia.server");
+    chamarIaExtrator.mockResolvedValue({ resultado: { titulo: "A", descricao: "B totalmente diferente" }, modelo: "m", usage });
+    await extrairNoticiaComCorpo({ titulo: "t", descricao: "d", corpoConhecido: "corpo do email" });
+    expect(lerArtigo).not.toHaveBeenCalled();
+  });
+
+  it("tenta segunda vez sem o corpo quando a primeira falha", async () => {
+    const { extrairNoticiaComCorpo } = await import("@/lib/extrair-noticia.server");
+    lerArtigo.mockResolvedValue({ corpo: "Texto muito longo do artigo.", ok: true });
+    chamarIaExtrator
+      .mockRejectedValueOnce(new Error("HTTP 400 context length exceeded"))
+      .mockResolvedValueOnce({
+        resultado: { titulo: "A", descricao: "B com informação nova e concreta." },
+        modelo: "m",
+        usage,
+      });
+
+    const r = await extrairNoticiaComCorpo({ titulo: "t", descricao: "d", url: "https://exemplo.pt/a" });
+
+    expect(chamarIaExtrator).toHaveBeenCalledTimes(2);
+    expect(chamarIaExtrator.mock.calls[1]?.[2]).toBeUndefined();
+    expect(r.ia).not.toBeNull();
+    expect(r.motivo).toBeNull();
+  });
+
+  it("devolve a causa real quando a IA falha nas duas tentativas", async () => {
+    const { extrairNoticiaComCorpo } = await import("@/lib/extrair-noticia.server");
+    lerArtigo.mockResolvedValue({ corpo: "Texto do artigo.", ok: true });
+    const erro = Object.assign(new Error("cancelado"), { name: "AbortError" });
+    chamarIaExtrator.mockRejectedValue(erro);
+
+    const r = await extrairNoticiaComCorpo({ titulo: "t", descricao: "d", url: "https://exemplo.pt/a" });
+
+    expect(r.ia).toBeNull();
+    expect(r.motivo).toContain("tempo esgotado");
+  });
+});
+
+
+describe("corrigirDescricaoRepetida", () => {
+  it("deixa intacta a descrição que acrescenta informação", async () => {
+    const { corrigirDescricaoRepetida } = await import("@/lib/extrair-noticia.server");
+    const r = await corrigirDescricaoRepetida({
+      titulo: "Meta lança Muse, o seu agente de IA pessoal",
+      descricao: "Funciona por chat, liga-se a email e calendário e está disponível nos EUA em iOS, Android e web.",
+    });
+    expect(r.reescrita).toBe(false);
+    expect(reescreverDescricao).not.toHaveBeenCalled();
+  });
+
+  it("mantém a descrição original quando a reescrita falha", async () => {
+    const { corrigirDescricaoRepetida } = await import("@/lib/extrair-noticia.server");
+    reescreverDescricao.mockRejectedValue(new Error("sem rede"));
+    const titulo = "Google adiciona contagem de visualizações às publicações de perfil de empresa";
+    const descricao = "A Google está a lançar a contagem de visualizações nas publicações de perfil de empresa.";
+    const r = await corrigirDescricaoRepetida({ titulo, descricao });
+    expect(r.descricao).toBe(descricao);
+    expect(r.repete).toBe(true);
+  });
+});

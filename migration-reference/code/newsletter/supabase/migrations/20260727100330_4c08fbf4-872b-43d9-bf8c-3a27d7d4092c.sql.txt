@@ -1,0 +1,85 @@
+
+-- 1) Extensões à tabela ferramentas_sugeridas
+ALTER TABLE public.ferramentas_sugeridas
+  ADD COLUMN IF NOT EXISTS emoji text,
+  ADD COLUMN IF NOT EXISTS cor text NOT NULL DEFAULT 'indigo',
+  ADD COLUMN IF NOT EXISTS descricao_original text,
+  ADD COLUMN IF NOT EXISTS fonte_directorio_id uuid REFERENCES public.fontes_curadoria(id) ON DELETE SET NULL,
+  ADD COLUMN IF NOT EXISTS edicao_usada_id uuid REFERENCES public.edicoes(id) ON DELETE SET NULL;
+
+ALTER TABLE public.ferramentas_sugeridas
+  DROP CONSTRAINT IF EXISTS ferramentas_sugeridas_cor_check;
+ALTER TABLE public.ferramentas_sugeridas
+  ADD CONSTRAINT ferramentas_sugeridas_cor_check
+  CHECK (cor IN ('indigo','verde','laranja','cinzento'));
+
+CREATE INDEX IF NOT EXISTS ferramentas_sugeridas_estado_criado_idx
+  ON public.ferramentas_sugeridas (estado, criado_em DESC);
+
+-- 2) Alargar check do tipo em fontes_curadoria
+ALTER TABLE public.fontes_curadoria
+  DROP CONSTRAINT IF EXISTS fontes_curadoria_tipo_check;
+ALTER TABLE public.fontes_curadoria
+  ADD CONSTRAINT fontes_curadoria_tipo_check
+  CHECK (tipo IN ('rss','html','newsletter','directorio_ferramentas'));
+
+-- 3) Nova tabela: ferramentas_excluidas (lista de exclusão permanente)
+CREATE TABLE IF NOT EXISTS public.ferramentas_excluidas (
+  id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  nome_norm text,
+  dominio text,
+  motivo text,
+  criado_em timestamptz NOT NULL DEFAULT now()
+);
+CREATE UNIQUE INDEX IF NOT EXISTS ferramentas_excluidas_dominio_uk
+  ON public.ferramentas_excluidas (dominio) WHERE dominio IS NOT NULL;
+CREATE INDEX IF NOT EXISTS ferramentas_excluidas_nome_idx
+  ON public.ferramentas_excluidas (nome_norm);
+
+GRANT SELECT, INSERT, UPDATE, DELETE ON public.ferramentas_excluidas TO authenticated;
+GRANT ALL ON public.ferramentas_excluidas TO service_role;
+ALTER TABLE public.ferramentas_excluidas ENABLE ROW LEVEL SECURITY;
+
+CREATE POLICY "excluidas_read_auth" ON public.ferramentas_excluidas
+  FOR SELECT TO authenticated USING (true);
+CREATE POLICY "excluidas_write_auth" ON public.ferramentas_excluidas
+  FOR INSERT TO authenticated
+  WITH CHECK (me_papel() IN ('admin','curador'));
+CREATE POLICY "excluidas_delete_admin" ON public.ferramentas_excluidas
+  FOR DELETE TO authenticated USING (me_papel() = 'admin');
+
+-- 4) Config semanal
+CREATE TABLE IF NOT EXISTS public.curadoria_ferramentas_config (
+  id smallint PRIMARY KEY DEFAULT 1 CHECK (id = 1),
+  dia_semana int NOT NULL DEFAULT 1 CHECK (dia_semana BETWEEN 0 AND 6),
+  hora int NOT NULL DEFAULT 9 CHECK (hora BETWEEN 0 AND 23),
+  max_por_corrida int NOT NULL DEFAULT 10 CHECK (max_por_corrida BETWEEN 1 AND 50),
+  activo boolean NOT NULL DEFAULT true,
+  actualizado_em timestamptz NOT NULL DEFAULT now()
+);
+
+GRANT SELECT, INSERT, UPDATE ON public.curadoria_ferramentas_config TO authenticated;
+GRANT ALL ON public.curadoria_ferramentas_config TO service_role;
+ALTER TABLE public.curadoria_ferramentas_config ENABLE ROW LEVEL SECURITY;
+
+CREATE POLICY "cf_config_read_auth" ON public.curadoria_ferramentas_config
+  FOR SELECT TO authenticated USING (true);
+CREATE POLICY "cf_config_write_admin" ON public.curadoria_ferramentas_config
+  FOR ALL TO authenticated
+  USING (me_papel() = 'admin')
+  WITH CHECK (me_papel() = 'admin');
+
+CREATE TRIGGER curadoria_ferramentas_config_updated
+  BEFORE UPDATE ON public.curadoria_ferramentas_config
+  FOR EACH ROW EXECUTE FUNCTION public.tg_curadoria_config_updated();
+
+INSERT INTO public.curadoria_ferramentas_config (id) VALUES (1)
+  ON CONFLICT (id) DO NOTHING;
+
+-- 5) Seed das 3 fontes (desactivadas)
+INSERT INTO public.fontes_curadoria (nome, tipo, url_feed, url_listagem, activa)
+VALUES
+  ('Toolify — Marketing', 'directorio_ferramentas', 'https://www.toolify.ai/category/marketing', 'https://www.toolify.ai/category/marketing', false),
+  ('Futurepedia — Marketing', 'directorio_ferramentas', 'https://www.futurepedia.io/ai-tools/marketing', 'https://www.futurepedia.io/ai-tools/marketing', false),
+  ('There''s An AI For That — Marketing', 'directorio_ferramentas', 'https://theresanaiforthat.com/s/marketing/', 'https://theresanaiforthat.com/s/marketing/', false)
+ON CONFLICT DO NOTHING;

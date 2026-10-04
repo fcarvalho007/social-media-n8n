@@ -1,0 +1,31 @@
+
+CREATE TABLE public.egoi_campanhas (
+  id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  edicao_id uuid NOT NULL REFERENCES public.edicoes(id) ON DELETE CASCADE,
+  lista_id uuid NOT NULL REFERENCES public.egoi_listas(id) ON DELETE RESTRICT,
+  campaign_hash text NOT NULL,
+  egoi_grupo_id text,
+  estado text NOT NULL DEFAULT 'rascunho' CHECK (estado IN ('rascunho','enviada')),
+  criado_em timestamptz NOT NULL DEFAULT now(),
+  actualizado_em timestamptz NOT NULL DEFAULT now(),
+  UNIQUE (edicao_id, lista_id)
+);
+
+CREATE INDEX idx_egoi_campanhas_edicao ON public.egoi_campanhas(edicao_id);
+
+GRANT SELECT ON public.egoi_campanhas TO authenticated;
+GRANT ALL ON public.egoi_campanhas TO service_role;
+
+ALTER TABLE public.egoi_campanhas ENABLE ROW LEVEL SECURITY;
+
+-- Leitura: qualquer utilizador autenticado (curadores precisam ver o indicador no modal)
+CREATE POLICY "egoi_campanhas leitura autenticada"
+  ON public.egoi_campanhas FOR SELECT
+  TO authenticated
+  USING (true);
+
+-- Escrita fechada ao cliente; apenas service_role (edge functions) escreve.
+
+CREATE TRIGGER egoi_campanhas_set_actualizado_em
+  BEFORE UPDATE ON public.egoi_campanhas
+  FOR EACH ROW EXECUTE FUNCTION public.set_actualizado_em();

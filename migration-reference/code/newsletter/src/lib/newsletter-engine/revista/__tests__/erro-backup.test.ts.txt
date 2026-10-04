@@ -1,0 +1,16 @@
+import { describe, expect, it } from "vitest";
+import { mensagemErroBackup } from "../erro-backup";
+
+describe("mensagemErroBackup", () => {
+  it("translates fetch failed", () => {
+    expect(mensagemErroBackup(new TypeError("fetch failed"))).toMatch(/Não foi possível contactar/);
+  });
+  it("translates timeouts", () => {
+    const e = new Error("signal timed out");
+    e.name = "TimeoutError";
+    expect(mensagemErroBackup(e)).toMatch(/demorou demasiado/);
+  });
+  it("keeps WordPress messages", () => {
+    expect(mensagemErroBackup(new Error("LearnDash: forbidden"))).toBe("LearnDash: forbidden");
+  });
+});

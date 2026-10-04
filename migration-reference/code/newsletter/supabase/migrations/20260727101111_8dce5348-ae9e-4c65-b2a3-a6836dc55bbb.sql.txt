@@ -1,0 +1,6 @@
+ALTER TABLE public.ferramentas_sugeridas
+  ADD COLUMN IF NOT EXISTS edicao_aprovada_id UUID REFERENCES public.edicoes(id) ON DELETE SET NULL;
+
+CREATE INDEX IF NOT EXISTS ferramentas_sugeridas_edicao_aprovada_idx
+  ON public.ferramentas_sugeridas(edicao_aprovada_id)
+  WHERE edicao_aprovada_id IS NOT NULL;

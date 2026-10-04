@@ -1,0 +1,30 @@
+do $$
+declare v_id uuid := 'b3463c91-556d-47ba-81df-682c9a96bfcc';
+        v_novo int; v_nova uuid;
+begin
+  if (select estado from edicoes where id = v_id) = 'rascunho' then
+    update noticias set estado = 'enviada' where edicao_id = v_id and estado = 'aprovada';
+    update edicoes set estado = 'enviada',
+      enviada_em = coalesce(enviada_em, '2026-08-01 15:41:33+00'::timestamptz),
+      snapshot_envio = coalesce(snapshot_envio, jsonb_build_object(
+        'gerado_em', now(), 'fecho_manual', true,
+        'nota', 'Rascunho antigo fechado manualmente: as edições seguintes já tinham saído.'))
+      where id = v_id;
+    insert into audit_log (quem, accao, detalhe)
+      values ('sistema', 'Edição #313 fechada manualmente',
+        '{"motivo":"rascunho de 28/07 obsoleto; edições #314, #315 e #316 já enviadas"}'::jsonb);
+  end if;
+
+  if not exists (select 1 from edicoes where estado = 'rascunho') then
+    select coalesce(max(numero), 0) + 1 into v_novo from edicoes;
+    insert into edicoes (numero, data_envio_prevista, assunto, estado, bloco_livro, bloco_recursos)
+      values (v_novo, (current_date + ((4 - extract(dow from current_date)::int + 7) % 7))::date,
+              'Edição #' || v_novo, 'rascunho', true, true)
+      returning id into v_nova;
+    insert into cronicas (edicao_id, conteudo, conteudo_html, leituras_recomendadas)
+      values (v_nova, '', '', '');
+    perform criar_seccoes_padrao(v_nova);
+    insert into audit_log (quem, accao)
+      values ('sistema', 'Edição #' || v_novo || ' criada em rascunho');
+  end if;
+end $$;

@@ -1,0 +1,45 @@
+import { createFileRoute, notFound } from "@tanstack/react-router";
+import { baseUrlEdicoesFn, obterEdicaoPublicaFn } from "@/lib/revista-web.functions";
+import { PaginaEdicao } from "@/features/revista-web/PaginaEdicao";
+
+export const Route = createFileRoute("/edicoes/$numero")({
+  loader: async ({ params }) => {
+    const numero = Number(params.numero);
+    if (!Number.isInteger(numero) || numero <= 0) throw notFound();
+    const [pagina, base] = await Promise.all([
+      obterEdicaoPublicaFn({ data: { numero } }),
+      baseUrlEdicoesFn(),
+    ]);
+    if (!pagina) throw notFound();
+    return { ...pagina, base };
+  },
+  head: ({ loaderData }) => {
+    if (!loaderData) {
+      return { meta: [{ title: "Edição não encontrada · Digital Sprint" }, { name: "robots", content: "noindex" }] };
+    }
+    const e = loaderData.estrutura;
+    const title = `${e.cronica.titulo || `Edição ${e.edicao.numero}`} · Digital Sprint #${e.edicao.numero}`;
+    const description = (e.cronica.lede || e.preheader || "Edição semanal da Digital Sprint.").slice(0, 158);
+    const canonical = `${loaderData.base}/edicoes/${e.edicao.numero}`;
+    return {
+      meta: [
+        { title },
+        { name: "description", content: description },
+        { property: "og:title", content: title },
+        { property: "og:description", content: description },
+        { property: "og:type", content: "article" },
+        { property: "og:url", content: canonical },
+        { name: "twitter:card", content: "summary" },
+        // Página publicada antes do email: responde, mas ainda não indexa.
+        ...(loaderData.enviada ? [] : [{ name: "robots", content: "noindex, follow" }]),
+      ],
+      links: [{ rel: "canonical", href: canonical }],
+    };
+  },
+  component: EdicaoPublica,
+});
+
+function EdicaoPublica() {
+  const dados = Route.useLoaderData();
+  return <PaginaEdicao pagina={dados} briefs={dados.briefs} />;
+}

@@ -1,0 +1,134 @@
+import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
+import { useQuery } from "@tanstack/react-query";
+import { z } from "zod";
+import { listarEdicoesPassadas } from "@/features/newsletter/data";
+import { CarrosselEditor } from "@/features/conteudos/CarrosselEditor";
+import {
+  carregarCarrosselFn,
+  gerarCarrosselFn,
+  guardarCarrosselFn,
+} from "@/lib/conteudos.functions";
+import { Alert, AlertTitle, AlertDescription } from "@/components/ui/alert";
+import { Button } from "@/components/ui/button";
+import { Label } from "@/components/ui/label";
+
+export const Route = createFileRoute("/_authenticated/conteudos")({
+  validateSearch: (search: Record<string, unknown>): { edicao?: string } => {
+    const id = z.string().uuid().safeParse(search.edicao);
+    return id.success ? { edicao: id.data } : {};
+  },
+  head: () => ({
+    meta: [
+      { title: "Conteúdos da edição · DIGITALSPRINT" },
+      { name: "robots", content: "noindex, nofollow" },
+    ],
+  }),
+  component: ConteudosPage,
+});
+
+function ConteudosPage() {
+  const { edicao } = Route.useSearch();
+  const navigate = useNavigate();
+  const edicoes = useQuery({ queryKey: ["edicoes-passadas"], queryFn: listarEdicoesPassadas });
+  const candidatas = (edicoes.data ?? []).filter(
+    (e) => e.template_version === "revista" && e.estado_envio === "enviada",
+  );
+  const conteudo = useQuery({
+    queryKey: ["carrossel-cronica", edicao],
+    queryFn: () => carregarCarrosselFn({ data: { edicaoId: edicao! } }),
+    enabled: !!edicao,
+    retry: false,
+    staleTime: Infinity,
+  });
+  return (
+    <main className="ds-conteudos mx-auto flex max-w-[1200px] flex-col gap-6 px-4 py-6 md:px-8 md:py-8">
+      <div className="flex flex-wrap items-end justify-between gap-4">
+        <div className="flex min-w-0 flex-1 flex-col gap-2">
+          <Label htmlFor="conteudos-edicao">Edição enviada</Label>
+          <select
+            id="conteudos-edicao"
+            className="h-11 w-full max-w-xl rounded-md border border-input bg-background px-3 text-sm"
+            value={edicao ?? ""}
+            disabled={edicoes.isPending}
+            onChange={(e) =>
+              void navigate({
+                to: "/conteudos",
+                search: e.target.value ? { edicao: e.target.value } : {},
+              })
+            }
+          >
+            <option value="">Escolher uma edição Revista</option>
+            {candidatas.map((e) => (
+              <option key={e.id} value={e.id}>
+                #{e.numero} · {e.assunto || "Sem assunto"}
+              </option>
+            ))}
+          </select>
+        </div>
+        <Link to="/edicoes-passadas" className="text-sm font-semibold underline underline-offset-4">
+          Voltar às edições passadas
+        </Link>
+      </div>
+      {edicoes.error && (
+        <Alert variant="destructive">
+          <AlertTitle>Não foi possível carregar as edições</AlertTitle>
+          <AlertDescription>
+            {edicoes.error.message}
+            <Button variant="outline" onClick={() => void edicoes.refetch()}>
+              Tentar novamente
+            </Button>
+          </AlertDescription>
+        </Alert>
+      )}
+      {!edicao && (
+        <div className="py-12">
+          <h1 className="font-display text-3xl font-bold">Conteúdos da edição</h1>
+          <p className="mt-3 max-w-prose text-muted-foreground">
+            Escolhe uma edição Revista com envio concluído para preparar o carrossel da crónica.
+            Cada proposta pode ser editada, guardada e exportada para Instagram e LinkedIn.
+          </p>
+          {!edicoes.isPending && !candidatas.length && (
+            <p className="mt-4 text-sm text-muted-foreground">
+              Ainda não há edições Revista com envio completo disponíveis.
+            </p>
+          )}
+        </div>
+      )}
+      {edicao && conteudo.isPending && <p role="status">A carregar a crónica e o rascunho…</p>}
+      {conteudo.error && (
+        <Alert variant="destructive">
+          <AlertTitle>Esta edição ainda não está disponível</AlertTitle>
+          <AlertDescription>
+            <p>{conteudo.error.message}</p>
+            <Button className="mt-3" variant="outline" onClick={() => void conteudo.refetch()}>
+              Tentar novamente
+            </Button>
+          </AlertDescription>
+        </Alert>
+      )}
+      {conteudo.data && edicao && (
+        <CarrosselEditor
+          key={edicao}
+          fonte={conteudo.data.fonte}
+          inicial={conteudo.data.guardado}
+          onGerar={(aceitarHistorico) =>
+            gerarCarrosselFn({
+              data: { edicaoId: edicao, aceitarHistorico, hashFonte: conteudo.data!.fonte.hash },
+            })
+          }
+          onGuardar={(rascunho, aceitarHistorico) =>
+            guardarCarrosselFn({
+              data: {
+                edicaoId: edicao,
+                carrossel: rascunho.carrossel,
+                versao: rascunho.versao,
+                hashFonte: rascunho.fonte.hash,
+                aceitarHistorico,
+              },
+            })
+          }
+        />
+      )}
+    </main>
+  );
+}

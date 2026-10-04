@@ -1,0 +1,432 @@
+import { createFileRoute } from "@tanstack/react-router";
+
+// Webhook do CloudMailin — recebe emails de newsletters de terceiros,
+// limpa o HTML, passa pelo pipeline unificado (segmentação por formato +
+// fallback ensaio + extracção de ferramentas) e insere notícias/ferramentas
+// como `pendente`.
+//
+// Auth: HTTP Basic obrigatória (CLOUDMAILIN_AUTH_USER / _PASS). Sem header
+// válido -> 401 imediato, sem tocar na BD.
+
+type CloudMailinPayload = {
+  headers?: Record<string, string | string[]> & {
+    From?: string;
+    Subject?: string;
+    from?: string;
+    subject?: string;
+  };
+  envelope?: { from?: string; to?: string };
+  html?: string;
+  plain?: string;
+};
+
+/** Número máximo de tentativas automáticas de processamento por email. */
+export const MAX_TENTATIVAS = 3;
+
+function timingSafeEq(a: string, b: string): boolean {
+  if (a.length !== b.length) return false;
+  let out = 0;
+  for (let i = 0; i < a.length; i++) out |= a.charCodeAt(i) ^ b.charCodeAt(i);
+  return out === 0;
+}
+
+function verificarBasicAuth(request: Request): boolean {
+  const user = process.env.CLOUDMAILIN_AUTH_USER;
+  const pass = process.env.CLOUDMAILIN_AUTH_PASS;
+  if (!user || !pass) return false;
+  const header = request.headers.get("authorization") ?? request.headers.get("Authorization");
+  if (!header || !header.toLowerCase().startsWith("basic ")) return false;
+  try {
+    const decoded = atob(header.slice(6).trim());
+    const idx = decoded.indexOf(":");
+    if (idx < 0) return false;
+    const u = decoded.slice(0, idx);
+    const p = decoded.slice(idx + 1);
+    return timingSafeEq(u, user) && timingSafeEq(p, pass);
+  } catch {
+    return false;
+  }
+}
+
+async function extrairPayload(request: Request): Promise<CloudMailinPayload | null> {
+  const ct = (request.headers.get("content-type") ?? "").toLowerCase();
+  try {
+    if (ct.includes("application/json")) {
+      return (await request.json()) as CloudMailinPayload;
+    }
+    const form = await request.formData();
+    const raw = form.get("message");
+    if (typeof raw === "string") {
+      try { return JSON.parse(raw) as CloudMailinPayload; } catch { /* noop */ }
+    }
+    const headersRaw = form.get("headers");
+    const envelopeRaw = form.get("envelope");
+    let headers: CloudMailinPayload["headers"] = undefined;
+    let envelope: CloudMailinPayload["envelope"] = undefined;
+    if (typeof headersRaw === "string") { try { headers = JSON.parse(headersRaw); } catch { /* noop */ } }
+    if (typeof envelopeRaw === "string") { try { envelope = JSON.parse(envelopeRaw); } catch { /* noop */ } }
+    return {
+      headers,
+      envelope,
+      html: typeof form.get("html") === "string" ? String(form.get("html")) : undefined,
+      plain: typeof form.get("plain") === "string" ? String(form.get("plain")) : undefined,
+    };
+  } catch {
+    return null;
+  }
+}
+
+function headerVal(headers: CloudMailinPayload["headers"] | undefined, ...nomes: string[]): string | null {
+  if (!headers) return null;
+  for (const n of nomes) {
+    const v = (headers as Record<string, string | string[] | undefined>)[n];
+    if (typeof v === "string" && v.trim()) return v.trim();
+    if (Array.isArray(v) && v.length > 0 && typeof v[0] === "string") return v[0].trim();
+  }
+  return null;
+}
+
+const PADROES_CONFIRMACAO: RegExp[] = [
+  /confirm your subscription/i,
+  /confirm your email/i,
+  /verify your email/i,
+  /verify your account/i,
+  /email verification/i,
+  /please confirm/i,
+  /click to confirm/i,
+  /activate your account/i,
+  /double opt-?in/i,
+  /confirma\s+(a\s+)?(tua|sua)\s+subscri[cç][aã]o/i,
+  /confirmar\s+subscri[cç][aã]o/i,
+  /confirma[cç][aã]o\s+de\s+subscri[cç][aã]o/i,
+  /confirma\s+o\s+teu\s+e-?mail/i,
+  /verifica\s+o\s+teu\s+e-?mail/i,
+  /(activa|ativa)\s+a\s+tua\s+conta/i,
+];
+const VERBOS_CONFIRMACAO = /\b(confirm|verify|activate|confirma|verifica|activa|ativa)\b/i;
+
+function parecerConfirmacao(assunto: string, corpo: string): { confirmar: true; motivo: string } | { confirmar: false } {
+  const a = (assunto ?? "").toLowerCase();
+  const c = (corpo ?? "").toLowerCase();
+  const corpoCurto = !!corpo && corpo.length < 300;
+  // Guard uniforme: matches no assunto contam sempre (assunto é curto por
+  // natureza); matches no corpo SÓ contam se o corpo tiver < 300 caracteres.
+  // Previne falsos positivos em newsletters longas com "verify your email"
+  // no rodapé (ex.: links de gestão de subscrição).
+  for (const re of PADROES_CONFIRMACAO) {
+    if (re.test(a)) return { confirmar: true, motivo: `assunto: ${re.source}` };
+    if (corpoCurto && re.test(c)) return { confirmar: true, motivo: `corpo curto (${corpo.length}) + padrão: ${re.source}` };
+  }
+  if (corpoCurto && VERBOS_CONFIRMACAO.test(c)) {
+    return { confirmar: true, motivo: `corpo curto (${corpo.length}) + verbo de confirmação` };
+  }
+  return { confirmar: false };
+}
+
+
+async function handler(request: Request): Promise<Response> {
+  if (!verificarBasicAuth(request)) {
+    return new Response(JSON.stringify({ ok: false, mensagem: "Não autorizado" }), {
+      status: 401,
+      headers: { "Content-Type": "application/json", "WWW-Authenticate": 'Basic realm="cloudmailin"' },
+    });
+  }
+
+  const payload = await extrairPayload(request);
+  if (!payload) {
+    return new Response(JSON.stringify({ ok: false, mensagem: "Payload inválido" }), {
+      status: 400, headers: { "Content-Type": "application/json" },
+    });
+  }
+
+  const { limparHtmlNewsletter, limparLinhasWhatsApp, parseFrom } = await import("../../../../../supabase/functions/_shared/ia-limpeza");
+  const { processarEmailComPipeline } = await import("../../../../../supabase/functions/_shared/pipeline-newsletter");
+  const { chamarIaExtrator } = await import("@/lib/ia-extractor.server");
+  const { chamarDeepSeek } = await import("@/lib/deepseek.server");
+  const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+  const { createHash } = await import("node:crypto");
+
+  const fromRaw = headerVal(payload.headers, "From", "from") ?? payload.envelope?.from ?? "";
+  const assunto = headerVal(payload.headers, "Subject", "subject") ?? "";
+  const messageId = (headerVal(payload.headers, "Message-ID", "Message-Id", "message-id", "message_id") ?? "").replace(/^<|>$/g, "").trim() || null;
+  const { nome: remetenteNome, email: remetenteEmail } = parseFrom(fromRaw);
+  const remetenteLabel = remetenteNome && remetenteEmail
+    ? `${remetenteNome} <${remetenteEmail}>`
+    : (remetenteNome ?? remetenteEmail ?? fromRaw ?? "desconhecido");
+
+  const corpoPeek = payload.html
+    ? limparHtmlNewsletter(payload.html)
+    : (payload.plain ? limparLinhasWhatsApp(payload.plain) : "");
+
+  const corpoHash = createHash("sha256")
+    .update((payload.html ?? "") + "|" + (payload.plain ?? ""))
+    .digest("hex");
+
+  // Idempotência
+  {
+    const rem = remetenteEmail || fromRaw || "";
+    let jaExisteId: string | null = null;
+    if (messageId) {
+      const { data } = await supabaseAdmin
+        .from("emails_recebidos").select("id").eq("message_id", messageId).maybeSingle();
+      jaExisteId = (data as { id?: string } | null)?.id ?? null;
+    }
+    if (!jaExisteId && rem) {
+      const { data } = await supabaseAdmin
+        .from("emails_recebidos").select("id").eq("remetente", rem).eq("corpo_hash", corpoHash).maybeSingle();
+      jaExisteId = (data as { id?: string } | null)?.id ?? null;
+    }
+    if (jaExisteId) {
+      // Reentrega: se o original ainda não foi processado com sucesso, esta é
+      // a segunda oportunidade — reprocessa em vez de descartar em silêncio.
+      const { data: estadoRow } = await supabaseAdmin
+        .from("emails_recebidos")
+        .select("processamento_estado, processamento_tentativas")
+        .eq("id", jaExisteId)
+        .maybeSingle();
+      const estado = (estadoRow as { processamento_estado?: string } | null)?.processamento_estado ?? "processado";
+      const tentativas = (estadoRow as { processamento_tentativas?: number } | null)?.processamento_tentativas ?? 0;
+
+      if (estado !== "processado" && tentativas < MAX_TENTATIVAS) {
+        const { reprocessarEmailGuardado } = await import("@/lib/reprocessar-email.server");
+        try {
+          const r = await reprocessarEmailGuardado(supabaseAdmin as never, jaExisteId, "sistema · reentrega", false);
+          return new Response(JSON.stringify({ ok: true, reprocessado: true, email_id: jaExisteId, inseridas: r.noticias_inseridas }),
+            { headers: { "Content-Type": "application/json" } });
+        } catch (e) {
+          await supabaseAdmin.from("emails_recebidos")
+            .update({
+              processamento_estado: "falhou",
+              processamento_erro: String((e as { message?: string })?.message ?? e).slice(0, 500),
+              processamento_tentativas: tentativas + 1,
+            } as never)
+            .eq("id", jaExisteId);
+          return new Response(JSON.stringify({ ok: false, email_id: jaExisteId }), { status: 500, headers: { "Content-Type": "application/json" } });
+        }
+      }
+
+      await supabaseAdmin.from("audit_log").insert({
+        quem: "sistema",
+        accao: "email_ignorado_duplicado",
+        detalhe: {
+          remetente: remetenteLabel, assunto,
+          motivo: messageId ? "message_id ou hash" : "hash do corpo",
+          email_original_id: jaExisteId,
+        },
+      });
+      return new Response(JSON.stringify({ ok: true, duplicado: true, email_id: jaExisteId }),
+        { headers: { "Content-Type": "application/json" } });
+    }
+  }
+
+  // Grava sempre a linha em emails_recebidos ANTES de classificar
+  let emailRecebidoId: string | null = null;
+  try {
+    const { data: linha, error } = await supabaseAdmin
+      .from("emails_recebidos")
+      .insert({
+        remetente: remetenteEmail || fromRaw || null,
+        remetente_nome: remetenteNome || null,
+        assunto: assunto || null,
+        corpo_html: payload.html ?? null,
+        corpo_texto: payload.plain ?? null,
+        classificacao: "outro",
+        notas_processadas: 0,
+        processamento_estado: "a_processar",
+        processamento_tentativas: 1,
+        message_id: messageId,
+        corpo_hash: corpoHash,
+      } as never)
+      .select("id")
+      .maybeSingle();
+    if (error) throw error;
+    emailRecebidoId = (linha as { id?: string } | null)?.id ?? null;
+  } catch (e) {
+    const msg = String((e as { message?: string })?.message ?? e);
+    if (msg.includes("duplicate key")) {
+      return new Response(JSON.stringify({ ok: true, duplicado: true }), { headers: { "Content-Type": "application/json" } });
+    }
+    await supabaseAdmin.from("audit_log").insert({
+      quem: "sistema", accao: "emails_recebidos_falha_gravar",
+      detalhe: { erro: msg, assunto, remetente: remetenteLabel },
+    });
+  }
+
+  async function marcarEstado(
+    estado: "a_processar" | "processado" | "falhou",
+    erro: string | null = null,
+  ) {
+    if (!emailRecebidoId) return;
+    try {
+      await supabaseAdmin.from("emails_recebidos")
+        .update({
+          processamento_estado: estado,
+          processamento_erro: erro,
+          processado_em: estado === "processado" ? new Date().toISOString() : null,
+        } as never)
+        .eq("id", emailRecebidoId);
+    } catch { /* noop */ }
+  }
+
+  async function actualizarClassificacao(classificacao: "confirmacao" | "newsletter" | "outro", notas: number) {
+    if (!emailRecebidoId) return;
+    try {
+      await supabaseAdmin.from("emails_recebidos")
+        .update({ classificacao, notas_processadas: notas } as never)
+        .eq("id", emailRecebidoId);
+    } catch { /* noop */ }
+  }
+
+  // Filtro anti-confirmação
+  const confirm = parecerConfirmacao(assunto, corpoPeek);
+  if (confirm.confirmar) {
+    await actualizarClassificacao("confirmacao", 0);
+    await marcarEstado("processado");
+    await supabaseAdmin.from("audit_log").insert({
+      quem: "sistema", accao: "email_ignorado_confirmacao",
+      detalhe: { remetente: remetenteLabel, assunto, motivo: confirm.motivo, tamanho_corpo: corpoPeek.length },
+    });
+    return new Response(JSON.stringify({ ok: true, ignorado: true, motivo: confirm.motivo, inseridas: 0 }),
+      { headers: { "Content-Type": "application/json" } });
+  }
+
+  if (!corpoPeek || corpoPeek.length < 40) {
+    await marcarEstado("processado");
+    await supabaseAdmin.from("audit_log").insert({
+      quem: "sistema", accao: `Email recebido de «${remetenteLabel}» — sem conteúdo útil`,
+      detalhe: { assunto, tamanho: corpoPeek.length },
+    });
+    return new Response(JSON.stringify({ ok: true, inseridas: 0, duplicadas: 0, mensagem: "Sem conteúdo útil" }),
+      { headers: { "Content-Type": "application/json" } });
+  }
+
+  // Modo manual (por omissão): o email fica guardado e entra na fila de
+  // entrada. Nada é enviado à IA até alguém carregar em «Processar».
+  {
+    const { modoManualActivo, enfileirar } = await import("@/lib/fila-curadoria.server");
+    if (emailRecebidoId && await modoManualActivo(supabaseAdmin as never)) {
+      await enfileirar(supabaseAdmin as never, [{
+        origem: "email",
+        email_recebido_id: emailRecebidoId,
+        fonte_nome: remetenteLabel,
+        titulo: assunto || `Email de ${remetenteLabel}`,
+        descricao: corpoPeek.slice(0, 500),
+        publicado_em: new Date().toISOString(),
+      }]);
+      await supabaseAdmin.from("emails_recebidos")
+        .update({ processamento_estado: "em_fila", processamento_erro: null } as never)
+        .eq("id", emailRecebidoId);
+      await supabaseAdmin.from("audit_log").insert({
+        quem: "sistema",
+        accao: `Email de «${remetenteLabel}» guardado na fila de entrada`,
+        detalhe: { assunto, email_recebido_id: emailRecebidoId, modo: "manual" },
+      });
+      return new Response(JSON.stringify({ ok: true, em_fila: true, email_id: emailRecebidoId }),
+        { headers: { "Content-Type": "application/json" } });
+    }
+  }
+
+
+  // Pipeline unificado
+  const chamarDeepSeekBruto = async (sistema: string, user: string): Promise<string | null> => {
+    try {
+      const r = await chamarDeepSeek(sistema, user, { responseJson: true });
+      return r.conteudo;
+    } catch {
+      return null;
+    }
+  };
+
+  // Rede de segurança: descrição que só repete o título é reescrita com o
+  // material do próprio email.
+  const { corrigirDescricaoRepetida } = await import("@/lib/extrair-noticia.server");
+  const { custoUsd } = await import("../../../../../supabase/functions/_shared/custos-ia");
+  const corrigirDescricao = async (args: { titulo: string; descricao: string; corpo?: string }) => {
+    const r = await corrigirDescricaoRepetida(args, async (u) => {
+      try {
+        await supabaseAdmin.from("ia_uso").insert({
+          modelo: u.modelo,
+          tokens_entrada_cache_hit: u.usage.cacheHit,
+          tokens_entrada_cache_miss: u.usage.cacheMiss,
+          tokens_saida: u.usage.saida,
+          custo_usd: custoUsd(u.modelo, u.usage.cacheHit, u.usage.cacheMiss, u.usage.saida),
+          origem: u.origem,
+          edicao_id: null,
+        } as never);
+      } catch { /* nunca bloqueia */ }
+    });
+    return r.descricao;
+  };
+
+  // Lê o artigo ligado em cada notícia do email: a descrição passa a ter
+  // material próprio em vez de reformular o título. Nunca trava o pipeline.
+  const { lerArtigo } = await import("@/lib/ler-artigo.server");
+  const lerCorpoArtigo = async (url: string) => (await lerArtigo(url)).corpo;
+
+
+  let resultado: Awaited<ReturnType<typeof processarEmailComPipeline>>;
+  try {
+    resultado = await processarEmailComPipeline(
+      supabaseAdmin as never,
+      {
+        html: payload.html ?? null,
+        plain: payload.plain ?? null,
+        assunto,
+        remetenteLabel,
+        remetenteEmail: remetenteEmail || null,
+        emailRecebidoId,
+      },
+      { chamarIaExtrator, chamarDeepSeek: chamarDeepSeekBruto, corrigirDescricao, lerCorpoArtigo },
+    );
+  } catch (e) {
+    // Nunca falhar em silêncio: o email fica marcado como falhado, com o
+    // motivo, e a rota de recuperação volta a tentar mais tarde.
+    const msg = String((e as { message?: string })?.message ?? e).slice(0, 500);
+    await marcarEstado("falhou", msg);
+    await supabaseAdmin.from("audit_log").insert({
+      quem: "sistema",
+      accao: "email_processamento_falhou",
+      detalhe: { email_recebido_id: emailRecebidoId, assunto, remetente: remetenteLabel, erro: msg },
+    });
+    return new Response(JSON.stringify({ ok: false, erro: msg }), {
+      status: 500, headers: { "Content-Type": "application/json" },
+    });
+  }
+
+  const totalConteudo = resultado.noticias_inseridas + resultado.ferramentas_inseridas;
+  await actualizarClassificacao(totalConteudo > 0 ? "newsletter" : "outro", resultado.noticias_inseridas);
+  await marcarEstado(resultado.detalhe.truncado_por_tempo ? "a_processar" : "processado");
+
+  await supabaseAdmin.from("audit_log").insert({
+    quem: "sistema",
+    accao: `Email recebido de «${remetenteLabel}» — ${resultado.noticias_inseridas} notícias · ${resultado.ferramentas_inseridas} ferramentas`,
+    detalhe: {
+      assunto,
+      formato: resultado.formato,
+      candidatos: resultado.candidatos,
+      duplicadas: resultado.duplicadas,
+      inseridas: resultado.noticias_inseridas,
+      ferramentas: resultado.ferramentas_inseridas,
+      usou_fallback: resultado.usou_fallback,
+      url_canonico: resultado.url_canonico,
+      erros: resultado.erros,
+    },
+  });
+
+  return new Response(JSON.stringify({
+    ok: true,
+    inseridas: resultado.noticias_inseridas,
+    ferramentas: resultado.ferramentas_inseridas,
+    duplicadas: resultado.duplicadas,
+    formato: resultado.formato,
+    usou_fallback: resultado.usou_fallback,
+  }), { headers: { "Content-Type": "application/json" } });
+}
+
+export const Route = createFileRoute("/api/public/hooks/email-newsletter")({
+  server: {
+    handlers: {
+      POST: async ({ request }) => handler(request),
+    },
+  },
+});

@@ -1,0 +1,101 @@
+
+-- ═══════════════════════════════════════════════════════════════
+-- Detecção de repetições em duas fases (pg_trgm + pgvector)
+-- ═══════════════════════════════════════════════════════════════
+
+-- Extensões
+CREATE EXTENSION IF NOT EXISTS pg_trgm;
+CREATE EXTENSION IF NOT EXISTS vector;
+
+-- ─── Colunas novas em noticias ───────────────────────────────────
+ALTER TABLE public.noticias
+  ADD COLUMN IF NOT EXISTS repeticao_de uuid REFERENCES public.noticias(id) ON DELETE SET NULL,
+  ADD COLUMN IF NOT EXISTS repeticao_score real,
+  ADD COLUMN IF NOT EXISTS repeticao_verificada_em timestamptz,
+  ADD COLUMN IF NOT EXISTS embedding halfvec(3072);
+
+-- Índice de trigramas no título (Fase 1)
+CREATE INDEX IF NOT EXISTS noticias_titulo_trgm_idx
+  ON public.noticias USING gin (titulo gin_trgm_ops);
+
+-- Sem índice HNSW no embedding: a Fase 2 compara apenas contra 1-3
+-- candidatos já identificados, nunca faz varredura da tabela.
+
+-- ─── RPC Fase 1 ──────────────────────────────────────────────────
+CREATE OR REPLACE FUNCTION public.encontrar_candidatos_repeticao(
+  _titulo text,
+  _categoria text,
+  _limiar real DEFAULT 0.30
+)
+RETURNS TABLE(
+  id uuid,
+  titulo text,
+  edicao_id uuid,
+  edicao_numero int,
+  created_at timestamptz,
+  score real
+)
+LANGUAGE sql
+STABLE
+SECURITY DEFINER
+SET search_path = public
+AS $$
+  SELECT
+    n.id,
+    n.titulo,
+    n.edicao_id,
+    e.numero AS edicao_numero,
+    n.created_at,
+    similarity(n.titulo, _titulo) AS score
+  FROM public.noticias n
+  LEFT JOIN public.edicoes e ON e.id = n.edicao_id
+  WHERE n.categoria = _categoria
+    AND n.estado = 'enviada'
+    AND n.created_at > now() - interval '8 weeks'
+    AND similarity(n.titulo, _titulo) > COALESCE(_limiar, 0.30)
+  ORDER BY score DESC
+  LIMIT 3;
+$$;
+
+-- Acesso: usada por service_role (Edge functions + server fns admin);
+-- authenticated pode chamar (SECURITY DEFINER protege a leitura).
+GRANT EXECUTE ON FUNCTION public.encontrar_candidatos_repeticao(text, text, real) TO authenticated, service_role;
+
+-- ─── RPC Fase 2 · cosseno contra candidatos ──────────────────────
+-- Recebe o embedding da nova notícia e um array de candidatos.
+-- Devolve o candidato mais próximo se a distância for < _limiar.
+CREATE OR REPLACE FUNCTION public.confirmar_repeticao_por_embedding(
+  _embedding halfvec(3072),
+  _candidato_ids uuid[],
+  _limiar real DEFAULT 0.18
+)
+RETURNS TABLE(
+  id uuid,
+  distancia real
+)
+LANGUAGE sql
+STABLE
+SECURITY DEFINER
+SET search_path = public
+AS $$
+  SELECT n.id, (n.embedding <=> _embedding)::real AS distancia
+  FROM public.noticias n
+  WHERE n.id = ANY(_candidato_ids)
+    AND n.embedding IS NOT NULL
+    AND (n.embedding <=> _embedding) < COALESCE(_limiar, 0.18)
+  ORDER BY distancia ASC
+  LIMIT 1;
+$$;
+
+GRANT EXECUTE ON FUNCTION public.confirmar_repeticao_por_embedding(halfvec, uuid[], real) TO authenticated, service_role;
+
+-- ─── ia_uso: aceita nova origem ──────────────────────────────────
+ALTER TABLE public.ia_uso DROP CONSTRAINT IF EXISTS ia_uso_origem_check;
+ALTER TABLE public.ia_uso ADD CONSTRAINT ia_uso_origem_check
+  CHECK (origem IN ('colagem_manual', 'curadoria_rss', 'embedding_deteccao_repeticao'));
+
+-- ─── Defaults em configuracoes ───────────────────────────────────
+INSERT INTO public.configuracoes (chave, valor) VALUES
+  ('repeticao_limiar_trgm', '0.30'),
+  ('repeticao_limiar_cosseno', '0.18')
+ON CONFLICT (chave) DO NOTHING;

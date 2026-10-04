@@ -1,0 +1,75 @@
+import { describe, expect, it } from "vitest";
+import { validarCarrossel, fonteHistoricaPermitida } from "../carrossel";
+import { verificarEdicaoFonte } from "../fonte.server";
+import { lerEnvelope } from "@/lib/newsletter-engine/revista/compose.server";
+import { FONTE_EXEMPLO, RASCUNHO_EXEMPLO } from "@/features/conteudos/exemplo";
+
+describe("fronteiras editoriais do carrossel", () => {
+  it("aceita uma proposta com referências reais", () => {
+    expect(validarCarrossel(RASCUNHO_EXEMPLO.carrossel, FONTE_EXEMPLO).slides).toHaveLength(6);
+  });
+  it("recusa referências inventadas e slides sem evidência", () => {
+    const proposta = structuredClone(RASCUNHO_EXEMPLO.carrossel);
+    proposta.slides[2].fontes = [999];
+    expect(() => validarCarrossel(proposta, FONTE_EXEMPLO)).toThrow("não existe");
+    proposta.slides[2].fontes = [];
+    expect(() => validarCarrossel(proposta, FONTE_EXEMPLO)).toThrow("referência");
+  });
+  it("não trunca silenciosamente uma resposta de IA demasiado longa", () => {
+    const proposta = structuredClone(RASCUNHO_EXEMPLO.carrossel);
+    proposta.slides[0].texto = "a".repeat(361);
+    expect(() => validarCarrossel(proposta, FONTE_EXEMPLO)).toThrow("360");
+    expect(() => validarCarrossel({ slides: [], legenda: "" }, FONTE_EXEMPLO)).toThrow();
+  });
+  it("exige aceitação explícita de fontes históricas", () => {
+    const historica = { ...FONTE_EXEMPLO, origem: "historico_actual" as const };
+    expect(() => fonteHistoricaPermitida(historica, false)).toThrow("Confirma");
+    expect(() => fonteHistoricaPermitida(historica, true)).not.toThrow();
+    expect(() => fonteHistoricaPermitida(FONTE_EXEMPLO, false)).not.toThrow();
+  });
+});
+
+describe("elegibilidade de edições para conteúdos derivados", () => {
+  const enviada = {
+    id: FONTE_EXEMPLO.edicaoId,
+    numero: 318,
+    estado: "enviada",
+    template_version: "revista",
+    snapshot_envio: { egoi: [{ lista_id: "real" }], egoi_falhas: [] },
+    revista_snapshot: {},
+  };
+  it("aceita um envio real fechado, recusa rascunhos, formato clássico e envio sem confirmação", () => {
+    expect(() => verificarEdicaoFonte(enviada)).not.toThrow();
+    expect(() => verificarEdicaoFonte({ ...enviada, estado: "rascunho" })).toThrow();
+    expect(() => verificarEdicaoFonte({ ...enviada, template_version: "classic" })).toThrow();
+    expect(() => verificarEdicaoFonte({ ...enviada, snapshot_envio: null })).toThrow();
+  });
+  it("não confunde fecho da edição com envio completo", () => {
+    expect(() =>
+      verificarEdicaoFonte({
+        ...enviada,
+        snapshot_envio: { egoi: [{}], egoi_falhas: [{ lista_id: "falhou" }] },
+      }),
+    ).toThrow("incompleto");
+  });
+});
+
+describe("fotografia integral da crónica", () => {
+  it("conserva o corpo ao ler uma fotografia preparada e mantém compatibilidade com fotografias antigas", () => {
+    const cronica = {
+      titulo: "Crónica enviada",
+      corpoHtml: "<p>Texto integral enviado.</p>",
+      url: "https://example.com/cronica",
+    };
+    const preparado = {
+      schema_version: 1,
+      estado: "preparado",
+      edicao: { edicao: { numero: 318 }, cronica: { titulo: cronica.titulo, url: cronica.url } },
+      cronica_integral: cronica,
+    };
+    expect(lerEnvelope(preparado)?.cronica_integral).toEqual(cronica);
+    const antigo = { ...preparado, cronica_integral: undefined };
+    expect(lerEnvelope(antigo)?.cronica_integral).toBeUndefined();
+    expect(lerEnvelope(antigo)?.estado).toBe("preparado");
+  });
+});

@@ -1,0 +1,33 @@
+import { createFileRoute } from "@tanstack/react-router";
+
+/**
+ * Tarefa diária: repõe as subscrições em pausa cujo prazo terminou e faz rodar
+ * o ciclo de quem escolheu receber só uma vez por mês.
+ */
+async function handler(request: Request): Promise<Response> {
+  const anonEsperada = process.env.SUPABASE_PUBLISHABLE_KEY ?? process.env.SUPABASE_ANON_KEY;
+  const apikey = request.headers.get("apikey") ?? request.headers.get("Apikey");
+  if (!anonEsperada || !apikey || apikey !== anonEsperada) {
+    return new Response(JSON.stringify({ ok: false, mensagem: "Não autorizado" }), {
+      status: 401, headers: { "Content-Type": "application/json" },
+    });
+  }
+
+  const { processarRetomas } = await import("@/lib/subscricao.server");
+  const r = await processarRetomas();
+
+  if (r.tratados > 0) {
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    await supabaseAdmin.from("audit_log").insert({
+      quem: "sistema",
+      accao: `Subscrições: ${r.tratados} retoma(s) processada(s)`,
+      detalhe: { tratados: r.tratados, falhas: r.falhas },
+    });
+  }
+
+  return new Response(JSON.stringify({ ok: true, ...r }), { headers: { "Content-Type": "application/json" } });
+}
+
+export const Route = createFileRoute("/api/public/hooks/retomar-subscricoes")({
+  server: { handlers: { POST: async ({ request }) => handler(request) } },
+});

@@ -1,0 +1,41 @@
+
+CREATE TABLE public.definicoes_ia (
+  id TEXT PRIMARY KEY DEFAULT 'default',
+  provider TEXT NOT NULL DEFAULT 'lovable' CHECK (provider IN ('lovable','deepseek')),
+  modelo TEXT NOT NULL DEFAULT 'google/gemini-2.5-flash',
+  estado TEXT NOT NULL DEFAULT 'configurada' CHECK (estado IN ('nao_configurada','configurada','erro')),
+  ultimo_teste_em TIMESTAMPTZ,
+  ultimo_erro TEXT,
+  actualizado_por UUID,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+  updated_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+  CONSTRAINT definicoes_ia_singleton CHECK (id = 'default')
+);
+
+GRANT SELECT ON public.definicoes_ia TO authenticated;
+GRANT ALL ON public.definicoes_ia TO service_role;
+
+ALTER TABLE public.definicoes_ia ENABLE ROW LEVEL SECURITY;
+
+CREATE POLICY "definicoes_ia_read_all_auth" ON public.definicoes_ia
+  FOR SELECT TO authenticated USING (true);
+
+CREATE TRIGGER trg_definicoes_ia_updated_at
+  BEFORE UPDATE ON public.definicoes_ia
+  FOR EACH ROW EXECUTE FUNCTION public.set_updated_at();
+
+INSERT INTO public.definicoes_ia (id, provider, modelo, estado)
+VALUES ('default', 'lovable', 'google/gemini-2.5-flash', 'configurada')
+ON CONFLICT (id) DO NOTHING;
+
+ALTER TABLE public.definicoes_ia REPLICA IDENTITY FULL;
+
+DO $$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_publication_tables
+    WHERE pubname='supabase_realtime' AND schemaname='public' AND tablename='definicoes_ia'
+  ) THEN
+    EXECUTE 'ALTER PUBLICATION supabase_realtime ADD TABLE public.definicoes_ia';
+  END IF;
+END $$;

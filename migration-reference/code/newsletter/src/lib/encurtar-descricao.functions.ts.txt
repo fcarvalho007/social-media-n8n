@@ -1,0 +1,149 @@
+// Encurta a descrição de uma notícia para caber em 2–3 linhas nos cartões
+// da newsletter, reescrevendo em pt-PT sem `…`. Usado à peça pelo botão
+// "✂️ Encurtar com IA" e em massa pela acção "Ajustar descrições".
+//
+// Fonte de IA: DeepSeek (única IA autorizada no projecto).
+
+import { createServerFn } from "@tanstack/react-start";
+import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
+import { ajustarDescricao } from "@/lib/ajustar-descricao";
+import { chamarDeepSeek, parseJsonTolerante, MODELO_DEEPSEEK_PADRAO } from "@/lib/deepseek.server";
+import { custoUsd } from "../../supabase/functions/_shared/custos-ia";
+import { sanitizarSaidaIA } from "@/lib/sanitizar-ia";
+import { validarDescricao, normalizarLexico, contarPalavras, MIN_PALAVRAS, MAX_PALAVRAS } from "@/lib/validar-descricao";
+
+interface EncurtarInput {
+  titulo: string;
+  descricao: string;
+  alvo?: number; // caracteres alvo, default 160
+}
+
+const PROMPT = `És editor da newsletter Digital Sprint (marketing, tecnologia e IA), em português de Portugal EUROPEU.
+
+Reescreve a descrição de uma notícia para caber em duas linhas dos cartões.
+
+REGRAS OBRIGATÓRIAS:
+- Extensão: entre 18 e 30 palavras (contagem por espaços). Nem menos, nem mais.
+- pt-PT europeu, tratamento por "tu" quando aplicável (nunca "você").
+- Léxico EUROPEU obrigatório: "funcionalidade" (nunca «recurso»), "subscritor" (nunca «assinante»), "utilizador" (nunca «usuário»), "ficheiro" (nunca «arquivo»), "ecrã" (nunca «tela»), "telemóvel" (nunca «celular»), "equipa" (nunca «time» quando se refere a grupo de trabalho).
+- Uma ou duas frases COMPLETAS. Nunca uses "..." nem cortes bruscos.
+- Preserva o facto essencial (o que aconteceu / o que muda).
+- Não repitas palavras-chave já presentes no título.
+- Sem emojis, sem CAPS, sem clickbait, sem juízo de valor.
+- Nunca comeces com prefixos rotulares tipo "Descrição:", "Resumo:", "Notícia:".
+- Devolve APENAS JSON válido: {"descricao": "..."}`;
+
+const PROMPT_ESTENDER = `${PROMPT}
+
+CORRECÇÃO IMPORTANTE: a versão anterior ficou CURTA (< 18 palavras). Reescreve com MAIS DETALHE factual, mantendo entre 18 e 30 palavras, sem inventar nada.`;
+
+async function chamarEncurtador(
+  prompt: string,
+  titulo: string,
+  descricaoOriginal: string,
+  alvo: number,
+): Promise<{ nova: string; usage: { cacheHit: number; cacheMiss: number; saida: number }; modelo: string }> {
+  const conteudo = `Título: ${titulo}\nDescrição actual (${descricaoOriginal.length} chars): ${descricaoOriginal}\nAlvo: 18–30 palavras (~${alvo} caracteres).`;
+  const r = await chamarDeepSeek(prompt, conteudo, {
+    modelo: MODELO_DEEPSEEK_PADRAO,
+    responseJson: true,
+  });
+  const parsed = parseJsonTolerante<{ descricao?: unknown }>(r.conteudo);
+  const bruto = typeof parsed?.descricao === "string" ? parsed.descricao : "";
+  const nova = normalizarLexico(sanitizarSaidaIA(bruto));
+  return { nova, usage: r.usage, modelo: r.modelo };
+}
+
+export const encurtarDescricao = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .validator((input: unknown): EncurtarInput => {
+    if (!input || typeof input !== "object") throw new Error("Entrada inválida");
+    const { titulo, descricao, alvo } = input as { titulo?: unknown; descricao?: unknown; alvo?: unknown };
+    if (typeof titulo !== "string" || !titulo.trim()) throw new Error("Título em falta");
+    if (typeof descricao !== "string") throw new Error("Descrição em falta");
+    return {
+      titulo: titulo.trim(),
+      descricao: descricao.trim(),
+      alvo: typeof alvo === "number" && alvo > 0 ? Math.min(220, Math.max(120, alvo)) : 160,
+    };
+  })
+  .handler(async ({ data }) => {
+    // Se já cabe na janela 18–30 palavras E respeita o limite de caracteres,
+    // evita gastar tokens.
+    const jaCabe = validarDescricao(data.descricao);
+    if (jaCabe.estado === "ok" && data.descricao.length <= 180) {
+      return { descricao: jaCabe.texto, alterada: jaCabe.texto !== data.descricao };
+    }
+
+    const registarUso = async (
+      usage: { cacheHit: number; cacheMiss: number; saida: number },
+      modelo: string,
+    ) => {
+      try {
+        const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+        await supabaseAdmin.from("ia_uso").insert({
+          modelo,
+          tokens_entrada_cache_hit: usage.cacheHit,
+          tokens_entrada_cache_miss: usage.cacheMiss,
+          tokens_saida: usage.saida,
+          custo_usd: custoUsd(modelo, usage.cacheHit, usage.cacheMiss, usage.saida),
+          origem: "encurtar_descricao",
+          edicao_id: null,
+        });
+      } catch (e) {
+        console.error("[encurtar-descricao] falha a registar ia_uso:", (e as Error).message);
+      }
+    };
+
+    // 1ª chamada
+    const r1 = await chamarEncurtador(PROMPT, data.titulo, data.descricao, data.alvo ?? 160);
+    await registarUso(r1.usage, r1.modelo);
+    if (!r1.nova) throw new Error("A IA não devolveu uma descrição utilizável.");
+
+    let v = validarDescricao(r1.nova);
+    let final = v.texto;
+    let regenerada = false;
+
+    // Determinístico: se longa, tentamos aparar mecanicamente antes de re-chamar IA.
+    if (v.estado === "longa" && v.aparada) {
+      final = v.aparada;
+      v = validarDescricao(final);
+    }
+
+    // Se ainda está fora do intervalo, pede 2ª geração
+    if (v.estado === "curta" || v.estado === "longa") {
+      const promptRefinado = v.estado === "curta" ? PROMPT_ESTENDER : PROMPT;
+      const r2 = await chamarEncurtador(promptRefinado, data.titulo, data.descricao, data.alvo ?? 160);
+      await registarUso(r2.usage, r2.modelo);
+      regenerada = true;
+      if (r2.nova) {
+        const v2 = validarDescricao(r2.nova);
+        // aceita a 2ª mesmo que ainda esteja fora — é o melhor esforço;
+        // aparar se longa, aceitar como está se curta.
+        if (v2.estado === "ok") final = v2.texto;
+        else if (v2.estado === "longa" && v2.aparada) final = v2.aparada;
+        else final = v2.texto || final;
+      }
+    }
+
+    if (regenerada) {
+      try {
+        const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+        await supabaseAdmin.from("audit_log").insert({
+          quem: "sistema · encurtador",
+          accao: "descricao_regenerada",
+          detalhe: {
+            titulo: data.titulo,
+            palavras_1a: contarPalavras(r1.nova),
+            palavras_final: contarPalavras(final),
+            intervalo: `${MIN_PALAVRAS}-${MAX_PALAVRAS}`,
+          },
+        });
+      } catch { /* nunca bloqueia */ }
+    }
+
+    // Safety net: corta ainda em nível de caracteres se explodir.
+    const finalAjustado = ajustarDescricao(final, { max: 210 });
+    return { descricao: finalAjustado, alterada: finalAjustado !== data.descricao };
+  });
+

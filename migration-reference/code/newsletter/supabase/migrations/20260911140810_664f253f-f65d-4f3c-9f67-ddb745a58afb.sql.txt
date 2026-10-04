@@ -1,0 +1,2 @@
+ALTER TABLE public.revista_edicao ALTER COLUMN cronica_imagem_posicao SET DEFAULT -1;
+UPDATE public.revista_edicao SET cronica_imagem_posicao = -1 WHERE cronica_imagem_posicao = 0 AND coalesce(cronica_imagem_url, '') = '';

@@ -1,0 +1,10 @@
+UPDATE public.edicoes
+SET bloco_consultoria = jsonb_build_object(
+  'titulo', 'Antes da tecnologia, o processo',
+  'subtitulo', 'A maioria das empresas não precisa de mais ferramentas — precisa de perceber onde perde tempo e dinheiro. Diagnóstico de processos e marketing digital primeiro; a tecnologia (com ou sem IA) só entra onde compensa.',
+  'texto_botao', 'Marcar 15 minutos',
+  'url_botao', COALESCE(NULLIF(bloco_consultoria->>'url_botao',''), 'https://lunacal.ai/digitalfc/chamada-consultoria-15m')
+)
+WHERE estado = 'rascunho'
+  AND bloco_consultoria IS NOT NULL
+  AND bloco_consultoria->>'titulo' ILIKE '%implementar IA%';

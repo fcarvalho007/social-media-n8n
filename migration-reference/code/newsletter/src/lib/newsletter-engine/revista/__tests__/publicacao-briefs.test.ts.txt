@@ -1,0 +1,120 @@
+// Fase 3A.1 — semântica de publicação: web antes do email, indexação depois.
+
+import { describe, expect, it } from "vitest";
+
+import { avaliarPublicacao, briefIndexavel } from "../regras-publicacao";
+import { briefsDoSnapshot } from "../publicacao.server";
+import type { EdicaoRevista } from "../compose.server";
+
+const base = { estado: "aprovada", snapshotEstado: "preparado", temSnapshot: true, destinoWeb: "" };
+
+describe("regra de publicação da edição", () => {
+  it("D — edição preparada e publicada responde antes do email, sem ser «enviada»", () => {
+    expect(avaliarPublicacao({ ...base, destinoWeb: "publica" })).toEqual({
+      publica: true,
+      enviada: false,
+    });
+  });
+
+  it("edição apenas preparada não é servida ao público", () => {
+    expect(avaliarPublicacao({ ...base, destinoWeb: "preparada" }).publica).toBe(false);
+  });
+
+  it("E — cancelamento: destino de volta a «preparada» deixa de servir a página", () => {
+    const depoisDoCancelamento = avaliarPublicacao({ ...base, destinoWeb: "preparada" });
+    expect(depoisDoCancelamento).toEqual({ publica: false, enviada: false });
+  });
+
+  it("depois do envio a edição é pública e enviada", () => {
+    expect(
+      avaliarPublicacao({ estado: "enviada", snapshotEstado: "bloqueado", temSnapshot: true, destinoWeb: "publica" }),
+    ).toEqual({ publica: true, enviada: true });
+  });
+
+  it("compatibilidade: edição antiga sem destino escrito continua pública", () => {
+    expect(
+      avaliarPublicacao({ estado: "enviada", snapshotEstado: null, temSnapshot: true, destinoWeb: "" }),
+    ).toEqual({ publica: true, enviada: true });
+  });
+
+  it("sem fotografia não há página pública", () => {
+    expect(avaliarPublicacao({ ...base, temSnapshot: false, destinoWeb: "publica" }).publica).toBe(false);
+  });
+});
+
+describe("indexação dos Briefs", () => {
+  it("A — Destaque publicado antes do email fica fora dos motores de busca", () => {
+    expect(briefIndexavel({ tipo: "destaque", indexavel: true, enviada: false })).toBe(false);
+  });
+
+  it("B — Destaque depois do envio passa a indexável", () => {
+    expect(briefIndexavel({ tipo: "destaque", indexavel: true, enviada: true })).toBe(true);
+  });
+
+  it("C — Radar continua sempre fora dos motores de busca", () => {
+    expect(briefIndexavel({ tipo: "radar", indexavel: true, enviada: true })).toBe(false);
+  });
+
+  it("G — pré-visualização interna nunca é indexável", () => {
+    expect(briefIndexavel({ tipo: "destaque", indexavel: true, enviada: true, preview: true })).toBe(false);
+  });
+
+  it("um Destaque marcado como não indexável mantém-se fora", () => {
+    expect(briefIndexavel({ tipo: "destaque", indexavel: false, enviada: true })).toBe(false);
+  });
+});
+
+function edicaoComBriefs(): EdicaoRevista {
+  return {
+    destaques: [
+      {
+        itemId: "i1",
+        noticiaId: "n1",
+        titulo: "Título apresentado na edição",
+        brief: {
+          briefId: "b1",
+          versao: 2,
+          tipo: "destaque",
+          slug: "um-destaque",
+          url: "https://edicoes.digitalsprint.pt/brief/um-destaque",
+          tituloApresentado: "Título apresentado na edição",
+          fonteUrl: "https://exemplo.pt/noticia",
+        },
+      },
+    ],
+    radar: [
+      { itemId: "i2", noticiaId: "n2", titulo: "Peça de radar" },
+      {
+        itemId: "i3",
+        noticiaId: "n3",
+        titulo: "Radar com Brief",
+        brief: {
+          briefId: "b3",
+          versao: 1,
+          tipo: "radar",
+          slug: "um-radar",
+          url: "https://edicoes.digitalsprint.pt/brief/um-radar",
+          tituloApresentado: "Radar com Brief",
+          fonteUrl: "https://exemplo.pt/outra",
+        },
+      },
+    ],
+  } as unknown as EdicaoRevista;
+}
+
+describe("composição histórica da edição", () => {
+  it("H — a edição enviada usa só o que ficou congelado na fotografia", () => {
+    const mapa = briefsDoSnapshot(edicaoComBriefs());
+    expect(mapa).toEqual({
+      n1: { slug: "um-destaque", tipo: "destaque" },
+      n3: { slug: "um-radar", tipo: "radar" },
+    });
+    // Uma associação criada depois do envio não existe na fotografia.
+    expect(mapa["n2"]).toBeUndefined();
+  });
+
+  it("I — fotografia antiga sem bloco de Briefs continua compatível", () => {
+    const antiga = { destaques: [{ itemId: "i1", noticiaId: "n1", titulo: "Antiga" }], radar: [] };
+    expect(briefsDoSnapshot(antiga as unknown as EdicaoRevista)).toEqual({});
+  });
+});

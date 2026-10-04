@@ -1,0 +1,14 @@
+ALTER TABLE public.briefs
+  ADD COLUMN IF NOT EXISTS factos jsonb NOT NULL DEFAULT '[]'::jsonb,
+  ADD COLUMN IF NOT EXISTS contexto jsonb NOT NULL DEFAULT '[]'::jsonb,
+  ADD COLUMN IF NOT EXISTS incertezas jsonb NOT NULL DEFAULT '[]'::jsonb,
+  ADD COLUMN IF NOT EXISTS pull_quote_sugerida text NOT NULL DEFAULT '';
+
+ALTER TABLE public.ia_uso
+  ADD COLUMN IF NOT EXISTS brief_id uuid REFERENCES public.briefs(id) ON DELETE SET NULL,
+  ADD COLUMN IF NOT EXISTS operacao text,
+  ADD COLUMN IF NOT EXISTS duracao_ms integer,
+  ADD COLUMN IF NOT EXISTS sucesso boolean NOT NULL DEFAULT true,
+  ADD COLUMN IF NOT EXISTS erro text;
+
+CREATE INDEX IF NOT EXISTS ia_uso_brief_id_idx ON public.ia_uso (brief_id);

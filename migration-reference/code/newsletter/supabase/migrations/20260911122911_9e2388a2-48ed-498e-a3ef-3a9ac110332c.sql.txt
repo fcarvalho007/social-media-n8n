@@ -1,0 +1,26 @@
+ALTER TABLE public.revista_edicao
+  ADD COLUMN IF NOT EXISTS livro_activo boolean NOT NULL DEFAULT false,
+  ADD COLUMN IF NOT EXISTS livro_etiqueta text NOT NULL DEFAULT 'Para aprofundar · Livro',
+  ADD COLUMN IF NOT EXISTS livro_titulo text NOT NULL DEFAULT '',
+  ADD COLUMN IF NOT EXISTS livro_texto text NOT NULL DEFAULT '',
+  ADD COLUMN IF NOT EXISTS livro_cta text NOT NULL DEFAULT 'Conhecer o livro',
+  ADD COLUMN IF NOT EXISTS livro_url text NOT NULL DEFAULT '',
+  ADD COLUMN IF NOT EXISTS servicos_activo boolean NOT NULL DEFAULT false,
+  ADD COLUMN IF NOT EXISTS servicos_titulo text NOT NULL DEFAULT 'Como te posso ajudar',
+  ADD COLUMN IF NOT EXISTS servicos_intro text NOT NULL DEFAULT '',
+  ADD COLUMN IF NOT EXISTS servicos_cta text NOT NULL DEFAULT 'Pedir uma auditoria digital',
+  ADD COLUMN IF NOT EXISTS servicos_url text NOT NULL DEFAULT '',
+  ADD COLUMN IF NOT EXISTS servicos_consultoria_texto text NOT NULL DEFAULT '',
+  ADD COLUMN IF NOT EXISTS servicos_consultoria_cta text NOT NULL DEFAULT 'Conhecer a consultoria',
+  ADD COLUMN IF NOT EXISTS servicos_consultoria_url text NOT NULL DEFAULT '',
+  ADD COLUMN IF NOT EXISTS servicos_cursos_texto text NOT NULL DEFAULT '',
+  ADD COLUMN IF NOT EXISTS servicos_cursos_cta text NOT NULL DEFAULT 'Explorar cursos e formação',
+  ADD COLUMN IF NOT EXISTS servicos_cursos_url text NOT NULL DEFAULT '';
+
+ALTER TABLE public.revista_edicao
+  DROP COLUMN IF EXISTS consultoria_activo,
+  DROP COLUMN IF EXISTS consultoria_etiqueta,
+  DROP COLUMN IF EXISTS consultoria_titulo,
+  DROP COLUMN IF EXISTS consultoria_texto,
+  DROP COLUMN IF EXISTS consultoria_url,
+  DROP COLUMN IF EXISTS consultoria_cta;

@@ -1,0 +1,299 @@
+// Cartão da fila de entrada.
+//
+// A recolha automática deixa de gastar IA: guarda tudo aqui. Este cartão diz
+// quantos itens estão à espera e permite processar um lote (10/20/30/50),
+// dos mais recentes para os mais antigos.
+
+import { useEffect, useState } from "react";
+import { useMutation, useMutationState, useQuery, useQueryClient } from "@tanstack/react-query";
+import { useServerFn } from "@tanstack/react-start";
+import { Inbox, Loader2, Sparkles, AlertTriangle, RotateCcw, Mail, Rss, CheckCircle2 } from "lucide-react";
+
+import {
+  contarFilaCuradoria, limparFilaAntigaCuradoria, processarFilaCuradoria, retomarFalhadosCuradoria,
+} from "@/lib/fila-curadoria.functions";
+
+const T = {
+  card: "#FFFFFF", shell: "#F7F8FA", line: "#E4E7EC",
+  ink: "#101828", muted: "#667085", faint: "#98A2B3",
+  primary: "#6366F1", warn: "#B54708", warnBg: "#FFFAEB", ok: "#12B76A",
+};
+
+const LOTES = [10, 20, 30, 50] as const;
+
+export type ResultadoProcessamentoFila = {
+  ok: boolean; bloqueado?: boolean; processados: number; noticias: number;
+  ferramentas: number; descartados: number; falhados: number; restantes: number;
+};
+
+type PedidoProcessamento = { limite: number };
+
+const CHAVE_PROCESSAMENTO = ["processar-fila-curadoria"] as const;
+
+function useUltimoProcessamento() {
+  const mutacoes = useMutationState({
+    filters: { mutationKey: CHAVE_PROCESSAMENTO },
+    select: (mutation) => ({
+      estado: mutation.state.status,
+      dados: mutation.state.data as ResultadoProcessamentoFila | undefined,
+      erro: mutation.state.error,
+      pedido: mutation.state.variables as PedidoProcessamento | undefined,
+      iniciadoEm: mutation.state.submittedAt,
+    }),
+  });
+  return [...mutacoes].sort((a, b) => b.iniciadoEm - a.iniciadoEm)[0] ?? null;
+}
+
+export function FilaEntrada({ compacto = false }: { compacto?: boolean }) {
+  const qc = useQueryClient();
+  const contar = useServerFn(contarFilaCuradoria);
+  const processar = useServerFn(processarFilaCuradoria);
+  const retomar = useServerFn(retomarFalhadosCuradoria);
+  const limparAntigas = useServerFn(limparFilaAntigaCuradoria);
+
+  const [lote, setLote] = useState<number>(20);
+  const [confirmarLimpeza, setConfirmarLimpeza] = useState(false);
+  const ultimoProcessamento = useUltimoProcessamento();
+
+  const q = useQuery({
+    queryKey: ["fila-curadoria"],
+    queryFn: () => contar({}),
+    staleTime: 15_000,
+    refetchInterval: 60_000,
+  });
+
+  const mProcessar = useMutation({
+    mutationKey: CHAVE_PROCESSAMENTO,
+    mutationFn: (pedido: PedidoProcessamento) => processar({ data: pedido }),
+    onSuccess: (r) => {
+      void qc.invalidateQueries({ queryKey: ["fila-curadoria"] });
+      void qc.invalidateQueries({ queryKey: ["noticias"] });
+      void qc.invalidateQueries({ queryKey: ["pendentes"] });
+    },
+  });
+
+  const mRetomar = useMutation({
+    mutationFn: () => retomar({}),
+    onSuccess: () => void qc.invalidateQueries({ queryKey: ["fila-curadoria"] }),
+  });
+
+  const mLimpar = useMutation({
+    mutationFn: () => limparAntigas({ data: {} }),
+    onSuccess: () => {
+      setConfirmarLimpeza(false);
+      void qc.invalidateQueries({ queryKey: ["fila-curadoria"] });
+    },
+  });
+
+  const dados = q.data;
+  const total = dados?.total ?? 0;
+  const falhados = dados?.falhados ?? 0;
+  const antigas = dados?.antigas ?? 0;
+  const manual = dados?.modo_manual ?? true;
+  const aTrabalhar = ultimoProcessamento?.estado === "pending";
+
+  if (!manual && total === 0) return null;
+
+  return (
+    <section className="rounded-[16px] p-4" style={{ background: T.card, border: `1px solid ${T.line}` }}>
+      <header className="flex items-start gap-3">
+        <span className="grid place-items-center h-8 w-8 rounded-xl shrink-0"
+          style={{ background: "#6366F11F", color: T.primary }}>
+          <Inbox size={15} />
+        </span>
+        <div className="min-w-0 flex-1">
+          <h3 className="text-[11.5px] font-bold uppercase tracking-[0.08em]" style={{ color: T.muted }}>
+            Fila de entrada
+          </h3>
+          <p className="text-[13px] mt-1" style={{ color: T.ink }}>
+            {total === 0
+              ? "Nada à espera. A recolha guarda aqui o que for chegando."
+              : <><strong>{total}</strong> {total === 1 ? "item à espera" : "itens à espera"} de interpretação</>}
+          </p>
+          {total > 0 && (
+            <p className="text-[12px] mt-1 flex flex-wrap items-center gap-x-3 gap-y-1" style={{ color: T.muted }}>
+              <span className="inline-flex items-center gap-1"><Rss size={11} /> {dados?.rss ?? 0} de fontes</span>
+              <span className="inline-flex items-center gap-1"><Mail size={11} /> {dados?.email ?? 0} de emails</span>
+            </p>
+          )}
+        </div>
+      </header>
+
+      {antigas > 0 && !confirmarLimpeza && (
+        <div className="mt-3 px-3 py-2 rounded-lg text-[12.5px] flex items-center justify-between gap-2"
+          style={{ background: T.warnBg, color: T.warn }}>
+          <span className="inline-flex items-center gap-1.5">
+            <AlertTriangle size={13} />
+            {antigas} {antigas === 1 ? "item tem" : "itens têm"} mais de 20 dias
+          </span>
+          <button type="button" onClick={() => setConfirmarLimpeza(true)} disabled={aTrabalhar}
+            className="inline-flex items-center gap-1 text-[11.5px] font-bold px-2 py-1 rounded-md disabled:opacity-50"
+            style={{ border: `1px solid ${T.warn}33`, background: "#fff", color: T.warn }}>
+            Limpar antigas
+          </button>
+        </div>
+      )}
+
+      {confirmarLimpeza && (
+        <div className="mt-3 px-3 py-2.5 rounded-lg text-[12.5px]"
+          style={{ background: T.warnBg, color: T.warn, border: `1px solid ${T.warn}33` }}>
+          <p>
+            Apagar <strong>{antigas}</strong> {antigas === 1 ? "item" : "itens"} com mais de 20 dias?
+            Esta ação não pode ser anulada. Estes itens nunca chegaram a ser interpretados.
+          </p>
+          <div className="mt-2 flex items-center gap-2">
+            <button type="button" onClick={() => mLimpar.mutate()} disabled={mLimpar.isPending}
+              className="inline-flex items-center gap-1 text-[11.5px] font-bold px-2.5 py-1.5 rounded-md text-white disabled:opacity-60"
+              style={{ background: T.warn }}>
+              {mLimpar.isPending && <Loader2 size={11} className="animate-spin" />}
+              Apagar {antigas}
+            </button>
+            <button type="button" onClick={() => setConfirmarLimpeza(false)} disabled={mLimpar.isPending}
+              className="text-[11.5px] font-semibold px-2.5 py-1.5 rounded-md disabled:opacity-50"
+              style={{ border: `1px solid ${T.warn}33`, background: "#fff", color: T.warn }}>
+              Cancelar
+            </button>
+          </div>
+          {mLimpar.isError && (
+            <p className="mt-2" style={{ color: "#B42318" }}>
+              Não foi possível limpar: {(mLimpar.error as Error).message}
+            </p>
+          )}
+        </div>
+      )}
+
+      {falhados > 0 && (
+        <div className="mt-3 px-3 py-2 rounded-lg text-[12.5px] flex items-center justify-between gap-2"
+          style={{ background: T.warnBg, color: T.warn }}>
+          <span className="inline-flex items-center gap-1.5">
+            <AlertTriangle size={13} />
+            {falhados} {falhados === 1 ? "item falhou" : "itens falharam"} ao ser interpretados
+          </span>
+          <button type="button" onClick={() => mRetomar.mutate()} disabled={mRetomar.isPending}
+            className="inline-flex items-center gap-1 text-[11.5px] font-bold px-2 py-1 rounded-md disabled:opacity-50"
+            style={{ border: `1px solid ${T.warn}33`, background: "#fff", color: T.warn }}>
+            {mRetomar.isPending ? <Loader2 size={11} className="animate-spin" /> : <RotateCcw size={11} />}
+            Tentar de novo
+          </button>
+        </div>
+      )}
+
+      {total > 0 && (
+        <div className="mt-3 flex flex-wrap items-center gap-2">
+          <span className="text-[12px]" style={{ color: T.muted }}>Processar</span>
+          <div className="inline-flex rounded-lg p-0.5" style={{ background: T.shell, border: `1px solid ${T.line}` }}>
+            {LOTES.map((n) => (
+              <button key={n} type="button" onClick={() => setLote(n)} disabled={aTrabalhar}
+                className="text-xs font-semibold px-2.5 py-1.5 rounded-md transition disabled:opacity-50"
+                style={{ background: lote === n ? T.card : "transparent", color: lote === n ? T.ink : T.muted }}>
+                {n}
+              </button>
+            ))}
+          </div>
+          <span className="text-[12px]" style={{ color: T.muted }}>
+            {compacto ? "mais recentes" : "dos mais recentes para os mais antigos"}
+          </span>
+          <button type="button" onClick={() => mProcessar.mutate({ limite: lote })} disabled={aTrabalhar}
+            className="ml-auto inline-flex items-center gap-1.5 text-xs font-bold px-3 py-2 rounded-lg text-white disabled:opacity-60"
+            style={{ background: T.primary }}>
+            {aTrabalhar ? <Loader2 size={13} className="animate-spin" /> : <Sparkles size={13} />}
+            {aTrabalhar ? "A interpretar…" : `Processar ${Math.min(lote, total)}`}
+          </button>
+        </div>
+      )}
+
+      {ultimoProcessamento?.estado === "error" && (
+        <p className="mt-2 text-[12.5px]" style={{ color: "#B42318" }}>
+          Não foi possível processar: {(ultimoProcessamento.erro as Error).message}
+        </p>
+      )}
+
+      {q.isLoading && (
+        <p className="mt-2 text-[12px] inline-flex items-center gap-1.5" style={{ color: T.faint }}>
+          <Loader2 size={11} className="animate-spin" /> A contar a fila…
+        </p>
+      )}
+    </section>
+  );
+}
+
+/** Acompanha o lote mesmo depois de sair da fase «Curar». */
+export function AcompanhamentoFila() {
+  const qc = useQueryClient();
+  const retomar = useServerFn(retomarFalhadosCuradoria);
+  const ultimo = useUltimoProcessamento();
+  const mRetomar = useMutation({
+    mutationFn: () => retomar({}),
+    onSuccess: () => void qc.invalidateQueries({ queryKey: ["fila-curadoria"] }),
+  });
+
+  useEffect(() => {
+    if (ultimo?.estado !== "success") return;
+    void qc.invalidateQueries({ queryKey: ["fila-curadoria"] });
+    void qc.invalidateQueries({ queryKey: ["noticias"] });
+    void qc.invalidateQueries({ queryKey: ["pendentes"] });
+  }, [qc, ultimo?.estado, ultimo?.iniciadoEm]);
+
+  if (!ultimo) return null;
+  const limite = ultimo.pedido?.limite ?? 0;
+
+  if (ultimo.estado === "pending") {
+    return (
+      <div className="flex flex-wrap items-center gap-x-3 gap-y-1 rounded-xl border border-primary/25 bg-primary/10 px-4 py-3 text-[13px] text-foreground" role="status">
+        <Loader2 size={15} className="animate-spin text-primary" />
+        <strong className="font-semibold">A processar as {limite} entradas mais recentes…</strong>
+        <span className="text-muted-foreground">Podes continuar a trabalhar em «Compor».</span>
+      </div>
+    );
+  }
+
+  if (ultimo.estado === "error") {
+    return (
+      <div className="flex flex-wrap items-center gap-2 rounded-xl border border-destructive/25 bg-destructive/10 px-4 py-3 text-[13px] text-foreground" role="alert">
+        <AlertTriangle size={15} className="text-destructive" />
+        <strong className="font-semibold">O processamento das {limite} entradas foi interrompido.</strong>
+        <span className="text-muted-foreground">Volta a «Curar» para tentar novamente.</span>
+      </div>
+    );
+  }
+
+  const resultado = ultimo.dados;
+  if (!resultado) return null;
+  if (resultado.bloqueado) {
+    return (
+      <div className="flex items-center gap-2 rounded-xl border border-estado-falta-borda bg-estado-falta-suave px-4 py-3 text-[13px] text-estado-falta" role="status">
+        <AlertTriangle size={15} /> Já existe um lote em processamento.
+      </div>
+    );
+  }
+
+  return (
+    <div className="flex flex-wrap items-center gap-x-2 gap-y-2 rounded-xl border border-estado-pronto-borda bg-estado-pronto-suave px-4 py-3 text-[13px] text-foreground" role="status">
+      <CheckCircle2 size={15} className="text-estado-pronto" />
+      <strong className="font-semibold">{resultado.processados} entradas processadas</strong>
+      <span className="text-muted-foreground">
+        · {resultado.noticias} {resultado.noticias === 1 ? "notícia criada" : "notícias criadas"}
+        {resultado.ferramentas > 0 && ` · ${resultado.ferramentas} ferramentas`}
+        {resultado.descartados > 0 && ` · ${resultado.descartados} descartadas`}
+        {resultado.falhados > 0 && ` · ${resultado.falhados} falharam`}
+        {` · ${resultado.restantes} ainda na fila`}
+      </span>
+      {resultado.noticias > resultado.processados && (
+        <span className="basis-full pl-[23px] text-[12px] text-muted-foreground">
+          Uma entrada de email pode conter várias notícias.
+        </span>
+      )}
+      {resultado.falhados > 0 && (
+        <button
+          type="button"
+          onClick={() => mRetomar.mutate()}
+          disabled={mRetomar.isPending}
+          className="ml-auto inline-flex min-h-9 items-center gap-1.5 rounded-lg border border-estado-falta-borda bg-card px-3 py-1.5 text-[12px] font-semibold text-estado-falta disabled:opacity-50"
+        >
+          {mRetomar.isPending ? <Loader2 size={12} className="animate-spin" /> : <RotateCcw size={12} />}
+          Tentar de novo
+        </button>
+      )}
+    </div>
+  );
+}

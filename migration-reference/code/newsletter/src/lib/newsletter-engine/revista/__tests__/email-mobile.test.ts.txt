@@ -1,0 +1,77 @@
+import { describe, expect, it } from "vitest";
+
+import type { EdicaoRevista } from "../compose.server";
+import { montarHtmlRevista } from "../render-email.server";
+import { montarHtmlRevistaWeb } from "../render-web.server";
+
+function edicaoMobile(): EdicaoRevista {
+  return {
+    edicao: { id: "mobile", numero: 318, assunto: "Teste móvel", data_envio_prevista: "2026-10-02", wordpress_post_url: null },
+    preheader: "Pré-visualização móvel",
+    promocao: null,
+    cronica: { titulo: "Uma crónica com título extenso", subtitulo: "", lede: "", excerto: "Texto da crónica.", url: "https://example.com/cronica" },
+    momento: null,
+    pullQuote: "",
+    momentoPosicao: 0,
+    pullQuotePosicao: 0,
+    ledePosicao: 0,
+    imagem: {
+      url: "https://example.com/imagem.jpg",
+      alt: "Imagem da crónica",
+      credito: "",
+      creditoUrl: "",
+      fonte: "",
+      recortada: true,
+    },
+    imagemPosicao: 0,
+    destaques: [],
+    radar: [],
+    recomendacao: null,
+    ferramentas: [
+      { nome: "Ferramenta um", descricao: "Descrição", etiqueta: "Produtividade", url: "https://example.com/um", ctaRotulo: "Abrir ferramenta", cor: "laranja" },
+      { nome: "Ferramenta dois", descricao: "Descrição", etiqueta: "Análise", url: "https://example.com/dois", ctaRotulo: "Experimentar ferramenta", cor: "verde" },
+    ],
+    podcast: null,
+    livro: null,
+    servicos: null,
+    atualidades: [],
+    urlPagina: "https://edicoes.digitalsprint.pt/318",
+    problemas: [],
+  };
+}
+
+describe("email Revista em telemóvel", () => {
+  const html = montarHtmlRevista(edicaoMobile());
+
+  it("empilha inequivocamente as ferramentas até 480 px", () => {
+    expect(html).toContain(".tool-col{display:block!important;width:100%!important;max-width:100%!important}");
+    expect(html).toContain(".tool-gap{display:block!important;width:100%!important;height:16px!important}");
+  });
+
+  it("permite que botões longos quebrem linha sem ultrapassar o ecrã", () => {
+    expect(html).toContain("white-space:normal;overflow-wrap:anywhere");
+    expect(html).toContain("white-space:normal!important");
+  });
+
+  it("mantém a imagem editorial fluida e com dimensões de origem", () => {
+    expect(html).toContain('width="556" height="200"');
+    expect(html).toContain("img{max-width:100%;height:auto}");
+  });
+
+  it("inclui os metadados móveis essenciais do email", () => {
+    expect(html).toContain('<meta name="viewport" content="width=device-width, initial-scale=1">');
+    expect(html).toContain('<meta name="x-apple-disable-message-reformatting">');
+    expect(html).toContain('<meta name="format-detection" content="telephone=no, date=no, address=no, email=no">');
+  });
+
+  it("respeita as cores editoriais escolhidas para cada ferramenta", () => {
+    expect(html).toContain("border-top:4px solid #D97706");
+    expect(html).toContain("background:#FFFBEB");
+    expect(html).toContain("border-top:4px solid #059669");
+    expect(html).toContain("background:#ECFDF5");
+
+    const web = montarHtmlRevistaWeb(edicaoMobile()).html;
+    expect(web).toContain("border-top:4px solid #D97706");
+    expect(web).toContain("border-top:4px solid #059669");
+  });
+});

@@ -1,0 +1,119 @@
+import { describe, expect, it } from "vitest";
+
+import { derivarSlug, slugUnico, caminhoBrief } from "../slug";
+import { calcularFingerprint, urlFonteCanonico, tituloCanonico } from "../fingerprint";
+import { transicaoPermitida, garantirTransicao, prontoParaPublicar } from "../estados";
+import { LIMITES_BRIEF_PADRAO } from "../tipos";
+
+describe("slug", () => {
+  it("deriva do título editorial, sem acentos nem palavras vazias", () => {
+    expect(derivarSlug("Google leva agentes de IA para dentro das equipas de marketing")).toBe(
+      "google-leva-agentes-ia-dentro-equipas-marketing",
+    );
+  });
+
+  it("nunca devolve vazio", () => {
+    expect(derivarSlug("—  ")).toBe("brief");
+  });
+
+  it("só acrescenta sufixo quando o endereço já está tomado", () => {
+    const base = derivarSlug("Meta altera o feed");
+    expect(slugUnico("Meta altera o feed", [])).toBe(base);
+    expect(slugUnico("Meta altera o feed", [base])).toBe(`${base}-2`);
+  });
+
+  it("compõe o caminho interno", () => {
+    expect(caminhoBrief("meta-altera-feed")).toBe("/brief/meta-altera-feed");
+  });
+});
+
+describe("fingerprint e deduplicação", () => {
+  it("a mesma fonte com rastreio diferente tem a mesma identidade", () => {
+    const a = calcularFingerprint({
+      url: "https://www.theverge.com/2026/09/14/agentes-ia?utm_source=newsletter",
+      titulo: "Google leva agentes de IA",
+    });
+    const b = calcularFingerprint({
+      url: "https://theverge.com/2026/09/14/agentes-ia",
+      titulo: "Outro título completamente diferente",
+    });
+    expect(a).toBe(b);
+  });
+
+  it("sem URL, cai no título canónico", () => {
+    const a = calcularFingerprint({ url: null, titulo: "Instagram testa recomendações" });
+    const b = calcularFingerprint({ url: "  ", titulo: "INSTAGRAM  testa   recomendações!" });
+    expect(a).toBe(b);
+    expect(a.startsWith("titulo:")).toBe(true);
+  });
+
+  it("fontes diferentes têm identidades diferentes", () => {
+    const a = calcularFingerprint({ url: "https://theverge.com/a", titulo: "A" });
+    const b = calcularFingerprint({ url: "https://theverge.com/b", titulo: "A" });
+    expect(a).not.toBe(b);
+  });
+
+  it("normaliza www e barra final", () => {
+    expect(urlFonteCanonico("https://www.exemplo.pt/artigo/")).toBe(
+      urlFonteCanonico("https://exemplo.pt/artigo"),
+    );
+  });
+
+  it("reduz o título ao essencial", () => {
+    expect(tituloCanonico("Meta — altera o «feed»!")).toBe("meta altera o feed");
+  });
+});
+
+describe("máquina de estados", () => {
+  it("permite o percurso normal", () => {
+    expect(transicaoPermitida("por_gerar", "a_gerar")).toBe(true);
+    expect(transicaoPermitida("gerado", "por_rever")).toBe(true);
+    expect(transicaoPermitida("por_rever", "aprovado")).toBe(true);
+    expect(transicaoPermitida("aprovado", "publicado")).toBe(true);
+  });
+
+  it("recusa saltos inválidos", () => {
+    expect(transicaoPermitida("por_gerar", "publicado")).toBe(false);
+    expect(() => garantirTransicao("por_gerar", "aprovado")).toThrow();
+  });
+
+  it("um Brief publicado pode voltar a por rever", () => {
+    expect(transicaoPermitida("publicado", "por_rever")).toBe(true);
+  });
+});
+
+describe("prontidão do Brief", () => {
+  const base = {
+    em_30_segundos: [{ texto: "Facto." }],
+    porque_interessa: [{ ordem: 1, rotulo: "Processos", texto: "Implicação." }],
+    fonte_url: "https://theverge.com/a",
+  };
+
+  it("o Destaque exige leitura aprovada", () => {
+    const r = prontoParaPublicar({ ...base, tipo: "destaque", estado: "gerado", leitura_aprovada: "" });
+    expect(r.ok).toBe(false);
+    expect(r.motivos.join(" ")).toContain("leitura");
+  });
+
+  it("o Radar não exige leitura", () => {
+    const r = prontoParaPublicar({ ...base, tipo: "radar", estado: "gerado", leitura_aprovada: "" });
+    expect(r.ok).toBe(true);
+  });
+
+  it("sem fonte não segue", () => {
+    const r = prontoParaPublicar({
+      ...base,
+      fonte_url: "",
+      tipo: "radar",
+      estado: "gerado",
+      leitura_aprovada: "",
+    });
+    expect(r.ok).toBe(false);
+  });
+});
+
+describe("limites editoriais", () => {
+  it("os valores por omissão são 3 e 5", () => {
+    expect(LIMITES_BRIEF_PADRAO).toEqual({ destaque: 3, radar: 5 });
+  });
+});

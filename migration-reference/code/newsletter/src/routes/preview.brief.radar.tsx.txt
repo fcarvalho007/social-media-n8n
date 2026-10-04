@@ -1,0 +1,18 @@
+import { createFileRoute } from "@tanstack/react-router";
+
+import { BriefPreview, QUICK_BRIEF_RADAR } from "@/features/brief/BriefPreview";
+
+export const Route = createFileRoute("/preview/brief/radar")({
+  head: () => ({
+    meta: [
+      { title: "Quick Brief Radar — Preview QA · Digital Sprint" },
+      { name: "description", content: "Protótipo editorial interno do Digital Sprint Quick Brief." },
+      { property: "og:title", content: "Quick Brief Radar — Preview QA · Digital Sprint" },
+      { property: "og:description", content: "Protótipo editorial interno do Digital Sprint Quick Brief." },
+      { property: "og:type", content: "website" },
+      { name: "twitter:card", content: "summary" },
+      { name: "robots", content: "noindex, nofollow" },
+    ],
+  }),
+  component: () => <BriefPreview conteudo={QUICK_BRIEF_RADAR} />,
+});

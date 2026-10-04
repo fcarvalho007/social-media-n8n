@@ -1,0 +1,15 @@
+// Ficheiro fino: só a declaração da função de servidor.
+// A lógica vive em `auth-email.server.ts`.
+
+import { createServerFn } from "@tanstack/react-start";
+import type { SessaoEmitida } from "@/lib/auth-email.server";
+
+export const entrarPorEmail = createServerFn({ method: "POST" })
+  .validator((input: unknown): { email: string } => {
+    const o = (input ?? {}) as { email?: unknown };
+    return { email: typeof o.email === "string" ? o.email : "" };
+  })
+  .handler(async ({ data }): Promise<SessaoEmitida> => {
+    const { entrarComEmail } = await import("@/lib/auth-email.server");
+    return entrarComEmail(data.email);
+  });

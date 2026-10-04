@@ -1,0 +1,79 @@
+import { describe, expect, it } from "vitest";
+import {
+  assinaturaTexto, escolherFoto, excertoSugerido, paragrafosDoHtml,
+  pullQuoteSugerida, valorExisteNoTexto,
+} from "@/lib/newsletter-engine/revista/apresentacao-heuristica";
+
+describe("paragrafosDoHtml", () => {
+  it("converte HTML em parágrafos limpos", () => {
+    expect(paragrafosDoHtml("<p>Um texto.</p><p>Outro &amp; mais.</p>")).toEqual([
+      "Um texto.",
+      "Outro & mais.",
+    ]);
+  });
+
+  it("devolve lista vazia sem conteúdo", () => {
+    expect(paragrafosDoHtml("")).toEqual([]);
+  });
+});
+
+describe("excertoSugerido", () => {
+  it("usa parágrafos completos e respeita o limite", () => {
+    const p = ["A".repeat(500), "B".repeat(500), "C".repeat(500)];
+    const r = excertoSugerido(p, 900);
+    expect(r.split("\n\n")).toHaveLength(1);
+    expect(r).toBe(p[0]);
+  });
+
+  it("nunca devolve vazio quando há texto", () => {
+    expect(excertoSugerido(["Curto."], 10)).toBe("Curto.");
+  });
+});
+
+describe("pullQuoteSugerida", () => {
+  it("escolhe uma frase do próprio texto dentro do intervalo de palavras", () => {
+    const p = [
+      "Sim.",
+      "A automação não substitui a decisão, apenas obriga as equipas a decidir mais depressa do que antes.",
+    ];
+    expect(pullQuoteSugerida(p)).toContain("A automação não substitui a decisão");
+  });
+
+  it("devolve vazio quando nenhuma frase serve", () => {
+    expect(pullQuoteSugerida(["Curto.", "Também."])).toBe("");
+  });
+});
+
+describe("valorExisteNoTexto", () => {
+  const corpo = "Em 2026 já são 42% das equipas a usar estas ferramentas.";
+  it("aceita um valor presente no texto", () => {
+    expect(valorExisteNoTexto("42%", corpo)).toBe(true);
+  });
+  it("rejeita um valor inventado", () => {
+    expect(valorExisteNoTexto("73%", corpo)).toBe(false);
+  });
+  it("rejeita valor vazio", () => {
+    expect(valorExisteNoTexto("", corpo)).toBe(false);
+  });
+});
+
+describe("escolherFoto", () => {
+  it("prefere a proporção mais próxima de 3:1", () => {
+    const fotos = [
+      { id: 1, largura: 1600, altura: 1600 },
+      { id: 2, largura: 1800, altura: 600 },
+      { id: 3, largura: 1200, altura: 800 },
+    ];
+    expect(escolherFoto(fotos)?.id).toBe(2);
+  });
+  it("devolve null sem fotos", () => {
+    expect(escolherFoto([])).toBeNull();
+  });
+});
+
+describe("assinaturaTexto", () => {
+  it("é estável para o mesmo texto e distinta para textos diferentes", () => {
+    expect(assinaturaTexto("Olá mundo")).toBe(assinaturaTexto("Olá  mundo"));
+    expect(assinaturaTexto("Olá mundo")).not.toBe(assinaturaTexto("Adeus mundo"));
+  });
+});

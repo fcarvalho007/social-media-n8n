@@ -1,0 +1,6 @@
+ALTER TABLE public.edicoes
+  ADD COLUMN IF NOT EXISTS destinos jsonb NOT NULL DEFAULT '{}'::jsonb;
+
+INSERT INTO public.configuracoes (chave, valor)
+VALUES ('edicoes_base_url', 'https://newsletter-digital-sprint.lovable.app')
+ON CONFLICT (chave) DO NOTHING;

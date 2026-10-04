@@ -1,0 +1,99 @@
+// Botão + diálogo para recomeçar uma edição em rascunho do zero.
+import { useState } from "react";
+import { useMutation, useQueryClient } from "@tanstack/react-query";
+import { useServerFn } from "@tanstack/react-start";
+import { Loader2, RotateCcw } from "lucide-react";
+import { toast } from "sonner";
+import {
+  Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle,
+} from "@/components/ui/dialog";
+import { recomecarEdicaoFn, type AmbitoRecomeco } from "@/lib/recomecar-edicao.functions";
+
+const OPCOES: { id: AmbitoRecomeco; rotulo: string; nota: string }[] = [
+  { id: "noticias", rotulo: "Notícias", nota: "Saem da edição e voltam a pendentes. Nada é apagado." },
+  { id: "cronica", rotulo: "Crónica e apresentação", nota: "Texto, título, lede, imagem, momento editorial, pull quote." },
+  { id: "blocos", rotulo: "Blocos da semana", nota: "Podcast, recomendação, livro, ferramentas, serviços — voltam aos valores habituais." },
+  { id: "assunto", rotulo: "Assunto e preheader", nota: "Linha de assunto do email." },
+  { id: "briefs", rotulo: "Briefs", nota: "São desligados da edição; os Briefs não são apagados." },
+];
+
+export function RecomecarEdicao({
+  edicaoId, numero, quem,
+}: { edicaoId: string; numero: number; quem: string }) {
+  const qc = useQueryClient();
+  const fn = useServerFn(recomecarEdicaoFn);
+  const [aberto, setAberto] = useState(false);
+  const [sel, setSel] = useState<Set<AmbitoRecomeco>>(new Set(OPCOES.map((o) => o.id)));
+  const [conf, setConf] = useState("");
+
+  const m = useMutation({
+    mutationFn: () => fn({ data: { edicaoId, ambitos: [...sel], confirmacao: conf, quem } }),
+    onSuccess: () => {
+      qc.invalidateQueries();
+      setAberto(false);
+      setConf("");
+      toast.success(`Edição #${numero} recomeçada do zero`);
+    },
+    onError: (e: Error) => toast.error(e.message),
+  });
+
+  const alternar = (id: AmbitoRecomeco) =>
+    setSel((s) => { const n = new Set(s); if (n.has(id)) n.delete(id); else n.add(id); return n; });
+
+  return (
+    <>
+      <button
+        type="button"
+        onClick={() => setAberto(true)}
+        className="inline-flex items-center gap-1.5 rounded-full border border-border px-2.5 py-1 text-[12.5px] font-semibold text-muted-foreground hover:text-destructive hover:border-destructive/50"
+      >
+        <RotateCcw size={13} /> Recomeçar edição
+      </button>
+      <Dialog open={aberto} onOpenChange={(v) => { if (!m.isPending) setAberto(v); }}>
+        <DialogContent className="max-w-[540px]">
+          <DialogHeader>
+            <DialogTitle className="text-[19px]">Recomeçar a edição #{numero}</DialogTitle>
+            <DialogDescription className="text-[14.5px]">
+              Escolhe o que limpar. O número, a data e o formato mantêm-se.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-2">
+            {OPCOES.map((o) => (
+              <label key={o.id} className="flex cursor-pointer gap-3 rounded-xl border border-border p-3">
+                <input type="checkbox" className="mt-1" checked={sel.has(o.id)} onChange={() => alternar(o.id)} />
+                <span>
+                  <span className="block text-[14.5px] font-semibold text-foreground">{o.rotulo}</span>
+                  <span className="block text-[13px] text-muted-foreground">{o.nota}</span>
+                </span>
+              </label>
+            ))}
+          </div>
+          <label className="block text-[13.5px] text-foreground">
+            Para confirmar, escreve o número da edição ({numero}):
+            <input
+              value={conf}
+              onChange={(e) => setConf(e.target.value)}
+              inputMode="numeric"
+              className="mt-1.5 w-full rounded-xl border border-border bg-background px-3 py-2 text-[15px]"
+            />
+          </label>
+          <div className="flex justify-end gap-2">
+            <button type="button" onClick={() => setAberto(false)} disabled={m.isPending}
+              className="rounded-xl bg-muted px-4 py-2.5 text-[15px] font-semibold text-foreground">
+              Cancelar
+            </button>
+            <button
+              type="button"
+              disabled={m.isPending || sel.size === 0 || conf.trim() !== String(numero)}
+              onClick={() => m.mutate()}
+              className="inline-flex items-center gap-1.5 rounded-xl bg-destructive px-4 py-2.5 text-[15px] font-bold text-destructive-foreground disabled:opacity-55"
+            >
+              {m.isPending && <Loader2 size={15} className="animate-spin" />}
+              Recomeçar do zero
+            </button>
+          </div>
+        </DialogContent>
+      </Dialog>
+    </>
+  );
+}

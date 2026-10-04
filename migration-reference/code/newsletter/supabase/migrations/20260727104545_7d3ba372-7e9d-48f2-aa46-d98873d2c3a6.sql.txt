@@ -1,0 +1,25 @@
+
+CREATE OR REPLACE FUNCTION public.encontrar_candidatos_repeticao(_titulo text, _categoria text, _limiar real DEFAULT 0.30)
+ RETURNS TABLE(id uuid, titulo text, edicao_id uuid, edicao_numero integer, created_at timestamp with time zone, score real)
+ LANGUAGE sql
+ STABLE SECURITY DEFINER
+ SET search_path TO 'public'
+AS $function$
+  -- _limiar mantido na assinatura por compatibilidade; ignorado.
+  -- Fase 1: mesma categoria + últimas 8 semanas, top 5 por similaridade de título.
+  -- A similaridade só ordena; não filtra. A Fase 2 (DeepSeek) confirma.
+  SELECT
+    n.id,
+    n.titulo,
+    n.edicao_id,
+    e.numero AS edicao_numero,
+    n.created_at,
+    similarity(n.titulo, _titulo) AS score
+  FROM public.noticias n
+  LEFT JOIN public.edicoes e ON e.id = n.edicao_id
+  WHERE n.categoria = _categoria
+    AND n.estado = 'enviada'
+    AND n.created_at > now() - interval '8 weeks'
+  ORDER BY similarity(n.titulo, _titulo) DESC, n.created_at DESC
+  LIMIT 5;
+$function$;

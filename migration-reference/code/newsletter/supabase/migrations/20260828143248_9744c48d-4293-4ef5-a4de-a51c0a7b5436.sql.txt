@@ -1,0 +1,2 @@
+ALTER TABLE public.edicoes ADD COLUMN IF NOT EXISTS revista_snapshot jsonb;
+COMMENT ON COLUMN public.edicoes.revista_snapshot IS 'Fotografia imutavel da edicao Revista no momento do envio/publicacao.';

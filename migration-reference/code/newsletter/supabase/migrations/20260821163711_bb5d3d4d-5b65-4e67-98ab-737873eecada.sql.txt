@@ -1,0 +1,14 @@
+SELECT cron.unschedule('retomar-subscricoes-diario') WHERE EXISTS (SELECT 1 FROM cron.job WHERE jobname = 'retomar-subscricoes-diario');
+
+SELECT cron.schedule(
+  'retomar-subscricoes-diario',
+  '10 6 * * *',
+  $$
+  SELECT net.http_post(
+    url:='https://project--23514b53-4ffd-429e-81c5-46fedf7b5a3e.lovable.app/api/public/hooks/retomar-subscricoes',
+    headers:='{"Content-Type": "application/json", "apikey": "sb_publishable_It2cPC-gB0sYDceijJvl6w_tDc9s-8v"}'::jsonb,
+    body:='{}'::jsonb,
+    timeout_milliseconds:=300000
+  );
+  $$
+);

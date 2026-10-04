@@ -1,0 +1,77 @@
+// Helpers IA para o motor de Ferramentas Sugeridas.
+// Server-only. Usa DeepSeek via `chamarDeepSeek` (mesmo cliente que o resto da app).
+//
+//  - classificarRelevancia: filtro binário (marketing/business vs. não)
+//  - polirFerramenta:       descrição pt-PT (≤120c) + cor (paleta fixa)
+
+import { chamarDeepSeek } from "@/lib/deepseek.server";
+
+export type UsoIA = {
+  modelo: string;
+  cacheHit: number;
+  cacheMiss: number;
+  saida: number;
+};
+
+export type ResultadoRelevancia = { ok: boolean; motivo: string; uso: UsoIA };
+
+export async function classificarRelevancia(
+  nome: string,
+  descricao: string,
+): Promise<ResultadoRelevancia> {
+  const system =
+    "És um editor sénior de uma newsletter portuguesa sobre marketing digital, IA e produtividade. " +
+    "Avalias se ferramentas são úteis para um gestor ou profissional de MARKETING (não-técnico), " +
+    "no contexto de produtividade, criação de conteúdo, dados/analytics ou estratégia. " +
+    "Descarta com firmeza: bibliotecas de código, frameworks de programação, SDKs, ferramentas puramente para developers, " +
+    "brinquedos ou ferramentas sem caso de uso profissional. " +
+    "Responde SEMPRE em JSON: {\"ok\": boolean, \"motivo\": \"1 frase curta em pt-PT\"}.";
+  const user = `Ferramenta: ${nome.trim()}\nDescrição: ${descricao.trim().slice(0, 400)}`;
+  const r = await chamarDeepSeek(system, user, { temperatura: 0, responseJson: true });
+  let ok = false;
+  let motivo = "";
+  try {
+    const parsed = JSON.parse(r.conteudo);
+    ok = parsed.ok === true;
+    motivo = typeof parsed.motivo === "string" ? parsed.motivo : "";
+  } catch {
+    // Sem JSON válido → descarta por segurança.
+    ok = false;
+    motivo = "Resposta IA inválida";
+  }
+  return { ok, motivo, uso: { modelo: r.modelo, ...r.usage } };
+}
+
+export type ResultadoPolir = {
+  descricao: string;
+  cor: "indigo" | "verde" | "laranja" | "cinzento";
+  uso: UsoIA;
+};
+
+const CORES = new Set(["indigo", "verde", "laranja", "cinzento"]);
+
+export async function polirFerramenta(
+  nome: string,
+  descricaoOriginal: string,
+): Promise<ResultadoPolir> {
+  const system =
+    "És um editor de newsletter em português de Portugal (pt-PT, sem regionalismos brasileiros). " +
+    "Reescreve descrições de ferramentas para serem: (a) directas, (b) no máximo 120 caracteres, " +
+    "(c) com foco no benefício prático para um profissional de marketing. Escolhe também UMA cor de destaque " +
+    "consoante o tema principal: 'verde' para produtividade/automação, 'laranja' para criação de conteúdo/design/vídeo, " +
+    "'indigo' (default) para IA/estratégia/analítica, 'cinzento' para utilitários/pesquisa/nicho. " +
+    "Responde SEMPRE em JSON: {\"descricao\": \"...\", \"cor\": \"indigo|verde|laranja|cinzento\"}.";
+  const user = `Nome: ${nome.trim()}\nDescrição original: ${descricaoOriginal.trim().slice(0, 500)}`;
+  const r = await chamarDeepSeek(system, user, { temperatura: 0.2, responseJson: true });
+  let descricao = "";
+  let cor: ResultadoPolir["cor"] = "indigo";
+  try {
+    const parsed = JSON.parse(r.conteudo);
+    if (typeof parsed.descricao === "string") descricao = parsed.descricao.trim().slice(0, 140);
+    if (typeof parsed.cor === "string" && CORES.has(parsed.cor)) cor = parsed.cor as ResultadoPolir["cor"];
+  } catch {
+    descricao = descricaoOriginal.slice(0, 120);
+  }
+  if (descricao.length < 20) descricao = descricaoOriginal.trim().slice(0, 120);
+  return { descricao, cor, uso: { modelo: r.modelo, ...r.usage } };
+}

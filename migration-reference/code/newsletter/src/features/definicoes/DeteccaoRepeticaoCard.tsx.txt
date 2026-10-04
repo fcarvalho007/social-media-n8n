@@ -1,0 +1,91 @@
+import { useEffect, useState } from "react";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { Loader2, GitCompare } from "lucide-react";
+import { getConfig, setConfig } from "@/features/newsletter/data";
+
+const CHAVE = "deteccao_repeticao_ia_activa";
+
+const T = {
+  card: "#FFFFFF", line: "#E4E7EC", ink: "#101828",
+  muted: "#667085", faint: "#98A2B3", primary: "#8B5CF6", ok: "#10B981",
+};
+
+export function DeteccaoRepeticaoCard({ podeEditar = true }: { podeEditar?: boolean }) {
+  const qc = useQueryClient();
+  const q = useQuery({ queryKey: ["config", CHAVE], queryFn: () => getConfig(CHAVE) });
+  const [activo, setActivo] = useState<boolean>(true);
+  const [tick, setTick] = useState(false);
+
+  useEffect(() => {
+    if (q.isFetched) setActivo(q.data !== "false");
+  }, [q.data, q.isFetched]);
+
+  const m = useMutation({
+    mutationFn: (v: boolean) => setConfig(CHAVE, v ? "true" : "false"),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["config", CHAVE] });
+      setTick(true);
+      window.setTimeout(() => setTick(false), 1400);
+    },
+  });
+
+  const toggle = () => {
+    if (!podeEditar || m.isPending) return;
+    const novo = !activo;
+    setActivo(novo);
+    m.mutate(novo);
+  };
+
+  return (
+    <section className="rounded-2xl p-5" style={{ background: T.card, border: `1px solid ${T.line}` }}>
+      <div className="flex items-center gap-2.5 mb-1">
+        <span className="inline-flex items-center justify-center rounded-lg" style={{ width: 32, height: 32, background: `${T.primary}18`, color: T.primary }}>
+          <GitCompare size={16} />
+        </span>
+        <h3 className="text-[11.5px] font-bold uppercase tracking-[0.08em]" style={{ color: T.ink }}>
+          Detecção de repetições
+        </h3>
+      </div>
+
+      <div className="mt-3 flex items-start justify-between gap-4">
+        <div className="min-w-0">
+          <p className="text-[14px] font-semibold" style={{ color: T.ink }}>
+            Confirmar repetições por IA
+          </p>
+          <p className="mt-1 text-[12.5px] leading-relaxed" style={{ color: T.muted }}>
+            A Fase 1 (comparação de título) corre sempre, sem custo; este interruptor
+            controla só a confirmação por IA sobre os candidatos encontrados.
+          </p>
+        </div>
+
+        <button
+          type="button"
+          role="switch"
+          aria-checked={activo}
+          aria-label="Confirmar repetições por IA"
+          disabled={!podeEditar || m.isPending}
+          onClick={toggle}
+          className="relative shrink-0 rounded-full transition-colors disabled:opacity-50"
+          style={{
+            width: 44, height: 26,
+            background: activo ? T.primary : "#D0D5DD",
+            cursor: podeEditar ? "pointer" : "not-allowed",
+          }}
+        >
+          <span
+            className="absolute top-0.5 rounded-full bg-white shadow transition-all"
+            style={{ width: 22, height: 22, left: activo ? 20 : 2 }}
+          />
+        </button>
+      </div>
+
+      <div className="mt-3 flex items-center gap-2 min-h-[18px]">
+        {m.isPending && <Loader2 size={14} className="animate-spin" style={{ color: T.muted }} />}
+        {tick && <span className="text-[12.5px] font-semibold" style={{ color: T.ok }}>Guardado ✓</span>}
+        {!podeEditar && (
+          <span className="text-[12px]" style={{ color: T.faint }}>Só o admin pode alterar.</span>
+        )}
+      </div>
+    </section>
+  );
+}

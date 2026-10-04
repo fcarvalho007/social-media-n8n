@@ -1,0 +1,45 @@
+import { describe, expect, it } from "vitest";
+import { avaliarDescricao, coberturaDoTitulo } from "@/lib/similaridade-texto";
+import { extrairCorpoArtigo } from "@/lib/ler-artigo.server";
+
+describe("avaliarDescricao", () => {
+  it("apanha a descrição que só reescreve o título", () => {
+    const titulo = "Google adiciona contagem de visualizações às publicações de perfil de empresa";
+    const descricao = "A Google está a lançar a contagem de visualizações nas publicações de perfil de empresa.";
+    expect(avaliarDescricao(titulo, descricao).repete).toBe(true);
+  });
+
+  it("aceita a descrição que acrescenta informação", () => {
+    const titulo = "Google adiciona contagem de visualizações às publicações de perfil de empresa";
+    const descricao =
+      "A métrica cobre os últimos 28 dias e só fica disponível para contas verificadas, sem exportação para o Analytics.";
+    expect(avaliarDescricao(titulo, descricao).repete).toBe(false);
+  });
+
+  it("ignora campos vazios", () => {
+    expect(avaliarDescricao("", "").repete).toBe(false);
+    expect(avaliarDescricao("Título", null).repete).toBe(false);
+  });
+
+  it("mede a cobertura do título", () => {
+    expect(coberturaDoTitulo("Meta lança novo modelo", "A Meta lança um novo modelo")).toBeGreaterThan(0.8);
+  });
+});
+
+describe("extrairCorpoArtigo", () => {
+  it("junta os parágrafos do artigo", () => {
+    const html = `<html><body><nav><p>menu</p></nav><article>
+      <p>${"A medida entra em vigor a 1 de Janeiro e abrange todas as empresas com mais de 250 trabalhadores. ".repeat(2)}</p>
+      <p>${"O regulador prevê coimas até 20 mil euros para quem não cumprir os prazos de resposta definidos. ".repeat(2)}</p>
+    </article></body></html>`;
+    const corpo = extrairCorpoArtigo(html);
+    expect(corpo).toContain("1 de Janeiro");
+    expect(corpo).toContain("20 mil euros");
+    expect(corpo).not.toContain("menu");
+  });
+
+  it("cai na meta description quando não há corpo", () => {
+    const html = `<html><head><meta name="description" content="Resumo curto do artigo."></head><body></body></html>`;
+    expect(extrairCorpoArtigo(html)).toBe("Resumo curto do artigo.");
+  });
+});

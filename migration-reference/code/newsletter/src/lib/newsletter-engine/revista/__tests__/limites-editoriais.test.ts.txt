@@ -1,0 +1,64 @@
+import { describe, expect, it } from "vitest";
+import { validarRevista, type EdicaoRevista } from "../compose.server";
+import { LIMITES_REVISTA } from "../rotulos";
+
+function destaque(i: number) {
+  return {
+    itemId: `d${i}`,
+    noticiaId: `n${i}`,
+    titulo: `Notícia ${i}`,
+    url: `https://exemplo.pt/${i}`,
+    categoria: "ia",
+    categoriaRotulo: "Inteligência Artificial",
+    resumoFactual: "Resumo factual.",
+    minhaLeitura: "A minha leitura.",
+    ctaRotulo: "",
+  };
+}
+
+function radar(i: number) {
+  return {
+    itemId: `r${i}`,
+    noticiaId: `rn${i}`,
+    titulo: `Radar ${i}`,
+    url: `https://exemplo.pt/r${i}`,
+    categoria: "ia",
+    categoriaRotulo: "Inteligência Artificial",
+    nota: "",
+  };
+}
+
+function edicao(nDestaques: number, nRadar: number): EdicaoRevista {
+  return {
+    cronica: { titulo: "Título", subtitulo: "", lede: "Lede", excerto: "Um parágrafo.", url: "https://exemplo.pt/c" },
+    destaques: Array.from({ length: nDestaques }, (_, i) => destaque(i + 1)),
+    radar: Array.from({ length: nRadar }, (_, i) => radar(i + 1)),
+    preheader: "Pré-cabeçalho.",
+    edicao: { numero: 318, data_envio_prevista: "2026-09-11", assunto: "Assunto" },
+  } as unknown as EdicaoRevista;
+}
+
+const sobreDestaques = (p: string[]) => p.filter((t) => t.includes("Notícias em foco"));
+const sobreRadar = (p: string[]) => p.filter((t) => t.startsWith("O Radar tem"));
+
+describe("limites editoriais da Revista", () => {
+  it("aceita 2 e 3 destaques", () => {
+    for (const n of [LIMITES_REVISTA.destaquesMin, LIMITES_REVISTA.destaquesMax]) {
+      expect(sobreDestaques(validarRevista(edicao(n, 5)))).toEqual([]);
+    }
+  });
+
+  it("assinala menos de 2 destaques", () => {
+    expect(sobreDestaques(validarRevista(edicao(1, 5)))).toHaveLength(1);
+  });
+
+  it("aceita 3, 4 e 5 no Radar", () => {
+    for (const n of [3, 4, 5]) {
+      expect(sobreRadar(validarRevista(edicao(3, n)))).toEqual([]);
+    }
+  });
+
+  it("assinala menos de 3 no Radar", () => {
+    expect(sobreRadar(validarRevista(edicao(3, 2)))).toHaveLength(1);
+  });
+});

@@ -1,0 +1,159 @@
+import { R } from "@/lib/newsletter-engine/revista/tokens";
+import type { Carrossel, FonteCronica } from "@/lib/conteudos/carrossel";
+
+export const DIMENSOES = { largura: 1080, altura: 1350 } as const;
+
+function linhas(ctx: CanvasRenderingContext2D, texto: string, largura: number): string[] {
+  const resultado: string[] = [];
+  for (const paragrafo of texto.split(/\n/)) {
+    let linha = "";
+    for (const palavra of paragrafo.split(/\s+/).filter(Boolean)) {
+      if (ctx.measureText(palavra).width > largura)
+        throw new Error("Uma palavra é demasiado longa para o slide. Divide-a antes de exportar.");
+      const candidata = linha ? `${linha} ${palavra}` : palavra;
+      if (linha && ctx.measureText(candidata).width > largura) {
+        resultado.push(linha);
+        linha = palavra;
+      } else linha = candidata;
+    }
+    if (linha) resultado.push(linha);
+  }
+  return resultado;
+}
+
+function bloco(
+  ctx: CanvasRenderingContext2D,
+  texto: string,
+  y: number,
+  altura: number,
+  tamanho: number,
+  minimo: number,
+  negrito: boolean,
+) {
+  let frases: string[] = [];
+  let corpo = tamanho;
+  for (; corpo >= minimo; corpo -= 2) {
+    ctx.font = `${negrito ? 700 : 400} ${corpo}px ${negrito ? '"Space Grotesk"' : '"Inter"'}, sans-serif`;
+    frases = linhas(ctx, texto, 920);
+    if (frases.length * corpo * 1.22 <= altura) break;
+  }
+  if (corpo < minimo) throw new Error("O texto não cabe no slide. Encurta-o antes de exportar.");
+  frases.forEach((linha, i) => ctx.fillText(linha, 80, y + i * corpo * 1.22));
+}
+
+export async function desenharSlide(
+  canvas: HTMLCanvasElement,
+  carrossel: Carrossel,
+  fonte: FonteCronica,
+  indice: number,
+): Promise<void> {
+  await Promise.all([
+    document.fonts.load('700 80px "Space Grotesk"'),
+    document.fonts.load('400 44px "Inter"'),
+  ]);
+  canvas.width = DIMENSOES.largura;
+  canvas.height = DIMENSOES.altura;
+  const ctx = canvas.getContext("2d");
+  if (!ctx) throw new Error("Este navegador não permite desenhar o carrossel.");
+  const slide = carrossel.slides[indice];
+  const escuro = indice === 0 || indice === carrossel.slides.length - 1;
+  ctx.fillStyle = escuro ? R.navy : R.fundoCartao;
+  ctx.fillRect(0, 0, canvas.width, canvas.height);
+  ctx.textBaseline = "top";
+  ctx.fillStyle = escuro ? R.lima : R.navy;
+  ctx.font = '700 32px "Space Grotesk", sans-serif';
+  ctx.fillText("DIGITALSPRINT", 80, 80);
+  ctx.textAlign = "right";
+  ctx.fillStyle = escuro ? R.escuroTexto : R.textoSec;
+  ctx.font = '400 26px "Inter", sans-serif';
+  ctx.fillText(`Crónica · #${fonte.numero}`, 1000, 84);
+  ctx.textAlign = "left";
+  ctx.fillStyle = escuro ? R.branco : R.navy;
+  bloco(ctx, slide.titulo, 240, 360, indice === 0 ? 96 : 78, 42, true);
+  ctx.fillStyle = escuro ? R.escuroTexto : R.texto;
+  bloco(ctx, slide.texto, 670, 420, 44, 28, false);
+  ctx.fillStyle = escuro ? R.escuroFilete : R.filete;
+  ctx.fillRect(80, 1190, 920, 1);
+  ctx.fillStyle = escuro ? R.escuroTexto : R.textoSec;
+  ctx.font = '400 25px "Inter", sans-serif';
+  ctx.fillText("Frederico Carvalho", 80, 1230);
+  ctx.textAlign = "right";
+  ctx.fillText(`${indice + 1} / ${carrossel.slides.length}`, 1000, 1230);
+  ctx.textAlign = "left";
+}
+
+export function descarregar(blob: Blob, nome: string): void {
+  const url = URL.createObjectURL(blob);
+  const link = document.createElement("a");
+  link.href = url;
+  link.download = nome;
+  document.body.append(link);
+  link.click();
+  link.remove();
+  setTimeout(() => URL.revokeObjectURL(url), 30000);
+}
+
+export function legendaComLink(carrossel: Carrossel, fonte: FonteCronica): string {
+  const legenda = `${carrossel.legenda}\n\nLer a crónica: ${fonte.url}`;
+  if (legenda.length > 2200)
+    throw new Error(
+      "A legenda com o endereço ultrapassa 2200 caracteres. Encurta a legenda antes de exportar.",
+    );
+  return legenda;
+}
+
+export async function exportarCarrossel(
+  tipo: "pdf" | "png",
+  carrossel: Carrossel,
+  fonte: FonteCronica,
+): Promise<void> {
+  // Renderizar tudo antes de descarregar: uma falha não produz um ficheiro parcial.
+  const imagens: HTMLCanvasElement[] = [];
+  for (let i = 0; i < carrossel.slides.length; i++) {
+    const canvas = document.createElement("canvas");
+    await desenharSlide(canvas, carrossel, fonte, i);
+    imagens.push(canvas);
+  }
+  const nome = `digitalsprint-${fonte.numero}-cronica`;
+  if (tipo === "pdf") {
+    const { jsPDF } = await import("jspdf");
+    const doc = new jsPDF({
+      unit: "pt",
+      format: [540, 675],
+      orientation: "portrait",
+      compress: true,
+    });
+    doc.setProperties({
+      title: fonte.titulo,
+      author: "Frederico Carvalho",
+      subject: "DIGITALSPRINT · Carrossel da crónica",
+    });
+    imagens.forEach((canvas, i) => {
+      if (i) doc.addPage([540, 675], "portrait");
+      doc.addImage(canvas.toDataURL("image/jpeg", 0.95), "JPEG", 0, 0, 540, 675);
+      if (i === imagens.length - 1) doc.link(0, 0, 540, 675, { url: fonte.url });
+    });
+    descarregar(doc.output("blob"), `${nome}.pdf`);
+  } else {
+    const { zipSync, strToU8 } = await import("fflate");
+    const ficheiros: Record<string, Uint8Array> = {};
+    for (const [i, canvas] of imagens.entries()) {
+      const blob = await new Promise<Blob>((resolve, reject) =>
+        canvas.toBlob(
+          (b) => (b ? resolve(b) : reject(new Error("Falha ao exportar uma imagem."))),
+          "image/png",
+        ),
+      );
+      ficheiros[`slide-${String(i + 1).padStart(2, "0")}.png`] = new Uint8Array(
+        await blob.arrayBuffer(),
+      );
+    }
+    ficheiros["legenda.txt"] = strToU8(legendaComLink(carrossel, fonte));
+    descarregar(
+      new Blob([zipSync(ficheiros, { level: 0 }).buffer as ArrayBuffer], {
+        type: "application/zip",
+      }),
+      `${nome}.zip`,
+    );
+  }
+}

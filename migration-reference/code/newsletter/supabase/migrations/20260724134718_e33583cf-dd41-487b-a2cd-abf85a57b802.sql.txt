@@ -1,0 +1,4 @@
+
+ALTER TABLE public.fontes_curadoria ADD COLUMN IF NOT EXISTS ultima_recolha timestamptz;
+ALTER TABLE public.noticias ADD COLUMN IF NOT EXISTS fonte_id uuid REFERENCES public.fontes_curadoria(id) ON DELETE SET NULL;
+CREATE INDEX IF NOT EXISTS idx_noticias_fonte_created ON public.noticias(fonte_id, created_at DESC);

@@ -1,0 +1,24 @@
+import { createFileRoute } from "@tanstack/react-router";
+import { PainelCustos } from "@/features/custos/PainelCustos";
+
+export const Route = createFileRoute("/_authenticated/custos")({
+  head: () => ({
+    meta: [
+      { title: "Custos de processamento · Digital Sprint" },
+      { name: "description", content: "Consumo e custo da inteligência artificial no editor da newsletter Digital Sprint." },
+      { property: "og:title", content: "Custos de processamento · Digital Sprint" },
+      { property: "og:description", content: "Consumo e custo da inteligência artificial no editor da newsletter Digital Sprint." },
+      { property: "og:type", content: "website" },
+      { name: "twitter:card", content: "summary" },
+    ],
+  }),
+  component: PaginaCustos,
+});
+
+function PaginaCustos() {
+  return (
+    <main style={{ background: "#F7F8FA", minHeight: "100%" }}>
+      <PainelCustos />
+    </main>
+  );
+}

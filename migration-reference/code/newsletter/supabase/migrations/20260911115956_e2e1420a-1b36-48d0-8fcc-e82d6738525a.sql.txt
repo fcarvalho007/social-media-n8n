@@ -1,0 +1,23 @@
+ALTER TABLE public.revista_edicao
+  ADD COLUMN IF NOT EXISTS podcast_activo boolean NOT NULL DEFAULT false,
+  ADD COLUMN IF NOT EXISTS podcast_etiqueta text NOT NULL DEFAULT 'Podcast semanal',
+  ADD COLUMN IF NOT EXISTS podcast_programa text NOT NULL DEFAULT '',
+  ADD COLUMN IF NOT EXISTS podcast_tema text NOT NULL DEFAULT '',
+  ADD COLUMN IF NOT EXISTS podcast_convidado text NOT NULL DEFAULT '',
+  ADD COLUMN IF NOT EXISTS podcast_pergunta text NOT NULL DEFAULT '',
+  ADD COLUMN IF NOT EXISTS podcast_url text NOT NULL DEFAULT '',
+  ADD COLUMN IF NOT EXISTS podcast_cta text NOT NULL DEFAULT 'Ouvir o episódio',
+  ADD COLUMN IF NOT EXISTS consultoria_activo boolean NOT NULL DEFAULT false,
+  ADD COLUMN IF NOT EXISTS consultoria_etiqueta text NOT NULL DEFAULT 'Da leitura à tua empresa',
+  ADD COLUMN IF NOT EXISTS consultoria_titulo text NOT NULL DEFAULT '',
+  ADD COLUMN IF NOT EXISTS consultoria_texto text NOT NULL DEFAULT '',
+  ADD COLUMN IF NOT EXISTS consultoria_url text NOT NULL DEFAULT '',
+  ADD COLUMN IF NOT EXISTS consultoria_cta text NOT NULL DEFAULT 'Marcar 15 minutos comigo';
+
+ALTER TABLE public.revista_itens
+  ADD COLUMN IF NOT EXISTS cta_rotulo text NOT NULL DEFAULT '',
+  ADD COLUMN IF NOT EXISTS radar_nota text NOT NULL DEFAULT '';
+
+ALTER TABLE public.ferramentas_semana
+  ADD COLUMN IF NOT EXISTS etiqueta text NOT NULL DEFAULT '',
+  ADD COLUMN IF NOT EXISTS cta_rotulo text NOT NULL DEFAULT '';

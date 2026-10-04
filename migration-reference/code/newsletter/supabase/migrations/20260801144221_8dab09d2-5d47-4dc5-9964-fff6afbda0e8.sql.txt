@@ -1,0 +1,129 @@
+-- 1) Normalização de URL em SQL (espelha normalizarUrl do TypeScript)
+CREATE OR REPLACE FUNCTION public.normalizar_url_sql(_url text)
+RETURNS text
+LANGUAGE plpgsql
+IMMUTABLE
+SET search_path = public
+AS $$
+DECLARE
+  u text;
+  esquema text;
+  resto text;
+  host text;
+  caminho text;
+  query text;
+  partes text[];
+  p text;
+  chave text;
+  mantidos text[] := ARRAY[]::text[];
+  rastreio text[] := ARRAY['utm_source','utm_medium','utm_campaign','utm_term','utm_content','utm_id',
+                           'fbclid','gclid','mc_cid','mc_eid','ref','ref_src','ref_url','igshid'];
+BEGIN
+  IF _url IS NULL THEN RETURN NULL; END IF;
+  u := lower(btrim(_url));
+  IF u = '' THEN RETURN NULL; END IF;
+
+  u := split_part(u, '#', 1);
+
+  IF u ~ '^https?://' THEN
+    esquema := split_part(u, '://', 1);
+    resto := substring(u from position('://' in u) + 3);
+  ELSE
+    esquema := 'https';
+    resto := u;
+  END IF;
+
+  host := split_part(resto, '/', 1);
+  host := split_part(host, '?', 1);
+  host := regexp_replace(host, '^www\.', '');
+
+  IF position('/' in resto) > 0 THEN
+    caminho := '/' || substring(resto from position('/' in resto) + 1);
+  ELSE
+    caminho := '/';
+  END IF;
+
+  query := NULL;
+  IF position('?' in caminho) > 0 THEN
+    query := substring(caminho from position('?' in caminho) + 1);
+    caminho := split_part(caminho, '?', 1);
+  END IF;
+
+  caminho := regexp_replace(caminho, '/+$', '');
+  IF caminho = '' THEN caminho := '/'; END IF;
+
+  IF query IS NOT NULL AND query <> '' THEN
+    partes := string_to_array(query, '&');
+    FOREACH p IN ARRAY partes LOOP
+      chave := split_part(p, '=', 1);
+      IF p <> '' AND NOT (chave = ANY(rastreio)) THEN
+        mantidos := array_append(mantidos, p);
+      END IF;
+    END LOOP;
+  END IF;
+
+  IF array_length(mantidos, 1) IS NULL THEN
+    RETURN esquema || '://' || host || caminho;
+  END IF;
+  RETURN esquema || '://' || host || caminho || '?' || array_to_string(mantidos, '&');
+END;
+$$;
+
+GRANT EXECUTE ON FUNCTION public.normalizar_url_sql(text) TO authenticated, service_role;
+
+-- 2) Coluna url_norm + trigger + índice
+ALTER TABLE public.noticias ADD COLUMN IF NOT EXISTS url_norm text;
+
+CREATE OR REPLACE FUNCTION public.noticias_set_url_norm()
+RETURNS trigger
+LANGUAGE plpgsql
+SET search_path = public
+AS $$
+BEGIN
+  NEW.url_norm := public.normalizar_url_sql(NEW.url);
+  RETURN NEW;
+END;
+$$;
+
+DROP TRIGGER IF EXISTS trg_noticias_url_norm ON public.noticias;
+CREATE TRIGGER trg_noticias_url_norm
+BEFORE INSERT OR UPDATE OF url ON public.noticias
+FOR EACH ROW EXECUTE FUNCTION public.noticias_set_url_norm();
+
+UPDATE public.noticias
+   SET url_norm = public.normalizar_url_sql(url)
+ WHERE url_norm IS DISTINCT FROM public.normalizar_url_sql(url);
+
+CREATE INDEX IF NOT EXISTS idx_noticias_url_norm ON public.noticias (url_norm);
+
+-- 3) Candidatos a repetição: inclui pendentes/aprovadas e cruza categorias
+--    quando o título é muito semelhante.
+CREATE OR REPLACE FUNCTION public.encontrar_candidatos_repeticao(_titulo text, _categoria text, _limiar real DEFAULT 0.30)
+RETURNS TABLE(id uuid, titulo text, edicao_id uuid, edicao_numero integer, created_at timestamp with time zone, score real)
+LANGUAGE sql
+STABLE SECURITY DEFINER
+SET search_path = public
+AS $$
+  -- _limiar mantido por compatibilidade; ignorado.
+  -- Fase 1: últimas 8 semanas. Mesma categoria (qualquer semelhança, só ordena)
+  -- ou categoria diferente quando a semelhança de título é alta (>= 0.45).
+  SELECT
+    n.id,
+    n.titulo,
+    n.edicao_id,
+    e.numero AS edicao_numero,
+    n.created_at,
+    similarity(n.titulo, _titulo) AS score
+  FROM public.noticias n
+  LEFT JOIN public.edicoes e ON e.id = n.edicao_id
+  WHERE n.estado IN ('pendente','aprovada','enviada')
+    AND n.created_at > now() - interval '8 weeks'
+    AND (
+      n.categoria = _categoria
+      OR similarity(n.titulo, _titulo) >= 0.45
+    )
+  ORDER BY similarity(n.titulo, _titulo) DESC, n.created_at DESC
+  LIMIT 5;
+$$;
+
+GRANT EXECUTE ON FUNCTION public.encontrar_candidatos_repeticao(text, text, real) TO authenticated, service_role;

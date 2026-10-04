@@ -1,0 +1,7 @@
+UPDATE public.definicoes_ia
+SET provider = 'deepseek',
+    modelo = 'deepseek-v4-flash',
+    estado = 'nao_configurada',
+    ultimo_erro = NULL
+WHERE id = 'default'
+  AND (provider = 'lovable' OR modelo NOT IN ('deepseek-v4-flash', 'deepseek-v4-pro'));

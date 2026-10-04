@@ -1,0 +1,47 @@
+CREATE TABLE public.brief_eventos (
+  id uuid NOT NULL DEFAULT gen_random_uuid() PRIMARY KEY,
+  evento text NOT NULL,
+  brief_slug text NOT NULL DEFAULT '',
+  edicao_numero integer,
+  dia date NOT NULL DEFAULT (now() AT TIME ZONE 'Europe/Lisbon')::date,
+  contagem integer NOT NULL DEFAULT 0,
+  actualizado_em timestamp with time zone NOT NULL DEFAULT now(),
+  CONSTRAINT brief_eventos_evento_valido CHECK (evento IN (
+    'email_brief_click','edition_brief_click','brief_source_click','brief_related_click','brief_commercial_cta'
+  )),
+  CONSTRAINT brief_eventos_unico UNIQUE (evento, brief_slug, dia)
+);
+
+GRANT SELECT ON public.brief_eventos TO authenticated;
+GRANT ALL ON public.brief_eventos TO service_role;
+
+ALTER TABLE public.brief_eventos ENABLE ROW LEVEL SECURITY;
+
+CREATE POLICY "brief_eventos_leitura_admin" ON public.brief_eventos
+  FOR SELECT TO authenticated
+  USING (public.is_admin());
+
+CREATE INDEX brief_eventos_dia_idx ON public.brief_eventos (dia DESC, evento);
+
+CREATE OR REPLACE FUNCTION public.registar_evento_brief(
+  _evento text, _slug text, _edicao_numero integer
+) RETURNS void
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = public
+AS $$
+BEGIN
+  IF _evento NOT IN (
+    'email_brief_click','edition_brief_click','brief_source_click','brief_related_click','brief_commercial_cta'
+  ) THEN
+    RETURN;
+  END IF;
+
+  INSERT INTO public.brief_eventos (evento, brief_slug, edicao_numero, contagem)
+  VALUES (_evento, COALESCE(left(_slug, 200), ''), _edicao_numero, 1)
+  ON CONFLICT (evento, brief_slug, dia)
+  DO UPDATE SET contagem = public.brief_eventos.contagem + 1, actualizado_em = now();
+END;
+$$;
+
+GRANT EXECUTE ON FUNCTION public.registar_evento_brief(text, text, integer) TO anon, authenticated, service_role;

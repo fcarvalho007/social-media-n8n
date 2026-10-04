@@ -1,0 +1,66 @@
+import { describe, expect, it } from "vitest";
+
+import { montarHtmlRevista } from "../render-email.server";
+import { montarHtmlRevistaWeb } from "../render-web.server";
+import { montarTextoRevista } from "../texto.server";
+import { lerEnvelope, normalizarConfigRevista, type EdicaoRevista } from "../compose.server";
+
+const URL = "https://fredericocarvalho.pt/curso-de-inteligencia-artificial/";
+
+function edicao(promocao: EdicaoRevista["promocao"]): EdicaoRevista {
+  return {
+    edicao: { id: "e1", numero: 318, assunto: null, data_envio_prevista: "2026-10-02", wordpress_post_url: null },
+    preheader: "Edição semanal",
+    promocao,
+    cronica: { titulo: "A crónica", subtitulo: "", lede: "", excerto: "", url: "" },
+    momento: null,
+    pullQuote: "",
+    momentoPosicao: 0,
+    pullQuotePosicao: 0,
+    ledePosicao: 0,
+    imagem: null,
+    imagemPosicao: -1,
+    destaques: [],
+    radar: [],
+    recomendacao: null,
+    ferramentas: [],
+    podcast: null,
+    livro: null,
+    servicos: null,
+    atualidades: [],
+    urlPagina: "https://edicoes.digitalsprint.pt/318",
+    problemas: [],
+  };
+}
+
+describe("promoção de abertura da Revista", () => {
+  it("nasce ligada com o curso habitual", () => {
+    const cfg = normalizarConfigRevista({});
+    expect(cfg.promocao_activa).toBe(true);
+    expect(cfg.promocao_prefixo).toBe("Novo curso");
+    expect(cfg.promocao_link_texto).toBe("Curso de inteligência artificial");
+    expect(cfg.promocao_url).toBe(URL);
+  });
+
+  it("aparece no email, página web e texto simples", () => {
+    const e = edicao({ prefixo: "Novo curso", linkTexto: "Curso de inteligência artificial", url: URL });
+    for (const saida of [montarHtmlRevista(e), montarHtmlRevistaWeb(e).html, montarTextoRevista(e)]) {
+      expect(saida).toContain("Novo curso");
+      expect(saida).toContain("Curso de inteligência artificial");
+      expect(saida).toContain(URL);
+    }
+  });
+
+  it("fica ausente das três versões quando desligada", () => {
+    const e = edicao(null);
+    for (const saida of [montarHtmlRevista(e), montarHtmlRevistaWeb(e).html, montarTextoRevista(e)]) {
+      expect(saida).not.toContain("Curso de inteligência artificial");
+    }
+  });
+
+  it("não acrescenta a promoção a fotografias antigas", () => {
+    const antiga = edicao(undefined);
+    const envelope = lerEnvelope(antiga);
+    expect(envelope?.edicao.promocao).toBeNull();
+  });
+});

@@ -1,0 +1,11 @@
+ALTER TABLE public.ia_uso DROP CONSTRAINT IF EXISTS ia_uso_origem_check;
+ALTER TABLE public.ia_uso ADD CONSTRAINT ia_uso_origem_check CHECK (
+  origem IN (
+    'colagem_manual',
+    'curadoria_rss',
+    'sugerir_assunto',
+    'encurtar_descricao',
+    'pesquisar_fonte',
+    'embedding_deteccao_repeticao'
+  )
+);

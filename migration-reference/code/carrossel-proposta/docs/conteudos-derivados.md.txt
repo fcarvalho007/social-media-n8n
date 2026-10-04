@@ -1,0 +1,105 @@
+# Conteúdos derivados da DIGITALSPRINT
+
+Primeira entrega: carrossel da crónica, com geração manual, revisão e exportação.
+Composição única de 1080 × 1350 para Instagram e LinkedIn. A newsletter continua
+a usar o fluxo de envio existente; esta entrega não inicia geração automática.
+
+## Experimentar localmente sem serviços externos
+
+O projeto usa Bun e mantém `bun.lock` como lockfile. Recomenda-se Node.js 22.12+
+para as ferramentas Vite quando não se usa o runtime Bun.
+
+```sh
+bun install --frozen-lockfile
+bun run dev --host 127.0.0.1 --port 5173
+```
+
+Abrir `http://127.0.0.1:5173/preview/carrossel`. O exemplo é fictício, não lê
+Supabase, não chama IA e não grava dados. A rota é bloqueada em builds de
+produção. Pode editar os slides, navegar e descarregar PNG/ZIP, PDF, legenda e
+rascunho JSON.
+
+Para trabalhar com dados de teste, copiar `.env.local.example` para `.env.local`
+e configurar um backend de teste, autenticação e DeepSeek. As variáveis
+`SUPABASE_SERVICE_ROLE_KEY` e `DEEPSEEK_API_KEY` são exclusivamente do servidor.
+Não configurar integrações E-goi, WordPress ou webhooks de produção nesse ambiente.
+Não copiar automaticamente o `.env` exportado: aponta para o backend existente.
+
+A pasta local foi preparada a partir do ZIP. A ligação GitHub funciona pelo
+conector Codex; o terminal desta máquina ainda não tem autenticação para clonar.
+Para uma cópia com histórico Git, autenticar o cliente Git e clonar o repositório;
+depois obter o ramo desta entrega. Não publicar um novo histórico a partir do ZIP.
+
+## Ativar no ambiente de teste ou Lovable
+
+1. Rever e integrar o ramo desta entrega no ramo efetivamente sincronizado com
+   o Lovable, ou selecionar o ramo de trabalho para a pré-visualização.
+2. Aplicar **apenas** `supabase/migrations/20261003110000_conteudos_derivados.sql`.
+   Não reaplicar as migrações antigas num backend existente. A nova migração
+   cria o armazenamento de rascunhos, as políticas e a origem de consumo de IA;
+   não agenda tarefas. A sincronização Git não executa migrações por si só.
+3. Confirmar as variáveis de servidor já usadas pela aplicação e o acesso de
+   admin/curador. Regenerar os tipos Supabase se o procedimento do projeto o exigir.
+4. Em **Edições passadas**, numa edição Revista enviada com crónica, abrir
+   **Preparar carrossel**. A rota também está disponível em `/conteudos`.
+5. Numa edição histórica, conferir o texto integral e aceitar a utilização da
+   versão atualmente guardada. Gerar, rever todos os slides e as referências,
+   guardar e recarregar para confirmar a persistência.
+6. Exportar as imagens, o PDF e a legenda. A última página PDF liga à crónica.
+7. Publicar a aplicação no Lovable apenas depois desta validação.
+
+Sem a migração, o painel apresenta uma mensagem de ativação em falta.
+Sem DeepSeek, é possível usar a demonstração; a geração real apresenta o erro
+de configuração do serviço. Não enviar chaves para o chat ou incluí-las em commits.
+
+## Comportamento e integridade
+
+- Apenas Revista com `estado = enviada`, snapshot bloqueado, campanhas reais
+  registadas e sem falhas no snapshot de envio. Rascunhos e testes não são fontes.
+- As novas fotografias guardam `cronica_integral` como campo opcional. O campo
+  sobrevive à leitura e ao bloqueio do snapshot. Fotografias antigas não são alteradas.
+- Edições antigas usam a crónica atual, sempre da mesma edição, com confirmação
+  explícita. Isso não prova que o texto seja idêntico ao artigo enviado no passado.
+- A fonte inclui hash e parágrafos numerados; fica congelada com o primeiro
+  rascunho guardado. Gerar não substitui o rascunho da base de dados: guardar é
+  uma ação separada. A geração utiliza a fonte previamente guardada quando existe.
+- Cada slide intermédio exige referências válidas a parágrafos existentes.
+  A validação estrutural não substitui a revisão factual humana.
+- A proposta tem 6–8 slides, título até 100 caracteres, texto até 360 e legenda
+  até 2200. A exportação também verifica o comprimento da legenda com o URL.
+- Títulos e texto ajustam o tamanho dentro de limites; texto que não cabe gera
+  erro em vez de ser cortado. Pré-visualização e exportação usam o mesmo desenho.
+- O PDF contém imagens das páginas e um link na última página. A edição do texto
+  é feita no painel; o JSON descarregado é uma cópia de segurança para consulta,
+  ainda sem fluxo de importação.
+- Gravação com versão esperada evita que um editor sobrescreva outro. A fonte
+  não pode mudar depois de criada. Alterações não guardadas bloqueiam navegação.
+- A área de custos apresenta a origem **Carrossel da crónica**, incluindo uso
+  de IA cuja resposta falhou na validação estrutural.
+
+## Verificação desta entrega
+
+TypeScript sem erros; testes unitários e regressões do projeto; build de produção;
+lint dos novos módulos; teste da migração em PostgreSQL em memória com políticas
+e concorrência; revisão visual desktop/mobile e exportações verificadas.
+
+Não foi usado o backend real, não foi gasto saldo DeepSeek, nem foram enviados
+emails ou publicados artigos. Geração real com IA, persistência no Supabase
+existente e autenticação completa permanecem por verificar nesse ambiente.
+
+## Etapas seguintes
+
+Após validar um carrossel com uma crónica real, preparar o carrossel global usando
+`revista_snapshot.edicao`, sem misturar notícias de outras edições.
+
+A automação pós-envio deve usar uma fila persistente, com uma chave única por
+edição/tipo/versão da fonte, processamento com reserva atómica, tentativas
+limitadas e registo de erros/custos. Nunca iniciar IA no browser nem na resposta
+de envio. Um processo de reconciliação deve recuperar edições elegíveis cujo
+trabalho não tenha sido enfileirado. O processador deve ser autenticado por
+segredo privado de servidor, nunca pela chave publicável do Supabase.
+
+A fila só deve gerar rascunhos em falta, sem sobrescrever revisão humana. Falhas
+de geração não alteram o sucesso da newsletter. Envios parciais devem aguardar
+uma decisão explícita; testes não iniciam tarefas. A publicação nas redes
+continua separada da preparação dos conteúdos.

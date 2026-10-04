@@ -1,0 +1,13 @@
+ALTER TABLE public.fontes_curadoria
+  ADD COLUMN IF NOT EXISTS tipo text NOT NULL DEFAULT 'rss',
+  ADD COLUMN IF NOT EXISTS url_listagem text;
+
+DO $$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_constraint WHERE conname = 'fontes_curadoria_tipo_check'
+  ) THEN
+    ALTER TABLE public.fontes_curadoria
+      ADD CONSTRAINT fontes_curadoria_tipo_check CHECK (tipo IN ('rss','html'));
+  END IF;
+END $$;

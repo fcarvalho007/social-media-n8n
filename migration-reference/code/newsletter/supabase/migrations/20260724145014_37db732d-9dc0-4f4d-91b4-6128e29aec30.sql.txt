@@ -1,0 +1,90 @@
+
+-- (a) mover_seccao
+CREATE OR REPLACE FUNCTION public.mover_seccao(_seccao_id uuid, _direccao text)
+RETURNS void
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = public
+AS $$
+DECLARE
+  _edicao_id uuid;
+  _ordem int;
+  _estado text;
+  _papel text;
+  _viz_id uuid;
+  _viz_ordem int;
+BEGIN
+  IF _direccao NOT IN ('cima','baixo') THEN
+    RAISE EXCEPTION 'Direcção inválida';
+  END IF;
+
+  SELECT edicao_id, ordem INTO _edicao_id, _ordem
+    FROM secoes_edicao WHERE id = _seccao_id;
+  IF _edicao_id IS NULL THEN
+    RAISE EXCEPTION 'Secção não encontrada';
+  END IF;
+
+  SELECT estado INTO _estado FROM edicoes WHERE id = _edicao_id;
+  IF _estado IS DISTINCT FROM 'rascunho' THEN
+    RAISE EXCEPTION 'Edição não está em rascunho';
+  END IF;
+
+  _papel := me_papel();
+  IF _papel NOT IN ('admin','curador') THEN
+    RAISE EXCEPTION 'Sem permissão';
+  END IF;
+
+  IF _direccao = 'cima' THEN
+    SELECT id, ordem INTO _viz_id, _viz_ordem
+      FROM secoes_edicao
+     WHERE edicao_id = _edicao_id AND ordem < _ordem
+     ORDER BY ordem DESC LIMIT 1;
+  ELSE
+    SELECT id, ordem INTO _viz_id, _viz_ordem
+      FROM secoes_edicao
+     WHERE edicao_id = _edicao_id AND ordem > _ordem
+     ORDER BY ordem ASC LIMIT 1;
+  END IF;
+
+  IF _viz_id IS NULL THEN
+    RETURN;
+  END IF;
+
+  UPDATE secoes_edicao SET ordem = _viz_ordem WHERE id = _seccao_id;
+  UPDATE secoes_edicao SET ordem = _ordem     WHERE id = _viz_id;
+END;
+$$;
+
+-- (b) criar_seccoes_padrao com passos de 10
+CREATE OR REPLACE FUNCTION public.criar_seccoes_padrao(_edicao_id uuid)
+RETURNS void
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = public
+AS $$
+DECLARE
+  tipos text[] := ARRAY['destaques','contadores','cronica','podcast','categorias','livro','recursos'];
+  t text;
+  i int := 1;
+BEGIN
+  FOREACH t IN ARRAY tipos LOOP
+    INSERT INTO public.secoes_edicao (edicao_id, tipo, ordem, activo)
+    VALUES (_edicao_id, t, i * 10, true)
+    ON CONFLICT (edicao_id, tipo) WHERE (tipo <> 'personalizada') DO NOTHING;
+    i := i + 1;
+  END LOOP;
+END;
+$$;
+
+-- (c) Remapear ordens existentes em passos de 10
+WITH ord AS (
+  SELECT id, ROW_NUMBER() OVER (PARTITION BY edicao_id ORDER BY ordem, created_at) * 10 AS nova
+    FROM secoes_edicao
+)
+UPDATE secoes_edicao s SET ordem = ord.nova
+  FROM ord WHERE ord.id = s.id AND s.ordem <> ord.nova;
+
+-- (d) Grants explícitos
+GRANT EXECUTE ON FUNCTION public.mover_seccao(uuid, text) TO authenticated, service_role;
+GRANT EXECUTE ON FUNCTION public.reordenar_seccoes(uuid, uuid[]) TO authenticated, service_role;
+GRANT EXECUTE ON FUNCTION public.reordenar_noticias(uuid, uuid[]) TO authenticated, service_role;

@@ -1,0 +1,14 @@
+import { describe, expect, it } from "vitest";
+
+import { CORES_FERRAMENTA, paletaFerramenta } from "../cores-ferramenta";
+
+describe("cores das ferramentas", () => {
+  it("disponibiliza as quatro escolhas do editor", () => {
+    expect(CORES_FERRAMENTA).toEqual(["indigo", "verde", "laranja", "cinzento"]);
+  });
+
+  it("mantém índigo como compatibilidade para valores antigos ou inválidos", () => {
+    expect(paletaFerramenta(undefined).chave).toBe("indigo");
+    expect(paletaFerramenta("desconhecida").chave).toBe("indigo");
+  });
+});

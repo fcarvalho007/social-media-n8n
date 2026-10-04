@@ -1,0 +1,74 @@
+import { useEffect } from "react";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { supabase } from "@/integrations/supabase/client";
+
+export type ModeloDeepSeek = "deepseek-flash" | "deepseek-v4-pro";
+
+// Preços por 1M tokens (tarifa de pico; fora de pico é metade).
+// Fonte: tabela oficial da DeepSeek.
+export const MODELOS_DEEPSEEK: ReadonlyArray<{
+  id: ModeloDeepSeek;
+  nome: string;
+  descricao: string;
+  precoInput: string;
+  precoOutput: string;
+}> = [
+  {
+    id: "deepseek-flash",
+    nome: "DeepSeek Flash (V4.1)",
+    descricao: "Rápido e económico. Recomendado para extracção de notícias.",
+    precoInput: "$0,15–0,30 / 1M tokens",
+    precoOutput: "$0,60–1,20 / 1M tokens",
+  },
+  {
+    id: "deepseek-v4-pro",
+    nome: "DeepSeek V4 Pro",
+    descricao: "Mais capaz e mais caro. Para blocos difíceis ou ambíguos.",
+    precoInput: "$0,66–1,32 / 1M tokens",
+    precoOutput: "$1,98–3,96 / 1M tokens",
+  },
+];
+
+export const MODELO_PADRAO: ModeloDeepSeek = "deepseek-flash";
+
+/** Aceita nomes antigos guardados na base de dados. */
+export function normalizarModeloUI(m: unknown): ModeloDeepSeek {
+  if (m === "deepseek-v4-pro") return "deepseek-v4-pro";
+  return MODELO_PADRAO;
+}
+
+
+export type DefinicoesIA = {
+  id: string;
+  provider: "deepseek";
+  modelo: ModeloDeepSeek;
+  estado: "nao_configurada" | "configurada" | "erro";
+  ultimo_teste_em: string | null;
+  ultimo_erro: string | null;
+  updated_at: string;
+};
+
+export function useDefinicoesIA() {
+  const qc = useQueryClient();
+  const q = useQuery({
+    queryKey: ["definicoes_ia"],
+    queryFn: async (): Promise<DefinicoesIA | null> => {
+      const { data, error } = await supabase.from("definicoes_ia").select("*").eq("id", "default").maybeSingle();
+      if (error) throw error;
+      return (data as DefinicoesIA) ?? null;
+    },
+    staleTime: 30_000,
+  });
+
+  useEffect(() => {
+    const canal = supabase
+      .channel("definicoes_ia")
+      .on("postgres_changes", { event: "*", schema: "public", table: "definicoes_ia" }, () => {
+        qc.invalidateQueries({ queryKey: ["definicoes_ia"] });
+      })
+      .subscribe();
+    return () => { supabase.removeChannel(canal); };
+  }, [qc]);
+
+  return q;
+}

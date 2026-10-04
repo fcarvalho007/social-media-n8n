@@ -1,0 +1,144 @@
+// Página pública do Digital Sprint Brief.
+//
+// Só Briefs aprovados de edições com página web publicada chegam aqui — tudo
+// o resto é 404. O interruptor `briefs_activos` manda. Não há atalhos por
+// parâmetro de endereço: a pré-visualização interna é uma rota autenticada.
+// Antes de a edição sair por email a página responde, mas fica `noindex`.
+
+import { createFileRoute, notFound } from "@tanstack/react-router";
+
+import { PaginaBrief, type BriefConteudo } from "@/features/brief/PaginaBrief";
+import { obterBriefPublicoFn, type BriefPublico } from "@/lib/brief-publico.functions";
+import { baseUrlEdicoesFn } from "@/lib/revista-web.functions";
+import { fmtDataPublica } from "@/features/revista-web/ui";
+
+interface BuscaBrief {
+  /** Origem da visita: `email` quando o endereço vem de um envio. */
+  o?: "email";
+}
+
+const AUTOR = "Frederico Carvalho";
+
+function descricaoDe(b: BriefPublico): string {
+  const texto = (b.tese || b.resumo.join(" ")).replace(/\s+/g, " ").trim();
+  return texto.length > 158 ? `${texto.slice(0, 155).trimEnd()}…` : texto;
+}
+
+export const Route = createFileRoute("/brief/$slug")({
+  validateSearch: (s: Record<string, unknown>): BuscaBrief =>
+    s.o === "email" ? { o: "email" as const } : {},
+  loader: async ({ params }) => {
+    const [resposta, base] = await Promise.all([
+      obterBriefPublicoFn({ data: { slug: params.slug } }),
+      baseUrlEdicoesFn(),
+    ]);
+    if (!resposta.brief) throw notFound();
+    return { brief: resposta.brief, base };
+  },
+  head: ({ params, loaderData }) => {
+    if (!loaderData) {
+      return {
+        meta: [
+          { title: "Brief indisponível · Digital Sprint" },
+          { name: "robots", content: "noindex, follow" },
+        ],
+      };
+    }
+    const b = loaderData.brief;
+    const canonical = `${loaderData.base}/brief/${params.slug}`;
+    const title = `${b.titulo} · Digital Sprint Brief`;
+    const description = descricaoDe(b);
+    // Destaque só indexa depois de a edição ter sido efectivamente enviada.
+    const indexavel = b.indexavel;
+
+    const meta = [
+      { title },
+      { name: "description", content: description },
+      { name: "robots", content: indexavel ? "index, follow" : "noindex, follow" },
+      { property: "og:title", content: title },
+      { property: "og:description", content: description },
+      { property: "og:type", content: "article" },
+      { property: "og:url", content: canonical },
+      { name: "twitter:card", content: "summary" },
+    ];
+
+    return {
+      meta,
+      links: [{ rel: "canonical", href: canonical }],
+      scripts: indexavel
+        ? [
+            {
+              type: "application/ld+json",
+              children: JSON.stringify({
+                "@context": "https://schema.org",
+                "@type": "Article",
+                headline: b.titulo,
+                description,
+                datePublished: b.dataISO,
+                dateModified: b.actualizadoISO,
+                inLanguage: "pt-PT",
+                mainEntityOfPage: canonical,
+                author: { "@type": "Person", name: AUTOR },
+                publisher: { "@type": "Organization", name: "Digital Sprint" },
+              }),
+            },
+          ]
+        : [],
+    };
+  },
+  notFoundComponent: BriefInexistente,
+  component: PaginaBriefPublico,
+});
+
+function PaginaBriefPublico() {
+  const { brief } = Route.useLoaderData();
+  const { slug } = Route.useParams();
+  const busca = Route.useSearch();
+  const conteudo: BriefConteudo = {
+    variante: brief.tipo === "destaque" ? "brief" : "quick",
+    categoria: brief.categoria,
+    titulo: brief.titulo,
+    data: fmtDataPublica(brief.dataISO),
+    dataISO: brief.dataISO,
+    tempo: brief.tempo,
+    fonte: brief.fonte,
+    fonteUrl: brief.fonteUrl,
+    resumo: brief.resumo,
+    implicacoes: brief.implicacoes,
+    leitura: brief.leitura ? { texto: brief.leitura, autor: AUTOR } : undefined,
+    relacionados: brief.relacionados.map((r) => ({
+      categoria: r.categoria,
+      titulo: r.titulo,
+      tempo: r.tempo,
+      slug: r.slug,
+    })),
+    edicaoNumero: brief.edicaoNumero,
+    slug,
+    origem: busca.o === "email" ? "email" : "edicao",
+    contar: true,
+  };
+  return <PaginaBrief conteudo={conteudo} />;
+}
+
+function BriefInexistente() {
+  return (
+    <div className="rw rw-sala flex min-h-dvh items-center justify-center px-6 text-center">
+      <div>
+        <p className="font-display text-[11px] font-semibold uppercase tracking-[0.18em] text-rw-ciano">
+          Digital Sprint Brief
+        </p>
+        <h1 className="mt-4 font-display text-[32px] font-bold text-rw-chalk sm:text-[44px]">
+          Este Brief não está disponível.
+        </h1>
+        <p className="mt-4 text-[15px] leading-7 text-rw-chalk-2">
+          A página pode ter mudado de endereço ou ainda não ter sido publicada.
+        </p>
+        <p className="mt-8">
+          <a href="/edicoes" className="rw-link text-[15px] font-semibold text-rw-ciano">
+            Ver as edições publicadas →
+          </a>
+        </p>
+      </div>
+    </div>
+  );
+}

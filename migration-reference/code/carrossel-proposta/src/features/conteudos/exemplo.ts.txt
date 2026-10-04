@@ -1,0 +1,64 @@
+import type { FonteCronica, RascunhoCarrossel } from "@/lib/conteudos/carrossel";
+
+// Ficção editorial exclusiva da demonstração, sem dados de qualquer edição real.
+export const FONTE_EXEMPLO: FonteCronica = {
+  edicaoId: "00000000-0000-4000-8000-000000000000",
+  numero: 0,
+  titulo: "Mais ferramentas ou melhores decisões?",
+  origem: "snapshot",
+  hash: "0".repeat(64),
+  url: "https://example.com/cronica-demonstrativa",
+  paragrafos: [
+    "Uma ferramenta nova pode tornar uma tarefa mais rápida. Mas a rapidez só é útil quando a tarefa ajuda a resolver o problema certo.",
+    "Antes de experimentar outra aplicação, vale a pena escrever a decisão que queremos melhorar. Esse gesto simples dá um propósito à experiência.",
+    "Uma equipa pode começar por uma tarefa pequena e comparar a forma habitual de trabalhar com a nova abordagem. O objetivo é observar o que muda, sem transformar uma experiência numa obrigação.",
+    "A revisão humana continua a fazer parte do processo. Uma resposta bem escrita pode precisar de contexto, de correção ou de uma pergunta diferente.",
+    "Guardar o que aprendemos ajuda a próxima decisão. Não precisamos de acumular ferramentas; precisamos de compreender em que situações são úteis.",
+  ],
+};
+export const RASCUNHO_EXEMPLO: RascunhoCarrossel = {
+  fonte: FONTE_EXEMPLO,
+  versao: 0,
+  actualizadoEm: null,
+  carrossel: {
+    slides: [
+      {
+        titulo: "Mais ferramentas ou melhores decisões?",
+        texto:
+          "Antes de escolher a próxima aplicação, vale a pena escolher o problema que queremos resolver.",
+        fontes: [1],
+      },
+      {
+        titulo: "A rapidez precisa de propósito",
+        texto: "Uma tarefa mais rápida só cria valor quando ajuda a resolver o problema certo.",
+        fontes: [1],
+      },
+      {
+        titulo: "Começa pela decisão",
+        texto:
+          "Escreve a decisão que queres melhorar. É esse propósito que permite avaliar uma ferramenta.",
+        fontes: [2],
+      },
+      {
+        titulo: "Experimenta numa tarefa pequena",
+        texto:
+          "Compara a forma habitual de trabalhar com a nova abordagem. Observa o que muda antes de transformar o teste numa rotina.",
+        fontes: [3],
+      },
+      {
+        titulo: "A revisão faz parte do processo",
+        texto:
+          "Uma resposta bem escrita pode precisar de contexto ou de correção. Guarda o que aprendeste para apoiar a próxima decisão.",
+        fontes: [4, 5],
+      },
+      {
+        titulo: "Leva a pergunta contigo",
+        texto:
+          "Que decisão queres melhorar? Lê a crónica completa e usa-a como ponto de partida para a próxima experiência.",
+        fontes: [],
+      },
+    ],
+    legenda:
+      "Uma ferramenta nova pode acelerar uma tarefa. A pergunta anterior é outra: que decisão queremos melhorar?\n\nEsta é uma crónica fictícia usada para demonstrar o editor da DIGITALSPRINT.",
+  },
+};

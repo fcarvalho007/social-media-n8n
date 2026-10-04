@@ -1,0 +1,6 @@
+UPDATE public.fontes_curadoria
+SET url_feed = 'https://www.toolify.ai/new',
+    url_listagem = 'https://www.toolify.ai/new',
+    nome = 'Toolify — Novas'
+WHERE tipo = 'directorio_ferramentas'
+  AND (nome ILIKE '%toolify%' OR url_feed ILIKE '%toolify%');

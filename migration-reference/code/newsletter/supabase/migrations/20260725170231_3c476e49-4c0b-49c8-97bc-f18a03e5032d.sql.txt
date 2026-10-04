@@ -1,0 +1,55 @@
+-- 1. Nova coluna bloco_consultoria em edicoes
+ALTER TABLE public.edicoes
+  ADD COLUMN IF NOT EXISTS bloco_consultoria jsonb NOT NULL DEFAULT jsonb_build_object(
+    'titulo', 'Isto aplica-se à tua empresa?',
+    'subtitulo', 'Se este tema tocou nalguma decisão que estás a adiar, marca 15 minutos comigo. Digo-te já se vale a pena aprofundar.',
+    'texto_botao', 'Marcar 15 minutos',
+    'url_botao', 'https://digitalfc.pt/agendar'
+  );
+
+-- 2. Alargar CHECK de secoes_edicao.tipo para incluir 'consultoria'
+DO $$
+DECLARE
+  cname text;
+BEGIN
+  SELECT conname INTO cname
+  FROM pg_constraint
+  WHERE conrelid = 'public.secoes_edicao'::regclass
+    AND contype = 'c'
+    AND pg_get_constraintdef(oid) ILIKE '%tipo%'
+  LIMIT 1;
+  IF cname IS NOT NULL THEN
+    EXECUTE format('ALTER TABLE public.secoes_edicao DROP CONSTRAINT %I', cname);
+  END IF;
+  ALTER TABLE public.secoes_edicao
+    ADD CONSTRAINT secoes_edicao_tipo_check
+    CHECK (tipo IN ('destaques','contadores','cronica','consultoria','podcast','categorias','ferramentas_semana','livro','recursos','personalizada'));
+END $$;
+
+-- 3. criar_seccoes_padrao inclui consultoria entre cronica e podcast
+CREATE OR REPLACE FUNCTION public.criar_seccoes_padrao(_edicao_id uuid)
+ RETURNS void
+ LANGUAGE plpgsql
+ SECURITY DEFINER
+ SET search_path TO 'public'
+AS $function$
+DECLARE
+  tipos text[] := ARRAY['destaques','contadores','cronica','consultoria','podcast','categorias','ferramentas_semana','livro','recursos'];
+  t text;
+  i int := 1;
+BEGIN
+  FOREACH t IN ARRAY tipos LOOP
+    INSERT INTO public.secoes_edicao (edicao_id, tipo, ordem, activo)
+    VALUES (_edicao_id, t, i * 10, true)
+    ON CONFLICT (edicao_id, tipo) WHERE (tipo <> 'personalizada') DO NOTHING;
+    i := i + 1;
+  END LOOP;
+END;
+$function$;
+
+-- 4. Backfill: inserir consultoria activa nas edições em rascunho, ordem entre crónica (30) e podcast (40) = 35
+INSERT INTO public.secoes_edicao (edicao_id, tipo, ordem, activo)
+SELECT id, 'consultoria', 35, true
+FROM public.edicoes
+WHERE estado = 'rascunho'
+ON CONFLICT (edicao_id, tipo) WHERE (tipo <> 'personalizada') DO NOTHING;

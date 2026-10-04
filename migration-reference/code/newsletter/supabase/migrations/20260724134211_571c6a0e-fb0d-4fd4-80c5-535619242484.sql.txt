@@ -1,0 +1,3 @@
+ALTER TABLE public.noticias DROP CONSTRAINT IF EXISTS noticias_origem_check;
+ALTER TABLE public.noticias ADD CONSTRAINT noticias_origem_check
+  CHECK (origem = ANY (ARRAY['form_unica','form_bloco','whatsapp','curadoria_ia','manual','manual_ia']));

@@ -1,0 +1,11 @@
+{
+  "version": 1,
+  "asset_id": "64e62b56-bcaf-4d4a-b6d3-d80d1568af05",
+  "project_id": "23514b53-4ffd-429e-81c5-46fedf7b5a3e",
+  "url": "/__l5e/assets-v1/64e62b56-bcaf-4d4a-b6d3-d80d1568af05/frederico-avatar.png",
+  "r2_key": "a/v1/23514b53-4ffd-429e-81c5-46fedf7b5a3e/64e62b56-bcaf-4d4a-b6d3-d80d1568af05/frederico-avatar.png",
+  "original_filename": "frederico-avatar.png",
+  "size": 177206,
+  "content_type": "image/png",
+  "created_at": "2026-08-06T13:51:57Z"
+}

@@ -1,0 +1,83 @@
+-- Nova tabela egoi_listas
+CREATE TABLE public.egoi_listas (
+  id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  nome text NOT NULL,
+  egoi_lista_id text NOT NULL,
+  tipo text NOT NULL DEFAULT 'real' CHECK (tipo IN ('teste','real')),
+  activa boolean NOT NULL DEFAULT true,
+  ordem int NOT NULL DEFAULT 0,
+  created_at timestamptz NOT NULL DEFAULT now()
+);
+
+GRANT SELECT ON public.egoi_listas TO authenticated;
+GRANT ALL ON public.egoi_listas TO service_role;
+
+ALTER TABLE public.egoi_listas ENABLE ROW LEVEL SECURITY;
+
+CREATE POLICY "Autenticados podem ler listas E-goi"
+  ON public.egoi_listas FOR SELECT TO authenticated
+  USING (true);
+
+CREATE POLICY "Admins podem inserir listas E-goi"
+  ON public.egoi_listas FOR INSERT TO authenticated
+  WITH CHECK (public.me_papel() = 'admin');
+
+CREATE POLICY "Admins podem actualizar listas E-goi"
+  ON public.egoi_listas FOR UPDATE TO authenticated
+  USING (public.me_papel() = 'admin')
+  WITH CHECK (public.me_papel() = 'admin');
+
+CREATE POLICY "Admins podem apagar listas E-goi"
+  ON public.egoi_listas FOR DELETE TO authenticated
+  USING (public.me_papel() = 'admin');
+
+-- Migração de dados das chaves antigas
+DO $$
+DECLARE
+  v_teste text;
+  v_l1_id text; v_l1_nome text;
+  v_l2_id text; v_l2_nome text;
+  v_l3_id text; v_l3_nome text;
+  v_subs text;
+BEGIN
+  SELECT valor INTO v_teste FROM public.configuracoes WHERE chave='egoi_lista_teste_id';
+  SELECT valor INTO v_l1_id FROM public.configuracoes WHERE chave='egoi_lista_1_id';
+  SELECT valor INTO v_l1_nome FROM public.configuracoes WHERE chave='egoi_lista_1_nome';
+  SELECT valor INTO v_l2_id FROM public.configuracoes WHERE chave='egoi_lista_2_id';
+  SELECT valor INTO v_l2_nome FROM public.configuracoes WHERE chave='egoi_lista_2_nome';
+  SELECT valor INTO v_l3_id FROM public.configuracoes WHERE chave='egoi_lista_3_id';
+  SELECT valor INTO v_l3_nome FROM public.configuracoes WHERE chave='egoi_lista_3_nome';
+  SELECT valor INTO v_subs FROM public.configuracoes WHERE chave='egoi_lista_subscritores_id';
+
+  IF v_teste IS NOT NULL AND trim(v_teste) <> '' THEN
+    INSERT INTO public.egoi_listas (nome, egoi_lista_id, tipo, activa, ordem)
+    VALUES ('Lista de teste', trim(v_teste), 'teste', true, 0);
+  END IF;
+
+  IF v_l1_id IS NOT NULL AND trim(v_l1_id) <> '' THEN
+    INSERT INTO public.egoi_listas (nome, egoi_lista_id, tipo, activa, ordem)
+    VALUES (COALESCE(NULLIF(trim(v_l1_nome),''),'Lista 1'), trim(v_l1_id), 'real', true, 1);
+  END IF;
+  IF v_l2_id IS NOT NULL AND trim(v_l2_id) <> '' THEN
+    INSERT INTO public.egoi_listas (nome, egoi_lista_id, tipo, activa, ordem)
+    VALUES (COALESCE(NULLIF(trim(v_l2_nome),''),'Lista 2'), trim(v_l2_id), 'real', true, 2);
+  END IF;
+  IF v_l3_id IS NOT NULL AND trim(v_l3_id) <> '' THEN
+    INSERT INTO public.egoi_listas (nome, egoi_lista_id, tipo, activa, ordem)
+    VALUES (COALESCE(NULLIF(trim(v_l3_nome),''),'Lista 3'), trim(v_l3_id), 'real', true, 3);
+  END IF;
+  IF v_subs IS NOT NULL AND trim(v_subs) <> ''
+     AND NOT EXISTS (SELECT 1 FROM public.egoi_listas WHERE egoi_lista_id = trim(v_subs)) THEN
+    INSERT INTO public.egoi_listas (nome, egoi_lista_id, tipo, activa, ordem)
+    VALUES ('Subscritores Digital Sprint', trim(v_subs), 'real', true, 4);
+  END IF;
+END $$;
+
+DELETE FROM public.configuracoes
+ WHERE chave IN (
+   'egoi_lista_teste_id',
+   'egoi_lista_1_id','egoi_lista_1_nome',
+   'egoi_lista_2_id','egoi_lista_2_nome',
+   'egoi_lista_3_id','egoi_lista_3_nome',
+   'egoi_lista_subscritores_id'
+ );

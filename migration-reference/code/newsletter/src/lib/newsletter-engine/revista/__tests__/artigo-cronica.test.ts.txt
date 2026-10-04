@@ -1,0 +1,157 @@
+// Regressão da integridade edição → crónica → artigo.
+// Puro: sem rede, sem base de dados.
+
+import { describe, expect, it } from "vitest";
+
+import {
+  MINIMO_CORPO,
+  construirPayloadArtigo,
+  corpoEditorialValido,
+  excerptArtigo,
+  impressaoArtigo,
+  referenciaEdicao,
+  validarArtigo,
+  type DadosArtigoCronica,
+} from "../artigo-cronica";
+
+const E317 = "ea60693e-8729-43d3-9f80-7526b9ac4581";
+const E318 = "11111111-2222-3333-4444-555555555555";
+
+const CORPO_317 = `<p>${"A geração das cinco horas acorda antes do mundo e trabalha em silêncio. ".repeat(6)}</p>`;
+
+function dados(over: Partial<DadosArtigoCronica> = {}): DadosArtigoCronica {
+  return {
+    edicaoId: E317,
+    cronicaId: "c537a2b3-9fa1-450a-84f6-450154ec49b8",
+    cronicaEdicaoId: E317,
+    configEdicaoId: E317,
+    numeroEdicao: 317,
+    titulo: "A geração das cinco horas",
+    subtitulo: "Sobre acordar cedo",
+    lede: "Há uma geração inteira que decidiu acordar às cinco da manhã para ter algum tempo que seja verdadeiramente seu.",
+    corpoHtml: CORPO_317,
+    urlEdicao: "https://exemplo.pt/edicoes/317",
+    ...over,
+  };
+}
+
+describe("A — crónica normal de uma edição", () => {
+  it("constrói o artigo com o corpo dessa edição e o rodapé no fim", () => {
+    const a = construirPayloadArtigo(dados(), { status: "draft", categoria: "cronicas" });
+    expect(a.edicaoId).toBe(E317);
+    expect(a.numeroEdicao).toBe(317);
+    expect(a.publicavel).toBe(true);
+    expect(validarArtigo(a)).toEqual([]);
+    expect(a.content).toContain(referenciaEdicao(317, "https://exemplo.pt/edicoes/317"));
+    expect(a.content.indexOf("cinco horas")).toBeLessThan(a.content.indexOf("integra a edição"));
+  });
+});
+
+describe("B — crónica vazia", () => {
+  it("não é publicável e o rodapé nunca substitui o corpo", () => {
+    const a = construirPayloadArtigo(dados({ corpoHtml: "" }), { status: "draft" });
+    expect(a.publicavel).toBe(false);
+    expect(a.content).not.toContain("integra a edição");
+    expect(validarArtigo(a)[0]).toMatch(/Crónica incompleta/);
+  });
+
+  it("marcação vazia continua a contar como vazio", () => {
+    const vazio = "<p></p><p>&nbsp;</p><br /><p>   </p>";
+    expect(corpoEditorialValido(vazio)).toBe(false);
+    const a = construirPayloadArtigo(dados({ corpoHtml: vazio }), { status: "draft" });
+    expect(validarArtigo(a).length).toBeGreaterThan(0);
+  });
+
+  it("um corpo que só tenha o rodapé automático não passa", () => {
+    const so = referenciaEdicao(317, "https://exemplo.pt/edicoes/317");
+    expect(corpoEditorialValido(so)).toBe(false);
+  });
+});
+
+describe("C — lede inválida", () => {
+  it("«dada» nunca chega ao excerpt; usa-se o arranque do corpo", () => {
+    const a = construirPayloadArtigo(dados({ lede: "dada" }), { status: "draft" });
+    expect(a.excerpt).not.toBe("dada");
+    expect(a.excerpt).toContain("cinco horas");
+    expect(a.excerpt.length).toBeGreaterThanOrEqual(MINIMO_CORPO - 20);
+  });
+
+  it("uma lede real é usada tal e qual", () => {
+    const a = construirPayloadArtigo(dados(), { status: "draft" });
+    expect(a.excerpt.startsWith("Há uma geração inteira")).toBe(true);
+  });
+
+  it("sem lede e sem corpo, o excerpt fica vazio", () => {
+    expect(excerptArtigo("", "")).toBe("");
+  });
+});
+
+describe("D — dados cruzados entre edições", () => {
+  it("crónica de outra edição bloqueia a construção", () => {
+    expect(() => construirPayloadArtigo(dados({ cronicaEdicaoId: E318 }), { status: "draft" })).toThrow(
+      /Integridade/,
+    );
+  });
+
+  it("campos editoriais de outra edição bloqueiam a construção", () => {
+    expect(() => construirPayloadArtigo(dados({ configEdicaoId: E318 }), { status: "draft" })).toThrow(
+      /Integridade/,
+    );
+  });
+
+  it("destino diferente da edição bloqueia a escrita", () => {
+    expect(() =>
+      construirPayloadArtigo(dados(), { status: "draft", destinoEdicaoId: E318 }),
+    ).toThrow(/Integridade/);
+  });
+
+  it("número de edição inválido bloqueia", () => {
+    expect(() => construirPayloadArtigo(dados({ numeroEdicao: 0 }), { status: "draft" })).toThrow(/Integridade/);
+  });
+});
+
+describe("E — edição nova sem crónica", () => {
+  it("não herda o corpo da edição anterior", () => {
+    const a = construirPayloadArtigo(
+      dados({ edicaoId: E318, cronicaId: null, cronicaEdicaoId: null, configEdicaoId: E318, numeroEdicao: 318, corpoHtml: "", titulo: "" }),
+      { status: "draft", destinoEdicaoId: E318 },
+    );
+    expect(a.cronicaId).toBeNull();
+    expect(a.corpoTexto).toBe("");
+    expect(a.content).not.toContain("cinco horas");
+    expect(validarArtigo(a).length).toBeGreaterThan(0);
+  });
+});
+
+describe("F — hash de sincronização", () => {
+  it("é determinístico para o mesmo conteúdo", async () => {
+    const a = construirPayloadArtigo(dados(), { status: "publish", categoria: "cronicas" });
+    const b = construirPayloadArtigo(dados(), { status: "publish", categoria: "cronicas" });
+    expect(await impressaoArtigo(a)).toBe(await impressaoArtigo(b));
+  });
+
+  it("muda com o corpo, o título e a categoria", async () => {
+    const base = construirPayloadArtigo(dados(), { status: "publish", categoria: "cronicas" });
+    const h = await impressaoArtigo(base);
+    expect(
+      await impressaoArtigo(construirPayloadArtigo(dados({ titulo: "Outro título" }), { status: "publish", categoria: "cronicas" })),
+    ).not.toBe(h);
+    expect(
+      await impressaoArtigo(construirPayloadArtigo(dados({ corpoHtml: `${CORPO_317}<p>Mais um parágrafo.</p>` }), { status: "publish", categoria: "cronicas" })),
+    ).not.toBe(h);
+    expect(
+      await impressaoArtigo(construirPayloadArtigo(dados(), { status: "publish", categoria: "opiniao" })),
+    ).not.toBe(h);
+  });
+});
+
+describe("G — sanitização e estrutura", () => {
+  it("remove script e mantém parágrafos, listas e links", () => {
+    const html = `<p>Texto <strong>forte</strong> com <a href="https://exemplo.pt">link</a>.</p><script>alert(1)</script><ul><li>Um</li></ul>${CORPO_317}`;
+    const a = construirPayloadArtigo(dados({ corpoHtml: html }), { status: "draft" });
+    expect(a.content).not.toContain("<script");
+    expect(a.content).toContain("<strong>");
+    expect(a.content).toContain("<li>");
+    expect(a.content).toContain('href="https://exemplo.pt"');
+  });
+});

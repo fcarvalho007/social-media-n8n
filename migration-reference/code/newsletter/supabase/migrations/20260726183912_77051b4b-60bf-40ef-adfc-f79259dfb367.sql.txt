@@ -1,0 +1,79 @@
+
+-- 1) audit_log: restrict SELECT to admins, tighten INSERT
+DROP POLICY IF EXISTS audit_select_auth ON public.audit_log;
+CREATE POLICY audit_select_admin ON public.audit_log
+  FOR SELECT TO authenticated USING (public.is_admin());
+
+DROP POLICY IF EXISTS audit_insert_auth ON public.audit_log;
+CREATE POLICY audit_insert_auth ON public.audit_log
+  FOR INSERT TO authenticated WITH CHECK (auth.uid() IS NOT NULL);
+
+-- 2) configuracoes: SELECT admin-only
+DROP POLICY IF EXISTS "Autenticados podem ler configuracoes" ON public.configuracoes;
+CREATE POLICY "Admins podem ler configuracoes" ON public.configuracoes
+  FOR SELECT TO authenticated USING (public.is_admin());
+
+-- 3) definicoes_ia: SELECT admin-only
+DROP POLICY IF EXISTS definicoes_ia_read_all_auth ON public.definicoes_ia;
+CREATE POLICY definicoes_ia_read_admin ON public.definicoes_ia
+  FOR SELECT TO authenticated USING (public.is_admin());
+
+-- 4) emails_recebidos: restrict to admin/curador
+DROP POLICY IF EXISTS "Autenticados podem ler emails recebidos" ON public.emails_recebidos;
+DROP POLICY IF EXISTS "Autenticados podem inserir emails recebidos" ON public.emails_recebidos;
+DROP POLICY IF EXISTS "Autenticados podem actualizar emails recebidos" ON public.emails_recebidos;
+DROP POLICY IF EXISTS "Autenticados podem apagar emails recebidos" ON public.emails_recebidos;
+
+CREATE POLICY "Staff pode ler emails recebidos" ON public.emails_recebidos
+  FOR SELECT TO authenticated USING (public.me_papel() IN ('admin','curador'));
+CREATE POLICY "Staff pode inserir emails recebidos" ON public.emails_recebidos
+  FOR INSERT TO authenticated WITH CHECK (public.me_papel() IN ('admin','curador'));
+CREATE POLICY "Staff pode actualizar emails recebidos" ON public.emails_recebidos
+  FOR UPDATE TO authenticated
+  USING (public.me_papel() IN ('admin','curador'))
+  WITH CHECK (public.me_papel() IN ('admin','curador'));
+CREATE POLICY "Staff pode apagar emails recebidos" ON public.emails_recebidos
+  FOR DELETE TO authenticated USING (public.me_papel() IN ('admin','curador'));
+
+-- 5) ia_uso: explicit admin-only write policies (service role bypasses RLS)
+CREATE POLICY admin_insert_ia_uso ON public.ia_uso
+  FOR INSERT TO authenticated WITH CHECK (public.is_admin());
+CREATE POLICY admin_update_ia_uso ON public.ia_uso
+  FOR UPDATE TO authenticated
+  USING (public.is_admin()) WITH CHECK (public.is_admin());
+CREATE POLICY admin_delete_ia_uso ON public.ia_uso
+  FOR DELETE TO authenticated USING (public.is_admin());
+
+-- 6) perfis: trigger to prevent self role change
+CREATE OR REPLACE FUNCTION public.perfis_bloquear_alteracao_papel()
+RETURNS trigger
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = public
+AS $$
+BEGIN
+  IF NEW.papel IS DISTINCT FROM OLD.papel AND NOT public.is_admin() THEN
+    RAISE EXCEPTION 'Não podes alterar o teu próprio papel';
+  END IF;
+  RETURN NEW;
+END;
+$$;
+
+DROP TRIGGER IF EXISTS trg_perfis_bloquear_papel ON public.perfis;
+CREATE TRIGGER trg_perfis_bloquear_papel
+  BEFORE UPDATE ON public.perfis
+  FOR EACH ROW EXECUTE FUNCTION public.perfis_bloquear_alteracao_papel();
+
+-- 7) Revoke EXECUTE from anon/public on all public SECURITY DEFINER functions
+REVOKE EXECUTE ON FUNCTION public.mover_seccao(uuid, text) FROM PUBLIC, anon;
+REVOKE EXECUTE ON FUNCTION public.reordenar_seccoes(uuid, uuid[]) FROM PUBLIC, anon;
+REVOKE EXECUTE ON FUNCTION public.reordenar_noticias(uuid, uuid[]) FROM PUBLIC, anon;
+REVOKE EXECUTE ON FUNCTION public.criar_seccoes_padrao(uuid) FROM PUBLIC, anon;
+REVOKE EXECUTE ON FUNCTION public.pesquisar_arquivo(text, integer) FROM PUBLIC, anon;
+REVOKE EXECUTE ON FUNCTION public.stats_fontes_30d() FROM PUBLIC, anon;
+REVOKE EXECUTE ON FUNCTION public.encontrar_candidatos_repeticao(text, text, real) FROM PUBLIC, anon, authenticated;
+REVOKE EXECUTE ON FUNCTION public.confirmar_repeticao_por_embedding(halfvec, uuid[], real) FROM PUBLIC, anon, authenticated;
+REVOKE EXECUTE ON FUNCTION public.is_admin() FROM PUBLIC, anon;
+REVOKE EXECUTE ON FUNCTION public.me_papel() FROM PUBLIC, anon;
+REVOKE EXECUTE ON FUNCTION public.handle_new_user() FROM PUBLIC, anon, authenticated;
+REVOKE EXECUTE ON FUNCTION public.perfis_bloquear_alteracao_papel() FROM PUBLIC, anon, authenticated;

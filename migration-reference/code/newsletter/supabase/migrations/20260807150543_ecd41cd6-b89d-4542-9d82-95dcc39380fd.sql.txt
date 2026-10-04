@@ -1,0 +1,1 @@
+ALTER TABLE public.edicoes ADD COLUMN IF NOT EXISTS envio_em_curso timestamp with time zone;

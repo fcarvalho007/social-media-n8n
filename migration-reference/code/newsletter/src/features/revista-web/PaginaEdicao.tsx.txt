@@ -1,0 +1,464 @@
+// Apresentação da edição web Revista — direcção «jornal digital».
+// Camadas editoriais mantidas: crónica (parar e ler), três coisas
+// (interpretação), radar (scan), seleção completa (explorar), recomendação.
+
+import { Link } from "@tanstack/react-router";
+import type { PaginaEdicaoPublica } from "@/lib/revista-web.functions";
+import { Atualidades } from "./Atualidades";
+import { BarraTopo, ProgressoLeitura, type AncoraSeccao } from "./Navegacao";
+import { Etiqueta, IntroSeccao, SERIF, fmtDataPublica } from "./ui";
+import { sequenciaCronica } from "@/lib/newsletter-engine/revista/sequencia-cronica";
+import { Cabecalho } from "./Hero";
+import { NAV_REVISTA, NOTAS_REVISTA, ROTULOS_REVISTA } from "@/lib/newsletter-engine/revista/rotulos";
+
+export { fmtDataPublica };
+
+const WRAP = "mx-auto w-full max-w-[79rem] px-5 sm:px-8 lg:px-12";
+
+export interface LigacaoBrief {
+  slug: string;
+  tipo: "destaque" | "radar";
+  estado?: string;
+}
+
+export function PaginaEdicao({
+  pagina,
+  briefs,
+  previaInterna = false,
+}: {
+  pagina: PaginaEdicaoPublica;
+  briefs?: Record<string, LigacaoBrief>;
+  previaInterna?: boolean;
+}) {
+  const e = pagina.estrutura;
+  const mapaBriefs = briefs ?? pagina.briefs;
+  const briefDe = (noticiaId: string): LigacaoBrief | undefined => mapaBriefs?.[noticiaId];
+  const briefUtilizavel = (brief: LigacaoBrief | undefined) =>
+    !!brief && !["por_gerar", "a_gerar", "erro"].includes(brief.estado ?? "publicado");
+  const data = fmtDataPublica(e.edicao.data_envio_prevista);
+  const temAtualidades = pagina.grupos.some((g) => g.itens.length > 0);
+
+  const ancoras: AncoraSeccao[] = [
+    { id: "cronica", rotulo: NAV_REVISTA.cronica },
+    ...(e.destaques.length ? [{ id: "destaques", rotulo: NAV_REVISTA.destaques }] : []),
+    ...(e.radar.length ? [{ id: "radar", rotulo: NAV_REVISTA.radar }] : []),
+    ...(temAtualidades ? [{ id: "atualidades", rotulo: NAV_REVISTA.atualidades }] : []),
+    ...(e.recomendacao ? [{ id: "recomendacao", rotulo: NAV_REVISTA.recomendacao }] : []),
+  ];
+
+  // Numeração editorial das secções, na ordem em que aparecem.
+  let n = 0;
+  const num = () => ++n;
+  const nCronica = num();
+  const nDestaques = e.destaques.length ? num() : 0;
+  const nRadar = e.radar.length ? num() : 0;
+  const nAtualidades = temAtualidades ? num() : 0;
+  const nRecomendacao = e.recomendacao ? num() : 0;
+
+  const figuraImagem = (chave: string | number) =>
+    e.imagem ? (
+      <figure key={chave} className="mt-7">
+        <img src={e.imagem.url} alt={e.imagem.alt} loading="lazy" className="block h-auto w-full" />
+        {e.imagem.credito ? (
+          <figcaption className="mt-2 text-[12px] leading-5 text-white/60">
+            {e.imagem.creditoUrl ? (
+              <a href={e.imagem.creditoUrl} rel="noreferrer noopener" target="_blank">
+                {e.imagem.credito}
+              </a>
+            ) : (
+              e.imagem.credito
+            )}
+          </figcaption>
+        ) : null}
+      </figure>
+    ) : null;
+
+  return (
+    <div id="topo" className="rw rw-web min-h-dvh">
+      <ProgressoLeitura />
+
+      <a
+        href="#atualidades"
+        className="sr-only focus:not-sr-only focus:absolute focus:left-4 focus:top-4 focus:z-50 focus:bg-rw-ink focus:px-4 focus:py-3 focus:text-white"
+      >
+        Saltar para as notícias
+      </a>
+
+      <BarraTopo ancoras={ancoras} />
+
+      <Cabecalho numero={e.edicao.numero} data={data} dataISO={e.edicao.data_envio_prevista} />
+
+      <main id="conteudo">
+        {/* 01 — crónica: bloco azul a toda a largura */}
+        <section id="cronica" className="scroll-mt-24 bg-rw-blue text-white" aria-labelledby="cronica-titulo">
+          <div className={`${WRAP} grid gap-8 py-10 sm:py-12 lg:grid-cols-[1.15fr_1fr] lg:gap-16`}>
+            <div>
+              <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-white/75">
+                {String(nCronica).padStart(2, "0")} / {ROTULOS_REVISTA.cronica}
+              </p>
+              <h1
+                id="cronica-titulo"
+                className="mt-5 font-display text-[38px] font-bold leading-[1.02] tracking-[-0.03em] sm:text-[56px]"
+              >
+                {e.cronica.titulo || `Edição ${e.edicao.numero}`}
+                {e.cronica.subtitulo ? (
+                  <span className="mt-3 block text-[0.55em] font-normal italic leading-[1.15] text-white/80">
+                    {e.cronica.subtitulo}
+                  </span>
+                ) : null}
+              </h1>
+            </div>
+
+            <div className="lg:pt-9">
+              {sequenciaCronica({
+                excerto: e.cronica.excerto,
+                lede: !!e.cronica.lede,
+                ledePos: e.ledePosicao,
+                pullQuote: !!e.pullQuote,
+                pullQuotePos: e.pullQuotePosicao,
+                momento: !!e.momento,
+                momentoPos: e.momentoPosicao,
+                imagem: !!e.imagem,
+                imagemPos: e.imagemPosicao,
+              }).map((peca, i) => {
+                if (peca.tipo === "imagem") return figuraImagem(i);
+
+                if (peca.tipo === "lede") {
+                  return (
+                    <p
+                      key={i}
+                      className="mt-4 first:mt-0 text-[19px] font-semibold leading-[1.4] text-white sm:text-[21px]"
+                    >
+                      {e.cronica.lede}
+                    </p>
+                  );
+                }
+
+                if (peca.tipo === "paragrafo") {
+                  return (
+                    <p key={i} className="mt-4 first:mt-0 text-[16.5px] leading-[1.7] text-white/90">
+                      {peca.texto}
+                    </p>
+                  );
+                }
+
+                if (peca.tipo === "momento" && e.momento) {
+                  return (
+                    <aside key={i} className="mt-7 border-l-2 border-white/40 pl-5">
+                      <Etiqueta sobre="azul" className="!text-white/75">
+                        {e.momento.etiqueta}
+                      </Etiqueta>
+                      <p className="pt-1 font-display text-[40px] font-bold leading-none tracking-tight sm:text-[52px]">
+                        {e.momento.valor}
+                      </p>
+                      <p className="pt-2 text-[15px] leading-6 text-white/85">{e.momento.descricao}</p>
+                    </aside>
+                  );
+                }
+
+                if (peca.tipo === "pull_quote") {
+                  return (
+                    <blockquote
+                      key={i}
+                      className="mt-7 text-[22px] leading-[1.4] text-white sm:text-[26px]"
+                      style={{ fontFamily: SERIF }}
+                    >
+                      “{e.pullQuote}”
+                    </blockquote>
+                  );
+                }
+
+                return null;
+              })}
+
+              {e.cronica.url ? (
+                <p className="mt-7">
+                  <a
+                    href={e.cronica.url}
+                    rel="noopener"
+                    className="inline-flex min-h-[46px] items-center whitespace-nowrap bg-white px-6 text-[15px] font-semibold text-rw-blue"
+                  >
+                    Continuar a crónica <span aria-hidden className="ml-2">↗</span>
+                  </a>
+                </p>
+              ) : null}
+            </div>
+          </div>
+        </section>
+
+        <div className={WRAP}>
+          {/* 02 — três coisas */}
+          {e.destaques.length ? (
+            <section aria-labelledby="destaques">
+              <IntroSeccao
+                id="destaques"
+                numero={nDestaques}
+                etiqueta="O que não ignoraria"
+                titulo={ROTULOS_REVISTA.destaques}
+                nota={NOTAS_REVISTA.destaques}
+              />
+              <div className={`grid gap-x-8 gap-y-10 ${e.destaques.length >= 3 ? "lg:grid-cols-3" : "lg:grid-cols-2"}`}>
+                {e.destaques.map((d, i) => {
+                  const brief = briefDe(d.noticiaId);
+                  const podeAbrirBrief = briefUtilizavel(brief);
+                  return (
+                  <article key={d.itemId} className="rw-card pt-4">
+                    <div className="flex items-baseline justify-between gap-3">
+                      <span className="text-[11px] font-semibold uppercase tracking-[0.16em] text-rw-blue">
+                        {d.categoriaRotulo}
+                      </span>
+                      <span className="text-[11px] font-semibold tabular-nums text-rw-ink-2/70">
+                        {String(i + 1).padStart(2, "0")}
+                      </span>
+                    </div>
+                    <h3 className="mt-2 text-[23px] font-semibold leading-[1.2] tracking-[-0.015em] sm:text-[26px]">
+                      {podeAbrirBrief && brief ? (
+                        <Link
+                          to={previaInterna ? "/pre-visualizar/brief/$slug" : "/brief/$slug"}
+                          params={{ slug: brief.slug }}
+                          className="text-rw-ink rw-link"
+                        >
+                          {d.titulo}
+                        </Link>
+                      ) : !brief ? (
+                        <a href={d.url} target="_blank" rel="noopener noreferrer" className="text-rw-ink rw-link">
+                          {d.titulo}
+                        </a>
+                      ) : (
+                        <span className="text-rw-ink">{d.titulo}</span>
+                      )}
+                    </h3>
+                    {d.resumoFactual ? (
+                      <p className="mt-3 text-[15.5px] leading-7 text-rw-ink-2">{d.resumoFactual}</p>
+                    ) : null}
+                    {d.minhaLeitura ? (
+                      <div className="mt-4 border-l-[3px] border-rw-amarelo bg-rw-panel px-4 py-3">
+                        <Etiqueta>A minha leitura</Etiqueta>
+                        <p className="pt-1 text-[16px] leading-[1.6] text-rw-ink" style={{ fontFamily: SERIF }}>
+                          {d.minhaLeitura}
+                        </p>
+                      </div>
+                    ) : null}
+                    <p className="mt-4 flex flex-wrap items-center gap-x-5 gap-y-1 border-t border-rw-rule pt-2.5 text-[12.5px]">
+                      {podeAbrirBrief && brief ? (
+                        <Link
+                          to={previaInterna ? "/pre-visualizar/brief/$slug" : "/brief/$slug"}
+                          params={{ slug: brief.slug }}
+                         
+                          className="font-semibold text-rw-blue underline-offset-4 hover:underline"
+                        >
+                          Ler o Brief <span aria-hidden>→</span>
+                        </Link>
+                      ) : brief ? (
+                        <span className="font-semibold text-rw-ink-2">Brief por gerar</span>
+                      ) : null}
+                      <a
+                        href={d.url}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className={
+                          brief
+                            ? "text-rw-ink-2 underline-offset-4 hover:underline"
+                            : "font-semibold text-rw-blue underline-offset-4 hover:underline"
+                        }
+                      >
+                        {brief ? "Fonte original" : d.ctaRotulo || "Ler notícia"} <span aria-hidden>↗</span>
+                      </a>
+                    </p>
+                  </article>
+                  );
+                })}
+              </div>
+            </section>
+          ) : null}
+
+          {/* 03 — radar */}
+          {e.radar.length ? (
+            <section aria-labelledby="radar">
+              <IntroSeccao
+                id="radar"
+                numero={nRadar}
+                etiqueta="Leitura rápida"
+                titulo={ROTULOS_REVISTA.radar}
+                nota={NOTAS_REVISTA.radar}
+              />
+              <ol className="border-t border-rw-ink">
+                {e.radar.map((r, i) => {
+                  const brief = briefDe(r.noticiaId);
+                  const podeAbrirBrief = briefUtilizavel(brief);
+                  return (
+                  <li key={r.itemId} className="border-b border-rw-rule py-3.5 sm:flex sm:items-baseline sm:gap-6">
+                    <span className="flex shrink-0 items-baseline gap-3 sm:w-52">
+                      <span className="text-[12px] font-semibold tabular-nums text-rw-ink-2/70">
+                        {String(i + 1).padStart(2, "0")}
+                      </span>
+                      <span className="text-[11px] font-semibold uppercase tracking-[0.16em] text-rw-blue">
+                        {r.categoriaRotulo}
+                      </span>
+                    </span>
+                    <span className="mt-1 block min-w-0 sm:mt-0">
+                      {podeAbrirBrief && brief ? (
+                        <Link
+                          to={previaInterna ? "/pre-visualizar/brief/$slug" : "/brief/$slug"}
+                          params={{ slug: brief.slug }}
+                         
+                          className="text-[16.5px] font-semibold leading-7 text-rw-ink rw-link"
+                        >
+                          {r.titulo}
+                        </Link>
+                      ) : !brief ? (
+                        <a
+                          href={r.url}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="text-[16.5px] font-semibold leading-7 text-rw-ink rw-link"
+                        >
+                          {r.titulo}
+                        </a>
+                      ) : (
+                        <span className="text-[16.5px] font-semibold leading-7 text-rw-ink">{r.titulo}</span>
+                      )}
+                      {r.nota ? <span className="mt-0.5 block text-[14px] leading-6 text-rw-ink-2">{r.nota}</span> : null}
+                      {brief ? (
+                        <>
+                          {!podeAbrirBrief ? (
+                            <span className="mt-0.5 block text-[12.5px] font-semibold text-rw-ink-2">Quick Brief por gerar</span>
+                          ) : null}
+                          <a
+                            href={r.url}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="mt-0.5 block text-[12.5px] text-rw-ink-2 underline-offset-4 hover:underline"
+                          >
+                            Fonte <span aria-hidden>↗</span>
+                          </a>
+                        </>
+                      ) : null}
+                    </span>
+                  </li>
+                  );
+                })}
+              </ol>
+            </section>
+          ) : null}
+
+          {/* 04 — seleção completa */}
+          {temAtualidades ? <Atualidades grupos={pagina.grupos} numeroSeccao={nAtualidades} /> : null}
+
+          {/* 05 — recomendação */}
+          {e.recomendacao ? (
+            <section id="recomendacao" className="scroll-mt-28" aria-labelledby="recomendacao-titulo">
+              <IntroSeccao
+                id="recomendacao-intro"
+                numero={nRecomendacao}
+                etiqueta="Esta semana recomendo"
+                titulo="Para levar contigo."
+              />
+              <div className="border-t-[3px] border-rw-ink bg-rw-panel p-6 sm:p-8">
+                <Etiqueta>{[e.recomendacao.tipo, e.recomendacao.meta].filter(Boolean).join(" · ")}</Etiqueta>
+                <h3
+                  id="recomendacao-titulo"
+                  className="mt-2 max-w-[38rem] text-[26px] font-semibold leading-[1.2] tracking-[-0.02em] sm:text-[32px]"
+                >
+                  <a href={e.recomendacao.url} target="_blank" rel="noopener noreferrer" className="text-rw-ink rw-link">
+                    {e.recomendacao.titulo}
+                  </a>
+                </h3>
+                {e.recomendacao.nota ? (
+                  <p
+                    className="mt-3 max-w-[38rem] text-[17px] leading-[1.65] text-rw-ink-2"
+                    style={{ fontFamily: SERIF }}
+                  >
+                    {e.recomendacao.nota}
+                  </p>
+                ) : null}
+                <p className="mt-5">
+                  <a
+                    href={e.recomendacao.url}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="inline-flex min-h-[46px] items-center bg-rw-blue px-6 text-[15px] font-semibold text-white"
+                  >
+                    Saber mais <span aria-hidden className="ml-2">↗</span>
+                  </a>
+                </p>
+              </div>
+            </section>
+          ) : null}
+        </div>
+      </main>
+
+      {/* rodapé de autor */}
+      <footer className="mt-16 bg-rw-ink text-white sm:mt-24">
+        <div className={`${WRAP} py-12 sm:flex sm:items-end sm:justify-between sm:gap-10 sm:py-16`}>
+          <div className="min-w-0">
+            <h2 className="font-display text-[30px] font-bold leading-[1.05] tracking-[-0.02em] sm:text-[40px]">
+              Informação com critério.
+            </h2>
+            <p className="mt-3 max-w-[32rem] text-[15px] leading-7 text-white/70">
+              Uma seleção para ligar o que acontece no digital ao que importa no teu trabalho.
+            </p>
+          </div>
+          <p className="mt-8 shrink-0 text-[17px] font-semibold sm:mt-0 sm:text-right">
+            Frederico Carvalho
+            <span className="mt-1 block text-[13px] font-normal text-white/70">
+              Formação executiva · Consultoria · Auditoria digital
+            </span>
+          </p>
+        </div>
+
+        <div className={`${WRAP} border-t border-white/15 py-8`}>
+          <nav aria-label="Navegação entre edições" className="grid gap-5 sm:grid-cols-3 sm:gap-6">
+            <div className="min-w-0">
+              {pagina.anterior ? (
+                <Link
+                  to="/edicoes/$numero"
+                  params={{ numero: String(pagina.anterior.numero) }}
+                  className="group block min-h-11"
+                >
+                  <span className="block text-[12px] font-semibold uppercase tracking-[0.16em] text-white/60">
+                    ← Edição {pagina.anterior.numero}
+                  </span>
+                  <span className="mt-0.5 block text-[15px] font-semibold leading-6 group-hover:underline">
+                    {pagina.anterior.titulo}
+                  </span>
+                </Link>
+              ) : null}
+            </div>
+            <div className="min-w-0 sm:text-center">
+              <Link
+                to="/edicoes"
+                className="inline-flex min-h-11 items-center text-[15px] font-semibold underline underline-offset-4"
+              >
+                Ver arquivo
+              </Link>
+            </div>
+            <div className="min-w-0 sm:text-right">
+              {pagina.seguinte ? (
+                <Link
+                  to="/edicoes/$numero"
+                  params={{ numero: String(pagina.seguinte.numero) }}
+                  className="group block min-h-11"
+                >
+                  <span className="block text-[12px] font-semibold uppercase tracking-[0.16em] text-white/60">
+                    Edição {pagina.seguinte.numero} →
+                  </span>
+                  <span className="mt-0.5 block text-[15px] font-semibold leading-6 group-hover:underline">
+                    {pagina.seguinte.titulo}
+                  </span>
+                </Link>
+              ) : null}
+            </div>
+          </nav>
+
+          <p className="mt-8 text-[12.5px] leading-6 text-white/55">
+            Digital Sprint · Edição {e.edicao.numero} · por Frederico Carvalho
+            <br />
+            Esta edição foi preparada com apoio de ferramentas de inteligência artificial e revista por Frederico
+            Carvalho.
+          </p>
+        </div>
+      </footer>
+    </div>
+  );
+}

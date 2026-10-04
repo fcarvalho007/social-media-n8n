@@ -1,0 +1,26 @@
+CREATE TABLE public.subscricao_eventos (
+  id uuid NOT NULL DEFAULT gen_random_uuid() PRIMARY KEY,
+  email text NOT NULL,
+  lista_egoi_id text,
+  lista_nome text,
+  accao text NOT NULL CHECK (accao IN ('cancelado','pausado','mensal','reactivado','revertido')),
+  motivo text,
+  retoma_em timestamp with time zone,
+  retomado_em timestamp with time zone,
+  origem text NOT NULL DEFAULT 'email',
+  edicao_id uuid REFERENCES public.edicoes(id) ON DELETE SET NULL,
+  detalhe jsonb NOT NULL DEFAULT '{}'::jsonb,
+  criado_em timestamp with time zone NOT NULL DEFAULT now()
+);
+
+GRANT SELECT ON public.subscricao_eventos TO authenticated;
+GRANT ALL ON public.subscricao_eventos TO service_role;
+
+ALTER TABLE public.subscricao_eventos ENABLE ROW LEVEL SECURITY;
+
+CREATE POLICY "Sessao autenticada pode consultar subscricoes"
+  ON public.subscricao_eventos FOR SELECT TO authenticated USING (true);
+
+CREATE INDEX subscricao_eventos_email_idx ON public.subscricao_eventos (lower(email), criado_em DESC);
+CREATE INDEX subscricao_eventos_retoma_idx ON public.subscricao_eventos (retoma_em) WHERE retoma_em IS NOT NULL AND retomado_em IS NULL;
+CREATE INDEX subscricao_eventos_criado_idx ON public.subscricao_eventos (criado_em DESC);

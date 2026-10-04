@@ -1,0 +1,4 @@
+CREATE POLICY "imagens_edicao_ler" ON storage.objects FOR SELECT TO authenticated USING (bucket_id = 'imagens-edicao');
+CREATE POLICY "imagens_edicao_inserir" ON storage.objects FOR INSERT TO authenticated WITH CHECK (bucket_id = 'imagens-edicao');
+CREATE POLICY "imagens_edicao_actualizar" ON storage.objects FOR UPDATE TO authenticated USING (bucket_id = 'imagens-edicao') WITH CHECK (bucket_id = 'imagens-edicao');
+CREATE POLICY "imagens_edicao_apagar" ON storage.objects FOR DELETE TO authenticated USING (bucket_id = 'imagens-edicao');

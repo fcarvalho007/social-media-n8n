@@ -1,0 +1,245 @@
+// Sugestão de linhas de assunto para a próxima edição da newsletter.
+// Fonte de IA: DeepSeek (única IA autorizada no projecto).
+
+import { createServerFn } from "@tanstack/react-start";
+import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
+import { chamarDeepSeek, parseJsonTolerante, MODELO_DEEPSEEK_PADRAO } from "@/lib/deepseek.server";
+import { custoUsd } from "../../supabase/functions/_shared/custos-ia";
+import { sanitizarSaidaIA } from "@/lib/sanitizar-ia";
+
+
+interface SugerirAssuntoInput {
+  edicaoId: string;
+  aperfeicoar?: {
+    assunto: string;
+    preheader: string;
+  };
+}
+
+export type TecnicaAssunto = "curiosidade" | "dado_concreto" | "cronica";
+export interface SugestaoAssunto {
+  texto: string;
+  preheader: string;
+  tecnica: TecnicaAssunto;
+  caracteres: number;
+}
+
+const MIN_CRONICA_UTIL = 150;
+
+const PROMPT_SISTEMA = `És um copywriter especialista em linhas de assunto de email, a escrever para uma newsletter portuguesa de marketing e tecnologia (Digital Sprint, por Frederico Carvalho, tom directo e conhecedor, nunca hype vazio).
+
+Recebes o conteúdo completo de uma edição (destaques, radar, crónica, podcast, recomendações, ferramentas e blocos comerciais). Gera exactamente 3 pares de assunto e pré-cabeçalho, cada um usando uma técnica DIFERENTE:
+
+1. CURIOSIDADE — cria intriga genuína sobre algo da edição, sem ser clickbait vazio (a promessa tem de ser cumprida pelo conteúdo real).
+2. DADO CONCRETO — usa um número, percentagem, valor monetário, data ou nome próprio EXTRAÍDO LITERALMENTE do conteúdo da edição (destaques, crónica, podcast ou ferramentas). PROIBIDO usar meta-referências ao processo (ex: "3 destaques desta semana", "5 ferramentas novas", "N notícias hoje") — o número tem de vir do conteúdo em si, não da estrutura da newsletter.
+3. ANCORADO NA CRÓNICA — se a crónica tiver texto substancial, usa o ângulo/tese dela como base; se a crónica estiver vazia, usa o destaque mais surpreendente em vez disso.
+
+Regras para todas as sugestões:
+- Português EUROPEU (pt-PT), tom directo, sem exclamações excessivas, sem CAIXA ALTA.
+- Entre 40 e 55 caracteres (conta os caracteres exactos).
+- Sem emojis, a menos que sirva um propósito claro de destaque visual (máx. 1).
+- Nunca usar palavras-gatilho de spam (grátis, urgente, clique aqui, últimas horas).
+- PROIBIDO qualquer prefixo rotular no início do texto: "Assunto:", "Crónica:", "Título:", "Dado:", "Curiosidade:", ou qualquer outro padrão "Palavra:" antes do texto real. O campo "texto" contém APENAS a linha de assunto final que o subscritor vê.
+- A promessa do assunto tem de corresponder a algo real dentro da edição — nunca prometer o que o conteúdo não cumpre.
+- O pré-cabeçalho complementa o assunto sem o repetir, tem entre 55 e 100 caracteres e acrescenta um segundo motivo real para abrir.
+- Assunto e pré-cabeçalho devem funcionar como um par coerente.
+
+Devolve APENAS JSON: {"sugestoes":[{ "assunto": "...", "preheader": "...", "tecnica": "curiosidade"|"dado_concreto"|"cronica" }]}`;
+
+
+function limparHtml(html: string | null | undefined): string {
+  if (!html) return "";
+  return html
+    .replace(/<style[\s\S]*?<\/style>/gi, " ")
+    .replace(/<script[\s\S]*?<\/script>/gi, " ")
+    .replace(/<[^>]+>/g, " ")
+    .replace(/&nbsp;/g, " ")
+    .replace(/&amp;/g, "&")
+    .replace(/&lt;/g, "<")
+    .replace(/&gt;/g, ">")
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
+function normalizarTecnica(v: unknown): TecnicaAssunto {
+  const s = typeof v === "string" ? v.toLowerCase().trim() : "";
+  if (s === "curiosidade") return "curiosidade";
+  if (s === "dado_concreto" || s === "dado concreto" || s === "dado") return "dado_concreto";
+  if (s === "cronica" || s === "crónica" || s === "cronica_ancorada") return "cronica";
+  return "curiosidade";
+}
+
+export const sugerirAssunto = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .validator((input: unknown): SugerirAssuntoInput => {
+    if (!input || typeof input !== "object") throw new Error("Entrada inválida");
+    const { edicaoId, aperfeicoar } = input as { edicaoId?: unknown; aperfeicoar?: unknown };
+    if (typeof edicaoId !== "string" || edicaoId.length < 8) throw new Error("edicaoId em falta");
+    if (aperfeicoar !== undefined) {
+      if (!aperfeicoar || typeof aperfeicoar !== "object") throw new Error("Sugestão a aperfeiçoar inválida");
+      const base = aperfeicoar as Record<string, unknown>;
+      if (typeof base.assunto !== "string" || typeof base.preheader !== "string") {
+        throw new Error("Sugestão a aperfeiçoar inválida");
+      }
+      return { edicaoId, aperfeicoar: { assunto: base.assunto.slice(0, 120), preheader: base.preheader.slice(0, 180) } };
+    }
+    return { edicaoId };
+  })
+  .handler(async ({ data, context }) => {
+    const { supabase } = context;
+
+    const { data: edicao, error: eEd } = await supabase
+      .from("edicoes")
+      .select("id, numero, template_version")
+      .eq("id", data.edicaoId)
+      .maybeSingle();
+    if (eEd) throw eEd;
+    if (!edicao) throw new Error("Edição não encontrada");
+
+    const [{ data: noticias }, { data: cronica }, { data: episodios }, { data: ferramentas }] = await Promise.all([
+      supabase
+        .from("noticias")
+        .select("titulo, descricao, categoria, destaque, destino, ordem")
+        .eq("edicao_id", edicao.id)
+        .eq("estado", "aprovada")
+        .order("destaque", { ascending: false })
+        .order("ordem", { ascending: true })
+        .limit(30),
+      supabase
+        .from("cronicas")
+        .select("titulo, conteudo_html, conteudo")
+        .eq("edicao_id", edicao.id)
+        .maybeSingle(),
+      supabase
+        .from("episodios_podcast")
+        .select("titulo")
+        .order("data_publicacao", { ascending: false })
+        .limit(1),
+      supabase
+        .from("ferramentas_semana")
+        .select("nome, descricao, emoji, posicao")
+        .eq("edicao_id", edicao.id)
+        .order("posicao", { ascending: true }),
+    ]);
+
+    const todas = noticias ?? [];
+    const destaques = todas.filter((n) => n.destaque).slice(0, 3);
+    const totalNoticias = todas.length;
+
+    const cronicaTxt = limparHtml(cronica?.conteudo_html) || (cronica?.conteudo ?? "").trim();
+    const cronicaUtil = cronicaTxt.length >= MIN_CRONICA_UTIL;
+
+    const podcastTit = episodios?.[0]?.titulo ?? null;
+    const listaFerramentas = (ferramentas ?? []).filter((f) => (f.nome ?? "").trim().length > 0);
+
+    if (destaques.length === 0 && totalNoticias === 0 && !cronicaUtil) {
+      throw new Error("Sem conteúdo suficiente. Aprova pelo menos uma notícia ou escreve a crónica antes de gerar.");
+    }
+
+    // Bloco de contexto estruturado
+    const linhas: string[] = [];
+    linhas.push(`Edição #${edicao.numero} — total de ${totalNoticias} notícias aprovadas`);
+    linhas.push("");
+    linhas.push(`DESTAQUES (${destaques.length}):`);
+    if (destaques.length === 0) {
+      linhas.push("(sem destaques definidos)");
+    } else {
+      destaques.forEach((n, i) => {
+        const desc = (n.descricao ?? "").trim();
+        linhas.push(`${i + 1}. ${n.titulo}${desc ? ` — ${desc}` : ""}`);
+      });
+    }
+    linhas.push("");
+    linhas.push("CRÓNICA:");
+    if (cronicaUtil) {
+      if (cronica?.titulo) linhas.push(`Título: ${cronica.titulo}`);
+      // Enviar texto completo, com um tecto generoso para não estourar contexto
+      linhas.push(cronicaTxt.slice(0, 4000));
+    } else {
+      linhas.push("(ainda não escrita)");
+    }
+    linhas.push("");
+    linhas.push(`PODCAST: ${podcastTit ?? "(nenhum)"}`);
+    linhas.push("");
+    linhas.push("FERRAMENTAS DA SEMANA:");
+    if (listaFerramentas.length === 0) {
+      linhas.push("(nenhuma)");
+    } else {
+      for (const f of listaFerramentas) {
+        const emoji = f.emoji ? `${f.emoji} ` : "";
+        const desc = (f.descricao ?? "").trim();
+        linhas.push(`- ${emoji}${f.nome}${desc ? ` — ${desc.slice(0, 160)}` : ""}`);
+      }
+    }
+
+    let conteudo = linhas.join("\n");
+    if (edicao.template_version === "revista") {
+      const { composeRevistaEdition } = await import("@/lib/newsletter-engine/revista/compose.server");
+      const revista = await composeRevistaEdition(edicao.id, { ignorarSnapshot: true });
+      conteudo = `CONTEÚDO COMPLETO E ACTUAL DA EDIÇÃO REVISTA:\n${JSON.stringify(revista)}\n\nTEXTO INTEGRAL DA CRÓNICA:\n${cronicaTxt}`;
+    }
+    if (data.aperfeicoar) {
+      conteudo += `\n\nPAR ESCOLHIDO PARA APERFEIÇOAR:\nAssunto: ${data.aperfeicoar.assunto}\nPré-cabeçalho: ${data.aperfeicoar.preheader}\nCria três versões melhoradas deste par, mantendo a ideia central mas tornando-a mais clara, específica e apelativa.`;
+    }
+
+    const r = await chamarDeepSeek(PROMPT_SISTEMA, conteudo, {
+      modelo: MODELO_DEEPSEEK_PADRAO,
+      responseJson: true,
+    });
+
+    // Regista consumo real em ia_uso.
+    try {
+      const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+      await supabaseAdmin.from("ia_uso").insert({
+        modelo: r.modelo,
+        tokens_entrada_cache_hit: r.usage.cacheHit,
+        tokens_entrada_cache_miss: r.usage.cacheMiss,
+        tokens_saida: r.usage.saida,
+        custo_usd: custoUsd(r.modelo, r.usage.cacheHit, r.usage.cacheMiss, r.usage.saida),
+        origem: "sugerir_assunto",
+        edicao_id: edicao.id,
+      });
+    } catch (e) {
+      console.error("[sugerir-assunto] falha a registar ia_uso:", (e as Error).message);
+    }
+
+    // Parsing tolerante: aceita array puro ou {sugestoes: [...]}, e itens
+    // podem ser strings (retrocompat) ou objectos {texto, tecnica, caracteres}.
+    const parsed = parseJsonTolerante<unknown>(r.conteudo);
+    let arr: unknown[] = [];
+    if (Array.isArray(parsed)) {
+      arr = parsed;
+    } else if (parsed && typeof parsed === "object") {
+      const p = parsed as Record<string, unknown>;
+      if (Array.isArray(p.sugestoes)) arr = p.sugestoes;
+      else if (Array.isArray(p.assuntos)) arr = p.assuntos;
+    }
+
+    const tecnicasPadrao: TecnicaAssunto[] = ["curiosidade", "dado_concreto", "cronica"];
+    const sugestoes: SugestaoAssunto[] = [];
+    arr.forEach((item, i) => {
+      let texto = "";
+      let tecnica: TecnicaAssunto = tecnicasPadrao[i] ?? "curiosidade";
+      if (typeof item === "string") {
+        texto = item.trim();
+      } else if (item && typeof item === "object") {
+        const o = item as Record<string, unknown>;
+        texto = typeof o.texto === "string" ? o.texto.trim() : (typeof o.assunto === "string" ? o.assunto.trim() : "");
+        const preheader = typeof o.preheader === "string" ? sanitizarSaidaIA(o.preheader.trim()) : "";
+        if (o.tecnica !== undefined) tecnica = normalizarTecnica(o.tecnica);
+        texto = sanitizarSaidaIA(texto);
+        if (!texto || !preheader) return;
+        sugestoes.push({ texto, preheader, tecnica, caracteres: [...texto].length });
+        return;
+      }
+      // Sanitiza saída da IA: remove prefixos rotulares e aspas encapsulantes.
+      texto = sanitizarSaidaIA(texto);
+      if (!texto) return;
+      sugestoes.push({ texto, preheader: "", tecnica, caracteres: [...texto].length });
+    });
+
+
+    const finais = sugestoes.slice(0, 3);
+    if (finais.length === 0) throw new Error("A IA não devolveu sugestões utilizáveis. Tenta novamente.");
+    return { sugestoes: finais };
+  });

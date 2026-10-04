@@ -1,0 +1,194 @@
+// Scrapers dos directórios de ferramentas AI. Usa o Firecrawl (via gateway
+// Lovable) para lidar com SPAs (Toolify/Futurepedia/TAAFT) que servem HTML
+// vazio a `fetch` simples. Estratégia: pedir formato `links` + `markdown` e
+// filtrar apenas os URLs internos que apontam para páginas de ferramenta.
+//
+// Retorna sempre `{ items, razao? }` — nunca lança.
+
+import { normalizarUrl } from "./ia-limpeza";
+
+export type CandidatoFerramenta = {
+  nome: string;
+  descricao_original: string;
+  url: string;
+};
+
+export type ResultadoScrape = {
+  items: CandidatoFerramenta[];
+  razao?: string;
+};
+
+const GATEWAY = "https://connector-gateway.lovable.dev/firecrawl/v2";
+
+function dominioRaiz(u: string): string | null {
+  try { return new URL(u).hostname.toLowerCase().replace(/^www\./, ""); }
+  catch { return null; }
+}
+
+function slugParaNome(slug: string): string {
+  return slug
+    .replace(/[-_]+/g, " ")
+    .replace(/\s+/g, " ")
+    .trim()
+    .split(" ")
+    .map((w) => w.length > 3 ? w[0].toUpperCase() + w.slice(1) : w.toUpperCase())
+    .join(" ");
+}
+
+/** Chama Firecrawl scrape v2 via gateway. Devolve `{ links, markdown }` ou null. */
+async function firecrawlScrape(url: string): Promise<{ links: string[]; markdown: string } | null> {
+  const LK = process.env.LOVABLE_API_KEY;
+  const FK = process.env.FIRECRAWL_API_KEY;
+  if (!LK || !FK) return null;
+  const ctl = new AbortController();
+  const timer = setTimeout(() => ctl.abort(), 45_000);
+  try {
+    const res = await fetch(`${GATEWAY}/scrape`, {
+      method: "POST",
+      signal: ctl.signal,
+      headers: {
+        Authorization: `Bearer ${LK}`,
+        "X-Connection-Api-Key": FK,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        url,
+        formats: ["links", "markdown"],
+        onlyMainContent: true,
+        waitFor: 2500,
+      }),
+    });
+    if (!res.ok) {
+      console.error(`[firecrawl] ${res.status} para ${url}: ${(await res.text()).slice(0, 300)}`);
+      return null;
+    }
+    const j = await res.json() as { data?: { links?: string[]; markdown?: string }; links?: string[]; markdown?: string };
+    const links = (j.data?.links ?? j.links ?? []).filter((s): s is string => typeof s === "string");
+    const markdown = j.data?.markdown ?? j.markdown ?? "";
+    return { links, markdown };
+  } catch (e) {
+    console.error(`[firecrawl] excepção para ${url}:`, (e as Error).message);
+    return null;
+  } finally {
+    clearTimeout(timer);
+  }
+}
+
+/** Para um dado padrão de path, extrai candidatos únicos a partir da lista de links. */
+function candidatosDeLinks(
+  links: string[],
+  markdown: string,
+  origem: string,
+  matcher: (path: string) => string | null,
+  max: number,
+): CandidatoFerramenta[] {
+  const items: CandidatoFerramenta[] = [];
+  const seen = new Set<string>();
+  for (const raw of links) {
+    if (items.length >= max) break;
+    let u: URL;
+    try { u = new URL(raw, origem); } catch { continue; }
+    const domOrigem = dominioRaiz(origem);
+    const domLink = dominioRaiz(u.toString());
+    if (domOrigem && domLink !== domOrigem) continue;
+    const slug = matcher(u.pathname);
+    if (!slug) continue;
+    if (seen.has(slug)) continue;
+    seen.add(slug);
+    const nome = slugParaNome(slug);
+    // Tentar puxar descrição do markdown: linha após um link com este slug.
+    let descricao = "";
+    const idx = markdown.indexOf(u.pathname);
+    if (idx > -1) {
+      const janela = markdown.slice(idx, idx + 400);
+      const linhas = janela.split(/\n+/).map((l) => l.replace(/[*_`>#[\]()]/g, "").trim()).filter(Boolean);
+      // Primeira linha após o link com >30 chars
+      for (let i = 1; i < linhas.length; i += 1) {
+        if (linhas[i].length >= 30 && linhas[i].length <= 300) {
+          descricao = linhas[i];
+          break;
+        }
+      }
+    }
+    items.push({ nome, descricao_original: descricao, url: u.toString() });
+  }
+  return items;
+}
+
+function limpar(items: CandidatoFerramenta[]): CandidatoFerramenta[] {
+  const vistos = new Set<string>();
+  const out: CandidatoFerramenta[] = [];
+  for (const it of items) {
+    const nome = it.nome.trim();
+    if (nome.length < 2 || nome.length > 80) continue;
+    if (!/^https?:\/\//i.test(it.url)) continue;
+    const chave = normalizarUrl(it.url);
+    if (vistos.has(chave)) continue;
+    vistos.add(chave);
+    out.push({ nome, descricao_original: it.descricao_original.trim().slice(0, 400), url: it.url });
+  }
+  return out;
+}
+
+/* ─────────── Toolify ─────────── */
+export async function scrapeToolify(url: string, max = 20): Promise<ResultadoScrape> {
+  const r = await firecrawlScrape(url);
+  if (!r) return { items: [], razao: "firecrawl_indisponivel" };
+  const items = candidatosDeLinks(r.links, r.markdown, url, (p) => {
+    const m = p.match(/^\/tool\/([a-z0-9][a-z0-9\-_.]{1,80})\/?$/i);
+    return m ? m[1] : null;
+  }, max);
+  const finais = limpar(items);
+  if (finais.length === 0) return { items: [], razao: "sem_links_/tool/_no_payload" };
+  return { items: finais };
+}
+
+/* ─────────── Futurepedia ─────────── */
+export async function scrapeFuturepedia(url: string, max = 20): Promise<ResultadoScrape> {
+  const r = await firecrawlScrape(url);
+  if (!r) return { items: [], razao: "firecrawl_indisponivel" };
+  const items = candidatosDeLinks(r.links, r.markdown, url, (p) => {
+    const m = p.match(/^\/tool\/([a-z0-9][a-z0-9\-]{1,120})\/?$/i);
+    return m ? m[1] : null;
+  }, max);
+  const finais = limpar(items);
+  if (finais.length === 0) return { items: [], razao: "sem_links_/tool/_no_payload" };
+  return { items: finais };
+}
+
+/* ─────────── There's An AI For That ─────────── */
+export async function scrapeTAAFT(url: string, max = 20): Promise<ResultadoScrape> {
+  const r = await firecrawlScrape(url);
+  if (!r) return { items: [], razao: "firecrawl_indisponivel" };
+  const items = candidatosDeLinks(r.links, r.markdown, url, (p) => {
+    const m = p.match(/^\/ai\/([a-z0-9][a-z0-9\-]{1,80})\/?$/i);
+    return m ? m[1] : null;
+  }, max);
+  const finais = limpar(items);
+  if (finais.length === 0) return { items: [], razao: "sem_links_/ai/_no_payload" };
+  return { items: finais };
+}
+
+/** Roteador por nome da fonte. */
+export async function scrapeDirectorio(nome: string, url: string, max = 20): Promise<ResultadoScrape> {
+  const n = nome.toLowerCase();
+  if (n.includes("toolify")) return scrapeToolify(url, max);
+  if (n.includes("futurepedia")) return scrapeFuturepedia(url, max);
+  if (n.includes("ai for that") || n.includes("theresanai") || n.includes("taaft")) {
+    return scrapeTAAFT(url, max);
+  }
+  return { items: [], razao: `directorio_desconhecido (${nome})` };
+}
+
+export function extrairDominio(url: string): string | null {
+  return dominioRaiz(url);
+}
+
+export function normalizarNome(nome: string): string {
+  return nome
+    .toLowerCase()
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .replace(/[^a-z0-9]+/g, " ")
+    .trim();
+}

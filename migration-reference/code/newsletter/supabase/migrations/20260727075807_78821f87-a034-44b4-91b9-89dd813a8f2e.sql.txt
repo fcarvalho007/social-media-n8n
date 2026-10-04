@@ -1,0 +1,83 @@
+
+-- 1. Novas colunas
+ALTER TABLE public.emails_recebidos
+  ADD COLUMN IF NOT EXISTS message_id text,
+  ADD COLUMN IF NOT EXISTS corpo_hash text;
+
+ALTER TABLE public.noticias
+  ADD COLUMN IF NOT EXISTS email_recebido_id uuid REFERENCES public.emails_recebidos(id) ON DELETE SET NULL;
+
+-- 2. Backfill do corpo_hash (sha256 de html || texto)
+UPDATE public.emails_recebidos
+   SET corpo_hash = encode(digest(coalesce(corpo_html, '') || '|' || coalesce(corpo_texto, ''), 'sha256'), 'hex')
+ WHERE corpo_hash IS NULL;
+
+-- 3. Backfill de noticias.email_recebido_id — associa notícia ao email
+--    mais antigo com o mesmo remetente + assunto (janela ± 48h face ao created_at da notícia).
+WITH matches AS (
+  SELECT n.id AS noticia_id,
+         (
+           SELECT er.id
+             FROM public.emails_recebidos er
+            WHERE er.remetente = n.email_remetente
+              AND er.assunto  = n.email_assunto
+              AND er.recebido_em >= n.created_at - interval '48 hours'
+              AND er.recebido_em <= n.created_at + interval '48 hours'
+            ORDER BY er.recebido_em ASC
+            LIMIT 1
+         ) AS email_id
+    FROM public.noticias n
+   WHERE n.email_recebido_id IS NULL
+     AND n.email_remetente IS NOT NULL
+     AND n.email_assunto IS NOT NULL
+)
+UPDATE public.noticias n
+   SET email_recebido_id = m.email_id
+  FROM matches m
+ WHERE n.id = m.noticia_id
+   AND m.email_id IS NOT NULL;
+
+-- 4. Reatribuir notícias a manter para as cópias que vão sobreviver e apagar duplicados.
+--    Sobrevive a linha mais antiga por (remetente, corpo_hash).
+WITH sobreviventes AS (
+  SELECT DISTINCT ON (remetente, corpo_hash)
+         id, remetente, corpo_hash
+    FROM public.emails_recebidos
+   WHERE corpo_hash IS NOT NULL
+   ORDER BY remetente, corpo_hash, recebido_em ASC
+),
+mapa AS (
+  SELECT er.id AS dup_id, s.id AS keep_id
+    FROM public.emails_recebidos er
+    JOIN sobreviventes s
+      ON s.remetente = er.remetente
+     AND s.corpo_hash = er.corpo_hash
+   WHERE er.id <> s.id
+)
+UPDATE public.noticias n
+   SET email_recebido_id = m.keep_id
+  FROM mapa m
+ WHERE n.email_recebido_id = m.dup_id;
+
+WITH sobreviventes AS (
+  SELECT DISTINCT ON (remetente, corpo_hash) id
+    FROM public.emails_recebidos
+   WHERE corpo_hash IS NOT NULL
+   ORDER BY remetente, corpo_hash, recebido_em ASC
+)
+DELETE FROM public.emails_recebidos er
+ WHERE er.corpo_hash IS NOT NULL
+   AND er.id NOT IN (SELECT id FROM sobreviventes);
+
+-- 5. Índices únicos para idempotência futura
+CREATE UNIQUE INDEX IF NOT EXISTS emails_recebidos_message_id_uidx
+  ON public.emails_recebidos (message_id)
+  WHERE message_id IS NOT NULL;
+
+CREATE UNIQUE INDEX IF NOT EXISTS emails_recebidos_remetente_hash_uidx
+  ON public.emails_recebidos (remetente, corpo_hash)
+  WHERE corpo_hash IS NOT NULL;
+
+CREATE INDEX IF NOT EXISTS noticias_email_recebido_id_idx
+  ON public.noticias (email_recebido_id)
+  WHERE email_recebido_id IS NOT NULL;

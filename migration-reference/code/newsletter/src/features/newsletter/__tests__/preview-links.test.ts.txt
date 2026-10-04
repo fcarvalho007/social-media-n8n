@@ -1,0 +1,16 @@
+import { describe, expect, it } from "vitest";
+
+import { deveAbrirPreviaInterna } from "../Preview";
+
+describe("ligações da pré-visualização do email Revista", () => {
+  it("intercepta a página canónica da edição ainda em rascunho", () => {
+    expect(deveAbrirPreviaInterna("https://edicoes.digitalsprint.pt/edicoes/318", 318)).toBe(true);
+    expect(deveAbrirPreviaInterna("https://edicoes.digitalsprint.pt/edicoes/318/", 318)).toBe(true);
+  });
+
+  it("não intercepta fontes, outras edições ou endereços inválidos", () => {
+    expect(deveAbrirPreviaInterna("https://tek.sapo.pt/artigo", 318)).toBe(false);
+    expect(deveAbrirPreviaInterna("https://edicoes.digitalsprint.pt/edicoes/317", 318)).toBe(false);
+    expect(deveAbrirPreviaInterna("não é um endereço", 318)).toBe(false);
+  });
+});

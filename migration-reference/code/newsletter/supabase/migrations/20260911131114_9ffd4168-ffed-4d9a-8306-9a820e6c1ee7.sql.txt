@@ -1,0 +1,55 @@
+CREATE TABLE public.curadoria_fila (
+  id uuid NOT NULL DEFAULT gen_random_uuid() PRIMARY KEY,
+  origem text NOT NULL DEFAULT 'rss',
+  fonte_id uuid REFERENCES public.fontes_curadoria(id) ON DELETE SET NULL,
+  fonte_nome text,
+  fonte_grupo text,
+  email_recebido_id uuid REFERENCES public.emails_recebidos(id) ON DELETE CASCADE,
+  titulo text NOT NULL,
+  url text,
+  url_norm text,
+  descricao text NOT NULL DEFAULT '',
+  publicado_em timestamp with time zone NOT NULL DEFAULT now(),
+  estado text NOT NULL DEFAULT 'em_fila',
+  motivo text,
+  tentativas integer NOT NULL DEFAULT 0,
+  noticia_id uuid REFERENCES public.noticias(id) ON DELETE SET NULL,
+  created_at timestamp with time zone NOT NULL DEFAULT now(),
+  updated_at timestamp with time zone NOT NULL DEFAULT now(),
+  CONSTRAINT curadoria_fila_estado_chk CHECK (estado IN ('em_fila','processado','falhado','descartado')),
+  CONSTRAINT curadoria_fila_origem_chk CHECK (origem IN ('rss','email'))
+);
+
+GRANT SELECT, INSERT, UPDATE, DELETE ON public.curadoria_fila TO authenticated;
+GRANT ALL ON public.curadoria_fila TO service_role;
+
+ALTER TABLE public.curadoria_fila ENABLE ROW LEVEL SECURITY;
+
+CREATE POLICY "fila_leitura_autenticados" ON public.curadoria_fila
+  FOR SELECT TO authenticated
+  USING (public.me_papel() IN ('admin','curador'));
+
+CREATE POLICY "fila_insercao_autenticados" ON public.curadoria_fila
+  FOR INSERT TO authenticated
+  WITH CHECK (public.me_papel() IN ('admin','curador'));
+
+CREATE POLICY "fila_actualizacao_autenticados" ON public.curadoria_fila
+  FOR UPDATE TO authenticated
+  USING (public.me_papel() IN ('admin','curador'))
+  WITH CHECK (public.me_papel() IN ('admin','curador'));
+
+CREATE POLICY "fila_remocao_admin" ON public.curadoria_fila
+  FOR DELETE TO authenticated
+  USING (public.is_admin());
+
+CREATE UNIQUE INDEX curadoria_fila_url_norm_uidx ON public.curadoria_fila (url_norm) WHERE url_norm IS NOT NULL;
+CREATE INDEX curadoria_fila_estado_idx ON public.curadoria_fila (estado, publicado_em DESC);
+CREATE INDEX curadoria_fila_origem_idx ON public.curadoria_fila (origem, estado);
+
+CREATE TRIGGER trg_curadoria_fila_updated_at
+  BEFORE UPDATE ON public.curadoria_fila
+  FOR EACH ROW EXECUTE FUNCTION public.set_updated_at();
+
+INSERT INTO public.configuracoes (chave, valor)
+VALUES ('curadoria_modo_manual', 'true')
+ON CONFLICT (chave) DO NOTHING;

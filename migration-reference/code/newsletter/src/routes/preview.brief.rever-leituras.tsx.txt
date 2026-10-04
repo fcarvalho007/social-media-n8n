@@ -1,0 +1,18 @@
+import { createFileRoute } from "@tanstack/react-router";
+
+import { ReverLeiturasPreview } from "@/features/brief/ReverLeiturasPreview";
+
+export const Route = createFileRoute("/preview/brief/rever-leituras")({
+  head: () => ({
+    meta: [
+      { title: "Rever leituras — Preview QA · Digital Sprint" },
+      { name: "description", content: "Protótipo interno de validação editorial das leituras Digital Sprint." },
+      { property: "og:title", content: "Rever leituras — Preview QA · Digital Sprint" },
+      { property: "og:description", content: "Protótipo interno de validação editorial das leituras Digital Sprint." },
+      { property: "og:type", content: "website" },
+      { name: "twitter:card", content: "summary" },
+      { name: "robots", content: "noindex, nofollow" },
+    ],
+  }),
+  component: ReverLeiturasPreview,
+});

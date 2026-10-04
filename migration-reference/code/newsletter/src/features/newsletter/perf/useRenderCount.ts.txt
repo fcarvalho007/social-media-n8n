@@ -1,0 +1,21 @@
+import { useEffect, useRef } from "react";
+
+/**
+ * Hook dev-only para medir o número de renders de um componente.
+ * Não faz nada em produção. Loga a cada render com nome + contagem.
+ *
+ * Uso:
+ *   useRenderCount("EditorNewsletter");
+ *
+ * Remover chamadas antes de shipar (ou deixar — não corre em prod).
+ */
+export function useRenderCount(nome: string): number {
+  const n = useRef(0);
+  n.current += 1;
+  useEffect(() => {
+    if (!import.meta.env.DEV) return;
+    // eslint-disable-next-line no-console
+    console.debug(`[render] ${nome} #${n.current}`);
+  });
+  return n.current;
+}

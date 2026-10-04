@@ -1,0 +1,25 @@
+
+CREATE TABLE public.emails_recebidos (
+  id uuid NOT NULL DEFAULT gen_random_uuid() PRIMARY KEY,
+  remetente text,
+  remetente_nome text,
+  assunto text,
+  corpo_html text,
+  corpo_texto text,
+  classificacao text CHECK (classificacao IN ('confirmacao','newsletter','outro')),
+  notas_processadas int NOT NULL DEFAULT 0,
+  recebido_em timestamptz NOT NULL DEFAULT now()
+);
+
+GRANT SELECT, DELETE ON public.emails_recebidos TO authenticated;
+GRANT ALL ON public.emails_recebidos TO service_role;
+
+ALTER TABLE public.emails_recebidos ENABLE ROW LEVEL SECURITY;
+
+CREATE POLICY "Autenticados podem ler emails recebidos"
+  ON public.emails_recebidos FOR SELECT TO authenticated USING (true);
+
+CREATE POLICY "Autenticados podem apagar emails recebidos"
+  ON public.emails_recebidos FOR DELETE TO authenticated USING (true);
+
+CREATE INDEX idx_emails_recebidos_recebido_em ON public.emails_recebidos (recebido_em DESC);

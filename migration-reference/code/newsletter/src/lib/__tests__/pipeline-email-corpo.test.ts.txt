@@ -1,0 +1,72 @@
+// O caminho dos emails tem de abrir o artigo ligado antes de escrever a
+// descrição, tal como já acontece na fila de entrada.
+import { describe, expect, it, vi } from "vitest";
+
+import { processarEmailComPipeline } from "../../../supabase/functions/_shared/pipeline-newsletter";
+
+/** Cliente mínimo: devolve sempre vazio e aceita qualquer escrita. */
+function adminFalso() {
+  const resposta = { data: [], error: null };
+  const api: Record<string, unknown> = {};
+  Object.assign(api, {
+    select: () => api,
+    insert: () => api,
+    update: () => api,
+    upsert: () => api,
+    delete: () => api,
+    eq: () => api,
+    is: () => api,
+    in: () => api,
+    not: () => api,
+    order: () => api,
+    limit: () => api,
+    maybeSingle: () => Promise.resolve({ data: null, error: null }),
+    single: () => Promise.resolve({ data: null, error: null }),
+    then: (r: (v: typeof resposta) => unknown) => Promise.resolve(resposta).then(r),
+  });
+  return { from: () => api } as never;
+}
+
+
+describe("pipeline de emails", () => {
+  it("lê o artigo ligado e usa-o na descrição", async () => {
+    const lerCorpoArtigo = vi.fn(async () => "Texto real do artigo com números e datas.");
+    const corrigirDescricao = vi.fn(async (a: { descricao: string }) => a.descricao);
+    const chamarIaExtrator = vi.fn(async () => ({
+      resultado: {
+        titulo: "Google muda os perfis de empresa",
+        descricao: "A métrica cobre 28 dias e só aparece em contas verificadas.",
+        categoria: "tecnologia",
+        url: "https://exemplo.pt/artigo",
+      },
+    }));
+
+    const html = `<html><body>
+      <h2><a href="https://exemplo.pt/artigo">Google muda os perfis de empresa</a></h2>
+      <p>${"A Google anunciou uma mudança nos perfis de empresa que afecta quem gere lojas locais. ".repeat(6)}</p>
+    </body></html>`;
+
+    await processarEmailComPipeline(
+      adminFalso(),
+      {
+        html,
+        plain: null,
+        assunto: "Newsletter de teste",
+        remetenteLabel: "Fonte <a@b.pt>",
+        remetenteEmail: "a@b.pt",
+        emailRecebidoId: null,
+      },
+      {
+        chamarIaExtrator,
+        chamarDeepSeek: async () => null,
+        corrigirDescricao,
+        lerCorpoArtigo,
+      },
+    );
+
+    expect(lerCorpoArtigo).toHaveBeenCalled();
+    // O corpo lido chega à IA (3.º argumento) e à rede de segurança.
+    const chamada = chamarIaExtrator.mock.calls[0] as unknown[] | undefined;
+    expect(chamada?.[2]).toContain("Texto real do artigo");
+  });
+});

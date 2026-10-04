@@ -1,0 +1,23 @@
+ALTER TABLE public.emails_recebidos
+  ADD COLUMN IF NOT EXISTS processamento_estado text NOT NULL DEFAULT 'por_processar',
+  ADD COLUMN IF NOT EXISTS processamento_erro text,
+  ADD COLUMN IF NOT EXISTS processamento_tentativas integer NOT NULL DEFAULT 0,
+  ADD COLUMN IF NOT EXISTS processado_em timestamptz;
+
+UPDATE public.emails_recebidos
+SET processamento_estado = CASE
+      WHEN classificacao_detalhe <> '{}'::jsonb OR notas_processadas > 0 OR classificacao = 'confirmacao' THEN 'processado'
+      ELSE 'por_processar'
+    END,
+    processado_em = CASE
+      WHEN classificacao_detalhe <> '{}'::jsonb OR notas_processadas > 0 OR classificacao = 'confirmacao' THEN recebido_em
+      ELSE NULL
+    END,
+    processamento_tentativas = CASE
+      WHEN classificacao_detalhe <> '{}'::jsonb OR notas_processadas > 0 OR classificacao = 'confirmacao' THEN 1
+      ELSE 0
+    END;
+
+CREATE INDEX IF NOT EXISTS emails_recebidos_processamento_idx
+  ON public.emails_recebidos (processamento_estado, recebido_em DESC)
+  WHERE processamento_estado <> 'processado';

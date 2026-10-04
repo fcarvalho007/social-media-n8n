@@ -1,0 +1,108 @@
+
+-- 1. Tabela
+CREATE TABLE public.ferramentas_semana (
+  id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  edicao_id uuid NOT NULL REFERENCES public.edicoes(id) ON DELETE CASCADE,
+  posicao int NOT NULL CHECK (posicao IN (1,2)),
+  nome text,
+  descricao text,
+  url text,
+  emoji text,
+  cor text NOT NULL DEFAULT 'indigo' CHECK (cor IN ('indigo','verde','laranja','cinzento')),
+  created_at timestamptz NOT NULL DEFAULT now(),
+  updated_at timestamptz NOT NULL DEFAULT now(),
+  UNIQUE (edicao_id, posicao)
+);
+CREATE INDEX ferramentas_semana_edicao_idx ON public.ferramentas_semana(edicao_id);
+
+GRANT SELECT, INSERT, UPDATE, DELETE ON public.ferramentas_semana TO authenticated;
+GRANT ALL ON public.ferramentas_semana TO service_role;
+
+ALTER TABLE public.ferramentas_semana ENABLE ROW LEVEL SECURITY;
+
+CREATE POLICY "ferramentas_select_auth"
+  ON public.ferramentas_semana FOR SELECT
+  TO authenticated USING (true);
+
+CREATE POLICY "ferramentas_insert_rascunho"
+  ON public.ferramentas_semana FOR INSERT
+  TO authenticated
+  WITH CHECK (
+    public.me_papel() IN ('admin','curador')
+    AND EXISTS (SELECT 1 FROM public.edicoes e WHERE e.id = edicao_id AND e.estado = 'rascunho')
+  );
+
+CREATE POLICY "ferramentas_update_rascunho"
+  ON public.ferramentas_semana FOR UPDATE
+  TO authenticated
+  USING (
+    public.me_papel() IN ('admin','curador')
+    AND EXISTS (SELECT 1 FROM public.edicoes e WHERE e.id = edicao_id AND e.estado = 'rascunho')
+  )
+  WITH CHECK (
+    public.me_papel() IN ('admin','curador')
+    AND EXISTS (SELECT 1 FROM public.edicoes e WHERE e.id = edicao_id AND e.estado = 'rascunho')
+  );
+
+CREATE POLICY "ferramentas_delete_rascunho"
+  ON public.ferramentas_semana FOR DELETE
+  TO authenticated
+  USING (
+    public.me_papel() IN ('admin','curador')
+    AND EXISTS (SELECT 1 FROM public.edicoes e WHERE e.id = edicao_id AND e.estado = 'rascunho')
+  );
+
+CREATE TRIGGER ferramentas_semana_set_updated_at
+  BEFORE UPDATE ON public.ferramentas_semana
+  FOR EACH ROW EXECUTE FUNCTION public.set_updated_at();
+
+-- Realtime
+ALTER TABLE public.ferramentas_semana REPLICA IDENTITY FULL;
+ALTER PUBLICATION supabase_realtime ADD TABLE public.ferramentas_semana;
+
+-- 2. Alargar CHECK de secoes_edicao.tipo para incluir 'ferramentas_semana'
+DO $$
+DECLARE
+  cname text;
+BEGIN
+  SELECT conname INTO cname
+  FROM pg_constraint
+  WHERE conrelid = 'public.secoes_edicao'::regclass
+    AND contype = 'c'
+    AND pg_get_constraintdef(oid) ILIKE '%tipo%'
+  LIMIT 1;
+  IF cname IS NOT NULL THEN
+    EXECUTE format('ALTER TABLE public.secoes_edicao DROP CONSTRAINT %I', cname);
+  END IF;
+  ALTER TABLE public.secoes_edicao
+    ADD CONSTRAINT secoes_edicao_tipo_check
+    CHECK (tipo IN ('destaques','contadores','cronica','podcast','categorias','ferramentas_semana','livro','recursos','personalizada'));
+END $$;
+
+-- 3. Actualizar criar_seccoes_padrao para incluir a nova secção
+CREATE OR REPLACE FUNCTION public.criar_seccoes_padrao(_edicao_id uuid)
+ RETURNS void
+ LANGUAGE plpgsql
+ SECURITY DEFINER
+ SET search_path TO 'public'
+AS $function$
+DECLARE
+  tipos text[] := ARRAY['destaques','contadores','cronica','podcast','categorias','ferramentas_semana','livro','recursos'];
+  t text;
+  i int := 1;
+BEGIN
+  FOREACH t IN ARRAY tipos LOOP
+    INSERT INTO public.secoes_edicao (edicao_id, tipo, ordem, activo)
+    VALUES (_edicao_id, t, i * 10, true)
+    ON CONFLICT (edicao_id, tipo) WHERE (tipo <> 'personalizada') DO NOTHING;
+    i := i + 1;
+  END LOOP;
+END;
+$function$;
+
+-- 4. Backfill: adicionar a secção às edições em rascunho existentes
+INSERT INTO public.secoes_edicao (edicao_id, tipo, ordem, activo)
+SELECT id, 'ferramentas_semana', 55, true
+FROM public.edicoes
+WHERE estado = 'rascunho'
+ON CONFLICT (edicao_id, tipo) WHERE (tipo <> 'personalizada') DO NOTHING;

@@ -1,0 +1,84 @@
+import { useEffect, useState } from "react";
+import type { User } from "@supabase/supabase-js";
+import { supabase } from "@/integrations/supabase/client";
+
+export type Papel = "admin" | "curador";
+
+export interface Perfil {
+  id: string;
+  nome: string | null;
+  papel: Papel;
+}
+
+export interface Sessao {
+  user: User | null;
+  perfil: Perfil | null;
+  papel: Papel | null;
+  nomeExibicao: string;
+  isAdmin: boolean;
+  isCurador: boolean;
+  loading: boolean;
+  perfilErro: string | null;
+}
+
+async function carregarPerfil(userId: string): Promise<{ perfil: Perfil | null; erro: string | null }> {
+  const { data, error } = await supabase
+    .from("perfis")
+    .select("id, nome, papel")
+    .eq("id", userId)
+    .maybeSingle();
+  if (error) {
+    console.error("[useSessao] falha a ler perfil:", error);
+    return { perfil: null, erro: error.message };
+  }
+  return { perfil: (data as Perfil | null) ?? null, erro: null };
+}
+
+export function useSessao(): Sessao & { perfilErro: string | null } {
+  const [user, setUser] = useState<User | null>(null);
+  const [perfil, setPerfil] = useState<Perfil | null>(null);
+  const [perfilErro, setPerfilErro] = useState<string | null>(null);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    let vivo = true;
+
+    const { data: sub } = supabase.auth.onAuthStateChange((_ev, session) => {
+      if (!vivo) return;
+      const u = session?.user ?? null;
+      setUser(u);
+      if (u) {
+        void carregarPerfil(u.id).then((r) => { if (vivo) { setPerfil(r.perfil); setPerfilErro(r.erro); } });
+      } else {
+        setPerfil(null); setPerfilErro(null);
+      }
+    });
+
+    void supabase.auth.getSession().then(async ({ data }) => {
+      if (!vivo) return;
+      const u = data.session?.user ?? null;
+      setUser(u);
+      if (u) {
+        const r = await carregarPerfil(u.id);
+        if (vivo) { setPerfil(r.perfil); setPerfilErro(r.erro); }
+      }
+      setLoading(false);
+    });
+
+    return () => { vivo = false; sub.subscription.unsubscribe(); };
+  }, []);
+
+  const papel = perfil?.papel ?? null;
+  const nomeExibicao = perfil?.nome ?? user?.email ?? "utilizador";
+
+  return {
+    user,
+    perfil,
+    papel,
+    nomeExibicao,
+    isAdmin: papel === "admin",
+    isCurador: papel === "curador",
+    loading,
+    perfilErro,
+  };
+}

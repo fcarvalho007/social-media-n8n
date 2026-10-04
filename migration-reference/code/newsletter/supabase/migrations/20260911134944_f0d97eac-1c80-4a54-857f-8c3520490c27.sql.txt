@@ -1,0 +1,7 @@
+ALTER TABLE public.revista_edicao
+  ADD COLUMN IF NOT EXISTS cronica_imagem_url text NOT NULL DEFAULT '',
+  ADD COLUMN IF NOT EXISTS cronica_imagem_alt text NOT NULL DEFAULT '',
+  ADD COLUMN IF NOT EXISTS cronica_imagem_credito text NOT NULL DEFAULT '',
+  ADD COLUMN IF NOT EXISTS cronica_imagem_credito_url text NOT NULL DEFAULT '',
+  ADD COLUMN IF NOT EXISTS cronica_imagem_fonte text NOT NULL DEFAULT '',
+  ADD COLUMN IF NOT EXISTS cronica_imagem_posicao integer NOT NULL DEFAULT 0;

@@ -1,0 +1,104 @@
+// Encaminhador entre os dois sistemas editoriais.
+// A edição guarda `template_version`; o editor e o renderer seguem essa escolha.
+// O formato escolhe-se ao criar a edição e pode ser trocado enquanto for rascunho.
+
+import { useState } from "react";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { useSearch } from "@tanstack/react-router";
+import { Loader2, Plus } from "lucide-react";
+import { toast } from "sonner";
+import EditorNewsletter from "./EditorNewsletter";
+import EditorRevista from "./revista/EditorRevista";
+import { alterarFormatoEdicao, criarEdicaoDaSemana, getEdicaoAtual, getEdicaoPorId } from "./data";
+import { useSessao } from "./useSessao";
+import { DialogoNovaEdicao, SeloFormato, normalizarFormato, type FormatoEdicao } from "./FormatoEdicao";
+import { RecomecarEdicao } from "./partilhado/RecomecarEdicao";
+
+export default function EditorRoot() {
+  const qc = useQueryClient();
+  const { edicao: edicaoParam } = useSearch({ strict: false }) as { edicao?: string };
+  const edicaoSel = edicaoParam?.trim() || "";
+  const [modal, setModal] = useState(false);
+  const { nomeExibicao } = useSessao();
+
+  const q = useQuery({
+    queryKey: ["edicao-atual", edicaoSel],
+    queryFn: () => (edicaoSel ? getEdicaoPorId(edicaoSel) : getEdicaoAtual()),
+  });
+
+  const criar = useMutation({
+    mutationFn: (f: FormatoEdicao) => criarEdicaoDaSemana(f),
+    onSuccess: () => {
+      setModal(false);
+      qc.invalidateQueries({ queryKey: ["edicao-atual"] });
+      toast.success("Edição criada");
+    },
+    onError: (e: Error) => toast.error(e.message),
+  });
+
+  const edicao = q.data as
+    | { id: string; numero: number; estado?: string; template_version?: string }
+    | null
+    | undefined;
+
+  const trocar = useMutation({
+    mutationFn: (f: FormatoEdicao) =>
+      alterarFormatoEdicao(edicao!.id, f, nomeExibicao || "Desconhecido"),
+    onSuccess: (_d, f) => {
+      qc.invalidateQueries({ queryKey: ["edicao-atual"] });
+      toast.success(`Formato alterado para ${f === "revista" ? "Revista" : "Clássico"}`);
+    },
+    onError: (e: Error) => toast.error(e.message),
+  });
+
+  if (q.isLoading) {
+    return (
+      <div className="flex min-h-[60vh] items-center justify-center">
+        <Loader2 className="animate-spin text-muted-foreground" />
+      </div>
+    );
+  }
+
+  if (!edicao) {
+    return (
+      <div className="mx-auto max-w-[560px] px-4 py-16 text-center">
+        <h1 className="text-[26px] font-semibold text-foreground">Sem edição em rascunho</h1>
+        <p className="mt-1 text-[15px] text-muted-foreground">
+          Cria a edição desta semana para começares a curar as notícias.
+        </p>
+        <button
+          type="button"
+          onClick={() => setModal(true)}
+          className="mt-6 inline-flex items-center gap-2 rounded-2xl bg-primary px-5 py-3.5 text-[16px] font-semibold text-primary-foreground"
+        >
+          <Plus size={18} /> Nova edição
+        </button>
+        <DialogoNovaEdicao aberto={modal} onAberto={setModal} onCriar={(f) => criar.mutate(f)} aCriar={criar.isPending} />
+      </div>
+    );
+  }
+
+  const formato = normalizarFormato(edicao.template_version);
+  const bloqueado = (edicao.estado ?? "rascunho") !== "rascunho";
+
+  const selo = (
+    <>
+      <SeloFormato
+        formato={formato}
+        bloqueado={bloqueado}
+        aTrocar={trocar.isPending}
+        onTrocar={(f) => trocar.mutate(f)}
+      />
+      {!bloqueado && (
+        <RecomecarEdicao edicaoId={edicao.id} numero={edicao.numero} quem={nomeExibicao || "Desconhecido"} />
+      )}
+    </>
+  );
+
+  if (formato === "revista") {
+    return (
+      <EditorRevista edicaoId={edicao.id} numero={edicao.numero} selo={selo} />
+    );
+  }
+  return <EditorNewsletter selo={selo} />;
+}

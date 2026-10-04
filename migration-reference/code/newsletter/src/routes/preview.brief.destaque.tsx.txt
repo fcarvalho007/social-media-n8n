@@ -1,0 +1,18 @@
+import { createFileRoute } from "@tanstack/react-router";
+
+import { BRIEF_DESTAQUE, BriefPreview } from "@/features/brief/BriefPreview";
+
+export const Route = createFileRoute("/preview/brief/destaque")({
+  head: () => ({
+    meta: [
+      { title: "Brief Destaque — Preview QA · Digital Sprint" },
+      { name: "description", content: "Protótipo editorial interno do Digital Sprint Brief completo." },
+      { property: "og:title", content: "Brief Destaque — Preview QA · Digital Sprint" },
+      { property: "og:description", content: "Protótipo editorial interno do Digital Sprint Brief completo." },
+      { property: "og:type", content: "website" },
+      { name: "twitter:card", content: "summary" },
+      { name: "robots", content: "noindex, nofollow" },
+    ],
+  }),
+  component: () => <BriefPreview conteudo={BRIEF_DESTAQUE} />,
+});

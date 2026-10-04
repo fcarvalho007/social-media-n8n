@@ -1,0 +1,3 @@
+ALTER TABLE public.cronicas ADD COLUMN IF NOT EXISTS titulo text;
+ALTER TABLE public.edicoes ADD COLUMN IF NOT EXISTS wordpress_post_id bigint;
+ALTER TABLE public.edicoes ADD COLUMN IF NOT EXISTS wordpress_post_url text;

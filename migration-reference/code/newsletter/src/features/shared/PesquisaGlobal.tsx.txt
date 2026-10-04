@@ -1,0 +1,475 @@
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import {
+  Search, Loader2, X, FileText, PenLine, Wrench, ExternalLink,
+  CheckCircle2, RotateCcw, CornerDownLeft, ArrowUp, ArrowDown, History,
+} from "lucide-react";
+import { toast } from "sonner";
+import {
+  pesquisarGlobal, getEdicaoAtual, aprovarNoticia, recuperarNoticiaRejeitada,
+  stripLeadingEmoji,
+  type AmbitoPesquisa, type ResultadoGlobal,
+} from "@/features/newsletter/data";
+
+/* ─── Paleta cinematográfica do painel ─── */
+const P = {
+  surface: "#14142B",
+  surfaceAlt: "#1B1B36",
+  line: "rgba(255,255,255,0.08)",
+  ink: "#F5F5FF",
+  muted: "rgba(245,245,255,0.62)",
+  faint: "rgba(245,245,255,0.38)",
+  grad: "linear-gradient(135deg, #6366F1, #8B5CF6, #EC4899)",
+};
+
+const AMBITOS: Array<{ id: AmbitoPesquisa | "tudo"; label: string }> = [
+  { id: "tudo", label: "Tudo" },
+  { id: "edicao_actual", label: "Nesta edição" },
+  { id: "enviadas", label: "Edições passadas" },
+  { id: "pendentes", label: "Pendentes" },
+  { id: "rejeitadas", label: "Rejeitadas" },
+  { id: "ferramentas", label: "Ferramentas" },
+];
+
+const TITULO_GRUPO: Record<AmbitoPesquisa, string> = {
+  edicao_actual: "Nesta edição",
+  pendentes: "Pendentes de aprovação",
+  enviadas: "Edições passadas",
+  ferramentas: "Ferramentas",
+  rejeitadas: "Rejeitadas",
+};
+
+const ORDEM_GRUPOS: AmbitoPesquisa[] = ["edicao_actual", "pendentes", "enviadas", "ferramentas", "rejeitadas"];
+
+function seloEstado(r: ResultadoGlobal): { texto: string; bg: string; fg: string } {
+  if (r.ambito === "edicao_actual") return { texto: "Nesta edição", bg: "rgba(99,102,241,0.22)", fg: "#C7D2FE" };
+  if (r.ambito === "enviadas") return { texto: "Enviada", bg: "rgba(16,185,129,0.18)", fg: "#6EE7B7" };
+  if (r.ambito === "pendentes") return { texto: "Pendente", bg: "rgba(245,158,11,0.18)", fg: "#FCD34D" };
+  if (r.ambito === "rejeitadas") return { texto: "Rejeitada", bg: "rgba(244,63,94,0.18)", fg: "#FDA4AF" };
+  return { texto: "Ferramenta", bg: "rgba(236,72,153,0.18)", fg: "#F9A8D4" };
+}
+
+function iconeTipo(tipo: ResultadoGlobal["tipo"]) {
+  if (tipo === "cronica") return <PenLine size={12} />;
+  if (tipo === "ferramenta") return <Wrench size={12} />;
+  return <FileText size={12} />;
+}
+
+function fmtData(iso: string | null): string {
+  if (!iso) return "";
+  return new Intl.DateTimeFormat("pt-PT", { day: "2-digit", month: "2-digit", year: "numeric" }).format(new Date(iso));
+}
+
+function fmtRelativo(iso: string | null): string {
+  if (!iso) return "";
+  const ms = Date.now() - new Date(iso).getTime();
+  const dias = Math.floor(ms / 86_400_000);
+  if (dias <= 0) return "hoje";
+  if (dias === 1) return "ontem";
+  if (dias < 30) return `há ${dias} dias`;
+  return fmtData(iso);
+}
+
+/** Só <mark> sobrevive; o resto do trecho é escapado. */
+function trechoSeguro(html: string): string {
+  const escapado = html.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+  return escapado
+    .replace(/&lt;mark&gt;/g, '<mark style="background:rgba(253,224,71,0.22);color:#FDE68A;padding:0 2px;border-radius:2px;">')
+    .replace(/&lt;\/mark&gt;/g, "</mark>");
+}
+
+/* ─── Pesquisas recentes (localStorage, só depois da hidratação) ─── */
+const CHAVE_RECENTES = "ds:pesquisas-recentes";
+
+function lerRecentes(): string[] {
+  try {
+    const raw = localStorage.getItem(CHAVE_RECENTES);
+    const arr = raw ? (JSON.parse(raw) as unknown) : [];
+    return Array.isArray(arr) ? (arr as string[]).filter((x) => typeof x === "string").slice(0, 8) : [];
+  } catch {
+    return [];
+  }
+}
+
+function guardarRecente(termo: string) {
+  try {
+    const atuais = lerRecentes().filter((x) => x.toLowerCase() !== termo.toLowerCase());
+    localStorage.setItem(CHAVE_RECENTES, JSON.stringify([termo, ...atuais].slice(0, 8)));
+  } catch { /* sem armazenamento disponível */ }
+}
+
+export interface PesquisaGlobalProps {
+  /** Âmbito pré-seleccionado (ex.: o Arquivo abre em «Edições passadas»). */
+  ambitoInicial?: AmbitoPesquisa | "tudo";
+  queryInicial?: string;
+  autoFocus?: boolean;
+  /** Chamado ao escolher um resultado que vive numa edição passada. */
+  onAbrirEdicao?: (r: ResultadoGlobal) => void;
+  /** Chamado ao escolher um resultado da edição em curso. */
+  onAbrirNoEditor?: (r: ResultadoGlobal) => void;
+  onFechar?: () => void;
+}
+
+export function PesquisaGlobal({
+  ambitoInicial = "tudo",
+  queryInicial = "",
+  autoFocus,
+  onAbrirEdicao,
+  onAbrirNoEditor,
+  onFechar,
+}: PesquisaGlobalProps) {
+  const qc = useQueryClient();
+  const [q, setQ] = useState(queryInicial);
+  const [debounced, setDebounced] = useState(queryInicial);
+  const [ambito, setAmbito] = useState<AmbitoPesquisa | "tudo">(ambitoInicial);
+  const [indice, setIndice] = useState(0);
+  const [recentes, setRecentes] = useState<string[]>([]);
+  const inputRef = useRef<HTMLInputElement>(null);
+  const listaRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => setRecentes(lerRecentes()), []);
+  useEffect(() => { if (autoFocus) inputRef.current?.focus(); }, [autoFocus]);
+
+  useEffect(() => {
+    const t = setTimeout(() => setDebounced(q), 250);
+    return () => clearTimeout(t);
+  }, [q]);
+
+  const termo = debounced.trim();
+  const activo = termo.length >= 2;
+
+  const edicao = useQuery({ queryKey: ["edicao-atual"], queryFn: getEdicaoAtual, staleTime: 60_000 });
+  const edicaoId = edicao.data?.id ?? null;
+  const edicaoNumero = edicao.data?.numero ?? null;
+
+  const ambitos = useMemo<AmbitoPesquisa[] | null>(
+    () => (ambito === "tudo" ? null : [ambito]),
+    [ambito],
+  );
+
+  const res = useQuery({
+    queryKey: ["pesquisa-global", termo, ambito, edicaoId],
+    queryFn: () => pesquisarGlobal(termo, ambitos, edicaoId, 40),
+    enabled: activo,
+    staleTime: 20_000,
+    placeholderData: (anterior) => anterior,
+  });
+
+  const linhas = useMemo(() => res.data ?? [], [res.data]);
+
+  useEffect(() => { setIndice(0); }, [termo, ambito]);
+
+  useEffect(() => {
+    if (activo && termo.length >= 3 && linhas.length > 0) {
+      guardarRecente(termo);
+      setRecentes(lerRecentes());
+    }
+    // guardar só quando a resposta muda, não a cada tecla
+  }, [linhas, activo, termo]);
+
+  const grupos = useMemo(() => {
+    const mapa = new Map<AmbitoPesquisa, ResultadoGlobal[]>();
+    for (const r of linhas) {
+      const arr = mapa.get(r.ambito) ?? [];
+      arr.push(r);
+      mapa.set(r.ambito, arr);
+    }
+    return ORDEM_GRUPOS.filter((g) => mapa.has(g)).map((g) => ({ ambito: g, itens: mapa.get(g)! }));
+  }, [linhas]);
+
+  /** Lista achatada na mesma ordem em que é desenhada — base da navegação por teclado. */
+  const planas = useMemo(() => grupos.flatMap((g) => g.itens), [grupos]);
+
+  const invalidarTudo = useCallback(() => {
+    qc.invalidateQueries({ queryKey: ["pendentes"] });
+    qc.invalidateQueries({ queryKey: ["aprovadas"] });
+    qc.invalidateQueries({ queryKey: ["pesquisa-global"] });
+    qc.invalidateQueries({ queryKey: ["arquivo-noticias"] });
+  }, [qc]);
+
+  const mAprovar = useMutation({
+    mutationFn: async (r: ResultadoGlobal) => {
+      if (!edicaoId) throw new Error("Não há edição em rascunho.");
+      await aprovarNoticia(r.id, edicaoId);
+    },
+    onSuccess: () => { toast.success("Notícia aprovada para esta edição."); invalidarTudo(); },
+    onError: (e: unknown) => toast.error((e as Error)?.message ?? "Não foi possível aprovar."),
+  });
+
+  const mRecuperar = useMutation({
+    mutationFn: (r: ResultadoGlobal) => recuperarNoticiaRejeitada(r.id),
+    onSuccess: () => { toast.success("Notícia recuperada — está de novo em pendentes."); invalidarTudo(); },
+    onError: (e: unknown) => toast.error((e as Error)?.message ?? "Não foi possível recuperar."),
+  });
+
+  const accaoPrincipal = useCallback((r: ResultadoGlobal) => {
+    if (r.ambito === "edicao_actual") { onAbrirNoEditor?.(r); return; }
+    if (r.ambito === "pendentes") { mAprovar.mutate(r); return; }
+    if (r.ambito === "rejeitadas") { mRecuperar.mutate(r); return; }
+    if (r.ambito === "ferramentas") {
+      if (r.url) window.open(r.url, "_blank", "noopener");
+      return;
+    }
+    onAbrirEdicao?.(r);
+  }, [mAprovar, mRecuperar, onAbrirEdicao, onAbrirNoEditor]);
+
+  const rotuloAccao = (r: ResultadoGlobal): string => {
+    if (r.ambito === "edicao_actual") return "Ver no editor";
+    if (r.ambito === "pendentes") return "Aprovar agora";
+    if (r.ambito === "rejeitadas") return "Recuperar";
+    if (r.ambito === "ferramentas") return "Abrir ferramenta";
+    return "Abrir edição";
+  };
+
+  function onKeyDown(e: React.KeyboardEvent) {
+    if (e.key === "Escape") { onFechar?.(); return; }
+    if (e.key === "ArrowDown") {
+      e.preventDefault();
+      setIndice((i) => Math.min(i + 1, Math.max(0, planas.length - 1)));
+    } else if (e.key === "ArrowUp") {
+      e.preventDefault();
+      setIndice((i) => Math.max(0, i - 1));
+    } else if (e.key === "Enter") {
+      const alvo = planas[indice];
+      if (alvo) { e.preventDefault(); accaoPrincipal(alvo); }
+    } else if (e.altKey && /^[1-6]$/.test(e.key)) {
+      e.preventDefault();
+      const escolhido = AMBITOS[Number(e.key) - 1];
+      if (escolhido) setAmbito(escolhido.id);
+    }
+  }
+
+  // Mantém a linha seleccionada visível
+  useEffect(() => {
+    const el = listaRef.current?.querySelector<HTMLElement>(`[data-idx="${indice}"]`);
+    el?.scrollIntoView({ block: "nearest" });
+  }, [indice]);
+
+  let cursor = -1;
+
+  return (
+    <div className="w-full" onKeyDown={onKeyDown}>
+      {/* Campo */}
+      <div className="relative">
+        <Search size={18} className="absolute left-4 top-1/2 -translate-y-1/2" style={{ color: P.faint }} />
+        <input
+          ref={inputRef}
+          value={q}
+          onChange={(e) => setQ(e.target.value)}
+          placeholder="Procurar notícias, crónicas e ferramentas…"
+          aria-label="Pesquisar"
+          className="w-full h-14 md:h-[52px] pl-12 pr-11 text-[16px] outline-none bg-transparent"
+          style={{ color: P.ink }}
+        />
+        {q.length > 0 && (
+          <button
+            type="button"
+            onClick={() => { setQ(""); inputRef.current?.focus(); }}
+            className="absolute right-3 top-1/2 -translate-y-1/2 w-9 h-9 inline-flex items-center justify-center rounded-lg"
+            style={{ color: P.faint }}
+            aria-label="Limpar pesquisa"
+          >
+            <X size={16} />
+          </button>
+        )}
+      </div>
+
+      {/* Chips de âmbito */}
+      <div className="flex gap-2 overflow-x-auto px-3 pb-3 pt-1 -mx-0" style={{ borderTop: `1px solid ${P.line}` }}>
+        {AMBITOS.map((a) => {
+          const activoChip = a.id === ambito;
+          return (
+            <button
+              key={a.id}
+              type="button"
+              onClick={() => setAmbito(a.id)}
+              className="shrink-0 h-11 md:h-8 px-3.5 rounded-full text-[13px] md:text-[12px] font-semibold whitespace-nowrap transition-colors"
+              style={activoChip
+                ? { backgroundImage: P.grad, color: "#FFFFFF", border: "1px solid transparent" }
+                : { background: "rgba(255,255,255,0.05)", color: P.muted, border: `1px solid ${P.line}` }}
+              aria-pressed={activoChip}
+            >
+              {a.label}
+            </button>
+          );
+        })}
+      </div>
+
+      {/* Corpo */}
+      <div ref={listaRef} className="max-h-[62vh] overflow-y-auto px-3 pb-3" style={{ borderTop: `1px solid ${P.line}` }}>
+        {!activo && (
+          <div className="py-4">
+            <p className="text-[13px] px-1" style={{ color: P.faint }}>
+              Escreve pelo menos 2 caracteres. Procura na edição em curso, em edições enviadas,
+              em pendentes, em rejeitadas e nas ferramentas.
+            </p>
+            {recentes.length > 0 && (
+              <>
+                <p className="text-[11px] font-bold uppercase tracking-wider mt-4 mb-2 px-1 flex items-center gap-1.5" style={{ color: P.faint }}>
+                  <History size={11} /> Pesquisas recentes
+                </p>
+                <div className="flex flex-wrap gap-2 px-1">
+                  {recentes.map((t) => (
+                    <button
+                      key={t}
+                      type="button"
+                      onClick={() => { setQ(t); setDebounced(t); inputRef.current?.focus(); }}
+                      className="h-9 px-3 rounded-lg text-[13px]"
+                      style={{ background: "rgba(255,255,255,0.05)", color: P.muted, border: `1px solid ${P.line}` }}
+                    >
+                      {t}
+                    </button>
+                  ))}
+                </div>
+              </>
+            )}
+          </div>
+        )}
+
+        {activo && res.isFetching && linhas.length === 0 && (
+          <p className="text-[13px] py-4 px-1 flex items-center gap-2" style={{ color: P.muted }}>
+            <Loader2 size={14} className="animate-spin" /> A pesquisar…
+          </p>
+        )}
+
+        {activo && res.error && (
+          <p className="text-[13px] py-4 px-1" style={{ color: "#FDA4AF" }}>
+            Não foi possível pesquisar. Tenta novamente.
+          </p>
+        )}
+
+        {activo && !res.isFetching && !res.error && linhas.length === 0 && (
+          <p className="text-[13px] py-4 px-1" style={{ color: P.muted }}>
+            Sem resultados para <strong style={{ color: P.ink }}>«{termo}»</strong>.
+          </p>
+        )}
+
+        {grupos.map((g) => (
+          <div key={g.ambito} className="mt-3 first:mt-2">
+            <p className="text-[11px] font-bold uppercase tracking-wider px-1 mb-1.5" style={{ color: P.faint }}>
+              {TITULO_GRUPO[g.ambito]} · {g.itens.length}
+            </p>
+            <ul className="space-y-1.5">
+              {g.itens.map((r) => {
+                cursor += 1;
+                const idx = cursor;
+                const seleccionada = idx === indice;
+                const selo = seloEstado(r);
+                const aPedir = (mAprovar.isPending && mAprovar.variables?.id === r.id)
+                  || (mRecuperar.isPending && mRecuperar.variables?.id === r.id);
+                return (
+                  <li key={`${r.ambito}-${r.id}`} data-idx={idx}>
+                    <div
+                      role="button"
+                      tabIndex={-1}
+                      onMouseEnter={() => setIndice(idx)}
+                      onClick={() => accaoPrincipal(r)}
+                      className="rounded-xl p-3 cursor-pointer transition-colors"
+                      style={{
+                        background: seleccionada ? "rgba(139,92,246,0.14)" : P.surfaceAlt,
+                        border: `1px solid ${seleccionada ? "rgba(139,92,246,0.55)" : P.line}`,
+                      }}
+                    >
+                      <div className="flex flex-wrap items-center gap-2 mb-1">
+                        <span
+                          className="text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-full inline-flex items-center gap-1"
+                          style={{ background: selo.bg, color: selo.fg }}
+                        >
+                          {iconeTipo(r.tipo)} {selo.texto}
+                        </span>
+                        {r.edicao_numero != null && (
+                          <span className="text-[12px] font-bold" style={{ color: "#C7D2FE" }}>#{r.edicao_numero}</span>
+                        )}
+                        {r.ambito === "enviadas" && r.edicao_data && (
+                          <span className="text-[12px]" style={{ color: P.faint }}>{fmtData(r.edicao_data)}</span>
+                        )}
+                        {r.ambito !== "enviadas" && r.criado_em && (
+                          <span className="text-[12px]" style={{ color: P.faint }}>{fmtRelativo(r.criado_em)}</span>
+                        )}
+                        {r.categoria && (
+                          <span className="text-[12px]" style={{ color: P.faint }}>· {r.categoria}</span>
+                        )}
+                        {r.usada_em_numero != null && r.ambito !== "enviadas" && (
+                          <span
+                            className="text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-full"
+                            style={{ background: "rgba(253,224,71,0.16)", color: "#FDE68A" }}
+                            title="Já foi enviada numa edição anterior"
+                          >
+                            Já usada na #{r.usada_em_numero}
+                          </span>
+                        )}
+                      </div>
+
+                      <p className="text-[14.5px] font-semibold leading-snug" style={{ color: P.ink }}>
+                        {stripLeadingEmoji(r.titulo) || r.titulo}
+                      </p>
+                      {r.trecho && (
+                        <p
+                          className="text-[13px] mt-1 leading-relaxed"
+                          style={{ color: P.muted }}
+                          dangerouslySetInnerHTML={{ __html: trechoSeguro(r.trecho) }}
+                        />
+                      )}
+
+                      <div className="mt-2 flex flex-wrap items-center gap-3">
+                        <button
+                          type="button"
+                          onClick={(e) => { e.stopPropagation(); accaoPrincipal(r); }}
+                          disabled={aPedir}
+                          className="text-[12.5px] font-bold inline-flex items-center gap-1.5 h-9 px-2 -ml-2 rounded-lg"
+                          style={{ color: "#C4B5FD" }}
+                        >
+                          {aPedir
+                            ? <Loader2 size={13} className="animate-spin" />
+                            : r.ambito === "pendentes" ? <CheckCircle2 size={13} />
+                            : r.ambito === "rejeitadas" ? <RotateCcw size={13} />
+                            : <CornerDownLeft size={13} />}
+                          {rotuloAccao(r)}
+                        </button>
+                        {r.ambito === "rejeitadas" && r.edicao_numero == null && null}
+                        {r.url && (
+                          <a
+                            href={r.url}
+                            target="_blank"
+                            rel="noreferrer"
+                            onClick={(e) => e.stopPropagation()}
+                            className="text-[12.5px] font-semibold inline-flex items-center gap-1.5 h-9 px-2 rounded-lg"
+                            style={{ color: P.muted }}
+                          >
+                            <ExternalLink size={12} /> Link original
+                          </a>
+                        )}
+                        {r.ambito !== "edicao_actual" && r.edicao_id && onAbrirEdicao && (
+                          <button
+                            type="button"
+                            onClick={(e) => { e.stopPropagation(); onAbrirEdicao(r); }}
+                            className="text-[12.5px] font-semibold h-9 px-2 rounded-lg"
+                            style={{ color: P.muted }}
+                          >
+                            Abrir edição
+                          </button>
+                        )}
+                      </div>
+                    </div>
+                  </li>
+                );
+              })}
+            </ul>
+          </div>
+        ))}
+      </div>
+
+      {/* Rodapé de atalhos */}
+      <div
+        className="hidden md:flex items-center gap-4 px-4 py-2 text-[11.5px]"
+        style={{ borderTop: `1px solid ${P.line}`, color: P.faint }}
+      >
+        <span className="inline-flex items-center gap-1"><ArrowUp size={11} /><ArrowDown size={11} /> percorrer</span>
+        <span className="inline-flex items-center gap-1"><CornerDownLeft size={11} /> acção principal</span>
+        <span>Alt + 1-6 muda de âmbito</span>
+        <span>Esc fecha</span>
+        {edicaoNumero != null && <span className="ml-auto">Edição em curso: #{edicaoNumero}</span>}
+      </div>
+    </div>
+  );
+}

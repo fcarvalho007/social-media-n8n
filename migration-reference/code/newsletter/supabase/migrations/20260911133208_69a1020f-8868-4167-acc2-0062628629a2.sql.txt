@@ -1,0 +1,43 @@
+CREATE OR REPLACE FUNCTION public.limpar_dados_antigos(_dias integer DEFAULT 30)
+RETURNS jsonb
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = public
+AS $$
+DECLARE
+  n_noticias integer := 0;
+  n_fila integer := 0;
+  n_emails integer := 0;
+BEGIN
+  IF _dias < 7 THEN
+    RAISE EXCEPTION 'Retenção mínima de 7 dias';
+  END IF;
+  IF auth.uid() IS NOT NULL AND NOT public.is_admin() THEN
+    RAISE EXCEPTION 'Apenas administradores podem limpar dados antigos';
+  END IF;
+
+  DELETE FROM public.curadoria_fila f
+  WHERE f.estado IN ('processado', 'falhado', 'descartado')
+    AND f.created_at < now() - make_interval(days => _dias);
+  GET DIAGNOSTICS n_fila = ROW_COUNT;
+
+  DELETE FROM public.noticias n
+  WHERE n.edicao_id IS NULL
+    AND n.estado IN ('rejeitada', 'descartada')
+    AND n.created_at < now() - make_interval(days => _dias);
+  GET DIAGNOSTICS n_noticias = ROW_COUNT;
+
+  DELETE FROM public.emails_recebidos e
+  WHERE e.recebido_em < now() - make_interval(days => _dias)
+    AND NOT EXISTS (SELECT 1 FROM public.noticias n WHERE n.email_recebido_id = e.id)
+    AND NOT EXISTS (SELECT 1 FROM public.ferramentas_sugeridas fs WHERE fs.fonte_email_id = e.id);
+  GET DIAGNOSTICS n_emails = ROW_COUNT;
+
+  INSERT INTO public.audit_log (quem, accao, detalhe)
+  VALUES (coalesce(nullif(current_setting('request.jwt.claims', true), '')::jsonb ->> 'email', 'sistema'),
+          'Limpeza de dados antigos',
+          jsonb_build_object('dias', _dias, 'noticias', n_noticias, 'fila', n_fila, 'emails', n_emails));
+
+  RETURN jsonb_build_object('dias', _dias, 'noticias', n_noticias, 'fila', n_fila, 'emails', n_emails);
+END;
+$$;

@@ -1,0 +1,6 @@
+ALTER TABLE public.revista_edicao
+  ADD COLUMN IF NOT EXISTS momento_posicao smallint NOT NULL DEFAULT 99,
+  ADD COLUMN IF NOT EXISTS pull_quote_posicao smallint NOT NULL DEFAULT 99;
+
+COMMENT ON COLUMN public.revista_edicao.momento_posicao IS 'Número de parágrafos do excerto que aparecem antes do bloco. 0 = logo a seguir à lede. 99 = no fim.';
+COMMENT ON COLUMN public.revista_edicao.pull_quote_posicao IS 'Número de parágrafos do excerto que aparecem antes da frase de destaque. 0 = logo a seguir à lede. 99 = no fim.';

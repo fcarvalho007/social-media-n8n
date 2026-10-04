@@ -1,0 +1,121 @@
+
+-- Trigger genérico para updated_at
+CREATE OR REPLACE FUNCTION public.set_updated_at()
+RETURNS TRIGGER
+LANGUAGE plpgsql
+SET search_path = public
+AS $$
+BEGIN
+  NEW.updated_at = now();
+  RETURN NEW;
+END;
+$$;
+
+-- 1. episodios_podcast
+CREATE TABLE public.episodios_podcast (
+  id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  titulo text NOT NULL,
+  codigo text,
+  data_publicacao date,
+  url text,
+  criado_em timestamptz NOT NULL DEFAULT now()
+);
+GRANT SELECT, INSERT, UPDATE, DELETE ON public.episodios_podcast TO authenticated;
+GRANT ALL ON public.episodios_podcast TO service_role;
+ALTER TABLE public.episodios_podcast ENABLE ROW LEVEL SECURITY;
+CREATE POLICY "auth full access episodios_podcast" ON public.episodios_podcast
+  FOR ALL TO authenticated USING (true) WITH CHECK (true);
+
+-- 2. edicoes
+CREATE TABLE public.edicoes (
+  id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  numero int NOT NULL UNIQUE,
+  data_envio_prevista date,
+  assunto text,
+  estado text NOT NULL DEFAULT 'rascunho' CHECK (estado IN ('rascunho','enviada')),
+  episodio_podcast_id uuid REFERENCES public.episodios_podcast(id) ON DELETE SET NULL,
+  bloco_livro boolean NOT NULL DEFAULT true,
+  bloco_recursos boolean NOT NULL DEFAULT true,
+  snapshot_envio jsonb,
+  enviada_em timestamptz,
+  created_at timestamptz NOT NULL DEFAULT now()
+);
+CREATE INDEX idx_edicoes_numero ON public.edicoes(numero);
+GRANT SELECT, INSERT, UPDATE, DELETE ON public.edicoes TO authenticated;
+GRANT ALL ON public.edicoes TO service_role;
+ALTER TABLE public.edicoes ENABLE ROW LEVEL SECURITY;
+CREATE POLICY "auth full access edicoes" ON public.edicoes
+  FOR ALL TO authenticated USING (true) WITH CHECK (true);
+
+-- 3. noticias
+CREATE TABLE public.noticias (
+  id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  edicao_id uuid REFERENCES public.edicoes(id) ON DELETE SET NULL,
+  titulo text NOT NULL,
+  descricao text,
+  url text,
+  categoria text NOT NULL CHECK (categoria IN ('ia','meta','instagram','wafb','youtube','linkedin','tiktok','x','influencers')),
+  origem text NOT NULL CHECK (origem IN ('form_unica','form_bloco','whatsapp','curadoria_ia','manual')),
+  estado text NOT NULL DEFAULT 'pendente' CHECK (estado IN ('pendente','aprovada','rejeitada','enviada')),
+  destino text NOT NULL DEFAULT 'news' CHECK (destino IN ('news','site')),
+  destaque boolean NOT NULL DEFAULT false,
+  ordem int NOT NULL DEFAULT 0,
+  url_curto text,
+  created_at timestamptz NOT NULL DEFAULT now(),
+  updated_at timestamptz NOT NULL DEFAULT now()
+);
+CREATE INDEX idx_noticias_estado ON public.noticias(estado);
+CREATE INDEX idx_noticias_edicao_ordem ON public.noticias(edicao_id, ordem);
+CREATE TRIGGER trg_noticias_updated_at
+  BEFORE UPDATE ON public.noticias
+  FOR EACH ROW EXECUTE FUNCTION public.set_updated_at();
+GRANT SELECT, INSERT, UPDATE, DELETE ON public.noticias TO authenticated;
+GRANT ALL ON public.noticias TO service_role;
+ALTER TABLE public.noticias ENABLE ROW LEVEL SECURITY;
+CREATE POLICY "auth full access noticias" ON public.noticias
+  FOR ALL TO authenticated USING (true) WITH CHECK (true);
+
+-- 4. cronicas
+CREATE TABLE public.cronicas (
+  id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  edicao_id uuid NOT NULL UNIQUE REFERENCES public.edicoes(id) ON DELETE CASCADE,
+  conteudo text,
+  leituras_recomendadas text,
+  updated_at timestamptz NOT NULL DEFAULT now()
+);
+CREATE TRIGGER trg_cronicas_updated_at
+  BEFORE UPDATE ON public.cronicas
+  FOR EACH ROW EXECUTE FUNCTION public.set_updated_at();
+GRANT SELECT, INSERT, UPDATE, DELETE ON public.cronicas TO authenticated;
+GRANT ALL ON public.cronicas TO service_role;
+ALTER TABLE public.cronicas ENABLE ROW LEVEL SECURITY;
+CREATE POLICY "auth full access cronicas" ON public.cronicas
+  FOR ALL TO authenticated USING (true) WITH CHECK (true);
+
+-- 5. fontes_curadoria
+CREATE TABLE public.fontes_curadoria (
+  id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  nome text NOT NULL,
+  url_feed text NOT NULL,
+  activa boolean NOT NULL DEFAULT true,
+  created_at timestamptz NOT NULL DEFAULT now()
+);
+GRANT SELECT, INSERT, UPDATE, DELETE ON public.fontes_curadoria TO authenticated;
+GRANT ALL ON public.fontes_curadoria TO service_role;
+ALTER TABLE public.fontes_curadoria ENABLE ROW LEVEL SECURITY;
+CREATE POLICY "auth full access fontes_curadoria" ON public.fontes_curadoria
+  FOR ALL TO authenticated USING (true) WITH CHECK (true);
+
+-- 6. audit_log
+CREATE TABLE public.audit_log (
+  id bigint GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
+  quem text,
+  accao text NOT NULL,
+  detalhe jsonb,
+  criado_em timestamptz NOT NULL DEFAULT now()
+);
+GRANT SELECT, INSERT, UPDATE, DELETE ON public.audit_log TO authenticated;
+GRANT ALL ON public.audit_log TO service_role;
+ALTER TABLE public.audit_log ENABLE ROW LEVEL SECURITY;
+CREATE POLICY "auth full access audit_log" ON public.audit_log
+  FOR ALL TO authenticated USING (true) WITH CHECK (true);

@@ -1,0 +1,46 @@
+
+CREATE TABLE public.prioridades_editoriais (
+  id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  palavra_chave text NOT NULL UNIQUE,
+  peso int NOT NULL DEFAULT 1 CHECK (peso BETWEEN -5 AND 5),
+  created_at timestamptz NOT NULL DEFAULT now(),
+  updated_at timestamptz NOT NULL DEFAULT now(),
+  CONSTRAINT palavra_chave_minusculas CHECK (palavra_chave = lower(palavra_chave)),
+  CONSTRAINT palavra_chave_nao_vazia CHECK (length(btrim(palavra_chave)) > 0)
+);
+
+GRANT SELECT ON public.prioridades_editoriais TO authenticated;
+GRANT INSERT, UPDATE, DELETE ON public.prioridades_editoriais TO authenticated;
+GRANT ALL ON public.prioridades_editoriais TO service_role;
+
+ALTER TABLE public.prioridades_editoriais ENABLE ROW LEVEL SECURITY;
+
+CREATE POLICY "prioridades_select_autenticados"
+  ON public.prioridades_editoriais FOR SELECT
+  TO authenticated
+  USING (true);
+
+CREATE POLICY "prioridades_admin_insert"
+  ON public.prioridades_editoriais FOR INSERT
+  TO authenticated
+  WITH CHECK (public.is_admin());
+
+CREATE POLICY "prioridades_admin_update"
+  ON public.prioridades_editoriais FOR UPDATE
+  TO authenticated
+  USING (public.is_admin())
+  WITH CHECK (public.is_admin());
+
+CREATE POLICY "prioridades_admin_delete"
+  ON public.prioridades_editoriais FOR DELETE
+  TO authenticated
+  USING (public.is_admin());
+
+CREATE TRIGGER prioridades_editoriais_set_updated_at
+  BEFORE UPDATE ON public.prioridades_editoriais
+  FOR EACH ROW EXECUTE FUNCTION public.set_updated_at();
+
+INSERT INTO public.prioridades_editoriais (palavra_chave, peso) VALUES
+  ('portugal', 2),
+  ('comportamento do consumidor', 2)
+ON CONFLICT (palavra_chave) DO NOTHING;

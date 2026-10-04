@@ -1,0 +1,227 @@
+
+-- Extensões necessárias para bcrypt no seed
+CREATE EXTENSION IF NOT EXISTS pgcrypto;
+
+-- ─────────────────────────────────────────────
+-- 1. Tabela perfis
+-- ─────────────────────────────────────────────
+CREATE TABLE public.perfis (
+  id uuid PRIMARY KEY REFERENCES auth.users(id) ON DELETE CASCADE,
+  nome text,
+  papel text NOT NULL DEFAULT 'curador' CHECK (papel IN ('admin', 'curador')),
+  created_at timestamptz NOT NULL DEFAULT now(),
+  updated_at timestamptz NOT NULL DEFAULT now()
+);
+
+GRANT SELECT, UPDATE ON public.perfis TO authenticated;
+GRANT ALL ON public.perfis TO service_role;
+
+ALTER TABLE public.perfis ENABLE ROW LEVEL SECURITY;
+
+CREATE TRIGGER trg_perfis_updated_at
+  BEFORE UPDATE ON public.perfis
+  FOR EACH ROW EXECUTE FUNCTION public.set_updated_at();
+
+-- ─────────────────────────────────────────────
+-- 2. Funções helper (security definer para evitar recursão RLS)
+-- ─────────────────────────────────────────────
+CREATE OR REPLACE FUNCTION public.me_papel()
+RETURNS text
+LANGUAGE sql
+STABLE
+SECURITY DEFINER
+SET search_path = public
+AS $$
+  SELECT papel FROM public.perfis WHERE id = auth.uid()
+$$;
+
+CREATE OR REPLACE FUNCTION public.is_admin()
+RETURNS boolean
+LANGUAGE sql
+STABLE
+SECURITY DEFINER
+SET search_path = public
+AS $$
+  SELECT EXISTS (
+    SELECT 1 FROM public.perfis WHERE id = auth.uid() AND papel = 'admin'
+  )
+$$;
+
+-- Trigger em auth.users para criar perfil automaticamente
+CREATE OR REPLACE FUNCTION public.handle_new_user()
+RETURNS trigger
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = public
+AS $$
+BEGIN
+  INSERT INTO public.perfis (id, nome, papel)
+  VALUES (NEW.id, COALESCE(NEW.raw_user_meta_data->>'nome', split_part(NEW.email, '@', 1)), 'curador')
+  ON CONFLICT (id) DO NOTHING;
+  RETURN NEW;
+END;
+$$;
+
+DROP TRIGGER IF EXISTS on_auth_user_created ON auth.users;
+CREATE TRIGGER on_auth_user_created
+  AFTER INSERT ON auth.users
+  FOR EACH ROW EXECUTE FUNCTION public.handle_new_user();
+
+-- ─────────────────────────────────────────────
+-- 3. Políticas RLS de perfis
+-- ─────────────────────────────────────────────
+CREATE POLICY "perfis_select_self_or_admin" ON public.perfis
+  FOR SELECT TO authenticated
+  USING (id = auth.uid() OR public.is_admin());
+
+CREATE POLICY "perfis_update_self_no_papel" ON public.perfis
+  FOR UPDATE TO authenticated
+  USING (id = auth.uid())
+  WITH CHECK (id = auth.uid() AND papel = (SELECT papel FROM public.perfis WHERE id = auth.uid()));
+
+CREATE POLICY "perfis_admin_all" ON public.perfis
+  FOR ALL TO authenticated
+  USING (public.is_admin())
+  WITH CHECK (public.is_admin());
+
+-- ─────────────────────────────────────────────
+-- 4. Reescrita das políticas das tabelas existentes
+-- ─────────────────────────────────────────────
+
+-- Remove políticas antigas abertas
+DROP POLICY IF EXISTS "auth full access edicoes" ON public.edicoes;
+DROP POLICY IF EXISTS "auth full access noticias" ON public.noticias;
+DROP POLICY IF EXISTS "auth full access cronicas" ON public.cronicas;
+DROP POLICY IF EXISTS "auth full access episodios_podcast" ON public.episodios_podcast;
+DROP POLICY IF EXISTS "auth full access fontes_curadoria" ON public.fontes_curadoria;
+DROP POLICY IF EXISTS "auth full access audit_log" ON public.audit_log;
+DROP POLICY IF EXISTS "anon full access edicoes" ON public.edicoes;
+DROP POLICY IF EXISTS "anon full access noticias" ON public.noticias;
+DROP POLICY IF EXISTS "anon full access cronicas" ON public.cronicas;
+DROP POLICY IF EXISTS "anon full access episodios_podcast" ON public.episodios_podcast;
+DROP POLICY IF EXISTS "anon full access fontes_curadoria" ON public.fontes_curadoria;
+DROP POLICY IF EXISTS "anon full access audit_log" ON public.audit_log;
+
+-- Revoga acesso anon
+REVOKE ALL ON public.edicoes FROM anon;
+REVOKE ALL ON public.noticias FROM anon;
+REVOKE ALL ON public.cronicas FROM anon;
+REVOKE ALL ON public.episodios_podcast FROM anon;
+REVOKE ALL ON public.fontes_curadoria FROM anon;
+REVOKE ALL ON public.audit_log FROM anon;
+
+-- ── edicoes ──
+CREATE POLICY "edicoes_select_auth" ON public.edicoes
+  FOR SELECT TO authenticated USING (true);
+
+CREATE POLICY "edicoes_insert_admin" ON public.edicoes
+  FOR INSERT TO authenticated WITH CHECK (public.is_admin());
+
+CREATE POLICY "edicoes_update_admin_rascunho" ON public.edicoes
+  FOR UPDATE TO authenticated
+  USING (public.is_admin() AND (estado = 'rascunho' OR estado = 'enviada'))
+  WITH CHECK (public.is_admin());
+
+CREATE POLICY "edicoes_delete_admin" ON public.edicoes
+  FOR DELETE TO authenticated USING (public.is_admin());
+
+-- ── noticias ──
+CREATE POLICY "noticias_select_auth" ON public.noticias
+  FOR SELECT TO authenticated USING (true);
+
+CREATE POLICY "noticias_insert_auth" ON public.noticias
+  FOR INSERT TO authenticated WITH CHECK (
+    edicao_id IS NULL
+    OR EXISTS (SELECT 1 FROM public.edicoes e WHERE e.id = edicao_id AND e.estado = 'rascunho')
+  );
+
+CREATE POLICY "noticias_update_auth_rascunho" ON public.noticias
+  FOR UPDATE TO authenticated
+  USING (
+    edicao_id IS NULL
+    OR EXISTS (SELECT 1 FROM public.edicoes e WHERE e.id = edicao_id AND e.estado = 'rascunho')
+    OR (estado IN ('pendente', 'rejeitada'))
+  )
+  WITH CHECK (
+    edicao_id IS NULL
+    OR EXISTS (SELECT 1 FROM public.edicoes e WHERE e.id = edicao_id AND e.estado = 'rascunho')
+    OR estado IN ('pendente', 'rejeitada')
+  );
+
+CREATE POLICY "noticias_delete_admin" ON public.noticias
+  FOR DELETE TO authenticated USING (public.is_admin());
+
+-- ── cronicas ──
+CREATE POLICY "cronicas_select_auth" ON public.cronicas
+  FOR SELECT TO authenticated USING (true);
+
+CREATE POLICY "cronicas_insert_admin" ON public.cronicas
+  FOR INSERT TO authenticated WITH CHECK (public.is_admin());
+
+CREATE POLICY "cronicas_update_auth_rascunho" ON public.cronicas
+  FOR UPDATE TO authenticated
+  USING (EXISTS (SELECT 1 FROM public.edicoes e WHERE e.id = edicao_id AND e.estado = 'rascunho'))
+  WITH CHECK (EXISTS (SELECT 1 FROM public.edicoes e WHERE e.id = edicao_id AND e.estado = 'rascunho'));
+
+CREATE POLICY "cronicas_delete_admin" ON public.cronicas
+  FOR DELETE TO authenticated USING (public.is_admin());
+
+-- ── episodios_podcast ── (mantido pelo n8n via service_role)
+CREATE POLICY "episodios_select_auth" ON public.episodios_podcast
+  FOR SELECT TO authenticated USING (true);
+
+-- ── fontes_curadoria ── (só admin gere)
+CREATE POLICY "fontes_select_auth" ON public.fontes_curadoria
+  FOR SELECT TO authenticated USING (true);
+
+CREATE POLICY "fontes_admin_all" ON public.fontes_curadoria
+  FOR ALL TO authenticated
+  USING (public.is_admin())
+  WITH CHECK (public.is_admin());
+
+-- ── audit_log ──
+CREATE POLICY "audit_select_auth" ON public.audit_log
+  FOR SELECT TO authenticated USING (true);
+
+CREATE POLICY "audit_insert_auth" ON public.audit_log
+  FOR INSERT TO authenticated WITH CHECK (true);
+
+-- ─────────────────────────────────────────────
+-- 5. Seed utilizador inicial (admin)
+-- ─────────────────────────────────────────────
+DO $$
+DECLARE
+  v_user_id uuid;
+  v_email text := 'fredericodigital@gmail.com';
+BEGIN
+  SELECT id INTO v_user_id FROM auth.users WHERE email = v_email;
+  IF v_user_id IS NULL THEN
+    v_user_id := gen_random_uuid();
+    INSERT INTO auth.users (
+      instance_id, id, aud, role, email, encrypted_password,
+      email_confirmed_at, created_at, updated_at,
+      confirmation_token, email_change, email_change_token_new, recovery_token,
+      raw_app_meta_data, raw_user_meta_data, is_super_admin
+    ) VALUES (
+      '00000000-0000-0000-0000-000000000000', v_user_id, 'authenticated', 'authenticated',
+      v_email, crypt('click123', gen_salt('bf')),
+      now(), now(), now(),
+      '', '', '', '',
+      '{"provider":"email","providers":["email"]}'::jsonb,
+      jsonb_build_object('nome', 'Frederico Carvalho'),
+      false
+    );
+    INSERT INTO auth.identities (
+      id, user_id, identity_data, provider, provider_id, last_sign_in_at, created_at, updated_at
+    ) VALUES (
+      gen_random_uuid(), v_user_id,
+      jsonb_build_object('sub', v_user_id::text, 'email', v_email, 'email_verified', true),
+      'email', v_user_id::text, now(), now(), now()
+    );
+  END IF;
+
+  -- Garante perfil admin (o trigger cria como curador, aqui promovemos)
+  INSERT INTO public.perfis (id, nome, papel)
+  VALUES (v_user_id, 'Frederico Carvalho', 'admin')
+  ON CONFLICT (id) DO UPDATE SET papel = 'admin', nome = 'Frederico Carvalho';
+END $$;

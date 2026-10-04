@@ -1,0 +1,37 @@
+
+CREATE TABLE public.configuracoes (
+  chave text PRIMARY KEY,
+  valor text,
+  actualizado_em timestamptz NOT NULL DEFAULT now()
+);
+
+GRANT SELECT ON public.configuracoes TO authenticated;
+GRANT ALL ON public.configuracoes TO service_role;
+
+ALTER TABLE public.configuracoes ENABLE ROW LEVEL SECURITY;
+
+CREATE POLICY "Autenticados podem ler configuracoes"
+  ON public.configuracoes FOR SELECT
+  TO authenticated USING (true);
+
+CREATE POLICY "Admins podem inserir configuracoes"
+  ON public.configuracoes FOR INSERT
+  TO authenticated WITH CHECK (public.is_admin());
+
+CREATE POLICY "Admins podem actualizar configuracoes"
+  ON public.configuracoes FOR UPDATE
+  TO authenticated USING (public.is_admin()) WITH CHECK (public.is_admin());
+
+CREATE POLICY "Admins podem apagar configuracoes"
+  ON public.configuracoes FOR DELETE
+  TO authenticated USING (public.is_admin());
+
+CREATE TRIGGER trg_configuracoes_updated
+  BEFORE UPDATE ON public.configuracoes
+  FOR EACH ROW EXECUTE FUNCTION public.set_updated_at();
+
+INSERT INTO public.configuracoes (chave, valor) VALUES ('podcast_rss_url', '')
+  ON CONFLICT (chave) DO NOTHING;
+
+ALTER TABLE public.configuracoes REPLICA IDENTITY FULL;
+ALTER PUBLICATION supabase_realtime ADD TABLE public.configuracoes;

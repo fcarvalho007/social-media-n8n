@@ -1,0 +1,76 @@
+import type { SupabaseClient } from "@supabase/supabase-js";
+import { paragrafosDoHtml } from "@/lib/newsletter-engine/revista/apresentacao-heuristica";
+import type { FonteCronica } from "./carrossel";
+
+export interface EdicaoFonte {
+  id: string;
+  numero: number;
+  estado: string;
+  template_version: string;
+  snapshot_envio: unknown;
+  revista_snapshot: unknown;
+}
+
+export function verificarEdicaoFonte(ed: EdicaoFonte): void {
+  if (ed.estado !== "enviada" || ed.template_version !== "revista") {
+    throw new Error("Escolhe uma edição Revista já enviada.");
+  }
+  const envio = ed.snapshot_envio as { egoi?: unknown[]; egoi_falhas?: unknown[] } | null;
+  if (!envio?.egoi?.length || envio.egoi_falhas?.length) {
+    throw new Error(
+      "O envio desta edição está incompleto ou não tem confirmação guardada. Resolve o envio antes de criar conteúdos.",
+    );
+  }
+}
+
+export async function carregarFonteCronica(
+  sb: SupabaseClient,
+  edicaoId: string,
+): Promise<FonteCronica> {
+  const { data, error } = await sb
+    .from("edicoes")
+    .select("id, numero, estado, template_version, snapshot_envio, revista_snapshot")
+    .eq("id", edicaoId)
+    .maybeSingle();
+  if (error || !data) throw new Error("Não foi possível ler esta edição.");
+  const ed = data as EdicaoFonte;
+  verificarEdicaoFonte(ed);
+  const snap = ed.revista_snapshot as {
+    estado?: string;
+    cronica_integral?: { titulo: string; corpoHtml: string; url: string };
+    edicao?: { cronica?: { titulo?: string; url?: string; urlProvisoria?: boolean } };
+  } | null;
+  if (snap?.estado !== "bloqueado")
+    throw new Error("Esta edição ainda não tem uma fotografia definitiva.");
+  let titulo = snap.cronica_integral?.titulo || snap.edicao?.cronica?.titulo || "";
+  let corpo = snap.cronica_integral?.corpoHtml || "";
+  const url = snap.cronica_integral?.url || snap.edicao?.cronica?.url || "";
+  const origem = corpo ? ("snapshot" as const) : ("historico_actual" as const);
+  if (!corpo) {
+    const { data: cro, error: erro } = await sb
+      .from("cronicas")
+      .select("titulo, conteudo_html, conteudo")
+      .eq("edicao_id", edicaoId)
+      .maybeSingle();
+    if (erro) throw new Error("Não foi possível ler a crónica integral.");
+    corpo = cro?.conteudo_html?.trim() || cro?.conteudo?.trim() || "";
+    titulo = titulo || cro?.titulo || "";
+  }
+  const paragrafos = paragrafosDoHtml(corpo);
+  if (!titulo || paragrafos.join(" ").length < 200)
+    throw new Error("A crónica desta edição não tem texto suficiente para um carrossel.");
+  if (paragrafos.join(" ").length > 40000)
+    throw new Error(
+      "A crónica ultrapassa o limite de 40 000 caracteres. Prepara uma seleção editorial antes de gerar.",
+    );
+  if (!/^https:\/\//i.test(url) || snap.edicao?.cronica?.urlProvisoria) {
+    throw new Error("A edição não tem um endereço publicado para a crónica.");
+  }
+  const bytes = new TextEncoder().encode(
+    JSON.stringify({ edicaoId, titulo, paragrafos, url, origem }),
+  );
+  const hash = Array.from(new Uint8Array(await crypto.subtle.digest("SHA-256", bytes)))
+    .map((n) => n.toString(16).padStart(2, "0"))
+    .join("");
+  return { edicaoId, numero: ed.numero, titulo, paragrafos, url, origem, hash };
+}

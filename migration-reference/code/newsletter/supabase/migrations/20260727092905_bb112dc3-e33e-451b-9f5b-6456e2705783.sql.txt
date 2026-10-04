@@ -1,0 +1,65 @@
+-- 1. Alargar CHECK do tipo em fontes_curadoria
+ALTER TABLE public.fontes_curadoria DROP CONSTRAINT IF EXISTS fontes_curadoria_tipo_check;
+ALTER TABLE public.fontes_curadoria
+  ADD CONSTRAINT fontes_curadoria_tipo_check CHECK (tipo IN ('rss','html','newsletter'));
+
+-- 2. Novas colunas p/ newsletters (nullable — só se aplica quando tipo='newsletter')
+ALTER TABLE public.fontes_curadoria
+  ADD COLUMN IF NOT EXISTS remetente_email text,
+  ADD COLUMN IF NOT EXISTS remetente_dominio text;
+
+-- url_feed é NOT NULL na tabela original; para newsletters vamos guardar 'mailto:<email>' para satisfazer.
+-- Não relaxamos NOT NULL para não partir queries existentes.
+
+-- 3. Índices
+CREATE UNIQUE INDEX IF NOT EXISTS ux_fontes_remetente_email
+  ON public.fontes_curadoria (lower(remetente_email))
+  WHERE tipo = 'newsletter' AND remetente_email IS NOT NULL;
+
+CREATE INDEX IF NOT EXISTS ix_fontes_tipo_activa
+  ON public.fontes_curadoria (tipo, activa);
+
+-- 4. Autopopular a partir dos remetentes já presentes
+--    Prioridade: extrair email limpo do formato "Nome <email@domain>" ou usar directamente.
+WITH remetentes AS (
+  SELECT DISTINCT
+    lower(
+      COALESCE(
+        NULLIF(substring(remetente FROM '<([^>]+)>'), ''),
+        NULLIF(btrim(remetente), '')
+      )
+    ) AS email,
+    COALESCE(
+      NULLIF(btrim(regexp_replace(remetente, '\s*<[^>]+>\s*$', '')), ''),
+      remetente
+    ) AS nome_bruto
+  FROM public.emails_recebidos
+  WHERE remetente IS NOT NULL
+    AND classificacao = 'newsletter'
+  UNION
+  SELECT DISTINCT
+    lower(
+      COALESCE(
+        NULLIF(substring(email_remetente FROM '<([^>]+)>'), ''),
+        NULLIF(btrim(email_remetente), '')
+      )
+    ) AS email,
+    COALESCE(
+      NULLIF(btrim(regexp_replace(email_remetente, '\s*<[^>]+>\s*$', '')), ''),
+      email_remetente
+    ) AS nome_bruto
+  FROM public.noticias
+  WHERE origem = 'newsletter'
+    AND email_remetente IS NOT NULL
+)
+INSERT INTO public.fontes_curadoria (nome, url_feed, tipo, activa, remetente_email, remetente_dominio)
+SELECT
+  COALESCE(NULLIF(nome_bruto, email), split_part(email, '@', 1)) AS nome,
+  'mailto:' || email AS url_feed,
+  'newsletter' AS tipo,
+  true AS activa,
+  email AS remetente_email,
+  split_part(email, '@', 2) AS remetente_dominio
+FROM remetentes
+WHERE email IS NOT NULL AND email <> '' AND email LIKE '%@%'
+ON CONFLICT DO NOTHING;

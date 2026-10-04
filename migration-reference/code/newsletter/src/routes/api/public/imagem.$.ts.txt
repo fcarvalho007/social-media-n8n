@@ -1,0 +1,42 @@
+import { createFileRoute } from "@tanstack/react-router";
+
+// Serve as imagens editoriais guardadas no armazenamento privado.
+// O email e a versão web precisam de URLs estáveis e públicos; o armazenamento
+// não é público, por isso é a aplicação que entrega o ficheiro (só leitura).
+
+const TIPOS: Record<string, string> = {
+  jpg: "image/jpeg",
+  jpeg: "image/jpeg",
+  png: "image/png",
+  webp: "image/webp",
+  gif: "image/gif",
+};
+
+async function handler(caminho: string): Promise<Response> {
+  const limpo = caminho.replace(/^\/+/, "");
+  // Só caminhos simples: nada de travessia de directórios.
+  if (!limpo || limpo.includes("..") || limpo.length > 300) {
+    return new Response("Pedido inválido", { status: 400 });
+  }
+  const ext = limpo.split(".").pop()?.toLowerCase() ?? "";
+  if (!TIPOS[ext]) return new Response("Formato não suportado", { status: 400 });
+
+  const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+  const { data, error } = await supabaseAdmin.storage.from("imagens-edicao").download(limpo);
+  if (error || !data) return new Response("Imagem não encontrada", { status: 404 });
+
+  return new Response(await data.arrayBuffer(), {
+    headers: {
+      "Content-Type": TIPOS[ext],
+      "Cache-Control": "public, max-age=31536000, immutable",
+    },
+  });
+}
+
+export const Route = createFileRoute("/api/public/imagem/$")({
+  server: {
+    handlers: {
+      GET: async ({ params }) => handler((params as { _splat?: string })._splat ?? ""),
+    },
+  },
+});

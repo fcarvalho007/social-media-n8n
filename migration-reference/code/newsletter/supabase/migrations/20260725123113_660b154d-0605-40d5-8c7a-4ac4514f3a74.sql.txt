@@ -1,0 +1,4 @@
+REVOKE EXECUTE ON FUNCTION public.mover_seccao(uuid, text) FROM anon;
+REVOKE EXECUTE ON FUNCTION public.reordenar_seccoes(uuid, uuid[]) FROM anon;
+REVOKE EXECUTE ON FUNCTION public.reordenar_noticias(uuid, uuid[]) FROM anon;
+REVOKE EXECUTE ON FUNCTION public.criar_seccoes_padrao(uuid) FROM anon;

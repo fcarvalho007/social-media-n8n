@@ -1,0 +1,174 @@
+CREATE OR REPLACE FUNCTION public.pesquisar_global(
+  query text,
+  ambitos text[] DEFAULT NULL,
+  edicao_actual uuid DEFAULT NULL,
+  limite integer DEFAULT 40
+)
+RETURNS TABLE(
+  id uuid,
+  ambito text,
+  tipo text,
+  titulo text,
+  trecho text,
+  url text,
+  categoria text,
+  origem text,
+  estado text,
+  edicao_id uuid,
+  edicao_numero integer,
+  edicao_data timestamp with time zone,
+  criado_em timestamp with time zone,
+  usada_em_numero integer,
+  rank real
+)
+LANGUAGE plpgsql
+STABLE SECURITY DEFINER
+SET search_path TO 'public'
+AS $function$
+DECLARE
+  tsq tsquery;
+  q text;
+  amb text[];
+  lim integer;
+  ed_actual uuid;
+BEGIN
+  q := coalesce(btrim(query), '');
+  IF length(q) < 2 THEN
+    RETURN;
+  END IF;
+  lim := greatest(1, coalesce(limite, 40));
+  amb := coalesce(ambitos, ARRAY['edicao_actual','enviadas','pendentes','rejeitadas','ferramentas']);
+  tsq := plainto_tsquery('portuguese', public.f_unaccent(q));
+
+  IF ed_actual IS NULL THEN
+    ed_actual := edicao_actual;
+  END IF;
+  IF ed_actual IS NULL THEN
+    SELECT e.id INTO ed_actual
+      FROM public.edicoes e
+     WHERE e.estado = 'rascunho'
+     ORDER BY e.numero DESC
+     LIMIT 1;
+  END IF;
+
+  RETURN QUERY
+  WITH resultados AS (
+    -- Notícias (edição em curso, enviadas, pendentes, rejeitadas)
+    SELECT
+      n.id,
+      CASE
+        WHEN n.edicao_id IS NOT NULL AND n.edicao_id = ed_actual AND n.estado IN ('aprovada','pendente') THEN 'edicao_actual'
+        WHEN n.estado = 'enviada' THEN 'enviadas'
+        WHEN n.estado = 'rejeitada' THEN 'rejeitadas'
+        ELSE 'pendentes'
+      END AS ambito,
+      'noticia'::text AS tipo,
+      n.titulo,
+      ts_headline('portuguese',
+        public.f_unaccent(coalesce(n.titulo,'') || ' — ' || coalesce(n.descricao,'')),
+        coalesce(tsq, plainto_tsquery('portuguese','x')),
+        'StartSel=<mark>,StopSel=</mark>,MaxWords=28,MinWords=10,ShortWord=3,MaxFragments=1'
+      ) AS trecho,
+      n.url,
+      n.categoria,
+      n.origem,
+      n.estado,
+      n.edicao_id,
+      e.numero AS edicao_numero,
+      coalesce(e.enviada_em, e.created_at) AS edicao_data,
+      n.created_at AS criado_em,
+      (
+        SELECT e2.numero
+          FROM public.noticias n2
+          JOIN public.edicoes e2 ON e2.id = n2.edicao_id
+         WHERE n2.id <> n.id
+           AND n2.estado = 'enviada'
+           AND (
+             (n.url_norm IS NOT NULL AND n2.url_norm = n.url_norm)
+             OR public.similarity(n2.titulo, n.titulo) >= 0.62
+           )
+         ORDER BY e2.numero DESC
+         LIMIT 1
+      ) AS usada_em_numero,
+      greatest(
+        CASE WHEN tsq IS NOT NULL AND n.busca @@ tsq THEN ts_rank(n.busca, tsq) ELSE 0 END,
+        public.similarity(coalesce(n.titulo,''), q) * 0.9
+      )::real AS rank
+    FROM public.noticias n
+    LEFT JOIN public.edicoes e ON e.id = n.edicao_id
+    WHERE (
+        (tsq IS NOT NULL AND n.busca @@ tsq)
+        OR public.f_unaccent(lower(coalesce(n.titulo,''))) LIKE '%' || public.f_unaccent(lower(q)) || '%'
+        OR public.similarity(coalesce(n.titulo,''), q) >= 0.28
+      )
+
+    UNION ALL
+
+    -- Crónicas de edições enviadas
+    SELECT
+      c.id,
+      'enviadas'::text AS ambito,
+      'cronica'::text AS tipo,
+      coalesce(c.titulo, 'Crónica') AS titulo,
+      ts_headline('portuguese',
+        public.f_unaccent(coalesce(c.titulo,'') || ' — ' || coalesce(c.conteudo,'')),
+        coalesce(tsq, plainto_tsquery('portuguese','x')),
+        'StartSel=<mark>,StopSel=</mark>,MaxWords=28,MinWords=10,ShortWord=3,MaxFragments=1'
+      ) AS trecho,
+      NULL::text AS url,
+      NULL::text AS categoria,
+      NULL::text AS origem,
+      'enviada'::text AS estado,
+      c.edicao_id,
+      e.numero AS edicao_numero,
+      coalesce(e.enviada_em, e.created_at) AS edicao_data,
+      e.enviada_em AS criado_em,
+      NULL::integer AS usada_em_numero,
+      (CASE WHEN tsq IS NOT NULL AND c.busca @@ tsq THEN ts_rank(c.busca, tsq) ELSE 0 END)::real AS rank
+    FROM public.cronicas c
+    JOIN public.edicoes e ON e.id = c.edicao_id
+    WHERE e.estado = 'enviada'
+      AND tsq IS NOT NULL
+      AND c.busca @@ tsq
+
+    UNION ALL
+
+    -- Ferramentas sugeridas
+    SELECT
+      f.id,
+      'ferramentas'::text AS ambito,
+      'ferramenta'::text AS tipo,
+      f.nome AS titulo,
+      left(coalesce(f.descricao, ''), 180) AS trecho,
+      f.url,
+      f.categoria,
+      NULL::text AS origem,
+      f.estado,
+      f.edicao_usada_id AS edicao_id,
+      e.numero AS edicao_numero,
+      coalesce(e.enviada_em, e.created_at) AS edicao_data,
+      f.criado_em,
+      NULL::integer AS usada_em_numero,
+      greatest(
+        public.similarity(coalesce(f.nome,''), q),
+        public.similarity(coalesce(f.descricao,''), q) * 0.5
+      )::real AS rank
+    FROM public.ferramentas_sugeridas f
+    LEFT JOIN public.edicoes e ON e.id = f.edicao_usada_id
+    WHERE public.f_unaccent(lower(coalesce(f.nome,'') || ' ' || coalesce(f.descricao,''))) LIKE '%' || public.f_unaccent(lower(q)) || '%'
+       OR public.similarity(coalesce(f.nome,''), q) >= 0.3
+  )
+  SELECT r.id, r.ambito, r.tipo, r.titulo, r.trecho, r.url, r.categoria, r.origem, r.estado,
+         r.edicao_id, r.edicao_numero, r.edicao_data, r.criado_em, r.usada_em_numero, r.rank
+  FROM resultados r
+  WHERE r.ambito = ANY(amb)
+  ORDER BY
+    CASE r.ambito WHEN 'edicao_actual' THEN 0 WHEN 'pendentes' THEN 1 WHEN 'enviadas' THEN 2 WHEN 'ferramentas' THEN 3 ELSE 4 END,
+    r.rank DESC,
+    coalesce(r.edicao_numero, 0) DESC,
+    r.criado_em DESC NULLS LAST
+  LIMIT lim;
+END;
+$function$;
+
+GRANT EXECUTE ON FUNCTION public.pesquisar_global(text, text[], uuid, integer) TO authenticated;

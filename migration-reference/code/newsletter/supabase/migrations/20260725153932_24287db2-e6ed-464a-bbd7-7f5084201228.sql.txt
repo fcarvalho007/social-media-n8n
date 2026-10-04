@@ -1,0 +1,1 @@
+ALTER TABLE public.cronicas ADD COLUMN IF NOT EXISTS concluida boolean NOT NULL DEFAULT false;

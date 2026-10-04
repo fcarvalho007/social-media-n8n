@@ -1,0 +1,43 @@
+import { createServerFn } from "@tanstack/react-start";
+import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
+
+export type EstadoSecrets = {
+  deepseek: boolean;
+  egoi: boolean;
+  wp_url: boolean;
+  wp_user: boolean;
+  wp_pass: boolean;
+};
+
+export const verificarSecretsAPI = createServerFn({ method: "GET" })
+  .middleware([requireSupabaseAuth])
+  .handler(async ({ context }): Promise<EstadoSecrets> => {
+    const { data: isAdmin } = await context.supabase.rpc("is_admin");
+    if (!isAdmin) throw new Error("Sem permissão");
+    const has = (v: string | undefined) => !!(v && v.trim().length > 0);
+    return {
+      deepseek: has(process.env.DEEPSEEK_API_KEY),
+      egoi: has(process.env.EGOI_API_KEY),
+      wp_url: has(process.env.WORDPRESS_SITE_URL),
+      wp_user: has(process.env.WORDPRESS_APP_USER),
+      wp_pass: has(process.env.WORDPRESS_APP_PASSWORD),
+    };
+  });
+
+/**
+ * Devolve a URL completa do webhook do CloudMailin (com Basic Auth embutida)
+ * para o admin colar na configuração do endereço em CloudMailin.
+ * Só o admin pode ver. Server-only.
+ */
+export const getWebhookCloudMailinUrl = createServerFn({ method: "GET" })
+  .middleware([requireSupabaseAuth])
+  .handler(async ({ context }): Promise<{ url: string | null }> => {
+    const { data: isAdmin } = await context.supabase.rpc("is_admin");
+    if (!isAdmin) throw new Error("Sem permissão");
+    const user = process.env.CLOUDMAILIN_AUTH_USER;
+    const pass = process.env.CLOUDMAILIN_AUTH_PASS;
+    if (!user || !pass) return { url: null };
+    const host = process.env.APP_PUBLIC_HOST ?? "project--23514b53-4ffd-429e-81c5-46fedf7b5a3e.lovable.app";
+    const enc = (s: string) => encodeURIComponent(s);
+    return { url: `https://${enc(user)}:${enc(pass)}@${host}/api/public/hooks/email-newsletter` };
+  });

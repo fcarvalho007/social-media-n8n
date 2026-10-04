@@ -1,0 +1,41 @@
+
+CREATE OR REPLACE FUNCTION public.reordenar_noticias(_edicao_id uuid, _ids uuid[])
+ RETURNS void
+ LANGUAGE plpgsql
+ SECURITY DEFINER
+ SET search_path TO 'public'
+AS $function$
+DECLARE
+  _estado text;
+  _papel text;
+BEGIN
+  SELECT estado INTO _estado FROM edicoes WHERE id = _edicao_id;
+  IF _estado IS DISTINCT FROM 'rascunho' THEN
+    RAISE EXCEPTION 'Edição não está em rascunho';
+  END IF;
+  _papel := me_papel();
+  IF _papel NOT IN ('admin','curador') THEN
+    RAISE EXCEPTION 'Sem permissão';
+  END IF;
+
+  -- Renumera todas as notícias da edição: primeiro as que vêm em _ids na ordem
+  -- pedida, depois as restantes pela ordem actual. Passo 10 dá folga para
+  -- inserções futuras sem colisões.
+  WITH ordenadas AS (
+    SELECT n.id,
+           row_number() OVER (
+             ORDER BY
+               COALESCE(array_position(_ids, n.id), 1000000),
+               n.ordem,
+               n.created_at
+           ) AS pos
+      FROM noticias n
+     WHERE n.edicao_id = _edicao_id
+  )
+  UPDATE noticias n
+     SET ordem = o.pos * 10
+    FROM ordenadas o
+   WHERE n.id = o.id
+     AND n.ordem IS DISTINCT FROM (o.pos * 10);
+END;
+$function$;

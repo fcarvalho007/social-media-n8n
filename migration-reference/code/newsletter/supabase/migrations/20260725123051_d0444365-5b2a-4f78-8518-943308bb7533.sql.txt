@@ -1,0 +1,15 @@
+-- (1) Revoke PUBLIC execute on structural RPCs; keep explicit authenticated/service_role grants intact.
+REVOKE EXECUTE ON FUNCTION public.mover_seccao(uuid, text) FROM PUBLIC;
+REVOKE EXECUTE ON FUNCTION public.reordenar_seccoes(uuid, uuid[]) FROM PUBLIC;
+REVOKE EXECUTE ON FUNCTION public.reordenar_noticias(uuid, uuid[]) FROM PUBLIC;
+REVOKE EXECUTE ON FUNCTION public.criar_seccoes_padrao(uuid) FROM PUBLIC;
+
+-- (2) Backfill cronicas.conteudo_html a partir de conteudo em texto plano.
+UPDATE public.cronicas
+SET conteudo_html = '<p>' || regexp_replace(
+    regexp_replace(trim(conteudo), '<[^>]+>', '', 'g'),
+    E'\n+', '</p><p>', 'g'
+  ) || '</p>'
+WHERE (conteudo_html IS NULL OR btrim(conteudo_html) = '')
+  AND conteudo IS NOT NULL
+  AND btrim(conteudo) <> '';

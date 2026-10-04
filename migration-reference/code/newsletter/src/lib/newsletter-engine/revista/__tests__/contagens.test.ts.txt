@@ -1,0 +1,47 @@
+import { describe, expect, it } from "vitest";
+import { contagemSeleccao, noticiasPlural } from "../contagens";
+import type { EdicaoRevista } from "../compose.server";
+
+function edicao(total: number, idsEmail: string[]): EdicaoRevista {
+  return {
+    atualidades: Array.from({ length: total }, (_, i) => ({ noticiaId: `n${i}` })),
+    destaques: idsEmail.slice(0, 3).map((id) => ({ noticiaId: id })),
+    radar: idsEmail.slice(3).map((id) => ({ noticiaId: id })),
+  } as unknown as EdicaoRevista;
+}
+
+describe("contagemSeleccao", () => {
+  it("conta extras como total menos as notícias que seguem no email", () => {
+    const c = contagemSeleccao(edicao(24, ["n0", "n1", "n2", "n3", "n4"]));
+    expect(c.total).toBe(24);
+    expect(c.noEmail).toBe(5);
+    expect(c.extras).toBe(19);
+    expect(c.intro).toContain("24 notícias");
+    expect(c.intro).toContain("19 notícias");
+    expect(c.botao).toBe("Ver as 24 notícias");
+  });
+
+  it("não repete IDs presentes em destaques e radar", () => {
+    const c = contagemSeleccao(edicao(5, ["n0", "n1", "n0"]));
+    expect(c.noEmail).toBe(2);
+    expect(c.extras).toBe(3);
+  });
+
+  it("usa formulação sem número quando não há atualidades", () => {
+    const c = contagemSeleccao(edicao(0, []));
+    expect(c.confirmada).toBe(false);
+    expect(c.botao).toBe("Ver a edição online");
+    expect(c.intro).not.toMatch(/\d/);
+  });
+
+  it("omite o número de extras quando tudo segue no email", () => {
+    const c = contagemSeleccao(edicao(3, ["n0", "n1", "n2"]));
+    expect(c.extras).toBe(0);
+    expect(c.botao).toBe("Ver a edição online");
+  });
+
+  it("pluraliza em português", () => {
+    expect(noticiasPlural(1)).toBe("1 notícia");
+    expect(noticiasPlural(2)).toBe("2 notícias");
+  });
+});

@@ -1,0 +1,99 @@
+// Porta de entrada por email — server-only.
+//
+// A app depende de uma sessão Supabase real (RLS + `requireSupabaseAuth`),
+// por isso a entrada por email não pode ser só um estado no browser: valida
+// o email autorizado e inicia sessão com uma senha interna gerada, guardada
+// apenas no servidor (`ACESSO_SENHA_INTERNA`) e nunca exposta ao utilizador.
+
+import { createClient } from "@supabase/supabase-js";
+import type { Database } from "@/integrations/supabase/types";
+
+export type MotivoFalha = "sem_acesso" | "sessao_falhou" | "mal_configurado";
+
+export type SessaoEmitida =
+  | { ok: true; access_token: string; refresh_token: string }
+  | { ok: false; motivo: MotivoFalha; mensagem: string };
+
+const MENSAGENS: Record<MotivoFalha, string> = {
+  sem_acesso: "Este email não tem acesso.",
+  sessao_falhou: "Não foi possível abrir a sessão. Recarrega a página e tenta de novo.",
+  mal_configurado: "Acesso ainda não está configurado. Contacta o administrador.",
+};
+
+function falha(motivo: MotivoFalha, detalhe?: unknown): SessaoEmitida {
+  // O detalhe técnico fica só no servidor; o utilizador vê a mensagem curta.
+  if (detalhe) console.error("[auth-email]", motivo, detalhe);
+  return { ok: false, motivo, mensagem: MENSAGENS[motivo] };
+}
+
+function normalizar(email: string): string {
+  return email.trim().toLowerCase();
+}
+
+/** Encontra o utilizador pelo email, percorrendo as páginas do Auth. */
+async function encontrarUtilizador(
+  admin: { auth: { admin: { listUsers: (o: { page: number; perPage: number }) => Promise<{ data: { users: Array<{ id: string; email?: string | null }> }; error: unknown }> } } },
+  email: string,
+): Promise<string | null> {
+  for (let pagina = 1; pagina <= 10; pagina += 1) {
+    const { data, error } = await admin.auth.admin.listUsers({ page: pagina, perPage: 200 });
+    if (error) return null;
+    const encontrado = data.users.find((u) => normalizar(u.email ?? "") === email);
+    if (encontrado) return encontrado.id;
+    if (data.users.length < 200) break;
+  }
+  return null;
+}
+
+export async function entrarComEmail(emailBruto: string): Promise<SessaoEmitida> {
+  const email = normalizar(emailBruto);
+  const autorizado = normalizar(process.env.ACESSO_EMAIL ?? "");
+  const senha = process.env.ACESSO_SENHA_INTERNA;
+
+  if (!autorizado || !senha) {
+    return falha("mal_configurado", "ACESSO_EMAIL ou ACESSO_SENHA_INTERNA em falta");
+  }
+  if (!email || email !== autorizado) {
+    return falha("sem_acesso");
+  }
+
+  const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+
+  const userId = await encontrarUtilizador(supabaseAdmin as never, email);
+  if (!userId) return falha("sem_acesso", "utilizador inexistente no Auth");
+
+  // Sincroniza a senha interna (idempotente) e garante o email confirmado,
+  // para que o início de sessão a seguir nunca dependa de estado antigo.
+  const { error: erroUpdate } = await supabaseAdmin.auth.admin.updateUserById(userId, {
+    password: senha,
+    email_confirm: true,
+  });
+  if (erroUpdate) return falha("sessao_falhou", erroUpdate);
+
+  const url = process.env.SUPABASE_URL;
+  const anon = process.env.SUPABASE_PUBLISHABLE_KEY ?? process.env.SUPABASE_ANON_KEY;
+  if (!url || !anon) return falha("mal_configurado", "SUPABASE_URL ou chave pública em falta");
+
+  const publico = createClient<Database>(url, anon, {
+    auth: { storage: undefined, persistSession: false, autoRefreshToken: false },
+    global: {
+      fetch: (input, init) => {
+        const headers = new Headers(init?.headers);
+        if (anon.startsWith("sb_") && headers.get("Authorization") === `Bearer ${anon}`) {
+          headers.delete("Authorization");
+        }
+        headers.set("apikey", anon);
+        return fetch(input, { ...init, headers });
+      },
+    },
+  });
+
+  const { data, error } = await publico.auth.signInWithPassword({ email, password: senha });
+  if (error || !data.session) return falha("sessao_falhou", error ?? "sessão vazia");
+
+  return {
+    ok: true,
+    access_token: data.session.access_token,
+    refresh_token: data.session.refresh_token,
+  };
+}

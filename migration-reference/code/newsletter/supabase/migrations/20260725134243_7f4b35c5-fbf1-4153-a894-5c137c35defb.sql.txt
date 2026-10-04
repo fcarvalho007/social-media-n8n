@@ -1,0 +1,23 @@
+
+CREATE TABLE public.ia_uso (
+  id uuid primary key default gen_random_uuid(),
+  criado_em timestamptz not null default now(),
+  modelo text not null,
+  tokens_entrada_cache_hit int not null default 0,
+  tokens_entrada_cache_miss int not null default 0,
+  tokens_saida int not null default 0,
+  custo_usd numeric(10,6) not null default 0,
+  origem text not null check (origem in ('colagem_manual','curadoria_rss')),
+  edicao_id uuid null references public.edicoes(id) on delete set null
+);
+CREATE INDEX ia_uso_criado_em_idx ON public.ia_uso (criado_em DESC);
+CREATE INDEX ia_uso_origem_idx ON public.ia_uso (origem);
+
+GRANT SELECT ON public.ia_uso TO authenticated;
+GRANT ALL ON public.ia_uso TO service_role;
+
+ALTER TABLE public.ia_uso ENABLE ROW LEVEL SECURITY;
+
+CREATE POLICY "admin_le_ia_uso" ON public.ia_uso
+  FOR SELECT TO authenticated
+  USING (public.is_admin());

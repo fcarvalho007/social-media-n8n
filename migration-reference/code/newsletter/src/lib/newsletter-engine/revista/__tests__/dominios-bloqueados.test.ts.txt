@@ -1,0 +1,15 @@
+import { describe, it, expect } from "vitest";
+import { encontrarDominiosBloqueados, lerListaDominios } from "../dominios-bloqueados";
+
+describe("dominios bloqueados", () => {
+  it("lê a lista", () => {
+    expect(lerListaDominios("goodlads.cc, https://www.x.com/a\n")).toEqual(["goodlads.cc", "x.com"]);
+  });
+  it("encontra domínios e subdomínios", () => {
+    const c = { f: [{ url: "https://goodlads.cc/" }, { url: "https://app.x.com/p" }, { url: "https://metamuse.ai" }] };
+    expect(encontrarDominiosBloqueados(c, ["goodlads.cc", "x.com"]).sort()).toEqual(["goodlads.cc", "x.com"]);
+  });
+  it("não confunde sufixos", () => {
+    expect(encontrarDominiosBloqueados("https://notgoodlads.cc", ["goodlads.cc"])).toEqual([]);
+  });
+});

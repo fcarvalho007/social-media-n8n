@@ -1,0 +1,97 @@
+
+-- 1) Tabela
+CREATE TABLE public.secoes_edicao (
+  id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  edicao_id uuid NOT NULL REFERENCES public.edicoes(id) ON DELETE CASCADE,
+  tipo text NOT NULL CHECK (tipo IN ('destaques','contadores','cronica','podcast','categorias','livro','recursos','personalizada')),
+  ordem int NOT NULL DEFAULT 0,
+  activo boolean NOT NULL DEFAULT true,
+  titulo text,
+  texto text,
+  cor text CHECK (cor IN ('indigo','verde','laranja','cinzento')),
+  texto_botao text,
+  url_botao text,
+  created_at timestamptz NOT NULL DEFAULT now()
+);
+
+CREATE INDEX idx_secoes_edicao_edicao_ordem ON public.secoes_edicao(edicao_id, ordem);
+CREATE UNIQUE INDEX uniq_secoes_padrao_por_edicao
+  ON public.secoes_edicao(edicao_id, tipo)
+  WHERE tipo <> 'personalizada';
+
+-- 2) Grants
+GRANT SELECT, INSERT, UPDATE, DELETE ON public.secoes_edicao TO authenticated;
+GRANT ALL ON public.secoes_edicao TO service_role;
+
+-- 3) RLS
+ALTER TABLE public.secoes_edicao ENABLE ROW LEVEL SECURITY;
+
+CREATE POLICY "secoes_edicao_read_auth"
+  ON public.secoes_edicao FOR SELECT
+  TO authenticated
+  USING (true);
+
+CREATE POLICY "secoes_edicao_insert_rascunho"
+  ON public.secoes_edicao FOR INSERT
+  TO authenticated
+  WITH CHECK (
+    EXISTS (SELECT 1 FROM public.edicoes e WHERE e.id = edicao_id AND e.estado = 'rascunho')
+    AND public.me_papel() IN ('admin','curador')
+  );
+
+CREATE POLICY "secoes_edicao_update_rascunho"
+  ON public.secoes_edicao FOR UPDATE
+  TO authenticated
+  USING (
+    EXISTS (SELECT 1 FROM public.edicoes e WHERE e.id = edicao_id AND e.estado = 'rascunho')
+    AND public.me_papel() IN ('admin','curador')
+  )
+  WITH CHECK (
+    EXISTS (SELECT 1 FROM public.edicoes e WHERE e.id = edicao_id AND e.estado = 'rascunho')
+    AND public.me_papel() IN ('admin','curador')
+  );
+
+CREATE POLICY "secoes_edicao_delete_rascunho"
+  ON public.secoes_edicao FOR DELETE
+  TO authenticated
+  USING (
+    EXISTS (SELECT 1 FROM public.edicoes e WHERE e.id = edicao_id AND e.estado = 'rascunho')
+    AND public.me_papel() IN ('admin','curador')
+    AND tipo = 'personalizada'
+  );
+
+-- 4) Realtime
+ALTER TABLE public.secoes_edicao REPLICA IDENTITY FULL;
+ALTER PUBLICATION supabase_realtime ADD TABLE public.secoes_edicao;
+
+-- 5) Função para popular as secções-padrão de uma edição
+CREATE OR REPLACE FUNCTION public.criar_seccoes_padrao(_edicao_id uuid)
+RETURNS void
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = public
+AS $$
+DECLARE
+  tipos text[] := ARRAY['destaques','contadores','cronica','podcast','categorias','livro','recursos'];
+  t text;
+  i int := 0;
+BEGIN
+  FOREACH t IN ARRAY tipos LOOP
+    INSERT INTO public.secoes_edicao (edicao_id, tipo, ordem, activo)
+    VALUES (_edicao_id, t, i, true)
+    ON CONFLICT (edicao_id, tipo) WHERE (tipo <> 'personalizada') DO NOTHING;
+    i := i + 1;
+  END LOOP;
+END;
+$$;
+
+GRANT EXECUTE ON FUNCTION public.criar_seccoes_padrao(uuid) TO authenticated, service_role;
+
+-- 6) Backfill para edições existentes
+DO $$
+DECLARE r record;
+BEGIN
+  FOR r IN SELECT id FROM public.edicoes LOOP
+    PERFORM public.criar_seccoes_padrao(r.id);
+  END LOOP;
+END $$;

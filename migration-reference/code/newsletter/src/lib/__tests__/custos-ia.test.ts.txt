@@ -1,0 +1,61 @@
+import { describe, expect, it } from "vitest";
+import {
+  custoUsd,
+  ehHorarioPico,
+  modeloCanonico,
+  precoConhecido,
+} from "../../../supabase/functions/_shared/custos-ia";
+
+describe("horário de pico DeepSeek", () => {
+  it("é pico às 02:00 UTC de terça-feira", () => {
+    expect(ehHorarioPico(new Date("2026-09-08T02:00:00Z"))).toBe(true);
+  });
+  it("é pico às 07:30 UTC de sexta-feira", () => {
+    expect(ehHorarioPico(new Date("2026-09-11T07:30:00Z"))).toBe(true);
+  });
+  it("não é pico às 14:00 UTC de quarta-feira", () => {
+    expect(ehHorarioPico(new Date("2026-09-09T14:00:00Z"))).toBe(false);
+  });
+  it("nunca é pico ao fim-de-semana", () => {
+    expect(ehHorarioPico(new Date("2026-09-12T02:00:00Z"))).toBe(false);
+    expect(ehHorarioPico(new Date("2026-09-13T07:00:00Z"))).toBe(false);
+  });
+});
+
+describe("nomes de modelo", () => {
+  it("resolve nomes antigos para o modelo actual", () => {
+    expect(modeloCanonico("deepseek-v4-flash")).toBe("deepseek-flash");
+    expect(modeloCanonico("DeepSeek-V4-Flash-Vision-Exp")).toBe("deepseek-flash");
+    expect(modeloCanonico("deepseek-v4-pro")).toBe("deepseek-v4-pro");
+  });
+  it("distingue modelos com e sem preço conhecido", () => {
+    expect(precoConhecido("deepseek-flash")).toBe(true);
+    expect(precoConhecido("deepseek-v4-flash")).toBe(true);
+    expect(precoConhecido("google/gemini-2.5-flash")).toBe(false);
+  });
+});
+
+describe("custo em USD", () => {
+  const pico = new Date("2026-09-11T07:00:00Z");
+  const foraPico = new Date("2026-09-11T14:00:00Z");
+
+  it("aplica a tarifa de pico ao Flash", () => {
+    // 1M tokens de saída a $1,20
+    expect(custoUsd("deepseek-flash", 0, 0, 1_000_000, pico)).toBeCloseTo(1.2, 6);
+  });
+  it("cobra metade fora de pico", () => {
+    expect(custoUsd("deepseek-flash", 0, 0, 1_000_000, foraPico)).toBeCloseTo(0.6, 6);
+  });
+  it("factura o nome antigo ao preço do modelo actual", () => {
+    expect(custoUsd("deepseek-v4-flash", 0, 1_000_000, 0, pico)).toBeCloseTo(0.3, 6);
+  });
+  it("aplica a tarifa do Pro", () => {
+    expect(custoUsd("deepseek-v4-pro", 0, 0, 1_000_000, pico)).toBeCloseTo(3.96, 6);
+  });
+  it("devolve 0 para modelo sem preço conhecido", () => {
+    expect(custoUsd("google/gemini-2.5-flash", 0, 1_000_000, 1_000_000, pico)).toBe(0);
+  });
+  it("aceita a data em texto", () => {
+    expect(custoUsd("deepseek-flash", 0, 0, 1_000_000, "2026-09-11T14:00:00Z")).toBeCloseTo(0.6, 6);
+  });
+});

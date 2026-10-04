@@ -1,0 +1,11 @@
+UPDATE public.edicoes
+SET bloco_consultoria = jsonb_build_object(
+  'titulo', 'Queres implementar IA na tua empresa?',
+  'subtitulo', 'Ajudo empresas a passar da curiosidade à prática: onde aplicar inteligência artificial, que processos automatizar primeiro e como medir o retorno.',
+  'texto_botao', 'Falar comigo — 15 minutos',
+  'url_botao', COALESCE(NULLIF(bloco_consultoria->>'url_botao',''), 'https://lunacal.ai/digitalfc/chamada-consultoria-15m')
+)
+WHERE estado = 'rascunho'
+  AND COALESCE(bloco_consultoria->>'titulo','') IN (
+    '', 'Isto aplica-se à tua empresa?', 'Há alguma decisão parada à espera de ajuda?'
+  );

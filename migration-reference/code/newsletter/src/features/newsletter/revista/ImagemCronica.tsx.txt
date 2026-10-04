@@ -1,0 +1,276 @@
+// Imagem opcional da crónica: carregamento do computador ou pesquisa no Pexels.
+// A imagem escolhida é sempre copiada para o armazenamento da aplicação.
+
+import { useCallback, useEffect, useRef, useState } from "react";
+import { useServerFn } from "@tanstack/react-start";
+import { toast } from "sonner";
+import { Crop, ImagePlus, Loader2, Search, Trash2, Upload } from "lucide-react";
+import { carregarImagemFn, importarPexelsFn, obterImagemBase64Fn, pesquisarPexelsFn, type FotoPexels } from "@/lib/imagens.functions";
+import { EnquadramentoImagem } from "./EnquadramentoImagem";
+import { carregarImagem, gerarFaixa, normalizarEnquadramento, type EnquadramentoNormal } from "./recorte-imagem";
+import type { ConfigRevista } from "./data-revista";
+
+interface Props {
+  edicaoId: string;
+  cfg: ConfigRevista;
+  editar: (p: Partial<ConfigRevista>) => void;
+  bloqueado: boolean;
+}
+
+function ficheiroParaBase64(f: File): Promise<string> {
+  return new Promise((resolve, reject) => {
+    const fr = new FileReader();
+    fr.onload = () => resolve(String(fr.result).split(",")[1] ?? "");
+    fr.onerror = () => reject(new Error("Não foi possível ler o ficheiro."));
+    fr.readAsDataURL(f);
+  });
+}
+
+export function ImagemCronica({ edicaoId, cfg, editar, bloqueado }: Props) {
+  const pesquisar = useServerFn(pesquisarPexelsFn);
+  const importar = useServerFn(importarPexelsFn);
+  const carregar = useServerFn(carregarImagemFn);
+
+  const [termo, setTermo] = useState("");
+  const [fotos, setFotos] = useState<FotoPexels[]>([]);
+  const [ocupado, setOcupado] = useState(false);
+  const [painel, setPainel] = useState(false);
+
+  const obterOriginal = useServerFn(obterImagemBase64Fn);
+  const url = (cfg.cronica_imagem_url ?? "").trim();
+  const recorte = (cfg.cronica_imagem_recorte_url ?? "").trim();
+  const [original, setOriginal] = useState<HTMLImageElement | null>(null);
+  const [ajustar, setAjustar] = useState(false);
+  const [aRecortar, setARecortar] = useState(false);
+  const tentado = useRef<string>("");
+
+  const abrirOriginal = useCallback(async (): Promise<HTMLImageElement> => {
+    if (original && original.dataset.origem === url) return original;
+    const r = await obterOriginal({ data: { url } });
+    const img = await carregarImagem(`data:${r.tipo};base64,${r.base64}`);
+    img.dataset.origem = url;
+    setOriginal(img);
+    return img;
+  }, [original, url, obterOriginal]);
+
+  const recortar = useCallback(async (enq: EnquadramentoNormal) => {
+    setARecortar(true);
+    try {
+      const img = await abrirOriginal();
+      const r = await carregar({ data: { edicaoId, base64: gerarFaixa(img, enq), tipo: "image/jpeg" } });
+      editar({ cronica_imagem_recorte_url: r.url, cronica_imagem_enquadramento: enq });
+      return true;
+    } catch (e) {
+      toast.warning(e instanceof Error ? `Recorte não aplicado: ${e.message}` : "Recorte não aplicado; fica a imagem original.");
+      return false;
+    } finally {
+      setARecortar(false);
+    }
+  }, [abrirOriginal, carregar, edicaoId, editar]);
+
+  // Sempre que entra uma imagem nova, prepara automaticamente a faixa centrada.
+  useEffect(() => {
+    if (!url || recorte || bloqueado || tentado.current === url) return;
+    tentado.current = url;
+    void recortar({ x: 0.5, y: 0.5, zoom: 1 });
+  }, [url, recorte, bloqueado, recortar]);
+
+  const abrirAjuste = async () => {
+    setARecortar(true);
+    try {
+      await abrirOriginal();
+      setAjustar(true);
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "Não foi possível abrir a imagem.");
+    } finally {
+      setARecortar(false);
+    }
+  };
+
+  const aplicar = (novo: Partial<ConfigRevista>) => editar(novo);
+
+  const procurar = async () => {
+    setOcupado(true);
+    try {
+      const r = await pesquisar({ data: { termo } });
+      if (r.erro) toast.error(r.erro);
+      setFotos(r.fotos);
+      if (!r.erro && !r.fotos.length) toast.info("Sem resultados para esse termo.");
+    } catch {
+      toast.error("A pesquisa de imagens falhou.");
+    } finally {
+      setOcupado(false);
+    }
+  };
+
+  const escolher = async (f: FotoPexels) => {
+    setOcupado(true);
+    try {
+      const r = await importar({ data: { edicaoId, url: f.originalUrl } });
+      aplicar({
+        cronica_imagem_url: r.url,
+        cronica_imagem_alt: cfg.cronica_imagem_alt?.trim() || f.alt,
+        cronica_imagem_credito: f.autor ? `Fotografia de ${f.autor} (Pexels)` : "Pexels",
+        cronica_imagem_credito_url: f.autorUrl,
+        cronica_imagem_fonte: "pexels",
+        cronica_imagem_recorte_url: "", cronica_imagem_enquadramento: {},
+      });
+      setPainel(false);
+      toast.success("Imagem adicionada à crónica.");
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "Não foi possível usar essa imagem.");
+    } finally {
+      setOcupado(false);
+    }
+  };
+
+  const enviarFicheiro = async (f: File | undefined) => {
+    if (!f) return;
+    setOcupado(true);
+    try {
+      const r = await carregar({ data: { edicaoId, base64: await ficheiroParaBase64(f), tipo: f.type } });
+      aplicar({
+        cronica_imagem_url: r.url,
+        cronica_imagem_credito: "",
+        cronica_imagem_credito_url: "",
+        cronica_imagem_fonte: "upload",
+        cronica_imagem_recorte_url: "", cronica_imagem_enquadramento: {},
+      });
+      setPainel(false);
+      toast.success("Imagem carregada.");
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "Não foi possível carregar a imagem.");
+    } finally {
+      setOcupado(false);
+    }
+  };
+
+  return (
+    <div className="space-y-3">
+      {url ? (
+        <div className="space-y-2">
+          {ajustar && original ? (
+            <EnquadramentoImagem
+              imagem={original}
+              inicial={normalizarEnquadramento(cfg.cronica_imagem_enquadramento)}
+              aGuardar={aRecortar}
+              onCancelar={() => setAjustar(false)}
+              onGuardar={async (enq) => {
+                if (await recortar(enq)) { setAjustar(false); toast.success("Enquadramento guardado."); }
+              }}
+            />
+          ) : (
+            <div className="relative">
+              <img
+                src={recorte || url} alt={cfg.cronica_imagem_alt ?? ""}
+                className="w-full rounded-lg border border-border object-cover"
+                style={{ aspectRatio: "556 / 200" }}
+              />
+              {aRecortar ? (
+                <span className="absolute inset-0 flex items-center justify-center gap-2 rounded-lg bg-background/70 text-[13px] font-semibold text-foreground">
+                  <Loader2 className="h-4 w-4 animate-spin" /> A preparar a faixa 556 × 200…
+                </span>
+              ) : null}
+            </div>
+          )}
+          <label className="block">
+            <span className="mb-1 block text-[13px] font-semibold text-muted-foreground">
+              Texto alternativo (obrigatório)
+            </span>
+            <input
+              className="w-full rounded-xl border border-input bg-background px-3.5 py-2.5 text-[15px] text-foreground outline-none transition focus:border-primary"
+              value={cfg.cronica_imagem_alt ?? ""}
+              disabled={bloqueado}
+              placeholder="Descreve a imagem em poucas palavras"
+              onChange={(e) => aplicar({ cronica_imagem_alt: e.target.value })}
+            />
+          </label>
+          {cfg.cronica_imagem_credito ? (
+            <p className="text-[12px] text-muted-foreground">{cfg.cronica_imagem_credito}</p>
+          ) : null}
+          <div className="flex flex-wrap gap-2">
+            <button
+              type="button" disabled={bloqueado}
+              onClick={() => setPainel((v) => !v)}
+              className="rounded-lg border border-border px-3 py-1.5 text-[13px] font-semibold text-foreground disabled:opacity-40"
+            >
+              Trocar imagem
+            </button>
+            <button
+              type="button" disabled={bloqueado || aRecortar || ajustar}
+              onClick={() => void abrirAjuste()}
+              className="flex items-center gap-1.5 rounded-lg border border-border px-3 py-1.5 text-[13px] font-semibold text-foreground disabled:opacity-40"
+            >
+              <Crop className="h-3.5 w-3.5" /> Ajustar enquadramento
+            </button>
+            <button
+              type="button" disabled={bloqueado}
+              onClick={() => aplicar({
+                cronica_imagem_url: "", cronica_imagem_alt: "", cronica_imagem_credito: "",
+                cronica_imagem_credito_url: "", cronica_imagem_fonte: "",
+                cronica_imagem_recorte_url: "", cronica_imagem_enquadramento: {},
+              })}
+              className="flex items-center gap-1.5 rounded-lg border border-border px-3 py-1.5 text-[13px] font-semibold text-muted-foreground disabled:opacity-40"
+            >
+              <Trash2 className="h-3.5 w-3.5" /> Remover
+            </button>
+          </div>
+        </div>
+      ) : (
+        <button
+          type="button" disabled={bloqueado}
+          onClick={() => setPainel((v) => !v)}
+          className="flex w-full items-center justify-center gap-2 rounded-xl border border-dashed border-border bg-muted/30 px-3 py-6 text-[13px] font-semibold text-muted-foreground disabled:opacity-40"
+        >
+          <ImagePlus className="h-4 w-4" /> Adicionar imagem (opcional)
+        </button>
+      )}
+
+      {painel && !bloqueado ? (
+        <div className="space-y-3 rounded-xl border border-border bg-background p-3">
+          <label className="flex cursor-pointer items-center gap-2 text-[13px] font-semibold text-foreground">
+            <Upload className="h-4 w-4" /> Carregar do computador
+            <input
+              type="file" accept="image/jpeg,image/png,image/webp" className="hidden"
+              onChange={(e) => void enviarFicheiro(e.target.files?.[0])}
+            />
+          </label>
+
+          <div className="flex gap-2">
+            <input
+              className="w-full rounded-xl border border-input bg-background px-3.5 py-2 text-[14px] outline-none focus:border-primary"
+              placeholder="Pesquisar no Pexels"
+              value={termo}
+              onChange={(e) => setTermo(e.target.value)}
+              onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); void procurar(); } }}
+            />
+            <button
+              type="button" onClick={() => void procurar()} disabled={ocupado}
+              className="flex items-center gap-1.5 rounded-xl border border-border px-3 text-[13px] font-semibold disabled:opacity-40"
+            >
+              {ocupado ? <Loader2 className="h-4 w-4 animate-spin" /> : <Search className="h-4 w-4" />} Pesquisar
+            </button>
+          </div>
+
+          {fotos.length ? (
+            <div className="grid max-h-72 grid-cols-3 gap-2 overflow-y-auto">
+              {fotos.map((f) => (
+                <button
+                  key={f.id} type="button" disabled={ocupado}
+                  onClick={() => void escolher(f)}
+                  className="overflow-hidden rounded-lg border border-border transition hover:border-primary disabled:opacity-40"
+                  title={f.autor ? `Fotografia de ${f.autor}` : "Pexels"}
+                >
+                  <img src={f.previewUrl} alt={f.alt} className="h-24 w-full object-cover" loading="lazy" />
+                </button>
+              ))}
+            </div>
+          ) : null}
+          <p className="text-[12px] text-muted-foreground">
+            As imagens do Pexels são copiadas para o armazenamento da aplicação e mantêm o crédito do autor.
+          </p>
+        </div>
+      ) : null}
+    </div>
+  );
+}

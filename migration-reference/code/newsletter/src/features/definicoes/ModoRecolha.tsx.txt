@@ -1,0 +1,65 @@
+// Modo de recolha: manual (fila de entrada) ou automático (IA na hora).
+
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { useServerFn } from "@tanstack/react-start";
+import { Loader2, Gauge } from "lucide-react";
+
+import { contarFilaCuradoria, definirModoManualCuradoria } from "@/lib/fila-curadoria.functions";
+
+const T = { card: "#FFFFFF", line: "#E4E7EC", ink: "#101828", muted: "#667085", primary: "#6366F1" };
+
+export function ModoRecolha() {
+  const qc = useQueryClient();
+  const contar = useServerFn(contarFilaCuradoria);
+  const definir = useServerFn(definirModoManualCuradoria);
+
+  const q = useQuery({ queryKey: ["fila-curadoria"], queryFn: () => contar({}), staleTime: 15_000 });
+  const m = useMutation({
+    mutationFn: (manual: boolean) => definir({ data: { manual } }),
+    onSuccess: () => void qc.invalidateQueries({ queryKey: ["fila-curadoria"] }),
+  });
+
+  const manual = q.data?.modo_manual ?? true;
+
+  return (
+    <section className="rounded-[20px] p-6" style={{ background: T.card, border: `1px solid ${T.line}` }}>
+      <header className="flex items-start gap-3 mb-4">
+        <span className="grid place-items-center h-8 w-8 rounded-xl shrink-0"
+          style={{ background: "#6366F11F", color: T.primary }}>
+          <Gauge size={16} />
+        </span>
+        <div>
+          <h2 className="text-[11.5px] font-bold uppercase tracking-[0.08em]" style={{ color: T.muted }}>
+            Modo de recolha
+          </h2>
+          <p className="text-[12.5px] mt-2" style={{ color: T.muted }}>
+            Em modo manual, a recolha diária e os emails ficam guardados numa fila e só são interpretados
+            quando carregas em «Processar». É assim que se controla o custo.
+          </p>
+        </div>
+      </header>
+
+      <div className="flex flex-wrap items-center gap-2">
+        {([[true, "Manual (recomendado)"], [false, "Automático"]] as const).map(([v, rot]) => (
+          <button key={String(v)} type="button" onClick={() => m.mutate(v)} disabled={m.isPending || manual === v}
+            className="text-xs font-bold px-3 py-2 rounded-lg transition disabled:opacity-100"
+            style={manual === v
+              ? { background: T.primary, color: "#fff" }
+              : { background: "#fff", color: T.ink, border: `1px solid ${T.line}` }}>
+            {rot}
+          </button>
+        ))}
+        {(m.isPending || q.isLoading) && <Loader2 size={14} className="animate-spin" style={{ color: T.muted }} />}
+        {q.data && (
+          <span className="text-[12.5px] ml-auto" style={{ color: T.muted }}>
+            {q.data.total} na fila · {q.data.falhados} falhados
+          </span>
+        )}
+      </div>
+
+      {m.isError && (
+        <p className="mt-2 text-[12.5px]" style={{ color: "#B42318" }}>{(m.error as Error).message}</p>
+      )}
+    </section>
+  );
+}

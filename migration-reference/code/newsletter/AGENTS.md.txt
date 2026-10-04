@@ -1,0 +1,21 @@
+<!-- LOVABLE:BEGIN -->
+> [!IMPORTANT]
+> This project is connected to [Lovable](https://lovable.dev). Avoid rewriting
+> published git history — force pushing, or rebasing/amending/squashing commits
+> that are already pushed — as it rewrites history on Lovable's side and the
+> user will likely lose their project history.
+>
+> Commits you push to the connected branch sync back to Lovable and show up in
+> the editor, so keep the branch in a working state.
+<!-- LOVABLE:END -->
+
+- Keep curation batch progress in the shared React Query mutation cache so it remains visible when editor phases unmount; this prevents duplicate runs and false loading uncertainty.
+- Keep the Revista opening promotion edition-scoped and composed through `EdicaoRevista`; this keeps preview, email, web, text and snapshots consistent.
+- Chronicle images render from a browser-generated 556x200 (2x) crop stored separately from the original, flagged `imagem.recortada` in the composition; keeps email/web identical and old snapshots unchanged.
+- Derive the Revista “Como te posso ajudar” section from four edition-scoped item toggles, while retaining the legacy section flag only for historical compatibility.
+- Mount the shared Sonner toaster at the root so confirmations remain visible after dialogs close.
+- Route draft Revista edition links to the authenticated full-edition preview; public URLs remain reserved for prepared or published web editions.
+- Define Revista tool-card palettes once in the newsletter engine and share them with the editor and all renderers so saved colors cannot diverge.
+- Require explicit confirmation before a Revista test publishes or updates its chronicle and web edition; this makes test sends verify the real public journey without accidental publication.
+- Generate newsletter subject and preheader suggestions as paired options from the complete current edition; this keeps the opening promise consistent with the actual content.
+- Refresh autosaved Revista editorial data before opening the send checklist; this prevents stale warnings from contradicting saved content.

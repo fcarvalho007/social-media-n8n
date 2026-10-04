@@ -1,0 +1,1 @@
+REVOKE EXECUTE ON FUNCTION public.registar_evento_brief(text, text, integer) FROM anon, authenticated;

@@ -1,0 +1,8 @@
+ALTER TABLE public.noticias DROP CONSTRAINT IF EXISTS noticias_categoria_check;
+
+UPDATE public.noticias SET categoria='meta'  WHERE categoria IN ('instagram','wafb');
+UPDATE public.noticias SET categoria='media' WHERE categoria='influencers';
+
+ALTER TABLE public.noticias
+  ADD CONSTRAINT noticias_categoria_check
+  CHECK (categoria = ANY (ARRAY['ia','google','youtube','meta','linkedin','tiktok','x','media']));

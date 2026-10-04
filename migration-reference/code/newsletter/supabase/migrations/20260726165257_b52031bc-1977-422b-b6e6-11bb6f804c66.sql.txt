@@ -1,0 +1,25 @@
+UPDATE public.edicoes
+SET bloco_consultoria = jsonb_set(
+  COALESCE(bloco_consultoria, '{}'::jsonb),
+  '{url_botao}',
+  '"https://lunacal.ai/digitalfc/chamada-consultoria-15m"'::jsonb,
+  true
+)
+WHERE bloco_consultoria IS NULL
+   OR (bloco_consultoria->>'url_botao') IS NULL
+   OR btrim(bloco_consultoria->>'url_botao') = ''
+   OR bloco_consultoria->>'url_botao' = 'https://digitalfc.pt/agendar';
+
+UPDATE public.noticias n
+SET descricao = regexp_replace(
+                  regexp_replace(
+                    regexp_replace(descricao, E'\\s*[.\u2026]{2,}\\s*$', '', 'g'),
+                    E'\\s+[A-Za-zÀ-ÿ]\\.?\\s*$', '', 'g'
+                  ),
+                  E'[\\s,;:\u2013-]+$', '', 'g'
+                )
+FROM public.edicoes e
+WHERE n.edicao_id = e.id
+  AND e.estado = 'rascunho'
+  AND descricao IS NOT NULL
+  AND (descricao ~ E'[.\u2026]{2,}\\s*$' OR descricao ~ E'\\s+[A-Za-zÀ-ÿ]\\.?\\s*$');

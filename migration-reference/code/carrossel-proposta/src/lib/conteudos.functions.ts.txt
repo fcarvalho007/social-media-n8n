@@ -1,0 +1,173 @@
+import { createServerFn } from "@tanstack/react-start";
+import type { SupabaseClient } from "@supabase/supabase-js";
+import { z } from "zod";
+import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
+import {
+  carrosselSchema,
+  fonteHistoricaPermitida,
+  validarCarrossel,
+  PROMPT_CARROSSEL,
+} from "./conteudos/carrossel";
+import type { RascunhoCarrossel } from "./conteudos/carrossel";
+
+const idSchema = z.object({ edicaoId: z.string().uuid() });
+async function autorizar(sb: SupabaseClient, userId: string) {
+  const { data, error } = await sb.from("perfis").select("papel").eq("id", userId).maybeSingle();
+  if (error || !["admin", "curador"].includes(data?.papel))
+    throw new Error("Sem permissão para preparar conteúdos.");
+}
+function erroTabela(error: { code?: string; message: string }): never {
+  if (["42P01", "PGRST205"].includes(error.code ?? "")) {
+    throw new Error(
+      "O módulo de conteúdos ainda não foi ativado na base de dados. Aplica a migração de conteúdos derivados e atualiza o esquema da API.",
+    );
+  }
+  throw new Error(error.message);
+}
+
+export const carregarCarrosselFn = createServerFn({ method: "GET" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((d: unknown) => idSchema.parse(d))
+  .handler(
+    async ({
+      data,
+      context,
+    }): Promise<{ fonte: RascunhoCarrossel["fonte"]; guardado: RascunhoCarrossel | null }> => {
+      const sb = context.supabase as SupabaseClient;
+      await autorizar(sb, context.userId);
+      const { carregarFonteCronica } = await import("./conteudos/fonte.server");
+      const fonteActual = await carregarFonteCronica(sb, data.edicaoId);
+      const { data: row, error } = await sb
+        .from("conteudos_derivados")
+        .select("fonte, carrossel, versao, actualizado_em")
+        .eq("edicao_id", data.edicaoId)
+        .eq("tipo", "carrossel_cronica")
+        .maybeSingle();
+      if (error) erroTabela(error);
+      if (!row) return { fonte: fonteActual, guardado: null };
+      const guardado: RascunhoCarrossel = {
+        fonte: row.fonte,
+        carrossel: row.carrossel,
+        versao: row.versao,
+        actualizadoEm: row.actualizado_em,
+      };
+      return { fonte: guardado.fonte, guardado };
+    },
+  );
+
+export const gerarCarrosselFn = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((d: unknown) =>
+    idSchema.extend({ aceitarHistorico: z.boolean(), hashFonte: z.string().length(64) }).parse(d),
+  )
+  .handler(async ({ data, context }): Promise<RascunhoCarrossel> => {
+    const sb = context.supabase as SupabaseClient;
+    await autorizar(sb, context.userId);
+    const { carregarFonteCronica } = await import("./conteudos/fonte.server");
+    const { data: row, error } = await sb
+      .from("conteudos_derivados")
+      .select("fonte, versao")
+      .eq("edicao_id", data.edicaoId)
+      .eq("tipo", "carrossel_cronica")
+      .maybeSingle();
+    if (error) erroTabela(error);
+    const actual = await carregarFonteCronica(sb, data.edicaoId);
+    const fonte = (row?.fonte ?? actual) as RascunhoCarrossel["fonte"];
+    if (fonte.hash !== data.hashFonte)
+      throw new Error("A fonte mudou. Recarrega a edição antes de gerar.");
+    fonteHistoricaPermitida(fonte, data.aceitarHistorico);
+    const { chamarDeepSeek, parseJsonTolerante } = await import("./deepseek.server");
+    const resposta = await chamarDeepSeek(
+      PROMPT_CARROSSEL,
+      JSON.stringify({
+        titulo: fonte.titulo,
+        paragrafos: fonte.paragrafos.map((texto, i) => ({ numero: i + 1, texto })),
+      }),
+      { responseJson: true, temperatura: 0.4 },
+    );
+    // Regista consumo também quando a resposta não passa a validação editorial.
+    try {
+      const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+      const { custoUsd } = await import("../../supabase/functions/_shared/custos-ia");
+      const { error: erro } = await supabaseAdmin.from("ia_uso").insert({
+        modelo: resposta.modelo,
+        tokens_entrada_cache_hit: resposta.usage.cacheHit,
+        tokens_entrada_cache_miss: resposta.usage.cacheMiss,
+        tokens_saida: resposta.usage.saida,
+        custo_usd: custoUsd(
+          resposta.modelo,
+          resposta.usage.cacheHit,
+          resposta.usage.cacheMiss,
+          resposta.usage.saida,
+        ),
+        origem: "carrossel_cronica",
+        edicao_id: fonte.edicaoId,
+      });
+      if (erro) console.error("[carrossel] registo de consumo:", erro.message);
+    } catch (e) {
+      console.error("[carrossel] registo de consumo:", (e as Error).message);
+    }
+    return {
+      fonte,
+      carrossel: validarCarrossel(parseJsonTolerante(resposta.conteudo), fonte),
+      versao: row?.versao ?? 0,
+      actualizadoEm: null,
+    };
+  });
+
+export const guardarCarrosselFn = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((d: unknown) =>
+    idSchema
+      .extend({
+        hashFonte: z.string().length(64),
+        aceitarHistorico: z.boolean(),
+        versao: z.number().int().nonnegative(),
+        carrossel: carrosselSchema,
+      })
+      .parse(d),
+  )
+  .handler(async ({ data, context }): Promise<{ versao: number; actualizadoEm: string }> => {
+    const sb = context.supabase as SupabaseClient;
+    await autorizar(sb, context.userId);
+    const { carregarFonteCronica } = await import("./conteudos/fonte.server");
+    const actual = await carregarFonteCronica(sb, data.edicaoId);
+    const { data: row, error: erroLeitura } = await sb
+      .from("conteudos_derivados")
+      .select("fonte, versao")
+      .eq("edicao_id", data.edicaoId)
+      .eq("tipo", "carrossel_cronica")
+      .maybeSingle();
+    if (erroLeitura) erroTabela(erroLeitura);
+    const fonte = (row?.fonte ?? actual) as RascunhoCarrossel["fonte"];
+    if (data.hashFonte !== fonte.hash)
+      throw new Error("A fonte mudou. Recarrega a edição antes de guardar.");
+    fonteHistoricaPermitida(fonte, data.aceitarHistorico);
+    const carrossel = validarCarrossel(data.carrossel, fonte);
+    const actualizadoEm = new Date().toISOString();
+    const versao = data.versao + 1;
+    const valores = {
+      carrossel,
+      versao,
+      actualizado_em: actualizadoEm,
+      actualizado_por: context.userId,
+    };
+    const query =
+      data.versao === 0
+        ? sb
+            .from("conteudos_derivados")
+            .insert({ ...valores, edicao_id: data.edicaoId, tipo: "carrossel_cronica", fonte })
+        : sb
+            .from("conteudos_derivados")
+            .update(valores)
+            .eq("edicao_id", data.edicaoId)
+            .eq("tipo", "carrossel_cronica")
+            .eq("versao", data.versao);
+    const { data: gravadas, error } = await query.select("id");
+    if (error?.code === "23505" || (!error && !gravadas?.length))
+      throw new Error(
+        "Outro editor guardou uma versão mais recente. Descarrega o teu rascunho e recarrega antes de guardar.",
+      );
+    if (error) erroTabela(error);
+    return { versao, actualizadoEm };
+  });

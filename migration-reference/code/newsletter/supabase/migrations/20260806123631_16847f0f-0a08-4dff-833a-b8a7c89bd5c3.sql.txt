@@ -1,0 +1,5 @@
+ALTER TABLE public.noticias
+  ADD COLUMN IF NOT EXISTS fonte_estado text NOT NULL DEFAULT 'ok',
+  ADD COLUMN IF NOT EXISTS fonte_url_original text;
+
+CREATE INDEX IF NOT EXISTS noticias_fonte_estado_idx ON public.noticias (fonte_estado) WHERE fonte_estado <> 'ok';

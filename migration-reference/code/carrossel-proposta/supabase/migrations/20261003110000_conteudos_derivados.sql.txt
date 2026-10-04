@@ -1,0 +1,52 @@
+-- Preparação manual de conteúdos. Não agenda tarefas nem envia/publica peças.
+CREATE TABLE public.conteudos_derivados (
+  id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  edicao_id uuid NOT NULL REFERENCES public.edicoes(id) ON DELETE RESTRICT,
+  tipo text NOT NULL CHECK (tipo = 'carrossel_cronica'),
+  fonte jsonb NOT NULL CHECK (jsonb_typeof(fonte) = 'object'),
+  carrossel jsonb NOT NULL CHECK (jsonb_typeof(carrossel) = 'object'),
+  versao integer NOT NULL DEFAULT 1 CHECK (versao > 0),
+  criado_em timestamptz NOT NULL DEFAULT now(),
+  actualizado_em timestamptz NOT NULL DEFAULT now(),
+  actualizado_por uuid NOT NULL REFERENCES auth.users(id),
+  UNIQUE (edicao_id, tipo)
+);
+ALTER TABLE public.conteudos_derivados ENABLE ROW LEVEL SECURITY;
+GRANT SELECT, INSERT, UPDATE ON public.conteudos_derivados TO authenticated;
+GRANT ALL ON public.conteudos_derivados TO service_role;
+CREATE POLICY conteudos_ler ON public.conteudos_derivados FOR SELECT TO authenticated
+  USING (public.me_papel() IN ('admin', 'curador'));
+CREATE POLICY conteudos_criar ON public.conteudos_derivados FOR INSERT TO authenticated
+  WITH CHECK (public.me_papel() IN ('admin', 'curador') AND actualizado_por = auth.uid()
+    AND EXISTS (SELECT 1 FROM public.edicoes e WHERE e.id = edicao_id AND e.estado = 'enviada' AND e.template_version = 'revista'));
+CREATE POLICY conteudos_editar ON public.conteudos_derivados FOR UPDATE TO authenticated
+  USING (public.me_papel() IN ('admin', 'curador'))
+  WITH CHECK (public.me_papel() IN ('admin', 'curador') AND actualizado_por = auth.uid());
+
+-- A fonte fica imutável depois do primeiro rascunho; gravações são sequenciais.
+CREATE FUNCTION public.proteger_fonte_conteudo() RETURNS trigger LANGUAGE plpgsql AS $$
+BEGIN
+  IF NEW.fonte IS DISTINCT FROM OLD.fonte OR NEW.edicao_id IS DISTINCT FROM OLD.edicao_id OR NEW.tipo IS DISTINCT FROM OLD.tipo THEN
+    RAISE EXCEPTION 'A fonte de um conteúdo derivado é imutável';
+  END IF;
+  IF NEW.versao <> OLD.versao + 1 THEN RAISE EXCEPTION 'Versão de conteúdo inválida'; END IF;
+  RETURN NEW;
+END;
+$$;
+CREATE TRIGGER conteudos_proteger_fonte BEFORE UPDATE ON public.conteudos_derivados
+  FOR EACH ROW EXECUTE FUNCTION public.proteger_fonte_conteudo();
+
+-- Conserva os valores já permitidos e acrescenta a origem deste módulo.
+DO $$
+DECLARE regra text;
+BEGIN
+  SELECT pg_get_constraintdef(oid) INTO regra FROM pg_constraint
+    WHERE conrelid = 'public.ia_uso'::regclass AND conname = 'ia_uso_origem_check';
+  IF regra IS NOT NULL THEN
+    ALTER TABLE public.ia_uso DROP CONSTRAINT ia_uso_origem_check;
+    EXECUTE 'ALTER TABLE public.ia_uso ADD CONSTRAINT ia_uso_origem_check CHECK ((' ||
+      substring(regra FROM 7) || ') OR origem = ''carrossel_cronica'')';
+  END IF;
+END;
+$$;
+NOTIFY pgrst, 'reload schema';

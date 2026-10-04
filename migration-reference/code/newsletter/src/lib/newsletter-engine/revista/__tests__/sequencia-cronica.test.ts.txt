@@ -1,0 +1,61 @@
+import { describe, expect, it } from "vitest";
+import { POSICAO_FIM, posicaoValida, sequenciaCronica } from "../sequencia-cronica";
+
+const excerto = "Um.\n\nDois.\n\nTrês.";
+
+describe("sequenciaCronica", () => {
+  it("põe os blocos no fim por omissão", () => {
+    const s = sequenciaCronica({
+      excerto, pullQuote: true, pullQuotePos: POSICAO_FIM, momento: true, momentoPos: POSICAO_FIM,
+    });
+    expect(s.map((p) => p.tipo)).toEqual([
+      "paragrafo", "paragrafo", "paragrafo", "pull_quote", "momento",
+    ]);
+  });
+
+  it("intercala o momento depois do primeiro parágrafo", () => {
+    const s = sequenciaCronica({
+      excerto, pullQuote: false, pullQuotePos: 0, momento: true, momentoPos: 1,
+    });
+    expect(s.map((p) => p.tipo)).toEqual(["paragrafo", "momento", "paragrafo", "paragrafo"]);
+  });
+
+  it("aceita posição 0 (logo a seguir à lede)", () => {
+    const s = sequenciaCronica({
+      excerto, pullQuote: true, pullQuotePos: 0, momento: false, momentoPos: 0,
+    });
+    expect(s[0].tipo).toBe("pull_quote");
+  });
+
+  it("omite blocos inactivos", () => {
+    const s = sequenciaCronica({
+      excerto, pullQuote: false, pullQuotePos: 1, momento: false, momentoPos: 1,
+    });
+    expect(s.every((p) => p.tipo === "paragrafo")).toBe(true);
+  });
+
+  it("limita a posição ao número de parágrafos", () => {
+    expect(posicaoValida(99, 3)).toBe(3);
+    expect(posicaoValida(-4, 3)).toBe(0);
+    expect(posicaoValida(null, 0)).toBe(0);
+  });
+});
+
+describe("lede como peça móvel", () => {
+  const base = { excerto: "p1\np2\np3", pullQuote: false, pullQuotePos: 99, momento: false, momentoPos: 99 };
+
+  it("abre a crónica por omissão", () => {
+    const s = sequenciaCronica({ ...base, lede: true });
+    expect(s[0]).toEqual({ tipo: "lede" });
+  });
+
+  it("desce para depois do segundo parágrafo", () => {
+    const s = sequenciaCronica({ ...base, lede: true, ledePos: 2 });
+    expect(s.map((p) => p.tipo)).toEqual(["paragrafo", "paragrafo", "lede", "paragrafo"]);
+  });
+
+  it("imagem com posição negativa fica antes da lede", () => {
+    const s = sequenciaCronica({ ...base, lede: true, ledePos: 1, imagem: true, imagemPos: -1 });
+    expect(s.map((p) => p.tipo)).toEqual(["paragrafo", "imagem", "lede", "paragrafo", "paragrafo"]);
+  });
+});

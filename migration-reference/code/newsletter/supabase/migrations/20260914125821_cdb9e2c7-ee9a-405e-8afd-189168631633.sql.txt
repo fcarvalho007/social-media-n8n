@@ -1,0 +1,158 @@
+-- 1. BRIEFS
+CREATE TABLE public.briefs (
+  id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  noticia_id uuid REFERENCES public.noticias(id) ON DELETE SET NULL,
+  fingerprint text NOT NULL UNIQUE,
+  slug text NOT NULL UNIQUE,
+  slug_congelado boolean NOT NULL DEFAULT false,
+  tipo text NOT NULL DEFAULT 'destaque',
+  estado text NOT NULL DEFAULT 'por_gerar',
+  indexavel boolean NOT NULL DEFAULT false,
+  em_30_segundos jsonb NOT NULL DEFAULT '[]'::jsonb,
+  porque_interessa jsonb NOT NULL DEFAULT '[]'::jsonb,
+  leitura_sugerida text NOT NULL DEFAULT '',
+  leitura_aprovada text NOT NULL DEFAULT '',
+  aprovada_em timestamptz,
+  aprovada_por text,
+  fonte_url text,
+  fonte_url_norm text,
+  fonte_publisher text,
+  fonte_data date,
+  fonte_primaria_url text,
+  fontes_adicionais jsonb NOT NULL DEFAULT '[]'::jsonb,
+  verificacao jsonb NOT NULL DEFAULT '{}'::jsonb,
+  ia jsonb NOT NULL DEFAULT '{}'::jsonb,
+  hash_publicado text,
+  publicado_em timestamptz,
+  erro text,
+  tentativas integer NOT NULL DEFAULT 0,
+  created_at timestamptz NOT NULL DEFAULT now(),
+  updated_at timestamptz NOT NULL DEFAULT now()
+);
+
+GRANT SELECT, INSERT, UPDATE, DELETE ON public.briefs TO authenticated;
+GRANT SELECT ON public.briefs TO anon;
+GRANT ALL ON public.briefs TO service_role;
+
+ALTER TABLE public.briefs ENABLE ROW LEVEL SECURITY;
+
+CREATE POLICY "briefs_publicos_leitura" ON public.briefs
+  FOR SELECT TO anon, authenticated USING (estado = 'publicado');
+CREATE POLICY "briefs_equipa_leitura" ON public.briefs
+  FOR SELECT TO authenticated USING (public.me_papel() IN ('admin','curador'));
+CREATE POLICY "briefs_equipa_insere" ON public.briefs
+  FOR INSERT TO authenticated WITH CHECK (public.me_papel() IN ('admin','curador'));
+CREATE POLICY "briefs_equipa_actualiza" ON public.briefs
+  FOR UPDATE TO authenticated USING (public.me_papel() IN ('admin','curador'))
+  WITH CHECK (public.me_papel() IN ('admin','curador'));
+CREATE POLICY "briefs_admin_apaga" ON public.briefs
+  FOR DELETE TO authenticated USING (public.is_admin());
+
+CREATE INDEX briefs_noticia_idx ON public.briefs (noticia_id);
+CREATE INDEX briefs_fonte_url_norm_idx ON public.briefs (fonte_url_norm);
+CREATE INDEX briefs_estado_idx ON public.briefs (estado);
+
+-- Validação por trigger (nunca CHECK: as regras editoriais têm de poder evoluir).
+CREATE OR REPLACE FUNCTION public.briefs_validar()
+RETURNS trigger
+LANGUAGE plpgsql
+SET search_path = public
+AS $$
+BEGIN
+  IF NEW.tipo NOT IN ('destaque','radar') THEN
+    RAISE EXCEPTION 'Tipo de Brief inválido: %', NEW.tipo;
+  END IF;
+  IF NEW.estado NOT IN ('por_gerar','a_gerar','gerado','por_rever','aprovado','publicado','erro') THEN
+    RAISE EXCEPTION 'Estado de Brief inválido: %', NEW.estado;
+  END IF;
+  IF TG_OP = 'UPDATE' AND OLD.slug_congelado AND NEW.slug IS DISTINCT FROM OLD.slug THEN
+    RAISE EXCEPTION 'O endereço deste Brief já está congelado';
+  END IF;
+  NEW.updated_at := now();
+  RETURN NEW;
+END;
+$$;
+
+CREATE TRIGGER briefs_validar_tg
+  BEFORE INSERT OR UPDATE ON public.briefs
+  FOR EACH ROW EXECUTE FUNCTION public.briefs_validar();
+
+-- 2. BRIEF_EDICOES
+CREATE TABLE public.brief_edicoes (
+  id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  brief_id uuid NOT NULL REFERENCES public.briefs(id) ON DELETE CASCADE,
+  edicao_id uuid NOT NULL REFERENCES public.edicoes(id) ON DELETE CASCADE,
+  papel text NOT NULL DEFAULT 'destaque',
+  ordem integer NOT NULL DEFAULT 0,
+  titulo_apresentado text,
+  created_at timestamptz NOT NULL DEFAULT now(),
+  UNIQUE (brief_id, edicao_id)
+);
+
+GRANT SELECT, INSERT, UPDATE, DELETE ON public.brief_edicoes TO authenticated;
+GRANT SELECT ON public.brief_edicoes TO anon;
+GRANT ALL ON public.brief_edicoes TO service_role;
+
+ALTER TABLE public.brief_edicoes ENABLE ROW LEVEL SECURITY;
+
+CREATE POLICY "brief_edicoes_publicas_leitura" ON public.brief_edicoes
+  FOR SELECT TO anon, authenticated
+  USING (EXISTS (SELECT 1 FROM public.briefs b WHERE b.id = brief_id AND b.estado = 'publicado'));
+CREATE POLICY "brief_edicoes_equipa_leitura" ON public.brief_edicoes
+  FOR SELECT TO authenticated USING (public.me_papel() IN ('admin','curador'));
+CREATE POLICY "brief_edicoes_equipa_insere" ON public.brief_edicoes
+  FOR INSERT TO authenticated WITH CHECK (public.me_papel() IN ('admin','curador'));
+CREATE POLICY "brief_edicoes_equipa_actualiza" ON public.brief_edicoes
+  FOR UPDATE TO authenticated USING (public.me_papel() IN ('admin','curador'))
+  WITH CHECK (public.me_papel() IN ('admin','curador'));
+CREATE POLICY "brief_edicoes_equipa_apaga" ON public.brief_edicoes
+  FOR DELETE TO authenticated USING (public.me_papel() IN ('admin','curador'));
+
+CREATE INDEX brief_edicoes_edicao_idx ON public.brief_edicoes (edicao_id);
+
+CREATE OR REPLACE FUNCTION public.brief_edicoes_validar()
+RETURNS trigger
+LANGUAGE plpgsql
+SET search_path = public
+AS $$
+BEGIN
+  IF NEW.papel NOT IN ('destaque','radar') THEN
+    RAISE EXCEPTION 'Papel inválido: %', NEW.papel;
+  END IF;
+  RETURN NEW;
+END;
+$$;
+
+CREATE TRIGGER brief_edicoes_validar_tg
+  BEFORE INSERT OR UPDATE ON public.brief_edicoes
+  FOR EACH ROW EXECUTE FUNCTION public.brief_edicoes_validar();
+
+-- 3. BRIEF_VERSOES
+CREATE TABLE public.brief_versoes (
+  id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  brief_id uuid NOT NULL REFERENCES public.briefs(id) ON DELETE CASCADE,
+  versao integer NOT NULL,
+  conteudo jsonb NOT NULL DEFAULT '{}'::jsonb,
+  hash text NOT NULL,
+  motivo text,
+  criado_em timestamptz NOT NULL DEFAULT now(),
+  criado_por text,
+  UNIQUE (brief_id, versao)
+);
+
+GRANT SELECT, INSERT ON public.brief_versoes TO authenticated;
+GRANT ALL ON public.brief_versoes TO service_role;
+
+ALTER TABLE public.brief_versoes ENABLE ROW LEVEL SECURITY;
+
+CREATE POLICY "brief_versoes_equipa_leitura" ON public.brief_versoes
+  FOR SELECT TO authenticated USING (public.me_papel() IN ('admin','curador'));
+CREATE POLICY "brief_versoes_equipa_insere" ON public.brief_versoes
+  FOR INSERT TO authenticated WITH CHECK (public.me_papel() IN ('admin','curador'));
+
+-- 4. Definições configuráveis
+INSERT INTO public.configuracoes (chave, valor) VALUES
+  ('brief_limites', '{"destaque":3,"radar":5}'),
+  ('brief_indexabilidade', '{"destaque":true,"radar":false}'),
+  ('briefs_activos', 'false')
+ON CONFLICT (chave) DO NOTHING;

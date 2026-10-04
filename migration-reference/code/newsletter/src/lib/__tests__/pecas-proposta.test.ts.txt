@@ -1,0 +1,22 @@
+import { describe, expect, it } from "vitest";
+import { validarPropostaPecas, citacaoLiteral } from "@/lib/newsletter-engine/revista/pecas-proposta";
+
+const texto = "O Google passa a vigiar 60 mil milhões de produtos. Passámos de uma pesquisa para uma subscrição de intenção. Fim.";
+
+describe("validarPropostaPecas", () => {
+  it("aceita citação literal e rejeita inventada", () => {
+    expect(citacaoLiteral("«Passámos de uma pesquisa para uma subscrição de intenção.»", texto)).toBe(true);
+    const r = validarPropostaPecas({ lede: "x", pull_quote: "Frase que não existe no texto" }, texto, 3);
+    expect(r.pullQuote).toBe("");
+    expect(r.avisos.length).toBeGreaterThan(0);
+  });
+  it("desliga momento com valor inexistente e aceita existente", () => {
+    expect(validarPropostaPecas({ momento: { valor: "42%" } }, texto, 3).momento.activo).toBe(false);
+    expect(validarPropostaPecas({ momento: { valor: "60 mil milhões", posicao: 2 } }, texto, 3).momento).toMatchObject({ activo: true, posicao: 2 });
+  });
+  it("limita posições ao intervalo", () => {
+    const r = validarPropostaPecas({ lede: "a", lede_posicao: -5, pull_quote: "Passámos de uma pesquisa para uma subscrição de intenção", pull_quote_posicao: 50 }, texto, 3);
+    expect(r.ledePosicao).toBe(0);
+    expect(r.pullQuotePosicao).toBe(3);
+  });
+});
