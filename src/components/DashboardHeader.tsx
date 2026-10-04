@@ -59,7 +59,7 @@ export function DashboardHeader() {
 
   const breadcrumbs = getBreadcrumbs();
 
-  // Em mobile, esconder "Painel de Conteúdo" quando é o único breadcrumb
+  // On mobile keep only the last two crumbs
   const displayBreadcrumbs = isMobile 
     ? breadcrumbs.length > 2 ? breadcrumbs.slice(-2) : breadcrumbs
     : breadcrumbs;
