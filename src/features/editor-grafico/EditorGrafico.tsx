@@ -33,7 +33,7 @@ const dataHora = (s: string) => new Date(s).toLocaleString("pt-PT", { timeZone: 
 
 function corToken(nome: string, recurso: string) {
   if (typeof window === "undefined") return recurso;
-  const v = getComputedStyle(document.documentElement).getPropertyValue(nome).trim();
+  const v = getComputedStyle(document.querySelector(".mc-estudio") ?? document.documentElement).getPropertyValue(nome).trim();
   return v ? `hsl(${v})` : recurso;
 }
 
@@ -258,9 +258,11 @@ export interface PropsEditorGrafico {
   cabecalhoInicio?: ReactNode;
   menuExtra?: ReactNode;
   onAlterado?: (p: PacoteProva) => void;
+  /** Optional strip above the editor header (e.g. the carousel stepper). */
+  faixaTopo?: ReactNode;
 }
 
-export function EditorGrafico({ pacoteInicial, chaveLocal, titulo, seletor, real = false, estadoGravacao, cabecalhoInicio, menuExtra, onAlterado }: PropsEditorGrafico) {
+export function EditorGrafico({ pacoteInicial, chaveLocal, titulo, seletor, real = false, estadoGravacao, cabecalhoInicio, menuExtra, onAlterado, faixaTopo }: PropsEditorGrafico) {
   const { user } = useAuth();
   const [compacto, setCompacto] = useState(() => typeof window !== "undefined" && window.innerWidth < 1180);
   const [estado, despachar] = useReducer(reduzir, pacoteInicial, estadoInicial);
@@ -579,6 +581,7 @@ export function EditorGrafico({ pacoteInicial, chaveLocal, titulo, seletor, real
     return (
       <div className="relative flex min-h-0 flex-col overflow-hidden" style={{ height: alturaVisual ? `${alturaVisual}px` : "100dvh" }}>
         {inputFicheiro}
+        {faixaTopo}
         <header className="space-y-2 border-b border-border bg-background px-2 py-2">
           <div className="flex items-center justify-between gap-2">
             <div className="flex min-w-0 items-center gap-1">{cabecalhoInicio}<h1 className="truncate text-sm font-semibold">{titulo}</h1></div>
@@ -623,6 +626,7 @@ export function EditorGrafico({ pacoteInicial, chaveLocal, titulo, seletor, real
   return (
     <div className="flex h-screen min-h-0 flex-col overflow-hidden">
       {inputFicheiro}
+      {faixaTopo}
       <header className="flex flex-wrap items-center gap-3 border-b border-border bg-background px-4 py-2">
         {cabecalhoInicio}
         <h1 className="mr-2 text-base font-semibold">{titulo}</h1>
