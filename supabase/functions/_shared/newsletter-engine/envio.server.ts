@@ -237,7 +237,11 @@ export async function reconciliarEdicao(edicaoId: string): Promise<{
     });
   }
   // Se a E-goi confirma envios, a edição já não pode voltar atrás.
-  if (actualizadas.length) await bloquearSnapshotRevista(edicaoId);
+  if (actualizadas.length) {
+    await bloquearSnapshotRevista(edicaoId);
+    const { enfileirarCarrossel } = await import("../conteudos/jobs.server.ts");
+    await enfileirarCarrossel(edicaoId, "reconciliacao");
+  }
   return { ok: true, actualizadas };
 }
 
@@ -666,6 +670,11 @@ export async function finalizarEnvio(opts: {
   const { html } = await renderEdicaoEmail(opts.edicaoId);
 
   const fechada = await fecharEdicaoEnviada(sb, opts.edicaoId, { quem, assunto, html, sucessos, falhas });
+  // Derived content: idempotent durable job (no AI here, never affects the send result).
+  if (fechada) {
+    const { enfileirarCarrossel } = await import("../conteudos/jobs.server.ts");
+    await enfileirarCarrossel(opts.edicaoId, "envio");
+  }
   return { ok: true as const, fechada };
 }
 

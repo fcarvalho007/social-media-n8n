@@ -325,6 +325,80 @@ export type Database = {
           },
         ]
       }
+      estudio_identidades: {
+        Row: {
+          chave: string
+          created_at: string
+          id: string
+          nome: string
+          project_id: string | null
+          tipo: string
+          updated_at: string
+        }
+        Insert: {
+          chave: string
+          created_at?: string
+          id?: string
+          nome: string
+          project_id?: string | null
+          tipo: string
+          updated_at?: string
+        }
+        Update: {
+          chave?: string
+          created_at?: string
+          id?: string
+          nome?: string
+          project_id?: string | null
+          tipo?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "estudio_identidades_project_id_fkey"
+            columns: ["project_id"]
+            isOneToOne: false
+            referencedRelation: "projects"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      estudio_preferencias: {
+        Row: {
+          identidade_id: string | null
+          project_id: string | null
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          identidade_id?: string | null
+          project_id?: string | null
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          identidade_id?: string | null
+          project_id?: string | null
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "estudio_preferencias_identidade_id_fkey"
+            columns: ["identidade_id"]
+            isOneToOne: false
+            referencedRelation: "estudio_identidades"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "estudio_preferencias_project_id_fkey"
+            columns: ["project_id"]
+            isOneToOne: false
+            referencedRelation: "projects"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       hashtag_intelligence: {
         Row: {
           created_at: string
@@ -981,6 +1055,195 @@ export type Database = {
         }
         Relationships: []
       }
+      nl_conteudos_derivados: {
+        Row: {
+          actualizado_em: string
+          actualizado_por: string | null
+          carrossel: Json | null
+          created_at: string
+          edicao_id: string
+          fonte: Json
+          fonte_aceite_em: string | null
+          fonte_aceite_por: string | null
+          fonte_hash: string
+          id: string
+          identidade_id: string | null
+          project_id: string | null
+          social_draft_id: string | null
+          social_enviado_em: string | null
+          tipo: string
+          versao: number
+        }
+        Insert: {
+          actualizado_em?: string
+          actualizado_por?: string | null
+          carrossel?: Json | null
+          created_at?: string
+          edicao_id: string
+          fonte: Json
+          fonte_aceite_em?: string | null
+          fonte_aceite_por?: string | null
+          fonte_hash: string
+          id?: string
+          identidade_id?: string | null
+          project_id?: string | null
+          social_draft_id?: string | null
+          social_enviado_em?: string | null
+          tipo: string
+          versao?: number
+        }
+        Update: {
+          actualizado_em?: string
+          actualizado_por?: string | null
+          carrossel?: Json | null
+          created_at?: string
+          edicao_id?: string
+          fonte?: Json
+          fonte_aceite_em?: string | null
+          fonte_aceite_por?: string | null
+          fonte_hash?: string
+          id?: string
+          identidade_id?: string | null
+          project_id?: string | null
+          social_draft_id?: string | null
+          social_enviado_em?: string | null
+          tipo?: string
+          versao?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "nl_conteudos_derivados_edicao_id_fkey"
+            columns: ["edicao_id"]
+            isOneToOne: false
+            referencedRelation: "nl_edicoes"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "nl_conteudos_derivados_identidade_id_fkey"
+            columns: ["identidade_id"]
+            isOneToOne: false
+            referencedRelation: "estudio_identidades"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "nl_conteudos_derivados_project_id_fkey"
+            columns: ["project_id"]
+            isOneToOne: false
+            referencedRelation: "projects"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      nl_conteudos_jobs: {
+        Row: {
+          actualizado_em: string
+          campanhas: Json
+          confirmado_em: string | null
+          conteudo_id: string
+          created_at: string
+          edicao_id: string
+          erro: string | null
+          estado: string
+          fonte_hash: string
+          id: string
+          max_tentativas: number
+          origem: string
+          proxima_tentativa_em: string
+          reservado_ate: string | null
+          tentativas: number
+          tipo: string
+        }
+        Insert: {
+          actualizado_em?: string
+          campanhas?: Json
+          confirmado_em?: string | null
+          conteudo_id: string
+          created_at?: string
+          edicao_id: string
+          erro?: string | null
+          estado: string
+          fonte_hash: string
+          id?: string
+          max_tentativas?: number
+          origem: string
+          proxima_tentativa_em?: string
+          reservado_ate?: string | null
+          tentativas?: number
+          tipo: string
+        }
+        Update: {
+          actualizado_em?: string
+          campanhas?: Json
+          confirmado_em?: string | null
+          conteudo_id?: string
+          created_at?: string
+          edicao_id?: string
+          erro?: string | null
+          estado?: string
+          fonte_hash?: string
+          id?: string
+          max_tentativas?: number
+          origem?: string
+          proxima_tentativa_em?: string
+          reservado_ate?: string | null
+          tentativas?: number
+          tipo?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "nl_conteudos_jobs_conteudo_id_fkey"
+            columns: ["conteudo_id"]
+            isOneToOne: false
+            referencedRelation: "nl_conteudos_derivados"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "nl_conteudos_jobs_edicao_id_fkey"
+            columns: ["edicao_id"]
+            isOneToOne: false
+            referencedRelation: "nl_edicoes"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      nl_conteudos_versoes: {
+        Row: {
+          carrossel: Json
+          conteudo_id: string
+          criado_em: string
+          criado_por: string | null
+          id: string
+          origem: string
+          versao: number
+        }
+        Insert: {
+          carrossel: Json
+          conteudo_id: string
+          criado_em?: string
+          criado_por?: string | null
+          id?: string
+          origem: string
+          versao: number
+        }
+        Update: {
+          carrossel?: Json
+          conteudo_id?: string
+          criado_em?: string
+          criado_por?: string | null
+          id?: string
+          origem?: string
+          versao?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "nl_conteudos_versoes_conteudo_id_fkey"
+            columns: ["conteudo_id"]
+            isOneToOne: false
+            referencedRelation: "nl_conteudos_derivados"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       nl_cronicas: {
         Row: {
           busca: unknown
@@ -1229,6 +1492,7 @@ export type Database = {
           episodio_podcast_id: string | null
           estado: string
           id: string
+          identidade_id: string | null
           links_ignorados: Json
           links_verificados: Json | null
           links_verificados_em: string | null
@@ -1261,6 +1525,7 @@ export type Database = {
           episodio_podcast_id?: string | null
           estado?: string
           id?: string
+          identidade_id?: string | null
           links_ignorados?: Json
           links_verificados?: Json | null
           links_verificados_em?: string | null
@@ -1293,6 +1558,7 @@ export type Database = {
           episodio_podcast_id?: string | null
           estado?: string
           id?: string
+          identidade_id?: string | null
           links_ignorados?: Json
           links_verificados?: Json | null
           links_verificados_em?: string | null
@@ -1309,6 +1575,13 @@ export type Database = {
             columns: ["episodio_podcast_id"]
             isOneToOne: false
             referencedRelation: "nl_episodios_podcast"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "nl_edicoes_identidade_id_fkey"
+            columns: ["identidade_id"]
+            isOneToOne: false
+            referencedRelation: "estudio_identidades"
             referencedColumns: ["id"]
           },
         ]
@@ -2707,7 +2980,9 @@ export type Database = {
           media_urls: Json | null
           network_captions: Json | null
           network_options: Json | null
+          origem: Json | null
           platform: string
+          project_id: string | null
           publish_immediately: boolean | null
           raw_transcription: string | null
           scheduled_date: string | null
@@ -2728,7 +3003,9 @@ export type Database = {
           media_urls?: Json | null
           network_captions?: Json | null
           network_options?: Json | null
+          origem?: Json | null
           platform: string
+          project_id?: string | null
           publish_immediately?: boolean | null
           raw_transcription?: string | null
           scheduled_date?: string | null
@@ -2749,7 +3026,9 @@ export type Database = {
           media_urls?: Json | null
           network_captions?: Json | null
           network_options?: Json | null
+          origem?: Json | null
           platform?: string
+          project_id?: string | null
           publish_immediately?: boolean | null
           raw_transcription?: string | null
           scheduled_date?: string | null
@@ -2759,7 +3038,15 @@ export type Database = {
           use_separate_captions?: boolean | null
           user_id?: string
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "posts_drafts_project_id_fkey"
+            columns: ["project_id"]
+            isOneToOne: false
+            referencedRelation: "projects"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       profiles: {
         Row: {
@@ -3741,6 +4028,33 @@ export type Database = {
       nl_reordenar_seccoes: {
         Args: { _edicao_id: string; _ids: string[] }
         Returns: undefined
+      }
+      nl_reservar_jobs_conteudos: {
+        Args: { _limite: number }
+        Returns: {
+          actualizado_em: string
+          campanhas: Json
+          confirmado_em: string | null
+          conteudo_id: string
+          created_at: string
+          edicao_id: string
+          erro: string | null
+          estado: string
+          fonte_hash: string
+          id: string
+          max_tentativas: number
+          origem: string
+          proxima_tentativa_em: string
+          reservado_ate: string | null
+          tentativas: number
+          tipo: string
+        }[]
+        SetofOptions: {
+          from: "*"
+          to: "nl_conteudos_jobs"
+          isOneToOne: false
+          isSetofReturn: true
+        }
       }
       nl_stats_fontes_30d: {
         Args: never
