@@ -13,18 +13,17 @@ import type { Asset } from "../documento-grafico/nucleo.ts";
 
 const UA = "DigitalSprintEstudio/1.0 (+leitura-de-fonte)";
 
+/**
+ * Defence in depth only: the exact-host allowlist is the actual guarantee (fetch resolves again on its own).
+ * Returns false when the host resolves to a blocked address; when the runtime has no DNS API, it reports
+ * "indisponivel" and the allowlist alone applies (stated in the UI/report, never claimed as rebinding-proof).
+ */
 async function dnsSeguro(host: string): Promise<boolean> {
-  // Defence in depth only: the allowlist is the actual guarantee (fetch resolves again on its own).
-  try {
-    const [a, aaaa] = await Promise.all([
-      Deno.resolveDns(host, "A").catch(() => [] as string[]),
-      Deno.resolveDns(host, "AAAA").catch(() => [] as string[]),
-    ]);
-    const todos = [...a, ...aaaa];
-    return todos.length > 0 && !todos.some(ipBloqueado);
-  } catch {
-    return false;
-  }
+  const tentar = async (t: "A" | "AAAA") => { try { return { ok: true, ips: await Deno.resolveDns(host, t) }; } catch (e) { return { ok: false, ips: [] as string[], e: (e as Error).name }; } };
+  const [a, b] = await Promise.all([tentar("A"), tentar("AAAA")]);
+  if (!a.ok && !b.ok) { console.log("[mc-motor] dns indisponivel", a.e, b.e); return true; }
+  const todos = [...a.ips, ...b.ips];
+  return todos.length > 0 && !todos.some(ipBloqueado);
 }
 
 async function lerLimitado(resp: Response, max: number): Promise<{ bytes: Uint8Array; excedeu: boolean }> {
