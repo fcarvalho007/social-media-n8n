@@ -331,7 +331,7 @@ export async function listarBriefsDaEdicao(
   const db = sb ?? admin();
   const { data, error } = await db
     .from("nl_brief_edicoes")
-    .select("papel, ordem, titulo_apresentado, brief:briefs(*)")
+    .select("papel, ordem, titulo_apresentado, brief:nl_briefs(*)")
     .eq("edicao_id", edicaoId)
     .order("ordem", { ascending: true });
   if (error) throw error;

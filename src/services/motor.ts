@@ -9,7 +9,7 @@ export type EstadoTrabalho = "pendente" | "a_processar" | "concluido" | "erro" |
 
 export interface TrabalhoResumo {
   id: string; project_id: string; estado: EstadoTrabalho; etapa: string; erro: string | null; modelo: string;
-  criado_em: string; actualizado_em: string; titulo: string | null;
+  criado_em: string; actualizado_em: string; titulo: string | null; prova?: boolean;
 }
 
 async function invocar<T>(body: object): Promise<T> {
@@ -24,7 +24,7 @@ async function invocar<T>(body: object): Promise<T> {
 }
 
 export async function listarTrabalhos(projectId: string | null): Promise<TrabalhoResumo[]> {
-  let q = supabase.from("mc_trabalhos").select("id, project_id, estado, etapa, erro, modelo, criado_em, actualizado_em, brief, mc_fontes(titulo)")
+  let q = supabase.from("mc_trabalhos").select("id, project_id, estado, etapa, erro, modelo, prova, criado_em, actualizado_em, brief, mc_fontes(titulo)")
     .order("criado_em", { ascending: false }).limit(100);
   if (projectId) q = q.eq("project_id", projectId);
   const { data, error } = await q;

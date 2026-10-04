@@ -31,12 +31,8 @@ Deno.serve(async (req) => {
     console.log(`[notify-publication-failure] Platform: ${platform}, Format: ${format}`);
     console.log(`[notify-publication-failure] Error: ${error_message}`);
 
-    const supabaseUrl = Deno.env.get('SUPABASE_URL') ?? '';
-    // Build recovery URL - use the app URL from Supabase
-    const appUrl = supabaseUrl.replace('.supabase.co', '.lovable.app').replace('https://vtmrimrrppuclciolzuw', 'https://vtmrimrrppuclciolzuw');
-    
-    // For now, use a generic app URL pattern
-    const recoveryUrl = `https://preview--vtmrimrrppuclciolzuw.lovable.app/recovery/${recovery_token}`;
+    // Recovery links point at this app's published host.
+    const recoveryUrl = `https://hub-conteudo.lovable.app/recovery/${recovery_token}`;
     
     const platformLabels: Record<string, string> = {
       instagram: 'Instagram',

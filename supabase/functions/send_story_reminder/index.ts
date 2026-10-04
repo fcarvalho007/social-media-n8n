@@ -69,8 +69,8 @@ serve(async (req) => {
           linkUrl: payload.link_url || 'https://digitalfc.pt',
           stickerText: payload.sticker_text || 'digitalfc.pt',
           overlayText: 'Teste de lembrete',
-          confirmUrl: payload.confirm_url || 'https://social-media-n8n.lovable.app/settings/notifications',
-          launcherUrl: payload.confirm_url || 'https://social-media-n8n.lovable.app/settings/notifications',
+          confirmUrl: payload.confirm_url || 'https://hub-conteudo.lovable.app/settings/notifications',
+          launcherUrl: payload.confirm_url || 'https://hub-conteudo.lovable.app/settings/notifications',
           fallbackUrl: 'https://www.instagram.com/',
         }),
       });
@@ -102,8 +102,8 @@ serve(async (req) => {
 
         const tokenValue = randomToken();
         const tokenHash = await sha256(tokenValue);
-        const confirmUrl = `https://social-media-n8n.lovable.app/stories/confirm?id=${story.id}&token=${tokenValue}`;
-        const launcherUrl = `https://social-media-n8n.lovable.app/stories/launch/${story.id}?token=${tokenValue}`;
+        const confirmUrl = `https://hub-conteudo.lovable.app/stories/confirm?id=${story.id}&token=${tokenValue}`;
+        const launcherUrl = `https://hub-conteudo.lovable.app/stories/launch/${story.id}?token=${tokenValue}`;
         const stickerText = story.sticker_text || new URL(story.link_url).hostname.replace(/^www\./, '');
 
         await supabase.from('story_link_publications').update({

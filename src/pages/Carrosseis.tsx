@@ -10,6 +10,8 @@ import { PaginaCanvas } from "@/features/editor-grafico/PaginaCanvas";
 import { carregarMedidor } from "@/features/editor-grafico/fontes";
 import { lerCapas, listarTrabalhos, type Capa, type EstadoTrabalho, type TrabalhoResumo } from "@/services/motor";
 import { cn } from "@/lib/utils";
+import { etiquetaTeste, eProva } from "@/features/motor/biblioteca";
+export { etiquetaTeste, eProva };
 import type { Medidor } from "../../supabase/functions/_shared/documento-grafico/nucleo";
 import { paraPacote } from "../../supabase/functions/_shared/motor/proposta";
 
@@ -18,12 +20,6 @@ export const NOME_ESTADO: Record<EstadoTrabalho, string> = {
 };
 export const dataPt = (s: string) => new Date(s).toLocaleString("pt-PT", { timeZone: "Europe/Lisbon", day: "2-digit", month: "2-digit", year: "numeric", hour: "2-digit", minute: "2-digit" });
 
-/** Test/demo work is labelled as such, never presented as production. */
-export function etiquetaTeste(t: TrabalhoResumo, capa?: Capa): string | null {
-  if (t.modelo === "simulado-demo" || capa?.conteudo.demonstracao) return "Demonstração";
-  if (/FIXTURE|\bteste\b|^R\d+\s*[—-]/i.test(t.titulo ?? capa?.conteudo.titulo ?? "")) return "Teste";
-  return null;
-}
 
 function Miniatura({ render }: { render: (w: number) => React.ReactNode }) {
   const [ref, w] = useLargura<HTMLDivElement>();
@@ -36,6 +32,7 @@ export default function Carrosseis() {
   const [capas, setCapas] = useState<Record<string, Capa>>({});
   const [medidor, setMedidor] = useState<Medidor | null>(null);
   const [erro, setErro] = useState<string | null>(null);
+  const [verProvas, setVerProvas] = useState(false);
 
   useEffect(() => { carregarMedidor().then(setMedidor).catch(() => undefined); }, []);
   useEffect(() => {
@@ -49,6 +46,8 @@ export default function Carrosseis() {
     return () => { vivo = false; };
   }, [projetoId]);
 
+  const nProvas = itens?.filter(eProva).length ?? 0;
+  const visiveis = itens?.filter((t) => verProvas || !eProva(t)) ?? null;
   const nomeProjeto = (id: string) => projetos.find((p) => p.id === id)?.name ?? "Projeto";
 
   return (
@@ -65,21 +64,28 @@ export default function Carrosseis() {
         {erro && <p role="alert" className="text-sm text-destructive">{erro}</p>}
         {!itens && !erro && <p className="flex items-center text-sm text-muted-foreground" role="status"><Loader2 className="mr-2 h-4 w-4 motion-safe:animate-spin" />A carregar…</p>}
 
-        {itens && itens.length === 0 && (
+        {itens && nProvas > 0 && (
+          <label className="flex w-fit cursor-pointer items-center gap-2 text-sm text-muted-foreground">
+            <input type="checkbox" className="h-4 w-4 accent-[hsl(var(--primary))]" checked={verProvas} onChange={(e) => setVerProvas(e.target.checked)} />
+            Mostrar provas e demonstrações ({nProvas})
+          </label>
+        )}
+
+        {visiveis && visiveis.length === 0 && (
           <div className="mc-entrar max-w-lg space-y-4 py-16">
             <Layers className="h-6 w-6 text-muted-foreground" aria-hidden />
-            <p className="text-lg font-medium">Ainda não há carrosséis{projetoId ? " neste projeto" : ""}.</p>
+            <p className="text-lg font-medium">{nProvas > 0 && !verProvas ? "Ainda não há carrosséis reais" : "Ainda não há carrosséis"}{projetoId ? " neste projeto" : ""}.</p>
             <p className="text-sm text-muted-foreground">Cola um texto, escolhe o objetivo e o estúdio propõe a narrativa e duas composições.</p>
             <div className="flex flex-wrap gap-2">
-              <Button asChild className="h-11"><Link to="/estudio/carrosseis/novo">Começar com um texto</Link></Button>
+              <Button asChild className="h-11"><Link to="/estudio/carrosseis/novo">Criar primeiro carrossel</Link></Button>
               <Button asChild variant="ghost" className="h-11 text-muted-foreground"><Link to="/estudio/carrosseis/novo?demo=1"><FlaskConical className="mr-1.5 h-4 w-4" />Ver exemplo de demonstração</Link></Button>
             </div>
           </div>
         )}
 
-        {itens && itens.length > 0 && (
+        {visiveis && visiveis.length > 0 && (
           <ul className="grid grid-cols-2 gap-x-4 gap-y-8 sm:grid-cols-3 lg:grid-cols-5" aria-label="Biblioteca de carrosséis">
-            {itens.map((t) => {
+            {visiveis.map((t) => {
               const capa = capas[t.id];
               const titulo = t.titulo || capa?.conteudo.titulo || capa?.conteudo.slides[0]?.titulo || "Carrossel sem título";
               const tag = etiquetaTeste(t, capa);

@@ -49,7 +49,7 @@ serve(async (req) => {
     if (!['ios', 'android', 'web'].includes(platform)) return json({ error: 'Plataforma inválida' }, 400);
 
     const fallbackWebUrl = 'https://www.instagram.com/';
-    const appOrigin = req.headers.get('origin') || 'https://social-media-n8n.lovable.app';
+    const appOrigin = req.headers.get('origin') || 'https://hub-conteudo.lovable.app';
     const shareSheetUrl = `${appOrigin}/manual-create?storyMedia=${encodeURIComponent(mediaUrl)}`;
 
     const instructions = [
