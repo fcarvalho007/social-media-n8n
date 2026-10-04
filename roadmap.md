@@ -45,3 +45,4 @@
 - [x] R4: IA real no motor com limites por projeto (≤10/dia, ≤2/carrossel)
 - [x] R6: exportação no servidor (PNG/PDF/ZIP por versão) e rascunho social idempotente
 - [ ] Fontes link/PDF
+- [x] Redesign cinematográfico e progressivo dos carrosséis
