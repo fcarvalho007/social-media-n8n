@@ -10,6 +10,8 @@ import { PaginaCanvas } from "@/features/editor-grafico/PaginaCanvas";
 import { carregarMedidor } from "@/features/editor-grafico/fontes";
 import { lerCapas, listarTrabalhos, type Capa, type EstadoTrabalho, type TrabalhoResumo } from "@/services/motor";
 import { cn } from "@/lib/utils";
+import { etiquetaTeste, eProva } from "@/features/motor/biblioteca";
+export { etiquetaTeste, eProva };
 import type { Medidor } from "../../supabase/functions/_shared/documento-grafico/nucleo";
 import { paraPacote } from "../../supabase/functions/_shared/motor/proposta";
 
@@ -18,13 +20,6 @@ export const NOME_ESTADO: Record<EstadoTrabalho, string> = {
 };
 export const dataPt = (s: string) => new Date(s).toLocaleString("pt-PT", { timeZone: "Europe/Lisbon", day: "2-digit", month: "2-digit", year: "numeric", hour: "2-digit", minute: "2-digit" });
 
-/** Test/demo work is labelled only from persisted markers, never from the title a user may choose. */
-export function etiquetaTeste(t: TrabalhoResumo, capa?: Capa): string | null {
-  if (t.modelo === "simulado-demo" || capa?.conteudo.demonstracao) return "Demonstração";
-  if (t.prova) return "Prova";
-  return null;
-}
-export const eProva = (t: TrabalhoResumo) => t.prova === true || t.modelo === "simulado-demo";
 
 function Miniatura({ render }: { render: (w: number) => React.ReactNode }) {
   const [ref, w] = useLargura<HTMLDivElement>();

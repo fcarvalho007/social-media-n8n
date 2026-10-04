@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { eProva, etiquetaTeste } from "@/pages/Carrosseis";
+import { eProva, etiquetaTeste } from "@/features/motor/biblioteca";
 import type { TrabalhoResumo } from "@/services/motor";
 
 const t = (x: Partial<TrabalhoResumo>): TrabalhoResumo => ({ id: "1", project_id: "p", estado: "concluido", etapa: "", erro: null, modelo: "estruturacao-local", criado_em: "", actualizado_em: "", titulo: null, ...x });
