@@ -42,11 +42,15 @@ export default function Artigos() {
   const [oferta, setOferta] = useState<Recuperacao<Edit> | null>(null);
 
   // Keep a local, per-user recovery copy while there are unsaved changes (internal navigation safety).
+  // Written synchronously on every change (no debounce) and flushed on unmount with the latest text.
+  const sujoRef = useRef(sujo); sujoRef.current = sujo;
+  const chaveRef = useRef(chave); chaveRef.current = chave;
   useEffect(() => {
-    if (!sujo || !chave) return;
-    const t = setTimeout(() => guardarRecuperacao(chave, edit), 300);
-    return () => clearTimeout(t);
+    if (sujo && chave) guardarRecuperacao(chave, edit);
   }, [sujo, chave, edit]);
+  useEffect(() => () => {
+    if (sujoRef.current && chaveRef.current) guardarRecuperacao(chaveRef.current, editRef.current);
+  }, []);
   // Offer to restore text left unsaved for this user + article + project.
   useEffect(() => {
     if (sujo || !chave || !user) { if (!sujo) setOferta(null); return; }
@@ -103,6 +107,8 @@ export default function Artigos() {
       const r = aplicarGravacao(enviado, editRef.current, salvo, (a, sv) => ({ ...a, id: sv.id }), igual);
       setEdit(r.edit); setBase(r.base);
       if (chaveAntes) limparRecuperacao(chaveAntes);
+      // Newer text typed during the save keeps its recovery copy under the saved article's key.
+      if (r.sujo && user) guardarRecuperacao(chaveRecuperacao(user.id, "artigo", r.edit.id, ctx.projetoId), r.edit);
       setParams({ id: salvo.id! }, { replace: true });
       toast.success("Rascunho guardado");
       carregar();
