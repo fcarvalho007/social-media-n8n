@@ -164,7 +164,7 @@ export function AppSidebar() {
                     <SidebarMenuButton
                       asChild={!item.disabled}
                       disabled={item.disabled}
-                      tooltip={item.title}
+                      tooltip={{ children: item.title, hidden: isMobile }}
                       className="h-auto min-h-11 overflow-visible p-0 hover:bg-transparent focus-visible:ring-0"
                     >
                       {item.disabled ? (
