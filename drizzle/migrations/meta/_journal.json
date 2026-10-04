@@ -71,6 +71,13 @@
       "when": 1791113617928,
       "tag": "0009_nl_egoi_tokens_progresso",
       "breakpoints": true
+    },
+    {
+      "idx": 10,
+      "version": "7",
+      "when": 1791125149691,
+      "tag": "0010_auth_entradas",
+      "breakpoints": true
     }
   ]
 }

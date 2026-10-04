@@ -3,21 +3,14 @@ import { User, Session } from '@supabase/supabase-js';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 
-// UX pre-check only; real authorisation is the existing account + server-side roles.
-const ALLOWED_EMAILS = [
-  'comunicacao@fredericocarvalho.pt',
-  'fredericodigital@gmail.com'
-];
-
 interface AuthResult { error: { message: string } | null }
 
 interface AuthContextType {
   user: User | null;
   session: Session | null;
   loading: boolean;
-  /** Sends a one-time code/link to an existing authorised account. Never creates users. */
-  requestEmailCode: (email: string) => Promise<AuthResult>;
-  verifyEmailCode: (email: string, code: string) => Promise<AuthResult>;
+  /** Email-only sign-in; the allowlist and account check live in the entrar-email function. */
+  signInWithEmail: (email: string) => Promise<AuthResult>;
   signOut: () => Promise<void>;
 }
 
@@ -46,26 +39,22 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
     return () => subscription.unsubscribe();
   }, []);
 
-  const requestEmailCode = async (email: string): Promise<AuthResult> => {
-    const normalizedEmail = email.toLowerCase().trim();
-    if (!ALLOWED_EMAILS.includes(normalizedEmail)) {
-      return { error: { message: 'Email não autorizado' } };
+  const signInWithEmail = async (email: string): Promise<AuthResult> => {
+    const { data, error } = await supabase.functions.invoke('entrar-email', {
+      body: { email: email.toLowerCase().trim() },
+    });
+    if (error) {
+      let message = 'Não foi possível entrar. Tenta de novo.';
+      const ctx = (error as { context?: unknown }).context;
+      if (ctx instanceof Response) {
+        try { const b = await ctx.json(); if (typeof b?.error === 'string') message = b.error; } catch { /* keep default */ }
+      }
+      return { error: { message } };
     }
-    const { error } = await supabase.auth.signInWithOtp({
-      email: normalizedEmail,
-      options: { shouldCreateUser: false, emailRedirectTo: window.location.origin },
-    });
-    if (error) return { error: { message: error.message } };
-    return { error: null };
-  };
-
-  const verifyEmailCode = async (email: string, code: string): Promise<AuthResult> => {
-    const { error } = await supabase.auth.verifyOtp({
-      email: email.toLowerCase().trim(),
-      token: code.trim(),
-      type: 'email',
-    });
-    if (error) return { error: { message: 'Código inválido ou expirado' } };
+    const tokens = data as { access_token?: string; refresh_token?: string } | null;
+    if (!tokens?.access_token || !tokens.refresh_token) return { error: { message: 'Não foi possível entrar. Tenta de novo.' } };
+    const { error: sErr } = await supabase.auth.setSession({ access_token: tokens.access_token, refresh_token: tokens.refresh_token });
+    if (sErr) return { error: { message: 'Não foi possível entrar. Tenta de novo.' } };
     toast.success('Bem-vindo!');
     return { error: null };
   };
@@ -80,7 +69,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
   };
 
   return (
-    <AuthContext.Provider value={{ user, session, loading, requestEmailCode, verifyEmailCode, signOut }}>
+    <AuthContext.Provider value={{ user, session, loading, signInWithEmail, signOut }}>
       {children}
     </AuthContext.Provider>
   );

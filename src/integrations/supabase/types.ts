@@ -325,6 +325,33 @@ export type Database = {
           },
         ]
       }
+      auth_entradas: {
+        Row: {
+          criado_em: string
+          email: string
+          id: string
+          ip: string | null
+          navegador: string | null
+          sucesso: boolean
+        }
+        Insert: {
+          criado_em?: string
+          email: string
+          id?: string
+          ip?: string | null
+          navegador?: string | null
+          sucesso: boolean
+        }
+        Update: {
+          criado_em?: string
+          email?: string
+          id?: string
+          ip?: string | null
+          navegador?: string | null
+          sucesso?: boolean
+        }
+        Relationships: []
+      }
       estudio_identidades: {
         Row: {
           chave: string
