@@ -1,4 +1,5 @@
 import { getMarca } from '@/services/estudio';
+import { planearGravacaoRascunho } from '@/lib/drafts/planearGravacao';
 import { useState, useCallback } from 'react';
 import { format } from 'date-fns';
 import { useNavigate } from 'react-router-dom';
