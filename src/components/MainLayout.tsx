@@ -11,13 +11,13 @@ export function MainLayout() {
     <SidebarProvider defaultOpen={!editorIsolado}>
       <div className="flex min-h-screen w-full">
         {!editorIsolado && <AppSidebar />}
-        <SidebarInset className="flex-1 flex flex-col">
+        <SidebarInset className="min-w-0 flex-1 flex flex-col">
           {!editorIsolado && <DashboardHeader />}
           {/* NB: NÃO usar `overflow-x-hidden` aqui — quebra `position: sticky`
               em descendentes (ex.: PreviewPanel em /manual-create). Páginas
               que precisem de contenção horizontal devem fazê-lo no seu wrapper
               interno usando `min-w-0` em colunas de grid/flex. */}
-          <main className={editorIsolado ? "min-h-0 flex-1 p-0" : "flex-1 p-0 xs:p-1 sm:p-4 md:p-6 max-w-full"}>
+          <main className={editorIsolado ? "min-h-0 min-w-0 flex-1 p-0" : "min-w-0 flex-1 p-0 xs:p-1 sm:p-4 md:p-6 xl:p-10"}>
             <Outlet />
           </main>
         </SidebarInset>

@@ -57,7 +57,7 @@ export default function Estudio() {
   };
 
   return (
-    <div className="mx-auto max-w-4xl space-y-6 p-4">
+    <div className="w-full min-w-0 space-y-6 px-4 py-4 xs:px-3 sm:px-0 sm:py-0">
       <h1 className="text-2xl font-semibold">Estúdio de conteúdos</h1>
 
       <section className="space-y-2" aria-labelledby="para-quem">
@@ -122,7 +122,7 @@ export default function Estudio() {
           </Alert>
         )}
         {resumo.estado === "pronto" && resumo.dados && ctx.estado === "pronto" && (
-          <ul className="grid gap-2 text-sm sm:grid-cols-3">
+          <ul className="grid grid-cols-[repeat(auto-fit,minmax(min(100%,14rem),1fr))] gap-2 text-sm">
             <li className="rounded-md border p-3">
               <div className="text-muted-foreground">Newsletter</div>
               {resumo.dados.ultimaEdicao
@@ -147,7 +147,7 @@ export default function Estudio() {
 
       <section className="space-y-2" aria-labelledby="fazer">
         <h2 id="fazer" className="text-sm font-medium text-muted-foreground">O que queres fazer?</h2>
-        <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
+        <div className="grid grid-cols-[repeat(auto-fit,minmax(min(100%,14rem),1fr))] gap-3">
           {PRODUCAO.map((a) => (
             <Link key={a.url} to={a.url} className="rounded-lg focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring">
               <Card className="h-full p-3 transition-colors hover:border-primary">
