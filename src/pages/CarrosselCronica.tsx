@@ -204,6 +204,15 @@ export default function CarrosselCronica() {
         </Alert>
       )}
       {erro && <Alert variant="destructive"><AlertTitle>Não foi possível concluir</AlertTitle><AlertDescription>{erro}</AlertDescription></Alert>}
+      {oferta && (
+        <Alert>
+          <AlertTitle>Há alterações não guardadas de {new Date(oferta.guardado_em).toLocaleString("pt-PT", { timeZone: "Europe/Lisbon", dateStyle: "short", timeStyle: "short" })}</AlertTitle>
+          <AlertDescription className="flex flex-wrap gap-2">
+            <Button size="sm" onClick={() => { setCarrossel(oferta.dados); setAlterado(true); setOferta(null); }}>Restaurar</Button>
+            <Button size="sm" variant="outline" onClick={() => { if (chave) limparRecuperacao(chave); setOferta(null); }}>Descartar</Button>
+          </AlertDescription>
+        </Alert>
+      )}
       {erroCarregar && <Alert variant="destructive"><AlertTitle>Falha ao atualizar dados do servidor</AlertTitle><AlertDescription>{erroCarregar}</AlertDescription></Alert>}
 
       {!carrossel && (
@@ -275,7 +284,7 @@ export default function CarrosselCronica() {
           </AlertDialogHeader>
           <AlertDialogFooter>
             <AlertDialogCancel>Ficar</AlertDialogCancel>
-            <AlertDialogAction onClick={() => { const d = sairPendente; setSairPendente(null); setAlterado(false); if (d) nav(d); }}>Sair</AlertDialogAction>
+            <AlertDialogAction onClick={() => { const d = sairPendente; setSairPendente(null); setAlterado(false); if (chave) limparRecuperacao(chave); if (d) nav(d); }}>Sair</AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
