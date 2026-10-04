@@ -40,7 +40,8 @@ function cronAutorizado(req: Request): boolean {
   return igual(bearer, sr);
 }
 
-async function validacoes(sb: ReturnType<typeof createClient>): Promise<Record<string, { validado: boolean; detalhe: string }>> {
+// deno-lint-ignore no-explicit-any
+async function validacoes(sb: { from: (t: string) => any }): Promise<Record<string, { validado: boolean; detalhe: string }>> {
   const [l, t] = await Promise.all([
     sb.from("nl_egoi_listas").select("egoi_lista_id").eq("activa", true),
     sb.from("nl_egoi_tokens_sync").select("egoi_lista_id, estado, campo_validado, verificado_leitura"),
