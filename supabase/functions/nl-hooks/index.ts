@@ -83,6 +83,9 @@ async function estado(req: Request): Promise<Response> {
       WORDPRESS_SITE_URL: tem("WORDPRESS_SITE_URL"),
       WORDPRESS_APP_USER: tem("WORDPRESS_APP_USER"),
       WORDPRESS_APP_PASSWORD: tem("WORDPRESS_APP_PASSWORD"),
+      FREDERICO_WP_URL: tem("FREDERICO_WP_URL"),
+      FREDERICO_WP_USER: tem("FREDERICO_WP_USER"),
+      FREDERICO_WP_APP_PASSWORD: tem("FREDERICO_WP_APP_PASSWORD"),
       PEXELS_API_KEY: tem("PEXELS_API_KEY"),
     },
     // Validation evidence only from real recorded state; "configured" never implies "validated".
