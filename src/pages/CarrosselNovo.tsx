@@ -111,9 +111,10 @@ export default function CarrosselNovo() {
   const mostrarErro = tocado && !!texto.trim() && !av.ok;
   const semTexto = tocado && !texto.trim();
 
-  const precisaParcial = (tipoFonte === "pdf" && !!pdfMeta && !pdfMeta.completo) || (tipoFonte === "link" && !!linkMeta?.truncado);
+  const pdfSemTexto = !!pdfMeta && !pdfMeta.paginas.some((p) => p.estado === "texto");
+  const precisaParcial = (tipoFonte === "pdf" && !!pdfMeta && !pdfMeta.completo && !pdfSemTexto) || (tipoFonte === "link" && !!linkMeta?.truncado);
   const fonteDefinida = tipoFonte === "texto" || (tipoFonte === "link" ? !!linkMeta : !!pdfMeta);
-  const fonteValida = av.ok && fonteDefinida && (!precisaParcial || parcial);
+  const fonteValida = av.ok && fonteDefinida && !(tipoFonte === "pdf" && pdfSemTexto) && (!precisaParcial || parcial);
 
   function limparFonte() {
     pedido.current++;
@@ -299,11 +300,14 @@ export default function CarrosselNovo() {
                 )}
               </div>
             )}
+            {tipoFonte === "pdf" && pdfSemTexto && !demo && (
+              <p role="alert" className="rounded-[var(--mc-r-md)] border border-destructive/50 p-3 text-sm text-destructive">Este PDF não tem camada de texto (parece digitalizado). Nesta versão não há OCR: usa a opção «Texto» e cola o conteúdo.</p>
+            )}
             {precisaParcial && !demo && (
               <label className="flex items-start gap-3 rounded-[var(--mc-r-md)] border border-destructive/50 p-3 text-sm">
                 <Checkbox checked={parcial} onCheckedChange={(v) => setParcial(v === true)} className="mt-0.5" aria-describedby="parcial-desc" />
                 <span id="parcial-desc">{tipoFonte === "pdf"
-                  ? <>Fonte parcial: as páginas {intervalos(pdfMeta?.paginas_em_falta ?? [])} não entram no carrossel. Confirmo que quero usar só o texto lido.</>
+                  ? <>Fonte parcial: {(pdfMeta?.paginas_em_falta.length ?? 0) === 1 ? "a página" : "as páginas"} {intervalos(pdfMeta?.paginas_em_falta ?? [])} não {(pdfMeta?.paginas_em_falta.length ?? 0) === 1 ? "entra" : "entram"} no carrossel. Confirmo que quero usar só o texto lido.</>
                   : <>A página é maior do que o texto lido; o artigo pode estar incompleto. Confirmo que quero usar só esta parte.</>}</span>
               </label>
             )}
@@ -334,7 +338,7 @@ export default function CarrosselNovo() {
                 )}
               </div>
             </div>}
-            {tipoFonte === "pdf" && pdfMeta && !demo && (
+            {tipoFonte === "pdf" && pdfMeta && !pdfSemTexto && !demo && (
               <Grupo titulo="Editar texto extraído" resumo={texto !== original ? "Editado por ti" : "Tal como foi lido"}>
                 <Label htmlFor="texto-pdf" className="sr-only">Texto extraído do PDF</Label>
                 <Textarea id="texto-pdf" rows={8} className="rounded-[var(--mc-r-lg)] bg-card p-4 text-sm leading-relaxed" value={texto} onChange={(e) => { setTexto(e.target.value); setSlides(null); }} />
