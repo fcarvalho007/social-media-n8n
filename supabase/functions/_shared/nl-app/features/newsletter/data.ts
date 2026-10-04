@@ -255,7 +255,7 @@ export async function detectarEnvioRealPendente(edicaoId: string): Promise<strin
     .select("actualizado_em, lista:nl_egoi_listas!inner(tipo)")
     .eq("edicao_id", edicaoId)
     .eq("estado", "enviada")
-    .eq("egoi_listas.tipo", "real")
+    .eq("nl_egoi_listas.tipo", "real")
     .order("actualizado_em", { ascending: false })
     .limit(1)
     .maybeSingle();
@@ -1308,7 +1308,7 @@ export async function listarCronicasEnviadas(): Promise<CronicaArquivo[]> {
     .from("nl_cronicas")
     .select("id, titulo, conteudo, conteudo_html, leituras_recomendadas, edicao:nl_edicoes!inner(id, numero, enviada_em, assunto, estado)")
     .eq("edicao.estado", "enviada")
-    .order("enviada_em", { foreignTable: "edicoes", ascending: false, nullsFirst: false });
+    .order("enviada_em", { foreignTable: "nl_edicoes", ascending: false, nullsFirst: false });
   if (error) throw error;
   type Raw = { id: string; titulo: string | null; conteudo: string | null; conteudo_html: string | null; leituras_recomendadas: string | null; edicao: { id: string; numero: number; enviada_em: string | null; assunto: string | null } | { id: string; numero: number; enviada_em: string | null; assunto: string | null }[] | null };
   return ((data ?? []) as Raw[]).map((r) => ({
