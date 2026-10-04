@@ -1,0 +1,1 @@
+- Carousel studio UI uses tokens scoped to .mc-estudio and shared primitives in Estudio.tsx; keeps the rest of the Hub theme untouched.
