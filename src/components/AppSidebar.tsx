@@ -196,7 +196,7 @@ export function AppSidebar() {
                                       "h-5 w-5 transition-all duration-200",
                                       isActive && item.isMain && "text-primary-foreground",
                                       isActive && !item.isMain && "text-primary",
-                                      !isActive && "text-sidebar-foreground/85 group-hover:text-sidebar-primary group-hover:scale-105"
+                                      !isActive && "text-sidebar-foreground/85 group-hover:text-sidebar-accent group-hover:scale-105"
                                     )} 
                                     strokeWidth={isActive ? 2.5 : 2}
                                   />
@@ -243,8 +243,8 @@ export function AppSidebar() {
                                 <span 
                                   className={cn(
                                     "block w-full px-0.5 text-[11px] text-center leading-tight break-words hyphens-auto transition-colors duration-200",
-                                    isActive && "text-sidebar-primary font-bold",
-                                    !isActive && "text-sidebar-foreground font-medium group-hover:text-sidebar-primary"
+                                    isActive && "text-sidebar-accent font-bold",
+                                    !isActive && "text-sidebar-foreground font-medium group-hover:text-sidebar-accent"
                                   )}
                                 >
                                   {item.label}
