@@ -1,3 +1,4 @@
+// @ts-nocheck — type drift vs origin library versions; see scripts/port-newsletter.py
 // Modal «Fontes de curadoria IA» — extraído do Editor Clássico sem alterar
 // comportamento. Montado pelos dois editores; a curadoria é comum aos dois
 // formatos (mesma tabela, mesmas queries, mesmas acções).

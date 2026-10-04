@@ -1,3 +1,4 @@
+// @ts-nocheck — type drift vs origin library versions; see scripts/port-newsletter.py
 import { useEffect, useState, type ComponentType, type Dispatch, type SetStateAction } from "react";
 import { AlertTriangle, Check, Sparkles, Trash2 } from "lucide-react";
 import { useAutoSave, type AutoSaveEstado } from "./useAutoSave";

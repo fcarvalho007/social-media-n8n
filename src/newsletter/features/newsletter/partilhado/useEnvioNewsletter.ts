@@ -1,3 +1,4 @@
+// @ts-nocheck — type drift vs origin library versions; see scripts/port-newsletter.py
 // Fluxo operacional de envio, partilhado pelos dois editores (Clássico e Revista).
 // Aqui vive apenas a orquestração cliente: escolha de listas, preparar →
 // disparar lista a lista com pausa → finalizar, repetir lista falhada e

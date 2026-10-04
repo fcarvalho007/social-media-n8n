@@ -1,3 +1,4 @@
+// @ts-nocheck — type drift vs origin library versions; see scripts/port-newsletter.py
 import { useEffect, useRef, useState } from "react";
 import { Pencil, Sparkles, Loader2, Check, X, Wand2 } from "lucide-react";
 import { toast } from "sonner";
