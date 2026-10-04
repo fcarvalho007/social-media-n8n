@@ -5,7 +5,7 @@ import { DashboardHeader } from '@/components/DashboardHeader';
 
 export function MainLayout() {
   const { pathname } = useLocation();
-  const editorIsolado = pathname === '/estudio/editor-prova';
+  const editorIsolado = pathname === '/estudio/editor-prova' || (/^\/estudio\/carrosseis\/[^/]+$/.test(pathname) && pathname !== '/estudio/carrosseis/novo');
 
   return (
     <SidebarProvider defaultOpen={!editorIsolado}>

@@ -47,6 +47,9 @@ import { lazy, Suspense } from "react";
 import { FronteiraProjetoNewsletter } from "./features/newsletter/FronteiraProjeto";
 const NewsletterApp = lazy(() => import("./newsletter/NewsletterApp"));
 const EditorProva = lazy(() => import("./pages/EditorProva"));
+const Carrosseis = lazy(() => import("./pages/Carrosseis"));
+const CarrosselNovo = lazy(() => import("./pages/CarrosselNovo"));
+const CarrosselTrabalho = lazy(() => import("./pages/CarrosselTrabalho"));
 import Artigos from "./pages/Artigos";
 import SegurancaConta from "./pages/SegurancaConta";
 import { useParams } from "react-router-dom";
@@ -119,6 +122,9 @@ const App = () => (
                   <Route path="/estudio" element={<Navigate to="/" replace />} />
                   <Route path="/estudio/redes-sociais" element={<ConteudosSociais />} />
                   <Route path="/estudio/redes-sociais/:id" element={<CarrosselCronica />} />
+                  <Route path="/estudio/carrosseis" element={<Suspense fallback={<p className="p-4 text-sm text-muted-foreground">A carregar…</p>}><Carrosseis /></Suspense>} />
+                  <Route path="/estudio/carrosseis/novo" element={<Suspense fallback={<p className="p-4 text-sm text-muted-foreground">A carregar…</p>}><CarrosselNovo /></Suspense>} />
+                  <Route path="/estudio/carrosseis/:id" element={<Suspense fallback={<p className="p-4 text-sm text-muted-foreground">A carregar…</p>}><CarrosselTrabalho /></Suspense>} />
                   <Route path="/estudio/editor-prova" element={<Suspense fallback={<p className="p-4 text-sm text-muted-foreground">A carregar o editor…</p>}><EditorProva /></Suspense>} />
                   <Route path="/newsletter/*" element={<FronteiraProjetoNewsletter><Suspense fallback={<p className="p-4 text-sm text-muted-foreground">A carregar a newsletter…</p>}><NewsletterApp /></Suspense></FronteiraProjetoNewsletter>} />
                   <Route path="/artigos" element={<Artigos />} />

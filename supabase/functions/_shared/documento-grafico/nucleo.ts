@@ -101,7 +101,8 @@ export interface PacoteProva {
   v: 1;
   id: string;
   nome: string;
-  sintetico: true;
+  /** true for test fixtures; false for persisted real work (never mixed). */
+  sintetico: boolean;
   conteudo: ConteudoEditorial;
   assets: Record<string, Asset>;
   variantes: Record<Variante, DocumentoGrafico>;
@@ -215,10 +216,11 @@ function validarDocumento(v: unknown, variante: Variante, assets: Record<string,
 }
 
 /** Strict validation of an imported/received package. Throws Error with a pt-PT message. */
-export function validarPacote(v: unknown): PacoteProva {
+export function validarPacote(v: unknown, opcoes: { real?: boolean } = {}): PacoteProva {
   const p = obj(v, "pacote");
   if (p.v !== 1) falha("pacote: versão não suportada.");
-  if (p.sintetico !== true) falha("pacote: a prova só aceita documentos sintéticos.");
+  if (!opcoes.real && p.sintetico !== true) falha("pacote: a prova só aceita documentos sintéticos.");
+  if (opcoes.real && p.sintetico === true) falha("pacote: um documento de teste não pode entrar num trabalho real.");
   const conteudo = obj(p.conteudo, "conteúdo");
   if (!Array.isArray(conteudo.slides) || conteudo.slides.length > LIMITE_PAGINAS) falha("conteúdo: slides inválidos.");
   const slides = conteudo.slides.map((s, i) => {
@@ -239,7 +241,7 @@ export function validarPacote(v: unknown): PacoteProva {
     v: 1,
     id: str(p.id, "pacote.id", 80),
     nome: str(p.nome, "pacote.nome", 120),
-    sintetico: true,
+    sintetico: !opcoes.real,
     conteudo: { slides },
     assets,
     variantes: { A: validarDocumento(vo.A, "A", assets), B: validarDocumento(vo.B, "B", assets) },
