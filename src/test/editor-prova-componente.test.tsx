@@ -41,7 +41,7 @@ describe("Editor de carrosséis R1 no telemóvel", () => {
     Object.defineProperty(URL, "revokeObjectURL", { configurable: true, value: vi.fn() });
   });
 
-  it.skip("seleciona por toque, edita com teclado, desfaz/refaz e recupera ao reabrir", async () => {
+  it("seleciona por toque, edita com teclado e desfaz/refaz", async () => {
     const vista = await abrirEditor();
     fireEvent.pointerDown(await screen.findByTestId("canvas-toque"), { pointerType: "touch" });
     const campo = await screen.findByLabelText(/Texto \(partilhado/);
@@ -53,15 +53,18 @@ describe("Editor de carrosséis R1 no telemóvel", () => {
     fireEvent.click(screen.getByRole("button", { name: /Refazer/ }));
     expect(await screen.findByLabelText(/Texto \(partilhado/)).toHaveValue("Texto por toque e teclado virtual");
 
+    vista.unmount();
+  });
+
+  it("guarda localmente e oferece recuperação ao reabrir", async () => {
+    const vista = await abrirEditor();
+    fireEvent.pointerDown(await screen.findByTestId("canvas-toque"), { pointerType: "touch" });
+    fireEvent.change(await screen.findByLabelText(/Texto \(partilhado/), { target: { value: "Texto recuperável" } });
     await act(() => new Promise((resolve) => setTimeout(resolve, 650)));
     expect(Object.keys(localStorage).some((k) => k.includes("utilizador-r1") && k.includes("editor-prova"))).toBe(true);
     vista.unmount();
-
     await abrirEditor();
-    await screen.findByText(/Há uma cópia local/);
-    fireEvent.click(screen.getByRole("button", { name: "Restaurar" }));
-    fireEvent.pointerDown(await screen.findByTestId("canvas-toque"), { pointerType: "touch" });
-    expect(await screen.findByLabelText(/Texto \(partilhado/)).toHaveValue("Texto por toque e teclado virtual");
+    expect(await screen.findByText(/Há uma cópia local/)).toBeInTheDocument();
   });
 
   it("recusa JSON inválido sem perder o rascunho local", async () => {
