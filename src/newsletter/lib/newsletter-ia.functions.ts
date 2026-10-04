@@ -19,5 +19,5 @@ export interface SugestaoAssunto {
   tecnica: TecnicaAssunto;
   caracteres: number;
 }
-export const sugerirAssunto = nlServerFn("newsletter-ia:sugerirAssunto");
+export const sugerirAssunto = nlServerFn<typeof import("@/newsletter/_tipos-servidor/nl-app/lib/newsletter-ia.functions").sugerirAssunto>("newsletter-ia:sugerirAssunto");
 

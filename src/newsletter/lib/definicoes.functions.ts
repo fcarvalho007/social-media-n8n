@@ -10,6 +10,6 @@ export type EstadoSecrets = {
   wp_user: boolean;
   wp_pass: boolean;
 };
-export const verificarSecretsAPI = nlServerFn("definicoes:verificarSecretsAPI");
-export const getWebhookCloudMailinUrl = nlServerFn("definicoes:getWebhookCloudMailinUrl");
+export const verificarSecretsAPI = nlServerFn<typeof import("@/newsletter/_tipos-servidor/nl-app/lib/definicoes.functions").verificarSecretsAPI>("definicoes:verificarSecretsAPI");
+export const getWebhookCloudMailinUrl = nlServerFn<typeof import("@/newsletter/_tipos-servidor/nl-app/lib/definicoes.functions").getWebhookCloudMailinUrl>("definicoes:getWebhookCloudMailinUrl");
 

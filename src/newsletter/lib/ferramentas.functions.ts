@@ -24,12 +24,12 @@ export type FerramentaSugerida = {
 };
 
 export type FiltroEstadoFerramenta = "pendente" | "aprovada" | "rejeitada" | "arquivada" | "todas";
-export const listarFerramentas = nlServerFn("ferramentas:listarFerramentas");
-export const actualizarEstadoFerramenta = nlServerFn("ferramentas:actualizarEstadoFerramenta");
-export const apagarFerramenta = nlServerFn("ferramentas:apagarFerramenta");
-export const listarFerramentasDoEmail = nlServerFn("ferramentas:listarFerramentasDoEmail");
-export const aprovarFerramentaParaRascunho = nlServerFn("ferramentas:aprovarFerramentaParaRascunho");
-export const listarEdicoesDestinoFerramenta = nlServerFn("ferramentas:listarEdicoesDestinoFerramenta");
-export const rejeitarFerramentaComBan = nlServerFn("ferramentas:rejeitarFerramentaComBan");
-export const contarFerramentasArquivadas = nlServerFn("ferramentas:contarFerramentasArquivadas");
+export const listarFerramentas = nlServerFn<typeof import("@/newsletter/_tipos-servidor/nl-app/lib/ferramentas.functions").listarFerramentas>("ferramentas:listarFerramentas");
+export const actualizarEstadoFerramenta = nlServerFn<typeof import("@/newsletter/_tipos-servidor/nl-app/lib/ferramentas.functions").actualizarEstadoFerramenta>("ferramentas:actualizarEstadoFerramenta");
+export const apagarFerramenta = nlServerFn<typeof import("@/newsletter/_tipos-servidor/nl-app/lib/ferramentas.functions").apagarFerramenta>("ferramentas:apagarFerramenta");
+export const listarFerramentasDoEmail = nlServerFn<typeof import("@/newsletter/_tipos-servidor/nl-app/lib/ferramentas.functions").listarFerramentasDoEmail>("ferramentas:listarFerramentasDoEmail");
+export const aprovarFerramentaParaRascunho = nlServerFn<typeof import("@/newsletter/_tipos-servidor/nl-app/lib/ferramentas.functions").aprovarFerramentaParaRascunho>("ferramentas:aprovarFerramentaParaRascunho");
+export const listarEdicoesDestinoFerramenta = nlServerFn<typeof import("@/newsletter/_tipos-servidor/nl-app/lib/ferramentas.functions").listarEdicoesDestinoFerramenta>("ferramentas:listarEdicoesDestinoFerramenta");
+export const rejeitarFerramentaComBan = nlServerFn<typeof import("@/newsletter/_tipos-servidor/nl-app/lib/ferramentas.functions").rejeitarFerramentaComBan>("ferramentas:rejeitarFerramentaComBan");
+export const contarFerramentasArquivadas = nlServerFn<typeof import("@/newsletter/_tipos-servidor/nl-app/lib/ferramentas.functions").contarFerramentasArquivadas>("ferramentas:contarFerramentasArquivadas");
 

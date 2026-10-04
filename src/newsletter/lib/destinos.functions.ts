@@ -4,16 +4,16 @@ type DestinosEdicao = any; // eslint-disable-line @typescript-eslint/no-explicit
 
 
 export type { DestinosEdicao };
-export const estadoDestinosFn = nlServerFn("destinos:estadoDestinosFn");
-export const guardarUrlCronicaFn = nlServerFn("destinos:guardarUrlCronicaFn");
-export const repetirDestinoFn = nlServerFn("destinos:repetirDestinoFn");
-export const previewArtigoCronicaFn = nlServerFn("destinos:previewArtigoCronicaFn");
-export const estadoIntegracaoCronicaFn = nlServerFn("destinos:estadoIntegracaoCronicaFn");
-export const diagnosticoCronicaFn = nlServerFn("destinos:diagnosticoCronicaFn");
-export const publicarCronicaFn = nlServerFn("destinos:publicarCronicaFn");
-export const publicarArtigoCronicaFn = nlServerFn("destinos:publicarArtigoCronicaFn");
-export const actualizarArtigoCronicaFn = nlServerFn("destinos:actualizarArtigoCronicaFn");
-export const reconciliarHashCronicaFn = nlServerFn("destinos:reconciliarHashCronicaFn");
-export const contarArtigosPorSlugFn = nlServerFn("destinos:contarArtigosPorSlugFn");
-export const prontidaoRevistaFn = nlServerFn("destinos:prontidaoRevistaFn");
+export const estadoDestinosFn = nlServerFn<typeof import("@/newsletter/_tipos-servidor/nl-app/lib/destinos.functions").estadoDestinosFn>("destinos:estadoDestinosFn");
+export const guardarUrlCronicaFn = nlServerFn<typeof import("@/newsletter/_tipos-servidor/nl-app/lib/destinos.functions").guardarUrlCronicaFn>("destinos:guardarUrlCronicaFn");
+export const repetirDestinoFn = nlServerFn<typeof import("@/newsletter/_tipos-servidor/nl-app/lib/destinos.functions").repetirDestinoFn>("destinos:repetirDestinoFn");
+export const previewArtigoCronicaFn = nlServerFn<typeof import("@/newsletter/_tipos-servidor/nl-app/lib/destinos.functions").previewArtigoCronicaFn>("destinos:previewArtigoCronicaFn");
+export const estadoIntegracaoCronicaFn = nlServerFn<typeof import("@/newsletter/_tipos-servidor/nl-app/lib/destinos.functions").estadoIntegracaoCronicaFn>("destinos:estadoIntegracaoCronicaFn");
+export const diagnosticoCronicaFn = nlServerFn<typeof import("@/newsletter/_tipos-servidor/nl-app/lib/destinos.functions").diagnosticoCronicaFn>("destinos:diagnosticoCronicaFn");
+export const publicarCronicaFn = nlServerFn<typeof import("@/newsletter/_tipos-servidor/nl-app/lib/destinos.functions").publicarCronicaFn>("destinos:publicarCronicaFn");
+export const publicarArtigoCronicaFn = nlServerFn<typeof import("@/newsletter/_tipos-servidor/nl-app/lib/destinos.functions").publicarArtigoCronicaFn>("destinos:publicarArtigoCronicaFn");
+export const actualizarArtigoCronicaFn = nlServerFn<typeof import("@/newsletter/_tipos-servidor/nl-app/lib/destinos.functions").actualizarArtigoCronicaFn>("destinos:actualizarArtigoCronicaFn");
+export const reconciliarHashCronicaFn = nlServerFn<typeof import("@/newsletter/_tipos-servidor/nl-app/lib/destinos.functions").reconciliarHashCronicaFn>("destinos:reconciliarHashCronicaFn");
+export const contarArtigosPorSlugFn = nlServerFn<typeof import("@/newsletter/_tipos-servidor/nl-app/lib/destinos.functions").contarArtigosPorSlugFn>("destinos:contarArtigosPorSlugFn");
+export const prontidaoRevistaFn = nlServerFn<typeof import("@/newsletter/_tipos-servidor/nl-app/lib/destinos.functions").prontidaoRevistaFn>("destinos:prontidaoRevistaFn");
 

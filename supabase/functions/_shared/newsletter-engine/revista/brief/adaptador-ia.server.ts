@@ -114,7 +114,7 @@ async function registarUso(args: {
   erro?: string;
 }): Promise<void> {
   try {
-    const { custoUsd } = await import("../../../../../supabase/functions/_shared/custos-ia.ts");
+    const { custoUsd } = await import("../../../nl-app/edge-shared/custos-ia.ts");
     await args.sb.from("nl_ia_uso").insert({
       modelo: args.modelo,
       tokens_entrada_cache_hit: args.usage.cacheHit,

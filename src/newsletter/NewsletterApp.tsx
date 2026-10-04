@@ -14,12 +14,15 @@ import { Route as Ferramentas } from "./routes/_authenticated/ferramentas";
 import { Route as PreVis } from "./routes/_authenticated/pre-visualizar.$numero";
 import { Route as PreVisBrief } from "./routes/_authenticated/pre-visualizar.brief.$slug";
 import NewsletterMigracao from "@/pages/NewsletterMigracao";
+import { ConfirmacaoExternaHost } from "./shim/confirmar";
 
 type C = { component?: React.ComponentType };
 const el = (r: C) => { const Comp = r.component!; return <Comp />; };
 
 export default function NewsletterApp() {
   return (
+    <>
+    <ConfirmacaoExternaHost />
     <Routes>
       <R element={el(Layout as C)}>
         <R index element={el(Index as C)} />
@@ -36,5 +39,6 @@ export default function NewsletterApp() {
         <R path="migracao" element={<NewsletterMigracao />} />
       </R>
     </Routes>
+    </>
   );
 }

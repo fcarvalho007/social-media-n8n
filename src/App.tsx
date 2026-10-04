@@ -70,8 +70,9 @@ const App = () => (
                 <Route path="/stories/confirm" element={<StoryConfirm />} />
                 <Route path="/stories/launch/:id" element={<StoryLauncher />} />
                 <Route element={<ProtectedRoute><MainLayout /></ProtectedRoute>}>
-                  <Route path="/" element={<Dashboard />} />
-                  <Route path="/dashboard" element={<Dashboard />} />
+                  <Route path="/" element={<Estudio />} />
+                  <Route path="/redes-sociais" element={<Dashboard />} />
+                  <Route path="/dashboard" element={<Navigate to="/redes-sociais" replace />} />
                   <Route path="/pending" element={<Pending />} />
                   <Route path="/review/:id" element={<Review />} />
                   <Route path="/review-story/:id" element={<ReviewStory />} />
@@ -93,7 +94,7 @@ const App = () => (
                   <Route path="/benchmark" element={<Benchmark />} />
                   <Route path="/ai-settings" element={<AISettings />} />
                   <Route path="/ai-demo" element={<AIDemo />} />
-                  <Route path="/estudio" element={<Estudio />} />
+                  <Route path="/estudio" element={<Navigate to="/" replace />} />
                   <Route path="/estudio/redes-sociais" element={<ConteudosSociais />} />
                   <Route path="/estudio/redes-sociais/:id" element={<CarrosselCronica />} />
                   <Route path="/newsletter/*" element={<Suspense fallback={<p className="p-4 text-sm text-muted-foreground">A carregar a newsletter…</p>}><NewsletterApp /></Suspense>} />

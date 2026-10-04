@@ -1,4 +1,3 @@
-// @ts-nocheck — type drift vs origin library versions; see scripts/port-newsletter.py
 import { useEffect, useState, type ComponentType, type Dispatch, type SetStateAction } from "react";
 import { AlertTriangle, Check, Sparkles, Trash2 } from "lucide-react";
 import { useAutoSave, type AutoSaveEstado } from "./useAutoSave";
@@ -26,7 +25,7 @@ const T = {
 const COR_PASSIVA = "#94A3B8";
 
 interface FoldableProps {
-  icon: ComponentType<{ size?: number; color?: string }>;
+  icon: ComponentType<{ size?: number | string; color?: string }>;
   titulo: string;
   contador?: number | string;
   secId: string;

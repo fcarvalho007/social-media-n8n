@@ -17,5 +17,5 @@ export interface PropostaApresentacaoResultado {
   imagem: { alt: string; termo: string; escolhida: FotoPexels | null; alternativas: FotoPexels[] };
   avisos: string[];
 }
-export const proporApresentacaoFn = nlServerFn("propor-apresentacao:proporApresentacaoFn");
+export const proporApresentacaoFn = nlServerFn<typeof import("@/newsletter/_tipos-servidor/nl-app/lib/propor-apresentacao.functions").proporApresentacaoFn>("propor-apresentacao:proporApresentacaoFn");
 

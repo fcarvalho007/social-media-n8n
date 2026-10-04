@@ -211,7 +211,7 @@ if (import.meta.env.DEV) {
 }
 export const catDe = (id: string): Categoria => categorias.find((c) => c.id === id) ?? categorias[0];
 
-export function EmptyState({ icon: Icon, texto }: { icon: ComponentType<{ size?: number; color?: string }>; texto: string }) {
+export function EmptyState({ icon: Icon, texto }: { icon: ComponentType<{ size?: number | string; color?: string }>; texto: string }) {
   return (
     <div className="flex flex-col items-center text-center py-8 px-4 gap-2">
       <span className="w-10 h-10 rounded-full flex items-center justify-center" style={{ background: T.card, color: T.faint, border: `1px solid ${T.line}` }}>
@@ -236,7 +236,7 @@ export function useEnterAnim(): string {
 export function Foldable({
   icon: Icon, titulo, contador, secId, defaultOpen = true, accent, acao, aviso, children, foldOpen, setFoldOpen,
 }: {
-  icon: ComponentType<{ size?: number; color?: string }>;
+  icon: ComponentType<{ size?: number | string; color?: string }>;
   titulo: string;
   contador?: number | string;
   secId: string;
@@ -301,7 +301,7 @@ export function Card({ children, glow, gold, accent }: { children: ReactNode; gl
   );
 }
 
-export function SectionTitle({ icon: Icon, children, extra }: { icon: ComponentType<{ size?: number; color?: string }>; accent?: string; children: ReactNode; extra?: ReactNode }) {
+export function SectionTitle({ icon: Icon, children, extra }: { icon: ComponentType<{ size?: number | string; color?: string }>; accent?: string; children: ReactNode; extra?: ReactNode }) {
   return (
     <div className="flex items-center justify-between mb-4 gap-2 flex-wrap">
       <h2 className="flex items-center gap-2 text-[13px] font-bold uppercase font-display" style={{ color: T.ink, letterSpacing: "0.1em" }}>

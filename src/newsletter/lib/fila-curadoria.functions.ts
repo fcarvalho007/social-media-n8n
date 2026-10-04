@@ -2,9 +2,9 @@
 import { nlServerFn } from "@/newsletter/shim/start";
 
 
-export const contarFilaCuradoria = nlServerFn("fila-curadoria:contarFilaCuradoria");
-export const processarFilaCuradoria = nlServerFn("fila-curadoria:processarFilaCuradoria");
-export const retomarFalhadosCuradoria = nlServerFn("fila-curadoria:retomarFalhadosCuradoria");
-export const definirModoManualCuradoria = nlServerFn("fila-curadoria:definirModoManualCuradoria");
-export const limparFilaAntigaCuradoria = nlServerFn("fila-curadoria:limparFilaAntigaCuradoria");
+export const contarFilaCuradoria = nlServerFn<typeof import("@/newsletter/_tipos-servidor/nl-app/lib/fila-curadoria.functions").contarFilaCuradoria>("fila-curadoria:contarFilaCuradoria");
+export const processarFilaCuradoria = nlServerFn<typeof import("@/newsletter/_tipos-servidor/nl-app/lib/fila-curadoria.functions").processarFilaCuradoria>("fila-curadoria:processarFilaCuradoria");
+export const retomarFalhadosCuradoria = nlServerFn<typeof import("@/newsletter/_tipos-servidor/nl-app/lib/fila-curadoria.functions").retomarFalhadosCuradoria>("fila-curadoria:retomarFalhadosCuradoria");
+export const definirModoManualCuradoria = nlServerFn<typeof import("@/newsletter/_tipos-servidor/nl-app/lib/fila-curadoria.functions").definirModoManualCuradoria>("fila-curadoria:definirModoManualCuradoria");
+export const limparFilaAntigaCuradoria = nlServerFn<typeof import("@/newsletter/_tipos-servidor/nl-app/lib/fila-curadoria.functions").limparFilaAntigaCuradoria>("fila-curadoria:limparFilaAntigaCuradoria");
 

@@ -25,5 +25,5 @@ export interface SugerirOrganizacaoResultado {
 interface Input {
   edicaoId: string;
 }
-export const sugerirOrganizacaoEdicao = nlServerFn("organizar-edicao:sugerirOrganizacaoEdicao");
+export const sugerirOrganizacaoEdicao = nlServerFn<typeof import("@/newsletter/_tipos-servidor/nl-app/lib/organizar-edicao.functions").sugerirOrganizacaoEdicao>("organizar-edicao:sugerirOrganizacaoEdicao");
 

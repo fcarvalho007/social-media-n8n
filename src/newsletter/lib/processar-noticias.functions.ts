@@ -4,8 +4,8 @@ import { nlServerFn } from "@/newsletter/shim/start";
 
 
 type Papel = "admin" | "curador";
-export const extrairNoticias = nlServerFn("processar-noticias:extrairNoticias");
-export const confirmarNoticias = nlServerFn("processar-noticias:confirmarNoticias");
-export const guardarModeloIA = nlServerFn("processar-noticias:guardarModeloIA");
-export const testarModeloIA = nlServerFn("processar-noticias:testarModeloIA");
+export const extrairNoticias = nlServerFn<typeof import("@/newsletter/_tipos-servidor/nl-app/lib/processar-noticias.functions").extrairNoticias>("processar-noticias:extrairNoticias");
+export const confirmarNoticias = nlServerFn<typeof import("@/newsletter/_tipos-servidor/nl-app/lib/processar-noticias.functions").confirmarNoticias>("processar-noticias:confirmarNoticias");
+export const guardarModeloIA = nlServerFn<typeof import("@/newsletter/_tipos-servidor/nl-app/lib/processar-noticias.functions").guardarModeloIA>("processar-noticias:guardarModeloIA");
+export const testarModeloIA = nlServerFn<typeof import("@/newsletter/_tipos-servidor/nl-app/lib/processar-noticias.functions").testarModeloIA>("processar-noticias:testarModeloIA");
 

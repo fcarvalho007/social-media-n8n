@@ -4,8 +4,8 @@ import type { FotoPexels } from "./pexels-tipos";
 
 
 export type { FotoPexels } from "./pexels-tipos";
-export const pesquisarPexelsFn = nlServerFn("imagens:pesquisarPexelsFn");
-export const importarPexelsFn = nlServerFn("imagens:importarPexelsFn");
-export const carregarImagemFn = nlServerFn("imagens:carregarImagemFn");
-export const obterImagemBase64Fn = nlServerFn("imagens:obterImagemBase64Fn");
+export const pesquisarPexelsFn = nlServerFn<typeof import("@/newsletter/_tipos-servidor/nl-app/lib/imagens.functions").pesquisarPexelsFn>("imagens:pesquisarPexelsFn");
+export const importarPexelsFn = nlServerFn<typeof import("@/newsletter/_tipos-servidor/nl-app/lib/imagens.functions").importarPexelsFn>("imagens:importarPexelsFn");
+export const carregarImagemFn = nlServerFn<typeof import("@/newsletter/_tipos-servidor/nl-app/lib/imagens.functions").carregarImagemFn>("imagens:carregarImagemFn");
+export const obterImagemBase64Fn = nlServerFn<typeof import("@/newsletter/_tipos-servidor/nl-app/lib/imagens.functions").obterImagemBase64Fn>("imagens:obterImagemBase64Fn");
 

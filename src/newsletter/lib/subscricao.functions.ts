@@ -16,9 +16,9 @@ export interface EstadoPublico {
   retomaEm: string | null;
   mensagem?: string;
 }
-export const estadoSubscricaoFn = nlServerFn("subscricao:estadoSubscricaoFn");
-export const aplicarAccaoSubscricaoFn = nlServerFn("subscricao:aplicarAccaoSubscricaoFn");
-export const resumoSubscricoesFn = nlServerFn("subscricao:resumoSubscricoesFn");
-export const testarSubscricaoFn = nlServerFn("subscricao:testarSubscricaoFn");
-export const urlWebhookEgoiFn = nlServerFn("subscricao:urlWebhookEgoiFn");
+export const estadoSubscricaoFn = nlServerFn<typeof import("@/newsletter/_tipos-servidor/nl-app/lib/subscricao.functions").estadoSubscricaoFn>("subscricao:estadoSubscricaoFn");
+export const aplicarAccaoSubscricaoFn = nlServerFn<typeof import("@/newsletter/_tipos-servidor/nl-app/lib/subscricao.functions").aplicarAccaoSubscricaoFn>("subscricao:aplicarAccaoSubscricaoFn");
+export const resumoSubscricoesFn = nlServerFn<typeof import("@/newsletter/_tipos-servidor/nl-app/lib/subscricao.functions").resumoSubscricoesFn>("subscricao:resumoSubscricoesFn");
+export const testarSubscricaoFn = nlServerFn<typeof import("@/newsletter/_tipos-servidor/nl-app/lib/subscricao.functions").testarSubscricaoFn>("subscricao:testarSubscricaoFn");
+export const urlWebhookEgoiFn = nlServerFn<typeof import("@/newsletter/_tipos-servidor/nl-app/lib/subscricao.functions").urlWebhookEgoiFn>("subscricao:urlWebhookEgoiFn");
 

@@ -2,9 +2,9 @@
 import { nlServerFn } from "@/newsletter/shim/start";
 
 
-export const descobrirFeed = nlServerFn("curadoria:descobrirFeed");
-export const testarFeed = nlServerFn("curadoria:testarFeed");
-export const correrCuradoriaAgora = nlServerFn("curadoria:correrCuradoriaAgora");
-export const correrFonteAgora = nlServerFn("curadoria:correrFonteAgora");
-export const alternarFontesEmLote = nlServerFn("curadoria:alternarFontesEmLote");
+export const descobrirFeed = nlServerFn<typeof import("@/newsletter/_tipos-servidor/nl-app/lib/curadoria.functions").descobrirFeed>("curadoria:descobrirFeed");
+export const testarFeed = nlServerFn<typeof import("@/newsletter/_tipos-servidor/nl-app/lib/curadoria.functions").testarFeed>("curadoria:testarFeed");
+export const correrCuradoriaAgora = nlServerFn<typeof import("@/newsletter/_tipos-servidor/nl-app/lib/curadoria.functions").correrCuradoriaAgora>("curadoria:correrCuradoriaAgora");
+export const correrFonteAgora = nlServerFn<typeof import("@/newsletter/_tipos-servidor/nl-app/lib/curadoria.functions").correrFonteAgora>("curadoria:correrFonteAgora");
+export const alternarFontesEmLote = nlServerFn<typeof import("@/newsletter/_tipos-servidor/nl-app/lib/curadoria.functions").alternarFontesEmLote>("curadoria:alternarFontesEmLote");
 

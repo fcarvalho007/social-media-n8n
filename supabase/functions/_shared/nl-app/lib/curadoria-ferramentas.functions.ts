@@ -44,7 +44,7 @@ export const correrCuradoriaFerramentasAgora = createServerFn({ method: "POST" }
     const base = process.env.PUBLIC_URL ?? process.env.SUPABASE_URL ?? "";
     // Preferimos chamar via URL pública do próprio deployment se disponível,
     // mas para simplicidade e evitar network hop, chamamos o handler directamente.
-    const { Route } = await import("@/routes/api/public/hooks/curadoria-ferramentas");
+    const { Route } = await import("../hooks/curadoria-ferramentas.ts");
     void base; void Route; // silêncio
     const url = "http://internal/api/public/hooks/curadoria-ferramentas";
     const req = new Request(url, {
@@ -53,7 +53,7 @@ export const correrCuradoriaFerramentasAgora = createServerFn({ method: "POST" }
       body: JSON.stringify({ forcar_fontes: data.forcarFontes ?? undefined }),
     });
     // Reutiliza o handler do módulo (evita depender de rede externa).
-    const mod = await import("@/routes/api/public/hooks/curadoria-ferramentas");
+    const mod = await import("../hooks/curadoria-ferramentas.ts");
     // Chegar ao handler interno directo:
     const handlers = (mod.Route.options as { server?: { handlers?: { POST?: (ctx: { request: Request }) => Promise<Response> } } }).server?.handlers;
     if (!handlers?.POST) return { ok: false, inseridas: 0, descartadas_por_ia: 0, candidatos: 0, fontes: 0, custo_usd: 0, mensagem: "Handler indisponível" };

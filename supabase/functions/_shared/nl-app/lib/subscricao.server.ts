@@ -152,7 +152,7 @@ export async function estadoPorEmail(emailBruto: string): Promise<EstadoSubscric
   };
 }
 
-interface ResultadoAccao {
+export interface ResultadoAccao {
   ok: boolean;
   estado: EstadoSubscricao["estado"];
   retomaEm: string | null;

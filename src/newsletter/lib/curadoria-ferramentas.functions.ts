@@ -30,12 +30,12 @@ export type ResumoCorridaFerramentas = {
   custo_usd: number;
   mensagem?: string;
 };
-export const correrCuradoriaFerramentasAgora = nlServerFn("curadoria-ferramentas:correrCuradoriaFerramentasAgora");
-export const listarFontesDirectorios = nlServerFn("curadoria-ferramentas:listarFontesDirectorios");
-export const criarFonteDirectorio = nlServerFn("curadoria-ferramentas:criarFonteDirectorio");
-export const actualizarFonteDirectorio = nlServerFn("curadoria-ferramentas:actualizarFonteDirectorio");
-export const apagarFonteDirectorio = nlServerFn("curadoria-ferramentas:apagarFonteDirectorio");
-export const getConfigCuradoriaFerramentas = nlServerFn("curadoria-ferramentas:getConfigCuradoriaFerramentas");
-export const setConfigCuradoriaFerramentas = nlServerFn("curadoria-ferramentas:setConfigCuradoriaFerramentas");
-export const alternarDirectoriosEmLote = nlServerFn("curadoria-ferramentas:alternarDirectoriosEmLote");
+export const correrCuradoriaFerramentasAgora = nlServerFn<typeof import("@/newsletter/_tipos-servidor/nl-app/lib/curadoria-ferramentas.functions").correrCuradoriaFerramentasAgora>("curadoria-ferramentas:correrCuradoriaFerramentasAgora");
+export const listarFontesDirectorios = nlServerFn<typeof import("@/newsletter/_tipos-servidor/nl-app/lib/curadoria-ferramentas.functions").listarFontesDirectorios>("curadoria-ferramentas:listarFontesDirectorios");
+export const criarFonteDirectorio = nlServerFn<typeof import("@/newsletter/_tipos-servidor/nl-app/lib/curadoria-ferramentas.functions").criarFonteDirectorio>("curadoria-ferramentas:criarFonteDirectorio");
+export const actualizarFonteDirectorio = nlServerFn<typeof import("@/newsletter/_tipos-servidor/nl-app/lib/curadoria-ferramentas.functions").actualizarFonteDirectorio>("curadoria-ferramentas:actualizarFonteDirectorio");
+export const apagarFonteDirectorio = nlServerFn<typeof import("@/newsletter/_tipos-servidor/nl-app/lib/curadoria-ferramentas.functions").apagarFonteDirectorio>("curadoria-ferramentas:apagarFonteDirectorio");
+export const getConfigCuradoriaFerramentas = nlServerFn<typeof import("@/newsletter/_tipos-servidor/nl-app/lib/curadoria-ferramentas.functions").getConfigCuradoriaFerramentas>("curadoria-ferramentas:getConfigCuradoriaFerramentas");
+export const setConfigCuradoriaFerramentas = nlServerFn<typeof import("@/newsletter/_tipos-servidor/nl-app/lib/curadoria-ferramentas.functions").setConfigCuradoriaFerramentas>("curadoria-ferramentas:setConfigCuradoriaFerramentas");
+export const alternarDirectoriosEmLote = nlServerFn<typeof import("@/newsletter/_tipos-servidor/nl-app/lib/curadoria-ferramentas.functions").alternarDirectoriosEmLote>("curadoria-ferramentas:alternarDirectoriosEmLote");
 

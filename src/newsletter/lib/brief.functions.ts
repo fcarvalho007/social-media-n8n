@@ -30,14 +30,14 @@ export interface NoticiaParaBrief {
   url: string | null;
   categoria: string;
 }
-export const listarEdicoesBriefFn = nlServerFn("brief:listarEdicoesBriefFn");
-export const listarNoticiasParaBriefFn = nlServerFn("brief:listarNoticiasParaBriefFn");
-export const listarBriefsDaEdicaoFn = nlServerFn("brief:listarBriefsDaEdicaoFn");
-export const criarBriefFn = nlServerFn("brief:criarBriefFn");
-export const removerBriefDaEdicaoFn = nlServerFn("brief:removerBriefDaEdicaoFn");
-export const guardarConteudoBriefFn = nlServerFn("brief:guardarConteudoBriefFn");
-export const aprovarLeituraBriefFn = nlServerFn("brief:aprovarLeituraBriefFn");
-export const revogarLeituraBriefFn = nlServerFn("brief:revogarLeituraBriefFn");
+export const listarEdicoesBriefFn = nlServerFn<typeof import("@/newsletter/_tipos-servidor/nl-app/lib/brief.functions").listarEdicoesBriefFn>("brief:listarEdicoesBriefFn");
+export const listarNoticiasParaBriefFn = nlServerFn<typeof import("@/newsletter/_tipos-servidor/nl-app/lib/brief.functions").listarNoticiasParaBriefFn>("brief:listarNoticiasParaBriefFn");
+export const listarBriefsDaEdicaoFn = nlServerFn<typeof import("@/newsletter/_tipos-servidor/nl-app/lib/brief.functions").listarBriefsDaEdicaoFn>("brief:listarBriefsDaEdicaoFn");
+export const criarBriefFn = nlServerFn<typeof import("@/newsletter/_tipos-servidor/nl-app/lib/brief.functions").criarBriefFn>("brief:criarBriefFn");
+export const removerBriefDaEdicaoFn = nlServerFn<typeof import("@/newsletter/_tipos-servidor/nl-app/lib/brief.functions").removerBriefDaEdicaoFn>("brief:removerBriefDaEdicaoFn");
+export const guardarConteudoBriefFn = nlServerFn<typeof import("@/newsletter/_tipos-servidor/nl-app/lib/brief.functions").guardarConteudoBriefFn>("brief:guardarConteudoBriefFn");
+export const aprovarLeituraBriefFn = nlServerFn<typeof import("@/newsletter/_tipos-servidor/nl-app/lib/brief.functions").aprovarLeituraBriefFn>("brief:aprovarLeituraBriefFn");
+export const revogarLeituraBriefFn = nlServerFn<typeof import("@/newsletter/_tipos-servidor/nl-app/lib/brief.functions").revogarLeituraBriefFn>("brief:revogarLeituraBriefFn");
 
 export type ComponenteBriefUi = (typeof COMPONENTES)[number];
 export type IntencaoBriefUi = (typeof INTENCOES)[number];
@@ -48,9 +48,9 @@ export interface ResultadoGeracaoUi {
   motivos: string[];
   erro: string | null;
 }
-export const gerarBriefFn = nlServerFn("brief:gerarBriefFn");
-export const reformularBriefFn = nlServerFn("brief:reformularBriefFn");
-export const reverificarBriefFn = nlServerFn("brief:reverificarBriefFn");
+export const gerarBriefFn = nlServerFn<typeof import("@/newsletter/_tipos-servidor/nl-app/lib/brief.functions").gerarBriefFn>("brief:gerarBriefFn");
+export const reformularBriefFn = nlServerFn<typeof import("@/newsletter/_tipos-servidor/nl-app/lib/brief.functions").reformularBriefFn>("brief:reformularBriefFn");
+export const reverificarBriefFn = nlServerFn<typeof import("@/newsletter/_tipos-servidor/nl-app/lib/brief.functions").reverificarBriefFn>("brief:reverificarBriefFn");
 
 /* ─────────── workflow editorial na edição (Fase 2C) ─────────── */
 
@@ -74,9 +74,9 @@ export interface EstadoBriefEdicao {
   erro: string | null;
   actualizadoEm: string;
 }
-export const estadoBriefsDaEdicaoFn = nlServerFn("brief:estadoBriefsDaEdicaoFn");
-export const sincronizarBriefPapelFn = nlServerFn("brief:sincronizarBriefPapelFn");
-export const guardarLeituraBriefFn = nlServerFn("brief:guardarLeituraBriefFn");
-export const sincronizarBriefsDaEdicaoFn = nlServerFn("brief:sincronizarBriefsDaEdicaoFn");
-export const guardarIdentidadeBriefFn = nlServerFn("brief:guardarIdentidadeBriefFn");
+export const estadoBriefsDaEdicaoFn = nlServerFn<typeof import("@/newsletter/_tipos-servidor/nl-app/lib/brief.functions").estadoBriefsDaEdicaoFn>("brief:estadoBriefsDaEdicaoFn");
+export const sincronizarBriefPapelFn = nlServerFn<typeof import("@/newsletter/_tipos-servidor/nl-app/lib/brief.functions").sincronizarBriefPapelFn>("brief:sincronizarBriefPapelFn");
+export const guardarLeituraBriefFn = nlServerFn<typeof import("@/newsletter/_tipos-servidor/nl-app/lib/brief.functions").guardarLeituraBriefFn>("brief:guardarLeituraBriefFn");
+export const sincronizarBriefsDaEdicaoFn = nlServerFn<typeof import("@/newsletter/_tipos-servidor/nl-app/lib/brief.functions").sincronizarBriefsDaEdicaoFn>("brief:sincronizarBriefsDaEdicaoFn");
+export const guardarIdentidadeBriefFn = nlServerFn<typeof import("@/newsletter/_tipos-servidor/nl-app/lib/brief.functions").guardarIdentidadeBriefFn>("brief:guardarIdentidadeBriefFn");
 

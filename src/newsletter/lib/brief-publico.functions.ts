@@ -9,6 +9,6 @@ export interface RespostaBriefPublico {
   brief: BriefPublico | null;
   activos: boolean;
 }
-export const obterBriefPublicoFn = nlServerFn("brief-publico:obterBriefPublicoFn");
-export const previsualizarBriefFn = nlServerFn("brief-publico:previsualizarBriefFn");
+export const obterBriefPublicoFn = nlServerFn<typeof import("@/newsletter/_tipos-servidor/nl-app/lib/brief-publico.functions").obterBriefPublicoFn>("brief-publico:obterBriefPublicoFn");
+export const previsualizarBriefFn = nlServerFn<typeof import("@/newsletter/_tipos-servidor/nl-app/lib/brief-publico.functions").previsualizarBriefFn>("brief-publico:previsualizarBriefFn");
 

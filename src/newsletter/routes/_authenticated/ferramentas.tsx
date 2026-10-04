@@ -110,7 +110,7 @@ function FerramentasPage() {
           msg: `Adicionada à edição #${r.edicao_numero} (${rotuloFormato(r.template_version)}) no lugar ${r.posicao}.`,
         });
       } else {
-        setFeedback({ tipo: "erro", msg: r.motivo });
+        setFeedback({ tipo: "erro", msg: "motivo" in r ? r.motivo : "" });
       }
     },
     onError: (e: Error) => setFeedback({ tipo: "erro", msg: e.message }),

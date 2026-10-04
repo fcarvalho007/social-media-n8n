@@ -141,7 +141,7 @@ Devolve o JSON conforme o formato indicado.`;
     }
     if (arr.length === 0) throw new Error("A IA não devolveu sugestões utilizáveis. Tenta novamente.");
 
-    const porId = new Map(aprovadas.map((n) => [n.id, n]));
+    const porId = new Map<string, (typeof aprovadas)[number]>(aprovadas.map((n) => [n.id, n]));
     const sugestoes: SugestaoOrganizacao[] = [];
     let destaquesContados = 0;
     for (const it of arr) {

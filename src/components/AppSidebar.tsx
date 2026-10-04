@@ -27,18 +27,18 @@ import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 
 const menuItems = [
   {
-    title: 'Dashboard',
-    label: 'Início',
-    icon: LayoutDashboard,
+    title: 'Estúdio de conteúdos',
+    label: 'Estúdio',
+    icon: Sparkles,
     url: '/',
     disabled: false,
     isMain: false,
   },
   {
-    title: 'Estúdio de conteúdos',
-    label: 'Estúdio',
-    icon: Sparkles,
-    url: '/estudio',
+    title: 'Painel social',
+    label: 'Painel social',
+    icon: LayoutDashboard,
+    url: '/redes-sociais',
     disabled: false,
     isMain: false,
   },
@@ -199,6 +199,7 @@ export function AppSidebar() {
                       ) : (
                         <NavLink
                           to={(item as any).getSmartUrl ? (item as any).getSmartUrl() : item.url}
+                          end={item.url === '/'}
                           onClick={() => isMobile && setOpen(false)}
                           className="flex flex-col items-center gap-2 mx-auto group w-full py-1.5 hover:scale-[1.02] active:scale-[0.98] transition-all duration-200 ease-out min-h-[60px] touch-target rounded-xl"
                         >

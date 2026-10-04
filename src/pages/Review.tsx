@@ -193,7 +193,7 @@ const Review = () => {
       if (error) throw error;
       if (!data) {
         toast.error('Publicação não encontrada');
-        navigate('/');
+        navigate('/redes-sociais');
         return;
       }
       
@@ -310,7 +310,7 @@ const Review = () => {
     } catch (error) {
       console.error('Erro ao carregar publicação:', error);
       toast.error('Falha ao carregar publicação');
-      navigate('/');
+      navigate('/redes-sociais');
     } finally {
       setLoading(false);
     }
@@ -383,7 +383,7 @@ const Review = () => {
         if (error) throw error;
 
         toast.success('Publicação agendada com sucesso!');
-        navigate('/');
+        navigate('/redes-sociais');
       } catch (error) {
         console.error('Erro ao agendar:', error);
         toast.error('Falha ao agendar publicação');
@@ -527,7 +527,7 @@ const Review = () => {
       }
       
       toast.success('Publicação rejeitada');
-      navigate('/');
+      navigate('/redes-sociais');
     } catch (error) {
       console.error('Erro ao rejeitar:', error);
       toast.error('Falha ao rejeitar publicação');
@@ -1230,7 +1230,7 @@ const Review = () => {
       if (error) throw error;
 
       toast.success('Post voltou para pendentes');
-      navigate('/');
+      navigate('/redes-sociais');
     } catch (error) {
       console.error('Erro ao voltar para pendentes:', error);
       toast.error('Falha ao voltar para pendentes');
@@ -1269,7 +1269,7 @@ const Review = () => {
           <div className="flex items-center justify-between py-3 border-b border-border/40">
             <Button
               variant="ghost"
-              onClick={() => navigate('/')}
+              onClick={() => navigate('/redes-sociais')}
               className="-ml-2 h-8 px-2 text-sm hover:bg-accent transition-colors duration-150 focus:ring-2 focus:ring-primary/40"
               size="sm"
             >
@@ -1770,7 +1770,7 @@ const Review = () => {
         }}
         onNavigateToDashboard={() => {
           setShowPublishCompleted(false);
-          navigate('/');
+          navigate('/redes-sociais');
         }}
       />
     </div>

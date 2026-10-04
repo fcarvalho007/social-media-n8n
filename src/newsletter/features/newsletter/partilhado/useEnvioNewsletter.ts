@@ -1,4 +1,3 @@
-// @ts-nocheck — type drift vs origin library versions; see scripts/port-newsletter.py
 // Fluxo operacional de envio, partilhado pelos dois editores (Clássico e Revista).
 // Aqui vive apenas a orquestração cliente: escolha de listas, preparar →
 // disparar lista a lista com pausa → finalizar, repetir lista falhada e
@@ -125,7 +124,7 @@ export function useEnvioNewsletter(args: UseEnvioArgs): EnvioNewsletter {
           edicao_id: edicaoId,
           lista_ids: listasSel,
           confirmacao_numero: numero,
-          publicar_conteudos: opcoes?.publicarConteudos === true,
+          publicar_conteudos: (opcoes || undefined)?.publicarConteudos === true,
         },
       });
       // A preparação pode publicar a página web e a crónica. Refresca a

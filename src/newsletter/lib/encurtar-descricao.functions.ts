@@ -8,5 +8,5 @@ interface EncurtarInput {
   descricao: string;
   alvo?: number; // caracteres alvo, default 160
 }
-export const encurtarDescricao = nlServerFn("encurtar-descricao:encurtarDescricao");
+export const encurtarDescricao = nlServerFn<typeof import("@/newsletter/_tipos-servidor/nl-app/lib/encurtar-descricao.functions").encurtarDescricao>("encurtar-descricao:encurtarDescricao");
 

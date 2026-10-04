@@ -122,7 +122,7 @@ async function sincronizarLista(admin: SupabaseClient, opts: {
     .eq("edicao_id", edicao.id).eq("lista_id", l.id).maybeSingle();
   const existente = existenteRaw as { id: string; campaign_hash: string; estado: string } | null;
 
-  if (existente && existente.estado === "enviada") {
+  if (existente && (existente.estado === "enviada" || existente.estado === "aceite")) {
     // Uma campanha da E-goi só pode ser disparada uma vez: se a linha já está
     // marcada como enviada, criamos uma nova campanha e substituímos o hash.
     // Criamos uma nova campanha e substituímos o hash na linha existente.

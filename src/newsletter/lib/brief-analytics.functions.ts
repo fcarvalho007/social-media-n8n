@@ -21,5 +21,5 @@ interface EntradaEvento {
   slug: string;
   edicaoNumero?: number | null;
 }
-export const registarEventoBriefFn = nlServerFn("brief-analytics:registarEventoBriefFn");
+export const registarEventoBriefFn = nlServerFn<typeof import("@/newsletter/_tipos-servidor/nl-app/lib/brief-analytics.functions").registarEventoBriefFn>("brief-analytics:registarEventoBriefFn");
 
