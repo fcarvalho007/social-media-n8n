@@ -116,7 +116,7 @@ export function RevisaoExportacao({ dados, pacote, medidor, guardado }: Props) {
             <div role="radiogroup" aria-label="Variante" className="grid grid-cols-2 gap-2">
               {(["A", "B"] as const).map((v) => (
                 <button key={v} type="button" role="radio" aria-checked={variante === v} disabled={!dados.documentos[v]} onClick={() => { setVariante(v); setPagina(0); }}
-                  className={cn("mc-trans flex items-center gap-2 rounded-[var(--mc-r-md)] border p-2 text-left text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:opacity-50", variante === v ? "border-primary bg-primary/10" : "border-border")}>
+                  className={cn("mc-trans flex items-center gap-2 rounded-[var(--mc-r-md)] border p-2 text-left text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:opacity-50", variante === v ? "border-primary bg-primary/10" : "border-input")}>
                   {medidor && <span className="block w-10 shrink-0 overflow-hidden rounded-[var(--mc-r-sm)]"><PaginaCanvas pacote={pacote} variante={v} indice={0} medidor={medidor} imagens={{}} escala={40 / 1080} /></span>}
                   <span><span className="block text-xs text-muted-foreground">Variante {v}</span>{NOME_VARIANTE[v]}</span>
                 </button>

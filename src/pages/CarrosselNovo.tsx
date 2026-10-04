@@ -155,7 +155,7 @@ export default function CarrosselNovo() {
               <Label htmlFor="texto" className="sr-only">Texto da fonte</Label>
               <Textarea id="texto" ref={textoRef} rows={8} readOnly={demo}
                 aria-describedby="ajuda-texto estado-texto" aria-invalid={mostrarErro || semTexto}
-                className={cn("min-h-[min(40vh,320px)] resize-y rounded-[var(--mc-r-lg)] border-border bg-card p-4 text-base leading-relaxed", (mostrarErro || semTexto) && "border-destructive")}
+                className={cn("min-h-[min(40vh,320px)] resize-y rounded-[var(--mc-r-lg)] border-input bg-card p-4 text-base leading-relaxed", (mostrarErro || semTexto) && "border-destructive")}
                 value={texto} onBlur={() => texto.trim() && setTocado(true)}
                 onChange={(e) => { setTexto(e.target.value); setSlides(null); setRecuperado(null); }}
                 placeholder="Cola aqui o texto que queres transformar em carrossel." />
@@ -208,7 +208,7 @@ export default function CarrosselNovo() {
                   return (
                     <button key={o.id} type="button" role="radio" aria-checked={sel} onClick={() => setObjetivo(o.id)}
                       className={cn("mc-trans min-h-16 rounded-[var(--mc-r-lg)] border p-4 text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
-                        sel ? "border-primary bg-primary/10" : "border-border hover:border-muted-foreground/50")}>
+                        sel ? "border-primary bg-primary/10" : "border-input hover:border-muted-foreground")}>
                       <span className="block font-medium">{o.nome}</span>
                       <span className="block text-sm text-muted-foreground">{o.desc}</span>
                     </button>

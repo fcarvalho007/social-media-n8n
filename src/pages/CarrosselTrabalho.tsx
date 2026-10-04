@@ -363,7 +363,7 @@ export default function CarrosselTrabalho() {
                     <li key={s.id} className="shrink-0 lg:shrink">
                       <button type="button" aria-current={sel ? "true" : undefined} onClick={() => setSlideSel(i)}
                         className={cn("mc-trans flex min-h-14 w-44 items-start gap-3 rounded-[var(--mc-r-md)] border p-3 text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring lg:w-full",
-                          sel ? "border-primary bg-primary/10" : "border-border hover:border-muted-foreground/50")}>
+                          sel ? "border-primary bg-primary/10" : "border-input hover:border-muted-foreground")}>
                         <span className="w-5 shrink-0 text-xs tabular-nums text-muted-foreground">{i + 1}</span>
                         <span className="min-w-0">
                           <span className="block text-xs text-muted-foreground">{ps ? PAPEL[ps.papel] ?? ps.papel : "Slide"}</span>
