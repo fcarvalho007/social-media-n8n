@@ -28,3 +28,5 @@
 - [x] Worker automático do carrossel (confirmação E-goi + jobs), hora a hora, sem envios/publicações
 - [x] Evidência de envio protegida contra sessões de cliente; associação de marca só admin; projeto DIGITALSPRINT associado
 - [x] Importador atribui as edições à identidade DIGITALSPRINT
+
+- [ ] Lote de refinamento (contexto de projeto, entrada, carrosséis, artigos, editor, ligações/migração) — anexo de 04/10
