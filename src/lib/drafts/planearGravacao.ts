@@ -19,7 +19,7 @@ export function planearGravacaoRascunho<T extends object>(
   projetoAtual: () => Promise<string | null>,
 ): PlanoGravacao<T> {
   if (idExistente) {
-    const campos: Record<string, unknown> = { ...dados };
+    const campos = { ...dados } as Record<string, unknown>;
     for (const c of CAMPOS_PROTEGIDOS) delete campos[c];
     return { tipo: 'atualizar', id: idExistente, campos: campos as Omit<T, (typeof CAMPOS_PROTEGIDOS)[number]> };
   }
