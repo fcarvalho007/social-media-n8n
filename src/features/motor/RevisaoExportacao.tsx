@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { Link } from "react-router-dom";
 import { ChevronLeft, ChevronRight, Download, ExternalLink, FileDown, Loader2, RotateCw, Send } from "lucide-react";
 import { cn } from "@/lib/utils";
@@ -11,7 +11,7 @@ import { PaginaCanvas } from "@/features/editor-grafico/PaginaCanvas";
 import { carregarImagens } from "@/features/editor-grafico/desenho";
 import { NOME_VARIANTE } from "@/features/editor-grafico/EditorGrafico";
 import { lerExportacao, pedirExportacao, prepararRascunho, type EstadoExportacao, type TrabalhoCompleto } from "@/services/motor";
-import type { Medidor, PacoteProva, Variante } from "../../../supabase/functions/_shared/documento-grafico/nucleo";
+import { transbordos, type Medidor, type PacoteProva, type Variante } from "../../../supabase/functions/_shared/documento-grafico/nucleo";
 
 interface Props {
   dados: TrabalhoCompleto;
@@ -19,12 +19,15 @@ interface Props {
   medidor: Medidor | null;
   /** false while local edits are not yet saved as a server version */
   guardado: boolean;
+  /** jumps to an earlier step to fix text that does not fit */
+  irPara?: (p: "narrativa" | "composicao") => void;
 }
 
 const kb = (b: number) => `${(b / 1024).toLocaleString("pt-PT", { maximumFractionDigits: 0 })} KB`;
 
-export function RevisaoExportacao({ dados, pacote, medidor, guardado }: Props) {
+export function RevisaoExportacao({ dados, pacote, medidor, guardado, irPara }: Props) {
   const [variante, setVariante] = useState<Variante>("A");
+  const naoCabe = useMemo(() => (medidor ? [...new Set(transbordos(pacote, variante, medidor).map((t) => t.pagina + 1))] : []), [pacote, variante, medidor]);
   const doc = dados.documentos[variante];
   const [estado, setEstado] = useState<EstadoExportacao | null>(null);
   const [aPedir, setAPedir] = useState(false);
@@ -168,11 +171,20 @@ export function RevisaoExportacao({ dados, pacote, medidor, guardado }: Props) {
                 </div>
               ) : (
                 <>
+                  {naoCabe.length > 0 && (
+                    <div role="alert" className="space-y-2 rounded-[var(--mc-r-md)] border border-destructive/40 p-3 text-sm">
+                      <p className="text-destructive">O texto não cabe na página {naoCabe.join(", ")} desta variante. Corrige antes de aprovar.</p>
+                      {irPara && <div className="flex flex-wrap gap-2">
+                        <Button variant="outline" className="h-11" onClick={() => irPara("narrativa")}>Encurtar na Narrativa</Button>
+                        <Button variant="outline" className="h-11" onClick={() => irPara("composicao")}>Ajustar na Composição</Button>
+                      </div>}
+                    </div>
+                  )}
                   <div className="flex items-start gap-3">
-                    <Checkbox id="revisto" className="mt-0.5 h-5 w-5" checked={revisto} onCheckedChange={(v) => setRevisto(v === true)} disabled={!concluido || !guardado} />
+                    <Checkbox id="revisto" className="mt-0.5 h-5 w-5" checked={revisto && naoCabe.length === 0} onCheckedChange={(v) => setRevisto(v === true)} disabled={!concluido || !guardado || naoCabe.length > 0} />
                     <Label htmlFor="revisto" className="text-sm font-normal leading-snug">Revi a narrativa (v{doc.proposta_versao}) e a composição da variante {variante} (v{doc.versao}). Aprovo esta versão para rascunho.</Label>
                   </div>
-                  <Button className="h-11" disabled={!revisto || !concluido || !guardado || aPreparar} onClick={preparar}>
+                  <Button className="h-11" disabled={!revisto || naoCabe.length > 0 || !concluido || !guardado || aPreparar} onClick={preparar}>
                     {aPreparar ? <Loader2 className="mr-1.5 h-4 w-4 motion-safe:animate-spin" /> : <Send className="mr-1.5 h-4 w-4" />}Preparar rascunho social
                   </Button>
                   <p className="text-xs text-muted-foreground">{concluido ? "Cria um único rascunho (Instagram + LinkedIn). Publicar continua a exigir aprovação no Painel social." : "Exporta esta versão primeiro."}</p>

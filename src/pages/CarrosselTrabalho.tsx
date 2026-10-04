@@ -454,7 +454,7 @@ export default function CarrosselTrabalho() {
         )}
 
         {passo === "revisao" && pronto && pacote && (
-          <RevisaoExportacao dados={dados} pacote={pacote} medidor={medidor} guardado={estadoG === "guardado"} />
+          <RevisaoExportacao dados={dados} pacote={pacote} medidor={medidor} guardado={estadoG === "guardado"} irPara={irPara} />
         )}
       </div></main>
 
