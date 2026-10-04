@@ -106,3 +106,8 @@ verify_jwt = false
 # Worker: nl_worker_estado key or service role only.
 [functions.nl-worker-conteudos]
 verify_jwt = false
+
+# Entrada só com email: verify_jwt desligado à entrada; a função valida a lista
+# autorizada e a existência da conta no servidor e emite a sessão ela própria.
+[functions.entrar-email]
+verify_jwt = false
