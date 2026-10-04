@@ -5,6 +5,7 @@ Client: src/newsletter/** (features, routes, client lib). Server functions becom
 Server: supabase/functions/_shared/nl-app/** (real *.functions.ts + *.server.ts), executed by nl-api.
 Re-runnable: wipes generated output first. Origin source is never modified.
 """
+import sys
 import subprocess, os, re, shutil, glob
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
@@ -317,10 +318,16 @@ def build_server():
     lines.append("export const MODULES: Record<string, Record<string, unknown>> = {\n%s\n};" % "\n".join(names))
     write(os.path.join(SRV, "registry.ts"), "\n".join(lines) + "\n")
 
+def walk_ts(base):
+    for d, _, fs in os.walk(base):
+        for f in fs:
+            if f.endswith(".ts"):
+                yield os.path.join(d, f)
+
 def prune_client_only_features():
     """Keep only feature helpers reachable from server code; React hooks/stores never ship to the server."""
     spec = re.compile(r"""(?:\bfrom\s*|\bimport\s*\(\s*|\bimport\s+)["']([^"']+)["']""")
-    raizes = [f for f in walk(SRV) if not os.path.relpath(f, SRV).startswith("features" + os.sep)]
+    raizes = [f for f in walk_ts(SRV) if not os.path.relpath(f, SRV).startswith("features" + os.sep)]
     vistos, pilha = set(), list(raizes)
     while pilha:
         f = os.path.realpath(pilha.pop())
@@ -334,7 +341,7 @@ def prune_client_only_features():
                     if os.path.isfile(c):
                         pilha.append(c)
                         break
-    for f in walk(os.path.join(SRV, "features")):
+    for f in list(walk_ts(os.path.join(SRV, "features"))):
         if os.path.realpath(f) not in vistos:
             os.remove(f)
         elif re.search(r"""from ["'](react|zustand|@tanstack/)""", read(f)):
