@@ -1,6 +1,7 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
+import { notificarProjetosAlterados } from '@/lib/eventosProjetos';
 
 export interface Project {
   id: string;
@@ -49,6 +50,7 @@ export const useProjects = () => {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['projects'] });
+      notificarProjetosAlterados();
       toast.success('Projeto criado com sucesso!');
     },
     onError: (error) => {
@@ -71,6 +73,7 @@ export const useProjects = () => {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['projects'] });
+      notificarProjetosAlterados();
       toast.success('Projeto atualizado!');
     },
     onError: (error) => {
@@ -90,6 +93,7 @@ export const useProjects = () => {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['projects'] });
+      notificarProjetosAlterados();
       toast.success('Projeto eliminado');
     },
     onError: (error) => {

@@ -1,5 +1,6 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { getMarca, listarIdentidades, listarProjetos, setMarca, type Identidade, type Projeto } from "@/services/estudio";
+import { ouvirProjetosAlterados } from "@/lib/eventosProjetos";
 
 type Estado = "a_carregar" | "pronto" | "erro";
 
@@ -19,6 +20,11 @@ interface ProjetoCtx {
 }
 
 const Ctx = createContext<ProjetoCtx | null>(null);
+
+/** Remounts the provider per account so no project state survives a user switch. */
+export function ProjetoProviderPorConta({ userId, children }: { userId: string | null; children: ReactNode }) {
+  return <ProjetoProvider key={userId ?? "sem-conta"}>{children}</ProjetoProvider>;
+}
 
 export function ProjetoProvider({ children }: { children: ReactNode }) {
   const [estado, setEstado] = useState<Estado>("a_carregar");
@@ -45,13 +51,24 @@ export function ProjetoProvider({ children }: { children: ReactNode }) {
   }, [tentativa]);
 
   const emCurso = useRef(false);
+  const recargaPendente = useRef(false);
+
+  // Confirmed project mutations elsewhere reload the list; deferred while a choice is being saved.
+  useEffect(() => ouvirProjetosAlterados(() => {
+    if (emCurso.current) recargaPendente.current = true;
+    else setTentativa((n) => n + 1);
+  }), []);
+
   // Server-confirmed: the context only changes after setMarca resolves; concurrent choices are refused.
   const escolher = useCallback(async (id: string | null) => {
     if (emCurso.current) throw new Error("Ainda a guardar a escolha anterior.");
     emCurso.current = true;
     setAGuardar(true);
     try { await setMarca(id); setProjetoId(id); }
-    finally { emCurso.current = false; setAGuardar(false); }
+    finally {
+      emCurso.current = false; setAGuardar(false);
+      if (recargaPendente.current) { recargaPendente.current = false; setTentativa((n) => n + 1); }
+    }
   }, []);
 
   const valor = useMemo<ProjetoCtx>(() => ({

@@ -5,14 +5,15 @@ import { listarContasEstudio, listarMapeamentos, mapearPerfil, type ContaEstudio
 
 const NENHUMA = "__nenhuma__";
 
-export function MapeamentoPerfis() {
+/** `versao` changes (e.g. after a completed import) reload the list without a page reload. */
+export function MapeamentoPerfis({ versao = 0 }: { versao?: number }) {
   const [maps, setMaps] = useState<MapeamentoPerfil[]>([]);
   const [contas, setContas] = useState<ContaEstudio[]>([]);
 
   const carregar = () => Promise.all([listarMapeamentos(), listarContasEstudio()])
     .then(([m, c]) => { setMaps(m); setContas(c); })
     .catch((e) => toast.error(e.message));
-  useEffect(() => { carregar(); }, []);
+  useEffect(() => { carregar(); }, [versao]); // eslint-disable-line react-hooks/exhaustive-deps
 
   if (!maps.length) return null;
   return (
