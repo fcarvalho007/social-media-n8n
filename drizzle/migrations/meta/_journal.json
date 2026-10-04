@@ -113,6 +113,13 @@
       "when": 1791140815775,
       "tag": "0015_r4_ia_real_orcamento",
       "breakpoints": true
+    },
+    {
+      "idx": 16,
+      "version": "7",
+      "when": 1791141635477,
+      "tag": "0016_r6_exportacao_social",
+      "breakpoints": true
     }
   ]
 }

@@ -21,8 +21,9 @@ import { aplicarResultado, calcularGravacao, type Extras, type Gravado } from "@
 import { layoutTexto, resolverTexto, type Medidor, type PacoteProva, type Variante } from "../../supabase/functions/_shared/documento-grafico/nucleo";
 import { normalizarFonte, paraPacote, type PropostaEditorial } from "../../supabase/functions/_shared/motor/proposta";
 import { dataPt, NOME_ESTADO } from "./Carrosseis";
+import { RevisaoExportacao } from "@/features/motor/RevisaoExportacao";
 
-type Passo = "fonte" | "conteudo" | "design";
+type Passo = "fonte" | "conteudo" | "design" | "revisao";
 type EstadoGravacao = "guardado" | "a_guardar" | "local" | "conflito";
 const POLL_MS = 3000;
 const POLL_MAX = 100;
@@ -215,10 +216,10 @@ export default function CarrosselTrabalho() {
   );
 
   const passos = (
-    <nav aria-label="Passos" className="flex gap-1">
-      {(["fonte", "conteudo", "design"] as const).map((p, i) => (
-        <Button key={p} size="sm" variant={passo === p ? "secondary" : "ghost"} className="h-11 lg:h-8" disabled={p !== "fonte" && !pronto} onClick={() => setPasso(p)} aria-current={passo === p ? "step" : undefined}>
-          {i + 1}. {p === "fonte" ? "Fonte" : p === "conteudo" ? "Conteúdo" : "Design"}
+    <nav aria-label="Passos" className="flex gap-1 overflow-x-auto">
+      {(["fonte", "conteudo", "design", "revisao"] as const).map((p, i) => (
+        <Button key={p} size="sm" variant={passo === p ? "secondary" : "ghost"} className="h-11 lg:h-8" disabled={p !== "fonte" && !pronto} onClick={() => { setPasso(p); if (p === "revisao" && estadoG === "guardado") void carregar(); }} aria-current={passo === p ? "step" : undefined}>
+          {i + 1}. {p === "fonte" ? "Fonte" : p === "conteudo" ? "Conteúdo" : p === "design" ? "Design" : "Revisão e exportação"}
         </Button>
       ))}
     </nav>
@@ -320,6 +321,10 @@ export default function CarrosselTrabalho() {
             }}>Fazer sem IA a partir da mesma fonte</Button>
           </div>
         </div>
+      )}
+
+      {passo === "revisao" && pronto && pacote && (
+        <RevisaoExportacao dados={dados} pacote={pacote} medidor={medidor} guardado={estadoG === "guardado"} />
       )}
 
       {passo === "fonte" && (

@@ -122,3 +122,15 @@ export async function definirOrcamento(projectId: string, maxDia: number, maxTra
   if (error) throw new Error(error.code === "42501" ? "Só o dono do projeto com papel de editor pode alterar os limites." : "Não foi possível gravar os limites.");
 }
 export const MODELO_IA_NOME = "GPT-6 Astra (OpenAI, via Lovable AI)";
+
+export interface FicheiroExport { formato: "png" | "pdf" | "zip"; pagina: number | null; url: string; hash: string; bytes: number; nome: string }
+export interface EstadoExportacao {
+  exportacao: { id: string; estado: "pendente" | "a_processar" | "concluido" | "erro"; erro: string | null; erro_classe: string | null; paginas: number; progresso: { paginas_feitas?: number; total?: number }; concluido_em: string | null } | null;
+  ficheiros: FicheiroExport[];
+  rascunhos: { versao: number; draft_id: string; proposta_versao: number | null }[];
+  versao_actual: number; aprovada_versao: number | null;
+}
+export const pedirExportacao = (documento_id: string, versao: number) => invocar<{ exportacao_id: string; estado: string }>({ acao: "exportar", documento_id, versao });
+export const lerExportacao = (documento_id: string, versao: number) => invocar<EstadoExportacao>({ acao: "estado_exportacao", documento_id, versao });
+export const prepararRascunho = (documento_id: string, versao: number, proposta_versao: number) =>
+  invocar<{ draft_id: string; existente: boolean }>({ acao: "preparar_social", documento_id, versao, proposta_versao, revisto: true });
