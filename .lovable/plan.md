@@ -1,60 +1,35 @@
-## Diagnóstico
+# Entrada só com email (sem código, sem magic link)
 
-O último post não foi publicado por uma falha interna antes de chegar ao serviço de publicação:
+Decisão do utilizador: a entrada deixa de pedir código ou ligação por email. Basta escrever o email autorizado e entrar. Respeitar a decisão, mantendo a segurança possível: só emails da lista autorizada e só contas que já existem — nunca cria utilizadores, nunca usa password fixa no bundle.
 
-- Post afetado: `A Netflix está a montar uma nova unidade interna...`
-- Estado final na base de dados: `failed`
-- Erro registado: `instagram_carousel: Invalid time value; linkedin_document: Invalid time value`
-- Hora pretendida no rascunho: `21:00:00` Lisboa
-- Data guardada no post falhado: `2026-05-14 00:00:00+00`
-- Não há registos de tentativa em `publication_attempts` para esse post, o que confirma que a falha aconteceu no frontend antes da função de publicação conseguir registar a tentativa.
+## Como vai funcionar
 
-A causa provável é incompatibilidade de formato de hora: a UI trabalha com `HH:mm`, mas rascunhos recuperados da base de dados podem trazer `HH:mm:ss`. Esse valor é passado para os seletores e para a serialização de agendamento. Em certos caminhos, isso gera `Invalid time value`.
+1. O utilizador escreve o email na página de entrada e carrega em «Entrar».
+2. Uma função de servidor nova (`entrar-email`) verifica, no servidor:
+   - o email está na lista autorizada (os 2 emails atuais);
+   - a conta já existe no sistema de autenticação.
+3. Se passar, o servidor gera uma sessão real através da API de administração (`generateLink` + verificação interna) e devolve os tokens à página. Nenhum email é enviado.
+4. A página guarda a sessão (`setSession`) e entra diretamente.
 
-## Correções propostas
+## Alterações
 
-1. Normalizar a hora num único helper seguro
-   - Aceitar `HH:mm`, `HH:mm:ss`, `Date`, `null` e valores inválidos.
-   - Converter sempre para `HH:mm` para a UI.
-   - Validar limites reais: `00-23` e `00-59`.
-   - Usar fallback seguro `12:00` apenas quando o valor estiver inválido.
+- **Nova função de servidor `entrar-email`** (verify_jwt = false no config.toml, com autenticação própria):
+  - valida email contra a lista autorizada e a existência da conta;
+  - limite de tentativas por email/IP (ex.: 5 por 10 min) para travar força bruta, já que deixa de haver código;
+  - resposta genérica («Este email não tem acesso») sem revelar se a conta existe;
+  - erros técnicos só nos registos do servidor.
+- **`src/contexts/AuthContext.tsx`**: substituir `requestEmailCode`/`verifyEmailCode` por `entrarComEmail(email)` que chama a função e faz `setSession` com os tokens devolvidos.
+- **`src/pages/Auth.tsx`**: um só passo — campo de email + botão «Entrar»; remover o ecrã de código.
+- **Roadmap**: atualizar o item de entrada.
 
-2. Aplicar a normalização nos pontos críticos
-   - Ao carregar rascunhos em `useDraftRecovery`.
-   - Antes de construir `effectiveScheduledDate` em `ManualCreate`.
-   - Antes de chamar `executePublish` em `usePublishOrchestrator`.
-   - Antes de enviar `scheduled_time` para a função `publish-to-getlate` em `usePublishWithProgress`.
+## O que NÃO muda
 
-3. Corrigir o agendamento de publicação imediata vs agendada
-   - Para posts agendados, enviar a data/hora combinada corretamente em Lisboa.
-   - Evitar passar apenas a data a `scheduledDate` quando `scheduleAsap=false`.
-   - Garantir que o cálculo “data futura” usa a data + hora, não apenas meia-noite do dia.
+- Não se criam contas, não se alteram passwords, papéis nem credenciais.
+- Nenhuma password fixa no código do cliente nem do servidor.
+- Sessões existentes preservadas; a página de segurança da conta (alteração de password self-service) fica igual.
 
-4. Tornar a função `publish-to-getlate` mais tolerante
-   - Normalizar `scheduled_time` no backend antes de fazer `new Date(...)`.
-   - Se a hora vier inválida, devolver erro claro: “Hora de agendamento inválida”, em vez de cair em “Desconhecido”.
-   - Manter `timezone: Europe/Lisbon` no payload.
+## Testes
 
-5. Melhorar o feedback de erro
-   - Classificar `Invalid time value` como erro de agendamento, não como erro desconhecido.
-   - Mostrar uma mensagem útil: “A hora guardada no rascunho estava num formato inválido. Escolhe novamente a hora.”
-
-6. Validação
-   - Criar testes unitários para normalização de hora: `21:00`, `21:00:00`, `9:5`, inválidos e vazios.
-   - Testar manualmente o fluxo com rascunho agendado para hoje às 21:00 Lisboa.
-   - Confirmar que a publicação já regista tentativa em `publication_attempts` antes de qualquer falha externa.
-
-## Ficheiros previstos
-
-- `src/lib/scheduling/time.ts` ou helper equivalente novo
-- `src/pages/ManualCreate.tsx`
-- `src/hooks/manual-create/useDraftRecovery.ts`
-- `src/hooks/manual-create/usePublishOrchestrator.ts`
-- `src/hooks/usePublishWithProgress.ts`
-- `supabase/functions/publish-to-getlate/index.ts`
-- `src/lib/publishingErrors.ts`
-- testes unitários correspondentes
-
-## Nota operacional
-
-Não vou marcar automaticamente o post antigo como publicado, porque não há evidência de envio para Instagram/LinkedIn. A correção evita que o mesmo rascunho volte a falhar por hora inválida; depois poderás republicar a partir do rascunho/recuperação.
+- Sem sessão: email autorizado entra; email fora da lista é recusado com mensagem genérica; conta inexistente é recusada.
+- Função responde 400/401 a pedidos sem email ou não autorizados.
+- typecheck + testes existentes (51) sem erros.
