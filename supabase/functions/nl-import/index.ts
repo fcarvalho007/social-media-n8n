@@ -337,7 +337,7 @@ Deno.serve(async (req) => {
           if (rel.error) throw new Error(rel.error.message);
           const relatorio = {
             ...(run.relatorio ?? {}), final: rel.data, inseridos: prog.inseridos, colunas_ignoradas: prog.ignoradas,
-            reescritas_url: prog.reescritas, repeticoes: rep.data, agendamentos: sus.data,
+            reescritas_url: prog.reescritas, repeticoes: rep.data, agendamentos: sus.data, identidade_atribuida: identidadeAtribuida, edicoes_digitalsprint: idsEd.length,
             ficheiros_copiados: p.ficheiros.length, perfis_registados: perfis.length, pacote_sha256: bytesHash,
           };
           await sb.from("nl_import_runs").update({ estado: ESTADO.CONCLUIDA, progresso: { ...prog, fase: "concluida" }, relatorio, concluido_em: new Date().toISOString() }).eq("id", run.id);
