@@ -76,6 +76,8 @@ Deno.serve(async (req) => {
       const corpo = await req.json().catch(() => null) as { t?: unknown; accao?: unknown; motivo?: unknown } | null;
       if (!tokenValido(corpo?.t)) return json({ ok: false, mensagem: "Ligação inválida ou incompleta." }, 400);
       const sub = await import("../_shared/nl-app/lib/subscricao.server.ts");
+      // Forged/tampered signature: rejected before any lookup, with no subscription state in the reply.
+      if (!sub.lerToken(corpo!.t as string)) return json({ ok: false, mensagem: "Ligação inválida ou incompleta." }, 400);
       if (b === "estado") return json(await sub.estadoSubscricao(corpo!.t as string));
       if (b === "accao") {
         const accao = String(corpo?.accao ?? "");
@@ -103,7 +105,8 @@ Deno.serve(async (req) => {
         }
         // Signed token only: an e-mail address alone never cancels a subscription.
         if (!tokenValido(t)) return new Response("Pedido inválido", { status: 400 });
-        const { aplicarAccao } = await import("../_shared/nl-app/lib/subscricao.server.ts");
+        const { aplicarAccao, lerToken } = await import("../_shared/nl-app/lib/subscricao.server.ts");
+        if (!lerToken(t)) return new Response("Pedido inválido", { status: 400 });
         const r = await aplicarAccao({ token: t, email: null, accao: "cancelar", motivo: "Cancelamento de um clique no cliente de email", origem: "um_clique" });
         return new Response(r.ok ? "OK" : "Pedido inválido", { status: r.ok ? 200 : 400 });
       }
