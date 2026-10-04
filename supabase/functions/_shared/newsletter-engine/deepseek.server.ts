@@ -1,3 +1,4 @@
+import process from "node:process";
 // Cliente único da DeepSeek — usado por todas as funcionalidades de IA da app.
 // Server-only: nunca importar deste ficheiro a partir do bundle do browser.
 //
@@ -5,7 +6,7 @@
 // encurtar descrições e ranking de fontes IA. Não há chamadas ao Lovable
 // AI Gateway (Gemini/OpenAI) em runtime.
 
-import { extrairTokens } from "../../supabase/functions/_shared/custos-ia";
+import { extrairTokens } from "./custos-ia.ts";
 
 export const MODELO_DEEPSEEK_PADRAO = "deepseek-flash";
 export const DEEPSEEK_ENDPOINT = "https://api.deepseek.com/chat/completions";
