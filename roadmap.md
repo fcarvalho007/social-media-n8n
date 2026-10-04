@@ -43,5 +43,5 @@
 
 - [x] R3: Carrosséis no Estúdio (texto colado, fila no servidor, retoma de 5 em 5 min, editor ligado com versões)
 - [x] R4: IA real no motor com limites por projeto (≤10/dia, ≤2/carrossel)
-- [ ] R6: exportação no servidor e rascunho social
+- [x] R6: exportação no servidor (PNG/PDF/ZIP por versão) e rascunho social idempotente
 - [ ] Fontes link/PDF
