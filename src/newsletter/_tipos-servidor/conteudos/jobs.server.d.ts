@@ -23,7 +23,7 @@ export declare function enfileirarCarrossel(edicaoId: string, origem: "envio" | 
     jobId?: string;
     motivo?: string;
 }>;
-/** Calls DeepSeek, logs cost (also for invalid answers) and returns a validated carousel. */
+/** Calls DeepSeek (max one guided repair), logs cost for every call incl. invalid answers, returns a validated carousel. */
 export declare function gerarProposta(sb: SupabaseClient, fonte: FonteCronica): Promise<Carrossel>;
 /** Bounded processor (max 5 jobs per run, atomic lease). Safe to call repeatedly. */
 export declare function processarJobs(limite?: number): Promise<{

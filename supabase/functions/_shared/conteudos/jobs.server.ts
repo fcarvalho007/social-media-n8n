@@ -6,7 +6,7 @@
 import process from "node:process";
 import { createClient, type SupabaseClient } from "npm:@supabase/supabase-js@2.57.4";
 import { carregarFonteCronica, ErroFonte } from "./fonte.server.ts";
-import { PROMPT_CARROSSEL, validarCarrossel, type Carrossel, type FonteCronica } from "./carrossel.ts";
+import { gerarComReparacao, type Carrossel, type FonteCronica } from "./carrossel.ts";
 
 export const TIPO = "carrossel_cronica";
 
@@ -136,37 +136,30 @@ async function manterLease(sb: SupabaseClient, job: Lease, campos: Record<string
   return !!data?.length;
 }
 
-/** Calls DeepSeek, logs cost (also for invalid answers) and returns a validated carousel. */
+/** Calls DeepSeek (max one guided repair), logs cost for every call incl. invalid answers, returns a validated carousel. */
 export async function gerarProposta(sb: SupabaseClient, fonte: FonteCronica): Promise<Carrossel> {
   const { chamarDeepSeek, parseJsonTolerante } = await import("../newsletter-engine/deepseek.server.ts");
   const { custoUsd } = await import("../newsletter-engine/custos-ia.ts");
-  const inicio = Date.now();
-  const r = await chamarDeepSeek(
-    PROMPT_CARROSSEL,
-    JSON.stringify({ titulo: fonte.titulo, paragrafos: fonte.paragrafos.map((texto, i) => ({ numero: i + 1, texto })) }),
-    { responseJson: true, temperatura: 0.4 },
-  );
-  let carrossel: Carrossel | null = null;
-  let erro: string | null = null;
-  try {
-    carrossel = validarCarrossel(parseJsonTolerante(r.conteudo), fonte);
-  } catch (e) {
-    erro = (e as Error).message;
-  }
-  await sb.from("nl_ia_uso").insert({
-    modelo: r.modelo,
-    tokens_entrada_cache_hit: r.usage.cacheHit,
-    tokens_entrada_cache_miss: r.usage.cacheMiss,
-    tokens_saida: r.usage.saida,
-    custo_usd: custoUsd(r.modelo, r.usage.cacheHit, r.usage.cacheMiss, r.usage.saida),
-    origem: TIPO,
-    edicao_id: fonte.edicaoId,
-    duracao_ms: Date.now() - inicio,
-    sucesso: !erro,
-    erro,
+  let inicio = Date.now();
+  return gerarComReparacao(fonte, {
+    chamar: (system, user) => { inicio = Date.now(); return chamarDeepSeek(system, user, { responseJson: true, temperatura: 0.4 }); },
+    parse: (t) => parseJsonTolerante(t),
+    registar: async (r, erro) => {
+      const { error } = await sb.from("nl_ia_uso").insert({
+        modelo: r.modelo,
+        tokens_entrada_cache_hit: r.usage.cacheHit,
+        tokens_entrada_cache_miss: r.usage.cacheMiss,
+        tokens_saida: r.usage.saida,
+        custo_usd: custoUsd(r.modelo, r.usage.cacheHit, r.usage.cacheMiss, r.usage.saida),
+        origem: TIPO,
+        edicao_id: fonte.edicaoId,
+        duracao_ms: Date.now() - inicio,
+        sucesso: !erro,
+        erro,
+      });
+      if (error) console.error("[carrossel] falha a registar nl_ia_uso:", error.message);
+    },
   });
-  if (!carrossel) throw new Error(erro ?? "Resposta inválida da IA.");
-  return carrossel;
 }
 
 /** Bounded processor (max 5 jobs per run, atomic lease). Safe to call repeatedly. */
