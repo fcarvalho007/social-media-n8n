@@ -53,8 +53,10 @@ for e in sorted(set(erros)):
 # Deno type-check of each newsletter entrypoint (includes literal dynamic imports).
 import shutil, subprocess
 if shutil.which("deno"):
+    # Check against Deno's own npm resolution (not the frontend node_modules).
+    Path("/tmp/deno-nl.json").write_text('{"nodeModulesDir":"none"}')
     for entrada in sorted(FUN.glob("nl-*/index.ts")):
-        r = subprocess.run(["deno", "check", "--quiet", str(entrada)], cwd=FUN, capture_output=True, text=True)
+        r = subprocess.run(["deno", "check", "--quiet", "--config", str(Path("/tmp/deno-nl.json")), str(entrada)], cwd=FUN, capture_output=True, text=True)
         if r.returncode != 0:
             erros.append(f"deno check falhou em {entrada.parent.name}: {r.stderr[-400:]}")
             print("ERRO", erros[-1])
