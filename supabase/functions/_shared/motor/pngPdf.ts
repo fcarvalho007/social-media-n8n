@@ -1,7 +1,7 @@
 // Low-CPU PNG → PDF image embedding. pdf-lib's embedPng decodes and re-deflates in JS,
 // which exceeds the edge CPU budget on photographic pages. Here inflate/deflate use the
 // runtime's native streams and only the per-row unfilter runs in JS.
-import { PDFDocument, PDFName, PDFNumber, pushGraphicsState, popGraphicsState, concatTransformationMatrix, drawObject } from "npm:pdf-lib@1.17.1";
+import { PDFDocument, pushGraphicsState, popGraphicsState, concatTransformationMatrix, drawObject } from "npm:pdf-lib@1.17.1";
 
 async function stream(bytes: Uint8Array, s: CompressionStream | DecompressionStream): Promise<Uint8Array> {
   const out = new Response(new Blob([bytes as BlobPart]).stream().pipeThrough(s));
@@ -73,5 +73,5 @@ export function adicionarPaginaRgb(pdf: PDFDocument, img: PngRgb, larguraPt: num
   const pg = pdf.addPage([larguraPt, alturaPt]);
   const nome = pg.node.newXObject("Im", ref);
   pg.pushOperators(pushGraphicsState(), concatTransformationMatrix(larguraPt, 0, 0, alturaPt, 0, 0), drawObject(nome), popGraphicsState());
-  void PDFName; void PDFNumber;
+
 }
