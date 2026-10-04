@@ -17,6 +17,7 @@ export default function NewsletterMigracao() {
   const [progresso, setProgresso] = useState(0);
   const [relatorio, setRelatorio] = useState<Record<string, unknown> | null>(null);
   const [ocupado, setOcupado] = useState(false);
+  const [versaoPerfis, setVersaoPerfis] = useState(0);
 
   const [retomavel, setRetomavel] = useState<ImportRun | null>(null);
   const [aviso, setAviso] = useState<string | null>(null);
@@ -62,7 +63,7 @@ export default function NewsletterMigracao() {
     setEstado("A importar… não feches a página (se fechares, podes retomar depois).");
     try {
       const r = await executarImportacao(runId, passoImportacao, { onProgresso: (pct) => setProgresso(pct) });
-      if (r.estado === "concluida") { setRelatorio(r.relatorio); setRetomavel(null); setSim(null); }
+      if (r.estado === "concluida") { setRelatorio(r.relatorio); setRetomavel(null); setSim(null); setVersaoPerfis((n) => n + 1); }
       else setAviso(`Pausa após ${r.passos} passos: a importação ainda não terminou. Carrega em «Retomar importação» para continuar.`);
       if (r.estado === "pausa") setRetomavel((x) => x ?? ({ id: runId } as ImportRun));
     } catch (e) {
@@ -125,7 +126,7 @@ export default function NewsletterMigracao() {
           {progresso > 0 && !retomavel && <Progress value={progresso} />}
         </div>
       )}
-      <MapeamentoPerfis />
+      <MapeamentoPerfis versao={versaoPerfis} />
       {relatorio && (
         <div className="space-y-2 rounded-md border p-3">
           <div className="text-sm font-medium">Relatório da importação</div>

@@ -5,8 +5,14 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route, Navigate, useLocation } from "react-router-dom";
 import { ThemeProvider } from "next-themes";
 import { ErrorBoundary } from "@/components/ErrorBoundary";
-import { AuthProvider } from "@/contexts/AuthContext";
-import { ProjetoProvider } from "@/contexts/ProjetoContext";
+import { AuthProvider, useAuth } from "@/contexts/AuthContext";
+import { ProjetoProviderPorConta } from "@/contexts/ProjetoContext";
+import type { ReactNode } from "react";
+
+function ProjetoDaConta({ children }: { children: ReactNode }) {
+  const { user } = useAuth();
+  return <ProjetoProviderPorConta userId={user?.id ?? null}>{children}</ProjetoProviderPorConta>;
+}
 import { ProtectedRoute } from "@/components/ProtectedRoute";
 import { MainLayout } from "@/components/MainLayout";
 import Dashboard from "./pages/Dashboard";
@@ -84,7 +90,7 @@ const App = () => (
                 <Route path="/brief/:slug" element={<Suspense fallback={null}><BriefPublico /></Suspense>} />
                 <Route path="/subscricao" element={<Suspense fallback={null}><SubscricaoPublica /></Suspense>} />
                 <Route path="/stories/launch/:id" element={<StoryLauncher />} />
-                <Route element={<ProtectedRoute><ProjetoProvider><MainLayout /></ProjetoProvider></ProtectedRoute>}>
+                <Route element={<ProtectedRoute><ProjetoDaConta><MainLayout /></ProjetoDaConta></ProtectedRoute>}>
                   <Route path="/" element={<Estudio />} />
                   <Route path="/redes-sociais" element={<Dashboard />} />
                   <Route path="/dashboard" element={<Navigate to="/redes-sociais" replace />} />

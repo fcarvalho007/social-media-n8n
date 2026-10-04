@@ -21,6 +21,11 @@ interface ProjetoCtx {
 
 const Ctx = createContext<ProjetoCtx | null>(null);
 
+/** Remounts the provider per account so no project state survives a user switch. */
+export function ProjetoProviderPorConta({ userId, children }: { userId: string | null; children: ReactNode }) {
+  return <ProjetoProvider key={userId ?? "sem-conta"}>{children}</ProjetoProvider>;
+}
+
 export function ProjetoProvider({ children }: { children: ReactNode }) {
   const [estado, setEstado] = useState<Estado>("a_carregar");
   const [erro, setErro] = useState<string | null>(null);
