@@ -886,6 +886,81 @@ export type Database = {
           },
         ]
       }
+      mc_export_trabalhos: {
+        Row: {
+          actualizado_em: string
+          concluido_em: string | null
+          criado_em: string
+          criado_por: string | null
+          documento_id: string
+          documento_versao: number
+          erro: string | null
+          erro_classe: string | null
+          estado: string
+          id: string
+          lease_ate: string | null
+          lease_token: string | null
+          manifesto: Json | null
+          paginas: number | null
+          progresso: Json
+          project_id: string
+          tentativas: number
+        }
+        Insert: {
+          actualizado_em?: string
+          concluido_em?: string | null
+          criado_em?: string
+          criado_por?: string | null
+          documento_id: string
+          documento_versao: number
+          erro?: string | null
+          erro_classe?: string | null
+          estado?: string
+          id?: string
+          lease_ate?: string | null
+          lease_token?: string | null
+          manifesto?: Json | null
+          paginas?: number | null
+          progresso?: Json
+          project_id: string
+          tentativas?: number
+        }
+        Update: {
+          actualizado_em?: string
+          concluido_em?: string | null
+          criado_em?: string
+          criado_por?: string | null
+          documento_id?: string
+          documento_versao?: number
+          erro?: string | null
+          erro_classe?: string | null
+          estado?: string
+          id?: string
+          lease_ate?: string | null
+          lease_token?: string | null
+          manifesto?: Json | null
+          paginas?: number | null
+          progresso?: Json
+          project_id?: string
+          tentativas?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "mc_export_trabalhos_documento_id_documento_versao_fkey"
+            columns: ["documento_id", "documento_versao"]
+            isOneToOne: true
+            referencedRelation: "mc_documentos_versoes"
+            referencedColumns: ["documento_id", "versao"]
+          },
+          {
+            foreignKeyName: "mc_export_trabalhos_project_id_fkey"
+            columns: ["project_id"]
+            isOneToOne: false
+            referencedRelation: "projects"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       mc_exportacoes: {
         Row: {
           bytes: number | null
@@ -1001,8 +1076,10 @@ export type Database = {
           documento_id: string
           documento_versao: number
           draft_id: string | null
+          draft_previsto: string | null
           id: string
           project_id: string
+          proposta_versao: number | null
         }
         Insert: {
           criado_em?: string
@@ -1011,8 +1088,10 @@ export type Database = {
           documento_id: string
           documento_versao: number
           draft_id?: string | null
+          draft_previsto?: string | null
           id?: string
           project_id: string
+          proposta_versao?: number | null
         }
         Update: {
           criado_em?: string
@@ -1021,8 +1100,10 @@ export type Database = {
           documento_id?: string
           documento_versao?: number
           draft_id?: string | null
+          draft_previsto?: string | null
           id?: string
           project_id?: string
+          proposta_versao?: number | null
         }
         Relationships: [
           {
@@ -4715,6 +4796,14 @@ export type Database = {
         }
         Returns: boolean
       }
+      mc_concluir_exportacao: {
+        Args: { _id: string; _lease: string; _manifesto: Json }
+        Returns: boolean
+      }
+      mc_confirmar_draft: {
+        Args: { _documento_id: string; _draft: string; _versao: number }
+        Returns: number
+      }
       mc_criar_trabalho: {
         Args: {
           _brief?: Json
@@ -4739,6 +4828,17 @@ export type Database = {
       mc_definir_orcamento: {
         Args: { _max_dia: number; _max_trabalho: number; _project_id: string }
         Returns: undefined
+      }
+      mc_exportacao_progresso: {
+        Args: {
+          _classe?: string
+          _erro?: string
+          _estado?: string
+          _id: string
+          _lease: string
+          _progresso: Json
+        }
+        Returns: boolean
       }
       mc_fechar_esgotados: { Args: never; Returns: number }
       mc_gravar_documento: {
@@ -4809,8 +4909,27 @@ export type Database = {
         }
         Returns: string
       }
+      mc_pedir_exportacao: {
+        Args: { _documento_id: string; _versao: number }
+        Returns: {
+          estado: string
+          exportacao_id: string
+        }[]
+      }
       mc_pode_escrever: { Args: { _project_id: string }; Returns: boolean }
       mc_pode_ler: { Args: { _project_id: string }; Returns: boolean }
+      mc_preparar_social: {
+        Args: {
+          _documento_id: string
+          _proposta_versao: number
+          _versao: number
+        }
+        Returns: {
+          draft_id: string
+          draft_previsto: string
+          project_id: string
+        }[]
+      }
       mc_registar_chamada: {
         Args: {
           _chamada_id: string
@@ -4840,6 +4959,34 @@ export type Database = {
       mc_reservar_chamada: {
         Args: { _lease: string; _trabalho_id: string }
         Returns: string
+      }
+      mc_reservar_exportacoes: {
+        Args: { _limite?: number; _segundos?: number }
+        Returns: {
+          actualizado_em: string
+          concluido_em: string | null
+          criado_em: string
+          criado_por: string | null
+          documento_id: string
+          documento_versao: number
+          erro: string | null
+          erro_classe: string | null
+          estado: string
+          id: string
+          lease_ate: string | null
+          lease_token: string | null
+          manifesto: Json | null
+          paginas: number | null
+          progresso: Json
+          project_id: string
+          tentativas: number
+        }[]
+        SetofOptions: {
+          from: "*"
+          to: "mc_export_trabalhos"
+          isOneToOne: false
+          isSetofReturn: true
+        }
       }
       mc_reservar_trabalhos: {
         Args: { _limite?: number; _segundos?: number }
