@@ -3,9 +3,7 @@ export declare const Route: {
     options: {
         server: {
             handlers: {
-                POST: ({ request }: {
-                    request: any;
-                }) => Promise<Response>;
+                POST: ({ request }: import("../_shim/router.ts").HookHandlerCtx) => Promise<Response>;
             };
         };
     };

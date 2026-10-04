@@ -122,7 +122,7 @@ export const sugerirAssunto = createServerFn({ method: "POST" })
         .order("posicao", { ascending: true }),
     ]);
 
-    const todas = noticias ?? [];
+    const todas = (noticias ?? []) as Array<{ titulo: string; descricao: string | null; categoria: string | null; destaque: boolean | null; destino: string | null; ordem: number | null }>;
     const destaques = todas.filter((n) => n.destaque).slice(0, 3);
     const totalNoticias = todas.length;
 
@@ -130,7 +130,7 @@ export const sugerirAssunto = createServerFn({ method: "POST" })
     const cronicaUtil = cronicaTxt.length >= MIN_CRONICA_UTIL;
 
     const podcastTit = episodios?.[0]?.titulo ?? null;
-    const listaFerramentas = (ferramentas ?? []).filter((f) => (f.nome ?? "").trim().length > 0);
+    const listaFerramentas = ((ferramentas ?? []) as Array<{ nome: string | null; descricao: string | null; emoji: string | null; posicao: number | null }>).filter((f) => (f.nome ?? "").trim().length > 0);
 
     if (destaques.length === 0 && totalNoticias === 0 && !cronicaUtil) {
       throw new Error("Sem conteúdo suficiente. Aprova pelo menos uma notícia ou escreve a crónica antes de gerar.");
