@@ -512,3 +512,15 @@ export function paginaParaSvg(pacote: PacoteProva, variante: Variante, indice: n
   partes.push(`</svg>`);
   return partes.join("");
 }
+
+/** Text layers whose content does not fit their box (same layout as render; font is never shrunk). */
+export function transbordos(pacote: PacoteProva, variante: Variante, m: Medidor): Array<{ pagina: number; titulo: boolean }> {
+  const out: Array<{ pagina: number; titulo: boolean }> = [];
+  pacote.variantes[variante].paginas.forEach((pg, i) => {
+    for (const c of pg.camadas) {
+      if (c.tipo !== "texto") continue;
+      if (layoutTexto(resolverTexto(c, pacote.conteudo), c.estilo, c.w, c.h, m).cortado) out.push({ pagina: i, titulo: !!c.ref?.endsWith("titulo") });
+    }
+  });
+  return out;
+}
