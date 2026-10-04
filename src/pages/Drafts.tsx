@@ -1,6 +1,8 @@
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useEffect } from 'react';
+import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
+import { useProjeto } from '@/contexts/ProjetoContext';
 import { useNavigate } from 'react-router-dom';
-import { ArrowLeft, Plus, FileText, Inbox } from 'lucide-react';
+import { ArrowLeft, Plus, FileText, Inbox, AlertCircle, RefreshCw } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { Skeleton } from '@/components/ui/skeleton';
@@ -37,6 +39,10 @@ export default function Drafts() {
   const { 
     drafts, 
     isLoading, 
+    error,
+    refetch,
+    isFetching,
+    chaveContexto,
     deleteDraft, 
     deleteManyDrafts, 
     isDeleting, 
@@ -45,6 +51,15 @@ export default function Drafts() {
     totalCount,
     filteredCount,
   } = useDrafts(options);
+
+  const ctx = useProjeto();
+  // Changing user/project clears selection and filters so nothing from another brand stays selected.
+  useEffect(() => {
+    setSelectedIds(new Set());
+    setSearch('');
+    setPlatform('all');
+    setDateFilter('all');
+  }, [chaveContexto]);
 
   const hasActiveFilters = search !== '' || platform !== 'all' || dateFilter !== 'all';
 
@@ -107,17 +122,17 @@ export default function Drafts() {
           <div>
             <h1 className="text-2xl font-bold flex items-center gap-2">
               <FileText className="h-6 w-6 text-primary" />
-              Meus Rascunhos
+              Os meus rascunhos
             </h1>
             <p className="text-sm text-muted-foreground">
-              {totalCount} rascunho{totalCount !== 1 ? 's' : ''} guardado{totalCount !== 1 ? 's' : ''}
+              {totalCount} rascunho{totalCount !== 1 ? 's' : ''} · {ctx.projeto ? ctx.projeto.name : 'todos os projetos'}
             </p>
           </div>
         </div>
         
         <Button onClick={() => navigate('/manual-create')}>
           <Plus className="h-4 w-4 mr-2" />
-          Criar Novo
+          Criar novo
         </Button>
       </div>
 
@@ -139,7 +154,7 @@ export default function Drafts() {
       />
 
       {/* Bulk Actions */}
-      {drafts.length > 0 && (
+      {!error && drafts.length > 0 && (
         <DraftsBulkActions
           totalCount={filteredCount}
           selectedCount={selectedIds.size}
@@ -151,7 +166,18 @@ export default function Drafts() {
       )}
 
       {/* Content */}
-      {isLoading ? (
+      {ctx.estado === 'erro' || error ? (
+        <Alert variant="destructive">
+          <AlertCircle className="h-4 w-4" />
+          <AlertTitle>Não foi possível carregar os rascunhos</AlertTitle>
+          <AlertDescription className="flex flex-wrap items-center gap-2">
+            <span>{ctx.estado === 'erro' ? ctx.erro : (error as Error).message}</span>
+            <Button size="sm" variant="outline" disabled={isFetching} onClick={() => (ctx.estado === 'erro' ? ctx.recarregar() : refetch())}>
+              <RefreshCw className="mr-1 h-4 w-4" />Tentar de novo
+            </Button>
+          </AlertDescription>
+        </Alert>
+      ) : isLoading ? (
         <div className="space-y-3">
           {[...Array(3)].map((_, i) => (
             <Card key={i}>
@@ -189,7 +215,7 @@ export default function Drafts() {
               <>
                 <h3 className="font-semibold text-lg mb-1">Sem rascunhos</h3>
                 <p className="text-muted-foreground text-center mb-4">
-                  Ainda não tens nenhum rascunho guardado
+                  {ctx.projeto ? `Ainda não tens rascunhos em ${ctx.projeto.name}` : 'Ainda não tens nenhum rascunho guardado'}
                 </p>
                 <Button onClick={() => navigate('/manual-create')}>
                   <Plus className="h-4 w-4 mr-2" />
