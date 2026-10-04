@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import { toast } from "sonner";
-import { AlertCircle, FileText, Images, KeyRound, Mail, PenSquare, RefreshCw, Upload } from "lucide-react";
+import { AlertCircle, FileText, GalleryHorizontal, Images, KeyRound, Mail, PenSquare, RefreshCw, Upload } from "lucide-react";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
