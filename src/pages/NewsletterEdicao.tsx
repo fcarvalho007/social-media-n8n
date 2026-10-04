@@ -5,7 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
-import { guardarEdicao, obterEdicao, type Cronica, type Edicao } from "@/services/estudio";
+import { guardarEdicao, obterEdicao, previewEdicao, type Cronica, type Edicao } from "@/services/estudio";
 
 export default function NewsletterEdicao() {
   const { id = "" } = useParams();
@@ -15,6 +15,13 @@ export default function NewsletterEdicao() {
   const [titulo, setTitulo] = useState("");
   const [conteudo, setConteudo] = useState("");
   const [aGuardar, setAGuardar] = useState(false);
+  const [preview, setPreview] = useState<{ html: string; problemas: string[] } | null>(null);
+  const [aGerar, setAGerar] = useState(false);
+  const gerarPreview = async () => {
+    setAGerar(true);
+    try { setPreview(await previewEdicao(id)); } catch (e) { toast.error(`Pré-visualização indisponível: ${(e as Error).message}`); }
+    setAGerar(false);
+  };
 
   useEffect(() => {
     obterEdicao(id).then(({ edicao, cronica }) => {
@@ -42,7 +49,16 @@ export default function NewsletterEdicao() {
       <div className="space-y-1"><Label htmlFor="assunto">Assunto</Label><Input id="assunto" value={assunto} disabled={enviada} onChange={(e) => setAssunto(e.target.value)} /></div>
       <div className="space-y-1"><Label htmlFor="titulo">Título da crónica</Label><Input id="titulo" value={titulo} disabled={enviada} onChange={(e) => setTitulo(e.target.value)} /></div>
       <div className="space-y-1"><Label htmlFor="conteudo">Crónica</Label><Textarea id="conteudo" rows={16} value={conteudo} disabled={enviada} onChange={(e) => setConteudo(e.target.value)} /></div>
-      {!enviada && <Button onClick={guardar} disabled={aGuardar}>{aGuardar ? "A guardar…" : "Guardar"}</Button>}
+      <div className="flex gap-2">
+        {!enviada && <Button onClick={guardar} disabled={aGuardar}>{aGuardar ? "A guardar…" : "Guardar"}</Button>}
+        <Button variant="outline" onClick={gerarPreview} disabled={aGerar}>{aGerar ? "A gerar…" : "Pré-visualizar email"}</Button>
+      </div>
+      {preview && (
+        <div className="space-y-2">
+          {preview.problemas.length > 0 && <ul className="list-disc pl-5 text-sm text-destructive">{preview.problemas.map((p) => <li key={p}>{p}</li>)}</ul>}
+          <iframe title="Pré-visualização do email" sandbox="" srcDoc={preview.html} className="h-[80vh] w-full rounded-md border bg-card" />
+        </div>
+      )}
     </div>
   );
 }

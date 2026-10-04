@@ -1,0 +1,3 @@
+- The newsletter engine is vendored from the origin into supabase/functions/_shared/newsletter-engine and exposed only via edge functions; keeps the original rendering logic server-side with server-only secrets.
+- Origin source under migration-reference/ stays as inert .txt files; prevents build/migration tooling from picking it up.
+- Login uses email OTP for existing accounts only; no fixed passwords in the bundle.

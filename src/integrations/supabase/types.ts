@@ -3557,7 +3557,24 @@ export type Database = {
       }
     }
     Views: {
-      [_ in never]: never
+      nl_perfis: {
+        Row: {
+          id: string | null
+          nome: string | null
+          papel: string | null
+        }
+        Insert: {
+          id?: string | null
+          nome?: never
+          papel?: never
+        }
+        Update: {
+          id?: string | null
+          nome?: never
+          papel?: never
+        }
+        Relationships: []
+      }
     }
     Functions: {
       calculate_ai_credit_usage: {

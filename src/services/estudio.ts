@@ -81,8 +81,10 @@ export async function enviarPacote(file: File): Promise<string> {
   return path;
 }
 
-async function invocar<T>(body: object): Promise<T> {
-  const { data, error } = await supabase.functions.invoke("nl-import", { body });
+const invocar = <T,>(body: object) => invocarFn<T>("nl-import", body);
+
+async function invocarFn<T>(fn: string, body: object): Promise<T> {
+  const { data, error } = await supabase.functions.invoke(fn, { body });
   if (error) {
     const ctx = (error as { context?: Response }).context;
     const msg = ctx ? (await ctx.json().catch(() => null))?.error : null;
@@ -98,3 +100,7 @@ export interface Simulacao {
 export const simularImportacao = (staging_path: string) => invocar<Simulacao>({ acao: "simular", staging_path });
 export const passoImportacao = (run_id: string) =>
   invocar<{ concluido: boolean; relatorio?: Record<string, unknown>; progresso?: { indice: number; fase: string }; total_tabelas?: number }>({ acao: "importar", run_id });
+
+export async function previewEdicao(edicao_id: string): Promise<{ versao: string; html: string; problemas: string[] }> {
+  return invocarFn("nl-newsletter", { acao: "preview", edicao_id });
+}
