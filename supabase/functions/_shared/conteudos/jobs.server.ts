@@ -10,6 +10,13 @@ import { PROMPT_CARROSSEL, validarCarrossel, type Carrossel, type FonteCronica }
 
 export const TIPO = "carrossel_cronica";
 
+/**
+ * Automatic preparation only covers campaigns accepted by E-goi from this instant on
+ * (go-live of the worker). Imported/historical editions are prepared only by an explicit
+ * "preparar" action, never retroactively by the worker.
+ */
+export const AUTO_DESDE = "2026-10-04T11:00:00Z";
+
 export function admin(): SupabaseClient {
   return createClient(process.env.SUPABASE_URL!, process.env.SUPABASE_SERVICE_ROLE_KEY!, {
     auth: { persistSession: false },
@@ -53,10 +60,24 @@ export async function enfileirarCarrossel(
   try {
     const fonte = await carregarFonteCronica(sb, edicaoId);
     const conteudo = await garantirConteudo(sb, fonte);
-    const { data: camps } = await sb.from("nl_egoi_campanhas").select("lista_id, campaign_hash, estado").eq("edicao_id", edicaoId);
-    const aceites = ((camps ?? []) as { lista_id: string; campaign_hash: string; estado: string }[])
-      .filter((c) => c.estado === "enviada" && c.campaign_hash)
-      .map((c) => ({ lista_id: c.lista_id, campaign_hash: c.campaign_hash, confirmada: false }));
+    const { data: camps } = await sb.from("nl_egoi_campanhas")
+      .select("lista_id, campaign_hash, estado, aceite_em").eq("edicao_id", edicaoId);
+    // Candidates only: delivery is always re-confirmed against E-goi by the processor.
+    let candidatas = ((camps ?? []) as { lista_id: string; campaign_hash: string | null; estado: string; aceite_em: string | null }[])
+      .filter((c) => (c.estado === "aceite" || c.estado === "enviada") && c.campaign_hash);
+    if (origem !== "manual") {
+      candidatas = candidatas.filter((c) => c.aceite_em && c.aceite_em >= AUTO_DESDE);
+      if (!candidatas.length) return { ok: false, motivo: "Sem campanha aceite pela E-goi depois da ativação automática." };
+    }
+    const aceites = candidatas.map((c) => ({ lista_id: c.lista_id, campaign_hash: c.campaign_hash as string, confirmada: false }));
+    // Explicit historical preparation without campaign hashes: relies on server-only send evidence
+    // (enviada_em/snapshot are write-protected against client sessions by a DB trigger).
+    let semCampanhaMasEnviada = false;
+    if (!aceites.length) {
+      const { data: ed } = await sb.from("nl_edicoes").select("enviada_em").eq("id", edicaoId).maybeSingle();
+      semCampanhaMasEnviada = !!(ed as { enviada_em: string | null } | null)?.enviada_em;
+      if (!semCampanhaMasEnviada) return { ok: false, motivo: "Esta edição não tem envio confirmado no servidor." };
+    }
     const precisaRevisao = fonte.origem === "historico_actual" && !conteudo.fonte_aceite_em;
     await sb.from("nl_conteudos_jobs").upsert(
       {
@@ -65,7 +86,7 @@ export async function enfileirarCarrossel(
         fonte_hash: fonte.hash,
         conteudo_id: conteudo.id,
         origem,
-        estado: precisaRevisao ? "aguarda_revisao_fonte" : "aguarda_confirmacao",
+        estado: precisaRevisao ? "aguarda_revisao_fonte" : semCampanhaMasEnviada ? "pendente" : "aguarda_confirmacao",
         campanhas: aceites,
       },
       { onConflict: "edicao_id,tipo,fonte_hash", ignoreDuplicates: true },
@@ -156,7 +177,7 @@ export async function processarJobs(limite = 2): Promise<{ processados: number }
         for (const c of campanhas) {
           if (!c.confirmada) c.confirmada = (await estadoBrutoCampanha(key, c.campaign_hash)) === "sent";
         }
-        if (campanhas.some((c) => c.confirmada)) {
+        if (campanhas.length && campanhas.some((c) => c.confirmada)) {
           await gravarJob(sb, job.id, { campanhas, estado: "pendente", confirmado_em: new Date().toISOString(), erro: null, proxima_tentativa_em: new Date().toISOString() });
         } else {
           await gravarJob(sb, job.id, { campanhas, erro: "A E-goi aceitou o envio mas ainda não o confirmou como entregue.", proxima_tentativa_em: backoff(2) });
@@ -199,11 +220,15 @@ export async function processarJobs(limite = 2): Promise<{ processados: number }
   return { processados };
 }
 
-/** Recovers eligible sent editions whose job was never enqueued (bounded). */
+/**
+ * Recovers editions whose campaigns E-goi accepted after AUTO_DESDE but which have no job
+ * yet (bounded). Never looks at nl_edicoes.estado and never touches historical editions.
+ */
 export async function reconciliarEdicoesSemJob(limite = 10) {
   const sb = admin();
-  const { data } = await sb.from("nl_edicoes").select("id").eq("estado", "enviada").order("numero", { ascending: false }).limit(50);
-  const ids = ((data ?? []) as { id: string }[]).map((r) => r.id);
+  const { data } = await sb.from("nl_egoi_campanhas").select("edicao_id")
+    .in("estado", ["aceite", "enviada"]).not("campaign_hash", "is", null).gte("aceite_em", AUTO_DESDE).limit(200);
+  const ids = [...new Set(((data ?? []) as { edicao_id: string }[]).map((r) => r.edicao_id))];
   if (!ids.length) return { enfileiradas: 0 };
   const { data: comJob } = await sb.from("nl_conteudos_jobs").select("edicao_id").eq("tipo", TIPO).in("edicao_id", ids);
   const ja = new Set(((comJob ?? []) as { edicao_id: string }[]).map((r) => r.edicao_id));
@@ -212,4 +237,12 @@ export async function reconciliarEdicoesSemJob(limite = 10) {
     if ((await enfileirarCarrossel(id, "reconciliacao")).ok) enfileiradas++;
   }
   return { enfileiradas };
+}
+
+/** Editions with campaigns still "aceite" (accepted, not delivered) since AUTO_DESDE. */
+export async function edicoesPorConfirmar(limite = 5): Promise<string[]> {
+  const sb = admin();
+  const { data } = await sb.from("nl_egoi_campanhas").select("edicao_id")
+    .eq("estado", "aceite").not("campaign_hash", "is", null).gte("aceite_em", AUTO_DESDE).limit(100);
+  return [...new Set(((data ?? []) as { edicao_id: string }[]).map((r) => r.edicao_id))].slice(0, limite);
 }

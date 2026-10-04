@@ -43,6 +43,13 @@
       "when": 1791110471769,
       "tag": "0005_nl_egoi_aceite_confirmacao",
       "breakpoints": true
+    },
+    {
+      "idx": 6,
+      "version": "7",
+      "when": 1791112155804,
+      "tag": "0006_nl_worker_conteudos_e_evidencia_envio",
+      "breakpoints": true
     }
   ]
 }
