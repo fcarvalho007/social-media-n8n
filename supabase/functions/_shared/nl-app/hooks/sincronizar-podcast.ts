@@ -1,0 +1,102 @@
+import process from "node:process";
+import { createFileRoute } from "../_shim/router.ts";
+import { lerFeed, extrairCodigoEpisodio } from "../lib/rss.server.ts";
+
+async function handler(request: Request): Promise<Response> {
+  const anonEsperada = process.env.SUPABASE_PUBLISHABLE_KEY ?? process.env.SUPABASE_ANON_KEY;
+  const apikey = request.headers.get("apikey") ?? request.headers.get("Apikey");
+  if (!anonEsperada || !apikey || apikey !== anonEsperada) {
+    return new Response(JSON.stringify({ ok: false, mensagem: "Não autorizado" }), {
+      status: 401, headers: { "Content-Type": "application/json" },
+    });
+  }
+
+  const { supabaseAdmin } = await import("../_shim/admin.ts");
+
+  // 1) URL do feed
+  const { data: cfg } = await supabaseAdmin
+    .from("nl_configuracoes").select("valor").eq("chave", "podcast_rss_url").maybeSingle();
+  const feedUrl = (cfg?.valor ?? "").trim();
+  if (!feedUrl) {
+    return new Response(JSON.stringify({ ok: false, mensagem: "URL do feed do podcast não configurado", motivo: "sem_url" }), {
+      status: 400, headers: { "Content-Type": "application/json" },
+    });
+  }
+
+  // 2) Ler feed
+  const itens = await lerFeed(feedUrl);
+  if (itens.length === 0) {
+    await supabaseAdmin.from("nl_audit_log").insert({
+      quem: "sistema",
+      accao: "Sincronização do podcast: 0 novo(s) episódio(s)",
+      detalhe: { novos: 0, total_feed: 0, motivo: "feed_vazio_ou_inacessivel" },
+    });
+    return new Response(JSON.stringify({ ok: true, novos: 0, total_feed: 0 }), {
+      headers: { "Content-Type": "application/json" },
+    });
+  }
+
+  // 3) Dedupe contra existentes (por URL)
+  const urlsCandidatos = Array.from(new Set(itens.map((i) => i.url)));
+  const { data: existentes } = await supabaseAdmin
+    .from("nl_episodios_podcast").select("url, titulo, data_publicacao");
+  const urlsExistentes = new Set((existentes ?? []).map((r) => r.url).filter((u): u is string => !!u));
+
+  // Fallback: dedupe por titulo+dia
+  const chaveTituloDia = (t: string, iso: string | null) =>
+    `${t.toLowerCase().trim()}|${iso ? iso.slice(0, 10) : ""}`;
+  const chavesExistentes = new Set(
+    (existentes ?? []).map((r) => chaveTituloDia(r.titulo ?? "", r.data_publicacao ?? null)),
+  );
+
+  const novos: { titulo: string; codigo: string | null; data_publicacao: string; url: string }[] = [];
+  const vistos = new Set<string>();
+  for (const it of itens) {
+    if (urlsExistentes.has(it.url)) continue;
+    if (vistos.has(it.url)) continue;
+    const dataIso = new Date(it.publicado).toISOString();
+    if (chavesExistentes.has(chaveTituloDia(it.titulo, dataIso))) continue;
+    vistos.add(it.url);
+    novos.push({
+      titulo: it.titulo.slice(0, 280),
+      codigo: extrairCodigoEpisodio(it.titulo, it.descricao),
+      data_publicacao: dataIso,
+      url: it.url,
+    });
+  }
+  novos.sort((a, b) => (a.data_publicacao < b.data_publicacao ? 1 : -1));
+
+  // 4) Inserir
+  let inseridos = 0;
+  if (novos.length > 0) {
+    const { error } = await supabaseAdmin.from("nl_episodios_podcast").insert(novos);
+    if (error) {
+      return new Response(JSON.stringify({ ok: false, mensagem: error.message }), {
+        status: 500, headers: { "Content-Type": "application/json" },
+      });
+    }
+    inseridos = novos.length;
+  }
+
+  // 5) Audit + carimbo de última sincronização
+  await supabaseAdmin.from("nl_audit_log").insert({
+    quem: "sistema",
+    accao: `Sincronização do podcast: ${inseridos} novo(s) episódio(s)`,
+    detalhe: { novos: inseridos, total_feed: itens.length },
+  });
+  await supabaseAdmin
+    .from("nl_configuracoes")
+    .upsert({ chave: "podcast_ultima_sync", valor: new Date().toISOString() }, { onConflict: "chave" });
+
+  return new Response(JSON.stringify({ ok: true, novos: inseridos, total_feed: itens.length }), {
+    headers: { "Content-Type": "application/json" },
+  });
+}
+
+export const Route = createFileRoute("/api/public/hooks/sincronizar-podcast")({
+  server: {
+    handlers: {
+      POST: async ({ request }) => handler(request),
+    },
+  },
+});

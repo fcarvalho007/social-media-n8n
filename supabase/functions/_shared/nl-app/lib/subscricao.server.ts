@@ -61,7 +61,9 @@ export function lerToken(token: string): string | null {
 
 /** Chave partilhada para o webhook da E-goi (derivada do segredo, nunca o segredo). */
 export function chaveWebhookEgoi(): string {
-  return assinar("webhook:egoi:v1").slice(0, 32);
+  const k = (process.env.NL_EGOI_WEBHOOK_CHAVE ?? "").trim();
+  if (k.length < 24) throw new Error("NL_EGOI_WEBHOOK_CHAVE em falta");
+  return k;
 }
 
 /** Regista um cancelamento feito fora da aplicação (link nativo da E-goi). */

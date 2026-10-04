@@ -51,6 +51,7 @@ export default function NewsletterMigracao() {
   return (
     <div className="mx-auto max-w-3xl space-y-4 p-4">
       <h1 className="text-2xl font-semibold">Importar dados da newsletter</h1>
+      <p className="text-sm"><a className="underline" href="/estudio/ligacoes">Ver ligações e chaves da newsletter</a></p>
       <p className="text-sm text-muted-foreground">O pacote é confidencial: fica num armazenamento privado e é apagado no fim. Os registos existentes nunca são substituídos, os agendamentos ficam suspensos e não são atribuídos papéis.</p>
       <div className="rounded-md border border-destructive/40 bg-destructive/5 p-3 text-sm">
         <p className="font-medium">Antes de importar dados reais</p>

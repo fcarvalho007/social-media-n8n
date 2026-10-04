@@ -1,9 +1,10 @@
+import { linkUmClique } from "../nl-publico-config.ts";
 // Helpers partilhados para chamadas à API E-goi.
 // A API separa metadados de campanha (subject, sender, list) do conteúdo HTML.
 // Para "actualizar rascunho" fazemos PATCH aos dois recursos.
 
 /** Cabeçalhos de cancelamento de um clique enviados com a campanha. */
-const URL_UM_CLIQUE = "https://newsletter-digital-sprint.lovable.app/api/public/hooks/unsubscribe?e={!email:URLENCODE}";
+const URL_UM_CLIQUE = linkUmClique();
 const CABECALHOS_UNSUBSCRIBE = {
   "List-Unsubscribe": `<${URL_UM_CLIQUE}>`,
   "List-Unsubscribe-Post": "List-Unsubscribe=One-Click",

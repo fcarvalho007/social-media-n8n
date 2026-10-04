@@ -1,3 +1,4 @@
+import { linkSubscricao } from "../../nl-publico-config.ts";
 // Renderer de email do formato Revista — proposta V4.
 // Papel quente, marca em caixa alta, crónica em bloco azul, notícias em foco
 // com painel «A minha leitura», radar escuro com chamada para a edição online,
@@ -11,7 +12,7 @@ import { contagemSeleccao } from "./contagens.ts";
 import { ROTULOS_REVISTA } from "./rotulos.ts";
 import { paletaFerramenta } from "./cores-ferramenta.ts";
 
-const URL_CANCELAR = "https://edicoes.digitalsprint.pt/subscricao?a=cancelar&e={!email:URLENCODE}";
+const URL_CANCELAR = linkSubscricao("cancelar");
 const ENTIDADE = "Digital Sprint · Frederico Carvalho · Digital FC · Portugal";
 
 export function esc(s: string): string {

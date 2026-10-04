@@ -40,6 +40,13 @@ import { lazy, Suspense } from "react";
 const NewsletterApp = lazy(() => import("./newsletter/NewsletterApp"));
 import Artigos from "./pages/Artigos";
 import SegurancaConta from "./pages/SegurancaConta";
+import { useParams } from "react-router-dom";
+const EdicoesArquivo = lazy(() => import("./pages/publico/EdicoesArquivo"));
+const EdicaoPublica = lazy(() => import("./pages/publico/EdicaoPublica"));
+const BriefPublico = lazy(() => import("./pages/publico/BriefPublico"));
+const SubscricaoPublica = lazy(() => import("./pages/publico/Subscricao"));
+const NewsletterLigacoes = lazy(() => import("./pages/NewsletterLigacoes"));
+const RedirectEdicao = () => <Navigate to={`/edicoes/${useParams().numero ?? ""}`} replace />;
 const queryClient = new QueryClient();
 
 // Component to handle URL-encoded redirects
@@ -68,6 +75,12 @@ const App = () => (
                 <Route path="/auth" element={<Auth />} />
                 <Route path="/recovery/:token" element={<Recovery />} />
                 <Route path="/stories/confirm" element={<StoryConfirm />} />
+                {/* Public newsletter pages (anonymous; server returns published content only). */}
+                <Route path="/edicoes" element={<Suspense fallback={null}><EdicoesArquivo /></Suspense>} />
+                <Route path="/edicoes/:numero" element={<Suspense fallback={null}><EdicaoPublica /></Suspense>} />
+                <Route path="/edicao/:numero" element={<RedirectEdicao />} />
+                <Route path="/brief/:slug" element={<Suspense fallback={null}><BriefPublico /></Suspense>} />
+                <Route path="/subscricao" element={<Suspense fallback={null}><SubscricaoPublica /></Suspense>} />
                 <Route path="/stories/launch/:id" element={<StoryLauncher />} />
                 <Route element={<ProtectedRoute><MainLayout /></ProtectedRoute>}>
                   <Route path="/" element={<Estudio />} />
@@ -100,6 +113,7 @@ const App = () => (
                   <Route path="/newsletter/*" element={<Suspense fallback={<p className="p-4 text-sm text-muted-foreground">A carregar a newsletter…</p>}><NewsletterApp /></Suspense>} />
                   <Route path="/artigos" element={<Artigos />} />
                   <Route path="/definicoes/seguranca" element={<SegurancaConta />} />
+                  <Route path="/estudio/ligacoes" element={<Suspense fallback={null}><NewsletterLigacoes /></Suspense>} />
                 </Route>
                 {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
                 <Route path="*" element={<EncodedUrlRedirect />} />

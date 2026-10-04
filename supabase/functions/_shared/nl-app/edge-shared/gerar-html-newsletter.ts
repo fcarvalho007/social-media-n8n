@@ -29,7 +29,8 @@ const PRIMARIA  = "#6366F1";
 const SOMBRA    = "box-shadow:0 1px 3px rgba(15,23,42,0.06);";
 
 /* Avatar do Frederico servido via CDN Lovable (URL absoluto para clientes de email). */
-const AVATAR_URL = "https://newsletter-digital-sprint.lovable.app/__l5e/assets-v1/cadec3e2-5dd7-4a75-b8dc-14c0202c4200/frederico-avatar.jpg";
+const AVATAR_URL = avatarUrl();
+import { avatarUrl } from "../../nl-publico-config.ts";
 
 /* Gradientes rotativos para os medalhões numerados dos destaques. */
 const MEDALHAO_GRADIENTES: string[] = [

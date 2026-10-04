@@ -234,7 +234,10 @@ def server_rewrite(s: str, here: str) -> str:
         s = 'import process from "node:process";\n' + s
     return s
 
-HOOKS_INTERNOS = ("curadoria-ferramentas",)
+# Origin hooks ported as handlers. They are reachable only through the nl-hooks edge function, which
+# authenticates first (cron secret / service role, BasicAuth, webhook key). "unsubscribe" is rewritten in nl-publico.
+HOOKS_INTERNOS = ("curadoria-ferramentas", "curadoria-rss", "email-newsletter", "enviar-agendados",
+                  "sincronizar-podcast", "reprocessar-emails", "egoi-subscricao", "retomar-subscricoes")
 
 # Targeted server fixes so the strict type-check (and declaration emit) passes. Patterns must exist.
 SERVER_FIXES = {
@@ -242,7 +245,32 @@ SERVER_FIXES = {
         ("const porId = new Map(aprovadas.map((n) => [n.id, n]));",
          "const porId = new Map<string, (typeof aprovadas)[number]>(aprovadas.map((n) => [n.id, n]));"),
     ],
-    "lib/subscricao.server.ts": [("\ninterface ResultadoAccao {", "\nexport interface ResultadoAccao {")],
+    "lib/subscricao.server.ts": [
+        ("\ninterface ResultadoAccao {", "\nexport interface ResultadoAccao {"),
+        # E-goi webhook key: shared secret set by a human in E-goi and in server secrets (never derived/shown).
+        ('export function chaveWebhookEgoi(): string {\n  return assinar("webhook:egoi:v1").slice(0, 32);\n}',
+         'export function chaveWebhookEgoi(): string {\n  const k = (process.env.NL_EGOI_WEBHOOK_CHAVE ?? "").trim();\n  if (k.length < 24) throw new Error("NL_EGOI_WEBHOOK_CHAVE em falta");\n  return k;\n}'),
+    ],
+    # Destination host only; never embed BasicAuth credentials in a URL shown to the browser.
+    "lib/definicoes.functions.ts": [
+        ('    const host = process.env.APP_PUBLIC_HOST ?? "project--23514b53-4ffd-429e-81c5-46fedf7b5a3e.lovable.app";\n    const enc = (s: string) => encodeURIComponent(s);\n    return { url: `https://${enc(user)}:${enc(pass)}@${host}/api/public/hooks/email-newsletter` };',
+         '    const { baseFuncoes } = await import("../../nl-publico-config.ts");\n    return { url: `${baseFuncoes()}/nl-hooks/email-newsletter` };'),
+    ],
+    "lib/subscricao.functions.ts": [
+        # Subscription state/actions require a signed token; an e-mail alone never reads or changes anything.
+        ('    if (data.email) return estadoPorEmail(data.email);\n    return { ok: false, email: null, estado: "activa", retomaEm: null, mensagem: "Falta o email." };',
+         '    return { ok: false, email: null, estado: "activa", retomaEm: null, mensagem: "Ligação inválida ou incompleta." };'),
+        ('    const { estadoSubscricao, estadoPorEmail } = await import("./subscricao.server.ts");',
+         '    const { estadoSubscricao } = await import("./subscricao.server.ts");'),
+        ('    const { aplicarAccao } = await import("./subscricao.server.ts");\n    return aplicarAccao(data);',
+         '    const { aplicarAccao } = await import("./subscricao.server.ts");\n    if (!data.token) return { ok: false, estado: "activa" as const, retomaEm: null, mensagem: "Ligação inválida ou incompleta." };\n    return aplicarAccao({ ...data, email: null });'),
+        ('    const { chaveWebhookEgoi } = await import("./subscricao.server.ts");\n    return { url: `https://newsletter-digital-sprint.lovable.app/api/public/hooks/egoi-subscricao?k=${chaveWebhookEgoi()}` };',
+         '    const { baseFuncoes } = await import("../../nl-publico-config.ts");\n    // The key itself is never returned: a human sets NL_EGOI_WEBHOOK_CHAVE in E-goi and in server secrets.\n    return { url: `${baseFuncoes()}/nl-hooks/egoi-subscricao?k=<NL_EGOI_WEBHOOK_CHAVE>` };'),
+    ],
+    "edge-shared/gerar-html-newsletter.ts": [
+        ('const AVATAR_URL = "https://newsletter-digital-sprint.lovable.app/__l5e/assets-v1/cadec3e2-5dd7-4a75-b8dc-14c0202c4200/frederico-avatar.jpg";',
+         'const AVATAR_URL = avatarUrl();\nimport { avatarUrl } from "../../nl-publico-config.ts";'),
+    ],
 }
 
 def build_server():

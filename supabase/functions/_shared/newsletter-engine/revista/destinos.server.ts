@@ -1,3 +1,4 @@
+import { basePublica } from "../../nl-publico-config.ts";
 import process from "node:process";
 // Destinos de publicação da Revista — orquestração server-side.
 //
@@ -67,7 +68,8 @@ export interface DestinosEdicao {
 const VAZIO: DestinoEstado = { estado: "", url: null, external_id: null, erro: null, tentado_em: null, publicado_em: null };
 
 
-export const BASE_URL_PADRAO = "https://edicoes.digitalsprint.pt";
+/** No hard-coded default: the destination base comes from NL_PUBLIC_BASE_URL (or configuracoes). */
+export const BASE_URL_PADRAO = "";
 
 /** Há credenciais WordPress? Lido só no servidor, nunca devolvido ao cliente. */
 function wordpressConfigurado(): boolean {
@@ -101,7 +103,9 @@ export async function baseUrlEdicoes(sb?: SupabaseClient): Promise<string> {
     .eq("chave", "edicoes_base_url")
     .maybeSingle();
   const v = ((data as { valor: string | null } | null)?.valor ?? "").trim();
-  return (v || BASE_URL_PADRAO).replace(/\/+$/, "");
+  const base = (basePublica() || v || BASE_URL_PADRAO).replace(/\/+$/, "");
+  if (!base) throw new Error("Endereço público das edições por configurar (NL_PUBLIC_BASE_URL).");
+  return base;
 }
 
 /** URL absoluta canónica — só resolvida onde é mesmo precisa (email, OG). */

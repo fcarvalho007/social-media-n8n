@@ -18,10 +18,9 @@ export interface EstadoPublico {
 export const estadoSubscricaoFn = createServerFn({ method: "POST" })
   .inputValidator((d: { token?: string | null; email?: string | null }) => d)
   .handler(async ({ data }): Promise<EstadoPublico> => {
-    const { estadoSubscricao, estadoPorEmail } = await import("./subscricao.server.ts");
+    const { estadoSubscricao } = await import("./subscricao.server.ts");
     if (data.token) return estadoSubscricao(data.token);
-    if (data.email) return estadoPorEmail(data.email);
-    return { ok: false, email: null, estado: "activa", retomaEm: null, mensagem: "Falta o email." };
+    return { ok: false, email: null, estado: "activa", retomaEm: null, mensagem: "Ligação inválida ou incompleta." };
   });
 
 export const aplicarAccaoSubscricaoFn = createServerFn({ method: "POST" })
@@ -33,7 +32,8 @@ export const aplicarAccaoSubscricaoFn = createServerFn({ method: "POST" })
   }) => d)
   .handler(async ({ data }) => {
     const { aplicarAccao } = await import("./subscricao.server.ts");
-    return aplicarAccao(data);
+    if (!data.token) return { ok: false, estado: "activa" as const, retomaEm: null, mensagem: "Ligação inválida ou incompleta." };
+    return aplicarAccao({ ...data, email: null });
   });
 
 /** Painel interno: últimos eventos e contagens por motivo. */
@@ -74,8 +74,9 @@ export const testarSubscricaoFn = createServerFn({ method: "POST" })
 export const urlWebhookEgoiFn = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])
   .handler(async () => {
-    const { chaveWebhookEgoi } = await import("./subscricao.server.ts");
-    return { url: `https://newsletter-digital-sprint.lovable.app/api/public/hooks/egoi-subscricao?k=${chaveWebhookEgoi()}` };
+    const { baseFuncoes } = await import("../../nl-publico-config.ts");
+    // The key itself is never returned: a human sets NL_EGOI_WEBHOOK_CHAVE in E-goi and in server secrets.
+    return { url: `${baseFuncoes()}/nl-hooks/egoi-subscricao?k=<NL_EGOI_WEBHOOK_CHAVE>` };
   });
 
 function mascararEmail(email: string): string {

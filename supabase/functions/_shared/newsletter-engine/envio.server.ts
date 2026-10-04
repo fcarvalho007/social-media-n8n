@@ -452,6 +452,13 @@ export async function prepararEnvio(opts: {
     ? (await autorizar(sb, opts.userId, listasR.modo)).nome
     : (opts.quemNome ?? "agendamento");
 
+  // Real sends need destination public links and per-contact signed tokens (never e-mail-only links).
+  if (listasR.modo === "real") {
+    const { verificarLigacoesPublicas } = await import("../nl-publico-config.ts");
+    const falta = verificarLigacoesPublicas();
+    if (falta.length) throw new ErroEnvio(falta.join(" "), 412);
+  }
+
   const { apiKey, senderId } = await credenciaisEgoi(sb);
 
   const { data: edRaw } = await sb.from("nl_edicoes")
