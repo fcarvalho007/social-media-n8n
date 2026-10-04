@@ -592,7 +592,7 @@ export function EditorGrafico({ pacoteInicial, chaveLocal, titulo, seletor, real
         </header>
         {avisoRecuperacao}
         <div className="shrink-0 border-b border-border bg-background">{miniaturas(true)}</div>
-        <div className="min-h-0 flex-1">{tela}</div>
+        <div className="flex min-h-0 flex-1 flex-col">{tela}</div>
         <div className="flex shrink-0 items-center justify-between border-t border-border bg-background px-1 pb-[env(safe-area-inset-bottom)]">
           {zoomControlos}
           <Button variant={painelAberto ? "secondary" : "ghost"} size="sm" className="h-11" onClick={() => setPainelAberto((v) => !v)} aria-expanded={painelAberto} aria-controls="painel-propriedades">
