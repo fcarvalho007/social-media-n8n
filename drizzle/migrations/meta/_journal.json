@@ -120,6 +120,13 @@
       "when": 1791141635477,
       "tag": "0016_r6_exportacao_social",
       "breakpoints": true
+    },
+    {
+      "idx": 17,
+      "version": "7",
+      "when": 1791142147821,
+      "tag": "0017_r6_preparar_social_codigo_conflito",
+      "breakpoints": true
     }
   ]
 }
