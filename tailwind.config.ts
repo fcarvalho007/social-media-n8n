@@ -80,6 +80,10 @@ export default {
           light: "hsl(var(--destructive-light))",
           foreground: "hsl(var(--destructive-foreground))",
         },
+        aviso: {
+          texto: "hsl(var(--aviso-texto))",
+          borda: "hsl(var(--aviso-borda))",
+        },
         warning: {
           DEFAULT: "hsl(var(--warning))",
           light: "hsl(var(--warning-light))",

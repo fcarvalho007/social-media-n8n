@@ -129,6 +129,10 @@ All colors MUST be HSL.
     --destructive-light: 0 84% 95%;
     --destructive-foreground: 0 0% 100%;
 
+    /* Aviso de bloqueio - texto de aviso legível (≥4.5:1 sobre fundos claros) sem alarme visual */
+    --aviso-texto: 0 74% 42%; /* #B91C1C */
+    --aviso-borda: 0 60% 88%;
+
     /* Warning - Amarelo */
     --warning: 38 92% 50%; /* #F59E0B */
     --warning-light: 38 92% 95%;
@@ -232,6 +236,9 @@ All colors MUST be HSL.
     --destructive: 0 84% 65%;
     --destructive-light: 0 84% 18%;
     --destructive-foreground: 0 0% 100%;
+
+    --aviso-texto: 0 93% 81%; /* #FCA5A5 legível sobre fundos escuros */
+    --aviso-borda: 0 40% 30%;
 
     --warning: 38 92% 55%;
     --warning-light: 38 92% 18%;

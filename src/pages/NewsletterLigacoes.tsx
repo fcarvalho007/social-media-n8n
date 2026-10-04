@@ -157,7 +157,7 @@ export default function NewsletterLigacoes() {
       </div>
 
       {bloqueios.length > 0 ? (
-        <Alert variant="destructive">
+        <Alert variant="destructive" className="border-aviso-borda text-aviso-texto">
           <AlertTitle>{bloqueios.length === 1 ? "1 bloqueio obrigatório" : `${bloqueios.length} bloqueios obrigatórios`}</AlertTitle>
           <AlertDescription>
             <ul className="mt-1 space-y-1 text-sm">
@@ -189,7 +189,7 @@ export default function NewsletterLigacoes() {
                     {det && n !== "falta" && <div className="text-xs text-muted-foreground">{det}</div>}
                     {faltam.length > 0 && (
                       <details className="mt-1 text-xs">
-                        <summary className={sec.obrigatoria ? "cursor-pointer text-destructive" : "cursor-pointer text-muted-foreground"}>Como resolver</summary>
+                        <summary className={sec.obrigatoria ? "cursor-pointer text-aviso-texto" : "cursor-pointer text-muted-foreground"}>Como resolver</summary>
                         <p className="mt-1 text-muted-foreground">{s.acao}</p>
                         <p className="mt-1 break-all text-muted-foreground">Nome no servidor: {faltam.join(", ")}</p>
                       </details>
@@ -211,7 +211,7 @@ export default function NewsletterLigacoes() {
                       <span className="font-medium">{l.nome}</span>
                       {l.campo
                         ? <span>Campo {l.campo}{l.campo_nome ? ` · ${l.campo_nome}` : ""}{l.origem === "legado" ? " · configuração antiga, confirmada na verificação" : ""}</span>
-                        : <span className="text-destructive">Sem campo: bloqueada</span>}
+                        : <span className="text-aviso-texto">Sem campo: bloqueada</span>}
                     </li>
                   ))}
                   {listasToken.length === 0 && <li className="p-2 text-xs text-muted-foreground">Sem listas reais ativas.</li>}
@@ -233,16 +233,16 @@ export default function NewsletterLigacoes() {
                     <Search className="mr-1 h-4 w-4" />{aProcurar ? "A ler a E-goi…" : "Procurar campos na E-goi"}
                   </Button>
                   <p className="text-xs text-muted-foreground">Só leitura: não cria campos, não altera contactos e não envia emails.</p>
-                  {campos && !campos.ok && <p role="alert" className="text-xs text-destructive">{campos.problema}</p>}
+                  {campos && !campos.ok && <p role="alert" className="text-xs text-aviso-texto">{campos.problema}</p>}
                   {campos?.ok && campos.listas?.map((l) => {
                     const dedicados = l.campos.filter((c) => c.dedicado);
                     const sel = escolha[l.id] ?? "";
                     return (
                       <div key={l.id} className="space-y-1 rounded-md border p-2 text-xs">
                         <p className="font-medium">{l.nome}</p>
-                        {l.erro ? <p className="text-destructive">Não foi possível ler esta lista: {l.erro}</p>
+                        {l.erro ? <p className="text-aviso-texto">Não foi possível ler esta lista: {l.erro}</p>
                           : dedicados.length === 0
-                            ? <p className="text-destructive">Nenhum campo de texto dedicado ao token nesta lista ({l.campos.length} campos extra, nenhum com «token» no nome). Cria-o na E-goi primeiro.</p>
+                            ? <p className="text-aviso-texto">Nenhum campo de texto dedicado ao token nesta lista ({l.campos.length} campos extra, nenhum com «token» no nome). Cria-o na E-goi primeiro.</p>
                             : (
                               <div className="flex flex-wrap items-center gap-2">
                                 <Label htmlFor={`campo-${l.id}`} className="sr-only">Campo do token de {l.nome}</Label>
@@ -273,8 +273,8 @@ export default function NewsletterLigacoes() {
       <details className="rounded-md border p-3 text-sm">
         <summary className="cursor-pointer font-medium">Endereços técnicos</summary>
         <div className="mt-2 space-y-2">
-          <p>Endereço público: {estado.endereco_publico ? <code className="break-all">{estado.endereco_publico}</code> : <span className="text-destructive">por configurar</span>}</p>
-          <p>Campo do token nos emails: {estado.tag_token_egoi ?? <span className="text-destructive">por configurar</span>}</p>
+          <p>Endereço público: {estado.endereco_publico ? <code className="break-all">{estado.endereco_publico}</code> : <span className="text-aviso-texto">por configurar</span>}</p>
+          <p>Campo do token nos emails: {estado.tag_token_egoi ?? <span className="text-aviso-texto">por configurar</span>}</p>
           <p><span className="text-muted-foreground">CloudMailin:</span><br /><code className="break-all">{estado.endpoints.email_entrada}</code></p>
           <p><span className="text-muted-foreground">Aviso de cancelamentos na E-goi (substitui o marcador pela chave guardada no servidor):</span><br /><code className="break-all">{estado.endpoints.egoi_cancelamentos}</code></p>
           <p><span className="text-muted-foreground">Mapa do site:</span><br /><code className="break-all">{estado.endpoints.sitemap}</code></p>
