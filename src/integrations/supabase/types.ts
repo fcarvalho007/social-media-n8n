@@ -1957,8 +1957,10 @@ export type Database = {
           cronica_imagem_alt: string
           cronica_imagem_credito: string
           cronica_imagem_credito_url: string
+          cronica_imagem_enquadramento: Json
           cronica_imagem_fonte: string
           cronica_imagem_posicao: number
+          cronica_imagem_recorte_url: string
           cronica_imagem_url: string
           cronica_lede: string
           cronica_lede_posicao: number
@@ -1986,6 +1988,10 @@ export type Database = {
           podcast_tema: string
           podcast_url: string
           preheader: string
+          promocao_activa: boolean
+          promocao_link_texto: string
+          promocao_prefixo: string
+          promocao_url: string
           pull_quote: string
           pull_quote_posicao: number
           recomendacao_activa: boolean
@@ -1995,10 +2001,13 @@ export type Database = {
           recomendacao_titulo: string
           recomendacao_url: string
           servicos_activo: boolean
+          servicos_auditoria_activo: boolean
+          servicos_consultoria_activo: boolean
           servicos_consultoria_cta: string
           servicos_consultoria_texto: string
           servicos_consultoria_url: string
           servicos_cta: string
+          servicos_cursos_activo: boolean
           servicos_cursos_cta: string
           servicos_cursos_texto: string
           servicos_cursos_url: string
@@ -2014,8 +2023,10 @@ export type Database = {
           cronica_imagem_alt?: string
           cronica_imagem_credito?: string
           cronica_imagem_credito_url?: string
+          cronica_imagem_enquadramento?: Json
           cronica_imagem_fonte?: string
           cronica_imagem_posicao?: number
+          cronica_imagem_recorte_url?: string
           cronica_imagem_url?: string
           cronica_lede?: string
           cronica_lede_posicao?: number
@@ -2043,6 +2054,10 @@ export type Database = {
           podcast_tema?: string
           podcast_url?: string
           preheader?: string
+          promocao_activa?: boolean
+          promocao_link_texto?: string
+          promocao_prefixo?: string
+          promocao_url?: string
           pull_quote?: string
           pull_quote_posicao?: number
           recomendacao_activa?: boolean
@@ -2052,10 +2067,13 @@ export type Database = {
           recomendacao_titulo?: string
           recomendacao_url?: string
           servicos_activo?: boolean
+          servicos_auditoria_activo?: boolean
+          servicos_consultoria_activo?: boolean
           servicos_consultoria_cta?: string
           servicos_consultoria_texto?: string
           servicos_consultoria_url?: string
           servicos_cta?: string
+          servicos_cursos_activo?: boolean
           servicos_cursos_cta?: string
           servicos_cursos_texto?: string
           servicos_cursos_url?: string
@@ -2071,8 +2089,10 @@ export type Database = {
           cronica_imagem_alt?: string
           cronica_imagem_credito?: string
           cronica_imagem_credito_url?: string
+          cronica_imagem_enquadramento?: Json
           cronica_imagem_fonte?: string
           cronica_imagem_posicao?: number
+          cronica_imagem_recorte_url?: string
           cronica_imagem_url?: string
           cronica_lede?: string
           cronica_lede_posicao?: number
@@ -2100,6 +2120,10 @@ export type Database = {
           podcast_tema?: string
           podcast_url?: string
           preheader?: string
+          promocao_activa?: boolean
+          promocao_link_texto?: string
+          promocao_prefixo?: string
+          promocao_url?: string
           pull_quote?: string
           pull_quote_posicao?: number
           recomendacao_activa?: boolean
@@ -2109,10 +2133,13 @@ export type Database = {
           recomendacao_titulo?: string
           recomendacao_url?: string
           servicos_activo?: boolean
+          servicos_auditoria_activo?: boolean
+          servicos_consultoria_activo?: boolean
           servicos_consultoria_cta?: string
           servicos_consultoria_texto?: string
           servicos_consultoria_url?: string
           servicos_cta?: string
+          servicos_cursos_activo?: boolean
           servicos_cursos_cta?: string
           servicos_cursos_texto?: string
           servicos_cursos_url?: string
