@@ -36,6 +36,7 @@ const chave = chaveRecuperacao("u-prova", "editor-prova", pacote.id, null);
 const montar = () => render(<EditorGrafico pacoteInicial={pacote} chaveLocal={chave} titulo="Prova" />);
 const xAtual = () => Number(screen.getByTestId("mover").getAttribute("data-x"));
 
+globalThis.ResizeObserver ??= class { observe() {} unobserve() {} disconnect() {} } as unknown as typeof ResizeObserver;
 beforeEach(() => { localStorage.clear(); vi.clearAllMocks(); Object.defineProperty(window, "innerWidth", { value: 1280, configurable: true }); });
 
 describe("Editor gráfico (prova identificada) — recuperação local", () => {
