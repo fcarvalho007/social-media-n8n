@@ -4,7 +4,7 @@
 // título, publicação, data e texto do artigo. O texto do artigo é
 // transitório — vive apenas durante a geração e nunca é gravado.
 
-import { extrairCorpoArtigo } from "@/lib/ler-artigo.server";
+import { extrairCorpoArtigo } from "../../ler-artigo.server";
 
 const AGENTE = "DigitalSprintBot/1.0 (+brief)";
 const TEMPO_LIMITE_MS = 12000;
