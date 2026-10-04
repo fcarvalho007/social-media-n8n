@@ -48,6 +48,7 @@ def server_fn_exports(s):
 def client_alias(s: str) -> str:
     s = s.replace('"@tanstack/react-router"', '"@/newsletter/shim/router"')
     s = s.replace('"@tanstack/react-start"', '"@/newsletter/shim/start"')
+    s = s.replace('"@tanstack/zod-adapter"', '"@/newsletter/shim/zod-adapter"')
     s = re.sub(r'"@/features/', '"@/newsletter/features/', s)
     s = re.sub(r'"@/lib/(?!utils")', '"@/newsletter/lib/', s)
     s = re.sub(r'"@/hooks/use-mobile"', '"@/hooks/use-mobile"', s)

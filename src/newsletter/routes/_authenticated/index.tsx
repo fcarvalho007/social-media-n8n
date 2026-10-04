@@ -1,5 +1,5 @@
 import { createFileRoute } from "@/newsletter/shim/router";
-import { zodValidator, fallback } from "@tanstack/zod-adapter";
+import { zodValidator, fallback } from "@/newsletter/shim/zod-adapter";
 import { z } from "zod";
 import EditorRoot from "@/newsletter/features/newsletter/EditorRoot";
 

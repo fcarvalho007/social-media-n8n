@@ -1,6 +1,6 @@
 // Minimal adapter from @tanstack/react-router APIs to react-router-dom, scoped under /newsletter.
 import { forwardRef, type AnchorHTMLAttributes, type ReactNode } from "react";
-import { Link as RLink, useLocation, useNavigate as useRNavigate, useParams as useRParams } from "react-router-dom";
+import { Link as RLink, Outlet, useLocation, useNavigate as useRNavigate, useParams as useRParams } from "react-router-dom";
 
 export const BASE = "/newsletter";
 const ROUTE_MAP: Record<string, string> = { "/": "", "/auth": "/auth" };
@@ -79,6 +79,24 @@ export function redirect(o: { to: string }): never {
 }
 
 /** Origin route files call createFileRoute(path)({ component }). We just expose the options. */
+export { Outlet };
+
 export function createFileRoute(_path: string) {
-  return <T extends { component?: unknown }>(opts: T) => ({ options: opts, ...opts });
+  return <T extends { component?: unknown; validateSearch?: unknown }>(opts: T) => ({
+    options: opts,
+    ...opts,
+    useSearch: () => {
+      const raw = currentSearch(useLocation());
+      const v = opts.validateSearch as { parse?: (x: unknown) => unknown } | ((x: unknown) => unknown) | undefined;
+      try {
+        if (typeof v === "function") return v(raw) as Record<string, any>; // eslint-disable-line @typescript-eslint/no-explicit-any
+        if (v?.parse) return v.parse(raw) as Record<string, any>; // eslint-disable-line @typescript-eslint/no-explicit-any
+      } catch { /* fall through to raw */ }
+      return raw as Record<string, any>; // eslint-disable-line @typescript-eslint/no-explicit-any
+    },
+    useParams: () => useRParams() as Record<string, string>,
+    useNavigate: () => useNavigate(),
+    useRouteContext: () => ({}),
+    useLoaderData: () => undefined,
+  });
 }

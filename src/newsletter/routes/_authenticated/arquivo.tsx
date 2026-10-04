@@ -4,7 +4,7 @@ import { useMemo, useState } from "react";
 import {
   Inbox, Eye, Copy, Check, X, Mail, FileText, Newspaper, Loader2, RotateCcw, ExternalLink, Search, CalendarDays,
 } from "lucide-react";
-import { zodValidator, fallback } from "@tanstack/zod-adapter";
+import { zodValidator, fallback } from "@/newsletter/shim/zod-adapter";
 import { z } from "zod";
 import { supabase } from "@/integrations/supabase/client";
 import { previewEdicaoFn } from "@/newsletter/lib/envio.functions";

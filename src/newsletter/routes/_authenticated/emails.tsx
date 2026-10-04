@@ -2,7 +2,7 @@ import { createFileRoute, useNavigate } from "@/newsletter/shim/router";
 import { useServerFn } from "@/newsletter/shim/start";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useEffect, useMemo, useState } from "react";
-import { zodValidator, fallback } from "@tanstack/zod-adapter";
+import { zodValidator, fallback } from "@/newsletter/shim/zod-adapter";
 import { z } from "zod";
 import {
   Inbox, Loader2, Mail, RefreshCw, ShieldAlert, HelpCircle, ExternalLink,
