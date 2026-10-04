@@ -178,6 +178,15 @@ export default function Artigos() {
           <Label htmlFor="art-corpo">Texto do artigo</Label>
           <Textarea id="art-corpo" rows={18} value={edit.corpo} onChange={(e) => setEdit({ ...edit, corpo: e.target.value })} />
         </div>
+        {oferta && (
+          <Alert>
+            <AlertTitle>Há texto não guardado de {dataPt(oferta.guardado_em)}</AlertTitle>
+            <AlertDescription className="flex flex-wrap gap-2">
+              <Button type="button" size="sm" onClick={() => { setEdit({ ...oferta.dados, id: edit.id }); setOferta(null); }}>Restaurar</Button>
+              <Button type="button" size="sm" variant="outline" onClick={() => { if (chave) limparRecuperacao(chave); setOferta(null); }}>Descartar</Button>
+            </AlertDescription>
+          </Alert>
+        )}
         {erroGuardar && <p role="alert" className="text-sm text-destructive">{erroGuardar}</p>}
         <Button type="submit" disabled={aGuardar || (!sujo && !!edit.id)}>
           {aGuardar && <Loader2 className="mr-1 h-4 w-4 animate-spin" />}Guardar rascunho
@@ -200,7 +209,7 @@ export default function Artigos() {
               const p = pendente; setPendente(null);
               if (!p) return;
               if (p.tipo === "apagar") confirmarApagar(p.artigo);
-              else { setEdit(p.alvo); setBase(p.alvo); setErroGuardar(null); setParams(p.alvo.id ? { id: p.alvo.id } : {}, { replace: true }); }
+              else { if (chave) limparRecuperacao(chave); setEdit(p.alvo); setBase(p.alvo); setErroGuardar(null); setParams(p.alvo.id ? { id: p.alvo.id } : {}, { replace: true }); }
             }}>{pendente?.tipo === "apagar" ? "Apagar" : "Descartar"}</AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>

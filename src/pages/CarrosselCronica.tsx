@@ -1,5 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import { Link, useNavigate, useParams } from "react-router-dom";
+import { useAuth } from "@/contexts/AuthContext";
+import { chaveRecuperacao, guardarRecuperacao, lerRecuperacao, limparRecuperacao, type Recuperacao } from "@/lib/recuperacaoLocal";
 import { toast } from "sonner";
 import { ChevronLeft, ChevronRight, Download, FileText, Loader2, Save, Send, Sparkles } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -33,6 +35,22 @@ export default function CarrosselCronica() {
   const [sairPendente, setSairPendente] = useState<string | null>(null);
   const [confirmar, setConfirmar] = useState<null | "gerar" | "social" | "fonte">(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
+  const { user } = useAuth();
+  const carrosselRef = useRef(carrossel);
+  carrosselRef.current = carrossel;
+  const chave = user && id ? chaveRecuperacao(user.id, "carrossel", id, null) : null;
+  const [oferta, setOferta] = useState<Recuperacao<Carrossel> | null>(null);
+  useEffect(() => {
+    if (!alterado || !chave || !carrossel) return;
+    const t = setTimeout(() => guardarRecuperacao(chave, carrossel), 300);
+    return () => clearTimeout(t);
+  }, [alterado, chave, carrossel]);
+  const servidor = dados?.conteudo.carrossel;
+  useEffect(() => {
+    if (!chave || !user || alterado || !servidor) return;
+    const r = lerRecuperacao<Carrossel>(chave, user.id);
+    setOferta(r && JSON.stringify(r.dados) !== JSON.stringify(servidor) ? r : null);
+  }, [chave, servidor]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // substituir=false keeps the editor text (used after failures/refresh with local edits).
   const carregar = (substituir = true) => obterConteudo(id).then((d) => {
@@ -94,6 +112,7 @@ export default function CarrosselCronica() {
   const guardar = () => executar("guardar", async () => {
     if (!carrossel) return;
     validarCarrossel(carrossel, fonte);
+    const enviado = JSON.stringify(carrossel);
     try {
       await guardarCarrossel(c.id, c.versao, carrossel, origemProposta);
     } catch (e) {
@@ -103,7 +122,10 @@ export default function CarrosselCronica() {
     }
     toast.success("Carrossel guardado");
     setOrigemProposta("edicao");
-    await carregar();
+    if (chave) limparRecuperacao(chave);
+    // Edits made while saving are kept (still unsaved); only identical text adopts the server copy.
+    const semNovas = JSON.stringify(carrosselRef.current) === enviado;
+    await carregar(semNovas);
   });
   const gerar = () => executar("gerar", async () => {
     const r = await gerarNovaProposta(c.id);
