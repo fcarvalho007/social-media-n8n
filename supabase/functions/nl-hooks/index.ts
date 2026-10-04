@@ -160,7 +160,7 @@ async function sincronizarTokens(req: Request): Promise<Response> {
   const deps = { egoi: clienteEgoiHttp(apiKey), armazem, criarToken: (await import("../_shared/nl-app/lib/subscricao.server.ts")).criarToken };
 
   if (accao === "estado") {
-    const { problemasPorLista } = await import("../_shared/nl-egoi-tokens-gate.ts");
+    const { problemasPorLista } = await import("../_shared/nl-egoi-tokens-gate-core.ts");
     const problemas = await problemasPorLista(deps, listas, fp);
     return json({ ok: problemas.length === 0, configurado: listas.every((l) => campoDe(l)), tag: null, listas: await lerProgresso(), problemas });
   }

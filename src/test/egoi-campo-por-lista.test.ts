@@ -2,7 +2,7 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import {
   MARCADOR_TOKEN, aplicarTokenLista, idCampoValido, linkSubscricao, linkUmClique, resolverCampoLista,
 } from "../../supabase/functions/_shared/nl-publico-config";
-import { problemasPorLista } from "../../supabase/functions/_shared/nl-egoi-tokens-gate";
+import { problemasPorLista } from "../../supabase/functions/_shared/nl-egoi-tokens-gate-core";
 import type { ArmazemProgresso, ClienteEgoi, Progresso } from "../../supabase/functions/_shared/nl-egoi-tokens";
 
 // Fixture: two lists whose token fields received DIFFERENT ids from E-goi (41 and 42).
