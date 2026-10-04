@@ -133,7 +133,6 @@ export default {
         },
       },
       fontFamily: {
-        display: ['"Space Grotesk"', 'Inter', 'sans-serif'],
         serif: ['Georgia', '"Times New Roman"', 'serif'],
         sans: ['Inter', 'Montserrat', 'system-ui', 'sans-serif'],
         display: ['Inter', 'sans-serif'],

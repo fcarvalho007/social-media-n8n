@@ -1,5 +1,6 @@
 /* Ported from the origin newsletter styles (Tailwind v4) as plain CSS. Scoped utilities only. */
 :root {
+  --font-display: "Space Grotesk", "Inter", sans-serif;
   --color-ds-bg: #0D0D1F;
   --color-ds-shell: #14142B;
   --color-ds-card: #1B1B36;
@@ -41,7 +42,7 @@
   background: linear-gradient(135deg, #6366F1, #8B5CF6, #EC4899);
 }
 
-.font-display {
+.ds-app .font-display {
   font-family: var(--font-display);
 }
 
