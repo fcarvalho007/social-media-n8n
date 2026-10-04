@@ -205,7 +205,7 @@ export async function reconciliarEdicao(edicaoId: string): Promise<{
 }> {
   const sb = admin();
   const { data: campsRaw } = await sb.from("nl_egoi_campanhas")
-    .select("lista_id, campaign_hash, estado, egoi_listas(nome)").eq("edicao_id", edicaoId);
+    .select("lista_id, campaign_hash, estado, nl_egoi_listas(nome)").eq("edicao_id", edicaoId);
   const camps = (campsRaw ?? []) as unknown as Array<{
     lista_id: string; campaign_hash: string; estado: string;
     egoi_listas: { nome: string } | { nome: string }[] | null;

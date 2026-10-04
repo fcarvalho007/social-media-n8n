@@ -29,8 +29,14 @@ while (changed) {
 const imp = [];
 for (const st of imports) {
   const spec = st.moduleSpecifier.text;
-  if (/react-start|\.server|auth-middleware|integrations\/supabase\/client/.test(spec)) continue;
   const cl = st.importClause; if (!cl) continue;
+  if (/\.server/.test(spec)) {
+    // server-only module: keep referenced type names as opaque aliases
+    const els = cl.namedBindings && ts.isNamedImports(cl.namedBindings) ? cl.namedBindings.elements : [];
+    for (const e of els) if (new RegExp(`\\b${e.name.text}\\b`).test(body)) imp.push(`type ${e.name.text} = any; // eslint-disable-line @typescript-eslint/no-explicit-any`);
+    continue;
+  }
+  if (/react-start|auth-middleware|integrations\/supabase\/client/.test(spec)) continue;
   const used = [];
   if (cl.name && new RegExp(`\\b${cl.name.text}\\b`).test(body)) used.push({ def: cl.name.text });
   if (cl.namedBindings && ts.isNamedImports(cl.namedBindings)) for (const e of cl.namedBindings.elements) if (new RegExp(`\\b${e.name.text}\\b`).test(body)) used.push({ named: e.getText() });
