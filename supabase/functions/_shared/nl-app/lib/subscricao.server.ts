@@ -1,4 +1,5 @@
 import process from "node:process";
+import { Buffer } from "node:buffer";
 // Gestão de subscrição (cancelar / pausar / receber só o essencial) — server-only.
 //
 // O link no rodapé da newsletter traz um token assinado (HMAC) com o email do

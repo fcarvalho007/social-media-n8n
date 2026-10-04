@@ -16,6 +16,15 @@ export const requestStore = new AsyncLocalStorage<Request>();
 export function getRequest(): Request | undefined { return requestStore.getStore(); }
 export function getRequestHeader(name: string): string | null { return getRequest()?.headers.get(name) ?? null; }
 
+export function getRequestHost(): string {
+  const r = getRequest();
+  return r?.headers.get("x-forwarded-host") ?? r?.headers.get("origin")?.replace(/^https?:\/\//, "") ?? new URL(r?.url ?? "http://localhost").host;
+}
+export function getRequestProtocol(): string {
+  const o = getRequest()?.headers.get("origin");
+  return o?.startsWith("http://") ? "http" : "https";
+}
+
 export function createMiddleware(_o?: unknown) {
   return { server: (fn: NlMiddleware["__mw"]): NlMiddleware => ({ __mw: fn }) };
 }

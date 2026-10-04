@@ -1,3 +1,4 @@
+import { Buffer } from "node:buffer";
 // Imagem da crónica (formato Revista): pesquisa no Pexels e cópia para o
 // armazenamento da aplicação, para que o email nunca dependa de terceiros.
 

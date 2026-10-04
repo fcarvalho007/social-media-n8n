@@ -109,6 +109,8 @@ def server_rewrite(s: str, here: str) -> str:
             return '%s"%s/index.ts"' % (m.group(1), p)
         return '%s"%s.ts"' % (m.group(1), p)
     s = re.sub(r'((?:from|import)\s*\(?\s*)"(\.{1,2}/[^"]+)"', addts, s)
+    if re.search(r"\bBuffer\.", s) and "node:buffer" not in s:
+        s = 'import { Buffer } from "node:buffer";\n' + s
     if "process.env" in s and "node:process" not in s:
         s = 'import process from "node:process";\n' + s
     return s
