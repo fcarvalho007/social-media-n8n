@@ -1,0 +1,227 @@
+// ────────────────────────────────────────────────────────────────
+// Detecção de repetições — 2 fases
+//
+// Fase 1 (grátis, sempre corre): RPC `encontrar_candidatos_repeticao`
+//   mesma categoria + últimas 8 semanas, top 5 por similaridade de
+//   título (a similaridade só ORDENA, não filtra). Assim apanhamos
+//   histórias iguais mesmo com títulos sem palavras em comum.
+//
+// Fase 2 (paga só nos suspeitos): pergunta à DeepSeek se o candidato
+//   e a notícia nova são sobre o mesmo acontecimento/tema, mesmo que
+//   vindas de fontes diferentes. Nunca corre se a Fase 1 devolver zero.
+//
+// Sem embeddings. Sem Lovable AI Gateway. A app é 100% DeepSeek.
+// ────────────────────────────────────────────────────────────────
+
+import { custoUsd } from "./custos-ia.ts";
+
+export interface UsoDedup {
+  cacheHit: number;
+  cacheMiss: number;
+  saida: number;
+}
+export type ChatDedupResposta = { conteudo: string; usage: UsoDedup; modelo: string } | null;
+
+
+
+
+// deno-lint-ignore no-explicit-any
+type Admin = any;
+
+export interface CandidatoTrgm {
+  id: string;
+  titulo: string;
+  edicao_id: string | null;
+  edicao_numero: number | null;
+  created_at: string;
+  score: number;
+}
+
+export interface RepeticaoConfirmada {
+  candidato_id: string;
+  candidato_titulo: string;
+  candidato_edicao_numero: number | null;
+  score_trgm: number;
+  justificacao: string;
+  /**
+   * `confirmada` → a notícia nova NÃO deve ser inserida (é a mesma história).
+   * `provavel`   → insere-se marcada com o selo «Possível repetição».
+   */
+  nivel: "confirmada" | "provavel";
+}
+
+/** Acima deste score de título consideramos repetição sem sequer perguntar à IA. */
+export const LIMIAR_REPETICAO_CERTA = 0.85;
+/** Acima deste score marcamos como possível repetição mesmo sem confirmação. */
+export const LIMIAR_REPETICAO_PROVAVEL = 0.6;
+
+const PROMPT_SISTEMA_DEDUP = [
+  "És um editor de newsletter em português de Portugal.",
+  "Recebes duas notícias (A e B) e decides se são sobre o MESMO acontecimento ou tema central, mesmo que venham de fontes diferentes, com títulos distintos ou ângulos ligeiramente diferentes.",
+  "Se A e B tratam do mesmo facto/produto/anúncio → 'sim'.",
+  "Se apenas partilham a categoria ou área temática mas são histórias diferentes → 'não'.",
+  "RESPONDE exactamente neste formato, em duas linhas:",
+  "Linha 1: apenas 'sim' ou 'não' (sem pontuação, minúsculas).",
+  "Linha 2: uma frase curta a justificar (máx. 20 palavras).",
+].join("\n");
+
+function comecaPorSim(texto: string): boolean {
+  const primeira = (texto || "").trim().split(/\r?\n/, 1)[0] || "";
+  const norm = primeira
+    .toLowerCase()
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .replace(/[^a-z]/g, "");
+  return norm.startsWith("sim");
+}
+
+function extrairJustificacao(texto: string): string {
+  const linhas = (texto || "").trim().split(/\r?\n/).map((l) => l.trim()).filter(Boolean);
+  if (linhas.length >= 2) return linhas.slice(1).join(" ").slice(0, 240);
+  // Se veio tudo numa linha ("sim — porque…"), tira o prefixo.
+  const l0 = linhas[0] || "";
+  return l0.replace(/^(sim|n[aã]o)\b[\s:.,;—-]*/i, "").slice(0, 240);
+}
+
+/**
+ * Fase 1 + Fase 2. Devolve o primeiro candidato confirmado pela IA ou `null`.
+ * `chamarChat(system, user)` deve devolver o texto bruto da resposta (ou `null`).
+ * Só chama `chamarChat` para os candidatos que a Fase 1 devolver.
+ *
+ * `opts.fase2Activa` (default `true`): quando `false`, a Fase 1 corre sempre,
+ * mas o loop DeepSeek é saltado. `opts.onFase1IgnoradaPorConfig` é invocado
+ * (se fornecido) para o call site registar em `audit_log` que houve candidatos
+ * mas a confirmação por IA está desligada.
+ */
+export async function confirmarRepeticaoIA(
+  admin: Admin,
+  novo: { titulo: string; descricao: string | null; categoria: string },
+  chamarChat: (system: string, user: string) => Promise<ChatDedupResposta>,
+  opts: {
+    limiarTrgm?: number;
+    fase2Activa?: boolean;
+    origem?: string; // para ia_uso (default "confirmar_repeticao")
+    edicaoId?: string | null;
+    onFase1IgnoradaPorConfig?: (candidatos: CandidatoTrgm[]) => Promise<void> | void;
+  } = {},
+): Promise<RepeticaoConfirmada | null> {
+  const titulo = (novo.titulo || "").trim();
+  const categoria = (novo.categoria || "").trim();
+  if (!titulo || !categoria) return null;
+
+  // Fase 1 — pg_trgm (grátis). O RPC ignora _limiar (compat) e devolve
+  // até 5 candidatos da mesma categoria nas últimas 8 semanas.
+  const { data: candidatosRaw, error: rpcErr } = await admin.rpc(
+    "encontrar_candidatos_repeticao",
+    { _titulo: titulo, _categoria: categoria },
+  );
+
+  if (rpcErr) return null;
+  const candidatos = (candidatosRaw as CandidatoTrgm[] | null) ?? [];
+  if (candidatos.length === 0) return null;
+
+  const topo = candidatos[0];
+  const scoreTopo = Number(topo?.score) || 0;
+
+  // Título praticamente igual → é a mesma notícia. Não vale a pena gastar IA.
+  if (topo && scoreTopo >= LIMIAR_REPETICAO_CERTA) {
+    return {
+      candidato_id: topo.id,
+      candidato_titulo: topo.titulo,
+      candidato_edicao_numero: topo.edicao_numero,
+      score_trgm: scoreTopo,
+      justificacao: "Título praticamente igual a notícia já existente.",
+      nivel: "confirmada",
+    };
+  }
+
+  const provavel = (): RepeticaoConfirmada | null =>
+    topo && scoreTopo >= LIMIAR_REPETICAO_PROVAVEL
+      ? {
+        candidato_id: topo.id,
+        candidato_titulo: topo.titulo,
+        candidato_edicao_numero: topo.edicao_numero,
+        score_trgm: scoreTopo,
+        justificacao: "Título muito parecido com notícia já existente.",
+        nivel: "provavel",
+      }
+      : null;
+
+  // Fase 2 desligada por configuração → regista candidatos e sai sem chamar a IA.
+  if (opts.fase2Activa === false) {
+    if (opts.onFase1IgnoradaPorConfig) {
+      try { await opts.onFase1IgnoradaPorConfig(candidatos); } catch { /* nunca bloqueia */ }
+    }
+    return provavel();
+  }
+
+
+  // Buscar descrições dos candidatos numa única query.
+  const ids = candidatos.map((c) => c.id);
+  const { data: rowsRaw } = await admin
+    .from("nl_noticias")
+    .select("id, descricao")
+    .in("id", ids);
+  const descByIds = new Map<string, string>();
+  for (const r of (rowsRaw as Array<{ id: string; descricao: string | null }> | null) ?? []) {
+    if (r.descricao) descByIds.set(r.id, r.descricao);
+  }
+
+  const descA = (novo.descricao || "").trim().slice(0, 800);
+  const origemUso = opts.origem ?? "confirmar_repeticao";
+
+  const registarUso = async (usage: UsoDedup, modelo: string) => {
+    try {
+      await admin.from("nl_ia_uso").insert({
+        modelo,
+        tokens_entrada_cache_hit: usage.cacheHit,
+        tokens_entrada_cache_miss: usage.cacheMiss,
+        tokens_saida: usage.saida,
+        custo_usd: custoUsd(modelo, usage.cacheHit, usage.cacheMiss, usage.saida),
+        origem: origemUso,
+        edicao_id: opts.edicaoId ?? null,
+      });
+    } catch { /* nunca bloqueia */ }
+  };
+
+  // Fase 2 — DeepSeek, um pedido por candidato, primeiro "sim" ganha.
+  for (const c of candidatos) {
+    const descB = (descByIds.get(c.id) || "").trim().slice(0, 800);
+    const user = [
+      "Notícia A:",
+      `Título: ${titulo}`,
+      descA ? `Descrição: ${descA}` : "Descrição: (sem descrição)",
+      "",
+      "Notícia B:",
+      `Título: ${c.titulo}`,
+      descB ? `Descrição: ${descB}` : "Descrição: (sem descrição)",
+    ].join("\n");
+
+    let resposta: ChatDedupResposta = null;
+    try {
+      resposta = await chamarChat(PROMPT_SISTEMA_DEDUP, user);
+    } catch {
+      // Falha de rede/API — não bloqueia a inserção da notícia.
+      continue;
+    }
+    if (!resposta) continue;
+
+    // A7 — regista SEMPRE o consumo, mesmo que a resposta seja "não".
+    // O volume vai subir com a Fase 1 alargada; o custo tem de ser visível.
+    await registarUso(resposta.usage, resposta.modelo);
+
+    if (!comecaPorSim(resposta.conteudo)) continue;
+
+    return {
+      candidato_id: c.id,
+      candidato_titulo: c.titulo,
+      candidato_edicao_numero: c.edicao_numero,
+      score_trgm: Number(c.score) || 0,
+      justificacao: extrairJustificacao(resposta.conteudo),
+      nivel: "confirmada",
+    };
+  }
+
+  return provavel();
+}
+

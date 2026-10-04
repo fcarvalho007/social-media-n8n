@@ -1,0 +1,557 @@
+// Painel interno de Briefs — Fase 2A.
+//
+// Serve para provar a relação notícia → Brief → edição. Sem IA e sem
+// qualquer ligação ao email, ao envio, ao snapshot ou às páginas públicas.
+
+import { createFileRoute } from "@/newsletter/shim/router";
+import { useEffect, useMemo, useState } from "react";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { Loader2, Plus, Trash2, Check, RotateCcw, Link2, Sparkles } from "lucide-react";
+
+import {
+  listarEdicoesBriefFn,
+  listarNoticiasParaBriefFn,
+  listarBriefsDaEdicaoFn,
+  criarBriefFn,
+  removerBriefDaEdicaoFn,
+  guardarConteudoBriefFn,
+  aprovarLeituraBriefFn,
+  revogarLeituraBriefFn,
+  gerarBriefFn,
+  reformularBriefFn,
+  reverificarBriefFn,
+  guardarIdentidadeBriefFn,
+  type ComponenteBriefUi,
+  type IntencaoBriefUi,
+  type BriefDaEdicao,
+  type TipoBrief,
+} from "@/newsletter/lib/brief.functions";
+import { rotuloEstadoBrief } from "@/newsletter/lib/newsletter-engine/revista/brief/tipos";
+import { caminhoBrief } from "@/newsletter/lib/newsletter-engine/revista/brief/slug";
+
+const TITLE = "Briefs · DIGITAL SPRINT";
+const DESCRIPTION = "Painel interno de Briefs: relação entre notícia, Brief e edição.";
+
+export const Route = createFileRoute("/_authenticated/briefs")({
+  head: () => ({
+    meta: [
+      { title: TITLE },
+      { name: "description", content: DESCRIPTION },
+      { name: "robots", content: "noindex, nofollow" },
+      { property: "og:title", content: TITLE },
+      { property: "og:description", content: DESCRIPTION },
+      { property: "og:type", content: "website" },
+      { name: "twitter:card", content: "summary" },
+    ],
+  }),
+  component: PainelBriefs,
+});
+
+const T = {
+  bg: "#0A1628",
+  card: "#0F1E33",
+  line: "#1E3149",
+  ink: "#E7EBF2",
+  muted: "#8FA3BC",
+  accent: "#34D3F5",
+  warn: "#F5A524",
+};
+
+function PainelBriefs() {
+  const qc = useQueryClient();
+  const [edicaoId, setEdicaoId] = useState("");
+  const [aberto, setAberto] = useState<string | null>(null);
+  const [aviso, setAviso] = useState<string | null>(null);
+
+  const edicoes = useQuery({ queryKey: ["brief-edicoes"], queryFn: () => listarEdicoesBriefFn() });
+
+  useEffect(() => {
+    if (!edicaoId && edicoes.data?.length) setEdicaoId(edicoes.data[0].id);
+  }, [edicoes.data, edicaoId]);
+
+  const noticias = useQuery({
+    queryKey: ["brief-noticias", edicaoId],
+    queryFn: () => listarNoticiasParaBriefFn({ data: { edicaoId } }),
+    enabled: Boolean(edicaoId),
+  });
+
+  const briefs = useQuery({
+    queryKey: ["brief-lista", edicaoId],
+    queryFn: () => listarBriefsDaEdicaoFn({ data: { edicaoId } }),
+    enabled: Boolean(edicaoId),
+  });
+
+  const invalidar = () => {
+    qc.invalidateQueries({ queryKey: ["brief-lista", edicaoId] });
+  };
+
+  const criar = useMutation({
+    mutationFn: (v: { noticiaId: string; papel: TipoBrief }) =>
+      criarBriefFn({ data: { edicaoId, noticiaId: v.noticiaId, papel: v.papel } }),
+    onSuccess: (r) => {
+      setAviso(
+        r.reutilizado
+          ? `Esta fonte já tinha Brief. Foi reutilizado o mesmo endereço: ${caminhoBrief(r.slug)}`
+          : `Brief criado em ${caminhoBrief(r.slug)}`,
+      );
+      invalidar();
+    },
+    onError: (e: Error) => setAviso(e.message),
+  });
+
+  const remover = useMutation({
+    mutationFn: (briefId: string) => removerBriefDaEdicaoFn({ data: { briefId, edicaoId } }),
+    onSuccess: () => {
+      setAviso("Brief retirado desta edição. A peça em si mantém-se.");
+      invalidar();
+    },
+  });
+
+  const jaComBrief = useMemo(
+    () => new Set((briefs.data ?? []).map((b) => b.noticia_id ?? "")),
+    [briefs.data],
+  );
+
+  const contagem = useMemo(() => {
+    const l = briefs.data ?? [];
+    return {
+      destaque: l.filter((b) => b.papel === "destaque").length,
+      radar: l.filter((b) => b.papel === "radar").length,
+    };
+  }, [briefs.data]);
+
+  return (
+    <div style={{ minHeight: "100vh", background: T.bg, color: T.ink }}>
+      <div style={{ maxWidth: 1100, margin: "0 auto", padding: "32px 20px 80px" }}>
+        <header style={{ marginBottom: 24 }}>
+          <p style={{ margin: 0, fontSize: 11, letterSpacing: "0.16em", color: T.accent, textTransform: "uppercase" }}>
+            Digital Sprint · interno
+          </p>
+          <h1 style={{ margin: "6px 0 4px", fontSize: 28, fontWeight: 600 }}>Briefs</h1>
+          <p style={{ margin: 0, color: T.muted, fontSize: 14 }}>
+            Prova da relação notícia → Brief → edição. Nada daqui é visível ao leitor nem afeta o envio.
+          </p>
+        </header>
+
+        <section style={{ display: "flex", gap: 12, alignItems: "center", marginBottom: 20, flexWrap: "wrap" }}>
+          <label htmlFor="edicao" style={{ fontSize: 13, color: T.muted }}>
+            Edição
+          </label>
+          <select
+            id="edicao"
+            value={edicaoId}
+            onChange={(e) => { setEdicaoId(e.target.value); setAberto(null); setAviso(null); }}
+            style={{
+              background: T.card, color: T.ink, border: `1px solid ${T.line}`,
+              borderRadius: 8, padding: "8px 10px", fontSize: 14,
+            }}
+          >
+            {(edicoes.data ?? []).map((e) => (
+              <option key={e.id} value={e.id}>
+                #{e.numero} · {e.estado}
+              </option>
+            ))}
+          </select>
+          <span style={{ fontSize: 13, color: T.muted }}>
+            {contagem.destaque} destaques · {contagem.radar} radar
+          </span>
+        </section>
+
+        {aviso && (
+          <p
+            role="status"
+            style={{
+              background: "#10283D", border: `1px solid ${T.line}`, borderRadius: 8,
+              padding: "10px 12px", fontSize: 13, color: T.ink, marginBottom: 20,
+            }}
+          >
+            {aviso}
+          </p>
+        )}
+
+        <h2 style={{ fontSize: 16, fontWeight: 600, margin: "0 0 12px" }}>Briefs desta edição</h2>
+        {briefs.isLoading ? (
+          <p style={{ color: T.muted, fontSize: 14 }}>
+            <Loader2 size={14} style={{ display: "inline", marginRight: 6 }} /> A carregar…
+          </p>
+        ) : (briefs.data ?? []).length === 0 ? (
+          <p style={{ color: T.muted, fontSize: 14 }}>Ainda não há Briefs nesta edição.</p>
+        ) : (
+          <ul style={{ listStyle: "none", padding: 0, margin: "0 0 36px", display: "grid", gap: 10 }}>
+            {(briefs.data ?? []).map((b) => (
+              <CartaoBrief
+                key={b.id}
+                brief={b}
+                aberto={aberto === b.id}
+                onAlternar={() => setAberto(aberto === b.id ? null : b.id)}
+                onRemover={() => remover.mutate(b.id)}
+                onMudou={invalidar}
+              />
+            ))}
+          </ul>
+        )}
+
+        <h2 style={{ fontSize: 16, fontWeight: 600, margin: "0 0 12px" }}>Notícias aprovadas da edição</h2>
+        {noticias.isLoading ? (
+          <p style={{ color: T.muted, fontSize: 14 }}>A carregar…</p>
+        ) : (
+          <ul style={{ listStyle: "none", padding: 0, margin: 0, display: "grid", gap: 8 }}>
+            {(noticias.data ?? []).map((n) => (
+              <li
+                key={n.id}
+                style={{
+                  background: T.card, border: `1px solid ${T.line}`, borderRadius: 10,
+                  padding: "12px 14px", display: "flex", gap: 12, alignItems: "center", justifyContent: "space-between",
+                }}
+              >
+                <div style={{ minWidth: 0 }}>
+                  <p style={{ margin: 0, fontSize: 11, color: T.accent, textTransform: "uppercase", letterSpacing: "0.1em" }}>
+                    {n.categoria}
+                  </p>
+                  <p style={{ margin: "2px 0 0", fontSize: 14 }}>{n.titulo}</p>
+                </div>
+                <div style={{ display: "flex", gap: 8, flexShrink: 0 }}>
+                  {jaComBrief.has(n.id) ? (
+                    <span style={{ fontSize: 12, color: T.muted }}>Já tem Brief</span>
+                  ) : (
+                    <>
+                      <Botao onClick={() => criar.mutate({ noticiaId: n.id, papel: "destaque" })}>
+                        <Plus size={13} /> Destaque
+                      </Botao>
+                      <Botao onClick={() => criar.mutate({ noticiaId: n.id, papel: "radar" })}>
+                        <Plus size={13} /> Radar
+                      </Botao>
+                    </>
+                  )}
+                </div>
+              </li>
+            ))}
+          </ul>
+        )}
+      </div>
+    </div>
+  );
+}
+
+function Botao({ children, onClick, tom }: { children: React.ReactNode; onClick: () => void; tom?: "forte" }) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      style={{
+        display: "inline-flex", alignItems: "center", gap: 6,
+        background: tom === "forte" ? T.accent : "transparent",
+        color: tom === "forte" ? "#05070E" : T.ink,
+        border: `1px solid ${tom === "forte" ? T.accent : T.line}`,
+        borderRadius: 8, padding: "6px 10px", fontSize: 13, cursor: "pointer",
+      }}
+    >
+      {children}
+    </button>
+  );
+}
+
+function CartaoBrief({
+  brief, aberto, onAlternar, onRemover, onMudou,
+}: {
+  brief: BriefDaEdicao;
+  aberto: boolean;
+  onAlternar: () => void;
+  onRemover: () => void;
+  onMudou: () => void;
+}) {
+  const [em30, setEm30] = useState(brief.em_30_segundos.map((p) => p.texto).join("\n\n"));
+  const [porque, setPorque] = useState(
+    brief.porque_interessa.map((i) => `${i.rotulo}: ${i.texto}`).join("\n"),
+  );
+  const [leitura, setLeitura] = useState(brief.leitura_aprovada || brief.leitura_sugerida);
+  const [fonte, setFonte] = useState(brief.fonte_url ?? "");
+  const [publisher, setPublisher] = useState(brief.fonte_publisher ?? "");
+  const [tituloEditorial, setTituloEditorial] = useState(brief.titulo_editorial);
+  const [teseEditorial, setTeseEditorial] = useState(brief.tese_editorial);
+  const [intencao, setIntencao] = useState<IntencaoBriefUi>("normal");
+  const [notaMotor, setNotaMotor] = useState<string | null>(null);
+
+  // Depois de o motor correr, o cartão passa a mostrar o que ficou gravado.
+  useEffect(() => {
+    setEm30(brief.em_30_segundos.map((p) => p.texto).join("\n\n"));
+    setPorque(brief.porque_interessa.map((i) => `${i.rotulo}: ${i.texto}`).join("\n"));
+    setLeitura(brief.leitura_aprovada || brief.leitura_sugerida);
+    setFonte(brief.fonte_url ?? "");
+    setPublisher(brief.fonte_publisher ?? "");
+    setTituloEditorial(brief.titulo_editorial);
+    setTeseEditorial(brief.tese_editorial);
+  }, [brief.updated_at]);
+
+  const motor = useMutation({
+    mutationFn: (v: { componente: ComponenteBriefUi }) =>
+      gerarBriefFn({ data: { id: brief.id, componente: v.componente, intencao } }),
+    onSuccess: (r) => {
+      setNotaMotor(
+        r.motivos.length
+          ? r.motivos.join(" ")
+          : r.erro
+            ? r.erro
+            : "Gerado. Rever antes de aprovar.",
+      );
+      onMudou();
+    },
+    onError: (e: Error) => setNotaMotor(e.message),
+  });
+
+  const reformular = useMutation({
+    mutationFn: () => reformularBriefFn({ data: { id: brief.id } }),
+    onSuccess: (r) => {
+      setNotaMotor(r.motivos.join(" ") || "Reformulado com outro ângulo.");
+      onMudou();
+    },
+    onError: (e: Error) => setNotaMotor(e.message),
+  });
+
+  const reverificar = useMutation({
+    mutationFn: () => reverificarBriefFn({ data: { id: brief.id } }),
+    onSuccess: (r) => {
+      setNotaMotor(r.motivos.join(" ") || "Verificação repetida sem problemas.");
+      onMudou();
+    },
+    onError: (e: Error) => setNotaMotor(e.message),
+  });
+
+  const aTrabalhar = motor.isPending || reformular.isPending || reverificar.isPending;
+
+  const guardar = useMutation({
+    mutationFn: () =>
+      guardarConteudoBriefFn({
+        data: {
+          id: brief.id,
+          em30: em30.split(/\n{2,}/),
+          porqueInteressa: porque
+            .split("\n")
+            .filter((l) => l.trim())
+            .map((l) => {
+              const [rotulo, ...resto] = l.split(":");
+              return resto.length
+                ? { rotulo: rotulo.trim(), texto: resto.join(":").trim() }
+                : { rotulo: "", texto: l.trim() };
+            }),
+          leitura,
+          fonteUrl: fonte,
+          publisher,
+        },
+      }),
+    onSuccess: onMudou,
+  });
+
+  const identidade = useMutation({
+    mutationFn: () =>
+      guardarIdentidadeBriefFn({ data: { id: brief.id, tituloEditorial, teseEditorial } }),
+    onSuccess: onMudou,
+  });
+
+  const aprovar = useMutation({
+    mutationFn: () => aprovarLeituraBriefFn({ data: { id: brief.id, texto: leitura } }),
+    onSuccess: onMudou,
+  });
+
+  const revogar = useMutation({
+    mutationFn: () => revogarLeituraBriefFn({ data: { id: brief.id } }),
+    onSuccess: onMudou,
+  });
+
+  return (
+    <li style={{ background: T.card, border: `1px solid ${T.line}`, borderRadius: 10, padding: "12px 14px" }}>
+      <div style={{ display: "flex", gap: 12, alignItems: "center", justifyContent: "space-between" }}>
+        <button
+          type="button"
+          onClick={onAlternar}
+          style={{ background: "none", border: "none", color: T.ink, textAlign: "left", cursor: "pointer", padding: 0, minWidth: 0 }}
+        >
+          <p style={{ margin: 0, fontSize: 11, letterSpacing: "0.1em", textTransform: "uppercase", color: T.accent }}>
+            {brief.papel === "destaque" ? "Brief · Destaque" : "Quick Brief · Radar"} · {rotuloEstadoBrief(brief.estado)}
+            {brief.aprovada_em ? " · leitura aprovada" : ""}
+            {brief.alterado_apos_publicacao ? " · alterado depois de publicado" : ""}
+          </p>
+          <p style={{ margin: "2px 0 0", fontSize: 14 }}>
+            {brief.titulo_editorial || brief.titulo_apresentado || brief.slug}
+          </p>
+          <p style={{ margin: "2px 0 0", fontSize: 12, color: T.muted, display: "flex", alignItems: "center", gap: 5 }}>
+            <Link2 size={12} /> {caminhoBrief(brief.slug)}
+          </p>
+        </button>
+        <Botao onClick={onRemover}>
+          <Trash2 size={13} /> Retirar
+        </Botao>
+      </div>
+
+      {aberto && (
+        <div style={{ marginTop: 14, display: "grid", gap: 10 }}>
+          <div style={{ border: `1px solid ${T.line}`, borderRadius: 8, padding: "10px 12px", display: "grid", gap: 8 }}>
+            <p style={{ margin: 0, fontSize: 12, color: T.muted }}>
+              Identidade editorial da página pública — independente do título da fonte e do
+              título usado nesta edição. O endereço não muda.
+            </p>
+            <label style={{ fontSize: 12, color: T.muted }}>
+              Título editorial
+              <input
+                value={tituloEditorial}
+                onChange={(e) => setTituloEditorial(e.target.value)}
+                style={{ ...estiloCampo, marginTop: 4 }}
+              />
+            </label>
+            <label style={{ fontSize: 12, color: T.muted }}>
+              Tese editorial
+              <input
+                value={teseEditorial}
+                onChange={(e) => setTeseEditorial(e.target.value)}
+                style={{ ...estiloCampo, marginTop: 4 }}
+              />
+            </label>
+            <div>
+              <Botao onClick={() => identidade.mutate()}>Guardar identidade</Botao>
+            </div>
+          </div>
+          <div
+            style={{
+              border: `1px solid ${T.line}`,
+              borderRadius: 8,
+              padding: "10px 12px",
+              display: "grid",
+              gap: 8,
+            }}
+          >
+            <div style={{ display: "flex", gap: 8, flexWrap: "wrap", alignItems: "center" }}>
+              <Botao tom="forte" onClick={() => motor.mutate({ componente: "tudo" })}>
+                {aTrabalhar ? <Loader2 size={13} className="animate-spin" /> : <Sparkles size={13} />}
+                {brief.factos.length ? "Gerar de novo" : "Gerar Brief"}
+              </Botao>
+              <Botao onClick={() => motor.mutate({ componente: "em_30_segundos" })}>Em 30 segundos</Botao>
+              <Botao onClick={() => motor.mutate({ componente: "porque_interessa" })}>Porque interessa</Botao>
+              {brief.papel === "destaque" && (
+                <Botao onClick={() => motor.mutate({ componente: "leitura_sugerida" })}>Leitura sugerida</Botao>
+              )}
+              <select
+                value={intencao}
+                onChange={(e) => setIntencao(e.target.value as IntencaoBriefUi)}
+                style={{ ...estiloCampo, width: "auto", padding: "6px 8px" }}
+              >
+                <option value="normal">Sem instrução extra</option>
+                <option value="mais_pragmatico">Mais pragmático</option>
+                <option value="mais_curto">Mais curto</option>
+                <option value="menos_opinativo">Menos opinativo</option>
+                <option value="outro_angulo">Outro ângulo</option>
+                <option value="simplificar">Simplificar</option>
+              </select>
+              <Botao onClick={() => reverificar.mutate()}>Voltar a verificar</Botao>
+              {brief.verificacao.proximidade_detalhe?.decisao === "bloqueado" && (
+                <Botao onClick={() => reformular.mutate()}>Reformular</Botao>
+              )}
+            </div>
+
+            <p style={{ margin: 0, fontSize: 12, color: T.muted }}>
+              Fonte:{" "}
+              {brief.verificacao.fonte_estado === "indisponivel"
+                ? "indisponível"
+                : brief.fonte_publisher || "por confirmar"}
+              {" · "}
+              Fonte primária: {brief.fonte_primaria_url ? "encontrada" : "não encontrada"}
+              {" · "}
+              Factos: {brief.factos.length}
+            </p>
+
+            <p style={{ margin: 0, fontSize: 12, color: T.muted }}>
+              Factualidade:{" "}
+              <span style={{ color: brief.verificacao.factual === "falhou" ? T.warn : T.ink }}>
+                {brief.verificacao.factual === "falhou"
+                  ? "com afirmações por sustentar"
+                  : brief.verificacao.factual === "ok"
+                    ? "sustentada pela fonte"
+                    : "por verificar"}
+              </span>
+              {" · "}
+              Proximidade ao original:{" "}
+              <span
+                style={{
+                  color:
+                    brief.verificacao.proximidade_detalhe?.decisao === "bloqueado" ? T.warn : T.ink,
+                }}
+              >
+                {brief.verificacao.proximidade_detalhe
+                  ? brief.verificacao.proximidade_detalhe.decisao === "bloqueado"
+                    ? "demasiado perto"
+                    : brief.verificacao.proximidade_detalhe.decisao === "rever"
+                      ? "a rever"
+                      : "segura"
+                  : "por medir"}
+              </span>
+            </p>
+
+            {(brief.verificacao.factual_detalhe?.itens ?? [])
+              .filter((i) => i.estado !== "suportado")
+              .slice(0, 4)
+              .map((i, idx) => (
+                <p key={idx} style={{ margin: 0, fontSize: 12, color: T.warn }}>
+                  {i.afirmacao}
+                  {i.nota ? ` — ${i.nota}` : ""}
+                </p>
+              ))}
+
+            {notaMotor && (
+              <p style={{ margin: 0, fontSize: 12, color: T.accent }}>{notaMotor}</p>
+            )}
+          </div>
+
+          <Campo rotulo="Em 30 segundos (um parágrafo por bloco, separados por linha em branco)">
+            <textarea value={em30} onChange={(e) => setEm30(e.target.value)} rows={5} style={estiloCampo} />
+          </Campo>
+          <Campo rotulo="Porque interessa (uma linha por implicação: Rótulo: texto)">
+            <textarea value={porque} onChange={(e) => setPorque(e.target.value)} rows={4} style={estiloCampo} />
+          </Campo>
+          {brief.papel === "destaque" && (
+            <Campo rotulo="A minha leitura (só é pública depois de aprovada)">
+              <textarea value={leitura} onChange={(e) => setLeitura(e.target.value)} rows={4} style={estiloCampo} />
+            </Campo>
+          )}
+          <div style={{ display: "grid", gap: 10, gridTemplateColumns: "2fr 1fr" }}>
+            <Campo rotulo="Fonte original">
+              <input value={fonte} onChange={(e) => setFonte(e.target.value)} style={estiloCampo} />
+            </Campo>
+            <Campo rotulo="Publicação">
+              <input value={publisher} onChange={(e) => setPublisher(e.target.value)} style={estiloCampo} />
+            </Campo>
+          </div>
+
+          <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+            <Botao tom="forte" onClick={() => guardar.mutate()}>Guardar</Botao>
+            {brief.papel === "destaque" &&
+              (brief.aprovada_em ? (
+                <Botao onClick={() => revogar.mutate()}>
+                  <RotateCcw size={13} /> Pôr por rever
+                </Botao>
+              ) : (
+                <Botao onClick={() => aprovar.mutate()}>
+                  <Check size={13} /> Aprovar leitura
+                </Botao>
+              ))}
+          </div>
+          <p style={{ margin: 0, fontSize: 12, color: T.muted }}>
+            Guardar um texto de leitura diferente do aprovado repõe automaticamente o estado «por rever».
+          </p>
+        </div>
+      )}
+    </li>
+  );
+}
+
+const estiloCampo: React.CSSProperties = {
+  width: "100%", background: "#0A1628", color: T.ink, border: `1px solid ${T.line}`,
+  borderRadius: 8, padding: "8px 10px", fontSize: 13, fontFamily: "inherit",
+};
+
+function Campo({ rotulo, children }: { rotulo: string; children: React.ReactNode }) {
+  return (
+    <label style={{ display: "grid", gap: 4 }}>
+      <span style={{ fontSize: 12, color: T.muted }}>{rotulo}</span>
+      {children}
+    </label>
+  );
+}

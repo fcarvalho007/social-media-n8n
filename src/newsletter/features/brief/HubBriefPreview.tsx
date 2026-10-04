@@ -1,0 +1,160 @@
+import { Link } from "@/newsletter/shim/router";
+import { useMemo, useState } from "react";
+
+import { Cabecalho } from "@/newsletter/features/revista-web/Hero";
+import { BarraTopo, ProgressoLeitura, type AncoraSeccao } from "@/newsletter/features/revista-web/Navegacao";
+import { Etiqueta, IntroSeccao } from "@/newsletter/features/revista-web/ui";
+
+type NoticiaHub = {
+  id: string;
+  categoria: string;
+  titulo: string;
+  resumo: string;
+  fonte: string;
+  fonteUrl: string;
+};
+
+const DESTAQUES: NoticiaHub[] = [
+  { id: "d1", categoria: "Inteligência artificial", titulo: "Google leva agentes de IA para dentro das equipas de marketing", resumo: "A próxima vaga de automação promete executar sequências completas de trabalho. O desafio passa menos pela ferramenta e mais pela qualidade dos processos que a recebem.", fonte: "The Verge", fonteUrl: "https://www.theverge.com/" },
+  { id: "d2", categoria: "Estratégia", titulo: "A pesquisa deixa de ser uma página e passa a ser uma resposta", resumo: "Os novos formatos de pesquisa estão a reduzir a distância entre uma pergunta e uma decisão, obrigando marcas e editores a repensar como conquistam atenção.", fonte: "Reuters", fonteUrl: "https://www.reuters.com/" },
+  { id: "d3", categoria: "E-commerce", titulo: "O comércio conversacional entra finalmente na fase de execução", resumo: "Assistentes digitais começam a acompanhar a compra do princípio ao fim. A conveniência cresce, mas também aumenta a dependência das plataformas.", fonte: "Financial Times", fonteUrl: "https://www.ft.com/" },
+];
+
+const RADAR: NoticiaHub[] = [
+  { id: "r1", categoria: "Social media", titulo: "Instagram testa uma nova forma de organizar recomendações", resumo: "Mais controlo sobre os temas sugeridos pode alterar os sinais que as marcas usam para chegar a novas audiências.", fonte: "Instagram", fonteUrl: "https://www.instagram.com/" },
+  { id: "r2", categoria: "Google", titulo: "YouTube simplifica a comparação entre títulos e miniaturas", resumo: "O teste nativo aproxima decisões criativas de dados reais de retenção.", fonte: "YouTube Blog", fonteUrl: "https://blog.youtube/" },
+  { id: "r3", categoria: "Dados", titulo: "Chrome prepara novos controlos para identidade publicitária", resumo: "As equipas ganham mais um cenário de consentimento para integrar nos seus planos de medição.", fonte: "TechCrunch", fonteUrl: "https://techcrunch.com/" },
+  { id: "r4", categoria: "Media", titulo: "LinkedIn amplia métricas para newsletters profissionais", resumo: "A plataforma quer dar aos autores uma leitura mais clara da recorrência e da qualidade da audiência.", fonte: "LinkedIn", fonteUrl: "https://www.linkedin.com/" },
+  { id: "r5", categoria: "SEO", titulo: "Bing passa a mostrar mais contexto sobre as fontes citadas", resumo: "A visibilidade da origem ganha peso quando a resposta é composta por inteligência artificial.", fonte: "Search Engine Land", fonteUrl: "https://searchengineland.com/" },
+];
+
+const NOTICIAS: NoticiaHub[] = [
+  { id: "n1", categoria: "Inteligência artificial", titulo: "Equipas criativas começam a medir o custo real da revisão humana", resumo: "A velocidade de produção aumentou, mas o tempo poupado nem sempre compensa os novos ciclos de validação.", fonte: "MIT Technology Review", fonteUrl: "https://www.technologyreview.com/" },
+  { id: "n2", categoria: "Google", titulo: "Performance Max ganha relatórios por tipo de intenção", resumo: "A alteração procura explicar melhor onde o sistema encontra procura e como distribui o investimento.", fonte: "Google Ads", fonteUrl: "https://ads.google.com/" },
+  { id: "n3", categoria: "Social media", titulo: "TikTok experimenta séries educativas com episódios guardáveis", resumo: "O novo formato favorece conteúdos de continuidade em vez de publicações isoladas.", fonte: "Social Media Today", fonteUrl: "https://www.socialmediatoday.com/" },
+  { id: "n4", categoria: "E-commerce", titulo: "Marketplaces europeus reforçam a identificação de vendedores", resumo: "As novas exigências tornam a confiança mais visível e aumentam o trabalho operacional das lojas.", fonte: "Ecommerce Europe", fonteUrl: "https://ecommerce-europe.eu/" },
+  { id: "n5", categoria: "SEO", titulo: "Dados estruturados voltam ao centro da descoberta de produtos", resumo: "Informação consistente ajuda motores de resposta a comparar preço, disponibilidade e características.", fonte: "Search Engine Journal", fonteUrl: "https://www.searchenginejournal.com/" },
+  { id: "n6", categoria: "Dados", titulo: "Marcas aproximam dados de vendas e investimento em media", resumo: "A procura por decisões semanais está a substituir projetos longos de atribuição perfeita.", fonte: "Digiday", fonteUrl: "https://digiday.com/" },
+  { id: "n7", categoria: "Media", titulo: "Podcasts de nicho mantêm vantagem na confiança publicitária", resumo: "Audiências menores continuam a produzir melhores sinais de afinidade quando o contexto é específico.", fonte: "Nieman Lab", fonteUrl: "https://www.niemanlab.org/" },
+  { id: "n8", categoria: "Estratégia", titulo: "O orçamento de inovação regressa às equipas operacionais", resumo: "Projetos pequenos e mensuráveis estão a receber prioridade sobre programas de transformação abstratos.", fonte: "Harvard Business Review", fonteUrl: "https://hbr.org/" },
+  { id: "n9", categoria: "Inteligência artificial", titulo: "Modelos menores ganham espaço em tarefas internas repetitivas", resumo: "Custos previsíveis e maior controlo tornam soluções especializadas mais atraentes para operações maduras.", fonte: "Wired", fonteUrl: "https://www.wired.com/" },
+  { id: "n10", categoria: "Google", titulo: "Analytics clarifica diferenças entre utilizadores e sessões", resumo: "A documentação revista procura reduzir erros comuns na leitura de campanhas multicanal.", fonte: "Google Analytics", fonteUrl: "https://marketingplatform.google.com/about/analytics/" },
+  { id: "n11", categoria: "Social media", titulo: "Comunidades privadas voltam a crescer fora dos feeds", resumo: "Marcas procuram relações recorrentes em espaços onde o alcance não depende totalmente do algoritmo.", fonte: "The Drum", fonteUrl: "https://www.thedrum.com/" },
+  { id: "n12", categoria: "E-commerce", titulo: "Devoluções passam a influenciar mais decisões de aquisição", resumo: "Retalhistas estão a cruzar margem e comportamento pós-compra antes de aumentar investimento.", fonte: "Modern Retail", fonteUrl: "https://www.modernretail.co/" },
+  { id: "n13", categoria: "SEO", titulo: "Pesquisa local valoriza sinais recentes de confiança", resumo: "Atualização de perfis, respostas e informação operacional pesa mais na descoberta de negócios próximos.", fonte: "Moz", fonteUrl: "https://moz.com/" },
+  { id: "n14", categoria: "Dados", titulo: "Consentimento deixa de ser apenas uma questão jurídica", resumo: "A forma como a escolha é apresentada começa a ter impacto mensurável na qualidade dos dados recolhidos.", fonte: "IAB Europe", fonteUrl: "https://iabeurope.eu/" },
+  { id: "n15", categoria: "Media", titulo: "Editores testam pacotes conjuntos para chegar a anunciantes médios", resumo: "A agregação de inventário procura competir com plataformas sem perder contexto editorial.", fonte: "Press Gazette", fonteUrl: "https://pressgazette.co.uk/" },
+  { id: "n16", categoria: "Estratégia", titulo: "A eficiência deixa de ser uma vantagem quando todos compram a mesma ferramenta", resumo: "Processos próprios e conhecimento acumulado voltam a separar equipas que apenas adotam tecnologia.", fonte: "Fast Company", fonteUrl: "https://www.fastcompany.com/" },
+];
+
+const ANCORA: AncoraSeccao[] = [
+  { id: "cronica", rotulo: "Crónica" },
+  { id: "destaques", rotulo: "Destaques" },
+  { id: "radar", rotulo: "Radar" },
+  { id: "atualidades", rotulo: "Todas" },
+  { id: "recomendacao", rotulo: "Recomendação" },
+];
+
+const WRAP = "mx-auto w-full max-w-[79rem] px-5 sm:px-8 lg:px-12";
+
+function Fonte({ noticia, rotulo = "Fonte original" }: { noticia: NoticiaHub; rotulo?: string }) {
+  return <a href={noticia.fonteUrl} target="_blank" rel="noreferrer noopener" className="rw-link inline-flex min-h-11 items-center text-[13px] font-semibold text-rw-blue">{rotulo} · {noticia.fonte} ↗</a>;
+}
+
+function Destaques() {
+  return (
+    <section aria-labelledby="destaques">
+      <IntroSeccao id="destaques" numero={2} etiqueta="O que não ignoraria" titulo="Três temas para compreender melhor." nota="Síntese imediata, contexto Digital Sprint e acesso direto à fonte." />
+      <div className="border-t-[3px] border-rw-ink">
+        {DESTAQUES.map((item, index) => (
+          <article key={item.id} className="grid gap-4 border-b border-rw-rule py-7 sm:py-9 lg:grid-cols-[5rem_minmax(0,1fr)_13rem] lg:gap-8">
+            <div><span className="font-display text-[13px] font-semibold text-rw-blue">0{index + 1}</span></div>
+            <div>
+              <Etiqueta>{item.categoria}</Etiqueta>
+              <h3 className="mt-2 max-w-[48rem] font-display text-[26px] font-semibold leading-[1.12] text-rw-ink sm:text-[34px]">{item.titulo}</h3>
+              <p className="mt-3 max-w-[44rem] text-[15.5px] leading-7 text-rw-ink-2">{item.resumo}</p>
+            </div>
+            <div className="flex flex-wrap items-end gap-x-5 gap-y-1 lg:block lg:border-l lg:border-rw-rule lg:pl-6">
+              <Link to="/preview/brief/destaque" className="rw-link inline-flex min-h-11 items-center text-[15px] font-bold text-rw-ink">Ler o Brief →</Link>
+              <div className="lg:mt-2"><Fonte noticia={item} /></div>
+            </div>
+          </article>
+        ))}
+      </div>
+    </section>
+  );
+}
+
+function Radar() {
+  return (
+    <section aria-labelledby="radar">
+      <IntroSeccao id="radar" numero={3} etiqueta="Leitura rápida" titulo="Radar." nota="Cinco sinais para conhecer em menos de um minuto." />
+      <ol className="border-t-[3px] border-rw-ink">
+        {RADAR.map((item, index) => (
+          <li key={item.id} className="grid gap-1 border-b border-rw-rule py-4 sm:grid-cols-[3rem_10rem_minmax(0,1fr)_13rem] sm:items-baseline sm:gap-5">
+            <span className="text-[12px] font-semibold tabular-nums text-rw-ink-2">0{index + 1}</span>
+            <Etiqueta>{item.categoria}</Etiqueta>
+            <Link to="/preview/brief/radar" className="rw-link text-[16.5px] font-semibold leading-6 text-rw-ink">{item.titulo}</Link>
+            <Fonte noticia={item} rotulo="Fonte" />
+          </li>
+        ))}
+      </ol>
+    </section>
+  );
+}
+
+function TodasNoticias() {
+  const [categoria, setCategoria] = useState("Todas");
+  const [pesquisa, setPesquisa] = useState("");
+  const categorias = ["Todas", ...Array.from(new Set(NOTICIAS.map((item) => item.categoria)))];
+  const visiveis = useMemo(() => {
+    const termo = pesquisa.trim().toLocaleLowerCase("pt-PT");
+    return NOTICIAS.filter((item) => (categoria === "Todas" || item.categoria === categoria) && (!termo || `${item.titulo} ${item.resumo} ${item.fonte}`.toLocaleLowerCase("pt-PT").includes(termo)));
+  }, [categoria, pesquisa]);
+
+  return (
+    <section aria-labelledby="atualidades">
+      <IntroSeccao id="atualidades" numero={4} etiqueta="A seleção completa" titulo="Todas as notícias." nota="O essencial da semana sem obrigar a abrir vinte separadores." />
+      <div className="border-y border-rw-rule py-2 sm:flex sm:items-center sm:gap-5">
+        <div role="group" aria-label="Filtrar notícias por categoria" className="flex min-w-0 flex-1 gap-3 overflow-x-auto">
+          {categorias.map((item) => <button key={item} type="button" aria-pressed={categoria === item} onClick={() => setCategoria(item)} className={`min-h-11 shrink-0 border-b-2 text-[13px] font-semibold ${categoria === item ? "border-rw-blue text-rw-ink" : "border-transparent text-rw-ink-2"}`}>{item}</button>)}
+        </div>
+        <label className="mt-2 flex min-h-11 min-w-0 border border-rw-rule bg-white px-3 sm:mt-0 sm:w-64"><span className="sr-only">Pesquisar nesta edição</span><input value={pesquisa} onChange={(event) => setPesquisa(event.target.value)} type="search" placeholder="Pesquisar nesta edição" className="min-w-0 flex-1 bg-transparent text-[14px] text-rw-ink outline-none" /></label>
+      </div>
+      <p role="status" className="py-3 text-[12.5px] text-rw-ink-2">{visiveis.length} de {NOTICIAS.length} notícias</p>
+      <ol className="border-t-[3px] border-rw-ink">
+        {visiveis.map((item) => (
+          <li key={item.id} className="grid gap-2 border-b border-rw-rule py-5 sm:grid-cols-[10rem_minmax(0,1fr)] sm:gap-5 lg:grid-cols-[10rem_minmax(0,1fr)_14rem]">
+            <Etiqueta>{item.categoria}</Etiqueta>
+            <div><h3 className="text-[17px] font-semibold leading-6 text-rw-ink sm:text-[18px]">{item.titulo}</h3><p className="mt-1 text-[14px] leading-6 text-rw-ink-2">{item.resumo}</p></div>
+            <div className="sm:col-start-2 lg:col-start-3"><Fonte noticia={item} rotulo="Ler fonte original" /></div>
+          </li>
+        ))}
+      </ol>
+      {visiveis.length === 0 ? <p className="border-b border-rw-rule py-8 text-[15px] text-rw-ink-2">Nenhuma notícia corresponde a esta pesquisa.</p> : null}
+    </section>
+  );
+}
+
+export function HubBriefPreview() {
+  return (
+    <div id="topo" className="rw rw-web min-h-dvh overflow-x-clip">
+      <ProgressoLeitura />
+      <div className="bg-rw-void text-rw-chalk"><div className={`${WRAP} flex min-h-9 items-center justify-between text-[10px] font-semibold uppercase tracking-[0.16em]`}><span>Digital Sprint Brief</span><span className="text-rw-ciano">Preview QA · não publicado</span></div></div>
+      <BarraTopo ancoras={ANCORA} />
+      <Cabecalho numero={319} data="14 setembro 2026" dataISO="2026-09-14" />
+      <main>
+        <section id="cronica" aria-labelledby="cronica-titulo" className="scroll-mt-24 bg-rw-blue text-white">
+          <div className={`${WRAP} grid gap-8 py-10 sm:py-12 lg:grid-cols-[1.05fr_1fr] lg:gap-16`}>
+            <div><p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-white/75">01 / Crónica</p><h1 id="cronica-titulo" className="mt-5 font-display text-[38px] font-bold leading-[1.02] sm:text-[56px]">O trabalho invisível de decidir antes de automatizar</h1></div>
+            <div className="lg:pt-9"><p className="text-[19px] font-semibold leading-[1.45] sm:text-[21px]">A tecnologia acelera respostas. O valor continua a começar na qualidade das perguntas.</p><p className="mt-5 text-[16.5px] leading-[1.7] text-white/90">Esta semana, quase todas as grandes notícias prometem retirar trabalho às equipas. Mas nenhuma ferramenta sabe, por si só, que trabalho merece desaparecer e qual deve continuar humano.</p><blockquote className="mt-7 font-serif text-[23px] leading-[1.4] sm:text-[27px]">“Automatizar cedo demais é apenas uma forma mais rápida de cristalizar uma má decisão.”</blockquote><a href="#destaques" className="mt-7 inline-flex min-h-11 items-center border-b-2 border-white font-semibold">Entrar na seleção ↓</a></div>
+          </div>
+        </section>
+        <div className={WRAP}><Destaques /><Radar /><TodasNoticias />
+          <section id="recomendacao" aria-labelledby="recomendacao-titulo"><IntroSeccao id="recomendacao-titulo" numero={5} etiqueta="Esta semana recomendo" titulo="Para levar contigo." /><div className="border-t-[3px] border-rw-ink bg-rw-panel p-6 sm:p-8"><Etiqueta>Podcast · 31 min</Etiqueta><h3 className="mt-2 max-w-[40rem] font-display text-[27px] font-semibold leading-tight text-rw-ink sm:text-[34px]">Como desenhar processos que merecem ser automatizados</h3><p className="mt-3 max-w-[38rem] font-serif text-[17px] leading-7 text-rw-ink-2">Uma conversa pragmática sobre o que deve acontecer antes de escolher ferramentas.</p><a href="https://fredericocarvalho.pt/" target="_blank" rel="noreferrer noopener" className="rw-link mt-5 inline-flex min-h-11 items-center font-semibold text-rw-blue">Ouvir episódio ↗</a></div></section>
+        </div>
+      </main>
+      <footer className="mt-16 bg-rw-ink text-white sm:mt-24"><div className={`${WRAP} py-12 sm:flex sm:items-end sm:justify-between`}><div><h2 className="font-display text-[30px] font-bold sm:text-[40px]">Informação com critério.</h2><p className="mt-3 max-w-[32rem] text-[15px] leading-7 text-white/70">Uma edição para ler depressa, aprofundar com intenção e regressar quando for útil.</p></div><p className="mt-8 font-semibold sm:mt-0">Frederico Carvalho</p></div></footer>
+    </div>
+  );
+}

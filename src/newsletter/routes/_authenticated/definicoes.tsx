@@ -1,0 +1,1186 @@
+import { createFileRoute, Link } from "@/newsletter/shim/router";
+import { useEffect, useMemo, useState } from "react";
+import { useQuery, useQueryClient, useMutation } from "@tanstack/react-query";
+import { useServerFn } from "@/newsletter/shim/start";
+import {
+  Loader2, Check, X, AlertTriangle, KeyRound, Sparkles, Server, Rss, Send, Globe2,
+  RefreshCw, Copy, CircleCheck, Pencil, Trash2, Plus, Mail, Eye, EyeOff, Inbox, ShieldAlert, HelpCircle, ChevronDown, ChevronRight,
+} from "lucide-react";
+import { listarEmailsRecebidos, type EmailRecebido } from "@/newsletter/lib/emails-recebidos.functions";
+
+
+import { supabase } from "@/integrations/supabase/client";
+import { previewEdicaoFn } from "@/newsletter/lib/envio.functions";
+import { guardarModeloIA, testarModeloIA } from "@/newsletter/lib/processar-noticias.functions";
+
+import { useDefinicoesIA, MODELOS_DEEPSEEK, MODELO_PADRAO, normalizarModeloUI, type ModeloDeepSeek } from "@/newsletter/features/newsletter/useDefinicoesIA";
+import { useSessao } from "@/newsletter/features/newsletter/useSessao";
+import { getConfig, setConfig, sincronizarPodcastRss, listarListasEgoi, criarListaEgoi, actualizarListaEgoi, apagarListaEgoi, getEdicaoAtual, type ListaEgoi } from "@/newsletter/features/newsletter/data";
+import { verificarSecretsAPI, getWebhookCloudMailinUrl, type EstadoSecrets } from "@/newsletter/lib/definicoes.functions";
+import { ModoRecolha } from "@/newsletter/features/definicoes/ModoRecolha";
+import { PrioridadesEditoriaisCard } from "@/newsletter/features/definicoes/PrioridadesEditoriais";
+import { DeteccaoRepeticaoCard } from "@/newsletter/features/definicoes/DeteccaoRepeticaoCard";
+import { SubscricoesCard } from "@/newsletter/features/definicoes/SubscricoesCard";
+import { RetencaoCard } from "@/newsletter/features/definicoes/RetencaoCard";
+import { useAutoSave, type AutoSaveEstado } from "@/newsletter/features/newsletter/useAutoSave";
+
+const TITLE = "Definições · DIGITAL SPRINT";
+const DESCRIPTION = "Provider de IA, credenciais e configurações operacionais do cockpit.";
+
+export const Route = createFileRoute("/_authenticated/definicoes")({
+  head: () => ({
+    meta: [
+      { title: TITLE },
+      { name: "description", content: DESCRIPTION },
+      { name: "robots", content: "noindex, nofollow" },
+      { property: "og:title", content: TITLE },
+      { property: "og:description", content: DESCRIPTION },
+      { property: "og:type", content: "website" },
+      { name: "twitter:card", content: "summary" },
+    ],
+  }),
+  component: DefinicoesPage,
+});
+
+const T = {
+  shell: "#F7F8FA",
+  card: "#FFFFFF",
+  line: "#E4E7EC",
+  ink: "#101828",
+  muted: "#667085",
+  faint: "#98A2B3",
+  primary: "#6366F1",
+  ok: "#10B981",
+  warn: "#F59E0B",
+  danger: "#EF4444",
+};
+
+// Cores por família de cartão — alinhadas com o editor
+const COR = {
+  ia: "#8B5CF6",
+  custos: "#10B981",
+  podcast: "#0D9488",
+  egoi: "#4338CA",
+  wp: "#475569",
+  estado: "#64748B",
+};
+
+// Escala tipográfica partilhada
+const TIPO = {
+  cardTitle: "text-[11.5px] font-bold uppercase tracking-[0.08em]",
+  label: "text-[11.5px] font-semibold uppercase tracking-wide",
+  value: "text-[15px]",
+  help: "text-[12.5px]",
+} as const;
+
+const GRADIENTE = "linear-gradient(135deg,#6366F1,#8B5CF6,#EC4899)";
+
+type Msg = { tipo: "ok" | "erro" | "aviso"; texto: string };
+
+
+function fmtData(iso: string | null): string {
+  if (!iso) return "—";
+  return new Intl.DateTimeFormat("pt-PT", {
+    day: "2-digit", month: "2-digit", year: "numeric", hour: "2-digit", minute: "2-digit",
+  }).format(new Date(iso));
+}
+
+function tempoRelativo(iso: string | null | undefined): { texto: string; horas: number | null } {
+  if (!iso) return { texto: "nunca sincronizado", horas: null };
+  const d = new Date(iso).getTime();
+  if (!Number.isFinite(d)) return { texto: "nunca sincronizado", horas: null };
+  const diffH = Math.max(0, (Date.now() - d) / 3_600_000);
+  if (diffH < 1) return { texto: "sincronizado há < 1h", horas: diffH };
+  if (diffH < 24) return { texto: `sincronizado há ${Math.round(diffH)}h`, horas: diffH };
+  const dias = Math.round(diffH / 24);
+  return { texto: `sincronizado há ${dias}d`, horas: diffH };
+}
+
+/* ─── UI helpers ─── */
+
+function Card({ icone, cor, titulo, subtitulo, children }: {
+  icone: React.ReactNode; cor: string; titulo: string; subtitulo?: string; children: React.ReactNode;
+}) {
+  return (
+    <section className="rounded-[20px] p-6" style={{ background: T.card, border: `1px solid ${T.line}` }}>
+      <header className="mb-4">
+        <div className="flex items-center gap-3">
+          <span
+            className="grid place-items-center h-8 w-8 rounded-xl shrink-0"
+            style={{ background: `${cor}1F`, color: cor }}
+          >
+            {icone}
+          </span>
+          <h2 className={TIPO.cardTitle} style={{ color: T.muted }}>{titulo}</h2>
+        </div>
+        {subtitulo && <p className={`${TIPO.help} mt-2`} style={{ color: T.muted }}>{subtitulo}</p>}
+      </header>
+      {children}
+    </section>
+  );
+}
+
+function BadgeSecret({ definido }: { definido: boolean | undefined }) {
+  if (definido === undefined) {
+    return (
+      <span className="inline-flex items-center gap-1 text-[11px] font-bold uppercase px-2 py-0.5 rounded"
+        style={{ background: `${T.faint}22`, color: T.faint }}>
+        <Loader2 size={10} className="animate-spin" /> a verificar
+      </span>
+    );
+  }
+  return definido ? (
+    <span className="inline-flex items-center gap-1 text-[11px] font-bold uppercase px-2 py-0.5 rounded"
+      style={{ background: `${T.ok}18`, color: T.ok }}>
+      <Check size={11} /> definida
+    </span>
+  ) : (
+    <span className="inline-flex items-center gap-1 text-[11px] font-bold uppercase px-2 py-0.5 rounded"
+      style={{ background: `${T.warn}18`, color: T.warn }}>
+      <AlertTriangle size={11} /> em falta
+    </span>
+  );
+}
+
+function SecretRow({ nome, definido, ondeEncontrar }: {
+  nome: string; definido: boolean | undefined; ondeEncontrar?: string;
+}) {
+  const [copiado, setCopiado] = useState(false);
+  async function copiar() {
+    try {
+      await navigator.clipboard.writeText(nome);
+      setCopiado(true);
+      setTimeout(() => setCopiado(false), 1500);
+    } catch { /* noop */ }
+  }
+  return (
+    <div className="flex items-center gap-2 flex-wrap px-3 py-2 rounded-lg"
+      style={{ background: T.shell, border: `1px solid ${T.line}` }}>
+      <code className="text-[13px] font-mono font-semibold" style={{ color: T.ink }}>{nome}</code>
+      <BadgeSecret definido={definido} />
+      <button type="button" onClick={copiar}
+        className="ml-auto inline-flex items-center gap-1 text-[11px] font-semibold px-2 py-1 rounded"
+        style={{ border: `1px solid ${T.line}`, color: T.muted, background: T.card }}
+        title="Copiar nome do secret">
+        <Copy size={11} /> {copiado ? "copiado" : "copiar nome"}
+      </button>
+      {ondeEncontrar && (
+        <p className={`w-full ${TIPO.help} mt-1`} style={{ color: T.muted }}>Onde encontrar: {ondeEncontrar}</p>
+      )}
+    </div>
+  );
+}
+
+function MsgInline({ msg }: { msg: Msg | null }) {
+  if (!msg) return null;
+  const cor = msg.tipo === "ok" ? T.ok : msg.tipo === "aviso" ? T.warn : T.danger;
+  const icone = msg.tipo === "ok" ? "✓" : msg.tipo === "aviso" ? "!" : "✕";
+  return (
+    <div className="mt-3 px-3.5 py-2.5 rounded-lg text-sm"
+      style={{ background: `${cor}12`, color: cor }}>
+      {icone} {msg.texto}
+    </div>
+  );
+}
+
+function SavedTick({ s, err, vazio }: { s: AutoSaveEstado; err: string | null; vazio?: boolean }) {
+  const base = "inline-flex items-center gap-1 text-[11px] font-medium";
+  if (s === "a-guardar") return <span className={base} style={{ color: "#667085" }}><Loader2 size={10} className="animate-spin" /> A guardar…</span>;
+  if (s === "guardado") return <span className={base} style={{ color: "#027A48" }}><Check size={10} /> Guardado</span>;
+  if (s === "erro") return <span className={base} style={{ color: "#B42318" }} title={err ?? undefined}><X size={10} /> Erro</span>;
+  if (vazio) return <span className={base} style={{ color: "#98A2B3" }}>· por guardar</span>;
+  return null;
+}
+
+function BotaoPrimario({ children, onClick, disabled, loading }: {
+  children: React.ReactNode; onClick: () => void; disabled?: boolean; loading?: boolean;
+}) {
+  return (
+    <button type="button" onClick={onClick} disabled={disabled || loading}
+      className="inline-flex items-center gap-2 text-sm font-bold px-4 py-2 rounded-lg text-white disabled:opacity-50">
+      <span className="inline-flex items-center gap-2 px-3 py-1 -mx-3 -my-1 rounded-lg" style={{ background: GRADIENTE }}>
+        {loading ? <Loader2 size={14} className="animate-spin" /> : <Check size={14} />} {children}
+      </span>
+    </button>
+  );
+}
+
+function BotaoSec({ children, onClick, disabled, loading, icone }: {
+  children: React.ReactNode; onClick: () => void; disabled?: boolean; loading?: boolean; icone?: React.ReactNode;
+}) {
+  return (
+    <button type="button" onClick={onClick} disabled={disabled || loading}
+      className="inline-flex items-center gap-2 text-sm font-semibold px-4 py-2 rounded-lg disabled:opacity-50"
+      style={{ border: `1px solid ${T.line}`, color: T.ink, background: T.card }}>
+      {loading ? <Loader2 size={14} className="animate-spin" /> : icone} {children}
+    </button>
+  );
+}
+
+/* ─── Hook: valor de configuração como state editável (com autosave opcional) ─── */
+
+function useCampoConfig(chave: string) {
+  const q = useQuery({ queryKey: ["config", chave], queryFn: () => getConfig(chave) });
+  const [val, setVal] = useState<string>("");
+  const [iniciou, setIniciou] = useState(false);
+  useEffect(() => {
+    if (q.data !== undefined && !iniciou) { setVal(q.data); setIniciou(true); }
+  }, [q.data, iniciou]);
+  const guardado = q.data ?? "";
+  return { val, setVal, guardado, carregando: q.isLoading, iniciou, refetch: q.refetch };
+}
+
+/* ─── Faixa de estado no topo ─── */
+
+type StatusItem = { label: string; estado: string; ok: boolean };
+
+function FaixaEstado({ itens }: { itens: StatusItem[] }) {
+  return (
+    <div
+      className="grid grid-cols-2 sm:grid-cols-4 gap-3 rounded-[20px] p-4"
+      style={{ background: T.card, border: `1px solid ${T.line}` }}
+    >
+      {itens.map((it) => {
+        const cor = it.ok ? T.ok : T.warn;
+        return (
+          <div key={it.label} className="flex items-start gap-2.5 min-w-0">
+            <span
+              className="mt-1.5 h-2 w-2 rounded-full shrink-0"
+              style={{ background: cor, boxShadow: `0 0 0 4px ${cor}22` }}
+            />
+            <div className="min-w-0">
+              <p className="text-[14px] font-semibold truncate" style={{ color: T.ink }}>{it.label}</p>
+              <p className={`${TIPO.help} truncate`} style={{ color: T.muted }}>{it.estado}</p>
+            </div>
+          </div>
+        );
+      })}
+    </div>
+  );
+}
+
+/* ─── Página ─── */
+
+function ListaEgoiItem({
+  lista, expandido, onToggleExpand, onActualizar, onApagar,
+}: {
+  lista: ListaEgoi;
+  expandido: boolean;
+  onToggleExpand: () => void;
+  onActualizar: (campos: Partial<Pick<ListaEgoi, "nome" | "egoi_lista_id" | "tipo" | "activa" | "ordem">>) => Promise<void>;
+  onApagar: () => void;
+}) {
+  const [nome, setNome] = useState(lista.nome);
+  const [egoiId, setEgoiId] = useState(lista.egoi_lista_id);
+  const [tipo, setTipo] = useState<"teste" | "real">(lista.tipo);
+
+  useEffect(() => {
+    setNome(lista.nome);
+    setEgoiId(lista.egoi_lista_id);
+    setTipo(lista.tipo);
+  }, [lista.id, lista.nome, lista.egoi_lista_id, lista.tipo]);
+
+  const nomeAS = useAutoSave(nome, async (v) => {
+    if ((v ?? "").trim() && v !== lista.nome) await onActualizar({ nome: v.trim() });
+  });
+  const egoiIdAS = useAutoSave(egoiId, async (v) => {
+    if (v !== lista.egoi_lista_id) await onActualizar({ egoi_lista_id: (v ?? "").trim() });
+  });
+  const tipoAS = useAutoSave(tipo, async (v) => {
+    if (v !== lista.tipo) await onActualizar({ tipo: v });
+  });
+
+  const tipoInfo = lista.tipo === "real"
+    ? { txt: "Real", bg: `${COR.egoi}18`, fg: COR.egoi }
+    : { txt: "Teste", bg: `${T.ok}18`, fg: T.ok };
+
+  return (
+    <div className="rounded-[14px]" style={{ background: T.shell, border: `1px solid ${T.line}` }}>
+      {/* Linha colapsada — sempre visível */}
+      <div className="flex items-center gap-3 px-3.5 py-3">
+        <span
+          className="inline-flex items-center gap-1 text-[11px] font-bold uppercase px-2 py-0.5 rounded shrink-0"
+          style={{ background: tipoInfo.bg, color: tipoInfo.fg }}
+        >
+          {tipoInfo.txt}
+        </span>
+        <p className="text-[15px] font-semibold truncate flex-1 min-w-0" style={{ color: T.ink }}>
+          {lista.nome || <span style={{ color: T.faint }}>Sem nome</span>}
+        </p>
+        <span className={`${TIPO.help} font-mono shrink-0 hidden sm:inline`} style={{ color: T.muted }}>
+          {lista.egoi_lista_id ? `#${lista.egoi_lista_id}` : "—"}
+        </span>
+        {/* Toggle activa inline */}
+        <button
+          type="button"
+          role="switch"
+          aria-checked={lista.activa}
+          onClick={() => void onActualizar({ activa: !lista.activa })}
+          className="relative w-10 h-6 rounded-full transition-colors shrink-0"
+          style={{ background: lista.activa ? T.ok : T.line }}
+          title={lista.activa ? "Activa" : "Inactiva"}
+        >
+          <span className="absolute top-0.5 left-0.5 w-5 h-5 rounded-full bg-white shadow transition-transform"
+            style={{ transform: lista.activa ? "translateX(16px)" : "translateX(0)" }} />
+        </button>
+        <button
+          type="button"
+          onClick={onToggleExpand}
+          className="shrink-0 h-8 w-8 grid place-items-center rounded-lg"
+          style={{ border: `1px solid ${T.line}`, background: T.card, color: T.muted }}
+          title={expandido ? "Fechar" : "Editar"}
+          aria-expanded={expandido}
+        >
+          <Pencil size={13} />
+        </button>
+      </div>
+
+      {/* Expandido — formulário completo com autosave */}
+      {expandido && (
+        <div
+          className="grid grid-cols-1 sm:grid-cols-[1fr,140px,110px,auto] gap-3 items-end px-3.5 pb-3.5 pt-1"
+          style={{ borderTop: `1px dashed ${T.line}` }}
+        >
+          <div>
+            <div className="flex items-center justify-between mb-1">
+              <label className={TIPO.label} style={{ color: T.muted }}>Nome</label>
+              <SavedTick s={nomeAS.estado} err={nomeAS.err} vazio={!nome.trim()} />
+            </div>
+            <input type="text" value={nome} onChange={(e) => setNome(e.target.value)}
+              className="w-full px-3 py-2 rounded-lg text-[15px] outline-none"
+              style={{ background: T.card, border: `1px solid ${T.line}`, color: T.ink }} />
+          </div>
+          <div>
+            <div className="flex items-center justify-between mb-1">
+              <label className={TIPO.label} style={{ color: T.muted }}>ID E-goi</label>
+              <SavedTick s={egoiIdAS.estado} err={egoiIdAS.err} vazio={!egoiId.trim()} />
+            </div>
+            <input type="text" value={egoiId} onChange={(e) => setEgoiId(e.target.value)}
+              className="w-full px-3 py-2 rounded-lg text-[15px] font-mono outline-none"
+              style={{ background: T.card, border: `1px solid ${T.line}`, color: T.ink }} />
+          </div>
+          <div>
+            <div className="flex items-center justify-between mb-1">
+              <label className={TIPO.label} style={{ color: T.muted }}>Tipo</label>
+              <SavedTick s={tipoAS.estado} err={tipoAS.err} />
+            </div>
+            <select value={tipo} onChange={(e) => setTipo(e.target.value as "teste" | "real")}
+              className="w-full text-[15px] rounded-lg px-2 py-2"
+              style={{ border: `1px solid ${T.line}`, background: T.card, color: T.ink }}>
+              <option value="teste">Teste</option>
+              <option value="real">Real</option>
+            </select>
+          </div>
+          <button
+            type="button"
+            onClick={onApagar}
+            className="inline-flex items-center gap-1.5 text-[13px] font-semibold px-3 h-[38px] rounded-lg self-end"
+            style={{ background: "#FEE4E2", color: T.danger }}
+          >
+            <Trash2 size={13} /> Remover
+          </button>
+        </div>
+      )}
+    </div>
+  );
+}
+
+function DefinicoesPage() {
+  const { isAdmin, loading } = useSessao();
+  const { data: def } = useDefinicoesIA();
+  const qc = useQueryClient();
+  const verificar = useServerFn(verificarSecretsAPI);
+  const guardarModeloFn = useServerFn(guardarModeloIA);
+  const testarModeloFn = useServerFn(testarModeloIA);
+
+  const secretsQ = useQuery<EstadoSecrets>({
+    queryKey: ["secrets-estado"],
+    queryFn: () => verificar(),
+    enabled: isAdmin,
+    staleTime: 30_000,
+  });
+
+  const [modelo, setModelo] = useState<ModeloDeepSeek>(MODELO_PADRAO);
+  const [aGuardarIA, setAGuardarIA] = useState(false);
+  const [aTestarIA, setATestarIA] = useState(false);
+  const [msgIA, setMsgIA] = useState<Msg | null>(null);
+
+  useEffect(() => {
+    if (def?.modelo) setModelo(normalizarModeloUI(def.modelo));
+  }, [def?.modelo]);
+
+
+  // Campos config
+  const rss = useCampoConfig("podcast_rss_url");
+  const rssUltimaSync = useQuery({ queryKey: ["config", "podcast_ultima_sync"], queryFn: () => getConfig("podcast_ultima_sync") });
+  const listasEgoiQ = useQuery({ queryKey: ["egoi-listas"], queryFn: listarListasEgoi });
+  const egoiRem = useCampoConfig("egoi_remetente_id");
+  const wpCourseId = useCampoConfig("wordpress_learndash_course_id");
+  const dominiosBloq = useCampoConfig("dominios_bloqueados_egoi");
+
+  const [expandidoListaId, setExpandidoListaId] = useState<string | null>(null);
+  const [msgRss, setMsgRss] = useState<Msg | null>(null);
+  const [msgEgoi, setMsgEgoi] = useState<Msg | null>(null);
+  const [msgWp, setMsgWp] = useState<Msg | null>(null);
+  const [previewWp, setPreviewWp] = useState<{ estado: "idle" | "loading" | "aberto" | "erro"; html?: string; msg?: string }>({ estado: "idle" });
+
+  const rssValido = useMemo(() => rss.val.trim() === "" || /^https?:\/\/\S+/i.test(rss.val.trim()), [rss.val]);
+
+  /* ── mutations ── */
+
+  const guardarConfigM = useMutation({
+    mutationFn: async (v: { chave: string; valor: string }) => setConfig(v.chave, v.valor),
+    onSuccess: (_r, v) => qc.invalidateQueries({ queryKey: ["config", v.chave] }),
+  });
+
+  const sincronizarPodcastM = useMutation({
+    mutationFn: () => sincronizarPodcastRss(),
+    onSuccess: (res) => {
+      setMsgRss({ tipo: "ok", texto: `Sincronização concluída: ${res.novos} novo(s) episódio(s).` });
+      qc.invalidateQueries({ queryKey: ["config", "podcast_ultima_sync"] });
+      qc.invalidateQueries({ queryKey: ["episodios"] });
+    },
+    onError: (e: Error) => setMsgRss({ tipo: "erro", texto: e.message }),
+  });
+
+  // Autosave: RSS
+  const rssAS = useAutoSave(rss.val, async (v) => {
+    const clean = (v ?? "").trim();
+    if (!clean) return;
+    if (!/^https?:\/\/\S+/i.test(clean)) throw new Error("URL inválido");
+    if (clean === rss.guardado.trim()) return;
+    await guardarConfigM.mutateAsync({ chave: "podcast_rss_url", valor: clean });
+  }, { enabled: rss.iniciou });
+
+  // Autosave: E-goi remetente
+  const remetenteAS = useAutoSave(egoiRem.val, async (v) => {
+    const clean = (v ?? "").trim();
+    if (clean === egoiRem.guardado.trim()) return;
+    await guardarConfigM.mutateAsync({ chave: "egoi_remetente_id", valor: clean });
+  }, { enabled: egoiRem.iniciou });
+
+  const dominiosAS = useAutoSave(dominiosBloq.val, async (v) => {
+    const clean = (v ?? "").trim();
+    if (clean === dominiosBloq.guardado.trim()) return;
+    await guardarConfigM.mutateAsync({ chave: "dominios_bloqueados_egoi", valor: clean });
+  }, { enabled: dominiosBloq.iniciou });
+
+  // Autosave: WordPress course id
+  const wpAS = useAutoSave(wpCourseId.val, async (v) => {
+    const clean = (v ?? "").trim();
+    if (clean === wpCourseId.guardado.trim()) return;
+    if (!clean) return;
+    const idNum = Number.parseInt(clean, 10);
+    if (!Number.isFinite(idNum) || idNum <= 0) throw new Error("ID inválido");
+    await guardarConfigM.mutateAsync({ chave: "wordpress_learndash_course_id", valor: String(idNum) });
+  }, { enabled: wpCourseId.iniciou });
+
+  const criarListaM = useMutation({
+    mutationFn: (v: { nome: string; egoi_lista_id: string; tipo: "teste" | "real"; activa: boolean; ordem: number }) => criarListaEgoi(v),
+    onSuccess: (lista) => {
+      qc.invalidateQueries({ queryKey: ["egoi-listas"] });
+      setMsgEgoi({ tipo: "ok", texto: "Lista adicionada." });
+      // Se a resposta trouxer id, expande automaticamente
+      if (lista && typeof lista === "object" && "id" in lista && typeof (lista as { id?: unknown }).id === "string") {
+        setExpandidoListaId((lista as { id: string }).id);
+      }
+    },
+    onError: (e: Error) => setMsgEgoi({ tipo: "erro", texto: e.message }),
+  });
+  const actualizarListaM = useMutation({
+    mutationFn: (v: { id: string; campos: Partial<Pick<ListaEgoi, "nome" | "egoi_lista_id" | "tipo" | "activa" | "ordem">> }) => actualizarListaEgoi(v.id, v.campos),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ["egoi-listas"] }),
+    onError: (e: Error) => setMsgEgoi({ tipo: "erro", texto: e.message }),
+  });
+  const apagarListaM = useMutation({
+    mutationFn: (id: string) => apagarListaEgoi(id),
+    onSuccess: () => { qc.invalidateQueries({ queryKey: ["egoi-listas"] }); setMsgEgoi({ tipo: "ok", texto: "Lista removida." }); },
+    onError: (e: Error) => setMsgEgoi({ tipo: "erro", texto: e.message }),
+  });
+
+  async function abrirPreviewWordpress() {
+    setPreviewWp({ estado: "loading" });
+    try {
+      const ed = await getEdicaoAtual();
+      if (!ed) { setPreviewWp({ estado: "erro", msg: "Não existe edição em rascunho." }); return; }
+      try {
+        const data = await previewEdicaoFn({ data: { edicao_id: ed.id, destino: "wordpress" } });
+        setPreviewWp({ estado: "aberto", html: data.html });
+      } catch (err) {
+        setPreviewWp({ estado: "erro", msg: (err as Error).message || "Falha a gerar preview." });
+      }
+
+    } catch (e) { setPreviewWp({ estado: "erro", msg: (e as Error).message }); }
+  }
+
+  async function guardarIA() {
+    setAGuardarIA(true); setMsgIA(null);
+    try {
+      const data = await guardarModeloFn({ data: { modelo } });
+      setMsgIA({
+        tipo: data.configurada ? "ok" : "aviso",
+        texto: data.configurada ? "Modelo guardado." : "Guardado, mas a chave DEEPSEEK_API_KEY está em falta.",
+      });
+      qc.invalidateQueries({ queryKey: ["secrets-estado"] });
+      qc.invalidateQueries({ queryKey: ["definicoes_ia"] });
+    } catch (e) { setMsgIA({ tipo: "erro", texto: (e as Error).message || "Erro ao guardar." }); }
+    finally { setAGuardarIA(false); }
+  }
+
+  async function testarIA() {
+    setATestarIA(true); setMsgIA(null);
+    try {
+      const data = await testarModeloFn();
+      setMsgIA({ tipo: "ok", texto: `Teste OK · ${data.modelo}` });
+    } catch (e) { setMsgIA({ tipo: "erro", texto: (e as Error).message || "O teste falhou." }); }
+    finally {
+      qc.invalidateQueries({ queryKey: ["definicoes_ia"] });
+      setATestarIA(false);
+    }
+  }
+
+  /* ── estados de página ── */
+
+  if (loading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center" style={{ background: T.shell }}>
+        <Loader2 size={22} className="animate-spin" style={{ color: T.primary }} />
+      </div>
+    );
+  }
+
+  if (!isAdmin) {
+    return (
+      <div className="min-h-screen flex flex-col items-center justify-center gap-3 px-4" style={{ background: T.shell, color: T.ink }}>
+        <AlertTriangle size={28} style={{ color: T.warn }} />
+        <p className="text-sm font-semibold">Apenas o admin pode aceder a Definições.</p>
+      </div>
+    );
+  }
+
+  const secrets = secretsQ.data;
+
+  // Faixa de estado (4 indicadores)
+  const iaOk = def?.estado === "configurada" && !!secrets?.deepseek;
+  const listaActiva = (listasEgoiQ.data ?? []).some((l) => l.activa);
+  const egoiOk = !!secrets?.egoi && listaActiva;
+  const wpOk = !!secrets?.wp_url && !!secrets?.wp_user && !!secrets?.wp_pass && !!wpCourseId.guardado;
+  const podcastRel = tempoRelativo(rssUltimaSync.data || null);
+  const podcastOk = podcastRel.horas !== null && podcastRel.horas < 48;
+
+  const faixa: StatusItem[] = [
+    {
+      label: "IA",
+      estado: iaOk ? `${def?.modelo ?? "DeepSeek"} · configurada` : "por configurar",
+      ok: iaOk,
+    },
+    {
+      label: "E-goi",
+      estado: !secrets?.egoi ? "chave em falta" : listaActiva ? "pronta a enviar" : "sem lista activa",
+      ok: egoiOk,
+    },
+    {
+      label: "WordPress",
+      estado: wpOk ? "publicação pronta" : "credenciais/ID em falta",
+      ok: wpOk,
+    },
+    {
+      label: "Podcast",
+      estado: podcastRel.texto,
+      ok: podcastOk,
+    },
+  ];
+
+  return (
+    <div className="min-h-screen" style={{ background: T.shell, color: T.ink }}>
+      <div className="max-w-5xl mx-auto px-4 sm:px-6 py-8 space-y-6">
+
+        {/* Cabeçalho */}
+        <header>
+          <h1 className="text-2xl font-bold font-display mb-1">Definições</h1>
+          <p className={TIPO.help} style={{ color: T.muted }}>
+            Gere o modelo DeepSeek, as credenciais e as configurações operacionais do cockpit.
+          </p>
+        </header>
+
+        {/* Faixa de estado */}
+        <FaixaEstado itens={faixa} />
+
+        {/* Nota informativa sobre secrets */}
+        <div className="rounded-[14px] px-4 py-3 text-[13px] flex gap-2 items-start"
+          style={{ background: `${T.primary}0F`, border: `1px solid ${T.primary}33`, color: T.ink }}>
+          <KeyRound size={14} style={{ color: T.primary }} className="mt-0.5 shrink-0" />
+          <p>
+            As chaves de API são <strong>guardadas em cofre seguro</strong> no backend, nunca no browser.
+            Para definir ou actualizar uma chave, indica-me o nome exacto do secret abaixo (botão <em>copiar nome</em>) e peço-te o valor num formulário seguro.
+          </p>
+        </div>
+
+        {/* ── Webhook CloudMailin (recepção de emails de newsletters) ── */}
+        {isAdmin && <WebhookCloudMailinCard />}
+        {isAdmin && <CaixaEmailsRecebidosCard />}
+
+
+
+
+        {/* ── Motor de IA · DeepSeek ── */}
+        {(() => {
+          const modeloGuardado = normalizarModeloUI(def?.modelo);
+          const modeloMudou = modelo !== modeloGuardado;
+          const chaveOk = !!secrets?.deepseek;
+          const modeloInfo = MODELOS_DEEPSEEK.find((m) => m.id === modelo)!;
+          return (
+            <Card icone={<Sparkles size={16} />} cor={COR.ia} titulo="Motor de IA · DeepSeek"
+              subtitulo="A extracção de notícias a partir de texto colado usa a API oficial da DeepSeek.">
+
+              {/* Selector de modelo */}
+              <div>
+                <label htmlFor="modelo-deepseek" className={TIPO.label} style={{ color: T.muted }}>
+                  Modelo
+                </label>
+                <div className="mt-2 grid gap-2.5 sm:grid-cols-2">
+                  {MODELOS_DEEPSEEK.map((m) => {
+                    const activo = modelo === m.id;
+                    return (
+                      <button
+                        key={m.id}
+                        type="button"
+                        onClick={() => setModelo(m.id)}
+                        className="relative text-left rounded-[14px] p-4 transition min-h-[44px]"
+                        style={{
+                          background: activo ? `${T.primary}0F` : T.card,
+                          border: `1.5px solid ${activo ? T.primary : T.line}`,
+                          boxShadow: activo ? `0 0 0 3px ${T.primary}18` : undefined,
+                        }}
+                      >
+                        {activo && (
+                          <span
+                            className="absolute top-2.5 right-2.5 h-5 w-5 grid place-items-center rounded-full"
+                            style={{ background: T.primary, color: "#fff" }}
+                            aria-label="Modelo seleccionado"
+                          >
+                            <Check size={12} strokeWidth={3} />
+                          </span>
+                        )}
+                        <div className="flex items-center gap-2 mb-1 pr-6">
+                          <Server size={14} style={{ color: activo ? T.primary : T.muted }} />
+                          <span className="text-[15px] font-bold" style={{ color: T.ink }}>{m.nome}</span>
+                          {m.id === MODELO_PADRAO && (
+                            <span className="text-[10px] font-bold uppercase tracking-wider px-1.5 py-0.5 rounded"
+                              style={{ background: `${T.ok}18`, color: T.ok }}>Recomendado</span>
+                          )}
+                        </div>
+                        <p className="text-[13px] leading-snug" style={{ color: T.muted }}>{m.descricao}</p>
+                        <p className="text-[11.5px] font-mono mt-1.5" style={{ color: T.faint }}>{m.id}</p>
+                      </button>
+                    );
+                  })}
+                </div>
+                <p className={`mt-2 ${TIPO.help}`} style={{ color: T.faint }}>
+                  Preço {modeloInfo.nome}: input {modeloInfo.precoInput} · output {modeloInfo.precoOutput}.
+                  {" "}
+                  <a href="https://api-docs.deepseek.com/quick_start/pricing/" target="_blank" rel="noopener noreferrer"
+                    className="underline" style={{ color: T.primary }}>Ver tabela oficial</a>.
+                </p>
+              </div>
+
+              {/* Chave da API */}
+              <div className="mt-5 space-y-2">
+                <p className={TIPO.label} style={{ color: T.muted }}>Chave da API</p>
+                <div className="flex items-center gap-2 flex-wrap px-3 py-2.5 rounded-lg"
+                  style={{ background: T.shell, border: `1px solid ${T.line}` }}>
+                  <code className="text-[13px] font-mono font-semibold" style={{ color: T.ink }}>DEEPSEEK_API_KEY</code>
+                  <BadgeSecret definido={secrets?.deepseek} />
+                  <p className={`w-full ${TIPO.help} mt-1`} style={{ color: T.muted }}>
+                    Onde encontrar: <span className="font-mono">platform.deepseek.com → API Keys</span>.
+                    {" "}
+                    {chaveOk
+                      ? "Para actualizar, pede-me no chat: «actualiza o DEEPSEEK_API_KEY»."
+                      : "Para inserir, pede-me no chat: «define o DEEPSEEK_API_KEY». Abre-se um formulário seguro — a chave nunca aparece no browser."}
+                  </p>
+                </div>
+              </div>
+
+              {/* Acções */}
+              <div className="flex flex-wrap gap-2 mt-5">
+                <BotaoPrimario onClick={guardarIA} loading={aGuardarIA} disabled={!modeloMudou}>
+                  {modeloMudou ? "Guardar modelo" : "Modelo guardado"}
+                </BotaoPrimario>
+                <BotaoSec onClick={testarIA} loading={aTestarIA}
+                  disabled={!chaveOk}
+                  icone={<KeyRound size={14} />}>
+                  Testar ligação
+                </BotaoSec>
+                {def?.ultimo_teste_em && (
+                  <span className={`${TIPO.help} self-center`} style={{ color: T.faint }}>
+                    Último teste: {fmtData(def.ultimo_teste_em)}
+                  </span>
+                )}
+              </div>
+              {!chaveOk && (
+                <p className={`mt-2 ${TIPO.help} flex items-center gap-1.5`} style={{ color: T.warn }}>
+                  <AlertTriangle size={12} /> Define primeiro a chave DEEPSEEK_API_KEY para poder testar.
+                </p>
+              )}
+              <MsgInline msg={msgIA} />
+            </Card>
+          );
+        })()}
+
+        {/* ── Detecção de repetições (Fase 2 · DeepSeek) ── */}
+        <DeteccaoRepeticaoCard podeEditar={isAdmin} />
+
+        <SubscricoesCard />
+
+        {/* ── Retenção de dados (30 dias) ── */}
+        <RetencaoCard podeEditar={isAdmin} />
+
+
+
+        {/* ── Modo de recolha ── */}
+        <ModoRecolha />
+
+        {/* ── Custos: vivem na página própria ── */}
+        <Link
+          to="/custos"
+          className="flex items-center justify-between gap-3 rounded-[20px] px-5 py-4 transition hover:shadow-sm"
+          style={{ background: "#FFFFFF", border: `1px solid ${T.line}` }}
+        >
+          <span className="min-w-0">
+            <span className="block text-[13.5px] font-semibold" style={{ color: T.ink }}>
+              Consumo e custo da IA
+            </span>
+            <span className="block text-[12.5px] mt-0.5" style={{ color: T.muted }}>
+              Totais, evolução diária e detalhe por funcionalidade — na página Custos.
+            </span>
+          </span>
+          <span className="text-[12.5px] font-semibold shrink-0" style={{ color: T.primary }}>Abrir →</span>
+        </Link>
+
+
+        {/* ── Prioridades editoriais (usadas pela IA "Sugerir organização") ── */}
+        <PrioridadesEditoriaisCard />
+
+
+
+
+        {/* Podcast + WordPress lado a lado em desktop */}
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+
+          {/* ── Podcast RSS ── */}
+          <Card icone={<Rss size={16} />} cor={COR.podcast} titulo="Podcast — feed RSS"
+            subtitulo="Sincronização automática diária. Podes também disparar manualmente.">
+            <div>
+              <div className="flex items-center justify-between mb-1.5">
+                <label className={TIPO.label} style={{ color: T.muted }}>URL do feed</label>
+                <SavedTick s={rssAS.estado} err={rssAS.err} vazio={!rss.val.trim() && rss.iniciou} />
+              </div>
+              <input type="url" value={rss.val} onChange={(e) => rss.setVal(e.target.value)} placeholder="https://…/rss.xml"
+                className="w-full px-3 py-2.5 rounded-lg text-[15px] outline-none"
+                style={{ background: T.shell, border: `1px solid ${rssValido ? T.line : T.warn}`, color: T.ink }} />
+              {!rssValido && (
+                <p className={`mt-1 ${TIPO.help}`} style={{ color: T.warn }}>URL inválido — deve começar por http:// ou https://.</p>
+              )}
+              <p className={`mt-2 ${TIPO.help}`} style={{ color: T.muted }}>
+                Última sincronização: {fmtData(rssUltimaSync.data || null)}
+              </p>
+            </div>
+            <div className="flex flex-wrap gap-2 mt-4">
+              <BotaoSec onClick={() => sincronizarPodcastM.mutate()}
+                loading={sincronizarPodcastM.isPending}
+                disabled={!rss.guardado || !rssValido}
+                icone={<RefreshCw size={14} />}>
+                Sincronizar agora
+              </BotaoSec>
+            </div>
+            {!rss.guardado && (
+              <p className={`${TIPO.help} mt-2`} style={{ color: T.muted }}>
+                Guarda primeiro o URL do feed para poderes sincronizar.
+              </p>
+            )}
+            <MsgInline msg={msgRss} />
+          </Card>
+
+          {/* ── WordPress ── */}
+          <Card icone={<Globe2 size={16} />} cor={COR.wp} titulo="WordPress — LearnDash"
+            subtitulo="Cada edição é criada como Lição em rascunho; publicada só no envio final para uma lista real.">
+
+            <div className="mb-4 space-y-2">
+              <p className={TIPO.label} style={{ color: T.muted }}>Credenciais</p>
+              <SecretRow nome="WORDPRESS_SITE_URL" definido={secrets?.wp_url}
+                ondeEncontrar="URL base do site (ex.: https://exemplo.com)" />
+              <SecretRow nome="WORDPRESS_APP_USER" definido={secrets?.wp_user}
+                ondeEncontrar="WP Admin → Utilizadores → Application Passwords" />
+              <SecretRow nome="WORDPRESS_APP_PASSWORD" definido={secrets?.wp_pass}
+                ondeEncontrar="WP Admin → Utilizadores → Application Passwords" />
+            </div>
+
+            <div>
+              <div className="flex items-center justify-between mb-1.5">
+                <label className={TIPO.label} style={{ color: T.muted }}>ID do curso LearnDash</label>
+                <SavedTick s={wpAS.estado} err={wpAS.err} vazio={!wpCourseId.val.trim() && wpCourseId.iniciou} />
+              </div>
+              <input type="text" value={wpCourseId.val} onChange={(e) => wpCourseId.setVal(e.target.value)} placeholder="4251"
+                className="w-full px-3 py-2.5 rounded-lg text-[15px] font-mono outline-none"
+                style={{ background: T.shell, border: `1px solid ${T.line}`, color: T.ink }} />
+              <p className={`mt-2 ${TIPO.help}`} style={{ color: T.muted }}>
+                ID do curso onde cada edição é criada como Lição (default: 4251 · Digital Sprint Newsletter).
+              </p>
+            </div>
+
+            <div className="flex flex-wrap gap-2 mt-4">
+              <BotaoSec onClick={abrirPreviewWordpress}
+                loading={previewWp.estado === "loading"}
+                icone={<Globe2 size={14} />}>
+                Ver como vai ficar no WordPress
+              </BotaoSec>
+            </div>
+            {previewWp.estado === "erro" && (
+              <p className={`mt-2 ${TIPO.help}`} style={{ color: T.danger }}>{previewWp.msg}</p>
+            )}
+            <MsgInline msg={msgWp} />
+          </Card>
+        </div>
+
+        {/* ── E-goi ── */}
+        <Card icone={<Send size={16} />} cor={COR.egoi} titulo="E-goi — envio"
+          subtitulo="Chave, remetente e listas (teste/real). O toggle activa/desactiva grava imediatamente.">
+
+          <div className="grid grid-cols-1 lg:grid-cols-[minmax(0,1fr)_minmax(0,320px)] gap-4 mb-5">
+            <div>
+              <p className={`${TIPO.label} mb-2`} style={{ color: T.muted }}>Chave da API</p>
+              <SecretRow nome="EGOI_API_KEY" definido={secrets?.egoi}
+                ondeEncontrar="E-goi → Preferências → API" />
+            </div>
+            <div>
+              <div className="flex items-center justify-between mb-1.5">
+                <label className={TIPO.label} style={{ color: T.muted }}>Remetente (ID)</label>
+                <SavedTick s={remetenteAS.estado} err={remetenteAS.err} vazio={!egoiRem.val.trim() && egoiRem.iniciou} />
+              </div>
+              <input type="text" value={egoiRem.val} onChange={(e) => egoiRem.setVal(e.target.value)} placeholder="ID numérico do remetente"
+                className="w-full px-3 py-2.5 rounded-lg text-[15px] font-mono outline-none"
+                style={{ background: T.shell, border: `1px solid ${T.line}`, color: T.ink }} />
+            </div>
+          </div>
+
+          <div className="mb-4">
+            <div className="flex items-center justify-between mb-1.5">
+              <label className={TIPO.label} style={{ color: T.muted }}>Domínios bloqueados pela E-goi</label>
+              <SavedTick s={dominiosAS.estado} err={dominiosAS.err} />
+            </div>
+            <input type="text" value={dominiosBloq.val} onChange={(e) => dominiosBloq.setVal(e.target.value)} placeholder="goodlads.cc, outro-dominio.com"
+              className="w-full px-3 py-2.5 rounded-lg text-[15px] font-mono outline-none"
+              style={{ background: T.shell, border: `1px solid ${T.line}`, color: T.ink }} />
+            <p className={TIPO.help} style={{ color: T.muted }}>Separados por vírgulas. Uma edição com links para estes domínios não pode ser enviada.</p>
+          </div>
+
+          <div className="mt-2 mb-3 flex items-center justify-between gap-3">
+            <div>
+              <p className={TIPO.label} style={{ color: T.muted }}>Listas E-goi</p>
+              <p className={TIPO.help} style={{ color: T.muted }}>
+                Teste disponível a todos; Real só o admin pode disparar. Clica no lápis para editar.
+              </p>
+            </div>
+            <button
+              onClick={() => criarListaM.mutate({ nome: "Nova lista", egoi_lista_id: "", tipo: "teste", activa: true, ordem: (listasEgoiQ.data?.length ?? 0) * 10 })}
+              disabled={criarListaM.isPending}
+              className="inline-flex items-center gap-1.5 text-sm font-semibold px-3 py-2 rounded-lg disabled:opacity-40 shrink-0"
+              style={{ background: COR.egoi, color: "#fff" }}>
+              <Plus size={14} /> Adicionar
+            </button>
+          </div>
+
+          <div className="flex flex-col gap-2">
+            {(listasEgoiQ.data ?? []).length === 0 && (
+              <p className={`${TIPO.help} px-3 py-6 rounded-lg text-center`} style={{ background: T.shell, color: T.muted }}>
+                Nenhuma lista configurada. Adiciona pelo menos uma lista de teste para poderes disparar.
+              </p>
+            )}
+            {(listasEgoiQ.data ?? []).map((l) => (
+              <ListaEgoiItem
+                key={l.id}
+                lista={l}
+                expandido={expandidoListaId === l.id}
+                onToggleExpand={() => setExpandidoListaId((prev) => prev === l.id ? null : l.id)}
+                onActualizar={async (campos) => { await actualizarListaM.mutateAsync({ id: l.id, campos }); }}
+                onApagar={() => { if (confirm(`Remover a lista «${l.nome}»?`)) apagarListaM.mutate(l.id); }}
+              />
+            ))}
+          </div>
+
+          <MsgInline msg={msgEgoi} />
+        </Card>
+
+        {previewWp.estado === "aberto" && previewWp.html && (
+          <div role="dialog" aria-modal="true" className="fixed inset-0 z-50 flex items-center justify-center p-4"
+            style={{ background: "rgba(15,15,31,0.6)" }} onClick={() => setPreviewWp({ estado: "idle" })}>
+            <div onClick={(e) => e.stopPropagation()} className="w-full max-w-4xl h-[80vh] rounded-xl overflow-hidden flex flex-col"
+              style={{ background: T.card, border: `1px solid ${T.line}` }}>
+              <div className="flex items-center justify-between px-4 py-3" style={{ borderBottom: `1px solid ${T.line}` }}>
+                <div>
+                  <p className="text-sm font-semibold" style={{ color: T.ink }}>Pré-visualização · WordPress (LearnDash)</p>
+                  <p className="text-xs" style={{ color: T.muted }}>Página auto-contida, com todas as notícias aprovadas agrupadas por categoria.</p>
+                </div>
+                <button onClick={() => setPreviewWp({ estado: "idle" })}
+                  className="text-xs font-semibold px-3 py-1.5 rounded-lg"
+                  style={{ background: T.shell, border: `1px solid ${T.line}`, color: T.ink }}>Fechar</button>
+              </div>
+              <iframe title="Preview WordPress" srcDoc={`<!doctype html><meta charset="utf-8"><body style="margin:0;padding:24px;background:#f8fafc;">${previewWp.html}</body>`}
+                className="flex-1 w-full" style={{ background: "#fff" }} />
+            </div>
+          </div>
+        )}
+
+
+        {/* ── Estado actual (detalhado) ── */}
+        <Card icone={<CircleCheck size={16} />} cor={COR.estado} titulo="Estado actual (detalhado)">
+          <dl className="grid grid-cols-2 sm:grid-cols-4 gap-4 text-sm">
+            <div>
+              <dt className={TIPO.label} style={{ color: T.muted }}>Provider IA</dt>
+              <dd className="font-semibold text-[15px] mt-0.5">DeepSeek</dd>
+            </div>
+            <div>
+              <dt className={TIPO.label} style={{ color: T.muted }}>Modelo</dt>
+              <dd className="font-semibold text-[15px] mt-0.5">{def?.modelo ?? "—"}</dd>
+            </div>
+            <div>
+              <dt className={TIPO.label} style={{ color: T.muted }}>Último teste IA</dt>
+              <dd className="font-semibold text-[15px] mt-0.5">{fmtData(def?.ultimo_teste_em ?? null)}</dd>
+            </div>
+            <div>
+              <dt className={TIPO.label} style={{ color: T.muted }}>Última sync podcast</dt>
+              <dd className="font-semibold text-[15px] mt-0.5">{fmtData(rssUltimaSync.data || null)}</dd>
+            </div>
+          </dl>
+          {def?.ultimo_erro && (
+            <p className="mt-3 text-xs px-3 py-2 rounded-md" style={{ background: `${T.danger}10`, color: T.danger }}>
+              Último erro da IA: {def.ultimo_erro}
+            </p>
+          )}
+        </Card>
+      </div>
+    </div>
+  );
+}
+
+/* ─── Webhook do CloudMailin ─────────────────────────────────────
+   Painel admin-only que mostra a URL completa (com Basic Auth
+   embutida) do endpoint que recebe emails encaminhados via CloudMailin.
+   Corre num createServerFn com verificação de admin. */
+function WebhookCloudMailinCard() {
+  const getUrl = useServerFn(getWebhookCloudMailinUrl);
+  const q = useQuery({ queryKey: ["webhook-cloudmailin"], queryFn: () => getUrl(), staleTime: 60_000 });
+  const [visivel, setVisivel] = useState(false);
+  const [copiado, setCopiado] = useState(false);
+  const url = q.data?.url ?? null;
+  const mascarado = url ? url.replace(/\/\/([^:]+):([^@]+)@/, "//$1:••••••@") : null;
+
+  async function copiar() {
+    if (!url) return;
+    try {
+      await navigator.clipboard.writeText(url);
+      setCopiado(true);
+      setTimeout(() => setCopiado(false), 1500);
+    } catch { /* noop */ }
+  }
+
+  return (
+    <Card icone={<Mail size={16} />} cor={COR.wp} titulo="Recepção de emails · CloudMailin"
+      subtitulo="Endpoint para reencaminhar newsletters — o texto é limpo, extraído por IA e cai na fila de Pendentes marcado com a newsletter de origem.">
+      {q.isLoading && (
+        <div className="flex items-center gap-2 text-[13px]" style={{ color: T.muted }}>
+          <Loader2 size={14} className="animate-spin" /> A carregar URL…
+        </div>
+      )}
+      {!q.isLoading && !url && (
+        <div className="text-[13px]" style={{ color: T.warn }}>
+          Faltam os secrets <code>CLOUDMAILIN_AUTH_USER</code> / <code>CLOUDMAILIN_AUTH_PASS</code>.
+        </div>
+      )}
+      {url && (
+        <div className="space-y-3">
+          <div className="rounded-[12px] p-3" style={{ background: T.shell, border: `1px solid ${T.line}` }}>
+            <code className="text-[12px] break-all block" style={{ color: T.ink, fontFamily: "ui-monospace, SFMono-Regular, Menlo, monospace" }}>
+              {visivel ? url : mascarado}
+            </code>
+          </div>
+          <div className="flex flex-wrap gap-2">
+            <button onClick={() => setVisivel((v) => !v)}
+              className="inline-flex items-center gap-1.5 text-[13px] font-semibold h-9 px-3 rounded-lg"
+              style={{ background: T.shell, color: T.muted, border: `1px solid ${T.line}` }}>
+              {visivel ? <EyeOff size={14} /> : <Eye size={14} />}
+              {visivel ? "Ocultar password" : "Mostrar password"}
+            </button>
+            <button onClick={copiar}
+              className="inline-flex items-center gap-1.5 text-[13px] font-semibold h-9 px-3 rounded-lg text-white"
+              style={{ background: T.primary }}>
+              {copiado ? <CircleCheck size={14} /> : <Copy size={14} />}
+              {copiado ? "Copiado" : "Copiar URL completa"}
+            </button>
+          </div>
+          <p className="text-[12px]" style={{ color: T.muted }}>
+            Cola esta URL no campo <em>Target address</em> do CloudMailin. As credenciais no início da URL são a Basic Auth
+            que protege o endpoint — se rodares, gera novos secrets e volta cá para copiar a URL actualizada.
+          </p>
+        </div>
+      )}
+    </Card>
+  );
+}
+
+/* ─── Caixa de emails recebidos ──────────────────────────────────
+   Lista os últimos 20 emails recebidos via CloudMailin. Clicar
+   expande e mostra o HTML original num iframe sandboxed — permite
+   clicar em links de confirmação sem sair da app. */
+function CaixaEmailsRecebidosCard() {
+  const listar = useServerFn(listarEmailsRecebidos);
+  const qc = useQueryClient();
+  const q = useQuery({
+    queryKey: ["emails-recebidos"],
+    queryFn: () => listar(),
+    staleTime: 15_000,
+  });
+  const [expandido, setExpandido] = useState<string | null>(null);
+
+  useEffect(() => {
+    const ch = supabase
+      .channel("emails-recebidos-caixa")
+      .on("postgres_changes", { event: "*", schema: "public", table: "nl_emails_recebidos" }, () => {
+        qc.invalidateQueries({ queryKey: ["emails-recebidos"] });
+      })
+      .subscribe();
+    return () => { supabase.removeChannel(ch); };
+  }, [qc]);
+
+  const emails = q.data?.emails ?? [];
+
+  return (
+    <Card icone={<Inbox size={16} />} cor={COR.wp} titulo="Caixa de emails recebidos"
+      subtitulo="Últimos 20 emails encaminhados pelo CloudMailin. Retenção de 14 dias. Clica para ver o original e usar os links directamente aqui.">
+      <div className="flex items-center justify-between mb-3">
+        <span className="text-[12px]" style={{ color: T.muted }}>
+          {q.isLoading ? "A carregar…" : `${emails.length} ${emails.length === 1 ? "email" : "emails"}`}
+        </span>
+        <button
+          onClick={() => qc.invalidateQueries({ queryKey: ["emails-recebidos"] })}
+          className="inline-flex items-center gap-1.5 text-[12px] font-semibold h-8 px-2.5 rounded-lg"
+          style={{ background: T.shell, color: T.muted, border: `1px solid ${T.line}` }}
+        >
+          <RefreshCw size={12} /> Actualizar
+        </button>
+      </div>
+
+      {q.isLoading && (
+        <div className="flex items-center gap-2 text-[13px]" style={{ color: T.muted }}>
+          <Loader2 size={14} className="animate-spin" /> A carregar…
+        </div>
+      )}
+
+      {!q.isLoading && emails.length === 0 && (
+        <div className="text-[13px] py-6 text-center rounded-[12px]"
+          style={{ background: T.shell, border: `1px dashed ${T.line}`, color: T.muted }}>
+          Ainda não chegou nenhum email. Assim que o CloudMailin encaminhar um, aparece aqui em segundos.
+        </div>
+      )}
+
+      {!q.isLoading && emails.length > 0 && (
+        <ul className="divide-y" style={{ borderColor: T.line, borderTop: `1px solid ${T.line}`, borderBottom: `1px solid ${T.line}` }}>
+          {emails.map((e) => {
+            const aberto = expandido === e.id;
+            return (
+              <li key={e.id} className="py-3">
+                <button
+                  type="button"
+                  onClick={() => setExpandido(aberto ? null : e.id)}
+                  className="w-full text-left flex items-start gap-3"
+                >
+                  <span className="mt-1 shrink-0" style={{ color: T.faint }}>
+                    {aberto ? <ChevronDown size={14} /> : <ChevronRight size={14} />}
+                  </span>
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center gap-2 flex-wrap">
+                      <span className="text-[14px] font-semibold truncate" style={{ color: T.ink }}>
+                        {e.remetente_nome || e.remetente || "desconhecido"}
+                      </span>
+                      {e.remetente_nome && e.remetente && (
+                        <span className="text-[12px]" style={{ color: T.faint }}>&lt;{e.remetente}&gt;</span>
+                      )}
+                      <BadgeClassificacao c={e.classificacao} n={e.notas_processadas} />
+                    </div>
+                    <div className="text-[13px] mt-0.5 truncate" style={{ color: T.muted }}>
+                      {e.assunto || "(sem assunto)"}
+                    </div>
+                  </div>
+                  <span className="text-[11.5px] shrink-0 pt-1" style={{ color: T.faint }}>
+                    {fmtHora(e.recebido_em)}
+                  </span>
+                </button>
+                {aberto && (
+                  <div className="mt-3 pl-6">
+                    {e.corpo_html ? (
+                      <iframe
+                        title={`Email ${e.id}`}
+                        srcDoc={e.corpo_html}
+                        sandbox="allow-popups allow-popups-to-escape-sandbox"
+                        referrerPolicy="no-referrer"
+                        className="w-full rounded-[12px]"
+                        style={{ height: 520, background: "#fff", border: `1px solid ${T.line}` }}
+                      />
+                    ) : e.corpo_texto ? (
+                      <pre className="text-[12.5px] whitespace-pre-wrap rounded-[12px] p-3 max-h-[520px] overflow-auto"
+                        style={{ background: T.shell, border: `1px solid ${T.line}`, color: T.ink, fontFamily: "ui-monospace, SFMono-Regular, Menlo, monospace" }}>
+                        {e.corpo_texto}
+                      </pre>
+                    ) : (
+                      <div className="text-[12.5px]" style={{ color: T.faint }}>Sem conteúdo.</div>
+                    )}
+                  </div>
+                )}
+              </li>
+            );
+          })}
+        </ul>
+      )}
+    </Card>
+  );
+}
+
+function BadgeClassificacao({ c, n }: { c: EmailRecebido["classificacao"]; n: number }) {
+  if (c === "newsletter") {
+    return (
+      <span className="inline-flex items-center gap-1 text-[11px] font-semibold px-2 py-0.5 rounded"
+        style={{ background: `${T.ok}18`, color: T.ok }}>
+        <Mail size={11} /> Processado · {n} {n === 1 ? "notícia" : "notícias"}
+      </span>
+    );
+  }
+  if (c === "confirmacao") {
+    return (
+      <span className="inline-flex items-center gap-1 text-[11px] font-semibold px-2 py-0.5 rounded"
+        style={{ background: `${T.warn}18`, color: T.warn }}>
+        <ShieldAlert size={11} /> Ignorado — confirmação
+      </span>
+    );
+  }
+  return (
+    <span className="inline-flex items-center gap-1 text-[11px] font-semibold px-2 py-0.5 rounded"
+      style={{ background: `${T.faint}22`, color: T.muted }}>
+      <HelpCircle size={11} /> Não classificado
+    </span>
+  );
+}
+
+function fmtHora(iso: string): string {
+  const d = new Date(iso).getTime();
+  if (!Number.isFinite(d)) return "—";
+  const diff = Date.now() - d;
+  const min = Math.floor(diff / 60_000);
+  if (min < 1) return "agora";
+  if (min < 60) return `há ${min} min`;
+  const h = Math.floor(min / 60);
+  if (h < 24) return `há ${h}h`;
+  const dias = Math.floor(h / 24);
+  if (dias < 7) return `há ${dias}d`;
+  return new Intl.DateTimeFormat("pt-PT", { day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit" }).format(new Date(iso));
+}
+

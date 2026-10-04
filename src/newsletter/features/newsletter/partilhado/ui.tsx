@@ -1,0 +1,653 @@
+import { memo, useRef, useState, type ComponentType, type ReactNode } from "react";
+import {
+  AlertTriangle, Calendar, Check, CheckCircle2, ExternalLink, History, Inbox, Layers,
+  ChevronDown, Loader2, MessageCircle, Mic, Newspaper, PenLine, Rss, Settings2, Sparkles, Wand2, Wrench, XCircle,
+} from "lucide-react";
+import { useServerFn } from "@/newsletter/shim/start";
+import { verificarUmLink, type ResultadoUmLink } from "@/newsletter/lib/verificar-links.functions";
+import { pesquisarFonteIA, type Candidato as CandidatoFonte } from "@/newsletter/lib/pesquisar-fonte.functions";
+import { encurtarDescricao } from "@/newsletter/lib/encurtar-descricao.functions";
+import { estadoDescricao, corEstadoDescricao } from "@/newsletter/lib/ajustar-descricao";
+import { isLinkRastreio, abreviarUrl } from "@/newsletter/lib/link-rastreio";
+import { CATEGORIAS as CATEGORIAS_TOKENS } from "../../../../supabase/functions/_shared/design-tokens";
+import type { CatId, Pendente } from "../data";
+
+/* Blocos partilhados entre o Editor Clássico e o Editor Revista.
+   Movidos verbatim de EditorNewsletter.tsx — sem alteração de comportamento. */
+
+export const PARAMS_RASTREIO = new Set([
+  "utm_source", "utm_medium", "utm_campaign", "utm_term", "utm_content", "utm_id", "utm_name",
+  "mc_cid", "mc_eid", "fbclid", "gclid", "gbraid", "wbraid", "yclid", "msclkid",
+  "ref", "ref_src", "ref_url", "referrer", "source", "sourceid",
+  "_hsenc", "_hsmi", "hsCtaTracking", "vero_conv", "vero_id", "igshid",
+  "campaign_id", "adid", "affiliate", "cmpid", "spm",
+]);
+export function isUrlValido(u: string): boolean {
+  try { const url = new URL(u); return url.protocol === "http:" || url.protocol === "https:"; }
+  catch { return false; }
+}
+export function limparUtm(u: string): string {
+  try {
+    const url = new URL(u);
+    const chaves = Array.from(url.searchParams.keys());
+    for (const k of chaves) {
+      if (PARAMS_RASTREIO.has(k) || k.toLowerCase().startsWith("utm_")) url.searchParams.delete(k);
+    }
+    // limpa "?" pendurado
+    let out = url.toString();
+    if (out.endsWith("?")) out = out.slice(0, -1);
+    return out;
+  } catch { return u; }
+}
+export const DOMINIOS_TRACKING = /(^|\.)(mail|click|track|clicks|open|links?)\.|beehiiv|mailchi|list-manage|campaign-archive|sendgrid|sendinblue|substack|convertkit|pstmrk|t\.co$|bit\.ly$|lnkd\.in$|buff\.ly$/i;
+export function ehDominioTracking(host: string): boolean {
+  const h = host.toLowerCase().replace(/^www\./, "");
+  return DOMINIOS_TRACKING.test(h);
+}
+/** Query pragmática: sem aspas (só se ≥ 6 palavras), exclui só domínios reais e não tracking. */
+export function urlPesquisaGoogle(titulo: string, urlActual: string | null | undefined): string {
+  const t = (titulo || "").replace(/[\u{1F300}-\u{1FAFF}\u{2600}-\u{27BF}]/gu, "").replace(/\s+/g, " ").trim();
+  const palavras = t.split(/\s+/).filter((w) => w.length > 2);
+  const nucleo = palavras.length >= 6 ? `"${t}"` : t;
+  let excluir = "";
+  if (urlActual) {
+    try {
+      const host = new URL(urlActual).hostname.replace(/^www\./, "");
+      if (host && !ehDominioTracking(host)) excluir = ` -site:${host}`;
+    } catch { /* noop */ }
+  }
+  const q = (nucleo || palavras.slice(0, 4).join(" ") || t).trim();
+  return `https://www.google.com/search?q=${encodeURIComponent(`${q}${excluir}`)}`;
+}
+
+/* ─── tokens (light) ─── */
+export const T = {
+  bg: "#F7F8FA",              // fundo da página
+  shell: "#FFFFFF",           // superfície principal (Card exterior)
+  card: "#F9FAFB",            // superfície aninhada (input, linha dentro de Card)
+  line: "#E4E7EC",            // borda subtil
+  lineStrong: "#D0D5DD",      // borda de input / foco
+  ink: "#101828",             // texto principal
+  muted: "#667085",           // texto secundário
+  faint: "#98A2B3",           // texto ténue
+  primary: "#4F46E5",         // texto/ícone acento (indigo AA sobre branco)
+  primarySoft: "#EEF2FF",     // fundo pastel indigo
+  grad: "linear-gradient(135deg,#6366F1,#8B5CF6,#EC4899)",
+  ok: "#027A48", okSoft: "#ECFDF3", okAccent: "#12B76A",
+  warn: "#B54708", warnSoft: "#FFFAEB", warnAccent: "#F79009",
+  danger: "#B42318", dangerSoft: "#FEF3F2", dangerAccent: "#F04438",
+  gold: "#B54708", goldAccent: "#F79009", goldBorder: "#F79009",
+  shadow: "0 1px 3px rgba(16,24,40,0.08)",
+  shadowLg: "0 4px 12px rgba(16,24,40,0.10)",
+};
+
+/* ─── secções: 3 famílias semânticas (atenção/editorial/passiva) + ícone ─── */
+export const COR_ATENCAO = "#F59E0B";    // âmbar — acção pendente agora
+export const COR_EDITORIAL = "#6366F1";  // índigo — conteúdo editorial em trabalho
+export const COR_PASSIVA = "#94A3B8";    // cinza — configuração/consulta passiva
+
+export const SECS = {
+  estrutura:   { cor: COR_PASSIVA,   icon: Layers,     titulo: "Estrutura da edição" },
+  edicao:      { cor: COR_EDITORIAL, icon: Settings2,  titulo: "Edição" },
+  podcast:     { cor: COR_EDITORIAL, icon: Mic,        titulo: "Episódio do podcast" },
+  pendentes:   { cor: COR_ATENCAO,   icon: Inbox,      titulo: "Pendentes de aprovação" },
+  noticias:    { cor: COR_EDITORIAL, icon: Newspaper,  titulo: "Notícias da edição" },
+  cronica:     { cor: COR_EDITORIAL, icon: PenLine,    titulo: "Crónica" },
+  consultoria: { cor: "#0891B2",     icon: MessageCircle, titulo: "Consultoria" },
+  ferramentas: { cor: COR_EDITORIAL, icon: Wrench,     titulo: "Ferramenta da semana" },
+  personal:    { cor: "#7C3AED",     icon: Sparkles,   titulo: "Secção personalizada" },
+  audit:       { cor: COR_PASSIVA,   icon: History,    titulo: "Registo de actividade" },
+  fontes:      { cor: COR_PASSIVA,   icon: Rss,        titulo: "Fontes de curadoria" },
+  blocos:      { cor: COR_PASSIVA,   icon: Layers,     titulo: "Blocos fixos" },
+} as const;
+
+/* ─── helpers de tempo e origem para a fila de pendentes ─── */
+export function tempoRelativo(iso: string | null | undefined): string {
+  if (!iso) return "";
+  const diffMs = Date.now() - new Date(iso).getTime();
+  const min = Math.round(diffMs / 60_000);
+  if (min < 1) return "agora";
+  if (min < 60) return `há ${min} min`;
+  const horas = Math.round(min / 60);
+  if (horas < 24) return `há ${horas} h`;
+  const dias = Math.round(horas / 24);
+  if (dias < 30) return `há ${dias} ${dias === 1 ? "dia" : "dias"}`;
+  const meses = Math.round(dias / 30);
+  return `há ${meses} ${meses === 1 ? "mês" : "meses"}`;
+}
+
+export function idadeEmDias(iso: string | null | undefined): number {
+  if (!iso) return 0;
+  return Math.floor((Date.now() - new Date(iso).getTime()) / (24 * 3600 * 1000));
+}
+
+export const ORIGEM_META: Record<string, { emoji: string; label: string; grupo: "email" | "rss" | "whatsapp" | "manual" | "outro" }> = {
+  manual:           { emoji: "✍️", label: "Colado manualmente",  grupo: "manual" },
+  manual_ia:        { emoji: "✍️", label: "Colado manualmente",  grupo: "manual" },
+  curadoria_ia:     { emoji: "📡", label: "RSS",                  grupo: "rss" },
+  whatsapp:         { emoji: "💬", label: "WhatsApp",             grupo: "whatsapp" },
+  form_unica:       { emoji: "📝", label: "Formulário",           grupo: "manual" },
+  form_bloco:       { emoji: "📝", label: "Formulário",           grupo: "manual" },
+  email_newsletter: { emoji: "📧", label: "Email",                grupo: "email" },
+};
+
+/**
+ * Selo textual da origem do pendente. Mostra o nome real da fonte quando
+ * disponível (newsletter do email, nome da fonte RSS), não só um ícone.
+ */
+export function OrigemSelo({ n }: { n: Pendente }) {
+  const meta = ORIGEM_META[n.origem] ?? { emoji: "•", label: n.origem, grupo: "outro" as const };
+  let texto = meta.label;
+  if (n.origem === "email_newsletter") {
+    const raw = n.email_remetente ?? "";
+    // Prefere o "Nome" quando existe («Nome <email>»); senão mostra domínio ou email
+    const nomeMatch = raw.match(/^\s*"?([^"<]+?)"?\s*</);
+    if (nomeMatch) texto = nomeMatch[1].trim();
+    else {
+      const emailMatch = raw.match(/<([^>]+)>/) ?? raw.match(/[^\s@]+@[^\s@]+/);
+      const email = emailMatch ? (emailMatch[1] ?? emailMatch[0]) : raw;
+      const dom = email.split("@")[1];
+      texto = dom ? dom.replace(/^www\./, "") : (raw || "Email");
+    }
+  } else if (n.origem === "curadoria_ia" && n.fonte?.nome) {
+    texto = n.fonte.nome;
+  }
+  return (
+    <span title={meta.label}
+      className="inline-flex items-center gap-1 text-[11px] font-medium rounded px-1.5 py-0.5 max-w-[180px]"
+      style={{ background: "#F2F4F7", color: "#475467" }}>
+      <span aria-hidden>{meta.emoji}</span>
+      <span className="truncate">{texto}</span>
+    </span>
+  );
+}
+
+/**
+ * Chip âmbar discreto que aparece só quando a detecção em duas fases
+ * (pg_trgm + embedding) concordou que a notícia é muito parecida com
+ * outra já enviada. Tooltip mostra a edição de origem. Nunca bloqueia.
+ */
+export function RepeticaoChip({ n }: { n: Pendente }) {
+  if (!n.repeticao_de || !n.repeticao) return null;
+  const num = n.repeticao.edicao?.numero;
+  const titulo = n.repeticao.titulo ?? "";
+  const tooltip = `Parecido com «${titulo}»${num ? ` — edição #${num}` : ""}`;
+  return (
+    <span title={tooltip}
+      className="inline-flex items-center gap-1 text-[11px] font-medium rounded px-1.5 py-0.5 max-w-[220px]"
+      style={{ background: "#FEF0C7", color: "#B54708" }}>
+      <span aria-hidden>⚠︎</span>
+      <span className="truncate">Possível repetição{num ? ` · #${num}` : ""}</span>
+    </span>
+  );
+}
+
+export interface Categoria { id: CatId; nome: string; curto: string; cor: string; }
+// Rótulos curtos para dropdowns/badges — nomes completos e cores vêm de
+// `_shared/design-tokens.ts` (fonte única partilhada com o email/WordPress).
+export const CATEGORIA_CURTO: Record<string, string> = {
+  ia: "IA & Tecnologia",
+  meta: "Meta",
+  instagram: "Instagram",
+  wafb: "WhatsApp & FB",
+  youtube: "YouTube & Vídeo",
+  linkedin: "LinkedIn",
+  tiktok: "TikTok",
+  x: "X / Twitter",
+  influencers: "Influencers & Media",
+};
+export const categorias: Categoria[] = CATEGORIAS_TOKENS.map((c) => ({
+  id: c.id as CatId,
+  nome: c.nome,
+  curto: CATEGORIA_CURTO[c.id] ?? c.nome,
+  cor: c.accent,
+}));
+// Guarda: cores únicas por categoria (evita duplicados silenciosos).
+if (import.meta.env.DEV) {
+  const cores = categorias.map((c) => c.cor);
+  if (new Set(cores).size !== cores.length) {
+    console.warn("[categorias] cores repetidas entre categorias", cores);
+  }
+}
+export const catDe = (id: string): Categoria => categorias.find((c) => c.id === id) ?? categorias[0];
+
+export function EmptyState({ icon: Icon, texto }: { icon: ComponentType<{ size?: number; color?: string }>; texto: string }) {
+  return (
+    <div className="flex flex-col items-center text-center py-8 px-4 gap-2">
+      <span className="w-10 h-10 rounded-full flex items-center justify-center" style={{ background: T.card, color: T.faint, border: `1px solid ${T.line}` }}>
+        <Icon size={18} />
+      </span>
+      <p className="text-sm max-w-sm" style={{ color: T.muted }}>{texto}</p>
+    </div>
+  );
+}
+
+/* Rede de segurança: só corre a animação "rise" enquanto a app não termina a hidratação inicial.
+   Se algum remount pontual acontecer depois, não há pista visual de reset. */
+let __appHidratada = false;
+if (typeof window !== "undefined") {
+  window.setTimeout(() => { __appHidratada = true; }, 800);
+}
+export function useEnterAnim(): string {
+  const inicial = useRef(!__appHidratada);
+  return inicial.current ? "anim-rise" : "";
+}
+
+export function Foldable({
+  icon: Icon, titulo, contador, secId, defaultOpen = true, accent, acao, aviso, children, foldOpen, setFoldOpen,
+}: {
+  icon: ComponentType<{ size?: number; color?: string }>;
+  titulo: string;
+  contador?: number | string;
+  secId: string;
+  defaultOpen?: boolean;
+  accent?: string;
+  acao?: ReactNode;
+  aviso?: ReactNode;
+  children: ReactNode;
+  foldOpen: Record<string, boolean>;
+  setFoldOpen: React.Dispatch<React.SetStateAction<Record<string, boolean>>>;
+}) {
+  const aberto = foldOpen[secId] ?? defaultOpen;
+  const cor = accent ?? T.primary;
+  const anim = useEnterAnim();
+  return (
+    <section id={`fold-${secId}`} className={`rounded-[20px] ${anim}`} style={{
+      background: T.shell,
+      border: `1px solid ${T.line}`,
+      borderLeft: accent ? `4px solid ${accent}` : undefined,
+      boxShadow: T.shadow,
+    }}>
+      <div className="w-full flex items-center justify-between gap-2 px-4 sm:px-5 py-3.5 sm:py-4 min-h-[56px]">
+        <button type="button" onClick={() => setFoldOpen((s) => ({ ...s, [secId]: !aberto }))} aria-expanded={aberto}
+          className="flex-1 min-w-0 flex items-center gap-2 text-left">
+          <span className="flex items-center gap-2 text-[15px] sm:text-[16px] font-bold uppercase font-display" style={{ color: T.ink, letterSpacing: "0.08em" }}>
+            <span className="w-7 h-7 rounded-lg flex items-center justify-center shrink-0" style={{ background: cor }}>
+              <Icon size={15} color="#fff" />
+            </span>
+            {titulo}
+          </span>
+          {aviso}
+          {!aberto && contador !== undefined && contador !== "" && (
+            <span className="text-[12px] font-semibold px-2.5 py-0.5 rounded-full normal-case"
+              style={{ background: `${cor}14`, color: cor, letterSpacing: 0, textTransform: "none" }}>{contador}</span>
+          )}
+        </button>
+        <div className="flex items-center gap-1 sm:gap-2 shrink-0">
+          {acao}
+          <button type="button" onClick={() => setFoldOpen((s) => ({ ...s, [secId]: !aberto }))} aria-label={aberto ? "Recolher" : "Expandir"}
+            className="inline-flex items-center justify-center h-11 w-11 sm:h-10 sm:w-10 rounded-xl">
+            <ChevronDown size={20} style={{ color: T.muted, transition: "transform 0.2s", transform: aberto ? "rotate(180deg)" : "none" }} />
+          </button>
+        </div>
+      </div>
+      {aberto && <div className="px-4 sm:px-5 pb-4 sm:pb-5">{children}</div>}
+    </section>
+  );
+}
+
+export function Card({ children, glow, gold, accent }: { children: ReactNode; glow?: boolean; gold?: boolean; accent?: string }) {
+  const anim = useEnterAnim();
+  return (
+    <section className={`rounded-[20px] p-4 sm:p-5 ${anim}`}
+      style={{
+        background: T.shell,
+        border: gold ? `1.5px solid ${T.goldBorder}` : glow ? `1px solid ${T.primary}` : `1px solid ${T.line}`,
+        borderLeft: accent ? `4px solid ${accent}` : undefined,
+        boxShadow: T.shadow,
+      }}>
+      {children}
+    </section>
+  );
+}
+
+export function SectionTitle({ icon: Icon, children, extra }: { icon: ComponentType<{ size?: number; color?: string }>; accent?: string; children: ReactNode; extra?: ReactNode }) {
+  return (
+    <div className="flex items-center justify-between mb-4 gap-2 flex-wrap">
+      <h2 className="flex items-center gap-2 text-[13px] font-bold uppercase font-display" style={{ color: T.ink, letterSpacing: "0.1em" }}>
+        <span className="w-7 h-7 rounded-lg flex items-center justify-center" style={{ background: "#F2F4F7" }}>
+          <Icon size={15} color="#475467" />
+        </span>
+        {children}
+      </h2>
+      {extra}
+    </div>
+  );
+}
+
+export function Url({ href }: { href: string | null }) {
+  if (!href) return null;
+  const limpo = href.replace(/^https?:\/\//, "");
+  return (
+    <a href={href} target="_blank" rel="noopener noreferrer" onClick={(e) => e.stopPropagation()} title={limpo}
+      className="flex min-w-0 max-w-full items-center gap-1.5 overflow-hidden text-[13px] sm:text-[12px] min-h-[40px] sm:min-h-0 hover:underline" style={{ color: T.primary }}>
+      <ExternalLink size={14} className="shrink-0" />
+      <span className="truncate min-w-0">{limpo}</span>
+    </a>
+  );
+}
+
+
+/** Editor de URL: input + Limpar UTM + Google + IA. Painel de candidatos inline. */
+export function UrlEditor({
+  valor, titulo, descricao, onChange,
+}: { valor: string; titulo: string; descricao?: string; onChange: (v: string) => void }) {
+  const val = valor ?? "";
+  const valido = val.trim() === "" || isUrlValido(val.trim());
+  const semParams = (() => { try { return new URL(val).search === ""; } catch { return true; } })();
+  const pesquisarIA = useServerFn(pesquisarFonteIA);
+  const verificarUmFn = useServerFn(verificarUmLink);
+  const [carregandoIA, setCarregandoIA] = useState(false);
+  const [candidatos, setCandidatos] = useState<CandidatoFonte[] | null>(null);
+  const [erroIA, setErroIA] = useState<string | null>(null);
+  const [queryGoogle, setQueryGoogle] = useState("");
+
+  const [aberto, setAberto] = useState(false);
+  const [verif, setVerif] = useState<ResultadoUmLink | null>(null);
+  const [aVerificar, setAVerificar] = useState(false);
+  const jaVerificado = useRef<string | null>(null);
+
+  async function verificar(url: string) {
+    if (!url || !isUrlValido(url)) return;
+    if (jaVerificado.current === url && verif) return;
+    setAVerificar(true);
+    try {
+      const r = await verificarUmFn({ data: { url } });
+      setVerif(r);
+      jaVerificado.current = url;
+    } catch {
+      setVerif({ url, estado: "quebrado", status: 0 });
+    } finally {
+      setAVerificar(false);
+    }
+  }
+
+  async function correrIA() {
+    if (!titulo || titulo.trim().length < 3) { setErroIA("Preenche o título primeiro."); setAberto(true); return; }
+    setCarregandoIA(true); setErroIA(null); setAberto(true);
+    try {
+      const r = await pesquisarIA({ data: { titulo, descricao: descricao ?? null, urlActual: val || null } });
+      setCandidatos(r.candidatos);
+      setQueryGoogle(r.queryGoogle ?? "");
+      if (r.candidatos.length === 0) setErroIA(null);
+    } catch (e) {
+      setErroIA((e as Error).message || "Falha ao pesquisar.");
+    } finally {
+      setCarregandoIA(false);
+    }
+  }
+
+
+  const verifCor = !verif ? T.muted
+    : verif.estado === "ok" ? T.ok
+    : verif.estado === "quebrado" ? T.danger
+    : T.warn;
+  const verifRotulo = !verif ? ""
+    : verif.estado === "ok" ? "Link OK"
+    : verif.estado === "redireccionado" ? `Redirecciona (${verif.status})`
+    : verif.estado === "suspeito" ? `Suspeito${verif.status ? ` (${verif.status})` : ""}`
+    : `Quebrado${verif.status ? ` (${verif.status})` : ""}`;
+
+  return (
+    <div className="rounded-lg px-3 py-2.5 space-y-2" style={{ background: T.shell, border: `1px solid ${valido ? T.line : T.danger}` }}>
+      <div className="flex items-center gap-1.5 text-[10.5px] font-bold uppercase tracking-wider" style={{ color: T.faint }}>
+        <ExternalLink size={11} /> URL da fonte
+      </div>
+      <input
+        type="url"
+        inputMode="url"
+        value={val}
+        onChange={(e) => { onChange(e.target.value); if (verif && verif.url !== e.target.value) setVerif(null); }}
+        onBlur={(e) => { const v = e.target.value.trim(); if (v && isUrlValido(v) && jaVerificado.current !== v) void verificar(v); }}
+        placeholder="https://…"
+        className="w-full text-[14px] rounded-md px-2.5 h-11 sm:h-9 focus:outline-none focus:ring-2"
+        style={{ border: `1px solid ${valido ? T.lineStrong : T.danger}`, background: "#FFFFFF", color: T.ink }}
+      />
+      <div className="flex flex-wrap items-center gap-1.5">
+        <button type="button" onClick={() => verificar(val)} disabled={!val || !valido || aVerificar}
+          title="Verifica se o link funciona"
+          className="inline-flex items-center gap-1.5 text-[12px] sm:text-[11px] font-semibold rounded-md h-9 sm:h-8 px-2.5 disabled:opacity-40 hover:bg-black/5"
+          style={{ color: T.ink, border: `1px solid ${T.lineStrong}`, background: "#FFFFFF" }}>
+          {aVerificar ? <Loader2 size={12} className="animate-spin" /> : <CheckCircle2 size={12} />} {aVerificar ? "A verificar…" : "Verificar"}
+        </button>
+        {verif && (
+          <span className="inline-flex items-center gap-1 text-[11px] font-bold px-2 py-1 rounded-md"
+            style={{ color: verifCor, background: `${verifCor}14`, border: `1px solid ${verifCor}33` }}
+            title={verif.redirect_para ? `Destino final: ${verif.redirect_para}` : undefined}>
+            {verif.estado === "ok" ? <CheckCircle2 size={11} /> : verif.estado === "quebrado" ? <XCircle size={11} /> : <AlertTriangle size={11} />}
+            {verifRotulo}
+          </span>
+        )}
+        <button type="button"
+          onClick={() => onChange(limparUtm(val))}
+          disabled={!val || semParams || !valido}
+          title="Remove utm_*, fbclid, gclid, mc_cid e outros parâmetros de rastreio"
+          className="inline-flex items-center gap-1.5 text-[12px] sm:text-[11px] font-semibold rounded-md h-9 sm:h-8 px-2.5 disabled:opacity-40 hover:bg-black/5"
+          style={{ color: T.ink, border: `1px solid ${T.lineStrong}`, background: "#FFFFFF" }}>
+          <Wand2 size={12} /> Limpar UTM
+        </button>
+        <a
+          href={titulo || val ? urlPesquisaGoogle(titulo, val) : "#"}
+          target="_blank" rel="noopener noreferrer"
+          className="inline-flex items-center gap-1.5 text-[12px] sm:text-[11px] font-semibold rounded-md h-9 sm:h-8 px-2.5 hover:bg-black/5"
+          title="Pesquisa manual no Google"
+          style={{ color: T.ink, border: `1px solid ${T.lineStrong}`, background: "#FFFFFF" }}>
+          🔎 Google
+        </a>
+        <button type="button" onClick={correrIA} disabled={carregandoIA || !titulo}
+          title="Deixa a IA procurar uma fonte alternativa"
+          className="inline-flex items-center gap-1.5 text-[12px] sm:text-[11px] font-bold rounded-md h-9 sm:h-8 px-2.5 disabled:opacity-40"
+          style={{ color: "#FFFFFF", background: T.primary, border: `1px solid ${T.primary}` }}>
+          {carregandoIA ? <Loader2 size={12} className="animate-spin" /> : <Sparkles size={12} />}
+          {carregandoIA ? "A pesquisar…" : "IA"}
+        </button>
+        {val && valido && (
+          <a href={val} target="_blank" rel="noopener noreferrer"
+            className="inline-flex items-center gap-1.5 text-[12px] sm:text-[11px] font-semibold rounded-md h-9 sm:h-8 px-2.5 hover:bg-black/5 ml-auto"
+            style={{ color: T.primary, border: `1px solid ${T.line}`, background: "#FFFFFF" }}>
+            <ExternalLink size={11} /> Abrir
+          </a>
+        )}
+      </div>
+      {!valido && (
+        <div className="text-[12px] font-semibold" style={{ color: T.danger }}>URL inválido — corrige ou apaga.</div>
+      )}
+      {valido && isLinkRastreio(val) && (
+        <div className="flex items-start gap-1.5 text-[12px] leading-snug rounded-md px-2.5 py-2"
+          style={{ background: T.warnSoft, color: T.warn, border: `1px solid ${T.warnAccent}` }}>
+          <AlertTriangle size={13} className="shrink-0 mt-0.5" />
+          <span>Este é um link de redireccionamento do email ({abreviarUrl(val, 40)}), não a fonte original. Usa o botão <strong>IA</strong> para encontrar o artigo do editor.</span>
+        </div>
+      )}
+
+      {aberto && (
+        <div className="mt-1 rounded-lg overflow-hidden" style={{ border: `1px solid ${T.line}`, background: "#FFFFFF" }}>
+          <div className="flex items-center gap-2 px-2.5 py-1.5 text-[11px] font-bold uppercase tracking-wider" style={{ color: T.faint, background: T.shell, borderBottom: `1px solid ${T.line}` }}>
+            <Sparkles size={11} /> Fontes sugeridas pela IA
+            <button type="button" onClick={() => setAberto(false)} className="ml-auto text-[11px] font-semibold" style={{ color: T.muted }}>Fechar</button>
+          </div>
+          {carregandoIA && (
+            <div className="p-3 space-y-2">
+              {[0, 1, 2].map((i) => (
+                <div key={i} className="animate-pulse h-14 rounded-md" style={{ background: T.shell }} />
+              ))}
+              <p className="text-[12px]" style={{ color: T.muted }}>A pesquisar e a comparar fontes…</p>
+            </div>
+          )}
+          {!carregandoIA && erroIA && (
+            <p className="p-3 text-[12.5px]" style={{ color: T.muted }}>{erroIA}</p>
+          )}
+          {!carregandoIA && !erroIA && candidatos && candidatos.length > 0 && (
+            <ul className="divide-y" style={{ borderColor: T.line }}>
+              {candidatos.map((c) => {
+                const iso = c.dataISO;
+                const idiomaLabel: Record<string, string> = {
+                  "pt-PT": "PT", "pt-BR": "BR", en: "EN", es: "ES", fr: "FR", de: "DE", outro: "—",
+                };
+                const idLab = idiomaLabel[c.idioma ?? "outro"] ?? "—";
+                return (
+                  <li key={c.url} className="py-2 px-2.5">
+                    <div className="flex items-center gap-1.5 flex-wrap">
+                      <span className="text-[11px] font-bold uppercase tracking-wider truncate max-w-[45%]" style={{ color: T.primary }}>{c.dominio}</span>
+                      {iso && c.data && (
+                        <span
+                          className="inline-flex items-center gap-1 text-[10.5px] font-semibold px-1.5 py-0.5 rounded"
+                          style={{ background: "#F2F4F7", color: T.muted, border: `1px solid ${T.line}` }}
+                          title={`Publicado a ${iso}`}
+                        >
+                          <Calendar size={10} /> {c.data}
+                        </span>
+                      )}
+                      <span className="text-[10.5px] font-semibold px-1.5 py-0.5 rounded" style={{ background: "#F2F4F7", color: T.muted, border: `1px solid ${T.line}` }} title={`Idioma da fonte: ${c.idioma ?? "desconhecido"}`}>
+                        {idLab}
+                      </span>
+
+                      <div className="ml-auto flex items-center gap-1">
+                        <button type="button" onClick={() => { onChange(c.url); setAberto(false); setVerif(null); jaVerificado.current = null; }}
+                          className="text-[11.5px] font-bold h-7 px-2 rounded-md text-white" style={{ background: T.primary }}>
+                          Usar
+                        </button>
+                        <a href={c.url} target="_blank" rel="noopener noreferrer"
+                          className="inline-flex items-center gap-1 text-[11.5px] font-semibold h-7 px-2 rounded-md"
+                          style={{ color: T.primary, border: `1px solid ${T.line}` }}>
+                          <ExternalLink size={10} /> Abrir
+                        </a>
+                      </div>
+                    </div>
+                    <p className="text-[13px] font-semibold leading-snug mt-1 line-clamp-2" style={{ color: T.ink }}>{c.titulo}</p>
+                  </li>
+                );
+              })}
+            </ul>
+          )}
+          {!carregandoIA && !erroIA && candidatos && candidatos.length === 0 && (
+            <div className="p-3 space-y-2">
+              <p className="text-[12.5px]" style={{ color: T.muted }}>
+                Não encontrei o artigo original. Abre a pesquisa já preparada e cola o link certo.
+              </p>
+              {queryGoogle && (
+                <a
+                  href={`https://www.google.com/search?q=${encodeURIComponent(queryGoogle)}`}
+                  target="_blank" rel="noopener noreferrer"
+                  className="inline-flex items-center gap-1.5 text-[12px] font-semibold h-8 px-2.5 rounded-md"
+                  style={{ color: T.primary, border: `1px solid ${T.line}` }}
+                >
+                  <ExternalLink size={12} /> Pesquisar «{queryGoogle}»
+                </a>
+              )}
+            </div>
+          )}
+
+        </div>
+      )}
+    </div>
+  );
+}
+
+export type NoticiaDraft = { titulo: string; descricao: string; categoria: CatId; url: string };
+
+/** Contador de caracteres + botão "✂️ Encurtar com IA" alinhado com o alvo
+ *  de 2–3 linhas nos cartões da newsletter (ideal 130–180 caracteres). */
+export const DescricaoMeta = memo(function DescricaoMeta({
+  valor, titulo, onEncurtar,
+}: { valor: string; titulo: string; onEncurtar: (v: string) => void }) {
+  const encurtarFn = useServerFn(encurtarDescricao);
+  const [ocupado, setOcupado] = useState(false);
+  const n = (valor ?? "").length;
+  const est = estadoDescricao(valor);
+  const cor = corEstadoDescricao(est);
+  const rotulo: Record<typeof est, string> = {
+    vazia: "vazia", curta: "curta", ideal: "ideal", longa: "longa", excessiva: "excessiva",
+  } as const;
+  const podeEncurtar = n > 180 && !ocupado && titulo.trim().length > 0;
+  return (
+    <div className="flex items-center gap-2">
+      <span className="text-[10.5px] font-semibold tabular-nums" style={{ color: cor }}>
+        {n} · {rotulo[est]}
+      </span>
+      <button type="button" onClick={async () => {
+        if (!podeEncurtar) return;
+        setOcupado(true);
+        try {
+          const r = await encurtarFn({ data: { titulo, descricao: valor } });
+          if (r?.descricao) onEncurtar(r.descricao);
+        } catch (e) {
+          console.error("encurtar", e);
+        } finally { setOcupado(false); }
+      }} disabled={!podeEncurtar}
+        className="text-[10.5px] font-bold uppercase tracking-wider h-7 px-2 rounded-md disabled:opacity-30"
+        style={{ color: T.primary, background: podeEncurtar ? "rgba(99,102,241,0.10)" : "transparent" }}>
+        {ocupado ? "A encurtar…" : "✂️ Encurtar IA"}
+      </button>
+    </div>
+  );
+});
+
+
+/** Formulário partilhado de edição de notícia — usado em "Pendentes" e "Notícias da edição". */
+export const NoticiaEditForm = memo(function NoticiaEditForm({
+  draft, onDraftChange, onCancel, onSubmit, submitLabel, submitTone, cancelLabel = "Cancelar", extra,
+}: {
+  draft: NoticiaDraft;
+  onDraftChange: (d: NoticiaDraft) => void;
+  onCancel: () => void;
+  onSubmit: () => void;
+  submitLabel: string;
+  submitTone: "primary" | "ok";
+  cancelLabel?: string;
+  /** Bloco opcional acrescentado por baixo do endereço (ex.: «A minha leitura»). */
+  extra?: ReactNode;
+}) {
+  const urlTrim = draft.url.trim();
+  const urlInvalido = urlTrim !== "" && !isUrlValido(urlTrim);
+  const cor = submitTone === "ok" ? T.ok : T.primary;
+  return (
+    <div className="space-y-2.5 anim-rise mt-3">
+      <label className="block">
+        <span className="text-[10.5px] font-bold uppercase tracking-wider" style={{ color: T.faint }}>Título</span>
+        <input value={draft.titulo} onChange={(e) => onDraftChange({ ...draft, titulo: e.target.value })}
+          className="mt-1 w-full text-[16px] font-semibold rounded-lg h-12 px-3 focus:outline-none focus:ring-2"
+          style={{ border: `1px solid ${T.lineStrong}`, background: "#FFFFFF", color: T.ink }} />
+      </label>
+      <div className="block">
+        <div className="flex items-center justify-between">
+          <span className="text-[10.5px] font-bold uppercase tracking-wider" style={{ color: T.faint }}>Descrição</span>
+          <DescricaoMeta valor={draft.descricao}
+            onEncurtar={(nova) => onDraftChange({ ...draft, descricao: nova })}
+            titulo={draft.titulo} />
+        </div>
+        <textarea value={draft.descricao} onChange={(e) => onDraftChange({ ...draft, descricao: e.target.value })} rows={4}
+          className="mt-1 w-full text-[15px] leading-relaxed rounded-lg px-3 py-2.5 focus:outline-none focus:ring-2"
+          style={{ border: `1px solid ${T.lineStrong}`, background: "#FFFFFF", color: T.ink, resize: "vertical", minHeight: 96 }} />
+      </div>
+      <UrlEditor valor={draft.url} titulo={draft.titulo} descricao={draft.descricao}
+        onChange={(v) => onDraftChange({ ...draft, url: v })} />
+      {extra}
+      <div className="flex items-center justify-end gap-2 pt-1">
+        <button onClick={onCancel}
+          className="text-[14px] font-semibold h-11 px-4 rounded-lg hover:bg-black/5" style={{ color: T.muted }}>
+          {cancelLabel}
+        </button>
+        <button onClick={onSubmit} disabled={urlInvalido}
+          className="text-[14px] font-bold h-11 px-5 rounded-lg text-white disabled:opacity-40" style={{ background: cor }}>
+          {submitLabel}
+        </button>
+      </div>
+    </div>
+  );
+});
+
+export function CatSelect({ n, onChange, disabled }: { n: { categoria: string }; onChange: (c: CatId) => void; disabled?: boolean }) {
+  const c = catDe(n.categoria);
+  return (
+    <div className="relative inline-flex items-center">
+      <span aria-hidden className="absolute left-2.5 w-2 h-2 rounded-full pointer-events-none" style={{ background: c.cor }} />
+      <select value={n.categoria} disabled={disabled}
+        onChange={(e) => onChange(e.target.value as CatId)}
+        className="text-[11px] font-bold uppercase tracking-wider rounded-full h-8 pl-6 pr-7 cursor-pointer bg-white"
+        style={{ color: "#475467", border: `1px solid ${T.line}` }}>
+        {categorias.map((cc) => (<option key={cc.id} value={cc.id} style={{ background: "#FFFFFF", color: T.ink }}>{cc.curto}</option>))}
+      </select>
+    </div>
+  );
+}

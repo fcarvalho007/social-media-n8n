@@ -1,0 +1,68 @@
+import { useEffect, useState } from "react";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { Loader2, Target } from "lucide-react";
+import { getConfig, setConfig } from "@/newsletter/features/newsletter/data";
+
+const CHAVE = "validador_alvo_noticias";
+export const ALVO_NOTICIAS_PADRAO = 10;
+
+const T = {
+  card: "#FFFFFF", line: "#E4E7EC", ink: "#101828",
+  muted: "#667085", faint: "#98A2B3", primary: "#8B5CF6", ok: "#10B981",
+};
+
+export function AlvoNoticiasCard() {
+  const qc = useQueryClient();
+  const q = useQuery({ queryKey: ["config", CHAVE], queryFn: () => getConfig(CHAVE) });
+  const [valor, setValor] = useState<string>("");
+  const [tick, setTick] = useState(false);
+
+  useEffect(() => {
+    if (q.data !== undefined && q.data !== null) setValor(String(q.data));
+    else if (q.isFetched) setValor(String(ALVO_NOTICIAS_PADRAO));
+  }, [q.data, q.isFetched]);
+
+  const m = useMutation({
+    mutationFn: (n: number) => setConfig(CHAVE, String(n)),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["config", CHAVE] });
+      setTick(true);
+      window.setTimeout(() => setTick(false), 1400);
+    },
+  });
+
+  const nNum = Number(valor);
+  const valido = Number.isFinite(nNum) && nNum >= 1 && nNum <= 60;
+
+  return (
+    <section className="rounded-2xl p-5" style={{ background: T.card, border: `1px solid ${T.line}` }}>
+      <div className="flex items-center gap-2.5 mb-1">
+        <span className="inline-flex items-center justify-center rounded-lg" style={{ width: 32, height: 32, background: `${T.primary}18`, color: T.primary }}>
+          <Target size={16} />
+        </span>
+        <h3 className="text-[11.5px] font-bold uppercase tracking-[0.08em]" style={{ color: T.ink }}>
+          Validador · alvo de notícias por edição
+        </h3>
+      </div>
+      <p className="text-[12.5px]" style={{ color: T.muted }}>
+        Número de notícias no email a partir do qual o dot da banda inferior fica verde.
+      </p>
+
+      <div className="mt-4 flex items-center gap-3">
+        <input
+          type="number"
+          min={1}
+          max={60}
+          value={valor}
+          onChange={(e) => setValor(e.target.value)}
+          onBlur={() => { if (valido && Number(valor) !== (q.data ? Number(q.data) : ALVO_NOTICIAS_PADRAO)) m.mutate(nNum); }}
+          className="w-24 h-10 rounded-lg px-3 text-[15px] font-semibold focus:outline-none"
+          style={{ border: `1.5px solid ${valido ? T.line : "#EF4444"}`, color: T.ink }}
+        />
+        <span className="text-[13px]" style={{ color: T.faint }}>notícias · omissão {ALVO_NOTICIAS_PADRAO}</span>
+        {m.isPending && <Loader2 size={14} className="animate-spin" style={{ color: T.muted }} />}
+        {tick && <span className="text-[12.5px] font-semibold" style={{ color: T.ok }}>Guardado ✓</span>}
+      </div>
+    </section>
+  );
+}

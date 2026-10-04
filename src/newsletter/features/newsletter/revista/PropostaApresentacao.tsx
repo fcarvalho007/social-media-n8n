@@ -1,0 +1,376 @@
+// Proposta de «Apresentação Revista» a partir do texto da crónica.
+//
+// Nada é gravado sem aprovação: a IA devolve uma proposta, o editor revê
+// campo a campo e aplica o que quiser. Uma chamada por proposta.
+
+import { useEffect, useMemo, useState } from "react";
+import { useServerFn } from "@/newsletter/shim/start";
+import { toast } from "sonner";
+import { Check, Loader2, RefreshCw, Sparkles, X } from "lucide-react";
+import { proporApresentacaoFn, type PropostaApresentacaoResultado } from "@/newsletter/lib/propor-apresentacao.functions";
+import { importarPexelsFn } from "@/newsletter/lib/imagens.functions";
+import type { FotoPexels } from "@/newsletter/lib/pexels-tipos";
+import {
+  assinaturaTexto, paragrafosDoHtml,
+} from "@/newsletter/lib/newsletter-engine/revista/apresentacao-heuristica";
+import type { ConfigRevista } from "./data-revista";
+
+interface Props {
+  edicaoId: string;
+  cfg: ConfigRevista;
+  cronicaHtml: string;
+  editar: (p: Partial<ConfigRevista>) => void;
+  bloqueado: boolean;
+}
+
+const MIN_CARACTERES = 200;
+
+function chaveSessao(edicaoId: string): string {
+  return `revista:proposta-apresentacao:${edicaoId}`;
+}
+
+/** Uma linha da revisão: o que está agora, o que a IA propõe. */
+function Linha({
+  etiqueta, actual, sugestao, aplicar, aplicado, editarSugestao, area,
+}: {
+  etiqueta: string;
+  actual: string;
+  sugestao: string;
+  aplicar: () => void;
+  aplicado: boolean;
+  editarSugestao: (v: string) => void;
+  area?: boolean;
+}) {
+  if (!sugestao.trim()) return null;
+  const substitui = actual.trim().length > 0 && actual.trim() !== sugestao.trim();
+  return (
+    <div className="space-y-1.5 rounded-lg border border-border bg-background p-3">
+      <div className="flex items-center justify-between gap-2">
+        <span className="text-[12px] font-semibold uppercase tracking-wide text-muted-foreground">{etiqueta}</span>
+        {substitui && (
+          <span className="rounded-full bg-estado-falta/10 px-2 py-0.5 text-[11px] font-semibold text-estado-falta">
+            substitui
+          </span>
+        )}
+      </div>
+      {substitui && (
+        <p className="text-[12px] text-muted-foreground line-through">{actual.slice(0, 200)}</p>
+      )}
+      {area ? (
+        <textarea
+          className="w-full resize-y rounded-lg border border-input bg-background px-3 py-2 text-[14px] text-foreground outline-none focus:border-primary"
+          rows={4}
+          value={sugestao}
+          onChange={(e) => editarSugestao(e.target.value)}
+        />
+      ) : (
+        <input
+          className="w-full rounded-lg border border-input bg-background px-3 py-2 text-[14px] text-foreground outline-none focus:border-primary"
+          value={sugestao}
+          onChange={(e) => editarSugestao(e.target.value)}
+        />
+      )}
+      <button
+        type="button"
+        onClick={aplicar}
+        className="flex items-center gap-1.5 rounded-lg border border-border px-2.5 py-1 text-[12px] font-semibold text-foreground transition hover:border-primary"
+      >
+        <Check className="h-3.5 w-3.5" /> {aplicado ? "Aplicado" : "Aplicar"}
+      </button>
+    </div>
+  );
+}
+
+export function PropostaApresentacao({ edicaoId, cfg, cronicaHtml, editar, bloqueado }: Props) {
+  const propor = useServerFn(proporApresentacaoFn);
+  const importar = useServerFn(importarPexelsFn);
+
+  const corpo = useMemo(() => paragrafosDoHtml(cronicaHtml).join("\n\n"), [cronicaHtml]);
+  const assinatura = useMemo(() => assinaturaTexto(corpo), [corpo]);
+  const suficiente = corpo.length >= MIN_CARACTERES;
+
+  const [proposta, setProposta] = useState<PropostaApresentacaoResultado | null>(null);
+  const [rascunho, setRascunho] = useState({ titulo: "", subtitulo: "", lede: "", excerto: "", pullQuote: "" });
+  const [aplicados, setAplicados] = useState<Record<string, boolean>>({});
+  const [foto, setFoto] = useState<FotoPexels | null>(null);
+  const [trocar, setTrocar] = useState(false);
+  const [ocupado, setOcupado] = useState(false);
+  const [erro, setErro] = useState<string | null>(null);
+  const [perguntar, setPerguntar] = useState(false);
+  const [dispensada, setDispensada] = useState<string | null>(null);
+
+  // A pergunta só aparece uma vez por versão do texto.
+  useEffect(() => {
+    try { setDispensada(window.sessionStorage.getItem(chaveSessao(edicaoId))); } catch { /* sem sessão */ }
+  }, [edicaoId]);
+
+  useEffect(() => {
+    if (bloqueado || !suficiente || proposta || dispensada === assinatura) { setPerguntar(false); return; }
+    const t = window.setTimeout(() => setPerguntar(true), 2500);
+    return () => window.clearTimeout(t);
+  }, [assinatura, bloqueado, suficiente, proposta, dispensada]);
+
+  const dispensar = () => {
+    setPerguntar(false);
+    setDispensada(assinatura);
+    try { window.sessionStorage.setItem(chaveSessao(edicaoId), assinatura); } catch { /* sem sessão */ }
+  };
+
+  const jaProposto = proposta?.assinatura === assinatura;
+
+  const gerar = async (forcar = false) => {
+    if (!forcar && proposta && jaProposto) {
+      toast.info("O texto não mudou desde a última proposta.");
+      return;
+    }
+    setOcupado(true);
+    setErro(null);
+    setPerguntar(false);
+    try {
+      const r = await propor({ data: { edicaoId } });
+      setProposta(r);
+      setRascunho({
+        titulo: r.titulo, subtitulo: r.subtitulo, lede: r.lede,
+        excerto: r.excerto, pullQuote: r.pullQuote,
+      });
+      setFoto(r.imagem.escolhida);
+      setAplicados({});
+      setTrocar(false);
+      r.avisos.forEach((a) => toast.warning(a));
+    } catch (e) {
+      setErro(e instanceof Error ? e.message : "Não foi possível gerar a proposta.");
+    } finally {
+      setOcupado(false);
+    }
+  };
+
+  const marcar = (k: string) => setAplicados((a) => ({ ...a, [k]: true }));
+
+  const aplicarImagem = async () => {
+    if (!foto || !proposta) return;
+    setOcupado(true);
+    try {
+      const r = await importar({ data: { edicaoId, url: foto.originalUrl } });
+      editar({
+        cronica_imagem_url: r.url,
+        cronica_imagem_alt: proposta.imagem.alt || foto.alt,
+        cronica_imagem_credito: foto.autor ? `Fotografia de ${foto.autor} (Pexels)` : "Pexels",
+        cronica_imagem_credito_url: foto.autorUrl,
+        cronica_imagem_fonte: "pexels",
+        cronica_imagem_recorte_url: "", cronica_imagem_enquadramento: {},
+      });
+      marcar("imagem");
+      toast.success("Imagem aplicada à crónica.");
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "Não foi possível usar essa imagem.");
+    } finally {
+      setOcupado(false);
+    }
+  };
+
+  const aplicarTudo = () => {
+    const patch: Partial<ConfigRevista> = {};
+    if (rascunho.titulo.trim()) patch.cronica_titulo = rascunho.titulo.trim();
+    if (rascunho.subtitulo.trim()) patch.cronica_subtitulo = rascunho.subtitulo.trim();
+    if (rascunho.lede.trim()) patch.cronica_lede = rascunho.lede.trim();
+    if (rascunho.excerto.trim()) patch.cronica_excerto = rascunho.excerto.trim();
+    if (rascunho.pullQuote.trim()) patch.pull_quote = rascunho.pullQuote.trim();
+    if (proposta?.momento.valor) {
+      patch.momento_activo = true;
+      patch.momento_etiqueta = proposta.momento.etiqueta;
+      patch.momento_valor = proposta.momento.valor;
+      patch.momento_descricao = proposta.momento.descricao;
+    }
+    editar(patch);
+    setAplicados({ titulo: true, subtitulo: true, lede: true, excerto: true, pullQuote: true, momento: true });
+    toast.success("Apresentação preenchida com a proposta.");
+    if (foto) void aplicarImagem();
+  };
+
+  if (bloqueado) return null;
+
+  return (
+    <div className="space-y-3 rounded-xl border border-border bg-background p-4">
+      <div className="flex flex-wrap items-center justify-between gap-2">
+        <div>
+          <p className="text-[13px] font-semibold text-foreground">Propor apresentação a partir do texto</p>
+          <p className="text-[12px] text-muted-foreground">
+            {suficiente
+              ? "Lê a crónica escrita e sugere título, lede, excerto, momento, frase de destaque e imagem."
+              : "Escreve alguns parágrafos da crónica para ficar disponível."}
+          </p>
+        </div>
+        <button
+          type="button"
+          disabled={!suficiente || ocupado}
+          onClick={() => void gerar()}
+          className="flex items-center gap-1.5 rounded-xl bg-primary px-3.5 py-2 text-[13px] font-semibold text-primary-foreground transition disabled:opacity-40"
+        >
+          {ocupado ? <Loader2 className="h-4 w-4 animate-spin" /> : proposta ? <RefreshCw className="h-4 w-4" /> : <Sparkles className="h-4 w-4" />}
+          {proposta ? "Actualizar proposta" : "Propor apresentação"}
+        </button>
+      </div>
+
+      {perguntar && (
+        <div className="flex flex-wrap items-center justify-between gap-2 rounded-lg border border-primary/40 bg-primary/5 p-3">
+          <p className="text-[13px] text-foreground">Terminaste o texto? Posso propor a apresentação.</p>
+          <div className="flex gap-2">
+            <button
+              type="button" onClick={() => void gerar()}
+              className="rounded-lg bg-primary px-3 py-1.5 text-[12px] font-semibold text-primary-foreground"
+            >
+              Propor apresentação
+            </button>
+            <button
+              type="button" onClick={dispensar}
+              className="rounded-lg border border-border px-3 py-1.5 text-[12px] font-semibold text-muted-foreground"
+            >
+              Agora não
+            </button>
+          </div>
+        </div>
+      )}
+
+      {erro && <p className="text-[13px] font-semibold text-destructive">{erro}</p>}
+
+      {proposta && (
+        <div className="space-y-2.5">
+          {!jaProposto && (
+            <p className="text-[12px] font-medium text-estado-falta">
+              O texto mudou depois desta proposta. Carrega em «Actualizar proposta» para a refazer.
+            </p>
+          )}
+
+          <Linha
+            etiqueta="Título principal" actual={cfg.cronica_titulo} sugestao={rascunho.titulo}
+            aplicado={!!aplicados.titulo}
+            editarSugestao={(v) => setRascunho((r) => ({ ...r, titulo: v }))}
+            aplicar={() => { editar({ cronica_titulo: rascunho.titulo.trim() }); marcar("titulo"); }}
+          />
+          <Linha
+            etiqueta="Segunda linha" actual={cfg.cronica_subtitulo} sugestao={rascunho.subtitulo}
+            aplicado={!!aplicados.subtitulo}
+            editarSugestao={(v) => setRascunho((r) => ({ ...r, subtitulo: v }))}
+            aplicar={() => { editar({ cronica_subtitulo: rascunho.subtitulo.trim() }); marcar("subtitulo"); }}
+          />
+          <Linha
+            etiqueta="Lede / tese editorial" actual={cfg.cronica_lede} sugestao={rascunho.lede} area
+            aplicado={!!aplicados.lede}
+            editarSugestao={(v) => setRascunho((r) => ({ ...r, lede: v }))}
+            aplicar={() => { editar({ cronica_lede: rascunho.lede.trim() }); marcar("lede"); }}
+          />
+          <Linha
+            etiqueta="Excerto da crónica" actual={cfg.cronica_excerto} sugestao={rascunho.excerto} area
+            aplicado={!!aplicados.excerto}
+            editarSugestao={(v) => setRascunho((r) => ({ ...r, excerto: v }))}
+            aplicar={() => { editar({ cronica_excerto: rascunho.excerto.trim() }); marcar("excerto"); }}
+          />
+          <Linha
+            etiqueta="Frase de destaque" actual={cfg.pull_quote} sugestao={rascunho.pullQuote} area
+            aplicado={!!aplicados.pullQuote}
+            editarSugestao={(v) => setRascunho((r) => ({ ...r, pullQuote: v }))}
+            aplicar={() => { editar({ pull_quote: rascunho.pullQuote.trim() }); marcar("pullQuote"); }}
+          />
+
+          {proposta.momento.valor ? (
+            <div className="space-y-1.5 rounded-lg border border-border bg-background p-3">
+              <span className="text-[12px] font-semibold uppercase tracking-wide text-muted-foreground">
+                Momento editorial
+              </span>
+              <p className="text-[14px] text-foreground">
+                <strong>{proposta.momento.etiqueta}</strong> · {proposta.momento.valor} — {proposta.momento.descricao}
+              </p>
+              <button
+                type="button"
+                onClick={() => {
+                  editar({
+                    momento_activo: true,
+                    momento_etiqueta: proposta.momento.etiqueta,
+                    momento_valor: proposta.momento.valor,
+                    momento_descricao: proposta.momento.descricao,
+                  });
+                  marcar("momento");
+                }}
+                className="flex items-center gap-1.5 rounded-lg border border-border px-2.5 py-1 text-[12px] font-semibold text-foreground transition hover:border-primary"
+              >
+                <Check className="h-3.5 w-3.5" /> {aplicados.momento ? "Aplicado" : "Aplicar"}
+              </button>
+            </div>
+          ) : (
+            <p className="rounded-lg border border-dashed border-border p-3 text-[12px] text-muted-foreground">
+              {proposta.momentoRejeitado
+                ? "O valor proposto para o momento editorial não existia no texto, por isso foi descartado."
+                : "A crónica não tem um número ou prazo concreto para o momento editorial."}
+            </p>
+          )}
+
+          {foto ? (
+            <div className="space-y-2 rounded-lg border border-border bg-background p-3">
+              <span className="text-[12px] font-semibold uppercase tracking-wide text-muted-foreground">
+                Imagem sugerida {proposta.imagem.termo ? `· «${proposta.imagem.termo}»` : ""}
+              </span>
+              <img src={foto.previewUrl} alt={proposta.imagem.alt} className="h-36 w-full rounded-lg object-cover" />
+              <p className="text-[12px] text-muted-foreground">
+                {proposta.imagem.alt}
+                {foto.autor ? ` · Fotografia de ${foto.autor} (Pexels)` : ""}
+              </p>
+              <div className="flex flex-wrap gap-2">
+                <button
+                  type="button" disabled={ocupado} onClick={() => void aplicarImagem()}
+                  className="flex items-center gap-1.5 rounded-lg border border-border px-2.5 py-1 text-[12px] font-semibold text-foreground transition hover:border-primary disabled:opacity-40"
+                >
+                  <Check className="h-3.5 w-3.5" /> {aplicados.imagem ? "Aplicada" : "Usar esta imagem"}
+                </button>
+                {proposta.imagem.alternativas.length > 0 && (
+                  <button
+                    type="button" onClick={() => setTrocar((v) => !v)}
+                    className="rounded-lg border border-border px-2.5 py-1 text-[12px] font-semibold text-muted-foreground"
+                  >
+                    Trocar imagem
+                  </button>
+                )}
+              </div>
+              {trocar && (
+                <div className="grid grid-cols-4 gap-2">
+                  {proposta.imagem.alternativas.map((f) => (
+                    <button
+                      key={f.id} type="button"
+                      onClick={() => { setFoto(f); setTrocar(false); }}
+                      className="overflow-hidden rounded-lg border border-border transition hover:border-primary"
+                      title={f.autor ? `Fotografia de ${f.autor}` : "Pexels"}
+                    >
+                      <img src={f.previewUrl} alt={f.alt} className="h-16 w-full object-cover" loading="lazy" />
+                    </button>
+                  ))}
+                </div>
+              )}
+            </div>
+          ) : null}
+
+          <div className="flex flex-wrap gap-2 pt-1">
+            <button
+              type="button" onClick={aplicarTudo}
+              className="rounded-xl bg-primary px-3.5 py-2 text-[13px] font-semibold text-primary-foreground"
+            >
+              Aplicar tudo
+            </button>
+            <button
+              type="button" disabled={ocupado}
+              onClick={() => { void gerar(true); }}
+              className="rounded-xl border border-border px-3.5 py-2 text-[13px] font-semibold text-foreground disabled:opacity-40"
+            >
+              Gerar outra
+            </button>
+            <button
+              type="button"
+              onClick={() => { setProposta(null); setErro(null); }}
+              className="flex items-center gap-1.5 rounded-xl border border-border px-3.5 py-2 text-[13px] font-semibold text-muted-foreground"
+            >
+              <X className="h-3.5 w-3.5" /> Descartar
+            </button>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}

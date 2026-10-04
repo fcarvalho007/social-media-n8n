@@ -1,0 +1,271 @@
+import process from "node:process";
+import { createServerFn } from "../_shim/start.ts";
+import { requireSupabaseAuth } from "../_shim/auth.ts";
+import { parseFeed } from "./rss-parser.ts";
+
+const UA_DESCOBERTA = "DigitalSprintBot/1.0 (+descoberta)";
+const CAMINHOS_COMUNS_FEED = [
+  "/feed", "/feed/", "/rss", "/rss/", "/rss.xml", "/feed.xml",
+  "/atom.xml", "/index.xml", "/?feed=rss2", "/blog/feed", "/news/feed",
+];
+
+async function fetchTextoDescoberta(url: string, timeoutMs = 8000): Promise<{ ok: boolean; texto: string; status: number }> {
+  const ctl = new AbortController();
+  const timer = setTimeout(() => ctl.abort(), timeoutMs);
+  try {
+    const res = await fetch(url, {
+      signal: ctl.signal,
+      headers: {
+        "User-Agent": UA_DESCOBERTA,
+        Accept: "text/html,application/xml,application/rss+xml,application/atom+xml;q=0.9,*/*;q=0.8",
+      },
+    });
+    if (!res.ok) return { ok: false, texto: "", status: res.status };
+    const texto = await res.text();
+    return { ok: true, texto, status: res.status };
+  } catch {
+    return { ok: false, texto: "", status: 0 };
+  } finally { clearTimeout(timer); }
+}
+
+function extrairLinksAlternate(html: string, baseUrl: string): string[] {
+  const urls: string[] = [];
+  const re = /<link\b[^>]*>/gi;
+  let m: RegExpExecArray | null;
+  while ((m = re.exec(html)) !== null) {
+    const tag = m[0];
+    const tipo = tag.match(/type=["']([^"']+)["']/i)?.[1]?.toLowerCase() ?? "";
+    const rel = tag.match(/rel=["']([^"']+)["']/i)?.[1]?.toLowerCase() ?? "";
+    const href = tag.match(/href=["']([^"']+)["']/i)?.[1];
+    if (!href) continue;
+    if (rel === "alternate" && /rss|atom|xml|feed/.test(tipo)) {
+      try { urls.push(new URL(href, baseUrl).toString()); } catch { /* ignore */ }
+    }
+  }
+  return urls;
+}
+
+function extrairTituloHtml(html: string): string {
+  const m = html.match(/<title[^>]*>([\s\S]*?)<\/title>/i);
+  if (!m) return "";
+  return m[1].replace(/<!\[CDATA\[|\]\]>/g, "").replace(/\s+/g, " ").trim().slice(0, 120);
+}
+
+/**
+ * A partir de um URL (site ou feed), descobre feeds RSS/Atom válidos.
+ * Devolve nome sugerido (título do site) e até 6 candidatos com título e nº itens.
+ */
+export const descobrirFeed = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .validator((input: { url: string }) => {
+    let url = (input?.url ?? "").trim();
+    if (!url) throw new Error("URL vazio");
+    if (!/^https?:\/\//i.test(url)) url = `https://${url}`;
+    try { new URL(url); } catch { throw new Error("URL inválido"); }
+    return { url };
+  })
+  .handler(async ({ data }) => {
+    type Candidato = { url: string; titulo: string; total: number; tipo: "rss" | "html" };
+    const inicial = await fetchTextoDescoberta(data.url);
+    if (!inicial.ok) {
+      return { ok: false as const, erro: `HTTP ${inicial.status || "falha"}`, nomeSugerido: "", candidatos: [] as Candidato[] };
+    }
+
+    const talvezFeed = parseFeed(inicial.texto);
+    if (talvezFeed.length > 0) {
+      const titFeed = extrairTituloHtml(inicial.texto);
+      return {
+        ok: true as const,
+        nomeSugerido: titFeed,
+        candidatos: [{ url: data.url, titulo: titFeed || data.url, total: talvezFeed.length, tipo: "rss" }] as Candidato[],
+      };
+    }
+
+    const nomeSugerido = extrairTituloHtml(inicial.texto);
+    const candidatosUrl = new Set<string>(extrairLinksAlternate(inicial.texto, data.url));
+
+    if (candidatosUrl.size === 0) {
+      try {
+        const base = new URL(data.url);
+        for (const c of CAMINHOS_COMUNS_FEED) {
+          candidatosUrl.add(new URL(c, `${base.protocol}//${base.host}`).toString());
+        }
+      } catch { /* ignore */ }
+    }
+
+    const lista = Array.from(candidatosUrl).slice(0, 8);
+    const resultados = await Promise.all(lista.map(async (u): Promise<Candidato | null> => {
+      const r = await fetchTextoDescoberta(u, 6000);
+      if (!r.ok) return null;
+      const itens = parseFeed(r.texto);
+      if (itens.length === 0) return null;
+      const titFeed = extrairTituloHtml(r.texto);
+      return { url: u, titulo: titFeed || u, total: itens.length, tipo: "rss" };
+    }));
+
+    const candidatos = resultados.filter((x): x is Candidato => x !== null).slice(0, 6);
+    if (candidatos.length > 0) {
+      return { ok: true as const, nomeSugerido, candidatos };
+    }
+
+    // Sem RSS — tentar extracção HTML da página original
+    const { extrairArtigosHtml } = await import("./html-scraper.ts");
+    const html = await extrairArtigosHtml(data.url, { maxItens: 40 });
+    if (html.ok && html.artigos.length >= 3) {
+      let hostname = data.url;
+      try { hostname = new URL(data.url).hostname; } catch { /* ignore */ }
+      return {
+        ok: true as const,
+        nomeSugerido,
+        candidatos: [{
+          url: data.url,
+          titulo: nomeSugerido || hostname,
+          total: html.artigos.length,
+          tipo: "html",
+        }] as Candidato[],
+      };
+    }
+    return {
+      ok: false as const,
+      erro: "Nenhum feed RSS/Atom encontrado. Extracção HTML também não devolveu artigos suficientes.",
+      nomeSugerido,
+      candidatos: [] as Candidato[],
+    };
+  });
+
+
+
+/**
+ * Testa um feed RSS/Atom sem escrever nada.
+ * Devolve o total de itens e os 3 mais recentes para pré-visualização.
+ */
+export const testarFeed = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .validator((input: { url: string }) => {
+    const url = (input?.url ?? "").trim();
+    if (!/^https?:\/\//i.test(url)) throw new Error("URL inválido");
+    return { url };
+  })
+  .handler(async ({ data }) => {
+    const ctl = new AbortController();
+    const timer = setTimeout(() => ctl.abort(), 10_000);
+    try {
+      const res = await fetch(data.url, {
+        signal: ctl.signal,
+        headers: { "User-Agent": "DigitalSprintBot/1.0 (+teste)" },
+      });
+      if (!res.ok) {
+        return { ok: false, erro: `HTTP ${res.status}`, total: 0, ultimos: [] as Array<{ titulo: string; url: string; publicado: number }> };
+      }
+      const xml = await res.text();
+      const itens = parseFeed(xml);
+      if (itens.length === 0) {
+        return { ok: false, erro: "Nenhum item encontrado (XML não parece ser RSS/Atom válido)", total: 0, ultimos: [] };
+      }
+      const ultimos = [...itens].sort((a, b) => b.publicado - a.publicado).slice(0, 3)
+        .map((i) => ({ titulo: i.titulo, url: i.url, publicado: i.publicado }));
+      return { ok: true, total: itens.length, ultimos };
+    } catch (e) {
+      const msg = (e as Error).message || "erro desconhecido";
+      return { ok: false, erro: msg.includes("aborted") ? "Timeout (10s)" : msg, total: 0, ultimos: [] };
+    } finally {
+      clearTimeout(timer);
+    }
+  });
+
+async function urlAppFromRequest(): Promise<string> {
+  const { getRequestHost, getRequestProtocol } = await import("../_shim/start.ts");
+  const host = getRequestHost();
+  const isLocal = !!host && /^(localhost|127\.0\.0\.1)(:|$)/.test(host);
+  const proto = isLocal ? "http" : (() => { try { return getRequestProtocol(); } catch { return "https"; } })();
+  const appUrl = process.env.PUBLIC_APP_URL || (host ? `${proto}://${host}` : "");
+  if (!appUrl) throw new Error("Não consegui determinar a URL da app");
+  return appUrl;
+}
+
+async function requireAdmin(context: { supabase: unknown }) {
+  const sb = context.supabase as { rpc: (fn: "me_papel") => PromiseLike<{ data: unknown }> };
+  const { data: papel } = await sb.rpc("nl_me_papel");
+  if (papel !== "admin") throw new Error("Só administradores podem gerir fontes");
+}
+
+/** Dispara o hook da curadoria RSS (opcionalmente scoped a fontes específicas). */
+async function chamarHookRss(forcarFontes?: string[]) {
+  const appUrl = await urlAppFromRequest();
+  const anon = process.env.SUPABASE_PUBLISHABLE_KEY ?? process.env.SUPABASE_ANON_KEY ?? "";
+  if (!anon) throw new Error("Chave pública não configurada");
+  const inicio = Date.now();
+  const res = await fetch(`${appUrl}/api/public/hooks/curadoria-rss`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json", apikey: anon },
+    body: JSON.stringify(forcarFontes ? { forcar_fontes: forcarFontes } : {}),
+  });
+  const txt = await res.text();
+  let body: { ok?: boolean; inseridas?: number; fontes_activas?: number; candidatos?: number; mensagem?: string } = {};
+  try { body = JSON.parse(txt); } catch { /* ignore */ }
+  if (!res.ok || body.ok === false) {
+    throw new Error(body.mensagem || `HTTP ${res.status}: ${txt.slice(0, 200)}`);
+  }
+  return {
+    ok: true,
+    inseridas: body.inseridas ?? 0,
+    fontes_activas: body.fontes_activas ?? 0,
+    candidatos: body.candidatos ?? 0,
+    duracao_ms: Date.now() - inicio,
+  };
+}
+
+export const correrCuradoriaAgora = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .handler(async ({ context }) => {
+    await requireAdmin(context);
+    return chamarHookRss();
+  });
+
+/** Corre a curadoria só para uma fonte, imediatamente. */
+export const correrFonteAgora = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .validator((data: { id: string }) => {
+    if (!data?.id) throw new Error("id em falta");
+    return data;
+  })
+  .handler(async ({ data, context }) => {
+    await requireAdmin(context);
+    // Verifica que a fonte existe e não é newsletter (essas chegam por email).
+    const { data: fonte, error } = await context.supabase
+      .from("nl_fontes_curadoria")
+      .select("id, nome, tipo")
+      .eq("id", data.id).maybeSingle();
+    if (error) throw new Error(error.message);
+    if (!fonte) throw new Error("Fonte não encontrada");
+    const tipo = ((fonte as { tipo?: string }).tipo ?? "rss");
+    if (tipo === "newsletter") throw new Error("Fontes de newsletter chegam por email — não há recolha manual");
+    return chamarHookRss([data.id]);
+  });
+
+/** Activa/desactiva várias fontes de uma vez. */
+export const alternarFontesEmLote = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .validator((data: { ids: string[]; activa: boolean }) => {
+    if (!Array.isArray(data?.ids) || data.ids.length === 0) throw new Error("Sem fontes seleccionadas");
+    if (typeof data.activa !== "boolean") throw new Error("Estado inválido");
+    return data;
+  })
+  .handler(async ({ data, context }) => {
+    await requireAdmin(context);
+    const { error } = await context.supabase
+      .from("nl_fontes_curadoria")
+      .update({ activa: data.activa } as never)
+      .in("id", data.ids);
+    if (error) throw new Error(error.message);
+    try {
+      await context.supabase.from("nl_audit_log").insert({
+        quem: null,
+        accao: data.activa
+          ? `Activou ${data.ids.length} fonte(s) de curadoria em lote`
+          : `Desactivou ${data.ids.length} fonte(s) de curadoria em lote`,
+        detalhe: { ids: data.ids },
+      } as never);
+    } catch { /* nunca bloqueia */ }
+    return { ok: true, afectadas: data.ids.length };
+  });

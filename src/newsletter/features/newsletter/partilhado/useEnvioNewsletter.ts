@@ -1,0 +1,267 @@
+// Fluxo operacional de envio, partilhado pelos dois editores (Clássico e Revista).
+// Aqui vive apenas a orquestração cliente: escolha de listas, preparar →
+// disparar lista a lista com pausa → finalizar, repetir lista falhada e
+// agendamento. O HTML, o snapshot e a publicação web são responsabilidade do
+// servidor, que despacha pelo `template_version` da edição.
+
+import { useCallback, useState } from "react";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import {
+  prepararEnvioFn, dispararListaFn, finalizarEnvioFn, repetirListaFn,
+  agendarEnvioFn, cancelarAgendamentoFn,
+} from "@/newsletter/lib/envio.functions";
+import { listarListasEgoi, type ListaEgoi } from "../data";
+
+export type EstadoLinha = "espera" | "a_preparar" | "a_enviar" | "ok" | "erro";
+
+export interface ProgressoLinha {
+  lista_id: string;
+  lista_nome: string;
+  estado: EstadoLinha;
+  erro?: string;
+}
+
+export interface ResultadoDisparo {
+  ok: boolean;
+  modo: string;
+  sucessos: number;
+  falhas: number;
+  resultados: Array<{ lista_id: string; lista_nome: string; ok: boolean; erro?: string }>;
+  mensagem: string;
+}
+
+export interface OpcoesDisparo {
+  publicarConteudos?: boolean;
+}
+
+export interface UseEnvioArgs {
+  edicaoId: string | null;
+  numero: number | null;
+  /** Pausa entre listas, em segundos (a E-goi não gosta de rajadas). */
+  pausaSeg?: number;
+  onDisparoConcluido?: (r: ResultadoDisparo) => void;
+  onDisparoErro?: (msg: string) => void;
+  onRepetirConcluido?: (r: { lista_id: string; lista_nome: string; ok: boolean; erro?: string }) => void;
+  onRepetirErro?: (msg: string, listaId: string) => void;
+  onAgendado?: (r: { agendado_para: string }) => void;
+  onAgendarErro?: (msg: string) => void;
+  onCancelado?: () => void;
+  onCancelarErro?: (msg: string) => void;
+}
+
+export interface EnvioNewsletter {
+  listas: ListaEgoi[];
+  listasSel: string[];
+  setListasSel: React.Dispatch<React.SetStateAction<string[]>>;
+  progresso: ProgressoLinha[];
+  setProgresso: React.Dispatch<React.SetStateAction<ProgressoLinha[]>>;
+  esperaSeg: number | null;
+  setEsperaSeg: React.Dispatch<React.SetStateAction<number | null>>;
+  agendarQuando: string;
+  setAgendarQuando: React.Dispatch<React.SetStateAction<string>>;
+  agendarWp: boolean;
+  setAgendarWp: React.Dispatch<React.SetStateAction<boolean>>;
+  disparar: ReturnType<typeof useMutation<ResultadoDisparo, Error, OpcoesDisparo | void>>;
+  repetirLista: ReturnType<typeof useMutation<{ lista_id: string; lista_nome: string; ok: boolean; erro?: string }, Error, string>>;
+  agendar: ReturnType<typeof useMutation<{ agendado_para: string }, Error, void>>;
+  cancelarAgendamento: ReturnType<typeof useMutation<unknown, Error, void>>;
+  reset: () => void;
+}
+
+export function useEnvioNewsletter(args: UseEnvioArgs): EnvioNewsletter {
+  const {
+    edicaoId, numero, pausaSeg = 15,
+    onDisparoConcluido, onDisparoErro, onRepetirConcluido, onRepetirErro,
+    onAgendado, onAgendarErro, onCancelado, onCancelarErro,
+  } = args;
+  const qc = useQueryClient();
+
+  const [listasSel, setListasSel] = useState<string[]>([]);
+  const [progresso, setProgresso] = useState<ProgressoLinha[]>([]);
+  const [esperaSeg, setEsperaSeg] = useState<number | null>(null);
+  const [agendarQuando, setAgendarQuando] = useState("");
+  const [agendarWp, setAgendarWp] = useState(true);
+
+  const listasQ = useQuery({ queryKey: ["listas-egoi"], queryFn: listarListasEgoi });
+  const listas = listasQ.data ?? [];
+
+  const reset = useCallback(() => {
+    setProgresso([]);
+    setEsperaSeg(null);
+  }, []);
+
+  const invalidar = useCallback(() => {
+    qc.invalidateQueries({ queryKey: ["edicao-atual"] });
+    if (edicaoId) {
+      qc.invalidateQueries({ queryKey: ["edicao", edicaoId] });
+      qc.invalidateQueries({ queryKey: ["egoi-campanhas", edicaoId] });
+      qc.invalidateQueries({ queryKey: ["revista-destinos", edicaoId] });
+      qc.invalidateQueries({ queryKey: ["prontidao-revista", edicaoId] });
+    }
+    qc.invalidateQueries({ queryKey: ["audit"] });
+  }, [qc, edicaoId]);
+
+  const actualizarProntidao = async () => {
+    if (!edicaoId) return;
+    await Promise.all([
+      qc.refetchQueries({ queryKey: ["revista-destinos", edicaoId], type: "active" }),
+      qc.refetchQueries({ queryKey: ["prontidao-revista", edicaoId], type: "active" }),
+    ]);
+  };
+
+  const disparar = useMutation<ResultadoDisparo, Error, OpcoesDisparo | void>({
+    mutationFn: async (opcoes) => {
+      if (!edicaoId || numero === null) throw new Error("Sem edição");
+      if (listasSel.length === 0) throw new Error("Escolhe pelo menos uma lista.");
+      const nomes = new Map(listas.map((l) => [l.id, l.nome]));
+
+      // Fase 1 — preparar rascunhos de todas as listas (nada é enviado ainda).
+      setProgresso(listasSel.map((id) => ({
+        lista_id: id, lista_nome: nomes.get(id) ?? id, estado: "a_preparar" as const,
+      })));
+      const prep = await prepararEnvioFn({
+        data: {
+          edicao_id: edicaoId,
+          lista_ids: listasSel,
+          confirmacao_numero: numero,
+          publicar_conteudos: opcoes?.publicarConteudos === true,
+        },
+      });
+      // A preparação pode publicar a página web e a crónica. Refresca a
+      // checklist antes de iniciar os disparos para não conservar um aviso
+      // amarelo referente ao estado anterior.
+      await actualizarProntidao();
+      setProgresso(prep.listas.map((l) => ({
+        lista_id: l.lista_id,
+        lista_nome: l.lista_nome,
+        estado: l.ok ? ("espera" as const) : ("erro" as const),
+        erro: l.erro,
+      })));
+
+      // Fase 2 — disparo sequencial, com pausa visível entre listas.
+      const resultados: ResultadoDisparo["resultados"] = [];
+      let disparadas = 0;
+      for (const l of prep.listas) {
+        if (!l.ok) {
+          resultados.push({ lista_id: l.lista_id, lista_nome: l.lista_nome, ok: false, erro: l.erro });
+          continue;
+        }
+        if (disparadas > 0) {
+          for (let s = pausaSeg; s > 0; s--) {
+            setEsperaSeg(s);
+            await new Promise((r) => setTimeout(r, 1000));
+          }
+          setEsperaSeg(null);
+        }
+        disparadas++;
+        setProgresso((prev) => prev.map((p) => p.lista_id === l.lista_id ? { ...p, estado: "a_enviar" } : p));
+        try {
+          const r = await dispararListaFn({ data: { edicao_id: edicaoId, lista_id: l.lista_id } });
+          resultados.push({ lista_id: l.lista_id, lista_nome: l.lista_nome, ok: r.ok, erro: r.erro });
+          setProgresso((prev) => prev.map((p) => p.lista_id === l.lista_id
+            ? { ...p, estado: r.ok ? "ok" : "erro", erro: r.erro } : p));
+        } catch (e) {
+          const msg = (e as Error).message;
+          resultados.push({ lista_id: l.lista_id, lista_nome: l.lista_nome, ok: false, erro: msg });
+          setProgresso((prev) => prev.map((p) => p.lista_id === l.lista_id
+            ? { ...p, estado: "erro", erro: msg } : p));
+        }
+      }
+      setEsperaSeg(null);
+
+      // Fase 3 — liberta o bloqueio; a edição só fecha quando não houver
+      // listas por repetir (senão a repetição ficaria bloqueada).
+      const houveFalhas = resultados.some((r) => !r.ok);
+      await finalizarEnvioFn({ data: { edicao_id: edicaoId, lista_ids: listasSel, adiar_fecho: houveFalhas } });
+
+      const sucessos = resultados.filter((r) => r.ok).length;
+      const falhas = resultados.length - sucessos;
+      return {
+        ok: sucessos > 0 && falhas === 0,
+        modo: prep.modo,
+        sucessos,
+        falhas,
+        resultados,
+        mensagem: falhas > 0
+          ? `Enviada para ${sucessos} de ${resultados.length} lista(s); ${falhas} falha(s). ` +
+            resultados.filter((r) => !r.ok).map((r) => `${r.lista_nome}: ${r.erro}`).join(" · ")
+          : `Enviada para ${sucessos} lista(s).`,
+      };
+    },
+    onSuccess: (r) => {
+      invalidar();
+      void actualizarProntidao();
+      setProgresso(r.resultados.map((x) => ({
+        lista_id: x.lista_id, lista_nome: x.lista_nome,
+        estado: x.ok ? "ok" : "erro", erro: x.erro,
+      })));
+      onDisparoConcluido?.(r);
+    },
+    onError: (e) => {
+      setEsperaSeg(null);
+      void actualizarProntidao();
+      setProgresso((prev) => prev.map((p) => p.estado === "ok" ? p : { ...p, estado: "erro", erro: p.erro ?? e.message }));
+      onDisparoErro?.(e.message);
+    },
+  });
+
+  const repetirLista = useMutation<{ lista_id: string; lista_nome: string; ok: boolean; erro?: string }, Error, string>({
+    mutationFn: async (listaId: string) => {
+      if (!edicaoId) throw new Error("Sem edição");
+      setProgresso((prev) => prev.map((p) => p.lista_id === listaId
+        ? { ...p, estado: "a_enviar", erro: undefined } : p));
+      const r = await repetirListaFn({ data: { edicao_id: edicaoId, lista_id: listaId } });
+      const restantesComErro = progresso.some((p) => p.lista_id !== listaId && p.estado === "erro");
+      await finalizarEnvioFn({
+        data: { edicao_id: edicaoId, lista_ids: listasSel, adiar_fecho: restantesComErro || !r.ok },
+      });
+      return r;
+    },
+    onSuccess: (r) => {
+      setProgresso((prev) => prev.map((p) => p.lista_id === r.lista_id
+        ? { ...p, estado: r.ok ? "ok" : "erro", erro: r.erro } : p));
+      invalidar();
+      void actualizarProntidao();
+      onRepetirConcluido?.(r);
+    },
+    onError: (e, listaId) => {
+      void actualizarProntidao();
+      setProgresso((prev) => prev.map((p) => p.lista_id === listaId
+        ? { ...p, estado: "erro", erro: e.message } : p));
+      onRepetirErro?.(e.message, listaId);
+    },
+  });
+
+  const agendar = useMutation<{ agendado_para: string }, Error, void>({
+    mutationFn: async () => {
+      if (!edicaoId) throw new Error("Sem edição");
+      if (listasSel.length === 0) throw new Error("Escolhe pelo menos uma lista.");
+      if (!agendarQuando) throw new Error("Escolhe a data e a hora do envio.");
+      return agendarEnvioFn({
+        data: {
+          edicao_id: edicaoId,
+          agendado_para: new Date(agendarQuando).toISOString(),
+          lista_ids: listasSel,
+          wordpress: agendarWp,
+        },
+      });
+    },
+    onSuccess: (r) => { invalidar(); onAgendado?.(r); },
+    onError: (e) => onAgendarErro?.(e.message),
+  });
+
+  const cancelarAgendamento = useMutation<unknown, Error, void>({
+    mutationFn: async () => {
+      if (!edicaoId) throw new Error("Sem edição");
+      return cancelarAgendamentoFn({ data: { edicao_id: edicaoId } });
+    },
+    onSuccess: () => { invalidar(); onCancelado?.(); },
+    onError: (e) => onCancelarErro?.(e.message),
+  });
+
+  return {
+    listas, listasSel, setListasSel, progresso, setProgresso, esperaSeg, setEsperaSeg,
+    agendarQuando, setAgendarQuando, agendarWp, setAgendarWp,
+    disparar, repetirLista, agendar, cancelarAgendamento, reset,
+  };
+}

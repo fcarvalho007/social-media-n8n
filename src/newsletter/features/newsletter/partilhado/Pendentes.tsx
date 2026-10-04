@@ -1,0 +1,380 @@
+import { useState, type RefObject } from "react";
+import { useQueryClient } from "@tanstack/react-query";
+import { useServerFn } from "@/newsletter/shim/start";
+import { corrigirDescricoes } from "@/newsletter/lib/descricoes.functions";
+import { avaliarDescricao } from "@/newsletter/lib/similaridade-texto";
+import { AlertTriangle, Check, CheckCircle2, Inbox, Loader2, Lock, Pencil, Rss, Sparkles, X } from "lucide-react";
+import { isLinkRastreio, abreviarUrl, estadoFonte } from "@/newsletter/lib/link-rastreio";
+import { stripLeadingEmoji, type CatId, type Noticia } from "../data";
+import {
+  T, COR_ATENCAO, COR_PASSIVA, SECS, Card, SectionTitle, EmptyState, Url, CatSelect,
+  OrigemSelo, RepeticaoChip, NoticiaEditForm, tempoRelativo, isUrlValido, type NoticiaDraft,
+} from "./ui";
+
+/** Fila de aprovação partilhada pelo Editor Clássico e pelo Editor Revista.
+ *  O estado e as mutações continuam a viver no editor que a monta — aqui só
+ *  vive a apresentação, para os dois formatos mostrarem exactamente o mesmo. */
+export interface PendentesProps {
+  pendentesRef: RefObject<HTMLDivElement | null>;
+  bloqueado: boolean;
+  iaConfigurada: boolean;
+  iaTooltip: string | undefined;
+  fontes: { id: string }[];
+  onAdicionarNoticias: () => void;
+  onAbrirFontes: () => void;
+  onLimparAntigas: () => void;
+  antigasCount: number;
+  filtroPend: "hoje" | "semana" | "tudo";
+  setFiltroPend: (v: "hoje" | "semana" | "tudo") => void;
+  filtroOrigem: "todos" | "email" | "rss" | "whatsapp" | "manual";
+  setFiltroOrigem: (v: "todos" | "email" | "rss" | "whatsapp" | "manual") => void;
+  soRastreio: boolean;
+  setSoRastreio: React.Dispatch<React.SetStateAction<boolean>>;
+  totalRastreio: number;
+  abertosCount: number;
+  pendAbertos: Record<string, NoticiaDraft>;
+  setPendAbertos: React.Dispatch<React.SetStateAction<Record<string, NoticiaDraft>>>;
+  pendentes: Noticia[];
+  pendentesFiltradas: Noticia[];
+  pendentesVisiveis: Noticia[];
+  pendentesOrdenadas: Noticia[];
+  pendentesProntas: Noticia[];
+  pendentesPorConfirmar: Noticia[];
+  pendentesPorMostrar: number;
+  setLimitePend: React.Dispatch<React.SetStateAction<number>>;
+  PEND_PAGINA: number;
+  accaoPend: Record<string, "aprovar" | "rejeitar">;
+  resultadoPend: Record<string, "aprovada" | "rejeitada">;
+  novosPendentesIds: Set<string>;
+  patchNoticia: { mutate: (a: { id: string; patch: Record<string, unknown> }) => void };
+  aprovar: { mutate: (a: { n: Noticia; patch?: Record<string, unknown> }) => void };
+  rejeitar: { mutate: (n: Noticia) => void };
+  abrirPend: (n: Noticia) => void;
+  fecharPend: (id: string) => void;
+  actualizarDraftPend: (id: string, d: NoticiaDraft) => void;
+  notify: (m: string, opts?: { tipo?: "ok" | "erro" }) => void;
+}
+
+/** Aviso e correcção rápida quando a descrição está a repetir o título. */
+function DescricaoRepetida({
+  id, bloqueado, notify,
+}: { id: string; bloqueado: boolean; notify: PendentesProps["notify"] }) {
+  const corrigir = useServerFn(corrigirDescricoes);
+  const [aCorrigir, setACorrigir] = useState(false);
+  const qc = useQueryClient();
+  return (
+    <div className="mt-2 flex flex-wrap items-center gap-2 text-[12.5px]" style={{ color: T.warn }}>
+      <AlertTriangle size={13} />
+      <span>A descrição repete o título.</span>
+      <button
+        type="button"
+        disabled={bloqueado || aCorrigir}
+        onClick={async () => {
+          setACorrigir(true);
+          try {
+            const r = await corrigir({ data: { ids: [id] } });
+            if (r.corrigidas > 0) {
+              notify("Descrição reescrita com o artigo original.");
+              await qc.invalidateQueries();
+            } else {
+              notify(r.falhas[0] ?? "Não foi possível melhorar esta descrição.", { tipo: "erro" });
+            }
+          } catch (e) {
+            notify((e as Error).message, { tipo: "erro" });
+          } finally {
+            setACorrigir(false);
+          }
+        }}
+        className="inline-flex items-center gap-1 rounded-md border px-2 py-1 font-semibold disabled:opacity-40"
+        style={{ borderColor: T.line, color: T.ink }}
+      >
+        {aCorrigir ? <Loader2 size={12} className="animate-spin" /> : <Sparkles size={12} />}
+        Corrigir com IA
+      </button>
+    </div>
+  );
+}
+
+export function Pendentes(props: PendentesProps) {
+  const {
+    pendentesRef, bloqueado, iaConfigurada, iaTooltip, fontes,
+    onAdicionarNoticias, onAbrirFontes, onLimparAntigas, antigasCount,
+    filtroPend, setFiltroPend, filtroOrigem, setFiltroOrigem, soRastreio, setSoRastreio,
+    totalRastreio, abertosCount, pendAbertos, setPendAbertos,
+    pendentes, pendentesFiltradas, pendentesVisiveis, pendentesOrdenadas,
+    pendentesProntas, pendentesPorConfirmar, pendentesPorMostrar, setLimitePend, PEND_PAGINA,
+    accaoPend, resultadoPend, novosPendentesIds,
+    patchNoticia, aprovar, rejeitar, abrirPend, fecharPend, actualizarDraftPend, notify,
+  } = props;
+  const corPend = pendentes.length > 0 ? COR_ATENCAO : COR_PASSIVA;
+  return (
+          <div ref={pendentesRef} id="secao-pendentes"><Card accent={corPend} glow={pendentes.length > 0}>
+            <SectionTitle icon={SECS.pendentes.icon} accent={corPend}
+
+              extra={
+                <div className="grid grid-cols-[1fr_auto] gap-2 w-full sm:flex sm:w-auto sm:items-center sm:gap-1.5">
+                  <button
+                    onClick={() => { if (!bloqueado && iaConfigurada) onAdicionarNoticias(); }}
+                    disabled={bloqueado || !iaConfigurada}
+                    className="flex items-center justify-center gap-2 text-[15px] sm:text-xs font-bold h-12 sm:h-9 px-4 sm:px-3 rounded-lg sm:rounded-md text-white shadow-sm disabled:opacity-40 disabled:cursor-not-allowed"
+                    style={{ background: T.primary }}
+                    title={iaTooltip}>
+                    {iaConfigurada ? <Sparkles size={16} /> : <Lock size={16} />} Adicionar notícias
+                  </button>
+                  <button onClick={onAbrirFontes}
+                    className="flex items-center justify-center gap-1.5 text-[15px] sm:text-xs font-semibold h-12 sm:h-9 px-4 sm:px-3 rounded-lg sm:rounded-md shrink-0"
+                    style={{ background: "#F2F4F7", color: T.muted, border: `1px solid ${T.line}` }}
+                    aria-label={`Fontes (${fontes.length})`}>
+                    <Rss size={16} /> <span className="hidden sm:inline">Fontes</span> ({fontes.length})
+                  </button>
+                </div>
+              }>
+
+              {SECS.pendentes.titulo} · {pendentes.length}
+            </SectionTitle>
+
+            {/* Aviso de acumulação */}
+            {antigasCount > 20 && (
+              <div className="mb-3 flex items-center gap-2 px-3.5 py-3 rounded-lg text-sm"
+                style={{ background: T.warnSoft, color: T.warn, border: `1px solid ${T.warnAccent}` }}>
+                <AlertTriangle size={16} className="shrink-0" />
+                <span className="flex-1">
+                  Tens <strong>{antigasCount}</strong> notícias antigas por rever (&gt; 14 dias).
+                  {" "}Podes arquivá-las ou apagá-las de vez.
+                </span>
+                <button onClick={() => !bloqueado && onLimparAntigas()} disabled={bloqueado}
+                  className="text-[13px] sm:text-xs font-semibold h-10 sm:h-8 px-3 rounded-md disabled:opacity-50"
+                  style={{ background: T.warn, color: "#fff" }}>
+                  Limpar antigas
+                </button>
+              </div>
+            )}
+
+            {/* Chips de filtro por antiguidade — segmented full-width em mobile */}
+            {pendentes.length > 0 && (
+              <div className="mb-3">
+                <div className="flex items-center gap-1 p-1 rounded-lg" style={{ background: "#F2F4F7" }}>
+                  {([
+                    ["hoje", "Hoje"],
+                    ["semana", "Esta semana"],
+                    ["tudo", "Tudo"],
+                  ] as const).map(([id, label]) => {
+                    const activo = filtroPend === id;
+                    return (
+                      <button key={id} onClick={() => setFiltroPend(id)}
+                        className="flex-1 text-[14px] sm:text-[12px] font-semibold h-10 sm:h-8 rounded-md transition-colors"
+                        style={activo
+                          ? { background: "#FFFFFF", color: T.primary, boxShadow: T.shadow, border: `1px solid ${T.primary}` }
+                          : { background: "transparent", color: T.muted }}>
+                        {label}
+                      </button>
+                    );
+                  })}
+                </div>
+                {/* Chips de filtro por origem */}
+                <div className="mt-2 flex flex-wrap gap-1.5">
+                  {([
+                    ["todos",    "Todos"],
+                    ["email",    "📧 Email"],
+                    ["rss",      "📡 RSS"],
+                    ["whatsapp", "💬 WhatsApp"],
+                    ["manual",   "✍️ Manual"],
+                  ] as const).map(([id, label]) => {
+                    const activo = filtroOrigem === id;
+                    return (
+                      <button key={id} onClick={() => setFiltroOrigem(id)}
+                        className="text-[12px] font-semibold h-8 px-2.5 rounded-full transition-colors"
+                        style={activo
+                          ? { background: T.primarySoft, color: T.primary, border: `1px solid #C7D2FE` }
+                          : { background: "#F2F4F7", color: T.muted, border: `1px solid ${T.line}` }}>
+                        {label}
+                      </button>
+                    );
+                  })}
+                  {totalRastreio > 0 && (
+                    <button onClick={() => setSoRastreio((v) => !v)}
+                      title="Mostra apenas notícias cujo link é um redireccionador de email"
+                      className="text-[12px] font-semibold h-8 px-2.5 rounded-full transition-colors"
+                      style={soRastreio
+                        ? { background: T.warnSoft, color: T.warn, border: `1px solid ${T.warnAccent}` }
+                        : { background: "#F2F4F7", color: T.muted, border: `1px solid ${T.line}` }}>
+                      ⚠️ Só links de rastreio ({totalRastreio})
+                    </button>
+                  )}
+                </div>
+                <div className="mt-2 flex items-center justify-between gap-2">
+                  {abertosCount > 1 ? (
+                    <button onClick={() => setPendAbertos({})}
+                      className="text-[12px] font-semibold h-8 px-2.5 rounded-md"
+                      style={{ background: "#F2F4F7", color: T.muted, border: `1px solid ${T.line}` }}>
+                      {abertosCount} cartões abertos · Fechar todos
+                    </button>
+                  ) : <span />}
+                  <p className="text-[12px]" style={{ color: T.faint }}>
+                    A mostrar {pendentesVisiveis.length} de {pendentes.length}
+                  </p>
+                </div>
+              </div>
+
+            )}
+
+            {pendentes.length === 0 && (
+              <EmptyState icon={Inbox} texto="Não há notícias para aprovar. Podes adicionar novas com o botão em cima ou aguardar a próxima ronda de curadoria automática." />
+            )}
+            {pendentes.length > 0 && pendentesFiltradas.length === 0 && (
+              <EmptyState icon={Inbox} texto="Nenhuma notícia neste intervalo. Muda o filtro para ver mais." />
+            )}
+            {(() => {
+              const renderPendente = (n: Noticia) => {
+                const draftPend = pendAbertos[n.id];
+                const emEdicao = draftPend !== undefined;
+                const rastreio = isLinkRastreio(n.url);
+                const fonteEstado = estadoFonte((n as { fonte_estado?: string | null }).fonte_estado);
+                const fontePorConfirmar = fonteEstado === "por_confirmar";
+                const emCurso = accaoPend[n.id];
+                const resultado = resultadoPend[n.id];
+                const corEstado = resultado === "aprovada" ? T.ok : resultado === "rejeitada" ? T.danger : null;
+                return (
+                  <div key={n.id} data-pendente-id={n.id} className={`rounded-xl p-3 sm:p-4 transition-all ${novosPendentesIds.has(n.id) ? "ds-flash-novo" : ""} ${resultado ? "opacity-70 scale-[0.99]" : ""}`}
+                    style={{
+                      background: T.card,
+                      border: `1px solid ${corEstado ?? T.line}`,
+                      borderLeft: corEstado ? `4px solid ${corEstado}` : undefined,
+                      boxShadow: emEdicao ? "0 6px 24px -12px rgba(79,70,229,0.35), 0 0 0 3px rgba(79,70,229,0.10)" : undefined,
+                    }}>
+                    {resultado && (
+                      <p className="flex items-center gap-1.5 text-[14px] font-bold mb-2" style={{ color: corEstado ?? T.ink }}>
+                        {resultado === "aprovada"
+                          ? <><CheckCircle2 size={16} /> Aprovada — entra na newsletter</>
+                          : <><X size={16} /> Rejeitada</>}
+                      </p>
+                    )}
+
+                    <div className="flex flex-col gap-3">
+                      <div className="min-w-0">
+                        <div className="flex items-center gap-2 flex-wrap">
+                          <CatSelect n={n} disabled={bloqueado}
+                            onChange={(cat) => patchNoticia.mutate({ id: n.id, patch: { categoria: cat } })} />
+                          <OrigemSelo n={n} />
+                          <RepeticaoChip n={n} />
+                          {fontePorConfirmar && (
+                            <span className="inline-flex items-center gap-1 text-[11px] font-bold px-2 py-1 rounded-md"
+                              title="Não foi possível chegar ao artigo original. Encontra e confirma a fonte antes de aprovar."
+                              style={{ color: T.warn, background: T.warnSoft, border: `1px solid ${T.warnAccent}` }}>
+                              <AlertTriangle size={11} /> Fonte por confirmar
+                            </span>
+                          )}
+                          {fonteEstado === "resolvida" && (
+                            <span className="inline-flex items-center gap-1 text-[11px] font-bold px-2 py-1 rounded-md"
+                              title="O link de rastreio foi substituído automaticamente pela fonte original."
+                              style={{ color: T.ok, background: "#ECFDF3", border: "1px solid #A6F4C5" }}>
+                              <Check size={11} /> Fonte resolvida
+                            </span>
+                          )}
+                          {rastreio && !fontePorConfirmar && (
+                            <span className="inline-flex items-center gap-1 text-[11px] font-bold px-2 py-1 rounded-md"
+                              title="O link aponta para um redireccionador de email. Usa a pesquisa por IA para encontrar a fonte original."
+                              style={{ color: T.warn, background: T.warnSoft, border: `1px solid ${T.warnAccent}` }}>
+                              <AlertTriangle size={11} /> Link de rastreio · precisa de fonte
+                            </span>
+                          )}
+                          <span className="text-[13px] sm:text-[12px]" style={{ color: T.faint }}>{tempoRelativo(n.created_at)}</span>
+
+                        </div>
+                        {emEdicao ? (
+                          <NoticiaEditForm
+                            draft={draftPend}
+                            onDraftChange={(d) => actualizarDraftPend(n.id, d)}
+                            onCancel={() => fecharPend(n.id)}
+                            onSubmit={() => {
+                              const novoUrl = draftPend.url.trim();
+                              if (novoUrl && !isUrlValido(novoUrl)) { notify("URL inválido — corrige antes de aprovar"); return; }
+                              if (fontePorConfirmar && (!novoUrl || novoUrl === n.url)) {
+                                notify("Fonte por confirmar — corrige o link antes de aprovar.");
+                                return;
+                              }
+                              aprovar.mutate({ n, patch: { titulo: draftPend.titulo, descricao: draftPend.descricao, categoria: draftPend.categoria, url: novoUrl || null, fonte_estado: "ok" } });
+                            }}
+                            submitLabel="Guardar e aprovar"
+                            submitTone="ok"
+                            cancelLabel="Fechar"
+                          />
+                        ) : (
+                          <>
+                            <p className="text-[17px] sm:text-[16px] font-bold leading-snug mt-2">{stripLeadingEmoji(n.titulo)}</p>
+                             <p className="text-[15.5px] sm:text-[14px] mt-1.5 leading-relaxed line-clamp-3 sm:line-clamp-none" style={{ color: T.muted }}>{n.descricao}</p>
+                             {avaliarDescricao(n.titulo, n.descricao).repete && (
+                               <DescricaoRepetida id={n.id} bloqueado={bloqueado} notify={notify} />
+                             )}
+                            <div className="mt-2">
+                              {rastreio && n.url
+                                ? <a href={n.url} target="_blank" rel="noopener noreferrer" className="text-[13px] break-all underline"
+                                    title={n.url} style={{ color: T.warn }}>{abreviarUrl(n.url)}</a>
+                                : <Url href={n.url} />}
+                            </div>
+                          </>
+                        )}
+                      </div>
+
+
+                      {!emEdicao && !resultado && (
+                        <div className="grid grid-cols-2 sm:grid-cols-3 gap-2 pt-3 border-t" style={{ borderColor: T.line }}>
+                          <button onClick={() => { if (bloqueado || emCurso) return; if (fontePorConfirmar) { notify("Fonte por confirmar — abre «Editar» e corrige o link antes de aprovar.", { tipo: "erro" }); return; } aprovar.mutate({ n }); }}
+                            disabled={bloqueado || fontePorConfirmar || !!emCurso}
+                            title={fontePorConfirmar ? "Corrige a fonte antes de aprovar" : undefined} aria-label="Aprovar"
+                            className="col-span-2 sm:col-span-1 min-h-12 sm:min-h-11 flex items-center justify-center gap-1.5 rounded-lg text-white transition-transform hover:scale-105 disabled:opacity-40 text-[15px] sm:text-[14px] font-bold" style={{ background: T.ok }}>
+                            {emCurso === "aprovar"
+                              ? <><Loader2 size={18} className="animate-spin" /> A aprovar…</>
+                              : <><Check size={18} /> Aprovar</>}
+                          </button>
+                          <button onClick={() => !bloqueado && !emCurso && abrirPend(n)} disabled={bloqueado || !!emCurso} aria-label="Editar antes de aprovar"
+                            className="min-h-12 sm:min-h-11 flex items-center justify-center gap-1.5 rounded-lg transition-transform hover:scale-105 disabled:opacity-40 text-[15px] sm:text-[14px] font-bold" style={{ background: T.primarySoft, color: T.primary }}>
+                            <Pencil size={16} /> Editar
+                          </button>
+                          <button onClick={() => !bloqueado && !emCurso && rejeitar.mutate(n)} disabled={bloqueado || !!emCurso} aria-label="Rejeitar"
+                            className="min-h-12 sm:min-h-11 flex items-center justify-center gap-1.5 rounded-lg transition-transform hover:scale-105 disabled:opacity-40 text-[15px] sm:text-[14px] font-bold" style={{ background: T.dangerSoft, color: T.danger }}>
+                            {emCurso === "rejeitar"
+                              ? <><Loader2 size={18} className="animate-spin" /> A rejeitar…</>
+                              : <><X size={18} /> Rejeitar</>}
+                          </button>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+
+                );
+              };
+              return (
+                <div className="space-y-3">
+                  {pendentesProntas.map(renderPendente)}
+                  {pendentesPorConfirmar.length > 0 && (
+                    <div className="flex items-center gap-2 pt-2">
+                      <span className="h-px flex-1" style={{ background: T.line }} />
+                      <span className="text-[12px] font-bold px-2 py-1 rounded-full whitespace-nowrap"
+                        style={{ color: T.warn, background: T.warnSoft, border: `1px solid ${T.warnAccent}` }}>
+                        {pendentesPorConfirmar.length} {pendentesPorConfirmar.length === 1 ? "precisa" : "precisam"} de fonte antes de aprovar
+                      </span>
+                      <span className="h-px flex-1" style={{ background: T.line }} />
+                    </div>
+                  )}
+                  {pendentesPorConfirmar.map(renderPendente)}
+                  {pendentesPorMostrar > 0 && (
+                    <button onClick={() => setLimitePend((v) => v + PEND_PAGINA)}
+                      className="w-full min-h-12 rounded-xl text-[15px] sm:text-[14px] font-bold"
+                      style={{ background: T.primarySoft, color: T.primary, border: `1px solid #C7D2FE` }}>
+                      Ver mais {Math.min(PEND_PAGINA, pendentesPorMostrar)} (restam {pendentesPorMostrar})
+                    </button>
+                  )}
+                  {pendentesPorMostrar === 0 && pendentesOrdenadas.length > PEND_PAGINA && (
+                    <button onClick={() => setLimitePend(PEND_PAGINA)}
+                      className="w-full min-h-12 rounded-xl text-[14px] sm:text-[13px] font-semibold"
+                      style={{ background: "#F2F4F7", color: T.muted, border: `1px solid ${T.line}` }}>
+                      Mostrar só as primeiras {PEND_PAGINA}
+                    </button>
+                  )}
+                </div>
+              );
+            })()}
+          </Card></div>
+  );
+}

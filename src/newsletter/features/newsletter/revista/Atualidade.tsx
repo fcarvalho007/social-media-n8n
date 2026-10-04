@@ -1,0 +1,862 @@
+// «A Atualidade» do editor Revista: centro único de selecção e gestão das
+// notícias da edição. Reúne o resumo do que entra no email (Destaques + Radar,
+// arrastáveis) e todas as notícias aprovadas agrupadas pela taxonomia canónica.
+//
+// Não altera o composer, os renderers nem o editor Clássico: usa o universo
+// único (`getAprovadasDaEdicao`) e as mutações já existentes.
+
+import { useEffect, useMemo, useState } from "react";
+import { LIMITES_REVISTA, ROTULOS_REVISTA } from "@/newsletter/lib/newsletter-engine/revista/rotulos";
+import { useMutation } from "@tanstack/react-query";
+import { useServerFn } from "@/newsletter/shim/start";
+import {
+  DndContext, closestCenter, KeyboardSensor, PointerSensor, TouchSensor,
+  useSensor, useSensors, type DragEndEvent,
+} from "@dnd-kit/core";
+import {
+  SortableContext, arrayMove, sortableKeyboardCoordinates, useSortable,
+  verticalListSortingStrategy,
+} from "@dnd-kit/sortable";
+import { CSS } from "@dnd-kit/utilities";
+import {
+  ChevronDown, ChevronUp, Globe, GripVertical, Mail, PenLine, Pencil, Sparkles, Trash2,
+} from "lucide-react";
+import { toast } from "sonner";
+import { gerarMinhaLeitura } from "@/newsletter/lib/ia-leitura.functions";
+import {
+  categorias, catDe, CatSelect, NoticiaEditForm, type NoticiaDraft,
+} from "../partilhado/ui";
+import type { CatId } from "../data";
+import type { ItemRevista, NoticiaAprovada, PapelRevista } from "./data-revista";
+
+export type PapelDerivado = PapelRevista | "so_site";
+
+export type PatchDestaque = Partial<
+  Pick<ItemRevista, "titulo_override" | "resumo_factual" | "minha_leitura" | "cta_rotulo" | "radar_nota">
+>;
+
+export interface AccoesAtualidade {
+  /** Define o papel de uma notícia (ou remove-a do email quando «so_site»). */
+  definirPapel: (noticiaId: string, papel: PapelDerivado) => void;
+  /** Nova ordem completa das notícias da edição (ordem de curadoria/web). */
+  reordenar: (ids: string[]) => void;
+  /** Guarda os campos editoriais de um Destaque. */
+  patchItem: (itemId: string, patch: PatchDestaque) => void;
+  /** Guarda os campos base da notícia (título, descrição, link, categoria). */
+  patchNoticia: (noticiaId: string, patch: PatchNoticia) => void;
+  /** Tira a notícia desta edição (volta a pendente/rejeitada, conforme os dados). */
+  removerNoticia: (noticiaId: string) => void;
+}
+
+export type PatchNoticia = Partial<{
+  titulo: string; descricao: string; url: string; categoria: CatId;
+}>;
+
+const ACENTO: Record<PapelDerivado, string> = {
+  destaque: "border-l-2 border-l-primary/70 bg-primary/[0.03]",
+  radar: "border-l-2 border-l-sky-600/50 bg-sky-500/[0.03]",
+  so_site: "border-l-2 border-l-border",
+};
+
+const ROTULO: Record<PapelDerivado, string> = {
+  destaque: "Destaque",
+  radar: "Radar",
+  so_site: "Só site",
+};
+
+const SIMBOLO: Record<PapelDerivado, string> = { destaque: "☆", radar: "◎", so_site: "○" };
+
+function Botao({
+  activo, desactivado, titulo, onClick, children,
+}: {
+  activo: boolean; desactivado?: boolean; titulo?: string;
+  onClick: () => void; children: React.ReactNode;
+}) {
+  return (
+    <button
+      type="button" onClick={onClick} disabled={desactivado && !activo} title={titulo}
+      aria-pressed={activo}
+      className={`rounded-lg border px-2.5 py-1.5 text-[12px] transition ${
+        activo
+          ? "border-foreground/25 bg-foreground/[0.06] font-bold text-foreground"
+          : desactivado
+            ? "border-border font-medium text-muted-foreground/45"
+            : "border-border font-medium text-muted-foreground hover:bg-muted"
+      }`}
+    >
+      {children}
+    </button>
+  );
+}
+
+/**
+ * Os três destinos editoriais, sempre com a mesma taxonomia e pela mesma
+ * ordem. O estado activo lê-se pelo peso, pela borda e pelo símbolo — não
+ * depende só da cor.
+ */
+export function TrioDestino({
+  papel, cheios, onDefinir,
+}: {
+  papel: PapelDerivado;
+  cheios?: { destaque: boolean; radar: boolean };
+  onDefinir: (p: PapelDerivado) => void;
+}) {
+  const cheioD = Boolean(cheios?.destaque);
+  const cheioR = Boolean(cheios?.radar);
+  return (
+    <div className="flex flex-wrap gap-2" role="group" aria-label="Destino editorial">
+      <Botao
+        activo={papel === "destaque"} desactivado={cheioD}
+        titulo={cheioD && papel !== "destaque"
+          ? `Já tens ${LIMITES_REVISTA.destaquesMax} destaques — liberta um antes de escolher outro`
+          : `Entra em «${ROTULOS_REVISTA.destaques}»`}
+        onClick={() => onDefinir("destaque")}
+      >
+        {SIMBOLO.destaque} Destaque
+      </Botao>
+      <Botao
+        activo={papel === "radar"} desactivado={cheioR}
+        titulo={cheioR && papel !== "radar"
+          ? "O Radar já tem 5 notícias — liberta uma antes de escolher outra"
+          : "Entra no Radar"}
+        onClick={() => onDefinir("radar")}
+      >
+        {SIMBOLO.radar} Radar
+      </Botao>
+      <Botao
+        activo={papel === "so_site"}
+        titulo="Fica só na página web da edição"
+        onClick={() => onDefinir("so_site")}
+      >
+        {SIMBOLO.so_site} Só site
+      </Botao>
+    </div>
+  );
+}
+
+/* ─── painel editorial do Destaque ─── */
+
+function CampoDestaque({
+  etiqueta, valor, onChange, dica, linhas,
+}: {
+  etiqueta: string; valor: string; onChange: (v: string) => void;
+  dica?: string; linhas?: number;
+}) {
+  const cls = "w-full rounded-xl border border-input bg-background px-3.5 py-2.5 text-[15px] text-foreground outline-none transition focus:border-primary";
+  return (
+    <label className="block">
+      <span className="mb-1.5 block text-[13px] font-semibold text-muted-foreground">{etiqueta}</span>
+      {linhas
+        ? <textarea className={cls} rows={linhas} value={valor} onChange={(e) => onChange(e.target.value)} />
+        : <input className={cls} value={valor} onChange={(e) => onChange(e.target.value)} />}
+      {dica && <span className="mt-1.5 block text-[12px] text-muted-foreground">{dica}</span>}
+    </label>
+  );
+}
+
+/** Conta palavras de um texto livre. */
+function contarPalavras(v: string): number {
+  return v.trim() ? v.trim().split(/\s+/).length : 0;
+}
+
+const MIN_LEITURA = 35;
+const MAX_LEITURA = 70;
+
+/** Contador de palavras com o intervalo recomendado. */
+function ContadorLeitura({ texto }: { texto: string }) {
+  const n = contarPalavras(texto);
+  if (n === 0) return <span className="text-[12px] text-muted-foreground">Entre {MIN_LEITURA} e {MAX_LEITURA} palavras.</span>;
+  const fora = n < MIN_LEITURA || n > MAX_LEITURA;
+  return (
+    <span className={`text-[12px] ${fora ? "text-amber-600 dark:text-amber-400" : "text-muted-foreground"}`}>
+      {n} {n === 1 ? "palavra" : "palavras"}
+      {n < MIN_LEITURA ? ` — curta, o alvo são ${MIN_LEITURA}–${MAX_LEITURA}.`
+        : n > MAX_LEITURA ? ` — longa, o alvo são ${MIN_LEITURA}–${MAX_LEITURA}.`
+          : " — dentro do alvo."}
+    </span>
+  );
+}
+
+/**
+ * «A minha leitura» escrita com IA (DeepSeek). Devolve sempre uma proposta:
+ * nada é gravado sem o editor carregar em «Usar este texto».
+ */
+function LeituraIA({
+  item, textoActual, onUsar,
+}: { item: ItemRevista; textoActual: string; onUsar: (v: string) => void }) {
+  const [proposta, setProposta] = useState<string | null>(null);
+  const [segundos, setSegundos] = useState(0);
+  const gerar = useServerFn(gerarMinhaLeitura);
+  const temTexto = !!textoActual.trim();
+  const semResumo = !item.resumo_factual?.trim();
+
+  const m = useMutation({
+    mutationFn: () => gerar({
+      data: {
+        titulo: item.titulo_override?.trim() || item.noticia?.titulo || "",
+        resumo: item.resumo_factual ?? "",
+        descricao: item.noticia?.descricao ?? "",
+        categoria: item.noticia?.categoria ?? "",
+        url: item.noticia?.url ?? "",
+        edicao_id: item.edicao_id,
+        noticia_id: item.noticia_id ?? null,
+      },
+    }),
+    onSuccess: (r) => setProposta(r.leitura),
+    onError: (e: Error) => toast.error(e.message),
+  });
+
+  useEffect(() => {
+    if (!m.isPending) { setSegundos(0); return; }
+    const t = window.setInterval(() => setSegundos((s) => s + 1), 1000);
+    return () => window.clearInterval(t);
+  }, [m.isPending]);
+
+  const usar = () => {
+    if (!proposta) return;
+    onUsar(proposta);
+    setProposta(null);
+    toast.success("Leitura aplicada.");
+  };
+
+  return (
+    <div className="mt-2 space-y-2">
+      <div className="flex flex-wrap items-center gap-2">
+        <button
+          type="button"
+          onClick={() => m.mutate()}
+          disabled={m.isPending}
+          className="inline-flex items-center gap-1.5 rounded-lg border border-border bg-background px-2.5 py-1.5 text-[13px] font-semibold text-foreground hover:bg-muted disabled:opacity-50"
+        >
+          <Sparkles size={14} className="text-primary" />
+          {m.isPending ? `A escrever… ${segundos}s` : temTexto ? "Reescrever com IA" : "Escrever com IA"}
+        </button>
+        <span className="text-[12px] text-muted-foreground">
+          Consultor, com punchline. Ficas sempre com a última palavra.
+        </span>
+      </div>
+
+      {semResumo && (
+        <p className="text-[12px] text-amber-600 dark:text-amber-400">
+          Sem resumo factual a leitura sai mais pobre — preenche o campo acima primeiro.
+        </p>
+      )}
+
+      {proposta && (
+        <div className="rounded-xl border border-primary/30 bg-primary/[0.04] p-3">
+          <p className="mb-1.5 text-[12px] font-semibold uppercase tracking-wide text-muted-foreground">
+            Proposta da IA {temTexto ? "— compara antes de substituir" : ""}
+          </p>
+
+          {temTexto && (
+            <div className="mb-2 rounded-lg border border-border bg-background/70 p-2.5">
+              <p className="mb-1 text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">Texto actual</p>
+              <p className="text-[13.5px] leading-relaxed text-muted-foreground">{textoActual}</p>
+            </div>
+          )}
+
+          <textarea
+            className="w-full rounded-lg border border-input bg-background px-3 py-2 text-[14.5px] leading-relaxed text-foreground outline-none transition focus:border-primary"
+            rows={4}
+            value={proposta}
+            aria-label="Proposta da IA — podes editar antes de aplicar"
+            onChange={(e) => setProposta(e.target.value)}
+          />
+          <div className="mt-1"><ContadorLeitura texto={proposta} /></div>
+
+          <div className="mt-2.5 flex flex-wrap gap-2">
+            <button
+              type="button" onClick={usar}
+              className="rounded-lg bg-primary px-3 py-1.5 text-[13px] font-semibold text-primary-foreground hover:opacity-90"
+            >
+              {temTexto ? "Substituir pelo texto proposto" : "Usar este texto"}
+            </button>
+            <button
+              type="button" onClick={() => m.mutate()} disabled={m.isPending}
+              className="rounded-lg border border-border px-3 py-1.5 text-[13px] font-semibold text-foreground hover:bg-muted disabled:opacity-50"
+            >
+              Gerar outra
+            </button>
+            <button
+              type="button" onClick={() => setProposta(null)}
+              className="rounded-lg px-3 py-1.5 text-[13px] text-muted-foreground hover:bg-muted"
+            >
+              Descartar
+            </button>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+
+/**
+ * Caixa de «A minha leitura» com o aspecto que tem na newsletter: barra azul à
+ * esquerda, fundo azul-claro e letra serifada. Inclui contador e escrita com IA.
+ */
+function CaixaMinhaLeitura({
+  item, valor, onChange, dica = true,
+}: { item: ItemRevista; valor: string; onChange: (v: string) => void; dica?: boolean }) {
+  return (
+    <div className="rounded-xl border border-primary/25 border-l-[3px] border-l-primary bg-primary/[0.05] p-3.5">
+      <p className="mb-1.5 font-serif text-[13.5px] font-bold text-primary">A minha leitura</p>
+      <textarea
+        className="w-full rounded-lg border border-input bg-background px-3 py-2.5 font-serif text-[15.5px] leading-relaxed text-foreground outline-none transition focus:border-primary"
+        rows={4}
+        value={valor}
+        aria-label="A minha leitura"
+        onChange={(e) => onChange(e.target.value)}
+      />
+      <div className="mt-1"><ContadorLeitura texto={valor} /></div>
+      {dica && (
+        <p className="mt-1 text-[12px] text-muted-foreground">
+          Interpretação editorial própria, não um resumo — é o painel serifado do email.
+        </p>
+      )}
+      <LeituraIA item={item} textoActual={valor} onUsar={onChange} />
+    </div>
+  );
+}
+
+/** Só «A minha leitura», com gravação com atraso (800 ms). */
+function LeituraSolo({ item, onPatch }: { item: ItemRevista; onPatch: (patch: PatchDestaque) => void }) {
+  const [valor, setValor] = useState(item.minha_leitura ?? "");
+  const [pendente, setPendente] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (pendente === null) return;
+    const t = window.setTimeout(() => { onPatch({ minha_leitura: pendente }); setPendente(null); }, 800);
+    return () => window.clearTimeout(t);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [pendente]);
+
+  return (
+    <CaixaMinhaLeitura
+      item={item}
+      valor={valor}
+      onChange={(v) => { setValor(v); setPendente(v); }}
+    />
+  );
+}
+
+/** Campos editoriais do item, com gravação com atraso (800 ms). */
+function PainelDestaque({
+  item, papel, onPatch,
+}: { item: ItemRevista; papel: PapelDerivado; onPatch: (patch: PatchDestaque) => void }) {
+  const [titulo, setTitulo] = useState(item.titulo_override ?? "");
+  const [resumo, setResumo] = useState(item.resumo_factual ?? "");
+  const [leitura, setLeitura] = useState(item.minha_leitura ?? "");
+  const [cta, setCta] = useState(item.cta_rotulo ?? "");
+  const [nota, setNota] = useState(item.radar_nota ?? "");
+  const [pendente, setPendente] = useState<PatchDestaque | null>(null);
+
+  useEffect(() => {
+    if (!pendente) return;
+    const t = window.setTimeout(() => { onPatch(pendente); setPendente(null); }, 800);
+    return () => window.clearTimeout(t);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [pendente]);
+
+  const editar = (patch: PatchDestaque) => setPendente((p) => ({ ...(p ?? {}), ...patch }));
+
+  if (papel === "radar") {
+    return (
+      <div className="mt-3 space-y-3 rounded-xl border border-border bg-muted/25 p-3.5">
+        <CampoDestaque
+          etiqueta="Título editorial (opcional)" valor={titulo}
+          onChange={(v) => { setTitulo(v); editar({ titulo_override: v }); }}
+        />
+        <CampoDestaque
+          etiqueta="Nota do radar" linhas={2} valor={nota}
+          onChange={(v) => { setNota(v); editar({ radar_nota: v }); }}
+          dica="Uma linha curta de contexto, por baixo do título."
+        />
+      </div>
+    );
+  }
+
+  return (
+    <div className="mt-3 space-y-3 rounded-xl border border-border bg-muted/25 p-3.5">
+      <CampoDestaque
+        etiqueta="Título editorial (opcional)" valor={titulo}
+        onChange={(v) => { setTitulo(v); editar({ titulo_override: v }); }}
+      />
+      <CampoDestaque
+        etiqueta="Resumo factual" linhas={3} valor={resumo}
+        onChange={(v) => { setResumo(v); editar({ resumo_factual: v }); }}
+        dica="Uma ou duas frases, sem opinião."
+      />
+      <CaixaMinhaLeitura
+        item={item}
+        valor={leitura}
+        onChange={(v) => { setLeitura(v); editar({ minha_leitura: v }); }}
+      />
+      <CampoDestaque
+        etiqueta="Texto do botão" valor={cta}
+        onChange={(v) => { setCta(v); editar({ cta_rotulo: v }); }}
+        dica="Em branco fica «Ler a notícia»."
+      />
+    </div>
+  );
+}
+
+function estadoDestaque(item?: ItemRevista): string {
+  if (!item) return "";
+  const faltaResumo = !item.resumo_factual?.trim();
+  const faltaLeitura = !item.minha_leitura?.trim();
+  if (faltaResumo && faltaLeitura) return "falta o resumo e A minha leitura";
+  if (faltaResumo) return "falta o resumo factual";
+  if (faltaLeitura) return "falta A minha leitura";
+  return "completo";
+}
+
+/** Estado do Brief de uma notícia, tal como é mostrado no cartão. */
+export interface SeloBrief {
+  rotulo: string;
+  precisaAtencao: boolean;
+  papel: "destaque" | "radar";
+}
+
+/** Etiqueta discreta: símbolo + texto, nunca só cor, e sem conteúdo do Brief. */
+function SeloDoBrief({ selo }: { selo: SeloBrief }) {
+  const alerta = selo.precisaAtencao || selo.rotulo === "Erro";
+  const pronto = selo.rotulo === "Pronto";
+  return (
+    <span
+      className={`inline-flex items-center gap-1 rounded-full border px-2 py-0.5 text-[11px] font-semibold ${
+        alerta
+          ? "border-amber-500/40 bg-amber-500/10 text-amber-700 dark:text-amber-400"
+          : pronto
+            ? "border-border bg-muted text-foreground"
+            : "border-border bg-muted/50 text-muted-foreground"
+      }`}
+      title={`${selo.papel === "radar" ? "Quick Brief" : "Brief"}: ${selo.rotulo}`}
+    >
+      {alerta ? "!" : pronto ? "✓" : "·"} {selo.papel === "radar" ? "Quick Brief" : "Brief"}: {selo.rotulo}
+    </span>
+  );
+}
+
+function Cartao({
+  n, papel, item, indice, total, bloqueado, cheios, accoes, selo, onMover,
+}: {
+  n: NoticiaAprovada; papel: PapelDerivado; item?: ItemRevista; indice: number; total: number;
+  bloqueado: boolean; cheios: { destaque: boolean; radar: boolean }; accoes: AccoesAtualidade;
+  selo?: SeloBrief;
+  onMover: (dir: -1 | 1) => void;
+}) {
+  const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id: n.id });
+  const estilo = { transform: CSS.Transform.toString(transform), transition, opacity: isDragging ? 0.6 : 1 };
+  const [painel, setPainel] = useState<"leitura" | "editorial" | null>(null);
+  const [editandoTexto, setEditandoTexto] = useState(false);
+  const [leituraRapida, setLeituraRapida] = useState("");
+  const [draft, setDraft] = useState<NoticiaDraft>({
+    titulo: n.titulo, descricao: n.descricao ?? "", categoria: n.categoria as CatId, url: n.url ?? "",
+  });
+  const eDestaque = papel === "destaque" && !!item;
+  const eEditavel = (papel === "destaque" || papel === "radar") && !!item;
+  const estado = eDestaque ? estadoDestaque(item) : "";
+  const noEmail = papel !== "so_site";
+
+  const abrirEdicao = () => {
+    setDraft({ titulo: n.titulo, descricao: n.descricao ?? "", categoria: n.categoria as CatId, url: n.url ?? "" });
+    setLeituraRapida(item?.minha_leitura ?? "");
+    setPainel(null);
+    setEditandoTexto(true);
+  };
+  const guardarEdicao = () => {
+    accoes.patchNoticia(n.id, {
+      titulo: draft.titulo.trim(),
+      descricao: draft.descricao.trim(),
+      url: draft.url.trim(),
+      categoria: draft.categoria,
+    });
+    if (eDestaque && item && leituraRapida !== (item.minha_leitura ?? "")) {
+      accoes.patchItem(item.id, { minha_leitura: leituraRapida });
+    }
+    setEditandoTexto(false);
+  };
+
+  return (
+    <div id={`noticia-${n.id}`} ref={setNodeRef} style={estilo} className={`scroll-mt-32 rounded-xl border border-border p-3.5 ${ACENTO[papel]}`}>
+      <div className="flex items-start gap-3">
+        <div className="flex shrink-0 flex-col items-center">
+          <button
+            type="button" {...attributes} {...listeners}
+            className="cursor-grab touch-none rounded-lg p-1.5 text-muted-foreground hover:bg-muted"
+            aria-label="Arrastar para reordenar"
+          >
+            <GripVertical size={18} />
+          </button>
+          <button
+            type="button" disabled={bloqueado || indice === 0} onClick={() => onMover(-1)}
+            className="rounded-md p-0.5 text-muted-foreground hover:bg-muted disabled:opacity-30"
+            aria-label="Subir"
+          >
+            <ChevronUp size={16} />
+          </button>
+          <span className="text-[12px] font-bold tabular-nums text-muted-foreground">{indice + 1}</span>
+          <button
+            type="button" disabled={bloqueado || indice === total - 1} onClick={() => onMover(1)}
+            className="rounded-md p-0.5 text-muted-foreground hover:bg-muted disabled:opacity-30"
+            aria-label="Descer"
+          >
+            <ChevronDown size={16} />
+          </button>
+        </div>
+
+        <div className="min-w-0 flex-1">
+          <div className="flex flex-wrap items-center gap-2">
+            <CatSelect
+              n={n} disabled={bloqueado}
+              onChange={(c) => accoes.patchNoticia(n.id, { categoria: c })}
+            />
+            <span
+              className={`inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[11px] font-semibold ${
+                noEmail
+                  ? "border border-primary/25 bg-primary/10 text-primary"
+                  : "border border-border bg-muted text-muted-foreground"
+              }`}
+              title={noEmail ? "Entra no email desta edição" : "Fica só na página web da edição"}
+            >
+              {noEmail ? <><Mail size={10} /> {SIMBOLO[papel]} {ROTULO[papel]}</> : <><Globe size={10} /> Só no site</>}
+            </span>
+            {estado && estado !== "completo" && (
+              <span className="text-[11.5px] font-semibold text-amber-700">{estado}</span>
+            )}
+            {selo && noEmail && <SeloDoBrief selo={selo} />}
+          </div>
+
+          {editandoTexto && !bloqueado ? (
+            <NoticiaEditForm
+              draft={draft}
+              onDraftChange={setDraft}
+              onCancel={() => setEditandoTexto(false)}
+              onSubmit={guardarEdicao}
+              submitLabel="Guardar"
+              submitTone="primary"
+              extra={eDestaque && item
+                ? <CaixaMinhaLeitura item={item} valor={leituraRapida} onChange={setLeituraRapida} dica={false} />
+                : undefined}
+            />
+          ) : (
+            <>
+              <p className="mt-1.5 text-[16px] font-semibold leading-snug text-foreground">
+                {item?.titulo_override?.trim() || n.titulo}
+              </p>
+              {n.descricao && (
+                <p className="mt-1 text-[14px] leading-relaxed text-muted-foreground">{n.descricao}</p>
+              )}
+              {(n.url_curto || n.url) && (
+                <a
+                  href={n.url_curto || n.url || "#"} target="_blank" rel="noreferrer"
+                  className="mt-1.5 block truncate text-[13px] text-primary underline"
+                >
+                  {n.url_curto || n.url}
+                </a>
+              )}
+            </>
+          )}
+        </div>
+      </div>
+
+      {!bloqueado && !editandoTexto && (
+        <div className="mt-3 flex flex-wrap items-center gap-2 pl-9">
+          <TrioDestino papel={papel} cheios={cheios} onDefinir={(p) => accoes.definirPapel(n.id, p)} />
+          {eEditavel && (
+            <button
+              type="button" onClick={() => setPainel((p) => (p === "editorial" ? null : "editorial"))}
+              className="inline-flex items-center gap-1.5 rounded-lg border border-border px-2.5 py-1.5 text-[12px] font-medium text-foreground hover:bg-muted"
+              aria-expanded={painel === "editorial"}
+            >
+              <PenLine size={13} /> {painel === "editorial" ? "Fechar texto editorial" : "Texto editorial"}
+            </button>
+          )}
+          {eDestaque && (
+            <button
+              type="button" onClick={() => setPainel((p) => (p === "leitura" ? null : "leitura"))}
+              className={`inline-flex items-center gap-1.5 rounded-lg border px-2.5 py-1.5 font-serif text-[13px] font-bold ${
+                item?.minha_leitura?.trim()
+                  ? "border-primary/30 bg-primary/[0.06] text-primary hover:bg-primary/10"
+                  : "border-amber-500/40 bg-amber-500/[0.08] text-amber-700 hover:bg-amber-500/15 dark:text-amber-400"
+              }`}
+              aria-expanded={painel === "leitura"}
+            >
+              <Sparkles size={13} />
+              A minha leitura
+              <span className="font-sans text-[11px] font-semibold opacity-80">
+                {item?.minha_leitura?.trim() ? "escrita" : "por escrever"}
+              </span>
+            </button>
+          )}
+          <button
+            type="button" onClick={abrirEdicao}
+            className="inline-flex items-center gap-1.5 rounded-lg border border-border bg-primary/[0.06] px-2.5 py-1.5 text-[12px] font-semibold text-primary hover:bg-primary/10"
+          >
+            <Pencil size={13} /> Editar
+          </button>
+          <button
+            type="button"
+            onClick={() => {
+              if (!window.confirm(`Remover «${n.titulo.slice(0, 50)}» desta edição?`)) return;
+              accoes.removerNoticia(n.id);
+            }}
+            className="inline-flex items-center gap-1.5 rounded-lg border border-destructive/25 bg-destructive/[0.06] px-2.5 py-1.5 text-[12px] font-semibold text-destructive hover:bg-destructive/10"
+          >
+            <Trash2 size={13} /> Remover
+          </button>
+        </div>
+      )}
+      {eEditavel && painel === "editorial" && !bloqueado && (
+        <div className="pl-9">
+          <PainelDestaque item={item} papel={papel} onPatch={(patch) => accoes.patchItem(item.id, patch)} />
+        </div>
+      )}
+      {eDestaque && item && painel === "leitura" && !bloqueado && (
+        <div className="mt-3 pl-9">
+          <LeituraSolo item={item} onPatch={(patch) => accoes.patchItem(item.id, patch)} />
+        </div>
+      )}
+    </div>
+  );
+}
+
+export function Atualidade({
+  aprovadas, itens, bloqueado, accoes, selosBrief,
+}: {
+  aprovadas: NoticiaAprovada[];
+  itens: ItemRevista[];
+  bloqueado: boolean;
+  accoes: AccoesAtualidade;
+  /** Estado do Brief por notícia — mostrado como etiqueta discreta. */
+  selosBrief?: Map<string, SeloBrief>;
+}) {
+  const [fechadas, setFechadas] = useState<Record<string, boolean>>({});
+  const sensors = useSensors(
+    useSensor(PointerSensor, { activationConstraint: { distance: 6 } }),
+    useSensor(TouchSensor, { activationConstraint: { delay: 180, tolerance: 6 } }),
+    useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates }),
+  );
+
+  const porNoticia = useMemo(
+    () => new Map(itens.map((i) => [i.noticia_id, i])),
+    [itens],
+  );
+
+  const ordenadas = useMemo(() => {
+    const pos = new Map(categorias.map((c, i) => [c.id as string, i]));
+    return [...aprovadas].sort((a, b) => {
+      const pa = pos.get(a.categoria) ?? 99;
+      const pb = pos.get(b.categoria) ?? 99;
+      if (pa !== pb) return pa - pb;
+      return (a.ordem ?? 0) - (b.ordem ?? 0);
+    });
+  }, [aprovadas]);
+
+  const grupos = useMemo(() => {
+    const conhecidas = categorias
+      .map((c) => ({ cat: c, itens: ordenadas.filter((n) => n.categoria === c.id) }))
+      .filter((g) => g.itens.length > 0);
+    const idsConhecidos = new Set(categorias.map((c) => c.id as string));
+    const outras = ordenadas.filter((n) => !idsConhecidos.has(n.categoria));
+    return outras.length
+      ? [...conhecidas, { cat: { id: "outras", curto: "Sem categoria", nome: "Sem categoria", cor: "#94A3B8" }, itens: outras }]
+      : conhecidas;
+  }, [ordenadas]);
+
+  const nDestaques = itens.filter((i) => i.papel === "destaque").length;
+  const nRadar = itens.filter((i) => i.papel === "radar").length;
+  const cheios = { destaque: nDestaques >= LIMITES_REVISTA.destaquesMax, radar: nRadar >= LIMITES_REVISTA.radarMax };
+
+  /** Sobe/desce uma notícia dentro do seu grupo, escrevendo a ordem global. */
+  const mover = (grupo: NoticiaAprovada[], indice: number, dir: -1 | 1) => {
+    const destino = indice + dir;
+    if (destino < 0 || destino >= grupo.length) return;
+    const novaOrdemGrupo = arrayMove(grupo, indice, destino).map((n) => n.id);
+    const idsGrupo = new Set(novaOrdemGrupo);
+    let k = 0;
+    accoes.reordenar(ordenadas.map((n) => (idsGrupo.has(n.id) ? novaOrdemGrupo[k++]! : n.id)));
+  };
+
+  const arrastar = (grupo: NoticiaAprovada[]) => (e: DragEndEvent) => {
+    const { active, over } = e;
+    if (!over || active.id === over.id) return;
+    const de = grupo.findIndex((n) => n.id === active.id);
+    const para = grupo.findIndex((n) => n.id === over.id);
+    if (de < 0 || para < 0) return;
+    const novaOrdemGrupo = arrayMove(grupo, de, para).map((n) => n.id);
+    const idsGrupo = new Set(novaOrdemGrupo);
+    let k = 0;
+    const total = ordenadas.map((n) => (idsGrupo.has(n.id) ? novaOrdemGrupo[k++] : n.id));
+    accoes.reordenar(total);
+  };
+
+  if (aprovadas.length === 0) {
+    return (
+      <p className="text-[14px] leading-relaxed text-muted-foreground">
+        Ainda não há notícias aprovadas nesta edição. Aprova nos «Pendentes de aprovação» e elas aparecem aqui,
+        prontas a entrar nos Destaques ou no Radar.
+      </p>
+    );
+  }
+
+  return (
+    <div className="space-y-3">
+      <div className="flex flex-wrap items-center gap-2">
+        {[
+          { rotulo: "Aprovadas", valor: String(aprovadas.length) },
+          { rotulo: "No email", valor: `${nDestaques + nRadar}/8` },
+          { rotulo: "Destaques", valor: `${nDestaques}/${LIMITES_REVISTA.destaquesMax}` },
+          { rotulo: "Radar", valor: `${nRadar}/${LIMITES_REVISTA.radarMax}` },
+          { rotulo: "Só no site", valor: String(aprovadas.length - (nDestaques + nRadar)) },
+        ].map((c) => (
+          <span
+            key={c.rotulo}
+            className="inline-flex items-baseline gap-1.5 rounded-full border border-border bg-muted/40 px-3 py-1"
+          >
+            <strong className="text-[14px] font-bold tabular-nums text-foreground">{c.valor}</strong>
+            <span className="text-[12px] font-medium text-muted-foreground">{c.rotulo}</span>
+          </span>
+        ))}
+      </div>
+      <p className="text-[14px] text-muted-foreground">
+        Todas as notícias aprovadas desta edição. Escolhe aqui o destino de cada uma, edita o texto
+        ou remove-a da edição.
+      </p>
+
+      {grupos.map((g) => {
+        const aberta = !fechadas[g.cat.id];
+        return (
+          <div key={g.cat.id} className="rounded-xl border border-border">
+            <button
+              type="button"
+              onClick={() => setFechadas((f) => ({ ...f, [g.cat.id]: aberta }))}
+              className="flex w-full items-center gap-3 px-4 py-3 text-left"
+              aria-expanded={aberta}
+            >
+              <span className="h-2.5 w-2.5 rounded-full" style={{ background: g.cat.cor }} />
+              <span className="flex-1 text-[15px] font-semibold text-foreground">{g.cat.curto}</span>
+              <span className="rounded-full bg-muted px-2.5 py-1 text-[12px] font-semibold text-muted-foreground">
+                {g.itens.length} · {g.itens.filter((n) => porNoticia.has(n.id)).length} no email
+              </span>
+              <ChevronDown size={16} className={`text-muted-foreground transition-transform ${aberta ? "rotate-180" : ""}`} />
+            </button>
+            {aberta && (
+              <div className="border-t border-border p-3">
+                <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={arrastar(g.itens)}>
+                  <SortableContext items={g.itens.map((n) => n.id)} strategy={verticalListSortingStrategy}>
+                    <div className="space-y-2.5">
+                      {g.itens.map((n, i) => {
+                        const item = porNoticia.get(n.id);
+                        return (
+                          <Cartao
+                            key={n.id} n={n} indice={i} total={g.itens.length}
+                            bloqueado={bloqueado} cheios={cheios}
+                            item={item} papel={item?.papel ?? "so_site"} accoes={accoes}
+                            selo={selosBrief?.get(n.id)}
+                            onMover={(dir) => mover(g.itens, i, dir)}
+                          />
+                        );
+                      })}
+                    </div>
+                  </SortableContext>
+                </DndContext>
+              </div>
+            )}
+          </div>
+        );
+      })}
+    </div>
+  );
+}
+
+/* ─── resumo compacto: ordem final no email ─── */
+
+interface LinhaResumo { id: string; titulo: string }
+
+function LinhaOrdenavel({ n, indice }: { n: LinhaResumo; indice: number }) {
+  const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id: n.id });
+  const estilo = { transform: CSS.Transform.toString(transform), transition, opacity: isDragging ? 0.6 : 1 };
+  return (
+    <li
+      ref={setNodeRef} style={estilo}
+      className="flex items-center gap-2 rounded-lg border border-border bg-background px-2.5 py-2"
+    >
+      <button
+        type="button" {...attributes} {...listeners}
+        className="cursor-grab touch-none rounded p-1 text-muted-foreground hover:bg-muted"
+        aria-label="Arrastar para reordenar"
+      >
+        <GripVertical size={16} />
+      </button>
+      <span className="w-4 shrink-0 text-[12px] font-semibold tabular-nums text-muted-foreground">{indice + 1}</span>
+      <span className="min-w-0 flex-1 truncate text-[14px] text-foreground">{n.titulo}</span>
+    </li>
+  );
+}
+
+function Coluna({
+  titulo, contador, itens, vazio, onReordenar,
+}: {
+  titulo: string; contador: string; itens: LinhaResumo[]; vazio: string;
+  onReordenar: (ids: string[]) => void;
+}) {
+  const sensors = useSensors(
+    useSensor(PointerSensor, { activationConstraint: { distance: 6 } }),
+    useSensor(TouchSensor, { activationConstraint: { delay: 180, tolerance: 6 } }),
+    useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates }),
+  );
+  const arrastar = (e: DragEndEvent) => {
+    const { active, over } = e;
+    if (!over || active.id === over.id) return;
+    const de = itens.findIndex((i) => i.id === active.id);
+    const para = itens.findIndex((i) => i.id === over.id);
+    if (de < 0 || para < 0) return;
+    onReordenar(arrayMove(itens, de, para).map((i) => i.id));
+  };
+  return (
+    <div className="rounded-xl border border-border bg-muted/20 p-3">
+      <p className="mb-2 text-[12px] font-semibold uppercase tracking-wide text-muted-foreground">
+        {titulo} · {contador}
+      </p>
+      {itens.length === 0
+        ? <p className="text-[13px] text-muted-foreground">{vazio}</p>
+        : (
+          <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={arrastar}>
+            <SortableContext items={itens.map((i) => i.id)} strategy={verticalListSortingStrategy}>
+              <ul className="space-y-1.5">
+                {itens.map((n, i) => <LinhaOrdenavel key={n.id} n={n} indice={i} />)}
+              </ul>
+            </SortableContext>
+          </DndContext>
+        )}
+    </div>
+  );
+}
+
+/**
+ * Ordem final do que sai no email. A numeração é de gestão interna — nunca
+ * aparece na newsletter. Cada coluna ordena apenas o seu papel.
+ */
+export function ResumoOrdem({
+  destaques, radar, onReordenar,
+}: {
+  destaques: LinhaResumo[]; radar: LinhaResumo[];
+  onReordenar: (papel: PapelRevista, ids: string[]) => void;
+}) {
+  return (
+    <div className="grid gap-3 sm:grid-cols-2">
+      <Coluna
+        titulo="Destaques" contador={`${destaques.length}/${LIMITES_REVISTA.destaquesMax}`} itens={destaques}
+        vazio="Ainda sem destaques escolhidos."
+        onReordenar={(ids) => onReordenar("destaque", ids)}
+      />
+      <Coluna
+        titulo="Radar" contador={`${radar.length}/${LIMITES_REVISTA.radarMax}`} itens={radar}
+        vazio="Ainda sem entradas no Radar."
+        onReordenar={(ids) => onReordenar("radar", ids)}
+      />
+    </div>
+  );
+}

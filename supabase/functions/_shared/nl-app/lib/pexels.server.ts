@@ -1,0 +1,54 @@
+import process from "node:process";
+// Cliente Pexels (server-only). Partilhado pela imagem da crónica e pela
+// proposta automática de apresentação, para haver uma única implementação.
+
+import type { FotoPexels } from "./pexels-tipos.ts";
+
+export type { FotoPexels };
+
+interface RespostaPexels {
+  photos?: Array<{
+    id: number;
+    alt?: string;
+    photographer?: string;
+    photographer_url?: string;
+    width?: number;
+    height?: number;
+    src?: { large?: string; large2x?: string; medium?: string; original?: string };
+  }>;
+}
+
+export async function pesquisarPexels(
+  termo: string,
+  pagina = 1,
+  porPagina = 18,
+): Promise<{ fotos: FotoPexels[]; erro?: string }> {
+  const chave = process.env["PEXELS_API_KEY"];
+  if (!chave) return { fotos: [], erro: "Falta a chave do Pexels." };
+  const q = (termo || "").trim();
+  if (q.length < 2) return { fotos: [] };
+
+  const url = new URL("https://api.pexels.com/v1/search");
+  url.searchParams.set("query", q);
+  url.searchParams.set("per_page", String(porPagina));
+  url.searchParams.set("page", String(Math.max(1, pagina)));
+  url.searchParams.set("locale", "pt-PT");
+  url.searchParams.set("orientation", "landscape");
+
+  const res = await fetch(url, { headers: { Authorization: chave } });
+  if (!res.ok) return { fotos: [], erro: "A pesquisa de imagens falhou. Tenta outra vez." };
+  const json = (await res.json()) as RespostaPexels;
+  const fotos: FotoPexels[] = (json.photos ?? [])
+    .map((f) => ({
+      id: f.id,
+      previewUrl: f.src?.medium ?? f.src?.large ?? "",
+      originalUrl: f.src?.large2x ?? f.src?.large ?? f.src?.original ?? "",
+      alt: (f.alt ?? "").trim(),
+      autor: (f.photographer ?? "").trim(),
+      autorUrl: (f.photographer_url ?? "").trim(),
+      largura: f.width ?? 0,
+      altura: f.height ?? 0,
+    }))
+    .filter((f) => f.previewUrl && f.originalUrl);
+  return { fotos };
+}

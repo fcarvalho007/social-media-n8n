@@ -1,0 +1,205 @@
+// «A seleção completa»: a secção mais densa da edição.
+// Grelha de cartões com filtro por categoria e pesquisa em texto livre.
+// Estado local — não recarrega a página nem altera o URL. Sem JavaScript,
+// todos os cartões continuam visíveis.
+
+import { useMemo, useState } from "react";
+import type { GrupoAtualidades } from "@/newsletter/lib/revista-web.functions";
+import { IntroSeccao, dominioDe } from "./ui";
+
+type AtualidadeRevista = GrupoAtualidades["itens"][number];
+
+const TODAS = "__todas__";
+
+function normalizar(s: string): string {
+  return s
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .toLowerCase()
+    .trim();
+}
+
+function Cartao({ item, ordem }: { item: AtualidadeRevista; ordem: number }) {
+  const fonte = dominioDe(item.url);
+  return (
+    <article className="rw-card flex flex-col pt-4">
+      <div className="flex items-baseline justify-between gap-3">
+        <span className="text-[11px] font-semibold uppercase tracking-[0.16em] text-rw-blue">
+          {item.categoriaRotulo || item.categoria}
+        </span>
+        <span className="text-[11px] font-semibold tabular-nums text-rw-ink-2/70">
+          {String(ordem).padStart(2, "0")}
+        </span>
+      </div>
+
+      <h3 className="mt-2 text-[19px] font-semibold leading-[1.25] tracking-[-0.01em] sm:text-[21px]">
+        <a href={item.url} target="_blank" rel="noopener noreferrer" className="text-rw-ink rw-link">
+          {item.titulo}
+        </a>
+      </h3>
+
+      {item.descricao ? (
+        <p className="mt-2 text-[14.5px] leading-6 text-rw-ink-2 sm:text-[15px]">{item.descricao}</p>
+      ) : null}
+
+      <div className="mt-4 flex items-end justify-between gap-3 border-t border-rw-rule pt-2.5 text-[12.5px] text-rw-ink-2">
+        <span className="min-w-0 truncate">{fonte}</span>
+        <a
+          href={item.url}
+          target="_blank"
+          rel="noopener noreferrer"
+          aria-label={`Ler notícia: ${item.titulo}`}
+          className="shrink-0 font-semibold text-rw-blue underline-offset-4 hover:underline"
+        >
+          Ler notícia <span aria-hidden>↗</span>
+        </a>
+      </div>
+    </article>
+  );
+}
+
+import { ROTULOS_REVISTA } from "@/newsletter/lib/newsletter-engine/revista/rotulos";
+
+export function Atualidades({ grupos, numeroSeccao }: { grupos: GrupoAtualidades[]; numeroSeccao: number }) {
+  const [activa, setActiva] = useState<string>(TODAS);
+  const [pesquisa, setPesquisa] = useState("");
+
+  const itens = useMemo(
+    () =>
+      grupos.flatMap((g) =>
+        g.itens.map((n) => ({
+          item: n,
+          categoria: g.categoria,
+          busca: normalizar(
+            [n.titulo, n.descricao, g.rotulo || g.categoria, dominioDe(n.url)].filter(Boolean).join(" "),
+          ),
+        })),
+      ),
+    [grupos],
+  );
+
+  const total = itens.length;
+  if (!total) return null;
+
+  const termos = normalizar(pesquisa).split(/\s+/).filter(Boolean);
+  const visiveis = itens.filter(
+    (r) => (activa === TODAS || r.categoria === activa) && termos.every((t) => r.busca.includes(t)),
+  );
+
+  const separadores = [
+    { id: TODAS, rotulo: "Todas", n: total },
+    ...grupos.map((g) => ({ id: g.categoria, rotulo: g.rotulo || g.categoria, n: g.itens.length })),
+  ];
+  const rotuloActivo = separadores.find((s) => s.id === activa)?.rotulo ?? "Todas";
+  const filtrado = activa !== TODAS || termos.length > 0;
+
+  const limpar = () => {
+    setActiva(TODAS);
+    setPesquisa("");
+  };
+
+  return (
+    <section aria-labelledby="atualidades">
+      <IntroSeccao
+        id="atualidades"
+        numero={numeroSeccao}
+        etiqueta="A seleção completa"
+        titulo={ROTULOS_REVISTA.atualidades}
+        nota="Escolhidas por mim, incluindo as que não seguiram no email. Explora os temas que interessam ao teu trabalho."
+      />
+
+      <div className="rw-nao-imprimir flex flex-wrap items-center gap-x-4 gap-y-2 border-y border-rw-rule py-2">
+        <div
+          role="group"
+          aria-label="Filtrar notícias por categoria"
+          className="-mx-1 flex min-w-0 flex-1 items-center gap-x-3 overflow-x-auto px-1"
+        >
+          {separadores.map((s) => {
+            const on = s.id === activa;
+            return (
+              <button
+                key={s.id}
+                type="button"
+                aria-pressed={on}
+                onClick={() => setActiva(s.id)}
+                className={`inline-flex min-h-[44px] shrink-0 items-center gap-1.5 border-b-2 text-[14px] transition-colors ${
+                  on
+                    ? "border-rw-blue font-bold text-rw-ink"
+                    : "border-transparent font-medium text-rw-ink-2 hover:text-rw-ink"
+                }`}
+              >
+                {s.rotulo}
+                <span className={on ? "text-rw-blue" : "text-rw-ink-2/60"}>{s.n}</span>
+              </button>
+            );
+          })}
+        </div>
+
+        <div className="flex min-h-[44px] w-full items-center gap-2 border border-rw-rule bg-white px-3 sm:w-auto sm:min-w-[16rem]">
+          <label className="sr-only" htmlFor="pesquisa-edicao">
+            Pesquisar notícias por tema, título ou fonte
+          </label>
+          <span aria-hidden className="text-rw-ink-2">
+            ⌕
+          </span>
+          <input
+            id="pesquisa-edicao"
+            type="search"
+            value={pesquisa}
+            onChange={(ev) => setPesquisa(ev.target.value)}
+            placeholder="Pesquisar nesta edição"
+            autoComplete="off"
+            className="w-full bg-transparent py-2 text-[14.5px] text-rw-ink outline-none placeholder:text-rw-ink-2/70"
+          />
+        </div>
+      </div>
+
+      <div className="rw-nao-imprimir mt-3 flex items-center justify-between gap-3">
+        <p role="status" aria-live="polite" aria-atomic className="text-[13px] text-rw-ink-2">
+          {visiveis.length} {visiveis.length === 1 ? "notícia" : "notícias"} de {total} · {rotuloActivo}
+          {termos.length ? ` · Pesquisa: “${pesquisa.trim()}”` : ""}
+        </p>
+        {filtrado ? (
+          <button
+            type="button"
+            onClick={limpar}
+            className="min-h-[44px] shrink-0 text-[13px] font-semibold text-rw-blue underline-offset-4 hover:underline"
+          >
+            Limpar filtros
+          </button>
+        ) : null}
+      </div>
+
+      {visiveis.length === 0 ? (
+        <div className="mt-8 border-t border-rw-rule pt-8">
+          <h3 className="text-[20px] font-semibold tracking-tight">Nenhuma notícia encontrada.</h3>
+          <p className="mt-2 text-[15px] text-rw-ink-2">Experimenta outro termo ou escolhe uma categoria diferente.</p>
+          <button
+            type="button"
+            onClick={limpar}
+            className="mt-4 inline-flex min-h-[44px] items-center bg-rw-blue px-5 text-[14px] font-semibold text-white"
+          >
+            Mostrar todas as notícias
+          </button>
+        </div>
+      ) : (
+        <div className="mt-6 grid gap-x-8 gap-y-9 sm:grid-cols-2 lg:grid-cols-3">
+          {visiveis.map((r, i) => (
+            <Cartao key={r.item.noticiaId} item={r.item} ordem={i + 1} />
+          ))}
+        </div>
+      )}
+
+      <div className="mt-10 flex items-center justify-between gap-4 border-t border-rw-rule pt-4 text-[13.5px] text-rw-ink-2">
+        <span>
+          {filtrado
+            ? "Estas são as notícias que correspondem à tua seleção."
+            : "Chegaste ao fim da seleção desta edição."}
+        </span>
+        <a href="#topo" className="shrink-0 font-semibold text-rw-blue underline-offset-4 hover:underline">
+          Voltar ao início ↑
+        </a>
+      </div>
+    </section>
+  );
+}

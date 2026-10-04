@@ -1,0 +1,16 @@
+// Contagens agregadas dos Briefs, sempre em segundo plano: se falharem, a
+// página não se apercebe.
+
+import { registarEventoBriefFn, type EventoBrief } from "@/newsletter/lib/brief-analytics.functions";
+
+export function registarEventoBrief(
+  evento: EventoBrief,
+  slug: string | undefined,
+  edicaoNumero?: number | null,
+  activo = true,
+): void {
+  if (!activo || !slug) return;
+  void registarEventoBriefFn({ data: { evento, slug, edicaoNumero: edicaoNumero ?? null } }).catch(() => {});
+}
+
+export type { EventoBrief };

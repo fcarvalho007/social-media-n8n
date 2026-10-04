@@ -1,0 +1,52 @@
+// Painel de bloqueios: o que falta para a edição poder ser enviada,
+// em português simples, e cada linha leva ao sítio onde se resolve.
+
+import { AlertTriangle, CheckCircle2 } from "lucide-react";
+import { plural } from "@/newsletter/lib/plural";
+
+export interface Bloqueio {
+  id: string;
+  texto: string;
+  /** «grave» impede o envio; «aviso» é uma falha editorial a corrigir. */
+  nivel: "grave" | "aviso";
+  /** Falso quando é apenas uma recomendação e não trava o envio. */
+  impedeEnvio?: boolean;
+  ir: () => void;
+}
+
+export function PainelBloqueios({ bloqueios }: { bloqueios: Bloqueio[] }) {
+  if (bloqueios.length === 0) {
+    return (
+      <div className="flex items-center gap-2 rounded-2xl border border-estado-pronto-borda bg-estado-pronto-suave px-4 py-3 text-[13.5px] text-estado-pronto">
+        <CheckCircle2 size={16} />
+        Não falta nada para enviar esta edição.
+      </div>
+    );
+  }
+  return (
+    <div className="rounded-2xl border border-estado-falta-borda bg-estado-falta-suave px-4 py-3">
+      <p className="mb-2 flex items-center gap-2 text-[12px] font-bold uppercase tracking-wider text-estado-falta">
+        <AlertTriangle size={14} />
+        {plural(bloqueios.length, "ponto por resolver", "pontos por resolver")}
+      </p>
+      <ul className="flex flex-col gap-0.5">
+        {bloqueios.map((b) => (
+          <li key={b.id}>
+            <button
+              type="button"
+              onClick={b.ir}
+              className="group flex min-h-11 w-full items-center gap-2.5 rounded-lg px-2 py-1.5 text-left text-[13.5px] text-foreground hover:bg-estado-falta-borda/40 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring"
+            >
+              <span
+                aria-hidden
+                className={`h-2 w-2 flex-none rounded-full ${b.nivel === "grave" ? "bg-estado-grave" : "bg-estado-falta"}`}
+              />
+              <span className="min-w-0 flex-1">{b.texto}</span>
+              <span className="flex-none text-[12.5px] font-semibold text-primary">Ir →</span>
+            </button>
+          </li>
+        ))}
+      </ul>
+    </div>
+  );
+}
