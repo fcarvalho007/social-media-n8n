@@ -34,7 +34,7 @@ export async function listarTrabalhos(projectId: string | null): Promise<Trabalh
 }
 
 export interface NovoTrabalho {
-  project_id: string; texto: string; titulo: string; objetivo: string; tom: string; slides: number; modo?: "estruturacao" | "demonstracao"; nova?: boolean;
+  project_id: string; texto: string; titulo: string; objetivo: string; tom: string; slides: number; modo?: "estruturacao" | "demonstracao" | "ia"; nova?: boolean;
 }
 export const criarTrabalho = (n: NovoTrabalho) => invocar<{ trabalho_id: string; reutilizado: boolean }>({ acao: "criar", ...n });
 export const retomarTrabalho = (id: string) => invocar<{ retomado: boolean }>({ acao: "retomar", trabalho_id: id });
@@ -106,3 +106,19 @@ export async function lerVersao(documentoId: string, versao: number, propostaId:
   const { data: pv } = await supabase.from("mc_propostas_versoes").select("conteudo").eq("proposta_id", propostaId).eq("versao", dv.proposta_versao).single();
   return { documento: dv.documento as unknown as DocumentoGrafico, conteudo: pv!.conteudo as unknown as PropostaEditorial };
 }
+
+export interface OrcamentoIa { maxDia: number; maxTrabalho: number; usadosHoje: number }
+/** Reads the project's AI call limits (0 = AI off) and today's real calls (Lisbon day). */
+export async function lerOrcamento(projectId: string): Promise<OrcamentoIa> {
+  const [{ data: o, error }, { data: u, error: eu }] = await Promise.all([
+    supabase.from("mc_orcamentos").select("max_chamadas_dia, max_chamadas_trabalho").eq("project_id", projectId).maybeSingle(),
+    supabase.rpc("mc_uso_hoje", { _project_id: projectId }),
+  ]);
+  if (error || eu) throw new Error("Não foi possível ler os limites da IA.");
+  return { maxDia: o?.max_chamadas_dia ?? 0, maxTrabalho: Math.min(o?.max_chamadas_trabalho ?? 2, 2), usadosHoje: (u as number | null) ?? 0 };
+}
+export async function definirOrcamento(projectId: string, maxDia: number, maxTrabalho: number): Promise<void> {
+  const { error } = await supabase.rpc("mc_definir_orcamento", { _project_id: projectId, _max_dia: maxDia, _max_trabalho: maxTrabalho });
+  if (error) throw new Error(error.code === "42501" ? "Só o dono do projeto com papel de editor pode alterar os limites." : "Não foi possível gravar os limites.");
+}
+export const MODELO_IA_NOME = "GPT-6 Astra (OpenAI, via Lovable AI)";

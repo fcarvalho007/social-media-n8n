@@ -4736,6 +4736,10 @@ export type Database = {
           trabalho_id: string
         }[]
       }
+      mc_definir_orcamento: {
+        Args: { _max_dia: number; _max_trabalho: number; _project_id: string }
+        Returns: undefined
+      }
       mc_fechar_esgotados: { Args: never; Returns: number }
       mc_gravar_documento: {
         Args: {
@@ -4868,6 +4872,7 @@ export type Database = {
         }
       }
       mc_retomar_trabalho: { Args: { _trabalho_id: string }; Returns: boolean }
+      mc_uso_hoje: { Args: { _project_id: string }; Returns: number }
       mc_validar_documento: { Args: { _d: Json }; Returns: undefined }
       nl_contar_dados_antigos: { Args: { _dias?: number }; Returns: Json }
       nl_conteudos_guardar_versao: {

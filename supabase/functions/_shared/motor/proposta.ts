@@ -125,21 +125,36 @@ export function respostaDemo(f: FonteNormalizada, brief: Brief): string {
 }
 
 /** Validates a provider response: facts must cite existing paragraphs; injected rules are ignored (data only). */
-export function validarRespostaModelo(raw: string, f: FonteNormalizada): { titulo: string; slides: SlideProposta[]; legenda: string } {
+export const MODELO_IA = "openai/gpt-6-astra";
+
+/** Validates a model answer against the source. Throws a short, model-facing error (used for the single repair). */
+export function validarRespostaModelo(raw: string, f: FonteNormalizada, slidesPedidos?: number): { titulo: string; slides: SlideProposta[]; legenda: string; alt: string[] | null } {
   let v: unknown;
-  try { v = JSON.parse(raw); } catch { throw new Error("Resposta não é JSON."); }
-  const o = v as { titulo?: unknown; slides?: unknown; legenda?: unknown };
-  if (typeof o.titulo !== "string" || !Array.isArray(o.slides) || typeof o.legenda !== "string") throw new Error("Resposta sem titulo/slides/legenda.");
-  if (o.slides.length < LIMITES_FONTE.minSlides || o.slides.length > LIMITES_FONTE.maxSlides) throw new Error("Número de slides fora dos limites.");
+  const limpo = raw.trim().replace(/^```(?:json)?\s*/i, "").replace(/\s*```$/, "");
+  try { v = JSON.parse(limpo); } catch { throw new Error("A resposta não é JSON válido."); }
+  if (!v || typeof v !== "object" || Array.isArray(v)) throw new Error("A resposta tem de ser um objeto JSON.");
+  const o = v as { titulo?: unknown; slides?: unknown; legenda?: unknown; alt?: unknown };
+  if (typeof o.titulo !== "string" || !o.titulo.trim()) throw new Error("Falta 'titulo'.");
+  if (!Array.isArray(o.slides)) throw new Error("Falta 'slides'.");
+  if (typeof o.legenda !== "string" || !o.legenda.trim()) throw new Error("Falta 'legenda'.");
+  if (o.slides.length < LIMITES_FONTE.minSlides || o.slides.length > LIMITES_FONTE.maxSlides) throw new Error(`Número de slides fora de ${LIMITES_FONTE.minSlides}–${LIMITES_FONTE.maxSlides}.`);
+  if (slidesPedidos && o.slides.length !== slidesPedidos) throw new Error(`Pedidos ${slidesPedidos} slides, recebidos ${o.slides.length}.`);
+  if (o.legenda.length > 2200) throw new Error("'legenda' com mais de 2200 caracteres.");
   const papeis: Papel[] = ["capa", "contexto", "desenvolvimento", "fecho"];
   const slides = o.slides.map((s, i) => {
-    const x = s as Record<string, unknown>;
-    if (typeof x.titulo !== "string" || typeof x.texto !== "string" || !Array.isArray(x.fontes)) throw new Error(`Slide ${i + 1} inválido.`);
-    const fontes = x.fontes.filter((n): n is number => Number.isInteger(n) && n >= 1 && n <= f.paragrafos.length);
+    const x = (s ?? {}) as Record<string, unknown>;
+    if (typeof x.titulo !== "string" || typeof x.texto !== "string" || !Array.isArray(x.fontes)) throw new Error(`Slide ${i + 1}: faltam titulo/texto/fontes.`);
+    if (!x.titulo.trim()) throw new Error(`Slide ${i + 1}: título vazio.`);
     if (x.texto.length > 1500 || x.titulo.length > 300) throw new Error(`Slide ${i + 1} demasiado longo.`);
-    return { id: `s${i + 1}`, papel: papeis.includes(x.papel as Papel) ? (x.papel as Papel) : "desenvolvimento", titulo: x.titulo, texto: x.texto, fontes };
+    const papel = papeis.includes(x.papel as Papel) ? (x.papel as Papel) : "desenvolvimento";
+    const fontes = [...new Set(x.fontes as unknown[])];
+    for (const n of fontes) if (!Number.isInteger(n) || (n as number) < 1 || (n as number) > f.paragrafos.length) throw new Error(`Slide ${i + 1}: referência §${String(n)} não existe (fonte tem ${f.paragrafos.length} parágrafos).`);
+    if (papel !== "fecho" && fontes.length === 0) throw new Error(`Slide ${i + 1}: falta referência aos parágrafos da fonte.`);
+    return { id: `s${i + 1}`, papel, titulo: x.titulo.trim(), texto: x.texto.trim(), fontes: (fontes as number[]).sort((a, b) => a - b) };
   });
-  return { titulo: o.titulo.slice(0, 300), slides, legenda: o.legenda.slice(0, 2200) };
+  let alt: string[] | null = null;
+  if (Array.isArray(o.alt) && o.alt.length === slides.length && o.alt.every((a) => typeof a === "string" && a.trim())) alt = (o.alt as string[]).map((a) => a.trim().slice(0, 250));
+  return { titulo: o.titulo.trim().slice(0, 300), slides, legenda: o.legenda.trim(), alt };
 }
 
 export function validarProposta(v: unknown): PropostaEditorial {

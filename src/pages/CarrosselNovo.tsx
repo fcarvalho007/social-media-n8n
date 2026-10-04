@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useMemo, useRef, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { ArrowLeft, FlaskConical, Loader2 } from "lucide-react";
 import { toast } from "sonner";
@@ -8,7 +8,8 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useProjeto } from "@/contexts/ProjetoContext";
-import { criarTrabalho } from "@/services/motor";
+import { criarTrabalho, type OrcamentoIa } from "@/services/motor";
+import { LimitesIa } from "@/features/motor/LimitesIa";
 import { avaliarFonte, LIMITES_FONTE, MARCADOR_FIXTURE, normalizarFonte } from "../../supabase/functions/_shared/motor/proposta";
 
 /** Synthetic fixture for the deterministic demo provider (never real user text). */
@@ -29,6 +30,10 @@ export default function CarrosselNovo() {
   const [slides, setSlides] = useState<number | null>(null);
   const [demo, setDemo] = useState(false);
   const [aCriar, setACriar] = useState(false);
+  const [orc, setOrc] = useState<OrcamentoIa | null>(null);
+  const projetoRef = useRef(projeto);
+  projetoRef.current = projeto;
+  const comIa = !demo && !!orc && orc.maxDia > 0 && orc.usadosHoje < orc.maxDia;
 
   const fonte = useMemo(() => normalizarFonte(texto), [texto]);
   const av = useMemo(() => avaliarFonte(fonte), [fonte]);
@@ -38,8 +43,11 @@ export default function CarrosselNovo() {
   const criar = async () => {
     if (!podeCriar) return;
     setACriar(true);
+    const alvo = projeto;
     try {
-      const r = await criarTrabalho({ project_id: projeto, texto, titulo, objetivo, tom, slides: nSlides, modo: demo ? "demonstracao" : "estruturacao" });
+      const r = await criarTrabalho({ project_id: alvo, texto, titulo, objetivo, tom, slides: nSlides, modo: demo ? "demonstracao" : comIa ? "ia" : "estruturacao" });
+      // The selection changed while waiting: do not apply an answer that belongs to another project.
+      if (projetoRef.current !== alvo) { toast.info("O projeto mudou entretanto; o carrossel ficou no projeto anterior."); setACriar(false); return; }
       if (r.reutilizado) toast.info("Já existia um carrossel com esta fonte e estas opções; foi aberto.");
       nav(`/estudio/carrosseis/${r.trabalho_id}`);
     } catch (e) {
@@ -99,13 +107,16 @@ export default function CarrosselNovo() {
               {av.ok ? `Sugestão: ${av.slidesSugeridos}. Este texto permite até ${av.slidesMax} (capa, um slide por parágrafo e fecho com a fonte).` : "Depende do texto."}
             </p>
           </div>
+          {projeto && !demo && <LimitesIa projectId={projeto} onAlterado={setOrc} />}
           <p className="rounded-md bg-muted p-3 text-xs text-muted-foreground">
-            Nesta fase o carrossel é estruturado sem IA: cada frase vem do texto, com a referência ao parágrafo, e nada é inventado. Depois podes editar o conteúdo e o design.
+            {demo ? "Demonstração: fornecedor simulado, sem IA real." : comIa
+              ? "A IA reescreve o texto em slides usando só factos da fonte, com referência aos parágrafos (§). Usa 1 pedido (2 se precisar de correção). Depois podes editar tudo."
+              : "Sem IA: cada frase vem do texto, com a referência ao parágrafo, e nada é inventado. Liga a IA em «Limites da IA» para reescrever em slides."}
           </p>
           <div className="flex flex-wrap items-center gap-2">
-            <Button className="h-11 sm:h-9" disabled={!podeCriar} onClick={criar}>{aCriar && <Loader2 className="mr-2 h-4 w-4 motion-safe:animate-spin" />}Criar carrossel</Button>
+            <Button className="h-11 sm:h-9" disabled={!podeCriar} onClick={criar}>{aCriar && <Loader2 className="mr-2 h-4 w-4 motion-safe:animate-spin" />}{demo ? "Gerar demonstração" : comIa ? "Gerar carrossel" : "Gerar sem IA"}</Button>
             {!demo ? (
-              <Button variant="ghost" className="h-11 sm:h-9" onClick={() => { setDemo(true); setTexto(FIXTURE_DEMO); setTitulo(""); setSlides(null); }}>
+              <Button variant="ghost" size="sm" className="h-11 text-muted-foreground sm:h-9" onClick={() => { setDemo(true); setTexto(FIXTURE_DEMO); setTitulo(""); setSlides(null); }}>
                 <FlaskConical className="mr-1.5 h-4 w-4" />Usar texto de demonstração
               </Button>
             ) : (

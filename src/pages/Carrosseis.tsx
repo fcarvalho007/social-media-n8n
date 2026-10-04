@@ -4,6 +4,7 @@ import { Layers, Loader2, Plus } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { useProjeto } from "@/contexts/ProjetoContext";
+import { LimitesIa } from "@/features/motor/LimitesIa";
 import { listarTrabalhos, type EstadoTrabalho, type TrabalhoResumo } from "@/services/motor";
 
 export const NOME_ESTADO: Record<EstadoTrabalho, string> = {
@@ -37,6 +38,7 @@ export default function Carrosseis() {
         <Button asChild className="h-11 sm:h-9"><Link to="/estudio/carrosseis/novo"><Plus className="mr-1.5 h-4 w-4" />Novo carrossel</Link></Button>
       </header>
 
+      {projetoId && <LimitesIa projectId={projetoId} />}
       {erro && <p role="alert" className="text-sm text-destructive">{erro}</p>}
       {!itens && !erro && <p className="flex items-center text-sm text-muted-foreground" role="status"><Loader2 className="mr-2 h-4 w-4 motion-safe:animate-spin" />A carregar…</p>}
       {itens && itens.length === 0 && (
@@ -54,7 +56,7 @@ export default function Carrosseis() {
                 <div className="min-w-0 flex-1">
                   <p className="truncate text-sm font-medium">{t.titulo || "Sem título"}</p>
                   <p className="truncate text-xs text-muted-foreground">
-                    {!projetoId && `${nomeProjeto(t.project_id)} · `}{dataPt(t.criado_em)}{t.modelo === "simulado-demo" && " · demonstração"}
+                    {!projetoId && `${nomeProjeto(t.project_id)} · `}{dataPt(t.criado_em)}{t.modelo === "simulado-demo" ? " · demonstração" : t.modelo.startsWith("openai/") ? " · IA" : " · sem IA"}
                   </p>
                 </div>
                 <Badge variant={t.estado === "concluido" ? "secondary" : t.estado === "erro" || t.estado === "desconhecido" ? "destructive" : "outline"}>{NOME_ESTADO[t.estado]}</Badge>
