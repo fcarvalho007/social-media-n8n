@@ -40,3 +40,6 @@
 - [x] Tabelas mc_* (fontes, trabalhos/etapas, propostas e versões, documentos A/B e versões, chamadas IA, orçamentos, exportações, ligações sociais)
 - [x] Funções com versão esperada, aprovação invalidada por alteração, reserva/lease e teto de chamadas
 - [ ] Ligar o editor e o processador às novas funções (R3)
+
+- [x] R3: Carrosséis no Estúdio (texto colado, fila no servidor, retoma de 5 em 5 min, editor ligado com versões)
+- [ ] R4+: fontes link/PDF, IA real com orçamento > 0, exportação e rascunho social (R6)
