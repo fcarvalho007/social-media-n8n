@@ -1,8 +1,10 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-const refreshSession = vi.fn();
-const signOut = vi.fn(async () => ({ error: null }));
-const invoke = vi.fn();
+const { refreshSession, signOut, invoke } = vi.hoisted(() => ({
+  refreshSession: vi.fn(),
+  signOut: vi.fn(async (_o?: unknown) => ({ error: null })),
+  invoke: vi.fn(),
+}));
 vi.mock("@/integrations/supabase/client", () => ({
   supabase: { auth: { refreshSession, signOut, onAuthStateChange: vi.fn(), getSession: vi.fn() }, functions: { invoke } },
 }));

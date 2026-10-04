@@ -2,7 +2,7 @@ import { describe, expect, it, vi } from "vitest";
 import { render, screen, fireEvent, waitFor, act } from "@testing-library/react";
 import { MemoryRouter } from "react-router-dom";
 
-const invoke = vi.fn(() => new Promise<never>(() => {}));
+const { invoke } = vi.hoisted(() => ({ invoke: vi.fn(() => new Promise<never>(() => {})) }));
 vi.mock("@/integrations/supabase/client", () => ({
   supabase: {
     auth: {
