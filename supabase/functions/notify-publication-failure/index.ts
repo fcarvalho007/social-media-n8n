@@ -1,4 +1,5 @@
 import { Resend } from 'https://esm.sh/resend@4.0.0';
+import { ERRO_BASE_APP, linkApp } from '../_shared/app-publico.ts';
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -31,8 +32,9 @@ Deno.serve(async (req) => {
     console.log(`[notify-publication-failure] Platform: ${platform}, Format: ${format}`);
     console.log(`[notify-publication-failure] Error: ${error_message}`);
 
-    // Recovery links point at this app's published host.
-    const recoveryUrl = `https://hub-conteudo.lovable.app/recovery/${recovery_token}`;
+    // Recovery links use the configured public address (same as the newsletter).
+    const recoveryUrl = linkApp(`/recovery/${recovery_token}`);
+    if (!recoveryUrl) throw new Error(ERRO_BASE_APP);
     
     const platformLabels: Record<string, string> = {
       instagram: 'Instagram',

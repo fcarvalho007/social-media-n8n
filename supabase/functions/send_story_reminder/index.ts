@@ -1,6 +1,7 @@
 import { serve } from 'https://deno.land/std@0.168.0/http/server.ts';
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.38.0';
 import { Resend } from 'https://esm.sh/resend@4.0.0';
+import { ERRO_BASE_APP, linkApp } from '../_shared/app-publico.ts';
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -69,8 +70,8 @@ serve(async (req) => {
           linkUrl: payload.link_url || 'https://digitalfc.pt',
           stickerText: payload.sticker_text || 'digitalfc.pt',
           overlayText: 'Teste de lembrete',
-          confirmUrl: payload.confirm_url || 'https://hub-conteudo.lovable.app/settings/notifications',
-          launcherUrl: payload.confirm_url || 'https://hub-conteudo.lovable.app/settings/notifications',
+          confirmUrl: payload.confirm_url || linkApp('/settings/notifications') || '',
+          launcherUrl: payload.confirm_url || linkApp('/settings/notifications') || '',
           fallbackUrl: 'https://www.instagram.com/',
         }),
       });
@@ -102,8 +103,8 @@ serve(async (req) => {
 
         const tokenValue = randomToken();
         const tokenHash = await sha256(tokenValue);
-        const confirmUrl = `https://hub-conteudo.lovable.app/stories/confirm?id=${story.id}&token=${tokenValue}`;
-        const launcherUrl = `https://hub-conteudo.lovable.app/stories/launch/${story.id}?token=${tokenValue}`;
+        const confirmUrl = linkApp(`/stories/confirm?id=${story.id}&token=${tokenValue}`);
+        const launcherUrl = linkApp(`/stories/launch/${story.id}?token=${tokenValue}`);
         const stickerText = story.sticker_text || new URL(story.link_url).hostname.replace(/^www\./, '');
 
         await supabase.from('story_link_publications').update({
