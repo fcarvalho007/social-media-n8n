@@ -56,6 +56,7 @@ Deno.serve(async (req) => {
   const url = Deno.env.get('SUPABASE_URL')!;
   const admin = createClient(url, Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!, {
     auth: { persistSession: false, autoRefreshToken: false },
+    global: { fetch: fetchDiag },
   });
   const ip = (req.headers.get('x-forwarded-for') ?? '').split(',')[0].trim() || null;
   const navegador = (req.headers.get('user-agent') ?? '').slice(0, 300) || null;
@@ -91,7 +92,7 @@ Deno.serve(async (req) => {
       const hash = link?.properties?.hashed_token;
       log('auth_generate_link', error ? classificarFalha(error) : hash ? 'ok' : 'sem_hash', Date.now() - t0);
       if (error || !hash) return null;
-      const anon = createClient(url, Deno.env.get('SUPABASE_ANON_KEY')!, { auth: { persistSession: false, autoRefreshToken: false } });
+      const anon = createClient(url, Deno.env.get('SUPABASE_ANON_KEY')!, { auth: { persistSession: false, autoRefreshToken: false }, global: { fetch: fetchDiag } });
       t0 = Date.now();
       const { data: v, error: vErr } = await anon.auth.verifyOtp({ type: 'magiclink', token_hash: hash });
       log('auth_verify_otp', vErr ? classificarFalha(vErr) : v.session ? 'ok' : 'sem_sessao', Date.now() - t0);
