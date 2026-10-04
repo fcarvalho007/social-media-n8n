@@ -14,14 +14,16 @@ import { associarIdentidade, resumoContinuidade, souAdminNewsletter, type Contin
 const SEM = "__sem__";
 const dataPt = (s: string) => new Date(s).toLocaleDateString("pt-PT", { timeZone: "Europe/Lisbon" });
 
-interface Acao { titulo: string; desc: string; icon: typeof Mail; url: string; admin?: boolean }
-const ACOES: Acao[] = [
-  { titulo: "Newsletter", desc: "Edições, crónica e arquivo da DIGITALSPRINT", icon: Mail, url: "/newsletter" },
-  { titulo: "Carrosséis da crónica", desc: "Preparar e rever carrosséis a partir de edições enviadas", icon: Images, url: "/estudio/redes-sociais" },
-  { titulo: "Publicação livre", desc: "Criar um post para as redes sociais do zero", icon: PenSquare, url: "/manual-create" },
-  { titulo: "Artigos", desc: "Rascunhos de artigos de blog, sem publicação automática", icon: FileText, url: "/artigos" },
-  { titulo: "Ligações", desc: "Estado das chaves e serviços externos", icon: KeyRound, url: "/estudio/ligacoes", admin: true },
-  { titulo: "Migração", desc: "Importar os dados da newsletter original", icon: Upload, url: "/newsletter/migracao", admin: true },
+interface Acao { titulo: string; desc: string; icon: typeof Mail; url: string }
+const PRODUCAO: Acao[] = [
+  { titulo: "Newsletter", desc: "Edições, crónica e arquivo", icon: Mail, url: "/newsletter" },
+  { titulo: "Carrosséis da crónica", desc: "A partir de edições enviadas", icon: Images, url: "/estudio/redes-sociais" },
+  { titulo: "Publicação livre", desc: "Um post do zero", icon: PenSquare, url: "/manual-create" },
+  { titulo: "Artigos", desc: "Rascunhos de blog", icon: FileText, url: "/artigos" },
+];
+const CONFIGURACAO: Acao[] = [
+  { titulo: "Ligações", desc: "Estado das chaves e serviços externos", icon: KeyRound, url: "/estudio/ligacoes" },
+  { titulo: "Migração", desc: "Importar os dados da newsletter original", icon: Upload, url: "/newsletter/migracao" },
 ];
 
 export default function Estudio() {
@@ -144,18 +146,35 @@ export default function Estudio() {
 
       <section className="space-y-2" aria-labelledby="fazer">
         <h2 id="fazer" className="text-sm font-medium text-muted-foreground">O que queres fazer?</h2>
-        <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
-          {ACOES.filter((a) => !a.admin || admin).map((a) => (
+        <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
+          {PRODUCAO.map((a) => (
             <Link key={a.url} to={a.url} className="rounded-lg focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring">
-              <Card className="h-full p-4 transition-colors hover:border-primary">
-                <a.icon className="mb-2 h-5 w-5 text-primary" aria-hidden />
-                <div className="font-medium">{a.titulo}</div>
-                <div className="text-sm text-muted-foreground">{a.desc}</div>
+              <Card className="h-full p-3 transition-colors hover:border-primary">
+                <a.icon className="mb-1.5 h-5 w-5 text-primary" aria-hidden />
+                <div className="font-medium leading-tight">{a.titulo}</div>
+                <div className="mt-0.5 text-xs text-muted-foreground">{a.desc}</div>
               </Card>
             </Link>
           ))}
         </div>
       </section>
+
+      {admin && (
+        <section className="space-y-1" aria-labelledby="configuracao">
+          <h2 id="configuracao" className="text-sm font-medium text-muted-foreground">Configuração</h2>
+          <ul className="divide-y rounded-md border text-sm">
+            {CONFIGURACAO.map((a) => (
+              <li key={a.url}>
+                <Link to={a.url} className="flex items-center gap-2 px-3 py-2 hover:bg-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring">
+                  <a.icon className="h-4 w-4 text-muted-foreground" aria-hidden />
+                  <span className="font-medium">{a.titulo}</span>
+                  <span className="truncate text-xs text-muted-foreground">{a.desc}</span>
+                </Link>
+              </li>
+            ))}
+          </ul>
+        </section>
+      )}
     </div>
   );
 }
