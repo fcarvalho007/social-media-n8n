@@ -26,6 +26,8 @@ def tables(s: str) -> str:
     s = re.sub(r'(postgres_changes"?,\s*\{[^}]*table:\s*["\'])(%s)(["\'])' % "|".join(TABLES), lambda m: m.group(1) + "nl_" + m.group(2) + m.group(3), s)
     s = re.sub(r'((?:foreignTable|referencedTable):\s*["\'])(%s)(["\'])' % "|".join(TABLES), lambda m: m.group(1) + "nl_" + m.group(2) + m.group(3), s)
     s = re.sub(r'(\.(?:eq|neq|in|is|gt|gte|lt|lte|not|like|ilike|filter|contains)\(\s*["\'])(%s)\.' % "|".join(TABLES), lambda m: m.group(1) + "nl_" + m.group(2) + ".", s)
+    # PostgREST orders embedded rows by the alias, not the table name (alias "edicao" in the archive query)
+    s = s.replace('.order("enviada_em", { foreignTable: "nl_edicoes",', '.order("enviada_em", { referencedTable: "edicao",')
     # embedded resources inside .select("...") strings: alias:table(...) / table!hint(...)
     emb = re.compile(r'(?<![\w.])(%s)(?=\s*[(!])' % "|".join(TABLES))
     s = re.sub(r'(\.select\(\s*)(["`\'])([\s\S]*?)\2', lambda m: m.group(1) + m.group(2) + emb.sub(lambda x: "nl_" + x.group(1), m.group(3)) + m.group(2), s)
