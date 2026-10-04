@@ -83,3 +83,8 @@ export const ESTADOS_JOB: Record<string, string> = {
   erro: "Erro",
   cancelado: "Cancelado",
 };
+
+/** R1 proof: server render of a synthetic DocumentoGrafico page (staff only, no writes). */
+export interface RenderProva { png: string; bytes: number; ms_preparacao: number; ms_render: number }
+export const renderProvaServidor = (pacote: unknown, variante: "A" | "B", pagina: number) =>
+  chamar<RenderProva>({ acao: "render_prova", pacote, variante, pagina });
