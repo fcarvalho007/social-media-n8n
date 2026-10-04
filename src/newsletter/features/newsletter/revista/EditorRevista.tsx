@@ -56,7 +56,7 @@ import { useSessao } from "../useSessao";
 import { Atualidade, ResumoOrdem, type PapelDerivado, type SeloBrief } from "./Atualidade";
 import { BriefsDaEdicao } from "./BriefsDaEdicao";
 import { ReverLeituras } from "./ReverLeituras";
-import { estadoBriefsDaEdicaoFn, sincronizarBriefPapelFn, sincronizarBriefsDaEdicaoFn } from "@/newsletter/lib/brief.functions";
+import { estadoBriefsDaEdicaoFn, sincronizarBriefPapelFn } from "@/newsletter/lib/brief.functions";
 import {
   apagarNoticia, atualizarAssunto, atualizarCronica, atualizarNoticia, escolherEpisodio, getConfig, getEdicaoPorId,
   listarAuditRecente, listarEpisodios, listarFerramentas, registarAudit, reordenarNoticias,
@@ -643,14 +643,7 @@ export default function EditorRevista({
   };
   const accoesBriefs = { recarregar: recarregarBriefs, registar };
   // Opening an edition is read-only: the edition-wide Brief sync is an external
-  // (confirmed) operation, so it must never run on mount. It only runs from an
-  // explicit user action through `reconciliarBriefs`.
-  const reconciliarBriefsFn = useServerFn(sincronizarBriefsDaEdicaoFn);
-  const reconciliarBriefs = () =>
-    reconciliarBriefsFn({ data: { edicaoId } })
-      .then((r) => { if (r.sincronizados > 0) recarregarBriefs(); })
-      .catch(() => { /* cancelado ou falhou: nada muda */ });
-  void reconciliarBriefs;
+  // (confirmed) operation and must never run on mount.
 
   /* ─── Verificação de links (partilhada com o Clássico) ─── */
   const [modalLinks, setModalLinks] = useState(false);
