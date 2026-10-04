@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { useSearchParams } from "react-router-dom";
 import { toast } from "sonner";
 import { Loader2, Plus } from "lucide-react";
@@ -14,6 +14,8 @@ import {
   AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import { useProjeto } from "@/contexts/ProjetoContext";
+import { useAuth } from "@/contexts/AuthContext";
+import { aplicarGravacao, chaveRecuperacao, guardarRecuperacao, lerRecuperacao, limparRecuperacao, type Recuperacao } from "@/lib/recuperacaoLocal";
 import { apagarArtigo, guardarArtigo, listarArtigos, type Artigo } from "@/services/estudio";
 
 type Edit = { id?: string; titulo: string; resumo: string; corpo: string; project_id: string | null };
@@ -33,11 +35,40 @@ export default function Artigos() {
   const [erroGuardar, setErroGuardar] = useState<string | null>(null);
   const [pendente, setPendente] = useState<null | { tipo: "trocar"; alvo: Edit } | { tipo: "apagar"; artigo: Artigo }>(null);
   const sujo = !igual(edit, base);
+  const { user } = useAuth();
+  const editRef = useRef(edit);
+  editRef.current = edit;
+  const chave = user ? chaveRecuperacao(user.id, "artigo", edit.id, ctx.projetoId) : null;
+  const [oferta, setOferta] = useState<Recuperacao<Edit> | null>(null);
 
+  // Keep a local, per-user recovery copy while there are unsaved changes (internal navigation safety).
+  useEffect(() => {
+    if (!sujo || !chave) return;
+    const t = setTimeout(() => guardarRecuperacao(chave, edit), 300);
+    return () => clearTimeout(t);
+  }, [sujo, chave, edit]);
+  // Offer to restore text left unsaved for this user + article + project.
+  useEffect(() => {
+    if (sujo || !chave || !user) { if (!sujo) setOferta(null); return; }
+    const r = lerRecuperacao<Edit>(chave, user.id);
+    setOferta(r && !igual(r.dados, base) ? r : null);
+  }, [chave, base]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // New article: apply the context project once loaded, only while nothing was edited.
+  useEffect(() => {
+    if (ctx.estado !== "pronto") return;
+    const e = editRef.current;
+    if (!e.id && igual(e, base) && !e.titulo && !e.resumo && !e.corpo && e.project_id !== ctx.projetoId) {
+      const n = { ...e, project_id: ctx.projetoId }; setEdit(n); setBase(n);
+    }
+  }, [ctx.estado, ctx.projetoId]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  const seq = useRef(0);
   const carregar = useCallback(async () => {
+    const meu = ++seq.current;
     setLista((l) => ({ ...l, fase: l.artigos.length ? "pronto" : "a_carregar", erro: undefined }));
-    try { setLista({ fase: "pronto", artigos: await listarArtigos(ctx.projetoId) }); }
-    catch (e) { setLista({ fase: "erro", artigos: [], erro: (e as Error).message }); }
+    try { const artigos = await listarArtigos(ctx.projetoId); if (meu === seq.current) setLista({ fase: "pronto", artigos }); }
+    catch (e) { if (meu === seq.current) setLista({ fase: "erro", artigos: [], erro: (e as Error).message }); }
   }, [ctx.projetoId]);
   useEffect(() => { if (ctx.estado === "pronto") carregar(); }, [ctx.estado, carregar]);
 
@@ -64,9 +95,14 @@ export default function Artigos() {
   const guardar = async () => {
     if (!edit.titulo.trim()) { setErroGuardar("Indica um título."); return; }
     setAGuardar(true); setErroGuardar(null);
+    const enviado = { ...edit, titulo: edit.titulo.trim() };
+    const chaveAntes = chave;
     try {
-      const salvo = deArtigo(await guardarArtigo({ ...edit, titulo: edit.titulo.trim() }));
-      setEdit(salvo); setBase(salvo);
+      const salvo = deArtigo(await guardarArtigo(enviado));
+      // Text typed while saving is kept and stays unsaved; recovery is cleared only once confirmed.
+      const r = aplicarGravacao(enviado, editRef.current, salvo, (a, sv) => ({ ...a, id: sv.id }), igual);
+      setEdit(r.edit); setBase(r.base);
+      if (chaveAntes) limparRecuperacao(chaveAntes);
       setParams({ id: salvo.id! }, { replace: true });
       toast.success("Rascunho guardado");
       carregar();
@@ -142,6 +178,15 @@ export default function Artigos() {
           <Label htmlFor="art-corpo">Texto do artigo</Label>
           <Textarea id="art-corpo" rows={18} value={edit.corpo} onChange={(e) => setEdit({ ...edit, corpo: e.target.value })} />
         </div>
+        {oferta && (
+          <Alert>
+            <AlertTitle>Há texto não guardado de {dataPt(oferta.guardado_em)}</AlertTitle>
+            <AlertDescription className="flex flex-wrap gap-2">
+              <Button type="button" size="sm" onClick={() => { setEdit({ ...oferta.dados, id: edit.id }); setOferta(null); }}>Restaurar</Button>
+              <Button type="button" size="sm" variant="outline" onClick={() => { if (chave) limparRecuperacao(chave); setOferta(null); }}>Descartar</Button>
+            </AlertDescription>
+          </Alert>
+        )}
         {erroGuardar && <p role="alert" className="text-sm text-destructive">{erroGuardar}</p>}
         <Button type="submit" disabled={aGuardar || (!sujo && !!edit.id)}>
           {aGuardar && <Loader2 className="mr-1 h-4 w-4 animate-spin" />}Guardar rascunho
@@ -164,7 +209,7 @@ export default function Artigos() {
               const p = pendente; setPendente(null);
               if (!p) return;
               if (p.tipo === "apagar") confirmarApagar(p.artigo);
-              else { setEdit(p.alvo); setBase(p.alvo); setErroGuardar(null); setParams(p.alvo.id ? { id: p.alvo.id } : {}, { replace: true }); }
+              else { if (chave) limparRecuperacao(chave); setEdit(p.alvo); setBase(p.alvo); setErroGuardar(null); setParams(p.alvo.id ? { id: p.alvo.id } : {}, { replace: true }); }
             }}>{pendente?.tipo === "apagar" ? "Apagar" : "Descartar"}</AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>

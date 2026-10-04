@@ -245,6 +245,19 @@ Deno.serve(async (req) => {
       return json({ run_id: run.id, ...v });
     }
 
+    if (acao === "verificar_simulacao") {
+      // Restoring a simulation after reload is allowed only if owner, contract and package hash still hold.
+      const runId = String(body.run_id ?? "");
+      const { data: alvo } = await sb.from("nl_import_runs").select("*").eq("id", runId).maybeSingle();
+      if (!alvo || alvo.created_by !== u.user.id) return json({ valido: false, motivo: "Simulação não encontrada para este administrador." });
+      if (alvo.modo !== MODO.SIMULACAO || alvo.estado !== ESTADO.CONCLUIDA || (alvo.relatorio?.erros?.length ?? 1) > 0) return json({ valido: false, motivo: "A simulação não passou." });
+      try {
+        const { bytesHash } = await loadPacote(sb, alvo.staging_path);
+        if (bytesHash !== alvo.ficheiro_sha256) return json({ valido: false, motivo: "O pacote mudou desde a simulação." });
+      } catch { return json({ valido: false, motivo: "O pacote já não está no armazenamento privado." }); }
+      return json({ valido: true, simulacao: { run_id: alvo.id, ...(alvo.relatorio ?? {}) } });
+    }
+
     if (acao === "importar") {
       const runId = String(body.run_id ?? "");
       const { data: alvo, error } = await sb.from("nl_import_runs").select("*").eq("id", runId).maybeSingle();

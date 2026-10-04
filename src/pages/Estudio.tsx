@@ -107,7 +107,8 @@ export default function Estudio() {
 
       <section className="space-y-2" aria-labelledby="continuar">
         <h2 id="continuar" className="text-sm font-medium text-muted-foreground">Continuar onde ficaste</h2>
-        {(resumo.estado === "a_carregar" || ctx.estado === "a_carregar") && <Skeleton className="h-16 w-full" />}
+        {ctx.estado === "erro" && <p className="text-sm text-muted-foreground">Disponível depois de carregar os projetos.</p>}
+        {ctx.estado !== "erro" && (resumo.estado === "a_carregar" || ctx.estado === "a_carregar") && <Skeleton className="h-16 w-full" />}
         {resumo.estado === "erro" && (
           <Alert variant="destructive">
             <AlertTitle>Não foi possível carregar o resumo</AlertTitle>

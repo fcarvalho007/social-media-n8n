@@ -41,6 +41,26 @@ describe("contexto de projeto", () => {
     expect(screen.getByTestId("s").textContent).toBe("pronto|a|");
   });
 
+  it("não muda a marca enquanto a gravação está pendente e recusa escolhas concorrentes", async () => {
+    let resolver!: () => void;
+    svc.setMarca.mockImplementation(() => new Promise<void>((r) => { resolver = r; }));
+    render(<ProjetoProvider><Sonda /></ProjetoProvider>);
+    await waitFor(() => expect(api.estado).toBe("pronto"));
+    let p!: Promise<void>;
+    act(() => { p = api.escolher("b"); });
+    expect(screen.getByTestId("s").textContent).toBe("pronto|a|");
+    await act(async () => { await expect(api.escolher(null)).rejects.toThrow(); });
+    expect(svc.setMarca).toHaveBeenCalledTimes(1);
+    await act(async () => { resolver(); await p; });
+    expect(screen.getByTestId("s").textContent).toBe("pronto|b|");
+  });
+
+  it("falha a ler a preferência mostra erro em vez de todos", async () => {
+    svc.getMarca.mockRejectedValueOnce(new Error("leitura falhou"));
+    render(<ProjetoProvider><Sonda /></ProjetoProvider>);
+    await waitFor(() => expect(screen.getByTestId("s").textContent).toBe("erro|todos|leitura falhou"));
+  });
+
   it("mostra erro (não lista vazia) quando o carregamento falha e permite repetir", async () => {
     svc.listarProjetos.mockRejectedValueOnce(new Error("permissão negada"));
     render(<ProjetoProvider><Sonda /></ProjetoProvider>);

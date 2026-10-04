@@ -19,6 +19,12 @@ describe('planearGravacaoRascunho', () => {
     if (p.tipo === 'criar') expect(await p.projeto()).toBe('proj-escolhido');
   });
 
+  it('falha da preferência de projeto não cria rascunho sem marca', async () => {
+    const p = planearGravacaoRascunho(dados, null, null, () => Promise.reject(new Error('sem rede')));
+    if (p.tipo !== 'criar') throw new Error('esperado criar');
+    await expect(p.projeto()).rejects.toThrow('sem rede');
+  });
+
   it('não grava enquanto o rascunho pedido não foi recuperado', () => {
     expect(planearGravacaoRascunho(dados, null, 'd1', async () => 'x').tipo).toBe('aguardar');
   });

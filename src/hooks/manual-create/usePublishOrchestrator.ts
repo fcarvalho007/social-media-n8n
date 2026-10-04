@@ -249,6 +249,22 @@ export function usePublishOrchestrator(params: OrchestratorParams) {
       }
       const user = sessionData.session.user;
 
+      // Freeze the project of a NEW draft before any upload; existing drafts keep theirs.
+      const idInicial = currentDraftId && !currentDraftId.startsWith('autosave-') ? currentDraftId : null;
+      const pedidoInicial = new URLSearchParams(window.location.search).get('draft');
+      if (!idInicial && pedidoInicial) {
+        toast.error('O rascunho ainda está a ser recuperado. Tenta novamente dentro de instantes.');
+        return;
+      }
+      let projetoCongelado: string | null = null;
+      if (!idInicial) {
+        try { projetoCongelado = await getMarca(); }
+        catch {
+          toast.error('Não foi possível confirmar o projeto escolhido. O rascunho não foi guardado; tenta de novo.');
+          return;
+        }
+      }
+
       const mediaUrls: string[] = [];
       const draftMediaItems: DraftMediaItem[] = [];
       const totalFiles = mediaFiles.length;
@@ -341,7 +357,7 @@ export function usePublishOrchestrator(params: OrchestratorParams) {
 
       const validDraftId = currentDraftId && !currentDraftId.startsWith('autosave-') ? currentDraftId : null;
       const rascunhoPedido = new URLSearchParams(window.location.search).get('draft');
-      const plano = planearGravacaoRascunho(draftData, validDraftId, rascunhoPedido, () => getMarca().catch(() => null));
+      const plano = planearGravacaoRascunho(draftData, validDraftId, rascunhoPedido, async () => projetoCongelado);
 
       if (plano.tipo === 'aguardar') {
         throw new Error('O rascunho ainda está a ser recuperado. Tenta novamente dentro de instantes.');
