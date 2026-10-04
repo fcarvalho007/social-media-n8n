@@ -1,6 +1,8 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
-import { ArrowLeft, ArrowRight, FlaskConical, Loader2 } from "lucide-react";
+import { ArrowLeft, ArrowRight, FileText, FlaskConical, Link2, Loader2, Type, Upload } from "lucide-react";
+import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
+import { Checkbox } from "@/components/ui/checkbox";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -10,7 +12,9 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { useAuth } from "@/contexts/AuthContext";
 import { useProjeto } from "@/contexts/ProjetoContext";
 import { chaveRecuperacao, guardarRecuperacao, lerRecuperacao, limparRecuperacao } from "@/lib/recuperacaoLocal";
-import { criarTrabalho, type OrcamentoIa } from "@/services/motor";
+import { criarTrabalho, lerLinkFonte, type OrcamentoIa } from "@/services/motor";
+import { comporFontePdf, ErroPdf, lerPdf, NOME_ESTADO_PAGINA, type PdfLido } from "@/features/motor/fontePdf";
+import { HOSTS_LINK, intervalos, type LinkLido, type MetaLink, type MetaPdf } from "../../supabase/functions/_shared/motor/fontes";
 import { LimitesIa } from "@/features/motor/LimitesIa";
 import { BarraAcoes, Cabecalho, Etapas, Grupo, Quadro } from "@/features/motor/Estudio";
 import { cn } from "@/lib/utils";
@@ -38,7 +42,8 @@ export function estruturaPrevista(n: number): string[] {
   return ["Capa", "Contexto", ...Array.from({ length: n - 3 }, () => "Ideia"), "Fecho"];
 }
 
-interface Rascunho { texto: string; titulo: string; objetivo: ObjetivoId; detalhe: string; tom: string; slides: number | null }
+type TipoFonte = "texto" | "link" | "pdf";
+interface Rascunho { texto: string; titulo: string; objetivo: ObjetivoId; detalhe: string; tom: string; slides: number | null; url?: string; link?: MetaLink | null; pdf?: MetaPdf | null; original?: string; parcial?: boolean }
 
 export default function CarrosselNovo() {
   const nav = useNavigate();
@@ -62,25 +67,39 @@ export default function CarrosselNovo() {
   const projetoRef = useRef(projeto);
   projetoRef.current = projeto;
   const textoRef = useRef<HTMLTextAreaElement>(null);
+  const [tipoFonte, setTipoFonte] = useState<TipoFonte>("texto");
+  const tipoRef = useRef(tipoFonte);
+  tipoRef.current = tipoFonte;
+  const pedido = useRef(0);
+  const [url, setUrl] = useState("");
+  const [lendo, setLendo] = useState(false);
+  const [falhaFonte, setFalhaFonte] = useState<string | null>(null);
+  const [linkMeta, setLinkMeta] = useState<MetaLink | null>(null);
+  const [pdfLido, setPdfLido] = useState<PdfLido | null>(null);
+  const [pdfMeta, setPdfMeta] = useState<MetaPdf | null>(null);
+  const [excluidas, setExcluidas] = useState<Set<number>>(new Set());
+  const [original, setOriginal] = useState("");
+  const [parcial, setParcial] = useState(false);
 
   useEffect(() => { if (!projeto && projetoId) setProjeto(projetoId); }, [projetoId, projeto]);
 
   // Local recovery per user + project (this device only; never claimed as saved on the server).
-  const chave = user && projeto && !demo ? chaveRecuperacao(user.id, "carrossel-novo", null, projeto) : null;
+  const chave = user && projeto && !demo ? chaveRecuperacao(user.id, tipoFonte === "texto" ? "carrossel-novo" : `carrossel-novo-${tipoFonte}`, null, projeto) : null;
   useEffect(() => {
     if (!chave || !user || texto) return;
     const r = lerRecuperacao<Rascunho>(chave, user.id);
     if (r?.dados?.texto) {
       const d = r.dados;
+      setUrl(d.url ?? ""); setLinkMeta(d.link ?? null); setPdfMeta(d.pdf ?? null); setOriginal(d.original ?? ""); setParcial(!!d.parcial);
       setTexto(d.texto); setTitulo(d.titulo); setObjetivo(d.objetivo ?? "informar"); setDetalhe(d.detalhe ?? ""); setTom(d.tom ?? ""); setSlides(d.slides ?? null);
       setRecuperado(new Date(r.guardado_em).toLocaleString("pt-PT", { timeZone: "Europe/Lisbon", day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit" }));
     }
   }, [chave]); // eslint-disable-line react-hooks/exhaustive-deps
   useEffect(() => {
     if (!chave || !texto.trim()) return;
-    const t = setTimeout(() => guardarRecuperacao<Rascunho>(chave, { texto, titulo, objetivo, detalhe, tom, slides }), 600);
+    const t = setTimeout(() => guardarRecuperacao<Rascunho>(chave, { texto, titulo, objetivo, detalhe, tom, slides, url, link: linkMeta, pdf: pdfMeta, original, parcial }), 600);
     return () => clearTimeout(t);
-  }, [chave, texto, titulo, objetivo, detalhe, tom, slides]);
+  }, [chave, texto, titulo, objetivo, detalhe, tom, slides, url, linkMeta, pdfMeta, original, parcial]);
 
   useEffect(() => { if (params.get("demo") === "1") usarDemo(); }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
@@ -92,24 +111,93 @@ export default function CarrosselNovo() {
   const mostrarErro = tocado && !!texto.trim() && !av.ok;
   const semTexto = tocado && !texto.trim();
 
-  function usarDemo() { setDemo(true); setTexto(FIXTURE_DEMO); setTitulo(""); setSlides(null); setTocado(false); }
+  const precisaParcial = (tipoFonte === "pdf" && !!pdfMeta && !pdfMeta.completo) || (tipoFonte === "link" && !!linkMeta?.truncado);
+  const fonteDefinida = tipoFonte === "texto" || (tipoFonte === "link" ? !!linkMeta : !!pdfMeta);
+  const fonteValida = av.ok && fonteDefinida && (!precisaParcial || parcial);
+
+  function limparFonte() {
+    pedido.current++;
+    setTexto(""); setOriginal(""); setLinkMeta(null); setPdfMeta(null); setPdfLido(null); setExcluidas(new Set());
+    setParcial(false); setFalhaFonte(null); setLendo(false); setTocado(false); setSlides(null); setRecuperado(null);
+  }
+  function mudarTipo(t: TipoFonte) {
+    if (t === tipoFonte) return;
+    limparFonte(); setUrl(""); setTipoFonte(t);
+  }
+
+  async function lerLink() {
+    if (!projeto || !url.trim()) return;
+    const n = ++pedido.current; const alvo = projeto;
+    setLendo(true); setFalhaFonte(null); setLinkMeta(null); setTexto(""); setParcial(false);
+    try {
+      const r = await lerLinkFonte(alvo, url.trim());
+      // Late answers for another request/project/type are discarded.
+      if (n !== pedido.current || projetoRef.current !== alvo || tipoRef.current !== "link") return;
+      if (r.ok) {
+        const l = r as LinkLido;
+        setTexto(l.texto); setOriginal(l.texto); setSlides(null);
+        setLinkMeta({ tipo: "link", modo: "extraido", url: url.trim(), url_final: l.url_final, titulo_pagina: l.titulo, bytes: l.bytes, truncado: l.truncado, editado: false, lido_em: new Date().toISOString() });
+      } else setFalhaFonte(r.mensagem);
+    } catch (e) {
+      if (n === pedido.current) setFalhaFonte((e as Error).message);
+    } finally {
+      if (n === pedido.current) setLendo(false);
+    }
+  }
+  function usarComoReferencia() {
+    const u = url.trim();
+    if (!/^https?:\/\/\S+$/i.test(u)) { setFalhaFonte("Indica um endereço completo (https://…)."); return; }
+    pedido.current++; setLendo(false); setFalhaFonte(null); setTexto(""); setOriginal("");
+    setLinkMeta({ tipo: "link", modo: "referencia", url: u, url_final: null, titulo_pagina: null, bytes: null, truncado: false, editado: true, lido_em: null });
+    setTimeout(() => textoRef.current?.focus(), 50);
+  }
+
+  async function escolherPdf(f: File | undefined) {
+    if (!f || !projeto) return;
+    const n = ++pedido.current; const alvo = projeto;
+    setLendo(true); setFalhaFonte(null);
+    try {
+      const lido = await lerPdf(f);
+      if (n !== pedido.current || projetoRef.current !== alvo || tipoRef.current !== "pdf") return;
+      const c = comporFontePdf(lido, new Set(), false);
+      setPdfLido(lido); setExcluidas(new Set()); setParcial(false); setPdfMeta(c.meta); setTexto(c.texto); setOriginal(c.texto); setSlides(null);
+    } catch (e) {
+      // Previous draft stays intact on error.
+      if (n === pedido.current) setFalhaFonte(e instanceof ErroPdf ? e.message : "Não foi possível ler o PDF. Cola o texto em alternativa.");
+    } finally {
+      if (n === pedido.current) setLendo(false);
+    }
+  }
+  function alternarPagina(np: number) {
+    if (!pdfLido) return;
+    const ex = new Set(excluidas);
+    if (ex.has(np)) ex.delete(np); else ex.add(np);
+    const c = comporFontePdf(pdfLido, ex, false);
+    setExcluidas(ex); setPdfMeta(c.meta); setTexto(c.texto); setOriginal(c.texto); setParcial(false); setSlides(null);
+  }
+
+  function usarDemo() { mudarTipo("texto"); setDemo(true); setTexto(FIXTURE_DEMO); setTitulo(""); setSlides(null); setTocado(false); }
   const sairDemo = () => { setDemo(false); setTexto(""); setTocado(false); };
 
   const continuar = () => {
     setTocado(true);
-    if (!projeto || !av.ok) { textoRef.current?.focus(); return; }
+    if (!projeto || !fonteValida) { textoRef.current?.focus(); return; }
     setEtapa("narrativa");
     window.scrollTo({ top: 0 });
   };
 
   const criar = async () => {
-    if (!projeto || !av.ok || aCriar) return;
+    if (!projeto || !fonteValida || aCriar) return;
     setACriar(true);
     const alvo = projeto;
     const o = OBJETIVOS.find((x) => x.id === objetivo)!;
     const objetivoTxt = detalhe.trim() ? `${o.nome}: ${detalhe.trim()}` : `${o.nome} — ${o.desc}`;
     try {
-      const r = await criarTrabalho({ project_id: alvo, texto, titulo, objetivo: objetivoTxt.slice(0, 200), tom, slides: nSlides, modo: demo ? "demonstracao" : comIa ? "ia" : "estruturacao" });
+      const r = await criarTrabalho({ project_id: alvo, texto, titulo, objetivo: objetivoTxt.slice(0, 200), tom, slides: nSlides, modo: demo ? "demonstracao" : comIa ? "ia" : "estruturacao",
+        fonte_tipo: demo ? "texto" : tipoFonte,
+        metadados: demo || tipoFonte === "texto" ? undefined
+          : tipoFonte === "link" ? { ...linkMeta!, editado: linkMeta!.modo === "referencia" || texto !== original }
+          : { ...pdfMeta!, parcial_confirmado: parcial, editado: texto !== original } });
       if (projetoRef.current !== alvo) { toast.info("O projeto mudou entretanto; o carrossel ficou no projeto anterior."); setACriar(false); return; }
       if (chave) limparRecuperacao(chave);
       if (r.reutilizado) toast.info("Já existia um carrossel com esta fonte e estas opções; foi aberto.");
@@ -270,7 +358,7 @@ export default function CarrosselNovo() {
         nota={etapa === "narrativa" ? (demo ? "Demonstração · fornecedor simulado" : comIa ? "Gera no servidor; podes sair da página." : "Gera sem IA, no servidor.") : undefined}
         fim={etapa === "fonte"
           ? <Button className="h-11 px-5" onClick={continuar} disabled={!projeto}>Continuar<ArrowRight className="ml-1.5 h-4 w-4" /></Button>
-          : <Button className="h-11 px-5" onClick={criar} disabled={aCriar || !av.ok}>{aCriar && <Loader2 className="mr-2 h-4 w-4 motion-safe:animate-spin" />}{demo ? "Gerar demonstração" : comIa ? "Gerar carrossel" : "Gerar sem IA"}</Button>}
+          : <Button className="h-11 px-5" onClick={criar} disabled={aCriar || !fonteValida}>{aCriar && <Loader2 className="mr-2 h-4 w-4 motion-safe:animate-spin" />}{demo ? "Gerar demonstração" : comIa ? "Gerar carrossel" : "Gerar sem IA"}</Button>}
       />
     </Quadro>
   );
