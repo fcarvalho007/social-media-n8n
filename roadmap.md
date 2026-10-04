@@ -25,3 +25,6 @@
 - [ ] Chaves externas: NL_EGOI_WEBHOOK_CHAVE, CloudMailin, E-goi, NL_EGOI_TAG_TOKEN/NL_EGOI_CAMPO_TOKEN_ID — aguarda humano
 - [ ] Sincronização de tokens na E-goi: validar formato contra documentação oficial antes de usar; sem checkpoint durável
 - [ ] Importação real — aguarda invalidação das passwords antigas e simulação admin com pacote fictício
+- [x] Worker automático do carrossel (confirmação E-goi + jobs), hora a hora, sem envios/publicações
+- [x] Evidência de envio protegida contra sessões de cliente; associação de marca só admin; projeto DIGITALSPRINT associado
+- [x] Importador atribui as edições à identidade DIGITALSPRINT

@@ -11,3 +11,5 @@
 - "/" is the Estudio; the social dashboard lives at /redes-sociais.
 - Public newsletter reads go only through the nl-publico edge function (sent editions only, token-signed subscription actions); webhooks/cron go through nl-hooks with their own auth; keeps nl-api staff-only.
 - scripts/verificar-grafo-edge.py (run by the generator) walks every edge entrypoint including literal dynamic imports and runs deno check on nl-* functions; tsc/Vite alone miss Deno-only and lazily-loaded failures.
+- nl-worker-conteudos (hourly pg_cron, key read from nl_worker_estado at call time) only reconciles E-goi delivery and processes carousel jobs; automatic jobs only for campaigns accepted after AUTO_DESDE, history only via explicit "preparar"; send/publish crons stay off.
+- Send evidence on nl_edicoes (estado enviada, enviada_em, snapshot_envio, fecho_pendente_em) and nl_egoi_campanhas rows are writable only by the service role (trigger + RLS); client sessions can edit content only.
