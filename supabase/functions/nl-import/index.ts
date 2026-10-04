@@ -2,6 +2,8 @@
 // Runs entirely with the caller's session: every DB write goes through
 // admin-guarded SECURITY DEFINER functions (nl_import_*), so non-admins are refused.
 import { createClient, SupabaseClient } from "https://esm.sh/@supabase/supabase-js@2.57.4";
+import { reescreverAvatar } from "../_shared/nl-destino-urls.ts";
+import { basePublicaObrigatoria } from "../_shared/nl-publico-config.ts";
 
 const cors = {
   "Access-Control-Allow-Origin": "*",
@@ -71,18 +73,28 @@ function b64(s: string): Uint8Array {
   return out;
 }
 
-// Rewrite any legacy image URL to this project's stable public endpoint.
-function makeRewriter(base: string) {
+// Rewrite legacy image URLs to this project's stable image endpoint, and known origin-owned
+// assets (author avatar) to the destination public host. Historical subscription links inside
+// snapshots are intentionally NOT touched: they stay exactly as sent (old tokens are never reused).
+function makeRewriter(base: string, basePublicaDestino: string) {
   const re = /(?:https?:\/\/[^\s"'<>()]+?)?(?:\/api\/public\/imagem\/|\/storage\/v1\/object\/(?:public|sign|authenticated)\/imagens-edicao\/)([^\s"'<>()?#]+)(?:\?[^\s"'<>()#]*)?/g;
   let count = 0;
-  const str = (s: string) => s.replace(re, (_m, p: string) => { count++; return `${base}/${p}`; });
+  let avatares = 0;
+  const str = (s: string) => {
+    let out = s.includes("imagem") || s.includes("imagens-edicao")
+      ? s.replace(re, (_m, p: string) => { count++; return `${base}/${p}`; })
+      : s;
+    const a = reescreverAvatar(out, basePublicaDestino);
+    avatares += a.n; out = a.valor;
+    return out;
+  };
   const walk = (v: unknown): unknown => {
-    if (typeof v === "string") return v.includes("imagem") || v.includes("imagens-edicao") ? str(v) : v;
+    if (typeof v === "string") return str(v);
     if (Array.isArray(v)) return v.map(walk);
     if (v && typeof v === "object") return Object.fromEntries(Object.entries(v).map(([k, x]) => [k, walk(x)]));
     return v;
   };
-  return { walk, get count() { return count; } };
+  return { walk, get count() { return count; }, get avatares() { return avatares; } };
 }
 
 const ESTADO = { EM_CURSO: "em_curso", CONCLUIDA: "concluida", FALHADA: "falhada" } as const; // matches nl_import_runs_estado_check
@@ -269,8 +281,10 @@ Deno.serve(async (req) => {
       if (!run.ficheiro_sha256 || bytesHash !== run.ficheiro_sha256)
         return await falhar("O pacote no armazenamento temporário foi alterado depois da simulação. Importação parada; repete a simulação.");
 
-      const rw = makeRewriter(`${url}/functions/v1/nl-imagem`);
-      const prog = { fase: "tabelas", indice: 0, offset: 0, inseridos: {} as Record<string, number>, ignoradas: {} as Record<string, unknown>, reescritas: 0, chunks: 0, ...(run.progresso ?? {}) };
+      let baseDestino: string;
+      try { baseDestino = basePublicaObrigatoria(); } catch (e) { return json({ error: (e as Error).message, run_id: run.id }, 409); }
+      const rw = makeRewriter(`${url}/functions/v1/nl-imagem`, baseDestino);
+      const prog = { fase: "tabelas", indice: 0, offset: 0, inseridos: {} as Record<string, number>, ignoradas: {} as Record<string, unknown>, reescritas: 0, avatares: 0, chunks: 0, ...(run.progresso ?? {}) };
 
       try {
         if (prog.fase === "tabelas") {
@@ -295,6 +309,7 @@ Deno.serve(async (req) => {
             if (prog.offset >= linhas.length) { prog.indice++; prog.offset = 0; }
           }
           prog.reescritas += rw.count;
+          prog.avatares = (prog.avatares ?? 0) + rw.avatares;
           prog.chunks++;
         } else if (prog.fase === "ficheiros") {
           for (const f of p.ficheiros) {
@@ -337,7 +352,8 @@ Deno.serve(async (req) => {
           if (rel.error) throw new Error(rel.error.message);
           const relatorio = {
             ...(run.relatorio ?? {}), final: rel.data, inseridos: prog.inseridos, colunas_ignoradas: prog.ignoradas,
-            reescritas_url: prog.reescritas, repeticoes: rep.data, agendamentos: sus.data, identidade_atribuida: identidadeAtribuida, edicoes_digitalsprint: idsEd.length,
+            reescritas_url: prog.reescritas, avatares_reescritos: prog.avatares ?? 0,
+            ligacoes_subscricao_historicas: "mantidas como enviadas (não reutilizadas)", repeticoes: rep.data, agendamentos: sus.data, identidade_atribuida: identidadeAtribuida, edicoes_digitalsprint: idsEd.length,
             ficheiros_copiados: p.ficheiros.length, perfis_registados: perfis.length, pacote_sha256: bytesHash,
           };
           await sb.from("nl_import_runs").update({ estado: ESTADO.CONCLUIDA, progresso: { ...prog, fase: "concluida" }, relatorio, concluido_em: new Date().toISOString() }).eq("id", run.id);

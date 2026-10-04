@@ -4,6 +4,8 @@
 import type { SupabaseClient } from "npm:@supabase/supabase-js@2.57.4";
 import { paragrafosDoHtml } from "../newsletter-engine/revista/apresentacao-heuristica.ts";
 import type { FonteCronica } from "./carrossel.ts";
+import { paraBaseDestino } from "../nl-destino-urls.ts";
+import { basePublica } from "../nl-publico-config.ts";
 
 export class ErroFonte extends Error {
   constructor(msg: string, readonly codigo: "inelegivel" | "parcial" | "sem_texto" | "sem_url" = "inelegivel") {
@@ -47,7 +49,10 @@ export async function carregarFonteCronica(sb: SupabaseClient, edicaoId: string)
 
   let titulo = snap?.cronica_integral?.titulo || snap?.edicao?.cronica?.titulo || "";
   let corpo = snap?.cronica_integral?.corpoHtml || "";
-  const url = snap?.cronica_integral?.url || snap?.edicao?.cronica?.url || "";
+  // Historical snapshots may point to an older public host; carousels always link to the destination.
+  const urlSnap = snap?.cronica_integral?.url || snap?.edicao?.cronica?.url || "";
+  const destino = basePublica();
+  const url = destino ? paraBaseDestino(urlSnap, destino) : urlSnap;
   const origem = corpo ? ("snapshot" as const) : ("historico_actual" as const);
   if (!corpo) {
     const { data: cro, error: e2 } = await sb
