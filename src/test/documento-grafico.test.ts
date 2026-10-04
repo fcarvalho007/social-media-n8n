@@ -86,6 +86,12 @@ describe("DocumentoGrafico v1", () => {
     expect(contain.dy).toBe(50);
   });
 
+  it("aplica opacidade da imagem uma única vez no SVG", () => {
+    const svg = paginaParaSvg(FIXTURES[2], "B", 0, medidor);
+    expect(svg).toContain('<g opacity="0.6"><svg');
+    expect(svg).not.toContain('<svg x="90" y="90" width="260" height="260" viewBox="0 0 256 256" preserveAspectRatio="none" opacity=');
+  });
+
   it("servidor: SVG das 5 fixtures renderiza 1080×1350 com resvg-wasm", async () => {
     await initWasm(readFileSync("node_modules/@resvg/resvg-wasm/index_bg.wasm"));
     for (const f of FIXTURES) {
@@ -95,7 +101,7 @@ describe("DocumentoGrafico v1", () => {
         expect([img.width, img.height]).toEqual([1080, 1350]);
       }
     }
-  }, 30000);
+  });
 });
 
 describe("estado do editor", () => {
