@@ -1,6 +1,6 @@
 # Roadmap — Estúdio de conteúdos / Newsletter
 
-- [x] Entrada só com email autorizado (sem código, sem magic link, sem password fixa, sem criar contas)
+- [x] entrada com código OTP por email (prova de posse); nunca emitir sessão só por email conhecido autorizado (sem código, sem magic link, sem password fixa, sem criar contas)
 - [x] Reposição de password só para administradores e fora da entrada
 - [x] Tabelas nl_, importador admin, endereço estável de imagens
 - [x] Motor original da newsletter no servidor (adaptado às tabelas nl_)
@@ -28,3 +28,5 @@
 - [x] Worker automático do carrossel (confirmação E-goi + jobs), hora a hora, sem envios/publicações
 - [x] Evidência de envio protegida contra sessões de cliente; associação de marca só admin; projeto DIGITALSPRINT associado
 - [x] Importador atribui as edições à identidade DIGITALSPRINT
+
+- [ ] Lote de refinamento (contexto de projeto, entrada, carrosséis, artigos, editor, ligações/migração) — anexo de 04/10
