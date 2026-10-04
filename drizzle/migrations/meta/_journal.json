@@ -15,6 +15,13 @@
       "when": 1791107391082,
       "tag": "0001_nl_harden_definer_rpcs",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1791108105422,
+      "tag": "0002_nl_pesquisa_rpcs",
+      "breakpoints": true
     }
   ]
 }

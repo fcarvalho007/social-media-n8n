@@ -3692,6 +3692,44 @@ export type Database = {
         Returns: undefined
       }
       nl_normalizar_url_sql: { Args: { _url: string }; Returns: string }
+      nl_pesquisar_arquivo: {
+        Args: { limite?: number; query: string }
+        Returns: {
+          edicao_data: string
+          edicao_id: string
+          edicao_numero: number
+          rank: number
+          tipo: string
+          titulo: string
+          trecho: string
+          url: string
+        }[]
+      }
+      nl_pesquisar_global: {
+        Args: {
+          ambitos?: string[]
+          edicao_actual?: string
+          limite?: number
+          query: string
+        }
+        Returns: {
+          ambito: string
+          categoria: string
+          criado_em: string
+          edicao_data: string
+          edicao_id: string
+          edicao_numero: number
+          estado: string
+          id: string
+          origem: string
+          rank: number
+          tipo: string
+          titulo: string
+          trecho: string
+          url: string
+          usada_em_numero: number
+        }[]
+      }
       nl_registar_evento_brief: {
         Args: { _edicao_numero: number; _evento: string; _slug: string }
         Returns: undefined
