@@ -2,7 +2,11 @@
 // Mitigations: server-side allowlist, explicit existence check (never creates users), rate limit, audit log.
 import { createClient } from 'npm:@supabase/supabase-js@2';
 import { corsHeaders } from 'npm:@supabase/supabase-js@2/cors';
-import { entrar } from './logica.ts';
+import { classificarFalha, entrar } from './logica.ts';
+
+// Fixed diagnostic line: no email, IP, key, hash, token or free-text message.
+const log = (etapa: string, resultado: string, ms: number) =>
+  console.log(`[entrar-email] etapa=${etapa} resultado=${resultado} ms=${ms}`);
 
 const JANELA_MIN = 15;
 
@@ -55,15 +59,20 @@ Deno.serve(async (req) => {
     },
     async emitirSessao(e) {
       // generateLink sends no email; the one-time hash is consumed right here.
+      let t0 = Date.now();
       const { data: link, error } = await admin.auth.admin.generateLink({ type: 'magiclink', email: e });
       const hash = link?.properties?.hashed_token;
+      log('auth_generate_link', error ? classificarFalha(error) : hash ? 'ok' : 'sem_hash', Date.now() - t0);
       if (error || !hash) return null;
       const anon = createClient(url, Deno.env.get('SUPABASE_ANON_KEY')!, { auth: { persistSession: false, autoRefreshToken: false } });
+      t0 = Date.now();
       const { data: v, error: vErr } = await anon.auth.verifyOtp({ type: 'magiclink', token_hash: hash });
+      log('auth_verify_otp', vErr ? classificarFalha(vErr) : v.session ? 'ok' : 'sem_sessao', Date.now() - t0);
       if (vErr || !v.session) return null;
       return { access_token: v.session.access_token, refresh_token: v.session.refresh_token };
     },
-  });
+  }, undefined, log);
+  log('fim', `status_${r.status}`, 0);
   if (r.causa) console.error('[entrar-email] indisponível em', r.causa);
   return json(r.body, r.status);
 });
