@@ -49,6 +49,8 @@ def client_alias(s: str) -> str:
     s = s.replace('"@tanstack/react-router"', '"@/newsletter/shim/router"')
     s = s.replace('"@tanstack/react-start"', '"@/newsletter/shim/start"')
     s = s.replace('"@tanstack/zod-adapter"', '"@/newsletter/shim/zod-adapter"')
+    s = re.sub(r'import type \{([^}]*)\} from "[^"]*\.server";',
+               lambda m: " ".join("type %s = any; // eslint-disable-line @typescript-eslint/no-explicit-any" % n.strip().split(" as ")[-1] for n in m.group(1).split(",") if n.strip()), s)
     s = re.sub(r'"(?:\.\./)+supabase/functions/_shared/', '"@/newsletter/edge-shared/', s)
     s = re.sub(r'"@/features/', '"@/newsletter/features/', s)
     s = re.sub(r'"@/lib/(?!utils")', '"@/newsletter/lib/', s)
