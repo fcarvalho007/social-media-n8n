@@ -13,7 +13,7 @@ vi.mock("@/features/editor-grafico/desenho", () => ({
 }));
 vi.mock("@/features/editor-grafico/PaginaCanvas", () => ({
   PaginaCanvas: ({ onSelecionar }: { onSelecionar?: (id: string) => void }) => (
-    <button type="button" data-testid="canvas-toque" onPointerDown={() => onSelecionar?.("s1-titulo")}>Slide editável</button>
+    <div data-testid={onSelecionar ? "canvas-toque" : "miniatura"} onPointerDown={() => onSelecionar?.("s1-titulo")}>Slide editável</div>
   ),
 }));
 vi.mock("@/services/conteudos", () => ({ renderProvaServidor: vi.fn() }));
