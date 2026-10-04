@@ -1,12 +1,7 @@
 import { useEffect, useState } from "react";
 import { CheckCircle2, XCircle } from "lucide-react";
-import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
-import { Button } from "@/components/ui/button";
-import {
-  AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription,
-  AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger,
-} from "@/components/ui/alert-dialog";
+import { SincronizacaoTokens } from "@/components/newsletter/SincronizacaoTokens";
 
 interface Estado {
   endereco_publico: string | null;
@@ -31,21 +26,11 @@ const NOMES: Record<string, string> = {
 export default function NewsletterLigacoes() {
   const [estado, setEstado] = useState<Estado | null>(null);
   const [erro, setErro] = useState<string | null>(null);
-  const [aSincronizar, setASincronizar] = useState(false);
 
   useEffect(() => {
     supabase.functions.invoke("nl-hooks/estado", { method: "GET" })
       .then(({ data, error }) => (error ? setErro("Só os administradores podem ver esta página.") : setEstado(data as Estado)));
   }, []);
-
-  async function sincronizar() {
-    setASincronizar(true);
-    const { data, error } = await supabase.functions.invoke("nl-hooks/sincronizar-tokens", { body: { confirmar: "sincronizar-tokens" } });
-    setASincronizar(false);
-    if (error) { toast.error("Não foi possível sincronizar. Confirma a chave e o campo da E-goi."); return; }
-    const r = data as { actualizados: number; falhas: number };
-    toast.success(`Tokens atualizados em ${r.actualizados} contacto(s); ${r.falhas} falha(s).`);
-  }
 
   if (erro) return <p className="p-4 text-sm text-muted-foreground">{erro}</p>;
   if (!estado) return <p className="p-4 text-sm text-muted-foreground">A carregar…</p>;
@@ -85,23 +70,7 @@ export default function NewsletterLigacoes() {
         <p><span className="text-muted-foreground">Mapa do site:</span><br /><code className="break-all">{estado.endpoints.sitemap}</code></p>
       </section>
 
-      <section className="space-y-2 rounded-md border p-3 text-sm">
-        <h2 className="font-medium">Tokens de subscrição na E-goi</h2>
-        <p className="text-muted-foreground">Escreve em cada contacto das listas reais o token assinado usado nas ligações «Gerir a subscrição» e «Cancelar». Necessário antes de um envio real e depois de novas subscrições.</p>
-        <AlertDialog>
-          <AlertDialogTrigger asChild><Button size="sm" disabled={aSincronizar}>{aSincronizar ? "A sincronizar…" : "Sincronizar tokens"}</Button></AlertDialogTrigger>
-          <AlertDialogContent>
-            <AlertDialogHeader>
-              <AlertDialogTitle>Atualizar contactos na E-goi?</AlertDialogTitle>
-              <AlertDialogDescription>Vai escrever o token de subscrição em todos os contactos das listas reais da E-goi. Não envia emails.</AlertDialogDescription>
-            </AlertDialogHeader>
-            <AlertDialogFooter>
-              <AlertDialogCancel>Cancelar</AlertDialogCancel>
-              <AlertDialogAction onClick={sincronizar}>Atualizar contactos</AlertDialogAction>
-            </AlertDialogFooter>
-          </AlertDialogContent>
-        </AlertDialog>
-      </section>
+      <SincronizacaoTokens />
     </div>
   );
 }
