@@ -134,3 +134,27 @@ export const pedirExportacao = (documento_id: string, versao: number) => invocar
 export const lerExportacao = (documento_id: string, versao: number) => invocar<EstadoExportacao>({ acao: "estado_exportacao", documento_id, versao });
 export const prepararRascunho = (documento_id: string, versao: number, proposta_versao: number) =>
   invocar<{ draft_id: string; existente: boolean }>({ acao: "preparar_social", documento_id, versao, proposta_versao, revisto: true });
+
+export interface Capa { documento: DocumentoGrafico; conteudo: PropostaEditorial }
+/** Current cover data (variant A) for library thumbnails; exact current versions only. */
+export async function lerCapas(trabalhoIds: string[]): Promise<Record<string, Capa>> {
+  if (!trabalhoIds.length) return {};
+  const { data: ps } = await supabase.from("mc_propostas").select("id, trabalho_id, versao_actual").in("trabalho_id", trabalhoIds);
+  const props = (ps ?? []).filter((p) => p.versao_actual > 0);
+  if (!props.length) return {};
+  const { data: ds } = await supabase.from("mc_documentos").select("id, proposta_id, versao_actual").eq("variante", "A").in("proposta_id", props.map((p) => p.id));
+  const docs = (ds ?? []).filter((d) => d.versao_actual > 0);
+  if (!docs.length) return {};
+  const [{ data: pvs }, { data: dvs }] = await Promise.all([
+    supabase.from("mc_propostas_versoes").select("proposta_id, versao, conteudo").or(props.map((p) => `and(proposta_id.eq.${p.id},versao.eq.${p.versao_actual})`).join(",")),
+    supabase.from("mc_documentos_versoes").select("documento_id, versao, documento").or(docs.map((d) => `and(documento_id.eq.${d.id},versao.eq.${d.versao_actual})`).join(",")),
+  ]);
+  const out: Record<string, Capa> = {};
+  for (const p of props) {
+    const d = docs.find((x) => x.proposta_id === p.id);
+    const pv = pvs?.find((x) => x.proposta_id === p.id);
+    const dv = d && dvs?.find((x) => x.documento_id === d.id);
+    if (pv && dv) out[p.trabalho_id] = { documento: dv.documento as unknown as DocumentoGrafico, conteudo: pv.conteudo as unknown as PropostaEditorial };
+  }
+  return out;
+}
