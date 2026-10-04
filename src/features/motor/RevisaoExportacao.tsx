@@ -3,6 +3,7 @@ import { Link } from "react-router-dom";
 import { ChevronLeft, ChevronRight, Download, ExternalLink, FileDown, Loader2, RotateCw, Send } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useLargura } from "./Estudio";
+import { medidasPalco } from "./palco";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
@@ -89,11 +90,13 @@ export function RevisaoExportacao({ dados, pacote, medidor, guardado, irPara }: 
         <p className="text-xs text-muted-foreground">Composição v{doc.versao} · narrativa v{doc.proposta_versao}{doc.aprovada_versao === doc.versao ? " · revista e aprovada" : ""}</p>
       </div>
       <div className="grid gap-8 lg:grid-cols-[minmax(0,1fr)_360px]">
-        <div className="space-y-3">
-          <div className="flex items-center justify-center rounded-[var(--mc-r-lg)] p-4 sm:p-8" style={{ background: "hsl(var(--mc-palco))" }}>
+        <div className="min-w-0 space-y-3">
+          <div className="flex min-w-0 items-center justify-center rounded-[var(--mc-r-lg)] p-4 sm:p-8" style={{ background: "hsl(var(--mc-palco))" }}>
             {medidor ? (
-              <div ref={palcoRef} className="w-full max-w-[420px] overflow-hidden rounded-[var(--mc-r-sm)]">
-                {palcoW > 0 && <PaginaCanvas pacote={pacote} variante={variante} indice={iPag} medidor={medidor} imagens={imagens} escala={palcoW / 1080} />}
+              // The box takes its width from the container (aspect 4:5); the canvas is absolute so it
+              // never feeds back into the measured width. Scale is derived from that real width.
+              <div ref={palcoRef} className="relative aspect-[4/5] w-full min-w-0 max-w-[420px] overflow-hidden rounded-[var(--mc-r-sm)]">
+                {palcoW > 0 && <div className="absolute left-0 top-0"><PaginaCanvas pacote={pacote} variante={variante} indice={iPag} medidor={medidor} imagens={imagens} escala={medidasPalco(palcoW).escala} /></div>}
               </div>
             ) : <p className="py-24 text-sm text-muted-foreground">A carregar fontes…</p>}
           </div>
