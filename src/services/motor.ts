@@ -2,6 +2,8 @@ import { supabase } from "@/integrations/supabase/client";
 import { tratarSessaoRecusada } from "@/lib/sessaoRecusada";
 import type { DocumentoGrafico, Variante } from "../../supabase/functions/_shared/documento-grafico/nucleo";
 import type { PropostaEditorial } from "../../supabase/functions/_shared/motor/proposta";
+import type { LinkFalhado, LinkLido, MetaFonte } from "../../supabase/functions/_shared/motor/fontes";
+import type { Asset } from "../../supabase/functions/_shared/documento-grafico/nucleo";
 
 export type EstadoTrabalho = "pendente" | "a_processar" | "concluido" | "erro" | "desconhecido" | "cancelado";
 
@@ -34,6 +36,7 @@ export async function listarTrabalhos(projectId: string | null): Promise<Trabalh
 }
 
 export interface NovoTrabalho {
+  fonte_tipo?: "texto" | "link" | "pdf"; metadados?: MetaFonte;
   project_id: string; texto: string; titulo: string; objetivo: string; tom: string; slides: number; modo?: "estruturacao" | "demonstracao" | "ia"; nova?: boolean;
 }
 export const criarTrabalho = (n: NovoTrabalho) => invocar<{ trabalho_id: string; reutilizado: boolean }>({ acao: "criar", ...n });
@@ -166,4 +169,17 @@ export async function lerCapas(trabalhoIds: string[]): Promise<Record<string, Ca
     if (pv && dv) out[p.trabalho_id] = { documento: dv.documento as unknown as DocumentoGrafico, conteudo: pv.conteudo as unknown as PropostaEditorial };
   }
   return out;
+}
+
+// ---------- link / images ----------
+export const lerLinkFonte = (project_id: string, url: string) => invocar<LinkLido | LinkFalhado>({ acao: "ler_link", project_id, url });
+
+export interface ImagemBiblioteca { id: string; file_name: string; file_url: string; thumbnail_url: string | null; width: number | null; height: number | null; file_size: number | null; source: string | null; created_at: string }
+export interface AssetMotor { id: string; media_id: string | null; nome: string | null; largura: number; altura: number; bytes: number; mime: string; criado_em: string }
+export const listarImagens = (project_id: string) => invocar<{ biblioteca: ImagemBiblioteca[]; assets: AssetMotor[] }>({ acao: "listar_imagens", project_id });
+export const registarImagem = (project_id: string, media_id: string) => invocar<{ asset: AssetMotor & { hash: string } }>({ acao: "registar_imagem", project_id, media_id });
+/** Verified bytes of this project's assets; ids that failed (removed/expired/other project) come back in falhas. */
+export async function lerAssets(project_id: string, ids: string[]): Promise<{ assets: Record<string, Asset>; falhas: string[] }> {
+  if (!ids.length) return { assets: {}, falhas: [] };
+  return invocar<{ assets: Record<string, Asset>; falhas: string[] }>({ acao: "ler_assets", project_id, ids });
 }

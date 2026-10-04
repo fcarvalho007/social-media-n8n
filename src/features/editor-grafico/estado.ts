@@ -1,4 +1,4 @@
-import type { Camada, PacoteProva, Pagina, SlideEditorial, Variante } from "../../../supabase/functions/_shared/documento-grafico/nucleo";
+import type { Asset, Camada, PacoteProva, Pagina, SlideEditorial, Variante } from "../../../supabase/functions/_shared/documento-grafico/nucleo";
 
 export interface EstadoEditor {
   pacote: PacoteProva;
@@ -20,6 +20,7 @@ export type Acao =
   | { tipo: "duplicarCamada"; id: string }
   | { tipo: "apagarCamada"; id: string }
   | { tipo: "adicionar"; camada: "texto" | "ret" | "elipse" }
+  | { tipo: "adicionarImagem"; asset: Asset; nome: string }
   | { tipo: "fundo"; cor: string }
   | { tipo: "duplicarPagina"; indice: number }
   | { tipo: "moverPagina"; de: number; para: number }
@@ -105,6 +106,13 @@ export function reduzir(s: EstadoEditor, a: Acao): EstadoEditor {
         ? { id: novoId("texto"), nome: "Texto livre", tipo: "texto", texto: "Novo texto", x: 140, y: 560, w: 800, h: 200, z: topo + 1, estilo: { peso: 700, tam: 64, linha: 1.15, alinh: "esq", cor: "#111111", overflow: "reduzir", tamMin: 28 } }
         : { id: novoId(a.camada), nome: a.camada === "ret" ? "Retângulo" : "Elipse", tipo: "forma", forma: a.camada, x: 340, y: 475, w: 400, h: 400, z: topo + 1, estilo: { cor: "#f59e0b", raio: a.camada === "ret" ? 0 : undefined } };
       return aplicar(s, comPagina(s.pacote, s.variante, s.pagina, (p) => ({ ...p, camadas: [...p.camadas, nova] })), undefined, { selecao: nova.id });
+    }
+    case "adicionarImagem": {
+      // Full-bleed cover behind the existing layers; the user can then move/resize/crop/reorder it.
+      const baixo = pg.camadas.length ? Math.min(...pg.camadas.map((x) => x.z)) : 1;
+      const nova: Camada = { id: novoId("imagem"), nome: a.nome.slice(0, 60) || "Imagem", tipo: "imagem", asset_id: a.asset.id, recorte: "cover", foco: { x: 0.5, y: 0.5 }, x: 0, y: 0, w: 1080, h: 1350, z: baixo - 1 };
+      const pacote = { ...s.pacote, assets: { ...s.pacote.assets, [a.asset.id]: a.asset } };
+      return aplicar(s, comPagina(pacote, s.variante, s.pagina, (p) => ({ ...p, camadas: [...p.camadas, nova] })), undefined, { selecao: nova.id });
     }
     case "fundo":
       return aplicar(s, comPagina(s.pacote, s.variante, s.pagina, (p) => ({ ...p, fundo: a.cor })), "fundo");

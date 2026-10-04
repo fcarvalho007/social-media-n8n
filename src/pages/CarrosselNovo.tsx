@@ -1,6 +1,8 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
-import { ArrowLeft, ArrowRight, FlaskConical, Loader2 } from "lucide-react";
+import { ArrowLeft, ArrowRight, FileText, FlaskConical, Link2, Loader2, Type, Upload } from "lucide-react";
+import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
+import { Checkbox } from "@/components/ui/checkbox";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -10,7 +12,9 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { useAuth } from "@/contexts/AuthContext";
 import { useProjeto } from "@/contexts/ProjetoContext";
 import { chaveRecuperacao, guardarRecuperacao, lerRecuperacao, limparRecuperacao } from "@/lib/recuperacaoLocal";
-import { criarTrabalho, type OrcamentoIa } from "@/services/motor";
+import { criarTrabalho, lerLinkFonte, type OrcamentoIa } from "@/services/motor";
+import { comporFontePdf, ErroPdf, lerPdf, NOME_ESTADO_PAGINA, type PdfLido } from "@/features/motor/fontePdf";
+import { HOSTS_LINK, intervalos, type LinkFalhado, type LinkLido, type MetaLink, type MetaPdf } from "../../supabase/functions/_shared/motor/fontes";
 import { LimitesIa } from "@/features/motor/LimitesIa";
 import { BarraAcoes, Cabecalho, Etapas, Grupo, Quadro } from "@/features/motor/Estudio";
 import { cn } from "@/lib/utils";
@@ -38,7 +42,8 @@ export function estruturaPrevista(n: number): string[] {
   return ["Capa", "Contexto", ...Array.from({ length: n - 3 }, () => "Ideia"), "Fecho"];
 }
 
-interface Rascunho { texto: string; titulo: string; objetivo: ObjetivoId; detalhe: string; tom: string; slides: number | null }
+type TipoFonte = "texto" | "link" | "pdf";
+interface Rascunho { texto: string; titulo: string; objetivo: ObjetivoId; detalhe: string; tom: string; slides: number | null; url?: string; link?: MetaLink | null; pdf?: MetaPdf | null; original?: string; parcial?: boolean }
 
 export default function CarrosselNovo() {
   const nav = useNavigate();
@@ -62,25 +67,39 @@ export default function CarrosselNovo() {
   const projetoRef = useRef(projeto);
   projetoRef.current = projeto;
   const textoRef = useRef<HTMLTextAreaElement>(null);
+  const [tipoFonte, setTipoFonte] = useState<TipoFonte>("texto");
+  const tipoRef = useRef(tipoFonte);
+  tipoRef.current = tipoFonte;
+  const pedido = useRef(0);
+  const [url, setUrl] = useState("");
+  const [lendo, setLendo] = useState(false);
+  const [falhaFonte, setFalhaFonte] = useState<string | null>(null);
+  const [linkMeta, setLinkMeta] = useState<MetaLink | null>(null);
+  const [pdfLido, setPdfLido] = useState<PdfLido | null>(null);
+  const [pdfMeta, setPdfMeta] = useState<MetaPdf | null>(null);
+  const [excluidas, setExcluidas] = useState<Set<number>>(new Set());
+  const [original, setOriginal] = useState("");
+  const [parcial, setParcial] = useState(false);
 
   useEffect(() => { if (!projeto && projetoId) setProjeto(projetoId); }, [projetoId, projeto]);
 
   // Local recovery per user + project (this device only; never claimed as saved on the server).
-  const chave = user && projeto && !demo ? chaveRecuperacao(user.id, "carrossel-novo", null, projeto) : null;
+  const chave = user && projeto && !demo ? chaveRecuperacao(user.id, tipoFonte === "texto" ? "carrossel-novo" : `carrossel-novo-${tipoFonte}`, null, projeto) : null;
   useEffect(() => {
     if (!chave || !user || texto) return;
     const r = lerRecuperacao<Rascunho>(chave, user.id);
     if (r?.dados?.texto) {
       const d = r.dados;
+      setUrl(d.url ?? ""); setLinkMeta(d.link ?? null); setPdfMeta(d.pdf ?? null); setOriginal(d.original ?? ""); setParcial(!!d.parcial);
       setTexto(d.texto); setTitulo(d.titulo); setObjetivo(d.objetivo ?? "informar"); setDetalhe(d.detalhe ?? ""); setTom(d.tom ?? ""); setSlides(d.slides ?? null);
       setRecuperado(new Date(r.guardado_em).toLocaleString("pt-PT", { timeZone: "Europe/Lisbon", day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit" }));
     }
   }, [chave]); // eslint-disable-line react-hooks/exhaustive-deps
   useEffect(() => {
     if (!chave || !texto.trim()) return;
-    const t = setTimeout(() => guardarRecuperacao<Rascunho>(chave, { texto, titulo, objetivo, detalhe, tom, slides }), 600);
+    const t = setTimeout(() => guardarRecuperacao<Rascunho>(chave, { texto, titulo, objetivo, detalhe, tom, slides, url, link: linkMeta, pdf: pdfMeta, original, parcial }), 600);
     return () => clearTimeout(t);
-  }, [chave, texto, titulo, objetivo, detalhe, tom, slides]);
+  }, [chave, texto, titulo, objetivo, detalhe, tom, slides, url, linkMeta, pdfMeta, original, parcial]);
 
   useEffect(() => { if (params.get("demo") === "1") usarDemo(); }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
@@ -92,24 +111,94 @@ export default function CarrosselNovo() {
   const mostrarErro = tocado && !!texto.trim() && !av.ok;
   const semTexto = tocado && !texto.trim();
 
-  function usarDemo() { setDemo(true); setTexto(FIXTURE_DEMO); setTitulo(""); setSlides(null); setTocado(false); }
+  const pdfSemTexto = !!pdfMeta && !pdfMeta.paginas.some((p) => p.estado === "texto");
+  const precisaParcial = (tipoFonte === "pdf" && !!pdfMeta && !pdfMeta.completo && !pdfSemTexto) || (tipoFonte === "link" && !!linkMeta?.truncado);
+  const fonteDefinida = tipoFonte === "texto" || (tipoFonte === "link" ? !!linkMeta : !!pdfMeta);
+  const fonteValida = av.ok && fonteDefinida && !(tipoFonte === "pdf" && pdfSemTexto) && (!precisaParcial || parcial);
+
+  function limparFonte() {
+    pedido.current++;
+    setTexto(""); setOriginal(""); setLinkMeta(null); setPdfMeta(null); setPdfLido(null); setExcluidas(new Set());
+    setParcial(false); setFalhaFonte(null); setLendo(false); setTocado(false); setSlides(null); setRecuperado(null);
+  }
+  function mudarTipo(t: TipoFonte) {
+    if (t === tipoFonte) return;
+    limparFonte(); setUrl(""); setTipoFonte(t);
+  }
+
+  async function lerLink() {
+    if (!projeto || !url.trim()) return;
+    const n = ++pedido.current; const alvo = projeto;
+    setLendo(true); setFalhaFonte(null); setLinkMeta(null); setTexto(""); setParcial(false);
+    try {
+      const r = await lerLinkFonte(alvo, url.trim());
+      // Late answers for another request/project/type are discarded.
+      if (n !== pedido.current || projetoRef.current !== alvo || tipoRef.current !== "link") return;
+      if (r.ok) {
+        const l = r as LinkLido;
+        setTexto(l.texto); setOriginal(l.texto); setSlides(null);
+        setLinkMeta({ tipo: "link", modo: "extraido", url: url.trim(), url_final: l.url_final, titulo_pagina: l.titulo, bytes: l.bytes, truncado: l.truncado, editado: false, lido_em: new Date().toISOString() });
+      } else setFalhaFonte((r as LinkFalhado).mensagem);
+    } catch (e) {
+      if (n === pedido.current) setFalhaFonte((e as Error).message);
+    } finally {
+      if (n === pedido.current) setLendo(false);
+    }
+  }
+  function usarComoReferencia() {
+    const u = url.trim();
+    if (!/^https?:\/\/\S+$/i.test(u)) { setFalhaFonte("Indica um endereço completo (https://…)."); return; }
+    pedido.current++; setLendo(false); setFalhaFonte(null); setTexto(""); setOriginal("");
+    setLinkMeta({ tipo: "link", modo: "referencia", url: u, url_final: null, titulo_pagina: null, bytes: null, truncado: false, editado: true, lido_em: null });
+    setTimeout(() => textoRef.current?.focus(), 50);
+  }
+
+  async function escolherPdf(f: File | undefined) {
+    if (!f || !projeto) return;
+    const n = ++pedido.current; const alvo = projeto;
+    setLendo(true); setFalhaFonte(null);
+    try {
+      const lido = await lerPdf(f);
+      if (n !== pedido.current || projetoRef.current !== alvo || tipoRef.current !== "pdf") return;
+      const c = comporFontePdf(lido, new Set(), false);
+      setPdfLido(lido); setExcluidas(new Set()); setParcial(false); setPdfMeta(c.meta); setTexto(c.texto); setOriginal(c.texto); setSlides(null);
+    } catch (e) {
+      // Previous draft stays intact on error.
+      if (n === pedido.current) setFalhaFonte(e instanceof ErroPdf ? e.message : "Não foi possível ler o PDF. Cola o texto em alternativa.");
+    } finally {
+      if (n === pedido.current) setLendo(false);
+    }
+  }
+  function alternarPagina(np: number) {
+    if (!pdfLido) return;
+    const ex = new Set(excluidas);
+    if (ex.has(np)) ex.delete(np); else ex.add(np);
+    const c = comporFontePdf(pdfLido, ex, false);
+    setExcluidas(ex); setPdfMeta(c.meta); setTexto(c.texto); setOriginal(c.texto); setParcial(false); setSlides(null);
+  }
+
+  function usarDemo() { mudarTipo("texto"); setDemo(true); setTexto(FIXTURE_DEMO); setTitulo(""); setSlides(null); setTocado(false); }
   const sairDemo = () => { setDemo(false); setTexto(""); setTocado(false); };
 
   const continuar = () => {
     setTocado(true);
-    if (!projeto || !av.ok) { textoRef.current?.focus(); return; }
+    if (!projeto || !fonteValida) { textoRef.current?.focus(); return; }
     setEtapa("narrativa");
     window.scrollTo({ top: 0 });
   };
 
   const criar = async () => {
-    if (!projeto || !av.ok || aCriar) return;
+    if (!projeto || !fonteValida || aCriar) return;
     setACriar(true);
     const alvo = projeto;
     const o = OBJETIVOS.find((x) => x.id === objetivo)!;
     const objetivoTxt = detalhe.trim() ? `${o.nome}: ${detalhe.trim()}` : `${o.nome} — ${o.desc}`;
     try {
-      const r = await criarTrabalho({ project_id: alvo, texto, titulo, objetivo: objetivoTxt.slice(0, 200), tom, slides: nSlides, modo: demo ? "demonstracao" : comIa ? "ia" : "estruturacao" });
+      const r = await criarTrabalho({ project_id: alvo, texto, titulo, objetivo: objetivoTxt.slice(0, 200), tom, slides: nSlides, modo: demo ? "demonstracao" : comIa ? "ia" : "estruturacao",
+        fonte_tipo: demo ? "texto" : tipoFonte,
+        metadados: demo || tipoFonte === "texto" ? undefined
+          : tipoFonte === "link" ? { ...linkMeta!, editado: linkMeta!.modo === "referencia" || texto !== original }
+          : { ...pdfMeta!, parcial_confirmado: parcial, editado: texto !== original } });
       if (projetoRef.current !== alvo) { toast.info("O projeto mudou entretanto; o carrossel ficou no projeto anterior."); setACriar(false); return; }
       if (chave) limparRecuperacao(chave);
       if (r.reutilizado) toast.info("Já existia um carrossel com esta fonte e estas opções; foi aberto.");
@@ -140,9 +229,88 @@ export default function CarrosselNovo() {
                 </Select>
               </div>
             </div>
+            {!demo && (
+              <ToggleGroup type="single" variant="outline" value={tipoFonte} onValueChange={(v) => v && mudarTipo(v as TipoFonte)} aria-label="Tipo de fonte" className="justify-start">
+                <ToggleGroupItem value="texto" className="h-11 px-4"><Type className="mr-1.5 h-4 w-4" />Texto</ToggleGroupItem>
+                <ToggleGroupItem value="link" className="h-11 px-4"><Link2 className="mr-1.5 h-4 w-4" />Link</ToggleGroupItem>
+                <ToggleGroupItem value="pdf" className="h-11 px-4"><FileText className="mr-1.5 h-4 w-4" />PDF</ToggleGroupItem>
+              </ToggleGroup>
+            )}
             <p id="ajuda-texto" className="max-w-xl text-sm text-muted-foreground">
-              Cola o texto que vai servir de base ao carrossel.
+              {tipoFonte === "texto" ? "Cola o texto que vai servir de base ao carrossel."
+                : tipoFonte === "link" ? "Indica o endereço do artigo. Sites autorizados são lidos automaticamente; nos outros, o link fica como referência e colas o texto."
+                : "Escolhe um PDF com texto (até 15 MB e 60 páginas). O texto é lido página a página neste dispositivo."}
             </p>
+            {tipoFonte === "link" && !demo && (
+              <div className="space-y-3">
+                <div className="flex flex-col gap-2 sm:flex-row">
+                  <Label htmlFor="url" className="sr-only">Endereço do artigo</Label>
+                  <Input id="url" type="url" inputMode="url" className="h-11 flex-1" placeholder="https://…" value={url} maxLength={2000}
+                    onChange={(e) => { setUrl(e.target.value); if (linkMeta) limparFonte(); }} onKeyDown={(e) => e.key === "Enter" && lerLink()} />
+                  <Button className="h-11" variant="secondary" onClick={lerLink} disabled={lendo || !url.trim()}>{lendo && <Loader2 className="mr-2 h-4 w-4 motion-safe:animate-spin" />}Ler página</Button>
+                </div>
+                <details className="text-xs text-muted-foreground">
+                  <summary className="cursor-pointer py-1">Que sites são lidos automaticamente?</summary>
+                  <p className="mt-1">Por segurança, só origens públicas fixas já usadas no Hub: {HOSTS_LINK.join(", ")}. Páginas com acesso pago ou que dependem de JavaScript não são contornadas.</p>
+                </details>
+                {falhaFonte && (
+                  <div role="alert" className="space-y-2 rounded-[var(--mc-r-md)] border border-destructive/50 p-3 text-sm">
+                    <p className="text-destructive">{falhaFonte}</p>
+                    <Button variant="outline" className="h-11" onClick={usarComoReferencia}>Usar o link como referência e colar o texto</Button>
+                  </div>
+                )}
+                {linkMeta && (
+                  <div className="rounded-[var(--mc-r-md)] border border-border p-3 text-xs text-muted-foreground" role="status">
+                    {linkMeta.modo === "extraido"
+                      ? <>Lido de <span className="break-all text-foreground">{linkMeta.url_final}</span>{linkMeta.titulo_pagina && <> · «{linkMeta.titulo_pagina}»</>} · {((linkMeta.bytes ?? 0) / 1024).toFixed(0)} KB descarregados. Revê o texto abaixo; podes corrigi-lo.</>
+                      : <>Referência: <span className="break-all text-foreground">{linkMeta.url}</span>. A página não foi lida — cola abaixo o texto do artigo.</>}
+                  </div>
+                )}
+              </div>
+            )}
+            {tipoFonte === "pdf" && !demo && (
+              <div className="space-y-3">
+                <Label htmlFor="pdf" className="inline-flex h-11 cursor-pointer items-center rounded-md border border-input px-4 text-sm font-medium hover:bg-accent focus-within:ring-2 focus-within:ring-ring">
+                  {lendo ? <Loader2 className="mr-2 h-4 w-4 motion-safe:animate-spin" /> : <Upload className="mr-2 h-4 w-4" />}{pdfMeta ? "Escolher outro PDF" : "Escolher PDF"}
+                  <input id="pdf" type="file" accept="application/pdf,.pdf" className="sr-only" disabled={lendo} onChange={(e) => { escolherPdf(e.target.files?.[0]); e.target.value = ""; }} />
+                </Label>
+                {falhaFonte && <p role="alert" className="text-sm text-destructive">{falhaFonte}</p>}
+                {pdfMeta && (
+                  <div className="space-y-2">
+                    <p className="text-xs text-muted-foreground" role="status">{pdfMeta.ficheiro} · {pdfMeta.total_paginas} {pdfMeta.total_paginas === 1 ? "página" : "páginas"} · {pdfMeta.completo ? "todas as páginas com texto" : `sem texto usado nas páginas ${intervalos(pdfMeta.paginas_em_falta)}`}</p>
+                    <ol className="max-h-72 space-y-1 overflow-y-auto rounded-[var(--mc-r-md)] border border-border p-2" aria-label="Páginas do PDF">
+                      {pdfMeta.paginas.map((pg) => {
+                        const paras = pg.paragrafos ? fonte.paragrafos.slice(pg.paragrafos[0] - 1, pg.paragrafos[1]) : [];
+                        const lida = pdfLido?.paginas[pg.n - 1];
+                        const temTexto = lida ? lida.estado === "texto" : pg.estado === "texto";
+                        return (
+                          <li key={pg.n} className="flex gap-3 rounded p-2 text-sm">
+                            {temTexto && pdfLido
+                              ? <Checkbox id={`pg-${pg.n}`} className="mt-0.5" checked={!excluidas.has(pg.n)} onCheckedChange={() => alternarPagina(pg.n)} aria-label={`Usar página ${pg.n}`} />
+                              : <span className="w-4" aria-hidden />}
+                            <div className="min-w-0">
+                              <p className="text-xs font-medium">Pág. {pg.n} · <span className={pg.estado === "texto" ? "text-muted-foreground" : "text-destructive"}>{NOME_ESTADO_PAGINA[pg.estado]}</span></p>
+                              {paras.length > 0 && <p className="line-clamp-2 text-xs text-muted-foreground">{paras.join(" ")}</p>}
+                            </div>
+                          </li>
+                        );
+                      })}
+                    </ol>
+                  </div>
+                )}
+              </div>
+            )}
+            {tipoFonte === "pdf" && pdfSemTexto && !demo && (
+              <p role="alert" className="rounded-[var(--mc-r-md)] border border-destructive/50 p-3 text-sm text-destructive">Este PDF não tem camada de texto (parece digitalizado). Nesta versão não há OCR: usa a opção «Texto» e cola o conteúdo.</p>
+            )}
+            {precisaParcial && !demo && (
+              <label className="flex items-start gap-3 rounded-[var(--mc-r-md)] border border-destructive/50 p-3 text-sm">
+                <Checkbox checked={parcial} onCheckedChange={(v) => setParcial(v === true)} className="mt-0.5" aria-describedby="parcial-desc" />
+                <span id="parcial-desc">{tipoFonte === "pdf"
+                  ? <>Fonte parcial: {(pdfMeta?.paginas_em_falta.length ?? 0) === 1 ? "a página" : "as páginas"} {intervalos(pdfMeta?.paginas_em_falta ?? [])} não {(pdfMeta?.paginas_em_falta.length ?? 0) === 1 ? "entra" : "entram"} no carrossel. Confirmo que quero usar só o texto lido.</>
+                  : <>A página é maior do que o texto lido; o artigo pode estar incompleto. Confirmo que quero usar só esta parte.</>}</span>
+              </label>
+            )}
             {demo && (
               <p className="flex items-center gap-2 rounded-[var(--mc-r-md)] border border-border px-3 py-2 text-xs text-muted-foreground" role="status">
                 <FlaskConical className="h-4 w-4 shrink-0" aria-hidden />Demonstração: texto sintético processado por um fornecedor simulado, sem IA real.
@@ -151,7 +319,7 @@ export default function CarrosselNovo() {
             {recuperado && !demo && (
               <p className="text-xs text-muted-foreground" role="status">Rascunho recuperado deste dispositivo ({recuperado}). Ainda não foi enviado.</p>
             )}
-            <div>
+            {(tipoFonte === "texto" || demo || (tipoFonte === "link" && linkMeta)) && <div>
               <Label htmlFor="texto" className="sr-only">Texto da fonte</Label>
               <Textarea id="texto" ref={textoRef} rows={8} readOnly={demo}
                 aria-describedby="ajuda-texto estado-texto" aria-invalid={mostrarErro || semTexto}
@@ -169,7 +337,14 @@ export default function CarrosselNovo() {
                   </Button>
                 )}
               </div>
-            </div>
+            </div>}
+            {tipoFonte === "pdf" && pdfMeta && !pdfSemTexto && !demo && (
+              <Grupo titulo="Editar texto extraído" resumo={texto !== original ? "Editado por ti" : "Tal como foi lido"}>
+                <Label htmlFor="texto-pdf" className="sr-only">Texto extraído do PDF</Label>
+                <Textarea id="texto-pdf" rows={8} className="rounded-[var(--mc-r-lg)] bg-card p-4 text-sm leading-relaxed" value={texto} onChange={(e) => { setTexto(e.target.value); setSlides(null); }} />
+                <p className="mt-1 text-xs text-muted-foreground">{av.ok ? `${fonte.paragrafos.length} parágrafos` : av.motivo} {texto !== original && "· Ao editar, a correspondência exata página→parágrafo deixa de ser garantida."}</p>
+              </Grupo>
+            )}
             {rever && fonte.paragrafos.length > 0 && (
               <ol id="rever-fonte" className="mc-entrar space-y-3 border-l border-border pl-4" aria-label="Parágrafos numerados (§), tal como os slides os vão citar">
                 <li className="text-xs text-muted-foreground">Cada parágrafo fica numerado (§) para que os slides citem a sua origem.</li>
@@ -270,7 +445,7 @@ export default function CarrosselNovo() {
         nota={etapa === "narrativa" ? (demo ? "Demonstração · fornecedor simulado" : comIa ? "Gera no servidor; podes sair da página." : "Gera sem IA, no servidor.") : undefined}
         fim={etapa === "fonte"
           ? <Button className="h-11 px-5" onClick={continuar} disabled={!projeto}>Continuar<ArrowRight className="ml-1.5 h-4 w-4" /></Button>
-          : <Button className="h-11 px-5" onClick={criar} disabled={aCriar || !av.ok}>{aCriar && <Loader2 className="mr-2 h-4 w-4 motion-safe:animate-spin" />}{demo ? "Gerar demonstração" : comIa ? "Gerar carrossel" : "Gerar sem IA"}</Button>}
+          : <Button className="h-11 px-5" onClick={criar} disabled={aCriar || !fonteValida}>{aCriar && <Loader2 className="mr-2 h-4 w-4 motion-safe:animate-spin" />}{demo ? "Gerar demonstração" : comIa ? "Gerar carrossel" : "Gerar sem IA"}</Button>}
       />
     </Quadro>
   );
