@@ -12,7 +12,7 @@ import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover
 import { useAuth } from "@/contexts/AuthContext";
 import { useProjeto } from "@/contexts/ProjetoContext";
 import { chaveRecuperacao, guardarRecuperacao, limparRecuperacao } from "@/lib/recuperacaoLocal";
-import { abrirTrabalho, acordarFila, ConflitoVersao, gravarEdicao, lerVersao, listarVersoes, retomarTrabalho, criarTrabalho, type TrabalhoCompleto, type VersaoDoc } from "@/services/motor";
+import { abrirTrabalho, acordarFila, lerAssets, ConflitoVersao, gravarEdicao, lerVersao, listarVersoes, retomarTrabalho, criarTrabalho, type TrabalhoCompleto, type VersaoDoc } from "@/services/motor";
 import { EditorGrafico } from "@/features/editor-grafico/EditorGrafico";
 import { PaginaCanvas } from "@/features/editor-grafico/PaginaCanvas";
 import { carregarMedidor } from "@/features/editor-grafico/fontes";
@@ -21,6 +21,9 @@ import { layoutTexto, resolverTexto, type Medidor, type PacoteProva, type Varian
 import { normalizarFonte, paraPacote, type PropostaEditorial } from "../../supabase/functions/_shared/motor/proposta";
 import { dataPt, NOME_ESTADO } from "./Carrosseis";
 import { RevisaoExportacao } from "@/features/motor/RevisaoExportacao";
+import { SeletorImagens } from "@/features/motor/SeletorImagens";
+import { assetsReferidos } from "../../supabase/functions/_shared/motor/fontes";
+import type { Asset } from "../../supabase/functions/_shared/documento-grafico/nucleo";
 import { BarraAcoes, Cabecalho, Etapas, Grupo, PAPEL, Quadro, type Etapa } from "@/features/motor/Estudio";
 import { cn } from "@/lib/utils";
 
@@ -69,6 +72,10 @@ export default function CarrosselTrabalho() {
   const [polls, setPolls] = useState(0);
   const [slideSel, setSlideSel] = useState(0);
   const passoDecidido = useRef(false);
+  const assetsCache = useRef<Record<string, Asset>>({});
+  const [assetsFalha, setAssetsFalha] = useState<string[]>([]);
+  const [seletor, setSeletor] = useState(false);
+  const resolverSeletor = useRef<((r: { asset: Asset; nome: string } | null) => void) | null>(null);
 
   const chave = user && dados ? chaveRecuperacao(user.id, "carrossel", id, dados.trabalho.project_id) : null;
 
@@ -84,7 +91,18 @@ export default function CarrosselTrabalho() {
       }
       if (g) {
         setGravado(g);
-        setPacote(paraPacote(id, d.trabalho.titulo ?? "Carrossel", g.conteudo, { A: g.docs.A.documento, B: g.docs.B.documento }));
+        // Image layers resolve to verified bytes of this project's assets; failures are shown, never hidden.
+        const ids = assetsReferidos([g.docs.A.documento, g.docs.B.documento]);
+        const faltam = ids.filter((x) => !assetsCache.current[x]);
+        let falhas: string[] = [];
+        if (faltam.length) {
+          try { const r = await lerAssets(d.trabalho.project_id, faltam); Object.assign(assetsCache.current, r.assets); falhas = r.falhas; }
+          catch { falhas = faltam; }
+        }
+        setAssetsFalha(falhas);
+        const assets = Object.fromEntries(ids.filter((x) => assetsCache.current[x]).map((x) => [x, assetsCache.current[x]]));
+        const base = paraPacote(id, d.trabalho.titulo ?? "Carrossel", g.conteudo, { A: g.docs.A.documento, B: g.docs.B.documento });
+        setPacote(falhas.length ? base : { ...base, assets });
         setExtras({ legenda: g.conteudo.legenda, alt: g.conteudo.alt });
         setRevisao((r) => r + 1);
         setEstadoG("guardado");
@@ -272,6 +290,19 @@ export default function CarrosselTrabalho() {
     </>
   );
 
+  if (assetsFalha.length && dados) {
+    return (
+      <Quadro>
+        <Cabecalho voltarPara="/estudio/carrosseis" titulo={dados.trabalho.titulo ?? "Carrossel"} />
+        <main className="mx-auto w-full max-w-xl space-y-3 px-4 py-10" role="alert">
+          <h1 className="text-xl font-semibold">Uma imagem do design não está disponível</h1>
+          <p className="text-sm text-muted-foreground">O design usa {assetsFalha.length === 1 ? "uma imagem que" : `${assetsFalha.length} imagens que`} já não pode{assetsFalha.length === 1 ? "" : "m"} ser lida{assetsFalha.length === 1 ? "" : "s"} (removida ou de outro projeto). Para não exportar arte incompleta, o editor não abre sem ela. O texto e as versões continuam guardados.</p>
+          <div className="flex gap-2"><Button className="h-11" onClick={() => { assetsCache.current = {}; carregar(); }}><RotateCw className="mr-1.5 h-4 w-4" />Tentar de novo</Button><Button asChild variant="ghost" className="h-11"><Link to="/estudio/carrosseis">Voltar</Link></Button></div>
+        </main>
+      </Quadro>
+    );
+  }
+
   if (passo === "composicao" && pacote && chave !== undefined) {
     return (
       <Quadro className="h-dvh min-h-0 overflow-hidden">
@@ -286,7 +317,9 @@ export default function CarrosselTrabalho() {
           }
           estadoGravacao={<div className="flex items-center gap-2">{avisoBadge}<EstadoChip estado={estadoG} /></div>}
           menuExtra={<><DropdownMenuSeparator /><DropdownMenuItem onSelect={() => abrirVersoes("A")}><History className="mr-2 h-4 w-4" />Versões da variante A</DropdownMenuItem><DropdownMenuItem onSelect={() => abrirVersoes("B")}><History className="mr-2 h-4 w-4" />Versões da variante B</DropdownMenuItem></>}
+          pedirImagem={() => new Promise((res) => { resolverSeletor.current = res; setSeletor(true); })}
           onAlterado={(p) => setPacote(p)} />
+        <SeletorImagens projectId={dados!.trabalho.project_id} aberto={seletor} onFechar={(r) => { setSeletor(false); resolverSeletor.current?.(r); resolverSeletor.current = null; }} />
         {dialogos}
       </Quadro>
     );
