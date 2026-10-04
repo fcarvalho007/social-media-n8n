@@ -33,6 +33,11 @@ import Insights from "./pages/Insights";
 import NotificationSettings from "./pages/NotificationSettings";
 import StoryConfirm from "./pages/StoryConfirm";
 import StoryLauncher from "./pages/StoryLauncher";
+import Estudio from "./pages/estudio/Estudio";
+import NewsletterArquivo from "./pages/newsletter/NewsletterArquivo";
+import NewsletterEditor from "./pages/newsletter/NewsletterEditor";
+import NewsletterMigracao from "./pages/newsletter/NewsletterMigracao";
+import Artigos from "./pages/artigos/Artigos";
 const queryClient = new QueryClient();
 
 // Component to handle URL-encoded redirects
@@ -86,6 +91,11 @@ const App = () => (
                   <Route path="/benchmark" element={<Benchmark />} />
                   <Route path="/ai-settings" element={<AISettings />} />
                   <Route path="/ai-demo" element={<AIDemo />} />
+                  <Route path="/estudio" element={<Estudio />} />
+                  <Route path="/newsletter" element={<NewsletterArquivo />} />
+                  <Route path="/newsletter/migracao" element={<NewsletterMigracao />} />
+                  <Route path="/newsletter/:id" element={<NewsletterEditor />} />
+                  <Route path="/artigos" element={<Artigos />} />
                 </Route>
                 {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
                 <Route path="*" element={<EncodedUrlRedirect />} />

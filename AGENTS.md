@@ -1,0 +1,2 @@
+- Newsletter module tables use the `nl_` prefix and authorise via `user_roles` helpers (`nl_is_admin`, `nl_is_staff`); keeps social tables untouched and roles in one place.
+- Newsletter imports run only through the `nl-import` edge function with a fixed table allowlist and the caller's JWT; package data never enters the repo or browser bundle.
