@@ -6,7 +6,7 @@
 import process from "node:process";
 import { createClient, type SupabaseClient } from "npm:@supabase/supabase-js@2.57.4";
 import { carregarFonteCronica, ErroFonte } from "./fonte.server.ts";
-import { PROMPT_CARROSSEL, validarCarrossel, type Carrossel, type FonteCronica } from "./carrossel.ts";
+import { gerarComReparacao, type Carrossel, type FonteCronica } from "./carrossel.ts";
 
 export const TIPO = "carrossel_cronica";
 
