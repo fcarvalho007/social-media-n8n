@@ -30,3 +30,9 @@
 - [x] Importador atribui as edições à identidade DIGITALSPRINT
 
 - [x] Lote de refinamento (contexto de projeto, entrada, carrosséis, artigos, editor, ligações/migração) — anexo de 04/10
+
+## R1 — prova isolada do editor gráfico
+- [x] DocumentoGrafico v1, cinco fixtures sintéticas e editor protegido em /estudio/editor-prova
+- [x] Edição, histórico, JSON, recuperação local e comparação protegida navegador/servidor
+- [x] Composição desktop, telemóvel e largura intermédia com propriedades contextuais
+- [ ] R2 — fora do âmbito desta entrega
