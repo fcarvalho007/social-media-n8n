@@ -52,6 +52,14 @@ export default function NewsletterMigracao() {
     <div className="mx-auto max-w-3xl space-y-4 p-4">
       <h1 className="text-2xl font-semibold">Importar dados da newsletter</h1>
       <p className="text-sm text-muted-foreground">O pacote é confidencial: fica num armazenamento privado e é apagado no fim. Os registos existentes nunca são substituídos, os agendamentos ficam suspensos e não são atribuídos papéis.</p>
+      <div className="rounded-md border border-destructive/40 bg-destructive/5 p-3 text-sm">
+        <p className="font-medium">Antes de importar dados reais</p>
+        <ul className="mt-1 list-disc pl-5 text-muted-foreground">
+          <li>As passwords antigas, que estiveram expostas, têm de ser mudadas por cada utilizador em Definições → Segurança.</li>
+          <li>Faz primeiro uma simulação e uma importação com um pacote de teste.</li>
+          <li>Se o pacote mudar depois da simulação, a importação para e é preciso simular outra vez.</li>
+        </ul>
+      </div>
       <div className="flex flex-col gap-2 sm:flex-row">
         <Input type="file" accept="application/json,.json" onChange={(e) => setFicheiro(e.target.files?.[0] ?? null)} disabled={ocupado} />
         <Button onClick={simular} disabled={!ficheiro || ocupado}>Simular</Button>
