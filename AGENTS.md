@@ -23,3 +23,4 @@
 - Social draft lists and Studio counts read team drafts filtered server-side by project only (cache keyed by user + project; old drafts without project only under "todos", never auto-assigned); keeps counts and lists consistent without narrowing team visibility.
 - The graphics proof uses DocumentoGrafico v1 in browser/server at /estudio/editor-prova and stays separate from legacy flows.
 - Content engine (mc_*): clients only SELECT; writes via owner+editor RPCs; versions append-only; leases/AI service-role.
+- Server PDF pages embed pre-rendered PNGs via native inflate/deflate (pngPdf.ts), not pdf-lib embedPng; embedPng exceeds the edge CPU budget on photographic pages.
