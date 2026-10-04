@@ -125,10 +125,13 @@ Deno.serve(async (req) => {
         return json({ ...r, ...rec });
       }
       case "retomar": {
-        await sb.from("nl_conteudos_jobs").update({ estado: "pendente", tentativas: 0, erro: null, proxima_tentativa_em: new Date().toISOString(), reservado_ate: null })
-          .eq("id", b.job_id).in("estado", ["erro", "aguarda_credencial"]);
-        await sb.from("nl_conteudos_jobs").update({ proxima_tentativa_em: new Date().toISOString(), reservado_ate: null })
-          .eq("id", b.job_id).eq("estado", "aguarda_confirmacao");
+        // Never steals an active lease (another worker may be mid-processing).
+        const agora = new Date().toISOString();
+        const livre = `reservado_ate.is.null,reservado_ate.lt.${agora}`;
+        await sb.from("nl_conteudos_jobs").update({ estado: "pendente", tentativas: 0, erro: null, proxima_tentativa_em: agora, reservado_ate: null, lease_token: null })
+          .eq("id", b.job_id).in("estado", ["erro", "aguarda_credencial"]).or(livre);
+        await sb.from("nl_conteudos_jobs").update({ proxima_tentativa_em: agora })
+          .eq("id", b.job_id).eq("estado", "aguarda_confirmacao").or(livre);
         return json(await processarJobs(1));
       }
       case "gerar": {
