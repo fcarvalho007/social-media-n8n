@@ -492,8 +492,8 @@ export function paginaParaSvg(pacote: PacoteProva, variante: Variante, indice: n
       const a = pacote.assets[c.asset_id];
       const k = calcularRecorte(a, c);
       partes.push(
-        `<svg x="${r(c.x + k.dx)}" y="${r(c.y + k.dy)}" width="${r(k.dw)}" height="${r(k.dh)}" viewBox="${r(k.sx)} ${r(k.sy)} ${r(k.sw)} ${r(k.sh)}" preserveAspectRatio="none" opacity="${op}">` +
-          `<image width="${a.largura}" height="${a.altura}" xlink:href="data:${a.mime};base64,${a.dados}"/></svg>`,
+        `<g opacity="${op}"><svg x="${r(c.x + k.dx)}" y="${r(c.y + k.dy)}" width="${r(k.dw)}" height="${r(k.dh)}" viewBox="${r(k.sx)} ${r(k.sy)} ${r(k.sw)} ${r(k.sh)}" preserveAspectRatio="none">` +
+          `<image width="${a.largura}" height="${a.altura}" xlink:href="data:${a.mime};base64,${a.dados}"/></svg></g>`,
       );
     } else {
       const lay = layoutTexto(resolverTexto(c, pacote.conteudo), c.estilo, c.w, c.h, m);
