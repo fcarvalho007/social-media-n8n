@@ -845,7 +845,7 @@ export async function ajustarDescricoesEdicao(edicaoId: string): Promise<number>
 export async function verificarDuplicado(
   payload: { url: string; titulo: string; categoria: string },
 ): Promise<{ tipo: "url" | "titulo"; descricao: string } | null> {
-  const { normalizarUrl } = await import("../../../supabase/functions/_shared/ia-limpeza");
+  const { normalizarUrl } = await import("@/newsletter/edge-shared/ia-limpeza");
   const url = (payload.url ?? "").trim();
   if (url) {
     const { data } = await supabase

@@ -118,7 +118,7 @@ import { FilaEntrada } from "./partilhado/FilaEntrada";
 import { Podcast } from "./partilhado/Podcast";
 import { AdicionarNoticias } from "./partilhado/modais/AdicionarNoticias";
 import { Fontes } from "./partilhado/modais/Fontes";
-import { CATEGORIAS as CATEGORIAS_TOKENS } from "../../../supabase/functions/_shared/design-tokens";
+import { CATEGORIAS as CATEGORIAS_TOKENS } from "@/newsletter/edge-shared/design-tokens";
 
 
 

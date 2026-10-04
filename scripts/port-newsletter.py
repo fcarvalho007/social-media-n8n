@@ -49,6 +49,7 @@ def client_alias(s: str) -> str:
     s = s.replace('"@tanstack/react-router"', '"@/newsletter/shim/router"')
     s = s.replace('"@tanstack/react-start"', '"@/newsletter/shim/start"')
     s = s.replace('"@tanstack/zod-adapter"', '"@/newsletter/shim/zod-adapter"')
+    s = re.sub(r'"(?:\.\./)+supabase/functions/_shared/', '"@/newsletter/edge-shared/', s)
     s = re.sub(r'"@/features/', '"@/newsletter/features/', s)
     s = re.sub(r'"@/lib/(?!utils")', '"@/newsletter/lib/', s)
     s = re.sub(r'"@/hooks/use-mobile"', '"@/hooks/use-mobile"', s)
@@ -77,6 +78,9 @@ def build_client():
             write(os.path.join(CLI, rel), "\n".join(out) + "\n")
         else:
             write(os.path.join(CLI, rel), client_alias(s))
+    os.makedirs(os.path.join(CLI, "edge-shared"), exist_ok=True)
+    for name in ("design-tokens", "ia-limpeza"):
+        write(os.path.join(CLI, "edge-shared", name + ".ts"), read(os.path.join(ROOT, "migration-reference/code/newsletter/supabase/functions/_shared", name + ".ts.txt")))
     for f in walk(os.path.join(SRC, "routes/_authenticated")):
         rel = os.path.relpath(f, SRC)[:-4]
         write(os.path.join(CLI, rel), client_alias(read(f)))

@@ -9,7 +9,7 @@ import { pesquisarFonteIA, type Candidato as CandidatoFonte } from "@/newsletter
 import { encurtarDescricao } from "@/newsletter/lib/encurtar-descricao.functions";
 import { estadoDescricao, corEstadoDescricao } from "@/newsletter/lib/ajustar-descricao";
 import { isLinkRastreio, abreviarUrl } from "@/newsletter/lib/link-rastreio";
-import { CATEGORIAS as CATEGORIAS_TOKENS } from "../../../../supabase/functions/_shared/design-tokens";
+import { CATEGORIAS as CATEGORIAS_TOKENS } from "@/newsletter/edge-shared/design-tokens";
 import type { CatId, Pendente } from "../data";
 
 /* Blocos partilhados entre o Editor Clássico e o Editor Revista.
