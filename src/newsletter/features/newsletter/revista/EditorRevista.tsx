@@ -642,17 +642,15 @@ export default function EditorRevista({
       .catch(() => { /* o Brief não pode travar a escolha editorial */ });
   };
   const accoesBriefs = { recarregar: recarregarBriefs, registar };
-  // Edições escolhidas antes desta fase ainda não têm Brief: reconcilia uma vez.
-  const reconciliarBriefs = useServerFn(sincronizarBriefsDaEdicaoFn);
-  const reconciliado = useRef<string | null>(null);
-  useEffect(() => {
-    if (!edicaoId || briefsQ.isPending || reconciliado.current === edicaoId) return;
-    reconciliado.current = edicaoId;
-    void reconciliarBriefs({ data: { edicaoId } })
+  // Opening an edition is read-only: the edition-wide Brief sync is an external
+  // (confirmed) operation, so it must never run on mount. It only runs from an
+  // explicit user action through `reconciliarBriefs`.
+  const reconciliarBriefsFn = useServerFn(sincronizarBriefsDaEdicaoFn);
+  const reconciliarBriefs = () =>
+    reconciliarBriefsFn({ data: { edicaoId } })
       .then((r) => { if (r.sincronizados > 0) recarregarBriefs(); })
-      .catch(() => { /* reconciliação é oportunista */ });
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [edicaoId, briefsQ.isPending]);
+      .catch(() => { /* cancelado ou falhou: nada muda */ });
+  void reconciliarBriefs;
 
   /* ─── Verificação de links (partilhada com o Clássico) ─── */
   const [modalLinks, setModalLinks] = useState(false);
