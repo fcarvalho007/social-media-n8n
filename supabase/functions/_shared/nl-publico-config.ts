@@ -26,12 +26,23 @@ export function baseFuncoes(): string {
   return `${(process.env.SUPABASE_URL ?? "").replace(/\/+$/, "")}/functions/v1`;
 }
 
+/** E-goi extra field id that stores each contact's signed token (NL_EGOI_CAMPO_TOKEN_ID); null when invalid. */
+export function campoTokenEgoi(): number | null {
+  const n = Number((process.env.NL_EGOI_CAMPO_TOKEN_ID ?? "").trim());
+  return Number.isInteger(n) && n > 0 ? n : null;
+}
+
 /**
- * E-goi merge tag that holds each contact's signed subscription token (e.g. "{!extra_3}").
- * Subscription links never carry the e-mail alone; without this tag configured, sending is blocked.
+ * E-goi merge code of the token field, derived from the field id. Official format (E-goi helpdesk,
+ * "Using merge codes"): `!extra_field_X`, X = extra field number. NL_EGOI_TAG_TOKEN is only an optional
+ * cross-check: if set and different from the derived code, the tag is treated as missing (send blocked).
  */
 export function tagTokenEgoi(): string {
-  return (process.env.NL_EGOI_TAG_TOKEN ?? "").trim();
+  const campo = campoTokenEgoi();
+  if (!campo) return "";
+  const derivada = `!extra_field_${campo}`;
+  const explicita = (process.env.NL_EGOI_TAG_TOKEN ?? "").trim();
+  return !explicita || explicita === derivada ? derivada : "";
 }
 
 /** Footer link to the subscription page, authenticated only by the signed token merge tag. */
@@ -54,7 +65,8 @@ export function avatarUrl(): string {
 export function verificarLigacoesPublicas(): string[] {
   const p: string[] = [];
   if (!/^https:\/\//.test(basePublica())) p.push("Falta configurar o endereço público da newsletter (NL_PUBLIC_BASE_URL).");
-  if (!/^\{![a-z0-9_]+\}$/i.test(tagTokenEgoi())) p.push("Falta configurar o campo da E-goi com o token de subscrição (NL_EGOI_TAG_TOKEN).");
+  if (!campoTokenEgoi()) p.push("Falta configurar o campo da E-goi com o token de subscrição (NL_EGOI_CAMPO_TOKEN_ID).");
+  else if (!/^!extra_field_\d+$/.test(tagTokenEgoi())) p.push("NL_EGOI_TAG_TOKEN não corresponde ao campo NL_EGOI_CAMPO_TOKEN_ID.");
   if (!process.env.SUBSCRICAO_SEGREDO) p.push("Falta o segredo de assinatura das subscrições (SUBSCRICAO_SEGREDO).");
   return p;
 }

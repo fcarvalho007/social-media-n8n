@@ -64,6 +64,13 @@
       "when": 1791113294074,
       "tag": "0008_social_rls_escrita_por_papel_e_lease_worker",
       "breakpoints": true
+    },
+    {
+      "idx": 9,
+      "version": "7",
+      "when": 1791113617928,
+      "tag": "0009_nl_egoi_tokens_progresso",
+      "breakpoints": true
     }
   ]
 }

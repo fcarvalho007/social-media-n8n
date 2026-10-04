@@ -461,6 +461,13 @@ export async function prepararEnvio(opts: {
 
   const { apiKey, senderId } = await credenciaisEgoi(sb);
 
+  // Every real list must have its tokens fully synced, field validated and no pending failures.
+  if (listasR.modo === "real") {
+    const { problemasTokensEnvio } = await import("../nl-egoi-tokens-gate.ts");
+    const p = await problemasTokensEnvio(sb, apiKey, listasR.listas.filter((l) => l.tipo === "real"));
+    if (p.length) throw new ErroEnvio(`Tokens de subscrição por validar: ${p.join(" ")}`, 412);
+  }
+
   const { data: edRaw } = await sb.from("nl_edicoes")
     .select("numero, estado, assunto, envio_em_curso").eq("id", opts.edicaoId).maybeSingle();
   if (!edRaw) throw new ErroEnvio("Edição não encontrada", 404);
@@ -548,6 +555,13 @@ export async function dispararLista(opts: {
     : (opts.quemNome ?? "agendamento");
 
   const { apiKey } = await credenciaisEgoi(sb);
+
+  // Re-checked right before dispatching (new contacts may have arrived since preparation).
+  if (lista.tipo === "real") {
+    const { problemasTokensEnvio } = await import("../nl-egoi-tokens-gate.ts");
+    const p = await problemasTokensEnvio(sb, apiKey, [lista]);
+    if (p.length) return { lista_id: lista.id, lista_nome: lista.nome, ok: false, sincronizada: false, erro: `Tokens de subscrição por validar: ${p.join(" ")}` };
+  }
 
   const { data: campRaw } = await sb.from("nl_egoi_campanhas")
     .select("campaign_hash").eq("edicao_id", opts.edicaoId).eq("lista_id", lista.id).maybeSingle();

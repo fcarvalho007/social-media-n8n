@@ -1688,6 +1688,105 @@ export type Database = {
         }
         Relationships: []
       }
+      nl_egoi_tokens_falhas: {
+        Row: {
+          actualizado_em: string
+          campo_id: number
+          contact_id: string
+          criado_em: string
+          egoi_lista_id: string
+          motivo: string
+          resolvida: boolean
+          tentativas: number
+        }
+        Insert: {
+          actualizado_em?: string
+          campo_id: number
+          contact_id: string
+          criado_em?: string
+          egoi_lista_id: string
+          motivo: string
+          resolvida?: boolean
+          tentativas?: number
+        }
+        Update: {
+          actualizado_em?: string
+          campo_id?: number
+          contact_id?: string
+          criado_em?: string
+          egoi_lista_id?: string
+          motivo?: string
+          resolvida?: boolean
+          tentativas?: number
+        }
+        Relationships: []
+      }
+      nl_egoi_tokens_sync: {
+        Row: {
+          actualizado_em: string
+          actualizados: number
+          campo_id: number
+          campo_meta: Json | null
+          campo_validado: boolean
+          concluido_em: string | null
+          egoi_lista_id: string
+          estado: string
+          ignorados: number
+          iniciado_em: string
+          ja_correctos: number
+          lease_ate: string | null
+          lease_token: string | null
+          offset_proximo: number
+          processados: number
+          segredo_fp: string
+          total_egoi: number | null
+          ultimo_erro: string | null
+          verificado_leitura: boolean
+        }
+        Insert: {
+          actualizado_em?: string
+          actualizados?: number
+          campo_id: number
+          campo_meta?: Json | null
+          campo_validado?: boolean
+          concluido_em?: string | null
+          egoi_lista_id: string
+          estado?: string
+          ignorados?: number
+          iniciado_em?: string
+          ja_correctos?: number
+          lease_ate?: string | null
+          lease_token?: string | null
+          offset_proximo?: number
+          processados?: number
+          segredo_fp: string
+          total_egoi?: number | null
+          ultimo_erro?: string | null
+          verificado_leitura?: boolean
+        }
+        Update: {
+          actualizado_em?: string
+          actualizados?: number
+          campo_id?: number
+          campo_meta?: Json | null
+          campo_validado?: boolean
+          concluido_em?: string | null
+          egoi_lista_id?: string
+          estado?: string
+          ignorados?: number
+          iniciado_em?: string
+          ja_correctos?: number
+          lease_ate?: string | null
+          lease_token?: string | null
+          offset_proximo?: number
+          processados?: number
+          segredo_fp?: string
+          total_egoi?: number | null
+          ultimo_erro?: string | null
+          verificado_leitura?: boolean
+        }
+        Relationships: []
+      }
       nl_emails_recebidos: {
         Row: {
           assunto: string | null

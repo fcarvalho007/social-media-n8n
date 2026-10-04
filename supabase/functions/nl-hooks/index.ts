@@ -6,7 +6,9 @@
 import { createClient } from "npm:@supabase/supabase-js@2.57.4";
 import { timingSafeEqual } from "node:crypto";
 import { Buffer } from "node:buffer";
-import { baseFuncoes, basePublica, tagTokenEgoi } from "../_shared/nl-publico-config.ts";
+import { baseFuncoes, basePublica, campoTokenEgoi, tagTokenEgoi } from "../_shared/nl-publico-config.ts";
+import { clienteEgoiHttp, executarLote, impressaoSegredo, repetirFalhas, verificarProntidao } from "../_shared/nl-egoi-tokens.ts";
+import { armazemSupabase } from "../_shared/nl-egoi-tokens-armazem.ts";
 
 type Handler = (ctx: { request: Request }) => Promise<Response> | Response;
 type HookModule = { Route: { options: { server: { handlers: { POST: Handler } } } } };
@@ -72,12 +74,7 @@ async function estado(req: Request): Promise<Response> {
   });
 }
 
-/**
- * Writes each contact's signed subscription token into the E-goi extra field (NL_EGOI_CAMPO_TOKEN_ID),
- * so footer links can use the merge tag instead of the bare e-mail. External write: admin session and
- * body { confirmar: "sincronizar-tokens" } required. Must run before a real send (and after new sign-ups).
- */
-async function sincronizarTokens(req: Request): Promise<Response> {
+async function adminSessao(req: Request): Promise<Response | null> {
   const auth = req.headers.get("Authorization");
   if (!auth) return json({ error: "Sessão em falta" }, 401);
   const sb = createClient(Deno.env.get("SUPABASE_URL")!, Deno.env.get("SUPABASE_ANON_KEY")!, { global: { headers: { Authorization: auth } } });
@@ -85,36 +82,72 @@ async function sincronizarTokens(req: Request): Promise<Response> {
   if (!u?.user) return json({ error: "Sessão inválida" }, 401);
   const { data: admin } = await sb.rpc("nl_is_admin");
   if (!admin) return json({ error: "Apenas administradores" }, 403);
-  const corpo = await req.json().catch(() => null) as { confirmar?: unknown } | null;
-  if (corpo?.confirmar !== "sincronizar-tokens") return json({ error: "Confirmação explícita em falta" }, 428);
-  const campo = Number(Deno.env.get("NL_EGOI_CAMPO_TOKEN_ID") ?? "");
-  const apiKey = Deno.env.get("EGOI_API_KEY") ?? "";
-  if (!Number.isInteger(campo) || campo <= 0 || !apiKey) return json({ error: "Faltam EGOI_API_KEY ou NL_EGOI_CAMPO_TOKEN_ID" }, 412);
-  const { criarToken } = await import("../_shared/nl-app/lib/subscricao.server.ts");
+  return null;
+}
+
+/**
+ * Token sync, resumable and durable per list + field (see _shared/nl-egoi-tokens.ts).
+ * accao: "estado" (read-only progress + live readiness), "lote" (next limited batch from the saved offset),
+ * "repetir-falhas", "recomecar" (explicit reset of one list). Writes need admin + confirmar:"sincronizar-tokens".
+ */
+async function sincronizarTokens(req: Request): Promise<Response> {
+  const negado = await adminSessao(req);
+  if (negado) return negado;
+  const corpo = await req.json().catch(() => null) as { accao?: unknown; confirmar?: unknown; lista?: unknown } | null;
+  const accao = typeof corpo?.accao === "string" ? corpo.accao : "lote";
+  if (!["estado", "lote", "repetir-falhas", "recomecar"].includes(accao)) return json({ error: "Ação inválida" }, 400);
+  if (accao !== "estado" && corpo?.confirmar !== "sincronizar-tokens") return json({ error: "Confirmação explícita em falta" }, 428);
+
   const srv = createClient(Deno.env.get("SUPABASE_URL")!, Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!, { auth: { persistSession: false } });
-  const { data: listas } = await srv.from("nl_egoi_listas").select("egoi_lista_id").eq("tipo", "real").eq("activa", true);
-  const h = { Apikey: apiKey, Accept: "application/json", "Content-Type": "application/json" };
-  let actualizados = 0, falhas = 0;
-  const inicio = Date.now();
-  for (const l of (listas ?? []) as Array<{ egoi_lista_id: string }>) {
-    for (let offset = 0; offset < 100000; offset += 100) {
-      if (Date.now() - inicio > 120_000) return json({ ok: false, parcial: true, actualizados, falhas, mensagem: "Tempo esgotado; repetir continua de forma idempotente." });
-      const r = await fetch(`https://api.egoiapp.com/lists/${encodeURIComponent(l.egoi_lista_id)}/contacts?limit=100&offset=${offset}`, { headers: h });
-      if (!r.ok) { falhas++; break; }
-      const pag = await r.json().catch(() => ({})) as { items?: Array<{ base?: { contact_id?: string; email?: string } }> };
-      const itens = pag.items ?? [];
-      for (const c of itens) {
-        const id = c.base?.contact_id, email = c.base?.email;
-        if (!id || !email) continue;
-        const w = await fetch(`https://api.egoiapp.com/lists/${encodeURIComponent(l.egoi_lista_id)}/contacts/${encodeURIComponent(id)}`, {
-          method: "PATCH", headers: h, body: JSON.stringify({ extra: [{ field_id: campo, value: criarToken(email) }] }),
-        });
-        if (w.ok) actualizados++; else falhas++;
-      }
-      if (itens.length < 100) break;
-    }
+  const { data: listasRaw } = await srv.from("nl_egoi_listas").select("nome, egoi_lista_id").eq("tipo", "real").eq("activa", true);
+  const listas = (listasRaw ?? []) as Array<{ nome: string; egoi_lista_id: string }>;
+  const campo = campoTokenEgoi();
+  const segredo = Deno.env.get("SUBSCRICAO_SEGREDO") ?? "";
+  const { data: cfg } = await srv.from("nl_configuracoes").select("valor").eq("chave", "egoi_api_key").maybeSingle();
+  const apiKey = (cfg as { valor?: string } | null)?.valor || Deno.env.get("EGOI_API_KEY") || "";
+  const armazem = armazemSupabase(srv);
+  const lerProgresso = async () => Promise.all(listas.map(async (l) => {
+    const p = campo ? await armazem.ler(l.egoi_lista_id, campo) : null;
+    return { nome: l.nome, egoi_lista_id: l.egoi_lista_id, progresso: p, falhas_pendentes: p && campo ? await armazem.contarFalhas(l.egoi_lista_id, campo) : 0 };
+  }));
+
+  if (!campo || !segredo || !apiKey) {
+    return json({ ok: false, configurado: false, tag: tagTokenEgoi() || null, listas: await lerProgresso(), problemas: ["Faltam EGOI_API_KEY, NL_EGOI_CAMPO_TOKEN_ID ou SUBSCRICAO_SEGREDO."] }, accao === "estado" ? 200 : 412);
   }
-  return json({ ok: falhas === 0, actualizados, falhas });
+  const fp = await impressaoSegredo(segredo);
+  const deps = { egoi: clienteEgoiHttp(apiKey), armazem, criarToken: (await import("../_shared/nl-app/lib/subscricao.server.ts")).criarToken };
+
+  if (accao === "estado") {
+    const problemas = await verificarProntidao(deps, { listas, campo, fp });
+    return json({ ok: problemas.length === 0, configurado: true, tag: tagTokenEgoi() || null, listas: await lerProgresso(), problemas });
+  }
+
+  const alvo = typeof corpo?.lista === "string" ? listas.filter((l) => l.egoi_lista_id === corpo.lista) : listas;
+  if (!alvo.length) return json({ error: "Lista desconhecida" }, 400);
+  try {
+    if (accao === "repetir-falhas") {
+      const r = [];
+      for (const l of alvo) r.push({ lista: l.egoi_lista_id, ...(await repetirFalhas(deps, { lista: l.egoi_lista_id, campo, fp })) });
+      return json({ ok: true, resultados: r, listas: await lerProgresso() });
+    }
+    // One limited batch per call: the first list not yet finished (or with new contacts).
+    const recomecar = accao === "recomecar";
+    if (recomecar && alvo.length !== 1) return json({ error: "Recomeçar exige uma lista concreta" }, 400);
+    let resultado = null;
+    for (const l of alvo) {
+      const p = await armazem.ler(l.egoi_lista_id, campo);
+      if (!recomecar && p && p.estado === "concluida" && p.segredo_fp === fp) {
+        const vivo = await deps.egoi.listar(l.egoi_lista_id, 0, 1, campo).catch(() => null);
+        if (vivo && vivo.total !== null && vivo.total <= p.offset_proximo) continue;
+      }
+      resultado = await executarLote(deps, { lista: l.egoi_lista_id, campo, fp, recomecar, limite: 300, prazoMs: 35_000 });
+      break;
+    }
+    return json({ ok: true, resultado, terminado: resultado === null, listas: await lerProgresso() });
+  } catch (e) {
+    console.error("[nl-hooks] sincronizar-tokens:", (e as Error).message);
+    return json({ ok: false, error: "Falha na comunicação com a E-goi; o progresso guardado mantém-se." }, 502);
+  }
 }
 
 Deno.serve(async (req) => {
