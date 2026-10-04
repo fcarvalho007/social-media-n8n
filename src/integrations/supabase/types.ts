@@ -1070,7 +1070,10 @@ export type Database = {
           identidade_id: string | null
           project_id: string | null
           social_draft_id: string | null
+          social_draft_versao: number | null
           social_enviado_em: string | null
+          social_envio_ate: string | null
+          social_envio_token: string | null
           tipo: string
           versao: number
         }
@@ -1088,7 +1091,10 @@ export type Database = {
           identidade_id?: string | null
           project_id?: string | null
           social_draft_id?: string | null
+          social_draft_versao?: number | null
           social_enviado_em?: string | null
+          social_envio_ate?: string | null
+          social_envio_token?: string | null
           tipo: string
           versao?: number
         }
@@ -1106,7 +1112,10 @@ export type Database = {
           identidade_id?: string | null
           project_id?: string | null
           social_draft_id?: string | null
+          social_draft_versao?: number | null
           social_enviado_em?: string | null
+          social_envio_ate?: string | null
+          social_envio_token?: string | null
           tipo?: string
           versao?: number
         }
@@ -1146,6 +1155,7 @@ export type Database = {
           estado: string
           fonte_hash: string
           id: string
+          lease_token: string | null
           max_tentativas: number
           origem: string
           proxima_tentativa_em: string
@@ -1164,6 +1174,7 @@ export type Database = {
           estado: string
           fonte_hash: string
           id?: string
+          lease_token?: string | null
           max_tentativas?: number
           origem: string
           proxima_tentativa_em?: string
@@ -1182,6 +1193,7 @@ export type Database = {
           estado?: string
           fonte_hash?: string
           id?: string
+          lease_token?: string | null
           max_tentativas?: number
           origem?: string
           proxima_tentativa_em?: string
@@ -3979,6 +3991,24 @@ export type Database = {
         Returns: undefined
       }
       nl_contar_dados_antigos: { Args: { _dias?: number }; Returns: Json }
+      nl_conteudos_guardar_versao: {
+        Args: {
+          _carrossel: Json
+          _conteudo_id: string
+          _origem: string
+          _so_se_vazio: boolean
+          _utilizador: string
+          _versao_esperada: number
+        }
+        Returns: {
+          actualizado_em: string
+          versao: number
+        }[]
+      }
+      nl_conteudos_reservar_envio_social: {
+        Args: { _conteudo_id: string; _substituir: boolean; _versao: number }
+        Returns: string
+      }
       nl_criar_seccoes_padrao: {
         Args: { _edicao_id: string }
         Returns: undefined
@@ -4087,6 +4117,7 @@ export type Database = {
           estado: string
           fonte_hash: string
           id: string
+          lease_token: string | null
           max_tentativas: number
           origem: string
           proxima_tentativa_em: string
@@ -4107,6 +4138,13 @@ export type Database = {
           aprovadas_30d: number
           fonte_id: string
           sugeridas_30d: number
+        }[]
+      }
+      nl_storage_objeto: {
+        Args: { _bucket: string; _nome: string }
+        Returns: {
+          mimetype: string
+          owner_id: string
         }[]
       }
       nl_worker_adquirir: {
