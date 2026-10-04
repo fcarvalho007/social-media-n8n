@@ -78,17 +78,26 @@ export async function abrirTrabalho(id: string): Promise<TrabalhoCompleto> {
 }
 
 export class ConflitoVersao extends Error {}
+export const PRAZO_GRAVACAO_MS = 20_000;
 
 export async function gravarEdicao(args: {
   proposta_id: string; proposta_versao: number; conteudo: PropostaEditorial | null;
   documentos: Partial<Record<Variante, { versao_esperada: number; documento: DocumentoGrafico }>>;
 }): Promise<{ proposta_versao: number; documentos: Partial<Record<Variante, number>> }> {
-  const { data, error } = await supabase.rpc("mc_gravar_edicao", {
-    _proposta_id: args.proposta_id, _proposta_versao: args.proposta_versao,
-    _conteudo: (args.conteudo ?? null) as never, _documentos: args.documentos as never,
-  });
+  // Finite deadline: a save never leaves the UI waiting forever.
+  const ctl = new AbortController();
+  const prazo = setTimeout(() => ctl.abort(), PRAZO_GRAVACAO_MS);
+  let res;
+  try {
+    res = await supabase.rpc("mc_gravar_edicao", {
+      _proposta_id: args.proposta_id, _proposta_versao: args.proposta_versao,
+      _conteudo: (args.conteudo ?? null) as never, _documentos: args.documentos as never,
+    }).abortSignal(ctl.signal);
+  } finally { clearTimeout(prazo); }
+  const { data, error } = res;
+  if (ctl.signal.aborted) throw new Error("O servidor não respondeu a tempo.");
   if (error) {
-    if (error.code === "40001") throw new ConflitoVersao(error.message);
+    if (error.code === "MC409" || error.code === "40001") throw new ConflitoVersao(error.message);
     if (error.code === "42501") throw new Error("Sem permissão para gravar neste projeto.");
     throw new Error("O servidor recusou a gravação.");
   }

@@ -32,12 +32,13 @@ export const MENSAGEM_RECUSA: Record<ClasseRecusa, string> = {
 
 /** Parses an OpenAI-compatible SSE body into text + usage. Exported for tests. */
 export async function lerStream(corpo: ReadableStream<Uint8Array>): Promise<{ texto: string; tokensEntrada: number | null; tokensSaida: number | null; completo: boolean }> {
-  const leitor = corpo.pipeThrough(new TextDecoderStream()).getReader();
+  const leitor = corpo.getReader();
+  const dec = new TextDecoder();
   let buf = "", texto = "", tin: number | null = null, tout: number | null = null, completo = false;
   for (;;) {
     const { value, done } = await leitor.read();
     if (done) break;
-    buf += value;
+    buf += dec.decode(value, { stream: true });
     let i: number;
     while ((i = buf.indexOf("\n")) >= 0) {
       const linha = buf.slice(0, i).trim();
@@ -57,7 +58,7 @@ export async function lerStream(corpo: ReadableStream<Uint8Array>): Promise<{ te
 }
 
 export async function chamarGateway(modelo: string, sistema: string, utilizador: string, f: typeof fetch = fetch): Promise<ResultadoGateway> {
-  const chave = Deno.env.get("LOVABLE_API_KEY");
+  const chave = (globalThis as unknown as { Deno?: { env: { get(k: string): string | undefined } } }).Deno?.env.get("LOVABLE_API_KEY");
   if (!chave) return { tipo: "erro_antes_pedido", mensagem: "Chave da IA em falta no servidor." };
   let r: Response;
   try {
