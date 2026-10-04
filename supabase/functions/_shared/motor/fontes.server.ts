@@ -23,7 +23,9 @@ async function dnsSeguro(host: string): Promise<boolean> {
   const [a, b] = await Promise.all([tentar("A"), tentar("AAAA")]);
   if (!a.ok && !b.ok) { console.log("[mc-motor] dns indisponivel", a.e, b.e); return true; }
   const todos = [...a.ips, ...b.ips];
-  return todos.length > 0 && !todos.some(ipBloqueado);
+  const bloqueado = todos.some(ipBloqueado);
+  if (bloqueado || !todos.length) console.log("[mc-motor] dns", JSON.stringify({ n: todos.length, bloqueado }));
+  return !bloqueado;
 }
 
 async function lerLimitado(resp: Response, max: number): Promise<{ bytes: Uint8Array; excedeu: boolean }> {
