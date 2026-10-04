@@ -430,7 +430,7 @@ export default function CarrosselTrabalho() {
           inicio={passo === "narrativa" && <Button variant="ghost" className="h-11" onClick={() => setPasso("fonte")}><ArrowLeft className="mr-1.5 h-4 w-4" />Fonte</Button>}
           fim={passo === "fonte"
             ? <Button className="h-11 px-5" onClick={() => setPasso("narrativa")}>Narrativa<ArrowRight className="ml-1.5 h-4 w-4" /></Button>
-            : <Button className="h-11 px-5" onClick={() => setPasso("composicao")}>Continuar para composição<ArrowRight className="ml-1.5 h-4 w-4" /></Button>}
+            : <Button className="h-11 px-5" onClick={() => setPasso("composicao")} aria-label="Continuar para composição"><span className="sm:hidden">Composição</span><span className="hidden sm:inline">Continuar para composição</span><ArrowRight className="ml-1.5 h-4 w-4" /></Button>}
         />
       )}
       {pronto && passo === "revisao" && (
