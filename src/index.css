@@ -237,6 +237,9 @@ All colors MUST be HSL.
     --destructive-light: 0 84% 18%;
     --destructive-foreground: 0 0% 100%;
 
+    --aviso-texto: 0 93% 81%; /* #FCA5A5 legível sobre fundos escuros */
+    --aviso-borda: 0 40% 30%;
+
     --warning: 38 92% 55%;
     --warning-light: 38 92% 18%;
     --warning-foreground: 0 0% 100%;
