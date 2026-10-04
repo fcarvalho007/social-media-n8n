@@ -105,6 +105,7 @@ serve(async (req) => {
         const tokenHash = await sha256(tokenValue);
         const confirmUrl = linkApp(`/stories/confirm?id=${story.id}&token=${tokenValue}`);
         const launcherUrl = linkApp(`/stories/launch/${story.id}?token=${tokenValue}`);
+        if (!confirmUrl || !launcherUrl) throw new Error(ERRO_BASE_APP);
         const stickerText = story.sticker_text || new URL(story.link_url).hostname.replace(/^www\./, '');
 
         await supabase.from('story_link_publications').update({
