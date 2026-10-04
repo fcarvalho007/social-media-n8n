@@ -241,7 +241,7 @@ export function AppSidebar() {
                                 
                                 <span 
                                   className={cn(
-                                    "block w-full whitespace-normal px-0.5 text-center text-xs font-medium leading-tight text-current [overflow-wrap:normal] [text-overflow:clip] transition-colors duration-150",
+                                    "block w-full !overflow-visible !whitespace-normal !text-clip px-0.5 text-center text-xs font-medium leading-tight text-current [overflow-wrap:normal] transition-colors duration-150",
                                     isActive && "font-semibold text-sidebar-foreground"
                                   )}
                                 >
