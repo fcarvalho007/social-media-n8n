@@ -155,7 +155,6 @@ export function AppSidebar() {
         collapsible="offcanvas"
         className={cn(
           "border-none transition-all duration-300 ease-out z-50",
-          !isMobile && "w-[88px]",
           "bg-gradient-to-b from-muted/30 via-background/50 to-background/80",
           "backdrop-blur-xl",
           "shadow-[2px_0_24px_rgba(0,0,0,0.06)]"
@@ -177,9 +176,9 @@ export function AppSidebar() {
           </Button>
         )}
 
-        <SidebarContent className="flex flex-col h-full py-4">
+        <SidebarContent className="flex flex-col h-full py-4 overflow-y-auto overflow-x-hidden">
           {/* Menu Items */}
-          <SidebarGroup className="flex-1 flex items-center">
+          <SidebarGroup className="flex-1 flex items-start md:items-center">
             <SidebarGroupContent className="w-full px-1.5">
               <SidebarMenu className="space-y-0.5">
                 {menuItems.map((item) => (
@@ -201,7 +200,7 @@ export function AppSidebar() {
                           to={(item as any).getSmartUrl ? (item as any).getSmartUrl() : item.url}
                           end={item.url === '/'}
                           onClick={() => isMobile && setOpen(false)}
-                          className="flex flex-col items-center gap-2 mx-auto group w-full py-1.5 hover:scale-[1.02] active:scale-[0.98] transition-all duration-200 ease-out min-h-[60px] touch-target rounded-xl"
+                          className="flex flex-col items-center gap-1 mx-auto group w-full py-1.5 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring hover:scale-[1.02] active:scale-[0.98] transition-all duration-200 ease-out min-h-[60px] touch-target rounded-xl"
                         >
                           {({ isActive }) => {
                             const isApprovalItem = item.url === '/pending';
@@ -268,9 +267,9 @@ export function AppSidebar() {
                                 
                                 <span 
                                   className={cn(
-                                    "text-xs text-center leading-tight transition-all duration-200",
-                                    isActive && "text-white font-bold",
-                                    !isActive && "text-white font-semibold"
+                                    "block w-full px-0.5 text-[11px] text-center leading-tight break-words hyphens-auto transition-colors duration-200",
+                                    isActive && "text-primary font-bold",
+                                    !isActive && "text-foreground/80 font-medium group-hover:text-primary"
                                   )}
                                 >
                                   {item.label}

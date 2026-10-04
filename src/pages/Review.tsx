@@ -1278,7 +1278,7 @@ const Review = () => {
             </Button>
             
             <nav className="hidden sm:flex items-center gap-2 text-xs text-muted-foreground">
-              <span>Painel de Conteúdo</span>
+              <span>Painel social</span>
               <span>›</span>
               <span className="text-foreground font-medium">Revisão</span>
             </nav>

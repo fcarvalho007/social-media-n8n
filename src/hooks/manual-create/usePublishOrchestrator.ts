@@ -1,4 +1,5 @@
 import { getMarca } from '@/services/estudio';
+import { planearGravacaoRascunho } from '@/lib/drafts/planearGravacao';
 import { useState, useCallback } from 'react';
 import { format } from 'date-fns';
 import { useNavigate } from 'react-router-dom';
@@ -339,14 +340,18 @@ export function usePublishOrchestrator(params: OrchestratorParams) {
       };
 
       const validDraftId = currentDraftId && !currentDraftId.startsWith('autosave-') ? currentDraftId : null;
+      const rascunhoPedido = new URLSearchParams(window.location.search).get('draft');
+      const plano = planearGravacaoRascunho(draftData, validDraftId, rascunhoPedido, () => getMarca().catch(() => null));
 
-      if (validDraftId) {
-        // Keep authorship (user_id) and project_id of existing drafts untouched.
-        const { user_id: _autor, ...camposAtualizaveis } = draftData;
+      if (plano.tipo === 'aguardar') {
+        throw new Error('O rascunho ainda está a ser recuperado. Tenta novamente dentro de instantes.');
+      }
+
+      if (plano.tipo === 'atualizar') {
         const { error } = await supabase
           .from('posts_drafts')
-          .update(camposAtualizaveis as any)
-          .eq('id', validDraftId);
+          .update(plano.campos as any)
+          .eq('id', plano.id);
         if (error) {
           console.error('[saveDraft] Update error:', error);
           throw error;
@@ -355,7 +360,7 @@ export function usePublishOrchestrator(params: OrchestratorParams) {
       } else {
         const { data: insertedDraft, error } = await supabase
           .from('posts_drafts')
-          .insert({ ...draftData, project_id: await getMarca().catch(() => null) } as any)
+          .insert({ ...plano.campos, project_id: await plano.projeto() } as any)
           .select('id')
           .single();
         if (error) {
