@@ -9,7 +9,7 @@ const proposta = (legenda: string) => JSON.stringify({
 
 function deps(respostas: string[]) {
   const chamar = vi.fn(async (_s: string, _u: string): Promise<RespostaGerador> => ({ conteudo: respostas.shift() ?? "" }));
-  const registar = vi.fn(async () => {});
+  const registar = vi.fn(async (_r: RespostaGerador, _e: string | null) => {});
   return { chamar, registar, parse: (t: string) => JSON.parse(t) };
 }
 
