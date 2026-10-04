@@ -71,18 +71,28 @@ function b64(s: string): Uint8Array {
   return out;
 }
 
-// Rewrite any legacy image URL to this project's stable public endpoint.
-function makeRewriter(base: string) {
+// Rewrite legacy image URLs to this project's stable image endpoint, and known origin-owned
+// assets (author avatar) to the destination public host. Historical subscription links inside
+// snapshots are intentionally NOT touched: they stay exactly as sent (old tokens are never reused).
+function makeRewriter(base: string, basePublicaDestino: string) {
   const re = /(?:https?:\/\/[^\s"'<>()]+?)?(?:\/api\/public\/imagem\/|\/storage\/v1\/object\/(?:public|sign|authenticated)\/imagens-edicao\/)([^\s"'<>()?#]+)(?:\?[^\s"'<>()#]*)?/g;
   let count = 0;
-  const str = (s: string) => s.replace(re, (_m, p: string) => { count++; return `${base}/${p}`; });
+  let avatares = 0;
+  const str = (s: string) => {
+    let out = s.includes("imagem") || s.includes("imagens-edicao")
+      ? s.replace(re, (_m, p: string) => { count++; return `${base}/${p}`; })
+      : s;
+    const a = reescreverAvatar(out, basePublicaDestino);
+    avatares += a.n; out = a.valor;
+    return out;
+  };
   const walk = (v: unknown): unknown => {
-    if (typeof v === "string") return v.includes("imagem") || v.includes("imagens-edicao") ? str(v) : v;
+    if (typeof v === "string") return str(v);
     if (Array.isArray(v)) return v.map(walk);
     if (v && typeof v === "object") return Object.fromEntries(Object.entries(v).map(([k, x]) => [k, walk(x)]));
     return v;
   };
-  return { walk, get count() { return count; } };
+  return { walk, get count() { return count; }, get avatares() { return avatares; } };
 }
 
 const ESTADO = { EM_CURSO: "em_curso", CONCLUIDA: "concluida", FALHADA: "falhada" } as const; // matches nl_import_runs_estado_check
