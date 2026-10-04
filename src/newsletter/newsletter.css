@@ -1,4 +1,38 @@
 /* Ported from the origin newsletter styles (Tailwind v4) as plain CSS. Scoped utilities only. */
+:root {
+  --color-ds-bg: #0D0D1F;
+  --color-ds-shell: #14142B;
+  --color-ds-card: #1B1B36;
+  --color-ds-card-hover: #20203F;
+  --color-ds-line: rgba(255, 255, 255, 0.08);
+  --color-ds-line-strong: rgba(255, 255, 255, 0.14);
+  --color-ds-ink: #F1F2F8;
+  --color-ds-muted: #9CA0B8;
+  --color-ds-faint: #6B7090;
+  --color-ds-primary: #6366F1;
+  --color-ds-violet: #8B5CF6;
+  --color-ds-pink: #EC4899;
+  --color-ds-ok: #22C55E;
+  --color-ds-warn: #F59E0B;
+  --color-ds-danger: #EF4444;
+  --color-ds-gold: #F59E0B;
+  --color-rw-void: #05070E;
+  --color-rw-navy: #0A1628;
+  --color-rw-navy-2: #101E33;
+  --color-rw-paper: #FAF9F5;
+  --color-rw-panel: #F0EEE9;
+  --color-rw-ink: #171A21;
+  --color-rw-ink-2: #5E626A;
+  --color-rw-chalk: #E7EBF2;
+  --color-rw-chalk-2: #93A0B4;
+  --color-rw-ciano: #34D3F5;
+  --color-rw-blue: #0077B6;
+  --color-rw-blue-2: #005B8C;
+  --color-rw-blue-soft: #CFE7F5;
+  --color-rw-amarelo: #FFDC00;
+  --color-rw-hairline: rgba(231, 235, 242, 0.10);
+  --color-rw-rule: #D9DBD9;
+}
 
 
 
