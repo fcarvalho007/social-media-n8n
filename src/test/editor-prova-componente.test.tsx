@@ -44,7 +44,7 @@ describe("Editor de carrosséis R1 no telemóvel", () => {
   it("seleciona por toque, edita com teclado, desfaz/refaz e recupera ao reabrir", async () => {
     const user = userEvent.setup();
     const vista = await abrirEditor();
-    await user.pointer({ target: await screen.findByTestId("canvas-toque"), keys: "[TouchA>]" });
+    fireEvent.pointerDown(await screen.findByTestId("canvas-toque"), { pointerType: "touch" });
     const campo = await screen.findByLabelText(/Texto \(partilhado/);
     fireEvent.change(campo, { target: { value: "Texto por toque e teclado virtual" } });
     expect(campo).toHaveValue("Texto por toque e teclado virtual");
@@ -61,7 +61,7 @@ describe("Editor de carrosséis R1 no telemóvel", () => {
     await abrirEditor();
     await screen.findByText(/Há uma cópia local/);
     await user.click(screen.getByRole("button", { name: "Restaurar" }));
-    await user.pointer({ target: await screen.findByTestId("canvas-toque"), keys: "[TouchA>]" });
+    fireEvent.pointerDown(await screen.findByTestId("canvas-toque"), { pointerType: "touch" });
     expect(await screen.findByLabelText(/Texto \(partilhado/)).toHaveValue("Texto por toque e teclado virtual");
   });
 
