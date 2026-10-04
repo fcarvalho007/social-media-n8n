@@ -1,5 +1,5 @@
 // Pure export/draft helpers shared by the mc-motor server and the tests (no Deno/npm runtime imports).
-import { validarPacote, type DocumentoGrafico, type PacoteProva, type Variante } from "../documento-grafico/nucleo.ts";
+import { validarPacote, type Asset, type DocumentoGrafico, type PacoteProva, type Variante } from "../documento-grafico/nucleo.ts";
 import type { PropostaEditorial } from "./proposta.ts";
 
 export const BUCKET_EXPORT = "pdfs"; // same bucket/ACL the current social flow already uses for carousel files
@@ -35,12 +35,12 @@ export function caminhoFicheiro(projectId: string, documentoId: string, versao: 
 
 export const nomePagina = (i: number) => `slide-${String(i + 1).padStart(2, "0")}.png`;
 
-/** Frozen version → validated real package for exactly one variant (no external assets allowed). */
-export function pacoteParaExportar(id: string, proposta: PropostaEditorial, variante: Variante, doc: DocumentoGrafico): PacoteProva {
+/** Frozen version → validated real package for one variant. Assets must be pre-resolved, verified bytes of mc_assets (never URLs). */
+export function pacoteParaExportar(id: string, proposta: PropostaEditorial, variante: Variante, doc: DocumentoGrafico, assets: Record<string, Asset> = {}): PacoteProva {
   const bruto = {
     v: 1, id: id.slice(0, 80), nome: (proposta.titulo || "Carrossel").slice(0, 120), sintetico: false,
     conteudo: { slides: proposta.slides.map((s) => ({ id: s.id, titulo: s.titulo, texto: s.texto })) },
-    assets: {},
+    assets,
     variantes: { A: variante === "A" ? doc : { ...doc, variante: "A" }, B: variante === "B" ? doc : { ...doc, variante: "B" } },
   };
   return validarPacote(bruto, { real: true });

@@ -690,6 +690,65 @@ export type Database = {
         }
         Relationships: []
       }
+      mc_assets: {
+        Row: {
+          altura: number
+          bucket: string
+          bytes: number
+          criado_em: string
+          criado_por: string | null
+          hash: string
+          id: string
+          largura: number
+          media_id: string | null
+          mime: string
+          nome: string | null
+          origem: string
+          project_id: string
+          storage_path: string
+        }
+        Insert: {
+          altura: number
+          bucket: string
+          bytes: number
+          criado_em?: string
+          criado_por?: string | null
+          hash: string
+          id?: string
+          largura: number
+          media_id?: string | null
+          mime: string
+          nome?: string | null
+          origem?: string
+          project_id: string
+          storage_path: string
+        }
+        Update: {
+          altura?: number
+          bucket?: string
+          bytes?: number
+          criado_em?: string
+          criado_por?: string | null
+          hash?: string
+          id?: string
+          largura?: number
+          media_id?: string | null
+          mime?: string
+          nome?: string | null
+          origem?: string
+          project_id?: string
+          storage_path?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "mc_assets_project_id_fkey"
+            columns: ["project_id"]
+            isOneToOne: false
+            referencedRelation: "projects"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       mc_chamadas_ia: {
         Row: {
           actualizado_em: string
@@ -4817,6 +4876,27 @@ export type Database = {
           _texto: string
           _tipo: string
           _titulo?: string
+        }
+        Returns: {
+          cache_chave: string
+          fonte_id: string
+          reutilizado: boolean
+          trabalho_id: string
+        }[]
+      }
+      mc_criar_trabalho_fonte: {
+        Args: {
+          _brief: Json
+          _metadados: Json
+          _modelo: string
+          _nova?: boolean
+          _origem_url: string
+          _parametros: Json
+          _project_id: string
+          _prompt_versao: string
+          _texto: string
+          _tipo: string
+          _titulo: string
         }
         Returns: {
           cache_chave: string

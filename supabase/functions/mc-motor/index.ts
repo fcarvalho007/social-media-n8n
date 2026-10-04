@@ -8,6 +8,8 @@ import { admin, processarLote } from "../_shared/motor/worker.server.ts";
 import { processarExportacoes, urlPublico } from "../_shared/motor/exportacao.server.ts";
 import { linhaRascunho, nomePagina } from "../_shared/motor/exportacao.ts";
 import type { PropostaEditorial } from "../_shared/motor/proposta.ts";
+import { atribuicao, validarMetaFonte, type MetaFonte } from "../_shared/motor/fontes.ts";
+import { lerLink, registarImagem, resolverAssets } from "../_shared/motor/fontes.server.ts";
 import { avaliarFonte, MARCADOR_FIXTURE, MODELO_DEMO, MODELO_ESTRUTURACAO, MODELO_IA, normalizarFonte } from "../_shared/motor/proposta.ts";
 
 const cors = {
@@ -89,21 +91,79 @@ Deno.serve(async (req) => {
     const av = avaliarFonte(fonte);
     if (!av.ok) return json({ error: av.motivo }, 400);
     if (!Number.isInteger(slides) || slides < 2 || slides > av.slidesMax) return json({ error: `Escolhe entre 2 e ${av.slidesMax} slides para este texto.` }, 400);
+    const tipoFonte = body.fonte_tipo === "link" ? "link" : body.fonte_tipo === "pdf" ? "pdf" : "texto";
+    let meta: MetaFonte | null = null;
+    if (tipoFonte !== "texto") {
+      if (modo === "demonstracao") return json({ error: "A demonstração só aceita texto." }, 400);
+      try { meta = validarMetaFonte(body.metadados, tipoFonte, fonte.paragrafos.length); }
+      catch (e) { return json({ error: (e as Error).message }, 400); }
+    }
+    const atrib = atribuicao(meta, titulo);
+    const origemUrl = meta?.tipo === "link" ? (meta.url_final ?? meta.url).slice(0, 2000) : null;
     if (modo === "demonstracao" && !texto.startsWith(MARCADOR_FIXTURE)) return json({ error: "A demonstração só aceita a fixture sintética de testes." }, 400);
     if (modo === "ia") {
       // Refuse before queueing when the project's AI budget is zero (the reservation re-checks atomically).
       const { data: o } = await user.from("mc_orcamentos").select("max_chamadas_dia").eq("project_id", projectId).maybeSingle();
       if (!o || o.max_chamadas_dia < 1) return json({ error: "A IA está desligada neste projeto. Define um limite diário em «Limites da IA»." }, 409);
     }
-    const { data, error } = await user.rpc("mc_criar_trabalho", {
-      _project_id: projectId, _tipo: "texto", _texto: modo === "demonstracao" ? texto : fonte.texto, _titulo: titulo, _origem_url: null,
-      _brief: { objetivo, tom, slides, titulo }, _prompt_versao: modo === "ia" ? "r4-v1" : "r3-v1",
+    const comum = {
+      _project_id: projectId, _texto: modo === "demonstracao" ? texto : fonte.texto,
+      _brief: { objetivo, tom, slides, titulo: titulo ?? (meta ? atrib.titulo?.slice(0, 300) ?? null : null) }, _prompt_versao: modo === "ia" ? "r4-v1" : "r3-v1",
       _modelo: modo === "demonstracao" ? MODELO_DEMO : modo === "ia" ? MODELO_IA : MODELO_ESTRUTURACAO, _parametros: { slides }, _nova: body.nova === true,
-    });
+    };
+    const { data, error } = meta
+      ? await user.rpc("mc_criar_trabalho_fonte", { ...comum, _tipo: tipoFonte, _titulo: atrib.titulo?.slice(0, 300) ?? null, _origem_url: origemUrl, _metadados: meta as unknown as Record<string, unknown> })
+      : await user.rpc("mc_criar_trabalho", { ...comum, _tipo: "texto", _titulo: titulo, _origem_url: null });
     if (error) return json({ error: error.code === "42501" ? "Sem acesso a este projeto." : "Não foi possível criar o trabalho." }, error.code === "42501" ? 403 : 500);
     const linha = (data as Array<{ trabalho_id: string; reutilizado: boolean }>)[0];
     emSegundoPlano(corridaWorker());
     return json({ ok: true, trabalho_id: linha.trabalho_id, reutilizado: linha.reutilizado });
+  }
+
+  if (acao === "ler_link" || acao === "listar_imagens" || acao === "registar_imagem" || acao === "ler_assets") {
+    const projectId = String(body.project_id ?? "");
+    if (!UUID.test(projectId)) return json({ error: "Projeto inválido" }, 400);
+    const leitura = acao === "ler_assets";
+    const { data: pode } = await user.rpc(leitura ? "mc_pode_ler" : "mc_pode_escrever", { _project_id: projectId });
+    if (!pode) return json({ error: "Sem acesso a este projeto." }, 403);
+
+    if (acao === "ler_link") {
+      const r = await lerLink(String(body.url ?? ""));
+      console.log("[mc-motor] ler_link", JSON.stringify({ ok: r.ok, motivo: r.ok ? null : r.motivo, bytes: r.ok ? r.bytes : null }));
+      return json(r);
+    }
+    const sb = admin();
+    if (acao === "listar_imagens") {
+      // Only the caller's own library images (media_library has no project); plus assets already linked to this project.
+      const [{ data: media }, { data: assets }] = await Promise.all([
+        sb.from("media_library").select("id, file_name, file_url, thumbnail_url, width, height, file_size, source, created_at")
+          .eq("user_id", u.user.id).eq("file_type", "image").order("created_at", { ascending: false }).limit(60),
+        user.from("mc_assets").select("id, media_id, nome, largura, altura, bytes, mime, criado_em").eq("project_id", projectId).order("criado_em", { ascending: false }).limit(60),
+      ]);
+      return json({ ok: true, biblioteca: media ?? [], assets: assets ?? [] });
+    }
+    if (acao === "registar_imagem") {
+      const mediaId = String(body.media_id ?? "");
+      if (!UUID.test(mediaId)) return json({ error: "Imagem inválida" }, 400);
+      try {
+        const a = await registarImagem(sb, { projectId, userId: u.user.id, mediaId });
+        return json({ ok: true, asset: { id: a.id, nome: a.nome, mime: a.mime, largura: a.largura, altura: a.altura, bytes: a.bytes, hash: a.hash } });
+      } catch (e) {
+        const m = (e as Error).message;
+        return json({ error: m.replace(/^(acesso|origem|expirada|armazenamento): /, "") }, /^acesso/.test(m) ? 403 : /^armazenamento/.test(m) ? 500 : 422);
+      }
+    }
+    // ler_assets: verified bytes for the editor (RLS-checked ids of this project only).
+    const ids = Array.isArray(body.ids) ? body.ids.map(String).filter((x) => UUID.test(x)).slice(0, 20) : [];
+    const { data: visiveis } = await user.from("mc_assets").select("id").eq("project_id", projectId).in("id", ids.length ? ids : ["00000000-0000-0000-0000-000000000000"]);
+    const ok = new Set((visiveis ?? []).map((r) => r.id as string));
+    const assets: Record<string, unknown> = {};
+    const falhas: string[] = [];
+    for (const id of ids) {
+      if (!ok.has(id)) { falhas.push(id); continue; }
+      try { Object.assign(assets, await resolverAssets(sb, projectId, [id])); } catch { falhas.push(id); }
+    }
+    return json({ ok: true, assets, falhas });
   }
 
   if (acao === "retomar") {

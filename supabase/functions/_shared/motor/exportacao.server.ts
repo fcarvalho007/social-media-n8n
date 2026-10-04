@@ -7,13 +7,15 @@ import { zipSync } from "npm:fflate@0.8.2";
 import { renderizarPaginaPng } from "../documento-grafico/render.server.ts";
 import type { DocumentoGrafico, Variante } from "../documento-grafico/nucleo.ts";
 import type { PropostaEditorial } from "./proposta.ts";
+import { assetsReferidos } from "./fontes.ts";
+import { resolverAssets } from "./fontes.server.ts";
 import { BUCKET_EXPORT, caminhoFicheiro, classificarFalha, nomePagina, pacoteParaExportar, PAGINAS_POR_CORRIDA } from "./exportacao.ts";
 
 interface Job { id: string; project_id: string; documento_id: string; documento_versao: number; lease_token: string; paginas: number; tentativas: number }
 interface Registo { formato: string; pagina: number | null; storage_path: string; hash: string; bytes: number }
 
 async function sha256(b: Uint8Array): Promise<string> {
-  const d = new Uint8Array(await crypto.subtle.digest("SHA-256", b));
+  const d = new Uint8Array(await crypto.subtle.digest("SHA-256", b as Uint8Array<ArrayBuffer>));
   return Array.from(d, (x) => x.toString(16).padStart(2, "0")).join("");
 }
 
@@ -58,7 +60,10 @@ async function processarJob(sb: SupabaseClient, j: Job): Promise<string> {
   const { data: pv } = await sb.from("mc_propostas_versoes").select("conteudo").eq("proposta_id", d.proposta_id).eq("versao", dv.proposta_versao).single();
   if (!pv) throw new Error("proposta inexistente");
   const variante = d.variante as Variante;
-  const pacote = pacoteParaExportar(j.documento_id, pv.conteudo as unknown as PropostaEditorial, variante, dv.documento as unknown as DocumentoGrafico);
+  const docV = dv.documento as unknown as DocumentoGrafico;
+  // Image layers resolve only to verified bytes of this project's immutable assets; a missing asset fails the export (never drawn incomplete).
+  const assets = await resolverAssets(sb, j.project_id, assetsReferidos([docV]));
+  const pacote = pacoteParaExportar(j.documento_id, pv.conteudo as unknown as PropostaEditorial, variante, docV, assets);
   const total = pacote.variantes[variante].paginas.length;
 
   let feitos = await registos(sb, j);

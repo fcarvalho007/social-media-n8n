@@ -232,7 +232,7 @@ export function validarPacote(v: unknown, opcoes: { real?: boolean } = {}): Paco
   for (const [k, a] of Object.entries(ao)) {
     const x = obj(a, `recurso ${k}`);
     if (x.mime !== "image/png" && x.mime !== "image/jpeg") falha(`recurso ${k}: só PNG ou JPEG.`);
-    const dados = str(x.dados, `recurso ${k}.dados`, 4_000_000);
+    const dados = str(x.dados, `recurso ${k}.dados`, 8_400_000);
     if (!/^[A-Za-z0-9+/=]+$/.test(dados)) falha(`recurso ${k}: dados inválidos.`);
     assets[k] = { id: k, mime: x.mime, largura: num(x.largura, `recurso ${k}.largura`, 1, 8000), altura: num(x.altura, `recurso ${k}.altura`, 1, 8000), dados };
   }
