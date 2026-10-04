@@ -38,7 +38,7 @@ export async function procurarDuplicadosUrl(
     const fatia = chaves.slice(i, i + LOTE);
     const { data } = await admin
       .from("nl_noticias")
-      .select("id, titulo, estado, url, url_norm, edicao:edicoes(numero)")
+      .select("id, titulo, estado, url, url_norm, edicao:nl_edicoes(numero)")
       .in("url_norm", fatia);
     for (const r of data ?? []) {
       const k = r.url_norm ?? (r.url ? normalizarUrl(r.url) : null);

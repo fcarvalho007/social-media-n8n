@@ -137,7 +137,7 @@ export async function guardarConfigRevista(
 export async function getItensRevista(edicaoId: string): Promise<ItemRevista[]> {
   const { data, error } = await supabase
     .from("nl_revista_itens")
-    .select("*, noticia:noticias(id, titulo, descricao, url, url_curto, categoria)")
+    .select("*, noticia:nl_noticias(id, titulo, descricao, url, url_curto, categoria)")
     .eq("edicao_id", edicaoId)
     .order("ordem", { ascending: true });
   if (error) throw error;

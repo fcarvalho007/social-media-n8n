@@ -17,13 +17,16 @@ TABLES = ("audit_log brief_edicoes brief_versoes brief_eventos briefs configurac
           "episodios_podcast ferramentas_excluidas ferramentas_semana ferramentas_sugeridas fontes_curadoria ia_uso noticias "
           "perfis prioridades_editoriais revista_edicao revista_itens secoes_edicao subscricao_eventos").split()
 RPCS = ("criar_seccoes_padrao encontrar_candidatos_repeticao mover_seccao reordenar_noticias reordenar_seccoes "
-        "stats_fontes_30d contar_dados_antigos limpar_dados_antigos me_papel is_admin is_staff registar_evento_brief").split()
+        "stats_fontes_30d contar_dados_antigos limpar_dados_antigos me_papel is_admin is_staff registar_evento_brief pesquisar_arquivo pesquisar_global").split()
 SKIP_LIB = ("auth-email.", "error-capture", "error-page", "lovable-error-reporting")
 
 def tables(s: str) -> str:
     s = re.sub(r'\.from\((["\'])(%s)\1\)' % "|".join(TABLES), lambda m: '.from("nl_%s")' % m.group(2), s)
     s = re.sub(r'\.rpc\((["\'])(%s)\1' % "|".join(RPCS), lambda m: '.rpc("nl_%s"' % m.group(2), s)
     s = re.sub(r'(postgres_changes"?,\s*\{[^}]*table:\s*["\'])(%s)(["\'])' % "|".join(TABLES), lambda m: m.group(1) + "nl_" + m.group(2) + m.group(3), s)
+    # embedded resources inside .select("...") strings: alias:table(...) / table!hint(...)
+    emb = re.compile(r'(?<![\w.])(%s)(?=\s*[(!])' % "|".join(TABLES))
+    s = re.sub(r'(\.select\(\s*)(["`\'])([\s\S]*?)\2', lambda m: m.group(1) + m.group(2) + emb.sub(lambda x: "nl_" + x.group(1), m.group(3)) + m.group(2), s)
     return s
 
 def read(p):

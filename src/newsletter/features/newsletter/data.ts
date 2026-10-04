@@ -77,7 +77,7 @@ export async function getEdicaoAtual(): Promise<EdicaoAtual | null> {
   const ultima = await numeroUltimaEnviada();
   const { data, error } = await supabase
     .from("nl_edicoes")
-    .select("*, cronica:cronicas(*), episodio:episodios_podcast(*)")
+    .select("*, cronica:nl_cronicas(*), episodio:nl_episodios_podcast(*)")
     .eq("estado", "rascunho")
     .gt("numero", ultima)
     .order("created_at", { ascending: false })
@@ -94,7 +94,7 @@ export async function getEdicaoAtual(): Promise<EdicaoAtual | null> {
 export async function getUltimaEnviada(): Promise<EdicaoAtual | null> {
   const { data, error } = await supabase
     .from("nl_edicoes")
-    .select("*, cronica:cronicas(*), episodio:episodios_podcast(*)")
+    .select("*, cronica:nl_cronicas(*), episodio:nl_episodios_podcast(*)")
     .eq("estado", "enviada")
     .order("enviada_em", { ascending: false, nullsFirst: false })
     .limit(1)
@@ -139,7 +139,7 @@ export type ResultadoArquivo = {
 export async function pesquisarArquivo(query: string, limite = 20): Promise<ResultadoArquivo[]> {
   const q = query.trim();
   if (q.length < 2) return [];
-  const { data, error } = await supabase.rpc("pesquisar_arquivo", { query: q, limite });
+  const { data, error } = await supabase.rpc("nl_pesquisar_arquivo", { query: q, limite });
   if (error) throw error;
   return (data ?? []) as ResultadoArquivo[];
 }
@@ -180,7 +180,7 @@ export async function pesquisarGlobal(
 ): Promise<ResultadoGlobal[]> {
   const q = query.trim();
   if (q.length < 2) return [];
-  const { data, error } = await supabase.rpc("pesquisar_global", {
+  const { data, error } = await supabase.rpc("nl_pesquisar_global", {
     query: q,
     ambitos: ambitos && ambitos.length ? ambitos : undefined,
     edicao_actual: edicaoActual ?? undefined,
@@ -252,7 +252,7 @@ export async function criarEdicaoDaSemana(
 export async function detectarEnvioRealPendente(edicaoId: string): Promise<string | null> {
   const { data, error } = await supabase
     .from("nl_egoi_campanhas")
-    .select("actualizado_em, lista:egoi_listas!inner(tipo)")
+    .select("actualizado_em, lista:nl_egoi_listas!inner(tipo)")
     .eq("edicao_id", edicaoId)
     .eq("estado", "enviada")
     .eq("egoi_listas.tipo", "real")
@@ -325,7 +325,7 @@ export async function listarRascunhos(): Promise<RascunhoRow[]> {
 export async function getEdicaoPorId(edicaoId: string): Promise<EdicaoAtual | null> {
   const { data, error } = await supabase
     .from("nl_edicoes")
-    .select("*, cronica:cronicas(*), episodio:episodios_podcast(*)")
+    .select("*, cronica:nl_cronicas(*), episodio:nl_episodios_podcast(*)")
     .eq("id", edicaoId)
     .maybeSingle();
   if (error) throw error;
@@ -379,7 +379,7 @@ export async function listarEdicoesPassadas(): Promise<EdicaoPassada[]> {
     listarEnviadas(),
     supabase
       .from("nl_egoi_campanhas")
-      .select("edicao_id, estado, actualizado_em, lista:egoi_listas(id, nome, tipo, activa)")
+      .select("edicao_id, estado, actualizado_em, lista:nl_egoi_listas(id, nome, tipo, activa)")
       .eq("estado", "enviada"),
     supabase.from("nl_egoi_listas").select("id, nome").eq("tipo", "real").eq("activa", true),
   ]);
@@ -698,7 +698,7 @@ export async function enviarEdicao(edicaoId: string, snapshot: unknown) {
 export async function listarPendentes(): Promise<Pendente[]> {
   const { data, error } = await supabase
     .from("nl_noticias")
-    .select("*, fonte:fontes_curadoria(nome), repeticao:repeticao_de(titulo, edicao:edicoes(numero))")
+    .select("*, fonte:nl_fontes_curadoria(nome), repeticao:repeticao_de(titulo, edicao:nl_edicoes(numero))")
     .eq("estado", "pendente")
     .order("created_at", { ascending: false });
   if (error) throw error;
@@ -850,7 +850,7 @@ export async function verificarDuplicado(
   if (url) {
     const { data } = await supabase
       .from("nl_noticias")
-      .select("titulo, estado, edicao:edicoes(numero)")
+      .select("titulo, estado, edicao:nl_edicoes(numero)")
       .eq("url_norm", normalizarUrl(url))
       .limit(1);
     const g = (data ?? [])[0] as { titulo: string; estado: string; edicao: { numero: number } | null } | undefined;
@@ -1306,7 +1306,7 @@ export type CronicaArquivo = {
 export async function listarCronicasEnviadas(): Promise<CronicaArquivo[]> {
   const { data, error } = await supabase
     .from("nl_cronicas")
-    .select("id, titulo, conteudo, conteudo_html, leituras_recomendadas, edicao:edicoes!inner(id, numero, enviada_em, assunto, estado)")
+    .select("id, titulo, conteudo, conteudo_html, leituras_recomendadas, edicao:nl_edicoes!inner(id, numero, enviada_em, assunto, estado)")
     .eq("edicao.estado", "enviada")
     .order("enviada_em", { foreignTable: "edicoes", ascending: false, nullsFirst: false });
   if (error) throw error;
@@ -1328,7 +1328,7 @@ export type NoticiaArquivo = Noticia & {
 export async function listarNoticiasArquivo(estado: "enviada" | "rejeitada"): Promise<NoticiaArquivo[]> {
   const { data, error } = await supabase
     .from("nl_noticias")
-    .select("*, edicao:edicoes(numero, enviada_em)")
+    .select("*, edicao:nl_edicoes(numero, enviada_em)")
     .eq("estado", estado)
     .order("updated_at", { ascending: false })
     .limit(500);
