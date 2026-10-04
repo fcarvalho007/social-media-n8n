@@ -281,6 +281,50 @@ export type Database = {
         }
         Relationships: []
       }
+      art_rascunhos: {
+        Row: {
+          corpo: string
+          created_at: string
+          created_by: string
+          estado: string
+          id: string
+          project_id: string | null
+          resumo: string | null
+          titulo: string
+          updated_at: string
+        }
+        Insert: {
+          corpo?: string
+          created_at?: string
+          created_by?: string
+          estado?: string
+          id?: string
+          project_id?: string | null
+          resumo?: string | null
+          titulo?: string
+          updated_at?: string
+        }
+        Update: {
+          corpo?: string
+          created_at?: string
+          created_by?: string
+          estado?: string
+          id?: string
+          project_id?: string | null
+          resumo?: string | null
+          titulo?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "art_rascunhos_project_id_fkey"
+            columns: ["project_id"]
+            isOneToOne: false
+            referencedRelation: "projects"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       hashtag_intelligence: {
         Row: {
           created_at: string
@@ -1714,6 +1758,51 @@ export type Database = {
           },
         ]
       }
+      nl_import_runs: {
+        Row: {
+          concluido_em: string | null
+          created_at: string
+          created_by: string
+          estado: string
+          ficheiro_sha256: string
+          id: string
+          manifesto: Json
+          modo: string
+          progresso: Json
+          relatorio: Json
+          staging_path: string | null
+          updated_at: string
+        }
+        Insert: {
+          concluido_em?: string | null
+          created_at?: string
+          created_by?: string
+          estado?: string
+          ficheiro_sha256: string
+          id?: string
+          manifesto?: Json
+          modo: string
+          progresso?: Json
+          relatorio?: Json
+          staging_path?: string | null
+          updated_at?: string
+        }
+        Update: {
+          concluido_em?: string | null
+          created_at?: string
+          created_by?: string
+          estado?: string
+          ficheiro_sha256?: string
+          id?: string
+          manifesto?: Json
+          modo?: string
+          progresso?: Json
+          relatorio?: Json
+          staging_path?: string | null
+          updated_at?: string
+        }
+        Relationships: []
+      }
       nl_noticias: {
         Row: {
           busca: unknown
@@ -2204,6 +2293,36 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      nl_user_mapping: {
+        Row: {
+          created_at: string
+          source_email: string | null
+          source_nome: string | null
+          source_papel: string | null
+          source_user_id: string
+          target_user_id: string | null
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          source_email?: string | null
+          source_nome?: string | null
+          source_papel?: string | null
+          source_user_id: string
+          target_user_id?: string | null
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          source_email?: string | null
+          source_nome?: string | null
+          source_papel?: string | null
+          source_user_id?: string
+          target_user_id?: string | null
+          updated_at?: string
+        }
+        Relationships: []
       }
       notifications: {
         Row: {
@@ -3497,6 +3616,21 @@ export type Database = {
         }[]
       }
       nl_f_unaccent: { Args: { "": string }; Returns: string }
+      nl_import_existentes: {
+        Args: { _ids: string[]; _pk: string; _tabela: string }
+        Returns: string[]
+      }
+      nl_import_reescrever_url: {
+        Args: { _antigo: string; _novo: string }
+        Returns: Json
+      }
+      nl_import_relatorio: { Args: never; Returns: Json }
+      nl_import_repeticoes: { Args: { _pares: Json }; Returns: Json }
+      nl_import_rows: {
+        Args: { _linhas: Json; _tabela: string }
+        Returns: Json
+      }
+      nl_import_suspender_agendamentos: { Args: never; Returns: Json }
       nl_is_admin: { Args: never; Returns: boolean }
       nl_is_staff: { Args: never; Returns: boolean }
       nl_limpar_dados_antigos: { Args: { _dias?: number }; Returns: Json }

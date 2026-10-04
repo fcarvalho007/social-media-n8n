@@ -15,6 +15,13 @@
       "when": 1791105918499,
       "tag": "0001_nl_tables",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1791106010751,
+      "tag": "0002_nl_rls_import",
+      "breakpoints": true
     }
   ]
 }
