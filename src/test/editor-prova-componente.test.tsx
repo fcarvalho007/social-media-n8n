@@ -1,6 +1,5 @@
-import { act, fireEvent, render, screen, waitFor } from "@testing-library/react";
-import userEvent from "@testing-library/user-event";
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { act, cleanup, fireEvent, render, screen, waitFor } from "@testing-library/react";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { ReactNode } from "react";
 
 vi.mock("@/contexts/AuthContext", () => ({ useAuth: () => ({ user: { id: "utilizador-r1" } }) }));
@@ -20,8 +19,8 @@ vi.mock("@/services/conteudos", () => ({ renderProvaServidor: vi.fn() }));
 vi.mock("sonner", () => ({ toast: { success: vi.fn(), error: vi.fn() } }));
 
 class ResizeObserverTeste {
-  constructor(private cb: ResizeObserverCallback) {}
-  observe() { this.cb([{ contentRect: { width: 375, height: 510 } } as ResizeObserverEntry], this as unknown as ResizeObserver); }
+  constructor(_cb: ResizeObserverCallback) {}
+  observe() {}
   disconnect() {}
   unobserve() {}
 }
@@ -32,6 +31,7 @@ async function abrirEditor() {
 }
 
 describe("Editor de carrosséis R1 no telemóvel", () => {
+  afterEach(cleanup);
   beforeEach(() => {
     localStorage.clear();
     Object.defineProperty(window, "innerWidth", { configurable: true, value: 375 });
@@ -42,16 +42,15 @@ describe("Editor de carrosséis R1 no telemóvel", () => {
   });
 
   it("seleciona por toque, edita com teclado, desfaz/refaz e recupera ao reabrir", async () => {
-    const user = userEvent.setup();
     const vista = await abrirEditor();
     fireEvent.pointerDown(await screen.findByTestId("canvas-toque"), { pointerType: "touch" });
     const campo = await screen.findByLabelText(/Texto \(partilhado/);
     fireEvent.change(campo, { target: { value: "Texto por toque e teclado virtual" } });
     expect(campo).toHaveValue("Texto por toque e teclado virtual");
 
-    await user.click(screen.getByRole("button", { name: /Desfazer/ }));
+    fireEvent.click(screen.getByRole("button", { name: /Desfazer/ }));
     expect(await screen.findByLabelText(/Texto \(partilhado/)).not.toHaveValue("Texto por toque e teclado virtual");
-    await user.click(screen.getByRole("button", { name: /Refazer/ }));
+    fireEvent.click(screen.getByRole("button", { name: /Refazer/ }));
     expect(await screen.findByLabelText(/Texto \(partilhado/)).toHaveValue("Texto por toque e teclado virtual");
 
     await act(() => new Promise((resolve) => setTimeout(resolve, 650)));
@@ -60,7 +59,7 @@ describe("Editor de carrosséis R1 no telemóvel", () => {
 
     await abrirEditor();
     await screen.findByText(/Há uma cópia local/);
-    await user.click(screen.getByRole("button", { name: "Restaurar" }));
+    fireEvent.click(screen.getByRole("button", { name: "Restaurar" }));
     fireEvent.pointerDown(await screen.findByTestId("canvas-toque"), { pointerType: "touch" });
     expect(await screen.findByLabelText(/Texto \(partilhado/)).toHaveValue("Texto por toque e teclado virtual");
   });
