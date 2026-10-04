@@ -267,9 +267,39 @@ export interface FonteOT {
   getKerningValue(a: GlifoOT, b: GlifoOT): number | undefined;
 }
 
+export interface ComandoOT {
+  type: string;
+  x?: number; y?: number; x1?: number; y1?: number; x2?: number; y2?: number;
+}
+
 export interface GlifoOT {
   advanceWidth?: number;
-  getPath(x: number, y: number, tamanho: number): { toPathData(decimais?: number): string };
+  getPath(x: number, y: number, tamanho: number): { commands: ComandoOT[] };
+}
+
+/**
+ * Explicit, fully separated path serialisation. opentype.js toPathData() emits
+ * compacted numbers that Chromium's Path2D misparses at some positions (dropped
+ * glyphs); a glyph with any non-finite coordinate is skipped entirely.
+ */
+export function serializarCaminho(cmds: ComandoOT[]): string {
+  const n = (v: number | undefined) => {
+    if (typeof v !== "number" || !Number.isFinite(v)) throw new Error("nan");
+    return (Math.round(v * 100) / 100).toString();
+  };
+  try {
+    return cmds.map((c) => {
+      switch (c.type) {
+        case "M": case "L": return `${c.type} ${n(c.x)} ${n(c.y)} `;
+        case "Q": return `Q ${n(c.x1)} ${n(c.y1)} ${n(c.x)} ${n(c.y)} `;
+        case "C": return `C ${n(c.x1)} ${n(c.y1)} ${n(c.x2)} ${n(c.y2)} ${n(c.x)} ${n(c.y)} `;
+        case "Z": return "Z ";
+        default: throw new Error("cmd");
+      }
+    }).join("");
+  } catch {
+    return "";
+  }
 }
 
 export interface Medidor {
