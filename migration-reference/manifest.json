@@ -1,0 +1,14 @@
+{
+  "origem": "fcarvalho007/newsletter-digital-sprint",
+  "commit": "4fa835328e367e7e0b46824dfb06ceccddb3c42d",
+  "ficheiros": 427,
+  "sha256": "c0a873fa8f8febf441cd0b445a56cf3aa5e5a421ec245fc65e10257baaf6e67f",
+  "excluido": [
+    ".env",
+    "segredos",
+    "dados reais",
+    "node_modules",
+    "funcoes antigas substituidas"
+  ],
+  "nota": "Referencia de codigo, nao aplicar as 94 migracoes em bloco. Adaptar auth, tabelas, server functions e UI ao backend do destino. carrossel-proposta e a proposta ainda nao integrada da PR1; adaptar sem criar duas implementacoes."
+}
