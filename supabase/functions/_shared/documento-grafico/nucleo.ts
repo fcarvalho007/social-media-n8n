@@ -263,8 +263,13 @@ export interface FonteOT {
   unitsPerEm: number;
   ascender: number;
   descender: number;
-  getAdvanceWidth(texto: string, tamanho: number, opcoes?: { kerning?: boolean }): number;
-  getPath(texto: string, x: number, y: number, tamanho: number, opcoes?: { kerning?: boolean }): { toPathData(decimais?: number): string };
+  stringToGlyphs(texto: string): GlifoOT[];
+  getKerningValue(a: GlifoOT, b: GlifoOT): number | undefined;
+}
+
+export interface GlifoOT {
+  advanceWidth?: number;
+  getPath(x: number, y: number, tamanho: number): { toPathData(decimais?: number): string };
 }
 
 export interface Medidor {
@@ -275,12 +280,41 @@ export interface Medidor {
   caminho(texto: string, x: number, baseline: number, tam: number, peso: Peso): string;
 }
 
+/**
+ * Glyph positions computed here (advance + pair kerning, undefined/NaN treated as 0).
+ * opentype.js getPath() can emit NaN for some GPOS pairs, which browsers reject
+ * mid-path; doing the walk ourselves keeps canvas and SVG output identical.
+ */
+function posicionar(f: FonteOT, texto: string, tam: number, cada?: (g: GlifoOT, x: number) => void): number {
+  const esc = tam / f.unitsPerEm;
+  const glifos = f.stringToGlyphs(texto);
+  let x = 0;
+  for (let i = 0; i < glifos.length; i++) {
+    const g = glifos[i];
+    cada?.(g, x);
+    const av = Number(g.advanceWidth);
+    x += (Number.isFinite(av) ? av : 0) * esc;
+    if (i < glifos.length - 1) {
+      const k = Number(f.getKerningValue(g, glifos[i + 1]));
+      if (Number.isFinite(k)) x += k * esc;
+    }
+  }
+  return x;
+}
+
 export function criarMedidor(fontes: Record<Peso, FonteOT>): Medidor {
   return {
-    largura: (t, tam, peso) => fontes[peso].getAdvanceWidth(t, tam, { kerning: true }),
+    largura: (t, tam, peso) => posicionar(fontes[peso], t, tam),
     ascendente: (peso) => fontes[peso].ascender / fontes[peso].unitsPerEm,
     descendente: (peso) => Math.abs(fontes[peso].descender) / fontes[peso].unitsPerEm,
-    caminho: (t, x, y, tam, peso) => fontes[peso].getPath(t, x, y, tam, { kerning: true }).toPathData(2),
+    caminho: (t, x, y, tam, peso) => {
+      const partes: string[] = [];
+      posicionar(fontes[peso], t, tam, (g, gx) => {
+        const d = g.getPath(x + gx, y, tam).toPathData(2);
+        if (d && !d.includes("NaN")) partes.push(d);
+      });
+      return partes.join("");
+    },
   };
 }
 
