@@ -22,7 +22,7 @@ export default function SegurancaConta() {
     const r = await alterarMinhaPassword(atual, nova);
     setOcupado(false);
     setAtual(""); setNova(""); setConf("");
-    setEstado(r.ok ? { tipo: "ok", msg: "Password alterada. A sessão atual mantém-se." } : { tipo: "erro", msg: r.mensagem });
+    setEstado("mensagem" in r ? { tipo: "erro", msg: r.mensagem } : { tipo: "ok", msg: "Password alterada. A sessão atual mantém-se." });
   };
 
   return (
