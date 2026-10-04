@@ -304,7 +304,7 @@ export default function CarrosselTrabalho() {
         direita={pronto && <><span className="hidden sm:inline">{avisoBadge}</span><EstadoChip estado={estadoG} /></>}
         etapas={<Etapas atual={passo} disponiveis={disponiveis} onIr={irPara} compacto />} />
 
-      <main className="mx-auto w-full max-w-6xl flex-1 px-4 pb-10 pt-6 sm:px-6">
+      <main className="min-h-0 flex-1 overflow-y-auto"><div className="mx-auto w-full max-w-6xl px-4 pb-10 pt-6 sm:px-6">
         {projetoId && t.project_id !== projetoId && (
           <p className="mb-4 rounded-[var(--mc-r-md)] border border-border px-3 py-2 text-xs text-muted-foreground" role="note">Este carrossel pertence a outro projeto, diferente do que está escolhido em «Para quem?».</p>
         )}
@@ -423,7 +423,7 @@ export default function CarrosselTrabalho() {
         {passo === "revisao" && pronto && pacote && (
           <RevisaoExportacao dados={dados} pacote={pacote} medidor={medidor} guardado={estadoG === "guardado"} />
         )}
-      </main>
+      </div></main>
 
       {pronto && passo !== "revisao" && (
         <BarraAcoes

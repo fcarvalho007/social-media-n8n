@@ -16,7 +16,7 @@ export const ETAPAS: { id: Etapa; nome: string }[] = [
 
 /** Full-height studio surface carrying the scoped tokens. */
 export function Quadro({ children, className }: { children: ReactNode; className?: string }) {
-  return <div className={cn("mc-estudio flex min-h-dvh flex-col", className)}>{children}</div>;
+  return <div className={cn("mc-estudio flex h-dvh min-h-0 flex-col overflow-hidden", className)}>{children}</div>;
 }
 
 /** Accessible stepper: completed steps are revisitable, future ones are inert. */
@@ -60,7 +60,7 @@ export function Etapas({ atual, disponiveis, onIr, compacto }: { atual: Etapa; d
 /** Single top bar: back, title, status, stepper. */
 export function Cabecalho({ voltarPara, voltarRotulo = "Voltar aos carrosséis", titulo, sub, direita, etapas }: { voltarPara: string; voltarRotulo?: string; titulo: ReactNode; sub?: ReactNode; direita?: ReactNode; etapas?: ReactNode }) {
   return (
-    <header className="sticky top-0 z-20 border-b border-border bg-background/95 backdrop-blur-sm">
+    <header className="z-20 flex-none border-b border-border bg-background/95 backdrop-blur-sm">
       <div className="mx-auto flex max-w-6xl flex-wrap items-center gap-x-4 gap-y-1 px-3 py-2 sm:px-6">
         <div className="flex min-w-0 flex-1 items-center gap-2">
           <Button asChild variant="ghost" size="icon" className="h-11 w-11 shrink-0" aria-label={voltarRotulo}><Link to={voltarPara}><ArrowLeft className="h-4 w-4" /></Link></Button>
@@ -79,7 +79,7 @@ export function Cabecalho({ voltarPara, voltarRotulo = "Voltar aos carrosséis",
 /** One persistent action bar; sticks to the bottom and respects the safe area. */
 export function BarraAcoes({ inicio, fim, nota }: { inicio?: ReactNode; fim?: ReactNode; nota?: ReactNode }) {
   return (
-    <div className="sticky bottom-0 z-20 border-t border-border bg-background/95 backdrop-blur-sm" style={{ paddingBottom: "env(safe-area-inset-bottom)" }}>
+    <div className="z-20 flex-none border-t border-border bg-background/95 backdrop-blur-sm" style={{ paddingBottom: "env(safe-area-inset-bottom)" }}>
       <div className="mx-auto flex max-w-6xl items-center gap-3 px-3 py-2 sm:px-6">
         <div className="flex items-center gap-2">{inicio}</div>
         <div className="min-w-0 flex-1 truncate text-xs text-muted-foreground">{nota}</div>
