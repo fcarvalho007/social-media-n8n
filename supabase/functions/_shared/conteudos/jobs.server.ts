@@ -107,11 +107,11 @@ async function egoiKey(sb: SupabaseClient): Promise<string> {
   return (config.egoi_api_key || process.env.EGOI_API_KEY || "").trim();
 }
 
-/** Delivery confirmation: only E-goi "sent" counts (sending/processing = accepted, not delivered). */
-async function estadoBrutoCampanha(apiKey: string, hash: string): Promise<string | null> {
-  const { estadoCampanha } = await import("../newsletter-engine/egoi.server.ts");
-  const r = await estadoCampanha({ apiKey }, hash);
-  return r.ok ? r.bruto : null;
+/** Delivery confirmation: only E-goi "sent" counts; API errors are returned, never read as "waiting". */
+async function estadoBrutoCampanha(apiKey: string, hash: string): Promise<{ bruto: string } | { erro: string }> {
+  const { consultarEstadoCampanha } = await import("../newsletter-engine/egoi-estado.ts");
+  const r = await consultarEstadoCampanha(apiKey, hash);
+  return r.ok ? { bruto: r.bruto } : { erro: r.mensagem };
 }
 
 function backoff(tentativas: number) {
@@ -181,11 +181,17 @@ export async function processarJobs(limite = 2): Promise<{ processados: number }
           continue;
         }
         const campanhas = [...job.campanhas];
+        const errosApi: string[] = [];
         for (const c of campanhas) {
-          if (!c.confirmada) c.confirmada = (await estadoBrutoCampanha(key, c.campaign_hash)) === "sent";
+          if (c.confirmada) continue;
+          const r = await estadoBrutoCampanha(key, c.campaign_hash);
+          if ("erro" in r) errosApi.push(r.erro);
+          else c.confirmada = r.bruto === "sent";
         }
         if (campanhas.length && campanhas.some((c) => c.confirmada)) {
           await gravarJob(sb, job, { campanhas, estado: "pendente", confirmado_em: new Date().toISOString(), erro: null, proxima_tentativa_em: new Date().toISOString() });
+        } else if (errosApi.length) {
+          await gravarJob(sb, job, { campanhas, erro: `Não foi possível confirmar a entrega na E-goi: ${errosApi.join(" | ").slice(0, 400)}`, proxima_tentativa_em: backoff(3) });
         } else {
           await gravarJob(sb, job, { campanhas, erro: "A E-goi aceitou o envio mas ainda não o confirmou como entregue.", proxima_tentativa_em: backoff(2) });
         }
