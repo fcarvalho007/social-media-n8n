@@ -236,24 +236,6 @@ export default function ManualCreate() {
   const [duplicateWarning, setDuplicateWarning] = useState<{ id: string; created_at: string; selected_networks: string[] | null; status: string | null } | null>(null);
   const [pendingPublishParams, setPendingPublishParams] = useState<Parameters<typeof executePublish>[0] | null>(null);
 
-  // Auto-save hook
-  const { lastSaved, isSaving: isAutoSaving, hasUnsavedChanges } = useAutoSave({
-    caption,
-    networkCaptions,
-    useSeparateCaptions,
-    networkOptions,
-    selectedFormats,
-    mediaUrls: mediaPreviewUrls,
-    scheduledDate: scheduledDate?.toISOString(),
-    time,
-    scheduleAsap,
-    rawTranscription,
-    aiMetadata,
-  }, {
-    enabled: !!user && (selectedFormats.length > 0 || caption.length > 0),
-    // Local copy isolated per user + project + draft.
-    key: chaveRecuperacao(user?.id ?? 'anon', 'social', currentDraftId?.startsWith('autosave-') ? null : currentDraftId, rascunhoCarregado ? rascunhoCarregado.project_id : projetoCtx.projetoId),
-  });
 
   // Note: showValidation state was removed — smartValidation.canPublish + validationSheetOpen
   // are now the single source of truth for the publish gate.
@@ -309,6 +291,25 @@ export default function ManualCreate() {
     handleLoadDraft,
     rascunhoCarregado,
   } = recovery;
+
+  // Auto-save hook
+  const { lastSaved, isSaving: isAutoSaving, hasUnsavedChanges } = useAutoSave({
+    caption,
+    networkCaptions,
+    useSeparateCaptions,
+    networkOptions,
+    selectedFormats,
+    mediaUrls: mediaPreviewUrls,
+    scheduledDate: scheduledDate?.toISOString(),
+    time,
+    scheduleAsap,
+    rawTranscription,
+    aiMetadata,
+  }, {
+    enabled: !!user && (selectedFormats.length > 0 || caption.length > 0),
+    // Local copy isolated per user + project + draft.
+    key: chaveRecuperacao(user?.id ?? 'anon', 'social', currentDraftId?.startsWith('autosave-') ? null : currentDraftId, rascunhoCarregado ? rascunhoCarregado.project_id : projetoCtx.projetoId),
+  });
 
   // Compute media requirements based on selected formats.
   // O `minMedia` é sobrescrito pelo *efectivo* (ver getEffectiveMinMedia)
