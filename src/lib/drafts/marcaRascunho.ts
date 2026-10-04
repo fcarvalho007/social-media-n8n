@@ -7,9 +7,8 @@ export function chaveRascunhos(f: FiltroRascunhos | null): readonly unknown[] {
   return f ? ["drafts", f.userId, f.projetoId ?? "todos"] : ["drafts", "sem-contexto"];
 }
 
-/** Client-side guard mirroring the server filter (old drafts without project only under "todos"). */
-export function pertenceAoFiltro(d: { user_id: string; project_id?: string | null }, f: FiltroRascunhos): boolean {
-  if (d.user_id !== f.userId) return false;
+/** Client-side guard mirroring the server filter: team drafts by brand; old drafts without project only under "todos". */
+export function pertenceAoFiltro(d: { project_id?: string | null }, f: FiltroRascunhos): boolean {
   return f.projetoId === null || d.project_id === f.projetoId;
 }
 

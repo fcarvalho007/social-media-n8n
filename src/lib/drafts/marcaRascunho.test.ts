@@ -12,8 +12,8 @@ describe("rascunhos por utilizador e projeto", () => {
     expect(pertenceAoFiltro(antigo, { userId: "u1", projetoId: null })).toBe(true);
     expect(pertenceAoFiltro(antigo, { userId: "u1", projetoId: "p1" })).toBe(false);
   });
-  it("nunca mostra rascunhos de outro utilizador ou projeto", () => {
-    expect(pertenceAoFiltro({ user_id: "u2", project_id: "p1" }, { userId: "u1", projetoId: "p1" })).toBe(false);
+  it("mostra rascunhos da equipa da mesma marca, nunca de outra marca", () => {
+    expect(pertenceAoFiltro({ user_id: "u2", project_id: "p1" }, { userId: "u1", projetoId: "p1" })).toBe(true);
     expect(pertenceAoFiltro({ user_id: "u1", project_id: "p2" }, { userId: "u1", projetoId: "p1" })).toBe(false);
   });
 });

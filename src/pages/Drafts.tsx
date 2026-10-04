@@ -122,7 +122,7 @@ export default function Drafts() {
           <div>
             <h1 className="text-2xl font-bold flex items-center gap-2">
               <FileText className="h-6 w-6 text-primary" />
-              Os meus rascunhos
+              Rascunhos da equipa
             </h1>
             <p className="text-sm text-muted-foreground">
               {totalCount} rascunho{totalCount !== 1 ? 's' : ''} · {ctx.projeto ? ctx.projeto.name : 'todos os projetos'}
@@ -215,7 +215,7 @@ export default function Drafts() {
               <>
                 <h3 className="font-semibold text-lg mb-1">Sem rascunhos</h3>
                 <p className="text-muted-foreground text-center mb-4">
-                  {ctx.projeto ? `Ainda não tens rascunhos em ${ctx.projeto.name}` : 'Ainda não tens nenhum rascunho guardado'}
+                  {ctx.projeto ? `Ainda não há rascunhos em ${ctx.projeto.name}` : 'Ainda não há rascunhos guardados'}
                 </p>
                 <Button onClick={() => navigate('/manual-create')}>
                   <Plus className="h-4 w-4 mr-2" />
