@@ -310,8 +310,8 @@ export function criarMedidor(fontes: Record<Peso, FonteOT>): Medidor {
     caminho: (t, x, y, tam, peso) => {
       const partes: string[] = [];
       posicionar(fontes[peso], t, tam, (g, gx) => {
-        const d = g.getPath(x + gx, y, tam).toPathData(2);
-        if (d && !d.includes("NaN")) partes.push(d);
+        const d = serializarCaminho(g.getPath(x + gx, y, tam).commands);
+        if (d) partes.push(d);
       });
       return partes.join("");
     },
