@@ -12,7 +12,9 @@ export interface Projeto { id: string; name: string; color: string | null }
 export async function getMarca(): Promise<string | null> {
   const { data: u } = await supabase.auth.getUser();
   if (!u.user) return null;
-  const { data } = await db.from("estudio_preferencias").select("project_id").eq("user_id", u.user.id).maybeSingle();
+  const { data, error } = await db.from("estudio_preferencias").select("project_id").eq("user_id", u.user.id).maybeSingle();
+  // Propagate failures: a read error must never silently become "all projects".
+  if (error) throw error;
   return (data?.project_id as string | null) ?? null;
 }
 export async function setMarca(projectId: string | null): Promise<void> {

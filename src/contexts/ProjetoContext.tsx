@@ -1,4 +1,4 @@
-import { createContext, useCallback, useContext, useEffect, useMemo, useState, type ReactNode } from "react";
+import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { getMarca, listarIdentidades, listarProjetos, setMarca, type Identidade, type Projeto } from "@/services/estudio";
 
 type Estado = "a_carregar" | "pronto" | "erro";
@@ -44,14 +44,15 @@ export function ProjetoProvider({ children }: { children: ReactNode }) {
     return () => { vivo = false; };
   }, [tentativa]);
 
+  const emCurso = useRef(false);
+  // Server-confirmed: the context only changes after setMarca resolves; concurrent choices are refused.
   const escolher = useCallback(async (id: string | null) => {
-    const anterior = projetoId;
+    if (emCurso.current) throw new Error("Ainda a guardar a escolha anterior.");
+    emCurso.current = true;
     setAGuardar(true);
-    setProjetoId(id); // optimistic, rolled back on failure
-    try { await setMarca(id); }
-    catch (e) { setProjetoId(anterior); throw e; }
-    finally { setAGuardar(false); }
-  }, [projetoId]);
+    try { await setMarca(id); setProjetoId(id); }
+    finally { emCurso.current = false; setAGuardar(false); }
+  }, []);
 
   const valor = useMemo<ProjetoCtx>(() => ({
     estado, erro, projetos, identidades, projetoId, aGuardar, escolher,
