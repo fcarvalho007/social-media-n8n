@@ -8,6 +8,13 @@
       "when": 1791105760871,
       "tag": "0000_nl_functions",
       "breakpoints": true
+    },
+    {
+      "idx": 1,
+      "version": "7",
+      "when": 1791105918499,
+      "tag": "0001_nl_tables",
+      "breakpoints": true
     }
   ]
 }
