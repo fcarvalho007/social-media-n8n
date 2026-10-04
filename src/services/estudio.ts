@@ -70,11 +70,50 @@ export async function listarArtigos(projectId: string | null): Promise<Artigo[]>
   return data ?? [];
 }
 
-export async function guardarArtigo(a: Partial<Artigo> & { titulo: string }) {
-  const { error } = a.id
-    ? await db.from("art_rascunhos").update({ titulo: a.titulo, resumo: a.resumo, corpo: a.corpo }).eq("id", a.id)
-    : await db.from("art_rascunhos").insert({ titulo: a.titulo, resumo: a.resumo, corpo: a.corpo, project_id: a.project_id, estado: "rascunho" });
+/** Saves a draft (never publishes). Returns the saved row so the editor keeps its id. */
+export async function guardarArtigo(a: Partial<Artigo> & { titulo: string }): Promise<Artigo> {
+  const campos = { titulo: a.titulo, resumo: a.resumo ?? null, corpo: a.corpo ?? null, project_id: a.project_id ?? null };
+  const { data, error } = a.id
+    ? await db.from("art_rascunhos").update(campos).eq("id", a.id).select("*").single()
+    : await db.from("art_rascunhos").insert({ ...campos, estado: "rascunho" }).select("*").single();
   if (error) throw error;
+  return data as Artigo;
+}
+
+export interface Continuidade {
+  rascunhosSociais: number;
+  ultimaEdicao: { numero: number; assunto: string | null; estado: string } | null;
+  artigos: number;
+  ultimoArtigo: { id: string; titulo: string; updated_at: string } | null;
+}
+
+/** Real counts for the Studio entry; filtered by project (newsletter via its identities). */
+export async function resumoContinuidade(projectId: string | null, identidadeIds: string[]): Promise<Continuidade> {
+  let qd = supabase.from("posts_drafts").select("id", { count: "exact", head: true }).eq("status", "draft");
+  if (projectId) qd = qd.eq("project_id", projectId);
+  let qa = db.from("art_rascunhos").select("id,titulo,updated_at", { count: "exact" }).order("updated_at", { ascending: false }).limit(1);
+  if (projectId) qa = qa.eq("project_id", projectId);
+  const semNewsletter = projectId !== null && identidadeIds.length === 0;
+  let qe = db.from("nl_edicoes").select("numero,assunto,estado").order("numero", { ascending: false }).limit(1);
+  if (projectId) qe = qe.in("identidade_id", identidadeIds);
+  const [d, a, e] = await Promise.all([qd, qa, semNewsletter ? Promise.resolve({ data: [], error: null }) : qe]);
+  if (d.error) throw d.error;
+  if (a.error) throw a.error;
+  if (e.error) throw e.error;
+  return {
+    rascunhosSociais: d.count ?? 0,
+    artigos: a.count ?? 0,
+    ultimoArtigo: (a.data?.[0] as Continuidade["ultimoArtigo"]) ?? null,
+    ultimaEdicao: (e.data?.[0] as Continuidade["ultimaEdicao"]) ?? null,
+  };
+}
+
+export interface ImportRun { id: string; modo: string; estado: string; progresso: { indice?: number; fase?: string } | null; relatorio: Record<string, unknown> | null; manifesto: { tabelas?: unknown[] } | null; created_at: string; updated_at: string }
+/** Latest import run of this admin, so an interrupted import can resume after reload. */
+export async function ultimaImportacao(): Promise<ImportRun | null> {
+  const { data, error } = await db.from("nl_import_runs").select("id,modo,estado,progresso,relatorio,manifesto,created_at,updated_at").order("created_at", { ascending: false }).limit(1).maybeSingle();
+  if (error) throw error;
+  return (data as ImportRun | null) ?? null;
 }
 
 export async function apagarArtigo(id: string) {
@@ -84,7 +123,8 @@ export async function apagarArtigo(id: string) {
 
 // ---- Import ----
 export async function souAdminNewsletter(): Promise<boolean> {
-  const { data } = await db.rpc("nl_is_admin");
+  const { data, error } = await db.rpc("nl_is_admin");
+  if (error) throw error;
   return !!data;
 }
 

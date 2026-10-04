@@ -44,7 +44,7 @@ async function validarFicheiros(sb: ReturnType<typeof admin>, userId: string, im
 }
 
 const Body = z.discriminatedUnion("acao", [
-  z.object({ acao: z.literal("listar") }),
+  z.object({ acao: z.literal("listar"), project_id: uuid.nullable().optional() }),
   z.object({ acao: z.literal("obter"), conteudo_id: uuid }),
   z.object({ acao: z.literal("preparar"), edicao_id: uuid }),
   z.object({ acao: z.literal("aceitar_fonte"), conteudo_id: uuid }),
@@ -89,12 +89,32 @@ Deno.serve(async (req) => {
   try {
     switch (b.acao) {
       case "listar": {
-        const [{ data: conteudos }, { data: jobs }, { data: edicoes }] = await Promise.all([
-          sb.from("nl_conteudos_derivados").select("id, edicao_id, tipo, fonte_hash, fonte->>titulo, fonte->>origem, fonte->>numero, fonte_aceite_em, versao, social_draft_id, social_enviado_em, actualizado_em").order("created_at", { ascending: false }).limit(100),
-          sb.from("nl_conteudos_jobs").select("id, edicao_id, conteudo_id, estado, origem, erro, tentativas, max_tentativas, proxima_tentativa_em, confirmado_em, created_at").order("created_at", { ascending: false }).limit(100),
-          sb.from("nl_edicoes").select("id, numero, assunto, enviada_em").eq("estado", "enviada").order("numero", { ascending: false }).limit(50),
-        ]);
-        return json({ conteudos: conteudos ?? [], jobs: jobs ?? [], edicoes: edicoes ?? [] });
+        // Optional project filter: editions belong to a project through their editorial identity.
+        let idents: string[] | null = null;
+        if (b.project_id) {
+          const r = await sb.from("estudio_identidades").select("id").eq("project_id", b.project_id);
+          if (r.error) throw r.error;
+          idents = (r.data ?? []).map((x: { id: string }) => x.id);
+        }
+        const credenciais = { deepseek: Boolean((Deno.env.get("DEEPSEEK_API_KEY") ?? "").trim()), egoi: Boolean((Deno.env.get("EGOI_API_KEY") ?? "").trim()) };
+        if (idents && idents.length === 0) return json({ conteudos: [], jobs: [], edicoes: [], sem_identidade: true, credenciais });
+        let qc = sb.from("nl_conteudos_derivados").select("id, edicao_id, tipo, fonte_hash, titulo:fonte->>titulo, origem:fonte->>origem, numero:fonte->>numero, fonte_aceite_em, versao, social_draft_id, social_enviado_em, actualizado_em").order("created_at", { ascending: false }).limit(100);
+        let qe = sb.from("nl_edicoes").select("id, numero, assunto, enviada_em").eq("estado", "enviada").order("numero", { ascending: false }).limit(50);
+        if (idents) {
+          qc = qc.or(`project_id.eq.${b.project_id},identidade_id.in.(${idents.join(",")})`);
+          qe = qe.in("identidade_id", idents);
+        }
+        const [rc, re] = await Promise.all([qc, qe]);
+        if (rc.error) throw rc.error;
+        if (re.error) throw re.error;
+        const ids = (rc.data ?? []).map((x: { id: string }) => x.id);
+        let jobs: unknown[] = [];
+        if (ids.length) {
+          const rj = await sb.from("nl_conteudos_jobs").select("id, edicao_id, conteudo_id, estado, origem, erro, tentativas, max_tentativas, proxima_tentativa_em, confirmado_em, created_at").in("conteudo_id", ids);
+          if (rj.error) throw rj.error;
+          jobs = rj.data ?? [];
+        }
+        return json({ conteudos: rc.data ?? [], jobs, edicoes: re.data ?? [], sem_identidade: false, credenciais });
       }
       case "obter": {
         const c = await lerConteudo(b.conteudo_id);

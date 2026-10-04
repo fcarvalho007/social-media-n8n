@@ -3,7 +3,8 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Progress } from "@/components/ui/progress";
 import { MapeamentoPerfis } from "@/components/newsletter/MapeamentoPerfis";
-import { enviarPacote, passoImportacao, simularImportacao, souAdminNewsletter, type Simulacao } from "@/services/estudio";
+import { enviarPacote, passoImportacao, simularImportacao, souAdminNewsletter, ultimaImportacao, type ImportRun, type Simulacao } from "@/services/estudio";
+import { RelatorioImportacao } from "@/components/newsletter/RelatorioImportacao";
 
 export default function NewsletterMigracao() {
   const [admin, setAdmin] = useState<boolean | null>(null);
@@ -15,7 +16,20 @@ export default function NewsletterMigracao() {
   const [relatorio, setRelatorio] = useState<Record<string, unknown> | null>(null);
   const [ocupado, setOcupado] = useState(false);
 
-  useEffect(() => { souAdminNewsletter().then(setAdmin); }, []);
+  const [retomavel, setRetomavel] = useState<ImportRun | null>(null);
+  const [erroAdmin, setErroAdmin] = useState<string | null>(null);
+  const verificar = () => {
+    setErroAdmin(null);
+    souAdminNewsletter().then(async (a) => {
+      setAdmin(a);
+      if (!a) return;
+      // An interrupted import (or a passed simulation) can resume after reload.
+      const r = await ultimaImportacao();
+      if (r?.estado === "em_curso" && r.modo === "importacao") setRetomavel(r);
+      else if (r?.estado === "concluida" && r.modo === "importacao" && r.relatorio) setRelatorio(r.relatorio);
+    }).catch((e: Error) => setErroAdmin(e.message));
+  };
+  useEffect(verificar, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   const simular = async () => {
     if (!ficheiro) return;
@@ -30,13 +44,19 @@ export default function NewsletterMigracao() {
     setOcupado(false);
   };
 
-  const importar = async () => {
-    if (!sim) return;
-    setOcupado(true); setErro(null);
+  const importar = async (runId = sim?.run_id) => {
+    if (!runId) return;
+    setOcupado(true); setErro(null); setRetomavel(null);
     try {
       for (let i = 0; i < 200; i++) {
-        setEstado("A importar…");
-        const r = await passoImportacao(sim.run_id);
+        setEstado("A importar… não feches a página (se fechares, podes retomar depois).");
+        let r: Awaited<ReturnType<typeof passoImportacao>> | null = null;
+        // Transient network failures retry the same chunk (server is idempotent and re-checks the package hash).
+        for (let t = 0; t < 3 && !r; t++) {
+          try { r = await passoImportacao(runId); }
+          catch (e) { if (t === 2 || !/fetch|network|rede|Failed/i.test((e as Error).message)) throw e; await new Promise((ok) => setTimeout(ok, 1500 * (t + 1))); }
+        }
+        if (!r) break;
         if (r.concluido) { setRelatorio(r.relatorio ?? {}); setProgresso(100); break; }
         if (r.progresso && r.total_tabelas) setProgresso(Math.min(95, Math.round((r.progresso.indice / r.total_tabelas) * 90)));
       }
@@ -45,6 +65,12 @@ export default function NewsletterMigracao() {
     setOcupado(false);
   };
 
+  if (erroAdmin) return (
+    <div className="space-y-2 p-4 text-sm">
+      <p className="text-destructive">Não foi possível verificar permissões: {erroAdmin}</p>
+      <Button size="sm" variant="outline" onClick={verificar}>Tentar de novo</Button>
+    </div>
+  );
   if (admin === null) return <p className="p-4 text-sm text-muted-foreground">A verificar permissões…</p>;
   if (!admin) return <p className="p-4 text-sm">Apenas administradores podem importar os dados da newsletter.</p>;
 
@@ -61,8 +87,16 @@ export default function NewsletterMigracao() {
           <li>Se o pacote mudar depois da simulação, a importação para e é preciso simular outra vez.</li>
         </ul>
       </div>
+      {retomavel && (
+        <div className="space-y-2 rounded-md border p-3 text-sm">
+          <p className="font-medium">Há uma importação interrompida</p>
+          <p className="text-muted-foreground">Iniciada em {new Date(retomavel.created_at).toLocaleString("pt-PT", { timeZone: "Europe/Lisbon" })} · fase {retomavel.progresso?.fase ?? "—"} · tabela {(retomavel.progresso?.indice ?? 0) + 1}. Continua de onde parou; o pacote é verificado de novo antes de cada passo.</p>
+          <Button size="sm" onClick={() => importar(retomavel.id)} disabled={ocupado}>Retomar importação</Button>
+        </div>
+      )}
+      <label htmlFor="pacote" className="text-sm font-medium">Pacote de exportação (JSON)</label>
       <div className="flex flex-col gap-2 sm:flex-row">
-        <Input type="file" accept="application/json,.json" onChange={(e) => setFicheiro(e.target.files?.[0] ?? null)} disabled={ocupado} />
+        <Input id="pacote" type="file" accept="application/json,.json" onChange={(e) => setFicheiro(e.target.files?.[0] ?? null)} disabled={ocupado} />
         <Button onClick={simular} disabled={!ficheiro || ocupado}>Simular</Button>
       </div>
       {estado && <p className="text-sm">{estado}</p>}
@@ -78,7 +112,7 @@ export default function NewsletterMigracao() {
             <table className="w-full"><thead><tr className="text-left"><th>Tabela</th><th>Registos</th><th>Já existem</th><th>Hash</th></tr></thead>
               <tbody>{sim.tabelas.map((t) => <tr key={t.nome}><td>{t.nome}</td><td>{t.registos}</td><td>{t.existentes}</td><td>{t.hash_ok ? "OK" : "Falhou"}</td></tr>)}</tbody></table>
           </div>
-          <Button onClick={importar} disabled={ocupado || sim.erros.length > 0}>Importar</Button>
+          <Button onClick={() => importar()} disabled={ocupado || sim.erros.length > 0}>Importar</Button>
           {progresso > 0 && <Progress value={progresso} />}
         </div>
       )}
@@ -86,7 +120,7 @@ export default function NewsletterMigracao() {
       {relatorio && (
         <div className="space-y-2 rounded-md border p-3">
           <div className="text-sm font-medium">Relatório da importação</div>
-          <pre className="max-h-96 overflow-auto whitespace-pre-wrap text-xs">{JSON.stringify(relatorio, null, 2)}</pre>
+          <RelatorioImportacao relatorio={relatorio} />
         </div>
       )}
     </div>
