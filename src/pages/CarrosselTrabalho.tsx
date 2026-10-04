@@ -1,9 +1,8 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Link, useNavigate, useParams } from "react-router-dom";
-import { AlertTriangle, ArrowLeft, Check, CloudOff, History, Loader2, RotateCw } from "lucide-react";
+import { AlertTriangle, ArrowLeft, ArrowRight, Check, CloudOff, History, Loader2, RotateCw } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
 import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
@@ -22,8 +21,10 @@ import { layoutTexto, resolverTexto, type Medidor, type PacoteProva, type Varian
 import { normalizarFonte, paraPacote, type PropostaEditorial } from "../../supabase/functions/_shared/motor/proposta";
 import { dataPt, NOME_ESTADO } from "./Carrosseis";
 import { RevisaoExportacao } from "@/features/motor/RevisaoExportacao";
+import { BarraAcoes, Cabecalho, Etapas, Grupo, PAPEL, Quadro, type Etapa } from "@/features/motor/Estudio";
+import { cn } from "@/lib/utils";
 
-type Passo = "fonte" | "conteudo" | "design" | "revisao";
+type Passo = Etapa;
 type EstadoGravacao = "guardado" | "a_guardar" | "local" | "conflito";
 const POLL_MS = 3000;
 const POLL_MAX = 100;
@@ -55,7 +56,7 @@ export default function CarrosselTrabalho() {
   const { user } = useAuth();
   const [dados, setDados] = useState<TrabalhoCompleto | null>(null);
   const [erro, setErro] = useState<string | null>(null);
-  const [passo, setPasso] = useState<Passo>("conteudo");
+  const [passo, setPasso] = useState<Passo>("narrativa");
   const [gravado, setGravado] = useState<Gravado | null>(null);
   const [pacote, setPacote] = useState<PacoteProva | null>(null);
   const [extras, setExtras] = useState<Extras>({ legenda: "", alt: [] });
@@ -66,6 +67,8 @@ export default function CarrosselTrabalho() {
   const [versoes, setVersoes] = useState<{ variante: Variante; lista: VersaoDoc[] } | null>(null);
   const [vendoVersao, setVendoVersao] = useState<{ versao: number; pacote: PacoteProva; variante: Variante } | null>(null);
   const [polls, setPolls] = useState(0);
+  const [slideSel, setSlideSel] = useState(0);
+  const passoDecidido = useRef(false);
 
   const chave = user && dados ? chaveRecuperacao(user.id, "carrossel", id, dados.trabalho.project_id) : null;
 
@@ -74,6 +77,11 @@ export default function CarrosselTrabalho() {
       const d = await abrirTrabalho(id);
       setDados(d);
       const g = gravadoDe(d);
+      if (!passoDecidido.current) {
+        passoDecidido.current = true;
+        const aprovado = (["A", "B"] as const).some((v) => d.documentos[v] && d.documentos[v]!.aprovada_versao === d.documentos[v]!.versao);
+        setPasso(g ? (aprovado ? "revisao" : "narrativa") : "fonte");
+      }
       if (g) {
         setGravado(g);
         setPacote(paraPacote(id, d.trabalho.titulo ?? "Carrossel", g.conteudo, { A: g.docs.A.documento, B: g.docs.B.documento }));
@@ -194,67 +202,60 @@ export default function CarrosselTrabalho() {
     return out;
   }, [medidor, pacote]);
 
-  if (erro) return <div className="p-4"><p role="alert" className="text-sm text-destructive">{erro}</p><Link className="text-sm underline" to="/estudio/carrosseis">Voltar aos carrosséis</Link></div>;
-  if (!dados) return <p className="flex items-center p-4 text-sm text-muted-foreground" role="status"><Loader2 className="mr-2 h-4 w-4 motion-safe:animate-spin" />A abrir…</p>;
+  if (erro) return <Quadro><div className="mx-auto max-w-xl p-6"><p role="alert" className="text-sm text-destructive">{erro}</p><Link className="mt-2 inline-flex min-h-11 items-center text-sm underline" to="/estudio/carrosseis">Voltar aos carrosséis</Link></div></Quadro>;
+  if (!dados) return <Quadro><p className="flex items-center p-6 text-sm text-muted-foreground" role="status"><Loader2 className="mr-2 h-4 w-4 motion-safe:animate-spin" />A abrir…</p></Quadro>;
 
   const t = dados.trabalho;
   const prop = dados.proposta.conteudo;
   const fonte = normalizarFonte(dados.fonte.texto);
   const pronto = !!(gravado && pacote);
+  const nome = t.titulo || prop?.titulo || "Carrossel";
+  const disponiveis: Etapa[] = pronto ? ["fonte", "narrativa", "composicao", "revisao"] : ["fonte"];
+  const irPara = (p: Etapa) => { setPasso(p); if (p === "revisao" && estadoG === "guardado") void carregar(); };
 
   const avisoBadge = avisos.length > 0 && (
     <Popover>
       <PopoverTrigger asChild>
-        <Button variant="outline" size="sm" className="h-11 lg:h-8 text-destructive"><AlertTriangle className="mr-1 h-3.5 w-3.5" />{avisos.length} {avisos.length === 1 ? "aviso" : "avisos"}</Button>
+        <Button variant="outline" size="sm" className="h-11 text-destructive lg:h-9"><AlertTriangle className="mr-1 h-3.5 w-3.5" />{avisos.length} {avisos.length === 1 ? "aviso" : "avisos"}</Button>
       </PopoverTrigger>
-      <PopoverContent className="w-80 text-sm">
+      <PopoverContent className="mc-estudio w-80 text-sm">
         <p className="mb-2 font-medium">Texto que não cabe</p>
         <ul className="space-y-1 text-xs">{avisos.map((a) => <li key={a}>{a}</li>)}</ul>
-        <p className="mt-2 text-xs text-muted-foreground">O texto não é reduzido automaticamente. Encurta-o no conteúdo ou aumenta a caixa no design.</p>
+        <p className="mt-2 text-xs text-muted-foreground">O texto não é reduzido automaticamente. Encurta-o na narrativa ou aumenta a caixa na composição.</p>
       </PopoverContent>
     </Popover>
-  );
-
-  const passos = (
-    <nav aria-label="Passos" className="flex gap-1 overflow-x-auto">
-      {(["fonte", "conteudo", "design", "revisao"] as const).map((p, i) => (
-        <Button key={p} size="sm" variant={passo === p ? "secondary" : "ghost"} className="h-11 lg:h-8" disabled={p !== "fonte" && !pronto} onClick={() => { setPasso(p); if (p === "revisao" && estadoG === "guardado") void carregar(); }} aria-current={passo === p ? "step" : undefined}>
-          {i + 1}. {p === "fonte" ? "Fonte" : p === "conteudo" ? "Conteúdo" : p === "design" ? "Design" : "Revisão e exportação"}
-        </Button>
-      ))}
-    </nav>
   );
 
   const dialogos = (
     <>
       <Dialog open={!!conflito} onOpenChange={() => undefined}>
-        <DialogContent className="max-h-[90vh] max-w-3xl overflow-y-auto" onEscapeKeyDown={(e) => e.preventDefault()}>
+        <DialogContent className="mc-estudio max-h-[90vh] max-w-3xl overflow-y-auto" onEscapeKeyDown={(e) => e.preventDefault()}>
           <DialogHeader>
             <DialogTitle>Outra sessão gravou alterações</DialogTitle>
             <DialogDescription>Nada foi substituído. Escolhe como continuar; a tua versão continua guardada neste dispositivo.</DialogDescription>
           </DialogHeader>
           {conflito?.servidor?.proposta.conteudo && pacote && (
-            <div className="grid gap-3 sm:grid-cols-2 text-sm">
+            <div className="grid gap-3 text-sm sm:grid-cols-2">
               <div><h3 className="mb-1 font-medium">A tua versão</h3><ol className="space-y-1">{pacote.conteudo.slides.map((s) => <li key={s.id} className="rounded bg-muted p-2"><strong>{s.titulo}</strong><br />{s.texto}</li>)}</ol></div>
               <div><h3 className="mb-1 font-medium">No servidor (proposta v{conflito.servidor.proposta.versao})</h3><ol className="space-y-1">{conflito.servidor.proposta.conteudo.slides.map((s) => <li key={s.id} className="rounded bg-muted p-2"><strong>{s.titulo}</strong><br />{s.texto}</li>)}</ol></div>
             </div>
           )}
           <DialogFooter className="flex-wrap gap-2">
-            {!conflito?.servidor && <Button variant="outline" onClick={verServidor}>Comparar</Button>}
-            <Button variant="outline" onClick={usarServidor}>Usar a do servidor</Button>
-            <Button onClick={manterMinha}>Gravar a minha como nova versão</Button>
+            {!conflito?.servidor && <Button variant="outline" className="h-11" onClick={verServidor}>Comparar</Button>}
+            <Button variant="outline" className="h-11" onClick={usarServidor}>Usar a do servidor</Button>
+            <Button className="h-11" onClick={manterMinha}>Gravar a minha como nova versão</Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
       <Dialog open={!!versoes} onOpenChange={(o) => { if (!o) { setVersoes(null); setVendoVersao(null); } }}>
-        <DialogContent className="max-h-[90vh] max-w-4xl overflow-y-auto">
+        <DialogContent className="mc-estudio max-h-[90vh] max-w-4xl overflow-y-auto">
           <DialogHeader>
             <DialogTitle>Versões da variante {versoes?.variante}</DialogTitle>
             <DialogDescription>Só leitura. Versões antigas nunca são alteradas.</DialogDescription>
           </DialogHeader>
           <div className="flex flex-wrap gap-2">
             {versoes?.lista.map((v) => (
-              <Button key={v.versao} size="sm" variant={vendoVersao?.versao === v.versao ? "secondary" : "outline"} onClick={() => verVersao(versoes.variante, v.versao)}>
+              <Button key={v.versao} size="sm" className="h-11" variant={vendoVersao?.versao === v.versao ? "secondary" : "outline"} onClick={() => verVersao(versoes.variante, v.versao)}>
                 v{v.versao} · {dataPt(v.criado_em)}
               </Button>
             ))}
@@ -271,111 +272,171 @@ export default function CarrosselTrabalho() {
     </>
   );
 
-  if (passo === "design" && pacote && chave !== undefined) {
+  if (passo === "composicao" && pacote && chave !== undefined) {
     return (
-      <>
+      <Quadro className="h-dvh min-h-0 overflow-hidden">
         <EditorGrafico key={`${id}-${revisao}`} pacoteInicial={pacote} chaveLocal={chave} real
-          titulo={<span className="truncate">{t.titulo || dados?.proposta?.conteudo?.titulo || "Carrossel"}</span>}
-          cabecalhoInicio={<Button variant="ghost" size="icon" className="h-11 w-11 lg:h-9 lg:w-9" aria-label="Voltar ao conteúdo" onClick={() => setPasso("conteudo")}><ArrowLeft className="h-4 w-4" /></Button>}
+          titulo={<span className="truncate">{nome}</span>}
+          faixaTopo={
+            <div className="flex items-center gap-2 border-b border-border px-2 py-1 sm:px-4">
+              <Button asChild variant="ghost" size="icon" className="h-11 w-11 shrink-0" aria-label="Voltar aos carrosséis"><Link to="/estudio/carrosseis"><ArrowLeft className="h-4 w-4" /></Link></Button>
+              <div className="min-w-0 flex-1"><Etapas atual="composicao" disponiveis={disponiveis} onIr={irPara} compacto /></div>
+              <Button className="h-11 shrink-0" onClick={() => irPara("revisao")}>Rever<ArrowRight className="ml-1.5 h-4 w-4" /></Button>
+            </div>
+          }
           estadoGravacao={<div className="flex items-center gap-2">{avisoBadge}<EstadoChip estado={estadoG} /></div>}
           menuExtra={<><DropdownMenuSeparator /><DropdownMenuItem onSelect={() => abrirVersoes("A")}><History className="mr-2 h-4 w-4" />Versões da variante A</DropdownMenuItem><DropdownMenuItem onSelect={() => abrirVersoes("B")}><History className="mr-2 h-4 w-4" />Versões da variante B</DropdownMenuItem></>}
           onAlterado={(p) => setPacote(p)} />
         {dialogos}
-      </>
+      </Quadro>
     );
   }
 
+  const slides = pacote?.conteudo.slides ?? [];
+  const iSel = Math.min(slideSel, Math.max(0, slides.length - 1));
+  const sSel = slides[iSel];
+  const psSel = sSel && prop ? prop.slides.find((x) => x.id === sSel.id) : undefined;
+
   return (
-    <div className="mx-auto flex max-w-4xl flex-col gap-4 p-3">
-      <header className="flex flex-wrap items-center gap-2">
-        <Button asChild variant="ghost" size="icon" className="h-11 w-11 lg:h-9 lg:w-9" aria-label="Voltar aos carrosséis"><Link to="/estudio/carrosseis"><ArrowLeft className="h-4 w-4" /></Link></Button>
-        <div className="min-w-0 flex-1">
-          <h1 className="truncate text-lg font-semibold">{t.titulo || dados?.proposta?.conteudo?.titulo || "Carrossel"}</h1>
-          <p className="text-xs text-muted-foreground">{dataPt(t.criado_em)} · {NOME_ESTADO[t.estado]}{prop?.demonstracao && " · demonstração"}</p>
-        </div>
-        {pronto && <EstadoChip estado={estadoG} />}
-      </header>
-      {passos}
+    <Quadro>
+      <Cabecalho voltarPara="/estudio/carrosseis" titulo={nome}
+        sub={<>{dataPt(t.criado_em)} · {NOME_ESTADO[t.estado]}{prop?.demonstracao && " · Demonstração"}{prop && ` · ${prop.metodo === "ia" ? "IA" : prop.metodo === "demonstracao" ? "fornecedor simulado" : "sem IA"}`}</>}
+        direita={pronto && <><span className="hidden sm:inline">{avisoBadge}</span><EstadoChip estado={estadoG} /></>}
+        etapas={<Etapas atual={passo} disponiveis={disponiveis} onIr={irPara} compacto />} />
 
-      {emCurso && (
-        <p className="flex items-center rounded-md border border-border p-3 text-sm" role="status">
-          <Loader2 className="mr-2 h-4 w-4 motion-safe:animate-spin" />
-          {t.estado === "pendente" ? "Na fila do servidor." : t.etapa === "documento" ? "A compor as variantes A e B…" : "A preparar a proposta editorial…"} Podes sair desta página; o trabalho continua no servidor.
-        </p>
-      )}
-      {projetoId && t.project_id !== projetoId && (
-        <p className="rounded-md border border-border bg-muted p-3 text-xs" role="note">Este carrossel pertence a outro projeto, diferente do que está escolhido em «Para quem?».</p>
-      )}
-      {(t.estado === "erro" || t.estado === "desconhecido") && (
-        <div className="rounded-md border border-destructive/50 p-3 text-sm" role="alert">
-          <p className="font-medium">{t.estado === "erro" ? "O trabalho parou." : "Não se sabe se a IA chegou a responder. O pedido conta para o limite e não é repetido automaticamente, para não gastar duas vezes."}</p>
-          {t.erro && <p className="text-muted-foreground">{t.erro}</p>}
-          <div className="mt-2 flex flex-wrap gap-2">
-            {t.estado === "erro" && <Button size="sm" variant="outline" className="h-11 lg:h-8" onClick={async () => { try { await retomarTrabalho(id); setPolls(0); await carregar(); } catch (e) { toast.error((e as Error).message); } }}><RotateCw className="mr-1.5 h-4 w-4" />Tentar de novo</Button>}
-            <Button size="sm" variant="outline" className="h-11 lg:h-8" onClick={async () => {
-              try {
-                const b = (t as unknown as { brief?: { slides?: number; objetivo?: string; tom?: string; titulo?: string | null } }).brief ?? {};
-                const r = await criarTrabalho({ project_id: t.project_id, texto: dados.fonte.texto, titulo: b.titulo ?? "", objetivo: b.objetivo ?? "", tom: b.tom ?? "", slides: b.slides ?? 3, modo: "estruturacao" });
-                nav(`/estudio/carrosseis/${r.trabalho_id}`);
-              } catch (e) { toast.error((e as Error).message); }
-            }}>Fazer sem IA a partir da mesma fonte</Button>
+      <main className="mx-auto w-full max-w-6xl flex-1 px-4 pb-10 pt-6 sm:px-6">
+        {projetoId && t.project_id !== projetoId && (
+          <p className="mb-4 rounded-[var(--mc-r-md)] border border-border px-3 py-2 text-xs text-muted-foreground" role="note">Este carrossel pertence a outro projeto, diferente do que está escolhido em «Para quem?».</p>
+        )}
+        {emCurso && (
+          <div className="mc-entrar mx-auto max-w-xl py-16 text-center" role="status">
+            <Loader2 className="mx-auto mb-4 h-6 w-6 text-primary motion-safe:animate-spin" aria-hidden />
+            <p className="text-lg font-medium">{t.estado === "pendente" ? "Na fila do servidor" : t.etapa === "documento" ? "A compor as variantes A e B" : "A preparar a narrativa"}</p>
+            <ol className="mt-4 flex justify-center gap-4 text-xs text-muted-foreground" aria-label="Etapas do servidor">
+              {[["proposta", "Narrativa"], ["documento", "Composição"]].map(([k, n]) => {
+                const feita = dados.etapas.some((e) => e.etapa === k && e.estado === "concluida");
+                return <li key={k} className={cn(feita && "text-primary")}>{feita ? "✓ " : ""}{n}</li>;
+              })}
+            </ol>
+            <p className="mt-4 text-sm text-muted-foreground">Podes sair desta página; o trabalho continua no servidor.</p>
           </div>
-        </div>
-      )}
-
-      {passo === "revisao" && pronto && pacote && (
-        <RevisaoExportacao dados={dados} pacote={pacote} medidor={medidor} guardado={estadoG === "guardado"} />
-      )}
-
-      {passo === "fonte" && (
-        <section className="space-y-2" aria-label="Fonte">
-          <p className="text-xs text-muted-foreground">Fonte guardada tal como foi enviada · impressão digital {dados.fonte.hash.slice(0, 12)}</p>
-          <ol className="space-y-2 rounded-md border border-border bg-card p-3">
-            {fonte.paragrafos.map((p, i) => <li key={i} className="flex gap-2 text-sm"><span className="w-7 shrink-0 tabular-nums text-muted-foreground">§{i + 1}</span><span>{p}</span></li>)}
-          </ol>
-        </section>
-      )}
-
-      {passo === "conteudo" && pronto && prop && pacote && (
-        <section className="space-y-4" aria-label="Conteúdo">
-          <div className="flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
-            <Badge variant="outline">{prop.metodo === "demonstracao" ? "Demonstração (fornecedor simulado)" : prop.metodo === "estruturacao" ? "Estruturado sem IA" : "IA"}</Badge>
-            <span>Proposta v{gravado!.propostaVersao}. O texto é partilhado pelas variantes A e B; cada alteração cria uma nova versão.</span>
-          </div>
-          <ol className="space-y-3">
-            {pacote.conteudo.slides.map((s, i) => {
-              const ps = prop.slides.find((x) => x.id === s.id);
-              return (
-                <li key={s.id} className="space-y-2 rounded-lg border border-border bg-card p-3">
-                  <div className="flex items-center gap-2 text-xs text-muted-foreground">
-                    <span className="font-medium text-foreground">Slide {i + 1}</span>
-                    {ps && <span>{{ capa: "Capa", contexto: "Contexto", desenvolvimento: "Desenvolvimento", fecho: "Fecho" }[ps.papel]}</span>}
-                    {ps && ps.fontes.length > 0 && <span>· fonte {ps.fontes.map((n) => `§${n}`).join(", ")}</span>}
-                  </div>
-                  <Input aria-label={`Título do slide ${i + 1}`} className="h-11 font-medium lg:h-9" value={s.titulo} maxLength={400} onChange={(e) => alterarSlide(s.id, "titulo", e.target.value)} />
-                  <Textarea aria-label={`Texto do slide ${i + 1}`} rows={3} className="text-base lg:text-sm" value={s.texto} maxLength={3000} onChange={(e) => alterarSlide(s.id, "texto", e.target.value)} />
-                </li>
-              );
-            })}
-          </ol>
-          <div className="space-y-1">
-            <Label htmlFor="legenda">Legenda</Label>
-            <Textarea id="legenda" rows={4} className="text-base lg:text-sm" maxLength={2200} value={extras.legenda} onChange={(e) => setExtras((x) => ({ ...x, legenda: e.target.value }))} />
-          </div>
-          <details className="rounded-md border border-border p-3">
-            <summary className="cursor-pointer text-sm font-medium">Texto alternativo das imagens</summary>
-            <div className="mt-2 space-y-2">
-              {extras.alt.map((a, i) => (
-                <Input key={i} aria-label={`Texto alternativo do slide ${i + 1}`} className="h-11 lg:h-9" maxLength={250} value={a}
-                  onChange={(e) => setExtras((x) => ({ ...x, alt: x.alt.map((y, j) => (j === i ? e.target.value : y)) }))} />
-              ))}
+        )}
+        {(t.estado === "erro" || t.estado === "desconhecido") && (
+          <div className="mx-auto mb-6 max-w-2xl rounded-[var(--mc-r-lg)] border border-destructive/60 p-4 text-sm" role="alert">
+            <p className="font-medium">{t.estado === "erro" ? "O trabalho parou." : "Não se sabe se a IA chegou a responder. O pedido conta para o limite e não é repetido automaticamente, para não gastar duas vezes."}</p>
+            {t.erro && <p className="mt-1 text-muted-foreground">{t.erro}</p>}
+            <div className="mt-3 flex flex-wrap gap-2">
+              {t.estado === "erro" && <Button size="sm" variant="outline" className="h-11" onClick={async () => { try { await retomarTrabalho(id); setPolls(0); await carregar(); } catch (e) { toast.error((e as Error).message); } }}><RotateCw className="mr-1.5 h-4 w-4" />Tentar de novo</Button>}
+              <Button size="sm" variant="outline" className="h-11" onClick={async () => {
+                try {
+                  const b = (t as unknown as { brief?: { slides?: number; objetivo?: string; tom?: string; titulo?: string | null } }).brief ?? {};
+                  const r = await criarTrabalho({ project_id: t.project_id, texto: dados.fonte.texto, titulo: b.titulo ?? "", objetivo: b.objetivo ?? "", tom: b.tom ?? "", slides: b.slides ?? 3, modo: "estruturacao" });
+                  nav(`/estudio/carrosseis/${r.trabalho_id}`);
+                } catch (e) { toast.error((e as Error).message); }
+              }}>Fazer sem IA a partir da mesma fonte</Button>
             </div>
-          </details>
-          {avisoBadge}
-          <Button className="h-11 lg:h-9" onClick={() => setPasso("design")}>Continuar para o design</Button>
-        </section>
+          </div>
+        )}
+
+        {passo === "fonte" && (
+          <section className="mc-entrar mx-auto max-w-3xl space-y-4" aria-labelledby="t-fonte">
+            <h1 id="t-fonte" className="text-2xl font-semibold tracking-tight">Fonte</h1>
+            <p className="text-xs text-muted-foreground">Guardada tal como foi enviada · impressão digital {dados.fonte.hash.slice(0, 12)}</p>
+            <ol className="space-y-3 border-l border-border pl-4">
+              {fonte.paragrafos.map((p, i) => <li key={i} className="flex gap-3 text-sm leading-relaxed"><span className="w-7 shrink-0 tabular-nums text-muted-foreground">§{i + 1}</span><span>{p}</span></li>)}
+            </ol>
+          </section>
+        )}
+
+        {passo === "narrativa" && pronto && prop && pacote && sSel && (
+          <section className="mc-entrar space-y-6" aria-labelledby="t-narr">
+            <div className="flex flex-wrap items-baseline justify-between gap-2">
+              <h1 id="t-narr" className="text-2xl font-semibold tracking-tight">Narrativa</h1>
+              <p className="text-xs text-muted-foreground">Proposta v{gravado!.propostaVersao} · o texto é o mesmo nas variantes A e B · cada alteração cria nova versão</p>
+            </div>
+            <div className="grid gap-6 lg:grid-cols-[260px_1fr]">
+              <ol className="flex gap-2 overflow-x-auto pb-1 lg:flex-col lg:overflow-visible" aria-label="Storyboard">
+                {slides.map((s, i) => {
+                  const ps = prop.slides.find((x) => x.id === s.id);
+                  const sel = i === iSel;
+                  return (
+                    <li key={s.id} className="shrink-0 lg:shrink">
+                      <button type="button" aria-current={sel ? "true" : undefined} onClick={() => setSlideSel(i)}
+                        className={cn("mc-trans flex min-h-14 w-44 items-start gap-3 rounded-[var(--mc-r-md)] border p-3 text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring lg:w-full",
+                          sel ? "border-primary bg-primary/10" : "border-border hover:border-muted-foreground/50")}>
+                        <span className="w-5 shrink-0 text-xs tabular-nums text-muted-foreground">{i + 1}</span>
+                        <span className="min-w-0">
+                          <span className="block text-xs text-muted-foreground">{ps ? PAPEL[ps.papel] ?? ps.papel : "Slide"}</span>
+                          <span className="block truncate text-sm">{s.titulo || "Sem título"}</span>
+                        </span>
+                      </button>
+                    </li>
+                  );
+                })}
+              </ol>
+              <div key={sSel.id} className="mc-entrar space-y-4 rounded-[var(--mc-r-lg)] border border-border bg-card p-4 sm:p-6">
+                <p className="text-xs text-muted-foreground">Slide {iSel + 1} de {slides.length} · {psSel ? PAPEL[psSel.papel] ?? psSel.papel : ""}</p>
+                <div className="space-y-1">
+                  <Label htmlFor="s-titulo">Título</Label>
+                  <Input id="s-titulo" className="h-11 text-base font-medium" value={sSel.titulo} maxLength={400} onChange={(e) => alterarSlide(sSel.id, "titulo", e.target.value)} />
+                </div>
+                <div className="space-y-1">
+                  <Label htmlFor="s-texto">Texto</Label>
+                  <Textarea id="s-texto" rows={5} className="text-base leading-relaxed" value={sSel.texto} maxLength={3000} onChange={(e) => alterarSlide(sSel.id, "texto", e.target.value)} />
+                </div>
+                {psSel && psSel.fontes.length > 0 && (
+                  <div className="space-y-2 border-t border-border pt-3">
+                    <p className="text-xs font-medium text-muted-foreground">Evidência na fonte</p>
+                    {psSel.fontes.map((n) => fonte.paragrafos[n - 1] && (
+                      <blockquote key={n} className="flex gap-3 text-sm leading-relaxed text-muted-foreground"><span className="w-7 shrink-0 tabular-nums">§{n}</span><span>{fonte.paragrafos[n - 1]}</span></blockquote>
+                    ))}
+                  </div>
+                )}
+                <div className="flex justify-between gap-2 pt-1">
+                  <Button variant="ghost" className="h-11" disabled={iSel === 0} onClick={() => setSlideSel(iSel - 1)}>Anterior</Button>
+                  <Button variant="ghost" className="h-11" disabled={iSel >= slides.length - 1} onClick={() => setSlideSel(iSel + 1)}>Seguinte</Button>
+                </div>
+              </div>
+            </div>
+            <div className="lg:ml-[284px]">
+              <Grupo titulo="Legenda" resumo={extras.legenda.slice(0, 80)}>
+                <Label htmlFor="legenda" className="sr-only">Legenda</Label>
+                <Textarea id="legenda" rows={5} className="text-base" maxLength={2200} value={extras.legenda} onChange={(e) => setExtras((x) => ({ ...x, legenda: e.target.value }))} />
+              </Grupo>
+              <Grupo titulo="Texto alternativo" resumo={`${extras.alt.filter(Boolean).length} de ${extras.alt.length} preenchidos`}>
+                <div className="space-y-2">
+                  {extras.alt.map((a, i) => (
+                    <Input key={i} aria-label={`Texto alternativo do slide ${i + 1}`} className="h-11" maxLength={250} value={a}
+                      onChange={(e) => setExtras((x) => ({ ...x, alt: x.alt.map((y, j) => (j === i ? e.target.value : y)) }))} />
+                  ))}
+                </div>
+              </Grupo>
+              <Grupo titulo="Fontes citadas" resumo={prop.citacao.titulo ?? `${fonte.paragrafos.length} parágrafos`}>
+                <p className="text-sm text-muted-foreground">{prop.citacao.titulo ?? "Texto colado"}{prop.citacao.url && <> · <a className="underline" href={prop.citacao.url} target="_blank" rel="noreferrer">{prop.citacao.url}</a></>}</p>
+                <p className="mt-1 text-xs text-muted-foreground">Impressão digital {dados.fonte.hash.slice(0, 12)}</p>
+              </Grupo>
+              {avisos.length > 0 && <div className="pt-3 sm:hidden">{avisoBadge}</div>}
+            </div>
+          </section>
+        )}
+
+        {passo === "revisao" && pronto && pacote && (
+          <RevisaoExportacao dados={dados} pacote={pacote} medidor={medidor} guardado={estadoG === "guardado"} />
+        )}
+      </main>
+
+      {pronto && passo !== "revisao" && (
+        <BarraAcoes
+          inicio={passo === "narrativa" && <Button variant="ghost" className="h-11" onClick={() => setPasso("fonte")}><ArrowLeft className="mr-1.5 h-4 w-4" />Fonte</Button>}
+          fim={passo === "fonte"
+            ? <Button className="h-11 px-5" onClick={() => setPasso("narrativa")}>Narrativa<ArrowRight className="ml-1.5 h-4 w-4" /></Button>
+            : <Button className="h-11 px-5" onClick={() => setPasso("composicao")}>Continuar para composição<ArrowRight className="ml-1.5 h-4 w-4" /></Button>}
+        />
+      )}
+      {pronto && passo === "revisao" && (
+        <BarraAcoes inicio={<Button variant="ghost" className="h-11" onClick={() => setPasso("composicao")}><ArrowLeft className="mr-1.5 h-4 w-4" />Composição</Button>} nota="A publicação continua a exigir aprovação no Painel social." />
       )}
       {dialogos}
-    </div>
+    </Quadro>
   );
 }

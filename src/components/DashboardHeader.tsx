@@ -35,6 +35,8 @@ export function DashboardHeader() {
     if (p === '/redes-sociais') return [E, { label: 'Painel social', path: null }];
     if (p === '/estudio/redes-sociais') return [E, { label: 'Carrosséis', path: null }];
     if (p.startsWith('/estudio/redes-sociais/')) return [E, { label: 'Carrosséis', path: '/estudio/redes-sociais' }, { label: 'Editor', path: null }];
+    if (p === '/estudio/carrosseis') return [E, { label: 'Carrosséis', path: null }];
+    if (p.startsWith('/estudio/carrosseis/')) return [E, { label: 'Carrosséis', path: '/estudio/carrosseis' }, { label: 'Carrossel', path: null }];
     if (p === '/estudio/ligacoes') return [E, { label: 'Ligações', path: null }];
     if (p === '/newsletter/migracao') return [E, { label: 'Newsletter', path: '/newsletter' }, { label: 'Migração', path: null }];
     if (p.startsWith('/newsletter/')) return [E, { label: 'Newsletter', path: '/newsletter' }, { label: 'Detalhe', path: null }];

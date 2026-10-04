@@ -1,0 +1,45 @@
+/* Carousel studio design system — scoped to .mc-estudio so the rest of the Hub keeps its theme.
+   Graphite surfaces, soft white text, a single sage accent for action/selection. */
+@font-face { font-family: "Work Sans UI"; src: url("/fontes/WorkSans-Regular.ttf") format("truetype"); font-weight: 400 500; font-display: swap; }
+@font-face { font-family: "Work Sans UI"; src: url("/fontes/WorkSans-Bold.ttf") format("truetype"); font-weight: 600 700; font-display: swap; }
+
+.mc-estudio {
+  --background: 204 10% 10%;      /* #171a1c */
+  --foreground: 60 13% 94%;       /* #F2F2EE */
+  --card: 206 10% 14%;            /* #202427 */
+  --card-foreground: 60 13% 94%;
+  --popover: 206 10% 14%;
+  --popover-foreground: 60 13% 94%;
+  --primary: 93 25% 73%;          /* #B8CBA8 sage */
+  --primary-foreground: 204 10% 10%;
+  --secondary: 206 9% 19%;
+  --secondary-foreground: 60 13% 94%;
+  --muted: 206 9% 17%;
+  --muted-foreground: 60 5% 72%;  /* AA on background and card */
+  --accent: 206 9% 20%;
+  --accent-foreground: 60 13% 94%;
+  --destructive: 6 78% 70%;
+  --destructive-foreground: 204 10% 10%;
+  --border: 206 8% 24%;
+  --input: 206 8% 30%;
+  --ring: 93 25% 73%;
+  --radius: 0.5rem;
+  --mc-r-sm: 4px;
+  --mc-r-md: 8px;
+  --mc-r-lg: 12px;
+  --mc-palco: 204 11% 8%;         /* canvas stage, a step darker than the page */
+  --mc-dur: 200ms;
+  font-family: "Work Sans UI", system-ui, sans-serif;
+  background: hsl(var(--background));
+  color: hsl(var(--foreground));
+  color-scheme: dark;
+}
+.mc-estudio ::selection { background: hsl(var(--primary) / 0.35); }
+
+.mc-entrar { animation: mc-entrar var(--mc-dur, 200ms) ease-out both; }
+@keyframes mc-entrar { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: none; } }
+.mc-trans { transition: background-color var(--mc-dur, 200ms) ease, border-color var(--mc-dur, 200ms) ease, color var(--mc-dur, 200ms) ease, opacity var(--mc-dur, 200ms) ease; }
+@media (prefers-reduced-motion: reduce) {
+  .mc-entrar { animation: none; }
+  .mc-trans { transition: none; }
+}
