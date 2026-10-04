@@ -56,7 +56,7 @@ import { useSessao } from "../useSessao";
 import { Atualidade, ResumoOrdem, type PapelDerivado, type SeloBrief } from "./Atualidade";
 import { BriefsDaEdicao } from "./BriefsDaEdicao";
 import { ReverLeituras } from "./ReverLeituras";
-import { estadoBriefsDaEdicaoFn, sincronizarBriefPapelFn, sincronizarBriefsDaEdicaoFn } from "@/newsletter/lib/brief.functions";
+import { estadoBriefsDaEdicaoFn, sincronizarBriefPapelFn } from "@/newsletter/lib/brief.functions";
 import {
   apagarNoticia, atualizarAssunto, atualizarCronica, atualizarNoticia, escolherEpisodio, getConfig, getEdicaoPorId,
   listarAuditRecente, listarEpisodios, listarFerramentas, registarAudit, reordenarNoticias,
@@ -642,17 +642,8 @@ export default function EditorRevista({
       .catch(() => { /* o Brief não pode travar a escolha editorial */ });
   };
   const accoesBriefs = { recarregar: recarregarBriefs, registar };
-  // Edições escolhidas antes desta fase ainda não têm Brief: reconcilia uma vez.
-  const reconciliarBriefs = useServerFn(sincronizarBriefsDaEdicaoFn);
-  const reconciliado = useRef<string | null>(null);
-  useEffect(() => {
-    if (!edicaoId || briefsQ.isPending || reconciliado.current === edicaoId) return;
-    reconciliado.current = edicaoId;
-    void reconciliarBriefs({ data: { edicaoId } })
-      .then((r) => { if (r.sincronizados > 0) recarregarBriefs(); })
-      .catch(() => { /* reconciliação é oportunista */ });
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [edicaoId, briefsQ.isPending]);
+  // Opening an edition is read-only: the edition-wide Brief sync is an external
+  // (confirmed) operation and must never run on mount.
 
   /* ─── Verificação de links (partilhada com o Clássico) ─── */
   const [modalLinks, setModalLinks] = useState(false);
