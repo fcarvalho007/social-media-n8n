@@ -1,4 +1,3 @@
-import { useState, useEffect } from 'react';
 import { CheckCircle2, PlusCircle, Calendar, X, FolderKanban, LayoutDashboard, LogOut, Image, BarChart3, Lightbulb, Sparkles, Mail } from 'lucide-react';
 import { NavLink, useNavigate } from 'react-router-dom';
 import {
