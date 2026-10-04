@@ -87,6 +87,11 @@ async function estado(req: Request): Promise<Response> {
       FREDERICO_WP_USER: tem("FREDERICO_WP_USER"),
       FREDERICO_WP_APP_PASSWORD: tem("FREDERICO_WP_APP_PASSWORD"),
       PEXELS_API_KEY: tem("PEXELS_API_KEY"),
+      LOVABLE_API_KEY: tem("LOVABLE_API_KEY"),
+      FAL_KEY: tem("FAL_KEY"),
+      GETLATE_API_TOKEN: tem("GETLATE_API_TOKEN"),
+      RESEND_API_KEY: tem("RESEND_API_KEY"),
+      NL_PUBLIC_BASE_URL: /^https:\/\//.test(basePublica()),
     },
     // Validation evidence only from real recorded state; "configured" never implies "validated".
     validacoes: await validacoes(sb),
@@ -176,6 +181,37 @@ async function sincronizarTokens(req: Request): Promise<Response> {
   }
 }
 
+/**
+ * Read-only discovery of E-goi extra fields per active real list (GET /lists/{id}/fields only).
+ * Never creates fields, writes contacts or sends; returns names/ids/formats, never the API key.
+ */
+async function camposEgoi(req: Request): Promise<Response> {
+  const negado = await adminSessao(req);
+  if (negado) return negado;
+  const srv = createClient(Deno.env.get("SUPABASE_URL")!, Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!, { auth: { persistSession: false } });
+  const { data: listasRaw } = await srv.from("nl_egoi_listas").select("nome, egoi_lista_id").eq("tipo", "real").eq("activa", true);
+  const listas = (listasRaw ?? []) as Array<{ nome: string; egoi_lista_id: string }>;
+  const { data: cfg } = await srv.from("nl_configuracoes").select("valor").eq("chave", "egoi_api_key").maybeSingle();
+  const apiKey = (cfg as { valor?: string } | null)?.valor || Deno.env.get("EGOI_API_KEY") || "";
+  if (!apiKey) return json({ ok: false, problema: "Falta a chave da API da E-goi (EGOI_API_KEY)." });
+  const egoi = clienteEgoiHttp(apiKey);
+  const resultado = await Promise.all(listas.map(async (l) => {
+    try {
+      const campos = (await egoi.lerCampos(l.egoi_lista_id)).filter((c) => c.type === "extra");
+      return {
+        nome: l.nome, egoi_lista_id: l.egoi_lista_id,
+        campos: campos.map((c) => ({ id: Number(c.field_id), nome: c.name, formato: c.format, texto: c.format === "text", sugerido: c.format === "text" && /token|subscri/i.test(c.name) })),
+      };
+    } catch (e) {
+      return { nome: l.nome, egoi_lista_id: l.egoi_lista_id, erro: (e as Error).message.slice(0, 120), campos: [] };
+    }
+  }));
+  // A single field id must exist as text in EVERY list (one NL_EGOI_CAMPO_TOKEN_ID for all).
+  const ids = resultado.filter((r) => !("erro" in r)).map((r) => new Set(r.campos.filter((c) => c.texto).map((c) => c.id)));
+  const comuns = ids.length ? [...ids[0]].filter((id) => ids.every((s) => s.has(id))) : [];
+  return json({ ok: true, configurado: campoTokenEgoi(), listas: resultado, ids_texto_comuns: comuns });
+}
+
 Deno.serve(async (req) => {
   const nome = new URL(req.url).pathname.split("/").filter(Boolean).pop() ?? "";
   if (req.method === "OPTIONS") {
@@ -183,6 +219,11 @@ Deno.serve(async (req) => {
   }
   if (nome === "estado" && (req.method === "GET" || req.method === "POST")) {
     const r = await estado(req);
+    r.headers.set("Access-Control-Allow-Origin", "*");
+    return r;
+  }
+  if (nome === "campos-egoi" && req.method === "GET") {
+    const r = await camposEgoi(req);
     r.headers.set("Access-Control-Allow-Origin", "*");
     return r;
   }

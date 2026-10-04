@@ -129,7 +129,8 @@ export default function CarrosselNovo() {
   async function lerLink() {
     if (!projeto || !url.trim()) return;
     const n = ++pedido.current; const alvo = projeto;
-    setLendo(true); setFalhaFonte(null); setLinkMeta(null); setTexto(""); setParcial(false);
+    // Text already pasted stays until a successful read replaces it.
+    setLendo(true); setFalhaFonte(null);
     try {
       const r = await lerLinkFonte(alvo, url.trim());
       // Late answers for another request/project/type are discarded.

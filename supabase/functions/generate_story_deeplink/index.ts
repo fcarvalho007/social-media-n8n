@@ -1,5 +1,6 @@
 import { serve } from 'https://deno.land/std@0.168.0/http/server.ts';
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.38.0';
+import { baseApp } from '../_shared/app-publico.ts';
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -49,7 +50,8 @@ serve(async (req) => {
     if (!['ios', 'android', 'web'].includes(platform)) return json({ error: 'Plataforma inválida' }, 400);
 
     const fallbackWebUrl = 'https://www.instagram.com/';
-    const appOrigin = req.headers.get('origin') || 'https://hub-conteudo.lovable.app';
+    const appOrigin = baseApp();
+    if (!appOrigin) return json({ error: 'Endereço público da app por configurar (NL_PUBLIC_BASE_URL).' }, 503);
     const shareSheetUrl = `${appOrigin}/manual-create?storyMedia=${encodeURIComponent(mediaUrl)}`;
 
     const instructions = [
