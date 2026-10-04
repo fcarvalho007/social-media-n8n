@@ -26,9 +26,10 @@ Deno.serve(async (req) => {
   if (!estado || !(igual(chave, estado.chave) || igual(bearer, service))) return json({ ok: false, mensagem: "Não autorizado" }, 401);
   if (estado.pausa_motivo) return json({ ok: true, pausado: estado.pausa_motivo });
 
-  const { data: lease, error: eL } = await sb.rpc("nl_worker_adquirir", { _nome: NOME, _segundos: 300 });
+  // Token-based lease: only this run's token can release it (an old run past expiry cannot free a newer lease).
+  const { data: token, error: eL } = await sb.rpc("nl_worker_reservar", { _nome: NOME, _segundos: 300 });
   if (eL) return json({ ok: false, mensagem: "Lease indisponível" }, 500);
-  if (!lease) return json({ ok: true, ocupado: true });
+  if (!token) return json({ ok: true, ocupado: true });
 
   const resultado: Record<string, unknown> = {};
   try {
@@ -54,8 +55,7 @@ Deno.serve(async (req) => {
     console.error("[nl-worker-conteudos]", resultado.erro);
     return json({ ok: false, mensagem: "Falha na execução" }, 500);
   } finally {
-    await sb.from("nl_worker_estado").update({
-      lease_ate: null, ultima_execucao: new Date().toISOString(), ultimo_resultado: resultado, actualizado_em: new Date().toISOString(),
-    }).eq("nome", NOME);
+    const { data: libertado } = await sb.rpc("nl_worker_libertar", { _nome: NOME, _token: token, _resultado: resultado });
+    if (!libertado) console.warn("[nl-worker-conteudos] lease expirado ou reatribuído; resultado não gravado");
   }
 });
