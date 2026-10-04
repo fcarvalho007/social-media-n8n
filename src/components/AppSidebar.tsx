@@ -156,8 +156,8 @@ export function AppSidebar() {
 
         <SidebarContent className="flex flex-col h-full py-4 overflow-y-auto overflow-x-hidden">
           {/* Menu Items */}
-          <SidebarGroup className="flex-1 items-start md:items-center">
-            <SidebarGroupContent className="w-full px-1.5">
+          <SidebarGroup className="flex-1 items-start px-1 md:items-center">
+            <SidebarGroupContent className="w-full">
               <SidebarMenu className="space-y-0.5">
                 {menuItems.map((item) => (
                   <SidebarMenuItem key={item.title}>
@@ -165,7 +165,7 @@ export function AppSidebar() {
                       asChild={!item.disabled}
                       disabled={item.disabled}
                       tooltip={{ children: item.title, hidden: isMobile }}
-                      className="h-auto min-h-11 overflow-visible p-0 hover:bg-transparent focus-visible:ring-0"
+                      className="h-auto min-h-11 overflow-visible p-0 hover:bg-transparent focus-visible:ring-0 [&>span:last-child]:overflow-visible [&>span:last-child]:whitespace-normal [&>span:last-child]:text-clip"
                     >
                       {item.disabled ? (
                         <div className="flex flex-col items-center gap-2 mx-auto opacity-40 cursor-not-allowed">
@@ -241,7 +241,7 @@ export function AppSidebar() {
                                 
                                 <span 
                                   className={cn(
-                                    "block w-full px-1 text-center text-xs font-medium leading-tight text-current transition-colors duration-150 [overflow-wrap:anywhere]",
+                                    "block w-full !overflow-visible !whitespace-normal !text-clip px-0.5 text-center text-xs font-medium leading-tight text-current [overflow-wrap:normal] transition-colors duration-150",
                                     isActive && "font-semibold text-sidebar-foreground"
                                   )}
                                 >
