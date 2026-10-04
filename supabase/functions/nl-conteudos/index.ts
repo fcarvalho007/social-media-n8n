@@ -45,6 +45,7 @@ async function validarFicheiros(sb: ReturnType<typeof admin>, userId: string, im
 
 const Body = z.discriminatedUnion("acao", [
   z.object({ acao: z.literal("listar"), project_id: uuid.nullable().optional() }),
+  z.object({ acao: z.literal("render_prova"), pacote: z.unknown(), variante: z.enum(["A", "B"]), pagina: z.number().int().min(0).max(19) }),
   z.object({ acao: z.literal("obter"), conteudo_id: uuid }),
   z.object({ acao: z.literal("preparar"), edicao_id: uuid }),
   z.object({ acao: z.literal("aceitar_fonte"), conteudo_id: uuid }),
@@ -88,6 +89,15 @@ Deno.serve(async (req) => {
 
   try {
     switch (b.acao) {
+      case "render_prova": {
+        // R1 proof: synthetic documents only (validated inside), no storage, no writes.
+        const { renderizarProva } = await import("../_shared/documento-grafico/render.server.ts");
+        try {
+          return json(await renderizarProva(b.pacote, b.variante, b.pagina));
+        } catch (e) {
+          return json({ error: e instanceof Error ? e.message : "Falha na renderização." }, 422);
+        }
+      }
       case "listar": {
         // Optional project filter: editions belong to a project through their editorial identity.
         let idents: string[] | null = null;
