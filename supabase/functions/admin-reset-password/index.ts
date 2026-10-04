@@ -1,84 +1,38 @@
-import "https://deno.land/x/xhr@0.1.0/mod.ts";
-import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
-import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+// Admin-only password reset. Requires a valid session of a user with the 'admin' role.
+// Never called by the login flow; no default target or fixed password.
+import { createClient } from "https://esm.sh/@supabase/supabase-js@2.57.4";
 
-const corsHeaders = {
+const cors = {
   "Access-Control-Allow-Origin": "*",
-  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type, x-admin-reset-token",
+  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
 };
+const json = (b: unknown, status = 200) =>
+  new Response(JSON.stringify(b), { status, headers: { ...cors, "Content-Type": "application/json" } });
 
-const SUPABASE_URL = Deno.env.get("SUPABASE_URL") ?? "";
-const SERVICE_ROLE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? "";
-const ADMIN_EMAIL = "comunicacao@fredericocarvalho.pt";
-const TARGET_PASSWORD = "internal-whitelist-auth-2024";
-const ADMIN_RESET_TOKEN = Deno.env.get("N8N_STORIES_WEBHOOK_SECRET") ?? "";
+Deno.serve(async (req) => {
+  if (req.method === "OPTIONS") return new Response(null, { headers: cors });
+  if (req.method !== "POST") return json({ error: "method_not_allowed" }, 405);
 
-const supabase = createClient(SUPABASE_URL, SERVICE_ROLE_KEY);
+  const auth = req.headers.get("Authorization") ?? "";
+  if (!auth.startsWith("Bearer ")) return json({ error: "unauthorized" }, 401);
 
-serve(async (req) => {
-  // CORS preflight
-  if (req.method === "OPTIONS") {
-    return new Response(null, { headers: corsHeaders });
+  const admin = createClient(Deno.env.get("SUPABASE_URL")!, Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!, {
+    auth: { persistSession: false, autoRefreshToken: false },
+  });
+  const { data: { user }, error: authError } = await admin.auth.getUser(auth.slice(7));
+  if (authError || !user) return json({ error: "unauthorized" }, 401);
+
+  const { data: isAdmin } = await admin.rpc("has_role", { _user_id: user.id, _role: "admin" });
+  if (!isAdmin) return json({ error: "forbidden" }, 403);
+
+  const body = await req.json().catch(() => ({}));
+  const userId = typeof body.userId === "string" ? body.userId : "";
+  const newPassword = typeof body.newPassword === "string" ? body.newPassword : "";
+  if (!/^[0-9a-f-]{36}$/i.test(userId) || newPassword.length < 12 || newPassword.length > 128) {
+    return json({ error: "userId e newPassword (12–128 caracteres) são obrigatórios" }, 400);
   }
 
-  // TEMP: disabled admin token check so AI can call this once to sync password
-  // In production, re-enable header-based protection if needed.
-
-  try {
-    const { email, newPassword } = await req.json().catch(() => ({ }));
-
-    const targetEmail = email || ADMIN_EMAIL;
-    const targetPassword = newPassword || TARGET_PASSWORD;
-
-    console.log("admin-reset-password: starting reset for", targetEmail);
-
-    // List users and find by email
-    const { data, error } = await supabase.auth.admin.listUsers({
-      page: 1,
-      perPage: 1000,
-    });
-
-    if (error) {
-      console.error("admin-reset-password: error listing users", error);
-      return new Response(JSON.stringify({ error: error.message }), {
-        status: 500,
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
-      });
-    }
-
-    const user = data?.users.find((u) => u.email === targetEmail);
-
-    if (!user) {
-      console.error("admin-reset-password: user not found", targetEmail);
-      return new Response(JSON.stringify({ error: "user_not_found" }), {
-        status: 404,
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
-      });
-    }
-
-    const { error: updateError } = await supabase.auth.admin.updateUserById(user.id, {
-      password: targetPassword,
-    });
-
-    if (updateError) {
-      console.error("admin-reset-password: error updating user", updateError);
-      return new Response(JSON.stringify({ error: updateError.message }), {
-        status: 500,
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
-      });
-    }
-
-    console.log("admin-reset-password: password updated successfully for", targetEmail);
-
-    return new Response(JSON.stringify({ success: true, email: targetEmail }), {
-      status: 200,
-      headers: { ...corsHeaders, "Content-Type": "application/json" },
-    });
-  } catch (err) {
-    console.error("admin-reset-password: unexpected error", err);
-    return new Response(JSON.stringify({ error: "internal_error" }), {
-      status: 500,
-      headers: { ...corsHeaders, "Content-Type": "application/json" },
-    });
-  }
+  const { error } = await admin.auth.admin.updateUserById(userId, { password: newPassword });
+  if (error) return json({ error: "update_failed" }, 500);
+  return json({ success: true });
 });

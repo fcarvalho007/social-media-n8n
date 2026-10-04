@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { CheckCircle2, PlusCircle, Calendar, X, FolderKanban, LayoutDashboard, LogOut, Image, BarChart3, Lightbulb, Sparkles } from 'lucide-react';
+import { CheckCircle2, PlusCircle, Calendar, X, FolderKanban, LayoutDashboard, LogOut, Image, BarChart3, Lightbulb, Sparkles, Mail } from 'lucide-react';
 import { NavLink, useNavigate } from 'react-router-dom';
 import {
   Sidebar,
@@ -27,7 +27,15 @@ import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 
 const menuItems = [
   {
-    title: 'Estúdio',
+    title: 'Dashboard',
+    label: 'Início',
+    icon: LayoutDashboard,
+    url: '/',
+    disabled: false,
+    isMain: false,
+  },
+  {
+    title: 'Estúdio de conteúdos',
     label: 'Estúdio',
     icon: Sparkles,
     url: '/estudio',
@@ -35,10 +43,10 @@ const menuItems = [
     isMain: false,
   },
   {
-    title: 'Dashboard',
-    label: 'Início',
-    icon: LayoutDashboard,
-    url: '/',
+    title: 'Newsletter',
+    label: 'Newsletter',
+    icon: Mail,
+    url: '/newsletter',
     disabled: false,
     isMain: false,
   },

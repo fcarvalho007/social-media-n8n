@@ -1,2 +1,3 @@
-- Newsletter module tables use the `nl_` prefix and authorise via `user_roles` helpers (`nl_is_admin`, `nl_is_staff`); keeps social tables untouched and roles in one place.
-- Newsletter imports run only through the `nl-import` edge function with a fixed table allowlist and the caller's JWT; package data never enters the repo or browser bundle.
+- The newsletter engine is vendored from the origin into supabase/functions/_shared/newsletter-engine and exposed only via edge functions; keeps the original rendering logic server-side with server-only secrets.
+- Origin source under migration-reference/ stays as inert .txt files; prevents build/migration tooling from picking it up.
+- Login uses email OTP for existing accounts only; no fixed passwords in the bundle.

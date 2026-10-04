@@ -33,11 +33,11 @@ import Insights from "./pages/Insights";
 import NotificationSettings from "./pages/NotificationSettings";
 import StoryConfirm from "./pages/StoryConfirm";
 import StoryLauncher from "./pages/StoryLauncher";
-import Estudio from "./pages/estudio/Estudio";
-import NewsletterArquivo from "./pages/newsletter/NewsletterArquivo";
-import NewsletterEditor from "./pages/newsletter/NewsletterEditor";
-import NewsletterMigracao from "./pages/newsletter/NewsletterMigracao";
-import Artigos from "./pages/artigos/Artigos";
+import Estudio from "./pages/Estudio";
+import Newsletter from "./pages/Newsletter";
+import NewsletterEdicao from "./pages/NewsletterEdicao";
+import NewsletterMigracao from "./pages/NewsletterMigracao";
+import Artigos from "./pages/Artigos";
 const queryClient = new QueryClient();
 
 // Component to handle URL-encoded redirects
@@ -92,9 +92,9 @@ const App = () => (
                   <Route path="/ai-settings" element={<AISettings />} />
                   <Route path="/ai-demo" element={<AIDemo />} />
                   <Route path="/estudio" element={<Estudio />} />
-                  <Route path="/newsletter" element={<NewsletterArquivo />} />
+                  <Route path="/newsletter" element={<Newsletter />} />
                   <Route path="/newsletter/migracao" element={<NewsletterMigracao />} />
-                  <Route path="/newsletter/:id" element={<NewsletterEditor />} />
+                  <Route path="/newsletter/:id" element={<NewsletterEdicao />} />
                   <Route path="/artigos" element={<Artigos />} />
                 </Route>
                 {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
