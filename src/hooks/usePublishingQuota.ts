@@ -60,8 +60,10 @@ export function usePublishingQuota() {
       const { data, error } = await supabase.functions.invoke<GetlateQuotaResponse>('get-getlate-quota');
 
       if (error) {
-        console.error('[Quota] Getlate error:', error);
-        throw error;
+        // Quota is informational only (Getlate enforces limits). Never crash the UI,
+        // e.g. on expired session (401) — return null and let the badge hide.
+        console.warn('[Quota] Getlate quota unavailable:', error.message);
+        return null;
       }
       
       console.log('[Quota] Received from Getlate:', data);
