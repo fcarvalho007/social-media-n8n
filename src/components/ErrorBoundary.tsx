@@ -52,7 +52,7 @@ export class ErrorBoundary extends Component<Props, State> {
               onClick={() => { window.location.href = window.location.pathname + '?cb=' + Date.now(); }}
               className="px-6"
             >
-              Recarregar Página
+              Recarregar página
             </Button>
           </div>
         </div>
