@@ -19,10 +19,13 @@ Este é um **plano proposto**, não aprovado para implementação. Nesta ronda n
    - `ai-core/index.ts` e `ai-generate-image/index.ts` chamam `POST https://ai.gateway.lovable.dev/v1/chat/completions`, sem streaming.
    - Usam um tempo limite de 60 s com `AbortController` e repetem 3 vezes sem olhar ao código do erro.
    - Enviam `max_tokens` e `temperature`, e o modelo vem de `MODEL_MAP` ("fast"/"smart").
-   - O motor novo **não** reaproveita este padrão de repetições: só repete erros 429/5xx com espera crescente, e trata 400/401/402/403 como definitivos.
-   - Proposta: criar um `FornecedorTexto` próprio, com o formato pedido explícito.
-     - Deve começar com Responses em streaming, que é o padrão atual do gateway para modelos `openai/*`.
-     - Fica por provar numa chamada real autorizada: formato da resposta, tokens devolvidos e como o custo é medido.
+   - O motor novo **não** reaproveita este padrão de repetições. Só repete 429/5xx, com espera crescente.
+   - A classificação de 402/403 depende do corpo real do erro (crédito, política, região ou fornecedor), não só do código HTTP.
+   - Proposta: `FornecedorTexto` com o contrato **confirmado** no código, `chat/completions` sem streaming.
+     - Responses/streaming fica opcional, só depois de documentação e de uma prova real. Não é um padrão confirmado.
+     - Fica por provar numa chamada real autorizada: tokens devolvidos e como o custo é medido.
+   - Pedidos com resultado incerto (tempo esgotado ou ligação cortada depois do envio) podem ter sido cobrados.
+     - Ficam registados como `desconhecido`, com orçamento reservado, e não são repetidos às cegas.
    - A DeepSeek da crónica fica igual.
 3. **Orçamento de IA (configurável por projeto)**
    - Valores iniciais: máximo de 3 chamadas pagas por etapa de proposta, incluindo 1 reparação, e um teto em euros por trabalho.
@@ -68,9 +71,25 @@ conteudo_exportacoes   documento_id, versao, variante, formato, destino, storage
                        estado(staging|confirmado), UNIQUE(documento_id,versao,variante,formato,destino)
 conteudo_rascunhos     documento_id, versao, destino, post_draft_id, UNIQUE(documento_id,versao,destino)
 ```
-- **Cache e deduplicação:** antes de chamar a IA, procura-se uma resposta já validada para o mesmo `pedido_hash` ou para a mesma etapa. Se existir, é reutilizada e não há nova cobrança.
-- **Janela de cobrança:** se o processo cair depois de o fornecedor responder, mas antes de `resposta_bruta` ficar gravada, a retoma volta a chamar e volta a pagar. O ponto de controlo reduz o risco, mas não o elimina.
-- **Histórico:** cada gravação cria uma versão nova com controlo CAS (`versao_esperada`). O rascunho fica ligado a uma versão exata do documento.
+- **Chave de cache (`pedido_hash`):** inclui `project_id`, fonte, snapshot e versão, prompt e versão, modelo, parâmetros e brief editorial.
+  - Nunca é partilhada entre projetos.
+  - Pedir explicitamente uma "nova proposta" muda a chave.
+  - Editar o layout nunca chama a IA.
+- **Janela de cobrança:** há dois casos em que a retoma pode voltar a pagar:
+  - o processo cai depois de o fornecedor responder, mas antes de `resposta_bruta` ficar gravada;
+  - um pedido termina com resultado incerto.
+  - O ponto de controlo reduz o risco, mas não o elimina. Os pedidos incertos ficam `desconhecido` e não são repetidos às cegas.
+- **Histórico imutável:**
+  - Propostas e versões de documento nunca são alteradas, só acrescentadas, com controlo CAS (`versao_esperada`).
+  - Cada versão de documento fica presa a uma `proposta_versao`.
+  - As exportações resolvem o texto contra essa versão congelada, nunca contra o texto atual.
+- **Coerência entre aprovação, exportação e rascunho:**
+  - A aprovação fica gravada sobre `(documento, versao)`.
+  - Uma nova proposta (texto mudado) invalida as aprovações e as exportações anteriores.
+  - A exportação só é confirmada para a versão aprovada.
+- **Ligação a posts_drafts:** `conteudo_rascunhos` liga documento + versão + destino a um `post_draft_id`, sem alterar o fluxo existente.
+  - O rascunho é criado pelo mesmo caminho atual, com envio único.
+  - Antes de criar, o servidor recusa se a versão já não for a aprovada.
 
 ### Exemplos compactos
 ```json
@@ -108,10 +127,9 @@ conteudo_rascunhos     documento_id, versao, destino, post_draft_id, UNIQUE(docu
   - Os redirecionamentos são seguidos à mão, no máximo 5, e cada salto é verificado.
   - São bloqueados endereços privados, de loopback, link-local, CGNAT e de metadados, também em IPv6.
   - Só aceita HTML, com tempo limite e tamanho máximo.
-  - Se o runtime não permitir fixar o IP verificado na ligação (proteção contra DNS rebinding), há duas alternativas:
-    - um proxy de saída com lista de bloqueio própria (infraestrutura a decidir);
-    - aceitar apenas o texto colado e o URL como referência.
-  - A escolha depende da prova B4.
+  - A prova de fetch seguro faz parte da ronda R7.
+  - Se o runtime não permitir fixar o IP verificado na ligação (proteção contra DNS rebinding), a extração não é dada como concluída. O link fica guardado como referência e oferece-se texto colado.
+  - Um proxy de saída só entra com orçamento e infraestrutura decididos.
 - **PDF**
   - Muito pouco texto não prova que o PDF seja digitalizado.
   - A extração é feita página a página e marca cada página como "com texto", "pouco texto" ou "vazia".
@@ -133,67 +151,125 @@ Entrada -> [síncrono] snapshot + FonteNormalizada + confirmação -> conteudo_f
 Worker cron + leases por token; retoma na etapa falhada; nunca publica.
 ```
 
-## F. Rondas propostas (prompts prontos a copiar; não executar)
-Cada ronda para ao fim. Se uma prova falhar, a ronda para e reporta, sem instalar alternativas automaticamente. Nenhuma ronda muda autenticação, papéis ou permissões alargadas, nem toca na edição 318 ou em dados reais.
+## F. Oito prompts finais (propostos, não executados)
+Estas regras valem para todas as rondas:
+- Cada ronda para no ponto indicado.
+- Se uma prova falhar, a ronda para e reporta, sem instalar alternativas nem clonar Canvix ou outra infraestrutura.
+- Nenhuma ronda toca na entrada, no backend em diagnóstico, em contas, papéis, permissões alargadas, dados existentes ou na edição 318.
+- Nenhuma ronda publica conteúdos.
+- Qualquer geração real de IA é separada, identificada e só acontece com a tua autorização.
 
-**R1 — Contratos e esquema.**
-- Prompt:
-  > Implementa R1: tipos TS v1 e migração aditiva das tabelas da secção C, com GRANT, RLS por papel/projeto e RPCs CAS. Não tocar em nl_*, UI ou IA.
-- Aceitação: contagens nl_* iguais antes/depois; testes RLS para anon, sem papel e outro projeto.
-- Evidência: queries de leitura.
-- Paragem: no fim da migração.
-
-**R2 — Texto colado, fila e checkpoint.**
-- Prompt:
-  > Implementa R2: página Novo carrossel (projeto obrigatório), guarda síncrona da fonte com confirmação, etapa de proposta em fila com FornecedorTexto, cache por pedido_hash, checkpoint resposta_bruta, orçamento configurável, retries só 429/5xx. Testes simulados; 1 chamada real só quando eu autorizar.
+**R1 — Prova do editor e do renderer, antes das tabelas definitivas.**
+- Dependências: nenhuma.
+- Âmbito:
+  - página experimental isolada;
+  - tipos TS do DocumentoGrafico v1;
+  - adaptador DocumentoGrafico↔Konva;
+  - avaliação dos módulos de editor do Canvix (licença, dependências, React 18, páginas, JSON externo, sem backend próprio);
+  - adaptador DocumentoGrafico→SVG com resvg-wasm numa função de teste;
+  - 5 documentos de teste e comparação de equivalência.
+  - Sem migrações nem dados reais.
 - Aceitação:
-  - proposta guardada e reaberta;
-  - repetir reutiliza a cache;
-  - uma falha simulada depois do checkpoint não volta a chamar a IA;
-  - a janela de cobrança fica documentada.
-- Evidência: registos e linhas da etapa.
-- Paragem: antes da chamada real.
-
-**R3 — Worker e navegador fechado.**
-- Prompt:
-  > Implementa R3: worker cron para conteudo_etapas com lease token CAS e retoma. Prova com trabalho NOVO de teste e navegador fechado; não usar a edição 318.
-- Aceitação: conclusão sem navegador; uma falha forçada retoma só a etapa falhada.
-- Evidência: registos e estado.
-- Paragem: no fim da prova.
-
-**R4 — Prova do editor e do renderer.**
-- Prompt:
-  > Implementa R4 numa página experimental: (a) adaptador DocumentoGrafico↔Konva e, em paralelo, avaliação Canvix só dos módulos de editor (licença, dependências, React 18, páginas, JSON externo, sem backend próprio); (b) adaptador DocumentoGrafico→SVG + resvg-wasm numa função de teste; (c) teste de equivalência com 5 documentos. Para e reporta se falhar.
-- Aceitação:
-  - telemóvel utilizável: seleção, teclado, zoom, toque, desfazer;
+  - telemóvel utilizável: seleção, teclado, zoom, toque e desfazer;
   - várias páginas;
-  - equivalência abaixo do limiar.
-- Evidência: imagens de comparação.
-- Paragem: recomendação da base, sem a adotar.
+  - JSON externo lido e escrito;
+  - diferença visual abaixo do limiar, sem mudanças nas quebras de linha.
+- Paragem: relatório com evidência (imagens de comparação) e recomendação da base, sem adoção.
+- Prompt:
+  > Implementa R1 do plano proposto: prova isolada de editor (Konva e avaliação Canvix só de módulos) e renderer (SVG+resvg-wasm em função de teste) contra o contrato DocumentoGrafico v1, com 5 documentos de equivalência. Sem migrações, dados reais, alterações a auth/papéis. Para e reporta.
+
+**R2 — Contratos e esquema.**
+- Dependências: R1. O formato do documento é ajustado ao resultado da prova.
+- Âmbito:
+  - migração aditiva das tabelas da secção C, com GRANT e RLS por papel e projeto;
+  - RPCs CAS para propostas e versões de documento (as versões ficam imutáveis);
+  - nenhuma alteração em nl_* nem em posts_drafts.
+- Aceitação:
+  - testes de acesso: anon, conta sem papel, papel de outro projeto e editor do próprio projeto;
+  - testes de concorrência: duas gravações com a mesma `versao_esperada` deixam uma aceite e outra recusada;
+  - versões antigas não podem ser alteradas;
+  - contagens nl_* iguais antes e depois.
+- Paragem: migração aplicada e relatório dos testes.
+- Prompt:
+  > Implementa R2: migração aditiva das tabelas da secção C com GRANT/RLS por projeto e RPCs CAS com histórico imutável; testes de acesso e de concorrência. Não tocar em nl_*, posts_drafts, auth ou papéis.
+
+**R3 — Texto colado, fila, checkpoint e retoma (fornecedor simulado).**
+- Dependências: R2.
+- Âmbito:
+  - página "Novo carrossel" com projeto obrigatório;
+  - a fonte é guardada de forma síncrona, com confirmação de título, autoria e origem;
+  - a etapa de proposta corre em fila no worker cron, com reservas por token;
+  - FornecedorTexto em chat/completions, com um fornecedor simulado nos testes;
+  - cache pela chave completa, checkpoint da resposta bruta, estado desconhecido e orçamento reservado.
+- Aceitação:
+  - um trabalho NOVO de teste conclui com o navegador fechado;
+  - uma falha forçada depois do checkpoint retoma sem nova chamada;
+  - um resultado incerto fica `desconhecido` e não é repetido;
+  - a proposta reabre.
+- Paragem: no fim dos testes simulados.
+- Prompt:
+  > Implementa R3: texto colado por projeto → fonte guardada → etapa de proposta em fila com FornecedorTexto (chat/completions), cache por chave completa, checkpoint, estado desconhecido, orçamento; prova de retoma e navegador fechado com fornecedor simulado. Sem chamadas reais.
+
+**R4 — Uma geração real identificada.**
+- Dependências: R3 e a tua autorização explícita.
+- Âmbito: uma chamada real num projeto de teste, identificada como tal, para medir tokens, custo, formato e erros.
+- Aceitação: proposta válida guardada, registo de custo e nenhuma repetição.
+- Paragem: relatório da chamada.
+- Prompt:
+  > Executa R4: uma única geração real autorizada num projeto de teste através do motor de R3; reporta tokens/custo/formato. Sem repetições nem envios.
 
 **R5 — Composições A/B e editor integrado.**
-- Prompt:
-  > Implementa R5 com a base escolhida em R4: composições A e B sem IA, refs de texto/asset, gravação CAS, reabertura, conflito com recarga.
-- Aceitação: alterar a proposta reflete-se em A e B; não há novas chamadas de IA; um conflito é detetado.
+- Dependências: R1 (base escolhida), R2 e R3.
+- Âmbito:
+  - composições A e B criadas a partir da proposta, sem IA;
+  - referências ligadas a uma `proposta_versao` congelada;
+  - gravação CAS, reabertura e conflito resolvido com recarga;
+  - alterar o texto cria uma nova proposta e invalida a aprovação.
+- Aceitação:
+  - alterar o layout não chama a IA;
+  - um conflito é detetado;
+  - uma versão antiga continua a mostrar o texto antigo.
 - Paragem: no fim da ronda.
+- Prompt:
+  > Implementa R5 com a base de R1: variantes A/B sem IA ligadas a proposta_versao congelada, CAS, conflito, invalidação de aprovação ao mudar texto.
 
 **R6 — Exportação no servidor e rascunho.**
-- Prompt:
-  > Implementa R6: exportação por documento+versão+variante+formato com staging/checksum/confirmação imutável; rascunho ligado à versão e destino; recusa versões desatualizadas; nunca publica.
-- Aceitação: exportação concorrente não sobrescreve; repetir não duplica; rascunho com a versão certa.
+- Dependências: R1 (renderer provado) e R5.
+- Âmbito:
+  - exportação por documento + versão + variante + formato, com área provisória, checksum e confirmação imutável;
+  - ficheiros PNG/PDF por destino;
+  - rascunho em posts_drafts ligado através de conteudo_rascunhos, sem alterar o fluxo atual;
+  - versões desatualizadas são recusadas;
+  - nunca publica.
+- Aceitação:
+  - duas exportações concorrentes não sobrescrevem um ficheiro confirmado;
+  - repetir não duplica;
+  - o rascunho fica com a versão aprovada.
 - Paragem: rascunho criado num projeto de teste.
-
-**R7 — URL de notícia.**
 - Prompt:
-  > Implementa R7 conforme a prova B4: leitor com redirects manuais e bloqueio interno, ou alternativa documentada; snapshot e confirmação.
-- Aceitação: testes de redirecionamento interno, de rebinding (se exequível), de tamanho e de tempo limite.
-- Paragem: no fim dos testes.
+  > Implementa R6: exportação servidor imutável (staging/checksum/confirmação) por documento+versão+variante+formato e rascunho ligado via conteudo_rascunhos; recusa versões desatualizadas; testes de concorrência; sem publicar.
 
-**R8 — PDF e validação final.**
+**R7 — URL de notícia, com prova de fetch seguro.**
+- Dependências: R3.
+- Âmbito:
+  - provar no runtime real se é possível resolver o DNS, fixar o IP na ligação e revalidar cada redirecionamento;
+  - se for possível, construir o leitor com bloqueio de endereços internos, limites, snapshot e confirmação;
+  - se não for, guardar o link como referência e oferecer texto colado, sem dar a extração por concluída.
+- Aceitação: testes de redirecionamento interno, de DNS rebinding (se exequível), de tamanho e de tempo limite.
+- Paragem: relatório da prova e do resultado.
 - Prompt:
-  > Implementa R8: extração PDF por página com aviso/preview, sem OCR; depois validação final com trabalho NOVO: navegador fechado, falha retomada, rascunho preparado sem publicar.
-- Aceitação: os critérios finais acima.
+  > Implementa R7: prova de fetch seguro no runtime; leitor só se a prova passar, senão link como referência + texto colado; testes de redirect/rebinding/limites.
+
+**R8 — 8a PDF e 8b verificação global.**
+- Dependências: 8a depende de R3; 8b depende de R1 a R7.
+- 8a, âmbito: extração do PDF página a página ("com texto", "pouco texto", "vazia"), aviso e pré-visualização, sem OCR.
+- 8a, aceitação: um PDF misto mostra o aviso e não é tratado como completo.
+- 8b, âmbito: um trabalho NOVO de ponta a ponta que continua com o navegador fechado, recupera uma falha e prepara o rascunho sem publicar.
+  - A edição 318 não conta como prova.
+  - Qualquer geração real é identificada.
 - Paragem: relatório final.
+- Prompt:
+  > Implementa R8a: extração PDF por página com aviso/preview, sem OCR. Depois R8b: verificação global com trabalho NOVO (navegador fechado, falha retomada, rascunho sem publicar), sem usar a edição 318.
 
 ## Riscos
 - A instabilidade recente do backend afeta o worker.
