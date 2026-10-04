@@ -12,7 +12,8 @@ const medidor = criarMedidor({
   700: parse(ab(readFileSync("public/fontes/WorkSans-Bold.ttf"))) as unknown as FonteOT,
 });
 
-vi.mock("@/contexts/AuthContext", () => ({ useAuth: () => ({ user: { id: "u-prova" } }) }));
+const utilizador = vi.hoisted(() => ({ id: "u-prova" }));
+vi.mock("@/contexts/AuthContext", () => ({ useAuth: () => ({ user: utilizador }) }));
 vi.mock("@/services/conteudos", () => ({ renderProvaServidor: vi.fn() }));
 vi.mock("@/features/editor-grafico/fontes", () => ({ carregarMedidor: () => Promise.resolve(medidor) }));
 vi.mock("@/features/editor-grafico/desenho", () => ({
