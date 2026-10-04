@@ -271,7 +271,7 @@ export default function CarrosselTrabalho() {
     return (
       <>
         <EditorGrafico key={`${id}-${revisao}`} pacoteInicial={pacote} chaveLocal={chave} real
-          titulo={<span className="truncate">{t.titulo || "Carrossel"}</span>}
+          titulo={<span className="truncate">{t.titulo || dados?.proposta?.conteudo?.titulo || "Carrossel"}</span>}
           cabecalhoInicio={<Button variant="ghost" size="icon" className="h-11 w-11 lg:h-9 lg:w-9" aria-label="Voltar ao conteúdo" onClick={() => setPasso("conteudo")}><ArrowLeft className="h-4 w-4" /></Button>}
           estadoGravacao={<div className="flex items-center gap-2">{avisoBadge}<EstadoChip estado={estadoG} /></div>}
           menuExtra={<><DropdownMenuSeparator /><DropdownMenuItem onSelect={() => abrirVersoes("A")}><History className="mr-2 h-4 w-4" />Versões da variante A</DropdownMenuItem><DropdownMenuItem onSelect={() => abrirVersoes("B")}><History className="mr-2 h-4 w-4" />Versões da variante B</DropdownMenuItem></>}
@@ -286,7 +286,7 @@ export default function CarrosselTrabalho() {
       <header className="flex flex-wrap items-center gap-2">
         <Button asChild variant="ghost" size="icon" className="h-11 w-11 lg:h-9 lg:w-9" aria-label="Voltar aos carrosséis"><Link to="/estudio/carrosseis"><ArrowLeft className="h-4 w-4" /></Link></Button>
         <div className="min-w-0 flex-1">
-          <h1 className="truncate text-lg font-semibold">{t.titulo || "Carrossel"}</h1>
+          <h1 className="truncate text-lg font-semibold">{t.titulo || dados?.proposta?.conteudo?.titulo || "Carrossel"}</h1>
           <p className="text-xs text-muted-foreground">{dataPt(t.criado_em)} · {NOME_ESTADO[t.estado]}{prop?.demonstracao && " · demonstração"}</p>
         </div>
         {pronto && <EstadoChip estado={estadoG} />}
