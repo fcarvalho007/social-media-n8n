@@ -104,3 +104,22 @@ export const passoImportacao = (run_id: string) =>
 export async function previewEdicao(edicao_id: string): Promise<{ versao: string; html: string; problemas: string[] }> {
   return invocarFn("nl-newsletter", { acao: "preview", edicao_id });
 }
+
+export interface MapeamentoPerfil { source_user_id: string; source_nome: string | null; source_papel: string | null; target_user_id: string | null; historico: unknown[] }
+export interface ContaEstudio { id: string; email: string | null; full_name: string | null }
+
+export async function listarMapeamentos(): Promise<MapeamentoPerfil[]> {
+  const { data, error } = await db.from("nl_user_mapping").select("source_user_id,source_nome,source_papel,target_user_id,historico").order("created_at");
+  if (error) throw error;
+  return data ?? [];
+}
+export async function listarContasEstudio(): Promise<ContaEstudio[]> {
+  const { data, error } = await supabase.from("profiles").select("id,email,full_name").order("email");
+  if (error) throw error;
+  return data ?? [];
+}
+/** Manual admin mapping only; never creates or changes roles. */
+export async function mapearPerfil(source: string, target: string | null) {
+  const { error } = await db.rpc("nl_mapear_perfil", { _source: source, _target: target });
+  if (error) throw error;
+}
