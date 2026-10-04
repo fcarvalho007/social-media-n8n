@@ -3,7 +3,7 @@ import { describe, expect, it } from "vitest";
 import { parse } from "opentype.js";
 import { initWasm, Resvg } from "@resvg/resvg-wasm";
 import {
-  calcularRecorte, criarMedidor, layoutTexto, paginaParaSvg, validarPacote, type FonteOT, type PacoteProva,
+  calcularRecorte, criarMedidor, layoutTexto, paginaParaSvg, transbordos, validarPacote, type FonteOT, type PacoteProva,
 } from "../../supabase/functions/_shared/documento-grafico/nucleo";
 import { FIXTURES } from "@/features/editor-grafico/fixtures";
 import { estadoInicial, reduzir } from "@/features/editor-grafico/estado";
@@ -149,5 +149,19 @@ describe("estado do editor", () => {
     expect(s.pacote.variantes.A.paginas.map((p) => p.id)).toEqual([ids[1], ids[0]]);
     expect(s.pacote.variantes.B.paginas).toHaveLength(1);
     expect(() => validarPacote(JSON.parse(JSON.stringify(s.pacote)))).not.toThrow();
+  });
+});
+
+describe("transbordos (bloqueio de aprovação)", () => {
+  it("título e corpo longos em A e B são detetados; texto curto não", () => {
+    const base = JSON.parse(JSON.stringify(FIXTURES[0])) as PacoteProva;
+    for (const v of ["A", "B"] as const) expect(transbordos(base, v, medidor).length).toBe(0);
+    const longo = JSON.parse(JSON.stringify(base)) as PacoteProva;
+    longo.conteudo.slides[0].titulo = "Um título muito longo que nunca caberia na caixa ".repeat(6);
+    longo.conteudo.slides[0].texto = "Corpo extenso com muitas frases seguidas. ".repeat(60);
+    for (const v of ["A", "B"] as const) {
+      const t = transbordos(longo, v, medidor).filter((x) => x.pagina === 0);
+      expect(t.length).toBeGreaterThan(0);
+    }
   });
 });
