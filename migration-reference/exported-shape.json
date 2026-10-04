@@ -1,0 +1,514 @@
+{
+  "perfis": {
+    "pk": "id",
+    "fields": [
+      "id",
+      "nome",
+      "papel",
+      "created_at",
+      "updated_at"
+    ],
+    "count": 1
+  },
+  "configuracoes": {
+    "pk": "chave",
+    "fields": [
+      "chave",
+      "valor",
+      "actualizado_em"
+    ],
+    "count": 16
+  },
+  "curadoria_config": {
+    "pk": "id",
+    "fields": [
+      "id",
+      "max_insercoes_por_corrida",
+      "janela_horas",
+      "actualizado_em",
+      "max_por_email",
+      "max_por_dia",
+      "max_por_fonte",
+      "max_por_categoria",
+      "max_por_dia_email"
+    ],
+    "count": 1
+  },
+  "curadoria_ferramentas_config": {
+    "pk": "id",
+    "fields": [
+      "id",
+      "dia_semana",
+      "hora",
+      "max_por_corrida",
+      "activo",
+      "actualizado_em"
+    ],
+    "count": 1
+  },
+  "definicoes_ia": {
+    "pk": "id",
+    "fields": [
+      "id",
+      "provider",
+      "modelo",
+      "estado",
+      "ultimo_teste_em",
+      "ultimo_erro",
+      "actualizado_por",
+      "created_at",
+      "updated_at"
+    ],
+    "count": 1
+  },
+  "prioridades_editoriais": {
+    "pk": "id",
+    "fields": [
+      "id",
+      "palavra_chave",
+      "peso",
+      "created_at",
+      "updated_at"
+    ],
+    "count": 2
+  },
+  "ferramentas_excluidas": {
+    "pk": "id",
+    "fields": [],
+    "count": 0
+  },
+  "fontes_curadoria": {
+    "pk": "id",
+    "fields": [
+      "id",
+      "nome",
+      "url_feed",
+      "activa",
+      "created_at",
+      "ultima_recolha",
+      "criada_em",
+      "tipo",
+      "url_listagem",
+      "remetente_email",
+      "remetente_dominio",
+      "foca_ferramentas",
+      "zeros_consecutivos",
+      "grupo"
+    ],
+    "count": 26
+  },
+  "episodios_podcast": {
+    "pk": "id",
+    "fields": [
+      "id",
+      "titulo",
+      "codigo",
+      "data_publicacao",
+      "url",
+      "criado_em"
+    ],
+    "count": 415
+  },
+  "emails_recebidos": {
+    "pk": "id",
+    "fields": [
+      "id",
+      "remetente",
+      "remetente_nome",
+      "assunto",
+      "corpo_html",
+      "corpo_texto",
+      "classificacao",
+      "notas_processadas",
+      "recebido_em",
+      "message_id",
+      "corpo_hash",
+      "classificacao_detalhe",
+      "processamento_estado",
+      "processamento_erro",
+      "processamento_tentativas",
+      "processado_em"
+    ],
+    "count": 97
+  },
+  "egoi_listas": {
+    "pk": "id",
+    "fields": [
+      "id",
+      "nome",
+      "egoi_lista_id",
+      "tipo",
+      "activa",
+      "ordem",
+      "created_at"
+    ],
+    "count": 3
+  },
+  "edicoes": {
+    "pk": "id",
+    "fields": [
+      "id",
+      "numero",
+      "data_envio_prevista",
+      "assunto",
+      "estado",
+      "episodio_podcast_id",
+      "bloco_livro",
+      "bloco_recursos",
+      "snapshot_envio",
+      "enviada_em",
+      "created_at",
+      "wordpress_post_id",
+      "wordpress_post_url",
+      "links_verificados",
+      "links_verificados_em",
+      "bloco_consultoria",
+      "descricoes_ajustadas_em",
+      "links_ignorados",
+      "categorias_ocultas_email",
+      "agendado_para",
+      "agendamento_estado",
+      "agendamento_listas",
+      "agendamento_wordpress",
+      "agendamento_erro",
+      "agendado_por",
+      "agendamento_iniciado_em",
+      "envio_em_curso",
+      "template_version",
+      "revista_snapshot",
+      "destinos"
+    ],
+    "count": 8
+  },
+  "noticias": {
+    "pk": "id",
+    "fields": [
+      "id",
+      "edicao_id",
+      "titulo",
+      "descricao",
+      "url",
+      "categoria",
+      "origem",
+      "estado",
+      "destino",
+      "destaque",
+      "ordem",
+      "url_curto",
+      "created_at",
+      "updated_at",
+      "fonte_id",
+      "busca",
+      "email_remetente",
+      "email_assunto",
+      "repeticao_de",
+      "repeticao_score",
+      "repeticao_verificada_em",
+      "embedding",
+      "email_recebido_id",
+      "override_destino",
+      "url_norm",
+      "fonte_estado",
+      "fonte_url_original",
+      "corpo_artigo"
+    ],
+    "count": 366
+  },
+  "curadoria_fila": {
+    "pk": "id",
+    "fields": [
+      "id",
+      "origem",
+      "fonte_id",
+      "fonte_nome",
+      "fonte_grupo",
+      "email_recebido_id",
+      "titulo",
+      "url",
+      "url_norm",
+      "descricao",
+      "publicado_em",
+      "estado",
+      "motivo",
+      "tentativas",
+      "noticia_id",
+      "created_at",
+      "updated_at"
+    ],
+    "count": 1120
+  },
+  "cronicas": {
+    "pk": "id",
+    "fields": [
+      "id",
+      "edicao_id",
+      "conteudo",
+      "leituras_recomendadas",
+      "updated_at",
+      "conteudo_html",
+      "titulo",
+      "concluida",
+      "busca"
+    ],
+    "count": 8
+  },
+  "secoes_edicao": {
+    "pk": "id",
+    "fields": [
+      "id",
+      "edicao_id",
+      "tipo",
+      "ordem",
+      "activo",
+      "titulo",
+      "texto",
+      "cor",
+      "texto_botao",
+      "url_botao",
+      "created_at"
+    ],
+    "count": 72
+  },
+  "ferramentas_semana": {
+    "pk": "id",
+    "fields": [
+      "id",
+      "edicao_id",
+      "posicao",
+      "nome",
+      "descricao",
+      "url",
+      "emoji",
+      "cor",
+      "created_at",
+      "updated_at",
+      "etiqueta",
+      "cta_rotulo"
+    ],
+    "count": 10
+  },
+  "ferramentas_sugeridas": {
+    "pk": "id",
+    "fields": [
+      "id",
+      "nome",
+      "url",
+      "descricao",
+      "categoria",
+      "fonte_email_id",
+      "remetente",
+      "assunto_origem",
+      "estado",
+      "aprovada_em",
+      "criado_em",
+      "updated_at",
+      "emoji",
+      "cor",
+      "descricao_original",
+      "fonte_directorio_id",
+      "edicao_usada_id",
+      "edicao_aprovada_id"
+    ],
+    "count": 300
+  },
+  "revista_edicao": {
+    "pk": "edicao_id",
+    "fields": [
+      "edicao_id",
+      "preheader",
+      "cronica_titulo",
+      "cronica_subtitulo",
+      "cronica_lede",
+      "cronica_excerto",
+      "cronica_url",
+      "momento_activo",
+      "momento_etiqueta",
+      "momento_valor",
+      "momento_descricao",
+      "pull_quote",
+      "recomendacao_tipo",
+      "recomendacao_meta",
+      "recomendacao_titulo",
+      "recomendacao_url",
+      "recomendacao_nota",
+      "bloco_ferramentas",
+      "created_at",
+      "updated_at",
+      "podcast_activo",
+      "podcast_etiqueta",
+      "podcast_programa",
+      "podcast_tema",
+      "podcast_convidado",
+      "podcast_pergunta",
+      "podcast_url",
+      "podcast_cta",
+      "livro_activo",
+      "livro_etiqueta",
+      "livro_titulo",
+      "livro_texto",
+      "livro_cta",
+      "livro_url",
+      "servicos_activo",
+      "servicos_titulo",
+      "servicos_intro",
+      "servicos_cta",
+      "servicos_url",
+      "servicos_consultoria_texto",
+      "servicos_consultoria_cta",
+      "servicos_consultoria_url",
+      "servicos_cursos_texto",
+      "servicos_cursos_cta",
+      "servicos_cursos_url",
+      "momento_posicao",
+      "pull_quote_posicao",
+      "cronica_imagem_url",
+      "cronica_imagem_alt",
+      "cronica_imagem_credito",
+      "cronica_imagem_credito_url",
+      "cronica_imagem_fonte",
+      "cronica_imagem_posicao",
+      "cronica_lede_posicao",
+      "recomendacao_activa",
+      "promocao_activa",
+      "promocao_prefixo",
+      "promocao_link_texto",
+      "promocao_url",
+      "cronica_imagem_recorte_url",
+      "cronica_imagem_enquadramento",
+      "servicos_cursos_activo",
+      "servicos_consultoria_activo",
+      "servicos_auditoria_activo"
+    ],
+    "count": 3
+  },
+  "revista_itens": {
+    "pk": "id",
+    "fields": [
+      "id",
+      "edicao_id",
+      "noticia_id",
+      "papel",
+      "ordem",
+      "titulo_override",
+      "resumo_factual",
+      "minha_leitura",
+      "created_at",
+      "updated_at",
+      "cta_rotulo",
+      "radar_nota"
+    ],
+    "count": 7
+  },
+  "briefs": {
+    "pk": "id",
+    "fields": [
+      "id",
+      "noticia_id",
+      "fingerprint",
+      "slug",
+      "slug_congelado",
+      "tipo",
+      "estado",
+      "indexavel",
+      "em_30_segundos",
+      "porque_interessa",
+      "leitura_sugerida",
+      "leitura_aprovada",
+      "aprovada_em",
+      "aprovada_por",
+      "fonte_url",
+      "fonte_url_norm",
+      "fonte_publisher",
+      "fonte_data",
+      "fonte_primaria_url",
+      "fontes_adicionais",
+      "verificacao",
+      "ia",
+      "hash_publicado",
+      "publicado_em",
+      "erro",
+      "tentativas",
+      "created_at",
+      "updated_at",
+      "factos",
+      "contexto",
+      "incertezas",
+      "pull_quote_sugerida",
+      "titulo_editorial",
+      "tese_editorial"
+    ],
+    "count": 11
+  },
+  "brief_edicoes": {
+    "pk": "id",
+    "fields": [
+      "id",
+      "brief_id",
+      "edicao_id",
+      "papel",
+      "ordem",
+      "titulo_apresentado",
+      "created_at"
+    ],
+    "count": 7
+  },
+  "brief_versoes": {
+    "pk": "id",
+    "fields": [],
+    "count": 0
+  },
+  "brief_eventos": {
+    "pk": "id",
+    "fields": [],
+    "count": 0
+  },
+  "egoi_campanhas": {
+    "pk": "id",
+    "fields": [
+      "id",
+      "edicao_id",
+      "lista_id",
+      "campaign_hash",
+      "estado",
+      "criado_em",
+      "actualizado_em"
+    ],
+    "count": 17
+  },
+  "subscricao_eventos": {
+    "pk": "id",
+    "fields": [],
+    "count": 0
+  },
+  "ia_uso": {
+    "pk": "id",
+    "fields": [
+      "id",
+      "criado_em",
+      "modelo",
+      "tokens_entrada_cache_hit",
+      "tokens_entrada_cache_miss",
+      "tokens_saida",
+      "custo_usd",
+      "origem",
+      "edicao_id",
+      "brief_id",
+      "operacao",
+      "duracao_ms",
+      "sucesso",
+      "erro"
+    ],
+    "count": 920
+  },
+  "audit_log": {
+    "pk": "id",
+    "fields": [
+      "id",
+      "quem",
+      "accao",
+      "detalhe",
+      "criado_em"
+    ],
+    "count": 3231
+  }
+}
