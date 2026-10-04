@@ -49,4 +49,4 @@
 - [x] R8b: verificação global com «R8 — prova final» (PDF 4 parágrafos, 1 geração real, ≤2 chamadas)
 - [x] Redesign cinematográfico e progressivo dos carrosséis
 - [x] Pendentes do redesign (barra visível, conflito MC409, tipos, nomes A/B, contraste)
-- [ ] R8b: versão final legível da prova R8 (sem avisos, sem IA) — aguarda sessão de teste autorizada
+- [ ] R8b: versão final legível R8, 900px e recuperação local no navegador — aguardam sessão de teste autorizada
