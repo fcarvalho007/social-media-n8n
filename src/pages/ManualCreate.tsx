@@ -12,6 +12,9 @@ import { cn } from '@/lib/utils';
 import { StepProgress } from '@/components/manual-post/StepProgress';
 import { ValidationSidebar } from '@/components/manual-post/ValidationSidebar';
 import { useAutoSave } from '@/hooks/useAutoSave';
+import { MarcaDoRascunho } from '@/components/drafts/MarcaDoRascunho';
+import { chaveRecuperacao } from '@/lib/recuperacaoLocal';
+import { useProjeto } from '@/contexts/ProjetoContext';
 import { MediaValidationResult } from '@/lib/mediaValidation';
 import { renderFormatPreview, getNetworkIcon } from '@/lib/manual-create/previewRenderer';
 import { RecoveryBanner } from '@/components/manual-post/steps/RecoveryBanner';
@@ -138,6 +141,7 @@ export default function ManualCreate() {
   const { preferences: aiPreferences, savePreferences: saveAiPreferences } = useAiPreferences();
   const { credits: aiCredits, refresh: refreshAiCredits } = useAICredits();
   const { user } = useAuth();
+  const projetoCtx = useProjeto();
   const [selectedFormats, setSelectedFormats] = useState<PostFormat[]>([]);
   const [caption, setCaption] = useState('');
   const [scheduledDate, setScheduledDate] = useState<Date>();
@@ -232,20 +236,6 @@ export default function ManualCreate() {
   const [duplicateWarning, setDuplicateWarning] = useState<{ id: string; created_at: string; selected_networks: string[] | null; status: string | null } | null>(null);
   const [pendingPublishParams, setPendingPublishParams] = useState<Parameters<typeof executePublish>[0] | null>(null);
 
-  // Auto-save hook
-  const { lastSaved, isSaving: isAutoSaving, hasUnsavedChanges } = useAutoSave({
-    caption,
-    networkCaptions,
-    useSeparateCaptions,
-    networkOptions,
-    selectedFormats,
-    mediaUrls: mediaPreviewUrls,
-    scheduledDate: scheduledDate?.toISOString(),
-    time,
-    scheduleAsap,
-    rawTranscription,
-    aiMetadata,
-  }, { enabled: selectedFormats.length > 0 || caption.length > 0 });
 
   // Note: showValidation state was removed — smartValidation.canPublish + validationSheetOpen
   // are now the single source of truth for the publish gate.
@@ -299,7 +289,27 @@ export default function ManualCreate() {
     currentDraftId,
     setCurrentDraftId,
     handleLoadDraft,
+    rascunhoCarregado,
   } = recovery;
+
+  // Auto-save hook
+  const { lastSaved, isSaving: isAutoSaving, hasUnsavedChanges } = useAutoSave({
+    caption,
+    networkCaptions,
+    useSeparateCaptions,
+    networkOptions,
+    selectedFormats,
+    mediaUrls: mediaPreviewUrls,
+    scheduledDate: scheduledDate?.toISOString(),
+    time,
+    scheduleAsap,
+    rawTranscription,
+    aiMetadata,
+  }, {
+    enabled: !!user && (selectedFormats.length > 0 || caption.length > 0),
+    // Local copy isolated per user + project + draft.
+    key: chaveRecuperacao(user?.id ?? 'anon', 'social', currentDraftId?.startsWith('autosave-') ? null : currentDraftId, rascunhoCarregado ? rascunhoCarregado.project_id : projetoCtx.projetoId),
+  });
 
   // Compute media requirements based on selected formats.
   // O `minMedia` é sobrescrito pelo *efectivo* (ver getEffectiveMinMedia)
@@ -1377,6 +1387,7 @@ export default function ManualCreate() {
         </Button>
         <CompactModeBadge mode="manual" onChangeMode={() => navigate('/?tab=create')} />
       </div>
+      <MarcaDoRascunho carregado={rascunhoCarregado} />
 
       <RecoveryBanner
         isRecovering={isRecovering}
