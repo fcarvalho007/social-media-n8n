@@ -17,3 +17,11 @@
 - [x] (6) Esquema da newsletter reproduzível num checkout limpo (DDL aplicado reunido em migrações)
 
 - [ ] Simulação autenticada com pacote de teste e importação real (bloqueado: humano muda passwords antigas; conta de teste sem papel)
+
+## Autonomia pública (newsletter)
+- [x] Páginas públicas /edicoes, /edicoes/:numero, /brief/:slug, /subscricao (só conteúdo enviado; subscrição só com token assinado)
+- [x] nl-publico (leituras publicadas, sitemap, unsubscribe por token) e nl-hooks (8 hooks; automatismos inativos)
+- [x] Página admin de ligações (só presença de chaves)
+- [ ] Chaves externas: NL_EGOI_WEBHOOK_CHAVE, CloudMailin, E-goi, NL_EGOI_TAG_TOKEN/NL_EGOI_CAMPO_TOKEN_ID — aguarda humano
+- [ ] Sincronização de tokens na E-goi: validar formato contra documentação oficial antes de usar; sem checkpoint durável
+- [ ] Importação real — aguarda invalidação das passwords antigas e simulação admin com pacote fictício

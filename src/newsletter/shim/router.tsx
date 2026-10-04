@@ -13,6 +13,8 @@ export function resolveTo(to: string | undefined, params?: Params, search?: Sear
   if (params) for (const [k, v] of Object.entries(params)) path = path.replace(`$${k}`, encodeURIComponent(String(v ?? "")));
   if (!path.startsWith("http")) {
     if (path === "/auth") path = "/auth";
+    // Public newsletter pages live at the site root, outside the authenticated /newsletter area.
+    else if (/^\/(edicoes(\/|$)|brief\/|subscricao($|\?))/.test(path)) path = path;
     else path = BASE + (ROUTE_MAP[path] ?? path);
   }
   const s = typeof search === "function" ? search(current ?? {}) : search === true ? current : search;

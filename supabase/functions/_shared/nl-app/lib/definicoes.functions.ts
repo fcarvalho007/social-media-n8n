@@ -38,7 +38,6 @@ export const getWebhookCloudMailinUrl = createServerFn({ method: "GET" })
     const user = process.env.CLOUDMAILIN_AUTH_USER;
     const pass = process.env.CLOUDMAILIN_AUTH_PASS;
     if (!user || !pass) return { url: null };
-    const host = process.env.APP_PUBLIC_HOST ?? "project--23514b53-4ffd-429e-81c5-46fedf7b5a3e.lovable.app";
-    const enc = (s: string) => encodeURIComponent(s);
-    return { url: `https://${enc(user)}:${enc(pass)}@${host}/api/public/hooks/email-newsletter` };
+    const { baseFuncoes } = await import("../../nl-publico-config.ts");
+    return { url: `${baseFuncoes()}/nl-hooks/email-newsletter` };
   });

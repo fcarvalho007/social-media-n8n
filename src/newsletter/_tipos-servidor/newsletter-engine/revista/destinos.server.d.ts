@@ -47,7 +47,8 @@ export interface DestinosEdicao {
         estado: EstadoBackup;
     };
 }
-export declare const BASE_URL_PADRAO = "https://edicoes.digitalsprint.pt";
+/** No hard-coded default: the destination base comes from NL_PUBLIC_BASE_URL (or configuracoes). */
+export declare const BASE_URL_PADRAO = "";
 /** Caminho estável e permanente da edição pública. Nunca inclui domínio. */
 export declare function caminhoCanonicoEdicao(numero: number): string;
 /** Base configurável das edições públicas (`configuracoes.edicoes_base_url`). */
