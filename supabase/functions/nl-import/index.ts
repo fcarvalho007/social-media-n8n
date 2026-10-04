@@ -11,7 +11,6 @@ const VERSAO = "digital-sprint-migracao/1";
 const STAGING = "nl-import-staging";
 const IMAGENS = "nl-imagens-edicao";
 const CHUNK = 500;
-const BUDGET_MS = 35_000;
 
 // Fixed allowlist, in import order. "perfis" is never written as data.
 const TABELAS: { nome: string; pk: string; fks: [string, string][] }[] = [
@@ -86,41 +85,80 @@ function makeRewriter(base: string) {
   return { walk, get count() { return count; } };
 }
 
-async function loadPacote(sb: SupabaseClient, path: string): Promise<Pacote> {
+const ESTADO = { EM_CURSO: "em_curso", CONCLUIDA: "concluida", FALHADA: "falhada" } as const; // matches nl_import_runs_estado_check
+const MODO = { SIMULACAO: "dry_run", IMPORTACAO: "importacao" } as const; // matches nl_import_runs_modo_check
+const BUCKET_ORIGEM = "imagens-edicao";
+const TABELAS_ESPERADAS = 28; // perfis + 27 data tables
+const CAMINHO_SEGURO = /^[A-Za-z0-9][A-Za-z0-9._\-]*(?:\/[A-Za-z0-9][A-Za-z0-9._\-]*)*$/;
+
+// Downloads the staged package and returns it with the SHA-256 of its raw bytes.
+async function loadPacote(sb: SupabaseClient, path: string): Promise<{ p: Pacote; bytesHash: string }> {
   const { data, error } = await sb.storage.from(STAGING).download(path);
   if (error || !data) throw new Error(`Pacote não encontrado no armazenamento temporário: ${error?.message ?? ""}`);
-  return JSON.parse(await data.text()) as Pacote;
+  const bytes = new Uint8Array(await data.arrayBuffer());
+  const bytesHash = await sha256(bytes);
+  return { p: JSON.parse(new TextDecoder().decode(bytes)) as Pacote, bytesHash };
+}
+
+function caminhoSeguro(c: unknown): c is string {
+  return typeof c === "string" && c.length <= 512 && CAMINHO_SEGURO.test(c) && !c.split("/").some((x) => x === ".." || x === ".");
 }
 
 async function validar(sb: SupabaseClient, p: Pacote) {
   const erros: string[] = [];
   const avisos: string[] = [];
-  if (p?.manifest?.versao !== VERSAO) erros.push(`Versão inválida: ${p?.manifest?.versao ?? "ausente"}`);
-  if (!p?.dados || !Array.isArray(p?.ficheiros)) erros.push("Estrutura inválida: faltam dados ou ficheiros");
+  const m = p?.manifest as Pacote["manifest"] & { completo?: boolean; erros?: unknown[] };
+  if (m?.versao !== VERSAO) erros.push(`Versão inválida: ${m?.versao ?? "ausente"}`);
+  if (!p?.dados || typeof p.dados !== "object" || !Array.isArray(p?.ficheiros) || !Array.isArray(m?.tabelas) || !Array.isArray(m?.ficheiros))
+    erros.push("Estrutura inválida: faltam manifest, dados ou ficheiros");
   if (erros.length) return { erros, avisos, tabelas: [], ficheiros: 0, conflitos: {} };
+  if (m.completo !== true) erros.push("O exportador marcou o pacote como incompleto (manifest.completo ≠ true)");
+  if (!Array.isArray(m.erros) || m.erros.length) erros.push(`O exportador reportou ${Array.isArray(m.erros) ? m.erros.length : "?"} erro(s)`);
+  if (!m.verificacao?.sha256_global) erros.push("Falta o hash global (verificacao.sha256_global)");
 
-  for (const nome of Object.keys(p.dados)) if (!PERMITIDAS.has(nome)) avisos.push(`Tabela ignorada (fora da lista permitida): ${nome}`);
+  // Exactly the 28 expected tables, no extras, no missing.
+  const nomesManifest = m.tabelas.map((t) => t.nome);
+  if (nomesManifest.length !== TABELAS_ESPERADAS) erros.push(`O manifest tem ${nomesManifest.length} tabelas; esperadas ${TABELAS_ESPERADAS}`);
+  for (const n of PERMITIDAS) if (!nomesManifest.includes(n)) erros.push(`Tabela em falta no manifest: ${n}`);
+  for (const n of nomesManifest) if (!PERMITIDAS.has(n)) erros.push(`Tabela fora da lista permitida: ${n}`);
+  if (new Set(nomesManifest).size !== nomesManifest.length) erros.push("Tabelas repetidas no manifest");
+  for (const n of Object.keys(p.dados)) if (!nomesManifest.includes(n)) erros.push(`Dados sem entrada no manifest: ${n}`);
 
   const tabelas: { nome: string; registos: number; hash_ok: boolean; existentes: number }[] = [];
   const hashes: string[] = [];
-  for (const t of p.manifest.tabelas) {
-    const linhas = p.dados[t.nome] ?? [];
+  for (const t of m.tabelas) {
+    const linhas = p.dados[t.nome];
+    if (!Array.isArray(linhas)) { erros.push(`Dados em falta: ${t.nome}`); continue; }
+    if (!t.sha256) erros.push(`Hash em falta no manifest: ${t.nome}`);
     const h = await sha256(JSON.stringify(linhas));
-    hashes.push(`${t.nome}:${h}`);
+    hashes.push(`${t.nome}:${t.sha256}`);
     const ok = h === t.sha256 && linhas.length === t.registos;
     if (!ok) erros.push(`Hash ou contagem não coincide em ${t.nome}`);
     tabelas.push({ nome: t.nome, registos: linhas.length, hash_ok: ok, existentes: 0 });
   }
-  const fhashes: string[] = [];
-  for (const f of p.ficheiros) {
-    const h = await sha256(b64(f.base64));
-    if (h !== f.sha256) erros.push(`Hash não coincide no ficheiro ${f.caminho}`);
-    fhashes.push(`${f.bucket}/${f.caminho}:${h}`);
-  }
-  const global = await sha256(hashes.join("\n") + "\n" + fhashes.join("\n"));
-  const esperado = p.manifest.verificacao?.sha256_global;
-  if (esperado && esperado !== global) erros.push("Hash global não coincide");
 
+  // Files: manifest and payload must match one-to-one, with safe paths and mandatory hashes.
+  const fhashes: string[] = [];
+  const porCaminho = new Map(p.ficheiros.map((f) => [`${f.bucket}/${f.caminho}`, f]));
+  if (porCaminho.size !== p.ficheiros.length) erros.push("Ficheiros repetidos no pacote");
+  if (m.ficheiros.length !== p.ficheiros.length) erros.push(`O manifest lista ${m.ficheiros.length} ficheiros; o pacote traz ${p.ficheiros.length}`);
+  for (const mf of m.ficheiros) {
+    const id = `${mf.bucket}/${mf.caminho}`;
+    if (mf.bucket !== BUCKET_ORIGEM) erros.push(`Bucket de origem inesperado: ${mf.bucket}`);
+    if (!caminhoSeguro(mf.caminho)) { erros.push(`Caminho de ficheiro inseguro: ${String(mf.caminho).slice(0, 80)}`); continue; }
+    if (!mf.sha256) erros.push(`Hash em falta no manifest: ${id}`);
+    const f = porCaminho.get(id);
+    if (!f) { erros.push(`Ficheiro em falta no pacote: ${id}`); continue; }
+    if (typeof f.base64 !== "string") { erros.push(`Conteúdo em falta: ${id}`); continue; }
+    const h = await sha256(b64(f.base64));
+    if (h !== mf.sha256 || h !== f.sha256) erros.push(`Hash não coincide no ficheiro ${id}`);
+    fhashes.push(`${id}:${mf.sha256}`);
+  }
+  for (const f of p.ficheiros) if (!m.ficheiros.some((x) => x.bucket === f.bucket && x.caminho === f.caminho)) erros.push(`Ficheiro sem entrada no manifest: ${f.bucket}/${f.caminho}`);
+
+  const global = await sha256(hashes.join("\n") + "\n" + fhashes.join("\n"));
+  if (m.verificacao?.sha256_global && m.verificacao.sha256_global !== global) erros.push("Hash global não coincide");
+  if (erros.length) return { erros, avisos, tabelas, ficheiros: p.ficheiros.length, conflitos: {}, sha256_global: global };
   // PK duplicates and internal/destination FK checks.
   const ids = new Map<string, Set<string>>();
   for (const t of TABELAS) {
@@ -182,83 +220,123 @@ Deno.serve(async (req) => {
 
     if (acao === "simular") {
       const path = String(body.staging_path ?? "");
-      if (!path.startsWith(`${u.user.id}/`)) return json({ error: "Caminho inválido" }, 400);
-      const p = await loadPacote(sb, path);
+      if (!path.startsWith(`${u.user.id}/`) || !caminhoSeguro(path)) return json({ error: "Caminho inválido" }, 400);
+      const { p, bytesHash } = await loadPacote(sb, path);
       const v = await validar(sb, p);
       const { data: run, error } = await sb.from("nl_import_runs").insert({
-        created_by: u.user.id, modo: "simulacao", estado: v.erros.length ? "invalido" : "validado",
-        ficheiro_sha256: v.sha256_global ?? null, staging_path: path,
-        manifesto: { tabelas: p.manifest.tabelas, ficheiros: p.manifest.ficheiros?.length ?? 0 },
-        progresso: { fase: "tabelas", indice: 0, offset: 0 }, relatorio: v,
+        created_by: u.user.id, modo: MODO.SIMULACAO, estado: v.erros.length ? ESTADO.FALHADA : ESTADO.CONCLUIDA,
+        ficheiro_sha256: bytesHash, staging_path: path,
+        manifesto: { tabelas: p.manifest?.tabelas ?? [], ficheiros: p.manifest?.ficheiros?.length ?? 0, sha256_global: v.sha256_global ?? null },
+        progresso: {}, relatorio: v, concluido_em: new Date().toISOString(),
       }).select("id").single();
       if (error) throw new Error(error.message);
       return json({ run_id: run.id, ...v });
     }
 
     if (acao === "importar") {
-      const { data: run, error } = await sb.from("nl_import_runs").select("*").eq("id", body.run_id).single();
-      if (error || !run) return json({ error: "Execução não encontrada" }, 404);
-      if (run.estado === "invalido") return json({ error: "O pacote falhou a validação" }, 400);
-      if (run.estado === "concluido") return json({ concluido: true, relatorio: run.relatorio });
-      const p = await loadPacote(sb, run.staging_path);
-      const base = `${url}/functions/v1/nl-imagem`;
-      const rw = makeRewriter(base);
-      const prog = { fase: "tabelas", indice: 0, offset: 0, inseridos: {} as Record<string, number>, reescritas: 0, ...(run.progresso ?? {}) };
-      const inicio = Date.now();
-      const repeticoes: { id: string; repeticao_de: string }[] = [];
+      const runId = String(body.run_id ?? "");
+      const { data: alvo, error } = await sb.from("nl_import_runs").select("*").eq("id", runId).maybeSingle();
+      if (error || !alvo) return json({ error: "Execução não encontrada" }, 404);
+      if (alvo.created_by !== u.user.id) return json({ error: "Esta execução pertence a outro administrador" }, 403);
 
-      while (prog.fase === "tabelas" && Date.now() - inicio < BUDGET_MS) {
-        const t = TABELAS[prog.indice];
-        if (!t) { prog.fase = "ficheiros"; break; }
-        const linhas = p.dados[t.nome] ?? [];
-        const lote = linhas.slice(prog.offset, prog.offset + CHUNK).map((r) => {
-          const c = rw.walk(r) as Row;
-          if (t.nome === "noticias") c.repeticao_de = null; // second pass
-          return c;
-        });
-        if (lote.length) {
-          const { data, error: e } = await sb.rpc("nl_import_rows", { _tabela: `nl_${t.nome}`, _linhas: lote });
-          if (e) throw new Error(`${t.nome}: ${e.message}`);
-          prog.inseridos[t.nome] = (prog.inseridos[t.nome] ?? 0) + Number((data as { inseridos?: number })?.inseridos ?? 0);
+      // Resolve the import run that belongs to this simulation (one per simulation, resumable).
+      let run = alvo;
+      if (alvo.modo === MODO.SIMULACAO) {
+        if (alvo.estado !== ESTADO.CONCLUIDA || (alvo.relatorio?.erros?.length ?? 1) > 0) return json({ error: "A simulação não passou; não é possível importar" }, 400);
+        const { data: existente } = await sb.from("nl_import_runs").select("*").eq("modo", MODO.IMPORTACAO)
+          .eq("created_by", u.user.id).contains("manifesto", { simulacao_id: alvo.id }).order("created_at", { ascending: false }).limit(1).maybeSingle();
+        if (existente) run = existente;
+        else {
+          const { data: novo, error: e } = await sb.from("nl_import_runs").insert({
+            created_by: u.user.id, modo: MODO.IMPORTACAO, estado: ESTADO.EM_CURSO, ficheiro_sha256: alvo.ficheiro_sha256,
+            staging_path: alvo.staging_path, manifesto: { ...(alvo.manifesto ?? {}), simulacao_id: alvo.id },
+            progresso: { fase: "tabelas", indice: 0, offset: 0, inseridos: {}, ignoradas: {}, reescritas: 0, chunks: 0 }, relatorio: alvo.relatorio,
+          }).select("*").single();
+          if (e) throw new Error(e.message);
+          run = novo;
         }
-        prog.offset += CHUNK;
-        if (prog.offset >= linhas.length) { prog.indice++; prog.offset = 0; }
       }
-      prog.reescritas += rw.count;
+      if (run.estado === ESTADO.CONCLUIDA) return json({ concluido: true, relatorio: run.relatorio, run_id: run.id });
+      if (run.estado === ESTADO.FALHADA) return json({ error: run.relatorio?.falha ?? "A importação falhou; faz nova simulação", run_id: run.id }, 409);
 
-      if (prog.fase === "ficheiros" && Date.now() - inicio < BUDGET_MS) {
-        for (const f of p.ficheiros) {
-          const { error: e } = await sb.storage.from(IMAGENS).upload(f.caminho, b64(f.base64), { contentType: f.content_type, upsert: true });
-          if (e) throw new Error(`ficheiro ${f.caminho}: ${e.message}`);
-        }
-        prog.fase = "final";
-      }
+      const falhar = async (msg: string, status = 409) => {
+        await sb.from("nl_import_runs").update({ estado: ESTADO.FALHADA, relatorio: { ...(run.relatorio ?? {}), falha: msg } }).eq("id", run.id);
+        return json({ error: msg, run_id: run.id }, status);
+      };
 
-      if (prog.fase === "final" && Date.now() - inicio < BUDGET_MS) {
-        for (const r of p.dados.noticias ?? []) if (r.repeticao_de) repeticoes.push({ id: String(r.id), repeticao_de: String(r.repeticao_de) });
-        const rep = await sb.rpc("nl_import_repeticoes", { _pares: repeticoes });
-        if (rep.error) throw new Error(rep.error.message);
-        const sus = await sb.rpc("nl_import_suspender_agendamentos");
-        if (sus.error) throw new Error(sus.error.message);
-        // Source profiles: recorded for manual mapping only. Never creates roles.
-        const perfis = p.dados.perfis ?? [];
-        if (perfis.length) {
-          await sb.from("nl_user_mapping").upsert(perfis.map((x) => ({
-            source_user_id: x.id, source_nome: x.nome ?? null, source_papel: x.papel ?? null,
-          })), { onConflict: "source_user_id", ignoreDuplicates: true });
+      // Re-verify the staged bytes before EVERY chunk: one chunk per call.
+      const { p, bytesHash } = await loadPacote(sb, run.staging_path);
+      if (!run.ficheiro_sha256 || bytesHash !== run.ficheiro_sha256)
+        return await falhar("O pacote no armazenamento temporário foi alterado depois da simulação. Importação parada; repete a simulação.");
+
+      const rw = makeRewriter(`${url}/functions/v1/nl-imagem`);
+      const prog = { fase: "tabelas", indice: 0, offset: 0, inseridos: {} as Record<string, number>, ignoradas: {} as Record<string, unknown>, reescritas: 0, chunks: 0, ...(run.progresso ?? {}) };
+
+      try {
+        if (prog.fase === "tabelas") {
+          const t = TABELAS[prog.indice];
+          if (!t) prog.fase = "ficheiros";
+          else {
+            const linhas = p.dados[t.nome] ?? [];
+            const lote = linhas.slice(prog.offset, prog.offset + CHUNK).map((r) => {
+              const c = rw.walk(r) as Row;
+              if (t.nome === "noticias") c.repeticao_de = null; // second pass
+              return c;
+            });
+            if (lote.length) {
+              const { data, error: e } = await sb.rpc("nl_import_rows", { _tabela: `nl_${t.nome}`, _linhas: lote });
+              if (e) throw new Error(`${t.nome}: ${e.message}`);
+              const d = (data ?? {}) as { inseridos?: number; colunas_ignoradas?: unknown; ignoradas?: unknown };
+              prog.inseridos[t.nome] = (prog.inseridos[t.nome] ?? 0) + Number(d.inseridos ?? 0);
+              const ign = d.colunas_ignoradas ?? d.ignoradas;
+              if (ign && (!Array.isArray(ign) || ign.length)) prog.ignoradas[t.nome] = ign;
+            }
+            prog.offset += CHUNK;
+            if (prog.offset >= linhas.length) { prog.indice++; prog.offset = 0; }
+          }
+          prog.reescritas += rw.count;
+          prog.chunks++;
+        } else if (prog.fase === "ficheiros") {
+          for (const f of p.ficheiros) {
+            if (!caminhoSeguro(f.caminho)) throw new Error(`Caminho inseguro: ${f.caminho}`);
+            const { error: e } = await sb.storage.from(IMAGENS).upload(f.caminho, b64(f.base64), { contentType: f.content_type, upsert: true });
+            if (e) throw new Error(`ficheiro ${f.caminho}: ${e.message}`);
+          }
+          prog.fase = "final";
+        } else if (prog.fase === "final") {
+          const repeticoes: { id: string; repeticao_de: string }[] = [];
+          for (const r of p.dados.noticias ?? []) if (r.repeticao_de) repeticoes.push({ id: String(r.id), repeticao_de: String(r.repeticao_de) });
+          const rep = await sb.rpc("nl_import_repeticoes", { _pares: repeticoes });
+          if (rep.error) throw new Error(rep.error.message);
+          const sus = await sb.rpc("nl_import_suspender_agendamentos");
+          if (sus.error) throw new Error(sus.error.message);
+          // Source profiles: recorded for manual mapping only. Existing rows (and any chosen
+          // target_user_id / historico) are never overwritten. Never creates roles.
+          const perfis = p.dados.perfis ?? [];
+          if (perfis.length) {
+            const { error: e } = await sb.from("nl_user_mapping").upsert(perfis.map((x) => ({
+              source_user_id: x.id, source_nome: x.nome ?? null, source_email: x.email ?? null, source_papel: x.papel ?? null,
+            })), { onConflict: "source_user_id", ignoreDuplicates: true });
+            if (e) throw new Error(`perfis: ${e.message}`);
+          }
+          const rel = await sb.rpc("nl_import_relatorio");
+          if (rel.error) throw new Error(rel.error.message);
+          const relatorio = {
+            ...(run.relatorio ?? {}), final: rel.data, inseridos: prog.inseridos, colunas_ignoradas: prog.ignoradas,
+            reescritas_url: prog.reescritas, repeticoes: rep.data, agendamentos: sus.data,
+            ficheiros_copiados: p.ficheiros.length, perfis_registados: perfis.length, pacote_sha256: bytesHash,
+          };
+          await sb.from("nl_import_runs").update({ estado: ESTADO.CONCLUIDA, progresso: { ...prog, fase: "concluida" }, relatorio, concluido_em: new Date().toISOString() }).eq("id", run.id);
+          await sb.storage.from(STAGING).remove([run.staging_path]);
+          return json({ concluido: true, relatorio, run_id: run.id });
         }
-        const rel = await sb.rpc("nl_import_relatorio");
-        if (rel.error) throw new Error(rel.error.message);
-        const relatorio = {
-          ...(run.relatorio ?? {}), final: rel.data, inseridos: prog.inseridos, reescritas_url: prog.reescritas,
-          repeticoes: rep.data, agendamentos: sus.data, ficheiros_copiados: p.ficheiros.length, perfis_registados: perfis.length,
-        };
-        await sb.from("nl_import_runs").update({ estado: "concluido", modo: "importacao", progresso: prog, relatorio, concluido_em: new Date().toISOString() }).eq("id", run.id);
-        await sb.storage.from(STAGING).remove([run.staging_path]);
-        return json({ concluido: true, relatorio });
+      } catch (e) {
+        // Keep progress so the same run can resume; the chunk is idempotent (existing rows are skipped).
+        await sb.from("nl_import_runs").update({ progresso: prog, relatorio: { ...(run.relatorio ?? {}), ultimo_erro: (e as Error).message } }).eq("id", run.id);
+        return json({ error: (e as Error).message, run_id: run.id, retomavel: true }, 500);
       }
-      await sb.from("nl_import_runs").update({ estado: "em_curso", modo: "importacao", progresso: prog }).eq("id", run.id);
-      return json({ concluido: false, progresso: prog, total_tabelas: TABELAS.length });
+      await sb.from("nl_import_runs").update({ estado: ESTADO.EM_CURSO, progresso: prog }).eq("id", run.id);
+      return json({ concluido: false, progresso: prog, total_tabelas: TABELAS.length, run_id: run.id });
     }
     return json({ error: "Ação desconhecida" }, 400);
   } catch (e) {
