@@ -110,10 +110,12 @@ export async function resumoContinuidade(projectId: string | null, identidadeIds
   };
 }
 
-export interface ImportRun { id: string; modo: string; estado: string; progresso: { indice?: number; fase?: string } | null; relatorio: Record<string, unknown> | null; manifesto: { tabelas?: unknown[] } | null; created_at: string; updated_at: string }
+export interface ImportRun { id: string; created_by: string | null; modo: string; estado: string; progresso: { indice?: number; fase?: string } | null; relatorio: Record<string, unknown> | null; manifesto: { tabelas?: unknown[] } | null; created_at: string; updated_at: string }
 /** Latest import run of this admin, so an interrupted import can resume after reload. */
 export async function ultimaImportacao(): Promise<ImportRun | null> {
-  const { data, error } = await db.from("nl_import_runs").select("id,modo,estado,progresso,relatorio,manifesto,created_at,updated_at").order("created_at", { ascending: false }).limit(1).maybeSingle();
+  const { data: u } = await supabase.auth.getUser();
+  if (!u.user) throw new Error("Sessão em falta");
+  const { data, error } = await db.from("nl_import_runs").select("id,created_by,modo,estado,progresso,relatorio,manifesto,created_at,updated_at").eq("created_by", u.user.id).order("created_at", { ascending: false }).limit(1).maybeSingle();
   if (error) throw error;
   return (data as ImportRun | null) ?? null;
 }
@@ -162,6 +164,8 @@ export interface Simulacao {
   tabelas: { nome: string; registos: number; hash_ok: boolean; existentes: number }[];
 }
 export const simularImportacao = (staging_path: string) => invocar<Simulacao>({ acao: "simular", staging_path });
+export const verificarSimulacao = (run_id: string) =>
+  invocar<{ valido: boolean; motivo?: string; simulacao?: Simulacao }>({ acao: "verificar_simulacao", run_id });
 export const passoImportacao = (run_id: string) =>
   invocar<{ concluido: boolean; relatorio?: Record<string, unknown>; progresso?: { indice: number; fase: string }; total_tabelas?: number }>({ acao: "importar", run_id });
 
