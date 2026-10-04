@@ -1,4 +1,4 @@
-import { CheckCircle2, PlusCircle, Calendar, X, FolderKanban, LayoutDashboard, LogOut, Image, BarChart3, Lightbulb, Sparkles, Mail, Layers } from 'lucide-react';
+import { CheckCircle2, PlusCircle, Calendar, X, FolderKanban, LayoutDashboard, LogOut, Image, BarChart3, Lightbulb, Sparkles, Mail, Layers, ShieldCheck } from 'lucide-react';
 import { NavLink, useNavigate } from 'react-router-dom';
 import {
   Sidebar,
@@ -22,7 +22,6 @@ import { cn } from '@/lib/utils';
 import { Badge } from '@/components/ui/badge';
 import { usePendingCounts } from '@/hooks/usePendingCounts';
 import { useAuth } from '@/contexts/AuthContext';
-import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 
 const menuItems = [
   {
@@ -132,10 +131,6 @@ export function AppSidebar() {
     navigate('/auth');
   };
 
-  const getInitials = (email: string) => {
-    return email.substring(0, 2).toUpperCase();
-  };
-
   return (
     <>
       <Sidebar 
@@ -143,7 +138,7 @@ export function AppSidebar() {
         className={cn(
           "border-none transition-all duration-300 ease-out z-50",
           "bg-sidebar text-sidebar-foreground",
-          "shadow-[2px_0_24px_rgba(0,0,0,0.06)]"
+          "shadow-md"
         )}
       >
         {/* Mobile Close Button */}
@@ -151,7 +146,7 @@ export function AppSidebar() {
           <Button
             variant="ghost"
             size="icon"
-            className="absolute top-4 right-4 z-10 h-11 w-11 rounded-xl hover:bg-primary/10 active:scale-95 transition-all duration-200 touch-target"
+            className="absolute right-3 top-3 z-10 h-11 w-11 rounded-md text-sidebar-foreground hover:bg-sidebar-muted hover:text-sidebar-foreground focus-visible:ring-2 focus-visible:ring-sidebar-ring"
             onClick={() => setOpenMobile(false)}
             aria-label="Fechar menu"
           >
@@ -161,15 +156,16 @@ export function AppSidebar() {
 
         <SidebarContent className="flex flex-col h-full py-4 overflow-y-auto overflow-x-hidden">
           {/* Menu Items */}
-          <SidebarGroup className="flex-1 flex items-start md:items-center">
+          <SidebarGroup className="flex-1 items-start md:items-center">
             <SidebarGroupContent className="w-full px-1.5">
               <SidebarMenu className="space-y-0.5">
                 {menuItems.map((item) => (
                   <SidebarMenuItem key={item.title}>
-                    <SidebarMenuButton 
+                    <SidebarMenuButton
                       asChild={!item.disabled}
                       disabled={item.disabled}
-                      className="h-auto p-0 hover:bg-transparent"
+                      tooltip={{ children: item.title, hidden: isMobile }}
+                      className="h-auto min-h-11 overflow-visible p-0 hover:bg-transparent focus-visible:ring-0"
                     >
                       {item.disabled ? (
                         <div className="flex flex-col items-center gap-2 mx-auto opacity-40 cursor-not-allowed">
@@ -183,7 +179,8 @@ export function AppSidebar() {
                           to={(item as any).getSmartUrl ? (item as any).getSmartUrl() : item.url}
                           end={item.url === '/'}
                           onClick={() => isMobile && setOpenMobile(false)}
-                          className="flex flex-col items-center gap-1 mx-auto group w-full py-1.5 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sidebar-ring hover:scale-[1.02] active:scale-[0.98] transition-all duration-200 ease-out min-h-[60px] touch-target rounded-xl"
+                          aria-label={item.title}
+                          className="group/sidebar-link mx-auto flex min-h-[60px] w-full flex-col items-center gap-1 rounded-md py-1.5 text-sidebar-muted-foreground transition-colors duration-150 hover:bg-sidebar-muted hover:text-sidebar-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-sidebar-ring"
                         >
                           {({ isActive }) => {
                             const isApprovalItem = item.url === '/pending';
@@ -193,20 +190,14 @@ export function AppSidebar() {
                               <>
                                 <div 
                                   className={cn(
-                                    "flex h-11 w-11 items-center justify-center rounded-xl relative transition-all duration-200 ease-out",
-                                    isActive && item.isMain && "bg-primary shadow-[0_6px_20px_-6px_hsl(var(--primary)/0.5)] ring-1 ring-primary/20",
-                                    isActive && !item.isMain && "bg-primary/10 ring-1 ring-primary/20",
-                                    !isActive && "bg-sidebar-accent/60 group-hover:bg-sidebar-accent group-hover:ring-1 group-hover:ring-sidebar-ring/40"
+                                    "relative flex h-11 w-11 items-center justify-center rounded-md transition-colors duration-150",
+                                    isActive ? "bg-sidebar-primary text-sidebar-primary-foreground ring-1 ring-sidebar-ring/60" : "bg-sidebar-muted text-sidebar-muted-foreground group-hover/sidebar-link:text-sidebar-foreground"
                                   )}
                                 >
                                   <item.icon 
-                                    className={cn(
-                                      "h-5 w-5 transition-all duration-200",
-                                      isActive && item.isMain && "text-primary-foreground",
-                                      isActive && !item.isMain && "text-primary",
-                                      !isActive && "text-sidebar-foreground/85 group-hover:text-sidebar-accent group-hover:scale-105"
-                                    )} 
+                                    className="h-5 w-5 transition-colors duration-150"
                                     strokeWidth={isActive ? 2.5 : 2}
+                                    aria-hidden="true"
                                   />
                                   
                                   {/* Pending Badge */}
@@ -250,9 +241,8 @@ export function AppSidebar() {
                                 
                                 <span 
                                   className={cn(
-                                    "block w-full px-0.5 text-[11px] text-center leading-tight break-words hyphens-auto transition-colors duration-200",
-                                    isActive && "text-sidebar-accent font-bold",
-                                    !isActive && "text-sidebar-foreground font-medium group-hover:text-sidebar-accent"
+                                    "block w-full px-1 text-center text-xs font-medium leading-tight text-current transition-colors duration-150 [overflow-wrap:anywhere]",
+                                    isActive && "font-semibold text-sidebar-foreground"
                                   )}
                                 >
                                   {item.label}
@@ -270,23 +260,26 @@ export function AppSidebar() {
           </SidebarGroup>
         </SidebarContent>
         
-        <SidebarFooter className="border-t border-border/20 bg-card/30 backdrop-blur-md">
-          <div className="flex flex-col items-center gap-2 p-3">
-            <button type="button" onClick={() => navigate('/definicoes/seguranca')} title="Segurança da conta" aria-label="Segurança da conta">
-              <Avatar className="h-9 w-9 ring-1 ring-primary/20 transition-all hover:ring-primary/40 hover:scale-105">
-                <AvatarFallback className="bg-primary/15 text-primary text-xs font-bold">
-                  {user?.email ? getInitials(user.email) : 'U'}
-                </AvatarFallback>
-              </Avatar>
-            </button>
+        <SidebarFooter className="border-t border-sidebar-border bg-sidebar">
+          <div className="flex flex-col items-center gap-1 p-2">
             <Button
               variant="ghost"
-              size="sm"
-              onClick={handleLogout}
-              className="h-8 px-2.5 rounded-lg hover:bg-destructive/10 hover:text-destructive transition-all duration-200 text-xs gap-1.5 text-sidebar-foreground font-semibold"
-              title="Logout"
+              onClick={() => navigate('/definicoes/seguranca')}
+              className="h-auto min-h-11 w-full flex-col gap-1 rounded-md px-1 py-1.5 text-xs font-medium leading-tight text-sidebar-muted-foreground hover:bg-sidebar-muted hover:text-sidebar-foreground focus-visible:ring-sidebar-ring"
+              title={user?.email ? `Segurança da conta — ${user.email}` : 'Segurança da conta'}
+              aria-label="Segurança da conta"
             >
-              <LogOut className="h-4 w-4" />
+              <ShieldCheck className="h-5 w-5" aria-hidden="true" />
+              <span>Segurança</span>
+            </Button>
+            <Button
+              variant="ghost"
+              onClick={handleLogout}
+              className="h-auto min-h-11 w-full flex-col gap-1 rounded-md px-1 py-1.5 text-xs font-medium leading-tight text-sidebar-muted-foreground hover:bg-sidebar-muted hover:text-sidebar-foreground focus-visible:ring-sidebar-ring"
+              title="Sair"
+              aria-label="Sair"
+            >
+              <LogOut className="h-5 w-5" aria-hidden="true" />
               <span>Sair</span>
             </Button>
           </div>

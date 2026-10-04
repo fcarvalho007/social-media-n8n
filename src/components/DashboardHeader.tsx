@@ -67,8 +67,8 @@ export function DashboardHeader() {
   const mostraQuotas = /^\/(manual-create|redes-sociais|calendar|drafts|pending|quota)/.test(location.pathname);
 
   return (
-    <header className="sticky top-0 z-30 bg-card/95 backdrop-blur-lg border-b border-border shadow-sm max-w-[100vw] overflow-hidden">
-      <div className="flex h-12 xs:h-14 sm:h-16 items-center justify-between px-2 xs:px-3 sm:px-4 md:px-6 gap-1 xs:gap-2 sm:gap-3 w-full max-w-[100vw]">
+    <header className="sticky top-0 z-30 min-w-0 border-b border-border bg-card/95 shadow-sm backdrop-blur-lg">
+      <div className="flex h-12 w-full min-w-0 items-center justify-between gap-1 px-2 xs:h-14 xs:gap-2 xs:px-3 sm:h-16 sm:gap-3 sm:px-4 md:px-6 xl:px-10">
         {/* Left: Mobile Menu + Breadcrumb */}
         <div className="flex items-center gap-2 md:gap-4 flex-1 min-w-0">
           <Button

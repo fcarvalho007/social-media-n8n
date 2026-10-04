@@ -108,7 +108,10 @@ export default {
           DEFAULT: "hsl(var(--sidebar-background))",
           border: "hsl(var(--sidebar-border))",
           foreground: "hsl(var(--sidebar-foreground))",
-          muted: "hsl(var(--sidebar-muted))",
+          muted: {
+            DEFAULT: "hsl(var(--sidebar-muted))",
+            foreground: "hsl(var(--sidebar-muted-foreground))",
+          },
           accent: {
             DEFAULT: "hsl(var(--sidebar-muted))",
             foreground: "hsl(var(--sidebar-foreground))",
@@ -117,7 +120,7 @@ export default {
             DEFAULT: "hsl(var(--sidebar-accent))",
             foreground: "hsl(var(--sidebar-foreground))",
           },
-          ring: "hsl(var(--sidebar-accent))",
+          ring: "hsl(var(--sidebar-ring))",
         },
         'template-a': {
           primary: "hsl(var(--template-a-primary))",

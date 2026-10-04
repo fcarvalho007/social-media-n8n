@@ -134,12 +134,14 @@ All colors MUST be HSL.
     --warning-light: 38 92% 95%;
     --warning-foreground: 0 0% 0%;
 
-    /* Sidebar - Dark mode parcial */
-    --sidebar-background: 220 26% 14%; /* #1F2937 */
-    --sidebar-border: 220 20% 22%;
-    --sidebar-foreground: 210 20% 98%;
-    --sidebar-muted: 220 20% 30%;
-    --sidebar-accent: 239 84% 67%;
+    /* Sidebar - graphite shell with accessible text and Studio green active state */
+    --sidebar-background: 222 19% 14%; /* #1C2029 */
+    --sidebar-border: 218 18% 23%; /* #303745 */
+    --sidebar-foreground: 220 38% 97%; /* #F4F6FA */
+    --sidebar-muted: 218 18% 23%; /* #303745 */
+    --sidebar-muted-foreground: 214 32% 84%; /* #CBD5E1 */
+    --sidebar-accent: 137 19% 30%; /* #3E5B46 */
+    --sidebar-ring: 214 32% 84%; /* #CBD5E1 */
 
     /* Template A */
     --template-a-primary: 239 84% 67%;
@@ -235,11 +237,13 @@ All colors MUST be HSL.
     --warning-light: 38 92% 18%;
     --warning-foreground: 0 0% 100%;
 
-    --sidebar-background: 222 47% 6%;
-    --sidebar-border: 217 33% 17%;
-    --sidebar-foreground: 210 20% 98%;
-    --sidebar-muted: 217 33% 25%;
-    --sidebar-accent: 239 84% 67%;
+    --sidebar-background: 222 19% 14%;
+    --sidebar-border: 218 18% 23%;
+    --sidebar-foreground: 220 38% 97%;
+    --sidebar-muted: 218 18% 23%;
+    --sidebar-muted-foreground: 214 32% 84%;
+    --sidebar-accent: 137 19% 30%;
+    --sidebar-ring: 214 32% 84%;
 
     --border: 217 33% 22%;
     --input: 217 33% 22%;
