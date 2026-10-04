@@ -2,6 +2,7 @@ import { supabase } from "@/integrations/supabase/client";
 import type { Carrossel, FonteCronica } from "../../supabase/functions/_shared/conteudos/carrossel";
 
 export type { Carrossel, FonteCronica, Slide } from "../../supabase/functions/_shared/conteudos/carrossel";
+export { DIMENSOES, LIMITES, legendaComLink, validarCarrossel } from "../../supabase/functions/_shared/conteudos/carrossel";
 
 async function chamar<T>(body: object): Promise<T> {
   const { data, error } = await supabase.functions.invoke("nl-conteudos", { body });
