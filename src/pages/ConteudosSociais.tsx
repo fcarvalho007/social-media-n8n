@@ -21,9 +21,14 @@ export default function ConteudosSociais() {
   const [ocupado, setOcupado] = useState<string | null>(null);
 
   // Loading only reads: AI processing never runs implicitly.
+  // Sequence guard: a response for an earlier project choice never overwrites the current one.
+  const seq = useRef(0);
   const carregar = useCallback(async () => {
-    try { setEstado((e) => ({ ...e, fase: e.dados ? "pronto" : "a_carregar", erro: undefined })); setEstado({ fase: "pronto", dados: await listarConteudos(ctx.projetoId) }); }
-    catch (e) { setEstado({ fase: "erro", erro: (e as Error).message }); }
+    const meu = ++seq.current;
+    const projeto = ctx.projetoId;
+    setEstado((e) => ({ ...e, fase: e.dados ? "pronto" : "a_carregar", erro: undefined }));
+    try { const dados = await listarConteudos(projeto); if (meu === seq.current) setEstado({ fase: "pronto", dados }); }
+    catch (e) { if (meu === seq.current) setEstado({ fase: "erro", erro: (e as Error).message }); }
   }, [ctx.projetoId]);
   useEffect(() => { if (ctx.estado === "pronto") carregar(); }, [ctx.estado, carregar]);
 
@@ -71,7 +76,8 @@ export default function ConteudosSociais() {
         </Alert>
       )}
 
-      {estado.fase === "a_carregar" && <div className="space-y-2">{[0, 1, 2].map((i) => <Skeleton key={i} className="h-14 w-full" />)}</div>}
+      {ctx.estado === "erro" && <Alert variant="destructive"><AlertTitle>Não foi possível carregar os projetos</AlertTitle><AlertDescription className="flex flex-wrap items-center gap-2"><span>{ctx.erro}</span><Button size="sm" variant="outline" onClick={ctx.recarregar}>Tentar de novo</Button></AlertDescription></Alert>}
+      {ctx.estado !== "erro" && estado.fase === "a_carregar" && <div className="space-y-2">{[0, 1, 2].map((i) => <Skeleton key={i} className="h-14 w-full" />)}</div>}
       {estado.fase === "erro" && (
         <Alert variant="destructive">
           <AlertTitle>Não foi possível carregar os carrosséis</AlertTitle>
