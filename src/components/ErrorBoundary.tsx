@@ -24,18 +24,21 @@ export class ErrorBoundary extends Component<Props, State> {
   public componentDidCatch(error: Error, errorInfo: ErrorInfo) {
     console.error('ErrorBoundary capturou erro:', error, errorInfo);
     // Stale build after deploy: one guarded reload; other errors keep the normal screen.
-    if (eErroDeChunk(error)) tentarRecarga(sessionStorage, () => window.location.reload());
+    if (eErroDeChunk(error)) tentarRecarga(localStorage, () => window.location.reload(), error);
   }
 
   public render() {
     if (this.state.hasError) {
+      const versao = eErroDeChunk(this.state.error);
       return (
         <div className="flex min-h-screen items-center justify-center bg-background p-4">
           <div className="max-w-md text-center">
             <AlertCircle className="h-16 w-16 text-destructive mx-auto mb-4" />
-            <h2 className="text-2xl font-bold mb-2">Algo correu mal</h2>
+            <h2 className="text-2xl font-bold mb-2">{versao ? "Há uma nova versão da app" : "Algo correu mal"}</h2>
             <p className="text-muted-foreground mb-4">
-              Por favor, recarregue a página ou contacte o suporte se o problema persistir.
+              {versao
+                ? "Não foi possível abrir esta página automaticamente. Recarrega para continuar; o texto que estavas a escrever nos editores e na fonte do carrossel fica guardado neste dispositivo."
+                : "Recarrega a página. Se o problema persistir, contacta o suporte."}
             </p>
             {this.state.error && (
               <details className="mb-4 text-left bg-muted p-3 rounded-lg text-xs">
