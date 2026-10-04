@@ -1,0 +1,250 @@
+// Versão web do formato Revista.
+//
+// É a página completa: repete a hierarquia do email (crónica, número da
+// semana, três coisas, radar, recomendação) e acrescenta a área
+// «Todas as atualidades desta edição», que inclui as notícias «só site».
+// É para aqui que aponta o CTA «Ver todas as atualidades selecionadas».
+
+import type { EdicaoRevista, AtualidadeRevista } from "./compose.server";
+import { R, SANS, SERIF, ctaRecomendacao, CTA_NOTICIA_PADRAO } from "./tokens";
+import { esc, fmtDataLonga } from "./render-email.server";
+import { sequenciaCronica } from "./sequencia-cronica";
+import { contagemSeleccao } from "./contagens";
+import { ROTULOS_REVISTA } from "./rotulos";
+import { paletaFerramenta } from "./cores-ferramenta";
+
+export interface HtmlRevistaWeb {
+  html: string;
+  resumoTexto: string;
+  tituloLesson: string;
+}
+
+const ANCORA_ATUALIDADES = "atualidades";
+
+function href(u: string): string {
+  const v = (u || "").trim();
+  return v ? esc(v) : "#";
+}
+
+function tituloSeccao(t: string, id?: string): string {
+  return `<h2${id ? ` id="${id}"` : ""} style="margin:56px 0 0 0;padding-top:20px;border-top:2px solid ${R.navy};font-family:${SANS};font-size:26px;line-height:34px;color:${R.navy};font-weight:700;letter-spacing:-0.018em;">${esc(t)}</h2>`;
+}
+
+function painelLeitura(texto: string): string {
+  return `<div style="margin-top:16px;border-left:3px solid ${R.azul};background:${R.painel};padding:16px 20px;">
+  <div style="font-family:${SANS};font-size:11px;line-height:16px;letter-spacing:0.16em;text-transform:uppercase;color:${R.textoSec};font-weight:700;">A minha leitura</div>
+  <div style="font-family:${SERIF};font-size:16px;line-height:28px;color:${R.navy};padding-top:6px;">${esc(texto)}</div>
+</div>`;
+}
+
+function grupoAtualidades(rotulo: string, itens: AtualidadeRevista[]): string {
+  const linhas = itens.map((n) => `<li style="margin:0;padding:14px 0;border-top:1px solid ${R.fileteClaro};list-style:none;">
+      <a href="${href(n.url)}" style="font-family:${SANS};font-size:17px;line-height:27px;color:${R.navy};text-decoration:none;font-weight:700;">${esc(n.titulo)}</a>
+      ${n.descricao ? `<div style="font-family:${SANS};font-size:15px;line-height:25px;color:${R.textoSec};padding-top:4px;">${esc(n.descricao)}</div>` : ""}
+    </li>`).join("\n");
+  return `<section style="margin-top:32px;">
+  <h3 style="margin:0;font-family:${SANS};font-size:12px;line-height:20px;letter-spacing:0.14em;text-transform:uppercase;color:${R.textoSec};font-weight:700;">${esc(rotulo)}</h3>
+  <ul style="margin:8px 0 0 0;padding:0;">
+${linhas}
+  </ul>
+</section>`;
+}
+
+export function montarHtmlRevistaWeb(e: EdicaoRevista): HtmlRevistaWeb {
+  const p: string[] = [];
+  const cont = contagemSeleccao(e);
+
+  /* cabeçalho */
+  p.push(`<header style="padding-bottom:16px;border-bottom:2px solid ${R.navy};">
+  <div style="font-family:${SANS};font-size:14px;line-height:20px;letter-spacing:0.24em;text-transform:uppercase;color:${R.navy};font-weight:700;">Digital Sprint</div>
+  <div style="font-family:${SANS};font-size:13px;line-height:22px;color:${R.textoSec};padding-top:8px;">${esc(fmtDataLonga(e.edicao.data_envio_prevista))} &nbsp;&middot;&nbsp; Edição ${e.edicao.numero}</div>
+</header>`);
+
+  if (e.promocao) {
+    p.push(`<aside style="margin-top:24px;border-left:3px solid ${R.azul};background:${R.painel};padding:13px 16px;font-family:${SANS};font-size:14px;line-height:22px;color:${R.texto};">
+  ${e.promocao.prefixo ? `${esc(e.promocao.prefixo)}: ` : ""}<a href="${href(e.promocao.url)}" style="color:${R.azul};font-weight:700;text-decoration:underline;">${esc(e.promocao.linkTexto)} &rarr;</a>
+</aside>`);
+  }
+
+  /* crónica */
+  p.push(`<h1 style="margin:40px 0 0 0;font-family:${SANS};font-size:42px;line-height:50px;color:${R.navy};font-weight:700;letter-spacing:-0.028em;">${esc(e.cronica.titulo)}${
+    e.cronica.subtitulo ? `<br><span style="color:${R.azul};">${esc(e.cronica.subtitulo)}</span>` : ""
+  }</h1>`);
+  const figuraImagem = () => {
+    const img = e.imagem;
+    if (!img) return "";
+    return `<figure style="margin:32px 0 0 0;">
+  <img src="${href(img.url)}" alt="${esc(img.alt)}" loading="lazy" style="display:block;width:100%;height:auto;${img.recortada ? "aspect-ratio:556/200;object-fit:cover;" : ""}">
+  ${img.credito ? `<figcaption style="margin-top:8px;font-family:${SANS};font-size:12px;line-height:20px;color:${R.textoSec};">${
+    img.creditoUrl
+      ? `<a href="${href(img.creditoUrl)}" style="color:${R.textoSec};">${esc(img.credito)}</a>`
+      : esc(img.credito)
+  }</figcaption>` : ""}
+</figure>`;
+  };
+  for (const peca of sequenciaCronica({
+    excerto: e.cronica.excerto,
+    lede: !!e.cronica.lede,
+    ledePos: e.ledePosicao,
+    pullQuote: !!e.pullQuote,
+    pullQuotePos: e.pullQuotePosicao,
+    momento: !!e.momento,
+    momentoPos: e.momentoPosicao,
+    imagem: !!e.imagem,
+    imagemPos: e.imagemPosicao,
+  })) {
+    if (peca.tipo === "imagem") { p.push(figuraImagem()); continue; }
+    if (peca.tipo === "lede") {
+      p.push(`<p style="margin:28px 0 0 0;font-family:${SERIF};font-size:19px;line-height:31px;color:${R.texto};">${esc(e.cronica.lede)}</p>`);
+      continue;
+    }
+
+    if (peca.tipo === "paragrafo") {
+      p.push(`<p style="margin:20px 0 0 0;font-family:${SANS};font-size:17px;line-height:30px;color:${R.texto};">${esc(peca.texto)}</p>`);
+    } else if (peca.tipo === "momento" && e.momento) {
+      p.push(`<aside style="margin-top:40px;border-left:4px solid ${R.azul};background:${R.painel};padding:28px;">
+  <div style="font-family:${SANS};font-size:11px;line-height:16px;letter-spacing:0.18em;text-transform:uppercase;color:${R.textoSec};font-weight:700;">${esc(e.momento.etiqueta)}</div>
+  <div style="font-family:${SANS};font-size:72px;line-height:78px;color:${R.navy};font-weight:700;letter-spacing:-0.045em;padding-top:8px;">${esc(e.momento.valor)}</div>
+  <div style="font-family:${SANS};font-size:15px;line-height:26px;color:${R.textoSec};padding-top:12px;">${esc(e.momento.descricao)}</div>
+</aside>`);
+    } else if (peca.tipo === "pull_quote") {
+      p.push(`<blockquote style="margin:56px 0 0 0;padding:28px 8%;border-top:1px solid ${R.filete};border-bottom:1px solid ${R.filete};font-family:${SERIF};font-size:23px;line-height:36px;color:${R.navy};">${esc(e.pullQuote)}</blockquote>`);
+    }
+  }
+
+  if (e.cronica.url) {
+    p.push(`<p style="margin:36px 0 0 0;"><a href="${href(e.cronica.url)}" style="display:inline-block;box-sizing:border-box;max-width:100%;background:${R.navy};color:#FFFFFF;padding:14px 28px;font-family:${SANS};font-size:15px;line-height:18px;font-weight:700;text-decoration:none;white-space:nowrap;">Ler a crónica completa &rarr;</a></p>`);
+  }
+
+  /* três coisas */
+  if (e.destaques.length) {
+    p.push(tituloSeccao(ROTULOS_REVISTA.destaques));
+    for (const d of e.destaques) {
+      p.push(`<article style="margin-top:32px;">
+  <h3 style="margin:0;font-family:${SANS};font-size:21px;line-height:30px;font-weight:700;letter-spacing:-0.015em;"><a href="${href(d.url)}" style="color:${R.navy};text-decoration:none;">${esc(d.titulo)}</a></h3>
+  ${d.resumoFactual ? `<p style="margin:10px 0 0 0;font-family:${SANS};font-size:16px;line-height:27px;color:${R.textoSec};">${esc(d.resumoFactual)}</p>` : ""}
+  ${d.minhaLeitura ? painelLeitura(d.minhaLeitura) : ""}
+  ${d.url ? `<p style="margin:16px 0 0 0;"><a href="${href(d.url)}" style="font-family:${SANS};font-size:15px;color:${R.azul};text-decoration:none;font-weight:700;">${esc(d.ctaRotulo || CTA_NOTICIA_PADRAO)} &rarr;</a></p>` : ""}
+</article>`);
+    }
+  }
+
+  /* radar */
+  if (e.radar.length) {
+    p.push(tituloSeccao(ROTULOS_REVISTA.radar));
+    p.push(`<p style="margin:8px 0 0 0;font-family:${SANS};font-size:14px;line-height:24px;color:${R.textoSec};">Leituras rápidas, sem comentário.</p>`);
+    const linhas = e.radar.map((r) => `<li style="margin:0;padding:14px 0;border-top:1px solid ${R.fileteClaro};list-style:none;">
+      <span style="display:inline-block;min-width:96px;font-family:${SANS};font-size:12px;line-height:26px;letter-spacing:0.1em;text-transform:uppercase;color:${R.textoSec};font-weight:700;">${esc(r.categoriaRotulo)}</span>
+      <a href="${href(r.url)}" style="font-family:${SANS};font-size:16px;line-height:26px;color:${R.navy};text-decoration:none;">${esc(r.titulo)}</a>
+      ${r.nota ? `<div style="font-family:${SANS};font-size:14px;line-height:24px;color:${R.textoSec};padding-top:4px;">${esc(r.nota)}</div>` : ""}
+    </li>`).join("\n");
+    p.push(`<ul style="margin:20px 0 0 0;padding:0;">\n${linhas}\n</ul>`);
+    p.push(`<p style="margin:16px 0 0 0;"><a href="#${ANCORA_ATUALIDADES}" style="font-family:${SANS};font-size:15px;color:${R.azul};text-decoration:none;font-weight:700;">${esc(cont.botao)} &rarr;</a></p>`);
+  }
+
+  /* recomendação */
+  if (e.recomendacao) {
+    const rec = e.recomendacao;
+    const cabeca = ["Esta semana recomendo", rec.tipo, rec.meta].filter(Boolean).map(esc).join(" &middot; ");
+    p.push(`<aside style="margin-top:56px;background:${R.painel};padding:32px;">
+  <div style="font-family:${SANS};font-size:11px;line-height:16px;letter-spacing:0.18em;text-transform:uppercase;color:${R.textoSec};font-weight:700;">${cabeca}</div>
+  <h3 style="margin:12px 0 0 0;font-family:${SANS};font-size:22px;line-height:32px;font-weight:700;letter-spacing:-0.015em;"><a href="${href(rec.url)}" style="color:${R.navy};text-decoration:none;">${esc(rec.titulo)}</a></h3>
+  ${rec.nota ? `<p style="margin:10px 0 0 0;font-family:${SERIF};font-size:16px;line-height:28px;color:${R.textoSec};">${esc(rec.nota)}</p>` : ""}
+  <p style="margin:14px 0 0 0;"><a href="${href(rec.url)}" style="font-family:${SANS};font-size:15px;color:${R.azul};text-decoration:none;font-weight:700;">${esc(ctaRecomendacao(rec.tipo))} &rarr;</a></p>
+</aside>`);
+  }
+
+  /* ferramentas */
+  if (e.ferramentas.length) {
+    p.push(tituloSeccao("Ferramentas"));
+    const linhas = e.ferramentas.map((f) => {
+      const cor = paletaFerramenta(f.cor);
+      return `<li style="margin:0;padding:14px 16px;border:1px solid ${cor.borda};border-top:4px solid ${cor.solid};background:${cor.pastel};list-style:none;">
+      ${f.etiqueta ? `<div style="font-family:${SANS};font-size:11px;line-height:18px;letter-spacing:0.16em;text-transform:uppercase;color:${cor.ink};font-weight:700;">${esc(f.etiqueta)}</div>` : ""}
+      <a href="${href(f.url)}" style="font-family:${SANS};font-size:16px;line-height:26px;color:${R.navy};text-decoration:none;font-weight:700;">${esc(f.nome)}</a>
+      ${f.descricao ? `<div style="font-family:${SANS};font-size:15px;line-height:25px;color:${R.textoSec};padding-top:4px;">${esc(f.descricao)}</div>` : ""}
+      ${f.url ? `<div style="padding-top:6px;"><a href="${href(f.url)}" style="font-family:${SANS};font-size:14px;color:${cor.ink};text-decoration:none;font-weight:700;">${esc(f.ctaRotulo || `Abrir ${f.nome}`)} &rarr;</a></div>` : ""}
+    </li>`;
+    }).join("\n");
+    p.push(`<ul style="margin:24px 0 0 0;padding:0;">\n${linhas}\n</ul>`);
+  }
+
+  /* podcast */
+  if (e.podcast) {
+    const pc = e.podcast;
+    p.push(`<aside style="margin-top:56px;background:${R.amarelo};padding:32px;">
+  <div style="font-family:${SANS};font-size:11px;line-height:16px;letter-spacing:0.18em;text-transform:uppercase;color:${R.navy};font-weight:700;">${esc([pc.etiqueta, pc.programa].filter(Boolean).join(" · "))}</div>
+  <h3 style="margin:12px 0 0 0;font-family:${SANS};font-size:24px;line-height:33px;font-weight:700;letter-spacing:-0.02em;color:${R.navy};">${esc(pc.tema)}</h3>
+  ${pc.convidado ? `<p style="margin:8px 0 0 0;font-family:${SANS};font-size:16px;line-height:27px;color:${R.navy};">${esc(pc.convidado)}</p>` : ""}
+  ${pc.pergunta ? `<p style="margin:10px 0 0 0;font-family:${SANS};font-size:16px;line-height:27px;color:${R.navy};">${esc(pc.pergunta)}</p>` : ""}
+  ${pc.url ? `<p style="margin:18px 0 0 0;"><a href="${href(pc.url)}" style="display:inline-block;background:${R.navy};color:${R.amarelo};padding:13px 22px;font-family:${SANS};font-size:15px;line-height:18px;font-weight:700;text-decoration:none;white-space:nowrap;">${esc(pc.cta)} &rarr;</a></p>` : ""}
+</aside>`);
+  }
+
+  /* livro — só quando não entra na grelha 2x2 (snapshots antigos) */
+  const grelhaServicos = e.servicos?.cartoes ?? null;
+  if (e.livro && !(grelhaServicos ?? []).some((c) => c.tipo === "livro")) {
+    const l = e.livro;
+    p.push(`<aside style="margin-top:56px;padding:24px 0;border-top:1px solid ${R.filete};border-bottom:1px solid ${R.filete};">
+  <div style="font-family:${SANS};font-size:11px;line-height:16px;letter-spacing:0.18em;text-transform:uppercase;color:${R.azul};font-weight:700;">${esc(l.etiqueta)}</div>
+  <h3 style="margin:10px 0 0 0;font-family:${SERIF};font-size:26px;line-height:34px;color:${R.navy};font-weight:400;">${esc(l.titulo)}</h3>
+  ${l.texto ? `<p style="margin:10px 0 0 0;font-family:${SANS};font-size:15px;line-height:26px;color:${R.textoSec};">${esc(l.texto)}</p>` : ""}
+  ${l.url ? `<p style="margin:14px 0 0 0;"><a href="${href(l.url)}" style="font-family:${SANS};font-size:15px;line-height:24px;color:${R.azul};">${esc(l.cta)} &rarr;</a></p>` : ""}
+</aside>`);
+  }
+
+  /* serviços — grelha 2x2 «Como te posso ajudar» */
+  if (e.servicos) {
+    const sv = e.servicos;
+    const cartoes = grelhaServicos?.length ? grelhaServicos : sv.linhas;
+    const cartao = (c: typeof cartoes[number]) => {
+      const cheio = c.destaque === true;
+      return `<div style="flex:1 1 260px;min-width:240px;background:${cheio ? R.azulSuave : R.painel};${cheio ? `border-left:4px solid ${R.azulSublinhado};` : ""}padding:20px 22px;">
+    <h4 style="margin:0;font-family:${SANS};font-size:18px;line-height:25px;font-weight:700;color:${R.navy};">${esc(c.rotulo)}</h4>
+    ${c.texto ? `<p style="margin:8px 0 0 0;font-family:${SANS};font-size:15px;line-height:25px;color:${R.textoSec};">${esc(c.texto)}</p>` : ""}
+    ${c.url ? `<p style="margin:12px 0 0 0;"><a href="${href(c.url)}" style="font-family:${SANS};font-size:14px;line-height:22px;font-weight:700;color:${R.azul};">${esc(c.cta)} &rarr;</a></p>` : ""}
+  </div>`;
+    };
+    p.push(tituloSeccao(sv.titulo));
+    p.push(`<aside style="margin-top:20px;">
+  <div style="display:flex;flex-wrap:wrap;gap:14px;">
+${cartoes.map(cartao).join("\n")}
+  </div>
+</aside>`);
+  }
+
+  /* todas as atualidades — inclui as notícias «só site» */
+  if (e.atualidades.length) {
+    p.push(tituloSeccao("Todas as atualidades desta edição", ANCORA_ATUALIDADES));
+    p.push(`<p style="margin:8px 0 0 0;font-family:${SANS};font-size:14px;line-height:24px;color:${R.textoSec};">${e.atualidades.length} notícias selecionadas esta semana, incluindo as que não seguiram no email.</p>`);
+    const grupos = new Map<string, AtualidadeRevista[]>();
+    for (const n of e.atualidades) {
+      const lista = grupos.get(n.categoriaRotulo) ?? [];
+      lista.push(n);
+      grupos.set(n.categoriaRotulo, lista);
+    }
+    for (const [rotulo, itens] of grupos) p.push(grupoAtualidades(rotulo, itens));
+  }
+
+  /* fecho */
+  p.push(`<p style="margin:40px 0 0 0;font-family:${SANS};font-size:15px;line-height:26px;color:${R.textoSec};">${esc(cont.fecho)} <a href="#${ANCORA_ATUALIDADES}" style="color:${R.azul};font-weight:700;text-decoration:none;">${esc(cont.fechoElo)}</a>.</p>`);
+
+  /* rodapé */
+  p.push(`<footer style="margin-top:56px;padding-top:24px;border-top:1px solid ${R.filete};font-family:${SANS};font-size:13px;line-height:23px;color:${R.textoSec};">
+  Digital Sprint &middot; Edição ${e.edicao.numero} &middot; por <a href="https://digitalsprint.pt" style="color:${R.azul};text-decoration:none;">Frederico Carvalho</a><br>
+  Esta edição foi preparada com apoio de ferramentas de inteligência artificial e revista por Frederico Carvalho.
+</footer>`);
+
+  const html = `<div class="ds-revista" style="max-width:720px;margin:0 auto;background:${R.fundoCartao};color:${R.texto};">
+${p.join("\n")}
+</div>`;
+
+  const resumoTexto = [e.cronica.titulo, e.cronica.lede || e.preheader]
+    .filter(Boolean).join(" — ").slice(0, 300);
+
+  return {
+    html,
+    resumoTexto,
+    tituloLesson: `Digital Sprint #${e.edicao.numero} — ${e.cronica.titulo || "Edição semanal"}`,
+  };
+}
