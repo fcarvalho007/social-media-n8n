@@ -2,6 +2,8 @@
 // Runs entirely with the caller's session: every DB write goes through
 // admin-guarded SECURITY DEFINER functions (nl_import_*), so non-admins are refused.
 import { createClient, SupabaseClient } from "https://esm.sh/@supabase/supabase-js@2.57.4";
+import { reescreverAvatar } from "../_shared/nl-destino-urls.ts";
+import { basePublicaObrigatoria } from "../_shared/nl-publico-config.ts";
 
 const cors = {
   "Access-Control-Allow-Origin": "*",
@@ -279,8 +281,8 @@ Deno.serve(async (req) => {
       if (!run.ficheiro_sha256 || bytesHash !== run.ficheiro_sha256)
         return await falhar("O pacote no armazenamento temporário foi alterado depois da simulação. Importação parada; repete a simulação.");
 
-      const rw = makeRewriter(`${url}/functions/v1/nl-imagem`);
-      const prog = { fase: "tabelas", indice: 0, offset: 0, inseridos: {} as Record<string, number>, ignoradas: {} as Record<string, unknown>, reescritas: 0, chunks: 0, ...(run.progresso ?? {}) };
+      const rw = makeRewriter(`${url}/functions/v1/nl-imagem`, basePublicaObrigatoria());
+      const prog = { fase: "tabelas", indice: 0, offset: 0, inseridos: {} as Record<string, number>, ignoradas: {} as Record<string, unknown>, reescritas: 0, avatares: 0, chunks: 0, ...(run.progresso ?? {}) };
 
       try {
         if (prog.fase === "tabelas") {
@@ -305,6 +307,7 @@ Deno.serve(async (req) => {
             if (prog.offset >= linhas.length) { prog.indice++; prog.offset = 0; }
           }
           prog.reescritas += rw.count;
+          prog.avatares = (prog.avatares ?? 0) + rw.avatares;
           prog.chunks++;
         } else if (prog.fase === "ficheiros") {
           for (const f of p.ficheiros) {
@@ -347,7 +350,8 @@ Deno.serve(async (req) => {
           if (rel.error) throw new Error(rel.error.message);
           const relatorio = {
             ...(run.relatorio ?? {}), final: rel.data, inseridos: prog.inseridos, colunas_ignoradas: prog.ignoradas,
-            reescritas_url: prog.reescritas, repeticoes: rep.data, agendamentos: sus.data, identidade_atribuida: identidadeAtribuida, edicoes_digitalsprint: idsEd.length,
+            reescritas_url: prog.reescritas, avatares_reescritos: prog.avatares ?? 0,
+            ligacoes_subscricao_historicas: "mantidas como enviadas (não reutilizadas)", repeticoes: rep.data, agendamentos: sus.data, identidade_atribuida: identidadeAtribuida, edicoes_digitalsprint: idsEd.length,
             ficheiros_copiados: p.ficheiros.length, perfis_registados: perfis.length, pacote_sha256: bytesHash,
           };
           await sb.from("nl_import_runs").update({ estado: ESTADO.CONCLUIDA, progresso: { ...prog, fase: "concluida" }, relatorio, concluido_em: new Date().toISOString() }).eq("id", run.id);
