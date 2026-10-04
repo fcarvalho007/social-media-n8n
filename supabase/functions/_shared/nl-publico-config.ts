@@ -45,16 +45,47 @@ export function tagTokenEgoi(): string {
   return !explicita || explicita === derivada ? derivada : "";
 }
 
-/** Footer link to the subscription page, authenticated only by the signed token merge tag. */
-export function linkSubscricao(accao?: "cancelar"): string {
-  const t = tagTokenEgoi() || "{TOKEN_POR_CONFIGURAR}";
-  return `${baseParaLinks()}/subscricao?t=${t}${accao ? `&a=${accao}` : ""}`;
+/**
+ * Rendered content never carries a field id: it carries this neutral marker, replaced per destination
+ * list (aplicarTokenLista) right before the campaign goes to E-goi. Each list has its own field id.
+ */
+export const MARCADOR_TOKEN = "{{NL_TOKEN_EGOI}}";
+export const TOKEN_POR_CONFIGURAR = "{TOKEN_POR_CONFIGURAR}";
+
+export type ListaComCampo = { nome?: string; campo_token_id?: number | null };
+export type CampoResolvido = { campo: number; origem: "lista" | "legado" };
+
+/** Strict id check: positive integer only (no strings, decimals or zero). */
+export function idCampoValido(v: unknown): v is number {
+  return typeof v === "number" && Number.isInteger(v) && v > 0 && v < 1_000_000;
 }
 
-/** RFC 8058 one-click endpoint (List-Unsubscribe), token only. */
+/**
+ * Field id for ONE list: its own configured id wins; otherwise the legacy global NL_EGOI_CAMPO_TOKEN_ID
+ * (only when valid and consistent with NL_EGOI_TAG_TOKEN). Null = not configured -> that list is blocked.
+ * Whether the legacy id really exists as a text field in that list is checked live by the send gate.
+ */
+export function resolverCampoLista(l: ListaComCampo): CampoResolvido | null {
+  if (l.campo_token_id !== null && l.campo_token_id !== undefined) {
+    return idCampoValido(l.campo_token_id) ? { campo: l.campo_token_id, origem: "lista" } : null;
+  }
+  const legado = campoTokenEgoi();
+  return legado && tagTokenEgoi() ? { campo: legado, origem: "legado" } : null;
+}
+
+/** Replaces the neutral marker with the list's merge code; without a field only an explicit placeholder. */
+export function aplicarTokenLista(texto: string, campo: number | null): string {
+  return texto.split(MARCADOR_TOKEN).join(campo ? `!extra_field_${campo}` : TOKEN_POR_CONFIGURAR);
+}
+
+/** Footer link to the subscription page, authenticated only by the signed token merge tag (per list). */
+export function linkSubscricao(accao?: "cancelar"): string {
+  return `${baseParaLinks()}/subscricao?t=${MARCADOR_TOKEN}${accao ? `&a=${accao}` : ""}`;
+}
+
+/** RFC 8058 one-click endpoint (List-Unsubscribe), token only (marker replaced per list). */
 export function linkUmClique(): string {
-  const t = tagTokenEgoi() || "{TOKEN_POR_CONFIGURAR}";
-  return `${baseFuncoes()}/nl-publico/unsubscribe?t=${t}`;
+  return `${baseFuncoes()}/nl-publico/unsubscribe?t=${MARCADOR_TOKEN}`;
 }
 
 export function avatarUrl(): string {
@@ -65,8 +96,7 @@ export function avatarUrl(): string {
 export function verificarLigacoesPublicas(): string[] {
   const p: string[] = [];
   if (!/^https:\/\//.test(basePublica())) p.push("Falta configurar o endereço público da newsletter (NL_PUBLIC_BASE_URL).");
-  if (!campoTokenEgoi()) p.push("Falta configurar o campo da E-goi com o token de subscrição (NL_EGOI_CAMPO_TOKEN_ID).");
-  else if (!/^!extra_field_\d+$/.test(tagTokenEgoi())) p.push("NL_EGOI_TAG_TOKEN não corresponde ao campo NL_EGOI_CAMPO_TOKEN_ID.");
+  // The token field is resolved and checked per list by the send gate (nl-egoi-tokens-gate).
   if (!process.env.SUBSCRICAO_SEGREDO) p.push("Falta o segredo de assinatura das subscrições (SUBSCRICAO_SEGREDO).");
   return p;
 }
