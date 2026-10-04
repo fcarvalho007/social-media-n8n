@@ -2,6 +2,7 @@
 import { nlServerFn } from "@/newsletter/shim/start";
 
 
+
 export type MotivoSemResultado =
   | "fonte_inactiva"
   | "sem_html"
@@ -113,3 +114,4 @@ export type ResultadoReprocessar = {
 };
 export const reprocessarEmail = nlServerFn("emails-recebidos:reprocessarEmail");
 export const activarFonteEReprocessar = nlServerFn("emails-recebidos:activarFonteEReprocessar");
+

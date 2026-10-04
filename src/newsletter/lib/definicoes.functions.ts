@@ -2,6 +2,7 @@
 import { nlServerFn } from "@/newsletter/shim/start";
 
 
+
 export type EstadoSecrets = {
   deepseek: boolean;
   egoi: boolean;
@@ -11,3 +12,4 @@ export type EstadoSecrets = {
 };
 export const verificarSecretsAPI = nlServerFn("definicoes:verificarSecretsAPI");
 export const getWebhookCloudMailinUrl = nlServerFn("definicoes:getWebhookCloudMailinUrl");
+

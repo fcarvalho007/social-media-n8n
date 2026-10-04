@@ -2,6 +2,7 @@
 import { nlServerFn } from "@/newsletter/shim/start";
 
 
+
 /**
  * Endpoints públicos da página de gestão de subscrição.
  * Não exigem sessão — quem chega aqui vem do rodapé de um email.
@@ -15,9 +16,9 @@ export interface EstadoPublico {
   retomaEm: string | null;
   mensagem?: string;
 }
-
 export const estadoSubscricaoFn = nlServerFn("subscricao:estadoSubscricaoFn");
 export const aplicarAccaoSubscricaoFn = nlServerFn("subscricao:aplicarAccaoSubscricaoFn");
 export const resumoSubscricoesFn = nlServerFn("subscricao:resumoSubscricoesFn");
 export const testarSubscricaoFn = nlServerFn("subscricao:testarSubscricaoFn");
 export const urlWebhookEgoiFn = nlServerFn("subscricao:urlWebhookEgoiFn");
+
