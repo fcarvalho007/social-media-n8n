@@ -281,6 +281,50 @@ export type Database = {
         }
         Relationships: []
       }
+      art_rascunhos: {
+        Row: {
+          corpo: string
+          created_at: string
+          created_by: string
+          estado: string
+          id: string
+          project_id: string | null
+          resumo: string | null
+          titulo: string
+          updated_at: string
+        }
+        Insert: {
+          corpo?: string
+          created_at?: string
+          created_by?: string
+          estado?: string
+          id?: string
+          project_id?: string | null
+          resumo?: string | null
+          titulo?: string
+          updated_at?: string
+        }
+        Update: {
+          corpo?: string
+          created_at?: string
+          created_by?: string
+          estado?: string
+          id?: string
+          project_id?: string | null
+          resumo?: string | null
+          titulo?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "art_rascunhos_project_id_fkey"
+            columns: ["project_id"]
+            isOneToOne: false
+            referencedRelation: "projects"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       hashtag_intelligence: {
         Row: {
           created_at: string
@@ -659,6 +703,1626 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      nl_audit_log: {
+        Row: {
+          accao: string
+          criado_em: string
+          detalhe: Json | null
+          id: number
+          quem: string | null
+        }
+        Insert: {
+          accao: string
+          criado_em?: string
+          detalhe?: Json | null
+          id?: never
+          quem?: string | null
+        }
+        Update: {
+          accao?: string
+          criado_em?: string
+          detalhe?: Json | null
+          id?: never
+          quem?: string | null
+        }
+        Relationships: []
+      }
+      nl_brief_edicoes: {
+        Row: {
+          brief_id: string
+          created_at: string
+          edicao_id: string
+          id: string
+          ordem: number
+          papel: string
+          titulo_apresentado: string | null
+        }
+        Insert: {
+          brief_id: string
+          created_at?: string
+          edicao_id: string
+          id?: string
+          ordem?: number
+          papel?: string
+          titulo_apresentado?: string | null
+        }
+        Update: {
+          brief_id?: string
+          created_at?: string
+          edicao_id?: string
+          id?: string
+          ordem?: number
+          papel?: string
+          titulo_apresentado?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "nl_brief_edicoes_brief_id_fkey"
+            columns: ["brief_id"]
+            isOneToOne: false
+            referencedRelation: "nl_briefs"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "nl_brief_edicoes_edicao_id_fkey"
+            columns: ["edicao_id"]
+            isOneToOne: false
+            referencedRelation: "nl_edicoes"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      nl_brief_eventos: {
+        Row: {
+          actualizado_em: string
+          brief_slug: string
+          contagem: number
+          dia: string
+          edicao_numero: number | null
+          evento: string
+          id: string
+        }
+        Insert: {
+          actualizado_em?: string
+          brief_slug?: string
+          contagem?: number
+          dia?: string
+          edicao_numero?: number | null
+          evento: string
+          id?: string
+        }
+        Update: {
+          actualizado_em?: string
+          brief_slug?: string
+          contagem?: number
+          dia?: string
+          edicao_numero?: number | null
+          evento?: string
+          id?: string
+        }
+        Relationships: []
+      }
+      nl_brief_versoes: {
+        Row: {
+          brief_id: string
+          conteudo: Json
+          criado_em: string
+          criado_por: string | null
+          hash: string
+          id: string
+          motivo: string | null
+          versao: number
+        }
+        Insert: {
+          brief_id: string
+          conteudo?: Json
+          criado_em?: string
+          criado_por?: string | null
+          hash: string
+          id?: string
+          motivo?: string | null
+          versao: number
+        }
+        Update: {
+          brief_id?: string
+          conteudo?: Json
+          criado_em?: string
+          criado_por?: string | null
+          hash?: string
+          id?: string
+          motivo?: string | null
+          versao?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "nl_brief_versoes_brief_id_fkey"
+            columns: ["brief_id"]
+            isOneToOne: false
+            referencedRelation: "nl_briefs"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      nl_briefs: {
+        Row: {
+          aprovada_em: string | null
+          aprovada_por: string | null
+          contexto: Json
+          created_at: string
+          em_30_segundos: Json
+          erro: string | null
+          estado: string
+          factos: Json
+          fingerprint: string
+          fonte_data: string | null
+          fonte_primaria_url: string | null
+          fonte_publisher: string | null
+          fonte_url: string | null
+          fonte_url_norm: string | null
+          fontes_adicionais: Json
+          hash_publicado: string | null
+          ia: Json
+          id: string
+          incertezas: Json
+          indexavel: boolean
+          leitura_aprovada: string
+          leitura_sugerida: string
+          noticia_id: string | null
+          porque_interessa: Json
+          publicado_em: string | null
+          pull_quote_sugerida: string
+          slug: string
+          slug_congelado: boolean
+          tentativas: number
+          tese_editorial: string
+          tipo: string
+          titulo_editorial: string
+          updated_at: string
+          verificacao: Json
+        }
+        Insert: {
+          aprovada_em?: string | null
+          aprovada_por?: string | null
+          contexto?: Json
+          created_at?: string
+          em_30_segundos?: Json
+          erro?: string | null
+          estado?: string
+          factos?: Json
+          fingerprint: string
+          fonte_data?: string | null
+          fonte_primaria_url?: string | null
+          fonte_publisher?: string | null
+          fonte_url?: string | null
+          fonte_url_norm?: string | null
+          fontes_adicionais?: Json
+          hash_publicado?: string | null
+          ia?: Json
+          id?: string
+          incertezas?: Json
+          indexavel?: boolean
+          leitura_aprovada?: string
+          leitura_sugerida?: string
+          noticia_id?: string | null
+          porque_interessa?: Json
+          publicado_em?: string | null
+          pull_quote_sugerida?: string
+          slug: string
+          slug_congelado?: boolean
+          tentativas?: number
+          tese_editorial?: string
+          tipo?: string
+          titulo_editorial?: string
+          updated_at?: string
+          verificacao?: Json
+        }
+        Update: {
+          aprovada_em?: string | null
+          aprovada_por?: string | null
+          contexto?: Json
+          created_at?: string
+          em_30_segundos?: Json
+          erro?: string | null
+          estado?: string
+          factos?: Json
+          fingerprint?: string
+          fonte_data?: string | null
+          fonte_primaria_url?: string | null
+          fonte_publisher?: string | null
+          fonte_url?: string | null
+          fonte_url_norm?: string | null
+          fontes_adicionais?: Json
+          hash_publicado?: string | null
+          ia?: Json
+          id?: string
+          incertezas?: Json
+          indexavel?: boolean
+          leitura_aprovada?: string
+          leitura_sugerida?: string
+          noticia_id?: string | null
+          porque_interessa?: Json
+          publicado_em?: string | null
+          pull_quote_sugerida?: string
+          slug?: string
+          slug_congelado?: boolean
+          tentativas?: number
+          tese_editorial?: string
+          tipo?: string
+          titulo_editorial?: string
+          updated_at?: string
+          verificacao?: Json
+        }
+        Relationships: [
+          {
+            foreignKeyName: "nl_briefs_noticia_id_fkey"
+            columns: ["noticia_id"]
+            isOneToOne: false
+            referencedRelation: "nl_noticias"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      nl_configuracoes: {
+        Row: {
+          actualizado_em: string
+          chave: string
+          valor: string | null
+        }
+        Insert: {
+          actualizado_em?: string
+          chave: string
+          valor?: string | null
+        }
+        Update: {
+          actualizado_em?: string
+          chave?: string
+          valor?: string | null
+        }
+        Relationships: []
+      }
+      nl_cronicas: {
+        Row: {
+          busca: unknown
+          concluida: boolean
+          conteudo: string | null
+          conteudo_html: string | null
+          edicao_id: string
+          id: string
+          leituras_recomendadas: string | null
+          titulo: string | null
+          updated_at: string
+        }
+        Insert: {
+          busca?: unknown
+          concluida?: boolean
+          conteudo?: string | null
+          conteudo_html?: string | null
+          edicao_id: string
+          id?: string
+          leituras_recomendadas?: string | null
+          titulo?: string | null
+          updated_at?: string
+        }
+        Update: {
+          busca?: unknown
+          concluida?: boolean
+          conteudo?: string | null
+          conteudo_html?: string | null
+          edicao_id?: string
+          id?: string
+          leituras_recomendadas?: string | null
+          titulo?: string | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "nl_cronicas_edicao_id_fkey"
+            columns: ["edicao_id"]
+            isOneToOne: true
+            referencedRelation: "nl_edicoes"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      nl_curadoria_config: {
+        Row: {
+          actualizado_em: string
+          id: number
+          janela_horas: number
+          max_insercoes_por_corrida: number
+          max_por_categoria: number
+          max_por_dia: number
+          max_por_dia_email: number
+          max_por_email: number
+          max_por_fonte: number
+        }
+        Insert: {
+          actualizado_em?: string
+          id?: number
+          janela_horas?: number
+          max_insercoes_por_corrida?: number
+          max_por_categoria?: number
+          max_por_dia?: number
+          max_por_dia_email?: number
+          max_por_email?: number
+          max_por_fonte?: number
+        }
+        Update: {
+          actualizado_em?: string
+          id?: number
+          janela_horas?: number
+          max_insercoes_por_corrida?: number
+          max_por_categoria?: number
+          max_por_dia?: number
+          max_por_dia_email?: number
+          max_por_email?: number
+          max_por_fonte?: number
+        }
+        Relationships: []
+      }
+      nl_curadoria_ferramentas_config: {
+        Row: {
+          activo: boolean
+          actualizado_em: string
+          dia_semana: number
+          hora: number
+          id: number
+          max_por_corrida: number
+        }
+        Insert: {
+          activo?: boolean
+          actualizado_em?: string
+          dia_semana?: number
+          hora?: number
+          id?: number
+          max_por_corrida?: number
+        }
+        Update: {
+          activo?: boolean
+          actualizado_em?: string
+          dia_semana?: number
+          hora?: number
+          id?: number
+          max_por_corrida?: number
+        }
+        Relationships: []
+      }
+      nl_curadoria_fila: {
+        Row: {
+          created_at: string
+          descricao: string
+          email_recebido_id: string | null
+          estado: string
+          fonte_grupo: string | null
+          fonte_id: string | null
+          fonte_nome: string | null
+          id: string
+          motivo: string | null
+          noticia_id: string | null
+          origem: string
+          publicado_em: string
+          tentativas: number
+          titulo: string
+          updated_at: string
+          url: string | null
+          url_norm: string | null
+        }
+        Insert: {
+          created_at?: string
+          descricao?: string
+          email_recebido_id?: string | null
+          estado?: string
+          fonte_grupo?: string | null
+          fonte_id?: string | null
+          fonte_nome?: string | null
+          id?: string
+          motivo?: string | null
+          noticia_id?: string | null
+          origem?: string
+          publicado_em?: string
+          tentativas?: number
+          titulo: string
+          updated_at?: string
+          url?: string | null
+          url_norm?: string | null
+        }
+        Update: {
+          created_at?: string
+          descricao?: string
+          email_recebido_id?: string | null
+          estado?: string
+          fonte_grupo?: string | null
+          fonte_id?: string | null
+          fonte_nome?: string | null
+          id?: string
+          motivo?: string | null
+          noticia_id?: string | null
+          origem?: string
+          publicado_em?: string
+          tentativas?: number
+          titulo?: string
+          updated_at?: string
+          url?: string | null
+          url_norm?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "nl_curadoria_fila_email_recebido_id_fkey"
+            columns: ["email_recebido_id"]
+            isOneToOne: false
+            referencedRelation: "nl_emails_recebidos"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "nl_curadoria_fila_fonte_id_fkey"
+            columns: ["fonte_id"]
+            isOneToOne: false
+            referencedRelation: "nl_fontes_curadoria"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "nl_curadoria_fila_noticia_id_fkey"
+            columns: ["noticia_id"]
+            isOneToOne: false
+            referencedRelation: "nl_noticias"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      nl_definicoes_ia: {
+        Row: {
+          actualizado_por: string | null
+          created_at: string
+          estado: string
+          id: string
+          modelo: string
+          provider: string
+          ultimo_erro: string | null
+          ultimo_teste_em: string | null
+          updated_at: string
+        }
+        Insert: {
+          actualizado_por?: string | null
+          created_at?: string
+          estado?: string
+          id?: string
+          modelo?: string
+          provider?: string
+          ultimo_erro?: string | null
+          ultimo_teste_em?: string | null
+          updated_at?: string
+        }
+        Update: {
+          actualizado_por?: string | null
+          created_at?: string
+          estado?: string
+          id?: string
+          modelo?: string
+          provider?: string
+          ultimo_erro?: string | null
+          ultimo_teste_em?: string | null
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      nl_edicoes: {
+        Row: {
+          agendado_para: string | null
+          agendado_por: string | null
+          agendamento_erro: string | null
+          agendamento_estado: string
+          agendamento_iniciado_em: string | null
+          agendamento_listas: Json
+          agendamento_wordpress: boolean
+          assunto: string | null
+          bloco_consultoria: Json
+          bloco_livro: boolean
+          bloco_recursos: boolean
+          categorias_ocultas_email: Json
+          created_at: string
+          data_envio_prevista: string | null
+          descricoes_ajustadas_em: string | null
+          destinos: Json
+          enviada_em: string | null
+          envio_em_curso: string | null
+          episodio_podcast_id: string | null
+          estado: string
+          id: string
+          links_ignorados: Json
+          links_verificados: Json | null
+          links_verificados_em: string | null
+          numero: number
+          revista_snapshot: Json | null
+          snapshot_envio: Json | null
+          template_version: string
+          wordpress_post_id: number | null
+          wordpress_post_url: string | null
+        }
+        Insert: {
+          agendado_para?: string | null
+          agendado_por?: string | null
+          agendamento_erro?: string | null
+          agendamento_estado?: string
+          agendamento_iniciado_em?: string | null
+          agendamento_listas?: Json
+          agendamento_wordpress?: boolean
+          assunto?: string | null
+          bloco_consultoria?: Json
+          bloco_livro?: boolean
+          bloco_recursos?: boolean
+          categorias_ocultas_email?: Json
+          created_at?: string
+          data_envio_prevista?: string | null
+          descricoes_ajustadas_em?: string | null
+          destinos?: Json
+          enviada_em?: string | null
+          envio_em_curso?: string | null
+          episodio_podcast_id?: string | null
+          estado?: string
+          id?: string
+          links_ignorados?: Json
+          links_verificados?: Json | null
+          links_verificados_em?: string | null
+          numero: number
+          revista_snapshot?: Json | null
+          snapshot_envio?: Json | null
+          template_version?: string
+          wordpress_post_id?: number | null
+          wordpress_post_url?: string | null
+        }
+        Update: {
+          agendado_para?: string | null
+          agendado_por?: string | null
+          agendamento_erro?: string | null
+          agendamento_estado?: string
+          agendamento_iniciado_em?: string | null
+          agendamento_listas?: Json
+          agendamento_wordpress?: boolean
+          assunto?: string | null
+          bloco_consultoria?: Json
+          bloco_livro?: boolean
+          bloco_recursos?: boolean
+          categorias_ocultas_email?: Json
+          created_at?: string
+          data_envio_prevista?: string | null
+          descricoes_ajustadas_em?: string | null
+          destinos?: Json
+          enviada_em?: string | null
+          envio_em_curso?: string | null
+          episodio_podcast_id?: string | null
+          estado?: string
+          id?: string
+          links_ignorados?: Json
+          links_verificados?: Json | null
+          links_verificados_em?: string | null
+          numero?: number
+          revista_snapshot?: Json | null
+          snapshot_envio?: Json | null
+          template_version?: string
+          wordpress_post_id?: number | null
+          wordpress_post_url?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "nl_edicoes_episodio_podcast_id_fkey"
+            columns: ["episodio_podcast_id"]
+            isOneToOne: false
+            referencedRelation: "nl_episodios_podcast"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      nl_egoi_campanhas: {
+        Row: {
+          actualizado_em: string
+          campaign_hash: string
+          criado_em: string
+          edicao_id: string
+          estado: string
+          id: string
+          lista_id: string
+        }
+        Insert: {
+          actualizado_em?: string
+          campaign_hash: string
+          criado_em?: string
+          edicao_id: string
+          estado?: string
+          id?: string
+          lista_id: string
+        }
+        Update: {
+          actualizado_em?: string
+          campaign_hash?: string
+          criado_em?: string
+          edicao_id?: string
+          estado?: string
+          id?: string
+          lista_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "nl_egoi_campanhas_edicao_id_fkey"
+            columns: ["edicao_id"]
+            isOneToOne: false
+            referencedRelation: "nl_edicoes"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "nl_egoi_campanhas_lista_id_fkey"
+            columns: ["lista_id"]
+            isOneToOne: false
+            referencedRelation: "nl_egoi_listas"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      nl_egoi_listas: {
+        Row: {
+          activa: boolean
+          created_at: string
+          egoi_lista_id: string
+          id: string
+          nome: string
+          ordem: number
+          tipo: string
+        }
+        Insert: {
+          activa?: boolean
+          created_at?: string
+          egoi_lista_id: string
+          id?: string
+          nome: string
+          ordem?: number
+          tipo?: string
+        }
+        Update: {
+          activa?: boolean
+          created_at?: string
+          egoi_lista_id?: string
+          id?: string
+          nome?: string
+          ordem?: number
+          tipo?: string
+        }
+        Relationships: []
+      }
+      nl_emails_recebidos: {
+        Row: {
+          assunto: string | null
+          classificacao: string | null
+          classificacao_detalhe: Json
+          corpo_hash: string | null
+          corpo_html: string | null
+          corpo_texto: string | null
+          id: string
+          message_id: string | null
+          notas_processadas: number
+          processado_em: string | null
+          processamento_erro: string | null
+          processamento_estado: string
+          processamento_tentativas: number
+          recebido_em: string
+          remetente: string | null
+          remetente_nome: string | null
+        }
+        Insert: {
+          assunto?: string | null
+          classificacao?: string | null
+          classificacao_detalhe?: Json
+          corpo_hash?: string | null
+          corpo_html?: string | null
+          corpo_texto?: string | null
+          id?: string
+          message_id?: string | null
+          notas_processadas?: number
+          processado_em?: string | null
+          processamento_erro?: string | null
+          processamento_estado?: string
+          processamento_tentativas?: number
+          recebido_em?: string
+          remetente?: string | null
+          remetente_nome?: string | null
+        }
+        Update: {
+          assunto?: string | null
+          classificacao?: string | null
+          classificacao_detalhe?: Json
+          corpo_hash?: string | null
+          corpo_html?: string | null
+          corpo_texto?: string | null
+          id?: string
+          message_id?: string | null
+          notas_processadas?: number
+          processado_em?: string | null
+          processamento_erro?: string | null
+          processamento_estado?: string
+          processamento_tentativas?: number
+          recebido_em?: string
+          remetente?: string | null
+          remetente_nome?: string | null
+        }
+        Relationships: []
+      }
+      nl_episodios_podcast: {
+        Row: {
+          codigo: string | null
+          criado_em: string
+          data_publicacao: string | null
+          id: string
+          titulo: string
+          url: string | null
+        }
+        Insert: {
+          codigo?: string | null
+          criado_em?: string
+          data_publicacao?: string | null
+          id?: string
+          titulo: string
+          url?: string | null
+        }
+        Update: {
+          codigo?: string | null
+          criado_em?: string
+          data_publicacao?: string | null
+          id?: string
+          titulo?: string
+          url?: string | null
+        }
+        Relationships: []
+      }
+      nl_ferramentas_excluidas: {
+        Row: {
+          criado_em: string
+          dominio: string | null
+          id: string
+          motivo: string | null
+          nome_norm: string | null
+        }
+        Insert: {
+          criado_em?: string
+          dominio?: string | null
+          id?: string
+          motivo?: string | null
+          nome_norm?: string | null
+        }
+        Update: {
+          criado_em?: string
+          dominio?: string | null
+          id?: string
+          motivo?: string | null
+          nome_norm?: string | null
+        }
+        Relationships: []
+      }
+      nl_ferramentas_semana: {
+        Row: {
+          cor: string
+          created_at: string
+          cta_rotulo: string
+          descricao: string | null
+          edicao_id: string
+          emoji: string | null
+          etiqueta: string
+          id: string
+          nome: string | null
+          posicao: number
+          updated_at: string
+          url: string | null
+        }
+        Insert: {
+          cor?: string
+          created_at?: string
+          cta_rotulo?: string
+          descricao?: string | null
+          edicao_id: string
+          emoji?: string | null
+          etiqueta?: string
+          id?: string
+          nome?: string | null
+          posicao: number
+          updated_at?: string
+          url?: string | null
+        }
+        Update: {
+          cor?: string
+          created_at?: string
+          cta_rotulo?: string
+          descricao?: string | null
+          edicao_id?: string
+          emoji?: string | null
+          etiqueta?: string
+          id?: string
+          nome?: string | null
+          posicao?: number
+          updated_at?: string
+          url?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "nl_ferramentas_semana_edicao_id_fkey"
+            columns: ["edicao_id"]
+            isOneToOne: false
+            referencedRelation: "nl_edicoes"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      nl_ferramentas_sugeridas: {
+        Row: {
+          aprovada_em: string | null
+          assunto_origem: string | null
+          categoria: string | null
+          cor: string
+          criado_em: string
+          descricao: string | null
+          descricao_original: string | null
+          edicao_aprovada_id: string | null
+          edicao_usada_id: string | null
+          emoji: string | null
+          estado: string
+          fonte_directorio_id: string | null
+          fonte_email_id: string | null
+          id: string
+          nome: string
+          remetente: string | null
+          updated_at: string
+          url: string
+        }
+        Insert: {
+          aprovada_em?: string | null
+          assunto_origem?: string | null
+          categoria?: string | null
+          cor?: string
+          criado_em?: string
+          descricao?: string | null
+          descricao_original?: string | null
+          edicao_aprovada_id?: string | null
+          edicao_usada_id?: string | null
+          emoji?: string | null
+          estado?: string
+          fonte_directorio_id?: string | null
+          fonte_email_id?: string | null
+          id?: string
+          nome: string
+          remetente?: string | null
+          updated_at?: string
+          url: string
+        }
+        Update: {
+          aprovada_em?: string | null
+          assunto_origem?: string | null
+          categoria?: string | null
+          cor?: string
+          criado_em?: string
+          descricao?: string | null
+          descricao_original?: string | null
+          edicao_aprovada_id?: string | null
+          edicao_usada_id?: string | null
+          emoji?: string | null
+          estado?: string
+          fonte_directorio_id?: string | null
+          fonte_email_id?: string | null
+          id?: string
+          nome?: string
+          remetente?: string | null
+          updated_at?: string
+          url?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "nl_ferramentas_sugeridas_edicao_aprovada_id_fkey"
+            columns: ["edicao_aprovada_id"]
+            isOneToOne: false
+            referencedRelation: "nl_edicoes"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "nl_ferramentas_sugeridas_edicao_usada_id_fkey"
+            columns: ["edicao_usada_id"]
+            isOneToOne: false
+            referencedRelation: "nl_edicoes"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "nl_ferramentas_sugeridas_fonte_directorio_id_fkey"
+            columns: ["fonte_directorio_id"]
+            isOneToOne: false
+            referencedRelation: "nl_fontes_curadoria"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "nl_ferramentas_sugeridas_fonte_email_id_fkey"
+            columns: ["fonte_email_id"]
+            isOneToOne: false
+            referencedRelation: "nl_emails_recebidos"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      nl_fontes_curadoria: {
+        Row: {
+          activa: boolean
+          created_at: string
+          criada_em: string
+          foca_ferramentas: boolean
+          grupo: string | null
+          id: string
+          nome: string
+          remetente_dominio: string | null
+          remetente_email: string | null
+          tipo: string
+          ultima_recolha: string | null
+          url_feed: string
+          url_listagem: string | null
+          zeros_consecutivos: number
+        }
+        Insert: {
+          activa?: boolean
+          created_at?: string
+          criada_em?: string
+          foca_ferramentas?: boolean
+          grupo?: string | null
+          id?: string
+          nome: string
+          remetente_dominio?: string | null
+          remetente_email?: string | null
+          tipo?: string
+          ultima_recolha?: string | null
+          url_feed: string
+          url_listagem?: string | null
+          zeros_consecutivos?: number
+        }
+        Update: {
+          activa?: boolean
+          created_at?: string
+          criada_em?: string
+          foca_ferramentas?: boolean
+          grupo?: string | null
+          id?: string
+          nome?: string
+          remetente_dominio?: string | null
+          remetente_email?: string | null
+          tipo?: string
+          ultima_recolha?: string | null
+          url_feed?: string
+          url_listagem?: string | null
+          zeros_consecutivos?: number
+        }
+        Relationships: []
+      }
+      nl_ia_uso: {
+        Row: {
+          brief_id: string | null
+          criado_em: string
+          custo_usd: number
+          duracao_ms: number | null
+          edicao_id: string | null
+          erro: string | null
+          id: string
+          modelo: string
+          operacao: string | null
+          origem: string
+          sucesso: boolean
+          tokens_entrada_cache_hit: number
+          tokens_entrada_cache_miss: number
+          tokens_saida: number
+        }
+        Insert: {
+          brief_id?: string | null
+          criado_em?: string
+          custo_usd?: number
+          duracao_ms?: number | null
+          edicao_id?: string | null
+          erro?: string | null
+          id?: string
+          modelo: string
+          operacao?: string | null
+          origem: string
+          sucesso?: boolean
+          tokens_entrada_cache_hit?: number
+          tokens_entrada_cache_miss?: number
+          tokens_saida?: number
+        }
+        Update: {
+          brief_id?: string | null
+          criado_em?: string
+          custo_usd?: number
+          duracao_ms?: number | null
+          edicao_id?: string | null
+          erro?: string | null
+          id?: string
+          modelo?: string
+          operacao?: string | null
+          origem?: string
+          sucesso?: boolean
+          tokens_entrada_cache_hit?: number
+          tokens_entrada_cache_miss?: number
+          tokens_saida?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "nl_ia_uso_brief_id_fkey"
+            columns: ["brief_id"]
+            isOneToOne: false
+            referencedRelation: "nl_briefs"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "nl_ia_uso_edicao_id_fkey"
+            columns: ["edicao_id"]
+            isOneToOne: false
+            referencedRelation: "nl_edicoes"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      nl_import_runs: {
+        Row: {
+          concluido_em: string | null
+          created_at: string
+          created_by: string
+          estado: string
+          ficheiro_sha256: string
+          id: string
+          manifesto: Json
+          modo: string
+          progresso: Json
+          relatorio: Json
+          staging_path: string | null
+          updated_at: string
+        }
+        Insert: {
+          concluido_em?: string | null
+          created_at?: string
+          created_by?: string
+          estado?: string
+          ficheiro_sha256: string
+          id?: string
+          manifesto?: Json
+          modo: string
+          progresso?: Json
+          relatorio?: Json
+          staging_path?: string | null
+          updated_at?: string
+        }
+        Update: {
+          concluido_em?: string | null
+          created_at?: string
+          created_by?: string
+          estado?: string
+          ficheiro_sha256?: string
+          id?: string
+          manifesto?: Json
+          modo?: string
+          progresso?: Json
+          relatorio?: Json
+          staging_path?: string | null
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      nl_noticias: {
+        Row: {
+          busca: unknown
+          categoria: string
+          corpo_artigo: string | null
+          created_at: string
+          descricao: string | null
+          destaque: boolean
+          destino: string
+          edicao_id: string | null
+          email_assunto: string | null
+          email_recebido_id: string | null
+          email_remetente: string | null
+          embedding: unknown
+          estado: string
+          fonte_estado: string
+          fonte_id: string | null
+          fonte_url_original: string | null
+          id: string
+          ordem: number
+          origem: string
+          override_destino: string
+          repeticao_de: string | null
+          repeticao_score: number | null
+          repeticao_verificada_em: string | null
+          titulo: string
+          updated_at: string
+          url: string | null
+          url_curto: string | null
+          url_norm: string | null
+        }
+        Insert: {
+          busca?: unknown
+          categoria: string
+          corpo_artigo?: string | null
+          created_at?: string
+          descricao?: string | null
+          destaque?: boolean
+          destino?: string
+          edicao_id?: string | null
+          email_assunto?: string | null
+          email_recebido_id?: string | null
+          email_remetente?: string | null
+          embedding?: unknown
+          estado?: string
+          fonte_estado?: string
+          fonte_id?: string | null
+          fonte_url_original?: string | null
+          id?: string
+          ordem?: number
+          origem: string
+          override_destino?: string
+          repeticao_de?: string | null
+          repeticao_score?: number | null
+          repeticao_verificada_em?: string | null
+          titulo: string
+          updated_at?: string
+          url?: string | null
+          url_curto?: string | null
+          url_norm?: string | null
+        }
+        Update: {
+          busca?: unknown
+          categoria?: string
+          corpo_artigo?: string | null
+          created_at?: string
+          descricao?: string | null
+          destaque?: boolean
+          destino?: string
+          edicao_id?: string | null
+          email_assunto?: string | null
+          email_recebido_id?: string | null
+          email_remetente?: string | null
+          embedding?: unknown
+          estado?: string
+          fonte_estado?: string
+          fonte_id?: string | null
+          fonte_url_original?: string | null
+          id?: string
+          ordem?: number
+          origem?: string
+          override_destino?: string
+          repeticao_de?: string | null
+          repeticao_score?: number | null
+          repeticao_verificada_em?: string | null
+          titulo?: string
+          updated_at?: string
+          url?: string | null
+          url_curto?: string | null
+          url_norm?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "nl_noticias_edicao_id_fkey"
+            columns: ["edicao_id"]
+            isOneToOne: false
+            referencedRelation: "nl_edicoes"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "nl_noticias_email_recebido_id_fkey"
+            columns: ["email_recebido_id"]
+            isOneToOne: false
+            referencedRelation: "nl_emails_recebidos"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "nl_noticias_fonte_id_fkey"
+            columns: ["fonte_id"]
+            isOneToOne: false
+            referencedRelation: "nl_fontes_curadoria"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "nl_noticias_repeticao_de_fkey"
+            columns: ["repeticao_de"]
+            isOneToOne: false
+            referencedRelation: "nl_noticias"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      nl_prioridades_editoriais: {
+        Row: {
+          created_at: string
+          id: string
+          palavra_chave: string
+          peso: number
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          palavra_chave: string
+          peso?: number
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          palavra_chave?: string
+          peso?: number
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      nl_revista_edicao: {
+        Row: {
+          bloco_ferramentas: boolean
+          created_at: string
+          cronica_excerto: string
+          cronica_imagem_alt: string
+          cronica_imagem_credito: string
+          cronica_imagem_credito_url: string
+          cronica_imagem_fonte: string
+          cronica_imagem_posicao: number
+          cronica_imagem_url: string
+          cronica_lede: string
+          cronica_lede_posicao: number
+          cronica_subtitulo: string
+          cronica_titulo: string
+          cronica_url: string
+          edicao_id: string
+          livro_activo: boolean
+          livro_cta: string
+          livro_etiqueta: string
+          livro_texto: string
+          livro_titulo: string
+          livro_url: string
+          momento_activo: boolean
+          momento_descricao: string
+          momento_etiqueta: string
+          momento_posicao: number
+          momento_valor: string
+          podcast_activo: boolean
+          podcast_convidado: string
+          podcast_cta: string
+          podcast_etiqueta: string
+          podcast_pergunta: string
+          podcast_programa: string
+          podcast_tema: string
+          podcast_url: string
+          preheader: string
+          pull_quote: string
+          pull_quote_posicao: number
+          recomendacao_activa: boolean
+          recomendacao_meta: string
+          recomendacao_nota: string
+          recomendacao_tipo: string
+          recomendacao_titulo: string
+          recomendacao_url: string
+          servicos_activo: boolean
+          servicos_consultoria_cta: string
+          servicos_consultoria_texto: string
+          servicos_consultoria_url: string
+          servicos_cta: string
+          servicos_cursos_cta: string
+          servicos_cursos_texto: string
+          servicos_cursos_url: string
+          servicos_intro: string
+          servicos_titulo: string
+          servicos_url: string
+          updated_at: string
+        }
+        Insert: {
+          bloco_ferramentas?: boolean
+          created_at?: string
+          cronica_excerto?: string
+          cronica_imagem_alt?: string
+          cronica_imagem_credito?: string
+          cronica_imagem_credito_url?: string
+          cronica_imagem_fonte?: string
+          cronica_imagem_posicao?: number
+          cronica_imagem_url?: string
+          cronica_lede?: string
+          cronica_lede_posicao?: number
+          cronica_subtitulo?: string
+          cronica_titulo?: string
+          cronica_url?: string
+          edicao_id: string
+          livro_activo?: boolean
+          livro_cta?: string
+          livro_etiqueta?: string
+          livro_texto?: string
+          livro_titulo?: string
+          livro_url?: string
+          momento_activo?: boolean
+          momento_descricao?: string
+          momento_etiqueta?: string
+          momento_posicao?: number
+          momento_valor?: string
+          podcast_activo?: boolean
+          podcast_convidado?: string
+          podcast_cta?: string
+          podcast_etiqueta?: string
+          podcast_pergunta?: string
+          podcast_programa?: string
+          podcast_tema?: string
+          podcast_url?: string
+          preheader?: string
+          pull_quote?: string
+          pull_quote_posicao?: number
+          recomendacao_activa?: boolean
+          recomendacao_meta?: string
+          recomendacao_nota?: string
+          recomendacao_tipo?: string
+          recomendacao_titulo?: string
+          recomendacao_url?: string
+          servicos_activo?: boolean
+          servicos_consultoria_cta?: string
+          servicos_consultoria_texto?: string
+          servicos_consultoria_url?: string
+          servicos_cta?: string
+          servicos_cursos_cta?: string
+          servicos_cursos_texto?: string
+          servicos_cursos_url?: string
+          servicos_intro?: string
+          servicos_titulo?: string
+          servicos_url?: string
+          updated_at?: string
+        }
+        Update: {
+          bloco_ferramentas?: boolean
+          created_at?: string
+          cronica_excerto?: string
+          cronica_imagem_alt?: string
+          cronica_imagem_credito?: string
+          cronica_imagem_credito_url?: string
+          cronica_imagem_fonte?: string
+          cronica_imagem_posicao?: number
+          cronica_imagem_url?: string
+          cronica_lede?: string
+          cronica_lede_posicao?: number
+          cronica_subtitulo?: string
+          cronica_titulo?: string
+          cronica_url?: string
+          edicao_id?: string
+          livro_activo?: boolean
+          livro_cta?: string
+          livro_etiqueta?: string
+          livro_texto?: string
+          livro_titulo?: string
+          livro_url?: string
+          momento_activo?: boolean
+          momento_descricao?: string
+          momento_etiqueta?: string
+          momento_posicao?: number
+          momento_valor?: string
+          podcast_activo?: boolean
+          podcast_convidado?: string
+          podcast_cta?: string
+          podcast_etiqueta?: string
+          podcast_pergunta?: string
+          podcast_programa?: string
+          podcast_tema?: string
+          podcast_url?: string
+          preheader?: string
+          pull_quote?: string
+          pull_quote_posicao?: number
+          recomendacao_activa?: boolean
+          recomendacao_meta?: string
+          recomendacao_nota?: string
+          recomendacao_tipo?: string
+          recomendacao_titulo?: string
+          recomendacao_url?: string
+          servicos_activo?: boolean
+          servicos_consultoria_cta?: string
+          servicos_consultoria_texto?: string
+          servicos_consultoria_url?: string
+          servicos_cta?: string
+          servicos_cursos_cta?: string
+          servicos_cursos_texto?: string
+          servicos_cursos_url?: string
+          servicos_intro?: string
+          servicos_titulo?: string
+          servicos_url?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "nl_revista_edicao_edicao_id_fkey"
+            columns: ["edicao_id"]
+            isOneToOne: true
+            referencedRelation: "nl_edicoes"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      nl_revista_itens: {
+        Row: {
+          created_at: string
+          cta_rotulo: string
+          edicao_id: string
+          id: string
+          minha_leitura: string
+          noticia_id: string
+          ordem: number
+          papel: string
+          radar_nota: string
+          resumo_factual: string
+          titulo_override: string | null
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          cta_rotulo?: string
+          edicao_id: string
+          id?: string
+          minha_leitura?: string
+          noticia_id: string
+          ordem?: number
+          papel: string
+          radar_nota?: string
+          resumo_factual?: string
+          titulo_override?: string | null
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          cta_rotulo?: string
+          edicao_id?: string
+          id?: string
+          minha_leitura?: string
+          noticia_id?: string
+          ordem?: number
+          papel?: string
+          radar_nota?: string
+          resumo_factual?: string
+          titulo_override?: string | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "nl_revista_itens_edicao_id_fkey"
+            columns: ["edicao_id"]
+            isOneToOne: false
+            referencedRelation: "nl_edicoes"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "nl_revista_itens_noticia_id_fkey"
+            columns: ["noticia_id"]
+            isOneToOne: false
+            referencedRelation: "nl_noticias"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      nl_secoes_edicao: {
+        Row: {
+          activo: boolean
+          cor: string | null
+          created_at: string
+          edicao_id: string
+          id: string
+          ordem: number
+          texto: string | null
+          texto_botao: string | null
+          tipo: string
+          titulo: string | null
+          url_botao: string | null
+        }
+        Insert: {
+          activo?: boolean
+          cor?: string | null
+          created_at?: string
+          edicao_id: string
+          id?: string
+          ordem?: number
+          texto?: string | null
+          texto_botao?: string | null
+          tipo: string
+          titulo?: string | null
+          url_botao?: string | null
+        }
+        Update: {
+          activo?: boolean
+          cor?: string | null
+          created_at?: string
+          edicao_id?: string
+          id?: string
+          ordem?: number
+          texto?: string | null
+          texto_botao?: string | null
+          tipo?: string
+          titulo?: string | null
+          url_botao?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "nl_secoes_edicao_edicao_id_fkey"
+            columns: ["edicao_id"]
+            isOneToOne: false
+            referencedRelation: "nl_edicoes"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      nl_subscricao_eventos: {
+        Row: {
+          accao: string
+          criado_em: string
+          detalhe: Json
+          edicao_id: string | null
+          email: string
+          id: string
+          lista_egoi_id: string | null
+          lista_nome: string | null
+          motivo: string | null
+          origem: string
+          retoma_em: string | null
+          retomado_em: string | null
+        }
+        Insert: {
+          accao: string
+          criado_em?: string
+          detalhe?: Json
+          edicao_id?: string | null
+          email: string
+          id?: string
+          lista_egoi_id?: string | null
+          lista_nome?: string | null
+          motivo?: string | null
+          origem?: string
+          retoma_em?: string | null
+          retomado_em?: string | null
+        }
+        Update: {
+          accao?: string
+          criado_em?: string
+          detalhe?: Json
+          edicao_id?: string | null
+          email?: string
+          id?: string
+          lista_egoi_id?: string | null
+          lista_nome?: string | null
+          motivo?: string | null
+          origem?: string
+          retoma_em?: string | null
+          retomado_em?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "nl_subscricao_eventos_edicao_id_fkey"
+            columns: ["edicao_id"]
+            isOneToOne: false
+            referencedRelation: "nl_edicoes"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      nl_user_mapping: {
+        Row: {
+          created_at: string
+          source_email: string | null
+          source_nome: string | null
+          source_papel: string | null
+          source_user_id: string
+          target_user_id: string | null
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          source_email?: string | null
+          source_nome?: string | null
+          source_papel?: string | null
+          source_user_id: string
+          target_user_id?: string | null
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          source_email?: string | null
+          source_nome?: string | null
+          source_papel?: string | null
+          source_user_id?: string
+          target_user_id?: string | null
+          updated_at?: string
+        }
+        Relationships: []
       }
       notifications: {
         Row: {
@@ -1934,6 +3598,67 @@ export type Database = {
           _user_id: string
         }
         Returns: undefined
+      }
+      nl_contar_dados_antigos: { Args: { _dias?: number }; Returns: Json }
+      nl_criar_seccoes_padrao: {
+        Args: { _edicao_id: string }
+        Returns: undefined
+      }
+      nl_encontrar_candidatos_repeticao: {
+        Args: { _categoria: string; _limiar?: number; _titulo: string }
+        Returns: {
+          created_at: string
+          edicao_id: string
+          edicao_numero: number
+          id: string
+          score: number
+          titulo: string
+        }[]
+      }
+      nl_f_unaccent: { Args: { "": string }; Returns: string }
+      nl_import_existentes: {
+        Args: { _ids: string[]; _pk: string; _tabela: string }
+        Returns: string[]
+      }
+      nl_import_reescrever_url: {
+        Args: { _antigo: string; _novo: string }
+        Returns: Json
+      }
+      nl_import_relatorio: { Args: never; Returns: Json }
+      nl_import_repeticoes: { Args: { _pares: Json }; Returns: Json }
+      nl_import_rows: {
+        Args: { _linhas: Json; _tabela: string }
+        Returns: Json
+      }
+      nl_import_suspender_agendamentos: { Args: never; Returns: Json }
+      nl_is_admin: { Args: never; Returns: boolean }
+      nl_is_staff: { Args: never; Returns: boolean }
+      nl_limpar_dados_antigos: { Args: { _dias?: number }; Returns: Json }
+      nl_me_papel: { Args: never; Returns: string }
+      nl_mover_seccao: {
+        Args: { _direccao: string; _seccao_id: string }
+        Returns: undefined
+      }
+      nl_normalizar_url_sql: { Args: { _url: string }; Returns: string }
+      nl_registar_evento_brief: {
+        Args: { _edicao_numero: number; _evento: string; _slug: string }
+        Returns: undefined
+      }
+      nl_reordenar_noticias: {
+        Args: { _edicao_id: string; _ids: string[] }
+        Returns: undefined
+      }
+      nl_reordenar_seccoes: {
+        Args: { _edicao_id: string; _ids: string[] }
+        Returns: undefined
+      }
+      nl_stats_fontes_30d: {
+        Args: never
+        Returns: {
+          aprovadas_30d: number
+          fonte_id: string
+          sugeridas_30d: number
+        }[]
       }
       update_account_insight_visibility: {
         Args: { _action: string; _insight_id: string }
