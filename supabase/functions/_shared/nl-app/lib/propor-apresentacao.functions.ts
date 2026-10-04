@@ -1,0 +1,139 @@
+// Proposta de «Apresentação Revista» a partir do texto já escrito da crónica.
+//
+// Padrão proposal-first: a função nunca grava nada — devolve uma proposta que
+// o editor revê e aplica campo a campo. Uma única chamada DeepSeek por pedido.
+
+import { createServerFn } from "../_shim/start.ts";
+import { requireSupabaseAuth } from "../_shim/auth.ts";
+import { PROMPT_APRESENTACAO } from "./propor-apresentacao-prompt.ts";
+import type { FotoPexels } from "./pexels-tipos.ts";
+import {
+  assinaturaTexto, escolherFoto, excertoSugerido, paragrafosDoHtml,
+  pullQuoteSugerida, valorExisteNoTexto,
+} from "../../newsletter-engine/revista/apresentacao-heuristica.ts";
+
+export const MIN_CARACTERES_CRONICA = 200;
+
+export interface PropostaApresentacaoResultado {
+  assinatura: string;
+  titulo: string;
+  subtitulo: string;
+  lede: string;
+  excerto: string;
+  pullQuote: string;
+  momento: { etiqueta: string; valor: string; descricao: string };
+  momentoRejeitado: boolean;
+  imagem: { alt: string; termo: string; escolhida: FotoPexels | null; alternativas: FotoPexels[] };
+  avisos: string[];
+}
+
+function texto(v: unknown, max: number): string {
+  return typeof v === "string" ? v.replace(/\s+/g, " ").trim().slice(0, max) : "";
+}
+
+export const proporApresentacaoFn = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((input: unknown): { edicaoId: string } => {
+    const o = (input ?? {}) as Record<string, unknown>;
+    const edicaoId = typeof o.edicaoId === "string" ? o.edicaoId.trim() : "";
+    if (!edicaoId) throw new Error("Edição em falta.");
+    return { edicaoId };
+  })
+  .handler(async ({ data, context }): Promise<PropostaApresentacaoResultado> => {
+    const { supabase } = context;
+    const { data: cronica, error } = await supabase
+      .from("nl_cronicas")
+      .select("conteudo_html, conteudo")
+      .eq("edicao_id", data.edicaoId)
+      .maybeSingle();
+    if (error) throw new Error("Não foi possível ler a crónica desta edição.");
+
+    const bruto = (cronica?.conteudo_html ?? "").trim() || (cronica?.conteudo ?? "").trim();
+    const paragrafos = paragrafosDoHtml(bruto);
+    const corpo = paragrafos.join("\n\n");
+    if (corpo.length < MIN_CARACTERES_CRONICA) {
+      throw new Error("A crónica ainda é curta de mais para propor a apresentação. Escreve pelo menos alguns parágrafos.");
+    }
+
+    // ── Determinístico: excerto e candidata a frase de destaque ──
+    const excerto = excertoSugerido(paragrafos);
+    const pullQuoteLocal = pullQuoteSugerida(paragrafos);
+
+    // ── IA: uma única chamada para os actos de síntese editorial ──
+    const { chamarDeepSeek, parseJsonTolerante, MODELO_DEEPSEEK_PADRAO } =
+      await import("./deepseek.server.ts");
+    const r = await chamarDeepSeek(PROMPT_APRESENTACAO, `Texto integral da crónica:\n\n${corpo.slice(0, 12000)}`, {
+      modelo: MODELO_DEEPSEEK_PADRAO,
+      responseJson: true,
+      temperatura: 0.7,
+    });
+
+    try {
+      const { supabaseAdmin } = await import("../_shim/admin.ts");
+      const { custoUsd } = await import("../edge-shared/custos-ia.ts");
+      await supabaseAdmin.from("nl_ia_uso").insert({
+        modelo: r.modelo,
+        tokens_entrada_cache_hit: r.usage.cacheHit,
+        tokens_entrada_cache_miss: r.usage.cacheMiss,
+        tokens_saida: r.usage.saida,
+        custo_usd: custoUsd(r.modelo, r.usage.cacheHit, r.usage.cacheMiss, r.usage.saida),
+        origem: "apresentacao_cronica",
+        edicao_id: data.edicaoId,
+      });
+    } catch (e) {
+      console.error("[apresentacao-cronica] falha a registar ia_uso:", (e as Error).message);
+    }
+
+    const p = parseJsonTolerante<Record<string, unknown>>(r.conteudo) ?? {};
+    const momentoBruto = (p.momento ?? {}) as Record<string, unknown>;
+    const avisos: string[] = [];
+
+    const valor = texto(momentoBruto.valor, 40);
+    const momentoValido = !!valor && valorExisteNoTexto(valor, corpo);
+    if (valor && !momentoValido) {
+      avisos.push("O valor proposto para o momento editorial não existe no texto — foi descartado.");
+    }
+
+    const pullQuote = pullQuoteLocal || texto(p.pull_quote, 240);
+    const termo = texto(p.pexels_query, 60);
+
+    let fotos: FotoPexels[] = [];
+    if (termo) {
+      try {
+        const { pesquisarPexels } = await import("./pexels.server.ts");
+        const res = await pesquisarPexels(termo, 1, 12);
+        fotos = res.fotos;
+        if (res.erro) avisos.push(res.erro);
+      } catch {
+        avisos.push("Não foi possível procurar uma imagem agora.");
+      }
+    }
+    const escolhida = escolherFoto(fotos);
+
+    const titulo = texto(p.titulo, 90);
+    if (!titulo) avisos.push("A IA não devolveu um título utilizável.");
+
+    return {
+      assinatura: assinaturaTexto(corpo),
+      titulo,
+      subtitulo: texto(p.subtitulo, 140),
+      lede: texto(p.lede, 400),
+      excerto,
+      pullQuote,
+      momento: momentoValido
+        ? {
+            etiqueta: texto(momentoBruto.etiqueta, 40) || "O número da semana",
+            valor,
+            descricao: texto(momentoBruto.descricao, 200),
+          }
+        : { etiqueta: "", valor: "", descricao: "" },
+      momentoRejeitado: !!valor && !momentoValido,
+      imagem: {
+        alt: texto(p.imagem_alt, 140) || escolhida?.alt || "",
+        termo,
+        escolhida,
+        alternativas: fotos.filter((f) => f.id !== escolhida?.id).slice(0, 8),
+      },
+      avisos,
+    };
+  });

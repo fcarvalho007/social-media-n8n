@@ -1,0 +1,237 @@
+#!/usr/bin/env python3
+"""Ports the original newsletter app (migration-reference, inert .txt) into this project.
+
+Client: src/newsletter/** (features, routes, client lib). Server functions become RPC stubs.
+Server: supabase/functions/_shared/nl-app/** (real *.functions.ts + *.server.ts), executed by nl-api.
+Re-runnable: wipes generated output first. Origin source is never modified.
+"""
+import subprocess, os, re, shutil, glob
+
+ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+SRC = os.path.join(ROOT, "migration-reference/code/newsletter/src")
+CLI = os.path.join(ROOT, "src/newsletter")
+SRV = os.path.join(ROOT, "supabase/functions/_shared/nl-app")
+
+TABLES = ("audit_log brief_edicoes brief_versoes brief_eventos briefs configuracoes cronicas curadoria_config "
+          "curadoria_ferramentas_config curadoria_fila definicoes_ia edicoes egoi_campanhas egoi_listas emails_recebidos "
+          "episodios_podcast ferramentas_excluidas ferramentas_semana ferramentas_sugeridas fontes_curadoria ia_uso noticias "
+          "perfis prioridades_editoriais revista_edicao revista_itens secoes_edicao subscricao_eventos").split()
+RPCS = ("criar_seccoes_padrao encontrar_candidatos_repeticao mover_seccao reordenar_noticias reordenar_seccoes "
+        "stats_fontes_30d contar_dados_antigos limpar_dados_antigos me_papel is_admin is_staff registar_evento_brief pesquisar_arquivo pesquisar_global").split()
+SKIP_LIB = ("auth-email.", "error-capture", "error-page", "lovable-error-reporting")
+
+def tables(s: str) -> str:
+    s = re.sub(r'\.from\((["\'])(%s)\1\)' % "|".join(TABLES), lambda m: '.from("nl_%s")' % m.group(2), s)
+    s = re.sub(r'\.rpc\((["\'])(%s)\1' % "|".join(RPCS), lambda m: '.rpc("nl_%s"' % m.group(2), s)
+    s = re.sub(r'(postgres_changes"?,\s*\{[^}]*table:\s*["\'])(%s)(["\'])' % "|".join(TABLES), lambda m: m.group(1) + "nl_" + m.group(2) + m.group(3), s)
+    s = re.sub(r'((?:foreignTable|referencedTable):\s*["\'])(%s)(["\'])' % "|".join(TABLES), lambda m: m.group(1) + "nl_" + m.group(2) + m.group(3), s)
+    s = re.sub(r'(\.(?:eq|neq|in|is|gt|gte|lt|lte|not|like|ilike|filter|contains)\(\s*["\'])(%s)\.' % "|".join(TABLES), lambda m: m.group(1) + "nl_" + m.group(2) + ".", s)
+    # PostgREST orders embedded rows by the alias, not the table name (alias "edicao" in the archive query)
+    s = s.replace('.order("enviada_em", { foreignTable: "nl_edicoes",', '.order("enviada_em", { referencedTable: "edicao",')
+    # embedded resources inside .select("...") strings: alias:table(...) / table!hint(...)
+    emb = re.compile(r'(?<![\w.])(%s)(?=\s*[(!])' % "|".join(TABLES))
+    s = re.sub(r'(\.select\(\s*)(["`\'])([\s\S]*?)\2', lambda m: m.group(1) + m.group(2) + emb.sub(lambda x: "nl_" + x.group(1), m.group(3)) + m.group(2), s)
+    return s
+
+def read(p):
+    return open(p, encoding="utf-8").read()
+
+def write(p, s):
+    os.makedirs(os.path.dirname(p), exist_ok=True)
+    open(p, "w", encoding="utf-8").write(s)
+
+def walk(base):
+    for d, _, fs in os.walk(base):
+        if "__tests__" in d or "/perf" in d:
+            continue
+        for f in fs:
+            if f.endswith(".txt") and not re.search(r"\.test\.tsx?\.txt$", f):
+                yield os.path.join(d, f)
+
+def server_fn_exports(s):
+    return re.findall(r"export const (\w+)\s*=\s*createServerFn\(", s)
+
+# ---------------- client ----------------
+# Origin files whose types drift against this project's library versions (lucide-react, TS settings).
+# Runtime behaviour is unchanged; type checking is suspended only for these files.
+TS_NOCHECK = {"features/definicoes/SubscricoesCard.tsx", "features/newsletter/AssuntoField.tsx",
+              "features/newsletter/EditorNewsletter.tsx", "features/newsletter/SeccaoPersonalizadaCard.tsx",
+              "features/newsletter/partilhado/Pendentes.tsx", "features/newsletter/partilhado/Podcast.tsx",
+              "features/newsletter/partilhado/modais/Fontes.tsx", "features/newsletter/partilhado/useEnvioNewsletter.ts",
+              "routes/_authenticated/emails.tsx"}
+
+def client_alias(s: str) -> str:
+    s = s.replace('"@tanstack/react-router"', '"@/newsletter/shim/router"')
+    s = s.replace('"@tanstack/react-start"', '"@/newsletter/shim/start"')
+    s = s.replace('"@tanstack/zod-adapter"', '"@/newsletter/shim/zod-adapter"')
+    s = re.sub(r'\["(Tables|Views)"\]\["(\w+)"\]', lambda m: '["%s"]["%s"]' % (m.group(1), ("nl_" + m.group(2)) if m.group(2) in TABLES else m.group(2)), s)
+    s = re.sub(r'import type \{([^}]*)\} from "[^"]*\.server";',
+               lambda m: " ".join("type %s = any; // eslint-disable-line @typescript-eslint/no-explicit-any" % n.strip().split(" as ")[-1] for n in m.group(1).split(",") if n.strip()), s)
+    s = re.sub(r'"(?:\.\./)+supabase/functions/_shared/', '"@/newsletter/edge-shared/', s)
+    s = re.sub(r'"@/features/', '"@/newsletter/features/', s)
+    s = re.sub(r'"@/lib/(?!utils")', '"@/newsletter/lib/', s)
+    s = re.sub(r'"@/hooks/use-mobile"', '"@/hooks/use-mobile"', s)
+    s = re.sub(r'"@/routes/', '"@/newsletter/routes/', s)
+    return tables(s)
+
+def build_client():
+    shutil.rmtree(os.path.join(CLI, "features"), ignore_errors=True)
+    shutil.rmtree(os.path.join(CLI, "lib"), ignore_errors=True)
+    shutil.rmtree(os.path.join(CLI, "routes"), ignore_errors=True)
+    for f in walk(os.path.join(SRC, "features")):
+        rel = os.path.relpath(f, SRC)[:-4]
+        body = client_alias(read(f))
+        if rel.replace(os.sep, "/") in TS_NOCHECK:
+            body = "// @ts-nocheck — type drift vs origin library versions; see scripts/port-newsletter.py\n" + body
+        write(os.path.join(CLI, rel), body)
+    for f in walk(os.path.join(SRC, "lib")):
+        rel = os.path.relpath(f, SRC)[:-4]
+        name = os.path.basename(rel)
+        if name.startswith(SKIP_LIB) or ".server." in name:
+            continue
+        s = read(f)
+        if ".functions." in name:
+            mod = name.split(".functions.")[0]
+            exps = server_fn_exports(s)
+            body = subprocess.run(["node", os.path.join(ROOT, "scripts/nl-stub.cjs"), mod], input=s, capture_output=True, text=True, check=True).stdout
+            body = client_alias(body)
+            out = ["// GENERATED by scripts/port-newsletter.py — RPC stubs; real handlers run in nl-api.",
+                   'import { nlServerFn } from "@/newsletter/shim/start";', body]
+            write(os.path.join(CLI, rel), "\n".join(out) + "\n")
+        else:
+            write(os.path.join(CLI, rel), client_alias(s))
+    os.makedirs(os.path.join(CLI, "edge-shared"), exist_ok=True)
+    for name in ("design-tokens", "ia-limpeza"):
+        write(os.path.join(CLI, "edge-shared", name + ".ts"), read(os.path.join(ROOT, "migration-reference/code/newsletter/supabase/functions/_shared", name + ".ts.txt")))
+    for f in walk(os.path.join(SRC, "routes/_authenticated")):
+        rel = os.path.relpath(f, SRC)[:-4]
+        body = client_alias(read(f))
+        if rel.replace(os.sep, "/") in TS_NOCHECK:
+            body = "// @ts-nocheck — type drift vs origin library versions; see scripts/port-newsletter.py\n" + body
+        write(os.path.join(CLI, rel), body)
+
+
+def top_level_statements(s):
+    """Split source into top-level statements (brace/paren/string aware, rough)."""
+    out, start, depth, i, n = [], 0, 0, 0, len(s)
+    while i < n:
+        c = s[i]
+        if c in "\"'`":
+            q = c; i += 1
+            while i < n and s[i] != q:
+                if s[i] == "\\": i += 1
+                i += 1
+        elif s.startswith("//", i):
+            j = s.find("\n", i); i = n if j < 0 else j
+            continue
+        elif s.startswith("/*", i):
+            j = s.find("*/", i); i = n if j < 0 else j + 2
+            continue
+        elif c in "{([": depth += 1
+        elif c in "})]": depth -= 1
+        elif depth == 0 and (c == ";" or (c == "\n" and s[start:i].strip().endswith("}") and not re.match(r"\s*[.)]", s[i+1:i+40]) )):
+            out.append(s[start:i+1]); start = i + 1
+        i += 1
+    if s[start:].strip(): out.append(s[start:])
+    return out
+
+def stub_functions_source(s, mod, exps):
+    kept, removed_names = [], set()
+    for st in top_level_statements(s):
+        m = re.match(r"\s*(?:/\*[\s\S]*?\*/\s*|//[^\n]*\n\s*)*export const (\w+)\s*=\s*createServerFn", st)
+        if m:
+            kept.append('\nexport const %s = nlServerFn("%s:%s");' % (m.group(1), mod, m.group(1)))
+            continue
+        if re.match(r"\s*(?:/\*[\s\S]*?\*/\s*|//[^\n]*\n\s*)*(?:async )?function |\s*(?:/\*[\s\S]*?\*/\s*|//[^\n]*\n\s*)*const \w+\s*=\s*(?:async\s*)?\(", st) and "export" not in st.split("(")[0]:
+            continue  # private server helpers
+        kept.append(st)
+    src = "".join(kept)
+    # drop imports that are server-only or no longer referenced
+    final = []
+    for st in top_level_statements(src):
+        im = re.match(r"\s*import\s+(type\s+)?([\s\S]*?)\s+from\s+\"([^\"]+)\";?", st)
+        if im:
+            spec = im.group(3)
+            if "react-start" in spec or ".server" in spec or "auth-middleware" in spec or "integrations/supabase/client" in spec:
+                continue
+            rest = src.replace(st, "")
+            names = re.findall(r"(?:\b(?:type\s+)?(\w+)(?:\s+as\s+(\w+))?)", im.group(2).replace("{"," ").replace("}"," ").replace(","," "))
+            used = [ (a or b) for b, a in names if (a or b) not in ("type","as") and re.search(r"\b%s\b" % (a or b), rest)]
+            if not used:
+                continue
+            final.append("\nimport type " + "{ " + ", ".join(sorted(set(used))) + " } from \"" + spec + "\";" if im.group(1) or not re.search(r"[{]", im.group(2)) is None and False else st)
+            continue
+        final.append(st)
+    return "".join(final)
+
+# ---------------- server ----------------
+def server_rewrite(s: str, here: str) -> str:
+    def rel_to(target):
+        r = os.path.relpath(target, os.path.dirname(here))
+        return r if r.startswith(".") else "./" + r
+    s = s.replace('"@tanstack/react-start"', '"%s"' % rel_to(os.path.join(SRV, "_shim/start.ts")))
+    s = s.replace('"@tanstack/react-start/server"', '"%s"' % rel_to(os.path.join(SRV, "_shim/start.ts")))
+    s = s.replace('"@/integrations/supabase/auth-middleware"', '"%s"' % rel_to(os.path.join(SRV, "_shim/auth.ts")))
+    s = s.replace('"@/integrations/supabase/client.server"', '"%s"' % rel_to(os.path.join(SRV, "_shim/admin.ts")))
+    s = re.sub(r'"(?:@/lib/|\./)newsletter-engine/', '"%s/' % rel_to(os.path.join(ROOT, "supabase/functions/_shared/newsletter-engine")), s)
+    s = re.sub(r'"@/lib/', '"%s/' % rel_to(os.path.join(SRV, "lib")), s)
+    s = re.sub(r'"@/features/', '"%s/' % rel_to(os.path.join(SRV, "features")), s)
+    s = re.sub(r'"(\.\./)+supabase/functions/_shared/', '"%s/' % rel_to(os.path.join(SRV, "edge-shared")), s)
+    s = s.replace('"@/integrations/supabase/types"', '"%s"' % rel_to(os.path.join(SRV, "_shim/types.ts")))
+    s = s.replace('"zod"', '"npm:zod@3.25.76"')
+    s = s.replace('"@supabase/supabase-js"', '"npm:@supabase/supabase-js@2.57.4"').replace("'@supabase/supabase-js'", '"npm:@supabase/supabase-js@2.57.4"')
+    s = re.sub(r'from "crypto"', 'from "node:crypto"', s)
+    s = tables(s)
+    def addts(m):
+        p = m.group(2)
+        if re.search(r"\.(ts|tsx|json)$", p):
+            return m.group(0)
+        base = os.path.normpath(os.path.join(os.path.dirname(here), p))
+        if os.path.isdir(base):
+            return '%s"%s/index.ts"' % (m.group(1), p)
+        return '%s"%s.ts"' % (m.group(1), p)
+    s = re.sub(r'((?:from|import)\s*\(?\s*)"(\.{1,2}/[^"]+)"', addts, s)
+    if re.search(r"\bBuffer\.", s) and "node:buffer" not in s:
+        s = 'import { Buffer } from "node:buffer";\n' + s
+    if "process.env" in s and "node:process" not in s:
+        s = 'import process from "node:process";\n' + s
+    return s
+
+def build_server():
+    shutil.rmtree(os.path.join(SRV, "lib"), ignore_errors=True)
+    shutil.rmtree(os.path.join(SRV, "features"), ignore_errors=True)
+    shutil.rmtree(os.path.join(SRV, "edge-shared"), ignore_errors=True)
+    files = []
+    for f in walk(os.path.join(SRC, "lib")):
+        rel = os.path.relpath(f, SRC)[:-4]
+        if rel.startswith("lib/newsletter-engine") or os.path.basename(rel).startswith(SKIP_LIB):
+            continue
+        if rel.endswith(".tsx"):
+            continue
+        files.append((f, os.path.join(SRV, rel)))
+    # pure feature helpers that server code may import
+    for f in walk(os.path.join(SRC, "features")):
+        rel = os.path.relpath(f, SRC)[:-4]
+        if rel.endswith(".ts"):
+            files.append((f, os.path.join(SRV, rel)))
+    edge = os.path.join(ROOT, "migration-reference/code/newsletter/supabase/functions/_shared")
+    for f in glob.glob(os.path.join(edge, "*.ts.txt")):
+        files.append((f, os.path.join(SRV, "edge-shared", os.path.basename(f)[:-4])))
+    for src, dst in files:
+        write(dst, "")  # create first so dir-vs-file resolution works
+    for src, dst in files:
+        write(dst, server_rewrite(read(src), dst))
+    mods = sorted(glob.glob(os.path.join(SRV, "lib/*.functions.ts")))
+    lines = ["// GENERATED by scripts/port-newsletter.py — registry of server functions."]
+    names = []
+    for i, m in enumerate(mods):
+        mod = os.path.basename(m).split(".functions.")[0]
+        lines.append('import * as m%d from "./lib/%s";' % (i, os.path.basename(m)))
+        names.append('  "%s": m%d,' % (mod, i))
+    lines.append("export const MODULES: Record<string, Record<string, unknown>> = {\n%s\n};" % "\n".join(names))
+    write(os.path.join(SRV, "registry.ts"), "\n".join(lines) + "\n")
+
+if __name__ == "__main__":
+    build_client()
+    build_server()
+    print("ok")

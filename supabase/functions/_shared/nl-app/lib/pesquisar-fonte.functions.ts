@@ -1,0 +1,561 @@
+import { createServerFn } from "../_shim/start.ts";
+import { requireSupabaseAuth } from "../_shim/auth.ts";
+
+/**
+ * Pesquisa web para encontrar uma fonte alternativa para uma notícia.
+ * Combina DuckDuckGo (HTML público) com ranking por Gemini.
+ */
+
+interface Input {
+  titulo: string;
+  descricao?: string | null;
+  urlActual?: string | null;
+}
+
+export type IdiomaFonte = "pt-PT" | "pt-BR" | "en" | "es" | "fr" | "de" | "outro";
+
+export interface Candidato {
+  url: string;
+  dominio: string;
+  titulo: string;
+  snippet: string;
+  score: number;
+  motivo: string;
+  data: string;        // DD/MM/AAAA quando conhecida; vazio caso contrário
+  dataISO?: string;    // ISO absoluta apenas quando lida de meta de publicação real
+  idioma: IdiomaFonte;
+}
+
+
+const DOMINIOS_LIXO = new Set([
+  "link.mail.beehiiv.com", "email.beehiiv.com", "mail.beehiiv.com",
+  "mailchi.mp", "list-manage.com", "campaign-archive.com",
+  "sendgrid.net", "sendinblue.com", "email.mg.substack.com",
+  "click.pstmrk.it", "t.co", "bit.ly", "lnkd.in", "buff.ly",
+  "click.convertkit-mail.com", "email.substack.com",
+]);
+
+function dominioLixo(host: string): boolean {
+  const h = host.toLowerCase().replace(/^www\./, "");
+  if (DOMINIOS_LIXO.has(h)) return true;
+  if (/(^|\.)(mail|click|track|clicks|open|links?)\./.test(h)) return true;
+  return false;
+}
+
+function limparEmojis(s: string): string {
+  return s.replace(/[\u{1F000}-\u{1FFFF}\u{2600}-\u{27BF}]/gu, "").replace(/\s+/g, " ").trim();
+}
+
+function decodeEntities(s: string): string {
+  return s
+    .replace(/&#(\d+);/g, (_, n) => String.fromCharCode(Number(n)))
+    .replace(/&#x([0-9a-f]+);/gi, (_, n) => String.fromCharCode(parseInt(n, 16)))
+    .replace(/&amp;/g, "&").replace(/&quot;/g, '"').replace(/&#39;/g, "'")
+    .replace(/&lt;/g, "<").replace(/&gt;/g, ">").replace(/&nbsp;/g, " ");
+}
+
+function stripTags(s: string): string {
+  return decodeEntities(s.replace(/<[^>]+>/g, " ")).replace(/\s+/g, " ").trim();
+}
+
+/** Descodifica um URL de redirect do DDG (l.php?uddg=...). */
+function resolverUrlDDG(raw: string): string | null {
+  try {
+    let u = raw.trim();
+    if (u.startsWith("//")) u = "https:" + u;
+    const url = new URL(u, "https://duckduckgo.com");
+    const uddg = url.searchParams.get("uddg");
+    if (uddg) return decodeURIComponent(uddg);
+    if (url.hostname.includes("duckduckgo.com")) return null;
+    return url.toString();
+  } catch { return null; }
+}
+
+const MESES_EN: Record<string, number> = {
+  jan: 0, feb: 1, mar: 2, apr: 3, may: 4, jun: 5, jul: 6, aug: 7, sep: 8, sept: 8, oct: 9, nov: 10, dec: 11,
+};
+
+const MESES_PT: Record<string, number> = {
+  jan: 0, janeiro: 0, fev: 1, fevereiro: 1, mar: 2, "março": 2, marco: 2,
+  abr: 3, abril: 3, mai: 4, maio: 4, jun: 5, junho: 5, jul: 6, julho: 6,
+  ago: 7, agosto: 7, set: 8, setembro: 8, out: 9, outubro: 9, nov: 10, novembro: 10, dez: 11, dezembro: 11,
+};
+
+function anoValido(a: number): boolean {
+  const actual = new Date().getFullYear();
+  return a >= 2000 && a <= actual + 1;
+}
+
+function formatarPT(d: Date): { data: string; dataISO: string } {
+  const iso = d.toISOString().slice(0, 10);
+  const dd = String(d.getUTCDate()).padStart(2, "0");
+  const mm = String(d.getUTCMonth() + 1).padStart(2, "0");
+  return { data: `${dd}/${mm}/${d.getUTCFullYear()}`, dataISO: iso };
+}
+
+
+/** Extrai data legível + ISO opcional procurando o padrão em qualquer posição do texto. */
+function extrairData(texto: string): { data: string; dataISO?: string } {
+  if (!texto) return { data: "" };
+  const t = texto.trim();
+
+  // «5 days ago» / «há 3 dias»
+  const mAgoEn = t.match(/(\d+)\s+(hour|day|week|month|year)s?\s+ago/i);
+  const mAgoPt = t.match(/h[áa]\s+(\d+)\s+(hora|dia|semana|m[êe]s|meses|ano)s?\b/i);
+  const mAgo = mAgoEn ?? mAgoPt;
+  if (mAgo) {
+    const n = parseInt(mAgo[1], 10);
+    const un = mAgo[2].toLowerCase();
+    const d = new Date();
+    if (/hour|hora/.test(un)) d.setHours(d.getHours() - n);
+    else if (/day|dia/.test(un)) d.setDate(d.getDate() - n);
+    else if (/week|semana/.test(un)) d.setDate(d.getDate() - n * 7);
+    else if (/month|m[êe]s|meses/.test(un)) d.setMonth(d.getMonth() - n);
+    else if (/year|ano/.test(un)) d.setFullYear(d.getFullYear() - n);
+    return formatarPT(d);
+  }
+
+  // «5 de novembro de 2025»
+  const mPt = t.match(/(\d{1,2})\s+de\s+([a-zçãé]{3,10})\s+de\s+(\d{4})/i);
+  if (mPt) {
+    const mes = MESES_PT[mPt[2].toLowerCase()];
+    const ano = parseInt(mPt[3], 10);
+    if (mes !== undefined && anoValido(ano)) {
+      return formatarPT(new Date(Date.UTC(ano, mes, parseInt(mPt[1], 10))));
+    }
+  }
+
+  // «Nov 5, 2025»
+  const mMdY = t.match(/([A-Za-z]{3,9})\s+(\d{1,2}),?\s+(\d{4})/);
+  if (mMdY) {
+    const mes = MESES_EN[mMdY[1].slice(0, 3).toLowerCase()];
+    const ano = parseInt(mMdY[3], 10);
+    if (mes !== undefined && anoValido(ano)) {
+      return formatarPT(new Date(Date.UTC(ano, mes, parseInt(mMdY[2], 10))));
+    }
+  }
+
+  // «5 Nov 2025»
+  const mDmY = t.match(/(\d{1,2})\s+([A-Za-z]{3,9})\s+(\d{4})/);
+  if (mDmY) {
+    const mes = MESES_EN[mDmY[2].slice(0, 3).toLowerCase()];
+    const ano = parseInt(mDmY[3], 10);
+    if (mes !== undefined && anoValido(ano)) {
+      return formatarPT(new Date(Date.UTC(ano, mes, parseInt(mDmY[1], 10))));
+    }
+  }
+
+  // «YYYY-MM-DD» (antes de DD/MM/YYYY)
+  const mIso = t.match(/\b(\d{4})-(\d{2})-(\d{2})\b/);
+  if (mIso) {
+    const ano = parseInt(mIso[1], 10), mes = parseInt(mIso[2], 10) - 1, dia = parseInt(mIso[3], 10);
+    if (anoValido(ano) && mes >= 0 && mes < 12) {
+      return formatarPT(new Date(Date.UTC(ano, mes, dia)));
+    }
+  }
+
+  // «DD/MM/YYYY» ou «DD-MM-YYYY» ou «DD.MM.YYYY»
+  const mDMY = t.match(/\b(\d{1,2})[/\-.](\d{1,2})[/\-.](\d{4})\b/);
+  if (mDMY) {
+    const dia = parseInt(mDMY[1], 10), mes = parseInt(mDMY[2], 10) - 1, ano = parseInt(mDMY[3], 10);
+    if (anoValido(ano) && mes >= 0 && mes < 12) {
+      return formatarPT(new Date(Date.UTC(ano, mes, dia)));
+    }
+  }
+
+  return { data: "" };
+}
+
+function idiomaPorTLD(host: string): IdiomaFonte {
+  const h = host.toLowerCase().replace(/^www\./, "");
+  if (h.endsWith(".pt")) return "pt-PT";
+  if (h.endsWith(".br") || h.endsWith(".com.br")) return "pt-BR";
+  if (h.endsWith(".es")) return "es";
+  if (h.endsWith(".fr")) return "fr";
+  if (h.endsWith(".de")) return "de";
+  if (h.endsWith(".uk") || h.endsWith(".co.uk")) return "en";
+  return "outro";
+}
+
+function idiomaDeHtmlLang(v: string | null | undefined): IdiomaFonte | null {
+  if (!v) return null;
+  const s = v.toLowerCase();
+  if (s.startsWith("pt-pt") || s === "pt_pt") return "pt-PT";
+  if (s.startsWith("pt-br") || s === "pt_br") return "pt-BR";
+  if (s === "pt") return "pt-PT";
+  if (s.startsWith("en")) return "en";
+  if (s.startsWith("es")) return "es";
+  if (s.startsWith("fr")) return "fr";
+  if (s.startsWith("de")) return "de";
+  return null;
+}
+
+type MetaPagina = {
+  data?: string;
+  dataISO?: string;
+  idioma?: IdiomaFonte;
+  urlFinal?: string;
+  status?: number;
+};
+
+/**
+ * Vai à página buscar APENAS datas de publicação explícitas + idioma + urlFinal.
+ * Rigor: nunca aceita `article:modified_time`, `dateModified`, `<time datetime>` sem
+ * `pubdate`, nem o header `Last-Modified` — todos indicam "última alteração/serviço",
+ * não a data real de publicação, e produziam falsos "hoje".
+ */
+async function inspeccionarPagina(url: string, timeoutMs = 4500): Promise<MetaPagina | null> {
+  const ctrl = new AbortController();
+  const t = setTimeout(() => ctrl.abort(), timeoutMs);
+  try {
+    const res = await fetch(url, {
+      method: "GET",
+      headers: {
+        "User-Agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 13_5) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0 Safari/537.36",
+        "Accept": "text/html,application/xhtml+xml",
+        "Accept-Language": "pt-PT,pt;q=0.9,en;q=0.8",
+        "Range": "bytes=0-40000",
+      },
+      signal: ctrl.signal,
+      redirect: "follow",
+    });
+    const status = res.status;
+    if (!res.ok && status !== 206) return { status, urlFinal: res.url || url };
+    const html = (await res.text()).slice(0, 50000);
+    const urlFinal = res.url || url;
+
+    // Idioma via <html lang="…">
+    const htmlLangMatch = /<html[^>]+lang=["']([^"']+)["']/i.exec(html);
+    let idioma = idiomaDeHtmlLang(htmlLangMatch?.[1]);
+    if (!idioma) {
+      try { idioma = idiomaPorTLD(new URL(urlFinal).hostname); } catch { idioma = "outro"; }
+    }
+
+    // Apenas chaves de PUBLICAÇÃO — nada de "modified".
+    const candidatosData: string[] = [];
+    const push = (v: string | undefined | null) => { if (v) candidatosData.push(v); };
+    const keys = /^(article:published_time|og:article:published_time|pubdate|publishdate|publish_date|dc\.date\.issued|dcterms\.issued|datepublished|parsely-pub-date)$/i;
+
+    let m: RegExpExecArray | null;
+    const metaRx = /<meta[^>]+(?:property|name|itemprop)=["']([^"']+)["'][^>]+content=["']([^"']+)["']/gi;
+    while ((m = metaRx.exec(html))) if (keys.test(m[1])) push(m[2]);
+    const metaRxRev = /<meta[^>]+content=["']([^"']+)["'][^>]+(?:property|name|itemprop)=["']([^"']+)["']/gi;
+    while ((m = metaRxRev.exec(html))) if (keys.test(m[2])) push(m[1]);
+
+    // JSON-LD: apenas datePublished (nunca dateModified)
+    const ldRx = /"datePublished"\s*:\s*"([^"]+)"/gi;
+    while ((m = ldRx.exec(html))) push(m[1]);
+
+    // <time … pubdate="…" datetime="…"> OU itemprop="datePublished"
+    const timeRx = /<time[^>]*\bdatetime=["']([^"']+)["'][^>]*>/gi;
+    while ((m = timeRx.exec(html))) {
+      const tag = m[0].toLowerCase();
+      if (tag.includes("pubdate") || tag.includes('itemprop="datepublished"') || tag.includes("itemprop='datepublished'")) {
+        push(m[1]);
+      }
+    }
+
+    for (const c of candidatosData) {
+      const iso = c.match(/^(\d{4})-(\d{2})-(\d{2})/);
+      if (iso) {
+        const ano = parseInt(iso[1], 10), mes = parseInt(iso[2], 10) - 1, dia = parseInt(iso[3], 10);
+        if (anoValido(ano) && mes >= 0 && mes < 12) {
+          const f = formatarPT(new Date(Date.UTC(ano, mes, dia)));
+          return { ...f, idioma, urlFinal, status };
+        }
+      }
+      const alt = extrairData(c);
+      if (alt.dataISO) return { ...alt, idioma, urlFinal, status };
+    }
+
+    // Sem data de publicação fidedigna — devolve sem data. NÃO usamos Last-Modified.
+    return { idioma, urlFinal, status };
+  } catch { return null; }
+  finally { clearTimeout(t); }
+}
+
+
+/** Valida existência do URL (HEAD, com fallback para GET Range). Devolve URL final ou null. */
+async function verificarUrl(url: string, timeoutMs = 4000): Promise<string | null> {
+  const tentar = async (method: "HEAD" | "GET"): Promise<{ ok: boolean; status: number; finalUrl: string } | null> => {
+    const ctrl = new AbortController();
+    const t = setTimeout(() => ctrl.abort(), timeoutMs);
+    try {
+      const res = await fetch(url, {
+        method,
+        headers: {
+          "User-Agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 13_5) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0 Safari/537.36",
+          "Accept": "text/html,application/xhtml+xml,*/*",
+          "Accept-Language": "pt-PT,pt;q=0.9,en;q=0.8",
+          ...(method === "GET" ? { "Range": "bytes=0-1024" } : {}),
+        },
+        signal: ctrl.signal,
+        redirect: "follow",
+      });
+      return { ok: res.ok || res.status === 206, status: res.status, finalUrl: res.url || url };
+    } catch { return null; }
+    finally { clearTimeout(t); }
+  };
+
+  let r = await tentar("HEAD");
+  if (!r || (!r.ok && [403, 405, 501, 400].includes(r.status))) {
+    r = await tentar("GET");
+  }
+  if (!r || !r.ok) return null;
+  // Rejeita páginas de erro óbvias / hosts inválidos após redirect
+  try {
+    const fu = new URL(r.finalUrl);
+    const host = fu.hostname.toLowerCase().replace(/^www\./, "");
+    if (dominioLixo(host)) return null;
+    if (/\/(404|not-?found|error|erro)(\/|$)/i.test(fu.pathname)) return null;
+    // msn.com sem path de artigo é homepage/hub, não notícia
+    if (host === "msn.com" && (fu.pathname === "/" || fu.pathname.split("/").filter(Boolean).length < 2)) return null;
+  } catch { return null; }
+  return r.finalUrl;
+}
+
+
+
+async function pesquisarDDG(query: string, timeoutMs = 8000): Promise<Array<{ url: string; titulo: string; snippet: string; data: string; dataISO?: string }>> {
+  const ctrl = new AbortController();
+  const t = setTimeout(() => ctrl.abort(), timeoutMs);
+  try {
+    const res = await fetch(`https://html.duckduckgo.com/html/?q=${encodeURIComponent(query)}`, {
+      method: "GET",
+      headers: {
+        "User-Agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 13_5) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0 Safari/537.36",
+        "Accept": "text/html,application/xhtml+xml",
+        "Accept-Language": "en;q=0.9,pt-PT;q=0.8,pt;q=0.7",
+      },
+      signal: ctrl.signal,
+    });
+    if (!res.ok) return [];
+    const html = await res.text();
+    const rx = /<a[^>]+class="[^"]*result__a[^"]*"[^>]+href="([^"]+)"[^>]*>([\s\S]*?)<\/a>[\s\S]*?<a[^>]+class="[^"]*result__snippet[^"]*"[\s\S]*?>([\s\S]*?)<\/a>/g;
+    const out: Array<{ url: string; titulo: string; snippet: string; data: string; dataISO?: string }> = [];
+    let m: RegExpExecArray | null;
+    while ((m = rx.exec(html)) !== null && out.length < 12) {
+      const url = resolverUrlDDG(m[1]);
+      if (!url) continue;
+      let host: string;
+      try { host = new URL(url).hostname; } catch { continue; }
+      if (dominioLixo(host)) continue;
+      const snippetBruto = stripTags(m[3]);
+      const dt = extrairData(snippetBruto);
+      // Remove eventual prefixo de data para não repetir na UI.
+      const snippet = dt.data
+        ? snippetBruto.replace(/^[^·\-\u2013\u2014]{0,40}[·\-\u2013\u2014]\s*/, "").slice(0, 320)
+        : snippetBruto.slice(0, 320);
+      out.push({ url, titulo: stripTags(m[2]).slice(0, 180), snippet, data: dt.data, dataISO: dt.dataISO });
+
+    }
+    return out;
+  } catch { return []; }
+  finally { clearTimeout(t); }
+}
+
+async function rankearComIA(
+  titulo: string,
+  descricao: string,
+  candidatos: Array<{ url: string; titulo: string; snippet: string; data: string; dataISO?: string }>,
+): Promise<Array<{ id: number; score: number; motivo: string }>> {
+  if (candidatos.length === 0) return [];
+  const lista = candidatos.map((c, i) => `[${i}] ${c.titulo}\n    ${new URL(c.url).hostname}${c.dataISO ? ` · publicado ${c.dataISO}` : " · (data de publicação não indicada pela fonte)"} — ${c.snippet}`).join("\n");
+  const prompt = `Notícia a identificar (título provável em inglês):\nTítulo: ${titulo}\nContexto: ${descricao || "(sem contexto)"}\n\nCandidatos:\n${lista}\n\nAvalia se cada candidato trata EXACTAMENTE da mesma notícia. Idioma da fonte é indiferente. Regras: (a) score abaixo de 20 sempre que for outro assunto, uma lista genérica de estatísticas, um blogue de ferramentas, um agregador ou uma newsletter — não inventes relação; (b) em empate temático prefere a fonte mais recente, com base APENAS nas datas indicadas acima; (c) NÃO penalizes candidatos sem data indicada; (d) penaliza abaixo de 40 quando a data conhecida for anterior a 12 meses e o tema for actual. Devolve JSON estrito: {"resultados":[{"id":0,"score":95,"motivo":"..."}, ...]} incluindo TODOS os candidatos, score 0-100, motivo até 12 palavras em pt-PT.`;
+
+
+  try {
+    const { chamarDeepSeek, parseJsonTolerante, MODELO_DEEPSEEK_PADRAO } = await import("./deepseek.server.ts");
+    const { custoUsd } = await import("../edge-shared/custos-ia.ts");
+    const r = await chamarDeepSeek(
+      "És um assistente que avalia fontes noticiosas. Responde apenas com JSON válido.",
+      prompt,
+      { modelo: MODELO_DEEPSEEK_PADRAO, responseJson: true },
+    );
+
+    // Regista consumo real em ia_uso.
+    try {
+      const { supabaseAdmin } = await import("../_shim/admin.ts");
+      await supabaseAdmin.from("nl_ia_uso").insert({
+        modelo: r.modelo,
+        tokens_entrada_cache_hit: r.usage.cacheHit,
+        tokens_entrada_cache_miss: r.usage.cacheMiss,
+        tokens_saida: r.usage.saida,
+        custo_usd: custoUsd(r.modelo, r.usage.cacheHit, r.usage.cacheMiss, r.usage.saida),
+        origem: "pesquisar_fonte",
+        edicao_id: null,
+      });
+    } catch (e) {
+      console.error("[pesquisar-fonte] falha a registar ia_uso:", (e as Error).message);
+    }
+
+    const parsed = parseJsonTolerante<{ resultados?: Array<{ id?: number; score?: number; motivo?: string }> }>(r.conteudo);
+    const arr = parsed?.resultados ?? [];
+    return arr
+      .filter((x): x is { id: number; score: number; motivo: string } =>
+        typeof x?.id === "number" && typeof x?.score === "number")
+      .map((x) => ({ id: x.id, score: Math.max(0, Math.min(100, Math.round(x.score))), motivo: String(x.motivo ?? "").slice(0, 120) }));
+  } catch (e) {
+    console.error("[pesquisar-fonte] ranking IA falhou:", (e as Error).message);
+    return [];
+  }
+}
+
+export const pesquisarFonteIA = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .validator((input: unknown): Input => {
+    if (!input || typeof input !== "object") throw new Error("Entrada inválida");
+    const { titulo, descricao, urlActual } = input as Record<string, unknown>;
+    if (typeof titulo !== "string" || titulo.trim().length < 3) throw new Error("Título em falta");
+    return {
+      titulo: titulo.trim(),
+      descricao: typeof descricao === "string" ? descricao : null,
+      urlActual: typeof urlActual === "string" ? urlActual : null,
+    };
+  })
+  .handler(async ({ data }): Promise<{ candidatos: Candidato[]; total: number; queryGoogle: string }> => {
+    const { prepararConsulta, melhorSemelhanca } = await import("./pesquisar-fonte.server.ts");
+
+    const tituloLimpo = limparEmojis(data.titulo);
+    const descLimpa = limparEmojis(data.descricao ?? "").split(/\s+/).slice(0, 6).join(" ");
+
+    // 0) Reconstruir o título original (normalmente inglês) e montar a cascata
+    //    de queries, começando pelo site do editor quando ele é conhecido.
+    const consulta = await prepararConsulta(tituloLimpo, data.descricao ?? null, data.urlActual ?? null);
+    const referencias = [consulta.tituloEn, tituloLimpo];
+    const dominioEditor = consulta.editor?.dominio ?? null;
+
+    // Exclui o domínio actual se NÃO for domínio lixo (evitar repetir a fonte).
+    let hostActual: string | null = null;
+    try {
+      if (data.urlActual) {
+        const h = new URL(data.urlActual).hostname.toLowerCase().replace(/^www\./, "");
+        if (!dominioLixo(h)) hostActual = h;
+      }
+    } catch { /* ignore */ }
+
+    type Bruto = Awaited<ReturnType<typeof pesquisarDDG>>[number] & { sim: number; doEditor: boolean };
+    const porUrl = new Map<string, Bruto>();
+    let totalBrutos = 0;
+
+    const chaveUrl = (u: string) => {
+      try {
+        const x = new URL(u);
+        return `${x.hostname.replace(/^www\./, "")}${x.pathname.replace(/\/$/, "")}`.toLowerCase();
+      } catch { return u; }
+    };
+
+    for (const q of consulta.queries) {
+      const brutos = await pesquisarDDG(q);
+      totalBrutos += brutos.length;
+      for (const b of brutos) {
+        let host: string;
+        try { host = new URL(b.url).hostname.toLowerCase().replace(/^www\./, ""); } catch { continue; }
+        if (hostActual && (host === hostActual || host.endsWith("." + hostActual))) {
+          // O domínio actual só é excluído quando NÃO é o editor procurado.
+          if (!dominioEditor || !host.endsWith(dominioEditor)) continue;
+        }
+        const doEditor = !!dominioEditor && (host === dominioEditor || host.endsWith("." + dominioEditor));
+        const sim = melhorSemelhanca(b.titulo, referencias);
+        const k = chaveUrl(b.url);
+        const anterior = porUrl.get(k);
+        if (!anterior || sim > anterior.sim) porUrl.set(k, { ...b, sim, doEditor });
+      }
+      const fortes = [...porUrl.values()].filter((c) => c.doEditor || c.sim >= 0.45);
+      if (fortes.length >= 3) break;
+      if (porUrl.size >= 14) break;
+    }
+
+    // 1) Corte por semelhança: quem não parece a mesma notícia nem chega à IA.
+    const filtrados = [...porUrl.values()]
+      .filter((c) => c.doEditor || c.sim >= 0.26)
+      .sort((a, b) => (Number(b.doEditor) - Number(a.doEditor)) || (b.sim - a.sim))
+      .slice(0, 8);
+
+    if (filtrados.length === 0) return { candidatos: [], total: totalBrutos, queryGoogle: consulta.queryGoogle };
+
+    // 2) Validar existência (HEAD/GET). Substitui url pelo urlFinal após redirects.
+    const validados = await Promise.allSettled(filtrados.map((c) => verificarUrl(c.url)));
+    type FiltradoValidado = (typeof filtrados)[number] & { idioma?: IdiomaFonte };
+    const vivos: FiltradoValidado[] = [];
+    validados.forEach((r, i) => {
+      if (r.status === "fulfilled" && r.value) {
+        vivos.push({ ...filtrados[i], url: r.value });
+      }
+    });
+    if (vivos.length === 0) return { candidatos: [], total: filtrados.length, queryGoogle: consulta.queryGoogle };
+    // 3) Inspecção da página (data + idioma) para TODOS, em pool de 4.
+    //    RIGOR: a data do snippet DDG é descartada; só aceitamos data lida
+    //    da própria página (meta de publicação, JSON-LD datePublished,
+    //    <time pubdate>). Se não existir, o candidato fica SEM data.
+
+    const POOL = 4;
+    for (let i = 0; i < vivos.length; i += POOL) {
+      const lote = vivos.slice(i, i + POOL);
+      const res = await Promise.allSettled(lote.map((c) => inspeccionarPagina(c.url)));
+      res.forEach((r, k) => {
+        const alvo = lote[k] as FiltradoValidado;
+        if (r.status !== "fulfilled" || !r.value) {
+          alvo.data = ""; alvo.dataISO = undefined;
+          return;
+        }
+        const v = r.value;
+        if (v.dataISO) {
+          alvo.data = v.data ?? "";
+          alvo.dataISO = v.dataISO;
+        } else {
+          // Sem data fidedigna na página: descarta qualquer data do snippet.
+          alvo.data = ""; alvo.dataISO = undefined;
+        }
+        alvo.idioma = v.idioma;
+        if (v.urlFinal) alvo.url = v.urlFinal;
+      });
+    }
+
+    // 4) Ranking IA — pode descartar candidatos que não são a mesma notícia.
+    const ranks = await rankearComIA(consulta.tituloEn || tituloLimpo, descLimpa, vivos);
+    const mapa = new Map(ranks.map((r) => [r.id, r]));
+    const combinados: Candidato[] = vivos.map((c, i) => {
+      const r = mapa.get(i);
+      let dominio = "";
+      let idiomaFinal: IdiomaFonte = c.idioma ?? "outro";
+      try {
+        const host = new URL(c.url).hostname;
+        dominio = host.replace(/^www\./, "");
+        if (!c.idioma || c.idioma === "outro") idiomaFinal = idiomaPorTLD(host);
+      } catch { /* ignore */ }
+      // Base: score da IA quando existe, senão a semelhança de título.
+      let score = r?.score ?? Math.round(Math.min(90, c.sim * 120));
+      if (c.doEditor) score = Math.min(100, score + 20);
+      return {
+        url: c.url,
+        dominio,
+        titulo: c.titulo,
+        snippet: c.snippet,
+        score,
+        motivo: r?.motivo ?? (c.doEditor ? "Site do editor original" : ""),
+        data: c.data,
+        dataISO: c.dataISO,
+        idioma: idiomaFinal,
+      };
+    });
+
+
+    // 5) Ordenação: o site do editor primeiro, depois score, depois data.
+    combinados.sort((a, b) => {
+      const ae = dominioEditor && a.dominio.endsWith(dominioEditor) ? 1 : 0;
+      const be = dominioEditor && b.dominio.endsWith(dominioEditor) ? 1 : 0;
+      if (ae !== be) return be - ae;
+      if (b.score !== a.score) return b.score - a.score;
+      const ai = a.dataISO ?? "";
+      const bi = b.dataISO ?? "";
+      if (ai && bi && ai !== bi) return bi.localeCompare(ai);
+      if (ai && !bi) return -1;
+      if (!ai && bi) return 1;
+      return 0;
+    });
+    const topo = combinados.filter((c) => c.score >= 45).slice(0, 5);
+    return { candidatos: topo, total: filtrados.length, queryGoogle: consulta.queryGoogle };
+  });
+
+

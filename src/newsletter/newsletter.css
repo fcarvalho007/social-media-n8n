@@ -1,0 +1,272 @@
+/* Ported from the origin newsletter styles (Tailwind v4) as plain CSS. Scoped utilities only. */
+:root {
+  --font-display: "Space Grotesk", "Inter", sans-serif;
+  --color-ds-bg: #0D0D1F;
+  --color-ds-shell: #14142B;
+  --color-ds-card: #1B1B36;
+  --color-ds-card-hover: #20203F;
+  --color-ds-line: rgba(255, 255, 255, 0.08);
+  --color-ds-line-strong: rgba(255, 255, 255, 0.14);
+  --color-ds-ink: #F1F2F8;
+  --color-ds-muted: #9CA0B8;
+  --color-ds-faint: #6B7090;
+  --color-ds-primary: #6366F1;
+  --color-ds-violet: #8B5CF6;
+  --color-ds-pink: #EC4899;
+  --color-ds-ok: #22C55E;
+  --color-ds-warn: #F59E0B;
+  --color-ds-danger: #EF4444;
+  --color-ds-gold: #F59E0B;
+  --color-rw-void: #05070E;
+  --color-rw-navy: #0A1628;
+  --color-rw-navy-2: #101E33;
+  --color-rw-paper: #FAF9F5;
+  --color-rw-panel: #F0EEE9;
+  --color-rw-ink: #171A21;
+  --color-rw-ink-2: #5E626A;
+  --color-rw-chalk: #E7EBF2;
+  --color-rw-chalk-2: #93A0B4;
+  --color-rw-ciano: #34D3F5;
+  --color-rw-blue: #0077B6;
+  --color-rw-blue-2: #005B8C;
+  --color-rw-blue-soft: #CFE7F5;
+  --color-rw-amarelo: #FFDC00;
+  --color-rw-hairline: rgba(231, 235, 242, 0.10);
+  --color-rw-rule: #D9DBD9;
+}
+
+
+
+
+.ds-gradient {
+  background: linear-gradient(135deg, #6366F1, #8B5CF6, #EC4899);
+}
+
+.ds-app .font-display {
+  font-family: var(--font-display);
+}
+
+.anim-rise {
+  animation: ds-rise 0.35s ease both;
+}
+
+@keyframes ds-rise {
+  from { opacity: 0; transform: translateY(8px); }
+  to { opacity: 1; transform: none; }
+}
+
+@keyframes ds-slide {
+  0% { transform: translateX(-100%); }
+  100% { transform: translateX(400%); }
+}
+
+.ds-flash-novo {
+  animation: ds-flash-novo 2.4s ease-out both;
+}
+
+@keyframes ds-flash-novo {
+  0%   { box-shadow: 0 0 0 3px rgba(245,158,11,0.55), 0 10px 30px -10px rgba(245,158,11,0.5); background-color: rgba(254,243,199,0.85); }
+  60%  { box-shadow: 0 0 0 3px rgba(245,158,11,0.30), 0 6px 18px -10px rgba(245,158,11,0.3); background-color: rgba(254,243,199,0.35); }
+  100% { box-shadow: 0 0 0 0 rgba(245,158,11,0), 0 0 0 0 rgba(245,158,11,0); background-color: transparent; }
+}
+
+.ds-step-pulse {
+  animation: ds-step-pulse 1.4s ease-in-out infinite;
+}
+
+@keyframes ds-step-pulse {
+  0%, 100% { transform: scale(1); opacity: 1; }
+  50%      { transform: scale(1.15); opacity: 0.75; }
+}
+
+
+@media (prefers-reduced-motion: reduce) {
+  .anim-rise, .ds-flash-novo, .ds-step-pulse { animation: none; }
+}
+
+
+/*
+ * Design system definition.
+ *
+ * The 
+
+
+
+
+
+
+
+/* ==========================================================================
+ * Mobile ergonomics (<= 767px)
+ * Larger type floor, comfortable tap targets and no horizontal overflow.
+ * Desktop sizing is untouched.
+ * ========================================================================== */
+
+@media (max-width: 767px) {
+  html, body { overflow-x: clip; max-width: 100%; }
+
+  /* Nothing may push the page wider than the viewport. */
+  .ds-app :where(div, section, article, header, footer, ul, ol, li, form) { min-width: 0; }
+  .ds-app :where(h1, h2, h3, h4, p, span, a, li, td, th) { overflow-wrap: anywhere; }
+  .ds-app :where(img, iframe, video, table, pre) { max-width: 100%; }
+
+  /* Type floor: bump the compact desktop scale to comfortable reading sizes. */
+  .ds-app .text-\[9\.5px\],
+  .ds-app .text-\[10px\],
+  .ds-app .text-\[10\.5px\] { font-size: 12px; }
+  .ds-app .text-\[11px\],
+  .ds-app .text-\[11\.5px\] { font-size: 12.5px; }
+  .ds-app .text-\[12px\],
+  .ds-app .text-\[12\.5px\] { font-size: 13.5px; }
+  .ds-app .text-\[13px\],
+  .ds-app .text-\[13\.5px\] { font-size: 15px; line-height: 1.5; }
+  .ds-app .text-\[14px\],
+  .ds-app .text-\[14\.5px\] { font-size: 15.5px; line-height: 1.5; }
+  .ds-app .text-\[15px\],
+  .ds-app .text-\[15\.5px\] { font-size: 16.5px; line-height: 1.5; }
+  .ds-app .text-\[16px\] { font-size: 17.5px; }
+  .ds-app .text-\[17px\] { font-size: 18.5px; }
+  .ds-app .text-\[18px\] { font-size: 20px; }
+  .ds-app .text-\[20px\] { font-size: 22px; }
+  .ds-app .text-\[22px\] { font-size: 23px; }
+  .ds-app .text-\[26px\] { font-size: 26px; }
+  .ds-app :where(input, textarea, select) { font-size: 16px; }
+
+  /* Tap targets. */
+  .ds-app :where(button, a[role="button"], [role="tab"]):not(.ds-tap-auto) {
+    min-height: 44px;
+  }
+  .ds-app :where(button, a[role="button"]).ds-tap-icon,
+  .ds-app :where(button, a[role="button"]):has(> svg:only-child):not(.ds-tap-auto) {
+    min-width: 44px;
+  }
+  .ds-app :where(input[type="checkbox"], input[type="radio"]) {
+    min-width: 22px;
+    min-height: 22px;
+  }
+}
+
+/* Intentional horizontal strips (filter chips, tabs) scroll on their own
+ * instead of dragging the whole page sideways. */
+.ds-strip { overflow-x: auto; overflow-y: hidden; flex-wrap: nowrap; scrollbar-width: none; -webkit-overflow-scrolling: touch; }
+.ds-strip::-webkit-scrollbar { display: none; }
+.ds-strip > * { flex-shrink: 0; }
+
+/* ─────────────────────────────────────────────────────────────
+ * Edição pública Revista (/edicoes) — direcção artística
+ * «Jornal digital»: papel claro, azul de marca, tipografia editorial.
+ * O arquivo mantém a direcção escura anterior (tokens navy/chalk).
+ * ──────────────────────────────────────────────────────────── */
+
+
+
+/* Página da edição: papel a toda a altura e âncoras livres da barra fixa. */
+.rw-web {
+  background-color: var(--color-rw-paper);
+  color: var(--color-rw-ink);
+  scroll-behavior: smooth;
+  & :where(a, button, summary, input):focus-visible {
+    outline: 3px solid var(--color-rw-blue);
+    outline-offset: 3px;
+    border-radius: 2px;
+  }
+}
+
+
+/* Sala: void no topo, navy no corpo, grão muito subtil. */
+.rw-sala {
+  background-color: var(--color-rw-navy);
+  background-image:
+    radial-gradient(120% 60% at 50% -10%, #0C1B31 0%, var(--color-rw-navy) 45%, var(--color-rw-void) 100%);
+  color: var(--color-rw-chalk);
+}
+
+.rw-grao {
+  position: relative;
+  &::after {
+    content: "";
+    position: absolute;
+    inset: 0;
+    pointer-events: none;
+    opacity: 0.035;
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='140' height='140'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='3'/%3E%3C/filter%3E%3Crect width='140' height='140' filter='url(%23n)'/%3E%3C/svg%3E");
+  }
+}
+
+/* Halo cónico atrás do número da edição — o único gesto do hero. */
+.rw-halo {
+  background: conic-gradient(
+    from 210deg at 50% 50%,
+    rgba(52, 211, 245, 0) 0deg,
+    rgba(52, 211, 245, 0.30) 90deg,
+    rgba(52, 211, 245, 0.05) 200deg,
+    rgba(52, 211, 245, 0) 360deg
+  );
+  filter: blur(56px);
+}
+
+/* Folha de leitura. */
+.rw-papel {
+  background-color: var(--color-rw-paper);
+  color: var(--color-rw-ink);
+  box-shadow: 0 40px 120px -40px rgba(0, 0, 0, 0.75);
+}
+
+.rw-assenta {
+  animation: rw-assenta 600ms cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+
+@keyframes rw-assenta {
+  from { opacity: 0; transform: perspective(1200px) rotateX(1.5deg) translateY(18px); }
+  to   { opacity: 1; transform: none; }
+}
+
+.rw-entra {
+  animation: rw-entra 700ms cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+
+@keyframes rw-entra {
+  from { opacity: 0; transform: translateY(24px); }
+  to   { opacity: 1; transform: none; }
+}
+
+/* Sublinhado que cresce da esquerda. */
+.rw-link {
+  background-image: linear-gradient(currentColor, currentColor);
+  background-repeat: no-repeat;
+  background-position: 0 100%;
+  background-size: 0% 1px;
+  transition: background-size 150ms ease-out;
+  &:hover { background-size: 100% 1px; }
+}
+
+.rw {
+  & :where(a, button):focus-visible {
+    outline: 2px solid var(--color-rw-ciano);
+    outline-offset: 2px;
+    border-radius: 2px;
+  }
+}
+
+/* Cartão de notícia: filete superior que ganha cor no hover/foco. */
+.rw-card {
+  border-top: 3px solid var(--color-rw-ink);
+  transition: border-color 150ms ease-out;
+  &:hover { border-top-color: var(--color-rw-blue); }
+  &:focus-within { border-top-color: var(--color-rw-blue); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .rw-assenta, .rw-entra { animation: none; }
+  .rw-link, .rw-card { transition: none; }
+  .rw-web { scroll-behavior: auto; }
+}
+
+@media print {
+  .rw-nao-imprimir { display: none !important; }
+}
+
+
+@media (max-width: 639px) {
+  .rw-papel { box-shadow: none; }
+}

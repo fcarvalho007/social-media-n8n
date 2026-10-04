@@ -34,10 +34,10 @@ import NotificationSettings from "./pages/NotificationSettings";
 import StoryConfirm from "./pages/StoryConfirm";
 import StoryLauncher from "./pages/StoryLauncher";
 import Estudio from "./pages/Estudio";
-import Newsletter from "./pages/Newsletter";
-import NewsletterEdicao from "./pages/NewsletterEdicao";
-import NewsletterMigracao from "./pages/NewsletterMigracao";
+import { lazy, Suspense } from "react";
+const NewsletterApp = lazy(() => import("./newsletter/NewsletterApp"));
 import Artigos from "./pages/Artigos";
+import SegurancaConta from "./pages/SegurancaConta";
 const queryClient = new QueryClient();
 
 // Component to handle URL-encoded redirects
@@ -92,10 +92,9 @@ const App = () => (
                   <Route path="/ai-settings" element={<AISettings />} />
                   <Route path="/ai-demo" element={<AIDemo />} />
                   <Route path="/estudio" element={<Estudio />} />
-                  <Route path="/newsletter" element={<Newsletter />} />
-                  <Route path="/newsletter/migracao" element={<NewsletterMigracao />} />
-                  <Route path="/newsletter/:id" element={<NewsletterEdicao />} />
+                  <Route path="/newsletter/*" element={<Suspense fallback={<p className="p-4 text-sm text-muted-foreground">A carregar a newsletter…</p>}><NewsletterApp /></Suspense>} />
                   <Route path="/artigos" element={<Artigos />} />
+                  <Route path="/definicoes/seguranca" element={<SegurancaConta />} />
                 </Route>
                 {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
                 <Route path="*" element={<EncodedUrlRedirect />} />

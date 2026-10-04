@@ -1,0 +1,185 @@
+import process from "node:process";
+// Server functions para gerir o motor de Curadoria de Ferramentas:
+// - Correr recolha manual (usa a mesma rota pública que o cron)
+// - CRUD das fontes de directório (Toolify/Futurepedia/TAAFT)
+// - Configuração semanal (dia_semana, hora, tecto, activo)
+
+import { createServerFn } from "../_shim/start.ts";
+import { requireSupabaseAuth } from "../_shim/auth.ts";
+
+export type FonteDirectorio = {
+  id: string;
+  nome: string;
+  url_listagem: string | null;
+  url_feed: string;
+  activa: boolean;
+  ultima_recolha: string | null;
+  criada_em: string;
+};
+
+export type CuradoriaFerramentasConfig = {
+  dia_semana: number; // 0-6 (0=Domingo)
+  hora: number;       // 0-23
+  max_por_corrida: number;
+  activo: boolean;
+  actualizado_em: string;
+};
+
+export type ResumoCorridaFerramentas = {
+  ok: boolean;
+  inseridas: number;
+  descartadas_por_ia: number;
+  candidatos: number;
+  fontes: number;
+  custo_usd: number;
+  mensagem?: string;
+};
+
+/** Chama o hook público em process — mesma origem, portanto seguro. */
+export const correrCuradoriaFerramentasAgora = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .validator((data: { forcarFontes?: string[] } | undefined) => data ?? {})
+  .handler(async ({ data }): Promise<ResumoCorridaFerramentas> => {
+    const anon = process.env.SUPABASE_PUBLISHABLE_KEY ?? process.env.SUPABASE_ANON_KEY ?? "";
+    const base = process.env.PUBLIC_URL ?? process.env.SUPABASE_URL ?? "";
+    // Preferimos chamar via URL pública do próprio deployment se disponível,
+    // mas para simplicidade e evitar network hop, chamamos o handler directamente.
+    const { Route } = await import("@/routes/api/public/hooks/curadoria-ferramentas");
+    void base; void Route; // silêncio
+    const url = "http://internal/api/public/hooks/curadoria-ferramentas";
+    const req = new Request(url, {
+      method: "POST",
+      headers: { "Content-Type": "application/json", apikey: anon },
+      body: JSON.stringify({ forcar_fontes: data.forcarFontes ?? undefined }),
+    });
+    // Reutiliza o handler do módulo (evita depender de rede externa).
+    const mod = await import("@/routes/api/public/hooks/curadoria-ferramentas");
+    // Chegar ao handler interno directo:
+    const handlers = (mod.Route.options as { server?: { handlers?: { POST?: (ctx: { request: Request }) => Promise<Response> } } }).server?.handlers;
+    if (!handlers?.POST) return { ok: false, inseridas: 0, descartadas_por_ia: 0, candidatos: 0, fontes: 0, custo_usd: 0, mensagem: "Handler indisponível" };
+    const res = await handlers.POST({ request: req });
+    const body = await res.json();
+    return body as ResumoCorridaFerramentas;
+  });
+
+export const listarFontesDirectorios = createServerFn({ method: "GET" })
+  .middleware([requireSupabaseAuth])
+  .handler(async ({ context }): Promise<FonteDirectorio[]> => {
+    const { data, error } = await context.supabase
+      .from("nl_fontes_curadoria")
+      .select("id, nome, url_listagem, url_feed, activa, ultima_recolha, criada_em")
+      .eq("tipo", "directorio_ferramentas")
+      .order("nome", { ascending: true });
+    if (error) throw new Error(error.message);
+    return (data ?? []) as FonteDirectorio[];
+  });
+
+export const criarFonteDirectorio = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .validator((data: { nome: string; url_listagem: string }) => {
+    if (!data?.nome?.trim()) throw new Error("Nome obrigatório");
+    if (!/^https?:\/\//i.test(data?.url_listagem ?? "")) throw new Error("URL inválido");
+    return data;
+  })
+  .handler(async ({ data, context }): Promise<{ ok: true }> => {
+    const { error } = await context.supabase.from("nl_fontes_curadoria").insert({
+      nome: data.nome.trim().slice(0, 120),
+      tipo: "directorio_ferramentas",
+      url_feed: data.url_listagem.trim(),
+      url_listagem: data.url_listagem.trim(),
+      activa: false,
+    } as never);
+    if (error) throw new Error(error.message);
+    return { ok: true };
+  });
+
+export const actualizarFonteDirectorio = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .validator((data: { id: string; activa?: boolean; url_listagem?: string; nome?: string }) => {
+    if (!data?.id) throw new Error("id inválido");
+    return data;
+  })
+  .handler(async ({ data, context }): Promise<{ ok: true }> => {
+    const patch: Record<string, unknown> = {};
+    if (typeof data.activa === "boolean") patch.activa = data.activa;
+    if (typeof data.url_listagem === "string" && /^https?:\/\//i.test(data.url_listagem)) {
+      patch.url_listagem = data.url_listagem;
+      patch.url_feed = data.url_listagem;
+    }
+    if (typeof data.nome === "string" && data.nome.trim().length > 0) {
+      patch.nome = data.nome.trim().slice(0, 120);
+    }
+    const { error } = await context.supabase
+      .from("nl_fontes_curadoria")
+      .update(patch as never)
+      .eq("id", data.id)
+      .eq("tipo", "directorio_ferramentas");
+    if (error) throw new Error(error.message);
+    return { ok: true };
+  });
+
+export const apagarFonteDirectorio = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .validator((data: { id: string }) => {
+    if (!data?.id) throw new Error("id inválido");
+    return data;
+  })
+  .handler(async ({ data, context }): Promise<{ ok: true }> => {
+    const { error } = await context.supabase
+      .from("nl_fontes_curadoria")
+      .delete()
+      .eq("id", data.id)
+      .eq("tipo", "directorio_ferramentas");
+    if (error) throw new Error(error.message);
+    return { ok: true };
+  });
+
+export const getConfigCuradoriaFerramentas = createServerFn({ method: "GET" })
+  .middleware([requireSupabaseAuth])
+  .handler(async ({ context }): Promise<CuradoriaFerramentasConfig> => {
+    const { data, error } = await context.supabase
+      .from("curadoria_ferramentas_config" as never)
+      .select("dia_semana, hora, max_por_corrida, activo, actualizado_em")
+      .eq("id", 1)
+      .maybeSingle();
+    if (error) throw new Error(error.message);
+    return (data as unknown as CuradoriaFerramentasConfig | null) ?? {
+      dia_semana: 1, hora: 9, max_por_corrida: 10, activo: true, actualizado_em: new Date().toISOString(),
+    };
+  });
+
+export const setConfigCuradoriaFerramentas = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .validator((data: { dia_semana?: number; hora?: number; max_por_corrida?: number; activo?: boolean }) => data)
+  .handler(async ({ data, context }): Promise<{ ok: true }> => {
+    const patch: Record<string, unknown> = {};
+    if (typeof data.dia_semana === "number" && data.dia_semana >= 0 && data.dia_semana <= 6) patch.dia_semana = data.dia_semana;
+    if (typeof data.hora === "number" && data.hora >= 0 && data.hora <= 23) patch.hora = data.hora;
+    if (typeof data.max_por_corrida === "number" && data.max_por_corrida >= 1 && data.max_por_corrida <= 50) patch.max_por_corrida = data.max_por_corrida;
+    if (typeof data.activo === "boolean") patch.activo = data.activo;
+    if (Object.keys(patch).length === 0) return { ok: true };
+    const { error } = await context.supabase
+      .from("curadoria_ferramentas_config" as never)
+      .update(patch as never)
+      .eq("id", 1);
+    if (error) throw new Error(error.message);
+    return { ok: true };
+  });
+
+/** Activa/desactiva vários directórios de uma vez. */
+export const alternarDirectoriosEmLote = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .validator((data: { ids: string[]; activa: boolean }) => {
+    if (!Array.isArray(data?.ids) || data.ids.length === 0) throw new Error("Sem directórios seleccionados");
+    if (typeof data.activa !== "boolean") throw new Error("Estado inválido");
+    return data;
+  })
+  .handler(async ({ data, context }): Promise<{ ok: true; afectadas: number }> => {
+    const { error } = await context.supabase
+      .from("nl_fontes_curadoria")
+      .update({ activa: data.activa } as never)
+      .in("id", data.ids)
+      .eq("tipo", "directorio_ferramentas");
+    if (error) throw new Error(error.message);
+    return { ok: true, afectadas: data.ids.length };
+  });

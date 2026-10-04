@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Progress } from "@/components/ui/progress";
+import { MapeamentoPerfis } from "@/components/newsletter/MapeamentoPerfis";
 import { enviarPacote, passoImportacao, simularImportacao, souAdminNewsletter, type Simulacao } from "@/services/estudio";
 
 export default function NewsletterMigracao() {
@@ -72,6 +73,7 @@ export default function NewsletterMigracao() {
           {progresso > 0 && <Progress value={progresso} />}
         </div>
       )}
+      <MapeamentoPerfis />
       {relatorio && (
         <div className="space-y-2 rounded-md border p-3">
           <div className="text-sm font-medium">Relatório da importação</div>

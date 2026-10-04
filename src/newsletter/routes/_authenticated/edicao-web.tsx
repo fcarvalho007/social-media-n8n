@@ -1,0 +1,69 @@
+// Ecrã interno para testar a UX da versão web antes de haver edição publicada.
+// Permite alternar entre o rascunho Revista real e uma edição simulada densa.
+
+import { useState } from "react";
+import { createFileRoute, Link } from "@/newsletter/shim/router";
+import { useQuery } from "@tanstack/react-query";
+import { useServerFn } from "@/newsletter/shim/start";
+import { previsualizarEdicaoWebFn } from "@/newsletter/lib/revista-preview.functions";
+import { PaginaEdicao } from "@/newsletter/features/revista-web/PaginaEdicao";
+import { paginaSimulada, paginaSimuladaMinima } from "@/newsletter/features/revista-web/dados-simulados";
+import { Button } from "@/components/ui/button";
+
+export const Route = createFileRoute("/_authenticated/edicao-web")({
+  head: () => ({
+    meta: [
+      { title: "Pré-visualizar versão web · Digital Sprint" },
+      { name: "description", content: "Ensaio interno da edição web do Sistema Revista." },
+      { name: "robots", content: "noindex" },
+    ],
+  }),
+  component: PreviaWeb,
+});
+
+function PreviaWeb() {
+  const [modo, setModo] = useState<"rascunho" | "simulada" | "minima">("rascunho");
+  const previsualizar = useServerFn(previsualizarEdicaoWebFn);
+
+  const { data, isLoading } = useQuery({
+    queryKey: ["previa-edicao-web"],
+    queryFn: () => previsualizar({ data: {} }),
+    enabled: modo === "rascunho",
+  });
+
+  const pagina = modo === "simulada" ? paginaSimulada() : modo === "minima" ? paginaSimuladaMinima() : data;
+
+  return (
+    <div className="min-h-dvh bg-muted/40">
+      <div className="sticky top-0 z-50 border-b border-border bg-background/95 backdrop-blur">
+        <div className="mx-auto grid max-w-[60rem] grid-cols-[minmax(0,1fr)_auto] items-center gap-3 px-4 py-2.5">
+          <p className="min-w-0 truncate text-sm font-semibold text-foreground">Pré-visualizar versão web</p>
+          <div className="flex shrink-0 items-center gap-2">
+            <Button size="sm" variant={modo === "rascunho" ? "default" : "outline"} onClick={() => setModo("rascunho")}>
+              Rascunho
+            </Button>
+            <Button size="sm" variant={modo === "simulada" ? "default" : "outline"} onClick={() => setModo("simulada")}>
+              Simulada
+            </Button>
+            <Button size="sm" variant={modo === "minima" ? "default" : "outline"} onClick={() => setModo("minima")}>
+              Mínima
+            </Button>
+            <Button asChild size="sm" variant="ghost">
+              <Link to="/">Voltar</Link>
+            </Button>
+          </div>
+        </div>
+      </div>
+
+      {isLoading && modo === "rascunho" ? (
+        <p className="p-10 text-center text-sm text-muted-foreground">A carregar a edição…</p>
+      ) : pagina ? (
+        <PaginaEdicao pagina={pagina} previaInterna={modo === "rascunho"} />
+      ) : (
+        <p className="p-10 text-center text-sm text-muted-foreground">
+          Ainda não existe nenhuma edição Revista. Usa o modo simulado para avaliar a apresentação.
+        </p>
+      )}
+    </div>
+  );
+}

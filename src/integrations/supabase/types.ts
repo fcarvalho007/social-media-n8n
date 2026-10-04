@@ -2324,6 +2324,7 @@ export type Database = {
       nl_user_mapping: {
         Row: {
           created_at: string
+          historico: Json
           source_email: string | null
           source_nome: string | null
           source_papel: string | null
@@ -2333,6 +2334,7 @@ export type Database = {
         }
         Insert: {
           created_at?: string
+          historico?: Json
           source_email?: string | null
           source_nome?: string | null
           source_papel?: string | null
@@ -2342,6 +2344,7 @@ export type Database = {
         }
         Update: {
           created_at?: string
+          historico?: Json
           source_email?: string | null
           source_nome?: string | null
           source_papel?: string | null
@@ -3676,14 +3679,57 @@ export type Database = {
       }
       nl_import_suspender_agendamentos: { Args: never; Returns: Json }
       nl_is_admin: { Args: never; Returns: boolean }
+      nl_is_service: { Args: never; Returns: boolean }
       nl_is_staff: { Args: never; Returns: boolean }
       nl_limpar_dados_antigos: { Args: { _dias?: number }; Returns: Json }
+      nl_mapear_perfil: {
+        Args: { _source: string; _target: string }
+        Returns: undefined
+      }
       nl_me_papel: { Args: never; Returns: string }
       nl_mover_seccao: {
         Args: { _direccao: string; _seccao_id: string }
         Returns: undefined
       }
       nl_normalizar_url_sql: { Args: { _url: string }; Returns: string }
+      nl_pesquisar_arquivo: {
+        Args: { limite?: number; query: string }
+        Returns: {
+          edicao_data: string
+          edicao_id: string
+          edicao_numero: number
+          rank: number
+          tipo: string
+          titulo: string
+          trecho: string
+          url: string
+        }[]
+      }
+      nl_pesquisar_global: {
+        Args: {
+          ambitos?: string[]
+          edicao_actual?: string
+          limite?: number
+          query: string
+        }
+        Returns: {
+          ambito: string
+          categoria: string
+          criado_em: string
+          edicao_data: string
+          edicao_id: string
+          edicao_numero: number
+          estado: string
+          id: string
+          origem: string
+          rank: number
+          tipo: string
+          titulo: string
+          trecho: string
+          url: string
+          usada_em_numero: number
+        }[]
+      }
       nl_registar_evento_brief: {
         Args: { _edicao_numero: number; _evento: string; _slug: string }
         Returns: undefined

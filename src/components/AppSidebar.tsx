@@ -289,11 +289,13 @@ export function AppSidebar() {
         
         <SidebarFooter className="border-t border-border/20 bg-card/30 backdrop-blur-md">
           <div className="flex flex-col items-center gap-2 p-3">
-            <Avatar className="h-9 w-9 ring-1 ring-primary/20 transition-all hover:ring-primary/40 hover:scale-105">
-              <AvatarFallback className="bg-primary/15 text-primary text-xs font-bold">
-                {user?.email ? getInitials(user.email) : 'U'}
-              </AvatarFallback>
-            </Avatar>
+            <button type="button" onClick={() => navigate('/definicoes/seguranca')} title="Segurança da conta" aria-label="Segurança da conta">
+              <Avatar className="h-9 w-9 ring-1 ring-primary/20 transition-all hover:ring-primary/40 hover:scale-105">
+                <AvatarFallback className="bg-primary/15 text-primary text-xs font-bold">
+                  {user?.email ? getInitials(user.email) : 'U'}
+                </AvatarFallback>
+              </Avatar>
+            </button>
             <Button
               variant="ghost"
               size="sm"

@@ -1,0 +1,155 @@
+// Cabeçalho operacional do formato Revista: identificação, estado da edição,
+// prontidão e acções rápidas (verificar links, testar/agendar/enviar).
+
+import { useState } from "react";
+import { AlertTriangle, Check, CheckCircle2, ChevronDown, Link2, Loader2 } from "lucide-react";
+import type { ResumoLinks } from "@/newsletter/lib/verificar-links.functions";
+import type { Bloqueio } from "./PainelBloqueios";
+import { plural } from "@/newsletter/lib/plural";
+
+export type EstadoEdicao = "rascunho" | "agendada" | "enviada";
+
+interface Props {
+  numero: number;
+  estado: EstadoEdicao;
+  selo?: React.ReactNode;
+  /** Mesma lista que alimenta o painel de bloqueios — uma só fonte de verdade. */
+  diagnosticos: Bloqueio[];
+  resumoLinks: ResumoLinks | null;
+  aVerificarLinks: boolean;
+  onVerificarLinks: () => void;
+  onAbrirEnvio: () => void;
+  aPrepararEnvio?: boolean;
+  bloqueado: boolean;
+  /** Estado agregado da gravação automática dos campos da edição. */
+  gravacao?: "idle" | "a-guardar" | "guardado" | "erro";
+  /** Estado global do workflow multicanal (Fase E3), já em linguagem humana. */
+  estadoWorkflow?: string | null;
+}
+
+const ROTULO_ESTADO: Record<EstadoEdicao, string> = {
+  rascunho: "Rascunho",
+  agendada: "Agendada",
+  enviada: "Enviada",
+};
+
+function Gravacao({ estado }: { estado: NonNullable<Props["gravacao"]> }) {
+  if (estado === "idle") return null;
+  if (estado === "a-guardar") {
+    return (
+      <span className="inline-flex items-center gap-1.5 text-[12.5px] text-muted-foreground">
+        <Loader2 size={13} className="animate-spin" /> A guardar…
+      </span>
+    );
+  }
+  if (estado === "guardado") {
+    return (
+      <span className="inline-flex items-center gap-1.5 text-[12.5px] font-semibold text-estado-pronto">
+        <Check size={13} /> Guardado
+      </span>
+    );
+  }
+  return (
+    <span className="inline-flex items-center gap-1.5 text-[12.5px] font-semibold text-destructive">
+      <AlertTriangle size={13} /> Alterações por guardar
+    </span>
+  );
+}
+
+export function CabecalhoRevista({
+  numero, estado, selo, diagnosticos, resumoLinks,
+  aVerificarLinks, onVerificarLinks, onAbrirEnvio, aPrepararEnvio = false,
+  bloqueado, gravacao = "idle", estadoWorkflow,
+}: Props) {
+  const [aberto, setAberto] = useState(false);
+  const ok = diagnosticos.length === 0;
+  const linksMal = resumoLinks ? resumoLinks.quebrado + resumoLinks.suspeito : 0;
+
+  return (
+    <header className="sticky top-0 z-30 mb-4 rounded-2xl border border-border bg-card/95 p-4 shadow-sm backdrop-blur supports-[backdrop-filter]:bg-card/85">
+      <div className="flex flex-wrap items-center gap-x-3 gap-y-2">
+        <h1 className="font-display text-[22px] font-bold text-foreground">Digital Sprint #{numero}</h1>
+        <span className="rounded-full bg-muted px-2.5 py-1 text-[12.5px] font-semibold text-muted-foreground">
+          {ROTULO_ESTADO[estado]}
+        </span>
+        {estadoWorkflow && (
+          <span className="rounded-full border border-border px-2.5 py-1 text-[12.5px] font-semibold text-muted-foreground">
+            {estadoWorkflow}
+          </span>
+        )}
+        <Gravacao estado={gravacao} />
+
+        <div className="ml-auto flex flex-wrap items-center gap-2">
+          <button
+            type="button"
+            onClick={() => setAberto((a) => !a)}
+            aria-expanded={aberto}
+            className={`inline-flex min-h-11 items-center gap-1.5 rounded-xl px-3 py-2 text-[13.5px] font-semibold focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring ${
+              ok ? "bg-primary/10 text-primary" : "bg-estado-falta-suave text-estado-falta"
+            }`}
+          >
+            {ok ? <CheckCircle2 size={15} /> : <AlertTriangle size={15} />}
+            {ok ? "Pronta para enviar" : plural(diagnosticos.length, "ponto por resolver", "pontos por resolver")}
+            {!ok && <ChevronDown size={14} className={aberto ? "rotate-180 transition-transform" : "transition-transform"} />}
+          </button>
+
+          <button
+            type="button"
+            onClick={onVerificarLinks}
+            disabled={aVerificarLinks}
+            className="inline-flex min-h-11 items-center gap-1.5 rounded-xl border border-border px-3 py-2 text-[13.5px] font-semibold text-foreground hover:bg-muted disabled:opacity-55"
+          >
+            {aVerificarLinks ? <Loader2 size={15} className="animate-spin" /> : <Link2 size={15} />}
+            Verificar links
+          </button>
+
+          <button
+            type="button"
+            onClick={onAbrirEnvio}
+            disabled={bloqueado || aPrepararEnvio}
+            className="min-h-11 rounded-xl bg-primary px-4 py-2 text-[13.5px] font-semibold text-primary-foreground disabled:opacity-55"
+          >
+            {aPrepararEnvio && <Loader2 size={15} className="mr-1.5 inline animate-spin" />}
+            {bloqueado ? "Edição enviada" : aPrepararEnvio ? "A atualizar…" : "Testar, agendar ou enviar"}
+          </button>
+        </div>
+      </div>
+
+      {selo && (
+        <div className="mt-2.5 flex flex-wrap items-center gap-x-3 gap-y-1.5 border-t border-border pt-2.5 text-[12.5px] text-muted-foreground [&_button]:min-h-9 [&_button]:text-[12.5px]">
+          {selo}
+        </div>
+      )}
+
+      {resumoLinks && (
+        <p className="mt-2 text-[13px] text-muted-foreground">
+          Links: <strong className="font-semibold text-foreground">{resumoLinks.ok} ok</strong>
+          {linksMal > 0
+            ? ` · ${plural(resumoLinks.suspeito, "suspeito", "suspeitos")} · ${plural(resumoLinks.quebrado, "quebrado", "quebrados")}`
+            : " · sem problemas"}
+        </p>
+      )}
+
+      {!ok && aberto && (
+        <ul className="mt-3 flex flex-col gap-0.5 border-t border-border pt-3">
+          {diagnosticos.map((d) => (
+            <li key={d.id}>
+              <button
+                type="button"
+                onClick={() => { setAberto(false); d.ir(); }}
+                className="group flex min-h-11 w-full items-center gap-2.5 rounded-lg px-2 py-1.5 text-left text-[13.5px] text-foreground hover:bg-muted focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring"
+              >
+                <span
+                  aria-hidden
+                  className={`h-2 w-2 flex-none rounded-full ${d.nivel === "grave" ? "bg-estado-grave" : "bg-estado-falta"}`}
+                />
+                <span className="min-w-0 flex-1">{d.texto}</span>
+                <span className="flex-none text-[12.5px] font-semibold text-primary">Ir →</span>
+              </button>
+            </li>
+          ))}
+        </ul>
+      )}
+    </header>
+  );
+}

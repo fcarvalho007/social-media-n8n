@@ -1,0 +1,313 @@
+import { useEffect, useRef, useState } from "react";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { Loader2, Plus, Trash2, Wrench, Check, X, Archive } from "lucide-react";
+import { Link } from "@/newsletter/shim/router";
+import { supabase } from "@/integrations/supabase/client";
+import {
+  listarFerramentas, criarFerramenta, actualizarFerramenta, removerFerramenta,
+  type Ferramenta, type FerramentaPatch,
+} from "./data";
+import { CORES_ORDENADAS, COR_PRESETS, corDe } from "./seccoes";
+import { sugerirEmoji } from "./emoji";
+import { EmojiPicker } from "./EmojiPicker";
+import { useAutoSave, type AutoSaveEstado } from "./useAutoSave";
+import { contarFerramentasArquivadas } from "@/newsletter/lib/ferramentas.functions";
+import { useServerFn } from "@/newsletter/shim/start";
+
+interface Props {
+  edicaoId: string;
+  bloqueado: boolean;
+  onAcao?: (mensagem: string) => void;
+}
+
+const T = {
+  card: "#F9FAFB",
+  line: "#E4E7EC",
+  ink: "#101828",
+  muted: "#667085",
+  faint: "#98A2B3",
+  danger: "#B42318",
+  dangerSoft: "#FEF3F2",
+  ok: "#027A48",
+};
+
+function SavedTick({ s, err }: { s: AutoSaveEstado; err: string | null }) {
+  if (s === "idle") return null;
+  const base = "inline-flex items-center gap-1 text-[11px] font-medium";
+  if (s === "a-guardar") return <span className={base} style={{ color: T.muted }}><Loader2 size={10} className="animate-spin" /> A guardar…</span>;
+  if (s === "guardado")  return <span className={base} style={{ color: T.ok }}><Check size={10} /> Guardado</span>;
+  return <span className={base} style={{ color: T.danger }} title={err ?? undefined}><X size={10} /> Erro</span>;
+}
+
+function CartaoFerramenta({
+  f, bloqueado, edicaoId, onAcao,
+}: { f: Ferramenta; bloqueado: boolean; edicaoId: string; onAcao?: (m: string) => void }) {
+  const qc = useQueryClient();
+  const [nome, setNome] = useState(f.nome ?? "");
+  const [descricao, setDescricao] = useState(f.descricao ?? "");
+  const [url, setUrl] = useState(f.url ?? "");
+  const [emoji, setEmoji] = useState(f.emoji ?? "");
+  const [cor, setCor] = useState(f.cor ?? "indigo");
+  const [etiqueta, setEtiqueta] = useState(f.etiqueta ?? "");
+  const [cta, setCta] = useState(f.cta_rotulo ?? "");
+
+  // Sincroniza quando Realtime altera a linha
+  const rowVersion = `${f.updated_at}`;
+  const lastVersion = useRef(rowVersion);
+  useEffect(() => {
+    if (rowVersion === lastVersion.current) return;
+    lastVersion.current = rowVersion;
+    setNome(f.nome ?? "");
+    setDescricao(f.descricao ?? "");
+    setUrl(f.url ?? "");
+    setEmoji(f.emoji ?? "");
+    setCor(f.cor ?? "indigo");
+    setEtiqueta(f.etiqueta ?? "");
+    setCta(f.cta_rotulo ?? "");
+  }, [rowVersion, f]);
+
+  const save = async (patch: FerramentaPatch) => {
+    await actualizarFerramenta(f.id, patch);
+    qc.invalidateQueries({ queryKey: ["ferramentas", edicaoId] });
+    onAcao?.("Ferramenta atualizada");
+  };
+
+  const asNome = useAutoSave(nome, (v) => save({ nome: v }), { enabled: !bloqueado });
+  const asDesc = useAutoSave(descricao, (v) => save({ descricao: v }), { enabled: !bloqueado });
+  const asUrl = useAutoSave(url, (v) => save({ url: v }), { enabled: !bloqueado });
+  const asEmoji = useAutoSave(emoji, (v) => save({ emoji: v }), { enabled: !bloqueado });
+  const asEtiqueta = useAutoSave(etiqueta, (v) => save({ etiqueta: v }), { enabled: !bloqueado });
+  const asCta = useAutoSave(cta, (v) => save({ cta_rotulo: v }), { enabled: !bloqueado });
+
+  const remover = useMutation({
+    mutationFn: () => removerFerramenta(f.id, edicaoId),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["ferramentas", edicaoId] });
+      onAcao?.(`Ferramenta ${f.posicao} removida`);
+    },
+  });
+
+  const cp = corDe(cor);
+
+  const onBlurNome = () => {
+    if (!bloqueado && (emoji ?? "").trim() === "" && nome.trim().length > 0) {
+      const sug = sugerirEmoji(nome, descricao);
+      setEmoji(sug);
+      // save imediato para persistir mesmo antes do autosave do campo emoji
+      save({ emoji: sug }).catch(() => {});
+    }
+  };
+
+  return (
+    <div className="rounded-xl p-3.5 flex flex-col gap-2.5"
+      style={{ background: T.card, border: `1px solid ${T.line}`, borderTop: `4px solid ${cp.solid}` }}>
+      <div className="flex items-center gap-2">
+        <span className="text-[11px] font-bold uppercase tracking-wider px-1.5 py-0.5 rounded"
+          style={{ background: cp.pastel, color: cp.ink }}>Ferramenta {f.posicao}</span>
+        <div className="ml-auto">
+          <button
+            type="button"
+            disabled={bloqueado || remover.isPending}
+            onClick={() => remover.mutate()}
+            className="p-1.5 rounded-md disabled:opacity-40"
+            style={{ background: T.dangerSoft, color: T.danger }}
+            title="Remover ferramenta"
+          >
+            <Trash2 size={13} />
+          </button>
+        </div>
+      </div>
+
+      <div className="flex items-center gap-2">
+        <EmojiPicker
+          valor={emoji}
+          disabled={bloqueado}
+          contexto={{ nome, descricao }}
+          onEscolher={(e) => {
+            setEmoji(e);
+            save({ emoji: e }).catch(() => {});
+          }}
+        />
+        <input
+          type="text"
+          value={nome}
+          disabled={bloqueado}
+          onChange={(e) => setNome(e.target.value)}
+          onBlur={onBlurNome}
+          placeholder="Nome da ferramenta"
+          className="flex-1 text-[15px] font-semibold rounded-lg px-3 py-2 disabled:opacity-50"
+          style={{ background: "#FFFFFF", border: `1px solid ${T.line}` }}
+        />
+      </div>
+      <div className="flex items-center gap-2 -mt-1 pl-16">
+        <SavedTick s={asNome.estado} err={asNome.err} />
+        <span className="text-[11px]" style={{ color: T.faint }}>·</span>
+        <SavedTick s={asEmoji.estado} err={asEmoji.err} />
+      </div>
+
+      <div>
+        <textarea
+          value={descricao}
+          disabled={bloqueado}
+          onChange={(e) => setDescricao(e.target.value)}
+          rows={2}
+          placeholder="Descrição curta — o que faz e para quem serve."
+          className="w-full text-sm rounded-lg px-3 py-2 resize-none disabled:opacity-50"
+          style={{ background: "#FFFFFF", border: `1px solid ${T.line}`, color: T.ink }}
+        />
+        <div className="mt-1"><SavedTick s={asDesc.estado} err={asDesc.err} /></div>
+      </div>
+
+      <div>
+        <input
+          type="url"
+          value={url}
+          disabled={bloqueado}
+          onChange={(e) => setUrl(e.target.value)}
+          placeholder="https://exemplo.com"
+          className="w-full text-sm rounded-lg px-3 py-2 disabled:opacity-50"
+          style={{ background: "#FFFFFF", border: `1px solid ${T.line}`, color: T.ink }}
+        />
+        <div className="mt-1"><SavedTick s={asUrl.estado} err={asUrl.err} /></div>
+      </div>
+
+      <div className="grid gap-2 sm:grid-cols-2">
+        <div>
+          <input
+            type="text"
+            value={etiqueta}
+            disabled={bloqueado}
+            onChange={(e) => setEtiqueta(e.target.value)}
+            placeholder="Etiqueta (ex.: Pesquisa)"
+            className="w-full text-sm rounded-lg px-3 py-2 disabled:opacity-50"
+            style={{ background: "#FFFFFF", border: `1px solid ${T.line}`, color: T.ink }}
+          />
+          <div className="mt-1"><SavedTick s={asEtiqueta.estado} err={asEtiqueta.err} /></div>
+        </div>
+        <div>
+          <input
+            type="text"
+            value={cta}
+            disabled={bloqueado}
+            onChange={(e) => setCta(e.target.value)}
+            placeholder="Texto do botão"
+            className="w-full text-sm rounded-lg px-3 py-2 disabled:opacity-50"
+            style={{ background: "#FFFFFF", border: `1px solid ${T.line}`, color: T.ink }}
+          />
+          <div className="mt-1"><SavedTick s={asCta.estado} err={asCta.err} /></div>
+        </div>
+      </div>
+
+      <div className="flex items-center gap-2 pt-1">
+        <span className="text-[11px] font-semibold" style={{ color: T.muted }}>Cor</span>
+        {CORES_ORDENADAS.map((c) => {
+          const p = COR_PRESETS[c];
+          const activa = cor === c;
+          return (
+            <button
+              key={c}
+              type="button"
+              disabled={bloqueado}
+              onClick={() => { setCor(c); save({ cor: c }).catch(() => {}); }}
+              title={p.nome}
+              className="w-6 h-6 rounded-full disabled:opacity-50 transition-transform"
+              style={{
+                background: p.solid,
+                border: activa ? `2px solid ${T.ink}` : `2px solid transparent`,
+                transform: activa ? "scale(1.1)" : "scale(1)",
+              }}
+              aria-label={`Cor ${p.nome}`}
+              aria-pressed={activa}
+            />
+          );
+        })}
+      </div>
+    </div>
+  );
+}
+
+export function FerramentasSemana({ edicaoId, bloqueado, onAcao }: Props) {
+  const qc = useQueryClient();
+  const q = useQuery({
+    queryKey: ["ferramentas", edicaoId],
+    queryFn: () => listarFerramentas(edicaoId),
+  });
+
+  useEffect(() => {
+    const canal = supabase
+      .channel(`ferramentas-${edicaoId}`)
+      .on("postgres_changes", { event: "*", schema: "public", table: "nl_ferramentas_semana", filter: `edicao_id=eq.${edicaoId}` }, () => {
+        qc.invalidateQueries({ queryKey: ["ferramentas", edicaoId] });
+      })
+      .subscribe();
+    return () => { supabase.removeChannel(canal); };
+  }, [edicaoId, qc]);
+
+  const criar = useMutation({
+    mutationFn: (posicao: 1 | 2) => criarFerramenta(edicaoId, posicao),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["ferramentas", edicaoId] });
+      onAcao?.("Ferramenta adicionada");
+    },
+  });
+
+  const lista = q.data ?? [];
+  const podeAdicionar = lista.length < 2;
+  const proximaPos: 1 | 2 = lista.some((f) => f.posicao === 1) ? 2 : 1;
+
+  const contar = useServerFn(contarFerramentasArquivadas);
+  const qArquivadas = useQuery({
+    queryKey: ["ferramentas-arquivadas-count"],
+    queryFn: () => contar({}),
+    staleTime: 60_000,
+    enabled: podeAdicionar,
+  });
+  const totalArquivadas = qArquivadas.data?.total ?? 0;
+
+  return (
+    <div className="space-y-3">
+      <p className="text-xs" style={{ color: T.faint }}>
+        Até duas ferramentas por edição. Se não preencheres nenhuma, a secção é omitida do email e da página.
+      </p>
+
+      {podeAdicionar && totalArquivadas > 0 && (
+        <Link
+          to="/ferramentas"
+          search={{ estado: "arquivada" } as never}
+          className="flex items-center gap-2 text-[12px] px-3 py-2 rounded-lg hover:underline"
+          style={{ background: "#F5F3FF", border: "1px dashed #C7BFFF", color: "#4F46E5" }}
+        >
+          <Archive size={13} />
+          Tens {totalArquivadas} ferramenta{totalArquivadas === 1 ? "" : "s"} arquivada{totalArquivadas === 1 ? "" : "s"} pronta{totalArquivadas === 1 ? "" : "s"} a usar → escolher uma
+        </Link>
+      )}
+
+      {lista.length === 0 && (
+        <div className="rounded-lg px-3 py-6 text-center text-xs"
+          style={{ background: T.card, border: `1px dashed ${T.line}`, color: T.muted }}>
+          <Wrench size={18} className="mx-auto mb-2" style={{ color: T.faint }} />
+          Sem ferramentas nesta edição.
+        </div>
+      )}
+
+      <div className="grid md:grid-cols-2 gap-3">
+        {lista.map((f) => (
+          <CartaoFerramenta key={f.id} f={f} bloqueado={bloqueado} edicaoId={edicaoId} onAcao={onAcao} />
+        ))}
+      </div>
+
+      {podeAdicionar && (
+        <button
+          type="button"
+          disabled={bloqueado || criar.isPending}
+          onClick={() => criar.mutate(proximaPos)}
+          className="inline-flex items-center gap-1.5 text-xs font-bold px-3 py-2 rounded-md text-white disabled:opacity-40"
+          style={{ background: "#4F46E5" }}
+        >
+          {criar.isPending ? <Loader2 size={12} className="animate-spin" /> : <Plus size={12} />}
+          Adicionar ferramenta
+        </button>
+      )}
+    </div>
+  );
+}

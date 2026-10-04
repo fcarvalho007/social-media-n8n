@@ -1,0 +1,597 @@
+// Secção «Publicação» do Editor Revista.
+//
+// Apresentação simplificada: cada destino mostra nome, estado humano e uma
+// ação principal. Detalhes técnicos (post ID, slug, Rank Math, hash,
+// diagnósticos, URL manual) vivem num bloco recolhido. Toda a orquestração
+// vive no servidor — aqui não há sequência de chamadas a CMS nem credenciais.
+
+import { useEffect, useState } from "react";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { useServerFn } from "@/newsletter/shim/start";
+import { toast } from "sonner";
+import {
+  Globe, PenLine, Archive, Mail, RotateCw, Eye, Upload, ExternalLink,
+  ChevronDown, CircleAlert,
+} from "lucide-react";
+
+import {
+  actualizarArtigoCronicaFn,
+  diagnosticoCronicaFn,
+  estadoDestinosFn,
+  estadoIntegracaoCronicaFn,
+  guardarUrlCronicaFn,
+  publicarArtigoCronicaFn,
+  publicarCronicaFn,
+  reconciliarHashCronicaFn,
+  repetirDestinoFn,
+} from "@/newsletter/lib/destinos.functions";
+import { PreVisualizarEdicao } from "./PreVisualizarEdicao";
+
+type Tom = "ok" | "espera" | "erro" | "neutro";
+
+const ROTULO_WEB: Record<string, [string, Tom]> = {
+  publica: ["Publicada", "ok"],
+  preparada: ["Publicada", "ok"],
+  por_preparar: ["Será publicada ao enviar", "neutro"],
+  erro: ["Erro", "erro"],
+};
+const ROTULO_CRONICA: Record<string, [string, Tom]> = {
+  publicada: ["Publicada e atualizada", "ok"],
+  desactualizada: ["Alterações por publicar", "espera"],
+  rascunho: ["Rascunho criado", "espera"],
+  manual: ["URL manual", "ok"],
+  pendente: ["A publicar…", "espera"],
+  nao_configurada: ["Não configurada", "neutro"],
+  erro: ["Erro de publicação", "erro"],
+};
+
+const ROTULO_BACKUP: Record<string, [string, Tom]> = {
+  guardado: ["Backup guardado", "ok"],
+  aguardar: ["Aguardar publicação", "neutro"],
+  pronto: ["Aguardar publicação", "neutro"],
+  nao_configurado: ["Não configurado", "neutro"],
+  erro: ["Falha no backup", "erro"],
+};
+
+const ROTULO_EMAIL: Record<string, [string, Tom]> = {
+  enviado: ["Enviado", "ok"],
+  agendado: ["Agendado", "espera"],
+  parcial: ["Envio parcial", "espera"],
+  nao_enviado: ["Ainda não enviado", "neutro"],
+  erro: ["Erro", "erro"],
+};
+
+function Estado({ texto, tom }: { texto: string; tom: Tom }) {
+  const ponto =
+    tom === "ok" ? "bg-emerald-500"
+    : tom === "erro" ? "bg-destructive"
+    : tom === "espera" ? "bg-amber-500"
+    : "bg-muted-foreground/40";
+  const cor =
+    tom === "ok" ? "text-emerald-600 dark:text-emerald-400"
+    : tom === "erro" ? "text-destructive"
+    : tom === "espera" ? "text-amber-600 dark:text-amber-400"
+    : "text-muted-foreground";
+  return (
+    <span className={`inline-flex items-center gap-1.5 text-[13.5px] font-semibold ${cor}`}>
+      <span className={`h-1.5 w-1.5 rounded-full ${ponto}`} aria-hidden />
+      {texto}
+    </span>
+  );
+}
+
+function BotaoPrimario({
+  onClick, disabled, pending, children,
+}: {
+  onClick: () => void; disabled?: boolean; pending?: boolean; children: React.ReactNode;
+}) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      disabled={disabled || pending}
+      className="inline-flex items-center gap-1.5 rounded-lg bg-primary px-3 py-2 text-[13.5px] font-semibold text-primary-foreground transition hover:opacity-90 disabled:opacity-50"
+    >
+      {children}
+    </button>
+  );
+}
+
+function BotaoSecundario({
+  onClick, href, disabled, pending, title, children,
+}: {
+  onClick?: () => void; href?: string; disabled?: boolean; pending?: boolean;
+  title?: string; children: React.ReactNode;
+}) {
+  const cls =
+    "inline-flex items-center gap-1.5 rounded-lg px-2 py-2 text-[13px] font-medium text-muted-foreground transition hover:bg-muted hover:text-foreground disabled:opacity-50";
+  if (href) {
+    return (
+      <a href={href} target="_blank" rel="noreferrer" className={cls} title={title}>
+        {children}
+      </a>
+    );
+  }
+  return (
+    <button type="button" onClick={onClick} disabled={disabled || pending} className={cls} title={title}>
+      {children}
+    </button>
+  );
+}
+
+function Separador() {
+  return <div className="border-t border-border/60" role="separator" />;
+}
+
+export default function PainelDestinos({
+  edicaoId, numero, cronicaUrl, bloqueado, onUrlGuardado,
+}: {
+  edicaoId: string;
+  numero: number;
+  cronicaUrl: string;
+  bloqueado: boolean;
+  onUrlGuardado: (url: string) => void;
+}) {
+  const qc = useQueryClient();
+  const pedirEstado = useServerFn(estadoDestinosFn);
+  const guardarUrl = useServerFn(guardarUrlCronicaFn);
+  const repetir = useServerFn(repetirDestinoFn);
+
+  const q = useQuery({
+    queryKey: ["revista-destinos", edicaoId],
+    queryFn: () => pedirEstado({ data: { edicao_id: edicaoId } }),
+  });
+
+  const [url, setUrl] = useState(cronicaUrl);
+  useEffect(() => { setUrl(cronicaUrl); }, [cronicaUrl]);
+  const [tecnicosAbertos, setTecnicosAbertos] = useState(false);
+
+  const invalidar = () => {
+    qc.invalidateQueries({ queryKey: ["revista-destinos", edicaoId] });
+    qc.invalidateQueries({ queryKey: ["revista-config", edicaoId] });
+    qc.invalidateQueries({ queryKey: ["audit"] });
+  };
+
+  const mGuardar = useMutation({
+    mutationFn: (v: string) => guardarUrl({ data: { edicao_id: edicaoId, url: v } }),
+    onSuccess: (r) => {
+      onUrlGuardado(r.url);
+      invalidar();
+      toast.success(r.url ? "URL da crónica guardado" : "URL da crónica removido");
+    },
+    onError: (e: Error) => toast.error(e.message),
+  });
+
+  const mRepetir = useMutation({
+    mutationFn: () => repetir({ data: { edicao_id: edicaoId, destino: "backup" as const } }),
+    onSuccess: (r) => {
+      invalidar();
+      if (r.ok) toast.success(r.mensagem); else toast.error(r.mensagem);
+    },
+    onError: (e: Error) => toast.error(e.message),
+  });
+
+  // ── crónica em FredericoCarvalho.pt ─────────────────────────────
+  const pedirIntegracao = useServerFn(estadoIntegracaoCronicaFn);
+  const publicarCronica = useServerFn(publicarCronicaFn);
+  const [preview, setPreview] = useState(false);
+
+  const qIntegracao = useQuery({
+    queryKey: ["revista-integracao-cronica"],
+    queryFn: () => pedirIntegracao(),
+    staleTime: 60_000,
+  });
+
+  // Diagnóstico externo: só quando os detalhes técnicos são abertos.
+  const pedirDiagnostico = useServerFn(diagnosticoCronicaFn);
+  const qDiagnostico = useQuery({
+    queryKey: ["revista-diagnostico-cronica"],
+    queryFn: () => pedirDiagnostico(),
+    enabled: tecnicosAbertos && qIntegracao.data?.configurada === true,
+    staleTime: 60_000,
+  });
+
+  const mPublicar = useMutation({
+    mutationFn: (repetirPedido: boolean) =>
+      publicarCronica({ data: { edicao_id: edicaoId, repetir: repetirPedido } }),
+    onSuccess: (r) => {
+      invalidar();
+      if (r.ok) {
+        if (r.url) onUrlGuardado(r.url);
+        toast.success(r.mensagem);
+      } else {
+        toast.error(r.mensagem);
+      }
+    },
+    onError: (e: Error) => toast.error(e.message),
+  });
+
+  const publicarArtigo = useServerFn(publicarArtigoCronicaFn);
+  const mPublicarArtigo = useMutation({
+    mutationFn: () => publicarArtigo({ data: { edicao_id: edicaoId } }),
+    onSuccess: (r) => {
+      invalidar();
+      if (r.ok) {
+        if (r.url) onUrlGuardado(r.url);
+        toast.success(r.mensagem);
+      } else {
+        toast.error(r.mensagem);
+      }
+    },
+    onError: (e: Error) => toast.error(e.message),
+  });
+
+  const actualizarArtigo = useServerFn(actualizarArtigoCronicaFn);
+  const mActualizarArtigo = useMutation({
+    mutationFn: () => actualizarArtigo({ data: { edicao_id: edicaoId } }),
+    onSuccess: (r) => {
+      invalidar();
+      if (r.ok) {
+        if (r.url) onUrlGuardado(r.url);
+        toast.success(r.mensagem);
+      } else {
+        toast.error(r.mensagem);
+      }
+    },
+    onError: (e: Error) => toast.error(e.message),
+  });
+
+  const reconciliar = useServerFn(reconciliarHashCronicaFn);
+  const mReconciliar = useMutation({
+    mutationFn: () => reconciliar({ data: { edicao_id: edicaoId } }),
+    onSuccess: (r) => {
+      invalidar();
+      if (r.ok) {
+        toast.success(r.mensagem);
+      } else {
+        toast.error(`Existem alterações reais por publicar. ${r.mensagem}`, {
+          action: { label: "Atualizar artigo", onClick: () => mActualizarArtigo.mutate() },
+        });
+      }
+    },
+    onError: (e: Error) => toast.error(e.message),
+  });
+
+  const integracaoOk = qIntegracao.data?.configurada === true;
+  const d = q.data;
+  const estadoCronica = d?.cronica.estado;
+  const publicado = estadoCronica === "publicada" || estadoCronica === "desactualizada";
+
+  const formatarData = (iso: string) =>
+    new Date(iso).toLocaleString("pt-PT", { dateStyle: "short", timeStyle: "short" });
+
+  return (
+    <div className="rounded-2xl border border-border bg-card p-4">
+      <p className="mb-3 text-[13px] font-semibold uppercase tracking-wide text-muted-foreground">
+        Destinos desta edição
+      </p>
+
+      {q.isLoading && <p className="py-3 text-[14px] text-muted-foreground">A ler estado…</p>}
+
+      {d && (
+        <div>
+          {/* ── Edição Digital Sprint ─────────────────────────────── */}
+          <div className="flex flex-wrap items-center gap-x-3 gap-y-1 py-2.5">
+            <div className="flex min-w-0 flex-1 items-center gap-x-3 max-sm:basis-full">
+              <Globe className="h-4 w-4 shrink-0 text-muted-foreground" aria-hidden />
+              <span className="min-w-0 flex-1 text-[15px] font-medium text-foreground">
+                Edição Digital Sprint
+              </span>
+            </div>
+            <Estado texto={ROTULO_WEB[d.web.estado]?.[0] ?? d.web.estado} tom={ROTULO_WEB[d.web.estado]?.[1] ?? "neutro"} />
+            {d.web.url && (
+              <a
+                href={d.web.url}
+                className="w-full truncate pl-7 text-[13px] text-muted-foreground underline-offset-2 hover:underline sm:w-auto sm:max-w-[18rem] sm:pl-0"
+              >
+                {d.web.url}
+              </a>
+            )}
+          </div>
+
+          <Separador />
+
+          {/* ── Crónica FredericoCarvalho.pt ──────────────────────── */}
+          <div className="py-2.5">
+            <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
+              <div className="flex min-w-0 flex-1 items-center gap-x-3 max-sm:basis-full">
+                <PenLine className="h-4 w-4 shrink-0 text-muted-foreground" aria-hidden />
+                <span className="min-w-0 flex-1 text-[15px] font-medium text-foreground">
+                  Crónica · FredericoCarvalho.pt
+                </span>
+              </div>
+              <Estado
+                texto={ROTULO_CRONICA[estadoCronica ?? ""]?.[0] ?? estadoCronica ?? ""}
+                tom={ROTULO_CRONICA[estadoCronica ?? ""]?.[1] ?? "neutro"}
+              />
+            </div>
+
+            {d.cronica.titulo && estadoCronica !== "nao_configurada" && (
+              <p className="mt-1 truncate pl-7 text-[14px] text-foreground">{d.cronica.titulo}</p>
+            )}
+            {d.cronica.url && (
+              <a
+                href={d.cronica.url}
+                target="_blank"
+                rel="noreferrer"
+                className="mt-0.5 block truncate pl-7 text-[13px] text-muted-foreground underline-offset-2 hover:underline"
+              >
+                {d.cronica.url}
+              </a>
+            )}
+            {d.cronica.erro && (
+              <p className="mt-1 flex items-start gap-1.5 pl-7 text-[13px] text-destructive">
+                <CircleAlert className="mt-0.5 h-3.5 w-3.5 shrink-0" aria-hidden />
+                {d.cronica.erro}
+              </p>
+            )}
+            {d.cronica.actualizado_em && estadoCronica !== "nao_configurada" && (
+              <p className="mt-0.5 pl-7 text-[12.5px] text-muted-foreground">
+                Última sincronização a {formatarData(d.cronica.actualizado_em)}
+              </p>
+            )}
+
+            {/* Ações: uma primária por estado + secundárias discretas */}
+            <div className="mt-2 flex flex-wrap items-center gap-1.5 pl-7">
+              {integracaoOk && estadoCronica === "rascunho" && d.cronica.external_id && (
+                <BotaoPrimario
+                  disabled={bloqueado}
+                  pending={mPublicarArtigo.isPending}
+                  onClick={() => mPublicarArtigo.mutate()}
+                >
+                  <Upload className="h-3.5 w-3.5" aria-hidden />
+                  {mPublicarArtigo.isPending ? "A publicar…" : "Publicar artigo"}
+                </BotaoPrimario>
+              )}
+              {integracaoOk && estadoCronica === "desactualizada" && (
+                <BotaoPrimario
+                  disabled={bloqueado}
+                  pending={mActualizarArtigo.isPending}
+                  onClick={() => mActualizarArtigo.mutate()}
+                >
+                  <Upload className="h-3.5 w-3.5" aria-hidden />
+                  {mActualizarArtigo.isPending ? "A atualizar…" : "Atualizar artigo"}
+                </BotaoPrimario>
+              )}
+              {integracaoOk && estadoCronica === "erro" && (
+                <BotaoPrimario
+                  disabled={bloqueado}
+                  pending={mPublicar.isPending}
+                  onClick={() => mPublicar.mutate(true)}
+                >
+                  <RotateCw className="h-3.5 w-3.5" aria-hidden />
+                  {mPublicar.isPending ? "A repetir…" : "Repetir"}
+                </BotaoPrimario>
+              )}
+              {publicado && d.cronica.url && estadoCronica === "publicada" && (
+                <BotaoPrimario onClick={() => window.open(d.cronica.url!, "_blank", "noreferrer")}>
+                  <ExternalLink className="h-3.5 w-3.5" aria-hidden /> Abrir artigo
+                </BotaoPrimario>
+              )}
+
+              <BotaoSecundario onClick={() => setPreview(true)}>
+                <Eye className="h-3.5 w-3.5" aria-hidden /> Pré-visualizar
+              </BotaoSecundario>
+
+              {integracaoOk && !publicado && estadoCronica !== "erro" && (
+                <BotaoSecundario
+                  disabled={bloqueado}
+                  pending={mPublicar.isPending}
+                  onClick={() => mPublicar.mutate(false)}
+                >
+                  <Upload className="h-3.5 w-3.5" aria-hidden />
+                  {mPublicar.isPending
+                    ? "A escrever…"
+                    : d.cronica.external_id
+                      ? "Atualizar rascunho"
+                      : "Criar rascunho"}
+                </BotaoSecundario>
+              )}
+              {integracaoOk && estadoCronica === "publicada" && (
+                <BotaoSecundario
+                  disabled={bloqueado}
+                  pending={mActualizarArtigo.isPending}
+                  onClick={() => mActualizarArtigo.mutate()}
+                >
+                  <Upload className="h-3.5 w-3.5" aria-hidden />
+                  {mActualizarArtigo.isPending ? "A atualizar…" : "Atualizar artigo"}
+                </BotaoSecundario>
+              )}
+            </div>
+
+            {/* URL manual: única via quando a integração não está configurada */}
+            {!integracaoOk && (
+              <div className="mt-2 pl-7">
+                <p className="mb-1.5 text-[13px] text-muted-foreground">
+                  Integração não configurada{qIntegracao.data?.motivo ? ` — ${qIntegracao.data.motivo}` : ""}.
+                  Publica o artigo à mão e cola aqui o endereço.
+                </p>
+                <CampoUrlManual
+                  url={url}
+                  setUrl={setUrl}
+                  bloqueado={bloqueado}
+                  aGuardar={mGuardar.isPending}
+                  urlAtual={cronicaUrl}
+                  onGuardar={() => mGuardar.mutate(url.trim())}
+                />
+              </div>
+            )}
+          </div>
+
+          <Separador />
+
+          {/* ── Backup DigitalSprint.pt ───────────────────────────── */}
+          <div className="flex flex-wrap items-center gap-x-3 gap-y-1 py-2.5">
+            <div className="flex min-w-0 flex-1 items-center gap-x-3 max-sm:basis-full">
+              <Archive className="h-4 w-4 shrink-0 text-muted-foreground" aria-hidden />
+              <span className="min-w-0 flex-1 text-[15px] font-medium text-foreground">
+                Backup · DigitalSprint.pt
+              </span>
+            </div>
+            <Estado
+              texto={ROTULO_BACKUP[d.backup.estado]?.[0] ?? d.backup.estado}
+              tom={ROTULO_BACKUP[d.backup.estado]?.[1] ?? "neutro"}
+            />
+            {d.backup.erro && (
+              <span className="w-full pl-7 text-[13px] text-destructive">
+                {d.backup.erro}
+                {d.backup.tentado_em && (
+                  <span className="block text-muted-foreground">
+                    Última tentativa:{" "}
+                    {new Intl.DateTimeFormat("pt-PT", {
+                      timeZone: "Europe/Lisbon",
+                      day: "2-digit",
+                      month: "2-digit",
+                      year: "numeric",
+                      hour: "2-digit",
+                      minute: "2-digit",
+                    }).format(new Date(d.backup.tentado_em))}
+                  </span>
+                )}
+              </span>
+            )}
+            {d.backup.estado === "erro" && (
+              <BotaoSecundario pending={mRepetir.isPending} onClick={() => mRepetir.mutate()}>
+                <RotateCw className={`h-3.5 w-3.5 ${mRepetir.isPending ? "animate-spin" : ""}`} aria-hidden />
+                Repetir
+              </BotaoSecundario>
+            )}
+            {d.backup.estado === "guardado" && (
+              <BotaoSecundario pending={mRepetir.isPending} onClick={() => mRepetir.mutate()}>
+                <RotateCw className={`h-3.5 w-3.5 ${mRepetir.isPending ? "animate-spin" : ""}`} aria-hidden />
+                Atualizar
+              </BotaoSecundario>
+            )}
+            {d.backup.estado === "aguardar" && (
+              <BotaoSecundario pending={mRepetir.isPending} onClick={() => mRepetir.mutate()}>
+                <Archive className="h-3.5 w-3.5" aria-hidden />
+                Guardar backup
+              </BotaoSecundario>
+            )}
+          </div>
+
+          <Separador />
+
+          {/* ── Email E-goi ───────────────────────────────────────── */}
+          <div className="flex flex-wrap items-center gap-x-3 gap-y-1 py-2.5">
+            <div className="flex min-w-0 flex-1 items-center gap-x-3 max-sm:basis-full">
+              <Mail className="h-4 w-4 shrink-0 text-muted-foreground" aria-hidden />
+              <span className="min-w-0 flex-1 text-[15px] font-medium text-foreground">
+                Email · E-goi
+              </span>
+            </div>
+            <Estado
+              texto={ROTULO_EMAIL[d.email.estado]?.[0] ?? d.email.estado}
+              tom={ROTULO_EMAIL[d.email.estado]?.[1] ?? "neutro"}
+            />
+            {d.email.erro && (
+              <span className="w-full pl-7 text-[13px] text-destructive">{d.email.erro}</span>
+            )}
+          </div>
+
+          {/* ── Detalhes técnicos (recolhido) ─────────────────────── */}
+          <Separador />
+          <button
+            type="button"
+            onClick={() => setTecnicosAbertos((v) => !v)}
+            aria-expanded={tecnicosAbertos}
+            className="flex w-full items-center gap-1.5 py-2.5 text-[13px] font-medium text-muted-foreground transition hover:text-foreground"
+          >
+            <ChevronDown
+              className={`h-3.5 w-3.5 transition-transform ${tecnicosAbertos ? "" : "-rotate-90"}`}
+              aria-hidden
+            />
+            Detalhes técnicos
+          </button>
+
+          {tecnicosAbertos && (
+            <div className="space-y-2 pb-1 pl-7 text-[12.5px] text-muted-foreground">
+              {d.cronica.external_id && (
+                <p className="flex flex-wrap gap-x-3 gap-y-1">
+                  <span className="font-mono">post #{d.cronica.external_id}</span>
+                  {d.cronica.slug && <span className="font-mono">/{d.cronica.slug}/</span>}
+                  {d.cronica.categoria && <span>Categoria {d.cronica.categoria}</span>}
+                </p>
+              )}
+              {d.cronica.publicado_em && <p>Publicada a {formatarData(d.cronica.publicado_em)}</p>}
+              {d.cronica.seo && <p>SEO: {d.cronica.seo}</p>}
+              {qDiagnostico.isLoading && <p>A ler diagnóstico…</p>}
+              {qDiagnostico.data?.rankmath && <p>{qDiagnostico.data.rankmath.mensagem}</p>}
+              {qDiagnostico.data?.autenticacao && <p>{qDiagnostico.data.autenticacao.mensagem}</p>}
+
+              {integracaoOk && estadoCronica === "desactualizada" && (
+                <div>
+                  <BotaoSecundario
+                    pending={mReconciliar.isPending}
+                    onClick={() => mReconciliar.mutate()}
+                    title="Compara o conteúdo local com o WordPress. Se forem iguais, sincroniza sem escrever no site; se houver diferenças reais, encaminha para «Atualizar artigo»."
+                  >
+                    <RotateCw className={`h-3.5 w-3.5 ${mReconciliar.isPending ? "animate-spin" : ""}`} aria-hidden />
+                    {mReconciliar.isPending ? "A comparar…" : "Verificar sincronização"}
+                  </BotaoSecundario>
+                </div>
+              )}
+
+              {integracaoOk && (
+                <div className="pt-1">
+                  <p className="mb-1.5">URL manual — alternativa à publicação automática:</p>
+                  <CampoUrlManual
+                    url={url}
+                    setUrl={setUrl}
+                    bloqueado={bloqueado}
+                    aGuardar={mGuardar.isPending}
+                    urlAtual={cronicaUrl}
+                    onGuardar={() => mGuardar.mutate(url.trim())}
+                  />
+                </div>
+              )}
+            </div>
+          )}
+        </div>
+      )}
+
+      {preview && (
+        <PreVisualizarEdicao
+          edicaoId={edicaoId}
+          numero={numero}
+          vistaInicial="cronica"
+          urlCronica={d?.cronica.url ?? undefined}
+          cronicaRascunho={!!d?.cronica.url && estadoCronica !== "publicada"}
+          onClose={() => setPreview(false)}
+        />
+      )}
+    </div>
+  );
+}
+
+function CampoUrlManual({
+  url, setUrl, bloqueado, aGuardar, urlAtual, onGuardar,
+}: {
+  url: string;
+  setUrl: (v: string) => void;
+  bloqueado: boolean;
+  aGuardar: boolean;
+  urlAtual: string;
+  onGuardar: () => void;
+}) {
+  return (
+    <div className="flex flex-col gap-2 sm:flex-row">
+      <input
+        className="w-full rounded-xl border border-input bg-background px-3.5 py-2.5 font-mono text-[13px] text-foreground outline-none transition focus:border-primary"
+        placeholder="https://fredericocarvalho.pt/…"
+        value={url}
+        disabled={bloqueado}
+        onChange={(e) => setUrl(e.target.value)}
+        aria-label="URL manual da crónica"
+      />
+      <button
+        type="button"
+        disabled={bloqueado || aGuardar || url.trim() === urlAtual.trim()}
+        onClick={onGuardar}
+        className="shrink-0 rounded-xl border border-input px-4 py-2.5 text-[14px] font-semibold text-foreground disabled:opacity-50"
+      >
+        {aGuardar ? "A guardar…" : "Guardar URL"}
+      </button>
+    </div>
+  );
+}
