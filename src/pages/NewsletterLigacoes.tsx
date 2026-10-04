@@ -264,6 +264,8 @@ export default function NewsletterLigacoes() {
                     );
                   })}
                 </div>
+              )}
+            </div>
           )}
         </section>
       ))}
