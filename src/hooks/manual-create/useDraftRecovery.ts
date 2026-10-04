@@ -63,6 +63,9 @@ export function useDraftRecovery(params: UseDraftRecoveryParams) {
   const [isRecovering, setIsRecovering] = useState(false);
   const [recoveredPostId, setRecoveredPostId] = useState<string | null>(null);
   const [currentDraftId, setCurrentDraftId] = useState<string | null>(null);
+  // Owner/project of the draft opened in the editor (shown, never rewritten on save).
+  const [rascunhoCarregado, setRascunhoCarregado] = useState<{ user_id: string | null; project_id: string | null } | null>(null);
+  const lembrar = (d: { user_id?: string | null; project_id?: string | null }) => setRascunhoCarregado({ user_id: d.user_id ?? null, project_id: d.project_id ?? null });
 
   const fetchImageAsFile = useCallback(async (url: string): Promise<File | null> => {
     try {
@@ -368,6 +371,7 @@ export function useDraftRecovery(params: UseDraftRecoveryParams) {
     supabase.from('posts_drafts').select('*').eq('id', draftId).maybeSingle().then(({ data, error }) => {
       if (!vivo) return;
       if (error || !data) { toast.error('Rascunho não encontrado'); return; }
+      lembrar(data);
       handleLoadDraft(data as Parameters<typeof handleLoadDraft>[0]);
     });
     return () => { vivo = false; };
@@ -380,6 +384,7 @@ export function useDraftRecovery(params: UseDraftRecoveryParams) {
       try {
         const draft = JSON.parse(savedDraft);
         sessionStorage.removeItem('editDraft');
+        lembrar(draft);
         handleLoadDraft(draft);
       } catch (err) {
         console.error('Error loading draft from sessionStorage:', err);
@@ -394,6 +399,7 @@ export function useDraftRecovery(params: UseDraftRecoveryParams) {
     setRecoveredPostId,
     currentDraftId,
     setCurrentDraftId,
+    rascunhoCarregado,
     fetchImageAsFile,
     loadPostForRecovery,
     handleLoadDraft,

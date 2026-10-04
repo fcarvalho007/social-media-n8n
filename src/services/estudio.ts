@@ -91,7 +91,10 @@ export interface Continuidade {
 
 /** Real counts for the Studio entry; filtered by project (newsletter via its identities). */
 export async function resumoContinuidade(projectId: string | null, identidadeIds: string[]): Promise<Continuidade> {
-  let qd = supabase.from("posts_drafts").select("id", { count: "exact", head: true }).eq("status", "draft");
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) throw new Error("Sessão expirada. Volta a entrar.");
+  // Same filter as the drafts list (user + project), so the count matches what opens.
+  let qd = supabase.from("posts_drafts").select("id", { count: "exact", head: true }).eq("status", "draft").eq("user_id", user.id);
   if (projectId) qd = qd.eq("project_id", projectId);
   let qa = db.from("art_rascunhos").select("id,titulo,updated_at", { count: "exact" }).order("updated_at", { ascending: false }).limit(1);
   if (projectId) qa = qa.eq("project_id", projectId);
