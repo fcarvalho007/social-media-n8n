@@ -2642,6 +2642,36 @@ export type Database = {
         }
         Relationships: []
       }
+      nl_worker_estado: {
+        Row: {
+          actualizado_em: string
+          chave: string
+          lease_ate: string | null
+          nome: string
+          pausa_motivo: string | null
+          ultima_execucao: string | null
+          ultimo_resultado: Json | null
+        }
+        Insert: {
+          actualizado_em?: string
+          chave?: string
+          lease_ate?: string | null
+          nome: string
+          pausa_motivo?: string | null
+          ultima_execucao?: string | null
+          ultimo_resultado?: Json | null
+        }
+        Update: {
+          actualizado_em?: string
+          chave?: string
+          lease_ate?: string | null
+          nome?: string
+          pausa_motivo?: string | null
+          ultima_execucao?: string | null
+          ultimo_resultado?: Json | null
+        }
+        Relationships: []
+      }
       notifications: {
         Row: {
           created_at: string
@@ -4078,6 +4108,10 @@ export type Database = {
           fonte_id: string
           sugeridas_30d: number
         }[]
+      }
+      nl_worker_adquirir: {
+        Args: { _nome: string; _segundos: number }
+        Returns: boolean
       }
       update_account_insight_visibility: {
         Args: { _action: string; _insight_id: string }
