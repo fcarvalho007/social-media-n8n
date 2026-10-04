@@ -19,7 +19,7 @@ let MODELOS_PADRAO: ModelosBrief | null = null;
 
 async function modelosPadrao(): Promise<ModelosBrief> {
   if (MODELOS_PADRAO) return MODELOS_PADRAO;
-  const { MODELO_DEEPSEEK_PADRAO } = await import("@/lib/deepseek.server");
+  const { MODELO_DEEPSEEK_PADRAO } = await import("../../deepseek.server.ts");
   MODELOS_PADRAO = {
     extraccao: MODELO_DEEPSEEK_PADRAO,
     redaccao: MODELO_DEEPSEEK_PADRAO,
@@ -70,7 +70,7 @@ export interface RespostaIa<T> {
  * com sucesso ou com erro. O registo de custo nunca faz falhar a geração.
  */
 export async function chamarIaBrief<T>(pedido: PedidoIa): Promise<RespostaIa<T>> {
-  const { chamarDeepSeek, parseJsonTolerante } = await import("@/lib/deepseek.server");
+  const { chamarDeepSeek, parseJsonTolerante } = await import("../../deepseek.server.ts");
   const modelos = await modelosBrief(pedido.sb);
   const modelo = modelos[pedido.papel];
 
