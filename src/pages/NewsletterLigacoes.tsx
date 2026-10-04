@@ -240,9 +240,9 @@ export default function NewsletterLigacoes() {
                     return (
                       <div key={l.id} className="space-y-1 rounded-md border p-2 text-xs">
                         <p className="font-medium">{l.nome}</p>
-                        {l.erro ? <p className="text-destructive">Não foi possível ler esta lista: {l.erro}</p>
+                        {l.erro ? <p className="text-aviso-texto">Não foi possível ler esta lista: {l.erro}</p>
                           : dedicados.length === 0
-                            ? <p className="text-destructive">Nenhum campo de texto dedicado ao token nesta lista ({l.campos.length} campos extra, nenhum com «token» no nome). Cria-o na E-goi primeiro.</p>
+                            ? <p className="text-aviso-texto">Nenhum campo de texto dedicado ao token nesta lista ({l.campos.length} campos extra, nenhum com «token» no nome). Cria-o na E-goi primeiro.</p>
                             : (
                               <div className="flex flex-wrap items-center gap-2">
                                 <Label htmlFor={`campo-${l.id}`} className="sr-only">Campo do token de {l.nome}</Label>
