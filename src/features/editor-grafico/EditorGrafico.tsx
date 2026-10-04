@@ -108,7 +108,7 @@ interface PropsPainel {
 
 const NOME_TIPO: Record<Camada["tipo"], string> = { texto: "Texto", imagem: "Imagem", forma: "Forma" };
 
-function PainelPropriedades({ pacote, camada: c, fundo, medidor, despachar, camadasPagina }: PropsPainel) {
+function PainelPropriedades({ pacote, camada: c, fundo, medidor, despachar, camadasPagina, onImagem }: PropsPainel & { onImagem?: () => void }) {
   if (!c) {
     return (
       <div className="space-y-5">
@@ -122,6 +122,7 @@ function PainelPropriedades({ pacote, camada: c, fundo, medidor, despachar, cama
             <Button variant="outline" className="h-11 lg:h-9" onClick={() => despachar({ tipo: "adicionar", camada: "texto" })}><Type className="mr-1.5 h-4 w-4" />Texto</Button>
             <Button variant="outline" className="h-11 lg:h-9" onClick={() => despachar({ tipo: "adicionar", camada: "ret" })}><Square className="mr-1.5 h-4 w-4" />Ret.</Button>
             <Button variant="outline" className="h-11 lg:h-9" onClick={() => despachar({ tipo: "adicionar", camada: "elipse" })}><Circle className="mr-1.5 h-4 w-4" />Elipse</Button>
+            {onImagem && <Button variant="outline" className="col-span-3 h-11 lg:h-9" onClick={onImagem}><ScanSearch className="mr-1.5 h-4 w-4" />Adicionar imagem</Button>}
           </div>
         </section>
         <section className="space-y-2">
@@ -260,12 +261,14 @@ export interface PropsEditorGrafico {
   estadoGravacao?: ReactNode;
   cabecalhoInicio?: ReactNode;
   menuExtra?: ReactNode;
+  /** Opens the authorised image picker; resolves with a verified asset or null. */
+  pedirImagem?: () => Promise<{ asset: Asset; nome: string } | null>;
   onAlterado?: (p: PacoteProva) => void;
   /** Optional strip above the editor header (e.g. the carousel stepper). */
   faixaTopo?: ReactNode;
 }
 
-export function EditorGrafico({ pacoteInicial, chaveLocal, titulo, seletor, real = false, estadoGravacao, cabecalhoInicio, menuExtra, onAlterado, faixaTopo }: PropsEditorGrafico) {
+export function EditorGrafico({ pacoteInicial, chaveLocal, titulo, seletor, real = false, estadoGravacao, cabecalhoInicio, menuExtra, onAlterado, faixaTopo, pedirImagem }: PropsEditorGrafico) {
   const { user } = useAuth();
   const [compacto, setCompacto] = useState(() => typeof window !== "undefined" && window.innerWidth < 1180);
   const [estado, despachar] = useReducer(reduzir, pacoteInicial, estadoInicial);
@@ -288,6 +291,7 @@ export function EditorGrafico({ pacoteInicial, chaveLocal, titulo, seletor, real
   const corSelecao = useMemo(() => corToken("--primary", "#6366f1"), []);
 
   const chave = user ? chaveLocal : null;
+  const onImagem = pedirImagem ? () => { pedirImagem().then((r) => { if (r) despachar({ tipo: "adicionarImagem", asset: r.asset, nome: r.nome }); }).catch((e: Error) => toast.error(e.message)); } : undefined;
 
   useEffect(() => {
     carregarMedidor().then(setMedidor).catch((e: Error) => setErroFontes(e.message));
@@ -528,7 +532,7 @@ export function EditorGrafico({ pacoteInicial, chaveLocal, titulo, seletor, real
   );
 
   const propriedades = medidor && paginaAtual && (
-    <PainelPropriedades pacote={pacote} camada={camada} fundo={paginaAtual.fundo} medidor={medidor} despachar={despachar} camadasPagina={paginaAtual.camadas} />
+    <PainelPropriedades pacote={pacote} camada={camada} fundo={paginaAtual.fundo} medidor={medidor} despachar={despachar} camadasPagina={paginaAtual.camadas} onImagem={onImagem} />
   );
 
   const dialogoComparacao = (
@@ -616,7 +620,7 @@ export function EditorGrafico({ pacoteInicial, chaveLocal, titulo, seletor, real
             </div>
             <TabsContent value="pagina" className="space-y-4 p-3">
               {acoesPagina}
-              {medidor && paginaAtual && <PainelPropriedades pacote={pacote} camada={null} fundo={paginaAtual.fundo} medidor={medidor} despachar={despachar} camadasPagina={paginaAtual.camadas} />}
+              {medidor && paginaAtual && <PainelPropriedades pacote={pacote} camada={null} fundo={paginaAtual.fundo} medidor={medidor} despachar={despachar} camadasPagina={paginaAtual.camadas} onImagem={onImagem} />}
             </TabsContent>
             <TabsContent value="camada" className="p-3">{camada && propriedades}</TabsContent>
           </Tabs>
