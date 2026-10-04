@@ -110,7 +110,7 @@ export async function resumoContinuidade(projectId: string | null, identidadeIds
   };
 }
 
-export interface ImportRun { id: string; created_by: string | null; modo: string; estado: string; progresso: { indice?: number; fase?: string } | null; relatorio: Record<string, unknown> | null; manifesto: { tabelas?: unknown[] } | null; created_at: string; updated_at: string }
+export interface ImportRun { id: string; created_by: string | null; modo: string; estado: string; progresso: { indice?: number; fase?: string } | null; relatorio: Record<string, unknown> | null; manifesto: Record<string, unknown> | null; created_at: string; updated_at: string }
 /** Latest import run of this admin, so an interrupted import can resume after reload. */
 export async function ultimaImportacao(): Promise<ImportRun | null> {
   const { data: u } = await supabase.auth.getUser();
