@@ -64,5 +64,6 @@ Deno.serve(async (req) => {
       return { access_token: v.session.access_token, refresh_token: v.session.refresh_token };
     },
   });
+  if (r.causa) console.error('[entrar-email] indisponível em', r.causa);
   return json(r.body, r.status);
 });

@@ -11,7 +11,8 @@ export interface Dependencias {
   emitirSessao(email: string): Promise<{ access_token: string; refresh_token: string } | null>;
 }
 
-export interface Resultado { status: number; body: Record<string, string> }
+/** causa is internal (logged server-side, never sent): which step failed and whether it timed out. */
+export interface Resultado { status: number; body: Record<string, string>; causa?: string }
 
 const MUITAS = { error: 'Demasiadas tentativas. Tenta daqui a 15 minutos.' };
 const SEM_ACESSO = { error: 'Este email não tem acesso.' };
@@ -32,19 +33,20 @@ export function comLimite<T>(p: Promise<T>, ms: number): Promise<T> {
 export async function entrar(emailBruto: unknown, ip: string | null, d: Dependencias, limiteMs = LIMITE_MS): Promise<Resultado> {
   const email = typeof emailBruto === 'string' ? emailBruto.trim().toLowerCase() : '';
   if (!email || email.length > 254) return { status: 400, body: { error: 'Email inválido' } };
-  const L = <T,>(p: Promise<T>) => comLimite(p, limiteMs);
+  let etapa = 'inicio';
+  const L = <T,>(p: Promise<T>, nome: string) => { etapa = nome; return comLimite(p, limiteMs); };
   try {
-    if (ip && (await L(d.contarFalhasIp(ip))) >= MAX_FALHAS_IP) return { status: 429, body: MUITAS };
-    if (!PERMITIDOS.includes(email)) { await L(d.registar(false)); return { status: 403, body: SEM_ACESSO }; }
-    if ((await L(d.contarEntradasEmail(email))) >= MAX_ENTRADAS_EMAIL) return { status: 429, body: MUITAS };
+    if (ip && (await L(d.contarFalhasIp(ip), 'limite_ip')) >= MAX_FALHAS_IP) return { status: 429, body: MUITAS };
+    if (!PERMITIDOS.includes(email)) { await L(d.registar(false), 'registar'); return { status: 403, body: SEM_ACESSO }; }
+    if ((await L(d.contarEntradasEmail(email), 'limite_email')) >= MAX_ENTRADAS_EMAIL) return { status: 429, body: MUITAS };
     // Explicit existence check: generateLink would otherwise create the user.
-    if (!(await L(d.contaExiste(email)))) { await L(d.registar(false)); return { status: 403, body: SEM_ACESSO }; }
-    const sessao = await L(d.emitirSessao(email));
-    if (!sessao) { await L(d.registar(false)); return { status: 500, body: { error: 'Não foi possível entrar. Tenta de novo.' } }; }
-    await L(d.registar(true));
+    if (!(await L(d.contaExiste(email), 'conta_existe'))) { await L(d.registar(false), 'registar'); return { status: 403, body: SEM_ACESSO }; }
+    const sessao = await L(d.emitirSessao(email), 'emitir_sessao');
+    if (!sessao) { await L(d.registar(false), 'registar'); return { status: 500, body: { error: 'Não foi possível entrar. Tenta de novo.' } }; }
+    await L(d.registar(true), 'registar');
     return { status: 200, body: sessao };
-  } catch {
+  } catch (e) {
     // Timeouts are service failures, not user failures: nothing is recorded against the visitor.
-    return { status: 503, body: INDISPONIVEL };
+    return { status: 503, body: INDISPONIVEL, causa: `${etapa}:${e instanceof LimiteExpirado ? 'tempo_esgotado' : 'erro'}` };
   }
 }
