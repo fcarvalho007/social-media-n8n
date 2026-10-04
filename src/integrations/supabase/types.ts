@@ -2324,6 +2324,7 @@ export type Database = {
       nl_user_mapping: {
         Row: {
           created_at: string
+          historico: Json
           source_email: string | null
           source_nome: string | null
           source_papel: string | null
@@ -2333,6 +2334,7 @@ export type Database = {
         }
         Insert: {
           created_at?: string
+          historico?: Json
           source_email?: string | null
           source_nome?: string | null
           source_papel?: string | null
@@ -2342,6 +2344,7 @@ export type Database = {
         }
         Update: {
           created_at?: string
+          historico?: Json
           source_email?: string | null
           source_nome?: string | null
           source_papel?: string | null
@@ -3676,8 +3679,13 @@ export type Database = {
       }
       nl_import_suspender_agendamentos: { Args: never; Returns: Json }
       nl_is_admin: { Args: never; Returns: boolean }
+      nl_is_service: { Args: never; Returns: boolean }
       nl_is_staff: { Args: never; Returns: boolean }
       nl_limpar_dados_antigos: { Args: { _dias?: number }; Returns: Json }
+      nl_mapear_perfil: {
+        Args: { _source: string; _target: string }
+        Returns: undefined
+      }
       nl_me_papel: { Args: never; Returns: string }
       nl_mover_seccao: {
         Args: { _direccao: string; _seccao_id: string }

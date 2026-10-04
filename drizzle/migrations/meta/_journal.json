@@ -8,6 +8,13 @@
       "when": 1791106893533,
       "tag": "0000_nl_perfis_view",
       "breakpoints": true
+    },
+    {
+      "idx": 1,
+      "version": "7",
+      "when": 1791107391082,
+      "tag": "0001_nl_harden_definer_rpcs",
+      "breakpoints": true
     }
   ]
 }
