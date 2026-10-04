@@ -304,7 +304,7 @@ export default function CarrosselTrabalho() {
         direita={pronto && <><span className="hidden sm:inline">{avisoBadge}</span><EstadoChip estado={estadoG} /></>}
         etapas={<Etapas atual={passo} disponiveis={disponiveis} onIr={irPara} compacto />} />
 
-      <main className="mx-auto w-full max-w-6xl flex-1 px-4 pb-10 pt-6 sm:px-6">
+      <main className="min-h-0 flex-1 overflow-y-auto"><div className="mx-auto w-full max-w-6xl px-4 pb-10 pt-6 sm:px-6">
         {projetoId && t.project_id !== projetoId && (
           <p className="mb-4 rounded-[var(--mc-r-md)] border border-border px-3 py-2 text-xs text-muted-foreground" role="note">Este carrossel pertence a outro projeto, diferente do que está escolhido em «Para quem?».</p>
         )}
@@ -363,7 +363,7 @@ export default function CarrosselTrabalho() {
                     <li key={s.id} className="shrink-0 lg:shrink">
                       <button type="button" aria-current={sel ? "true" : undefined} onClick={() => setSlideSel(i)}
                         className={cn("mc-trans flex min-h-14 w-44 items-start gap-3 rounded-[var(--mc-r-md)] border p-3 text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring lg:w-full",
-                          sel ? "border-primary bg-primary/10" : "border-border hover:border-muted-foreground/50")}>
+                          sel ? "border-primary bg-primary/10" : "border-input hover:border-muted-foreground")}>
                         <span className="w-5 shrink-0 text-xs tabular-nums text-muted-foreground">{i + 1}</span>
                         <span className="min-w-0">
                           <span className="block text-xs text-muted-foreground">{ps ? PAPEL[ps.papel] ?? ps.papel : "Slide"}</span>
@@ -423,14 +423,14 @@ export default function CarrosselTrabalho() {
         {passo === "revisao" && pronto && pacote && (
           <RevisaoExportacao dados={dados} pacote={pacote} medidor={medidor} guardado={estadoG === "guardado"} />
         )}
-      </main>
+      </div></main>
 
       {pronto && passo !== "revisao" && (
         <BarraAcoes
           inicio={passo === "narrativa" && <Button variant="ghost" className="h-11" onClick={() => setPasso("fonte")}><ArrowLeft className="mr-1.5 h-4 w-4" />Fonte</Button>}
           fim={passo === "fonte"
             ? <Button className="h-11 px-5" onClick={() => setPasso("narrativa")}>Narrativa<ArrowRight className="ml-1.5 h-4 w-4" /></Button>
-            : <Button className="h-11 px-5" onClick={() => setPasso("composicao")}>Continuar para composição<ArrowRight className="ml-1.5 h-4 w-4" /></Button>}
+            : <Button className="h-11 px-5" onClick={() => setPasso("composicao")} aria-label="Continuar para composição"><span className="sm:hidden">Composição</span><span className="hidden sm:inline">Continuar para composição</span><ArrowRight className="ml-1.5 h-4 w-4" /></Button>}
         />
       )}
       {pronto && passo === "revisao" && (

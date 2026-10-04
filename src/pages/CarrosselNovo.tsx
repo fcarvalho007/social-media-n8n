@@ -127,7 +127,7 @@ export default function CarrosselNovo() {
       <Cabecalho voltarPara="/estudio/carrosseis" titulo="Novo carrossel" sub={nomeProjeto ?? undefined}
         etapas={<Etapas atual={etapa} disponiveis={etapa === "narrativa" ? ["fonte"] : []} onIr={() => setEtapa("fonte")} compacto />} />
 
-      <main className="mx-auto w-full max-w-3xl flex-1 px-4 pb-10 pt-8 sm:px-6 sm:pt-12">
+      <main className="min-h-0 flex-1 overflow-y-auto"><div className="mx-auto w-full max-w-3xl px-4 pb-10 pt-6 sm:px-6 sm:pt-10">
         {etapa === "fonte" && (
           <section className="mc-entrar space-y-6" aria-labelledby="t-fonte">
             <div className="flex flex-wrap items-end justify-between gap-3">
@@ -141,7 +141,7 @@ export default function CarrosselNovo() {
               </div>
             </div>
             <p id="ajuda-texto" className="max-w-xl text-sm text-muted-foreground">
-              Cola um artigo, notas ou parágrafos numerados. Cada parágrafo fica numerado (§) para que os slides citem a sua origem.
+              Cola o texto que vai servir de base ao carrossel.
             </p>
             {demo && (
               <p className="flex items-center gap-2 rounded-[var(--mc-r-md)] border border-border px-3 py-2 text-xs text-muted-foreground" role="status">
@@ -153,9 +153,9 @@ export default function CarrosselNovo() {
             )}
             <div>
               <Label htmlFor="texto" className="sr-only">Texto da fonte</Label>
-              <Textarea id="texto" ref={textoRef} rows={14} readOnly={demo}
+              <Textarea id="texto" ref={textoRef} rows={8} readOnly={demo}
                 aria-describedby="ajuda-texto estado-texto" aria-invalid={mostrarErro || semTexto}
-                className={cn("min-h-[40vh] resize-y rounded-[var(--mc-r-lg)] border-border bg-card p-4 text-base leading-relaxed", (mostrarErro || semTexto) && "border-destructive")}
+                className={cn("min-h-[min(40vh,320px)] resize-y rounded-[var(--mc-r-lg)] border-input bg-card p-4 text-base leading-relaxed", (mostrarErro || semTexto) && "border-destructive")}
                 value={texto} onBlur={() => texto.trim() && setTocado(true)}
                 onChange={(e) => { setTexto(e.target.value); setSlides(null); setRecuperado(null); }}
                 placeholder="Cola aqui o texto que queres transformar em carrossel." />
@@ -171,7 +171,8 @@ export default function CarrosselNovo() {
               </div>
             </div>
             {rever && fonte.paragrafos.length > 0 && (
-              <ol id="rever-fonte" className="mc-entrar space-y-3 border-l border-border pl-4">
+              <ol id="rever-fonte" className="mc-entrar space-y-3 border-l border-border pl-4" aria-label="Parágrafos numerados (§), tal como os slides os vão citar">
+                <li className="text-xs text-muted-foreground">Cada parágrafo fica numerado (§) para que os slides citem a sua origem.</li>
                 {fonte.paragrafos.map((p, i) => (
                   <li key={i} className="flex gap-3 text-sm leading-relaxed"><span className="w-7 shrink-0 tabular-nums text-muted-foreground">§{i + 1}</span><span>{p}</span></li>
                 ))}
@@ -207,7 +208,7 @@ export default function CarrosselNovo() {
                   return (
                     <button key={o.id} type="button" role="radio" aria-checked={sel} onClick={() => setObjetivo(o.id)}
                       className={cn("mc-trans min-h-16 rounded-[var(--mc-r-lg)] border p-4 text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
-                        sel ? "border-primary bg-primary/10" : "border-border hover:border-muted-foreground/50")}>
+                        sel ? "border-primary bg-primary/10" : "border-input hover:border-muted-foreground")}>
                       <span className="block font-medium">{o.nome}</span>
                       <span className="block text-sm text-muted-foreground">{o.desc}</span>
                     </button>
@@ -262,7 +263,7 @@ export default function CarrosselNovo() {
             )}
           </section>
         )}
-      </main>
+      </div></main>
 
       <BarraAcoes
         inicio={etapa === "narrativa" && <Button variant="ghost" className="h-11" onClick={() => setEtapa("fonte")}><ArrowLeft className="mr-1.5 h-4 w-4" />Voltar</Button>}

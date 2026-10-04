@@ -46,3 +46,4 @@
 - [x] R6: exportação no servidor (PNG/PDF/ZIP por versão) e rascunho social idempotente
 - [ ] Fontes link/PDF
 - [x] Redesign cinematográfico e progressivo dos carrosséis
+- [x] Pendentes do redesign (barra visível, conflito MC409, tipos, nomes A/B, contraste)

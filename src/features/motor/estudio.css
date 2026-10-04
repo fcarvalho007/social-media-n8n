@@ -21,7 +21,7 @@
   --destructive: 6 78% 70%;
   --destructive-foreground: 204 10% 10%;
   --border: 206 8% 24%;
-  --input: 206 8% 30%;
+  --input: 206 8% 47%;       /* field borders ≥3:1 on bg and card */
   --ring: 93 25% 73%;
   --radius: 0.5rem;
   --mc-r-sm: 4px;

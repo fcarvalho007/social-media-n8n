@@ -31,6 +31,9 @@ const ZOOM_MAX = 2;
 
 const dataHora = (s: string) => new Date(s).toLocaleString("pt-PT", { timeZone: "Europe/Lisbon", day: "2-digit", month: "2-digit", year: "numeric", hour: "2-digit", minute: "2-digit" });
 
+/** Honest names of the two real layouts composed by comporDocumentos (proposta.ts). */
+export const NOME_VARIANTE = { A: "Editorial claro", B: "Bloco de cor" } as const;
+
 function corToken(nome: string, recurso: string) {
   if (typeof window === "undefined") return recurso;
   const v = getComputedStyle(document.querySelector(".mc-estudio") ?? document.documentElement).getPropertyValue(nome).trim();
@@ -467,8 +470,8 @@ export function EditorGrafico({ pacoteInicial, chaveLocal, titulo, seletor, real
 
   const seletorVariante = (
     <ToggleGroup type="single" variant="outline" value={variante} onValueChange={(v) => v && despachar({ tipo: "variante", variante: v as "A" | "B" })} aria-label="Variante visual">
-      <ToggleGroupItem value="A" className="h-11 min-w-11 lg:h-9 lg:min-w-9" aria-label="Variante A">A</ToggleGroupItem>
-      <ToggleGroupItem value="B" className="h-11 min-w-11 lg:h-9 lg:min-w-9" aria-label="Variante B">B</ToggleGroupItem>
+      <ToggleGroupItem value="A" className="h-11 min-w-11 px-3" aria-label={`Variante A — ${NOME_VARIANTE.A}`}>A<span className="ml-1.5 hidden xl:inline">{NOME_VARIANTE.A}</span></ToggleGroupItem>
+      <ToggleGroupItem value="B" className="h-11 min-w-11 px-3" aria-label={`Variante B — ${NOME_VARIANTE.B}`}>B<span className="ml-1.5 hidden xl:inline">{NOME_VARIANTE.B}</span></ToggleGroupItem>
     </ToggleGroup>
   );
 
