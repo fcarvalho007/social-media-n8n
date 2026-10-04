@@ -28,31 +28,40 @@ function currentSearch(loc: { search: string }): Record<string, string> {
   return Object.fromEntries(new URLSearchParams(loc.search).entries());
 }
 
-interface LinkProps extends Omit<AnchorHTMLAttributes<HTMLAnchorElement>, "href"> {
-  to?: string; params?: Params; search?: Search; children?: ReactNode;
-  activeProps?: AnchorHTMLAttributes<HTMLAnchorElement>; activeOptions?: unknown; preload?: unknown; replace?: boolean;
+type AnchorProps = AnchorHTMLAttributes<HTMLAnchorElement>;
+interface LinkProps extends Omit<AnchorProps, "href"> {
+  to?: string; params?: Params; search?: Search; hash?: string; children?: ReactNode;
+  activeProps?: AnchorProps; inactiveProps?: AnchorProps; activeOptions?: { exact?: boolean; includeSearch?: boolean };
+  preload?: unknown; replace?: boolean;
 }
 export const Link = forwardRef<HTMLAnchorElement, LinkProps>(function Link(
-  { to, params, search, activeProps, activeOptions: _a, preload: _p, replace, children, className, ...rest }, ref,
+  { to, params, search, hash, activeProps, inactiveProps, activeOptions, preload: _p, replace, children, className, style, ...rest }, ref,
 ) {
   const loc = useLocation();
-  const href = resolveTo(to, params, search, currentSearch(loc));
-  const active = loc.pathname === href.split("?")[0];
-  if (href.startsWith("http")) return <a ref={ref} href={href} className={className} {...rest}>{children}</a>;
+  const href = resolveTo(to, params, search, currentSearch(loc)) + (hash ? `#${hash}` : "");
+  const target = href.split(/[?#]/)[0];
+  const exact = activeOptions?.exact ?? target === BASE;
+  const active = exact ? loc.pathname === target : loc.pathname === target || loc.pathname.startsWith(target + "/");
+  const state = active ? activeProps : inactiveProps;
+  if (href.startsWith("http")) return <a ref={ref} href={href} className={className} style={style} {...rest}>{children}</a>;
   return (
-    <RLink ref={ref} to={href} replace={replace} {...rest} {...(active ? activeProps : {})}
-      className={[className, active ? activeProps?.className : ""].filter(Boolean).join(" ")}>
+    <RLink ref={ref} to={href} replace={replace} {...rest} {...state}
+      data-status={active ? "active" : undefined}
+      style={{ ...style, ...state?.style }}
+      className={[className, state?.className].filter(Boolean).join(" ")}>
       {children}
     </RLink>
   );
 });
 
+type NavOpts = { to?: string; params?: Params; search?: Search; hash?: string; replace?: boolean };
 export function useNavigate() {
   const nav = useRNavigate();
   const loc = useLocation();
-  return (o: { to?: string; params?: Params; search?: Search; replace?: boolean } | string) => {
+  return (o: NavOpts | string) => {
     if (typeof o === "string") return nav(resolveTo(o));
-    return nav(resolveTo(o.to ?? loc.pathname.replace(BASE, "") || "/", o.params, o.search, currentSearch(loc)), { replace: o.replace });
+    const to = o.to ?? (loc.pathname.replace(BASE, "") || "/");
+    return nav(resolveTo(to, o.params, o.search, currentSearch(loc)) + (o.hash ? `#${o.hash}` : ""), { replace: o.replace });
   };
 }
 
