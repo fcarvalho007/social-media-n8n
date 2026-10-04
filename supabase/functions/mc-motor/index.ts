@@ -157,8 +157,8 @@ Deno.serve(async (req) => {
     if (body.revisto !== true || !Number.isInteger(propostaVersao)) return json({ error: "Confirma que reviste esta versão." }, 400);
     const { data: r, error: er } = await user.rpc("mc_preparar_social", { _documento_id: docId, _versao: versao, _proposta_versao: propostaVersao });
     if (er) {
-      const st = er.code === "42501" ? 403 : er.code === "40001" ? 409 : 400;
-      return json({ error: er.code === "42501" ? "Sem permissão para preparar rascunhos neste projeto." : er.code === "40001" ? "A versão mudou entretanto. Revê a versão atual antes de preparar." : er.message }, st);
+      const st = er.code === "42501" ? 403 : er.code === "MC409" ? 409 : 400;
+      return json({ error: er.code === "42501" ? "Sem permissão para preparar rascunhos neste projeto." : er.code === "MC409" ? "A versão mudou entretanto. Revê a versão atual antes de preparar." : er.message }, st);
     }
     const res = (r as Array<{ draft_previsto: string; draft_id: string | null; project_id: string }>)[0];
     const sb = admin();
