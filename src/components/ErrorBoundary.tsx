@@ -1,6 +1,7 @@
 import React, { Component, ErrorInfo, ReactNode } from 'react';
 import { AlertCircle } from 'lucide-react';
 import { Button } from './ui/button';
+import { eErroDeChunk, tentarRecarga } from '@/lib/recargaBuild';
 
 interface Props {
   children: ReactNode;
@@ -22,6 +23,8 @@ export class ErrorBoundary extends Component<Props, State> {
 
   public componentDidCatch(error: Error, errorInfo: ErrorInfo) {
     console.error('ErrorBoundary capturou erro:', error, errorInfo);
+    // Stale build after deploy: one guarded reload; other errors keep the normal screen.
+    if (eErroDeChunk(error)) tentarRecarga(sessionStorage, () => window.location.reload());
   }
 
   public render() {

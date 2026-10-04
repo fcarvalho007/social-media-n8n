@@ -1,16 +1,11 @@
 import { createRoot } from "react-dom/client";
 import App from "./App.tsx";
 import "./index.css";
+import { tentarRecarga } from "./lib/recargaBuild";
 
-// After a new deploy, old lazy chunks (JS/CSS) disappear. Reload once to fetch the current build
-// instead of showing the error boundary; a session flag prevents reload loops.
+// Old lazy chunks vanish after a deploy; reload once per window (see recargaBuild) instead of failing.
 window.addEventListener("vite:preloadError", (event) => {
-  const chave = "recarga-preload";
-  const ultima = Number(sessionStorage.getItem(chave) ?? 0);
-  if (Date.now() - ultima < 30_000) return;
-  event.preventDefault();
-  sessionStorage.setItem(chave, String(Date.now()));
-  window.location.reload();
+  if (tentarRecarga(sessionStorage, () => window.location.reload())) event.preventDefault();
 });
 
 createRoot(document.getElementById("root")!).render(<App />);

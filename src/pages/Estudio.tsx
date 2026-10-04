@@ -20,7 +20,7 @@ const PRODUCAO: Acao[] = [
   { titulo: "Newsletter", desc: "Edições, crónica e arquivo", icon: Mail, url: "/newsletter" },
   { titulo: "Carrosséis da crónica", desc: "A partir de edições enviadas", icon: Images, url: "/estudio/redes-sociais" },
   { titulo: "Publicação livre", desc: "Um post do zero", icon: PenSquare, url: "/manual-create" },
-  { titulo: "Artigos", desc: "Rascunhos de blog", icon: FileText, url: "/artigos" },
+  { titulo: "Artigos", desc: "Rascunhos de texto, sem publicação", icon: FileText, url: "/artigos" },
 ];
 const CONFIGURACAO: Acao[] = [
   { titulo: "Ligações", desc: "Estado das chaves e serviços externos", icon: KeyRound, url: "/estudio/ligacoes" },
