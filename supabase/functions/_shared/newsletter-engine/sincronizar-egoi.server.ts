@@ -154,7 +154,7 @@ async function sincronizarLista(admin: SupabaseClient, opts: {
   const internalName = nomeInternoCampanha(edicao.numero, l.nome, edicao.assunto);
 
   if (existente) {
-    const rM = await patchCampanha(cfg, existente.campaign_hash, { internalName, subject: edicao.assunto, senderId: opts.senderId, html, plainText, campoToken });
+    const rM = await patchCampanha(cfg, existente.campaign_hash, { internalName, subject: edicao.assunto, senderId: opts.senderId, html, plainText });
     if (!rM.ok) {
       await admin.from("nl_audit_log").insert({ quem: opts.quem, accao: `Falha a actualizar rascunho «${l.nome}»`, detalhe: rM.mensagem });
       return { lista_id: l.id, lista_nome: l.nome, ok: false, erro: rM.mensagem, campaign_hash: existente.campaign_hash };
