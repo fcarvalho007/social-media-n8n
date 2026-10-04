@@ -118,8 +118,22 @@ function backoff(tentativas: number) {
   return new Date(Date.now() + Math.min(60, 2 ** tentativas) * 60_000).toISOString();
 }
 
-async function gravarJob(sb: SupabaseClient, id: string, campos: Record<string, unknown>) {
-  await sb.from("nl_conteudos_jobs").update({ ...campos, reservado_ate: null, actualizado_em: new Date().toISOString() }).eq("id", id);
+type Lease = { id: string; lease_token: string };
+
+/** Final write for a reserved job: only the holder of the current lease may write; releases the lease. */
+async function gravarJob(sb: SupabaseClient, job: Lease, campos: Record<string, unknown>): Promise<boolean> {
+  const { data } = await sb.from("nl_conteudos_jobs")
+    .update({ ...campos, reservado_ate: null, lease_token: null, actualizado_em: new Date().toISOString() })
+    .eq("id", job.id).eq("lease_token", job.lease_token).select("id");
+  return !!data?.length;
+}
+
+/** Marks a_processar while keeping (and extending) the lease, so a crash is recovered only after it expires. */
+async function manterLease(sb: SupabaseClient, job: Lease, campos: Record<string, unknown> = {}): Promise<boolean> {
+  const { data } = await sb.from("nl_conteudos_jobs")
+    .update({ ...campos, reservado_ate: new Date(Date.now() + 10 * 60_000).toISOString(), actualizado_em: new Date().toISOString() })
+    .eq("id", job.id).eq("lease_token", job.lease_token).gt("reservado_ate", new Date().toISOString()).select("id");
+  return !!data?.length;
 }
 
 /** Calls DeepSeek, logs cost (also for invalid answers) and returns a validated carousel. */
@@ -162,7 +176,7 @@ export async function processarJobs(limite = 2): Promise<{ processados: number }
   if (error) throw new Error(error.message);
   let processados = 0;
   for (const job of (jobs ?? []) as Array<{
-    id: string; edicao_id: string; conteudo_id: string; estado: string; tentativas: number; max_tentativas: number;
+    id: string; lease_token: string; edicao_id: string; conteudo_id: string; estado: string; tentativas: number; max_tentativas: number;
     campanhas: Array<{ lista_id: string; campaign_hash: string; confirmada: boolean }>;
   }>) {
     processados++;
@@ -170,7 +184,7 @@ export async function processarJobs(limite = 2): Promise<{ processados: number }
       if (job.estado === "aguarda_confirmacao") {
         const key = await egoiKey(sb);
         if (!key) {
-          await gravarJob(sb, job.id, { erro: "A aguardar a chave E-goi para confirmar a entrega.", proxima_tentativa_em: backoff(4) });
+          await gravarJob(sb, job, { erro: "A aguardar a chave E-goi para confirmar a entrega.", proxima_tentativa_em: backoff(4) });
           continue;
         }
         const campanhas = [...job.campanhas];
@@ -178,38 +192,40 @@ export async function processarJobs(limite = 2): Promise<{ processados: number }
           if (!c.confirmada) c.confirmada = (await estadoBrutoCampanha(key, c.campaign_hash)) === "sent";
         }
         if (campanhas.length && campanhas.some((c) => c.confirmada)) {
-          await gravarJob(sb, job.id, { campanhas, estado: "pendente", confirmado_em: new Date().toISOString(), erro: null, proxima_tentativa_em: new Date().toISOString() });
+          await gravarJob(sb, job, { campanhas, estado: "pendente", confirmado_em: new Date().toISOString(), erro: null, proxima_tentativa_em: new Date().toISOString() });
         } else {
-          await gravarJob(sb, job.id, { campanhas, erro: "A E-goi aceitou o envio mas ainda não o confirmou como entregue.", proxima_tentativa_em: backoff(2) });
+          await gravarJob(sb, job, { campanhas, erro: "A E-goi aceitou o envio mas ainda não o confirmou como entregue.", proxima_tentativa_em: backoff(2) });
         }
         continue;
       }
       // pendente | aguarda_credencial
       if (!process.env.DEEPSEEK_API_KEY) {
-        await gravarJob(sb, job.id, { estado: "aguarda_credencial", erro: "A aguardar a chave DeepSeek. O estado fica guardado.", proxima_tentativa_em: backoff(4) });
+        await gravarJob(sb, job, { estado: "aguarda_credencial", erro: "A aguardar a chave DeepSeek. O estado fica guardado.", proxima_tentativa_em: backoff(4) });
         continue;
       }
       const { data: row } = await sb.from("nl_conteudos_derivados").select("fonte, carrossel, versao").eq("id", job.conteudo_id).single();
       const c = row as { fonte: FonteCronica; carrossel: unknown; versao: number };
       if (c.carrossel) {
         // A human (or a previous attempt) already has a draft: never overwrite.
-        await gravarJob(sb, job.id, { estado: "concluido", erro: null });
+        await gravarJob(sb, job, { estado: "concluido", erro: null });
         continue;
       }
-      await gravarJob(sb, job.id, { estado: "a_processar" });
+      if (!(await manterLease(sb, job, { estado: "a_processar" }))) continue; // lease lost to another worker
       const carrossel = await gerarProposta(sb, c.fonte);
-      const { data: upd } = await sb.from("nl_conteudos_derivados")
-        .update({ carrossel, versao: c.versao + 1, actualizado_por: null })
-        .eq("id", job.conteudo_id).eq("versao", c.versao).is("carrossel", null).select("id");
-      if (upd?.length) {
-        await sb.from("nl_conteudos_versoes").insert({ conteudo_id: job.conteudo_id, versao: c.versao + 1, carrossel, origem: "ia_automatica" });
-      }
-      await gravarJob(sb, job.id, { estado: "concluido", erro: null });
+      // A stale worker (lease expired/reassigned) must not finalise someone else's job.
+      if (!(await manterLease(sb, job))) continue;
+      // Atomic CAS: only fills an empty carousel at the expected version, history row in the same transaction.
+      const { error: casErr } = await sb.rpc("nl_conteudos_guardar_versao", {
+        _conteudo_id: job.conteudo_id, _versao_esperada: c.versao, _carrossel: carrossel,
+        _origem: "ia_automatica", _utilizador: null, _so_se_vazio: true,
+      });
+      if (casErr) throw new Error(casErr.message);
+      await gravarJob(sb, job, { estado: "concluido", erro: null });
     } catch (e) {
       const msg = (e as Error).message ?? "Erro";
       const tentativas = job.tentativas + 1;
       const semCredencial = /DEEPSEEK_API_KEY|recusou a chave|Sem saldo/i.test(msg);
-      await gravarJob(sb, job.id, {
+      await gravarJob(sb, job, {
         estado: semCredencial ? "aguarda_credencial" : tentativas >= job.max_tentativas ? "erro" : "pendente",
         tentativas: semCredencial ? job.tentativas : tentativas,
         erro: msg.slice(0, 500),
