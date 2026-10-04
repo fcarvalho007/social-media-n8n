@@ -1,0 +1,113 @@
+import { useEffect, useRef } from "react";
+import type Konva from "konva";
+import { Ellipse, Group, Image as KImage, Layer, Rect, Shape, Stage, Transformer } from "react-konva";
+import {
+  ALTURA, LARGURA, calcularRecorte, camadasOrdenadas, resolverTexto,
+  type Camada, type Medidor, type PacoteProva, type Variante,
+} from "../../../supabase/functions/_shared/documento-grafico/nucleo";
+import { desenharTexto } from "./desenho";
+
+interface Props {
+  pacote: PacoteProva;
+  variante: Variante;
+  indice: number;
+  medidor: Medidor;
+  imagens: Record<string, HTMLImageElement>;
+  escala: number;
+  interativo?: boolean;
+  selecao?: string | null;
+  onSelecionar?: (id: string | null) => void;
+  onAlterar?: (id: string, patch: Partial<Camada>) => void;
+  /** Bigger handles for touch screens. */
+  toque?: boolean;
+  /** Colour of the selection frame (from the design tokens). */
+  corSelecao?: string;
+}
+
+function Conteudo({ c, pacote, medidor, imagens }: { c: Camada; pacote: PacoteProva; medidor: Medidor; imagens: Record<string, HTMLImageElement> }) {
+  if (c.tipo === "forma") {
+    return c.forma === "ret"
+      ? <Rect width={c.w} height={c.h} cornerRadius={c.estilo.raio ?? 0} fill={c.estilo.cor} />
+      : <Ellipse x={c.w / 2} y={c.h / 2} radiusX={c.w / 2} radiusY={c.h / 2} fill={c.estilo.cor} />;
+  }
+  if (c.tipo === "imagem") {
+    const a = pacote.assets[c.asset_id];
+    const k = calcularRecorte(a, c);
+    return (
+      <>
+        <Rect width={c.w} height={c.h} fill="transparent" />
+        {imagens[c.asset_id] && <KImage image={imagens[c.asset_id]} x={k.dx} y={k.dy} width={k.dw} height={k.dh} crop={{ x: k.sx, y: k.sy, width: k.sw, height: k.sh }} />}
+      </>
+    );
+  }
+  const texto = resolverTexto(c, pacote.conteudo);
+  return (
+    <>
+      <Rect width={c.w} height={c.h} fill="transparent" />
+      <Shape width={c.w} height={c.h} listening={false} sceneFunc={(ctx) => { desenharTexto(ctx, c, texto, medidor); }} />
+    </>
+  );
+}
+
+export function PaginaCanvas({ pacote, variante, indice, medidor, imagens, escala, interativo = false, selecao = null, onSelecionar, onAlterar, toque = false, corSelecao = "#f59e0b" }: Props) {
+  const pagina = pacote.variantes[variante].paginas[indice];
+  const trRef = useRef<Konva.Transformer>(null);
+  const nos = useRef(new Map<string, Konva.Group>());
+
+  useEffect(() => {
+    const tr = trRef.current;
+    if (!tr) return;
+    const no = selecao ? nos.current.get(selecao) : undefined;
+    tr.nodes(no ? [no] : []);
+    tr.getLayer()?.batchDraw();
+  }, [selecao, pagina]);
+
+  if (!pagina) return null;
+
+  return (
+    <Stage width={Math.round(LARGURA * escala)} height={Math.round(ALTURA * escala)} scaleX={escala} scaleY={escala} listening={interativo}>
+      <Layer>
+        <Rect width={LARGURA} height={ALTURA} fill={pagina.fundo} onMouseDown={() => onSelecionar?.(null)} onTouchStart={() => onSelecionar?.(null)} />
+        {camadasOrdenadas(pagina).map((c) => (
+          <Group
+            key={c.id}
+            ref={(n) => { if (n) nos.current.set(c.id, n); else nos.current.delete(c.id); }}
+            x={c.x}
+            y={c.y}
+            width={c.w}
+            height={c.h}
+            opacity={c.opacidade ?? 1}
+            draggable={interativo}
+            onMouseDown={() => onSelecionar?.(c.id)}
+            onTouchStart={() => onSelecionar?.(c.id)}
+            onDragEnd={(e) => onAlterar?.(c.id, { x: Math.round(e.target.x()), y: Math.round(e.target.y()) })}
+            onTransformEnd={(e) => {
+              const n = e.target;
+              const w = Math.max(20, Math.round(c.w * n.scaleX()));
+              const h = Math.max(20, Math.round(c.h * n.scaleY()));
+              n.scale({ x: 1, y: 1 });
+              onAlterar?.(c.id, { x: Math.round(n.x()), y: Math.round(n.y()), w, h });
+            }}
+          >
+            <Conteudo c={c} pacote={pacote} medidor={medidor} imagens={imagens} />
+          </Group>
+        ))}
+        {interativo && (
+          <Transformer
+            ref={trRef}
+            rotateEnabled={false}
+            keepRatio={false}
+            flipEnabled={false}
+            anchorSize={(toque ? 28 : 12) / escala * escala}
+            anchorCornerRadius={toque ? 14 : 2}
+            borderStroke={corSelecao}
+            anchorStroke={corSelecao}
+            borderStrokeWidth={2}
+            ignoreStroke
+            boundBoxFunc={(antes, depois) => (depois.width < 20 || depois.height < 20 ? antes : depois)}
+          />
+        )}
+      </Layer>
+    </Stage>
+  );
+}
