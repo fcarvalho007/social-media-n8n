@@ -119,7 +119,7 @@ async function sincronizarLista(admin: SupabaseClient, opts: {
   // Token merge code of THIS list only; a real list without its own field never receives a campaign.
   const resolvido = resolverCampoLista(l);
   if (l.tipo === "real" && !resolvido) {
-    return { lista_id: l.id, lista_nome: l.nome, ok: false, erro: `Lista «${l.nome}»: falta o campo do token.`, campaign_hash: null } as ResultadoSync;
+    return { lista_id: l.id, lista_nome: l.nome, ok: false, erro: `Lista «${l.nome}»: falta o campo do token.` };
   }
   const campoToken = resolvido?.campo ?? null;
   const html = aplicarTokenLista(opts.html, campoToken);
