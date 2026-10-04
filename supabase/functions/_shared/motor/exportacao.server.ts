@@ -4,6 +4,7 @@
 import type { SupabaseClient } from "npm:@supabase/supabase-js@2.57.4";
 import { PDFDocument } from "npm:pdf-lib@1.17.1";
 import { zipSync } from "npm:fflate@0.8.2";
+import { adicionarPaginaRgb, pngParaRgb } from "./pngPdf.ts";
 import { renderizarPaginaPng } from "../documento-grafico/render.server.ts";
 import type { DocumentoGrafico, Variante } from "../documento-grafico/nucleo.ts";
 import type { PropostaEditorial } from "./proposta.ts";
