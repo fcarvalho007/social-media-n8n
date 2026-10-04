@@ -245,6 +245,8 @@ SERVER_FIXES = {
     "lib/organizar-edicao.functions.ts": [
         ('    const aprovadas = noticias ?? [];',
          '    const aprovadas = (noticias ?? []) as Array<{ id: string; titulo: string; descricao: string | null; categoria: string | null; destaque: boolean | null; destino: string | null }>;'),
+        ("const porId = new Map(aprovadas.map((n) => [n.id, n]));",
+         "const porId = new Map<string, (typeof aprovadas)[number]>(aprovadas.map((n) => [n.id, n]));"),
         ('      .map((p) => `- "${p.palavra_chave}"', '      .map((p: { palavra_chave: string; peso: number }) => `- "${p.palavra_chave}"'),
     ],
     "lib/newsletter-ia.functions.ts": [
@@ -258,10 +260,6 @@ SERVER_FIXES = {
     "lib/emails-recebidos.functions.ts": [
         ('(rows ?? []).map((r) => {', '(rows ?? []).map((r: unknown) => {'),
         ('(audit ?? []).find((a) => {', '(audit ?? []).find((a: { detalhe?: unknown }) => {'),
-    ],
-    "lib/organizar-edicao.functions.ts": [
-        ("const porId = new Map(aprovadas.map((n) => [n.id, n]));",
-         "const porId = new Map<string, (typeof aprovadas)[number]>(aprovadas.map((n) => [n.id, n]));"),
     ],
     "lib/subscricao.server.ts": [
         ("\ninterface ResultadoAccao {", "\nexport interface ResultadoAccao {"),

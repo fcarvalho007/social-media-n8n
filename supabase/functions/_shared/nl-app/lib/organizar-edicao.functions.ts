@@ -72,7 +72,7 @@ export const sugerirOrganizacaoEdicao = createServerFn({ method: "POST" })
       .eq("estado", "aprovada");
     if (nE) throw nE;
 
-    const aprovadas = noticias ?? [];
+    const aprovadas = (noticias ?? []) as Array<{ id: string; titulo: string; descricao: string | null; categoria: string | null; destaque: boolean | null; destino: string | null }>;
     if (aprovadas.length < 4) {
       return {
         ok: false,
@@ -93,7 +93,7 @@ export const sugerirOrganizacaoEdicao = createServerFn({ method: "POST" })
     }).from("nl_prioridades_editoriais").select("palavra_chave, peso").order("peso", { ascending: false });
 
     const listaPrioridades = (prioridades ?? [])
-      .map((p) => `- "${p.palavra_chave}" (peso ${p.peso > 0 ? "+" : ""}${p.peso})`)
+      .map((p: { palavra_chave: string; peso: number }) => `- "${p.palavra_chave}" (peso ${p.peso > 0 ? "+" : ""}${p.peso})`)
       .join("\n") || "(sem prioridades definidas)";
 
     const listaNoticias = aprovadas
