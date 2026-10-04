@@ -64,7 +64,7 @@ describe("Editor de carrosséis R1 no telemóvel", () => {
     expect(await screen.findByLabelText(/Texto \(partilhado/)).toHaveValue("Texto por toque e teclado virtual");
   });
 
-  it.skip("recusa JSON inválido sem perder o rascunho local", async () => {
+  it("recusa JSON inválido sem perder o rascunho local", async () => {
     await abrirEditor();
     fireEvent.pointerDown(await screen.findByTestId("canvas-toque"));
     fireEvent.change(await screen.findByLabelText(/Texto \(partilhado/), { target: { value: "Rascunho que fica" } });
