@@ -4053,6 +4053,7 @@ export type Database = {
       }
     }
     Functions: {
+      auth_conta_existe: { Args: { _email: string }; Returns: boolean }
       calculate_ai_credit_usage: {
         Args: {
           _action: string
