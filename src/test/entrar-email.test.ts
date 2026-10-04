@@ -51,3 +51,20 @@ describe("entrar-email", () => {
     expect(d.contaExiste).not.toHaveBeenCalled();
   });
 });
+
+describe("entrar-email: limite de tempo", () => {
+  it("autenticação sem resposta → 503 sem sessão emitida nem registo", async () => {
+    const d = deps({ emitirSessao: vi.fn(() => new Promise<never>(() => {})) });
+    const r = await entrar("fredericodigital@gmail.com", null, d, 20);
+    expect(r.status).toBe(503);
+    expect(r.body).not.toHaveProperty("access_token");
+    expect(r.body.error).toMatch(/indisponível/);
+    expect(d.registar).not.toHaveBeenCalled();
+  });
+  it("base de dados sem resposta na verificação da conta → 503 sem pedir sessão", async () => {
+    const d = deps({ contaExiste: vi.fn(() => new Promise<never>(() => {})) });
+    const r = await entrar("fredericodigital@gmail.com", null, d, 20);
+    expect(r.status).toBe(503);
+    expect(d.emitirSessao).not.toHaveBeenCalled();
+  });
+});
