@@ -477,6 +477,8 @@ export interface SnapshotRevista {
   url_web_path: string;
   preparado_em: string;
   bloqueado_em: string | null;
+  /** Full chronicle frozen at send time (source for derived content). Optional for old snapshots. */
+  cronica_integral?: { titulo: string; corpoHtml: string; url: string };
 }
 
 function normalizarEstrutura(e: EdicaoRevista): EdicaoRevista {
@@ -523,6 +525,8 @@ export function lerEnvelope(v: unknown): SnapshotRevista | null {
         : caminhoCanonicoEdicao(env.edicao?.edicao?.numero ?? 0),
       preparado_em: env.preparado_em ?? "",
       bloqueado_em: env.bloqueado_em ?? null,
+      ...(env.cronica_integral && typeof env.cronica_integral.corpoHtml === "string"
+        ? { cronica_integral: env.cronica_integral } : {}),
     };
   }
   // Formato legado: era o próprio `EdicaoRevista`.
@@ -840,7 +844,15 @@ export async function prepararSnapshotRevista(
   estrutura: EdicaoRevista,
   artefacto: { emailHtml: string; emailText: string; urlWeb: string },
 ): Promise<SnapshotRevista> {
+  const sbCro = admin();
+  const { data: croRaw } = await sbCro.from("nl_cronicas")
+    .select("titulo, conteudo_html, conteudo").eq("edicao_id", edicaoId).maybeSingle();
+  const cro = croRaw as { titulo: string | null; conteudo_html: string | null; conteudo: string | null } | null;
+  const corpoHtml = (cro?.conteudo_html || cro?.conteudo || "").trim();
   const envelope: SnapshotRevista = {
+    ...(corpoHtml
+      ? { cronica_integral: { titulo: estrutura.cronica?.titulo || cro?.titulo || "", corpoHtml, url: estrutura.cronica?.urlProvisoria ? "" : (estrutura.cronica?.url ?? "") } }
+      : {}),
     schema_version: SNAPSHOT_SCHEMA_VERSION,
     renderer_version: RENDERER_VERSION,
     estado: "preparado",

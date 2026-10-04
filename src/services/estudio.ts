@@ -8,9 +8,31 @@ export interface Cronica { id: string; edicao_id: string; titulo: string | null;
 export interface Artigo { id: string; project_id: string | null; titulo: string; resumo: string | null; corpo: string | null; estado: string; updated_at: string }
 export interface Projeto { id: string; name: string; color: string | null }
 
-const MARCA_KEY = "estudio:marca";
-export const getMarca = () => localStorage.getItem(MARCA_KEY);
-export const setMarca = (id: string) => localStorage.setItem(MARCA_KEY, id);
+// "Para quem?" selection is stored per user in the backend (estudio_preferencias).
+export async function getMarca(): Promise<string | null> {
+  const { data: u } = await supabase.auth.getUser();
+  if (!u.user) return null;
+  const { data } = await db.from("estudio_preferencias").select("project_id").eq("user_id", u.user.id).maybeSingle();
+  return (data?.project_id as string | null) ?? null;
+}
+export async function setMarca(projectId: string | null): Promise<void> {
+  const { data: u } = await supabase.auth.getUser();
+  if (!u.user) throw new Error("Sessão em falta");
+  const { error } = await db.from("estudio_preferencias").upsert({ user_id: u.user.id, project_id: projectId, updated_at: new Date().toISOString() });
+  if (error) throw error;
+}
+
+export interface Identidade { id: string; chave: string; nome: string; tipo: string; project_id: string | null }
+export async function listarIdentidades(): Promise<Identidade[]> {
+  const { data, error } = await db.from("estudio_identidades").select("id,chave,nome,tipo,project_id").order("nome");
+  if (error) throw error;
+  return data ?? [];
+}
+/** Links an editorial identity (e.g. the DIGITALSPRINT newsletter) to a project. Staff only (RLS). */
+export async function associarIdentidade(id: string, projectId: string | null): Promise<void> {
+  const { error } = await db.from("estudio_identidades").update({ project_id: projectId, updated_at: new Date().toISOString() }).eq("id", id);
+  if (error) throw error;
+}
 
 export async function listarProjetos(): Promise<Projeto[]> {
   const { data, error } = await supabase.from("projects").select("id,name,color").order("name");

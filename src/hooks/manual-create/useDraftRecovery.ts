@@ -360,6 +360,19 @@ export function useDraftRecovery(params: UseDraftRecoveryParams) {
     ],
   );
 
+  // Load a native draft by id (?draft=<id>), e.g. created by the Content Studio carousel.
+  useEffect(() => {
+    const draftId = new URLSearchParams(window.location.search).get('draft');
+    if (!draftId || recoverPostId || !/^[0-9a-f-]{36}$/i.test(draftId)) return;
+    let vivo = true;
+    supabase.from('posts_drafts').select('*').eq('id', draftId).maybeSingle().then(({ data, error }) => {
+      if (!vivo) return;
+      if (error || !data) { toast.error('Rascunho não encontrado'); return; }
+      handleLoadDraft(data as Parameters<typeof handleLoadDraft>[0]);
+    });
+    return () => { vivo = false; };
+  }, [handleLoadDraft, recoverPostId]);
+
   // Load draft from sessionStorage when coming from /drafts page
   useEffect(() => {
     const savedDraft = sessionStorage.getItem('editDraft');
