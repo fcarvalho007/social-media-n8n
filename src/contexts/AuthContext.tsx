@@ -3,36 +3,25 @@ import { User, Session } from '@supabase/supabase-js';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 
-// Emails autorizados para acesso
+// UX pre-check only; real authorisation is the existing account + server-side roles.
 const ALLOWED_EMAILS = [
   'comunicacao@fredericocarvalho.pt',
   'fredericodigital@gmail.com'
 ];
 
-// Password interna fixa (utilizador nunca vê)
-const INTERNAL_PASSWORD = 'internal-whitelist-auth-2024';
+interface AuthResult { error: { message: string } | null }
 
 interface AuthContextType {
   user: User | null;
   session: Session | null;
   loading: boolean;
-  signInWithEmail: (email: string) => Promise<{ error: any }>;
+  /** Sends a one-time code/link to an existing authorised account. Never creates users. */
+  requestEmailCode: (email: string) => Promise<AuthResult>;
+  verifyEmailCode: (email: string, code: string) => Promise<AuthResult>;
   signOut: () => Promise<void>;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
-
-// Limpar tokens Supabase do localStorage sem pedido de rede
-const clearLocalSupabaseSession = () => {
-  const keysToRemove: string[] = [];
-  for (let i = 0; i < localStorage.length; i++) {
-    const key = localStorage.key(i);
-    if (key && key.startsWith('sb-')) {
-      keysToRemove.push(key);
-    }
-  }
-  keysToRemove.forEach(k => localStorage.removeItem(k));
-};
 
 export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
   const [user, setUser] = useState<User | null>(null);
@@ -41,7 +30,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
 
   useEffect(() => {
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
-      (event, session) => {
+      (_event, session) => {
         setSession(session);
         setUser(session?.user ?? null);
         setLoading(false);
@@ -57,92 +46,28 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
     return () => subscription.unsubscribe();
   }, []);
 
-  const signInWithEmail = async (email: string) => {
-    const EXPECTED_HOST = 'vtmrimrr';
-    
-    try {
-      const normalizedEmail = email.toLowerCase().trim();
-      
-      if (!ALLOWED_EMAILS.includes(normalizedEmail)) {
-        toast.error('Email não autorizado');
-        return { error: { message: 'Email não autorizado' } };
-      }
-
-      // Verificar se o bundle tem a URL correcta do projecto
-      const currentUrl = import.meta.env.VITE_SUPABASE_URL || '';
-      if (!currentUrl.includes(EXPECTED_HOST)) {
-        const params = new URLSearchParams(window.location.search);
-        if (params.has('cb')) {
-          // Already tried cache-bust — don't loop
-          return { error: { message: 'Versão desatualizada. Faça hard refresh (Cmd+Shift+R).' } };
-        }
-        console.warn('[Auth] Bundle com URL antiga detectada, a forçar cache-bust...');
-        localStorage.clear();
-        sessionStorage.clear();
-        window.location.href = window.location.pathname + '?cb=' + Date.now();
-        return { error: { message: 'A recarregar com URL correcta' } };
-      }
-
-      // Limpar sessão antiga localmente (sem pedido de rede)
-      clearLocalSupabaseSession();
-      
-      // Tentativa 1: login directo
-      const { error: loginError } = await supabase.auth.signInWithPassword({
-        email: normalizedEmail,
-        password: INTERNAL_PASSWORD,
-      });
-      
-      if (!loginError) {
-        toast.success('Bem-vindo!');
-        return { error: null };
-      }
-
-      // Tentativa 2: garantir utilizador via edge function, depois login
-      if (loginError.message.includes('Invalid login credentials') || loginError.message.includes('Email not confirmed')) {
-        const { error: resetError } = await supabase.functions.invoke('admin-reset-password', {
-          body: { email: normalizedEmail, newPassword: INTERNAL_PASSWORD }
-        });
-        
-        if (resetError) {
-          toast.error(`Erro no servidor: ${resetError.message}`);
-          return { error: resetError };
-        }
-        
-        const { error: retryError } = await supabase.auth.signInWithPassword({
-          email: normalizedEmail,
-          password: INTERNAL_PASSWORD,
-        });
-        
-        if (!retryError) {
-          toast.success('Bem-vindo!');
-          return { error: null };
-        }
-        
-        toast.error(`Falha ao entrar: ${retryError.message}`);
-        return { error: retryError };
-      }
-      
-      toast.error(`Erro: ${loginError.message}`);
-      return { error: loginError };
-    } catch (error: any) {
-      const msg = error?.message || 'Erro desconhecido';
-      if (msg.includes('Failed to fetch') || msg.includes('NetworkError') || msg.includes('ERR_NAME_NOT_RESOLVED')) {
-        console.warn('[Auth] Failed to fetch — a limpar cache local e a tentar reload...');
-        localStorage.clear();
-        sessionStorage.clear();
-        // Check anti-loop guard
-        const params = new URLSearchParams(window.location.search);
-        if (!params.has('cb')) {
-          setTimeout(() => {
-            window.location.href = window.location.pathname + '?cb=' + Date.now();
-          }, 500);
-        }
-        // No toast — the redirect or error UI handles it
-      } else {
-        toast.error(`Erro ao fazer login: ${msg}`);
-      }
-      return { error };
+  const requestEmailCode = async (email: string): Promise<AuthResult> => {
+    const normalizedEmail = email.toLowerCase().trim();
+    if (!ALLOWED_EMAILS.includes(normalizedEmail)) {
+      return { error: { message: 'Email não autorizado' } };
     }
+    const { error } = await supabase.auth.signInWithOtp({
+      email: normalizedEmail,
+      options: { shouldCreateUser: false, emailRedirectTo: window.location.origin },
+    });
+    if (error) return { error: { message: error.message } };
+    return { error: null };
+  };
+
+  const verifyEmailCode = async (email: string, code: string): Promise<AuthResult> => {
+    const { error } = await supabase.auth.verifyOtp({
+      email: email.toLowerCase().trim(),
+      token: code.trim(),
+      type: 'email',
+    });
+    if (error) return { error: { message: 'Código inválido ou expirado' } };
+    toast.success('Bem-vindo!');
+    return { error: null };
   };
 
   const signOut = async () => {
