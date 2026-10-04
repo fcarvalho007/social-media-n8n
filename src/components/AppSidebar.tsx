@@ -1,4 +1,4 @@
-import { CheckCircle2, PlusCircle, Calendar, X, FolderKanban, LayoutDashboard, LogOut, Image, BarChart3, Lightbulb, Sparkles, Mail } from 'lucide-react';
+import { CheckCircle2, PlusCircle, Calendar, X, FolderKanban, LayoutDashboard, LogOut, Image, BarChart3, Lightbulb, Sparkles, Mail, Layers } from 'lucide-react';
 import { NavLink, useNavigate } from 'react-router-dom';
 import {
   Sidebar,
@@ -30,6 +30,14 @@ const menuItems = [
     label: 'Estúdio',
     icon: Sparkles,
     url: '/',
+    disabled: false,
+    isMain: false,
+  },
+  {
+    title: 'Carrosséis',
+    label: 'Carrosséis',
+    icon: Layers,
+    url: '/estudio/carrosseis',
     disabled: false,
     isMain: false,
   },

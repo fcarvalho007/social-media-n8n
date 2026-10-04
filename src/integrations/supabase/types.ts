@@ -4736,6 +4736,7 @@ export type Database = {
           trabalho_id: string
         }[]
       }
+      mc_fechar_esgotados: { Args: never; Returns: number }
       mc_gravar_documento: {
         Args: {
           _documento: Json
@@ -4747,6 +4748,24 @@ export type Database = {
           documento_id: string
           versao: number
         }[]
+      }
+      mc_gravar_documento_servidor: {
+        Args: {
+          _documento: Json
+          _lease: string
+          _trabalho_id: string
+          _variante: string
+        }
+        Returns: number
+      }
+      mc_gravar_edicao: {
+        Args: {
+          _conteudo: Json
+          _documentos: Json
+          _proposta_id: string
+          _proposta_versao: number
+        }
+        Returns: Json
       }
       mc_gravar_proposta: {
         Args: {
@@ -4762,6 +4781,16 @@ export type Database = {
           _chamada_id: string
           _conteudo: Json
           _lease: string
+          _trabalho_id: string
+        }
+        Returns: number
+      }
+      mc_gravar_proposta_servidor: {
+        Args: {
+          _chamada_id?: string
+          _conteudo: Json
+          _lease: string
+          _origem: string
           _trabalho_id: string
         }
         Returns: number
@@ -4838,6 +4867,7 @@ export type Database = {
           isSetofReturn: true
         }
       }
+      mc_retomar_trabalho: { Args: { _trabalho_id: string }; Returns: boolean }
       mc_validar_documento: { Args: { _d: Json }; Returns: undefined }
       nl_contar_dados_antigos: { Args: { _dias?: number }; Returns: Json }
       nl_conteudos_guardar_versao: {
