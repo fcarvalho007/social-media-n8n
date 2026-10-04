@@ -9,7 +9,8 @@ const svc = vi.hoisted(() => ({
 }));
 vi.mock("@/services/estudio", () => svc);
 
-import { ProjetoProvider, useProjeto } from "@/contexts/ProjetoContext";
+import { ProjetoProvider, ProjetoProviderPorConta, useProjeto } from "@/contexts/ProjetoContext";
+import { notificarProjetosAlterados } from "@/lib/eventosProjetos";
 
 let api: ReturnType<typeof useProjeto>;
 function Sonda() {
@@ -80,5 +81,39 @@ describe("contexto de projeto", () => {
     svc.getMarca.mockResolvedValue("apagado");
     render(<ProjetoProvider><Sonda /></ProjetoProvider>);
     await waitFor(() => expect(screen.getByTestId("s").textContent).toBe("pronto|todos|"));
+  });
+
+  it("projeto recém-criado fica disponível no seletor sem recarregar a página", async () => {
+    render(<ProjetoProvider><Sonda /></ProjetoProvider>);
+    await waitFor(() => expect(api.estado).toBe("pronto"));
+    svc.listarProjetos.mockResolvedValue([...P, { id: "novo", name: "NOVO", color: null }]);
+    act(() => notificarProjetosAlterados());
+    await waitFor(() => expect(api.projetos.map((p) => p.id)).toContain("novo"));
+    expect(api.projetoId).toBe("a");
+  });
+
+  it("recarga pedida durante gravação pendente espera e não troca a escolha", async () => {
+    let resolver!: () => void;
+    svc.setMarca.mockImplementation(() => new Promise<void>((r) => { resolver = r; }));
+    render(<ProjetoProvider><Sonda /></ProjetoProvider>);
+    await waitFor(() => expect(api.estado).toBe("pronto"));
+    let p!: Promise<void>;
+    act(() => { p = api.escolher("b"); });
+    svc.getMarca.mockResolvedValue("b");
+    act(() => notificarProjetosAlterados());
+    expect(svc.listarProjetos).toHaveBeenCalledTimes(1);
+    await act(async () => { resolver(); await p; });
+    await waitFor(() => expect(svc.listarProjetos).toHaveBeenCalledTimes(2));
+    await waitFor(() => expect(screen.getByTestId("s").textContent).toBe("pronto|b|"));
+  });
+
+  it("troca de conta não herda o estado anterior", async () => {
+    const { rerender } = render(<ProjetoProviderPorConta userId="u1"><Sonda /></ProjetoProviderPorConta>);
+    await waitFor(() => expect(screen.getByTestId("s").textContent).toBe("pronto|a|"));
+    svc.listarProjetos.mockResolvedValue([P[1]]);
+    svc.getMarca.mockResolvedValue(null);
+    rerender(<ProjetoProviderPorConta userId="u2"><Sonda /></ProjetoProviderPorConta>);
+    await waitFor(() => expect(screen.getByTestId("s").textContent).toBe("pronto|todos|"));
+    expect(api.projetos.map((p) => p.id)).toEqual(["b"]);
   });
 });
