@@ -3,10 +3,14 @@ import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 import { useMemo } from 'react';
 import { filterConsumedDrafts } from '@/lib/drafts/reconciliation';
+import { useAuth } from '@/contexts/AuthContext';
+import { useProjeto } from '@/contexts/ProjetoContext';
+import { chaveRascunhos, pertenceAoFiltro, type FiltroRascunhos } from '@/lib/drafts/marcaRascunho';
 
 interface Draft {
   id: string;
   user_id: string;
+  project_id?: string | null;
   platform: string;
   caption: string | null;
   media_urls: any;
@@ -47,7 +51,7 @@ export function useDrafts(options: UseDraftsOptions = {}) {
       const { data, error } = await q.order('created_at', { ascending: false });
 
       if (error) throw error;
-      const drafts = (data || []) as Draft[];
+      const drafts = ((data || []) as Draft[]).filter((d) => pertenceAoFiltro(d, filtro));
       if (drafts.length === 0) return [];
 
       const earliestDraftDate = drafts.reduce((earliest, draft) => (
@@ -58,7 +62,7 @@ export function useDrafts(options: UseDraftsOptions = {}) {
       const { data: matchingPosts } = await supabase
         .from('posts')
         .select('id, user_id, caption, status, created_at')
-        .eq('user_id', user.id)
+        .eq('user_id', filtro.userId)
         .in('caption', captions.length > 0 ? captions : ['__no_caption__'])
         .gte('created_at', new Date(new Date(earliestDraftDate).getTime() - 5 * 60 * 1000).toISOString());
 
@@ -179,8 +183,11 @@ export function useDrafts(options: UseDraftsOptions = {}) {
   return {
     drafts: filteredDrafts,
     allDrafts: drafts,
-    isLoading,
+    isLoading: isLoading || filtro === null,
     error,
+    refetch,
+    isFetching,
+    chaveContexto: filtro ? `${filtro.userId}:${filtro.projetoId ?? 'todos'}` : '',
     deleteDraft: deleteDraft.mutate,
     deleteManyDrafts: deleteManyDrafts.mutate,
     isDeleting: deleteDraft.isPending,
