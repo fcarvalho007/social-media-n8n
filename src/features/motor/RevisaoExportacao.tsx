@@ -167,6 +167,7 @@ export function RevisaoExportacao({ dados, pacote, medidor, guardado, irPara }: 
               {draftAtual ? (
                 <div className="space-y-2">
                   <p className="text-sm" role="status">Rascunho preparado — rever no Painel social. Nada foi publicado.</p>
+                  <p className="text-xs text-muted-foreground">Falta escolher quando publicar: no Painel social, ativa «Publicar agora» ou indica data e hora. Até lá o Painel mostra «Corrige antes de publicar». O Instagram recebe as imagens; o LinkedIn recebe um PDF que o Painel cria com as mesmas páginas.</p>
                   <Button asChild className="h-11"><Link to={`/manual-create?draft=${draftAtual}`}><ExternalLink className="mr-1.5 h-4 w-4" />Abrir rascunho</Link></Button>
                 </div>
               ) : (
