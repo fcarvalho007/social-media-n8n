@@ -25,6 +25,8 @@ import { PaginaCanvas } from "@/features/editor-grafico/PaginaCanvas";
 
 /** Max fraction of pixels allowed to differ (per-channel tolerance 48) for browser/server equivalence. */
 export const LIMIAR_EQUIVALENCIA = 0.01;
+export const LIMIAR_PERDA_CONTEUDO = 0.0005;
+export const LIMIAR_ZONA = 0.025;
 const ZOOM_MIN = 0.1;
 const ZOOM_MAX = 2;
 
@@ -241,7 +243,7 @@ function PainelPropriedades({ pacote, camada: c, fundo, medidor, despachar, cama
 
 // ---------- comparison ----------
 
-interface Comparacao { navegador: string; servidor: string; diferenca: string; fracao: number; ms: number }
+interface Comparacao { navegador: string; servidor: string; diferenca: string; fracao: number; perda: number; piorZona: number; ms: number }
 
 // ---------- page ----------
 
@@ -398,8 +400,8 @@ export default function EditorProva() {
       const r = await renderProvaServidor(pacote, variante, pagina);
       const servidor = `data:image/png;base64,${r.png}`;
       const ms = Math.round(performance.now() - t);
-      const { fracao, diferenca } = await compararPng(navegador, servidor);
-      setComparacao({ navegador, servidor, diferenca, fracao, ms });
+      const { fracao, perda, piorZona, diferenca } = await compararPng(navegador, servidor);
+      setComparacao({ navegador, servidor, diferenca, fracao, perda, piorZona, ms });
     } catch (e) {
       setErroComparacao((e as Error).message || "Falha na comparação.");
     } finally {
@@ -520,17 +522,17 @@ export default function EditorProva() {
       <DialogContent className="max-h-[92vh] max-w-4xl overflow-y-auto">
         <DialogHeader>
           <DialogTitle>Navegador vs. servidor</DialogTitle>
-          <DialogDescription>Página {pagina + 1}, variante {variante}. Limiar: até {LIMIAR_EQUIVALENCIA * 100}% de píxeis diferentes (tolerância 48 por canal).</DialogDescription>
+          <DialogDescription>Página {pagina + 1}, variante {variante}. A prova distingue ruído de rasterização de perda localizada de conteúdo.</DialogDescription>
         </DialogHeader>
         {comparando && <p className="flex items-center text-sm text-muted-foreground" role="status"><Loader2 className="mr-2 h-4 w-4 motion-safe:animate-spin" />A renderizar nos dois lados…</p>}
         {erroComparacao && <p role="alert" className="text-sm text-destructive">Não foi possível renderizar no servidor: {erroComparacao}</p>}
         {comparacao && (
           <div className="space-y-3">
             <p className="text-sm" role="status">
-              <strong className={comparacao.fracao <= LIMIAR_EQUIVALENCIA ? "text-foreground" : "text-destructive"}>
-                {comparacao.fracao <= LIMIAR_EQUIVALENCIA ? "Equivalente" : "Diferente"}
+              <strong className={comparacao.fracao <= LIMIAR_EQUIVALENCIA && comparacao.perda <= LIMIAR_PERDA_CONTEUDO && comparacao.piorZona <= LIMIAR_ZONA ? "text-foreground" : "text-destructive"}>
+                {comparacao.fracao <= LIMIAR_EQUIVALENCIA && comparacao.perda <= LIMIAR_PERDA_CONTEUDO && comparacao.piorZona <= LIMIAR_ZONA ? "Equivalente" : "Diferente"}
               </strong>{" "}
-              — {(comparacao.fracao * 100).toFixed(3)}% de píxeis diferentes · servidor em {comparacao.ms} ms
+              — rasterização {(comparacao.fracao * 100).toFixed(3)}% · perda provável {(comparacao.perda * 100).toFixed(3)}% · pior zona {(comparacao.piorZona * 100).toFixed(2)}% · servidor em {comparacao.ms} ms
             </p>
             <div className="grid grid-cols-3 gap-2">
               {([["Navegador", comparacao.navegador], ["Servidor", comparacao.servidor], ["Diferenças a vermelho", comparacao.diferenca]] as const).map(([t, src]) => (

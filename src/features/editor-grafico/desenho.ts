@@ -70,8 +70,22 @@ export async function renderizarPaginaPng(p: PacoteProva, v: Variante, indice: n
   }
 }
 
-/** Fraction of pixels whose max channel difference exceeds the tolerance. */
-export async function compararPng(a: string, b: string, tolerancia = 48): Promise<{ fracao: number; diferenca: string }> {
+export interface MetricasComparacaoPng {
+  /** Raw differences include rasterizer/antialiasing noise. */
+  fracao: number;
+  /** Differences with no matching colour in a 3×3 neighbourhood: likely missing content. */
+  perda: number;
+  /** Worst likely-content-loss fraction in a 90×90 inspection tile. */
+  piorZona: number;
+  diferenca: string;
+}
+
+/**
+ * Compares both the global raster and local content integrity. A one-pixel edge
+ * shift is classified as rasterisation; a colour absent from the surrounding
+ * 3×3 pixels is classified as probable content loss.
+ */
+export async function compararPng(a: string, b: string, tolerancia = 48): Promise<MetricasComparacaoPng> {
   const [ia, ib] = await Promise.all([a, b].map((src) => new Promise<HTMLImageElement>((res, rej) => {
     const i = new Image(); i.onload = () => res(i); i.onerror = () => rej(new Error("PNG inválido.")); i.src = src;
   })));
@@ -81,17 +95,39 @@ export async function compararPng(a: string, b: string, tolerancia = 48): Promis
   };
   const da = ler(ia), db = ler(ib);
   const out = new ImageData(LARGURA, ALTURA);
-  let diff = 0;
+  let diff = 0, perda = 0;
+  const zona = 90, colunas = Math.ceil(LARGURA / zona), zonas = new Uint32Array(colunas * Math.ceil(ALTURA / zona));
+  const semelhante = (origem: Uint8ClampedArray, destino: Uint8ClampedArray, i: number) => {
+    const px = (i / 4) % LARGURA, py = Math.floor(i / 4 / LARGURA);
+    for (let dy = -1; dy <= 1; dy++) for (let dx = -1; dx <= 1; dx++) {
+      const x = px + dx, y = py + dy;
+      if (x < 0 || x >= LARGURA || y < 0 || y >= ALTURA) continue;
+      const j = (y * LARGURA + x) * 4;
+      if (Math.max(Math.abs(origem[i] - destino[j]), Math.abs(origem[i + 1] - destino[j + 1]), Math.abs(origem[i + 2] - destino[j + 2])) <= tolerancia) return true;
+    }
+    return false;
+  };
   for (let i = 0; i < da.data.length; i += 4) {
     const d = Math.max(Math.abs(da.data[i] - db.data[i]), Math.abs(da.data[i + 1] - db.data[i + 1]), Math.abs(da.data[i + 2] - db.data[i + 2]));
     const mau = d > tolerancia;
     if (mau) diff++;
-    out.data[i] = mau ? 220 : da.data[i] * 0.25 + 180;
-    out.data[i + 1] = mau ? 38 : da.data[i + 1] * 0.25 + 180;
-    out.data[i + 2] = mau ? 38 : da.data[i + 2] * 0.25 + 180;
+    const ausente = mau && (!semelhante(da.data, db.data, i) || !semelhante(db.data, da.data, i));
+    if (ausente) {
+      perda++;
+      const p = i / 4, x = p % LARGURA, y = Math.floor(p / LARGURA);
+      zonas[Math.floor(y / zona) * colunas + Math.floor(x / zona)]++;
+    }
+    out.data[i] = ausente ? 220 : mau ? 234 : da.data[i] * 0.25 + 180;
+    out.data[i + 1] = ausente ? 38 : mau ? 148 : da.data[i + 1] * 0.25 + 180;
+    out.data[i + 2] = ausente ? 38 : mau ? 18 : da.data[i + 2] * 0.25 + 180;
     out.data[i + 3] = 255;
   }
   const c = document.createElement("canvas"); c.width = LARGURA; c.height = ALTURA;
   c.getContext("2d")!.putImageData(out, 0, 0);
-  return { fracao: diff / (LARGURA * ALTURA), diferenca: c.toDataURL("image/png") };
+  return {
+    fracao: diff / (LARGURA * ALTURA),
+    perda: perda / (LARGURA * ALTURA),
+    piorZona: Math.max(...zonas) / (zona * zona),
+    diferenca: c.toDataURL("image/png"),
+  };
 }
