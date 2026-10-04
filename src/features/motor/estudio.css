@@ -21,7 +21,7 @@
   --destructive: 4 66% 42%;
   --destructive-foreground: 0 0% 100%;
   --border: 100 7% 87%;
-  --input: 140 5% 55%;            /* field borders ≥3:1 on page and white */
+  --input: 140 5% 51%;            /* field borders ≥3:1 on page and white */
   --ring: 136 19% 30%;
   --radius: 0.5rem;
   --mc-r-sm: 4px;
