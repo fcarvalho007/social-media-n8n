@@ -21,7 +21,7 @@ describe("R7 link — destinos", () => {
     ] as const) {
       const r = validarUrlLink(u);
       expect(r.ok, u).toBe(false);
-      if (!r.ok) expect(r.motivo, u).toBe(m);
+      expect("motivo" in r ? r.motivo : null, u).toBe(m);
     }
   });
   it("bloqueia IPs privados, loopback, link-local, CGNAT, metadados e IPv6 internos", () => {
