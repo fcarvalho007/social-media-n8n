@@ -281,7 +281,9 @@ Deno.serve(async (req) => {
       if (!run.ficheiro_sha256 || bytesHash !== run.ficheiro_sha256)
         return await falhar("O pacote no armazenamento temporário foi alterado depois da simulação. Importação parada; repete a simulação.");
 
-      const rw = makeRewriter(`${url}/functions/v1/nl-imagem`, basePublicaObrigatoria());
+      let baseDestino: string;
+      try { baseDestino = basePublicaObrigatoria(); } catch (e) { return json({ error: (e as Error).message, run_id: run.id }, 409); }
+      const rw = makeRewriter(`${url}/functions/v1/nl-imagem`, baseDestino);
       const prog = { fase: "tabelas", indice: 0, offset: 0, inseridos: {} as Record<string, number>, ignoradas: {} as Record<string, unknown>, reescritas: 0, avatares: 0, chunks: 0, ...(run.progresso ?? {}) };
 
       try {
