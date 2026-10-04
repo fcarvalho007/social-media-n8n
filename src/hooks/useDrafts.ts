@@ -45,8 +45,8 @@ export function useDrafts(options: UseDraftsOptions = {}) {
       let q = supabase
         .from('posts_drafts')
         .select('*')
-        .eq('status', 'draft')
-        .eq('user_id', filtro.userId);
+        .eq('status', 'draft');
+      // Team-shared reading (RLS unchanged): filter by brand only, never by author.
       if (filtro.projetoId) q = q.eq('project_id', filtro.projetoId);
       const { data, error } = await q.order('created_at', { ascending: false });
 

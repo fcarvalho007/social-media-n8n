@@ -59,10 +59,10 @@ export function DashboardHeader() {
 
   const breadcrumbs = getBreadcrumbs();
 
-  // On mobile keep only the last two crumbs
-  const displayBreadcrumbs = isMobile 
-    ? breadcrumbs.length > 2 ? breadcrumbs.slice(-2) : breadcrumbs
-    : breadcrumbs;
+  // On mobile show only the current area name so it is never cut behind other controls
+  const displayBreadcrumbs = isMobile ? breadcrumbs.slice(-1) : breadcrumbs;
+  // Quotas only help where something is published
+  const mostraQuotas = /^\/(manual-create|redes-sociais|calendar|drafts|pending|quota)/.test(location.pathname);
 
   return (
     <header className="sticky top-0 z-30 bg-card/95 backdrop-blur-lg border-b border-border shadow-sm max-w-[100vw] overflow-hidden">
@@ -79,7 +79,7 @@ export function DashboardHeader() {
             <Menu className="h-5 w-5 xs:h-6 xs:w-6" />
           </Button>
 
-          <nav className="flex items-center gap-1 sm:gap-2 text-xs sm:text-sm overflow-x-auto scrollbar-hide">
+          <nav className="flex items-center gap-1 sm:gap-2 text-xs sm:text-sm overflow-x-auto scrollbar-hide min-w-0">
             {displayBreadcrumbs.map((crumb, index) => (
               <div key={index} className="flex items-center gap-1 sm:gap-2 flex-shrink-0">
                 {crumb.path ? (
@@ -92,7 +92,7 @@ export function DashboardHeader() {
                   </button>
                 ) : (
                   <span 
-                    className="font-semibold text-foreground whitespace-nowrap truncate max-w-[120px] sm:max-w-none" 
+                    className="font-semibold text-foreground whitespace-nowrap truncate max-w-[55vw] sm:max-w-none" 
                     title={crumb.label}
                   >
                     {crumb.label}
@@ -123,12 +123,16 @@ export function DashboardHeader() {
           <NotificationBell />
 
           {/* Quota Badge - Hidden on very small screens */}
-          <div className="hidden xs:block">
-            <QuotaBadge />
-          </div>
-          <div className="hidden sm:block">
-            <AICreditsBadge />
-          </div>
+          {mostraQuotas && (
+            <>
+              <div className="hidden sm:block">
+                <QuotaBadge />
+              </div>
+              <div className="hidden md:block">
+                <AICreditsBadge />
+              </div>
+            </>
+          )}
           
           {/* Settings Menu */}
           <DropdownMenu>
