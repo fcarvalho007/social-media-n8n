@@ -3,7 +3,7 @@
  * Pure and dependency-free: imported by the browser (preview, editor), tests and the Deno worker.
  */
 import { aplicarRitmo, planoRitmo } from "./composicoes.ts";
-import { ALTURA, FONTE_DOC, LARGURA, type Camada, type DocumentoGrafico, type PacoteProva, type Pagina, type Variante } from "../documento-grafico/nucleo.ts";
+import { ALTURA, FONTE_DOC, LARGURA, PAPEIS_PAGINA, type Camada, type DocumentoGrafico, type PacoteProva, type Pagina, type Variante } from "../documento-grafico/nucleo.ts";
 
 export const LIMITES_FONTE = { min: 40, max: 20000, minSlides: 2, maxSlides: 10 } as const;
 export const MODELO_ESTRUTURACAO = "estruturacao-local";
