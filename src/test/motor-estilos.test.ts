@@ -7,7 +7,7 @@ function doc(): DocumentoGrafico {
   return {
     versao: 1, largura: 1080, altura: 1350, fonte: "WorkSans@1",
     paginas: [{ id: "p1", fundo: "#ffffff", camadas: [
-      { id: "t", tipo: "texto", ref: { slide: "s1", campo: "titulo" }, x: 0, y: 0, largura: 900, altura: 200, texto: "Título", estilo },
+      { id: "t", tipo: "texto", ref: "s1.titulo", x: 0, y: 0, largura: 900, altura: 200, texto: "Título", estilo },
       { id: "livre", tipo: "texto", x: 0, y: 400, largura: 900, altura: 200, texto: "Nota minha", estilo: { ...estilo, cor: "#123456" } },
     ] }],
   } as unknown as DocumentoGrafico;
