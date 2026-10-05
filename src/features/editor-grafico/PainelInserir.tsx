@@ -1,8 +1,9 @@
 import { useEffect, useState, type DragEvent, type ReactNode } from "react";
-import { Circle, Image as ImageIcon, ImageOff, Loader2, Minus, Palette, Shapes, Square, Type } from "lucide-react";
+import { Circle, Image as ImageIcon, ImageOff, Loader2, Upload, Minus, Palette, Shapes, Square, Type } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
-import { lerAssets, listarImagens, registarImagem, type ImagemBiblioteca } from "@/services/motor";
+import { lerAssets, listarImagens, registarImagem, type AssetMotor, type ImagemBiblioteca } from "@/services/motor";
+import { ACEITAR_CARREGAR, carregarFicheiro } from "./carregar";
 import { GeradorKie } from "@/features/motor/GeradorKie";
 import type { Asset } from "../../../supabase/functions/_shared/documento-grafico/nucleo";
 import { ESTILOS, type Estilo } from "../../../supabase/functions/_shared/motor/estilos";
@@ -56,13 +57,17 @@ export function PainelInserir({ aba, despachar, onImagem, projectId, pedirImagem
   const [bib, setBib] = useState<ImagemBiblioteca[] | null>(null);
   const [erro, setErro] = useState<string | null>(null);
   const [aUsar, setAUsar] = useState<string | null>(null);
-  const [sub, setSub] = useState<"biblioteca" | "ia">("biblioteca");
+  const [sub, setSub] = useState<"biblioteca" | "carregar" | "ia">("biblioteca");
+  const [carregadas, setCarregadas] = useState<AssetMotor[] | null>(null);
+  const [aCarregar, setACarregar] = useState(false);
+  const [erroCarregar, setErroCarregar] = useState<string | null>(null);
+  const [sobre, setSobre] = useState(false);
   const [busca, setBusca] = useState("");
   const [mostrar, setMostrar] = useState(12);
 
   useEffect(() => {
     if (aba !== "imagens" || !projectId || bib) return;
-    listarImagens(projectId).then((d) => setBib(d.biblioteca)).catch((e: Error) => setErro(e.message));
+    listarImagens(projectId).then((d) => { setBib(d.biblioteca); setCarregadas(d.assets.filter((a) => a.origem === "upload")); }).catch((e: Error) => setErro(e.message));
   }, [aba, projectId, bib]);
 
   const usar = async (chave: string, nome: string, obter: () => Promise<string>) => {
@@ -74,6 +79,16 @@ export function PainelInserir({ aba, despachar, onImagem, projectId, pedirImagem
       if (!a) throw new Error("A imagem já não está disponível. Escolhe outra.");
       onImagem({ asset: a, nome });
     } catch (e) { setErro((e as Error).message); } finally { setAUsar(null); }
+  };
+
+  const carregar = async (f: File | undefined | null) => {
+    if (!f || !projectId || aCarregar) return;
+    setACarregar(true); setErroCarregar(null);
+    try {
+      const r = await carregarFicheiro(projectId, f);
+      setCarregadas((l) => [{ id: r.asset.id, media_id: null, origem: "upload", nome: r.nome, largura: r.asset.largura, altura: r.asset.altura, bytes: 0, mime: r.asset.mime, criado_em: new Date().toISOString() }, ...(l ?? []).filter((x) => x.id !== r.asset.id)]);
+      onImagem(r);
+    } catch (e) { setErroCarregar((e as Error).message); } finally { setACarregar(false); }
   };
 
   if (aba === "texto") {
@@ -122,12 +137,43 @@ export function PainelInserir({ aba, despachar, onImagem, projectId, pedirImagem
   const lista = bib ? (q ? bib.filter((m) => m.file_name.toLocaleLowerCase("pt-PT").includes(q)) : bib) : [];
   return (
     <div className="space-y-3">
-      <div role="tablist" aria-label="Origem da imagem" className="grid grid-cols-2 gap-1 rounded-[var(--mc-r-md)] bg-muted p-1">
-        {([["biblioteca", "Biblioteca"], ["ia", "Gerar com IA"]] as const).map(([id, n]) => (
+      <div role="tablist" aria-label="Origem da imagem" className="grid grid-cols-3 gap-1 rounded-[var(--mc-r-md)] bg-muted p-1">
+        {([["biblioteca", "Biblioteca"], ["carregar", "Carregar"], ["ia", "Gerar com IA"]] as const).map(([id, n]) => (
           <button key={id} type="button" role="tab" aria-selected={sub === id} onClick={() => setSub(id)}
             className={cn("min-h-9 rounded-sm text-xs font-medium focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring", sub === id ? "bg-background text-foreground shadow-sm" : "text-muted-foreground hover:text-foreground")}>{n}</button>
         ))}
       </div>
+      {sub === "carregar" && (
+        <div className="space-y-2">
+          <label
+            onDragOver={(e) => { if (e.dataTransfer.types.includes("Files")) { e.preventDefault(); setSobre(true); } }}
+            onDragLeave={() => setSobre(false)}
+            onDrop={(e) => { e.preventDefault(); setSobre(false); void carregar(e.dataTransfer.files[0]); }}
+            className={cn("flex min-h-24 cursor-pointer flex-col items-center justify-center gap-1 rounded-[var(--mc-r-md)] border border-dashed px-3 py-3 text-center text-sm focus-within:ring-2 focus-within:ring-ring", sobre ? "border-foreground bg-muted" : "border-border")}>
+            {aCarregar ? <Loader2 className="h-5 w-5 motion-safe:animate-spin" /> : <Upload className="h-5 w-5" />}
+            <span className="font-medium">{aCarregar ? "A carregar…" : "Escolher ficheiro"}</span>
+            <span className="text-xs text-muted-foreground">ou arrasta para aqui ou para a página · JPG, PNG ou WebP até 10 MB</span>
+            <input type="file" accept={ACEITAR_CARREGAR} className="sr-only" disabled={aCarregar} aria-label="Carregar imagem"
+              onChange={(e) => { const f = e.target.files?.[0]; e.target.value = ""; void carregar(f); }} />
+          </label>
+          <p className="text-xs text-muted-foreground">A imagem fica guardada neste projeto como «carregada por ti». Confirma que tens direito a usá-la.</p>
+          {erroCarregar && <p role="alert" className="text-sm text-destructive">{erroCarregar}</p>}
+          {carregadas && carregadas.length > 0 && (
+            <ul className="space-y-1" aria-label="Imagens carregadas neste projeto">
+              {carregadas.slice(0, 12).map((a) => (
+                <li key={a.id}>
+                  <button type="button" disabled={!!aUsar} onClick={() => usar(a.id, a.nome ?? "Imagem carregada", async () => a.id)}
+                    className="mc-trans flex min-h-11 w-full items-center gap-2 rounded-[var(--mc-r-md)] border border-border px-3 text-left text-sm hover:border-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:opacity-60">
+                    {aUsar === a.id ? <Loader2 className="h-4 w-4 shrink-0 motion-safe:animate-spin" /> : <ImageIcon className="h-4 w-4 shrink-0" />}
+                    <span className="min-w-0 flex-1 truncate">{(a.nome ?? "Imagem").replace(/^Carregada por ti · /, "")}</span>
+                    <span className="shrink-0 text-xs text-muted-foreground">{a.largura}×{a.altura}</span>
+                  </button>
+                </li>
+              ))}
+            </ul>
+          )}
+        </div>
+      )}
       {sub === "ia" && <GeradorKie projectId={projectId} usar={usar} ocupado={!!aUsar} />}
       {sub === "biblioteca" && <>
       <p className="text-xs text-muted-foreground">Clica para usar como fundo ou arrasta para a página.</p>
