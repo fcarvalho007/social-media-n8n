@@ -84,14 +84,15 @@ describe("fecho dos modelos: capitular, recorte, avisos", () => {
   it("Revista recorta a imagem com a mesma máscara no canvas e no SVG; texto fica fora da imagem", async () => {
     const p = pacote(true);
     p.assets = { foto: { id: "foto", mime: "image/png", largura: 1200, altura: 800, dados: await foto() } };
-    p.variantes.A.paginas[2].camadas.push({ id: "img2", tipo: "imagem", asset_id: "foto", recorte: "cover", x: 100, y: 100, w: 300, h: 300, z: 1 });
+    p.variantes.A.paginas[1].camadas.push({ id: "img2", tipo: "imagem", asset_id: "foto", recorte: "cover", x: 100, y: 100, w: 300, h: 300, z: 1 });
     const r = aplicarModelo(p, "revista", est("revista").paleta, est("revista").par, ["A"], m);
-    const pg = r.pacote.variantes.A.paginas[2];
+    expect(r.recusadas).toEqual([]);
+    const pg = r.pacote.variantes.A.paginas[1];
     const img = pg.camadas.find((c) => c.id === "img2")!;
     expect(img).toMatchObject({ mascara: "diagonal", y: 0, h: 520 });
     const textos = pg.camadas.filter((c) => c.tipo === "texto" && c.ref);
     for (const t of textos) expect(t.y).toBeGreaterThanOrEqual(img.y + img.h);
-    const svg = paginaParaSvg(r.pacote, "A", 2, m);
+    const svg = paginaParaSvg(r.pacote, "A", 1, m);
     expect(svg).toContain(`<path d="${caminhoMascara("diagonal", img.w, img.h, img.x, img.y)}"/>`);
     // Canvas tracing uses the same commands
     const ops: string[] = [];
@@ -99,7 +100,7 @@ describe("fecho dos modelos: capitular, recorte, avisos", () => {
     expect(ops.join("")).toBe(caminhoMascara("diagonal", img.w, img.h));
     // Fotográfico drops the mask (full-bleed)
     const f = aplicarModelo(r.pacote, "fotografico", est("fotografico").paleta, est("fotografico").par, ["A"], m);
-    expect(f.pacote.variantes.A.paginas[2].camadas.find((c) => c.id === "img2")).toMatchObject({ mascara: undefined });
+    expect(f.pacote.variantes.A.paginas[1].camadas.find((c) => c.id === "img2")).toMatchObject({ mascara: undefined });
   });
 
   it("nota manual com pouco contraste é detetada; «Adaptar cor» só muda essa nota; sem aceitar, a cor fica", () => {
@@ -135,9 +136,9 @@ describe("fecho dos modelos: capitular, recorte, avisos", () => {
     mkdirSync(DIR, { recursive: true });
     const p = pacote(true);
     p.assets = { foto: { id: "foto", mime: "image/png", largura: 1200, altura: 800, dados: await foto() } };
-    p.variantes.A.paginas[2].camadas.push({ id: "img2", tipo: "imagem", asset_id: "foto", recorte: "cover", x: 100, y: 100, w: 300, h: 300, z: 1 });
+    p.variantes.A.paginas[1].camadas.push({ id: "img2", tipo: "imagem", asset_id: "foto", recorte: "cover", x: 100, y: 100, w: 300, h: 300, z: 1 });
     const casos: Array<[string, PacoteProva, number]> = [];
-    for (const e of ESTILOS) casos.push([e.id, aplicarModelo(p, e.id, e.paleta, e.par, ["A"], m).pacote, 2]);
+    for (const e of ESTILOS) for (const i of [1, 2]) casos.push([e.id, aplicarModelo(p, e.id, e.paleta, e.par, ["A"], m).pacote, i]);
     const semImg = aplicarModelo(pacote(), "fotografico", est("fotografico").paleta, est("fotografico").par, ["A"], m).pacote;
     casos.push(["fotografico-rascunho-teste", { ...semImg, variantes: { ...semImg.variantes, A: comMarcaRascunho(semImg.variantes.A) } }, 2]);
     for (const [nome, pk, i] of casos) {
@@ -145,6 +146,6 @@ describe("fecho dos modelos: capitular, recorte, avisos", () => {
       expect(b.length).toBeGreaterThan(1000);
       writeFileSync(`${DIR}/${nome}-slide${i + 1}.png`, b);
     }
-    writeFileSync(`${DIR}/fixture-revista.json`, JSON.stringify(casos[2][1]));
+    writeFileSync("/tmp/fixture-fecho.json", JSON.stringify(Object.fromEntries(casos.filter((c) => c[2] === 1).map((c) => [c[0], c[1]]))));
   }, 60_000);
 });
