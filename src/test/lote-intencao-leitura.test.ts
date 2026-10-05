@@ -40,7 +40,7 @@ describe("instruções de estrutura", () => {
   it("frameworks e slide individual mantêm as regras e o fecho deixa de contradizer o apelo", () => {
     expect(promptSistema("pas", null)).toContain(REGRAS_ESTRUTURA);
     expect(regrasFramework(obterFramework("pas")!)).toMatch(/no máximo uma ação, a do apelo final/);
-    expect(promptSistemaSlide("clareza", null)).toMatch(/Slide 2: autónomo/);
+    expect(promptSistemaSlide("claro", null)).toMatch(/Slide 2: autónomo/);
   });
 });
 
