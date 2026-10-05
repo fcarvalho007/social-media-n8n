@@ -4,7 +4,7 @@
 
 export interface SlideLeitura { id: string; papel: string; titulo: string; texto: string }
 
-export type TipoConselho = "denso" | "varias_ideias" | "lista_longa" | "titulo_longo" | "titulo_generico" | "slide2_continuacao" | "fecho_varias_acoes";
+export type TipoConselho = "denso" | "varias_ideias" | "lista_longa" | "titulo_longo" | "titulo_generico" | "slide2_continuacao" | "fecho_varias_acoes" | "capa_longa";
 
 export interface Conselho {
   slide: number; // 0-based
@@ -33,6 +33,8 @@ export function consultarLeitura(slides: SlideLeitura[]): Conselho[] {
     const nF = frases(s.texto).length;
     const nItens = (s.texto.match(ITEM) ?? []).length;
     const nT = palavras(s.titulo);
+    // Cover rule: title + one short framing sentence, never a paragraph. Advice only; text is never cut.
+    if (i === 0 && (nF > 1 || nP > 24)) add("capa_longa", `Capa com ${nF > 1 ? `${nF} frases` : `${nP} palavras`} no texto (regra da capa: título e uma frase curta).`, "Capa: encurta para uma frase.");
     if (nP > LIMITES_LEITURA.palavrasSlide) add("denso", `${nP} palavras no texto (orientação: até ${LIMITES_LEITURA.palavrasSlide} por slide).`, "Encurta o texto ou move uma parte para outro slide.");
     if (s.papel !== "fecho" && nF > LIMITES_LEITURA.frasesSlide) add("varias_ideias", `${nF} frases: pode haver mais do que uma ideia principal.`, "Fica com a ideia principal e passa o resto para outro slide.");
     if (nItens > LIMITES_LEITURA.itensLista) add("lista_longa", `Lista com ${nItens} itens (orientação: até ${LIMITES_LEITURA.itensLista}).`, "Divide a lista ou fica com os itens essenciais.");

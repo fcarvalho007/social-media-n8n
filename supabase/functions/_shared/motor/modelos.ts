@@ -65,7 +65,7 @@ function escolherTamanhos(q: Partes, conteudo: ConteudoEditorial, tT: Tipo, tB: 
 const texto = (c: CamadaTexto, x: number, y: number, w: number, h: number, t: Tipo, tam: number, cor: string, alinh: CamadaTexto["estilo"]["alinh"] = "esq", z = 20, capitular?: boolean): CamadaTexto =>
   ({ ...c, x: Math.round(x), y: Math.round(y), w: Math.round(w), h: Math.max(1, Math.ceil(h) + 4), z, estilo: { ...c.estilo, familia: t.familia, peso: t.peso, linha: t.linha, tam, tamMin: tam, cor, alinh, overflow: "cortar", maxLinhas: undefined, capitular: capitular || undefined } });
 
-export interface ContextoModelo { indice: number; total: number; paleta: Paleta; par: string; conteudo: ConteudoEditorial; assets: PacoteProva["assets"]; m?: Medidor }
+export interface ContextoModelo { indice: number; total: number; paleta: Paleta; par: string; conteudo: ConteudoEditorial; assets: PacoteProva["assets"]; m?: Medidor; /** Break slide: composed with the strong (cover-like) treatment. */ forte?: boolean }
 export interface ResultadoModelo { pagina: Pagina; cabe: boolean; /** Page shows the explicit "Imagem por escolher" placeholder. */ marcador: boolean }
 
 /** Composes ONE page in a model. Returns null when the page has no editorial text (manual-only page). */
@@ -74,7 +74,7 @@ export function comporModelo(p: Pagina, modelo: EstiloId, ctx: ContextoModelo): 
   if (!q.titulo && !q.corpo) return null;
   const { indice, total, paleta: pal, conteudo, m } = ctx;
   const par = PARES_FONTES.find((x) => x.id === ctx.par) ?? PARES_FONTES[0];
-  const capa = indice === 0;
+  const capa = indice === 0 || !!ctx.forte;
   const decor: Camada[] = [];
   let fundo = capa ? pal.fundoCapa : pal.fundo;
   let imagens = q.imagens;

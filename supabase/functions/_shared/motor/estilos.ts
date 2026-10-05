@@ -7,7 +7,7 @@ export interface Estilo { id: EstiloId; nome: string; descricao: string; paleta:
 export type EstiloId = "editorial" | "contraste" | "revista" | "fotografico" | "minimalista" | "didatico";
 
 export const ESTILOS: readonly Estilo[] = [
-  { id: "editorial", nome: "Editorial", descricao: "Grelha rigorosa, filetes finos, serifa.", par: "playfair-source",
+  { id: "editorial", nome: "Editorial", descricao: "Publicações premium de análise: serifa expressiva, grelha rigorosa, filetes e capitulares.", par: "playfair-source",
     paleta: { fundo: "#f7f5ef", fundoCapa: "#f7f5ef", titulo: "#141414", texto: "#2b2b2b", destaque: "#3e5b46", discreto: "#5f5f5f" } },
   { id: "contraste", nome: "Contraste", descricao: "Painel preto assimétrico e acento vivo.", par: "montserrat-inter",
     paleta: { fundo: "#f0f0ea", fundoCapa: "#0d0d0d", titulo: "#0d0d0d", texto: "#1c1c1c", destaque: "#c8ff2e", discreto: "#555555" } },
