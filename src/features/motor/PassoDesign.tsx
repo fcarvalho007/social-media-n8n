@@ -116,7 +116,7 @@ export function PassoDesign({ pacote, medidor, onAplicar, slides, paragrafos, in
         <div role="note" className="flex flex-wrap items-center gap-3 rounded-[var(--mc-r-md)] border border-border p-3 text-sm">
           <p className="min-w-0 flex-1">
             {nNotas === 1 ? "Uma nota acrescentada à mão fica" : `${nNotas} notas acrescentadas à mão ficam`} pouco legível sobre o fundo
-            ({[...notas.A.map((n) => `A p${n.pagina + 1}`), ...notas.B.map((n) => `B p${n.pagina + 1}`)].join(", ")}; contraste {formatarRazao(Math.min(...[...notas.A, ...notas.B].map((n) => n.razao)))} para o mínimo {Math.max(...[...notas.A, ...notas.B].map((n) => n.minimo))}:1).
+            ({[...notas.A.map((n) => `A p${n.pagina + 1}`), ...notas.B.map((n) => `B p${n.pagina + 1}`)].join(", ")}; contraste {formatarRazao(Math.min(...[...notas.A, ...notas.B].map((n) => n.razao)))}:1 para o mínimo {String(Math.max(...[...notas.A, ...notas.B].map((n) => n.minimo))).replace(".", ",")}:1).
             Se não adaptares, a tua cor mantém-se.
           </p>
           <Button variant="outline" className="h-11" onClick={() => onAplicar({ ...pacote, variantes: { A: adaptarCorNotas(pacote.variantes.A, notas.A), B: adaptarCorNotas(pacote.variantes.B, notas.B) } })}>Adaptar cor</Button>
