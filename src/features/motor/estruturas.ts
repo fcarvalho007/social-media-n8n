@@ -89,7 +89,7 @@ export function fundirSelecao(atual: PropostaEditorial, candidatos: Candidato[],
   for (let i = 1; i < selecao.length; i++) if ((selecao[i] ?? null) !== (selecao[i - 1] ?? null)) transicoes.push(i);
   if (!trocados) return { ok: false, motivo: "Nenhum slide foi escolhido." };
   return { ok: true, trocados, transicoes, // Title follows slide 1 (same invariant as aplicarTextoNaProposta) so autosave sees no diff and never writes a duplicate version.
-    conteudo: { ...atual, escopo_slide: undefined, metodo: "ia", demonstracao: false, titulo: slides[0]?.titulo ?? atual.titulo, slides, alt, origem_slides: origem } };
+    conteudo: { ...atual, metodo: "ia", demonstracao: false, titulo: slides[0]?.titulo ?? atual.titulo, slides, alt, origem_slides: origem } };
 }
 
 const CHAVE_SEL = (trabalhoId: string, versao: number) => `mc-selecao:${trabalhoId}:v${versao}`;
