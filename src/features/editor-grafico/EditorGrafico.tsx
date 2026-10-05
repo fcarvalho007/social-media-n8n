@@ -125,7 +125,7 @@ export function rotuloCamada(c: Camada, pacote: PacoteProva): { tipo: string; de
   return { tipo: c.nome ?? NOME_TIPO[c.tipo], detalhe: c.tipo === "forma" ? `${Math.round(c.w)}×${Math.round(c.h)}` : "" };
 }
 
-function PainelPropriedades({ pacote, camada: c, fundo, medidor, despachar, camadasPagina, onImagem, onFundoTodos }: PropsPainel & { onImagem?: () => void; onFundoTodos?: () => void }) {
+function PainelPropriedades({ pacote, camada: c, fundo, medidor, despachar, camadasPagina, onImagem }: PropsPainel & { onImagem?: () => void }) {
   if (!c) {
     return (
       <div className="space-y-5">
@@ -586,7 +586,7 @@ export function EditorGrafico({ pacoteInicial, chaveLocal, titulo, seletor, real
 
   const fundoTodos = () => { const p = paginaAtual && fundoATodos(pacote, variante, paginaAtual.fundo); if (p) { despachar({ tipo: "substituir", pacote: p }); comDesfazer("Fundo aplicado a todos os slides desta variante."); } else toast.info("Todos os slides já têm este fundo."); };
   const propriedades = medidor && paginaAtual && (
-    <PainelPropriedades pacote={pacote} camada={camada} fundo={paginaAtual.fundo} medidor={medidor} despachar={despachar} camadasPagina={paginaAtual.camadas} onImagem={onImagem} onFundoTodos={fundoTodos} />
+    <PainelPropriedades pacote={pacote} camada={camada} fundo={paginaAtual.fundo} medidor={medidor} despachar={despachar} camadasPagina={paginaAtual.camadas} onImagem={onImagem} />
   );
 
   const alterarSel = (patch: Partial<Camada>, agrupar?: string) => camada && despachar({ tipo: "camada", id: camada.id, patch, agrupar });
@@ -742,7 +742,7 @@ export function EditorGrafico({ pacoteInicial, chaveLocal, titulo, seletor, real
             <Button variant="ghost" size="icon" className="h-11 w-11" aria-label="Fechar painel" onClick={() => setPainelAberto(false)}><X className="h-4 w-4" /></Button>
           </div>
           <div className="space-y-4 p-3">
-            {painelMovel === "pagina" && <>{zoomControlos}{acoesPagina}{medidor && paginaAtual && <PainelPropriedades pacote={pacote} camada={null} fundo={paginaAtual.fundo} medidor={medidor} despachar={despachar} camadasPagina={paginaAtual.camadas} onImagem={onImagem} onFundoTodos={fundoTodos} />}</>}
+            {painelMovel === "pagina" && <>{zoomControlos}{acoesPagina}{medidor && paginaAtual && <PainelPropriedades pacote={pacote} camada={null} fundo={paginaAtual.fundo} medidor={medidor} despachar={despachar} camadasPagina={paginaAtual.camadas} onImagem={onImagem} />}</>}
             {painelMovel === "camada" && (camada ? propriedades : <p className="text-sm text-muted-foreground">Toca num elemento da página.</p>)}
             {painelMovel !== "pagina" && painelMovel !== "camada" && inserir(painelMovel)}
           </div>
