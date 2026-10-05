@@ -1279,24 +1279,36 @@ export type Database = {
       }
       mc_perfis_autor: {
         Row: {
+          apresentacao: string
           atualizado_em: string
           atualizado_por: string | null
           notas: string
+          objetivo_cronica: string
           project_id: string
+          publico: string
+          teses: string
           voz: string[]
         }
         Insert: {
+          apresentacao?: string
           atualizado_em?: string
           atualizado_por?: string | null
           notas?: string
+          objetivo_cronica?: string
           project_id: string
+          publico?: string
+          teses?: string
           voz?: string[]
         }
         Update: {
+          apresentacao?: string
           atualizado_em?: string
           atualizado_por?: string | null
           notas?: string
+          objetivo_cronica?: string
           project_id?: string
+          publico?: string
+          teses?: string
           voz?: string[]
         }
         Relationships: [
@@ -5008,7 +5020,15 @@ export type Database = {
         Returns: undefined
       }
       mc_definir_perfil_autor: {
-        Args: { _notas: string; _project_id: string; _voz: string[] }
+        Args: {
+          _apresentacao?: string
+          _notas: string
+          _objetivo_cronica?: string
+          _project_id: string
+          _publico?: string
+          _teses?: string
+          _voz: string[]
+        }
         Returns: undefined
       }
       mc_exportacao_progresso: {
