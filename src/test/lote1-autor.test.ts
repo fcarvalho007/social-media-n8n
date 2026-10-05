@@ -37,3 +37,12 @@ describe("lote1: fornecedor real e voz do autor", () => {
     expect(readFileSync("supabase/functions/_shared/motor/worker.server.ts", "utf8")).toMatch(/t\.brief\.autor/);
   });
 });
+
+describe("lote1: modo não-thinking e limite de saída", () => {
+  it("todos os clientes DeepSeek desligam thinking; motor envia JSON e max_tokens", () => {
+    for (const f of ["supabase/functions/_shared/deepseek-direto.ts", "supabase/functions/_shared/nl-app/lib/deepseek.server.ts", "supabase/functions/_shared/newsletter-engine/deepseek.server.ts"])
+      expect(readFileSync(f, "utf8")).toMatch(/thinking: \{ type: "disabled" \}/);
+    const g = readFileSync("supabase/functions/_shared/motor/gateway.server.ts", "utf8");
+    expect(g).toMatch(/json: true, stream: true, maxTokens: MAX_TOKENS_MOTOR/);
+  });
+});

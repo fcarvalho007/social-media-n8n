@@ -48,6 +48,8 @@ export async function chamarDeepSeek(
 
   const body: Record<string, unknown> = {
     model: modelo,
+    // Non-thinking mode (official toggle) for economical editorial tasks.
+    thinking: { type: "disabled" },
     messages: [
       { role: "system", content: system },
       { role: "user", content: user },
