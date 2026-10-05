@@ -23,6 +23,7 @@ interface Props {
 export function PainelEstruturas({ dados, atual, aceitar }: Props) {
   const origem = dados.trabalho.id;
   const [escolha, setEscolha] = useState<Framework | null>(null);
+  const [destaque, setDestaque] = useState<string | null>(null);
   const [slides, setSlides] = useState(atual.slides.length);
   const [aPedir, setAPedir] = useState(false);
   const [pendente, setPendente] = useState<EstruturaPendente | null>(() => lerPendente(origem));
