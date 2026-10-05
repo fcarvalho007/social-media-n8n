@@ -14,7 +14,7 @@ import type { PropostaEditorial } from "../_shared/motor/proposta.ts";
 import { atribuicao, validarMetaFonte, type MetaFonte } from "../_shared/motor/fontes.ts";
 import { lerLink, registarImagem, resolverAssets } from "../_shared/motor/fontes.server.ts";
 import { carregarImagem } from "../_shared/motor/carregar.server.ts";
-import { chaveKie, criarTarefaKie, estadoTarefaKie, KIE_MODELO, KIE_MAX_DIA, KIE_PROPORCAO } from "../_shared/motor/kie.server.ts";
+import { chaveKie, criarTarefaKie, estadoTarefaKie, interpretarImagemKie, KIE_MODELO, KIE_MAX_DIA, KIE_PROPORCAO } from "../_shared/motor/kie.server.ts";
 import { obterFramework } from "../_shared/motor/frameworks.ts";
 import { NOTA_MAX, obterModoRegen } from "../_shared/motor/regenerar.ts";
 import { avaliarFonte, MARCADOR_FIXTURE, MODELO_DEMO, MODELO_ESTRUTURACAO, MODELO_IA, normalizarFonte } from "../_shared/motor/proposta.ts";
@@ -274,7 +274,7 @@ Deno.serve(async (req) => {
     return json({ ok: true, assets, falhas });
   }
 
-  if (acao === "kie_config" || acao === "kie_gerar" || acao === "kie_estado") {
+  if (acao === "kie_config" || acao === "kie_gerar" || acao === "kie_estado" || acao === "interpretar_imagem") {
     const projectId = String(body.project_id ?? "");
     if (!UUID.test(projectId)) return json({ error: "Projeto inválido" }, 400);
     const { data: pode } = await user.rpc(acao === "kie_config" ? "mc_pode_ler" : "mc_pode_escrever", { _project_id: projectId });
@@ -282,6 +282,13 @@ Deno.serve(async (req) => {
     const configurada = !!chaveKie();
     if (acao === "kie_config") return json({ ok: true, configurada, modelo: KIE_MODELO, proporcao: KIE_PROPORCAO, max_dia: KIE_MAX_DIA });
     if (!configurada) return json({ error: "Configuração necessária: falta a chave KIE_API_KEY no servidor.", configuracao: true }, 503);
+    if (acao === "interpretar_imagem") {
+      if (body.confirmado !== true) return json({ error: "Confirma o pedido pago antes de interpretar." }, 400);
+      const assetId = String(body.asset_id ?? "");
+      if (!UUID.test(assetId)) return json({ error: "Imagem inválida" }, 400);
+      const r = await interpretarImagemKie(admin(), { projectId, userId: u.user.id, assetId });
+      return json(r.corpo, r.status);
+    }
     if (acao === "kie_gerar") {
       if (body.confirmado !== true) return json({ error: "Confirma a geração antes de pedir." }, 400);
       const prompt = String(body.prompt ?? "").trim();

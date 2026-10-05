@@ -23,7 +23,7 @@ export function corpoKie(prompt: string) {
 
 export async function criarTarefaKie(sb: SupabaseClient, a: { projectId: string; userId: string; prompt: string }, f: typeof fetch = fetch) {
   const desde = new Date(Date.now() - 86_400_000).toISOString();
-  const { count } = await sb.from("mc_kie_tarefas").select("id", { count: "exact", head: true }).eq("project_id", a.projectId).gte("criado_em", desde);
+  const { count } = await sb.from("mc_kie_tarefas").select("id", { count: "exact", head: true }).eq("project_id", a.projectId).eq("modelo", KIE_MODELO).gte("criado_em", desde);
   if ((count ?? 0) >= KIE_MAX_DIA) return { status: 409, corpo: { error: `Limite de ${KIE_MAX_DIA} imagens Kie por dia neste projeto atingido.` } };
   // Reserve BEFORE the paid request.
   const { data: res, error } = await sb.from("mc_kie_tarefas").insert({ project_id: a.projectId, criado_por: a.userId, modelo: KIE_MODELO, prompt: a.prompt }).select("id").single();
@@ -81,4 +81,45 @@ export async function estadoTarefaKie(sb: SupabaseClient, a: { projectId: string
   }
   await sb.from("mc_kie_tarefas").update({ estado: "concluida", asset_id: asset.id, actualizado_em: agora }).eq("id", t.id);
   return { status: 200, corpo: { ok: true, estado: "concluida", asset_id: asset.id } };
+}
+
+// ---- Vision: interpret a support image (chart/table) with Kie Gemini 3 Flash (OpenAI-compatible chat). ----
+export const KIE_VISAO_URL = "https://api.kie.ai/gemini-3-flash/v1/chat/completions";
+export const KIE_VISAO_MODELO = "gemini-3-flash:interpretar";
+export const KIE_VISAO_MAX_DIA = 20;
+const PROMPT_VISAO = "Descreve em português europeu (PT-PT) o que esta imagem mostra, para servir de fonte factual a um carrossel. Se for gráfico ou tabela: título, eixos/colunas, unidades, período e TODOS os valores legíveis, exatamente como aparecem. Depois, numa frase, a leitura principal que os dados permitem. Não inventes valores ilegíveis: escreve «ilegível». Máximo 1200 caracteres, texto simples sem markdown.";
+
+export function corpoVisao(url: string) {
+  return { model: "gemini-3-flash", stream: false, include_thoughts: false, reasoning_effort: "low", messages: [{ role: "user", content: [{ type: "text", text: PROMPT_VISAO }, { type: "image_url", image_url: { url } }] }] };
+}
+
+/** One reservation per click; never retried after an unknown outcome. Returns an editable description, never applied by itself. */
+export async function interpretarImagemKie(sb: SupabaseClient, a: { projectId: string; userId: string; assetId: string }, f: typeof fetch = fetch) {
+  const { data: asset } = await sb.from("mc_assets").select("id, bucket, storage_path").eq("project_id", a.projectId).eq("id", a.assetId).maybeSingle();
+  if (!asset) return { status: 404, corpo: { error: "Imagem inexistente neste projeto." } };
+  const desde = new Date(Date.now() - 86_400_000).toISOString();
+  const { count } = await sb.from("mc_kie_tarefas").select("id", { count: "exact", head: true }).eq("project_id", a.projectId).eq("modelo", KIE_VISAO_MODELO).gte("criado_em", desde);
+  if ((count ?? 0) >= KIE_VISAO_MAX_DIA) return { status: 409, corpo: { error: `Limite de ${KIE_VISAO_MAX_DIA} interpretações por dia neste projeto atingido.` } };
+  const assinado = await sb.storage.from(asset.bucket).createSignedUrl(asset.storage_path, 600);
+  if (assinado.error || !assinado.data?.signedUrl) return { status: 500, corpo: { error: "Não foi possível preparar a imagem." } };
+  const { data: res, error } = await sb.from("mc_kie_tarefas").insert({ project_id: a.projectId, criado_por: a.userId, modelo: KIE_VISAO_MODELO, prompt: "interpretar imagem de apoio", asset_id: asset.id }).select("id").single();
+  if (error || !res) return { status: 500, corpo: { error: "Não foi possível reservar o pedido." } };
+  const agora = () => new Date().toISOString();
+  let r: Response;
+  try {
+    r = await f(KIE_VISAO_URL, { method: "POST", headers: { Authorization: `Bearer ${chaveKie()}`, "Content-Type": "application/json" }, body: JSON.stringify(corpoVisao(assinado.data.signedUrl)) });
+  } catch {
+    await sb.from("mc_kie_tarefas").update({ estado: "desconhecido", erro: "Sem resposta da Kie.", actualizado_em: agora() }).eq("id", res.id);
+    return { status: 502, corpo: { error: "A Kie não respondeu. O pedido pode ter sido cobrado; não foi repetido.", estado: "desconhecido" } };
+  }
+  const j = await r.json().catch(() => null) as { choices?: { message?: { content?: unknown } }[]; msg?: string; error?: { message?: string } } | null;
+  const c = j?.choices?.[0]?.message?.content;
+  const texto = (typeof c === "string" ? c : Array.isArray(c) ? c.map((p) => (p as { text?: string }).text ?? "").join("") : "").trim().slice(0, 1500);
+  if (!r.ok || !texto) {
+    const estado = r.status >= 500 || (r.ok && !texto) ? "desconhecido" : "falhou";
+    await sb.from("mc_kie_tarefas").update({ estado, erro: String(j?.error?.message ?? j?.msg ?? r.status).slice(0, 300), actualizado_em: agora() }).eq("id", res.id);
+    return { status: r.status === 402 ? 402 : 502, corpo: { error: r.status === 402 ? "Sem saldo na Kie." : r.status === 401 ? "A Kie recusou a chave configurada." : "A Kie não devolveu uma descrição. O pedido não foi repetido.", estado } };
+  }
+  await sb.from("mc_kie_tarefas").update({ estado: "concluida", resultado: texto, actualizado_em: agora() }).eq("id", res.id);
+  return { status: 200, corpo: { ok: true, descricao: texto } };
 }

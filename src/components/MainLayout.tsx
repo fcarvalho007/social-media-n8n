@@ -4,7 +4,7 @@ import { DashboardHeader } from '@/components/DashboardHeader';
 
 export function MainLayout() {
   const { pathname } = useLocation();
-  const editorIsolado = pathname === '/estudio/editor-prova' || /^\/estudio\/carrosseis\/[^/]+$/.test(pathname);
+  const editorIsolado = pathname === '/estudio/editor-prova' || (/^\/estudio\/carrosseis\/[^/]+$/.test(pathname) && pathname !== '/estudio/carrosseis/novo');
 
   // SidebarProvider kept only as context for legacy consumers; navigation is the header drawer.
   return (

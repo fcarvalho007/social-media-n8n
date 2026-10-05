@@ -212,6 +212,7 @@ export const kieConfig = (project_id: string) => invocar<KieConfig>({ acao: "kie
 export const kieGerar = (project_id: string, prompt: string) => invocar<{ tarefa: string; estado: string }>({ acao: "kie_gerar", project_id, prompt, confirmado: true });
 export const kieEstado = (project_id: string, tarefa: string) => invocar<{ estado: "reservada" | "criada" | "concluida" | "falhou" | "desconhecido"; asset_id?: string | null; erro?: string | null }>({ acao: "kie_estado", project_id, tarefa });
 export const registarImagem = (project_id: string, media_id: string) => invocar<{ asset: AssetMotor & { hash: string } }>({ acao: "registar_imagem", project_id, media_id });
+export const interpretarImagem = (project_id: string, asset_id: string) => invocar<{ descricao: string }>({ acao: "interpretar_imagem", project_id, asset_id, confirmado: true });
 export const carregarImagemServidor = (project_id: string, nome: string, dados: string) => invocar<{ asset: AssetMotor & { hash: string } }>({ acao: "carregar_imagem", project_id, nome, dados });
 /** Verified bytes of this project's assets; ids that failed (removed/expired/other project) come back in falhas. */
 export async function lerAssets(project_id: string, ids: string[]): Promise<{ assets: Record<string, Asset>; falhas: string[] }> {
