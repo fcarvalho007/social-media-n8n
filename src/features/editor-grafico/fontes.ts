@@ -1,10 +1,10 @@
 import { parse as parseFonte } from "opentype.js";
 import { criarMedidor, type Familia, type FonteOT, type Medidor, type Peso } from "../../../supabase/functions/_shared/documento-grafico/nucleo";
 
-const BASE: Record<Peso, string> = { 400: "/fontes/WorkSans-Regular.ttf", 700: "/fontes/WorkSans-Bold.ttf" };
+const BASE: Record<400 | 700, string> = { 400: "/fontes/WorkSans-Regular.ttf", 700: "/fontes/WorkSans-Bold.ttf" };
 /** Same files embedded server-side (fontes-extra-b64.ts). */
 export const FICHEIROS_EXTRA: Partial<Record<Familia, Partial<Record<Peso, string>>>> = {
-  montserrat: { 400: "/fontes/Montserrat-400.ttf", 700: "/fontes/Montserrat-700.ttf" },
+  montserrat: { 400: "/fontes/Montserrat-400.ttf", 700: "/fontes/Montserrat-700.ttf", 900: "/fontes/Montserrat-900.ttf" },
   inter: { 400: "/fontes/Inter-400.ttf", 700: "/fontes/Inter-700.ttf" },
   playfair: { 400: "/fontes/PlayfairDisplay-400.ttf", 700: "/fontes/PlayfairDisplay-700.ttf" },
   sourcesans: { 400: "/fontes/SourceSans3-400.ttf", 700: "/fontes/SourceSans3-700.ttf" },
