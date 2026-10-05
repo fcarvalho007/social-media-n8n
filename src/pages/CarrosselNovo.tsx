@@ -466,7 +466,7 @@ export default function CarrosselNovo() {
                   <li key={i} className="rounded-[var(--mc-r-sm)] border border-border px-2 py-1 text-xs text-muted-foreground"><span className="tabular-nums">{i + 1}</span> {p}</li>
                 ))}
               </ol>
-              <p className="text-xs text-muted-foreground">Uma ideia por página, só com factos da fonte. A estrutura final adapta-se ao texto.</p>
+              <p className="text-xs text-muted-foreground">Uma ideia por página, {objetivo === "opiniao" ? "com factos referenciados + leitura do autor, sem inventar dados" : "só com factos da fonte"}. A estrutura final adapta-se ao texto.</p>
             </div>
 
             <div>
