@@ -388,7 +388,7 @@ export default function CarrosselTrabalho() {
   return (
     <Quadro>
       <Cabecalho voltarPara="/estudio/carrosseis" titulo={nome}
-        sub={<>{dataPt(t.criado_em)} · {NOME_ESTADO[t.estado]}{prop?.demonstracao && " · Demonstração"}{prop && ` · ${prop.metodo === "ia" ? "IA" : prop.metodo === "demonstracao" ? "fornecedor simulado" : "sem IA"}`}</>}
+        sub={<>{dataPt(t.criado_em)} · {NOME_ESTADO[t.estado]}{t.modelo === "simulado-demo" ? " · Simulada · sem chamada IA" : <>{prop?.demonstracao && " · Demonstração"}{prop && ` · ${prop.metodo === "ia" ? "IA" : prop.metodo === "demonstracao" ? "fornecedor simulado" : "sem IA"}`}</>}</>}
         direita={pronto && <><span className="hidden sm:inline">{avisoBadge}</span><EstadoChip estado={estadoG} /></>}
         etapas={<Etapas atual={passo} disponiveis={disponiveis} onIr={irPara} compacto />} />
 
