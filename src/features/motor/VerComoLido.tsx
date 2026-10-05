@@ -80,7 +80,7 @@ export function VerComoLido({ pacote, variante, indice, medidor, imagens, alt, o
                       className={cn("mc-trans min-h-11 rounded-[var(--mc-r-md)] border px-3 text-xs focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring", formato === f.id ? "border-primary bg-primary/10" : "border-input")}>{f.nome}</button>
                   ))}
                 </div>
-                <p className="text-xs text-muted-foreground">O ficheiro exportado é sempre 1080×1350 (4:5). 3:4 e 1:1 simulam um recorte central; cada plataforma pode recortar ou mostrar de outra forma, e o 1:1 não representa a grelha atual de nenhuma rede.</p>
+                <p className="text-xs text-muted-foreground">O ficheiro exportado é sempre 1080×1350 (4:5). Enquadramentos ilustrativos; a grelha e os recortes podem variar por plataforma. Confirma no destino.</p>
                 {cortadas.length > 0 && <p role="note" className="text-xs text-destructive">Nesta simulação, o texto da página {cortadas.map((i) => i + 1).join(", ")} fica parcialmente fora do recorte.</p>}
               </>
             )}
