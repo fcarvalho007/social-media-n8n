@@ -1,0 +1,2 @@
+COMMENT ON TABLE public.mc_sistemas_visuais IS 'DEPRECATED: visual system now lives in the document (DocumentoGrafico.sistema); read once for one-way legacy migration only.';
+COMMENT ON TABLE public.mc_composicao_paginas IS 'DEPRECATED: per-page image composition now lives in the document (Pagina.composicao/papel); read once for one-way legacy migration only.';

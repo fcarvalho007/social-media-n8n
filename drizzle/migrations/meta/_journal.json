@@ -218,6 +218,13 @@
       "when": 1791234965633,
       "tag": "0030_mc_composicao_paginas",
       "breakpoints": true
+    },
+    {
+      "idx": 31,
+      "version": "7",
+      "when": 1791236866949,
+      "tag": "0031_deprecar_tabelas_sistema_visual",
+      "breakpoints": true
     }
   ]
 }
