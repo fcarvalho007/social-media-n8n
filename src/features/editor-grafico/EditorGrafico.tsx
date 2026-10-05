@@ -180,7 +180,12 @@ function PainelPropriedades({ pacote, camada: c, fundo, medidor, despachar, cama
           )}
           <div className="grid grid-cols-2 gap-3">
             <Numero id="tam" rotulo="Tamanho (px)" valor={c.estilo.tam} min={6} max={400} onMudar={(n) => alterar({ estilo: { ...c.estilo, tam: n } } as Partial<Camada>)} />
-            <Numero id="linha" rotulo="Entrelinha" valor={c.estilo.linha} min={0.8} max={3} passo={0.05} onMudar={(n) => alterar({ estilo: { ...c.estilo, linha: n } } as Partial<Camada>)} />
+            <Campo id="familia" rotulo="Tipo de letra">
+              <Select value={c.estilo.familia ?? "worksans"} onValueChange={(v) => alterar({ estilo: { ...c.estilo, familia: v as Familia } } as Partial<Camada>)}>
+                <SelectTrigger id="familia" className="h-11 lg:h-9"><SelectValue /></SelectTrigger>
+                <SelectContent>{FAMILIAS.map((f) => <SelectItem key={f} value={f}>{NOME_FAMILIA[f]}</SelectItem>)}</SelectContent>
+              </Select>
+            </Campo>
           </div>
           <div className="grid grid-cols-2 gap-3">
             <Campo id="peso" rotulo="Peso">
@@ -225,19 +230,33 @@ function PainelPropriedades({ pacote, camada: c, fundo, medidor, despachar, cama
         </section>
       )}
 
-      <details className="group space-y-3">
-        <summary className="flex min-h-11 cursor-pointer items-center text-xs font-semibold uppercase tracking-wide text-muted-foreground lg:min-h-9">Avançado · posição e tamanho</summary>
-        <div className="grid grid-cols-2 gap-3">
+      <details className="group rounded-md border border-border">
+        <summary className="flex min-h-11 cursor-pointer list-none items-center gap-2 px-3 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring [&::-webkit-details-marker]:hidden">
+          <span className="font-medium">Posição e tamanho</span>
+          <span className="min-w-0 flex-1 truncate text-xs tabular-nums text-muted-foreground">{Math.round(c.x)}, {Math.round(c.y)} · {Math.round(c.w)}×{Math.round(c.h)}</span>
+          <span className="text-muted-foreground group-open:rotate-45" aria-hidden>+</span>
+        </summary>
+        <div className="grid grid-cols-2 gap-3 px-3 pb-3">
           <Numero id="x" rotulo="X" valor={c.x} min={-LARGURA} max={LARGURA * 2} onMudar={(n) => alterar({ x: n })} />
           <Numero id="y" rotulo="Y" valor={c.y} min={-ALTURA} max={ALTURA * 2} onMudar={(n) => alterar({ y: n })} />
           <Numero id="w" rotulo="Largura" valor={c.w} min={20} max={LARGURA * 2} onMudar={(n) => alterar({ w: n })} />
           <Numero id="h" rotulo="Altura" valor={c.h} min={20} max={ALTURA * 2} onMudar={(n) => alterar({ h: n })} />
+        </div>
+      </details>
+      <details className="group rounded-md border border-border">
+        <summary className="flex min-h-11 cursor-pointer list-none items-center gap-2 px-3 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring [&::-webkit-details-marker]:hidden">
+          <span className="font-medium">Opacidade e opções avançadas</span>
+          <span className="min-w-0 flex-1 truncate text-xs tabular-nums text-muted-foreground">{Math.round((c.opacidade ?? 1) * 100)}%{c.tipo === "texto" ? ` · entrelinha ${c.estilo.linha}` : ""}</span>
+          <span className="text-muted-foreground group-open:rotate-45" aria-hidden>+</span>
+        </summary>
+        <div className="grid grid-cols-2 gap-3 px-3 pb-3">
           <Numero id="op" rotulo="Opacidade (%)" valor={Math.round((c.opacidade ?? 1) * 100)} min={0} max={100} onMudar={(n) => alterar({ opacidade: n / 100 })} />
+          {c.tipo === "texto" && <Numero id="linha" rotulo="Entrelinha" valor={c.estilo.linha} min={0.8} max={3} passo={0.05} onMudar={(n) => alterar({ estilo: { ...c.estilo, linha: n } } as Partial<Camada>)} />}
         </div>
       </details>
 
       <section className="space-y-2">
-        <h4 className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Ordem</h4>
+        <h4 className="text-sm font-medium">Ordem e ações</h4>
         <div className="grid grid-cols-4 gap-2">
           <Button variant="outline" size="icon" className="h-11 w-full lg:h-9" aria-label="Trazer para a frente" title="Trazer para a frente" onClick={() => despachar({ tipo: "ordem", id: c.id, direcao: "topo" })}><BringToFront className="h-4 w-4" /></Button>
           <Button variant="outline" size="icon" className="h-11 w-full lg:h-9" aria-label="Subir uma camada" title="Subir uma camada" onClick={() => despachar({ tipo: "ordem", id: c.id, direcao: "frente" })}><ChevronsUp className="h-4 w-4" /></Button>
@@ -532,12 +551,12 @@ export function EditorGrafico({ pacoteInicial, chaveLocal, titulo, seletor, real
     <ol className={horizontal ? "flex gap-2 overflow-x-auto px-3 py-2" : "space-y-3 p-3"} aria-label="Páginas">
       {paginas.map((p, i) => (
         <li key={p.id} className={horizontal ? "shrink-0" : ""}>
-          <button type="button" onClick={() => despachar({ tipo: "pagina", indice: i })} aria-current={i === pagina ? "page" : undefined} aria-label={`Página ${i + 1}`}
-            className={`group block rounded-md p-1 text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring ${i === pagina ? "ring-2 ring-primary" : "hover:bg-muted"}`}>
+          <button type="button" onClick={() => despachar({ tipo: "pagina", indice: i })} aria-current={i === pagina ? "page" : undefined} aria-label={`Página ${i + 1} de ${paginas.length}${i === pagina ? " (atual)" : ""}`}
+            className={`group block rounded-md border-2 p-1 text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring ${i === pagina ? "border-primary bg-primary/10" : "border-transparent hover:bg-muted"}`}>
             <div className="pointer-events-none overflow-hidden rounded-sm border border-border">
               {medidor && <PaginaCanvas pacote={pacote} variante={variante} indice={i} medidor={medidor} imagens={imagens} escala={horizontal ? 0.065 : 0.14} />}
             </div>
-            <span className="mt-1 block text-center text-xs tabular-nums text-muted-foreground">{i + 1}</span>
+            <span className={`mt-1 block text-center text-xs tabular-nums ${i === pagina ? "font-semibold text-foreground" : "text-muted-foreground"}`}>{i + 1}{i === pagina && <span className="sr-only"> de {paginas.length}, atual</span>}</span>
           </button>
         </li>
       ))}
@@ -545,11 +564,14 @@ export function EditorGrafico({ pacoteInicial, chaveLocal, titulo, seletor, real
   );
 
   const acoesPagina = (
+    <div className="space-y-1">
+    <p className="text-sm font-medium" aria-live="polite">Página {pagina + 1} de {paginas.length}</p>
     <div className="grid grid-cols-4 gap-1">
       <Button variant="ghost" size="icon" className="h-11 w-full lg:h-8" aria-label="Duplicar página" title="Duplicar página" disabled={paginas.length >= 20} onClick={() => despachar({ tipo: "duplicarPagina", indice: pagina })}><Copy className="h-4 w-4" /></Button>
       <Button variant="ghost" size="icon" className="h-11 w-full lg:h-8" aria-label="Mover página para cima" title="Mover para cima" disabled={pagina === 0} onClick={() => despachar({ tipo: "moverPagina", de: pagina, para: pagina - 1 })}><ArrowUp className="h-4 w-4" /></Button>
       <Button variant="ghost" size="icon" className="h-11 w-full lg:h-8" aria-label="Mover página para baixo" title="Mover para baixo" disabled={pagina === paginas.length - 1} onClick={() => despachar({ tipo: "moverPagina", de: pagina, para: pagina + 1 })}><ArrowDown className="h-4 w-4" /></Button>
       <Button variant="ghost" size="icon" className="h-11 w-full lg:h-8 text-destructive hover:text-destructive" aria-label="Apagar página" title="Apagar página" disabled={paginas.length <= 1} onClick={() => despachar({ tipo: "apagarPagina", indice: pagina })}><Trash2 className="h-4 w-4" /></Button>
+    </div>
     </div>
   );
 
@@ -601,15 +623,16 @@ export function EditorGrafico({ pacoteInicial, chaveLocal, titulo, seletor, real
   const barraContexto = (
     <div role="toolbar" aria-label={camada ? `Ferramentas: ${rotuloCamada(camada, pacote).tipo}` : "Ferramentas do slide"} className="flex min-w-0 flex-wrap items-center gap-1 border-b border-border bg-background px-2 py-1">
       {!camada && paginaAtual && (<>
-        <label className="flex shrink-0 items-center gap-2 text-xs text-muted-foreground">Fundo deste slide
-          <input type="color" value={paginaAtual.fundo} onChange={(e) => despachar({ tipo: "fundo", cor: e.target.value })} className="h-9 w-10 cursor-pointer rounded-md border border-input bg-background p-1" aria-label="Cor de fundo deste slide" />
+        <label className="flex shrink-0 items-center gap-2 text-sm text-muted-foreground">Fundo deste slide
+          <input type="color" value={paginaAtual.fundo} onChange={(e) => despachar({ tipo: "fundo", cor: e.target.value })} className="h-11 w-11 lg:h-9 lg:w-10 cursor-pointer rounded-md border border-input bg-background p-1" aria-label="Cor de fundo deste slide" />
         </label>
         <Button variant="ghost" size="sm" className="h-11 shrink-0 lg:h-9" onClick={fundoTodos}><CopyCheck className="mr-1.5 h-4 w-4" />Aplicar a todos</Button>
         {sep}
         <Button variant={encaixe ? "secondary" : "ghost"} size="sm" className="h-11 shrink-0 lg:h-9" aria-pressed={encaixe} onClick={() => setEncaixe((v) => !v)}><Magnet className="mr-1.5 h-4 w-4" />Encaixar</Button>
-        <span className="ml-1 hidden shrink-0 text-xs text-muted-foreground sm:inline">Seleciona um elemento para o editar.</span>
+        <span className="ml-1 min-w-0 text-sm text-muted-foreground">Toca num elemento da página ou numa camada para o editar.</span>
       </>)}
       {camada?.tipo === "texto" && (<>
+        <div role="group" aria-label="Letra" className="flex flex-wrap items-center gap-1">
         <Button variant="ghost" size="icon" className={bt} aria-label="Diminuir letra" title="Diminuir letra" disabled={camada.estilo.tam <= 6} onClick={() => estiloTxt(camada, { tam: tamanhoMais(camada, -1) })}><Minus className="h-4 w-4" /></Button>
         <Select value={String(camada.estilo.tam)} onValueChange={(v) => estiloTxt(camada, { tam: Number(v) })}>
           <SelectTrigger className="h-11 w-[4.5rem] shrink-0 tabular-nums lg:h-9" aria-label="Tamanho da letra"><SelectValue>{Math.round(camada.estilo.tam)}</SelectValue></SelectTrigger>
@@ -621,18 +644,23 @@ export function EditorGrafico({ pacoteInicial, chaveLocal, titulo, seletor, real
           <SelectContent>{FAMILIAS.map((f) => <SelectItem key={f} value={f}>{NOME_FAMILIA[f]}</SelectItem>)}</SelectContent>
         </Select>
         <Button variant={camada.estilo.peso === 700 ? "secondary" : "ghost"} size="icon" className={bt} aria-label="Negrito" aria-pressed={camada.estilo.peso === 700} onClick={() => estiloTxt(camada, { peso: camada.estilo.peso === 700 ? 400 : 700 })}><Bold className="h-4 w-4" /></Button>
-        <input type="color" value={camada.estilo.cor} onChange={(e) => estiloTxt(camada, { cor: e.target.value }, `cor:${camada.id}`)} className="h-9 w-10 shrink-0 cursor-pointer rounded-md border border-input bg-background p-1" aria-label="Cor deste texto" title="Cor deste texto" />
+        </div>
+        {sep}
+        <div role="group" aria-label="Alinhamento e cor" className="flex flex-wrap items-center gap-1">
+        <input type="color" value={camada.estilo.cor} onChange={(e) => estiloTxt(camada, { cor: e.target.value }, `cor:${camada.id}`)} className="h-11 w-11 lg:h-9 lg:w-10 shrink-0 cursor-pointer rounded-md border border-input bg-background p-1" aria-label="Cor deste texto" title="Cor deste texto" />
         <ToggleGroup type="single" value={camada.estilo.alinh} onValueChange={(v) => v && estiloTxt(camada, { alinh: v as "esq" })} className="shrink-0">
           <ToggleGroupItem value="esq" aria-label="Texto à esquerda" className={bt}><AlignLeft className="h-4 w-4" /></ToggleGroupItem>
           <ToggleGroupItem value="centro" aria-label="Texto ao centro" className={bt}><AlignCenter className="h-4 w-4" /></ToggleGroupItem>
           <ToggleGroupItem value="dir" aria-label="Texto à direita" className={bt}><AlignRight className="h-4 w-4" /></ToggleGroupItem>
         </ToggleGroup>
+        </div>
       </>)}
       {camada?.tipo === "forma" && (
         <input type="color" value={camada.estilo.cor} onChange={(e) => alterarSel({ estilo: { ...camada.estilo, cor: e.target.value } } as Partial<Camada>, `cor:${camada.id}`)} className="h-9 w-10 shrink-0 cursor-pointer rounded-md border border-input bg-background p-1" aria-label="Cor desta forma" title="Cor desta forma" />
       )}
       {camada && (<>
         {sep}
+        <div role="group" aria-label="Ações do elemento" className="flex flex-wrap items-center gap-1">
         <DropdownMenu>
           <DropdownMenuTrigger asChild><Button variant="ghost" size="sm" className="h-11 shrink-0 lg:h-9" aria-label="Alinhar na página"><AlignCenterVertical className="mr-1 h-4 w-4" />Alinhar</Button></DropdownMenuTrigger>
           <DropdownMenuContent>{ALINHAR.map(({ a, n, I }) => <DropdownMenuItem key={a} onSelect={() => alterarSel(alinharNaPagina(camada, a))}><I className="mr-2 h-4 w-4" />{n}</DropdownMenuItem>)}</DropdownMenuContent>
@@ -649,6 +677,7 @@ export function EditorGrafico({ pacoteInicial, chaveLocal, titulo, seletor, real
         <Button variant="ghost" size="icon" className={bt} aria-label="Duplicar (Ctrl+D)" title="Duplicar (Ctrl+D)" onClick={() => despachar({ tipo: "duplicarCamada", id: camada.id })}><Copy className="h-4 w-4" /></Button>
         <Button variant="ghost" size="icon" className={`${bt} text-destructive hover:text-destructive`} aria-label="Apagar (Delete)" title="Apagar (Delete)" onClick={() => despachar({ tipo: "apagarCamada", id: camada.id })}><Trash2 className="h-4 w-4" /></Button>
         {camada.tipo !== "imagem" && <>{sep}<Button variant="outline" size="sm" className="h-11 shrink-0 lg:h-9" onClick={todos} title="Copia letra/cor para as camadas iguais dos outros slides (podes desfazer)"><CopyCheck className="mr-1.5 h-4 w-4" />Aplicar a todos</Button></>}
+        </div>
       </>)}
     </div>
   );
@@ -715,7 +744,7 @@ export function EditorGrafico({ pacoteInicial, chaveLocal, titulo, seletor, real
         {faixaTopo}
         <header className="space-y-2 border-b border-border bg-background px-2 py-2">
           <div className="flex items-center justify-between gap-2">
-            <div className="flex min-w-0 items-center gap-1">{cabecalhoInicio}<h1 className="truncate text-sm font-semibold">{titulo}</h1></div>
+            <div className="flex min-w-0 items-center gap-1">{cabecalhoInicio}<h1 className="truncate text-sm font-semibold" title={typeof titulo === "string" ? titulo : undefined}>{titulo}</h1></div>
             <div className="flex items-center gap-1">
               {barraAcoes}
               <Button variant="ghost" size="icon" className="h-11 w-11" aria-label="Pré-visualizar" onClick={() => { setPreview(true); setZoom("ajustar"); }}><Eye className="h-4 w-4" /></Button>
@@ -730,10 +759,10 @@ export function EditorGrafico({ pacoteInicial, chaveLocal, titulo, seletor, real
         <div className="flex min-h-0 flex-1 flex-col">{tela}</div>
         <nav className="grid shrink-0 grid-cols-5 border-t border-border bg-background pb-[env(safe-area-inset-bottom)]" aria-label="Ferramentas">
           {ABAS_INSERIR.map(({ id: a, nome, icone: I }) => (
-            <Button key={a} variant={painelAberto && painelMovel === a ? "secondary" : "ghost"} className="h-14 flex-col gap-0.5 rounded-none px-0 text-[11px]" aria-expanded={painelAberto && painelMovel === a}
+            <Button key={a} variant={painelAberto && painelMovel === a ? "secondary" : "ghost"} className="h-14 flex-col gap-0.5 rounded-none px-0 text-xs" aria-expanded={painelAberto && painelMovel === a}
               onClick={() => { if (painelAberto && painelMovel === a) setPainelAberto(false); else { setPainelMovel(a); setPainelAberto(true); } }}><I className="h-5 w-5" />{nome}</Button>
           ))}
-          <Button variant={painelAberto && (painelMovel === "pagina" || painelMovel === "camada") ? "secondary" : "ghost"} className="h-14 flex-col gap-0.5 rounded-none px-0 text-[11px]"
+          <Button variant={painelAberto && (painelMovel === "pagina" || painelMovel === "camada") ? "secondary" : "ghost"} className="h-14 flex-col gap-0.5 rounded-none px-0 text-xs"
             onClick={() => { const alvo = camada ? "camada" : "pagina"; if (painelAberto && painelMovel === alvo) setPainelAberto(false); else { setPainelMovel(alvo); setPainelAberto(true); } }}><Layers className="h-5 w-5" />{camada ? "Camada" : "Página"}</Button>
         </nav>
         {painelAberto && <section id="painel-propriedades" className="absolute inset-x-0 bottom-[calc(3.5rem+env(safe-area-inset-bottom))] z-30 max-h-[min(52dvh,32rem)] overflow-y-auto border-t border-border bg-background shadow-lg" aria-label="Painel">
@@ -775,7 +804,7 @@ export function EditorGrafico({ pacoteInicial, chaveLocal, titulo, seletor, real
         <nav className="flex w-16 shrink-0 flex-col items-stretch gap-1 border-r border-border bg-background py-2" aria-label="Inserir">
           {ABAS_INSERIR.map(({ id: a, nome, icone: I }) => (
             <button key={a} type="button" onClick={() => setAba((x) => (x === a ? null : a))} aria-pressed={aba === a}
-              className={`mx-1 flex min-h-14 flex-col items-center justify-center gap-1 rounded-md text-[11px] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring ${aba === a ? "bg-secondary text-foreground" : "text-muted-foreground hover:bg-muted hover:text-foreground"}`}>
+              className={`mx-1 flex min-h-14 flex-col items-center justify-center gap-1 rounded-md text-xs focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring ${aba === a ? "bg-secondary text-foreground" : "text-muted-foreground hover:bg-muted hover:text-foreground"}`}>
               <I className="h-5 w-5" />{nome}
             </button>
           ))}
