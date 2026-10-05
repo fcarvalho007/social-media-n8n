@@ -1511,6 +1511,107 @@ export type Database = {
           },
         ]
       }
+      mc_traducoes: {
+        Row: {
+          actualizado_em: string
+          criado_em: string
+          criado_por: string | null
+          erro: string | null
+          estado: string
+          hash_original: string
+          id: string
+          idioma_destino: string
+          idioma_origem: string
+          modelo: string
+          original: Json
+          project_id: string
+          resultado: Json | null
+          tentativas: number
+          tokens_entrada: number | null
+          tokens_saida: number | null
+        }
+        Insert: {
+          actualizado_em?: string
+          criado_em?: string
+          criado_por?: string | null
+          erro?: string | null
+          estado?: string
+          hash_original: string
+          id?: string
+          idioma_destino?: string
+          idioma_origem: string
+          modelo: string
+          original: Json
+          project_id: string
+          resultado?: Json | null
+          tentativas?: number
+          tokens_entrada?: number | null
+          tokens_saida?: number | null
+        }
+        Update: {
+          actualizado_em?: string
+          criado_em?: string
+          criado_por?: string | null
+          erro?: string | null
+          estado?: string
+          hash_original?: string
+          id?: string
+          idioma_destino?: string
+          idioma_origem?: string
+          modelo?: string
+          original?: Json
+          project_id?: string
+          resultado?: Json | null
+          tentativas?: number
+          tokens_entrada?: number | null
+          tokens_saida?: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "mc_traducoes_project_id_fkey"
+            columns: ["project_id"]
+            isOneToOne: false
+            referencedRelation: "projects"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      mc_traducoes_tentativas: {
+        Row: {
+          criado_em: string
+          id: string
+          project_id: string
+          traducao_id: string
+        }
+        Insert: {
+          criado_em?: string
+          id?: string
+          project_id: string
+          traducao_id: string
+        }
+        Update: {
+          criado_em?: string
+          id?: string
+          project_id?: string
+          traducao_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "mc_traducoes_tentativas_project_id_fkey"
+            columns: ["project_id"]
+            isOneToOne: false
+            referencedRelation: "projects"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "mc_traducoes_tentativas_traducao_id_fkey"
+            columns: ["traducao_id"]
+            isOneToOne: false
+            referencedRelation: "mc_traducoes"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       media_library: {
         Row: {
           ai_prompt: string | null
@@ -5221,8 +5322,33 @@ export type Database = {
           isSetofReturn: true
         }
       }
+      mc_reservar_traducao: {
+        Args: {
+          _hash: string
+          _modelo: string
+          _origem: string
+          _original: Json
+          _project_id: string
+          _repetir: boolean
+          _utilizador: string
+        }
+        Returns: {
+          estado: string
+          reutilizada: boolean
+          traducao_id: string
+        }[]
+      }
       mc_retomar_trabalho: { Args: { _trabalho_id: string }; Returns: boolean }
+      mc_uso_dia: { Args: { _project_id: string }; Returns: number }
       mc_uso_hoje: { Args: { _project_id: string }; Returns: number }
+      mc_uso_hoje_detalhe: {
+        Args: { _project_id: string }
+        Returns: {
+          geracao: number
+          reparacao: number
+          traducao: number
+        }[]
+      }
       mc_validar_documento: { Args: { _d: Json }; Returns: undefined }
       nl_contar_dados_antigos: { Args: { _dias?: number }; Returns: Json }
       nl_conteudos_guardar_versao: {
