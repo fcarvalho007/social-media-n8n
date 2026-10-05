@@ -462,7 +462,7 @@ export default function CarrosselNovo() {
         inicio={etapa === "narrativa" && <Button variant="ghost" className="h-11" onClick={() => setEtapa("fonte")}><ArrowLeft className="mr-1.5 h-4 w-4" />Voltar</Button>}
         nota={etapa === "narrativa" ? (demo ? "Demonstração · fornecedor simulado" : comIa ? "Gera no servidor; podes sair da página." : "Gera sem IA, no servidor.") : undefined}
         fim={etapa === "fonte"
-          ? <Button className="h-11 px-5" onClick={continuar} disabled={!projeto}>Continuar<ArrowRight className="ml-1.5 h-4 w-4" /></Button>
+          ? <Button className="h-11 px-5" onClick={continuar} disabled={!projeto || lendo} aria-describedby={lendo ? "estado-leitura" : undefined}>{lendo ? "A ler a página…" : "Continuar"}<ArrowRight className="ml-1.5 h-4 w-4" /></Button>
           : <Button className="h-11 px-5" onClick={criar} disabled={aCriar || !fonteValida}>{aCriar && <Loader2 className="mr-2 h-4 w-4 motion-safe:animate-spin" />}{demo ? "Gerar demonstração" : comIa ? "Gerar carrossel" : "Gerar sem IA"}</Button>}
       />
     </Quadro>
