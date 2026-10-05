@@ -563,25 +563,24 @@ export default function CarrosselNovo() {
 function EtapasGrandes({ atual, onFonte }: { atual: number; onFonte?: () => void }) {
   return (
     <nav aria-label="Etapas do carrossel" className="mb-8 flex justify-center">
-      <ol className="flex w-full max-w-3xl items-start">
+      <ol className="grid w-full max-w-3xl grid-cols-5">
         {ETAPAS.map((e, i) => {
           const ativa = i === atual; const feita = i < atual;
           const conteudo = (
             <>
-              <span className={cn("flex h-8 w-8 items-center justify-center rounded-full border text-xs font-bold tabular-nums",
+              <span className={cn("relative z-10 flex h-8 w-8 items-center justify-center rounded-full border text-xs font-bold tabular-nums",
                 ativa ? "border-primary bg-primary text-primary-foreground ring-4 ring-primary/15" : feita ? "border-primary text-primary" : "border-border bg-card text-muted-foreground")}>
                 {feita ? <Check className="h-4 w-4" aria-hidden /> : i + 1}
               </span>
-              <span className={cn("hidden text-[11px] font-semibold uppercase tracking-wider sm:block", ativa ? "text-primary" : "text-muted-foreground")}>{e.nome}</span>
+              <span className={cn("hidden text-center text-[11px] font-semibold uppercase tracking-wider sm:block", ativa ? "text-primary" : "text-muted-foreground")}>{e.nome}</span>
             </>
           );
           return (
-            <li key={e.id} className="flex flex-1 items-start" aria-current={ativa ? "step" : undefined}>
-              {i > 0 && <span className="mt-4 h-px flex-1 bg-border" aria-hidden />}
+            <li key={e.id} className="relative flex justify-center" aria-current={ativa ? "step" : undefined}>
+              {i > 0 && <span className="absolute right-1/2 top-4 h-px w-full -translate-x-5 bg-border sm:-translate-x-6" style={{ width: "calc(100% - 2.5rem)" }} aria-hidden />}
               {feita && i === 0 && onFonte
                 ? <button type="button" onClick={onFonte} className="flex min-h-11 flex-col items-center gap-2 px-1 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring">{conteudo}<span className="sr-only">(voltar à fonte)</span></button>
                 : <div className="flex flex-col items-center gap-2 px-1">{conteudo}{ativa && <span className="sr-only sm:hidden">{e.nome}</span>}</div>}
-              {i < ETAPAS.length - 1 && <span className="mt-4 h-px flex-1 bg-border" aria-hidden />}
             </li>
           );
         })}
