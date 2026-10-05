@@ -7,7 +7,6 @@ import {
   type Camada, type Medidor, type PacoteProva, type Variante,
 } from "../../../supabase/functions/_shared/documento-grafico/nucleo";
 import { desenharTexto } from "./desenho";
-import { medidasTransformer } from "./transformer";
 
 interface Props {
   pacote: PacoteProva;
@@ -60,7 +59,9 @@ export function PaginaCanvas({ pacote, variante, indice, medidor, imagens, escal
   const pagina = pacote.variantes[variante].paginas[indice];
   const trRef = useRef<Konva.Transformer>(null);
   const nos = useRef(new Map<string, Konva.Group>());
-  const medidas = medidasTransformer(toque);
+  const medidas = toque
+    ? { anchorSize: 28, anchorCornerRadius: 14, borderStrokeWidth: 2 }
+    : { anchorSize: 12, anchorCornerRadius: 2, borderStrokeWidth: 2 };
 
   useEffect(() => {
     const tr = trRef.current;
