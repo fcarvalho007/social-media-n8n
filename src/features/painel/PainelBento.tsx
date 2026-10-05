@@ -42,7 +42,7 @@ export function CustosBloco() {
     <Bloco className="flex flex-col justify-between lg:col-span-4">
       <div className="flex items-center justify-between">
         <h2 className="text-xs font-semibold uppercase tracking-widest text-muted-foreground">Custos do mês</h2>
-        <span className="text-xs capitalize text-muted-foreground">{mesAtual()}</span>
+        <span className="text-xs text-muted-foreground">{mesAtual()}</span>
       </div>
       <div className="py-5">
         {loading ? <Skeleton className="h-12 w-32" /> : <div className="text-5xl font-bold tracking-tight">{eur(costs.totalCostMonth)}</div>}
@@ -143,7 +143,7 @@ export function ProjetosBloco({ projetoId }: { projetoId: string | null }) {
             <li key={p.id}>
               <Link to={`/projects/${p.id}`} className="group flex items-center justify-between rounded-2xl border bg-background p-3.5 transition-colors hover:border-primary">
                 <span className="flex min-w-0 items-center gap-3">
-                  <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-primary text-lg font-bold text-primary-foreground">{p.icon || p.name.charAt(0)}</span>
+                  <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-primary text-lg font-bold text-primary-foreground">{p.name.charAt(0)}</span>
                   <span className="min-w-0">
                     <span className="block truncate text-sm font-semibold uppercase tracking-tight">{p.name}</span>
                     <span className="text-[11px] font-semibold uppercase tracking-widest text-muted-foreground">{ESTADO[p.status] ?? "Arquivado"}</span>

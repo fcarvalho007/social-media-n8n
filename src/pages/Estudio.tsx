@@ -117,7 +117,7 @@ export default function Estudio() {
       </div>
 
       <div className="grid grid-cols-1 gap-5 lg:grid-cols-12">
-      <Bloco className="space-y-3 lg:col-span-8" >
+      <Bloco className="flex flex-col justify-center space-y-3 lg:col-span-8">
         <h2 id="continuar" className="inline-block rounded-full bg-primary/10 px-3 py-1 text-xs font-semibold uppercase tracking-wider text-primary">Continuar onde ficaste</h2>
         {ctx.estado === "erro" && <p className="text-sm text-muted-foreground">Disponível depois de carregar os projetos.</p>}
         {ctx.estado !== "erro" && (resumo.estado === "a_carregar" || ctx.estado === "a_carregar") && <Skeleton className="h-16 w-full" />}
