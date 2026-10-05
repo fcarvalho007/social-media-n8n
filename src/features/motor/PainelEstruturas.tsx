@@ -76,6 +76,7 @@ export function PainelEstruturas({ dados, atual, aceitar }: Props) {
     const c = usaveis.find((x) => x.trabalho === id);
     return c?.escopo ? `Alternativa (${nomeModo(c.escopo.modo)})` : obterFramework(c?.framework)?.nome ?? "Proposta";
   };
+  const comp = ativoC && !ativoC.motivo && ativoC.conteudo ? ativoC : null;
   const regenDe = (slideId: string) => pool.filter((c) => c.escopo?.slide_id === slideId);
 
   const pedirRegen = async () => {
@@ -143,8 +144,9 @@ export function PainelEstruturas({ dados, atual, aceitar }: Props) {
         <p key={c.trabalho} className="flex items-center gap-2 text-sm text-muted-foreground"><Loader2 className="h-4 w-4 motion-safe:animate-spin" />A preparar «{obterFramework(c.framework)?.nome ?? c.framework}»… Podes continuar a editar.</p>
       ))}
 
+      <div className="space-y-3">
       {avaliadosF.length > 0 && (
-        <div className="space-y-3">
+        <>
           <div role="tablist" aria-label="Propostas guardadas" className="flex flex-wrap gap-2">
             {avaliadosF.map((c) => {
               const sel = ativoC?.trabalho === c.trabalho;
@@ -165,18 +167,22 @@ export function PainelEstruturas({ dados, atual, aceitar }: Props) {
             </div>
           )}
 
-          {ativoC && !ativoC.motivo && ativoC.conteudo && (
+        </>
+      )}
+          {comp ? (
             <>
               <p className="text-xs text-muted-foreground">Proposta «{obterFramework(ativoC.framework)?.nome}» · {PERFIL[ativoC.perfil]}. Opinião é leitura do autor; factos e números citam §.</p>
               <div className="flex flex-wrap gap-2">
-                <Button variant="outline" className="h-11" onClick={() => setSelecao(atual.slides.map(() => ativoC.trabalho))}>Usar proposta inteira</Button>
+                <Button variant="outline" className="h-11" onClick={() => setSelecao(atual.slides.map(() => comp.trabalho))}>Usar proposta inteira</Button>
                 <Button variant="ghost" className="h-11" onClick={() => setSelecao(atual.slides.map(() => null))}>Manter atuais</Button>
               </div>
+            </>
+          ) : <p className="text-xs text-muted-foreground">Slides atuais. Podes regenerar um slide sem pedir uma estrutura inteira; as alternativas ficam guardadas por slide.</p>}
               <ol className="space-y-2">
                 {atual.slides.map((a, i) => {
-                  const p = ativoC.conteudo!.slides[i];
+                  const p = comp?.conteudo!.slides[i];
                   const escolhido = selValida[i];
-                  const usaEsta = escolhido === ativoC.trabalho;
+                  const usaEsta = !!comp && escolhido === comp.trabalho;
                   return (
                     <li key={a.id} className="space-y-2 rounded-[var(--mc-r-md)] border border-border p-3 text-sm">
                       <div className="flex flex-wrap items-center justify-between gap-2">
@@ -186,17 +192,19 @@ export function PainelEstruturas({ dados, atual, aceitar }: Props) {
                           <RefreshCw className="mr-1.5 h-4 w-4" />Regenerar este slide
                         </Button>
                       </div>
-                      <div className="grid gap-2 md:grid-cols-2">
+                      <div className={cn("grid gap-2", comp && "md:grid-cols-2")}>
                         <div className={cn("min-w-0 rounded-[var(--mc-r-md)] border p-2", !escolhido ? "border-primary" : "border-transparent")}>
                           <p className="text-xs text-muted-foreground">Atual · §{a.fontes.join(", §") || "—"}</p>
                           <p className="font-medium">{a.titulo}</p><p className="text-muted-foreground">{a.texto}</p>
                           <Button size="sm" variant={!escolhido ? "default" : "outline"} aria-pressed={!escolhido} className="mt-2 h-11" onClick={() => setSelecao(selValida.map((x, j) => (j === i ? null : x)))}>Manter atual</Button>
                         </div>
+                        {comp && p && (
                         <div className={cn("min-w-0 rounded-[var(--mc-r-md)] border p-2", usaEsta ? "border-primary" : "border-transparent")}>
-                          <p className="text-xs text-muted-foreground">Proposta «{obterFramework(ativoC.framework)?.nome}» · §{p.fontes.join(", §")}</p>
+                          <p className="text-xs text-muted-foreground">Proposta «{obterFramework(comp.framework)?.nome}» · §{p.fontes.join(", §")}</p>
                           <p className="font-medium">{p.titulo}</p><p className="text-muted-foreground">{p.texto}</p>
-                          <Button size="sm" variant={usaEsta ? "default" : "outline"} aria-pressed={usaEsta} className="mt-2 h-11" onClick={() => setSelecao(selValida.map((x, j) => (j === i ? ativoC.trabalho : x)))}>Usar este slide</Button>
+                          <Button size="sm" variant={usaEsta ? "default" : "outline"} aria-pressed={usaEsta} className="mt-2 h-11" onClick={() => setSelecao(selValida.map((x, j) => (j === i ? comp.trabalho : x)))}>Usar este slide</Button>
                         </div>
+                        )}
                       </div>
                       <LinhaAlternativas itens={regenDe(a.id)} avaliados={avaliados} escolhido={escolhido} erroPedido={erroR[a.id]} nomeModo={nomeModo}
                         usar={(id) => setSelecao(selValida.map((x, j) => (j === i ? id : x)))} />
@@ -204,8 +212,6 @@ export function PainelEstruturas({ dados, atual, aceitar }: Props) {
                   );
                 })}
               </ol>
-            </>
-          )}
 
           {res && (
             <div className="sticky bottom-0 space-y-2 rounded-[var(--mc-r-md)] border border-border bg-card p-3 text-sm pb-[max(0.75rem,env(safe-area-inset-bottom))]">
@@ -224,8 +230,7 @@ export function PainelEstruturas({ dados, atual, aceitar }: Props) {
               </div>
             </div>
           )}
-        </div>
-      )}
+      </div>
 
       <Dialog open={!!escolha} onOpenChange={(o) => !o && setEscolha(null)}>
         <DialogContent>
