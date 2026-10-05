@@ -76,7 +76,7 @@ export function PassoDesign({ pacote, medidor, onAplicar, slides, paragrafos, in
     <section className="mc-entrar space-y-6" aria-labelledby="t-design">
       <div className="flex flex-wrap items-baseline justify-between gap-2">
         <h1 id="t-design" className="text-2xl font-semibold tracking-tight">Design</h1>
-        <p className="text-xs text-muted-foreground">O texto não muda. Nada é aplicado até carregares em «Aplicar estilo».</p>
+        <p className="text-xs text-muted-foreground">{ambito === "slide" ? "O texto não muda. Nada é aplicado até carregares em «Aplicar só ao slide»." : "O texto não muda. Nada é aplicado até carregares em «Aplicar estilo»."}</p>
       </div>
 
       <div role="radiogroup" aria-label="Âmbito" className="inline-flex gap-1 rounded-[var(--mc-r-md)] bg-muted p-1">
