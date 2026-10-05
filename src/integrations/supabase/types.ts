@@ -1277,6 +1277,38 @@ export type Database = {
           },
         ]
       }
+      mc_perfis_autor: {
+        Row: {
+          atualizado_em: string
+          atualizado_por: string | null
+          notas: string
+          project_id: string
+          voz: string[]
+        }
+        Insert: {
+          atualizado_em?: string
+          atualizado_por?: string | null
+          notas?: string
+          project_id: string
+          voz?: string[]
+        }
+        Update: {
+          atualizado_em?: string
+          atualizado_por?: string | null
+          notas?: string
+          project_id?: string
+          voz?: string[]
+        }
+        Relationships: [
+          {
+            foreignKeyName: "mc_perfis_autor_project_id_fkey"
+            columns: ["project_id"]
+            isOneToOne: true
+            referencedRelation: "projects"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       mc_propostas: {
         Row: {
           actualizado_em: string
@@ -4973,6 +5005,10 @@ export type Database = {
       }
       mc_definir_orcamento: {
         Args: { _max_dia: number; _max_trabalho: number; _project_id: string }
+        Returns: undefined
+      }
+      mc_definir_perfil_autor: {
+        Args: { _notas: string; _project_id: string; _voz: string[] }
         Returns: undefined
       }
       mc_exportacao_progresso: {

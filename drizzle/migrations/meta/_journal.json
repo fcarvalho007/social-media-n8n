@@ -169,6 +169,13 @@
       "when": 1791186332189,
       "tag": "0023_mc_assets_origem_upload",
       "breakpoints": true
+    },
+    {
+      "idx": 24,
+      "version": "7",
+      "when": 1791194290242,
+      "tag": "0024_mc_perfis_autor",
+      "breakpoints": true
     }
   ]
 }
