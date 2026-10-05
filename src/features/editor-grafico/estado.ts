@@ -1,4 +1,4 @@
-import type { Asset, Camada, PacoteProva, Pagina, SlideEditorial, Variante } from "../../../supabase/functions/_shared/documento-grafico/nucleo";
+import type { Asset, Camada, CamadaTexto, PacoteProva, Pagina, SlideEditorial, Variante } from "../../../supabase/functions/_shared/documento-grafico/nucleo";
 
 export interface EstadoEditor {
   pacote: PacoteProva;
@@ -19,14 +19,33 @@ export type Acao =
   | { tipo: "ordem"; id: string; direcao: "frente" | "tras" | "topo" | "fundo" }
   | { tipo: "duplicarCamada"; id: string }
   | { tipo: "apagarCamada"; id: string }
-  | { tipo: "adicionar"; camada: "texto" | "ret" | "elipse" }
-  | { tipo: "adicionarImagem"; asset: Asset; nome: string }
+  | { tipo: "adicionar"; camada: "texto" | "ret" | "elipse" | "linha"; preset?: PresetTexto; pos?: Ponto }
+  | { tipo: "adicionarImagem"; asset: Asset; nome: string; pos?: Ponto }
+  /** Whole-document change (styles, "apply to all") recorded as one undo step. */
+  | { tipo: "substituir"; pacote: PacoteProva }
   | { tipo: "fundo"; cor: string }
   | { tipo: "duplicarPagina"; indice: number }
   | { tipo: "moverPagina"; de: number; para: number }
   | { tipo: "apagarPagina"; indice: number }
   | { tipo: "desfazer" }
   | { tipo: "refazer" };
+
+export type PresetTexto = "titulo" | "subtitulo" | "paragrafo" | "livre";
+export interface Ponto { x: number; y: number }
+
+/** Text presets for inserted layers. New layers clip instead of shrinking: the font is never reduced automatically. */
+export const PRESETS_TEXTO: Record<PresetTexto, { nome: string; texto: string; w: number; h: number; estilo: CamadaTexto["estilo"] }> = {
+  titulo: { nome: "Título", texto: "Título", w: 900, h: 240, estilo: { peso: 700, familia: "montserrat", tam: 88, linha: 1.1, alinh: "esq", cor: "#111111", overflow: "cortar" } },
+  subtitulo: { nome: "Subtítulo", texto: "Subtítulo", w: 900, h: 160, estilo: { peso: 700, familia: "montserrat", tam: 56, linha: 1.15, alinh: "esq", cor: "#111111", overflow: "cortar" } },
+  paragrafo: { nome: "Parágrafo", texto: "Escreve aqui o parágrafo.", w: 900, h: 300, estilo: { peso: 400, familia: "inter", tam: 40, linha: 1.35, alinh: "esq", cor: "#222222", overflow: "cortar" } },
+  livre: { nome: "Texto livre", texto: "Novo texto", w: 800, h: 200, estilo: { peso: 700, tam: 64, linha: 1.15, alinh: "esq", cor: "#111111", overflow: "reduzir", tamMin: 28 } },
+};
+
+/** Places a w×h box centred on a drop point, kept inside the page. */
+function centrar(pos: Ponto | undefined, w: number, h: number, padrao: Ponto): Ponto {
+  if (!pos) return padrao;
+  return { x: Math.round(Math.min(1080 - w / 2, Math.max(-w / 2, pos.x - w / 2))), y: Math.round(Math.min(1350 - h / 2, Math.max(-h / 2, pos.y - h / 2))) };
+}
 
 const LIMITE_HISTORICO = 100;
 let ultimoGrupo: string | null = null;
@@ -102,18 +121,36 @@ export function reduzir(s: EstadoEditor, a: Acao): EstadoEditor {
       return aplicar(s, comPagina(s.pacote, s.variante, s.pagina, (p) => ({ ...p, camadas: p.camadas.filter((c) => c.id !== a.id) })), undefined, { selecao: null });
     case "adicionar": {
       const topo = pg.camadas.length ? Math.max(...pg.camadas.map((x) => x.z)) : 0;
-      const nova: Camada = a.camada === "texto"
-        ? { id: novoId("texto"), nome: "Texto livre", tipo: "texto", texto: "Novo texto", x: 140, y: 560, w: 800, h: 200, z: topo + 1, estilo: { peso: 700, tam: 64, linha: 1.15, alinh: "esq", cor: "#111111", overflow: "reduzir", tamMin: 28 } }
-        : { id: novoId(a.camada), nome: a.camada === "ret" ? "Retângulo" : "Elipse", tipo: "forma", forma: a.camada, x: 340, y: 475, w: 400, h: 400, z: topo + 1, estilo: { cor: "#f59e0b", raio: a.camada === "ret" ? 0 : undefined } };
+      let nova: Camada;
+      if (a.camada === "texto") {
+        const pr = PRESETS_TEXTO[a.preset ?? "livre"];
+        const o = centrar(a.pos, pr.w, pr.h, { x: 90, y: 560 });
+        nova = { id: novoId("texto"), nome: pr.nome, tipo: "texto", texto: pr.texto, x: o.x, y: o.y, w: pr.w, h: pr.h, z: topo + 1, estilo: { ...pr.estilo } };
+      } else {
+        const linha = a.camada === "linha";
+        const w = linha ? 600 : 400, h = linha ? 8 : 400;
+        const o = centrar(a.pos, w, h, linha ? { x: 240, y: 671 } : { x: 340, y: 475 });
+        nova = { id: novoId(linha ? "ret" : a.camada), nome: linha ? "Linha" : a.camada === "ret" ? "Retângulo" : "Elipse", tipo: "forma", forma: linha ? "ret" : a.camada as "ret" | "elipse", x: o.x, y: o.y, w, h, z: topo + 1, estilo: { cor: "#f59e0b", raio: a.camada === "elipse" ? undefined : 0 } };
+      }
       return aplicar(s, comPagina(s.pacote, s.variante, s.pagina, (p) => ({ ...p, camadas: [...p.camadas, nova] })), undefined, { selecao: nova.id });
     }
     case "adicionarImagem": {
-      // Full-bleed cover behind the existing layers; the user can then move/resize/crop/reorder it.
-      const baixo = pg.camadas.length ? Math.min(...pg.camadas.map((x) => x.z)) : 1;
-      const nova: Camada = { id: novoId("imagem"), nome: a.nome.slice(0, 60) || "Imagem", tipo: "imagem", asset_id: a.asset.id, recorte: "cover", foco: { x: 0.5, y: 0.5 }, x: 0, y: 0, w: 1080, h: 1350, z: baixo - 1 };
+      // Click: full-bleed cover behind the layers. Drop: a half-width image on top at the drop point.
       const pacote = { ...s.pacote, assets: { ...s.pacote.assets, [a.asset.id]: a.asset } };
+      let nova: Camada;
+      if (a.pos) {
+        const w = 540, h = Math.round(540 * (a.asset.altura / a.asset.largura || 1.25));
+        const o = centrar(a.pos, w, h, { x: 270, y: 337 });
+        const topo = pg.camadas.length ? Math.max(...pg.camadas.map((x) => x.z)) : 0;
+        nova = { id: novoId("imagem"), nome: a.nome.slice(0, 60) || "Imagem", tipo: "imagem", asset_id: a.asset.id, recorte: "cover", foco: { x: 0.5, y: 0.5 }, x: o.x, y: o.y, w, h, z: topo + 1 };
+      } else {
+        const baixo = pg.camadas.length ? Math.min(...pg.camadas.map((x) => x.z)) : 1;
+        nova = { id: novoId("imagem"), nome: a.nome.slice(0, 60) || "Imagem", tipo: "imagem", asset_id: a.asset.id, recorte: "cover", foco: { x: 0.5, y: 0.5 }, x: 0, y: 0, w: 1080, h: 1350, z: baixo - 1 };
+      }
       return aplicar(s, comPagina(pacote, s.variante, s.pagina, (p) => ({ ...p, camadas: [...p.camadas, nova] })), undefined, { selecao: nova.id });
     }
+    case "substituir":
+      return aplicar(s, a.pacote, undefined, ajustar(s, a.pacote));
     case "fundo":
       return aplicar(s, comPagina(s.pacote, s.variante, s.pagina, (p) => ({ ...p, fundo: a.cor })), "fundo");
     case "duplicarPagina": {

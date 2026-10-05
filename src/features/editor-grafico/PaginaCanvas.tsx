@@ -1,6 +1,7 @@
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, useState } from "react";
 import type Konva from "konva";
-import { Ellipse, Group, Image as KImage, Layer, Rect, Shape, Stage, Transformer } from "react-konva";
+import { Ellipse, Group, Image as KImage, Layer, Line, Rect, Shape, Stage, Transformer } from "react-konva";
+import { encaixar } from "./operacoes";
 import {
   ALTURA, LARGURA, calcularRecorte, camadasOrdenadas, resolverTexto,
   type Camada, type Medidor, type PacoteProva, type Variante,
@@ -22,6 +23,8 @@ interface Props {
   toque?: boolean;
   /** Colour of the selection frame (from the design tokens). */
   corSelecao?: string;
+  /** Snap to page edges/centre and other layers while dragging. */
+  encaixe?: boolean;
 }
 
 function Conteudo({ c, pacote, medidor, imagens }: { c: Camada; pacote: PacoteProva; medidor: Medidor; imagens: Record<string, HTMLImageElement> }) {
@@ -51,7 +54,8 @@ function Conteudo({ c, pacote, medidor, imagens }: { c: Camada; pacote: PacotePr
   );
 }
 
-export function PaginaCanvas({ pacote, variante, indice, medidor, imagens, escala, interativo = false, selecao = null, onSelecionar, onAlterar, toque = false, corSelecao = "#f59e0b" }: Props) {
+export function PaginaCanvas({ pacote, variante, indice, medidor, imagens, escala, interativo = false, selecao = null, onSelecionar, onAlterar, toque = false, corSelecao = "#f59e0b", encaixe = false }: Props) {
+  const [guias, setGuias] = useState<{ x: number[]; y: number[] }>({ x: [], y: [] });
   const pagina = pacote.variantes[variante].paginas[indice];
   const trRef = useRef<Konva.Transformer>(null);
   const nos = useRef(new Map<string, Konva.Group>());
@@ -82,7 +86,13 @@ export function PaginaCanvas({ pacote, variante, indice, medidor, imagens, escal
             draggable={interativo}
             onMouseDown={() => onSelecionar?.(c.id)}
             onTouchStart={() => onSelecionar?.(c.id)}
-            onDragEnd={(e) => onAlterar?.(c.id, { x: Math.round(e.target.x()), y: Math.round(e.target.y()) })}
+            onDragMove={(e) => {
+              if (!encaixe) return;
+              const r = encaixar(e.target.x(), e.target.y(), c.w, c.h, pagina.camadas.filter((o) => o.id !== c.id), 10 / Math.max(escala, 0.1) * 0.5 + 4);
+              e.target.position({ x: r.x, y: r.y });
+              setGuias({ x: r.guiasX, y: r.guiasY });
+            }}
+            onDragEnd={(e) => { setGuias({ x: [], y: [] }); onAlterar?.(c.id, { x: Math.round(e.target.x()), y: Math.round(e.target.y()) }); }}
             onTransformEnd={(e) => {
               const n = e.target;
               const w = Math.max(20, Math.round(c.w * n.scaleX()));
@@ -94,6 +104,8 @@ export function PaginaCanvas({ pacote, variante, indice, medidor, imagens, escal
             <Conteudo c={c} pacote={pacote} medidor={medidor} imagens={imagens} />
           </Group>
         ))}
+        {guias.x.map((g) => <Line key={`gx${g}`} points={[g, 0, g, ALTURA]} stroke={corSelecao} strokeWidth={1 / escala} dash={[6 / escala, 4 / escala]} listening={false} />)}
+        {guias.y.map((g) => <Line key={`gy${g}`} points={[0, g, LARGURA, g]} stroke={corSelecao} strokeWidth={1 / escala} dash={[6 / escala, 4 / escala]} listening={false} />)}
         {interativo && (
           <Transformer
             ref={trRef}

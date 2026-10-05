@@ -2,7 +2,8 @@ import { useCallback, useEffect, useLayoutEffect, useMemo, useReducer, useRef, u
 import { toast } from "sonner";
 import {
   AlignCenter, AlignLeft, AlignRight, ArrowDown, ArrowUp, BringToFront, ChevronsDown, ChevronsUp, Circle, Copy, Download,
-  Eye, FileDown, FileUp, Loader2, Maximize, Minus, MoreHorizontal, Plus, Redo2, ScanSearch, SendToBack, Square, Trash2, Type, Undo2, X,
+  AlignStartVertical, AlignCenterVertical, AlignEndVertical, AlignStartHorizontal, AlignCenterHorizontal, AlignEndHorizontal, Bold, CopyCheck, Magnet,
+  Eye, FileDown, FileUp, Layers, Loader2, Maximize, Minus, MoreHorizontal, Plus, Redo2, ScanSearch, SendToBack, Square, Trash2, Type, Undo2, X,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -16,7 +17,10 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useAuth } from "@/contexts/AuthContext";
 import { guardarRecuperacao, lerRecuperacao, limparRecuperacao } from "@/lib/recuperacaoLocal";
 import { renderProvaServidor } from "@/services/conteudos";
-import { ALTURA, LARGURA, layoutTexto, resolverTexto, validarPacote, type Asset, type Camada, type Medidor, type PacoteProva } from "../../../supabase/functions/_shared/documento-grafico/nucleo";
+import { ALTURA, FAMILIAS, LARGURA, NOME_FAMILIA, layoutTexto, resolverTexto, validarPacote, type Asset, type Camada, type CamadaTexto, type Familia, type Medidor, type PacoteProva } from "../../../supabase/functions/_shared/documento-grafico/nucleo";
+import { aplicarEstilo, type Estilo } from "../../../supabase/functions/_shared/motor/estilos";
+import { ABAS_INSERIR, MIME_INSERIR, PainelInserir, resolverBiblioteca, type AbaInserir, type Inserivel } from "@/features/editor-grafico/PainelInserir";
+import { alinharNaPagina, aplicarATodos, fundoATodos, PRESETS_TAMANHO, tamanhoMais, type Alinhar } from "@/features/editor-grafico/operacoes";
 import { carregarMedidor } from "@/features/editor-grafico/fontes";
 import { carregarImagens, compararPng, renderizarPaginaPng } from "@/features/editor-grafico/desenho";
 import { estadoInicial, reduzir, type Acao } from "@/features/editor-grafico/estado";
@@ -108,22 +112,15 @@ interface PropsPainel {
 
 const NOME_TIPO: Record<Camada["tipo"], string> = { texto: "Texto", imagem: "Imagem", forma: "Forma" };
 
-function PainelPropriedades({ pacote, camada: c, fundo, medidor, despachar, camadasPagina, onImagem }: PropsPainel & { onImagem?: () => void }) {
+function PainelPropriedades({ pacote, camada: c, fundo, medidor, despachar, camadasPagina, onImagem, onFundoTodos }: PropsPainel & { onImagem?: () => void; onFundoTodos?: () => void }) {
   if (!c) {
     return (
       <div className="space-y-5">
         <section className="space-y-3">
           <h3 className="text-sm font-semibold">Página</h3>
-          <CorCampo id="fundo" rotulo="Cor de fundo" valor={fundo} onMudar={(cor) => despachar({ tipo: "fundo", cor })} />
-        </section>
-        <section className="space-y-2">
-          <h3 className="text-sm font-semibold">Acrescentar</h3>
-          <div className="grid grid-cols-3 gap-2">
-            <Button variant="outline" className="h-11 lg:h-9" onClick={() => despachar({ tipo: "adicionar", camada: "texto" })}><Type className="mr-1.5 h-4 w-4" />Texto</Button>
-            <Button variant="outline" className="h-11 lg:h-9" onClick={() => despachar({ tipo: "adicionar", camada: "ret" })}><Square className="mr-1.5 h-4 w-4" />Ret.</Button>
-            <Button variant="outline" className="h-11 lg:h-9" onClick={() => despachar({ tipo: "adicionar", camada: "elipse" })}><Circle className="mr-1.5 h-4 w-4" />Elipse</Button>
-            {onImagem && <Button variant="outline" className="col-span-3 h-11 lg:h-9" onClick={onImagem}><ScanSearch className="mr-1.5 h-4 w-4" />Adicionar imagem</Button>}
-          </div>
+          <CorCampo id="fundo" rotulo="Cor de fundo (só este slide)" valor={fundo} onMudar={(cor) => despachar({ tipo: "fundo", cor })} />
+          {onFundoTodos && <Button variant="outline" className="h-11 w-full lg:h-9" onClick={onFundoTodos}><CopyCheck className="mr-1.5 h-4 w-4" />Aplicar este fundo a todos os slides</Button>}
+          {onImagem && <Button variant="outline" className="h-11 w-full lg:h-9" onClick={onImagem}><ScanSearch className="mr-1.5 h-4 w-4" />Escolher imagem de fundo…</Button>}
         </section>
         <section className="space-y-2">
           <h3 className="text-sm font-semibold">Camadas <span className="font-normal text-muted-foreground">(da frente para trás)</span></h3>
@@ -216,8 +213,8 @@ function PainelPropriedades({ pacote, camada: c, fundo, medidor, despachar, cama
         </section>
       )}
 
-      <section className="space-y-3">
-        <h4 className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Posição e tamanho</h4>
+      <details className="group space-y-3">
+        <summary className="flex min-h-11 cursor-pointer items-center text-xs font-semibold uppercase tracking-wide text-muted-foreground lg:min-h-9">Avançado · posição e tamanho</summary>
         <div className="grid grid-cols-2 gap-3">
           <Numero id="x" rotulo="X" valor={c.x} min={-LARGURA} max={LARGURA * 2} onMudar={(n) => alterar({ x: n })} />
           <Numero id="y" rotulo="Y" valor={c.y} min={-ALTURA} max={ALTURA * 2} onMudar={(n) => alterar({ y: n })} />
@@ -225,7 +222,7 @@ function PainelPropriedades({ pacote, camada: c, fundo, medidor, despachar, cama
           <Numero id="h" rotulo="Altura" valor={c.h} min={20} max={ALTURA * 2} onMudar={(n) => alterar({ h: n })} />
           <Numero id="op" rotulo="Opacidade (%)" valor={Math.round((c.opacidade ?? 1) * 100)} min={0} max={100} onMudar={(n) => alterar({ opacidade: n / 100 })} />
         </div>
-      </section>
+      </details>
 
       <section className="space-y-2">
         <h4 className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Ordem</h4>
@@ -266,9 +263,11 @@ export interface PropsEditorGrafico {
   onAlterado?: (p: PacoteProva) => void;
   /** Optional strip above the editor header (e.g. the carousel stepper). */
   faixaTopo?: ReactNode;
+  /** Real work: inline library + Kie in the Imagens rail. */
+  projectId?: string;
 }
 
-export function EditorGrafico({ pacoteInicial, chaveLocal, titulo, seletor, real = false, estadoGravacao, cabecalhoInicio, menuExtra, onAlterado, faixaTopo, pedirImagem }: PropsEditorGrafico) {
+export function EditorGrafico({ pacoteInicial, chaveLocal, titulo, seletor, real = false, estadoGravacao, cabecalhoInicio, menuExtra, onAlterado, faixaTopo, pedirImagem, projectId }: PropsEditorGrafico) {
   const { user } = useAuth();
   const [compacto, setCompacto] = useState(() => typeof window !== "undefined" && window.innerWidth < 1180);
   const [estado, despachar] = useReducer(reduzir, pacoteInicial, estadoInicial);
@@ -283,7 +282,11 @@ export function EditorGrafico({ pacoteInicial, chaveLocal, titulo, seletor, real
   const [comparando, setComparando] = useState(false);
   const [comparacao, setComparacao] = useState<Comparacao | null>(null);
   const [erroComparacao, setErroComparacao] = useState<string | null>(null);
-  const [painelMovel, setPainelMovel] = useState("pagina");
+  const [painelMovel, setPainelMovel] = useState<"pagina" | "camada" | AbaInserir>("pagina");
+  const [aba, setAba] = useState<AbaInserir | null>("texto");
+  const [encaixe, setEncaixe] = useState(true);
+  const [aLargar, setALargar] = useState(false);
+  const paginaRef = useRef<HTMLDivElement>(null);
   const [painelAberto, setPainelAberto] = useState(false);
   const [alturaVisual, setAlturaVisual] = useState<number | null>(null);
   const areaRef = useRef<HTMLDivElement>(null);
@@ -292,6 +295,30 @@ export function EditorGrafico({ pacoteInicial, chaveLocal, titulo, seletor, real
 
   const chave = user ? chaveLocal : null;
   const onImagem = pedirImagem ? () => { pedirImagem().then((r) => { if (r) despachar({ tipo: "adicionarImagem", asset: r.asset, nome: r.nome }); }).catch((e: Error) => toast.error(e.message)); } : undefined;
+
+  const comDesfazer = (msg: string) => toast.success(msg, { action: { label: "Desfazer", onClick: () => despachar({ tipo: "desfazer" }) } });
+  const aplicarEstiloVariante = (e: Estilo) => {
+    const r = aplicarEstilo(pacote.variantes[variante], e.paleta, e.par);
+    despachar({ tipo: "substituir", pacote: { ...pacote, variantes: { ...pacote.variantes, [variante]: r.doc } } });
+    comDesfazer(`Estilo «${e.nome}» aplicado à variante ${variante}${r.manuais ? ` (${r.manuais} camada(s) tuas mantidas)` : ""}.`);
+  };
+  const largar = async (e: React.DragEvent) => {
+    const bruto = e.dataTransfer.getData(MIME_INSERIR);
+    setALargar(false);
+    if (!bruto || !paginaRef.current) return;
+    e.preventDefault();
+    const r = paginaRef.current.getBoundingClientRect();
+    const pos = { x: (e.clientX - r.left) / escala, y: (e.clientY - r.top) / escala };
+    let d: Inserivel;
+    try { d = JSON.parse(bruto) as Inserivel; } catch { return; }
+    if (d.tipo === "texto") despachar({ tipo: "adicionar", camada: "texto", preset: d.preset, pos });
+    else if (d.tipo === "forma") despachar({ tipo: "adicionar", camada: d.forma, pos });
+    else if (d.tipo === "biblioteca" && projectId) {
+      const t = toast.loading("A copiar a imagem para o projeto…");
+      try { const img = await resolverBiblioteca(projectId, d.media_id, d.nome); despachar({ tipo: "adicionarImagem", asset: img.asset, nome: img.nome, pos }); toast.dismiss(t); }
+      catch (err) { toast.error((err as Error).message, { id: t }); }
+    }
+  };
 
   useEffect(() => {
     carregarMedidor().then(setMedidor).catch((e: Error) => setErroFontes(e.message));
@@ -486,7 +513,7 @@ export function EditorGrafico({ pacoteInicial, chaveLocal, titulo, seletor, real
           <button type="button" onClick={() => despachar({ tipo: "pagina", indice: i })} aria-current={i === pagina ? "page" : undefined} aria-label={`Página ${i + 1}`}
             className={`group block rounded-md p-1 text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring ${i === pagina ? "ring-2 ring-primary" : "hover:bg-muted"}`}>
             <div className="pointer-events-none overflow-hidden rounded-sm border border-border">
-              {medidor && <PaginaCanvas pacote={pacote} variante={variante} indice={i} medidor={medidor} imagens={imagens} escala={horizontal ? 0.06 : 0.14} />}
+              {medidor && <PaginaCanvas pacote={pacote} variante={variante} indice={i} medidor={medidor} imagens={imagens} escala={horizontal ? 0.065 : 0.14} />}
             </div>
             <span className="mt-1 block text-center text-xs tabular-nums text-muted-foreground">{i + 1}</span>
           </button>
@@ -505,12 +532,16 @@ export function EditorGrafico({ pacoteInicial, chaveLocal, titulo, seletor, real
   );
 
   const tela = (
-    <div ref={areaRef} className="relative min-h-0 flex-1 overflow-auto bg-muted" onPointerDown={(e) => { if (e.target === e.currentTarget) despachar({ tipo: "selecionar", id: null }); }}>
+    <div ref={areaRef} className={`relative min-h-0 flex-1 overflow-auto bg-muted ${aLargar ? "outline outline-2 -outline-offset-2 outline-primary" : ""}`}
+      onPointerDown={(e) => { if (e.target === e.currentTarget) despachar({ tipo: "selecionar", id: null }); }}
+      onDragOver={(e) => { if (!preview && e.dataTransfer.types.includes(MIME_INSERIR)) { e.preventDefault(); e.dataTransfer.dropEffect = "copy"; setALargar(true); } }}
+      onDragLeave={(e) => { if (e.currentTarget === e.target) setALargar(false); }}
+      onDrop={largar}>
       <div className="flex min-h-full min-w-full items-center justify-center p-4" style={{ width: LARGURA * escala + 32, height: ALTURA * escala + 32 }}>
-        <div className="shadow-lg ring-1 ring-border" aria-label={`Página ${pagina + 1} de ${paginas.length}, variante ${variante}, 1080 por 1350`} role="img">
+        <div ref={paginaRef} className="shadow-lg ring-1 ring-border" aria-label={`Página ${pagina + 1} de ${paginas.length}, variante ${variante}, 1080 por 1350`} role="img">
           {medidor ? (
             <PaginaCanvas pacote={pacote} variante={variante} indice={pagina} medidor={medidor} imagens={imagens} escala={escala}
-              interativo={!preview} selecao={preview ? null : selecao} toque={compacto} corSelecao={corSelecao}
+              interativo={!preview} selecao={preview ? null : selecao} toque={compacto} corSelecao={corSelecao} encaixe={encaixe}
               onSelecionar={(id) => despachar({ tipo: "selecionar", id })}
               onAlterar={(id, patch) => despachar({ tipo: "camada", id, patch })} />
           ) : (
@@ -531,8 +562,78 @@ export function EditorGrafico({ pacoteInicial, chaveLocal, titulo, seletor, real
     </div>
   );
 
+  const fundoTodos = () => { const p = paginaAtual && fundoATodos(pacote, variante, paginaAtual.fundo); if (p) { despachar({ tipo: "substituir", pacote: p }); comDesfazer("Fundo aplicado a todos os slides desta variante."); } else toast.info("Todos os slides já têm este fundo."); };
   const propriedades = medidor && paginaAtual && (
-    <PainelPropriedades pacote={pacote} camada={camada} fundo={paginaAtual.fundo} medidor={medidor} despachar={despachar} camadasPagina={paginaAtual.camadas} onImagem={onImagem} />
+    <PainelPropriedades pacote={pacote} camada={camada} fundo={paginaAtual.fundo} medidor={medidor} despachar={despachar} camadasPagina={paginaAtual.camadas} onImagem={onImagem} onFundoTodos={fundoTodos} />
+  );
+
+  const alterarSel = (patch: Partial<Camada>, agrupar?: string) => camada && despachar({ tipo: "camada", id: camada.id, patch, agrupar });
+  const estiloTxt = (c: CamadaTexto, e: Partial<CamadaTexto["estilo"]>, agrupar?: string) => alterarSel({ estilo: { ...c.estilo, ...e } } as Partial<Camada>, agrupar);
+  const todos = () => { if (!camada) return; const r = aplicarATodos(pacote, variante, camada); if (r) { despachar({ tipo: "substituir", pacote: r.pacote }); comDesfazer(`Aplicado a ${r.alteradas} camada(s) iguais nos outros slides.`); } else toast.info("Não há outras camadas iguais para alterar."); };
+  const ALINHAR: { a: Alinhar; n: string; I: typeof AlignStartVertical }[] = [
+    { a: "esq", n: "Encostar à esquerda", I: AlignStartVertical }, { a: "centroH", n: "Centrar na horizontal", I: AlignCenterVertical }, { a: "dir", n: "Encostar à direita", I: AlignEndVertical },
+    { a: "topo", n: "Encostar ao topo", I: AlignStartHorizontal }, { a: "centroV", n: "Centrar na vertical", I: AlignCenterHorizontal }, { a: "base", n: "Encostar à base", I: AlignEndHorizontal },
+  ];
+  const bt = "h-11 w-11 shrink-0 lg:h-9 lg:w-9";
+  const sep = <span className="mx-0.5 h-6 w-px shrink-0 bg-border" aria-hidden />;
+  const barraContexto = (
+    <div role="toolbar" aria-label={camada ? `Ferramentas: ${camada.nome ?? NOME_TIPO[camada.tipo]}` : "Ferramentas do slide"} className="flex min-w-0 items-center gap-1 overflow-x-auto border-b border-border bg-background px-2 py-1">
+      {!camada && paginaAtual && (<>
+        <label className="flex shrink-0 items-center gap-2 text-xs text-muted-foreground">Fundo deste slide
+          <input type="color" value={paginaAtual.fundo} onChange={(e) => despachar({ tipo: "fundo", cor: e.target.value })} className="h-9 w-10 cursor-pointer rounded-md border border-input bg-background p-1" aria-label="Cor de fundo deste slide" />
+        </label>
+        <Button variant="ghost" size="sm" className="h-11 shrink-0 lg:h-9" onClick={fundoTodos}><CopyCheck className="mr-1.5 h-4 w-4" />Aplicar a todos</Button>
+        {sep}
+        <Button variant={encaixe ? "secondary" : "ghost"} size="sm" className="h-11 shrink-0 lg:h-9" aria-pressed={encaixe} onClick={() => setEncaixe((v) => !v)}><Magnet className="mr-1.5 h-4 w-4" />Encaixar</Button>
+        <span className="ml-1 hidden shrink-0 text-xs text-muted-foreground sm:inline">Seleciona um elemento para o editar.</span>
+      </>)}
+      {camada?.tipo === "texto" && (<>
+        <Button variant="ghost" size="icon" className={bt} aria-label="Diminuir letra" title="Diminuir letra" disabled={camada.estilo.tam <= 6} onClick={() => estiloTxt(camada, { tam: tamanhoMais(camada, -1) })}><Minus className="h-4 w-4" /></Button>
+        <Select value={String(camada.estilo.tam)} onValueChange={(v) => estiloTxt(camada, { tam: Number(v) })}>
+          <SelectTrigger className="h-11 w-[4.5rem] shrink-0 tabular-nums lg:h-9" aria-label="Tamanho da letra"><SelectValue>{Math.round(camada.estilo.tam)}</SelectValue></SelectTrigger>
+          <SelectContent>{[...new Set([...PRESETS_TAMANHO, Math.round(camada.estilo.tam)])].sort((a, b) => a - b).map((n) => <SelectItem key={n} value={String(n)}>{n}</SelectItem>)}</SelectContent>
+        </Select>
+        <Button variant="ghost" size="icon" className={bt} aria-label="Aumentar letra" title="Aumentar letra" disabled={camada.estilo.tam >= 400} onClick={() => estiloTxt(camada, { tam: tamanhoMais(camada, 1) })}><Plus className="h-4 w-4" /></Button>
+        <Select value={camada.estilo.familia ?? "worksans"} onValueChange={(v) => estiloTxt(camada, { familia: v as Familia })}>
+          <SelectTrigger className="h-11 w-40 shrink-0 lg:h-9" aria-label="Tipo de letra"><SelectValue /></SelectTrigger>
+          <SelectContent>{FAMILIAS.map((f) => <SelectItem key={f} value={f}>{NOME_FAMILIA[f]}</SelectItem>)}</SelectContent>
+        </Select>
+        <Button variant={camada.estilo.peso === 700 ? "secondary" : "ghost"} size="icon" className={bt} aria-label="Negrito" aria-pressed={camada.estilo.peso === 700} onClick={() => estiloTxt(camada, { peso: camada.estilo.peso === 700 ? 400 : 700 })}><Bold className="h-4 w-4" /></Button>
+        <input type="color" value={camada.estilo.cor} onChange={(e) => estiloTxt(camada, { cor: e.target.value }, `cor:${camada.id}`)} className="h-9 w-10 shrink-0 cursor-pointer rounded-md border border-input bg-background p-1" aria-label="Cor deste texto" title="Cor deste texto" />
+        <ToggleGroup type="single" value={camada.estilo.alinh} onValueChange={(v) => v && estiloTxt(camada, { alinh: v as "esq" })} className="shrink-0">
+          <ToggleGroupItem value="esq" aria-label="Texto à esquerda" className={bt}><AlignLeft className="h-4 w-4" /></ToggleGroupItem>
+          <ToggleGroupItem value="centro" aria-label="Texto ao centro" className={bt}><AlignCenter className="h-4 w-4" /></ToggleGroupItem>
+          <ToggleGroupItem value="dir" aria-label="Texto à direita" className={bt}><AlignRight className="h-4 w-4" /></ToggleGroupItem>
+        </ToggleGroup>
+      </>)}
+      {camada?.tipo === "forma" && (
+        <input type="color" value={camada.estilo.cor} onChange={(e) => alterarSel({ estilo: { ...camada.estilo, cor: e.target.value } } as Partial<Camada>, `cor:${camada.id}`)} className="h-9 w-10 shrink-0 cursor-pointer rounded-md border border-input bg-background p-1" aria-label="Cor desta forma" title="Cor desta forma" />
+      )}
+      {camada && (<>
+        {sep}
+        <DropdownMenu>
+          <DropdownMenuTrigger asChild><Button variant="ghost" size="sm" className="h-11 shrink-0 lg:h-9" aria-label="Alinhar na página"><AlignCenterVertical className="mr-1 h-4 w-4" />Alinhar</Button></DropdownMenuTrigger>
+          <DropdownMenuContent>{ALINHAR.map(({ a, n, I }) => <DropdownMenuItem key={a} onSelect={() => alterarSel(alinharNaPagina(camada, a))}><I className="mr-2 h-4 w-4" />{n}</DropdownMenuItem>)}</DropdownMenuContent>
+        </DropdownMenu>
+        <DropdownMenu>
+          <DropdownMenuTrigger asChild><Button variant="ghost" size="sm" className="h-11 shrink-0 lg:h-9" aria-label="Ordem das camadas"><Layers className="mr-1 h-4 w-4" />Ordem</Button></DropdownMenuTrigger>
+          <DropdownMenuContent>
+            <DropdownMenuItem onSelect={() => despachar({ tipo: "ordem", id: camada.id, direcao: "topo" })}><BringToFront className="mr-2 h-4 w-4" />Trazer para a frente</DropdownMenuItem>
+            <DropdownMenuItem onSelect={() => despachar({ tipo: "ordem", id: camada.id, direcao: "frente" })}><ArrowUp className="mr-2 h-4 w-4" />Subir uma camada</DropdownMenuItem>
+            <DropdownMenuItem onSelect={() => despachar({ tipo: "ordem", id: camada.id, direcao: "tras" })}><ArrowDown className="mr-2 h-4 w-4" />Descer uma camada</DropdownMenuItem>
+            <DropdownMenuItem onSelect={() => despachar({ tipo: "ordem", id: camada.id, direcao: "fundo" })}><SendToBack className="mr-2 h-4 w-4" />Enviar para trás</DropdownMenuItem>
+          </DropdownMenuContent>
+        </DropdownMenu>
+        <Button variant="ghost" size="icon" className={bt} aria-label="Duplicar (Ctrl+D)" title="Duplicar (Ctrl+D)" onClick={() => despachar({ tipo: "duplicarCamada", id: camada.id })}><Copy className="h-4 w-4" /></Button>
+        <Button variant="ghost" size="icon" className={`${bt} text-destructive hover:text-destructive`} aria-label="Apagar (Delete)" title="Apagar (Delete)" onClick={() => despachar({ tipo: "apagarCamada", id: camada.id })}><Trash2 className="h-4 w-4" /></Button>
+        {camada.tipo !== "imagem" && <>{sep}<Button variant="outline" size="sm" className="h-11 shrink-0 lg:h-9" onClick={todos} title="Copia letra/cor para as camadas iguais dos outros slides (podes desfazer)"><CopyCheck className="mr-1.5 h-4 w-4" />Aplicar a todos</Button></>}
+      </>)}
+    </div>
+  );
+
+  const inserir = (a: AbaInserir) => (
+    <PainelInserir aba={a} despachar={despachar} projectId={projectId} pedirImagem={onImagem} onEstilo={aplicarEstiloVariante}
+      onImagem={(r) => despachar({ tipo: "adicionarImagem", asset: r.asset, nome: r.nome })} />
   );
 
   const dialogoComparacao = (
@@ -603,27 +704,26 @@ export function EditorGrafico({ pacoteInicial, chaveLocal, titulo, seletor, real
         {avisoRecuperacao}
         <div className="shrink-0 border-b border-border bg-background">{miniaturas(true)}</div>
         <div className="flex min-h-0 flex-1 flex-col">{tela}</div>
-        <div className="flex shrink-0 items-center justify-between border-t border-border bg-background px-1 pb-[env(safe-area-inset-bottom)]">
-          {zoomControlos}
-          <Button variant={painelAberto ? "secondary" : "ghost"} size="sm" className="h-11" onClick={() => setPainelAberto((v) => !v)} aria-expanded={painelAberto} aria-controls="painel-propriedades">
-            {camada ? "Propriedades" : "Página"}
-          </Button>
-        </div>
-        {painelAberto && <section id="painel-propriedades" className="absolute inset-x-0 bottom-[calc(2.75rem+env(safe-area-inset-bottom))] z-30 max-h-[min(52dvh,32rem)] overflow-y-auto border-t border-border bg-background shadow-lg" aria-label="Ferramentas">
-          <Tabs value={painelMovel} onValueChange={setPainelMovel}>
-            <div className="sticky top-0 z-10 flex items-center border-b border-border bg-background">
-            <TabsList className="grid h-12 flex-1 grid-cols-2 rounded-none">
-              <TabsTrigger value="pagina" className="h-10">Página</TabsTrigger>
-              <TabsTrigger value="camada" className="h-10" disabled={!camada}>Camada</TabsTrigger>
-            </TabsList>
-            <Button variant="ghost" size="icon" className="mr-1 h-11 w-11" aria-label="Fechar propriedades" onClick={() => setPainelAberto(false)}><X className="h-4 w-4" /></Button>
-            </div>
-            <TabsContent value="pagina" className="space-y-4 p-3">
-              {acoesPagina}
-              {medidor && paginaAtual && <PainelPropriedades pacote={pacote} camada={null} fundo={paginaAtual.fundo} medidor={medidor} despachar={despachar} camadasPagina={paginaAtual.camadas} onImagem={onImagem} />}
-            </TabsContent>
-            <TabsContent value="camada" className="p-3">{camada && propriedades}</TabsContent>
-          </Tabs>
+        {barraContexto}
+        <div className="flex min-h-0 flex-1 flex-col">{tela}</div>
+        <nav className="grid shrink-0 grid-cols-5 border-t border-border bg-background pb-[env(safe-area-inset-bottom)]" aria-label="Ferramentas">
+          {ABAS_INSERIR.map(({ id: a, nome, icone: I }) => (
+            <Button key={a} variant={painelAberto && painelMovel === a ? "secondary" : "ghost"} className="h-14 flex-col gap-0.5 rounded-none px-0 text-[11px]" aria-expanded={painelAberto && painelMovel === a}
+              onClick={() => { if (painelAberto && painelMovel === a) setPainelAberto(false); else { setPainelMovel(a); setPainelAberto(true); } }}><I className="h-5 w-5" />{nome}</Button>
+          ))}
+          <Button variant={painelAberto && (painelMovel === "pagina" || painelMovel === "camada") ? "secondary" : "ghost"} className="h-14 flex-col gap-0.5 rounded-none px-0 text-[11px]"
+            onClick={() => { const alvo = camada ? "camada" : "pagina"; if (painelAberto && painelMovel === alvo) setPainelAberto(false); else { setPainelMovel(alvo); setPainelAberto(true); } }}><Layers className="h-5 w-5" />{camada ? "Camada" : "Página"}</Button>
+        </nav>
+        {painelAberto && <section id="painel-propriedades" className="absolute inset-x-0 bottom-[calc(3.5rem+env(safe-area-inset-bottom))] z-30 max-h-[min(52dvh,32rem)] overflow-y-auto border-t border-border bg-background shadow-lg" aria-label="Painel">
+          <div className="sticky top-0 z-10 flex items-center justify-between border-b border-border bg-background px-3">
+            <h2 className="text-sm font-semibold">{painelMovel === "pagina" ? "Página" : painelMovel === "camada" ? "Camada" : ABAS_INSERIR.find((x) => x.id === painelMovel)?.nome}</h2>
+            <Button variant="ghost" size="icon" className="h-11 w-11" aria-label="Fechar painel" onClick={() => setPainelAberto(false)}><X className="h-4 w-4" /></Button>
+          </div>
+          <div className="space-y-4 p-3">
+            {painelMovel === "pagina" && <>{zoomControlos}{acoesPagina}{medidor && paginaAtual && <PainelPropriedades pacote={pacote} camada={null} fundo={paginaAtual.fundo} medidor={medidor} despachar={despachar} camadasPagina={paginaAtual.camadas} onImagem={onImagem} onFundoTodos={fundoTodos} />}</>}
+            {painelMovel === "camada" && (camada ? propriedades : <p className="text-sm text-muted-foreground">Toca num elemento da página.</p>)}
+            {painelMovel !== "pagina" && painelMovel !== "camada" && inserir(painelMovel)}
+          </div>
         </section>}
         {dialogoComparacao}
       </div>
@@ -650,12 +750,28 @@ export function EditorGrafico({ pacoteInicial, chaveLocal, titulo, seletor, real
       </header>
       {avisoRecuperacao}
       <div className="flex min-h-0 flex-1">
-        <aside className="flex w-44 shrink-0 flex-col border-r border-border bg-background" aria-label="Páginas">
-          <div className="min-h-0 flex-1 overflow-y-auto">{miniaturas(false)}</div>
-          <div className="border-t border-border p-2">{acoesPagina}</div>
-        </aside>
-        {tela}
-        <aside className="w-80 shrink-0 overflow-y-auto border-l border-border bg-background p-4" aria-label="Propriedades">
+        <nav className="flex w-16 shrink-0 flex-col items-stretch gap-1 border-r border-border bg-background py-2" aria-label="Inserir">
+          {ABAS_INSERIR.map(({ id: a, nome, icone: I }) => (
+            <button key={a} type="button" onClick={() => setAba((x) => (x === a ? null : a))} aria-pressed={aba === a}
+              className={`mx-1 flex min-h-14 flex-col items-center justify-center gap-1 rounded-md text-[11px] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring ${aba === a ? "bg-secondary text-foreground" : "text-muted-foreground hover:bg-muted hover:text-foreground"}`}>
+              <I className="h-5 w-5" />{nome}
+            </button>
+          ))}
+        </nav>
+        {aba && <aside className="w-64 shrink-0 overflow-y-auto border-r border-border bg-background p-3" aria-label={ABAS_INSERIR.find((x) => x.id === aba)?.nome}>
+          <div className="mb-3 flex items-center justify-between"><h2 className="text-sm font-semibold">{ABAS_INSERIR.find((x) => x.id === aba)?.nome}</h2>
+            <Button variant="ghost" size="icon" className="h-8 w-8" aria-label="Fechar painel" onClick={() => setAba(null)}><X className="h-4 w-4" /></Button></div>
+          {inserir(aba)}
+        </aside>}
+        <div className="flex min-w-0 flex-1 flex-col">
+          {barraContexto}
+          {tela}
+          <div className="flex shrink-0 items-center gap-2 border-t border-border bg-background pr-2">
+            <div className="min-w-0 flex-1">{miniaturas(true)}</div>
+            <div className="w-40 shrink-0">{acoesPagina}</div>
+          </div>
+        </div>
+        <aside className="w-72 shrink-0 overflow-y-auto border-l border-border bg-background p-4" aria-label="Propriedades">
           {propriedades}
         </aside>
       </div>
