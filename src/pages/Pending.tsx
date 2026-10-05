@@ -281,7 +281,7 @@ const Pending = () => {
                   )}
                   {/* Content based on mode - Only IA mode shows content here */}
                   {creationMode === 'ia' && (
-                    <div className="bg-card rounded-2xl shadow-lg p-6 sm:p-8 border-2 border-border">
+                    <div className="w-full max-w-4xl px-4 py-2 sm:px-0">
                       <ActionButtons />
                     </div>
                   )}

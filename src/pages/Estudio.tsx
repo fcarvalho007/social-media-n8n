@@ -1,8 +1,7 @@
 import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import { toast } from "sonner";
-import { AlertCircle, FileText, GalleryHorizontal, Images, KeyRound, Mail, PenSquare, RefreshCw, Upload } from "lucide-react";
-import { Card } from "@/components/ui/card";
+import { Activity, AlertCircle, FileText, GalleryHorizontal, Images, KeyRound, Mail, PlusCircle, RefreshCw, Upload } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
@@ -16,10 +15,11 @@ const dataPt = (s: string) => new Date(s).toLocaleDateString("pt-PT", { timeZone
 
 interface Acao { titulo: string; desc: string; icon: typeof Mail; url: string }
 const PRODUCAO: Acao[] = [
-  { titulo: "Carrossel", desc: "A partir de texto, link ou PDF", icon: GalleryHorizontal, url: "/estudio/carrosseis" },
+  { titulo: "Criar SM", desc: "Manual ou assistido por IA", icon: PlusCircle, url: "/pending?tab=create" },
+  { titulo: "Meus carrosséis", desc: "Por publicar e publicados", icon: GalleryHorizontal, url: "/estudio/carrosseis" },
   { titulo: "Newsletter", desc: "Edições, crónica e arquivo", icon: Mail, url: "/newsletter" },
   { titulo: "Carrosséis da crónica", desc: "A partir de edições enviadas", icon: Images, url: "/estudio/redes-sociais" },
-  { titulo: "Publicação livre", desc: "Um post do zero", icon: PenSquare, url: "/manual-create" },
+  { titulo: "Atividade social", desc: "Painel de publicações e métricas", icon: Activity, url: "/redes-sociais" },
   { titulo: "Artigos", desc: "Rascunhos de texto, sem publicação", icon: FileText, url: "/artigos" },
 ];
 const CONFIGURACAO: Acao[] = [
@@ -58,7 +58,7 @@ export default function Estudio() {
 
   return (
     <div className="w-full min-w-0 space-y-6 px-4 py-4 xs:px-3 sm:px-0 sm:py-0">
-      <h1 className="text-2xl font-semibold">Estúdio de conteúdos</h1>
+      <h1 className="text-2xl font-semibold">Painel</h1>
 
       <section className="space-y-2" aria-labelledby="para-quem">
         <Label id="para-quem" htmlFor="sel-projeto" className="text-sm font-medium text-muted-foreground">Para quem?</Label>
@@ -150,11 +150,10 @@ export default function Estudio() {
         <div className="grid grid-cols-[repeat(auto-fit,minmax(min(100%,14rem),1fr))] gap-3">
           {PRODUCAO.map((a) => (
             <Link key={a.url} to={a.url} className="rounded-lg focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring">
-              <Card className="h-full p-3 transition-colors hover:border-primary">
-                <a.icon className="mb-1.5 h-5 w-5 text-primary" aria-hidden />
-                <div className="font-medium leading-tight">{a.titulo}</div>
-                <div className="mt-0.5 text-xs text-muted-foreground">{a.desc}</div>
-              </Card>
+              <div className="flex h-full min-h-11 items-start gap-3 rounded-lg border bg-card p-3 transition-colors hover:border-primary">
+                <a.icon className="mt-0.5 h-5 w-5 shrink-0 text-primary" aria-hidden />
+                <div><div className="font-medium leading-tight">{a.titulo}</div><div className="mt-0.5 text-sm text-muted-foreground">{a.desc}</div></div>
+              </div>
             </Link>
           ))}
         </div>
