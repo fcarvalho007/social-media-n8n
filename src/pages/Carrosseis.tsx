@@ -110,10 +110,21 @@ export default function Carrosseis() {
           </label>
         )}
 
-        {visiveis && visiveis.length === 0 && (
+        {visiveis && visiveis.length === 0 && estados && aba === "publicados" && reais && reais.length > 0 && (
           <div className="mc-entrar max-w-lg space-y-4 py-16">
             <Layers className="h-6 w-6 text-muted-foreground" aria-hidden />
-            <p className="text-lg font-medium">{estados && reais && reais.length > 0 ? (aba === "publicados" ? "Ainda não há carrosséis publicados" : "Nada por publicar") : nProvas > 0 && !verProvas ? "Ainda não há carrosséis reais" : "Ainda não há carrosséis"}{projetoId ? " neste projeto" : ""}.</p>
+            <p className="text-lg font-medium">Ainda não há publicações confirmadas{projetoId ? " neste projeto" : ""}.</p>
+            <p className="text-sm text-muted-foreground">Um carrossel só aparece aqui quando a rede confirma a publicação da versão atual. Publicações antigas sem essa ligação não são contadas.</p>
+            <div className="flex flex-wrap gap-2">
+              {(contar("por_publicar") ?? 0) > 0 && <Button className="h-11" onClick={() => setAba("por_publicar")}>Ver carrosséis por publicar ({contar("por_publicar")})</Button>}
+              <Button asChild variant={(contar("por_publicar") ?? 0) > 0 ? "outline" : "default"} className="h-11"><Link to="/estudio/carrosseis/novo">Novo carrossel</Link></Button>
+            </div>
+          </div>
+        )}
+        {visiveis && visiveis.length === 0 && !(estados && aba === "publicados" && reais && reais.length > 0) && (
+          <div className="mc-entrar max-w-lg space-y-4 py-16">
+            <Layers className="h-6 w-6 text-muted-foreground" aria-hidden />
+            <p className="text-lg font-medium">{estados && reais && reais.length > 0 ? "Nada por publicar" : nProvas > 0 && !verProvas ? "Ainda não há carrosséis reais" : "Ainda não há carrosséis"}{projetoId ? " neste projeto" : ""}.</p>
             <p className="text-sm text-muted-foreground">Cola um texto, escolhe o objetivo e o estúdio propõe a narrativa e duas composições.</p>
             <div className="flex flex-wrap gap-2">
               <Button asChild className="h-11"><Link to="/estudio/carrosseis/novo">Criar primeiro carrossel</Link></Button>
