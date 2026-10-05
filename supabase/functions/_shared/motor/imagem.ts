@@ -158,7 +158,7 @@ export function comporImagem(p: Pagina, o: OpcoesImagem): ResultadoImagem | null
   return r;
 }
 type OpcoesImagem = Parameters<typeof comporImagemUma>[1];
-function comporImagemUma(p: Pagina, o: { indice: number; total: number; estilo: EstiloId; variante: Variante; paleta: Paleta; conteudo: ConteudoEditorial; m?: Medidor; comp?: ComposicaoImagem; assets?: Record<string, unknown> }): ResultadoImagem | null {
+function comporImagemUma(p: Pagina, o: { indice: number; total: number; estilo: EstiloId; variante: Variante; paleta: Paleta; conteudo: ConteudoEditorial; m?: Medidor; comp?: ComposicaoImagem; assets?: Record<string, unknown>; papel?: PapelVisual }): ResultadoImagem | null {
   const titulo = p.camadas.find((c): c is CamadaTexto => c.tipo === "texto" && !!c.ref?.endsWith(".titulo"));
   const corpo = p.camadas.find((c): c is CamadaTexto => c.tipo === "texto" && !!c.ref?.endsWith(".texto"));
   if (!titulo && !corpo) return null;
@@ -170,7 +170,7 @@ function comporImagemUma(p: Pagina, o: { indice: number; total: number; estilo: 
   const restaurada: CamadaImagem | undefined = !imagens.length && assetComp && o.assets?.[assetComp] && o.comp?.modo !== "none"
     ? { id: `img-${slideId}`, tipo: "imagem", asset_id: assetComp, x: 0, y: 0, w: LARGURA, h: ALTURA, z: 1, recorte: "cover" } : undefined;
   const img = imagens.find((c) => c.asset_id === assetComp) ?? imagens[0] ?? restaurada;
-  const d = decidir({ papel: inferirPapel(s, o.indice, o.total), estilo: o.estilo, variante: o.variante, temImagem: !!img, chars: s.titulo.length + s.texto.length, comp: o.comp });
+  const d = decidir({ papel: o.papel ?? inferirPapel(s, o.indice, o.total), estilo: o.estilo, variante: o.variante, temImagem: !!img, chars: s.titulo.length + s.texto.length, comp: o.comp });
   if (!img || (d.modo !== "none" && !img)) return { pagina: p, cabe: true, decisao: { ...d, modo: "none" } };
 
   const textos = [titulo, corpo].filter((c): c is CamadaTexto => !!c);
