@@ -112,13 +112,15 @@ export async function interpretarImagemKie(sb: SupabaseClient, a: { projectId: s
     await sb.from("mc_kie_tarefas").update({ estado: "desconhecido", erro: "Sem resposta da Kie.", actualizado_em: agora() }).eq("id", res.id);
     return { status: 502, corpo: { error: "A Kie não respondeu. O pedido pode ter sido cobrado; não foi repetido.", estado: "desconhecido" } };
   }
-  const j = await r.json().catch(() => null) as { choices?: { message?: { content?: unknown } }[]; msg?: string; error?: { message?: string } } | null;
+  const j = await r.json().catch(() => null) as { code?: number; choices?: { message?: { content?: unknown } }[]; msg?: string; error?: { message?: string } } | null;
   const c = j?.choices?.[0]?.message?.content;
   const texto = (typeof c === "string" ? c : Array.isArray(c) ? c.map((p) => (p as { text?: string }).text ?? "").join("") : "").trim().slice(0, 1500);
+  // Kie may answer HTTP 200 with an error code in the body (e.g. 401/402): a definite refusal, not an unknown outcome.
+  const codigo = r.ok && typeof j?.code === "number" && j.code >= 400 ? j.code : r.status;
   if (!r.ok || !texto) {
-    const estado = r.status >= 500 || (r.ok && !texto) ? "desconhecido" : "falhou";
+    const estado = codigo >= 400 && codigo < 500 ? "falhou" : "desconhecido";
     await sb.from("mc_kie_tarefas").update({ estado, erro: String(j?.error?.message ?? j?.msg ?? r.status).slice(0, 300), actualizado_em: agora() }).eq("id", res.id);
-    return { status: r.status === 402 ? 402 : 502, corpo: { error: r.status === 402 ? "Sem saldo na Kie." : r.status === 401 ? "A Kie recusou a chave configurada." : "A Kie não devolveu uma descrição. O pedido não foi repetido.", estado } };
+    return { status: codigo === 402 ? 402 : 502, corpo: { error: codigo === 402 ? "Sem saldo na Kie." : codigo === 401 ? "A Kie recusou a chave para a interpretação de imagens (o pedido foi recusado, não cobrado)." : "A Kie não devolveu uma descrição. O pedido não foi repetido.", estado } };
   }
   await sb.from("mc_kie_tarefas").update({ estado: "concluida", resultado: texto, actualizado_em: agora() }).eq("id", res.id);
   return { status: 200, corpo: { ok: true, descricao: texto } };
