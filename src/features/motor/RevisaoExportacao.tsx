@@ -13,6 +13,9 @@ import { PaginaCanvas } from "@/features/editor-grafico/PaginaCanvas";
 import { carregarImagens } from "@/features/editor-grafico/desenho";
 import { NOME_VARIANTE } from "@/features/editor-grafico/EditorGrafico";
 import { lerExportacao, pedirExportacao, prepararRascunho, type EstadoExportacao, type TrabalhoCompleto } from "@/services/motor";
+import JSZip from "jszip";
+import { comMarcaRascunho, notasIlegiveis, paginasComMarcador } from "../../../supabase/functions/_shared/motor/modelos";
+import { renderizarPaginaPng } from "@/features/editor-grafico/desenho";
 import { transbordos, type Medidor, type PacoteProva, type Variante } from "../../../supabase/functions/_shared/documento-grafico/nucleo";
 
 interface Props {
@@ -22,7 +25,7 @@ interface Props {
   /** false while local edits are not yet saved as a server version */
   guardado: boolean;
   /** jumps to an earlier step to fix text that does not fit */
-  irPara?: (p: "narrativa" | "composicao") => void;
+  irPara?: (p: "narrativa" | "design" | "composicao") => void;
 }
 
 const kb = (b: number) => `${(b / 1024).toLocaleString("pt-PT", { maximumFractionDigits: 0 })} KB`;
@@ -38,6 +41,26 @@ export function RevisaoExportacao({ dados, pacote, medidor, guardado, irPara }: 
   const [aPreparar, setAPreparar] = useState(false);
   const [draft, setDraft] = useState<string | null>(null);
   const [pagina, setPagina] = useState(0);
+  const [aTestar, setATestar] = useState(false);
+  const marcador = useMemo(() => paginasComMarcador(pacote.variantes[variante]), [pacote, variante]);
+  const notas = useMemo(() => notasIlegiveis(pacote.variantes[variante]), [pacote, variante]);
+  // Test draft: rendered in the browser from the same core, every placeholder page carries a red watermark. Never uploaded.
+  const rascunhoTeste = async () => {
+    if (!medidor) return;
+    setATestar(true);
+    try {
+      const marcado = { ...pacote, variantes: { ...pacote.variantes, [variante]: comMarcaRascunho(pacote.variantes[variante]) } };
+      const zip = new JSZip();
+      for (let i = 0; i < marcado.variantes[variante].paginas.length; i++) {
+        const url = await renderizarPaginaPng(marcado, variante, i, medidor);
+        zip.file(`rascunho-teste-${String(i + 1).padStart(2, "0")}.png`, url.split(",")[1], { base64: true });
+      }
+      const blob = await zip.generateAsync({ type: "blob" });
+      const a = document.createElement("a");
+      a.href = URL.createObjectURL(blob); a.download = "rascunho-teste-com-marca.zip"; a.click();
+      setTimeout(() => URL.revokeObjectURL(a.href), 5000);
+    } catch (e) { toast.error((e as Error).message); } finally { setATestar(false); }
+  };
   const [palcoRef, palcoW] = useLargura<HTMLDivElement>();
   const [imagens, setImagens] = useState<Record<string, HTMLImageElement>>({});
   useEffect(() => { let vivo = true; carregarImagens(pacote).then((i) => { if (vivo) setImagens(i); }).catch(() => undefined); return () => { vivo = false; }; }, [pacote]);
@@ -148,8 +171,27 @@ export function RevisaoExportacao({ dados, pacote, medidor, guardado, irPara }: 
                 </p>
               )}
               {ex?.estado === "erro" && <p className="text-sm text-destructive" role="alert">{ex.erro ?? "A exportação falhou."} As páginas já guardadas são reaproveitadas.</p>}
+              {notas.length > 0 && (
+                <div role="note" className="space-y-2 rounded-[var(--mc-r-md)] border border-border p-3 text-sm">
+                  <p>{notas.length === 1 ? "Uma nota acrescentada à mão tem" : `${notas.length} notas acrescentadas à mão têm`} pouco contraste com o fundo (página {[...new Set(notas.map((n) => n.pagina + 1))].join(", ")}). A cor manual mantém-se até a mudares.</p>
+                  {irPara && <Button variant="outline" className="h-11" onClick={() => irPara("design")}>Rever no Design («Adaptar cor»)</Button>}
+                </div>
+              )}
+              {marcador.length > 0 && (!ex || ex.estado === "erro") && (
+                <div role="alert" className="space-y-2 rounded-[var(--mc-r-md)] border border-destructive/40 p-3 text-sm">
+                  <p className="text-destructive">A página {marcador.join(", ")} ainda mostra «Imagem por escolher». A exportação final fica bloqueada até escolheres uma imagem ou mudares de modelo.</p>
+                  <div className="flex flex-wrap gap-2">
+                    {irPara && <Button variant="outline" className="h-11" onClick={() => irPara("composicao")}>Escolher imagem</Button>}
+                    {irPara && <Button variant="outline" className="h-11" onClick={() => irPara("design")}>Mudar modelo</Button>}
+                    <Button variant="ghost" className="h-11" disabled={aTestar || !medidor} onClick={rascunhoTeste}>
+                      {aTestar ? <Loader2 className="mr-1.5 h-4 w-4 motion-safe:animate-spin" /> : <FileDown className="mr-1.5 h-4 w-4" />}Rascunho de teste com marca de água
+                    </Button>
+                  </div>
+                  <p className="text-xs text-muted-foreground">O rascunho de teste é criado neste navegador, leva a marca «Rascunho de teste» e não é guardado nem publicado.</p>
+                </div>
+              )}
               {(!ex || ex.estado === "erro") && (
-                <Button className="h-11" disabled={aPedir} onClick={exportar}>
+                <Button className="h-11" disabled={aPedir || marcador.length > 0} onClick={exportar}>
                   {aPedir ? <Loader2 className="mr-1.5 h-4 w-4 motion-safe:animate-spin" /> : ex ? <RotateCw className="mr-1.5 h-4 w-4" /> : <FileDown className="mr-1.5 h-4 w-4" />}
                   {ex ? "Tentar de novo" : `Exportar variante ${variante} · v${doc.versao}`}
                 </Button>
