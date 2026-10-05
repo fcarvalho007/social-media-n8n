@@ -10,6 +10,7 @@ import { linhaRascunho, nomePagina } from "../_shared/motor/exportacao.ts";
 import type { PropostaEditorial } from "../_shared/motor/proposta.ts";
 import { atribuicao, validarMetaFonte, type MetaFonte } from "../_shared/motor/fontes.ts";
 import { lerLink, registarImagem, resolverAssets } from "../_shared/motor/fontes.server.ts";
+import { carregarImagem } from "../_shared/motor/carregar.server.ts";
 import { chaveKie, criarTarefaKie, estadoTarefaKie, KIE_MODELO, KIE_MAX_DIA, KIE_PROPORCAO } from "../_shared/motor/kie.server.ts";
 import { obterFramework } from "../_shared/motor/frameworks.ts";
 import { avaliarFonte, MARCADOR_FIXTURE, MODELO_DEMO, MODELO_ESTRUTURACAO, MODELO_IA, normalizarFonte } from "../_shared/motor/proposta.ts";
@@ -125,7 +126,7 @@ Deno.serve(async (req) => {
     return json({ ok: true, trabalho_id: linha.trabalho_id, reutilizado: linha.reutilizado });
   }
 
-  if (acao === "ler_link" || acao === "listar_imagens" || acao === "registar_imagem" || acao === "ler_assets") {
+  if (acao === "ler_link" || acao === "listar_imagens" || acao === "registar_imagem" || acao === "carregar_imagem" || acao === "ler_assets") {
     const projectId = String(body.project_id ?? "");
     if (!UUID.test(projectId)) return json({ error: "Projeto inválido" }, 400);
     const leitura = acao === "ler_assets";
@@ -143,7 +144,7 @@ Deno.serve(async (req) => {
       const [{ data: media }, { data: assets }] = await Promise.all([
         sb.from("media_library").select("id, file_name, file_url, thumbnail_url, width, height, file_size, source, created_at")
           .eq("user_id", u.user.id).eq("file_type", "image").order("created_at", { ascending: false }).limit(60),
-        user.from("mc_assets").select("id, media_id, nome, largura, altura, bytes, mime, criado_em").eq("project_id", projectId).order("criado_em", { ascending: false }).limit(60),
+        user.from("mc_assets").select("id, media_id, origem, nome, largura, altura, bytes, mime, criado_em").eq("project_id", projectId).order("criado_em", { ascending: false }).limit(60),
       ]);
       return json({ ok: true, biblioteca: media ?? [], assets: assets ?? [] });
     }
@@ -156,6 +157,15 @@ Deno.serve(async (req) => {
       } catch (e) {
         const m = (e as Error).message;
         return json({ error: m.replace(/^(acesso|origem|expirada|armazenamento): /, "") }, /^acesso/.test(m) ? 403 : /^armazenamento/.test(m) ? 500 : 422);
+      }
+    }
+    if (acao === "carregar_imagem") {
+      try {
+        const a = await carregarImagem(sb, { projectId, userId: u.user.id, dados: String(body.dados ?? ""), nome: body.nome });
+        return json({ ok: true, asset: { id: a.id, nome: a.nome, mime: a.mime, largura: a.largura, altura: a.altura, bytes: a.bytes, hash: a.hash } });
+      } catch (e) {
+        const m = (e as Error).message;
+        return json({ error: /^armazenamento/.test(m) ? "Não foi possível guardar a imagem. Tenta de novo." : m }, /^armazenamento/.test(m) ? 500 : 422);
       }
     }
     // ler_assets: verified bytes for the editor (RLS-checked ids of this project only).

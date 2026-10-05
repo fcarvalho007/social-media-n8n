@@ -19,6 +19,7 @@ import { guardarRecuperacao, lerRecuperacao, limparRecuperacao } from "@/lib/rec
 import { renderProvaServidor } from "@/services/conteudos";
 import { ALTURA, FAMILIAS, LARGURA, NOME_FAMILIA, layoutTexto, resolverTexto, validarPacote, type Asset, type Camada, type CamadaTexto, type Familia, type Medidor, type PacoteProva } from "../../../supabase/functions/_shared/documento-grafico/nucleo";
 import { aplicarEstilo, type Estilo } from "../../../supabase/functions/_shared/motor/estilos";
+import { carregarFicheiro, ficheiroDoArrasto } from "@/features/editor-grafico/carregar";
 import { ABAS_INSERIR, MIME_INSERIR, PainelInserir, resolverBiblioteca, type AbaInserir, type Inserivel } from "@/features/editor-grafico/PainelInserir";
 import { alinharNaPagina, aplicarATodos, fundoATodos, PRESETS_TAMANHO, tamanhoMais, type Alinhar } from "@/features/editor-grafico/operacoes";
 import { carregarMedidor } from "@/features/editor-grafico/fontes";
@@ -304,11 +305,19 @@ export function EditorGrafico({ pacoteInicial, chaveLocal, titulo, seletor, real
   };
   const largar = async (e: React.DragEvent) => {
     const bruto = e.dataTransfer.getData(MIME_INSERIR);
+    const ficheiro = ficheiroDoArrasto(e.dataTransfer);
     setALargar(false);
-    if (!bruto || !paginaRef.current) return;
+    if ((!bruto && !ficheiro) || !paginaRef.current) return;
     e.preventDefault();
     const r = paginaRef.current.getBoundingClientRect();
     const pos = { x: (e.clientX - r.left) / escala, y: (e.clientY - r.top) / escala };
+    if (!bruto && ficheiro) {
+      if (!projectId) { toast.error("Este documento não aceita imagens carregadas."); return; }
+      const t = toast.loading("A carregar a imagem…");
+      try { const img = await carregarFicheiro(projectId, ficheiro); despachar({ tipo: "adicionarImagem", asset: img.asset, nome: img.nome, pos }); toast.dismiss(t); }
+      catch (err) { toast.error((err as Error).message, { id: t }); }
+      return;
+    }
     let d: Inserivel;
     try { d = JSON.parse(bruto) as Inserivel; } catch { return; }
     if (d.tipo === "texto") despachar({ tipo: "adicionar", camada: "texto", preset: d.preset, pos });
@@ -534,7 +543,7 @@ export function EditorGrafico({ pacoteInicial, chaveLocal, titulo, seletor, real
   const tela = (
     <div ref={areaRef} className={`relative min-h-0 flex-1 overflow-auto bg-muted ${aLargar ? "outline outline-2 -outline-offset-2 outline-primary" : ""}`}
       onPointerDown={(e) => { if (e.target === e.currentTarget) despachar({ tipo: "selecionar", id: null }); }}
-      onDragOver={(e) => { if (!preview && e.dataTransfer.types.includes(MIME_INSERIR)) { e.preventDefault(); e.dataTransfer.dropEffect = "copy"; setALargar(true); } }}
+      onDragOver={(e) => { if (!preview && (e.dataTransfer.types.includes(MIME_INSERIR) || (!!projectId && e.dataTransfer.types.includes("Files")))) { e.preventDefault(); e.dataTransfer.dropEffect = "copy"; setALargar(true); } }}
       onDragLeave={(e) => { if (e.currentTarget === e.target) setALargar(false); }}
       onDrop={largar}>
       <div className="flex min-h-full min-w-full items-center justify-center p-4" style={{ width: LARGURA * escala + 32, height: ALTURA * escala + 32 }}>
