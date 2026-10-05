@@ -27,6 +27,12 @@ interface Props {
   encaixe?: boolean;
 }
 
+export function medidasTransformer(toque: boolean) {
+  return toque
+    ? { anchorSize: 28, anchorCornerRadius: 14, borderStrokeWidth: 2 }
+    : { anchorSize: 12, anchorCornerRadius: 2, borderStrokeWidth: 2 };
+}
+
 function Conteudo({ c, pacote, medidor, imagens }: { c: Camada; pacote: PacoteProva; medidor: Medidor; imagens: Record<string, HTMLImageElement> }) {
   if (c.tipo === "forma") {
     return c.forma === "ret"
@@ -59,6 +65,7 @@ export function PaginaCanvas({ pacote, variante, indice, medidor, imagens, escal
   const pagina = pacote.variantes[variante].paginas[indice];
   const trRef = useRef<Konva.Transformer>(null);
   const nos = useRef(new Map<string, Konva.Group>());
+  const medidas = medidasTransformer(toque);
 
   useEffect(() => {
     const tr = trRef.current;
@@ -115,11 +122,11 @@ export function PaginaCanvas({ pacote, variante, indice, medidor, imagens, escal
             // Konva keeps Transformer controls in viewport pixels even when
             // the Stage is scaled. Dividing by zoom makes touch handles grow
             // into large arcs on narrow mobile canvases.
-            anchorSize={toque ? 28 : 12}
-            anchorCornerRadius={toque ? 14 : 2}
+            anchorSize={medidas.anchorSize}
+            anchorCornerRadius={medidas.anchorCornerRadius}
             borderStroke={corSelecao}
             anchorStroke={corSelecao}
-            borderStrokeWidth={2}
+            borderStrokeWidth={medidas.borderStrokeWidth}
             ignoreStroke
             boundBoxFunc={(antes, depois) => (depois.width < 20 || depois.height < 20 ? antes : depois)}
           />

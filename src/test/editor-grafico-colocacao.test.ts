@@ -2,6 +2,7 @@ import { readFileSync, readdirSync, statSync } from "node:fs";
 import { join } from "node:path";
 import { describe, expect, it } from "vitest";
 import { centrar, PRESETS_TEXTO, tamanhoImagemNova } from "@/features/editor-grafico/estado";
+import { medidasTransformer } from "@/features/editor-grafico/PaginaCanvas";
 
 describe("colocação inicial de elementos novos", () => {
   it("fica sempre dentro da página nos cantos 0/1080/1350", () => {
@@ -25,6 +26,13 @@ describe("colocação inicial de elementos novos", () => {
   });
   it("nenhum preset novo reduz a letra sozinho", () => {
     for (const p of Object.values(PRESETS_TEXTO)) expect(p.estilo.overflow).toBe("cortar");
+  });
+});
+
+describe("seleção no canvas móvel", () => {
+  it("mantém os controlos do Transformer em píxeis visuais fixos", () => {
+    expect(medidasTransformer(true)).toEqual({ anchorSize: 28, anchorCornerRadius: 14, borderStrokeWidth: 2 });
+    expect(medidasTransformer(false)).toEqual({ anchorSize: 12, anchorCornerRadius: 2, borderStrokeWidth: 2 });
   });
 });
 
