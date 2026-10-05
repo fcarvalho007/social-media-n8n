@@ -270,11 +270,12 @@ export function comporDocumentos(p: PropostaEditorial, paragrafos?: string[]): R
   const conteudo = { slides: p.slides.map((s) => ({ id: s.id, titulo: s.titulo, texto: s.texto })) };
   const plano = paragrafos ? planoRitmo(p.slides, paragrafos) : null;
   const doc = (variante: Variante, f: typeof paginaA): DocumentoGrafico => {
-    const base = p.slides.map((s, i) => {
-      const pg = f(s, i, total, p.marca.cor);
-      return s.papel_visual && PAPEIS_PAGINA.includes(s.papel_visual) ? { ...pg, papel: s.papel_visual } : pg;
+    const base = p.slides.map((s, i) => f(s, i, total, p.marca.cor));
+    const paginas = (plano ? aplicarRitmo(base, plano, conteudo) : base).map((pg, i) => {
+      const pv = p.slides[i]?.papel_visual;
+      return pv && PAPEIS_PAGINA.includes(pv) ? { ...pg, papel: pv } : pg;
     });
-    return { v: 1, variante, largura: LARGURA, altura: ALTURA, fonte: FONTE_DOC, paginas: plano ? aplicarRitmo(base, plano, conteudo) : base };
+    return { v: 1, variante, largura: LARGURA, altura: ALTURA, fonte: FONTE_DOC, paginas };
   };
   return { A: doc("A", paginaA), B: doc("B", paginaB) };
 }
