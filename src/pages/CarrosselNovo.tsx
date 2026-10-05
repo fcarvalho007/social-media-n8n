@@ -16,6 +16,7 @@ import { criarTrabalho, lerLinkFonte, type OrcamentoIa } from "@/services/motor"
 import { acoesFalhaLink, dominioDe, formatarNumero, resumoLeitura } from "@/features/motor/lerPagina";
 import { comporFontePdf, ErroPdf, lerPdf, NOME_ESTADO_PAGINA, type PdfLido } from "@/features/motor/fontePdf";
 import { HOSTS_LINK, intervalos, type LinkFalhado, type LinkLido, type MetaLink, type MetaPdf } from "../../supabase/functions/_shared/motor/fontes";
+import { PerfilAutorPainel } from "@/features/motor/PerfilAutorPainel";
 import { LimitesIa } from "@/features/motor/LimitesIa";
 import { BarraAcoes, Cabecalho, Etapas, Grupo, Quadro } from "@/features/motor/Estudio";
 import { cn } from "@/lib/utils";
@@ -58,6 +59,7 @@ export default function CarrosselNovo() {
   const [objetivo, setObjetivo] = useState<ObjetivoId>("informar");
   const [detalhe, setDetalhe] = useState("");
   const [tom, setTom] = useState("");
+  const [confirmarIa, setConfirmarIa] = useState(false);
   const [slides, setSlides] = useState<number | null>(null);
   const [demo, setDemo] = useState(false);
   const [tocado, setTocado] = useState(false);
@@ -443,8 +445,9 @@ export default function CarrosselNovo() {
                 <Grupo titulo="Opções de geração" resumo={orc ? (comIa ? `IA disponível · ${Math.max(0, orc.maxDia - orc.usadosHoje)} pedidos hoje` : "Sem IA — estruturado com frases da fonte") : "A ler limites…"}>
                   <div className="space-y-3">
                     <LimitesIa projectId={projeto} onAlterado={setOrc} />
+                    <PerfilAutorPainel projectId={projeto} />
                     <p className="text-xs text-muted-foreground">
-                      {comIa ? "A IA reescreve o texto em slides usando só factos da fonte, com referência aos parágrafos (§). Usa 1 pedido (2 se precisar de correção)."
+                      {comIa ? `A IA (${MODELO_IA_NOME}) reescreve o texto em slides com a voz do autor, usando só factos da fonte, com referência aos parágrafos (§). Usa 1 pedido pago (2 se precisar de correção); antes de enviar pedimos confirmação.`
                         : "Sem IA: cada frase vem do texto, com a referência ao parágrafo, e nada é inventado."}
                     </p>
                   </div>
@@ -463,7 +466,12 @@ export default function CarrosselNovo() {
         nota={etapa === "narrativa" ? (demo ? "Demonstração · fornecedor simulado" : comIa ? "Gera no servidor; podes sair da página." : "Gera sem IA, no servidor.") : undefined}
         fim={etapa === "fonte"
           ? <Button className="h-11 px-5" onClick={continuar} disabled={!projeto || lendo} aria-describedby={lendo ? "estado-leitura" : undefined}>{lendo ? "A ler a página…" : "Continuar"}<ArrowRight className="ml-1.5 h-4 w-4" /></Button>
-          : <Button className="h-11 px-5" onClick={criar} disabled={aCriar || !fonteValida}>{aCriar && <Loader2 className="mr-2 h-4 w-4 motion-safe:animate-spin" />}{demo ? "Gerar demonstração" : comIa ? "Gerar carrossel" : "Gerar sem IA"}</Button>}
+          : (comIa && !confirmarIa
+            ? <Button className="h-11 px-5" onClick={() => setConfirmarIa(true)} disabled={aCriar || !fonteValida}>Gerar com IA</Button>
+            : <div className="flex flex-wrap items-center justify-end gap-2">
+                {comIa && <Button variant="ghost" className="h-11" disabled={aCriar} onClick={() => setConfirmarIa(false)}>Cancelar</Button>}
+                <Button className="h-11 px-5" onClick={criar} disabled={aCriar || !fonteValida} aria-label={comIa ? "Confirmar pedido pago à DeepSeek" : undefined}>{aCriar && <Loader2 className="mr-2 h-4 w-4 motion-safe:animate-spin" />}{demo ? "Gerar demonstração" : comIa ? "Confirmar: 1 pedido pago à DeepSeek" : "Gerar sem IA"}</Button>
+              </div>)}
       />
     </Quadro>
   );
