@@ -123,6 +123,9 @@ function alturaTexto(c: CamadaTexto, conteudo: ConteudoEditorial, w: number, m?:
   if (!m) return Math.ceil(Math.max(1, Math.ceil((t.length * c.estilo.tam * 0.55) / w)) * c.estilo.tam * c.estilo.linha) + 8;
   // Never shrink: measure at the current size only.
   const l = layoutTexto(t, { ...c.estilo, tamMin: c.estilo.tam, maxLinhas: undefined }, w, 4000, m);
+  // A word split across lines means the column is too narrow for this size: refuse instead.
+  const inteiras = new Set(l.linhas.flatMap((x) => x.texto.split(/\s+/)));
+  if (t.split(/\s+/).filter(Boolean).some((p) => !inteiras.has(p))) return null;
   return Math.ceil(l.linhas.length * l.alturaLinha) + 8;
 }
 
@@ -132,7 +135,17 @@ export interface ResultadoImagem { pagina: Pagina; cabe: boolean; decisao: Decis
  * Re-composes a page (already styled by its model) for the decided image mode. Returns the page
  * unchanged with cabe=false when the text would not fit in the region at its current size.
  */
-export function comporImagem(p: Pagina, o: { indice: number; total: number; estilo: EstiloId; variante: Variante; paleta: Paleta; conteudo: ConteudoEditorial; m?: Medidor; comp?: ComposicaoImagem; assets?: Record<string, unknown> }): ResultadoImagem | null {
+export function comporImagem(p: Pagina, o: OpcoesImagem): ResultadoImagem | null {
+  const r = comporImagemUma(p, o);
+  // Automatic text region that does not fit (e.g. a long title in a side column): try the stacked region.
+  if (r && !r.cabe && !o.comp?.regiao && (r.decisao.regiao === "left" || r.decisao.regiao === "right")) {
+    const alt = comporImagemUma(p, { ...o, comp: { ...o.comp, modo: r.decisao.modo, regiao: r.decisao.modo === "split" ? "top" : "bottom" } });
+    if (alt?.cabe) return { ...alt, decisao: { ...alt.decisao, razao: `${r.decisao.razao}; coluna lateral estreita → texto em baixo` } };
+  }
+  return r;
+}
+type OpcoesImagem = Parameters<typeof comporImagemUma>[1];
+function comporImagemUma(p: Pagina, o: { indice: number; total: number; estilo: EstiloId; variante: Variante; paleta: Paleta; conteudo: ConteudoEditorial; m?: Medidor; comp?: ComposicaoImagem; assets?: Record<string, unknown> }): ResultadoImagem | null {
   const titulo = p.camadas.find((c): c is CamadaTexto => c.tipo === "texto" && !!c.ref?.endsWith(".titulo"));
   const corpo = p.camadas.find((c): c is CamadaTexto => c.tipo === "texto" && !!c.ref?.endsWith(".texto"));
   if (!titulo && !corpo) return null;
