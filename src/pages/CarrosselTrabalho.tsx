@@ -12,7 +12,8 @@ import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover
 import { useAuth } from "@/contexts/AuthContext";
 import { useProjeto } from "@/contexts/ProjetoContext";
 import { chaveRecuperacao, guardarRecuperacao, limparRecuperacao } from "@/lib/recuperacaoLocal";
-import { abrirTrabalho, acordarFila, lerAssets, ConflitoVersao, gravarEdicao, lerVersao, listarVersoes, retomarTrabalho, criarTrabalho, lerSistemaVisual, definirSistemaVisual, type SistemaGuardado, type TrabalhoCompleto, type VersaoDoc } from "@/services/motor";
+import type { ComposicaoImagem } from "../../supabase/functions/_shared/motor/imagem";
+import { abrirTrabalho, acordarFila, lerAssets, ConflitoVersao, gravarEdicao, lerVersao, listarVersoes, retomarTrabalho, criarTrabalho, lerSistemaVisual, definirSistemaVisual, lerComposicoes, definirComposicao, type ComposicoesGuardadas, type SistemaGuardado, type TrabalhoCompleto, type VersaoDoc } from "@/services/motor";
 import { EditorGrafico } from "@/features/editor-grafico/EditorGrafico";
 import { PaginaCanvas } from "@/features/editor-grafico/PaginaCanvas";
 import { carregarMedidor } from "@/features/editor-grafico/fontes";
@@ -70,6 +71,15 @@ export default function CarrosselTrabalho() {
   // Persisted visual system (style + variant + palette + breaks); Design and Composition both read it.
   const [sistemaG, setSistemaG] = useState<SistemaGuardado | null>(null);
   useEffect(() => { let vivo = true; lerSistemaVisual(id).then((s) => vivo && setSistemaG(s)).catch(() => undefined); return () => { vivo = false; }; }, [id]);
+  const [comps, setComps] = useState<ComposicoesGuardadas>({ mapa: {}, versoes: {} });
+  useEffect(() => { let vivo = true; lerComposicoes(id).then((c) => vivo && setComps(c)).catch(() => undefined); return () => { vivo = false; }; }, [id]);
+  const guardarComposicao = async (v: Variante, slide: string, c: ComposicaoImagem) => {
+    const k = `${v}:${slide}`;
+    const versao = await definirComposicao(id, v, slide, c, comps.versoes[k] ?? 0);
+    const mapa = { ...comps.mapa, [k]: c };
+    setComps({ mapa, versoes: { ...comps.versoes, [k]: versao } });
+    return mapa;
+  };
   const guardarSistema = async (s: SistemaVisual) => {
     try { const versao = await definirSistemaVisual(id, s, sistemaG?.versao ?? 0); setSistemaG({ sistema: s, versao }); }
     catch (e) { toast.error((e as Error).message); }
@@ -389,7 +399,7 @@ export default function CarrosselTrabalho() {
     return (
       <Quadro className="h-dvh min-h-0 overflow-hidden">
         <EditorGrafico key={`${id}-${revisao}`} pacoteInicial={pacote} chaveLocal={chave} real projectId={dados!.trabalho.project_id}
-          sistema={sistemaG?.sistema ?? null} onSistema={guardarSistema} medidorSistema={medidor ?? undefined}
+          sistema={sistemaG?.sistema ?? null} onSistema={guardarSistema} medidorSistema={medidor ?? undefined} composicoes={comps.mapa} onComposicao={guardarComposicao}
           titulo={<span className="truncate">{nome}</span>}
           faixaTopo={
             <div className="flex items-center gap-2 border-b border-border px-2 py-1 sm:px-4">
@@ -565,7 +575,7 @@ export default function CarrosselTrabalho() {
                 </div>
               );
             })()}
-            <PassoDesign key={designInicio ? `${designInicio.variante}${designInicio.pagina}` : `d${sistemaG?.versao ?? 0}`} inicio={designInicio} sistema={sistemaG?.sistema ?? null} pacote={pacote} medidor={medidor} slides={prop.slides} paragrafos={fonte.paragrafos} onPendente={setDesignPendente}
+            <PassoDesign key={designInicio ? `${designInicio.variante}${designInicio.pagina}` : `d${sistemaG?.versao ?? 0}`} inicio={designInicio} sistema={sistemaG?.sistema ?? null} composicoes={comps.mapa} pacote={pacote} medidor={medidor} slides={prop.slides} paragrafos={fonte.paragrafos} onPendente={setDesignPendente}
               onAplicar={(p, s) => { if (estadoG !== "guardado") { toast.error("Há alterações por gravar. Espera por «Guardado» e tenta de novo."); return; } setAntesDesign(pacote); setPacote(p); setAlteracaoDesign({ tipo: "aplicar", confirmada: false }); if (s) void guardarSistema(s); }} />
           </>
         )}

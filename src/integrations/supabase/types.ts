@@ -824,6 +824,47 @@ export type Database = {
           },
         ]
       }
+      mc_composicao_paginas: {
+        Row: {
+          atualizado_em: string
+          atualizado_por: string | null
+          composicao: Json
+          project_id: string
+          slide_id: string
+          trabalho_id: string
+          variante: string
+          versao: number
+        }
+        Insert: {
+          atualizado_em?: string
+          atualizado_por?: string | null
+          composicao: Json
+          project_id: string
+          slide_id: string
+          trabalho_id: string
+          variante: string
+          versao?: number
+        }
+        Update: {
+          atualizado_em?: string
+          atualizado_por?: string | null
+          composicao?: Json
+          project_id?: string
+          slide_id?: string
+          trabalho_id?: string
+          variante?: string
+          versao?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "mc_composicao_paginas_trabalho_id_fkey"
+            columns: ["trabalho_id"]
+            isOneToOne: false
+            referencedRelation: "mc_trabalhos"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       mc_documentos: {
         Row: {
           actualizado_em: string
@@ -5168,6 +5209,16 @@ export type Database = {
           reutilizado: boolean
           trabalho_id: string
         }[]
+      }
+      mc_definir_composicao_pagina: {
+        Args: {
+          _composicao: Json
+          _slide_id: string
+          _trabalho_id: string
+          _variante: string
+          _versao_esperada: number
+        }
+        Returns: number
       }
       mc_definir_orcamento: {
         Args: { _max_dia: number; _max_trabalho: number; _project_id: string }

@@ -1,3 +1,4 @@
+import type { ComposicoesImagem } from "../../../supabase/functions/_shared/motor/imagem";
 import { useEffect, useMemo, useState } from "react";
 import { Check } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -28,6 +29,8 @@ interface Props {
   paragrafos?: string[];
   /** Opens directly on one slide (coming from the editor's Estilos panel). */
   inicio?: { variante: Variante; pagina: number } | null;
+  /** Saved per-slide image composition overrides; the preview uses them exactly like the editor. */
+  composicoes?: ComposicoesImagem;
 }
 
 const NOME_COR: Record<keyof Paleta, string> = { fundo: "Fundo", fundoCapa: "Fundo da capa", titulo: "Títulos", texto: "Texto", destaque: "Destaque", discreto: "Números e notas" };
@@ -41,7 +44,7 @@ function estilizar(p: PacoteProva, paleta: Paleta, par: string, manuais: boolean
 const listaRecusas = (r: Pick<ResultadoPacoteModelo, "recusadas">) => r.recusadas.map((x) => `${x.variante} p${x.pagina + 1}`).join(", ");
 
 /** Design step: pick one of six styles, adjust palette and font pair, apply explicitly. Never opens with changes. */
-export function PassoDesign({ pacote, medidor, onAplicar, slides, paragrafos, inicio, onPendente, sistema: guardado }: Props) {
+export function PassoDesign({ pacote, medidor, onAplicar, slides, paragrafos, inicio, onPendente, sistema: guardado, composicoes = {} }: Props) {
   const [ambito, setAmbito] = useState<"todos" | "slide">(inicio ? "slide" : "todos");
   const [paginaSel, setPaginaSel] = useState(inicio?.pagina ?? 0);
   const [opcoes, setOpcoes] = useState<OpcaoComposicao[] | null>(null);
@@ -71,14 +74,14 @@ export function PassoDesign({ pacote, medidor, onAplicar, slides, paragrafos, in
   const escolher = (e: Estilo) => { setEscolha(e); setPar(e.par); setPersonalizado(false); setPaleta(obterPaleta(paletaId).cores); setAjustado(true); };
   const escolherPaleta = (id: PaletaId) => { setPaletaId(id); setPaleta(obterPaleta(id).cores); setPersonalizado(false); setAjustado(true); };
   // The same renderer the Composition uses: style + A/B composition + palette + breaks.
-  const modelo = useMemo(() => (ajustado && escolha ? aplicarSistema(pacote, { estilo: escolha.id, variante: "A", paleta: paletaId, quebras }, medidor) : null), [ajustado, escolha, pacote, paletaId, quebras, medidor]);
+  const modelo = useMemo(() => (ajustado && escolha ? aplicarSistema(pacote, { estilo: escolha.id, variante: "A", paleta: paletaId, quebras }, medidor, undefined, composicoes) : null), [ajustado, escolha, pacote, paletaId, quebras, medidor, composicoes]);
   const previa = useMemo(() => {
     if (modelo && !personalizado && !manuais && par === escolha?.par) return { pacote: modelo.pacote, manuais: estilizar(pacote, paleta, par, false).manuais };
     const base = ajustado ? estilizar(modelo?.pacote ?? pacote, paleta, par, manuais) : { pacote, manuais: estilizar(pacote, paleta, par, false).manuais };
     // With a model, editorial text/decor already carry the model's choices; only manual layers get recoloured on request.
     return modelo && !manuais ? { pacote: modelo.pacote, manuais: base.manuais } : base;
   }, [ajustado, modelo, pacote, paleta, par, manuais, personalizado, escolha]);
-  const miniaturas = useMemo(() => ESTILOS.map((e) => ({ e, p: aplicarSistema(pacote, { estilo: e.id, variante: "A", paleta: paletaId, quebras }, medidor, [0, 1]).pacote })), [pacote, medidor, paletaId, quebras]);
+  const miniaturas = useMemo(() => ESTILOS.map((e) => ({ e, p: aplicarSistema(pacote, { estilo: e.id, variante: "A", paleta: paletaId, quebras }, medidor, [0, 1], composicoes).pacote })), [pacote, medidor, paletaId, quebras, composicoes]);
   const opcoesModelo = useMemo(() => {
     if (ambito !== "slide" || !opcoes) return [];
     return ESTILOS.map((e) => ({ e, r: aplicarModelo(pacote, e.id, e.paleta, e.par, [variante], medidor, [paginaSel]) }));
