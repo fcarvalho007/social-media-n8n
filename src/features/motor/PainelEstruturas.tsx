@@ -71,24 +71,29 @@ export function PainelEstruturas({ dados, atual, aceitar }: Props) {
     <section aria-labelledby="t-estr" className="space-y-3 rounded-[var(--mc-r-lg)] border border-border bg-card p-4">
       <div>
         <h2 id="t-estr" className="text-sm font-medium">Reestruturar com IA</h2>
-        <p className="text-xs text-muted-foreground">Cria uma proposta a partir da mesma fonte. Nada muda até aceitares.</p>
+        <p className="text-xs text-muted-foreground">Cria uma proposta a partir da mesma fonte e mostra-a ao lado do texto atual para comparares antes de aceitar. Nada muda até aceitares.</p>
       </div>
       {!pendente && (
-        <ul className="grid gap-2 sm:grid-cols-2 lg:grid-cols-5">
-          {FRAMEWORKS.map((f) => (
-            <li key={f.id}>
-              <button type="button" onClick={() => { setSlides(atual.slides.length); setEscolha(f); }}
-                className="mc-trans flex min-h-14 w-full flex-col items-start rounded-[var(--mc-r-md)] border border-input p-3 text-left hover:border-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring">
-                <span className="text-sm font-medium">{f.nome}</span>
-                <span className="text-xs text-muted-foreground">{f.descricao}</span>
-              </button>
-            </li>
-          ))}
-        </ul>
+        <div className="space-y-2">
+          <ul className="flex flex-wrap gap-2" aria-label="Estruturas">
+            {FRAMEWORKS.map((f) => (
+              <li key={f.id}>
+                <button type="button" aria-describedby="estr-desc" onClick={() => { setSlides(atual.slides.length); setEscolha(f); }}
+                  onFocus={() => setDestaque(f.id)} onMouseEnter={() => setDestaque(f.id)} onTouchStart={() => setDestaque(f.id)}
+                  className={cn("mc-trans inline-flex min-h-11 items-center rounded-full border px-4 text-sm font-medium focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring", destaque === f.id ? "border-primary text-foreground" : "border-input hover:border-muted-foreground")}>
+                  {f.nome}
+                </button>
+              </li>
+            ))}
+          </ul>
+          <p id="estr-desc" className="min-h-[2.5rem] text-xs text-muted-foreground" aria-live="polite">
+            {(() => { const f = FRAMEWORKS.find((x) => x.id === destaque); return f ? <><span className="font-medium text-foreground">{f.nome}:</span> {f.descricao}</> : "Toca ou foca uma estrutura para ver a descrição. Ao escolher, confirmas antes de ser feito qualquer pedido."; })()}
+          </p>
+        </div>
       )}
 
       {pendente && emCurso && !proposta && (
-        <p className="flex items-center gap-2 text-sm text-muted-foreground"><Loader2 className="h-4 w-4 motion-safe:animate-spin" />A preparar a proposta «{nomeFw}» no servidor…</p>
+        <p className="flex items-center gap-2 text-sm text-muted-foreground"><Loader2 className="h-4 w-4 motion-safe:animate-spin" />A preparar a proposta «{nomeFw}»… Podes continuar a editar.</p>
       )}
       {pendente && fw && ["erro", "desconhecido", "cancelado"].includes(fw.trabalho.estado) && (
         <div className="space-y-2 text-sm">
