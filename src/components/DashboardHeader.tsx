@@ -73,16 +73,16 @@ export function DashboardHeader() {
       <div className="flex h-12 w-full min-w-0 items-center justify-between gap-1 px-2 xs:h-14 xs:gap-2 xs:px-3 sm:h-16 sm:gap-3 sm:px-4 md:px-6 xl:px-10">
         {/* Left: Mobile Menu + Breadcrumb */}
         <div className="flex items-center gap-2 md:gap-4 flex-1 min-w-0">
+          <MenuNavegacao open={menuAberto} onOpenChange={setMenuAberto} gatilho={
           <Button
             variant="ghost"
             size="icon"
             className="h-10 w-10 xs:h-11 xs:w-11 min-h-[40px] min-w-[40px] touch-target rounded-lg hover:bg-primary/10 active:scale-95 transition-transform duration-150"
-            onClick={() => setMenuAberto(true)}
             aria-label="Abrir menu"
-            aria-expanded={menuAberto}
           >
             <Menu className="h-5 w-5 xs:h-6 xs:w-6" />
           </Button>
+          } />
 
           <nav className="flex items-center gap-1 sm:gap-2 text-xs sm:text-sm overflow-x-auto scrollbar-hide min-w-0">
             {displayBreadcrumbs.map((crumb, index) => (
@@ -186,7 +186,6 @@ export function DashboardHeader() {
 
         {/* Global Search Dialog */}
         <GlobalSearch open={searchOpen} onOpenChange={setSearchOpen} />
-        <MenuNavegacao open={menuAberto} onOpenChange={setMenuAberto} />
       </div>
     </header>
   );

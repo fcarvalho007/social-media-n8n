@@ -1,7 +1,8 @@
 import { CheckCircle2, PlusCircle, Calendar, FolderKanban, LayoutDashboard, LogOut, Image, BarChart3, Lightbulb, Mail, ShieldCheck, Settings, Sparkles, Users } from 'lucide-react';
 import type { LucideIcon } from 'lucide-react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
-import { Sheet, SheetContent, SheetDescription, SheetHeader, SheetTitle } from '@/components/ui/sheet';
+import type { ReactNode } from 'react';
+import { Sheet, SheetTrigger, SheetContent, SheetDescription, SheetHeader, SheetTitle } from '@/components/ui/sheet';
 import { cn } from '@/lib/utils';
 import { usePendingCounts } from '@/hooks/usePendingCounts';
 import { useAuth } from '@/contexts/AuthContext';
@@ -45,7 +46,7 @@ export function itemAtivo(pathname: string, search: string, url: string): boolea
   return pathname === p || pathname.startsWith(`${p}/`);
 }
 
-export function MenuNavegacao({ open, onOpenChange }: { open: boolean; onOpenChange: (v: boolean) => void }) {
+export function MenuNavegacao({ open, onOpenChange, gatilho }: { open: boolean; onOpenChange: (v: boolean) => void; gatilho: ReactNode }) {
   const { counts } = usePendingCounts();
   const { user, signOut } = useAuth();
   const navigate = useNavigate();
@@ -56,6 +57,7 @@ export function MenuNavegacao({ open, onOpenChange }: { open: boolean; onOpenCha
 
   return (
     <Sheet open={open} onOpenChange={onOpenChange}>
+      <SheetTrigger asChild>{gatilho}</SheetTrigger>
       <SheetContent side="left" className="flex w-[min(20rem,88vw)] flex-col gap-0 overflow-y-auto bg-background p-0">
         <SheetHeader className="border-b px-5 py-4 text-left">
           <SheetTitle className="text-base">Hub de conteúdo</SheetTitle>
