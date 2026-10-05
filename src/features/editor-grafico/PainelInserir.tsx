@@ -56,6 +56,9 @@ export function PainelInserir({ aba, despachar, onImagem, projectId, pedirImagem
   const [bib, setBib] = useState<ImagemBiblioteca[] | null>(null);
   const [erro, setErro] = useState<string | null>(null);
   const [aUsar, setAUsar] = useState<string | null>(null);
+  const [sub, setSub] = useState<"biblioteca" | "ia">("biblioteca");
+  const [busca, setBusca] = useState("");
+  const [mostrar, setMostrar] = useState(12);
 
   useEffect(() => {
     if (aba !== "imagens" || !projectId || bib) return;
@@ -115,15 +118,30 @@ export function PainelInserir({ aba, despachar, onImagem, projectId, pedirImagem
   if (!projectId) {
     return pedirImagem ? <Button variant="outline" className="h-11 w-full" onClick={pedirImagem}><ImageIcon className="mr-1.5 h-4 w-4" />Adicionar imagem</Button> : <p className="text-sm text-muted-foreground">Sem biblioteca neste documento.</p>;
   }
+  const q = busca.trim().toLocaleLowerCase("pt-PT");
+  const lista = bib ? (q ? bib.filter((m) => m.file_name.toLocaleLowerCase("pt-PT").includes(q)) : bib) : [];
   return (
     <div className="space-y-3">
+      <div role="tablist" aria-label="Origem da imagem" className="grid grid-cols-2 gap-1 rounded-[var(--mc-r-md)] bg-muted p-1">
+        {([["biblioteca", "Biblioteca"], ["ia", "Gerar com IA"]] as const).map(([id, n]) => (
+          <button key={id} type="button" role="tab" aria-selected={sub === id} onClick={() => setSub(id)}
+            className={cn("min-h-9 rounded-sm text-xs font-medium focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring", sub === id ? "bg-background text-foreground shadow-sm" : "text-muted-foreground hover:text-foreground")}>{n}</button>
+        ))}
+      </div>
+      {sub === "ia" && <GeradorKie projectId={projectId} usar={usar} ocupado={!!aUsar} />}
+      {sub === "biblioteca" && <>
       <p className="text-xs text-muted-foreground">Clica para usar como fundo ou arrasta para a página.</p>
       {erro && <p role="alert" className="text-sm text-destructive">{erro}</p>}
       {!bib && !erro && <p className="flex items-center gap-2 text-sm text-muted-foreground"><Loader2 className="h-4 w-4 motion-safe:animate-spin" />A carregar imagens…</p>}
       {bib && bib.length === 0 && <p className="flex items-center gap-2 text-sm text-muted-foreground"><ImageOff className="h-4 w-4" />Ainda não há imagens na tua biblioteca.</p>}
       {bib && bib.length > 0 && (
+        <input type="search" value={busca} onChange={(e) => { setBusca(e.target.value); setMostrar(12); }} placeholder="Procurar pelo nome" aria-label="Procurar imagens"
+          className="h-10 w-full rounded-[var(--mc-r-md)] border border-input bg-background px-3 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring" />
+      )}
+      {bib && bib.length > 0 && lista.length === 0 && <p className="text-sm text-muted-foreground">Nenhuma imagem com esse nome.</p>}
+      {lista.length > 0 && (
         <ul className="grid grid-cols-2 gap-2" aria-label="Imagens da biblioteca">
-          {bib.map((m) => (
+          {lista.slice(0, mostrar).map((m) => (
             <li key={m.id}>
               <button type="button" draggable disabled={!!aUsar}
                 onDragStart={(e) => { e.dataTransfer.setData(MIME_INSERIR, JSON.stringify({ tipo: "biblioteca", media_id: m.id, nome: m.file_name } satisfies Inserivel)); e.dataTransfer.effectAllowed = "copy"; }}
@@ -137,7 +155,8 @@ export function PainelInserir({ aba, despachar, onImagem, projectId, pedirImagem
           ))}
         </ul>
       )}
-      <GeradorKie projectId={projectId} usar={usar} ocupado={!!aUsar} />
+      {lista.length > mostrar && <Button variant="outline" className="h-10 w-full" onClick={() => setMostrar((n) => n + 12)}>Mostrar mais ({lista.length - mostrar})</Button>}
+      </>}
     </div>
   );
 }
