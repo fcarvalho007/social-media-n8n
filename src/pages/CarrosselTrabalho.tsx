@@ -377,7 +377,7 @@ export default function CarrosselTrabalho() {
             <div className="flex items-center gap-2 border-b border-border px-2 py-1 sm:px-4">
               <Button asChild variant="ghost" size="icon" className="h-11 w-11 shrink-0" aria-label="Voltar aos carrosséis"><Link to="/estudio/carrosseis"><ArrowLeft className="h-4 w-4" /></Link></Button>
               <div className="min-w-0 flex-1"><Etapas atual="composicao" disponiveis={disponiveis} onIr={irPara} compacto /></div>
-              <Button size="icon" className="h-11 w-11 shrink-0 md:hidden" aria-label="Ir para a etapa 5, Preparar publicação" title="Preparar publicação" onClick={() => irPara("revisao")}><ArrowRight className="h-4 w-4" /></Button>
+              <Button size="icon" className="h-11 w-11 shrink-0 md:hidden" aria-label="Ir para a etapa 4, Preparar publicação" title="Preparar publicação" onClick={() => irPara("revisao")}><ArrowRight className="h-4 w-4" /></Button>
               <Button className="hidden h-11 shrink-0 md:inline-flex" onClick={() => irPara("revisao")}>Preparar publicação<ArrowRight className="ml-1.5 h-4 w-4" /></Button>
             </div>
           }
