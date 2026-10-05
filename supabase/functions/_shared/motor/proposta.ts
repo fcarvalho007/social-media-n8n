@@ -51,7 +51,9 @@ export interface Brief {
   /** Optional narrative framework (see frameworks.ts); absent = original editorial prompt. */
   framework?: string | null;
   /** Author-voice snapshot taken at job creation (absent on older jobs). */
-  autor?: { voz: string[]; notas: string } | null;
+  autor?: Record<string, unknown> | null;
+  /** Per-job angle + optional specific reading. */
+  leitura_trabalho?: { angulo: string | null; especifica: string } | null;
   /** True when the objective is the author's own reading. */
   leitura?: boolean;
 }
