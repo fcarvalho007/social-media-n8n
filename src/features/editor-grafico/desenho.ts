@@ -1,6 +1,6 @@
 import Konva from "konva";
 import {
-  ALTURA, LARGURA, calcularRecorte, camadasOrdenadas, layoutTexto, resolverTexto,
+  ALTURA, ICONES, LARGURA, calcularRecorte, rgba, camadasOrdenadas, layoutTexto, resolverTexto,
   type Asset, type Camada, type CamadaTexto, type Medidor, type PacoteProva, type Variante,
 } from "../../../supabase/functions/_shared/documento-grafico/nucleo";
 

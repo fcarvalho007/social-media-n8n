@@ -1,9 +1,9 @@
 import { useEffect, useRef, useState } from "react";
 import type Konva from "konva";
-import { Ellipse, Group, Image as KImage, Layer, Line, Rect, Shape, Stage, Transformer } from "react-konva";
+import { Ellipse, Group, Image as KImage, Layer, Line, Path, Rect, Shape, Stage, Transformer } from "react-konva";
 import { encaixar } from "./operacoes";
 import {
-  ALTURA, LARGURA, calcularRecorte, camadasOrdenadas, resolverTexto,
+  ALTURA, ICONES, LARGURA, calcularRecorte, rgba, camadasOrdenadas, resolverTexto,
   type Camada, type Medidor, type PacoteProva, type Variante,
 } from "../../../supabase/functions/_shared/documento-grafico/nucleo";
 import { desenharTexto } from "./desenho";
