@@ -243,7 +243,7 @@ serve(async (req) => {
   let body: RequestBody = {};
   let credits = 0;
   let provider = "deepseek";
-  let model = MODEL_MAP.fast;
+  let model: string = MODEL_MAP.fast;
 
   try {
     const userClient = createClient(supabaseUrl, anonKey, { global: { headers: { Authorization: authHeader } } });
@@ -272,8 +272,6 @@ serve(async (req) => {
       const openAiKey = Deno.env.get("OPENAI_API_KEY");
       if (!openAiKey) throw new Response("missing_openai_key", { status: 500 });
       output = await transcribeMedia(body, openAiKey);
-    } else if (body.action === "vision") {
-      output = analyzeImage();
     } else if (body.action === "hashtag_generation") {
       output = await generateHashtags(body);
     } else if (body.action === "first_comment_generation") {
