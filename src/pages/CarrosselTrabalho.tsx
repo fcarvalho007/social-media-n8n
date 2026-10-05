@@ -13,7 +13,7 @@ import { useAuth } from "@/contexts/AuthContext";
 import { useProjeto } from "@/contexts/ProjetoContext";
 import { chaveRecuperacao, guardarRecuperacao, limparRecuperacao } from "@/lib/recuperacaoLocal";
 import type { ComposicaoImagem } from "../../supabase/functions/_shared/motor/imagem";
-import { abrirTrabalho, acordarFila, lerAssets, ConflitoVersao, gravarEdicao, lerVersao, listarVersoes, retomarTrabalho, criarTrabalho, lerSistemaVisual, definirSistemaVisual, lerComposicoes, definirComposicao, type ComposicoesGuardadas, type SistemaGuardado, type TrabalhoCompleto, type VersaoDoc } from "@/services/motor";
+import { abrirTrabalho, acordarFila, lerAssets, ConflitoVersao, gravarEdicao, lerVersao, listarVersoes, retomarTrabalho, criarTrabalho, lerSistemaVisual, lerComposicoes, type TrabalhoCompleto, type VersaoDoc } from "@/services/motor";
 import { EditorGrafico } from "@/features/editor-grafico/EditorGrafico";
 import { PaginaCanvas } from "@/features/editor-grafico/PaginaCanvas";
 import { carregarMedidor } from "@/features/editor-grafico/fontes";
@@ -68,22 +68,6 @@ export default function CarrosselTrabalho() {
   const [passo, setPasso] = useState<Passo>("narrativa");
   const [gravado, setGravado] = useState<Gravado | null>(null);
   const [pacote, setPacote] = useState<PacoteProva | null>(null);
-  // Persisted visual system (style + variant + palette + breaks); Design and Composition both read it.
-  const [sistemaG, setSistemaG] = useState<SistemaGuardado | null>(null);
-  useEffect(() => { let vivo = true; lerSistemaVisual(id).then((s) => vivo && setSistemaG(s)).catch(() => undefined); return () => { vivo = false; }; }, [id]);
-  const [comps, setComps] = useState<ComposicoesGuardadas>({ mapa: {}, versoes: {} });
-  useEffect(() => { let vivo = true; lerComposicoes(id).then((c) => vivo && setComps(c)).catch(() => undefined); return () => { vivo = false; }; }, [id]);
-  const guardarComposicao = async (v: Variante, slide: string, c: ComposicaoImagem) => {
-    const k = `${v}:${slide}`;
-    const versao = await definirComposicao(id, v, slide, c, comps.versoes[k] ?? 0);
-    const mapa = { ...comps.mapa, [k]: c };
-    setComps({ mapa, versoes: { ...comps.versoes, [k]: versao } });
-    return mapa;
-  };
-  const guardarSistema = async (s: SistemaVisual) => {
-    try { const versao = await definirSistemaVisual(id, s, sistemaG?.versao ?? 0); setSistemaG({ sistema: s, versao }); }
-    catch (e) { toast.error((e as Error).message); }
-  };
   const [extras, setExtras] = useState<Extras>({ legenda: "", alt: [] });
   const [revisao, setRevisao] = useState(0);
   const [estadoG, setEstadoG] = useState<EstadoGravacao>("guardado");
@@ -128,7 +112,13 @@ export default function CarrosselTrabalho() {
         }
         setAssetsFalha(falhas);
         const assets = Object.fromEntries(ids.filter((x) => assetsCache.current[x]).map((x) => [x, assetsCache.current[x]]));
-        const base = paraPacote(id, d.trabalho.titulo ?? "Carrossel", g.conteudo, { A: g.docs.A.documento, B: g.docs.B.documento });
+        let base = paraPacote(id, d.trabalho.titulo ?? "Carrossel", g.conteudo, { A: g.docs.A.documento, B: g.docs.B.documento });
+        // One-way legacy migration: older works kept the visual system / image choices in side tables.
+        // They are copied into the document once; from then on the document is the only source of truth.
+        if (!base.variantes.A.sistema && !base.variantes.B.sistema) {
+          const [sl, cl] = await Promise.all([lerSistemaVisual(id).catch(() => null), lerComposicoes(id).catch(() => null)]);
+          base = migrarLegado(base, sl?.sistema ?? null, cl?.mapa ?? {});
+        }
         setPacote(falhas.length ? base : { ...base, assets });
         setExtras({ legenda: g.conteudo.legenda, alt: g.conteudo.alt });
         setRevisao((r) => r + 1);
@@ -307,7 +297,7 @@ export default function CarrosselTrabalho() {
   const fonte = normalizarFonte(dados.fonte.texto);
   const pronto = !!(gravado && pacote);
   const nome = t.titulo || prop?.titulo || "Carrossel";
-  const disponiveis: Etapa[] = pronto ? ["fonte", "narrativa", "design", "composicao", "revisao"] : ["fonte"];
+  const disponiveis: Etapa[] = pronto ? ["fonte", "narrativa", "composicao", "revisao"] : ["fonte"];
   const irPara = (p: Etapa) => { setPasso(p); if (p === "revisao" && estadoG === "guardado") void carregar(); };
 
   const totalAvisos = avisos.length + conselhos.length;
@@ -399,7 +389,7 @@ export default function CarrosselTrabalho() {
     return (
       <Quadro className="h-dvh min-h-0 overflow-hidden">
         <EditorGrafico key={`${id}-${revisao}`} pacoteInicial={pacote} chaveLocal={chave} real projectId={dados!.trabalho.project_id}
-          sistema={sistemaG?.sistema ?? null} onSistema={guardarSistema} medidorSistema={medidor ?? undefined} composicoes={comps.mapa} onComposicao={guardarComposicao}
+          medidorSistema={medidor ?? undefined}
           titulo={<span className="truncate">{nome}</span>}
           faixaTopo={
             <div className="flex items-center gap-2 border-b border-border px-2 py-1 sm:px-4">
@@ -412,8 +402,7 @@ export default function CarrosselTrabalho() {
           estadoGravacao={<div className="flex items-center gap-2">{avisoBadge}<EstadoChip estado={estadoG} /></div>}
           menuExtra={<><DropdownMenuSeparator /><DropdownMenuItem onSelect={() => abrirVersoes("A")}><History className="mr-2 h-4 w-4" />Versões da variante A</DropdownMenuItem><DropdownMenuItem onSelect={() => abrirVersoes("B")}><History className="mr-2 h-4 w-4" />Versões da variante B</DropdownMenuItem></>}
           pedirImagem={() => new Promise((res) => { resolverSeletor.current = res; setSeletor(true); })}
-          onAlterado={(p) => setPacote(p)}
-          onComposicoes={(variante, pagina) => { setDesignInicio({ variante, pagina }); irPara("design"); }} />
+          onAlterado={(p) => setPacote(p)} />
         <SeletorImagens projectId={dados!.trabalho.project_id} aberto={seletor} onFechar={(r) => { setSeletor(false); resolverSeletor.current?.(r); resolverSeletor.current = null; }} />
         {dialogos}
       </Quadro>
@@ -553,33 +542,6 @@ export default function CarrosselTrabalho() {
           </section>
         )}
 
-        {passo === "design" && pronto && pacote && medidor && (
-          <>
-            {alteracaoDesign && (() => {
-              const falhou = estadoG === "conflito" || estadoG === "local";
-              const confirmada = alteracaoDesign.confirmada;
-              const rev = alteracaoDesign.tipo === "reverter";
-              return (
-                <div role="status" aria-live="polite" className="mb-4 flex flex-wrap items-center gap-2 rounded-[var(--mc-r-md)] border border-border px-3 py-2 text-sm">
-                  <span className={cn("mr-auto flex items-center", falhou && "text-destructive")}>
-                    {!confirmada && !falhou && <Loader2 className="mr-2 h-4 w-4 motion-safe:animate-spin" aria-hidden />}
-                    {falhou ? (estadoG === "conflito" ? "Não foi gravado: há uma versão mais recente. Resolve o conflito antes de continuar." : "Não foi gravado no servidor; a alteração ficou só neste dispositivo.")
-                      : !confirmada ? (rev ? "A gravar a reversão…" : "A gravar a alteração como nova versão…")
-                      : rev ? "Reversão gravada como nova versão. As versões anteriores continuam guardadas." : "Alteração aplicada e gravada como nova versão. As versões anteriores continuam guardadas."}
-                  </span>
-                  {confirmada && !rev && antesDesign && (
-                    <Button variant="outline" size="sm" className="h-10" disabled={estadoG !== "guardado"}
-                      onClick={() => { setPacote(antesDesign); setAntesDesign(null); setAlteracaoDesign({ tipo: "reverter", confirmada: false }); }}>Reverter esta alteração</Button>
-                  )}
-                  {(confirmada || falhou) && <Button variant="ghost" size="sm" className="h-10" onClick={() => abrirVersoes("A")}><History className="mr-1.5 h-4 w-4" />Ver versões</Button>}
-                </div>
-              );
-            })()}
-            <PassoDesign key={designInicio ? `${designInicio.variante}${designInicio.pagina}` : `d${sistemaG?.versao ?? 0}`} inicio={designInicio} sistema={sistemaG?.sistema ?? null} composicoes={comps.mapa} pacote={pacote} medidor={medidor} slides={prop.slides} paragrafos={fonte.paragrafos} onPendente={setDesignPendente}
-              onAplicar={(p, s) => { if (estadoG !== "guardado") { toast.error("Há alterações por gravar. Espera por «Guardado» e tenta de novo."); return; } setAntesDesign(pacote); setPacote(p); setAlteracaoDesign({ tipo: "aplicar", confirmada: false }); if (s) void guardarSistema(s); }} />
-          </>
-        )}
-
         {passo === "revisao" && pronto && pacote && (
           <RevisaoExportacao dados={dados} pacote={pacote} medidor={medidor} guardado={estadoG === "guardado"} irPara={irPara} />
         )}
@@ -588,14 +550,12 @@ export default function CarrosselTrabalho() {
       {pronto && passo !== "revisao" && (
         <BarraAcoes
           inicio={passo === "narrativa" ? <Button variant="ghost" className="h-11" onClick={() => setPasso("fonte")}><ArrowLeft className="mr-1.5 h-4 w-4" />Fonte</Button>
-            : passo === "design" ? <Button variant="ghost" className="h-11" onClick={() => setPasso("narrativa")}><ArrowLeft className="mr-1.5 h-4 w-4" />Narrativa</Button> : null}
+ : null}
           fim={passo === "fonte"
             ? <Button className="h-11 px-5" onClick={() => setPasso("narrativa")}>Narrativa<ArrowRight className="ml-1.5 h-4 w-4" /></Button>
             : passo === "narrativa"
-            ? <Button className="h-11 px-5" onClick={() => setPasso("design")}>Design<ArrowRight className="ml-1.5 h-4 w-4" /></Button>
-            : designPendente
-            ? <Button variant="outline" className="h-11 px-4" onClick={() => setPasso("composicao")} aria-label="Continuar para composição sem aplicar a composição escolhida"><span className="sm:hidden">Sem aplicar</span><span className="hidden sm:inline">Continuar sem aplicar</span><ArrowRight className="ml-1.5 h-4 w-4" /></Button>
-            : <Button className="h-11 px-5" onClick={() => setPasso("composicao")} aria-label="Continuar para composição"><span className="sm:hidden">Composição</span><span className="hidden sm:inline">Continuar para composição</span><ArrowRight className="ml-1.5 h-4 w-4" /></Button>}
+            ? <Button className="h-11 px-5" onClick={() => setPasso("composicao")}>Composição<ArrowRight className="ml-1.5 h-4 w-4" /></Button>
+            : null}
         />
       )}
       {pronto && passo === "revisao" && (
