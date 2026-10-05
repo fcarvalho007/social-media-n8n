@@ -9,7 +9,7 @@ import { carregarImagens } from "@/features/editor-grafico/desenho";
 import { cn } from "@/lib/utils";
 import { PARES_FONTES, transbordos, type Medidor, type PacoteProva, type Variante } from "../../../supabase/functions/_shared/documento-grafico/nucleo";
 import { aplicarEstilo, ESTILOS, type Estilo, type Paleta } from "../../../supabase/functions/_shared/motor/estilos";
-import { composicoesPagina, NOME_RITMO, type ComposicaoId, type OpcaoComposicao, type SlideRitmo } from "../../../supabase/functions/_shared/motor/composicoes";
+import { composicoesPagina, contrastesFracos, formatarRazao, NOME_RITMO, type ComposicaoId, type OpcaoComposicao, type SlideRitmo } from "../../../supabase/functions/_shared/motor/composicoes";
 import { aplicarComposicaoSlide, previaPagina, slideDaPagina, sugerirRitmo, type SugestaoRitmo } from "./variacoes";
 
 interface Props {
