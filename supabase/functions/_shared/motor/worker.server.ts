@@ -137,7 +137,7 @@ async function processarUm(sb: SupabaseClient, t: Trabalho): Promise<string> {
   await avancar(sb, t, "documento", "a_processar");
   const { data: prop } = await sb.from("mc_propostas").select("id, versao_actual").eq("trabalho_id", t.id).single();
   const { data: pv } = await sb.from("mc_propostas_versoes").select("conteudo").eq("proposta_id", prop!.id).eq("versao", prop!.versao_actual).single();
-  const docs = comporDocumentos(pv!.conteudo as PropostaEditorial);
+  const docs = comporDocumentos(pv!.conteudo as PropostaEditorial, normalizarFonte(f.texto).paragrafos);
   for (const v of ["A", "B"] as const) {
     await rpc(sb, "mc_gravar_documento_servidor", { _trabalho_id: t.id, _lease: t.lease_token, _variante: v, _documento: docs[v] });
   }
