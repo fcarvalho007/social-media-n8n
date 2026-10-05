@@ -15,7 +15,6 @@ function ProjetoDaConta({ children }: { children: ReactNode }) {
 }
 import { ProtectedRoute } from "@/components/ProtectedRoute";
 import { MainLayout } from "@/components/MainLayout";
-import Dashboard from "./pages/Dashboard";
 import Pending from "./pages/Pending";
 import Review from "./pages/Review";
 import ReviewStory from "./pages/ReviewStory";
