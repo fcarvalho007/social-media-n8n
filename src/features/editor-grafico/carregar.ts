@@ -62,7 +62,7 @@ async function recodificar(bmp: ImageBitmap, mime: MimeCarregar): Promise<Uint8A
 export async function carregarFicheiro(projectId: string, f: File): Promise<{ asset: Asset; nome: string }> {
   const bytes = new Uint8Array(await f.arrayBuffer());
   const v = validarFicheiro(f, bytes.subarray(0, 16));
-  if (!v.ok) throw new Error(v.erro);
+  if (v.ok === false) throw new Error(v.erro);
   let bmp: ImageBitmap;
   try { bmp = await createImageBitmap(new Blob([bytes], { type: v.mime })); } catch { throw new Error("A imagem está corrompida ou não pode ser lida."); }
   try {
