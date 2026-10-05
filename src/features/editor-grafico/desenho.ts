@@ -1,6 +1,6 @@
 import Konva from "konva";
 import {
-  ALTURA, ICONES, LARGURA, calcularRecorte, rgba, camadasOrdenadas, layoutTexto, resolverTexto,
+  ALTURA, ICONES, LARGURA, calcularRecorte, tracarMascara, rgba, camadasOrdenadas, layoutTexto, resolverTexto,
   type Asset, type Camada, type CamadaTexto, type Medidor, type PacoteProva, type Variante,
 } from "../../../supabase/functions/_shared/documento-grafico/nucleo";
 
@@ -9,6 +9,7 @@ export function desenharTexto(ctx: Konva.Context, c: CamadaTexto, texto: string,
   const lay = layoutTexto(texto, c.estilo, c.w, c.h, m);
   const nativo = ctx._context as CanvasRenderingContext2D;
   nativo.fillStyle = c.estilo.cor;
+  if (lay.capitular) nativo.fill(new Path2D(m.caminho(lay.capitular.texto, lay.capitular.x, lay.capitular.baseline, lay.capitular.tam, c.estilo.peso, c.estilo.familia)));
   for (const l of lay.linhas) if (l.texto) nativo.fill(new Path2D(m.caminho(l.texto, l.x, l.baseline, lay.tam, c.estilo.peso, c.estilo.familia)));
   return lay;
 }
@@ -48,7 +49,11 @@ function no(c: Camada, p: PacoteProva, imgs: Record<string, HTMLImageElement>, m
   }
   if (c.tipo === "imagem") {
     const k = calcularRecorte(p.assets[c.asset_id], c);
-    return new Konva.Image({ image: imgs[c.asset_id], x: c.x + k.dx, y: c.y + k.dy, width: k.dw, height: k.dh, crop: { x: k.sx, y: k.sy, width: k.sw, height: k.sh }, opacity: op });
+    const img = new Konva.Image({ image: imgs[c.asset_id], x: k.dx, y: k.dy, width: k.dw, height: k.dh, crop: { x: k.sx, y: k.sy, width: k.sw, height: k.sh } });
+    const mascara = c.mascara;
+    const g = new Konva.Group({ x: c.x, y: c.y, opacity: op, clipFunc: mascara ? (ctx) => { tracarMascara(ctx, mascara, c.w, c.h); } : undefined });
+    g.add(img);
+    return g;
   }
   const texto = resolverTexto(c, p.conteudo);
   return new Konva.Shape({ x: c.x, y: c.y, width: c.w, height: c.h, opacity: op, sceneFunc: (ctx) => { desenharTexto(ctx, c, texto, m); } });
@@ -63,7 +68,7 @@ export async function renderizarPaginaPng(p: PacoteProva, v: Variante, indice: n
   try {
     const layer = new Konva.Layer();
     layer.add(new Konva.Rect({ x: 0, y: 0, width: LARGURA, height: ALTURA, fill: pagina.fundo }));
-    for (const c of camadasOrdenadas(pagina)) layer.add(no(c, p, imgs, m) as Konva.Shape);
+    for (const c of camadasOrdenadas(pagina)) layer.add(no(c, p, imgs, m) as Konva.Shape | Konva.Group);
     stage.add(layer);
     layer.draw();
     return stage.toDataURL({ pixelRatio: 1, mimeType: "image/png" });
