@@ -279,7 +279,7 @@ export const paginasComMarcador = (d: DocumentoGrafico) => d.paginas.flatMap((p,
 export function comMarcaRascunho(d: DocumentoGrafico): DocumentoGrafico {
   return { ...d, paginas: d.paginas.map((p) => (paginaComMarcador(p) ? { ...p, camadas: [...p.camadas,
     { id: "rascunho-faixa", tipo: "forma", forma: "ret", x: 0, y: 600, w: LARGURA, h: 150, z: 900, opacidade: 0.82, estilo: { cor: "#b42318" } } as CamadaForma,
-    { id: "rascunho-texto", tipo: "texto", texto: "RASCUNHO DE TESTE — IMAGEM POR ESCOLHER", x: 40, y: 648, w: LARGURA - 80, h: 60, z: 901, estilo: { peso: 900, familia: "montserrat", tam: 44, linha: 1.2, alinh: "centro", cor: "#ffffff", overflow: "cortar" } } as CamadaTexto,
+    { id: "rascunho-texto", tipo: "texto", texto: "RASCUNHO DE TESTE — IMAGEM POR ESCOLHER", x: 40, y: 625, w: LARGURA - 80, h: 104, z: 901, estilo: { peso: 900, familia: "montserrat", tam: 40, linha: 1.25, alinh: "centro", cor: "#ffffff", overflow: "cortar" } } as CamadaTexto,
   ] } : p)) };
 }
 
