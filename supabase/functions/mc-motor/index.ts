@@ -13,7 +13,9 @@ import { linhaRascunho, nomePagina } from "../_shared/motor/exportacao.ts";
 import type { PropostaEditorial } from "../_shared/motor/proposta.ts";
 import { atribuicao, validarMetaFonte, type MetaFonte } from "../_shared/motor/fontes.ts";
 import { lerLink, registarImagem, resolverAssets } from "../_shared/motor/fontes.server.ts";
-import { carregarImagem } from "../_shared/motor/carregar.server.ts";
+import { carregarImagem, guardarBytes } from "../_shared/motor/carregar.server.ts";
+import { descarregarPexels, pesquisarPexelsMotor } from "../_shared/motor/pexels.server.ts";
+import { creditoPexels, idDoUrl, urlPexelsValido } from "../_shared/motor/pexels.ts";
 import { chaveKie, criarTarefaKie, estadoTarefaKie, interpretarImagemKie, KIE_MODELO, KIE_MAX_DIA, KIE_PROPORCAO } from "../_shared/motor/kie.server.ts";
 import { obterFramework } from "../_shared/motor/frameworks.ts";
 import { NOTA_MAX, obterModoRegen } from "../_shared/motor/regenerar.ts";
@@ -219,6 +221,28 @@ Deno.serve(async (req) => {
     return json({ ok: true, trabalho_id: linha.trabalho_id, simulado: demo });
   }
 
+  if (acao === "pexels_pesquisar" || acao === "pexels_usar") {
+    const projectId = String(body.project_id ?? "");
+    if (!UUID.test(projectId)) return json({ error: "Projeto inválido" }, 400);
+    const { data: pode } = await user.rpc(acao === "pexels_pesquisar" ? "mc_pode_ler" : "mc_pode_escrever", { _project_id: projectId });
+    if (!pode) return json({ error: "Sem acesso a este projeto." }, 403);
+    if (acao === "pexels_pesquisar") {
+      const r = await pesquisarPexelsMotor(String(body.termo ?? ""), Number(body.pagina ?? 1));
+      return r.ok ? json(r) : json({ error: r.erro }, r.estado);
+    }
+    const url = String(body.url ?? "");
+    if (!urlPexelsValido(url)) return json({ error: "Endereço de imagem inválido." }, 400);
+    const autor = String(body.autor ?? "").replace(/[\u0000-\u001f<>"`]/g, "").trim().slice(0, 120);
+    try {
+      const bytes = await descarregarPexels(url);
+      const a = await guardarBytes(admin(), { projectId, userId: u.user.id, bytes, origem: "pexels", nome: `Pexels · ${autor || idDoUrl(url)}`, credito: creditoPexels(autor), origemUrl: url });
+      return json({ ok: true, asset: { id: a.id, nome: a.nome, mime: a.mime, largura: a.largura, altura: a.altura, bytes: a.bytes, hash: a.hash }, credito: creditoPexels(autor) });
+    } catch (e) {
+      const m = (e as Error).message;
+      return json({ error: /^armazenamento/.test(m) ? "Não foi possível guardar a foto. Tenta de novo." : m }, /^armazenamento/.test(m) ? 500 : 422);
+    }
+  }
+
   if (acao === "ler_link" || acao === "listar_imagens" || acao === "registar_imagem" || acao === "carregar_imagem" || acao === "ler_assets") {
     const projectId = String(body.project_id ?? "");
     if (!UUID.test(projectId)) return json({ error: "Projeto inválido" }, 400);
@@ -237,7 +261,7 @@ Deno.serve(async (req) => {
       const [{ data: media }, { data: assets }] = await Promise.all([
         sb.from("media_library").select("id, file_name, file_url, thumbnail_url, width, height, file_size, source, created_at")
           .eq("user_id", u.user.id).eq("file_type", "image").order("created_at", { ascending: false }).limit(60),
-        user.from("mc_assets").select("id, media_id, origem, nome, largura, altura, bytes, mime, criado_em").eq("project_id", projectId).order("criado_em", { ascending: false }).limit(60),
+        user.from("mc_assets").select("id, media_id, origem, nome, credito, largura, altura, bytes, mime, criado_em").eq("project_id", projectId).order("criado_em", { ascending: false }).limit(60),
       ]);
       return json({ ok: true, biblioteca: media ?? [], assets: assets ?? [] });
     }

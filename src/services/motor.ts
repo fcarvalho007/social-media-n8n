@@ -205,7 +205,7 @@ export async function lerCapas(trabalhoIds: string[]): Promise<Record<string, Ca
 export const lerLinkFonte = (project_id: string, url: string) => invocar<LinkLido | LinkFalhado>({ acao: "ler_link", project_id, url });
 
 export interface ImagemBiblioteca { id: string; file_name: string; file_url: string; thumbnail_url: string | null; width: number | null; height: number | null; file_size: number | null; source: string | null; created_at: string }
-export interface AssetMotor { id: string; media_id: string | null; origem?: "biblioteca" | "kie" | "upload"; nome: string | null; largura: number; altura: number; bytes: number; mime: string; criado_em: string }
+export interface AssetMotor { id: string; media_id: string | null; origem?: "biblioteca" | "kie" | "upload" | "pexels"; nome: string | null; credito?: string | null; largura: number; altura: number; bytes: number; mime: string; criado_em: string }
 export const listarImagens = (project_id: string) => invocar<{ biblioteca: ImagemBiblioteca[]; assets: AssetMotor[] }>({ acao: "listar_imagens", project_id });
 export interface KieConfig { configurada: boolean; modelo: string; proporcao: string; max_dia: number }
 export const kieConfig = (project_id: string) => invocar<KieConfig>({ acao: "kie_config", project_id });
@@ -213,6 +213,10 @@ export const kieGerar = (project_id: string, prompt: string) => invocar<{ tarefa
 export const kieEstado = (project_id: string, tarefa: string) => invocar<{ estado: "reservada" | "criada" | "concluida" | "falhou" | "desconhecido"; asset_id?: string | null; erro?: string | null }>({ acao: "kie_estado", project_id, tarefa });
 export const registarImagem = (project_id: string, media_id: string) => invocar<{ asset: AssetMotor & { hash: string } }>({ acao: "registar_imagem", project_id, media_id });
 export const interpretarImagem = (project_id: string, asset_id: string) => invocar<{ descricao: string }>({ acao: "interpretar_imagem", project_id, asset_id, confirmado: true });
+export type { FotoPexelsMotor } from "../../supabase/functions/_shared/motor/pexels";
+import type { FotoPexelsMotor } from "../../supabase/functions/_shared/motor/pexels";
+export const pexelsPesquisar = (project_id: string, termo: string, pagina: number) => invocar<{ fotos: FotoPexelsMotor[]; mais: boolean }>({ acao: "pexels_pesquisar", project_id, termo, pagina });
+export const pexelsUsar = (project_id: string, f: FotoPexelsMotor) => invocar<{ asset: AssetMotor & { hash: string }; credito: string }>({ acao: "pexels_usar", project_id, url: f.url, autor: f.autor });
 export const carregarImagemServidor = (project_id: string, nome: string, dados: string) => invocar<{ asset: AssetMotor & { hash: string } }>({ acao: "carregar_imagem", project_id, nome, dados });
 /** Verified bytes of this project's assets; ids that failed (removed/expired/other project) come back in falhas. */
 export async function lerAssets(project_id: string, ids: string[]): Promise<{ assets: Record<string, Asset>; falhas: string[] }> {

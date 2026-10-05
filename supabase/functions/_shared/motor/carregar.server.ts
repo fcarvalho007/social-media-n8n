@@ -25,6 +25,12 @@ export async function carregarImagem(sb: SbMinimo, a: { projectId: string; userI
   if (typeof a.dados !== "string" || !a.dados || a.dados.length > MAX_BASE64_UPLOAD || !/^[A-Za-z0-9+/]+={0,2}$/.test(a.dados)) throw new Error("A imagem está vazia, corrompida ou ultrapassa 6 MB.");
   let bytes: Uint8Array;
   try { bytes = Uint8Array.from(atob(a.dados), (c) => c.charCodeAt(0)); } catch { throw new Error("A imagem está corrompida."); }
+  return guardarBytes(sb, { projectId: a.projectId, userId: a.userId, bytes, origem: "upload", nome: nomeCarregado(a.nome) });
+}
+
+/** Stores validated bytes as an immutable project asset, deduplicated by project + hash. */
+export async function guardarBytes(sb: SbMinimo, a: { projectId: string; userId: string; bytes: Uint8Array; origem: "upload" | "pexels"; nome: string; credito?: string | null; origemUrl?: string | null }): Promise<AssetCarregado> {
+  const bytes = a.bytes;
   const info = inspecionarImagem(bytes);
   const hash = await sha256Hex(bytes);
   const { data: existe } = await sb.from("mc_assets").select("*").eq("project_id", a.projectId).eq("hash", hash).maybeSingle();
@@ -33,7 +39,7 @@ export async function carregarImagem(sb: SbMinimo, a: { projectId: string; userI
   const up = await sb.storage.from(BUCKET_ASSETS).upload(path, bytes, { contentType: info.mime, upsert: false });
   if (up.error && !/exist|duplicate|409/i.test(up.error.message)) throw new Error(`armazenamento: ${up.error.message}`);
   const { data: novo, error: ei } = await sb.from("mc_assets").insert({
-    project_id: a.projectId, media_id: null, origem: "upload", nome: nomeCarregado(a.nome),
+    project_id: a.projectId, media_id: null, origem: a.origem, nome: a.nome, credito: a.credito ?? null, origem_url: a.origemUrl ?? null,
     bucket: BUCKET_ASSETS, storage_path: path, hash, mime: info.mime, largura: info.largura, altura: info.altura, bytes: bytes.length, criado_por: a.userId,
   }).select("*").single();
   if (ei) {

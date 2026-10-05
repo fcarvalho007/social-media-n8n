@@ -695,6 +695,7 @@ export type Database = {
           altura: number
           bucket: string
           bytes: number
+          credito: string | null
           criado_em: string
           criado_por: string | null
           hash: string
@@ -704,6 +705,7 @@ export type Database = {
           mime: string
           nome: string | null
           origem: string
+          origem_url: string | null
           project_id: string
           storage_path: string
         }
@@ -711,6 +713,7 @@ export type Database = {
           altura: number
           bucket: string
           bytes: number
+          credito?: string | null
           criado_em?: string
           criado_por?: string | null
           hash: string
@@ -720,6 +723,7 @@ export type Database = {
           mime: string
           nome?: string | null
           origem?: string
+          origem_url?: string | null
           project_id: string
           storage_path: string
         }
@@ -727,6 +731,7 @@ export type Database = {
           altura?: number
           bucket?: string
           bytes?: number
+          credito?: string | null
           criado_em?: string
           criado_por?: string | null
           hash?: string
@@ -736,6 +741,7 @@ export type Database = {
           mime?: string
           nome?: string | null
           origem?: string
+          origem_url?: string | null
           project_id?: string
           storage_path?: string
         }

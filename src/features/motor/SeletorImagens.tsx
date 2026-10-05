@@ -4,6 +4,7 @@ import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { lerAssets, listarImagens, registarImagem, type AssetMotor, type ImagemBiblioteca } from "@/services/motor";
 import { GeradorKie } from "./GeradorKie";
+import { PesquisaPexels } from "./PesquisaPexels";
 import type { Asset } from "../../../supabase/functions/_shared/documento-grafico/nucleo";
 
 interface Props {
@@ -50,7 +51,7 @@ export function SeletorImagens({ projectId, aberto, onFechar }: Props) {
       <DialogContent className="mc-estudio max-h-[85dvh] max-w-2xl overflow-y-auto">
         <DialogHeader>
           <DialogTitle>Adicionar imagem</DialogTitle>
-          <DialogDescription>Só imagens da tua biblioteca. Ao escolher, é guardada uma cópia fixa para este projeto.</DialogDescription>
+          <DialogDescription>Da tua biblioteca, do Pexels (gratuito) ou geradas por IA. Ao escolher, é guardada uma cópia fixa para este projeto.</DialogDescription>
         </DialogHeader>
         {erro && <p role="alert" className="text-sm text-destructive">{erro}</p>}
         {!dados && !erro && <p className="flex items-center gap-2 text-sm text-muted-foreground"><Loader2 className="h-4 w-4 motion-safe:animate-spin" />A carregar imagens…</p>}
@@ -72,6 +73,7 @@ export function SeletorImagens({ projectId, aberto, onFechar }: Props) {
             ))}
           </ul>
         )}
+        <PesquisaPexels projectId={projectId} usar={usar} ocupado={!!aUsar} aUsar={aUsar} />
         <GeradorKie projectId={projectId} usar={usar} ocupado={!!aUsar} />
         <p className="text-xs text-muted-foreground">PNG ou JPEG, até 6 MB e 8000 px por lado. Outros formatos são recusados.</p>
         <div className="flex justify-end"><Button variant="ghost" className="h-11" disabled={!!aUsar} onClick={() => onFechar(null)}>Cancelar</Button></div>
