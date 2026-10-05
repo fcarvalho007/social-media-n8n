@@ -130,7 +130,9 @@ export function composicaoB(p: Pagina, conteudo?: ConteudoEditorial, m?: Medidor
   // 3. Thin accent marks become a vertical bar on the left margin.
   camadas = camadas.map((c) => (c.tipo === "forma" && c.id.startsWith("mod-") && !c.manual && c.h <= 10 && c.w <= 120 && c.w > c.h
     ? { ...c, x: 40, w: 10, h: Math.min(220, Math.max(120, c.w * 2)), y: c.y } : c));
-  // 4. Text block anchored low when there is no photo above it and no panel behind it.
+  // 4. Page number moves to the top corner (editorial "folio" of the contemporary reading).
+  camadas = camadas.map((c) => (c.tipo === "texto" && c.id === "num" && !c.manual && c.y > ALTURA / 2 ? { ...c, x: LARGURA - 96 - c.w, y: 56, estilo: { ...c.estilo, alinh: "dir" } } : c));
+  // 5. Text block anchored low when there is no photo above it and no panel behind it.
   const ts = camadas.filter((c) => texto(c) && !c.manual);
   const titulo = ts.find((c) => c.tipo === "texto" && c.ref?.endsWith(".titulo"));
   const sobrePainel = titulo && camadas.some((d) => d.tipo === "forma" && d.id.startsWith("mod-") && d.w < LARGURA && d.h > 120 && d.z < titulo.z
