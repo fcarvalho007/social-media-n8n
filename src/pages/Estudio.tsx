@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import { toast } from "sonner";
-import { Activity, AlertCircle, FileText, GalleryHorizontal, Images, KeyRound, Mail, PlusCircle, RefreshCw, Upload } from "lucide-react";
+import { AlertCircle, FileText, GalleryHorizontal, Images, KeyRound, Mail, PlusCircle, RefreshCw, Upload } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
@@ -20,7 +20,6 @@ const PRODUCAO: Acao[] = [
   { titulo: "Meus carrosséis", desc: "Por publicar e publicados", icon: GalleryHorizontal, url: "/estudio/carrosseis" },
   { titulo: "Newsletter", desc: "Edições, crónica e arquivo", icon: Mail, url: "/newsletter" },
   { titulo: "Carrosséis da crónica", desc: "A partir de edições enviadas", icon: Images, url: "/estudio/redes-sociais" },
-  { titulo: "Atividade social", desc: "Painel de publicações e métricas", icon: Activity, url: "/redes-sociais" },
   { titulo: "Artigos", desc: "Rascunhos de texto, sem publicação", icon: FileText, url: "/artigos" },
 ];
 const CONFIGURACAO: Acao[] = [
