@@ -271,7 +271,7 @@ export default function CarrosselTrabalho() {
     if (!m) return;
     m.scrollTop = 0;
     const h = m.querySelector<HTMLElement>("h1, h2");
-    if (h) { if (!h.hasAttribute("tabindex")) h.setAttribute("tabindex", "-1"); h.focus({ preventScroll: true }); }
+    if (h) { if (!h.hasAttribute("tabindex")) { h.setAttribute("tabindex", "-1"); h.classList.add("outline-none"); } h.focus({ preventScroll: true }); }
   }, [passo]);
   if (erro) return <Quadro><div className="mx-auto max-w-xl p-6"><p role="alert" className="text-sm text-destructive">{erro}</p><Link className="mt-2 inline-flex min-h-11 items-center text-sm underline" to="/estudio/carrosseis">Voltar aos carrosséis</Link></div></Quadro>;
   if (!dados) return <Quadro><p className="flex items-center p-6 text-sm text-muted-foreground" role="status"><Loader2 className="mr-2 h-4 w-4 motion-safe:animate-spin" />A abrir…</p></Quadro>;
