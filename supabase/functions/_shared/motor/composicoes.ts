@@ -45,6 +45,7 @@ function partes(p: Pagina): Partes {
     else if (c.tipo === "texto" && c.id === "num" && !r.num) r.num = c;
     else if (c.tipo === "imagem") { if (c.w >= LARGURA && c.h >= ALTURA) r.fundoImagem = true; r.imagens.push(c); }
     else if (c.tipo === "forma" && DECOR.has(c.id)) r.decor.push(c);
+    else if (c.id.startsWith("mod-")) continue; // model decorations are rebuilt by each composition
     else r.outras.push(c);
   }
   return r;
