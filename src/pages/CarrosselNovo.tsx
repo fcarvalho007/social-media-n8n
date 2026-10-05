@@ -457,7 +457,7 @@ export default function CarrosselNovo() {
             </div>
 
             <div>
-              <Grupo titulo="Personalizar" resumo={[tom || "Tom automático", `${nSlides} slides`].join(" · ")}>
+              <Grupo titulo="Personalizar" resumo={[tom || (tomPreset ? TONS.find((t) => t.id === tomPreset)?.nome : "Tom automático"), `${nSlides} slides`].join(" · ")}>
                 <div className="grid gap-4 sm:grid-cols-2">
                   <div className="space-y-1 sm:col-span-2">
                     <Label htmlFor="detalhe">Precisar o objetivo <span className="font-normal text-muted-foreground">(opcional)</span></Label>
