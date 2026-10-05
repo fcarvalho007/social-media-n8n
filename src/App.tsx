@@ -15,7 +15,6 @@ function ProjetoDaConta({ children }: { children: ReactNode }) {
 }
 import { ProtectedRoute } from "@/components/ProtectedRoute";
 import { MainLayout } from "@/components/MainLayout";
-import Dashboard from "./pages/Dashboard";
 import Pending from "./pages/Pending";
 import Review from "./pages/Review";
 import ReviewStory from "./pages/ReviewStory";
@@ -96,8 +95,8 @@ const App = () => (
                 <Route path="/stories/launch/:id" element={<StoryLauncher />} />
                 <Route element={<ProtectedRoute><ProjetoDaConta><MainLayout /></ProjetoDaConta></ProtectedRoute>}>
                   <Route path="/" element={<Estudio />} />
-                  <Route path="/redes-sociais" element={<Dashboard />} />
-                  <Route path="/dashboard" element={<Navigate to="/redes-sociais" replace />} />
+                  <Route path="/redes-sociais" element={<Navigate to="/" replace />} />
+                  <Route path="/dashboard" element={<Navigate to="/" replace />} />
                   <Route path="/pending" element={<Pending />} />
                   <Route path="/review/:id" element={<Review />} />
                   <Route path="/review-story/:id" element={<ReviewStory />} />
