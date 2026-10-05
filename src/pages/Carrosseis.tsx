@@ -8,7 +8,8 @@ import { LimitesIa } from "@/features/motor/LimitesIa";
 import { Grupo, useLargura } from "@/features/motor/Estudio";
 import { PaginaCanvas } from "@/features/editor-grafico/PaginaCanvas";
 import { carregarMedidor } from "@/features/editor-grafico/fontes";
-import { lerCapas, listarTrabalhos, type Capa, type EstadoTrabalho, type TrabalhoResumo } from "@/services/motor";
+import { lerCapas, lerEstadosPublicacao, listarTrabalhos, type Capa, type EstadoTrabalho, type TrabalhoResumo } from "@/services/motor";
+import { estadoPublicacao, NOME_ESTADO_CONTEUDO, NOME_ESTADO_REDE, NOME_REDE, type EstadoPublicacao } from "@/features/motor/publicacao";
 import { cn } from "@/lib/utils";
 import { etiquetaTeste, eProva } from "@/features/motor/biblioteca";
 export { etiquetaTeste, eProva };
@@ -33,6 +34,10 @@ export default function Carrosseis() {
   const [medidor, setMedidor] = useState<Medidor | null>(null);
   const [erro, setErro] = useState<string | null>(null);
   const [verProvas, setVerProvas] = useState(false);
+  const [estados, setEstados] = useState<Record<string, EstadoPublicacao> | null>(null);
+  const [erroEstados, setErroEstados] = useState<string | null>(null);
+  const [tentativa, setTentativa] = useState(0);
+  const [aba, setAba] = useState<"por_publicar" | "publicados">("por_publicar");
 
   useEffect(() => { carregarMedidor().then(setMedidor).catch(() => undefined); }, []);
   useEffect(() => {
@@ -44,10 +49,24 @@ export default function Carrosseis() {
       lerCapas(r.slice(0, 48).map((t) => t.id)).then((c) => vivo && setCapas(c)).catch(() => undefined);
     }).catch((e: Error) => vivo && setErro(e.message));
     return () => { vivo = false; };
-  }, [projetoId]);
+  }, [projetoId, tentativa]);
+
+  useEffect(() => {
+    if (!itens) return;
+    let vivo = true;
+    setEstados(null); setErroEstados(null);
+    lerEstadosPublicacao(itens.map((t) => t.id)).then((r) => {
+      if (!vivo) return;
+      setEstados(Object.fromEntries(itens.map((t) => [t.id, estadoPublicacao({ trabalho: t, docs: r.docs[t.id] ?? [], ligacoes: r.ligacoes, drafts: r.drafts, posts: r.posts })])));
+    }).catch((e: Error) => vivo && setErroEstados(e.message));
+    return () => { vivo = false; };
+  }, [itens]);
 
   const nProvas = itens?.filter(eProva).length ?? 0;
-  const visiveis = itens?.filter((t) => verProvas || !eProva(t)) ?? null;
+  const reais = itens?.filter((t) => verProvas || !eProva(t)) ?? null;
+  const contar = (g: EstadoPublicacao["grupo"]) => (estados && reais ? reais.filter((t) => estados[t.id]?.grupo === g).length : null);
+  // Without a reliable state the list is shown ungrouped; nothing is ever counted as published by default.
+  const visiveis = reais && estados ? reais.filter((t) => estados[t.id]?.grupo === aba) : reais;
   const nomeProjeto = (id: string) => projetos.find((p) => p.id === id)?.name ?? "Projeto";
 
   return (
@@ -64,6 +83,26 @@ export default function Carrosseis() {
         {erro && <p role="alert" className="text-sm text-destructive">{erro}</p>}
         {!itens && !erro && <p className="flex items-center text-sm text-muted-foreground" role="status"><Loader2 className="mr-2 h-4 w-4 motion-safe:animate-spin" />A carregar…</p>}
 
+        {itens && (
+          <div className="space-y-2">
+            <div role="tablist" aria-label="Estado de publicação" className="inline-flex gap-1 rounded-[var(--mc-r-md)] bg-muted p-1">
+              {([["por_publicar", "Por publicar"], ["publicados", "Publicados"]] as const).map(([id, nome]) => (
+                <button key={id} type="button" role="tab" aria-selected={aba === id} disabled={!estados} onClick={() => setAba(id)}
+                  className={cn("min-h-10 rounded-sm px-4 text-sm font-medium focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:opacity-60", aba === id && estados ? "bg-background text-foreground shadow-sm" : "text-muted-foreground hover:text-foreground")}>
+                  {nome} <span className="tabular-nums text-muted-foreground">{contar(id) ?? "–"}</span>
+                </button>
+              ))}
+            </div>
+            {!estados && !erroEstados && <p role="status" className="flex items-center text-xs text-muted-foreground"><Loader2 className="mr-1.5 h-3.5 w-3.5 motion-safe:animate-spin" />A verificar o estado de publicação…</p>}
+            {erroEstados && (
+              <p role="alert" className="flex flex-wrap items-center gap-2 text-sm text-destructive">
+                {erroEstados} A lista abaixo não está separada por estado.
+                <Button variant="outline" size="sm" className="h-9" onClick={() => setTentativa((n) => n + 1)}>Tentar de novo</Button>
+              </p>
+            )}
+          </div>
+        )}
+
         {itens && nProvas > 0 && (
           <label className="flex w-fit cursor-pointer items-center gap-2 text-sm text-muted-foreground">
             <input type="checkbox" className="h-4 w-4 accent-[hsl(var(--primary))]" checked={verProvas} onChange={(e) => setVerProvas(e.target.checked)} />
@@ -71,10 +110,10 @@ export default function Carrosseis() {
           </label>
         )}
 
-        {visiveis && visiveis.length === 0 && (
+        {visiveis && visiveis.length === 0 && (!estados || !reais?.length || aba === "por_publicar") && (
           <div className="mc-entrar max-w-lg space-y-4 py-16">
             <Layers className="h-6 w-6 text-muted-foreground" aria-hidden />
-            <p className="text-lg font-medium">{nProvas > 0 && !verProvas ? "Ainda não há carrosséis reais" : "Ainda não há carrosséis"}{projetoId ? " neste projeto" : ""}.</p>
+            <p className="text-lg font-medium">{estados && reais && reais.length > 0 ? (aba === "publicados" ? "Ainda não há carrosséis publicados" : "Nada por publicar") : nProvas > 0 && !verProvas ? "Ainda não há carrosséis reais" : "Ainda não há carrosséis"}{projetoId ? " neste projeto" : ""}.</p>
             <p className="text-sm text-muted-foreground">Cola um texto, escolhe o objetivo e o estúdio propõe a narrativa e duas composições.</p>
             <div className="flex flex-wrap gap-2">
               <Button asChild className="h-11"><Link to="/estudio/carrosseis/novo">Criar primeiro carrossel</Link></Button>
@@ -90,6 +129,7 @@ export default function Carrosseis() {
               const titulo = t.titulo || capa?.conteudo.titulo || capa?.conteudo.slides[0]?.titulo || "Carrossel sem título";
               const tag = etiquetaTeste(t, capa);
               const falhou = t.estado === "erro" || t.estado === "desconhecido";
+              const ep = estados?.[t.id];
               return (
                 <li key={t.id} className="mc-entrar">
                   <Link to={`/estudio/carrosseis/${t.id}`} className="group block rounded-[var(--mc-r-lg)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring">
@@ -105,10 +145,13 @@ export default function Carrosseis() {
                     </div>
                     <p className="mt-2 line-clamp-2 text-sm font-medium leading-snug">{titulo}</p>
                     <p className="mt-0.5 flex items-center gap-1.5 text-xs text-muted-foreground">
-                      <span className={cn(t.estado === "concluido" ? "text-primary" : falhou && "text-destructive")}>{NOME_ESTADO[t.estado]}</span>
+                      {ep ? <span className={cn(ep.estado === "publicado" ? "text-primary" : (ep.estado === "erro" || ep.estado === "por_confirmar") && "text-destructive")}>{NOME_ESTADO_CONTEUDO[ep.estado]}</span>
+                        : <span className={cn(t.estado === "concluido" ? "text-primary" : falhou && "text-destructive")}>{NOME_ESTADO[t.estado]}</span>}
                       <span aria-hidden>·</span><span className="truncate">{!projetoId && `${nomeProjeto(t.project_id)} · `}{dataPt(t.actualizado_em ?? t.criado_em)}</span>
                     </p>
-                    <span className="sr-only">{t.estado === "concluido" ? "Abrir" : "Retomar"}</span>
+                    {ep && ep.redes.length > 0 && <p className="mt-0.5 text-xs text-muted-foreground">{ep.redes.map((r) => `${NOME_REDE[r.rede] ?? r.rede}: ${NOME_ESTADO_REDE[r.estado]}`).join(" · ")}</p>}
+                    {ep?.versaoAtual != null && <p className="mt-0.5 text-xs text-muted-foreground">Versão {ep.versaoAtual}{ep.nota ? ` · ${ep.nota}` : ""}</p>}
+                    <span className="mt-1 inline-block text-xs font-medium text-primary group-hover:underline">{ep?.grupo === "publicados" ? "Abrir" : "Continuar"}</span>
                   </Link>
                 </li>
               );
