@@ -17,9 +17,9 @@ export function recorteCentral(f: Formato): Rect {
   return { x: (PAG_W - w) / 2, y: (PAG_H - h) / 2, w, h };
 }
 
-/** Bounding box of the text layers actually on the page, or null without text. */
+/** Bounding box of the editorial text layers (title/body refs; chrome like page numbers excluded) actually on the page, or null without text. */
 export function caixaTexto(pacote: PacoteProva, v: Variante, i: number): Rect | null {
-  const t = pacote.variantes[v].paginas[i]?.camadas.filter((c) => c.tipo === "texto") ?? [];
+  const t = pacote.variantes[v].paginas[i]?.camadas.filter((c) => c.tipo === "texto" && Boolean(c.ref)) ?? [];
   if (!t.length) return null;
   const x = Math.min(...t.map((c) => c.x)), y = Math.min(...t.map((c) => c.y));
   const x2 = Math.max(...t.map((c) => c.x + c.w)), y2 = Math.max(...t.map((c) => c.y + c.h));
