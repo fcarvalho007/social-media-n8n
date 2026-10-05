@@ -24,7 +24,7 @@ describe("lote1: fornecedor real e voz do autor", () => {
     expect(com).toMatch(/Voz: Autor consultor/);
     expect(com).toMatch(/Fintech/);
     expect(com).toMatch(/leitura do autor/);
-    expect(com).toMatch(/Nunca inventes estudos, números, citações/);
+    expect(com).toMatch(/Nunca inventes estudos, números, métricas, citações/);
     expect(regrasAutor(normalizarPerfil(null), false)).toMatch(/só no fecho/);
   });
   it("«Opinião» passou a «A minha leitura» e o servidor reconhece-a", () => {
