@@ -91,3 +91,26 @@ describe("contraste por elemento", () => {
     expect(fracosDe(o).map((c) => c.elemento)).toEqual(["texto"]);
   });
 });
+
+import { minimoContraste as minC, comporPagina as compor } from "../../supabase/functions/_shared/motor/composicoes";
+describe("mínimo de contraste pelo tamanho real", () => {
+  it("título pequeno e número pequeno ficam em 4.5; texto grande em 3", () => {
+    expect(minC({ tam: 40, peso: 700 })).toBe(4.5); // small title
+    expect(minC({ tam: 26, peso: 400 })).toBe(4.5); // small page number
+    expect(minC({ tam: 56, peso: 700 })).toBe(3);
+    expect(minC({ tam: 72, peso: 400 })).toBe(3);
+    expect(minC({ tam: 60, peso: 400 })).toBe(4.5);
+  });
+  it("verifica contra o fundo da forma e não relaxa título pequeno", () => {
+    const est = (tam: number, peso: 400 | 700, cor: string) => ({ peso, familia: "inter", tam, linha: 1.2, alinh: "esq", cor, overflow: "cortar", tamMin: tam });
+    const p = { id: "p", fundo: "#ffffff", camadas: [
+      { id: "t", tipo: "texto", ref: "s1.titulo", x: 96, y: 200, w: 888, h: 60, z: 10, estilo: est(40, 700, "#16181d") },
+      { id: "b", tipo: "texto", ref: "s1.texto", x: 96, y: 300, w: 888, h: 60, z: 10, estilo: est(30, 400, "#16181d") },
+      { id: "num", tipo: "texto", x: 96, y: 1250, w: 200, h: 40, z: 10, estilo: est(26, 400, "#16181d") },
+    ] } as never;
+    const o = compor(p, "contraste", { slides: [{ id: "s1", titulo: "Título curto", texto: "Texto curto." }] } as never)!;
+    expect(o.contrastes.every((c) => c.minimo === 4.5)).toBe(true);
+    // Title/body sit on the dark block; their ratio is measured against it and kept legible.
+    expect(o.contrastes.filter((c) => c.elemento !== "número da página").every((c) => c.razao >= 4.5)).toBe(true);
+  });
+});
