@@ -16,7 +16,7 @@ export function fontesServidor() {
   if (cache) return cache;
   const buffers: Uint8Array[] = [];
   const ler = (b64: string) => { const u = bytesB64(b64); buffers.push(u); return parse(ab(u)) as unknown as FonteOT; };
-  const base = { 400: ler(WORK_SANS_400), 700: ler(WORK_SANS_700) } as Record<Peso, FonteOT>;
+  const base = { 400: ler(WORK_SANS_400), 700: ler(WORK_SANS_700) } as Record<400 | 700, FonteOT>;
   const extras: Partial<Record<Familia, Partial<Record<Peso, FonteOT>>>> = {};
   for (const [fam, pesos] of Object.entries(FONTES_EXTRA_B64)) {
     const x: Partial<Record<Peso, FonteOT>> = {};

@@ -10,7 +10,7 @@ export const ALTURA = 1350;
 export const FAMILIA = "Work Sans";
 export const FONTE_DOC = "WorkSans@1";
 
-export type Peso = 400 | 700;
+export type Peso = 400 | 700 | 900;
 /** Font families a text layer may use (all embedded in browser and server). Absent = Work Sans (legacy). */
 export const FAMILIAS = ["worksans", "montserrat", "inter", "playfair", "sourcesans", "grotesk", "dmserif", "dmsans", "plex"] as const;
 export type Familia = (typeof FAMILIAS)[number];
@@ -69,10 +69,29 @@ export interface CamadaImagem extends CamadaBase {
   foco?: { x: number; y: number };
 }
 
+/** Closed set of vector icons (24×24 viewBox, filled, even-odd). Drawn identically in canvas and SVG. */
+export const ICONES = {
+  seta: "M4 11h12.2l-5.6-5.6L12 4l8 8-8 8-1.4-1.4 5.6-5.6H4z",
+  check: "M9 16.2 4.8 12l-1.4 1.4L9 19 21 7l-1.4-1.4z",
+  grafico: "M3 21h18v-2H3zM5 17h3V9H5zM10.5 17h3V4h-3zM16 17h3v-6h-3z",
+  estrela: "M12 2l3.1 6.3 6.9 1-5 4.9 1.2 6.8L12 17.8 5.8 21l1.2-6.8-5-4.9 6.9-1z",
+  alvo: "M12 2a10 10 0 1 0 0 20a10 10 0 1 0 0-20zm0 3a7 7 0 1 1 0 14a7 7 0 1 1 0-14zm0 3a4 4 0 1 0 0 8a4 4 0 1 0 0-8z",
+  info: "M12 2a10 10 0 1 0 0 20a10 10 0 1 0 0-20zM11 10h2v7h-2zm0-4h2v2h-2z",
+  lampada: "M12 2a7 7 0 0 0-4 12.7V17h8v-2.3A7 7 0 0 0 12 2zM9 19h6v2H9z",
+} as const;
+export type IconeId = keyof typeof ICONES;
+
 export interface CamadaForma extends CamadaBase {
   tipo: "forma";
-  forma: "ret" | "elipse";
-  estilo: { cor: string; raio?: number };
+  /** "gradiente": vertical fade from transparent (top) to `cor` (bottom); "icone": vector icon `estilo.icone`. */
+  forma: "ret" | "elipse" | "gradiente" | "icone";
+  estilo: { cor: string; raio?: number; icone?: IconeId };
+}
+
+/** Hex #rrggbb + alpha → rgba() string. */
+export function rgba(hex: string, a: number): string {
+  const n = parseInt(hex.slice(1, 7), 16);
+  return `rgba(${n >> 16},${(n >> 8) & 255},${n & 255},${a})`;
 }
 
 export type Camada = CamadaTexto | CamadaImagem | CamadaForma;
@@ -165,7 +184,7 @@ function validarCamada(v: unknown, onde: string, assets: Record<string, Asset>):
   };
   if (c.tipo === "texto") {
     const e = obj(c.estilo, `${onde}.estilo`);
-    if (e.peso !== 400 && e.peso !== 700) falha(`${onde}.estilo.peso: usa 400 ou 700.`);
+    if (e.peso !== 400 && e.peso !== 700 && e.peso !== 900) falha(`${onde}.estilo.peso: usa 400, 700 ou 900.`);
     if (e.alinh !== "esq" && e.alinh !== "centro" && e.alinh !== "dir") falha(`${onde}.estilo.alinh inválido.`);
     if (e.overflow !== "reduzir" && e.overflow !== "cortar") falha(`${onde}.estilo.overflow inválido.`);
     if (c.ref === undefined && c.texto === undefined) falha(`${onde}: texto sem ref nem conteúdo.`);
@@ -201,13 +220,14 @@ function validarCamada(v: unknown, onde: string, assets: Record<string, Asset>):
     };
   }
   if (c.tipo === "forma") {
-    if (c.forma !== "ret" && c.forma !== "elipse") falha(`${onde}.forma inválida.`);
+    if (c.forma !== "ret" && c.forma !== "elipse" && c.forma !== "gradiente" && c.forma !== "icone") falha(`${onde}.forma inválida.`);
     const e = obj(c.estilo, `${onde}.estilo`);
+    if (c.forma === "icone" && !(typeof e.icone === "string" && e.icone in ICONES)) falha(`${onde}.estilo.icone inválido.`);
     return {
       ...base,
       tipo: "forma",
       forma: c.forma,
-      estilo: { cor: cor(e.cor, `${onde}.estilo.cor`), raio: e.raio === undefined ? undefined : num(e.raio, `${onde}.estilo.raio`, 0, 1000) },
+      estilo: { cor: cor(e.cor, `${onde}.estilo.cor`), raio: e.raio === undefined ? undefined : num(e.raio, `${onde}.estilo.raio`, 0, 1000), icone: c.forma === "icone" ? e.icone as IconeId : undefined },
     };
   }
   return falha(`${onde}: tipo de camada desconhecido.`);
@@ -358,10 +378,12 @@ function posicionar(f: FonteOT, texto: string, tam: number, cada?: (g: GlifoOT, 
   return x;
 }
 
-export function criarMedidor(fontes: Record<Peso, FonteOT>, extras: Partial<Record<Familia, Partial<Record<Peso, FonteOT>>>> = {}): Medidor {
+export function criarMedidor(fontes: Record<400 | 700, FonteOT>, extras: Partial<Record<Familia, Partial<Record<Peso, FonteOT>>>> = {}): Medidor {
   // Missing weight of a family falls back to its other weight; unknown family falls back to Work Sans.
   const f = (peso: Peso, fam?: Familia): FonteOT => {
     const x = fam && fam !== "worksans" ? extras[fam] : undefined;
+    // 900 (Black) falls back to 700 when the family has no Black file.
+    if (peso === 900) return x?.[900] ?? x?.[700] ?? x?.[400] ?? fontes[700];
     return x?.[peso] ?? x?.[peso === 400 ? 700 : 400] ?? fontes[peso];
   };
   return {
@@ -515,7 +537,14 @@ export function paginaParaSvg(pacote: PacoteProva, variante: Variante, indice: n
   for (const c of camadasOrdenadas(pagina)) {
     const op = c.opacidade ?? 1;
     if (c.tipo === "forma") {
-      if (c.forma === "ret") {
+      if (c.forma === "gradiente") {
+        const gid = `g-${esc(c.id)}-${Math.round(c.y)}`;
+        partes.push(`<defs><linearGradient id="${gid}" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="${c.estilo.cor}" stop-opacity="0"/><stop offset="1" stop-color="${c.estilo.cor}" stop-opacity="1"/></linearGradient></defs>`);
+        partes.push(`<rect x="${r(c.x)}" y="${r(c.y)}" width="${r(c.w)}" height="${r(c.h)}" fill="url(#${gid})" opacity="${op}"/>`);
+      } else if (c.forma === "icone") {
+        const d = ICONES[c.estilo.icone ?? "seta"];
+        partes.push(`<path transform="translate(${r(c.x)} ${r(c.y)}) scale(${r(c.w / 24)} ${r(c.h / 24)})" d="${d}" fill="${c.estilo.cor}" fill-rule="evenodd" opacity="${op}"/>`);
+      } else if (c.forma === "ret") {
         partes.push(`<rect x="${r(c.x)}" y="${r(c.y)}" width="${r(c.w)}" height="${r(c.h)}" rx="${r(c.estilo.raio ?? 0)}" fill="${c.estilo.cor}" opacity="${op}"/>`);
       } else {
         partes.push(`<ellipse cx="${r(c.x + c.w / 2)}" cy="${r(c.y + c.h / 2)}" rx="${r(c.w / 2)}" ry="${r(c.h / 2)}" fill="${c.estilo.cor}" opacity="${op}"/>`);

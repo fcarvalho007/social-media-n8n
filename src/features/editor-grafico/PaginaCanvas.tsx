@@ -1,9 +1,9 @@
 import { useEffect, useRef, useState } from "react";
 import type Konva from "konva";
-import { Ellipse, Group, Image as KImage, Layer, Line, Rect, Shape, Stage, Transformer } from "react-konva";
+import { Ellipse, Group, Image as KImage, Layer, Line, Path, Rect, Shape, Stage, Transformer } from "react-konva";
 import { encaixar } from "./operacoes";
 import {
-  ALTURA, LARGURA, calcularRecorte, camadasOrdenadas, resolverTexto,
+  ALTURA, ICONES, LARGURA, calcularRecorte, rgba, camadasOrdenadas, resolverTexto,
   type Camada, type Medidor, type PacoteProva, type Variante,
 } from "../../../supabase/functions/_shared/documento-grafico/nucleo";
 import { desenharTexto } from "./desenho";
@@ -29,6 +29,8 @@ interface Props {
 
 function Conteudo({ c, pacote, medidor, imagens }: { c: Camada; pacote: PacoteProva; medidor: Medidor; imagens: Record<string, HTMLImageElement> }) {
   if (c.tipo === "forma") {
+    if (c.forma === "gradiente") return <Rect width={c.w} height={c.h} fillLinearGradientStartPoint={{ x: 0, y: 0 }} fillLinearGradientEndPoint={{ x: 0, y: c.h }} fillLinearGradientColorStops={[0, rgba(c.estilo.cor, 0), 1, rgba(c.estilo.cor, 1)]} />;
+    if (c.forma === "icone") return <><Rect width={c.w} height={c.h} fill="transparent" /><Path data={ICONES[c.estilo.icone ?? "seta"]} scaleX={c.w / 24} scaleY={c.h / 24} fill={c.estilo.cor} fillRule="evenodd" /></>;
     return c.forma === "ret"
       ? <Rect width={c.w} height={c.h} cornerRadius={c.estilo.raio ?? 0} fill={c.estilo.cor} />
       : <Ellipse x={c.w / 2} y={c.h / 2} radiusX={c.w / 2} radiusY={c.h / 2} fill={c.estilo.cor} />;

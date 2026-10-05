@@ -2,3 +2,4 @@
 - Engine exports run server-side per frozen document version (mc_export_trabalhos lease + content-addressed files in the existing social bucket, manifest committed only when complete); social drafts reuse one reserved id per version via mc_preparar_social, so retries/concurrency never duplicate.
 - Engine version-conflict refusals use SQLSTATE MC409, never 40001: PostgREST maps 40001 to 503 + Retry-After and clients retry forever.
 - Server PDF pages embed pre-rendered PNGs via native inflate/deflate (pngPdf.ts), not pdf-lib embedPng; embedPng exceeds the edge CPU budget on photographic pages.
+- Carousel models (motor/modelos.ts) rebuild page composition with "mod-"-prefixed decorations, pick sizes from per-model ladders with a readable floor and refuse (never cut) pages that do not fit; keeps text/refs/IDs intact and editor, preview and PNG/PDF identical through the shared core.

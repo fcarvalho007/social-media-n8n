@@ -7,18 +7,18 @@ export interface Estilo { id: EstiloId; nome: string; descricao: string; paleta:
 export type EstiloId = "editorial" | "contraste" | "revista" | "fotografico" | "minimalista" | "didatico";
 
 export const ESTILOS: readonly Estilo[] = [
-  { id: "editorial", nome: "Editorial", descricao: "Claro, régua de cor, hierarquia firme.", par: "montserrat-inter",
-    paleta: { fundo: "#f7f6f2", fundoCapa: "#3e5b46", titulo: "#16181d", texto: "#2b2f36", destaque: "#3e5b46", discreto: "#6b7280" } },
-  { id: "contraste", nome: "Contraste", descricao: "Fundo escuro e destaque vivo.", par: "grotesk-inter",
-    paleta: { fundo: "#121417", fundoCapa: "#121417", titulo: "#ffffff", texto: "#e5e7eb", destaque: "#f59e0b", discreto: "#9ca3af" } },
-  { id: "revista", nome: "Revista", descricao: "Serifa elegante, tons quentes.", par: "playfair-source",
-    paleta: { fundo: "#fbf7f0", fundoCapa: "#2a1f1a", titulo: "#2a1f1a", texto: "#4a3f38", destaque: "#b4532a", discreto: "#8a7b70" } },
-  { id: "fotografico", nome: "Fotográfico", descricao: "Pensado para imagens de fundo.", par: "montserrat-inter",
+  { id: "editorial", nome: "Editorial", descricao: "Grelha rigorosa, filetes finos, serifa.", par: "playfair-source",
+    paleta: { fundo: "#f7f5ef", fundoCapa: "#f7f5ef", titulo: "#141414", texto: "#2b2b2b", destaque: "#3e5b46", discreto: "#5f5f5f" } },
+  { id: "contraste", nome: "Contraste", descricao: "Painel preto assimétrico e acento vivo.", par: "montserrat-inter",
+    paleta: { fundo: "#f0f0ea", fundoCapa: "#0d0d0d", titulo: "#0d0d0d", texto: "#1c1c1c", destaque: "#c8ff2e", discreto: "#555555" } },
+  { id: "revista", nome: "Revista", descricao: "Título Black enorme, composição dramática.", par: "montserrat-inter",
+    paleta: { fundo: "#fbf2e6", fundoCapa: "#e8452c", titulo: "#1a1411", texto: "#2a211c", destaque: "#e8452c", discreto: "#6b5a4f" } },
+  { id: "fotografico", nome: "Fotográfico", descricao: "Imagem em página inteira, texto sobre gradiente.", par: "montserrat-inter",
     paleta: { fundo: "#0f1412", fundoCapa: "#0f1412", titulo: "#ffffff", texto: "#f1f5f2", destaque: "#a7c4b0", discreto: "#c7d2cb" } },
-  { id: "minimalista", nome: "Minimalista", descricao: "Muito espaço e uma só cor.", par: "plex",
-    paleta: { fundo: "#ffffff", fundoCapa: "#ffffff", titulo: "#111111", texto: "#333333", destaque: "#111111", discreto: "#8a8a8a" } },
-  { id: "didatico", nome: "Didático", descricao: "Claro e amigável, para explicar passos.", par: "dmserif-dmsans",
-    paleta: { fundo: "#eef4f8", fundoCapa: "#1d4e6f", titulo: "#10324a", texto: "#22414f", destaque: "#1d4e6f", discreto: "#5b7a8c" } },
+  { id: "minimalista", nome: "Minimalista", descricao: "Muito respiro, fundo claro, um só acento.", par: "montserrat-inter",
+    paleta: { fundo: "#ffffff", fundoCapa: "#ffffff", titulo: "#111111", texto: "#3a3a3a", destaque: "#c9502a", discreto: "#6e6e6e" } },
+  { id: "didatico", nome: "Didático", descricao: "Números grandes, ícones e progresso.", par: "montserrat-inter",
+    paleta: { fundo: "#eef4f8", fundoCapa: "#1d4e6f", titulo: "#10324a", texto: "#22414f", destaque: "#1d4e6f", discreto: "#4f6e80" } },
 ];
 
 export const obterEstilo = (id: unknown) => ESTILOS.find((e) => e.id === id) ?? null;
@@ -45,6 +45,7 @@ export function aplicarEstilo(doc: DocumentoGrafico, paleta: Paleta, parId: stri
     const fundo = capa ? paleta.fundoCapa : paleta.fundo;
     const sobreFundo = sobre(fundo);
     const camadas = p.camadas.map((c): Camada => {
+      if (c.id.startsWith("mod-")) return c; // model decorations keep the colours chosen by their model
       const motor = c.tipo === "texto" ? !!c.ref || c.id === "num" : c.tipo === "forma" && DECOR.has(c.id);
       if (!motor) {
         if (c.tipo !== "imagem") manuais++;
