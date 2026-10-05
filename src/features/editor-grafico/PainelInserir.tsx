@@ -122,7 +122,7 @@ export function PainelInserir({ aba, despachar, onImagem, projectId, pedirImagem
         <ul className="space-y-1.5">
           {ESTILOS.map((e) => (
             <li key={e.id}>
-              <button type="button" onClick={() => onEstilo(e)} aria-pressed={estiloAtual === e.id} className={`mc-trans flex min-h-11 w-full items-center gap-2 rounded-[var(--mc-r-md)] border px-3 ${estiloAtual === e.id ? "border-primary ring-1 ring-primary" : "border-border"}`} data-y="1" style={{}} ">
+              <button type="button" onClick={() => onEstilo(e)} aria-pressed={estiloAtual === e.id} className={`mc-trans flex min-h-11 w-full items-center gap-2 rounded-[var(--mc-r-md)] border px-3 text-left text-sm hover:border-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring ${estiloAtual === e.id ? "border-primary ring-1 ring-primary" : "border-border"}`}>
                 <span className="flex shrink-0 overflow-hidden rounded-sm border border-border" aria-hidden>
                   {[e.paleta.fundo, e.paleta.titulo, e.paleta.destaque].map((c) => <span key={c} className="h-5 w-3" style={{ background: c }} />)}
                 </span>
@@ -131,6 +131,7 @@ export function PainelInserir({ aba, despachar, onImagem, projectId, pedirImagem
             </li>
           ))}
         </ul>
+        {extraEstilos}
         {onComposicoes && <Button variant="outline" className="h-11 w-full" onClick={onComposicoes}>Composições deste slide…</Button>}
         {onComposicoes && <p className="text-xs text-muted-foreground">Abre o Design com este slide escolhido; o que já fizeste fica guardado.</p>}
       </div>
