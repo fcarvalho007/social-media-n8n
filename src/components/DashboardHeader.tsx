@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { Menu, ChevronRight, Settings, Search, Users, FileText, AlertTriangle, History, Sparkles } from 'lucide-react';
 import { Button } from '@/components/ui/button';
-import { useSidebar } from '@/components/ui/sidebar';
+import { MenuNavegacao } from '@/components/AppSidebar';
 import { useLocation, useSearchParams, useNavigate } from 'react-router-dom';
 import { useIsMobile } from '@/hooks/use-mobile';
 import { 
@@ -19,7 +19,7 @@ import { NotificationBell } from '@/components/NotificationBell';
 import { AICreditsBadge } from '@/components/ai/AICreditsBadge';
 
 export function DashboardHeader() {
-  const { setOpen, toggleSidebar } = useSidebar();
+  const [menuAberto, setMenuAberto] = useState(false);
   const location = useLocation();
   const [searchParams] = useSearchParams();
   const navigate = useNavigate();
@@ -29,20 +29,22 @@ export function DashboardHeader() {
   const activeTab = searchParams.get('tab');
   const getBreadcrumbs = (): { label: string; path: string | null }[] => {
     const p = location.pathname;
-    const E = { label: 'Estúdio', path: '/' };
-    const S = { label: 'Painel social', path: '/redes-sociais' };
-    if (p === '/') return [{ label: 'Estúdio', path: null }];
-    if (p === '/redes-sociais') return [E, { label: 'Painel social', path: null }];
-    if (p === '/estudio/redes-sociais') return [E, { label: 'Carrosséis', path: null }];
-    if (p.startsWith('/estudio/redes-sociais/')) return [E, { label: 'Carrosséis', path: '/estudio/redes-sociais' }, { label: 'Editor', path: null }];
-    if (p === '/estudio/carrosseis') return [E, { label: 'Carrosséis', path: null }];
-    if (p.startsWith('/estudio/carrosseis/')) return [E, { label: 'Carrosséis', path: '/estudio/carrosseis' }, { label: 'Carrossel', path: null }];
+    const E = { label: 'Painel', path: '/' };
+    const S = { label: 'Atividade social', path: '/redes-sociais' };
+    const C = { label: 'Criar SM', path: '/pending?tab=create' };
+    if (p === '/') return [{ label: 'Painel', path: null }];
+    if (p === '/redes-sociais') return [E, { label: 'Atividade social', path: null }];
+    if (p === '/estudio/redes-sociais') return [C, { label: 'Carrosséis da crónica', path: null }];
+    if (p.startsWith('/estudio/redes-sociais/')) return [C, { label: 'Carrosséis da crónica', path: '/estudio/redes-sociais' }, { label: 'Editor', path: null }];
+    if (p === '/estudio/carrosseis') return [C, { label: 'Meus carrosséis', path: null }];
+    if (p === '/estudio/carrosseis/novo') return [C, { label: 'Criar carrossel', path: null }];
+    if (p.startsWith('/estudio/carrosseis/')) return [C, { label: 'Meus carrosséis', path: '/estudio/carrosseis' }, { label: 'Carrossel', path: null }];
     if (p === '/estudio/ligacoes') return [E, { label: 'Ligações', path: null }];
     if (p === '/newsletter/migracao') return [E, { label: 'Newsletter', path: '/newsletter' }, { label: 'Migração', path: null }];
     if (p.startsWith('/newsletter/')) return [E, { label: 'Newsletter', path: '/newsletter' }, { label: 'Detalhe', path: null }];
     if (p === '/newsletter') return [E, { label: 'Newsletter', path: null }];
     if (p === '/artigos') return [E, { label: 'Artigos', path: null }];
-    if (p === '/manual-create') return [E, { label: 'Publicação livre', path: null }];
+    if (p === '/manual-create') return [C, { label: 'Manual', path: null }];
     if (p === '/definicoes/seguranca') return [E, { label: 'Segurança da conta', path: null }];
     if (p === '/users') return [S, { label: 'Utilizadores', path: null }];
     if (p === '/projects') return [E, { label: 'Projetos', path: null }];
@@ -51,9 +53,9 @@ export function DashboardHeader() {
       if (activeTab === 'create') {
         const mode = localStorage.getItem('preferredCreationMode');
         const modeLabel = mode === 'manual' ? 'Manual' : mode === 'ia' ? 'IA' : '';
-        return [S, { label: 'Criar', path: null }, ...(modeLabel ? [{ label: modeLabel, path: null }] : [])];
+        return [E, { label: 'Criar SM', path: null }, ...(modeLabel ? [{ label: modeLabel === 'IA' ? 'Assistido por IA' : modeLabel, path: null }] : [])];
       }
-      return [S, { label: 'Pendentes', path: null }];
+      return [E, { label: 'Aprovar', path: null }];
     }
     if (p.startsWith('/review')) return [S, { label: 'Revisão', path: null }];
     return [S];
@@ -71,15 +73,16 @@ export function DashboardHeader() {
       <div className="flex h-12 w-full min-w-0 items-center justify-between gap-1 px-2 xs:h-14 xs:gap-2 xs:px-3 sm:h-16 sm:gap-3 sm:px-4 md:px-6 xl:px-10">
         {/* Left: Mobile Menu + Breadcrumb */}
         <div className="flex items-center gap-2 md:gap-4 flex-1 min-w-0">
+          <MenuNavegacao open={menuAberto} onOpenChange={setMenuAberto} gatilho={
           <Button
             variant="ghost"
             size="icon"
             className="h-10 w-10 xs:h-11 xs:w-11 min-h-[40px] min-w-[40px] touch-target rounded-lg hover:bg-primary/10 active:scale-95 transition-transform duration-150"
-            onClick={() => toggleSidebar()}
-            aria-label="Menu"
+            aria-label="Abrir menu"
           >
             <Menu className="h-5 w-5 xs:h-6 xs:w-6" />
           </Button>
+          } />
 
           <nav className="flex items-center gap-1 sm:gap-2 text-xs sm:text-sm overflow-x-auto scrollbar-hide min-w-0">
             {displayBreadcrumbs.map((crumb, index) => (
