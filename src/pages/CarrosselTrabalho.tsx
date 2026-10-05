@@ -17,7 +17,7 @@ import { EditorGrafico } from "@/features/editor-grafico/EditorGrafico";
 import { PaginaCanvas } from "@/features/editor-grafico/PaginaCanvas";
 import { carregarMedidor } from "@/features/editor-grafico/fontes";
 import { aplicarResultado, calcularGravacao, type Extras, type Gravado } from "@/features/motor/gravacao";
-import { layoutTexto, resolverTexto, type Medidor, type PacoteProva, type Variante } from "../../supabase/functions/_shared/documento-grafico/nucleo";
+import { colisoes, layoutTexto, resolverTexto, type Medidor, type PacoteProva, type Variante } from "../../supabase/functions/_shared/documento-grafico/nucleo";
 import { normalizarFonte, paraPacote, type PropostaEditorial } from "../../supabase/functions/_shared/motor/proposta";
 import { dataPt, NOME_ESTADO } from "./Carrosseis";
 import { PainelEstruturas } from "@/features/motor/PainelEstruturas";
