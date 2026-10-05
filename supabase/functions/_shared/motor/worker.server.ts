@@ -6,6 +6,9 @@ import {
   comporDocumentos, estruturarSemIa, marcaDoProjeto, MARCADOR_FALHA, MARCADOR_FIXTURE, MODELO_DEMO, MODELO_ESTRUTURACAO,
   normalizarFonte, respostaDemo, validarRespostaModelo, type Brief, type PropostaEditorial,
 } from "./proposta.ts";
+import { MENSAGEM_SEM_ALTERNATIVA, promptSistemaSlide, promptUtilizadorSlide, propostaComSlide, respostaDemoSlide, validarRespostaSlide } from "./regenerar.ts";
+import { linhasBriefing, normalizarBriefing } from "./briefing.ts";
+import { normalizarLeitura, normalizarPerfil, regrasAutor } from "./autor.ts";
 
 export function admin(): SupabaseClient {
   return createClient(Deno.env.get("SUPABASE_URL")!, Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!, { auth: { persistSession: false } });
@@ -36,6 +39,7 @@ async function obterProposta(sb: SupabaseClient, t: Trabalho, texto: string, cit
   const { data: prop } = await sb.from("mc_propostas").select("id, versao_actual").eq("trabalho_id", t.id).single();
   if ((prop?.versao_actual ?? 0) > 0) return; // already persisted (idempotent)
   const fonte = normalizarFonte(texto);
+  const regen = t.brief.regen ?? null;
 
   if (t.modelo === MODELO_ESTRUTURACAO) {
     const p = estruturarSemIa(fonte, t.brief, citacao, marca);
@@ -70,7 +74,7 @@ async function obterProposta(sb: SupabaseClient, t: Trabalho, texto: string, cit
     let resposta: string;
     if (t.modelo === MODELO_DEMO) {
       await rpc(sb, "mc_registar_chamada", { _chamada_id: id, _estado: "pedido_enviado" });
-      resposta = respostaDemo(fonte, t.brief);
+      resposta = regen ? respostaDemoSlide(fonte, regen) : respostaDemo(fonte, t.brief);
       await rpc(sb, "mc_registar_chamada", { _chamada_id: id, _estado: "resposta_recebida", _resposta: resposta, _custo_eur: 0, _custo_incerto: false });
     } else {
       if (!Deno.env.get("DEEPSEEK_API_KEY")) {
@@ -78,7 +82,10 @@ async function obterProposta(sb: SupabaseClient, t: Trabalho, texto: string, cit
         throw Object.assign(new Error("A DeepSeek não está configurada no servidor (DEEPSEEK_API_KEY em falta)."), { terminal: true });
       }
       await rpc(sb, "mc_registar_chamada", { _chamada_id: id, _estado: "pedido_enviado" });
-      const r = await chamarGateway(t.modelo, promptSistema(t.brief.framework, t.brief.autor ?? null, t.brief.leitura === true, t.brief.leitura_trabalho ?? null), promptUtilizador(fonte.paragrafos, { slides: t.brief.slides ?? 5, objetivo: t.brief.objetivo, tom: t.brief.tom, titulo: citacao.titulo, briefing: t.brief.briefing ?? null }, erroAnterior));
+      const r = regen
+        ? await chamarGateway(t.modelo, promptSistemaSlide(regen.modo, t.brief.autor ? regrasAutor(normalizarPerfil(t.brief.autor), t.brief.leitura === true, t.brief.leitura_trabalho ? normalizarLeitura(t.brief.leitura_trabalho.angulo, t.brief.leitura_trabalho.especifica) : null) : null),
+          [...(t.brief.briefing ? linhasBriefing(normalizarBriefing(t.brief.briefing)) : []), promptUtilizadorSlide(fonte.paragrafos, regen, erroAnterior)].join("\n"))
+        : await chamarGateway(t.modelo, promptSistema(t.brief.framework, t.brief.autor ?? null, t.brief.leitura === true, t.brief.leitura_trabalho ?? null), promptUtilizador(fonte.paragrafos, { slides: t.brief.slides ?? 5, objetivo: t.brief.objetivo, tom: t.brief.tom, titulo: citacao.titulo, briefing: t.brief.briefing ?? null }, erroAnterior));
       if (r.tipo === "recusado") {
         await rpc(sb, "mc_registar_chamada", { _chamada_id: id, _estado: "recusada", _custo_incerto: false, _erro: `${r.classe} HTTP ${r.status}` });
         throw Object.assign(new Error(MENSAGEM_RECUSA[r.classe]), { terminal: true });
@@ -95,7 +102,8 @@ async function obterProposta(sb: SupabaseClient, t: Trabalho, texto: string, cit
   }
   if (ch.estado === "resposta_recebida") {
     try {
-      validarRespostaModelo(ch.resposta_bruta ?? "", fonte, t.modelo === MODELO_DEMO ? undefined : t.brief.slides);
+      if (regen) validarRespostaSlide(ch.resposta_bruta ?? "", fonte, regen);
+      else validarRespostaModelo(ch.resposta_bruta ?? "", fonte, t.modelo === MODELO_DEMO ? undefined : t.brief.slides);
       await rpc(sb, "mc_registar_chamada", { _chamada_id: ch.id, _estado: "valida", _custo_incerto: t.modelo !== MODELO_DEMO });
       ch.estado = "valida";
     } catch (e) {
@@ -113,6 +121,13 @@ async function obterProposta(sb: SupabaseClient, t: Trabalho, texto: string, cit
     }
   }
   const demo = t.modelo === MODELO_DEMO;
+  if (regen) {
+    const rs = validarRespostaSlide(ch.resposta_bruta ?? "", fonte, regen);
+    // A valid "no alternative" answer is final for this request (it was paid); nothing is stored.
+    if (rs.tipo === "sem_alternativa") throw Object.assign(new Error(MENSAGEM_SEM_ALTERNATIVA), { terminal: true });
+    await rpc(sb, "mc_gravar_proposta_servidor", { _trabalho_id: t.id, _lease: t.lease_token, _conteudo: propostaComSlide(regen, rs, demo ? "demonstracao" : "ia"), _origem: demo ? "demonstracao" : "ia", _chamada_id: ch.id });
+    return;
+  }
   const r = validarRespostaModelo(ch.resposta_bruta ?? "", fonte, demo ? undefined : t.brief.slides);
   const base = estruturarSemIa(fonte, t.brief, citacao, marca);
   const p: PropostaEditorial = {
