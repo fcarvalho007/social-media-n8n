@@ -319,6 +319,11 @@ Deno.serve(async (req) => {
     if (!doc) return json({ error: "Sem acesso a este carrossel." }, 403);
 
     if (acao === "exportar") {
+      // Pre-flight: a version that still shows the "Imagem por escolher" placeholder never becomes a final file.
+      const { data: dv } = await user.from("mc_documentos_versoes").select("documento").eq("documento_id", docId).eq("versao", versao).maybeSingle();
+      const { paginasComMarcador } = await import("../_shared/motor/modelos.ts");
+      const marc = dv ? paginasComMarcador(dv.documento as never) : [];
+      if (marc.length) return json({ error: `A página ${marc.join(", ")} ainda mostra «Imagem por escolher». Escolhe uma imagem ou muda de modelo antes de exportar.`, codigo: "imagem_por_escolher", paginas: marc }, 422);
       const { data, error } = await user.rpc("mc_pedir_exportacao", { _documento_id: docId, _versao: versao });
       if (error) return json({ error: error.code === "42501" ? "Sem permissão para exportar neste projeto." : error.code === "P0002" ? "Versão inexistente." : "Não foi possível pedir a exportação." }, error.code === "42501" ? 403 : 400);
       emSegundoPlano(corridaExport());
@@ -355,6 +360,9 @@ Deno.serve(async (req) => {
       let pags: number[];
       try { pags = paginasComTransbordo(docId, pvx.conteudo as unknown as PropostaEditorial, dvx.documento as never); }
       catch { return json({ error: "Não foi possível verificar o texto desta versão." }, 503); }
+      const { paginasComMarcador } = await import("../_shared/motor/modelos.ts");
+      const marc = paginasComMarcador(dvx.documento as never);
+      if (marc.length) return json({ error: `A página ${marc.join(", ")} ainda mostra «Imagem por escolher».`, codigo: "imagem_por_escolher", paginas: marc }, 422);
       if (pags.length) return json({ error: `O texto não cabe na página ${pags.join(", ")}. Encurta o texto na Narrativa ou ajusta as caixas na Composição antes de aprovar.`, codigo: "texto_nao_cabe", paginas: pags }, 422);
     }
     const { data: r, error: er } = await user.rpc("mc_preparar_social", { _documento_id: docId, _versao: versao, _proposta_versao: propostaVersao });
