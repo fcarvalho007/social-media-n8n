@@ -13,12 +13,13 @@ export interface EstadoIdioma { estrangeiro: boolean; escolha: EscolhaIdioma; tr
  * Foreign-source handling: honest detection, side-by-side original/PT-PT, one confirmed paid request per
  * source hash, stored translation reused for free. Stale responses for an older source are discarded.
  */
-export function PainelIdioma({ projectId, texto, iaDisponivel, onEstado }: { projectId: string; texto: string; iaDisponivel: boolean; onEstado: (e: EstadoIdioma) => void }) {
+export function PainelIdioma({ projectId, texto, iaDisponivel, onEstado, escolhaInicial = "pt" }: { projectId: string; texto: string; iaDisponivel: boolean; escolhaInicial?: EscolhaIdioma; onEstado: (e: EstadoIdioma) => void }) {
   const fonte = useMemo(() => normalizarFonte(texto), [texto]);
   const det = useMemo(() => detetarIdioma(fonte.texto), [fonte.texto]);
   const estrangeiro = det.idioma !== "pt";
   const [hash, setHash] = useState<string | null>(null);
-  const [escolha, setEscolha] = useState<EscolhaIdioma>("pt");
+  const [escolha, setEscolha] = useState<EscolhaIdioma>(escolhaInicial);
+  useEffect(() => { setEscolha(escolhaInicial); }, [escolhaInicial]);
   const [trad, setTrad] = useState<{ hash: string; id: string; paragrafos: string[] } | null>(null);
   const [fase, setFase] = useState<"inicio" | "confirmar" | "a_traduzir" | "erro">("inicio");
   const [erro, setErro] = useState<string | null>(null);
@@ -70,18 +71,19 @@ export function PainelIdioma({ projectId, texto, iaDisponivel, onEstado }: { pro
         <span className="text-muted-foreground">O carrossel é sempre escrito em PT-PT; o original fica guardado sem alterações.</span>
       </div>
       <div role="radiogroup" aria-label="Como usar a fonte" className="flex flex-wrap gap-2">
-        {([["pt", "Avançar em PT-PT"], ["original", "Usar língua original"]] as const).map(([id, nomeOp]) => (
+        {([["pt", "Avançar em PT-PT"], ["original", "Usar original como fonte"]] as const).map(([id, nomeOp]) => (
           <button key={id} type="button" role="radio" aria-checked={escolha === id} onClick={() => setEscolha(id)}
             className={cn("min-h-11 rounded-full border px-4 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
-              escolha === id ? "border-primary bg-primary/10 font-medium" : "border-input text-muted-foreground")}>{nomeOp}</button>
+              escolha === id ? (id === "pt" ? "border-primary bg-primary font-medium text-primary-foreground" : "border-primary bg-primary/10 font-medium") : "border-input text-muted-foreground")}>{nomeOp}</button>
         ))}
         {valida && <Button type="button" variant="ghost" className="h-11" aria-expanded={rever} onClick={() => setRever((v) => !v)}>{rever ? "Esconder tradução" : "Rever tradução"}</Button>}
       </div>
 
+      {escolha === "original" && <p className="text-xs text-muted-foreground">O original é usado só como fonte. O carrossel continua em PT-PT.</p>}
       {escolha === "pt" && !valida && (
         <div className="space-y-2" aria-live="polite">
           {!iaDisponivel ? (
-            <p className="text-xs text-muted-foreground">A IA não está disponível hoje neste projeto, por isso não é possível preparar a versão PT-PT. Escolhe «Usar língua original» ou ajusta os limites.</p>
+            <p className="text-xs text-muted-foreground">A IA não está disponível hoje neste projeto, por isso não é possível preparar a versão PT-PT. Escolhe «Usar original como fonte» (o carrossel continua em PT-PT) ou ajusta os limites.</p>
           ) : fase === "a_traduzir" ? (
             <p className="flex items-center gap-2 text-xs"><Loader2 className="h-4 w-4 motion-safe:animate-spin" aria-hidden />A preparar versão PT-PT…</p>
           ) : fase === "confirmar" ? (

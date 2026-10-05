@@ -46,7 +46,7 @@ export function LimitesIa({ projectId, onAlterado }: { projectId: string; onAlte
       </div>
       {aberto && (
         <div className="mt-3 space-y-3 border-t border-border pt-3">
-          {uso && <p className="text-xs">Hoje, por ação: geração {uso.geracao} · correção {uso.reparacao} · tradução {uso.traducao}. Limite interno: {o.maxDia} por dia e {o.maxTrabalho} por carrossel. Escolher opções ou reutilizar uma tradução guardada não gasta pedidos.</p>}
+          {uso && <p className="text-xs">Hoje, por ação: geração {uso.geracao} · correção {uso.reparacao} · tradução {uso.traducao}. Limite interno: {o.maxDia} por dia no projeto e até {o.maxTrabalho} por ação (cada geração, estrutura ou tradução, incluindo a correção). Cada estrutura pedida é uma ação própria. Escolher opções ou reutilizar uma tradução guardada não gasta pedidos.</p>}
           <p className="text-xs text-muted-foreground">
             Fornecedor e modelo: {MODELO_IA_NOME}. Estes limites são da própria app, para controlar custos; não são créditos da Lovable. Cada pedido é cobrado pela DeepSeek à conta associada à chave do servidor, e o valor exato só aparece nessa conta, por isso aqui contam-se pedidos e não euros.
             Contam todos os pedidos de texto do motor: gerar um carrossel, cada proposta de estrutura (reformulação) e a correção automática de uma resposta inválida e cada tradução de fonte. Cada trabalho usa 1 pedido, ou 2 com correção. Um pedido com resultado desconhecido conta e não é repetido sozinho. 0 por dia desliga a IA.
@@ -56,7 +56,7 @@ export function LimitesIa({ projectId, onAlterado }: { projectId: string; onAlte
             <div className="space-y-1"><Label htmlFor="lim-trab">Por carrossel (1–2)</Label><Input id="lim-trab" type="number" min={1} max={2} className="h-11 w-28 sm:h-9" value={trab} onChange={(e) => setTrab(e.target.value)} /></div>
             <Button className="h-11 sm:h-9" disabled={aGravar} onClick={() => {
               const d = Number(dia), t = Number(trab);
-              if (!Number.isInteger(d) || d < 0 || d > 10 || !Number.isInteger(t) || t < 1 || t > 2) { setMsg("Usa 0 a 10 por dia e 1 ou 2 por carrossel."); return; }
+              if (!Number.isInteger(d) || d < 0 || d > 10 || !Number.isInteger(t) || t < 1 || t > 2) { setMsg("Usa 0 a 10 por dia e 1 ou 2 por ação."); return; }
               gravar(d, t);
             }}>Gravar limites</Button>
           </div>
