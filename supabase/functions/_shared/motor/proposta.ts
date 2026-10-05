@@ -185,14 +185,14 @@ function tamTexto(t: string): number {
 }
 
 const txt = (id: string, ref: string, x: number, y: number, w: number, h: number, tam: number, peso: 400 | 700, cor: string, alinh: "esq" | "centro" = "esq", z = 10): Camada => ({
-  id, tipo: "texto", ref, x, y, w, h, z, estilo: { peso, tam, linha: peso === 700 ? 1.12 : 1.38, alinh, cor, overflow: "cortar", tamMin: tam },
+  id, tipo: "texto", ref, x, y, w, h, z, estilo: { peso, familia: peso === 700 ? "montserrat" : "inter", tam, linha: peso === 700 ? 1.12 : 1.38, alinh, cor, overflow: "cortar", tamMin: tam },
 });
 const ret = (id: string, x: number, y: number, w: number, h: number, cor: string, z = 1, raio = 0, opacidade?: number): Camada => ({
   id, tipo: "forma", forma: "ret", x, y, w, h, z, opacidade, estilo: { cor, raio },
 });
 const numeroPagina = (i: number, total: number, cor: string, x: number, alinh: "esq" | "centro"): Camada => ({
   id: `num`, tipo: "texto", texto: `${i + 1}/${total}`, x, y: 1250, w: 200, h: 44, z: 20,
-  estilo: { peso: 400, tam: 26, linha: 1.2, alinh, cor, overflow: "cortar", tamMin: 26 },
+  estilo: { peso: 400, familia: "inter", tam: 26, linha: 1.2, alinh, cor, overflow: "cortar", tamMin: 26 },
 });
 
 /** Variant A — "Editorial claro": light page, accent rule, left-aligned hierarchy. */
