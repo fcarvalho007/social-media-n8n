@@ -16,6 +16,7 @@ import { criarTrabalho, lerLinkFonte, MODELO_IA_NOME, type OrcamentoIa } from "@
 import { acoesFalhaLink, dominioDe, formatarNumero, resumoLeitura } from "@/features/motor/lerPagina";
 import { comporFontePdf, ErroPdf, lerPdf, NOME_ESTADO_PAGINA, type PdfLido } from "@/features/motor/fontePdf";
 import { HOSTS_LINK, intervalos, type LinkFalhado, type LinkLido, type MetaLink, type MetaPdf } from "../../supabase/functions/_shared/motor/fontes";
+import { ANGULOS, MAX_LEITURA_ESPECIFICA, type Angulo } from "../../supabase/functions/_shared/motor/autor";
 import { PerfilAutorPainel } from "@/features/motor/PerfilAutorPainel";
 import { LimitesIa } from "@/features/motor/LimitesIa";
 import { BarraAcoes, Cabecalho, Etapas, Grupo, Quadro } from "@/features/motor/Estudio";
@@ -60,6 +61,8 @@ export default function CarrosselNovo() {
   const [detalhe, setDetalhe] = useState("");
   const [tom, setTom] = useState("");
   const [confirmarIa, setConfirmarIa] = useState(false);
+  const [angulo, setAngulo] = useState<Angulo | null>(null);
+  const [leituraEsp, setLeituraEsp] = useState("");
   const [slides, setSlides] = useState<number | null>(null);
   const [demo, setDemo] = useState(false);
   const [tocado, setTocado] = useState(false);
@@ -199,7 +202,7 @@ export default function CarrosselNovo() {
     const o = OBJETIVOS.find((x) => x.id === objetivo)!;
     const objetivoTxt = detalhe.trim() ? `${o.nome}: ${detalhe.trim()}` : `${o.nome} — ${o.desc}`;
     try {
-      const r = await criarTrabalho({ project_id: alvo, texto, titulo, objetivo: objetivoTxt.slice(0, 200), tom, slides: nSlides, modo: demo ? "demonstracao" : comIa ? "ia" : "estruturacao",
+      const r = await criarTrabalho({ project_id: alvo, texto, titulo, objetivo: objetivoTxt.slice(0, 200), tom, slides: nSlides, ...(comIa ? { angulo, leitura_especifica: leituraEsp.trim() } : {}), modo: demo ? "demonstracao" : comIa ? "ia" : "estruturacao",
         fonte_tipo: demo ? "texto" : tipoFonte,
         metadados: demo || tipoFonte === "texto" ? undefined
           : tipoFonte === "link" ? { ...linkMeta!, editado: linkMeta!.modo === "referencia" || texto !== original }
@@ -410,6 +413,20 @@ export default function CarrosselNovo() {
                   );
                 })}
               </div>
+              {comIa && (
+                <div className="space-y-2" aria-label="Ângulo da leitura">
+                  <p className="text-sm font-medium">Ângulo <span className="font-normal text-muted-foreground">(opcional)</span></p>
+                  <div className="flex flex-wrap gap-2" role="radiogroup" aria-label="Ângulo">
+                    {ANGULOS.map((a) => (
+                      <button key={a.id} type="button" role="radio" aria-checked={angulo === a.id} onClick={() => setAngulo(angulo === a.id ? null : a.id)}
+                        className={cn("min-h-11 rounded-full border px-3 text-sm sm:min-h-9 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
+                          angulo === a.id ? "border-primary bg-primary/10 font-medium" : "border-input text-muted-foreground")}>{a.nome}</button>
+                    ))}
+                  </div>
+                  <Label htmlFor="leitura-esp" className="text-sm">A tua leitura desta fonte <span className="font-normal text-muted-foreground">(opcional)</span></Label>
+                  <Input id="leitura-esp" className="h-11" maxLength={MAX_LEITURA_ESPECIFICA} value={leituraEsp} onChange={(e) => setLeituraEsp(e.target.value)} placeholder="Por exemplo: isto só compensa com processos bem definidos" />
+                </div>
+              )}
             </div>
 
             <div className="space-y-2">
