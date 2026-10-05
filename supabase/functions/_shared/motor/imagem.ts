@@ -124,8 +124,15 @@ function alturaTexto(c: CamadaTexto, conteudo: ConteudoEditorial, w: number, m?:
   // Never shrink: measure at the current size only.
   const l = layoutTexto(t, { ...c.estilo, tamMin: c.estilo.tam, maxLinhas: undefined }, w, 4000, m);
   // A word split across lines means the column is too narrow for this size: refuse instead.
-  const inteiras = new Set(l.linhas.flatMap((x) => x.texto.split(/\s+/)));
-  if (t.split(/\s+/).filter(Boolean).some((p) => !inteiras.has(p))) return null;
+  const norm = t.replace(/\s+/g, " ").trim();
+  let pos = 0;
+  for (let i = 0; i < l.linhas.length - 1; i++) {
+    const seg = ((i === 0 && l.capitular ? l.capitular.texto : "") + l.linhas[i].texto).replace(/\s+/g, " ").trim();
+    const at = norm.indexOf(seg, pos);
+    if (at < 0) break;
+    pos = at + seg.length;
+    if (pos < norm.length && norm[pos] !== " " && !/[-–—/]$/.test(seg)) return null;
+  }
   return Math.ceil(l.linhas.length * l.alturaLinha) + 8;
 }
 
