@@ -266,9 +266,11 @@ export interface PropsEditorGrafico {
   faixaTopo?: ReactNode;
   /** Real work: inline library + Kie in the Imagens rail. */
   projectId?: string;
+  /** Opens the per-slide compositions for the current variant/page. */
+  onComposicoes?: (variante: Variante, pagina: number) => void;
 }
 
-export function EditorGrafico({ pacoteInicial, chaveLocal, titulo, seletor, real = false, estadoGravacao, cabecalhoInicio, menuExtra, onAlterado, faixaTopo, pedirImagem, projectId }: PropsEditorGrafico) {
+export function EditorGrafico({ pacoteInicial, chaveLocal, titulo, seletor, real = false, estadoGravacao, cabecalhoInicio, menuExtra, onAlterado, faixaTopo, pedirImagem, projectId, onComposicoes }: PropsEditorGrafico) {
   const { user } = useAuth();
   const [compacto, setCompacto] = useState(() => typeof window !== "undefined" && window.innerWidth < 1180);
   const [estado, despachar] = useReducer(reduzir, pacoteInicial, estadoInicial);
@@ -642,6 +644,7 @@ export function EditorGrafico({ pacoteInicial, chaveLocal, titulo, seletor, real
 
   const inserir = (a: AbaInserir) => (
     <PainelInserir aba={a} despachar={despachar} projectId={projectId} pedirImagem={onImagem} onEstilo={aplicarEstiloVariante}
+      onComposicoes={onComposicoes ? () => onComposicoes(variante, pagina) : undefined}
       onImagem={(r) => despachar({ tipo: "adicionarImagem", asset: r.asset, nome: r.nome })} />
   );
 
