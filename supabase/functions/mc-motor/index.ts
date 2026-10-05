@@ -9,7 +9,8 @@ import { processarExportacoes, urlPublico } from "../_shared/motor/exportacao.se
 import { linhaRascunho, nomePagina } from "../_shared/motor/exportacao.ts";
 import type { PropostaEditorial } from "../_shared/motor/proposta.ts";
 import { atribuicao, validarMetaFonte, type MetaFonte } from "../_shared/motor/fontes.ts";
-import { carregarImagem, lerLink, registarImagem, resolverAssets } from "../_shared/motor/fontes.server.ts";
+import { lerLink, registarImagem, resolverAssets } from "../_shared/motor/fontes.server.ts";
+import { carregarImagem } from "../_shared/motor/carregar.server.ts";
 import { chaveKie, criarTarefaKie, estadoTarefaKie, KIE_MODELO, KIE_MAX_DIA, KIE_PROPORCAO } from "../_shared/motor/kie.server.ts";
 import { obterFramework } from "../_shared/motor/frameworks.ts";
 import { avaliarFonte, MARCADOR_FIXTURE, MODELO_DEMO, MODELO_ESTRUTURACAO, MODELO_IA, normalizarFonte } from "../_shared/motor/proposta.ts";

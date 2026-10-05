@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 import { assinatura, LIMITES_CARREGAR, validarDimensoes, validarFicheiro } from "@/features/editor-grafico/carregar";
 import { estadoInicial, reduzir } from "@/features/editor-grafico/estado";
 import { FIXTURES } from "@/features/editor-grafico/fixtures";
-import { carregarImagem, nomeCarregado } from "../../supabase/functions/_shared/motor/fontes.server";
+import { carregarImagem, nomeCarregado } from "../../supabase/functions/_shared/motor/carregar.server";
 
 // 1×1 synthetic PNG (fixture only).
 const PNG_B64 = "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8DwHwAFBQIAX8jx0gAAAABJRU5ErkJggg==";
