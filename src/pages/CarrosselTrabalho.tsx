@@ -467,6 +467,10 @@ export default function CarrosselTrabalho() {
           </section>
         )}
 
+        {passo === "design" && pronto && pacote && medidor && (
+          <PassoDesign pacote={pacote} medidor={medidor} onAplicar={(p) => { setPacote(p); toast.success("Estilo aplicado — a gravar nova versão"); }} />
+        )}
+
         {passo === "revisao" && pronto && pacote && (
           <RevisaoExportacao dados={dados} pacote={pacote} medidor={medidor} guardado={estadoG === "guardado"} irPara={irPara} />
         )}
@@ -474,9 +478,12 @@ export default function CarrosselTrabalho() {
 
       {pronto && passo !== "revisao" && (
         <BarraAcoes
-          inicio={passo === "narrativa" && <Button variant="ghost" className="h-11" onClick={() => setPasso("fonte")}><ArrowLeft className="mr-1.5 h-4 w-4" />Fonte</Button>}
+          inicio={passo === "narrativa" ? <Button variant="ghost" className="h-11" onClick={() => setPasso("fonte")}><ArrowLeft className="mr-1.5 h-4 w-4" />Fonte</Button>
+            : passo === "design" ? <Button variant="ghost" className="h-11" onClick={() => setPasso("narrativa")}><ArrowLeft className="mr-1.5 h-4 w-4" />Narrativa</Button> : null}
           fim={passo === "fonte"
             ? <Button className="h-11 px-5" onClick={() => setPasso("narrativa")}>Narrativa<ArrowRight className="ml-1.5 h-4 w-4" /></Button>
+            : passo === "narrativa"
+            ? <Button className="h-11 px-5" onClick={() => setPasso("design")}>Design<ArrowRight className="ml-1.5 h-4 w-4" /></Button>
             : <Button className="h-11 px-5" onClick={() => setPasso("composicao")} aria-label="Continuar para composição"><span className="sm:hidden">Composição</span><span className="hidden sm:inline">Continuar para composição</span><ArrowRight className="ml-1.5 h-4 w-4" /></Button>}
         />
       )}
