@@ -10,7 +10,7 @@ import { cn } from "@/lib/utils";
 import { Grupo } from "./Estudio";
 import { PARES_FONTES, transbordos, type Medidor, type PacoteProva, type Variante } from "../../../supabase/functions/_shared/documento-grafico/nucleo";
 import { aplicarEstilo, ESTILOS, type Estilo, type EstiloId, type Paleta } from "../../../supabase/functions/_shared/motor/estilos";
-import { aplicarModelo, type ResultadoPacoteModelo } from "../../../supabase/functions/_shared/motor/modelos";
+import { adaptarCorNotas, aplicarModelo, notasIlegiveis, type ResultadoPacoteModelo } from "../../../supabase/functions/_shared/motor/modelos";
 import { composicoesPagina, contrastesFracos, formatarRazao, NOME_RITMO, type ComposicaoId, type OpcaoComposicao, type SlideRitmo } from "../../../supabase/functions/_shared/motor/composicoes";
 import { aplicarComposicaoSlide, previaPagina, slideDaPagina, sugerirRitmo, type SugestaoRitmo } from "./variacoes";
 
@@ -102,6 +102,8 @@ export function PassoDesign({ pacote, medidor, onAplicar, slides, paragrafos, in
     setOpcoes(null); setCompSel(null);
   };
   const podeRitmo = !!slides?.length && !!paragrafos?.length;
+  const notas = useMemo(() => ({ A: notasIlegiveis(pacote.variantes.A), B: notasIlegiveis(pacote.variantes.B) }), [pacote]);
+  const nNotas = notas.A.length + notas.B.length;
 
   return (
     <section className="mc-entrar space-y-6" aria-labelledby="t-design">
@@ -109,6 +111,17 @@ export function PassoDesign({ pacote, medidor, onAplicar, slides, paragrafos, in
         <h1 id="t-design" className="text-2xl font-semibold tracking-tight">Design</h1>
         <p className="text-xs text-muted-foreground">{ambito === "slide" ? "O texto não muda. Nada é aplicado até carregares em «Aplicar só ao slide»." : "O texto não muda. Nada é aplicado até carregares em «Aplicar estilo»."}</p>
       </div>
+
+      {nNotas > 0 && (
+        <div role="note" className="flex flex-wrap items-center gap-3 rounded-[var(--mc-r-md)] border border-border p-3 text-sm">
+          <p className="min-w-0 flex-1">
+            {nNotas === 1 ? "Uma nota acrescentada à mão fica" : `${nNotas} notas acrescentadas à mão ficam`} pouco legível sobre o fundo
+            ({[...notas.A.map((n) => `A p${n.pagina + 1}`), ...notas.B.map((n) => `B p${n.pagina + 1}`)].join(", ")}; contraste {formatarRazao(Math.min(...[...notas.A, ...notas.B].map((n) => n.razao)))} para o mínimo {Math.max(...[...notas.A, ...notas.B].map((n) => n.minimo))}:1).
+            Se não adaptares, a tua cor mantém-se.
+          </p>
+          <Button variant="outline" className="h-11" onClick={() => onAplicar({ ...pacote, variantes: { A: adaptarCorNotas(pacote.variantes.A, notas.A), B: adaptarCorNotas(pacote.variantes.B, notas.B) } })}>Adaptar cor</Button>
+        </div>
+      )}
 
       <p className="max-w-2xl text-sm text-muted-foreground">As variantes A e B usam a mesma narrativa com duas composições diferentes. Não são redes sociais nem versões: escolhes uma na revisão.</p>
 
