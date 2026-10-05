@@ -47,6 +47,8 @@ export interface Brief {
   tom?: string;
   slides?: number;
   titulo?: string | null;
+  /** Optional narrative framework (see frameworks.ts); absent = original editorial prompt. */
+  framework?: string | null;
 }
 
 /** Normalise pasted text: unify line endings/spaces, strip list numbering, one paragraph per block. */
@@ -125,7 +127,7 @@ export function respostaDemo(f: FonteNormalizada, brief: Brief): string {
 }
 
 /** Validates a provider response: facts must cite existing paragraphs; injected rules are ignored (data only). */
-export const MODELO_IA = "openai/gpt-6-astra";
+export const MODELO_IA = "deepseek-flash";
 
 /** Validates a model answer against the source. Throws a short, model-facing error (used for the single repair). */
 export function validarRespostaModelo(raw: string, f: FonteNormalizada, slidesPedidos?: number): { titulo: string; slides: SlideProposta[]; legenda: string; alt: string[] | null } {

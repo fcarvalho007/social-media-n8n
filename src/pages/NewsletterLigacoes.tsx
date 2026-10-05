@@ -35,8 +35,7 @@ const SECCOES: Seccao[] = [
     titulo: "Produção de conteúdo", obrigatoria: true,
     descricao: "Necessário para criar carrosséis e textos com IA.",
     servicos: [
-      { nome: "IA de texto (Lovable AI)", uso: "Propostas de carrossel no Estúdio", chaves: ["LOVABLE_API_KEY"], acao: "Gerida pela Lovable Cloud; se faltar, contacta o suporte Lovable." },
-      { nome: "IA de texto da newsletter", uso: "Resumos e textos da newsletter", chaves: ["DEEPSEEK_API_KEY"], acao: "Cria uma chave na conta DeepSeek e guarda-a nos segredos do projeto." },
+      { nome: "IA de texto (DeepSeek)", uso: "Carrosséis, assistentes do «Criar» e textos da newsletter", chaves: ["DEEPSEEK_API_KEY"], acao: "Cria uma chave na conta DeepSeek e guarda-a nos segredos do projeto." },
     ],
   },
   {
@@ -62,6 +61,7 @@ const SECCOES: Seccao[] = [
     descricao: "A app funciona sem estas; só ativam funções extra.",
     servicos: [
       { nome: "Fal", uso: "Geração de imagens com IA", chaves: ["FAL_KEY"], acao: "Cria uma chave na conta Fal." },
+      { nome: "Kie (Seedream 5 Flash)", uso: "Imagens limpas para o editor de carrosséis", chaves: ["KIE_API_KEY"], acao: "Cria uma chave em kie.ai e guarda-a nos segredos do projeto com o nome KIE_API_KEY." },
       { nome: "Pexels", uso: "Sugestão de imagens", chaves: ["PEXELS_API_KEY"], acao: "Cria uma chave gratuita na Pexels." },
       { nome: "WordPress · site da newsletter", uso: "Edição web", chaves: ["WORDPRESS_SITE_URL", "WORDPRESS_APP_USER", "WORDPRESS_APP_PASSWORD"], acao: "Cria uma password de aplicação no WordPress." },
       { nome: "WordPress · artigo da crónica", uso: "Rascunho no site pessoal (nunca publicado)", chaves: ["FREDERICO_WP_URL", "FREDERICO_WP_USER", "FREDERICO_WP_APP_PASSWORD"], acao: "Cria uma password de aplicação no WordPress." },

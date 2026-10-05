@@ -58,15 +58,11 @@ export function AIGenerator({ onAddToCarousel, onSendToGridSplitter, maxImages, 
   useEffect(() => {
     const checkCredentials = async () => {
       try {
-        const { data, error } = await supabase.functions.invoke('ai-generate-image', {
+        // Generation runs on Fal only; check its key, never the Lovable AI Gateway.
+        const { data, error } = await supabase.functions.invoke('fal-generate-image', {
           body: { action: 'ping' },
         });
-        
-        if (error?.message?.includes('não configurada') || data?.error?.includes('não configurada')) {
-          setCredentialsConfigured(false);
-        } else {
-          setCredentialsConfigured(true);
-        }
+        setCredentialsConfigured(!error && data?.configured === true);
       } catch {
         setCredentialsConfigured(true);
       } finally {

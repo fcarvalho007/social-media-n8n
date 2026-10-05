@@ -1,6 +1,7 @@
 import "https://deno.land/x/xhr@0.1.0/mod.ts";
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.83.0";
+import { ErroDeepSeek, textoDeepSeek } from "../_shared/deepseek-direto.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -73,37 +74,17 @@ serve(async (req) => {
     const validated = validateBody(body);
     if (!validated.valid) return responseJson({ success: false, error: validated.error }, validated.status);
 
-    const lovableKey = Deno.env.get("LOVABLE_API_KEY");
-    if (!lovableKey) return responseJson({ success: false, error: "Serviço de IA não configurado." }, 500);
 
     const systemPrompt = "És um editor sénior de redes sociais. Reescreves legendas em português de Portugal, Acordo Ortográfico de 1990. Nunca uses português do Brasil. Não inventes factos, métricas, resultados, nomes, datas, preços ou promessas. Mantém hashtags, URLs e menções quando fizerem sentido. Devolve apenas a legenda final.";
     const userPrompt = `Rede alvo: ${validated.network}\nFormatos: ${validated.formats.join(", ") || "não especificado"}\nTom pretendido: ${validated.tone} — ${toneGuidance[validated.tone]}\nIdioma: pt-PT\n${validated.rawTranscription ? `Contexto da transcrição:\n${validated.rawTranscription}\n\n` : ""}Legenda atual:\n${validated.text}\n\nReescreve a legenda para o tom indicado. Mantém o sentido, não acrescentes factos novos e evita linguagem genérica.`;
 
-    const aiResponse = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
-      method: "POST",
-      headers: { Authorization: `Bearer ${lovableKey}`, "Content-Type": "application/json" },
-      body: JSON.stringify({
-        model: "google/gemini-3-flash-preview",
-        messages: [
-          { role: "system", content: systemPrompt },
-          { role: "user", content: userPrompt },
-        ],
-      }),
-    });
-
-    if (!aiResponse.ok) {
-      const errorText = await aiResponse.text();
-      console.error("[ai-caption-rewriter] gateway error", aiResponse.status, errorText);
-      const message = aiResponse.status === 429
-        ? "Limite de IA atingido. Tenta novamente daqui a pouco."
-        : aiResponse.status === 402
-          ? "Créditos de IA insuficientes."
-          : "A reescrita com IA está indisponível. Tenta novamente.";
-      return responseJson({ success: false, error: message }, aiResponse.status === 402 || aiResponse.status === 429 ? aiResponse.status : 500);
+    let rewrittenText: string;
+    try {
+      rewrittenText = (await textoDeepSeek({ sistema: systemPrompt, utilizador: userPrompt })).texto;
+    } catch (e) {
+      if (e instanceof ErroDeepSeek) return responseJson({ success: false, error: e.message }, [402, 429, 503].includes(e.status) ? e.status : 500);
+      throw e;
     }
-
-    const aiData = await aiResponse.json();
-    const rewrittenText = String(aiData.choices?.[0]?.message?.content || "").trim();
     if (!rewrittenText) return responseJson({ success: false, error: "A IA não devolveu uma versão válida." }, 422);
 
     return responseJson({

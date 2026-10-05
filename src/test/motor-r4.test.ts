@@ -3,7 +3,7 @@ import { chamarGateway, classificarStatus, lerStream, promptUtilizador } from ".
 import { normalizarFonte, validarRespostaModelo } from "../../supabase/functions/_shared/motor/proposta";
 
 const g = globalThis as unknown as { Deno?: { env: { get: (k: string) => string | undefined } } };
-beforeEach(() => { g.Deno = { env: { get: (k) => (k === "LOVABLE_API_KEY" ? "teste" : undefined) } }; });
+beforeEach(() => { g.Deno = { env: { get: (k) => (k === "DEEPSEEK_API_KEY" ? "teste" : undefined) } }; });
 afterEach(() => { delete g.Deno; });
 
 const sse = (partes: string[]) => new Response(new ReadableStream({ start(c) { const e = new TextEncoder(); for (const p of partes) c.enqueue(e.encode(p)); c.close(); } }), { status: 200 });

@@ -20,3 +20,6 @@
 - The graphics proof uses DocumentoGrafico v1 in browser/server at /estudio/editor-prova and stays separate from legacy flows.
 - Content engine (mc_*): clients only SELECT; writes via owner+editor RPCs; versions append-only; leases/AI service-role.
 - Chunk-load recovery reloads at most once per failing asset, guarded in localStorage forever (no time window), so a missing file can never loop.
+- Runtime text AI goes only through DeepSeek direct (_shared/deepseek-direto.ts, thinking disabled); the Lovable AI Gateway is banned at runtime (owner decision), enforced by src/test/lote1-ia.test.ts.
+- Framework proposals run as hidden mc_trabalhos (brief.framework) and are merged only on explicit accept, keeping slide ids so the composition survives; different slide counts open as a separate carousel.
+- Kie images: one mc_kie_tarefas reservation per human click before createTask, never retried after unknown outcome, result copied to motor-assets (origem 'kie') because Kie media expires.

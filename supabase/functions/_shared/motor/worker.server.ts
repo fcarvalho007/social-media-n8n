@@ -73,12 +73,12 @@ async function obterProposta(sb: SupabaseClient, t: Trabalho, texto: string, cit
       resposta = respostaDemo(fonte, t.brief);
       await rpc(sb, "mc_registar_chamada", { _chamada_id: id, _estado: "resposta_recebida", _resposta: resposta, _custo_eur: 0, _custo_incerto: false });
     } else {
-      if (!Deno.env.get("LOVABLE_API_KEY")) {
+      if (!Deno.env.get("DEEPSEEK_API_KEY")) {
         await rpc(sb, "mc_registar_chamada", { _chamada_id: id, _estado: "erro_antes_pedido", _erro: "chave em falta" });
-        throw Object.assign(new Error("A ligação à IA não está configurada no servidor."), { terminal: true });
+        throw Object.assign(new Error("A DeepSeek não está configurada no servidor (DEEPSEEK_API_KEY em falta)."), { terminal: true });
       }
       await rpc(sb, "mc_registar_chamada", { _chamada_id: id, _estado: "pedido_enviado" });
-      const r = await chamarGateway(t.modelo, promptSistema(), promptUtilizador(fonte.paragrafos, { slides: t.brief.slides ?? 5, objetivo: t.brief.objetivo, tom: t.brief.tom, titulo: citacao.titulo }, erroAnterior));
+      const r = await chamarGateway(t.modelo, promptSistema(t.brief.framework), promptUtilizador(fonte.paragrafos, { slides: t.brief.slides ?? 5, objetivo: t.brief.objetivo, tom: t.brief.tom, titulo: citacao.titulo }, erroAnterior));
       if (r.tipo === "recusado") {
         await rpc(sb, "mc_registar_chamada", { _chamada_id: id, _estado: "recusada", _custo_incerto: false, _erro: `${r.classe} HTTP ${r.status}` });
         throw Object.assign(new Error(MENSAGEM_RECUSA[r.classe]), { terminal: true });

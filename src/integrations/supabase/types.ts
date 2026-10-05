@@ -1127,6 +1127,63 @@ export type Database = {
           },
         ]
       }
+      mc_kie_tarefas: {
+        Row: {
+          actualizado_em: string
+          asset_id: string | null
+          criado_em: string
+          criado_por: string
+          erro: string | null
+          estado: string
+          id: string
+          modelo: string
+          project_id: string
+          prompt: string
+          task_id: string | null
+        }
+        Insert: {
+          actualizado_em?: string
+          asset_id?: string | null
+          criado_em?: string
+          criado_por: string
+          erro?: string | null
+          estado?: string
+          id?: string
+          modelo: string
+          project_id: string
+          prompt: string
+          task_id?: string | null
+        }
+        Update: {
+          actualizado_em?: string
+          asset_id?: string | null
+          criado_em?: string
+          criado_por?: string
+          erro?: string | null
+          estado?: string
+          id?: string
+          modelo?: string
+          project_id?: string
+          prompt?: string
+          task_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "mc_kie_tarefas_asset_id_fkey"
+            columns: ["asset_id"]
+            isOneToOne: false
+            referencedRelation: "mc_assets"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "mc_kie_tarefas_project_id_fkey"
+            columns: ["project_id"]
+            isOneToOne: false
+            referencedRelation: "projects"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       mc_ligacoes_sociais: {
         Row: {
           criado_em: string

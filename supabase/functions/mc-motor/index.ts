@@ -10,6 +10,8 @@ import { linhaRascunho, nomePagina } from "../_shared/motor/exportacao.ts";
 import type { PropostaEditorial } from "../_shared/motor/proposta.ts";
 import { atribuicao, validarMetaFonte, type MetaFonte } from "../_shared/motor/fontes.ts";
 import { lerLink, registarImagem, resolverAssets } from "../_shared/motor/fontes.server.ts";
+import { chaveKie, criarTarefaKie, estadoTarefaKie, KIE_MODELO, KIE_MAX_DIA, KIE_PROPORCAO } from "../_shared/motor/kie.server.ts";
+import { obterFramework } from "../_shared/motor/frameworks.ts";
 import { avaliarFonte, MARCADOR_FIXTURE, MODELO_DEMO, MODELO_ESTRUTURACAO, MODELO_IA, normalizarFonte } from "../_shared/motor/proposta.ts";
 
 const cors = {
@@ -85,6 +87,8 @@ Deno.serve(async (req) => {
     const objetivo = typeof body.objetivo === "string" ? body.objetivo.slice(0, 200) : "";
     const tom = typeof body.tom === "string" ? body.tom.slice(0, 80) : "";
     const slides = Number(body.slides);
+    const framework = body.framework == null ? null : obterFramework(body.framework);
+    if (body.framework != null && !framework) return json({ error: "Estrutura desconhecida." }, 400);
     const modo = body.modo === "demonstracao" ? "demonstracao" : body.modo === "ia" ? "ia" : "estruturacao";
     if (!UUID.test(projectId)) return json({ error: "Projeto inválido" }, 400);
     const fonte = normalizarFonte(texto);
@@ -101,6 +105,7 @@ Deno.serve(async (req) => {
     const atrib = atribuicao(meta, titulo);
     const origemUrl = meta?.tipo === "link" ? (meta.url_final ?? meta.url).slice(0, 2000) : null;
     if (modo === "demonstracao" && !texto.startsWith(MARCADOR_FIXTURE)) return json({ error: "A demonstração só aceita a fixture sintética de testes." }, 400);
+    if (framework && modo !== "ia") return json({ error: "As estruturas só funcionam com a IA." }, 400);
     if (modo === "ia") {
       // Refuse before queueing when the project's AI budget is zero (the reservation re-checks atomically).
       const { data: o } = await user.from("mc_orcamentos").select("max_chamadas_dia").eq("project_id", projectId).maybeSingle();
@@ -108,8 +113,8 @@ Deno.serve(async (req) => {
     }
     const comum = {
       _project_id: projectId, _texto: modo === "demonstracao" ? texto : fonte.texto,
-      _brief: { objetivo, tom, slides, titulo: titulo ?? (meta ? atrib.titulo?.slice(0, 300) ?? null : null) }, _prompt_versao: modo === "ia" ? "r4-v1" : "r3-v1",
-      _modelo: modo === "demonstracao" ? MODELO_DEMO : modo === "ia" ? MODELO_IA : MODELO_ESTRUTURACAO, _parametros: { slides }, _nova: body.nova === true,
+      _brief: { objetivo, tom, slides, titulo: titulo ?? (meta ? atrib.titulo?.slice(0, 300) ?? null : null), ...(framework ? { framework: framework.id, origem_trabalho: UUID.test(String(body.origem_trabalho ?? "")) ? String(body.origem_trabalho) : null } : {}) }, _prompt_versao: framework ? `r9-${framework.id}-v1` : modo === "ia" ? "r9-deepseek-v1" : "r3-v1",
+      _modelo: modo === "demonstracao" ? MODELO_DEMO : modo === "ia" ? MODELO_IA : MODELO_ESTRUTURACAO, _parametros: { slides, ...(framework ? { framework: framework.id } : {}) }, _nova: body.nova === true || !!framework,
     };
     const { data, error } = meta
       ? await user.rpc("mc_criar_trabalho_fonte", { ...comum, _tipo: tipoFonte, _titulo: atrib.titulo?.slice(0, 300) ?? null, _origem_url: origemUrl, _metadados: meta as unknown as Record<string, unknown> })
@@ -164,6 +169,27 @@ Deno.serve(async (req) => {
       try { Object.assign(assets, await resolverAssets(sb, projectId, [id])); } catch { falhas.push(id); }
     }
     return json({ ok: true, assets, falhas });
+  }
+
+  if (acao === "kie_config" || acao === "kie_gerar" || acao === "kie_estado") {
+    const projectId = String(body.project_id ?? "");
+    if (!UUID.test(projectId)) return json({ error: "Projeto inválido" }, 400);
+    const { data: pode } = await user.rpc(acao === "kie_config" ? "mc_pode_ler" : "mc_pode_escrever", { _project_id: projectId });
+    if (!pode) return json({ error: "Sem acesso a este projeto." }, 403);
+    const configurada = !!chaveKie();
+    if (acao === "kie_config") return json({ ok: true, configurada, modelo: KIE_MODELO, proporcao: KIE_PROPORCAO, max_dia: KIE_MAX_DIA });
+    if (!configurada) return json({ error: "Configuração necessária: falta a chave KIE_API_KEY no servidor.", configuracao: true }, 503);
+    if (acao === "kie_gerar") {
+      if (body.confirmado !== true) return json({ error: "Confirma a geração antes de pedir." }, 400);
+      const prompt = String(body.prompt ?? "").trim();
+      if (prompt.length < 5 || prompt.length > 2000) return json({ error: "Descreve a imagem (5 a 2000 caracteres)." }, 400);
+      const r = await criarTarefaKie(admin(), { projectId, userId: u.user.id, prompt });
+      return json(r.corpo, r.status);
+    }
+    const tarefa = String(body.tarefa ?? "");
+    if (!UUID.test(tarefa)) return json({ error: "Pedido inválido" }, 400);
+    const r = await estadoTarefaKie(admin(), { projectId, tarefaId: tarefa });
+    return json(r.corpo, r.status);
   }
 
   if (acao === "retomar") {
