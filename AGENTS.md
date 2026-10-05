@@ -24,4 +24,3 @@
 - Framework proposals run as hidden mc_trabalhos (brief.framework) and are merged only on explicit accept, keeping slide ids so the composition survives; different slide counts open as a separate carousel.
 - Kie images: one mc_kie_tarefas reservation per human click before createTask, never retried after unknown outcome, result copied to motor-assets (origem 'kie') because Kie media expires.
 - Single-slide regeneration (mc-motor regenerar_slide) runs as a hidden mc_trabalhos with brief.regen and stores a full proposal marked escopo_slide; it is selectable only for that slide and never as a whole proposal, so other hybrid choices and composition survive.
-- Carousel models (motor/modelos.ts) rebuild page composition with "mod-"-prefixed decorations, pick sizes from per-model ladders with a readable floor and refuse (never cut) pages that do not fit; keeps text/refs/IDs intact and editor, preview and PNG/PDF identical through the shared core.
