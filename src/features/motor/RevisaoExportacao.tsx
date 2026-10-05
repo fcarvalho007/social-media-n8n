@@ -266,7 +266,6 @@ export function RevisaoExportacao({ dados, pacote, medidor, guardado, irPara }: 
                     {enviarAoTerminar ? "A gerar os ficheiros…" : "Enviar para redes sociais"}
                   </Button>
                   <p className="text-xs text-muted-foreground">Gera os ficheiros se faltarem e abre a criação social com o carrossel, as imagens e a legenda da Narrativa. Nada é publicado sem a tua decisão.</p>
-                  </>)}
                 </>
               )}
               {anteriores.length > 0 && (
