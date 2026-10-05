@@ -121,7 +121,7 @@ export default function CarrosselNovo() {
   function limparFonte() {
     pedido.current++;
     setTexto(""); setOriginal(""); setLinkMeta(null); setPdfMeta(null); setPdfLido(null); setExcluidas(new Set());
-    setParcial(false); setFalhaFonte(null); setLendo(false); setTocado(false); setSlides(null); setRecuperado(null);
+    setParcial(false); setFalhaFonte(null); setMotivoLink(null); setLendo(false); setTocado(false); setSlides(null); setRecuperado(null);
   }
   function mudarTipo(t: TipoFonte) {
     if (t === tipoFonte) return;
