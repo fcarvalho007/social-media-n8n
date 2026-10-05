@@ -42,7 +42,7 @@ export interface NovoTrabalho {
   project_id: string; texto: string; titulo: string; objetivo: string; tom: string; slides: number; modo?: "estruturacao" | "demonstracao" | "ia"; nova?: boolean;
   /** Framework proposal job (hidden from the library; applied only on explicit accept). */
   framework?: string; origem_trabalho?: string; angulo?: string | null; leitura_especifica?: string; base_versao?: number;
-  briefing?: { publico: string[]; publicoOutro: string; cta: string | null }; traducao_id?: string;
+  briefing?: { publico: string[]; publicoOutro: string; cta: string | null; intencao?: string | null }; traducao_id?: string;
 }
 export interface ResultadoTraducao { traducao_id: string; hash: string; idioma_origem: string; original: string[]; paragrafos: string[]; reutilizada: boolean }
 /** Paid DeepSeek request (or reuse of a stored valid translation); call only after explicit confirmation. */
