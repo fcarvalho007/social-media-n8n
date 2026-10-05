@@ -35,6 +35,8 @@ export interface PropostaEditorial {
   alt: string[];
   citacao: { titulo: string | null; url: string | null };
   marca: { cor: string; origem: "projeto" | "neutra" };
+  /** Per-slide provenance after a hybrid merge: slide id -> framework job that supplied its text. */
+  origem_slides?: Record<string, { framework: string; trabalho: string }>;
 }
 
 export interface FonteNormalizada {

@@ -41,7 +41,7 @@ export interface NovoTrabalho {
   fonte_tipo?: "texto" | "link" | "pdf"; metadados?: MetaFonte;
   project_id: string; texto: string; titulo: string; objetivo: string; tom: string; slides: number; modo?: "estruturacao" | "demonstracao" | "ia"; nova?: boolean;
   /** Framework proposal job (hidden from the library; applied only on explicit accept). */
-  framework?: string; origem_trabalho?: string; angulo?: string | null; leitura_especifica?: string;
+  framework?: string; origem_trabalho?: string; angulo?: string | null; leitura_especifica?: string; base_versao?: number;
   briefing?: { publico: string[]; publicoOutro: string; cta: string | null }; traducao_id?: string;
 }
 export interface ResultadoTraducao { traducao_id: string; hash: string; idioma_origem: string; original: string[]; paragrafos: string[]; reutilizada: boolean }
@@ -256,4 +256,25 @@ export async function lerEstadosPublicacao(trabalhoIds: string[]): Promise<{
     drafts: (draftsR.data ?? []) as unknown as DraftResumo[],
     posts: brutos.map((p) => ({ ...p, redesFalhadas: falhadas.get(p.id) ?? [] })),
   };
+}
+
+export interface CandidatoPool {
+  trabalho: string; framework: string; estado: string; erro: string | null; criado_em: string;
+  base_versao: number | null; fonte_hash: string | null; perfil: "original" | "atual" | "nenhum"; conteudo: PropostaEditorial | null;
+}
+/** All framework proposals made from this carousel (server-persisted); reading them never calls AI. */
+export async function listarCandidatos(origem: TrabalhoCompleto): Promise<CandidatoPool[]> {
+  const { data, error } = await supabase.from("mc_trabalhos").select("id, estado, erro, criado_em, brief, fonte_id")
+    .eq("project_id", origem.trabalho.project_id).filter("brief->>origem_trabalho", "eq", origem.trabalho.id).order("criado_em", { ascending: false }).limit(30);
+  if (error) throw new Error("Não foi possível ler as propostas.");
+  const ob = (origem.trabalho as unknown as { brief?: { autor?: unknown } }).brief;
+  return Promise.all((data ?? []).map(async (t) => {
+    const b = (t.brief ?? {}) as { framework?: string; base_versao?: number | null; autor?: unknown };
+    let conteudo: PropostaEditorial | null = null; let hash: string | null = null;
+    if (t.estado === "concluido") {
+      try { const c = await abrirTrabalho(t.id); conteudo = c.proposta.conteudo; hash = c.fonte.hash; } catch { /* stays null */ }
+    }
+    const perfil = !b.autor ? "nenhum" : ob?.autor && JSON.stringify(ob.autor) === JSON.stringify(b.autor) ? "original" : "atual";
+    return { trabalho: t.id, framework: b.framework ?? "", estado: t.estado, erro: t.erro, criado_em: t.criado_em, base_versao: b.base_versao ?? null, fonte_hash: hash, perfil, conteudo } as CandidatoPool;
+  }));
 }

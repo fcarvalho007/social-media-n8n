@@ -155,7 +155,7 @@ Deno.serve(async (req) => {
     const leitura = body.leitura === true || objetivo.startsWith(OBJETIVO_LEITURA);
     const comum = {
       _project_id: projectId, _texto: modo === "demonstracao" ? texto : fonte.texto,
-      _brief: { objetivo, tom, slides, ...(autor ? { autor, leitura, leitura_trabalho: leituraTrabalho, briefing: briefingEd } : {}), idioma_saida: "pt-PT", ...(traducao ? { traducao } : {}), titulo: titulo ?? (meta ? atrib.titulo?.slice(0, 300) ?? null : null), ...(framework ? { framework: framework.id, origem_trabalho: UUID.test(String(body.origem_trabalho ?? "")) ? String(body.origem_trabalho) : null } : {}) }, _prompt_versao: framework ? `r11-${framework.id}-autor-v2` : modo === "ia" ? "r11-deepseek-autor-v2" : "r3-v1",
+      _brief: { objetivo, tom, slides, ...(autor ? { autor, leitura, leitura_trabalho: leituraTrabalho, briefing: briefingEd } : {}), idioma_saida: "pt-PT", ...(traducao ? { traducao } : {}), titulo: titulo ?? (meta ? atrib.titulo?.slice(0, 300) ?? null : null), ...(framework ? { framework: framework.id, base_versao: Number.isInteger(Number(body.base_versao)) ? Number(body.base_versao) : null, origem_trabalho: UUID.test(String(body.origem_trabalho ?? "")) ? String(body.origem_trabalho) : null } : {}) }, _prompt_versao: framework ? `r11-${framework.id}-autor-v2` : modo === "ia" ? "r11-deepseek-autor-v2" : "r3-v1",
       _modelo: modo === "demonstracao" ? MODELO_DEMO : modo === "ia" ? MODELO_IA : MODELO_ESTRUTURACAO, _parametros: { slides, ...(framework ? { framework: framework.id } : {}) }, _nova: body.nova === true || !!framework,
     };
     const { data, error } = meta
