@@ -25,4 +25,4 @@
 - Kie images: one mc_kie_tarefas reservation per human click before createTask, never retried after unknown outcome, result copied to motor-assets (origem 'kie') because Kie media expires.
 - Single-slide regeneration (mc-motor regenerar_slide) runs as a hidden mc_trabalhos with brief.regen and stores a full proposal marked escopo_slide; it is selectable only for that slide and never as a whole proposal, so other hybrid choices and composition survive.
 
-- The carousel's visual direction (style, variant, palette, rhythm) and per-page role/image composition live inside the versioned document (DocumentoGrafico.sistema, Pagina.papel/composicao); the Composition editor previews drafts on an in-memory copy of that same document, so preview = editor = export. mc_sistemas_visuais/mc_composicao_paginas are deprecated and only read once for one-way legacy migration.
+- Carousel visual direction and per-page role/image composition live in the versioned document; the editor previews drafts on an in-memory copy, so preview = editor = export. mc_sistemas_visuais/mc_composicao_paginas are deprecated, read once for legacy migration.
