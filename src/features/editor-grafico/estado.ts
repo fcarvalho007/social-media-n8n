@@ -38,13 +38,22 @@ export const PRESETS_TEXTO: Record<PresetTexto, { nome: string; texto: string; w
   titulo: { nome: "Título", texto: "Título", w: 900, h: 240, estilo: { peso: 700, familia: "montserrat", tam: 88, linha: 1.1, alinh: "esq", cor: "#111111", overflow: "cortar" } },
   subtitulo: { nome: "Subtítulo", texto: "Subtítulo", w: 900, h: 160, estilo: { peso: 700, familia: "montserrat", tam: 56, linha: 1.15, alinh: "esq", cor: "#111111", overflow: "cortar" } },
   paragrafo: { nome: "Parágrafo", texto: "Escreve aqui o parágrafo.", w: 900, h: 300, estilo: { peso: 400, familia: "inter", tam: 40, linha: 1.35, alinh: "esq", cor: "#222222", overflow: "cortar" } },
-  livre: { nome: "Texto livre", texto: "Novo texto", w: 800, h: 200, estilo: { peso: 700, tam: 64, linha: 1.15, alinh: "esq", cor: "#111111", overflow: "reduzir", tamMin: 28 } },
+  livre: { nome: "Texto livre", texto: "Novo texto", w: 800, h: 200, estilo: { peso: 700, tam: 64, linha: 1.15, alinh: "esq", cor: "#111111", overflow: "cortar" } },
 };
 
-/** Places a w×h box centred on a drop point, kept inside the page. */
-function centrar(pos: Ponto | undefined, w: number, h: number, padrao: Ponto): Ponto {
+/** Places a w×h box centred on a drop point, fully inside the page (later manual moves may crop on purpose). */
+export function centrar(pos: Ponto | undefined, w: number, h: number, padrao: Ponto): Ponto {
   if (!pos) return padrao;
-  return { x: Math.round(Math.min(1080 - w / 2, Math.max(-w / 2, pos.x - w / 2))), y: Math.round(Math.min(1350 - h / 2, Math.max(-h / 2, pos.y - h / 2))) };
+  const lim = (v: number, max: number) => Math.round(Math.min(Math.max(0, max), Math.max(0, v)));
+  return { x: lim(pos.x - w / 2, 1080 - w), y: lim(pos.y - h / 2, 1350 - h) };
+}
+
+/** Initial size of a dropped image: half the page width, proportional, never taller than the page. */
+export function tamanhoImagemNova(largura: number, altura: number): { w: number; h: number } {
+  const r = altura / largura || 1.25;
+  let w = 540, h = Math.round(540 * r);
+  if (h > 1350) { h = 1350; w = Math.round(1350 / r); }
+  return { w, h };
 }
 
 const LIMITE_HISTORICO = 100;
@@ -139,7 +148,7 @@ export function reduzir(s: EstadoEditor, a: Acao): EstadoEditor {
       const pacote = { ...s.pacote, assets: { ...s.pacote.assets, [a.asset.id]: a.asset } };
       let nova: Camada;
       if (a.pos) {
-        const w = 540, h = Math.round(540 * (a.asset.altura / a.asset.largura || 1.25));
+        const { w, h } = tamanhoImagemNova(a.asset.largura, a.asset.altura);
         const o = centrar(a.pos, w, h, { x: 270, y: 337 });
         const topo = pg.camadas.length ? Math.max(...pg.camadas.map((x) => x.z)) : 0;
         nova = { id: novoId("imagem"), nome: a.nome.slice(0, 60) || "Imagem", tipo: "imagem", asset_id: a.asset.id, recorte: "cover", foco: { x: 0.5, y: 0.5 }, x: o.x, y: o.y, w, h, z: topo + 1 };

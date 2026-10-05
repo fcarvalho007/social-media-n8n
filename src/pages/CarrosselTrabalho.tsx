@@ -230,6 +230,7 @@ export default function CarrosselTrabalho() {
           if (layoutTexto(resolverTexto(c, pacote.conteudo), c.estilo, c.w, c.h, medidor).cortado) out.push(`Variante ${v}, página ${i + 1}: o texto não cabe (${c.ref?.endsWith("titulo") ? "título" : "texto"}).`);
         }
       });
+      for (const k of colisoes(pacote, v, medidor)) out.push(`Variante ${v}, página ${k.pagina + 1}: o ${k.a} toca no ${k.b}. Afasta as caixas.`);
     }
     return out;
   }, [medidor, pacote]);

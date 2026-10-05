@@ -50,7 +50,7 @@ export function GeradorKie({ projectId, usar, ocupado }: { projectId: string; us
         <>
           <Label htmlFor="kie-prompt" className="sr-only">Descrição da imagem</Label>
           <Textarea id="kie-prompt" rows={3} maxLength={2000} value={prompt} disabled={!!tarefa} onChange={(e) => setPrompt(e.target.value)} placeholder="Ex.: secretária de madeira com luz da manhã, tons verdes suaves" />
-          <p className="text-xs text-muted-foreground">Modelo {cfg.modelo} · {cfg.proporcao} recortado para 4:5 no editor · sem texto, logótipos nem marcas de água · até {cfg.max_dia} por dia. Preço: consulta kie.ai/pricing (esta app não verificou o valor).</p>
+          <p className="text-xs text-muted-foreground">Modelo {cfg.modelo} · {cfg.proporcao} recortado para 4:5 no editor · sem texto, logótipos nem marcas de água · até {cfg.max_dia} por dia. Estimativa: US$ 0,0162 por imagem (3,24 créditos Kie; igual em 1K, 1,5K e 2K), segundo kie.ai/seedream-5-0-flash, consultado a 05/10/2026. O custo real é o que a Kie cobrar.</p>
           {tarefa
             ? <p className="flex items-center gap-2 text-sm text-muted-foreground"><Loader2 className="h-4 w-4 motion-safe:animate-spin" />{estado === "desconhecido" ? "Resultado desconhecido." : "A gerar na Kie… podes fechar e voltar."}{estado === "desconhecido" && <Button variant="ghost" className="h-9" onClick={() => fixar(null)}>Fechar</Button>}</p>
             : confirmar
