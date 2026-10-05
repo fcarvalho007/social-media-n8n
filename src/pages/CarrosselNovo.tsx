@@ -17,6 +17,8 @@ import { acoesFalhaLink, dominioDe, formatarNumero, resumoLeitura } from "@/feat
 import { comporFontePdf, ErroPdf, lerPdf, NOME_ESTADO_PAGINA, type PdfLido } from "@/features/motor/fontePdf";
 import { HOSTS_LINK, intervalos, type LinkFalhado, type LinkLido, type MetaLink, type MetaPdf } from "../../supabase/functions/_shared/motor/fontes";
 import { ANGULOS, MAX_LEITURA_ESPECIFICA, type Angulo } from "../../supabase/functions/_shared/motor/autor";
+import { PainelIdioma, type EstadoIdioma } from "@/features/motor/PainelIdioma";
+import { CTAS, MAX_PUBLICO_OUTRO, PUBLICOS, QUANTIDADES, slidesPorQuantidade, textoTom, TONS, type Cta, type Quantidade } from "../../supabase/functions/_shared/motor/briefing";
 import { PerfilAutorPainel } from "@/features/motor/PerfilAutorPainel";
 import { LimitesIa } from "@/features/motor/LimitesIa";
 import { BarraAcoes, Cabecalho, Etapas, Grupo, Quadro } from "@/features/motor/Estudio";
@@ -63,6 +65,12 @@ export default function CarrosselNovo() {
   const [confirmarIa, setConfirmarIa] = useState(false);
   const [angulo, setAngulo] = useState<Angulo | null>(null);
   const [leituraEsp, setLeituraEsp] = useState("");
+  const [tomPreset, setTomPreset] = useState<string | null>(null);
+  const [publico, setPublico] = useState<string[]>([]);
+  const [publicoOutro, setPublicoOutro] = useState("");
+  const [cta, setCta] = useState<Cta | null>(null);
+  const [quantidade, setQuantidade] = useState<Quantidade>("equilibrado");
+  const [idioma, setIdioma] = useState<EstadoIdioma>({ estrangeiro: false, escolha: "pt", traducaoId: null, pronto: true });
   const [slides, setSlides] = useState<number | null>(null);
   const [demo, setDemo] = useState(false);
   const [tocado, setTocado] = useState(false);
@@ -113,7 +121,8 @@ export default function CarrosselNovo() {
   const comIa = !demo && !!orc && orc.maxDia > 0 && orc.usadosHoje < orc.maxDia;
   const fonte = useMemo(() => normalizarFonte(texto), [texto]);
   const av = useMemo(() => avaliarFonte(fonte), [fonte]);
-  const nSlides = Math.min(av.slidesMax || LIMITES_FONTE.maxSlides, Math.max(2, slides ?? av.slidesSugeridos));
+  const porQuantidade = slidesPorQuantidade(av.slidesSugeridos, av.slidesMax || LIMITES_FONTE.maxSlides);
+  const nSlides = Math.min(av.slidesMax || LIMITES_FONTE.maxSlides, Math.max(2, slides ?? porQuantidade[quantidade]));
   const nomeProjeto = projetos.find((p) => p.id === projeto)?.name;
   const mostrarErro = tocado && !!texto.trim() && !av.ok;
   const semTexto = tocado && !texto.trim();
@@ -197,12 +206,13 @@ export default function CarrosselNovo() {
 
   const criar = async () => {
     if (!projeto || !fonteValida || aCriar) return;
+    if (!demo && !idioma.pronto) { toast.error("Prepara a versão PT-PT ou escolhe «Usar língua original»."); return; }
     setACriar(true);
     const alvo = projeto;
     const o = OBJETIVOS.find((x) => x.id === objetivo)!;
     const objetivoTxt = detalhe.trim() ? `${o.nome}: ${detalhe.trim()}` : `${o.nome} — ${o.desc}`;
     try {
-      const r = await criarTrabalho({ project_id: alvo, texto, titulo, objetivo: objetivoTxt.slice(0, 200), tom, slides: nSlides, ...(comIa ? { angulo, leitura_especifica: leituraEsp.trim() } : {}), modo: demo ? "demonstracao" : comIa ? "ia" : "estruturacao",
+      const r = await criarTrabalho({ project_id: alvo, texto, titulo, objetivo: objetivoTxt.slice(0, 200), tom: textoTom(tomPreset, tom), slides: nSlides, ...(comIa ? { angulo, leitura_especifica: leituraEsp.trim(), briefing: { publico, publicoOutro: publicoOutro.trim(), cta } } : {}), ...(!demo && idioma.traducaoId ? { traducao_id: idioma.traducaoId } : {}), modo: demo ? "demonstracao" : comIa ? "ia" : "estruturacao",
         fonte_tipo: demo ? "texto" : tipoFonte,
         metadados: demo || tipoFonte === "texto" ? undefined
           : tipoFonte === "link" ? { ...linkMeta!, editado: linkMeta!.modo === "referencia" || texto !== original }
@@ -398,6 +408,7 @@ export default function CarrosselNovo() {
               <span>{fonte.paragrafos.length} §</span>
               {demo && <><span aria-hidden>·</span><span>Demonstração</span></>}
             </div>
+            {!demo && projeto && <PainelIdioma projectId={projeto} texto={texto} iaDisponivel={comIa} onEstado={setIdioma} />}
             <div className="space-y-4">
               <h1 id="t-narrativa" className="text-2xl font-semibold tracking-tight sm:text-3xl">O que deve fazer este carrossel?</h1>
               <div role="radiogroup" aria-label="Objetivo" className="grid gap-2 sm:grid-cols-2">
@@ -427,6 +438,12 @@ export default function CarrosselNovo() {
                   <Input id="leitura-esp" className="h-11" maxLength={MAX_LEITURA_ESPECIFICA} value={leituraEsp} onChange={(e) => setLeituraEsp(e.target.value)} placeholder="Por exemplo: isto só compensa com processos bem definidos" />
                 </div>
               )}
+              <div className="space-y-3">
+                {comIa && <Chips titulo="Tom" itens={TONS.map((t) => ({ id: t.id, nome: t.nome, desc: t.desc }))} ativo={(id) => tomPreset === id} onEscolher={(id) => setTomPreset(tomPreset === id ? null : id)} />}
+                {comIa && <Chips titulo="Público" multi itens={PUBLICOS.map((p) => ({ id: p.id, nome: p.nome }))} ativo={(id) => publico.includes(id)} onEscolher={(id) => setPublico(publico.includes(id) ? publico.filter((x) => x !== id) : [...publico, id])} />}
+                {comIa && <Chips titulo="Apelo final" itens={CTAS.map((c) => ({ id: c.id, nome: c.nome }))} ativo={(id) => cta === id} onEscolher={(id) => setCta(cta === id ? null : id as Cta)} />}
+                <Chips titulo="Extensão" itens={QUANTIDADES.map((q) => ({ id: q.id, nome: `${q.nome} · ${porQuantidade[q.id]} slides` }))} ativo={(id) => slides == null && quantidade === id} onEscolher={(id) => { setQuantidade(id as Quantidade); setSlides(null); }} />
+              </div>
             </div>
 
             <div className="space-y-2">
@@ -440,16 +457,20 @@ export default function CarrosselNovo() {
             </div>
 
             <div>
-              <Grupo titulo="Personalizar" resumo={[tom || "Tom automático", `${nSlides} slides`].join(" · ")}>
+              <Grupo titulo="Personalizar" resumo={[tom || (tomPreset ? TONS.find((t) => t.id === tomPreset)?.nome : "Tom automático"), `${nSlides} slides`].join(" · ")}>
                 <div className="grid gap-4 sm:grid-cols-2">
                   <div className="space-y-1 sm:col-span-2">
                     <Label htmlFor="detalhe">Precisar o objetivo <span className="font-normal text-muted-foreground">(opcional)</span></Label>
                     <Input id="detalhe" className="h-11" maxLength={160} value={detalhe} onChange={(e) => setDetalhe(e.target.value)} placeholder="Por exemplo: convidar a ler a edição completa" />
                   </div>
                   <div className="space-y-1">
-                    <Label htmlFor="tom">Tom</Label>
+                    <Label htmlFor="tom">Tom (texto livre)</Label>
                     <Input id="tom" className="h-11" maxLength={80} value={tom} onChange={(e) => setTom(e.target.value)} placeholder="Sóbrio, próximo, didático…" />
                   </div>
+                  {comIa && <div className="space-y-1">
+                    <Label htmlFor="publico-outro">Outro público</Label>
+                    <Input id="publico-outro" className="h-11" maxLength={MAX_PUBLICO_OUTRO} value={publicoOutro} onChange={(e) => setPublicoOutro(e.target.value)} placeholder="Por exemplo: equipas comerciais" />
+                  </div>}
                   <div className="space-y-1">
                     <Label htmlFor="slides">Número de slides</Label>
                     <Input id="slides" type="number" inputMode="numeric" className="h-11 w-28" min={2} max={av.slidesMax || 2} value={nSlides}
@@ -491,5 +512,23 @@ export default function CarrosselNovo() {
               </div>)}
       />
     </Quadro>
+  );
+}
+
+/** Compact preset chips: one clear selection, aria-pressed/aria-checked, 44px on touch. */
+function Chips({ titulo, itens, ativo, onEscolher, multi }: { titulo: string; itens: { id: string; nome: string; desc?: string }[]; ativo: (id: string) => boolean; onEscolher: (id: string) => void; multi?: boolean }) {
+  return (
+    <div className="space-y-1.5">
+      <p className="text-sm font-medium">{titulo} <span className="font-normal text-muted-foreground">(opcional{multi ? ", várias" : ""})</span></p>
+      <div className="flex flex-wrap gap-2" role="group" aria-label={titulo}>
+        {itens.map((i) => (
+          <button key={i.id} type="button" aria-pressed={ativo(i.id)} title={i.desc} onClick={() => onEscolher(i.id)}
+            className={cn("min-h-11 rounded-full border px-3 text-sm sm:min-h-9 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
+              ativo(i.id) ? "border-primary bg-primary/10 font-medium" : "border-input text-muted-foreground")}>
+            {i.nome}{i.desc && <span className="sr-only">: {i.desc}</span>}
+          </button>
+        ))}
+      </div>
+    </div>
   );
 }

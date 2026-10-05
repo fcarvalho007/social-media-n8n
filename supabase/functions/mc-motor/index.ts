@@ -1,3 +1,5 @@
+import { traduzirFonte } from "../_shared/motor/traducao.server.ts";
+import { normalizarBriefing } from "../_shared/motor/briefing.ts";
 import { normalizarLeitura, normalizarPerfil, OBJETIVO_LEITURA } from "../_shared/motor/autor.ts";
 // Content engine entrypoint.
 // - acao "criar": authenticated user; project access is validated in the database RPC (never trusts project_id).
@@ -82,9 +84,29 @@ Deno.serve(async (req) => {
   const { data: u, error: eu } = await user.auth.getUser(auth.slice(7));
   if (eu || !u?.user) return json({ error: "Sessão inválida" }, 401);
 
+  if (acao === "traduzir") {
+    const projectId = String(body.project_id ?? "");
+    if (!UUID.test(projectId)) return json({ error: "Projeto inválido" }, 400);
+    if (body.confirmar !== true) return json({ error: "A tradução é um pedido pago: confirma antes de continuar." }, 400);
+    const { data: pode } = await user.rpc("mc_pode_escrever", { _project_id: projectId });
+    if (!pode) return json({ error: "Sem acesso a este projeto." }, 403);
+    const texto = typeof body.texto === "string" ? body.texto.slice(0, 60000) : "";
+    const r = await traduzirFonte(admin(), projectId, u.user.id, texto, body.repetir === true);
+    return r.ok ? json(r) : json({ error: r.error, estado: r.estado ?? null, traducao_id: r.traducao_id ?? null }, r.status);
+  }
+
   if (acao === "criar") {
     const projectId = String(body.project_id ?? "");
-    const texto = typeof body.texto === "string" ? body.texto : "";
+    let texto = typeof body.texto === "string" ? body.texto : "";
+    // PT-PT derived source: the server rebuilds the text from the stored valid translation (never trusts the client copy).
+    let traducao: { id: string; hash_original: string; idioma_origem: string } | null = null;
+    if (body.traducao_id != null) {
+      if (!UUID.test(String(body.traducao_id)) || !UUID.test(projectId)) return json({ error: "Tradução inválida." }, 400);
+      const { data: tr } = await user.from("mc_traducoes").select("id, project_id, estado, resultado, hash_original, idioma_origem").eq("id", String(body.traducao_id)).maybeSingle();
+      if (!tr || tr.project_id !== projectId || tr.estado !== "valida") return json({ error: "A versão PT-PT já não é válida para esta fonte." }, 409);
+      texto = (tr.resultado as string[]).join("\n\n");
+      traducao = { id: tr.id, hash_original: tr.hash_original, idioma_origem: tr.idioma_origem };
+    }
     const titulo = typeof body.titulo === "string" && body.titulo.trim() ? body.titulo.trim().slice(0, 300) : null;
     const objetivo = typeof body.objetivo === "string" ? body.objetivo.slice(0, 200) : "";
     const tom = typeof body.tom === "string" ? body.tom.slice(0, 80) : "";
@@ -114,6 +136,7 @@ Deno.serve(async (req) => {
       if (!o || o.max_chamadas_dia < 1) return json({ error: "A IA está desligada neste projeto. Define um limite diário em «Limites da IA»." }, 409);
     }
     // Snapshot the project's author voice (base profile when none saved) so later edits never change this job.
+    let briefingEd = normalizarBriefing(body.briefing as Record<string, unknown> | undefined);
     let autor: ReturnType<typeof normalizarPerfil> | null = null;
     let leituraTrabalho = normalizarLeitura(body.angulo, body.leitura_especifica);
     // Restructuring proposals reuse the origin job's snapshot (profile + angle), never the current profile.
@@ -121,7 +144,9 @@ Deno.serve(async (req) => {
     if (origemId) {
       const { data: orig } = await user.from("mc_trabalhos").select("brief").eq("id", origemId).eq("project_id", projectId).maybeSingle();
       const ob = (orig?.brief ?? null) as { autor?: Record<string, unknown>; leitura_trabalho?: { angulo?: unknown; especifica?: unknown } } | null;
-      if (ob?.autor) { autor = normalizarPerfil(ob.autor); if (ob.leitura_trabalho) leituraTrabalho = normalizarLeitura(ob.leitura_trabalho.angulo, ob.leitura_trabalho.especifica); }
+      if (ob?.autor) { autor = normalizarPerfil(ob.autor); if ((ob as { briefing?: Record<string, unknown> }).briefing) briefingEd = normalizarBriefing((ob as { briefing?: Record<string, unknown> }).briefing); if (ob.leitura_trabalho) leituraTrabalho = normalizarLeitura(ob.leitura_trabalho.angulo, ob.leitura_trabalho.especifica); }
+      const otr = (ob as { traducao?: { id: string; hash_original: string; idioma_origem: string } } | null)?.traducao;
+      if (otr && !traducao) traducao = otr;
     }
     if (modo === "ia" && !autor) {
       const { data: pa } = await user.from("mc_perfis_autor").select("voz, notas, apresentacao, publico, teses, objetivo_cronica").eq("project_id", projectId).maybeSingle();
@@ -130,7 +155,7 @@ Deno.serve(async (req) => {
     const leitura = body.leitura === true || objetivo.startsWith(OBJETIVO_LEITURA);
     const comum = {
       _project_id: projectId, _texto: modo === "demonstracao" ? texto : fonte.texto,
-      _brief: { objetivo, tom, slides, ...(autor ? { autor, leitura, leitura_trabalho: leituraTrabalho } : {}), titulo: titulo ?? (meta ? atrib.titulo?.slice(0, 300) ?? null : null), ...(framework ? { framework: framework.id, origem_trabalho: UUID.test(String(body.origem_trabalho ?? "")) ? String(body.origem_trabalho) : null } : {}) }, _prompt_versao: framework ? `r11-${framework.id}-autor-v2` : modo === "ia" ? "r11-deepseek-autor-v2" : "r3-v1",
+      _brief: { objetivo, tom, slides, ...(autor ? { autor, leitura, leitura_trabalho: leituraTrabalho, briefing: briefingEd } : {}), idioma_saida: "pt-PT", ...(traducao ? { traducao } : {}), titulo: titulo ?? (meta ? atrib.titulo?.slice(0, 300) ?? null : null), ...(framework ? { framework: framework.id, origem_trabalho: UUID.test(String(body.origem_trabalho ?? "")) ? String(body.origem_trabalho) : null } : {}) }, _prompt_versao: framework ? `r11-${framework.id}-autor-v2` : modo === "ia" ? "r11-deepseek-autor-v2" : "r3-v1",
       _modelo: modo === "demonstracao" ? MODELO_DEMO : modo === "ia" ? MODELO_IA : MODELO_ESTRUTURACAO, _parametros: { slides, ...(framework ? { framework: framework.id } : {}) }, _nova: body.nova === true || !!framework,
     };
     const { data, error } = meta

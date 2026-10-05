@@ -4,6 +4,7 @@
 // known answer is "desconhecido" and is never retried automatically; refusals before generation
 // (401/402/403/429/400) are "recusado" with a user-facing class.
 import { obterFramework, regrasFramework } from "./frameworks.ts";
+import { linhasBriefing, normalizarBriefing } from "./briefing.ts";
 import { normalizarLeitura, normalizarPerfil, regrasAutor } from "./autor.ts";
 import { corpoDeepSeek, DEEPSEEK_URL, ERRO_SEM_CHAVE, MODELO_DEEPSEEK } from "../deepseek-direto.ts";
 export const GATEWAY_URL = DEEPSEEK_URL;
@@ -110,12 +111,13 @@ export function promptSistema(framework?: string | null, autor?: Partial<Record<
   ].join("\n");
 }
 
-export function promptUtilizador(paragrafos: string[], brief: { slides: number; objetivo?: string; tom?: string; titulo?: string | null }, erroAnterior?: string): string {
+export function promptUtilizador(paragrafos: string[], brief: { slides: number; objetivo?: string; tom?: string; titulo?: string | null; briefing?: Record<string, unknown> | null }, erroAnterior?: string): string {
   const linhas = [
     `Número de slides: exatamente ${brief.slides}.`,
     brief.objetivo ? `Objetivo: ${brief.objetivo}` : "",
     brief.tom ? `Tom: ${brief.tom}` : "",
     brief.titulo ? `Título da fonte: ${brief.titulo}` : "",
+    ...(brief.briefing ? linhasBriefing(normalizarBriefing(brief.briefing)) : []),
     erroAnterior ? `A resposta anterior foi rejeitada: ${erroAnterior}. Corrige apenas isso e devolve o JSON completo.` : "",
     "<fonte>",
     ...paragrafos.map((p, i) => `§${i + 1}: ${p}`),

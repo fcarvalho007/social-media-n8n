@@ -4,6 +4,7 @@ import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { cn } from "@/lib/utils";
+import { PUBLICOS } from "../../../supabase/functions/_shared/motor/briefing";
 import { gravarPerfilAutor, lerPerfilAutor } from "@/services/motor";
 import { LIMITES_PERFIL, MAX_NOTAS_AUTOR, VOZES_AUTOR, type PerfilAutor } from "../../../supabase/functions/_shared/motor/autor";
 
@@ -52,6 +53,15 @@ export function PerfilAutorPainel({ projectId }: { projectId: string }) {
       {CAMPOS.map((c) => (
         <div key={c.k} className="space-y-1">
           <Label htmlFor={`perfil-${c.k}`}>{c.nome} <span className="font-normal text-muted-foreground">(opcional)</span></Label>
+          {c.k === "publico" && (
+            <div className="flex flex-wrap gap-2" role="group" aria-label="Públicos rápidos">
+              {PUBLICOS.map((pb) => {
+                const on = p.publico.includes(pb.nome);
+                return <button key={pb.id} type="button" aria-pressed={on} onClick={() => setP({ ...p, publico: on ? p.publico.split(/,\s*/).filter((x) => x && x !== pb.nome).join(", ") : [p.publico.trim(), pb.nome].filter(Boolean).join(", ") })}
+                  className={cn("min-h-11 rounded-full border px-3 text-xs sm:min-h-8 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring", on ? "border-primary bg-primary/10 font-medium text-foreground" : "border-input text-muted-foreground")}>{pb.nome}</button>;
+              })}
+            </div>
+          )}
           <Textarea id={`perfil-${c.k}`} rows={c.linhas} maxLength={LIMITES_PERFIL[c.k]} value={p[c.k]} onChange={(e) => setP({ ...p, [c.k]: e.target.value })} placeholder={c.ph} />
         </div>
       ))}
