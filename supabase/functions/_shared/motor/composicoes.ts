@@ -83,6 +83,16 @@ export interface OpcaoComposicao {
 export interface ContrasteElemento { elemento: "título" | "texto" | "número da página"; razao: number; minimo: number }
 /** Elements whose contrast is below their own minimum. */
 export const contrastesFracos = (o: Pick<OpcaoComposicao, "contrastes">) => o.contrastes.filter((c) => c.razao < c.minimo);
+/**
+ * WCAG minimum from the text's effective size/weight, never from its role. Pages are 1080 px wide and
+ * typically seen at about a third of that (≈360 CSS px in a feed), so WCAG "large" (24 px, or 18.66 px bold)
+ * maps to 72 px / 56 px bold in document units. Everything else keeps 4.5:1.
+ */
+export const ESCALA_VISUALIZACAO = 1 / 3;
+export function minimoContraste(e: { tam: number; peso: number }): number {
+  const css = e.tam * ESCALA_VISUALIZACAO;
+  return css >= 24 || (e.peso >= 700 && css >= 18.66) ? 3 : 4.5;
+}
 /** Formats a ratio rounding DOWN (2 decimals) so 4.47 never shows as 4.5. */
 export const formatarRazao = (r: number) => (Math.floor(r * 100) / 100).toFixed(2).replace(".", ",");
 
@@ -110,8 +120,10 @@ export function comporPagina(p: Pagina, id: ComposicaoId, conteudo: ConteudoEdit
     const h = alturaTexto(c, w, conteudo, m);
     const disponivel = hMax ?? LIMITE_TEXTO - y;
     if (h > disponivel || y < 0) cabe = false;
-    const cor = q.fundoImagem ? c.estilo.cor : legivel(c.estilo.cor, fill, min);
-    if (!q.fundoImagem) contrastes.push({ elemento: c === q.titulo ? "título" : "texto", razao: contraste(cor, fill), minimo: min });
+    void min;
+    const minimo = minimoContraste(c.estilo);
+    const cor = q.fundoImagem ? c.estilo.cor : legivel(c.estilo.cor, fill, minimo);
+    if (!q.fundoImagem) contrastes.push({ elemento: c === q.titulo ? "título" : "texto", razao: contraste(cor, fill), minimo });
     return { ...c, x: Math.round(x), y: Math.round(y), w: Math.round(w), h: Math.max(1, Math.round(Math.min(h, Math.max(disponivel, 1)))), estilo: { ...c.estilo, alinh, cor } };
   };
   let t: CamadaTexto | undefined, b: CamadaTexto | undefined;
@@ -179,8 +191,8 @@ export function comporPagina(p: Pagina, id: ComposicaoId, conteudo: ConteudoEdit
     }
   }
   const fillNum = id === "assimetrica" && numX < 240 ? destaque : fundo;
-  const num = q.num ? { ...q.num, x: Math.round(numX), y: 1250, w: 200, h: q.num.h, estilo: { ...q.num.estilo, alinh: numAlinh, cor: q.fundoImagem ? q.num.estilo.cor : legivel(q.num.estilo.cor, fillNum, 3) } } : undefined;
-  if (num && !q.fundoImagem) contrastes.push({ elemento: "número da página", razao: contraste(num.estilo.cor, fillNum), minimo: 3 });
+  const num = q.num ? { ...q.num, x: Math.round(numX), y: 1250, w: 200, h: q.num.h, estilo: { ...q.num.estilo, alinh: numAlinh, cor: q.fundoImagem ? q.num.estilo.cor : legivel(q.num.estilo.cor, fillNum, minimoContraste(q.num.estilo)) } } : undefined;
+  if (num && !q.fundoImagem) contrastes.push({ elemento: "número da página", razao: contraste(num.estilo.cor, fillNum), minimo: minimoContraste(q.num.estilo) });
   const camadas: Camada[] = [...decor, ...imagens, ...q.outras, ...[t, b, num].filter((c): c is CamadaTexto => !!c)];
   const meta = COMPOSICOES.find((c) => c.id === id)!;
   void corCorpo;
