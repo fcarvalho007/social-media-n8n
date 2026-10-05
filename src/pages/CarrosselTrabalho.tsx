@@ -12,7 +12,6 @@ import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover
 import { useAuth } from "@/contexts/AuthContext";
 import { useProjeto } from "@/contexts/ProjetoContext";
 import { chaveRecuperacao, guardarRecuperacao, limparRecuperacao } from "@/lib/recuperacaoLocal";
-import type { ComposicaoImagem } from "../../supabase/functions/_shared/motor/imagem";
 import { migrarLegado } from "../../supabase/functions/_shared/motor/sistema";
 import { abrirTrabalho, acordarFila, lerAssets, ConflitoVersao, gravarEdicao, lerVersao, listarVersoes, retomarTrabalho, criarTrabalho, lerSistemaVisual, lerComposicoes, type TrabalhoCompleto, type VersaoDoc } from "@/services/motor";
 import { EditorGrafico } from "@/features/editor-grafico/EditorGrafico";
@@ -30,8 +29,6 @@ import type { Asset } from "../../supabase/functions/_shared/documento-grafico/n
 import { BarraAcoes, Cabecalho, Etapas, Grupo, PAPEL, Quadro, type Etapa } from "@/features/motor/Estudio";
 import { cn } from "@/lib/utils";
 import { deveRecarregarRevisao } from "@/features/motor/revisaoRecarga";
-import type { SistemaVisual } from "../../supabase/functions/_shared/motor/sistema";
-import { PassoDesign } from "@/features/motor/PassoDesign";
 import { consultarLeitura, type Conselho } from "../../supabase/functions/_shared/motor/leitura";
 
 type Passo = Etapa;
@@ -78,11 +75,6 @@ export default function CarrosselTrabalho() {
   const [vendoVersao, setVendoVersao] = useState<{ versao: number; pacote: PacoteProva; variante: Variante } | null>(null);
   const [polls, setPolls] = useState(0);
   const [slideSel, setSlideSel] = useState(0);
-  const [designInicio, setDesignInicio] = useState<{ variante: Variante; pagina: number } | null>(null);
-  // Package before the last Design change: reverting saves it again as a NEW version (same CAS path).
-  const [antesDesign, setAntesDesign] = useState<PacoteProva | null>(null);
-  // Design change awaiting CAS confirmation: success is only claimed once the save reports "guardado".
-  const [alteracaoDesign, setAlteracaoDesign] = useState<null | { tipo: "aplicar" | "reverter"; confirmada: boolean }>(null);
   const passoDecidido = useRef(false);
   const assetsCache = useRef<Record<string, Asset>>({});
   const [assetsFalha, setAssetsFalha] = useState<string[]>([]);
@@ -194,16 +186,6 @@ export default function CarrosselTrabalho() {
     estadoAnt.current = estadoG;
   }, [estadoG]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  const viuAGuardar = useRef(false);
-  useEffect(() => {
-    if (!alteracaoDesign || alteracaoDesign.confirmada) { viuAGuardar.current = false; return; }
-    if (estadoG === "a_guardar") viuAGuardar.current = true;
-    else if (estadoG === "guardado" && viuAGuardar.current) {
-      viuAGuardar.current = false;
-      setAlteracaoDesign({ ...alteracaoDesign, confirmada: true });
-      toast.success(alteracaoDesign.tipo === "reverter" ? "Reversão gravada como nova versão" : "Alteração gravada como nova versão");
-    } else if (estadoG === "conflito" || estadoG === "local") viuAGuardar.current = false;
-  }, [estadoG, alteracaoDesign]);
 
   const alterarSlide = (sid: string, campo: "titulo" | "texto", valor: string) => {
     setPacote((p) => p && ({ ...p, conteudo: { slides: p.conteudo.slides.map((s) => (s.id === sid ? { ...s, [campo]: valor } : s)) } }));
@@ -277,7 +259,6 @@ export default function CarrosselTrabalho() {
     return consultarLeitura(pacote.conteudo.slides.map((x) => ({ id: x.id, papel: papel.get(x.id) ?? "", titulo: x.titulo, texto: x.texto })));
   }, [pacote, gravado]);
 
-  const [designPendente, setDesignPendente] = useState(false);
   const mainRef = useRef<HTMLElement>(null);
   const passoAnterior = useRef(passo);
   // Explicit step changes only: reset the step container scroll and move focus to the step heading.
