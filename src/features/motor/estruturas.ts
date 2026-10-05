@@ -75,7 +75,7 @@ export function fundirSelecao(atual: PropostaEditorial, candidatos: Candidato[],
     const c = porId.get(id);
     if (!c) throw new Error(`Proposta ${id} indisponível.`);
     const comp = compatibilidade(atual, c.conteudo);
-    if (!comp.ok) throw new Error(comp.motivo);
+    if ("motivo" in comp) throw new Error(comp.motivo);
     const p = c.conteudo.slides[i];
     trocados++;
     alt[i] = c.conteudo.alt?.[i] ?? alt[i];

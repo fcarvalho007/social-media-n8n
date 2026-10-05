@@ -54,7 +54,7 @@ export function PainelEstruturas({ dados, atual, aceitar }: Props) {
     if (c.fonte_hash !== dados.fonte.hash) motivo = "Foi feita sobre outra fonte.";
     else if (c.base_versao == null) motivo = "Proposta antiga sem versão de base registada; só pode abrir como carrossel separado.";
     else if (c.base_versao !== versao) motivo = `Foi feita sobre a versão ${c.base_versao}; o texto atual é a versão ${versao}.`;
-    else { const k = compatibilidade(atual, c.conteudo!); if (!k.ok) motivo = k.motivo; }
+    else { const k = compatibilidade(atual, c.conteudo!); if ("motivo" in k) motivo = k.motivo; }
     return { ...c, motivo };
   }), [pool, dados.fonte.hash, versao, atual]);
   const usaveis = avaliados.filter((c) => !c.motivo);
@@ -181,7 +181,7 @@ export function PainelEstruturas({ dados, atual, aceitar }: Props) {
                   {res.transicoes.length > 0 && <p className="text-xs text-muted-foreground">Rever transições antes dos slides {res.transicoes.map((t) => t + 1).join(", ")}: misturar estruturas pode perder coesão.</p>}
                   <p className="text-xs text-muted-foreground">A legenda e o CTA atuais mantêm-se; revê-os se deixarem de servir. Aplicar cria uma nova versão: aprovação e exportação atuais deixam de valer; composição e versões anteriores mantêm-se.</p>
                 </>
-              ) : <p role="alert">{res.motivo}</p>}
+              ) : <p role="alert">{"motivo" in res ? res.motivo : ""}</p>}
               {erroAplicar && <p role="alert" className="text-destructive">{erroAplicar}</p>}
               <div className="flex flex-wrap gap-2">
                 <Button className="h-11" disabled={!res.ok || aAplicar} onClick={aplicar}>{aAplicar && <Loader2 className="mr-1.5 h-4 w-4 motion-safe:animate-spin" />}{aAplicar ? "A gravar…" : `Aplicar seleção de ${res.ok ? res.trocados : 0} slides`}</Button>
