@@ -194,7 +194,7 @@ export function RevisaoExportacao({ dados, pacote, medidor, guardado, irPara }: 
                     <Checkbox id="revisto" className="mt-0.5 h-5 w-5" checked={revisto && naoCabe.length === 0} onCheckedChange={(v) => setRevisto(v === true)} disabled={!concluido || !guardado || naoCabe.length > 0} />
                     <Label htmlFor="revisto" className="text-sm font-normal leading-snug">Revi a narrativa (v{doc.proposta_versao}) e a composição da variante {variante} (v{doc.versao}). Aprovo esta versão para rascunho.</Label>
                   </div>
-                  {!guardado && <p className="text-xs text-muted-foreground" role="note">À espera que a última alteração fique guardada.</p>}
+                  {concluido && !guardado && <p className="text-xs text-muted-foreground" role="note">À espera que a última alteração fique guardada.</p>}
                   <Button className="h-11" disabled={!revisto || naoCabe.length > 0 || !concluido || !guardado || aPreparar} onClick={preparar}>
                     {aPreparar ? <Loader2 className="mr-1.5 h-4 w-4 motion-safe:animate-spin" /> : <Send className="mr-1.5 h-4 w-4" />}Preparar rascunho social
                   </Button>
