@@ -78,7 +78,8 @@ export function sugerirRitmo(pacote: PacoteProva, slides: Array<SlideRitmo & { i
     for (const p of pacote.variantes[v].paginas) {
       const sid = slideDaPagina(p);
       const c = sid ? porSlide.get(sid)?.composicao : null;
-      if (!c) continue;
+      // Pages with images keep their layout: compositions place text by role and could cover the image.
+      if (!c || p.camadas.some((k) => k.tipo === "imagem")) continue;
       const o = comporPagina(p, c, pacote.conteudo, m);
       if (o && o.cabe) out = comPagina(out, v, o.pagina);
     }
