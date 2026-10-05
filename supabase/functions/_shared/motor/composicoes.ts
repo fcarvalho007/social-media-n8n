@@ -77,7 +77,14 @@ export interface OpcaoComposicao {
   cabe: boolean;
   /** Lowest text/fill contrast; null when the text sits on a photo (cannot be verified). */
   contrasteMin: number | null;
+  /** Each text checked against the real fill behind it, with its own WCAG minimum (3 for large text, 4.5 for body). */
+  contrastes: ContrasteElemento[];
 }
+export interface ContrasteElemento { elemento: "título" | "texto" | "número da página"; razao: number; minimo: number }
+/** Elements whose contrast is below their own minimum. */
+export const contrastesFracos = (o: Pick<OpcaoComposicao, "contrastes">) => o.contrastes.filter((c) => c.razao < c.minimo);
+/** Formats a ratio rounding DOWN (2 decimals) so 4.47 never shows as 4.5. */
+export const formatarRazao = (r: number) => (Math.floor(r * 100) / 100).toFixed(2).replace(".", ",");
 
 const ret = (id: string, x: number, y: number, w: number, h: number, cor: string, z = 1, raio = 0): CamadaForma =>
   ({ id, tipo: "forma", forma: "ret", x: Math.round(x), y: Math.round(y), w: Math.round(w), h: Math.round(h), z, estilo: { cor, raio } });
@@ -94,7 +101,7 @@ export function comporPagina(p: Pagina, id: ComposicaoId, conteudo: ConteudoEdit
   const corCorpo = q.corpo?.estilo.cor ?? corTitulo;
   const destaqueBruto = q.decor.find((d) => contraste(d.estilo.cor, fundo) >= 1.5)?.estilo.cor ?? corTitulo;
   const destaque = HEX.test(destaqueBruto) ? destaqueBruto : corTitulo;
-  const contrastes: number[] = [];
+  const contrastes: ContrasteElemento[] = [];
   let cabe = true;
   const decor: CamadaForma[] = [];
   let imagens = q.imagens;
@@ -104,7 +111,7 @@ export function comporPagina(p: Pagina, id: ComposicaoId, conteudo: ConteudoEdit
     const disponivel = hMax ?? LIMITE_TEXTO - y;
     if (h > disponivel || y < 0) cabe = false;
     const cor = q.fundoImagem ? c.estilo.cor : legivel(c.estilo.cor, fill, min);
-    if (!q.fundoImagem) contrastes.push(contraste(cor, fill));
+    if (!q.fundoImagem) contrastes.push({ elemento: c === q.titulo ? "título" : "texto", razao: contraste(cor, fill), minimo: min });
     return { ...c, x: Math.round(x), y: Math.round(y), w: Math.round(w), h: Math.max(1, Math.round(Math.min(h, Math.max(disponivel, 1)))), estilo: { ...c.estilo, alinh, cor } };
   };
   let t: CamadaTexto | undefined, b: CamadaTexto | undefined;
@@ -171,12 +178,13 @@ export function comporPagina(p: Pagina, id: ComposicaoId, conteudo: ConteudoEdit
       break;
     }
   }
-  const num = q.num ? { ...q.num, x: Math.round(numX), y: 1250, w: 200, h: q.num.h, estilo: { ...q.num.estilo, alinh: numAlinh, cor: q.fundoImagem ? q.num.estilo.cor : legivel(q.num.estilo.cor, id === "assimetrica" && numX < 240 ? destaque : fundo, 3) } } : undefined;
-  if (num && !q.fundoImagem) contrastes.push(contraste(num.estilo.cor, fundo));
+  const fillNum = id === "assimetrica" && numX < 240 ? destaque : fundo;
+  const num = q.num ? { ...q.num, x: Math.round(numX), y: 1250, w: 200, h: q.num.h, estilo: { ...q.num.estilo, alinh: numAlinh, cor: q.fundoImagem ? q.num.estilo.cor : legivel(q.num.estilo.cor, fillNum, 3) } } : undefined;
+  if (num && !q.fundoImagem) contrastes.push({ elemento: "número da página", razao: contraste(num.estilo.cor, fillNum), minimo: 3 });
   const camadas: Camada[] = [...decor, ...imagens, ...q.outras, ...[t, b, num].filter((c): c is CamadaTexto => !!c)];
   const meta = COMPOSICOES.find((c) => c.id === id)!;
   void corCorpo;
-  return { ...meta, pagina: { ...p, camadas }, cabe, contrasteMin: q.fundoImagem ? null : Math.min(...contrastes) };
+  return { ...meta, pagina: { ...p, camadas }, cabe, contrasteMin: q.fundoImagem || !contrastes.length ? null : Math.min(...contrastes.map((c) => c.razao)), contrastes: q.fundoImagem ? [] : contrastes };
 }
 
 /** The five compositions of one page (empty when the page has no editorial text). */

@@ -78,3 +78,16 @@ describe("ler página", () => {
     expect(resumoLeitura("a ".repeat(400), 20).previa.length).toBeLessThanOrEqual(21);
   });
 });
+
+import { formatarRazao as fmtRazao, contrastesFracos as fracosDe } from "../../supabase/functions/_shared/motor/composicoes";
+describe("contraste por elemento", () => {
+  it("arredonda para baixo e usa o mínimo de cada elemento", () => {
+    expect(fmtRazao(4.4999)).toBe("4,49");
+    expect(fmtRazao(4.5)).toBe("4,50");
+    const o = { contrastes: [
+      { elemento: "número da página" as const, razao: 4.2, minimo: 3 },
+      { elemento: "texto" as const, razao: 4.47, minimo: 4.5 },
+    ] };
+    expect(fracosDe(o).map((c) => c.elemento)).toEqual(["texto"]);
+  });
+});
