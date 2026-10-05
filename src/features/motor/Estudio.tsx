@@ -25,7 +25,17 @@ export function Etapas({ atual, disponiveis, onIr, compacto }: { atual: Etapa; d
   const iAtual = ETAPAS.findIndex((e) => e.id === atual);
   return (
     <nav aria-label="Etapas do carrossel" className="min-w-0">
-      <ol className="flex items-center gap-1 overflow-x-auto">
+      {compacto && (
+        <label className="flex min-w-0 items-center gap-2 sm:hidden">
+          <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full border border-primary bg-primary text-xs tabular-nums text-primary-foreground" aria-hidden>{iAtual + 1}</span>
+          <span className="sr-only">Etapa {iAtual + 1} de {ETAPAS.length}:</span>
+          <select value={atual} onChange={(ev) => onIr?.(ev.target.value as Etapa)} disabled={!onIr}
+            className="min-h-11 min-w-0 flex-1 truncate rounded-[var(--mc-r-md)] border border-input bg-background px-2 text-sm font-medium focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring">
+            {ETAPAS.map((e, i) => <option key={e.id} value={e.id} disabled={e.id !== atual && !disponiveis.includes(e.id)}>{i + 1}/{ETAPAS.length} · {e.nome}</option>)}
+          </select>
+        </label>
+      )}
+      <ol className={cn("flex items-center gap-1 overflow-x-auto", compacto && "hidden sm:flex")}>
         {ETAPAS.map((e, i) => {
           const ativa = e.id === atual;
           const feita = i < iAtual;
