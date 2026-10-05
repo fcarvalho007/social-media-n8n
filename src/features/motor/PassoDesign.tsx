@@ -112,7 +112,7 @@ export function PassoDesign({ pacote, medidor, onAplicar, slides, paragrafos, in
               {opcoes.length === 0 ? <p className="text-sm text-muted-foreground">Este slide não tem título nem texto para recompor.</p> : (
                 <ul className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-5" aria-label="Composições">
                   {opcoes.map((o) => {
-                    const fraco = o.contrasteMin != null && o.contrasteMin < 4.5;
+                    const fracos = contrastesFracos(o);
                     return (
                       <li key={o.id}>
                         <button type="button" disabled={!o.cabe} aria-pressed={compSel === o.id} onClick={() => setCompSel(o.id)}
@@ -121,7 +121,7 @@ export function PassoDesign({ pacote, medidor, onAplicar, slides, paragrafos, in
                           <span className="mt-2 flex items-center gap-1 text-sm font-medium">{compSel === o.id && <Check className="h-3.5 w-3.5 text-primary" />}{o.nome}</span>
                           <span className="block text-xs text-muted-foreground">{o.descricao}</span>
                           {!o.cabe && <span className="mt-1 block text-xs text-destructive">O texto não cabe aqui. Encurta o texto ou ajusta a caixa no editor.</span>}
-                          {o.cabe && fraco && <span className="mt-1 block text-xs text-destructive">Contraste baixo ({o.contrasteMin?.toFixed(1)}:1).</span>}
+                          {o.cabe && fracos.map((c) => <span key={c.elemento} className="mt-1 block text-xs text-destructive">Contraste baixo no {c.elemento}: {formatarRazao(c.razao)}:1 (mínimo {formatarRazao(c.minimo)}:1). Podes aplicar e ajustar a cor no editor.</span>)}
                           {o.cabe && o.contrasteMin == null && <span className="mt-1 block text-xs text-muted-foreground">Texto sobre imagem: confirma a leitura.</span>}
                         </button>
                       </li>
