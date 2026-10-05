@@ -21,6 +21,8 @@ export interface SlideProposta {
   texto: string;
   /** 1-based paragraph numbers of the normalised source backing this slide. */
   fontes: number[];
+  /** Visual role decided by the narrative from the slide's function in the story (optional for older proposals). */
+  papel_visual?: string;
 }
 
 export interface PropostaEditorial {
@@ -170,7 +172,8 @@ export function validarRespostaModelo(raw: string, f: FonteNormalizada, slidesPe
     const fontes = [...new Set(x.fontes as unknown[])];
     for (const n of fontes) if (!Number.isInteger(n) || (n as number) < 1 || (n as number) > f.paragrafos.length) throw new Error(`Slide ${i + 1}: referência §${String(n)} não existe (fonte tem ${f.paragrafos.length} parágrafos).`);
     if (papel !== "fecho" && fontes.length === 0) throw new Error(`Slide ${i + 1}: falta referência aos parágrafos da fonte.`);
-    return { id: `s${i + 1}`, papel, titulo: x.titulo.trim(), texto: x.texto.trim(), fontes: (fontes as number[]).sort((a, b) => a - b) };
+    const pv = typeof x.papel_visual === "string" && PAPEIS_PAGINA.includes(x.papel_visual) && (i === 0) === (x.papel_visual === "cover") ? x.papel_visual : undefined;
+    return { id: `s${i + 1}`, papel, titulo: x.titulo.trim(), texto: x.texto.trim(), fontes: (fontes as number[]).sort((a, b) => a - b), ...(pv ? { papel_visual: pv } : {}) };
   });
   let alt: string[] | null = null;
   if (Array.isArray(o.alt) && o.alt.length === slides.length && o.alt.every((a) => typeof a === "string" && a.trim())) alt = (o.alt as string[]).map((a) => a.trim().slice(0, 250));
@@ -267,7 +270,10 @@ export function comporDocumentos(p: PropostaEditorial, paragrafos?: string[]): R
   const conteudo = { slides: p.slides.map((s) => ({ id: s.id, titulo: s.titulo, texto: s.texto })) };
   const plano = paragrafos ? planoRitmo(p.slides, paragrafos) : null;
   const doc = (variante: Variante, f: typeof paginaA): DocumentoGrafico => {
-    const base = p.slides.map((s, i) => f(s, i, total, p.marca.cor));
+    const base = p.slides.map((s, i) => {
+      const pg = f(s, i, total, p.marca.cor);
+      return s.papel_visual && PAPEIS_PAGINA.includes(s.papel_visual) ? { ...pg, papel: s.papel_visual } : pg;
+    });
     return { v: 1, variante, largura: LARGURA, altura: ALTURA, fonte: FONTE_DOC, paginas: plano ? aplicarRitmo(base, plano, conteudo) : base };
   };
   return { A: doc("A", paginaA), B: doc("B", paginaB) };
