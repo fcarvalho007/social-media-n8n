@@ -225,7 +225,7 @@ export function PainelEstruturas({ dados, atual, aceitar }: Props) {
               ) : <p role="alert">{"motivo" in res ? res.motivo : ""}</p>}
               {erroAplicar && <p role="alert" className="text-destructive">{erroAplicar}</p>}
               <div className="flex flex-wrap gap-2">
-                <Button className="h-11" disabled={!res.ok || aAplicar} onClick={aplicar}>{aAplicar && <Loader2 className="mr-1.5 h-4 w-4 motion-safe:animate-spin" />}{aAplicar ? "A gravar…" : `Aplicar seleção de ${res.ok ? res.trocados : 0} slides`}</Button>
+                <Button className="h-11" disabled={!res.ok || aAplicar} onClick={aplicar}>{aAplicar && <Loader2 className="mr-1.5 h-4 w-4 motion-safe:animate-spin" />}{aAplicar ? "A gravar…" : `Aplicar seleção de ${res.ok ? res.trocados : 0} ${res.ok && res.trocados === 1 ? "slide" : "slides"}`}</Button>
                 <Button variant="ghost" className="h-11 px-3" disabled={aAplicar} onClick={() => setSelecao(atual.slides.map(() => null))}>Limpar</Button>
               </div>
             </div>
@@ -233,7 +233,7 @@ export function PainelEstruturas({ dados, atual, aceitar }: Props) {
       </div>
 
       <Dialog open={!!escolha} onOpenChange={(o) => !o && setEscolha(null)}>
-        <DialogContent>
+        <DialogContent className="mc-estudio">
           <DialogHeader>
             <DialogTitle>Proposta «{escolha?.nome}»</DialogTitle>
             <DialogDescription>
@@ -252,7 +252,7 @@ export function PainelEstruturas({ dados, atual, aceitar }: Props) {
         </DialogContent>
       </Dialog>
       <Dialog open={!!regen} onOpenChange={(o) => !o && !aPedirR && setRegen(null)}>
-        <DialogContent>
+        <DialogContent className="mc-estudio">
           <DialogHeader>
             <DialogTitle>Regenerar o slide {regen ? regen.indice + 1 : ""}</DialogTitle>
             <DialogDescription>
