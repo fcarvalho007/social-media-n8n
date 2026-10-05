@@ -258,7 +258,12 @@ export async function lerEstadosPublicacao(trabalhoIds: string[]): Promise<{
   };
 }
 
+export const regenerarSlide = (n: { project_id: string; origem_trabalho: string; base_versao: number; slide_id: string; modo: string; nota: string }) =>
+  invocar<{ trabalho_id: string; simulado: boolean }>({ acao: "regenerar_slide", confirmar: true, ...n });
+
 export interface CandidatoPool {
+  /** Single-slide regeneration: slide id + mode; null for whole-framework proposals. */
+  escopo: { slide_id: string; modo: string } | null;
   trabalho: string; framework: string; estado: string; erro: string | null; criado_em: string;
   base_versao: number | null; fonte_hash: string | null; perfil: "original" | "atual" | "nenhum"; conteudo: PropostaEditorial | null;
 }
@@ -269,12 +274,13 @@ export async function listarCandidatos(origem: TrabalhoCompleto): Promise<Candid
   if (error) throw new Error("Não foi possível ler as propostas.");
   const ob = (origem.trabalho as unknown as { brief?: { autor?: unknown } }).brief;
   return Promise.all((data ?? []).map(async (t) => {
-    const b = (t.brief ?? {}) as { framework?: string; base_versao?: number | null; autor?: unknown };
+    const b = (t.brief ?? {}) as { framework?: string | null; base_versao?: number | null; autor?: unknown; regen?: { slide_id?: string; modo?: string } | null };
     let conteudo: PropostaEditorial | null = null; let hash: string | null = null;
     if (t.estado === "concluido") {
       try { const c = await abrirTrabalho(t.id); conteudo = c.proposta.conteudo; hash = c.fonte.hash; } catch { /* stays null */ }
     }
     const perfil = !b.autor ? "nenhum" : ob?.autor && JSON.stringify(ob.autor) === JSON.stringify(b.autor) ? "original" : "atual";
-    return { trabalho: t.id, framework: b.framework ?? "", estado: t.estado, erro: t.erro, criado_em: t.criado_em, base_versao: b.base_versao ?? null, fonte_hash: hash, perfil, conteudo } as CandidatoPool;
+    const escopo = b.regen?.slide_id ? { slide_id: b.regen.slide_id, modo: b.regen.modo ?? "" } : null;
+    return { escopo, trabalho: t.id, framework: escopo ? `slide:${escopo.modo}` : b.framework ?? "", estado: t.estado, erro: t.erro, criado_em: t.criado_em, base_versao: b.base_versao ?? null, fonte_hash: hash, perfil, conteudo } as CandidatoPool;
   }));
 }

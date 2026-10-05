@@ -38,7 +38,8 @@ export function guardarPendente(trabalhoId: string, p: EstruturaPendente | null)
 
 // ---------- hybrid per-slide merge (deterministic, free: no AI) ----------
 
-export interface Candidato { trabalho: string; framework: string; conteudo: PropostaEditorial }
+/** `escopo` = slide id for single-slide regenerations (usable only for that slide). */
+export interface Candidato { trabalho: string; framework: string; conteudo: PropostaEditorial; escopo?: string | null }
 /** Per slide index: null = keep current; otherwise the candidate job id supplying that slide. */
 export type Selecao = (string | null)[];
 
@@ -74,6 +75,8 @@ export function fundirSelecao(atual: PropostaEditorial, candidatos: Candidato[],
     if (!id) return s;
     const c = porId.get(id);
     if (!c) throw new Error(`Proposta ${id} indisponível.`);
+    const escopo = c.escopo ?? c.conteudo.escopo_slide ?? null;
+    if (escopo && escopo !== s.id) throw new Error(`Essa alternativa foi gerada só para outro slide; não pode entrar no slide ${i + 1}.`);
     const comp = compatibilidade(atual, c.conteudo);
     if ("motivo" in comp) throw new Error(comp.motivo);
     const p = c.conteudo.slides[i];
@@ -86,7 +89,7 @@ export function fundirSelecao(atual: PropostaEditorial, candidatos: Candidato[],
   for (let i = 1; i < selecao.length; i++) if ((selecao[i] ?? null) !== (selecao[i - 1] ?? null)) transicoes.push(i);
   if (!trocados) return { ok: false, motivo: "Nenhum slide foi escolhido." };
   return { ok: true, trocados, transicoes, // Title follows slide 1 (same invariant as aplicarTextoNaProposta) so autosave sees no diff and never writes a duplicate version.
-    conteudo: { ...atual, metodo: "ia", demonstracao: false, titulo: slides[0]?.titulo ?? atual.titulo, slides, alt, origem_slides: origem } };
+    conteudo: { ...atual, escopo_slide: undefined, metodo: "ia", demonstracao: false, titulo: slides[0]?.titulo ?? atual.titulo, slides, alt, origem_slides: origem } };
 }
 
 const CHAVE_SEL = (trabalhoId: string, versao: number) => `mc-selecao:${trabalhoId}:v${versao}`;
