@@ -1,4 +1,4 @@
-import { normalizarPerfil } from "../_shared/motor/autor.ts";
+import { normalizarPerfil, OBJETIVO_LEITURA } from "../_shared/motor/autor.ts";
 // Content engine entrypoint.
 // - acao "criar": authenticated user; project access is validated in the database RPC (never trusts project_id).
 // - acao "retomar": authenticated user; explicit retry of a job in "erro".
@@ -119,7 +119,7 @@ Deno.serve(async (req) => {
       const { data: pa } = await user.from("mc_perfis_autor").select("voz, notas").eq("project_id", projectId).maybeSingle();
       autor = normalizarPerfil(pa);
     }
-    const leitura = body.leitura === true;
+    const leitura = body.leitura === true || objetivo.startsWith(OBJETIVO_LEITURA);
     const comum = {
       _project_id: projectId, _texto: modo === "demonstracao" ? texto : fonte.texto,
       _brief: { objetivo, tom, slides, ...(autor ? { autor, leitura } : {}), titulo: titulo ?? (meta ? atrib.titulo?.slice(0, 300) ?? null : null), ...(framework ? { framework: framework.id, origem_trabalho: UUID.test(String(body.origem_trabalho ?? "")) ? String(body.origem_trabalho) : null } : {}) }, _prompt_versao: framework ? `r10-${framework.id}-autor-v1` : modo === "ia" ? "r10-deepseek-autor-v1" : "r3-v1",

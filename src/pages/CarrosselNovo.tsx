@@ -31,7 +31,7 @@ export const FIXTURE_DEMO = `${MARCADOR_FIXTURE} Teste sintético R3. Este texto
 export const OBJETIVOS = [
   { id: "informar", nome: "Informar", desc: "Dar a conhecer os factos principais." },
   { id: "explicar", nome: "Explicar", desc: "Clarificar como funciona ou porquê." },
-  { id: "opiniao", nome: "Opinião", desc: "Apresentar o ponto de vista da fonte." },
+  { id: "opiniao", nome: "A minha leitura", desc: "Crónica do autor: interpretar implicações, separando os factos da fonte da tua leitura." },
   { id: "divulgar", nome: "Divulgar", desc: "Chamar a atenção para algo a acontecer." },
 ] as const;
 type ObjetivoId = (typeof OBJETIVOS)[number]["id"];

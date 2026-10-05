@@ -1,3 +1,4 @@
+import { normalizarPerfil, type PerfilAutor } from "../../supabase/functions/_shared/motor/autor";
 import type { DocResumo, DraftResumo, LigacaoResumo, PostResumo } from "@/features/motor/publicacao";
 import { supabase } from "@/integrations/supabase/client";
 import { tratarSessaoRecusada } from "@/lib/sessaoRecusada";
@@ -136,7 +137,18 @@ export async function definirOrcamento(projectId: string, maxDia: number, maxTra
   const { error } = await supabase.rpc("mc_definir_orcamento", { _project_id: projectId, _max_dia: maxDia, _max_trabalho: maxTrabalho });
   if (error) throw new Error(error.code === "42501" ? "Só o dono do projeto com papel de editor pode alterar os limites." : "Não foi possível gravar os limites.");
 }
-export const MODELO_IA_NOME = "GPT-6 Astra (OpenAI, via Lovable AI)";
+/** Real provider/model verified against DeepSeek's /models listing (id deepseek-flash = DeepSeek-V4.1-Flash). */
+export const MODELO_IA_NOME = "DeepSeek-V4.1-Flash (deepseek-flash, ligação direta à DeepSeek)";
+
+export async function lerPerfilAutor(projectId: string): Promise<PerfilAutor> {
+  const { data, error } = await supabase.from("mc_perfis_autor").select("voz, notas").eq("project_id", projectId).maybeSingle();
+  if (error) throw new Error("Não foi possível ler o perfil de autor.");
+  return normalizarPerfil(data);
+}
+export async function gravarPerfilAutor(projectId: string, p: PerfilAutor): Promise<void> {
+  const { error } = await supabase.rpc("mc_definir_perfil_autor", { _project_id: projectId, _voz: p.voz, _notas: p.notas });
+  if (error) throw new Error(error.code === "42501" ? "Só o dono do projeto com papel de editor pode alterar o perfil." : "Não foi possível gravar o perfil de autor.");
+}
 
 export interface FicheiroExport { formato: "png" | "pdf" | "zip"; pagina: number | null; url: string; hash: string; bytes: number; nome: string }
 export interface EstadoExportacao {

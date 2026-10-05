@@ -35,3 +35,6 @@ export function regrasAutor(p: PerfilAutor, leitura: boolean): string {
     "Nunca inventes estudos, números, citações, credenciais, biografia nem experiências pessoais do autor. Nunca atribuas à fonte a opinião do autor, nem ao autor a opinião da fonte.",
   ].filter(Boolean).join("\n");
 }
+
+/** Display name of the author-reading objective; the objective text sent to the server starts with it. */
+export const OBJETIVO_LEITURA = "A minha leitura";
