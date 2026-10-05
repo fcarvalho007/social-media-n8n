@@ -69,6 +69,6 @@ describe("tradução da fonte", () => {
     expect(ui).toMatch(/stale: source changed meanwhile/);
     expect(ui).toMatch(/Confirmar tradução/);
     expect(ui).toMatch(/Avançar em PT-PT/);
-    expect(ui).toMatch(/useState<EscolhaIdioma>\("pt"\)/);
+    expect(ui).toMatch(/escolhaInicial = "pt"/);
   });
 });
