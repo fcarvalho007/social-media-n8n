@@ -74,7 +74,7 @@ export default function CarrosselNovo() {
   const [idioma, setIdioma] = useState<EstadoIdioma>({ estrangeiro: false, escolha: "pt", traducaoId: null, pronto: true });
   const [idiomaInicial, setIdiomaInicial] = useState<EscolhaIdioma>("pt");
   const [perfil, setPerfil] = useState<PerfilAutor | null>(null);
-  const resumoPerfil = perfil ? [perfil.apresentacao.split(/[;,.]/)[0].trim() || "Autor sem nome", perfil.voz.map((v) => VOZES_AUTOR.find((x) => x.id === v)?.nome).filter(Boolean).slice(0, 2).join(" · ")].filter(Boolean).join(" — ") : null;
+  const resumoPerfil = perfil ? [perfil.apresentacao.split(/[;,.:]/)[0].trim() || "Autor sem nome", perfil.voz.map((v) => VOZES_AUTOR.find((x) => x.id === v)?.nome).filter(Boolean).slice(0, 2).join(" · ")].filter(Boolean).join(" — ") : null;
   const abrirContexto = () => { const d = document.querySelector<HTMLDetailsElement>("#contexto-autor details"); if (d) { d.open = true; d.scrollIntoView({ block: "nearest" }); d.querySelector("summary")?.focus(); } };
   const [slides, setSlides] = useState<number | null>(null);
   const [demo, setDemo] = useState(false);
