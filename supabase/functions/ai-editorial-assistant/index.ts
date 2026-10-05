@@ -1,6 +1,7 @@
 import "https://deno.land/x/xhr@0.1.0/mod.ts";
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.83.0";
+import { chaveDeepSeek, ErroDeepSeek, limparJson, textoDeepSeek } from "../_shared/deepseek-direto.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -125,71 +126,22 @@ serve(async (req) => {
     const rawTranscription = String(transcriptionData.text || "").trim();
     if (!rawTranscription) return responseJson({ success: false, error: "Não foi detetado áudio útil no vídeo." }, 422);
 
-    const lovableKey = Deno.env.get("LOVABLE_API_KEY");
-    if (!lovableKey) {
-      return responseJson({ success: true, result: buildFallbackResult(rawTranscription, networks), warning: "IA editorial indisponível; foi usada a transcrição." });
+    if (!chaveDeepSeek()) {
+      return responseJson({ success: true, result: buildFallbackResult(rawTranscription, networks), warning: "A DeepSeek não está configurada no servidor; foi usada só a transcrição." });
     }
 
     const systemPrompt = `És um assistente editorial para redes sociais. Escreve sempre em português de Portugal, Acordo Ortográfico de 1990, sem pt-BR. Não inventes métricas, scores nem promessas. Cria copy natural, útil e editável.`;
     const userPrompt = `Transcrição do vídeo:\n${rawTranscription}\n\nRedes selecionadas: ${networks.join(", ")}\n\nGera uma proposta editorial completa.`;
 
-    const aiResponse = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
-      method: "POST",
-      headers: { Authorization: `Bearer ${lovableKey}`, "Content-Type": "application/json" },
-      body: JSON.stringify({
-        model: "google/gemini-3-flash-preview",
-        messages: [
-          { role: "system", content: systemPrompt },
-          { role: "user", content: userPrompt },
-        ],
-        tools: [{
-          type: "function",
-          function: {
-            name: "create_editorial_assistant_result",
-            description: "Devolve uma proposta editorial estruturada para preencher o formulário de publicação.",
-            parameters: {
-              type: "object",
-              properties: {
-                draft_title: { type: "string" },
-                base_caption: { type: "string" },
-                captions_per_network: { type: "object", additionalProperties: { type: "string" } },
-                hashtags: {
-                  type: "object",
-                  properties: {
-                    reach: { type: "array", items: { type: "string" } },
-                    niche: { type: "array", items: { type: "string" } },
-                    brand: { type: "array", items: { type: "string" } },
-                  },
-                  required: ["reach", "niche", "brand"],
-                  additionalProperties: false,
-                },
-                first_comment: { type: "string" },
-                alt_text: { type: "string", maxLength: 125 },
-                key_quotes: { type: "array", items: { type: "string" } },
-              },
-              required: ["draft_title", "base_caption", "captions_per_network", "hashtags", "first_comment", "alt_text", "key_quotes"],
-              additionalProperties: false,
-            },
-          },
-        }],
-        tool_choice: { type: "function", function: { name: "create_editorial_assistant_result" } },
-      }),
-    });
-
-    if (!aiResponse.ok) {
-      const errorText = await aiResponse.text();
-      console.error("[ai-editorial-assistant] gateway error", aiResponse.status, errorText);
-      const message = aiResponse.status === 429
-        ? "Limite de IA atingido. Tenta novamente daqui a pouco."
-        : aiResponse.status === 402
-          ? "Créditos de IA insuficientes."
-          : "A IA editorial está indisponível. Podes preencher manualmente ou tentar de novo.";
-      return responseJson({ success: false, error: message }, aiResponse.status === 402 || aiResponse.status === 429 ? aiResponse.status : 500);
+    const formato = 'Responde só com JSON: {"draft_title":string,"base_caption":string,"captions_per_network":{"<rede>":string},"hashtags":{"reach":string[],"niche":string[],"brand":string[]},"first_comment":string,"alt_text":string (máx. 125 caracteres),"key_quotes":string[]}.';
+    let parsed: Record<string, unknown>;
+    try {
+      const r = await textoDeepSeek({ sistema: `${systemPrompt}\n${formato}`, utilizador: userPrompt, json: true });
+      try { parsed = JSON.parse(limparJson(r.texto)); } catch { parsed = buildFallbackResult(rawTranscription, networks); }
+    } catch (e) {
+      if (e instanceof ErroDeepSeek) return responseJson({ success: false, error: e.message }, [402, 429, 503].includes(e.status) ? e.status : 500);
+      throw e;
     }
-
-    const aiData = await aiResponse.json();
-    const args = aiData.choices?.[0]?.message?.tool_calls?.[0]?.function?.arguments;
-    const parsed = args ? JSON.parse(args) : buildFallbackResult(rawTranscription, networks);
     const result = { ...parsed, raw_transcription: rawTranscription };
 
     return responseJson({ success: true, result });

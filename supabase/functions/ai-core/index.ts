@@ -1,6 +1,7 @@
 import "https://deno.land/x/xhr@0.1.0/mod.ts";
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.83.0";
+import { ErroDeepSeek, limparJson, MODELO_DEEPSEEK, textoDeepSeek } from "../_shared/deepseek-direto.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -15,8 +16,8 @@ const COSTS = {
 } as const;
 
 const MODEL_MAP = {
-  fast: "google/gemini-3-flash-preview",
-  smart: "openai/gpt-5-mini",
+  fast: MODELO_DEEPSEEK,
+  smart: MODELO_DEEPSEEK,
 } as const;
 
 type AIAction = "transcription" | "text_generation" | "vision" | "hashtag_generation" | "first_comment_generation" | "video_chapters" | "video_quotes" | "insight_question_suggestions";
@@ -52,6 +53,8 @@ function safeErrorMessage(status: number, fallback = "A IA está temporariamente
   if (status === 402) return { code: "insufficient_credits", error: "Não tens créditos suficientes. Vê planos." };
   if (status === 429) return { code: "rate_limit", error: "A IA está ocupada. Tenta novamente em alguns segundos." };
   if (status === 408) return { code: "timeout", error: "A IA demorou demasiado. Tenta novamente." };
+  if (status === 503) return { code: "generic", error: "A DeepSeek não está configurada no servidor (DEEPSEEK_API_KEY em falta)." };
+  if (status === 501) return { code: "generic", error: "A descrição automática de imagens está desligada: não há fornecedor de visão autorizado." };
   return { code: "generic", error: fallback };
 }
 
@@ -142,53 +145,43 @@ async function logUsage(serviceClient: ReturnType<typeof createClient>, params: 
   if (error) console.error("[ai-core] usage log failed", error);
 }
 
-async function generateText(body: RequestBody, lovableKey: string) {
-  const modelAlias = body.model === "smart" ? "smart" : "fast";
-  const model = MODEL_MAP[modelAlias];
-  const messages = [
-    { role: "system", content: body.systemPrompt || "Responde sempre em português de Portugal, com clareza e sem inventar factos." },
-    { role: "user", content: body.prompt || "" },
-  ];
-
-  const aiResponse = await retry(() => fetchWithTimeout("https://ai.gateway.lovable.dev/v1/chat/completions", {
-    method: "POST",
-    headers: { Authorization: `Bearer ${lovableKey}`, "Content-Type": "application/json" },
-    body: JSON.stringify({
-      model,
-      messages,
-      max_tokens: body.maxTokens,
-      temperature: body.temperature,
-      response_format: body.responseFormat === "json" ? { type: "json_object" } : undefined,
-    }),
-  }));
-
-  if (!aiResponse.ok) throw new Response(await aiResponse.text(), { status: aiResponse.status });
-  const data = await aiResponse.json();
-  const text = String(data.choices?.[0]?.message?.content || "").trim();
-  const cleanedJson = text.replace(/^```json\s*/i, "").replace(/^```\s*/i, "").replace(/```$/i, "").trim();
-  return { result: body.responseFormat === "json" ? JSON.parse(cleanedJson) : text, tokens: data.usage?.total_tokens ?? null, model, provider: "lovable_ai" };
+async function generateText(body: RequestBody, _chave = "") {
+  // Direct DeepSeek (thinking disabled). No Lovable AI Gateway, no fallback.
+  try {
+    const r = await textoDeepSeek({
+      sistema: body.systemPrompt || "Responde sempre em português de Portugal, com clareza e sem inventar factos.",
+      utilizador: body.prompt || "",
+      json: body.responseFormat === "json",
+      temperatura: body.temperature,
+      maxTokens: body.maxTokens,
+    });
+    return { result: body.responseFormat === "json" ? JSON.parse(limparJson(r.texto)) : r.texto, tokens: r.tokens, model: r.modelo, provider: "deepseek" };
+  } catch (e) {
+    if (e instanceof ErroDeepSeek) throw new Response(e.message, { status: e.status === 503 ? 503 : e.status });
+    throw e;
+  }
 }
 
-async function generateHashtags(body: RequestBody, lovableKey: string) {
+async function generateHashtags(body: RequestBody) {
   const prompt = `Legenda:\n${body.caption}\n\nTranscrição opcional:\n${body.transcription || ""}\n\nRedes: ${(body.networks || []).join(", ") || "instagram"}\nHashtags de marca: ${(body.brandHashtags || []).join(", ") || "nenhuma"}\n\nDevolve APENAS JSON válido com esta estrutura: {"hashtags":[{"tag":"#exemplo","group":"reach|niche|brand","status":"neutral|risk","reason":"razão curta","riskReason":"só se houver risco","source":"ai_editorial|brand"}],"selectedTags":["#exemplo"]}. Não atribuas scores, volume, tendência, saturação, popularidade nem desempenho de mercado. Usa português de Portugal e evita spam.`;
-  const output = await generateText({ ...body, prompt, responseFormat: "json", model: "fast" }, lovableKey);
+  const output = await generateText({ ...body, prompt, responseFormat: "json", model: "fast" });
   return { ...output, result: { ...(output.result as Record<string, unknown>), generated_at: new Date().toISOString() } };
 }
 
-async function generateFirstComments(body: RequestBody, lovableKey: string) {
+async function generateFirstComments(body: RequestBody) {
   const network = body.network || (body.networks || [])[0] || "instagram";
   const prompt = `Legenda do post:\n${body.caption}\n\nRede social: ${network}\n\nDevolve JSON com 3 opções de primeiro comentário, cada uma com abordagem diferente: {"options":[{"approach":"pergunta","text":"pergunta que convida ao debate, máx 300 chars"},{"approach":"cta_link","text":"CTA claro com link para aprofundar, máx 300 chars"},{"approach":"complemento","text":"continuação que aprofunda a ideia do post, máx 300 chars"}]}`;
-  return generateText({ ...body, prompt, systemPrompt: "És um especialista em engagement para redes sociais. Geras primeiros comentários que aumentam interação. Em PT-PT, tom natural, nunca corporativo.", responseFormat: "json", model: "fast" }, lovableKey);
+  return generateText({ ...body, prompt, systemPrompt: "És um especialista em engagement para redes sociais. Geras primeiros comentários que aumentam interação. Em PT-PT, tom natural, nunca corporativo.", responseFormat: "json", model: "fast" });
 }
 
-async function generateVideoTool(body: RequestBody, lovableKey: string, kind: "chapters" | "quotes") {
+async function generateVideoTool(body: RequestBody, kind: "chapters" | "quotes") {
   const prompt = kind === "chapters"
     ? `Transcrição:\n${body.transcription}\n\nSegmentos com timestamps:\n${JSON.stringify((body as Record<string, unknown>).segments || [])}\n\nDevolve JSON com capítulos YouTube: {"chapters":[{"time":"00:00","title":"Título curto"}]}. O primeiro capítulo deve começar em 00:00.`
     : `Transcrição:\n${body.transcription}\n\nSegmentos com timestamps:\n${JSON.stringify((body as Record<string, unknown>).segments || [])}\n\nDevolve JSON com 3 a 5 frases citáveis: {"quotes":[{"time":"00:45","text":"frase dita"}]}. Usa frases fiéis à transcrição.`;
-  return generateText({ ...body, prompt, systemPrompt: "És um editor de vídeo. Respondes apenas com JSON válido em português de Portugal e nunca inventas frases ou timestamps.", responseFormat: "json", model: "fast" }, lovableKey);
+  return generateText({ ...body, prompt, systemPrompt: "És um editor de vídeo. Respondes apenas com JSON válido em português de Portugal e nunca inventas frases ou timestamps.", responseFormat: "json", model: "fast" });
 }
 
-async function generateInsightQuestions(body: RequestBody, lovableKey: string) {
+async function generateInsightQuestions(body: RequestBody) {
   const prompt = `Insight a aplicar: ${String((body as Record<string, unknown>).finding || "Posts com pergunta no início tendem a gerar mais comentários.")}
 
 Legenda atual:
@@ -198,26 +191,12 @@ Transcrição opcional:
 ${body.transcription || ""}
 
 Gera 2 a 3 perguntas iniciais que possam abrir esta legenda. Devem ser específicas ao conteúdo, naturais em português de Portugal e não podem inventar factos. Devolve JSON: {"questions":["pergunta 1","pergunta 2"]}`;
-  return generateText({ ...body, prompt, systemPrompt: "És um editor de redes sociais. Escreves perguntas curtas, específicas e conversacionais em PT-PT. Respondes apenas com JSON válido.", responseFormat: "json", model: "fast" }, lovableKey);
+  return generateText({ ...body, prompt, systemPrompt: "És um editor de redes sociais. Escreves perguntas curtas, específicas e conversacionais em PT-PT. Respondes apenas com JSON válido.", responseFormat: "json", model: "fast" });
 }
 
-async function analyzeImage(body: RequestBody, lovableKey: string) {
-  const model = MODEL_MAP.smart;
-  const aiResponse = await retry(() => fetchWithTimeout("https://ai.gateway.lovable.dev/v1/chat/completions", {
-    method: "POST",
-    headers: { Authorization: `Bearer ${lovableKey}`, "Content-Type": "application/json" },
-    body: JSON.stringify({
-      model,
-      messages: [
-        { role: "system", content: "Analisa imagens com rigor. Responde em português de Portugal e não inventes detalhes que não estejam visíveis." },
-        { role: "user", content: [{ type: "text", text: body.prompt }, { type: "image_url", image_url: { url: body.imageUrl } }] },
-      ],
-    }),
-  }));
-
-  if (!aiResponse.ok) throw new Response(await aiResponse.text(), { status: aiResponse.status });
-  const data = await aiResponse.json();
-  return { result: String(data.choices?.[0]?.message?.content || "").trim(), tokens: data.usage?.total_tokens ?? null, model, provider: "lovable_ai" };
+function analyzeImage(): never {
+  // Vision ran only through the Lovable AI Gateway, which this Hub never uses at runtime.
+  throw new Response("vision_unavailable", { status: 501 });
 }
 
 async function transcribeMedia(body: RequestBody, openAiKey: string) {
@@ -263,7 +242,7 @@ serve(async (req) => {
   let userId = "";
   let body: RequestBody = {};
   let credits = 0;
-  let provider = "lovable_ai";
+  let provider = "deepseek";
   let model = MODEL_MAP.fast;
 
   try {
@@ -277,6 +256,9 @@ serve(async (req) => {
     const validationError = validateBody(body);
     if (validationError) return responseJson({ success: false, code: "generic", error: validationError }, 400);
 
+    if (body.action === "vision") {
+      return responseJson({ success: false, ...safeErrorMessage(501) }, 501);
+    }
     credits = resolveCost(body);
     const { data: hasCredits, error: creditError } = await serviceClient.rpc("consume_ai_credits" as never, { _user_id: userId, _credits: credits } as never);
     if (creditError) throw creditError;
@@ -291,29 +273,17 @@ serve(async (req) => {
       if (!openAiKey) throw new Response("missing_openai_key", { status: 500 });
       output = await transcribeMedia(body, openAiKey);
     } else if (body.action === "vision") {
-      const lovableKey = Deno.env.get("LOVABLE_API_KEY");
-      if (!lovableKey) throw new Response("missing_lovable_key", { status: 500 });
-      output = await analyzeImage(body, lovableKey);
+      output = analyzeImage();
     } else if (body.action === "hashtag_generation") {
-      const lovableKey = Deno.env.get("LOVABLE_API_KEY");
-      if (!lovableKey) throw new Response("missing_lovable_key", { status: 500 });
-      output = await generateHashtags(body, lovableKey);
+      output = await generateHashtags(body);
     } else if (body.action === "first_comment_generation") {
-      const lovableKey = Deno.env.get("LOVABLE_API_KEY");
-      if (!lovableKey) throw new Response("missing_lovable_key", { status: 500 });
-      output = await generateFirstComments(body, lovableKey);
+      output = await generateFirstComments(body);
     } else if (body.action === "video_chapters" || body.action === "video_quotes") {
-      const lovableKey = Deno.env.get("LOVABLE_API_KEY");
-      if (!lovableKey) throw new Response("missing_lovable_key", { status: 500 });
-      output = await generateVideoTool(body, lovableKey, body.action === "video_chapters" ? "chapters" : "quotes");
+      output = await generateVideoTool(body, body.action === "video_chapters" ? "chapters" : "quotes");
     } else if (body.action === "insight_question_suggestions") {
-      const lovableKey = Deno.env.get("LOVABLE_API_KEY");
-      if (!lovableKey) throw new Response("missing_lovable_key", { status: 500 });
-      output = await generateInsightQuestions(body, lovableKey);
+      output = await generateInsightQuestions(body);
     } else {
-      const lovableKey = Deno.env.get("LOVABLE_API_KEY");
-      if (!lovableKey) throw new Response("missing_lovable_key", { status: 500 });
-      output = await generateText(body, lovableKey);
+      output = await generateText(body);
     }
 
     provider = output.provider;
@@ -330,6 +300,6 @@ serve(async (req) => {
     }
 
     const safe = safeErrorMessage(status);
-    return responseJson({ success: false, ...safe }, status === 408 || status === 402 || status === 429 ? status : 500);
+    return responseJson({ success: false, ...safe }, [408, 402, 429, 501, 503].includes(status) ? status : 500);
   }
 });

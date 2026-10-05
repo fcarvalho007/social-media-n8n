@@ -97,7 +97,7 @@ async function estado(req: Request): Promise<Response> {
       FREDERICO_WP_USER: tem("FREDERICO_WP_USER"),
       FREDERICO_WP_APP_PASSWORD: tem("FREDERICO_WP_APP_PASSWORD"),
       PEXELS_API_KEY: tem("PEXELS_API_KEY"),
-      LOVABLE_API_KEY: tem("LOVABLE_API_KEY"),
+      KIE_API_KEY: tem("KIE_API_KEY"),
       FAL_KEY: tem("FAL_KEY"),
       GETLATE_API_TOKEN: tem("GETLATE_API_TOKEN"),
       RESEND_API_KEY: tem("RESEND_API_KEY"),

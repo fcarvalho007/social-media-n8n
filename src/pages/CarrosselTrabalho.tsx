@@ -20,6 +20,7 @@ import { aplicarResultado, calcularGravacao, type Extras, type Gravado } from "@
 import { layoutTexto, resolverTexto, type Medidor, type PacoteProva, type Variante } from "../../supabase/functions/_shared/documento-grafico/nucleo";
 import { normalizarFonte, paraPacote, type PropostaEditorial } from "../../supabase/functions/_shared/motor/proposta";
 import { dataPt, NOME_ESTADO } from "./Carrosseis";
+import { PainelEstruturas } from "@/features/motor/PainelEstruturas";
 import { RevisaoExportacao } from "@/features/motor/RevisaoExportacao";
 import { SeletorImagens } from "@/features/motor/SeletorImagens";
 import { assetsReferidos } from "../../supabase/functions/_shared/motor/fontes";
@@ -171,6 +172,18 @@ export default function CarrosselTrabalho() {
   const alterarSlide = (sid: string, campo: "titulo" | "texto", valor: string) => {
     setPacote((p) => p && ({ ...p, conteudo: { slides: p.conteudo.slides.map((s) => (s.id === sid ? { ...s, [campo]: valor } : s)) } }));
     setRevisao((r) => r + 1);
+  };
+
+  // ---------- framework proposal accept (explicit; composition kept, new version) ----------
+  const aceitarEstrutura = async (conteudo: PropostaEditorial) => {
+    const g = estadoRef.current.gravado;
+    if (!g || !dados) throw new Error("O carrossel ainda não carregou.");
+    if (estadoG !== "guardado") throw new Error("Há alterações por gravar. Espera por «Guardado» e tenta de novo.");
+    await gravarEdicao({
+      proposta_id: dados.proposta.id, proposta_versao: g.propostaVersao, conteudo,
+      documentos: { A: { versao_esperada: g.docs.A.versao, documento: g.docs.A.documento }, B: { versao_esperada: g.docs.B.versao, documento: g.docs.B.documento } },
+    });
+    await carregar();
   };
 
   // ---------- conflict ----------
@@ -387,6 +400,7 @@ export default function CarrosselTrabalho() {
               <h1 id="t-narr" className="text-2xl font-semibold tracking-tight">Narrativa</h1>
               <p className="text-xs text-muted-foreground">Proposta v{gravado!.propostaVersao} · o texto é o mesmo nas variantes A e B · cada alteração cria nova versão</p>
             </div>
+            <PainelEstruturas dados={dados} atual={gravado!.conteudo} aceitar={aceitarEstrutura} />
             <div className="grid gap-6 lg:grid-cols-[260px_1fr]">
               <ol className="flex gap-2 overflow-x-auto pb-1 lg:flex-col lg:overflow-visible" aria-label="Storyboard">
                 {slides.map((s, i) => {

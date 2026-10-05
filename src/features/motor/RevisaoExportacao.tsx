@@ -1,9 +1,10 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { Link } from "react-router-dom";
-import { ChevronLeft, ChevronRight, Download, ExternalLink, FileDown, Loader2, RotateCw, Send } from "lucide-react";
+import { ChevronLeft, ChevronRight, ExternalLink, FileDown, Loader2, RotateCw, Send } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useLargura } from "./Estudio";
 import { medidasPalco } from "./palco";
+import { BotaoTransferir } from "./BotaoTransferir";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
@@ -154,11 +155,11 @@ export function RevisaoExportacao({ dados, pacote, medidor, guardado, irPara }: 
               {concluido && (
                 <div className="space-y-2">
                   <div className="flex flex-col gap-2">
-                    {zip && <Button asChild variant="outline" className="h-11 justify-start"><a href={zip.url} download={zip.nome}><Download className="mr-2 h-4 w-4" />Instagram · {pngs.length} PNG em ZIP · {kb(zip.bytes)}</a></Button>}
-                    {pdf && <Button asChild variant="outline" className="h-11 justify-start"><a href={pdf.url} download={pdf.nome} target="_blank" rel="noreferrer"><Download className="mr-2 h-4 w-4" />LinkedIn · PDF · {kb(pdf.bytes)}</a></Button>}
+                    {zip && <BotaoTransferir url={zip.url} nome={zip.nome}>Instagram · {pngs.length} PNG em ZIP · {kb(zip.bytes)}</BotaoTransferir>}
+                    {pdf && <BotaoTransferir url={pdf.url} nome={pdf.nome.endsWith(".pdf") ? pdf.nome : `${pdf.nome}.pdf`}>LinkedIn · PDF · {kb(pdf.bytes)}</BotaoTransferir>}
                   </div>
                   <details className="text-xs"><summary className="flex min-h-11 cursor-pointer items-center text-muted-foreground">Imagens individuais</summary>
-                    <ul className="flex flex-wrap gap-2">{pngs.map((f) => <li key={f.url}><a className="underline" href={f.url} target="_blank" rel="noreferrer">{f.nome}</a></li>)}</ul>
+                    <ul className="flex flex-wrap gap-x-3">{pngs.map((f) => <li key={f.url}><BotaoTransferir compacto url={f.url} nome={f.nome}>{f.nome}</BotaoTransferir></li>)}</ul>
                   </details>
                   <p className="text-xs text-muted-foreground">Ficheiros desta versão nunca são substituídos; editar cria nova versão.</p>
                 </div>
