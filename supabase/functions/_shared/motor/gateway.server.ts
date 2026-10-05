@@ -8,6 +8,8 @@ import { normalizarPerfil, regrasAutor } from "./autor.ts";
 import { corpoDeepSeek, DEEPSEEK_URL, ERRO_SEM_CHAVE, MODELO_DEEPSEEK } from "../deepseek-direto.ts";
 export const GATEWAY_URL = DEEPSEEK_URL;
 export const MODELO_IA = MODELO_DEEPSEEK;
+/** Output cap for one carousel JSON (≤12 slides × ~370 chars + 1200-char caption + alts), with margin. */
+export const MAX_TOKENS_MOTOR = 6000;
 
 export type ClasseRecusa = "credencial" | "saldo" | "limite_taxa" | "pedido_invalido" | "acesso";
 
@@ -70,7 +72,7 @@ export async function chamarGateway(modelo: string, sistema: string, utilizador:
     r = await f(GATEWAY_URL, {
       method: "POST",
       headers: { "Content-Type": "application/json", Authorization: `Bearer ${chave}` },
-      body: JSON.stringify(corpoDeepSeek({ modelo, sistema, utilizador, json: true, stream: true })),
+      body: JSON.stringify(corpoDeepSeek({ modelo, sistema, utilizador, json: true, stream: true, maxTokens: MAX_TOKENS_MOTOR })),
     });
   } catch (e) {
     return { tipo: "desconhecido", mensagem: `Falha de rede após envio: ${((e as Error).message ?? "").slice(0, 150)}` };
