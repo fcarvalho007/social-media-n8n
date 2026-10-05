@@ -15,16 +15,16 @@ describe("lote1: fornecedor real e voz do autor", () => {
   });
   it("sem perfil gravado usa a base confirmada; perfil inválido é limpo", () => {
     expect(normalizarPerfil(null).voz).toEqual(VOZ_BASE);
-    expect(normalizarPerfil({ voz: ["critico", "xpto", "critico"], notas: " x " })).toEqual({ voz: ["critico"], notas: "x" });
+    expect(normalizarPerfil({ voz: ["critico", "xpto", "critico"], notas: " x " })).toMatchObject({ voz: ["critico"], notas: "x", apresentacao: "" });
   });
   it("prompt recebe voz e separa factos de leitura, sem inventar", () => {
     const sem = promptSistema(null);
     expect(sem).not.toMatch(/Voz do autor/);
     const com = promptSistema(null, { voz: ["consultor"], notas: "Fintech" }, true);
-    expect(com).toMatch(/Voz do autor: Autor consultor/);
+    expect(com).toMatch(/Voz: Autor consultor/);
     expect(com).toMatch(/Fintech/);
     expect(com).toMatch(/leitura do autor/);
-    expect(com).toMatch(/Nunca inventes estudos, números, citações/);
+    expect(com).toMatch(/Nunca inventes estudos, números, métricas, citações/);
     expect(regrasAutor(normalizarPerfil(null), false)).toMatch(/só no fecho/);
   });
   it("«Opinião» passou a «A minha leitura» e o servidor reconhece-a", () => {

@@ -1,4 +1,4 @@
-import { normalizarPerfil, OBJETIVO_LEITURA } from "../_shared/motor/autor.ts";
+import { normalizarLeitura, normalizarPerfil, OBJETIVO_LEITURA } from "../_shared/motor/autor.ts";
 // Content engine entrypoint.
 // - acao "criar": authenticated user; project access is validated in the database RPC (never trusts project_id).
 // - acao "retomar": authenticated user; explicit retry of a job in "erro".
@@ -114,15 +114,23 @@ Deno.serve(async (req) => {
       if (!o || o.max_chamadas_dia < 1) return json({ error: "A IA está desligada neste projeto. Define um limite diário em «Limites da IA»." }, 409);
     }
     // Snapshot the project's author voice (base profile when none saved) so later edits never change this job.
-    let autor: { voz: string[]; notas: string } | null = null;
-    if (modo === "ia") {
-      const { data: pa } = await user.from("mc_perfis_autor").select("voz, notas").eq("project_id", projectId).maybeSingle();
+    let autor: ReturnType<typeof normalizarPerfil> | null = null;
+    let leituraTrabalho = normalizarLeitura(body.angulo, body.leitura_especifica);
+    // Restructuring proposals reuse the origin job's snapshot (profile + angle), never the current profile.
+    const origemId = framework && UUID.test(String(body.origem_trabalho ?? "")) ? String(body.origem_trabalho) : null;
+    if (origemId) {
+      const { data: orig } = await user.from("mc_trabalhos").select("brief").eq("id", origemId).eq("project_id", projectId).maybeSingle();
+      const ob = (orig?.brief ?? null) as { autor?: Record<string, unknown>; leitura_trabalho?: { angulo?: unknown; especifica?: unknown } } | null;
+      if (ob?.autor) { autor = normalizarPerfil(ob.autor); if (ob.leitura_trabalho) leituraTrabalho = normalizarLeitura(ob.leitura_trabalho.angulo, ob.leitura_trabalho.especifica); }
+    }
+    if (modo === "ia" && !autor) {
+      const { data: pa } = await user.from("mc_perfis_autor").select("voz, notas, apresentacao, publico, teses, objetivo_cronica").eq("project_id", projectId).maybeSingle();
       autor = normalizarPerfil(pa);
     }
     const leitura = body.leitura === true || objetivo.startsWith(OBJETIVO_LEITURA);
     const comum = {
       _project_id: projectId, _texto: modo === "demonstracao" ? texto : fonte.texto,
-      _brief: { objetivo, tom, slides, ...(autor ? { autor, leitura } : {}), titulo: titulo ?? (meta ? atrib.titulo?.slice(0, 300) ?? null : null), ...(framework ? { framework: framework.id, origem_trabalho: UUID.test(String(body.origem_trabalho ?? "")) ? String(body.origem_trabalho) : null } : {}) }, _prompt_versao: framework ? `r10-${framework.id}-autor-v1` : modo === "ia" ? "r10-deepseek-autor-v1" : "r3-v1",
+      _brief: { objetivo, tom, slides, ...(autor ? { autor, leitura, leitura_trabalho: leituraTrabalho } : {}), titulo: titulo ?? (meta ? atrib.titulo?.slice(0, 300) ?? null : null), ...(framework ? { framework: framework.id, origem_trabalho: UUID.test(String(body.origem_trabalho ?? "")) ? String(body.origem_trabalho) : null } : {}) }, _prompt_versao: framework ? `r11-${framework.id}-autor-v2` : modo === "ia" ? "r11-deepseek-autor-v2" : "r3-v1",
       _modelo: modo === "demonstracao" ? MODELO_DEMO : modo === "ia" ? MODELO_IA : MODELO_ESTRUTURACAO, _parametros: { slides, ...(framework ? { framework: framework.id } : {}) }, _nova: body.nova === true || !!framework,
     };
     const { data, error } = meta

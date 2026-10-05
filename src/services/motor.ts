@@ -41,7 +41,7 @@ export interface NovoTrabalho {
   fonte_tipo?: "texto" | "link" | "pdf"; metadados?: MetaFonte;
   project_id: string; texto: string; titulo: string; objetivo: string; tom: string; slides: number; modo?: "estruturacao" | "demonstracao" | "ia"; nova?: boolean;
   /** Framework proposal job (hidden from the library; applied only on explicit accept). */
-  framework?: string; origem_trabalho?: string;
+  framework?: string; origem_trabalho?: string; angulo?: string | null; leitura_especifica?: string;
 }
 export const criarTrabalho = (n: NovoTrabalho) => invocar<{ trabalho_id: string; reutilizado: boolean }>({ acao: "criar", ...n });
 export const retomarTrabalho = (id: string) => invocar<{ retomado: boolean }>({ acao: "retomar", trabalho_id: id });
@@ -141,12 +141,12 @@ export async function definirOrcamento(projectId: string, maxDia: number, maxTra
 export const MODELO_IA_NOME = "DeepSeek-V4.1-Flash (deepseek-flash, ligação direta à DeepSeek)";
 
 export async function lerPerfilAutor(projectId: string): Promise<PerfilAutor> {
-  const { data, error } = await supabase.from("mc_perfis_autor").select("voz, notas").eq("project_id", projectId).maybeSingle();
+  const { data, error } = await supabase.from("mc_perfis_autor").select("voz, notas, apresentacao, publico, teses, objetivo_cronica").eq("project_id", projectId).maybeSingle();
   if (error) throw new Error("Não foi possível ler o perfil de autor.");
   return normalizarPerfil(data);
 }
 export async function gravarPerfilAutor(projectId: string, p: PerfilAutor): Promise<void> {
-  const { error } = await supabase.rpc("mc_definir_perfil_autor", { _project_id: projectId, _voz: p.voz, _notas: p.notas });
+  const { error } = await supabase.rpc("mc_definir_perfil_autor", { _project_id: projectId, _voz: p.voz, _notas: p.notas, _apresentacao: p.apresentacao, _publico: p.publico, _teses: p.teses, _objetivo_cronica: p.objetivo_cronica });
   if (error) throw new Error(error.code === "42501" ? "Só o dono do projeto com papel de editor pode alterar o perfil." : "Não foi possível gravar o perfil de autor.");
 }
 

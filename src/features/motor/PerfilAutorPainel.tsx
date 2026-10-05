@@ -5,7 +5,14 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { cn } from "@/lib/utils";
 import { gravarPerfilAutor, lerPerfilAutor } from "@/services/motor";
-import { MAX_NOTAS_AUTOR, VOZES_AUTOR, type PerfilAutor } from "../../../supabase/functions/_shared/motor/autor";
+import { LIMITES_PERFIL, MAX_NOTAS_AUTOR, VOZES_AUTOR, type PerfilAutor } from "../../../supabase/functions/_shared/motor/autor";
+
+const CAMPOS = [
+  { k: "apresentacao", nome: "Quem escreve", linhas: 4, ph: "Percurso profissional relevante, sem dados pessoais" },
+  { k: "publico", nome: "Público", linhas: 2, ph: "Para quem escreves" },
+  { k: "teses", nome: "Teses", linhas: 5, ph: "Ideias que defendes, uma por linha" },
+  { k: "objetivo_cronica", nome: "Objetivo da crónica", linhas: 2, ph: "O que cada crónica deve deixar ao leitor" },
+] as const;
 
 /** Per-project author voice. Saved on the backend; each new AI job takes a snapshot of it. */
 export function PerfilAutorPainel({ projectId }: { projectId: string }) {
@@ -27,8 +34,8 @@ export function PerfilAutorPainel({ projectId }: { projectId: string }) {
   return (
     <section className="space-y-3 rounded-lg border border-border bg-card p-3 text-sm" aria-label="Voz do autor">
       <div>
-        <strong className="font-medium">Voz do autor</strong>
-        <p className="text-xs text-muted-foreground">Guardada para este projeto. Cada carrossel novo com IA usa uma cópia deste perfil; os carrosséis já feitos não mudam.</p>
+        <strong className="font-medium">Contexto do autor</strong>
+        <p className="text-xs text-muted-foreground">Guardado para este projeto e usado como lente, não como fonte de factos. Cada carrossel novo com IA guarda uma cópia; os já feitos não mudam.</p>
       </div>
       <div className="flex flex-wrap gap-2" role="group" aria-label="Escolhas rápidas">
         {VOZES_AUTOR.map((v) => {
@@ -42,6 +49,12 @@ export function PerfilAutorPainel({ projectId }: { projectId: string }) {
           );
         })}
       </div>
+      {CAMPOS.map((c) => (
+        <div key={c.k} className="space-y-1">
+          <Label htmlFor={`perfil-${c.k}`}>{c.nome} <span className="font-normal text-muted-foreground">(opcional)</span></Label>
+          <Textarea id={`perfil-${c.k}`} rows={c.linhas} maxLength={LIMITES_PERFIL[c.k]} value={p[c.k]} onChange={(e) => setP({ ...p, [c.k]: e.target.value })} placeholder={c.ph} />
+        </div>
+      ))}
       <div className="space-y-1">
         <Label htmlFor="notas-autor">Especificidades <span className="font-normal text-muted-foreground">(opcional)</span></Label>
         <Textarea id="notas-autor" rows={3} maxLength={MAX_NOTAS_AUTOR} value={p.notas} onChange={(e) => setP({ ...p, notas: e.target.value })}

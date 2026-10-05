@@ -78,7 +78,7 @@ async function obterProposta(sb: SupabaseClient, t: Trabalho, texto: string, cit
         throw Object.assign(new Error("A DeepSeek não está configurada no servidor (DEEPSEEK_API_KEY em falta)."), { terminal: true });
       }
       await rpc(sb, "mc_registar_chamada", { _chamada_id: id, _estado: "pedido_enviado" });
-      const r = await chamarGateway(t.modelo, promptSistema(t.brief.framework, t.brief.autor ?? null, t.brief.leitura === true), promptUtilizador(fonte.paragrafos, { slides: t.brief.slides ?? 5, objetivo: t.brief.objetivo, tom: t.brief.tom, titulo: citacao.titulo }, erroAnterior));
+      const r = await chamarGateway(t.modelo, promptSistema(t.brief.framework, t.brief.autor ?? null, t.brief.leitura === true, t.brief.leitura_trabalho ?? null), promptUtilizador(fonte.paragrafos, { slides: t.brief.slides ?? 5, objetivo: t.brief.objetivo, tom: t.brief.tom, titulo: citacao.titulo }, erroAnterior));
       if (r.tipo === "recusado") {
         await rpc(sb, "mc_registar_chamada", { _chamada_id: id, _estado: "recusada", _custo_incerto: false, _erro: `${r.classe} HTTP ${r.status}` });
         throw Object.assign(new Error(MENSAGEM_RECUSA[r.classe]), { terminal: true });
