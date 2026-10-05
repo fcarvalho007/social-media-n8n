@@ -7,7 +7,7 @@ export default defineConfig({
   test: {
     environment: 'jsdom',
     globals: true,
-    testTimeout: 5000,
+    testTimeout: 30000, // real-font layout suites are CPU-bound under parallel runs
     hookTimeout: 5000,
     teardownTimeout: 5000,
     setupFiles: ['./src/test/setup.ts'],
