@@ -72,6 +72,11 @@ export function linhaRascunho(a: {
       tipo: TIPO_ORIGEM, trabalho_id: a.trabalhoId, documento_id: a.documentoId, variante: a.variante,
       versao: a.versao, proposta_versao: a.propostaVersao, pdf_url: a.pdf, alt: a.proposta.alt.slice(0, 20),
     },
-    ai_metadata: { origem_estudio: TIPO_ORIGEM, pdf_linkedin_url: a.pdf },
+    // Provenance travels with the draft into posts.ai_metadata when it is published (Criar keeps ai_metadata),
+    // so a publication can be tied to this exact version and networks even after the draft is consumed.
+    ai_metadata: {
+      origem_estudio: TIPO_ORIGEM, pdf_linkedin_url: a.pdf,
+      motor: { trabalho_id: a.trabalhoId, documento_id: a.documentoId, variante: a.variante, versao: a.versao, proposta_versao: a.propostaVersao, draft_id: a.id, redes: ["instagram", "linkedin"] },
+    },
   };
 }

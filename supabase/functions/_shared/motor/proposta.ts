@@ -2,6 +2,7 @@
  * Content engine — editorial proposal (independent of design) and A/B composition.
  * Pure and dependency-free: imported by the browser (preview, editor), tests and the Deno worker.
  */
+import { aplicarRitmo, planoRitmo } from "./composicoes.ts";
 import { ALTURA, FONTE_DOC, LARGURA, type Camada, type DocumentoGrafico, type PacoteProva, type Pagina, type Variante } from "../documento-grafico/nucleo.ts";
 
 export const LIMITES_FONTE = { min: 40, max: 20000, minSlides: 2, maxSlides: 10 } as const;
@@ -240,12 +241,18 @@ function paginaB(s: SlideProposta, i: number, total: number, cor: string): Pagin
   ] };
 }
 
-export function comporDocumentos(p: PropostaEditorial): Record<Variante, DocumentoGrafico> {
+/**
+ * Composes both variants. With the source paragraphs, inner pages follow a conservative visual rhythm
+ * (composicoes.ts); without them (or when a rhythm page would not fit) the classic layout is kept.
+ */
+export function comporDocumentos(p: PropostaEditorial, paragrafos?: string[]): Record<Variante, DocumentoGrafico> {
   const total = p.slides.length;
-  const doc = (variante: Variante, f: typeof paginaA): DocumentoGrafico => ({
-    v: 1, variante, largura: LARGURA, altura: ALTURA, fonte: FONTE_DOC,
-    paginas: p.slides.map((s, i) => f(s, i, total, p.marca.cor)),
-  });
+  const conteudo = { slides: p.slides.map((s) => ({ id: s.id, titulo: s.titulo, texto: s.texto })) };
+  const plano = paragrafos ? planoRitmo(p.slides, paragrafos) : null;
+  const doc = (variante: Variante, f: typeof paginaA): DocumentoGrafico => {
+    const base = p.slides.map((s, i) => f(s, i, total, p.marca.cor));
+    return { v: 1, variante, largura: LARGURA, altura: ALTURA, fonte: FONTE_DOC, paginas: plano ? aplicarRitmo(base, plano, conteudo) : base };
+  };
   return { A: doc("A", paginaA), B: doc("B", paginaB) };
 }
 

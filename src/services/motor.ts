@@ -1,3 +1,4 @@
+import type { DocResumo, DraftResumo, LigacaoResumo, PostResumo } from "@/features/motor/publicacao";
 import { supabase } from "@/integrations/supabase/client";
 import { tratarSessaoRecusada } from "@/lib/sessaoRecusada";
 import type { DocumentoGrafico, Variante } from "../../supabase/functions/_shared/documento-grafico/nucleo";
@@ -189,4 +190,43 @@ export const carregarImagemServidor = (project_id: string, nome: string, dados: 
 export async function lerAssets(project_id: string, ids: string[]): Promise<{ assets: Record<string, Asset>; falhas: string[] }> {
   if (!ids.length) return { assets: {}, falhas: [] };
   return invocar<{ assets: Record<string, Asset>; falhas: string[] }>({ acao: "ler_assets", project_id, ids });
+}
+
+const selTexto = (s: string): string => s;
+/** Everything the library needs to compute publication state. Throws on any read error (never "zero published"). */
+export async function lerEstadosPublicacao(trabalhoIds: string[]): Promise<{
+  docs: Record<string, DocResumo[]>; ligacoes: LigacaoResumo[]; drafts: DraftResumo[]; posts: PostResumo[];
+}> {
+  const vazio = { docs: {}, ligacoes: [], drafts: [], posts: [] };
+  if (!trabalhoIds.length) return vazio;
+  const falha = () => new Error("Não foi possível ler o estado de publicação.");
+  const { data: ps, error: e1 } = await supabase.from("mc_propostas").select("id, trabalho_id").in("trabalho_id", trabalhoIds);
+  if (e1) throw falha();
+  const propTrab = new Map((ps ?? []).map((p) => [p.id as string, p.trabalho_id as string]));
+  const [docsR, draftsR, postsR] = await Promise.all([
+    propTrab.size ? supabase.from("mc_documentos").select("id, proposta_id, variante, versao_actual, aprovada_versao").in("proposta_id", [...propTrab.keys()]) : Promise.resolve({ data: [], error: null }),
+    supabase.from("posts_drafts").select(selTexto("id, status, trabalho_id:origem->>trabalho_id")).in(selTexto("origem->>trabalho_id") as "id", trabalhoIds).returns<DraftResumo[]>(),
+    supabase.from("posts").select(selTexto("id, status, selected_networks, external_post_ids, scheduled_date, motor:ai_metadata->motor")).in(selTexto("ai_metadata->motor->>trabalho_id") as "id", trabalhoIds).returns<Array<Omit<PostResumo, "redesFalhadas">>>(),
+  ]);
+  if (docsR.error || draftsR.error || postsR.error) throw falha();
+  const docs: Record<string, DocResumo[]> = {};
+  for (const d of (docsR.data ?? []) as Array<DocResumo & { proposta_id: string }>) {
+    const t = propTrab.get(d.proposta_id);
+    if (t) (docs[t] ??= []).push({ id: d.id, variante: d.variante, versao_actual: d.versao_actual, aprovada_versao: d.aprovada_versao });
+  }
+  const docIds = Object.values(docs).flat().map((d) => d.id);
+  const brutos = (postsR.data ?? []) as unknown as Array<Omit<PostResumo, "redesFalhadas">>;
+  const [ligR, tentR] = await Promise.all([
+    docIds.length ? supabase.from("mc_ligacoes_sociais").select("documento_id, documento_versao, draft_id, draft_previsto").in("documento_id", docIds) : Promise.resolve({ data: [], error: null }),
+    brutos.length ? supabase.from("publication_attempts").select("post_id, platform, status").in("post_id", brutos.map((p) => p.id)).eq("status", "failed") : Promise.resolve({ data: [], error: null }),
+  ]);
+  if (ligR.error || tentR.error) throw falha();
+  const falhadas = new Map<string, string[]>();
+  for (const t of (tentR.data ?? []) as Array<{ post_id: string; platform: string }>) falhadas.set(t.post_id, [...(falhadas.get(t.post_id) ?? []), t.platform]);
+  return {
+    docs,
+    ligacoes: (ligR.data ?? []) as LigacaoResumo[],
+    drafts: (draftsR.data ?? []) as unknown as DraftResumo[],
+    posts: brutos.map((p) => ({ ...p, redesFalhadas: falhadas.get(p.id) ?? [] })),
+  };
 }

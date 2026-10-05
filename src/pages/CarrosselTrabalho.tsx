@@ -470,7 +470,7 @@ export default function CarrosselTrabalho() {
         )}
 
         {passo === "design" && pronto && pacote && medidor && (
-          <PassoDesign pacote={pacote} medidor={medidor} onAplicar={(p) => { setPacote(p); toast.success("Estilo aplicado — a gravar nova versão"); }} />
+          <PassoDesign pacote={pacote} medidor={medidor} slides={prop.slides} paragrafos={fonte.paragrafos} onAplicar={(p) => { setPacote(p); toast.success("Estilo aplicado — a gravar nova versão"); }} />
         )}
 
         {passo === "revisao" && pronto && pacote && (

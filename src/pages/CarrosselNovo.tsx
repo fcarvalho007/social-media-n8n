@@ -13,6 +13,7 @@ import { useAuth } from "@/contexts/AuthContext";
 import { useProjeto } from "@/contexts/ProjetoContext";
 import { chaveRecuperacao, guardarRecuperacao, lerRecuperacao, limparRecuperacao } from "@/lib/recuperacaoLocal";
 import { criarTrabalho, lerLinkFonte, type OrcamentoIa } from "@/services/motor";
+import { acoesFalhaLink, dominioDe, formatarNumero, resumoLeitura } from "@/features/motor/lerPagina";
 import { comporFontePdf, ErroPdf, lerPdf, NOME_ESTADO_PAGINA, type PdfLido } from "@/features/motor/fontePdf";
 import { HOSTS_LINK, intervalos, type LinkFalhado, type LinkLido, type MetaLink, type MetaPdf } from "../../supabase/functions/_shared/motor/fontes";
 import { LimitesIa } from "@/features/motor/LimitesIa";
@@ -75,6 +76,7 @@ export default function CarrosselNovo() {
   const [lendo, setLendo] = useState(false);
   const [falhaFonte, setFalhaFonte] = useState<string | null>(null);
   const [linkMeta, setLinkMeta] = useState<MetaLink | null>(null);
+  const [motivoLink, setMotivoLink] = useState<string | null>(null);
   const [pdfLido, setPdfLido] = useState<PdfLido | null>(null);
   const [pdfMeta, setPdfMeta] = useState<MetaPdf | null>(null);
   const [excluidas, setExcluidas] = useState<Set<number>>(new Set());
@@ -119,7 +121,7 @@ export default function CarrosselNovo() {
   function limparFonte() {
     pedido.current++;
     setTexto(""); setOriginal(""); setLinkMeta(null); setPdfMeta(null); setPdfLido(null); setExcluidas(new Set());
-    setParcial(false); setFalhaFonte(null); setLendo(false); setTocado(false); setSlides(null); setRecuperado(null);
+    setParcial(false); setFalhaFonte(null); setMotivoLink(null); setLendo(false); setTocado(false); setSlides(null); setRecuperado(null);
   }
   function mudarTipo(t: TipoFonte) {
     if (t === tipoFonte) return;
@@ -130,7 +132,7 @@ export default function CarrosselNovo() {
     if (!projeto || !url.trim()) return;
     const n = ++pedido.current; const alvo = projeto;
     // Text already pasted stays until a successful read replaces it.
-    setLendo(true); setFalhaFonte(null);
+    setLendo(true); setFalhaFonte(null); setMotivoLink(null);
     try {
       const r = await lerLinkFonte(alvo, url.trim());
       // Late answers for another request/project/type are discarded.
@@ -139,9 +141,9 @@ export default function CarrosselNovo() {
         const l = r as LinkLido;
         setTexto(l.texto); setOriginal(l.texto); setSlides(null);
         setLinkMeta({ tipo: "link", modo: "extraido", url: url.trim(), url_final: l.url_final, titulo_pagina: l.titulo, bytes: l.bytes, truncado: l.truncado, editado: false, lido_em: new Date().toISOString() });
-      } else setFalhaFonte((r as LinkFalhado).mensagem);
+      } else { setFalhaFonte((r as LinkFalhado).mensagem); setMotivoLink((r as LinkFalhado).motivo); }
     } catch (e) {
-      if (n === pedido.current) setFalhaFonte((e as Error).message);
+      if (n === pedido.current) { setFalhaFonte((e as Error).message); setMotivoLink("rede"); }
     } finally {
       if (n === pedido.current) setLendo(false);
     }
@@ -223,11 +225,12 @@ export default function CarrosselNovo() {
             <div className="flex flex-wrap items-end justify-between gap-3">
               <h1 id="t-fonte" className="text-2xl font-semibold tracking-tight sm:text-3xl">Que conteúdo vamos transformar?</h1>
               <div className="w-full space-y-1 sm:w-60">
-                <Label htmlFor="projeto" className="text-xs text-muted-foreground">Para quem?</Label>
+                <Label htmlFor="projeto" className="text-xs text-muted-foreground">Marca / projeto</Label>
                 <Select value={projeto} onValueChange={setProjeto} disabled={estado !== "pronto"}>
                   <SelectTrigger id="projeto" className="h-11"><SelectValue placeholder={projetos.length ? "Escolhe o projeto" : "Sem projetos disponíveis"} /></SelectTrigger>
                   <SelectContent className="mc-estudio">{projetos.map((p) => <SelectItem key={p.id} value={p.id}>{p.name}</SelectItem>)}</SelectContent>
                 </Select>
+                <p className="text-xs text-muted-foreground">Organiza o conteúdo e define a cor inicial. O tom e objetivo são escolhidos no passo seguinte.</p>
               </div>
             </div>
             {!demo && (
@@ -247,26 +250,40 @@ export default function CarrosselNovo() {
                 <div className="flex flex-col gap-2 sm:flex-row">
                   <Label htmlFor="url" className="sr-only">Endereço do artigo</Label>
                   <Input id="url" type="url" inputMode="url" className="h-11 flex-1" placeholder="https://…" value={url} maxLength={2000}
-                    onChange={(e) => { setUrl(e.target.value); if (linkMeta) limparFonte(); }} onKeyDown={(e) => e.key === "Enter" && lerLink()} />
+                    onChange={(e) => { setUrl(e.target.value); if (lendo) { pedido.current++; setLendo(false); } setFalhaFonte(null); setMotivoLink(null); if (linkMeta) limparFonte(); }} onKeyDown={(e) => e.key === "Enter" && !lendo && lerLink()}
+                    aria-describedby="estado-link" aria-invalid={!!falhaFonte} />
                   <Button className="h-11" variant="secondary" onClick={lerLink} disabled={lendo || !url.trim()}>{lendo && <Loader2 className="mr-2 h-4 w-4 motion-safe:animate-spin" />}Ler página</Button>
                 </div>
                 <details className="text-xs text-muted-foreground">
                   <summary className="cursor-pointer py-1">Que sites são lidos automaticamente?</summary>
                   <p className="mt-1">Por segurança, só origens públicas fixas já usadas no Hub: {HOSTS_LINK.join(", ")}. Páginas com acesso pago ou que dependem de JavaScript não são contornadas.</p>
                 </details>
-                {falhaFonte && (
-                  <div role="alert" className="space-y-2 rounded-[var(--mc-r-md)] border border-destructive/50 p-3 text-sm">
-                    <p className="text-destructive">{falhaFonte}</p>
-                    <Button variant="outline" className="h-11" onClick={usarComoReferencia}>Usar o link como referência e colar o texto</Button>
-                  </div>
-                )}
-                {linkMeta && (
-                  <div className="rounded-[var(--mc-r-md)] border border-border p-3 text-xs text-muted-foreground" role="status">
-                    {linkMeta.modo === "extraido"
-                      ? <>Lido de <span className="break-all text-foreground">{linkMeta.url_final}</span>{linkMeta.titulo_pagina && <> · «{linkMeta.titulo_pagina}»</>} · {((linkMeta.bytes ?? 0) / 1024).toFixed(0)} KB descarregados. Revê o texto abaixo; podes corrigi-lo.</>
-                      : <>Referência: <span className="break-all text-foreground">{linkMeta.url}</span>. A página não foi lida — cola abaixo o texto do artigo.</>}
-                  </div>
-                )}
+                <div id="estado-link" aria-live="polite" className="space-y-2">
+                  {lendo && (
+                    <p role="status" className="flex items-center gap-2 rounded-[var(--mc-r-md)] border border-border p-3 text-sm">
+                      <Loader2 className="h-4 w-4 shrink-0 motion-safe:animate-spin" aria-hidden />
+                      <span>A ler a página e extrair o texto…{dominioDe(url) && <span className="text-muted-foreground"> · {dominioDe(url)}</span>}</span>
+                    </p>
+                  )}
+                  {falhaFonte && !lendo && (
+                    <div role="alert" className="space-y-2 rounded-[var(--mc-r-md)] border border-destructive/50 p-3 text-sm">
+                      <p className="text-destructive">{falhaFonte}</p>
+                      <div className="flex flex-wrap gap-2">
+                        {acoesFalhaLink(motivoLink).repetir && <Button variant="secondary" className="h-11" onClick={lerLink}>Tentar de novo</Button>}
+                        <Button variant="outline" className="h-11" onClick={usarComoReferencia}>Colar texto (o link fica como referência)</Button>
+                      </div>
+                    </div>
+                  )}
+                  {linkMeta && !lendo && (
+                    <div className="space-y-1 rounded-[var(--mc-r-md)] border border-border p-3 text-xs text-muted-foreground" role="status">
+                      {linkMeta.modo === "extraido" ? <>
+                        <p className="text-sm text-foreground">{linkMeta.titulo_pagina ? `«${linkMeta.titulo_pagina}»` : "Página lida"} <span className="text-muted-foreground">· {dominioDe(linkMeta.url_final) ?? linkMeta.url_final}</span></p>
+                        <p>Extraído automaticamente: {formatarNumero(resumoLeitura(original).caracteres)} caracteres.{linkMeta.truncado && " Texto truncado no limite de leitura: confirma abaixo se a parte lida chega."}{texto !== original && " Editado por ti depois da leitura."}</p>
+                        {original && <p className="line-clamp-3 italic">{resumoLeitura(original).previa}</p>}
+                      </> : <p>Referência: <span className="break-all text-foreground">{linkMeta.url}</span>. A página não foi lida — o texto abaixo é colado por ti.</p>}
+                    </div>
+                  )}
+                </div>
               </div>
             )}
             {tipoFonte === "pdf" && !demo && (
