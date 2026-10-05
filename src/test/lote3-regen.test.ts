@@ -18,8 +18,9 @@ const rb = (modo: RegenBrief["modo"], indice = 1, b = base): RegenBrief => ({ sl
 const resp = (o: unknown) => JSON.stringify(o);
 
 describe("regenerar um slide", () => {
-  it("«Outro facto» exige § novo, mantém papel e recusa números fora dos § citados", () => {
-    expect(() => validarRespostaSlide(resp({ slide: { titulo: "x", texto: "y", fontes: [2] }, alt: "a" }), fonte, rb("facto"))).toThrow(/§ que o slide ainda não cita/);
+  it("«Outro facto» aceita facto distinto no mesmo §, recusa slide idêntico, mantém papel e recusa números fora dos § citados", () => {
+    expect(validarRespostaSlide(resp({ slide: { titulo: "Vendas em linha", texto: "Parágrafo dois", fontes: [2] }, alt: "a" }), fonte, rb("facto")).tipo).toBe("slide");
+    expect(() => validarRespostaSlide(resp({ slide: { titulo: "Dois", texto: "60% online", fontes: [2] }, alt: "a" }), fonte, rb("facto"))).toThrow(/mesmo slide/);
     expect(() => validarRespostaSlide(resp({ slide: { titulo: "99 lojas", texto: "", fontes: [4] }, alt: "a" }), fonte, rb("facto"))).toThrow(/99/);
     expect(() => validarRespostaSlide(resp({ slide: { titulo: "x", texto: "", fontes: [9] }, alt: "a" }), fonte, rb("facto"))).toThrow(/não existe/);
     const r = validarRespostaSlide(resp({ slide: { papel: "capa", titulo: "Seis meses", texto: "", fontes: [4] }, alt: "alt novo" }), fonte, rb("facto"));
@@ -42,12 +43,14 @@ describe("regenerar um slide", () => {
     expect(p.legenda).toBe("Legenda atual");
     expect(base.slides[1].titulo).toBe("Dois");
   });
-  it("simulador usa um § livre da mesma fonte e explica quando não há alternativa factual", () => {
+  it("simulador: todos os § usados não é falso bloqueio; só sem alternativa quando todas as frases já estão nos slides", () => {
     expect(factosUsados(base, 1)).toEqual([1, 3]);
-    const r = validarRespostaSlide(respostaDemoSlide(fonte, rb("facto")), fonte, rb("facto"));
-    expect(r.tipo === "slide" && r.slide.fontes).toEqual([4]);
-    const cheia = { ...base, slides: base.slides.map((s, i) => (i === 3 ? { ...s, papel: "desenvolvimento" as const, fontes: [4] } : s)) };
-    expect(validarRespostaSlide(respostaDemoSlide(fonte, rb("facto", 1, cheia)), fonte, rb("facto", 1, cheia)).tipo).toBe("sem_alternativa");
+    const todosUsados = { ...base, slides: base.slides.map((s, i) => (i === 3 ? { ...s, papel: "desenvolvimento" as const, fontes: [4] } : s)) };
+    const r = validarRespostaSlide(respostaDemoSlide(fonte, rb("facto", 1, todosUsados)), fonte, rb("facto", 1, todosUsados));
+    expect(r.tipo).toBe("slide");
+    const frases = fonte.paragrafos;
+    const esgotada = { ...base, slides: base.slides.map((s, i) => ({ ...s, papel: (i === 0 ? "capa" : "desenvolvimento") as never, titulo: frases[i], texto: "", fontes: [i + 1] })) };
+    expect(validarRespostaSlide(respostaDemoSlide(fonte, rb("facto", 1, esgotada)), fonte, rb("facto", 1, esgotada)).tipo).toBe("sem_alternativa");
   });
   it("alternativa de um slide só entra nesse slide e não perde escolhas híbridas dos outros", () => {
     const r = validarRespostaSlide(resp({ slide: { titulo: "Seis meses", texto: "t", fontes: [4] }, alt: "alt novo" }), fonte, rb("facto"));
