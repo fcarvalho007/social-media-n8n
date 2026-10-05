@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { supabase } from '@/integrations/supabase/client';
-import { ActionButtons } from '@/components/ActionButtons';
+import { ActionButtons, LegadoN8n } from '@/components/ActionButtons';
 import { ModeSelector } from '@/components/ModeSelector';
 import { ModeBadge } from '@/components/ModeBadge';
 import { ModeChangeConfirmDialog } from '@/components/ModeChangeConfirmDialog';
@@ -262,6 +262,7 @@ const Pending = () => {
                       }
                     }}
                   />
+                  <div className="mt-6"><LegadoN8n /></div>
                 </div>
               ) : (
                 <>

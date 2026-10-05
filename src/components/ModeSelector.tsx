@@ -1,3 +1,4 @@
+import { Link } from 'react-router-dom';
 import { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -110,58 +111,23 @@ export const ModeSelector = ({ onModeSelect, className }: ModeSelectorProps) => 
               </div>
               <CardTitle className="text-xl">Assistido por IA</CardTitle>
               <CardDescription className="text-sm">
-                Gerar legendas e variações automaticamente.
+                Motor novo de carrosséis, integrado no Hub.
               </CardDescription>
             </CardHeader>
             <CardContent className="space-y-4">
               <ul className="space-y-2.5">
-                <li className="flex items-start gap-2 text-sm">
-                  <Check className="h-4 w-4 text-accent mt-0.5 flex-shrink-0" />
-                  <span>Formular novos posts em segundos</span>
-                </li>
-                <li className="flex items-start gap-2 text-sm">
-                  <Check className="h-4 w-4 text-accent mt-0.5 flex-shrink-0" />
-                  <span>Sugestões de copy e hashtags</span>
-                </li>
-                <li className="flex items-start gap-2 text-sm">
-                  <Check className="h-4 w-4 text-accent mt-0.5 flex-shrink-0" />
-                  <span>Carrossel, Stories ou Post individual</span>
-                </li>
+                <li className="flex items-start gap-2 text-sm"><Check className="h-4 w-4 text-accent mt-0.5 flex-shrink-0" /><span>Carrossel a partir de texto, link ou PDF</span></li>
+                <li className="flex items-start gap-2 text-sm"><Check className="h-4 w-4 text-accent mt-0.5 flex-shrink-0" /><span>Revisão e exportação no Hub</span></li>
               </ul>
               <div className="space-y-2">
-                <Button 
-                  size="lg" 
-                  variant="secondary"
-                  className="w-full h-12 font-semibold shadow-md hover:shadow-lg transition-all"
-                  onClick={() => {
-                    handleModeSelection('ia');
-                    window.open('https://docs.google.com/forms/d/e/1FAIpQLScHxiU2xQOQz-7Z480crzkvTbIjYhHcdtb8Nuv98JSotdPcNg/viewform', '_blank');
-                  }}
-                >
-                  <LayoutGrid className="h-5 w-5 mr-2" />
-                  Carrossel (Forms)
+                <Button asChild size="lg" className="w-full h-12 font-semibold">
+                  <Link to="/estudio/carrosseis/novo" onClick={() => handleModeSelection('ia')}><LayoutGrid className="h-5 w-5 mr-2" />Criar carrossel</Link>
                 </Button>
                 <div className="grid grid-cols-2 gap-2">
-                  <Button 
-                    variant="outline"
-                    className="h-11 font-semibold"
-                    onClick={() => {
-                      handleModeSelection('ia');
-                      window.open('https://docs.google.com/forms/d/e/1FAIpQLScy8tdv3CpBN0Kn_U6sBbfyk3fx3fbSBQcryOrmhVYw_sP1Xg/viewform?usp=dialog', '_blank');
-                    }}
-                  >
-                    <Video className="h-4 w-4 mr-1.5" />
-                    Stories (Forms)
-                  </Button>
-                  <Button 
-                    variant="outline"
-                    disabled
-                    className="h-11 font-semibold opacity-40"
-                  >
-                    <ImageIcon className="h-4 w-4 mr-1.5" />
-                    Post (Forms)
-                  </Button>
+                  <Button asChild variant="outline" className="h-11 font-semibold"><Link to="/estudio/carrosseis">Meus carrosséis</Link></Button>
+                  <Button asChild variant="outline" className="h-11 font-semibold"><Link to="/estudio/redes-sociais">Da crónica</Link></Button>
                 </div>
+                <p className="text-sm text-muted-foreground"><Video className="inline h-4 w-4 mr-1" aria-hidden />Stories e <ImageIcon className="inline h-4 w-4 mx-1" aria-hidden />Post individual assistidos: 🚧 Em construção.</p>
               </div>
             </CardContent>
           </Card>
