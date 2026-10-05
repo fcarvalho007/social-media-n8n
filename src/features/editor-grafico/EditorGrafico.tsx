@@ -119,7 +119,7 @@ function PainelPropriedades({ pacote, camada: c, fundo, medidor, despachar, cama
         <section className="space-y-3">
           <h3 className="text-sm font-semibold">Página</h3>
           <CorCampo id="fundo" rotulo="Cor de fundo (só este slide)" valor={fundo} onMudar={(cor) => despachar({ tipo: "fundo", cor })} />
-          {onFundoTodos && <Button variant="outline" className="h-11 w-full lg:h-9" onClick={onFundoTodos}><CopyCheck className="mr-1.5 h-4 w-4" />Aplicar este fundo a todos os slides</Button>}
+          {onFundoTodos && <Button variant="outline" className="h-auto min-h-11 w-full max-w-full justify-start whitespace-normal py-2 text-left lg:min-h-9" onClick={onFundoTodos}><CopyCheck className="mr-1.5 h-4 w-4 shrink-0" />Aplicar este fundo a todos os slides</Button>}
           {onImagem && <Button variant="outline" className="h-11 w-full lg:h-9" onClick={onImagem}><ScanSearch className="mr-1.5 h-4 w-4" />Escolher imagem de fundo…</Button>}
         </section>
         <section className="space-y-2">
@@ -577,7 +577,7 @@ export function EditorGrafico({ pacoteInicial, chaveLocal, titulo, seletor, real
   const bt = "h-11 w-11 shrink-0 lg:h-9 lg:w-9";
   const sep = <span className="mx-0.5 h-6 w-px shrink-0 bg-border" aria-hidden />;
   const barraContexto = (
-    <div role="toolbar" aria-label={camada ? `Ferramentas: ${camada.nome ?? NOME_TIPO[camada.tipo]}` : "Ferramentas do slide"} className="flex min-w-0 items-center gap-1 overflow-x-auto border-b border-border bg-background px-2 py-1">
+    <div role="toolbar" aria-label={camada ? `Ferramentas: ${camada.nome ?? NOME_TIPO[camada.tipo]}` : "Ferramentas do slide"} className="flex min-w-0 flex-wrap items-center gap-1 border-b border-border bg-background px-2 py-1">
       {!camada && paginaAtual && (<>
         <label className="flex shrink-0 items-center gap-2 text-xs text-muted-foreground">Fundo deste slide
           <input type="color" value={paginaAtual.fundo} onChange={(e) => despachar({ tipo: "fundo", cor: e.target.value })} className="h-9 w-10 cursor-pointer rounded-md border border-input bg-background p-1" aria-label="Cor de fundo deste slide" />
@@ -703,7 +703,6 @@ export function EditorGrafico({ pacoteInicial, chaveLocal, titulo, seletor, real
         </header>
         {avisoRecuperacao}
         <div className="shrink-0 border-b border-border bg-background">{miniaturas(true)}</div>
-        <div className="flex min-h-0 flex-1 flex-col">{tela}</div>
         {barraContexto}
         <div className="flex min-h-0 flex-1 flex-col">{tela}</div>
         <nav className="grid shrink-0 grid-cols-5 border-t border-border bg-background pb-[env(safe-area-inset-bottom)]" aria-label="Ferramentas">

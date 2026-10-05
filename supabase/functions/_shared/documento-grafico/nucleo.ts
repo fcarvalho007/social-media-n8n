@@ -554,3 +554,24 @@ export function transbordos(pacote: PacoteProva, variante: Variante, m: Medidor)
   });
   return out;
 }
+
+/** Text layers whose rendered text (not just the box) overlaps another text layer's rendered text on the same page.
+ *  Independent of overflow: a title that fits its box can still run into the body below it. */
+export function colisoes(pacote: PacoteProva, variante: Variante, m: Medidor, folga = 8): Array<{ pagina: number; a: string; b: string }> {
+  const out: Array<{ pagina: number; a: string; b: string }> = [];
+  pacote.variantes[variante].paginas.forEach((pg, i) => {
+    const caixas = pg.camadas.flatMap((c) => {
+      if (c.tipo !== "texto") return [];
+      const t = resolverTexto(c, pacote.conteudo);
+      if (!t.trim()) return [];
+      const l = layoutTexto(t, c.estilo, c.w, c.h, m);
+      const alt = Math.min(c.h, l.linhas.length * l.alturaLinha);
+      return [{ id: c.id, nome: c.ref?.endsWith("titulo") ? "título" : c.nome ?? "texto", x0: c.x, x1: c.x + c.w, y0: c.y, y1: c.y + alt }];
+    });
+    for (let a = 0; a < caixas.length; a++) for (let b = a + 1; b < caixas.length; b++) {
+      const p = caixas[a], q = caixas[b];
+      if (p.x0 < q.x1 && q.x0 < p.x1 && p.y0 < q.y1 + folga && q.y0 < p.y1 + folga) out.push({ pagina: i, a: p.nome, b: q.nome });
+    }
+  });
+  return out;
+}
