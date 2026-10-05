@@ -18,7 +18,7 @@ const sel = "h-10 w-full rounded-[var(--mc-r-md)] border border-border bg-backgr
 
 /** Per-slide image composition. Every field starts on "Automático"; a change becomes an explicit override. */
 export function PainelImagemSlide({ decisao, comp, temImagem, ocupado, onMudar, onSubstituir }: Props) {
-  const [aberto, setAberto] = useState(false);
+  const [aberto, setAberto] = useState(true);
   const [foco, setFoco] = useState(comp.foco ?? decisao?.foco ?? { x: 0.5, y: 0.4 });
   const [int, setInt] = useState(comp.intensidade ?? decisao?.intensidade ?? 0.85);
   const nome = <T extends string>(l: ReadonlyArray<{ id: T; nome: string }>, id?: T) => l.find((x) => x.id === id)?.nome ?? "—";
@@ -30,17 +30,12 @@ export function PainelImagemSlide({ decisao, comp, temImagem, ocupado, onMudar, 
   return (
     <div className="space-y-3 rounded-[var(--mc-r-md)] border border-border p-3 text-sm">
       <button type="button" className="flex min-h-10 w-full items-center justify-between text-left font-medium" aria-expanded={aberto} onClick={() => setAberto((a) => !a)}>
-        <span>Imagem deste slide</span><span className="text-muted-foreground">{aberto ? "−" : "+"}</span>
+        <span>Imagem</span><span className="text-muted-foreground">{aberto ? "−" : "+"}</span>
       </button>
       {decisao && <p className="text-xs text-muted-foreground">{nome(PAPEIS, decisao.papel)} · {nome(MODOS, decisao.modo)}{decisao.modo !== "none" ? ` · texto ${nome(REGIOES, decisao.regiao).toLowerCase()}` : ""}. <span className="italic">{decisao.razao}</span></p>}
       {aberto && (
         <div className="space-y-3">
-          {onSubstituir && <Button variant="outline" className="h-10 w-full" disabled={ocupado} onClick={onSubstituir}>{temImagem ? "Adicionar ou substituir imagem" : "Adicionar imagem"}</Button>}
-          <div className="space-y-1"><Label htmlFor="pi-papel">Papel do slide</Label>
-            <select id="pi-papel" className={sel} disabled={ocupado} value={comp.papel ?? ""} onChange={(e) => mudar("papel", e.target.value, "Papel do slide alterado")}>
-              <option value="">Automático{decisao ? ` (${nome(PAPEIS, decisao.papel)})` : ""}</option>
-              {PAPEIS.map((p) => <option key={p.id} value={p.id}>{p.nome}</option>)}
-            </select></div>
+          {onSubstituir && <Button variant="outline" className="h-10 w-full" disabled={ocupado} onClick={onSubstituir}>{temImagem ? "Trocar imagem" : "Escolher imagem"} · Biblioteca, Pexels, Envio ou IA</Button>}
           <div className="space-y-1"><Label htmlFor="pi-modo">Modo</Label>
             <select id="pi-modo" className={sel} disabled={ocupado || !temImagem} value={comp.modo ?? ""} onChange={(e) => mudar("modo", e.target.value, "Modo da imagem alterado")}>
               <option value="">Automático</option>
