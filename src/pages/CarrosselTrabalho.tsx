@@ -12,7 +12,7 @@ import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover
 import { useAuth } from "@/contexts/AuthContext";
 import { useProjeto } from "@/contexts/ProjetoContext";
 import { chaveRecuperacao, guardarRecuperacao, limparRecuperacao } from "@/lib/recuperacaoLocal";
-import { abrirTrabalho, acordarFila, lerAssets, ConflitoVersao, gravarEdicao, lerVersao, listarVersoes, retomarTrabalho, criarTrabalho, type TrabalhoCompleto, type VersaoDoc } from "@/services/motor";
+import { abrirTrabalho, acordarFila, lerAssets, ConflitoVersao, gravarEdicao, lerVersao, listarVersoes, retomarTrabalho, criarTrabalho, lerSistemaVisual, definirSistemaVisual, type SistemaGuardado, type TrabalhoCompleto, type VersaoDoc } from "@/services/motor";
 import { EditorGrafico } from "@/features/editor-grafico/EditorGrafico";
 import { PaginaCanvas } from "@/features/editor-grafico/PaginaCanvas";
 import { carregarMedidor } from "@/features/editor-grafico/fontes";
@@ -28,6 +28,7 @@ import type { Asset } from "../../supabase/functions/_shared/documento-grafico/n
 import { BarraAcoes, Cabecalho, Etapas, Grupo, PAPEL, Quadro, type Etapa } from "@/features/motor/Estudio";
 import { cn } from "@/lib/utils";
 import { deveRecarregarRevisao } from "@/features/motor/revisaoRecarga";
+import type { SistemaVisual } from "../../supabase/functions/_shared/motor/sistema";
 import { PassoDesign } from "@/features/motor/PassoDesign";
 import { consultarLeitura, type Conselho } from "../../supabase/functions/_shared/motor/leitura";
 
@@ -66,6 +67,13 @@ export default function CarrosselTrabalho() {
   const [passo, setPasso] = useState<Passo>("narrativa");
   const [gravado, setGravado] = useState<Gravado | null>(null);
   const [pacote, setPacote] = useState<PacoteProva | null>(null);
+  // Persisted visual system (style + variant + palette + breaks); Design and Composition both read it.
+  const [sistemaG, setSistemaG] = useState<SistemaGuardado | null>(null);
+  useEffect(() => { let vivo = true; lerSistemaVisual(id).then((s) => vivo && setSistemaG(s)).catch(() => undefined); return () => { vivo = false; }; }, [id]);
+  const guardarSistema = async (s: SistemaVisual) => {
+    try { const versao = await definirSistemaVisual(id, s, sistemaG?.versao ?? 0); setSistemaG({ sistema: s, versao }); }
+    catch (e) { toast.error((e as Error).message); }
+  };
   const [extras, setExtras] = useState<Extras>({ legenda: "", alt: [] });
   const [revisao, setRevisao] = useState(0);
   const [estadoG, setEstadoG] = useState<EstadoGravacao>("guardado");
@@ -381,6 +389,7 @@ export default function CarrosselTrabalho() {
     return (
       <Quadro className="h-dvh min-h-0 overflow-hidden">
         <EditorGrafico key={`${id}-${revisao}`} pacoteInicial={pacote} chaveLocal={chave} real projectId={dados!.trabalho.project_id}
+          sistema={sistemaG?.sistema ?? null} onSistema={guardarSistema} medidorSistema={medidor}
           titulo={<span className="truncate">{nome}</span>}
           faixaTopo={
             <div className="flex items-center gap-2 border-b border-border px-2 py-1 sm:px-4">
@@ -556,8 +565,8 @@ export default function CarrosselTrabalho() {
                 </div>
               );
             })()}
-            <PassoDesign key={designInicio ? `${designInicio.variante}${designInicio.pagina}` : "d"} inicio={designInicio} pacote={pacote} medidor={medidor} slides={prop.slides} paragrafos={fonte.paragrafos} onPendente={setDesignPendente}
-              onAplicar={(p) => { if (estadoG !== "guardado") { toast.error("Há alterações por gravar. Espera por «Guardado» e tenta de novo."); return; } setAntesDesign(pacote); setPacote(p); setAlteracaoDesign({ tipo: "aplicar", confirmada: false }); }} />
+            <PassoDesign key={designInicio ? `${designInicio.variante}${designInicio.pagina}` : `d${sistemaG?.versao ?? 0}`} inicio={designInicio} sistema={sistemaG?.sistema ?? null} pacote={pacote} medidor={medidor} slides={prop.slides} paragrafos={fonte.paragrafos} onPendente={setDesignPendente}
+              onAplicar={(p, s) => { if (estadoG !== "guardado") { toast.error("Há alterações por gravar. Espera por «Guardado» e tenta de novo."); return; } setAntesDesign(pacote); setPacote(p); setAlteracaoDesign({ tipo: "aplicar", confirmada: false }); if (s) void guardarSistema(s); }} />
           </>
         )}
 
