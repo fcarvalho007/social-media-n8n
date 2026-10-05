@@ -120,7 +120,7 @@ export async function interpretarImagemKie(sb: SupabaseClient, a: { projectId: s
   if (!r.ok || !texto) {
     const estado = codigo >= 400 && codigo < 500 ? "falhou" : "desconhecido";
     await sb.from("mc_kie_tarefas").update({ estado, erro: String(j?.error?.message ?? j?.msg ?? r.status).slice(0, 300), actualizado_em: agora() }).eq("id", res.id);
-    return { status: codigo === 402 ? 402 : 502, corpo: { error: codigo === 402 ? "Sem saldo na Kie." : codigo === 401 ? "A Kie recusou a chave para a interpretação de imagens (o pedido foi recusado, não cobrado)." : "A Kie não devolveu uma descrição. O pedido não foi repetido.", estado } };
+    return { status: codigo === 402 ? 402 : 502, corpo: { error: codigo === 402 ? "Sem saldo na Kie." : codigo === 401 ? "A Kie recusou a chave para a interpretação de imagens." : "A Kie não devolveu uma descrição. O pedido não foi repetido.", estado } };
   }
   await sb.from("mc_kie_tarefas").update({ estado: "concluida", resultado: texto, actualizado_em: agora() }).eq("id", res.id);
   return { status: 200, corpo: { ok: true, descricao: texto } };
