@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useRef, useEffect, useMemo, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { ChevronLeft, ChevronRight, ExternalLink, FileDown, Loader2, RotateCw, Send } from "lucide-react";
 import { cn } from "@/lib/utils";
@@ -70,6 +70,7 @@ export function RevisaoExportacao({ dados, pacote, medidor, guardado, irPara }: 
   useEffect(() => { let vivo = true; carregarImagens(pacote).then((i) => { if (vivo) setImagens(i); }).catch(() => undefined); return () => { vivo = false; }; }, [pacote]);
 
   const [enviarAoTerminar, setEnviarAoTerminar] = useState(false);
+  const preparaRef = useRef<(() => Promise<void>) | null>(null);
   const ler = useCallback(async () => {
     if (!doc) return;
     try { setEstado(await lerExportacao(doc.id, doc.versao)); } catch (e) { toast.error((e as Error).message); }
@@ -84,6 +85,12 @@ export function RevisaoExportacao({ dados, pacote, medidor, guardado, irPara }: 
     return () => clearTimeout(t);
   }, [emCurso, estado, ler]);
 
+  useEffect(() => {
+    if (!enviarAoTerminar) return;
+    if (estado?.exportacao?.estado === "erro") { setEnviarAoTerminar(false); toast.error("A exportação falhou — nada foi enviado."); return; }
+    if (estado?.exportacao?.estado === "concluido" && guardado && naoCabe.length === 0) { setEnviarAoTerminar(false); preparaRef.current?.(); }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [enviarAoTerminar, estado, guardado]);
   if (!doc) return <p className="text-sm text-muted-foreground">Esta variante ainda não tem design guardado.</p>;
 
   const ex = estado?.exportacao;
@@ -95,12 +102,6 @@ export function RevisaoExportacao({ dados, pacote, medidor, guardado, irPara }: 
   const anteriores = estado?.rascunhos.filter((r) => r.versao !== doc.versao) ?? [];
   const draftAtual = draft ?? desta?.draft_id ?? null;
 
-  useEffect(() => {
-    if (!enviarAoTerminar) return;
-    if (ex?.estado === "erro") { setEnviarAoTerminar(false); toast.error("A exportação falhou — nada foi enviado."); return; }
-    if (concluido && guardado && naoCabe.length === 0) { setEnviarAoTerminar(false); void preparar(); }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [enviarAoTerminar, concluido, ex?.estado]);
   const exportar = async () => {
     setAPedir(true);
     try { await pedirExportacao(doc.id, doc.versao); await ler(); } catch (e) { toast.error((e as Error).message); } finally { setAPedir(false); }
@@ -116,6 +117,7 @@ export function RevisaoExportacao({ dados, pacote, medidor, guardado, irPara }: 
     } catch (e) { toast.error((e as Error).message); } finally { setAPreparar(false); }
   };
 
+  preparaRef.current = preparar;
   // One click: export when needed, then create the social draft as soon as the files are ready.
   const enviar = async () => {
     if (concluido) return preparar();
