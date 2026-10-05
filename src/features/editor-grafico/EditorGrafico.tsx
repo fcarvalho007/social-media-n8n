@@ -189,9 +189,9 @@ function PainelPropriedades({ pacote, camada: c, fundo, medidor, despachar, cama
           </div>
           <div className="grid grid-cols-2 gap-3">
             <Campo id="peso" rotulo="Peso">
-              <Select value={String(c.estilo.peso)} onValueChange={(v) => alterar({ estilo: { ...c.estilo, peso: Number(v) as 400 | 700 } } as Partial<Camada>)}>
+              <Select value={String(c.estilo.peso)} onValueChange={(v) => alterar({ estilo: { ...c.estilo, peso: Number(v) as 400 | 700 | 900 } } as Partial<Camada>)}>
                 <SelectTrigger id="peso" className="h-11 lg:h-9"><SelectValue /></SelectTrigger>
-                <SelectContent><SelectItem value="400">Normal</SelectItem><SelectItem value="700">Negrito</SelectItem></SelectContent>
+                <SelectContent><SelectItem value="400">Normal</SelectItem><SelectItem value="700">Negrito</SelectItem><SelectItem value="900">Black</SelectItem></SelectContent>
               </Select>
             </Campo>
             <Campo id="alinh" rotulo="Alinhamento">

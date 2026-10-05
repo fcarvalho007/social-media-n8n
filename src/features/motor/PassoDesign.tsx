@@ -47,6 +47,7 @@ export function PassoDesign({ pacote, medidor, onAplicar, slides, paragrafos, in
   const [paginaSel, setPaginaSel] = useState(inicio?.pagina ?? 0);
   const [opcoes, setOpcoes] = useState<OpcaoComposicao[] | null>(null);
   const [compSel, setCompSel] = useState<ComposicaoId | null>(null);
+  const [modSlide, setModSlide] = useState<EstiloId | null>(null);
   const [ambas, setAmbas] = useState(false);
   const [ritmo, setRitmo] = useState<SugestaoRitmo | null>(null);
   // No style is marked as current until the user picks one: the saved document may not match any preset.
@@ -71,7 +72,6 @@ export function PassoDesign({ pacote, medidor, onAplicar, slides, paragrafos, in
     return modelo && !manuais ? { pacote: modelo.pacote, manuais: base.manuais } : base;
   }, [ajustado, modelo, pacote, paleta, par, manuais]);
   const miniaturas = useMemo(() => ESTILOS.map((e) => ({ e, p: modelar(pacote, e.id, e.paleta, e.par, medidor).pacote })), [pacote, medidor]);
-  const [modSlide, setModSlide] = useState<EstiloId | null>(null);
   const opcoesModelo = useMemo(() => {
     if (ambito !== "slide" || !opcoes) return [];
     return ESTILOS.map((e) => ({ e, r: aplicarModelo(pacote, e.id, e.paleta, e.par, [variante], medidor, [paginaSel]) }));
