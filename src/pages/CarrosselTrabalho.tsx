@@ -76,6 +76,8 @@ export default function CarrosselTrabalho() {
   const [designInicio, setDesignInicio] = useState<{ variante: Variante; pagina: number } | null>(null);
   // Package before the last Design change: reverting saves it again as a NEW version (same CAS path).
   const [antesDesign, setAntesDesign] = useState<PacoteProva | null>(null);
+  // Design change awaiting CAS confirmation: success is only claimed once the save reports "guardado".
+  const [alteracaoDesign, setAlteracaoDesign] = useState<null | { tipo: "aplicar" | "reverter"; confirmada: boolean }>(null);
   const passoDecidido = useRef(false);
   const assetsCache = useRef<Record<string, Asset>>({});
   const [assetsFalha, setAssetsFalha] = useState<string[]>([]);
@@ -172,6 +174,17 @@ export default function CarrosselTrabalho() {
     const t = setTimeout(() => gravar(), ATRASO_GRAVACAO);
     return () => clearTimeout(t);
   }, [pacote, extras]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  const viuAGuardar = useRef(false);
+  useEffect(() => {
+    if (!alteracaoDesign || alteracaoDesign.confirmada) { viuAGuardar.current = false; return; }
+    if (estadoG === "a_guardar") viuAGuardar.current = true;
+    else if (estadoG === "guardado" && viuAGuardar.current) {
+      viuAGuardar.current = false;
+      setAlteracaoDesign({ ...alteracaoDesign, confirmada: true });
+      toast.success(alteracaoDesign.tipo === "reverter" ? "Reversão gravada como nova versão" : "Alteração gravada como nova versão");
+    } else if (estadoG === "conflito" || estadoG === "local") viuAGuardar.current = false;
+  }, [estadoG, alteracaoDesign]);
 
   const alterarSlide = (sid: string, campo: "titulo" | "texto", valor: string) => {
     setPacote((p) => p && ({ ...p, conteudo: { slides: p.conteudo.slides.map((s) => (s.id === sid ? { ...s, [campo]: valor } : s)) } }));
@@ -475,15 +488,28 @@ export default function CarrosselTrabalho() {
 
         {passo === "design" && pronto && pacote && medidor && (
           <>
-            {antesDesign && (
-              <div role="status" className="mb-4 flex flex-wrap items-center gap-2 rounded-[var(--mc-r-md)] border border-border px-3 py-2 text-sm">
-                <span className="mr-auto">Alteração aplicada e gravada como nova versão. As versões anteriores continuam guardadas.</span>
-                <Button variant="outline" size="sm" className="h-10" onClick={() => { setPacote(antesDesign); setAntesDesign(null); toast.success("A repor o estado anterior — gravado como nova versão"); }}>Reverter esta alteração</Button>
-                <Button variant="ghost" size="sm" className="h-10" onClick={() => abrirVersoes("A")}><History className="mr-1.5 h-4 w-4" />Ver versões</Button>
-              </div>
-            )}
+            {alteracaoDesign && (() => {
+              const falhou = estadoG === "conflito" || estadoG === "local";
+              const confirmada = alteracaoDesign.confirmada;
+              const rev = alteracaoDesign.tipo === "reverter";
+              return (
+                <div role="status" aria-live="polite" className="mb-4 flex flex-wrap items-center gap-2 rounded-[var(--mc-r-md)] border border-border px-3 py-2 text-sm">
+                  <span className={cn("mr-auto flex items-center", falhou && "text-destructive")}>
+                    {!confirmada && !falhou && <Loader2 className="mr-2 h-4 w-4 motion-safe:animate-spin" aria-hidden />}
+                    {falhou ? (estadoG === "conflito" ? "Não foi gravado: há uma versão mais recente. Resolve o conflito antes de continuar." : "Não foi gravado no servidor; a alteração ficou só neste dispositivo.")
+                      : !confirmada ? (rev ? "A gravar a reversão…" : "A gravar a alteração como nova versão…")
+                      : rev ? "Reversão gravada como nova versão. As versões anteriores continuam guardadas." : "Alteração aplicada e gravada como nova versão. As versões anteriores continuam guardadas."}
+                  </span>
+                  {confirmada && !rev && antesDesign && (
+                    <Button variant="outline" size="sm" className="h-10" disabled={estadoG !== "guardado"}
+                      onClick={() => { setPacote(antesDesign); setAntesDesign(null); setAlteracaoDesign({ tipo: "reverter", confirmada: false }); }}>Reverter esta alteração</Button>
+                  )}
+                  {(confirmada || falhou) && <Button variant="ghost" size="sm" className="h-10" onClick={() => abrirVersoes("A")}><History className="mr-1.5 h-4 w-4" />Ver versões</Button>}
+                </div>
+              );
+            })()}
             <PassoDesign key={designInicio ? `${designInicio.variante}${designInicio.pagina}` : "d"} inicio={designInicio} pacote={pacote} medidor={medidor} slides={prop.slides} paragrafos={fonte.paragrafos}
-              onAplicar={(p) => { setAntesDesign(pacote); setPacote(p); toast.success("Aplicado — a gravar nova versão"); }} />
+              onAplicar={(p) => { if (estadoG !== "guardado") { toast.error("Há alterações por gravar. Espera por «Guardado» e tenta de novo."); return; } setAntesDesign(pacote); setPacote(p); setAlteracaoDesign({ tipo: "aplicar", confirmada: false }); }} />
           </>
         )}
 
