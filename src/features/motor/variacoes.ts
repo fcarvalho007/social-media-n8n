@@ -41,6 +41,20 @@ export interface SugestaoRitmo {
   pacote: PacoteProva;
   /** One entry per page of variant A, in order (null ritmo = capa/fecho/manual page kept as is). */
   plano: Array<{ pagina: number; ritmo: Ritmo | null; composicao: ComposicaoId | null; muda: boolean }>;
+  /** Pattern break near the middle (contrast composition), or null when no slide qualifies/fits. */
+  quebra: { pagina: number; motivo: string } | null;
+}
+
+/**
+ * Index of the slide for a pattern break near the middle: an interior slide (not capa/fecho), closest
+ * to the middle, preferring short slides (a contrast block suits one strong line). Deterministic.
+ */
+export function slideQuebra(slides: SlideRitmo[]): number | null {
+  const meio = (slides.length - 1) / 2;
+  const cand = slides.map((s, i) => ({ s, i })).filter(({ s, i }) => i > 0 && i < slides.length - 1 && s.papel !== "capa" && s.papel !== "fecho");
+  if (!cand.length) return null;
+  const peso = ({ s, i }: { s: SlideRitmo; i: number }) => Math.abs(i - meio) * 100 + Math.min(99, Math.round((s.titulo.length + s.texto.length) / 10));
+  return cand.sort((a, b) => peso(a) - peso(b))[0].i;
 }
 
 /**
@@ -49,6 +63,15 @@ export interface SugestaoRitmo {
  */
 export function sugerirRitmo(pacote: PacoteProva, slides: Array<SlideRitmo & { id: string }>, paragrafos: string[], m?: Medidor): SugestaoRitmo {
   const plano = planoRitmo(slides, paragrafos);
+  const iq = slideQuebra(slides);
+  let motivo = "";
+  if (iq != null && plano[iq]) {
+    // A data slide keeps the typographic emphasis on its number; others get the contrast block.
+    const c: ComposicaoId = plano[iq].ritmo === "dado_chave" ? "tipografico" : "contraste";
+    const viz = [plano[iq - 1]?.composicao, plano[iq + 1]?.composicao];
+    plano[iq] = { ...plano[iq], composicao: viz.includes(c) ? (c === "contraste" ? "tipografico" : "contraste") : c };
+    motivo = plano[iq].ritmo === "dado_chave" ? "dado em destaque tipográfico" : "bloco de contraste para quebrar o padrão";
+  }
   const porSlide = new Map(slides.map((s, i) => [s.id, plano[i]]));
   let out = pacote;
   for (const v of ["A", "B"] as const) {
@@ -60,8 +83,14 @@ export function sugerirRitmo(pacote: PacoteProva, slides: Array<SlideRitmo & { i
       if (o && o.cabe) out = comPagina(out, v, o.pagina);
     }
   }
+  let quebra: SugestaoRitmo["quebra"] = null;
+  if (iq != null) {
+    const pi = pacote.variantes.A.paginas.findIndex((p) => slideDaPagina(p) === slides[iq].id);
+    if (pi >= 0 && out.variantes.A.paginas[pi] !== pacote.variantes.A.paginas[pi]) quebra = { pagina: pi, motivo };
+  }
   return {
     pacote: out,
+    quebra,
     plano: pacote.variantes.A.paginas.map((p, i) => {
       const sid = slideDaPagina(p);
       const e = sid ? porSlide.get(sid) : undefined;
