@@ -51,7 +51,7 @@ describe("consultor de leitura", () => {
     const c = consultarLeitura([
       s("capa", "Tese", ""),
       s("contexto", "Contexto", `${longo}.`),
-      s("desenvolvimento", "Um título com muitas palavras que não acaba nunca e continua sem parar aqui", "Primeira frase longa aqui. Segunda frase longa aqui. Terceira frase longa aqui. Quarta frase longa aqui."),
+      s("desenvolvimento", "Um título com muitas palavras que não acaba nunca e continua sem parar aqui mesmo agora", "Primeira frase longa aqui. Segunda frase longa aqui. Terceira frase longa aqui. Quarta frase longa aqui."),
       s("desenvolvimento", "Passos", "- a\n- b\n- c\n- d\n- e\n- f"),
       s("fecho", "Fecho", "Comenta e guarda este carrossel."),
     ]);
