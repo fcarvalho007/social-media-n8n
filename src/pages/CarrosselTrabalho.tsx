@@ -260,15 +260,6 @@ export default function CarrosselTrabalho() {
     return out;
   }, [medidor, pacote]);
 
-  if (erro) return <Quadro><div className="mx-auto max-w-xl p-6"><p role="alert" className="text-sm text-destructive">{erro}</p><Link className="mt-2 inline-flex min-h-11 items-center text-sm underline" to="/estudio/carrosseis">Voltar aos carrosséis</Link></div></Quadro>;
-  if (!dados) return <Quadro><p className="flex items-center p-6 text-sm text-muted-foreground" role="status"><Loader2 className="mr-2 h-4 w-4 motion-safe:animate-spin" />A abrir…</p></Quadro>;
-
-  const t = dados.trabalho;
-  const prop = dados.proposta.conteudo;
-  const fonte = normalizarFonte(dados.fonte.texto);
-  const pronto = !!(gravado && pacote);
-  const nome = t.titulo || prop?.titulo || "Carrossel";
-  const disponiveis: Etapa[] = pronto ? ["fonte", "narrativa", "design", "composicao", "revisao"] : ["fonte"];
   const [designPendente, setDesignPendente] = useState(false);
   const mainRef = useRef<HTMLElement>(null);
   const passoAnterior = useRef(passo);
@@ -282,6 +273,15 @@ export default function CarrosselTrabalho() {
     const h = m.querySelector<HTMLElement>("h1, h2");
     if (h) { if (!h.hasAttribute("tabindex")) h.setAttribute("tabindex", "-1"); h.focus({ preventScroll: true }); }
   }, [passo]);
+  if (erro) return <Quadro><div className="mx-auto max-w-xl p-6"><p role="alert" className="text-sm text-destructive">{erro}</p><Link className="mt-2 inline-flex min-h-11 items-center text-sm underline" to="/estudio/carrosseis">Voltar aos carrosséis</Link></div></Quadro>;
+  if (!dados) return <Quadro><p className="flex items-center p-6 text-sm text-muted-foreground" role="status"><Loader2 className="mr-2 h-4 w-4 motion-safe:animate-spin" />A abrir…</p></Quadro>;
+
+  const t = dados.trabalho;
+  const prop = dados.proposta.conteudo;
+  const fonte = normalizarFonte(dados.fonte.texto);
+  const pronto = !!(gravado && pacote);
+  const nome = t.titulo || prop?.titulo || "Carrossel";
+  const disponiveis: Etapa[] = pronto ? ["fonte", "narrativa", "design", "composicao", "revisao"] : ["fonte"];
   const irPara = (p: Etapa) => { setPasso(p); if (p === "revisao" && estadoG === "guardado") void carregar(); };
 
   const avisoBadge = avisos.length > 0 && (
