@@ -26,6 +26,13 @@ describe("colocação inicial de elementos novos", () => {
   it("nenhum preset novo reduz a letra sozinho", () => {
     for (const p of Object.values(PRESETS_TEXTO)) expect(p.estilo.overflow).toBe("cortar");
   });
+  it("mantém os controlos de seleção em píxeis visuais no canvas móvel", () => {
+    const fonte = readFileSync("src/features/editor-grafico/PaginaCanvas.tsx", "utf8");
+    expect(fonte).toContain("anchorSize: 28");
+    expect(fonte).toContain("anchorCornerRadius: 14");
+    expect(fonte).not.toMatch(/anchor(Size|CornerRadius)=\{[^}]*\/\s*escala/);
+    expect(fonte).not.toMatch(/borderStrokeWidth=\{[^}]*\/\s*escala/);
+  });
 });
 
 describe("rascunho social: PDF nunca fica desatualizado", () => {
