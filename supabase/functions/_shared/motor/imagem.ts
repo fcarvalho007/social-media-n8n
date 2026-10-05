@@ -146,7 +146,7 @@ export function comporImagem(p: Pagina, o: OpcoesImagem): ResultadoImagem | null
   const r = comporImagemUma(p, o);
   if (!r || r.cabe) return r;
   // Automatic choices that do not fit fall back to roomier layouts; explicit user choices are refused as-is.
-  const tentativas: Array<Partial<ComposicaoSlide>> = [];
+  const tentativas: Array<Partial<ComposicaoImagem>> = [];
   if (!o.comp?.regiao && (r.decisao.regiao === "left" || r.decisao.regiao === "right") && r.decisao.modo !== "split")
     tentativas.push({ modo: r.decisao.modo, regiao: o.variante === "B" ? "top" : "bottom" });
   if (!o.comp?.modo && (r.decisao.modo === "split" || r.decisao.modo === "hero"))
