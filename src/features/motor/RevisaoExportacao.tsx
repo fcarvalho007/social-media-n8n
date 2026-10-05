@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { Link } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 import { ChevronLeft, ChevronRight, ExternalLink, FileDown, Loader2, RotateCw, Send } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useLargura } from "./Estudio";
@@ -28,6 +28,7 @@ interface Props {
 const kb = (b: number) => `${(b / 1024).toLocaleString("pt-PT", { maximumFractionDigits: 0 })} KB`;
 
 export function RevisaoExportacao({ dados, pacote, medidor, guardado, irPara }: Props) {
+  const navegar = useNavigate();
   const [variante, setVariante] = useState<Variante>("A");
   const naoCabe = useMemo(() => (medidor ? [...new Set(transbordos(pacote, variante, medidor).map((t) => t.pagina + 1))] : []), [pacote, variante, medidor]);
   const doc = dados.documentos[variante];
@@ -75,6 +76,7 @@ export function RevisaoExportacao({ dados, pacote, medidor, guardado, irPara }: 
     try {
       const r = await prepararRascunho(doc.id, doc.versao, doc.proposta_versao);
       setDraft(r.draft_id);
+      navegar(`/manual-create?draft=${r.draft_id}`);
       toast.success(r.existente ? "Este rascunho já existia — rever no Painel social" : "Rascunho preparado — rever no Painel social");
       await ler();
     } catch (e) { toast.error((e as Error).message); } finally { setAPreparar(false); }

@@ -185,14 +185,14 @@ function tamTexto(t: string): number {
 }
 
 const txt = (id: string, ref: string, x: number, y: number, w: number, h: number, tam: number, peso: 400 | 700, cor: string, alinh: "esq" | "centro" = "esq", z = 10): Camada => ({
-  id, tipo: "texto", ref, x, y, w, h, z, estilo: { peso, tam, linha: peso === 700 ? 1.12 : 1.38, alinh, cor, overflow: "cortar", tamMin: tam },
+  id, tipo: "texto", ref, x, y, w, h, z, estilo: { peso, familia: peso === 700 ? "montserrat" : "inter", tam, linha: peso === 700 ? 1.12 : 1.38, alinh, cor, overflow: "cortar", tamMin: tam },
 });
 const ret = (id: string, x: number, y: number, w: number, h: number, cor: string, z = 1, raio = 0, opacidade?: number): Camada => ({
   id, tipo: "forma", forma: "ret", x, y, w, h, z, opacidade, estilo: { cor, raio },
 });
 const numeroPagina = (i: number, total: number, cor: string, x: number, alinh: "esq" | "centro"): Camada => ({
   id: `num`, tipo: "texto", texto: `${i + 1}/${total}`, x, y: 1250, w: 200, h: 44, z: 20,
-  estilo: { peso: 400, tam: 26, linha: 1.2, alinh, cor, overflow: "cortar", tamMin: 26 },
+  estilo: { peso: 400, familia: "inter", tam: 26, linha: 1.2, alinh, cor, overflow: "cortar", tamMin: 26 },
 });
 
 /** Variant A — "Editorial claro": light page, accent rule, left-aligned hierarchy. */
@@ -209,7 +209,7 @@ function paginaA(s: SlideProposta, i: number, total: number, cor: string): Pagin
     ] };
   }
   const tt = tamTitulo(s.titulo, false);
-  const alturaTitulo = Math.min(420, Math.ceil(s.titulo.length / (tt > 55 ? 26 : 32)) * tt * 1.12 + 20);
+  const alturaTitulo = Math.min(420, Math.ceil(s.titulo.length / (tt > 55 ? 23 : 28)) * tt * 1.12 + 20);
   return { id: `a-${s.id}`, slide: s.id, fundo: claro, camadas: [
     ret("regua", 96, 120, 80, 10, cor, 2),
     txt("titulo", `${s.id}.titulo`, 96, 170, 888, alturaTitulo, tt, 700, tinta),
@@ -231,7 +231,7 @@ function paginaB(s: SlideProposta, i: number, total: number, cor: string): Pagin
   }
   const t = sobre(cor);
   const tt = tamTitulo(s.titulo, false);
-  const alturaTitulo = Math.min(380, Math.ceil(s.titulo.length / (tt > 55 ? 24 : 30)) * tt * 1.12 + 20);
+  const alturaTitulo = Math.min(380, Math.ceil(s.titulo.length / (tt > 55 ? 21 : 26)) * tt * 1.12 + 20);
   return { id: `b-${s.id}`, slide: s.id, fundo: escuro, camadas: [
     ret("bloco", 72, 96, 936, alturaTitulo + 80, cor, 1, 24),
     txt("titulo", `${s.id}.titulo`, 112, 136, 856, alturaTitulo, tt, 700, t),

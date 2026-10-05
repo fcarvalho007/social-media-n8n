@@ -27,6 +27,7 @@ import { assetsReferidos } from "../../supabase/functions/_shared/motor/fontes";
 import type { Asset } from "../../supabase/functions/_shared/documento-grafico/nucleo";
 import { BarraAcoes, Cabecalho, Etapas, Grupo, PAPEL, Quadro, type Etapa } from "@/features/motor/Estudio";
 import { cn } from "@/lib/utils";
+import { PassoDesign } from "@/features/motor/PassoDesign";
 
 type Passo = Etapa;
 type EstadoGravacao = "guardado" | "a_guardar" | "local" | "conflito";
@@ -241,7 +242,7 @@ export default function CarrosselTrabalho() {
   const fonte = normalizarFonte(dados.fonte.texto);
   const pronto = !!(gravado && pacote);
   const nome = t.titulo || prop?.titulo || "Carrossel";
-  const disponiveis: Etapa[] = pronto ? ["fonte", "narrativa", "composicao", "revisao"] : ["fonte"];
+  const disponiveis: Etapa[] = pronto ? ["fonte", "narrativa", "design", "composicao", "revisao"] : ["fonte"];
   const irPara = (p: Etapa) => { setPasso(p); if (p === "revisao" && estadoG === "guardado") void carregar(); };
 
   const avisoBadge = avisos.length > 0 && (
@@ -467,6 +468,10 @@ export default function CarrosselTrabalho() {
           </section>
         )}
 
+        {passo === "design" && pronto && pacote && medidor && (
+          <PassoDesign pacote={pacote} medidor={medidor} onAplicar={(p) => { setPacote(p); toast.success("Estilo aplicado — a gravar nova versão"); }} />
+        )}
+
         {passo === "revisao" && pronto && pacote && (
           <RevisaoExportacao dados={dados} pacote={pacote} medidor={medidor} guardado={estadoG === "guardado"} irPara={irPara} />
         )}
@@ -474,9 +479,12 @@ export default function CarrosselTrabalho() {
 
       {pronto && passo !== "revisao" && (
         <BarraAcoes
-          inicio={passo === "narrativa" && <Button variant="ghost" className="h-11" onClick={() => setPasso("fonte")}><ArrowLeft className="mr-1.5 h-4 w-4" />Fonte</Button>}
+          inicio={passo === "narrativa" ? <Button variant="ghost" className="h-11" onClick={() => setPasso("fonte")}><ArrowLeft className="mr-1.5 h-4 w-4" />Fonte</Button>
+            : passo === "design" ? <Button variant="ghost" className="h-11" onClick={() => setPasso("narrativa")}><ArrowLeft className="mr-1.5 h-4 w-4" />Narrativa</Button> : null}
           fim={passo === "fonte"
             ? <Button className="h-11 px-5" onClick={() => setPasso("narrativa")}>Narrativa<ArrowRight className="ml-1.5 h-4 w-4" /></Button>
+            : passo === "narrativa"
+            ? <Button className="h-11 px-5" onClick={() => setPasso("design")}>Design<ArrowRight className="ml-1.5 h-4 w-4" /></Button>
             : <Button className="h-11 px-5" onClick={() => setPasso("composicao")} aria-label="Continuar para composição"><span className="sm:hidden">Composição</span><span className="hidden sm:inline">Continuar para composição</span><ArrowRight className="ml-1.5 h-4 w-4" /></Button>}
         />
       )}

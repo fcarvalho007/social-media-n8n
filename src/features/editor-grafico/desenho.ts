@@ -9,7 +9,7 @@ export function desenharTexto(ctx: Konva.Context, c: CamadaTexto, texto: string,
   const lay = layoutTexto(texto, c.estilo, c.w, c.h, m);
   const nativo = ctx._context as CanvasRenderingContext2D;
   nativo.fillStyle = c.estilo.cor;
-  for (const l of lay.linhas) if (l.texto) nativo.fill(new Path2D(m.caminho(l.texto, l.x, l.baseline, lay.tam, c.estilo.peso)));
+  for (const l of lay.linhas) if (l.texto) nativo.fill(new Path2D(m.caminho(l.texto, l.x, l.baseline, lay.tam, c.estilo.peso, c.estilo.familia)));
   return lay;
 }
 
