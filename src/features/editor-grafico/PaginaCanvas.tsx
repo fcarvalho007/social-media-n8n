@@ -3,7 +3,7 @@ import type Konva from "konva";
 import { Ellipse, Group, Image as KImage, Layer, Line, Path, Rect, Shape, Stage, Transformer } from "react-konva";
 import { encaixar } from "./operacoes";
 import {
-  ALTURA, ICONES, LARGURA, calcularRecorte, rgba, camadasOrdenadas, resolverTexto,
+  ALTURA, ICONES, LARGURA, calcularRecorte, tracarMascara, rgba, camadasOrdenadas, resolverTexto,
   type Camada, type Medidor, type PacoteProva, type Variante,
 } from "../../../supabase/functions/_shared/documento-grafico/nucleo";
 import { desenharTexto } from "./desenho";
@@ -43,7 +43,11 @@ function Conteudo({ c, pacote, medidor, imagens }: { c: Camada; pacote: PacotePr
     return (
       <>
         <Rect width={c.w} height={c.h} fill="transparent" />
-        {imagens[c.asset_id] && <KImage image={imagens[c.asset_id]} x={k.dx} y={k.dy} width={k.dw} height={k.dh} crop={{ x: k.sx, y: k.sy, width: k.sw, height: k.sh }} />}
+        {imagens[c.asset_id] && (
+          <Group clipFunc={c.mascara ? (ctx) => { tracarMascara(ctx, c.mascara!, c.w, c.h); } : undefined}>
+            <KImage image={imagens[c.asset_id]} x={k.dx} y={k.dy} width={k.dw} height={k.dh} crop={{ x: k.sx, y: k.sy, width: k.sw, height: k.sh }} />
+          </Group>
+        )}
       </>
     );
   }

@@ -39,11 +39,11 @@ const sobre = (fill: string) => (contraste("#111111", fill) >= contraste("#fffff
 /** Keeps `cor` when legible on `fill` (4.5:1 body / 3:1 large), else ink or white. */
 const legivel = (cor: string, fill: string, grande: boolean) => (contraste(cor, fill) >= (grande ? 3 : 4.5) ? cor : sobre(fill));
 
-interface Tipo { familia: Familia; peso: Peso; linha: number }
+interface Tipo { familia: Familia; peso: Peso; linha: number; capitular?: boolean }
 function altura(c: CamadaTexto, conteudo: ConteudoEditorial, t: Tipo, tam: number, w: number, m?: Medidor): number {
   const texto = resolverTexto(c, conteudo);
   if (!texto.trim()) return Math.ceil(tam * t.linha);
-  if (m) return Math.ceil(layoutTexto(texto, { peso: t.peso, familia: t.familia, tam, linha: t.linha, alinh: "esq", cor: "#000000", overflow: "cortar" }, w, 100_000, m).linhas.length * tam * t.linha);
+  if (m) return Math.ceil(layoutTexto(texto, { peso: t.peso, familia: t.familia, tam, linha: t.linha, alinh: "esq", cor: "#000000", overflow: "cortar", capitular: t.capitular }, w, 100_000, m).linhas.length * tam * t.linha);
   const porLinha = Math.max(1, Math.floor(w / (tam * 0.56)));
   return Math.ceil(texto.split("\n").reduce((n, p) => n + Math.max(1, Math.ceil(p.length / porLinha)), 0) * tam * t.linha);
 }
@@ -62,8 +62,8 @@ function escolherTamanhos(q: Partes, conteudo: ConteudoEditorial, tT: Tipo, tB: 
   return null;
 }
 
-const texto = (c: CamadaTexto, x: number, y: number, w: number, h: number, t: Tipo, tam: number, cor: string, alinh: CamadaTexto["estilo"]["alinh"] = "esq", z = 20): CamadaTexto =>
-  ({ ...c, x: Math.round(x), y: Math.round(y), w: Math.round(w), h: Math.max(1, Math.ceil(h) + 4), z, estilo: { ...c.estilo, familia: t.familia, peso: t.peso, linha: t.linha, tam, tamMin: tam, cor, alinh, overflow: "cortar", maxLinhas: undefined } });
+const texto = (c: CamadaTexto, x: number, y: number, w: number, h: number, t: Tipo, tam: number, cor: string, alinh: CamadaTexto["estilo"]["alinh"] = "esq", z = 20, capitular?: boolean): CamadaTexto =>
+  ({ ...c, x: Math.round(x), y: Math.round(y), w: Math.round(w), h: Math.max(1, Math.ceil(h) + 4), z, estilo: { ...c.estilo, familia: t.familia, peso: t.peso, linha: t.linha, tam, tamMin: tam, cor, alinh, overflow: "cortar", maxLinhas: undefined, capitular: capitular || undefined } });
 
 export interface ContextoModelo { indice: number; total: number; paleta: Paleta; par: string; conteudo: ConteudoEditorial; assets: PacoteProva["assets"]; m?: Medidor }
 export interface ResultadoModelo { pagina: Pagina; cabe: boolean; /** Page shows the explicit "Imagem por escolher" placeholder. */ marcador: boolean }
@@ -91,7 +91,7 @@ export function comporModelo(p: Pagina, modelo: EstiloId, ctx: ContextoModelo): 
     case "editorial": {
       // Rigorous editorial grid: hairlines, generous single column (never narrow), serif title.
       const X = 110, W = LARGURA - 2 * X;
-      const tT = tTit(700, 1.08), tB = tCorpo(1.45);
+      const tT = tTit(700, 1.08), tB: Tipo = { ...tCorpo(1.45), capitular: !capa };
       const y0 = capa ? 330 : 210;
       const s = escolherTamanhos(q, conteudo, tT, tB, capa ? [112, 100, 88, 76] : [88, 80, 72, 64, 58], [44, 40, 38, 36], W, W, 96, LIMITE - y0, m) ?? falhou();
       fundo = capa ? pal.fundoCapa : pal.fundo;
@@ -103,7 +103,7 @@ export function comporModelo(p: Pagina, modelo: EstiloId, ctx: ContextoModelo): 
         t = q.titulo && texto(q.titulo, X, y0, W, s.hT, tT, s.tamT, legivel(capa ? tinta : pal.titulo, fundo, true));
         const yDiv = y0 + s.hT + 44;
         if (q.titulo && q.corpo) decor.push(ret("mod-divisor", X, yDiv, 120, 3, capa ? tinta : pal.destaque, 2));
-        b = q.corpo && texto(q.corpo, X, q.titulo ? yDiv + 52 : y0, W, s.hB, tB, s.tamB, legivel(capa ? tinta : pal.texto, fundo, false));
+        b = q.corpo && texto(q.corpo, X, q.titulo ? yDiv + 52 : y0, W, s.hB, tB, s.tamB, legivel(capa ? tinta : pal.texto, fundo, false), "esq", 20, !capa);
       }
       corNum = legivel(pal.discreto, fundo, false);
       break;
@@ -146,7 +146,7 @@ export function comporModelo(p: Pagina, modelo: EstiloId, ctx: ContextoModelo): 
       const img = imagens.find((i) => i.id !== "mod-foto");
       let y0 = capa ? 430 : 380;
       if (img && !capa) {
-        imagens = imagens.map((i) => (i === img ? { ...i, x: 0, y: 0, w: LARGURA, h: 520, recorte: "cover" as const, z: 1 } : i));
+        imagens = imagens.map((i) => (i === img ? { ...i, x: 0, y: 0, w: LARGURA, h: 520, recorte: "cover" as const, z: 1, mascara: "diagonal" as const } : i));
         decor.push(elipse("mod-circulo", LARGURA - 300, 380, 360, 360, pal.destaque, 2));
         y0 = 600;
       } else {
@@ -174,7 +174,7 @@ export function comporModelo(p: Pagina, modelo: EstiloId, ctx: ContextoModelo): 
       const resto = propria ? imagens.slice(1) : imagens;
       fundo = "#1c2621";
       if (assetId) {
-        const foto: CamadaImagem = { ...(propria ?? { id: "mod-foto", tipo: "imagem" as const, asset_id: assetId }), x: 0, y: 0, w: LARGURA, h: ALTURA, z: 0, recorte: "cover" } as CamadaImagem;
+        const foto: CamadaImagem = { ...(propria ?? { id: "mod-foto", tipo: "imagem" as const, asset_id: assetId }), x: 0, y: 0, w: LARGURA, h: ALTURA, z: 0, recorte: "cover", mascara: undefined } as CamadaImagem;
         imagens = [foto, ...resto];
       } else {
         marcador = true;
@@ -266,4 +266,55 @@ export function aplicarModelo(pacote: PacoteProva, modelo: EstiloId, paleta: Pal
     variantesOut[v] = out;
   }
   return { pacote: { ...pacote, variantes: variantesOut }, recusadas, marcador };
+}
+
+// ---------- pre-flight checks shared by editor, review and server ----------
+
+export const ID_MARCADOR = "mod-ph-rotulo";
+/** True when a page still shows the "Imagem por escolher" placeholder. */
+export const paginaComMarcador = (p: Pagina) => p.camadas.some((c) => c.id === ID_MARCADOR);
+export const paginasComMarcador = (d: DocumentoGrafico) => d.paginas.flatMap((p, i) => (paginaComMarcador(p) ? [i + 1] : []));
+
+/** Adds a clear "test draft" watermark (manual-style text layer) to every page with the placeholder. Test downloads only. */
+export function comMarcaRascunho(d: DocumentoGrafico): DocumentoGrafico {
+  return { ...d, paginas: d.paginas.map((p) => (paginaComMarcador(p) ? { ...p, camadas: [...p.camadas,
+    { id: "rascunho-faixa", tipo: "forma", forma: "ret", x: 0, y: 600, w: LARGURA, h: 150, z: 900, opacidade: 0.82, estilo: { cor: "#b42318" } } as CamadaForma,
+    { id: "rascunho-texto", tipo: "texto", texto: "RASCUNHO DE TESTE — IMAGEM POR ESCOLHER", x: 40, y: 625, w: LARGURA - 80, h: 104, z: 901, estilo: { peso: 900, familia: "montserrat", tam: 40, linha: 1.25, alinh: "centro", cor: "#ffffff", overflow: "cortar" } } as CamadaTexto,
+  ] } : p)) };
+}
+
+export interface NotaIlegivel { pagina: number; id: string; nome: string; razao: number; minimo: number; sugerida: string }
+const minimo = (e: { tam: number; peso: number }) => (e.tam >= 72 || (e.tam >= 56 && e.peso >= 700) ? 3 : 4.5);
+const dentro = (c: Camada, x: number, y: number) => x >= c.x && x <= c.x + c.w && y >= c.y && y <= c.y + c.h;
+
+/** Manual text layers (no editorial ref, not engine decoration/page number) whose colour is not legible on what is really under them. */
+export function notasIlegiveis(d: DocumentoGrafico): NotaIlegivel[] {
+  const out: NotaIlegivel[] = [];
+  d.paginas.forEach((p, i) => {
+    for (const c of p.camadas) {
+      if (c.tipo !== "texto" || c.ref || c.id === "num" || ehDecoracao(c) || c.id.startsWith("rascunho-")) continue;
+      const cx = c.x + c.w / 2, cy = c.y + Math.min(c.h, c.estilo.tam * c.estilo.linha) / 2;
+      const baixo = p.camadas.filter((o) => o !== c && o.z <= c.z && o.tipo !== "texto" && dentro(o, cx, cy)).sort((a, b) => b.z - a.z);
+      const topo = baixo[0];
+      // Lower part of a reading gradient is effectively its colour; elsewhere over a photo it needs a visual check.
+      const sobreGradiente = topo?.tipo === "forma" && topo.forma === "gradiente";
+      if (topo?.tipo === "imagem" || (sobreGradiente && (cy < topo.y + topo.h * 0.6 || (topo.opacidade ?? 1) < 0.85))) continue;
+      const fill = topo?.tipo === "forma" && topo.forma !== "icone" && (sobreGradiente || (topo.opacidade ?? 1) >= 0.9) ? topo.estilo.cor : p.fundo;
+      const r = contraste(c.estilo.cor, fill), min = minimo(c.estilo);
+      if (r < min) out.push({ pagina: i, id: c.id, nome: c.nome ?? "nota", razao: r, minimo: min, sugerida: sobre(fill) });
+    }
+  });
+  return out;
+}
+
+/** Recolours ONLY the listed manual layers to the suggested legible colour; nothing else changes. */
+export function adaptarCorNotas(d: DocumentoGrafico, notas: NotaIlegivel[]): DocumentoGrafico {
+  return { ...d, paginas: d.paginas.map((p, i) => {
+    const desta = notas.filter((n) => n.pagina === i);
+    if (!desta.length) return p;
+    return { ...p, camadas: p.camadas.map((c) => {
+      const n = desta.find((x) => x.id === c.id);
+      return n && c.tipo === "texto" ? { ...c, estilo: { ...c.estilo, cor: n.sugerida } } : c;
+    }) };
+  }) };
 }

@@ -50,6 +50,8 @@ export interface EstiloTexto {
   maxLinhas?: number;
   overflow: "reduzir" | "cortar";
   tamMin?: number;
+  /** Drop cap derived from the first letter at render time; the text itself is never changed. */
+  capitular?: boolean;
 }
 
 export interface CamadaTexto extends CamadaBase {
@@ -67,6 +69,31 @@ export interface CamadaImagem extends CamadaBase {
   recorte: "cover" | "contain";
   /** Focal point 0..1 used by "cover". */
   foco?: { x: number; y: number };
+  /** Shared clip shape (same geometry in canvas and SVG). */
+  mascara?: Mascara;
+}
+
+export type Mascara = "diagonal" | "arco";
+export const MASCARAS: readonly Mascara[] = ["diagonal", "arco"];
+type Cmd = ["M" | "L", number, number] | ["Q", number, number, number, number] | ["Z"];
+/** Mask outline in layer-local coordinates; the only geometry source for both renderers. */
+export function comandosMascara(m: Mascara, w: number, h: number): Cmd[] {
+  return m === "diagonal"
+    ? [["M", 0, 0], ["L", w, 0], ["L", w, h * 0.72], ["L", 0, h], ["Z"]]
+    : [["M", 0, 0], ["L", w, 0], ["L", w, h * 0.8], ["Q", w / 2, h * 1.12, 0, h * 0.8], ["Z"]];
+}
+export function caminhoMascara(m: Mascara, w: number, h: number, dx = 0, dy = 0): string {
+  return comandosMascara(m, w, h).map((c) => c[0] === "Z" ? "Z" : c[0] === "Q" ? `Q${c[1] + dx} ${c[2] + dy} ${c[3] + dx} ${c[4] + dy}` : `${c[0]}${c[1] + dx} ${c[2] + dy}`).join("");
+}
+/** Traces the mask on any canvas-like context (Konva clipFunc). */
+export function tracarMascara(ctx: { beginPath(): void; moveTo(x: number, y: number): void; lineTo(x: number, y: number): void; quadraticCurveTo(a: number, b: number, c: number, d: number): void; closePath(): void }, m: Mascara, w: number, h: number) {
+  ctx.beginPath();
+  for (const c of comandosMascara(m, w, h)) {
+    if (c[0] === "M") ctx.moveTo(c[1], c[2]);
+    else if (c[0] === "L") ctx.lineTo(c[1], c[2]);
+    else if (c[0] === "Q") ctx.quadraticCurveTo(c[1], c[2], c[3], c[4]);
+    else ctx.closePath();
+  }
 }
 
 /** Closed set of vector icons (24×24 viewBox, filled, even-odd). Drawn identically in canvas and SVG. */
@@ -203,6 +230,7 @@ function validarCamada(v: unknown, onde: string, assets: Record<string, Asset>):
         maxLinhas: e.maxLinhas === undefined ? undefined : num(e.maxLinhas, `${onde}.estilo.maxLinhas`, 1, 100),
         overflow: e.overflow,
         tamMin: e.tamMin === undefined ? undefined : num(e.tamMin, `${onde}.estilo.tamMin`, 6, 400),
+        capitular: e.capitular === undefined ? undefined : e.capitular === true ? true : e.capitular === false ? false : falha(`${onde}.estilo.capitular inválido.`),
       },
     };
   }
@@ -217,6 +245,7 @@ function validarCamada(v: unknown, onde: string, assets: Record<string, Asset>):
       asset_id: id,
       recorte: c.recorte,
       foco: f ? { x: num(f.x, `${onde}.foco.x`, 0, 1), y: num(f.y, `${onde}.foco.y`, 0, 1) } : undefined,
+      mascara: c.mascara === undefined ? undefined : (MASCARAS as readonly unknown[]).includes(c.mascara) ? c.mascara as Mascara : falha(`${onde}.mascara inválida.`),
     };
   }
   if (c.tipo === "forma") {
@@ -414,6 +443,18 @@ export interface LayoutTexto {
   alturaLinha: number;
   linhas: LinhaTexto[];
   cortado: boolean;
+  /** Drop cap glyph (the first letter of the text, removed from the first line, never duplicated). */
+  capitular?: { texto: string; tam: number; x: number; baseline: number; largura: number };
+}
+
+const LINHAS_CAP = 3;
+/** First letter + rest when a drop cap applies (left aligned, starts with a letter, first paragraph long enough). */
+export function partirCapitular(texto: string, e: Pick<EstiloTexto, "capitular" | "alinh">): { letra: string; resto: string } | null {
+  if (!e.capitular || e.alinh !== "esq") return null;
+  const m = /^(\p{L})(\S)/u.exec(texto);
+  const p1 = texto.split("\n")[0];
+  if (!m || p1.length < 80) return null;
+  return { letra: m[1], resto: texto.slice(1) };
 }
 
 function quebrar(texto: string, tam: number, peso: Peso, max: number, m: Medidor, fam?: Familia): string[] {
@@ -460,6 +501,28 @@ export function layoutTexto(texto: string, e: EstiloTexto, w: number, h: number,
     if (linhas.length <= cabem || e.overflow !== "reduzir" || tam <= tamMin) break;
     tam = Math.max(tamMin, tam - 2);
   }
+  // Drop cap: first N lines are indented by the cap width; text is the same string minus its first letter.
+  let cap: LayoutTexto["capitular"];
+  let recuadas = 0;
+  let indCap = 0;
+  const pc = partirCapitular(texto, e);
+  if (pc) {
+    const lh0 = tam * e.linha;
+    const capTam = Math.round(((LINHAS_CAP - 1) * lh0) / 0.7 + tam);
+    const largura = m.largura(pc.letra, capTam, e.peso, e.familia);
+    const ind = largura + tam * 0.35;
+    const [p1, ...outros] = pc.resto.split("\n");
+    const estreitas = quebrar(p1, tam, e.peso, w - ind, m, e.familia);
+    if (estreitas.length >= LINHAS_CAP) {
+      const resto = estreitas.slice(LINHAS_CAP).join(" ");
+      const nl = [...estreitas.slice(0, LINHAS_CAP), ...(resto ? quebrar(resto, tam, e.peso, w, m, e.familia) : []), ...(outros.length ? quebrar(outros.join("\n"), tam, e.peso, w, m, e.familia) : [])];
+      linhas = nl;
+      cabem = Math.max(1, Math.min(e.maxLinhas ?? Infinity, Math.floor((h + 0.001) / lh0)));
+      recuadas = LINHAS_CAP;
+      cap = { texto: pc.letra, tam: capTam, x: 0, baseline: 0, largura };
+      indCap = ind;
+    }
+  }
   let cortado = false;
   if (linhas.length > cabem) {
     cortado = true;
@@ -471,14 +534,16 @@ export function layoutTexto(texto: string, e: EstiloTexto, w: number, h: number,
   const lh = tam * e.linha;
   const asc = m.ascendente(e.peso, e.familia) * tam;
   const desc = m.descendente(e.peso, e.familia) * tam;
+  const base = (i: number) => i * lh + (lh - (asc + desc)) / 2 + asc;
   return {
     tam,
     alturaLinha: lh,
     cortado,
+    capitular: cap ? { texto: cap.texto, tam: cap.tam, x: 0, baseline: base(Math.min(recuadas, linhas.length) - 1), largura: cap.largura } : undefined,
     linhas: linhas.map((t, i) => {
       const largura = m.largura(t, tam, e.peso, e.familia);
-      const x = e.alinh === "esq" ? 0 : e.alinh === "centro" ? (w - largura) / 2 : w - largura;
-      return { texto: t, largura, x, baseline: i * lh + (lh - (asc + desc)) / 2 + asc };
+      const x = e.alinh === "esq" ? (i < recuadas ? indCap : 0) : e.alinh === "centro" ? (w - largura) / 2 : w - largura;
+      return { texto: t, largura, x, baseline: base(i) };
     }),
   };
 }
@@ -552,15 +617,22 @@ export function paginaParaSvg(pacote: PacoteProva, variante: Variante, indice: n
     } else if (c.tipo === "imagem") {
       const a = pacote.assets[c.asset_id];
       const k = calcularRecorte(a, c);
+      let clip = "";
+      if (c.mascara) {
+        const cid = `m-${esc(c.id)}-${Math.round(c.y)}`;
+        partes.push(`<defs><clipPath id="${cid}"><path d="${caminhoMascara(c.mascara, c.w, c.h, c.x, c.y)}"/></clipPath></defs>`);
+        clip = ` clip-path="url(#${cid})"`;
+      }
       partes.push(
-        `<g opacity="${op}"><svg x="${r(c.x + k.dx)}" y="${r(c.y + k.dy)}" width="${r(k.dw)}" height="${r(k.dh)}" viewBox="${r(k.sx)} ${r(k.sy)} ${r(k.sw)} ${r(k.sh)}" preserveAspectRatio="none">` +
+        `<g opacity="${op}"${clip}><svg x="${r(c.x + k.dx)}" y="${r(c.y + k.dy)}" width="${r(k.dw)}" height="${r(k.dh)}" viewBox="${r(k.sx)} ${r(k.sy)} ${r(k.sw)} ${r(k.sh)}" preserveAspectRatio="none">` +
           `<image width="${a.largura}" height="${a.altura}" xlink:href="data:${a.mime};base64,${a.dados}"/></svg></g>`,
       );
     } else {
       const lay = layoutTexto(resolverTexto(c, pacote.conteudo), c.estilo, c.w, c.h, m);
       // Text is emitted as glyph outlines from the same font file, so the server
       // does not depend on its own shaping; the editable text stays in the JSON.
-      partes.push(`<g opacity="${op}" fill="${c.estilo.cor}"><title>${esc(lay.linhas.map((l) => l.texto).join(" "))}</title>`);
+      partes.push(`<g opacity="${op}" fill="${c.estilo.cor}"><title>${esc((lay.capitular?.texto ?? "") + lay.linhas.map((l) => l.texto).join(" "))}</title>`);
+      if (lay.capitular) partes.push(`<path d="${m.caminho(lay.capitular.texto, c.x + lay.capitular.x, c.y + lay.capitular.baseline, lay.capitular.tam, c.estilo.peso, c.estilo.familia)}"/>`);
       for (const l of lay.linhas) {
         if (!l.texto) continue;
         partes.push(`<path d="${m.caminho(l.texto, c.x + l.x, c.y + l.baseline, lay.tam, c.estilo.peso, c.estilo.familia)}"/>`);
