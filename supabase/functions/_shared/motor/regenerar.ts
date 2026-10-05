@@ -41,6 +41,7 @@ export function promptSistemaSlide(modo: ModoRegen, regrasAutor: string | null):
     "Reescreves UM único slide de um carrossel editorial, em português europeu (pt-PT). Não alteras os restantes slides.",
     "Usa apenas factos presentes na fonte. Não inventes números, datas, nomes, entidades, estatísticas nem citações. Não pesquises nem uses conhecimento externo.",
     "Mantém a função (papel) do slide e a coerência com os slides vizinhos.",
+    "Uma ideia principal; título informativo que continua o raciocínio dos títulos vizinhos. Capa: tese sustentada pelos outros slides. Slide 2: autónomo (contexto e porque interessa), não uma continuação. Fecho: no máximo uma ação, coerente com o apelo final; sem factos novos.",
     "Indica em 'fontes' os números dos parágrafos (§) que sustentam o slide; slides que não são fecho têm pelo menos um.",
     "Título até 90 caracteres; texto até 280 caracteres; texto alternativo até 200 caracteres, a descrever o slide.",
     `Pedido: ${m.nome}. ${m.descricao}`,
