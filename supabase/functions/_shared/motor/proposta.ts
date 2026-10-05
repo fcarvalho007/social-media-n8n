@@ -37,6 +37,8 @@ export interface PropostaEditorial {
   marca: { cor: string; origem: "projeto" | "neutra" };
   /** Per-slide provenance after a hybrid merge: slide id -> framework job that supplied its text. */
   origem_slides?: Record<string, { framework: string; trabalho: string }>;
+  /** Set on single-slide regenerations: only this slide id differs from the base; never usable as a whole proposal. */
+  escopo_slide?: string;
 }
 
 export interface FonteNormalizada {
@@ -61,6 +63,10 @@ export interface Brief {
   leitura_trabalho?: { angulo: string | null; especifica: string } | null;
   /** True when the objective is the author's own reading. */
   leitura?: boolean;
+  base_versao?: number | null;
+  origem_trabalho?: string | null;
+  /** Single-slide regeneration request (see regenerar.ts). */
+  regen?: import("./regenerar.ts").RegenBrief | null;
 }
 
 /** Normalise pasted text: unify line endings/spaces, strip list numbering, one paragraph per block. */
