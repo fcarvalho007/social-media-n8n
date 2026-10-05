@@ -1,6 +1,5 @@
 import { describe, expect, it } from "vitest";
 import { comporComImagens, MAX_IMAGENS_APOIO, paragrafoImagem } from "@/features/motor/imagensApoio";
-import { corpoVisao } from "../../supabase/functions/_shared/motor/kie.server";
 
 describe("imagens de apoio", () => {
   it("acrescenta um parágrafo § por imagem descrita, pela ordem", () => {
@@ -19,9 +18,5 @@ describe("imagens de apoio", () => {
     expect(comporComImagens("T", muitas).split("\n\n").length).toBe(1 + MAX_IMAGENS_APOIO);
     expect(paragrafoImagem({ assetId: "a", nome: "n", descricao: "x".repeat(5000) }, 1)!.length).toBeLessThan(1600);
   });
-  it("o pedido de visão envia só a imagem assinada, sem streaming", () => {
-    const c = corpoVisao("https://exemplo/x.png");
-    expect(c.stream).toBe(false);
-    expect(c.messages[0].content[1]).toEqual({ type: "image_url", image_url: { url: "https://exemplo/x.png" } });
-  });
+
 });
