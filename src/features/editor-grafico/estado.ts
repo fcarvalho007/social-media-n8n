@@ -204,8 +204,10 @@ export function reduzir(s: EstadoEditor, a: Acao): EstadoEditor {
 }
 
 function ajustar(s: EstadoEditor, p: PacoteProva): Partial<EstadoEditor> {
-  const n = p.variantes[s.variante].paginas.length;
+  // The active composition follows the document's visual system (so undo also restores it).
+  const variante = p.variantes.A.sistema?.variante ?? s.variante;
+  const n = p.variantes[variante].paginas.length;
   const pagina = Math.min(s.pagina, n - 1);
-  const existe = p.variantes[s.variante].paginas[pagina].camadas.some((c) => c.id === s.selecao);
-  return { pagina, selecao: existe ? s.selecao : null };
+  const existe = p.variantes[variante].paginas[pagina].camadas.some((c) => c.id === s.selecao);
+  return { variante, pagina, selecao: existe ? s.selecao : null };
 }
