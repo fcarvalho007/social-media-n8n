@@ -254,7 +254,7 @@ export default function CarrosselNovo() {
           <section className="mc-entrar space-y-6" aria-labelledby="t-fonte">
             <div className="flex flex-col justify-between gap-6 border-b border-border pb-6 md:flex-row md:items-end">
               <div className="max-w-xl">
-                <h1 id="t-fonte" className="font-heading text-3xl font-extrabold tracking-tight sm:text-4xl">Que conteúdo vamos transformar?</h1>
+                <h1 id="t-fonte" className="text-3xl font-extrabold tracking-tight sm:text-4xl">Que conteúdo vamos transformar?</h1>
                 <p className="mt-2 text-base text-muted-foreground">Insere o texto base e, se quiseres, gráficos ou tabelas que o completam.</p>
               </div>
               <div className="w-full space-y-1.5 md:w-72">
