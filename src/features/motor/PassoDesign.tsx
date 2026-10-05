@@ -272,7 +272,7 @@ export function PassoDesign({ pacote, medidor, onAplicar, slides, paragrafos, in
               </li>
             ))}
           </ol>
-          {podeRitmo && !ritmo && <Button variant="link" size="sm" className="h-auto px-0 text-xs text-muted-foreground" onClick={() => setRitmo(sugerirRitmo(pacote, slides!, paragrafos!, medidor, variante))}>Sugerir ritmo visual (opcional, não muda estilo, variante nem paleta)</Button>}
+          {podeRitmo && !ritmo && <Button variant="link" size="sm" className="h-auto whitespace-normal px-0 text-left text-xs text-muted-foreground" onClick={() => setRitmo(sugerirRitmo(pacote, slides!, paragrafos!, medidor, variante))}>Sugerir ritmo visual (opcional, não muda estilo, variante nem paleta)</Button>}
         </div>
         <div className="space-y-4">
           {!ajustado && <p className="text-xs text-muted-foreground">A pré-visualização mostra o documento guardado. Escolhe um estilo ou ajusta abaixo.</p>}
