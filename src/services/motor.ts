@@ -285,3 +285,22 @@ export async function listarCandidatos(origem: TrabalhoCompleto): Promise<Candid
     return { escopo, trabalho: t.id, framework: escopo ? `slide:${escopo.modo}` : b.framework ?? "", estado: t.estado, erro: t.erro, criado_em: t.criado_em, base_versao: b.base_versao ?? null, fonte_hash: hash, perfil, conteudo } as CandidatoPool;
   }));
 }
+
+// ---- Visual system (style + variant + palette + breaks), persisted per carousel ----
+import type { SistemaVisual, PaletaId, Quebras } from "../../supabase/functions/_shared/motor/sistema";
+import type { EstiloId } from "../../supabase/functions/_shared/motor/estilos";
+export interface SistemaGuardado { sistema: SistemaVisual; versao: number }
+
+export async function lerSistemaVisual(trabalhoId: string): Promise<SistemaGuardado | null> {
+  const { data, error } = await supabase.from("mc_sistemas_visuais").select("estilo_id, variante_id, paleta_id, quebras, versao").eq("trabalho_id", trabalhoId).maybeSingle();
+  if (error) throw new Error("Não foi possível ler o sistema visual.");
+  if (!data) return null;
+  return { versao: data.versao, sistema: { estilo: data.estilo_id as EstiloId, variante: data.variante_id as Variante, paleta: data.paleta_id as PaletaId, quebras: (data.quebras ?? {}) as Quebras } };
+}
+
+/** CAS save: fails with a clear message when someone else changed it meanwhile. */
+export async function definirSistemaVisual(trabalhoId: string, s: SistemaVisual, versaoEsperada: number): Promise<number> {
+  const { data, error } = await supabase.rpc("mc_definir_sistema_visual", { _trabalho_id: trabalhoId, _estilo: s.estilo, _variante: s.variante, _paleta: s.paleta, _quebras: s.quebras, _versao_esperada: versaoEsperada });
+  if (error) throw new Error(error.code === "40001" ? "O sistema visual foi alterado noutra sessão. Recarrega antes de aplicar." : "Não foi possível guardar o sistema visual.");
+  return data as number;
+}

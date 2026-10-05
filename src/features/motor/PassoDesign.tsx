@@ -12,6 +12,7 @@ import { PARES_FONTES, transbordos, type Medidor, type PacoteProva, type Variant
 import { aplicarEstilo, ESTILOS, type Estilo, type EstiloId, type Paleta } from "../../../supabase/functions/_shared/motor/estilos";
 import { adaptarCorNotas, aplicarModelo, notasIlegiveis, type ResultadoPacoteModelo } from "../../../supabase/functions/_shared/motor/modelos";
 import { composicoesPagina, contrastesFracos, formatarRazao, NOME_RITMO, type ComposicaoId, type OpcaoComposicao, type SlideRitmo } from "../../../supabase/functions/_shared/motor/composicoes";
+import { aplicarSistema, obterPaleta, PALETAS, quebrasPadrao, type PaletaId, type SistemaVisual } from "../../../supabase/functions/_shared/motor/sistema";
 import { aplicarComposicaoSlide, previaPagina, slideDaPagina, sugerirRitmo, type SugestaoRitmo } from "./variacoes";
 
 interface Props {
@@ -19,7 +20,9 @@ interface Props {
   pacote: PacoteProva;
   medidor: Medidor;
   /** Replaces both variants (text untouched); the page autosaves as a new composition version. */
-  onAplicar: (p: PacoteProva) => void;
+  onAplicar: (p: PacoteProva, sistema?: SistemaVisual) => void;
+  /** Visual system saved for this carousel (null = none saved yet). */
+  sistema?: SistemaVisual | null;
   /** Slide roles/citations and source paragraphs, used only for the deterministic rhythm suggestion. */
   slides?: Array<SlideRitmo & { id: string }>;
   paragrafos?: string[];
@@ -35,14 +38,10 @@ function estilizar(p: PacoteProva, paleta: Paleta, par: string, manuais: boolean
   return { pacote: { ...p, variantes: { A: A.doc, B: B.doc } }, manuais: A.manuais + B.manuais };
 }
 
-/** Model preview for the whole carousel (both variants); refused pages stay as they are. */
-function modelar(p: PacoteProva, id: EstiloId, paleta: Paleta, par: string, m: Medidor): ResultadoPacoteModelo {
-  return aplicarModelo(p, id, paleta, par, ["A", "B"], m);
-}
-const listaRecusas = (r: ResultadoPacoteModelo) => r.recusadas.map((x) => `${x.variante} p${x.pagina + 1}`).join(", ");
+const listaRecusas = (r: Pick<ResultadoPacoteModelo, "recusadas">) => r.recusadas.map((x) => `${x.variante} p${x.pagina + 1}`).join(", ");
 
 /** Design step: pick one of six styles, adjust palette and font pair, apply explicitly. Never opens with changes. */
-export function PassoDesign({ pacote, medidor, onAplicar, slides, paragrafos, inicio, onPendente }: Props) {
+export function PassoDesign({ pacote, medidor, onAplicar, slides, paragrafos, inicio, onPendente, sistema: guardado }: Props) {
   const [ambito, setAmbito] = useState<"todos" | "slide">(inicio ? "slide" : "todos");
   const [paginaSel, setPaginaSel] = useState(inicio?.pagina ?? 0);
   const [opcoes, setOpcoes] = useState<OpcaoComposicao[] | null>(null);
@@ -51,27 +50,35 @@ export function PassoDesign({ pacote, medidor, onAplicar, slides, paragrafos, in
   const [ambas, setAmbas] = useState(false);
   const [ritmo, setRitmo] = useState<SugestaoRitmo | null>(null);
   // No style is marked as current until the user picks one: the saved document may not match any preset.
-  const [escolha, setEscolha] = useState<Estilo | null>(null);
+  const [escolha, setEscolha] = useState<Estilo | null>(() => ESTILOS.find((e) => e.id === guardado?.estilo) ?? null);
   const [ajustado, setAjustado] = useState(false);
-  const [paleta, setPaleta] = useState<Paleta>(ESTILOS[0].paleta);
-  const [par, setPar] = useState(ESTILOS[0].par);
+  const [paletaId, setPaletaId] = useState<PaletaId>(guardado?.paleta ?? "navy-editorial");
+  const [paleta, setPaleta] = useState<Paleta>(obterPaleta(guardado?.paleta).cores);
+  const [personalizado, setPersonalizado] = useState(false);
+  const [par, setPar] = useState(ESTILOS.find((e) => e.id === guardado?.estilo)?.par ?? ESTILOS[0].par);
   const [manuais, setManuais] = useState(false);
-  const [variante, setVariante] = useState<Variante>(inicio?.variante ?? "A");
+  const [variante, setVariante] = useState<Variante>(inicio?.variante ?? guardado?.variante ?? "A");
   const [confirmar, setConfirmar] = useState(false);
   const [imagens, setImagens] = useState<Record<string, HTMLImageElement>>({});
   useEffect(() => { let vivo = true; carregarImagens(pacote).then((i) => vivo && setImagens(i)).catch(() => undefined); return () => { vivo = false; }; }, [pacote]);
 
-  useEffect(() => { setOpcoes(null); setCompSel(null); setRitmo(null); setAjustado(false); setEscolha(null); }, [pacote]);
+  useEffect(() => { setOpcoes(null); setCompSel(null); setRitmo(null); setAjustado(false); }, [pacote]);
   useEffect(() => { onPendente?.((!!compSel || !!modSlide) && !!opcoes); }, [compSel, modSlide, opcoes, onPendente]);
   useEffect(() => () => onPendente?.(false), [onPendente]);
-  const escolher = (e: Estilo) => { setEscolha(e); setPaleta(e.paleta); setPar(e.par); setAjustado(true); };
-  const modelo = useMemo(() => (ajustado && escolha ? modelar(pacote, escolha.id, paleta, par, medidor) : null), [ajustado, escolha, pacote, paleta, par, medidor]);
+  const total = pacote.variantes.A.paginas.length;
+  const quebras = guardado?.quebras ?? quebrasPadrao(total);
+  const sistema: SistemaVisual | null = escolha ? { estilo: escolha.id, variante, paleta: paletaId, quebras } : null;
+  const escolher = (e: Estilo) => { setEscolha(e); setPar(e.par); setPersonalizado(false); setPaleta(obterPaleta(paletaId).cores); setAjustado(true); };
+  const escolherPaleta = (id: PaletaId) => { setPaletaId(id); setPaleta(obterPaleta(id).cores); setPersonalizado(false); setAjustado(true); };
+  // The same renderer the Composition uses: style + A/B composition + palette + breaks.
+  const modelo = useMemo(() => (ajustado && escolha ? aplicarSistema(pacote, { estilo: escolha.id, variante: "A", paleta: paletaId, quebras }, medidor) : null), [ajustado, escolha, pacote, paletaId, quebras, medidor]);
   const previa = useMemo(() => {
+    if (modelo && !personalizado && !manuais && par === escolha?.par) return { pacote: modelo.pacote, manuais: estilizar(pacote, paleta, par, false).manuais };
     const base = ajustado ? estilizar(modelo?.pacote ?? pacote, paleta, par, manuais) : { pacote, manuais: estilizar(pacote, paleta, par, false).manuais };
     // With a model, editorial text/decor already carry the model's choices; only manual layers get recoloured on request.
     return modelo && !manuais ? { pacote: modelo.pacote, manuais: base.manuais } : base;
-  }, [ajustado, modelo, pacote, paleta, par, manuais]);
-  const miniaturas = useMemo(() => ESTILOS.map((e) => ({ e, p: modelar(pacote, e.id, e.paleta, e.par, medidor).pacote })), [pacote, medidor]);
+  }, [ajustado, modelo, pacote, paleta, par, manuais, personalizado, escolha]);
+  const miniaturas = useMemo(() => ESTILOS.map((e) => ({ e, p: aplicarSistema(pacote, { estilo: e.id, variante: "A", paleta: paletaId, quebras }, medidor, [0, 1]).pacote })), [pacote, medidor, paletaId, quebras]);
   const opcoesModelo = useMemo(() => {
     if (ambito !== "slide" || !opcoes) return [];
     return ESTILOS.map((e) => ({ e, r: aplicarModelo(pacote, e.id, e.paleta, e.par, [variante], medidor, [paginaSel]) }));
@@ -215,7 +222,7 @@ export function PassoDesign({ pacote, medidor, onAplicar, slides, paragrafos, in
             <button type="button" onClick={() => escolher(e)} aria-pressed={escolha?.id === e.id}
               className={cn("mc-trans block w-full rounded-[var(--mc-r-md)] border p-2 text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring", escolha?.id === e.id ? "border-primary ring-1 ring-primary" : "border-border hover:border-muted-foreground")}>
               <span className="flex gap-1 overflow-hidden rounded-[var(--mc-r-sm)]">
-                {[0, 1].filter((i) => i < p.variantes.A.paginas.length).map((i) => <PaginaCanvas key={i} pacote={p} variante="A" indice={i} medidor={medidor} imagens={imagens} escala={(p.variantes.A.paginas.length > 1 ? 68 : 140) / 1080} />)}
+                {[0, 1].filter((i) => i < p.variantes.A.paginas.length).map((i) => <PaginaCanvas key={i} pacote={p} variante={variante} indice={i} medidor={medidor} imagens={imagens} escala={(p.variantes.A.paginas.length > 1 ? 68 : 140) / 1080} />)}
               </span>
               <span className="mt-2 flex items-center gap-1 text-sm font-medium">{escolha?.id === e.id && <Check className="h-3.5 w-3.5 text-primary" />}{e.nome}</span>
               <span className="block text-xs text-muted-foreground">{e.descricao}</span>
@@ -229,8 +236,7 @@ export function PassoDesign({ pacote, medidor, onAplicar, slides, paragrafos, in
           <div className="flex items-center gap-2">
             {(["A", "B"] as const).map((v) => <Button key={v} variant={variante === v ? "secondary" : "ghost"} className="h-11" onClick={() => { setVariante(v); setRitmo(null); }}>Variante {v}</Button>)}
           </div>
-          {podeRitmo && !ritmo && <Button variant="outline" className="h-11" onClick={() => setRitmo(sugerirRitmo(pacote, slides!, paragrafos!, medidor, variante))}>Sugerir ritmo visual</Button>}
-          {ritmo && (
+                    {ritmo && (
             <div className="space-y-2 rounded-[var(--mc-r-md)] border border-border p-3">
               <p role="status" className="text-sm font-medium">Ritmo visual — pré-visualização, não aplicada</p>
               <p className="text-xs text-muted-foreground">Sugestão visual gratuita, sem IA: não muda texto nem cria dados ou gráficos. Baseada no papel e na densidade de cada slide; capa e fecho ficam iguais. {ritmo.plano.filter((x) => x.muda).length === 0 && "Nenhum slide mudaria."}</p>
@@ -258,6 +264,7 @@ export function PassoDesign({ pacote, medidor, onAplicar, slides, paragrafos, in
               </div>
             </div>
           )}
+          {sistema && <p className="text-xs text-muted-foreground">{escolha?.nome} · variante {variante} · {obterPaleta(paletaId).nome}{personalizado ? " (cores à mão)" : ""} · quebras nos slides {Object.keys(quebras).filter((k) => quebras[k]).join(", ") || "nenhum"}. É exatamente isto que abre na Composição.</p>}
           <ol className="grid grid-cols-2 gap-2 sm:grid-cols-3" aria-label="Pré-visualização">
             {(ritmo ? ritmo.pacote.variantes[variante].paginas : paginas).map((pg, i) => (
               <li key={pg.id} className="overflow-hidden rounded-[var(--mc-r-sm)] border border-border">
@@ -265,9 +272,23 @@ export function PassoDesign({ pacote, medidor, onAplicar, slides, paragrafos, in
               </li>
             ))}
           </ol>
+          {podeRitmo && !ritmo && <Button variant="link" size="sm" className="h-auto whitespace-normal px-0 text-left text-xs text-muted-foreground" onClick={() => setRitmo(sugerirRitmo(pacote, slides!, paragrafos!, medidor, variante))}>Sugerir ritmo visual (opcional, não muda estilo, variante nem paleta)</Button>}
         </div>
         <div className="space-y-4">
           {!ajustado && <p className="text-xs text-muted-foreground">A pré-visualização mostra o documento guardado. Escolhe um estilo ou ajusta abaixo.</p>}
+          <fieldset className="space-y-2">
+            <legend className="text-sm font-medium">Paleta</legend>
+            <div className="grid gap-1.5" role="radiogroup" aria-label="Paleta">
+              {PALETAS.map((pl) => (
+                <button key={pl.id} type="button" role="radio" aria-checked={paletaId === pl.id && !personalizado} onClick={() => escolherPaleta(pl.id)}
+                  className={cn("mc-trans flex min-h-11 items-center justify-between gap-2 rounded-[var(--mc-r-md)] border px-3 py-2 text-left", paletaId === pl.id && !personalizado ? "border-primary ring-1 ring-primary" : "border-input hover:border-muted-foreground")}>
+                  <span className="min-w-0"><span className="block text-sm font-medium">{pl.nome}</span><span className="block text-xs text-muted-foreground">{pl.sensacao}</span></span>
+                  <span className="flex shrink-0 gap-1" aria-hidden>{pl.amostras.map((c, i) => <span key={i} className="h-5 w-5 rounded-full border border-border" style={{ background: c }} />)}</span>
+                </button>
+              ))}
+            </div>
+          </fieldset>
+          <p className="text-xs font-medium text-muted-foreground">Personalizar</p>
           <Grupo titulo="Tipografia" resumo={ajustado ? PARES_FONTES.find((f) => f.id === par)?.nome : "Atual do documento"}>
           <fieldset className="space-y-2">
             <legend className="sr-only">Tipografia</legend>
@@ -281,13 +302,13 @@ export function PassoDesign({ pacote, medidor, onAplicar, slides, paragrafos, in
             </div>
           </fieldset>
           </Grupo>
-          <Grupo titulo="Cores" resumo={ajustado ? <span className="inline-flex gap-1 align-middle">{(Object.keys(NOME_COR) as (keyof Paleta)[]).map((k) => <span key={k} className="inline-block h-3 w-3 rounded-sm border border-border" style={{ background: paleta[k] }} />)}</span> : "Atuais do documento"}>
+          <Grupo titulo="Cores à mão" resumo={personalizado ? <span className="inline-flex gap-1 align-middle">{(Object.keys(NOME_COR) as (keyof Paleta)[]).map((k) => <span key={k} className="inline-block h-3 w-3 rounded-sm border border-border" style={{ background: paleta[k] }} />)}</span> : "Da paleta"}>
           <fieldset className="space-y-2">
             <legend className="sr-only">Cores</legend>
             {(Object.keys(NOME_COR) as (keyof Paleta)[]).map((k) => (
               <label key={k} className="flex min-h-11 items-center justify-between gap-2 text-sm">
                 <span>{NOME_COR[k]}</span>
-                <input type="color" value={paleta[k]} onChange={(e) => { setPaleta((p) => ({ ...p, [k]: e.target.value })); setAjustado(true); }} className="h-9 w-12 cursor-pointer rounded-md border border-input bg-background p-1" aria-label={`Cor: ${NOME_COR[k]}`} />
+                <input type="color" value={paleta[k]} onChange={(e) => { setPaleta((p) => ({ ...p, [k]: e.target.value })); setPersonalizado(true); setAjustado(true); }} className="h-9 w-12 cursor-pointer rounded-md border border-input bg-background p-1" aria-label={`Cor: ${NOME_COR[k]}`} />
               </label>
             ))}
           </fieldset>
@@ -307,15 +328,16 @@ export function PassoDesign({ pacote, medidor, onAplicar, slides, paragrafos, in
         <DialogContent className="mc-estudio">
           <DialogHeader>
             <DialogTitle>{escolha ? `Aplicar «${escolha.nome}»?` : "Aplicar os ajustes?"}</DialogTitle>
-            <DialogDescription>{escolha ? "Reorganiza a composição, cores e tipos de letra" : "Muda cores e tipos de letra"} nas variantes A e B e cria uma nova versão da composição. O texto não muda e as versões anteriores ficam guardadas.</DialogDescription>
+            <DialogDescription>{escolha ? `Aplica ${escolha.nome} (composição A na variante A, composição B na variante B) com a paleta ${obterPaleta(paletaId).nome}, guarda esta escolha para a Composição e` : "Muda cores e tipos de letra nas variantes A e B e"} cria uma nova versão da composição. O texto não muda e as versões anteriores ficam guardadas.</DialogDescription>
           </DialogHeader>
           {novos.length > 0 && <p role="alert" className="text-sm text-destructive">Com estas letras, o texto deixa de caber em: {novos.join(", ")}. Terás de o ajustar antes de aprovar (o tamanho nunca é reduzido sozinho).</p>}
           {modelo && modelo.recusadas.length > 0 && <p role="alert" className="text-sm text-destructive">O modelo não cabe sem reduzir a letra abaixo do mínimo legível em: {listaRecusas(modelo)}. Esses slides ficam como estão; nenhum texto é cortado ou apagado.</p>}
+          {modelo && modelo.quebrasRecusadas.length > 0 && <p className="text-sm text-muted-foreground">A quebra visual não cabe em: {listaRecusas({ recusadas: modelo.quebrasRecusadas })}. Esses slides usam a composição normal do estilo.</p>}
           {modelo?.marcador && <p className="text-sm text-muted-foreground">Não há imagem neste carrossel: os slides mostram o marcador «Imagem por escolher», que também aparece na exportação até escolheres uma imagem.</p>}
           {!manuais && previa.manuais > 0 && <p className="text-sm text-muted-foreground">{previa.manuais} camada(s) acrescentada(s) à mão mantêm as cores atuais.</p>}
           <DialogFooter>
             <Button variant="ghost" className="h-11" onClick={() => setConfirmar(false)}>Cancelar</Button>
-            <Button className="h-11" onClick={() => { onAplicar(previa.pacote); setConfirmar(false); }}>Aplicar</Button>
+            <Button className="h-11" onClick={() => { onAplicar(previa.pacote, sistema ?? undefined); setConfirmar(false); }}>Aplicar</Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>

@@ -197,6 +197,13 @@
       "when": 1791231744527,
       "tag": "0027_mc_kie_tarefas_resultado",
       "breakpoints": true
+    },
+    {
+      "idx": 28,
+      "version": "7",
+      "when": 1791233776494,
+      "tag": "0028_mc_sistemas_visuais",
+      "breakpoints": true
     }
   ]
 }

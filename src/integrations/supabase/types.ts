@@ -1423,6 +1423,50 @@ export type Database = {
           },
         ]
       }
+      mc_sistemas_visuais: {
+        Row: {
+          atualizado_em: string
+          atualizado_por: string | null
+          estilo_id: string
+          paleta_id: string
+          project_id: string
+          quebras: Json
+          trabalho_id: string
+          variante_id: string
+          versao: number
+        }
+        Insert: {
+          atualizado_em?: string
+          atualizado_por?: string | null
+          estilo_id: string
+          paleta_id: string
+          project_id: string
+          quebras?: Json
+          trabalho_id: string
+          variante_id: string
+          versao?: number
+        }
+        Update: {
+          atualizado_em?: string
+          atualizado_por?: string | null
+          estilo_id?: string
+          paleta_id?: string
+          project_id?: string
+          quebras?: Json
+          trabalho_id?: string
+          variante_id?: string
+          versao?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "mc_sistemas_visuais_trabalho_id_fkey"
+            columns: ["trabalho_id"]
+            isOneToOne: true
+            referencedRelation: "mc_trabalhos"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       mc_trabalhos: {
         Row: {
           actualizado_em: string
@@ -5134,6 +5178,17 @@ export type Database = {
           _voz: string[]
         }
         Returns: undefined
+      }
+      mc_definir_sistema_visual: {
+        Args: {
+          _estilo: string
+          _paleta: string
+          _quebras: Json
+          _trabalho_id: string
+          _variante: string
+          _versao_esperada: number
+        }
+        Returns: number
       }
       mc_exportacao_progresso: {
         Args: {

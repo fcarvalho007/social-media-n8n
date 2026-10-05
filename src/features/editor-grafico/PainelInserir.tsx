@@ -51,11 +51,14 @@ interface Props {
   /** Fallback picker (proof editor). */
   pedirImagem?: () => void;
   onEstilo: (e: Estilo) => void;
+  /** Style currently saved for this carousel, and extra controls (palette, breaks) shown under the list. */
+  estiloAtual?: string | null;
+  extraEstilos?: React.ReactNode;
   /** Opens the Design step on this slide's five compositions (real work only). */
   onComposicoes?: () => void;
 }
 
-export function PainelInserir({ aba, despachar, onImagem, projectId, pedirImagem, onEstilo, onComposicoes }: Props) {
+export function PainelInserir({ aba, despachar, onImagem, projectId, pedirImagem, onEstilo, onComposicoes, estiloAtual, extraEstilos }: Props) {
   const [bib, setBib] = useState<ImagemBiblioteca[] | null>(null);
   const [erro, setErro] = useState<string | null>(null);
   const [aUsar, setAUsar] = useState<string | null>(null);
@@ -115,11 +118,11 @@ export function PainelInserir({ aba, despachar, onImagem, projectId, pedirImagem
   if (aba === "estilos") {
     return (
       <div className="space-y-2">
-        <p className="text-xs text-muted-foreground">Aplica cores e letras a esta variante. O texto não muda; podes desfazer.</p>
+        <p className="text-xs text-muted-foreground">{estiloAtual !== undefined ? "Estilo guardado deste carrossel. Trocar aplica a composição completa do estilo com a mesma paleta; o texto não muda e podes desfazer." : "Aplica cores e letras a esta variante. O texto não muda; podes desfazer."}</p>
         <ul className="space-y-1.5">
           {ESTILOS.map((e) => (
             <li key={e.id}>
-              <button type="button" onClick={() => onEstilo(e)} className="mc-trans flex min-h-11 w-full items-center gap-2 rounded-[var(--mc-r-md)] border border-border px-3 text-left text-sm hover:border-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring">
+              <button type="button" onClick={() => onEstilo(e)} aria-pressed={estiloAtual === e.id} className={`mc-trans flex min-h-11 w-full items-center gap-2 rounded-[var(--mc-r-md)] border px-3 text-left text-sm hover:border-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring ${estiloAtual === e.id ? "border-primary ring-1 ring-primary" : "border-border"}`}>
                 <span className="flex shrink-0 overflow-hidden rounded-sm border border-border" aria-hidden>
                   {[e.paleta.fundo, e.paleta.titulo, e.paleta.destaque].map((c) => <span key={c} className="h-5 w-3" style={{ background: c }} />)}
                 </span>
@@ -128,6 +131,7 @@ export function PainelInserir({ aba, despachar, onImagem, projectId, pedirImagem
             </li>
           ))}
         </ul>
+        {extraEstilos}
         {onComposicoes && <Button variant="outline" className="h-11 w-full" onClick={onComposicoes}>Composições deste slide…</Button>}
         {onComposicoes && <p className="text-xs text-muted-foreground">Abre o Design com este slide escolhido; o que já fizeste fica guardado.</p>}
       </div>

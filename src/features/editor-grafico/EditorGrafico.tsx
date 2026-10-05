@@ -19,6 +19,8 @@ import { guardarRecuperacao, lerRecuperacao, limparRecuperacao } from "@/lib/rec
 import { renderProvaServidor } from "@/services/conteudos";
 import { ALTURA, FAMILIAS, LARGURA, NOME_FAMILIA, layoutTexto, resolverTexto, validarPacote, type Asset, type Camada, type CamadaTexto, type Familia, type Medidor, type PacoteProva, type Variante } from "../../../supabase/functions/_shared/documento-grafico/nucleo";
 import { aplicarEstilo, type Estilo } from "../../../supabase/functions/_shared/motor/estilos";
+import { aplicarSistema, obterPaleta, quebrasPadrao, slidesQuebra, type SistemaVisual } from "../../../supabase/functions/_shared/motor/sistema";
+import { Switch } from "@/components/ui/switch";
 import { carregarFicheiro, ficheiroDoArrasto } from "@/features/editor-grafico/carregar";
 import { ABAS_INSERIR, MIME_INSERIR, PainelInserir, resolverBiblioteca, type AbaInserir, type Inserivel } from "@/features/editor-grafico/PainelInserir";
 import { alinharNaPagina, aplicarATodos, fundoATodos, PRESETS_TAMANHO, tamanhoMais, type Alinhar } from "@/features/editor-grafico/operacoes";
@@ -298,9 +300,14 @@ export interface PropsEditorGrafico {
   projectId?: string;
   /** Opens the per-slide compositions for the current variant/page. */
   onComposicoes?: (variante: Variante, pagina: number) => void;
+  /** Saved visual system: the Estilos panel shows it and re-applies it with the shared renderer. */
+  sistema?: SistemaVisual | null;
+  onSistema?: (s: SistemaVisual) => void;
+  medidorSistema?: Medidor;
 }
 
-export function EditorGrafico({ pacoteInicial, chaveLocal, titulo, seletor, real = false, estadoGravacao, cabecalhoInicio, menuExtra, onAlterado, faixaTopo, pedirImagem, projectId, onComposicoes }: PropsEditorGrafico) {
+export function EditorGrafico({ pacoteInicial, chaveLocal, titulo, seletor, real = false, estadoGravacao, cabecalhoInicio, menuExtra, onAlterado, faixaTopo, pedirImagem, projectId, onComposicoes, sistema, onSistema, medidorSistema }: PropsEditorGrafico) {
+  const [estiloPend, setEstiloPend] = useState<Estilo | null>(null);
   const { user } = useAuth();
   const [compacto, setCompacto] = useState(() => typeof window !== "undefined" && window.innerWidth < 1180);
   const [estado, despachar] = useReducer(reduzir, pacoteInicial, estadoInicial);
@@ -330,7 +337,16 @@ export function EditorGrafico({ pacoteInicial, chaveLocal, titulo, seletor, real
   const onImagem = pedirImagem ? () => { pedirImagem().then((r) => { if (r) despachar({ tipo: "adicionarImagem", asset: r.asset, nome: r.nome }); }).catch((e: Error) => toast.error(e.message)); } : undefined;
 
   const comDesfazer = (msg: string) => toast.success(msg, { action: { label: "Desfazer", onClick: () => despachar({ tipo: "desfazer" }) } });
+  /** Applies a system through the same renderer as the Design step (both variants: A gets A, B gets B). */
+  const aplicarSistemaEditor = (novo: SistemaVisual, paginas?: number[], msg?: string) => {
+    const r = aplicarSistema(pacote, novo, medidorSistema, paginas);
+    despachar({ tipo: "substituir", pacote: r.pacote });
+    onSistema?.(novo);
+    const avisos = [r.recusadas.length ? `${r.recusadas.length} página(s) não cabem e ficam como estavam` : "", r.quebrasRecusadas.length ? `${r.quebrasRecusadas.length} quebra(s) não cabem e usam a composição normal` : ""].filter(Boolean).join("; ");
+    comDesfazer(`${msg ?? "Sistema visual aplicado"}${avisos ? ` (${avisos})` : ""}.`);
+  };
   const aplicarEstiloVariante = (e: Estilo) => {
+    if (onSistema) { setEstiloPend(e); return; }
     const r = aplicarEstilo(pacote.variantes[variante], e.paleta, e.par);
     despachar({ tipo: "substituir", pacote: { ...pacote, variantes: { ...pacote.variantes, [variante]: r.doc } } });
     comDesfazer(`Estilo «${e.nome}» aplicado à variante ${variante}${r.manuais ? ` (${r.manuais} camada(s) tuas mantidas)` : ""}.`);
@@ -684,8 +700,36 @@ export function EditorGrafico({ pacoteInicial, chaveLocal, titulo, seletor, real
 
   const inserir = (a: AbaInserir) => (
     <PainelInserir aba={a} despachar={despachar} projectId={projectId} pedirImagem={onImagem} onEstilo={aplicarEstiloVariante}
+      estiloAtual={onSistema ? (sistema?.estilo ?? null) : undefined}
+      extraEstilos={onSistema ? (sistema ? (
+        <div className="space-y-2 rounded-[var(--mc-r-md)] border border-border p-3 text-sm">
+          <p className="text-xs text-muted-foreground">Guardado: variante {sistema.variante} · {obterPaleta(sistema.paleta).nome}</p>
+          <p className="font-medium">Quebras visuais</p>
+          {slidesQuebra(pacote.variantes.A.paginas.length).map((n) => (
+            <label key={n} className="flex min-h-10 items-center justify-between gap-2">
+              <span>Quebra slide {n}</span>
+              <Switch checked={!!sistema.quebras[String(n)]} onCheckedChange={(v) => aplicarSistemaEditor({ ...sistema, quebras: { ...sistema.quebras, [String(n)]: v } }, [n - 1], `Quebra do slide ${n} ${v ? "ligada" : "desligada"}`)} aria-label={`Quebra visual no slide ${n}`} />
+            </label>
+          ))}
+          <p className="text-xs text-muted-foreground">Desligar só muda a composição desse slide; o texto fica igual.</p>
+        </div>
+      ) : <p className="text-xs text-muted-foreground">Sem sistema visual guardado. Escolhe um estilo acima ou no passo Design.</p>) : undefined}
       onComposicoes={onComposicoes ? () => onComposicoes(variante, pagina) : undefined}
       onImagem={(r) => despachar({ tipo: "adicionarImagem", asset: r.asset, nome: r.nome })} />
+  );
+  const dialogoEstilo = (
+    <Dialog open={!!estiloPend} onOpenChange={(v) => { if (!v) setEstiloPend(null); }}>
+      <DialogContent className="mc-estudio">
+        <DialogHeader>
+          <DialogTitle>Aplicar «{estiloPend?.nome}»?</DialogTitle>
+          <DialogDescription>Aplica a composição completa do estilo nas variantes A e B, com a paleta {obterPaleta(sistema?.paleta).nome}, e guarda a escolha. O texto não muda; podes desfazer.</DialogDescription>
+        </DialogHeader>
+        <div className="flex justify-end gap-2">
+          <Button variant="ghost" className="h-11" onClick={() => setEstiloPend(null)}>Cancelar</Button>
+          <Button className="h-11" onClick={() => { const e = estiloPend!; setEstiloPend(null); aplicarSistemaEditor({ estilo: e.id, variante: sistema?.variante ?? variante, paleta: sistema?.paleta ?? "navy-editorial", quebras: sistema?.quebras ?? quebrasPadrao(pacote.variantes.A.paginas.length) }, undefined, `Estilo «${e.nome}» aplicado`); }}>Aplicar</Button>
+        </div>
+      </DialogContent>
+    </Dialog>
   );
 
   const dialogoComparacao = (
@@ -791,6 +835,7 @@ export function EditorGrafico({ pacoteInicial, chaveLocal, titulo, seletor, real
   return (
     <div className="flex h-screen min-h-0 flex-col overflow-hidden">
       {inputFicheiro}
+      {dialogoEstilo}
       {faixaTopo}
       <header className="flex flex-wrap items-center gap-3 border-b border-border bg-background px-4 py-2">
         {cabecalhoInicio}
