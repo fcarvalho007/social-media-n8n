@@ -46,7 +46,7 @@ async function validacoes(sb: { from: (t: string) => any }): Promise<Record<stri
     sb.from("nl_egoi_listas").select("egoi_lista_id, campo_token_id").eq("activa", true).eq("tipo", "real"),
     sb.from("nl_egoi_tokens_sync").select("egoi_lista_id, campo_id, estado, campo_validado, verificado_leitura"),
   ]);
-  if (l.error || t.error) return { egoi_tokens: { validado: false, detalhe: "Não foi possível ler o estado da sincronização." } };
+  if (l.error || t.error) return { deepseek: { validado: false, detalhe: "Estado indisponível." }, kie: { validado: false, detalhe: "Estado indisponível." }, egoi_tokens: { validado: false, detalhe: "Não foi possível ler o estado da sincronização." } };
   const listas = (l.data ?? []) as Array<{ egoi_lista_id: string; campo_token_id: number | null }>;
   const sync = (t.data ?? []) as Array<{ egoi_lista_id: string; campo_id: number; estado: string; campo_validado: boolean; verificado_leitura: boolean }>;
   // Each list counts only with ITS OWN resolved field.
@@ -54,7 +54,20 @@ async function validacoes(sb: { from: (t: string) => any }): Promise<Record<stri
     const c = resolverCampoLista(x)?.campo;
     return c && sync.some((s) => s.egoi_lista_id === x.egoi_lista_id && s.campo_id === c && s.estado === "concluida" && s.campo_validado && s.verificado_leitura);
   }).length;
+  // Text AI and Kie: validated only by recorded real success (presence of a key is never enough).
+  const sr = createClient(Deno.env.get("SUPABASE_URL")!, Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!);
+  const [ds, dm, kie] = await Promise.all([
+    sr.from("nl_ia_uso").select("criado_em, modelo").eq("sucesso", true).ilike("modelo", "deepseek%").order("criado_em", { ascending: false }).limit(1),
+    sr.from("mc_chamadas_ia").select("actualizado_em, modelo").eq("estado", "valida").ilike("modelo", "deepseek%").order("actualizado_em", { ascending: false }).limit(1),
+    sr.from("mc_kie_tarefas").select("actualizado_em, modelo").eq("estado", "concluida").not("asset_id", "is", null).order("actualizado_em", { ascending: false }).limit(1),
+  ]);
+  const dt = (x: string) => new Date(x).toLocaleString("pt-PT", { timeZone: "Europe/Lisbon", day: "2-digit", month: "2-digit", year: "numeric", hour: "2-digit", minute: "2-digit" });
+  const ultDs = [ds.data?.[0] && { em: ds.data[0].criado_em, m: ds.data[0].modelo, o: "newsletter" }, dm.data?.[0] && { em: dm.data[0].actualizado_em, m: dm.data[0].modelo, o: "carrosséis" }]
+    .filter(Boolean).sort((a, b) => String(b!.em).localeCompare(String(a!.em)))[0] as { em: string; m: string; o: string } | undefined;
+  const k = kie.data?.[0] as { actualizado_em: string; modelo: string } | undefined;
   return {
+    deepseek: ultDs ? { validado: true, detalhe: `Último pedido com sucesso: ${dt(ultDs.em)} · ${ultDs.m} (${ultDs.o}).` } : { validado: false, detalhe: "Ainda sem pedido com sucesso registado." },
+    kie: k ? { validado: true, detalhe: `Última imagem gerada e guardada: ${dt(k.actualizado_em)} · ${k.modelo}.` } : { validado: false, detalhe: "Ainda sem imagem gerada e guardada." },
     egoi_tokens: listas.length === 0
       ? { validado: false, detalhe: "Sem listas E-goi ativas registadas." }
       : { validado: ok === listas.length, detalhe: `${ok} de ${listas.length} listas com tokens sincronizados e confirmados por leitura.` },

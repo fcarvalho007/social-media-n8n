@@ -10,12 +10,15 @@ export const KIE_BASE = "https://api.kie.ai/api/v1/jobs";
 export const KIE_MODELO = "seedream/5-flash-text-to-image";
 export const KIE_PROPORCAO = "3:4";
 export const KIE_MAX_DIA = 10;
+/** 2K output; JPEG keeps a 2K 3:4 image under the 6 MB asset limit (PNG at 2K can exceed it). */
+export const KIE_TAMANHO = "2K";
+export const KIE_FORMATO = "jpeg";
 const SUFIXO = "No text, no letters, no captions, no logos, no brand marks, no watermarks. Clean background suitable for overlaying text later.";
 
 export const chaveKie = () => Deno.env.get("KIE_API_KEY") ?? "";
 
 export function corpoKie(prompt: string) {
-  return { model: KIE_MODELO, input: { prompt: `${prompt.trim()}\n\n${SUFIXO}`, aspect_ratio: KIE_PROPORCAO, size: "1K", output_format: "png", nsfw_checker: true } };
+  return { model: KIE_MODELO, input: { prompt: `${prompt.trim()}\n\n${SUFIXO}`, aspect_ratio: KIE_PROPORCAO, size: KIE_TAMANHO, output_format: KIE_FORMATO, nsfw_checker: true } };
 }
 
 export async function criarTarefaKie(sb: SupabaseClient, a: { projectId: string; userId: string; prompt: string }, f: typeof fetch = fetch) {
@@ -63,7 +66,9 @@ export async function estadoTarefaKie(sb: SupabaseClient, a: { projectId: string
   const img = await f(url);
   if (!img.ok) return { status: 502, corpo: { error: "Não foi possível descarregar a imagem da Kie. Tenta de novo; o pedido não é repetido." } };
   const bytes = new Uint8Array(await img.arrayBuffer());
-  const info = inspecionarImagem(bytes);
+  let info: ReturnType<typeof inspecionarImagem>;
+  try { info = inspecionarImagem(bytes); }
+  catch (e) { return { status: 502, corpo: { error: `A imagem da Kie não pôde ser aceite: ${(e as Error).message} O pedido não é repetido.` } }; }
   const hash = await sha256Hex(bytes);
   let asset: AssetRow | null = (await sb.from("mc_assets").select("*").eq("project_id", a.projectId).eq("hash", hash).maybeSingle()).data as AssetRow | null;
   if (!asset) {

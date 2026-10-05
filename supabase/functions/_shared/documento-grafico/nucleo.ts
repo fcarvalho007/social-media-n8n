@@ -284,6 +284,7 @@ export interface FonteOT {
   ascender: number;
   descender: number;
   stringToGlyphs(texto: string): GlifoOT[];
+  charToGlyph(c: string): GlifoOT;
   getKerningValue(a: GlifoOT, b: GlifoOT): number | undefined;
 }
 
@@ -339,7 +340,10 @@ export interface Medidor {
  */
 function posicionar(f: FonteOT, texto: string, tam: number, cada?: (g: GlifoOT, x: number) => void): number {
   const esc = tam / f.unitsPerEm;
-  const glifos = f.stringToGlyphs(texto);
+  let glifos: GlifoOT[];
+  // Some fonts (e.g. Inter/Montserrat) use GSUB lookups opentype.js cannot apply; fall back to plain
+  // per-character glyphs (no ligatures) — identical on browser and server, so measurement and render stay equal.
+  try { glifos = f.stringToGlyphs(texto); } catch { glifos = Array.from(texto, (c) => f.charToGlyph(c)); }
   let x = 0;
   for (let i = 0; i < glifos.length; i++) {
     const g = glifos[i];

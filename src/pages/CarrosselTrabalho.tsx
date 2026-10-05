@@ -320,7 +320,7 @@ export default function CarrosselTrabalho() {
   if (passo === "composicao" && pacote && chave !== undefined) {
     return (
       <Quadro className="h-dvh min-h-0 overflow-hidden">
-        <EditorGrafico key={`${id}-${revisao}`} pacoteInicial={pacote} chaveLocal={chave} real
+        <EditorGrafico key={`${id}-${revisao}`} pacoteInicial={pacote} chaveLocal={chave} real projectId={dados!.trabalho.project_id}
           titulo={<span className="truncate">{nome}</span>}
           faixaTopo={
             <div className="flex items-center gap-2 border-b border-border px-2 py-1 sm:px-4">
