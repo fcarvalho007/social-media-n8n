@@ -418,6 +418,12 @@ export default function CarrosselNovo() {
             {!demo && projeto && <PainelIdioma projectId={projeto} texto={texto} escolhaInicial={idiomaInicial} iaDisponivel={comIa} onEstado={setIdioma} />}
             <div className="space-y-4">
               <h1 id="t-narrativa" className="text-2xl font-semibold tracking-tight sm:text-3xl">O que deve fazer este carrossel?</h1>
+              {!demo && projeto && (
+                <p className="flex flex-wrap items-center gap-x-2 text-xs text-muted-foreground" aria-live="polite">
+                  <span>Voz ativa: <span className="font-medium text-foreground">{resumoPerfil ?? "a ler…"}</span></span>
+                  <button type="button" className="min-h-11 underline underline-offset-2 hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring sm:min-h-0" onClick={abrirContexto}>Ver/editar contexto</button>
+                </p>
+              )}
               <div role="radiogroup" aria-label="Objetivo" className="grid gap-2 sm:grid-cols-2">
                 {OBJETIVOS.map((o) => {
                   const sel = objetivo === o.id;
