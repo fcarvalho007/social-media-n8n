@@ -209,7 +209,7 @@ function paginaA(s: SlideProposta, i: number, total: number, cor: string): Pagin
     ] };
   }
   const tt = tamTitulo(s.titulo, false);
-  const alturaTitulo = Math.min(420, Math.ceil(s.titulo.length / (tt > 55 ? 26 : 32)) * tt * 1.12 + 20);
+  const alturaTitulo = Math.min(420, Math.ceil(s.titulo.length / (tt > 55 ? 23 : 28)) * tt * 1.12 + 20);
   return { id: `a-${s.id}`, slide: s.id, fundo: claro, camadas: [
     ret("regua", 96, 120, 80, 10, cor, 2),
     txt("titulo", `${s.id}.titulo`, 96, 170, 888, alturaTitulo, tt, 700, tinta),
@@ -231,7 +231,7 @@ function paginaB(s: SlideProposta, i: number, total: number, cor: string): Pagin
   }
   const t = sobre(cor);
   const tt = tamTitulo(s.titulo, false);
-  const alturaTitulo = Math.min(380, Math.ceil(s.titulo.length / (tt > 55 ? 24 : 30)) * tt * 1.12 + 20);
+  const alturaTitulo = Math.min(380, Math.ceil(s.titulo.length / (tt > 55 ? 21 : 26)) * tt * 1.12 + 20);
   return { id: `b-${s.id}`, slide: s.id, fundo: escuro, camadas: [
     ret("bloco", 72, 96, 936, alturaTitulo + 80, cor, 1, 24),
     txt("titulo", `${s.id}.titulo`, 112, 136, 856, alturaTitulo, tt, 700, t),
