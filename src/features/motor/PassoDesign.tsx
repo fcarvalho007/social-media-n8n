@@ -251,7 +251,7 @@ export function PassoDesign({ pacote, medidor, onAplicar, slides, paragrafos, in
                   </ul>
                 </div>
               )}
-              <p className="text-xs text-muted-foreground">{ritmo.plano.map((x) => `${x.pagina + 1}: ${x.ritmo ? NOME_RITMO[x.ritmo] : "igual"}${x.ritmo && !x.muda ? " (não cabe, fica igual)" : ""}`).join(" · ")}</p>
+              <p className="text-xs text-muted-foreground">{ritmo.plano.map((x) => `${x.pagina + 1}: ${x.ritmo ? NOME_RITMO[x.ritmo] : "igual"}${x.ritmo && !x.muda ? (x.comImagem ? " (imagem existente preservada, fica igual)" : " (não cabe, fica igual)") : ""}`).join(" · ")}</p>
               <div className="flex gap-2">
                 <Button variant="ghost" className="h-11" onClick={() => setRitmo(null)}>Cancelar</Button>
                 <Button className="h-11" disabled={!ritmo.plano.some((x) => x.muda)} onClick={() => { onAplicar(ritmo.pacote); setRitmo(null); }}>Aceitar ritmo</Button>
