@@ -194,10 +194,6 @@ Gera 2 a 3 perguntas iniciais que possam abrir esta legenda. Devem ser específi
   return generateText({ ...body, prompt, systemPrompt: "És um editor de redes sociais. Escreves perguntas curtas, específicas e conversacionais em PT-PT. Respondes apenas com JSON válido.", responseFormat: "json", model: "fast" });
 }
 
-function analyzeImage(): never {
-  // Vision ran only through the Lovable AI Gateway, which this Hub never uses at runtime.
-  throw new Response("vision_unavailable", { status: 501 });
-}
 
 async function transcribeMedia(body: RequestBody, openAiKey: string) {
   const fileResponse = await fetchWithTimeout(body.fileUrl!, {}, 60_000);
