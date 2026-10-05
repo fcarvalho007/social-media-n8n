@@ -50,3 +50,4 @@
 - [x] Redesign cinematográfico e progressivo dos carrosséis
 - [x] Pendentes do redesign (barra visível, conflito MC409, tipos, nomes A/B, contraste)
 - [x] R8b: versão final legível R8, 900px e recuperação local — concluída com evidência externa e 177 testes automatizados
+- Lote1 concluído (fornecedor DeepSeek real, voz do autor). Lote2 e Lote3 pendentes.

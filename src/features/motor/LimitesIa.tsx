@@ -45,8 +45,8 @@ export function LimitesIa({ projectId, onAlterado }: { projectId: string; onAlte
       {aberto && (
         <div className="mt-3 space-y-3 border-t border-border pt-3">
           <p className="text-xs text-muted-foreground">
-            Modelo: {MODELO_IA_NOME}. Cada pedido gasta créditos de IA do espaço de trabalho; o valor exato só aparece na faturação, por isso aqui contam-se pedidos e não euros.
-            Cada carrossel usa 1 pedido, ou 2 se a primeira resposta vier inválida e for corrigida. Um pedido com resultado desconhecido conta e não é repetido sozinho. 0 por dia desliga a IA.
+            Fornecedor e modelo: {MODELO_IA_NOME}. Estes limites são da própria app, para controlar custos; não são créditos da Lovable. Cada pedido é cobrado pela DeepSeek à conta associada à chave do servidor, e o valor exato só aparece nessa conta, por isso aqui contam-se pedidos e não euros.
+            Contam todos os pedidos de texto do motor: gerar um carrossel, cada proposta de estrutura (reformulação) e a correção automática de uma resposta inválida. Cada trabalho usa 1 pedido, ou 2 com correção. Um pedido com resultado desconhecido conta e não é repetido sozinho. 0 por dia desliga a IA.
           </p>
           <div className="flex flex-wrap items-end gap-3">
             <div className="space-y-1"><Label htmlFor="lim-dia">Pedidos por dia (0–10)</Label><Input id="lim-dia" type="number" min={0} max={10} className="h-11 w-28 sm:h-9" value={dia} onChange={(e) => setDia(e.target.value)} /></div>
