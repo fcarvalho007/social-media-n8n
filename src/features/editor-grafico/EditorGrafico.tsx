@@ -676,7 +676,7 @@ export function EditorGrafico({ pacoteInicial, chaveLocal, titulo, seletor, real
         </DropdownMenu>
         <Button variant="ghost" size="icon" className={bt} aria-label="Duplicar (Ctrl+D)" title="Duplicar (Ctrl+D)" onClick={() => despachar({ tipo: "duplicarCamada", id: camada.id })}><Copy className="h-4 w-4" /></Button>
         <Button variant="ghost" size="icon" className={`${bt} text-destructive hover:text-destructive`} aria-label="Apagar (Delete)" title="Apagar (Delete)" onClick={() => despachar({ tipo: "apagarCamada", id: camada.id })}><Trash2 className="h-4 w-4" /></Button>
-        {camada.tipo !== "imagem" && <>{sep}<Button variant="outline" size="sm" className="h-11 shrink-0 lg:h-9" onClick={todos} title="Copia letra/cor para as camadas iguais dos outros slides (podes desfazer)"><CopyCheck className="mr-1.5 h-4 w-4" />Aplicar a todos</Button></>}
+        {camada.tipo !== "imagem" && <>{sep}<Button variant="outline" size="sm" className="h-11 shrink-0 lg:h-9" onClick={todos} title={camada.tipo === "texto" ? `Copia tipo de letra, peso e cor deste texto para os elementos «${rotuloCamada(camada, pacote).tipo}» dos outros slides da variante ${variante}. Texto, tamanho e posição não mudam. Podes desfazer.` : `Copia a cor desta forma para as formas iguais dos outros slides da variante ${variante}. Podes desfazer.`} aria-label={camada.tipo === "texto" ? `Aplicar tipo de letra, peso e cor a todos os elementos «${rotuloCamada(camada, pacote).tipo}» da variante ${variante}` : `Aplicar a cor a todas as formas iguais da variante ${variante}`}><CopyCheck className="mr-1.5 h-4 w-4" />{camada.tipo === "texto" ? "Letra e cor a todos" : "Cor a todas"}</Button></>}
         </div>
       </>)}
     </div>
@@ -754,18 +754,17 @@ export function EditorGrafico({ pacoteInicial, chaveLocal, titulo, seletor, real
           <div className="flex min-w-0 items-center gap-2">{seletorDoc}{seletorVariante}<div className="ml-auto">{estadoGravacao}</div></div>
         </header>
         {avisoRecuperacao}
-        <div className="shrink-0 border-b border-border bg-background">{miniaturas(true)}</div>
+        {painelAberto ? (
+          <div className="flex shrink-0 items-center gap-1 border-b border-border bg-background px-2">
+            <Button variant="ghost" size="icon" className="h-11 w-11" aria-label="Página anterior" disabled={pagina === 0} onClick={() => despachar({ tipo: "pagina", indice: pagina - 1 })}><ArrowUp className="h-4 w-4 -rotate-90" /></Button>
+            <span className="text-sm font-medium tabular-nums" aria-live="polite">Página {pagina + 1} de {paginas.length}</span>
+            <Button variant="ghost" size="icon" className="h-11 w-11" aria-label="Página seguinte" disabled={pagina === paginas.length - 1} onClick={() => despachar({ tipo: "pagina", indice: pagina + 1 })}><ArrowDown className="h-4 w-4 -rotate-90" /></Button>
+            <Button variant="ghost" size="sm" className="ml-auto h-11" onClick={() => setPainelAberto(false)}>Mostrar páginas</Button>
+          </div>
+        ) : <div className="shrink-0 border-b border-border bg-background">{miniaturas(true)}</div>}
         {barraContexto}
-        <div className="flex min-h-0 flex-1 flex-col">{tela}</div>
-        <nav className="grid shrink-0 grid-cols-5 border-t border-border bg-background pb-[env(safe-area-inset-bottom)]" aria-label="Ferramentas">
-          {ABAS_INSERIR.map(({ id: a, nome, icone: I }) => (
-            <Button key={a} variant={painelAberto && painelMovel === a ? "secondary" : "ghost"} className="h-14 flex-col gap-0.5 rounded-none px-0 text-xs" aria-expanded={painelAberto && painelMovel === a}
-              onClick={() => { if (painelAberto && painelMovel === a) setPainelAberto(false); else { setPainelMovel(a); setPainelAberto(true); } }}><I className="h-5 w-5" />{nome}</Button>
-          ))}
-          <Button variant={painelAberto && (painelMovel === "pagina" || painelMovel === "camada") ? "secondary" : "ghost"} className="h-14 flex-col gap-0.5 rounded-none px-0 text-xs"
-            onClick={() => { const alvo = camada ? "camada" : "pagina"; if (painelAberto && painelMovel === alvo) setPainelAberto(false); else { setPainelMovel(alvo); setPainelAberto(true); } }}><Layers className="h-5 w-5" />{camada ? "Camada" : "Página"}</Button>
-        </nav>
-        {painelAberto && <section id="painel-propriedades" className="absolute inset-x-0 bottom-[calc(3.5rem+env(safe-area-inset-bottom))] z-30 max-h-[min(52dvh,32rem)] overflow-y-auto border-t border-border bg-background shadow-lg" aria-label="Painel">
+        <div className="flex min-h-[28dvh] flex-1 flex-col">{tela}</div>
+        {painelAberto && <section id="painel-propriedades" className="max-h-[42dvh] shrink-0 overflow-y-auto border-t border-border bg-background" aria-label="Painel">
           <div className="sticky top-0 z-10 flex items-center justify-between border-b border-border bg-background px-3">
             <h2 className="text-sm font-semibold">{painelMovel === "pagina" ? "Página" : painelMovel === "camada" ? "Camada" : ABAS_INSERIR.find((x) => x.id === painelMovel)?.nome}</h2>
             <Button variant="ghost" size="icon" className="h-11 w-11" aria-label="Fechar painel" onClick={() => setPainelAberto(false)}><X className="h-4 w-4" /></Button>
@@ -776,6 +775,14 @@ export function EditorGrafico({ pacoteInicial, chaveLocal, titulo, seletor, real
             {painelMovel !== "pagina" && painelMovel !== "camada" && inserir(painelMovel)}
           </div>
         </section>}
+        <nav className="grid shrink-0 grid-cols-5 border-t border-border bg-background pb-[env(safe-area-inset-bottom)]" aria-label="Ferramentas">
+          {ABAS_INSERIR.map(({ id: a, nome, icone: I }) => (
+            <Button key={a} variant={painelAberto && painelMovel === a ? "secondary" : "ghost"} className="h-14 flex-col gap-0.5 rounded-none px-0 text-xs" aria-expanded={painelAberto && painelMovel === a}
+              onClick={() => { if (painelAberto && painelMovel === a) setPainelAberto(false); else { setPainelMovel(a); setPainelAberto(true); } }}><I className="h-5 w-5" />{nome}</Button>
+          ))}
+          <Button variant={painelAberto && (painelMovel === "pagina" || painelMovel === "camada") ? "secondary" : "ghost"} className="h-14 flex-col gap-0.5 rounded-none px-0 text-xs"
+            onClick={() => { const alvo = camada ? "camada" : "pagina"; if (painelAberto && painelMovel === alvo) setPainelAberto(false); else { setPainelMovel(alvo); setPainelAberto(true); } }}><Layers className="h-5 w-5" />{camada ? "Camada" : "Página"}</Button>
+        </nav>
         {dialogoComparacao}
       </div>
     );
