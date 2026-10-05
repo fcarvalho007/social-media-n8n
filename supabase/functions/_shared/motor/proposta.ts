@@ -53,6 +53,9 @@ export interface Brief {
   /** Author-voice snapshot taken at job creation (absent on older jobs). */
   autor?: Record<string, unknown> | null;
   /** Per-job angle + optional specific reading. */
+  briefing?: Record<string, unknown> | null;
+  idioma_saida?: string;
+  traducao?: { id: string; hash_original: string; idioma_origem: string } | null;
   leitura_trabalho?: { angulo: string | null; especifica: string } | null;
   /** True when the objective is the author's own reading. */
   leitura?: boolean;
