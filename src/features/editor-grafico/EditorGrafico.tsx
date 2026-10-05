@@ -543,7 +543,7 @@ export function EditorGrafico({ pacoteInicial, chaveLocal, titulo, seletor, real
   const tela = (
     <div ref={areaRef} className={`relative min-h-0 flex-1 overflow-auto bg-muted ${aLargar ? "outline outline-2 -outline-offset-2 outline-primary" : ""}`}
       onPointerDown={(e) => { if (e.target === e.currentTarget) despachar({ tipo: "selecionar", id: null }); }}
-      onDragOver={(e) => { if (!preview && e.dataTransfer.types.includes(MIME_INSERIR)) { e.preventDefault(); e.dataTransfer.dropEffect = "copy"; setALargar(true); } }}
+      onDragOver={(e) => { if (!preview && (e.dataTransfer.types.includes(MIME_INSERIR) || (!!projectId && e.dataTransfer.types.includes("Files")))) { e.preventDefault(); e.dataTransfer.dropEffect = "copy"; setALargar(true); } }}
       onDragLeave={(e) => { if (e.currentTarget === e.target) setALargar(false); }}
       onDrop={largar}>
       <div className="flex min-h-full min-w-full items-center justify-center p-4" style={{ width: LARGURA * escala + 32, height: ALTURA * escala + 32 }}>
