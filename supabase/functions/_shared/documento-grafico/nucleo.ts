@@ -11,6 +11,22 @@ export const FAMILIA = "Work Sans";
 export const FONTE_DOC = "WorkSans@1";
 
 export type Peso = 400 | 700;
+/** Font families a text layer may use (all embedded in browser and server). Absent = Work Sans (legacy). */
+export const FAMILIAS = ["worksans", "montserrat", "inter", "playfair", "sourcesans", "grotesk", "dmserif", "dmsans", "plex"] as const;
+export type Familia = (typeof FAMILIAS)[number];
+export const NOME_FAMILIA: Record<Familia, string> = {
+  worksans: "Work Sans", montserrat: "Montserrat", inter: "Inter", playfair: "Playfair Display", sourcesans: "Source Sans 3",
+  grotesk: "Space Grotesk", dmserif: "DM Serif Display", dmsans: "DM Sans", plex: "IBM Plex Sans",
+};
+/** Title/body pairs offered in the Design step. */
+export const PARES_FONTES: ReadonlyArray<{ id: string; nome: string; titulo: Familia; corpo: Familia }> = [
+  { id: "montserrat-inter", nome: "Montserrat + Inter", titulo: "montserrat", corpo: "inter" },
+  { id: "playfair-source", nome: "Playfair + Source Sans", titulo: "playfair", corpo: "sourcesans" },
+  { id: "grotesk-inter", nome: "Space Grotesk + Inter", titulo: "grotesk", corpo: "inter" },
+  { id: "dmserif-dmsans", nome: "DM Serif + DM Sans", titulo: "dmserif", corpo: "dmsans" },
+  { id: "plex", nome: "IBM Plex Sans", titulo: "plex", corpo: "plex" },
+  { id: "worksans", nome: "Work Sans", titulo: "worksans", corpo: "worksans" },
+];
 export type Alinhamento = "esq" | "centro" | "dir";
 
 interface CamadaBase {
@@ -26,6 +42,7 @@ interface CamadaBase {
 
 export interface EstiloTexto {
   peso: Peso;
+  familia?: Familia;
   tam: number;
   linha: number;
   alinh: Alinhamento;
@@ -159,6 +176,7 @@ function validarCamada(v: unknown, onde: string, assets: Record<string, Asset>):
       texto: c.texto === undefined ? undefined : str(c.texto, `${onde}.texto`),
       estilo: {
         peso: e.peso,
+        familia: e.familia === undefined ? undefined : (FAMILIAS as readonly string[]).includes(e.familia as string) ? e.familia as Familia : falha(`${onde}.estilo.familia: tipo de letra não suportado.`),
         tam: num(e.tam, `${onde}.estilo.tam`, 6, 400),
         linha: num(e.linha, `${onde}.estilo.linha`, 0.8, 3),
         alinh: e.alinh,
@@ -305,11 +323,13 @@ export function serializarCaminho(cmds: ComandoOT[]): string {
 }
 
 export interface Medidor {
-  largura(texto: string, tam: number, peso: Peso): number;
-  ascendente(peso: Peso): number;
-  descendente(peso: Peso): number;
+  largura(texto: string, tam: number, peso: Peso, familia?: Familia): number;
+  ascendente(peso: Peso, familia?: Familia): number;
+  descendente(peso: Peso, familia?: Familia): number;
   /** Glyph outlines as SVG path data: identical geometry for canvas and SVG output. */
-  caminho(texto: string, x: number, baseline: number, tam: number, peso: Peso): string;
+  caminho(texto: string, x: number, baseline: number, tam: number, peso: Peso, familia?: Familia): string;
+  /** Families with loaded files (Work Sans always). */
+  familias: Familia[];
 }
 
 /**
@@ -334,14 +354,20 @@ function posicionar(f: FonteOT, texto: string, tam: number, cada?: (g: GlifoOT, 
   return x;
 }
 
-export function criarMedidor(fontes: Record<Peso, FonteOT>): Medidor {
+export function criarMedidor(fontes: Record<Peso, FonteOT>, extras: Partial<Record<Familia, Partial<Record<Peso, FonteOT>>>> = {}): Medidor {
+  // Missing weight of a family falls back to its other weight; unknown family falls back to Work Sans.
+  const f = (peso: Peso, fam?: Familia): FonteOT => {
+    const x = fam && fam !== "worksans" ? extras[fam] : undefined;
+    return x?.[peso] ?? x?.[peso === 400 ? 700 : 400] ?? fontes[peso];
+  };
   return {
-    largura: (t, tam, peso) => posicionar(fontes[peso], t, tam),
-    ascendente: (peso) => fontes[peso].ascender / fontes[peso].unitsPerEm,
-    descendente: (peso) => Math.abs(fontes[peso].descender) / fontes[peso].unitsPerEm,
-    caminho: (t, x, y, tam, peso) => {
+    familias: ["worksans", ...(Object.keys(extras) as Familia[])],
+    largura: (t, tam, peso, fam) => posicionar(f(peso, fam), t, tam),
+    ascendente: (peso, fam) => f(peso, fam).ascender / f(peso, fam).unitsPerEm,
+    descendente: (peso, fam) => Math.abs(f(peso, fam).descender) / f(peso, fam).unitsPerEm,
+    caminho: (t, x, y, tam, peso, fam) => {
       const partes: string[] = [];
-      posicionar(fontes[peso], t, tam, (g, gx) => {
+      posicionar(f(peso, fam), t, tam, (g, gx) => {
         const d = serializarCaminho(g.getPath(x + gx, y, tam).commands);
         if (d) partes.push(d);
       });
@@ -364,7 +390,7 @@ export interface LayoutTexto {
   cortado: boolean;
 }
 
-function quebrar(texto: string, tam: number, peso: Peso, max: number, m: Medidor): string[] {
+function quebrar(texto: string, tam: number, peso: Peso, max: number, m: Medidor, fam?: Familia): string[] {
   const out: string[] = [];
   for (const paragrafo of texto.split("\n")) {
     const palavras = paragrafo.split(/ +/).filter((p) => p.length > 0);
@@ -375,16 +401,16 @@ function quebrar(texto: string, tam: number, peso: Peso, max: number, m: Medidor
     let atual = "";
     for (const palavra of palavras) {
       const tentativa = atual ? `${atual} ${palavra}` : palavra;
-      if (m.largura(tentativa, tam, peso) <= max) {
+      if (m.largura(tentativa, tam, peso, fam) <= max) {
         atual = tentativa;
         continue;
       }
       if (atual) out.push(atual);
       // Hard-break a single word longer than the box.
       let resto = palavra;
-      while (m.largura(resto, tam, peso) > max && resto.length > 1) {
+      while (m.largura(resto, tam, peso, fam) > max && resto.length > 1) {
         let n = resto.length - 1;
-        while (n > 1 && m.largura(resto.slice(0, n), tam, peso) > max) n--;
+        while (n > 1 && m.largura(resto.slice(0, n), tam, peso, fam) > max) n--;
         out.push(resto.slice(0, n));
         resto = resto.slice(n);
       }
@@ -403,7 +429,7 @@ export function layoutTexto(texto: string, e: EstiloTexto, w: number, h: number,
   let cabem = 0;
   for (;;) {
     const lh = tam * e.linha;
-    linhas = quebrar(texto, tam, e.peso, w, m);
+    linhas = quebrar(texto, tam, e.peso, w, m, e.familia);
     cabem = Math.max(1, Math.min(e.maxLinhas ?? Infinity, Math.floor((h + 0.001) / lh)));
     if (linhas.length <= cabem || e.overflow !== "reduzir" || tam <= tamMin) break;
     tam = Math.max(tamMin, tam - 2);
@@ -413,18 +439,18 @@ export function layoutTexto(texto: string, e: EstiloTexto, w: number, h: number,
     cortado = true;
     linhas = linhas.slice(0, cabem);
     let ultima = linhas[cabem - 1];
-    while (ultima.length > 0 && m.largura(`${ultima}…`, tam, e.peso) > w) ultima = ultima.slice(0, -1).trimEnd();
+    while (ultima.length > 0 && m.largura(`${ultima}…`, tam, e.peso, e.familia) > w) ultima = ultima.slice(0, -1).trimEnd();
     linhas[cabem - 1] = `${ultima}…`;
   }
   const lh = tam * e.linha;
-  const asc = m.ascendente(e.peso) * tam;
-  const desc = m.descendente(e.peso) * tam;
+  const asc = m.ascendente(e.peso, e.familia) * tam;
+  const desc = m.descendente(e.peso, e.familia) * tam;
   return {
     tam,
     alturaLinha: lh,
     cortado,
     linhas: linhas.map((t, i) => {
-      const largura = m.largura(t, tam, e.peso);
+      const largura = m.largura(t, tam, e.peso, e.familia);
       const x = e.alinh === "esq" ? 0 : e.alinh === "centro" ? (w - largura) / 2 : w - largura;
       return { texto: t, largura, x, baseline: i * lh + (lh - (asc + desc)) / 2 + asc };
     }),
@@ -504,7 +530,7 @@ export function paginaParaSvg(pacote: PacoteProva, variante: Variante, indice: n
       partes.push(`<g opacity="${op}" fill="${c.estilo.cor}"><title>${esc(lay.linhas.map((l) => l.texto).join(" "))}</title>`);
       for (const l of lay.linhas) {
         if (!l.texto) continue;
-        partes.push(`<path d="${m.caminho(l.texto, c.x + l.x, c.y + l.baseline, lay.tam, c.estilo.peso)}"/>`);
+        partes.push(`<path d="${m.caminho(l.texto, c.x + l.x, c.y + l.baseline, lay.tam, c.estilo.peso, c.estilo.familia)}"/>`);
       }
       partes.push(`</g>`);
     }
