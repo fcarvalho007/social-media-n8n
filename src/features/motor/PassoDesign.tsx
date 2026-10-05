@@ -54,6 +54,8 @@ export function PassoDesign({ pacote, medidor, onAplicar, slides, paragrafos, in
   useEffect(() => { let vivo = true; carregarImagens(pacote).then((i) => vivo && setImagens(i)).catch(() => undefined); return () => { vivo = false; }; }, [pacote]);
 
   useEffect(() => { setOpcoes(null); setCompSel(null); setRitmo(null); setAjustado(false); setEscolha(null); }, [pacote]);
+  useEffect(() => { onPendente?.(!!compSel && !!opcoes); }, [compSel, opcoes, onPendente]);
+  useEffect(() => () => onPendente?.(false), [onPendente]);
   const escolher = (e: Estilo) => { setEscolha(e); setPaleta(e.paleta); setPar(e.par); setAjustado(true); };
   const previa = useMemo(() => (ajustado ? estilizar(pacote, paleta, par, manuais) : { pacote, manuais: estilizar(pacote, paleta, par, false).manuais }), [ajustado, pacote, paleta, par, manuais]);
   const miniaturas = useMemo(() => ESTILOS.map((e) => ({ e, p: estilizar(pacote, e.paleta, e.par, false).pacote })), [pacote]);
