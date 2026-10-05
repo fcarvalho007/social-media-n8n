@@ -1,6 +1,5 @@
 import { describe, expect, it } from "vitest";
 import { construirPromptVisual, construirQueryVisual, inferirFonte } from "../../supabase/functions/_shared/motor/promptVisual";
-import { normalizarResposta } from "../../supabase/functions/_shared/motor/proposta";
 
 const base = { titulo: "Tráfego caiu 30%", texto: "A equipa reviu os dados.", intencao: "profissional a interpretar alterações de tráfego, ambiente analítico", papel: "cover" as const, estilo: "editorial", variante: "A" as const, paleta: "navy-editorial" };
 
@@ -26,9 +25,5 @@ describe("prompt visual determinístico", () => {
     for (const r of ["data", "comparison", "actions", "transition"] as const) expect(inferirFonte(r).precisa).toBe(false);
     expect(inferirFonte("cover").fontes).toContain("ia");
     expect(inferirFonte("case_study").fontes).toEqual(["pexels", "biblioteca"]);
-  });
-  it("tema_visual da narrativa é aceite e truncado", () => {
-    const r = normalizarResposta ? true : true;
-    expect(r).toBe(true);
   });
 });
