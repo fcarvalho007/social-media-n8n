@@ -835,6 +835,7 @@ export function EditorGrafico({ pacoteInicial, chaveLocal, titulo, seletor, real
   return (
     <div className="flex h-screen min-h-0 flex-col overflow-hidden">
       {inputFicheiro}
+      {dialogoEstilo}
       {faixaTopo}
       <header className="flex flex-wrap items-center gap-3 border-b border-border bg-background px-4 py-2">
         {cabecalhoInicio}

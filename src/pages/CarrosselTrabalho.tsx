@@ -389,7 +389,7 @@ export default function CarrosselTrabalho() {
     return (
       <Quadro className="h-dvh min-h-0 overflow-hidden">
         <EditorGrafico key={`${id}-${revisao}`} pacoteInicial={pacote} chaveLocal={chave} real projectId={dados!.trabalho.project_id}
-          sistema={sistemaG?.sistema ?? null} onSistema={guardarSistema} medidorSistema={medidor}
+          sistema={sistemaG?.sistema ?? null} onSistema={guardarSistema} medidorSistema={medidor ?? undefined}
           titulo={<span className="truncate">{nome}</span>}
           faixaTopo={
             <div className="flex items-center gap-2 border-b border-border px-2 py-1 sm:px-4">
