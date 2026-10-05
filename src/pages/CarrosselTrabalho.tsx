@@ -241,7 +241,7 @@ export default function CarrosselTrabalho() {
   const fonte = normalizarFonte(dados.fonte.texto);
   const pronto = !!(gravado && pacote);
   const nome = t.titulo || prop?.titulo || "Carrossel";
-  const disponiveis: Etapa[] = pronto ? ["fonte", "narrativa", "composicao", "revisao"] : ["fonte"];
+  const disponiveis: Etapa[] = pronto ? ["fonte", "narrativa", "design", "composicao", "revisao"] : ["fonte"];
   const irPara = (p: Etapa) => { setPasso(p); if (p === "revisao" && estadoG === "guardado") void carregar(); };
 
   const avisoBadge = avisos.length > 0 && (

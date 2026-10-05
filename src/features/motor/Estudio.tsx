@@ -6,12 +6,13 @@ import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import "./estudio.css";
 
-export type Etapa = "fonte" | "narrativa" | "composicao" | "revisao";
+export type Etapa = "fonte" | "narrativa" | "design" | "composicao" | "revisao";
 export const ETAPAS: { id: Etapa; nome: string }[] = [
   { id: "fonte", nome: "Fonte" },
   { id: "narrativa", nome: "Narrativa" },
+  { id: "design", nome: "Design" },
   { id: "composicao", nome: "Composição" },
-  { id: "revisao", nome: "Revisão" },
+  { id: "revisao", nome: "Preparar publicação" },
 ];
 
 /** Full-height studio surface carrying the scoped tokens. */
