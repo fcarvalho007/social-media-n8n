@@ -1,6 +1,5 @@
 import { useState } from 'react';
 import { SidebarProvider, SidebarInset } from '@/components/ui/sidebar';
-import { AppSidebar } from '@/components/AppSidebar';
 import { DashboardHeader } from '@/components/DashboardHeader';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -269,7 +268,6 @@ const UserManagement = () => {
 
   return (
     <SidebarProvider>
-      <AppSidebar />
       <SidebarInset>
         <DashboardHeader />
         <main className="flex-1 overflow-y-auto p-4 md:p-6 bg-background">

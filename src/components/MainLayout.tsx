@@ -1,23 +1,20 @@
 import { Outlet, useLocation } from 'react-router-dom';
 import { SidebarProvider, SidebarInset } from '@/components/ui/sidebar';
-import { AppSidebar } from '@/components/AppSidebar';
 import { DashboardHeader } from '@/components/DashboardHeader';
 
 export function MainLayout() {
   const { pathname } = useLocation();
   const editorIsolado = pathname === '/estudio/editor-prova' || /^\/estudio\/carrosseis\/[^/]+$/.test(pathname);
 
+  // SidebarProvider kept only as context for legacy consumers; navigation is the header drawer.
   return (
-    <SidebarProvider defaultOpen={!editorIsolado}>
+    <SidebarProvider defaultOpen={false}>
       <div className="flex min-h-screen w-full">
-        {!editorIsolado && <AppSidebar />}
         <SidebarInset className="min-w-0 flex-1 flex flex-col">
           {!editorIsolado && <DashboardHeader />}
           {/* NB: NÃO usar `overflow-x-hidden` aqui — quebra `position: sticky`
-              em descendentes (ex.: PreviewPanel em /manual-create). Páginas
-              que precisem de contenção horizontal devem fazê-lo no seu wrapper
-              interno usando `min-w-0` em colunas de grid/flex. */}
-          <main className={editorIsolado ? "min-h-0 min-w-0 flex-1 p-0" : "min-w-0 flex-1 p-0 xs:p-1 sm:p-4 md:p-6 xl:p-10"}>
+              em descendentes (ex.: PreviewPanel em /manual-create). */}
+          <main className={editorIsolado ? "min-h-0 min-w-0 flex-1 p-0" : "mx-auto w-full max-w-[90rem] min-w-0 flex-1 p-0 xs:p-1 sm:p-4 md:p-6 xl:px-10"}>
             <Outlet />
           </main>
         </SidebarInset>
