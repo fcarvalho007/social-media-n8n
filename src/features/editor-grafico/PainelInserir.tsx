@@ -51,9 +51,11 @@ interface Props {
   /** Fallback picker (proof editor). */
   pedirImagem?: () => void;
   onEstilo: (e: Estilo) => void;
+  /** Opens the Design step on this slide's five compositions (real work only). */
+  onComposicoes?: () => void;
 }
 
-export function PainelInserir({ aba, despachar, onImagem, projectId, pedirImagem, onEstilo }: Props) {
+export function PainelInserir({ aba, despachar, onImagem, projectId, pedirImagem, onEstilo, onComposicoes }: Props) {
   const [bib, setBib] = useState<ImagemBiblioteca[] | null>(null);
   const [erro, setErro] = useState<string | null>(null);
   const [aUsar, setAUsar] = useState<string | null>(null);
@@ -126,6 +128,8 @@ export function PainelInserir({ aba, despachar, onImagem, projectId, pedirImagem
             </li>
           ))}
         </ul>
+        {onComposicoes && <Button variant="outline" className="h-11 w-full" onClick={onComposicoes}>Composições deste slide…</Button>}
+        {onComposicoes && <p className="text-xs text-muted-foreground">Abre o Design com este slide escolhido; o que já fizeste fica guardado.</p>}
       </div>
     );
   }

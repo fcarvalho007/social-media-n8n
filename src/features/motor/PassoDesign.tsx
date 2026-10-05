@@ -20,6 +20,8 @@ interface Props {
   /** Slide roles/citations and source paragraphs, used only for the deterministic rhythm suggestion. */
   slides?: Array<SlideRitmo & { id: string }>;
   paragrafos?: string[];
+  /** Opens directly on one slide (coming from the editor's Estilos panel). */
+  inicio?: { variante: Variante; pagina: number } | null;
 }
 
 const NOME_COR: Record<keyof Paleta, string> = { fundo: "Fundo", fundoCapa: "Fundo da capa", titulo: "Títulos", texto: "Texto", destaque: "Destaque", discreto: "Números e notas" };
@@ -31,9 +33,9 @@ function estilizar(p: PacoteProva, paleta: Paleta, par: string, manuais: boolean
 }
 
 /** Design step: pick one of six styles, adjust palette and font pair, apply explicitly. Never opens with changes. */
-export function PassoDesign({ pacote, medidor, onAplicar, slides, paragrafos }: Props) {
-  const [ambito, setAmbito] = useState<"todos" | "slide">("todos");
-  const [paginaSel, setPaginaSel] = useState(0);
+export function PassoDesign({ pacote, medidor, onAplicar, slides, paragrafos, inicio }: Props) {
+  const [ambito, setAmbito] = useState<"todos" | "slide">(inicio ? "slide" : "todos");
+  const [paginaSel, setPaginaSel] = useState(inicio?.pagina ?? 0);
   const [opcoes, setOpcoes] = useState<OpcaoComposicao[] | null>(null);
   const [compSel, setCompSel] = useState<ComposicaoId | null>(null);
   const [ambas, setAmbas] = useState(false);
@@ -42,7 +44,7 @@ export function PassoDesign({ pacote, medidor, onAplicar, slides, paragrafos }: 
   const [paleta, setPaleta] = useState<Paleta>(ESTILOS[0].paleta);
   const [par, setPar] = useState(ESTILOS[0].par);
   const [manuais, setManuais] = useState(false);
-  const [variante, setVariante] = useState<Variante>("A");
+  const [variante, setVariante] = useState<Variante>(inicio?.variante ?? "A");
   const [confirmar, setConfirmar] = useState(false);
   const [imagens, setImagens] = useState<Record<string, HTMLImageElement>>({});
   useEffect(() => { let vivo = true; carregarImagens(pacote).then((i) => vivo && setImagens(i)).catch(() => undefined); return () => { vivo = false; }; }, [pacote]);
@@ -74,7 +76,7 @@ export function PassoDesign({ pacote, medidor, onAplicar, slides, paragrafos }: 
     <section className="mc-entrar space-y-6" aria-labelledby="t-design">
       <div className="flex flex-wrap items-baseline justify-between gap-2">
         <h1 id="t-design" className="text-2xl font-semibold tracking-tight">Design</h1>
-        <p className="text-xs text-muted-foreground">O texto não muda. Nada é aplicado até carregares em «Aplicar estilo».</p>
+        <p className="text-xs text-muted-foreground">{ambito === "slide" ? "O texto não muda. Nada é aplicado até carregares em «Aplicar só ao slide»." : "O texto não muda. Nada é aplicado até carregares em «Aplicar estilo»."}</p>
       </div>
 
       <div role="radiogroup" aria-label="Âmbito" className="inline-flex gap-1 rounded-[var(--mc-r-md)] bg-muted p-1">

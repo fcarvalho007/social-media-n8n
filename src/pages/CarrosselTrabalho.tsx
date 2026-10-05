@@ -73,6 +73,9 @@ export default function CarrosselTrabalho() {
   const [vendoVersao, setVendoVersao] = useState<{ versao: number; pacote: PacoteProva; variante: Variante } | null>(null);
   const [polls, setPolls] = useState(0);
   const [slideSel, setSlideSel] = useState(0);
+  const [designInicio, setDesignInicio] = useState<{ variante: Variante; pagina: number } | null>(null);
+  // Package before the last Design change: reverting saves it again as a NEW version (same CAS path).
+  const [antesDesign, setAntesDesign] = useState<PacoteProva | null>(null);
   const passoDecidido = useRef(false);
   const assetsCache = useRef<Record<string, Asset>>({});
   const [assetsFalha, setAssetsFalha] = useState<string[]>([]);
@@ -333,7 +336,8 @@ export default function CarrosselTrabalho() {
           estadoGravacao={<div className="flex items-center gap-2">{avisoBadge}<EstadoChip estado={estadoG} /></div>}
           menuExtra={<><DropdownMenuSeparator /><DropdownMenuItem onSelect={() => abrirVersoes("A")}><History className="mr-2 h-4 w-4" />Versões da variante A</DropdownMenuItem><DropdownMenuItem onSelect={() => abrirVersoes("B")}><History className="mr-2 h-4 w-4" />Versões da variante B</DropdownMenuItem></>}
           pedirImagem={() => new Promise((res) => { resolverSeletor.current = res; setSeletor(true); })}
-          onAlterado={(p) => setPacote(p)} />
+          onAlterado={(p) => setPacote(p)}
+          onComposicoes={(variante, pagina) => { setDesignInicio({ variante, pagina }); irPara("design"); }} />
         <SeletorImagens projectId={dados!.trabalho.project_id} aberto={seletor} onFechar={(r) => { setSeletor(false); resolverSeletor.current?.(r); resolverSeletor.current = null; }} />
         {dialogos}
       </Quadro>
@@ -470,7 +474,17 @@ export default function CarrosselTrabalho() {
         )}
 
         {passo === "design" && pronto && pacote && medidor && (
-          <PassoDesign pacote={pacote} medidor={medidor} slides={prop.slides} paragrafos={fonte.paragrafos} onAplicar={(p) => { setPacote(p); toast.success("Estilo aplicado — a gravar nova versão"); }} />
+          <>
+            {antesDesign && (
+              <div role="status" className="mb-4 flex flex-wrap items-center gap-2 rounded-[var(--mc-r-md)] border border-border px-3 py-2 text-sm">
+                <span className="mr-auto">Alteração aplicada e gravada como nova versão. As versões anteriores continuam guardadas.</span>
+                <Button variant="outline" size="sm" className="h-10" onClick={() => { setPacote(antesDesign); setAntesDesign(null); toast.success("A repor o estado anterior — gravado como nova versão"); }}>Reverter esta alteração</Button>
+                <Button variant="ghost" size="sm" className="h-10" onClick={() => abrirVersoes("A")}><History className="mr-1.5 h-4 w-4" />Ver versões</Button>
+              </div>
+            )}
+            <PassoDesign key={designInicio ? `${designInicio.variante}${designInicio.pagina}` : "d"} inicio={designInicio} pacote={pacote} medidor={medidor} slides={prop.slides} paragrafos={fonte.paragrafos}
+              onAplicar={(p) => { setAntesDesign(pacote); setPacote(p); toast.success("Aplicado — a gravar nova versão"); }} />
+          </>
         )}
 
         {passo === "revisao" && pronto && pacote && (
