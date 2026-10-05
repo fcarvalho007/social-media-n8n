@@ -39,7 +39,9 @@ export function aplicarComposicaoSlide(pacote: PacoteProva, slideId: string, id:
 
 export interface SugestaoRitmo {
   pacote: PacoteProva;
-  /** One entry per page of variant A, in order (null ritmo = capa/fecho/manual page kept as is). */
+  /** Variant the suggestion was computed for and the only one it changes. */
+  variante: Variante;
+  /** One entry per page of that variant, in order (null ritmo = capa/fecho/manual page kept as is). */
   plano: Array<{ pagina: number; ritmo: Ritmo | null; composicao: ComposicaoId | null; muda: boolean; comImagem: boolean }>;
   /** Pattern break near the middle (contrast composition), or null when no slide qualifies/fits. */
   quebra: { pagina: number; motivo: string } | null;
@@ -61,7 +63,7 @@ export function slideQuebra(slides: SlideRitmo[]): number | null {
  * Suggests a visual rhythm for an existing carousel from the slide roles and the source paragraphs
  * they cite. Deterministic, no AI; capa/fecho and pages without editorial text stay unchanged.
  */
-export function sugerirRitmo(pacote: PacoteProva, slides: Array<SlideRitmo & { id: string }>, paragrafos: string[], m?: Medidor): SugestaoRitmo {
+export function sugerirRitmo(pacote: PacoteProva, slides: Array<SlideRitmo & { id: string }>, paragrafos: string[], m?: Medidor, variante: Variante = "A"): SugestaoRitmo {
   const plano = planoRitmo(slides, paragrafos);
   const iq = slideQuebra(slides);
   let motivo = "";
@@ -74,7 +76,8 @@ export function sugerirRitmo(pacote: PacoteProva, slides: Array<SlideRitmo & { i
   }
   const porSlide = new Map(slides.map((s, i) => [s.id, plano[i]]));
   let out = pacote;
-  for (const v of ["A", "B"] as const) {
+  // Only the active variant changes; the other variant object is returned untouched.
+  for (const v of [variante]) {
     for (const p of pacote.variantes[v].paginas) {
       const sid = slideDaPagina(p);
       const c = sid ? porSlide.get(sid)?.composicao : null;
@@ -86,16 +89,17 @@ export function sugerirRitmo(pacote: PacoteProva, slides: Array<SlideRitmo & { i
   }
   let quebra: SugestaoRitmo["quebra"] = null;
   if (iq != null) {
-    const pi = pacote.variantes.A.paginas.findIndex((p) => slideDaPagina(p) === slides[iq].id);
-    if (pi >= 0 && out.variantes.A.paginas[pi] !== pacote.variantes.A.paginas[pi]) quebra = { pagina: pi, motivo };
+    const pi = pacote.variantes[variante].paginas.findIndex((p) => slideDaPagina(p) === slides[iq].id);
+    if (pi >= 0 && out.variantes[variante].paginas[pi] !== pacote.variantes[variante].paginas[pi]) quebra = { pagina: pi, motivo };
   }
   return {
     pacote: out,
     quebra,
-    plano: pacote.variantes.A.paginas.map((p, i) => {
+    variante,
+    plano: pacote.variantes[variante].paginas.map((p, i) => {
       const sid = slideDaPagina(p);
       const e = sid ? porSlide.get(sid) : undefined;
-      return { pagina: i, ritmo: e?.ritmo ?? null, composicao: e?.composicao ?? null, muda: out.variantes.A.paginas[i] !== p, comImagem: p.camadas.some((k) => k.tipo === "imagem") };
+      return { pagina: i, ritmo: e?.ritmo ?? null, composicao: e?.composicao ?? null, muda: out.variantes[variante].paginas[i] !== p, comImagem: p.camadas.some((k) => k.tipo === "imagem") };
     }),
   };
 }

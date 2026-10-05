@@ -227,9 +227,9 @@ export function PassoDesign({ pacote, medidor, onAplicar, slides, paragrafos, in
       <div className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_320px]">
         <div className="min-w-0 space-y-2">
           <div className="flex items-center gap-2">
-            {(["A", "B"] as const).map((v) => <Button key={v} variant={variante === v ? "secondary" : "ghost"} className="h-11" onClick={() => setVariante(v)}>Variante {v}</Button>)}
+            {(["A", "B"] as const).map((v) => <Button key={v} variant={variante === v ? "secondary" : "ghost"} className="h-11" onClick={() => { setVariante(v); setRitmo(null); }}>Variante {v}</Button>)}
           </div>
-          {podeRitmo && !ritmo && <Button variant="outline" className="h-11" onClick={() => setRitmo(sugerirRitmo(pacote, slides!, paragrafos!, medidor))}>Sugerir ritmo visual</Button>}
+          {podeRitmo && !ritmo && <Button variant="outline" className="h-11" onClick={() => setRitmo(sugerirRitmo(pacote, slides!, paragrafos!, medidor, variante))}>Sugerir ritmo visual</Button>}
           {ritmo && (
             <div className="space-y-2 rounded-[var(--mc-r-md)] border border-border p-3">
               <p role="status" className="text-sm font-medium">Ritmo visual — pré-visualização, não aplicada</p>
@@ -237,14 +237,14 @@ export function PassoDesign({ pacote, medidor, onAplicar, slides, paragrafos, in
               {ritmo.quebra && <p className="text-xs font-medium">Quebra de padrão a meio: slide {ritmo.quebra.pagina + 1} ({ritmo.quebra.motivo}).</p>}
               {ritmo.plano.some((x) => x.muda) && (
                 <div className="space-y-1">
-                  <p className="text-xs text-muted-foreground">Antes e depois dos slides que mudam (variante {variante}):</p>
+                  <p className="text-xs text-muted-foreground">Antes e depois dos slides que mudam (só variante {ritmo.variante}; a outra variante não muda):</p>
                   <ul className="flex gap-3 overflow-x-auto pb-1">
                     {ritmo.plano.filter((x) => x.muda).map((x) => (
                       <li key={x.pagina} className="shrink-0 space-y-1">
                         <p className="text-xs tabular-nums">Slide {x.pagina + 1}</p>
                         <div className="flex gap-1">
-                          <div className="overflow-hidden rounded-[var(--mc-r-sm)] border border-border" aria-label={`Slide ${x.pagina + 1}, antes`}><PaginaCanvas pacote={pacote} variante={variante} indice={x.pagina} medidor={medidor} imagens={imagens} escala={110 / 1080} /></div>
-                          <div className="overflow-hidden rounded-[var(--mc-r-sm)] border border-primary" aria-label={`Slide ${x.pagina + 1}, depois`}><PaginaCanvas pacote={ritmo.pacote} variante={variante} indice={x.pagina} medidor={medidor} imagens={imagens} escala={110 / 1080} /></div>
+                          <div className="overflow-hidden rounded-[var(--mc-r-sm)] border border-border" aria-label={`Slide ${x.pagina + 1}, antes`}><PaginaCanvas pacote={pacote} variante={ritmo.variante} indice={x.pagina} medidor={medidor} imagens={imagens} escala={110 / 1080} /></div>
+                          <div className="overflow-hidden rounded-[var(--mc-r-sm)] border border-primary" aria-label={`Slide ${x.pagina + 1}, depois`}><PaginaCanvas pacote={ritmo.pacote} variante={ritmo.variante} indice={x.pagina} medidor={medidor} imagens={imagens} escala={110 / 1080} /></div>
                         </div>
                       </li>
                     ))}
@@ -254,7 +254,7 @@ export function PassoDesign({ pacote, medidor, onAplicar, slides, paragrafos, in
               <p className="text-xs text-muted-foreground">{ritmo.plano.map((x) => `${x.pagina + 1}: ${x.ritmo ? NOME_RITMO[x.ritmo] : "igual"}${x.ritmo && !x.muda ? (x.comImagem ? " (imagem existente preservada, fica igual)" : " (não cabe, fica igual)") : ""}`).join(" · ")}</p>
               <div className="flex gap-2">
                 <Button variant="ghost" className="h-11" onClick={() => setRitmo(null)}>Cancelar</Button>
-                <Button className="h-11" disabled={!ritmo.plano.some((x) => x.muda)} onClick={() => { onAplicar(ritmo.pacote); setRitmo(null); }}>Aceitar ritmo</Button>
+                <Button className="h-11" disabled={!ritmo.plano.some((x) => x.muda)} onClick={() => { onAplicar(ritmo.pacote); setRitmo(null); }}>Aceitar ritmo na variante {ritmo.variante}</Button>
               </div>
             </div>
           )}
