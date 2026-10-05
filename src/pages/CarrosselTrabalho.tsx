@@ -351,7 +351,7 @@ export default function CarrosselTrabalho() {
             <div className="flex items-center gap-2 border-b border-border px-2 py-1 sm:px-4">
               <Button asChild variant="ghost" size="icon" className="h-11 w-11 shrink-0" aria-label="Voltar aos carrosséis"><Link to="/estudio/carrosseis"><ArrowLeft className="h-4 w-4" /></Link></Button>
               <div className="min-w-0 flex-1"><Etapas atual="composicao" disponiveis={disponiveis} onIr={irPara} compacto /></div>
-              <Button className="h-11 shrink-0" onClick={() => irPara("revisao")}>Rever<ArrowRight className="ml-1.5 h-4 w-4" /></Button>
+              <Button className="h-11 shrink-0" onClick={() => irPara("revisao")}><span className="sm:hidden">Publicação</span><span className="hidden sm:inline">Preparar publicação</span><ArrowRight className="ml-1.5 h-4 w-4" /></Button>
             </div>
           }
           estadoGravacao={<div className="flex items-center gap-2">{avisoBadge}<EstadoChip estado={estadoG} /></div>}
@@ -384,14 +384,14 @@ export default function CarrosselTrabalho() {
         {emCurso && (
           <div className="mc-entrar mx-auto max-w-xl py-16 text-center" role="status">
             <Loader2 className="mx-auto mb-4 h-6 w-6 text-primary motion-safe:animate-spin" aria-hidden />
-            <p className="text-lg font-medium">{t.estado === "pendente" ? "Na fila do servidor" : t.etapa === "documento" ? "A compor as variantes A e B" : "A preparar a narrativa"}</p>
+            <p className="text-lg font-medium">{t.estado === "pendente" ? "Na fila" : t.etapa === "documento" ? "A compor as variantes A e B" : "A preparar a narrativa"}</p>
             <ol className="mt-4 flex justify-center gap-4 text-xs text-muted-foreground" aria-label="Etapas do servidor">
               {[["proposta", "Narrativa"], ["documento", "Composição"]].map(([k, n]) => {
                 const feita = dados.etapas.some((e) => e.etapa === k && e.estado === "concluida");
                 return <li key={k} className={cn(feita && "text-primary")}>{feita ? "✓ " : ""}{n}</li>;
               })}
             </ol>
-            <p className="mt-4 text-sm text-muted-foreground">Podes sair desta página; o trabalho continua no servidor.</p>
+            <p className="mt-4 text-sm text-muted-foreground">Podes sair desta página; o trabalho continua.</p>
           </div>
         )}
         {(t.estado === "erro" || t.estado === "desconhecido") && (
