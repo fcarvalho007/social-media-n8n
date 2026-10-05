@@ -13,7 +13,7 @@ import type { EstiloId, Paleta } from "./estilos.ts";
 export type PapelVisual = "cover" | "standard" | "visual_story" | "data" | "concept" | "comparison" | "case_study" | "transition" | "actions" | "conclusion";
 export type ModoImagem = "none" | "full_bleed" | "background" | "hero" | "contained" | "split" | "inset";
 export type RegiaoTexto = "top" | "bottom" | "left" | "right" | "center";
-export type TipoOverlay = "none" | "gradient" | "vignette";
+export type TipoOverlay = "none" | "gradient" | "vignette" | "glass";
 export type OrigemImagem = "library" | "pexels" | "upload" | "kie" | "none";
 
 export const PAPEIS: ReadonlyArray<{ id: PapelVisual; nome: string }> = [
@@ -42,6 +42,8 @@ export interface ComposicaoImagem {
   origem?: OrigemImagem;
   visual_query?: string;
   visual_prompt?: string;
+  /** Semantic intent from the narrative; Pexels terms and the AI prompt both derive from it. */
+  visual_intent?: string;
 }
 /** Key `${variante}:${slideId}`. */
 export type ComposicoesImagem = Record<string, ComposicaoImagem>;
@@ -222,9 +224,16 @@ function comporImagemUma(p: Pagina, o: { indice: number; total: number; estilo: 
       : [M + 40, 200, LARGURA - 2 * M - 80, 1150, "centro"] as const;
     const t = empilhar(caixa[0], caixa[1], caixa[2], caixa[3], caixa[4], sobreEscuro);
     if (t) {
-      const g = d.overlay === "none" ? [] : [grad(0, 0, LARGURA, ALTURA, direcaoDaRegiao(r, d.overlay), escuro,
-        r === "bottom" || r === "top" ? 0.38 : 0.2, d.intensidade)];
-      novas = [imagem(0, 0, LARGURA, ALTURA), ...g, ...t];
+      const glass = d.overlay === "glass";
+      const g = d.overlay === "none" ? [] : [grad(0, 0, LARGURA, ALTURA, direcaoDaRegiao(r, glass ? "gradient" : d.overlay), escuro,
+        r === "bottom" || r === "top" ? 0.38 : 0.2, glass ? d.intensidade * 0.5 : d.intensidade)];
+      // Glass: a translucent palette panel behind the text block (no fixed colour).
+      const vidro: Camada[] = glass && t.length ? (() => {
+        const x0 = Math.max(24, Math.min(...t.map((c) => c.x)) - 40), y0 = Math.max(24, Math.min(...t.map((c) => c.y)) - 40);
+        const x1 = Math.min(LARGURA - 24, Math.max(...t.map((c) => c.x + c.w)) + 40), y1 = Math.min(ALTURA - 24, Math.max(...t.map((c) => c.y + c.h)) + 32);
+        return [{ id: "img-glass", tipo: "forma", forma: "ret", x: x0, y: y0, w: x1 - x0, h: y1 - y0, z: Math.min(...t.map((c) => c.z)) - 1, opacidade: Math.min(0.75, 0.25 + d.intensidade * 0.4), estilo: { cor: escuro, raio: 28 } } as Camada];
+      })() : [];
+      novas = [imagem(0, 0, LARGURA, ALTURA), ...g, ...vidro, ...t];
       fundo = escuro; numCor = BRANCO;
     }
   } else if (d.modo === "hero") {

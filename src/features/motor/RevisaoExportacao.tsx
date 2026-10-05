@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useRef, useEffect, useMemo, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { ChevronLeft, ChevronRight, ExternalLink, FileDown, Loader2, RotateCw, Send } from "lucide-react";
 import { cn } from "@/lib/utils";
@@ -69,6 +69,8 @@ export function RevisaoExportacao({ dados, pacote, medidor, guardado, irPara }: 
   const [imagens, setImagens] = useState<Record<string, HTMLImageElement>>({});
   useEffect(() => { let vivo = true; carregarImagens(pacote).then((i) => { if (vivo) setImagens(i); }).catch(() => undefined); return () => { vivo = false; }; }, [pacote]);
 
+  const [enviarAoTerminar, setEnviarAoTerminar] = useState(false);
+  const preparaRef = useRef<(() => Promise<void>) | null>(null);
   const ler = useCallback(async () => {
     if (!doc) return;
     try { setEstado(await lerExportacao(doc.id, doc.versao)); } catch (e) { toast.error((e as Error).message); }
@@ -83,6 +85,12 @@ export function RevisaoExportacao({ dados, pacote, medidor, guardado, irPara }: 
     return () => clearTimeout(t);
   }, [emCurso, estado, ler]);
 
+  useEffect(() => {
+    if (!enviarAoTerminar) return;
+    if (estado?.exportacao?.estado === "erro") { setEnviarAoTerminar(false); toast.error("A exportação falhou — nada foi enviado."); return; }
+    if (estado?.exportacao?.estado === "concluido" && guardado && naoCabe.length === 0) { setEnviarAoTerminar(false); preparaRef.current?.(); }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [enviarAoTerminar, estado, guardado]);
   if (!doc) return <p className="text-sm text-muted-foreground">Esta variante ainda não tem design guardado.</p>;
 
   const ex = estado?.exportacao;
@@ -109,6 +117,13 @@ export function RevisaoExportacao({ dados, pacote, medidor, guardado, irPara }: 
     } catch (e) { toast.error((e as Error).message); } finally { setAPreparar(false); }
   };
 
+  preparaRef.current = preparar;
+  // One click: export when needed, then create the social draft as soon as the files are ready.
+  const enviar = async () => {
+    if (concluido) return preparar();
+    setEnviarAoTerminar(true);
+    if (!ex || ex.estado === "erro") await exportar();
+  };
   const paginas = pacote.variantes[variante].paginas;
   const iPag = Math.min(pagina, paginas.length - 1);
   const passoExp = concluido ? "feito" : emCurso ? "a_decorrer" : "por_fazer";
@@ -241,19 +256,16 @@ export function RevisaoExportacao({ dados, pacote, medidor, guardado, irPara }: 
                       </div>}
                     </div>
                   )}
-                  {!concluido ? (
-                    <p className="text-sm text-muted-foreground" role="note">{!guardado ? "À espera que a última alteração fique guardada." : emCurso ? "À espera que os ficheiros desta versão fiquem prontos." : "A aprovação fica disponível depois de gerar os ficheiros desta versão (passo 2)."}</p>
-                  ) : (<>
                   <div className="flex items-start gap-3">
-                    <Checkbox id="revisto" className="mt-0.5 h-5 w-5" checked={revisto && naoCabe.length === 0} onCheckedChange={(v) => setRevisto(v === true)} disabled={!concluido || !guardado || naoCabe.length > 0} />
-                    <Label htmlFor="revisto" className="text-sm font-normal leading-snug">Revi a narrativa (v{doc.proposta_versao}) e a composição da variante {variante} (v{doc.versao}). Aprovo esta versão para rascunho.</Label>
+                    <Checkbox id="revisto" className="mt-0.5 h-5 w-5" checked={revisto && naoCabe.length === 0} onCheckedChange={(v) => setRevisto(v === true)} disabled={!guardado || naoCabe.length > 0} />
+                    <Label htmlFor="revisto" className="text-sm font-normal leading-snug">Revi a narrativa (v{doc.proposta_versao}) e a composição (v{doc.versao}). Aprovo esta versão para as redes sociais.</Label>
                   </div>
-                  {concluido && !guardado && <p className="text-xs text-muted-foreground" role="note">À espera que a última alteração fique guardada.</p>}
-                  <Button className="h-11" disabled={!revisto || naoCabe.length > 0 || !concluido || !guardado || aPreparar} onClick={preparar}>
-                    {aPreparar ? <Loader2 className="mr-1.5 h-4 w-4 motion-safe:animate-spin" /> : <Send className="mr-1.5 h-4 w-4" />}Preparar rascunho social
+                  {!guardado && <p className="text-xs text-muted-foreground" role="note">À espera que a última alteração fique guardada.</p>}
+                  <Button className="h-11" disabled={!revisto || naoCabe.length > 0 || !guardado || aPreparar || enviarAoTerminar || marcador.length > 0} onClick={() => void enviar()}>
+                    {aPreparar || enviarAoTerminar ? <Loader2 className="mr-1.5 h-4 w-4 motion-safe:animate-spin" /> : <Send className="mr-1.5 h-4 w-4" />}
+                    {enviarAoTerminar ? "A gerar os ficheiros…" : "Enviar para redes sociais"}
                   </Button>
-                  <p className="text-xs text-muted-foreground">Cria um único rascunho (Instagram + LinkedIn). Publicar continua a exigir aprovação no Painel social.</p>
-                  </>)}
+                  <p className="text-xs text-muted-foreground">Gera os ficheiros se faltarem e abre a criação social com o carrossel, as imagens e a legenda da Narrativa. Nada é publicado sem a tua decisão.</p>
                 </>
               )}
               {anteriores.length > 0 && (

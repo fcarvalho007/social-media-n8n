@@ -23,6 +23,8 @@ export interface SlideProposta {
   fontes: number[];
   /** Visual role decided by the narrative from the slide's function in the story (optional for older proposals). */
   papel_visual?: string;
+  /** Semantic visual intent (not search terms, not a prompt); feeds Pexels terms and the AI prompt. */
+  tema_visual?: string;
 }
 
 export interface PropostaEditorial {
@@ -173,7 +175,7 @@ export function validarRespostaModelo(raw: string, f: FonteNormalizada, slidesPe
     for (const n of fontes) if (!Number.isInteger(n) || (n as number) < 1 || (n as number) > f.paragrafos.length) throw new Error(`Slide ${i + 1}: referência §${String(n)} não existe (fonte tem ${f.paragrafos.length} parágrafos).`);
     if (papel !== "fecho" && fontes.length === 0) throw new Error(`Slide ${i + 1}: falta referência aos parágrafos da fonte.`);
     const pv = typeof x.papel_visual === "string" && PAPEIS_PAGINA.includes(x.papel_visual) && (i === 0) === (x.papel_visual === "cover") ? x.papel_visual : undefined;
-    return { id: `s${i + 1}`, papel, titulo: x.titulo.trim(), texto: x.texto.trim(), fontes: (fontes as number[]).sort((a, b) => a - b), ...(pv ? { papel_visual: pv } : {}) };
+    return { id: `s${i + 1}`, papel, titulo: x.titulo.trim(), texto: x.texto.trim(), fontes: (fontes as number[]).sort((a, b) => a - b), ...(pv ? { papel_visual: pv } : {}), ...(typeof x.tema_visual === "string" && x.tema_visual.trim() ? { tema_visual: x.tema_visual.trim().slice(0, 240) } : {}) };
   });
   let alt: string[] | null = null;
   if (Array.isArray(o.alt) && o.alt.length === slides.length && o.alt.every((a) => typeof a === "string" && a.trim())) alt = (o.alt as string[]).map((a) => a.trim().slice(0, 250));
@@ -272,8 +274,9 @@ export function comporDocumentos(p: PropostaEditorial, paragrafos?: string[]): R
   const doc = (variante: Variante, f: typeof paginaA): DocumentoGrafico => {
     const base = p.slides.map((s, i) => f(s, i, total, p.marca.cor));
     const paginas = (plano ? aplicarRitmo(base, plano, conteudo) : base).map((pg, i) => {
-      const pv = p.slides[i]?.papel_visual;
-      return pv && PAPEIS_PAGINA.includes(pv) ? { ...pg, papel: pv } : pg;
+      const pv = p.slides[i]?.papel_visual, tv = p.slides[i]?.tema_visual;
+      const comPapel = pv && PAPEIS_PAGINA.includes(pv) ? { ...pg, papel: pv } : pg;
+      return tv ? { ...comPapel, composicao: { ...(comPapel.composicao ?? {}), visual_intent: tv } } : comPapel;
     });
     return { v: 1, variante, largura: LARGURA, altura: ALTURA, fonte: FONTE_DOC, paginas };
   };
