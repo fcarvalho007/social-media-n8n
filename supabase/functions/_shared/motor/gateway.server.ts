@@ -118,7 +118,8 @@ export function promptSistema(framework?: string | null, autor?: Partial<Record<
     ...(autor ? [regrasAutor(normalizarPerfil(autor as Record<string, unknown>), leitura, leituraTrabalho ? normalizarLeitura(leituraTrabalho.angulo, leituraTrabalho.especifica) : null)] : []),
     ...(f ? [regrasFramework(f)] : []),
     "Cada slide indica também 'papel_visual', a função visual desse slide na história: cover (só o primeiro), standard, visual_story, data, concept, comparison, case_study, transition, actions ou conclusion. Decide pelo significado: um número no texto não torna o slide 'data' se o slide não é sobre esse dado; 'vs.' numa frase não torna o slide 'comparison' se não compara duas coisas; usa 'actions' só para passos ou recomendações a seguir.",
-    'Responde só com JSON: {"titulo":string,"slides":[{"papel":"capa|contexto|desenvolvimento|fecho","papel_visual":string,"titulo":string,"texto":string,"fontes":number[]}],"legenda":string,"alt":string[]}.',
+    "Cada slide indica 'tema_visual': uma frase curta em português com a intenção visual (o que a imagem ou o desenho deve transmitir, ex.: 'profissional a interpretar alterações de tráfego, ambiente analítico'), sem termos de pesquisa nem instruções técnicas.",
+    'Responde só com JSON: {"titulo":string,"slides":[{"papel":"capa|contexto|desenvolvimento|fecho","papel_visual":string,"tema_visual":string,"titulo":string,"texto":string,"fontes":number[]}],"legenda":string,"alt":string[]}.',
   ].join("\n");
 }
 
