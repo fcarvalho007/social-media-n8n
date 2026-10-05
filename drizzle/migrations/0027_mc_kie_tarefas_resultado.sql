@@ -1,0 +1,2 @@
+ALTER TABLE public.mc_kie_tarefas ADD COLUMN IF NOT EXISTS resultado text;
+COMMENT ON COLUMN public.mc_kie_tarefas.resultado IS 'Text result for vision interpretation tasks (modelo gemini-3-flash:interpretar); null for image generation.';

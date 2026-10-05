@@ -1139,6 +1139,7 @@ export type Database = {
           modelo: string
           project_id: string
           prompt: string
+          resultado: string | null
           task_id: string | null
         }
         Insert: {
@@ -1152,6 +1153,7 @@ export type Database = {
           modelo: string
           project_id: string
           prompt: string
+          resultado?: string | null
           task_id?: string | null
         }
         Update: {
@@ -1165,6 +1167,7 @@ export type Database = {
           modelo?: string
           project_id?: string
           prompt?: string
+          resultado?: string | null
           task_id?: string | null
         }
         Relationships: [
