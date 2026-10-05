@@ -38,6 +38,8 @@ interface CamadaBase {
   h: number;
   z: number;
   opacidade?: number;
+  /** Set when the user edited a layer the visual system generated; "keep adjustments" restores it. */
+  manual?: boolean;
 }
 
 export interface EstiloTexto {
@@ -157,6 +159,20 @@ export interface Pagina {
   slide?: string;
   fundo: string;
   camadas: Camada[];
+  /** Visual role of the page (decided by the narrative; inferred once for older documents). */
+  papel?: string;
+  /** Explicit per-page image composition choices (absent fields = automatic). Canonical home. */
+  composicao?: Record<string, unknown>;
+}
+
+/** Visual direction stored in the document itself: the single source of truth for style/variant/palette. */
+export interface SistemaDocumento {
+  estilo: string;
+  variante: Variante;
+  paleta: string;
+  quebras: Record<string, boolean>;
+  ritmo?: "auto" | "personalizado";
+  imagens?: "auto" | "manual";
 }
 
 export type Variante = "A" | "B";
@@ -168,6 +184,7 @@ export interface DocumentoGrafico {
   altura: typeof ALTURA;
   fonte: typeof FONTE_DOC;
   paginas: Pagina[];
+  sistema?: SistemaDocumento;
 }
 
 export interface SlideEditorial {
@@ -237,6 +254,7 @@ function validarCamada(v: unknown, onde: string, assets: Record<string, Asset>):
     h: num(c.h, `${onde}.h`, 1, 10000),
     z: num(c.z, `${onde}.z`, -1000, 1000),
     opacidade: c.opacidade === undefined ? undefined : num(c.opacidade, `${onde}.opacidade`, 0, 1),
+    ...(c.manual === true ? { manual: true } : {}),
   };
   if (c.tipo === "texto") {
     const e = obj(c.estilo, `${onde}.estilo`);
@@ -311,9 +329,40 @@ function validarDocumento(v: unknown, variante: Variante, assets: Record<string,
       slide: po.slide === undefined ? undefined : str(po.slide, `página ${i + 1}.slide`, 80),
       fundo: cor(po.fundo, `página ${i + 1}.fundo`),
       camadas: po.camadas.map((c, j) => validarCamada(c, `página ${i + 1}, camada ${j + 1}`, assets)),
+      ...(po.papel === undefined ? {} : { papel: PAPEIS_PAGINA.includes(po.papel as string) ? po.papel as string : falha(`página ${i + 1}.papel inválido.`) }),
+      ...(po.composicao === undefined ? {} : { composicao: validarComposicao(po.composicao, `página ${i + 1}.composicao`) }),
     };
   });
-  return { v: 1, variante, largura: LARGURA, altura: ALTURA, fonte: FONTE_DOC, paginas };
+  const sistema = d.sistema === undefined ? undefined : validarSistema(d.sistema, `variante ${variante}.sistema`);
+  return { v: 1, variante, largura: LARGURA, altura: ALTURA, fonte: FONTE_DOC, paginas, ...(sistema ? { sistema } : {}) };
+}
+
+export const PAPEIS_PAGINA: readonly string[] = ["cover", "standard", "visual_story", "data", "concept", "comparison", "case_study", "transition", "actions", "conclusion"];
+const CHAVES_COMPOSICAO = ["papel", "modo", "regiao", "foco", "overlay", "intensidade", "asset_id", "origem", "visual_query", "visual_prompt"];
+function validarComposicao(v: unknown, onde: string): Record<string, unknown> {
+  const o = obj(v, onde);
+  if (JSON.stringify(o).length > 4000) falha(`${onde}: demasiado grande.`);
+  const r: Record<string, unknown> = {};
+  for (const k of CHAVES_COMPOSICAO) {
+    const x = o[k];
+    if (x === undefined) continue;
+    if (k === "foco") { const f = obj(x, `${onde}.foco`); r.foco = { x: num(f.x, `${onde}.foco.x`, 0, 1), y: num(f.y, `${onde}.foco.y`, 0, 1) }; }
+    else if (k === "intensidade") r.intensidade = num(x, `${onde}.intensidade`, 0, 1);
+    else if (x === null && k === "asset_id") r.asset_id = null;
+    else r[k] = str(x, `${onde}.${k}`, 400);
+  }
+  return r;
+}
+function validarSistema(v: unknown, onde: string): SistemaDocumento {
+  const o = obj(v, onde);
+  const q = o.quebras === undefined ? {} : obj(o.quebras, `${onde}.quebras`);
+  if (o.variante !== "A" && o.variante !== "B") falha(`${onde}.variante inválida.`);
+  return {
+    estilo: str(o.estilo, `${onde}.estilo`, 40), variante: o.variante, paleta: str(o.paleta, `${onde}.paleta`, 40),
+    quebras: Object.fromEntries(Object.entries(q).filter(([k, b]) => /^\d{1,2}$/.test(k) && typeof b === "boolean")) as Record<string, boolean>,
+    ...(o.ritmo === "auto" || o.ritmo === "personalizado" ? { ritmo: o.ritmo } : {}),
+    ...(o.imagens === "auto" || o.imagens === "manual" ? { imagens: o.imagens } : {}),
+  };
 }
 
 /** Strict validation of an imported/received package. Throws Error with a pt-PT message. */
