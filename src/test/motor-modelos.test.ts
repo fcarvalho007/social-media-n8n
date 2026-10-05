@@ -51,7 +51,7 @@ describe("seis modelos de composição", () => {
       expect(r.pacote.conteudo).toEqual(base.conteudo);
       expect(() => validarPacote(JSON.parse(JSON.stringify(r.pacote)))).not.toThrow();
       for (const v of ["A", "B"] as const) {
-        expect(transbordos(r.pacote, v, m)).toEqual([]);
+        expect([e.id, transbordos(r.pacote, v, m)]).toEqual([e.id, []]);
         expect(r.pacote.variantes[v].paginas.map((p) => p.id)).toEqual(base.variantes[v].paginas.map((p) => p.id));
         r.pacote.variantes[v].paginas.forEach((p, i) => {
           const refs = p.camadas.filter((c) => c.tipo === "texto" && c.ref).map((c) => c.id).sort();

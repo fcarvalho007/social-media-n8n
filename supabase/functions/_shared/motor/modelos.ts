@@ -115,13 +115,12 @@ export function comporModelo(p: Pagina, modelo: EstiloId, ctx: ContextoModelo): 
       if (capa) {
         fundo = preto;
         const X = 96, W = LARGURA - 2 * X;
-        const s = escolherTamanhos(q, conteudo, tT, tB, [124, 112, 100, 88], [44, 40, 38, 36], W, W, esp + 40, LIMITE - 300, m) ?? falhou();
+        const s = escolherTamanhos(q, conteudo, tT, tB, [124, 112, 100, 88], [44, 40, 38, 36], W, W - 200, esp + 40, LIMITE - 300, m) ?? falhou();
         decor.push(ret("mod-acento", X, 220, 120, 18, pal.destaque, 2));
         decor.push(ret("mod-bloco", LARGURA - 260, ALTURA - 220, 260, 220, pal.destaque, 1));
         if (s) {
           t = q.titulo && texto(q.titulo, X, 300, W, s.hT, tT, s.tamT, "#ffffff");
           b = q.corpo && texto(q.corpo, X, 300 + s.hT + esp + 40, W - 200, s.hB, tB, s.tamB, "#d9d9d4");
-          if (b && 300 + s.hT + esp + 40 + s.hB > ALTURA - 240) b = { ...b, w: W };
         }
         corNum = "#bdbdb6";
       } else {
