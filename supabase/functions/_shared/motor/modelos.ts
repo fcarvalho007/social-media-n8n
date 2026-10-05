@@ -111,7 +111,7 @@ export function comporModelo(p: Pagina, modelo: EstiloId, ctx: ContextoModelo): 
     case "contraste": {
       // Asymmetric black panel + controlled neon accent; strong contrast everywhere.
       const tT = tTit(700, 1.04), tB = tCorpo(1.4);
-      const preto = "#0d0d0d";
+      const preto = pal.fundoCapa; // navy in the brand palettes (was fixed black)
       if (capa) {
         fundo = preto;
         const X = 96, W = LARGURA - 2 * X;
