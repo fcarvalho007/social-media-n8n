@@ -192,6 +192,7 @@ export async function lerAssets(project_id: string, ids: string[]): Promise<{ as
   return invocar<{ assets: Record<string, Asset>; falhas: string[] }>({ acao: "ler_assets", project_id, ids });
 }
 
+const selTexto = (s: string): string => s;
 /** Everything the library needs to compute publication state. Throws on any read error (never "zero published"). */
 export async function lerEstadosPublicacao(trabalhoIds: string[]): Promise<{
   docs: Record<string, DocResumo[]>; ligacoes: LigacaoResumo[]; drafts: DraftResumo[]; posts: PostResumo[];
@@ -204,8 +205,8 @@ export async function lerEstadosPublicacao(trabalhoIds: string[]): Promise<{
   const propTrab = new Map((ps ?? []).map((p) => [p.id as string, p.trabalho_id as string]));
   const [docsR, draftsR, postsR] = await Promise.all([
     propTrab.size ? supabase.from("mc_documentos").select("id, proposta_id, variante, versao_actual, aprovada_versao").in("proposta_id", [...propTrab.keys()]) : Promise.resolve({ data: [], error: null }),
-    supabase.from("posts_drafts").select("id, status, trabalho_id:origem->>trabalho_id").in("origem->>trabalho_id", trabalhoIds),
-    supabase.from("posts").select("id, status, selected_networks, external_post_ids, scheduled_date, motor:ai_metadata->motor").in("ai_metadata->motor->>trabalho_id", trabalhoIds),
+    supabase.from("posts_drafts").select(selTexto("id, status, trabalho_id:origem->>trabalho_id")).in(selTexto("origem->>trabalho_id") as "id", trabalhoIds).returns<DraftResumo[]>(),
+    supabase.from("posts").select(selTexto("id, status, selected_networks, external_post_ids, scheduled_date, motor:ai_metadata->motor")).in(selTexto("ai_metadata->motor->>trabalho_id") as "id", trabalhoIds).returns<Array<Omit<PostResumo, "redesFalhadas">>>(),
   ]);
   if (docsR.error || draftsR.error || postsR.error) throw falha();
   const docs: Record<string, DocResumo[]> = {};
