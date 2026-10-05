@@ -144,10 +144,16 @@ export interface ResultadoImagem { pagina: Pagina; cabe: boolean; decisao: Decis
  */
 export function comporImagem(p: Pagina, o: OpcoesImagem): ResultadoImagem | null {
   const r = comporImagemUma(p, o);
-  // Automatic text region that does not fit (e.g. a long title in a side column): try the stacked region.
-  if (r && !r.cabe && !o.comp?.regiao && (r.decisao.regiao === "left" || r.decisao.regiao === "right")) {
-    const alt = comporImagemUma(p, { ...o, comp: { ...o.comp, modo: r.decisao.modo, regiao: r.decisao.modo === "split" || o.variante === "B" ? "top" : "bottom" } });
-    if (alt?.cabe) return { ...alt, decisao: { ...alt.decisao, razao: `${r.decisao.razao}; coluna lateral estreita → texto em baixo` } };
+  if (!r || r.cabe) return r;
+  // Automatic choices that do not fit fall back to roomier layouts; explicit user choices are refused as-is.
+  const tentativas: Array<Partial<ComposicaoSlide>> = [];
+  if (!o.comp?.regiao && (r.decisao.regiao === "left" || r.decisao.regiao === "right") && r.decisao.modo !== "split")
+    tentativas.push({ modo: r.decisao.modo, regiao: o.variante === "B" ? "top" : "bottom" });
+  if (!o.comp?.modo && (r.decisao.modo === "split" || r.decisao.modo === "hero"))
+    tentativas.push({ modo: "full_bleed", regiao: "bottom" }, { modo: "contained" });
+  for (const t of tentativas) {
+    const alt = comporImagemUma(p, { ...o, comp: { ...o.comp, ...t } });
+    if (alt?.cabe) return { ...alt, decisao: { ...alt.decisao, razao: `${r.decisao.razao}; não cabia → ${alt.decisao.modo}` } };
   }
   return r;
 }
