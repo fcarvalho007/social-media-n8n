@@ -400,8 +400,6 @@ export function EditorGrafico({ pacoteInicial, chaveLocal, titulo, seletor, real
     const n = paginasComAjustes(pacote, variante, [pagina]);
     if (n > 0) setPedirAjustes({ n, continuar: correr }); else correr();
   };
-  const paginaVisual = paginaAtualVisual();
-  function paginaVisualConteudo() { return null; }
   const largar = async (e: React.DragEvent) => {
     const bruto = e.dataTransfer.getData(MIME_INSERIR);
     const ficheiro = ficheiroDoArrasto(e.dataTransfer);
@@ -465,17 +463,20 @@ export function EditorGrafico({ pacoteInicial, chaveLocal, titulo, seletor, real
 
   // Autosave locally after edits (never claims server persistence).
   useEffect(() => {
-    if (!chave || estado.passado.length === 0) return;
+    if (!chave || estado.passado.length === 0 || rascunho) return;
     const t = setTimeout(() => guardarRecuperacao(chave, pacote), 600);
     return () => clearTimeout(t);
-  }, [pacote, chave, estado.passado.length]);
+  }, [pacote, chave, estado.passado.length, rascunho]);
 
   const onAlteradoRef = useRef(onAlterado);
   onAlteradoRef.current = onAlterado;
-  const pacoteInicialRef = useRef(pacoteInicial);
+  // A visual draft is never emitted (so never saved); Cancelar returns to the last emitted document.
+  const emitidoRef = useRef(pacoteInicial);
   useEffect(() => {
-    if (pacote !== pacoteInicialRef.current) onAlteradoRef.current?.(pacote);
-  }, [pacote]);
+    if (rascunho || pacote === emitidoRef.current) return;
+    emitidoRef.current = pacote;
+    onAlteradoRef.current?.(pacote);
+  }, [pacote, rascunho]);
 
   useLayoutEffect(() => {
     const el = areaRef.current;
@@ -607,11 +608,15 @@ export function EditorGrafico({ pacoteInicial, chaveLocal, titulo, seletor, real
 
   const seletorDoc = seletor ?? null;
 
+  const abrirDirecao = () => { if (compacto) { setPainelMovel("estilos"); setPainelAberto(true); } else setAba("estilos"); };
+  const sisMostrado = rascunho?.s ?? sistemaDoc;
   const seletorVariante = (
-    <ToggleGroup type="single" variant="outline" value={variante} onValueChange={(v) => v && despachar({ tipo: "variante", variante: v as "A" | "B" })} aria-label="Variante visual">
-      <ToggleGroupItem value="A" className="h-11 min-w-11 px-3" aria-label={`Variante A — ${NOME_VARIANTE.A}`}>A</ToggleGroupItem>
-      <ToggleGroupItem value="B" className="h-11 min-w-11 px-3" aria-label={`Variante B — ${NOME_VARIANTE.B}`}>B</ToggleGroupItem>
-    </ToggleGroup>
+    <div className="flex min-w-0 items-center gap-1.5 text-sm">
+      <span className="truncate text-muted-foreground" title="Direção visual">
+        {sisMostrado ? `${ESTILOS.find((e) => e.id === sisMostrado.estilo)?.nome ?? ""} · ${nomeVariante(sisMostrado.estilo, sisMostrado.variante)} · ${obterPaleta(sisMostrado.paleta).nome}${rascunho ? " (por aplicar)" : ""}` : "Sem direção visual"}
+      </span>
+      <Button variant="link" size="sm" className="h-11 px-1 lg:h-9" onClick={abrirDirecao}>{sisMostrado ? "Alterar" : "Escolher"}</Button>
+    </div>
   );
 
   const miniaturas = (horizontal: boolean) => (
@@ -652,7 +657,7 @@ export function EditorGrafico({ pacoteInicial, chaveLocal, titulo, seletor, real
         <div ref={paginaRef} className="shadow-lg ring-1 ring-border" aria-label={`Página ${pagina + 1} de ${paginas.length}, variante ${variante}, 1080 por 1350`} role="img">
           {medidor ? (
             <PaginaCanvas pacote={pacote} variante={variante} indice={pagina} medidor={medidor} imagens={imagens} escala={escala}
-              interativo={!preview} selecao={preview ? null : selecao} toque={compacto} corSelecao={corSelecao} encaixe={encaixe}
+              interativo={!preview && !rascunho} selecao={preview || rascunho ? null : selecao} toque={compacto} corSelecao={corSelecao} encaixe={encaixe}
               onSelecionar={(id) => despachar({ tipo: "selecionar", id })}
               onAlterar={(id, patch) => despachar({ tipo: "camada", id, patch })} />
           ) : (
@@ -749,36 +754,44 @@ export function EditorGrafico({ pacoteInicial, chaveLocal, titulo, seletor, real
     </div>
   );
 
-  const inserir = (a: AbaInserir) => (
-    <PainelInserir aba={a} despachar={despachar} projectId={projectId} pedirImagem={onImagem} onEstilo={aplicarEstiloVariante}
-      estiloAtual={onSistema ? (sistema?.estilo ?? null) : undefined}
-      extraEstilos={onSistema ? (sistema ? (
-        <div className="space-y-2 rounded-[var(--mc-r-md)] border border-border p-3 text-sm">
-          <p className="text-xs text-muted-foreground">Guardado: variante {sistema.variante} · {obterPaleta(sistema.paleta).nome}</p>
-          <p className="font-medium">Quebras visuais</p>
-          {slidesQuebra(pacote.variantes.A.paginas.length).map((n) => (
-            <label key={n} className="flex min-h-10 items-center justify-between gap-2">
-              <span>Quebra slide {n}</span>
-              <Switch checked={!!sistema.quebras[String(n)]} onCheckedChange={(v) => aplicarSistemaEditor({ ...sistema, quebras: { ...sistema.quebras, [String(n)]: v } }, [n - 1], `Quebra do slide ${n} ${v ? "ligada" : "desligada"}`)} aria-label={`Quebra visual no slide ${n}`} />
-            </label>
-          ))}
-          <p className="text-xs text-muted-foreground">Desligar só muda a composição desse slide; o texto fica igual.</p>
-          {onComposicao && slideAtual && <PainelImagemSlide key={`${variante}:${slideAtual}`} decisao={decisaoAtual} comp={composicoes[`${variante}:${slideAtual}`] ?? {}} temImagem={(pacote.variantes[variante].paginas[pagina]?.camadas ?? []).some((k) => k.tipo === "imagem") || !!composicoes[`${variante}:${slideAtual}`]?.asset_id} ocupado={aGravarImg} onMudar={mudarImagemSlide} onSubstituir={onImagem} />}
-        </div>
-      ) : <p className="text-xs text-muted-foreground">Sem sistema visual guardado. Escolhe um estilo acima ou no passo Design.</p>) : undefined}
-      onComposicoes={onComposicoes ? () => onComposicoes(variante, pagina) : undefined}
+  const inserir = (a: AbaInserir) => (a === "estilos" ? (
+    <PainelDirecaoVisual base={rascunho?.antes ?? pacote} atual={rascunho?.s ?? sistemaDoc} emRascunho={!!rascunho} medidor={medidor} imagens={imagens}
+      onExperimentar={experimentar} onAplicar={aplicarRascunho} onCancelar={cancelarRascunho} />
+  ) : (
+    <PainelInserir aba={a} despachar={despachar} projectId={projectId} pedirImagem={onImagem} onEstilo={() => undefined}
       onImagem={(r) => despachar({ tipo: "adicionarImagem", asset: r.asset, nome: r.nome })} />
+  ));
+  const compPagina = (paginaAtual?.composicao ?? {}) as ComposicaoImagem;
+  const papelPagina = (paginaAtual?.papel ?? decisaoAtual?.papel) as PapelVisual | undefined;
+  const painelPaginaVisual = paginaAtual && (
+    <div className="space-y-3 border-b border-border pb-4">
+      <h2 className="text-sm font-semibold">Página {pagina + 1}</h2>
+      {!sistemaDoc ? <p className="text-xs text-muted-foreground">Escolhe primeiro uma direção visual para ajustar o papel e a imagem desta página.</p> : (<>
+        <div className="space-y-1">
+          <Label htmlFor="pv-papel" className="text-xs text-muted-foreground">Papel visual</Label>
+          <Select value={papelPagina ?? ""} disabled={!!rascunho} onValueChange={(v) => recomporPagina({ papel: v as PapelVisual }, `Papel visual: ${PAPEIS.find((x) => x.id === v)?.nome}`)}>
+            <SelectTrigger id="pv-papel" className="h-11 lg:h-9"><SelectValue placeholder="Escolher" /></SelectTrigger>
+            <SelectContent>{PAPEIS.filter((x) => pagina === 0 || x.id !== "cover").map((x) => <SelectItem key={x.id} value={x.id}>{x.nome}</SelectItem>)}</SelectContent>
+          </Select>
+        </div>
+        <PainelImagemSlide key={`${variante}:${slideAtual}:${JSON.stringify(compPagina)}`} decisao={decisaoAtual} comp={compPagina}
+          temImagem={paginaAtual.camadas.some((k) => k.tipo === "imagem") || !!compPagina.asset_id} ocupado={!!rascunho}
+          onMudar={(c, msg) => { const img = paginaAtual.camadas.find((k) => k.tipo === "imagem"); recomporPagina({ comp: img && img.tipo === "imagem" ? { ...c, asset_id: img.asset_id } : c }, msg); }}
+          onSubstituir={() => { if (compacto) { setPainelMovel("imagens"); setPainelAberto(true); } else setAba("imagens"); }} />
+      </>)}
+    </div>
   );
-  const dialogoEstilo = (
-    <Dialog open={!!estiloPend} onOpenChange={(v) => { if (!v) setEstiloPend(null); }}>
+  const dialogoAjustes = (
+    <Dialog open={!!pedirAjustes} onOpenChange={(v) => { if (!v) setPedirAjustes(null); }}>
       <DialogContent className="mc-estudio">
         <DialogHeader>
-          <DialogTitle>Aplicar «{estiloPend?.nome}»?</DialogTitle>
-          <DialogDescription>Aplica a composição completa do estilo nas variantes A e B, com a paleta {obterPaleta(sistema?.paleta).nome}, e guarda a escolha. O texto não muda; podes desfazer.</DialogDescription>
+          <DialogTitle>Há ajustes manuais</DialogTitle>
+          <DialogDescription>Esta alteração pode substituir ajustes manuais em {pedirAjustes?.n} página{pedirAjustes?.n === 1 ? "" : "s"}.</DialogDescription>
         </DialogHeader>
-        <div className="flex justify-end gap-2">
-          <Button variant="ghost" className="h-11" onClick={() => setEstiloPend(null)}>Cancelar</Button>
-          <Button className="h-11" onClick={() => { const e = estiloPend!; setEstiloPend(null); aplicarSistemaEditor({ estilo: e.id, variante: sistema?.variante ?? variante, paleta: sistema?.paleta ?? "navy-editorial", quebras: sistema?.quebras ?? quebrasPadrao(pacote.variantes.A.paginas.length) }, undefined, `Estilo «${e.nome}» aplicado`); }}>Aplicar</Button>
+        <div className="flex flex-col gap-2 sm:flex-row sm:justify-end">
+          <Button variant="ghost" className="h-11" onClick={() => setPedirAjustes(null)}>Cancelar</Button>
+          <Button variant="outline" className="h-11" onClick={() => { const c = pedirAjustes!.continuar; setPedirAjustes(null); c("recriar"); }}>Recriar composição</Button>
+          <Button className="h-11" onClick={() => { const c = pedirAjustes!.continuar; setPedirAjustes(null); c("manter"); }}>Manter ajustes quando possível</Button>
         </div>
       </DialogContent>
     </Dialog>
@@ -866,7 +879,7 @@ export function EditorGrafico({ pacoteInicial, chaveLocal, titulo, seletor, real
             <Button variant="ghost" size="icon" className="h-11 w-11" aria-label="Fechar painel" onClick={() => setPainelAberto(false)}><X className="h-4 w-4" /></Button>
           </div>
           <div className="space-y-4 p-3">
-            {painelMovel === "pagina" && <>{zoomControlos}{acoesPagina}{medidor && paginaAtual && <PainelPropriedades pacote={pacote} camada={null} fundo={paginaAtual.fundo} medidor={medidor} despachar={despachar} camadasPagina={paginaAtual.camadas} onImagem={onImagem} />}</>}
+            {painelMovel === "pagina" && <>{painelPaginaVisual}{zoomControlos}{acoesPagina}{medidor && paginaAtual && <PainelPropriedades pacote={pacote} camada={null} fundo={paginaAtual.fundo} medidor={medidor} despachar={despachar} camadasPagina={paginaAtual.camadas} onImagem={onImagem} />}</>}
             {painelMovel === "camada" && (camada ? propriedades : <p className="text-sm text-muted-foreground">Toca num elemento da página.</p>)}
             {painelMovel !== "pagina" && painelMovel !== "camada" && inserir(painelMovel)}
           </div>
@@ -880,6 +893,7 @@ export function EditorGrafico({ pacoteInicial, chaveLocal, titulo, seletor, real
             onClick={() => { const alvo = camada ? "camada" : "pagina"; if (painelAberto && painelMovel === alvo) setPainelAberto(false); else { setPainelMovel(alvo); setPainelAberto(true); } }}><Layers className="h-5 w-5" />{camada ? "Camada" : "Página"}</Button>
         </nav>
         {dialogoComparacao}
+        {dialogoAjustes}
       </div>
     );
   }
@@ -887,7 +901,7 @@ export function EditorGrafico({ pacoteInicial, chaveLocal, titulo, seletor, real
   return (
     <div className="flex h-screen min-h-0 flex-col overflow-hidden">
       {inputFicheiro}
-      {dialogoEstilo}
+      {dialogoAjustes}
       {faixaTopo}
       <header className="flex flex-wrap items-center gap-3 border-b border-border bg-background px-4 py-2">
         {cabecalhoInicio}
@@ -927,6 +941,7 @@ export function EditorGrafico({ pacoteInicial, chaveLocal, titulo, seletor, real
           </div>
         </div>
         <aside className="w-72 shrink-0 overflow-y-auto border-l border-border bg-background p-4" aria-label="Propriedades">
+          {!camada && painelPaginaVisual}
           {propriedades}
         </aside>
       </div>
