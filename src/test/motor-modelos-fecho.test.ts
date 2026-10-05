@@ -127,6 +127,8 @@ describe("fecho dos modelos: capitular, recorte, avisos", () => {
     const t = comMarcaRascunho(d);
     expect(JSON.stringify(d)).toBe(copia);
     expect(t.paginas.every((p) => p.camadas.some((c) => c.id === "rascunho-texto"))).toBe(true);
+    // the dark note at the bottom of the reading gradient is flagged too
+    expect(notasIlegiveis(d).some((n) => n.id === "nota1")).toBe(true);
     const ed = aplicarModelo(pacote(), "editorial", est("editorial").paleta, est("editorial").par, ["A"], m).pacote.variantes.A;
     expect(paginasComMarcador(ed)).toEqual([]);
     expect(comMarcaRascunho(ed)).toEqual(ed);

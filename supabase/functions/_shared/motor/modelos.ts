@@ -296,8 +296,10 @@ export function notasIlegiveis(d: DocumentoGrafico): NotaIlegivel[] {
       const cx = c.x + c.w / 2, cy = c.y + Math.min(c.h, c.estilo.tam * c.estilo.linha) / 2;
       const baixo = p.camadas.filter((o) => o !== c && o.z <= c.z && o.tipo !== "texto" && dentro(o, cx, cy)).sort((a, b) => b.z - a.z);
       const topo = baixo[0];
-      if (topo?.tipo === "imagem" || (topo?.tipo === "forma" && topo.forma === "gradiente")) continue; // over photo: needs visual check
-      const fill = topo?.tipo === "forma" && topo.forma !== "icone" && (topo.opacidade ?? 1) >= 0.9 ? topo.estilo.cor : p.fundo;
+      // Lower part of a reading gradient is effectively its colour; elsewhere over a photo it needs a visual check.
+      const sobreGradiente = topo?.tipo === "forma" && topo.forma === "gradiente";
+      if (topo?.tipo === "imagem" || (sobreGradiente && (cy < topo.y + topo.h * 0.6 || (topo.opacidade ?? 1) < 0.85))) continue;
+      const fill = topo?.tipo === "forma" && topo.forma !== "icone" && (sobreGradiente || (topo.opacidade ?? 1) >= 0.9) ? topo.estilo.cor : p.fundo;
       const r = contraste(c.estilo.cor, fill), min = minimo(c.estilo);
       if (r < min) out.push({ pagina: i, id: c.id, nome: c.nome ?? "nota", razao: r, minimo: min, sugerida: sobre(fill) });
     }
