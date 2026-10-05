@@ -262,7 +262,7 @@ const Pending = () => {
                       }
                     }}
                   />
-                  <LegadoN8n />
+                  <div className="mt-6"><LegadoN8n /></div>
                 </div>
               ) : (
                 <>
