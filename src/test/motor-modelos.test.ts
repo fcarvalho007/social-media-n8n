@@ -59,8 +59,7 @@ describe("seis modelos de composição", () => {
           const nota = p.camadas.find((c) => c.id === `nota${i}`);
           expect(nota).toEqual(base.variantes[v].paginas[i].camadas[4]);
         });
-        const choques = colisoes(r.pacote, v, m).filter((c) => c.a !== "Nota manual" && c.b !== "Nota manual" && c.a !== "texto" && c.b !== "texto" || (c.a === "título" && c.b === "texto"));
-        expect(choques.filter((c) => c.a === "título" || c.b === "título")).toEqual([]);
+        expect(colisoes(r.pacote, v, m)).toEqual([]);
       }
     }
   });
