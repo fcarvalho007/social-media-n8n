@@ -50,6 +50,10 @@ export interface Brief {
   titulo?: string | null;
   /** Optional narrative framework (see frameworks.ts); absent = original editorial prompt. */
   framework?: string | null;
+  /** Author-voice snapshot taken at job creation (absent on older jobs). */
+  autor?: { voz: string[]; notas: string } | null;
+  /** True when the objective is the author's own reading. */
+  leitura?: boolean;
 }
 
 /** Normalise pasted text: unify line endings/spaces, strip list numbering, one paragraph per block. */
