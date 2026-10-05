@@ -27,6 +27,7 @@ import { assetsReferidos } from "../../supabase/functions/_shared/motor/fontes";
 import type { Asset } from "../../supabase/functions/_shared/documento-grafico/nucleo";
 import { BarraAcoes, Cabecalho, Etapas, Grupo, PAPEL, Quadro, type Etapa } from "@/features/motor/Estudio";
 import { cn } from "@/lib/utils";
+import { PassoDesign } from "@/features/motor/PassoDesign";
 
 type Passo = Etapa;
 type EstadoGravacao = "guardado" | "a_guardar" | "local" | "conflito";
