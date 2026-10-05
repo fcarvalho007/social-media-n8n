@@ -48,6 +48,8 @@ interface Props {
   onImagem: (r: { asset: Asset; nome: string }) => void;
   /** Real work only: enables the inline library and Kie. */
   projectId?: string;
+  /** Prefilled AI prompt from the Image panel; opens the AI tab. */
+  promptIA?: string;
   /** Fallback picker (proof editor). */
   pedirImagem?: () => void;
   onEstilo: (e: Estilo) => void;
@@ -58,11 +60,12 @@ interface Props {
   onComposicoes?: () => void;
 }
 
-export function PainelInserir({ aba, despachar, onImagem, projectId, pedirImagem, onEstilo, onComposicoes, estiloAtual, extraEstilos }: Props) {
+export function PainelInserir({ aba, despachar, onImagem, projectId, pedirImagem, onEstilo, onComposicoes, estiloAtual, extraEstilos, promptIA }: Props) {
   const [bib, setBib] = useState<ImagemBiblioteca[] | null>(null);
   const [erro, setErro] = useState<string | null>(null);
   const [aUsar, setAUsar] = useState<string | null>(null);
-  const [sub, setSub] = useState<"biblioteca" | "carregar" | "ia">("biblioteca");
+  const [sub, setSub] = useState<"biblioteca" | "carregar" | "ia">(promptIA ? "ia" : "biblioteca");
+  useEffect(() => { if (promptIA) setSub("ia"); }, [promptIA]);
   const [carregadas, setCarregadas] = useState<AssetMotor[] | null>(null);
   const [aCarregar, setACarregar] = useState(false);
   const [erroCarregar, setErroCarregar] = useState<string | null>(null);
@@ -182,7 +185,7 @@ export function PainelInserir({ aba, despachar, onImagem, projectId, pedirImagem
           )}
         </div>
       )}
-      {sub === "ia" && <GeradorKie projectId={projectId} usar={usar} ocupado={!!aUsar} />}
+      {sub === "ia" && <GeradorKie key={promptIA ?? ""} projectId={projectId} usar={usar} ocupado={!!aUsar} promptInicial={promptIA} />}
       {sub === "biblioteca" && <>
       <p className="text-xs text-muted-foreground">Clica para usar como fundo ou arrasta para a página.</p>
       {erro && <p role="alert" className="text-sm text-destructive">{erro}</p>}

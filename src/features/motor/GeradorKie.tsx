@@ -8,10 +8,10 @@ import { kieConfig, kieEstado, kieGerar, type KieConfig } from "@/services/motor
 const CHAVE = (p: string) => `mc-kie:${p}`;
 
 /** Human-click-only Kie generation. Missing key shows «Configuração necessária»; never simulates success. */
-export function GeradorKie({ projectId, usar, ocupado }: { projectId: string; usar: (chave: string, nome: string, obter: () => Promise<string>) => void; ocupado: boolean }) {
+export function GeradorKie({ projectId, usar, ocupado, promptInicial }: { projectId: string; usar: (chave: string, nome: string, obter: () => Promise<string>) => void; ocupado: boolean; promptInicial?: string }) {
   const [cfg, setCfg] = useState<KieConfig | null>(null);
   const [erro, setErro] = useState<string | null>(null);
-  const [prompt, setPrompt] = useState("");
+  const [prompt, setPrompt] = useState(promptInicial ?? "");
   const [confirmar, setConfirmar] = useState(false);
   const [tarefa, setTarefa] = useState<string | null>(() => { try { return localStorage.getItem(CHAVE(projectId)); } catch { return null; } });
   const [estado, setEstado] = useState<string | null>(null);
