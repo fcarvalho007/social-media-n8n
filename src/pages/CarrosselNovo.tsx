@@ -16,7 +16,7 @@ import { criarTrabalho, lerLinkFonte, MODELO_IA_NOME, type OrcamentoIa } from "@
 import { acoesFalhaLink, dominioDe, formatarNumero, resumoLeitura } from "@/features/motor/lerPagina";
 import { comporFontePdf, ErroPdf, lerPdf, NOME_ESTADO_PAGINA, type PdfLido } from "@/features/motor/fontePdf";
 import { HOSTS_LINK, intervalos, type LinkFalhado, type LinkLido, type MetaLink, type MetaPdf } from "../../supabase/functions/_shared/motor/fontes";
-import { ANGULOS, MAX_LEITURA_ESPECIFICA, type Angulo } from "../../supabase/functions/_shared/motor/autor";
+import { ANGULOS, MAX_LEITURA_ESPECIFICA, VOZES_AUTOR, type Angulo, type PerfilAutor } from "../../supabase/functions/_shared/motor/autor";
 import { PainelIdioma, type EscolhaIdioma, type EstadoIdioma } from "@/features/motor/PainelIdioma";
 import { CTAS, MAX_PUBLICO_OUTRO, PUBLICOS, QUANTIDADES, slidesPorQuantidade, textoTom, TONS, type Cta, type Quantidade } from "../../supabase/functions/_shared/motor/briefing";
 import { PerfilAutorPainel } from "@/features/motor/PerfilAutorPainel";
@@ -73,6 +73,9 @@ export default function CarrosselNovo() {
   const [quantidade, setQuantidade] = useState<Quantidade>("equilibrado");
   const [idioma, setIdioma] = useState<EstadoIdioma>({ estrangeiro: false, escolha: "pt", traducaoId: null, pronto: true });
   const [idiomaInicial, setIdiomaInicial] = useState<EscolhaIdioma>("pt");
+  const [perfil, setPerfil] = useState<PerfilAutor | null>(null);
+  const resumoPerfil = perfil ? [perfil.apresentacao.split(/[;,.:]/)[0].trim() || "Autor sem nome", perfil.voz.map((v) => VOZES_AUTOR.find((x) => x.id === v)?.nome).filter(Boolean).slice(0, 2).join(" · ")].filter(Boolean).join(" — ") : null;
+  const abrirContexto = () => { const d = document.querySelector<HTMLDetailsElement>("#contexto-autor details"); if (d) { d.open = true; d.scrollIntoView({ block: "nearest" }); d.querySelector("summary")?.focus(); } };
   const [slides, setSlides] = useState<number | null>(null);
   const [demo, setDemo] = useState(false);
   const [tocado, setTocado] = useState(false);
@@ -249,7 +252,7 @@ export default function CarrosselNovo() {
                   <SelectTrigger id="projeto" className="h-11"><SelectValue placeholder={projetos.length ? "Escolhe o projeto" : "Sem projetos disponíveis"} /></SelectTrigger>
                   <SelectContent className="mc-estudio">{projetos.map((p) => <SelectItem key={p.id} value={p.id}>{p.name}</SelectItem>)}</SelectContent>
                 </Select>
-                <p className="text-xs text-muted-foreground">Organiza o conteúdo e define a cor inicial. O tom e objetivo são escolhidos no passo seguinte.</p>
+                <p className="text-xs text-muted-foreground">Organiza o conteúdo, define a cor inicial e carrega o contexto editorial do autor guardado neste projeto (voz, público e teses), usado pela IA como lente de leitura — nunca como fonte de factos. O tom e o objetivo escolhem-se no passo seguinte.</p>
               </div>
             </div>
             {!demo && (
@@ -415,6 +418,12 @@ export default function CarrosselNovo() {
             {!demo && projeto && <PainelIdioma projectId={projeto} texto={texto} escolhaInicial={idiomaInicial} iaDisponivel={comIa} onEstado={setIdioma} />}
             <div className="space-y-4">
               <h1 id="t-narrativa" className="text-2xl font-semibold tracking-tight sm:text-3xl">O que deve fazer este carrossel?</h1>
+              {!demo && projeto && (
+                <p className="flex flex-wrap items-center gap-x-2 text-xs text-muted-foreground" aria-live="polite">
+                  <span>Voz ativa: <span className="font-medium text-foreground">{resumoPerfil ?? "a ler…"}</span></span>
+                  <button type="button" className="min-h-11 underline underline-offset-2 hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring sm:min-h-0" onClick={abrirContexto}>Ver/editar contexto</button>
+                </p>
+              )}
               <div role="radiogroup" aria-label="Objetivo" className="grid gap-2 sm:grid-cols-2">
                 {OBJETIVOS.map((o) => {
                   const sel = objetivo === o.id;
@@ -457,7 +466,7 @@ export default function CarrosselNovo() {
                   <li key={i} className="rounded-[var(--mc-r-sm)] border border-border px-2 py-1 text-xs text-muted-foreground"><span className="tabular-nums">{i + 1}</span> {p}</li>
                 ))}
               </ol>
-              <p className="text-xs text-muted-foreground">Uma ideia por página, só com factos da fonte. A estrutura final adapta-se ao texto.</p>
+              <p className="text-xs text-muted-foreground">Uma ideia por página, {objetivo === "opiniao" ? "com factos referenciados + leitura do autor, sem inventar dados" : "só com factos da fonte"}. A estrutura final adapta-se ao texto.</p>
             </div>
 
             <div>
@@ -484,12 +493,16 @@ export default function CarrosselNovo() {
                 </div>
               </Grupo>
               {!demo && projeto && (
+                <div id="contexto-autor"><Grupo titulo="Contexto do autor" resumo={resumoPerfil ?? "A ler…"}>
+                  <PerfilAutorPainel projectId={projeto} onPerfil={(x) => setPerfil(x)} />
+                </Grupo></div>
+              )}
+              {!demo && projeto && (
                 <Grupo titulo="Opções de geração" resumo={orc ? (comIa ? `IA disponível · ${Math.max(0, orc.maxDia - orc.usadosHoje)} pedidos hoje` : "Sem IA — estruturado com frases da fonte") : "A ler limites…"}>
                   <div className="space-y-3">
                     <LimitesIa projectId={projeto} onAlterado={setOrc} />
-                    <PerfilAutorPainel projectId={projeto} />
                     <p className="text-xs text-muted-foreground">
-                      {comIa ? `A IA (${MODELO_IA_NOME}) reescreve o texto em slides com a voz do autor, usando só factos da fonte, com referência aos parágrafos (§). Usa 1 pedido pago (2 se precisar de correção); antes de enviar pedimos confirmação.`
+                      {comIa ? `A IA (${MODELO_IA_NOME}) reescreve o texto em slides ${objetivo === "opiniao" ? "com factos referenciados à fonte (§) mais a leitura do autor, identificada como tal, sem inventar dados." : "com a voz do autor, usando só factos da fonte, com referência aos parágrafos (§)."} Usa 1 pedido pago (2 se precisar de correção); antes de enviar pedimos confirmação.`
                         : "Sem IA: cada frase vem do texto, com a referência ao parágrafo, e nada é inventado."}
                     </p>
                   </div>
