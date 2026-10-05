@@ -1,4 +1,5 @@
 import { describe, it, expect, beforeEach } from "vitest";
+import { aplicarTextoNaProposta } from "../../supabase/functions/_shared/motor/proposta";
 import { compatibilidade, fundirSelecao, guardarSelecao, lerSelecao } from "@/features/motor/estruturas";
 import type { PropostaEditorial } from "../../supabase/functions/_shared/motor/proposta";
 
@@ -23,6 +24,7 @@ describe("mistura híbrida por slide", () => {
     expect(r.conteudo.legenda).toBe("Legenda A");
     expect(r.conteudo.origem_slides).toEqual({ s1: { framework: "pas", trabalho: "j-pas" }, s2: { framework: "antes_depois_ponte", trabalho: "j-adp" } });
     expect(r.transicoes).toEqual([1, 2]);
+    expect(r.conteudo.titulo).toBe("PAS t0");
     expect(atual.slides[0].titulo).toBe("A t0");
   });
   it("recusa tamanhos diferentes e capa/fecho trocados sem alinhar por índice", () => {
@@ -31,6 +33,11 @@ describe("mistura híbrida por slide", () => {
     expect(compatibilidade(atual, troca).ok).toBe(false);
     expect(() => fundirSelecao(atual, [{ trabalho: "x", framework: "pas", conteudo: mk("X", 5) }], ["x", null, null, null])).toThrow();
     void papeis;
+  });
+  it("autosave não vê diferença depois de aplicar (sem versão duplicada)", () => {
+    const r = fundirSelecao(atual, [pas], ["j-pas", null, null, null]); if (!r.ok) throw new Error();
+    const pacote = { conteudo: { slides: r.conteudo.slides } } as never;
+    expect(JSON.stringify(aplicarTextoNaProposta(r.conteudo, pacote))).toBe(JSON.stringify(r.conteudo));
   });
   it("seleção vazia não é aplicável", () => { expect(fundirSelecao(atual, [pas], [null, null, null, null]).ok).toBe(false); });
 });

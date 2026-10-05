@@ -179,13 +179,14 @@ export function PainelEstruturas({ dados, atual, aceitar }: Props) {
                 <>
                   <p className="font-medium">{res.trocados} de {n} slides vêm de propostas · {[...usados].map(([id, k]) => `${nomeDe(id)} ${k}`).join(" · ")}</p>
                   {res.transicoes.length > 0 && <p className="text-xs text-muted-foreground">Rever transições antes dos slides {res.transicoes.map((t) => t + 1).join(", ")}: misturar estruturas pode perder coesão.</p>}
-                  <p className="text-xs text-muted-foreground">A legenda e o CTA atuais mantêm-se; revê-os se deixarem de servir. Aplicar cria uma nova versão: aprovação e exportação atuais deixam de valer; composição e versões anteriores mantêm-se.</p>
+                  <p className="text-xs text-muted-foreground sm:hidden">Legenda e CTA atuais mantêm-se · cria nova versão (exportação atual deixa de valer).</p>
+                  <p className="hidden text-xs text-muted-foreground sm:block">A legenda e o CTA atuais mantêm-se; revê-os se deixarem de servir. Aplicar cria uma nova versão: aprovação e exportação atuais deixam de valer; composição e versões anteriores mantêm-se.</p>
                 </>
               ) : <p role="alert">{"motivo" in res ? res.motivo : ""}</p>}
               {erroAplicar && <p role="alert" className="text-destructive">{erroAplicar}</p>}
               <div className="flex flex-wrap gap-2">
                 <Button className="h-11" disabled={!res.ok || aAplicar} onClick={aplicar}>{aAplicar && <Loader2 className="mr-1.5 h-4 w-4 motion-safe:animate-spin" />}{aAplicar ? "A gravar…" : `Aplicar seleção de ${res.ok ? res.trocados : 0} slides`}</Button>
-                <Button variant="ghost" className="h-11" disabled={aAplicar} onClick={() => setSelecao(atual.slides.map(() => null))}>Limpar seleção</Button>
+                <Button variant="ghost" className="h-11 px-3" disabled={aAplicar} onClick={() => setSelecao(atual.slides.map(() => null))}>Limpar</Button>
               </div>
             </div>
           )}
