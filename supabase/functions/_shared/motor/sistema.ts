@@ -101,7 +101,7 @@ function cabeA(c: CamadaTexto, tam: number, h: number, conteudo?: ConteudoEditor
  * low (negative space above), contained photos bleeding off the page edge with a tighter crop, and the accent
  * rule turned into a vertical bar on the margin. Manual layers never move; text never shrinks.
  */
-export function composicaoB(p: Pagina, conteudo?: ConteudoEditorial, m?: Medidor): Pagina {
+export function composicaoB(p: Pagina, conteudo?: ConteudoEditorial, m?: Medidor, estilo?: EstiloId): Pagina {
   let camadas = [...p.camadas];
   // 1. Larger title (+14%, then +8%) only if it fits at that size; following text moves down by the growth.
   const ti = camadas.findIndex((c) => c.tipo === "texto" && !!c.ref?.endsWith(".titulo"));
@@ -128,7 +128,7 @@ export function composicaoB(p: Pagina, conteudo?: ConteudoEditorial, m?: Medidor
     return { ...c, x, w, foco: { x: dir ? 0.4 : 0.6, y: Math.max(0, (c.foco?.y ?? 0.5) - 0.12) } };
   });
   // 3. Thin accent marks become a vertical bar on the left margin.
-  camadas = camadas.map((c) => (c.tipo === "forma" && c.id.startsWith("mod-") && !c.manual && c.h <= 10 && c.w <= 120 && c.w > c.h
+  camadas = camadas.map((c) => (c.tipo === "forma" && c.id.startsWith("mod-") && !c.manual && c.h <= 16 && c.w <= 120 && c.w > c.h
     ? { ...c, x: 40, w: 10, h: Math.min(220, Math.max(120, c.w * 2)), y: c.y } : c));
   // 4. Page number moves to the top corner (editorial "folio" of the contemporary reading).
   camadas = camadas.map((c) => (c.tipo === "texto" && c.id === "num" && !c.manual && c.y > ALTURA / 2 ? { ...c, x: LARGURA - 96 - c.w, y: 56, estilo: { ...c.estilo, alinh: "dir" } } : c));
@@ -144,6 +144,16 @@ export function composicaoB(p: Pagina, conteudo?: ConteudoEditorial, m?: Medidor
     if (desl > 40) {
       camadas = camadas.map((c) => (ts.includes(c) || (c.tipo === "forma" && c.id.startsWith("mod-") && !c.manual && c.h < 400 && c.y >= topo - 140 && c.y <= base + 60)
         ? { ...c, y: c.y + desl } : c));
+    }
+  }
+  // 6. Fotográfico «Glass»: a frosted panel behind the text block instead of a bare fade.
+  if (estilo === "fotografico") {
+    const tx = camadas.filter((c) => texto(c) && !c.manual);
+    if (tx.length) {
+      const x0 = Math.min(...tx.map((c) => c.x)) - 40, y0 = Math.min(...tx.map((c) => c.y)) - 40;
+      const x1 = Math.max(...tx.map((c) => c.x + c.w)) + 40, y1 = Math.max(...tx.map((c) => c.y + c.h)) + 32;
+      const z = Math.min(...tx.map((c) => c.z)) - 1;
+      camadas = [...camadas.filter((c) => c.id !== "mod-glass"), { id: "mod-glass", tipo: "forma", forma: "ret", x: Math.max(24, x0), y: Math.max(24, y0), w: Math.min(LARGURA - 24, x1) - Math.max(24, x0), h: Math.min(ALTURA - 24, y1) - Math.max(24, y0), z, opacidade: 0.16, estilo: { cor: "#FFFFFF", raio: 28 } }];
     }
   }
   return { ...p, camadas };
@@ -208,7 +218,7 @@ export function aplicarSistema(pacote: PacoteProva, s: SistemaVisual, m?: Medido
       if (!r) return fixar(pg);
       if (!r.cabe) { recusadas.push({ variante: v, pagina: i }); return fixar(pg); }
       marcador ||= r.marcador;
-      const base = v === "B" ? composicaoB(r.pagina, pacote.conteudo, m) : r.pagina;
+      const base = v === "B" ? composicaoB(r.pagina, pacote.conteudo, m, s.estilo) : r.pagina;
       if (s.imagens === "manual" && !(comp && Object.keys(comp).length)) return fixar(base);
       const ri = comporImagem(base, { indice: i, total, estilo: s.estilo, variante: v, paleta, conteudo: pacote.conteudo, m, comp, assets: pacote.assets, papel });
       if (!ri) return fixar(base);
