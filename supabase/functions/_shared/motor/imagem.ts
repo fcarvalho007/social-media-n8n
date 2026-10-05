@@ -146,7 +146,7 @@ export function comporImagem(p: Pagina, o: OpcoesImagem): ResultadoImagem | null
   const r = comporImagemUma(p, o);
   // Automatic text region that does not fit (e.g. a long title in a side column): try the stacked region.
   if (r && !r.cabe && !o.comp?.regiao && (r.decisao.regiao === "left" || r.decisao.regiao === "right")) {
-    const alt = comporImagemUma(p, { ...o, comp: { ...o.comp, modo: r.decisao.modo, regiao: r.decisao.modo === "split" ? "top" : "bottom" } });
+    const alt = comporImagemUma(p, { ...o, comp: { ...o.comp, modo: r.decisao.modo, regiao: r.decisao.modo === "split" || o.variante === "B" ? "top" : "bottom" } });
     if (alt?.cabe) return { ...alt, decisao: { ...alt.decisao, razao: `${r.decisao.razao}; coluna lateral estreita → texto em baixo` } };
   }
   return r;
@@ -211,8 +211,8 @@ function comporImagemUma(p: Pagina, o: { indice: number; total: number; estilo: 
   if (d.modo === "full_bleed" || d.modo === "background") {
     const caixa = r === "bottom" ? [M, 640, LARGURA - 2 * M, BASE, "base"] as const
       : r === "top" ? [M, 110, LARGURA - 2 * M, 760, "topo"] as const
-      : r === "left" ? [M, 140, 600, BASE, "centro"] as const
-      : r === "right" ? [LARGURA - M - 600, 140, 600, BASE, "centro"] as const
+      : r === "left" ? [M, 140, 720, BASE, "centro"] as const
+      : r === "right" ? [LARGURA - M - 720, 140, 720, BASE, "centro"] as const
       : [M + 40, 200, LARGURA - 2 * M - 80, 1150, "centro"] as const;
     const t = empilhar(caixa[0], caixa[1], caixa[2], caixa[3], caixa[4], sobreEscuro);
     if (t) {
