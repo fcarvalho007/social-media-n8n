@@ -122,6 +122,6 @@ describe("revisão relê a versão do servidor", () => {
     expect(deveRecarregarRevisao("a_guardar", "conflito", "revisao")).toBe(false);
     expect(deveRecarregarRevisao("conflito", "a_guardar", "revisao")).toBe(false);
     expect(deveRecarregarRevisao("guardado", "guardado", "revisao")).toBe(false);
-    expect(deveRecarregarRevisao("a_guardar", "guardado", "design")).toBe(false);
+    expect(deveRecarregarRevisao("a_guardar", "guardado", "narrativa")).toBe(false);
   });
 });
