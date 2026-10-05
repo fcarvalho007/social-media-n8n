@@ -14,6 +14,7 @@ import { composicoesPagina, contrastesFracos, formatarRazao, NOME_RITMO, type Co
 import { aplicarComposicaoSlide, previaPagina, slideDaPagina, sugerirRitmo, type SugestaoRitmo } from "./variacoes";
 
 interface Props {
+  onPendente?: (pendente: boolean) => void;
   pacote: PacoteProva;
   medidor: Medidor;
   /** Replaces both variants (text untouched); the page autosaves as a new composition version. */
@@ -34,7 +35,7 @@ function estilizar(p: PacoteProva, paleta: Paleta, par: string, manuais: boolean
 }
 
 /** Design step: pick one of six styles, adjust palette and font pair, apply explicitly. Never opens with changes. */
-export function PassoDesign({ pacote, medidor, onAplicar, slides, paragrafos, inicio }: Props) {
+export function PassoDesign({ pacote, medidor, onAplicar, slides, paragrafos, inicio, onPendente }: Props) {
   const [ambito, setAmbito] = useState<"todos" | "slide">(inicio ? "slide" : "todos");
   const [paginaSel, setPaginaSel] = useState(inicio?.pagina ?? 0);
   const [opcoes, setOpcoes] = useState<OpcaoComposicao[] | null>(null);
@@ -135,8 +136,9 @@ export function PassoDesign({ pacote, medidor, onAplicar, slides, paragrafos, in
                 </ul>
               )}
               {opcoes.length > 0 && opcoes.every((o) => !o.cabe) && <p role="alert" className="text-sm text-destructive">Nenhuma composição cabe com o texto atual. Encurta o texto na Narrativa ou ajusta a caixa no editor; o tamanho da letra nunca é reduzido sozinho.</p>}
-              <div className="flex flex-wrap items-center gap-3">
-                <div className="flex items-center gap-2">
+              <div className="sticky bottom-0 z-10 -mx-4 flex flex-wrap items-center gap-x-3 gap-y-2 border-t border-border bg-background px-4 py-2 sm:mx-0 sm:rounded-[var(--mc-r-md)] sm:border" style={{ paddingBottom: "max(0.5rem, env(safe-area-inset-bottom))" }} role="group" aria-label="Aplicar composição">
+                <p className="w-full text-xs text-muted-foreground" aria-live="polite">{compSel ? <>Escolhida: <strong className="font-medium text-foreground">{opcoes.find((o) => o.id === compSel)?.nome}</strong> · variante {variante}{ambas ? ` e ${outra}` : ""} · só o slide {paginaSel + 1}. Ainda não aplicada.</> : "Escolhe uma composição para a aplicar."}</p>
+                <div className="flex min-h-11 items-center gap-2">
                   <Checkbox id="ambas" checked={ambas} onCheckedChange={(v) => setAmbas(v === true)} />
                   <Label htmlFor="ambas" className="text-sm font-normal">Aplicar também à variante {outra}</Label>
                 </div>

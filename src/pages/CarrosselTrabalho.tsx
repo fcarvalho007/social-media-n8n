@@ -269,6 +269,19 @@ export default function CarrosselTrabalho() {
   const pronto = !!(gravado && pacote);
   const nome = t.titulo || prop?.titulo || "Carrossel";
   const disponiveis: Etapa[] = pronto ? ["fonte", "narrativa", "design", "composicao", "revisao"] : ["fonte"];
+  const [designPendente, setDesignPendente] = useState(false);
+  const mainRef = useRef<HTMLElement>(null);
+  const passoAnterior = useRef(passo);
+  // Explicit step changes only: reset the step container scroll and move focus to the step heading.
+  useEffect(() => {
+    if (passoAnterior.current === passo) return;
+    passoAnterior.current = passo;
+    const m = mainRef.current;
+    if (!m) return;
+    m.scrollTop = 0;
+    const h = m.querySelector<HTMLElement>("h1, h2");
+    if (h) { if (!h.hasAttribute("tabindex")) h.setAttribute("tabindex", "-1"); h.focus({ preventScroll: true }); }
+  }, [passo]);
   const irPara = (p: Etapa) => { setPasso(p); if (p === "revisao" && estadoG === "guardado") void carregar(); };
 
   const avisoBadge = avisos.length > 0 && (
@@ -352,7 +365,8 @@ export default function CarrosselTrabalho() {
             <div className="flex items-center gap-2 border-b border-border px-2 py-1 sm:px-4">
               <Button asChild variant="ghost" size="icon" className="h-11 w-11 shrink-0" aria-label="Voltar aos carrosséis"><Link to="/estudio/carrosseis"><ArrowLeft className="h-4 w-4" /></Link></Button>
               <div className="min-w-0 flex-1"><Etapas atual="composicao" disponiveis={disponiveis} onIr={irPara} compacto /></div>
-              <Button className="h-11 shrink-0" onClick={() => irPara("revisao")}><span className="sm:hidden">Publicação</span><span className="hidden sm:inline">Preparar publicação</span><ArrowRight className="ml-1.5 h-4 w-4" /></Button>
+              <Button size="icon" className="h-11 w-11 shrink-0 md:hidden" aria-label="Ir para a etapa 5, Preparar publicação" title="Preparar publicação" onClick={() => irPara("revisao")}><ArrowRight className="h-4 w-4" /></Button>
+              <Button className="hidden h-11 shrink-0 md:inline-flex" onClick={() => irPara("revisao")}>Preparar publicação<ArrowRight className="ml-1.5 h-4 w-4" /></Button>
             </div>
           }
           estadoGravacao={<div className="flex items-center gap-2">{avisoBadge}<EstadoChip estado={estadoG} /></div>}
@@ -378,7 +392,7 @@ export default function CarrosselTrabalho() {
         direita={pronto && <><span className="hidden sm:inline">{avisoBadge}</span><EstadoChip estado={estadoG} /></>}
         etapas={<Etapas atual={passo} disponiveis={disponiveis} onIr={irPara} compacto />} />
 
-      <main className="min-h-0 flex-1 overflow-y-auto"><div className="mx-auto w-full max-w-6xl px-4 pb-10 pt-6 sm:px-6">
+      <main ref={mainRef} className="min-h-0 flex-1 overflow-y-auto"><div className="mx-auto w-full max-w-6xl px-4 pb-10 pt-6 sm:px-6">
         {projetoId && t.project_id !== projetoId && (
           <p className="mb-4 rounded-[var(--mc-r-md)] border border-border px-3 py-2 text-xs text-muted-foreground" role="note">Este carrossel pertence a outro projeto, diferente do que está escolhido em «Marca / projeto».</p>
         )}
@@ -521,7 +535,7 @@ export default function CarrosselTrabalho() {
                 </div>
               );
             })()}
-            <PassoDesign key={designInicio ? `${designInicio.variante}${designInicio.pagina}` : "d"} inicio={designInicio} pacote={pacote} medidor={medidor} slides={prop.slides} paragrafos={fonte.paragrafos}
+            <PassoDesign key={designInicio ? `${designInicio.variante}${designInicio.pagina}` : "d"} inicio={designInicio} pacote={pacote} medidor={medidor} slides={prop.slides} paragrafos={fonte.paragrafos} onPendente={setDesignPendente}
               onAplicar={(p) => { if (estadoG !== "guardado") { toast.error("Há alterações por gravar. Espera por «Guardado» e tenta de novo."); return; } setAntesDesign(pacote); setPacote(p); setAlteracaoDesign({ tipo: "aplicar", confirmada: false }); }} />
           </>
         )}
@@ -539,6 +553,8 @@ export default function CarrosselTrabalho() {
             ? <Button className="h-11 px-5" onClick={() => setPasso("narrativa")}>Narrativa<ArrowRight className="ml-1.5 h-4 w-4" /></Button>
             : passo === "narrativa"
             ? <Button className="h-11 px-5" onClick={() => setPasso("design")}>Design<ArrowRight className="ml-1.5 h-4 w-4" /></Button>
+            : designPendente
+            ? <Button variant="outline" className="h-11 px-4" onClick={() => setPasso("composicao")} aria-label="Continuar para composição sem aplicar a composição escolhida"><span className="sm:hidden">Sem aplicar</span><span className="hidden sm:inline">Continuar sem aplicar</span><ArrowRight className="ml-1.5 h-4 w-4" /></Button>
             : <Button className="h-11 px-5" onClick={() => setPasso("composicao")} aria-label="Continuar para composição"><span className="sm:hidden">Composição</span><span className="hidden sm:inline">Continuar para composição</span><ArrowRight className="ml-1.5 h-4 w-4" /></Button>}
         />
       )}
