@@ -14,7 +14,7 @@ export interface Framework {
 const COMUM = [
   "Adapta a estrutura ao que a fonte realmente diz. Se a fonte não tiver um elemento da estrutura (problema, dor, benefício, resultado), não o inventes: usa o elemento mais próximo que a fonte sustente ou funde etapas.",
   "Proibido acrescentar promessas, garantias, números, percentagens, prazos, preços, testemunhos ou apelos comerciais que não estejam na fonte.",
-  "O fecho convida à reflexão ou a ler a fonte; nunca vende.",
+  "O fecho propõe no máximo uma ação, a do apelo final pedido (se nenhum, reflexão ou ler a fonte); nunca vende.",
 ];
 
 export const FRAMEWORKS: readonly Framework[] = [

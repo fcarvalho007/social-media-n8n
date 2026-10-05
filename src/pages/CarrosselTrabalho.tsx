@@ -29,6 +29,7 @@ import { BarraAcoes, Cabecalho, Etapas, Grupo, PAPEL, Quadro, type Etapa } from 
 import { cn } from "@/lib/utils";
 import { deveRecarregarRevisao } from "@/features/motor/revisaoRecarga";
 import { PassoDesign } from "@/features/motor/PassoDesign";
+import { consultarLeitura, type Conselho } from "../../supabase/functions/_shared/motor/leitura";
 
 type Passo = Etapa;
 type EstadoGravacao = "guardado" | "a_guardar" | "local" | "conflito";
@@ -260,6 +261,13 @@ export default function CarrosselTrabalho() {
     return out;
   }, [medidor, pacote]);
 
+  // Reading consultant: deterministic editorial guidance; never edits the narrative by itself.
+  const conselhos = useMemo<Conselho[]>(() => {
+    if (!pacote || !gravado) return [];
+    const papel = new Map(gravado.conteudo.slides.map((x) => [x.id, x.papel]));
+    return consultarLeitura(pacote.conteudo.slides.map((x) => ({ id: x.id, papel: papel.get(x.id) ?? "", titulo: x.titulo, texto: x.texto })));
+  }, [pacote, gravado]);
+
   const [designPendente, setDesignPendente] = useState(false);
   const mainRef = useRef<HTMLElement>(null);
   const passoAnterior = useRef(passo);
@@ -284,15 +292,28 @@ export default function CarrosselTrabalho() {
   const disponiveis: Etapa[] = pronto ? ["fonte", "narrativa", "design", "composicao", "revisao"] : ["fonte"];
   const irPara = (p: Etapa) => { setPasso(p); if (p === "revisao" && estadoG === "guardado") void carregar(); };
 
-  const avisoBadge = avisos.length > 0 && (
+  const totalAvisos = avisos.length + conselhos.length;
+  const avisoBadge = totalAvisos > 0 && (
     <Popover>
       <PopoverTrigger asChild>
-        <Button variant="outline" size="sm" className="h-11 text-destructive lg:h-9"><AlertTriangle className="mr-1 h-3.5 w-3.5" />{avisos.length} {avisos.length === 1 ? "aviso" : "avisos"}</Button>
+        <Button variant="outline" size="sm" className="h-11 text-destructive lg:h-9"><AlertTriangle className="mr-1 h-3.5 w-3.5" />{totalAvisos} {totalAvisos === 1 ? "aviso" : "avisos"}</Button>
       </PopoverTrigger>
       <PopoverContent className="mc-estudio w-80 text-sm">
-        <p className="mb-2 font-medium">Texto que não cabe</p>
-        <ul className="space-y-1 text-xs">{avisos.map((a) => <li key={a}>{a}</li>)}</ul>
-        <p className="mt-2 text-xs text-muted-foreground">O texto não é reduzido automaticamente. Encurta-o na narrativa ou aumenta a caixa na composição.</p>
+        {avisos.length > 0 && <>
+          <p className="mb-2 font-medium">Texto que não cabe</p>
+          <ul className="space-y-1 text-xs">{avisos.map((a) => <li key={a}>{a}</li>)}</ul>
+          <p className="mt-2 text-xs text-muted-foreground">O texto não é reduzido automaticamente. Encurta-o na narrativa ou aumenta a caixa na composição.</p>
+        </>}
+        {conselhos.length > 0 && <div className={cn(avisos.length > 0 && "mt-3 border-t border-border pt-3")}>
+          <p className="mb-1 font-medium">Leitura</p>
+          <p className="mb-2 text-xs text-muted-foreground">Orientação editorial para leitura no telemóvel, calculada sem IA. Não é uma previsão de desempenho.</p>
+          <ul className="max-h-64 space-y-2 overflow-y-auto text-xs">{conselhos.map((c) => (
+            <li key={`${c.slideId}-${c.tipo}`}>
+              <span className="font-medium">Slide {c.slide + 1}:</span> {c.problema} {c.acao}
+              <button type="button" className="ml-1 inline-flex min-h-8 items-center underline" onClick={() => { setSlideSel(c.slide); setPasso("narrativa"); }}>Editar slide {c.slide + 1}</button>
+            </li>
+          ))}</ul>
+        </div>}
       </PopoverContent>
     </Popover>
   );
@@ -508,7 +529,7 @@ export default function CarrosselTrabalho() {
                 <p className="text-sm text-muted-foreground">{prop.citacao.titulo ?? "Texto colado"}{prop.citacao.url && <> · <a className="underline" href={prop.citacao.url} target="_blank" rel="noreferrer">{prop.citacao.url}</a></>}</p>
                 <p className="mt-1 text-xs text-muted-foreground">Impressão digital {dados.fonte.hash.slice(0, 12)}</p>
               </Grupo>
-              {avisos.length > 0 && <div className="pt-3 sm:hidden">{avisoBadge}</div>}
+              {totalAvisos > 0 && <div className="pt-3 sm:hidden">{avisoBadge}</div>}
             </div>
           </section>
         )}

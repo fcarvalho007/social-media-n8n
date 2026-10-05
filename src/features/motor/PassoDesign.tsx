@@ -233,7 +233,24 @@ export function PassoDesign({ pacote, medidor, onAplicar, slides, paragrafos, in
           {ritmo && (
             <div className="space-y-2 rounded-[var(--mc-r-md)] border border-border p-3">
               <p role="status" className="text-sm font-medium">Ritmo visual — pré-visualização, não aplicada</p>
-              <p className="text-xs text-muted-foreground">Baseado no papel de cada slide e nos parágrafos citados; capa e fecho ficam iguais. {ritmo.plano.filter((x) => x.muda).length === 0 && "Nenhum slide mudaria."}</p>
+              <p className="text-xs text-muted-foreground">Sugestão visual gratuita, sem IA: não muda texto nem cria dados ou gráficos. Baseada no papel e na densidade de cada slide; capa e fecho ficam iguais. {ritmo.plano.filter((x) => x.muda).length === 0 && "Nenhum slide mudaria."}</p>
+              {ritmo.quebra && <p className="text-xs font-medium">Quebra de padrão a meio: slide {ritmo.quebra.pagina + 1} ({ritmo.quebra.motivo}).</p>}
+              {ritmo.plano.some((x) => x.muda) && (
+                <div className="space-y-1">
+                  <p className="text-xs text-muted-foreground">Antes e depois dos slides que mudam (variante {variante}):</p>
+                  <ul className="flex gap-3 overflow-x-auto pb-1">
+                    {ritmo.plano.filter((x) => x.muda).map((x) => (
+                      <li key={x.pagina} className="shrink-0 space-y-1">
+                        <p className="text-xs tabular-nums">Slide {x.pagina + 1}</p>
+                        <div className="flex gap-1">
+                          <div className="overflow-hidden rounded-[var(--mc-r-sm)] border border-border" aria-label={`Slide ${x.pagina + 1}, antes`}><PaginaCanvas pacote={pacote} variante={variante} indice={x.pagina} medidor={medidor} imagens={imagens} escala={110 / 1080} /></div>
+                          <div className="overflow-hidden rounded-[var(--mc-r-sm)] border border-primary" aria-label={`Slide ${x.pagina + 1}, depois`}><PaginaCanvas pacote={ritmo.pacote} variante={variante} indice={x.pagina} medidor={medidor} imagens={imagens} escala={110 / 1080} /></div>
+                        </div>
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              )}
               <p className="text-xs text-muted-foreground">{ritmo.plano.map((x) => `${x.pagina + 1}: ${x.ritmo ? NOME_RITMO[x.ritmo] : "igual"}${x.ritmo && !x.muda ? " (não cabe, fica igual)" : ""}`).join(" · ")}</p>
               <div className="flex gap-2">
                 <Button variant="ghost" className="h-11" onClick={() => setRitmo(null)}>Cancelar</Button>

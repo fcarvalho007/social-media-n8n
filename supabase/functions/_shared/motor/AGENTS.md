@@ -4,3 +4,4 @@
 - Server PDF pages embed pre-rendered PNGs via native inflate/deflate (pngPdf.ts), not pdf-lib embedPng; embedPng exceeds the edge CPU budget on photographic pages.
 - Carousel models (motor/modelos.ts) rebuild page composition with "mod-"-prefixed decorations, pick sizes from per-model ladders with a readable floor and refuse (never cut) pages that do not fit; drop caps and image masks are render-time properties in the shared core (nucleo.ts), so editor, preview and PNG/PDF stay identical and text is never altered.
 - The "Imagem por escolher" placeholder blocks final export and social preparation server-side (mc-motor); only browser-rendered test drafts with a watermark may contain it.
+- Editorial intent (briefing.intencao) is prompt-only guidance separate from framework and visual model; the reading consultant (leitura.ts) and visual rhythm are deterministic, never call AI and never edit the narrative by themselves.

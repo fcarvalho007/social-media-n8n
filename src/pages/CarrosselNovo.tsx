@@ -18,7 +18,7 @@ import { comporFontePdf, ErroPdf, lerPdf, NOME_ESTADO_PAGINA, type PdfLido } fro
 import { HOSTS_LINK, intervalos, type LinkFalhado, type LinkLido, type MetaLink, type MetaPdf } from "../../supabase/functions/_shared/motor/fontes";
 import { ANGULOS, MAX_LEITURA_ESPECIFICA, VOZES_AUTOR, type Angulo, type PerfilAutor } from "../../supabase/functions/_shared/motor/autor";
 import { PainelIdioma, type EscolhaIdioma, type EstadoIdioma } from "@/features/motor/PainelIdioma";
-import { CTAS, MAX_PUBLICO_OUTRO, PUBLICOS, QUANTIDADES, slidesPorQuantidade, textoTom, TONS, type Cta, type Quantidade } from "../../supabase/functions/_shared/motor/briefing";
+import { CTAS, INTENCOES, MAX_PUBLICO_OUTRO, PUBLICOS, QUANTIDADES, slidesPorQuantidade, textoTom, TONS, type Cta, type Intencao, type Quantidade } from "../../supabase/functions/_shared/motor/briefing";
 import { PerfilAutorPainel } from "@/features/motor/PerfilAutorPainel";
 import { LimitesIa } from "@/features/motor/LimitesIa";
 import { BarraAcoes, Cabecalho, Etapas, Grupo, Quadro } from "@/features/motor/Estudio";
@@ -49,7 +49,7 @@ export function estruturaPrevista(n: number): string[] {
 
 type TipoFonte = "texto" | "link" | "pdf";
 interface Rascunho { texto: string; titulo: string; objetivo: ObjetivoId; detalhe: string; tom: string; slides: number | null; url?: string; link?: MetaLink | null; pdf?: MetaPdf | null; original?: string; parcial?: boolean;
-  tomPreset?: string | null; publico?: string[]; publicoOutro?: string; angulo?: Angulo | null; leituraEsp?: string; cta?: Cta | null; quantidade?: Quantidade; idiomaEscolha?: EscolhaIdioma }
+  tomPreset?: string | null; publico?: string[]; publicoOutro?: string; angulo?: Angulo | null; leituraEsp?: string; cta?: Cta | null; intencao?: Intencao | null; quantidade?: Quantidade; idiomaEscolha?: EscolhaIdioma }
 
 export default function CarrosselNovo() {
   const nav = useNavigate();
@@ -70,6 +70,7 @@ export default function CarrosselNovo() {
   const [publico, setPublico] = useState<string[]>([]);
   const [publicoOutro, setPublicoOutro] = useState("");
   const [cta, setCta] = useState<Cta | null>(null);
+  const [intencao, setIntencao] = useState<Intencao | null>(null);
   const [quantidade, setQuantidade] = useState<Quantidade>("equilibrado");
   const [idioma, setIdioma] = useState<EstadoIdioma>({ estrangeiro: false, escolha: "pt", traducaoId: null, pronto: true });
   const [idiomaInicial, setIdiomaInicial] = useState<EscolhaIdioma>("pt");
@@ -113,15 +114,15 @@ export default function CarrosselNovo() {
       setUrl(d.url ?? ""); setLinkMeta(d.link ?? null); setPdfMeta(d.pdf ?? null); setOriginal(d.original ?? ""); setParcial(!!d.parcial);
       setTexto(d.texto); setTitulo(d.titulo); setObjetivo(d.objetivo ?? "informar"); setDetalhe(d.detalhe ?? ""); setTom(d.tom ?? ""); setSlides(d.slides ?? null);
       setTomPreset(d.tomPreset ?? null); setPublico(Array.isArray(d.publico) ? d.publico : []); setPublicoOutro(d.publicoOutro ?? ""); setAngulo(d.angulo ?? null);
-      setLeituraEsp(d.leituraEsp ?? ""); setCta(d.cta ?? null); if (d.quantidade) setQuantidade(d.quantidade); setIdiomaInicial(d.idiomaEscolha === "original" ? "original" : "pt");
+      setLeituraEsp(d.leituraEsp ?? ""); setCta(d.cta ?? null); setIntencao(INTENCOES.find((x) => x.id === d.intencao)?.id ?? null); if (d.quantidade) setQuantidade(d.quantidade); setIdiomaInicial(d.idiomaEscolha === "original" ? "original" : "pt");
       setRecuperado(new Date(r.guardado_em).toLocaleString("pt-PT", { timeZone: "Europe/Lisbon", day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit" }));
     }
   }, [chave]); // eslint-disable-line react-hooks/exhaustive-deps
   useEffect(() => {
     if (!chave || !texto.trim()) return;
-    const t = setTimeout(() => guardarRecuperacao<Rascunho>(chave, { texto, titulo, objetivo, detalhe, tom, slides, url, link: linkMeta, pdf: pdfMeta, original, parcial, tomPreset, publico, publicoOutro, angulo, leituraEsp, cta, quantidade, idiomaEscolha: idioma.escolha }), 600);
+    const t = setTimeout(() => guardarRecuperacao<Rascunho>(chave, { texto, titulo, objetivo, detalhe, tom, slides, url, link: linkMeta, pdf: pdfMeta, original, parcial, tomPreset, publico, publicoOutro, angulo, leituraEsp, cta, intencao, quantidade, idiomaEscolha: idioma.escolha }), 600);
     return () => clearTimeout(t);
-  }, [chave, texto, titulo, objetivo, detalhe, tom, slides, url, linkMeta, pdfMeta, original, parcial, tomPreset, publico, publicoOutro, angulo, leituraEsp, cta, quantidade, idioma.escolha]);
+  }, [chave, texto, titulo, objetivo, detalhe, tom, slides, url, linkMeta, pdfMeta, original, parcial, tomPreset, publico, publicoOutro, angulo, leituraEsp, cta, intencao, quantidade, idioma.escolha]);
 
   useEffect(() => { if (params.get("demo") === "1") usarDemo(); }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
@@ -219,7 +220,7 @@ export default function CarrosselNovo() {
     const o = OBJETIVOS.find((x) => x.id === objetivo)!;
     const objetivoTxt = detalhe.trim() ? `${o.nome}: ${detalhe.trim()}` : `${o.nome} — ${o.desc}`;
     try {
-      const r = await criarTrabalho({ project_id: alvo, texto, titulo, objetivo: objetivoTxt.slice(0, 200), tom: textoTom(tomPreset, tom), slides: nSlides, ...(comIa ? { angulo, leitura_especifica: leituraEsp.trim(), briefing: { publico, publicoOutro: publicoOutro.trim(), cta } } : {}), ...(!demo && idioma.traducaoId ? { traducao_id: idioma.traducaoId } : {}), modo: demo ? "demonstracao" : comIa ? "ia" : "estruturacao",
+      const r = await criarTrabalho({ project_id: alvo, texto, titulo, objetivo: objetivoTxt.slice(0, 200), tom: textoTom(tomPreset, tom), slides: nSlides, ...(comIa ? { angulo, leitura_especifica: leituraEsp.trim(), briefing: { publico, publicoOutro: publicoOutro.trim(), cta, intencao } } : {}), ...(!demo && idioma.traducaoId ? { traducao_id: idioma.traducaoId } : {}), modo: demo ? "demonstracao" : comIa ? "ia" : "estruturacao",
         fonte_tipo: demo ? "texto" : tipoFonte,
         metadados: demo || tipoFonte === "texto" ? undefined
           : tipoFonte === "link" ? { ...linkMeta!, editado: linkMeta!.modo === "referencia" || texto !== original }
@@ -454,6 +455,8 @@ export default function CarrosselNovo() {
               <div className="space-y-3">
                 {comIa && <Chips titulo="Tom" itens={TONS.map((t) => ({ id: t.id, nome: t.nome, desc: t.desc }))} ativo={(id) => tomPreset === id} onEscolher={(id) => setTomPreset(tomPreset === id ? null : id)} />}
                 {comIa && <Chips titulo="Público" multi itens={PUBLICOS.map((p) => ({ id: p.id, nome: p.nome }))} ativo={(id) => publico.includes(id)} onEscolher={(id) => setPublico(publico.includes(id) ? publico.filter((x) => x !== id) : [...publico, id])} />}
+                {comIa && <Chips titulo="Intenção editorial" itens={INTENCOES.map((x) => ({ id: x.id, nome: x.nome }))} ativo={(id) => intencao === id} onEscolher={(id) => setIntencao(intencao === id ? null : id as Intencao)} />}
+                {comIa && intencao && <p className="-mt-1 text-xs text-muted-foreground">{INTENCOES.find((x) => x.id === intencao)!.desc} Define para que serve o carrossel; a estrutura e o modelo visual escolhem-se à parte. Só usa o que a fonte documenta.</p>}
                 {comIa && <Chips titulo="Apelo final" itens={CTAS.map((c) => ({ id: c.id, nome: c.nome }))} ativo={(id) => cta === id} onEscolher={(id) => setCta(cta === id ? null : id as Cta)} />}
                 <Chips titulo="Extensão" itens={QUANTIDADES.map((q) => ({ id: q.id, nome: `${q.nome} · ${porQuantidade[q.id]} slides` }))} ativo={(id) => slides == null && quantidade === id} onEscolher={(id) => { setQuantidade(id as Quantidade); setSlides(null); }} />
               </div>
