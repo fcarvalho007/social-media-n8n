@@ -7,6 +7,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Bloco, CalendarioBloco, ConteudoBloco, CustosBloco, ProjetosBloco } from "@/features/painel/PainelBento";
 import { useProjeto } from "@/contexts/ProjetoContext";
 import { associarIdentidade, resumoContinuidade, souAdminNewsletter, type Continuidade, type Identidade } from "@/services/estudio";
 
@@ -57,11 +58,11 @@ export default function Estudio() {
   };
 
   return (
-    <div className="w-full min-w-0 space-y-6 px-4 py-4 xs:px-3 sm:px-0 sm:py-0">
-      <h1 className="text-2xl font-semibold">Painel</h1>
-
-      <section className="space-y-2" aria-labelledby="para-quem">
-        <Label id="para-quem" htmlFor="sel-projeto" className="text-sm font-medium text-muted-foreground">Para quem?</Label>
+    <div className="mx-auto w-full min-w-0 max-w-7xl space-y-6 px-4 py-4 xs:px-3 sm:px-0 sm:py-0">
+      <h1 className="sr-only">Painel</h1>
+      <div className="flex flex-col justify-between gap-4 md:flex-row md:items-end">
+      <section className="min-w-0 flex-1 space-y-2" aria-labelledby="para-quem">
+        <Label id="para-quem" htmlFor="sel-projeto" className="text-xs font-semibold uppercase tracking-widest text-muted-foreground">Para quem?</Label>
         {ctx.estado === "a_carregar" && <Skeleton className="h-10 w-full max-w-sm" />}
         {ctx.estado === "erro" && (
           <Alert variant="destructive">
@@ -76,7 +77,7 @@ export default function Estudio() {
         {ctx.estado === "pronto" && (
           <>
             <Select value={ctx.projetoId ?? SEM} onValueChange={escolher} disabled={ctx.aGuardar}>
-              <SelectTrigger id="sel-projeto" className="max-w-sm"><SelectValue placeholder="Escolhe o projeto" /></SelectTrigger>
+              <SelectTrigger id="sel-projeto" className="h-12 max-w-sm rounded-2xl bg-card font-semibold"><SelectValue placeholder="Escolhe o projeto" /></SelectTrigger>
               <SelectContent>
                 <SelectItem value={SEM}>Todos os projetos</SelectItem>
                 {ctx.projetos.map((p) => <SelectItem key={p.id} value={p.id}>{p.name}</SelectItem>)}
@@ -107,9 +108,18 @@ export default function Estudio() {
           </>
         )}
       </section>
+      <nav className="flex flex-wrap gap-2" aria-label="Ações rápidas">
+        {PRODUCAO.slice(0, 3).map((a, i) => (
+          <Button key={a.url} asChild variant={i === 0 ? "default" : "outline"} className="h-11 rounded-xl font-semibold">
+            <Link to={a.url}><a.icon className="mr-1.5 h-4 w-4" aria-hidden />{a.titulo}</Link>
+          </Button>
+        ))}
+      </nav>
+      </div>
 
-      <section className="space-y-2" aria-labelledby="continuar">
-        <h2 id="continuar" className="text-sm font-medium text-muted-foreground">Continuar onde ficaste</h2>
+      <div className="grid grid-cols-1 gap-5 lg:grid-cols-12">
+      <Bloco className="space-y-3 lg:col-span-8" >
+        <h2 id="continuar" className="inline-block rounded-full bg-primary/10 px-3 py-1 text-xs font-semibold uppercase tracking-wider text-primary">Continuar onde ficaste</h2>
         {ctx.estado === "erro" && <p className="text-sm text-muted-foreground">Disponível depois de carregar os projetos.</p>}
         {ctx.estado !== "erro" && (resumo.estado === "a_carregar" || ctx.estado === "a_carregar") && <Skeleton className="h-16 w-full" />}
         {resumo.estado === "erro" && (
@@ -122,20 +132,20 @@ export default function Estudio() {
           </Alert>
         )}
         {resumo.estado === "pronto" && resumo.dados && ctx.estado === "pronto" && (
-          <ul className="grid grid-cols-[repeat(auto-fit,minmax(min(100%,14rem),1fr))] gap-2 text-sm">
-            <li className="rounded-md border p-3">
+          <ul className="grid gap-2 text-sm sm:grid-cols-3">
+            <li className="rounded-2xl border bg-background p-4">
               <div className="text-muted-foreground">Newsletter</div>
               {resumo.dados.ultimaEdicao
                 ? <Link className="font-medium hover:underline" to="/newsletter">Edição #{resumo.dados.ultimaEdicao.numero} · {resumo.dados.ultimaEdicao.estado}</Link>
                 : <span>Sem edições{ctx.projetoId ? " neste projeto" : ""}</span>}
             </li>
-            <li className="rounded-md border p-3">
+            <li className="rounded-2xl border bg-background p-4">
               <div className="text-muted-foreground">Rascunhos sociais</div>
               {resumo.dados.rascunhosSociais
                 ? <Link className="font-medium hover:underline" to="/drafts">{resumo.dados.rascunhosSociais} por concluir</Link>
                 : <span>Nenhum rascunho</span>}
             </li>
-            <li className="rounded-md border p-3">
+            <li className="rounded-2xl border bg-background p-4">
               <div className="text-muted-foreground">Artigos</div>
               {resumo.dados.ultimoArtigo
                 ? <Link className="font-medium hover:underline" to={`/artigos?id=${resumo.dados.ultimoArtigo.id}`}>{resumo.dados.ultimoArtigo.titulo} · {dataPt(resumo.dados.ultimoArtigo.updated_at)}</Link>
@@ -143,14 +153,19 @@ export default function Estudio() {
             </li>
           </ul>
         )}
-      </section>
+      </Bloco>
+      <CustosBloco />
+      <ConteudoBloco />
+      <CalendarioBloco />
+      <ProjetosBloco projetoId={ctx.estado === "pronto" ? ctx.projetoId : null} />
+      </div>
 
       <section className="space-y-2" aria-labelledby="fazer">
-        <h2 id="fazer" className="text-sm font-medium text-muted-foreground">O que queres fazer?</h2>
+        <h2 id="fazer" className="text-xs font-semibold uppercase tracking-widest text-muted-foreground">O que queres fazer?</h2>
         <div className="grid grid-cols-[repeat(auto-fit,minmax(min(100%,14rem),1fr))] gap-3">
           {PRODUCAO.map((a) => (
             <Link key={a.url} to={a.url} className="rounded-lg focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring">
-              <div className="flex h-full min-h-11 items-start gap-3 rounded-lg border bg-card p-3 transition-colors hover:border-primary">
+              <div className="flex h-full min-h-11 items-start gap-3 rounded-2xl border bg-card p-4 transition-colors hover:border-primary">
                 <a.icon className="mt-0.5 h-5 w-5 shrink-0 text-primary" aria-hidden />
                 <div><div className="font-medium leading-tight">{a.titulo}</div><div className="mt-0.5 text-sm text-muted-foreground">{a.desc}</div></div>
               </div>
