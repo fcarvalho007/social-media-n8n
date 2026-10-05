@@ -110,7 +110,7 @@ export default function Carrosseis() {
           </label>
         )}
 
-        {visiveis && visiveis.length === 0 && (!estados || !reais?.length || aba === "por_publicar") && (
+        {visiveis && visiveis.length === 0 && (
           <div className="mc-entrar max-w-lg space-y-4 py-16">
             <Layers className="h-6 w-6 text-muted-foreground" aria-hidden />
             <p className="text-lg font-medium">{estados && reais && reais.length > 0 ? (aba === "publicados" ? "Ainda não há carrosséis publicados" : "Nada por publicar") : nProvas > 0 && !verProvas ? "Ainda não há carrosséis reais" : "Ainda não há carrosséis"}{projetoId ? " neste projeto" : ""}.</p>
