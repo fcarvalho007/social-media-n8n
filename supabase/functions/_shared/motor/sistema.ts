@@ -10,15 +10,15 @@ export interface PaletaMarca { id: PaletaId; nome: string; sensacao: string; amo
 /** Technical colours available to the engine, not presented as part of the palettes. */
 export const BRANCO = "#FFFFFF", PRETO = "#111111";
 
-const pal = (navy: string, fundo: string, acento: string, secundaria: string, grafite = "#20252B"): Paleta =>
-  ({ fundo, fundoCapa: navy, titulo: navy, texto: grafite, destaque: acento, discreto: "#5F6B76", ...(secundaria ? {} : {}) });
+const pal = (navy: string, fundo: string, acento: string, grafite = "#20252B"): Paleta =>
+  ({ fundo, fundoCapa: navy, titulo: navy, texto: grafite, destaque: acento, discreto: "#5F6B76" });
 
 export const PALETAS: readonly PaletaMarca[] = [
-  { id: "navy-editorial", nome: "Navy Editorial", sensacao: "Autoridade / premium", amostras: ["#0B1F33", "#F4F1EA", "#20252B", "#89939B", "#C6A15B"], cores: pal("#0B1F33", "#F4F1EA", "#C6A15B", "#89939B") },
-  { id: "navy-digital", nome: "Navy Digital", sensacao: "Tecnologia / IA", amostras: ["#0B1F33", "#F5F8FB", "#3578E5", "#B8D4F0", "#20252B"], cores: pal("#0B1F33", "#F5F8FB", "#3578E5", "#B8D4F0") },
-  { id: "navy-signal", nome: "Navy Signal", sensacao: "Conteúdo forte / opinião", amostras: ["#0B1F33", "#F5F2ED", "#E4573D", "#D9D2C8", "#20252B"], cores: pal("#0B1F33", "#F5F2ED", "#E4573D", "#D9D2C8") },
-  { id: "navy-sage", nome: "Navy Sage", sensacao: "Sofisticação / calma", amostras: ["#0B1F33", "#F1F3EF", "#708779", "#C8D0C8", "#20252B"], cores: pal("#0B1F33", "#F1F3EF", "#708779", "#C8D0C8") },
-  { id: "navy-ice", nome: "Navy Ice", sensacao: "Dados / investigação", amostras: ["#10283F", "#EEF3F6", "#6FA6B8", "#AAB8C2", "#20252B"], cores: pal("#10283F", "#EEF3F6", "#6FA6B8", "#AAB8C2") },
+  { id: "navy-editorial", nome: "Navy Editorial", sensacao: "Autoridade / premium", amostras: ["#0B1F33", "#F4F1EA", "#20252B", "#89939B", "#C6A15B"], cores: pal("#0B1F33", "#F4F1EA", "#C6A15B") },
+  { id: "navy-digital", nome: "Navy Digital", sensacao: "Tecnologia / IA", amostras: ["#0B1F33", "#F5F8FB", "#3578E5", "#B8D4F0", "#20252B"], cores: pal("#0B1F33", "#F5F8FB", "#3578E5") },
+  { id: "navy-signal", nome: "Navy Signal", sensacao: "Conteúdo forte / opinião", amostras: ["#0B1F33", "#F5F2ED", "#E4573D", "#D9D2C8", "#20252B"], cores: pal("#0B1F33", "#F5F2ED", "#E4573D") },
+  { id: "navy-sage", nome: "Navy Sage", sensacao: "Sofisticação / calma", amostras: ["#0B1F33", "#F1F3EF", "#708779", "#C8D0C8", "#20252B"], cores: pal("#0B1F33", "#F1F3EF", "#708779") },
+  { id: "navy-ice", nome: "Navy Ice", sensacao: "Dados / investigação", amostras: ["#10283F", "#EEF3F6", "#6FA6B8", "#AAB8C2", "#20252B"], cores: pal("#10283F", "#EEF3F6", "#6FA6B8") },
 ];
 export const obterPaleta = (id: unknown) => PALETAS.find((p) => p.id === id) ?? PALETAS[0];
 
