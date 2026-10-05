@@ -26,7 +26,7 @@ export function Etapas({ atual, disponiveis, onIr, compacto }: { atual: Etapa; d
   return (
     <nav aria-label="Etapas do carrossel" className="min-w-0">
       {compacto && (
-        <label className="flex min-w-0 items-center gap-2 sm:hidden">
+        <label className="flex min-w-0 items-center gap-2 xl:hidden">
           <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full border border-primary bg-primary text-xs tabular-nums text-primary-foreground" aria-hidden>{iAtual + 1}</span>
           <span className="sr-only">Etapa {iAtual + 1} de {ETAPAS.length}:</span>
           <select value={atual} onChange={(ev) => onIr?.(ev.target.value as Etapa)} disabled={!onIr}
@@ -35,7 +35,7 @@ export function Etapas({ atual, disponiveis, onIr, compacto }: { atual: Etapa; d
           </select>
         </label>
       )}
-      <ol className={cn("flex items-center gap-1 overflow-x-auto", compacto && "hidden sm:flex")}>
+      <ol className={cn("flex items-center gap-1 overflow-x-auto", compacto && "hidden xl:flex")}>
         {ETAPAS.map((e, i) => {
           const ativa = e.id === atual;
           const feita = i < iAtual;
@@ -57,7 +57,7 @@ export function Etapas({ atual, disponiveis, onIr, compacto }: { atual: Etapa; d
                   "flex h-6 w-6 items-center justify-center rounded-full border text-xs tabular-nums",
                   ativa ? "border-primary bg-primary text-primary-foreground" : feita ? "border-primary/60 text-primary" : "border-border",
                 )}>{feita ? <Check className="h-3.5 w-3.5" aria-hidden /> : i + 1}</span>
-                <span className={cn(compacto && !ativa && "sr-only sm:not-sr-only")}>{e.nome}</span>
+                <span className={cn(compacto && !ativa && "sr-only xl:not-sr-only")}>{e.nome}</span>
                 {feita && <span className="sr-only">(concluída)</span>}
               </button>
             </li>
