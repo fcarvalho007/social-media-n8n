@@ -217,3 +217,24 @@ export function aplicarSistema(pacote: PacoteProva, s: SistemaVisual, m?: Medido
   }
   return { pacote: comSistema({ ...pacote, variantes }, s), recusadas, quebrasRecusadas, marcador, imagemRecusadas, decisoes };
 }
+
+/**
+ * One-way migration of legacy side tables (visual system + per-slide image choices) into the document.
+ * Geometry is untouched (those documents were already composed with that system).
+ */
+export function migrarLegado(p: PacoteProva, s: SistemaVisual | null, mapa: ComposicoesImagem): PacoteProva {
+  const temMapa = Object.keys(mapa).length > 0;
+  if (!s && !temMapa) return p;
+  const variantes = { ...p.variantes };
+  for (const v of ["A", "B"] as const) {
+    const d = p.variantes[v];
+    variantes[v] = { ...d, ...(s ? { sistema: { ...s } } : {}), paginas: d.paginas.map((pg) => {
+      const sid = (pg.camadas.find((c) => c.tipo === "texto" && !!c.ref) as { ref?: string } | undefined)?.ref?.split(".")[0] ?? pg.slide ?? "";
+      const c = mapa[chaveComposicao(v, sid)];
+      if (!c || pg.composicao) return pg;
+      const { papel, ...resto } = c;
+      return { ...pg, ...(papel && !pg.papel ? { papel } : {}), ...(Object.keys(resto).length ? { composicao: { ...resto } as Record<string, unknown> } : {}) };
+    }) };
+  }
+  return { ...p, variantes };
+}
