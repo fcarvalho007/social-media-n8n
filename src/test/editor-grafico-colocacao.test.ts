@@ -2,7 +2,7 @@ import { readFileSync, readdirSync, statSync } from "node:fs";
 import { join } from "node:path";
 import { describe, expect, it } from "vitest";
 import { centrar, PRESETS_TEXTO, tamanhoImagemNova } from "@/features/editor-grafico/estado";
-import { medidasTransformer } from "@/features/editor-grafico/PaginaCanvas";
+import { medidasTransformer } from "@/features/editor-grafico/transformer";
 
 describe("colocação inicial de elementos novos", () => {
   it("fica sempre dentro da página nos cantos 0/1080/1350", () => {

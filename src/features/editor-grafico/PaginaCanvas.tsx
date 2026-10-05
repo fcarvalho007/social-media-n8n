@@ -7,6 +7,7 @@ import {
   type Camada, type Medidor, type PacoteProva, type Variante,
 } from "../../../supabase/functions/_shared/documento-grafico/nucleo";
 import { desenharTexto } from "./desenho";
+import { medidasTransformer } from "./transformer";
 
 interface Props {
   pacote: PacoteProva;
@@ -25,12 +26,6 @@ interface Props {
   corSelecao?: string;
   /** Snap to page edges/centre and other layers while dragging. */
   encaixe?: boolean;
-}
-
-export function medidasTransformer(toque: boolean) {
-  return toque
-    ? { anchorSize: 28, anchorCornerRadius: 14, borderStrokeWidth: 2 }
-    : { anchorSize: 12, anchorCornerRadius: 2, borderStrokeWidth: 2 };
 }
 
 function Conteudo({ c, pacote, medidor, imagens }: { c: Camada; pacote: PacoteProva; medidor: Medidor; imagens: Record<string, HTMLImageElement> }) {
