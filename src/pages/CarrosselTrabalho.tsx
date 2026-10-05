@@ -175,6 +175,14 @@ export default function CarrosselTrabalho() {
     return () => clearTimeout(t);
   }, [pacote, extras]); // eslint-disable-line react-hooks/exhaustive-deps
 
+  // Review reads versions from the server: refresh once a pending save settles while on that step.
+  const passoRef = useRef(passo); passoRef.current = passo;
+  const estadoAnt = useRef(estadoG);
+  useEffect(() => {
+    if (estadoAnt.current !== "guardado" && estadoG === "guardado" && passoRef.current === "revisao") void carregar();
+    estadoAnt.current = estadoG;
+  }, [estadoG]); // eslint-disable-line react-hooks/exhaustive-deps
+
   const viuAGuardar = useRef(false);
   useEffect(() => {
     if (!alteracaoDesign || alteracaoDesign.confirmada) { viuAGuardar.current = false; return; }
@@ -371,7 +379,7 @@ export default function CarrosselTrabalho() {
 
       <main className="min-h-0 flex-1 overflow-y-auto"><div className="mx-auto w-full max-w-6xl px-4 pb-10 pt-6 sm:px-6">
         {projetoId && t.project_id !== projetoId && (
-          <p className="mb-4 rounded-[var(--mc-r-md)] border border-border px-3 py-2 text-xs text-muted-foreground" role="note">Este carrossel pertence a outro projeto, diferente do que está escolhido em «Para quem?».</p>
+          <p className="mb-4 rounded-[var(--mc-r-md)] border border-border px-3 py-2 text-xs text-muted-foreground" role="note">Este carrossel pertence a outro projeto, diferente do que está escolhido em «Marca / projeto».</p>
         )}
         {emCurso && (
           <div className="mc-entrar mx-auto max-w-xl py-16 text-center" role="status">
@@ -451,16 +459,20 @@ export default function CarrosselTrabalho() {
                   <Textarea id="s-texto" rows={5} className="text-base leading-relaxed" value={sSel.texto} maxLength={3000} onChange={(e) => alterarSlide(sSel.id, "texto", e.target.value)} />
                 </div>
                 {psSel && psSel.fontes.length > 0 && (
-                  <div className="space-y-2 border-t border-border pt-3">
-                    <p className="text-xs font-medium text-muted-foreground">Evidência na fonte</p>
+                  <details className="group border-t border-border pt-2">
+                    <summary className="flex min-h-11 cursor-pointer list-none items-center gap-2 text-xs font-medium text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring [&::-webkit-details-marker]:hidden">
+                      Evidência na fonte · {psSel.fontes.map((n) => `§${n}`).join(", ")}<span className="ml-auto transition-transform group-open:rotate-45 motion-reduce:transition-none" aria-hidden>+</span>
+                    </summary>
+                    <div className="space-y-2 pb-1">
                     {psSel.fontes.map((n) => fonte.paragrafos[n - 1] && (
                       <blockquote key={n} className="flex gap-3 text-sm leading-relaxed text-muted-foreground"><span className="w-7 shrink-0 tabular-nums">§{n}</span><span>{fonte.paragrafos[n - 1]}</span></blockquote>
                     ))}
-                  </div>
+                    </div>
+                  </details>
                 )}
                 <div className="flex justify-between gap-2 pt-1">
-                  <Button variant="ghost" className="h-11" disabled={iSel === 0} onClick={() => setSlideSel(iSel - 1)}>Anterior</Button>
-                  <Button variant="ghost" className="h-11" disabled={iSel >= slides.length - 1} onClick={() => setSlideSel(iSel + 1)}>Seguinte</Button>
+                  <Button variant="ghost" className="h-11" disabled={iSel === 0} onClick={() => setSlideSel(iSel - 1)}><ArrowLeft className="mr-1.5 h-4 w-4" />{iSel > 0 ? `Slide ${iSel}` : "Anterior"}</Button>
+                  <Button variant="ghost" className="h-11" disabled={iSel >= slides.length - 1} onClick={() => setSlideSel(iSel + 1)}>{iSel < slides.length - 1 ? `Slide ${iSel + 2}` : "Seguinte"}<ArrowRight className="ml-1.5 h-4 w-4" /></Button>
                 </div>
               </div>
             </div>
