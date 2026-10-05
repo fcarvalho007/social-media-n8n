@@ -136,6 +136,7 @@ Deno.serve(async (req) => {
       if (!o || o.max_chamadas_dia < 1) return json({ error: "A IA está desligada neste projeto. Define um limite diário em «Limites da IA»." }, 409);
     }
     // Snapshot the project's author voice (base profile when none saved) so later edits never change this job.
+    let briefingEd = normalizarBriefing(body.briefing as Record<string, unknown> | undefined);
     let autor: ReturnType<typeof normalizarPerfil> | null = null;
     let leituraTrabalho = normalizarLeitura(body.angulo, body.leitura_especifica);
     // Restructuring proposals reuse the origin job's snapshot (profile + angle), never the current profile.
@@ -149,7 +150,6 @@ Deno.serve(async (req) => {
       const { data: pa } = await user.from("mc_perfis_autor").select("voz, notas, apresentacao, publico, teses, objetivo_cronica").eq("project_id", projectId).maybeSingle();
       autor = normalizarPerfil(pa);
     }
-    let briefingEd = normalizarBriefing(body.briefing as Record<string, unknown> | undefined);
     const leitura = body.leitura === true || objetivo.startsWith(OBJETIVO_LEITURA);
     const comum = {
       _project_id: projectId, _texto: modo === "demonstracao" ? texto : fonte.texto,
