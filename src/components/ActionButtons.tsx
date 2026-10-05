@@ -31,7 +31,12 @@ export const ActionButtons = ({ className }: { className?: string }) => (
       </ul>
     </section>
 
-    <details open className="group space-y-2 rounded-md border border-dashed p-4">
+    <LegadoN8n />
+  </div>
+);
+
+export const LegadoN8n = () => (
+  <details open className="group space-y-2 rounded-md border border-dashed p-4">
       <summary className="min-h-11 cursor-pointer text-base font-semibold">Versão anterior · n8n</summary>
       <p className="text-sm text-muted-foreground">Fluxo antigo por formulário externo, mantido para demonstração e recuperação. Não faz parte do motor novo.</p>
       <ul className="divide-y">
@@ -43,6 +48,5 @@ export const ActionButtons = ({ className }: { className?: string }) => (
         <EmConstrucao icon={Video} titulo="Stories (n8n)" nota="Não desenvolvido nesta versão." />
         <EmConstrucao icon={ImageIcon} titulo="Post individual (n8n)" nota="Não desenvolvido nesta versão." />
       </ul>
-    </details>
-  </div>
+  </details>
 );
