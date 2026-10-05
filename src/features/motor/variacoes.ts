@@ -40,7 +40,7 @@ export function aplicarComposicaoSlide(pacote: PacoteProva, slideId: string, id:
 export interface SugestaoRitmo {
   pacote: PacoteProva;
   /** One entry per page of variant A, in order (null ritmo = capa/fecho/manual page kept as is). */
-  plano: Array<{ pagina: number; ritmo: Ritmo | null; composicao: ComposicaoId | null; muda: boolean }>;
+  plano: Array<{ pagina: number; ritmo: Ritmo | null; composicao: ComposicaoId | null; muda: boolean; comImagem: boolean }>;
   /** Pattern break near the middle (contrast composition), or null when no slide qualifies/fits. */
   quebra: { pagina: number; motivo: string } | null;
 }
@@ -95,7 +95,7 @@ export function sugerirRitmo(pacote: PacoteProva, slides: Array<SlideRitmo & { i
     plano: pacote.variantes.A.paginas.map((p, i) => {
       const sid = slideDaPagina(p);
       const e = sid ? porSlide.get(sid) : undefined;
-      return { pagina: i, ritmo: e?.ritmo ?? null, composicao: e?.composicao ?? null, muda: out.variantes.A.paginas[i] !== p };
+      return { pagina: i, ritmo: e?.ritmo ?? null, composicao: e?.composicao ?? null, muda: out.variantes.A.paginas[i] !== p, comImagem: p.camadas.some((k) => k.tipo === "imagem") };
     }),
   };
 }

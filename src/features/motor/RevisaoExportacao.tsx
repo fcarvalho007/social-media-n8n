@@ -5,6 +5,7 @@ import { cn } from "@/lib/utils";
 import { useLargura } from "./Estudio";
 import { medidasPalco } from "./palco";
 import { BotaoTransferir } from "./BotaoTransferir";
+import { VerComoLido } from "./VerComoLido";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
@@ -143,6 +144,7 @@ export function RevisaoExportacao({ dados, pacote, medidor, guardado, irPara }: 
               ))}
             </ol>
           )}
+          {medidor && <VerComoLido pacote={pacote} variante={variante} indice={iPag} medidor={medidor} imagens={imagens} alt={dados.proposta.conteudo?.alt ?? []} onPagina={setPagina} />}
         </div>
 
         <div className="space-y-6">
@@ -205,6 +207,7 @@ export function RevisaoExportacao({ dados, pacote, medidor, guardado, irPara }: 
                   <details className="text-xs"><summary className="flex min-h-11 cursor-pointer items-center text-muted-foreground">Imagens individuais</summary>
                     <ul className="flex flex-wrap gap-x-3">{pngs.map((f) => <li key={f.url}><BotaoTransferir compacto url={f.url} nome={f.nome}>{f.nome}</BotaoTransferir></li>)}</ul>
                   </details>
+                  <p className="text-xs text-muted-foreground" role="note">Verificação: {pngs.length} PNG para {ex?.paginas ?? paginas.length} páginas, pela ordem do carrossel, 1080×1350.{pdf ? ` PDF de ${ex?.paginas ?? paginas.length} páginas e ${kb(pdf.bytes)}: ${pdf.bytes <= 100 * 1024 * 1024 && (ex?.paginas ?? paginas.length) <= 300 ? "dentro" : "fora"} do limite de documentos do LinkedIn (100 MB, 300 páginas).` : ""}</p>
                   <p className="text-xs text-muted-foreground">Ficheiros desta versão nunca são substituídos; editar cria nova versão.</p>
                 </div>
               )}
