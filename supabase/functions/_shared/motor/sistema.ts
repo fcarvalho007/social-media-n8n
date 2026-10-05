@@ -45,7 +45,9 @@ const texto = (c: Camada) => c.tipo === "texto" && !!c.ref;
  * opening negative space above. Sizes are untouched, so whatever fitted in A fits in B.
  */
 export function composicaoB(p: Pagina): Pagina {
-  let camadas = p.camadas.map((c) => (c.w >= LARGURA - 1 ? c : { ...c, x: Math.round(LARGURA - c.x - c.w) }));
+  // Manual layers (user notes/shapes) never move.
+  const doMotor = (c: Camada) => c.id.startsWith("mod-") || texto(c) || c.id === "num" || c.tipo === "imagem";
+  let camadas = p.camadas.map((c) => (!doMotor(c) || c.w >= LARGURA - 1 ? c : { ...c, x: Math.round(LARGURA - c.x - c.w) }));
   const ts = camadas.filter(texto);
   const titulo = ts.find((c) => c.tipo === "texto" && c.ref?.endsWith(".titulo"));
   const sobrePainel = titulo && camadas.some((d) => d.tipo === "forma" && d.id.startsWith("mod-") && d.w < LARGURA && d.h > 120 && d.z < titulo.z
