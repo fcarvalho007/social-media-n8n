@@ -175,6 +175,8 @@ export interface ResultadoSistema {
 export interface OpcoesSistema {
   /** "manter": layers the user adjusted keep their state; "recriar": everything generated is rebuilt. */
   ajustes?: "manter" | "recriar";
+  /** Restrict to these variant documents (catalogue thumbnails); others are returned unchanged. */
+  variantes?: Variante[];
 }
 
 /**
@@ -193,6 +195,7 @@ export function aplicarSistema(pacote: PacoteProva, s: SistemaVisual, m?: Medido
   const manter = op.ajustes !== "recriar";
   const papeis = PAPEIS.map((x) => x.id) as string[];
   for (const v of ["A", "B"] as const) {
+    if (op.variantes && !op.variantes.includes(v)) continue;
     const doc = pacote.variantes[v];
     const total = doc.paginas.length;
     variantes[v] = { ...doc, paginas: doc.paginas.map((pg, i) => {

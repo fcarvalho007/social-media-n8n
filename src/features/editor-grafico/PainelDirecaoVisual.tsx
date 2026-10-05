@@ -1,4 +1,4 @@
-import { useMemo } from "react";
+import { useEffect, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Switch } from "@/components/ui/switch";
 import type { Medidor, PacoteProva, Variante } from "../../../supabase/functions/_shared/documento-grafico/nucleo";
@@ -27,9 +27,14 @@ export function PainelDirecaoVisual({ base, atual, emRascunho, medidor, imagens,
   const total = base.variantes.A.paginas.length;
   const s: SistemaVisual = atual ?? { estilo: "editorial", variante: "A", paleta: "navy-editorial", quebras: quebrasPadrao(total), ritmo: "auto", imagens: "auto" };
   // Catalogue only (cover of this carousel per style); the confirmation is the real canvas.
-  const catalogo = useMemo(() => (medidor ? ESTILOS.map((e) => ({ id: e.id, p: aplicarSistema(base, { ...s, estilo: e.id }, medidor, [0]).pacote })) : []),
+  // Computed after paint so choosing never waits for the catalogue.
+  const [catalogo, setCatalogo] = useState<Array<{ id: string; p: PacoteProva }>>([]);
+  useEffect(() => {
+    if (!medidor) return;
+    const t = setTimeout(() => setCatalogo(ESTILOS.map((e) => ({ id: e.id, p: aplicarSistema(base, { ...s, estilo: e.id }, medidor, [0], {}, { variantes: [s.variante] }).pacote }))), 50);
+    return () => clearTimeout(t);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    [base, medidor, s.paleta, s.variante, s.imagens]);
+  }, [base, medidor, s.paleta, s.variante, s.imagens]);
   const ritmo = s.ritmo ?? "auto";
 
   return (
