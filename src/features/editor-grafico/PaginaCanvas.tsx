@@ -59,6 +59,9 @@ export function PaginaCanvas({ pacote, variante, indice, medidor, imagens, escal
   const pagina = pacote.variantes[variante].paginas[indice];
   const trRef = useRef<Konva.Transformer>(null);
   const nos = useRef(new Map<string, Konva.Group>());
+  const medidas = toque
+    ? { anchorSize: 28, anchorCornerRadius: 14, borderStrokeWidth: 2 }
+    : { anchorSize: 12, anchorCornerRadius: 2, borderStrokeWidth: 2 };
 
   useEffect(() => {
     const tr = trRef.current;
@@ -112,13 +115,14 @@ export function PaginaCanvas({ pacote, variante, indice, medidor, imagens, escal
             rotateEnabled={false}
             keepRatio={false}
             flipEnabled={false}
-            // Transformer dimensions live in stage coordinates, so divide by
-            // zoom to keep the visible handles constant on screen.
-            anchorSize={(toque ? 28 : 12) / escala}
-            anchorCornerRadius={(toque ? 14 : 2) / escala}
+            // Konva keeps Transformer controls in viewport pixels even when
+            // the Stage is scaled. Dividing by zoom makes touch handles grow
+            // into large arcs on narrow mobile canvases.
+            anchorSize={medidas.anchorSize}
+            anchorCornerRadius={medidas.anchorCornerRadius}
             borderStroke={corSelecao}
             anchorStroke={corSelecao}
-            borderStrokeWidth={2 / escala}
+            borderStrokeWidth={medidas.borderStrokeWidth}
             ignoreStroke
             boundBoxFunc={(antes, depois) => (depois.width < 20 || depois.height < 20 ? antes : depois)}
           />
