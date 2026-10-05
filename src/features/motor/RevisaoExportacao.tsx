@@ -124,7 +124,7 @@ export function RevisaoExportacao({ dados, pacote, medidor, guardado, irPara }: 
 
         <div className="space-y-6">
           <div className="space-y-2">
-            <h2 className="text-sm font-medium">Composição</h2>
+            <h2 className="flex items-center gap-2 text-sm font-medium"><span className="flex h-6 w-6 items-center justify-center rounded-full border border-primary text-xs text-primary">1</span>Escolher composição</h2>
             <div role="radiogroup" aria-label="Variante" className="grid grid-cols-2 gap-2">
               {(["A", "B"] as const).map((v) => (
                 <button key={v} type="button" role="radio" aria-checked={variante === v} disabled={!dados.documentos[v]} onClick={() => { setVariante(v); setPagina(0); }}
@@ -139,7 +139,7 @@ export function RevisaoExportacao({ dados, pacote, medidor, guardado, irPara }: 
 
           <ol className="space-y-6">
             <li className="space-y-2">
-              <h2 className="flex items-center gap-2 text-sm font-medium"><span className={cn("flex h-6 w-6 items-center justify-center rounded-full border text-xs", passoExp === "feito" ? "border-primary text-primary" : "border-border")}>1</span>Exportar ficheiros finais</h2>
+              <h2 className="flex items-center gap-2 text-sm font-medium"><span className={cn("flex h-6 w-6 items-center justify-center rounded-full border text-xs", passoExp === "feito" ? "border-primary text-primary" : "border-border")}>2</span>Gerar ficheiros</h2>
               <p className="text-xs text-muted-foreground">Da composição {variante} · v{doc.versao}: imagens PNG 1080×1350 para o Instagram (em ZIP) e um PDF vertical 1080×1350 com as mesmas páginas para o LinkedIn.</p>
               {!guardado && <p className="text-xs text-destructive" role="note">Há alterações por guardar. A exportação usa a última versão guardada (v{doc.versao}).</p>}
               {emCurso && (
@@ -169,7 +169,7 @@ export function RevisaoExportacao({ dados, pacote, medidor, guardado, irPara }: 
             </li>
 
             <li className="space-y-2">
-              <h2 className="flex items-center gap-2 text-sm font-medium"><span className={cn("flex h-6 w-6 items-center justify-center rounded-full border text-xs", draftAtual ? "border-primary text-primary" : "border-border")}>2</span>Aprovar e preparar rascunho</h2>
+              <h2 className="flex items-center gap-2 text-sm font-medium"><span className={cn("flex h-6 w-6 items-center justify-center rounded-full border text-xs", draftAtual ? "border-primary text-primary" : "border-border")}>3</span>Preparar rascunho</h2>
               {draftAtual ? (
                 <div className="space-y-2">
                   <p className="text-sm" role="status">Rascunho preparado — rever no Painel social. Nada foi publicado.</p>
@@ -187,15 +187,19 @@ export function RevisaoExportacao({ dados, pacote, medidor, guardado, irPara }: 
                       </div>}
                     </div>
                   )}
+                  {!concluido ? (
+                    <p className="text-sm text-muted-foreground" role="note">{!guardado ? "À espera que a última alteração fique guardada." : emCurso ? "À espera que os ficheiros desta versão fiquem prontos." : "A aprovação fica disponível depois de gerar os ficheiros desta versão (passo 2)."}</p>
+                  ) : (<>
                   <div className="flex items-start gap-3">
                     <Checkbox id="revisto" className="mt-0.5 h-5 w-5" checked={revisto && naoCabe.length === 0} onCheckedChange={(v) => setRevisto(v === true)} disabled={!concluido || !guardado || naoCabe.length > 0} />
                     <Label htmlFor="revisto" className="text-sm font-normal leading-snug">Revi a narrativa (v{doc.proposta_versao}) e a composição da variante {variante} (v{doc.versao}). Aprovo esta versão para rascunho.</Label>
                   </div>
-                  {(!concluido || !guardado) && <p className="text-xs text-muted-foreground" role="note">{!guardado ? "À espera que a última alteração fique guardada." : emCurso ? "À espera que a exportação desta versão termine." : "Exporta primeiro os ficheiros desta versão (passo 1); só depois se pode aprovar."}</p>}
+                  {!guardado && <p className="text-xs text-muted-foreground" role="note">À espera que a última alteração fique guardada.</p>}
                   <Button className="h-11" disabled={!revisto || naoCabe.length > 0 || !concluido || !guardado || aPreparar} onClick={preparar}>
                     {aPreparar ? <Loader2 className="mr-1.5 h-4 w-4 motion-safe:animate-spin" /> : <Send className="mr-1.5 h-4 w-4" />}Preparar rascunho social
                   </Button>
-                  <p className="text-xs text-muted-foreground">{concluido ? "Cria um único rascunho (Instagram + LinkedIn). Publicar continua a exigir aprovação no Painel social." : "Exporta esta versão primeiro."}</p>
+                  <p className="text-xs text-muted-foreground">Cria um único rascunho (Instagram + LinkedIn). Publicar continua a exigir aprovação no Painel social.</p>
+                  </>)}
                 </>
               )}
               {anteriores.length > 0 && (

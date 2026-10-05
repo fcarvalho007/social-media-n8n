@@ -787,7 +787,7 @@ export function EditorGrafico({ pacoteInicial, chaveLocal, titulo, seletor, real
       {faixaTopo}
       <header className="flex flex-wrap items-center gap-3 border-b border-border bg-background px-4 py-2">
         {cabecalhoInicio}
-        <h1 className="mr-2 text-base font-semibold">{titulo}</h1>
+        <h1 className="mr-2 min-w-0 max-w-[40ch] truncate text-base font-semibold" title={typeof titulo === "string" ? titulo : undefined}>{titulo}</h1>
         {seletorDoc}
         {seletorVariante}
         <div className="mx-1 h-6 w-px bg-border" aria-hidden />
