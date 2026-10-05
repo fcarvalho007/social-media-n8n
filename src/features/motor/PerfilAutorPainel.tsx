@@ -16,7 +16,7 @@ const CAMPOS = [
 ] as const;
 
 /** Per-project author voice. Saved on the backend; each new AI job takes a snapshot of it. */
-export function PerfilAutorPainel({ projectId }: { projectId: string }) {
+export function PerfilAutorPainel({ projectId, onPerfil }: { projectId: string; onPerfil?: (p: PerfilAutor | null) => void }) {
   const [p, setP] = useState<PerfilAutor | null>(null);
   const [guardado, setGuardado] = useState<string>("");
   const [msg, setMsg] = useState<string | null>(null);
@@ -24,7 +24,7 @@ export function PerfilAutorPainel({ projectId }: { projectId: string }) {
 
   useEffect(() => {
     let vivo = true; setP(null); setMsg(null);
-    lerPerfilAutor(projectId).then((r) => { if (vivo) { setP(r); setGuardado(JSON.stringify(r)); } }).catch((e: Error) => vivo && setMsg(e.message));
+    lerPerfilAutor(projectId).then((r) => { if (vivo) { setP(r); setGuardado(JSON.stringify(r)); onPerfil?.(r); } }).catch((e: Error) => vivo && setMsg(e.message));
     return () => { vivo = false; };
   }, [projectId]);
 
@@ -74,7 +74,7 @@ export function PerfilAutorPainel({ projectId }: { projectId: string }) {
       <div className="flex items-center gap-2">
         <Button size="sm" className="h-11 sm:h-8" disabled={!alterado || aGravar} onClick={async () => {
           setAGravar(true); setMsg(null);
-          try { await gravarPerfilAutor(projectId, p); setGuardado(JSON.stringify(p)); setMsg("Perfil gravado."); }
+          try { await gravarPerfilAutor(projectId, p); setGuardado(JSON.stringify(p)); onPerfil?.(p); setMsg("Perfil gravado."); }
           catch (e) { setMsg((e as Error).message); }
           finally { setAGravar(false); }
         }}>{aGravar && <Loader2 className="mr-1.5 h-4 w-4 motion-safe:animate-spin" />}Gravar perfil</Button>
