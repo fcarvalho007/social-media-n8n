@@ -114,3 +114,14 @@ describe("mínimo de contraste pelo tamanho real", () => {
     expect(o.contrastes.filter((c) => c.elemento !== "número da página").every((c) => c.razao >= 4.5)).toBe(true);
   });
 });
+
+import { deveRecarregarRevisao } from "@/features/motor/revisaoRecarga";
+describe("revisão relê a versão do servidor", () => {
+  it("só depois de a gravação pendente ficar guardada", () => {
+    expect(deveRecarregarRevisao("a_guardar", "guardado", "revisao")).toBe(true);
+    expect(deveRecarregarRevisao("a_guardar", "conflito", "revisao")).toBe(false);
+    expect(deveRecarregarRevisao("conflito", "a_guardar", "revisao")).toBe(false);
+    expect(deveRecarregarRevisao("guardado", "guardado", "revisao")).toBe(false);
+    expect(deveRecarregarRevisao("a_guardar", "guardado", "design")).toBe(false);
+  });
+});

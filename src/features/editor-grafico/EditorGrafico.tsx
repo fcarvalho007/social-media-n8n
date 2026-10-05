@@ -37,7 +37,8 @@ const ZOOM_MAX = 2;
 const dataHora = (s: string) => new Date(s).toLocaleString("pt-PT", { timeZone: "Europe/Lisbon", day: "2-digit", month: "2-digit", year: "numeric", hour: "2-digit", minute: "2-digit" });
 
 /** Honest names of the two real layouts composed by comporDocumentos (proposta.ts). */
-export const NOME_VARIANTE = { A: "Editorial claro", B: "Bloco de cor" } as const;
+/** Neutral labels: A and B are two compositions of the same narrative and may be customised, so no fixed style names. */
+export const NOME_VARIANTE = { A: "Composição A", B: "Composição B" } as const;
 
 function corToken(nome: string, recurso: string) {
   if (typeof window === "undefined") return recurso;
@@ -113,14 +114,24 @@ interface PropsPainel {
 
 const NOME_TIPO: Record<Camada["tipo"], string> = { texto: "Texto", imagem: "Imagem", forma: "Forma" };
 
-function PainelPropriedades({ pacote, camada: c, fundo, medidor, despachar, camadasPagina, onImagem, onFundoTodos }: PropsPainel & { onImagem?: () => void; onFundoTodos?: () => void }) {
+/** Human layer label derived from real data (role from ref/id, short excerpt); ids/refs untouched. */
+export function rotuloCamada(c: Camada, pacote: PacoteProva): { tipo: string; detalhe: string } {
+  if (c.tipo === "texto") {
+    const tipo = c.ref?.endsWith(".titulo") ? "Título" : c.id === "num" ? "Número da página" : "Texto";
+    const bruto = c.ref ? (() => { const [sid, campo] = c.ref!.split("."); const s = pacote.conteudo.slides.find((x) => x.id === sid); return s ? String((s as unknown as Record<string, unknown>)[campo] ?? "") : ""; })() : String((c as unknown as { texto?: string }).texto ?? "");
+    const t = bruto.replace(/\s+/g, " ").trim();
+    return { tipo: c.nome ?? tipo, detalhe: t.length > 40 ? `${t.slice(0, 40)}…` : t };
+  }
+  return { tipo: c.nome ?? NOME_TIPO[c.tipo], detalhe: c.tipo === "forma" ? `${Math.round(c.w)}×${Math.round(c.h)}` : "" };
+}
+
+function PainelPropriedades({ pacote, camada: c, fundo, medidor, despachar, camadasPagina, onImagem }: PropsPainel & { onImagem?: () => void }) {
   if (!c) {
     return (
       <div className="space-y-5">
         <section className="space-y-3">
           <h3 className="text-sm font-semibold">Página</h3>
-          <CorCampo id="fundo" rotulo="Cor de fundo (só este slide)" valor={fundo} onMudar={(cor) => despachar({ tipo: "fundo", cor })} />
-          {onFundoTodos && <Button variant="outline" className="h-auto min-h-11 w-full max-w-full justify-start whitespace-normal py-2 text-left lg:min-h-9" onClick={onFundoTodos}><CopyCheck className="mr-1.5 h-4 w-4 shrink-0" />Aplicar este fundo a todos os slides</Button>}
+          <p className="text-xs text-muted-foreground">Cor de fundo atual <span className="ml-1 inline-block h-3 w-3 rounded-sm border border-border align-middle" style={{ background: fundo }} /> {fundo} · muda-se na barra de ferramentas acima (só este slide; «Aplicar a todos» é separado e pode desfazer-se).</p>
           {onImagem && <Button variant="outline" className="h-11 w-full lg:h-9" onClick={onImagem}><ScanSearch className="mr-1.5 h-4 w-4" />Escolher imagem de fundo…</Button>}
         </section>
         <section className="space-y-2">
@@ -131,7 +142,7 @@ function PainelPropriedades({ pacote, camada: c, fundo, medidor, despachar, cama
                 <button type="button" onClick={() => despachar({ tipo: "selecionar", id: x.id })}
                   className="flex min-h-11 lg:min-h-9 w-full items-center gap-2 rounded-md px-2 text-left text-sm hover:bg-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring">
                   {x.tipo === "texto" ? <Type className="h-4 w-4 text-muted-foreground" /> : x.tipo === "imagem" ? <ScanSearch className="h-4 w-4 text-muted-foreground" /> : <Square className="h-4 w-4 text-muted-foreground" />}
-                  <span className="truncate">{x.nome ?? NOME_TIPO[x.tipo]}</span>
+                  {(() => { const r = rotuloCamada(x, pacote); return <span className="min-w-0 truncate" title={r.detalhe ? `${r.tipo}: ${r.detalhe}` : r.tipo}><span className="font-medium">{r.tipo}</span>{r.detalhe && <span className="text-muted-foreground"> · {r.detalhe}</span>}</span>; })()}
                 </button>
               </li>
             ))}
@@ -148,7 +159,7 @@ function PainelPropriedades({ pacote, camada: c, fundo, medidor, despachar, cama
   return (
     <div className="space-y-5">
       <div className="flex items-center justify-between gap-2">
-        <h3 className="truncate text-sm font-semibold">{c.nome ?? NOME_TIPO[c.tipo]}</h3>
+        <h3 className="truncate text-sm font-semibold" title={rotuloCamada(c, pacote).detalhe || undefined}>{rotuloCamada(c, pacote).tipo}</h3>
         <Button variant="ghost" size="icon" className="h-11 w-11 lg:h-8 lg:w-8" aria-label="Fechar seleção" onClick={() => despachar({ tipo: "selecionar", id: null })}><X className="h-4 w-4" /></Button>
       </div>
 
@@ -512,8 +523,8 @@ export function EditorGrafico({ pacoteInicial, chaveLocal, titulo, seletor, real
 
   const seletorVariante = (
     <ToggleGroup type="single" variant="outline" value={variante} onValueChange={(v) => v && despachar({ tipo: "variante", variante: v as "A" | "B" })} aria-label="Variante visual">
-      <ToggleGroupItem value="A" className="h-11 min-w-11 px-3" aria-label={`Variante A — ${NOME_VARIANTE.A}`}>A<span className="ml-1.5 hidden xl:inline">{NOME_VARIANTE.A}</span></ToggleGroupItem>
-      <ToggleGroupItem value="B" className="h-11 min-w-11 px-3" aria-label={`Variante B — ${NOME_VARIANTE.B}`}>B<span className="ml-1.5 hidden xl:inline">{NOME_VARIANTE.B}</span></ToggleGroupItem>
+      <ToggleGroupItem value="A" className="h-11 min-w-11 px-3" aria-label={`Variante A — ${NOME_VARIANTE.A}`}>A</ToggleGroupItem>
+      <ToggleGroupItem value="B" className="h-11 min-w-11 px-3" aria-label={`Variante B — ${NOME_VARIANTE.B}`}>B</ToggleGroupItem>
     </ToggleGroup>
   );
 
@@ -575,7 +586,7 @@ export function EditorGrafico({ pacoteInicial, chaveLocal, titulo, seletor, real
 
   const fundoTodos = () => { const p = paginaAtual && fundoATodos(pacote, variante, paginaAtual.fundo); if (p) { despachar({ tipo: "substituir", pacote: p }); comDesfazer("Fundo aplicado a todos os slides desta variante."); } else toast.info("Todos os slides já têm este fundo."); };
   const propriedades = medidor && paginaAtual && (
-    <PainelPropriedades pacote={pacote} camada={camada} fundo={paginaAtual.fundo} medidor={medidor} despachar={despachar} camadasPagina={paginaAtual.camadas} onImagem={onImagem} onFundoTodos={fundoTodos} />
+    <PainelPropriedades pacote={pacote} camada={camada} fundo={paginaAtual.fundo} medidor={medidor} despachar={despachar} camadasPagina={paginaAtual.camadas} onImagem={onImagem} />
   );
 
   const alterarSel = (patch: Partial<Camada>, agrupar?: string) => camada && despachar({ tipo: "camada", id: camada.id, patch, agrupar });
@@ -588,7 +599,7 @@ export function EditorGrafico({ pacoteInicial, chaveLocal, titulo, seletor, real
   const bt = "h-11 w-11 shrink-0 lg:h-9 lg:w-9";
   const sep = <span className="mx-0.5 h-6 w-px shrink-0 bg-border" aria-hidden />;
   const barraContexto = (
-    <div role="toolbar" aria-label={camada ? `Ferramentas: ${camada.nome ?? NOME_TIPO[camada.tipo]}` : "Ferramentas do slide"} className="flex min-w-0 flex-wrap items-center gap-1 border-b border-border bg-background px-2 py-1">
+    <div role="toolbar" aria-label={camada ? `Ferramentas: ${rotuloCamada(camada, pacote).tipo}` : "Ferramentas do slide"} className="flex min-w-0 flex-wrap items-center gap-1 border-b border-border bg-background px-2 py-1">
       {!camada && paginaAtual && (<>
         <label className="flex shrink-0 items-center gap-2 text-xs text-muted-foreground">Fundo deste slide
           <input type="color" value={paginaAtual.fundo} onChange={(e) => despachar({ tipo: "fundo", cor: e.target.value })} className="h-9 w-10 cursor-pointer rounded-md border border-input bg-background p-1" aria-label="Cor de fundo deste slide" />
@@ -731,7 +742,7 @@ export function EditorGrafico({ pacoteInicial, chaveLocal, titulo, seletor, real
             <Button variant="ghost" size="icon" className="h-11 w-11" aria-label="Fechar painel" onClick={() => setPainelAberto(false)}><X className="h-4 w-4" /></Button>
           </div>
           <div className="space-y-4 p-3">
-            {painelMovel === "pagina" && <>{zoomControlos}{acoesPagina}{medidor && paginaAtual && <PainelPropriedades pacote={pacote} camada={null} fundo={paginaAtual.fundo} medidor={medidor} despachar={despachar} camadasPagina={paginaAtual.camadas} onImagem={onImagem} onFundoTodos={fundoTodos} />}</>}
+            {painelMovel === "pagina" && <>{zoomControlos}{acoesPagina}{medidor && paginaAtual && <PainelPropriedades pacote={pacote} camada={null} fundo={paginaAtual.fundo} medidor={medidor} despachar={despachar} camadasPagina={paginaAtual.camadas} onImagem={onImagem} />}</>}
             {painelMovel === "camada" && (camada ? propriedades : <p className="text-sm text-muted-foreground">Toca num elemento da página.</p>)}
             {painelMovel !== "pagina" && painelMovel !== "camada" && inserir(painelMovel)}
           </div>

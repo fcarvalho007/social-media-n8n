@@ -89,7 +89,7 @@ export function RevisaoExportacao({ dados, pacote, medidor, guardado, irPara }: 
   return (
     <section className="mc-entrar space-y-6" aria-labelledby="t-rev">
       <div className="flex flex-wrap items-baseline justify-between gap-2">
-        <h1 id="t-rev" className="text-2xl font-semibold tracking-tight">Revisão</h1>
+        <h1 id="t-rev" className="text-2xl font-semibold tracking-tight">Preparar publicação</h1>
         <p className="text-xs text-muted-foreground">Composição v{doc.versao} · narrativa v{doc.proposta_versao}{doc.aprovada_versao === doc.versao ? " · revista e aprovada" : ""}</p>
       </div>
       <div className="grid gap-8 lg:grid-cols-[minmax(0,1fr)_360px]">
@@ -130,21 +130,21 @@ export function RevisaoExportacao({ dados, pacote, medidor, guardado, irPara }: 
                 <button key={v} type="button" role="radio" aria-checked={variante === v} disabled={!dados.documentos[v]} onClick={() => { setVariante(v); setPagina(0); }}
                   className={cn("mc-trans flex items-center gap-2 rounded-[var(--mc-r-md)] border p-2 text-left text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:opacity-50", variante === v ? "border-primary bg-primary/10" : "border-input")}>
                   {medidor && <span className="block w-10 shrink-0 overflow-hidden rounded-[var(--mc-r-sm)]"><PaginaCanvas pacote={pacote} variante={v} indice={0} medidor={medidor} imagens={imagens} escala={40 / 1080} /></span>}
-                  <span><span className="block text-xs text-muted-foreground">Variante {v}</span>{NOME_VARIANTE[v]}</span>
+                  <span>{NOME_VARIANTE[v]}</span>
                 </button>
               ))}
             </div>
-            <p className="text-xs text-muted-foreground">Editorial claro: páginas claras com régua de cor. Bloco de cor: páginas escuras com bloco de cor no título. O texto é o mesmo nas duas; não são redes.</p>
+            <p className="text-xs text-muted-foreground">A e B têm o mesmo texto em duas composições. Não são redes sociais nem versões: escolhe a que vais exportar.</p>
           </div>
 
           <ol className="space-y-6">
             <li className="space-y-2">
               <h2 className="flex items-center gap-2 text-sm font-medium"><span className={cn("flex h-6 w-6 items-center justify-center rounded-full border text-xs", passoExp === "feito" ? "border-primary text-primary" : "border-border")}>1</span>Exportar ficheiros finais</h2>
-              <p className="text-xs text-muted-foreground">No servidor: PNG 1080×1350 para o Instagram (ZIP) e PDF vertical com as mesmas páginas para o LinkedIn.</p>
+              <p className="text-xs text-muted-foreground">Da composição {variante} · v{doc.versao}: imagens PNG 1080×1350 para o Instagram (em ZIP) e um PDF vertical 1080×1350 com as mesmas páginas para o LinkedIn.</p>
               {!guardado && <p className="text-xs text-destructive" role="note">Há alterações por guardar. A exportação usa a última versão guardada (v{doc.versao}).</p>}
               {emCurso && (
                 <p className="flex items-center text-sm" role="status"><Loader2 className="mr-2 h-4 w-4 motion-safe:animate-spin" />
-                  {ex.progresso?.paginas_feitas ? `${ex.progresso.paginas_feitas} de ${ex.paginas} páginas renderizadas.` : "Na fila do servidor."} Podes sair; continua no servidor.
+                  {ex.progresso?.paginas_feitas ? `${ex.progresso.paginas_feitas} de ${ex.paginas} páginas renderizadas.` : "Na fila."} Podes sair desta página; a exportação continua.
                 </p>
               )}
               {ex?.estado === "erro" && <p className="text-sm text-destructive" role="alert">{ex.erro ?? "A exportação falhou."} As páginas já guardadas são reaproveitadas.</p>}
@@ -174,7 +174,7 @@ export function RevisaoExportacao({ dados, pacote, medidor, guardado, irPara }: 
                 <div className="space-y-2">
                   <p className="text-sm" role="status">Rascunho preparado — rever no Painel social. Nada foi publicado.</p>
                   <p className="text-xs text-muted-foreground">Falta escolher quando publicar: no Painel social, ativa «Publicar agora» ou indica data e hora. Até lá o Painel mostra «Corrige antes de publicar». O Instagram recebe as imagens; o LinkedIn recebe um PDF que o Painel cria com as mesmas páginas.</p>
-                  <Button asChild className="h-11"><Link to={`/manual-create?draft=${draftAtual}`}><ExternalLink className="mr-1.5 h-4 w-4" />Abrir rascunho</Link></Button>
+                  <Button asChild className="h-11"><Link to={`/manual-create?draft=${draftAtual}`}><ExternalLink className="mr-1.5 h-4 w-4" />Continuar na criação social</Link></Button>
                 </div>
               ) : (
                 <>
@@ -191,6 +191,7 @@ export function RevisaoExportacao({ dados, pacote, medidor, guardado, irPara }: 
                     <Checkbox id="revisto" className="mt-0.5 h-5 w-5" checked={revisto && naoCabe.length === 0} onCheckedChange={(v) => setRevisto(v === true)} disabled={!concluido || !guardado || naoCabe.length > 0} />
                     <Label htmlFor="revisto" className="text-sm font-normal leading-snug">Revi a narrativa (v{doc.proposta_versao}) e a composição da variante {variante} (v{doc.versao}). Aprovo esta versão para rascunho.</Label>
                   </div>
+                  {(!concluido || !guardado) && <p className="text-xs text-muted-foreground" role="note">{!guardado ? "À espera que a última alteração fique guardada." : emCurso ? "À espera que a exportação desta versão termine." : "Exporta primeiro os ficheiros desta versão (passo 1); só depois se pode aprovar."}</p>}
                   <Button className="h-11" disabled={!revisto || naoCabe.length > 0 || !concluido || !guardado || aPreparar} onClick={preparar}>
                     {aPreparar ? <Loader2 className="mr-1.5 h-4 w-4 motion-safe:animate-spin" /> : <Send className="mr-1.5 h-4 w-4" />}Preparar rascunho social
                   </Button>

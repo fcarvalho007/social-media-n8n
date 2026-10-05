@@ -115,14 +115,14 @@ export function PassoDesign({ pacote, medidor, onAplicar, slides, paragrafos, in
             <div className="space-y-3">
               <p role="status" className="text-sm font-medium">Pré-visualização — não aplicada <span className="font-normal text-muted-foreground">· o documento guardado só muda quando aplicares.</span></p>
               {opcoes.length === 0 ? <p className="text-sm text-muted-foreground">Este slide não tem título nem texto para recompor.</p> : (
-                <ul className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-5" aria-label="Composições">
+                <ul className="grid grid-cols-1 gap-3 min-[481px]:grid-cols-2 sm:grid-cols-3 lg:grid-cols-5" aria-label="Composições">
                   {opcoes.map((o) => {
                     const fracos = contrastesFracos(o);
                     return (
                       <li key={o.id}>
                         <button type="button" disabled={!o.cabe} aria-pressed={compSel === o.id} onClick={() => setCompSel(o.id)}
                           className={cn("block w-full rounded-[var(--mc-r-md)] border p-2 text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:cursor-not-allowed disabled:opacity-60", compSel === o.id ? "border-primary ring-1 ring-primary" : "border-border hover:border-muted-foreground")}>
-                          <span className="block overflow-hidden rounded-[var(--mc-r-sm)]"><PaginaCanvas pacote={previaPagina(pacote, variante, o.pagina)} variante={variante} indice={paginaSel} medidor={medidor} imagens={imagens} escala={160 / 1080} /></span>
+                          <span className="block overflow-hidden rounded-[var(--mc-r-sm)]"><PaginaCanvas pacote={previaPagina(pacote, variante, o.pagina)} variante={variante} indice={paginaSel} medidor={medidor} imagens={imagens} escala={(typeof window !== "undefined" && window.innerWidth <= 480 ? Math.min(320, window.innerWidth - 64) : 160) / 1080} /></span>
                           <span className="mt-2 flex items-center gap-1 text-sm font-medium">{compSel === o.id && <Check className="h-3.5 w-3.5 text-primary" />}{o.nome}</span>
                           <span className="block text-xs text-muted-foreground">{o.descricao}</span>
                           {!o.cabe && <span className="mt-1 block text-xs text-destructive">O texto não cabe aqui. Encurta o texto ou ajusta a caixa no editor.</span>}
