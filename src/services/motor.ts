@@ -42,6 +42,21 @@ export interface NovoTrabalho {
   project_id: string; texto: string; titulo: string; objetivo: string; tom: string; slides: number; modo?: "estruturacao" | "demonstracao" | "ia"; nova?: boolean;
   /** Framework proposal job (hidden from the library; applied only on explicit accept). */
   framework?: string; origem_trabalho?: string; angulo?: string | null; leitura_especifica?: string;
+  briefing?: { publico: string[]; publicoOutro: string; cta: string | null }; traducao_id?: string;
+}
+export interface ResultadoTraducao { traducao_id: string; hash: string; idioma_origem: string; original: string[]; paragrafos: string[]; reutilizada: boolean }
+/** Paid DeepSeek request (or reuse of a stored valid translation); call only after explicit confirmation. */
+export const traduzirFonte = (project_id: string, texto: string, repetir = false) => invocar<ResultadoTraducao>({ acao: "traduzir", project_id, texto, confirmar: true, repetir });
+/** Free lookup of a stored valid translation for this exact source hash. */
+export async function traducaoGuardada(projectId: string, hash: string): Promise<{ id: string; resultado: string[]; idioma_origem: string } | null> {
+  const { data } = await supabase.from("mc_traducoes").select("id, resultado, idioma_origem, estado").eq("project_id", projectId).eq("hash_original", hash).maybeSingle();
+  return data && data.estado === "valida" ? { id: data.id, resultado: data.resultado as string[], idioma_origem: data.idioma_origem } : null;
+}
+export interface UsoDetalhe { geracao: number; reparacao: number; traducao: number }
+export async function lerUsoDetalhe(projectId: string): Promise<UsoDetalhe> {
+  const { data } = await supabase.rpc("mc_uso_hoje_detalhe", { _project_id: projectId });
+  const r = (data as UsoDetalhe[] | null)?.[0];
+  return r ?? { geracao: 0, reparacao: 0, traducao: 0 };
 }
 export const criarTrabalho = (n: NovoTrabalho) => invocar<{ trabalho_id: string; reutilizado: boolean }>({ acao: "criar", ...n });
 export const retomarTrabalho = (id: string) => invocar<{ retomado: boolean }>({ acao: "retomar", trabalho_id: id });

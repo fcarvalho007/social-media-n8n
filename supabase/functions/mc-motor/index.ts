@@ -145,6 +145,8 @@ Deno.serve(async (req) => {
       const { data: orig } = await user.from("mc_trabalhos").select("brief").eq("id", origemId).eq("project_id", projectId).maybeSingle();
       const ob = (orig?.brief ?? null) as { autor?: Record<string, unknown>; leitura_trabalho?: { angulo?: unknown; especifica?: unknown } } | null;
       if (ob?.autor) { autor = normalizarPerfil(ob.autor); if ((ob as { briefing?: Record<string, unknown> }).briefing) briefingEd = normalizarBriefing((ob as { briefing?: Record<string, unknown> }).briefing); if (ob.leitura_trabalho) leituraTrabalho = normalizarLeitura(ob.leitura_trabalho.angulo, ob.leitura_trabalho.especifica); }
+      const otr = (ob as { traducao?: { id: string; hash_original: string; idioma_origem: string } } | null)?.traducao;
+      if (otr && !traducao) traducao = otr;
     }
     if (modo === "ia" && !autor) {
       const { data: pa } = await user.from("mc_perfis_autor").select("voz, notas, apresentacao, publico, teses, objetivo_cronica").eq("project_id", projectId).maybeSingle();
