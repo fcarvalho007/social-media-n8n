@@ -14,7 +14,7 @@ export const ABAS_INSERIR: { id: AbaInserir; nome: string; icone: typeof Type }[
   { id: "texto", nome: "Texto", icone: Type },
   { id: "imagens", nome: "Imagens", icone: ImageIcon },
   { id: "elementos", nome: "Elementos", icone: Shapes },
-  { id: "estilos", nome: "Estilos", icone: Palette },
+  { id: "estilos", nome: "Direção visual", icone: Palette },
 ];
 
 /** Drag payload understood by the canvas drop zone. */

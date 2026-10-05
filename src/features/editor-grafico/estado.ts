@@ -23,6 +23,10 @@ export type Acao =
   | { tipo: "adicionarImagem"; asset: Asset; nome: string; pos?: Ponto }
   /** Whole-document change (styles, "apply to all") recorded as one undo step. */
   | { tipo: "substituir"; pacote: PacoteProva }
+  /** Temporary visual draft shown on the real canvas: no history entry (Cancelar restores, Aplicar confirms). */
+  | { tipo: "previsualizar"; pacote: PacoteProva; variante?: Variante }
+  /** Confirms a draft: one undo step back to `antes`. */
+  | { tipo: "confirmar"; antes: PacoteProva }
   | { tipo: "fundo"; cor: string }
   | { tipo: "duplicarPagina"; indice: number }
   | { tipo: "moverPagina"; de: number; para: number }
@@ -60,7 +64,7 @@ const LIMITE_HISTORICO = 100;
 let ultimoGrupo: string | null = null;
 
 export function estadoInicial(pacote: PacoteProva): EstadoEditor {
-  return { pacote, variante: "A", pagina: 0, selecao: null, passado: [], futuro: [] };
+  return { pacote, variante: pacote.variantes.A.sistema?.variante ?? "A", pagina: 0, selecao: null, passado: [], futuro: [] };
 }
 
 function novoId(prefixo: string) {
@@ -102,7 +106,7 @@ export function reduzir(s: EstadoEditor, a: Acao): EstadoEditor {
       return { ...s, selecao: a.id };
     case "camada":
       return aplicar(s, comPagina(s.pacote, s.variante, s.pagina, (p) => ({
-        ...p, camadas: p.camadas.map((c) => (c.id === a.id ? ({ ...c, ...a.patch } as Camada) : c)),
+        ...p, camadas: p.camadas.map((c) => (c.id === a.id ? ({ ...c, ...a.patch, manual: true } as Camada) : c)),
       })), a.agrupar);
     case "texto": {
       // Shared editorial content: both variants reference it, so the change shows in A and B.
@@ -158,6 +162,12 @@ export function reduzir(s: EstadoEditor, a: Acao): EstadoEditor {
       }
       return aplicar(s, comPagina(pacote, s.variante, s.pagina, (p) => ({ ...p, camadas: [...p.camadas, nova] })), undefined, { selecao: nova.id });
     }
+    case "previsualizar": {
+      const v = a.variante ?? s.variante;
+      return { ...s, pacote: a.pacote, variante: v, pagina: Math.min(s.pagina, a.pacote.variantes[v].paginas.length - 1), selecao: null };
+    }
+    case "confirmar":
+      return { ...s, passado: [...s.passado, a.antes].slice(-LIMITE_HISTORICO), futuro: [] };
     case "substituir":
       return aplicar(s, a.pacote, undefined, ajustar(s, a.pacote));
     case "fundo":
@@ -194,8 +204,10 @@ export function reduzir(s: EstadoEditor, a: Acao): EstadoEditor {
 }
 
 function ajustar(s: EstadoEditor, p: PacoteProva): Partial<EstadoEditor> {
-  const n = p.variantes[s.variante].paginas.length;
+  // The active composition follows the document's visual system (so undo also restores it).
+  const variante = p.variantes.A.sistema?.variante ?? s.variante;
+  const n = p.variantes[variante].paginas.length;
   const pagina = Math.min(s.pagina, n - 1);
-  const existe = p.variantes[s.variante].paginas[pagina].camadas.some((c) => c.id === s.selecao);
-  return { pagina, selecao: existe ? s.selecao : null };
+  const existe = p.variantes[variante].paginas[pagina].camadas.some((c) => c.id === s.selecao);
+  return { variante, pagina, selecao: existe ? s.selecao : null };
 }

@@ -17,6 +17,8 @@ import { lerExportacao, pedirExportacao, prepararRascunho, type EstadoExportacao
 import JSZip from "jszip";
 import { comMarcaRascunho, notasIlegiveis, paginasComMarcador } from "../../../supabase/functions/_shared/motor/modelos";
 import { renderizarPaginaPng } from "@/features/editor-grafico/desenho";
+import { ESTILOS } from "../../../supabase/functions/_shared/motor/estilos";
+import { nomeVariante, obterPaleta, sistemaDoPacote } from "../../../supabase/functions/_shared/motor/sistema";
 import { transbordos, type Medidor, type PacoteProva, type Variante } from "../../../supabase/functions/_shared/documento-grafico/nucleo";
 
 interface Props {
@@ -26,14 +28,15 @@ interface Props {
   /** false while local edits are not yet saved as a server version */
   guardado: boolean;
   /** jumps to an earlier step to fix text that does not fit */
-  irPara?: (p: "narrativa" | "design" | "composicao") => void;
+  irPara?: (p: "narrativa" | "composicao") => void;
 }
 
 const kb = (b: number) => `${(b / 1024).toLocaleString("pt-PT", { maximumFractionDigits: 0 })} KB`;
 
 export function RevisaoExportacao({ dados, pacote, medidor, guardado, irPara }: Props) {
   const navegar = useNavigate();
-  const [variante, setVariante] = useState<Variante>("A");
+  const sisDoc = sistemaDoPacote(pacote);
+  const [variante, setVariante] = useState<Variante>(sisDoc?.variante ?? "A");
   const naoCabe = useMemo(() => (medidor ? [...new Set(transbordos(pacote, variante, medidor).map((t) => t.pagina + 1))] : []), [pacote, variante, medidor]);
   const doc = dados.documentos[variante];
   const [estado, setEstado] = useState<EstadoExportacao | null>(null);
@@ -150,6 +153,12 @@ export function RevisaoExportacao({ dados, pacote, medidor, guardado, irPara }: 
         <div className="space-y-6">
           <div className="space-y-2">
             <h2 className="flex items-center gap-2 text-sm font-medium"><span className="flex h-6 w-6 items-center justify-center rounded-full border border-primary text-xs text-primary">1</span>Escolher composição</h2>
+            {sisDoc ? (
+              <div className="flex flex-wrap items-center gap-2 text-sm">
+                <span>{ESTILOS.find((e) => e.id === sisDoc.estilo)?.nome} · {nomeVariante(sisDoc.estilo, sisDoc.variante)} · {obterPaleta(sisDoc.paleta).nome}</span>
+                {irPara && <Button variant="link" className="h-11 px-1" onClick={() => irPara("composicao")}>Alterar na Composição</Button>}
+              </div>
+            ) : <>
             <div role="radiogroup" aria-label="Variante" className="grid grid-cols-2 gap-2">
               {(["A", "B"] as const).map((v) => (
                 <button key={v} type="button" role="radio" aria-checked={variante === v} disabled={!dados.documentos[v]} onClick={() => { setVariante(v); setPagina(0); }}
@@ -159,7 +168,7 @@ export function RevisaoExportacao({ dados, pacote, medidor, guardado, irPara }: 
                 </button>
               ))}
             </div>
-            <p className="text-xs text-muted-foreground">A e B têm o mesmo texto em duas composições. Não são redes sociais nem versões: escolhe a que vais exportar.</p>
+            <p className="text-xs text-muted-foreground">A e B têm o mesmo texto em duas composições. Não são redes sociais nem versões: escolhe a que vais exportar.</p></>}
           </div>
 
           <ol className="space-y-6">
@@ -176,7 +185,7 @@ export function RevisaoExportacao({ dados, pacote, medidor, guardado, irPara }: 
               {notas.length > 0 && (
                 <div role="note" className="space-y-2 rounded-[var(--mc-r-md)] border border-border p-3 text-sm">
                   <p>{notas.length === 1 ? "Uma nota acrescentada à mão tem" : `${notas.length} notas acrescentadas à mão têm`} pouco contraste com o fundo (página {[...new Set(notas.map((n) => n.pagina + 1))].join(", ")}). A cor manual mantém-se até a mudares.</p>
-                  {irPara && <Button variant="outline" className="h-11" onClick={() => irPara("design")}>Rever no Design («Adaptar cor»)</Button>}
+                  {irPara && <Button variant="outline" className="h-11" onClick={() => irPara("composicao")}>Rever na Composição</Button>}
                 </div>
               )}
               {marcador.length > 0 && (!ex || ex.estado === "erro") && (
@@ -184,7 +193,7 @@ export function RevisaoExportacao({ dados, pacote, medidor, guardado, irPara }: 
                   <p className="text-destructive">A página {marcador.join(", ")} ainda mostra «Imagem por escolher». A exportação final fica bloqueada até escolheres uma imagem ou mudares de modelo.</p>
                   <div className="flex flex-wrap gap-2">
                     {irPara && <Button variant="outline" className="h-11" onClick={() => irPara("composicao")}>Escolher imagem</Button>}
-                    {irPara && <Button variant="outline" className="h-11" onClick={() => irPara("design")}>Mudar modelo</Button>}
+                    {irPara && <Button variant="outline" className="h-11" onClick={() => irPara("composicao")}>Mudar direção visual</Button>}
                     <Button variant="ghost" className="h-11" disabled={aTestar || !medidor} onClick={rascunhoTeste}>
                       {aTestar ? <Loader2 className="mr-1.5 h-4 w-4 motion-safe:animate-spin" /> : <FileDown className="mr-1.5 h-4 w-4" />}Rascunho de teste com marca de água
                     </Button>

@@ -136,7 +136,10 @@ describe("sem imagem é reversível", () => {
   it("modo none esconde a foto e voltar a hero restaura-a do asset lembrado", () => {
     const sem = aplicarSistema(pacote(), sis("editorial"), m, [5], comp("A", 5, { modo: "none", asset_id: "a1" })).pacote;
     expect(img(sem.variantes.A.paginas[5])).toBeUndefined();
-    const volta = aplicarSistema(sem, sis("editorial"), m, [5], comp("A", 5, { modo: "hero", asset_id: "a1" })).pacote;
+    // The page itself now carries the choice (single source of truth); change it there.
+    expect(sem.variantes.A.paginas[5].composicao).toMatchObject({ modo: "none", asset_id: "a1" });
+    const comHero = { ...sem, variantes: { ...sem.variantes, A: { ...sem.variantes.A, paginas: sem.variantes.A.paginas.map((p, i) => (i === 5 ? { ...p, composicao: { modo: "hero", asset_id: "a1" } } : p)) } } };
+    const volta = aplicarSistema(comHero, sis("editorial"), m, [5]).pacote;
     expect(img(volta.variantes.A.paginas[5])).toMatchObject({ asset_id: "a1", y: 0 });
   });
 });

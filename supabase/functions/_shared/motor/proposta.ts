@@ -3,7 +3,7 @@
  * Pure and dependency-free: imported by the browser (preview, editor), tests and the Deno worker.
  */
 import { aplicarRitmo, planoRitmo } from "./composicoes.ts";
-import { ALTURA, FONTE_DOC, LARGURA, type Camada, type DocumentoGrafico, type PacoteProva, type Pagina, type Variante } from "../documento-grafico/nucleo.ts";
+import { ALTURA, FONTE_DOC, LARGURA, PAPEIS_PAGINA, type Camada, type DocumentoGrafico, type PacoteProva, type Pagina, type Variante } from "../documento-grafico/nucleo.ts";
 
 export const LIMITES_FONTE = { min: 40, max: 20000, minSlides: 2, maxSlides: 10 } as const;
 export const MODELO_ESTRUTURACAO = "estruturacao-local";
@@ -21,6 +21,8 @@ export interface SlideProposta {
   texto: string;
   /** 1-based paragraph numbers of the normalised source backing this slide. */
   fontes: number[];
+  /** Visual role decided by the narrative from the slide's function in the story (optional for older proposals). */
+  papel_visual?: string;
 }
 
 export interface PropostaEditorial {
@@ -170,7 +172,8 @@ export function validarRespostaModelo(raw: string, f: FonteNormalizada, slidesPe
     const fontes = [...new Set(x.fontes as unknown[])];
     for (const n of fontes) if (!Number.isInteger(n) || (n as number) < 1 || (n as number) > f.paragrafos.length) throw new Error(`Slide ${i + 1}: referência §${String(n)} não existe (fonte tem ${f.paragrafos.length} parágrafos).`);
     if (papel !== "fecho" && fontes.length === 0) throw new Error(`Slide ${i + 1}: falta referência aos parágrafos da fonte.`);
-    return { id: `s${i + 1}`, papel, titulo: x.titulo.trim(), texto: x.texto.trim(), fontes: (fontes as number[]).sort((a, b) => a - b) };
+    const pv = typeof x.papel_visual === "string" && PAPEIS_PAGINA.includes(x.papel_visual) && (i === 0) === (x.papel_visual === "cover") ? x.papel_visual : undefined;
+    return { id: `s${i + 1}`, papel, titulo: x.titulo.trim(), texto: x.texto.trim(), fontes: (fontes as number[]).sort((a, b) => a - b), ...(pv ? { papel_visual: pv } : {}) };
   });
   let alt: string[] | null = null;
   if (Array.isArray(o.alt) && o.alt.length === slides.length && o.alt.every((a) => typeof a === "string" && a.trim())) alt = (o.alt as string[]).map((a) => a.trim().slice(0, 250));
@@ -268,7 +271,11 @@ export function comporDocumentos(p: PropostaEditorial, paragrafos?: string[]): R
   const plano = paragrafos ? planoRitmo(p.slides, paragrafos) : null;
   const doc = (variante: Variante, f: typeof paginaA): DocumentoGrafico => {
     const base = p.slides.map((s, i) => f(s, i, total, p.marca.cor));
-    return { v: 1, variante, largura: LARGURA, altura: ALTURA, fonte: FONTE_DOC, paginas: plano ? aplicarRitmo(base, plano, conteudo) : base };
+    const paginas = (plano ? aplicarRitmo(base, plano, conteudo) : base).map((pg, i) => {
+      const pv = p.slides[i]?.papel_visual;
+      return pv && PAPEIS_PAGINA.includes(pv) ? { ...pg, papel: pv } : pg;
+    });
+    return { v: 1, variante, largura: LARGURA, altura: ALTURA, fonte: FONTE_DOC, paginas };
   };
   return { A: doc("A", paginaA), B: doc("B", paginaB) };
 }

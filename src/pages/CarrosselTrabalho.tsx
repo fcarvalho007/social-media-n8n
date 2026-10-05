@@ -12,8 +12,8 @@ import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover
 import { useAuth } from "@/contexts/AuthContext";
 import { useProjeto } from "@/contexts/ProjetoContext";
 import { chaveRecuperacao, guardarRecuperacao, limparRecuperacao } from "@/lib/recuperacaoLocal";
-import type { ComposicaoImagem } from "../../supabase/functions/_shared/motor/imagem";
-import { abrirTrabalho, acordarFila, lerAssets, ConflitoVersao, gravarEdicao, lerVersao, listarVersoes, retomarTrabalho, criarTrabalho, lerSistemaVisual, definirSistemaVisual, lerComposicoes, definirComposicao, type ComposicoesGuardadas, type SistemaGuardado, type TrabalhoCompleto, type VersaoDoc } from "@/services/motor";
+import { migrarLegado } from "../../supabase/functions/_shared/motor/sistema";
+import { abrirTrabalho, acordarFila, lerAssets, ConflitoVersao, gravarEdicao, lerVersao, listarVersoes, retomarTrabalho, criarTrabalho, lerSistemaVisual, lerComposicoes, type TrabalhoCompleto, type VersaoDoc } from "@/services/motor";
 import { EditorGrafico } from "@/features/editor-grafico/EditorGrafico";
 import { PaginaCanvas } from "@/features/editor-grafico/PaginaCanvas";
 import { carregarMedidor } from "@/features/editor-grafico/fontes";
@@ -29,8 +29,6 @@ import type { Asset } from "../../supabase/functions/_shared/documento-grafico/n
 import { BarraAcoes, Cabecalho, Etapas, Grupo, PAPEL, Quadro, type Etapa } from "@/features/motor/Estudio";
 import { cn } from "@/lib/utils";
 import { deveRecarregarRevisao } from "@/features/motor/revisaoRecarga";
-import type { SistemaVisual } from "../../supabase/functions/_shared/motor/sistema";
-import { PassoDesign } from "@/features/motor/PassoDesign";
 import { consultarLeitura, type Conselho } from "../../supabase/functions/_shared/motor/leitura";
 
 type Passo = Etapa;
@@ -68,22 +66,6 @@ export default function CarrosselTrabalho() {
   const [passo, setPasso] = useState<Passo>("narrativa");
   const [gravado, setGravado] = useState<Gravado | null>(null);
   const [pacote, setPacote] = useState<PacoteProva | null>(null);
-  // Persisted visual system (style + variant + palette + breaks); Design and Composition both read it.
-  const [sistemaG, setSistemaG] = useState<SistemaGuardado | null>(null);
-  useEffect(() => { let vivo = true; lerSistemaVisual(id).then((s) => vivo && setSistemaG(s)).catch(() => undefined); return () => { vivo = false; }; }, [id]);
-  const [comps, setComps] = useState<ComposicoesGuardadas>({ mapa: {}, versoes: {} });
-  useEffect(() => { let vivo = true; lerComposicoes(id).then((c) => vivo && setComps(c)).catch(() => undefined); return () => { vivo = false; }; }, [id]);
-  const guardarComposicao = async (v: Variante, slide: string, c: ComposicaoImagem) => {
-    const k = `${v}:${slide}`;
-    const versao = await definirComposicao(id, v, slide, c, comps.versoes[k] ?? 0);
-    const mapa = { ...comps.mapa, [k]: c };
-    setComps({ mapa, versoes: { ...comps.versoes, [k]: versao } });
-    return mapa;
-  };
-  const guardarSistema = async (s: SistemaVisual) => {
-    try { const versao = await definirSistemaVisual(id, s, sistemaG?.versao ?? 0); setSistemaG({ sistema: s, versao }); }
-    catch (e) { toast.error((e as Error).message); }
-  };
   const [extras, setExtras] = useState<Extras>({ legenda: "", alt: [] });
   const [revisao, setRevisao] = useState(0);
   const [estadoG, setEstadoG] = useState<EstadoGravacao>("guardado");
@@ -93,11 +75,6 @@ export default function CarrosselTrabalho() {
   const [vendoVersao, setVendoVersao] = useState<{ versao: number; pacote: PacoteProva; variante: Variante } | null>(null);
   const [polls, setPolls] = useState(0);
   const [slideSel, setSlideSel] = useState(0);
-  const [designInicio, setDesignInicio] = useState<{ variante: Variante; pagina: number } | null>(null);
-  // Package before the last Design change: reverting saves it again as a NEW version (same CAS path).
-  const [antesDesign, setAntesDesign] = useState<PacoteProva | null>(null);
-  // Design change awaiting CAS confirmation: success is only claimed once the save reports "guardado".
-  const [alteracaoDesign, setAlteracaoDesign] = useState<null | { tipo: "aplicar" | "reverter"; confirmada: boolean }>(null);
   const passoDecidido = useRef(false);
   const assetsCache = useRef<Record<string, Asset>>({});
   const [assetsFalha, setAssetsFalha] = useState<string[]>([]);
@@ -128,7 +105,13 @@ export default function CarrosselTrabalho() {
         }
         setAssetsFalha(falhas);
         const assets = Object.fromEntries(ids.filter((x) => assetsCache.current[x]).map((x) => [x, assetsCache.current[x]]));
-        const base = paraPacote(id, d.trabalho.titulo ?? "Carrossel", g.conteudo, { A: g.docs.A.documento, B: g.docs.B.documento });
+        let base = paraPacote(id, d.trabalho.titulo ?? "Carrossel", g.conteudo, { A: g.docs.A.documento, B: g.docs.B.documento });
+        // One-way legacy migration: older works kept the visual system / image choices in side tables.
+        // They are copied into the document once; from then on the document is the only source of truth.
+        if (!base.variantes.A.sistema && !base.variantes.B.sistema) {
+          const [sl, cl] = await Promise.all([lerSistemaVisual(id).catch(() => null), lerComposicoes(id).catch(() => null)]);
+          base = migrarLegado(base, sl?.sistema ?? null, cl?.mapa ?? {});
+        }
         setPacote(falhas.length ? base : { ...base, assets });
         setExtras({ legenda: g.conteudo.legenda, alt: g.conteudo.alt });
         setRevisao((r) => r + 1);
@@ -203,16 +186,6 @@ export default function CarrosselTrabalho() {
     estadoAnt.current = estadoG;
   }, [estadoG]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  const viuAGuardar = useRef(false);
-  useEffect(() => {
-    if (!alteracaoDesign || alteracaoDesign.confirmada) { viuAGuardar.current = false; return; }
-    if (estadoG === "a_guardar") viuAGuardar.current = true;
-    else if (estadoG === "guardado" && viuAGuardar.current) {
-      viuAGuardar.current = false;
-      setAlteracaoDesign({ ...alteracaoDesign, confirmada: true });
-      toast.success(alteracaoDesign.tipo === "reverter" ? "Reversão gravada como nova versão" : "Alteração gravada como nova versão");
-    } else if (estadoG === "conflito" || estadoG === "local") viuAGuardar.current = false;
-  }, [estadoG, alteracaoDesign]);
 
   const alterarSlide = (sid: string, campo: "titulo" | "texto", valor: string) => {
     setPacote((p) => p && ({ ...p, conteudo: { slides: p.conteudo.slides.map((s) => (s.id === sid ? { ...s, [campo]: valor } : s)) } }));
@@ -286,7 +259,6 @@ export default function CarrosselTrabalho() {
     return consultarLeitura(pacote.conteudo.slides.map((x) => ({ id: x.id, papel: papel.get(x.id) ?? "", titulo: x.titulo, texto: x.texto })));
   }, [pacote, gravado]);
 
-  const [designPendente, setDesignPendente] = useState(false);
   const mainRef = useRef<HTMLElement>(null);
   const passoAnterior = useRef(passo);
   // Explicit step changes only: reset the step container scroll and move focus to the step heading.
@@ -307,7 +279,7 @@ export default function CarrosselTrabalho() {
   const fonte = normalizarFonte(dados.fonte.texto);
   const pronto = !!(gravado && pacote);
   const nome = t.titulo || prop?.titulo || "Carrossel";
-  const disponiveis: Etapa[] = pronto ? ["fonte", "narrativa", "design", "composicao", "revisao"] : ["fonte"];
+  const disponiveis: Etapa[] = pronto ? ["fonte", "narrativa", "composicao", "revisao"] : ["fonte"];
   const irPara = (p: Etapa) => { setPasso(p); if (p === "revisao" && estadoG === "guardado") void carregar(); };
 
   const totalAvisos = avisos.length + conselhos.length;
@@ -399,21 +371,20 @@ export default function CarrosselTrabalho() {
     return (
       <Quadro className="h-dvh min-h-0 overflow-hidden">
         <EditorGrafico key={`${id}-${revisao}`} pacoteInicial={pacote} chaveLocal={chave} real projectId={dados!.trabalho.project_id}
-          sistema={sistemaG?.sistema ?? null} onSistema={guardarSistema} medidorSistema={medidor ?? undefined} composicoes={comps.mapa} onComposicao={guardarComposicao}
+          medidorSistema={medidor ?? undefined}
           titulo={<span className="truncate">{nome}</span>}
           faixaTopo={
             <div className="flex items-center gap-2 border-b border-border px-2 py-1 sm:px-4">
               <Button asChild variant="ghost" size="icon" className="h-11 w-11 shrink-0" aria-label="Voltar aos carrosséis"><Link to="/estudio/carrosseis"><ArrowLeft className="h-4 w-4" /></Link></Button>
               <div className="min-w-0 flex-1"><Etapas atual="composicao" disponiveis={disponiveis} onIr={irPara} compacto /></div>
-              <Button size="icon" className="h-11 w-11 shrink-0 md:hidden" aria-label="Ir para a etapa 5, Preparar publicação" title="Preparar publicação" onClick={() => irPara("revisao")}><ArrowRight className="h-4 w-4" /></Button>
+              <Button size="icon" className="h-11 w-11 shrink-0 md:hidden" aria-label="Ir para a etapa 4, Preparar publicação" title="Preparar publicação" onClick={() => irPara("revisao")}><ArrowRight className="h-4 w-4" /></Button>
               <Button className="hidden h-11 shrink-0 md:inline-flex" onClick={() => irPara("revisao")}>Preparar publicação<ArrowRight className="ml-1.5 h-4 w-4" /></Button>
             </div>
           }
           estadoGravacao={<div className="flex items-center gap-2">{avisoBadge}<EstadoChip estado={estadoG} /></div>}
           menuExtra={<><DropdownMenuSeparator /><DropdownMenuItem onSelect={() => abrirVersoes("A")}><History className="mr-2 h-4 w-4" />Versões da variante A</DropdownMenuItem><DropdownMenuItem onSelect={() => abrirVersoes("B")}><History className="mr-2 h-4 w-4" />Versões da variante B</DropdownMenuItem></>}
           pedirImagem={() => new Promise((res) => { resolverSeletor.current = res; setSeletor(true); })}
-          onAlterado={(p) => setPacote(p)}
-          onComposicoes={(variante, pagina) => { setDesignInicio({ variante, pagina }); irPara("design"); }} />
+          onAlterado={(p) => setPacote(p)} />
         <SeletorImagens projectId={dados!.trabalho.project_id} aberto={seletor} onFechar={(r) => { setSeletor(false); resolverSeletor.current?.(r); resolverSeletor.current = null; }} />
         {dialogos}
       </Quadro>
@@ -553,33 +524,6 @@ export default function CarrosselTrabalho() {
           </section>
         )}
 
-        {passo === "design" && pronto && pacote && medidor && (
-          <>
-            {alteracaoDesign && (() => {
-              const falhou = estadoG === "conflito" || estadoG === "local";
-              const confirmada = alteracaoDesign.confirmada;
-              const rev = alteracaoDesign.tipo === "reverter";
-              return (
-                <div role="status" aria-live="polite" className="mb-4 flex flex-wrap items-center gap-2 rounded-[var(--mc-r-md)] border border-border px-3 py-2 text-sm">
-                  <span className={cn("mr-auto flex items-center", falhou && "text-destructive")}>
-                    {!confirmada && !falhou && <Loader2 className="mr-2 h-4 w-4 motion-safe:animate-spin" aria-hidden />}
-                    {falhou ? (estadoG === "conflito" ? "Não foi gravado: há uma versão mais recente. Resolve o conflito antes de continuar." : "Não foi gravado no servidor; a alteração ficou só neste dispositivo.")
-                      : !confirmada ? (rev ? "A gravar a reversão…" : "A gravar a alteração como nova versão…")
-                      : rev ? "Reversão gravada como nova versão. As versões anteriores continuam guardadas." : "Alteração aplicada e gravada como nova versão. As versões anteriores continuam guardadas."}
-                  </span>
-                  {confirmada && !rev && antesDesign && (
-                    <Button variant="outline" size="sm" className="h-10" disabled={estadoG !== "guardado"}
-                      onClick={() => { setPacote(antesDesign); setAntesDesign(null); setAlteracaoDesign({ tipo: "reverter", confirmada: false }); }}>Reverter esta alteração</Button>
-                  )}
-                  {(confirmada || falhou) && <Button variant="ghost" size="sm" className="h-10" onClick={() => abrirVersoes("A")}><History className="mr-1.5 h-4 w-4" />Ver versões</Button>}
-                </div>
-              );
-            })()}
-            <PassoDesign key={designInicio ? `${designInicio.variante}${designInicio.pagina}` : `d${sistemaG?.versao ?? 0}`} inicio={designInicio} sistema={sistemaG?.sistema ?? null} composicoes={comps.mapa} pacote={pacote} medidor={medidor} slides={prop.slides} paragrafos={fonte.paragrafos} onPendente={setDesignPendente}
-              onAplicar={(p, s) => { if (estadoG !== "guardado") { toast.error("Há alterações por gravar. Espera por «Guardado» e tenta de novo."); return; } setAntesDesign(pacote); setPacote(p); setAlteracaoDesign({ tipo: "aplicar", confirmada: false }); if (s) void guardarSistema(s); }} />
-          </>
-        )}
-
         {passo === "revisao" && pronto && pacote && (
           <RevisaoExportacao dados={dados} pacote={pacote} medidor={medidor} guardado={estadoG === "guardado"} irPara={irPara} />
         )}
@@ -588,14 +532,12 @@ export default function CarrosselTrabalho() {
       {pronto && passo !== "revisao" && (
         <BarraAcoes
           inicio={passo === "narrativa" ? <Button variant="ghost" className="h-11" onClick={() => setPasso("fonte")}><ArrowLeft className="mr-1.5 h-4 w-4" />Fonte</Button>
-            : passo === "design" ? <Button variant="ghost" className="h-11" onClick={() => setPasso("narrativa")}><ArrowLeft className="mr-1.5 h-4 w-4" />Narrativa</Button> : null}
+ : null}
           fim={passo === "fonte"
             ? <Button className="h-11 px-5" onClick={() => setPasso("narrativa")}>Narrativa<ArrowRight className="ml-1.5 h-4 w-4" /></Button>
             : passo === "narrativa"
-            ? <Button className="h-11 px-5" onClick={() => setPasso("design")}>Design<ArrowRight className="ml-1.5 h-4 w-4" /></Button>
-            : designPendente
-            ? <Button variant="outline" className="h-11 px-4" onClick={() => setPasso("composicao")} aria-label="Continuar para composição sem aplicar a composição escolhida"><span className="sm:hidden">Sem aplicar</span><span className="hidden sm:inline">Continuar sem aplicar</span><ArrowRight className="ml-1.5 h-4 w-4" /></Button>
-            : <Button className="h-11 px-5" onClick={() => setPasso("composicao")} aria-label="Continuar para composição"><span className="sm:hidden">Composição</span><span className="hidden sm:inline">Continuar para composição</span><ArrowRight className="ml-1.5 h-4 w-4" /></Button>}
+            ? <Button className="h-11 px-5" onClick={() => setPasso("composicao")}>Composição<ArrowRight className="ml-1.5 h-4 w-4" /></Button>
+            : null}
         />
       )}
       {pronto && passo === "revisao" && (
