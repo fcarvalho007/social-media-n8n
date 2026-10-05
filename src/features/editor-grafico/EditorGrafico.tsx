@@ -21,6 +21,9 @@ import { ALTURA, FAMILIAS, LARGURA, NOME_FAMILIA, layoutTexto, resolverTexto, va
 import { aplicarEstilo, type Estilo } from "../../../supabase/functions/_shared/motor/estilos";
 import { aplicarSistema, obterPaleta, quebrasPadrao, slidesQuebra, type SistemaVisual } from "../../../supabase/functions/_shared/motor/sistema";
 import { Switch } from "@/components/ui/switch";
+import { PainelImagemSlide } from "./PainelImagemSlide";
+import { slideDaPagina } from "@/features/motor/variacoes";
+import type { ComposicaoImagem, ComposicoesImagem } from "../../../supabase/functions/_shared/motor/imagem";
 import { carregarFicheiro, ficheiroDoArrasto } from "@/features/editor-grafico/carregar";
 import { ABAS_INSERIR, MIME_INSERIR, PainelInserir, resolverBiblioteca, type AbaInserir, type Inserivel } from "@/features/editor-grafico/PainelInserir";
 import { alinharNaPagina, aplicarATodos, fundoATodos, PRESETS_TAMANHO, tamanhoMais, type Alinhar } from "@/features/editor-grafico/operacoes";
@@ -304,9 +307,13 @@ export interface PropsEditorGrafico {
   sistema?: SistemaVisual | null;
   onSistema?: (s: SistemaVisual) => void;
   medidorSistema?: Medidor;
+  /** Per-slide image composition overrides and their CAS save. */
+  composicoes?: ComposicoesImagem;
+  onComposicao?: (variante: Variante, slideId: string, c: ComposicaoImagem) => Promise<ComposicoesImagem>;
 }
 
-export function EditorGrafico({ pacoteInicial, chaveLocal, titulo, seletor, real = false, estadoGravacao, cabecalhoInicio, menuExtra, onAlterado, faixaTopo, pedirImagem, projectId, onComposicoes, sistema, onSistema, medidorSistema }: PropsEditorGrafico) {
+export function EditorGrafico({ pacoteInicial, chaveLocal, titulo, seletor, real = false, estadoGravacao, cabecalhoInicio, menuExtra, onAlterado, faixaTopo, pedirImagem, projectId, onComposicoes, sistema, onSistema, medidorSistema, composicoes = {}, onComposicao }: PropsEditorGrafico) {
+  const [aGravarImg, setAGravarImg] = useState(false);
   const [estiloPend, setEstiloPend] = useState<Estilo | null>(null);
   const { user } = useAuth();
   const [compacto, setCompacto] = useState(() => typeof window !== "undefined" && window.innerWidth < 1180);
@@ -338,12 +345,25 @@ export function EditorGrafico({ pacoteInicial, chaveLocal, titulo, seletor, real
 
   const comDesfazer = (msg: string) => toast.success(msg, { action: { label: "Desfazer", onClick: () => despachar({ tipo: "desfazer" }) } });
   /** Applies a system through the same renderer as the Design step (both variants: A gets A, B gets B). */
-  const aplicarSistemaEditor = (novo: SistemaVisual, paginas?: number[], msg?: string) => {
-    const r = aplicarSistema(pacote, novo, medidorSistema, paginas);
+  const aplicarSistemaEditor = (novo: SistemaVisual, paginas?: number[], msg?: string, mapa: ComposicoesImagem = composicoes) => {
+    const r = aplicarSistema(pacote, novo, medidorSistema, paginas, mapa);
     despachar({ tipo: "substituir", pacote: r.pacote });
     onSistema?.(novo);
-    const avisos = [r.recusadas.length ? `${r.recusadas.length} página(s) não cabem e ficam como estavam` : "", r.quebrasRecusadas.length ? `${r.quebrasRecusadas.length} quebra(s) não cabem e usam a composição normal` : ""].filter(Boolean).join("; ");
+    const avisos = [r.recusadas.length ? `${r.recusadas.length} página(s) não cabem e ficam como estavam` : "", r.quebrasRecusadas.length ? `${r.quebrasRecusadas.length} quebra(s) não cabem e usam a composição normal` : "", r.imagemRecusadas.length ? "o texto não cabe nesse modo de imagem; o slide fica como estava" : ""].filter(Boolean).join("; ");
     comDesfazer(`${msg ?? "Sistema visual aplicado"}${avisos ? ` (${avisos})` : ""}.`);
+  };
+  const slideAtual = slideDaPagina(pacote.variantes[variante].paginas[pagina] ?? { id: "", fundo: "", camadas: [] });
+  const decisaoAtual = useMemo(() => (sistema && slideAtual ? aplicarSistema(pacote, sistema, medidorSistema, [pagina], composicoes).decisoes[`${variante}:${pagina}`] ?? null : null),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [sistema, slideAtual, pagina, variante, composicoes]);
+  const mudarImagemSlide = async (c: ComposicaoImagem, msg: string) => {
+    if (!sistema || !slideAtual || !onComposicao) return;
+    const atual = (pacote.variantes[variante].paginas[pagina]?.camadas ?? []).find((k) => k.tipo === "imagem");
+    if (atual && atual.tipo === "imagem") c = { ...c, asset_id: atual.asset_id };
+    setAGravarImg(true);
+    try { const mapa = await onComposicao(variante, slideAtual, c); aplicarSistemaEditor(sistema, [pagina], msg, mapa); }
+    catch (e) { toast.error((e as Error).message); }
+    finally { setAGravarImg(false); }
   };
   const aplicarEstiloVariante = (e: Estilo) => {
     if (onSistema) { setEstiloPend(e); return; }
@@ -712,6 +732,7 @@ export function EditorGrafico({ pacoteInicial, chaveLocal, titulo, seletor, real
             </label>
           ))}
           <p className="text-xs text-muted-foreground">Desligar só muda a composição desse slide; o texto fica igual.</p>
+          {onComposicao && slideAtual && <PainelImagemSlide key={`${variante}:${slideAtual}`} decisao={decisaoAtual} comp={composicoes[`${variante}:${slideAtual}`] ?? {}} temImagem={(pacote.variantes[variante].paginas[pagina]?.camadas ?? []).some((k) => k.tipo === "imagem") || !!composicoes[`${variante}:${slideAtual}`]?.asset_id} ocupado={aGravarImg} onMudar={mudarImagemSlide} onSubstituir={onImagem} />}
         </div>
       ) : <p className="text-xs text-muted-foreground">Sem sistema visual guardado. Escolhe um estilo acima ou no passo Design.</p>) : undefined}
       onComposicoes={onComposicoes ? () => onComposicoes(variante, pagina) : undefined}

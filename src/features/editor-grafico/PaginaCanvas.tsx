@@ -6,7 +6,7 @@ import {
   ALTURA, ICONES, LARGURA, calcularRecorte, tracarMascara, rgba, camadasOrdenadas, resolverTexto,
   type Camada, type Medidor, type PacoteProva, type Variante,
 } from "../../../supabase/functions/_shared/documento-grafico/nucleo";
-import { desenharTexto } from "./desenho";
+import { desenharTexto, propsGradiente } from "./desenho";
 
 interface Props {
   pacote: PacoteProva;
@@ -29,7 +29,7 @@ interface Props {
 
 function Conteudo({ c, pacote, medidor, imagens }: { c: Camada; pacote: PacoteProva; medidor: Medidor; imagens: Record<string, HTMLImageElement> }) {
   if (c.tipo === "forma") {
-    if (c.forma === "gradiente") return <Rect width={c.w} height={c.h} fillLinearGradientStartPoint={{ x: 0, y: 0 }} fillLinearGradientEndPoint={{ x: 0, y: c.h }} fillLinearGradientColorStops={[0, rgba(c.estilo.cor, 0), 1, rgba(c.estilo.cor, 1)]} />;
+    if (c.forma === "gradiente") return <Rect width={c.w} height={c.h} {...propsGradiente(c)} />;
     if (c.forma === "icone") return <><Rect width={c.w} height={c.h} fill="transparent" /><Path data={ICONES[c.estilo.icone ?? "seta"]} scaleX={c.w / 24} scaleY={c.h / 24} fill={c.estilo.cor} fillRule="evenodd" /></>;
     return c.forma === "ret"
       ? <Rect width={c.w} height={c.h} cornerRadius={c.estilo.raio ?? 0} fill={c.estilo.cor} />

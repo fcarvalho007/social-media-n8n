@@ -305,6 +305,22 @@ export async function lerSistemaVisual(trabalhoId: string): Promise<SistemaGuard
 /** CAS save: fails with a clear message when someone else changed it meanwhile. */
 export async function definirSistemaVisual(trabalhoId: string, s: SistemaVisual, versaoEsperada: number): Promise<number> {
   const { data, error } = await supabase.rpc("mc_definir_sistema_visual", { _trabalho_id: trabalhoId, _estilo: s.estilo, _variante: s.variante, _paleta: s.paleta, _quebras: s.quebras, _versao_esperada: versaoEsperada });
-  if (error) throw new Error(error.code === "40001" ? "O sistema visual foi alterado noutra sessão. Recarrega antes de aplicar." : "Não foi possível guardar o sistema visual.");
+  if (error) throw new Error(error.code === "MC409" || error.code === "40001" ? "O sistema visual foi alterado noutra sessão. Recarrega antes de aplicar." : "Não foi possível guardar o sistema visual.");
+  return data as number;
+}
+
+import type { ComposicaoImagem, ComposicoesImagem } from "../../supabase/functions/_shared/motor/imagem";
+export interface ComposicoesGuardadas { mapa: ComposicoesImagem; versoes: Record<string, number> }
+/** Per-slide image composition overrides (absent = automático). */
+export async function lerComposicoes(trabalhoId: string): Promise<ComposicoesGuardadas> {
+  const { data, error } = await supabase.from("mc_composicao_paginas").select("variante, slide_id, composicao, versao").eq("trabalho_id", trabalhoId);
+  if (error) throw new Error("Não foi possível ler a composição das imagens.");
+  const mapa: ComposicoesImagem = {}, versoes: Record<string, number> = {};
+  for (const r of data ?? []) { const k = `${r.variante}:${r.slide_id}`; mapa[k] = r.composicao as ComposicaoImagem; versoes[k] = r.versao; }
+  return { mapa, versoes };
+}
+export async function definirComposicao(trabalhoId: string, variante: Variante, slideId: string, c: ComposicaoImagem, versaoEsperada: number): Promise<number> {
+  const { data, error } = await supabase.rpc("mc_definir_composicao_pagina", { _trabalho_id: trabalhoId, _variante: variante, _slide_id: slideId, _composicao: c as never, _versao_esperada: versaoEsperada });
+  if (error) throw new Error(error.code === "MC409" ? "A composição deste slide foi alterada noutra sessão. Recarrega." : error.code === "42501" ? "Sem acesso a esta imagem ou projeto." : "Não foi possível guardar a composição da imagem.");
   return data as number;
 }

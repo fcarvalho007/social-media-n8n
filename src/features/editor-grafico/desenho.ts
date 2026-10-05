@@ -1,7 +1,7 @@
 import Konva from "konva";
 import {
-  ALTURA, ICONES, LARGURA, calcularRecorte, tracarMascara, rgba, camadasOrdenadas, layoutTexto, resolverTexto,
-  type Asset, type Camada, type CamadaTexto, type Medidor, type PacoteProva, type Variante,
+  ALTURA, ICONES, LARGURA, calcularRecorte, tracarMascara, rgba, camadasOrdenadas, layoutTexto, resolverTexto, geometriaGradiente,
+  type Asset, type Camada, type CamadaForma, type CamadaTexto, type Medidor, type PacoteProva, type Variante,
 } from "../../../supabase/functions/_shared/documento-grafico/nucleo";
 
 /** Draws a text layer from the shared layout (same line breaks and baselines as the SVG renderer). */
@@ -37,11 +37,21 @@ export async function carregarImagens(p: PacoteProva): Promise<Record<string, HT
   return out;
 }
 
+/** Konva fill props for a gradient layer, in shape-local coordinates, from the shared geometry. */
+export function propsGradiente(c: CamadaForma): Record<string, unknown> {
+  const g = geometriaGradiente(c);
+  const stops = g.paragens.flatMap(([o, a]) => [o, rgba(c.estilo.cor, a)]);
+  const p1 = { x: g.x1 - c.x, y: g.y1 - c.y }, p2 = { x: g.x2 - c.x, y: g.y2 - c.y };
+  return g.radial
+    ? { fillRadialGradientStartPoint: p1, fillRadialGradientEndPoint: p2, fillRadialGradientStartRadius: 0, fillRadialGradientEndRadius: g.raio, fillRadialGradientColorStops: stops }
+    : { fillLinearGradientStartPoint: p1, fillLinearGradientEndPoint: p2, fillLinearGradientColorStops: stops };
+}
+
 /** Imperative Konva node for one layer (used for export; the editor uses the same geometry). */
 function no(c: Camada, p: PacoteProva, imgs: Record<string, HTMLImageElement>, m: Medidor): Konva.Node {
   const op = c.opacidade ?? 1;
   if (c.tipo === "forma") {
-    if (c.forma === "gradiente") return new Konva.Rect({ x: c.x, y: c.y, width: c.w, height: c.h, opacity: op, fillLinearGradientStartPoint: { x: 0, y: 0 }, fillLinearGradientEndPoint: { x: 0, y: c.h }, fillLinearGradientColorStops: [0, rgba(c.estilo.cor, 0), 1, rgba(c.estilo.cor, 1)] });
+    if (c.forma === "gradiente") return new Konva.Rect({ x: c.x, y: c.y, width: c.w, height: c.h, opacity: op, ...propsGradiente(c) });
     if (c.forma === "icone") return new Konva.Path({ x: c.x, y: c.y, data: ICONES[c.estilo.icone ?? "seta"], scaleX: c.w / 24, scaleY: c.h / 24, fill: c.estilo.cor, fillRule: "evenodd", opacity: op });
     return c.forma === "ret"
       ? new Konva.Rect({ x: c.x, y: c.y, width: c.w, height: c.h, cornerRadius: c.estilo.raio ?? 0, fill: c.estilo.cor, opacity: op })

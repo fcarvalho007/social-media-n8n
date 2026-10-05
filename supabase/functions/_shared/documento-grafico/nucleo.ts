@@ -112,7 +112,36 @@ export interface CamadaForma extends CamadaBase {
   tipo: "forma";
   /** "gradiente": vertical fade from transparent (top) to `cor` (bottom); "icone": vector icon `estilo.icone`. */
   forma: "ret" | "elipse" | "gradiente" | "icone";
-  estilo: { cor: string; raio?: number; icone?: IconeId };
+  estilo: { cor: string; raio?: number; icone?: IconeId; direcao?: DirecaoGradiente; inicio?: number; intensidade?: number };
+}
+
+/** Where the gradient is darkest. "centro" = localized mask behind centred text; "vinheta" = dark edges. */
+export type DirecaoGradiente = "base" | "topo" | "esquerda" | "direita" | "centro" | "vinheta";
+export const DIRECOES_GRADIENTE: readonly DirecaoGradiente[] = ["base", "topo", "esquerda", "direita", "centro", "vinheta"];
+export interface GeometriaGradiente {
+  radial: boolean;
+  /** Absolute page coordinates (userSpaceOnUse); linear: start→end; radial: centre + radius. */
+  x1: number; y1: number; x2: number; y2: number; raio: number;
+  /** [offset 0..1, alpha 0..1] */
+  paragens: Array<[number, number]>;
+}
+/**
+ * Single source of gradient geometry for canvas (Konva) and SVG/PNG. Defaults reproduce the legacy
+ * vertical fade (transparent top → solid bottom), so old documents render exactly as before.
+ */
+export function geometriaGradiente(c: Pick<CamadaForma, "x" | "y" | "w" | "h" | "estilo">): GeometriaGradiente {
+  const d = c.estilo.direcao ?? "base";
+  const ini = Math.min(0.95, Math.max(0, c.estilo.inicio ?? 0));
+  const a = Math.min(1, Math.max(0, c.estilo.intensidade ?? 1));
+  const { x, y, w, h } = c;
+  if (d === "centro" || d === "vinheta") {
+    const raio = Math.max(w, h) * (d === "centro" ? 0.55 : 0.75);
+    const paragens: Array<[number, number]> = d === "centro" ? [[0, a], [Math.max(ini, 0.35), a * 0.85], [1, 0]] : [[0, 0], [Math.max(ini, 0.4), 0], [1, a]];
+    return { radial: true, x1: x + w / 2, y1: y + h / 2, x2: x + w / 2, y2: y + h / 2, raio, paragens };
+  }
+  const [x1, y1, x2, y2] = d === "base" ? [x, y, x, y + h] : d === "topo" ? [x, y + h, x, y] : d === "direita" ? [x, y, x + w, y] : [x + w, y, x, y];
+  const paragens: Array<[number, number]> = ini > 0 ? [[0, 0], [ini, 0], [Math.min(1, ini + (1 - ini) * 0.55), a * 0.75], [1, a]] : [[0, 0], [1, a]];
+  return { radial: false, x1, y1, x2, y2, raio: 0, paragens };
 }
 
 /** Hex #rrggbb + alpha → rgba() string. */
@@ -256,7 +285,12 @@ function validarCamada(v: unknown, onde: string, assets: Record<string, Asset>):
       ...base,
       tipo: "forma",
       forma: c.forma,
-      estilo: { cor: cor(e.cor, `${onde}.estilo.cor`), raio: e.raio === undefined ? undefined : num(e.raio, `${onde}.estilo.raio`, 0, 1000), icone: c.forma === "icone" ? e.icone as IconeId : undefined },
+      estilo: {
+        cor: cor(e.cor, `${onde}.estilo.cor`), raio: e.raio === undefined ? undefined : num(e.raio, `${onde}.estilo.raio`, 0, 1000), icone: c.forma === "icone" ? e.icone as IconeId : undefined,
+        ...(c.forma === "gradiente" && e.direcao !== undefined ? { direcao: DIRECOES_GRADIENTE.includes(e.direcao as DirecaoGradiente) ? e.direcao as DirecaoGradiente : falha(`${onde}.estilo.direcao inválida.`) } : {}),
+        ...(c.forma === "gradiente" && e.inicio !== undefined ? { inicio: num(e.inicio, `${onde}.estilo.inicio`, 0, 1) } : {}),
+        ...(c.forma === "gradiente" && e.intensidade !== undefined ? { intensidade: num(e.intensidade, `${onde}.estilo.intensidade`, 0, 1) } : {}),
+      },
     };
   }
   return falha(`${onde}: tipo de camada desconhecido.`);
@@ -604,7 +638,11 @@ export function paginaParaSvg(pacote: PacoteProva, variante: Variante, indice: n
     if (c.tipo === "forma") {
       if (c.forma === "gradiente") {
         const gid = `g-${esc(c.id)}-${Math.round(c.y)}`;
-        partes.push(`<defs><linearGradient id="${gid}" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="${c.estilo.cor}" stop-opacity="0"/><stop offset="1" stop-color="${c.estilo.cor}" stop-opacity="1"/></linearGradient></defs>`);
+        const g = geometriaGradiente(c);
+        const stops = g.paragens.map(([o, a]) => `<stop offset="${r(o)}" stop-color="${c.estilo.cor}" stop-opacity="${r(a)}"/>`).join("");
+        partes.push(g.radial
+          ? `<defs><radialGradient id="${gid}" gradientUnits="userSpaceOnUse" cx="${r(g.x1)}" cy="${r(g.y1)}" r="${r(g.raio)}">${stops}</radialGradient></defs>`
+          : `<defs><linearGradient id="${gid}" gradientUnits="userSpaceOnUse" x1="${r(g.x1)}" y1="${r(g.y1)}" x2="${r(g.x2)}" y2="${r(g.y2)}">${stops}</linearGradient></defs>`);
         partes.push(`<rect x="${r(c.x)}" y="${r(c.y)}" width="${r(c.w)}" height="${r(c.h)}" fill="url(#${gid})" opacity="${op}"/>`);
       } else if (c.forma === "icone") {
         const d = ICONES[c.estilo.icone ?? "seta"];

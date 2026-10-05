@@ -4,6 +4,7 @@
 import { ALTURA, LARGURA, type Camada, type Medidor, type PacoteProva, type Pagina, type Variante } from "../documento-grafico/nucleo.ts";
 import { ESTILOS, type EstiloId, type Paleta } from "./estilos.ts";
 import { comporModelo } from "./modelos.ts";
+import { chaveComposicao, comporImagem, type ComposicoesImagem, type DecisaoImagem } from "./imagem.ts";
 
 export type PaletaId = "navy-editorial" | "navy-digital" | "navy-signal" | "navy-sage" | "navy-ice";
 export interface PaletaMarca { id: PaletaId; nome: string; sensacao: string; amostras: [string, string, string, string, string]; cores: Paleta }
@@ -72,17 +73,23 @@ export interface ResultadoSistema {
   /** Break slides that did not fit with the break composition and use the normal one instead. */
   quebrasRecusadas: Array<{ variante: Variante; pagina: number }>;
   marcador: boolean;
+  /** Pages whose image mode did not fit; they keep the style composition without the image re-layout. */
+  imagemRecusadas: Array<{ variante: Variante; pagina: number }>;
+  /** Resolved image decision per `${variante}:${pagina}` (shown as "Automático: …" in the panel). */
+  decisoes: Record<string, DecisaoImagem>;
 }
 
 /**
  * The single renderer of a visual system. Variant A's document gets the style's A composition and B's the
  * B composition; the palette only supplies colours; breaks follow `quebras`. `paginas` limits to indices.
  */
-export function aplicarSistema(pacote: PacoteProva, s: SistemaVisual, m?: Medidor, paginas?: number[]): ResultadoSistema {
+export function aplicarSistema(pacote: PacoteProva, s: SistemaVisual, m?: Medidor, paginas?: number[], composicoes: ComposicoesImagem = {}): ResultadoSistema {
   const estilo = ESTILOS.find((e) => e.id === s.estilo) ?? ESTILOS[0];
   const paleta = obterPaleta(s.paleta).cores;
   const recusadas: ResultadoSistema["recusadas"] = [], quebrasRecusadas: ResultadoSistema["quebrasRecusadas"] = [];
   let marcador = false;
+  const imagemRecusadas: ResultadoSistema["imagemRecusadas"] = [];
+  const decisoes: ResultadoSistema["decisoes"] = {};
   const variantes = { ...pacote.variantes };
   for (const v of ["A", "B"] as const) {
     const doc = pacote.variantes[v];
@@ -96,8 +103,14 @@ export function aplicarSistema(pacote: PacoteProva, s: SistemaVisual, m?: Medido
       if (!r) return pg;
       if (!r.cabe) { recusadas.push({ variante: v, pagina: i }); return pg; }
       marcador ||= r.marcador;
-      return v === "B" ? composicaoB(r.pagina) : r.pagina;
+      const base = v === "B" ? composicaoB(r.pagina) : r.pagina;
+      const sid = (base.camadas.find((c) => c.tipo === "texto" && !!c.ref) as { ref?: string } | undefined)?.ref?.split(".")[0] ?? "";
+      const ri = comporImagem(base, { indice: i, total, estilo: s.estilo, variante: v, paleta, conteudo: pacote.conteudo, m, comp: composicoes[chaveComposicao(v, sid)], assets: pacote.assets });
+      if (!ri) return base;
+      decisoes[`${v}:${i}`] = ri.decisao;
+      if (!ri.cabe) imagemRecusadas.push({ variante: v, pagina: i });
+      return ri.pagina;
     }) };
   }
-  return { pacote: { ...pacote, variantes }, recusadas, quebrasRecusadas, marcador };
+  return { pacote: { ...pacote, variantes }, recusadas, quebrasRecusadas, marcador, imagemRecusadas, decisoes };
 }
