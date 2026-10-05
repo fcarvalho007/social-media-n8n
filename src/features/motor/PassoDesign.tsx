@@ -38,11 +38,7 @@ function estilizar(p: PacoteProva, paleta: Paleta, par: string, manuais: boolean
   return { pacote: { ...p, variantes: { A: A.doc, B: B.doc } }, manuais: A.manuais + B.manuais };
 }
 
-/** Model preview for the whole carousel (both variants); refused pages stay as they are. */
-function modelar(p: PacoteProva, id: EstiloId, paleta: Paleta, par: string, m: Medidor): ResultadoPacoteModelo {
-  return aplicarModelo(p, id, paleta, par, ["A", "B"], m);
-}
-const listaRecusas = (r: ResultadoPacoteModelo) => r.recusadas.map((x) => `${x.variante} p${x.pagina + 1}`).join(", ");
+const listaRecusas = (r: Pick<ResultadoPacoteModelo, "recusadas">) => r.recusadas.map((x) => `${x.variante} p${x.pagina + 1}`).join(", ");
 
 /** Design step: pick one of six styles, adjust palette and font pair, apply explicitly. Never opens with changes. */
 export function PassoDesign({ pacote, medidor, onAplicar, slides, paragrafos, inicio, onPendente, sistema: guardado }: Props) {
@@ -336,6 +332,7 @@ export function PassoDesign({ pacote, medidor, onAplicar, slides, paragrafos, in
           </DialogHeader>
           {novos.length > 0 && <p role="alert" className="text-sm text-destructive">Com estas letras, o texto deixa de caber em: {novos.join(", ")}. Terás de o ajustar antes de aprovar (o tamanho nunca é reduzido sozinho).</p>}
           {modelo && modelo.recusadas.length > 0 && <p role="alert" className="text-sm text-destructive">O modelo não cabe sem reduzir a letra abaixo do mínimo legível em: {listaRecusas(modelo)}. Esses slides ficam como estão; nenhum texto é cortado ou apagado.</p>}
+          {modelo && modelo.quebrasRecusadas.length > 0 && <p className="text-sm text-muted-foreground">A quebra visual não cabe em: {listaRecusas({ recusadas: modelo.quebrasRecusadas })}. Esses slides usam a composição normal do estilo.</p>}
           {modelo?.marcador && <p className="text-sm text-muted-foreground">Não há imagem neste carrossel: os slides mostram o marcador «Imagem por escolher», que também aparece na exportação até escolheres uma imagem.</p>}
           {!manuais && previa.manuais > 0 && <p className="text-sm text-muted-foreground">{previa.manuais} camada(s) acrescentada(s) à mão mantêm as cores atuais.</p>}
           <DialogFooter>
