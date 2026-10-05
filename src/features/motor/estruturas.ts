@@ -38,7 +38,8 @@ export function guardarPendente(trabalhoId: string, p: EstruturaPendente | null)
 
 // ---------- hybrid per-slide merge (deterministic, free: no AI) ----------
 
-export interface Candidato { trabalho: string; framework: string; conteudo: PropostaEditorial }
+/** `escopo` = slide id for single-slide regenerations (usable only for that slide). */
+export interface Candidato { trabalho: string; framework: string; conteudo: PropostaEditorial; escopo?: string | null }
 /** Per slide index: null = keep current; otherwise the candidate job id supplying that slide. */
 export type Selecao = (string | null)[];
 
@@ -74,6 +75,8 @@ export function fundirSelecao(atual: PropostaEditorial, candidatos: Candidato[],
     if (!id) return s;
     const c = porId.get(id);
     if (!c) throw new Error(`Proposta ${id} indisponível.`);
+    const escopo = c.escopo ?? c.conteudo.escopo_slide ?? null;
+    if (escopo && escopo !== s.id) throw new Error(`Essa alternativa foi gerada só para outro slide; não pode entrar no slide ${i + 1}.`);
     const comp = compatibilidade(atual, c.conteudo);
     if ("motivo" in comp) throw new Error(comp.motivo);
     const p = c.conteudo.slides[i];

@@ -16,6 +16,7 @@ import { lerLink, registarImagem, resolverAssets } from "../_shared/motor/fontes
 import { carregarImagem } from "../_shared/motor/carregar.server.ts";
 import { chaveKie, criarTarefaKie, estadoTarefaKie, KIE_MODELO, KIE_MAX_DIA, KIE_PROPORCAO } from "../_shared/motor/kie.server.ts";
 import { obterFramework } from "../_shared/motor/frameworks.ts";
+import { NOTA_MAX, obterModoRegen } from "../_shared/motor/regenerar.ts";
 import { avaliarFonte, MARCADOR_FIXTURE, MODELO_DEMO, MODELO_ESTRUTURACAO, MODELO_IA, normalizarFonte } from "../_shared/motor/proposta.ts";
 
 const cors = {
@@ -165,6 +166,57 @@ Deno.serve(async (req) => {
     const linha = (data as Array<{ trabalho_id: string; reutilizado: boolean }>)[0];
     emSegundoPlano(corridaWorker());
     return json({ ok: true, trabalho_id: linha.trabalho_id, reutilizado: linha.reutilizado });
+  }
+
+  if (acao === "regenerar_slide") {
+    // One paid request for ONE slide of an existing carousel. Source, author snapshot and base narrative
+    // are read server-side from the origin job (never trusted from the client).
+    const projectId = String(body.project_id ?? "");
+    const origemId = String(body.origem_trabalho ?? "");
+    const baseVersao = Number(body.base_versao);
+    const slideId = String(body.slide_id ?? "");
+    const modoR = obterModoRegen(body.modo);
+    const nota = typeof body.nota === "string" ? body.nota.trim().slice(0, NOTA_MAX) : "";
+    if (!UUID.test(projectId) || !UUID.test(origemId) || !Number.isInteger(baseVersao) || baseVersao < 1 || !/^[\w-]{1,40}$/.test(slideId) || !modoR) return json({ error: "Pedido inválido." }, 400);
+    if (body.confirmar !== true) return json({ error: "Regenerar um slide é um pedido pago: confirma antes de continuar." }, 400);
+    const { data: orig } = await user.from("mc_trabalhos").select("id, project_id, fonte_id, brief, modelo").eq("id", origemId).eq("project_id", projectId).maybeSingle();
+    if (!orig) return json({ error: "Carrossel inexistente ou sem acesso." }, 403);
+    const ob = (orig.brief ?? {}) as Record<string, unknown>;
+    if (ob.origem_trabalho) return json({ error: "Regenera a partir do carrossel principal, não de uma proposta." }, 400);
+    const [{ data: f }, { data: p }] = await Promise.all([
+      user.from("mc_fontes").select("tipo, titulo, origem_url, texto, metadados").eq("id", orig.fonte_id).single(),
+      user.from("mc_propostas").select("id, versao_actual").eq("trabalho_id", origemId).single(),
+    ]);
+    if (!f || !p) return json({ error: "Carrossel incompleto." }, 409);
+    if (p.versao_actual !== baseVersao) return json({ error: `O texto mudou (versão ${p.versao_actual}). Atualiza a página antes de regenerar.`, codigo: "conflito" }, 409);
+    const { data: pv } = await user.from("mc_propostas_versoes").select("conteudo").eq("proposta_id", p.id).eq("versao", baseVersao).single();
+    const base = pv?.conteudo as unknown as PropostaEditorial | undefined;
+    const indice = base?.slides?.findIndex((s) => s.id === slideId) ?? -1;
+    if (!base || indice < 0) return json({ error: "Slide inexistente nesta versão." }, 409);
+    const demo = orig.modelo === MODELO_DEMO && f.texto.startsWith(MARCADOR_FIXTURE);
+    if (!demo) {
+      const { data: o } = await user.from("mc_orcamentos").select("max_chamadas_dia").eq("project_id", projectId).maybeSingle();
+      if (!o || o.max_chamadas_dia < 1) return json({ error: "A IA está desligada neste projeto. Define um limite diário em «Limites da IA»." }, 409);
+    }
+    const brief = {
+      objetivo: base.objetivo, tom: base.tom, slides: base.slides.length, titulo: (ob.titulo as string | null) ?? f.titulo,
+      ...(ob.autor ? { autor: ob.autor, leitura: ob.leitura === true, leitura_trabalho: ob.leitura_trabalho ?? null, briefing: ob.briefing ?? null } : {}),
+      idioma_saida: "pt-PT", ...(ob.traducao ? { traducao: ob.traducao } : {}),
+      framework: null, base_versao: baseVersao, origem_trabalho: origemId,
+      regen: { slide_id: slideId, indice, modo: modoR, nota, base },
+    };
+    const comum = {
+      _project_id: projectId, _texto: f.texto, _brief: brief, _prompt_versao: `r12-slide-${modoR}`,
+      _modelo: demo ? MODELO_DEMO : MODELO_IA, _parametros: { slides: base.slides.length, regen: slideId, modo: modoR }, _nova: true,
+    };
+    // Same tipo/url as the origin source so the frozen source row (and its hash) is reused.
+    const { data, error } = f.tipo !== "texto"
+      ? await user.rpc("mc_criar_trabalho_fonte", { ...comum, _tipo: f.tipo, _titulo: f.titulo, _origem_url: f.origem_url, _metadados: f.metadados })
+      : await user.rpc("mc_criar_trabalho", { ...comum, _tipo: "texto", _titulo: f.titulo, _origem_url: f.origem_url });
+    if (error) return json({ error: error.code === "42501" ? "Sem acesso a este projeto." : "Não foi possível pedir a regeneração." }, error.code === "42501" ? 403 : 500);
+    const linha = (data as Array<{ trabalho_id: string }>)[0];
+    emSegundoPlano(corridaWorker());
+    return json({ ok: true, trabalho_id: linha.trabalho_id, simulado: demo });
   }
 
   if (acao === "ler_link" || acao === "listar_imagens" || acao === "registar_imagem" || acao === "carregar_imagem" || acao === "ler_assets") {
