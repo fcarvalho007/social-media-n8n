@@ -42,6 +42,8 @@ export interface ComposicaoImagem {
   origem?: OrigemImagem;
   visual_query?: string;
   visual_prompt?: string;
+  /** Semantic intent from the narrative; Pexels terms and the AI prompt both derive from it. */
+  visual_intent?: string;
 }
 /** Key `${variante}:${slideId}`. */
 export type ComposicoesImagem = Record<string, ComposicaoImagem>;
