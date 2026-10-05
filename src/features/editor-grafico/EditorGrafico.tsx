@@ -19,7 +19,7 @@ import { guardarRecuperacao, lerRecuperacao, limparRecuperacao } from "@/lib/rec
 import { renderProvaServidor } from "@/services/conteudos";
 import { ALTURA, FAMILIAS, LARGURA, NOME_FAMILIA, layoutTexto, resolverTexto, validarPacote, type Asset, type Camada, type CamadaTexto, type Familia, type Medidor, type PacoteProva, type Variante } from "../../../supabase/functions/_shared/documento-grafico/nucleo";
 import { aplicarEstilo, type Estilo } from "../../../supabase/functions/_shared/motor/estilos";
-import { aplicarSistema, obterPaleta, slidesQuebra, type SistemaVisual } from "../../../supabase/functions/_shared/motor/sistema";
+import { aplicarSistema, obterPaleta, quebrasPadrao, slidesQuebra, type SistemaVisual } from "../../../supabase/functions/_shared/motor/sistema";
 import { Switch } from "@/components/ui/switch";
 import { carregarFicheiro, ficheiroDoArrasto } from "@/features/editor-grafico/carregar";
 import { ABAS_INSERIR, MIME_INSERIR, PainelInserir, resolverBiblioteca, type AbaInserir, type Inserivel } from "@/features/editor-grafico/PainelInserir";
@@ -726,7 +726,7 @@ export function EditorGrafico({ pacoteInicial, chaveLocal, titulo, seletor, real
         </DialogHeader>
         <div className="flex justify-end gap-2">
           <Button variant="ghost" className="h-11" onClick={() => setEstiloPend(null)}>Cancelar</Button>
-          <Button className="h-11" onClick={() => { const e = estiloPend!; setEstiloPend(null); aplicarSistemaEditor({ estilo: e.id, variante: sistema?.variante ?? variante, paleta: sistema?.paleta ?? "navy-editorial", quebras: sistema?.quebras ?? {} }, undefined, `Estilo «${e.nome}» aplicado`); }}>Aplicar</Button>
+          <Button className="h-11" onClick={() => { const e = estiloPend!; setEstiloPend(null); aplicarSistemaEditor({ estilo: e.id, variante: sistema?.variante ?? variante, paleta: sistema?.paleta ?? "navy-editorial", quebras: sistema?.quebras ?? quebrasPadrao(pacote.variantes.A.paginas.length) }, undefined, `Estilo «${e.nome}» aplicado`); }}>Aplicar</Button>
         </div>
       </DialogContent>
     </Dialog>
