@@ -504,6 +504,7 @@ export function layoutTexto(texto: string, e: EstiloTexto, w: number, h: number,
   // Drop cap: first N lines are indented by the cap width; text is the same string minus its first letter.
   let cap: LayoutTexto["capitular"];
   let recuadas = 0;
+  let indCap = 0;
   const pc = partirCapitular(texto, e);
   if (pc) {
     const lh0 = tam * e.linha;
@@ -519,7 +520,7 @@ export function layoutTexto(texto: string, e: EstiloTexto, w: number, h: number,
       cabem = Math.max(1, Math.min(e.maxLinhas ?? Infinity, Math.floor((h + 0.001) / lh0)));
       recuadas = LINHAS_CAP;
       cap = { texto: pc.letra, tam: capTam, x: 0, baseline: 0, largura };
-      (cap as { ind?: number }).ind = ind;
+      indCap = ind;
     }
   }
   let cortado = false;
@@ -534,7 +535,6 @@ export function layoutTexto(texto: string, e: EstiloTexto, w: number, h: number,
   const asc = m.ascendente(e.peso, e.familia) * tam;
   const desc = m.descendente(e.peso, e.familia) * tam;
   const base = (i: number) => i * lh + (lh - (asc + desc)) / 2 + asc;
-  const ind = (cap as { ind?: number } | undefined)?.ind ?? 0;
   return {
     tam,
     alturaLinha: lh,
@@ -542,7 +542,7 @@ export function layoutTexto(texto: string, e: EstiloTexto, w: number, h: number,
     capitular: cap ? { texto: cap.texto, tam: cap.tam, x: 0, baseline: base(Math.min(recuadas, linhas.length) - 1), largura: cap.largura } : undefined,
     linhas: linhas.map((t, i) => {
       const largura = m.largura(t, tam, e.peso, e.familia);
-      const x = e.alinh === "esq" ? (i < recuadas ? ind : 0) : e.alinh === "centro" ? (w - largura) / 2 : w - largura;
+      const x = e.alinh === "esq" ? (i < recuadas ? indCap : 0) : e.alinh === "centro" ? (w - largura) / 2 : w - largura;
       return { texto: t, largura, x, baseline: base(i) };
     }),
   };
