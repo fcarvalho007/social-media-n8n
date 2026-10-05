@@ -22,6 +22,7 @@ import { aplicarSistema, nomeVariante, obterPaleta, paginasComAjustes, recolorir
 import { ESTILOS } from "../../../supabase/functions/_shared/motor/estilos";
 import { PainelDirecaoVisual } from "./PainelDirecaoVisual";
 import { PainelImagemSlide } from "./PainelImagemSlide";
+import { construirPromptVisual, construirQueryVisual, inferirFonte } from "../../../supabase/functions/_shared/motor/promptVisual";
 import { slideDaPagina } from "@/features/motor/variacoes";
 import { PAPEIS, type ComposicaoImagem, type PapelVisual } from "../../../supabase/functions/_shared/motor/imagem";
 import { carregarFicheiro, ficheiroDoArrasto } from "@/features/editor-grafico/carregar";
@@ -337,6 +338,7 @@ export function EditorGrafico({ pacoteInicial, chaveLocal, titulo, seletor, real
   const comDesfazer = (msg: string) => toast.success(msg, { action: { label: "Desfazer", onClick: () => despachar({ tipo: "desfazer" }) } });
   // ---------- visual direction: the document is the only source of truth ----------
   const mSis = medidorSistema ?? medidor ?? undefined;
+  const [promptIA, setPromptIA] = useState<string | undefined>(undefined);
   const sistemaDoc = useMemo(() => sistemaDoPacote(pacote), [pacote]);
   /** Draft = in-memory copy of the SAME document shown on the canvas; `antes` is what Cancelar restores. */
   const [rascunho, setRascunho] = useState<{ antes: PacoteProva; s: SistemaVisual; ajustes?: "manter" | "recriar" } | null>(null);
@@ -758,11 +760,16 @@ export function EditorGrafico({ pacoteInicial, chaveLocal, titulo, seletor, real
     <PainelDirecaoVisual base={rascunho?.antes ?? pacote} atual={rascunho?.s ?? sistemaDoc} emRascunho={!!rascunho} medidor={medidor} imagens={imagens}
       onExperimentar={experimentar} onAplicar={aplicarRascunho} onCancelar={cancelarRascunho} />
   ) : (
-    <PainelInserir aba={a} despachar={despachar} projectId={projectId} pedirImagem={onImagem} onEstilo={() => undefined}
+    <PainelInserir aba={a} despachar={despachar} projectId={projectId} promptIA={promptIA} pedirImagem={onImagem} onEstilo={() => undefined}
       onImagem={(r) => despachar({ tipo: "adicionarImagem", asset: r.asset, nome: r.nome })} />
   ));
   const compPagina = (paginaAtual?.composicao ?? {}) as ComposicaoImagem;
   const papelPagina = (paginaAtual?.papel ?? decisaoAtual?.papel) as PapelVisual | undefined;
+  // Same visual intent feeds Pexels terms and the AI prompt; only the source differs.
+  const slideConteudo = pacote.conteudo.slides.find((x) => x.id === slideAtual);
+  const intencao = (compPagina as { visual_intent?: string }).visual_intent;
+  const promptAuto = slideConteudo && papelPagina && sistemaDoc ? construirPromptVisual({ titulo: slideConteudo.titulo, texto: slideConteudo.texto, intencao, papel: papelPagina, estilo: sistemaDoc.estilo, variante: sistemaDoc.variante, paleta: sistemaDoc.paleta, modo: decisaoAtual?.modo ?? "full_bleed", regiao: decisaoAtual?.regiao ?? "bottom" }) : undefined;
+  const queryAuto = slideConteudo ? compPagina.visual_query ?? construirQueryVisual(intencao, slideConteudo.titulo) : undefined;
   const painelPaginaVisual = paginaAtual && (
     <div className="space-y-3 border-b border-border pb-4">
       <h2 className="text-sm font-semibold">Página {pagina + 1}</h2>
@@ -777,7 +784,10 @@ export function EditorGrafico({ pacoteInicial, chaveLocal, titulo, seletor, real
         <PainelImagemSlide key={`${variante}:${slideAtual}:${JSON.stringify(compPagina)}`} decisao={decisaoAtual} comp={compPagina}
           temImagem={paginaAtual.camadas.some((k) => k.tipo === "imagem") || !!compPagina.asset_id} ocupado={!!rascunho}
           onMudar={(c, msg) => { const img = paginaAtual.camadas.find((k) => k.tipo === "imagem"); recomporPagina({ comp: img && img.tipo === "imagem" ? { ...c, asset_id: img.asset_id } : c }, msg); }}
-          onSubstituir={() => { if (compacto) { setPainelMovel("imagens"); setPainelAberto(true); } else setAba("imagens"); }} />
+          onSubstituir={() => { if (compacto) { setPainelMovel("imagens"); setPainelAberto(true); } else setAba("imagens"); }}
+          sugestao={papelPagina ? inferirFonte(papelPagina) : undefined} promptIA={promptAuto} queryPexels={queryAuto}
+          origemIA={compPagina.origem === "kie"}
+          onGerarIA={(pr) => { setPromptIA(pr); if (compacto) { setPainelMovel("imagens"); setPainelAberto(true); } else setAba("imagens"); }} />
       </>)}
     </div>
   );
