@@ -4,7 +4,7 @@ import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { lerAssets, listarImagens, registarImagem, type AssetMotor, type ImagemBiblioteca } from "@/services/motor";
 import { GeradorKie } from "./GeradorKie";
-import { PesquisaPexels } from "./PesquisaPexels";
+import { PesquisaFotos } from "./PesquisaFotos";
 import type { Asset } from "../../../supabase/functions/_shared/documento-grafico/nucleo";
 
 interface Props {
@@ -73,7 +73,7 @@ export function SeletorImagens({ projectId, aberto, onFechar }: Props) {
             ))}
           </ul>
         )}
-        <PesquisaPexels projectId={projectId} usar={usar} ocupado={!!aUsar} aUsar={aUsar} />
+        <div className="border-t border-border pt-3"><PesquisaFotos projectId={projectId} usar={usar} ocupado={!!aUsar} aUsar={aUsar} /></div>
         <GeradorKie projectId={projectId} usar={usar} ocupado={!!aUsar} />
         <p className="text-xs text-muted-foreground">PNG ou JPEG, até 6 MB e 8000 px por lado. Outros formatos são recusados.</p>
         <div className="flex justify-end"><Button variant="ghost" className="h-11" disabled={!!aUsar} onClick={() => onFechar(null)}>Cancelar</Button></div>

@@ -5,6 +5,7 @@ import { cn } from "@/lib/utils";
 import { lerAssets, listarImagens, registarImagem, type AssetMotor, type ImagemBiblioteca } from "@/services/motor";
 import { ACEITAR_CARREGAR, carregarFicheiro } from "./carregar";
 import { GeradorKie } from "@/features/motor/GeradorKie";
+import { PesquisaFotos } from "@/features/motor/PesquisaFotos";
 import type { Asset } from "../../../supabase/functions/_shared/documento-grafico/nucleo";
 import { ESTILOS, type Estilo } from "../../../supabase/functions/_shared/motor/estilos";
 import type { Acao, PresetTexto } from "./estado";
@@ -50,6 +51,9 @@ interface Props {
   projectId?: string;
   /** Prefilled AI prompt from the Image panel; opens the AI tab. */
   promptIA?: string;
+  /** Opens a given image tab (from the slide Image panel) with suggested stock terms. */
+  subImagens?: { aba: "biblioteca" | "fotos" | "carregar" | "ia"; n: number };
+  termoFotos?: string;
   /** Fallback picker (proof editor). */
   pedirImagem?: () => void;
   onEstilo: (e: Estilo) => void;
@@ -60,11 +64,12 @@ interface Props {
   onComposicoes?: () => void;
 }
 
-export function PainelInserir({ aba, despachar, onImagem, projectId, pedirImagem, onEstilo, onComposicoes, estiloAtual, extraEstilos, promptIA }: Props) {
+export function PainelInserir({ aba, despachar, onImagem, projectId, pedirImagem, onEstilo, onComposicoes, estiloAtual, extraEstilos, promptIA, subImagens, termoFotos }: Props) {
   const [bib, setBib] = useState<ImagemBiblioteca[] | null>(null);
   const [erro, setErro] = useState<string | null>(null);
   const [aUsar, setAUsar] = useState<string | null>(null);
-  const [sub, setSub] = useState<"biblioteca" | "carregar" | "ia">(promptIA ? "ia" : "biblioteca");
+  const [sub, setSub] = useState<"biblioteca" | "fotos" | "carregar" | "ia">(subImagens?.aba ?? (promptIA ? "ia" : "biblioteca"));
+  useEffect(() => { if (subImagens) setSub(subImagens.aba); }, [subImagens]);
   useEffect(() => { if (promptIA) setSub("ia"); }, [promptIA]);
   const [carregadas, setCarregadas] = useState<AssetMotor[] | null>(null);
   const [aCarregar, setACarregar] = useState(false);
@@ -148,8 +153,8 @@ export function PainelInserir({ aba, despachar, onImagem, projectId, pedirImagem
   const lista = bib ? (q ? bib.filter((m) => m.file_name.toLocaleLowerCase("pt-PT").includes(q)) : bib) : [];
   return (
     <div className="space-y-3">
-      <div role="tablist" aria-label="Origem da imagem" className="grid grid-cols-3 gap-1 rounded-[var(--mc-r-md)] bg-muted p-1">
-        {([["biblioteca", "Biblioteca"], ["carregar", "Carregar"], ["ia", "Gerar com IA"]] as const).map(([id, n]) => (
+      <div role="tablist" aria-label="Origem da imagem" className="grid grid-cols-4 gap-1 rounded-[var(--mc-r-md)] bg-muted p-1">
+        {([["biblioteca", "Biblioteca"], ["fotos", "Fotos"], ["carregar", "Carregar"], ["ia", "IA"]] as const).map(([id, n]) => (
           <button key={id} type="button" role="tab" aria-selected={sub === id} onClick={() => setSub(id)}
             className={cn("min-h-9 rounded-sm text-xs font-medium focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring", sub === id ? "bg-background text-foreground shadow-sm" : "text-muted-foreground hover:text-foreground")}>{n}</button>
         ))}
@@ -185,6 +190,7 @@ export function PainelInserir({ aba, despachar, onImagem, projectId, pedirImagem
           )}
         </div>
       )}
+      {sub === "fotos" && <PesquisaFotos key={termoFotos ?? ""} projectId={projectId} usar={usar} ocupado={!!aUsar} aUsar={aUsar} termoInicial={termoFotos} compacto />}
       {sub === "ia" && <GeradorKie key={promptIA ?? ""} projectId={projectId} usar={usar} ocupado={!!aUsar} promptInicial={promptIA} />}
       {sub === "biblioteca" && <>
       <p className="text-xs text-muted-foreground">Clica para usar como fundo ou arrasta para a página.</p>
