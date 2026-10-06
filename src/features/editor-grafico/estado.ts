@@ -212,9 +212,9 @@ export function reduzir(s: EstadoEditor, a: Acao): EstadoEditor {
       return aplicar(s, comPagina(pacote, s.variante, s.pagina, (p) => ({ ...p, camadas: [...p.camadas, nova] })), undefined, { selecao: nova.id });
     }
     case "colarCamada": {
-      const ja = pg.camadas.some((c) => c.id === a.camada.id || c.colado_de === a.camada.id);
+      const ja = pg.camadas.some((c) => c.id === a.camada.id || (c.x === a.camada.x && c.y === a.camada.y && c.tipo === a.camada.tipo));
       const d = ja ? 24 : 0;
-      const base = { ...a.camada, id: novoId(a.camada.tipo), x: a.camada.x + d, y: a.camada.y + d, z: topoZ(pg) + 1, colado_de: a.camada.id } as Camada;
+      const base = { ...a.camada, id: novoId(a.camada.tipo), x: a.camada.x + d, y: a.camada.y + d, z: topoZ(pg) + 1, manual: true } as Camada;
       if (base.tipo === "texto" && base.ref) { const t = resolverTexto(base, s.pacote.conteudo); delete base.ref; base.texto = t; }
       const pacote = { ...s.pacote, assets: { ...s.pacote.assets, ...a.assets } };
       return aplicar(s, comPagina(pacote, s.variante, s.pagina, (p) => ({ ...p, camadas: [...p.camadas, base] })), undefined, { selecao: base.id });
