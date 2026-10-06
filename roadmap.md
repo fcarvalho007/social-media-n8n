@@ -49,5 +49,6 @@
 - [x] R8b: verificação global com «R8 — prova final» (PDF 4 parágrafos, 1 geração real, ≤2 chamadas)
 - [x] Redesign cinematográfico e progressivo dos carrosséis
 - [x] Pendentes do redesign (barra visível, conflito MC409, tipos, nomes A/B, contraste)
+- [x] Compositor: reordenar slides por arrasto, substituir imagem selecionada e garantir 5 propostas (2 disruptivas)
 - [x] R8b: versão final legível R8, 900px e recuperação local — concluída com evidência externa e 177 testes automatizados
 - Lote1 e Lote2 concluídos. Lote3 (composição híbrida por slide) aguarda o utilizador.

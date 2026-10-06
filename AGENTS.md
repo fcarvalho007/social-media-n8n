@@ -16,7 +16,7 @@
 - The Studio's "Para quem?" project lives in ProjetoContext (loaded from estudio_preferencias, optimistic with rollback on save failure); pages filter by it, and the newsletter belongs to a project only through estudio_identidades, so it is never shown as belonging to an unrelated project.
 - Updating an existing social draft never rewrites user_id or project_id; project_id is set only on insert from the persisted Studio choice, preserving authorship.
 - Social draft lists and Studio counts read team drafts filtered server-side by project only (cache keyed by user + project; old drafts without project only under "todos", never auto-assigned); keeps counts and lists consistent without narrowing team visibility.
-- The graphics proof uses DocumentoGrafico v1 in browser/server at /estudio/editor-prova and stays separate from legacy flows.
+- DocumentoGrafico v1 stays separate from legacy flows; slide order follows logical ids across narrative and both variants.
 - Content engine (mc_*): clients only SELECT; writes via owner+editor RPCs; versions append-only; leases/AI service-role.
 - Chunk-load recovery reloads at most once per failing asset, guarded in localStorage forever (no time window), so a missing file can never loop.
 - Runtime text AI goes only through DeepSeek direct (_shared/deepseek-direto.ts, thinking disabled); the Lovable AI Gateway is banned at runtime (owner decision), enforced by src/test/lote1-ia.test.ts.

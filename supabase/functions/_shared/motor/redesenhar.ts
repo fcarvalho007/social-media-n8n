@@ -24,6 +24,8 @@ export interface CandidatoRedesign {
   promptIA?: string;
   /** AI_IMAGE_COMPOSITION only: true while the page shows the structural placeholder (cannot be applied). */
   pendente?: boolean;
+  /** Deliberately breaks the current page pattern while preserving content and the global visual system. */
+  disruptiva?: boolean;
 }
 export interface OpcoesRedesign {
   pacote: PacoteProva;
@@ -140,11 +142,22 @@ export function redesenharPagina(o: OpcoesRedesign): { candidatos: CandidatoRede
   receitas = [...receitas.slice(rot % Math.max(1, receitas.length)), ...receitas.slice(0, rot % Math.max(1, receitas.length))];
   const papelIA = papel;
   const querIA = (o.incluirIA ?? true) && o.imagens !== "sem_novas" && !imagemInadequada(papelIA);
-  const nNormais = querIA ? n - 1 : n;
+  const nDisruptivas = o.incluirIA === false && n >= 5 ? 2 : 0;
+  const nNormais = querIA ? n - 1 : n - nDisruptivas;
   for (const rc of receitas) {
     if (saida.length >= nNormais) break;
     const c = comporCandidato(o, rc, asset, vistos, saida.length);
     if (c) saida.push(c);
+  }
+  if (nDisruptivas) {
+    const estilos = EXPLORAR.filter((e) => e.estilo !== o.sistema.estilo);
+    for (let tentativa = 0; saida.length < n && tentativa < estilos.length * 3; tentativa++) {
+      const e = estilos[(tentativa + (o.ronda ?? 0) * 2) % estilos.length];
+      const base = tentativa % 2 === 0 ? RECEITAS[0] : RECEITAS[5];
+      const rc: Receita = { ...base, strategy: "EXPLORE", estilo: e.estilo, label: e.label, reason: "Quebra deliberadamente o padrão deste slide; a direção visual global mantém-se.", precisaImagem: false };
+      const c = comporCandidato(o, rc, undefined, vistos, saida.length);
+      if (c) saida.push({ ...c, disruptiva: true });
+    }
   }
   if (querIA) {
     const usados = saida.map((c) => (c.pagina.composicao as ComposicaoImagem | undefined)?.modo).filter((x): x is ModoImagem => !!x);
@@ -165,7 +178,7 @@ export function redesenharPagina(o: OpcoesRedesign): { candidatos: CandidatoRede
     else for (const rc of receitas) { if (saida.length >= n) break; const x = comporCandidato(o, rc, asset, vistos, saida.length); if (x) saida.push(x); }
   }
   const sugerirIA = !querIA && !asset && (papel === "cover" || papel === "visual_story" || papel === "concept");
-  const aviso = saida.length < n ? `Só ${saida.length} composição(ões) realmente diferente(s) cabem neste slide${asset ? "" : " sem imagem"}.` : undefined;
+  const aviso = saida.length < n ? `Não foi possível criar cinco composições seguras sem cortar o conteúdo.` : undefined;
   return { candidatos: saida, sugerirIA, aviso };
 }
 

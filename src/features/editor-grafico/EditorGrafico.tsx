@@ -37,6 +37,9 @@ import { carregarImagens, compararPng, renderizarPaginaPng } from "@/features/ed
 import { estadoInicial, reduzir, type Acao } from "@/features/editor-grafico/estado";
 import { MapaCustos } from "@/features/motor/MapaCustos";
 import { PaginaCanvas } from "@/features/editor-grafico/PaginaCanvas";
+import { MiniaturaOrdenavel } from "@/features/editor-grafico/MiniaturaOrdenavel";
+import { DndContext, KeyboardSensor, PointerSensor, TouchSensor, closestCenter, useSensor, useSensors, type DragEndEvent } from "@dnd-kit/core";
+import { SortableContext, horizontalListSortingStrategy, sortableKeyboardCoordinates } from "@dnd-kit/sortable";
 
 /** Max fraction of pixels allowed to differ (per-channel tolerance 48) for browser/server equivalence. */
 export const LIMIAR_EQUIVALENCIA = 0.01;
@@ -136,7 +139,7 @@ export function rotuloCamada(c: Camada, pacote: PacoteProva): { tipo: string; de
   return { tipo: c.nome ?? NOME_TIPO[c.tipo], detalhe: c.tipo === "forma" ? `${Math.round(c.w)}×${Math.round(c.h)}` : "" };
 }
 
-function PainelPropriedades({ pacote, camada: c, fundo, medidor, despachar, camadasPagina, onImagem }: PropsPainel & { onImagem?: () => void }) {
+function PainelPropriedades({ pacote, camada: c, fundo, medidor, despachar, camadasPagina, onImagem, onSubstituirImagem }: PropsPainel & { onImagem?: () => void; onSubstituirImagem?: () => void }) {
   if (!c) {
     return (
       <div className="space-y-5">
@@ -226,6 +229,7 @@ function PainelPropriedades({ pacote, camada: c, fundo, medidor, despachar, cama
 
       {c.tipo === "imagem" && (
         <section className="space-y-3">
+          {onSubstituirImagem && <Button variant="outline" className="h-11 w-full lg:h-9" onClick={onSubstituirImagem}><ScanSearch className="mr-1.5 h-4 w-4" />Substituir imagem</Button>}
           <Campo id="recorte" rotulo="Enquadramento">
             <ToggleGroup id="recorte" type="single" variant="outline" value={c.recorte} onValueChange={(v) => v && alterar({ recorte: v as "cover" } as Partial<Camada>)} className="justify-start">
               <ToggleGroupItem value="cover" className="h-11 lg:h-9 px-3">Preencher</ToggleGroupItem>
@@ -346,6 +350,7 @@ export function EditorGrafico({ pacoteInicial, chaveLocal, titulo, seletor, real
   const mSis = medidorSistema ?? medidor ?? undefined;
   const [promptIA, setPromptIA] = useState<string | undefined>(undefined);
   const [subImagens, setSubImagens] = useState<{ aba: "biblioteca" | "fotos" | "carregar" | "ia"; n: number } | undefined>(undefined);
+  const [imagemASubstituir, setImagemASubstituir] = useState<string | null>(null);
   const [redesenhar, setRedesenhar] = useState(false);
   const sistemaDoc = useMemo(() => sistemaDoPacote(pacote), [pacote]);
   /** Draft = in-memory copy of the SAME document shown on the canvas; `antes` is what Cancelar restores. */
@@ -518,6 +523,17 @@ export function EditorGrafico({ pacoteInicial, chaveLocal, titulo, seletor, real
   const paginas = pacote.variantes[variante].paginas;
   const paginaAtual = paginas[pagina];
   const camada = paginaAtual?.camadas.find((c) => c.id === selecao) ?? null;
+  const sensoresSlides = useSensors(
+    useSensor(PointerSensor, { activationConstraint: { distance: 6 } }),
+    useSensor(TouchSensor, { activationConstraint: { delay: 180, tolerance: 6 } }),
+    useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates }),
+  );
+  const terminarArrastoSlide = ({ active, over }: DragEndEvent) => {
+    if (!over || active.id === over.id) return;
+    const de = paginas.findIndex((p) => p.id === active.id);
+    const para = paginas.findIndex((p) => p.id === over.id);
+    if (de >= 0 && para >= 0) despachar({ tipo: "moverPagina", de, para });
+  };
 
   useEffect(() => {
     if (compacto && selecao) {
@@ -646,9 +662,11 @@ export function EditorGrafico({ pacoteInicial, chaveLocal, titulo, seletor, real
   );
 
   const miniaturas = (horizontal: boolean) => (
-    <ol className={horizontal ? "flex gap-2 overflow-x-auto px-3 py-2" : "space-y-3 p-3"} aria-label="Páginas">
+    <DndContext sensors={sensoresSlides} collisionDetection={closestCenter} onDragEnd={terminarArrastoSlide}>
+    <SortableContext items={paginas.map((p) => p.id)} strategy={horizontalListSortingStrategy}>
+    <ol className={horizontal ? "flex gap-2 overflow-x-auto px-3 py-2" : "space-y-3 p-3"} aria-label="Páginas reordenáveis">
       {paginas.map((p, i) => (
-        <li key={p.id} className={horizontal ? "shrink-0" : ""}>
+        <MiniaturaOrdenavel key={p.id} id={p.id} atual={i === pagina}>
           <button type="button" onClick={() => despachar({ tipo: "pagina", indice: i })} aria-current={i === pagina ? "page" : undefined} aria-label={`Página ${i + 1} de ${paginas.length}${i === pagina ? " (atual)" : ""}`}
             className={`group block rounded-md border-2 p-1 text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring ${i === pagina ? "border-primary bg-primary/10" : "border-transparent hover:bg-muted"}`}>
             <div className="pointer-events-none overflow-hidden rounded-sm border border-border">
@@ -659,9 +677,11 @@ export function EditorGrafico({ pacoteInicial, chaveLocal, titulo, seletor, real
           {i === pagina && sistemaDoc && !rascunho && medidor && (
             <Button variant="ghost" size="sm" className="mt-0.5 h-7 w-full px-1 text-xs" onClick={() => setRedesenhar(true)} title="Mantém o conteúdo e propõe composições alternativas"><Wand2 className="mr-1 h-3.5 w-3.5" />Redesenhar</Button>
           )}
-        </li>
+        </MiniaturaOrdenavel>
       ))}
     </ol>
+    </SortableContext>
+    </DndContext>
   );
 
   const acoesPagina = (
@@ -731,8 +751,14 @@ export function EditorGrafico({ pacoteInicial, chaveLocal, titulo, seletor, real
   );
 
   const fundoTodos = () => { const p = paginaAtual && fundoATodos(pacote, variante, paginaAtual.fundo); if (p) { despachar({ tipo: "substituir", pacote: p }); comDesfazer("Fundo aplicado a todos os slides desta variante."); } else toast.info("Todos os slides já têm este fundo."); };
+  const abrirSubstituicao = (id: string, aba: "biblioteca" | "fotos" | "carregar" | "ia" = "biblioteca") => {
+    setImagemASubstituir(id);
+    setSubImagens((s) => ({ aba, n: (s?.n ?? 0) + 1 }));
+    if (compacto) { setPainelMovel("imagens"); setPainelAberto(true); } else setAba("imagens");
+  };
   const propriedades = medidor && paginaAtual && (
-    <PainelPropriedades pacote={pacote} camada={camada} fundo={paginaAtual.fundo} medidor={medidor} despachar={despachar} camadasPagina={paginaAtual.camadas} onImagem={onImagem} />
+    <PainelPropriedades pacote={pacote} camada={camada} fundo={paginaAtual.fundo} medidor={medidor} despachar={despachar} camadasPagina={paginaAtual.camadas} onImagem={onImagem}
+      onSubstituirImagem={camada?.tipo === "imagem" ? () => abrirSubstituicao(camada.id) : undefined} />
   );
 
   const alterarSel = (patch: Partial<Camada>, agrupar?: string) => camada && despachar({ tipo: "camada", id: camada.id, patch, agrupar });
@@ -785,6 +811,7 @@ export function EditorGrafico({ pacoteInicial, chaveLocal, titulo, seletor, real
       {camada && (<>
         {sep}
         <div role="group" aria-label="Ações do elemento" className="flex flex-wrap items-center gap-1">
+        {camada.tipo === "imagem" && <Button variant="outline" size="sm" className="h-11 shrink-0 lg:h-9" onClick={() => abrirSubstituicao(camada.id)}><ScanSearch className="mr-1.5 h-4 w-4" />Substituir imagem</Button>}
         <DropdownMenu>
           <DropdownMenuTrigger asChild><Button variant="ghost" size="sm" className="h-11 shrink-0 lg:h-9" aria-label="Alinhar na página"><AlignCenterVertical className="mr-1 h-4 w-4" />Alinhar</Button></DropdownMenuTrigger>
           <DropdownMenuContent>{ALINHAR.map(({ a, n, I }) => <DropdownMenuItem key={a} onSelect={() => alterarSel(alinharNaPagina(camada, a))}><I className="mr-2 h-4 w-4" />{n}</DropdownMenuItem>)}</DropdownMenuContent>
@@ -811,7 +838,7 @@ export function EditorGrafico({ pacoteInicial, chaveLocal, titulo, seletor, real
       onExperimentar={experimentar} onAplicar={aplicarRascunho} onCancelar={cancelarRascunho} />
   ) : (
     <PainelInserir aba={a} despachar={despachar} projectId={projectId} promptIA={promptIA} subImagens={subImagens} termoFotos={queryAuto} pedirImagem={onImagem} onEstilo={() => undefined}
-      onImagem={(r) => despachar({ tipo: "adicionarImagem", asset: r.asset, nome: r.nome })} />
+      substituirImagemId={imagemASubstituir} onImagem={(r) => { if (imagemASubstituir) despachar({ tipo: "substituirImagem", id: imagemASubstituir, asset: r.asset, nome: r.nome }); else despachar({ tipo: "adicionarImagem", asset: r.asset, nome: r.nome }); setImagemASubstituir(null); }} />
   ));
   const compPagina = (paginaAtual?.composicao ?? {}) as ComposicaoImagem;
   const papelPagina = (paginaAtual?.papel ?? decisaoAtual?.papel) as PapelVisual | undefined;
@@ -836,8 +863,9 @@ export function EditorGrafico({ pacoteInicial, chaveLocal, titulo, seletor, real
         </div>
         <PainelImagemSlide key={`${variante}:${slideAtual}:${JSON.stringify(compPagina)}`} decisao={decisaoAtual} comp={compPagina}
           temImagem={paginaAtual.camadas.some((k) => k.tipo === "imagem") || !!compPagina.asset_id} ocupado={!!rascunho}
+          imagemSelecionada={camada?.tipo === "imagem"}
           onMudar={(c, msg) => { const img = paginaAtual.camadas.find((k) => k.tipo === "imagem"); recomporPagina({ comp: img && img.tipo === "imagem" ? { ...c, asset_id: img.asset_id } : c }, msg); }}
-          onSubstituir={(f) => { setSubImagens((s) => ({ aba: f, n: (s?.n ?? 0) + 1 })); if (compacto) { setPainelMovel("imagens"); setPainelAberto(true); } else setAba("imagens"); }}
+          onSubstituir={(f) => { const img = camada?.tipo === "imagem" ? camada : paginaAtual.camadas.find((k) => k.tipo === "imagem"); setImagemASubstituir(img?.id ?? null); setSubImagens((s) => ({ aba: f, n: (s?.n ?? 0) + 1 })); if (compacto) { setPainelMovel("imagens"); setPainelAberto(true); } else setAba("imagens"); }}
           sugestao={papelPagina ? inferirFonte(papelPagina) : undefined} promptIA={promptAuto} queryPexels={queryAuto}
           origemIA={compPagina.origem === "kie"}
           onGerarIA={(pr) => { setPromptIA(pr); setSubImagens((s) => ({ aba: "ia", n: (s?.n ?? 0) + 1 })); if (compacto) { setPainelMovel("imagens"); setPainelAberto(true); } else setAba("imagens"); }} />
