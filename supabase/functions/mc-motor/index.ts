@@ -283,10 +283,7 @@ Deno.serve(async (req) => {
         const stickers = await pesquisarGiphy(String(body.termo ?? ""), pagina);
         return json({ ok: true, stickers, mais: stickers.length === 24 });
       }
-      const capa64 = String(body.capa ?? "");
-      if (!capa64 || capa64.length > 8_400_000 || !/^[A-Za-z0-9+/]+={0,2}$/.test(capa64)) return json({ error: "Pré-visualização inválida." }, 400);
-      const capa = Uint8Array.from(atob(capa64), (c) => c.charCodeAt(0));
-      const r = await guardarStickerGiphy(admin(), { projectId, userId: u.user.id, providerId: String(body.sticker_id ?? ""), mp4Url: String(body.mp4_url ?? ""), capa, duracaoMs: Number(body.duracao_ms ?? 5000) });
+      const r = await guardarStickerGiphy(admin(), { projectId, userId: u.user.id, providerId: String(body.sticker_id ?? ""), mp4Url: String(body.mp4_url ?? ""), stillUrl: String(body.still_url ?? ""), duracaoMs: Number(body.duracao_ms ?? 5000) });
       return json({ ok: true, asset: { id: r.capa.id, nome: r.capa.nome, mime: r.capa.mime, largura: r.capa.largura, altura: r.capa.altura, bytes: r.capa.bytes, hash: r.capa.hash, animacao_id: r.animacao.id, duracao_ms: r.animacao.duracao_ms } });
     } catch (e) { return json({ error: (e as Error).message }, 422); }
   }

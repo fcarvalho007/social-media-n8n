@@ -4,18 +4,6 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { giphyPesquisar, giphyUsar, type StickerGiphy } from "@/services/motor";
 
-async function capaPng(url: string): Promise<string> {
-  const r = await fetch(url);
-  if (!r.ok) throw new Error("Não foi possível preparar o sticker.");
-  const bmp = await createImageBitmap(await r.blob());
-  try {
-    const c = document.createElement("canvas"); c.width = bmp.width; c.height = bmp.height;
-    const ctx = c.getContext("2d"); if (!ctx) throw new Error("O navegador não conseguiu preparar o sticker.");
-    ctx.drawImage(bmp, 0, 0);
-    return c.toDataURL("image/png").split(",")[1] ?? "";
-  } finally { bmp.close(); }
-}
-
 export function PesquisaGiphy({ projectId, usar, ocupado }: { projectId: string; usar: (chave: string, nome: string, obter: () => Promise<string>) => Promise<void>; ocupado: boolean }) {
   const [termo, setTermo] = useState("");
   const [itens, setItens] = useState<StickerGiphy[]>([]);
@@ -27,7 +15,7 @@ export function PesquisaGiphy({ projectId, usar, ocupado }: { projectId: string;
     try { setItens((await giphyPesquisar(projectId, termo.trim())).stickers); } catch (e) { setErro((e as Error).message); } finally { setAPesquisar(false); }
   };
   const escolher = (s: StickerGiphy) => usar(`giphy:${s.id}`, s.titulo || "Sticker GIPHY", async () => {
-    const r = await giphyUsar(projectId, s, await capaPng(s.still), 5000);
+    const r = await giphyUsar(projectId, s, 5000);
     return r.asset.id;
   });
   return <div className="space-y-3">
