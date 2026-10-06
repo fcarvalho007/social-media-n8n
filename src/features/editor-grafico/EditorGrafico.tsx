@@ -371,17 +371,17 @@ export function EditorGrafico({ pacoteInicial, chaveLocal, titulo, seletor, real
     } catch (e) { toast.error((e as Error).message, { id: t }); }
   };
   /** Session-only clipboard: a copied layer plus the assets it needs. */
-  const area = useRef<{ camada: Camada; assets: Record<string, Asset> } | null>(null);
+  const copia = useRef<{ camada: Camada; assets: Record<string, Asset> } | null>(null);
   const copiar = () => {
     const c = paginaAtual?.camadas.find((x) => x.id === selecao);
     if (!c) return;
     const assets: Record<string, Asset> = c.tipo === "imagem" && pacote.assets?.[c.asset_id] ? { [c.asset_id]: pacote.assets[c.asset_id] } : {};
-    area.current = { camada: structuredClone(c), assets };
+    copia.current = { camada: structuredClone(c), assets };
     toast.success("Elemento copiado. Ctrl/Cmd+V cola; Ctrl/Cmd+Alt+V cola só o estilo.");
   };
-  const colar = () => { if (area.current) despachar({ tipo: "colarCamada", camada: area.current.camada, assets: area.current.assets }); else toast.info("Nada copiado ainda."); };
+  const colar = () => { if (copia.current) despachar({ tipo: "colarCamada", camada: copia.current.camada, assets: copia.current.assets }); else toast.info("Nada copiado ainda."); };
   const colarEstilo = () => {
-    const o = area.current?.camada; const alvo = paginaAtual?.camadas.find((x) => x.id === selecao);
+    const o = copia.current?.camada; const alvo = paginaAtual?.camadas.find((x) => x.id === selecao);
     if (!o || !alvo) { toast.info("Copia um elemento e seleciona outro do mesmo tipo."); return; }
     if (o.tipo !== alvo.tipo) { toast.info("Só é possível colar o estilo entre elementos do mesmo tipo."); return; }
     despachar({ tipo: "colarEstilo", id: alvo.id, origem: o });
