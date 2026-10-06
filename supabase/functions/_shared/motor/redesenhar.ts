@@ -195,6 +195,12 @@ export function redesenharPagina(o: OpcoesRedesign): { candidatos: CandidatoRede
     const x = comporCandidato(o, rc, undefined, vistos, saida.length);
     if (x) saida.push({ ...x, disruptiva: saida.filter((c) => c.disruptiva).length < 2 });
   }
+  // Last resort: other styles × typographic recipes, still rejecting near-identical geometry (never duplicates).
+  for (const e of EXPLORAR) for (const base of [RECEITAS[0], RECEITAS[5], RECEITAS[7]]) {
+    if (saida.length >= n) break;
+    const x = comporCandidato(o, { ...base, strategy: "EXPLORE", estilo: e.estilo, label: e.label, precisaImagem: false }, undefined, vistos, saida.length);
+    if (x) saida.push(x);
+  }
   const sugerirIA = !querIA && !asset && (papel === "cover" || papel === "visual_story" || papel === "concept");
   const aviso = saida.length < n ? `Só foi possível criar ${saida.length} composição(ões) sem cortar conteúdo nem reduzir letra.` : undefined;
   return { candidatos: saida, sugerirIA, aviso };
