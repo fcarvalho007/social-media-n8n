@@ -118,14 +118,16 @@ export function PaginaCanvas({ pacote, variante, indice, medidor, imagens, escal
                   const sx = n.scaleX(), sy = n.scaleY();
                   const w = Math.max(20, Math.round(c.w * sx));
                   const h = Math.max(20, Math.round(c.h * sy));
-                  const x = Math.round(n.x() - lim.x * sx);
-                  const y = Math.round(n.y() - lim.y * sy);
+                  const x = Math.round(c.x + n.x() - lim.x * sx);
+                  const y = Math.round(c.y + n.y() - lim.y * sy);
                   n.scale({ x: 1, y: 1 });
                   n.position({ x: lim.x, y: lim.y });
                   onAlterar?.(c.id, { x, y, w, h });
                 }}
               >
-                <Conteudo c={c} pacote={pacote} medidor={medidor} imagens={imagens} />
+                <Group x={-lim.x} y={-lim.y} listening={false}>
+                  <Conteudo c={c} pacote={pacote} medidor={medidor} imagens={imagens} />
+                </Group>
               </Group>
               {interativo && sobrevoo === c.id && selecao !== c.id && (
                 <Rect x={lim.x} y={lim.y} width={lim.w} height={lim.h} stroke={corSelecao} strokeWidth={1 / escala} dash={[5 / escala, 4 / escala]} opacity={0.55} listening={false} />
