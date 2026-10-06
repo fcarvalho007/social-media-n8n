@@ -7,7 +7,9 @@ import { BUCKET_ASSETS, caminhoAsset, inspecionarImagem } from "./fontes.ts";
 import { sha256Hex, type AssetRow } from "./fontes.server.ts";
 
 export const KIE_BASE = "https://api.kie.ai/api/v1/jobs";
-export const KIE_MODELO = "seedream/5-flash-text-to-image";
+import { modelosImagem, resolverModeloImagem, type QualidadeImagem } from "./imagemModelo.server.ts";
+/** Default model (informative); the actual model comes from resolverModeloImagem at call time. */
+export const KIE_MODELO = resolverModeloImagem("fast").modelo;
 export const KIE_PROPORCAO = "3:4";
 export const KIE_MAX_DIA = 10;
 /** 2K output; JPEG keeps a 2K 3:4 image under the 6 MB asset limit (PNG at 2K can exceed it). */
@@ -17,33 +19,46 @@ const SUFIXO = "No text, no letters, no captions, no logos, no brand marks, no w
 
 export const chaveKie = () => Deno.env.get("KIE_API_KEY") ?? "";
 
-export function corpoKie(prompt: string) {
-  return { model: KIE_MODELO, input: { prompt: `${prompt.trim()}\n\n${SUFIXO}`, aspect_ratio: KIE_PROPORCAO, size: KIE_TAMANHO, output_format: KIE_FORMATO, nsfw_checker: true } };
+export function corpoKie(prompt: string, modelo: string = KIE_MODELO) {
+  return { model: modelo, input: { prompt: `${prompt.trim()}\n\n${SUFIXO}`, aspect_ratio: KIE_PROPORCAO, size: KIE_TAMANHO, output_format: KIE_FORMATO, nsfw_checker: true } };
 }
 
-export async function criarTarefaKie(sb: SupabaseClient, a: { projectId: string; userId: string; prompt: string }, f: typeof fetch = fetch) {
+/** True when Kie rejected the request because the model itself is unavailable (known outcome, no task created). */
+export const modeloIndisponivel = (status: number, msg: unknown) =>
+  status >= 400 && status < 500 && status !== 401 && status !== 402 && /model|modelo|not (found|support)|unavailable/i.test(String(msg ?? ""));
+
+export async function criarTarefaKie(sb: SupabaseClient, a: { projectId: string; userId: string; prompt: string; qualidade?: QualidadeImagem }, f: typeof fetch = fetch) {
   const desde = new Date(Date.now() - 86_400_000).toISOString();
-  const { count } = await sb.from("mc_kie_tarefas").select("id", { count: "exact", head: true }).eq("project_id", a.projectId).eq("modelo", KIE_MODELO).gte("criado_em", desde);
-  if ((count ?? 0) >= KIE_MAX_DIA) return { status: 409, corpo: { error: `Limite de ${KIE_MAX_DIA} imagens Kie por dia neste projeto atingido.` } };
+  const { count } = await sb.from("mc_kie_tarefas").select("id", { count: "exact", head: true }).eq("project_id", a.projectId).in("modelo", modelosImagem()).gte("criado_em", desde);
+  if ((count ?? 0) >= KIE_MAX_DIA) return { status: 409, corpo: { error: `Limite de ${KIE_MAX_DIA} imagens IA por dia neste projeto atingido.` } };
+  const { modelo, fallback } = resolverModeloImagem(a.qualidade ?? "fast");
+  const primeira = await tentarModelo(sb, a, modelo, f);
+  // Fallback only when the primary model was refused BEFORE a task existed; never after an unknown outcome.
+  if (fallback && primeira.indisponivel) return (await tentarModelo(sb, a, fallback, f)).r;
+  return primeira.r;
+}
+
+async function tentarModelo(sb: SupabaseClient, a: { projectId: string; userId: string; prompt: string }, modelo: string, f: typeof fetch) {
   // Reserve BEFORE the paid request.
-  const { data: res, error } = await sb.from("mc_kie_tarefas").insert({ project_id: a.projectId, criado_por: a.userId, modelo: KIE_MODELO, prompt: a.prompt }).select("id").single();
-  if (error || !res) return { status: 500, corpo: { error: "Não foi possível reservar o pedido." } };
+  const { data: res, error } = await sb.from("mc_kie_tarefas").insert({ project_id: a.projectId, criado_por: a.userId, modelo, prompt: a.prompt }).select("id").single();
+  if (error || !res) return { indisponivel: false, r: { status: 500, corpo: { error: "Não foi possível reservar o pedido." } as Record<string, unknown> } };
   let r: Response;
   try {
-    r = await f(`${KIE_BASE}/createTask`, { method: "POST", headers: { Authorization: `Bearer ${chaveKie()}`, "Content-Type": "application/json" }, body: JSON.stringify(corpoKie(a.prompt)) });
+    r = await f(`${KIE_BASE}/createTask`, { method: "POST", headers: { Authorization: `Bearer ${chaveKie()}`, "Content-Type": "application/json" }, body: JSON.stringify(corpoKie(a.prompt, modelo)) });
   } catch {
     await sb.from("mc_kie_tarefas").update({ estado: "desconhecido", erro: "Sem resposta da Kie.", actualizado_em: new Date().toISOString() }).eq("id", res.id);
-    return { status: 502, corpo: { error: "A Kie não respondeu. O pedido pode ter sido aceite; não foi repetido.", tarefa: res.id, estado: "desconhecido" } };
+    return { indisponivel: false, r: { status: 502, corpo: { error: "A Kie não respondeu. O pedido pode ter sido aceite; não foi repetido.", tarefa: res.id, estado: "desconhecido" } as Record<string, unknown> } };
   }
   const j = await r.json().catch(() => null) as { code?: number; msg?: string; data?: { taskId?: string } } | null;
   const taskId = j?.data?.taskId;
   if (!r.ok || j?.code !== 200 || !taskId) {
     const estado = r.status >= 500 ? "desconhecido" : "falhou";
     await sb.from("mc_kie_tarefas").update({ estado, erro: String(j?.msg ?? r.status).slice(0, 300), actualizado_em: new Date().toISOString() }).eq("id", res.id);
-    return { status: r.status === 401 || r.status === 402 ? r.status : 502, corpo: { error: r.status === 402 ? "Sem saldo na Kie." : r.status === 401 ? "A Kie recusou a chave configurada." : `A Kie recusou o pedido (${j?.msg ?? r.status}).`, tarefa: res.id, estado } };
+    const indisponivel = estado === "falhou" && modeloIndisponivel(r.ok ? 400 : r.status, j?.msg);
+    return { indisponivel, r: { status: r.status === 401 || r.status === 402 ? r.status : 502, corpo: { error: r.status === 402 ? "Sem saldo na Kie." : r.status === 401 ? "A Kie recusou a chave configurada." : `A Kie recusou o pedido (${j?.msg ?? r.status}).`, tarefa: res.id, estado } as Record<string, unknown> } };
   }
   await sb.from("mc_kie_tarefas").update({ estado: "criada", task_id: taskId, actualizado_em: new Date().toISOString() }).eq("id", res.id);
-  return { status: 200, corpo: { ok: true, tarefa: res.id, estado: "criada" } };
+  return { indisponivel: false, r: { status: 200, corpo: { ok: true, tarefa: res.id, estado: "criada", modelo } as Record<string, unknown> } };
 }
 
 /** Polls one reserved task (resumable). On success imports the PNG into this project's assets. */
