@@ -148,8 +148,10 @@ export function PaginaCanvas({ pacote, variante, indice, medidor, imagens, escal
             // into large arcs on narrow mobile canvases.
             anchorSize={medidas.anchorSize}
             anchorCornerRadius={medidas.anchorCornerRadius}
-            borderStroke={corSelecao}
+            anchorFill="#ffffff"
             anchorStroke={corSelecao}
+            anchorStrokeWidth={1.5}
+            borderStroke={corSelecao}
             borderStrokeWidth={medidas.borderStrokeWidth}
             ignoreStroke
             boundBoxFunc={(antes, depois) => (depois.width < 20 || depois.height < 20 ? antes : depois)}
