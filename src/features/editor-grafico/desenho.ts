@@ -14,6 +14,18 @@ export function desenharTexto(ctx: Konva.Context, c: CamadaTexto, texto: string,
   return lay;
 }
 
+/** Tight box of the visible content inside the layer frame (selection follows this, not the declared frame). */
+export function limitesConteudo(c: Camada, texto: string, m: Medidor): { x: number; y: number; w: number; h: number } {
+  if (c.tipo !== "texto") return { x: 0, y: 0, w: c.w, h: c.h };
+  const lay = layoutTexto(texto, c.estilo, c.w, c.h, m);
+  if (lay.linhas.length === 0) return { x: 0, y: 0, w: c.w, h: c.h };
+  let x0 = Infinity, x1 = 0;
+  for (const l of lay.linhas) { x0 = Math.min(x0, l.x); x1 = Math.max(x1, l.x + l.largura); }
+  if (lay.capitular) { x0 = Math.min(x0, lay.capitular.x); x1 = Math.max(x1, lay.capitular.x + lay.capitular.largura); }
+  const h = Math.min(c.h, lay.linhas.length * lay.alturaLinha);
+  return { x: Math.max(0, x0), y: 0, w: Math.min(c.w, Math.max(20, x1 - Math.max(0, x0))), h: Math.max(20, h) };
+}
+
 const cacheImagens = new Map<string, Promise<HTMLImageElement>>();
 
 export function carregarImagem(a: Asset): Promise<HTMLImageElement> {
