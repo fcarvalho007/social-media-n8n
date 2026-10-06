@@ -114,12 +114,13 @@ export function hashConteudo(p: Pagina, conteudo: ConteudoEditorial): string {
 export function assinatura(p: Pagina): string {
   const b = (n: number, q: number) => Math.round(n / q);
   const img = p.camadas.find((c) => c.tipo === "imagem");
-  const t = p.camadas.find((c) => c.tipo === "texto" && !!c.ref?.endsWith(".titulo"));
+  const t = p.camadas.find((c) => c.tipo === "texto" && !!c.ref?.endsWith(".titulo"))
+    ?? p.camadas.filter((c) => c.tipo === "texto").sort((a, b) => (b.tipo === "texto" ? b.estilo.tam : 0) - (a.tipo === "texto" ? a.estilo.tam : 0))[0];
   const area = img ? b((img.w * img.h) / (1080 * 1350), 0.2) : -1;
   const grupos = p.camadas.filter((c) => c.tipo === "forma" && !c.id.startsWith("fx-")).length;
   const fx = p.camadas.filter((c) => c.id.startsWith("fx-")).map((c) => c.id.replace(/[-\d]+$/, "")).sort().filter((x, i, a) => a.indexOf(x) === i).join(",");
   return [area, img ? `${b(img.x, 270)},${b(img.y, 340)}` : "-", t ? `${b(t.x, 270)},${b(t.y, 270)},${b(t.w, 360)}` : "-",
-    t && t.tipo === "texto" ? `${t.estilo.alinh},${b(t.estilo.tam, 16)}` : "-", b(grupos, 2), fx].join("|");
+    t && t.tipo === "texto" ? `${t.estilo.alinh},${b(t.estilo.tam, 16)}` : "-", b(grupos, 2), fx, p.fundo.toLowerCase()].join("|");
 }
 
 const marcarManual = (c: Camada): Camada => (geradaPeloSistema(c) ? { ...c, manual: true } : c);
@@ -157,7 +158,7 @@ export function redesenharPagina(o: OpcoesRedesign): { candidatos: CandidatoRede
   }
   if (nDisruptivas) {
     const estilos = EXPLORAR.filter((e) => e.estilo !== o.sistema.estilo);
-    for (let tentativa = 0; saida.length < n && tentativa < estilos.length * 3; tentativa++) {
+    for (let tentativa = 0; saida.length < n && saida.filter((x) => x.disruptiva).length < nDisruptivas && tentativa < estilos.length * 3; tentativa++) {
       const e = estilos[(tentativa + (o.ronda ?? 0) * 2) % estilos.length];
       const base = tentativa % 2 === 0 ? RECEITAS[0] : RECEITAS[5];
       const rc: Receita = { ...base, strategy: "EXPLORE", estilo: e.estilo, label: e.label, reason: "Quebra deliberadamente o padrão deste slide; a direção visual global mantém-se.", precisaImagem: false };
@@ -168,7 +169,7 @@ export function redesenharPagina(o: OpcoesRedesign): { candidatos: CandidatoRede
   const alvoAntesIA = querIA ? n - 1 : n;
   for (let tentativa = 0; saida.length < alvoAntesIA && tentativa < FALLBACKS_DISRUPTIVOS.length * 4; tentativa++) {
     const rc = FALLBACKS_DISRUPTIVOS[(tentativa + (o.ronda ?? 0)) % FALLBACKS_DISRUPTIVOS.length];
-    const c = comporCandidato(o, rc, undefined, vistos, saida.length, tentativa >= FALLBACKS_DISRUPTIVOS.length);
+    const c = comporCandidato(o, rc, undefined, vistos, saida.length);
     if (c) saida.push({ ...c, disruptiva: saida.filter((x) => x.disruptiva).length < 2 });
   }
   if (querIA) {
@@ -187,12 +188,18 @@ export function redesenharPagina(o: OpcoesRedesign): { candidatos: CandidatoRede
     }
     if (c) saida.splice(Math.min(2, saida.length), 0, { ...c, requiresAiImage: true, promptIA, pendente: true });
     // AI layout cannot fit this page: the slot goes back to a regular composition.
-    else for (const rc of [...receitas, ...FALLBACKS_DISRUPTIVOS]) { if (saida.length >= n) break; const x = comporCandidato(o, rc, asset, vistos, saida.length, saida.length > 2); if (x) saida.push(x); }
+    else for (const rc of [...receitas, ...FALLBACKS_DISRUPTIVOS]) { if (saida.length >= n) break; const x = comporCandidato(o, rc, asset, vistos, saida.length); if (x) saida.push(x); }
   }
   for (let tentativa = 0; saida.length < n && tentativa < FALLBACKS_DISRUPTIVOS.length * 6; tentativa++) {
     const rc = FALLBACKS_DISRUPTIVOS[(tentativa + 2 + (o.ronda ?? 0)) % FALLBACKS_DISRUPTIVOS.length];
-    const x = comporCandidato(o, rc, undefined, vistos, saida.length, true);
+    const x = comporCandidato(o, rc, undefined, vistos, saida.length);
     if (x) saida.push({ ...x, disruptiva: saida.filter((c) => c.disruptiva).length < 2 });
+  }
+  // Last resort: other styles × typographic recipes, still rejecting near-identical geometry (never duplicates).
+  for (const e of EXPLORAR) for (const base of [RECEITAS[0], RECEITAS[5], RECEITAS[7]]) {
+    if (saida.length >= n) break;
+    const x = comporCandidato(o, { ...base, strategy: "EXPLORE", estilo: e.estilo, label: e.label, precisaImagem: false }, undefined, vistos, saida.length);
+    if (x) saida.push(x);
   }
   const sugerirIA = !querIA && !asset && (papel === "cover" || papel === "visual_story" || papel === "concept");
   const aviso = saida.length < n ? `Só foi possível criar ${saida.length} composição(ões) sem cortar conteúdo nem reduzir letra.` : undefined;
@@ -213,7 +220,7 @@ function comporCandidato(o: OpcoesRedesign, rc: Receita, asset: string | undefin
   const p: PacoteProva = { ...o.pacote, variantes: { ...o.pacote.variantes, [o.variante]: { ...doc, paginas: doc.paginas.map((x, i) => (i === o.indice ? pg : x)) } } };
   const sis = { ...o.sistema, ...(rc.estilo ? { estilo: rc.estilo } : {}), imagens: "auto" as const };
   let res;
-  try { res = aplicarSistema(p, sis, o.m, [o.indice], {}, { ajustes: "recriar", variantes: [o.variante] }); } catch { return null; }
+  try { res = aplicarSistema(p, sis, o.m, [o.indice], {}, { ajustes: "recriar", variantes: [o.variante], adotarLivres: true }); } catch { return null; }
   if (res.recusadas.length || res.imagemRecusadas.length) return null; // never shrink: refuse what does not fit
   const nova = res.pacote.variantes[o.variante].paginas[o.indice];
   if (hashConteudo(nova, o.pacote.conteudo) !== hash0) return null;
