@@ -161,6 +161,8 @@ export function redesenharPagina(o: OpcoesRedesign): { candidatos: CandidatoRede
       c = null;
     }
     if (c) saida.splice(Math.min(2, saida.length), 0, { ...c, requiresAiImage: true, promptIA, pendente: true });
+    // AI layout cannot fit this page: the slot goes back to a regular composition.
+    else for (const rc of receitas) { if (saida.length >= n) break; const x = comporCandidato(o, rc, asset, vistos, saida.length); if (x) saida.push(x); }
   }
   const sugerirIA = !querIA && !asset && (papel === "cover" || papel === "visual_story" || papel === "concept");
   const aviso = saida.length < n ? `Só ${saida.length} composição(ões) realmente diferente(s) cabem neste slide${asset ? "" : " sem imagem"}.` : undefined;

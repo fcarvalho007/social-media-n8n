@@ -6,7 +6,7 @@ export type QualidadeImagem = "fast" | "quality";
 export const MODELO_IMAGEM_PADRAO = "seedream/5-flash-text-to-image";
 
 type Ler = (k: string) => string | undefined;
-const lerEnv: Ler = (k) => { try { return Deno.env.get(k) ?? undefined; } catch { return undefined; } };
+const lerEnv: Ler = (k) => { try { return (globalThis as unknown as { Deno?: { env: { get(k: string): string | undefined } } }).Deno?.env.get(k) ?? undefined; } catch { return undefined; } };
 const limpo = (v: string | undefined) => (v && /^[a-z0-9][a-z0-9._/-]{2,80}$/i.test(v.trim()) ? v.trim() : undefined);
 
 export function resolverModeloImagem(q: QualidadeImagem = "fast", ler: Ler = lerEnv): { modelo: string; fallback?: string } {
