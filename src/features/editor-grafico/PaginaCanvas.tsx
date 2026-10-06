@@ -62,12 +62,13 @@ function Conteudo({ c, pacote, medidor, imagens }: { c: Camada; pacote: PacotePr
 
 export function PaginaCanvas({ pacote, variante, indice, medidor, imagens, escala, interativo = false, selecao = null, onSelecionar, onAlterar, toque = false, corSelecao = "#f59e0b", encaixe = false }: Props) {
   const [guias, setGuias] = useState<{ x: number[]; y: number[] }>({ x: [], y: [] });
+  const [sobrevoo, setSobrevoo] = useState<string | null>(null);
   const pagina = pacote.variantes[variante].paginas[indice];
   const trRef = useRef<Konva.Transformer>(null);
   const nos = useRef(new Map<string, Konva.Group>());
   const medidas = toque
-    ? { anchorSize: 28, anchorCornerRadius: 14, borderStrokeWidth: 2 }
-    : { anchorSize: 12, anchorCornerRadius: 2, borderStrokeWidth: 2 };
+    ? { anchorSize: 26, anchorCornerRadius: 13, borderStrokeWidth: 2 }
+    : { anchorSize: 9, anchorCornerRadius: 4.5, borderStrokeWidth: 1.5 };
 
   useEffect(() => {
     const tr = trRef.current;
