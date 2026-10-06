@@ -3,7 +3,6 @@
 // the manifest is committed atomically only when every file is registered.
 import type { SupabaseClient } from "npm:@supabase/supabase-js@2.57.4";
 import { PDFDocument } from "npm:pdf-lib@1.17.1";
-import { zipSync } from "npm:fflate@0.8.2";
 import { adicionarPaginaRgb, pngParaRgb } from "./pngPdf.ts";
 import { renderizarPaginaPng } from "../documento-grafico/render.server.ts";
 import type { DocumentoGrafico, Variante } from "../documento-grafico/nucleo.ts";
@@ -119,7 +118,7 @@ async function processarJob(sb: SupabaseClient, j: Job): Promise<string> {
 }
 
 export async function processarExportacoes(sb: SupabaseClient, limite = 2): Promise<Array<{ id: string; resultado: string }>> {
-  const { data, error } = await sb.rpc("mc_reservar_exportacoes", { _limite: limite, _segundos: 150 });
+  const { data, error } = await sb.rpc("mc_reservar_exportacoes", { _limite: limite, _segundos: 75 });
   if (error) throw new Error(error.message);
   const out: Array<{ id: string; resultado: string }> = [];
   for (const j of (data ?? []) as Job[]) {
