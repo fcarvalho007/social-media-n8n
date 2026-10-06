@@ -12,7 +12,8 @@ export interface AcaoCusto {
 export const CUSTOS_IA: AcaoCusto[] = [
   { id: "imagem_ia", nome: "Gerar imagem IA", fornecedor: "Kie · Seedream 5.0 Flash", euros: 0.02, unidade: "por imagem" },
   { id: "texto_ia", nome: "Narrativa e textos com IA", fornecedor: "DeepSeek Flash", euros: 0.002, unidade: "por pedido" },
-  { id: "visao_ia", nome: "Descrever imagem com IA", fornecedor: "Kie · visão", euros: 0.005, unidade: "por pedido" },
+  { id: "visao_ia", nome: "Ler imagem com IA", fornecedor: "fal.ai · Gemini 2.5 Flash-Lite (alternativo: Kie · Gemini 3 Flash)", euros: 0.001, unidade: "por pedido" },
+  { id: "logo_ia", nome: "Criar logótipo com IA", fornecedor: "Kie · Seedream 5.0 Flash", euros: 0.02, unidade: "por proposta" },
 ];
 
 export const GRATUITOS = ["Redesenhar slide (5 propostas)", "Pexels", "Biblioteca", "Carregar imagem", "Efeitos e paletas", "Exportar PNG/PDF"];

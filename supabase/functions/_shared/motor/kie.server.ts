@@ -7,6 +7,7 @@ import { BUCKET_ASSETS, caminhoAsset, inspecionarImagem } from "./fontes.ts";
 import { sha256Hex, type AssetRow } from "./fontes.server.ts";
 
 export const KIE_BASE = "https://api.kie.ai/api/v1/jobs";
+import { recusaAntesDeCobrar, registosVisao, resolverModeloVisao, VISAO_KIE, type ModeloVisao } from "./visaoModelo.server.ts";
 import { modelosImagem, resolverModeloImagem, type QualidadeImagem } from "./imagemModelo.server.ts";
 /** Default model (informative); the actual model comes from resolverModeloImagem at call time. */
 export const KIE_MODELO = resolverModeloImagem("fast").modelo;
@@ -101,45 +102,70 @@ export async function estadoTarefaKie(sb: SupabaseClient, a: { projectId: string
   return { status: 200, corpo: { ok: true, estado: "concluida", asset_id: asset.id } };
 }
 
-// ---- Vision: interpret a support image (chart/table) with Kie Gemini 3 Flash (OpenAI-compatible chat). ----
+// ---- Vision: interpret a support image (chart/table). Provider chosen in visaoModelo.server.ts. ----
 export const KIE_VISAO_URL = "https://api.kie.ai/gemini-3-flash/v1/chat/completions";
-export const KIE_VISAO_MODELO = "gemini-3-flash:interpretar";
+export const FAL_VISAO_URL = "https://fal.run/openrouter/router/vision";
+export const KIE_VISAO_MODELO = VISAO_KIE.registo;
 export const KIE_VISAO_MAX_DIA = 20;
 const PROMPT_VISAO = "Descreve em português europeu (PT-PT) o que esta imagem mostra, para servir de fonte factual a um carrossel. Se for gráfico ou tabela: título, eixos/colunas, unidades, período e TODOS os valores legíveis, exatamente como aparecem. Depois, numa frase, a leitura principal que os dados permitem. Não inventes valores ilegíveis: escreve «ilegível». Máximo 1200 caracteres, texto simples sem markdown.";
 
 export function corpoVisao(url: string) {
   return { model: "gemini-3-flash", stream: false, include_thoughts: false, reasoning_effort: "low", messages: [{ role: "user", content: [{ type: "text", text: PROMPT_VISAO }, { type: "image_url", image_url: { url } }] }] };
 }
+export function corpoVisaoFal(url: string, modelo: string) {
+  return { image_urls: [url], prompt: PROMPT_VISAO, model: modelo, max_tokens: 700, temperature: 0 };
+}
 
-/** One reservation per click; never retried after an unknown outcome. Returns an editable description, never applied by itself. */
+type Tentativa = { tipo: "ok"; texto: string } | { tipo: "recusa"; codigo: number; msg: string } | { tipo: "desconhecido"; msg: string };
+
+async function pedirVisao(m: ModeloVisao, url: string, f: typeof fetch): Promise<Tentativa> {
+  const chave = m.fornecedor === "fal" ? Deno.env.get("FAL_KEY") ?? "" : chaveKie();
+  if (!chave) return { tipo: "recusa", codigo: 401, msg: "Chave em falta." };
+  let r: Response;
+  try {
+    r = m.fornecedor === "fal"
+      ? await f(FAL_VISAO_URL, { method: "POST", headers: { Authorization: `Key ${chave}`, "Content-Type": "application/json" }, body: JSON.stringify(corpoVisaoFal(url, m.modelo)) })
+      : await f(KIE_VISAO_URL, { method: "POST", headers: { Authorization: `Bearer ${chave}`, "Content-Type": "application/json" }, body: JSON.stringify(corpoVisao(url)) });
+  } catch { return { tipo: "desconhecido", msg: "Sem resposta." }; }
+  const j = await r.json().catch(() => null) as { code?: number; output?: string; choices?: { message?: { content?: unknown } }[]; msg?: string; detail?: unknown; error?: { message?: string } } | null;
+  const c = m.fornecedor === "fal" ? j?.output : j?.choices?.[0]?.message?.content;
+  const texto = (typeof c === "string" ? c : Array.isArray(c) ? c.map((p) => (p as { text?: string }).text ?? "").join("") : "").trim().slice(0, 1500);
+  // Kie may answer HTTP 200 with an error code in the body: a definite refusal, not an unknown outcome.
+  const codigo = r.ok && typeof j?.code === "number" && j.code >= 400 ? j.code : r.status;
+  const msg = String(j?.error?.message ?? j?.msg ?? (typeof j?.detail === "string" ? j.detail : "") ?? r.status).slice(0, 300) || String(codigo);
+  if (codigo < 400 && texto) return { tipo: "ok", texto };
+  if (codigo >= 400 && codigo < 500) return { tipo: "recusa", codigo, msg };
+  return { tipo: "desconhecido", msg };
+}
+
+/** One reservation per click; the fallback runs only after a definite refusal before charging; never retried after an unknown outcome. */
 export async function interpretarImagemKie(sb: SupabaseClient, a: { projectId: string; userId: string; assetId: string }, f: typeof fetch = fetch) {
   const { data: asset } = await sb.from("mc_assets").select("id, bucket, storage_path").eq("project_id", a.projectId).eq("id", a.assetId).maybeSingle();
   if (!asset) return { status: 404, corpo: { error: "Imagem inexistente neste projeto." } };
   const desde = new Date(Date.now() - 86_400_000).toISOString();
-  const { count } = await sb.from("mc_kie_tarefas").select("id", { count: "exact", head: true }).eq("project_id", a.projectId).eq("modelo", KIE_VISAO_MODELO).gte("criado_em", desde);
+  const { count } = await sb.from("mc_kie_tarefas").select("id", { count: "exact", head: true }).eq("project_id", a.projectId).in("modelo", registosVisao()).gte("criado_em", desde);
   if ((count ?? 0) >= KIE_VISAO_MAX_DIA) return { status: 409, corpo: { error: `Limite de ${KIE_VISAO_MAX_DIA} interpretações por dia neste projeto atingido.` } };
   const assinado = await sb.storage.from(asset.bucket).createSignedUrl(asset.storage_path, 600);
   if (assinado.error || !assinado.data?.signedUrl) return { status: 500, corpo: { error: "Não foi possível preparar a imagem." } };
-  const { data: res, error } = await sb.from("mc_kie_tarefas").insert({ project_id: a.projectId, criado_por: a.userId, modelo: KIE_VISAO_MODELO, prompt: "interpretar imagem de apoio", asset_id: asset.id }).select("id").single();
-  if (error || !res) return { status: 500, corpo: { error: "Não foi possível reservar o pedido." } };
+  const { principal, fallback } = resolverModeloVisao();
   const agora = () => new Date().toISOString();
-  let r: Response;
-  try {
-    r = await f(KIE_VISAO_URL, { method: "POST", headers: { Authorization: `Bearer ${chaveKie()}`, "Content-Type": "application/json" }, body: JSON.stringify(corpoVisao(assinado.data.signedUrl)) });
-  } catch {
-    await sb.from("mc_kie_tarefas").update({ estado: "desconhecido", erro: "Sem resposta da Kie.", actualizado_em: agora() }).eq("id", res.id);
-    return { status: 502, corpo: { error: "A Kie não respondeu. O pedido pode ter sido cobrado; não foi repetido.", estado: "desconhecido" } };
+  let ultima: { codigo: number } | null = null;
+  for (const m of fallback ? [principal, fallback] : [principal]) {
+    const { data: res, error } = await sb.from("mc_kie_tarefas").insert({ project_id: a.projectId, criado_por: a.userId, modelo: m.registo, prompt: "interpretar imagem de apoio", asset_id: asset.id }).select("id").single();
+    if (error || !res) return { status: 500, corpo: { error: "Não foi possível reservar o pedido." } };
+    const t = await pedirVisao(m, assinado.data.signedUrl, f);
+    if (t.tipo === "ok") {
+      await sb.from("mc_kie_tarefas").update({ estado: "concluida", resultado: t.texto, actualizado_em: agora() }).eq("id", res.id);
+      return { status: 200, corpo: { ok: true, descricao: t.texto, fornecedor: m.fornecedor } };
+    }
+    if (t.tipo === "desconhecido") {
+      await sb.from("mc_kie_tarefas").update({ estado: "desconhecido", erro: t.msg, actualizado_em: agora() }).eq("id", res.id);
+      return { status: 502, corpo: { error: "O serviço de leitura não devolveu uma descrição. O pedido pode ter sido cobrado; não foi repetido.", estado: "desconhecido" } };
+    }
+    await sb.from("mc_kie_tarefas").update({ estado: "falhou", erro: t.msg, actualizado_em: agora() }).eq("id", res.id);
+    ultima = { codigo: t.codigo };
+    if (!recusaAntesDeCobrar(t.codigo)) break;
   }
-  const j = await r.json().catch(() => null) as { code?: number; choices?: { message?: { content?: unknown } }[]; msg?: string; error?: { message?: string } } | null;
-  const c = j?.choices?.[0]?.message?.content;
-  const texto = (typeof c === "string" ? c : Array.isArray(c) ? c.map((p) => (p as { text?: string }).text ?? "").join("") : "").trim().slice(0, 1500);
-  // Kie may answer HTTP 200 with an error code in the body (e.g. 401/402): a definite refusal, not an unknown outcome.
-  const codigo = r.ok && typeof j?.code === "number" && j.code >= 400 ? j.code : r.status;
-  if (!r.ok || !texto) {
-    const estado = codigo >= 400 && codigo < 500 ? "falhou" : "desconhecido";
-    await sb.from("mc_kie_tarefas").update({ estado, erro: String(j?.error?.message ?? j?.msg ?? r.status).slice(0, 300), actualizado_em: agora() }).eq("id", res.id);
-    return { status: codigo === 402 ? 402 : 502, corpo: { error: codigo === 402 ? "Sem saldo na Kie." : codigo === 401 ? "A Kie recusou a chave para a interpretação de imagens." : "A Kie não devolveu uma descrição. O pedido não foi repetido.", estado } };
-  }
-  await sb.from("mc_kie_tarefas").update({ estado: "concluida", resultado: texto, actualizado_em: agora() }).eq("id", res.id);
-  return { status: 200, corpo: { ok: true, descricao: texto } };
+  const cod = ultima?.codigo ?? 0;
+  return { status: cod === 402 ? 402 : 503, corpo: { error: cod === 402 ? "Sem saldo no serviço de leitura de imagens. Nada foi cobrado." : "Serviço de leitura de imagens indisponível: o pedido foi recusado. Nada foi cobrado.", estado: "falhou" } };
 }

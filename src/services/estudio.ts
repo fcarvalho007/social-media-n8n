@@ -6,7 +6,7 @@ const db = supabase as unknown as { from: (t: string) => any; rpc: (f: string, a
 export interface Edicao { id: string; numero: number; assunto: string | null; estado: string; data_envio_prevista: string | null; enviada_em: string | null }
 export interface Cronica { id: string; edicao_id: string; titulo: string | null; conteudo: string | null }
 export interface Artigo { id: string; project_id: string | null; titulo: string; resumo: string | null; corpo: string | null; estado: string; updated_at: string }
-export interface Projeto { id: string; name: string; color: string | null }
+export interface Projeto { id: string; name: string; color: string | null; logo_url?: string | null }
 
 // "Para quem?" selection is stored per user in the backend (estudio_preferencias).
 export async function getMarca(): Promise<string | null> {
@@ -37,9 +37,32 @@ export async function associarIdentidade(id: string, projectId: string | null): 
 }
 
 export async function listarProjetos(): Promise<Projeto[]> {
-  const { data, error } = await supabase.from("projects").select("id,name,color").order("name");
+  const { data, error } = await supabase.from("projects").select("id,name,color,logo_url").order("name");
   if (error) throw error;
   return data ?? [];
+}
+
+const TIPOS_LOGO = ["image/png", "image/jpeg", "image/svg+xml", "image/webp"];
+/** Creates a brand (project) for the signed-in user; the optional logo goes to the user's public covers folder. */
+export async function criarMarca(nome: string, cor: string, logo?: File | null): Promise<Projeto> {
+  const { data: u } = await supabase.auth.getUser();
+  if (!u.user) throw new Error("Sessão em falta");
+  const n = nome.trim();
+  if (n.length < 2 || n.length > 60) throw new Error("O nome deve ter entre 2 e 60 caracteres.");
+  if (!/^#[0-9a-fA-F]{6}$/.test(cor)) throw new Error("Cor inválida.");
+  let logo_url: string | null = null;
+  if (logo) {
+    if (!TIPOS_LOGO.includes(logo.type)) throw new Error("O logótipo deve ser PNG, JPG, SVG ou WebP.");
+    if (logo.size > 5 * 1024 * 1024) throw new Error("O logótipo não pode exceder 5 MB.");
+    const ext = logo.name.split(".").pop()?.toLowerCase().replace(/[^a-z0-9]/g, "") || "png";
+    const caminho = `${u.user.id}/marcas/${Date.now()}.${ext}`;
+    const up = await supabase.storage.from("post-covers").upload(caminho, logo, { contentType: logo.type, upsert: false });
+    if (up.error) throw up.error;
+    logo_url = supabase.storage.from("post-covers").getPublicUrl(caminho).data.publicUrl;
+  }
+  const { data, error } = await supabase.from("projects").insert({ name: n, color: cor, icon: "🏷️", owner_id: u.user.id, logo_url }).select("id,name,color,logo_url").single();
+  if (error) throw error;
+  return data;
 }
 
 export async function listarEdicoes(): Promise<Edicao[]> {

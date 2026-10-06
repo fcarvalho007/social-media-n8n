@@ -3,7 +3,7 @@ import { toast } from "sonner";
 import {
   AlignCenter, AlignLeft, AlignRight, ArrowDown, ArrowUp, BringToFront, ChevronsDown, ChevronsUp, Circle, Copy, Download,
   AlignStartVertical, AlignCenterVertical, AlignEndVertical, AlignStartHorizontal, AlignCenterHorizontal, AlignEndHorizontal, Bold, CopyCheck, Magnet,
-  Eye, FileDown, Wand2, FileUp, Layers, Loader2, Maximize, Minus, MoreHorizontal, Plus, Redo2, ScanSearch, SendToBack, Square, Trash2, Type, Undo2, X,
+  ChevronDown, Eye, FileDown, Wand2, FileUp, Layers, Loader2, Maximize, Minus, MoreHorizontal, Plus, Redo2, ScanSearch, SendToBack, Square, Trash2, Type, Undo2, X,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -142,7 +142,7 @@ function PainelPropriedades({ pacote, camada: c, fundo, medidor, despachar, cama
       <div className="space-y-5">
         <section className="space-y-3">
           <h3 className="text-sm font-semibold">Página</h3>
-          <p className="text-xs text-muted-foreground">Cor de fundo atual <span className="ml-1 inline-block h-3 w-3 rounded-sm border border-border align-middle" style={{ background: fundo }} /> {fundo} · muda-se na barra de ferramentas acima (só este slide; «Aplicar a todos» é separado e pode desfazer-se).</p>
+          <div className="flex items-center justify-between gap-2 text-xs"><span className="text-muted-foreground">Fundo</span><span className="flex items-center gap-1.5 font-mono"><span className="inline-block h-4 w-4 rounded-sm border border-border" style={{ background: fundo }} title="Muda-se na barra de ferramentas acima" />{fundo}</span></div>
           {onImagem && <Button variant="outline" className="h-11 w-full lg:h-9" onClick={onImagem}><ScanSearch className="mr-1.5 h-4 w-4" />Escolher imagem de fundo…</Button>}
         </section>
         <section className="space-y-2">
@@ -827,7 +827,7 @@ export function EditorGrafico({ pacoteInicial, chaveLocal, titulo, seletor, real
       </div>
       {!sistemaDoc ? <p className="text-xs text-muted-foreground">Escolhe primeiro uma direção visual para ajustar o papel e a imagem desta página.</p> : (<>
         <div className="space-y-1">
-          <Label htmlFor="pv-papel" className="text-xs text-muted-foreground">Papel visual</Label>
+          <Label htmlFor="pv-papel" className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Papel visual</Label>
           <Select value={papelPagina ?? ""} disabled={!!rascunho} onValueChange={(v) => recomporPagina({ papel: v as PapelVisual }, `Papel visual: ${PAPEIS.find((x) => x.id === v)?.nome}`)}>
             <SelectTrigger id="pv-papel" className="h-11 lg:h-9"><SelectValue placeholder="Escolher" /></SelectTrigger>
             <SelectContent>{PAPEIS.filter((x) => pagina === 0 || x.id !== "cover").map((x) => <SelectItem key={x.id} value={x.id}>{x.nome}</SelectItem>)}</SelectContent>
@@ -840,10 +840,10 @@ export function EditorGrafico({ pacoteInicial, chaveLocal, titulo, seletor, real
           sugestao={papelPagina ? inferirFonte(papelPagina) : undefined} promptIA={promptAuto} queryPexels={queryAuto}
           origemIA={compPagina.origem === "kie"}
           onGerarIA={(pr) => { setPromptIA(pr); if (compacto) { setPainelMovel("imagens"); setPainelAberto(true); } else setAba("imagens"); }} />
-        <Collapsible>
-          <CollapsibleTrigger className="text-xs text-muted-foreground underline-offset-2 hover:underline">Personalizar › Efeitos</CollapsibleTrigger>
+        <Collapsible className="border-t border-border pt-4">
+          <CollapsibleTrigger className="group flex min-h-9 w-full items-center justify-between text-left"><span className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Efeitos</span><ChevronDown className="h-4 w-4 text-muted-foreground transition-transform group-data-[state=open]:rotate-180" /></CollapsibleTrigger>
           <CollapsibleContent className="space-y-2 pt-2">
-            <p className="text-[11px] text-muted-foreground">Por omissão vêm do estilo. As cores seguem a paleta.</p>
+            <p className="text-[11px] text-muted-foreground">Vêm do estilo; as cores seguem a paleta.</p>
             {(() => {
               const ov = (compPagina.efeitos ?? {}) as OverrideEfeitos;
               const ativos = efeitosAtivos(sistemaDoc.estilo, ov);
@@ -1022,7 +1022,7 @@ export function EditorGrafico({ pacoteInicial, chaveLocal, titulo, seletor, real
             <div className="w-40 shrink-0">{acoesPagina}</div>
           </div>
         </div>
-        <aside className="w-72 shrink-0 overflow-y-auto border-l border-border bg-background p-4" aria-label="Propriedades">
+        <aside className="w-72 shrink-0 overflow-y-auto overflow-x-hidden border-l border-border bg-background p-4" aria-label="Propriedades">
           {!camada && painelPaginaVisual}
           {propriedades}
         </aside>
