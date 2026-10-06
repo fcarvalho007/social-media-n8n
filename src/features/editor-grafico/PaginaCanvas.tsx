@@ -68,6 +68,8 @@ export function PaginaCanvas({ pacote, variante, indice, medidor, imagens, escal
   const pagina = pacote.variantes[variante].paginas[indice];
   const trRef = useRef<Konva.Transformer>(null);
   const nos = useRef(new Map<string, Konva.Group>());
+  // A second click on an already-selected text opens editing (first click only selects).
+  const jaSelecionado = useRef(false);
   const medidas = toque
     ? { anchorSize: 28, anchorCornerRadius: 14, borderStrokeWidth: 2 }
     : { anchorSize: 9, anchorCornerRadius: 4.5, borderStrokeWidth: 1.5 };
@@ -97,11 +99,13 @@ export function PaginaCanvas({ pacote, variante, indice, medidor, imagens, escal
               height={c.h}
               opacity={c.opacidade ?? 1}
               draggable={interativo}
-              onMouseDown={() => onSelecionar?.(c.id)}
-              onTouchStart={() => onSelecionar?.(c.id)}
+              onMouseDown={() => { jaSelecionado.current = selecao === c.id; onSelecionar?.(c.id); }}
+              onTouchStart={() => { jaSelecionado.current = selecao === c.id; onSelecionar?.(c.id); }}
+              onClick={() => { if (interativo && c.tipo === "texto" && jaSelecionado.current) onEditarTexto?.(c.id); }}
+              onTap={() => { if (interativo && c.tipo === "texto" && jaSelecionado.current) onEditarTexto?.(c.id); }}
               onDblClick={() => { if (interativo && c.tipo === "texto") onEditarTexto?.(c.id); }}
               onDblTap={() => { if (interativo && c.tipo === "texto") onEditarTexto?.(c.id); }}
-              onMouseEnter={(e) => { if (!interativo) return; setSobrevoo(c.id); const s = e.target.getStage(); if (s) s.container().style.cursor = "move"; }}
+              onMouseEnter={(e) => { if (!interativo) return; setSobrevoo(c.id); const s = e.target.getStage(); if (s) s.container().style.cursor = c.tipo === "texto" && selecao === c.id ? "text" : "move"; }}
               onMouseLeave={(e) => { if (!interativo) return; setSobrevoo((a) => (a === c.id ? null : a)); const s = e.target.getStage(); if (s) s.container().style.cursor = "default"; }}
               onDragMove={(e) => {
                 if (!encaixe) return;

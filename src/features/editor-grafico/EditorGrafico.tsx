@@ -549,6 +549,7 @@ export function EditorGrafico({ pacoteInicial, chaveLocal, titulo, seletor, real
       if (mod && e.key.toLowerCase() === "z") { if (emCampo(e)) return; e.preventDefault(); despachar({ tipo: e.shiftKey ? "refazer" : "desfazer" }); return; }
       if (mod && e.key.toLowerCase() === "y") { if (emCampo(e)) return; e.preventDefault(); despachar({ tipo: "refazer" }); return; }
       if (emCampo(e)) return;
+      if (e.key === "Enter" && !mod && selecao && camada?.tipo === "texto" && !editando) { e.preventDefault(); setEditando(selecao); return; }
       if (mod && e.key.toLowerCase() === "d" && selecao) { e.preventDefault(); despachar({ tipo: "duplicarCamada", id: selecao }); return; }
       if ((e.key === "Delete" || e.key === "Backspace") && selecao) { e.preventDefault(); despachar({ tipo: "apagarCamada", id: selecao }); return; }
       if (e.key === "Escape") { if (preview) setPreview(false); else despachar({ tipo: "selecionar", id: null }); return; }
@@ -802,7 +803,7 @@ export function EditorGrafico({ pacoteInicial, chaveLocal, titulo, seletor, real
         <Button variant="ghost" size="sm" className="h-11 shrink-0 lg:h-9" onClick={fundoTodos}><CopyCheck className="mr-1.5 h-4 w-4" />Aplicar a todos</Button>
         {sep}
         <Button variant={encaixe ? "secondary" : "ghost"} size="sm" className="h-11 shrink-0 lg:h-9" aria-pressed={encaixe} onClick={() => setEncaixe((v) => !v)}><Magnet className="mr-1.5 h-4 w-4" />Encaixar</Button>
-        <span className="ml-1 min-w-0 text-sm text-muted-foreground">Toca num elemento da página ou numa camada para o editar.</span>
+        <span className="ml-1 min-w-0 text-sm text-muted-foreground">Clica num texto para o selecionar; clica outra vez (ou Enter) para escrever.</span>
       </>)}
       {camada?.tipo === "texto" && (<>
         <div role="group" aria-label="Letra" className="flex flex-wrap items-center gap-1">
