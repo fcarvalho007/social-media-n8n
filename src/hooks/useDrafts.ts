@@ -7,7 +7,7 @@ import { useAuth } from '@/contexts/AuthContext';
 import { useProjeto } from '@/contexts/ProjetoContext';
 import { chaveRascunhos, pertenceAoFiltro, type FiltroRascunhos } from '@/lib/drafts/marcaRascunho';
 
-interface Draft {
+export interface Draft {
   id: string;
   user_id: string;
   project_id?: string | null;
@@ -20,6 +20,8 @@ interface Draft {
   status: string;
   created_at: string;
   updated_at: string;
+  format?: string | null;
+  media_items?: unknown;
 }
 
 export interface UseDraftsOptions {

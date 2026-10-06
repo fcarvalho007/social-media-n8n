@@ -813,7 +813,7 @@ export type Database = {
           tentativa: number
           tokens_entrada: number | null
           tokens_saida: number | null
-          trabalho_id: string
+          trabalho_id: string | null
         }
         Insert: {
           actualizado_em?: string
@@ -830,7 +830,7 @@ export type Database = {
           tentativa: number
           tokens_entrada?: number | null
           tokens_saida?: number | null
-          trabalho_id: string
+          trabalho_id?: string | null
         }
         Update: {
           actualizado_em?: string
@@ -847,7 +847,7 @@ export type Database = {
           tentativa?: number
           tokens_entrada?: number | null
           tokens_saida?: number | null
-          trabalho_id?: string
+          trabalho_id?: string | null
         }
         Relationships: [
           {
@@ -5315,6 +5315,10 @@ export type Database = {
           _variante: string
           _versao_esperada: number
         }
+        Returns: number
+      }
+      mc_eliminar_trabalhos: {
+        Args: { _trabalho_ids: string[] }
         Returns: number
       }
       mc_exportacao_progresso: {

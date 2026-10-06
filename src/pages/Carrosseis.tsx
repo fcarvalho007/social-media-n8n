@@ -1,14 +1,20 @@
 import * as React from "react";
 import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
-import { FlaskConical, Layers, Loader2, Plus } from "lucide-react";
+import { FlaskConical, Layers, Loader2, Plus, Trash2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { Checkbox } from "@/components/ui/checkbox";
+import { toast } from "sonner";
+import {
+  AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
+  AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import { useProjeto } from "@/contexts/ProjetoContext";
 import { LimitesIa } from "@/features/motor/LimitesIa";
 import { Grupo, useLargura } from "@/features/motor/Estudio";
 import { PaginaCanvas } from "@/features/editor-grafico/PaginaCanvas";
 import { carregarMedidor } from "@/features/editor-grafico/fontes";
-import { lerCapas, lerEstadosPublicacao, listarTrabalhos, type Capa, type EstadoTrabalho, type TrabalhoResumo } from "@/services/motor";
+import { eliminarTrabalhos, lerCapas, lerEstadosPublicacao, listarTrabalhos, type Capa, type EstadoTrabalho, type TrabalhoResumo } from "@/services/motor";
 import { estadoPublicacao, NOME_ESTADO_CONTEUDO, NOME_ESTADO_REDE, NOME_REDE, type EstadoPublicacao } from "@/features/motor/publicacao";
 import { cn } from "@/lib/utils";
 import { etiquetaTeste, eProva } from "@/features/motor/biblioteca";
@@ -38,6 +44,9 @@ export default function Carrosseis() {
   const [erroEstados, setErroEstados] = useState<string | null>(null);
   const [tentativa, setTentativa] = useState(0);
   const [aba, setAba] = useState<"por_publicar" | "publicados">("por_publicar");
+  const [selecionados, setSelecionados] = useState<Set<string>>(new Set());
+  const [confirmarEliminacao, setConfirmarEliminacao] = useState(false);
+  const [aEliminar, setAEliminar] = useState(false);
 
   useEffect(() => { carregarMedidor().then(setMedidor).catch(() => undefined); }, []);
   useEffect(() => {
@@ -49,6 +58,7 @@ export default function Carrosseis() {
       lerCapas(r.slice(0, 48).map((t) => t.id)).then((c) => vivo && setCapas(c)).catch(() => undefined);
     }).catch((e: Error) => vivo && setErro(e.message));
     return () => { vivo = false; };
+    setSelecionados(new Set());
   }, [projetoId, tentativa]);
 
   useEffect(() => {
@@ -68,6 +78,31 @@ export default function Carrosseis() {
   // Without a reliable state the list is shown ungrouped; nothing is ever counted as published by default.
   const visiveis = reais && estados ? reais.filter((t) => estados[t.id]?.grupo === aba) : reais;
   const nomeProjeto = (id: string) => projetos.find((p) => p.id === id)?.name ?? "Projeto";
+  const todosVisiveis = !!visiveis?.length && visiveis.every((item) => selecionados.has(item.id));
+  const selecionar = (id: string, ativo: boolean) => setSelecionados((atuais) => {
+    const seguintes = new Set(atuais);
+    if (ativo) seguintes.add(id); else seguintes.delete(id);
+    return seguintes;
+  });
+  const selecionarVisiveis = (ativo: boolean) => setSelecionados((atuais) => {
+    const seguintes = new Set(atuais);
+    visiveis?.forEach((item) => ativo ? seguintes.add(item.id) : seguintes.delete(item.id));
+    return seguintes;
+  });
+  const eliminarSelecionados = async () => {
+    setAEliminar(true);
+    try {
+      const total = await eliminarTrabalhos([...selecionados]);
+      setConfirmarEliminacao(false);
+      setSelecionados(new Set());
+      setTentativa((n) => n + 1);
+      toast.success(`${total} ${total === 1 ? "carrossel eliminado" : "carrosséis eliminados"}`);
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Não foi possível eliminar os carrosséis.");
+    } finally {
+      setAEliminar(false);
+    }
+  };
 
   return (
     <div className="mc-estudio -m-0 min-h-[calc(100dvh-4rem)] sm:-m-4 md:-m-6">
@@ -110,6 +145,17 @@ export default function Carrosseis() {
           </label>
         )}
 
+        {visiveis && visiveis.length > 0 && (
+          <div className="flex min-h-11 flex-wrap items-center gap-3 rounded-[var(--mc-r-md)] border border-border bg-card px-3 py-2">
+            <label className="flex cursor-pointer items-center gap-2 text-sm">
+              <Checkbox checked={todosVisiveis} onCheckedChange={(checked) => selecionarVisiveis(checked === true)} />
+              Selecionar visíveis
+            </label>
+            <span className="text-xs text-muted-foreground">{selecionados.size > 0 ? `${selecionados.size} selecionado${selecionados.size === 1 ? "" : "s"}` : "Selecione um ou vários carrosséis"}</span>
+            {selecionados.size > 0 && <Button variant="destructive" size="sm" className="ml-auto" onClick={() => setConfirmarEliminacao(true)}><Trash2 className="mr-1.5 h-4 w-4" />Eliminar ({selecionados.size})</Button>}
+          </div>
+        )}
+
         {visiveis && visiveis.length === 0 && estados && aba === "publicados" && reais && reais.length > 0 && (
           <div className="mc-entrar max-w-lg space-y-4 py-16">
             <Layers className="h-6 w-6 text-muted-foreground" aria-hidden />
@@ -142,7 +188,10 @@ export default function Carrosseis() {
               const falhou = t.estado === "erro" || t.estado === "desconhecido";
               const ep = estados?.[t.id];
               return (
-                <li key={t.id} className="mc-entrar">
+                <li key={t.id} className="mc-entrar relative">
+                  <div className="absolute left-2 top-2 z-10 flex rounded-md bg-background/90 p-1 shadow-sm backdrop-blur">
+                    <Checkbox checked={selecionados.has(t.id)} onCheckedChange={(checked) => selecionar(t.id, checked === true)} aria-label={`Selecionar ${titulo}`} />
+                  </div>
                   <Link to={`/estudio/carrosseis/${t.id}`} className="group block rounded-[var(--mc-r-lg)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring">
                     <div className="mc-trans relative aspect-[4/5] overflow-hidden rounded-[var(--mc-r-md)] border border-border bg-card group-hover:border-muted-foreground/60">
                       {capa && medidor ? (
@@ -175,6 +224,15 @@ export default function Carrosseis() {
             <Grupo titulo="Limites da IA neste projeto"><LimitesIa projectId={projetoId} /></Grupo>
           </div>
         )}
+        <AlertDialog open={confirmarEliminacao} onOpenChange={(aberto) => !aEliminar && setConfirmarEliminacao(aberto)}>
+          <AlertDialogContent>
+            <AlertDialogHeader>
+              <AlertDialogTitle>Eliminar definitivamente?</AlertDialogTitle>
+              <AlertDialogDescription>{selecionados.size === 1 ? "O carrossel selecionado" : `Os ${selecionados.size} carrosséis selecionados`} e o respetivo histórico criativo serão eliminados. Os custos já registados e as imagens da biblioteca serão mantidos. Esta ação não pode ser anulada.</AlertDialogDescription>
+            </AlertDialogHeader>
+            <AlertDialogFooter><AlertDialogCancel disabled={aEliminar}>Cancelar</AlertDialogCancel><AlertDialogAction disabled={aEliminar} onClick={(event) => { event.preventDefault(); void eliminarSelecionados(); }} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">{aEliminar ? "A eliminar…" : "Eliminar definitivamente"}</AlertDialogAction></AlertDialogFooter>
+          </AlertDialogContent>
+        </AlertDialog>
       </div>
     </div>
   );

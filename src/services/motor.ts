@@ -62,6 +62,17 @@ export const criarTrabalho = (n: NovoTrabalho) => invocar<{ trabalho_id: string;
 export const retomarTrabalho = (id: string) => invocar<{ retomado: boolean }>({ acao: "retomar", trabalho_id: id });
 export const acordarFila = () => invocar<{ ok: boolean }>({ acao: "acordar" });
 
+export async function eliminarTrabalhos(ids: string[]): Promise<number> {
+  const unicos = Array.from(new Set(ids));
+  if (unicos.length === 0) return 0;
+  const { data, error } = await supabase.rpc("mc_eliminar_trabalhos", { _trabalho_ids: unicos });
+  if (error) {
+    if (error.code === "42501") throw new Error("Sem permissão para eliminar um ou mais carrosséis.");
+    throw new Error("Não foi possível eliminar os carrosséis.");
+  }
+  return data ?? 0;
+}
+
 export interface DocAtual { id: string; variante: Variante; versao: number; proposta_versao: number; documento: DocumentoGrafico; aprovada_versao: number | null }
 export interface TrabalhoCompleto {
   trabalho: TrabalhoResumo & { fonte_id: string; tentativas: number };

@@ -246,6 +246,20 @@
       "when": 1791278967751,
       "tag": "0034_mc_assets_unsplash",
       "breakpoints": true
+    },
+    {
+      "idx": 35,
+      "version": "7",
+      "when": 1791281383824,
+      "tag": "0035_eliminar_carrosseis_com_historico_custos",
+      "breakpoints": true
+    },
+    {
+      "idx": 36,
+      "version": "7",
+      "when": 1791281426712,
+      "tag": "0036_corrigir_limpeza_transacional_carrosseis",
+      "breakpoints": true
     }
   ]
 }
