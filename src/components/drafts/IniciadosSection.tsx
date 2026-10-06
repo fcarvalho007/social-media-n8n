@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { FileText, Layers, Loader2, Search, Trash2 } from "lucide-react";
 import { toast } from "sonner";
@@ -40,7 +40,7 @@ export function IniciadosSection() {
   const [confirmar, setConfirmar] = useState(false);
   const [aEliminar, setAEliminar] = useState(false);
 
-  const carregarTrabalhos = async () => {
+  const carregarTrabalhos = useCallback(async () => {
     setTrabalhosACarregar(true);
     setErroTrabalhos(null);
     try {
@@ -51,15 +51,16 @@ export function IniciadosSection() {
     } finally {
       setTrabalhosACarregar(false);
     }
-  };
+  }, [projetoId]);
 
   useEffect(() => {
     if (estadoProjeto !== "pronto") return;
     setSelecionados(new Set());
     void carregarTrabalhos();
-  }, [estadoProjeto, projetoId]);
+  }, [carregarTrabalhos, estadoProjeto]);
 
-  const nomeProjeto = (id: string | null) => projetos.find((p) => p.id === id)?.name ?? (id ? "Projeto" : "Sem marca");
+  const nomesProjetos = useMemo(() => new Map(projetos.map((projeto) => [projeto.id, projeto.name])), [projetos]);
+  const nomeProjeto = useCallback((id: string | null) => nomesProjetos.get(id ?? "") ?? (id ? "Projeto" : "Sem marca"), [nomesProjetos]);
   const itens = useMemo<Iniciado[]>(() => [
     ...allDrafts.map((draft) => ({
       chave: `social:${draft.id}` as const, tipo: "social" as const, id: draft.id,
@@ -76,7 +77,7 @@ export function IniciadosSection() {
   const visiveis = useMemo(() => {
     const termo = pesquisa.trim().toLocaleLowerCase("pt-PT");
     return termo ? itens.filter((item) => `${item.titulo} ${item.detalhe} ${nomeProjeto(item.projectId)}`.toLocaleLowerCase("pt-PT").includes(termo)) : itens;
-  }, [itens, pesquisa, projetos]);
+  }, [itens, pesquisa, nomeProjeto]);
 
   const selecionar = (chave: string, ativo: boolean) => setSelecionados((atuais) => {
     const seguintes = new Set(atuais);
