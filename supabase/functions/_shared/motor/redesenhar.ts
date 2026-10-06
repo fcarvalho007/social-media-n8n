@@ -93,6 +93,12 @@ const RECEITAS: Receita[] = [
   r("CALLOUT", "Destaque com elementos", "Reforça o acento gráfico e dá relevo ao elemento principal.", false, "none", undefined, undefined, { accentLine: true, glow: true, corners: true }),
   r("EDITORIAL_SPLIT", "Coluna inversa", "Imagem à esquerda e texto à direita.", true, "split", "right"),
 ];
+const FALLBACKS_DISRUPTIVOS: Receita[] = [
+  r("EXPLORE", "Cartaz tipográfico", "Quebra a grelha com título protagonista e espaço negativo.", false, "none", undefined, undefined, { accentLine: true, grid: false, glow: false }, "contraste"),
+  r("EXPLORE", "Página editorial limpa", "Simplifica para leitura premium, com ritmo de revista.", false, "none", undefined, undefined, { accentLine: true, shadow: false, scanlines: false }, "minimalista"),
+  r("EXPLORE", "Capa de revista", "Aumenta a hierarquia e muda o ritmo visual sem trocar o conteúdo.", false, "none", undefined, undefined, { accentLine: true, particulas: false }, "revista"),
+  r("EXPLORE", "Mapa didático", "Organiza o slide como explicação clara, com acentos funcionais.", false, "none", undefined, undefined, { corners: true, grid: false }, "didatico"),
+];
 const EXPLORAR: Array<{ estilo: EstiloId; label: string }> = [
   { estilo: "revista", label: "Aproxima-se de Revista" }, { estilo: "fotografico", label: "Abordagem Fotográfica" },
   { estilo: "contraste", label: "Aproxima-se de Contraste" }, { estilo: "minimalista", label: "Abordagem Minimalista" },
@@ -159,6 +165,11 @@ export function redesenharPagina(o: OpcoesRedesign): { candidatos: CandidatoRede
       if (c) saida.push({ ...c, disruptiva: true });
     }
   }
+  for (let tentativa = 0; saida.length < n && tentativa < FALLBACKS_DISRUPTIVOS.length * 4; tentativa++) {
+    const rc = FALLBACKS_DISRUPTIVOS[(tentativa + (o.ronda ?? 0)) % FALLBACKS_DISRUPTIVOS.length];
+    const c = comporCandidato(o, rc, undefined, vistos, saida.length, tentativa >= FALLBACKS_DISRUPTIVOS.length);
+    if (c) saida.push({ ...c, disruptiva: saida.filter((x) => x.disruptiva).length < 2 });
+  }
   if (querIA) {
     const usados = saida.map((c) => (c.pagina.composicao as ComposicaoImagem | undefined)?.modo).filter((x): x is ModoImagem => !!x);
     const s0 = o.pacote.conteudo.slides.find((x) => x.id === orig.slide);
@@ -175,10 +186,15 @@ export function redesenharPagina(o: OpcoesRedesign): { candidatos: CandidatoRede
     }
     if (c) saida.splice(Math.min(2, saida.length), 0, { ...c, requiresAiImage: true, promptIA, pendente: true });
     // AI layout cannot fit this page: the slot goes back to a regular composition.
-    else for (const rc of receitas) { if (saida.length >= n) break; const x = comporCandidato(o, rc, asset, vistos, saida.length); if (x) saida.push(x); }
+    else for (const rc of [...receitas, ...FALLBACKS_DISRUPTIVOS]) { if (saida.length >= n) break; const x = comporCandidato(o, rc, asset, vistos, saida.length, saida.length > 2); if (x) saida.push(x); }
+  }
+  for (let tentativa = 0; saida.length < n && tentativa < FALLBACKS_DISRUPTIVOS.length * 6; tentativa++) {
+    const rc = FALLBACKS_DISRUPTIVOS[(tentativa + 2 + (o.ronda ?? 0)) % FALLBACKS_DISRUPTIVOS.length];
+    const x = comporCandidato(o, rc, undefined, vistos, saida.length, true);
+    if (x) saida.push({ ...x, disruptiva: saida.filter((c) => c.disruptiva).length < 2 });
   }
   const sugerirIA = !querIA && !asset && (papel === "cover" || papel === "visual_story" || papel === "concept");
-  const aviso = saida.length < n ? `Não foi possível criar cinco composições seguras sem cortar o conteúdo.` : undefined;
+  const aviso = saida.length < n ? `Só foi possível criar ${saida.length} composição(ões) sem cortar conteúdo nem reduzir letra.` : undefined;
   return { candidatos: saida, sugerirIA, aviso };
 }
 

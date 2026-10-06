@@ -25,6 +25,7 @@ interface Props {
   onGerarIA?: (prompt: string) => void;
   origemIA?: boolean;
   imagemSelecionada?: boolean;
+  aviso?: string | null;
 }
 const NOME_FONTE: Record<string, string> = { none: "sem imagem", renderer: "desenho do sistema", pexels: "Pexels/Unsplash", biblioteca: "Biblioteca", ia: "IA" };
 
@@ -32,7 +33,7 @@ const OVERLAYS: Array<{ id: TipoOverlay; nome: string }> = [{ id: "none", nome: 
 const sel = "h-9 w-full rounded-[var(--mc-r-md)] border border-border bg-background px-2 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring";
 
 /** Per-slide image composition. Every field starts on "Automático"; a change becomes an explicit override. */
-export function PainelImagemSlide({ decisao, comp, temImagem, ocupado, onMudar, onSubstituir, sugestao, promptIA, queryPexels, onGerarIA, origemIA, imagemSelecionada }: Props) {
+export function PainelImagemSlide({ decisao, comp, temImagem, ocupado, onMudar, onSubstituir, sugestao, promptIA, queryPexels, onGerarIA, origemIA, imagemSelecionada, aviso }: Props) {
   const [prompt, setPrompt] = useState(comp.visual_prompt ?? promptIA ?? "");
   const [aberto, setAberto] = useState(true);
   const [foco, setFoco] = useState(comp.foco ?? decisao?.foco ?? { x: 0.5, y: 0.4 });
@@ -71,16 +72,18 @@ export function PainelImagemSlide({ decisao, comp, temImagem, ocupado, onMudar, 
                 ))}
                 {onGerarIA && <Button variant={iaAberta ? "secondary" : "outline"} size="sm" className="h-9 justify-start gap-1.5 px-2 text-xs" disabled={ocupado} aria-expanded={iaAberta} onClick={() => setIaAberta((v) => !v)}><Sparkles className="h-3.5 w-3.5" />{origemIA ? "Regenerar IA" : "Gerar IA"}</Button>}
               </div>
+              {!temImagem && <p className="text-[11px] text-muted-foreground">Escolhe uma imagem, foto ou IA para ativar modo, posição do texto e overlay.</p>}
             </div>
           )}
           {onGerarIA && iaAberta && (
             <div className="space-y-2 rounded-[var(--mc-r-md)] border border-border p-2">
               <Label htmlFor="pi-prompt" className="text-xs text-muted-foreground">Descrição da imagem (editável)</Label>
               <Textarea id="pi-prompt" rows={5} maxLength={2000} value={prompt} disabled={ocupado} onChange={(e) => setPrompt(e.target.value)} className="text-xs" />
-              <Button className="h-9 w-full text-xs" disabled={ocupado || prompt.trim().length < 5} onClick={() => { if (prompt.trim() !== (comp.visual_prompt ?? "")) mudar("visual_prompt", prompt.trim(), "Descrição da imagem IA guardada"); onGerarIA(prompt); }}>Continuar · {formatarCusto(custoDe("imagem_ia")?.euros ?? null)} por imagem</Button>
+              <Button className="h-9 w-full text-xs" disabled={ocupado || prompt.trim().length < 5} onClick={() => { if (prompt.trim() !== (comp.visual_prompt ?? "")) mudar("visual_prompt", prompt.trim(), "Descrição da imagem IA guardada"); onGerarIA(prompt.trim()); }}>Continuar · {formatarCusto(custoDe("imagem_ia")?.euros ?? null)} por imagem</Button>
               <p className="text-[11px] text-muted-foreground">Pede confirmação antes de gerar. Texto, modo e efeitos mantêm-se.</p>
             </div>
           )}
+          {aviso && <p className="rounded-[var(--mc-r-md)] bg-muted px-2.5 py-2 text-xs text-muted-foreground" role="status">{aviso}</p>}
           <div className="space-y-1"><Label htmlFor="pi-modo" className="text-xs text-muted-foreground">Modo</Label>
             <select id="pi-modo" className={sel} disabled={ocupado || !temImagem} value={comp.modo ?? ""} onChange={(e) => mudar("modo", e.target.value, "Modo da imagem alterado")}>
               <option value="">Automático</option>
