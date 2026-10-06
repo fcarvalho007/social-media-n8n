@@ -18,9 +18,10 @@
 - Social draft lists and Studio counts read team drafts filtered server-side by project only (cache keyed by user + project; old drafts without project only under "todos", never auto-assigned); keeps counts and lists consistent without narrowing team visibility.
 - DocumentoGrafico v1 stays separate from legacy flows; slide order follows logical ids across narrative and both variants.
 - Content engine (mc_*): clients only SELECT; writes via owner+editor RPCs; versions append-only; leases/AI service-role.
-- Chunk-load recovery reloads at most once per failing asset, guarded in localStorage forever (no time window), so a missing file can never loop.
+- Chunk-load recovery retries each missing asset only once, preventing loops.
 - Runtime text AI goes only through DeepSeek direct (_shared/deepseek-direto.ts, thinking disabled); the Lovable AI Gateway is banned at runtime (owner decision), enforced by src/test/lote1-ia.test.ts.
 - Framework proposals run as hidden mc_trabalhos (brief.framework) and are merged only on explicit accept, keeping slide ids so the composition survives; different slide counts open as a separate carousel.
 - Carousel visual direction and per-page role/image composition live in the versioned document; the editor previews drafts on an in-memory copy, so preview = editor = export. mc_sistemas_visuais/mc_composicao_paginas are deprecated, read once for legacy migration.
 - Brands are rows in projects (owner-scoped RLS) with optional logo_url in the owner public covers folder; logos are never auto-placed on slides.
 - AI costs are read only through custos_registos() (staff RPC unioning nl_ia_uso, mc_chamadas_ia, mc_kie_tarefas, ai_usage_log and the append-only custos_ia); every row carries custo_origem and unknown costs never enter totals.
+- Animated carousel media pairs a verified still mc_asset with an immutable project-scoped MP4 in mc_animacoes, preserving the canonical static renderer.
