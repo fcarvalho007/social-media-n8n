@@ -7,7 +7,18 @@ type SbMinimo = { from: (t: string) => any; storage: { from: (b: string) => any 
 export interface StickerGiphy { id: string; titulo: string; preview: string; still: string; mp4: string; largura: number; altura: number }
 
 function urlGiphy(bruto: string): boolean {
-  try { const u = new URL(bruto); return u.protocol === "https:" && (u.hostname === "media.giphy.com" || u.hostname.endsWith(".giphy.com")); } catch { return false; }
+  try { const u = new URL(bruto); return u.protocol === "https:" && ["media.giphy.com", "i.giphy.com"].includes(u.hostname); } catch { return false; }
+}
+
+async function descarregar(url: string, tipoEsperado: "image" | "video", maxBytes: number): Promise<Uint8Array> {
+  if (!urlGiphy(url)) throw new Error("Sticker inválido.");
+  const r = await fetch(url, { signal: AbortSignal.timeout(15000), redirect: "error" });
+  const tipo = r.headers.get("content-type") ?? "";
+  const tamanho = Number(r.headers.get("content-length") ?? 0);
+  if (!r.ok || !tipo.startsWith(`${tipoEsperado}/`) || tamanho > maxBytes) throw new Error("O sticker não pôde ser guardado.");
+  const bytes = new Uint8Array(await r.arrayBuffer());
+  if (!bytes.length || bytes.length > maxBytes) throw new Error("O sticker é demasiado grande.");
+  return bytes;
 }
 
 export async function pesquisarGiphy(termo: string, pagina: number): Promise<StickerGiphy[]> {
@@ -27,15 +38,11 @@ export async function pesquisarGiphy(termo: string, pagina: number): Promise<Sti
   });
 }
 
-export async function guardarStickerGiphy(sb: SbMinimo, a: { projectId: string; userId: string; providerId: string; mp4Url: string; capa: Uint8Array; duracaoMs: number }) {
-  if (!/^[A-Za-z0-9_-]{1,100}$/.test(a.providerId) || !urlGiphy(a.mp4Url)) throw new Error("Sticker inválido.");
-  const capa = await guardarBytes(sb, { projectId: a.projectId, userId: a.userId, bytes: a.capa, origem: "giphy", nome: "Sticker GIPHY", credito: "Powered by GIPHY", origemUrl: a.mp4Url });
-  const resposta = await fetch(a.mp4Url, { signal: AbortSignal.timeout(15000), redirect: "error" });
-  const tipo = resposta.headers.get("content-type") ?? "";
-  const tamanho = Number(resposta.headers.get("content-length") ?? 0);
-  if (!resposta.ok || !tipo.startsWith("video/mp4") || tamanho > 20 * 1024 * 1024) throw new Error("O sticker animado não pôde ser guardado.");
-  const bytes = new Uint8Array(await resposta.arrayBuffer());
-  if (bytes.length < 12 || bytes.length > 20 * 1024 * 1024 || String.fromCharCode(...bytes.slice(4, 8)) !== "ftyp") throw new Error("O vídeo do sticker é inválido ou demasiado grande.");
+export async function guardarStickerGiphy(sb: SbMinimo, a: { projectId: string; userId: string; providerId: string; mp4Url: string; stillUrl: string; duracaoMs: number }) {
+  if (!/^[A-Za-z0-9_-]{1,100}$/.test(a.providerId)) throw new Error("Sticker inválido.");
+  const [capaBytes, bytes] = await Promise.all([descarregar(a.stillUrl, "image", 6 * 1024 * 1024), descarregar(a.mp4Url, "video", 6 * 1024 * 1024)]);
+  const capa = await guardarBytes(sb, { projectId: a.projectId, userId: a.userId, bytes: capaBytes, origem: "giphy", nome: "Sticker GIPHY", credito: "Powered by GIPHY", origemUrl: a.stillUrl });
+  if (bytes.length < 12 || String.fromCharCode(...bytes.slice(4, 8)) !== "ftyp") throw new Error("O vídeo do sticker é inválido.");
   const hash = await sha256Hex(bytes);
   const { data: existe } = await sb.from("mc_animacoes").select("*").eq("project_id", a.projectId).eq("hash", hash).maybeSingle();
   if (existe) return { capa, animacao: existe };

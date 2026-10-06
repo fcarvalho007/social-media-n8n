@@ -231,7 +231,7 @@ export const pexelsUsar = (project_id: string, f: FotoPexelsMotor) => invocar<{ 
 export const carregarImagemServidor = (project_id: string, nome: string, dados: string) => invocar<{ asset: AssetMotor & { hash: string } }>({ acao: "carregar_imagem", project_id, nome, dados });
 export interface StickerGiphy { id: string; titulo: string; preview: string; still: string; mp4: string; largura: number; altura: number }
 export const giphyPesquisar = (project_id: string, termo: string, pagina = 1) => invocar<{ stickers: StickerGiphy[]; mais: boolean }>({ acao: "giphy_pesquisar", project_id, termo, pagina });
-export const giphyUsar = (project_id: string, sticker: StickerGiphy, capa: string, duracao_ms: number) => invocar<{ asset: AssetMotor & { hash: string; animacao_id: string; duracao_ms: number } }>({ acao: "giphy_usar", project_id, sticker_id: sticker.id, mp4_url: sticker.mp4, capa, duracao_ms });
+export const giphyUsar = (project_id: string, sticker: StickerGiphy, duracao_ms: number) => invocar<{ asset: AssetMotor & { hash: string; animacao_id: string; duracao_ms: number } }>({ acao: "giphy_usar", project_id, sticker_id: sticker.id, mp4_url: sticker.mp4, still_url: sticker.still, duracao_ms });
 /** Verified bytes of this project's assets; ids that failed (removed/expired/other project) come back in falhas. */
 export async function lerAssets(project_id: string, ids: string[]): Promise<{ assets: Record<string, Asset>; falhas: string[] }> {
   if (!ids.length) return { assets: {}, falhas: [] };
