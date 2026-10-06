@@ -27,6 +27,11 @@ import { comporComImagens, type ImagemApoio } from "@/features/motor/imagensApoi
 import { Check, HelpCircle } from "lucide-react";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { cn } from "@/lib/utils";
+import { NovaMarca } from "@/features/motor/NovaMarca";
+import { SelectGroup, SelectLabel, SelectSeparator } from "@/components/ui/select";
+
+const MARCAS = ["fredericocarvalho.pt", "Podcast MKT Idiotas", "smsonline.pt", "Cursos / formação"];
+const NOVA = "__nova_marca__";
 import { avaliarFonte, LIMITES_FONTE, MARCADOR_FIXTURE, normalizarFonte } from "../../supabase/functions/_shared/motor/proposta";
 
 /** Synthetic fixture for the deterministic demo provider (never real user text). */
@@ -62,6 +67,7 @@ export default function CarrosselNovo() {
   const { projetos, projetoId, estado } = useProjeto();
   const [etapa, setEtapa] = useState<"fonte" | "narrativa">("fonte");
   const [projeto, setProjeto] = useState<string>(projetoId ?? "");
+  const [novaMarca, setNovaMarca] = useState(false);
   const [titulo, setTitulo] = useState("");
   const [texto, setTexto] = useState("");
   const [objetivo, setObjetivo] = useState<ObjetivoId>("informar");
@@ -259,14 +265,26 @@ export default function CarrosselNovo() {
               </div>
               <div className="w-full space-y-1.5 md:w-72">
                 <div className="flex items-center justify-between">
-                  <Label htmlFor="projeto" className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Marca / projeto</Label>
-                  <Tooltip><TooltipTrigger asChild><button type="button" className="flex h-11 w-11 items-center justify-center rounded-full text-muted-foreground hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring" aria-label="Para que serve o projeto?"><HelpCircle className="h-4 w-4" /></button></TooltipTrigger>
+                  <Label htmlFor="projeto" className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Marca</Label>
+                  <Tooltip><TooltipTrigger asChild><button type="button" className="flex h-11 w-11 items-center justify-center rounded-full text-muted-foreground hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring" aria-label="Para que serve a marca?"><HelpCircle className="h-4 w-4" /></button></TooltipTrigger>
                     <TooltipContent side="left" className="max-w-xs text-xs">Organiza o conteúdo, define a cor inicial e carrega o contexto editorial do autor guardado neste projeto (voz, público e teses), usado pela IA como lente de leitura — nunca como fonte de factos. O tom e o objetivo escolhem-se no passo seguinte.</TooltipContent></Tooltip>
                 </div>
-                <Select value={projeto} onValueChange={setProjeto} disabled={estado !== "pronto"}>
-                  <SelectTrigger id="projeto" className="h-11"><SelectValue placeholder={projetos.length ? "Escolhe o projeto" : "Sem projetos disponíveis"} /></SelectTrigger>
-                  <SelectContent className="mc-estudio">{projetos.map((p) => <SelectItem key={p.id} value={p.id}>{p.name}</SelectItem>)}</SelectContent>
+                <Select value={projeto} onValueChange={(v) => (v === NOVA ? setNovaMarca(true) : setProjeto(v))} disabled={estado !== "pronto"}>
+                  <SelectTrigger id="projeto" className="h-11"><SelectValue placeholder={projetos.length ? "Escolhe a marca" : "Sem marcas"} /></SelectTrigger>
+                  <SelectContent className="mc-estudio">
+                    {(() => {
+                      const item = (p: (typeof projetos)[number]) => <SelectItem key={p.id} value={p.id}><span className="flex items-center gap-2">{p.logo_url ? <img src={p.logo_url} alt="" className="h-4 w-4 rounded-sm object-contain" /> : <span className="h-2.5 w-2.5 rounded-full" style={{ background: p.color ?? undefined }} />}{p.name}</span></SelectItem>;
+                      const marcas = projetos.filter((p) => MARCAS.includes(p.name)).sort((a, b) => MARCAS.indexOf(a.name) - MARCAS.indexOf(b.name));
+                      const outros = projetos.filter((p) => !MARCAS.includes(p.name));
+                      return <>
+                        <SelectGroup><SelectLabel>Marcas</SelectLabel>{marcas.map(item)}</SelectGroup>
+                        {outros.length > 0 && <><SelectSeparator /><SelectGroup><SelectLabel>Outros projetos</SelectLabel>{outros.map(item)}</SelectGroup></>}
+                        <SelectSeparator /><SelectItem value={NOVA}>+ Adicionar marca</SelectItem>
+                      </>;
+                    })()}
+                  </SelectContent>
                 </Select>
+                <NovaMarca aberto={novaMarca} onFechar={() => setNovaMarca(false)} onCriada={(p) => setProjeto(p.id)} />
               </div>
             </div>
             <div className="grid grid-cols-1 items-start gap-6 lg:grid-cols-12 lg:gap-8">
