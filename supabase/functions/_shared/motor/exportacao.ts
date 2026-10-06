@@ -3,7 +3,7 @@ import { validarPacote, type Asset, type DocumentoGrafico, type PacoteProva, typ
 import type { PropostaEditorial } from "./proposta.ts";
 
 export const BUCKET_EXPORT = "pdfs"; // same bucket/ACL the current social flow already uses for carousel files
-export const PAGINAS_POR_CORRIDA = 4;
+export const PAGINAS_POR_CORRIDA = 3;
 export const TIPO_ORIGEM = "carrossel_motor";
 
 export type ClasseFalha = "documento" | "memoria" | "tempo" | "armazenamento" | "renderizacao" | "desconhecido";
