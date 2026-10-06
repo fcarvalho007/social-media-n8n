@@ -6,7 +6,7 @@ import {
   ALTURA, ICONES, LARGURA, calcularRecorte, tracarMascara, rgba, camadasOrdenadas, resolverTexto,
   type Camada, type Medidor, type PacoteProva, type Variante,
 } from "../../../supabase/functions/_shared/documento-grafico/nucleo";
-import { desenharTexto, propsGradiente } from "./desenho";
+import { desenharTexto, limitesConteudo, propsGradiente } from "./desenho";
 
 interface Props {
   pacote: PacoteProva;
