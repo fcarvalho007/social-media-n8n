@@ -44,6 +44,7 @@ import ConteudosSociais from "./pages/ConteudosSociais";
 import CarrosselCronica from "./pages/CarrosselCronica";
 import { lazy, Suspense } from "react";
 import { FronteiraProjetoNewsletter } from "./features/newsletter/FronteiraProjeto";
+const Custos = lazy(() => import("./pages/Custos"));
 const NewsletterApp = lazy(() => import("./newsletter/NewsletterApp"));
 const EditorProva = lazy(() => import("./pages/EditorProva"));
 const Carrosseis = lazy(() => import("./pages/Carrosseis"));
@@ -114,6 +115,7 @@ const App = () => (
                   <Route path="/settings/notifications" element={<NotificationSettings />} />
                   <Route path="/users" element={<UserManagement />} />
                   <Route path="/analytics" element={<Analytics />} />
+                  <Route path="/custos" element={<Suspense fallback={null}><Custos /></Suspense>} />
                   <Route path="/insights" element={<Insights />} />
                   <Route path="/benchmark" element={<Benchmark />} />
                   <Route path="/ai-settings" element={<AISettings />} />

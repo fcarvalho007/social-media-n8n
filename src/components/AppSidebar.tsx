@@ -1,4 +1,4 @@
-import { CheckCircle2, PlusCircle, Calendar, FolderKanban, LayoutDashboard, LogOut, Image, BarChart3, Lightbulb, Mail, ShieldCheck, Settings, Sparkles, Users } from 'lucide-react';
+import { CheckCircle2, PlusCircle, Calendar, FolderKanban, LayoutDashboard, LogOut, Image, BarChart3, Lightbulb, Mail, ShieldCheck, Settings, Sparkles, Users, Euro } from 'lucide-react';
 import type { LucideIcon } from 'lucide-react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import type { ReactNode } from 'react';
@@ -25,6 +25,7 @@ export const GRUPOS_MENU: Grupo[] = [
   { titulo: 'Análise', itens: [
     { label: 'Analytics', icon: BarChart3, url: '/analytics' },
     { label: 'Insights', icon: Lightbulb, url: '/insights' },
+    { label: 'Custos', icon: Euro, url: '/custos' },
   ] },
   { titulo: 'Recursos', itens: [{ label: 'Biblioteca', icon: Image, url: '/media-library' }] },
   { titulo: 'Conta', itens: [
