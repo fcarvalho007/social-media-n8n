@@ -206,6 +206,26 @@ export function substituirImagemIA(c: CandidatoRedesign, assetId: string, extra:
     camadas: c.pagina.camadas.map((l) => (l.tipo === "imagem" && l.asset_id === anterior ? { ...l, asset_id: assetId } : l)) } };
 }
 
+/** True when a proposal has an image slot that can receive an AI image (any strategy, not only AI_IMAGE_COMPOSITION). */
+export const aceitaImagemIA = (c: CandidatoRedesign) => c.pagina.camadas.some((l) => l.tipo === "imagem");
+
+/**
+ * Turns any proposal with an image slot into an AI-image proposal for THAT layout: geometry, text region,
+ * overlay and effects stay; the image layer points to the placeholder and a prompt is built for the slot.
+ */
+export function converterParaIA(c: CandidatoRedesign, pacote: PacoteProva, sistema: SistemaVisual): CandidatoRedesign {
+  if (c.requiresAiImage || !aceitaImagemIA(c)) return c;
+  const comp = (c.pagina.composicao ?? {}) as ComposicaoImagem;
+  const s = pacote.conteudo.slides.find((x) => x.id === c.pagina.slide);
+  const modo: ModoImagem = comp.modo && comp.modo !== "none" ? comp.modo : "contained";
+  const regiao: RegiaoTexto = comp.regiao ?? (modo === "hero" ? "bottom" : "left");
+  const promptIA = construirPromptComposicao({ titulo: s?.titulo ?? "", texto: s?.texto, intencao: comp.visual_intent, papel: (c.pagina.papel as PapelVisual) ?? "standard",
+    estilo: c.estilo, variante: sistema.variante, paleta: sistema.paleta, modo, regiao });
+  return { ...c, requiresAiImage: true, pendente: true, promptIA,
+    pagina: { ...c.pagina, composicao: { ...comp, asset_id: ASSET_IA_PENDENTE, origem: "kie", visual_prompt: promptIA } as Record<string, unknown>,
+      camadas: c.pagina.camadas.map((l) => (l.tipo === "imagem" ? { ...l, asset_id: ASSET_IA_PENDENTE } : l)) } };
+}
+
 /** Replaces only page `indice` of variant `v`; everything else (other pages, content, system) is untouched. */
 export function aplicarCandidato(p: PacoteProva, v: Variante, indice: number, c: CandidatoRedesign): PacoteProva {
   const d = p.variantes[v];

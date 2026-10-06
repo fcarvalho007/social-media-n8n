@@ -19,7 +19,7 @@ vi.mock("@/features/editor-grafico/fontes", () => ({ carregarMedidor: () => Prom
 vi.mock("@/features/editor-grafico/desenho", () => ({
   carregarImagens: () => Promise.resolve({}), compararPng: vi.fn(), renderizarPaginaPng: vi.fn(),
 }));
-const toast = vi.hoisted(() => ({ success: vi.fn(), error: vi.fn() }));
+const toast = vi.hoisted(() => ({ success: vi.fn(), error: vi.fn(), info: vi.fn() }));
 vi.mock("sonner", () => ({ toast }));
 vi.mock("@/features/editor-grafico/PaginaCanvas", () => ({
   PaginaCanvas: (p: { pacote: PacoteProva; variante: "A" | "B"; indice: number; interativo?: boolean; onAlterar?: (id: string, patch: { x: number }) => void }) => {
