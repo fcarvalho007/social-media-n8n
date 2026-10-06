@@ -567,7 +567,7 @@ export function EditorGrafico({ pacoteInicial, chaveLocal, titulo, seletor, real
     };
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
-  }, [selecao, camada, preview, definirZoom]);
+  }, [selecao, camada, preview, definirZoom, editando]);
 
   const exportarJson = () => {
     descarregar(new Blob([JSON.stringify(pacote, null, 2)], { type: "application/json" }), `${pacote.id}.documento-grafico.json`);
