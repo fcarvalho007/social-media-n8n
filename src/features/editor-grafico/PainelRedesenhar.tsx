@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { ChevronDown, Loader2, RefreshCw, Sparkles } from "lucide-react";
 import { toast } from "sonner";
 import { kieEstado, kieGerar, lerAssets } from "@/services/motor";
@@ -113,7 +113,7 @@ export function PainelRedesenhar({ aberto, onFechar, pacote, sistema, variante, 
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
   const imgsTodas = useMemo(() => ({ ...imgsVista, ...imgsPendente }), [imgsVista, imgsPendente]);
   const iaCand = res?.candidatos.find((c) => c.requiresAiImage);
-  const mini = (p: PacoteProva, rotulo: string, ativo: boolean, onClick: () => void, sub?: string, selo?: React.ReactNode) => (
+  const mini = (p: PacoteProva, rotulo: string, ativo: boolean, onClick: () => void, sub?: string, selo?: ReactNode) => (
     <button type="button" onClick={onClick} className={`relative space-y-1 rounded-md border p-1 text-left transition-colors ${ativo ? "border-primary" : "border-border hover:border-muted-foreground"}`}>
       <PaginaCanvas pacote={p} variante={variante} indice={indice} medidor={medidor} imagens={imgsTodas} escala={0.12} />
       {selo}
