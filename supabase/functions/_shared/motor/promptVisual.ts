@@ -70,3 +70,46 @@ export function construirQueryVisual(intencao: string | undefined, titulo: strin
   const base = (intencao?.trim() || titulo).toLowerCase().replace(/[^\p{L}\s-]/gu, " ");
   return base.split(/\s+/).filter((p) => p.length > 2 && !PARAR.has(p)).slice(0, 6).join(" ");
 }
+
+/** Where the subject goes so it never competes with the copy (opposite of the text region). */
+export function regiaoSujeito(regiao: RegiaoTexto): "left" | "right" | "top" | "bottom" | "center" {
+  return regiao === "left" ? "right" : regiao === "right" ? "left" : regiao === "bottom" ? "top" : regiao === "top" ? "bottom" : "center";
+}
+
+/** Conceptual metaphor (EN) for what the slide says; deterministic, never the literal title or a brand. */
+export function metaforaVisual(titulo: string, texto = "", intencao?: string): string {
+  if (intencao?.trim()) return intencao.trim();
+  const t = `${titulo} ${texto}`.toLowerCase();
+  const tem = (re: RegExp) => re.test(t);
+  if (tem(/\(e o que não|o que não|limite|lacuna|não consegue|invisível/)) return "a conceptual editorial scene where one zone is clearly illuminated and readable while another stays in deep shadow, representing the contrast between what can be observed and what remains unknown";
+  if (tem(/medir|métrica|dados|análise|analytics|seo|tráfego/)) return "an abstract editorial still life of light passing through layered translucent planes, suggesting measurement and signal emerging from noise";
+  if (tem(/estratégia|plano|antes da|escolher|decisão/)) return "a calm overhead composition of a single path diverging into several, one clearly lit, suggesting a deliberate choice before action";
+  if (tem(/crescer|crescimento|aumento|resultado/)) return "a minimal architectural scene with rising forms catching warm light, suggesting steady growth";
+  if (tem(/erro|risco|problema|custa|perder/)) return "a quiet conceptual scene with a single object slightly out of balance on a clean surface, suggesting hidden cost and risk";
+  if (tem(/equipa|pessoas|cliente|comunidade/)) return "an editorial scene of hands and silhouettes collaborating around a shared light source, faces not visible";
+  return "an editorial conceptual still life that translates the idea into light, form and space rather than literal objects";
+}
+
+/** Prompt for the redesign's AI_IMAGE_COMPOSITION: the image is generated FOR the layout decided beforehand. */
+export function construirPromptComposicao(e: EntradaPrompt): string {
+  const metafora = metaforaVisual(e.titulo, e.texto, e.intencao);
+  const sujeito = regiaoSujeito(e.regiao);
+  const espaco = e.regiao === "center" ? "a calm central area free of detail" : `the ${e.regiao} third clean, uncluttered and low in detail`;
+  const modo = e.modo === "hero" ? "Subject in the upper half; the lower half fades into a plain, even tone."
+    : e.modo === "split" ? "Strong, tight composition that still reads when cropped to a half panel."
+    : e.modo === "contained" ? "Contained composition with one clear focal point and a quiet frame."
+    : e.modo === "background" ? "Soft, low-contrast atmospheric background; nothing competes with copy."
+    : "Full-frame cinematic composition with a protected safe zone for copy.";
+  return [
+    `Central visual metaphor: ${metafora}.`,
+    "Action: still, contemplative moment; no people looking at screens.",
+    "Environment: abstract or architectural editorial space, contemporary and uncluttered.",
+    `Camera/framing: ${e.papel === "cover" ? "slightly wide, eye level" : "medium framing, eye level"}, portrait 4:5.`,
+    `Lighting: ${e.estilo === "fotografico" ? "directional cinematic light with deep falloff" : "soft directional light, gentle falloff"}.`,
+    "Depth: shallow depth of field, layered foreground and background.",
+    `Subject placement: subject positioned on the ${sujeito}; keep ${espaco} as negative space for text; visual interest concentrated away from copy. ${modo}`,
+    `Palette compatibility: ${PALETA[e.paleta] ?? "navy-led palette"}, muted, slightly desaturated.`,
+    `Quality: ${ESTILO_FOTO[e.estilo] ?? ESTILO_FOTO.editorial}, high-end editorial, not generic stock.`,
+    SEM_TEXTO,
+  ].join("\n");
+}
