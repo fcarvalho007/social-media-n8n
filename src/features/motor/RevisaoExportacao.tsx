@@ -186,95 +186,81 @@ export function RevisaoExportacao({ dados, pacote, medidor, guardado, irPara }: 
             <p className="text-xs text-muted-foreground">A e B têm o mesmo texto em duas composições. Não são redes sociais nem versões: escolhe a que vais exportar.</p></>}
           </div>
 
-          <ol className="space-y-6">
-            <li className="space-y-2">
-              <h2 className="flex items-center gap-2 text-sm font-medium"><span className={cn("flex h-6 w-6 items-center justify-center rounded-full border text-xs", passoExp === "feito" ? "border-primary text-primary" : "border-border")}>2</span>Gerar ficheiros</h2>
-              <p className="text-xs text-muted-foreground">Da composição {variante} · v{doc.versao}: imagens PNG 1080×1350 para o Instagram (em ZIP) e um PDF vertical 1080×1350 com as mesmas páginas para o LinkedIn.</p>
-              {!guardado && <p className="text-xs text-destructive" role="note">Há alterações por guardar. A exportação usa a última versão guardada (v{doc.versao}).</p>}
-              {emCurso && (
-                <p className="flex items-center text-sm" role="status"><Loader2 className="mr-2 h-4 w-4 motion-safe:animate-spin" />
-                  {ex.progresso?.paginas_feitas ? `${ex.progresso.paginas_feitas} de ${ex.paginas} páginas renderizadas.` : "Na fila."} Podes sair desta página; a exportação continua.
-                </p>
-              )}
-              {ex?.estado === "erro" && <p className="text-sm text-destructive" role="alert">{ex.erro ?? "A exportação falhou."} As páginas já guardadas são reaproveitadas.</p>}
-              {notas.length > 0 && (
-                <div role="note" className="space-y-2 rounded-[var(--mc-r-md)] border border-border p-3 text-sm">
-                  <p>{notas.length === 1 ? "Uma nota acrescentada à mão tem" : `${notas.length} notas acrescentadas à mão têm`} pouco contraste com o fundo (página {[...new Set(notas.map((n) => n.pagina + 1))].join(", ")}). A cor manual mantém-se até a mudares.</p>
-                  {irPara && <Button variant="outline" className="h-11" onClick={() => irPara("composicao")}>Rever na Composição</Button>}
-                </div>
-              )}
-              {marcador.length > 0 && (!ex || ex.estado === "erro") && (
-                <div role="alert" className="space-y-2 rounded-[var(--mc-r-md)] border border-destructive/40 p-3 text-sm">
-                  <p className="text-destructive">A página {marcador.join(", ")} ainda mostra «Imagem por escolher». A exportação final fica bloqueada até escolheres uma imagem ou mudares de modelo.</p>
-                  <div className="flex flex-wrap gap-2">
-                    {irPara && <Button variant="outline" className="h-11" onClick={() => irPara("composicao")}>Escolher imagem</Button>}
-                    {irPara && <Button variant="outline" className="h-11" onClick={() => irPara("composicao")}>Mudar direção visual</Button>}
-                    <Button variant="ghost" className="h-11" disabled={aTestar || !medidor} onClick={rascunhoTeste}>
-                      {aTestar ? <Loader2 className="mr-1.5 h-4 w-4 motion-safe:animate-spin" /> : <FileDown className="mr-1.5 h-4 w-4" />}Rascunho de teste com marca de água
-                    </Button>
-                  </div>
-                  <p className="text-xs text-muted-foreground">O rascunho de teste é criado neste navegador, leva a marca «Rascunho de teste» e não é guardado nem publicado.</p>
-                </div>
-              )}
-              {(!ex || ex.estado === "erro") && (
-                <Button className="h-11" disabled={aPedir || marcador.length > 0} onClick={exportar}>
-                  {aPedir ? <Loader2 className="mr-1.5 h-4 w-4 motion-safe:animate-spin" /> : ex ? <RotateCw className="mr-1.5 h-4 w-4" /> : <FileDown className="mr-1.5 h-4 w-4" />}
-                  {ex ? "Tentar de novo" : `Exportar variante ${variante} · v${doc.versao}`}
-                </Button>
-              )}
-              {concluido && (
-                <div className="space-y-2">
-                  <div className="flex flex-col gap-2">
-                    {zip && <BotaoTransferir url={zip.url} nome={zip.nome}>Instagram · {pngs.length} PNG em ZIP · {kb(zip.bytes)}</BotaoTransferir>}
-                    {pdf && <BotaoTransferir url={pdf.url} nome={pdf.nome.endsWith(".pdf") ? pdf.nome : `${pdf.nome}.pdf`}>LinkedIn · PDF · {kb(pdf.bytes)}</BotaoTransferir>}
-                  </div>
-                  <details className="text-xs"><summary className="flex min-h-11 cursor-pointer items-center text-muted-foreground">Imagens individuais</summary>
-                    <ul className="flex flex-wrap gap-x-3">{pngs.map((f) => <li key={f.url}><BotaoTransferir compacto url={f.url} nome={f.nome}>{f.nome}</BotaoTransferir></li>)}</ul>
-                  </details>
-                  <p className="text-xs text-muted-foreground" role="note">Verificação: {pngs.length} PNG para {ex?.paginas ?? paginas.length} páginas, pela ordem do carrossel, 1080×1350.{pdf ? ` PDF de ${ex?.paginas ?? paginas.length} páginas e ${kb(pdf.bytes)}: ${pdf.bytes <= 100 * 1024 * 1024 && (ex?.paginas ?? paginas.length) <= 300 ? "dentro" : "fora"} do limite de documentos do LinkedIn (100 MB, 300 páginas).` : ""}</p>
-                  <p className="text-xs text-muted-foreground">Ficheiros desta versão nunca são substituídos; editar cria nova versão.</p>
-                </div>
-              )}
-            </li>
-
-            <li className="space-y-2">
-              <h2 className="flex items-center gap-2 text-sm font-medium"><span className={cn("flex h-6 w-6 items-center justify-center rounded-full border text-xs", draftAtual ? "border-primary text-primary" : "border-border")}>3</span>Preparar rascunho</h2>
-              {draftAtual ? (
-                <div className="space-y-2">
-                  <p className="text-sm" role="status">Rascunho preparado — rever no Painel social. Nada foi publicado.</p>
-                  <p className="text-xs text-muted-foreground">Falta escolher quando publicar: no Painel social, ativa «Publicar agora» ou indica data e hora. Até lá o Painel mostra «Corrige antes de publicar». O Instagram recebe as imagens; o LinkedIn recebe um PDF que o Painel cria com as mesmas páginas.</p>
-                  <Button asChild className="h-11"><Link to={`/manual-create?draft=${draftAtual}`}><ExternalLink className="mr-1.5 h-4 w-4" />Continuar na criação social</Link></Button>
-                </div>
-              ) : (
-                <>
-                  {naoCabe.length > 0 && (
-                    <div role="alert" className="space-y-2 rounded-[var(--mc-r-md)] border border-destructive/40 p-3 text-sm">
-                      <p className="text-destructive">O texto não cabe na página {naoCabe.join(", ")} desta variante. Corrige antes de aprovar.</p>
-                      {irPara && <div className="flex flex-wrap gap-2">
-                        <Button variant="outline" className="h-11" onClick={() => irPara("narrativa")}>Encurtar na Narrativa</Button>
-                        <Button variant="outline" className="h-11" onClick={() => irPara("composicao")}>Ajustar na Composição</Button>
-                      </div>}
-                    </div>
-                  )}
-                  <div className="flex items-start gap-3">
-                    <Checkbox id="revisto" className="mt-0.5 h-5 w-5" checked={revisto && naoCabe.length === 0} onCheckedChange={(v) => setRevisto(v === true)} disabled={!guardado || naoCabe.length > 0} />
-                    <Label htmlFor="revisto" className="text-sm font-normal leading-snug">Revi a narrativa (v{doc.proposta_versao}) e a composição (v{doc.versao}). Aprovo esta versão para as redes sociais.</Label>
-                  </div>
-                  {!guardado && <p className="text-xs text-muted-foreground" role="note">À espera que a última alteração fique guardada.</p>}
-                  <Button className="h-11" disabled={!revisto || naoCabe.length > 0 || !guardado || aPreparar || enviarAoTerminar || marcador.length > 0} onClick={() => void enviar()}>
-                    {aPreparar || enviarAoTerminar ? <Loader2 className="mr-1.5 h-4 w-4 motion-safe:animate-spin" /> : <Send className="mr-1.5 h-4 w-4" />}
-                    {enviarAoTerminar ? "A gerar os ficheiros…" : "Enviar para redes sociais"}
+          <div className="space-y-2 rounded-[var(--mc-r-md)] border border-border p-4">
+            <h2 className="text-sm font-medium">Para ti <span className="font-normal text-muted-foreground">· opcional</span></h2>
+            <p className="text-xs text-muted-foreground">Feitos já neste navegador, com o mesmo desenho. Não cria nada nem envia para as redes.</p>
+            {marcador.length > 0 ? (
+              <div role="alert" className="space-y-2 text-sm">
+                <p className="text-destructive">A página {marcador.join(", ")} ainda mostra «Imagem por escolher».</p>
+                <div className="flex flex-wrap gap-2">
+                  {irPara && <Button variant="outline" className="h-11" onClick={() => irPara("composicao")}>Escolher imagem</Button>}
+                  <Button variant="ghost" className="h-11" disabled={aTestar || !medidor} onClick={rascunhoTeste}>
+                    {aTestar ? <Loader2 className="mr-1.5 h-4 w-4 motion-safe:animate-spin" /> : <FileDown className="mr-1.5 h-4 w-4" />}Rascunho com marca de água
                   </Button>
-                  <p className="text-xs text-muted-foreground">Gera os ficheiros se faltarem e abre a criação social com o carrossel, as imagens e a legenda da Narrativa. Nada é publicado sem a tua decisão.</p>
-                </>
-              )}
-              {anteriores.length > 0 && (
-                <ul className="text-xs text-muted-foreground">
-                  {anteriores.map((r) => <li key={r.draft_id}>Rascunho da versão anterior v{r.versao}: <Link className="underline" to={`/manual-create?draft=${r.draft_id}`}>abrir</Link> (não corresponde à versão atual)</li>)}
-                </ul>
-              )}
-            </li>
-          </ol>
+                </div>
+              </div>
+            ) : (
+              <div className="flex flex-wrap gap-2">
+                <Button variant="outline" className="h-11" disabled={!medidor || !!aDescarregar} onClick={() => void descarregarLocal("png")}>
+                  {aDescarregar === "png" ? <Loader2 className="mr-1.5 h-4 w-4 motion-safe:animate-spin" /> : <FileDown className="mr-1.5 h-4 w-4" />}Descarregar PNG
+                </Button>
+                <Button variant="outline" className="h-11" disabled={!medidor || !!aDescarregar} onClick={() => void descarregarLocal("pdf")}>
+                  {aDescarregar === "pdf" ? <Loader2 className="mr-1.5 h-4 w-4 motion-safe:animate-spin" /> : <FileDown className="mr-1.5 h-4 w-4" />}Descarregar PDF
+                </Button>
+              </div>
+            )}
+            {notas.length > 0 && <p className="text-xs text-muted-foreground" role="note">Nota: {notas.length === 1 ? "uma nota manual tem" : `${notas.length} notas manuais têm`} pouco contraste (página {[...new Set(notas.map((n) => n.pagina + 1))].join(", ")}).</p>}
+          </div>
+
+          <div className="space-y-3 rounded-[var(--mc-r-md)] border border-border p-4">
+            <h2 className="text-sm font-medium">Para as redes sociais</h2>
+            {draftAtual ? (
+              <div className="space-y-2">
+                <p className="text-sm" role="status">Rascunho preparado. Nada foi publicado.</p>
+                <p className="text-xs text-muted-foreground">O Instagram recebe as imagens PNG; o LinkedIn recebe o PDF. Escolhe no Painel social quando publicar.</p>
+                <Button asChild className="h-11"><Link to={`/manual-create?draft=${draftAtual}`}><ExternalLink className="mr-1.5 h-4 w-4" />Continuar na criação social</Link></Button>
+              </div>
+            ) : (
+              <>
+                {naoCabe.length > 0 && (
+                  <div role="alert" className="space-y-2 rounded-[var(--mc-r-md)] border border-destructive/40 p-3 text-sm">
+                    <p className="text-destructive">O texto não cabe na página {naoCabe.join(", ")}. Corrige antes de aprovar.</p>
+                    {irPara && <div className="flex flex-wrap gap-2">
+                      <Button variant="outline" className="h-11" onClick={() => irPara("narrativa")}>Encurtar na Narrativa</Button>
+                      <Button variant="outline" className="h-11" onClick={() => irPara("composicao")}>Ajustar na Composição</Button>
+                    </div>}
+                  </div>
+                )}
+                <div className="flex items-start gap-3">
+                  <Checkbox id="revisto" className="mt-0.5 h-5 w-5" checked={revisto && naoCabe.length === 0} onCheckedChange={(v) => setRevisto(v === true)} disabled={!guardado || naoCabe.length > 0 || aEnviar} />
+                  <Label htmlFor="revisto" className="text-sm font-normal leading-snug">Revi o texto e a composição (v{doc.versao}) e aprovo esta versão.</Label>
+                </div>
+                {!guardado && <p className="text-xs text-muted-foreground" role="note">À espera que a última alteração fique guardada.</p>}
+                <Button className="h-11 w-full" disabled={!revisto || naoCabe.length > 0 || !guardado || aEnviar || marcador.length > 0} onClick={() => void enviar()}>
+                  {aEnviar ? <Loader2 className="mr-1.5 h-4 w-4 motion-safe:animate-spin" /> : <Send className="mr-1.5 h-4 w-4" />}
+                  {aEnviar ? "A preparar…" : "Aprovar e enviar para redes sociais"}
+                </Button>
+                {aEnviar && (
+                  <div className="space-y-1.5" role="status" aria-live="polite">
+                    <div className="h-1.5 overflow-hidden rounded-full bg-muted"><div className="h-full bg-primary transition-all" style={{ width: `${Math.round(fracao * 100)}%` }} /></div>
+                    <p className="text-xs text-muted-foreground">{textoProgresso}</p>
+                  </div>
+                )}
+                {(ex?.estado === "erro" || parado) && !aPreparar && (
+                  <div role="alert" className="space-y-2 text-sm">
+                    <p className="text-destructive">{parado ? "A preparação parou de avançar." : ex?.erro ?? "A preparação falhou."} Nada foi enviado; as páginas já feitas são aproveitadas.</p>
+                    <Button variant="outline" className="h-11" onClick={() => { setParado(false); setEnviarAoTerminar(true); void exportar(); }}><RotateCw className="mr-1.5 h-4 w-4" />Tentar novamente</Button>
+                  </div>
+                )}
+                {!aEnviar && <p className="text-xs text-muted-foreground">Prepara as imagens e o PDF no servidor e abre a criação social com a legenda. Nada é publicado sem a tua decisão.</p>}
+              </>
+            )}
+            {anteriores.length > 0 && (
+              <ul className="text-xs text-muted-foreground">
+                {anteriores.map((r) => <li key={r.draft_id}>Versão anterior v{r.versao}: <Link className="underline" to={`/manual-create?draft=${r.draft_id}`}>abrir rascunho</Link></li>)}
+              </ul>
+            )}
+          </div>
         </div>
       </div>
     </section>
