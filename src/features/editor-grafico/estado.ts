@@ -1,3 +1,4 @@
+import { resolverTexto } from "../../../supabase/functions/_shared/documento-grafico/nucleo";
 import type { Asset, Camada, CamadaTexto, PacoteProva, Pagina, SlideEditorial, Variante } from "../../../supabase/functions/_shared/documento-grafico/nucleo";
 
 export interface EstadoEditor {
@@ -20,7 +21,11 @@ export type Acao =
   | { tipo: "duplicarCamada"; id: string }
   | { tipo: "apagarCamada"; id: string }
   | { tipo: "adicionar"; camada: "texto" | "ret" | "elipse" | "linha"; preset?: PresetTexto; pos?: Ponto }
-  | { tipo: "adicionarImagem"; asset: Asset; nome: string; pos?: Ponto }
+  | { tipo: "adicionarImagem"; asset: Asset; nome: string; pos?: Ponto; modo?: ModoImagemNova }
+  /** Pastes a copied layer (from any page) as a new, independent layer. */
+  | { tipo: "colarCamada"; camada: Camada; assets: Record<string, Asset> }
+  /** Applies only the style of a copied layer of the same type. */
+  | { tipo: "colarEstilo"; id: string; origem: Camada }
   | { tipo: "substituirImagem"; id: string; asset: Asset; nome: string }
   /** Whole-document change (styles, "apply to all") recorded as one undo step. */
   | { tipo: "substituir"; pacote: PacoteProva }
@@ -37,6 +42,7 @@ export type Acao =
   | { tipo: "desfazer" }
   | { tipo: "refazer" };
 
+export type ModoImagemNova = "fundo" | "imagem" | "logo";
 export type PresetTexto = "titulo" | "subtitulo" | "paragrafo" | "livre";
 export interface Ponto { x: number; y: number }
 
@@ -189,9 +195,14 @@ export function reduzir(s: EstadoEditor, a: Acao): EstadoEditor {
       // Click: full-bleed cover behind the layers. Drop: a half-width image on top at the drop point.
       const pacote = { ...s.pacote, assets: { ...s.pacote.assets, [a.asset.id]: a.asset } };
       let nova: Camada;
-      if (a.pos) {
+      const topoZ = pg.camadas.length ? Math.max(...pg.camadas.map((x) => x.z)) : 0;
+      if (a.modo === "logo") {
+        const r = a.asset.altura / a.asset.largura || 1;
+        const w = r > 1 ? Math.round(160 / r) : 160, h = r > 1 ? 160 : Math.round(160 * r);
+        nova = { id: novoId("imagem"), nome: a.nome.slice(0, 60) || "Logótipo", tipo: "imagem", asset_id: a.asset.id, recorte: "contain", x: 1080 - 64 - w, y: 1350 - 64 - h, w, h, z: topoZ + 1 };
+      } else if (a.pos || a.modo === "imagem") {
         const { w, h } = tamanhoImagemNova(a.asset.largura, a.asset.altura);
-        const o = centrar(a.pos, w, h, { x: 270, y: 337 });
+        const o = centrar(a.pos, w, h, { x: Math.round((1080 - w) / 2), y: Math.round((1350 - h) / 2) });
         const topo = pg.camadas.length ? Math.max(...pg.camadas.map((x) => x.z)) : 0;
         nova = { id: novoId("imagem"), nome: a.nome.slice(0, 60) || "Imagem", tipo: "imagem", asset_id: a.asset.id, recorte: "cover", foco: { x: 0.5, y: 0.5 }, x: o.x, y: o.y, w, h, z: topo + 1 };
       } else {
@@ -199,6 +210,23 @@ export function reduzir(s: EstadoEditor, a: Acao): EstadoEditor {
         nova = { id: novoId("imagem"), nome: a.nome.slice(0, 60) || "Imagem", tipo: "imagem", asset_id: a.asset.id, recorte: "cover", foco: { x: 0.5, y: 0.5 }, x: 0, y: 0, w: 1080, h: 1350, z: baixo - 1 };
       }
       return aplicar(s, comPagina(pacote, s.variante, s.pagina, (p) => ({ ...p, camadas: [...p.camadas, nova] })), undefined, { selecao: nova.id });
+    }
+    case "colarCamada": {
+      const ja = pg.camadas.some((c) => c.id === a.camada.id || c.colado_de === a.camada.id);
+      const d = ja ? 24 : 0;
+      const base = { ...a.camada, id: novoId(a.camada.tipo), x: a.camada.x + d, y: a.camada.y + d, z: topoZ(pg) + 1, colado_de: a.camada.id } as Camada;
+      if (base.tipo === "texto" && base.ref) { const t = resolverTexto(base, s.pacote.conteudo); delete base.ref; base.texto = t; }
+      const pacote = { ...s.pacote, assets: { ...s.pacote.assets, ...a.assets } };
+      return aplicar(s, comPagina(pacote, s.variante, s.pagina, (p) => ({ ...p, camadas: [...p.camadas, base] })), undefined, { selecao: base.id });
+    }
+    case "colarEstilo": {
+      const alvo = pg.camadas.find((c) => c.id === a.id);
+      if (!alvo || alvo.tipo !== a.origem.tipo) return s;
+      let patch: Partial<Camada>;
+      if (a.origem.tipo === "texto") patch = { estilo: { ...a.origem.estilo } } as Partial<Camada>;
+      else if (a.origem.tipo === "imagem") patch = { recorte: a.origem.recorte, mascara: a.origem.mascara, opacidade: a.origem.opacidade } as Partial<Camada>;
+      else patch = { estilo: { ...a.origem.estilo }, opacidade: a.origem.opacidade } as Partial<Camada>;
+      return aplicar(s, comPagina(s.pacote, s.variante, s.pagina, (p) => ({ ...p, camadas: p.camadas.map((c) => c.id === a.id ? ({ ...c, ...patch } as Camada) : c) })), undefined, { selecao: a.id });
     }
     case "substituirImagem": {
       const anterior = pg.camadas.find((c) => c.id === a.id);
@@ -324,3 +352,5 @@ export function apagarSlide(p: PacoteProva, variante: Variante, indice: number):
   for (const v of ["A", "B"] as Variante[]) variantes[v] = { ...p.variantes[v], paginas: p.variantes[v].paginas.filter((pg) => slideId(pg) !== sid) };
   return { ...p, conteudo: { ...p.conteudo, slides: p.conteudo.slides.filter((x) => x.id !== sid) }, variantes };
 }
+
+function topoZ(p: Pagina): number { return p.camadas.length ? Math.max(...p.camadas.map((x) => x.z)) : 0; }
