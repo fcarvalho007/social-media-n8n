@@ -351,6 +351,40 @@ export function EditorGrafico({ pacoteInicial, chaveLocal, titulo, seletor, real
   const [promptIA, setPromptIA] = useState<string | undefined>(undefined);
   const [subImagens, setSubImagens] = useState<{ aba: "biblioteca" | "fotos" | "carregar" | "ia"; n: number } | undefined>(undefined);
   const [imagemASubstituir, setImagemASubstituir] = useState<string | null>(null);
+  const [modoNova, setModoNova] = useState<ModoImagemNova>("fundo");
+  const [logoMarca, setLogoMarca] = useState<string | null>(null);
+  useEffect(() => {
+    if (!projectId) return;
+    let vivo = true;
+    listarProjetos().then((ps) => { if (vivo) setLogoMarca(ps.find((x) => x.id === projectId)?.logo_url ?? null); }).catch(() => undefined);
+    return () => { vivo = false; };
+  }, [projectId]);
+  const usarLogoMarca = async () => {
+    if (!logoMarca || !projectId) return;
+    const t = toast.loading("A colocar o logótipo…");
+    try {
+      const r = await fetch(logoMarca); if (!r.ok) throw new Error("Não foi possível obter o logótipo.");
+      const b = await r.blob(); const nomeF = logoMarca.split("/").pop()?.split("?")[0] || "logotipo.png";
+      const img = await carregarFicheiro(projectId, new File([b], nomeF, { type: b.type }));
+      despachar({ tipo: "adicionarImagem", asset: img.asset, nome: "Logótipo", modo: "logo" }); toast.dismiss(t);
+    } catch (e) { toast.error((e as Error).message, { id: t }); }
+  };
+  /** Session-only clipboard: a copied layer plus the assets it needs. */
+  const area = useRef<{ camada: Camada; assets: Record<string, Asset> } | null>(null);
+  const copiar = () => {
+    const c = paginaAtualRef.current?.camadas.find((x) => x.id === selecaoRef.current);
+    if (!c) return;
+    const assets: Record<string, Asset> = c.tipo === "imagem" && pacoteRef.current.assets?.[c.asset_id] ? { [c.asset_id]: pacoteRef.current.assets[c.asset_id] } : {};
+    area.current = { camada: structuredClone(c), assets };
+    toast.success("Elemento copiado. Ctrl/Cmd+V cola; Ctrl/Cmd+Alt+V cola só o estilo.");
+  };
+  const colar = () => { if (area.current) despachar({ tipo: "colarCamada", camada: area.current.camada, assets: area.current.assets }); else toast.info("Nada copiado ainda."); };
+  const colarEstilo = () => {
+    const o = area.current?.camada; const alvo = paginaAtualRef.current?.camadas.find((x) => x.id === selecaoRef.current);
+    if (!o || !alvo) { toast.info("Copia um elemento e seleciona outro do mesmo tipo."); return; }
+    if (o.tipo !== alvo.tipo) { toast.info("Só é possível colar o estilo entre elementos do mesmo tipo."); return; }
+    despachar({ tipo: "colarEstilo", id: alvo.id, origem: o });
+  };
   const [redesenhar, setRedesenhar] = useState(false);
   const sistemaDoc = useMemo(() => sistemaDoPacote(pacote), [pacote]);
   /** Draft = in-memory copy of the SAME document shown on the canvas; `antes` is what Cancelar restores. */
@@ -862,8 +896,23 @@ export function EditorGrafico({ pacoteInicial, chaveLocal, titulo, seletor, real
       onExperimentar={experimentar} onAplicar={aplicarRascunho} onCancelar={cancelarRascunho} />
   ) : (
     <PainelInserir aba={a} despachar={despachar} projectId={projectId} promptIA={promptIA} subImagens={subImagens} termoFotos={queryAuto} pedirImagem={onImagem} onEstilo={() => undefined}
-      substituirImagemId={imagemASubstituir} onImagem={(r) => { if (imagemASubstituir) despachar({ tipo: "substituirImagem", id: imagemASubstituir, asset: r.asset, nome: r.nome }); else despachar({ tipo: "adicionarImagem", asset: r.asset, nome: r.nome }); setImagemASubstituir(null); }} />
+      substituirImagemId={imagemASubstituir} onImagem={(r) => { if (imagemASubstituir) despachar({ tipo: "substituirImagem", id: imagemASubstituir, asset: r.asset, nome: r.nome }); else despachar({ tipo: "adicionarImagem", asset: r.asset, nome: r.nome, modo: modoNova }); setImagemASubstituir(null); }} />
   ));
+  const inserirComModo = (a: AbaInserir) => (a === "imagens" && !imagemASubstituir ? (
+    <div className="space-y-3">
+      <div className="space-y-1.5">
+        <p className="text-xs font-medium text-muted-foreground">Como usar?</p>
+        <div role="radiogroup" aria-label="Como usar a imagem" className="grid grid-cols-3 gap-1">
+          {([["fundo", "Fundo"], ["imagem", "Imagem"], ["logo", "Logótipo"]] as const).map(([v, n]) => (
+            <Button key={v} type="button" role="radio" aria-checked={modoNova === v} size="sm" variant={modoNova === v ? "default" : "outline"} className="h-10 lg:h-8" onClick={() => setModoNova(v)}>{n}</Button>
+          ))}
+        </div>
+        {logoMarca && <Button type="button" variant="outline" size="sm" className="h-10 w-full lg:h-8" onClick={() => { void usarLogoMarca(); }}>
+          <img src={logoMarca} alt="" className="mr-1.5 h-4 w-4 object-contain" />Usar o logótipo da marca</Button>}
+      </div>
+      {inserir(a)}
+    </div>
+  ) : inserir(a));
   const compPagina = (paginaAtual?.composicao ?? {}) as ComposicaoImagem;
   const papelPagina = (paginaAtual?.papel ?? decisaoAtual?.papel) as PapelVisual | undefined;
   // Same visual intent feeds Pexels terms and the AI prompt; only the source differs.
