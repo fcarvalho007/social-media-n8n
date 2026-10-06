@@ -26,3 +26,4 @@
 - Single-slide regeneration (mc-motor regenerar_slide) runs as a hidden mc_trabalhos with brief.regen and stores a full proposal marked escopo_slide; it is selectable only for that slide and never as a whole proposal, so other hybrid choices and composition survive.
 
 - Carousel visual direction and per-page role/image composition live in the versioned document; the editor previews drafts on an in-memory copy, so preview = editor = export. mc_sistemas_visuais/mc_composicao_paginas are deprecated, read once for legacy migration.
+- Brands are rows in projects (owner-scoped RLS) with optional logo_url in the owner public covers folder; logos are never auto-placed on slides.

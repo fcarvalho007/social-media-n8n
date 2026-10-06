@@ -7,3 +7,4 @@
 - Editorial intent (briefing.intencao) is prompt-only guidance separate from framework and visual model; the reading consultant (leitura.ts) and visual rhythm are deterministic, never call AI and never edit the narrative by themselves.
 - Visual effects are style tokens (motor/efeitos.ts) drawn as ordinary "fx-" shape layers rebuilt by aplicarSistema with palette colours; one renderer, image source never matters, palette changes recolour only.
 - "Redesenhar slide" (motor/redesenhar.ts) is deterministic and local: candidates are real pages produced by aplicarSistema for one page, content hash and role fixed, near-identical geometry rejected; only "Aplicar" writes the document.
+- Support-image reading picks its provider only in motor/visaoModelo.server.ts (fal primary, Kie fallback, env-overridable); the fallback runs only after a definite refusal before charging, the daily limit sums both, and unknown outcomes are never retried.
