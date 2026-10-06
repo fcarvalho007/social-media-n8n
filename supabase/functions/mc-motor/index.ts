@@ -304,6 +304,13 @@ Deno.serve(async (req) => {
     const { data: pode } = await user.rpc(acao === "kie_config" ? "mc_pode_ler" : "mc_pode_escrever", { _project_id: projectId });
     if (!pode) return json({ error: "Sem acesso a este projeto." }, 403);
     const configurada = !!chaveKie() || !!Deno.env.get("FAL_KEY");
+    if (acao === "kie_config" && body.verificar === true) {
+      // Free checks only: Kie credit balance and a fal status lookup for a non-existent request (no generation).
+      const kie = await fetch("https://api.kie.ai/api/v1/chat/credit", { headers: { Authorization: `Bearer ${chaveKie()}` } }).then(async (r) => ({ http: r.status, corpo: await r.json().catch(() => null) })).catch(() => ({ http: 0, corpo: null }));
+      const fal = await fetch("https://queue.fal.run/fal-ai/flux/requests/00000000-0000-0000-0000-000000000000/status", { headers: { Authorization: `Key ${Deno.env.get("FAL_KEY") ?? ""}` } }).then((r) => r.status).catch(() => 0);
+      const kc = (kie.corpo as { code?: number; data?: unknown } | null);
+      return json({ ok: true, kie: { valida: kie.http === 200 && kc?.code === 200, codigo: kc?.code ?? kie.http, saldo: kc?.code === 200 ? kc.data : null }, fal: { valida: fal !== 401 && fal !== 403 && fal !== 0, http: fal } });
+    }
     if (acao === "kie_config") return json({ ok: true, configurada, modelo: KIE_MODELO, proporcao: KIE_PROPORCAO, max_dia: KIE_MAX_DIA });
     if (!configurada) return json({ error: "Configuração necessária: falta a chave do serviço de imagens no servidor.", configuracao: true }, 503);
     if (acao === "interpretar_imagem") {
