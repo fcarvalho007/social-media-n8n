@@ -9,7 +9,7 @@ export const VISAO_KIE: ModeloVisao = { fornecedor: "kie", modelo: "gemini-3-fla
 /** Every log label any vision provider writes; the daily limit sums them all. */
 export const registosVisao = () => [VISAO_FAL.registo, VISAO_KIE.registo];
 
-export function resolverModeloVisao(env: (k: string) => string | undefined = (k) => Deno.env.get(k)): { principal: ModeloVisao; fallback: ModeloVisao | null } {
+export function resolverModeloVisao(env: (k: string) => string | undefined = (k) => (globalThis as { Deno?: { env: { get(k: string): string | undefined } } }).Deno?.env.get(k)): { principal: ModeloVisao; fallback: ModeloVisao | null } {
   const p = (env("AI_VISION_PROVIDER") ?? "fal").toLowerCase() === "kie" ? VISAO_KIE : VISAO_FAL;
   const principal = { ...p, modelo: (p.fornecedor === "fal" ? env("AI_VISION_FAL_MODEL") : undefined) || p.modelo };
   return { principal, fallback: principal.fornecedor === "fal" ? VISAO_KIE : VISAO_FAL };
