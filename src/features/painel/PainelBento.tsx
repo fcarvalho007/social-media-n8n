@@ -6,7 +6,9 @@ import { PendingThumbnail } from "@/components/PendingThumbnail";
 import { useProjects } from "@/hooks/useProjects";
 import { usePendingContent } from "@/hooks/usePendingContent";
 import { useScheduledCounts } from "@/hooks/useScheduledCounts";
-import { useCostTracking } from "@/hooks/useCostTracking";
+import { useQuery } from "@tanstack/react-query";
+import { listarCustos } from "@/services/custos";
+import { eur as eurC, filtrar, FORNECEDORES, totais } from "@/features/custos/agregar";
 
 const eur = (v: number) => v.toLocaleString("pt-PT", { style: "currency", currency: "EUR" });
 const mesAtual = () => new Date().toLocaleDateString("pt-PT", { month: "long", year: "numeric", timeZone: "Europe/Lisbon" });
@@ -33,11 +35,9 @@ const LinkVer = ({ to, children }: { to: string; children: ReactNode }) => (
 );
 
 export function CustosBloco() {
-  const { costs, loading } = useCostTracking();
-  const linhas = [
-    { r: "Stories", n: costs.storiesCountMonth, v: costs.storiesCostMonth },
-    { r: "Carrosséis", n: costs.carouselsCountMonth, v: costs.carouselsCostMonth },
-  ];
+  const { data, isLoading: loading } = useQuery({ queryKey: ["custos-ia"], queryFn: listarCustos });
+  const mes = totais(filtrar(data ?? [], { periodo: "mes", fornecedor: "todos", pesquisa: "" }));
+  const tudo = totais(data ?? []);
   return (
     <Bloco className="flex flex-col justify-between lg:col-span-4">
       <div className="flex items-center justify-between">
@@ -45,15 +45,16 @@ export function CustosBloco() {
         <span className="text-xs text-muted-foreground">{mesAtual()}</span>
       </div>
       <div className="py-5">
-        {loading ? <Skeleton className="h-12 w-32" /> : <div className="text-5xl font-bold tracking-tight">{eur(costs.totalCostMonth)}</div>}
-        <p className="mt-1 text-xs font-semibold uppercase tracking-wider text-primary">Geração automática</p>
+        {loading ? <Skeleton className="h-12 w-32" /> : <div className="text-5xl font-bold tracking-tight">{eurC(mes.total)}</div>}
+        <p className="mt-1 text-xs font-semibold uppercase tracking-wider text-primary">IA · {mes.pedidos} pedidos</p>
       </div>
       <ul className="space-y-2 text-sm">
-        {linhas.map((l) => (
-          <li key={l.r} className="flex justify-between"><span className="text-muted-foreground">{l.r} · {loading ? "…" : l.n}</span><span className="font-semibold">{loading ? "…" : eur(l.v)}</span></li>
+        {FORNECEDORES.filter((f) => f.id !== "outros").map((f) => (
+          <li key={f.id} className="flex justify-between"><span className="text-muted-foreground">{f.nome}</span><span className="font-semibold">{loading ? "…" : eurC(mes[f.id])}</span></li>
         ))}
-        <li className="flex justify-between border-t pt-2"><span className="text-muted-foreground">Histórico total</span><span className="font-semibold">{loading ? "…" : eur(costs.totalCost)}</span></li>
+        <li className="flex justify-between border-t pt-2"><span className="text-muted-foreground">Histórico total</span><span className="font-semibold">{loading ? "…" : eurC(tudo.total)}</span></li>
       </ul>
+      <div className="mt-3"><LinkVer to="/custos">Ver custos</LinkVer></div>
     </Bloco>
   );
 }
