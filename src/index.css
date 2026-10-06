@@ -169,6 +169,10 @@ All colors MUST be HSL.
     --chart-carrossel-to: 350 85% 60%;
     --chart-image-from: 203 99% 65%;
     --chart-image-to: 181 100% 50%;
+    --custo-deepseek: 217 91% 55%;
+    --custo-kie: 32 95% 50%;
+    --custo-fal: 160 70% 38%;
+    --custo-outros: 220 9% 55%;
     
     /* Timing functions */
     --ease-out-expo: cubic-bezier(0.16, 1, 0.3, 1);

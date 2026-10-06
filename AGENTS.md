@@ -23,3 +23,4 @@
 - Framework proposals run as hidden mc_trabalhos (brief.framework) and are merged only on explicit accept, keeping slide ids so the composition survives; different slide counts open as a separate carousel.
 - Carousel visual direction and per-page role/image composition live in the versioned document; the editor previews drafts on an in-memory copy, so preview = editor = export. mc_sistemas_visuais/mc_composicao_paginas are deprecated, read once for legacy migration.
 - Brands are rows in projects (owner-scoped RLS) with optional logo_url in the owner public covers folder; logos are never auto-placed on slides.
+- AI costs are read only through custos_registos() (staff RPC unioning nl_ia_uso, mc_chamadas_ia, mc_kie_tarefas, ai_usage_log and the append-only custos_ia); every row carries custo_origem and unknown costs never enter totals.

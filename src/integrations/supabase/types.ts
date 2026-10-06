@@ -352,6 +352,48 @@ export type Database = {
         }
         Relationships: []
       }
+      custos_ia: {
+        Row: {
+          acao: string
+          criado_em: string
+          custo_eur: number | null
+          custo_origem: string
+          estado: string
+          fornecedor: string
+          id: string
+          modelo: string
+          origem_id: string | null
+          project_id: string | null
+          unidades: Json
+        }
+        Insert: {
+          acao: string
+          criado_em?: string
+          custo_eur?: number | null
+          custo_origem: string
+          estado: string
+          fornecedor: string
+          id?: string
+          modelo: string
+          origem_id?: string | null
+          project_id?: string | null
+          unidades?: Json
+        }
+        Update: {
+          acao?: string
+          criado_em?: string
+          custo_eur?: number | null
+          custo_origem?: string
+          estado?: string
+          fornecedor?: string
+          id?: string
+          modelo?: string
+          origem_id?: string | null
+          project_id?: string | null
+          unidades?: Json
+        }
+        Relationships: []
+      }
       estudio_identidades: {
         Row: {
           chave: string
@@ -5107,6 +5149,31 @@ export type Database = {
         Args: { _credits: number; _user_id: string }
         Returns: boolean
       }
+      custos_deepseek_usd: {
+        Args: {
+          _hit: number
+          _miss: number
+          _modelo: string
+          _quando: string
+          _saida: number
+        }
+        Returns: number
+      }
+      custos_registos: {
+        Args: never
+        Returns: {
+          acao: string
+          criado_em: string
+          custo_eur: number
+          custo_origem: string
+          estado: string
+          fornecedor: string
+          id: string
+          modelo: string
+          unidades: Json
+        }[]
+      }
+      custos_taxa_usd_eur: { Args: never; Returns: number }
       get_instagram_quota_usage: {
         Args: { p_user_id: string }
         Returns: {
