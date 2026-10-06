@@ -80,7 +80,11 @@ function comPagina(p: PacoteProva, v: Variante, i: number, f: (pg: Pagina) => Pa
   return comPaginas(p, v, (pags) => pags.map((pg, j) => (j === i ? f(pg) : pg)));
 }
 
-const slideId = (p: Pagina): string | null => p.slide ?? p.camadas.find((c) => c.tipo === "texto" && c.ref)?.ref?.split(".")[0] ?? null;
+const slideId = (p: Pagina): string | null => {
+  if (p.slide) return p.slide;
+  const texto = p.camadas.find((c): c is CamadaTexto => c.tipo === "texto" && !!c.ref);
+  return texto?.ref?.split(".")[0] ?? null;
+};
 
 export function reordenarSlide(p: PacoteProva, variante: Variante, de: number, para: number): PacoteProva {
   const origem = p.variantes[variante].paginas;
