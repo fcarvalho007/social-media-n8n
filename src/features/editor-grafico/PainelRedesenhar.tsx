@@ -87,7 +87,7 @@ export function PainelRedesenhar({ aberto, onFechar, pacote, sistema, variante, 
     try {
       const r = await kieGerar(projectId, c.promptIA) as { tarefa: string; estado: string; modelo?: string };
       setIa({ fase: "a_gerar", tarefa: r.tarefa, alvo: c.id });
-      void acompanhar(r.tarefa, c.id, c.promptIA, r.modelo);
+      acompanhar(r.tarefa, c.id, c.promptIA, r.modelo).catch((err: Error) => { if (vivo.current) setIa({ fase: "erro", msg: err.message || "A imagem IA falhou.", alvo: c.id }); });
     } catch (err) {
       const m = (err as Error).message;
       if (/chave|unauthori/i.test(m)) setKieIndisponivel(true);
