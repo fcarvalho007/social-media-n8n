@@ -92,6 +92,7 @@ export default function CarrosselNovo() {
   const [tocado, setTocado] = useState(false);
   const [rever, setRever] = useState(false);
   const [aCriar, setACriar] = useState(false);
+  const [erroCriar, setErroCriar] = useState<string | null>(null);
   const [recuperado, setRecuperado] = useState<string | null>(null);
   const [orc, setOrc] = useState<OrcamentoIa | null>(null);
   const projetoRef = useRef(projeto);
