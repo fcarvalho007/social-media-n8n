@@ -54,8 +54,11 @@ async function tentarModelo(sb: SupabaseClient, a: { projectId: string; userId: 
   if (!r.ok || j?.code !== 200 || !taskId) {
     const estado = r.status >= 500 ? "desconhecido" : "falhou";
     await sb.from("mc_kie_tarefas").update({ estado, erro: String(j?.msg ?? r.status).slice(0, 300), actualizado_em: new Date().toISOString() }).eq("id", res.id);
-    const indisponivel = estado === "falhou" && modeloIndisponivel(r.ok ? 400 : r.status, j?.msg);
-    return { indisponivel, r: { status: r.status === 401 || r.status === 402 ? r.status : 502, corpo: { error: r.status === 402 ? "Sem saldo na Kie." : r.status === 401 ? "A Kie recusou a chave configurada." : `A Kie recusou o pedido (${j?.msg ?? r.status}).`, tarefa: res.id, estado } as Record<string, unknown> } };
+    // Kie reports auth/credit errors either as HTTP status or as `code` inside a 200 body.
+    const cod = r.status === 401 || j?.code === 401 || /unauthori[sz]ed|authentication failed/i.test(String(j?.msg ?? "")) ? 401 : r.status === 402 || j?.code === 402 ? 402 : 0;
+    const indisponivel = estado === "falhou" && !cod && modeloIndisponivel(r.ok ? 400 : r.status, j?.msg);
+    const msg = cod === 401 ? "Serviço de imagens IA indisponível: a chave do servidor foi recusada. Nada foi cobrado." : cod === 402 ? "Serviço de imagens IA sem saldo. Nada foi cobrado." : `O serviço de imagens recusou o pedido (${j?.msg ?? r.status}). Nada foi repetido.`;
+    return { indisponivel, r: { status: cod || 502, corpo: { error: msg, codigo: cod === 401 ? "chave_invalida" : cod === 402 ? "sem_saldo" : "recusado", tarefa: res.id, estado } as Record<string, unknown> } };
   }
   await sb.from("mc_kie_tarefas").update({ estado: "criada", task_id: taskId, actualizado_em: new Date().toISOString() }).eq("id", res.id);
   return { indisponivel: false, r: { status: 200, corpo: { ok: true, tarefa: res.id, estado: "criada", modelo } as Record<string, unknown> } };

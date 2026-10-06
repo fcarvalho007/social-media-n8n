@@ -1,4 +1,4 @@
-import { ALTURA, LARGURA, type Camada, type CamadaTexto, type PacoteProva, type Variante } from "../../../supabase/functions/_shared/documento-grafico/nucleo";
+import { ALTURA, LARGURA, layoutTexto, resolverTexto, type Camada, type CamadaTexto, type Medidor, type PacoteProva, type Variante } from "../../../supabase/functions/_shared/documento-grafico/nucleo";
 
 export const PASSO_FONTE = 4;
 export const TAM_MIN = 6;
@@ -87,4 +87,38 @@ export function encaixar(x: number, y: number, w: number, h: number, outras: Cam
   const mx = melhor(x, w, alvosX);
   const my = melhor(y, h, alvosY);
   return { x: mx ? Math.round(mx.novo) : x, y: my ? Math.round(my.novo) : y, guiasX: mx ? [mx.guia] : [], guiasY: my ? [my.guia] : [] };
+}
+
+/**
+ * Automatic framing before the canvas is shown: every text that does not fit its box at its own size gets a taller
+ * box (downwards, within the page's bottom margin, never over the next text block). Font size is never reduced and
+ * text is never cut; what still does not fit stays as it was and remains a warning.
+ */
+export function enquadrarTextos(p: PacoteProva, m: Medidor): { pacote: PacoteProva; ajustadas: number } {
+  let ajustadas = 0;
+  const variantes = { ...p.variantes };
+  for (const v of ["A", "B"] as const) {
+    const d = p.variantes[v];
+    variantes[v] = { ...d, paginas: d.paginas.map((pg) => {
+      let mudou = false;
+      const camadas = pg.camadas.map((c) => {
+        if (c.tipo !== "texto") return c;
+        const t = resolverTexto(c, p.conteudo);
+        if (!t.trim()) return c;
+        const est = { ...c.estilo, tamMin: c.estilo.tam };
+        if (!layoutTexto(t, est, c.w, c.h, m).cortado) return c;
+        const livre = layoutTexto(t, { ...est, maxLinhas: c.estilo.maxLinhas }, c.w, 4000, m);
+        const precisa = Math.ceil(livre.linhas.length * livre.alturaLinha + 8);
+        // Next text block below this one (same column) limits the growth.
+        const abaixo = pg.camadas.filter((o) => o.id !== c.id && o.tipo === "texto" && o.y >= c.y + c.h - 1 && o.x < c.x + c.w && o.x + o.w > c.x).map((o) => o.y - 16);
+        const limite = Math.min(ALTURA - 60, ...abaixo) - c.y;
+        if (precisa > limite || precisa <= c.h) return c;
+        if (layoutTexto(t, est, c.w, precisa, m).cortado) return c;
+        mudou = true; ajustadas++;
+        return { ...c, h: precisa };
+      });
+      return mudou ? { ...pg, camadas } : pg;
+    }) };
+  }
+  return { pacote: ajustadas ? { ...p, variantes } : p, ajustadas };
 }

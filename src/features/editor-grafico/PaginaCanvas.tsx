@@ -25,6 +25,8 @@ interface Props {
   corSelecao?: string;
   /** Snap to page edges/centre and other layers while dragging. */
   encaixe?: boolean;
+  /** Double click / double tap on a text layer: open inline editing. */
+  onEditarTexto?: (id: string) => void;
 }
 
 function Conteudo({ c, pacote, medidor, imagens }: { c: Camada; pacote: PacoteProva; medidor: Medidor; imagens: Record<string, HTMLImageElement> }) {
@@ -60,7 +62,7 @@ function Conteudo({ c, pacote, medidor, imagens }: { c: Camada; pacote: PacotePr
   );
 }
 
-export function PaginaCanvas({ pacote, variante, indice, medidor, imagens, escala, interativo = false, selecao = null, onSelecionar, onAlterar, toque = false, corSelecao = "#f59e0b", encaixe = false }: Props) {
+export function PaginaCanvas({ pacote, variante, indice, medidor, imagens, escala, interativo = false, selecao = null, onSelecionar, onAlterar, toque = false, corSelecao = "#f59e0b", encaixe = false, onEditarTexto }: Props) {
   const [guias, setGuias] = useState<{ x: number[]; y: number[] }>({ x: [], y: [] });
   const [sobrevoo, setSobrevoo] = useState<string | null>(null);
   const pagina = pacote.variantes[variante].paginas[indice];
@@ -97,6 +99,8 @@ export function PaginaCanvas({ pacote, variante, indice, medidor, imagens, escal
               draggable={interativo}
               onMouseDown={() => onSelecionar?.(c.id)}
               onTouchStart={() => onSelecionar?.(c.id)}
+              onDblClick={() => { if (interativo && c.tipo === "texto") onEditarTexto?.(c.id); }}
+              onDblTap={() => { if (interativo && c.tipo === "texto") onEditarTexto?.(c.id); }}
               onMouseEnter={(e) => { if (!interativo) return; setSobrevoo(c.id); const s = e.target.getStage(); if (s) s.container().style.cursor = "move"; }}
               onMouseLeave={(e) => { if (!interativo) return; setSobrevoo((a) => (a === c.id ? null : a)); const s = e.target.getStage(); if (s) s.container().style.cursor = "default"; }}
               onDragMove={(e) => {
@@ -125,6 +129,8 @@ export function PaginaCanvas({ pacote, variante, indice, medidor, imagens, escal
                   onAlterar?.(c.id, { x, y, w, h });
                 }}
               >
+                {/* Hit area: the visible content bounds are what receives clicks (content itself does not listen). */}
+                <Rect width={lim.w} height={lim.h} fill="transparent" />
                 <Group x={-lim.x} y={-lim.y} listening={false}>
                   <Conteudo c={c} pacote={pacote} medidor={medidor} imagens={imagens} />
                 </Group>

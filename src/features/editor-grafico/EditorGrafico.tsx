@@ -18,7 +18,7 @@ import { useAuth } from "@/contexts/AuthContext";
 import { guardarRecuperacao, lerRecuperacao, limparRecuperacao } from "@/lib/recuperacaoLocal";
 import { renderProvaServidor } from "@/services/conteudos";
 import { ALTURA, FAMILIAS, LARGURA, NOME_FAMILIA, layoutTexto, resolverTexto, validarPacote, type Asset, type Camada, type CamadaTexto, type Familia, type Medidor, type PacoteProva, type Variante } from "../../../supabase/functions/_shared/documento-grafico/nucleo";
-import { aplicarSistema, nomeVariante, obterPaleta, paginasComAjustes, recolorir, sistemaDoPacote, type SistemaVisual } from "../../../supabase/functions/_shared/motor/sistema";
+import { aplicarSistema, nomeVariante, obterPaleta, paginasComAjustes, recolorir, sistemaDoPacote, sistemaPadrao, type SistemaVisual } from "../../../supabase/functions/_shared/motor/sistema";
 import { ESTILOS } from "../../../supabase/functions/_shared/motor/estilos";
 import { PainelDirecaoVisual } from "./PainelDirecaoVisual";
 import { PainelImagemSlide } from "./PainelImagemSlide";
@@ -31,10 +31,11 @@ import { slideDaPagina } from "@/features/motor/variacoes";
 import { PAPEIS, type ComposicaoImagem, type PapelVisual } from "../../../supabase/functions/_shared/motor/imagem";
 import { carregarFicheiro, ficheiroDoArrasto } from "@/features/editor-grafico/carregar";
 import { ABAS_INSERIR, MIME_INSERIR, PainelInserir, resolverBiblioteca, type AbaInserir, type Inserivel } from "@/features/editor-grafico/PainelInserir";
-import { alinharNaPagina, aplicarATodos, fundoATodos, PRESETS_TAMANHO, tamanhoMais, type Alinhar } from "@/features/editor-grafico/operacoes";
+import { alinharNaPagina, aplicarATodos, enquadrarTextos, fundoATodos, PRESETS_TAMANHO, tamanhoMais, type Alinhar } from "@/features/editor-grafico/operacoes";
 import { carregarMedidor } from "@/features/editor-grafico/fontes";
 import { carregarImagens, compararPng, renderizarPaginaPng } from "@/features/editor-grafico/desenho";
 import { estadoInicial, reduzir, type Acao } from "@/features/editor-grafico/estado";
+import { MapaCustos } from "@/features/motor/MapaCustos";
 import { PaginaCanvas } from "@/features/editor-grafico/PaginaCanvas";
 
 /** Max fraction of pixels allowed to differ (per-channel tolerance 48) for browser/server equivalence. */
@@ -328,6 +329,7 @@ export function EditorGrafico({ pacoteInicial, chaveLocal, titulo, seletor, real
   const semDirecao = !sistemaDoPacote(pacoteInicial);
   const [aba, setAba] = useState<AbaInserir | null>(semDirecao ? "estilos" : "texto");
   const [encaixe, setEncaixe] = useState(true);
+  const [editando, setEditando] = useState<string | null>(null);
   const [aLargar, setALargar] = useState(false);
   const paginaRef = useRef<HTMLDivElement>(null);
   const [painelAberto, setPainelAberto] = useState(() => !sistemaDoPacote(pacoteInicial));
@@ -369,6 +371,21 @@ export function EditorGrafico({ pacoteInicial, chaveLocal, titulo, seletor, real
     if (geometria && n > 0 && !rascunho?.ajustes) setPedirAjustes({ n, continuar: correr });
     else correr(rascunho?.ajustes);
   };
+  // Opening always with a visual direction and with texts already framed (no font reduction, ever).
+  const preparado = useRef(false);
+  useEffect(() => {
+    if (preparado.current || !mSis || rascunho) return;
+    preparado.current = true;
+    let p = pacote;
+    let msg = "";
+    if (!sistemaDoPacote(p)) {
+      p = aplicarSistema(p, sistemaPadrao(p.conteudo.slides.length || p.variantes.A.paginas.length), mSis).pacote;
+      msg = "Direção visual Editorial aplicada automaticamente";
+    }
+    const e = enquadrarTextos(p, mSis);
+    if (e.ajustadas) { p = e.pacote; msg = `${msg ? `${msg}; ` : ""}${e.ajustadas} caixa(s) de texto ajustada(s) para o texto caber`; }
+    if (p !== pacote) { despachar({ tipo: "substituir", pacote: p }); toast.info(`${msg}.`, { action: { label: "Desfazer", onClick: () => despachar({ tipo: "desfazer" }) } }); }
+  }, [mSis]); // eslint-disable-line react-hooks/exhaustive-deps
   const aplicarRascunho = () => {
     if (!rascunho) return;
     despachar({ tipo: "confirmar", antes: rascunho.antes });
@@ -620,9 +637,10 @@ export function EditorGrafico({ pacoteInicial, chaveLocal, titulo, seletor, real
   const seletorVariante = (
     <div className="flex min-w-0 items-center gap-1.5 text-sm">
       <span className="truncate text-muted-foreground" title="Direção visual">
-        {sisMostrado ? `${ESTILOS.find((e) => e.id === sisMostrado.estilo)?.nome ?? ""} · ${nomeVariante(sisMostrado.estilo, sisMostrado.variante)} · ${obterPaleta(sisMostrado.paleta).nome}${rascunho ? " (por aplicar)" : ""}` : "Sem direção visual"}
+        {sisMostrado ? `${ESTILOS.find((e) => e.id === sisMostrado.estilo)?.nome ?? ""} · ${nomeVariante(sisMostrado.estilo, sisMostrado.variante)} · ${obterPaleta(sisMostrado.paleta).nome}${rascunho ? " (por aplicar)" : ""}` : "A preparar a direção visual…"}
       </span>
-      <Button variant="link" size="sm" className="h-11 px-1 lg:h-9" onClick={abrirDirecao}>{sisMostrado ? "Alterar" : "Escolher"}</Button>
+      <Button variant="link" size="sm" className="h-11 px-1 lg:h-9" onClick={abrirDirecao}>Alterar</Button>
+      <MapaCustos projectId={projectId} />
     </div>
   );
 
@@ -657,6 +675,27 @@ export function EditorGrafico({ pacoteInicial, chaveLocal, titulo, seletor, real
     </div>
   );
 
+  const camadaEd = editando ? paginaAtual?.camadas.find((c) => c.id === editando) : undefined;
+  const edicaoInline = camadaEd?.tipo === "texto" && !preview && !rascunho && (() => {
+    const c = camadaEd;
+    const ref = c.ref ? c.ref.split(".") as [string, "titulo" | "texto"] : null;
+    const gravar = (valor: string) => ref
+      ? despachar({ tipo: "texto", slide: ref[0], campo: ref[1], valor, agrupar: `t:${c.id}` })
+      : despachar({ tipo: "camada", id: c.id, patch: { texto: valor } as Partial<Camada>, agrupar: `t:${c.id}` });
+    return (
+      <textarea
+        autoFocus
+        aria-label="Editar texto no slide"
+        defaultValue={resolverTexto(c, pacote.conteudo)}
+        onFocus={(e) => e.currentTarget.select()}
+        onChange={(e) => gravar(e.target.value)}
+        onBlur={() => setEditando(null)}
+        onKeyDown={(e) => { if (e.key === "Escape" || (e.key === "Enter" && !e.shiftKey)) { e.preventDefault(); e.currentTarget.blur(); } e.stopPropagation(); }}
+        className="absolute z-10 resize-none rounded-sm border border-primary bg-background/95 p-1 text-foreground shadow-md outline-none"
+        style={{ left: c.x * escala, top: c.y * escala, width: c.w * escala, height: Math.max(c.h * escala, 40), fontSize: Math.max(12, c.estilo.tam * escala), lineHeight: c.estilo.linha, fontWeight: c.estilo.peso, textAlign: c.estilo.alinh === "dir" ? "right" : c.estilo.alinh === "centro" ? "center" : "left" }}
+      />
+    );
+  })();
   const tela = (
     <div ref={areaRef} className={`relative min-h-0 flex-1 overflow-auto bg-muted ${aLargar ? "outline outline-2 -outline-offset-2 outline-primary" : ""}`}
       onPointerDown={(e) => { if (e.target === e.currentTarget) despachar({ tipo: "selecionar", id: null }); }}
@@ -664,17 +703,19 @@ export function EditorGrafico({ pacoteInicial, chaveLocal, titulo, seletor, real
       onDragLeave={(e) => { if (e.currentTarget === e.target) setALargar(false); }}
       onDrop={largar}>
       <div className="flex min-h-full min-w-full items-center justify-center p-4" style={{ width: LARGURA * escala + 32, height: ALTURA * escala + 32 }}>
-        <div ref={paginaRef} className="shadow-lg ring-1 ring-border" aria-label={`Página ${pagina + 1} de ${paginas.length}, variante ${variante}, 1080 por 1350`} role="img">
+        <div ref={paginaRef} className="relative shadow-lg ring-1 ring-border" aria-label={`Página ${pagina + 1} de ${paginas.length}, variante ${variante}, 1080 por 1350`} role="img">
           {medidor ? (
             <PaginaCanvas pacote={pacote} variante={variante} indice={pagina} medidor={medidor} imagens={imagens} escala={escala}
               interativo={!preview && !rascunho} selecao={preview || rascunho ? null : selecao} toque={compacto} corSelecao={corSelecao} encaixe={encaixe}
-              onSelecionar={(id) => despachar({ tipo: "selecionar", id })}
+              onSelecionar={(id) => { if (id !== editando) setEditando(null); despachar({ tipo: "selecionar", id }); }}
+              onEditarTexto={(id) => { despachar({ tipo: "selecionar", id }); setEditando(id); }}
               onAlterar={(id, patch) => despachar({ tipo: "camada", id, patch })} />
           ) : (
             <div className="flex items-center justify-center bg-background text-sm text-muted-foreground" style={{ width: LARGURA * escala, height: ALTURA * escala }}>
               <Loader2 className="mr-2 h-4 w-4 motion-safe:animate-spin" />A carregar o tipo de letra…
             </div>
           )}
+          {edicaoInline}
         </div>
       </div>
     </div>
@@ -818,7 +859,7 @@ export function EditorGrafico({ pacoteInicial, chaveLocal, titulo, seletor, real
         </Collapsible>
         {medidor && <PainelRedesenhar aberto={redesenhar} onFechar={() => setRedesenhar(false)} pacote={pacote} sistema={sistemaDoc} variante={variante} indice={pagina}
           medidor={medidor} imagens={imagens} onGerarIA={() => { setPromptIA(promptAuto); if (compacto) { setPainelMovel("imagens"); setPainelAberto(true); } else setAba("imagens"); }}
-          projectId={projectId} onAplicar={(p, c) => { despachar({ tipo: "substituir", pacote: p }); comDesfazer(`Página ${pagina + 1} redesenhada: ${c.label}.`); }} />}
+          projectId={projectId} onAplicar={(p, c) => { despachar({ tipo: "substituir", pacote: p }); comDesfazer(c.requiresAiImage ? `Imagem gerada por IA aplicada na página ${pagina + 1}.` : `Página ${pagina + 1} redesenhada: ${c.label}.`); }} />}
       </>)}
     </div>
   );
