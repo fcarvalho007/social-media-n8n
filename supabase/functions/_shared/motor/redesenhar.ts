@@ -165,7 +165,8 @@ export function redesenharPagina(o: OpcoesRedesign): { candidatos: CandidatoRede
       if (c) saida.push({ ...c, disruptiva: true });
     }
   }
-  for (let tentativa = 0; saida.length < n && tentativa < FALLBACKS_DISRUPTIVOS.length * 4; tentativa++) {
+  const alvoAntesIA = querIA ? n - 1 : n;
+  for (let tentativa = 0; saida.length < alvoAntesIA && tentativa < FALLBACKS_DISRUPTIVOS.length * 4; tentativa++) {
     const rc = FALLBACKS_DISRUPTIVOS[(tentativa + (o.ronda ?? 0)) % FALLBACKS_DISRUPTIVOS.length];
     const c = comporCandidato(o, rc, undefined, vistos, saida.length, tentativa >= FALLBACKS_DISRUPTIVOS.length);
     if (c) saida.push({ ...c, disruptiva: saida.filter((x) => x.disruptiva).length < 2 });
