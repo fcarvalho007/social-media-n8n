@@ -51,7 +51,12 @@ export function imagemInadequada(papel: PapelVisual | undefined): boolean {
 }
 
 /** Layout for the AI proposal, decided BEFORE generation; varies by role and avoids modes already used. */
-export function decidirComposicaoIA(papel: PapelVisual | undefined, usados: ModoImagem[], ronda = 0): { modo: ModoImagem; regiao: RegiaoTexto; overlay: TipoOverlay } {
+type DecisaoIA = { modo: ModoImagem; regiao: RegiaoTexto; overlay: TipoOverlay };
+export function decidirComposicaoIA(papel: PapelVisual | undefined, usados: ModoImagem[], ronda = 0): DecisaoIA {
+  return opcoesComposicaoIA(papel, usados, ronda)[0];
+}
+/** Ordered layout options (preferred first, unused modes before used ones); the first that fits wins. */
+export function opcoesComposicaoIA(papel: PapelVisual | undefined, usados: ModoImagem[], ronda = 0): DecisaoIA[] {
   const pref: Record<string, Array<[ModoImagem, RegiaoTexto, TipoOverlay]>> = {
     cover: [["full_bleed", "bottom", "gradient"], ["full_bleed", "left", "gradient"], ["hero", "bottom", "gradient"]],
     visual_story: [["full_bleed", "bottom", "gradient"], ["full_bleed", "left", "glass"], ["split", "left", "none"]],
@@ -63,8 +68,10 @@ export function decidirComposicaoIA(papel: PapelVisual | undefined, usados: Modo
   };
   const lista = pref[papel ?? "standard"] ?? pref.standard;
   const rodada = [...lista.slice(ronda % lista.length), ...lista.slice(0, ronda % lista.length)];
-  const [modo, regiao, overlay] = rodada.find(([m]) => !usados.includes(m)) ?? rodada[0];
-  return { modo, regiao, overlay };
+  const extra: Array<[ModoImagem, RegiaoTexto, TipoOverlay]> = [["full_bleed", "bottom", "gradient"], ["hero", "bottom", "gradient"], ["split", "left", "none"], ["contained", "bottom", "none"], ["background", "center", "vignette"]];
+  const todas = [...rodada, ...extra].filter((x, i, a) => a.findIndex((y) => y.join() === x.join()) === i);
+  const ord = [...todas.filter(([m]) => !usados.includes(m)), ...todas.filter(([m]) => usados.includes(m))];
+  return ord.map(([modo, regiao, overlay]) => ({ modo, regiao, overlay }));
 }
 
 interface Receita { strategy: EstrategiaRedesign; label: string; reason: string; precisaImagem: boolean; comp: Partial<ComposicaoImagem>; efeitos?: OverrideEfeitos; estilo?: EstiloId }
@@ -141,15 +148,18 @@ export function redesenharPagina(o: OpcoesRedesign): { candidatos: CandidatoRede
   }
   if (querIA) {
     const usados = saida.map((c) => (c.pagina.composicao as ComposicaoImagem | undefined)?.modo).filter((x): x is ModoImagem => !!x);
-    const d = decidirComposicaoIA(papel, usados, o.ronda ?? 0);
-    const slideId = orig.slide;
-    const s0 = o.pacote.conteudo.slides.find((x) => x.id === slideId);
-    const promptIA = construirPromptComposicao({ titulo: s0?.titulo ?? "", texto: s0?.texto, intencao: comp0.visual_intent, papel: papel ?? "standard",
-      estilo: o.sistema.estilo, variante: o.sistema.variante, paleta: o.sistema.paleta, modo: d.modo, regiao: d.regiao });
-    const rc: Receita = { strategy: "AI_IMAGE_COMPOSITION", label: "Imagem IA integrada", reason: "Imagem gerada para esta composição: sujeito longe do texto, fundo integrado na paleta.",
-      precisaImagem: true, comp: { modo: d.modo, regiao: d.regiao, overlay: d.overlay, origem: "kie", visual_prompt: promptIA } };
-    const pac = { ...o, pacote: { ...o.pacote, assets: { ...(o.pacote.assets ?? {}), [ASSET_IA_PENDENTE]: { id: ASSET_IA_PENDENTE, mime: "image/png" as const, largura: 1080, altura: 1350, dados: PNG_NEUTRO } } } };
-    const c = comporCandidato(pac, rc, ASSET_IA_PENDENTE, new Set(), saida.length, true);
+    const s0 = o.pacote.conteudo.slides.find((x) => x.id === orig.slide);
+    let c: CandidatoRedesign | null = null, promptIA = "";
+    for (const d of opcoesComposicaoIA(papel, usados, o.ronda ?? 0)) {
+      promptIA = construirPromptComposicao({ titulo: s0?.titulo ?? "", texto: s0?.texto, intencao: comp0.visual_intent, papel: papel ?? "standard",
+        estilo: o.sistema.estilo, variante: o.sistema.variante, paleta: o.sistema.paleta, modo: d.modo, regiao: d.regiao });
+      const rc: Receita = { strategy: "AI_IMAGE_COMPOSITION", label: "Imagem IA integrada", reason: "Imagem gerada para esta composição: sujeito longe do texto, fundo integrado na paleta.",
+        precisaImagem: true, comp: { modo: d.modo, regiao: d.regiao, overlay: d.overlay, origem: "kie", visual_prompt: promptIA } };
+      const pac = { ...o, pacote: { ...o.pacote, assets: { ...(o.pacote.assets ?? {}), [ASSET_IA_PENDENTE]: { id: ASSET_IA_PENDENTE, mime: "image/png" as const, largura: 1080, altura: 1350, dados: PNG_NEUTRO } } } };
+      c = comporCandidato(pac, rc, ASSET_IA_PENDENTE, new Set(), saida.length, true);
+      if (c && c.pagina.camadas.some((l) => l.tipo === "imagem" && l.asset_id === ASSET_IA_PENDENTE)) break;
+      c = null;
+    }
     if (c) saida.splice(Math.min(2, saida.length), 0, { ...c, requiresAiImage: true, promptIA, pendente: true });
   }
   const sugerirIA = !querIA && !asset && (papel === "cover" || papel === "visual_story" || papel === "concept");
