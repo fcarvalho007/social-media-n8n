@@ -338,7 +338,7 @@ function validarDocumento(v: unknown, variante: Variante, assets: Record<string,
 }
 
 export const PAPEIS_PAGINA: readonly string[] = ["cover", "standard", "visual_story", "data", "concept", "comparison", "case_study", "transition", "actions", "conclusion"];
-const CHAVES_COMPOSICAO = ["papel", "modo", "regiao", "foco", "overlay", "intensidade", "asset_id", "origem", "visual_query", "visual_prompt", "visual_intent"];
+const CHAVES_COMPOSICAO = ["papel", "modo", "regiao", "foco", "overlay", "intensidade", "asset_id", "origem", "visual_query", "visual_prompt", "visual_intent", "efeitos", "estrategia"];
 function validarComposicao(v: unknown, onde: string): Record<string, unknown> {
   const o = obj(v, onde);
   if (JSON.stringify(o).length > 6000) falha(`${onde}: demasiado grande.`);
@@ -349,6 +349,7 @@ function validarComposicao(v: unknown, onde: string): Record<string, unknown> {
     if (k === "foco") { const f = obj(x, `${onde}.foco`); r.foco = { x: num(f.x, `${onde}.foco.x`, 0, 1), y: num(f.y, `${onde}.foco.y`, 0, 1) }; }
     else if (k === "intensidade") r.intensidade = num(x, `${onde}.intensidade`, 0, 1);
     else if (x === null && k === "asset_id") r.asset_id = null;
+    else if (k === "efeitos") { const e = obj(x, `${onde}.efeitos`); r.efeitos = Object.fromEntries(Object.entries(e).filter(([n, b]) => /^[a-zA-Z]{1,20}$/.test(n) && typeof b === "boolean")); }
     else r[k] = str(x, `${onde}.${k}`, k === "visual_prompt" ? 2000 : 400);
   }
   return r;

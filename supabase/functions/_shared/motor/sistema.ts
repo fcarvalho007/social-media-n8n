@@ -4,6 +4,7 @@
 import { ALTURA, LARGURA, layoutTexto, resolverTexto, type Camada, type CamadaTexto, type ConteudoEditorial, type Medidor, type PacoteProva, type Pagina, type Variante } from "../documento-grafico/nucleo.ts";
 import { ESTILOS, type EstiloId, type Paleta } from "./estilos.ts";
 import { comporModelo } from "./modelos.ts";
+import { aplicarEfeitos, type OverrideEfeitos } from "./efeitos.ts";
 import { chaveComposicao, comporImagem, inferirPapel, PAPEIS, type ComposicaoImagem, type ComposicoesImagem, type DecisaoImagem, type PapelVisual } from "./imagem.ts";
 
 export type PaletaId = "navy-editorial" | "navy-digital" | "navy-signal" | "navy-sage" | "navy-ice";
@@ -48,7 +49,7 @@ const comSistema = (p: PacoteProva, s: SistemaVisual): PacoteProva =>
   ({ ...p, variantes: { A: { ...p.variantes.A, sistema: { ...s } }, B: { ...p.variantes.B, sistema: { ...s } } } });
 
 /** Layers the visual system generates (text bound to the narrative, page number, "mod-" decorations, images). */
-export const geradaPeloSistema = (c: Camada) => (c.tipo === "texto" && (!!c.ref || c.id === "num")) || c.id.startsWith("mod-") || c.tipo === "imagem" || c.id === "faixa" || c.id === "regua" || c.id === "bloco";
+export const geradaPeloSistema = (c: Camada) => (c.tipo === "texto" && (!!c.ref || c.id === "num")) || c.id.startsWith("mod-") || c.id.startsWith("fx-") || c.tipo === "imagem" || c.id === "faixa" || c.id === "regua" || c.id === "bloco";
 /** Pages (per variant) with manual adjustments over generated layers. */
 export function paginasComAjustes(p: PacoteProva, v?: Variante, paginas?: number[]): number {
   const vs = v ? [v] : (["A", "B"] as const);
@@ -204,7 +205,8 @@ export function aplicarSistema(pacote: PacoteProva, s: SistemaVisual, m?: Medido
       const comp = (pg.composicao as ComposicaoImagem | undefined) ?? composicoes[chaveComposicao(v, sid)];
       const sl = pacote.conteudo.slides.find((x) => x.id === sid);
       const papel = (papeis.includes(pg.papel ?? "") ? pg.papel : comp?.papel ?? (sl ? inferirPapel(sl, i, total) : undefined)) as PapelVisual | undefined;
-      const fixar = (r: Pagina): Pagina => {
+      const fixar = (r0: Pagina): Pagina => {
+        const r = aplicarEfeitos(r0, s.estilo, paleta, (comp as { efeitos?: OverrideEfeitos } | undefined)?.efeitos);
         let camadas = r.camadas;
         if (manter) {
           // Restore what the user adjusted by hand (same id), re-adding it if the style dropped it.
