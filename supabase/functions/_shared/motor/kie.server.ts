@@ -107,6 +107,8 @@ export const KIE_VISAO_URL = "https://api.kie.ai/gemini-3-flash/v1/chat/completi
 export const FAL_VISAO_URL = "https://fal.run/openrouter/router/vision";
 export const KIE_VISAO_MODELO = VISAO_KIE.registo;
 export const KIE_VISAO_MAX_DIA = 20;
+/** Same fixed rate as public.custos_taxa_usd_eur(). */
+const USD_EUR = 0.86;
 const PROMPT_VISAO = "Descreve em português europeu (PT-PT) o que esta imagem mostra, para servir de fonte factual a um carrossel. Se for gráfico ou tabela: título, eixos/colunas, unidades, período e TODOS os valores legíveis, exatamente como aparecem. Depois, numa frase, a leitura principal que os dados permitem. Não inventes valores ilegíveis: escreve «ilegível». Máximo 1200 caracteres, texto simples sem markdown.";
 
 export function corpoVisao(url: string) {
@@ -116,7 +118,7 @@ export function corpoVisaoFal(url: string, modelo: string) {
   return { image_urls: [url], prompt: PROMPT_VISAO, model: modelo, max_tokens: 700, temperature: 0 };
 }
 
-type Tentativa = { tipo: "ok"; texto: string } | { tipo: "recusa"; codigo: number; msg: string } | { tipo: "desconhecido"; msg: string };
+type Tentativa = { tipo: "ok"; texto: string; custoUsd: number | null; tokens: Record<string, number> } | { tipo: "recusa"; codigo: number; msg: string } | { tipo: "desconhecido"; msg: string };
 
 async function pedirVisao(m: ModeloVisao, url: string, f: typeof fetch): Promise<Tentativa> {
   const chave = m.fornecedor === "fal" ? Deno.env.get("FAL_KEY") ?? "" : chaveKie();
@@ -127,13 +129,13 @@ async function pedirVisao(m: ModeloVisao, url: string, f: typeof fetch): Promise
       ? await f(FAL_VISAO_URL, { method: "POST", headers: { Authorization: `Key ${chave}`, "Content-Type": "application/json" }, body: JSON.stringify(corpoVisaoFal(url, m.modelo)) })
       : await f(KIE_VISAO_URL, { method: "POST", headers: { Authorization: `Bearer ${chave}`, "Content-Type": "application/json" }, body: JSON.stringify(corpoVisao(url)) });
   } catch { return { tipo: "desconhecido", msg: "Sem resposta." }; }
-  const j = await r.json().catch(() => null) as { code?: number; output?: string; choices?: { message?: { content?: unknown } }[]; msg?: string; detail?: unknown; error?: { message?: string } } | null;
+  const j = await r.json().catch(() => null) as { code?: number; output?: string; choices?: { message?: { content?: unknown } }[]; msg?: string; detail?: unknown; error?: { message?: string }; usage?: { prompt_tokens?: number; completion_tokens?: number; cost?: number } } | null;
   const c = m.fornecedor === "fal" ? j?.output : j?.choices?.[0]?.message?.content;
   const texto = (typeof c === "string" ? c : Array.isArray(c) ? c.map((p) => (p as { text?: string }).text ?? "").join("") : "").trim().slice(0, 1500);
   // Kie may answer HTTP 200 with an error code in the body: a definite refusal, not an unknown outcome.
   const codigo = r.ok && typeof j?.code === "number" && j.code >= 400 ? j.code : r.status;
   const msg = String(j?.error?.message ?? j?.msg ?? (typeof j?.detail === "string" ? j.detail : "") ?? r.status).slice(0, 300) || String(codigo);
-  if (codigo < 400 && texto) return { tipo: "ok", texto };
+  if (codigo < 400 && texto) return { tipo: "ok", texto, custoUsd: typeof j?.usage?.cost === "number" ? j.usage.cost : null, tokens: { entrada: j?.usage?.prompt_tokens ?? 0, saida: j?.usage?.completion_tokens ?? 0 } };
   if (codigo >= 400 && codigo < 500) return { tipo: "recusa", codigo, msg };
   return { tipo: "desconhecido", msg };
 }
@@ -156,6 +158,9 @@ export async function interpretarImagemKie(sb: SupabaseClient, a: { projectId: s
     const t = await pedirVisao(m, assinado.data.signedUrl, f);
     if (t.tipo === "ok") {
       await sb.from("mc_kie_tarefas").update({ estado: "concluida", resultado: t.texto, actualizado_em: agora() }).eq("id", res.id);
+      // Cost ledger: provider-reported cost when present, otherwise the published-price estimate.
+      await sb.from("custos_ia").insert({ fornecedor: m.fornecedor, modelo: m.modelo, acao: "ler imagem", estado: "concluido", origem_id: `kie:${res.id}`, project_id: a.projectId, unidades: t.tokens,
+        custo_eur: t.custoUsd != null ? Math.round(t.custoUsd * USD_EUR * 1e6) / 1e6 : (m.fornecedor === "fal" ? 0.001 : 0.005), custo_origem: t.custoUsd != null ? "confirmado" : "estimado" });
       return { status: 200, corpo: { ok: true, descricao: t.texto, fornecedor: m.fornecedor } };
     }
     if (t.tipo === "desconhecido") {
