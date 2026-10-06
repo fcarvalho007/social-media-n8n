@@ -818,7 +818,7 @@ export function EditorGrafico({ pacoteInicial, chaveLocal, titulo, seletor, real
         </Collapsible>
         {medidor && <PainelRedesenhar aberto={redesenhar} onFechar={() => setRedesenhar(false)} pacote={pacote} sistema={sistemaDoc} variante={variante} indice={pagina}
           medidor={medidor} imagens={imagens} onGerarIA={() => { setPromptIA(promptAuto); if (compacto) { setPainelMovel("imagens"); setPainelAberto(true); } else setAba("imagens"); }}
-          onAplicar={(p, c) => { despachar({ tipo: "substituir", pacote: p }); comDesfazer(`Página ${pagina + 1} redesenhada: ${c.label}.`); }} />}
+          projectId={projectId} onAplicar={(p, c) => { despachar({ tipo: "substituir", pacote: p }); comDesfazer(`Página ${pagina + 1} redesenhada: ${c.label}.`); }} />}
       </>)}
     </div>
   );
