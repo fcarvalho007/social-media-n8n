@@ -799,6 +799,26 @@ export function EditorGrafico({ pacoteInicial, chaveLocal, titulo, seletor, real
           sugestao={papelPagina ? inferirFonte(papelPagina) : undefined} promptIA={promptAuto} queryPexels={queryAuto}
           origemIA={compPagina.origem === "kie"}
           onGerarIA={(pr) => { setPromptIA(pr); if (compacto) { setPainelMovel("imagens"); setPainelAberto(true); } else setAba("imagens"); }} />
+        <Collapsible>
+          <CollapsibleTrigger className="text-xs text-muted-foreground underline-offset-2 hover:underline">Personalizar › Efeitos</CollapsibleTrigger>
+          <CollapsibleContent className="space-y-2 pt-2">
+            <p className="text-[11px] text-muted-foreground">Por omissão vêm do estilo. As cores seguem a paleta.</p>
+            {(() => {
+              const ov = (compPagina.efeitos ?? {}) as OverrideEfeitos;
+              const ativos = efeitosAtivos(sistemaDoc.estilo, ov);
+              return CHAVES_EFEITO.map((k) => (
+                <div key={k} className="flex items-center justify-between gap-2">
+                  <Label htmlFor={`fx-${k}`} className="text-xs font-normal">{NOMES_EFEITO[k]}{typeof ov[k] === "boolean" ? " · ajustado" : ""}</Label>
+                  <Switch id={`fx-${k}`} checked={ativos[k]} disabled={!!rascunho}
+                    onCheckedChange={(v) => { const img = paginaAtual.camadas.find((c) => c.tipo === "imagem"); recomporPagina({ comp: { ...compPagina, ...(img && img.tipo === "imagem" ? { asset_id: img.asset_id } : {}), efeitos: { ...ov, [k]: v } } }, `${NOMES_EFEITO[k]} ${v ? "ligado" : "desligado"}`); }} />
+                </div>
+              ));
+            })()}
+          </CollapsibleContent>
+        </Collapsible>
+        {medidor && <PainelRedesenhar aberto={redesenhar} onFechar={() => setRedesenhar(false)} pacote={pacote} sistema={sistemaDoc} variante={variante} indice={pagina}
+          medidor={medidor} imagens={imagens} onGerarIA={() => { setPromptIA(promptAuto); if (compacto) { setPainelMovel("imagens"); setPainelAberto(true); } else setAba("imagens"); }}
+          onAplicar={(p, c) => { despachar({ tipo: "substituir", pacote: p }); comDesfazer(`Página ${pagina + 1} redesenhada: ${c.label}.`); }} />}
       </>)}
     </div>
   );
