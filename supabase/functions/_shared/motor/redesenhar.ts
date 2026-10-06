@@ -1,4 +1,5 @@
-// "Redesenhar slide": composition exploration for ONE page. Deterministic, no AI, no network.
+// "Redesenhar slide": composition exploration for ONE page. Deterministic, no network. One slot is reserved for
+// AI_IMAGE_COMPOSITION (layout decided first, image generated for it later by the caller — at most one per round).
 // Every candidate is produced by the same aplicarSistema used by the canvas and export, so a candidate's
 // page is exactly what enters the document if applied. Content (texts/refs) is never changed.
 import { resolverTexto, type Camada, type ConteudoEditorial, type Medidor, type PacoteProva, type Pagina, type Variante } from "../documento-grafico/nucleo.ts";
@@ -6,8 +7,9 @@ import type { EstiloId } from "./estilos.ts";
 import type { ComposicaoImagem, ModoImagem, PapelVisual, RegiaoTexto, TipoOverlay } from "./imagem.ts";
 import { aplicarSistema, geradaPeloSistema, type SistemaVisual } from "./sistema.ts";
 import type { OverrideEfeitos } from "./efeitos.ts";
+import { construirPromptComposicao } from "./promptVisual.ts";
 
-export type EstrategiaRedesign = "TYPOGRAPHY_LED" | "EDITORIAL_SPLIT" | "PHOTO_HERO" | "FULL_BLEED" | "OVERLAP" | "MINIMAL" | "CALLOUT" | "CONTAINED" | "EXPLORE";
+export type EstrategiaRedesign = "TYPOGRAPHY_LED" | "EDITORIAL_SPLIT" | "PHOTO_HERO" | "FULL_BLEED" | "OVERLAP" | "MINIMAL" | "CALLOUT" | "CONTAINED" | "EXPLORE" | "AI_IMAGE_COMPOSITION";
 export interface CandidatoRedesign {
   id: string;
   strategy: EstrategiaRedesign;
@@ -18,6 +20,10 @@ export interface CandidatoRedesign {
   estilo: EstiloId;
   requiresAiImage: boolean;
   estimatedCost: null;
+  /** AI_IMAGE_COMPOSITION only: English prompt generated for the pre-decided layout. */
+  promptIA?: string;
+  /** AI_IMAGE_COMPOSITION only: true while the page shows the structural placeholder (cannot be applied). */
+  pendente?: boolean;
 }
 export interface OpcoesRedesign {
   pacote: PacoteProva;
@@ -31,6 +37,34 @@ export interface OpcoesRedesign {
   n?: number;
   /** Seed to rotate strategies on "Gerar mais 5". */
   ronda?: number;
+  /** Reserve one slot for AI_IMAGE_COMPOSITION (default true; "sem_novas" disables it). */
+  incluirIA?: boolean;
+}
+
+/** Placeholder asset id used only for the structural preview of the AI proposal; never applied. */
+export const ASSET_IA_PENDENTE = "ia-pendente";
+const PNG_NEUTRO = "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNgYGD4DwABBAEAwS2OUAAAAABJRU5ErkJggg==";
+
+/** Pages where an image would hurt clarity (dense data, comparisons, action lists). */
+export function imagemInadequada(papel: PapelVisual | undefined): boolean {
+  return papel === "data" || papel === "comparison" || papel === "actions";
+}
+
+/** Layout for the AI proposal, decided BEFORE generation; varies by role and avoids modes already used. */
+export function decidirComposicaoIA(papel: PapelVisual | undefined, usados: ModoImagem[], ronda = 0): { modo: ModoImagem; regiao: RegiaoTexto; overlay: TipoOverlay } {
+  const pref: Record<string, Array<[ModoImagem, RegiaoTexto, TipoOverlay]>> = {
+    cover: [["full_bleed", "bottom", "gradient"], ["full_bleed", "left", "gradient"], ["hero", "bottom", "gradient"]],
+    visual_story: [["full_bleed", "bottom", "gradient"], ["full_bleed", "left", "glass"], ["split", "left", "none"]],
+    case_study: [["hero", "bottom", "gradient"], ["split", "right", "none"], ["full_bleed", "bottom", "gradient"]],
+    concept: [["full_bleed", "left", "gradient"], ["background", "center", "vignette"], ["split", "left", "none"]],
+    conclusion: [["full_bleed", "center", "vignette"], ["full_bleed", "bottom", "gradient"], ["contained", "bottom", "none"]],
+    transition: [["background", "center", "vignette"], ["full_bleed", "bottom", "gradient"]],
+    standard: [["split", "left", "none"], ["contained", "bottom", "none"], ["full_bleed", "left", "gradient"]],
+  };
+  const lista = pref[papel ?? "standard"] ?? pref.standard;
+  const rodada = [...lista.slice(ronda % lista.length), ...lista.slice(0, ronda % lista.length)];
+  const [modo, regiao, overlay] = rodada.find(([m]) => !usados.includes(m)) ?? rodada[0];
+  return { modo, regiao, overlay };
 }
 
 interface Receita { strategy: EstrategiaRedesign; label: string; reason: string; precisaImagem: boolean; comp: Partial<ComposicaoImagem>; efeitos?: OverrideEfeitos; estilo?: EstiloId }
@@ -97,27 +131,67 @@ export function redesenharPagina(o: OpcoesRedesign): { candidatos: CandidatoRede
   }
   const rot = (o.ronda ?? 0) * n;
   receitas = [...receitas.slice(rot % Math.max(1, receitas.length)), ...receitas.slice(0, rot % Math.max(1, receitas.length))];
+  const papelIA = papel;
+  const querIA = (o.incluirIA ?? true) && o.imagens !== "sem_novas" && !imagemInadequada(papelIA);
+  const nNormais = querIA ? n - 1 : n;
   for (const rc of receitas) {
-    if (saida.length >= n) break;
-    const comp: ComposicaoImagem = { ...comp0, ...rc.comp, ...(papel ? { papel } : {}), ...(rc.comp.modo !== "none" && asset ? { asset_id: asset } : {}),
-      ...(rc.efeitos ? { efeitos: { ...(comp0.efeitos ?? {}), ...rc.efeitos } } : {}), estrategia: rc.strategy };
-    const pg: Pagina = { ...orig, composicao: comp as Record<string, unknown>, camadas: orig.camadas.map((c) => (c.manual ? (({ manual: _m, ...x }) => x as Camada)(c) : c)) };
-    const p: PacoteProva = { ...o.pacote, variantes: { ...o.pacote.variantes, [o.variante]: { ...doc, paginas: doc.paginas.map((x, i) => (i === o.indice ? pg : x)) } } };
-    const sis = { ...o.sistema, ...(rc.estilo ? { estilo: rc.estilo } : {}), imagens: "auto" as const };
-    let res;
-    try { res = aplicarSistema(p, sis, o.m, [o.indice], {}, { ajustes: "recriar", variantes: [o.variante] }); } catch { continue; }
-    if (res.recusadas.length || res.imagemRecusadas.length) continue; // never shrink: refuse what does not fit
-    const nova = res.pacote.variantes[o.variante].paginas[o.indice];
-    if (hashConteudo(nova, o.pacote.conteudo) !== hash0) continue;
-    const sig = assinatura(nova);
-    if (vistos.has(sig)) continue;
-    vistos.add(sig);
-    saida.push({ id: `${rc.strategy}-${saida.length}-${o.ronda ?? 0}`, strategy: rc.strategy, label: rc.label, reason: rc.reason,
-      pagina: { ...nova, camadas: nova.camadas.map(marcarManual) }, estilo: sis.estilo, requiresAiImage: false, estimatedCost: null });
+    if (saida.length >= nNormais) break;
+    const c = comporCandidato(o, rc, asset, vistos, saida.length);
+    if (c) saida.push(c);
   }
-  const sugerirIA = !asset && (papel === "cover" || papel === "visual_story" || papel === "concept");
+  if (querIA) {
+    const usados = saida.map((c) => (c.pagina.composicao as ComposicaoImagem | undefined)?.modo).filter((x): x is ModoImagem => !!x);
+    const d = decidirComposicaoIA(papel, usados, o.ronda ?? 0);
+    const slideId = orig.slide;
+    const s0 = o.pacote.conteudo.slides.find((x) => x.id === slideId);
+    const promptIA = construirPromptComposicao({ titulo: s0?.titulo ?? "", texto: s0?.texto, intencao: comp0.visual_intent, papel: papel ?? "standard",
+      estilo: o.sistema.estilo, variante: o.sistema.variante, paleta: o.sistema.paleta, modo: d.modo, regiao: d.regiao });
+    const rc: Receita = { strategy: "AI_IMAGE_COMPOSITION", label: "Imagem IA integrada", reason: "Imagem gerada para esta composição: sujeito longe do texto, fundo integrado na paleta.",
+      precisaImagem: true, comp: { modo: d.modo, regiao: d.regiao, overlay: d.overlay, origem: "kie", visual_prompt: promptIA } };
+    const pac = { ...o, pacote: { ...o.pacote, assets: { ...(o.pacote.assets ?? {}), [ASSET_IA_PENDENTE]: { id: ASSET_IA_PENDENTE, mime: "image/png" as const, largura: 1080, altura: 1350, dados: PNG_NEUTRO } } } };
+    const c = comporCandidato(pac, rc, ASSET_IA_PENDENTE, new Set(), saida.length, true);
+    if (c) saida.splice(Math.min(2, saida.length), 0, { ...c, requiresAiImage: true, promptIA, pendente: true });
+  }
+  const sugerirIA = !querIA && !asset && (papel === "cover" || papel === "visual_story" || papel === "concept");
   const aviso = saida.length < n ? `Só ${saida.length} composição(ões) realmente diferente(s) cabem neste slide${asset ? "" : " sem imagem"}.` : undefined;
   return { candidatos: saida, sugerirIA, aviso };
+}
+
+function comporCandidato(o: OpcoesRedesign, rc: Receita, asset: string | undefined, vistos: Set<string>, idx: number, ignorarAssinatura = false): CandidatoRedesign | null {
+  const doc = o.pacote.variantes[o.variante];
+  const orig = doc.paginas[o.indice];
+  const hash0 = hashConteudo(orig, o.pacote.conteudo);
+  const comp0 = (orig.composicao ?? {}) as ComposicaoImagem;
+  const papel = orig.papel as PapelVisual | undefined;
+  const comp: ComposicaoImagem = { ...comp0, ...rc.comp, ...(papel ? { papel } : {}), ...(rc.comp.modo !== "none" && asset ? { asset_id: asset } : {}),
+    ...(rc.efeitos ? { efeitos: { ...(comp0.efeitos ?? {}), ...rc.efeitos } } : {}), estrategia: rc.strategy };
+  // The AI proposal must not reuse the page's current photo: drop existing image layers so the new asset is the one composed.
+  const camadas = orig.camadas.filter((c) => !(rc.strategy === "AI_IMAGE_COMPOSITION" && c.tipo === "imagem")).map((c) => (c.manual ? (({ manual: _m, ...x }) => x as Camada)(c) : c));
+  const pg: Pagina = { ...orig, composicao: comp as Record<string, unknown>, camadas };
+  const p: PacoteProva = { ...o.pacote, variantes: { ...o.pacote.variantes, [o.variante]: { ...doc, paginas: doc.paginas.map((x, i) => (i === o.indice ? pg : x)) } } };
+  const sis = { ...o.sistema, ...(rc.estilo ? { estilo: rc.estilo } : {}), imagens: "auto" as const };
+  let res;
+  try { res = aplicarSistema(p, sis, o.m, [o.indice], {}, { ajustes: "recriar", variantes: [o.variante] }); } catch { return null; }
+  if (res.recusadas.length || res.imagemRecusadas.length) return null; // never shrink: refuse what does not fit
+  const nova = res.pacote.variantes[o.variante].paginas[o.indice];
+  if (hashConteudo(nova, o.pacote.conteudo) !== hash0) return null;
+  const sig = assinatura(nova);
+  if (!ignorarAssinatura && vistos.has(sig)) return null;
+  vistos.add(sig);
+  return { id: `${rc.strategy}-${idx}-${o.ronda ?? 0}`, strategy: rc.strategy, label: rc.label, reason: rc.reason,
+    pagina: { ...nova, camadas: nova.camadas.map(marcarManual) }, estilo: sis.estilo, requiresAiImage: false, estimatedCost: null };
+}
+
+/**
+ * Swaps the AI proposal's placeholder (or a previous AI asset on "Regenerar imagem IA") for a real asset.
+ * Layout, text region, overlay, effects and content stay exactly as decided; only the image changes.
+ * `pacote` must already contain the new asset.
+ */
+export function substituirImagemIA(c: CandidatoRedesign, assetId: string, extra: { modelo?: string; prompt?: string } = {}): CandidatoRedesign {
+  const anterior = ((c.pagina.composicao ?? {}) as ComposicaoImagem).asset_id ?? ASSET_IA_PENDENTE;
+  const comp = { ...(c.pagina.composicao ?? {}), asset_id: assetId, origem: "kie", ...(extra.modelo ? { image_model: extra.modelo } : {}), ...(extra.prompt ? { visual_prompt: extra.prompt } : {}) };
+  return { ...c, pendente: false, pagina: { ...c.pagina, composicao: comp,
+    camadas: c.pagina.camadas.map((l) => (l.tipo === "imagem" && l.asset_id === anterior ? { ...l, asset_id: assetId } : l)) } };
 }
 
 /** Replaces only page `indice` of variant `v`; everything else (other pages, content, system) is untouched. */
