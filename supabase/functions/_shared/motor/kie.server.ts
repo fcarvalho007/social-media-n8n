@@ -8,7 +8,7 @@ import { sha256Hex, type AssetRow } from "./fontes.server.ts";
 
 export const KIE_BASE = "https://api.kie.ai/api/v1/jobs";
 import { recusaAntesDeCobrar, registosVisao, resolverModeloVisao, VISAO_KIE, type ModeloVisao } from "./visaoModelo.server.ts";
-import { modelosImagem, resolverModeloImagem, type QualidadeImagem } from "./imagemModelo.server.ts";
+import { FAL_IMAGEM_EUR, modelosImagem, resolverFornecedorImagem, resolverModeloImagem, type QualidadeImagem } from "./imagemModelo.server.ts";
 /** Default model (informative); the actual model comes from resolverModeloImagem at call time. */
 export const KIE_MODELO = resolverModeloImagem("fast").modelo;
 export const KIE_PROPORCAO = "3:4";
@@ -32,11 +32,45 @@ export async function criarTarefaKie(sb: SupabaseClient, a: { projectId: string;
   const desde = new Date(Date.now() - 86_400_000).toISOString();
   const { count } = await sb.from("mc_kie_tarefas").select("id", { count: "exact", head: true }).eq("project_id", a.projectId).in("modelo", modelosImagem()).gte("criado_em", desde);
   if ((count ?? 0) >= KIE_MAX_DIA) return { status: 409, corpo: { error: `Limite de ${KIE_MAX_DIA} imagens IA por dia neste projeto atingido.` } };
+  const forn = resolverFornecedorImagem((k) => Deno.env.get(k) ?? undefined);
+  if (forn.principal === "fal") {
+    const p = await tentarFal(sb, a, forn.falModelo, f);
+    // Kie only when fal refused BEFORE charging; never after an unknown outcome.
+    if (!p.recusado || !forn.fallback) return p.r;
+  }
   const { modelo, fallback } = resolverModeloImagem(a.qualidade ?? "fast");
   const primeira = await tentarModelo(sb, a, modelo, f);
   // Fallback only when the primary model was refused BEFORE a task existed; never after an unknown outcome.
   if (fallback && primeira.indisponivel) return (await tentarModelo(sb, a, fallback, f)).r;
   return primeira.r;
+}
+
+export const FAL_FILA = "https://queue.fal.run";
+export function corpoFal(prompt: string) {
+  return { prompt: `${prompt.trim()}\n\n${SUFIXO}`, image_size: { width: 1088, height: 1360 }, num_images: 1, output_format: "jpeg", enable_safety_checker: true };
+}
+
+async function tentarFal(sb: SupabaseClient, a: { projectId: string; userId: string; prompt: string }, modelo: string, f: typeof fetch) {
+  const registo = `fal:${modelo}`;
+  const { data: res, error } = await sb.from("mc_kie_tarefas").insert({ project_id: a.projectId, criado_por: a.userId, modelo: registo, prompt: a.prompt }).select("id").single();
+  if (error || !res) return { recusado: false, r: { status: 500, corpo: { error: "Não foi possível reservar o pedido." } as Record<string, unknown> } };
+  const upd = (v: Record<string, unknown>) => sb.from("mc_kie_tarefas").update({ ...v, actualizado_em: new Date().toISOString() }).eq("id", res.id);
+  let r: Response;
+  try {
+    r = await f(`${FAL_FILA}/${modelo}`, { method: "POST", headers: { Authorization: `Key ${Deno.env.get("FAL_KEY") ?? ""}`, "Content-Type": "application/json" }, body: JSON.stringify(corpoFal(a.prompt)) });
+  } catch {
+    await upd({ estado: "desconhecido", erro: "Sem resposta da fal.ai." });
+    return { recusado: false, r: { status: 502, corpo: { error: "A fal.ai não respondeu. O pedido pode ter sido aceite; não foi repetido.", tarefa: res.id, estado: "desconhecido" } as Record<string, unknown> } };
+  }
+  const j = await r.json().catch(() => null) as { request_id?: string; response_url?: string; detail?: unknown } | null;
+  if (!r.ok || !j?.response_url) {
+    const recusado = recusaAntesDeCobrar(r.status);
+    await upd({ estado: r.status >= 500 ? "desconhecido" : "falhou", erro: String(JSON.stringify(j?.detail ?? r.status)).slice(0, 300) });
+    const msg = r.status === 401 || r.status === 403 ? "Serviço de imagens IA (fal.ai) recusou a chave. Nada foi cobrado." : `O serviço de imagens recusou o pedido (${r.status}). Nada foi repetido.`;
+    return { recusado, r: { status: r.status === 401 || r.status === 403 ? 503 : 502, corpo: { error: msg, codigo: r.status === 401 || r.status === 403 ? "chave_invalida" : "recusado", tarefa: res.id } as Record<string, unknown> } };
+  }
+  await upd({ estado: "criada", task_id: j.response_url });
+  return { recusado: false, r: { status: 200, corpo: { ok: true, tarefa: res.id, estado: "criada", modelo: registo } as Record<string, unknown> } };
 }
 
 async function tentarModelo(sb: SupabaseClient, a: { projectId: string; userId: string; prompt: string }, modelo: string, f: typeof fetch) {
@@ -70,6 +104,7 @@ export async function estadoTarefaKie(sb: SupabaseClient, a: { projectId: string
   const { data: t } = await sb.from("mc_kie_tarefas").select("*").eq("id", a.tarefaId).eq("project_id", a.projectId).maybeSingle();
   if (!t) return { status: 404, corpo: { error: "Pedido inexistente neste projeto." } };
   if (t.estado !== "criada") return { status: 200, corpo: { ok: true, estado: t.estado, asset_id: t.asset_id, erro: t.erro } };
+  if (String(t.modelo).startsWith("fal:")) return await estadoFal(sb, a.projectId, t, f);
   const r = await f(`${KIE_BASE}/recordInfo?taskId=${encodeURIComponent(t.task_id)}`, { headers: { Authorization: `Bearer ${chaveKie()}` } }).catch(() => null);
   const j = r ? await r.json().catch(() => null) as { data?: { state?: string; resultJson?: string; failMsg?: string } } | null : null;
   const st = j?.data?.state;
@@ -82,8 +117,38 @@ export async function estadoTarefaKie(sb: SupabaseClient, a: { projectId: string
   let url: string | undefined;
   try { url = (JSON.parse(j!.data!.resultJson ?? "{}") as { resultUrls?: string[] }).resultUrls?.[0]; } catch { /* tratado abaixo */ }
   if (!url) return { status: 200, corpo: { ok: true, estado: "criada", aviso: "Resultado ainda sem ficheiro." } };
+  return await importarResultado(sb, a.projectId, t, url, f);
+}
+
+// deno-lint-ignore no-explicit-any
+type Tarefa = Record<string, any>;
+async function estadoFal(sb: SupabaseClient, projectId: string, t: Tarefa, f: typeof fetch) {
+  const h = { Authorization: `Key ${Deno.env.get("FAL_KEY") ?? ""}` };
+  const s = await f(`${t.task_id}/status`, { headers: h }).catch(() => null);
+  const sj = s ? await s.json().catch(() => null) as { status?: string } | null : null;
+  if (!sj?.status || sj.status === "IN_QUEUE" || sj.status === "IN_PROGRESS") return { status: 200, corpo: { ok: true, estado: "criada" } };
+  const r = await f(String(t.task_id), { headers: h }).catch(() => null);
+  const j = r ? await r.json().catch(() => null) as { images?: { url?: string }[]; detail?: unknown } | null : null;
+  const url = j?.images?.[0]?.url;
+  if (!r?.ok || !url) {
+    if (r && r.status >= 400 && r.status < 500) {
+      await sb.from("mc_kie_tarefas").update({ estado: "falhou", erro: String(JSON.stringify(j?.detail ?? r.status)).slice(0, 300), actualizado_em: new Date().toISOString() }).eq("id", t.id);
+      return { status: 200, corpo: { ok: true, estado: "falhou", erro: "A fal.ai não conseguiu gerar esta imagem." } };
+    }
+    return { status: 200, corpo: { ok: true, estado: "criada" } };
+  }
+  const out = await importarResultado(sb, projectId, t, url, f);
+  if (out.corpo && (out.corpo as { estado?: string }).estado === "concluida") {
+    await sb.from("custos_ia").insert({ fornecedor: "fal", modelo: String(t.modelo).slice(4), acao: "gerar imagem", estado: "concluido", origem_id: `kie:${t.id}`, project_id: projectId, unidades: { imagens: 1 }, custo_eur: FAL_IMAGEM_EUR, custo_origem: "estimado" });
+  }
+  return out;
+}
+
+async function importarResultado(sb: SupabaseClient, projectId: string, t: Tarefa, url: string, f: typeof fetch) {
+  const a = { projectId };
+  const agora = new Date().toISOString();
   const img = await f(url);
-  if (!img.ok) return { status: 502, corpo: { error: "Não foi possível descarregar a imagem da Kie. Tenta de novo; o pedido não é repetido." } };
+  if (!img.ok) return { status: 502, corpo: { error: "Não foi possível descarregar a imagem gerada. Tenta de novo; o pedido não é repetido." } };
   const bytes = new Uint8Array(await img.arrayBuffer());
   let info: ReturnType<typeof inspecionarImagem>;
   try { info = inspecionarImagem(bytes); }
@@ -94,7 +159,7 @@ export async function estadoTarefaKie(sb: SupabaseClient, a: { projectId: string
     const path = caminhoAsset(a.projectId, hash, info.mime);
     const up = await sb.storage.from(BUCKET_ASSETS).upload(path, bytes, { contentType: info.mime, upsert: false });
     if (up.error && !/exist|duplicate|409/i.test(up.error.message)) return { status: 500, corpo: { error: "Não foi possível guardar a imagem." } };
-    const ins = await sb.from("mc_assets").insert({ project_id: a.projectId, media_id: null, origem: "kie", nome: `Kie · ${t.prompt.slice(0, 180)}`, bucket: BUCKET_ASSETS, storage_path: path, hash, mime: info.mime, largura: info.largura, altura: info.altura, bytes: bytes.length, criado_por: t.criado_por }).select("*").single();
+    const ins = await sb.from("mc_assets").insert({ project_id: a.projectId, media_id: null, origem: "kie", nome: `${String(t.modelo).startsWith("fal:") ? "fal.ai" : "Kie"} · ${t.prompt.slice(0, 180)}`, bucket: BUCKET_ASSETS, storage_path: path, hash, mime: info.mime, largura: info.largura, altura: info.altura, bytes: bytes.length, criado_por: t.criado_por }).select("*").single();
     asset = ins.data as AssetRow | null;
     if (!asset) return { status: 500, corpo: { error: "Não foi possível registar a imagem." } };
   }
