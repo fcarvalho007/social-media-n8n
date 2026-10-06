@@ -3,7 +3,7 @@ import { toast } from "sonner";
 import {
   AlignCenter, AlignLeft, AlignRight, ArrowDown, ArrowUp, BringToFront, ChevronsDown, ChevronsUp, Circle, Copy, Download,
   AlignStartVertical, AlignCenterVertical, AlignEndVertical, AlignStartHorizontal, AlignCenterHorizontal, AlignEndHorizontal, Bold, CopyCheck, Magnet,
-  Eye, FileDown, FileUp, Layers, Loader2, Maximize, Minus, MoreHorizontal, Plus, Redo2, ScanSearch, SendToBack, Square, Trash2, Type, Undo2, X,
+  Eye, FileDown, Wand2, FileUp, Layers, Loader2, Maximize, Minus, MoreHorizontal, Plus, Redo2, ScanSearch, SendToBack, Square, Trash2, Type, Undo2, X,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -22,6 +22,10 @@ import { aplicarSistema, nomeVariante, obterPaleta, paginasComAjustes, recolorir
 import { ESTILOS } from "../../../supabase/functions/_shared/motor/estilos";
 import { PainelDirecaoVisual } from "./PainelDirecaoVisual";
 import { PainelImagemSlide } from "./PainelImagemSlide";
+import { PainelRedesenhar } from "./PainelRedesenhar";
+import { CHAVES_EFEITO, NOMES_EFEITO, efeitosAtivos, type OverrideEfeitos } from "../../../supabase/functions/_shared/motor/efeitos";
+import { Switch } from "@/components/ui/switch";
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { construirPromptVisual, construirQueryVisual, inferirFonte } from "../../../supabase/functions/_shared/motor/promptVisual";
 import { slideDaPagina } from "@/features/motor/variacoes";
 import { PAPEIS, type ComposicaoImagem, type PapelVisual } from "../../../supabase/functions/_shared/motor/imagem";
@@ -339,6 +343,7 @@ export function EditorGrafico({ pacoteInicial, chaveLocal, titulo, seletor, real
   // ---------- visual direction: the document is the only source of truth ----------
   const mSis = medidorSistema ?? medidor ?? undefined;
   const [promptIA, setPromptIA] = useState<string | undefined>(undefined);
+  const [redesenhar, setRedesenhar] = useState(false);
   const sistemaDoc = useMemo(() => sistemaDoPacote(pacote), [pacote]);
   /** Draft = in-memory copy of the SAME document shown on the canvas; `antes` is what Cancelar restores. */
   const [rascunho, setRascunho] = useState<{ antes: PacoteProva; s: SistemaVisual; ajustes?: "manter" | "recriar" } | null>(null);
@@ -632,6 +637,9 @@ export function EditorGrafico({ pacoteInicial, chaveLocal, titulo, seletor, real
             </div>
             <span className={`mt-1 block text-center text-xs tabular-nums ${i === pagina ? "font-semibold text-foreground" : "text-muted-foreground"}`}>{i + 1}{i === pagina && <span className="sr-only"> de {paginas.length}, atual</span>}</span>
           </button>
+          {i === pagina && sistemaDoc && !rascunho && medidor && (
+            <Button variant="ghost" size="sm" className="mt-0.5 h-7 w-full px-1 text-xs" onClick={() => setRedesenhar(true)} title="Mantém o conteúdo e propõe composições alternativas"><Wand2 className="mr-1 h-3.5 w-3.5" />Redesenhar</Button>
+          )}
         </li>
       ))}
     </ol>
@@ -772,7 +780,10 @@ export function EditorGrafico({ pacoteInicial, chaveLocal, titulo, seletor, real
   const queryAuto = slideConteudo ? compPagina.visual_query ?? construirQueryVisual(intencao, slideConteudo.titulo) : undefined;
   const painelPaginaVisual = paginaAtual && (
     <div className="space-y-3 border-b border-border pb-4">
-      <h2 className="text-sm font-semibold">Página {pagina + 1}</h2>
+      <div className="flex items-center justify-between gap-2">
+        <h2 className="text-sm font-semibold">Página {pagina + 1}</h2>
+        {sistemaDoc && medidor && <Button variant="outline" size="sm" className="h-9" disabled={!!rascunho} onClick={() => setRedesenhar(true)}><Wand2 className="mr-1.5 h-4 w-4" />Redesenhar</Button>}
+      </div>
       {!sistemaDoc ? <p className="text-xs text-muted-foreground">Escolhe primeiro uma direção visual para ajustar o papel e a imagem desta página.</p> : (<>
         <div className="space-y-1">
           <Label htmlFor="pv-papel" className="text-xs text-muted-foreground">Papel visual</Label>
@@ -788,6 +799,26 @@ export function EditorGrafico({ pacoteInicial, chaveLocal, titulo, seletor, real
           sugestao={papelPagina ? inferirFonte(papelPagina) : undefined} promptIA={promptAuto} queryPexels={queryAuto}
           origemIA={compPagina.origem === "kie"}
           onGerarIA={(pr) => { setPromptIA(pr); if (compacto) { setPainelMovel("imagens"); setPainelAberto(true); } else setAba("imagens"); }} />
+        <Collapsible>
+          <CollapsibleTrigger className="text-xs text-muted-foreground underline-offset-2 hover:underline">Personalizar › Efeitos</CollapsibleTrigger>
+          <CollapsibleContent className="space-y-2 pt-2">
+            <p className="text-[11px] text-muted-foreground">Por omissão vêm do estilo. As cores seguem a paleta.</p>
+            {(() => {
+              const ov = (compPagina.efeitos ?? {}) as OverrideEfeitos;
+              const ativos = efeitosAtivos(sistemaDoc.estilo, ov);
+              return CHAVES_EFEITO.map((k) => (
+                <div key={k} className="flex items-center justify-between gap-2">
+                  <Label htmlFor={`fx-${k}`} className="text-xs font-normal">{NOMES_EFEITO[k]}{typeof ov[k] === "boolean" ? " · ajustado" : ""}</Label>
+                  <Switch id={`fx-${k}`} checked={ativos[k]} disabled={!!rascunho}
+                    onCheckedChange={(v) => { const img = paginaAtual.camadas.find((c) => c.tipo === "imagem"); recomporPagina({ comp: { ...compPagina, ...(img && img.tipo === "imagem" ? { asset_id: img.asset_id } : {}), efeitos: { ...ov, [k]: v } } }, `${NOMES_EFEITO[k]} ${v ? "ligado" : "desligado"}`); }} />
+                </div>
+              ));
+            })()}
+          </CollapsibleContent>
+        </Collapsible>
+        {medidor && <PainelRedesenhar aberto={redesenhar} onFechar={() => setRedesenhar(false)} pacote={pacote} sistema={sistemaDoc} variante={variante} indice={pagina}
+          medidor={medidor} imagens={imagens} onGerarIA={() => { setPromptIA(promptAuto); if (compacto) { setPainelMovel("imagens"); setPainelAberto(true); } else setAba("imagens"); }}
+          onAplicar={(p, c) => { despachar({ tipo: "substituir", pacote: p }); comDesfazer(`Página ${pagina + 1} redesenhada: ${c.label}.`); }} />}
       </>)}
     </div>
   );
