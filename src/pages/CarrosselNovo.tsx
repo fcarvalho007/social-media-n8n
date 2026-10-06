@@ -92,6 +92,7 @@ export default function CarrosselNovo() {
   const [tocado, setTocado] = useState(false);
   const [rever, setRever] = useState(false);
   const [aCriar, setACriar] = useState(false);
+  const [erroCriar, setErroCriar] = useState<string | null>(null);
   const [recuperado, setRecuperado] = useState<string | null>(null);
   const [orc, setOrc] = useState<OrcamentoIa | null>(null);
   const projetoRef = useRef(projeto);
@@ -228,8 +229,8 @@ export default function CarrosselNovo() {
 
   const criar = async () => {
     if (!projeto || !fonteValida || aCriar) return;
-    if (!demo && !idioma.pronto) { toast.error("Prepara a versão PT-PT ou escolhe «Usar original como fonte»."); return; }
-    setACriar(true);
+    if (!demo && !idioma.pronto) { toast.error(idioma.motivoBloqueio ?? "Prepara a versão PT-PT ou escolhe «Usar original como fonte»."); return; }
+    setACriar(true); setErroCriar(null);
     const alvo = projeto;
     const o = OBJETIVOS.find((x) => x.id === objetivo)!;
     const objetivoTxt = detalhe.trim() ? `${o.nome}: ${detalhe.trim()}` : `${o.nome} — ${o.desc}`;
@@ -244,7 +245,9 @@ export default function CarrosselNovo() {
       if (r.reutilizado) toast.info("Já existia um carrossel com esta fonte e estas opções; foi aberto.");
       nav(`/estudio/carrosseis/${r.trabalho_id}`);
     } catch (e) {
-      toast.error((e as Error).message);
+      // Shown inline next to «Criar»; the text and choices stay intact.
+      const m = mensagemErro(e);
+      setErroCriar(m); toast.error(m);
       setACriar(false);
     }
   };
@@ -406,6 +409,12 @@ export default function CarrosselNovo() {
                 <span className={cn(mostrarErro || semTexto ? "text-destructive" : "text-muted-foreground")}>
                   {semTexto ? "Cola o texto para continuar." : mostrarErro ? av.motivo : fonte.paragrafos.length ? `${palavras} ${palavras === 1 ? "palavra" : "palavras"} · ${fonte.paragrafos.length} ${fonte.paragrafos.length === 1 ? "parágrafo" : "parágrafos"}${textoFonte !== texto ? " (inclui imagens)" : ""}` : ""}
                 </span>
+                {fonte.caracteres > 0 && (
+                  <span className={cn("tabular-nums", fonte.caracteres > LIMITES_FONTE.max ? "text-destructive" : fonte.caracteres >= LIMITES_FONTE.max * 0.9 ? "text-foreground" : "text-muted-foreground")}>
+                    {fonte.caracteres.toLocaleString("pt-PT")} / {LIMITES_FONTE.max.toLocaleString("pt-PT")} caracteres
+                    {fonte.caracteres >= LIMITES_FONTE.max * 0.9 && fonte.caracteres <= LIMITES_FONTE.max && " · Perto do limite; a versão PT-PT pode ficar mais longa."}
+                  </span>
+                )}
                 {fonte.paragrafos.length > 0 && (
                   <Button variant="ghost" size="sm" className="h-11" aria-expanded={rever} aria-controls="rever-fonte" onClick={() => setRever((v) => !v)}>
                     {rever ? "Esconder fonte" : "Rever fonte"}
@@ -457,7 +466,8 @@ export default function CarrosselNovo() {
               <span>{fonte.paragrafos.length} §</span>
               {demo && <><span aria-hidden>·</span><span>Demonstração</span></>}
             </div>
-            {!demo && projeto && <PainelIdioma projectId={projeto} texto={texto} escolhaInicial={idiomaInicial} iaDisponivel={comIa} onEstado={setIdioma} />}
+            {!demo && projeto && <PainelIdioma projectId={projeto} texto={texto} escolhaInicial={idiomaInicial} iaDisponivel={comIa} onEstado={setIdioma} onEncurtar={() => { setEtapa("fonte"); window.scrollTo({ top: 0 }); setTimeout(() => textoRef.current?.focus(), 50); }} />}
+            {erroCriar && <p role="alert" className="rounded-[var(--mc-r-lg)] border border-destructive/40 bg-destructive/5 p-3 text-sm text-destructive">{erroCriar}</p>}
             <div className="space-y-4">
               <h1 id="t-narrativa" className="text-2xl font-semibold tracking-tight sm:text-3xl">O que deve fazer este carrossel?</h1>
               {!demo && projeto && (
@@ -623,4 +633,17 @@ function Chips({ titulo, itens, ativo, onEscolher, multi }: { titulo: string; it
       </div>
     </div>
   );
+}
+
+/** Server errors may arrive as "Edge function returned 400: Error, {\"error\":\"…\"}"; show only the readable part. */
+function mensagemErro(e: unknown): string {
+  const m = e instanceof Error ? e.message : String(e);
+  const i = m.indexOf("{");
+  if (i >= 0) {
+    try {
+      const j: unknown = JSON.parse(m.slice(i));
+      if (j && typeof j === "object" && typeof (j as { error?: unknown }).error === "string") return (j as { error: string }).error;
+    } catch { /* not JSON */ }
+  }
+  return m || "Não foi possível criar o carrossel. Tenta novamente.";
 }

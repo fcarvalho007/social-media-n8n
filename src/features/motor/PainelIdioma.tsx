@@ -3,17 +3,19 @@ import { Languages, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import { traducaoGuardada, traduzirFonte } from "@/services/motor";
-import { normalizarFonte } from "../../../supabase/functions/_shared/motor/proposta";
+import { avaliarFonte, LIMITES_FONTE, MARGEM_TRADUCAO, normalizarFonte } from "../../../supabase/functions/_shared/motor/proposta";
 import { detetarIdioma, hashTexto, NOME_IDIOMA } from "../../../supabase/functions/_shared/motor/traducao";
 
+const LIMITE_TRADUCAO = Math.ceil(LIMITES_FONTE.max * MARGEM_TRADUCAO);
+
 export type EscolhaIdioma = "pt" | "original";
-export interface EstadoIdioma { estrangeiro: boolean; escolha: EscolhaIdioma; traducaoId: string | null; pronto: boolean }
+export interface EstadoIdioma { estrangeiro: boolean; escolha: EscolhaIdioma; traducaoId: string | null; pronto: boolean; motivoBloqueio?: string | null }
 
 /**
  * Foreign-source handling: honest detection, side-by-side original/PT-PT, one confirmed paid request per
  * source hash, stored translation reused for free. Stale responses for an older source are discarded.
  */
-export function PainelIdioma({ projectId, texto, iaDisponivel, onEstado, escolhaInicial = "pt" }: { projectId: string; texto: string; iaDisponivel: boolean; escolhaInicial?: EscolhaIdioma; onEstado: (e: EstadoIdioma) => void }) {
+export function PainelIdioma({ projectId, texto, iaDisponivel, onEstado, onEncurtar, escolhaInicial = "pt" }: { projectId: string; texto: string; iaDisponivel: boolean; escolhaInicial?: EscolhaIdioma; onEstado: (e: EstadoIdioma) => void; onEncurtar?: () => void }) {
   const fonte = useMemo(() => normalizarFonte(texto), [texto]);
   const det = useMemo(() => detetarIdioma(fonte.texto), [fonte.texto]);
   const estrangeiro = det.idioma !== "pt";
@@ -42,9 +44,13 @@ export function PainelIdioma({ projectId, texto, iaDisponivel, onEstado, escolha
   }, [fonte.texto, estrangeiro, projectId]);
 
   const valida = !!trad && trad.hash === hash;
+  // Same rebuild and rule as the server (join + normalise + translation margin), so accepted here = accepted there.
+  const avTrad = useMemo(() => (trad ? avaliarFonte(normalizarFonte(trad.paragrafos.join("\n\n")), { traducao: true }) : null), [trad]);
+  const caracteresTrad = useMemo(() => (trad ? normalizarFonte(trad.paragrafos.join("\n\n")).caracteres : null), [trad]);
+  const tradExcede = valida && escolha === "pt" && !!avTrad && !avTrad.ok;
   useEffect(() => {
-    onEstado({ estrangeiro, escolha, traducaoId: valida && escolha === "pt" ? trad!.id : null, pronto: !estrangeiro || escolha === "original" || valida });
-  }, [estrangeiro, escolha, valida, trad, onEstado]);
+    onEstado({ estrangeiro, escolha, traducaoId: valida && escolha === "pt" ? trad!.id : null, pronto: !estrangeiro || escolha === "original" || (valida && !tradExcede), motivoBloqueio: tradExcede ? `A versão PT-PT tem ${caracteresTrad!.toLocaleString("pt-PT")} caracteres; o limite das traduções é ${LIMITE_TRADUCAO.toLocaleString("pt-PT")}. Usa o original como fonte ou encurta o texto.` : null });
+  }, [estrangeiro, escolha, valida, trad, onEstado, tradExcede, caracteresTrad]);
 
   if (!estrangeiro) return null;
 
@@ -80,6 +86,15 @@ export function PainelIdioma({ projectId, texto, iaDisponivel, onEstado, escolha
       </div>
 
       {escolha === "original" && <p className="text-xs text-muted-foreground">O original é usado só como fonte. O carrossel continua em PT-PT.</p>}
+      {valida && escolha === "pt" && caracteresTrad != null && (
+        tradExcede
+          ? <div role="alert" className="flex flex-wrap items-center gap-2 text-xs text-destructive">
+              <span>Versão PT-PT: {caracteresTrad.toLocaleString("pt-PT")} caracteres — acima do limite de {LIMITE_TRADUCAO.toLocaleString("pt-PT")}.</span>
+              <Button variant="outline" className="h-11 sm:h-8" onClick={() => setEscolha("original")}>Usar original como fonte</Button>
+              {onEncurtar && <Button variant="ghost" className="h-11 sm:h-8" onClick={onEncurtar}>Voltar à Fonte para encurtar</Button>}
+            </div>
+          : <p className="text-xs tabular-nums text-muted-foreground">Versão PT-PT: {caracteresTrad.toLocaleString("pt-PT")} caracteres (limite das traduções: {LIMITE_TRADUCAO.toLocaleString("pt-PT")}).</p>
+      )}
       {escolha === "pt" && !valida && (
         <div className="space-y-2" aria-live="polite">
           {!iaDisponivel ? (
