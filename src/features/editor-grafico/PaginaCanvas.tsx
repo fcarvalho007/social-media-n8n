@@ -84,36 +84,55 @@ export function PaginaCanvas({ pacote, variante, indice, medidor, imagens, escal
     <Stage width={Math.round(LARGURA * escala)} height={Math.round(ALTURA * escala)} scaleX={escala} scaleY={escala} listening={interativo}>
       <Layer>
         <Rect width={LARGURA} height={ALTURA} fill={pagina.fundo} onMouseDown={() => onSelecionar?.(null)} onTouchStart={() => onSelecionar?.(null)} />
-        {camadasOrdenadas(pagina).map((c) => (
-          <Group
-            key={c.id}
-            ref={(n) => { if (n) nos.current.set(c.id, n); else nos.current.delete(c.id); }}
-            x={c.x}
-            y={c.y}
-            width={c.w}
-            height={c.h}
-            opacity={c.opacidade ?? 1}
-            draggable={interativo}
-            onMouseDown={() => onSelecionar?.(c.id)}
-            onTouchStart={() => onSelecionar?.(c.id)}
-            onDragMove={(e) => {
-              if (!encaixe) return;
-              const r = encaixar(e.target.x(), e.target.y(), c.w, c.h, pagina.camadas.filter((o) => o.id !== c.id), 10 / Math.max(escala, 0.1) * 0.5 + 4);
-              e.target.position({ x: r.x, y: r.y });
-              setGuias({ x: r.guiasX, y: r.guiasY });
-            }}
-            onDragEnd={(e) => { setGuias({ x: [], y: [] }); onAlterar?.(c.id, { x: Math.round(e.target.x()), y: Math.round(e.target.y()) }); }}
-            onTransformEnd={(e) => {
-              const n = e.target;
-              const w = Math.max(20, Math.round(c.w * n.scaleX()));
-              const h = Math.max(20, Math.round(c.h * n.scaleY()));
-              n.scale({ x: 1, y: 1 });
-              onAlterar?.(c.id, { x: Math.round(n.x()), y: Math.round(n.y()), w, h });
-            }}
-          >
-            <Conteudo c={c} pacote={pacote} medidor={medidor} imagens={imagens} />
-          </Group>
-        ))}
+        {camadasOrdenadas(pagina).map((c) => {
+          const lim = limitesConteudo(c, c.tipo === "texto" ? resolverTexto(c, pacote.conteudo) : "", medidor);
+          return (
+            <Group
+              key={c.id}
+              x={c.x}
+              y={c.y}
+              width={c.w}
+              height={c.h}
+              opacity={c.opacidade ?? 1}
+              draggable={interativo}
+              onMouseDown={() => onSelecionar?.(c.id)}
+              onTouchStart={() => onSelecionar?.(c.id)}
+              onMouseEnter={(e) => { if (!interativo) return; setSobrevoo(c.id); const s = e.target.getStage(); if (s) s.container().style.cursor = "move"; }}
+              onMouseLeave={(e) => { if (!interativo) return; setSobrevoo((a) => (a === c.id ? null : a)); const s = e.target.getStage(); if (s) s.container().style.cursor = "default"; }}
+              onDragMove={(e) => {
+                if (!encaixe) return;
+                const r = encaixar(e.target.x() + lim.x, e.target.y() + lim.y, lim.w, lim.h, pagina.camadas.filter((o) => o.id !== c.id), 10 / Math.max(escala, 0.1) * 0.5 + 4);
+                e.target.position({ x: r.x - lim.x, y: r.y - lim.y });
+                setGuias({ x: r.guiasX, y: r.guiasY });
+              }}
+              onDragEnd={(e) => { setGuias({ x: [], y: [] }); onAlterar?.(c.id, { x: Math.round(e.target.x()), y: Math.round(e.target.y()) }); }}
+            >
+              <Group
+                ref={(n) => { if (n) nos.current.set(c.id, n); else nos.current.delete(c.id); }}
+                x={lim.x}
+                y={lim.y}
+                width={lim.w}
+                height={lim.h}
+                onTransformEnd={(e) => {
+                  const n = e.target;
+                  const sx = n.scaleX(), sy = n.scaleY();
+                  const w = Math.max(20, Math.round(c.w * sx));
+                  const h = Math.max(20, Math.round(c.h * sy));
+                  const x = Math.round(n.x() - lim.x * sx);
+                  const y = Math.round(n.y() - lim.y * sy);
+                  n.scale({ x: 1, y: 1 });
+                  n.position({ x: lim.x, y: lim.y });
+                  onAlterar?.(c.id, { x, y, w, h });
+                }}
+              >
+                <Conteudo c={c} pacote={pacote} medidor={medidor} imagens={imagens} />
+              </Group>
+              {interativo && sobrevoo === c.id && selecao !== c.id && (
+                <Rect x={lim.x} y={lim.y} width={lim.w} height={lim.h} stroke={corSelecao} strokeWidth={1 / escala} dash={[5 / escala, 4 / escala]} opacity={0.55} listening={false} />
+              )}
+            </Group>
+          );
+        })}
         {guias.x.map((g) => <Line key={`gx${g}`} points={[g, 0, g, ALTURA]} stroke={corSelecao} strokeWidth={1 / escala} dash={[6 / escala, 4 / escala]} listening={false} />)}
         {guias.y.map((g) => <Line key={`gy${g}`} points={[0, g, LARGURA, g]} stroke={corSelecao} strokeWidth={1 / escala} dash={[6 / escala, 4 / escala]} listening={false} />)}
         {interativo && (
