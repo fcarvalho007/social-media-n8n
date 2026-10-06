@@ -53,7 +53,7 @@ interface Props {
   /** Prefilled AI prompt from the Image panel; opens the AI tab. */
   promptIA?: string;
   /** Opens a given image tab (from the slide Image panel) with suggested stock terms. */
-  subImagens?: { aba: "biblioteca" | "fotos" | "carregar" | "ia"; n: number };
+  subImagens?: { aba: "biblioteca" | "fotos" | "stickers" | "carregar" | "ia"; n: number };
   termoFotos?: string;
   /** Fallback picker (proof editor). */
   pedirImagem?: () => void;
