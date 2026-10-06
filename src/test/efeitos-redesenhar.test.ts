@@ -70,10 +70,18 @@ describe("efeitos como tokens do estilo", () => {
 describe("redesenhar slide", () => {
   const p0 = aplicarSistema(pacote(), sis("editorial"), m).pacote;
   it("5 propostas distintas, conteúdo e papel intactos", () => {
-    const { candidatos } = redesenharPagina({ pacote: p0, sistema: sis("editorial"), variante: "A", indice: 1, m });
+    const { candidatos } = redesenharPagina({ pacote: p0, sistema: sis("editorial"), variante: "A", indice: 1, m, incluirIA: false });
     expect(candidatos.length).toBe(5);
+    expect(candidatos.filter((c) => c.disruptiva)).toHaveLength(2);
     const h0 = hashConteudo(p0.variantes.A.paginas[1], p0.conteudo);
     for (const c of candidatos) { expect(hashConteudo(c.pagina, p0.conteudo)).toBe(h0); expect(c.pagina.papel).toBe(p0.variantes.A.paginas[1].papel); }
+    expect(new Set(candidatos.map((c) => assinatura(c.pagina))).size).toBe(5);
+  });
+  it("garante cinco propostas, incluindo duas disruptivas, mesmo sem imagens", () => {
+    const semImagem = aplicarSistema(pacote(false), sis("editorial"), m).pacote;
+    const { candidatos } = redesenharPagina({ pacote: semImagem, sistema: sis("editorial"), variante: "A", indice: 1, m, incluirIA: false });
+    expect(candidatos).toHaveLength(5);
+    expect(candidatos.filter((c) => c.disruptiva)).toHaveLength(2);
     expect(new Set(candidatos.map((c) => assinatura(c.pagina))).size).toBe(5);
   });
   it("gerar não altera o documento; aplicar muda só a página escolhida", () => {

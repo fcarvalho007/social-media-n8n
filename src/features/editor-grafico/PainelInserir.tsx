@@ -62,9 +62,11 @@ interface Props {
   extraEstilos?: React.ReactNode;
   /** Opens the Design step on this slide's five compositions (real work only). */
   onComposicoes?: () => void;
+  /** When set, the chosen asset replaces this image layer instead of adding a new one. */
+  substituirImagemId?: string | null;
 }
 
-export function PainelInserir({ aba, despachar, onImagem, projectId, pedirImagem, onEstilo, onComposicoes, estiloAtual, extraEstilos, promptIA, subImagens, termoFotos }: Props) {
+export function PainelInserir({ aba, despachar, onImagem, projectId, pedirImagem, onEstilo, onComposicoes, estiloAtual, extraEstilos, promptIA, subImagens, termoFotos, substituirImagemId }: Props) {
   const [bib, setBib] = useState<ImagemBiblioteca[] | null>(null);
   const [erro, setErro] = useState<string | null>(null);
   const [aUsar, setAUsar] = useState<string | null>(null);
@@ -153,6 +155,7 @@ export function PainelInserir({ aba, despachar, onImagem, projectId, pedirImagem
   const lista = bib ? (q ? bib.filter((m) => m.file_name.toLocaleLowerCase("pt-PT").includes(q)) : bib) : [];
   return (
     <div className="space-y-3">
+      {substituirImagemId && <p className="rounded-[var(--mc-r-md)] bg-primary/10 px-2.5 py-2 text-xs font-medium text-foreground">A próxima imagem substitui a imagem selecionada. A composição mantém-se.</p>}
       <div role="tablist" aria-label="Origem da imagem" className="grid grid-cols-4 gap-1 rounded-[var(--mc-r-md)] bg-muted p-1">
         {([["biblioteca", "Biblioteca"], ["fotos", "Fotos"], ["carregar", "Carregar"], ["ia", "IA"]] as const).map(([id, n]) => (
           <button key={id} type="button" role="tab" aria-selected={sub === id} onClick={() => setSub(id)}

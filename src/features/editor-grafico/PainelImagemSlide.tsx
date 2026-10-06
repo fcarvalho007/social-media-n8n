@@ -4,7 +4,7 @@ import { Slider } from "@/components/ui/slider";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
-import { ChevronDown, HelpCircle, Library, Search, Sparkles, Upload } from "lucide-react";
+import { ChevronDown, HelpCircle, Library, Replace, Search, Sparkles, Upload } from "lucide-react";
 import { custoDe, formatarCusto } from "@/features/motor/custosIa";
 import type { inferirFonte } from "../../../supabase/functions/_shared/motor/promptVisual";
 import { MODOS, PAPEIS, REGIOES, type ComposicaoImagem, type DecisaoImagem, type TipoOverlay } from "../../../supabase/functions/_shared/motor/imagem";
@@ -24,6 +24,7 @@ interface Props {
   /** Opens the AI generator with this prompt; generation still needs explicit paid confirmation there. */
   onGerarIA?: (prompt: string) => void;
   origemIA?: boolean;
+  imagemSelecionada?: boolean;
 }
 const NOME_FONTE: Record<string, string> = { none: "sem imagem", renderer: "desenho do sistema", pexels: "Pexels/Unsplash", biblioteca: "Biblioteca", ia: "IA" };
 
@@ -31,7 +32,7 @@ const OVERLAYS: Array<{ id: TipoOverlay; nome: string }> = [{ id: "none", nome: 
 const sel = "h-9 w-full rounded-[var(--mc-r-md)] border border-border bg-background px-2 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring";
 
 /** Per-slide image composition. Every field starts on "Automático"; a change becomes an explicit override. */
-export function PainelImagemSlide({ decisao, comp, temImagem, ocupado, onMudar, onSubstituir, sugestao, promptIA, queryPexels, onGerarIA, origemIA }: Props) {
+export function PainelImagemSlide({ decisao, comp, temImagem, ocupado, onMudar, onSubstituir, sugestao, promptIA, queryPexels, onGerarIA, origemIA, imagemSelecionada }: Props) {
   const [prompt, setPrompt] = useState(comp.visual_prompt ?? promptIA ?? "");
   const [aberto, setAberto] = useState(true);
   const [foco, setFoco] = useState(comp.foco ?? decisao?.foco ?? { x: 0.5, y: 0.4 });
@@ -63,7 +64,7 @@ export function PainelImagemSlide({ decisao, comp, temImagem, ocupado, onMudar, 
           )}
           {(onSubstituir || onGerarIA) && (
             <div className="space-y-1.5">
-              <p className="text-xs text-muted-foreground">{temImagem ? "Trocar imagem" : "Escolher imagem"}</p>
+              <p className="flex items-center gap-1.5 text-xs text-muted-foreground">{imagemSelecionada && <Replace className="h-3.5 w-3.5" />}{imagemSelecionada ? "Substituir a imagem selecionada" : temImagem ? "Trocar imagem" : "Escolher imagem"}</p>
               <div className="grid grid-cols-2 gap-1.5">
                 {onSubstituir && FONTES.map(({ id, nome: n, Icone }) => (
                   <Button key={id} variant="outline" size="sm" className="h-9 justify-start gap-1.5 px-2 text-xs" disabled={ocupado} onClick={() => onSubstituir(id)}><Icone className="h-3.5 w-3.5" />{n}</Button>
