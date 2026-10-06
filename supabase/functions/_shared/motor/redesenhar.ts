@@ -158,7 +158,7 @@ export function redesenharPagina(o: OpcoesRedesign): { candidatos: CandidatoRede
   }
   if (nDisruptivas) {
     const estilos = EXPLORAR.filter((e) => e.estilo !== o.sistema.estilo);
-    for (let tentativa = 0; saida.length < n && tentativa < estilos.length * 3; tentativa++) {
+    for (let tentativa = 0; saida.length < n && saida.filter((x) => x.disruptiva).length < nDisruptivas && tentativa < estilos.length * 3; tentativa++) {
       const e = estilos[(tentativa + (o.ronda ?? 0) * 2) % estilos.length];
       const base = tentativa % 2 === 0 ? RECEITAS[0] : RECEITAS[5];
       const rc: Receita = { ...base, strategy: "EXPLORE", estilo: e.estilo, label: e.label, reason: "Quebra deliberadamente o padrão deste slide; a direção visual global mantém-se.", precisaImagem: false };
