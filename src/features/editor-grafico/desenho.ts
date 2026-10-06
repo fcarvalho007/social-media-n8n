@@ -22,7 +22,7 @@ export function desenharTexto(ctx: Konva.Context, c: CamadaTexto, texto: string,
 /** Tight box of the visible content inside the layer frame (selection follows this, not the declared frame). */
 export function limitesConteudo(c: Camada, texto: string, m: Medidor): { x: number; y: number; w: number; h: number } {
   if (c.tipo !== "texto") return { x: 0, y: 0, w: c.w, h: c.h };
-  const lay = layoutTexto(texto, c.estilo, c.w, c.h, m);
+  const lay = layoutTexto(texto, c.estilo, c.w, c.h, m, c.marcas);
   if (lay.linhas.length === 0) return { x: 0, y: 0, w: c.w, h: c.h };
   let x0 = Infinity, x1 = 0;
   for (const l of lay.linhas) { x0 = Math.min(x0, l.x); x1 = Math.max(x1, l.x + l.largura); }

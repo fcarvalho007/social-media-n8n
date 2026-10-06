@@ -2,7 +2,7 @@ import { useCallback, useEffect, useLayoutEffect, useMemo, useReducer, useRef, u
 import { toast } from "sonner";
 import {
   AlignCenter, AlignLeft, AlignRight, ArrowDown, ArrowUp, BringToFront, ChevronsDown, ChevronsUp, Circle, Copy, Download,
-  AlignStartVertical, AlignCenterVertical, AlignEndVertical, AlignStartHorizontal, AlignCenterHorizontal, AlignEndHorizontal, Bold, CopyCheck, Magnet,
+  AlignStartVertical, AlignCenterVertical, AlignEndVertical, AlignStartHorizontal, AlignCenterHorizontal, AlignEndHorizontal, Bold, CopyCheck, Highlighter, Magnet, Underline,
   ChevronDown, Eye, FileDown, Wand2, FileUp, Layers, Loader2, Maximize, Minus, MoreHorizontal, Plus, Redo2, ScanSearch, SendToBack, Square, Trash2, Type, Undo2, X,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -17,7 +17,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useAuth } from "@/contexts/AuthContext";
 import { guardarRecuperacao, lerRecuperacao, limparRecuperacao } from "@/lib/recuperacaoLocal";
 import { renderProvaServidor } from "@/services/conteudos";
-import { ALTURA, FAMILIAS, LARGURA, NOME_FAMILIA, layoutTexto, resolverTexto, validarPacote, type Asset, type Camada, type CamadaTexto, type Familia, type Medidor, type PacoteProva, type Variante } from "../../../supabase/functions/_shared/documento-grafico/nucleo";
+import { ALTURA, FAMILIAS, LARGURA, NOME_FAMILIA, aplicarMarca, layoutTexto, resolverTexto, validarPacote, type Asset, type Camada, type CamadaTexto, type Familia, type Medidor, type PacoteProva, type Variante } from "../../../supabase/functions/_shared/documento-grafico/nucleo";
 import { aplicarSistema, nomeVariante, obterPaleta, paginasComAjustes, recolorir, sistemaDoPacote, sistemaPadrao, type SistemaVisual } from "../../../supabase/functions/_shared/motor/sistema";
 import { ESTILOS } from "../../../supabase/functions/_shared/motor/estilos";
 import { PainelDirecaoVisual } from "./PainelDirecaoVisual";
@@ -222,6 +222,16 @@ function PainelPropriedades({ pacote, camada: c, fundo, medidor, despachar, cama
         </section>
       )}
 
+      {c.tipo === "imagem" && c.animacao_id && (
+        <section className="space-y-3">
+          <div className="rounded-[var(--mc-r-md)] border border-border bg-muted/40 px-3 py-2">
+            <p className="text-sm font-medium">Sticker animado</p>
+            <p className="text-xs text-muted-foreground">A capa mantém o desenho estático; a animação será usada no MP4 deste slide.</p>
+          </div>
+          <Numero id="duracao-animacao" rotulo="Duração do slide (segundos)" valor={(c.duracao_ms ?? 5000) / 1000} min={0.5} max={60} passo={0.5} onMudar={(n) => alterar({ duracao_ms: Math.round(n * 1000) } as Partial<Camada>)} />
+        </section>
+      )}
+
       {c.tipo === "forma" && (
         <section className="grid grid-cols-2 gap-3">
           <div className="col-span-2"><CorCampo id="cor-forma" rotulo="Cor" valor={c.estilo.cor} onMudar={(cor) => alterar({ estilo: { ...c.estilo, cor } } as Partial<Camada>, `cor:${c.id}`)} /></div>
@@ -336,6 +346,7 @@ export function EditorGrafico({ pacoteInicial, chaveLocal, titulo, seletor, real
   const [aba, setAba] = useState<AbaInserir | null>(semDirecao ? "estilos" : "texto");
   const [encaixe, setEncaixe] = useState(true);
   const [editando, setEditando] = useState<string | null>(null);
+  const [intervaloTexto, setIntervaloTexto] = useState<{ id: string; inicio: number; fim: number } | null>(null);
   const [aLargar, setALargar] = useState(false);
   const paginaRef = useRef<HTMLDivElement>(null);
   const [painelAberto, setPainelAberto] = useState(() => !sistemaDoPacote(pacoteInicial));
@@ -351,7 +362,7 @@ export function EditorGrafico({ pacoteInicial, chaveLocal, titulo, seletor, real
   // ---------- visual direction: the document is the only source of truth ----------
   const mSis = medidorSistema ?? medidor ?? undefined;
   const [promptIA, setPromptIA] = useState<string | undefined>(undefined);
-  const [subImagens, setSubImagens] = useState<{ aba: "biblioteca" | "fotos" | "carregar" | "ia"; n: number } | undefined>(undefined);
+  const [subImagens, setSubImagens] = useState<{ aba: "biblioteca" | "fotos" | "stickers" | "carregar" | "ia"; n: number } | undefined>(undefined);
   const [imagemASubstituir, setImagemASubstituir] = useState<string | null>(null);
   const [modoNova, setModoNova] = useState<ModoImagemNova>("fundo");
   const [logoMarca, setLogoMarca] = useState<string | null>(null);
@@ -771,8 +782,9 @@ export function EditorGrafico({ pacoteInicial, chaveLocal, titulo, seletor, real
         autoFocus
         aria-label="Editar texto no slide"
         defaultValue={resolverTexto(c, pacote.conteudo)}
-        onFocus={(e) => e.currentTarget.select()}
-        onChange={(e) => gravar(e.target.value)}
+        onFocus={(e) => { e.currentTarget.select(); setIntervaloTexto({ id: c.id, inicio: 0, fim: e.currentTarget.value.length }); }}
+        onSelect={(e) => setIntervaloTexto({ id: c.id, inicio: e.currentTarget.selectionStart, fim: e.currentTarget.selectionEnd })}
+        onChange={(e) => { gravar(e.target.value); setIntervaloTexto({ id: c.id, inicio: e.currentTarget.selectionStart, fim: e.currentTarget.selectionEnd }); }}
         onBlur={() => setEditando(null)}
         onKeyDown={(e) => { if (e.key === "Escape" || (e.key === "Enter" && !e.shiftKey)) { e.preventDefault(); e.currentTarget.blur(); } e.stopPropagation(); }}
         className="absolute z-10 resize-none rounded-sm border border-primary p-0 shadow-md outline-none"
@@ -832,6 +844,11 @@ export function EditorGrafico({ pacoteInicial, chaveLocal, titulo, seletor, real
 
   const alterarSel = (patch: Partial<Camada>, agrupar?: string) => camada && despachar({ tipo: "camada", id: camada.id, patch, agrupar });
   const estiloTxt = (c: CamadaTexto, e: Partial<CamadaTexto["estilo"]>, agrupar?: string) => alterarSel({ estilo: { ...c.estilo, ...e } } as Partial<Camada>, agrupar);
+  const marcarTexto = (c: CamadaTexto, marca: { peso?: 700; sublinhado?: string; realce?: string }) => {
+    const r = intervaloTexto?.id === c.id ? intervaloTexto : null;
+    if (!r || r.fim <= r.inicio) { toast.info("Seleciona primeiro uma parte do texto."); setEditando(c.id); return; }
+    alterarSel({ marcas: aplicarMarca(c.marcas, r.inicio, r.fim, marca, resolverTexto(c, pacote.conteudo).length) } as Partial<Camada>);
+  };
   const todos = () => { if (!camada) return; const r = aplicarATodos(pacote, variante, camada); if (r) { despachar({ tipo: "substituir", pacote: r.pacote }); comDesfazer(`Aplicado a ${r.alteradas} camada(s) iguais nos outros slides.`); } else toast.info("Não há outras camadas iguais para alterar."); };
   const ALINHAR: { a: Alinhar; n: string; I: typeof AlignStartVertical }[] = [
     { a: "esq", n: "Encostar à esquerda", I: AlignStartVertical }, { a: "centroH", n: "Centrar na horizontal", I: AlignCenterVertical }, { a: "dir", n: "Encostar à direita", I: AlignEndVertical },
@@ -857,7 +874,9 @@ export function EditorGrafico({ pacoteInicial, chaveLocal, titulo, seletor, real
           <SelectTrigger className="h-11 w-40 shrink-0 lg:h-9" aria-label="Tipo de letra"><SelectValue /></SelectTrigger>
           <SelectContent>{FAMILIAS.map((f) => <SelectItem key={f} value={f}>{NOME_FAMILIA[f]}</SelectItem>)}</SelectContent>
         </Select>
-        <Button variant={camada.estilo.peso === 700 ? "secondary" : "ghost"} size="icon" className={bt} aria-label="Negrito" aria-pressed={camada.estilo.peso === 700} onClick={() => estiloTxt(camada, { peso: camada.estilo.peso === 700 ? 400 : 700 })}><Bold className="h-4 w-4" /></Button>
+        <Button variant="ghost" size="icon" className={bt} aria-label="Negrito na seleção" title="Negrito na seleção" onClick={() => marcarTexto(camada, { peso: 700 })}><Bold className="h-4 w-4" /></Button>
+        <label className={`${bt} relative flex cursor-pointer items-center justify-center rounded-md hover:bg-accent`} title="Sublinhar seleção com cor"><Underline className="h-4 w-4" /><input type="color" defaultValue={camada.estilo.cor} className="absolute inset-0 cursor-pointer opacity-0" aria-label="Cor do sublinhado" onChange={(e) => marcarTexto(camada, { sublinhado: e.target.value })} /></label>
+        <label className={`${bt} relative flex cursor-pointer items-center justify-center rounded-md hover:bg-accent`} title="Realçar seleção"><Highlighter className="h-4 w-4" /><input type="color" defaultValue="#facc15" className="absolute inset-0 cursor-pointer opacity-0" aria-label="Cor do realce" onChange={(e) => marcarTexto(camada, { realce: e.target.value })} /></label>
         </div>
         {sep}
         <div role="group" aria-label="Alinhamento e cor" className="flex flex-wrap items-center gap-1">
@@ -911,8 +930,8 @@ export function EditorGrafico({ pacoteInicial, chaveLocal, titulo, seletor, real
     <div className="space-y-3">
       <div className="space-y-1.5">
         <p className="text-xs font-medium text-muted-foreground">Como usar?</p>
-        <div role="radiogroup" aria-label="Como usar a imagem" className="grid grid-cols-3 gap-1">
-          {([["fundo", "Fundo"], ["imagem", "Imagem"], ["logo", "Logótipo"]] as const).map(([v, n]) => (
+         <div role="radiogroup" aria-label="Como usar a imagem" className="grid grid-cols-2 gap-1">
+           {([["imagem", "Imagem"], ["fundo", "Fundo"]] as const).map(([v, n]) => (
             <Button key={v} type="button" role="radio" aria-checked={modoNova === v} size="sm" variant={modoNova === v ? "default" : "outline"} className="h-10 lg:h-8" onClick={() => setModoNova(v)}>{n}</Button>
           ))}
         </div>
