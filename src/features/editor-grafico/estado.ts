@@ -239,7 +239,7 @@ export function reduzir(s: EstadoEditor, a: Acao): EstadoEditor {
     case "apagarPagina": {
       const pags = s.pacote.variantes[s.variante].paginas;
       if (pags.length <= 1) return s;
-      return aplicar(s, comPaginas(s.pacote, s.variante, (ps) => ps.filter((_, j) => j !== a.indice)), undefined, { pagina: Math.max(0, Math.min(s.pagina, pags.length - 2)), selecao: null });
+      return aplicar(s, apagarSlide(s.pacote, s.variante, a.indice), undefined, { pagina: Math.max(0, Math.min(s.pagina, pags.length - 2)), selecao: null });
     }
     case "desfazer": {
       const anterior = s.passado[s.passado.length - 1];
@@ -304,4 +304,23 @@ export function inserirSlide(p: PacoteProva, variante: Variante, indice: number,
     variantes[v] = { ...p.variantes[v], paginas: novas };
   }
   return { pacote: { ...p, conteudo: { ...p.conteudo, slides }, variantes }, pagina: paginaNova };
+}
+
+/**
+ * Deletes page `indice`. When it is the only page of its logical slide in this variant, the slide is removed from
+ * both variants and from the narrative (mirror of inserirSlide), so A, B and narrative never drift apart.
+ */
+export function apagarSlide(p: PacoteProva, variante: Variante, indice: number): PacoteProva {
+  const pags = p.variantes[variante].paginas;
+  const alvo = pags[indice];
+  if (!alvo || pags.length <= 1) return p;
+  const sid = slideId(alvo);
+  const unico = !!sid && pags.filter((pg) => slideId(pg) === sid).length === 1;
+  const outra: Variante = variante === "A" ? "B" : "A";
+  if (!unico || p.variantes[outra].paginas.filter((pg) => slideId(pg) !== sid).length < 1) {
+    return comPaginas(p, variante, (ps) => ps.filter((_, j) => j !== indice));
+  }
+  const variantes = { ...p.variantes };
+  for (const v of ["A", "B"] as Variante[]) variantes[v] = { ...p.variantes[v], paginas: p.variantes[v].paginas.filter((pg) => slideId(pg) !== sid) };
+  return { ...p, conteudo: { ...p.conteudo, slides: p.conteudo.slides.filter((x) => x.id !== sid) }, variantes };
 }

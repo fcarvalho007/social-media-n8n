@@ -38,3 +38,13 @@ describe("inserirSlide", () => {
     expect(p.variantes.A.paginas).toHaveLength(20);
   });
 });
+
+describe("apagarSlide", () => {
+  it("apagar um slide inserido repõe A, B e narrativa", async () => {
+    const { apagarSlide } = await import("@/features/editor-grafico/estado");
+    const r = inserirSlide(pacote(), "A", 0, "texto")!;
+    const p = apagarSlide(r.pacote, "A", 1);
+    expect(p.conteudo.slides.map((s) => s.id)).toEqual(["s1", "s2"]);
+    expect(p.variantes.B.paginas.map((x) => x.id)).toEqual(["b1", "b2"]);
+  });
+});
