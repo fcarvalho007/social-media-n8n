@@ -585,9 +585,9 @@ export function EditorGrafico({ pacoteInicial, chaveLocal, titulo, seletor, real
       if (mod && e.key.toLowerCase() === "y") { if (emCampo(e)) return; e.preventDefault(); despachar({ tipo: "refazer" }); return; }
       if (emCampo(e)) return;
       if (e.key === "Enter" && !mod && selecao && camada?.tipo === "texto" && !editando) { e.preventDefault(); setEditando(selecao); return; }
-      if (mod && e.key.toLowerCase() === "c" && selecao) { e.preventDefault(); copiar(); return; }
-      if (mod && e.key.toLowerCase() === "v" && e.altKey) { e.preventDefault(); colarEstilo(); return; }
-      if (mod && e.key.toLowerCase() === "v") { e.preventDefault(); colar(); return; }
+      if (mod && e.code === "KeyC" && selecao) { e.preventDefault(); copiar(); return; }
+      if (mod && e.code === "KeyV" && e.altKey) { e.preventDefault(); colarEstilo(); return; }
+      if (mod && e.code === "KeyV") { e.preventDefault(); colar(); return; }
       if (mod && e.key.toLowerCase() === "d" && selecao) { e.preventDefault(); despachar({ tipo: "duplicarCamada", id: selecao }); return; }
       if ((e.key === "Delete" || e.key === "Backspace") && selecao) { e.preventDefault(); despachar({ tipo: "apagarCamada", id: selecao }); return; }
       if (e.key === "Escape") { if (preview) setPreview(false); else despachar({ tipo: "selecionar", id: null }); return; }
@@ -873,6 +873,9 @@ export function EditorGrafico({ pacoteInicial, chaveLocal, titulo, seletor, real
       {camada && (<>
         {sep}
         <div role="group" aria-label="Ações do elemento" className="flex flex-wrap items-center gap-1">
+        <Button variant="outline" size="sm" className="h-11 shrink-0 lg:h-9" onClick={copiar} title="Ctrl/Cmd+C">Copiar</Button>
+        <Button variant="outline" size="sm" className="h-11 shrink-0 lg:h-9" onClick={colar} title="Ctrl/Cmd+V">Colar</Button>
+        <Button variant="outline" size="sm" className="h-11 shrink-0 lg:h-9" onClick={colarEstilo} title="Ctrl/Cmd+Alt+V">Colar só o estilo</Button>
         {camada.tipo === "imagem" && <Button variant="outline" size="sm" className="h-11 shrink-0 lg:h-9" onClick={() => abrirSubstituicao(camada.id)}><ScanSearch className="mr-1.5 h-4 w-4" />Substituir imagem</Button>}
         <DropdownMenu>
           <DropdownMenuTrigger asChild><Button variant="ghost" size="sm" className="h-11 shrink-0 lg:h-9" aria-label="Alinhar na página"><AlignCenterVertical className="mr-1 h-4 w-4" />Alinhar</Button></DropdownMenuTrigger>
