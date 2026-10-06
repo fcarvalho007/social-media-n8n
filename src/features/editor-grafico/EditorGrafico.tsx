@@ -459,12 +459,13 @@ export function EditorGrafico({ pacoteInicial, chaveLocal, titulo, seletor, real
         return n;
       }) } } };
     }
-    const antes = JSON.stringify(pacote.variantes[variante].paginas[pagina]);
+    const visualDaPagina = (pg: typeof pacote.variantes[typeof variante]["paginas"][number] | undefined) => JSON.stringify({ fundo: pg?.fundo, camadas: pg?.camadas });
+    const antes = visualDaPagina(pacote.variantes[variante].paginas[pagina]);
     const correr = () => {
       const r = aplicarSistema(p, sistemaDoc, mSis, [pagina], {}, { ajustes: "recriar", variantes: [variante] });
       despachar({ tipo: "substituir", pacote: r.pacote });
       const av = avisosSistema(r);
-      const depois = JSON.stringify(r.pacote.variantes[variante].paginas[pagina]);
+      const depois = visualDaPagina(r.pacote.variantes[variante].paginas[pagina]);
       if (antes === depois) setAvisoPagina("Esta escolha ficou guardada, mas não muda este slide porque o conteúdo já está no melhor enquadramento seguro.");
       else if (av) setAvisoPagina(av);
       comDesfazer(`${msg}${av ? ` (${av})` : ""}.`);
