@@ -121,7 +121,8 @@ Deno.serve(async (req) => {
     const modo = body.modo === "demonstracao" ? "demonstracao" : body.modo === "ia" ? "ia" : "estruturacao";
     if (!UUID.test(projectId)) return json({ error: "Projeto inválido" }, 400);
     const fonte = normalizarFonte(texto);
-    const av = avaliarFonte(fonte);
+    // The original was validated client-side; its PT-PT translation may be slightly longer.
+    const av = avaliarFonte(fonte, { traducao: !!traducao });
     if (!av.ok) return json({ error: av.motivo }, 400);
     if (!Number.isInteger(slides) || slides < 2 || slides > av.slidesMax) return json({ error: `Escolhe entre 2 e ${av.slidesMax} slides para este texto.` }, 400);
     const tipoFonte = body.fonte_tipo === "link" ? "link" : body.fonte_tipo === "pdf" ? "pdf" : "texto";

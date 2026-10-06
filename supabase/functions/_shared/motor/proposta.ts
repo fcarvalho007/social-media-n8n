@@ -86,10 +86,14 @@ export function normalizarFonte(bruto: string): FonteNormalizada {
 
 export interface Avaliacao { ok: boolean; motivo?: string; slidesSugeridos: number; slidesMax: number }
 
+/** A PT-PT translation of a source already accepted under the limit may grow; this margin keeps it accepted. */
+export const MARGEM_TRADUCAO = 1.3;
+
 /** Explains limits instead of imposing an arbitrary minimum length. */
-export function avaliarFonte(f: FonteNormalizada): Avaliacao {
+export function avaliarFonte(f: FonteNormalizada, opcoes?: { traducao?: boolean }): Avaliacao {
+  const max = opcoes?.traducao ? Math.ceil(LIMITES_FONTE.max * MARGEM_TRADUCAO) : LIMITES_FONTE.max;
   if (f.caracteres < LIMITES_FONTE.min) return { ok: false, motivo: `O texto tem ${f.caracteres} caracteres; são precisos pelo menos ${LIMITES_FONTE.min} para haver um facto a apresentar.`, slidesSugeridos: 0, slidesMax: 0 };
-  if (f.caracteres > LIMITES_FONTE.max) return { ok: false, motivo: `O texto tem ${f.caracteres.toLocaleString("pt-PT")} caracteres; o limite é ${LIMITES_FONTE.max.toLocaleString("pt-PT")}. Divide-o em partes.`, slidesSugeridos: 0, slidesMax: 0 };
+  if (f.caracteres > max) return { ok: false, motivo: `O texto tem ${f.caracteres.toLocaleString("pt-PT")} caracteres; o limite é ${max.toLocaleString("pt-PT")}. Divide-o em partes.`, slidesSugeridos: 0, slidesMax: 0 };
   const slidesMax = Math.min(LIMITES_FONTE.maxSlides, f.paragrafos.length + 2);
   const slidesSugeridos = Math.max(LIMITES_FONTE.minSlides, Math.min(slidesMax, Math.ceil(f.caracteres / 350) + 2));
   return { ok: true, slidesSugeridos, slidesMax: Math.max(LIMITES_FONTE.minSlides, slidesMax) };
