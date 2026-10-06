@@ -150,6 +150,18 @@ describe("estado do editor", () => {
     expect(s.pacote.variantes.B.paginas).toHaveLength(1);
     expect(() => validarPacote(JSON.parse(JSON.stringify(s.pacote)))).not.toThrow();
   });
+
+  it("reordena o slide lógico na narrativa e nas duas variantes", () => {
+    const base = JSON.parse(JSON.stringify(FIXTURES[4])) as PacoteProva;
+    const criarSegunda = (id: string, origem: typeof base.variantes.A.paginas[number]) => ({ ...origem, id, slide: "s2", camadas: origem.camadas.map((c) => c.tipo === "texto" && c.ref ? { ...c, id: `${c.id}-2`, ref: c.ref.replace("s1", "s2") } : { ...c, id: `${c.id}-2` }) });
+    base.conteudo.slides.push({ id: "s2", titulo: "Segundo", texto: "Conteúdo" });
+    base.variantes.A.paginas.push(criarSegunda("a-segunda", base.variantes.A.paginas[0]));
+    base.variantes.B.paginas.push(criarSegunda("b-segunda", base.variantes.B.paginas[0]));
+    const s = reduzir(estadoInicial(base), { tipo: "moverPagina", de: 1, para: 0 });
+    expect(s.pacote.conteudo.slides.map((x) => x.id)).toEqual(["s2", "s1"]);
+    expect(s.pacote.variantes.A.paginas.map((x) => x.slide)).toEqual(["s2", "s1"]);
+    expect(s.pacote.variantes.B.paginas.map((x) => x.slide)).toEqual(["s2", "s1"]);
+  });
 });
 
 describe("transbordos (bloqueio de aprovação)", () => {

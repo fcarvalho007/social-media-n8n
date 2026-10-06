@@ -92,4 +92,16 @@ describe("carregar imagem: editor", () => {
     const s2 = reduzir(s1, { tipo: "desfazer" });
     expect(s2.pacote.variantes[s2.variante].paginas[s2.pagina].camadas).toHaveLength(n0);
   });
+  it("substitui só a imagem selecionada e preserva a sua geometria", () => {
+    const s0 = estadoInicial(FIXTURES[0]);
+    const s1 = reduzir(s0, { tipo: "adicionarImagem", asset, nome: "Antiga" });
+    const antiga = s1.pacote.variantes.A.paginas[0].camadas.find((c) => c.tipo === "imagem");
+    if (!antiga || antiga.tipo !== "imagem") throw new Error("A imagem de teste não foi criada");
+    const nova = { ...asset, id: "up2", largura: 1200, altura: 1500 };
+    const s2 = reduzir(s1, { tipo: "substituirImagem", id: antiga.id, asset: nova, nome: "Nova" });
+    const camada = s2.pacote.variantes.A.paginas[0].camadas.find((c) => c.id === antiga.id);
+    expect(camada).toMatchObject({ id: antiga.id, asset_id: "up2", x: antiga.x, y: antiga.y, w: antiga.w, h: antiga.h });
+    expect(s2.pacote.variantes.A.paginas[0].camadas.filter((c) => c.tipo === "imagem")).toHaveLength(1);
+    expect(s2.pacote.variantes.B).toBe(s1.pacote.variantes.B);
+  });
 });

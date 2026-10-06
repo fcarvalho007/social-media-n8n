@@ -21,6 +21,7 @@ export type Acao =
   | { tipo: "apagarCamada"; id: string }
   | { tipo: "adicionar"; camada: "texto" | "ret" | "elipse" | "linha"; preset?: PresetTexto; pos?: Ponto }
   | { tipo: "adicionarImagem"; asset: Asset; nome: string; pos?: Ponto }
+  | { tipo: "substituirImagem"; id: string; asset: Asset; nome: string }
   /** Whole-document change (styles, "apply to all") recorded as one undo step. */
   | { tipo: "substituir"; pacote: PacoteProva }
   /** Temporary visual draft shown on the real canvas: no history entry (Cancelar restores, Aplicar confirms). */
@@ -77,6 +78,27 @@ function comPaginas(p: PacoteProva, v: Variante, f: (pags: Pagina[]) => Pagina[]
 
 function comPagina(p: PacoteProva, v: Variante, i: number, f: (pg: Pagina) => Pagina): PacoteProva {
   return comPaginas(p, v, (pags) => pags.map((pg, j) => (j === i ? f(pg) : pg)));
+}
+
+const slideId = (p: Pagina): string | null => p.slide ?? p.camadas.find((c) => c.tipo === "texto" && c.ref)?.ref?.split(".")[0] ?? null;
+
+export function reordenarSlide(p: PacoteProva, variante: Variante, de: number, para: number): PacoteProva {
+  const origem = p.variantes[variante].paginas;
+  if (para < 0 || para >= origem.length || de < 0 || de >= origem.length || de === para) return p;
+  const ids = origem.map(slideId);
+  const removidos = ids.splice(de, 1);
+  const movido = removidos[0];
+  if (movido === undefined) return p;
+  ids.splice(para, 0, movido);
+  const ordem = new Map(ids.filter((id): id is string => !!id).map((id, i) => [id, i]));
+  const ordenarPaginas = (paginas: Pagina[]) => paginas.map((pg, i) => ({ pg, i, ordem: ordem.get(slideId(pg) ?? "") }))
+    .sort((a, b) => (a.ordem ?? ids.length + a.i) - (b.ordem ?? ids.length + b.i)).map(({ pg }) => pg);
+  const slides = p.conteudo.slides.map((slide, i) => ({ slide, i, ordem: ordem.get(slide.id) }))
+    .sort((a, b) => (a.ordem ?? ids.length + a.i) - (b.ordem ?? ids.length + b.i)).map(({ slide }) => slide);
+  return { ...p, conteudo: { ...p.conteudo, slides }, variantes: {
+    A: { ...p.variantes.A, paginas: ordenarPaginas(p.variantes.A.paginas) },
+    B: { ...p.variantes.B, paginas: ordenarPaginas(p.variantes.B.paginas) },
+  } };
 }
 
 /** Records history; consecutive edits with the same group key (typing, dragging a field) merge into one undo step. */
@@ -162,6 +184,16 @@ export function reduzir(s: EstadoEditor, a: Acao): EstadoEditor {
       }
       return aplicar(s, comPagina(pacote, s.variante, s.pagina, (p) => ({ ...p, camadas: [...p.camadas, nova] })), undefined, { selecao: nova.id });
     }
+    case "substituirImagem": {
+      const anterior = pg.camadas.find((c) => c.id === a.id);
+      if (!anterior || anterior.tipo !== "imagem") return s;
+      const pacote = { ...s.pacote, assets: { ...s.pacote.assets, [a.asset.id]: a.asset } };
+      return aplicar(s, comPagina(pacote, s.variante, s.pagina, (p) => ({
+        ...p,
+        composicao: p.composicao ? { ...p.composicao, ...((p.composicao as { asset_id?: string }).asset_id === anterior.asset_id ? { asset_id: a.asset.id } : {}) } : p.composicao,
+        camadas: p.camadas.map((c) => c.id === a.id ? { ...c, nome: a.nome.slice(0, 60) || "Imagem", asset_id: a.asset.id, manual: true } : c),
+      })), undefined, { selecao: a.id });
+    }
     case "previsualizar": {
       const v = a.variante ?? s.variante;
       return { ...s, pacote: a.pacote, variante: v, pagina: Math.min(s.pagina, a.pacote.variantes[v].paginas.length - 1), selecao: null };
@@ -181,9 +213,7 @@ export function reduzir(s: EstadoEditor, a: Acao): EstadoEditor {
     case "moverPagina": {
       const pags = s.pacote.variantes[s.variante].paginas;
       if (a.para < 0 || a.para >= pags.length || a.de === a.para) return s;
-      return aplicar(s, comPaginas(s.pacote, s.variante, (ps) => {
-        const n = [...ps]; const [x] = n.splice(a.de, 1); n.splice(a.para, 0, x); return n;
-      }), undefined, { pagina: a.para });
+      return aplicar(s, reordenarSlide(s.pacote, s.variante, a.de, a.para), undefined, { pagina: a.para, selecao: null });
     }
     case "apagarPagina": {
       const pags = s.pacote.variantes[s.variante].paginas;
