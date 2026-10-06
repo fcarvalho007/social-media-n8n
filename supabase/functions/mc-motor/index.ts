@@ -337,11 +337,19 @@ Deno.serve(async (req) => {
     const ids = Array.isArray(body.ids) ? body.ids.map(String).filter((x) => UUID.test(x)).slice(0, 20) : [];
     const { data: visiveis } = await user.from("mc_assets").select("id").eq("project_id", projectId).in("id", ids.length ? ids : ["00000000-0000-0000-0000-000000000000"]);
     const ok = new Set((visiveis ?? []).map((r) => r.id as string));
+    const { data: animacoes } = await user.from("mc_animacoes").select("id, cover_asset_id, duracao_ms").eq("project_id", projectId).in("cover_asset_id", ids.length ? ids : ["00000000-0000-0000-0000-000000000000"]);
+    const animacaoPorCapa = new Map((animacoes ?? []).map((a) => [a.cover_asset_id as string, a]));
     const assets: Record<string, unknown> = {};
     const falhas: string[] = [];
     for (const id of ids) {
       if (!ok.has(id)) { falhas.push(id); continue; }
-      try { Object.assign(assets, await resolverAssets(sb, projectId, [id])); } catch { falhas.push(id); }
+      try {
+        const resolvidos = await resolverAssets(sb, projectId, [id]);
+        const asset = resolvidos[id] as Record<string, unknown> | undefined;
+        const animacao = animacaoPorCapa.get(id);
+        if (asset && animacao) resolvidos[id] = { ...asset, animacao_id: animacao.id, duracao_ms: animacao.duracao_ms };
+        Object.assign(assets, resolvidos);
+      } catch { falhas.push(id); }
     }
     return json({ ok: true, assets, falhas });
   }

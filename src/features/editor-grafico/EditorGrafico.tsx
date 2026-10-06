@@ -222,6 +222,16 @@ function PainelPropriedades({ pacote, camada: c, fundo, medidor, despachar, cama
         </section>
       )}
 
+      {c.tipo === "imagem" && c.animacao_id && (
+        <section className="space-y-3">
+          <div className="rounded-[var(--mc-r-md)] border border-border bg-muted/40 px-3 py-2">
+            <p className="text-sm font-medium">Sticker animado</p>
+            <p className="text-xs text-muted-foreground">A capa mantém o desenho estático; a animação será usada no MP4 deste slide.</p>
+          </div>
+          <Numero id="duracao-animacao" rotulo="Duração do slide (segundos)" valor={(c.duracao_ms ?? 5000) / 1000} min={0.5} max={60} passo={0.5} onMudar={(n) => alterar({ duracao_ms: Math.round(n * 1000) } as Partial<Camada>)} />
+        </section>
+      )}
+
       {c.tipo === "forma" && (
         <section className="grid grid-cols-2 gap-3">
           <div className="col-span-2"><CorCampo id="cor-forma" rotulo="Cor" valor={c.estilo.cor} onMudar={(cor) => alterar({ estilo: { ...c.estilo, cor } } as Partial<Camada>, `cor:${c.id}`)} /></div>
