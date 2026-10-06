@@ -67,7 +67,7 @@ export function PaginaCanvas({ pacote, variante, indice, medidor, imagens, escal
   const trRef = useRef<Konva.Transformer>(null);
   const nos = useRef(new Map<string, Konva.Group>());
   const medidas = toque
-    ? { anchorSize: 26, anchorCornerRadius: 13, borderStrokeWidth: 2 }
+    ? { anchorSize: 28, anchorCornerRadius: 14, borderStrokeWidth: 2 }
     : { anchorSize: 9, anchorCornerRadius: 4.5, borderStrokeWidth: 1.5 };
 
   useEffect(() => {
