@@ -303,9 +303,9 @@ Deno.serve(async (req) => {
     if (!UUID.test(projectId)) return json({ error: "Projeto inválido" }, 400);
     const { data: pode } = await user.rpc(acao === "kie_config" ? "mc_pode_ler" : "mc_pode_escrever", { _project_id: projectId });
     if (!pode) return json({ error: "Sem acesso a este projeto." }, 403);
-    const configurada = !!chaveKie();
+    const configurada = !!chaveKie() || !!Deno.env.get("FAL_KEY");
     if (acao === "kie_config") return json({ ok: true, configurada, modelo: KIE_MODELO, proporcao: KIE_PROPORCAO, max_dia: KIE_MAX_DIA });
-    if (!configurada) return json({ error: "Configuração necessária: falta a chave KIE_API_KEY no servidor.", configuracao: true }, 503);
+    if (!configurada) return json({ error: "Configuração necessária: falta a chave do serviço de imagens no servidor.", configuracao: true }, 503);
     if (acao === "interpretar_imagem") {
       if (body.confirmado !== true) return json({ error: "Confirma o pedido pago antes de interpretar." }, 400);
       const assetId = String(body.asset_id ?? "");

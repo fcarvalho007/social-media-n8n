@@ -16,8 +16,18 @@ export function resolverModeloImagem(q: QualidadeImagem = "fast", ler: Ler = ler
   return { modelo, ...(fb && fb !== modelo ? { fallback: fb } : {}) };
 }
 
+/** fal.ai text-to-image (primary when FAL_KEY exists): native 4:5, cheapest eligible model. Registo prefix "fal:". */
+export const MODELO_IMAGEM_FAL = "fal-ai/flux/schnell";
+export const FAL_IMAGEM_EUR = 0.004;
+export function resolverFornecedorImagem(ler: Ler = lerEnv): { principal: "fal" | "kie"; fallback?: "kie"; falModelo: string } {
+  const falModelo = limpo(ler("AI_IMAGE_FAL_MODEL")) ?? MODELO_IMAGEM_FAL;
+  const temFal = !!ler("FAL_KEY"), temKie = !!ler("KIE_API_KEY");
+  if (ler("AI_IMAGE_PROVIDER") === "kie" || !temFal) return { principal: "kie", falModelo };
+  return { principal: "fal", ...(temKie ? { fallback: "kie" as const } : {}), falModelo };
+}
+
 /** All image models that count towards the per-project daily limit. */
 export function modelosImagem(ler: Ler = lerEnv): string[] {
   const a = resolverModeloImagem("fast", ler), b = resolverModeloImagem("quality", ler);
-  return [...new Set([MODELO_IMAGEM_PADRAO, a.modelo, b.modelo, a.fallback, b.fallback].filter((x): x is string => !!x))];
+  return [...new Set([MODELO_IMAGEM_PADRAO, `fal:${resolverFornecedorImagem(ler).falModelo}`, `fal:${MODELO_IMAGEM_FAL}`, a.modelo, b.modelo, a.fallback, b.fallback].filter((x): x is string => !!x))];
 }
