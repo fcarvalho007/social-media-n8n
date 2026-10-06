@@ -46,6 +46,9 @@ export function RevisaoExportacao({ dados, pacote, medidor, guardado, irPara }: 
   const [draft, setDraft] = useState<string | null>(null);
   const [pagina, setPagina] = useState(0);
   const [aTestar, setATestar] = useState(false);
+  const [aDescarregar, setADescarregar] = useState<"png" | "pdf" | null>(null);
+  const [parado, setParado] = useState(false);
+  const ultimoAvanco = useRef<{ chave: string; t: number }>({ chave: "", t: Date.now() });
   const marcador = useMemo(() => paginasComMarcador(pacote.variantes[variante]), [pacote, variante]);
   const notas = useMemo(() => notasIlegiveis(pacote.variantes[variante]), [pacote, variante]);
   // Test draft: rendered in the browser from the same core, every placeholder page carries a red watermark. Never uploaded.
@@ -85,9 +88,17 @@ export function RevisaoExportacao({ dados, pacote, medidor, guardado, irPara }: 
     return () => clearTimeout(t);
   }, [emCurso, estado, ler]);
 
+  // Stall detection: no page progress for 2 minutes while sending → stop waiting and offer a retry.
+  useEffect(() => {
+    if (!enviarAoTerminar || !estado?.exportacao) return;
+    const chave = `${estado.exportacao.estado}:${estado.exportacao.progresso?.paginas_feitas ?? 0}`;
+    if (chave !== ultimoAvanco.current.chave) ultimoAvanco.current = { chave, t: Date.now() };
+    else if (Date.now() - ultimoAvanco.current.t > 120_000) { setEnviarAoTerminar(false); setParado(true); }
+  }, [enviarAoTerminar, estado]);
+
   useEffect(() => {
     if (!enviarAoTerminar) return;
-    if (estado?.exportacao?.estado === "erro") { setEnviarAoTerminar(false); toast.error("A exportação falhou — nada foi enviado."); return; }
+    if (estado?.exportacao?.estado === "erro") { setEnviarAoTerminar(false); return; }
     if (estado?.exportacao?.estado === "concluido" && guardado && naoCabe.length === 0) { setEnviarAoTerminar(false); preparaRef.current?.(); }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [enviarAoTerminar, estado, guardado]);
@@ -95,9 +106,6 @@ export function RevisaoExportacao({ dados, pacote, medidor, guardado, irPara }: 
 
   const ex = estado?.exportacao;
   const concluido = ex?.estado === "concluido";
-  const pdf = estado?.ficheiros.find((f) => f.formato === "pdf");
-  const zip = estado?.ficheiros.find((f) => f.formato === "zip");
-  const pngs = estado?.ficheiros.filter((f) => f.formato === "png") ?? [];
   const desta = estado?.rascunhos.find((r) => r.versao === doc.versao);
   const anteriores = estado?.rascunhos.filter((r) => r.versao !== doc.versao) ?? [];
   const draftAtual = draft ?? desta?.draft_id ?? null;
@@ -126,7 +134,39 @@ export function RevisaoExportacao({ dados, pacote, medidor, guardado, irPara }: 
   };
   const paginas = pacote.variantes[variante].paginas;
   const iPag = Math.min(pagina, paginas.length - 1);
-  const passoExp = concluido ? "feito" : emCurso ? "a_decorrer" : "por_fazer";
+  const aEnviar = enviarAoTerminar || aPreparar;
+  const feitas = ex?.progresso?.paginas_feitas ?? 0;
+  const total = ex?.paginas ?? paginas.length;
+  const fracao = aPreparar || concluido ? 1 : total ? Math.min(0.95, (feitas + 0.3) / (total + 1)) : 0;
+  const restante = Math.max(5, Math.round((total - feitas) * 7 + 5));
+  const textoProgresso = aPreparar ? "A abrir a criação social…"
+    : feitas ? `A preparar slide ${Math.min(feitas + 1, total)} de ${total} · cerca de ${restante} s`
+    : `A começar · ${total} slides · cerca de ${restante} s`;
+
+  // Personal downloads: rendered in this browser from the same core (no server, nothing stored).
+  const descarregarLocal = async (tipo: "png" | "pdf") => {
+    if (!medidor) return;
+    setADescarregar(tipo);
+    try {
+      const urls: string[] = [];
+      for (let i = 0; i < paginas.length; i++) urls.push(await renderizarPaginaPng(pacote, variante, i, medidor));
+      const base = (dados.proposta.conteudo?.titulo || "carrossel").normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "").slice(0, 50) || "carrossel";
+      let blob: Blob, nome: string;
+      if (tipo === "png") {
+        const z = new JSZip();
+        urls.forEach((u, i) => z.file(`slide-${String(i + 1).padStart(2, "0")}.png`, u.split(",")[1], { base64: true }));
+        blob = await z.generateAsync({ type: "blob" }); nome = `${base}-png.zip`;
+      } else {
+        const { jsPDF } = await import("jspdf");
+        const pdf = new jsPDF({ unit: "px", format: [1080, 1350], orientation: "portrait", compress: true, hotfixes: ["px_scaling"] });
+        urls.forEach((u, i) => { if (i) pdf.addPage([1080, 1350], "portrait"); pdf.addImage(u, "PNG", 0, 0, 1080, 1350); });
+        blob = pdf.output("blob"); nome = `${base}.pdf`;
+      }
+      const a = document.createElement("a");
+      a.href = URL.createObjectURL(blob); a.download = nome; a.click();
+      setTimeout(() => URL.revokeObjectURL(a.href), 5000);
+    } catch (e) { toast.error((e as Error).message || "Não foi possível criar o ficheiro."); } finally { setADescarregar(null); }
+  };
 
   return (
     <section className="mc-entrar space-y-6" aria-labelledby="t-rev">
