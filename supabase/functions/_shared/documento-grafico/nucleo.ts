@@ -56,6 +56,15 @@ export interface EstiloTexto {
   capitular?: boolean;
 }
 
+/** Visual formatting over a plain-text range. Offsets are UTF-16 indices, matching browser selections. */
+export interface MarcaTexto {
+  inicio: number;
+  fim: number;
+  peso?: Peso;
+  sublinhado?: string;
+  realce?: string;
+}
+
 export interface CamadaTexto extends CamadaBase {
   tipo: "texto";
   /** Reference to shared editorial content, e.g. "s1.titulo". */
@@ -63,6 +72,8 @@ export interface CamadaTexto extends CamadaBase {
   /** Explicit override used only when there is no ref. */
   texto?: string;
   estilo: EstiloTexto;
+  /** Optional visual marks. Editorial content remains plain and shared between variants. */
+  marcas?: MarcaTexto[];
 }
 
 export interface CamadaImagem extends CamadaBase {
@@ -267,6 +278,7 @@ function validarCamada(v: unknown, onde: string, assets: Record<string, Asset>):
       tipo: "texto",
       ref: c.ref === undefined ? undefined : str(c.ref, `${onde}.ref`, 80),
       texto: c.texto === undefined ? undefined : str(c.texto, `${onde}.texto`),
+      marcas: c.marcas === undefined ? undefined : validarMarcas(c.marcas, `${onde}.marcas`),
       estilo: {
         peso: e.peso,
         familia: e.familia === undefined ? undefined : (FAMILIAS as readonly string[]).includes(e.familia as string) ? e.familia as Familia : falha(`${onde}.estilo.familia: tipo de letra não suportado.`),
@@ -312,6 +324,34 @@ function validarCamada(v: unknown, onde: string, assets: Record<string, Asset>):
     };
   }
   return falha(`${onde}: tipo de camada desconhecido.`);
+}
+
+function validarMarcas(v: unknown, onde: string): MarcaTexto[] {
+  if (!Array.isArray(v) || v.length > 200) falha(`${onde}: formatação inválida.`);
+  return v.map((x, i) => {
+    const o = obj(x, `${onde}.${i}`);
+    const inicio = num(o.inicio, `${onde}.${i}.inicio`, 0, 5000);
+    const fim = num(o.fim, `${onde}.${i}.fim`, 0, 5000);
+    if (!Number.isInteger(inicio) || !Number.isInteger(fim) || fim <= inicio) falha(`${onde}.${i}: intervalo inválido.`);
+    const peso = o.peso === undefined ? undefined : o.peso === 400 || o.peso === 700 || o.peso === 900 ? o.peso : falha(`${onde}.${i}.peso inválido.`);
+    const sublinhado = o.sublinhado === undefined ? undefined : cor(o.sublinhado, `${onde}.${i}.sublinhado`);
+    const realce = o.realce === undefined ? undefined : cor(o.realce, `${onde}.${i}.realce`);
+    if (peso === undefined && sublinhado === undefined && realce === undefined) falha(`${onde}.${i}: formatação vazia.`);
+    return { inicio, fim, ...(peso ? { peso } : {}), ...(sublinhado ? { sublinhado } : {}), ...(realce ? { realce } : {}) };
+  });
+}
+
+/** Clips and merges marks after text edits, without ever altering the text. */
+export function normalizarMarcas(marcas: MarcaTexto[] | undefined, tamanho: number): MarcaTexto[] {
+  const limpas = (marcas ?? []).map((m) => ({ ...m, inicio: Math.max(0, Math.min(tamanho, Math.floor(m.inicio))), fim: Math.max(0, Math.min(tamanho, Math.floor(m.fim))) }))
+    .filter((m) => m.fim > m.inicio && (m.peso !== undefined || m.sublinhado !== undefined || m.realce !== undefined));
+  return limpas.slice(0, 200);
+}
+
+export function aplicarMarca(marcas: MarcaTexto[] | undefined, inicio: number, fim: number, estilo: Omit<MarcaTexto, "inicio" | "fim">, tamanho: number): MarcaTexto[] {
+  if (fim <= inicio) return normalizarMarcas(marcas, tamanho);
+  const nova = { inicio, fim, ...estilo };
+  return normalizarMarcas([...(marcas ?? []), nova], tamanho);
 }
 
 function validarDocumento(v: unknown, variante: Variante, assets: Record<string, Asset>): DocumentoGrafico {
@@ -520,6 +560,18 @@ export interface LinhaTexto {
   x: number;
   baseline: number;
   largura: number;
+  inicio: number;
+  segmentos: SegmentoTexto[];
+}
+
+export interface SegmentoTexto {
+  texto: string;
+  x: number;
+  largura: number;
+  peso: Peso;
+  cor: string;
+  sublinhado?: string;
+  realce?: string;
 }
 
 export interface LayoutTexto {
@@ -573,7 +625,7 @@ function quebrar(texto: string, tam: number, peso: Peso, max: number, m: Medidor
 }
 
 /** Deterministic layout used by both the editor canvas and the SVG renderer. */
-export function layoutTexto(texto: string, e: EstiloTexto, w: number, h: number, m: Medidor): LayoutTexto {
+export function layoutTexto(texto: string, e: EstiloTexto, w: number, h: number, m: Medidor, marcas?: MarcaTexto[]): LayoutTexto {
   const tamMin = Math.min(e.tamMin ?? 24, e.tam);
   let tam = e.tam;
   let linhas: string[] = [];
@@ -627,7 +679,30 @@ export function layoutTexto(texto: string, e: EstiloTexto, w: number, h: number,
     linhas: linhas.map((t, i) => {
       const largura = m.largura(t, tam, e.peso, e.familia);
       const x = e.alinh === "esq" ? (i < recuadas ? indCap : 0) : e.alinh === "centro" ? (w - largura) / 2 : w - largura;
-      return { texto: t, largura, x, baseline: base(i) };
+      const anterior = linhas.slice(0, i).reduce((n, l) => {
+        const achado = texto.indexOf(l, n);
+        return achado < 0 ? n : achado + l.length;
+      }, 0);
+      const inicio = Math.max(0, texto.indexOf(t.replace(/…$/, ""), anterior));
+      const limites = new Set<number>([inicio, inicio + t.length]);
+      for (const marca of normalizarMarcas(marcas, texto.length)) {
+        if (marca.fim > inicio && marca.inicio < inicio + t.length) { limites.add(Math.max(inicio, marca.inicio)); limites.add(Math.min(inicio + t.length, marca.fim)); }
+      }
+      const cortes = [...limites].sort((a, b) => a - b);
+      let sx = x;
+      const segmentos = cortes.slice(0, -1).map((a, k) => {
+        const b = cortes[k + 1];
+        const tx = t.slice(a - inicio, b - inicio);
+        const ativas = normalizarMarcas(marcas, texto.length).filter((z) => z.inicio <= a && z.fim >= b);
+        const peso = ativas.findLast((z) => z.peso !== undefined)?.peso ?? e.peso;
+        const sublinhado = ativas.findLast((z) => z.sublinhado)?.sublinhado;
+        const realce = ativas.findLast((z) => z.realce)?.realce;
+        const sw = m.largura(tx, tam, peso, e.familia);
+        const s = { texto: tx, x: sx, largura: sw, peso, cor: e.cor, ...(sublinhado ? { sublinhado } : {}), ...(realce ? { realce } : {}) };
+        sx += sw;
+        return s;
+      });
+      return { texto: t, largura: segmentos.reduce((n, s) => n + s.largura, 0), x, baseline: base(i), inicio, segmentos };
     }),
   };
 }
@@ -716,14 +791,18 @@ export function paginaParaSvg(pacote: PacoteProva, variante: Variante, indice: n
           `<image width="${a.largura}" height="${a.altura}" xlink:href="data:${a.mime};base64,${a.dados}"/></svg></g>`,
       );
     } else {
-      const lay = layoutTexto(resolverTexto(c, pacote.conteudo), c.estilo, c.w, c.h, m);
+      const lay = layoutTexto(resolverTexto(c, pacote.conteudo), c.estilo, c.w, c.h, m, c.marcas);
       // Text is emitted as glyph outlines from the same font file, so the server
       // does not depend on its own shaping; the editable text stays in the JSON.
-      partes.push(`<g opacity="${op}" fill="${c.estilo.cor}"><title>${esc((lay.capitular?.texto ?? "") + lay.linhas.map((l) => l.texto).join(" "))}</title>`);
+      partes.push(`<g opacity="${op}"><title>${esc((lay.capitular?.texto ?? "") + lay.linhas.map((l) => l.texto).join(" "))}</title>`);
       if (lay.capitular) partes.push(`<path d="${m.caminho(lay.capitular.texto, c.x + lay.capitular.x, c.y + lay.capitular.baseline, lay.capitular.tam, c.estilo.peso, c.estilo.familia)}"/>`);
       for (const l of lay.linhas) {
-        if (!l.texto) continue;
-        partes.push(`<path d="${m.caminho(l.texto, c.x + l.x, c.y + l.baseline, lay.tam, c.estilo.peso, c.estilo.familia)}"/>`);
+        for (const s of l.segmentos) {
+          if (!s.texto) continue;
+          if (s.realce) partes.push(`<rect x="${r(c.x + s.x)}" y="${r(c.y + l.baseline - lay.tam * 0.82)}" width="${r(s.largura)}" height="${r(lay.tam * 1.02)}" rx="${r(lay.tam * 0.08)}" fill="${s.realce}"/>`);
+          partes.push(`<path fill="${s.cor}" d="${m.caminho(s.texto, c.x + s.x, c.y + l.baseline, lay.tam, s.peso, c.estilo.familia)}"/>`);
+          if (s.sublinhado) partes.push(`<rect x="${r(c.x + s.x)}" y="${r(c.y + l.baseline + lay.tam * 0.09)}" width="${r(s.largura)}" height="${r(Math.max(2, lay.tam * 0.055))}" fill="${s.sublinhado}"/>`);
+        }
       }
       partes.push(`</g>`);
     }
