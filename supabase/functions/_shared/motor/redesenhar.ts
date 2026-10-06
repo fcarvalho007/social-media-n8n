@@ -86,7 +86,7 @@ export function redesenharPagina(o: OpcoesRedesign): { candidatos: CandidatoRede
   // Image available: this page's own, or (Automático) another photo already in the package. No downloads.
   const propria = orig.camadas.find((c) => c.tipo === "imagem");
   const assetPagina = propria && propria.tipo === "imagem" ? propria.asset_id : comp0.asset_id ?? undefined;
-  const assetPacote = Object.entries(o.pacote.assets ?? {}).find(([, a]) => (a as { tipo?: string }).tipo !== "svg")?.[0];
+  const assetPacote = Object.keys(o.pacote.assets ?? {})[0];
   const asset = assetPagina ?? (o.imagens !== "sem_novas" ? assetPacote : undefined);
   const vistos = new Set<string>([assinatura(orig)]);
   const saida: CandidatoRedesign[] = [];
