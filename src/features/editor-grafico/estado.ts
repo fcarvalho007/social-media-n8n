@@ -90,6 +90,16 @@ export function reordenarSlide(p: PacoteProva, variante: Variante, de: number, p
   const origem = p.variantes[variante].paginas;
   if (para < 0 || para >= origem.length || de < 0 || de >= origem.length || de === para) return p;
   const ids = origem.map(slideId);
+  const idOrigem = ids[de];
+  if (!idOrigem || ids.filter((id) => id === idOrigem).length > 1) {
+    return comPaginas(p, variante, (paginas) => {
+      const novas = [...paginas];
+      const removidas = novas.splice(de, 1);
+      const movida = removidas[0];
+      if (movida) novas.splice(para, 0, movida);
+      return novas;
+    });
+  }
   const removidos = ids.splice(de, 1);
   const movido = removidos[0];
   if (movido === undefined) return p;
