@@ -140,13 +140,14 @@ export function rotuloCamada(c: Camada, pacote: PacoteProva): { tipo: string; de
   return { tipo: c.nome ?? NOME_TIPO[c.tipo], detalhe: c.tipo === "forma" ? `${Math.round(c.w)}×${Math.round(c.h)}` : "" };
 }
 
-function PainelPropriedades({ pacote, camada: c, fundo, medidor, despachar, camadasPagina, onImagem, onSubstituirImagem }: PropsPainel & { onImagem?: () => void; onSubstituirImagem?: () => void }) {
+function PainelPropriedades({ pacote, camada: c, fundo, medidor, despachar, camadasPagina, onImagem, onSubstituirImagem, onFundoTodos }: PropsPainel & { onImagem?: () => void; onSubstituirImagem?: () => void; onFundoTodos?: () => void }) {
   if (!c) {
     return (
       <div className="space-y-5">
         <section className="space-y-3">
           <h3 className="text-sm font-semibold">Página</h3>
-          <div className="flex items-center justify-between gap-2 text-xs"><span className="text-muted-foreground">Fundo</span><span className="flex items-center gap-1.5 font-mono"><span className="inline-block h-4 w-4 rounded-sm border border-border" style={{ background: fundo }} title="Muda-se na barra de ferramentas acima" />{fundo}</span></div>
+          <CorCampo id="fundo-pagina" rotulo="Fundo do slide" valor={fundo} onMudar={(cor) => despachar({ tipo: "fundo", cor })} />
+          {onFundoTodos && <Button variant="outline" className="h-11 w-full lg:h-9" onClick={onFundoTodos}><CopyCheck className="mr-1.5 h-4 w-4" />Aplicar fundo a todos</Button>}
           {onImagem && <Button variant="outline" className="h-11 w-full lg:h-9" onClick={onImagem}><ScanSearch className="mr-1.5 h-4 w-4" />Escolher imagem de fundo…</Button>}
         </section>
         <section className="space-y-2">
@@ -387,6 +388,7 @@ export function EditorGrafico({ pacoteInicial, chaveLocal, titulo, seletor, real
     despachar({ tipo: "colarEstilo", id: alvo.id, origem: o });
   };
   const [redesenhar, setRedesenhar] = useState(false);
+  const [avisoPagina, setAvisoPagina] = useState<string | null>(null);
   const sistemaDoc = useMemo(() => sistemaDoPacote(pacote), [pacote]);
   /** Draft = in-memory copy of the SAME document shown on the canvas; `antes` is what Cancelar restores. */
   const [rascunho, setRascunho] = useState<{ antes: PacoteProva; s: SistemaVisual; ajustes?: "manter" | "recriar" } | null>(null);
@@ -444,6 +446,7 @@ export function EditorGrafico({ pacoteInicial, chaveLocal, titulo, seletor, real
     [sistemaDoc, slideAtual, pagina, variante, pacote]);
   /** Page-level change (role / image composition) recomposed with the current style + variant + palette. */
   const recomporPagina = (mudar: { papel?: PapelVisual; comp?: ComposicaoImagem }, msg: string) => {
+    setAvisoPagina(null);
     if (!sistemaDoc || rascunho) return;
     const sid = slideAtual;
     let p: PacoteProva = pacote;
@@ -456,14 +459,17 @@ export function EditorGrafico({ pacoteInicial, chaveLocal, titulo, seletor, real
         return n;
       }) } } };
     }
-    const correr = (ajustes?: "manter" | "recriar") => {
-      const r = aplicarSistema(p, sistemaDoc, mSis, [pagina], {}, { ajustes });
+    const antes = JSON.stringify(pacote.variantes[variante].paginas[pagina]);
+    const correr = () => {
+      const r = aplicarSistema(p, sistemaDoc, mSis, [pagina], {}, { ajustes: "recriar", variantes: [variante] });
       despachar({ tipo: "substituir", pacote: r.pacote });
       const av = avisosSistema(r);
+      const depois = JSON.stringify(r.pacote.variantes[variante].paginas[pagina]);
+      if (antes === depois) setAvisoPagina("Esta escolha ficou guardada, mas não muda este slide porque o conteúdo já está no melhor enquadramento seguro.");
+      else if (av) setAvisoPagina(av);
       comDesfazer(`${msg}${av ? ` (${av})` : ""}.`);
     };
-    const n = paginasComAjustes(pacote, variante, [pagina]);
-    if (n > 0) setPedirAjustes({ n, continuar: correr }); else correr();
+    correr();
   };
   const largar = async (e: React.DragEvent) => {
     const bruto = e.dataTransfer.getData(MIME_INSERIR);
@@ -820,7 +826,7 @@ export function EditorGrafico({ pacoteInicial, chaveLocal, titulo, seletor, real
   };
   const propriedades = medidor && paginaAtual && (
     <PainelPropriedades pacote={pacote} camada={camada} fundo={paginaAtual.fundo} medidor={medidor} despachar={despachar} camadasPagina={paginaAtual.camadas} onImagem={onImagem}
-      onSubstituirImagem={camada?.tipo === "imagem" ? () => abrirSubstituicao(camada.id) : undefined} />
+      onFundoTodos={!camada ? fundoTodos : undefined} onSubstituirImagem={camada?.tipo === "imagem" ? () => abrirSubstituicao(camada.id) : undefined} />
   );
 
   const alterarSel = (patch: Partial<Camada>, agrupar?: string) => camada && despachar({ tipo: "camada", id: camada.id, patch, agrupar });
@@ -835,11 +841,6 @@ export function EditorGrafico({ pacoteInicial, chaveLocal, titulo, seletor, real
   const barraContexto = (
     <div role="toolbar" aria-label={camada ? `Ferramentas: ${rotuloCamada(camada, pacote).tipo}` : "Ferramentas do slide"} className="flex min-w-0 flex-wrap items-center gap-1 border-b border-border bg-background px-2 py-1">
       {!camada && paginaAtual && (<>
-        <label className="flex shrink-0 items-center gap-2 text-sm text-muted-foreground">Fundo deste slide
-          <input type="color" value={paginaAtual.fundo} onChange={(e) => despachar({ tipo: "fundo", cor: e.target.value })} className="h-11 w-11 lg:h-9 lg:w-10 cursor-pointer rounded-md border border-input bg-background p-1" aria-label="Cor de fundo deste slide" />
-        </label>
-        <Button variant="ghost" size="sm" className="h-11 shrink-0 lg:h-9" onClick={fundoTodos}><CopyCheck className="mr-1.5 h-4 w-4" />Aplicar a todos</Button>
-        {sep}
         <Button variant={encaixe ? "secondary" : "ghost"} size="sm" className="h-11 shrink-0 lg:h-9" aria-pressed={encaixe} onClick={() => setEncaixe((v) => !v)}><Magnet className="mr-1.5 h-4 w-4" />Encaixar</Button>
         <span className="ml-1 min-w-0 text-sm text-muted-foreground">Clica num texto para o selecionar; clica outra vez (ou Enter) para escrever.</span>
       </>)}
@@ -922,6 +923,7 @@ export function EditorGrafico({ pacoteInicial, chaveLocal, titulo, seletor, real
   ) : inserir(a));
   const compPagina = (paginaAtual?.composicao ?? {}) as ComposicaoImagem;
   const papelPagina = (paginaAtual?.papel ?? decisaoAtual?.papel) as PapelVisual | undefined;
+  const imagemParaComposicao = camada?.tipo === "imagem" ? camada : paginaAtual?.camadas.find((k) => k.tipo === "imagem");
   // Same visual intent feeds Pexels terms and the AI prompt; only the source differs.
   const slideConteudo = pacote.conteudo.slides.find((x) => x.id === slideAtual);
   const intencao = (compPagina as { visual_intent?: string }).visual_intent;
@@ -941,14 +943,16 @@ export function EditorGrafico({ pacoteInicial, chaveLocal, titulo, seletor, real
             <SelectContent>{PAPEIS.filter((x) => pagina === 0 || x.id !== "cover").map((x) => <SelectItem key={x.id} value={x.id}>{x.nome}</SelectItem>)}</SelectContent>
           </Select>
         </div>
+        {avisoPagina && <p className="rounded-[var(--mc-r-md)] bg-muted px-2.5 py-2 text-xs text-muted-foreground" role="status">{avisoPagina}</p>}
         <PainelImagemSlide key={`${variante}:${slideAtual}:${JSON.stringify(compPagina)}`} decisao={decisaoAtual} comp={compPagina}
           temImagem={paginaAtual.camadas.some((k) => k.tipo === "imagem") || !!compPagina.asset_id} ocupado={!!rascunho}
           imagemSelecionada={camada?.tipo === "imagem"}
-          onMudar={(c, msg) => { const img = paginaAtual.camadas.find((k) => k.tipo === "imagem"); recomporPagina({ comp: img && img.tipo === "imagem" ? { ...c, asset_id: img.asset_id } : c }, msg); }}
+          aviso={avisoPagina}
+          onMudar={(c, msg) => { const img = imagemParaComposicao; recomporPagina({ comp: img && img.tipo === "imagem" ? { ...c, asset_id: img.asset_id } : c }, msg); }}
           onSubstituir={(f) => { const img = camada?.tipo === "imagem" ? camada : paginaAtual.camadas.find((k) => k.tipo === "imagem"); setImagemASubstituir(img?.id ?? null); setSubImagens((s) => ({ aba: f, n: (s?.n ?? 0) + 1 })); if (compacto) { setPainelMovel("imagens"); setPainelAberto(true); } else setAba("imagens"); }}
           sugestao={papelPagina ? inferirFonte(papelPagina) : undefined} promptIA={promptAuto} queryPexels={queryAuto}
           origemIA={compPagina.origem === "kie"}
-          onGerarIA={(pr) => { setPromptIA(pr); setSubImagens((s) => ({ aba: "ia", n: (s?.n ?? 0) + 1 })); if (compacto) { setPainelMovel("imagens"); setPainelAberto(true); } else setAba("imagens"); }} />
+          onGerarIA={(pr) => { setPromptIA(pr); setModoNova((decisaoAtual?.modo === "full_bleed" || decisaoAtual?.modo === "background") ? "fundo" : "imagem"); setSubImagens((s) => ({ aba: "ia", n: (s?.n ?? 0) + 1 })); if (compacto) { setPainelMovel("imagens"); setPainelAberto(true); } else setAba("imagens"); }} />
         <Collapsible className="border-t border-border pt-4">
           <CollapsibleTrigger className="group flex min-h-9 w-full items-center justify-between text-left"><span className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Efeitos</span><ChevronDown className="h-4 w-4 text-muted-foreground transition-transform group-data-[state=open]:rotate-180" /></CollapsibleTrigger>
           <CollapsibleContent className="space-y-2 pt-2">
