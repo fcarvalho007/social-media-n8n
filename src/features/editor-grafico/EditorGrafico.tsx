@@ -34,7 +34,8 @@ import { ABAS_INSERIR, MIME_INSERIR, PainelInserir, resolverBiblioteca, type Aba
 import { alinharNaPagina, aplicarATodos, enquadrarTextos, fundoATodos, PRESETS_TAMANHO, tamanhoMais, type Alinhar } from "@/features/editor-grafico/operacoes";
 import { carregarMedidor } from "@/features/editor-grafico/fontes";
 import { carregarImagens, compararPng, renderizarPaginaPng } from "@/features/editor-grafico/desenho";
-import { estadoInicial, reduzir, type Acao } from "@/features/editor-grafico/estado";
+import { estadoInicial, reduzir, type Acao, type ModoImagemNova } from "@/features/editor-grafico/estado";
+import { listarProjetos } from "@/services/estudio";
 import { MapaCustos } from "@/features/motor/MapaCustos";
 import { PaginaCanvas } from "@/features/editor-grafico/PaginaCanvas";
 import { MiniaturaOrdenavel } from "@/features/editor-grafico/MiniaturaOrdenavel";
@@ -372,15 +373,15 @@ export function EditorGrafico({ pacoteInicial, chaveLocal, titulo, seletor, real
   /** Session-only clipboard: a copied layer plus the assets it needs. */
   const area = useRef<{ camada: Camada; assets: Record<string, Asset> } | null>(null);
   const copiar = () => {
-    const c = paginaAtualRef.current?.camadas.find((x) => x.id === selecaoRef.current);
+    const c = paginaAtual?.camadas.find((x) => x.id === selecao);
     if (!c) return;
-    const assets: Record<string, Asset> = c.tipo === "imagem" && pacoteRef.current.assets?.[c.asset_id] ? { [c.asset_id]: pacoteRef.current.assets[c.asset_id] } : {};
+    const assets: Record<string, Asset> = c.tipo === "imagem" && pacote.assets?.[c.asset_id] ? { [c.asset_id]: pacote.assets[c.asset_id] } : {};
     area.current = { camada: structuredClone(c), assets };
     toast.success("Elemento copiado. Ctrl/Cmd+V cola; Ctrl/Cmd+Alt+V cola só o estilo.");
   };
   const colar = () => { if (area.current) despachar({ tipo: "colarCamada", camada: area.current.camada, assets: area.current.assets }); else toast.info("Nada copiado ainda."); };
   const colarEstilo = () => {
-    const o = area.current?.camada; const alvo = paginaAtualRef.current?.camadas.find((x) => x.id === selecaoRef.current);
+    const o = area.current?.camada; const alvo = paginaAtual?.camadas.find((x) => x.id === selecao);
     if (!o || !alvo) { toast.info("Copia um elemento e seleciona outro do mesmo tipo."); return; }
     if (o.tipo !== alvo.tipo) { toast.info("Só é possível colar o estilo entre elementos do mesmo tipo."); return; }
     despachar({ tipo: "colarEstilo", id: alvo.id, origem: o });
@@ -584,6 +585,9 @@ export function EditorGrafico({ pacoteInicial, chaveLocal, titulo, seletor, real
       if (mod && e.key.toLowerCase() === "y") { if (emCampo(e)) return; e.preventDefault(); despachar({ tipo: "refazer" }); return; }
       if (emCampo(e)) return;
       if (e.key === "Enter" && !mod && selecao && camada?.tipo === "texto" && !editando) { e.preventDefault(); setEditando(selecao); return; }
+      if (mod && e.key.toLowerCase() === "c" && selecao) { e.preventDefault(); copiar(); return; }
+      if (mod && e.key.toLowerCase() === "v" && e.altKey) { e.preventDefault(); colarEstilo(); return; }
+      if (mod && e.key.toLowerCase() === "v") { e.preventDefault(); colar(); return; }
       if (mod && e.key.toLowerCase() === "d" && selecao) { e.preventDefault(); despachar({ tipo: "duplicarCamada", id: selecao }); return; }
       if ((e.key === "Delete" || e.key === "Backspace") && selecao) { e.preventDefault(); despachar({ tipo: "apagarCamada", id: selecao }); return; }
       if (e.key === "Escape") { if (preview) setPreview(false); else despachar({ tipo: "selecionar", id: null }); return; }
@@ -1065,7 +1069,7 @@ export function EditorGrafico({ pacoteInicial, chaveLocal, titulo, seletor, real
           <div className="space-y-4 p-3">
             {painelMovel === "pagina" && <>{painelPaginaVisual}{zoomControlos}{acoesPagina}{medidor && paginaAtual && <PainelPropriedades pacote={pacote} camada={null} fundo={paginaAtual.fundo} medidor={medidor} despachar={despachar} camadasPagina={paginaAtual.camadas} onImagem={onImagem} />}</>}
             {painelMovel === "camada" && (camada ? propriedades : <p className="text-sm text-muted-foreground">Toca num elemento da página.</p>)}
-            {painelMovel !== "pagina" && painelMovel !== "camada" && inserir(painelMovel)}
+            {painelMovel !== "pagina" && painelMovel !== "camada" && inserirComModo(painelMovel)}
           </div>
         </section>}
         <nav className="grid shrink-0 grid-cols-5 border-t border-border bg-background pb-[env(safe-area-inset-bottom)]" aria-label="Ferramentas">
@@ -1114,7 +1118,7 @@ export function EditorGrafico({ pacoteInicial, chaveLocal, titulo, seletor, real
         {aba && <aside className="w-64 shrink-0 overflow-y-auto border-r border-border bg-background p-3" aria-label={ABAS_INSERIR.find((x) => x.id === aba)?.nome}>
           <div className="mb-3 flex items-center justify-between"><h2 className="text-sm font-semibold">{ABAS_INSERIR.find((x) => x.id === aba)?.nome}</h2>
             <Button variant="ghost" size="icon" className="h-8 w-8" aria-label="Fechar painel" onClick={() => setAba(null)}><X className="h-4 w-4" /></Button></div>
-          {inserir(aba)}
+          {inserirComModo(aba)}
         </aside>}
         <div className="flex min-w-0 flex-1 flex-col">
           {barraContexto}
