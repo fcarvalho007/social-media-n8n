@@ -206,10 +206,10 @@ export function reduzir(s: EstadoEditor, a: Acao): EstadoEditor {
         const { w, h } = tamanhoImagemNova(a.asset.largura, a.asset.altura);
         const o = centrar(a.pos, w, h, { x: Math.round((1080 - w) / 2), y: Math.round((1350 - h) / 2) });
         const topo = pg.camadas.length ? Math.max(...pg.camadas.map((x) => x.z)) : 0;
-        nova = { id: novoId("imagem"), nome: a.nome.slice(0, 60) || "Imagem", tipo: "imagem", asset_id: a.asset.id, recorte: "cover", foco: { x: 0.5, y: 0.5 }, x: o.x, y: o.y, w, h, z: topo + 1 };
+        nova = { id: novoId("imagem"), nome: a.nome.slice(0, 60) || "Imagem", tipo: "imagem", asset_id: a.asset.id, recorte: "cover", foco: { x: 0.5, y: 0.5 }, x: o.x, y: o.y, w, h, z: topo + 1, ...animacaoDa(a.asset) };
       } else {
         const baixo = pg.camadas.length ? Math.min(...pg.camadas.map((x) => x.z)) : 1;
-        nova = { id: novoId("imagem"), nome: a.nome.slice(0, 60) || "Imagem", tipo: "imagem", asset_id: a.asset.id, recorte: "cover", foco: { x: 0.5, y: 0.5 }, x: 0, y: 0, w: 1080, h: 1350, z: baixo - 1 };
+        nova = { id: novoId("imagem"), nome: a.nome.slice(0, 60) || "Imagem", tipo: "imagem", asset_id: a.asset.id, recorte: "cover", foco: { x: 0.5, y: 0.5 }, x: 0, y: 0, w: 1080, h: 1350, z: baixo - 1, ...animacaoDa(a.asset) };
       }
       return aplicar(s, comPagina(pacote, s.variante, s.pagina, (p) => ({ ...p, camadas: [...p.camadas, nova] })), undefined, { selecao: nova.id });
     }
@@ -237,7 +237,7 @@ export function reduzir(s: EstadoEditor, a: Acao): EstadoEditor {
       return aplicar(s, comPagina(pacote, s.variante, s.pagina, (p) => ({
         ...p,
         composicao: p.composicao ? { ...p.composicao, ...((p.composicao as { asset_id?: string }).asset_id === anterior.asset_id ? { asset_id: a.asset.id } : {}) } : p.composicao,
-        camadas: p.camadas.map((c) => c.id === a.id ? { ...c, nome: a.nome.slice(0, 60) || "Imagem", asset_id: a.asset.id, manual: true } : c),
+        camadas: p.camadas.map((c) => c.id === a.id ? { ...c, nome: a.nome.slice(0, 60) || "Imagem", asset_id: a.asset.id, animacao_id: undefined, duracao_ms: undefined, ...animacaoDa(a.asset), manual: true } : c),
       })), undefined, { selecao: a.id });
     }
     case "previsualizar": {
@@ -356,3 +356,8 @@ export function apagarSlide(p: PacoteProva, variante: Variante, indice: number):
 }
 
 function topoZ(p: Pagina): number { return p.camadas.length ? Math.max(...p.camadas.map((x) => x.z)) : 0; }
+
+function animacaoDa(asset: Asset): { animacao_id?: string; duracao_ms?: number } {
+  const a = asset as Asset & { animacao_id?: string; duracao_ms?: number };
+  return a.animacao_id ? { animacao_id: a.animacao_id, duracao_ms: Math.min(60000, Math.max(500, a.duracao_ms ?? 5000)) } : {};
+}
