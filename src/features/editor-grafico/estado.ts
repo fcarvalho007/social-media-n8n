@@ -276,7 +276,7 @@ export function inserirSlide(p: PacoteProva, variante: Variante, indice: number,
   const base = p.variantes[variante].paginas[indice];
   if (!base) return null;
   if ((["A", "B"] as Variante[]).some((v) => p.variantes[v].paginas.length >= LIMITE_PAGINAS)) return null;
-  const novo: SlideEditorial = { id: novoId("slide"), titulo: modelo === "texto" ? "Novo título" : "", texto: modelo === "texto" ? "Escreve aqui o texto deste slide." : "" };
+  const novo: SlideEditorial = { id: novoId("slide"), titulo: modelo === "texto" ? "Novo título" : "Novo slide", texto: modelo === "texto" ? "Escreve aqui o texto deste slide." : "" };
   const slideBase = slideId(base);
   const posNarr = slideBase ? p.conteudo.slides.findIndex((x) => x.id === slideBase) : -1;
   const slides = [...p.conteudo.slides];
