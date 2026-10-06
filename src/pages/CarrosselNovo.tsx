@@ -634,3 +634,16 @@ function Chips({ titulo, itens, ativo, onEscolher, multi }: { titulo: string; it
     </div>
   );
 }
+
+/** Server errors may arrive as "Edge function returned 400: Error, {\"error\":\"…\"}"; show only the readable part. */
+function mensagemErro(e: unknown): string {
+  const m = e instanceof Error ? e.message : String(e);
+  const i = m.indexOf("{");
+  if (i >= 0) {
+    try {
+      const j: unknown = JSON.parse(m.slice(i));
+      if (j && typeof j === "object" && typeof (j as { error?: unknown }).error === "string") return (j as { error: string }).error;
+    } catch { /* not JSON */ }
+  }
+  return m || "Não foi possível criar o carrossel. Tenta novamente.";
+}
