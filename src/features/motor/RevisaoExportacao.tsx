@@ -4,7 +4,6 @@ import { ChevronLeft, ChevronRight, ExternalLink, FileDown, Loader2, RotateCw, S
 import { cn } from "@/lib/utils";
 import { useLargura } from "./Estudio";
 import { medidasPalco } from "./palco";
-import { BotaoTransferir } from "./BotaoTransferir";
 import { VerComoLido } from "./VerComoLido";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
@@ -31,7 +30,6 @@ interface Props {
   irPara?: (p: "narrativa" | "composicao") => void;
 }
 
-const kb = (b: number) => `${(b / 1024).toLocaleString("pt-PT", { maximumFractionDigits: 0 })} KB`;
 
 export function RevisaoExportacao({ dados, pacote, medidor, guardado, irPara }: Props) {
   const navegar = useNavigate();
