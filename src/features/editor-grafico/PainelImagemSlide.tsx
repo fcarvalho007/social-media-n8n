@@ -15,7 +15,7 @@ interface Props {
   temImagem: boolean;
   ocupado: boolean;
   onMudar: (c: ComposicaoImagem, msg: string) => void;
-  onSubstituir?: () => void;
+  onSubstituir?: (fonte: "biblioteca" | "fotos" | "carregar") => void;
   /** Deterministic recommendation: whether the slide needs a photo and which sources fit. */
   sugestao?: ReturnType<typeof inferirFonte>;
   /** Auto-built AI prompt and stock terms, from the same visual intent. */

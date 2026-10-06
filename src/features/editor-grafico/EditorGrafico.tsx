@@ -345,6 +345,7 @@ export function EditorGrafico({ pacoteInicial, chaveLocal, titulo, seletor, real
   // ---------- visual direction: the document is the only source of truth ----------
   const mSis = medidorSistema ?? medidor ?? undefined;
   const [promptIA, setPromptIA] = useState<string | undefined>(undefined);
+  const [subImagens, setSubImagens] = useState<{ aba: "biblioteca" | "fotos" | "carregar" | "ia"; n: number } | undefined>(undefined);
   const [redesenhar, setRedesenhar] = useState(false);
   const sistemaDoc = useMemo(() => sistemaDoPacote(pacote), [pacote]);
   /** Draft = in-memory copy of the SAME document shown on the canvas; `antes` is what Cancelar restores. */
@@ -809,7 +810,7 @@ export function EditorGrafico({ pacoteInicial, chaveLocal, titulo, seletor, real
     <PainelDirecaoVisual base={rascunho?.antes ?? pacote} atual={rascunho?.s ?? sistemaDoc} emRascunho={!!rascunho} medidor={medidor} imagens={imagens}
       onExperimentar={experimentar} onAplicar={aplicarRascunho} onCancelar={cancelarRascunho} />
   ) : (
-    <PainelInserir aba={a} despachar={despachar} projectId={projectId} promptIA={promptIA} pedirImagem={onImagem} onEstilo={() => undefined}
+    <PainelInserir aba={a} despachar={despachar} projectId={projectId} promptIA={promptIA} subImagens={subImagens} termoFotos={queryAuto} pedirImagem={onImagem} onEstilo={() => undefined}
       onImagem={(r) => despachar({ tipo: "adicionarImagem", asset: r.asset, nome: r.nome })} />
   ));
   const compPagina = (paginaAtual?.composicao ?? {}) as ComposicaoImagem;
@@ -836,10 +837,10 @@ export function EditorGrafico({ pacoteInicial, chaveLocal, titulo, seletor, real
         <PainelImagemSlide key={`${variante}:${slideAtual}:${JSON.stringify(compPagina)}`} decisao={decisaoAtual} comp={compPagina}
           temImagem={paginaAtual.camadas.some((k) => k.tipo === "imagem") || !!compPagina.asset_id} ocupado={!!rascunho}
           onMudar={(c, msg) => { const img = paginaAtual.camadas.find((k) => k.tipo === "imagem"); recomporPagina({ comp: img && img.tipo === "imagem" ? { ...c, asset_id: img.asset_id } : c }, msg); }}
-          onSubstituir={() => { if (compacto) { setPainelMovel("imagens"); setPainelAberto(true); } else setAba("imagens"); }}
+          onSubstituir={(f) => { setSubImagens((s) => ({ aba: f, n: (s?.n ?? 0) + 1 })); if (compacto) { setPainelMovel("imagens"); setPainelAberto(true); } else setAba("imagens"); }}
           sugestao={papelPagina ? inferirFonte(papelPagina) : undefined} promptIA={promptAuto} queryPexels={queryAuto}
           origemIA={compPagina.origem === "kie"}
-          onGerarIA={(pr) => { setPromptIA(pr); if (compacto) { setPainelMovel("imagens"); setPainelAberto(true); } else setAba("imagens"); }} />
+          onGerarIA={(pr) => { setPromptIA(pr); setSubImagens((s) => ({ aba: "ia", n: (s?.n ?? 0) + 1 })); if (compacto) { setPainelMovel("imagens"); setPainelAberto(true); } else setAba("imagens"); }} />
         <Collapsible className="border-t border-border pt-4">
           <CollapsibleTrigger className="group flex min-h-9 w-full items-center justify-between text-left"><span className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Efeitos</span><ChevronDown className="h-4 w-4 text-muted-foreground transition-transform group-data-[state=open]:rotate-180" /></CollapsibleTrigger>
           <CollapsibleContent className="space-y-2 pt-2">
