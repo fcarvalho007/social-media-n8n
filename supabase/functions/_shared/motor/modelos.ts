@@ -18,13 +18,21 @@ const LIMITE = 1210; // page number band starts at 1250
 const ICONES_CICLO: IconeId[] = ["alvo", "lampada", "grafico", "check", "estrela", "info", "seta"];
 
 interface Partes { titulo?: CamadaTexto; corpo?: CamadaTexto; num?: CamadaTexto; imagens: CamadaImagem[]; outras: Camada[] }
-function partes(p: Pagina): Partes {
+/**
+ * `adotarLivres`: pages whose texts were typed by hand (no editorial ref) adopt the largest free text as title
+ * and the next as body, so redesign can recompose them; small images (logos) stay where they are.
+ */
+function partes(p: Pagina, adotarLivres = false): Partes {
   const r: Partes = { imagens: [], outras: [] };
+  const temRef = p.camadas.some((c) => c.tipo === "texto" && !!c.ref);
+  const livres = adotarLivres && !temRef
+    ? p.camadas.filter((c): c is CamadaTexto => c.tipo === "texto" && c.id !== "num" && !!c.texto?.trim()).sort((a, b) => b.estilo.tam - a.estilo.tam)
+    : [];
   for (const c of p.camadas) {
-    if (c.tipo === "texto" && c.ref?.endsWith(".titulo") && !r.titulo) r.titulo = c;
-    else if (c.tipo === "texto" && c.ref?.endsWith(".texto") && !r.corpo) r.corpo = c;
+    if (c.tipo === "texto" && (c.ref?.endsWith(".titulo") || c === livres[0]) && !r.titulo) r.titulo = c;
+    else if (c.tipo === "texto" && (c.ref?.endsWith(".texto") || c === livres[1]) && !r.corpo) r.corpo = c;
     else if (c.tipo === "texto" && c.id === "num" && !r.num) r.num = c;
-    else if (c.tipo === "imagem") r.imagens.push(c);
+    else if (c.tipo === "imagem" && !(adotarLivres && c.w * c.h < LARGURA * 1350 * 0.25)) r.imagens.push(c);
     else if (ehDecoracao(c)) continue;
     else r.outras.push(c);
   }

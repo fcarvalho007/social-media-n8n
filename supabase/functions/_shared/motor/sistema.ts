@@ -216,7 +216,7 @@ export function aplicarSistema(pacote: PacoteProva, s: SistemaVisual, m?: Medido
         } else camadas = camadas.map((c) => (c.manual ? (({ manual: _m, ...x }) => x as Camada)(c) : c));
         return { ...r, camadas, ...(papel ? { papel } : {}), ...(comp && Object.keys(comp).length ? { composicao: { ...comp } as Record<string, unknown> } : {}) };
       };
-      const ctx = { indice: i, total, paleta, par: estilo.par, conteudo: pacote.conteudo, assets: pacote.assets, m };
+      const ctx = { indice: i, total, paleta, par: estilo.par, conteudo: pacote.conteudo, assets: pacote.assets, m, adotarLivres: !!op.adotarLivres };
       const forte = i > 0 && !!s.quebras[String(i + 1)];
       let r = comporModelo(pg, s.estilo, { ...ctx, forte });
       if (forte && r && !r.cabe) { quebrasRecusadas.push({ variante: v, pagina: i }); r = comporModelo(pg, s.estilo, ctx); }
