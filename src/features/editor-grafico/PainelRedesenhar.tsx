@@ -1,9 +1,5 @@
-import { useEffect, useMemo, useRef, useState } from "react";
-import { ChevronDown, HelpCircle, Loader2, RefreshCw, Sparkles } from "lucide-react";
-import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
-import { toast } from "sonner";
-import { kieEstado, kieGerar, lerAssets } from "@/services/motor";
-import { carregarImagens } from "./desenho";
+import { useMemo, useState } from "react";
+import { ChevronDown, Sparkles } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
@@ -11,9 +7,8 @@ import { Label } from "@/components/ui/label";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import type { Medidor, PacoteProva, Variante } from "../../../supabase/functions/_shared/documento-grafico/nucleo";
 import type { SistemaVisual } from "../../../supabase/functions/_shared/motor/sistema";
-import { ASSET_IA_PENDENTE, aceitaImagemIA, aplicarCandidato, converterParaIA, imagemInadequada, redesenharPagina, substituirImagemIA, type CandidatoRedesign } from "../../../supabase/functions/_shared/motor/redesenhar";
+import { aceitaImagemIA, aplicarCandidato, redesenharPagina, type CandidatoRedesign } from "../../../supabase/functions/_shared/motor/redesenhar";
 import { PaginaCanvas } from "./PaginaCanvas";
-import { rotuloCusto } from "../motor/custosIa";
 import type { ComposicaoImagem } from "../../../supabase/functions/_shared/motor/imagem";
 
 const NOME_MODO: Record<string, string> = { full_bleed: "Fundo total", hero: "Hero", split: "Dividida", contained: "Contida", background: "Fundo suave", none: "Sem imagem" };
@@ -31,155 +26,48 @@ interface Props {
   medidor: Medidor;
   imagens: Imagens;
   onAplicar: (p: PacoteProva, c: CandidatoRedesign) => void;
-  /** Opens the existing AI image flow (asks for paid-request confirmation there). */
+  /** Kept for callers; image choice (incl. AI) happens in the slide Image panel after applying. */
   onGerarIA?: () => void;
-  /** Needed for the redesign's single AI image (server-side generation, reserved per click). */
   projectId?: string;
 }
 
-type EstadoIA = { fase: "idle"; alvo?: string } | { fase: "a_gerar"; tarefa: string; alvo?: string } | { fase: "erro"; msg: string; alvo?: string } | { fase: "pronta"; alvo?: string };
-
-/** Composition exploration for one page. Nothing touches the document until "Aplicar esta versão". */
-export function PainelRedesenhar({ aberto, onFechar, pacote, sistema, variante, indice, medidor, imagens, onAplicar, projectId }: Props) {
+/** Composition exploration for one page. Free; no image requests. Nothing touches the document until "Aplicar esta versão". */
+export function PainelRedesenhar({ aberto, onFechar, pacote, sistema, variante, indice, medidor, imagens, onAplicar }: Props) {
   const [modo, setModo] = useState<"manter" | "explorar">("manter");
-  const [fonte, setFonte] = useState<"auto" | "sem_novas" | "ia">("auto");
+  const [fonte, setFonte] = useState<"auto" | "sem_novas">("auto");
   const [ronda, setRonda] = useState(0);
   const [res, setRes] = useState<ReturnType<typeof redesenharPagina> | null>(null);
   const [sel, setSel] = useState<CandidatoRedesign | null>(null);
-  const [assetsIA, setAssetsIA] = useState<PacoteProva["assets"]>({});
-  const [imgsIA, setImgsIA] = useState<Imagens>({});
-  const [ia, setIa] = useState<EstadoIA>({ fase: "idle" });
-  const [kieIndisponivel, setKieIndisponivel] = useState(false);
-  // Pre-AI version of each converted candidate, so "Aplicar sem imagem IA" is always possible.
-  const [originais, setOriginais] = useState<Record<string, CandidatoRedesign>>({});
-  const [inicioIA, setInicioIA] = useState(0);
-  const [, setTique] = useState(0);
-  useEffect(() => { if (ia.fase !== "a_gerar") return; const t = setInterval(() => setTique((x) => x + 1), 1000); return () => clearInterval(t); }, [ia.fase]);
-  const vivo = useRef(true);
-  useEffect(() => { vivo.current = true; return () => { vivo.current = false; }; }, []);
-  const papel = pacote.variantes[variante].paginas[indice]?.papel as Parameters<typeof imagemInadequada>[0];
-  
-  /** Polls the reserved task; never re-creates it (unknown outcome stays unknown). */
-  const acompanhar = async (tarefa: string, alvoId: string, prompt: string, modelo?: string) => {
-    if (!projectId) return;
-    for (let i = 0; i < 90 && vivo.current; i++) {
-      await new Promise((r) => setTimeout(r, 4000));
-      let e;
-      try { e = await kieEstado(projectId, tarefa); } catch (err) { setIa({ fase: "erro", msg: (err as Error).message, alvo: alvoId }); return; }
-      if (e.estado === "concluida" && e.asset_id) {
-        const { assets } = await lerAssets(projectId, [e.asset_id]);
-        const imgs = await carregarImagens({ ...pacote, assets });
-        if (!vivo.current) return;
-        setAssetsIA((x) => ({ ...x, ...assets }));
-        setImgsIA((x) => ({ ...x, ...imgs }));
-        const id = e.asset_id;
-        setRes((r) => r && { ...r, candidatos: r.candidatos.map((c) => (c.id === alvoId ? substituirImagemIA(c, id, { modelo, prompt }) : c)) });
-        setSel((s) => (s?.id === alvoId ? substituirImagemIA(s, id, { modelo, prompt }) : s));
-        setIa({ fase: "pronta", alvo: alvoId });
-        return;
-      }
-      if (e.estado === "falhou" || e.estado === "desconhecido") {
-        setIa({ alvo: alvoId, fase: "erro", msg: e.estado === "desconhecido" ? "Resultado desconhecido na Kie; o pedido não foi repetido." : e.erro ?? "A geração falhou." });
-        return;
-      }
-    }
-    if (vivo.current) setIa({ alvo: alvoId, fase: "erro", msg: "A imagem ainda não chegou. O pedido continua reservado e não foi repetido." });
-  };
-  /** One paid request per explicit click: initial redesign or "Regenerar imagem IA". */
-  const pedirIA = async (c: CandidatoRedesign) => {
-    if (!projectId || !c.promptIA) return;
-    setIa({ fase: "a_gerar", tarefa: "", alvo: c.id });
-    setInicioIA(Date.now());
-    try {
-      const r = await kieGerar(projectId, c.promptIA) as { tarefa: string; estado: string; modelo?: string };
-      setIa({ fase: "a_gerar", tarefa: r.tarefa, alvo: c.id });
-      acompanhar(r.tarefa, c.id, c.promptIA, r.modelo).catch((err: Error) => { if (vivo.current) setIa({ fase: "erro", msg: err.message || "A imagem IA falhou.", alvo: c.id }); });
-    } catch (err) {
-      const m = (err as Error).message;
-      if (/chave|unauthori/i.test(m)) setKieIndisponivel(true);
-      setIa({ fase: "erro", msg: m, alvo: c.id });
-    }
-  };
-  /** Explicit click on one version: converts its image slot to an AI image for THAT layout, then one paid request. */
-  const usarIA = (c: CandidatoRedesign) => {
-    if (ia.fase === "a_gerar") { toast.info("Aguarda a imagem IA em curso."); return; }
-    setOriginais((o) => ({ ...o, [c.id]: o[c.id] ?? c }));
-    const conv = converterParaIA(c, pacote, sistema);
-    setRes((r) => r && { ...r, candidatos: r.candidatos.map((x) => (x.id === c.id ? conv : x)) });
-    setSel(conv);
-    void pedirIA(conv);
-  };
-  // Redesign itself is always free; AI is only requested by an explicit click on a version.
   const gerar = (r: number) => {
     setRonda(r);
     setSel(null);
-    setIa({ fase: "idle" });
-    setRes(redesenharPagina({ pacote, sistema, variante, indice, m: medidor, modo, imagens: fonte === "ia" ? "auto" : fonte, ronda: r, incluirIA: false }));
+    setRes(redesenharPagina({ pacote, sistema, variante, indice, m: medidor, modo, imagens: fonte, ronda: r, incluirIA: false }));
   };
-  const fechar = () => { setRes(null); setSel(null); setOriginais({}); setIa({ fase: "idle" }); onFechar(); };
-  // Local package/images: the AI asset (and the structural placeholder) live here until "Aplicar".
-  const base = useMemo(() => ({ ...pacote, assets: { ...pacote.assets, ...assetsIA } }), [pacote, assetsIA]);
-  const imgsVista = useMemo(() => ({ ...imagens, ...imgsIA }), [imagens, imgsIA]);
-  const comPendente = (c: CandidatoRedesign) => c.pendente ? aplicarCandidato({ ...base, assets: { ...base.assets, [ASSET_IA_PENDENTE]: { id: ASSET_IA_PENDENTE, mime: "image/png", largura: 1080, altura: 1350, dados: "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNgYGD4DwABBAEAwS2OUAAAAABJRU5ErkJggg==" } } }, variante, indice, c) : aplicarCandidato(base, variante, indice, c);
-  const vista = useMemo(() => (sel ? comPendente(sel) : pacote), [sel, base, pacote, variante, indice]); // eslint-disable-line react-hooks/exhaustive-deps
-  // Only assets actually used by the applied page are added to the document.
-  const aplicar = (c: CandidatoRedesign) => {
-    const p = aplicarCandidato(base, variante, indice, c);
-    const usados = new Set(p.variantes[variante].paginas[indice].camadas.flatMap((l) => (l.tipo === "imagem" ? [l.asset_id] : [])));
-    const assets = Object.fromEntries(Object.entries(p.assets).filter(([k]) => k in pacote.assets || usados.has(k)));
-    onAplicar({ ...p, assets }, c);
-    fechar();
-  };
-  /** Falls back to the same layout without the AI image (current image or none). */
-  const aplicarSemIA = (c: CandidatoRedesign) => {
-    const o = originais[c.id];
-    if (o) { aplicar(o); return; }
-    toast.error("Esta versão não tem alternativa sem imagem IA; escolhe outra versão.");
-  };
-  const [imgsPendente, setImgsPendente] = useState<Imagens>({});
-  useEffect(() => {
-    void carregarImagens({ ...pacote, assets: { [ASSET_IA_PENDENTE]: { id: ASSET_IA_PENDENTE, mime: "image/png", largura: 1080, altura: 1350, dados: "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNgYGD4DwABBAEAwS2OUAAAAABJRU5ErkJggg==" } } }).then(setImgsPendente).catch(() => undefined);
-  }, []); // eslint-disable-line react-hooks/exhaustive-deps
-  const imgsTodas = useMemo(() => ({ ...imgsVista, ...imgsPendente }), [imgsVista, imgsPendente]);
-  const podeIA = !!projectId && !kieIndisponivel && fonte !== "sem_novas" && !imagemInadequada(papel);
+  const fechar = () => { setRes(null); setSel(null); onFechar(); };
+  const vista = useMemo(() => (sel ? aplicarCandidato(pacote, variante, indice, sel) : pacote), [sel, pacote, variante, indice]);
+  const aplicar = (c: CandidatoRedesign) => { onAplicar(aplicarCandidato(pacote, variante, indice, c), c); fechar(); };
   const ficha = (c: CandidatoRedesign) => {
     const comp = (c.pagina.composicao ?? {}) as ComposicaoImagem;
     const temImg = aceitaImagemIA(c);
-    const origem = c.requiresAiImage ? "Imagem IA" : temImg ? "Imagem atual" : "Sem imagem";
-    return [temImg ? NOME_MODO[comp.modo ?? ""] ?? "Com imagem" : "Só tipografia", comp.regiao ? NOME_REGIAO[comp.regiao] : "", origem].filter(Boolean).join(" · ");
+    return [temImg ? NOME_MODO[comp.modo ?? ""] ?? "Com imagem" : "Só tipografia", comp.regiao ? NOME_REGIAO[comp.regiao] : "", temImg ? "com espaço para imagem" : ""].filter(Boolean).join(" · ");
   };
-  const cartao = (p: PacoteProva, rotulo: string, ativo: boolean, onClick: () => void, c?: CandidatoRedesign) => {
-    const aGerar = c && ia.fase === "a_gerar" && ia.alvo === c.id;
-    const erro = c && ia.fase === "erro" && ia.alvo === c.id ? ia.msg : null;
-    return (
-      <div key={c?.id ?? "orig"} className={`flex min-w-0 flex-col gap-1.5 rounded-lg border p-2 transition-colors ${ativo ? "border-primary ring-1 ring-primary" : "border-border hover:border-muted-foreground"}`}>
-        <button type="button" onClick={onClick} className="relative block overflow-hidden rounded-md text-left" aria-label={rotulo}>
-          <PaginaCanvas pacote={p} variante={variante} indice={indice} medidor={medidor} imagens={imgsTodas} escala={0.17} />
-          {c?.requiresAiImage && <span className="absolute left-1.5 top-1.5 inline-flex items-center gap-1 rounded-sm bg-background/90 px-1.5 py-0.5 text-[10px] font-medium text-foreground shadow-sm">
-            {aGerar ? <Loader2 className="h-3 w-3 animate-spin" /> : <Sparkles className="h-3 w-3 text-primary" />}Imagem IA</span>}
-        </button>
-        <span className="text-xs font-medium leading-tight">{rotulo}</span>
-        {c && <span className="text-[11px] leading-tight text-muted-foreground">{ficha(c)}</span>}
-        {c && <span className="text-[11px] leading-tight text-muted-foreground">{c.reason}</span>}
-        {c && aceitaImagemIA(c) && podeIA && (c.pendente || !c.requiresAiImage) && !aGerar && (
-          <Button variant="outline" size="sm" className="mt-auto h-auto w-full min-w-0 flex-col gap-0 px-2 py-1.5 text-xs" onClick={() => usarIA(c)} title="Gera uma imagem por IA pensada para este enquadramento. Clicar autoriza este único pedido pago.">
-            <span className="inline-flex items-center gap-1"><Sparkles className="h-3.5 w-3.5" />Imagem IA</span>
-            <span className="text-[10px] font-normal text-muted-foreground">{rotuloCusto("imagem_ia")}</span>
-          </Button>
-        )}
-        {aGerar && <span className="text-[11px] text-muted-foreground" role="status">A gerar imagem IA…</span>}
-        {erro && <span className="mt-auto inline-flex items-center gap-1 text-[11px] leading-tight text-destructive" role="alert">Imagem IA falhou · nada repetido
-          <Tooltip><TooltipTrigger asChild><button type="button" aria-label="Pormenor do erro"><HelpCircle className="h-3.5 w-3.5" /></button></TooltipTrigger><TooltipContent className="max-w-xs text-xs">{erro}</TooltipContent></Tooltip></span>}
-      </div>
-    );
-  };
+  const cartao = (p: PacoteProva, rotulo: string, ativo: boolean, onClick: () => void, c?: CandidatoRedesign) => (
+    <div key={c?.id ?? "orig"} className={`flex min-w-0 flex-col gap-1.5 rounded-lg border p-2 transition-colors ${ativo ? "border-primary ring-1 ring-primary" : "border-border hover:border-muted-foreground"}`}>
+      <button type="button" onClick={onClick} className="relative block overflow-hidden rounded-md text-left" aria-label={rotulo}>
+        <PaginaCanvas pacote={p} variante={variante} indice={indice} medidor={medidor} imagens={imagens} escala={0.17} />
+      </button>
+      <span className="text-xs font-medium leading-tight">{rotulo}</span>
+      {c && <span className="text-[11px] leading-tight text-muted-foreground">{ficha(c)}</span>}
+      {c && <span className="text-[11px] leading-tight text-muted-foreground">{c.reason}</span>}
+    </div>
+  );
 
   return (
     <Dialog open={aberto} onOpenChange={(o) => { if (!o) fechar(); }}>
       <DialogContent className="max-h-[94vh] w-[96vw] max-w-[1400px] overflow-y-auto">
         <DialogHeader>
           <DialogTitle>Redesenhar este slide</DialogTitle>
-          <DialogDescription>Mantém o conteúdo e cria 5 composições alternativas. Redesenhar não tem custo; a imagem IA só é pedida quando clicas em «Usar imagem IA» numa versão.</DialogDescription>
+          <DialogDescription>Mantém o conteúdo e cria 5 composições alternativas, sem custo. Depois de aplicar, escolhe a imagem no painel Imagem: biblioteca, fotos, carregar, IA ou nenhuma.</DialogDescription>
         </DialogHeader>
         {!res ? (
           <div className="space-y-3">
@@ -208,34 +96,25 @@ export function PainelRedesenhar({ aberto, onFechar, pacote, sistema, variante, 
         ) : (
           <div className="grid gap-5 lg:grid-cols-[auto_1fr]">
             <div className="space-y-2 lg:sticky lg:top-0 lg:self-start">
-              <PaginaCanvas pacote={vista} variante={variante} indice={indice} medidor={medidor} imagens={imgsTodas} escala={0.36} />
+              <PaginaCanvas pacote={vista} variante={variante} indice={indice} medidor={medidor} imagens={imagens} escala={0.36} />
               {sel ? (
                 <div className="space-y-2">
                   <p className="text-xs text-muted-foreground">{ficha(sel)}</p>
                   <div className="flex flex-wrap gap-2">
-                    {!sel.pendente ? <Button onClick={() => aplicar(sel)}>Aplicar esta versão</Button>
-                      : ia.fase === "a_gerar" && ia.alvo === sel.id ? <Button disabled><Loader2 className="mr-1.5 h-4 w-4 animate-spin" />A gerar… {Math.max(0, Math.round((Date.now() - inicioIA) / 1000))} s</Button>
-                      : <>
-                          {podeIA && <Button onClick={() => void pedirIA(sel)}><RefreshCw className="mr-1.5 h-4 w-4" />Tentar novamente · {rotuloCusto("imagem_ia")}</Button>}
-                          <Button variant="outline" onClick={() => aplicarSemIA(sel)}>Aplicar sem imagem IA</Button>
-                        </>}
-                    {sel.requiresAiImage && !sel.pendente && ia.fase !== "a_gerar" && podeIA && (
-                      <Button variant="outline" onClick={() => void pedirIA(sel)}><RefreshCw className="mr-1.5 h-4 w-4" />Regenerar imagem IA · {rotuloCusto("imagem_ia")}</Button>
-                    )}
+                    <Button onClick={() => aplicar(sel)}>Aplicar esta versão</Button>
                     <Button variant="ghost" onClick={() => setSel(null)}>Ver original</Button>
                   </div>
                 </div>
               ) : <p className="text-xs text-muted-foreground">Original. Escolhe uma versão para a ver em grande.</p>}
             </div>
             <div className="space-y-3">
-              {kieIndisponivel && <p className="text-xs text-destructive" role="alert">Serviço de imagens IA indisponível neste momento (chave do servidor recusada). As propostas continuam disponíveis; nada foi cobrado.</p>}
               <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 2xl:grid-cols-6">
                 {cartao(pacote, "Original", !sel, () => setSel(null))}
-                {res.candidatos.map((c, i) => cartao(comPendente(c), `Versão ${i + 1} · ${c.label}`, sel?.id === c.id, () => setSel(c), c))}
+                {res.candidatos.map((c, i) => cartao(aplicarCandidato(pacote, variante, indice, c), `Versão ${i + 1} · ${c.label}`, sel?.id === c.id, () => setSel(c), c))}
               </div>
               {res.aviso && <p className="text-xs text-muted-foreground" role="status">{res.aviso}</p>}
               <div className="flex gap-2">
-                <Button variant="outline" size="sm" onClick={() => { if (ia.fase === "a_gerar") { toast.info("Aguarda a imagem IA em curso."); return; } gerar(ronda + 1); }}>Gerar mais 5 · sem custo</Button>
+                <Button variant="outline" size="sm" onClick={() => gerar(ronda + 1)}>Gerar mais 5 · sem custo</Button>
                 <Button variant="ghost" size="sm" onClick={fechar}>Cancelar</Button>
               </div>
             </div>

@@ -205,7 +205,7 @@ export async function lerCapas(trabalhoIds: string[]): Promise<Record<string, Ca
 export const lerLinkFonte = (project_id: string, url: string) => invocar<LinkLido | LinkFalhado>({ acao: "ler_link", project_id, url });
 
 export interface ImagemBiblioteca { id: string; file_name: string; file_url: string; thumbnail_url: string | null; width: number | null; height: number | null; file_size: number | null; source: string | null; created_at: string }
-export interface AssetMotor { id: string; media_id: string | null; origem?: "biblioteca" | "kie" | "upload" | "pexels"; nome: string | null; credito?: string | null; largura: number; altura: number; bytes: number; mime: string; criado_em: string }
+export interface AssetMotor { id: string; media_id: string | null; origem?: "biblioteca" | "kie" | "upload" | "pexels" | "unsplash"; nome: string | null; credito?: string | null; largura: number; altura: number; bytes: number; mime: string; criado_em: string }
 export const listarImagens = (project_id: string) => invocar<{ biblioteca: ImagemBiblioteca[]; assets: AssetMotor[] }>({ acao: "listar_imagens", project_id });
 export interface KieConfig { configurada: boolean; modelo: string; proporcao: string; max_dia: number }
 export const kieConfig = (project_id: string) => invocar<KieConfig>({ acao: "kie_config", project_id });
@@ -324,3 +324,11 @@ export async function definirComposicao(trabalhoId: string, variante: Variante, 
   if (error) throw new Error(error.code === "MC409" ? "A composição deste slide foi alterada noutra sessão. Recarrega." : error.code === "42501" ? "Sem acesso a esta imagem ou projeto." : "Não foi possível guardar a composição da imagem.");
   return data as number;
 }
+
+import type { FotoUnsplashMotor } from "../../supabase/functions/_shared/motor/unsplash";
+/** Combined free stock search (Pexels + Unsplash, interleaved). */
+export type FotoStock = (Omit<FotoPexelsMotor, "id"> & { id: string; fonte: "pexels" }) | (FotoUnsplashMotor & { fonte: "unsplash" });
+export const fotosPesquisar = (project_id: string, termo: string, pagina: number) => invocar<{ fotos: FotoStock[]; mais: boolean; avisos: string[] }>({ acao: "fotos_pesquisar", project_id, termo, pagina });
+export const fotoUsar = (project_id: string, f: FotoStock) => f.fonte === "pexels"
+  ? invocar<{ asset: AssetMotor & { hash: string }; credito: string }>({ acao: "pexels_usar", project_id, url: f.url, autor: f.autor })
+  : invocar<{ asset: AssetMotor & { hash: string }; credito: string }>({ acao: "unsplash_usar", project_id, url: f.url, descarga: f.descarga, autor: f.autor });

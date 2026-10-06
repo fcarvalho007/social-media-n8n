@@ -16,6 +16,8 @@ import { lerLink, registarImagem, resolverAssets } from "../_shared/motor/fontes
 import { carregarImagem, guardarBytes } from "../_shared/motor/carregar.server.ts";
 import { descarregarPexels, pesquisarPexelsMotor } from "../_shared/motor/pexels.server.ts";
 import { creditoPexels, idDoUrl, urlPexelsValido } from "../_shared/motor/pexels.ts";
+import { descarregarUnsplash, pesquisarUnsplash } from "../_shared/motor/unsplash.server.ts";
+import { creditoUnsplash, intercalar } from "../_shared/motor/unsplash.ts";
 import { chaveKie, criarTarefaKie, estadoTarefaKie, interpretarImagemKie, KIE_MODELO, KIE_MAX_DIA, KIE_PROPORCAO } from "../_shared/motor/kie.server.ts";
 import { obterFramework } from "../_shared/motor/frameworks.ts";
 import { NOTA_MAX, obterModoRegen } from "../_shared/motor/regenerar.ts";
@@ -219,6 +221,31 @@ Deno.serve(async (req) => {
     const linha = (data as Array<{ trabalho_id: string }>)[0];
     emSegundoPlano(corridaWorker());
     return json({ ok: true, trabalho_id: linha.trabalho_id, simulado: demo });
+  }
+
+  if (acao === "fotos_pesquisar" || acao === "unsplash_usar") {
+    const projectId = String(body.project_id ?? "");
+    if (!UUID.test(projectId)) return json({ error: "Projeto inválido" }, 400);
+    const { data: pode } = await user.rpc(acao === "fotos_pesquisar" ? "mc_pode_ler" : "mc_pode_escrever", { _project_id: projectId });
+    if (!pode) return json({ error: "Sem acesso a este projeto." }, 403);
+    if (acao === "fotos_pesquisar") {
+      const termo = String(body.termo ?? ""), pagina = Number(body.pagina ?? 1);
+      const [px, us] = await Promise.all([pesquisarPexelsMotor(termo, pagina), pesquisarUnsplash(termo, pagina)]);
+      if (!px.ok && !us.ok) return json({ error: `${px.erro} ${us.erro}` }, 502);
+      const a = px.ok ? px.fotos.map((f) => ({ ...f, id: String(f.id), fonte: "pexels" as const })) : [];
+      const b = us.ok ? us.fotos.map((f) => ({ ...f, fonte: "unsplash" as const })) : [];
+      return json({ ok: true, fotos: intercalar(a, b), mais: (px.ok && px.mais) || (us.ok && us.mais), avisos: [px.ok ? null : `Pexels: ${px.erro}`, us.ok ? null : `Unsplash: ${us.erro}`].filter(Boolean) });
+    }
+    const url = String(body.url ?? ""), descarga = String(body.descarga ?? "");
+    const autor = String(body.autor ?? "").replace(/[\u0000-\u001f<>"`]/g, "").trim().slice(0, 120);
+    try {
+      const bytes = await descarregarUnsplash(url, descarga);
+      const a = await guardarBytes(admin(), { projectId, userId: u.user.id, bytes, origem: "unsplash", nome: `Unsplash · ${autor || "foto"}`, credito: creditoUnsplash(autor), origemUrl: url });
+      return json({ ok: true, asset: { id: a.id, nome: a.nome, mime: a.mime, largura: a.largura, altura: a.altura, bytes: a.bytes, hash: a.hash }, credito: creditoUnsplash(autor) });
+    } catch (e) {
+      const m = (e as Error).message;
+      return json({ error: /^armazenamento/.test(m) ? "Não foi possível guardar a foto. Tenta de novo." : m }, /^armazenamento/.test(m) ? 500 : 422);
+    }
   }
 
   if (acao === "pexels_pesquisar" || acao === "pexels_usar") {
