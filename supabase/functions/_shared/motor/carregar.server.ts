@@ -29,7 +29,7 @@ export async function carregarImagem(sb: SbMinimo, a: { projectId: string; userI
 }
 
 /** Stores validated bytes as an immutable project asset, deduplicated by project + hash. */
-export async function guardarBytes(sb: SbMinimo, a: { projectId: string; userId: string; bytes: Uint8Array; origem: "upload" | "pexels" | "unsplash"; nome: string; credito?: string | null; origemUrl?: string | null }): Promise<AssetCarregado> {
+export async function guardarBytes(sb: SbMinimo, a: { projectId: string; userId: string; bytes: Uint8Array; origem: "upload" | "pexels" | "unsplash" | "giphy"; nome: string; credito?: string | null; origemUrl?: string | null }): Promise<AssetCarregado> {
   const bytes = a.bytes;
   const info = inspecionarImagem(bytes);
   const hash = await sha256Hex(bytes);

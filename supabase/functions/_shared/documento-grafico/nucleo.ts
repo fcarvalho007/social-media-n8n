@@ -84,6 +84,10 @@ export interface CamadaImagem extends CamadaBase {
   foco?: { x: number; y: number };
   /** Shared clip shape (same geometry in canvas and SVG). */
   mascara?: Mascara;
+  /** Optional animation paired with this still cover (currently GIPHY MP4). */
+  animacao_id?: string;
+  /** Suggested, user-editable slide duration for animated exports. */
+  duracao_ms?: number;
 }
 
 export type Mascara = "diagonal" | "arco";
@@ -305,6 +309,8 @@ function validarCamada(v: unknown, onde: string, assets: Record<string, Asset>):
       recorte: c.recorte,
       foco: f ? { x: num(f.x, `${onde}.foco.x`, 0, 1), y: num(f.y, `${onde}.foco.y`, 0, 1) } : undefined,
       mascara: c.mascara === undefined ? undefined : (MASCARAS as readonly unknown[]).includes(c.mascara) ? c.mascara as Mascara : falha(`${onde}.mascara inválida.`),
+      animacao_id: c.animacao_id === undefined ? undefined : str(c.animacao_id, `${onde}.animacao_id`, 80),
+      duracao_ms: c.duracao_ms === undefined ? undefined : num(c.duracao_ms, `${onde}.duracao_ms`, 500, 60000),
     };
   }
   if (c.tipo === "forma") {
@@ -694,9 +700,13 @@ export function layoutTexto(texto: string, e: EstiloTexto, w: number, h: number,
         const b = cortes[k + 1];
         const tx = t.slice(a - inicio, b - inicio);
         const ativas = normalizarMarcas(marcas, texto.length).filter((z) => z.inicio <= a && z.fim >= b);
-        const peso = ativas.findLast((z) => z.peso !== undefined)?.peso ?? e.peso;
-        const sublinhado = ativas.findLast((z) => z.sublinhado)?.sublinhado;
-        const realce = ativas.findLast((z) => z.realce)?.realce;
+        const ultima = <T,>(predicado: (z: MarcaTexto) => T | undefined): T | undefined => {
+          for (let j = ativas.length - 1; j >= 0; j--) { const valor = predicado(ativas[j]); if (valor !== undefined) return valor; }
+          return undefined;
+        };
+        const peso = ultima((z) => z.peso) ?? e.peso;
+        const sublinhado = ultima((z) => z.sublinhado);
+        const realce = ultima((z) => z.realce);
         const sw = m.largura(tx, tam, peso, e.familia);
         const s = { texto: tx, x: sx, largura: sw, peso, cor: e.cor, ...(sublinhado ? { sublinhado } : {}), ...(realce ? { realce } : {}) };
         sx += sw;
