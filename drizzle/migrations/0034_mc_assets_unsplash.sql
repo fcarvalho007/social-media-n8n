@@ -1,0 +1,2 @@
+ALTER TABLE public.mc_assets DROP CONSTRAINT mc_assets_origem_check;
+ALTER TABLE public.mc_assets ADD CONSTRAINT mc_assets_origem_check CHECK (origem = ANY (ARRAY['biblioteca'::text, 'kie'::text, 'upload'::text, 'pexels'::text, 'unsplash'::text]));
