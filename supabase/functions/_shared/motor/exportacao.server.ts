@@ -91,11 +91,10 @@ async function processarJob(sb: SupabaseClient, j: Job): Promise<string> {
   feitos = await registos(sb, j);
   const pngs = feitos.filter((r) => r.formato === "png").sort((a, b) => (a.pagina ?? 0) - (b.pagina ?? 0));
   const temPdf = feitos.find((r) => r.formato === "pdf" && r.pagina === null);
-  const temZip = feitos.find((r) => r.formato === "zip" && r.pagina === null);
-  if (!temPdf || !temZip) {
+  if (!temPdf) {
     const bytesPng = [] as Uint8Array[];
     for (const r of pngs) bytesPng.push(await baixar(sb, r.storage_path, r.hash));
-    if (!temPdf) {
+    {
       const pdf = await PDFDocument.create();
       pdf.setTitle(pacote.nome);
       pdf.setCreator("Estúdio — motor de carrosséis");
@@ -107,21 +106,11 @@ async function processarJob(sb: SupabaseClient, j: Job): Promise<string> {
       await guardar(sb, path, out, "application/pdf", hash);
       await registar(sb, j, "pdf", null, path, hash, out.length);
     }
-    if (!temZip) {
-      const entradas: Record<string, [Uint8Array, { level: 0; mtime: Date }]> = {};
-      const fixo = new Date("2026-01-01T00:00:00Z"); // stable bytes → stable hash across retries
-      bytesPng.forEach((b, i) => { entradas[nomePagina(i)] = [b, { level: 0, mtime: fixo }]; });
-      const out = zipSync(entradas);
-      const hash = await sha256(out);
-      const path = caminhoFicheiro(j.project_id, j.documento_id, j.documento_versao, "instagram.zip", hash);
-      await guardar(sb, path, out, "application/zip", hash);
-      await registar(sb, j, "zip", null, path, hash, out.length);
-    }
     feitos = await registos(sb, j);
   }
   const manifesto = {
     v: 1, documento_id: j.documento_id, versao: j.documento_versao, variante, proposta_versao: dv.proposta_versao, largura: 1080, altura: 1350,
-    ficheiros: feitos.sort((a, b) => a.formato.localeCompare(b.formato) || (a.pagina ?? 0) - (b.pagina ?? 0))
+    ficheiros: feitos.filter((r) => r.formato !== "zip").sort((a, b) => a.formato.localeCompare(b.formato) || (a.pagina ?? 0) - (b.pagina ?? 0))
       .map((r) => ({ formato: r.formato, pagina: r.pagina, path: r.storage_path, sha256: r.hash, bytes: r.bytes })),
   };
   const { data: ok, error } = await sb.rpc("mc_concluir_exportacao", { _id: j.id, _lease: j.lease_token, _manifesto: manifesto });
