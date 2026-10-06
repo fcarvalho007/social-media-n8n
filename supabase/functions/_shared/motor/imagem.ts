@@ -44,6 +44,10 @@ export interface ComposicaoImagem {
   visual_prompt?: string;
   /** Semantic intent from the narrative; Pexels terms and the AI prompt both derive from it. */
   visual_intent?: string;
+  /** Per-page effect overrides (style default when absent). */
+  efeitos?: Partial<Record<string, boolean>>;
+  /** Redesign strategy that produced this page (informative). */
+  estrategia?: string;
 }
 /** Key `${variante}:${slideId}`. */
 export type ComposicoesImagem = Record<string, ComposicaoImagem>;
