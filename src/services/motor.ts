@@ -216,7 +216,7 @@ export async function lerCapas(trabalhoIds: string[]): Promise<Record<string, Ca
 export const lerLinkFonte = (project_id: string, url: string) => invocar<LinkLido | LinkFalhado>({ acao: "ler_link", project_id, url });
 
 export interface ImagemBiblioteca { id: string; file_name: string; file_url: string; thumbnail_url: string | null; width: number | null; height: number | null; file_size: number | null; source: string | null; created_at: string }
-export interface AssetMotor { id: string; media_id: string | null; origem?: "biblioteca" | "kie" | "upload" | "pexels" | "unsplash"; nome: string | null; credito?: string | null; largura: number; altura: number; bytes: number; mime: string; criado_em: string }
+export interface AssetMotor { id: string; media_id: string | null; origem?: "biblioteca" | "kie" | "upload" | "pexels" | "unsplash" | "giphy"; nome: string | null; credito?: string | null; largura: number; altura: number; bytes: number; mime: string; criado_em: string }
 export const listarImagens = (project_id: string) => invocar<{ biblioteca: ImagemBiblioteca[]; assets: AssetMotor[] }>({ acao: "listar_imagens", project_id });
 export interface KieConfig { configurada: boolean; modelo: string; proporcao: string; max_dia: number }
 export const kieConfig = (project_id: string) => invocar<KieConfig>({ acao: "kie_config", project_id });
@@ -229,6 +229,9 @@ import type { FotoPexelsMotor } from "../../supabase/functions/_shared/motor/pex
 export const pexelsPesquisar = (project_id: string, termo: string, pagina: number) => invocar<{ fotos: FotoPexelsMotor[]; mais: boolean }>({ acao: "pexels_pesquisar", project_id, termo, pagina });
 export const pexelsUsar = (project_id: string, f: FotoPexelsMotor) => invocar<{ asset: AssetMotor & { hash: string }; credito: string }>({ acao: "pexels_usar", project_id, url: f.url, autor: f.autor });
 export const carregarImagemServidor = (project_id: string, nome: string, dados: string) => invocar<{ asset: AssetMotor & { hash: string } }>({ acao: "carregar_imagem", project_id, nome, dados });
+export interface StickerGiphy { id: string; titulo: string; preview: string; still: string; mp4: string; largura: number; altura: number }
+export const giphyPesquisar = (project_id: string, termo: string, pagina = 1) => invocar<{ stickers: StickerGiphy[]; mais: boolean }>({ acao: "giphy_pesquisar", project_id, termo, pagina });
+export const giphyUsar = (project_id: string, sticker: StickerGiphy, capa: string, duracao_ms: number) => invocar<{ asset: AssetMotor & { hash: string; animacao_id: string; duracao_ms: number } }>({ acao: "giphy_usar", project_id, sticker_id: sticker.id, mp4_url: sticker.mp4, capa, duracao_ms });
 /** Verified bytes of this project's assets; ids that failed (removed/expired/other project) come back in falhas. */
 export async function lerAssets(project_id: string, ids: string[]): Promise<{ assets: Record<string, Asset>; falhas: string[] }> {
   if (!ids.length) return { assets: {}, falhas: [] };

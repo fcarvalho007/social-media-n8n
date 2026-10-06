@@ -18,6 +18,7 @@ import { descarregarPexels, pesquisarPexelsMotor } from "../_shared/motor/pexels
 import { creditoPexels, idDoUrl, urlPexelsValido } from "../_shared/motor/pexels.ts";
 import { descarregarUnsplash, pesquisarUnsplash } from "../_shared/motor/unsplash.server.ts";
 import { creditoUnsplash, intercalar } from "../_shared/motor/unsplash.ts";
+import { guardarStickerGiphy, pesquisarGiphy } from "../_shared/motor/giphy.server.ts";
 import { chaveKie, criarTarefaKie, estadoTarefaKie, interpretarImagemKie, KIE_MODELO, KIE_MAX_DIA, KIE_PROPORCAO } from "../_shared/motor/kie.server.ts";
 import { obterFramework } from "../_shared/motor/frameworks.ts";
 import { NOTA_MAX, obterModoRegen } from "../_shared/motor/regenerar.ts";
@@ -269,6 +270,25 @@ Deno.serve(async (req) => {
       const m = (e as Error).message;
       return json({ error: /^armazenamento/.test(m) ? "Não foi possível guardar a foto. Tenta de novo." : m }, /^armazenamento/.test(m) ? 500 : 422);
     }
+  }
+
+  if (acao === "giphy_pesquisar" || acao === "giphy_usar") {
+    const projectId = String(body.project_id ?? "");
+    if (!UUID.test(projectId)) return json({ error: "Projeto inválido" }, 400);
+    const { data: pode } = await user.rpc(acao === "giphy_pesquisar" ? "mc_pode_ler" : "mc_pode_escrever", { _project_id: projectId });
+    if (!pode) return json({ error: "Sem acesso a este projeto." }, 403);
+    try {
+      if (acao === "giphy_pesquisar") {
+        const pagina = Math.max(1, Number(body.pagina ?? 1));
+        const stickers = await pesquisarGiphy(String(body.termo ?? ""), pagina);
+        return json({ ok: true, stickers, mais: stickers.length === 24 });
+      }
+      const capa64 = String(body.capa ?? "");
+      if (!capa64 || capa64.length > 8_400_000 || !/^[A-Za-z0-9+/]+={0,2}$/.test(capa64)) return json({ error: "Pré-visualização inválida." }, 400);
+      const capa = Uint8Array.from(atob(capa64), (c) => c.charCodeAt(0));
+      const r = await guardarStickerGiphy(admin(), { projectId, userId: u.user.id, providerId: String(body.sticker_id ?? ""), mp4Url: String(body.mp4_url ?? ""), capa, duracaoMs: Number(body.duracao_ms ?? 5000) });
+      return json({ ok: true, asset: { id: r.capa.id, nome: r.capa.nome, mime: r.capa.mime, largura: r.capa.largura, altura: r.capa.altura, bytes: r.capa.bytes, hash: r.capa.hash, animacao_id: r.animacao.id, duracao_ms: r.animacao.duracao_ms } });
+    } catch (e) { return json({ error: (e as Error).message }, 422); }
   }
 
   if (acao === "ler_link" || acao === "listar_imagens" || acao === "registar_imagem" || acao === "carregar_imagem" || acao === "ler_assets") {
