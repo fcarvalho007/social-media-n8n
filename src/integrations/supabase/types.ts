@@ -4324,6 +4324,7 @@ export type Database = {
           due_date: string | null
           icon: string
           id: string
+          logo_url: string | null
           name: string
           owner_id: string
           start_date: string | null
@@ -4337,6 +4338,7 @@ export type Database = {
           due_date?: string | null
           icon: string
           id?: string
+          logo_url?: string | null
           name: string
           owner_id: string
           start_date?: string | null
@@ -4350,6 +4352,7 @@ export type Database = {
           due_date?: string | null
           icon?: string
           id?: string
+          logo_url?: string | null
           name?: string
           owner_id?: string
           start_date?: string | null

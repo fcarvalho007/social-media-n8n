@@ -225,6 +225,13 @@
       "when": 1791236866949,
       "tag": "0031_deprecar_tabelas_sistema_visual",
       "breakpoints": true
+    },
+    {
+      "idx": 32,
+      "version": "7",
+      "when": 1791276180324,
+      "tag": "0032_projects_logo",
+      "breakpoints": true
     }
   ]
 }

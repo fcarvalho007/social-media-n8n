@@ -1,0 +1,2 @@
+ALTER TABLE public.projects ADD COLUMN IF NOT EXISTS logo_url text;
+COMMENT ON COLUMN public.projects.logo_url IS 'Optional brand logo (storage path in motor-assets or public URL); never auto-placed on slides.';
