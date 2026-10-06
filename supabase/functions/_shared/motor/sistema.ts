@@ -176,6 +176,8 @@ export interface ResultadoSistema {
 export interface OpcoesSistema {
   /** "manter": layers the user adjusted keep their state; "recriar": everything generated is rebuilt. */
   ajustes?: "manter" | "recriar";
+  /** Redesign only: recompose hand-typed texts (no editorial ref) instead of leaving the page untouched. */
+  adotarLivres?: boolean;
   /** Restrict to these variant documents (catalogue thumbnails); others are returned unchanged. */
   variantes?: Variante[];
 }
