@@ -3,7 +3,7 @@ import { toast } from "sonner";
 import {
   AlignCenter, AlignLeft, AlignRight, ArrowDown, ArrowUp, BringToFront, ChevronsDown, ChevronsUp, Circle, Copy, Download,
   AlignStartVertical, AlignCenterVertical, AlignEndVertical, AlignStartHorizontal, AlignCenterHorizontal, AlignEndHorizontal, Bold, CopyCheck, Magnet,
-  Eye, FileDown, Wand2, FileUp, Layers, Loader2, Maximize, Minus, MoreHorizontal, Plus, Redo2, ScanSearch, SendToBack, Square, Trash2, Type, Undo2, X,
+  ChevronDown, Eye, FileDown, Wand2, FileUp, Layers, Loader2, Maximize, Minus, MoreHorizontal, Plus, Redo2, ScanSearch, SendToBack, Square, Trash2, Type, Undo2, X,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -1022,7 +1022,7 @@ export function EditorGrafico({ pacoteInicial, chaveLocal, titulo, seletor, real
             <div className="w-40 shrink-0">{acoesPagina}</div>
           </div>
         </div>
-        <aside className="w-72 shrink-0 overflow-y-auto border-l border-border bg-background p-4" aria-label="Propriedades">
+        <aside className="w-72 shrink-0 overflow-y-auto overflow-x-hidden border-l border-border bg-background p-4" aria-label="Propriedades">
           {!camada && painelPaginaVisual}
           {propriedades}
         </aside>
