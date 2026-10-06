@@ -267,6 +267,13 @@
       "when": 1791290722207,
       "tag": "0037_mc_export_sem_zip",
       "breakpoints": true
+    },
+    {
+      "idx": 38,
+      "version": "7",
+      "when": 1791304219447,
+      "tag": "0038_add_giphy_animated_assets",
+      "breakpoints": true
     }
   ]
 }

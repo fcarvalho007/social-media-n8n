@@ -732,6 +732,78 @@ export type Database = {
         }
         Relationships: []
       }
+      mc_animacoes: {
+        Row: {
+          altura: number
+          bucket: string
+          bytes: number
+          cover_asset_id: string
+          credito: string
+          criado_em: string
+          criado_por: string | null
+          duracao_ms: number
+          hash: string
+          id: string
+          largura: number
+          mime: string
+          project_id: string
+          provider: string
+          provider_id: string
+          storage_path: string
+        }
+        Insert: {
+          altura: number
+          bucket?: string
+          bytes: number
+          cover_asset_id: string
+          credito?: string
+          criado_em?: string
+          criado_por?: string | null
+          duracao_ms: number
+          hash: string
+          id?: string
+          largura: number
+          mime?: string
+          project_id: string
+          provider: string
+          provider_id: string
+          storage_path: string
+        }
+        Update: {
+          altura?: number
+          bucket?: string
+          bytes?: number
+          cover_asset_id?: string
+          credito?: string
+          criado_em?: string
+          criado_por?: string | null
+          duracao_ms?: number
+          hash?: string
+          id?: string
+          largura?: number
+          mime?: string
+          project_id?: string
+          provider?: string
+          provider_id?: string
+          storage_path?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "mc_animacoes_cover_asset_id_fkey"
+            columns: ["cover_asset_id"]
+            isOneToOne: true
+            referencedRelation: "mc_assets"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "mc_animacoes_project_id_fkey"
+            columns: ["project_id"]
+            isOneToOne: false
+            referencedRelation: "projects"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       mc_assets: {
         Row: {
           altura: number
