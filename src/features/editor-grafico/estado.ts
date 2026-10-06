@@ -16,7 +16,7 @@ export type Acao =
   | { tipo: "pagina"; indice: number }
   | { tipo: "selecionar"; id: string | null }
   | { tipo: "camada"; id: string; patch: Partial<Camada>; agrupar?: string }
-  | { tipo: "texto"; slide: string; campo: "titulo" | "texto"; valor: string; agrupar?: string }
+  | { tipo: "texto"; slide: string; campo: "titulo" | "texto"; valor: string; camada?: string; agrupar?: string }
   | { tipo: "ordem"; id: string; direcao: "frente" | "tras" | "topo" | "fundo" }
   | { tipo: "duplicarCamada"; id: string }
   | { tipo: "apagarCamada"; id: string }
@@ -155,7 +155,9 @@ export function reduzir(s: EstadoEditor, a: Acao): EstadoEditor {
     case "texto": {
       // Shared editorial content: both variants reference it, so the change shows in A and B.
       const slides: SlideEditorial[] = s.pacote.conteudo.slides.map((sl) => (sl.id === a.slide ? { ...sl, [a.campo]: a.valor } : sl));
-      return aplicar(s, { ...s.pacote, conteudo: { slides } }, a.agrupar);
+      const pacote = { ...s.pacote, conteudo: { slides } };
+      const limpo = a.camada ? comPagina(pacote, s.variante, s.pagina, (p) => ({ ...p, camadas: p.camadas.map((c) => c.id === a.camada && c.tipo === "texto" ? { ...c, marcas: (c.marcas ?? []).filter((m) => m.inicio < a.valor.length).map((m) => ({ ...m, fim: Math.min(m.fim, a.valor.length) })).filter((m) => m.fim > m.inicio) } : c) })) : pacote;
+      return aplicar(s, limpo, a.agrupar);
     }
     case "ordem": {
       const ord = [...pg.camadas].sort((x, y) => x.z - y.z);

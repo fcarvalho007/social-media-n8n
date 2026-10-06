@@ -6,11 +6,16 @@ import {
 
 /** Draws a text layer from the shared layout (same line breaks and baselines as the SVG renderer). */
 export function desenharTexto(ctx: Konva.Context, c: CamadaTexto, texto: string, m: Medidor) {
-  const lay = layoutTexto(texto, c.estilo, c.w, c.h, m);
+  const lay = layoutTexto(texto, c.estilo, c.w, c.h, m, c.marcas);
   const nativo = ctx._context as CanvasRenderingContext2D;
   nativo.fillStyle = c.estilo.cor;
   if (lay.capitular) nativo.fill(new Path2D(m.caminho(lay.capitular.texto, lay.capitular.x, lay.capitular.baseline, lay.capitular.tam, c.estilo.peso, c.estilo.familia)));
-  for (const l of lay.linhas) if (l.texto) nativo.fill(new Path2D(m.caminho(l.texto, l.x, l.baseline, lay.tam, c.estilo.peso, c.estilo.familia)));
+  for (const l of lay.linhas) for (const s of l.segmentos) {
+    if (s.realce) { nativo.fillStyle = s.realce; nativo.fillRect(s.x, l.baseline - lay.tam * 0.82, s.largura, lay.tam * 1.02); }
+    nativo.fillStyle = s.cor;
+    if (s.texto) nativo.fill(new Path2D(m.caminho(s.texto, s.x, l.baseline, lay.tam, s.peso, c.estilo.familia)));
+    if (s.sublinhado) { nativo.fillStyle = s.sublinhado; nativo.fillRect(s.x, l.baseline + lay.tam * 0.09, s.largura, Math.max(2, lay.tam * 0.055)); }
+  }
   return lay;
 }
 
