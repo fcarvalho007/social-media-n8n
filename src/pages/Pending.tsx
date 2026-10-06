@@ -30,6 +30,7 @@ import { toast } from 'sonner';
 import { cn } from '@/lib/utils';
 import { logger } from '@/lib/logger';
 import { usePendingCounts } from '@/hooks/usePendingCounts';
+import { IniciadosSection } from '@/components/drafts/IniciadosSection';
 
 const Pending = () => {
   const [posts, setPosts] = useState<any[]>([]);
@@ -288,6 +289,7 @@ const Pending = () => {
                   )}
                 </>
               )}
+              <IniciadosSection />
             </div>
           ) : (
             /* Approve Tab */

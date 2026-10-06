@@ -10,7 +10,7 @@ export function MainLayout() {
   return (
     <SidebarProvider defaultOpen={false}>
       <div className="flex min-h-screen w-full">
-        <SidebarInset className="min-w-0 flex-1 flex flex-col">
+        <SidebarInset className="min-w-0 flex-1 flex flex-col overflow-x-clip">
           {!editorIsolado && <DashboardHeader />}
           {/* NB: NÃO usar `overflow-x-hidden` aqui — quebra `position: sticky`
               em descendentes (ex.: PreviewPanel em /manual-create). */}
