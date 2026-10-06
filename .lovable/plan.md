@@ -1,142 +1,67 @@
-# Recomendação: levar a curadoria da newsletter para social media
+# Recomendação: curadoria central, newsletter e social como vistas diferentes
 
-A melhor decisão depende de quanto quer reaproveitar o sistema atual versus criar uma experiência social mais própria. Eu sugeria estes dois caminhos.
+Responde às suas dúvidas: onde vive o sistema, se teria de entrar sempre na newsletter, e como não perder a visualização da curadoria da newsletter, que é o principal consumidor de notícias. Não há código nesta fase.
 
-## Caminho 1 — Curadoria única, saídas diferentes
+## O princípio: um só armazém de itens, várias vistas
 
-A curadoria da newsletter passa a ser o ponto de entrada central para conteúdos interessantes: notícias, links, ideias, ferramentas, episódios, referências ou notas soltas.
-
-A partir de cada item curado, o sistema permitiria escolher a saída:
-
-- Newsletter
-- Carrossel
-- Imagem com legenda
-- Post curto
-- Ideia para story
-- Rascunho para LinkedIn / Instagram / Google Business
-
-### Como funcionaria
-
-1. Guarda uma notícia ou referência na curadoria.
-2. O sistema lê o conteúdo e cria um resumo fiel.
-3. Escolhe “trabalhar para social media”.
-4. O sistema propõe ângulos possíveis, por exemplo:
-   - opinião crítica;
-   - resumo educativo;
-   - carrossel explicativo;
-   - imagem com frase forte;
-   - comparação;
-   - alerta/oportunidade;
-   - publicação curta com legenda.
-5. Escolhe o formato e segue para o compositor ou para a criação de publicação.
-
-### Vantagem
-
-É o caminho mais coerente: uma notícia entra uma vez e pode alimentar newsletter e social media sem duplicar trabalho.
-
-### Risco
-
-Se for demasiado automático, pode ficar pesado. Convém manter a escolha humana no centro: primeiro selecionar o item, depois escolher o ângulo, depois escolher o formato.
-
-### Quando escolher este caminho
-
-Escolheria este caminho se a curadoria da newsletter já é o lugar onde guarda e avalia bons temas. É o mais forte a médio prazo.
-
-## Caminho 2 — Inbox social separada, inspirada na curadoria
-
-Criar uma área própria para social media, separada da newsletter, mas usando a mesma lógica de curadoria.
-
-Seria uma espécie de “Caixa de ideias” ou “Radar social”. A newsletter continuaria com a sua curadoria editorial, e o social teria uma curadoria mais rápida, orientada para transformar referências em peças publicáveis.
-
-### Como funcionaria
-
-1. Cola um link, texto, notícia ou imagem.
-2. O sistema identifica o tema e guarda como ideia social.
-3. A ideia fica num quadro simples:
-   - por analisar;
-   - boa para carrossel;
-   - boa para imagem;
-   - boa para legenda;
-   - descartada;
-   - publicada.
-4. Em cada ideia, pode escolher:
-   - criar carrossel;
-   - criar imagem;
-   - criar legenda;
-   - enviar para publicação manual.
-
-### Vantagem
-
-É mais direto para social media e menos dependente da estrutura da newsletter. Pode ser mais rápido para uso diário.
-
-### Risco
-
-Pode duplicar parte do trabalho da curadoria da newsletter. Se não houver ligação entre as duas áreas, passa a existir “curadoria da newsletter” e “curadoria social”, o que pode criar confusão.
-
-### Quando escolher este caminho
-
-Escolheria este caminho se o objetivo for velocidade: ver uma notícia, guardar, transformar rapidamente em conteúdo social e publicar.
-
-## A minha recomendação
-
-Recomendo o caminho 1, mas com uma camada social muito simples por cima.
-
-Ou seja: não criaria dois sistemas separados. Criaria uma curadoria central e acrescentaria uma opção clara: “Transformar em conteúdo social”.
-
-A experiência ideal seria:
+A curadoria não vive "dentro" da newsletter nem "dentro" do social. Vive num único sítio: uma lista de itens curados (notícias, links, ferramentas, ideias). A newsletter e o social são **duas vistas diferentes sobre a mesma lista** — como duas lentes sobre a mesma caixa.
 
 ```text
-Notícia / link / referência
-        ↓
-Curadoria
-        ↓
-Escolher ângulo
-        ↓
-Escolher formato social
-        ↓
-Compositor / publicação
+                    ┌──────────────────────────────┐
+                    │   Curadoria (armazém único)   │
+                    │   notícias · links · ideias   │
+                    └──────────┬─────────┬─────────┘
+              vista da         │         │   vista do
+              newsletter       │         │   social
+                               ▼         ▼
+                 Curação da       Ideias para
+                 newsletter       carrossel / imagem / legenda
+                (como é hoje)     (nova vista, sem novo sistema)
 ```
 
-Isto preserva o trabalho já feito na newsletter e evita criar outro sistema paralelo. A newsletter fica com profundidade editorial; o social ganha velocidade e reaproveitamento.
+## Onde vive, concretamente
 
-## Forma mais elegante de apresentar no produto
+- **Os dados**: a mesma base que a curadoria da newsletter já usa hoje. Não se cria uma segunda caixa de notícias — essa é a causa do medo que expressou ("se pagasse uma notícia num sistema apagaria no outro"). Com um só armazém, isso não pode acontecer.
+- **O ecrã principal** continua onde está: a secção de curadoria da newsletter. Não muda nada naquilo que já domina e usa. Continua a ser o lugar de triagem das notícias, porque a newsletter é o principal consumidor.
+- **O social** ganha uma vista própria (por exemplo, "Ideias" dentro da área social), que mostra **os mesmos itens**, filtrados por "ainda não trabalhados para social". Não é uma segunda curadoria; é outra porta para a mesma sala.
 
-Eu evitaria chamar isto “newsletter” dentro do fluxo social. Usaria nomes mais amplos:
+## Teria de entrar sempre na newsletter?
 
-- Curadoria
-- Radar
-- Ideias
-- Fontes
-- Em análise
-- Transformar em conteúdo
+Não. Tem três portas para o mesmo armazém:
 
-Dentro de cada item curado, colocaria ações simples:
+1. **Pela curadoria da newsletter** (a principal, como hoje) — e em cada item aparece uma ação nova: «Trabalhar em social».
+2. **Pela vista social** — vê só os itens úteis para carrossel/imagem/legenda, sem o ruído editorial da newsletter.
+3. **Rápida**: colar um link ou texto directamente na vista social; o item entra no armazém central e passa a ser visível também na curadoria da newsletter.
 
-- Criar carrossel
-- Criar imagem
-- Criar legenda
-- Guardar para newsletter
-- Arquivar
+Entrar por uma porta nunca esconde o item das outras.
 
-## Regra importante
+## Como "usar" uma notícia a apaga-a? Não apaga
 
-A IA não deve decidir sozinha que uma notícia vira conteúdo. Deve ajudar a analisar e propor caminhos, mas a escolha editorial deve continuar sua.
+Usar não remove; assinala. Cada item fica com marcas de uso independentes:
 
-O sistema pode sugerir:
+| Estado | Newsletter | Social |
+|---|---|---|
+| Nova | visível na curadoria | visível em ideias |
+| Usada na newsletter | marcada como usada | continua visível |
+| Usada em carrossel | continua visível | marcada como usada |
+| Usada em ambos | marcada | marcada |
 
-- “Isto dá um bom carrossel educativo.”
-- “Isto dá uma imagem com frase forte.”
-- “Isto é melhor para newsletter, não para social.”
-- “Isto é fraco; guardar apenas como referência.”
+A curadoria da newsletter nunca perde uma notícia porque o social a trabalhou — e vice-versa. O que muda é apenas a etiqueta de estado, e filtros como «sem uso social» deixam a vista social limpa sem apagar nada.
 
-## Primeiro passo recomendado, sem construir tudo
+## O fluxo dentro da vista social
 
-Antes de desenvolver, eu definiria apenas o fluxo editorial:
+1. Vê um item (ou cola um novo).
+2. «Trabalhar em social» → o sistema resume a notícia fielmente.
+3. Propõe 2–3 ângulos (opinião, explicação, alerta, comparação) — sugere, nunca decide.
+4. Escolhe o formato: carrossel (vai ao compositor), imagem com legenda, ou só a legenda.
+5. O item fica marcado com o uso, e o link para o trabalho criado fica anexado à notícia.
 
-1. Que tipos de fontes entram?
-2. Que estados uma ideia pode ter?
-3. Que formatos sociais pode gerar?
-4. Que informação mínima deve passar da curadoria para o compositor?
-5. Que decisões ficam sempre manuais?
+## O que preserva da sua preocupação
 
-Depois disso, já faria sentido desenhar a experiência final.
+- A curadoria da newsletter **mantém-se exactamente como é**, no mesmo sítio, com a mesma visualização — é o elemento principal e continua a ser o primeiro destino das notícias.
+- O social não rouba nem consome notícias; apenas lê e assinala.
+- Não há dois sistemas a correr: há um armazém e duas vistas. Menos duplicação, menos manutenção.
+
+## Próximo passo sugerido
+
+Se este modelo lhe faz sentido, o passo seguinte é definir em pormenor a vista social (que estados, que filtros, que acções) e o que passa exactamente do item curado para o compositor — antes de qualquer construção.
