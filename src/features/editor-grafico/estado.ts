@@ -32,6 +32,8 @@ export type Acao =
   | { tipo: "duplicarPagina"; indice: number }
   | { tipo: "moverPagina"; de: number; para: number }
   | { tipo: "apagarPagina"; indice: number }
+  /** New logical slide after `indice`, created in both variants and in the narrative. */
+  | { tipo: "inserirPagina"; indice: number; modelo: "branco" | "texto" }
   | { tipo: "desfazer" }
   | { tipo: "refazer" };
 
@@ -224,6 +226,11 @@ export function reduzir(s: EstadoEditor, a: Acao): EstadoEditor {
       const copia: Pagina = { ...orig, id: novoId("pag"), camadas: orig.camadas.map((c) => ({ ...c, id: novoId(c.tipo) })) };
       return aplicar(s, comPaginas(s.pacote, s.variante, (pags) => [...pags.slice(0, a.indice + 1), copia, ...pags.slice(a.indice + 1)]), undefined, { pagina: a.indice + 1, selecao: null });
     }
+    case "inserirPagina": {
+      const r = inserirSlide(s.pacote, s.variante, a.indice, a.modelo);
+      if (!r) return s;
+      return aplicar(s, r.pacote, undefined, { pagina: r.pagina, selecao: null });
+    }
     case "moverPagina": {
       const pags = s.pacote.variantes[s.variante].paginas;
       if (a.para < 0 || a.para >= pags.length || a.de === a.para) return s;
@@ -254,4 +261,47 @@ function ajustar(s: EstadoEditor, p: PacoteProva): Partial<EstadoEditor> {
   const pagina = Math.min(s.pagina, n - 1);
   const existe = p.variantes[variante].paginas[pagina].camadas.some((c) => c.id === s.selecao);
   return { variante, pagina, selecao: existe ? s.selecao : null };
+}
+
+
+export const LIMITE_PAGINAS = 20;
+
+/**
+ * Inserts a new logical slide after page `indice` of `variante`. The narrative gets a new slide entry and each
+ * variant gets a page right after the page of the same slide, so order stays identical across A, B and narrative.
+ * "texto" reuses the current page's composition (text layers re-pointed to the new slide, images dropped);
+ * "branco" keeps only the background.
+ */
+export function inserirSlide(p: PacoteProva, variante: Variante, indice: number, modelo: "branco" | "texto"): { pacote: PacoteProva; pagina: number } | null {
+  const base = p.variantes[variante].paginas[indice];
+  if (!base) return null;
+  if ((["A", "B"] as Variante[]).some((v) => p.variantes[v].paginas.length >= LIMITE_PAGINAS)) return null;
+  const novo: SlideEditorial = { id: novoId("slide"), titulo: modelo === "texto" ? "Novo título" : "", texto: modelo === "texto" ? "Escreve aqui o texto deste slide." : "" };
+  const slideBase = slideId(base);
+  const posNarr = slideBase ? p.conteudo.slides.findIndex((x) => x.id === slideBase) : -1;
+  const slides = [...p.conteudo.slides];
+  slides.splice(posNarr >= 0 ? posNarr + 1 : slides.length, 0, novo);
+  let paginaNova = indice + 1;
+  const variantes = { ...p.variantes };
+  for (const v of ["A", "B"] as Variante[]) {
+    const pags = p.variantes[v].paginas;
+    let i = slideBase ? pags.findIndex((pg) => slideId(pg) === slideBase) : -1;
+    if (i < 0) i = Math.min(indice, pags.length - 1);
+    const modeloPg = pags[i] ?? base;
+    const camadas: Camada[] = modelo === "branco" ? [] : modeloPg.camadas
+      .filter((c) => c.tipo !== "imagem")
+      .map((c) => {
+        const id = novoId(c.tipo);
+        if (c.tipo === "texto" && c.ref) {
+          const campo = c.ref.split(".")[1] ?? "texto";
+          return { ...c, id, ref: `${novo.id}.${campo}` } as Camada;
+        }
+        return { ...c, id } as Camada;
+      });
+    const pg: Pagina = { id: novoId("pag"), slide: novo.id, fundo: modeloPg.fundo, camadas, ...(modeloPg.papel ? { papel: modeloPg.papel } : {}) };
+    const novas = [...pags.slice(0, i + 1), pg, ...pags.slice(i + 1)];
+    if (v === variante) paginaNova = i + 1;
+    variantes[v] = { ...p.variantes[v], paginas: novas };
+  }
+  return { pacote: { ...p, conteudo: { ...p.conteudo, slides }, variantes }, pagina: paginaNova };
 }
