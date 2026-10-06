@@ -532,7 +532,7 @@ export function EditorGrafico({ pacoteInicial, chaveLocal, titulo, seletor, real
     if (!over || active.id === over.id) return;
     const de = paginas.findIndex((p) => p.id === active.id);
     const para = paginas.findIndex((p) => p.id === over.id);
-    if (de >= 0 && para >= 0) despachar({ tipo: "moverPagina", de, para });
+    if (de >= 0 && para >= 0) { despachar({ tipo: "moverPagina", de, para }); comDesfazer(`Slide movido para a posição ${para + 1}.`); }
   };
 
   useEffect(() => {
@@ -549,6 +549,7 @@ export function EditorGrafico({ pacoteInicial, chaveLocal, titulo, seletor, real
       if (mod && e.key.toLowerCase() === "z") { if (emCampo(e)) return; e.preventDefault(); despachar({ tipo: e.shiftKey ? "refazer" : "desfazer" }); return; }
       if (mod && e.key.toLowerCase() === "y") { if (emCampo(e)) return; e.preventDefault(); despachar({ tipo: "refazer" }); return; }
       if (emCampo(e)) return;
+      if (e.key === "Enter" && !mod && selecao && camada?.tipo === "texto" && !editando) { e.preventDefault(); setEditando(selecao); return; }
       if (mod && e.key.toLowerCase() === "d" && selecao) { e.preventDefault(); despachar({ tipo: "duplicarCamada", id: selecao }); return; }
       if ((e.key === "Delete" || e.key === "Backspace") && selecao) { e.preventDefault(); despachar({ tipo: "apagarCamada", id: selecao }); return; }
       if (e.key === "Escape") { if (preview) setPreview(false); else despachar({ tipo: "selecionar", id: null }); return; }
@@ -566,7 +567,7 @@ export function EditorGrafico({ pacoteInicial, chaveLocal, titulo, seletor, real
     };
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
-  }, [selecao, camada, preview, definirZoom]);
+  }, [selecao, camada, preview, definirZoom, editando]);
 
   const exportarJson = () => {
     descarregar(new Blob([JSON.stringify(pacote, null, 2)], { type: "application/json" }), `${pacote.id}.documento-grafico.json`);
@@ -679,6 +680,23 @@ export function EditorGrafico({ pacoteInicial, chaveLocal, titulo, seletor, real
           )}
         </MiniaturaOrdenavel>
       ))}
+      {!preview && !rascunho && (
+        <li className="shrink-0 self-center">
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button variant="outline" size="sm" className={horizontal ? "h-11 flex-col gap-0.5 px-3 lg:h-auto lg:py-3" : "h-11 w-full"} disabled={paginas.length >= 20} title={paginas.length >= 20 ? "Máximo de 20 slides" : "Acrescentar um slide a seguir ao atual"}>
+                <Plus className="h-4 w-4" /><span className="text-xs">Novo slide</span>
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end">
+              <DropdownMenuItem onSelect={() => { despachar({ tipo: "inserirPagina", indice: pagina, modelo: "texto" }); comDesfazer("Slide de texto acrescentado."); }}>Texto (título e texto, no estilo atual)</DropdownMenuItem>
+              <DropdownMenuItem onSelect={() => { despachar({ tipo: "inserirPagina", indice: pagina, modelo: "branco" }); comDesfazer("Slide em branco acrescentado."); }}>Em branco (só o fundo)</DropdownMenuItem>
+              <DropdownMenuSeparator />
+              <DropdownMenuItem onSelect={() => { despachar({ tipo: "duplicarPagina", indice: pagina }); comDesfazer("Slide duplicado."); }}>Duplicar o atual</DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
+        </li>
+      )}
     </ol>
     </SortableContext>
     </DndContext>
@@ -712,8 +730,9 @@ export function EditorGrafico({ pacoteInicial, chaveLocal, titulo, seletor, real
         onChange={(e) => gravar(e.target.value)}
         onBlur={() => setEditando(null)}
         onKeyDown={(e) => { if (e.key === "Escape" || (e.key === "Enter" && !e.shiftKey)) { e.preventDefault(); e.currentTarget.blur(); } e.stopPropagation(); }}
-        className="absolute z-10 resize-none rounded-sm border border-primary bg-background/95 p-1 text-foreground shadow-md outline-none"
-        style={{ left: c.x * escala, top: c.y * escala, width: c.w * escala, height: Math.max(c.h * escala, 40), fontSize: Math.max(12, c.estilo.tam * escala), lineHeight: c.estilo.linha, fontWeight: c.estilo.peso, textAlign: c.estilo.alinh === "dir" ? "right" : c.estilo.alinh === "centro" ? "center" : "left" }}
+        className="absolute z-10 resize-none rounded-sm border border-primary p-0 shadow-md outline-none"
+        // Covers the canvas text completely (page background + layer colour) so no ghost text shows underneath.
+        style={{ background: paginaAtual?.fundo, color: c.estilo.cor, left: c.x * escala, top: c.y * escala, width: c.w * escala, height: Math.max(c.h * escala, 40), fontSize: Math.max(12, c.estilo.tam * escala), lineHeight: c.estilo.linha, fontWeight: c.estilo.peso, textAlign: c.estilo.alinh === "dir" ? "right" : c.estilo.alinh === "centro" ? "center" : "left" }}
       />
     );
   })();
@@ -737,6 +756,11 @@ export function EditorGrafico({ pacoteInicial, chaveLocal, titulo, seletor, real
             </div>
           )}
           {edicaoInline}
+          {rascunho && !preview && (
+            <div role="status" className="absolute inset-x-2 top-2 z-10 rounded-md border border-border bg-background/95 px-3 py-2 text-sm shadow-md">
+              Direção visual por aplicar. Aplica ou cancela no painel «Direção visual» para voltar a editar os elementos.
+            </div>
+          )}
         </div>
       </div>
     </div>
@@ -779,7 +803,7 @@ export function EditorGrafico({ pacoteInicial, chaveLocal, titulo, seletor, real
         <Button variant="ghost" size="sm" className="h-11 shrink-0 lg:h-9" onClick={fundoTodos}><CopyCheck className="mr-1.5 h-4 w-4" />Aplicar a todos</Button>
         {sep}
         <Button variant={encaixe ? "secondary" : "ghost"} size="sm" className="h-11 shrink-0 lg:h-9" aria-pressed={encaixe} onClick={() => setEncaixe((v) => !v)}><Magnet className="mr-1.5 h-4 w-4" />Encaixar</Button>
-        <span className="ml-1 min-w-0 text-sm text-muted-foreground">Toca num elemento da página ou numa camada para o editar.</span>
+        <span className="ml-1 min-w-0 text-sm text-muted-foreground">Clica num texto para o selecionar; clica outra vez (ou Enter) para escrever.</span>
       </>)}
       {camada?.tipo === "texto" && (<>
         <div role="group" aria-label="Letra" className="flex flex-wrap items-center gap-1">
