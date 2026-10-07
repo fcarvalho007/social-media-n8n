@@ -9,8 +9,9 @@ export const FRAMEWORKS = [
 export type FrameworkId = typeof FRAMEWORKS[number]['id'];
 export interface BriefRoteiro { duracao: number; ppm: number; publico: string; objetivo: string; frameworks: FrameworkId[] }
 export interface FonteRoteiro { tipo: 'texto' | 'curadoria'; titulo: string; texto: string; url: string | null; noticia_id?: string; hash?: string; nivel?: string }
-export interface CenaRoteiro { id: string; etapa: string; locucao: string; visual: string; palavras: string[]; referencias: number[] }
-export interface VarianteRoteiro { id: string; framework: FrameworkId; titulo: string; cenas: CenaRoteiro[]; notas: string }
+export interface ApoioRoteiro { tipo: 'imagem' | 'apresentador'; asset_id?: string; nome?: string }
+export interface CenaRoteiro { id: string; etapa: string; locucao: string; visual: string; palavras: string[]; referencias: number[]; apoio?: ApoioRoteiro }
+export interface VarianteRoteiro { id: string; framework: FrameworkId; titulo: string; cenas: CenaRoteiro[]; notas: string; materiais_revistos?: string }
 export interface DocumentoRoteiro { variantes: VarianteRoteiro[]; selecionada: string | null }
 export interface Roteiro { id: string; project_id: string; fonte: FonteRoteiro; brief: BriefRoteiro; documento: DocumentoRoteiro; revisao: number; criado_em: string; atualizado_em: string }
 export interface GeracaoRoteiro { contexto?: import('./refinar.ts').ContextoRefinamento | null; brief: BriefRoteiro; id: string; roteiro_id: string; estado: 'a_processar' | 'concluida' | 'erro' | 'desconhecido'; resultado: DocumentoRoteiro | null; erro: string | null; revisao_base: number; criado_em: string }
@@ -35,9 +36,11 @@ export function validarDocumento(d: unknown): d is DocumentoRoteiro {
   const ids = new Set<string>();
   for (const v of x.variantes) {
     if (!v || typeof v.id !== 'string' || !v.id || v.id.length > 100 || ids.has(v.id) || !FRAMEWORKS.some(f => f.id === v.framework) || typeof v.titulo !== 'string' || v.titulo.length > 200 || typeof v.notas !== 'string' || v.notas.length > 4000 || !Array.isArray(v.cenas) || v.cenas.length < 1 || v.cenas.length > 30) return false;
+    if (v.materiais_revistos !== undefined && (typeof v.materiais_revistos !== 'string' || !/^[0-9a-f]{64}$/.test(v.materiais_revistos))) return false;
     ids.add(v.id); const cenas = new Set<string>();
     for (const c of v.cenas) {
       if (!c || typeof c.id !== 'string' || !c.id || c.id.length > 100 || cenas.has(c.id) || typeof c.etapa !== 'string' || c.etapa.length > 100 || typeof c.locucao !== 'string' || c.locucao.length > 3000 || typeof c.visual !== 'string' || c.visual.length > 1000 || !Array.isArray(c.palavras) || c.palavras.length > 12 || c.palavras.some(p => typeof p !== 'string' || p.length > 100) || !Array.isArray(c.referencias) || c.referencias.length > 100 || c.referencias.some(n => !Number.isInteger(n) || n < 1)) return false;
+      if (c.apoio !== undefined && (!c.apoio || !['imagem','apresentador'].includes(c.apoio.tipo) || Object.keys(c.apoio).some(k=>!['tipo','asset_id','nome'].includes(k)) || (c.apoio.nome !== undefined && (typeof c.apoio.nome !== 'string' || c.apoio.nome.length > 200)) || (c.apoio.tipo === 'imagem' ? !/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(c.apoio.asset_id ?? '') : c.apoio.asset_id !== undefined))) return false;
       cenas.add(c.id);
     }
   }
@@ -48,7 +51,7 @@ export function interpretarResposta(raw: string, fonte: FonteRoteiro, brief: Bri
   const x = JSON.parse(raw.replace(/^```(?:json)?\s*/i, '').replace(/```\s*$/, ''));
   if (!Array.isArray(x.variantes) || x.variantes.length !== brief.frameworks.length) throw new Error('A IA não devolveu todas as estruturas pedidas. O roteiro mantém-se intacto.');
   const maxRef = paragrafos(fonte.texto).length;
-  const variantes = x.variantes.map((v: VarianteRoteiro) => ({ ...v, id: crypto.randomUUID(), cenas: Array.isArray(v.cenas) ? v.cenas.map(c => ({ ...c, id: crypto.randomUUID() })) : v.cenas }));
+  const variantes = x.variantes.map((v: VarianteRoteiro) => ({ ...v, id: crypto.randomUUID(), cenas: Array.isArray(v.cenas) ? v.cenas.map(c => ({ ...c, id: crypto.randomUUID(), apoio: undefined })) : v.cenas }));
   const d = { variantes, selecionada: variantes[0]?.id ?? null };
   if (!validarDocumento(d) || new Set(variantes.map((v: VarianteRoteiro) => v.framework)).size !== brief.frameworks.length || variantes.some((v: VarianteRoteiro) => !brief.frameworks.includes(v.framework) || v.cenas.length < 3 || v.cenas.length > 8 || v.cenas.some(c => !c.locucao.trim() || !c.referencias.length || c.referencias.some(n => n > maxRef)))) throw new Error('A proposta tem campos ou referências inválidos. O roteiro mantém-se intacto.');
   return d;

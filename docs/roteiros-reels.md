@@ -1,5 +1,7 @@
 # Roteiros de Reels
 
+Este documento conserva o registo das rondas iniciais. A ampliação atual de «Preparar gravação», os materiais e a instalação ainda pendente da migração 0049 estão descritos em [Materiais para gravação de Reels](roteiros-materiais.md).
+
 Extensão do Hub, modo Operate, identidade visual existente: superfícies claras, tokens semânticos indigo, tipografia e componentes Radix/shadcn existentes. Editor numa coluna com a fonte recolhida, opções avançadas e ajustes visuais opcionais. Duração de 60 segundos e objetivo «Explicar» sugeridos; notícia aprovada preenche a fonte, e o título pode ser derivado do texto. Uma ação primária por etapa. Sem alterações globais de tema.
 
 Base editorial: documento «Desenvolvimento App Guiões De Vídeo.docx» entregue pelo proprietário. São aproveitadas cinco estruturas (Gancho–Valor–Ação, PAS, AIDA, BAB, Micro-VSL), frases para leitura oral, uma ideia por trecho e sugestões visuais. Estatísticas de retenção e promessas de viralidade do documento não são tratadas como regras comprovadas. A proposta Bubble/OpenAI/ElevenLabs/Shotstack é material de pesquisa, não uma instrução de implementação. Mantém-se React/Supabase/DeepSeek. Tempos calculados por palavras/minuto são estimativas, não alinhamento de áudio.
