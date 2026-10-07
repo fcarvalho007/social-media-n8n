@@ -7,7 +7,7 @@ const db=new PGlite();const project='00000000-0000-4000-8000-000000000001';const
 const brief=briefInicial();const fonte={tipo:'texto',titulo:'Fonte de teste',texto:'O texto da fonte é guardado de forma imutável e tem mais de quarenta caracteres.'};
 const q=async(sql:string,args:unknown[]=[]) => (await db.query<Record<string,any>>(sql,args)).rows;
 const create=async(id=crypto.randomUUID(),f=fonte)=> (await q('SELECT * FROM rv_criar($1,$2,$3::jsonb,$4::jsonb)',[id,project,JSON.stringify(f),JSON.stringify(brief)]))[0];
-beforeAll(async()=>{await db.exec(readFileSync('scripts/roteiros/base-local.sql','utf8'));await db.exec(readFileSync('drizzle/migrations/0045_roteiros_reels.sql','utf8'));await db.exec(readFileSync('drizzle/migrations/0046_roteiros_refinamento.sql','utf8'));await db.exec(`SET request.jwt.claim.sub='${user}'`);},30000);
+beforeAll(async()=>{await db.exec(readFileSync('scripts/roteiros/base-local.sql','utf8'));await db.exec('ALTER DEFAULT PRIVILEGES IN SCHEMA public GRANT ALL ON TABLES TO anon, authenticated; ALTER DEFAULT PRIVILEGES IN SCHEMA public GRANT EXECUTE ON FUNCTIONS TO anon, authenticated');await db.exec(readFileSync('drizzle/migrations/0045_roteiros_reels.sql','utf8'));await db.exec(readFileSync('drizzle/migrations/0046_roteiros_refinamento.sql','utf8'));await db.exec(readFileSync('drizzle/migrations/0048_roteiros_permissoes.sql','utf8'));await db.exec(`SET request.jwt.claim.sub='${user}'`);},30000);
 afterAll(()=>db.close());
 describe('roteiros: migração executada em PostgreSQL',()=>{
  it('cria uma vez, guarda e recusa gravação obsoleta; conserva versões e fonte',async()=>{const id=crypto.randomUUID();const a=await create(id);expect((await create(id)).id).toBe(id);const v=estruturaManual('hva','Meu roteiro');v.cenas[0].locucao='O meu texto editado.';const doc={variantes:[v],selecionada:v.id};const b=(await q('SELECT * FROM rv_guardar($1,1,$2::jsonb,$3::jsonb)',[id,JSON.stringify(brief),JSON.stringify(doc)]))[0];expect(b.revisao).toBe(2);expect(b.fonte).toEqual(a.fonte);await expect(q('SELECT rv_guardar($1,1,$2::jsonb,$3::jsonb)',[id,JSON.stringify(brief),JSON.stringify(doc)])).rejects.toMatchObject({code:'MC409'});expect(await q('SELECT revisao FROM rv_versoes WHERE roteiro_id=$1 ORDER BY revisao',[id])).toEqual([{revisao:1},{revisao:2}]);});
@@ -30,4 +30,19 @@ describe('reservas de refinamento',()=>{
   await q('UPDATE mc_orcamentos SET max_chamadas_dia=1');await expect(q(sql,[crypto.randomUUID(),r.id,2,'visual',v.id,null,'alternativa'])).rejects.toThrow('Limite diário');
  });
  it('recusa utilizador sem acesso e gravação de cliente na tabela de pedidos',async()=>{const r=await create();await db.exec("SET local.editor='false'");await expect(q('SELECT rv_reservar_contexto($1,$2,1)',[crypto.randomUUID(),r.id])).rejects.toThrow('Sem acesso');await db.exec("SET local.editor='true'");expect((await q("SELECT has_function_privilege('anon','rv_reservar_contexto(uuid,uuid,integer,text,text,text,text)','EXECUTE') AS ok"))[0].ok).toBe(false);expect((await q("SELECT has_table_privilege('authenticated','rv_geracoes','UPDATE') AS ok"))[0].ok).toBe(false);});
+});
+
+
+describe('permissões Cloud com grants automáticos',()=>{
+ it('retira TRUNCATE/escrita direta e acesso anónimo; conserva leitura e RPCs',async()=>{
+  for(const tabela of ['rv_roteiros','rv_versoes','rv_geracoes']) {
+   for(const role of ['anon','authenticated']) for(const privilege of ['INSERT','UPDATE','DELETE','TRUNCATE','TRIGGER','REFERENCES']) expect((await q('SELECT has_table_privilege($1,$2,$3) AS ok',[role,tabela,privilege]))[0].ok).toBe(false);
+   expect((await q("SELECT has_table_privilege('authenticated',$1,'SELECT') AS ok",[tabela]))[0].ok).toBe(true);
+   expect((await q("SELECT has_table_privilege('anon',$1,'SELECT') AS ok",[tabela]))[0].ok).toBe(false);
+   expect((await q("SELECT has_table_privilege('service_role',$1,'TRUNCATE') AS ok",[tabela]))[0].ok).toBe(true);
+  }
+  expect((await q("SELECT has_function_privilege('anon','rv_validar(jsonb,jsonb)','EXECUTE') AS ok"))[0].ok).toBe(false);
+  expect((await q("SELECT has_function_privilege('authenticated','rv_criar(uuid,uuid,jsonb,jsonb)','EXECUTE') AS ok"))[0].ok).toBe(true);
+  expect((await q("SELECT has_function_privilege('authenticated','rv_concluir(uuid,text,jsonb,text,text,integer,integer)','EXECUTE') AS ok"))[0].ok).toBe(false);
+ });
 });

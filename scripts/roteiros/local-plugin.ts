@@ -18,6 +18,7 @@ export function roteirosLocal(): Plugin {
   if (!exists.rows[0].name) { await d.exec(await readFile(path.join(root, 'scripts/roteiros/base-local.sql'), 'utf8')); await d.exec(await readFile(path.join(root, 'drizzle/migrations/0045_roteiros_reels.sql'), 'utf8')); }
   const upgraded = await d.query<{ok:boolean}>("SELECT EXISTS(SELECT 1 FROM information_schema.columns WHERE table_name='rv_geracoes' AND column_name='contexto') AS ok");
   if (!upgraded.rows[0].ok) await d.exec(await readFile(path.join(root,'drizzle/migrations/0046_roteiros_refinamento.sql'),'utf8'));
+  await d.exec(await readFile(path.join(root,'drizzle/migrations/0048_roteiros_permissoes.sql'),'utf8'));
   await d.exec("SET request.jwt.claim.sub='00000000-0000-4000-8000-000000000009'"); return d;
  })(); }
  return { name: 'roteiros-local-postgres', configureServer(server) {
