@@ -47,6 +47,20 @@ describe('entrada Criar', () => {
     expect(selecionar).toHaveBeenCalledWith('manual', true);
   });
 
+  it('assinala a preferência guardada sem saltar a escolha do formato', () => {
+    localStorage.setItem('preferredCreationMode', 'ia');
+    render(
+      <MemoryRouter>
+        <ModeSelector onModeSelect={vi.fn()} />
+      </MemoryRouter>,
+    );
+
+    expect(screen.getByText('Predefinido')).toBeInTheDocument();
+    expect(screen.getByRole('link', { name: /Carrossel/ })).toBeInTheDocument();
+    expect(screen.getByRole('link', { name: /Post/ })).toBeInTheDocument();
+    expect(screen.getByRole('link', { name: /Story/ })).toBeInTheDocument();
+  });
+
   it('mantém o n8n recolhido e apenas com o formulário real', () => {
     render(
       <MemoryRouter>

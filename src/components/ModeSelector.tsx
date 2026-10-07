@@ -25,10 +25,15 @@ interface ModeSelectorProps {
 export const ModeSelector = ({ onModeSelect, className }: ModeSelectorProps) => {
   const [showModal, setShowModal] = useState(false);
   const [setAsDefault, setSetAsDefault] = useState(false);
+  const [preferredMode, setPreferredMode] = useState<'manual' | 'ia' | null>(() => {
+    const stored = localStorage.getItem('preferredCreationMode');
+    return stored === 'manual' || stored === 'ia' ? stored : null;
+  });
 
   const handleModeSelection = (mode: 'manual' | 'ia') => {
     if (setAsDefault) {
       localStorage.setItem('preferredCreationMode', mode);
+      setPreferredMode(mode);
     }
     onModeSelect(mode, setAsDefault);
   };
@@ -65,7 +70,7 @@ export const ModeSelector = ({ onModeSelect, className }: ModeSelectorProps) => 
                   <Edit3 className="h-6 w-6 text-primary" />
                 </div>
                 <Badge variant="outline" className="font-semibold">
-                  Controlo total
+                  {preferredMode === 'manual' ? 'Predefinido' : 'Controlo total'}
                 </Badge>
               </div>
               <CardTitle className="text-xl">Criar manualmente</CardTitle>
@@ -106,7 +111,7 @@ export const ModeSelector = ({ onModeSelect, className }: ModeSelectorProps) => 
                   <Sparkles className="h-6 w-6 text-primary" />
                 </div>
                 <Badge variant="outline" className="font-semibold">
-                  Compositor visual
+                  {preferredMode === 'ia' ? 'Predefinido' : 'Compositor visual'}
                 </Badge>
               </div>
               <CardTitle className="text-xl">Criar com assistência de IA</CardTitle>
