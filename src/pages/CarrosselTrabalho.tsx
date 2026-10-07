@@ -80,6 +80,8 @@ export default function CarrosselTrabalho() {
   const [assetsFalha, setAssetsFalha] = useState<string[]>([]);
   const [seletor, setSeletor] = useState(false);
   const [narrativaEscolhida, setNarrativaEscolhida] = useState(true);
+  const trabalhoAvancado = useRef(false);
+  const aoEscolhaInicial = useCallback((v: boolean) => setNarrativaEscolhida(v || trabalhoAvancado.current), []);
   const resolverSeletor = useRef<((r: { asset: Asset; nome: string } | null) => void) | null>(null);
 
   const chave = user && dados ? chaveRecuperacao(user.id, "carrossel", id, dados.trabalho.project_id) : null;
@@ -88,12 +90,15 @@ export default function CarrosselTrabalho() {
     try {
       const d = await abrirTrabalho(id);
       setDados(d);
-      setNarrativaEscolhida((d.trabalho as unknown as { parametros?: { comparacao?: string } }).parametros?.comparacao !== "editorial-pas");
       const g = gravadoDe(d);
+      // Work already edited past the first version means the narrative was settled (even before the choice was recorded).
+      const avancado = !!g && (d.proposta.versao > 1 || g.docs.A.versao > 1 || g.docs.B.versao > 1);
+      trabalhoAvancado.current = avancado;
+      setNarrativaEscolhida(avancado || (d.trabalho as unknown as { parametros?: { comparacao?: string } }).parametros?.comparacao !== "editorial-pas");
       if (!passoDecidido.current) {
         passoDecidido.current = true;
         const aprovado = (["A", "B"] as const).some((v) => d.documentos[v] && d.documentos[v]!.aprovada_versao === d.documentos[v]!.versao);
-        setPasso(g ? (aprovado ? "revisao" : "narrativa") : "fonte");
+        setPasso(g ? (aprovado ? "revisao" : avancado ? "composicao" : "narrativa") : "fonte");
       }
       if (g) {
         setGravado(g);
@@ -457,7 +462,7 @@ export default function CarrosselTrabalho() {
               <h1 id="t-narr" className="text-3xl font-semibold tracking-tight sm:text-4xl">Narrativa</h1>
               <p className="text-sm text-muted-foreground">Proposta v{gravado!.propostaVersao} · o texto é o mesmo nas variantes A e B · cada alteração cria nova versão</p>
             </div>
-            <PainelEstruturas dados={dados} atual={gravado!.conteudo} aceitar={aceitarEstrutura} onEscolhaInicial={setNarrativaEscolhida} />
+            <PainelEstruturas dados={dados} atual={gravado!.conteudo} aceitar={aceitarEstrutura} onEscolhaInicial={aoEscolhaInicial} />
             <div className="grid gap-6 lg:grid-cols-[260px_1fr]">
               <ol className="flex gap-2 overflow-x-auto pb-1 lg:flex-col lg:overflow-visible" aria-label="Storyboard">
                 {slides.map((s, i) => {
