@@ -7,6 +7,7 @@ import {
   type Camada, type Medidor, type PacoteProva, type Variante,
 } from "../../../supabase/functions/_shared/documento-grafico/nucleo";
 import { desenharTexto, limitesConteudo, propsGradiente } from "./desenho";
+import { elementosTocados, normalizarArea, type Area } from "./selecaoArea";
 
 interface Props {
   pacote: PacoteProva;
@@ -17,7 +18,9 @@ interface Props {
   escala: number;
   interativo?: boolean;
   selecao?: string | null;
+  selecoes?: string[];
   onSelecionar?: (id: string | null) => void;
+  onSelecionarVarios?: (ids: string[]) => void;
   onAlterar?: (id: string, patch: Partial<Camada>) => void;
   /** Bigger handles for touch screens. */
   toque?: boolean;
@@ -62,13 +65,15 @@ function Conteudo({ c, pacote, medidor, imagens }: { c: Camada; pacote: PacotePr
   );
 }
 
-export function PaginaCanvas({ pacote, variante, indice, medidor, imagens, escala, interativo = false, selecao = null, onSelecionar, onAlterar, toque = false, corSelecao = "#f59e0b", encaixe = false, onEditarTexto }: Props) {
+export function PaginaCanvas({ pacote, variante, indice, medidor, imagens, escala, interativo = false, selecao = null, selecoes = [], onSelecionar, onSelecionarVarios, onAlterar, toque = false, corSelecao = "#f59e0b", encaixe = false, onEditarTexto }: Props) {
   const [guias, setGuias] = useState<{ x: number[]; y: number[] }>({ x: [], y: [] });
   const [sobrevoo, setSobrevoo] = useState<string | null>(null);
   const { largura: LARGURA, altura: ALTURA } = pacote.variantes[variante];
   const pagina = pacote.variantes[variante].paginas[indice];
   const trRef = useRef<Konva.Transformer>(null);
   const nos = useRef(new Map<string, Konva.Group>());
+  const [area, setArea] = useState<Area | null>(null);
+  const inicioArea = useRef<{ x: number; y: number } | null>(null);
   // A second click on an already-selected text opens editing (first click only selects).
   const jaSelecionado = useRef(false);
   const medidas = toque
@@ -78,17 +83,20 @@ export function PaginaCanvas({ pacote, variante, indice, medidor, imagens, escal
   useEffect(() => {
     const tr = trRef.current;
     if (!tr) return;
-    const no = selecao ? nos.current.get(selecao) : undefined;
-    tr.nodes(no ? [no] : []);
+    const ids = selecoes.length ? selecoes : selecao ? [selecao] : [];
+    tr.nodes(ids.flatMap((id) => { const no = nos.current.get(id); return no ? [no] : []; }));
     tr.getLayer()?.batchDraw();
-  }, [selecao, pagina]);
+  }, [selecao, selecoes, pagina]);
 
   if (!pagina) return null;
 
   return (
-    <Stage width={Math.round(LARGURA * escala)} height={Math.round(ALTURA * escala)} scaleX={escala} scaleY={escala} listening={interativo}>
+    <Stage width={Math.round(LARGURA * escala)} height={Math.round(ALTURA * escala)} scaleX={escala} scaleY={escala} listening={interativo}
+      onMouseDown={(e) => { if (!interativo || e.target.name() !== "fundo-pagina") return; const p = e.target.getStage()?.getPointerPosition(); if (!p) return; inicioArea.current = { x: p.x / escala, y: p.y / escala }; setArea({ ...inicioArea.current, w: 0, h: 0 }); }}
+      onMouseMove={(e) => { const ini = inicioArea.current, p = e.target.getStage()?.getPointerPosition(); if (ini && p) setArea({ x: ini.x, y: ini.y, w: p.x / escala - ini.x, h: p.y / escala - ini.y }); }}
+      onMouseUp={() => { if (!area) return; const caixas = pagina.camadas.map((c) => { const l = limitesConteudo(c, c.tipo === "texto" ? resolverTexto(c, pacote.conteudo) : "", medidor); return { id: c.id, x: c.x + l.x, y: c.y + l.y, w: l.w, h: l.h }; }); const ids = elementosTocados(area, caixas); if (ids.length) onSelecionarVarios?.(ids); else onSelecionar?.(null); inicioArea.current = null; setArea(null); }}>
       <Layer>
-        <Rect width={LARGURA} height={ALTURA} fill={pagina.fundo} onMouseDown={() => onSelecionar?.(null)} onTouchStart={() => onSelecionar?.(null)} />
+        <Rect name="fundo-pagina" width={LARGURA} height={ALTURA} fill={pagina.fundo} onTouchStart={() => onSelecionar?.(null)} />
         {camadasOrdenadas(pagina).map((c) => {
           const lim = limitesConteudo(c, c.tipo === "texto" ? resolverTexto(c, pacote.conteudo) : "", medidor);
           return (
@@ -100,7 +108,7 @@ export function PaginaCanvas({ pacote, variante, indice, medidor, imagens, escal
               height={c.h}
               opacity={c.opacidade ?? 1}
               draggable={interativo}
-              onMouseDown={() => { jaSelecionado.current = selecao === c.id; onSelecionar?.(c.id); }}
+               onMouseDown={(e) => { e.cancelBubble = true; jaSelecionado.current = selecao === c.id; onSelecionar?.(c.id); }}
               onTouchStart={() => { jaSelecionado.current = selecao === c.id; onSelecionar?.(c.id); }}
               onClick={() => { if (interativo && c.tipo === "texto" && jaSelecionado.current) onEditarTexto?.(c.id); }}
               onTap={() => { if (interativo && c.tipo === "texto" && jaSelecionado.current) onEditarTexto?.(c.id); }}
@@ -148,6 +156,7 @@ export function PaginaCanvas({ pacote, variante, indice, medidor, imagens, escal
         })}
         {guias.x.map((g) => <Line key={`gx${g}`} points={[g, 0, g, ALTURA]} stroke={corSelecao} strokeWidth={1 / escala} dash={[6 / escala, 4 / escala]} listening={false} />)}
         {guias.y.map((g) => <Line key={`gy${g}`} points={[0, g, LARGURA, g]} stroke={corSelecao} strokeWidth={1 / escala} dash={[6 / escala, 4 / escala]} listening={false} />)}
+        {area && (() => { const a = normalizarArea(area); return <Rect x={a.x} y={a.y} width={a.w} height={a.h} fill={`${corSelecao}20`} stroke={corSelecao} strokeWidth={1 / escala} dash={[6 / escala, 4 / escala]} listening={false} />; })()}
         {interativo && (
           <Transformer
             ref={trRef}

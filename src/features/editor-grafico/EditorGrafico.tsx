@@ -31,7 +31,7 @@ import { slideDaPagina } from "@/features/motor/variacoes";
 import { PAPEIS, type ComposicaoImagem, type PapelVisual } from "../../../supabase/functions/_shared/motor/imagem";
 import { carregarFicheiro, ficheiroDoArrasto } from "@/features/editor-grafico/carregar";
 import { ABAS_INSERIR, MIME_INSERIR, PainelInserir, resolverBiblioteca, type AbaInserir, type Inserivel } from "@/features/editor-grafico/PainelInserir";
-import { alinharNaPagina, aplicarATodos, enquadrarTextos, fundoATodos, PRESETS_TAMANHO, tamanhoMais, type Alinhar } from "@/features/editor-grafico/operacoes";
+import { alinharNaPagina, alturaTexto, aplicarATodos, enquadrarTextos, fundoATodos, PRESETS_TAMANHO, tamanhoMais, type Alinhar } from "@/features/editor-grafico/operacoes";
 import { carregarMedidor } from "@/features/editor-grafico/fontes";
 import { carregarImagens, compararPng, renderizarPaginaPng } from "@/features/editor-grafico/desenho";
 import { estadoInicial, reduzir, type Acao, type ModoImagemNova } from "@/features/editor-grafico/estado";
@@ -347,6 +347,7 @@ export function EditorGrafico({ pacoteInicial, chaveLocal, titulo, seletor, real
   const [encaixe, setEncaixe] = useState(true);
   const [editando, setEditando] = useState<string | null>(null);
   const [intervaloTexto, setIntervaloTexto] = useState<{ id: string; inicio: number; fim: number } | null>(null);
+  const [selecoes, setSelecoes] = useState<string[]>([]);
   const [aLargar, setALargar] = useState(false);
   const paginaRef = useRef<HTMLDivElement>(null);
   const [painelAberto, setPainelAberto] = useState(() => !sistemaDoPacote(pacoteInicial));
@@ -785,7 +786,7 @@ export function EditorGrafico({ pacoteInicial, chaveLocal, titulo, seletor, real
         defaultValue={resolverTexto(c, pacote.conteudo)}
         onFocus={(e) => { e.currentTarget.select(); setIntervaloTexto({ id: c.id, inicio: 0, fim: e.currentTarget.value.length }); }}
         onSelect={(e) => setIntervaloTexto({ id: c.id, inicio: e.currentTarget.selectionStart, fim: e.currentTarget.selectionEnd })}
-        onChange={(e) => { gravar(e.target.value); setIntervaloTexto({ id: c.id, inicio: e.currentTarget.selectionStart, fim: e.currentTarget.selectionEnd }); }}
+         onChange={(e) => { const valor = e.target.value; gravar(valor); if (medidor) despachar({ tipo: "camada", id: c.id, patch: { h: alturaTexto(c, valor, medidor) }, agrupar: `t:${c.id}` }); setIntervaloTexto({ id: c.id, inicio: e.currentTarget.selectionStart, fim: e.currentTarget.selectionEnd }); }}
         onBlur={() => setEditando(null)}
         onKeyDown={(e) => { if (e.key === "Escape" || (e.key === "Enter" && !e.shiftKey)) { e.preventDefault(); e.currentTarget.blur(); } e.stopPropagation(); }}
         className="absolute z-10 resize-none rounded-sm border border-primary p-0 shadow-md outline-none"
@@ -804,8 +805,9 @@ export function EditorGrafico({ pacoteInicial, chaveLocal, titulo, seletor, real
         <div ref={paginaRef} className="relative shadow-lg ring-1 ring-border" aria-label={`Página ${pagina + 1} de ${paginas.length}, variante ${variante}, ${LARGURA} por ${ALTURA}`} role="img">
           {medidor ? (
             <PaginaCanvas pacote={pacote} variante={variante} indice={pagina} medidor={medidor} imagens={imagens} escala={escala}
-              interativo={!preview && !rascunho} selecao={preview || rascunho ? null : selecao} toque={compacto} corSelecao={corSelecao} encaixe={encaixe}
-              onSelecionar={(id) => { if (id !== editando) setEditando(null); despachar({ tipo: "selecionar", id }); }}
+              interativo={!preview && !rascunho} selecao={preview || rascunho ? null : selecao} selecoes={preview || rascunho ? [] : selecoes} toque={compacto} corSelecao={corSelecao} encaixe={encaixe}
+              onSelecionar={(id) => { setSelecoes([]); if (id !== editando) setEditando(null); despachar({ tipo: "selecionar", id }); }}
+              onSelecionarVarios={(ids) => { setEditando(null); setSelecoes(ids); despachar({ tipo: "selecionar", id: ids.at(-1) ?? null }); }}
               onEditarTexto={(id) => { despachar({ tipo: "selecionar", id }); setEditando(id); }}
               onAlterar={(id, patch) => despachar({ tipo: "camada", id, patch })} />
           ) : (
@@ -849,6 +851,7 @@ export function EditorGrafico({ pacoteInicial, chaveLocal, titulo, seletor, real
     const r = intervaloTexto?.id === c.id ? intervaloTexto : null;
     if (!r || r.fim <= r.inicio) { toast.info("Seleciona primeiro uma parte do texto."); setEditando(c.id); return; }
     alterarSel({ marcas: aplicarMarca(c.marcas, r.inicio, r.fim, marca, resolverTexto(c, pacote.conteudo).length) } as Partial<Camada>);
+    setEditando(null);
   };
   const todos = () => { if (!camada) return; const r = aplicarATodos(pacote, variante, camada); if (r) { despachar({ tipo: "substituir", pacote: r.pacote }); comDesfazer(`Aplicado a ${r.alteradas} camada(s) iguais nos outros slides.`); } else toast.info("Não há outras camadas iguais para alterar."); };
   const ALINHAR: { a: Alinhar; n: string; I: typeof AlignStartVertical }[] = [
