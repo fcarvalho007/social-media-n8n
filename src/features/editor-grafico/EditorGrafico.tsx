@@ -73,6 +73,11 @@ function emCampo(e: KeyboardEvent) {
   return !!t && (t.tagName === "INPUT" || t.tagName === "TEXTAREA" || t.isContentEditable || t.getAttribute("role") === "combobox");
 }
 
+const CSS_FAMILIA: Record<Familia, string> = {
+  worksans: '"Work Sans UI", sans-serif', montserrat: 'Montserrat, sans-serif', inter: 'Inter, sans-serif', playfair: '"Playfair Display", serif',
+  sourcesans: '"Source Sans 3", sans-serif', grotesk: '"Space Grotesk", sans-serif', dmserif: '"DM Serif Display", serif', dmsans: '"DM Sans", sans-serif', plex: '"IBM Plex Sans", sans-serif',
+};
+
 // ---------- small form helpers ----------
 
 function Campo({ id, rotulo, children }: { id: string; rotulo: string; children: ReactNode }) {
@@ -791,7 +796,7 @@ export function EditorGrafico({ pacoteInicial, chaveLocal, titulo, seletor, real
         onKeyDown={(e) => { if (e.key === "Escape" || (e.key === "Enter" && !e.shiftKey)) { e.preventDefault(); e.currentTarget.blur(); } e.stopPropagation(); }}
         className="absolute z-10 resize-none rounded-sm border border-primary p-0 shadow-md outline-none"
         // Covers the canvas text completely (page background + layer colour) so no ghost text shows underneath.
-        style={{ background: paginaAtual?.fundo, color: c.estilo.cor, left: c.x * escala, top: c.y * escala, width: c.w * escala, height: Math.max(c.h * escala, 40), fontSize: Math.max(12, c.estilo.tam * escala), lineHeight: c.estilo.linha, fontWeight: c.estilo.peso, textAlign: c.estilo.alinh === "dir" ? "right" : c.estilo.alinh === "centro" ? "center" : "left" }}
+         style={{ background: paginaAtual?.fundo, color: c.estilo.cor, left: c.x * escala, top: c.y * escala, width: c.w * escala, height: Math.max(c.h * escala, 40), fontFamily: CSS_FAMILIA[c.estilo.familia ?? "worksans"], fontSize: Math.max(12, c.estilo.tam * escala), lineHeight: c.estilo.linha, fontWeight: c.estilo.peso, textAlign: c.estilo.alinh === "dir" ? "right" : c.estilo.alinh === "centro" ? "center" : "left" }}
       />
     );
   })();
