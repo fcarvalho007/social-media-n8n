@@ -41,6 +41,7 @@ describe('curadoria: decisão partilhada e escolha sem geração', () => {
  });
  it('prepara ligações para os três formatos com a mesma notícia', async () => {
   const a=api();render(<MemoryRouter><CuradoriaNoticias api={a}/></MemoryRouter>);await screen.findByRole('heading',{name:n.titulo});fireEvent.click(screen.getByRole('radio',{name:'Aprovadas'}));await waitFor(()=>expect(a.listar).toHaveBeenLastCalledWith(expect.objectContaining({estado:'aprovada'})));
+  expect(await screen.findByRole('link',{name:'Criar roteiro'})).toHaveAttribute('href','/estudio/roteiros/novo?noticia=news');
   for(const formato of ['carrossel','post','story'])expect(await screen.findByRole('link',{name:`Criar ${formato}`})).toHaveAttribute('href',`/estudio/carrosseis/novo?formato=${formato}&noticia=news`);
  });
 });

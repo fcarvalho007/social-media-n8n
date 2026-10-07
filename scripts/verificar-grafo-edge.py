@@ -56,7 +56,7 @@ import shutil, subprocess
 if shutil.which("deno"):
     # Check against Deno's own npm resolution (not the frontend node_modules).
     Path("/tmp/deno-nl.json").write_text('{"nodeModulesDir":"none"}')
-    for entrada in sorted(FUN.glob("nl-*/index.ts")):
+    for entrada in sorted([*FUN.glob("nl-*/index.ts"), FUN / "rv-roteiros" / "index.ts"]):
         r = subprocess.run(["deno", "check", "--quiet", "--config", str(Path("/tmp/deno-nl.json")), str(entrada)], cwd=FUN, capture_output=True, text=True)
         if r.returncode != 0:
             erros.append(f"deno check falhou em {entrada.parent.name}: {r.stderr[-400:]}")

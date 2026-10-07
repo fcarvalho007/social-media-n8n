@@ -316,6 +316,20 @@
       "when": 1791388889346,
       "tag": "0044_registar_escolha_narrativa",
       "breakpoints": true
+    },
+    {
+      "idx": 45,
+      "version": "7",
+      "when": 1791391083425,
+      "tag": "0045_roteiros_reels",
+      "breakpoints": false
+    },
+    {
+      "idx": 46,
+      "version": "7",
+      "when": 1791391083426,
+      "tag": "0046_roteiros_refinamento",
+      "breakpoints": false
     }
   ]
 }

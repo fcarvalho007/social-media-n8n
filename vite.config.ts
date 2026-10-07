@@ -1,3 +1,4 @@
+import { roteirosLocal } from "./scripts/roteiros/local-plugin";
 import { defineConfig, type ViteDevServer } from "vite";
 import react from "@vitejs/plugin-react-swc";
 import path from "path";
@@ -9,7 +10,7 @@ export default defineConfig(({ mode }) => ({
     host: "::",
     port: 8080,
   },
-  plugins: [react(), ...(mode === "offline" ? [{
+  plugins: [react(), ...(mode === "roteiros" ? [roteirosLocal()] : []), ...(mode === "offline" ? [{
     name: "offline-preview-entry",
     configureServer(server: ViteDevServer) {
       server.middlewares.use((req, _res, next) => {
@@ -23,7 +24,7 @@ export default defineConfig(({ mode }) => ({
   }] : []), mode === "development" && componentTagger()].filter(Boolean),
   resolve: {
     alias: {
-      ...(mode === "offline" ? {
+      ...((mode === "offline" || mode === "roteiros") ? {
         "@/integrations/supabase/client": path.resolve(__dirname, "./src/dev/supabaseLocal.ts"),
         "@/contexts/AuthContext": path.resolve(__dirname, "./src/dev/authLocal.tsx"),
       } : {}),

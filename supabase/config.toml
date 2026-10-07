@@ -112,3 +112,7 @@ verify_jwt = false
 
 [functions.entrar-email]
 verify_jwt = false
+
+# Roteiros: authenticated session + project ownership; no public generation.
+[functions.rv-roteiros]
+verify_jwt = false

@@ -123,6 +123,7 @@ export function CuradoriaNoticias({ selecionar, noticiaInicial, paraEdicao, api 
             }}>{n.edicoes?.includes(paraEdicao.id) ? "Já nesta edição" : "Usar nesta edição"}</Button> : <>
               {estado !== "aprovada" && <Button className="min-h-11" disabled={!!ocupado} onClick={() => decidir(n.id, "aprovada")}>Aprovar</Button>}
               {estado !== "rejeitada" && <Button variant="outline" className="min-h-11" disabled={!!ocupado} onClick={() => decidir(n.id, "rejeitada")}>Rejeitar</Button>}
+              {estado === "aprovada" && <Button variant="outline" className="min-h-11" asChild><Link to={`/estudio/roteiros/novo?noticia=${n.id}`}>Criar roteiro</Link></Button>}
               {estado === "aprovada" && ["carrossel", "post", "story"].map((f) => <Button key={f} variant="outline" className="min-h-11" asChild><Link to={`/estudio/carrosseis/novo?formato=${f}&noticia=${n.id}`}>Criar {f}</Link></Button>)}
             </>}
           </div></div>
