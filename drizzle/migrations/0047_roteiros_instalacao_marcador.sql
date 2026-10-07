@@ -1,0 +1,1 @@
+COMMENT ON TABLE public.rv_roteiros IS 'Roteiros Reels (0045/0046). Writes only via rv_* RPCs.';

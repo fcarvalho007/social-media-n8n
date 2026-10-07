@@ -4699,6 +4699,142 @@ export type Database = {
         }
         Relationships: []
       }
+      rv_geracoes: {
+        Row: {
+          brief: Json
+          contexto: Json | null
+          criado_em: string
+          erro: string | null
+          estado: string
+          id: string
+          project_id: string
+          resultado: Json | null
+          revisao_base: number
+          roteiro_id: string
+          terminado_em: string | null
+        }
+        Insert: {
+          brief: Json
+          contexto?: Json | null
+          criado_em?: string
+          erro?: string | null
+          estado?: string
+          id: string
+          project_id: string
+          resultado?: Json | null
+          revisao_base: number
+          roteiro_id: string
+          terminado_em?: string | null
+        }
+        Update: {
+          brief?: Json
+          contexto?: Json | null
+          criado_em?: string
+          erro?: string | null
+          estado?: string
+          id?: string
+          project_id?: string
+          resultado?: Json | null
+          revisao_base?: number
+          roteiro_id?: string
+          terminado_em?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "rv_geracoes_project_id_fkey"
+            columns: ["project_id"]
+            isOneToOne: false
+            referencedRelation: "projects"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "rv_geracoes_roteiro_id_fkey"
+            columns: ["roteiro_id"]
+            isOneToOne: false
+            referencedRelation: "rv_roteiros"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      rv_roteiros: {
+        Row: {
+          atualizado_em: string
+          brief: Json
+          criado_em: string
+          criado_por: string
+          documento: Json
+          fonte: Json
+          id: string
+          project_id: string
+          revisao: number
+        }
+        Insert: {
+          atualizado_em?: string
+          brief: Json
+          criado_em?: string
+          criado_por?: string
+          documento?: Json
+          fonte: Json
+          id?: string
+          project_id: string
+          revisao?: number
+        }
+        Update: {
+          atualizado_em?: string
+          brief?: Json
+          criado_em?: string
+          criado_por?: string
+          documento?: Json
+          fonte?: Json
+          id?: string
+          project_id?: string
+          revisao?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "rv_roteiros_project_id_fkey"
+            columns: ["project_id"]
+            isOneToOne: false
+            referencedRelation: "projects"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      rv_versoes: {
+        Row: {
+          brief: Json
+          criado_em: string
+          criado_por: string
+          documento: Json
+          revisao: number
+          roteiro_id: string
+        }
+        Insert: {
+          brief: Json
+          criado_em?: string
+          criado_por?: string
+          documento: Json
+          revisao: number
+          roteiro_id: string
+        }
+        Update: {
+          brief?: Json
+          criado_em?: string
+          criado_por?: string
+          documento?: Json
+          revisao?: number
+          roteiro_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "rv_versoes_roteiro_id_fkey"
+            columns: ["roteiro_id"]
+            isOneToOne: false
+            referencedRelation: "rv_roteiros"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       saved_captions: {
         Row: {
           category: string | null
@@ -5968,6 +6104,78 @@ export type Database = {
       nl_worker_reservar: {
         Args: { _nome: string; _segundos: number }
         Returns: string
+      }
+      rv_concluir: {
+        Args: {
+          _entrada: number
+          _erro: string
+          _estado: string
+          _id: string
+          _modelo: string
+          _resultado: Json
+          _saida: number
+        }
+        Returns: boolean
+      }
+      rv_criar: {
+        Args: { _brief: Json; _fonte: Json; _id: string; _project_id: string }
+        Returns: {
+          atualizado_em: string
+          brief: Json
+          criado_em: string
+          criado_por: string
+          documento: Json
+          fonte: Json
+          id: string
+          project_id: string
+          revisao: number
+        }
+        SetofOptions: {
+          from: "*"
+          to: "rv_roteiros"
+          isOneToOne: true
+          isSetofReturn: false
+        }
+      }
+      rv_guardar: {
+        Args: { _brief: Json; _documento: Json; _id: string; _revisao: number }
+        Returns: {
+          atualizado_em: string
+          brief: Json
+          criado_em: string
+          criado_por: string
+          documento: Json
+          fonte: Json
+          id: string
+          project_id: string
+          revisao: number
+        }
+        SetofOptions: {
+          from: "*"
+          to: "rv_roteiros"
+          isOneToOne: true
+          isSetofReturn: false
+        }
+      }
+      rv_reservar: {
+        Args: { _id: string; _revisao: number; _roteiro_id: string }
+        Returns: Json
+      }
+      rv_reservar_contexto: {
+        Args: {
+          _cena_id?: string
+          _estilo?: string
+          _id: string
+          _modo?: string
+          _revisao: number
+          _roteiro_id: string
+          _variante_id?: string
+        }
+        Returns: Json
+      }
+      rv_validar: {
+        Args: { _brief: Json; _documento: Json }
+        Returns: undefined
       }
       social_pode_escrever: { Args: never; Returns: boolean }
       social_tem_papel: { Args: never; Returns: boolean }
