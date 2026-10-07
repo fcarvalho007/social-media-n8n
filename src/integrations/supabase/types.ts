@@ -5575,6 +5575,10 @@ export type Database = {
         }
         Returns: string
       }
+      mc_renomear_trabalho: {
+        Args: { _titulo: string; _trabalho_id: string }
+        Returns: string
+      }
       mc_reservar_chamada: {
         Args: { _lease: string; _trabalho_id: string }
         Returns: string
