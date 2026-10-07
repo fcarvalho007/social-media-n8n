@@ -10,6 +10,7 @@ import {
   HelpCircle,
   Check,
   Layers,
+  FileText,
   Images,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
@@ -123,6 +124,7 @@ export const ModeSelector = ({ onModeSelect, className }: ModeSelectorProps) => 
               <div className="space-y-3">
                 <AssistedFormatActions onChoose={() => handleModeSelection('ia')} />
                 <div className="flex flex-wrap gap-1">
+                  <Button asChild variant="ghost" size="sm"><Link to="/estudio/roteiros"><FileText aria-hidden />Meus roteiros</Link></Button>
                   <Button asChild variant="ghost" size="sm"><Link to="/estudio/carrosseis"><Layers aria-hidden />Meus carrosséis</Link></Button>
                   <Button asChild variant="ghost" size="sm"><Link to="/estudio/redes-sociais"><Images aria-hidden />Carrosséis da crónica</Link></Button>
                 </div>
