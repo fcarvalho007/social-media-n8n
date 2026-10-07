@@ -285,9 +285,9 @@
     {
       "idx": 40,
       "version": "7",
-      "when": 1791385200000,
+      "when": 1791371902387,
       "tag": "0040_curadoria_proveniencia",
-      "breakpoints": false
+      "breakpoints": true
     }
   ]
 }
