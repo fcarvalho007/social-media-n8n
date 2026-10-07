@@ -457,7 +457,7 @@ export default function CarrosselTrabalho() {
               <h1 id="t-narr" className="text-3xl font-semibold tracking-tight sm:text-4xl">Narrativa</h1>
               <p className="text-sm text-muted-foreground">Proposta v{gravado!.propostaVersao} · o texto é o mesmo nas variantes A e B · cada alteração cria nova versão</p>
             </div>
-            {(prop.formato ?? "carrossel") === "carrossel" && <PainelEstruturas dados={dados} atual={gravado!.conteudo} aceitar={aceitarEstrutura} onEscolhaInicial={setNarrativaEscolhida} />}
+            <PainelEstruturas dados={dados} atual={gravado!.conteudo} aceitar={aceitarEstrutura} onEscolhaInicial={setNarrativaEscolhida} />
             <div className="grid gap-6 lg:grid-cols-[260px_1fr]">
               <ol className="flex gap-2 overflow-x-auto pb-1 lg:flex-col lg:overflow-visible" aria-label="Storyboard">
                 {slides.map((s, i) => {
