@@ -62,6 +62,26 @@ def server_fn_exports(s):
 # Targeted type fixes for origin code that relied on strict-mode narrowing or older lucide-react
 # prop types. Each pattern must exist (the port fails loudly otherwise) so drift is never hidden.
 CLIENT_FIXES = {
+    "features/newsletter/partilhado/modais/Fontes.tsx": [
+        ('  onFechar: () => void;', '  onFechar: () => void;\n  embutido?: boolean;'),
+        ('notify, onFechar }: FontesProps)', 'notify, onFechar, embutido = false }: FontesProps)'),
+        ('        return (\n        <ModalBase onClose={() => onFechar()} titulo="" wide chromeless>', '        const conteudo = ('),
+        ('        </ModalBase>\n        );', '        );\n        return embutido ? conteudo : <ModalBase onClose={onFechar} titulo="" wide chromeless>{conteudo}</ModalBase>;'),
+        ('<button onClick={() => onFechar()} className="p-2 rounded-lg hover:bg-black/5 shrink-0" aria-label="Fechar">', '{!embutido && <button onClick={() => onFechar()} className="p-2 rounded-lg hover:bg-black/5 shrink-0" aria-label="Fechar">'),
+        ('<X size={18} style={{ color: T.muted }} />\n              </button>', '<X size={18} style={{ color: T.muted }} />\n              </button>}'),
+        ('value={fonteMax ?? 15}', 'aria-label="Máximo por corrida" value={fonteMax ?? 15}'),
+        ('type="number" min={c.min}', 'aria-label={c.rotulo} type="number" min={c.min}'),
+        ('        const conteudo = (', '        if (fontesQ.isLoading || curadoriaConfigQ.isLoading) return <p role="status" className="p-6">A carregar fontes e limites…</p>;\n        if (fontesQ.isError || curadoriaConfigQ.isError) return <div role="alert" className="p-6 space-y-3"><p>Não foi possível carregar as fontes e os limites. As configurações existentes foram preservadas.</p><button className="underline" onClick={() => { void fontesQ.refetch(); void curadoriaConfigQ.refetch(); }}>Tentar novamente</button><button className="ml-4 underline" onClick={onFechar}>Voltar</button></div>;\n        const conteudo = ('),
+        ('useState<"todas" | "rss" | "html" | "newsletter">', 'useState<"todas" | "rss" | "html" | "newsletter" | "directorio_ferramentas">'),
+        ('newsletter: fontes.filter((x) => (x as { tipo?: string }).tipo === "newsletter").length,', 'newsletter: fontes.filter((x) => (x as { tipo?: string }).tipo === "newsletter").length,\n                    directorios: fontes.filter((x) => (x as { tipo?: string }).tipo === "directorio_ferramentas").length,'),
+        ('{ id: "newsletter", rotulo: "Newsletter", n: cont.newsletter },', '{ id: "newsletter", rotulo: "Newsletter", n: cont.newsletter },\n                    { id: "directorio_ferramentas", rotulo: "Diretórios", n: cont.directorios },'),
+        ('if (t === "html") return (', 'if (t === "directorio_ferramentas") return <span className="shrink-0 text-[10px] font-bold uppercase px-1.5 py-0.5 rounded" style={{ background: T.shell, color: T.muted }}>Diretório</span>;\n                                if (t === "html") return ('),
+        ('Recolha diária', 'Recolha de fontes'),
+        ('                    <span aria-hidden style={{ color: T.faint }}>·</span>\n                    <span>Próxima <strong style={{ color: T.ink }}>{proximaTxt}</strong></span>', ''),
+        ('flex items-center gap-3 flex-1 min-w-[240px]', 'flex flex-col items-stretch gap-3 flex-1 min-w-0 sm:min-w-[240px] sm:flex-row sm:items-center'),
+        ('flex items-center gap-2 ml-auto', 'flex items-center gap-2 sm:ml-auto'),
+        ('flex items-center justify-between gap-4 flex-wrap', 'flex flex-col items-stretch justify-between gap-4 sm:flex-row sm:items-center sm:flex-wrap'),
+    ],
     "features/newsletter/revista/EditorRevista.tsx": [
         ('estadoBriefsDaEdicaoFn, sincronizarBriefPapelFn, sincronizarBriefsDaEdicaoFn', 'estadoBriefsDaEdicaoFn, sincronizarBriefPapelFn'),
         ('''  // Edições escolhidas antes desta fase ainda não têm Brief: reconcilia uma vez.
@@ -244,6 +264,8 @@ def server_rewrite(s: str, here: str) -> str:
     s = s.replace('"@supabase/supabase-js"', '"npm:@supabase/supabase-js@2.57.4"').replace("'@supabase/supabase-js'", '"npm:@supabase/supabase-js@2.57.4"')
     s = re.sub(r'from "crypto"', 'from "node:crypto"', s)
     s = tables(s)
+    s = s.replace("process.env.WORDPRESS_APP_USER", "(process.env.WORDPRESS_APP_USER || process.env.wordpress_site_username)")
+    s = s.replace("process.env.WORDPRESS_APP_PASSWORD", "(process.env.WORDPRESS_APP_PASSWORD || process.env.wordpress_site_key)")
     def addts(m):
         p = m.group(2)
         if re.search(r"\.(ts|tsx|json)$", p):

@@ -76,8 +76,8 @@ function wordpressConfigurado(): boolean {
   const has = (v: string | undefined) => !!(v && v.trim().length > 0);
   return (
     has(process.env.WORDPRESS_SITE_URL) &&
-    has(process.env.WORDPRESS_APP_USER) &&
-    has(process.env.WORDPRESS_APP_PASSWORD)
+    has((process.env.WORDPRESS_APP_USER || process.env.wordpress_site_username)) &&
+    has((process.env.WORDPRESS_APP_PASSWORD || process.env.wordpress_site_key))
   );
 }
 

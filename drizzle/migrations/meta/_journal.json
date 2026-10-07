@@ -281,6 +281,13 @@
       "when": 1791363600000,
       "tag": "0039_curadoria_unica_formatos",
       "breakpoints": false
+    },
+    {
+      "idx": 40,
+      "version": "7",
+      "when": 1791385200000,
+      "tag": "0040_curadoria_proveniencia",
+      "breakpoints": false
     }
   ]
 }

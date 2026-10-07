@@ -22,9 +22,10 @@ export interface FontesProps {
   nomeExibicao: string;
   notify: (m: string, opts?: { tipo?: "ok" | "erro" }) => void;
   onFechar: () => void;
+  embutido?: boolean;
 }
 
-export function Fontes({ isAdmin, nomeExibicao, notify, onFechar }: FontesProps) {
+export function Fontes({ isAdmin, nomeExibicao, notify, onFechar, embutido = false }: FontesProps) {
   const qc = useQueryClient();
   const invalidateAudit = () => qc.invalidateQueries({ queryKey: ["audit"] });
 
@@ -49,7 +50,7 @@ export function Fontes({ isAdmin, nomeExibicao, notify, onFechar }: FontesProps)
   const [modoAdd, setModoAdd] = useState<"rss_html" | "newsletter">("rss_html");
   const [novoEmailFonte, setNovoEmailFonte] = useState("");
   const [novoNomeFonte, setNovoNomeFonte] = useState("");
-  const [filtroTipoFonte, setFiltroTipoFonte] = useState<"todas" | "rss" | "html" | "newsletter">("todas");
+  const [filtroTipoFonte, setFiltroTipoFonte] = useState<"todas" | "rss" | "html" | "newsletter" | "directorio_ferramentas">("todas");
   const [fonteMax, setFonteMax] = useState<number | null>(null);
   const [maxSaved, setMaxSaved] = useState(false);
   const [confirmarLote, setConfirmarLote] = useState(false);
@@ -226,8 +227,9 @@ export function Fontes({ isAdmin, nomeExibicao, notify, onFechar }: FontesProps)
           </button>
         );
 
-        return (
-        <ModalBase onClose={() => onFechar()} titulo="" wide chromeless>
+        if (fontesQ.isLoading || curadoriaConfigQ.isLoading) return <p role="status" className="p-6">A carregar fontes e limites…</p>;
+        if (fontesQ.isError || curadoriaConfigQ.isError) return <div role="alert" className="p-6 space-y-3"><p>Não foi possível carregar as fontes e os limites. As configurações existentes foram preservadas.</p><button className="underline" onClick={() => { void fontesQ.refetch(); void curadoriaConfigQ.refetch(); }}>Tentar novamente</button><button className="ml-4 underline" onClick={onFechar}>Voltar</button></div>;
+        const conteudo = (
           <div
             className="p-5 md:p-6 space-y-5 relative flex-1 min-h-0 overflow-y-auto"
             style={{ background: "radial-gradient(1200px 300px at 50% -120px, rgba(99,102,241,0.09), transparent)" }}
@@ -243,25 +245,24 @@ export function Fontes({ isAdmin, nomeExibicao, notify, onFechar }: FontesProps)
                   <p className="text-[13px] mt-1 flex items-center gap-1.5 flex-wrap" style={{ color: T.muted }}>
                     <span className="inline-flex items-center gap-1.5 font-semibold" style={{ color: T.ok }}>
                       <span className="w-1.5 h-1.5 rounded-full" style={{ background: T.ok, boxShadow: `0 0 0 3px ${T.okSoft}` }} />
-                      Recolha diária
+                      Recolha de fontes
                     </span>
                     <span aria-hidden style={{ color: T.faint }}>·</span>
                     <span>Última <strong style={{ color: T.ink }}>{fmtRelativo(ultimaGlobalMs)}</strong></span>
-                    <span aria-hidden style={{ color: T.faint }}>·</span>
-                    <span>Próxima <strong style={{ color: T.ink }}>{proximaTxt}</strong></span>
+
                   </p>
                 </div>
               </div>
-              <button onClick={() => onFechar()} className="p-2 rounded-lg hover:bg-black/5 shrink-0" aria-label="Fechar">
+              {!embutido && <button onClick={() => onFechar()} className="p-2 rounded-lg hover:bg-black/5 shrink-0" aria-label="Fechar">
                 <X size={18} style={{ color: T.muted }} />
-              </button>
+              </button>}
             </header>
 
             {/* Controlo do motor — faixa única (máximo + correr agora) */}
             {isAdmin && (
               <section className="rounded-xl p-3.5 relative overflow-hidden" style={{ background: "#FFFFFF", border: `1px solid ${T.line}` }}>
-                <div className="flex items-center justify-between gap-4 flex-wrap">
-                  <div className="flex items-center gap-3 flex-1 min-w-[240px]">
+                <div className="flex flex-col items-stretch justify-between gap-4 sm:flex-row sm:items-center sm:flex-wrap">
+                  <div className="flex flex-col items-stretch gap-3 flex-1 min-w-0 sm:min-w-[240px] sm:flex-row sm:items-center">
                     <div className="min-w-0">
                       <p className="text-[13px] font-semibold" style={{ color: T.ink }}>Máximo por corrida</p>
                       <p className="text-[11px]" style={{ color: T.muted }}>
@@ -270,17 +271,17 @@ export function Fontes({ isAdmin, nomeExibicao, notify, onFechar }: FontesProps)
                       </p>
 
                     </div>
-                    <div className="flex items-center gap-2 ml-auto">
+                    <div className="flex items-center gap-2 sm:ml-auto">
                       <input
                         type="range" min={5} max={50} step={1}
-                        value={fonteMax ?? 15}
+                        aria-label="Máximo por corrida" value={fonteMax ?? 15}
                         onChange={(e) => setFonteMax(Number(e.target.value))}
                         onMouseUp={() => fonteMax !== null && setMaxM.mutate(fonteMax)}
                         onTouchEnd={() => fonteMax !== null && setMaxM.mutate(fonteMax)}
                         className="w-32 md:w-40 accent-indigo-500"
                       />
                       <input
-                        type="number" min={5} max={50} value={fonteMax ?? 15}
+                        type="number" min={5} max={50} aria-label="Máximo por corrida" value={fonteMax ?? 15}
                         onChange={(e) => { const n = Number(e.target.value); if (!Number.isNaN(n)) setFonteMax(n); }}
                         onBlur={() => fonteMax !== null && setMaxM.mutate(fonteMax)}
                         className="w-14 text-sm font-bold rounded-md px-2 py-1 text-center"
@@ -313,7 +314,7 @@ export function Fontes({ isAdmin, nomeExibicao, notify, onFechar }: FontesProps)
                         <p className="text-[11px]" style={{ color: T.muted }}>{c.ajuda}</p>
                       </div>
                       <input
-                        type="number" min={c.min} max={c.max} defaultValue={c.valor}
+                        aria-label={c.rotulo} type="number" min={c.min} max={c.max} defaultValue={c.valor}
                         key={`${c.campo}-${c.valor}`}
                         onBlur={(e) => {
                           const n = Number(e.target.value);
@@ -368,12 +369,14 @@ export function Fontes({ isAdmin, nomeExibicao, notify, onFechar }: FontesProps)
                     rss: fontes.filter((x) => (x as { tipo?: string }).tipo === "rss" || !(x as { tipo?: string }).tipo).length,
                     html: fontes.filter((x) => (x as { tipo?: string }).tipo === "html").length,
                     newsletter: fontes.filter((x) => (x as { tipo?: string }).tipo === "newsletter").length,
+                    directorios: fontes.filter((x) => (x as { tipo?: string }).tipo === "directorio_ferramentas").length,
                   };
                   const chips: Array<{ id: typeof filtroTipoFonte; rotulo: string; n: number }> = [
                     { id: "todas", rotulo: "Todas", n: cont.todas },
                     { id: "rss", rotulo: "RSS", n: cont.rss },
                     { id: "html", rotulo: "HTML", n: cont.html },
                     { id: "newsletter", rotulo: "Newsletter", n: cont.newsletter },
+                    { id: "directorio_ferramentas", rotulo: "Diretórios", n: cont.directorios },
                   ];
                   return chips.map((c) => {
                     const on = filtroTipoFonte === c.id;
@@ -657,6 +660,7 @@ export function Fontes({ isAdmin, nomeExibicao, notify, onFechar }: FontesProps)
                               <p className="text-[15px] font-semibold truncate leading-tight" style={{ color: T.ink }}>{f.nome}</p>
                               {(() => {
                                 const t = (f as { tipo?: string }).tipo ?? "rss";
+                                if (t === "directorio_ferramentas") return <span className="shrink-0 text-[10px] font-bold uppercase px-1.5 py-0.5 rounded" style={{ background: T.shell, color: T.muted }}>Diretório</span>;
                                 if (t === "html") return (
                                   <span className="shrink-0 text-[10px] font-bold uppercase tracking-wide px-1.5 py-0.5 rounded"
                                     style={{ background: "rgba(139,92,246,0.12)", color: "#6D28D9" }}
@@ -816,6 +820,6 @@ export function Fontes({ isAdmin, nomeExibicao, notify, onFechar }: FontesProps)
               </p>
             )}
           </div>
-        </ModalBase>
         );
+        return embutido ? conteudo : <ModalBase onClose={onFechar} titulo="" wide chromeless>{conteudo}</ModalBase>;
 }

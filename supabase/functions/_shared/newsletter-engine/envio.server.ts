@@ -819,8 +819,8 @@ export async function publicarWordpress(opts: {
   const quem = opts.userId ? (await autorizar(sb, opts.userId, "real")).nome : (opts.quemNome ?? "agendamento");
 
   const siteUrl = process.env.WORDPRESS_SITE_URL ?? "";
-  const wpUser = process.env.WORDPRESS_APP_USER ?? "";
-  const wpPass = process.env.WORDPRESS_APP_PASSWORD ?? "";
+  const wpUser = (process.env.WORDPRESS_APP_USER || process.env.wordpress_site_username) ?? "";
+  const wpPass = (process.env.WORDPRESS_APP_PASSWORD || process.env.wordpress_site_key) ?? "";
   if (!siteUrl || !wpUser || !wpPass) {
     throw new ErroEnvio("WordPress não configurado (falta WORDPRESS_SITE_URL, WORDPRESS_APP_USER ou WORDPRESS_APP_PASSWORD).");
   }

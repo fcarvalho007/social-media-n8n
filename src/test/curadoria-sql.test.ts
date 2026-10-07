@@ -15,6 +15,7 @@ CREATE FUNCTION public.mc_pode_escrever(uuid) RETURNS boolean LANGUAGE sql AS $$
 CREATE FUNCTION public.mc_pode_ler(uuid) RETURNS boolean LANGUAGE sql AS $$ SELECT public.mc_pode_escrever($1) $$;
 -- Deterministic hash stub: testing SQL relationships/idempotence, not SHA implementation.
 CREATE FUNCTION public.mc_hash(jsonb) RETURNS text LANGUAGE sql IMMUTABLE AS $$ SELECT md5($1::text)||md5($1::text) $$;
+CREATE TABLE nl_fontes_curadoria(id uuid PRIMARY KEY,nome text,tipo text);
 CREATE TABLE nl_edicoes(id uuid PRIMARY KEY,estado text);
 CREATE TABLE nl_noticias(id uuid PRIMARY KEY DEFAULT gen_random_uuid(),edicao_id uuid REFERENCES nl_edicoes(id),titulo text NOT NULL,
  descricao text,url text,categoria text NOT NULL,origem text NOT NULL,estado text DEFAULT 'pendente',destino text DEFAULT 'news',
@@ -39,6 +40,7 @@ beforeAll(async () => {
   await db.query('INSERT INTO nl_edicoes VALUES($1,\'enviada\'),($2,\'rascunho\')', [oldEdition, edition]);
   await db.query('INSERT INTO nl_noticias(id,edicao_id,titulo,descricao,categoria,origem,estado) VALUES($1,$2,\'Notícia de teste\',\'Resumo factual suficientemente longo para a criação de um conteúdo.\',\'ia\',\'rss\',\'enviada\')', [news, oldEdition]);
   await db.exec(readFileSync('drizzle/migrations/0039_curadoria_unica_formatos.sql', 'utf8'));
+  await db.exec(readFileSync('drizzle/migrations/0040_curadoria_proveniencia.sql', 'utf8'));
 }, 30000);
 afterAll(async () => db.close());
 const snapshot = async () => (await rows<{ s: { hash: string; texto: string; nivel: string; parcial: boolean } }>('SELECT nl_curadoria_snapshot($1) AS s', [news]))[0].s;
@@ -116,4 +118,15 @@ describe('curadoria única: migração PostgreSQL isolada', () => {
     await expect(rows(`SELECT mc_validar_documento('{"v":1,"variante":"X","largura":1080,"altura":1350,"paginas":[{}]}')`)).rejects.toMatchObject({code:'22023'});
   });
 
+});
+
+it('devolve a fonte registada sem inferir pelo domínio e preserva notícias sem fonte', async () => {
+ const fid='00000000-0000-4000-8000-000000000080';
+ await db.query("INSERT INTO nl_fontes_curadoria VALUES($1,'Publicação de teste','newsletter')",[fid]);
+ await db.query("UPDATE nl_noticias SET fonte_id=$1,editorial_estado='aprovada' WHERE id=$2",[fid,news]);
+ const result=await rows<{r:{itens:Array<{id:string,fonte_nome:string,fonte_tipo:string}>}}>("SELECT nl_curadoria_listar() r");
+ expect(result[0].r.itens.find(n=>n.id===news)).toMatchObject({fonte_nome:'Publicação de teste',fonte_tipo:'newsletter'});
+ await db.query('UPDATE nl_noticias SET fonte_id=NULL WHERE id=$1',[news]);
+ const fallback=await rows<{r:{itens:Array<{id:string,fonte_nome:string|null}>}}>('SELECT nl_curadoria_listar() r');
+ expect(fallback[0].r.itens.find(n=>n.id===news)?.fonte_nome).toBeNull();
 });
