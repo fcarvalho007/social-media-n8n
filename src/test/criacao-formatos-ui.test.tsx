@@ -35,4 +35,12 @@ describe('criação: fonte de curadoria e formato no pedido',()=>{
   mocks.criar.mockRejectedValueOnce(new Error('A fonte mudou; escolhe a notícia novamente.'));render(<MemoryRouter initialEntries={['/?formato=post&noticia=news&modo=manual']}><TooltipProvider><CarrosselNovo/></TooltipProvider></MemoryRouter>);
   fireEvent.click(screen.getByRole('button',{name:'Escolher fonte de teste'}));fireEvent.click(screen.getByRole('button',{name:'Continuar'}));fireEvent.click(screen.getByRole('button',{name:'Gerar sem IA'}));expect(await screen.findByText('A fonte mudou; escolhe a notícia novamente.')).toBeInTheDocument();expect(mocks.criar).toHaveBeenCalledTimes(1);expect(mocks.nav).not.toHaveBeenCalled();
  });
+  it('mostra Editorial e PAS e cria ambas sem uma segunda confirmação',async()=>{
+   render(<MemoryRouter initialEntries={['/estudio/carrosseis/novo?formato=carrossel&noticia=news&modo=ia']}><TooltipProvider><CarrosselNovo/></TooltipProvider></MemoryRouter>);
+   fireEvent.click(screen.getByRole('button',{name:'Escolher fonte de teste'}));fireEvent.click(screen.getByRole('button',{name:'Continuar'}));
+   expect(screen.getByText('Editorial')).toBeInTheDocument();expect(screen.getByText('PAS')).toBeInTheDocument();
+   fireEvent.click(screen.getByRole('button',{name:'Gerar Editorial + PAS · 2 pedidos'}));
+   await waitFor(()=>expect(mocks.criar).toHaveBeenCalledTimes(1));expect(mocks.criar).toHaveBeenCalledWith(expect.objectContaining({modo:'ia'}));
+   expect(screen.queryByText(/Confirmar: 1 pedido/)).not.toBeInTheDocument();
+  });
 });

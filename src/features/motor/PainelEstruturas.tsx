@@ -94,7 +94,7 @@ export function PainelEstruturas({ dados, atual, aceitar, onEscolhaInicial }: Pr
         const candidato = avaliadosF.find((c) => c.framework === "pas" && !c.motivo && c.conteudo);
         if (!candidato?.conteudo) throw new Error("A versão PAS ainda não está pronta.");
         const fundida = fundirSelecao(atual, [{ trabalho: candidato.trabalho, framework: "pas", conteudo: candidato.conteudo }], atual.slides.map(() => candidato.trabalho));
-        if (!fundida.ok) throw new Error(fundida.motivo);
+        if (fundida.ok === false) throw new Error(fundida.motivo);
         await aceitar(fundida.conteudo);
       }
       await escolherNarrativa(origem, framework);
