@@ -31,7 +31,7 @@ import { slideDaPagina } from "@/features/motor/variacoes";
 import { PAPEIS, type ComposicaoImagem, type PapelVisual } from "../../../supabase/functions/_shared/motor/imagem";
 import { carregarFicheiro, ficheiroDoArrasto } from "@/features/editor-grafico/carregar";
 import { ABAS_INSERIR, MIME_INSERIR, PainelInserir, resolverBiblioteca, type AbaInserir, type Inserivel } from "@/features/editor-grafico/PainelInserir";
-import { alinharNaPagina, aplicarATodos, enquadrarTextos, fundoATodos, PRESETS_TAMANHO, tamanhoMais, type Alinhar } from "@/features/editor-grafico/operacoes";
+import { alinharNaPagina, alturaTexto, aplicarATodos, enquadrarTextos, fundoATodos, PRESETS_TAMANHO, tamanhoMais, type Alinhar } from "@/features/editor-grafico/operacoes";
 import { carregarMedidor } from "@/features/editor-grafico/fontes";
 import { carregarImagens, compararPng, renderizarPaginaPng } from "@/features/editor-grafico/desenho";
 import { estadoInicial, reduzir, type Acao, type ModoImagemNova } from "@/features/editor-grafico/estado";
@@ -72,6 +72,11 @@ function emCampo(e: KeyboardEvent) {
   const t = e.target as HTMLElement | null;
   return !!t && (t.tagName === "INPUT" || t.tagName === "TEXTAREA" || t.isContentEditable || t.getAttribute("role") === "combobox");
 }
+
+const CSS_FAMILIA: Record<Familia, string> = {
+  worksans: '"Work Sans UI", sans-serif', montserrat: 'Montserrat, sans-serif', inter: 'Inter, sans-serif', playfair: '"Playfair Display", serif',
+  sourcesans: '"Source Sans 3", sans-serif', grotesk: '"Space Grotesk", sans-serif', dmserif: '"DM Serif Display", serif', dmsans: '"DM Sans", sans-serif', plex: '"IBM Plex Sans", sans-serif',
+};
 
 // ---------- small form helpers ----------
 
@@ -347,6 +352,9 @@ export function EditorGrafico({ pacoteInicial, chaveLocal, titulo, seletor, real
   const [encaixe, setEncaixe] = useState(true);
   const [editando, setEditando] = useState<string | null>(null);
   const [intervaloTexto, setIntervaloTexto] = useState<{ id: string; inicio: number; fim: number } | null>(null);
+  const [selecoes, setSelecoes] = useState<string[]>([]);
+  const [areaExterior, setAreaExterior] = useState<{ x: number; y: number; w: number; h: number } | null>(null);
+  const inicioExterior = useRef<{ x: number; y: number } | null>(null);
   const [aLargar, setALargar] = useState(false);
   const paginaRef = useRef<HTMLDivElement>(null);
   const [painelAberto, setPainelAberto] = useState(() => !sistemaDoPacote(pacoteInicial));
@@ -362,7 +370,7 @@ export function EditorGrafico({ pacoteInicial, chaveLocal, titulo, seletor, real
   // ---------- visual direction: the document is the only source of truth ----------
   const mSis = medidorSistema ?? medidor ?? undefined;
   const [promptIA, setPromptIA] = useState<string | undefined>(undefined);
-  const [subImagens, setSubImagens] = useState<{ aba: "biblioteca" | "fotos" | "stickers" | "carregar" | "ia"; n: number } | undefined>(undefined);
+  const [subImagens, setSubImagens] = useState<{ aba: "biblioteca" | "fotos" | "giphy" | "carregar" | "ia"; n: number } | undefined>(undefined);
   const [imagemASubstituir, setImagemASubstituir] = useState<string | null>(null);
   const [modoNova, setModoNova] = useState<ModoImagemNova>("fundo");
   const [logoMarca, setLogoMarca] = useState<string | null>(null);
@@ -608,7 +616,7 @@ export function EditorGrafico({ pacoteInicial, chaveLocal, titulo, seletor, real
       if (mod && e.code === "KeyV" && e.altKey) { e.preventDefault(); colarEstilo(); return; }
       if (mod && e.code === "KeyV") { e.preventDefault(); colar(); return; }
       if (mod && e.key.toLowerCase() === "d" && selecao) { e.preventDefault(); despachar({ tipo: "duplicarCamada", id: selecao }); return; }
-      if ((e.key === "Delete" || e.key === "Backspace") && selecao) { e.preventDefault(); despachar({ tipo: "apagarCamada", id: selecao }); return; }
+      if ((e.key === "Delete" || e.key === "Backspace") && (selecoes.length || selecao)) { e.preventDefault(); if (selecoes.length > 1) { despachar({ tipo: "apagarCamadas", ids: selecoes }); setSelecoes([]); } else if (selecao) despachar({ tipo: "apagarCamada", id: selecao }); return; }
       if (e.key === "Escape") { if (preview) setPreview(false); else despachar({ tipo: "selecionar", id: null }); return; }
       if (e.key.startsWith("Arrow") && camada) {
         e.preventDefault();
@@ -624,7 +632,7 @@ export function EditorGrafico({ pacoteInicial, chaveLocal, titulo, seletor, real
     };
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
-  }, [selecao, camada, preview, definirZoom, editando, pacote, paginaAtual]);
+  }, [selecao, selecoes, camada, preview, definirZoom, editando, pacote, paginaAtual]);
 
   const exportarJson = () => {
     descarregar(new Blob([JSON.stringify(pacote, null, 2)], { type: "application/json" }), `${pacote.id}.documento-grafico.json`);
@@ -785,18 +793,38 @@ export function EditorGrafico({ pacoteInicial, chaveLocal, titulo, seletor, real
         defaultValue={resolverTexto(c, pacote.conteudo)}
         onFocus={(e) => { e.currentTarget.select(); setIntervaloTexto({ id: c.id, inicio: 0, fim: e.currentTarget.value.length }); }}
         onSelect={(e) => setIntervaloTexto({ id: c.id, inicio: e.currentTarget.selectionStart, fim: e.currentTarget.selectionEnd })}
-        onChange={(e) => { gravar(e.target.value); setIntervaloTexto({ id: c.id, inicio: e.currentTarget.selectionStart, fim: e.currentTarget.selectionEnd }); }}
+         onChange={(e) => { const valor = e.target.value; gravar(valor); if (medidor) despachar({ tipo: "camada", id: c.id, patch: { h: alturaTexto(c, valor, medidor) }, agrupar: `t:${c.id}` }); setIntervaloTexto({ id: c.id, inicio: e.currentTarget.selectionStart, fim: e.currentTarget.selectionEnd }); }}
         onBlur={() => setEditando(null)}
         onKeyDown={(e) => { if (e.key === "Escape" || (e.key === "Enter" && !e.shiftKey)) { e.preventDefault(); e.currentTarget.blur(); } e.stopPropagation(); }}
         className="absolute z-10 resize-none rounded-sm border border-primary p-0 shadow-md outline-none"
         // Covers the canvas text completely (page background + layer colour) so no ghost text shows underneath.
-        style={{ background: paginaAtual?.fundo, color: c.estilo.cor, left: c.x * escala, top: c.y * escala, width: c.w * escala, height: Math.max(c.h * escala, 40), fontSize: Math.max(12, c.estilo.tam * escala), lineHeight: c.estilo.linha, fontWeight: c.estilo.peso, textAlign: c.estilo.alinh === "dir" ? "right" : c.estilo.alinh === "centro" ? "center" : "left" }}
+         style={{ background: paginaAtual?.fundo, color: c.estilo.cor, left: c.x * escala, top: c.y * escala, width: c.w * escala, height: Math.max(c.h * escala, 40), fontFamily: CSS_FAMILIA[c.estilo.familia ?? "worksans"], fontSize: Math.max(12, c.estilo.tam * escala), lineHeight: c.estilo.linha, fontWeight: c.estilo.peso, textAlign: c.estilo.alinh === "dir" ? "right" : c.estilo.alinh === "centro" ? "center" : "left" }}
       />
     );
   })();
+  const iniciarSelecaoExterior = (e: React.PointerEvent<HTMLDivElement>) => {
+    if (e.target !== e.currentTarget || !paginaRef.current) return;
+    const p = paginaRef.current.getBoundingClientRect();
+    inicioExterior.current = { x: e.clientX - p.left, y: e.clientY - p.top };
+    setAreaExterior({ ...inicioExterior.current, w: 0, h: 0 });
+    e.currentTarget.setPointerCapture(e.pointerId);
+  };
+  const moverSelecaoExterior = (e: React.PointerEvent<HTMLDivElement>) => {
+    if (!inicioExterior.current || !paginaRef.current) return;
+    const p = paginaRef.current.getBoundingClientRect();
+    setAreaExterior({ x: inicioExterior.current.x, y: inicioExterior.current.y, w: e.clientX - p.left - inicioExterior.current.x, h: e.clientY - p.top - inicioExterior.current.y });
+  };
+  const terminarSelecaoExterior = () => {
+    if (!areaExterior || !paginaAtual || !medidor) { inicioExterior.current = null; setAreaExterior(null); return; }
+    const x0 = Math.min(areaExterior.x, areaExterior.x + areaExterior.w) / escala, y0 = Math.min(areaExterior.y, areaExterior.y + areaExterior.h) / escala;
+    const x1 = Math.max(areaExterior.x, areaExterior.x + areaExterior.w) / escala, y1 = Math.max(areaExterior.y, areaExterior.y + areaExterior.h) / escala;
+    const ids = paginaAtual.camadas.filter((c) => { const l = c.tipo === "texto" ? layoutTexto(resolverTexto(c, pacote.conteudo), c.estilo, c.w, c.h, medidor, c.marcas) : null; const h = l ? Math.max(20, Math.min(c.h, l.linhas.length * l.alturaLinha)) : c.h; return c.x < x1 && c.x + c.w > x0 && c.y < y1 && c.y + h > y0; }).map((c) => c.id);
+    if (ids.length) { setSelecoes(ids); despachar({ tipo: "selecionar", id: ids.at(-1) ?? null }); } else { setSelecoes([]); despachar({ tipo: "selecionar", id: null }); }
+    inicioExterior.current = null; setAreaExterior(null);
+  };
   const tela = (
     <div ref={areaRef} className={`relative min-h-0 flex-1 overflow-auto bg-muted ${aLargar ? "outline outline-2 -outline-offset-2 outline-primary" : ""}`}
-      onPointerDown={(e) => { if (e.target === e.currentTarget) despachar({ tipo: "selecionar", id: null }); }}
+      onPointerDown={iniciarSelecaoExterior} onPointerMove={moverSelecaoExterior} onPointerUp={terminarSelecaoExterior}
       onDragOver={(e) => { if (!preview && (e.dataTransfer.types.includes(MIME_INSERIR) || (!!projectId && e.dataTransfer.types.includes("Files")))) { e.preventDefault(); e.dataTransfer.dropEffect = "copy"; setALargar(true); } }}
       onDragLeave={(e) => { if (e.currentTarget === e.target) setALargar(false); }}
       onDrop={largar}>
@@ -804,8 +832,9 @@ export function EditorGrafico({ pacoteInicial, chaveLocal, titulo, seletor, real
         <div ref={paginaRef} className="relative shadow-lg ring-1 ring-border" aria-label={`Página ${pagina + 1} de ${paginas.length}, variante ${variante}, ${LARGURA} por ${ALTURA}`} role="img">
           {medidor ? (
             <PaginaCanvas pacote={pacote} variante={variante} indice={pagina} medidor={medidor} imagens={imagens} escala={escala}
-              interativo={!preview && !rascunho} selecao={preview || rascunho ? null : selecao} toque={compacto} corSelecao={corSelecao} encaixe={encaixe}
-              onSelecionar={(id) => { if (id !== editando) setEditando(null); despachar({ tipo: "selecionar", id }); }}
+              interativo={!preview && !rascunho} selecao={preview || rascunho ? null : selecao} selecoes={preview || rascunho ? [] : selecoes} toque={compacto} corSelecao={corSelecao} encaixe={encaixe}
+              onSelecionar={(id) => { setSelecoes([]); if (id !== editando) setEditando(null); despachar({ tipo: "selecionar", id }); }}
+              onSelecionarVarios={(ids) => { setEditando(null); setSelecoes(ids); despachar({ tipo: "selecionar", id: ids.at(-1) ?? null }); }}
               onEditarTexto={(id) => { despachar({ tipo: "selecionar", id }); setEditando(id); }}
               onAlterar={(id, patch) => despachar({ tipo: "camada", id, patch })} />
           ) : (
@@ -814,6 +843,7 @@ export function EditorGrafico({ pacoteInicial, chaveLocal, titulo, seletor, real
             </div>
           )}
           {edicaoInline}
+          {areaExterior && (() => { const x = Math.min(areaExterior.x, areaExterior.x + areaExterior.w), y = Math.min(areaExterior.y, areaExterior.y + areaExterior.h); return <div className="pointer-events-none absolute z-20 border border-dashed border-primary bg-primary/10" style={{ left: x, top: y, width: Math.abs(areaExterior.w), height: Math.abs(areaExterior.h) }} />; })()}
           {rascunho && !preview && (
             <div role="status" className="absolute inset-x-2 top-2 z-10 rounded-md border border-border bg-background/95 px-3 py-2 text-sm shadow-md">
               Direção visual por aplicar. Aplica ou cancela no painel «Direção visual» para voltar a editar os elementos.
@@ -849,6 +879,7 @@ export function EditorGrafico({ pacoteInicial, chaveLocal, titulo, seletor, real
     const r = intervaloTexto?.id === c.id ? intervaloTexto : null;
     if (!r || r.fim <= r.inicio) { toast.info("Seleciona primeiro uma parte do texto."); setEditando(c.id); return; }
     alterarSel({ marcas: aplicarMarca(c.marcas, r.inicio, r.fim, marca, resolverTexto(c, pacote.conteudo).length) } as Partial<Camada>);
+    setEditando(null);
   };
   const todos = () => { if (!camada) return; const r = aplicarATodos(pacote, variante, camada); if (r) { despachar({ tipo: "substituir", pacote: r.pacote }); comDesfazer(`Aplicado a ${r.alteradas} camada(s) iguais nos outros slides.`); } else toast.info("Não há outras camadas iguais para alterar."); };
   const ALINHAR: { a: Alinhar; n: string; I: typeof AlignStartVertical }[] = [
@@ -859,6 +890,7 @@ export function EditorGrafico({ pacoteInicial, chaveLocal, titulo, seletor, real
   const sep = <span className="mx-0.5 h-6 w-px shrink-0 bg-border" aria-hidden />;
   const barraContexto = (
     <div role="toolbar" aria-label={camada ? `Ferramentas: ${rotuloCamada(camada, pacote).tipo}` : "Ferramentas do slide"} className="flex min-w-0 flex-wrap items-center gap-1 border-b border-border bg-background px-2 py-1">
+      {selecoes.length > 1 && <><span className="px-2 text-sm font-medium">{selecoes.length} elementos selecionados</span><Button variant="ghost" size="icon" className={`${bt} text-destructive hover:text-destructive`} aria-label="Apagar seleção" onClick={() => { despachar({ tipo: "apagarCamadas", ids: selecoes }); setSelecoes([]); }}><Trash2 className="h-4 w-4" /></Button>{sep}</>}
       {!camada && paginaAtual && (<>
         <Button variant={encaixe ? "secondary" : "ghost"} size="sm" className="h-11 shrink-0 lg:h-9" aria-pressed={encaixe} onClick={() => setEncaixe((v) => !v)}><Magnet className="mr-1.5 h-4 w-4" />Encaixar</Button>
         <span className="ml-1 min-w-0 text-sm text-muted-foreground">Clica num texto para o selecionar; clica outra vez (ou Enter) para escrever.</span>

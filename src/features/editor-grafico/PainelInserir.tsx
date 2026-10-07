@@ -53,7 +53,7 @@ interface Props {
   /** Prefilled AI prompt from the Image panel; opens the AI tab. */
   promptIA?: string;
   /** Opens a given image tab (from the slide Image panel) with suggested stock terms. */
-  subImagens?: { aba: "biblioteca" | "fotos" | "stickers" | "carregar" | "ia"; n: number };
+  subImagens?: { aba: "biblioteca" | "fotos" | "giphy" | "carregar" | "ia"; n: number };
   termoFotos?: string;
   /** Fallback picker (proof editor). */
   pedirImagem?: () => void;
@@ -71,7 +71,7 @@ export function PainelInserir({ aba, despachar, onImagem, projectId, pedirImagem
   const [bib, setBib] = useState<ImagemBiblioteca[] | null>(null);
   const [erro, setErro] = useState<string | null>(null);
   const [aUsar, setAUsar] = useState<string | null>(null);
-  const [sub, setSub] = useState<"biblioteca" | "fotos" | "stickers" | "carregar" | "ia">(subImagens?.aba ?? (promptIA ? "ia" : "biblioteca"));
+  const [sub, setSub] = useState<"biblioteca" | "fotos" | "giphy" | "carregar" | "ia">(subImagens?.aba ?? (promptIA ? "ia" : "fotos"));
   useEffect(() => { if (subImagens) setSub(subImagens.aba); }, [subImagens]);
   useEffect(() => { if (promptIA) setSub("ia"); }, [promptIA]);
   const [carregadas, setCarregadas] = useState<AssetMotor[] | null>(null);
@@ -158,7 +158,7 @@ export function PainelInserir({ aba, despachar, onImagem, projectId, pedirImagem
     <div className="space-y-3">
       {substituirImagemId && <p className="rounded-[var(--mc-r-md)] bg-primary/10 px-2.5 py-2 text-xs font-medium text-foreground">A próxima imagem substitui a imagem selecionada. A composição mantém-se.</p>}
       <div role="tablist" aria-label="Origem da imagem" className="grid grid-cols-3 gap-1 rounded-[var(--mc-r-md)] bg-muted p-1">
-        {([["biblioteca", "Biblioteca"], ["fotos", "Fotos"], ["stickers", "Stickers"], ["carregar", "Carregar"], ["ia", "IA"]] as const).map(([id, n]) => (
+        {([["fotos", "Fotos"], ["biblioteca", "Biblioteca"], ["giphy", "Giphy"], ["carregar", "Carregar"], ["ia", "IA"]] as const).map(([id, n]) => (
           <button key={id} type="button" role="tab" aria-selected={sub === id} onClick={() => setSub(id)}
             className={cn("min-h-9 rounded-sm text-xs font-medium focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring", sub === id ? "bg-background text-foreground shadow-sm" : "text-muted-foreground hover:text-foreground")}>{n}</button>
         ))}
@@ -195,7 +195,7 @@ export function PainelInserir({ aba, despachar, onImagem, projectId, pedirImagem
         </div>
       )}
       {sub === "fotos" && <PesquisaFotos key={termoFotos ?? ""} projectId={projectId} usar={usar} ocupado={!!aUsar} aUsar={aUsar} termoInicial={termoFotos} compacto />}
-      {sub === "stickers" && <PesquisaGiphy projectId={projectId} usar={usar} ocupado={!!aUsar} />}
+      {sub === "giphy" && <PesquisaGiphy projectId={projectId} usar={usar} ocupado={!!aUsar} />}
       {sub === "ia" && <GeradorKie key={promptIA ?? ""} projectId={projectId} usar={usar} ocupado={!!aUsar} promptInicial={promptIA} />}
       {sub === "biblioteca" && <>
       <p className="text-xs text-muted-foreground">Clica para usar como fundo ou arrasta para a página.</p>

@@ -8,4 +8,7 @@
 - [ ] Reprodução de stickers e duração editável no slide
 - [ ] Exportação MP4 por slide animado
 - [ ] Passagem de PNG/MP4 para o rascunho social
-- [ ] Testes e validação visual em desktop e 375 px
+- [ ] Validar visualmente num documento real em desktop e 375 px — bloqueado por sessão de pré-visualização sem acesso ao projeto
+- [x] Ajustar caixas de texto, edição imediata e seleção múltipla por área
+- [x] Separar Giphy com GIFs, stickers e Clips (capa + animação)
+- [x] Expor opções reais de imagem IA, quantidade, custo e modo profissional

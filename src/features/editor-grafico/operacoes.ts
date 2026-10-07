@@ -67,6 +67,13 @@ export function alinharNaPagina(c: Camada, a: Alinhar, dimensoes = { largura: LA
 }
 
 export const LIMIAR_SNAP = 10;
+
+/** Tight text height at the current font size. It can shrink excess space but never shrinks the font. */
+export function alturaTexto(c: CamadaTexto, texto: string, m: Medidor, minimo = 20): number {
+  if (!texto.trim()) return minimo;
+  const livre = layoutTexto(texto, { ...c.estilo, tamMin: c.estilo.tam, maxLinhas: c.estilo.maxLinhas }, c.w, 4000, m, c.marcas);
+  return Math.max(minimo, Math.ceil(livre.linhas.length * livre.alturaLinha + 8));
+}
 /**
  * Snap a dragged box to page edges/centre and to other layers' edges/centres (doc units).
  * Returns the snapped position and the guide lines to draw.
@@ -108,13 +115,11 @@ export function enquadrarTextos(p: PacoteProva, m: Medidor): { pacote: PacotePro
         const t = resolverTexto(c, p.conteudo);
         if (!t.trim()) return c;
         const est = { ...c.estilo, tamMin: c.estilo.tam };
-        if (!layoutTexto(t, est, c.w, c.h, m).cortado) return c;
-        const livre = layoutTexto(t, { ...est, maxLinhas: c.estilo.maxLinhas }, c.w, 4000, m);
-        const precisa = Math.ceil(livre.linhas.length * livre.alturaLinha + 8);
+        const precisa = alturaTexto(c, t, m);
         // Next text block below this one (same column) limits the growth.
         const abaixo = pg.camadas.filter((o) => o.id !== c.id && o.tipo === "texto" && o.y >= c.y + c.h - 1 && o.x < c.x + c.w && o.x + o.w > c.x).map((o) => o.y - 16);
         const limite = Math.min(p.variantes[v].altura - 60, ...abaixo) - c.y;
-        if (precisa > limite || precisa <= c.h) return c;
+        if (precisa > limite || Math.abs(precisa - c.h) < 2) return c;
         if (layoutTexto(t, est, c.w, precisa, m).cortado) return c;
         mudou = true; ajustadas++;
         return { ...c, h: precisa };

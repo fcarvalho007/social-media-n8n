@@ -20,8 +20,9 @@ import { descarregarPexels, pesquisarPexelsMotor } from "../_shared/motor/pexels
 import { creditoPexels, idDoUrl, urlPexelsValido } from "../_shared/motor/pexels.ts";
 import { descarregarUnsplash, pesquisarUnsplash } from "../_shared/motor/unsplash.server.ts";
 import { creditoUnsplash, intercalar } from "../_shared/motor/unsplash.ts";
-import { guardarStickerGiphy, pesquisarGiphy } from "../_shared/motor/giphy.server.ts";
+import { guardarItemGiphy, pesquisarGiphy, type TipoGiphy } from "../_shared/motor/giphy.server.ts";
 import { chaveKie, criarTarefaKie, estadoTarefaKie, interpretarImagemKie, KIE_MODELO, KIE_MAX_DIA, KIE_PROPORCAO } from "../_shared/motor/kie.server.ts";
+import { catalogoModelosImagem } from "../_shared/motor/imagemModelo.server.ts";
 import { obterFramework } from "../_shared/motor/frameworks.ts";
 import { NOTA_MAX, obterModoRegen } from "../_shared/motor/regenerar.ts";
 import { avaliarFonte, MARCADOR_FIXTURE, MODELO_DEMO, MODELO_ESTRUTURACAO, MODELO_IA, normalizarFonte } from "../_shared/motor/proposta.ts";
@@ -301,10 +302,11 @@ Deno.serve(async (req) => {
     try {
       if (acao === "giphy_pesquisar") {
         const pagina = Math.max(1, Number(body.pagina ?? 1));
-        const stickers = await pesquisarGiphy(String(body.termo ?? ""), pagina);
-        return json({ ok: true, stickers, mais: stickers.length === 24 });
+        const tipo = String(body.tipo ?? "stickers") as TipoGiphy;
+        const itens = await pesquisarGiphy(String(body.termo ?? ""), pagina, tipo);
+        return json({ ok: true, itens, mais: itens.length === 24 });
       }
-      const r = await guardarStickerGiphy(admin(), { projectId, userId: u.user.id, providerId: String(body.sticker_id ?? ""), mp4Url: String(body.mp4_url ?? ""), stillUrl: String(body.still_url ?? ""), duracaoMs: Number(body.duracao_ms ?? 5000) });
+      const r = await guardarItemGiphy(admin(), { projectId, userId: u.user.id, providerId: String(body.item_id ?? body.sticker_id ?? ""), tipo: String(body.tipo ?? "stickers") as TipoGiphy, mp4Url: String(body.mp4_url ?? ""), stillUrl: String(body.still_url ?? ""), duracaoMs: Number(body.duracao_ms ?? 5000) });
       return json({ ok: true, asset: { id: r.capa.id, nome: r.capa.nome, mime: r.capa.mime, largura: r.capa.largura, altura: r.capa.altura, bytes: r.capa.bytes, hash: r.capa.hash, animacao_id: r.animacao.id, duracao_ms: r.animacao.duracao_ms } });
     } catch (e) { return json({ error: (e as Error).message }, 422); }
   }
@@ -385,7 +387,7 @@ Deno.serve(async (req) => {
       const kc = (kie.corpo as { code?: number; data?: unknown } | null);
       return json({ ok: true, kie: { valida: kie.http === 200 && kc?.code === 200, codigo: kc?.code ?? kie.http, saldo: kc?.code === 200 ? kc.data : null }, fal: { valida: fal !== 401 && fal !== 403 && fal !== 0, http: fal } });
     }
-    if (acao === "kie_config") return json({ ok: true, configurada, modelo: KIE_MODELO, proporcao: KIE_PROPORCAO, max_dia: KIE_MAX_DIA });
+    if (acao === "kie_config") return json({ ok: true, configurada, modelo: KIE_MODELO, proporcao: KIE_PROPORCAO, max_dia: KIE_MAX_DIA, modelos: catalogoModelosImagem((k) => Deno.env.get(k) ?? undefined) });
     if (!configurada) return json({ error: "Configuração necessária: falta a chave do serviço de imagens no servidor.", configuracao: true }, 503);
     if (acao === "interpretar_imagem") {
       if (body.confirmado !== true) return json({ error: "Confirma o pedido pago antes de interpretar." }, 400);
@@ -398,8 +400,17 @@ Deno.serve(async (req) => {
       if (body.confirmado !== true) return json({ error: "Confirma a geração antes de pedir." }, 400);
       const prompt = String(body.prompt ?? "").trim();
       if (prompt.length < 5 || prompt.length > 2000) return json({ error: "Descreve a imagem (5 a 2000 caracteres)." }, 400);
-      const r = await criarTarefaKie(admin(), { projectId, userId: u.user.id, prompt });
-      return json(r.corpo, r.status);
+      const quantidade = Math.max(1, Math.min(4, Math.floor(Number(body.quantidade ?? 1))));
+      const pedidos = [];
+      for (let i = 0; i < quantidade; i++) {
+        const r = await criarTarefaKie(admin(), { projectId, userId: u.user.id, prompt, opcaoId: String(body.modelo_id ?? "") || undefined, proporcao: String(body.proporcao ?? "") || undefined, tamanho: String(body.tamanho ?? "") || undefined, profissional: body.profissional === true });
+        if (r.status !== 200) {
+          if (pedidos.length) return json({ ok: true, tarefas: pedidos, aviso: `Foram iniciadas ${pedidos.length} de ${quantidade} versões. O pedido seguinte falhou e não foi repetido.`, erro: r.corpo });
+          return json(r.corpo, r.status);
+        }
+        pedidos.push(r.corpo);
+      }
+      return json({ ok: true, tarefas: pedidos });
     }
     const tarefa = String(body.tarefa ?? "");
     if (!UUID.test(tarefa)) return json({ error: "Pedido inválido" }, 400);
