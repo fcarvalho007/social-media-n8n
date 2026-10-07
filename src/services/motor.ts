@@ -224,6 +224,12 @@ export interface KieConfig { configurada: boolean; modelo: string; proporcao: st
 export const kieConfig = (project_id: string) => invocar<KieConfig>({ acao: "kie_config", project_id });
 export const kieGerar = (project_id: string, prompt: string, opcoes: { modelo_id: string; proporcao: string; tamanho: string; quantidade: number; profissional: boolean }) => invocar<{ tarefas: Array<{ tarefa: string; estado: string }>; aviso?: string }>({ acao: "kie_gerar", project_id, prompt, ...opcoes, confirmado: true });
 export const kieEstado = (project_id: string, tarefa: string) => invocar<{ estado: "reservada" | "criada" | "concluida" | "falhou" | "desconhecido"; asset_id?: string | null; erro?: string | null }>({ acao: "kie_estado", project_id, tarefa });
+export type TipoPropostaImagemIA = "editavel" | "final";
+export interface TarefaPropostaImagemIA { tipo: TipoPropostaImagemIA; tarefa: string; estado: string }
+export const gerarPropostasImagemIA = (project_id: string, pacote: unknown, variante: Variante, indice: number, contexto_chave: string) =>
+  invocar<{ tarefas: TarefaPropostaImagemIA[]; aviso?: string }>({ acao: "redesenho_ia_gerar", project_id, pacote, variante, indice, contexto_chave, confirmado: true });
+export const recuperarPropostasImagemIA = (project_id: string, contexto_chave: string) =>
+  invocar<{ tarefas: TarefaPropostaImagemIA[] }>({ acao: "redesenho_ia_estado", project_id, contexto_chave });
 export const registarImagem = (project_id: string, media_id: string) => invocar<{ asset: AssetMotor & { hash: string } }>({ acao: "registar_imagem", project_id, media_id });
 export const interpretarImagem = (project_id: string, asset_id: string) => invocar<{ descricao: string }>({ acao: "interpretar_imagem", project_id, asset_id, confirmado: true });
 export type { FotoPexelsMotor } from "../../supabase/functions/_shared/motor/pexels";

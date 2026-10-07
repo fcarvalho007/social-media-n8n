@@ -12,3 +12,4 @@
 - [x] Ajustar caixas de texto, edição imediata e seleção múltipla por área
 - [x] Separar Giphy com GIFs, stickers e Clips (capa + animação)
 - [x] Expor opções reais de imagem IA, quantidade, custo e modo profissional
+- [x] Acrescentar a sexta composição IA com custo explícito e duas propostas sujeitas a aprovação

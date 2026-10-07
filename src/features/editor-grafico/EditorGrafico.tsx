@@ -1024,8 +1024,8 @@ export function EditorGrafico({ pacoteInicial, chaveLocal, titulo, seletor, real
           </CollapsibleContent>
         </Collapsible>
         {medidor && <PainelRedesenhar aberto={redesenhar} onFechar={() => setRedesenhar(false)} pacote={pacote} sistema={sistemaDoc} variante={variante} indice={pagina}
-          medidor={medidor} imagens={imagens} onGerarIA={() => { setPromptIA(promptAuto); if (compacto) { setPainelMovel("imagens"); setPainelAberto(true); } else setAba("imagens"); }}
-          projectId={projectId} onAplicar={(p, c) => { despachar({ tipo: "substituir", pacote: p }); comDesfazer(c.requiresAiImage ? `Imagem gerada por IA aplicada na página ${pagina + 1}.` : `Página ${pagina + 1} redesenhada: ${c.label}.`); }} />}
+          medidor={medidor} imagens={imagens} projectId={projectId}
+          onAplicar={(p, c) => { despachar({ tipo: "substituir", pacote: p }); comDesfazer(c.requiresAiImage ? `Imagem gerada por IA aplicada na página ${pagina + 1}.` : `Página ${pagina + 1} redesenhada: ${c.label}.`); }} />}
       </>)}
     </div>
   );

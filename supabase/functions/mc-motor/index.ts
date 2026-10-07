@@ -24,6 +24,8 @@ import { guardarItemGiphy, pesquisarGiphy, type TipoGiphy } from "../_shared/mot
 import { chaveKie, criarTarefaKie, estadoTarefaKie, interpretarImagemKie, KIE_MODELO, KIE_MAX_DIA, KIE_PROPORCAO } from "../_shared/motor/kie.server.ts";
 import { catalogoModelosImagem } from "../_shared/motor/imagemModelo.server.ts";
 import { obterFramework } from "../_shared/motor/frameworks.ts";
+import { promptsPropostaImagemIA } from "../_shared/motor/propostaImagemIA.ts";
+import { validarPacote, type PacoteProva, type Variante } from "../_shared/documento-grafico/nucleo.ts";
 import { NOTA_MAX, obterModoRegen } from "../_shared/motor/regenerar.ts";
 import { avaliarFonte, MARCADOR_FIXTURE, MODELO_DEMO, MODELO_ESTRUTURACAO, MODELO_IA, normalizarFonte } from "../_shared/motor/proposta.ts";
 
@@ -374,7 +376,7 @@ Deno.serve(async (req) => {
     return json({ ok: true, assets, falhas });
   }
 
-  if (acao === "kie_config" || acao === "kie_gerar" || acao === "kie_estado" || acao === "interpretar_imagem") {
+  if (acao === "kie_config" || acao === "kie_gerar" || acao === "kie_estado" || acao === "interpretar_imagem" || acao === "redesenho_ia_gerar" || acao === "redesenho_ia_estado") {
     const projectId = String(body.project_id ?? "");
     if (!UUID.test(projectId)) return json({ error: "Projeto inválido" }, 400);
     const { data: pode } = await user.rpc(acao === "kie_config" ? "mc_pode_ler" : "mc_pode_escrever", { _project_id: projectId });
@@ -395,6 +397,34 @@ Deno.serve(async (req) => {
       if (!UUID.test(assetId)) return json({ error: "Imagem inválida" }, 400);
       const r = await interpretarImagemKie(admin(), { projectId, userId: u.user.id, assetId });
       return json(r.corpo, r.status);
+    }
+    if (acao === "redesenho_ia_gerar") {
+      if (body.confirmado !== true) return json({ error: "Confirma os dois pedidos pagos antes de continuar." }, 400);
+      let pacote: PacoteProva;
+      try { pacote = validarPacote(body.pacote, { real: true }); } catch (e) { return json({ error: (e as Error).message }, 400); }
+      const variante = body.variante === "B" ? "B" : "A" as Variante;
+      const indice = Number(body.indice);
+      if (!Number.isInteger(indice) || !pacote.variantes[variante].paginas[indice]) return json({ error: "Página inválida." }, 400);
+      const sistema = pacote.variantes[variante].sistema;
+      if (!sistema) return json({ error: "A direção visual desta página está em falta." }, 409);
+      const prompts = promptsPropostaImagemIA(pacote, sistema, variante, indice);
+      const proporcao = pacote.variantes[variante].altura === 1920 ? "9:16" : "3:4";
+      const contextoChave = String(body.contexto_chave ?? "").slice(0, 200);
+      if (!contextoChave) return json({ error: "Contexto da proposta em falta." }, 400);
+      const pedidos: Array<{ tipo: "editavel" | "final"; tarefa: string; estado: string }> = [];
+      for (const tipo of ["editavel", "final"] as const) {
+        const r = await criarTarefaKie(admin(), { projectId, userId: u.user.id, prompt: tipo === "editavel" ? prompts.apoio : prompts.final, opcaoId: "kie-seedream-fast", proporcao, tamanho: "2K", profissional: true, permitirTexto: tipo === "final", contextoChave, propostaTipo: tipo });
+        const corpo = r.corpo as { tarefa?: string; estado?: string; error?: string };
+        if (r.status !== 200 || !corpo.tarefa) return pedidos.length ? json({ ok: true, tarefas: pedidos, aviso: "A segunda proposta falhou antes de ficar disponível. A proposta concluída mantém-se." }) : json(r.corpo, r.status);
+        pedidos.push({ tipo, tarefa: corpo.tarefa, estado: corpo.estado ?? "criada" });
+      }
+      return json({ ok: true, tarefas: pedidos });
+    }
+    if (acao === "redesenho_ia_estado") {
+      const contextoChave = String(body.contexto_chave ?? "").slice(0, 200);
+      if (!contextoChave) return json({ error: "Contexto da proposta em falta." }, 400);
+      const { data } = await user.from("mc_kie_tarefas").select("id, estado, proposta_tipo").eq("project_id", projectId).eq("contexto_chave", contextoChave).not("proposta_tipo", "is", null).order("criado_em", { ascending: false }).limit(2);
+      return json({ ok: true, tarefas: (data ?? []).map((t) => ({ tipo: t.proposta_tipo, tarefa: t.id, estado: t.estado })) });
     }
     if (acao === "kie_gerar") {
       if (body.confirmado !== true) return json({ error: "Confirma a geração antes de pedir." }, 400);
