@@ -6,28 +6,65 @@ import { cn } from '@/lib/utils';
 // Legacy n8n entry points: real Google Forms URL kept for demos/recovery. Do not invent others.
 const FORMS_CARROSSEL = 'https://docs.google.com/forms/d/e/1FAIpQLScHxiU2xQOQz-7Z480crzkvTbIjYhHcdtb8Nuv98JSotdPcNg/viewform';
 
-function EmConstrucao({ icon: Icon, titulo, nota }: { icon: typeof Video; titulo: string; nota: string }) {
+const FORMATOS = [
+  {
+    id: 'carrossel',
+    titulo: 'Carrossel',
+    descricao: 'Várias páginas',
+    detalhe: '1080 × 1350',
+    icon: GalleryHorizontal,
+  },
+  {
+    id: 'post',
+    titulo: 'Post',
+    descricao: 'Uma imagem vertical',
+    detalhe: '1080 × 1350',
+    icon: ImageIcon,
+  },
+  {
+    id: 'story',
+    titulo: 'Story',
+    descricao: 'Uma imagem de ecrã inteiro',
+    detalhe: '1080 × 1920',
+    icon: Video,
+  },
+] as const;
+
+export function AssistedFormatActions({ onChoose }: { onChoose?: () => void }) {
   return (
-    <li className="flex min-h-11 items-start gap-3 py-2 text-muted-foreground" aria-disabled="true">
-      <Icon className="mt-0.5 h-5 w-5 shrink-0" aria-hidden />
-      <div><span className="font-medium text-foreground">{titulo}</span> · 🚧 Em construção<p className="text-sm">{nota}</p></div>
-    </li>
+    <div className="grid grid-cols-1 gap-2 sm:grid-cols-3">
+      {FORMATOS.map(({ id, titulo, descricao, detalhe, icon: Icon }) => (
+        <Button
+          key={id}
+          asChild
+          variant="outline"
+          className="h-auto min-h-24 items-start justify-start whitespace-normal border-border bg-background p-4 text-left hover:border-primary/60 hover:bg-primary/5"
+        >
+          <Link to={`/estudio/carrosseis/novo?formato=${id}`} onClick={onChoose}>
+            <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-md bg-primary/10 text-primary">
+              <Icon className="h-5 w-5" aria-hidden />
+            </span>
+            <span className="min-w-0">
+              <span className="block font-semibold text-foreground">{titulo}</span>
+              <span className="block text-xs font-normal text-muted-foreground">{descricao}</span>
+              <span className="mt-1 block text-xs font-medium text-foreground/70">{detalhe}</span>
+            </span>
+          </Link>
+        </Button>
+      ))}
+    </div>
   );
 }
 
 export const ActionButtons = ({ className }: { className?: string }) => (
-  <div className={cn('space-y-8', className)}>
+  <div className={cn('space-y-5', className)}>
     <section aria-labelledby="ia-titulo" className="space-y-3">
       <h2 id="ia-titulo" className="text-xl font-semibold">Assistido por IA</h2>
-      <p className="text-base text-muted-foreground">Cria um carrossel a partir de texto, link ou PDF, revê e exporta no Hub.</p>
-      <div className="flex flex-wrap gap-2">
-        <Button asChild size="lg" className="min-h-11"><Link to="/estudio/carrosseis/novo"><GalleryHorizontal className="mr-2 h-5 w-5" aria-hidden />Criar conteúdo visual</Link></Button>
-        <Button asChild size="lg" variant="outline" className="min-h-11"><Link to="/estudio/carrosseis"><Layers className="mr-2 h-5 w-5" aria-hidden />Meus carrosséis</Link></Button>
-        <Button asChild size="lg" variant="ghost" className="min-h-11"><Link to="/estudio/redes-sociais"><Images className="mr-2 h-5 w-5" aria-hidden />Carrosséis da crónica</Link></Button>
-      </div>
-      <ul className="divide-y border-y">
-        <EmConstrucao icon={Video} titulo="Stories assistidos" nota="Ainda não disponível. Para já, usa o modo Manual." />
-        <EmConstrucao icon={ImageIcon} titulo="Post individual assistido" nota="Ainda não disponível. Para já, usa o modo Manual." />
+      <p className="text-sm text-muted-foreground">Escolhe o formato e trabalha o conteúdo no compositor.</p>
+      <AssistedFormatActions />
+      <div className="flex flex-wrap gap-2 pt-1">
+        <Button asChild variant="ghost" size="sm"><Link to="/estudio/carrosseis"><Layers aria-hidden />Meus carrosséis</Link></Button>
+        <Button asChild variant="ghost" size="sm"><Link to="/estudio/redes-sociais"><Images aria-hidden />Carrosséis da crónica</Link></Button>
       </ul>
     </section>
 
@@ -36,17 +73,16 @@ export const ActionButtons = ({ className }: { className?: string }) => (
 );
 
 export const LegadoN8n = () => (
-  <details open className="group space-y-2 rounded-md border border-dashed p-4">
-      <summary className="min-h-11 cursor-pointer text-base font-semibold">Versão anterior · n8n</summary>
-      <p className="text-sm text-muted-foreground">Fluxo antigo por formulário externo, mantido para demonstração e recuperação. Não faz parte do motor novo.</p>
-      <ul className="divide-y">
-        <li className="py-2">
-          <a href={FORMS_CARROSSEL} target="_blank" rel="noopener noreferrer" className="inline-flex min-h-11 items-center gap-3 font-medium text-primary hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring">
-            <GalleryHorizontal className="h-5 w-5" aria-hidden />Carrossel (Forms)<ExternalLink className="h-4 w-4" aria-hidden /><span className="sr-only">(abre noutro separador)</span>
-          </a>
-        </li>
-        <EmConstrucao icon={Video} titulo="Stories (n8n)" nota="Não desenvolvido nesta versão." />
-        <EmConstrucao icon={ImageIcon} titulo="Post individual (n8n)" nota="Não desenvolvido nesta versão." />
-      </ul>
+  <details className="group rounded-md border border-dashed border-border/70 px-3 py-2">
+      <summary className="flex min-h-9 cursor-pointer list-none items-center justify-between text-xs font-medium text-muted-foreground">
+        <span>Versão anterior · n8n</span>
+        <span className="text-[11px] group-open:hidden">Mostrar</span>
+        <span className="hidden text-[11px] group-open:inline">Ocultar</span>
+      </summary>
+      <div className="border-t border-border/60 pb-1 pt-2">
+        <a href={FORMS_CARROSSEL} target="_blank" rel="noopener noreferrer" className="inline-flex min-h-9 items-center gap-2 text-sm font-medium text-primary hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring">
+          <GalleryHorizontal className="h-4 w-4" aria-hidden />Abrir formulário antigo de carrossel<ExternalLink className="h-3.5 w-3.5" aria-hidden /><span className="sr-only">(abre noutro separador)</span>
+        </a>
+      </div>
   </details>
 );

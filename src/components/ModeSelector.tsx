@@ -1,4 +1,3 @@
-import { Link } from 'react-router-dom';
 import { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -8,14 +7,15 @@ import { Label } from '@/components/ui/label';
 import { 
   Edit3, 
   Sparkles, 
-  LayoutGrid, 
-  Video, 
-  ImageIcon, 
   HelpCircle,
-  Check
+  Check,
+  Layers,
+  Images,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { ModeDifferencesModal } from './ModeDifferencesModal';
+import { AssistedFormatActions } from './ActionButtons';
+import { Link } from 'react-router-dom';
 
 interface ModeSelectorProps {
   onModeSelect: (mode: 'manual' | 'ia', skipNext?: boolean) => void;
@@ -35,14 +35,14 @@ export const ModeSelector = ({ onModeSelect, className }: ModeSelectorProps) => 
 
   return (
     <>
-      <div className={cn("space-y-6 animate-slide-up", className)}>
+      <div className={cn("space-y-5 animate-slide-up", className)}>
         {/* Header */}
-        <div className="text-center space-y-3 mb-8">
+        <div className="space-y-2 text-center">
           <h1 className="text-2xl sm:text-3xl font-bold text-foreground">
             Como prefere criar a sua publicação?
           </h1>
           <p className="text-sm sm:text-base text-muted-foreground max-w-2xl mx-auto">
-            Pode optar por controlo total (Manual) ou maior rapidez (Assistido por IA).
+            Escolha o ponto de partida. Pode rever e ajustar tudo antes de publicar.
           </p>
           <Button
             variant="ghost"
@@ -56,36 +56,36 @@ export const ModeSelector = ({ onModeSelect, className }: ModeSelectorProps) => 
         </div>
 
         {/* Mode Cards */}
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 max-w-6xl mx-auto">
+        <div className="mx-auto grid max-w-6xl grid-cols-1 gap-4 lg:grid-cols-[0.8fr_1.2fr]">
           {/* Manual Mode Card */}
-          <Card className="border-2 border-border hover:border-primary/50 hover:shadow-xl transition-all duration-300 cursor-pointer group">
+          <Card className="group border border-border shadow-sm transition-colors hover:border-primary/50">
             <CardHeader>
               <div className="flex items-start justify-between mb-2">
-                <div className="h-12 w-12 rounded-xl bg-primary/10 flex items-center justify-center group-hover:bg-primary/20 transition-colors">
+                <div className="flex h-11 w-11 items-center justify-center rounded-md bg-primary/10 transition-colors group-hover:bg-primary/20">
                   <Edit3 className="h-6 w-6 text-primary" />
                 </div>
                 <Badge variant="outline" className="font-semibold">
-                  Controlo Total
+                  Controlo total
                 </Badge>
               </div>
-              <CardTitle className="text-xl">Manual</CardTitle>
+              <CardTitle className="text-xl">Criar manualmente</CardTitle>
               <CardDescription className="text-sm">
-                Criar publicação passo a passo, com controlo total.
+                Prepare uma publicação diretamente para as redes sociais.
               </CardDescription>
             </CardHeader>
             <CardContent className="space-y-4">
               <ul className="space-y-2.5">
                 <li className="flex items-start gap-2 text-sm">
                   <Check className="h-4 w-4 text-primary mt-0.5 flex-shrink-0" />
-                  <span>Inserir texto, média e calendário manualmente</span>
+                  <span>Escolher redes, imagens, vídeo e legenda</span>
                 </li>
                 <li className="flex items-start gap-2 text-sm">
                   <Check className="h-4 w-4 text-primary mt-0.5 flex-shrink-0" />
-                  <span>Previews por rede e validações</span>
+                  <span>Pré-visualizar e validar cada formato</span>
                 </li>
                 <li className="flex items-start gap-2 text-sm">
                   <Check className="h-4 w-4 text-primary mt-0.5 flex-shrink-0" />
-                  <span>Guardar rascunhos e aprovar</span>
+                  <span>Guardar, agendar ou publicar</span>
                 </li>
               </ul>
               <Button 
@@ -93,48 +93,41 @@ export const ModeSelector = ({ onModeSelect, className }: ModeSelectorProps) => 
                 className="w-full h-12 font-semibold shadow-md hover:shadow-lg transition-all"
                 onClick={() => handleModeSelection('manual')}
               >
-                Começar em modo Manual
+                Criar manualmente
               </Button>
             </CardContent>
           </Card>
 
           {/* AI Mode Card */}
-          <Card className="border-2 border-border hover:border-accent/50 hover:shadow-xl transition-all duration-300 cursor-pointer group">
+          <Card className="group border border-primary/30 shadow-sm transition-colors hover:border-primary/60">
             <CardHeader>
               <div className="flex items-start justify-between mb-2">
-                <div className="h-12 w-12 rounded-xl bg-accent/10 flex items-center justify-center group-hover:bg-accent/20 transition-colors">
-                  <Sparkles className="h-6 w-6 text-accent" />
+                <div className="flex h-11 w-11 items-center justify-center rounded-md bg-primary/10 transition-colors group-hover:bg-primary/20">
+                  <Sparkles className="h-6 w-6 text-primary" />
                 </div>
                 <Badge variant="outline" className="font-semibold">
-                  Rápido
+                  Compositor visual
                 </Badge>
               </div>
-              <CardTitle className="text-xl">Assistido por IA</CardTitle>
+              <CardTitle className="text-xl">Criar com assistência de IA</CardTitle>
               <CardDescription className="text-sm">
-                Motor novo de carrosséis, integrado no Hub.
+                Transforme texto, ligação, PDF ou notícia num conteúdo visual editável.
               </CardDescription>
             </CardHeader>
             <CardContent className="space-y-4">
-              <ul className="space-y-2.5">
-                <li className="flex items-start gap-2 text-sm"><Check className="h-4 w-4 text-accent mt-0.5 flex-shrink-0" /><span>Carrossel a partir de texto, link ou PDF</span></li>
-                <li className="flex items-start gap-2 text-sm"><Check className="h-4 w-4 text-accent mt-0.5 flex-shrink-0" /><span>Revisão e exportação no Hub</span></li>
-              </ul>
-              <div className="space-y-2">
-                <Button asChild size="lg" className="w-full h-12 font-semibold">
-                  <Link to="/estudio/carrosseis/novo" onClick={() => handleModeSelection('ia')}><LayoutGrid className="h-5 w-5 mr-2" />Carrossel, post ou story</Link>
-                </Button>
-                <div className="grid grid-cols-2 gap-2">
-                  <Button asChild variant="outline" className="h-11 font-semibold"><Link to="/estudio/carrosseis">Meus carrosséis</Link></Button>
-                  <Button asChild variant="outline" className="h-11 font-semibold"><Link to="/estudio/redes-sociais">Da crónica</Link></Button>
+              <div className="space-y-3">
+                <AssistedFormatActions onChoose={() => handleModeSelection('ia')} />
+                <div className="flex flex-wrap gap-1">
+                  <Button asChild variant="ghost" size="sm"><Link to="/estudio/carrosseis"><Layers aria-hidden />Meus carrosséis</Link></Button>
+                  <Button asChild variant="ghost" size="sm"><Link to="/estudio/redes-sociais"><Images aria-hidden />Carrosséis da crónica</Link></Button>
                 </div>
-                <p className="text-sm text-muted-foreground"><Video className="inline h-4 w-4 mr-1" aria-hidden />Stories e <ImageIcon className="inline h-4 w-4 mx-1" aria-hidden />Post individual assistidos: 🚧 Em construção.</p>
               </div>
             </CardContent>
           </Card>
         </div>
 
         {/* Set as Default Option */}
-        <div className="flex items-center justify-center space-x-2 mt-6">
+        <div className="flex items-center justify-center space-x-2 pt-1">
           <Checkbox 
             id="default-mode" 
             checked={setAsDefault}
