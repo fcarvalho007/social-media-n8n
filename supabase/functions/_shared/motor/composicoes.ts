@@ -192,8 +192,8 @@ export function comporPagina(p: Pagina, id: ComposicaoId, conteudo: ConteudoEdit
     }
   }
   const fillNum = id === "assimetrica" && numX < 240 ? destaque : fundo;
-  const num = q.num ? { ...q.num, x: Math.round(numX), y: 1250, w: 200, h: q.num.h, estilo: { ...q.num.estilo, alinh: numAlinh, cor: q.fundoImagem ? q.num.estilo.cor : legivel(q.num.estilo.cor, fillNum, minimoContraste(q.num.estilo)) } } : undefined;
-  if (num && !q.fundoImagem) contrastes.push({ elemento: "número da página", razao: contraste(num.estilo.cor, fillNum), minimo: minimoContraste(q.num.estilo) });
+  const num = q.num ? { ...q.num, x: Math.round(numX), y: 1250, w: 200, h: q.num.h, estilo: { ...q.num!.estilo, alinh: numAlinh, cor: q.fundoImagem ? q.num!.estilo.cor : legivel(q.num!.estilo.cor, fillNum, minimoContraste(q.num!.estilo)) } } : undefined;
+  if (num && !q.fundoImagem) contrastes.push({ elemento: "número da página", razao: contraste(num.estilo.cor, fillNum), minimo: minimoContraste(q.num!.estilo) });
   const camadas: Camada[] = [...decor, ...imagens, ...q.outras, ...[t, b, num].filter((c): c is CamadaTexto => !!c)];
   const meta = COMPOSICOES.find((c) => c.id === id)!;
   void corCorpo;

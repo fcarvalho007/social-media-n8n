@@ -2,6 +2,7 @@
 """Walk the import graph of every edge function (static AND dynamic imports with literal specifiers)
 and fail on: unresolved relative imports, client aliases (@/...), paths escaping supabase/functions,
 and React/TanStack/client-only modules reachable from a function entrypoint."""
+from __future__ import annotations
 import re, sys
 from pathlib import Path
 

@@ -1,3 +1,5 @@
+interface FonteCurada { noticia_id: string; hash: string; titulo: string; url: string | null; texto: string; nivel: string; parcial: boolean }
+import { formatoConteudo, CONFIG_FORMATOS, type FormatoConteudo } from "../_shared/documento-grafico/formatos.ts";
 import { traduzirFonte } from "../_shared/motor/traducao.server.ts";
 import { normalizarBriefing } from "../_shared/motor/briefing.ts";
 import { normalizarLeitura, normalizarPerfil, OBJETIVO_LEITURA } from "../_shared/motor/autor.ts";
@@ -104,6 +106,18 @@ Deno.serve(async (req) => {
   if (acao === "criar") {
     const projectId = String(body.project_id ?? "");
     let texto = typeof body.texto === "string" ? body.texto : "";
+    let fonteCurada: FonteCurada | null = null;
+    if (body.fonte_tipo === "curadoria") {
+      if (!UUID.test(String(body.noticia_id)) || !UUID.test(projectId)) return json({ error: "Notícia inválida." }, 400);
+      const { data: pode } = await user.rpc("mc_pode_escrever", { _project_id: projectId });
+      if (!pode) return json({ error: "Sem acesso ao projeto." }, 403);
+      const { data: snap, error } = await user.rpc("nl_curadoria_snapshot", { _id: String(body.noticia_id) });
+      if (error) return json({ error: error.message }, error.code === "42501" ? 403 : 409);
+      fonteCurada = snap as unknown as FonteCurada;
+      if (!fonteCurada || fonteCurada.hash !== body.noticia_hash) return json({ error: "A notícia mudou. Escolhe-a novamente na Curadoria." }, 409);
+      texto = fonteCurada.texto;
+      if (body.traducao_id) return json({ error: "Para traduzir esta notícia, usa uma cópia na opção Texto. A fonte curada permanece no idioma original." }, 400);
+    }
     // PT-PT derived source: the server rebuilds the text from the stored valid translation (never trusts the client copy).
     let traducao: { id: string; hash_original: string; idioma_origem: string } | null = null;
     if (body.traducao_id != null) {
@@ -116,6 +130,8 @@ Deno.serve(async (req) => {
     const titulo = typeof body.titulo === "string" && body.titulo.trim() ? body.titulo.trim().slice(0, 300) : null;
     const objetivo = typeof body.objetivo === "string" ? body.objetivo.slice(0, 200) : "";
     const tom = typeof body.tom === "string" ? body.tom.slice(0, 80) : "";
+    let formato: FormatoConteudo;
+    try { formato = formatoConteudo(body.formato); } catch { return json({ error: "Formato inválido." }, 400); }
     const slides = Number(body.slides);
     const framework = body.framework == null ? null : obterFramework(body.framework);
     if (body.framework != null && !framework) return json({ error: "Estrutura desconhecida." }, 400);
@@ -125,16 +141,16 @@ Deno.serve(async (req) => {
     // The original was validated client-side; its PT-PT translation may be slightly longer.
     const av = avaliarFonte(fonte, { traducao: !!traducao });
     if (!av.ok) return json({ error: av.motivo }, 400);
-    if (!Number.isInteger(slides) || slides < 2 || slides > av.slidesMax) return json({ error: `Escolhe entre 2 e ${av.slidesMax} slides para este texto.` }, 400);
-    const tipoFonte = body.fonte_tipo === "link" ? "link" : body.fonte_tipo === "pdf" ? "pdf" : "texto";
+    if (!Number.isInteger(slides) || slides < CONFIG_FORMATOS[formato].min || slides > (formato === "carrossel" ? av.slidesMax : 1)) return json({ error: `Escolhe entre ${CONFIG_FORMATOS[formato].min} e ${formato === "carrossel" ? av.slidesMax : 1} páginas para este formato.` }, 400);
+    const tipoFonte = body.fonte_tipo === "curadoria" ? "curadoria" : body.fonte_tipo === "link" ? "link" : body.fonte_tipo === "pdf" ? "pdf" : "texto";
     let meta: MetaFonte | null = null;
-    if (tipoFonte !== "texto") {
+    if (tipoFonte !== "texto" && tipoFonte !== "curadoria") {
       if (modo === "demonstracao") return json({ error: "A demonstração só aceita texto." }, 400);
       try { meta = validarMetaFonte(body.metadados, tipoFonte, fonte.paragrafos.length); }
       catch (e) { return json({ error: (e as Error).message }, 400); }
     }
     const atrib = atribuicao(meta, titulo);
-    const origemUrl = meta?.tipo === "link" ? (meta.url_final ?? meta.url).slice(0, 2000) : null;
+    const origemUrl = fonteCurada?.url ?? (meta?.tipo === "link" ? (meta.url_final ?? meta.url).slice(0, 2000) : null);
     if (modo === "demonstracao" && !texto.startsWith(MARCADOR_FIXTURE)) return json({ error: "A demonstração só aceita a fixture sintética de testes." }, 400);
     if (framework && modo !== "ia") return json({ error: "As estruturas só funcionam com a IA." }, 400);
     if (modo === "ia") {
@@ -162,13 +178,16 @@ Deno.serve(async (req) => {
     const leitura = body.leitura === true || objetivo.startsWith(OBJETIVO_LEITURA);
     const comum = {
       _project_id: projectId, _texto: modo === "demonstracao" ? texto : fonte.texto,
-      _brief: { objetivo, tom, slides, ...(autor ? { autor, leitura, leitura_trabalho: leituraTrabalho, briefing: briefingEd } : {}), idioma_saida: "pt-PT", ...(traducao ? { traducao } : {}), titulo: titulo ?? (meta ? atrib.titulo?.slice(0, 300) ?? null : null), ...(framework ? { framework: framework.id, base_versao: Number.isInteger(Number(body.base_versao)) ? Number(body.base_versao) : null, origem_trabalho: UUID.test(String(body.origem_trabalho ?? "")) ? String(body.origem_trabalho) : null } : {}) }, _prompt_versao: framework ? `r12-${framework.id}-intencao-v1` : modo === "ia" ? "r12-deepseek-intencao-v1" : "r3-v1",
-      _modelo: modo === "demonstracao" ? MODELO_DEMO : modo === "ia" ? MODELO_IA : MODELO_ESTRUTURACAO, _parametros: { slides, ...(framework ? { framework: framework.id } : {}) }, _nova: body.nova === true || !!framework,
+      _brief: { objetivo, tom, slides, formato, ...(autor ? { autor, leitura, leitura_trabalho: leituraTrabalho, briefing: briefingEd } : {}), idioma_saida: "pt-PT", ...(traducao ? { traducao } : {}), titulo: titulo ?? fonteCurada?.titulo ?? (meta ? atrib.titulo?.slice(0, 300) ?? null : null), ...(framework ? { framework: framework.id, base_versao: Number.isInteger(Number(body.base_versao)) ? Number(body.base_versao) : null, origem_trabalho: UUID.test(String(body.origem_trabalho ?? "")) ? String(body.origem_trabalho) : null } : {}) }, _prompt_versao: framework ? `r12-${framework.id}-intencao-v1` : modo === "ia" ? "r12-deepseek-intencao-v1" : "r3-v1",
+      _modelo: modo === "demonstracao" ? MODELO_DEMO : modo === "ia" ? MODELO_IA : MODELO_ESTRUTURACAO, _parametros: { slides, formato, ...(framework ? { framework: framework.id } : {}) }, _nova: body.nova === true || !!framework,
     };
-    const { data, error } = meta
+    const { data, error } = fonteCurada
+      ? await user.rpc("mc_criar_trabalho_curadoria", { _project_id: projectId, _noticia_id: fonteCurada.noticia_id, _hash: fonteCurada.hash,
+          _brief: comum._brief, _prompt_versao: comum._prompt_versao, _modelo: comum._modelo, _parametros: comum._parametros, _nova: comum._nova })
+      : meta
       ? await user.rpc("mc_criar_trabalho_fonte", { ...comum, _tipo: tipoFonte, _titulo: atrib.titulo?.slice(0, 300) ?? null, _origem_url: origemUrl, _metadados: meta as unknown as Record<string, unknown> })
       : await user.rpc("mc_criar_trabalho", { ...comum, _tipo: "texto", _titulo: titulo, _origem_url: null });
-    if (error) return json({ error: error.code === "42501" ? "Sem acesso a este projeto." : "Não foi possível criar o trabalho." }, error.code === "42501" ? 403 : 500);
+    if (error) return json({ error: error.code === "42501" ? "Sem acesso a este projeto." : error.code === "MC409" ? "A fonte mudou ou deixou de estar aprovada. Escolhe a notícia novamente." : "Não foi possível criar o trabalho." }, error.code === "42501" ? 403 : error.code === "MC409" ? 409 : 500);
     const linha = (data as Array<{ trabalho_id: string; reutilizado: boolean }>)[0];
     emSegundoPlano(corridaWorker());
     return json({ ok: true, trabalho_id: linha.trabalho_id, reutilizado: linha.reutilizado });
@@ -205,7 +224,7 @@ Deno.serve(async (req) => {
       if (!o || o.max_chamadas_dia < 1) return json({ error: "A IA está desligada neste projeto. Define um limite diário em «Limites da IA»." }, 409);
     }
     const brief = {
-      objetivo: base.objetivo, tom: base.tom, slides: base.slides.length, titulo: (ob.titulo as string | null) ?? f.titulo,
+      formato: formatoConteudo(base.formato), objetivo: base.objetivo, tom: base.tom, slides: base.slides.length, titulo: (ob.titulo as string | null) ?? f.titulo,
       ...(ob.autor ? { autor: ob.autor, leitura: ob.leitura === true, leitura_trabalho: ob.leitura_trabalho ?? null, briefing: ob.briefing ?? null } : {}),
       idioma_saida: "pt-PT", ...(ob.traducao ? { traducao: ob.traducao } : {}),
       framework: null, base_versao: baseVersao, origem_trabalho: origemId,
@@ -216,7 +235,9 @@ Deno.serve(async (req) => {
       _modelo: demo ? MODELO_DEMO : MODELO_IA, _parametros: { slides: base.slides.length, regen: slideId, modo: modoR }, _nova: true,
     };
     // Same tipo/url as the origin source so the frozen source row (and its hash) is reused.
-    const { data, error } = f.tipo !== "texto"
+    const { data, error } = f.tipo === "curadoria"
+      ? await user.rpc("mc_criar_trabalho_derivado", { _origem: origemId, _brief: brief, _prompt_versao: comum._prompt_versao, _modelo: comum._modelo, _parametros: comum._parametros })
+      : f.tipo !== "texto"
       ? await user.rpc("mc_criar_trabalho_fonte", { ...comum, _tipo: f.tipo, _titulo: f.titulo, _origem_url: f.origem_url, _metadados: f.metadados })
       : await user.rpc("mc_criar_trabalho", { ...comum, _tipo: "texto", _titulo: f.titulo, _origem_url: f.origem_url });
     if (error) return json({ error: error.code === "42501" ? "Sem acesso a este projeto." : "Não foi possível pedir a regeneração." }, error.code === "42501" ? 403 : 500);
@@ -342,7 +363,7 @@ Deno.serve(async (req) => {
       if (!ok.has(id)) { falhas.push(id); continue; }
       try {
         const resolvidos = await resolverAssets(sb, projectId, [id]);
-        const asset = resolvidos[id] as Record<string, unknown> | undefined;
+        const asset = resolvidos[id];
         const animacao = animacaoPorCapa.get(id);
         if (asset && animacao) resolvidos[id] = { ...asset, animacao_id: animacao.id, duracao_ms: animacao.duracao_ms };
         Object.assign(assets, resolvidos);
@@ -467,10 +488,11 @@ Deno.serve(async (req) => {
     if (!existe) {
       const pngs = ficheiros.filter((f) => f.formato === "png").map((f) => f.url);
       const pdf = ficheiros.find((f) => f.formato === "pdf")?.url;
-      if (!pdf || pngs.length < 1 || pngs.length > 20) return json({ error: "A exportação desta versão não está completa." }, 409);
+      if (pngs.length < 1 || pngs.length > 20) return json({ error: "A exportação desta versão não está completa." }, 409);
       const { data: pr } = await sb.from("mc_propostas").select("trabalho_id").eq("id", doc.proposta_id).single();
       const { data: pv } = await sb.from("mc_propostas_versoes").select("conteudo").eq("proposta_id", doc.proposta_id).eq("versao", propostaVersao).single();
       if (!pr || !pv) return json({ error: "Proposta inexistente." }, 409);
+      if (formatoConteudo((pv.conteudo as unknown as PropostaEditorial).formato) === "carrossel" && !pdf) return json({ error: "Falta o PDF desta versão." }, 409);
       const linha = linhaRascunho({ id: res.draft_previsto, userId: u.user.id, projectId: res.project_id, proposta: pv.conteudo as unknown as PropostaEditorial,
         pngs, pdf, trabalhoId: pr.trabalho_id, documentoId: docId, variante: doc.variante as "A" | "B", versao, propostaVersao });
       const { error: ei } = await sb.from("posts_drafts").insert(linha);

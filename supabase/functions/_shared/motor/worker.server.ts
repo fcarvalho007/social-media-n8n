@@ -85,7 +85,7 @@ async function obterProposta(sb: SupabaseClient, t: Trabalho, texto: string, cit
       const r = regen
         ? await chamarGateway(t.modelo, promptSistemaSlide(regen.modo, t.brief.autor ? regrasAutor(normalizarPerfil(t.brief.autor), t.brief.leitura === true, t.brief.leitura_trabalho ? normalizarLeitura(t.brief.leitura_trabalho.angulo, t.brief.leitura_trabalho.especifica) : null) : null),
           [...(t.brief.briefing ? linhasBriefing(normalizarBriefing(t.brief.briefing)) : []), promptUtilizadorSlide(fonte.paragrafos, regen, erroAnterior)].join("\n"))
-        : await chamarGateway(t.modelo, promptSistema(t.brief.framework, t.brief.autor ?? null, t.brief.leitura === true, t.brief.leitura_trabalho ?? null), promptUtilizador(fonte.paragrafos, { slides: t.brief.slides ?? 5, objetivo: t.brief.objetivo, tom: t.brief.tom, titulo: citacao.titulo, briefing: t.brief.briefing ?? null }, erroAnterior));
+        : await chamarGateway(t.modelo, promptSistema(t.brief.framework, t.brief.autor ?? null, t.brief.leitura === true, t.brief.leitura_trabalho ?? null, t.brief.formato), promptUtilizador(fonte.paragrafos, { slides: t.brief.slides ?? 5, formato: t.brief.formato, objetivo: t.brief.objetivo, tom: t.brief.tom, titulo: citacao.titulo, briefing: t.brief.briefing ?? null }, erroAnterior));
       if (r.tipo === "recusado") {
         await rpc(sb, "mc_registar_chamada", { _chamada_id: id, _estado: "recusada", _custo_incerto: false, _erro: `${r.classe} HTTP ${r.status}` });
         throw Object.assign(new Error(MENSAGEM_RECUSA[r.classe]), { terminal: true });
@@ -103,7 +103,7 @@ async function obterProposta(sb: SupabaseClient, t: Trabalho, texto: string, cit
   if (ch.estado === "resposta_recebida") {
     try {
       if (regen) validarRespostaSlide(ch.resposta_bruta ?? "", fonte, regen);
-      else validarRespostaModelo(ch.resposta_bruta ?? "", fonte, t.modelo === MODELO_DEMO ? undefined : t.brief.slides);
+      else validarRespostaModelo(ch.resposta_bruta ?? "", fonte, t.modelo === MODELO_DEMO ? undefined : t.brief.slides, t.brief.formato);
       await rpc(sb, "mc_registar_chamada", { _chamada_id: ch.id, _estado: "valida", _custo_incerto: t.modelo !== MODELO_DEMO });
       ch.estado = "valida";
     } catch (e) {
@@ -128,7 +128,7 @@ async function obterProposta(sb: SupabaseClient, t: Trabalho, texto: string, cit
     await rpc(sb, "mc_gravar_proposta_servidor", { _trabalho_id: t.id, _lease: t.lease_token, _conteudo: propostaComSlide(regen, rs, demo ? "demonstracao" : "ia"), _origem: demo ? "demonstracao" : "ia", _chamada_id: ch.id });
     return;
   }
-  const r = validarRespostaModelo(ch.resposta_bruta ?? "", fonte, demo ? undefined : t.brief.slides);
+  const r = validarRespostaModelo(ch.resposta_bruta ?? "", fonte, demo ? undefined : t.brief.slides, t.brief.formato);
   const base = estruturarSemIa(fonte, t.brief, citacao, marca);
   const p: PropostaEditorial = {
     ...base, metodo: demo ? "demonstracao" : "ia", demonstracao: demo, titulo: r.titulo, slides: r.slides, legenda: r.legenda,

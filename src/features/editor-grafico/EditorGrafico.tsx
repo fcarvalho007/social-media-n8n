@@ -569,6 +569,7 @@ export function EditorGrafico({ pacoteInicial, chaveLocal, titulo, seletor, real
     return () => ro.disconnect();
   }, [compacto, preview, painelAberto]);
 
+  const { largura: LARGURA, altura: ALTURA } = pacote.variantes[variante];
   const escalaAjuste = Math.max(ZOOM_MIN, Math.min((area.w - 32) / LARGURA, (area.h - 32) / ALTURA));
   const escala = zoom === "ajustar" ? escalaAjuste : zoom;
   const definirZoom = useCallback((f: (z: number) => number) => setZoom((z) => Math.min(ZOOM_MAX, Math.max(ZOOM_MIN, Math.round(f(z === "ajustar" ? escalaAjuste : z) * 100) / 100))), [escalaAjuste]);
@@ -740,15 +741,15 @@ export function EditorGrafico({ pacoteInicial, chaveLocal, titulo, seletor, real
         <li className="shrink-0 self-center">
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
-              <Button variant="outline" size="sm" className={horizontal ? "h-11 flex-col gap-0.5 px-3 lg:h-auto lg:py-3" : "h-11 w-full"} disabled={paginas.length >= 20} title={paginas.length >= 20 ? "Máximo de 20 slides" : "Acrescentar um slide a seguir ao atual"}>
+              <Button variant="outline" size="sm" className={horizontal ? "h-11 flex-col gap-0.5 px-3 lg:h-auto lg:py-3" : "h-11 w-full"} disabled={paginas.length >= 20 || (pacote.variantes[variante].formato ?? "carrossel") !== "carrossel"} title={paginas.length >= 20 ? "Máximo de 20 slides" : "Acrescentar um slide a seguir ao atual"}>
                 <Plus className="h-4 w-4" /><span className="text-xs">Novo slide</span>
               </Button>
             </DropdownMenuTrigger>
             <DropdownMenuContent align="end">
-              <DropdownMenuItem onSelect={() => { despachar({ tipo: "inserirPagina", indice: pagina, modelo: "texto" }); comDesfazer("Slide de texto acrescentado."); }}>Texto (título e texto, no estilo atual)</DropdownMenuItem>
-              <DropdownMenuItem onSelect={() => { despachar({ tipo: "inserirPagina", indice: pagina, modelo: "branco" }); comDesfazer("Slide em branco acrescentado."); }}>Em branco (só o fundo)</DropdownMenuItem>
+              <DropdownMenuItem disabled={(pacote.variantes[variante].formato ?? "carrossel") !== "carrossel"} onSelect={() => { despachar({ tipo: "inserirPagina", indice: pagina, modelo: "texto" }); comDesfazer("Slide de texto acrescentado."); }}>Texto (título e texto, no estilo atual)</DropdownMenuItem>
+              <DropdownMenuItem disabled={(pacote.variantes[variante].formato ?? "carrossel") !== "carrossel"} onSelect={() => { despachar({ tipo: "inserirPagina", indice: pagina, modelo: "branco" }); comDesfazer("Slide em branco acrescentado."); }}>Em branco (só o fundo)</DropdownMenuItem>
               <DropdownMenuSeparator />
-              <DropdownMenuItem onSelect={() => { despachar({ tipo: "duplicarPagina", indice: pagina }); comDesfazer("Slide duplicado."); }}>Duplicar o atual</DropdownMenuItem>
+              <DropdownMenuItem disabled={(pacote.variantes[variante].formato ?? "carrossel") !== "carrossel"} onSelect={() => { despachar({ tipo: "duplicarPagina", indice: pagina }); comDesfazer("Slide duplicado."); }}>Duplicar o atual</DropdownMenuItem>
             </DropdownMenuContent>
           </DropdownMenu>
         </li>
@@ -762,7 +763,7 @@ export function EditorGrafico({ pacoteInicial, chaveLocal, titulo, seletor, real
     <div className="space-y-1">
     <p className="text-sm font-medium" aria-live="polite">Página {pagina + 1} de {paginas.length}</p>
     <div className="grid grid-cols-4 gap-1">
-      <Button variant="ghost" size="icon" className="h-11 w-full lg:h-8" aria-label="Duplicar página" title="Duplicar página" disabled={paginas.length >= 20} onClick={() => despachar({ tipo: "duplicarPagina", indice: pagina })}><Copy className="h-4 w-4" /></Button>
+      <Button variant="ghost" size="icon" className="h-11 w-full lg:h-8" aria-label="Duplicar página" title="Duplicar página" disabled={paginas.length >= 20 || (pacote.variantes[variante].formato ?? "carrossel") !== "carrossel"} onClick={() => despachar({ tipo: "duplicarPagina", indice: pagina })}><Copy className="h-4 w-4" /></Button>
       <Button variant="ghost" size="icon" className="h-11 w-full lg:h-8" aria-label="Mover página para cima" title="Mover para cima" disabled={pagina === 0} onClick={() => despachar({ tipo: "moverPagina", de: pagina, para: pagina - 1 })}><ArrowUp className="h-4 w-4" /></Button>
       <Button variant="ghost" size="icon" className="h-11 w-full lg:h-8" aria-label="Mover página para baixo" title="Mover para baixo" disabled={pagina === paginas.length - 1} onClick={() => despachar({ tipo: "moverPagina", de: pagina, para: pagina + 1 })}><ArrowDown className="h-4 w-4" /></Button>
       <Button variant="ghost" size="icon" className="h-11 w-full lg:h-8 text-destructive hover:text-destructive" aria-label="Apagar página" title="Apagar página" disabled={paginas.length <= 1} onClick={() => despachar({ tipo: "apagarPagina", indice: pagina })}><Trash2 className="h-4 w-4" /></Button>
@@ -800,7 +801,7 @@ export function EditorGrafico({ pacoteInicial, chaveLocal, titulo, seletor, real
       onDragLeave={(e) => { if (e.currentTarget === e.target) setALargar(false); }}
       onDrop={largar}>
       <div className="flex min-h-full min-w-full items-center justify-center p-4" style={{ width: LARGURA * escala + 32, height: ALTURA * escala + 32 }}>
-        <div ref={paginaRef} className="relative shadow-lg ring-1 ring-border" aria-label={`Página ${pagina + 1} de ${paginas.length}, variante ${variante}, 1080 por 1350`} role="img">
+        <div ref={paginaRef} className="relative shadow-lg ring-1 ring-border" aria-label={`Página ${pagina + 1} de ${paginas.length}, variante ${variante}, ${LARGURA} por ${ALTURA}`} role="img">
           {medidor ? (
             <PaginaCanvas pacote={pacote} variante={variante} indice={pagina} medidor={medidor} imagens={imagens} escala={escala}
               interativo={!preview && !rascunho} selecao={preview || rascunho ? null : selecao} toque={compacto} corSelecao={corSelecao} encaixe={encaixe}
@@ -900,7 +901,7 @@ export function EditorGrafico({ pacoteInicial, chaveLocal, titulo, seletor, real
         {camada.tipo === "imagem" && <Button variant="outline" size="sm" className="h-11 shrink-0 lg:h-9" onClick={() => abrirSubstituicao(camada.id)}><ScanSearch className="mr-1.5 h-4 w-4" />Substituir imagem</Button>}
         <DropdownMenu>
           <DropdownMenuTrigger asChild><Button variant="ghost" size="sm" className="h-11 shrink-0 lg:h-9" aria-label="Alinhar na página"><AlignCenterVertical className="mr-1 h-4 w-4" />Alinhar</Button></DropdownMenuTrigger>
-          <DropdownMenuContent>{ALINHAR.map(({ a, n, I }) => <DropdownMenuItem key={a} onSelect={() => alterarSel(alinharNaPagina(camada, a))}><I className="mr-2 h-4 w-4" />{n}</DropdownMenuItem>)}</DropdownMenuContent>
+          <DropdownMenuContent>{ALINHAR.map(({ a, n, I }) => <DropdownMenuItem key={a} onSelect={() => alterarSel(alinharNaPagina(camada, a, pacote.variantes[variante]))}><I className="mr-2 h-4 w-4" />{n}</DropdownMenuItem>)}</DropdownMenuContent>
         </DropdownMenu>
         <DropdownMenu>
           <DropdownMenuTrigger asChild><Button variant="ghost" size="sm" className="h-11 shrink-0 lg:h-9" aria-label="Ordem das camadas"><Layers className="mr-1 h-4 w-4" />Ordem</Button></DropdownMenuTrigger>

@@ -696,10 +696,14 @@ export async function enviarEdicao(edicaoId: string, snapshot: unknown) {
 /* ─── Notícias ─── */
 
 export async function listarPendentes(): Promise<Pendente[]> {
-  const { data, error } = await supabase
+  // New columns are added by migration 0039; the Cloud catalog is regenerated on deployment.
+  const db = supabase as unknown as import("@supabase/supabase-js").SupabaseClient;
+  const { data, error } = await db
     .from("nl_noticias")
     .select("*, fonte:nl_fontes_curadoria(nome), repeticao:repeticao_de(titulo, edicao:nl_edicoes(numero))")
     .eq("estado", "pendente")
+    .filter("editorial_estado", "eq", "pendente")
+    .filter("curadoria_origem_id", "is", null)
     .order("created_at", { ascending: false });
   if (error) throw error;
   return (data ?? []) as unknown as Pendente[];

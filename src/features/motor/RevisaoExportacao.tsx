@@ -142,6 +142,8 @@ export function RevisaoExportacao({ dados, pacote, medidor, guardado, irPara }: 
     : `A começar · ${total} slides · cerca de ${restante} s`;
 
   // Personal downloads: rendered in this browser from the same core (no server, nothing stored).
+  const dimensoes = pacote.variantes[variante];
+  const multipagina = (dimensoes.formato ?? "carrossel") === "carrossel";
   const descarregarLocal = async (tipo: "png" | "pdf") => {
     if (!medidor) return;
     setADescarregar(tipo);
@@ -151,13 +153,15 @@ export function RevisaoExportacao({ dados, pacote, medidor, guardado, irPara }: 
       const base = (dados.proposta.conteudo?.titulo || "carrossel").normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "").slice(0, 50) || "carrossel";
       let blob: Blob, nome: string;
       if (tipo === "png") {
+        if (!multipagina) { blob = await (await fetch(urls[0])).blob(); nome = `${base}.png`; } else {
         const z = new JSZip();
         urls.forEach((u, i) => z.file(`slide-${String(i + 1).padStart(2, "0")}.png`, u.split(",")[1], { base64: true }));
         blob = await z.generateAsync({ type: "blob" }); nome = `${base}-png.zip`;
+        }
       } else {
         const { jsPDF } = await import("jspdf");
-        const pdf = new jsPDF({ unit: "px", format: [1080, 1350], orientation: "portrait", compress: true, hotfixes: ["px_scaling"] });
-        urls.forEach((u, i) => { if (i) pdf.addPage([1080, 1350], "portrait"); pdf.addImage(u, "PNG", 0, 0, 1080, 1350); });
+        const pdf = new jsPDF({ unit: "px", format: [dimensoes.largura, dimensoes.altura], orientation: "portrait", compress: true, hotfixes: ["px_scaling"] });
+        urls.forEach((u, i) => { if (i) pdf.addPage([dimensoes.largura, dimensoes.altura], "portrait"); pdf.addImage(u, "PNG", 0, 0, dimensoes.largura, dimensoes.altura); });
         blob = pdf.output("blob"); nome = `${base}.pdf`;
       }
       const a = document.createElement("a");
@@ -178,8 +182,8 @@ export function RevisaoExportacao({ dados, pacote, medidor, guardado, irPara }: 
             {medidor ? (
               // The box takes its width from the container (aspect 4:5); the canvas is absolute so it
               // never feeds back into the measured width. Scale is derived from that real width.
-              <div ref={palcoRef} className="relative aspect-[4/5] w-full min-w-0 max-w-[420px] overflow-hidden rounded-[var(--mc-r-sm)]">
-                {palcoW > 0 && <div className="absolute left-0 top-0"><PaginaCanvas pacote={pacote} variante={variante} indice={iPag} medidor={medidor} imagens={imagens} escala={medidasPalco(palcoW).escala} /></div>}
+              <div ref={palcoRef} className="relative w-full min-w-0 max-w-[420px] overflow-hidden rounded-[var(--mc-r-sm)]" style={{ aspectRatio: `${dimensoes.largura}/${dimensoes.altura}` }}>
+                {palcoW > 0 && <div className="absolute left-0 top-0"><PaginaCanvas pacote={pacote} variante={variante} indice={iPag} medidor={medidor} imagens={imagens} escala={medidasPalco(palcoW, dimensoes).escala} /></div>}
               </div>
             ) : <p className="py-24 text-sm text-muted-foreground">A carregar fontes…</p>}
           </div>
@@ -242,9 +246,9 @@ export function RevisaoExportacao({ dados, pacote, medidor, guardado, irPara }: 
                 <Button variant="outline" className="h-11" disabled={!medidor || !!aDescarregar} onClick={() => void descarregarLocal("png")}>
                   {aDescarregar === "png" ? <Loader2 className="mr-1.5 h-4 w-4 motion-safe:animate-spin" /> : <FileDown className="mr-1.5 h-4 w-4" />}Descarregar PNG
                 </Button>
-                <Button variant="outline" className="h-11" disabled={!medidor || !!aDescarregar} onClick={() => void descarregarLocal("pdf")}>
+                {multipagina && <Button variant="outline" className="h-11" disabled={!medidor || !!aDescarregar} onClick={() => void descarregarLocal("pdf")}>
                   {aDescarregar === "pdf" ? <Loader2 className="mr-1.5 h-4 w-4 motion-safe:animate-spin" /> : <FileDown className="mr-1.5 h-4 w-4" />}Descarregar PDF
-                </Button>
+                </Button>}
               </div>
             )}
             {notas.length > 0 && <p className="text-xs text-muted-foreground" role="note">Nota: {notas.length === 1 ? "uma nota manual tem" : `${notas.length} notas manuais têm`} pouco contraste (página {[...new Set(notas.map((n) => n.pagina + 1))].join(", ")}).</p>}
@@ -255,7 +259,7 @@ export function RevisaoExportacao({ dados, pacote, medidor, guardado, irPara }: 
             {draftAtual ? (
               <div className="space-y-2">
                 <p className="text-sm" role="status">Rascunho preparado. Nada foi publicado.</p>
-                <p className="text-xs text-muted-foreground">O Instagram recebe as imagens PNG; o LinkedIn recebe o PDF. Escolhe no Painel social quando publicar.</p>
+                <p className="text-xs text-muted-foreground">{dimensoes.formato === "story" ? "Story estático para Instagram em 9:16." : multipagina ? "O Instagram recebe as imagens PNG; o LinkedIn recebe o PDF." : "Uma imagem PNG para Instagram e LinkedIn."} Escolhe no Painel social quando publicar.</p>
                 <Button asChild className="h-11"><Link to={`/manual-create?draft=${draftAtual}`}><ExternalLink className="mr-1.5 h-4 w-4" />Continuar na criação social</Link></Button>
               </div>
             ) : (
@@ -276,7 +280,7 @@ export function RevisaoExportacao({ dados, pacote, medidor, guardado, irPara }: 
                 {!guardado && <p className="text-xs text-muted-foreground" role="note">À espera que a última alteração fique guardada.</p>}
                 <Button className="h-11 w-full" disabled={!revisto || naoCabe.length > 0 || !guardado || aEnviar || marcador.length > 0} onClick={() => void enviar()}>
                   {aEnviar ? <Loader2 className="mr-1.5 h-4 w-4 motion-safe:animate-spin" /> : <Send className="mr-1.5 h-4 w-4" />}
-                  {aEnviar ? "A preparar…" : "Aprovar e enviar para redes sociais"}
+                  {aEnviar ? "A preparar…" : "Aprovar e preparar rascunho social"}
                 </Button>
                 {aEnviar && (
                   <div className="space-y-1.5" role="status" aria-live="polite">
@@ -290,7 +294,7 @@ export function RevisaoExportacao({ dados, pacote, medidor, guardado, irPara }: 
                     <Button variant="outline" className="h-11" onClick={() => { setParado(false); setEnviarAoTerminar(true); void exportar(); }}><RotateCw className="mr-1.5 h-4 w-4" />Tentar novamente</Button>
                   </div>
                 )}
-                {!aEnviar && <p className="text-xs text-muted-foreground">Prepara as imagens e o PDF no servidor e abre a criação social com a legenda. Nada é publicado sem a tua decisão.</p>}
+                {!aEnviar && <p className="text-xs text-muted-foreground">{multipagina ? "Prepara as imagens e o PDF" : "Prepara a imagem"} no servidor e abre a criação social com a legenda. Nada é publicado sem a tua decisão.</p>}
               </>
             )}
             {anteriores.length > 0 && (

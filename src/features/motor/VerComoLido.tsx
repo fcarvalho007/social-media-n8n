@@ -30,6 +30,8 @@ interface Props {
 
 /** Read-only preview modes. Overlays are HTML on top of the canvas: never layers, never exported. */
 export function VerComoLido({ pacote, variante, indice, medidor, imagens, alt, onPagina }: Props) {
+  const { largura: PAG_W, altura: PAG_H, formato: formatoDoc } = pacote.variantes[variante];
+  const story = formatoDoc === "story";
   const [modo, setModo] = useState<Modo>("telemovel");
   const [formato, setFormato] = useState<Formato>("4:5");
   const [guias, setGuias] = useState(false);
@@ -47,7 +49,7 @@ export function VerComoLido({ pacote, variante, indice, medidor, imagens, alt, o
       <summary className="flex min-h-11 cursor-pointer items-center font-medium">Ver como será lido</summary>
       <div className="mt-2 space-y-3">
         <div role="tablist" aria-label="Modo de leitura" className="flex flex-wrap gap-2">
-          {MODOS.map((m) => (
+          {MODOS.filter((m) => !story || m.id !== "enquadramento").map((m) => (
             <button key={m.id} type="button" role="tab" aria-selected={modo === m.id} onClick={() => setModo(m.id)}
               className={cn("mc-trans min-h-11 rounded-[var(--mc-r-md)] border px-3 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring", modo === m.id ? "border-primary bg-primary/10" : "border-input")}>{m.nome}</button>
           ))}
@@ -86,7 +88,7 @@ export function VerComoLido({ pacote, variante, indice, medidor, imagens, alt, o
             )}
             <div className="flex items-center gap-2">
               <Checkbox id="vcl-guias" checked={guias} onCheckedChange={(v) => setGuias(v === true)} />
-              <Label htmlFor="vcl-guias" className="text-xs">Mostrar área do texto e recuos (só nesta pré-visualização)</Label>
+              <Label htmlFor="vcl-guias" className="text-xs">Mostrar área do texto, recuos e guias (só nesta pré-visualização)</Label>
             </div>
             <div className="relative mx-auto overflow-hidden rounded-[var(--mc-r-sm)]" style={{ width: W, height: Math.round(PAG_H * e) }} data-testid="vcl-palco">
               <PaginaCanvas pacote={pacote} variante={variante} indice={indice} medidor={medidor} imagens={imagens} escala={e} />
@@ -94,12 +96,13 @@ export function VerComoLido({ pacote, variante, indice, medidor, imagens, alt, o
                 <div aria-hidden className="pointer-events-none absolute" data-testid="vcl-recorte"
                   style={{ left: pct(rec.x, PAG_W), top: pct(rec.y, PAG_H), width: pct(rec.w, PAG_W), height: pct(rec.h, PAG_H), boxShadow: "0 0 0 9999px hsl(var(--foreground) / 0.55)", outline: "2px solid hsl(var(--primary))" }} />
               )}
+              {guias && story && <div aria-hidden className="pointer-events-none absolute inset-x-[7.4%] top-[13%] bottom-[13%] border border-dashed border-primary" />}
               {guias && caixa && (
                 <div aria-hidden className="pointer-events-none absolute border-2 border-dashed border-primary" data-testid="vcl-guia"
                   style={{ left: pct(caixa.x, PAG_W), top: pct(caixa.y, PAG_H), width: pct(caixa.w, PAG_W), height: pct(caixa.h, PAG_H) }} />
               )}
             </div>
-            {guias && caixa && (() => { const r = recuos(caixa); return <p className="text-center text-xs tabular-nums text-muted-foreground">Recuos do texto (px na página 1080×1350): topo {r.topo} · direita {r.dir} · base {r.base} · esquerda {r.esq}</p>; })()}
+            {guias && caixa && (() => { const r = recuos(caixa, { largura: PAG_W, altura: PAG_H }); return <p className="text-center text-xs tabular-nums text-muted-foreground">Recuos do texto (px na página {PAG_W}×{PAG_H}): topo {r.topo} · direita {r.dir} · base {r.base} · esquerda {r.esq}</p>; })()}
             <p className="text-center text-xs text-muted-foreground">Página {indice + 1}. Nada aqui é gravado nem entra nos ficheiros.</p>
           </div>
         )}

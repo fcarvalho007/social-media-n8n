@@ -88,6 +88,7 @@ function no(c: Camada, p: PacoteProva, imgs: Record<string, HTMLImageElement>, m
 
 /** Browser render of one page to a PNG data URL at 1080×1350. */
 export async function renderizarPaginaPng(p: PacoteProva, v: Variante, indice: number, m: Medidor): Promise<string> {
+  const { largura: LARGURA, altura: ALTURA } = p.variantes[v];
   const pagina = p.variantes[v].paginas[indice];
   const imgs = await carregarImagens(p);
   const host = document.createElement("div");

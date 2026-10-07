@@ -43,7 +43,7 @@ export function MediaUploadSection({
   }, []);
 
   const hasOnlyVideoFormats = selectedFormats.length > 0 && selectedFormats.every(format =>
-    ['instagram_reel', 'instagram_stories', 'youtube_shorts', 'youtube_video', 'tiktok_video'].includes(format)
+    ['instagram_reel', 'youtube_shorts', 'youtube_video', 'tiktok_video'].includes(format)
   );
 
   const isTouchDevice = typeof window !== 'undefined' && window.matchMedia('(pointer: coarse)').matches;

@@ -1,3 +1,4 @@
+import Curadoria from "@/pages/Curadoria";
 import { Toaster } from "@/components/ui/toaster";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
@@ -128,6 +129,7 @@ const App = () => (
                   <Route path="/estudio/carrosseis/:id" element={<Suspense fallback={<p className="p-4 text-sm text-muted-foreground">A carregar…</p>}><CarrosselTrabalho /></Suspense>} />
                   <Route path="/estudio/editor-prova" element={<Suspense fallback={<p className="p-4 text-sm text-muted-foreground">A carregar o editor…</p>}><EditorProva /></Suspense>} />
                   <Route path="/newsletter/*" element={<FronteiraProjetoNewsletter><Suspense fallback={<p className="p-4 text-sm text-muted-foreground">A carregar a newsletter…</p>}><NewsletterApp /></Suspense></FronteiraProjetoNewsletter>} />
+                  <Route path="/curadoria" element={<Curadoria />} />
                   <Route path="/artigos" element={<Artigos />} />
                   <Route path="/definicoes/seguranca" element={<SegurancaConta />} />
                   <Route path="/estudio/migracao" element={<Navigate to="/newsletter/migracao" replace />} />

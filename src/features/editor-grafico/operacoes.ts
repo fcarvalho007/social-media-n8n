@@ -54,7 +54,8 @@ export function fundoATodos(p: PacoteProva, v: Variante, cor: string): PacotePro
 
 export type Alinhar = "esq" | "centroH" | "dir" | "topo" | "centroV" | "base";
 /** Align a layer to the page (canonical 1080×1350). */
-export function alinharNaPagina(c: Camada, a: Alinhar): Partial<Camada> {
+export function alinharNaPagina(c: Camada, a: Alinhar, dimensoes = { largura: LARGURA, altura: ALTURA }): Partial<Camada> {
+  const { largura: LARGURA, altura: ALTURA } = dimensoes;
   switch (a) {
     case "esq": return { x: 0 };
     case "centroH": return { x: Math.round((LARGURA - c.w) / 2) };
@@ -70,7 +71,8 @@ export const LIMIAR_SNAP = 10;
  * Snap a dragged box to page edges/centre and to other layers' edges/centres (doc units).
  * Returns the snapped position and the guide lines to draw.
  */
-export function encaixar(x: number, y: number, w: number, h: number, outras: Camada[], limiar = LIMIAR_SNAP): { x: number; y: number; guiasX: number[]; guiasY: number[] } {
+export function encaixar(x: number, y: number, w: number, h: number, outras: Camada[], limiar = LIMIAR_SNAP, dimensoes = { largura: LARGURA, altura: ALTURA }): { x: number; y: number; guiasX: number[]; guiasY: number[] } {
+  const { largura: LARGURA, altura: ALTURA } = dimensoes;
   const alvosX = [0, LARGURA / 2, LARGURA, ...outras.flatMap((o) => [o.x, o.x + o.w / 2, o.x + o.w])];
   const alvosY = [0, ALTURA / 2, ALTURA, ...outras.flatMap((o) => [o.y, o.y + o.h / 2, o.y + o.h])];
   const melhor = (pos: number, tam: number, alvos: number[]) => {
@@ -111,7 +113,7 @@ export function enquadrarTextos(p: PacoteProva, m: Medidor): { pacote: PacotePro
         const precisa = Math.ceil(livre.linhas.length * livre.alturaLinha + 8);
         // Next text block below this one (same column) limits the growth.
         const abaixo = pg.camadas.filter((o) => o.id !== c.id && o.tipo === "texto" && o.y >= c.y + c.h - 1 && o.x < c.x + c.w && o.x + o.w > c.x).map((o) => o.y - 16);
-        const limite = Math.min(ALTURA - 60, ...abaixo) - c.y;
+        const limite = Math.min(p.variantes[v].altura - 60, ...abaixo) - c.y;
         if (precisa > limite || precisa <= c.h) return c;
         if (layoutTexto(t, est, c.w, precisa, m).cortado) return c;
         mudou = true; ajustadas++;

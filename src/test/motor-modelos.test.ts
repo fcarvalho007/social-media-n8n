@@ -111,7 +111,7 @@ describe("seis modelos de composição", () => {
       "/fontes/WorkSans-Regular.ttf", "/fontes/WorkSans-Bold.ttf",
       ...Object.values(FICHEIROS_EXTRA).flatMap((x) => Object.values(x ?? {}) as string[]),
     ].map((f) => new Uint8Array(readFileSync(`public${f}`)));
-    const dir = "/mnt/documents/qa-modelos";
+    const dir = "/tmp/hub-qa-modelos";
     mkdirSync(dir, { recursive: true });
     for (const longo of [false, true]) for (const e of ESTILOS) {
       const r = aplicarModelo(pacote(longo), e.id, e.paleta, e.par, ["A"], m);

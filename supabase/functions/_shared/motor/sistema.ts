@@ -208,7 +208,7 @@ export function aplicarSistema(pacote: PacoteProva, s: SistemaVisual, m?: Medido
       const sl = pacote.conteudo.slides.find((x) => x.id === sid);
       const papel = (papeis.includes(pg.papel ?? "") ? pg.papel : comp?.papel ?? (sl ? inferirPapel(sl, i, total) : undefined)) as PapelVisual | undefined;
       const fixar = (r0: Pagina): Pagina => {
-        const r = aplicarEfeitos(r0, s.estilo, paleta, (comp as { efeitos?: OverrideEfeitos } | undefined)?.efeitos);
+        const r = aplicarEfeitos(r0, s.estilo, paleta, (comp as { efeitos?: OverrideEfeitos } | undefined)?.efeitos, doc.altura);
         let camadas = r.camadas;
         if (manter) {
           // Restore what the user adjusted by hand (same id), re-adding it if the style dropped it.
@@ -218,16 +218,16 @@ export function aplicarSistema(pacote: PacoteProva, s: SistemaVisual, m?: Medido
         } else camadas = camadas.map((c) => (c.manual ? (({ manual: _m, ...x }) => x as Camada)(c) : c));
         return { ...r, camadas, ...(papel ? { papel } : {}), ...(comp && Object.keys(comp).length ? { composicao: { ...comp } as Record<string, unknown> } : {}) };
       };
-      const ctx = { indice: i, total, paleta, par: estilo.par, conteudo: pacote.conteudo, assets: pacote.assets, m, adotarLivres: !!op.adotarLivres };
+      const ctx = { altura: doc.altura, unica: (doc.formato ?? "carrossel") !== "carrossel", indice: i, total, paleta, par: estilo.par, conteudo: pacote.conteudo, assets: pacote.assets, m, adotarLivres: !!op.adotarLivres };
       const forte = i > 0 && !!s.quebras[String(i + 1)];
       let r = comporModelo(pg, s.estilo, { ...ctx, forte });
       if (forte && r && !r.cabe) { quebrasRecusadas.push({ variante: v, pagina: i }); r = comporModelo(pg, s.estilo, ctx); }
       if (!r) return fixar(pg);
       if (!r.cabe) { recusadas.push({ variante: v, pagina: i }); return fixar(pg); }
       marcador ||= r.marcador;
-      const base = v === "B" ? composicaoB(r.pagina, pacote.conteudo, m, s.estilo) : r.pagina;
+      const base = v === "B" && (doc.formato ?? "carrossel") === "carrossel" ? composicaoB(r.pagina, pacote.conteudo, m, s.estilo) : r.pagina;
       if (s.imagens === "manual" && !(comp && Object.keys(comp).length)) return fixar(base);
-      const ri = comporImagem(base, { indice: i, total, estilo: s.estilo, variante: v, paleta, conteudo: pacote.conteudo, m, comp, assets: pacote.assets, papel });
+      const ri = comporImagem(base, { indice: i, total, estilo: s.estilo, variante: v, paleta, conteudo: pacote.conteudo, m, comp, assets: pacote.assets, papel, altura: doc.altura });
       if (!ri) return fixar(base);
       decisoes[`${v}:${i}`] = ri.decisao;
       if (!ri.cabe) imagemRecusadas.push({ variante: v, pagina: i });

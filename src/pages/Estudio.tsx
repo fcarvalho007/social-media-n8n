@@ -16,8 +16,9 @@ const dataPt = (s: string) => new Date(s).toLocaleDateString("pt-PT", { timeZone
 
 interface Acao { titulo: string; desc: string; icon: typeof Mail; url: string }
 const PRODUCAO: Acao[] = [
+  { titulo: "Curadoria", desc: "Uma seleção para todos os formatos", icon: FileText, url: "/curadoria" },
   { titulo: "Criar SM", desc: "Manual ou assistido por IA", icon: PlusCircle, url: "/pending?tab=create" },
-  { titulo: "Meus carrosséis", desc: "Por publicar e publicados", icon: GalleryHorizontal, url: "/estudio/carrosseis" },
+  { titulo: "Conteúdos visuais", desc: "Por publicar e publicados", icon: GalleryHorizontal, url: "/estudio/carrosseis" },
   { titulo: "Newsletter", desc: "Edições, crónica e arquivo", icon: Mail, url: "/newsletter" },
   { titulo: "Carrosséis da crónica", desc: "A partir de edições enviadas", icon: Images, url: "/estudio/redes-sociais" },
   { titulo: "Artigos", desc: "Rascunhos de texto, sem publicação", icon: FileText, url: "/artigos" },

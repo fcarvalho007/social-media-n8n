@@ -11,7 +11,7 @@ export type EstadoTrabalho = "pendente" | "a_processar" | "concluido" | "erro" |
 
 export interface TrabalhoResumo {
   id: string; project_id: string; estado: EstadoTrabalho; etapa: string; erro: string | null; modelo: string;
-  criado_em: string; actualizado_em: string; titulo: string | null; prova?: boolean;
+  criado_em: string; actualizado_em: string; titulo: string | null; prova?: boolean; formato?: "carrossel" | "post" | "story";
 }
 
 async function invocar<T>(body: object): Promise<T> {
@@ -32,13 +32,14 @@ export async function listarTrabalhos(projectId: string | null): Promise<Trabalh
   const { data, error } = await q;
   if (error) throw new Error("Não foi possível ler os carrosséis.");
   return (data ?? []).filter((r) => !(r as { brief?: { framework?: string } | null }).brief?.framework).map((r) => {
-    const x = r as unknown as TrabalhoResumo & { brief: { titulo?: string | null }; mc_fontes: { titulo: string | null } | null };
-    return { ...x, titulo: x.brief?.titulo ?? x.mc_fontes?.titulo ?? null };
+    const x = r as unknown as TrabalhoResumo & { brief: { titulo?: string | null; formato?: "carrossel" | "post" | "story" }; mc_fontes: { titulo: string | null } | null };
+    return { ...x, formato: x.brief?.formato ?? "carrossel", titulo: x.brief?.titulo ?? x.mc_fontes?.titulo ?? null };
   });
 }
 
 export interface NovoTrabalho {
-  fonte_tipo?: "texto" | "link" | "pdf"; metadados?: MetaFonte;
+  fonte_tipo?: "texto" | "link" | "pdf" | "curadoria";
+  noticia_id?: string; noticia_hash?: string; formato?: import("../../supabase/functions/_shared/documento-grafico/formatos").FormatoConteudo; metadados?: MetaFonte;
   project_id: string; texto: string; titulo: string; objetivo: string; tom: string; slides: number; modo?: "estruturacao" | "demonstracao" | "ia"; nova?: boolean;
   /** Framework proposal job (hidden from the library; applied only on explicit accept). */
   framework?: string; origem_trabalho?: string; angulo?: string | null; leitura_especifica?: string; base_versao?: number;
@@ -76,7 +77,7 @@ export async function eliminarTrabalhos(ids: string[]): Promise<number> {
 export interface DocAtual { id: string; variante: Variante; versao: number; proposta_versao: number; documento: DocumentoGrafico; aprovada_versao: number | null }
 export interface TrabalhoCompleto {
   trabalho: TrabalhoResumo & { fonte_id: string; tentativas: number };
-  fonte: { texto: string; titulo: string | null; hash: string; origem_url: string | null };
+  fonte: { tipo?: string; metadados?: Record<string, unknown>; texto: string; titulo: string | null; hash: string; origem_url: string | null };
   etapas: { etapa: string; estado: string; criado_em: string }[];
   proposta: { id: string; versao: number; aprovada_versao: number | null; conteudo: PropostaEditorial | null };
   documentos: Partial<Record<Variante, DocAtual>>;

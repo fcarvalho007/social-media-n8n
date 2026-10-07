@@ -1,3 +1,4 @@
+import { formatoConteudo, CONFIG_FORMATOS, type FormatoConteudo } from "../documento-grafico/formatos.ts";
 /**
  * Content engine — editorial proposal (independent of design) and A/B composition.
  * Pure and dependency-free: imported by the browser (preview, editor), tests and the Deno worker.
@@ -29,6 +30,7 @@ export interface SlideProposta {
 
 export interface PropostaEditorial {
   v: 1;
+  formato?: FormatoConteudo;
   metodo: "estruturacao" | "demonstracao" | "ia";
   demonstracao: boolean;
   titulo: string;
@@ -52,6 +54,7 @@ export interface FonteNormalizada {
 }
 
 export interface Brief {
+  formato?: FormatoConteudo;
   objetivo?: string;
   tom?: string;
   slides?: number;
@@ -117,6 +120,15 @@ export function marcaDoProjeto(cor: string | null | undefined): PropostaEditoria
  * slides cite their paragraphs, nothing is invented or summarised.
  */
 export function estruturarSemIa(f: FonteNormalizada, brief: Brief, citacao: PropostaEditorial["citacao"], marca: PropostaEditorial["marca"]): PropostaEditorial {
+  const formato = formatoConteudo(brief.formato);
+  if (formato !== "carrossel") {
+    const [frase, resto] = primeiraFrase(f.paragrafos[0] ?? "");
+    const titulo = brief.titulo?.trim() || frase;
+    // Explicit excerpt, not a pretend summary. Full source remains in the frozen source panel.
+    const texto = brief.titulo?.trim() ? frase : resto.split(/(?<=[.!?])\s/)[0] || "";
+    const slide: SlideProposta = { id: "s1", papel: "capa", papel_visual: "cover", titulo, texto, fontes: [1] };
+    return { v: 1, formato, metodo: "estruturacao", demonstracao: false, titulo, objetivo: brief.objetivo ?? "", tom: brief.tom ?? "", slides: [slide], legenda: `${titulo}\n\n${f.paragrafos[0] ?? ""}`.slice(0, 2200), alt: [titulo.slice(0, 250)], citacao, marca };
+  }
   const n = Math.max(LIMITES_FONTE.minSlides, Math.min(LIMITES_FONTE.maxSlides, brief.slides ?? avaliarFonte(f).slidesSugeridos));
   const paras = f.paragrafos.map((t, i) => ({ t, n: i + 1 }));
   const [capaTitulo, capaResto] = brief.titulo?.trim() ? [brief.titulo.trim(), paras[0]?.t ?? ""] : primeiraFrase(paras[0]?.t ?? "");
@@ -156,7 +168,7 @@ export function respostaDemo(f: FonteNormalizada, brief: Brief): string {
 export const MODELO_IA = "deepseek-flash";
 
 /** Validates a model answer against the source. Throws a short, model-facing error (used for the single repair). */
-export function validarRespostaModelo(raw: string, f: FonteNormalizada, slidesPedidos?: number): { titulo: string; slides: SlideProposta[]; legenda: string; alt: string[] | null } {
+export function validarRespostaModelo(raw: string, f: FonteNormalizada, slidesPedidos?: number, formato: FormatoConteudo = "carrossel"): { titulo: string; slides: SlideProposta[]; legenda: string; alt: string[] | null } {
   let v: unknown;
   const limpo = raw.trim().replace(/^```(?:json)?\s*/i, "").replace(/\s*```$/, "");
   try { v = JSON.parse(limpo); } catch { throw new Error("A resposta não é JSON válido."); }
@@ -165,7 +177,8 @@ export function validarRespostaModelo(raw: string, f: FonteNormalizada, slidesPe
   if (typeof o.titulo !== "string" || !o.titulo.trim()) throw new Error("Falta 'titulo'.");
   if (!Array.isArray(o.slides)) throw new Error("Falta 'slides'.");
   if (typeof o.legenda !== "string" || !o.legenda.trim()) throw new Error("Falta 'legenda'.");
-  if (o.slides.length < LIMITES_FONTE.minSlides || o.slides.length > LIMITES_FONTE.maxSlides) throw new Error(`Número de slides fora de ${LIMITES_FONTE.minSlides}–${LIMITES_FONTE.maxSlides}.`);
+  const cfg = CONFIG_FORMATOS[formatoConteudo(formato)];
+  if (o.slides.length < cfg.min || o.slides.length > cfg.max) throw new Error(`Número de páginas fora de ${cfg.min}–${cfg.max}.`);
   if (slidesPedidos && o.slides.length !== slidesPedidos) throw new Error(`Pedidos ${slidesPedidos} slides, recebidos ${o.slides.length}.`);
   if (o.legenda.length > 2200) throw new Error("'legenda' com mais de 2200 caracteres.");
   const papeis: Papel[] = ["capa", "contexto", "desenvolvimento", "fecho"];
@@ -177,7 +190,7 @@ export function validarRespostaModelo(raw: string, f: FonteNormalizada, slidesPe
     const papel = papeis.includes(x.papel as Papel) ? (x.papel as Papel) : "desenvolvimento";
     const fontes = [...new Set(x.fontes as unknown[])];
     for (const n of fontes) if (!Number.isInteger(n) || (n as number) < 1 || (n as number) > f.paragrafos.length) throw new Error(`Slide ${i + 1}: referência §${String(n)} não existe (fonte tem ${f.paragrafos.length} parágrafos).`);
-    if (papel !== "fecho" && fontes.length === 0) throw new Error(`Slide ${i + 1}: falta referência aos parágrafos da fonte.`);
+    if ((formato !== "carrossel" || papel !== "fecho") && fontes.length === 0) throw new Error(`Slide ${i + 1}: falta referência aos parágrafos da fonte.`);
     const pv = typeof x.papel_visual === "string" && PAPEIS_PAGINA.includes(x.papel_visual) && (i === 0) === (x.papel_visual === "cover") ? x.papel_visual : undefined;
     return { id: `s${i + 1}`, papel, titulo: x.titulo.trim(), texto: x.texto.trim(), fontes: (fontes as number[]).sort((a, b) => a - b), ...(pv ? { papel_visual: pv } : {}), ...(typeof x.tema_visual === "string" && x.tema_visual.trim() ? { tema_visual: x.tema_visual.trim().slice(0, 240) } : {}) };
   });
@@ -189,6 +202,7 @@ export function validarRespostaModelo(raw: string, f: FonteNormalizada, slidesPe
 export function validarProposta(v: unknown): PropostaEditorial {
   const p = v as PropostaEditorial;
   if (!p || p.v !== 1 || !Array.isArray(p.slides) || p.slides.length < 1 || p.slides.length > 20) throw new Error("Proposta editorial inválida.");
+  if (formatoConteudo(p.formato) !== "carrossel" && p.slides.length !== 1) throw new Error("Post e story têm exatamente uma página.");
   for (const s of p.slides) if (typeof s.id !== "string" || typeof s.titulo !== "string" || typeof s.texto !== "string") throw new Error("Slide inválido na proposta.");
   return p;
 }
@@ -272,6 +286,22 @@ function paginaB(s: SlideProposta, i: number, total: number, cor: string): Pagin
  * (composicoes.ts); without them (or when a rhythm page would not fit) the classic layout is kept.
  */
 export function comporDocumentos(p: PropostaEditorial, paragrafos?: string[]): Record<Variante, DocumentoGrafico> {
+  const formato = formatoConteudo(p.formato);
+  if (formato !== "carrossel") {
+    validarProposta(p);
+    const cfg = CONFIG_FORMATOS[formato];
+    const slide = p.slides[0];
+    const y = formato === "story" ? 300 : 160;
+    const single = (variante: Variante): DocumentoGrafico => {
+      const fundo = variante === "A" ? p.marca.cor : "#ffffff";
+      const cor = variante === "A" ? sobre(fundo) : "#111111";
+      const titulo = txt("titulo", `${slide.id}.titulo`, 96, y, 888, 440, tamTitulo(slide.titulo, true), 700, cor);
+      const texto = txt("texto", `${slide.id}.texto`, 96, y + 490, 888, 350, 40, 400, cor);
+      const fonte: Camada = { ...txt("fonte", "", 96, cfg.altura - (formato === "story" ? 340 : 150), 888, 80, 24, 400, cor), ref: undefined, texto: p.citacao.titulo || "Fonte indicada na legenda" } as Camada;
+      return { v: 1, variante, formato, largura: LARGURA, altura: cfg.altura, fonte: FONTE_DOC, paginas: [{ id: `${variante}-1`, slide: slide.id, papel: "cover", fundo, camadas: [ret("acento", 96, y - 32, 120, 8, variante === "A" ? cor : p.marca.cor), titulo, texto, fonte] }] };
+    };
+    return { A: single("A"), B: single("B") };
+  }
   const total = p.slides.length;
   const conteudo = { slides: p.slides.map((s) => ({ id: s.id, titulo: s.titulo, texto: s.texto })) };
   const plano = paragrafos ? planoRitmo(p.slides, paragrafos) : null;
