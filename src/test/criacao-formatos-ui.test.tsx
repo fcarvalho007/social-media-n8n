@@ -25,6 +25,12 @@ describe('criação: fonte de curadoria e formato no pedido',()=>{
   await waitFor(()=>expect(mocks.criar).toHaveBeenCalledTimes(1));expect(mocks.criar).toHaveBeenCalledWith(expect.objectContaining({project_id:'project',fonte_tipo:'curadoria',noticia_id:'news',noticia_hash:'hash',formato,modo:'estruturacao',texto:mocks.fonte.texto}));
   if(formato!=='carrossel')expect(mocks.criar.mock.calls[0][0].slides).toBe(1);expect(mocks.nav).toHaveBeenCalledWith('/estudio/carrosseis/job');
  });
+  it('bloqueia o avanço até escolher uma notícia e substitui a lista pela confirmação',async()=>{
+   render(<MemoryRouter initialEntries={['/estudio/carrosseis/novo?formato=carrossel&modo=manual']}><TooltipProvider><CarrosselNovo/></TooltipProvider></MemoryRouter>);
+   fireEvent.click(screen.getByRole('radio',{name:'Curadoria'}));expect(screen.getByRole('button',{name:'Continuar'})).toBeDisabled();expect(screen.getByText('Seleciona uma notícia para continuar.')).toBeInTheDocument();
+   fireEvent.click(screen.getByRole('button',{name:'Escolher fonte de teste'}));expect(screen.getByText('Notícia selecionada')).toBeInTheDocument();expect(screen.queryByRole('button',{name:'Escolher fonte de teste'})).not.toBeInTheDocument();expect(screen.getByRole('button',{name:'Continuar'})).toBeEnabled();
+   fireEvent.click(screen.getByRole('button',{name:'Escolher outra notícia'}));expect(screen.getByRole('button',{name:'Escolher fonte de teste'})).toBeInTheDocument();expect(screen.getByRole('button',{name:'Continuar'})).toBeDisabled();
+  });
  it('uma recusa por alteração de fonte não abre um conteúdo nem repete o pedido',async()=>{
   mocks.criar.mockRejectedValueOnce(new Error('A fonte mudou; escolhe a notícia novamente.'));render(<MemoryRouter initialEntries={['/?formato=post&noticia=news&modo=manual']}><TooltipProvider><CarrosselNovo/></TooltipProvider></MemoryRouter>);
   fireEvent.click(screen.getByRole('button',{name:'Escolher fonte de teste'}));fireEvent.click(screen.getByRole('button',{name:'Continuar'}));fireEvent.click(screen.getByRole('button',{name:'Gerar sem IA'}));expect(await screen.findByText('A fonte mudou; escolhe a notícia novamente.')).toBeInTheDocument();expect(mocks.criar).toHaveBeenCalledTimes(1);expect(mocks.nav).not.toHaveBeenCalled();

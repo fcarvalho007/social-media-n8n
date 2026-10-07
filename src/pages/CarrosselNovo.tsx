@@ -323,8 +323,15 @@ export default function CarrosselNovo() {
                 : "Escolhe um PDF com texto (até 15 MB e 60 páginas). O texto é lido página a página neste dispositivo."}
             </p>
             {tipoFonte === "curadoria" && !demo && <div className="flex flex-col gap-4">
-              <CuradoriaNoticias noticiaInicial={params.get("noticia") ?? undefined} selecionar={(f) => { setCurada(f); setTexto(f.texto); setOriginal(f.texto); setTitulo(f.titulo); setSlides(null); setIdioma({ estrangeiro: false, escolha: "original", traducaoId: null, pronto: true }); }} />
-              {curada && <div className="flex flex-col gap-2 rounded-lg border p-4" role="status"><p className="font-medium">Fonte escolhida: {curada.titulo}</p><p className="text-xs text-muted-foreground">{curada.nivel === "resumo" ? "Só título/resumo: a geração ficará limitada a estes factos." : "Texto do artigo guardado na curadoria."}{curada.parcial && " Fonte parcial: serão usados os primeiros 20 000 caracteres."} A cópia só fica congelada ao criar o conteúdo. Sem IA, mantém o idioma e as frases da fonte; com IA, o rascunho é redigido em português.</p><details><summary className="min-h-11 cursor-pointer text-sm">Ver texto que será usado</summary><p className="max-h-64 overflow-auto whitespace-pre-wrap break-words text-sm">{curada.texto}</p></details></div>}
+              {!curada ? <CuradoriaNoticias noticiaInicial={params.get("noticia") ?? undefined} selecionar={(f) => { setCurada(f); setTexto(f.texto); setOriginal(f.texto); setTitulo(f.titulo); setSlides(null); setIdioma({ estrangeiro: false, escolha: "original", traducaoId: null, pronto: true }); }} /> :
+                <div className="flex flex-col gap-3 rounded-lg border border-primary/30 bg-primary/5 p-4" role="status">
+                  <div className="flex flex-col justify-between gap-3 sm:flex-row sm:items-start">
+                    <div><p className="text-xs font-semibold uppercase text-primary">Notícia selecionada</p><p className="mt-1 font-medium">{curada.titulo}</p></div>
+                    <Button variant="outline" className="min-h-11 shrink-0" onClick={limparFonte}>Escolher outra notícia</Button>
+                  </div>
+                  <p className="text-xs text-muted-foreground">{curada.nivel === "resumo" ? "Só título/resumo: a geração ficará limitada a estes factos." : "Texto do artigo guardado na curadoria."}{curada.parcial && " Fonte parcial: serão usados os primeiros 20 000 caracteres."} A cópia só fica congelada ao criar o conteúdo. Sem IA, mantém o idioma e as frases da fonte; com IA, o rascunho é redigido em português.</p>
+                  <details><summary className="min-h-11 cursor-pointer text-sm">Ver texto que será usado</summary><p className="max-h-64 overflow-auto whitespace-pre-wrap break-words text-sm">{curada.texto}</p></details>
+                </div>}
             </div>}
             {tipoFonte === "link" && !demo && (
               <div className="space-y-3">
@@ -462,7 +469,8 @@ export default function CarrosselNovo() {
             </div>
             <div className="space-y-4 lg:col-span-4">
               {!demo && tipoFonte !== "curadoria" && projeto && <ImagensApoio projectId={projeto} imagens={imagens} onMudar={(v) => { setImagens(v); setSlides(null); }} />}
-              <Button className="hidden h-14 w-full rounded-2xl text-base font-semibold shadow-md lg:flex" onClick={continuar} disabled={!projeto || lendo}>{lendo ? "A ler a página…" : "Seguir para Narrativa"}<ArrowRight className="ml-2 h-5 w-5" /></Button>
+              <Button className="hidden h-14 w-full rounded-2xl text-base font-semibold shadow-md lg:flex" onClick={continuar} disabled={!projeto || lendo || !fonteValida}>{lendo ? "A ler a página…" : "Seguir para Narrativa"}<ArrowRight className="ml-2 h-5 w-5" /></Button>
+              {tipoFonte === "curadoria" && !curada && <p className="text-center text-xs text-muted-foreground">Seleciona uma notícia para continuar.</p>}
             </div>
             </div>
             <Grupo titulo="Detalhes" resumo={titulo ? titulo : "Título opcional"}>
@@ -599,7 +607,7 @@ export default function CarrosselNovo() {
         inicio={etapa === "narrativa" && <Button variant="ghost" className="h-11" onClick={() => setEtapa("fonte")}><ArrowLeft className="mr-1.5 h-4 w-4" />Voltar</Button>}
         nota={etapa === "narrativa" ? (demo ? "Demonstração · fornecedor simulado" : comIa ? "Gera no servidor; podes sair da página." : "Gera sem IA, no servidor.") : undefined}
         fim={etapa === "fonte"
-          ? <Button className="h-11 px-5" onClick={continuar} disabled={!projeto || lendo} aria-describedby={lendo ? "estado-leitura" : undefined}>{lendo ? "A ler a página…" : "Continuar"}<ArrowRight className="ml-1.5 h-4 w-4" /></Button>
+          ? <Button className="h-11 px-5" onClick={continuar} disabled={!projeto || lendo || !fonteValida} aria-describedby={lendo ? "estado-leitura" : undefined}>{lendo ? "A ler a página…" : "Continuar"}<ArrowRight className="ml-1.5 h-4 w-4" /></Button>
           : (comIa && !confirmarIa
             ? <Button className="h-11 px-5" onClick={() => setConfirmarIa(true)} disabled={aCriar || !fonteValida}>Gerar com IA</Button>
             : <div className="flex flex-wrap items-center justify-end gap-2">
