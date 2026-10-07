@@ -1,3 +1,6 @@
+import { CONFIG_FORMATOS, type FormatoConteudo } from "../../supabase/functions/_shared/documento-grafico/formatos";
+import { CuradoriaNoticias } from "@/features/curadoria/CuradoriaNoticias";
+import type { FonteCuradoria } from "@/services/curadoria";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import { ArrowLeft, ArrowRight, FileText, FlaskConical, Link2, Loader2, Type, Upload } from "lucide-react";
@@ -23,7 +26,7 @@ import { PerfilAutorPainel } from "@/features/motor/PerfilAutorPainel";
 import { LimitesIa } from "@/features/motor/LimitesIa";
 import { BarraAcoes, ETAPAS, Grupo, Quadro } from "@/features/motor/Estudio";
 import { ImagensApoio } from "@/features/motor/ImagensApoio";
-import { comporComImagens, type ImagemApoio } from "@/features/motor/imagensApoio";
+import { comporComImagens, type ImagemApoio } from "@/features/motor/fonteComImagens";
 import { Check, HelpCircle } from "lucide-react";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { cn } from "@/lib/utils";
@@ -56,13 +59,18 @@ export function estruturaPrevista(n: number): string[] {
   return ["Capa", "Contexto", ...Array.from({ length: n - 3 }, () => "Ideia"), "Fecho"];
 }
 
-type TipoFonte = "texto" | "link" | "pdf";
+type TipoFonte = "texto" | "link" | "pdf" | "curadoria";
 interface Rascunho { texto: string; titulo: string; objetivo: ObjetivoId; detalhe: string; tom: string; slides: number | null; url?: string; link?: MetaLink | null; pdf?: MetaPdf | null; original?: string; parcial?: boolean;
   tomPreset?: string | null; publico?: string[]; publicoOutro?: string; angulo?: Angulo | null; leituraEsp?: string; cta?: Cta | null; intencao?: Intencao | null; quantidade?: Quantidade; idiomaEscolha?: EscolhaIdioma; imagens?: ImagemApoio[] }
 
 export default function CarrosselNovo() {
   const nav = useNavigate();
   const [params] = useSearchParams();
+  const inicialFormato = params.get("formato");
+  const [formato, setFormato] = useState<FormatoConteudo>(inicialFormato === "post" || inicialFormato === "story" ? inicialFormato : "carrossel");
+  const [curada, setCurada] = useState<FonteCuradoria | null>(null);
+  const [usarIa, setUsarIa] = useState(params.get("modo") !== "manual");
+  const configFormato = CONFIG_FORMATOS[formato];
   const { user } = useAuth();
   const { projetos, projetoId, estado } = useProjeto();
   const [etapa, setEtapa] = useState<"fonte" | "narrativa">("fonte");
@@ -98,7 +106,7 @@ export default function CarrosselNovo() {
   const projetoRef = useRef(projeto);
   projetoRef.current = projeto;
   const textoRef = useRef<HTMLTextAreaElement>(null);
-  const [tipoFonte, setTipoFonte] = useState<TipoFonte>("texto");
+  const [tipoFonte, setTipoFonte] = useState<TipoFonte>(params.get("noticia") ? "curadoria" : "texto");
   const tipoRef = useRef(tipoFonte);
   tipoRef.current = tipoFonte;
   const pedido = useRef(0);
@@ -117,7 +125,7 @@ export default function CarrosselNovo() {
   useEffect(() => { if (!projeto && projetoId) setProjeto(projetoId); }, [projetoId, projeto]);
 
   // Local recovery per user + project (this device only; never claimed as saved on the server).
-  const chave = user && projeto && !demo ? chaveRecuperacao(user.id, tipoFonte === "texto" ? "carrossel-novo" : `carrossel-novo-${tipoFonte}`, null, projeto) : null;
+  const chave = user && projeto && !demo && tipoFonte !== "curadoria" ? chaveRecuperacao(user.id, tipoFonte === "texto" ? "carrossel-novo" : `carrossel-novo-${tipoFonte}`, formato, projeto) : null;
   useEffect(() => {
     if (!chave || !user || texto) return;
     const r = lerRecuperacao<Rascunho>(chave, user.id);
@@ -139,25 +147,26 @@ export default function CarrosselNovo() {
 
   useEffect(() => { if (params.get("demo") === "1") usarDemo(); }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
-  const comIa = !demo && !!orc && orc.maxDia > 0 && orc.usadosHoje < orc.maxDia;
-  const textoFonte = useMemo(() => (demo ? texto : comporComImagens(texto, imagens)), [texto, imagens, demo]);
+  const iaDisponivel = !demo && !!orc && orc.maxDia > 0 && orc.usadosHoje < orc.maxDia;
+  const comIa = usarIa && iaDisponivel;
+  const textoFonte = useMemo(() => (demo || tipoFonte === "curadoria" ? texto : comporComImagens(texto, imagens)), [texto, imagens, demo, tipoFonte]);
   const fonte = useMemo(() => normalizarFonte(textoFonte), [textoFonte]);
   const palavras = useMemo(() => (texto.trim() ? texto.trim().split(/\s+/).length : 0), [texto]);
   const av = useMemo(() => avaliarFonte(fonte), [fonte]);
   const porQuantidade = slidesPorQuantidade(av.slidesSugeridos, av.slidesMax || LIMITES_FONTE.maxSlides);
-  const nSlides = Math.min(av.slidesMax || LIMITES_FONTE.maxSlides, Math.max(2, slides ?? porQuantidade[quantidade]));
+  const nSlides = formato !== "carrossel" ? 1 : Math.min(av.slidesMax || LIMITES_FONTE.maxSlides, Math.max(2, slides ?? porQuantidade[quantidade]));
   const nomeProjeto = projetos.find((p) => p.id === projeto)?.name;
   const mostrarErro = tocado && !!texto.trim() && !av.ok;
   const semTexto = tocado && !texto.trim();
 
   const pdfSemTexto = !!pdfMeta && !pdfMeta.paginas.some((p) => p.estado === "texto");
   const precisaParcial = (tipoFonte === "pdf" && !!pdfMeta && !pdfMeta.completo && !pdfSemTexto) || (tipoFonte === "link" && !!linkMeta?.truncado);
-  const fonteDefinida = tipoFonte === "texto" || (tipoFonte === "link" ? !!linkMeta : !!pdfMeta);
+  const fonteDefinida = tipoFonte === "texto" || (tipoFonte === "curadoria" ? !!curada : tipoFonte === "link" ? !!linkMeta : !!pdfMeta);
   const fonteValida = av.ok && fonteDefinida && !(tipoFonte === "pdf" && pdfSemTexto) && (!precisaParcial || parcial);
 
   function limparFonte() {
     pedido.current++;
-    setTexto(""); setOriginal(""); setLinkMeta(null); setPdfMeta(null); setPdfLido(null); setExcluidas(new Set());
+    setCurada(null); setTexto(""); setOriginal(""); setLinkMeta(null); setPdfMeta(null); setPdfLido(null); setExcluidas(new Set());
     setParcial(false); setFalhaFonte(null); setMotivoLink(null); setLendo(false); setTocado(false); setSlides(null); setRecuperado(null);
   }
   function mudarTipo(t: TipoFonte) {
@@ -235,14 +244,14 @@ export default function CarrosselNovo() {
     const o = OBJETIVOS.find((x) => x.id === objetivo)!;
     const objetivoTxt = detalhe.trim() ? `${o.nome}: ${detalhe.trim()}` : `${o.nome} — ${o.desc}`;
     try {
-      const r = await criarTrabalho({ project_id: alvo, texto: textoFonte, titulo, objetivo: objetivoTxt.slice(0, 200), tom: textoTom(tomPreset, tom), slides: nSlides, ...(comIa ? { angulo, leitura_especifica: leituraEsp.trim(), briefing: { publico, publicoOutro: publicoOutro.trim(), cta, intencao } } : {}), ...(!demo && idioma.traducaoId ? { traducao_id: idioma.traducaoId } : {}), modo: demo ? "demonstracao" : comIa ? "ia" : "estruturacao",
+      const r = await criarTrabalho({ project_id: alvo, texto: textoFonte, titulo, formato, ...(curada && tipoFonte === "curadoria" ? { noticia_id: curada.noticia_id, noticia_hash: curada.hash } : {}), objetivo: objetivoTxt.slice(0, 200), tom: textoTom(tomPreset, tom), slides: nSlides, ...(comIa ? { angulo, leitura_especifica: leituraEsp.trim(), briefing: { publico, publicoOutro: publicoOutro.trim(), cta, intencao } } : {}), ...(!demo && idioma.traducaoId ? { traducao_id: idioma.traducaoId } : {}), modo: demo ? "demonstracao" : comIa ? "ia" : "estruturacao",
         fonte_tipo: demo ? "texto" : tipoFonte,
-        metadados: demo || tipoFonte === "texto" ? undefined
+        metadados: demo || tipoFonte === "texto" || tipoFonte === "curadoria" ? undefined
           : tipoFonte === "link" ? { ...linkMeta!, editado: linkMeta!.modo === "referencia" || texto !== original }
           : { ...pdfMeta!, parcial_confirmado: parcial, editado: texto !== original } });
-      if (projetoRef.current !== alvo) { toast.info("O projeto mudou entretanto; o carrossel ficou no projeto anterior."); setACriar(false); return; }
+      if (projetoRef.current !== alvo) { toast.info("O projeto mudou entretanto; o conteúdo ficou no projeto anterior."); setACriar(false); return; }
       if (chave) limparRecuperacao(chave);
-      if (r.reutilizado) toast.info("Já existia um carrossel com esta fonte e estas opções; foi aberto.");
+      if (r.reutilizado) toast.info("Já existia um conteúdo com esta fonte e estas opções; foi aberto.");
       nav(`/estudio/carrosseis/${r.trabalho_id}`);
     } catch (e) {
       // Shown inline next to «Criar»; the text and choices stay intact.
@@ -252,11 +261,18 @@ export default function CarrosselNovo() {
     }
   };
 
-  const estrutura = estruturaPrevista(nSlides);
+  const estrutura = formato === "carrossel" ? estruturaPrevista(nSlides) : ["Uma ideia autónoma numa imagem"];
 
   return (
     <Quadro className="h-auto min-h-[calc(100dvh-4rem)] overflow-visible bg-background">
       <div className="mx-auto w-full max-w-6xl px-4 pb-10 pt-6 sm:px-2 sm:pt-4">
+        <div className="mb-5 flex flex-wrap items-center gap-3">
+          <span className="text-sm font-medium">O que vais criar?</span>
+          <ToggleGroup type="single" aria-label="Formato do conteúdo" value={formato} onValueChange={(v) => { if (v) { setFormato(v as FormatoConteudo); setSlides(null); } }}>
+            {(["carrossel", "post", "story"] as const).map((f) => <ToggleGroupItem className="min-h-11" key={f} value={f}>{CONFIG_FORMATOS[f].nome}</ToggleGroupItem>)}
+          </ToggleGroup>
+          <span className="text-xs text-muted-foreground">{configFormato.largura}×{configFormato.altura} · {formato === "carrossel" ? "várias páginas" : "uma imagem estática"}</span>
+        </div>
         <EtapasGrandes atual={etapa === "fonte" ? 0 : 1} onFonte={etapa === "narrativa" ? () => setEtapa("fonte") : undefined} />
         <div className={etapa === "narrativa" ? "mx-auto max-w-3xl" : undefined}>
         {etapa === "fonte" && (
@@ -293,18 +309,23 @@ export default function CarrosselNovo() {
             <div className="grid grid-cols-1 items-start gap-6 lg:grid-cols-12 lg:gap-8">
             <div className="min-w-0 overflow-hidden rounded-2xl border border-border bg-card shadow-sm lg:col-span-8">
             {!demo && (
-              <ToggleGroup type="single" value={tipoFonte} onValueChange={(v) => v && mudarTipo(v as TipoFonte)} aria-label="Tipo de fonte" className="justify-start gap-1 border-b border-border bg-muted/40 p-2">
+              <ToggleGroup type="single" value={tipoFonte} onValueChange={(v) => v && mudarTipo(v as TipoFonte)} aria-label="Tipo de fonte" className="flex-wrap justify-start gap-1 border-b border-border bg-muted/40 p-2">
                 <ToggleGroupItem value="texto" className="h-11 px-5 font-semibold data-[state=on]:bg-card data-[state=on]:text-primary data-[state=on]:shadow-sm"><Type className="mr-1.5 h-4 w-4" />Texto</ToggleGroupItem>
                 <ToggleGroupItem value="link" className="h-11 px-5 font-semibold data-[state=on]:bg-card data-[state=on]:text-primary data-[state=on]:shadow-sm"><Link2 className="mr-1.5 h-4 w-4" />Link</ToggleGroupItem>
+                <ToggleGroupItem value="curadoria" className="min-h-11 px-4 font-semibold">Curadoria</ToggleGroupItem>
                 <ToggleGroupItem value="pdf" className="h-11 px-5 font-semibold data-[state=on]:bg-card data-[state=on]:text-primary data-[state=on]:shadow-sm"><FileText className="mr-1.5 h-4 w-4" />PDF</ToggleGroupItem>
               </ToggleGroup>
             )}
             <div className="space-y-4 p-5 sm:p-6">
             <p id="ajuda-texto" className="max-w-xl text-sm text-muted-foreground">
-              {tipoFonte === "texto" ? "Cola o texto que vai servir de base ao carrossel."
+              {tipoFonte === "curadoria" ? "Escolhe uma notícia da seleção editorial comum." : tipoFonte === "texto" ? "Cola o texto que vai servir de base ao conteúdo."
                 : tipoFonte === "link" ? "Indica o endereço do artigo. Sites autorizados são lidos automaticamente; nos outros, o link fica como referência e colas o texto."
                 : "Escolhe um PDF com texto (até 15 MB e 60 páginas). O texto é lido página a página neste dispositivo."}
             </p>
+            {tipoFonte === "curadoria" && !demo && <div className="flex flex-col gap-4">
+              <CuradoriaNoticias noticiaInicial={params.get("noticia") ?? undefined} selecionar={(f) => { setCurada(f); setTexto(f.texto); setOriginal(f.texto); setTitulo(f.titulo); setSlides(null); setIdioma({ estrangeiro: false, escolha: "original", traducaoId: null, pronto: true }); }} />
+              {curada && <div className="flex flex-col gap-2 rounded-lg border p-4" role="status"><p className="font-medium">Fonte escolhida: {curada.titulo}</p><p className="text-xs text-muted-foreground">{curada.nivel === "resumo" ? "Só título/resumo: a geração ficará limitada a estes factos." : "Texto do artigo guardado na curadoria."}{curada.parcial && " Fonte parcial: serão usados os primeiros 20 000 caracteres."} A cópia só fica congelada ao criar o conteúdo. Sem IA, mantém o idioma e as frases da fonte; com IA, o rascunho é redigido em português.</p><details><summary className="min-h-11 cursor-pointer text-sm">Ver texto que será usado</summary><p className="max-h-64 overflow-auto whitespace-pre-wrap break-words text-sm">{curada.texto}</p></details></div>}
+            </div>}
             {tipoFonte === "link" && !demo && (
               <div className="space-y-3">
                 <div className="flex flex-col gap-2 sm:flex-row">
@@ -404,7 +425,7 @@ export default function CarrosselNovo() {
                 className={cn("min-h-[min(50vh,420px)] resize-y rounded-[var(--mc-r-lg)] border-transparent bg-card p-1 text-lg leading-relaxed shadow-none focus-visible:ring-1", (mostrarErro || semTexto) && "border-destructive")}
                 value={texto} onBlur={() => texto.trim() && setTocado(true)}
                 onChange={(e) => { setTexto(e.target.value); setSlides(null); setRecuperado(null); }}
-                placeholder="Cola aqui o texto que queres transformar em carrossel." />
+                placeholder="Cola aqui o texto que queres transformar em conteúdo." />
               <div id="estado-texto" className="mt-3 flex border-t border-border pt-3 flex-wrap items-center justify-between gap-2 text-xs" aria-live="polite">
                 <span className={cn(mostrarErro || semTexto ? "text-destructive" : "text-muted-foreground")}>
                   {semTexto ? "Cola o texto para continuar." : mostrarErro ? av.motivo : fonte.paragrafos.length ? `${palavras} ${palavras === 1 ? "palavra" : "palavras"} · ${fonte.paragrafos.length} ${fonte.paragrafos.length === 1 ? "parágrafo" : "parágrafos"}${textoFonte !== texto ? " (inclui imagens)" : ""}` : ""}
@@ -440,7 +461,7 @@ export default function CarrosselNovo() {
             </div>
             </div>
             <div className="space-y-4 lg:col-span-4">
-              {!demo && projeto && <ImagensApoio projectId={projeto} imagens={imagens} onMudar={(v) => { setImagens(v); setSlides(null); }} />}
+              {!demo && tipoFonte !== "curadoria" && projeto && <ImagensApoio projectId={projeto} imagens={imagens} onMudar={(v) => { setImagens(v); setSlides(null); }} />}
               <Button className="hidden h-14 w-full rounded-2xl text-base font-semibold shadow-md lg:flex" onClick={continuar} disabled={!projeto || lendo}>{lendo ? "A ler a página…" : "Seguir para Narrativa"}<ArrowRight className="ml-2 h-5 w-5" /></Button>
             </div>
             </div>
@@ -466,10 +487,10 @@ export default function CarrosselNovo() {
               <span>{fonte.paragrafos.length} §</span>
               {demo && <><span aria-hidden>·</span><span>Demonstração</span></>}
             </div>
-            {!demo && projeto && <PainelIdioma projectId={projeto} texto={texto} escolhaInicial={idiomaInicial} iaDisponivel={comIa} onEstado={setIdioma} onEncurtar={() => { setEtapa("fonte"); window.scrollTo({ top: 0 }); setTimeout(() => textoRef.current?.focus(), 50); }} />}
+            {!demo && tipoFonte !== "curadoria" && projeto && <PainelIdioma projectId={projeto} texto={texto} escolhaInicial={idiomaInicial} iaDisponivel={comIa} onEstado={setIdioma} onEncurtar={() => { setEtapa("fonte"); window.scrollTo({ top: 0 }); setTimeout(() => textoRef.current?.focus(), 50); }} />}
             {erroCriar && <p role="alert" className="rounded-[var(--mc-r-lg)] border border-destructive/40 bg-destructive/5 p-3 text-sm text-destructive">{erroCriar}</p>}
             <div className="space-y-4">
-              <h1 id="t-narrativa" className="text-2xl font-semibold tracking-tight sm:text-3xl">O que deve fazer este carrossel?</h1>
+              <h1 id="t-narrativa" className="text-2xl font-semibold tracking-tight sm:text-3xl">O que deve fazer este {configFormato.nome.toLowerCase()}?</h1>
               {!demo && projeto && (
                 <p className="flex flex-wrap items-center gap-x-2 text-xs text-muted-foreground" aria-live="polite">
                   <span>Voz ativa: <span className="font-medium text-foreground">{resumoPerfil ?? "a ler…"}</span></span>
@@ -507,14 +528,14 @@ export default function CarrosselNovo() {
                 {comIa && <Chips titulo="Tom" itens={TONS.map((t) => ({ id: t.id, nome: t.nome, desc: t.desc }))} ativo={(id) => tomPreset === id} onEscolher={(id) => setTomPreset(tomPreset === id ? null : id)} />}
                 {comIa && <Chips titulo="Público" multi itens={PUBLICOS.map((p) => ({ id: p.id, nome: p.nome }))} ativo={(id) => publico.includes(id)} onEscolher={(id) => setPublico(publico.includes(id) ? publico.filter((x) => x !== id) : [...publico, id])} />}
                 {comIa && <Chips titulo="Intenção editorial" itens={INTENCOES.map((x) => ({ id: x.id, nome: x.nome }))} ativo={(id) => intencao === id} onEscolher={(id) => setIntencao(intencao === id ? null : id as Intencao)} />}
-                {comIa && intencao && <p className="-mt-1 text-xs text-muted-foreground">{INTENCOES.find((x) => x.id === intencao)!.desc} Define para que serve o carrossel; a estrutura e o modelo visual escolhem-se à parte. Só usa o que a fonte documenta.</p>}
+                {comIa && intencao && <p className="-mt-1 text-xs text-muted-foreground">{INTENCOES.find((x) => x.id === intencao)!.desc} Define para que serve o conteúdo; a estrutura e o modelo visual escolhem-se à parte. Só usa o que a fonte documenta.</p>}
                 {comIa && <Chips titulo="Apelo final" itens={CTAS.map((c) => ({ id: c.id, nome: c.nome }))} ativo={(id) => cta === id} onEscolher={(id) => setCta(cta === id ? null : id as Cta)} />}
-                <Chips titulo="Extensão" itens={QUANTIDADES.map((q) => ({ id: q.id, nome: `${q.nome} · ${porQuantidade[q.id]} slides` }))} ativo={(id) => slides == null && quantidade === id} onEscolher={(id) => { setQuantidade(id as Quantidade); setSlides(null); }} />
+                {formato === "carrossel" && <Chips titulo="Extensão" itens={QUANTIDADES.map((q) => ({ id: q.id, nome: `${q.nome} · ${porQuantidade[q.id]} slides` }))} ativo={(id) => slides == null && quantidade === id} onEscolher={(id) => { setQuantidade(id as Quantidade); setSlides(null); }} />}
               </div>
             </div>
 
             <div className="space-y-2">
-              <h2 className="text-sm font-medium">Estrutura prevista · {nSlides} slides</h2>
+              <h2 className="text-sm font-medium">Estrutura prevista · {nSlides} {formato === "carrossel" ? "slides" : "imagem"}</h2>
               <ol className="flex flex-wrap gap-1.5" aria-label="Estrutura prevista">
                 {estrutura.map((p, i) => (
                   <li key={i} className="rounded-[var(--mc-r-sm)] border border-border px-2 py-1 text-xs text-muted-foreground"><span className="tabular-nums">{i + 1}</span> {p}</li>
@@ -524,7 +545,7 @@ export default function CarrosselNovo() {
             </div>
 
             <div>
-              <Grupo titulo="Personalizar" resumo={[tom || (tomPreset ? TONS.find((t) => t.id === tomPreset)?.nome : "Tom automático"), `${nSlides} slides`].join(" · ")}>
+              <Grupo titulo="Personalizar" resumo={[tom || (tomPreset ? TONS.find((t) => t.id === tomPreset)?.nome : "Tom automático"), `${nSlides} ${formato === "carrossel" ? "slides" : "imagem"}`].join(" · ")}>
                 <div className="grid gap-4 sm:grid-cols-2">
                   <div className="space-y-1 sm:col-span-2">
                     <Label htmlFor="detalhe">Precisar o objetivo <span className="font-normal text-muted-foreground">(opcional)</span></Label>
@@ -539,10 +560,10 @@ export default function CarrosselNovo() {
                     <Input id="publico-outro" className="h-11" maxLength={MAX_PUBLICO_OUTRO} value={publicoOutro} onChange={(e) => setPublicoOutro(e.target.value)} placeholder="Por exemplo: equipas comerciais" />
                   </div>}
                   <div className="space-y-1">
-                    <Label htmlFor="slides">Número de slides</Label>
-                    <Input id="slides" type="number" inputMode="numeric" className="h-11 w-28" min={2} max={av.slidesMax || 2} value={nSlides}
+                    <Label htmlFor="slides">{formato === "carrossel" ? "Número de slides" : "Número de imagens"}</Label>
+                    <Input id="slides" type="number" inputMode="numeric" className="h-11 w-28" min={configFormato.min} max={formato === "carrossel" ? av.slidesMax || 2 : 1} disabled={formato !== "carrossel"} value={nSlides}
                       onChange={(e) => setSlides(Number(e.target.value) || null)} aria-describedby="slides-ajuda" />
-                    <p id="slides-ajuda" className="text-xs text-muted-foreground">Sugestão: {av.slidesSugeridos}. Este texto permite até {av.slidesMax}.</p>
+                    <p id="slides-ajuda" className="text-xs text-muted-foreground">{formato === "carrossel" ? `Sugestão: ${av.slidesSugeridos}. Este texto permite até ${av.slidesMax}.` : "Uma imagem autónoma. O restante contexto pode entrar na legenda."}</p>
                   </div>
                 </div>
               </Grupo>
@@ -554,17 +575,20 @@ export default function CarrosselNovo() {
               {!demo && projeto && (
                 <Grupo titulo="Opções de geração" resumo={orc ? (comIa ? `IA disponível · ${Math.max(0, orc.maxDia - orc.usadosHoje)} pedidos hoje` : "Sem IA — estruturado com frases da fonte") : "A ler limites…"}>
                   <div className="space-y-3">
+                    <ToggleGroup type="single" value={usarIa ? "ia" : "manual"} onValueChange={(v) => { if (v) setUsarIa(v === "ia"); }} aria-label="Modo de criação" className="justify-start">
+                      <ToggleGroupItem value="manual" className="min-h-11">Sem IA</ToggleGroupItem><ToggleGroupItem value="ia" className="min-h-11">Assistido por IA</ToggleGroupItem>
+                    </ToggleGroup>
                     <LimitesIa projectId={projeto} onAlterado={setOrc} />
                     <p className="text-xs text-muted-foreground">
-                      {comIa ? `A IA (${MODELO_IA_NOME}) reescreve o texto em slides ${objetivo === "opiniao" ? "com factos referenciados à fonte (§) mais a leitura do autor, identificada como tal, sem inventar dados." : "com a voz do autor, usando só factos da fonte, com referência aos parágrafos (§)."} Usa 1 pedido pago (2 se precisar de correção); antes de enviar pedimos confirmação.`
+                      {comIa ? `A IA (${MODELO_IA_NOME}) reescreve o texto para este formato ${objetivo === "opiniao" ? "com factos referenciados à fonte (§) mais a leitura do autor, identificada como tal, sem inventar dados." : "com a voz do autor, usando só factos da fonte, com referência aos parágrafos (§)."} Usa 1 pedido pago (2 se precisar de correção); antes de enviar pedimos confirmação.`
                         : "Sem IA: cada frase vem do texto, com a referência ao parágrafo, e nada é inventado."}
                     </p>
                   </div>
                 </Grupo>
               )}
             </div>
-            {!demo && orc && !comIa && (
-              <p className="text-xs text-muted-foreground" role="note">A IA não está disponível hoje neste projeto; o carrossel será estruturado com frases da fonte. Podes mudar isto em «Opções de geração».</p>
+            {!demo && orc && usarIa && !iaDisponivel && (
+              <p className="text-xs text-muted-foreground" role="note">A IA não está disponível hoje neste projeto; o conteúdo será estruturado com frases da fonte. Podes mudar isto em «Opções de geração».</p>
             )}
           </section>
         )}
@@ -590,7 +614,7 @@ export default function CarrosselNovo() {
 /** Centred stepper: numbers above labels; only «Fonte» is revisitable from Narrativa. */
 function EtapasGrandes({ atual, onFonte }: { atual: number; onFonte?: () => void }) {
   return (
-    <nav aria-label="Etapas do carrossel" className="mb-8 flex justify-center">
+    <nav aria-label="Etapas da criação" className="mb-8 flex justify-center">
       <ol className="grid w-full max-w-3xl grid-cols-5">
         {ETAPAS.map((e, i) => {
           const ativa = i === atual; const feita = i < atual;
@@ -645,5 +669,5 @@ function mensagemErro(e: unknown): string {
       if (j && typeof j === "object" && typeof (j as { error?: unknown }).error === "string") return (j as { error: string }).error;
     } catch { /* not JSON */ }
   }
-  return m || "Não foi possível criar o carrossel. Tenta novamente.";
+  return m || "Não foi possível criar o conteúdo. Tenta novamente.";
 }

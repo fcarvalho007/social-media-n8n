@@ -1,3 +1,4 @@
+import { formatoConteudo, CONFIG_FORMATOS, type FormatoConteudo } from "./formatos.ts";
 /**
  * DocumentoGrafico v1 — canonical, editor-independent carousel document.
  * Dependency-free on purpose: the same file is imported by the browser editor
@@ -196,7 +197,8 @@ export interface DocumentoGrafico {
   v: 1;
   variante: Variante;
   largura: typeof LARGURA;
-  altura: typeof ALTURA;
+  altura: 1350 | 1920;
+  formato?: FormatoConteudo;
   fonte: typeof FONTE_DOC;
   paginas: Pagina[];
   sistema?: SistemaDocumento;
@@ -214,6 +216,9 @@ export interface ConteudoEditorial {
 
 export interface Asset {
   id: string;
+  /** Verified animation companion; static rendering continues to use these image bytes. */
+  animacao_id?: string;
+  duracao_ms?: number;
   mime: "image/png" | "image/jpeg";
   largura: number;
   altura: number;
@@ -364,7 +369,10 @@ function validarDocumento(v: unknown, variante: Variante, assets: Record<string,
   const d = obj(v, `variante ${variante}`);
   if (d.v !== 1) falha(`variante ${variante}: versão não suportada.`);
   if (d.variante !== variante) falha(`variante ${variante}: identificador trocado.`);
-  if (d.largura !== LARGURA || d.altura !== ALTURA) falha(`variante ${variante}: dimensões têm de ser 1080×1350.`);
+  const formato = formatoConteudo(d.formato);
+  const cfg = CONFIG_FORMATOS[formato];
+  if (d.largura !== cfg.largura || d.altura !== cfg.altura) falha(`variante ${variante}: dimensões têm de ser ${cfg.largura}×${cfg.altura}.`);
+  if (formato !== "carrossel" && (!Array.isArray(d.paginas) || d.paginas.length !== 1)) falha("Post e story têm exatamente uma página.");
   if (d.fonte !== FONTE_DOC) falha(`variante ${variante}: tipo de letra não suportado.`);
   if (!Array.isArray(d.paginas) || d.paginas.length < 1 || d.paginas.length > LIMITE_PAGINAS) falha(`variante ${variante}: entre 1 e ${LIMITE_PAGINAS} páginas.`);
   const paginas = d.paginas.map((p, i) => {
@@ -380,7 +388,7 @@ function validarDocumento(v: unknown, variante: Variante, assets: Record<string,
     };
   });
   const sistema = d.sistema === undefined ? undefined : validarSistema(d.sistema, `variante ${variante}.sistema`);
-  return { v: 1, variante, largura: LARGURA, altura: ALTURA, fonte: FONTE_DOC, paginas, ...(sistema ? { sistema } : {}) };
+  return { v: 1, variante, largura: LARGURA, altura: cfg.altura, fonte: FONTE_DOC, paginas, ...(d.formato === undefined ? {} : { formato }), ...(sistema ? { sistema } : {}) };
 }
 
 export const PAPEIS_PAGINA: readonly string[] = ["cover", "standard", "visual_story", "data", "concept", "comparison", "case_study", "transition", "actions", "conclusion"];
@@ -762,6 +770,7 @@ export function camadasOrdenadas(p: Pagina): Camada[] {
 
 /** JSON → SVG using the shared layout. Fonts are referenced by family; the renderer must load the same TTFs. */
 export function paginaParaSvg(pacote: PacoteProva, variante: Variante, indice: number, m: Medidor): string {
+  const { largura: LARGURA, altura: ALTURA } = pacote.variantes[variante];
   const pagina = pacote.variantes[variante].paginas[indice];
   if (!pagina) throw new Error("Página inexistente.");
   const partes: string[] = [

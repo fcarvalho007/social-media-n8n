@@ -73,11 +73,13 @@ function escolherTamanhos(q: Partes, conteudo: ConteudoEditorial, tT: Tipo, tB: 
 const texto = (c: CamadaTexto, x: number, y: number, w: number, h: number, t: Tipo, tam: number, cor: string, alinh: CamadaTexto["estilo"]["alinh"] = "esq", z = 20, capitular?: boolean): CamadaTexto =>
   ({ ...c, x: Math.round(x), y: Math.round(y), w: Math.round(w), h: Math.max(1, Math.ceil(h) + 4), z, estilo: { ...c.estilo, familia: t.familia, peso: t.peso, linha: t.linha, tam, tamMin: tam, cor, alinh, overflow: "cortar", maxLinhas: undefined, capitular: capitular || undefined } });
 
-export interface ContextoModelo { indice: number; total: number; paleta: Paleta; par: string; conteudo: ConteudoEditorial; assets: PacoteProva["assets"]; m?: Medidor; /** Break slide: composed with the strong (cover-like) treatment. */ forte?: boolean }
+export interface ContextoModelo { altura?: number; unica?: boolean; indice: number; total: number; paleta: Paleta; par: string; conteudo: ConteudoEditorial; assets: PacoteProva["assets"]; m?: Medidor; /** Break slide: composed with the strong (cover-like) treatment. */ forte?: boolean }
 export interface ResultadoModelo { pagina: Pagina; cabe: boolean; /** Page shows the explicit "Imagem por escolher" placeholder. */ marcador: boolean }
 
 /** Composes ONE page in a model. Returns null when the page has no editorial text (manual-only page). */
 export function comporModelo(p: Pagina, modelo: EstiloId, ctx: ContextoModelo): ResultadoModelo | null {
+  const ALTURA = ctx.altura ?? 1350;
+  const LIMITE = ALTURA === 1920 ? 1570 : 1210;
   const q = partes(p);
   if (!q.titulo && !q.corpo) return null;
   const { indice, total, paleta: pal, conteudo, m } = ctx;
@@ -246,7 +248,7 @@ export function comporModelo(p: Pagina, modelo: EstiloId, ctx: ContextoModelo): 
     }
   }
   if (!cabe) return { pagina: p, cabe: false, marcador: false };
-  const num = q.num ? { ...q.num, x: q.num.x, y: 1250, z: 20, estilo: { ...q.num.estilo, cor: corNum, familia: par.corpo } } : undefined;
+  const num = !ctx.unica && q.num ? { ...q.num, x: q.num.x, y: 1250, z: 20, estilo: { ...q.num.estilo, cor: corNum, familia: par.corpo } } : undefined;
   const camadas: Camada[] = [...imagens, ...decor, ...q.outras, ...[t, b, num].filter((c): c is CamadaTexto => !!c)];
   return { pagina: { ...p, fundo, camadas }, cabe: true, marcador };
 }
@@ -265,7 +267,7 @@ export function aplicarModelo(pacote: PacoteProva, modelo: EstiloId, paleta: Pal
     const doc = pacote.variantes[v];
     const out: DocumentoGrafico = { ...doc, paginas: doc.paginas.map((pg, i) => {
       if (paginas && !paginas.includes(i)) return pg;
-      const r = comporModelo(pg, modelo, { indice: i, total: doc.paginas.length, paleta, par, conteudo: pacote.conteudo, assets: pacote.assets, m });
+      const r = comporModelo(pg, modelo, { indice: i, total: doc.paginas.length, paleta, par, conteudo: pacote.conteudo, assets: pacote.assets, m, altura: doc.altura, unica: (doc.formato ?? "carrossel") !== "carrossel" });
       if (!r) return pg;
       if (!r.cabe) { recusadas.push({ variante: v, pagina: i }); return pg; }
       marcador ||= r.marcador;

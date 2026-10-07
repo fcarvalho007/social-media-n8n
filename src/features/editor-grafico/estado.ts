@@ -55,17 +55,17 @@ export const PRESETS_TEXTO: Record<PresetTexto, { nome: string; texto: string; w
 };
 
 /** Places a w×h box centred on a drop point, fully inside the page (later manual moves may crop on purpose). */
-export function centrar(pos: Ponto | undefined, w: number, h: number, padrao: Ponto): Ponto {
+export function centrar(pos: Ponto | undefined, w: number, h: number, padrao: Ponto, dimensoes = { largura: 1080, altura: 1350 }): Ponto {
   if (!pos) return padrao;
   const lim = (v: number, max: number) => Math.round(Math.min(Math.max(0, max), Math.max(0, v)));
-  return { x: lim(pos.x - w / 2, 1080 - w), y: lim(pos.y - h / 2, 1350 - h) };
+  return { x: lim(pos.x - w / 2, dimensoes.largura - w), y: lim(pos.y - h / 2, dimensoes.altura - h) };
 }
 
 /** Initial size of a dropped image: half the page width, proportional, never taller than the page. */
-export function tamanhoImagemNova(largura: number, altura: number): { w: number; h: number } {
+export function tamanhoImagemNova(largura: number, altura: number, alturaPagina = 1350): { w: number; h: number } {
   const r = altura / largura || 1.25;
   let w = 540, h = Math.round(540 * r);
-  if (h > 1350) { h = 1350; w = Math.round(1350 / r); }
+  if (h > alturaPagina) { h = alturaPagina; w = Math.round(alturaPagina / r); }
   return { w, h };
 }
 
@@ -138,7 +138,8 @@ function aplicar(s: EstadoEditor, novo: PacoteProva, grupo?: string, extra: Part
 
 export function reduzir(s: EstadoEditor, a: Acao): EstadoEditor {
   if (a.tipo !== "camada" && a.tipo !== "texto") ultimoGrupo = null;
-  const pg = s.pacote.variantes[s.variante].paginas[s.pagina];
+  const dimensoes = s.pacote.variantes[s.variante];
+  const pg = dimensoes.paginas[s.pagina];
   switch (a.tipo) {
     case "carregar":
       return estadoInicial(a.pacote);
@@ -201,15 +202,15 @@ export function reduzir(s: EstadoEditor, a: Acao): EstadoEditor {
       if (a.modo === "logo") {
         const r = a.asset.altura / a.asset.largura || 1;
         const w = r > 1 ? Math.round(160 / r) : 160, h = r > 1 ? 160 : Math.round(160 * r);
-        nova = { id: novoId("imagem"), nome: a.nome.slice(0, 60) || "Logótipo", tipo: "imagem", asset_id: a.asset.id, recorte: "contain", x: 1080 - 64 - w, y: 1350 - 64 - h, w, h, z: topoZ + 1 };
+        nova = { id: novoId("imagem"), nome: a.nome.slice(0, 60) || "Logótipo", tipo: "imagem", asset_id: a.asset.id, recorte: "contain", x: 1080 - 64 - w, y: dimensoes.altura - 64 - h, w, h, z: topoZ + 1 };
       } else if (a.pos || a.modo === "imagem") {
-        const { w, h } = tamanhoImagemNova(a.asset.largura, a.asset.altura);
-        const o = centrar(a.pos, w, h, { x: Math.round((1080 - w) / 2), y: Math.round((1350 - h) / 2) });
+        const { w, h } = tamanhoImagemNova(a.asset.largura, a.asset.altura, dimensoes.altura);
+        const o = centrar(a.pos, w, h, { x: Math.round((1080 - w) / 2), y: Math.round((dimensoes.altura - h) / 2) }, dimensoes);
         const topo = pg.camadas.length ? Math.max(...pg.camadas.map((x) => x.z)) : 0;
         nova = { id: novoId("imagem"), nome: a.nome.slice(0, 60) || "Imagem", tipo: "imagem", asset_id: a.asset.id, recorte: "cover", foco: { x: 0.5, y: 0.5 }, x: o.x, y: o.y, w, h, z: topo + 1, ...animacaoDa(a.asset) };
       } else {
         const baixo = pg.camadas.length ? Math.min(...pg.camadas.map((x) => x.z)) : 1;
-        nova = { id: novoId("imagem"), nome: a.nome.slice(0, 60) || "Imagem", tipo: "imagem", asset_id: a.asset.id, recorte: "cover", foco: { x: 0.5, y: 0.5 }, x: 0, y: 0, w: 1080, h: 1350, z: baixo - 1, ...animacaoDa(a.asset) };
+        nova = { id: novoId("imagem"), nome: a.nome.slice(0, 60) || "Imagem", tipo: "imagem", asset_id: a.asset.id, recorte: "cover", foco: { x: 0.5, y: 0.5 }, x: 0, y: 0, w: dimensoes.largura, h: dimensoes.altura, z: baixo - 1, ...animacaoDa(a.asset) };
       }
       return aplicar(s, comPagina(pacote, s.variante, s.pagina, (p) => ({ ...p, camadas: [...p.camadas, nova] })), undefined, { selecao: nova.id });
     }
@@ -250,7 +251,8 @@ export function reduzir(s: EstadoEditor, a: Acao): EstadoEditor {
       return aplicar(s, a.pacote, undefined, ajustar(s, a.pacote));
     case "fundo":
       return aplicar(s, comPagina(s.pacote, s.variante, s.pagina, (p) => ({ ...p, fundo: a.cor })), "fundo");
-    case "duplicarPagina": {
+    case "duplicarPagina":
+      if ((dimensoes.formato ?? "carrossel") !== "carrossel") return s; {
       const orig = s.pacote.variantes[s.variante].paginas[a.indice];
       if (!orig || s.pacote.variantes[s.variante].paginas.length >= 20) return s;
       const copia: Pagina = { ...orig, id: novoId("pag"), camadas: orig.camadas.map((c) => ({ ...c, id: novoId(c.tipo) })) };
@@ -303,6 +305,7 @@ export const LIMITE_PAGINAS = 20;
  * "branco" keeps only the background.
  */
 export function inserirSlide(p: PacoteProva, variante: Variante, indice: number, modelo: "branco" | "texto"): { pacote: PacoteProva; pagina: number } | null {
+  if ((p.variantes[variante].formato ?? "carrossel") !== "carrossel") return null;
   const base = p.variantes[variante].paginas[indice];
   if (!base) return null;
   if ((["A", "B"] as Variante[]).some((v) => p.variantes[v].paginas.length >= LIMITE_PAGINAS)) return null;

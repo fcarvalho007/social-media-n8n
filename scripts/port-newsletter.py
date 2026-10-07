@@ -62,6 +62,30 @@ def server_fn_exports(s):
 # Targeted type fixes for origin code that relied on strict-mode narrowing or older lucide-react
 # prop types. Each pattern must exist (the port fails loudly otherwise) so drift is never hidden.
 CLIENT_FIXES = {
+    "features/newsletter/revista/EditorRevista.tsx": [
+        ('estadoBriefsDaEdicaoFn, sincronizarBriefPapelFn, sincronizarBriefsDaEdicaoFn', 'estadoBriefsDaEdicaoFn, sincronizarBriefPapelFn'),
+        ('''  // Edições escolhidas antes desta fase ainda não têm Brief: reconcilia uma vez.
+  const reconciliarBriefs = useServerFn(sincronizarBriefsDaEdicaoFn);
+  const reconciliado = useRef<string | null>(null);
+  useEffect(() => {
+    if (!edicaoId || briefsQ.isPending || reconciliado.current === edicaoId) return;
+    reconciliado.current = edicaoId;
+    void reconciliarBriefs({ data: { edicaoId } })
+      .then((r) => { if (r.sincronizados > 0) recarregarBriefs(); })
+      .catch(() => { /* reconciliação é oportunista */ });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [edicaoId, briefsQ.isPending]);''', '  // Opening an edition is read-only; never synchronize Briefs on mount.'),
+        ('import { FitaFases,', 'import { CuradoriaNoticias } from "@/features/curadoria/CuradoriaNoticias";\nimport { FitaFases,'),
+        ('{fase === "curar" && (\n        <>', '{fase === "curar" && (\n        <>\n          <details className="rounded-2xl border border-border bg-card p-4" open>\n            <summary className="min-h-11 cursor-pointer font-semibold">Notícias aprovadas na curadoria comum</summary>\n            <CuradoriaNoticias paraEdicao={{ id: edicaoId, onSelecionada: () => { void qc.invalidateQueries({ queryKey: ["revista-aprovadas", edicaoId] }); void qc.invalidateQueries({ queryKey: ["aprovadas", edicaoId] }); void qc.invalidateQueries({ queryKey: ["pendentes"] }); } }} />\n          </details>'),
+    ],
+    "features/newsletter/EditorNewsletter.tsx": [
+        ('import { Pendentes }', 'import { CuradoriaNoticias } from "@/features/curadoria/CuradoriaNoticias";\nimport { Pendentes }'),
+        ('          <div className="mb-4"><FilaEntrada /></div>', '          <div className="mb-4"><FilaEntrada /></div>\n          {edicaoId && !bloqueado && <details className="mb-4 rounded-2xl border border-border bg-card p-4">\n            <summary className="min-h-11 cursor-pointer font-semibold">Notícias aprovadas na curadoria comum</summary>\n            <CuradoriaNoticias paraEdicao={{ id: edicaoId, onSelecionada: () => { void qc.invalidateQueries({ queryKey: ["aprovadas", edicaoId] }); void qc.invalidateQueries({ queryKey: ["pendentes"] }); } }} />\n          </details>}'),
+    ],
+    "features/newsletter/data.ts": [
+        ('export async function listarPendentes(): Promise<Pendente[]> {\n  const { data, error } = await supabase', 'export async function listarPendentes(): Promise<Pendente[]> {\n  // New columns are added by migration 0039; the Cloud catalog is regenerated on deployment.\n  const db = supabase as unknown as import("@supabase/supabase-js").SupabaseClient;\n  const { data, error } = await db'),
+        ('.eq("estado", "pendente")\n    .order("created_at",', '.eq("estado", "pendente")\n    .filter("editorial_estado", "eq", "pendente")\n    .filter("curadoria_origem_id", "is", null)\n    .order("created_at",'),
+    ],
     "features/newsletter/AssuntoField.tsx": [
         ("type Validacao = { ok: true } | { ok: false; erro: string };", "type Validacao = { ok: boolean; erro?: string };"),
     ],

@@ -164,7 +164,9 @@ export function comporImagem(p: Pagina, o: OpcoesImagem): ResultadoImagem | null
   return r;
 }
 type OpcoesImagem = Parameters<typeof comporImagemUma>[1];
-function comporImagemUma(p: Pagina, o: { indice: number; total: number; estilo: EstiloId; variante: Variante; paleta: Paleta; conteudo: ConteudoEditorial; m?: Medidor; comp?: ComposicaoImagem; assets?: Record<string, unknown>; papel?: PapelVisual }): ResultadoImagem | null {
+function comporImagemUma(p: Pagina, o: { altura?: number; indice: number; total: number; estilo: EstiloId; variante: Variante; paleta: Paleta; conteudo: ConteudoEditorial; m?: Medidor; comp?: ComposicaoImagem; assets?: Record<string, unknown>; papel?: PapelVisual }): ResultadoImagem | null {
+  const ALTURA = o.altura ?? 1350;
+  const BASE = ALTURA === 1920 ? 1570 : 1210;
   const titulo = p.camadas.find((c): c is CamadaTexto => c.tipo === "texto" && !!c.ref?.endsWith(".titulo"));
   const corpo = p.camadas.find((c): c is CamadaTexto => c.tipo === "texto" && !!c.ref?.endsWith(".texto"));
   if (!titulo && !corpo) return null;

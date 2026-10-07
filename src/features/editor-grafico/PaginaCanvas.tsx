@@ -65,6 +65,7 @@ function Conteudo({ c, pacote, medidor, imagens }: { c: Camada; pacote: PacotePr
 export function PaginaCanvas({ pacote, variante, indice, medidor, imagens, escala, interativo = false, selecao = null, onSelecionar, onAlterar, toque = false, corSelecao = "#f59e0b", encaixe = false, onEditarTexto }: Props) {
   const [guias, setGuias] = useState<{ x: number[]; y: number[] }>({ x: [], y: [] });
   const [sobrevoo, setSobrevoo] = useState<string | null>(null);
+  const { largura: LARGURA, altura: ALTURA } = pacote.variantes[variante];
   const pagina = pacote.variantes[variante].paginas[indice];
   const trRef = useRef<Konva.Transformer>(null);
   const nos = useRef(new Map<string, Konva.Group>());
@@ -109,7 +110,7 @@ export function PaginaCanvas({ pacote, variante, indice, medidor, imagens, escal
               onMouseLeave={(e) => { if (!interativo) return; setSobrevoo((a) => (a === c.id ? null : a)); const s = e.target.getStage(); if (s) s.container().style.cursor = "default"; }}
               onDragMove={(e) => {
                 if (!encaixe) return;
-                const r = encaixar(e.target.x() + lim.x, e.target.y() + lim.y, lim.w, lim.h, pagina.camadas.filter((o) => o.id !== c.id), 10 / Math.max(escala, 0.1) * 0.5 + 4);
+                const r = encaixar(e.target.x() + lim.x, e.target.y() + lim.y, lim.w, lim.h, pagina.camadas.filter((o) => o.id !== c.id), 10 / Math.max(escala, 0.1) * 0.5 + 4, { largura: LARGURA, altura: ALTURA });
                 e.target.position({ x: r.x - lim.x, y: r.y - lim.y });
                 setGuias({ x: r.guiasX, y: r.guiasY });
               }}

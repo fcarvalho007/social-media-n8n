@@ -112,6 +112,7 @@ import {
   Card, SectionTitle, Url, UrlEditor, DescricaoMeta, NoticiaEditForm, CatSelect, ORIGEM_META, type NoticiaDraft,
   Foldable,
 } from "./partilhado/ui";
+import { CuradoriaNoticias } from "@/features/curadoria/CuradoriaNoticias";
 import { Pendentes } from "./partilhado/Pendentes";
 import { FilaEntrada } from "./partilhado/FilaEntrada";
 
@@ -2490,6 +2491,10 @@ export default function EditorNewsletter({ selo }: { selo?: React.ReactNode } = 
           {/* Pendentes (primeira secção — acção semanal) */}
 
           <div className="mb-4"><FilaEntrada /></div>
+          {edicaoId && !bloqueado && <details className="mb-4 rounded-2xl border border-border bg-card p-4">
+            <summary className="min-h-11 cursor-pointer font-semibold">Notícias aprovadas na curadoria comum</summary>
+            <CuradoriaNoticias paraEdicao={{ id: edicaoId, onSelecionada: () => { void qc.invalidateQueries({ queryKey: ["aprovadas", edicaoId] }); void qc.invalidateQueries({ queryKey: ["pendentes"] }); } }} />
+          </details>}
 
           <Pendentes
 

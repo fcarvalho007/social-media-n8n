@@ -74,7 +74,8 @@ const ret = (id: string, x: number, y: number, w: number, h: number, z: number, 
  * Rebuilds the "fx-" layers of a page from the style tokens + palette (idempotent: old fx layers are dropped).
  * Effects never move or resize text/images; they respect the 60-layer limit by dropping the least important.
  */
-export function aplicarEfeitos(p: Pagina, estilo: EstiloId, paleta: Paleta, override: OverrideEfeitos = {}): Pagina {
+export function aplicarEfeitos(p: Pagina, estilo: EstiloId, paleta: Paleta, override: OverrideEfeitos = {}, altura = ALTURA): Pagina {
+  const ALTURA = altura;
   const t = EFEITOS_ESTILO[estilo] ?? EFEITOS_ESTILO.editorial;
   const on = efeitosAtivos(estilo, override);
   const camadas = p.camadas.filter((c) => !c.id.startsWith("fx-"));

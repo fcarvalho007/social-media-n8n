@@ -1,4 +1,5 @@
 // Pure export/draft helpers shared by the mc-motor server and the tests (no Deno/npm runtime imports).
+import { formatoConteudo } from "../documento-grafico/formatos.ts";
 import { validarPacote, type Asset, type DocumentoGrafico, type PacoteProva, type Variante } from "../documento-grafico/nucleo.ts";
 import type { PropostaEditorial } from "./proposta.ts";
 
@@ -50,16 +51,21 @@ export interface FicheiroExportado { formato: "png" | "pdf" | "zip"; pagina: num
 
 /** posts_drafts row following the contract the current Studio → social flow already uses. */
 export function linhaRascunho(a: {
-  id: string; userId: string; projectId: string; proposta: PropostaEditorial; pngs: string[]; pdf: string;
+  id: string; userId: string; projectId: string; proposta: PropostaEditorial; pngs: string[]; pdf?: string | null;
   trabalhoId: string; documentoId: string; variante: Variante; versao: number; propostaVersao: number;
 }) {
+  const formato = formatoConteudo(a.proposta.formato);
+  if (formato !== "carrossel" && a.pngs.length !== 1) throw new Error("Post e story precisam de uma imagem.");
+  if (formato === "carrossel" && !a.pdf) throw new Error("Falta o PDF do carrossel.");
+  const platform = formato === "story" ? "instagram_stories" : formato === "post" ? "instagram_image" : "instagram_carousel";
+  const formats = formato === "story" ? [platform] : [platform, formato === "post" ? "linkedin_post" : "linkedin_document"];
   const legenda = a.proposta.legenda.slice(0, 2200);
   return {
     id: a.id,
     user_id: a.userId,
-    platform: "instagram_carousel",
-    format: "instagram_carousel",
-    formats: ["instagram_carousel", "linkedin_document"],
+    platform,
+    format: platform,
+    formats,
     caption: legenda,
     media_urls: a.pngs,
     media_items: a.pngs.map((url, i) => ({ url, type: "image", mediaType: "image", source: "estudio", name: nomePagina(i) })),
@@ -70,13 +76,13 @@ export function linhaRascunho(a: {
     project_id: a.projectId,
     origem: {
       tipo: TIPO_ORIGEM, trabalho_id: a.trabalhoId, documento_id: a.documentoId, variante: a.variante,
-      versao: a.versao, proposta_versao: a.propostaVersao, pdf_url: a.pdf, alt: a.proposta.alt.slice(0, 20),
+      versao: a.versao, proposta_versao: a.propostaVersao, formato, ...(a.pdf ? { pdf_url: a.pdf } : {}), alt: a.proposta.alt.slice(0, 20),
     },
     // Provenance travels with the draft into posts.ai_metadata when it is published (Criar keeps ai_metadata),
     // so a publication can be tied to this exact version and networks even after the draft is consumed.
     ai_metadata: {
-      origem_estudio: TIPO_ORIGEM, pdf_linkedin_url: a.pdf,
-      motor: { trabalho_id: a.trabalhoId, documento_id: a.documentoId, variante: a.variante, versao: a.versao, proposta_versao: a.propostaVersao, draft_id: a.id, redes: ["instagram", "linkedin"] },
+      origem_estudio: TIPO_ORIGEM, ...(a.pdf ? { pdf_linkedin_url: a.pdf } : {}),
+      motor: { trabalho_id: a.trabalhoId, documento_id: a.documentoId, variante: a.variante, versao: a.versao, proposta_versao: a.propostaVersao, draft_id: a.id, formato, redes: formato === "story" ? ["instagram"] : ["instagram", "linkedin"] },
     },
   };
 }

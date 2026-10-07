@@ -27,7 +27,8 @@ export function caixaTexto(pacote: PacoteProva, v: Variante, i: number): Rect | 
 }
 
 /** Smallest distance from the text box to each page edge (real geometry, px of the 1080 canvas). */
-export function recuos(r: Rect) {
+export function recuos(r: Rect, dimensoes = { largura: PAG_W, altura: PAG_H }) {
+  const { largura: PAG_W, altura: PAG_H } = dimensoes;
   return { topo: Math.round(r.y), dir: Math.round(PAG_W - r.x - r.w), base: Math.round(PAG_H - r.y - r.h), esq: Math.round(r.x) };
 }
 

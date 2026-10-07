@@ -10,6 +10,7 @@ export interface ListaAlvo {
     nome: string;
     egoi_lista_id: string;
     tipo: "teste" | "real";
+    campo_token_id: number | null;
 }
 export interface ResultadoSync {
     lista_id: string;

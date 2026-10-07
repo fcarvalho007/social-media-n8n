@@ -440,6 +440,7 @@ export default function CarrosselTrabalho() {
         {passo === "fonte" && (
           <section className="mc-entrar mx-auto max-w-3xl space-y-4" aria-labelledby="t-fonte">
             <h1 id="t-fonte" className="text-2xl font-semibold tracking-tight">Fonte</h1>
+            {dados.fonte.tipo === "curadoria" && <p className="text-sm text-muted-foreground">Notícia da curadoria · fonte congelada neste trabalho. As alterações à notícia não mudam este conteúdo.</p>}
             <p className="text-xs text-muted-foreground">Guardada tal como foi enviada · impressão digital {dados.fonte.hash.slice(0, 12)}</p>
             <ol className="space-y-3 border-l border-border pl-4">
               {fonte.paragrafos.map((p, i) => <li key={i} className="flex gap-3 text-sm leading-relaxed"><span className="w-7 shrink-0 tabular-nums text-muted-foreground">§{i + 1}</span><span>{p}</span></li>)}
@@ -453,7 +454,7 @@ export default function CarrosselTrabalho() {
               <h1 id="t-narr" className="text-2xl font-semibold tracking-tight">Narrativa</h1>
               <p className="text-xs text-muted-foreground">Proposta v{gravado!.propostaVersao} · o texto é o mesmo nas variantes A e B · cada alteração cria nova versão</p>
             </div>
-            <PainelEstruturas dados={dados} atual={gravado!.conteudo} aceitar={aceitarEstrutura} />
+            {(prop.formato ?? "carrossel") === "carrossel" && <PainelEstruturas dados={dados} atual={gravado!.conteudo} aceitar={aceitarEstrutura} />}
             <div className="grid gap-6 lg:grid-cols-[260px_1fr]">
               <ol className="flex gap-2 overflow-x-auto pb-1 lg:flex-col lg:overflow-visible" aria-label="Storyboard">
                 {slides.map((s, i) => {

@@ -6,6 +6,7 @@ import { PDFDocument } from "npm:pdf-lib@1.17.1";
 import { adicionarPaginaRgb, pngParaRgb } from "./pngPdf.ts";
 import { renderizarPaginaPng } from "../documento-grafico/render.server.ts";
 import type { DocumentoGrafico, Variante } from "../documento-grafico/nucleo.ts";
+import { formatoConteudo } from "../documento-grafico/formatos.ts";
 import type { PropostaEditorial } from "./proposta.ts";
 import { assetsReferidos } from "./fontes.ts";
 import { resolverAssets } from "./fontes.server.ts";
@@ -90,7 +91,7 @@ async function processarJob(sb: SupabaseClient, j: Job): Promise<string> {
   feitos = await registos(sb, j);
   const pngs = feitos.filter((r) => r.formato === "png").sort((a, b) => (a.pagina ?? 0) - (b.pagina ?? 0));
   const temPdf = feitos.find((r) => r.formato === "pdf" && r.pagina === null);
-  if (!temPdf) {
+  if (!temPdf && formatoConteudo(docV.formato) === "carrossel") {
     const bytesPng = [] as Uint8Array[];
     for (const r of pngs) bytesPng.push(await baixar(sb, r.storage_path, r.hash));
     {
@@ -98,7 +99,7 @@ async function processarJob(sb: SupabaseClient, j: Job): Promise<string> {
       pdf.setTitle(pacote.nome);
       pdf.setCreator("Estúdio — motor de carrosséis");
       pdf.setProducer("pdf-lib");
-      for (const b of bytesPng) adicionarPaginaRgb(pdf, await pngParaRgb(b), 1080, 1350);
+      for (const b of bytesPng) adicionarPaginaRgb(pdf, await pngParaRgb(b), docV.largura, docV.altura);
       const out = await pdf.save({ useObjectStreams: true });
       const hash = await sha256(out);
       const path = caminhoFicheiro(j.project_id, j.documento_id, j.documento_versao, "linkedin.pdf", hash);
@@ -108,7 +109,7 @@ async function processarJob(sb: SupabaseClient, j: Job): Promise<string> {
     feitos = await registos(sb, j);
   }
   const manifesto = {
-    v: 1, documento_id: j.documento_id, versao: j.documento_versao, variante, proposta_versao: dv.proposta_versao, largura: 1080, altura: 1350,
+    v: 1, documento_id: j.documento_id, versao: j.documento_versao, variante, proposta_versao: dv.proposta_versao, largura: docV.largura, altura: docV.altura, formato: formatoConteudo(docV.formato),
     ficheiros: feitos.filter((r) => r.formato !== "zip").sort((a, b) => a.formato.localeCompare(b.formato) || (a.pagina ?? 0) - (b.pagina ?? 0))
       .map((r) => ({ formato: r.formato, pagina: r.pagina, path: r.storage_path, sha256: r.hash, bytes: r.bytes })),
   };

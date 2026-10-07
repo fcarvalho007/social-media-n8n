@@ -121,7 +121,7 @@ export const ModeSelector = ({ onModeSelect, className }: ModeSelectorProps) => 
               </ul>
               <div className="space-y-2">
                 <Button asChild size="lg" className="w-full h-12 font-semibold">
-                  <Link to="/estudio/carrosseis/novo" onClick={() => handleModeSelection('ia')}><LayoutGrid className="h-5 w-5 mr-2" />Criar carrossel</Link>
+                  <Link to="/estudio/carrosseis/novo" onClick={() => handleModeSelection('ia')}><LayoutGrid className="h-5 w-5 mr-2" />Carrossel, post ou story</Link>
                 </Button>
                 <div className="grid grid-cols-2 gap-2">
                   <Button asChild variant="outline" className="h-11 font-semibold"><Link to="/estudio/carrosseis">Meus carrosséis</Link></Button>

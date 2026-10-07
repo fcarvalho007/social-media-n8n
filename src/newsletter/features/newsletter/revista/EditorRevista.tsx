@@ -11,6 +11,7 @@ import {
   Inbox, Sparkles, Settings2, PenLine,
   Layers, Wrench, Mic, Briefcase, Megaphone, ArrowUp, ArrowDown, ChevronDown, ChevronUp, Plus, Trash2,
 } from "lucide-react";
+import { CuradoriaNoticias } from "@/features/curadoria/CuradoriaNoticias";
 import { FitaFases, type Fase, type EstadoFase } from "./FitaFases";
 import { BlocoEdicao, type ResumoBloco } from "./BlocoEdicao";
 import { Ranhuras } from "./Ranhuras";
@@ -642,8 +643,7 @@ export default function EditorRevista({
       .catch(() => { /* o Brief não pode travar a escolha editorial */ });
   };
   const accoesBriefs = { recarregar: recarregarBriefs, registar };
-  // Opening an edition is read-only: the edition-wide Brief sync is an external
-  // (confirmed) operation and must never run on mount.
+  // Opening an edition is read-only; never synchronize Briefs on mount.
 
   /* ─── Verificação de links (partilhada com o Clássico) ─── */
   const [modalLinks, setModalLinks] = useState(false);
@@ -1241,6 +1241,10 @@ export default function EditorRevista({
 
       {fase === "curar" && (
         <>
+          <details className="rounded-2xl border border-border bg-card p-4" open>
+            <summary className="min-h-11 cursor-pointer font-semibold">Notícias aprovadas na curadoria comum</summary>
+            <CuradoriaNoticias paraEdicao={{ id: edicaoId, onSelecionada: () => { void qc.invalidateQueries({ queryKey: ["revista-aprovadas", edicaoId] }); void qc.invalidateQueries({ queryKey: ["aprovadas", edicaoId] }); void qc.invalidateQueries({ queryKey: ["pendentes"] }); } }} />
+          </details>
           <div className="rounded-2xl border border-border bg-card p-4">
             <div className="flex flex-wrap items-center gap-x-4 gap-y-2">
               {contadores.map((c) => (

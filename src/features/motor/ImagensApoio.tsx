@@ -6,7 +6,7 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { ACEITAR_CARREGAR, carregarFicheiro } from "@/features/editor-grafico/carregar";
 import { interpretarImagem } from "@/services/motor";
-import { MAX_DESCRICAO_APOIO, MAX_IMAGENS_APOIO, type ImagemApoio } from "./imagensApoio";
+import { MAX_DESCRICAO_APOIO, MAX_IMAGENS_APOIO, type ImagemApoio } from "./fonteComImagens";
 
 interface Props { projectId: string; imagens: ImagemApoio[]; onMudar: (v: ImagemApoio[]) => void; desativado?: boolean }
 

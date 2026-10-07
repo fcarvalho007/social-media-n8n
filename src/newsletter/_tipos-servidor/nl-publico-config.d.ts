@@ -16,9 +16,33 @@ export declare function campoTokenEgoi(): number | null;
  * cross-check: if set and different from the derived code, the tag is treated as missing (send blocked).
  */
 export declare function tagTokenEgoi(): string;
-/** Footer link to the subscription page, authenticated only by the signed token merge tag. */
+/**
+ * Rendered content never carries a field id: it carries this neutral marker, replaced per destination
+ * list (aplicarTokenLista) right before the campaign goes to E-goi. Each list has its own field id.
+ */
+export declare const MARCADOR_TOKEN = "{{NL_TOKEN_EGOI}}";
+export declare const TOKEN_POR_CONFIGURAR = "{TOKEN_POR_CONFIGURAR}";
+export type ListaComCampo = {
+    nome?: string;
+    campo_token_id?: number | null;
+};
+export type CampoResolvido = {
+    campo: number;
+    origem: "lista" | "legado";
+};
+/** Strict id check: positive integer only (no strings, decimals or zero). */
+export declare function idCampoValido(v: unknown): v is number;
+/**
+ * Field id for ONE list: its own configured id wins; otherwise the legacy global NL_EGOI_CAMPO_TOKEN_ID
+ * (only when valid and consistent with NL_EGOI_TAG_TOKEN). Null = not configured -> that list is blocked.
+ * Whether the legacy id really exists as a text field in that list is checked live by the send gate.
+ */
+export declare function resolverCampoLista(l: ListaComCampo): CampoResolvido | null;
+/** Replaces the neutral marker with the list's merge code; without a field only an explicit placeholder. */
+export declare function aplicarTokenLista(texto: string, campo: number | null): string;
+/** Footer link to the subscription page, authenticated only by the signed token merge tag (per list). */
 export declare function linkSubscricao(accao?: "cancelar"): string;
-/** RFC 8058 one-click endpoint (List-Unsubscribe), token only. */
+/** RFC 8058 one-click endpoint (List-Unsubscribe), token only (marker replaced per list). */
 export declare function linkUmClique(): string;
 export declare function avatarUrl(): string;
 /** Blocks sending when public links would be broken or unauthenticated. */

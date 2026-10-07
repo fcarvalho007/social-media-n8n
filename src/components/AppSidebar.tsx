@@ -16,6 +16,7 @@ export const GRUPOS_MENU: Grupo[] = [
     itens: [
       { label: 'Painel', icon: LayoutDashboard, url: '/' },
       { label: 'Criar SM', icon: PlusCircle, url: '/pending?tab=create' },
+      { label: 'Curadoria', icon: CheckCircle2, url: '/curadoria' },
       { label: 'Newsletter', icon: Mail, url: '/newsletter' },
       { label: 'Aprovar', icon: CheckCircle2, url: '/pending', badge: true },
       { label: 'Calendário', icon: Calendar, url: '/calendar' },

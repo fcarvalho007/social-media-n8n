@@ -21,7 +21,7 @@ export const ActionButtons = ({ className }: { className?: string }) => (
       <h2 id="ia-titulo" className="text-xl font-semibold">Assistido por IA</h2>
       <p className="text-base text-muted-foreground">Cria um carrossel a partir de texto, link ou PDF, revê e exporta no Hub.</p>
       <div className="flex flex-wrap gap-2">
-        <Button asChild size="lg" className="min-h-11"><Link to="/estudio/carrosseis/novo"><GalleryHorizontal className="mr-2 h-5 w-5" aria-hidden />Criar carrossel</Link></Button>
+        <Button asChild size="lg" className="min-h-11"><Link to="/estudio/carrosseis/novo"><GalleryHorizontal className="mr-2 h-5 w-5" aria-hidden />Criar conteúdo visual</Link></Button>
         <Button asChild size="lg" variant="outline" className="min-h-11"><Link to="/estudio/carrosseis"><Layers className="mr-2 h-5 w-5" aria-hidden />Meus carrosséis</Link></Button>
         <Button asChild size="lg" variant="ghost" className="min-h-11"><Link to="/estudio/redes-sociais"><Images className="mr-2 h-5 w-5" aria-hidden />Carrosséis da crónica</Link></Button>
       </div>

@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { comporComImagens, MAX_IMAGENS_APOIO, paragrafoImagem } from "@/features/motor/imagensApoio";
+import { comporComImagens, MAX_IMAGENS_APOIO, paragrafoImagem } from "@/features/motor/fonteComImagens";
 
 describe("imagens de apoio", () => {
   it("acrescenta um parágrafo § por imagem descrita, pela ordem", () => {

@@ -1,3 +1,4 @@
+import { CONFIG_FORMATOS } from "../../supabase/functions/_shared/documento-grafico/formatos";
 import * as React from "react";
 import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
@@ -57,8 +58,8 @@ export default function Carrosseis() {
       setItens(r);
       lerCapas(r.slice(0, 48).map((t) => t.id)).then((c) => vivo && setCapas(c)).catch(() => undefined);
     }).catch((e: Error) => vivo && setErro(e.message));
-    return () => { vivo = false; };
     setSelecionados(new Set());
+    return () => { vivo = false; };
   }, [projetoId, tentativa]);
 
   useEffect(() => {
@@ -109,10 +110,10 @@ export default function Carrosseis() {
       <div className="mx-auto max-w-6xl space-y-6 px-4 py-6 sm:px-6 sm:py-10">
         <header className="flex flex-wrap items-end justify-between gap-3">
           <div>
-            <h1 className="text-2xl font-semibold tracking-tight sm:text-3xl">Carrosséis</h1>
+            <h1 className="text-2xl font-semibold tracking-tight sm:text-3xl">Conteúdos visuais</h1>
             <p className="text-sm text-muted-foreground">{estadoProj === "pronto" ? (projetoId ? nomeProjeto(projetoId) : "Todos os projetos") : "A carregar projetos…"}</p>
           </div>
-          <Button asChild className="h-11 px-5"><Link to="/estudio/carrosseis/novo"><Plus className="mr-1.5 h-4 w-4" />Novo carrossel</Link></Button>
+          <Button asChild className="h-11 px-5"><Link to="/estudio/carrosseis/novo"><Plus className="mr-1.5 h-4 w-4" />Novo conteúdo</Link></Button>
         </header>
 
         {erro && <p role="alert" className="text-sm text-destructive">{erro}</p>}
@@ -151,7 +152,7 @@ export default function Carrosseis() {
               <Checkbox checked={todosVisiveis} onCheckedChange={(checked) => selecionarVisiveis(checked === true)} />
               Selecionar visíveis
             </label>
-            <span className="text-xs text-muted-foreground">{selecionados.size > 0 ? `${selecionados.size} selecionado${selecionados.size === 1 ? "" : "s"}` : "Selecione um ou vários carrosséis"}</span>
+            <span className="text-xs text-muted-foreground">{selecionados.size > 0 ? `${selecionados.size} selecionado${selecionados.size === 1 ? "" : "s"}` : "Selecione um ou vários conteúdos"}</span>
             {selecionados.size > 0 && <Button variant="destructive" size="sm" className="ml-auto" onClick={() => setConfirmarEliminacao(true)}><Trash2 className="mr-1.5 h-4 w-4" />Eliminar ({selecionados.size})</Button>}
           </div>
         )}
@@ -160,29 +161,30 @@ export default function Carrosseis() {
           <div className="mc-entrar max-w-lg space-y-4 py-16">
             <Layers className="h-6 w-6 text-muted-foreground" aria-hidden />
             <p className="text-lg font-medium">Ainda não há publicações confirmadas{projetoId ? " neste projeto" : ""}.</p>
-            <p className="text-sm text-muted-foreground">Um carrossel só aparece aqui quando a rede confirma a publicação da versão atual. Publicações antigas sem essa ligação não são contadas.</p>
+            <p className="text-sm text-muted-foreground">Um conteúdo só aparece aqui quando a rede confirma a publicação da versão atual. Publicações antigas sem essa ligação não são contadas.</p>
             <div className="flex flex-wrap gap-2">
-              {(contar("por_publicar") ?? 0) > 0 && <Button className="h-11" onClick={() => setAba("por_publicar")}>Ver carrosséis por publicar ({contar("por_publicar")})</Button>}
-              <Button asChild variant={(contar("por_publicar") ?? 0) > 0 ? "outline" : "default"} className="h-11"><Link to="/estudio/carrosseis/novo">Novo carrossel</Link></Button>
+              {(contar("por_publicar") ?? 0) > 0 && <Button className="h-11" onClick={() => setAba("por_publicar")}>Ver conteúdos por publicar ({contar("por_publicar")})</Button>}
+              <Button asChild variant={(contar("por_publicar") ?? 0) > 0 ? "outline" : "default"} className="h-11"><Link to="/estudio/carrosseis/novo">Novo conteúdo</Link></Button>
             </div>
           </div>
         )}
         {visiveis && visiveis.length === 0 && !(estados && aba === "publicados" && reais && reais.length > 0) && (
           <div className="mc-entrar max-w-lg space-y-4 py-16">
             <Layers className="h-6 w-6 text-muted-foreground" aria-hidden />
-            <p className="text-lg font-medium">{estados && reais && reais.length > 0 ? "Nada por publicar" : nProvas > 0 && !verProvas ? "Ainda não há carrosséis reais" : "Ainda não há carrosséis"}{projetoId ? " neste projeto" : ""}.</p>
+            <p className="text-lg font-medium">{estados && reais && reais.length > 0 ? "Nada por publicar" : nProvas > 0 && !verProvas ? "Ainda não há conteúdos reais" : "Ainda não há conteúdos"}{projetoId ? " neste projeto" : ""}.</p>
             <p className="text-sm text-muted-foreground">Cola um texto, escolhe o objetivo e o estúdio propõe a narrativa e duas composições.</p>
             <div className="flex flex-wrap gap-2">
-              <Button asChild className="h-11"><Link to="/estudio/carrosseis/novo">Criar primeiro carrossel</Link></Button>
+              <Button asChild className="h-11"><Link to="/estudio/carrosseis/novo">Criar primeiro conteúdo</Link></Button>
               <Button asChild variant="ghost" className="h-11 text-muted-foreground"><Link to="/estudio/carrosseis/novo?demo=1"><FlaskConical className="mr-1.5 h-4 w-4" />Ver exemplo de demonstração</Link></Button>
             </div>
           </div>
         )}
 
         {visiveis && visiveis.length > 0 && (
-          <ul className="grid grid-cols-2 gap-x-4 gap-y-8 sm:grid-cols-3 lg:grid-cols-5" aria-label="Biblioteca de carrosséis">
+          <ul className="grid grid-cols-2 gap-x-4 gap-y-8 sm:grid-cols-3 lg:grid-cols-5" aria-label="Biblioteca de conteúdos">
             {visiveis.map((t) => {
               const capa = capas[t.id];
+              const config = CONFIG_FORMATOS[t.formato ?? "carrossel"];
               const titulo = t.titulo || capa?.conteudo.titulo || capa?.conteudo.slides[0]?.titulo || "Carrossel sem título";
               const tag = etiquetaTeste(t, capa);
               const falhou = t.estado === "erro" || t.estado === "desconhecido";
@@ -193,7 +195,7 @@ export default function Carrosseis() {
                     <Checkbox checked={selecionados.has(t.id)} onCheckedChange={(checked) => selecionar(t.id, checked === true)} aria-label={`Selecionar ${titulo}`} />
                   </div>
                   <Link to={`/estudio/carrosseis/${t.id}`} className="group block rounded-[var(--mc-r-lg)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring">
-                    <div className="mc-trans relative aspect-[4/5] overflow-hidden rounded-[var(--mc-r-md)] border border-border bg-card group-hover:border-muted-foreground/60">
+                    <div style={{ aspectRatio: `${config.largura}/${config.altura}` }} className="mc-trans relative overflow-hidden rounded-[var(--mc-r-md)] border border-border bg-card group-hover:border-muted-foreground/60">
                       {capa && medidor ? (
                         <Miniatura render={(w) => <PaginaCanvas pacote={paraPacote(t.id, titulo, capa.conteudo, { A: capa.documento, B: capa.documento })} variante="A" indice={0} medidor={medidor} imagens={{}} escala={w / 1080} />} />
                       ) : (
@@ -203,7 +205,8 @@ export default function Carrosseis() {
                       )}
                       {tag && <span className="absolute left-2 top-2 rounded-[var(--mc-r-sm)] bg-background/90 px-1.5 py-0.5 text-[11px] text-muted-foreground">{tag}</span>}
                     </div>
-                    <p className="mt-2 line-clamp-2 text-sm font-medium leading-snug">{titulo}</p>
+                    <p className="mt-2 text-xs text-muted-foreground">{config.nome} · {config.largura}×{config.altura}</p>
+                    <p className="mt-1 line-clamp-2 text-sm font-medium leading-snug">{titulo}</p>
                     <p className="mt-0.5 flex items-center gap-1.5 text-xs text-muted-foreground">
                       {ep ? <span className={cn(ep.estado === "publicado" ? "text-primary" : (ep.estado === "erro" || ep.estado === "por_confirmar") && "text-destructive")}>{NOME_ESTADO_CONTEUDO[ep.estado]}</span>
                         : <span className={cn(t.estado === "concluido" ? "text-primary" : falhou && "text-destructive")}>{NOME_ESTADO[t.estado]}</span>}
@@ -228,7 +231,7 @@ export default function Carrosseis() {
           <AlertDialogContent>
             <AlertDialogHeader>
               <AlertDialogTitle>Eliminar definitivamente?</AlertDialogTitle>
-              <AlertDialogDescription>{selecionados.size === 1 ? "O carrossel selecionado" : `Os ${selecionados.size} carrosséis selecionados`} e o respetivo histórico criativo serão eliminados. Os custos já registados e as imagens da biblioteca serão mantidos. Esta ação não pode ser anulada.</AlertDialogDescription>
+              <AlertDialogDescription>{selecionados.size === 1 ? "O conteúdo selecionado" : `Os ${selecionados.size} conteúdos selecionados`} e o respetivo histórico criativo serão eliminados. Os custos já registados e as imagens da biblioteca serão mantidos. Esta ação não pode ser anulada.</AlertDialogDescription>
             </AlertDialogHeader>
             <AlertDialogFooter><AlertDialogCancel disabled={aEliminar}>Cancelar</AlertDialogCancel><AlertDialogAction disabled={aEliminar} onClick={(event) => { event.preventDefault(); void eliminarSelecionados(); }} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">{aEliminar ? "A eliminar…" : "Eliminar definitivamente"}</AlertDialogAction></AlertDialogFooter>
           </AlertDialogContent>

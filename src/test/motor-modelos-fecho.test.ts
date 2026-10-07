@@ -51,7 +51,7 @@ async function foto(): Promise<string> {
   const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="800"><defs><linearGradient id="g" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#2f6f8f"/><stop offset="1" stop-color="#e0a458"/></linearGradient></defs><rect width="1200" height="800" fill="url(#g)"/><circle cx="820" cy="300" r="180" fill="#f3e9d2"/><rect x="0" y="560" width="1200" height="240" fill="#25412f"/></svg>`;
   return Buffer.from(await png(svg)).toString("base64");
 }
-const DIR = "/mnt/documents/qa-modelos-fecho";
+const DIR = "/tmp/hub-qa-modelos-fecho";
 
 describe("fecho dos modelos: capitular, recorte, avisos", () => {
   it("capitular é derivada do corpo: a primeira letra sai do texto da linha e não se perde nem duplica", () => {

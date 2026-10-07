@@ -37,12 +37,13 @@ export function DashboardHeader() {
     if (p === '/estudio/redes-sociais') return [C, { label: 'Carrosséis da crónica', path: null }];
     if (p.startsWith('/estudio/redes-sociais/')) return [C, { label: 'Carrosséis da crónica', path: '/estudio/redes-sociais' }, { label: 'Editor', path: null }];
     if (p === '/estudio/carrosseis') return [C, { label: 'Meus carrosséis', path: null }];
-    if (p === '/estudio/carrosseis/novo') return [C, { label: 'Criar carrossel', path: null }];
+    if (p === '/estudio/carrosseis/novo') return [C, { label: 'Criar conteúdo visual', path: null }];
     if (p.startsWith('/estudio/carrosseis/')) return [C, { label: 'Meus carrosséis', path: '/estudio/carrosseis' }, { label: 'Carrossel', path: null }];
     if (p === '/estudio/ligacoes') return [E, { label: 'Ligações', path: null }];
     if (p === '/newsletter/migracao') return [E, { label: 'Newsletter', path: '/newsletter' }, { label: 'Migração', path: null }];
     if (p.startsWith('/newsletter/')) return [E, { label: 'Newsletter', path: '/newsletter' }, { label: 'Detalhe', path: null }];
     if (p === '/newsletter') return [E, { label: 'Newsletter', path: null }];
+    if (p === '/curadoria') return [E, { label: 'Curadoria', path: null }];
     if (p === '/artigos') return [E, { label: 'Artigos', path: null }];
     if (p === '/manual-create') return [C, { label: 'Manual', path: null }];
     if (p === '/definicoes/seguranca') return [E, { label: 'Segurança da conta', path: null }];
