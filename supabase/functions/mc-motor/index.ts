@@ -404,7 +404,10 @@ Deno.serve(async (req) => {
       const pedidos = [];
       for (let i = 0; i < quantidade; i++) {
         const r = await criarTarefaKie(admin(), { projectId, userId: u.user.id, prompt, opcaoId: String(body.modelo_id ?? "") || undefined, proporcao: String(body.proporcao ?? "") || undefined, tamanho: String(body.tamanho ?? "") || undefined, profissional: body.profissional === true });
-        if (r.status !== 200) return json(r.corpo, r.status);
+        if (r.status !== 200) {
+          if (pedidos.length) return json({ ok: true, tarefas: pedidos, aviso: `Foram iniciadas ${pedidos.length} de ${quantidade} versões. O pedido seguinte falhou e não foi repetido.`, erro: r.corpo });
+          return json(r.corpo, r.status);
+        }
         pedidos.push(r.corpo);
       }
       return json({ ok: true, tarefas: pedidos });

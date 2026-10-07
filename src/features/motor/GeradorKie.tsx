@@ -50,14 +50,14 @@ export function GeradorKie({ projectId, usar, ocupado, promptInicial }: { projec
 
   const gerar = async () => {
     setErro(null); setConfirmar(false);
-    try { const r = await kieGerar(projectId, prompt, { modelo_id: modeloId, proporcao, tamanho, quantidade, profissional }); fixar(r.tarefas.map((t) => t.tarefa)); setEstado("criada"); }
+    try { const r = await kieGerar(projectId, prompt, { modelo_id: modeloId, proporcao, tamanho, quantidade, profissional }); fixar(r.tarefas.map((t) => t.tarefa)); setEstado("criada"); if (r.aviso) setErro(r.aviso); }
     catch (e) { setErro((e as Error).message); }
   };
 
   return (
     <section aria-labelledby="t-kie" className="space-y-3 border-t border-border pt-3">
       <h3 id="t-kie" className="text-sm font-medium">Gerar imagem com IA</h3>
-      {cfg && !cfg.configurada && <p className="text-sm text-muted-foreground"><strong>Configuração necessária.</strong> Falta a chave KIE_API_KEY. Vê o ecrã Ligações.</p>}
+      {cfg && !cfg.configurada && <p className="text-sm text-muted-foreground"><strong>Configuração necessária.</strong> Falta uma ligação a um serviço de imagens. Vê o ecrã Ligações.</p>}
       {cfg?.configurada && (
         <>
           <Label htmlFor="kie-prompt" className="sr-only">Descrição da imagem</Label>
