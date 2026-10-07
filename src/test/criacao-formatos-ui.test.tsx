@@ -8,7 +8,7 @@ vi.mock('@/contexts/AuthContext',()=>({useAuth:()=>({user:{id:'owner'}})}));
 vi.mock('@/contexts/ProjetoContext',()=>({useProjeto:()=>({projetoId:'project',projetos:[{id:'project',name:'Marca'}],estado:'pronto'})}));
 vi.mock('@/services/motor',()=>({criarTrabalho:mocks.criar,lerLinkFonte:vi.fn(),MODELO_IA_NOME:'DeepSeek'}));
 vi.mock('react-router-dom',async importOriginal=>({...await importOriginal<object>(),useNavigate:()=>mocks.nav}));
-vi.mock('@/features/motor/LimitesIa',()=>({LimitesIa:()=>null}));
+vi.mock('@/features/motor/LimitesIa',async()=>{const React=await import('react');return{LimitesIa:({onAlterado}:{onAlterado:(o:{maxDia:number;maxTrabalho:number;usadosHoje:number})=>void})=>{React.useEffect(()=>onAlterado({maxDia:10,maxTrabalho:2,usadosHoje:0}),[onAlterado]);return null;}}});
 vi.mock('@/features/motor/PerfilAutorPainel',()=>({PerfilAutorPainel:()=>null}));
 vi.mock('@/features/motor/PainelIdioma',()=>({PainelIdioma:()=>null}));
 vi.mock('@/features/motor/ImagensApoio',()=>({ImagensApoio:()=>null}));
