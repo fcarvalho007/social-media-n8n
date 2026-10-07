@@ -30,7 +30,13 @@ A pré-visualização `npm run dev:roteiros` injeta `apiMateriaisLocal` no edito
 
 Bateria final: 457 testes passaram e um teste opcional de fotografias foi ignorado, com dois workers. Typecheck da aplicação e do código Node, build, ESLint dos novos componentes e verificação do grafo Edge passaram.
 
-**Estado Cloud: por instalar.** Antes de disponibilizar esta extensão no Lovable:
+**Instalação Cloud concluída em 7 de outubro de 2026.** O PR #6 foi integrado; a 0049 ficou registada no ledger (id 57), seguida do marcador 0050 (id 58, apenas comentário). A função `rv-roteiros` foi reinstalada. As verificações de permissões confirmaram a 0048 e o isolamento de `mc_assets` por projeto; um pedido Edge sem sessão foi recusado com 401.
+
+O roteiro técnico `d867c62c-ff14-4c91-b992-2db07149bd08`, marcado «não publicar», recebeu uma imagem real da biblioteca com crédito e duas passagens do apresentador. A sequência foi aprovada na versão 3, recarregada e exportada. O ZIP real contém a imagem JPEG, a locução, o plano TXT/PDF ilustrado, o manifesto e os créditos. O PDF foi renderizado e revisto. O gerador apresentou a configuração FLUX/fal.ai e a confirmação de custo foi cancelada: nenhuma geração paga foi ensaiada. O carregamento de ficheiros foi verificado localmente, não repetido no Cloud nesta ronda.
+
+Um único prompt de instalação foi usado nesta extensão (2,20 créditos observados nos detalhes Lovable). O código foi desenvolvido localmente.
+
+Para reproduzir a instalação noutro backend:
 
 1. Integrar o frontend preservando as alterações atuais do projeto e confirmar que as migrações anteriores dos roteiros, incluindo 0048, e o motor `mc_assets` estão instalados.
 2. Aplicar `drizzle/migrations/0049_roteiros_materiais.sql` no backend do Hub, conferindo a numeração face às migrações remotas. Não aplicar `scripts/roteiros/base-local.sql` nem os dados PGlite no Cloud.
