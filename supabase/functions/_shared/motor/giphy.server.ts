@@ -23,7 +23,7 @@ async function descarregar(url: string, tipoEsperado: "image" | "video", maxByte
 }
 
 export async function pesquisarGiphy(termo: string, pagina: number, tipo: TipoGiphy = "stickers"): Promise<ItemGiphy[]> {
-  const chave = Deno.env.get("GIPHY_KEY") ?? "";
+  const chave = (globalThis as unknown as { Deno?: { env: { get(k: string): string | undefined } } }).Deno?.env.get("GIPHY_KEY") ?? "";
   if (!chave) throw new Error("A pesquisa GIPHY ainda não está configurada.");
   const q = termo.trim().slice(0, 100);
   if (q.length < 2) return [];
