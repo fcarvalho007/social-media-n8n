@@ -18,7 +18,16 @@ describe('curadoria: decisão partilhada e escolha sem geração', () => {
   fireEvent.click(await screen.findByRole('button',{name:'Usar notícia'}));expect(await screen.findByRole('alert')).toHaveTextContent('A notícia deixou de estar disponível.');
  });
  it('aprovação guarda a decisão comum e atualiza a lista', async () => {
-  const a=api();render(<MemoryRouter><CuradoriaNoticias api={a}/></MemoryRouter>);fireEvent.click(await screen.findByRole('button',{name:'Aprovar'}));await waitFor(()=>expect(a.decidir).toHaveBeenCalledWith('news','aprovada'));await waitFor(()=>expect(a.listar).toHaveBeenCalledTimes(2));expect(a.ler).not.toHaveBeenCalled();
+  const a=api();render(<MemoryRouter><CuradoriaNoticias api={a}/></MemoryRouter>);fireEvent.click(await screen.findByRole('button',{name:'Aprovar'}));await waitFor(()=>expect(a.decidir).toHaveBeenCalledWith('news','aprovada'));expect(screen.queryByRole('heading',{name:n.titulo})).not.toBeInTheDocument();expect(a.listar).toHaveBeenCalledTimes(1);expect(a.ler).not.toHaveBeenCalled();
+ });
+ it('seleciona notícias visíveis e rejeita-as em lote sem apagar nem recarregar a lista', async () => {
+  const outra={...n,id:'news-2',titulo:'Segunda notícia'};const a=api();vi.mocked(a.listar).mockResolvedValue({total:2,itens:[n,outra]});render(<MemoryRouter><CuradoriaNoticias api={a}/></MemoryRouter>);
+  fireEvent.click(await screen.findByRole('checkbox',{name:'Selecionar notícias visíveis'}));expect(screen.getByText('2 notícias selecionadas')).toBeInTheDocument();fireEvent.click(screen.getByRole('button',{name:'Rejeitar selecionadas'}));
+  await waitFor(()=>expect(a.decidir).toHaveBeenCalledTimes(2));expect(a.decidir).toHaveBeenCalledWith('news','rejeitada');expect(a.decidir).toHaveBeenCalledWith('news-2','rejeitada');expect(a.listar).toHaveBeenCalledTimes(1);expect(screen.queryByRole('heading',{name:n.titulo})).not.toBeInTheDocument();
+ });
+ it('numa falha parcial mantém visível e selecionada apenas a notícia que falhou', async () => {
+  const outra={...n,id:'news-2',titulo:'Segunda notícia'};const a=api();vi.mocked(a.listar).mockResolvedValue({total:2,itens:[n,outra]});vi.mocked(a.decidir).mockImplementation((id)=>id==='news-2'?Promise.reject(new Error('Falha')):Promise.resolve());render(<MemoryRouter><CuradoriaNoticias api={a}/></MemoryRouter>);
+  fireEvent.click(await screen.findByRole('checkbox',{name:'Selecionar notícias visíveis'}));fireEvent.click(screen.getByRole('button',{name:'Rejeitar selecionadas'}));await screen.findByText('1 notícia selecionada');expect(screen.queryByRole('heading',{name:n.titulo})).not.toBeInTheDocument();expect(screen.getByRole('heading',{name:'Segunda notícia'})).toBeInTheDocument();
  });
  it('a newsletter reutiliza na edição escolhida e não move a edição anterior', async () => {
   const a=api(), depois=vi.fn();render(<MemoryRouter><CuradoriaNoticias api={a} paraEdicao={{id:'new',onSelecionada:depois}}/></MemoryRouter>);

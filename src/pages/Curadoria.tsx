@@ -19,13 +19,13 @@ export default function Curadoria() {
   const { user } = useAuth();
   const { isAdmin } = useCurrentUserRoles();
   const fontes = useQuery({ queryKey: ["fontes"], queryFn: listarFontes });
-  return <div className="mx-auto flex max-w-5xl flex-col gap-6 px-4 py-4 sm:px-0">
+  return <div className="mx-auto flex max-w-7xl flex-col gap-5 px-4 py-5 sm:px-6">
     <ConfirmacaoExternaHost />
-    <header className="flex flex-wrap items-center justify-between gap-3">
-      <div><h1 className="text-2xl font-semibold">Curadoria</h1><p className="mt-1 max-w-prose text-sm text-muted-foreground">Escolhe as fontes, recolhe conteúdos e aprova as notícias para a newsletter e as redes sociais.</p></div>
-      <Button variant="outline" asChild><Link to="/newsletter">Abrir newsletter</Link></Button>
+    <header>
+      <h1 className="text-2xl font-semibold">Curadoria</h1>
+      <p className="mt-1 max-w-2xl text-sm text-muted-foreground">Revê uma vez e reutiliza as notícias aprovadas na newsletter e nas redes sociais.</p>
     </header>
-    <div className="flex flex-wrap items-center justify-between gap-3 border-y py-4">
+    <div className="flex flex-wrap items-center justify-between gap-3 border-y py-3">
       <p className="max-w-prose text-sm text-muted-foreground">As notícias vêm dos RSS, sites e newsletters que configuraste aqui. Em modo manual, passam pela fila de entrada antes da revisão.
         {fontes.data && <span className="mt-1 block font-medium text-foreground">{fontes.data.filter(f => f.activa).length} de {fontes.data.length} fontes ativas.</span>}
         {fontes.isError && <span className="mt-1 block text-destructive">Não foi possível consultar as fontes. Abre «Fontes e limites» para tentar novamente.</span>}
