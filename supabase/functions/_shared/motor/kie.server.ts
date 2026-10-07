@@ -38,7 +38,9 @@ export async function criarTarefaKie(sb: SupabaseClient, a: { projectId: string;
   if (a.opcaoId && !opcao) return { status: 400, corpo: { error: "O modelo escolhido já não está disponível." } };
   const proporcao = opcao?.proporcoes.includes(a.proporcao ?? "") ? String(a.proporcao) : opcao?.proporcoes.includes("4:5") ? "4:5" : KIE_PROPORCAO;
   const tamanho = opcao?.tamanhos.includes(a.tamanho ?? "") ? String(a.tamanho) : opcao?.tamanhos.at(-1) ?? KIE_TAMANHO;
-  const pedido = { ...a, prompt: a.profissional ? aplicarPromptProfissional(a.prompt, proporcao) : a.prompt, proporcao, tamanho };
+  const bruto = a.profissional ? aplicarPromptProfissional(a.prompt, proporcao) : a.prompt;
+  // Stored prompt is capped at 2000 chars by the table constraint; keep sent = stored.
+  const pedido = { ...a, prompt: bruto.length <= 2000 ? bruto : bruto.slice(0, 2000), proporcao, tamanho };
   if (opcao?.fornecedor === "fal.ai") return (await tentarFal(sb, pedido, opcao.modelo, f)).r;
   if (opcao?.fornecedor === "Kie.ai") return (await tentarModelo(sb, pedido, opcao.modelo, f)).r;
   const forn = resolverFornecedorImagem(ler);
@@ -63,7 +65,7 @@ export function corpoFal(prompt: string, proporcao = "4:5") {
 async function tentarFal(sb: SupabaseClient, a: { projectId: string; userId: string; prompt: string; proporcao?: string }, modelo: string, f: typeof fetch) {
   const registo = `fal:${modelo}`;
   const { data: res, error } = await sb.from("mc_kie_tarefas").insert({ project_id: a.projectId, criado_por: a.userId, modelo: registo, prompt: a.prompt, contexto_chave: a.contextoChave ?? null, proposta_tipo: a.propostaTipo ?? null }).select("id").single();
-  if (error || !res) return { recusado: false, r: { status: 500, corpo: { error: "Não foi possível reservar o pedido." } as Record<string, unknown> } };
+  if (error || !res) { console.error("[kie] reserva falhou", error?.message); return { recusado: false, r: { status: 500, corpo: { error: "Não foi possível reservar o pedido." } as Record<string, unknown> } }; }
   const upd = (v: Record<string, unknown>) => sb.from("mc_kie_tarefas").update({ ...v, actualizado_em: new Date().toISOString() }).eq("id", res.id);
   let r: Response;
   try {

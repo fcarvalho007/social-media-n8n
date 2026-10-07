@@ -18,8 +18,9 @@ export function promptsPropostaImagemIA(pacote: PacoteProva, sistema: SistemaVis
   const doc = pacote.variantes[variante];
   const formato = doc.altura === 1920 ? "vertical story 9:16" : "portrait social post 4:5";
   const contrato = `Visual direction: ${sistema.estilo}; palette: ${sistema.paleta}; typography mood must remain compatible with the current direction. Format: ${formato}. Premium editorial art direction, precise hierarchy, generous safe margins, polished and distinctive.`;
+  const cap = (t: string) => (t.length <= 1900 ? t : `${t.slice(0, 1899)}…`);
   return {
-    apoio: `${contrato}\nCreate a compelling support image for this content, leaving intentional quiet space for editable typography. Content context: ${texto.join(" | ")}`,
-    final: `${contrato}\nDesign the complete final social slide as one finished image. Include the following Portuguese text accurately, preserving facts and numbers. You may change hierarchy, line breaks and emphasis, but do not add claims or remove essential meaning. Text: ${texto.map((t, i) => `${i + 1}. ${t}`).join(" | ")}. Ensure excellent legibility and spelling.`,
+    apoio: cap(`${contrato}\nCreate a compelling support image for this content, leaving intentional quiet space for editable typography. Content context: ${texto.join(" | ")}`),
+    final: cap(`${contrato}\nDesign the complete final social slide as one finished image. Include the following Portuguese text accurately, preserving facts and numbers. You may change hierarchy, line breaks and emphasis, but do not add claims or remove essential meaning. Text: ${texto.map((t, i) => `${i + 1}. ${t}`).join(" | ")}. Ensure excellent legibility and spelling.`),
   };
 }
