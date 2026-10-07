@@ -309,6 +309,13 @@
       "when": 1791388847767,
       "tag": "0043_criar_par_editorial_pas",
       "breakpoints": true
+    },
+    {
+      "idx": 44,
+      "version": "7",
+      "when": 1791388889346,
+      "tag": "0044_registar_escolha_narrativa",
+      "breakpoints": true
     }
   ]
 }
