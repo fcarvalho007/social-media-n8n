@@ -38,7 +38,9 @@ export async function criarTarefaKie(sb: SupabaseClient, a: { projectId: string;
   if (a.opcaoId && !opcao) return { status: 400, corpo: { error: "O modelo escolhido já não está disponível." } };
   const proporcao = opcao?.proporcoes.includes(a.proporcao ?? "") ? String(a.proporcao) : opcao?.proporcoes.includes("4:5") ? "4:5" : KIE_PROPORCAO;
   const tamanho = opcao?.tamanhos.includes(a.tamanho ?? "") ? String(a.tamanho) : opcao?.tamanhos.at(-1) ?? KIE_TAMANHO;
-  const pedido = { ...a, prompt: a.profissional ? aplicarPromptProfissional(a.prompt, proporcao) : a.prompt, proporcao, tamanho };
+  const bruto = a.profissional ? aplicarPromptProfissional(a.prompt, proporcao) : a.prompt;
+  // Stored prompt is capped at 2000 chars by the table constraint; keep sent = stored.
+  const pedido = { ...a, prompt: bruto.length <= 2000 ? bruto : bruto.slice(0, 2000), proporcao, tamanho };
   if (opcao?.fornecedor === "fal.ai") return (await tentarFal(sb, pedido, opcao.modelo, f)).r;
   if (opcao?.fornecedor === "Kie.ai") return (await tentarModelo(sb, pedido, opcao.modelo, f)).r;
   const forn = resolverFornecedorImagem(ler);
