@@ -1,6 +1,6 @@
 # Roteiros de Reels
 
-Este documento conserva o registo das rondas iniciais. A ampliação atual de «Preparar gravação», os materiais e a instalação ainda pendente da migração 0049 estão descritos em [Materiais para gravação de Reels](roteiros-materiais.md).
+Este documento conserva o registo das rondas iniciais. A ampliação atual de «Preparar gravação», os materiais e a instalação da migração 0049 estão descritos em [Materiais para gravação de Reels](roteiros-materiais.md).
 
 Extensão do Hub, modo Operate, identidade visual existente: superfícies claras, tokens semânticos indigo, tipografia e componentes Radix/shadcn existentes. Editor numa coluna com a fonte recolhida, opções avançadas e ajustes visuais opcionais. Duração de 60 segundos e objetivo «Explicar» sugeridos; notícia aprovada preenche a fonte, e o título pode ser derivado do texto. Uma ação primária por etapa. Sem alterações globais de tema.
 
