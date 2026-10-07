@@ -9,6 +9,6 @@
 - [ ] Exportação MP4 por slide animado
 - [ ] Passagem de PNG/MP4 para o rascunho social
 - [ ] Testes e validação visual em desktop e 375 px
-- [ ] Ajustar caixas de texto, edição imediata e seleção múltipla por área
-- [ ] Separar Giphy com GIFs, stickers e Clips (capa + animação)
-- [ ] Expor opções reais de imagem IA, quantidade, custo e modo profissional
+- [x] Ajustar caixas de texto, edição imediata e seleção múltipla por área
+- [x] Separar Giphy com GIFs, stickers e Clips (capa + animação)
+- [x] Expor opções reais de imagem IA, quantidade, custo e modo profissional

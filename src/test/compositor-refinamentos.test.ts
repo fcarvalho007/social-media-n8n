@@ -1,4 +1,4 @@
-import { describe, expect, it } from "bun:test";
+import { describe, expect, it } from "vitest";
 import { elementosTocados, normalizarArea } from "@/features/editor-grafico/selecaoArea";
 import { aplicarPromptProfissional } from "../../supabase/functions/_shared/motor/promptImagemProfissional";
 import { catalogoModelosImagem } from "../../supabase/functions/_shared/motor/imagemModelo.server";
