@@ -362,7 +362,7 @@ export function EditorGrafico({ pacoteInicial, chaveLocal, titulo, seletor, real
   // ---------- visual direction: the document is the only source of truth ----------
   const mSis = medidorSistema ?? medidor ?? undefined;
   const [promptIA, setPromptIA] = useState<string | undefined>(undefined);
-  const [subImagens, setSubImagens] = useState<{ aba: "biblioteca" | "fotos" | "stickers" | "carregar" | "ia"; n: number } | undefined>(undefined);
+  const [subImagens, setSubImagens] = useState<{ aba: "biblioteca" | "fotos" | "giphy" | "carregar" | "ia"; n: number } | undefined>(undefined);
   const [imagemASubstituir, setImagemASubstituir] = useState<string | null>(null);
   const [modoNova, setModoNova] = useState<ModoImagemNova>("fundo");
   const [logoMarca, setLogoMarca] = useState<string | null>(null);
