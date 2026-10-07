@@ -353,6 +353,8 @@ export function EditorGrafico({ pacoteInicial, chaveLocal, titulo, seletor, real
   const [editando, setEditando] = useState<string | null>(null);
   const [intervaloTexto, setIntervaloTexto] = useState<{ id: string; inicio: number; fim: number } | null>(null);
   const [selecoes, setSelecoes] = useState<string[]>([]);
+  const [areaExterior, setAreaExterior] = useState<{ x: number; y: number; w: number; h: number } | null>(null);
+  const inicioExterior = useRef<{ x: number; y: number } | null>(null);
   const [aLargar, setALargar] = useState(false);
   const paginaRef = useRef<HTMLDivElement>(null);
   const [painelAberto, setPainelAberto] = useState(() => !sistemaDoPacote(pacoteInicial));
@@ -800,9 +802,29 @@ export function EditorGrafico({ pacoteInicial, chaveLocal, titulo, seletor, real
       />
     );
   })();
+  const iniciarSelecaoExterior = (e: React.PointerEvent<HTMLDivElement>) => {
+    if (e.target !== e.currentTarget || !paginaRef.current) return;
+    const p = paginaRef.current.getBoundingClientRect();
+    inicioExterior.current = { x: e.clientX - p.left, y: e.clientY - p.top };
+    setAreaExterior({ ...inicioExterior.current, w: 0, h: 0 });
+    e.currentTarget.setPointerCapture(e.pointerId);
+  };
+  const moverSelecaoExterior = (e: React.PointerEvent<HTMLDivElement>) => {
+    if (!inicioExterior.current || !paginaRef.current) return;
+    const p = paginaRef.current.getBoundingClientRect();
+    setAreaExterior({ x: inicioExterior.current.x, y: inicioExterior.current.y, w: e.clientX - p.left - inicioExterior.current.x, h: e.clientY - p.top - inicioExterior.current.y });
+  };
+  const terminarSelecaoExterior = () => {
+    if (!areaExterior || !paginaAtual || !medidor) { inicioExterior.current = null; setAreaExterior(null); return; }
+    const x0 = Math.min(areaExterior.x, areaExterior.x + areaExterior.w) / escala, y0 = Math.min(areaExterior.y, areaExterior.y + areaExterior.h) / escala;
+    const x1 = Math.max(areaExterior.x, areaExterior.x + areaExterior.w) / escala, y1 = Math.max(areaExterior.y, areaExterior.y + areaExterior.h) / escala;
+    const ids = paginaAtual.camadas.filter((c) => { const l = c.tipo === "texto" ? layoutTexto(resolverTexto(c, pacote.conteudo), c.estilo, c.w, c.h, medidor, c.marcas) : null; const h = l ? Math.max(20, Math.min(c.h, l.linhas.length * l.alturaLinha)) : c.h; return c.x < x1 && c.x + c.w > x0 && c.y < y1 && c.y + h > y0; }).map((c) => c.id);
+    if (ids.length) { setSelecoes(ids); despachar({ tipo: "selecionar", id: ids.at(-1) ?? null }); } else { setSelecoes([]); despachar({ tipo: "selecionar", id: null }); }
+    inicioExterior.current = null; setAreaExterior(null);
+  };
   const tela = (
     <div ref={areaRef} className={`relative min-h-0 flex-1 overflow-auto bg-muted ${aLargar ? "outline outline-2 -outline-offset-2 outline-primary" : ""}`}
-      onPointerDown={(e) => { if (e.target === e.currentTarget) despachar({ tipo: "selecionar", id: null }); }}
+      onPointerDown={iniciarSelecaoExterior} onPointerMove={moverSelecaoExterior} onPointerUp={terminarSelecaoExterior}
       onDragOver={(e) => { if (!preview && (e.dataTransfer.types.includes(MIME_INSERIR) || (!!projectId && e.dataTransfer.types.includes("Files")))) { e.preventDefault(); e.dataTransfer.dropEffect = "copy"; setALargar(true); } }}
       onDragLeave={(e) => { if (e.currentTarget === e.target) setALargar(false); }}
       onDrop={largar}>
@@ -821,6 +843,7 @@ export function EditorGrafico({ pacoteInicial, chaveLocal, titulo, seletor, real
             </div>
           )}
           {edicaoInline}
+          {areaExterior && (() => { const x = Math.min(areaExterior.x, areaExterior.x + areaExterior.w), y = Math.min(areaExterior.y, areaExterior.y + areaExterior.h); return <div className="pointer-events-none absolute z-20 border border-dashed border-primary bg-primary/10" style={{ left: x, top: y, width: Math.abs(areaExterior.w), height: Math.abs(areaExterior.h) }} />; })()}
           {rascunho && !preview && (
             <div role="status" className="absolute inset-x-2 top-2 z-10 rounded-md border border-border bg-background/95 px-3 py-2 text-sm shadow-md">
               Direção visual por aplicar. Aplica ou cancela no painel «Direção visual» para voltar a editar os elementos.
