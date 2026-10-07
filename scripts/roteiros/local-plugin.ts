@@ -30,7 +30,7 @@ export function roteirosLocal(): Plugin {
    try {
     let input=''; for await (const chunk of req) { input+=chunk; if (input.length>350000) throw new Error('Pedido demasiado grande'); }
     const { acao, args = {} } = JSON.parse(input); const d=await db(); let data: unknown;
-    const run = async (sql: string, params: unknown[] = []) => (await d.query(sql,params)).rows;
+    const run = async (sql: string, params: unknown[] = []): Promise<Array<Record<string, unknown>>> => (await d.query(sql,params)).rows as Array<Record<string, unknown>>;
     if (acao==='ia_estado') data={disponivel:!!chave,limite:(await run('SELECT max_chamadas_dia FROM mc_orcamentos LIMIT 1'))[0]?.max_chamadas_dia??0};
     else if (acao==='ia_configurar') { if (typeof args.chave!=='string'||args.chave.trim().length<10||args.chave.length>500||!Number.isInteger(args.limite)||args.limite<1||args.limite>20) throw new Error('Indica uma chave e um limite diário de 1 a 20 pedidos.'); chave=args.chave.trim(); await run('UPDATE mc_orcamentos SET max_chamadas_dia=$1',[args.limite]); data={disponivel:true,limite:args.limite}; }
     else if (acao==='gerar') {
