@@ -19,6 +19,7 @@ const PRODUCAO: Acao[] = [
   { titulo: "Curadoria", desc: "Uma seleção para todos os formatos", icon: FileText, url: "/curadoria" },
   { titulo: "Criar SM", desc: "Manual ou assistido por IA", icon: PlusCircle, url: "/pending?tab=create" },
   { titulo: "Conteúdos visuais", desc: "Por publicar e publicados", icon: GalleryHorizontal, url: "/estudio/carrosseis" },
+  { titulo: "Roteiros de Reels", desc: "Preparar a leitura e retomar roteiros", icon: FileText, url: "/estudio/roteiros" },
   { titulo: "Newsletter", desc: "Edições, crónica e arquivo", icon: Mail, url: "/newsletter" },
   { titulo: "Carrosséis da crónica", desc: "A partir de edições enviadas", icon: Images, url: "/estudio/redes-sociais" },
   { titulo: "Artigos", desc: "Rascunhos de texto, sem publicação", icon: FileText, url: "/artigos" },
