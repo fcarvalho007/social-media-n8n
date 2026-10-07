@@ -6,6 +6,7 @@ import { sistemaPadrao, type SistemaVisual } from "../../supabase/functions/_sha
 import { ASSET_IA_PENDENTE, aplicarCandidato, hashConteudo, imagemInadequada, redesenharPagina, substituirImagemIA } from "../../supabase/functions/_shared/motor/redesenhar";
 import { construirPromptComposicao, regiaoSujeito } from "../../supabase/functions/_shared/motor/promptVisual";
 import { modelosImagem, resolverModeloImagem } from "../../supabase/functions/_shared/motor/imagemModelo.server";
+import { promptsPropostaImagemIA, textoVisivelPagina } from "../../supabase/functions/_shared/motor/propostaImagemIA";
 
 const ab = (b: Buffer) => b.buffer.slice(b.byteOffset, b.byteOffset + b.byteLength) as ArrayBuffer;
 const ler = (f: string) => parse(ab(readFileSync(`public${f}`))) as unknown as FonteOT;
@@ -68,5 +69,14 @@ describe("redesenhar com imagem IA obrigatória", () => {
     const env: Record<string, string> = { AI_IMAGE_FAST_MODEL: "a/fast", AI_IMAGE_QUALITY_MODEL: "a/q", AI_IMAGE_FALLBACK_MODEL: "a/fb" };
     expect(resolverModeloImagem("quality", (k) => env[k])).toEqual({ modelo: "a/q", fallback: "a/fb" });
     expect(modelosImagem((k) => env[k])).toEqual(expect.arrayContaining(["a/fast", "a/q", "a/fb"]));
+  });
+  it("a proposta IA usa todo o texto visível, incluindo texto escrito diretamente", () => {
+    const p = pacote();
+    p.variantes.A.paginas[1].camadas.push({ id: "livre", tipo: "texto", texto: "Nota escrita no compositor", x: 50, y: 1100, w: 800, h: 80, z: 4, estilo: { peso: 400, tam: 32, linha: 1.2, alinh: "esq", cor: "#111111", overflow: "cortar" } });
+    expect(textoVisivelPagina(p, "A", 1)).toContain("Nota escrita no compositor");
+    const prompts = promptsPropostaImagemIA(p, sis, "A", 1);
+    expect(prompts.apoio).toContain("Nota escrita no compositor");
+    expect(prompts.apoio).toMatch(/editable typography/i);
+    expect(prompts.final).toMatch(/Include the following Portuguese text accurately/i);
   });
 });
