@@ -63,7 +63,7 @@ export function corpoFal(prompt: string, proporcao = "4:5") {
 async function tentarFal(sb: SupabaseClient, a: { projectId: string; userId: string; prompt: string; proporcao?: string }, modelo: string, f: typeof fetch) {
   const registo = `fal:${modelo}`;
   const { data: res, error } = await sb.from("mc_kie_tarefas").insert({ project_id: a.projectId, criado_por: a.userId, modelo: registo, prompt: a.prompt, contexto_chave: a.contextoChave ?? null, proposta_tipo: a.propostaTipo ?? null }).select("id").single();
-  if (error || !res) return { recusado: false, r: { status: 500, corpo: { error: "Não foi possível reservar o pedido." } as Record<string, unknown> } };
+  if (error || !res) { console.error("[kie] reserva falhou", error?.message); return { recusado: false, r: { status: 500, corpo: { error: "Não foi possível reservar o pedido." } as Record<string, unknown> } }; }
   const upd = (v: Record<string, unknown>) => sb.from("mc_kie_tarefas").update({ ...v, actualizado_em: new Date().toISOString() }).eq("id", res.id);
   let r: Response;
   try {
