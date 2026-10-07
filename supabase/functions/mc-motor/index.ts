@@ -184,6 +184,25 @@ Deno.serve(async (req) => {
       _brief: { objetivo, tom, slides, formato, ...(autor ? { autor, leitura, leitura_trabalho: leituraTrabalho, briefing: briefingEd } : {}), idioma_saida: "pt-PT", ...(traducao ? { traducao } : {}), titulo: titulo ?? fonteCurada?.titulo ?? (meta ? atrib.titulo?.slice(0, 300) ?? null : null), ...(framework ? { framework: framework.id, base_versao: Number.isInteger(Number(body.base_versao)) ? Number(body.base_versao) : null, origem_trabalho: UUID.test(String(body.origem_trabalho ?? "")) ? String(body.origem_trabalho) : null } : {}) }, _prompt_versao: framework ? `r12-${framework.id}-intencao-v1` : modo === "ia" ? "r12-deepseek-intencao-v1" : "r3-v1",
       _modelo: modo === "demonstracao" ? MODELO_DEMO : modo === "ia" ? MODELO_IA : MODELO_ESTRUTURACAO, _parametros: { slides, formato, ...(framework ? { framework: framework.id } : {}) }, _nova: body.nova === true || !!framework,
     };
+    if (modo === "ia" && !framework) {
+      const { data, error } = await user.rpc("mc_criar_par_narrativo", {
+        _project_id: projectId, _tipo: tipoFonte, _texto: fonte.texto, _titulo: comum._brief.titulo,
+        _origem_url: origemUrl, _metadados: meta as unknown as Record<string, unknown> | null,
+        _noticia_id: fonteCurada?.noticia_id ?? null, _noticia_hash: fonteCurada?.hash ?? null,
+        _brief: comum._brief, _modelo: MODELO_IA,
+      });
+      if (error) {
+        const mensagem = error.code === "42501" ? "Sem acesso a este projeto."
+          : error.code === "MC409" ? "A fonte mudou ou deixou de estar aprovada. Escolhe a notícia novamente."
+          : error.code === "P0002" ? "A IA está desligada neste projeto. Define um limite diário em «Limites da IA»."
+          : error.code === "P0003" ? "São necessários 2 pedidos disponíveis para comparar Editorial e PAS."
+          : "Não foi possível criar as versões Editorial e PAS.";
+        return json({ error: mensagem }, error.code === "42501" ? 403 : error.code === "MC409" || error.code === "P0002" || error.code === "P0003" ? 409 : 500);
+      }
+      const linha = (data as Array<{ editorial_id: string; pas_id: string; reutilizado: boolean }>)[0];
+      emSegundoPlano(corridaWorker());
+      return json({ ok: true, trabalho_id: linha.editorial_id, comparacao_id: linha.pas_id, reutilizado: linha.reutilizado });
+    }
     const { data, error } = fonteCurada
       ? await user.rpc("mc_criar_trabalho_curadoria", { _project_id: projectId, _noticia_id: fonteCurada.noticia_id, _hash: fonteCurada.hash,
           _brief: comum._brief, _prompt_versao: comum._prompt_versao, _modelo: comum._modelo, _parametros: comum._parametros, _nova: comum._nova })

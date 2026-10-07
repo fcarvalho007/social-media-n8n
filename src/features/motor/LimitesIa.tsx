@@ -46,7 +46,7 @@ export function LimitesIa({ projectId, onAlterado }: { projectId: string; onAlte
       </div>
       {aberto && (
         <div className="mt-3 space-y-3 border-t border-border pt-3">
-          {uso && <p className="text-xs">Hoje, por ação: geração {uso.geracao} · correção {uso.reparacao} · tradução {uso.traducao}. Limite interno: {o.maxDia} por dia no projeto e até {o.maxTrabalho} por ação (cada geração, estrutura ou tradução, incluindo a correção). Cada estrutura pedida é uma ação própria. Escolher opções ou reutilizar uma tradução guardada não gasta pedidos.</p>}
+          {uso && <p className="text-xs">Hoje, por ação: geração {uso.geracao} · correção {uso.reparacao} · tradução {uso.traducao}. Limite interno: {o.maxDia} por dia no projeto e até {o.maxTrabalho} por versão (incluindo correção). A comparação inicial Editorial/PAS reserva 2 pedidos. Escolher uma versão ou reutilizar conteúdo guardado não gasta pedidos.</p>}
           <p className="text-xs text-muted-foreground">
             Fornecedor e modelo: {MODELO_IA_NOME}. Estes limites são da própria app, para controlar custos; não são créditos da Lovable. Cada pedido é cobrado pela DeepSeek à conta associada à chave do servidor, e o valor exato só aparece nessa conta, por isso aqui contam-se pedidos e não euros.
             Contam todos os pedidos de texto do motor: gerar um carrossel, cada proposta de estrutura (reformulação) e a correção automática de uma resposta inválida e cada tradução de fonte. Cada trabalho usa 1 pedido, ou 2 com correção. Um pedido com resultado desconhecido conta e não é repetido sozinho. 0 por dia desliga a IA.
