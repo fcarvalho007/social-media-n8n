@@ -21,15 +21,15 @@ const SUFIXO = "No text, no letters, no captions, no logos, no brand marks, no w
 
 export const chaveKie = () => Deno.env.get("KIE_API_KEY") ?? "";
 
-export function corpoKie(prompt: string, modelo: string = KIE_MODELO, proporcao = KIE_PROPORCAO, tamanho = KIE_TAMANHO) {
-  return { model: modelo, input: { prompt: `${prompt.trim()}\n\n${SUFIXO}`, aspect_ratio: proporcao, size: tamanho, output_format: KIE_FORMATO, nsfw_checker: true } };
+export function corpoKie(prompt: string, modelo: string = KIE_MODELO, proporcao = KIE_PROPORCAO, tamanho = KIE_TAMANHO, permitirTexto = false) {
+  return { model: modelo, input: { prompt: `${prompt.trim()}${permitirTexto ? "" : `\n\n${SUFIXO}`}`, aspect_ratio: proporcao, size: tamanho, output_format: KIE_FORMATO, nsfw_checker: true } };
 }
 
 /** True when Kie rejected the request because the model itself is unavailable (known outcome, no task created). */
 export const modeloIndisponivel = (status: number, msg: unknown) =>
   status >= 400 && status < 500 && status !== 401 && status !== 402 && /model|modelo|not (found|support)|unavailable/i.test(String(msg ?? ""));
 
-export async function criarTarefaKie(sb: SupabaseClient, a: { projectId: string; userId: string; prompt: string; qualidade?: QualidadeImagem; opcaoId?: string; proporcao?: string; tamanho?: string; profissional?: boolean }, f: typeof fetch = fetch) {
+export async function criarTarefaKie(sb: SupabaseClient, a: { projectId: string; userId: string; prompt: string; qualidade?: QualidadeImagem; opcaoId?: string; proporcao?: string; tamanho?: string; profissional?: boolean; permitirTexto?: boolean; contextoChave?: string; propostaTipo?: "editavel" | "final" }, f: typeof fetch = fetch) {
   const desde = new Date(Date.now() - 86_400_000).toISOString();
   const { count } = await sb.from("mc_kie_tarefas").select("id", { count: "exact", head: true }).eq("project_id", a.projectId).in("modelo", modelosImagem()).gte("criado_em", desde);
   if ((count ?? 0) >= KIE_MAX_DIA) return { status: 409, corpo: { error: `Limite de ${KIE_MAX_DIA} imagens IA por dia neste projeto atingido.` } };
@@ -62,7 +62,7 @@ export function corpoFal(prompt: string, proporcao = "4:5") {
 
 async function tentarFal(sb: SupabaseClient, a: { projectId: string; userId: string; prompt: string; proporcao?: string }, modelo: string, f: typeof fetch) {
   const registo = `fal:${modelo}`;
-  const { data: res, error } = await sb.from("mc_kie_tarefas").insert({ project_id: a.projectId, criado_por: a.userId, modelo: registo, prompt: a.prompt }).select("id").single();
+  const { data: res, error } = await sb.from("mc_kie_tarefas").insert({ project_id: a.projectId, criado_por: a.userId, modelo: registo, prompt: a.prompt, contexto_chave: a.contextoChave ?? null, proposta_tipo: a.propostaTipo ?? null }).select("id").single();
   if (error || !res) return { recusado: false, r: { status: 500, corpo: { error: "Não foi possível reservar o pedido." } as Record<string, unknown> } };
   const upd = (v: Record<string, unknown>) => sb.from("mc_kie_tarefas").update({ ...v, actualizado_em: new Date().toISOString() }).eq("id", res.id);
   let r: Response;
@@ -85,11 +85,11 @@ async function tentarFal(sb: SupabaseClient, a: { projectId: string; userId: str
 
 async function tentarModelo(sb: SupabaseClient, a: { projectId: string; userId: string; prompt: string; proporcao?: string; tamanho?: string }, modelo: string, f: typeof fetch) {
   // Reserve BEFORE the paid request.
-  const { data: res, error } = await sb.from("mc_kie_tarefas").insert({ project_id: a.projectId, criado_por: a.userId, modelo, prompt: a.prompt }).select("id").single();
+  const { data: res, error } = await sb.from("mc_kie_tarefas").insert({ project_id: a.projectId, criado_por: a.userId, modelo, prompt: a.prompt, contexto_chave: a.contextoChave ?? null, proposta_tipo: a.propostaTipo ?? null }).select("id").single();
   if (error || !res) return { indisponivel: false, r: { status: 500, corpo: { error: "Não foi possível reservar o pedido." } as Record<string, unknown> } };
   let r: Response;
   try {
-    r = await f(`${KIE_BASE}/createTask`, { method: "POST", headers: { Authorization: `Bearer ${chaveKie()}`, "Content-Type": "application/json" }, body: JSON.stringify(corpoKie(a.prompt, modelo, a.proporcao, a.tamanho)) });
+    r = await f(`${KIE_BASE}/createTask`, { method: "POST", headers: { Authorization: `Bearer ${chaveKie()}`, "Content-Type": "application/json" }, body: JSON.stringify(corpoKie(a.prompt, modelo, a.proporcao, a.tamanho, a.permitirTexto === true)) });
   } catch {
     await sb.from("mc_kie_tarefas").update({ estado: "desconhecido", erro: "Sem resposta da Kie.", actualizado_em: new Date().toISOString() }).eq("id", res.id);
     return { indisponivel: false, r: { status: 502, corpo: { error: "A Kie não respondeu. O pedido pode ter sido aceite; não foi repetido.", tarefa: res.id, estado: "desconhecido" } as Record<string, unknown> } };
@@ -174,6 +174,9 @@ async function importarResultado(sb: SupabaseClient, projectId: string, t: Taref
     if (!asset) return { status: 500, corpo: { error: "Não foi possível registar a imagem." } };
   }
   await sb.from("mc_kie_tarefas").update({ estado: "concluida", asset_id: asset.id, actualizado_em: agora }).eq("id", t.id);
+  if (!String(t.modelo).startsWith("fal:")) {
+    await sb.from("custos_ia").insert({ fornecedor: "kie", modelo: String(t.modelo), acao: "gerar imagem", estado: "concluido", origem_id: `kie:${t.id}`, project_id: projectId, unidades: { imagens: 1 }, custo_eur: 0.013932, custo_origem: "estimado" });
+  }
   return { status: 200, corpo: { ok: true, estado: "concluida", asset_id: asset.id } };
 }
 

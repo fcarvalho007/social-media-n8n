@@ -1292,6 +1292,7 @@ export type Database = {
         Row: {
           actualizado_em: string
           asset_id: string | null
+          contexto_chave: string | null
           criado_em: string
           criado_por: string
           erro: string | null
@@ -1300,12 +1301,14 @@ export type Database = {
           modelo: string
           project_id: string
           prompt: string
+          proposta_tipo: string | null
           resultado: string | null
           task_id: string | null
         }
         Insert: {
           actualizado_em?: string
           asset_id?: string | null
+          contexto_chave?: string | null
           criado_em?: string
           criado_por: string
           erro?: string | null
@@ -1314,12 +1317,14 @@ export type Database = {
           modelo: string
           project_id: string
           prompt: string
+          proposta_tipo?: string | null
           resultado?: string | null
           task_id?: string | null
         }
         Update: {
           actualizado_em?: string
           asset_id?: string | null
+          contexto_chave?: string | null
           criado_em?: string
           criado_por?: string
           erro?: string | null
@@ -1328,6 +1333,7 @@ export type Database = {
           modelo?: string
           project_id?: string
           prompt?: string
+          proposta_tipo?: string | null
           resultado?: string | null
           task_id?: string | null
         }
