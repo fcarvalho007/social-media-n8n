@@ -81,7 +81,6 @@ export default function CarrosselNovo() {
   const [objetivo, setObjetivo] = useState<ObjetivoId>("informar");
   const [detalhe, setDetalhe] = useState("");
   const [tom, setTom] = useState("");
-  const [confirmarIa, setConfirmarIa] = useState(false);
   const [angulo, setAngulo] = useState<Angulo | null>(null);
   const [leituraEsp, setLeituraEsp] = useState("");
   const [tomPreset, setTomPreset] = useState<string | null>(null);
@@ -498,7 +497,19 @@ export default function CarrosselNovo() {
             {!demo && tipoFonte !== "curadoria" && projeto && <PainelIdioma projectId={projeto} texto={texto} escolhaInicial={idiomaInicial} iaDisponivel={comIa} onEstado={setIdioma} onEncurtar={() => { setEtapa("fonte"); window.scrollTo({ top: 0 }); setTimeout(() => textoRef.current?.focus(), 50); }} />}
             {erroCriar && <p role="alert" className="rounded-[var(--mc-r-lg)] border border-destructive/40 bg-destructive/5 p-3 text-sm text-destructive">{erroCriar}</p>}
             <div className="space-y-4">
-              <h1 id="t-narrativa" className="text-2xl font-semibold tracking-tight sm:text-3xl">O que deve fazer este {configFormato.nome.toLowerCase()}?</h1>
+              <h1 id="t-narrativa" className="text-3xl font-semibold tracking-tight sm:text-4xl">O que deve fazer este {configFormato.nome.toLowerCase()}?</h1>
+              {comIa && (
+                <div className="grid gap-3 sm:grid-cols-2" aria-label="Estruturas a comparar">
+                  <div className="rounded-[var(--mc-r-lg)] border border-primary/40 bg-primary/5 p-4">
+                    <p className="text-lg font-semibold">Editorial</p>
+                    <p className="mt-1 text-base leading-relaxed text-muted-foreground">Contextualiza, desenvolve os factos por ideias e fecha com uma síntese clara.</p>
+                  </div>
+                  <div className="rounded-[var(--mc-r-lg)] border border-primary/40 bg-primary/5 p-4">
+                    <p className="text-lg font-semibold">PAS</p>
+                    <p className="mt-1 text-base leading-relaxed text-muted-foreground">Organiza a fonte em problema, consequências documentadas e solução, sem exagerar nem inventar.</p>
+                  </div>
+                </div>
+              )}
               {!demo && projeto && (
                 <p className="flex flex-wrap items-center gap-x-2 text-xs text-muted-foreground" aria-live="polite">
                   <span>Voz ativa: <span className="font-medium text-foreground">{resumoPerfil ?? "a ler…"}</span></span>
@@ -588,7 +599,7 @@ export default function CarrosselNovo() {
                     </ToggleGroup>
                     <LimitesIa projectId={projeto} onAlterado={setOrc} />
                     <p className="text-xs text-muted-foreground">
-                      {comIa ? `A IA (${MODELO_IA_NOME}) reescreve o texto para este formato ${objetivo === "opiniao" ? "com factos referenciados à fonte (§) mais a leitura do autor, identificada como tal, sem inventar dados." : "com a voz do autor, usando só factos da fonte, com referência aos parágrafos (§)."} Usa 1 pedido pago (2 se precisar de correção); antes de enviar pedimos confirmação.`
+                      {comIa ? `A IA (${MODELO_IA_NOME}) cria sempre duas versões para comparar — Editorial e PAS — ${objetivo === "opiniao" ? "com factos referenciados à fonte (§) mais a leitura do autor, identificada como tal, sem inventar dados." : "com a voz do autor, usando só factos da fonte, com referência aos parágrafos (§)."} Usa 2 pedidos pagos; uma correção validada pode usar mais um pedido na versão afetada.`
                         : "Sem IA: cada frase vem do texto, com a referência ao parágrafo, e nada é inventado."}
                     </p>
                   </div>
@@ -608,12 +619,7 @@ export default function CarrosselNovo() {
         nota={etapa === "narrativa" ? (demo ? "Demonstração · fornecedor simulado" : comIa ? "Gera no servidor; podes sair da página." : "Gera sem IA, no servidor.") : undefined}
         fim={etapa === "fonte"
           ? <Button className="h-11 px-5" onClick={continuar} disabled={!projeto || lendo || !fonteValida} aria-describedby={lendo ? "estado-leitura" : undefined}>{lendo ? "A ler a página…" : "Continuar"}<ArrowRight className="ml-1.5 h-4 w-4" /></Button>
-          : (comIa && !confirmarIa
-            ? <Button className="h-11 px-5" onClick={() => setConfirmarIa(true)} disabled={aCriar || !fonteValida}>Gerar com IA</Button>
-            : <div className="flex flex-wrap items-center justify-end gap-2">
-                {comIa && <Button variant="ghost" className="h-11" disabled={aCriar} onClick={() => setConfirmarIa(false)}>Cancelar</Button>}
-                <Button className="h-11 px-5" onClick={criar} disabled={aCriar || !fonteValida} aria-label={comIa ? "Confirmar pedido pago à DeepSeek" : undefined}>{aCriar && <Loader2 className="mr-2 h-4 w-4 motion-safe:animate-spin" />}{demo ? "Gerar demonstração" : comIa ? "Confirmar: 1 pedido pago à DeepSeek" : "Gerar sem IA"}</Button>
-              </div>)}
+          : <Button className="h-11 px-5" onClick={criar} disabled={aCriar || !fonteValida} aria-label={comIa ? "Gerar versões Editorial e PAS com dois pedidos pagos" : undefined}>{aCriar && <Loader2 className="mr-2 h-4 w-4 motion-safe:animate-spin" />}{demo ? "Gerar demonstração" : comIa ? "Gerar Editorial + PAS · 2 pedidos" : "Gerar sem IA"}</Button>}
       /></div>
     </Quadro>
   );

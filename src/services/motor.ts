@@ -59,7 +59,7 @@ export async function lerUsoDetalhe(projectId: string): Promise<UsoDetalhe> {
   const r = (data as UsoDetalhe[] | null)?.[0];
   return r ?? { geracao: 0, reparacao: 0, traducao: 0 };
 }
-export const criarTrabalho = (n: NovoTrabalho) => invocar<{ trabalho_id: string; reutilizado: boolean }>({ acao: "criar", ...n });
+export const criarTrabalho = (n: NovoTrabalho) => invocar<{ trabalho_id: string; comparacao_id?: string; reutilizado: boolean }>({ acao: "criar", ...n });
 export const retomarTrabalho = (id: string) => invocar<{ retomado: boolean }>({ acao: "retomar", trabalho_id: id });
 export const acordarFila = () => invocar<{ ok: boolean }>({ acao: "acordar" });
 
@@ -317,6 +317,17 @@ export async function listarCandidatos(origem: TrabalhoCompleto): Promise<Candid
     const escopo = b.regen?.slide_id ? { slide_id: b.regen.slide_id, modo: b.regen.modo ?? "" } : null;
     return { escopo, trabalho: t.id, framework: escopo ? `slide:${escopo.modo}` : b.framework ?? "", estado: t.estado, erro: t.erro, criado_em: t.criado_em, base_versao: b.base_versao ?? null, fonte_hash: hash, perfil, conteudo } as CandidatoPool;
   }));
+}
+
+export async function lerEscolhaNarrativa(trabalhoId: string): Promise<"editorial" | "pas" | null> {
+  const { data, error } = await supabase.from("mc_escolhas_narrativa").select("framework").eq("trabalho_id", trabalhoId).maybeSingle();
+  if (error) throw new Error("Não foi possível ler a escolha narrativa.");
+  return data?.framework === "editorial" || data?.framework === "pas" ? data.framework : null;
+}
+
+export async function escolherNarrativa(trabalhoId: string, framework: "editorial" | "pas"): Promise<void> {
+  const { error } = await supabase.rpc("mc_escolher_narrativa", { _trabalho_id: trabalhoId, _framework: framework });
+  if (error) throw new Error(error.code === "42501" ? "Sem permissão para escolher esta narrativa." : error.code === "MC409" ? "A versão escolhida ainda não está disponível." : "Não foi possível guardar a escolha narrativa.");
 }
 
 // ---- Visual system (style + variant + palette + breaks), persisted per carousel ----
