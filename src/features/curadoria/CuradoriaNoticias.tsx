@@ -11,6 +11,16 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { decidirCuradoria, selecionarNaEdicao, lerFonteCuradoria, listarCuradoria, type DecisaoEditorial, type FonteCuradoria } from "@/services/curadoria";
 import type { NoticiaCurada } from "@/services/curadoria";
 
+export function nomeFonteCuradoria(n: Pick<NoticiaCurada, "fonte_nome" | "url">) {
+  if (n.fonte_nome) return n.fonte_nome;
+  try { const u = new URL(n.url ?? ""); if (/^https?:$/.test(u.protocol)) return u.hostname.replace(/^www\./, ""); } catch { /* historical records may have no URL */ }
+  return "Não identificada no registo original";
+}
+export function canalCuradoria(n: Pick<NoticiaCurada, "fonte_tipo" | "origem">) {
+  const nomes: Record<string,string> = { rss: "Feed RSS", html: "Página web", newsletter: "Newsletter por email", directorio_ferramentas: "Diretório de ferramentas", curadoria_ia: "Recolha de fontes", email_newsletter: "Newsletter por email", manual: "Inserção manual", manual_ia: "Texto inserido com IA", form_unica: "Formulário", form_bloco: "Formulário em bloco", whatsapp: "WhatsApp" };
+  return nomes[n.fonte_tipo ?? ""] ?? nomes[n.origem] ?? "Origem não identificada";
+}
+
 export const API_CURADORIA = { listar: listarCuradoria, ler: lerFonteCuradoria, decidir: decidirCuradoria, selecionarEdicao: selecionarNaEdicao };
 interface Props { api?: typeof API_CURADORIA; selecionar?: (f: FonteCuradoria) => void; noticiaInicial?: string; paraEdicao?: { id: string; onSelecionada: () => void }; }
 const ESTADOS: Array<{ id: DecisaoEditorial; nome: string }> = [{ id: "pendente", nome: "Por rever" }, { id: "aprovada", nome: "Aprovadas" }, { id: "rejeitada", nome: "Rejeitadas" }];
@@ -66,7 +76,8 @@ export function CuradoriaNoticias({ selecionar, noticiaInicial, paraEdicao, api 
       {dados.total === 0 && <div className="flex flex-col gap-2 rounded-lg border p-5"><p className="font-medium">{selecionar ? "Ainda não há notícias aprovadas neste filtro" : "Não há notícias neste filtro"}</p><p className="text-sm text-muted-foreground">Muda o período ou a pesquisa.{selecionar && <> Podes aprovar notícias na <Link className="underline" to="/curadoria">Curadoria</Link>.</>}</p></div>}
       <ul className="grid gap-3">
         {dados.itens.map((n) => <li key={n.id} className="flex min-w-0 flex-col gap-3 rounded-lg border bg-card p-4">
-          <div className="flex flex-wrap gap-x-3 gap-y-1 text-xs text-muted-foreground"><span>{n.categoria} · {n.origem}</span><time dateTime={n.criado_em}>{new Date(n.criado_em).toLocaleDateString("pt-PT")}</time><span>{n.nivel === "artigo" ? "Artigo disponível" : "Só título/resumo disponível"}</span>{n.usos > 0 && <span>Reutilizada em {n.usos} {n.usos === 1 ? "conteúdo" : "conteúdos"}</span>}{n.estado_newsletter === "enviada" && <span>Já enviada na newsletter</span>}</div>
+          <div className="flex flex-wrap gap-x-3 gap-y-1 text-xs text-muted-foreground"><span>{n.categoria} · {canalCuradoria(n)}</span><time dateTime={n.criado_em}>{new Date(n.criado_em).toLocaleDateString("pt-PT")}</time><span>{n.nivel === "artigo" ? "Artigo disponível" : "Só título/resumo disponível"}</span>{n.usos > 0 && <span>Reutilizada em {n.usos} {n.usos === 1 ? "conteúdo" : "conteúdos"}</span>}{n.estado_newsletter === "enviada" && <span>Já enviada na newsletter</span>}</div>
+          <p className="text-sm"><span className="font-medium">Fonte: </span>{nomeFonteCuradoria(n)}</p>
           <h2 className="break-words text-base font-semibold">{n.titulo}</h2>
           {n.descricao && <p className="line-clamp-3 break-words text-sm text-muted-foreground">{n.descricao}</p>}
           <div className="flex flex-wrap gap-2">

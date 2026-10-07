@@ -20,8 +20,8 @@ export const verificarSecretsAPI = createServerFn({ method: "GET" })
       deepseek: has(process.env.DEEPSEEK_API_KEY),
       egoi: has(process.env.EGOI_API_KEY),
       wp_url: has(process.env.WORDPRESS_SITE_URL),
-      wp_user: has(process.env.WORDPRESS_APP_USER),
-      wp_pass: has(process.env.WORDPRESS_APP_PASSWORD),
+      wp_user: has((process.env.WORDPRESS_APP_USER || process.env.wordpress_site_username)),
+      wp_pass: has((process.env.WORDPRESS_APP_PASSWORD || process.env.wordpress_site_key)),
     };
   });
 

@@ -1,7 +1,7 @@
 import { render, screen, fireEvent, waitFor, cleanup } from '@testing-library/react';
 import { MemoryRouter } from 'react-router-dom';
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { CuradoriaNoticias, type API_CURADORIA } from '@/features/curadoria/CuradoriaNoticias';
+import { CuradoriaNoticias, nomeFonteCuradoria, canalCuradoria, type API_CURADORIA } from '@/features/curadoria/CuradoriaNoticias';
 import type { NoticiaCurada, FonteCuradoria } from '@/services/curadoria';
 const n: NoticiaCurada = { id:'news', titulo:'Uma notícia para reutilizar', descricao:'Factos aprovados pela curadoria.', url:null, categoria:'ia', origem:'rss', editorial_estado:'aprovada', estado_newsletter:'enviada', edicao_id:'old', criado_em:'2026-10-07T08:00:00Z', nivel:'resumo', usos:2, edicoes:['old'] };
 const f: FonteCuradoria = { noticia_id:n.id, hash:'canonical-hash', titulo:n.titulo, texto:n.descricao!, url:null, categoria:'ia', origem:'rss', nivel:'resumo', parcial:false };
@@ -30,4 +30,13 @@ describe('curadoria: decisão partilhada e escolha sem geração', () => {
   const a=api();render(<MemoryRouter><CuradoriaNoticias api={a}/></MemoryRouter>);await screen.findByRole('heading',{name:n.titulo});fireEvent.click(screen.getByRole('radio',{name:'Aprovadas'}));await waitFor(()=>expect(a.listar).toHaveBeenLastCalledWith(expect.objectContaining({estado:'aprovada'})));
   for(const formato of ['carrossel','post','story'])expect(await screen.findByRole('link',{name:`Criar ${formato}`})).toHaveAttribute('href',`/estudio/carrosseis/novo?formato=${formato}&noticia=news`);
  });
+});
+
+it('identifica a fonte, o site ou a ausência de origem sem mostrar códigos técnicos', () => {
+ expect(nomeFonteCuradoria({fonte_nome:'The Rundown',url:'https://example.org/article'})).toBe('The Rundown');
+ expect(nomeFonteCuradoria({url:'https://www.example.org/article'})).toBe('example.org');
+ expect(nomeFonteCuradoria({url:null})).toBe('Não identificada no registo original');
+ expect(nomeFonteCuradoria({url:'javascript:alert(1)'})).toBe('Não identificada no registo original');
+ expect(canalCuradoria({fonte_tipo:'rss',origem:'curadoria_ia'})).toBe('Feed RSS');
+ expect(canalCuradoria({origem:'email_newsletter'})).toBe('Newsletter por email');
 });

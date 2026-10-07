@@ -63,7 +63,7 @@ const SECCOES: Seccao[] = [
       { nome: "Fal", uso: "Geração de imagens com IA", chaves: ["FAL_KEY"], acao: "Cria uma chave na conta Fal." },
       { nome: "Kie (Seedream 5 Flash)", uso: "Imagens limpas para o editor de carrosséis", chaves: ["KIE_API_KEY"], validacao: "kie", acao: "Cria uma chave em kie.ai e guarda-a nos segredos do projeto com o nome KIE_API_KEY." },
       { nome: "Pexels", uso: "Sugestão de imagens", chaves: ["PEXELS_API_KEY"], acao: "Cria uma chave gratuita na Pexels." },
-      { nome: "WordPress · site da newsletter", uso: "Edição web", chaves: ["WORDPRESS_SITE_URL", "WORDPRESS_APP_USER", "WORDPRESS_APP_PASSWORD"], acao: "Cria uma password de aplicação no WordPress." },
+      { nome: "WordPress · site da newsletter", uso: "Edição web", chaves: ["WORDPRESS_SITE_URL", "WORDPRESS_APP_USER", "WORDPRESS_APP_PASSWORD"], acao: "Usa uma senha de aplicação do WordPress. Também são aceites wordpress_site_username e wordpress_site_key, com WORDPRESS_SITE_URL." },
       { nome: "WordPress · artigo da crónica", uso: "Rascunho no site pessoal (nunca publicado)", chaves: ["FREDERICO_WP_URL", "FREDERICO_WP_USER", "FREDERICO_WP_APP_PASSWORD"], acao: "Cria uma password de aplicação no WordPress." },
       { nome: "CloudMailin", uso: "Entrada de emails para curadoria", chaves: ["CLOUDMAILIN_AUTH_USER", "CLOUDMAILIN_AUTH_PASS"], acao: "Define utilizador e password no CloudMailin e no servidor." },
       { nome: "Automatismos", uso: "Chave dos processos agendados da newsletter", chaves: ["NL_CRON_SEGREDO"], acao: "Gerada no servidor." },
