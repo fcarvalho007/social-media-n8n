@@ -63,6 +63,12 @@ export const criarTrabalho = (n: NovoTrabalho) => invocar<{ trabalho_id: string;
 export const retomarTrabalho = (id: string) => invocar<{ retomado: boolean }>({ acao: "retomar", trabalho_id: id });
 export const acordarFila = () => invocar<{ ok: boolean }>({ acao: "acordar" });
 
+export async function renomearTrabalho(id: string, titulo: string): Promise<string> {
+  const { data, error } = await supabase.rpc("mc_renomear_trabalho", { _trabalho_id: id, _titulo: titulo });
+  if (error) throw new Error(error.code === "42501" ? "Sem permissão para renomear este carrossel." : error.code === "22023" ? "O título deve ter entre 1 e 300 caracteres." : "Não foi possível guardar o título.");
+  return data ?? titulo;
+}
+
 export async function eliminarTrabalhos(ids: string[]): Promise<number> {
   const unicos = Array.from(new Set(ids));
   if (unicos.length === 0) return 0;
