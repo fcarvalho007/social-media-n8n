@@ -302,6 +302,13 @@
       "when": 1791387124727,
       "tag": "0042_mc_renomear_trabalho",
       "breakpoints": true
+    },
+    {
+      "idx": 43,
+      "version": "7",
+      "when": 1791388847767,
+      "tag": "0043_criar_par_editorial_pas",
+      "breakpoints": true
     }
   ]
 }

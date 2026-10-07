@@ -1590,6 +1590,54 @@ export type Database = {
           },
         ]
       }
+      mc_reservas_ia: {
+        Row: {
+          consumida_em: string | null
+          criado_em: string
+          criado_por: string | null
+          dia: string
+          estado: string
+          id: string
+          project_id: string
+          trabalho_id: string
+        }
+        Insert: {
+          consumida_em?: string | null
+          criado_em?: string
+          criado_por?: string | null
+          dia: string
+          estado?: string
+          id?: string
+          project_id: string
+          trabalho_id: string
+        }
+        Update: {
+          consumida_em?: string | null
+          criado_em?: string
+          criado_por?: string | null
+          dia?: string
+          estado?: string
+          id?: string
+          project_id?: string
+          trabalho_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "mc_reservas_ia_project_id_fkey"
+            columns: ["project_id"]
+            isOneToOne: false
+            referencedRelation: "projects"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "mc_reservas_ia_trabalho_id_fkey"
+            columns: ["trabalho_id"]
+            isOneToOne: true
+            referencedRelation: "mc_trabalhos"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       mc_sistemas_visuais: {
         Row: {
           atualizado_em: string
@@ -5331,6 +5379,25 @@ export type Database = {
       mc_confirmar_draft: {
         Args: { _documento_id: string; _draft: string; _versao: number }
         Returns: number
+      }
+      mc_criar_par_narrativo: {
+        Args: {
+          _brief: Json
+          _metadados: Json
+          _modelo: string
+          _noticia_hash: string
+          _noticia_id: string
+          _origem_url: string
+          _project_id: string
+          _texto: string
+          _tipo: string
+          _titulo: string
+        }
+        Returns: {
+          editorial_id: string
+          pas_id: string
+          reutilizado: boolean
+        }[]
       }
       mc_criar_trabalho: {
         Args: {
