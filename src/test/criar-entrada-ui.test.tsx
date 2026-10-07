@@ -10,7 +10,7 @@ afterEach(() => {
 });
 
 describe('entrada Criar', () => {
-  it('apresenta os dois percursos e os três formatos assistidos reais', () => {
+  it('apresenta os dois percursos e os quatro formatos assistidos reais', () => {
     const selecionar = vi.fn();
     render(
       <MemoryRouter>
@@ -28,6 +28,7 @@ describe('entrada Criar', () => {
     expect(carrossel).toHaveAttribute('href', '/estudio/carrosseis/novo?formato=carrossel');
     expect(post).toHaveAttribute('href', '/estudio/carrosseis/novo?formato=post');
     expect(story).toHaveAttribute('href', '/estudio/carrosseis/novo?formato=story');
+    expect(screen.getByRole('link', { name: /Roteiro/ })).toHaveAttribute('href', '/estudio/roteiros/novo');
 
     fireEvent.click(post);
     expect(selecionar).toHaveBeenCalledWith('ia', false);

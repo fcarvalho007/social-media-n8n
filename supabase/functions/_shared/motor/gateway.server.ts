@@ -7,7 +7,7 @@ import { formatoConteudo, type FormatoConteudo } from "../documento-grafico/form
 import { obterFramework, regrasFramework } from "./frameworks.ts";
 import { linhasBriefing, normalizarBriefing } from "./briefing.ts";
 import { normalizarLeitura, normalizarPerfil, regrasAutor } from "./autor.ts";
-import { corpoDeepSeek, DEEPSEEK_URL, ERRO_SEM_CHAVE, MODELO_DEEPSEEK } from "../deepseek-direto.ts";
+import { chaveDeepSeek, corpoDeepSeek, DEEPSEEK_URL, ERRO_SEM_CHAVE, MODELO_DEEPSEEK } from "../deepseek-direto.ts";
 export const GATEWAY_URL = DEEPSEEK_URL;
 export const MODELO_IA = MODELO_DEEPSEEK;
 /** Output cap for one carousel JSON (≤12 slides × ~370 chars + 1200-char caption + alts), with margin. */
@@ -65,9 +65,7 @@ export async function lerStream(corpo: ReadableStream<Uint8Array>): Promise<{ te
   return { texto, tokensEntrada: tin, tokensSaida: tout, completo };
 }
 
-export async function chamarGateway(modelo: string, sistema: string, utilizador: string, f: typeof fetch = fetch): Promise<ResultadoGateway> {
-  const g = globalThis as unknown as { Deno?: { env: { get(k: string): string | undefined } } };
-  const chave = g.Deno?.env.get("DEEPSEEK_API_KEY");
+export async function chamarGateway(modelo: string, sistema: string, utilizador: string, f: typeof fetch = fetch, chave = chaveDeepSeek()): Promise<ResultadoGateway> {
   if (!chave) return { tipo: "erro_antes_pedido", mensagem: ERRO_SEM_CHAVE };
   let r: Response;
   try {

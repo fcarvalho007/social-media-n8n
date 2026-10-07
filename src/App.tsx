@@ -45,6 +45,7 @@ import ConteudosSociais from "./pages/ConteudosSociais";
 import CarrosselCronica from "./pages/CarrosselCronica";
 import { lazy, Suspense } from "react";
 import { FronteiraProjetoNewsletter } from "./features/newsletter/FronteiraProjeto";
+const Roteiros = lazy(() => import("./pages/Roteiros"));
 const Custos = lazy(() => import("./pages/Custos"));
 const NewsletterApp = lazy(() => import("./newsletter/NewsletterApp"));
 const EditorProva = lazy(() => import("./pages/EditorProva"));
@@ -129,6 +130,9 @@ const App = () => (
                   <Route path="/estudio/carrosseis/:id" element={<Suspense fallback={<p className="p-4 text-sm text-muted-foreground">A carregar…</p>}><CarrosselTrabalho /></Suspense>} />
                   <Route path="/estudio/editor-prova" element={<Suspense fallback={<p className="p-4 text-sm text-muted-foreground">A carregar o editor…</p>}><EditorProva /></Suspense>} />
                   <Route path="/newsletter/*" element={<FronteiraProjetoNewsletter><Suspense fallback={<p className="p-4 text-sm text-muted-foreground">A carregar a newsletter…</p>}><NewsletterApp /></Suspense></FronteiraProjetoNewsletter>} />
+                  <Route path="/estudio/roteiros" element={<Suspense fallback={<p>A carregar roteiros…</p>}><Roteiros /></Suspense>} />
+                  <Route path="/estudio/roteiros/novo" element={<Suspense fallback={<p>A carregar roteiros…</p>}><Roteiros /></Suspense>} />
+                  <Route path="/estudio/roteiros/:id" element={<Suspense fallback={<p>A carregar roteiros…</p>}><Roteiros /></Suspense>} />
                   <Route path="/curadoria" element={<Curadoria />} />
                   <Route path="/artigos" element={<Artigos />} />
                   <Route path="/definicoes/seguranca" element={<SegurancaConta />} />

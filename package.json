@@ -12,7 +12,8 @@
     "dev:local": "vite --mode offline --host 127.0.0.1 --port 5178",
     "test": "vitest run",
     "typecheck": "tsc --noEmit -p tsconfig.app.json",
-    "check:edge": "python3 scripts/verificar-grafo-edge.py"
+    "check:edge": "python3 scripts/verificar-grafo-edge.py",
+    "dev:roteiros": "vite --mode roteiros --host 127.0.0.1 --port 5180 --strictPort"
   },
   "dependencies": {
     "@dnd-kit/core": "^6.3.1",

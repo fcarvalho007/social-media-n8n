@@ -1,5 +1,5 @@
 import { Link } from 'react-router-dom';
-import { ExternalLink, GalleryHorizontal, ImageIcon, Images, Layers, Video } from 'lucide-react';
+import { FileText, ExternalLink, GalleryHorizontal, ImageIcon, Images, Layers, Video } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
 
@@ -28,11 +28,12 @@ const FORMATOS = [
     detalhe: '1080 × 1920',
     icon: Video,
   },
+  { id: 'roteiro', titulo: 'Roteiro', descricao: 'Texto para gravar Reels', detalhe: 'Leitura · BIGVU', icon: FileText },
 ] as const;
 
 export function AssistedFormatActions({ onChoose }: { onChoose?: () => void }) {
   return (
-    <div className="grid grid-cols-1 gap-2 sm:grid-cols-3">
+    <div className="grid grid-cols-1 gap-2 sm:grid-cols-2 lg:grid-cols-4">
       {FORMATOS.map(({ id, titulo, descricao, detalhe, icon: Icon }) => (
         <Button
           key={id}
@@ -40,7 +41,7 @@ export function AssistedFormatActions({ onChoose }: { onChoose?: () => void }) {
           variant="outline"
           className="h-auto min-h-24 items-start justify-start whitespace-normal border-border bg-background p-4 text-left hover:border-primary/60 hover:bg-primary/5"
         >
-          <Link to={`/estudio/carrosseis/novo?formato=${id}`} onClick={onChoose}>
+          <Link to={id === 'roteiro' ? '/estudio/roteiros/novo' : `/estudio/carrosseis/novo?formato=${id}`}  onClick={onChoose}>
             <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-md bg-primary/10 text-primary">
               <Icon className="h-5 w-5" aria-hidden />
             </span>
@@ -63,6 +64,7 @@ export const ActionButtons = ({ className }: { className?: string }) => (
       <p className="text-sm text-muted-foreground">Escolhe o formato e trabalha o conteúdo no compositor.</p>
       <AssistedFormatActions />
       <div className="flex flex-wrap gap-2 pt-1">
+        <Button asChild variant="ghost" size="sm"><Link to="/estudio/roteiros"><FileText aria-hidden />Meus roteiros</Link></Button>
         <Button asChild variant="ghost" size="sm"><Link to="/estudio/carrosseis"><Layers aria-hidden />Meus carrosséis</Link></Button>
         <Button asChild variant="ghost" size="sm"><Link to="/estudio/redes-sociais"><Images aria-hidden />Carrosséis da crónica</Link></Button>
       </div>
