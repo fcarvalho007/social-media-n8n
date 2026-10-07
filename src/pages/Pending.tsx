@@ -1,10 +1,8 @@
 import { useState, useEffect } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { supabase } from '@/integrations/supabase/client';
-import { ActionButtons, LegadoN8n } from '@/components/ActionButtons';
+import { LegadoN8n } from '@/components/ActionButtons';
 import { ModeSelector } from '@/components/ModeSelector';
-import { ModeBadge } from '@/components/ModeBadge';
-import { ModeChangeConfirmDialog } from '@/components/ModeChangeConfirmDialog';
 import { PostCard } from '@/components/PostCard';
 import { StoryCard } from '@/components/StoryCard';
 import { PostCardSkeleton } from '@/components/PostCardSkeleton';
@@ -39,10 +37,6 @@ const Pending = () => {
   const [searchQuery, setSearchQuery] = useState('');
   const [activeStatus, setActiveStatus] = useState('pending');
   const [contentTypeFilter, setContentTypeFilter] = useState<string>('all');
-  const [creationMode, setCreationMode] = useState<'manual' | 'ia' | null>(null);
-  const [showModeSelector, setShowModeSelector] = useState(true);
-  const [showModeChangeDialog, setShowModeChangeDialog] = useState(false);
-  const [hasDraft, setHasDraft] = useState(false);
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   const activeTab = searchParams.get('tab') || 'approve';
@@ -60,17 +54,6 @@ const Pending = () => {
     onRefresh: handleRefresh,
     disabled: !isMobile,
   });
-
-  // Check for preferred mode on mount (only for IA mode - manual mode navigates directly from sidebar)
-  useEffect(() => {
-    if (activeTab === 'create') {
-      const preferredMode = localStorage.getItem('preferredCreationMode') as 'manual' | 'ia' | null;
-      if (preferredMode === 'ia') {
-        setCreationMode(preferredMode);
-        setShowModeSelector(false);
-      }
-    }
-  }, [activeTab]);
 
   const fetchPosts = async () => {
     setLoading(true);
@@ -250,45 +233,16 @@ const Pending = () => {
           {activeTab === 'create' ? (
             /* Create Tab */
             <div className="space-y-6 w-full" role="region" aria-label="Área de criação de conteúdo">
-              {showModeSelector && !creationMode ? (
-                <div className="bg-card rounded-2xl shadow-lg p-6 sm:p-8 border-2 border-border">
+              <div className="rounded-md border border-border bg-card p-4 shadow-sm sm:p-6">
                   <ModeSelector 
-                    onModeSelect={(mode, skipNext) => {
+                    onModeSelect={(mode) => {
                       if (mode === 'manual') {
-                        // Redirect directly to manual editor
                         navigate('/manual-create');
-                      } else {
-                        setCreationMode(mode);
-                        setShowModeSelector(false);
                       }
                     }}
                   />
-                  <div className="mt-6"><LegadoN8n /></div>
-                </div>
-              ) : (
-                <>
-                  {/* Mode Badge */}
-                  {creationMode && (
-                    <ModeBadge 
-                      mode={creationMode}
-                      onChangeMode={() => {
-                        if (hasDraft) {
-                          setShowModeChangeDialog(true);
-                        } else {
-                          setCreationMode(null);
-                          setShowModeSelector(true);
-                        }
-                      }}
-                    />
-                  )}
-                  {/* Content based on mode - Only IA mode shows content here */}
-                  {creationMode === 'ia' && (
-                    <div className="w-full max-w-4xl px-4 py-2 sm:px-0">
-                      <ActionButtons />
-                    </div>
-                  )}
-                </>
-              )}
+                  <div className="mx-auto mt-4 max-w-6xl"><LegadoN8n /></div>
+              </div>
               <IniciadosSection />
             </div>
           ) : (
@@ -439,26 +393,6 @@ const Pending = () => {
             </div>
           )}
       </div>
-
-      {/* Mode Change Confirmation Dialog */}
-      <ModeChangeConfirmDialog
-        open={showModeChangeDialog}
-        onOpenChange={setShowModeChangeDialog}
-        onSaveAndChange={() => {
-          // TODO: Implement draft saving logic
-          toast.success('Rascunho guardado');
-          setCreationMode(null);
-          setShowModeSelector(true);
-          setShowModeChangeDialog(false);
-          setHasDraft(false);
-        }}
-        onChangeWithoutSaving={() => {
-          setCreationMode(null);
-          setShowModeSelector(true);
-          setShowModeChangeDialog(false);
-          setHasDraft(false);
-        }}
-      />
     </>
   );
 };

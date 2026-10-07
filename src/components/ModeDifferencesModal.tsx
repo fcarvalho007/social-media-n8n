@@ -20,7 +20,7 @@ export const ModeDifferencesModal = ({ open, onOpenChange }: ModeDifferencesModa
         <DialogHeader>
           <DialogTitle className="text-2xl">Escolher o modo certo</DialogTitle>
           <DialogDescription>
-            Compreenda as diferenças entre os dois modos de criação
+            Compare os dois percursos antes de começar.
           </DialogDescription>
         </DialogHeader>
 
@@ -43,18 +43,18 @@ export const ModeDifferencesModal = ({ open, onOpenChange }: ModeDifferencesModa
               <tbody className="divide-y divide-border">
                 <tr className="hover:bg-accent/5 transition-colors">
                   <td className="p-3 font-semibold text-sm">Ritmo de criação</td>
-                  <td className="p-3 text-sm">Total controlo</td>
-                  <td className="p-3 text-sm">Rápido com sugestões</td>
+                  <td className="p-3 text-sm">Controlo passo a passo</td>
+                  <td className="p-3 text-sm">Estrutura e composição assistidas</td>
                 </tr>
                 <tr className="hover:bg-accent/5 transition-colors">
                   <td className="p-3 font-semibold text-sm">Entrada de dados</td>
-                  <td className="p-3 text-sm">Editor interno</td>
-                  <td className="p-3 text-sm">Google Forms (atual)</td>
+                  <td className="p-3 text-sm">Texto e ficheiros próprios</td>
+                  <td className="p-3 text-sm">Texto, ligação, PDF ou curadoria</td>
                 </tr>
                 <tr className="hover:bg-accent/5 transition-colors">
                   <td className="p-3 font-semibold text-sm">Edição</td>
                   <td className="p-3 text-sm">Campo a campo</td>
-                  <td className="p-3 text-sm">Texto gerado, editável depois</td>
+                  <td className="p-3 text-sm">Compositor visual totalmente editável</td>
                 </tr>
                 <tr className="hover:bg-accent/5 transition-colors">
                   <td className="p-3 font-semibold text-sm">Pré-visualizações por rede</td>
