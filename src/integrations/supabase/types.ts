@@ -3371,10 +3371,13 @@ export type Database = {
           categoria: string
           corpo_artigo: string | null
           created_at: string
+          curadoria_origem_id: string | null
           descricao: string | null
           destaque: boolean
           destino: string
           edicao_id: string | null
+          editorial_estado: string
+          editorial_revisto_em: string | null
           email_assunto: string | null
           email_recebido_id: string | null
           email_remetente: string | null
@@ -3401,10 +3404,13 @@ export type Database = {
           categoria: string
           corpo_artigo?: string | null
           created_at?: string
+          curadoria_origem_id?: string | null
           descricao?: string | null
           destaque?: boolean
           destino?: string
           edicao_id?: string | null
+          editorial_estado?: string
+          editorial_revisto_em?: string | null
           email_assunto?: string | null
           email_recebido_id?: string | null
           email_remetente?: string | null
@@ -3431,10 +3437,13 @@ export type Database = {
           categoria?: string
           corpo_artigo?: string | null
           created_at?: string
+          curadoria_origem_id?: string | null
           descricao?: string | null
           destaque?: boolean
           destino?: string
           edicao_id?: string | null
+          editorial_estado?: string
+          editorial_revisto_em?: string | null
           email_assunto?: string | null
           email_recebido_id?: string | null
           email_remetente?: string | null
@@ -3457,6 +3466,13 @@ export type Database = {
           url_norm?: string | null
         }
         Relationships: [
+          {
+            foreignKeyName: "nl_noticias_curadoria_origem_id_fkey"
+            columns: ["curadoria_origem_id"]
+            isOneToOne: false
+            referencedRelation: "nl_noticias"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "nl_noticias_edicao_id_fkey"
             columns: ["edicao_id"]
@@ -5331,6 +5347,39 @@ export type Database = {
           trabalho_id: string
         }[]
       }
+      mc_criar_trabalho_curadoria: {
+        Args: {
+          _brief: Json
+          _hash: string
+          _modelo: string
+          _noticia_id: string
+          _nova?: boolean
+          _parametros: Json
+          _project_id: string
+          _prompt_versao: string
+        }
+        Returns: {
+          cache_chave: string
+          fonte_id: string
+          reutilizado: boolean
+          trabalho_id: string
+        }[]
+      }
+      mc_criar_trabalho_derivado: {
+        Args: {
+          _brief: Json
+          _modelo: string
+          _origem: string
+          _parametros: Json
+          _prompt_versao: string
+        }
+        Returns: {
+          cache_chave: string
+          fonte_id: string
+          reutilizado: boolean
+          trabalho_id: string
+        }[]
+      }
       mc_criar_trabalho_fonte: {
         Args: {
           _brief: Json
@@ -5634,6 +5683,26 @@ export type Database = {
         Args: { _edicao_id: string }
         Returns: undefined
       }
+      nl_curadoria_decidir: {
+        Args: { _estado: string; _id: string }
+        Returns: undefined
+      }
+      nl_curadoria_listar: {
+        Args: {
+          _categoria?: string
+          _desde?: string
+          _estado?: string
+          _limite?: number
+          _offset?: number
+          _query?: string
+        }
+        Returns: Json
+      }
+      nl_curadoria_para_edicao: {
+        Args: { _edicao: string; _id: string }
+        Returns: string
+      }
+      nl_curadoria_snapshot: { Args: { _id: string }; Returns: Json }
       nl_encontrar_candidatos_repeticao: {
         Args: { _categoria: string; _limiar?: number; _titulo: string }
         Returns: {
