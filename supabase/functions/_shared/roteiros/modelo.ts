@@ -14,7 +14,7 @@ export interface VarianteRoteiro { id: string; framework: FrameworkId; titulo: s
 export interface DocumentoRoteiro { variantes: VarianteRoteiro[]; selecionada: string | null }
 export interface Roteiro { id: string; project_id: string; fonte: FonteRoteiro; brief: BriefRoteiro; documento: DocumentoRoteiro; revisao: number; criado_em: string; atualizado_em: string }
 export interface GeracaoRoteiro { contexto?: import('./refinar.ts').ContextoRefinamento | null; brief: BriefRoteiro; id: string; roteiro_id: string; estado: 'a_processar' | 'concluida' | 'erro' | 'desconhecido'; resultado: DocumentoRoteiro | null; erro: string | null; revisao_base: number; criado_em: string }
-export const briefInicial = (): BriefRoteiro => ({ duracao: 60, ppm: 140, publico: '', objetivo: 'Explicar', frameworks: ['hva', 'pas', 'aida'] });
+export const briefInicial = (): BriefRoteiro => ({ duracao: 60, ppm: 140, publico: '', objetivo: 'Explicar', frameworks: ['hva', 'pas'] });
 export function palavras(texto: string) { return texto.trim().match(/[\p{L}\p{N}]+(?:['’-][\p{L}\p{N}]+)*/gu)?.length ?? 0; }
 export function textoLimpo(v: VarianteRoteiro) { return v.cenas.map(c => c.locucao.trim()).filter(Boolean).join('\n\n'); }
 export function segundos(texto: string, ppm: number) { return Math.ceil(palavras(texto) * 60 / Math.max(90, ppm)); }
