@@ -79,6 +79,7 @@ export default function CarrosselTrabalho() {
   const assetsCache = useRef<Record<string, Asset>>({});
   const [assetsFalha, setAssetsFalha] = useState<string[]>([]);
   const [seletor, setSeletor] = useState(false);
+  const [narrativaEscolhida, setNarrativaEscolhida] = useState(true);
   const resolverSeletor = useRef<((r: { asset: Asset; nome: string } | null) => void) | null>(null);
 
   const chave = user && dados ? chaveRecuperacao(user.id, "carrossel", id, dados.trabalho.project_id) : null;
@@ -87,6 +88,7 @@ export default function CarrosselTrabalho() {
     try {
       const d = await abrirTrabalho(id);
       setDados(d);
+      setNarrativaEscolhida((d.trabalho as unknown as { parametros?: { comparacao?: string } }).parametros?.comparacao !== "editorial-pas");
       const g = gravadoDe(d);
       if (!passoDecidido.current) {
         passoDecidido.current = true;
@@ -452,10 +454,10 @@ export default function CarrosselTrabalho() {
         {passo === "narrativa" && pronto && prop && pacote && sSel && (
           <section className="mc-entrar space-y-6" aria-labelledby="t-narr">
             <div className="flex flex-wrap items-baseline justify-between gap-2">
-              <h1 id="t-narr" className="text-2xl font-semibold tracking-tight">Narrativa</h1>
-              <p className="text-xs text-muted-foreground">Proposta v{gravado!.propostaVersao} · o texto é o mesmo nas variantes A e B · cada alteração cria nova versão</p>
+              <h1 id="t-narr" className="text-3xl font-semibold tracking-tight sm:text-4xl">Narrativa</h1>
+              <p className="text-sm text-muted-foreground">Proposta v{gravado!.propostaVersao} · o texto é o mesmo nas variantes A e B · cada alteração cria nova versão</p>
             </div>
-            {(prop.formato ?? "carrossel") === "carrossel" && <PainelEstruturas dados={dados} atual={gravado!.conteudo} aceitar={aceitarEstrutura} />}
+            {(prop.formato ?? "carrossel") === "carrossel" && <PainelEstruturas dados={dados} atual={gravado!.conteudo} aceitar={aceitarEstrutura} onEscolhaInicial={setNarrativaEscolhida} />}
             <div className="grid gap-6 lg:grid-cols-[260px_1fr]">
               <ol className="flex gap-2 overflow-x-auto pb-1 lg:flex-col lg:overflow-visible" aria-label="Storyboard">
                 {slides.map((s, i) => {
@@ -538,7 +540,7 @@ export default function CarrosselTrabalho() {
           fim={passo === "fonte"
             ? <Button className="h-11 px-5" onClick={() => setPasso("narrativa")}>Narrativa<ArrowRight className="ml-1.5 h-4 w-4" /></Button>
             : passo === "narrativa"
-            ? <Button className="h-11 px-5" onClick={() => setPasso("composicao")}>Composição<ArrowRight className="ml-1.5 h-4 w-4" /></Button>
+            ? <Button className="h-11 px-5" disabled={!narrativaEscolhida} onClick={() => setPasso("composicao")}>Composição<ArrowRight className="ml-1.5 h-4 w-4" /></Button>
             : null}
         />
       )}

@@ -8,7 +8,7 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { cn } from "@/lib/utils";
-import { criarTrabalho, listarCandidatos, regenerarSlide, type CandidatoPool, type TrabalhoCompleto } from "@/services/motor";
+import { criarTrabalho, escolherNarrativa, lerEscolhaNarrativa, listarCandidatos, regenerarSlide, type CandidatoPool, type TrabalhoCompleto } from "@/services/motor";
 import { FRAMEWORKS, obterFramework, type Framework } from "../../../supabase/functions/_shared/motor/frameworks";
 import type { PropostaEditorial } from "../../../supabase/functions/_shared/motor/proposta";
 import { MODOS_REGEN, NOTA_MAX, type ModoRegen } from "../../../supabase/functions/_shared/motor/regenerar";
@@ -19,13 +19,14 @@ interface Props {
   atual: PropostaEditorial;
   /** Persists the merged narrative as a new version (composition kept). */
   aceitar: (conteudo: PropostaEditorial) => Promise<void>;
+  onEscolhaInicial?: (escolhida: boolean) => void;
 }
 
 const PERFIL = { original: "perfil do carrossel original", atual: "perfil atual do projeto (o original não tinha)", nenhum: "sem perfil de autor" } as const;
 const dataCurta = (iso: string) => new Date(iso).toLocaleString("pt-PT", { day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit" });
 
 /** Framework proposals pool + per-slide hybrid selection. Choosing generated slides is free (no AI); one CAS version on apply. */
-export function PainelEstruturas({ dados, atual, aceitar }: Props) {
+export function PainelEstruturas({ dados, atual, aceitar, onEscolhaInicial }: Props) {
   const origem = dados.trabalho.id;
   const versao = dados.proposta.versao;
   const n = atual.slides.length;
@@ -43,12 +44,17 @@ export function PainelEstruturas({ dados, atual, aceitar }: Props) {
   const [notaR, setNotaR] = useState("");
   const [aPedirR, setAPedirR] = useState<string | null>(null);
   const [erroR, setErroR] = useState<Record<string, string>>({});
+  const [escolhaInicial, setEscolhaInicial] = useState<"editorial" | "pas" | null>(null);
+  const [aEscolher, setAEscolher] = useState(false);
 
   useEffect(() => { setSelecaoS(lerSelecao(origem, versao, n)); setErroAplicar(null); }, [origem, versao, n]);
   const setSelecao = (s: Selecao) => { setSelecaoS(s); guardarSelecao(origem, versao, s); };
 
   const ler = useCallback(async () => { try { setPool(await listarCandidatos(dados)); } catch { /* next cycle */ } }, [dados]);
   useEffect(() => { ler(); }, [ler]);
+  useEffect(() => {
+    void lerEscolhaNarrativa(origem).then((valor) => { setEscolhaInicial(valor); onEscolhaInicial?.(valor !== null); }).catch(() => { setEscolhaInicial(null); onEscolhaInicial?.(false); });
+  }, [origem, onEscolhaInicial]);
   const emCurso = pool.filter((c) => c.estado === "pendente" || c.estado === "a_processar");
   const emCursoF = emCurso.filter((c) => !c.escopo);
   useEffect(() => {
@@ -78,6 +84,26 @@ export function PainelEstruturas({ dados, atual, aceitar }: Props) {
   };
   const comp = ativoC && !ativoC.motivo && ativoC.conteudo ? ativoC : null;
   const regenDe = (slideId: string) => pool.filter((c) => c.escopo?.slide_id === slideId);
+  const comparacaoInicial = (dados.trabalho as unknown as { parametros?: { comparacao?: string } }).parametros?.comparacao === "editorial-pas";
+  const pasInicial = avaliadosF.find((c) => c.framework === "pas") ?? emCursoF.find((c) => c.framework === "pas") ?? null;
+
+  const escolherInicial = async (framework: "editorial" | "pas") => {
+    setAEscolher(true);
+    try {
+      if (framework === "pas") {
+        const candidato = avaliadosF.find((c) => c.framework === "pas" && !c.motivo && c.conteudo);
+        if (!candidato?.conteudo) throw new Error("A versão PAS ainda não está pronta.");
+        const fundida = fundirSelecao(atual, [{ trabalho: candidato.trabalho, framework: "pas", conteudo: candidato.conteudo }], atual.slides.map(() => candidato.trabalho));
+        if (!fundida.ok) throw new Error(fundida.motivo);
+        await aceitar(fundida.conteudo);
+      }
+      await escolherNarrativa(origem, framework);
+      setEscolhaInicial(framework);
+      onEscolhaInicial?.(true);
+      toast.success(`Narrativa ${framework === "editorial" ? "Editorial" : "PAS"} escolhida.`);
+    } catch (e) { toast.error((e as Error).message); }
+    finally { setAEscolher(false); }
+  };
 
   const pedirRegen = async () => {
     if (!regen) return;
@@ -119,9 +145,26 @@ export function PainelEstruturas({ dados, atual, aceitar }: Props) {
 
   return (
     <section aria-labelledby="t-estr" className="space-y-3 rounded-[var(--mc-r-lg)] border border-border bg-card p-4">
+      {comparacaoInicial && (
+        <div className="space-y-3 border-b border-border pb-4">
+          <div><h2 id="t-estr" className="text-xl font-semibold">Escolher narrativa</h2><p className="mt-1 text-sm leading-relaxed text-muted-foreground">Compara as duas estruturas criadas a partir da mesma fonte. A escolha é gratuita e fica registada antes da Composição.</p></div>
+          <div className="grid gap-3 md:grid-cols-2">
+            <article className={cn("rounded-[var(--mc-r-lg)] border p-4", escolhaInicial === "editorial" ? "border-primary bg-primary/10" : "border-border")}>
+              <div className="flex items-start justify-between gap-3"><div><h3 className="text-lg font-semibold">Editorial</h3><p className="mt-1 text-sm leading-relaxed text-muted-foreground">Contexto, desenvolvimento por ideias e síntese.</p></div>{escolhaInicial === "editorial" && <span className="text-xs font-medium text-primary">Escolhida</span>}</div>
+              <Button className="mt-4 h-11 w-full" variant={escolhaInicial === "editorial" ? "default" : "outline"} disabled={aEscolher} onClick={() => escolherInicial("editorial")}>Escolher Editorial</Button>
+            </article>
+            <article className={cn("rounded-[var(--mc-r-lg)] border p-4", escolhaInicial === "pas" ? "border-primary bg-primary/10" : "border-border")}>
+              <div className="flex items-start justify-between gap-3"><div><h3 className="text-lg font-semibold">PAS</h3><p className="mt-1 text-sm leading-relaxed text-muted-foreground">Problema, consequências documentadas e solução.</p></div>{escolhaInicial === "pas" && <span className="text-xs font-medium text-primary">Escolhida</span>}</div>
+              {pasInicial?.estado === "erro" || pasInicial?.estado === "desconhecido" ? <p className="mt-3 text-sm text-destructive">{pasInicial.erro ?? "Não foi possível criar esta versão."}</p> : pasInicial?.estado === "pendente" || pasInicial?.estado === "a_processar" ? <p className="mt-3 flex items-center gap-2 text-sm text-muted-foreground"><Loader2 className="h-4 w-4 motion-safe:animate-spin" />A preparar PAS…</p> : null}
+              <Button className="mt-4 h-11 w-full" variant={escolhaInicial === "pas" ? "default" : "outline"} disabled={aEscolher || !pasInicial || pasInicial.estado !== "concluido"} onClick={() => escolherInicial("pas")}>Escolher PAS</Button>
+            </article>
+          </div>
+          {!escolhaInicial && <p role="note" className="text-sm font-medium">Escolhe Editorial ou PAS para desbloquear a Composição.</p>}
+        </div>
+      )}
       <div>
-        <h2 id="t-estr" className="text-sm font-medium">Reestruturar com IA</h2>
-        <p className="text-xs text-muted-foreground">Cada estrutura cria uma proposta (paga, com confirmação) que fica guardada. Depois escolhes slide a slide o que entra — escolher é gratuito e nada muda até aplicares.</p>
+        <h2 id={comparacaoInicial ? undefined : "t-estr"} className="text-base font-medium">Outras estruturas</h2>
+        <p className="text-sm leading-relaxed text-muted-foreground">Opcional: cria propostas adicionais e escolhe slide a slide o que entra. Nada muda até aplicares.</p>
       </div>
       <div className="space-y-2">
         <ul className="flex flex-wrap gap-2" aria-label="Estruturas">
