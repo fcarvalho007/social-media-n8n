@@ -1,0 +1,1 @@
+COMMENT ON TABLE public.rv_versoes IS 'Roteiros Reels version history (0045-0049). Writes only via rv_* RPCs.';
