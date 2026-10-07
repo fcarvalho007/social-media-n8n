@@ -8,7 +8,7 @@ import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { EditorRoteiro,ListaRoteiros } from '@/features/roteiros/EditorRoteiro';
 import { CuradoriaNoticias } from '@/features/curadoria/CuradoriaNoticias';
-import { apiRoteirosLocal,curadoriaRoteirosLocal,local } from './roteirosLocal';
+import { apiRoteirosLocal,apiMateriaisLocal,curadoriaRoteirosLocal,local } from './roteirosLocal';
 import '@/index.css';
 function CuradoriaLocal() {
  const [titulo,setTitulo]=useState('');const [texto,setTexto]=useState('');const [version,setVersion]=useState(0);const [busy,setBusy]=useState(false);
@@ -25,6 +25,6 @@ function Preview() {
  const [project,setProject]=useState<string|null>(null);const [erro,setErro]=useState('');const l=useLocation();
  useEffect(()=>{local<Array<{id:string}>>('projetos').then(p=>setProject(p[0]?.id??null)).catch(e=>setErro(e.message));},[]);
  if(import.meta.env.MODE!=='roteiros'||!import.meta.env.DEV) return <p>Pré-visualização apenas local.</p>;
- return <TooltipProvider><div className="min-h-screen bg-background text-foreground"><header className="flex flex-wrap items-center justify-between gap-3 border-b bg-card px-5 py-3"><p className="text-xs text-muted-foreground">Hub de conteúdo · validação local · publicação desligada</p><nav className="flex gap-4 text-sm"><Link className="underline" to="/curadoria">Curadoria local</Link><Link className="underline" to="/estudio/roteiros">Meus roteiros</Link></nav></header><ConfigurarIALocal alterar={setIa}/>{erro?<p role="alert" className="p-6">{erro}</p>:!project?<p className="p-6">A abrir a base local…</p>:<Routes><Route path="/curadoria" element={<CuradoriaLocal/>}/><Route path="/estudio/roteiros/novo" element={<EditorRoteiro key={l.pathname} api={api} projectId={project} curadoria={curadoriaRoteirosLocal}/>}/><Route path="/estudio/roteiros/:id" element={<EditorRoteiro key={l.pathname} api={api} projectId={project} curadoria={curadoriaRoteirosLocal}/>}/><Route path="*" element={<ListaRoteiros api={api} projectId={project}/>}/></Routes>}</div><Toaster/></TooltipProvider>;
+ return <TooltipProvider><div className="min-h-screen bg-background text-foreground"><header className="flex flex-wrap items-center justify-between gap-3 border-b bg-card px-5 py-3"><p className="text-xs text-muted-foreground">Hub de conteúdo · validação local · publicação desligada</p><nav className="flex gap-4 text-sm"><Link className="underline" to="/curadoria">Curadoria local</Link><Link className="underline" to="/estudio/roteiros">Meus roteiros</Link></nav></header><ConfigurarIALocal alterar={setIa}/>{erro?<p role="alert" className="p-6">{erro}</p>:!project?<p className="p-6">A abrir a base local…</p>:<Routes><Route path="/curadoria" element={<CuradoriaLocal/>}/><Route path="/estudio/roteiros/novo" element={<EditorRoteiro key={l.pathname} api={api} projectId={project} curadoria={curadoriaRoteirosLocal} materiais={apiMateriaisLocal}/>}/><Route path="/estudio/roteiros/:id" element={<EditorRoteiro key={l.pathname} api={api} projectId={project} curadoria={curadoriaRoteirosLocal} materiais={apiMateriaisLocal}/>}/><Route path="*" element={<ListaRoteiros api={api} projectId={project}/>}/></Routes>}</div><Toaster/></TooltipProvider>;
 }
 createRoot(document.getElementById('root')!).render(<BrowserRouter><Preview/></BrowserRouter>);

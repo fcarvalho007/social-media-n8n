@@ -20,3 +20,5 @@ INSERT INTO public.projects VALUES ('00000000-0000-4000-8000-000000000001','0000
 INSERT INTO public.mc_orcamentos VALUES ('00000000-0000-4000-8000-000000000001',0);
 GRANT USAGE ON SCHEMA auth,public TO authenticated,anon,service_role;
 GRANT EXECUTE ON FUNCTION auth.uid(),public.mc_pode_ler(uuid),public.mc_pode_escrever(uuid) TO authenticated,service_role;
+
+CREATE TABLE public.mc_assets(id uuid PRIMARY KEY DEFAULT gen_random_uuid(),project_id uuid NOT NULL REFERENCES projects(id),hash text NOT NULL,mime text NOT NULL,largura integer NOT NULL,altura integer NOT NULL,dados text NOT NULL,nome text NOT NULL,credito text,UNIQUE(project_id,hash));

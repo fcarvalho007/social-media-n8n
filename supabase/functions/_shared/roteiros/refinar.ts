@@ -23,7 +23,7 @@ export function interpretarRefinamento(raw: string, fonte: FonteRoteiro, c: Cont
  if (!Array.isArray(x.variantes) || x.variantes.length !== (c.modo === 'visual' ? 1 : 3)) throw new Error('Número de alternativas inválido');
  const max = paragrafos(fonte.texto).length;
  const target = c.variante.cenas.find(s=>s.id===c.cena_id);
- const variantes: VarianteRoteiro[] = x.variantes.map((v: VarianteRoteiro) => ({ ...v, id: crypto.randomUUID(), cenas: Array.isArray(v.cenas) ? v.cenas.map(s=>({ ...s, id: c.modo === 'visual' ? s.id : crypto.randomUUID() })) : v.cenas }));
+ const variantes: VarianteRoteiro[] = x.variantes.map((v: VarianteRoteiro) => ({ ...v, id: crypto.randomUUID(), cenas: Array.isArray(v.cenas) ? v.cenas.map(s=>({ ...s, id: c.modo === 'visual' ? s.id : crypto.randomUUID(), apoio: undefined })) : v.cenas }));
  const d = { variantes, selecionada: variantes[0]?.id ?? null };
  if (!validarDocumento(d) || variantes.some(v=>v.framework!==c.variante.framework || v.cenas.some(s=> !s.locucao.trim() || (c.modo==='trecho'&&!s.referencias.length) || s.referencias.some(n=>n>max)))) throw new Error('Resposta inválida');
  if (c.modo === 'trecho' && (!target || variantes.some(v=>v.cenas.length!==1 || v.cenas[0].etapa!==target.etapa))) throw new Error('A secção mudou');
@@ -38,7 +38,7 @@ export function aplicarRefinamento(atual: VarianteRoteiro, alternativa: Variante
   const antes = c.variante.cenas.find(s=>s.id===c.cena_id);
   const agora = atual.cenas.find(s=>s.id===c.cena_id);
   if (!agora || !igual(agora, antes)) throw new Error('Esta secção foi alterada depois do pedido. Gera novas alternativas para preservar a tua edição.');
-  return { ...atual, id: crypto.randomUUID(), cenas: atual.cenas.map(s=>s.id===c.cena_id ? { ...alternativa.cenas[0], id:s.id, etapa:s.etapa } : s) };
+  return { ...atual, id: crypto.randomUUID(), cenas: atual.cenas.map(s=>s.id===c.cena_id ? { ...alternativa.cenas[0], id:s.id, etapa:s.etapa, apoio:s.apoio } : s) };
  }
  if (atual.cenas.length!==c.variante.cenas.length || atual.cenas.some(s=>!igual(s,c.variante.cenas.find(a=>a.id===s.id)))) throw new Error('O roteiro mudou depois do pedido. Prepara um novo plano para a versão atual.');
  return { ...atual, id:crypto.randomUUID(), notas:alternativa.notas, cenas:atual.cenas.map((s,i)=>({ ...s, visual:alternativa.cenas[i].visual, palavras:alternativa.cenas[i].palavras })) };

@@ -59,7 +59,7 @@ async function recodificar(bmp: ImageBitmap, mime: MimeCarregar): Promise<Uint8A
 }
 
 /** Validates, prepares and uploads one file; returns the verified project asset. */
-export async function carregarFicheiro(projectId: string, f: File): Promise<{ asset: Asset; nome: string }> {
+export async function prepararFicheiro(f: File): Promise<string> {
   const bytes = new Uint8Array(await f.arrayBuffer());
   const v = validarFicheiro(f, bytes.subarray(0, 16));
   if (v.ok === false) throw new Error(v.erro);
@@ -69,14 +69,18 @@ export async function carregarFicheiro(projectId: string, f: File): Promise<{ as
     const e = validarDimensoes(bmp.width, bmp.height);
     if (e) throw new Error(e);
     const final = v.mime === "image/webp" || bytes.length > LIMITES_CARREGAR.maxGuardado ? await recodificar(bmp, v.mime) : bytes;
-    const r = await carregarImagemServidor(projectId, f.name, base64(final));
-    const a = (await lerAssets(projectId, [r.asset.id])).assets[r.asset.id];
-    if (!a) throw new Error("A imagem foi guardada mas não pôde ser lida. Tenta de novo.");
-    return { asset: a, nome: r.asset.nome ?? f.name };
+    return base64(final);
   } finally { bmp.close(); }
 }
 
 /** First allowed image file of a drag, or null when the drag carries no files. */
 export function ficheiroDoArrasto(dt: DataTransfer): File | null {
   return dt.files && dt.files.length ? dt.files[0] : null;
+}
+
+export async function carregarFicheiro(projectId: string, f: File): Promise<{ asset: Asset; nome: string }> {
+  const r=await carregarImagemServidor(projectId,f.name,await prepararFicheiro(f));
+  const a=(await lerAssets(projectId,[r.asset.id])).assets[r.asset.id];
+  if(!a)throw new Error("A imagem foi guardada mas não pôde ser lida. Tenta de novo.");
+  return {asset:a,nome:r.asset.nome??f.name};
 }

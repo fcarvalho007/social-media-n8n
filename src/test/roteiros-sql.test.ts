@@ -7,7 +7,7 @@ const db=new PGlite();const project='00000000-0000-4000-8000-000000000001';const
 const brief=briefInicial();const fonte={tipo:'texto',titulo:'Fonte de teste',texto:'O texto da fonte é guardado de forma imutável e tem mais de quarenta caracteres.'};
 const q=async(sql:string,args:unknown[]=[]) => (await db.query<Record<string,any>>(sql,args)).rows;
 const create=async(id=crypto.randomUUID(),f=fonte)=> (await q('SELECT * FROM rv_criar($1,$2,$3::jsonb,$4::jsonb)',[id,project,JSON.stringify(f),JSON.stringify(brief)]))[0];
-beforeAll(async()=>{await db.exec(readFileSync('scripts/roteiros/base-local.sql','utf8'));await db.exec('ALTER DEFAULT PRIVILEGES IN SCHEMA public GRANT ALL ON TABLES TO anon, authenticated; ALTER DEFAULT PRIVILEGES IN SCHEMA public GRANT EXECUTE ON FUNCTIONS TO anon, authenticated');await db.exec(readFileSync('drizzle/migrations/0045_roteiros_reels.sql','utf8'));await db.exec(readFileSync('drizzle/migrations/0046_roteiros_refinamento.sql','utf8'));await db.exec(readFileSync('drizzle/migrations/0048_roteiros_permissoes.sql','utf8'));await db.exec(`SET request.jwt.claim.sub='${user}'`);},30000);
+beforeAll(async()=>{await db.exec(readFileSync('scripts/roteiros/base-local.sql','utf8'));await db.exec('ALTER DEFAULT PRIVILEGES IN SCHEMA public GRANT ALL ON TABLES TO anon, authenticated; ALTER DEFAULT PRIVILEGES IN SCHEMA public GRANT EXECUTE ON FUNCTIONS TO anon, authenticated');await db.exec(readFileSync('drizzle/migrations/0045_roteiros_reels.sql','utf8'));await db.exec(readFileSync('drizzle/migrations/0046_roteiros_refinamento.sql','utf8'));await db.exec(readFileSync('drizzle/migrations/0048_roteiros_permissoes.sql','utf8'));await db.exec(readFileSync('drizzle/migrations/0049_roteiros_materiais.sql','utf8'));await db.exec(`SET request.jwt.claim.sub='${user}'`);},30000);
 afterAll(()=>db.close());
 describe('roteiros: migração executada em PostgreSQL',()=>{
  it('cria uma vez, guarda e recusa gravação obsoleta; conserva versões e fonte',async()=>{const id=crypto.randomUUID();const a=await create(id);expect((await create(id)).id).toBe(id);const v=estruturaManual('hva','Meu roteiro');v.cenas[0].locucao='O meu texto editado.';const doc={variantes:[v],selecionada:v.id};const b=(await q('SELECT * FROM rv_guardar($1,1,$2::jsonb,$3::jsonb)',[id,JSON.stringify(brief),JSON.stringify(doc)]))[0];expect(b.revisao).toBe(2);expect(b.fonte).toEqual(a.fonte);await expect(q('SELECT rv_guardar($1,1,$2::jsonb,$3::jsonb)',[id,JSON.stringify(brief),JSON.stringify(doc)])).rejects.toMatchObject({code:'MC409'});expect(await q('SELECT revisao FROM rv_versoes WHERE roteiro_id=$1 ORDER BY revisao',[id])).toEqual([{revisao:1},{revisao:2}]);});
@@ -44,5 +44,20 @@ describe('permissões Cloud com grants automáticos',()=>{
   expect((await q("SELECT has_function_privilege('anon','rv_validar(jsonb,jsonb)','EXECUTE') AS ok"))[0].ok).toBe(false);
   expect((await q("SELECT has_function_privilege('authenticated','rv_criar(uuid,uuid,jsonb,jsonb)','EXECUTE') AS ok"))[0].ok).toBe(true);
   expect((await q("SELECT has_function_privilege('authenticated','rv_concluir(uuid,text,jsonb,text,text,integer,integer)','EXECUTE') AS ok"))[0].ok).toBe(false);
+ });
+});
+
+
+describe('materiais por passagem',()=>{
+ it('preserva materiais por id no histórico e rejeita imagens de outro projeto ou campos URL',async()=>{
+  const r=await create();const v=estruturaManual('hva','Com materiais');const id=crypto.randomUUID();
+  await q("INSERT INTO mc_assets(id,project_id,hash,mime,largura,altura,dados,nome) VALUES($1,$2,'hash','image/png',10,10,'bytes','Imagem')",[id,project]);
+  v.cenas[0].apoio={tipo:'imagem',asset_id:id,nome:'Imagem'};v.cenas[1].apoio={tipo:'apresentador'};
+  const guardar=(doc:any,rev=1)=>q('SELECT rv_guardar($1,$2,$3::jsonb,$4::jsonb)',[r.id,rev,JSON.stringify(brief),JSON.stringify({variantes:[doc],selecionada:v.id})]);
+  await guardar(v);expect((await q('SELECT documento FROM rv_versoes WHERE roteiro_id=$1 AND revisao=2',[r.id]))[0].documento.variantes[0].cenas[0].apoio.asset_id).toBe(id);
+  const outro=crypto.randomUUID();await q("INSERT INTO projects VALUES($1,$2,'Outro projeto')",[outro,user]);const estranho=crypto.randomUUID();await q("INSERT INTO mc_assets(id,project_id,hash,mime,largura,altura,dados,nome) VALUES($1,$2,'hash','image/png',10,10,'bytes','Outra imagem')",[estranho,outro]);
+  const alien=structuredClone(v);alien.cenas[0].apoio!.asset_id=estranho;await expect(guardar(alien,2)).rejects.toMatchObject({code:'42501'});
+  const url=structuredClone(v);(url.cenas[0].apoio as any).url='https://arbitrario.example/imagem';await expect(guardar(url,2)).rejects.toMatchObject({code:'22023'});
+  expect((await q("SELECT has_function_privilege('authenticated','rv_validar_materiais(uuid,jsonb)','EXECUTE') AS ok"))[0].ok).toBe(false);
  });
 });
