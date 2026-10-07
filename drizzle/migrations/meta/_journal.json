@@ -330,6 +330,13 @@
       "when": 1791391083426,
       "tag": "0046_roteiros_refinamento",
       "breakpoints": false
+    },
+    {
+      "idx": 47,
+      "version": "7",
+      "when": 1791392305055,
+      "tag": "0047_roteiros_instalacao_marcador",
+      "breakpoints": true
     }
   ]
 }
