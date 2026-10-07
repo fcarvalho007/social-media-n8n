@@ -35,6 +35,7 @@ export function CuradoriaNoticias({ selecionar, noticiaInicial, paraEdicao, api 
   const [erro, setErro] = useState<string | null>(null);
   const [tentativa, setTentativa] = useState(0);
   const [ocupado, setOcupado] = useState<string | null>(null);
+  const [erroEscolha, setErroEscolha] = useState<string | null>(null);
   useEffect(() => { const t = setTimeout(() => { setProcura(query); setPagina(0); }, 300); return () => clearTimeout(t); }, [query]);
   useEffect(() => {
     let vivo = true; setDados(null); setErro(null);
@@ -49,8 +50,13 @@ export function CuradoriaNoticias({ selecionar, noticiaInicial, paraEdicao, api 
     return () => { vivo = false; };
   }, [noticiaInicial]); // callback deliberately takes the latest source, no paid generation
   const escolher = async (id: string) => {
+    setErroEscolha(null);
     setOcupado(id);
-    try { selecionar?.(await api.ler(id)); } catch (e) { toast.error((e as Error).message); }
+    try { selecionar?.(await api.ler(id)); } catch (e) {
+      const mensagem = (e as Error).message;
+      setErroEscolha(mensagem);
+      toast.error(mensagem);
+    }
     finally { setOcupado(null); }
   };
   const decidir = async (id: string, decisao: DecisaoEditorial) => {
@@ -70,6 +76,7 @@ export function CuradoriaNoticias({ selecionar, noticiaInicial, paraEdicao, api 
       <Button variant="outline" className="min-h-11" onClick={() => setTentativa((n) => n + 1)}>Atualizar</Button>
     </div>
     {erro && <Alert variant="destructive"><AlertTitle>Não foi possível carregar a curadoria</AlertTitle><AlertDescription>{erro} <Button variant="outline" onClick={() => setTentativa((n) => n + 1)}>Tentar de novo</Button></AlertDescription></Alert>}
+    {erroEscolha && <Alert variant="destructive"><AlertTitle>Não foi possível usar esta notícia</AlertTitle><AlertDescription>{erroEscolha}</AlertDescription></Alert>}
     {!dados && !erro && <div role="status" aria-label="A carregar notícias"><Skeleton className="h-24 w-full" /></div>}
     {dados && <>
       <p className="text-xs text-muted-foreground" role="status">{dados.total} notícias · página {pagina + 1}</p>
@@ -82,7 +89,7 @@ export function CuradoriaNoticias({ selecionar, noticiaInicial, paraEdicao, api 
           {n.descricao && <p className="line-clamp-3 break-words text-sm text-muted-foreground">{n.descricao}</p>}
           <div className="flex flex-wrap gap-2">
             {n.url && /^https?:\/\//i.test(n.url) && <Button variant="link" asChild className="min-h-11 px-0"><a href={n.url} target="_blank" rel="noopener noreferrer">Ler fonte ↗</a></Button>}
-            {selecionar ? <Button className="min-h-11" disabled={!!ocupado} onClick={() => escolher(n.id)}>{ocupado === n.id ? "A ler fonte…" : "Usar notícia"}</Button> : paraEdicao ? <Button className="min-h-11" disabled={!!ocupado || n.edicoes?.includes(paraEdicao.id)} onClick={async () => {
+            {selecionar ? <Button className="min-h-11" disabled={!!ocupado} onClick={() => escolher(n.id)}>{ocupado === n.id ? "A selecionar…" : "Usar notícia"}</Button> : paraEdicao ? <Button className="min-h-11" disabled={!!ocupado || n.edicoes?.includes(paraEdicao.id)} onClick={async () => {
               setOcupado(n.id); try { await api.selecionarEdicao(n.id, paraEdicao.id); paraEdicao.onSelecionada(); setTentativa((x) => x + 1); toast.success("Notícia escolhida para a edição"); } catch (e) { toast.error((e as Error).message); } finally { setOcupado(null); }
             }}>{n.edicoes?.includes(paraEdicao.id) ? "Já nesta edição" : "Usar nesta edição"}</Button> : <>
               {estado !== "aprovada" && <Button className="min-h-11" disabled={!!ocupado} onClick={() => decidir(n.id, "aprovada")}>Aprovar</Button>}

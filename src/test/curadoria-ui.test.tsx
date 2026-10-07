@@ -13,6 +13,10 @@ describe('curadoria: decisão partilhada e escolha sem geração', () => {
   await screen.findByRole('button',{name:'Usar notícia'});expect(a.listar).toHaveBeenCalledWith(expect.objectContaining({estado:'aprovada'}));expect(a.ler).not.toHaveBeenCalled();expect(escolher).not.toHaveBeenCalled();
   fireEvent.click(screen.getByRole('button',{name:'Usar notícia'}));await waitFor(()=>expect(escolher).toHaveBeenCalledWith(f));expect(a.decidir).not.toHaveBeenCalled();expect(a.selecionarEdicao).not.toHaveBeenCalled();expect(screen.queryByRole('button',{name:'Aprovar'})).not.toBeInTheDocument();
  });
+ it('mantém um erro de seleção visível junto da lista', async () => {
+  const a=api();vi.mocked(a.ler).mockRejectedValueOnce(new Error('A notícia deixou de estar disponível.'));render(<MemoryRouter><CuradoriaNoticias api={a} selecionar={vi.fn()}/></MemoryRouter>);
+  fireEvent.click(await screen.findByRole('button',{name:'Usar notícia'}));expect(await screen.findByRole('alert')).toHaveTextContent('A notícia deixou de estar disponível.');
+ });
  it('aprovação guarda a decisão comum e atualiza a lista', async () => {
   const a=api();render(<MemoryRouter><CuradoriaNoticias api={a}/></MemoryRouter>);fireEvent.click(await screen.findByRole('button',{name:'Aprovar'}));await waitFor(()=>expect(a.decidir).toHaveBeenCalledWith('news','aprovada'));await waitFor(()=>expect(a.listar).toHaveBeenCalledTimes(2));expect(a.ler).not.toHaveBeenCalled();
  });
