@@ -13,7 +13,7 @@ import { useAuth } from "@/contexts/AuthContext";
 import { useProjeto } from "@/contexts/ProjetoContext";
 import { chaveRecuperacao, guardarRecuperacao, limparRecuperacao } from "@/lib/recuperacaoLocal";
 import { migrarLegado } from "../../supabase/functions/_shared/motor/sistema";
-import { abrirTrabalho, acordarFila, lerAssets, ConflitoVersao, gravarEdicao, lerVersao, listarVersoes, retomarTrabalho, criarTrabalho, lerSistemaVisual, lerComposicoes, type TrabalhoCompleto, type VersaoDoc } from "@/services/motor";
+import { abrirTrabalho, renomearTrabalho, acordarFila, lerAssets, ConflitoVersao, gravarEdicao, lerVersao, listarVersoes, retomarTrabalho, criarTrabalho, lerSistemaVisual, lerComposicoes, type TrabalhoCompleto, type VersaoDoc } from "@/services/motor";
 import { EditorGrafico } from "@/features/editor-grafico/EditorGrafico";
 import { PaginaCanvas } from "@/features/editor-grafico/PaginaCanvas";
 import { carregarMedidor } from "@/features/editor-grafico/fontes";
