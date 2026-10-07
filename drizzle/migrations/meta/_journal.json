@@ -337,6 +337,13 @@
       "when": 1791392305055,
       "tag": "0047_roteiros_instalacao_marcador",
       "breakpoints": true
+    },
+    {
+      "idx": 48,
+      "version": "7",
+      "when": 1791392664954,
+      "tag": "0048_roteiros_permissoes",
+      "breakpoints": false
     }
   ]
 }
