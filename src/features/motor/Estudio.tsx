@@ -1,3 +1,4 @@
+import { useState } from "react";
 import * as React from "react";
 import type { ReactNode } from "react";
 import { Link } from "react-router-dom";
@@ -67,15 +68,36 @@ export function Etapas({ atual, disponiveis, onIr, compacto }: { atual: Etapa; d
   );
 }
 
+/** Click-to-rename title: Enter/blur saves, Esc cancels, restores on failure. */
+function TituloEditavel({ titulo, onRenomear }: { titulo: string; onRenomear: (t: string) => Promise<void> }) {
+  const [edicao, setEdicao] = useState<string | null>(null);
+  const [aGuardar, setAGuardar] = useState(false);
+  const [erro, setErro] = useState<string | null>(null);
+  const guardar = async () => {
+    if (edicao === null) return;
+    const novo = edicao.replace(/\s+/g, " ").trim();
+    setEdicao(null);
+    if (!novo || novo === titulo) return;
+    setAGuardar(true); setErro(null);
+    try { await onRenomear(novo.slice(0, 300)); } catch (e) { setErro((e as Error).message); } finally { setAGuardar(false); }
+  };
+  if (edicao !== null) return <input autoFocus value={edicao} maxLength={300} aria-label="Título do carrossel" onChange={(e) => setEdicao(e.target.value)} onBlur={() => void guardar()} onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); void guardar(); } if (e.key === "Escape") setEdicao(null); }} className="w-full min-w-[12rem] rounded-sm border border-input bg-background px-1.5 py-0.5 text-sm font-semibold outline-none focus-visible:ring-2 focus-visible:ring-ring" />;
+  return <div className="flex min-w-0 items-center gap-2">
+    <button type="button" onClick={() => setEdicao(titulo)} title="Clicar para mudar o título" className="truncate rounded-sm px-1 -mx-1 text-left text-sm font-semibold hover:bg-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring">{titulo}</button>
+    {aGuardar && <span className="shrink-0 text-xs text-muted-foreground" role="status">A guardar…</span>}
+    {erro && <span className="shrink-0 text-xs text-destructive" role="alert">{erro}</span>}
+  </div>;
+}
+
 /** Single top bar: back, title, status, stepper. */
-export function Cabecalho({ voltarPara, voltarRotulo = "Voltar aos carrosséis", titulo, sub, direita, etapas }: { voltarPara: string; voltarRotulo?: string; titulo: ReactNode; sub?: ReactNode; direita?: ReactNode; etapas?: ReactNode }) {
+export function Cabecalho({ voltarPara, voltarRotulo = "Voltar aos carrosséis", titulo, sub, direita, etapas, onRenomear }: { onRenomear?: (t: string) => Promise<void>; voltarPara: string; voltarRotulo?: string; titulo: ReactNode; sub?: ReactNode; direita?: ReactNode; etapas?: ReactNode }) {
   return (
     <header className="z-20 flex-none border-b border-border bg-background/95 backdrop-blur-sm">
       <div className="mx-auto flex max-w-6xl flex-wrap items-center gap-x-4 gap-y-1 px-3 py-2 sm:px-6">
         <div className="flex min-w-0 flex-1 items-center gap-2">
           <Button asChild variant="ghost" size="icon" className="h-11 w-11 shrink-0" aria-label={voltarRotulo}><Link to={voltarPara}><ArrowLeft className="h-4 w-4" /></Link></Button>
           <div className="min-w-0">
-            <p className="truncate text-sm font-semibold">{titulo}</p>
+            {onRenomear && typeof titulo === "string" ? <TituloEditavel titulo={titulo} onRenomear={onRenomear} /> : <p className="truncate text-sm font-semibold">{titulo}</p>}
             {sub && <p className="truncate text-xs text-muted-foreground">{sub}</p>}
           </div>
         </div>

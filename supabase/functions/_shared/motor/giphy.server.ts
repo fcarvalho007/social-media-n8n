@@ -7,8 +7,8 @@ type SbMinimo = { from: (t: string) => any; storage: { from: (b: string) => any 
 export type TipoGiphy = "gifs" | "stickers" | "clips";
 export interface ItemGiphy { id: string; tipo: TipoGiphy; titulo: string; preview: string; still: string; mp4: string; largura: number; altura: number; duracao_ms?: number }
 
-function urlGiphy(bruto: string): boolean {
-  try { const u = new URL(bruto); return u.protocol === "https:" && ["media.giphy.com", "i.giphy.com"].includes(u.hostname); } catch { return false; }
+export function urlGiphy(bruto: string): boolean {
+  try { const u = new URL(bruto); return u.protocol === "https:" && /^(media\d?|i)\.giphy\.com$/.test(u.hostname); } catch { return false; }
 }
 
 async function descarregar(url: string, tipoEsperado: "image" | "video", maxBytes: number): Promise<Uint8Array> {
@@ -23,7 +23,7 @@ async function descarregar(url: string, tipoEsperado: "image" | "video", maxByte
 }
 
 export async function pesquisarGiphy(termo: string, pagina: number, tipo: TipoGiphy = "stickers"): Promise<ItemGiphy[]> {
-  const chave = Deno.env.get("GIPHY_KEY") ?? "";
+  const chave = (globalThis as unknown as { Deno?: { env: { get(k: string): string | undefined } } }).Deno?.env.get("GIPHY_KEY") ?? "";
   if (!chave) throw new Error("A pesquisa GIPHY ainda não está configurada.");
   const q = termo.trim().slice(0, 100);
   if (q.length < 2) return [];
