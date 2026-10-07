@@ -65,7 +65,7 @@ export const ActionButtons = ({ className }: { className?: string }) => (
       <div className="flex flex-wrap gap-2 pt-1">
         <Button asChild variant="ghost" size="sm"><Link to="/estudio/carrosseis"><Layers aria-hidden />Meus carrosséis</Link></Button>
         <Button asChild variant="ghost" size="sm"><Link to="/estudio/redes-sociais"><Images aria-hidden />Carrosséis da crónica</Link></Button>
-      </ul>
+      </div>
     </section>
 
     <LegadoN8n />
