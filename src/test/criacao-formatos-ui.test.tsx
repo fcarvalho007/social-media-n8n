@@ -39,7 +39,7 @@ describe('criação: fonte de curadoria e formato no pedido',()=>{
    render(<MemoryRouter initialEntries={['/estudio/carrosseis/novo?formato=carrossel&noticia=news&modo=ia']}><TooltipProvider><CarrosselNovo/></TooltipProvider></MemoryRouter>);
    fireEvent.click(screen.getByRole('button',{name:'Escolher fonte de teste'}));fireEvent.click(screen.getByRole('button',{name:'Continuar'}));
    expect(screen.getByText('Editorial')).toBeInTheDocument();expect(screen.getByText('PAS')).toBeInTheDocument();
-   fireEvent.click(screen.getByRole('button',{name:'Gerar Editorial + PAS · 2 pedidos'}));
+   fireEvent.click(screen.getByRole('button',{name:'Gerar versões Editorial e PAS com dois pedidos pagos'}));
    await waitFor(()=>expect(mocks.criar).toHaveBeenCalledTimes(1));expect(mocks.criar).toHaveBeenCalledWith(expect.objectContaining({modo:'ia'}));
    expect(screen.queryByText(/Confirmar: 1 pedido/)).not.toBeInTheDocument();
   });
