@@ -20,6 +20,7 @@ export type Acao =
   | { tipo: "ordem"; id: string; direcao: "frente" | "tras" | "topo" | "fundo" }
   | { tipo: "duplicarCamada"; id: string }
   | { tipo: "apagarCamada"; id: string }
+  | { tipo: "apagarCamadas"; ids: string[] }
   | { tipo: "adicionar"; camada: "texto" | "ret" | "elipse" | "linha"; preset?: PresetTexto; pos?: Ponto }
   | { tipo: "adicionarImagem"; asset: Asset; nome: string; pos?: Ponto; modo?: ModoImagemNova }
   /** Pastes a copied layer (from any page) as a new, independent layer. */
@@ -179,6 +180,11 @@ export function reduzir(s: EstadoEditor, a: Acao): EstadoEditor {
     }
     case "apagarCamada":
       return aplicar(s, comPagina(s.pacote, s.variante, s.pagina, (p) => ({ ...p, camadas: p.camadas.filter((c) => c.id !== a.id) })), undefined, { selecao: null });
+    case "apagarCamadas": {
+      const ids = new Set(a.ids);
+      if (!ids.size) return s;
+      return aplicar(s, comPagina(s.pacote, s.variante, s.pagina, (p) => ({ ...p, camadas: p.camadas.filter((c) => !ids.has(c.id)) })), undefined, { selecao: null });
+    }
     case "adicionar": {
       const topo = pg.camadas.length ? Math.max(...pg.camadas.map((x) => x.z)) : 0;
       let nova: Camada;

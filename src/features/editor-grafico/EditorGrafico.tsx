@@ -609,7 +609,7 @@ export function EditorGrafico({ pacoteInicial, chaveLocal, titulo, seletor, real
       if (mod && e.code === "KeyV" && e.altKey) { e.preventDefault(); colarEstilo(); return; }
       if (mod && e.code === "KeyV") { e.preventDefault(); colar(); return; }
       if (mod && e.key.toLowerCase() === "d" && selecao) { e.preventDefault(); despachar({ tipo: "duplicarCamada", id: selecao }); return; }
-      if ((e.key === "Delete" || e.key === "Backspace") && selecao) { e.preventDefault(); despachar({ tipo: "apagarCamada", id: selecao }); return; }
+      if ((e.key === "Delete" || e.key === "Backspace") && (selecoes.length || selecao)) { e.preventDefault(); if (selecoes.length > 1) { despachar({ tipo: "apagarCamadas", ids: selecoes }); setSelecoes([]); } else if (selecao) despachar({ tipo: "apagarCamada", id: selecao }); return; }
       if (e.key === "Escape") { if (preview) setPreview(false); else despachar({ tipo: "selecionar", id: null }); return; }
       if (e.key.startsWith("Arrow") && camada) {
         e.preventDefault();
@@ -625,7 +625,7 @@ export function EditorGrafico({ pacoteInicial, chaveLocal, titulo, seletor, real
     };
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
-  }, [selecao, camada, preview, definirZoom, editando, pacote, paginaAtual]);
+  }, [selecao, selecoes, camada, preview, definirZoom, editando, pacote, paginaAtual]);
 
   const exportarJson = () => {
     descarregar(new Blob([JSON.stringify(pacote, null, 2)], { type: "application/json" }), `${pacote.id}.documento-grafico.json`);
@@ -862,6 +862,7 @@ export function EditorGrafico({ pacoteInicial, chaveLocal, titulo, seletor, real
   const sep = <span className="mx-0.5 h-6 w-px shrink-0 bg-border" aria-hidden />;
   const barraContexto = (
     <div role="toolbar" aria-label={camada ? `Ferramentas: ${rotuloCamada(camada, pacote).tipo}` : "Ferramentas do slide"} className="flex min-w-0 flex-wrap items-center gap-1 border-b border-border bg-background px-2 py-1">
+      {selecoes.length > 1 && <><span className="px-2 text-sm font-medium">{selecoes.length} elementos selecionados</span><Button variant="ghost" size="icon" className={`${bt} text-destructive hover:text-destructive`} aria-label="Apagar seleção" onClick={() => { despachar({ tipo: "apagarCamadas", ids: selecoes }); setSelecoes([]); }}><Trash2 className="h-4 w-4" /></Button>{sep}</>}
       {!camada && paginaAtual && (<>
         <Button variant={encaixe ? "secondary" : "ghost"} size="sm" className="h-11 shrink-0 lg:h-9" aria-pressed={encaixe} onClick={() => setEncaixe((v) => !v)}><Magnet className="mr-1.5 h-4 w-4" />Encaixar</Button>
         <span className="ml-1 min-w-0 text-sm text-muted-foreground">Clica num texto para o selecionar; clica outra vez (ou Enter) para escrever.</span>
