@@ -13,7 +13,7 @@ import { PaginaCanvas } from "@/features/editor-grafico/PaginaCanvas";
 import { carregarImagens, carregarVideos } from "@/features/editor-grafico/desenho";
 import { duracaoPagina, gravarPagina, suporteGravacao } from "@/features/editor-grafico/gravacao";
 import { NOME_VARIANTE } from "@/features/editor-grafico/EditorGrafico";
-import { carregarVideoAnimacao, lerExportacao, pedirExportacao, prepararRascunho, type EstadoExportacao, type TrabalhoCompleto } from "@/services/motor";
+import { carregarFicheiroSocial, carregarVideoAnimacao, lerExportacao, prepararRascunho, type EstadoExportacao, type TrabalhoCompleto } from "@/services/motor";
 import JSZip from "jszip";
 import { comMarcaRascunho, notasIlegiveis, paginasComMarcador } from "../../../supabase/functions/_shared/motor/modelos";
 import { renderizarPaginaPng } from "@/features/editor-grafico/desenho";
@@ -46,8 +46,8 @@ export function RevisaoExportacao({ dados, pacote, medidor, guardado, irPara }: 
   const [pagina, setPagina] = useState(0);
   const [aTestar, setATestar] = useState(false);
   const [aDescarregar, setADescarregar] = useState<"png" | "pdf" | null>(null);
-  const [parado, setParado] = useState(false);
-  const ultimoAvanco = useRef<{ chave: string; t: number }>({ chave: "", t: Date.now() });
+  const [envio, setEnvio] = useState<{ fase: "slides" | "pdf"; feito: number; total: number } | null>(null);
+  const [falhaEnvio, setFalhaEnvio] = useState<string | null>(null);
   const marcador = useMemo(() => paginasComMarcador(pacote.variantes[variante]), [pacote, variante]);
   const notas = useMemo(() => notasIlegiveis(pacote.variantes[variante]), [pacote, variante]);
   // Slides with an animated sticker: each gets a browser-recorded video next to its PNG.
@@ -114,33 +114,8 @@ export function RevisaoExportacao({ dados, pacote, medidor, guardado, irPara }: 
   const [imagens, setImagens] = useState<Record<string, HTMLImageElement>>({});
   useEffect(() => { let vivo = true; carregarImagens(pacote).then((i) => { if (vivo) setImagens(i); }).catch(() => undefined); return () => { vivo = false; }; }, [pacote]);
 
-  const [enviarAoTerminar, setEnviarAoTerminar] = useState(false);
-  const preparaRef = useRef<(() => Promise<void>) | null>(null);
-
-
   useEffect(() => { setEstado(null); setRevisto(false); setDraft(null); void ler(); }, [ler]);
 
-  const emCurso = estado?.exportacao && (estado.exportacao.estado === "pendente" || estado.exportacao.estado === "a_processar");
-  useEffect(() => {
-    if (!emCurso) return;
-    const t = setTimeout(() => void ler(), 3000);
-    return () => clearTimeout(t);
-  }, [emCurso, estado, ler]);
-
-  // Stall detection: no page progress for 2 minutes while sending → stop waiting and offer a retry.
-  useEffect(() => {
-    if (!enviarAoTerminar || !estado?.exportacao) return;
-    const chave = `${estado.exportacao.estado}:${estado.exportacao.progresso?.paginas_feitas ?? 0}`;
-    if (chave !== ultimoAvanco.current.chave) ultimoAvanco.current = { chave, t: Date.now() };
-    else if (Date.now() - ultimoAvanco.current.t > 120_000) { setEnviarAoTerminar(false); setParado(true); }
-  }, [enviarAoTerminar, estado]);
-
-  useEffect(() => {
-    if (!enviarAoTerminar) return;
-    if (estado?.exportacao?.estado === "erro") { setEnviarAoTerminar(false); return; }
-    if (estado?.exportacao?.estado === "concluido" && guardado && naoCabe.length === 0) { setEnviarAoTerminar(false); preparaRef.current?.(); }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [enviarAoTerminar, estado, guardado]);
   if (!doc) return <p className="text-sm text-muted-foreground">Esta variante ainda não tem design guardado.</p>;
 
   const ex = estado?.exportacao;
@@ -149,10 +124,6 @@ export function RevisaoExportacao({ dados, pacote, medidor, guardado, irPara }: 
   const anteriores = estado?.rascunhos.filter((r) => r.versao !== doc.versao) ?? [];
   const draftAtual = draft ?? desta?.draft_id ?? null;
 
-  const exportar = async () => {
-    setAPedir(true);
-    try { await pedirExportacao(doc.id, doc.versao); await ler(); } catch (e) { toast.error((e as Error).message); } finally { setAPedir(false); }
-  };
   const preparar = async () => {
     setAPreparar(true);
     try {
@@ -166,27 +137,52 @@ export function RevisaoExportacao({ dados, pacote, medidor, guardado, irPara }: 
     } catch (e) { toast.error((e as Error).message); } finally { setAPreparar(false); }
   };
 
-  preparaRef.current = preparar;
-  // One click: export when needed, then create the social draft as soon as the files are ready.
-  const enviar = async () => {
-    if (concluido) return preparar();
-    setEnviarAoTerminar(true);
-    if (!ex || ex.estado === "erro") await exportar();
-  };
   const paginas = pacote.variantes[variante].paginas;
   const iPag = Math.min(pagina, paginas.length - 1);
-  const aEnviar = enviarAoTerminar || aPreparar;
-  const feitas = ex?.progresso?.paginas_feitas ?? 0;
-  const total = ex?.paginas ?? paginas.length;
-  const fracao = aPreparar || concluido ? 1 : total ? Math.min(0.95, (feitas + 0.3) / (total + 1)) : 0;
-  const restante = Math.max(5, Math.round((total - feitas) * 7 + 5));
-  const textoProgresso = aPreparar ? "A abrir a criação social…"
-    : feitas ? `A preparar slide ${Math.min(feitas + 1, total)} de ${total} · cerca de ${restante} s`
-    : `A começar · ${total} slides · cerca de ${restante} s`;
-
-  // Personal downloads: rendered in this browser from the same core (no server, nothing stored).
   const dimensoes = pacote.variantes[variante];
   const multipagina = (dimensoes.formato ?? "carrossel") === "carrossel";
+  /**
+   * One click: slides are drawn here in the browser (same core as the editor and the downloads), only the missing
+   * files are sent, the server validates/stores them for this exact version, then the social draft is created.
+   */
+  const enviar = async () => {
+    if (!medidor) return;
+    setFalhaEnvio(null);
+    try {
+      const atual = await lerExportacao(doc.id, doc.versao);
+      let fechado = atual.exportacao?.estado === "concluido";
+      if (!fechado) {
+        const temPng = new Set(atual.ficheiros.filter((f) => f.formato === "png").map((f) => f.pagina));
+        const urls: string[] = [];
+        for (let i = 0; i < paginas.length && !fechado; i++) {
+          setEnvio({ fase: "slides", feito: i + 1, total: paginas.length });
+          const url = await renderizarPaginaPng(pacote, variante, i, medidor);
+          urls.push(url);
+          if (!temPng.has(i + 1)) fechado = (await carregarFicheiroSocial(doc.id, doc.versao, "png", i + 1, await (await fetch(url)).blob())).concluido;
+        }
+        if (!fechado && multipagina) {
+          setEnvio({ fase: "pdf", feito: paginas.length, total: paginas.length });
+          const { jsPDF } = await import("jspdf");
+          const pdf = new jsPDF({ unit: "px", format: [dimensoes.largura, dimensoes.altura], orientation: "portrait", compress: true, hotfixes: ["px_scaling"] });
+          urls.forEach((u, i) => { if (i) pdf.addPage([dimensoes.largura, dimensoes.altura], "portrait"); pdf.addImage(u, "PNG", 0, 0, dimensoes.largura, dimensoes.altura); });
+          fechado = (await carregarFicheiroSocial(doc.id, doc.versao, "pdf", null, pdf.output("blob"))).concluido;
+        }
+      }
+      await ler();
+      if (!fechado) throw new Error("Faltam ficheiros desta versão. Tenta de novo; o que já foi enviado é aproveitado.");
+      setEnvio(null);
+      await preparar();
+    } catch (e) {
+      setFalhaEnvio((e as Error).message || "Não foi possível preparar os ficheiros.");
+    } finally { setEnvio(null); }
+  };
+  const aEnviar = !!envio || aPreparar;
+  const textoProgresso = aPreparar ? "A abrir a criação social…"
+    : envio?.fase === "pdf" ? "A preparar o PDF do LinkedIn…"
+    : envio ? `A preparar slide ${envio.feito} de ${envio.total}…` : "";
+  const fracao = aPreparar ? 1 : envio ? Math.min(0.95, envio.feito / (envio.total + 1)) : 0;
+
+  // Personal downloads: rendered in this browser from the same core (no server, nothing stored).
   const descarregarLocal = async (tipo: "png" | "pdf") => {
     if (!medidor) return;
     setADescarregar(tipo);
@@ -359,13 +355,13 @@ export function RevisaoExportacao({ dados, pacote, medidor, guardado, irPara }: 
                     <p className="text-xs text-muted-foreground">{textoProgresso}</p>
                   </div>
                 )}
-                {(ex?.estado === "erro" || parado) && !aPreparar && (
+                {falhaEnvio && !aEnviar && (
                   <div role="alert" className="space-y-2 text-sm">
-                    <p className="text-destructive">{parado ? "A preparação parou de avançar." : ex?.erro ?? "A preparação falhou."} Nada foi enviado; as páginas já feitas são aproveitadas.</p>
-                    <Button variant="outline" className="h-11" onClick={() => { setParado(false); setEnviarAoTerminar(true); void exportar(); }}><RotateCw className="mr-1.5 h-4 w-4" />Tentar novamente</Button>
+                    <p className="text-destructive">{falhaEnvio} Nada foi publicado; os slides já enviados são aproveitados.</p>
+                    <Button variant="outline" className="h-11" onClick={() => void enviar()}><RotateCw className="mr-1.5 h-4 w-4" />Tentar novamente</Button>
                   </div>
                 )}
-                {!aEnviar && <p className="text-xs text-muted-foreground">{multipagina ? "Prepara as imagens e o PDF" : "Prepara a imagem"} no servidor e abre a criação social com a legenda. Nada é publicado sem a tua decisão.</p>}
+                {!aEnviar && <p className="text-xs text-muted-foreground">{multipagina ? "Prepara as imagens e o PDF" : "Prepara a imagem"} neste navegador, guarda-os para esta versão e abre a criação social com a legenda. Nada é publicado sem a tua decisão.</p>}
               </>
             )}
             {anteriores.length > 0 && (
