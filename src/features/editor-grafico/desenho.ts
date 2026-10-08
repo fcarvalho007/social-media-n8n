@@ -54,6 +54,31 @@ export async function carregarImagens(p: PacoteProva): Promise<Record<string, HT
   return out;
 }
 
+const cacheVideos = new Map<string, Promise<HTMLVideoElement>>();
+/** Signed-URL video element for one animation (muted, looping); failures fall back to the static cover. */
+export function carregarVideo(url: string, chave: string): Promise<HTMLVideoElement> {
+  let p = cacheVideos.get(chave);
+  if (!p) {
+    p = new Promise((resolve, reject) => {
+      const v = document.createElement("video");
+      v.muted = true; v.loop = true; v.playsInline = true; v.preload = "auto"; v.crossOrigin = "anonymous";
+      v.oncanplay = () => resolve(v);
+      v.onerror = () => reject(new Error("Não foi possível carregar a animação."));
+      v.src = url;
+    });
+    cacheVideos.set(chave, p);
+  }
+  return p;
+}
+/** Loads every animation companion of the package, keyed by animacao_id. */
+export async function carregarVideos(p: PacoteProva): Promise<Record<string, HTMLVideoElement>> {
+  const out: Record<string, HTMLVideoElement> = {};
+  await Promise.all(Object.values(p.assets).filter((a) => a.animacao_id && a.animacao_url).map(async (a) => {
+    try { out[a.animacao_id!] = await carregarVideo(a.animacao_url!, `${a.id}:${a.animacao_id}`); } catch { /* capa estática */ }
+  }));
+  return out;
+}
+
 /** Konva fill props for a gradient layer, in shape-local coordinates, from the shared geometry. */
 export function propsGradiente(c: CamadaForma): Record<string, unknown> {
   const g = geometriaGradiente(c);
@@ -64,8 +89,8 @@ export function propsGradiente(c: CamadaForma): Record<string, unknown> {
     : { fillLinearGradientStartPoint: p1, fillLinearGradientEndPoint: p2, fillLinearGradientColorStops: stops };
 }
 
-/** Imperative Konva node for one layer (used for export; the editor uses the same geometry). */
-function no(c: Camada, p: PacoteProva, imgs: Record<string, HTMLImageElement>, m: Medidor): Konva.Node {
+/** Imperative Konva node for one layer (used for export and recording; the editor uses the same geometry). */
+export function noCamada(c: Camada, p: PacoteProva, imgs: Record<string, HTMLImageElement>, m: Medidor, videos?: Record<string, HTMLVideoElement>): Konva.Node {
   const op = c.opacidade ?? 1;
   if (c.tipo === "forma") {
     if (c.forma === "gradiente") return new Konva.Rect({ x: c.x, y: c.y, width: c.w, height: c.h, opacity: op, ...propsGradiente(c) });
@@ -76,7 +101,9 @@ function no(c: Camada, p: PacoteProva, imgs: Record<string, HTMLImageElement>, m
   }
   if (c.tipo === "imagem") {
     const k = calcularRecorte(p.assets[c.asset_id], c);
-    const img = new Konva.Image({ image: imgs[c.asset_id], x: k.dx, y: k.dy, width: k.dw, height: k.dh, crop: { x: k.sx, y: k.sy, width: k.sw, height: k.sh } });
+    // When the layer's animation companion is loaded it replaces the static cover in the same crop.
+    const origem: CanvasImageSource = (videos && c.animacao_id && videos[c.animacao_id]) || imgs[c.asset_id];
+    const img = new Konva.Image({ image: origem, x: k.dx, y: k.dy, width: k.dw, height: k.dh, crop: { x: k.sx, y: k.sy, width: k.sw, height: k.sh } });
     const mascara = c.mascara;
     const g = new Konva.Group({ x: c.x, y: c.y, opacity: op, clipFunc: mascara ? (ctx) => { tracarMascara(ctx, mascara, c.w, c.h); } : undefined });
     g.add(img);
@@ -96,7 +123,7 @@ export async function renderizarPaginaPng(p: PacoteProva, v: Variante, indice: n
   try {
     const layer = new Konva.Layer();
     layer.add(new Konva.Rect({ x: 0, y: 0, width: LARGURA, height: ALTURA, fill: pagina.fundo }));
-    for (const c of camadasOrdenadas(pagina)) layer.add(no(c, p, imgs, m) as Konva.Shape | Konva.Group);
+    for (const c of camadasOrdenadas(pagina)) layer.add(noCamada(c, p, imgs, m) as Konva.Shape | Konva.Group);
     stage.add(layer);
     layer.draw();
     return stage.toDataURL({ pixelRatio: 1, mimeType: "image/png" });

@@ -19,6 +19,10 @@ interface Props {
   interativo?: boolean;
   selecao?: string | null;
   selecoes?: string[];
+  /** Animation companions keyed by animacao_id; used only when reproduzir is on. */
+  videos?: Record<string, HTMLVideoElement>;
+  /** Play animated stickers on the canvas (drag/select/editing is paused by the caller). */
+  reproduzir?: boolean;
   onSelecionar?: (id: string | null) => void;
   onSelecionarVarios?: (ids: string[]) => void;
   onAlterar?: (id: string, patch: Partial<Camada>) => void;
@@ -32,7 +36,19 @@ interface Props {
   onEditarTexto?: (id: string) => void;
 }
 
-function Conteudo({ c, pacote, medidor, imagens }: { c: Camada; pacote: PacoteProva; medidor: Medidor; imagens: Record<string, HTMLImageElement> }) {
+/** One animated sticker: redraws the layer every frame while the <video> advances. */
+function CamadaVideo({ video, k }: { video: HTMLVideoElement; k: { dx: number; dy: number; dw: number; dh: number; sx: number; sy: number; sw: number; sh: number } }) {
+  const ref = useRef<Konva.Image>(null);
+  useEffect(() => {
+    let raf = 0;
+    const loop = () => { ref.current?.getLayer()?.batchDraw(); raf = requestAnimationFrame(loop); };
+    raf = requestAnimationFrame(loop);
+    return () => cancelAnimationFrame(raf);
+  }, []);
+  return <KImage ref={ref} image={video} x={k.dx} y={k.dy} width={k.dw} height={k.dh} crop={{ x: k.sx, y: k.sy, width: k.sw, height: k.sh }} />;
+}
+
+function Conteudo({ c, pacote, medidor, imagens, videos, reproduzir }: { c: Camada; pacote: PacoteProva; medidor: Medidor; imagens: Record<string, HTMLImageElement>; videos?: Record<string, HTMLVideoElement>; reproduzir?: boolean }) {
   if (c.tipo === "forma") {
     if (c.forma === "gradiente") return <Rect width={c.w} height={c.h} {...propsGradiente(c)} />;
     if (c.forma === "icone") return <><Rect width={c.w} height={c.h} fill="transparent" /><Path data={ICONES[c.estilo.icone ?? "seta"]} scaleX={c.w / 24} scaleY={c.h / 24} fill={c.estilo.cor} fillRule="evenodd" /></>;
@@ -45,12 +61,16 @@ function Conteudo({ c, pacote, medidor, imagens }: { c: Camada; pacote: PacotePr
     // Previews built without asset bytes (library covers) show a neutral block, never crash.
     if (!a) return <Rect width={c.w} height={c.h} fill="#d9dcd6" />;
     const k = calcularRecorte(a, c);
+    // Playing an animated sticker uses the same crop; the cover has the video's exact dimensions.
+    const video = reproduzir && c.animacao_id ? videos?.[c.animacao_id] : undefined;
     return (
       <>
         <Rect width={c.w} height={c.h} fill="transparent" />
-        {imagens[c.asset_id] && (
+        {(video || imagens[c.asset_id]) && (
           <Group clipFunc={c.mascara ? (ctx) => { tracarMascara(ctx, c.mascara!, c.w, c.h); } : undefined}>
-            <KImage image={imagens[c.asset_id]} x={k.dx} y={k.dy} width={k.dw} height={k.dh} crop={{ x: k.sx, y: k.sy, width: k.sw, height: k.sh }} />
+            {video
+              ? <CamadaVideo video={video} k={k} />
+              : <KImage image={imagens[c.asset_id]} x={k.dx} y={k.dy} width={k.dw} height={k.dh} crop={{ x: k.sx, y: k.sy, width: k.sw, height: k.sh }} />}
           </Group>
         )}
       </>
@@ -65,7 +85,7 @@ function Conteudo({ c, pacote, medidor, imagens }: { c: Camada; pacote: PacotePr
   );
 }
 
-export function PaginaCanvas({ pacote, variante, indice, medidor, imagens, escala, interativo = false, selecao = null, selecoes = [], onSelecionar, onSelecionarVarios, onAlterar, toque = false, corSelecao = "#f59e0b", encaixe = false, onEditarTexto }: Props) {
+export function PaginaCanvas({ pacote, variante, indice, medidor, imagens, escala, interativo = false, selecao = null, selecoes = [], onSelecionar, onSelecionarVarios, onAlterar, toque = false, corSelecao = "#f59e0b", encaixe = false, onEditarTexto, videos, reproduzir = false }: Props) {
   const [guias, setGuias] = useState<{ x: number[]; y: number[] }>({ x: [], y: [] });
   const [sobrevoo, setSobrevoo] = useState<string | null>(null);
   const { largura: LARGURA, altura: ALTURA } = pacote.variantes[variante];
@@ -145,7 +165,7 @@ export function PaginaCanvas({ pacote, variante, indice, medidor, imagens, escal
                 {/* Hit area: the visible content bounds are what receives clicks (content itself does not listen). */}
                 <Rect width={lim.w} height={lim.h} fill="transparent" />
                 <Group x={-lim.x} y={-lim.y} listening={false}>
-                  <Conteudo c={c} pacote={pacote} medidor={medidor} imagens={imagens} />
+                  <Conteudo c={c} pacote={pacote} medidor={medidor} imagens={imagens} videos={videos} reproduzir={reproduzir} />
                 </Group>
               </Group>
               {interativo && sobrevoo === c.id && selecao !== c.id && (

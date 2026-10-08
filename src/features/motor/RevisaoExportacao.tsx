@@ -1,6 +1,6 @@
 import { useCallback, useRef, useEffect, useMemo, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
-import { ChevronLeft, ChevronRight, ExternalLink, FileDown, Loader2, RotateCw, Send } from "lucide-react";
+import { ChevronLeft, ChevronRight, Circle, CircleCheck, ExternalLink, FileDown, Loader2, RotateCw, Send, Square, Video } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useLargura } from "./Estudio";
 import { medidasPalco } from "./palco";
@@ -10,9 +10,10 @@ import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Label } from "@/components/ui/label";
 import { PaginaCanvas } from "@/features/editor-grafico/PaginaCanvas";
-import { carregarImagens } from "@/features/editor-grafico/desenho";
+import { carregarImagens, carregarVideos } from "@/features/editor-grafico/desenho";
+import { duracaoPagina, gravarPagina, suporteGravacao } from "@/features/editor-grafico/gravacao";
 import { NOME_VARIANTE } from "@/features/editor-grafico/EditorGrafico";
-import { lerExportacao, pedirExportacao, prepararRascunho, type EstadoExportacao, type TrabalhoCompleto } from "@/services/motor";
+import { carregarVideoAnimacao, lerExportacao, pedirExportacao, prepararRascunho, type EstadoExportacao, type TrabalhoCompleto } from "@/services/motor";
 import JSZip from "jszip";
 import { comMarcaRascunho, notasIlegiveis, paginasComMarcador } from "../../../supabase/functions/_shared/motor/modelos";
 import { renderizarPaginaPng } from "@/features/editor-grafico/desenho";
@@ -49,6 +50,45 @@ export function RevisaoExportacao({ dados, pacote, medidor, guardado, irPara }: 
   const ultimoAvanco = useRef<{ chave: string; t: number }>({ chave: "", t: Date.now() });
   const marcador = useMemo(() => paginasComMarcador(pacote.variantes[variante]), [pacote, variante]);
   const notas = useMemo(() => notasIlegiveis(pacote.variantes[variante]), [pacote, variante]);
+  // Slides with an animated sticker: each gets a browser-recorded video next to its PNG.
+  const paginasAnimadas = useMemo(() => pacote.variantes[variante].paginas
+    .map((p, i) => (p.camadas.some((c) => c.tipo === "imagem" && c.animacao_id) ? i : -1))
+    .filter((i) => i >= 0), [pacote, variante]);
+  const [aGravar, setAGravar] = useState(false);
+  const [gravacaoProgresso, setGravacaoProgresso] = useState<{ ms: number; total: number; pagina: number } | null>(null);
+  const cancelarGravacao = useRef(false);
+  const [gravados, setGravados] = useState<Record<number, string>>({});
+  const mp4Existentes = useMemo(() => new Map((estado?.ficheiros ?? []).filter((f) => f.formato === "mp4" && f.pagina != null).map((f) => [f.pagina as number, f.url])), [estado]);
+  const mp4Faltam = useMemo(() => paginasAnimadas.filter((p) => !mp4Existentes.has(p + 1) && !gravados[p + 1]), [paginasAnimadas, mp4Existentes, gravados]);
+  /** Records and uploads the missing slide videos here in the browser; a failure never blocks the draft (it falls back to the PNG). */
+  const gravarVideos = useCallback(async (lista: number[] = mp4Faltam) => {
+    if (!medidor || !doc || !lista.length) return;
+    if (!suporteGravacao()) { toast.error("Este navegador não consegue gravar vídeo. O rascunho seguirá com as imagens estáticas."); return; }
+    setAGravar(true);
+    cancelarGravacao.current = false;
+    try {
+      const videos = await carregarVideos(pacote);
+      for (const i of lista) {
+        if (cancelarGravacao.current) break;
+        const duracaoMs = duracaoPagina(pacote, variante, i);
+        setGravacaoProgresso({ ms: 0, total: duracaoMs, pagina: i + 1 });
+        const r = await gravarPagina({
+          pacote, variante, indice: i, medidor, videos, duracaoMs,
+          aoProgresso: (ms) => setGravacaoProgresso({ ms, total: duracaoMs, pagina: i + 1 }),
+          cancelado: () => cancelarGravacao.current,
+        });
+        if (r.extensao === "webm") toast.info("Este navegador grava em WebM; no Chrome o ficheiro sai MP4, o formato que o Instagram prefere.");
+        await carregarVideoAnimacao(doc.id, doc.versao, i + 1, r.blob);
+        setGravados((g) => ({ ...g, [i + 1]: URL.createObjectURL(r.blob) }));
+      }
+      await ler();
+      toast.success("Vídeos dos slides animados guardados.");
+    } catch (e) {
+      if ((e as Error).message === "cancelado") toast.info("Gravação cancelada. As páginas já gravadas ficam guardadas.");
+      else toast.error(`${(e as Error).message} O rascunho seguirá com a imagem estática dessa página.`);
+    } finally { setAGravar(false); setGravacaoProgresso(null); }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [pacote, variante, medidor, doc, mp4Faltam, ler]);
   // Test draft: rendered in the browser from the same core, every placeholder page carries a red watermark. Never uploaded.
   const rascunhoTeste = async () => {
     if (!medidor) return;
@@ -115,6 +155,8 @@ export function RevisaoExportacao({ dados, pacote, medidor, guardado, irPara }: 
   const preparar = async () => {
     setAPreparar(true);
     try {
+      // Animated slide videos are recorded first (real-time, in this browser); a failure never blocks the draft.
+      await gravarVideos();
       const r = await prepararRascunho(doc.id, doc.versao, doc.proposta_versao);
       setDraft(r.draft_id);
       navegar(`/manual-create?draft=${r.draft_id}`);
@@ -259,11 +301,39 @@ export function RevisaoExportacao({ dados, pacote, medidor, guardado, irPara }: 
             {draftAtual ? (
               <div className="space-y-2">
                 <p className="text-sm" role="status">Rascunho preparado. Nada foi publicado.</p>
-                <p className="text-xs text-muted-foreground">{dimensoes.formato === "story" ? "Story estático para Instagram em 9:16." : multipagina ? "O Instagram recebe as imagens PNG; o LinkedIn recebe o PDF." : "Uma imagem PNG para Instagram e LinkedIn."} Escolhe no Painel social quando publicar.</p>
+                <p className="text-xs text-muted-foreground">{dimensoes.formato === "story" ? "Story estático para Instagram em 9:16." : multipagina ? "O Instagram recebe as imagens PNG; o LinkedIn recebe o PDF." : "Uma imagem PNG para Instagram e LinkedIn."}{paginasAnimadas.length > 0 ? " Os slides animados seguem como vídeo." : ""} Escolhe no Painel social quando publicar.</p>
                 <Button asChild className="h-11"><Link to={`/manual-create?draft=${draftAtual}`}><ExternalLink className="mr-1.5 h-4 w-4" />Continuar na criação social</Link></Button>
               </div>
             ) : (
               <>
+                {paginasAnimadas.length > 0 && (
+                  <div className="space-y-2 rounded-[var(--mc-r-md)] border border-border p-3">
+                    <div className="flex items-center justify-between gap-2">
+                      <p className="text-sm font-medium">Slides animados</p>
+                      <p className="text-xs tabular-nums text-muted-foreground">Página {[...paginasAnimadas].map((p) => p + 1).join(", ")}</p>
+                    </div>
+                    <p className="text-xs text-muted-foreground">Cada slide com sticker animado é gravado aqui no navegador com a duração definida no editor e segue para o Instagram como vídeo. Se um vídeo falhar, o rascunho usa a imagem estática dessa página — a publicação nunca fica bloqueada.</p>
+                    <ul className="space-y-1 text-xs text-muted-foreground">
+                      {paginasAnimadas.map((p) => {
+                        const feito = mp4Existentes.has(p + 1) || gravados[p + 1];
+                        return <li key={p} className="flex items-center gap-1.5">{feito ? <CircleCheck className="h-3.5 w-3.5 text-primary" /> : <Circle className="h-3.5 w-3.5" />}Página {p + 1}: {feito ? "vídeo guardado" : "por gravar"}</li>;
+                      })}
+                    </ul>
+                    {aGravar && gravacaoProgresso ? (
+                      <div className="space-y-1.5" role="status" aria-live="polite">
+                        <div className="h-1.5 overflow-hidden rounded-full bg-muted"><div className="h-full bg-primary transition-all" style={{ width: `${Math.round((gravacaoProgresso.ms / Math.max(gravacaoProgresso.total, 1)) * 100)}%` }} /></div>
+                        <p className="text-xs text-muted-foreground">A gravar a página {gravacaoProgresso.pagina} — a gravação demora o tempo do slide ({Math.round(gravacaoProgresso.total / 1000)} s).</p>
+                        <Button variant="outline" size="sm" className="h-9" onClick={() => { cancelarGravacao.current = true; }}><Square className="mr-1.5 h-3.5 w-3.5" />Cancelar gravação</Button>
+                      </div>
+                    ) : (
+                      mp4Faltam.length > 0 && !draftAtual && (
+                        <Button variant="outline" size="sm" className="h-9" disabled={!medidor || aGravar || aEnviar} onClick={() => void gravarVideos()}>
+                          <Video className="mr-1.5 h-4 w-4" />Gravar vídeos dos slides animados
+                        </Button>
+                      )
+                    )}
+                  </div>
+                )}
                 {naoCabe.length > 0 && (
                   <div role="alert" className="space-y-2 rounded-[var(--mc-r-md)] border border-destructive/40 p-3 text-sm">
                     <p className="text-destructive">O texto não cabe na página {naoCabe.join(", ")}. Corrige antes de aprovar.</p>
