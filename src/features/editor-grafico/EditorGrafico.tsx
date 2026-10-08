@@ -239,24 +239,9 @@ function PainelPropriedades({ pacote, camada: c, fundo, medidor, despachar, cama
             <p className="text-xs text-muted-foreground">A capa mantém o desenho estático; a animação será usada no MP4 deste slide.</p>
           </div>
           <Numero id="duracao-animacao" rotulo="Duração do slide (segundos)" valor={(c.duracao_ms ?? 5000) / 1000} min={0.5} max={60} passo={0.5} onMudar={(n) => alterar({ duracao_ms: Math.round(n * 1000) } as Partial<Camada>)} />
-          <Button variant="outline" size="sm" className="w-full" disabled={!c.asset_id || reproduzirACarregar}
-            onClick={async () => {
-              if (reproduzir) {
-                Object.values(videosRef.current).forEach((v) => v.pause());
-                setReproduzir(false);
-                return;
-              }
-              setReproduzirACarregar(true);
-              try {
-                const vs = await carregarVideos(pacote);
-                videosRef.current = vs;
-                setVideos(vs);
-                setReproduzir(true);
-              } catch { toast.error("Não foi possível carregar a animação."); }
-              finally { setReproduzirACarregar(false); }
-            }}>
-            {reproduzirACarregar ? <Loader2 className="mr-2 h-4 w-4 motion-safe:animate-spin" /> : reproduzir ? <Square className="mr-2 h-3.5 w-3.5" /> : <Play className="mr-2 h-4 w-4" />}
-            {reproduzirACarregar ? "A carregar…" : reproduzir ? "Parar" : "Ver animação"}
+          <Button variant="outline" size="sm" className="w-full" disabled={!c.asset_id || aCarregarAnimacao} onClick={onReproduzir}>
+            {aCarregarAnimacao ? <Loader2 className="mr-2 h-4 w-4 motion-safe:animate-spin" /> : reproduzir ? <Square className="mr-2 h-3.5 w-3.5" /> : <Play className="mr-2 h-4 w-4" />}
+            {aCarregarAnimacao ? "A carregar…" : reproduzir ? "Parar" : "Ver animação"}
           </Button>
           {reproduzir && <p className="text-xs text-muted-foreground">A reprodução está a decorrer. Edição e arrasto ficam pausados até parar.</p>}
         </section>
