@@ -354,6 +354,22 @@ export function EditorGrafico({ pacoteInicial, chaveLocal, titulo, seletor, real
   const [videos, setVideos] = useState<Record<string, HTMLVideoElement>>({});
   const videosRef = useRef<Record<string, HTMLVideoElement>>({});
   const [reproduzirACarregar, setReproduzirACarregar] = useState(false);
+  /** Toggles sticker playback on the main canvas; videos are loaded lazily from the signed URLs. */
+  const alternarReproducao = useCallback(async () => {
+    if (reproduzir) {
+      Object.values(videosRef.current).forEach((v) => v.pause());
+      setReproduzir(false);
+      return;
+    }
+    setReproduzirACarregar(true);
+    try {
+      const vs = await carregarVideos(pacote);
+      videosRef.current = vs;
+      setVideos(vs);
+      setReproduzir(true);
+    } catch { toast.error("Não foi possível carregar a animação."); }
+    finally { setReproduzirACarregar(false); }
+  }, [reproduzir, pacote]);
   // Leaving the page (or the editor) always stops playback, never leaves videos running.
   useEffect(() => {
     setReproduzir(false);

@@ -1,7 +1,7 @@
 // Records one slide's animation to a video file entirely in this browser (no server rendering, no cost).
 // MediaRecorder captures the Konva canvas at native resolution while the companion videos play.
 import Konva from "konva";
-import { camadasOrdenadas, type Medidor, type PacoteProva, type Variante } from "../../supabase/functions/_shared/documento-grafico/nucleo";
+import { camadasOrdenadas, type Medidor, type PacoteProva, type Variante } from "../../../supabase/functions/_shared/documento-grafico/nucleo";
 import { carregarImagens, noCamada } from "./desenho";
 
 export interface OpcoesGravacao {
@@ -58,7 +58,7 @@ export async function gravarPagina(o: OpcoesGravacao): Promise<ResultadoGravacao
   layer.add(new Konva.Rect({ x: 0, y: 0, width: v.largura, height: v.altura, fill: pagina.fundo }));
   for (const c of camadasOrdenadas(pagina)) {
     const n = noCamada(c, o.pacote, imgs, o.medidor, o.videos);
-    if (n) layer.add(n);
+    if (n) layer.add(n as Konva.Shape | Konva.Group);
   }
   stage.add(layer);
   layer.draw();
