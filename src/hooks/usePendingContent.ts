@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { getPrimaryMediaPreview, inferMediaType, normalizeMediaList, MediaPreviewType } from '@/lib/mediaPreview';
 import { filterConsumedDrafts } from '@/lib/drafts/reconciliation';
+import { useProjetoOpcional } from '@/contexts/ProjetoContext';
 
 export interface PendingItem {
   id: string;
@@ -34,6 +35,7 @@ export function usePendingContent(limit: number = 6): PendingContentResult {
   const [draftsCount, setDraftsCount] = useState(0);
   const [scheduledCount, setScheduledCount] = useState(0);
   const [loading, setLoading] = useState(true);
+  const projetoId = useProjetoOpcional()?.projetoId ?? null;
 
   useEffect(() => {
     let mounted = true;
@@ -72,6 +74,7 @@ export function usePendingContent(limit: number = 6): PendingContentResult {
           .from('posts_drafts')
           .select('id, user_id, media_urls, media_items, caption, created_at, platform, format')
           .eq('status', 'draft')
+          .match(projetoId ? { project_id: projetoId } : {})
           .order('created_at', { ascending: false })
           .limit(Math.max(limit * 3, 20));
 
@@ -220,13 +223,19 @@ export function usePendingContent(limit: number = 6): PendingContentResult {
       .on('postgres_changes', { event: '*', schema: 'public', table: 'posts_drafts' }, fetchPendingContent)
       .subscribe();
 
+    const aoFocar = () => { if (document.visibilityState === 'visible') fetchPendingContent(); };
+    document.addEventListener('visibilitychange', aoFocar);
+    window.addEventListener('focus', aoFocar);
+
     return () => {
       mounted = false;
+      document.removeEventListener('visibilitychange', aoFocar);
+      window.removeEventListener('focus', aoFocar);
       supabase.removeChannel(storiesChannel);
       supabase.removeChannel(postsChannel);
       supabase.removeChannel(draftsChannel);
     };
-  }, [limit]);
+  }, [limit, projetoId]);
 
   return { items, totalCount, pendingApprovalCount, draftsCount, scheduledCount, loading };
 }

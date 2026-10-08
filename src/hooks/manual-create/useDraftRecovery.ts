@@ -297,7 +297,7 @@ export function useDraftRecovery(params: UseDraftRecoveryParams) {
       setNetworkOptions(normalizeNetworkOptions(draft.network_options));
       setRawTranscription(draft.raw_transcription || '');
       setAiMetadata((draft.ai_metadata as Partial<EditorialAssistantResult>) || null);
-      setScheduleAsap(draft.publish_immediately ?? true);
+      setScheduleAsap(!(draft.scheduled_date && new Date(draft.scheduled_date) > new Date()));
 
       if (draft.scheduled_date) {
         setScheduledDate(new Date(draft.scheduled_date));
