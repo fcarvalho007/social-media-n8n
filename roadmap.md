@@ -23,3 +23,5 @@
 - [x] Decisão do dono: DM Serif só tem peso normal
 - [x] Didático «Cartões» reais, zonas de leitura de story, comparação antes/depois e alcance por página/elemento
 - [ ] Validação no ecrã com sessão iniciada (desktop e 375 px)
+
+- [x] Redesenhar: imagens IA visíveis em slides de dados, recuperação ao reabrir e galeria de imagens já geradas do carrossel
