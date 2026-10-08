@@ -254,7 +254,7 @@ export const kieEstado = (project_id: string, tarefa: string) => invocar<{ estad
 export type TipoPropostaImagemIA = "editavel" | "final";
 export interface TarefaPropostaImagemIA { tipo: TipoPropostaImagemIA; tarefa: string; estado: string }
 export const gerarPropostasImagemIA = (project_id: string, pacote: unknown, variante: Variante, indice: number, contexto_chave: string) =>
-  invocar<{ tarefas: TarefaPropostaImagemIA[]; aviso?: string }>({ acao: "redesenho_ia_gerar", project_id, pacote, variante, indice, contexto_chave, confirmado: true });
+  invocar<{ tarefas: TarefaPropostaImagemIA[]; falha?: { tipo: TipoPropostaImagemIA; motivo: string } }>({ acao: "redesenho_ia_gerar", project_id, pacote, variante, indice, contexto_chave, confirmado: true });
 export const recuperarPropostasImagemIA = (project_id: string, contexto_chave: string) =>
   invocar<{ tarefas: TarefaPropostaImagemIA[] }>({ acao: "redesenho_ia_estado", project_id, contexto_chave });
 export const registarImagem = (project_id: string, media_id: string) => invocar<{ asset: AssetMotor & { hash: string } }>({ acao: "registar_imagem", project_id, media_id });
