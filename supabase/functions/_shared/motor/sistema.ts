@@ -35,6 +35,18 @@ export const PALETAS_ANTERIORES: readonly PaletaMarca[] = [
 export const PALETAS: readonly PaletaMarca[] = [...PALETAS_PRINCIPAIS, ...PALETAS_ANTERIORES];
 export const obterPaleta = (id: unknown) => PALETAS.find((p) => p.id === id) ?? PALETAS_ANTERIORES[0];
 
+/** Narrative-based rhythm: breaks on data, transition and conclusion pages (never the cover); fallback to the default. */
+export function quebrasSugeridas(p: PacoteProva): Quebras {
+  const pgs = p.variantes.A.paginas, total = pgs.length, q: Quebras = {};
+  pgs.forEach((pg, i) => {
+    const sid = (pg.camadas.find((c) => c.tipo === "texto" && !!c.ref) as { ref?: string } | undefined)?.ref?.split(".")[0] ?? pg.slide ?? "";
+    const sl = p.conteudo.slides.find((x) => x.id === sid);
+    const papel = pg.papel ?? (sl ? inferirPapel(sl, i, total) : undefined);
+    if (i > 0 && (papel === "data" || papel === "transition" || papel === "conclusion")) q[String(i + 1)] = true;
+  });
+  return Object.keys(q).length ? q : quebrasPadrao(total);
+}
+
 /** Slide number (1-based) → break on/off. */
 export type Quebras = Record<string, boolean>;
 export interface Tipografia { titulo: Familia; corpo: Familia }
@@ -92,7 +104,8 @@ export function recolorir(p: PacoteProva, de: PaletaId, para: PaletaId): PacoteP
   for (const v of ["A", "B"] as const) {
     const d = p.variantes[v];
     variantes[v] = { ...d, sistema: d.sistema ? { ...d.sistema, paleta: para } : d.sistema, paginas: d.paginas.map((pg) => ({ ...pg, fundo: cor(pg.fundo), camadas: pg.camadas.map((c) =>
-      c.tipo === "texto" ? { ...c, estilo: { ...c.estilo, cor: cor(c.estilo.cor) } } : c.tipo === "forma" ? { ...c, estilo: { ...c.estilo, cor: cor(c.estilo.cor) } } : c) })) };
+      // Colours the user set by hand (free layers or adjusted generated ones) are never recoloured.
+      c.manual || !geradaPeloSistema(c) ? c : c.tipo === "texto" ? { ...c, estilo: { ...c.estilo, cor: cor(c.estilo.cor) } } : c.tipo === "forma" ? { ...c, estilo: { ...c.estilo, cor: cor(c.estilo.cor) } } : c) })) };
   }
   return { ...p, variantes };
 }

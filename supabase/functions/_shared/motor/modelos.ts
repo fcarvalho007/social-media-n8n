@@ -122,7 +122,7 @@ export function comporModelo(p: Pagina, modelo: EstiloId, ctx: ContextoModelo): 
       // A: geometric panels (one strong surface, deliberate asymmetry). B: expressive typography
       // (dominant title, heavy rule, no panels). Strength from scale, never from stacked effects.
       const expressiva = ctx.variante === "B";
-      const tT = tTit(expressiva ? 900 : 800 as Peso, expressiva ? 0.96 : 1.02), tB = tCorpo(1.42);
+      const tT = tTit(expressiva ? 900 : 700, expressiva ? 0.96 : 1.02), tB = tCorpo(1.42);
       const X = 96, W = LARGURA - 2 * X;
       if (expressiva) {
         fundo = capa ? pal.fundoCapa : pal.fundo;
