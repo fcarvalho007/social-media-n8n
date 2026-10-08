@@ -1,0 +1,2 @@
+ALTER TABLE public.mc_exportacoes DROP CONSTRAINT IF EXISTS mc_exportacoes_formato_check;
+ALTER TABLE public.mc_exportacoes ADD CONSTRAINT mc_exportacoes_formato_check CHECK (formato IN ('png', 'pdf', 'zip', 'mp4'));

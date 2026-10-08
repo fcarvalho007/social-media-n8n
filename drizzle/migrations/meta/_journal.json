@@ -365,6 +365,13 @@
       "when": 1791459304017,
       "tag": "0051_estudio_preferencias_direcao_visual",
       "breakpoints": true
+    },
+    {
+      "idx": 52,
+      "version": "7",
+      "when": 1791467604542,
+      "tag": "0052_0052_mc_exportacoes_mp4",
+      "breakpoints": true
     }
   ]
 }
