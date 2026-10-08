@@ -83,3 +83,17 @@ describe("redesenhar com imagem IA obrigatória", () => {
     expect(prompts.direcaoB).not.toMatch(/\b2\.\s/);
   });
 });
+
+import { esqueletosPropostaIA } from "../../supabase/functions/_shared/motor/redesenhar";
+describe("esqueletos das duas direções IA", () => {
+  it("slide de dados recebe as direções A e B com o texto intacto", () => {
+    const p = pacote("data");
+    const e = esqueletosPropostaIA({ pacote: p, sistema: sis, variante: "A", indice: 1, m });
+    for (const c of [e.editavel, e.final]) {
+      expect(c).not.toBeNull();
+      expect(c!.pagina.camadas.some((l) => l.tipo === "imagem" && l.asset_id === ASSET_IA_PENDENTE)).toBe(true);
+      expect(hashConteudo(c!.pagina, p.conteudo)).toBe(hashConteudo(p.variantes.A.paginas[1], p.conteudo));
+    }
+    expect(e.editavel!.id).not.toBe(e.final!.id);
+  });
+});

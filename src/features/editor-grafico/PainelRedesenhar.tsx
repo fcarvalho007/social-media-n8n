@@ -60,7 +60,7 @@ export function PainelRedesenhar({ aberto, onFechar, pacote, sistema, variante, 
       const prontas = r.tarefas.filter((t) => t.estado === "concluida" && t.asset_id);
       if (prontas.length) { setResultados(Object.fromEntries(prontas.map((t) => [t.tipo, String(t.asset_id)]))); void carregarAssets(prontas.map((t) => String(t.asset_id))).catch(() => undefined); }
     }).catch(() => undefined);
-    galeriaImagensIA(projectId, pacote.id).then((g) => setGaleria(g.imagens)).catch(() => setGaleria([]));
+    galeriaImagensIA(projectId, pacote.id).then((g) => { setGaleria(g.imagens); const ids = [...new Set(g.imagens.map((x) => x.asset_id))].slice(0, 12); if (ids.length) void carregarAssets(ids).catch(() => undefined); }).catch(() => setGaleria([]));
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [aberto, pacote.id, variante, indice, projectId]);
 
