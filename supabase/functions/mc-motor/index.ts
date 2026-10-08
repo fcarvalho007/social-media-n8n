@@ -443,7 +443,7 @@ Deno.serve(async (req) => {
     return json({ ok: true, url: urlPublico(path) });
   }
 
-  if (acao === "kie_config" || acao === "kie_gerar" || acao === "kie_estado" || acao === "interpretar_imagem" || acao === "redesenho_ia_gerar" || acao === "redesenho_ia_estado") {
+  if (acao === "kie_config" || acao === "kie_gerar" || acao === "kie_estado" || acao === "interpretar_imagem" || acao === "redesenho_ia_gerar" || acao === "redesenho_ia_estado" || acao === "redesenho_ia_galeria") {
     const projectId = String(body.project_id ?? "");
     if (!UUID.test(projectId)) return json({ error: "Projeto inválido" }, 400);
     const { data: pode } = await user.rpc(acao === "kie_config" ? "mc_pode_ler" : "mc_pode_escrever", { _project_id: projectId });
@@ -490,8 +490,15 @@ Deno.serve(async (req) => {
     if (acao === "redesenho_ia_estado") {
       const contextoChave = String(body.contexto_chave ?? "").slice(0, 200);
       if (!contextoChave) return json({ error: "Contexto da proposta em falta." }, 400);
-      const { data } = await user.from("mc_kie_tarefas").select("id, estado, proposta_tipo").eq("project_id", projectId).eq("contexto_chave", contextoChave).not("proposta_tipo", "is", null).order("criado_em", { ascending: false }).limit(2);
-      return json({ ok: true, tarefas: (data ?? []).map((t) => ({ tipo: t.proposta_tipo, tarefa: t.id, estado: t.estado })) });
+      const { data } = await user.from("mc_kie_tarefas").select("id, estado, proposta_tipo, asset_id").eq("project_id", projectId).eq("contexto_chave", contextoChave).not("proposta_tipo", "is", null).order("criado_em", { ascending: false }).limit(2);
+      return json({ ok: true, tarefas: (data ?? []).map((t) => ({ tipo: t.proposta_tipo, tarefa: t.id, estado: t.estado, asset_id: t.asset_id ?? null })) });
+    }
+    if (acao === "redesenho_ia_galeria") {
+      // Read-only: every finished AI image of this carousel (any slide), newest first. Never generates.
+      const doc = String(body.documento_id ?? "");
+      if (!UUID.test(doc)) return json({ error: "Carrossel inválido" }, 400);
+      const { data } = await user.from("mc_kie_tarefas").select("id, asset_id, contexto_chave, criado_em, proposta_tipo").eq("project_id", projectId).eq("estado", "concluida").not("asset_id", "is", null).like("contexto_chave", `${doc}:%`).order("criado_em", { ascending: false }).limit(40);
+      return json({ ok: true, imagens: (data ?? []).map((t) => ({ tarefa: t.id, asset_id: t.asset_id, contexto: t.contexto_chave, criado_em: t.criado_em })) });
     }
     if (acao === "kie_gerar") {
       if (body.confirmado !== true) return json({ error: "Confirma a geração antes de pedir." }, 400);

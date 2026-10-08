@@ -252,7 +252,10 @@ export const kieConfig = (project_id: string) => invocar<KieConfig>({ acao: "kie
 export const kieGerar = (project_id: string, prompt: string, opcoes: { modelo_id: string; proporcao: string; tamanho: string; quantidade: number; profissional: boolean }) => invocar<{ tarefas: Array<{ tarefa: string; estado: string }>; aviso?: string }>({ acao: "kie_gerar", project_id, prompt, ...opcoes, confirmado: true });
 export const kieEstado = (project_id: string, tarefa: string) => invocar<{ estado: "reservada" | "criada" | "concluida" | "falhou" | "desconhecido"; asset_id?: string | null; erro?: string | null }>({ acao: "kie_estado", project_id, tarefa });
 export type TipoPropostaImagemIA = "editavel" | "final";
-export interface TarefaPropostaImagemIA { tipo: TipoPropostaImagemIA; tarefa: string; estado: string }
+export interface TarefaPropostaImagemIA { tipo: TipoPropostaImagemIA; tarefa: string; estado: string; asset_id?: string | null }
+export interface ImagemIAGaleria { tarefa: string; asset_id: string; contexto: string; criado_em: string }
+export const galeriaImagensIA = (project_id: string, documento_id: string) =>
+  invocar<{ imagens: ImagemIAGaleria[] }>({ acao: "redesenho_ia_galeria", project_id, documento_id });
 export const gerarPropostasImagemIA = (project_id: string, pacote: unknown, variante: Variante, indice: number, contexto_chave: string) =>
   invocar<{ tarefas: TarefaPropostaImagemIA[]; falha?: { tipo: TipoPropostaImagemIA; motivo: string } }>({ acao: "redesenho_ia_gerar", project_id, pacote, variante, indice, contexto_chave, confirmado: true });
 export const recuperarPropostasImagemIA = (project_id: string, contexto_chave: string) =>
