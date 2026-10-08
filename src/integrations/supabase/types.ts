@@ -434,18 +434,21 @@ export type Database = {
       }
       estudio_preferencias: {
         Row: {
+          direcao_visual: Json
           identidade_id: string | null
           project_id: string | null
           updated_at: string
           user_id: string
         }
         Insert: {
+          direcao_visual?: Json
           identidade_id?: string | null
           project_id?: string | null
           updated_at?: string
           user_id: string
         }
         Update: {
+          direcao_visual?: Json
           identidade_id?: string | null
           project_id?: string | null
           updated_at?: string

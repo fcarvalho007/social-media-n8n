@@ -35,6 +35,18 @@ export const PALETAS_ANTERIORES: readonly PaletaMarca[] = [
 export const PALETAS: readonly PaletaMarca[] = [...PALETAS_PRINCIPAIS, ...PALETAS_ANTERIORES];
 export const obterPaleta = (id: unknown) => PALETAS.find((p) => p.id === id) ?? PALETAS_ANTERIORES[0];
 
+/** Narrative-based rhythm: breaks on data, transition and conclusion pages (never the cover); fallback to the default. */
+export function quebrasSugeridas(p: PacoteProva): Quebras {
+  const pgs = p.variantes.A.paginas, total = pgs.length, q: Quebras = {};
+  pgs.forEach((pg, i) => {
+    const sid = (pg.camadas.find((c) => c.tipo === "texto" && !!c.ref) as { ref?: string } | undefined)?.ref?.split(".")[0] ?? pg.slide ?? "";
+    const sl = p.conteudo.slides.find((x) => x.id === sid);
+    const papel = pg.papel ?? (sl ? inferirPapel(sl, i, total) : undefined);
+    if (i > 0 && (papel === "data" || papel === "transition" || papel === "conclusion")) q[String(i + 1)] = true;
+  });
+  return Object.keys(q).length ? q : quebrasPadrao(total);
+}
+
 /** Slide number (1-based) → break on/off. */
 export type Quebras = Record<string, boolean>;
 export interface Tipografia { titulo: Familia; corpo: Familia }
@@ -53,12 +65,13 @@ export const idPar = (t: Tipografia) => PARES_FONTES.find((p) => p.titulo === t.
 
 /** Human names of the two compositions of each style (internally documents A and B). */
 export const NOMES_VARIANTE: Record<EstiloId, Record<Variante, string>> = {
-  editorial: { A: "Clássico", B: "Contemporâneo" },
+  editorial: { A: "Coluna clássica", B: "Editorial assimétrico" },
+  impacto: { A: "Painéis geométricos", B: "Tipografia expressiva" },
   contraste: { A: "Geométrico", B: "Radical" },
-  revista: { A: "Capa", B: "Tipográfico" },
-  fotografico: { A: "Cinematográfico", B: "Glass" },
+  revista: { A: "Fotografia dominante", B: "Manchete dominante" },
+  fotografico: { A: "Imagem integral", B: "Painel translúcido" },
   minimalista: { A: "Suíço", B: "Airy" },
-  didatico: { A: "Steps", B: "Cards" },
+  didatico: { A: "Passos", B: "Cartões" },
 };
 export const nomeVariante = (estilo: string | undefined, v: Variante) => NOMES_VARIANTE[(estilo ?? "editorial") as EstiloId]?.[v] ?? (v === "A" ? "Variante 1" : "Variante 2");
 
@@ -91,7 +104,8 @@ export function recolorir(p: PacoteProva, de: PaletaId, para: PaletaId): PacoteP
   for (const v of ["A", "B"] as const) {
     const d = p.variantes[v];
     variantes[v] = { ...d, sistema: d.sistema ? { ...d.sistema, paleta: para } : d.sistema, paginas: d.paginas.map((pg) => ({ ...pg, fundo: cor(pg.fundo), camadas: pg.camadas.map((c) =>
-      c.tipo === "texto" ? { ...c, estilo: { ...c.estilo, cor: cor(c.estilo.cor) } } : c.tipo === "forma" ? { ...c, estilo: { ...c.estilo, cor: cor(c.estilo.cor) } } : c) })) };
+      // Colours the user set by hand (free layers or adjusted generated ones) are never recoloured.
+      c.manual || !geradaPeloSistema(c) ? c : c.tipo === "texto" ? { ...c, estilo: { ...c.estilo, cor: cor(c.estilo.cor) } } : c.tipo === "forma" ? { ...c, estilo: { ...c.estilo, cor: cor(c.estilo.cor) } } : c) })) };
   }
   return { ...p, variantes };
 }
@@ -241,14 +255,14 @@ export function aplicarSistema(pacote: PacoteProva, s: SistemaVisual, m?: Medido
         } else camadas = camadas.map((c) => (c.manual ? (({ manual: _m, ...x }) => x as Camada)(c) : c));
         return { ...r, camadas, ...(papel ? { papel } : {}), ...(comp && Object.keys(comp).length ? { composicao: { ...comp } as Record<string, unknown> } : {}) };
       };
-      const ctx = { altura: doc.altura, unica: (doc.formato ?? "carrossel") !== "carrossel", indice: i, total, paleta, par: estilo.par, tipografia: tipografiaDe(s), conteudo: pacote.conteudo, assets: pacote.assets, m, adotarLivres: !!op.adotarLivres };
+      const ctx = { altura: doc.altura, unica: (doc.formato ?? "carrossel") !== "carrossel", indice: i, total, paleta, par: estilo.par, tipografia: tipografiaDe(s), conteudo: pacote.conteudo, assets: pacote.assets, m, adotarLivres: !!op.adotarLivres, variante: v };
       const forte = i > 0 && !!s.quebras[String(i + 1)];
       let r = comporModelo(pg, s.estilo, { ...ctx, forte });
       if (forte && r && !r.cabe) { quebrasRecusadas.push({ variante: v, pagina: i }); r = comporModelo(pg, s.estilo, ctx); }
       if (!r) return fixar(pg);
       if (!r.cabe) { recusadas.push({ variante: v, pagina: i }); return fixar(pg); }
       marcador ||= r.marcador;
-      const base = v === "B" && (doc.formato ?? "carrossel") === "carrossel" ? composicaoB(r.pagina, pacote.conteudo, m, s.estilo) : r.pagina;
+      const base = v === "B" && s.estilo !== "impacto" && (doc.formato ?? "carrossel") === "carrossel" ? composicaoB(r.pagina, pacote.conteudo, m, s.estilo) : r.pagina;
       if (s.imagens === "manual" && !(comp && Object.keys(comp).length)) return fixar(base);
       const ri = comporImagem(base, { indice: i, total, estilo: s.estilo, variante: v, paleta, conteudo: pacote.conteudo, m, comp, assets: pacote.assets, papel, altura: doc.altura });
       if (!ri) return fixar(base);

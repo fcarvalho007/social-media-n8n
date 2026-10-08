@@ -3,19 +3,21 @@
 import { PARES_FONTES, type Camada, type DocumentoGrafico, type Familia, type Pagina } from "../documento-grafico/nucleo.ts";
 
 export interface Paleta { fundo: string; fundoCapa: string; titulo: string; texto: string; destaque: string; discreto: string }
-export interface Estilo { id: EstiloId; nome: string; descricao: string; paleta: Paleta; par: string }
-export type EstiloId = "editorial" | "contraste" | "revista" | "fotografico" | "minimalista" | "didatico";
+export interface Estilo { id: EstiloId; nome: string; descricao: string; paleta: Paleta; par: string; /** Kept for existing documents; shown under "Estilos anteriores". */ anterior?: boolean }
+export type EstiloId = "editorial" | "impacto" | "contraste" | "revista" | "fotografico" | "minimalista" | "didatico";
 
 export const ESTILOS: readonly Estilo[] = [
   { id: "editorial", nome: "Editorial", descricao: "Publicações premium de análise: serifa expressiva, grelha rigorosa, filetes e capitulares.", par: "playfair-source",
     paleta: { fundo: "#f7f5ef", fundoCapa: "#f7f5ef", titulo: "#141414", texto: "#2b2b2b", destaque: "#3e5b46", discreto: "#5f5f5f" } },
-  { id: "contraste", nome: "Contraste", descricao: "Painel preto assimétrico e acento vivo.", par: "montserrat-inter",
+  { id: "impacto", nome: "Impacto", descricao: "Hierarquia forte: superfícies contrastantes e títulos dominantes, sem efeitos acumulados.", par: "montserrat-inter",
+    paleta: { fundo: "#f3f6fa", fundoCapa: "#0e2a47", titulo: "#0e2a47", texto: "#1f2933", destaque: "#2f7dd1", discreto: "#5b6b7c" } },
+  { id: "contraste", nome: "Contraste", descricao: "Painel preto assimétrico e acento vivo.", par: "montserrat-inter", anterior: true,
     paleta: { fundo: "#f0f0ea", fundoCapa: "#0d0d0d", titulo: "#0d0d0d", texto: "#1c1c1c", destaque: "#c8ff2e", discreto: "#555555" } },
   { id: "revista", nome: "Revista", descricao: "Título Black enorme, composição dramática.", par: "montserrat-inter",
     paleta: { fundo: "#fbf2e6", fundoCapa: "#e8452c", titulo: "#1a1411", texto: "#2a211c", destaque: "#e8452c", discreto: "#6b5a4f" } },
   { id: "fotografico", nome: "Fotográfico", descricao: "Imagem em página inteira, texto sobre gradiente.", par: "montserrat-inter",
     paleta: { fundo: "#0f1412", fundoCapa: "#0f1412", titulo: "#ffffff", texto: "#f1f5f2", destaque: "#a7c4b0", discreto: "#c7d2cb" } },
-  { id: "minimalista", nome: "Minimalista", descricao: "Muito respiro, fundo claro, um só acento.", par: "montserrat-inter",
+  { id: "minimalista", nome: "Minimalista", descricao: "Muito respiro, fundo claro, um só acento.", par: "montserrat-inter", anterior: true,
     paleta: { fundo: "#ffffff", fundoCapa: "#ffffff", titulo: "#111111", texto: "#3a3a3a", destaque: "#c9502a", discreto: "#6e6e6e" } },
   { id: "didatico", nome: "Didático", descricao: "Números grandes, ícones e progresso.", par: "montserrat-inter",
     paleta: { fundo: "#eef4f8", fundoCapa: "#1d4e6f", titulo: "#10324a", texto: "#22414f", destaque: "#1d4e6f", discreto: "#4f6e80" } },

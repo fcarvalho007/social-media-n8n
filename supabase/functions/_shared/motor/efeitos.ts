@@ -36,6 +36,8 @@ const base: TokensEfeitos = {
 /** Defaults per style. Editorial never inherits neon/HUD/scanlines; particles are manual-only everywhere. */
 export const EFEITOS_ESTILO: Record<EstiloId, TokensEfeitos> = {
   editorial: { ...base, gradiente: { intensidade: 0.8 }, accentLine: { enabled: true, w: 64, h: 2 } },
+  // Strength comes from scale and composition: no glow, grid, scanlines or corners by default.
+  impacto: { ...base, gradiente: { intensidade: 0.9 }, accentLine: { enabled: true, w: 96, h: 10 } },
   contraste: { ...base, gradiente: { intensidade: 1 }, accentLine: { enabled: true, w: 120, h: 8 },
     glow: { enabled: true, colorToken: "destaque", intensity: 0.35, blur: 160 }, shadow: { enabled: true, intensity: 0.35, offset: 18 },
     grid: { enabled: true, passo: 108, opacidade: 0.05 }, scanlines: { enabled: true }, corners: { enabled: true } },

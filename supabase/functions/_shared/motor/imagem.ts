@@ -36,6 +36,8 @@ export interface ComposicaoImagem {
   modo?: ModoImagem;
   regiao?: RegiaoTexto;
   foco?: { x: number; y: number };
+  /** "inteira" shows the whole image (contain) instead of filling the frame. */
+  ajuste?: "preencher" | "inteira";
   overlay?: TipoOverlay;
   intensidade?: number;
   asset_id?: string | null;
@@ -74,16 +76,16 @@ export function inferirPapel(s: { titulo: string; texto: string }, indice: numbe
 type Linha = Record<EstiloId, ModoImagem>;
 /** Role × style matrix used when an image is available (see plan). Without image → "none". */
 export const MATRIZ: Record<PapelVisual, Linha> = {
-  cover:        { editorial: "full_bleed", contraste: "split",     revista: "full_bleed", fotografico: "full_bleed", minimalista: "contained", didatico: "hero" },
-  standard:     { editorial: "contained",  contraste: "split",     revista: "hero",       fotografico: "background", minimalista: "contained", didatico: "contained" },
-  visual_story: { editorial: "hero",       contraste: "split",     revista: "full_bleed", fotografico: "full_bleed", minimalista: "hero",      didatico: "hero" },
-  data:         { editorial: "none",       contraste: "none",      revista: "none",       fotografico: "background", minimalista: "none",      didatico: "none" },
-  concept:      { editorial: "none",       contraste: "none",      revista: "none",       fotografico: "background", minimalista: "none",      didatico: "none" },
-  comparison:   { editorial: "none",       contraste: "none",      revista: "none",       fotografico: "split",      minimalista: "none",      didatico: "none" },
-  case_study:   { editorial: "hero",       contraste: "split",     revista: "hero",       fotografico: "full_bleed", minimalista: "contained", didatico: "hero" },
-  transition:   { editorial: "none",       contraste: "none",      revista: "full_bleed", fotografico: "full_bleed", minimalista: "none",      didatico: "none" },
-  actions:      { editorial: "none",       contraste: "none",      revista: "none",       fotografico: "none",       minimalista: "none",      didatico: "none" },
-  conclusion:   { editorial: "contained",  contraste: "none",      revista: "full_bleed", fotografico: "full_bleed", minimalista: "none",      didatico: "none" },
+  cover:        { editorial: "full_bleed", impacto: "split", contraste: "split",     revista: "full_bleed", fotografico: "full_bleed", minimalista: "contained", didatico: "hero" },
+  standard:     { editorial: "contained",  impacto: "split", contraste: "split",     revista: "hero",       fotografico: "background", minimalista: "contained", didatico: "contained" },
+  visual_story: { editorial: "hero",       impacto: "split", contraste: "split",     revista: "full_bleed", fotografico: "full_bleed", minimalista: "hero",      didatico: "hero" },
+  data:         { editorial: "none",       impacto: "none", contraste: "none",      revista: "none",       fotografico: "background", minimalista: "none",      didatico: "none" },
+  concept:      { editorial: "none",       impacto: "none", contraste: "none",      revista: "none",       fotografico: "background", minimalista: "none",      didatico: "none" },
+  comparison:   { editorial: "none",       impacto: "none", contraste: "none",      revista: "none",       fotografico: "split",      minimalista: "none",      didatico: "none" },
+  case_study:   { editorial: "hero",       impacto: "split", contraste: "split",     revista: "hero",       fotografico: "full_bleed", minimalista: "contained", didatico: "hero" },
+  transition:   { editorial: "none",       impacto: "none", contraste: "none",      revista: "full_bleed", fotografico: "full_bleed", minimalista: "none",      didatico: "none" },
+  actions:      { editorial: "none",       impacto: "none", contraste: "none",      revista: "none",       fotografico: "none",       minimalista: "none",      didatico: "none" },
+  conclusion:   { editorial: "contained",  impacto: "none", contraste: "none",      revista: "full_bleed", fotografico: "full_bleed", minimalista: "none",      didatico: "none" },
 };
 
 const regiaoPadrao = (modo: ModoImagem, v: Variante): RegiaoTexto =>
@@ -195,7 +197,7 @@ function comporImagemUma(p: Pagina, o: { altura?: number; indice: number; total:
   const escuro = o.paleta.fundoCapa;
   const zImg = 1, zGrad = 2, zTxt = 5;
   const imagem = (x: number, y: number, w: number, h: number): CamadaImagem =>
-    ({ ...img, x: Math.round(x), y: Math.round(y), w: Math.round(w), h: Math.round(h), z: zImg, recorte: "cover", foco: d.foco, mascara: undefined, opacidade: undefined });
+    ({ ...img, x: Math.round(x), y: Math.round(y), w: Math.round(w), h: Math.round(h), z: zImg, recorte: o.comp?.ajuste === "inteira" ? "contain" : "cover", foco: d.foco, mascara: undefined, opacidade: undefined });
   const grad = (x: number, y: number, w: number, h: number, direcao: DirecaoGradiente, cor: string, inicio: number, intensidade: number): CamadaForma =>
     ({ id: "mod-img-grad", tipo: "forma", forma: "gradiente", x: Math.round(x), y: Math.round(y), w: Math.round(w), h: Math.round(h), z: zGrad, estilo: { cor, direcao, inicio, intensidade } });
 

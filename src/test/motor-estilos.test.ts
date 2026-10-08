@@ -14,8 +14,8 @@ function doc(): DocumentoGrafico {
 }
 
 describe("estilos do motor", () => {
-  it("tem 6 estilos com pares de fontes válidos e Montserrat+Inter por omissão", () => {
-    expect(ESTILOS).toHaveLength(6);
+  it("tem 7 estilos com pares de fontes válidos e Montserrat+Inter por omissão", () => {
+    expect(ESTILOS).toHaveLength(7);
     for (const e of ESTILOS) expect(PARES_FONTES.some((p) => p.id === e.par)).toBe(true);
     expect(PARES_FONTES[0]).toMatchObject({ titulo: "montserrat", corpo: "inter" });
     for (const p of PARES_FONTES) { expect(FAMILIAS).toContain(p.titulo); expect(FAMILIAS).toContain(p.corpo); }
