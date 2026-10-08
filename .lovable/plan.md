@@ -40,6 +40,8 @@ Cinco famílias de paleta com identidades distintas (Azul/Navy, Vermelho/Terraco
 - Contraste e saturação só aparecem se forem iguais no ecrã e na exportação.
 - As quebras fixas nos slides 3, 5 e último são substituídas por sugestões baseadas na narrativa; qualquer página pode ser marcada como destaque ou transição.
 - Vista geral da sequência com sinais de repetição, alternância texto/imagem, densidade, margens/numeração e excesso de páginas fortes. Sem número "ideal" de slides.
+- O segundo slide funciona sozinho, sem repetir a capa.
+- Guias de margem e recorte nunca entram na exportação; margens editoriais distinguem-se das regras atuais de cada plataforma (sem assumir o recorte quadrado do perfil como universal).
 
 ## Etapa 4 — Painel "Direção visual"
 
