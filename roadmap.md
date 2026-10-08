@@ -21,5 +21,5 @@
 - [x] Etapa 3: ponto focal, ritmo pela narrativa, vista da sequência
 - [x] Etapa 4: painel completo (alcance, comparação capa+interior+fecho, lista de páginas recompostas)
 - [ ] Decisão do dono: DM Serif só tem peso normal
-- [ ] Por fazer: Didático «Cartões» como cartões reais, zonas próprias de story, comparação antes/depois e alcance por página/elemento no painel
+- [x] Didático «Cartões» reais, zonas de leitura de story, comparação antes/depois e alcance por página/elemento
 - [ ] Validação no ecrã com sessão iniciada (desktop e 375 px)
