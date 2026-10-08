@@ -490,7 +490,7 @@ export function EditorGrafico({ pacoteInicial, chaveLocal, titulo, seletor, real
         msg = pref ? "Direção visual preferida da marca aplicada" : "Direção visual Editorial aplicada automaticamente";
       }
       const e = enquadrarTextos(p, mSis);
-      if (e.ajustadas) { p = e.pacote; msg = `${msg ? `${msg}; ` : ""}${e.ajustadas} caixa(s) de texto ajustada(s) para o texto caber`; }
+      if (e.ajustadas) { p = e.pacote; msg = `${msg ? `${msg}; ` : ""}${e.ajustadas} caixa(s) aumentada(s) para o texto não ficar cortado; a letra não mudou`; }
       if (p !== pacote) { despachar({ tipo: "substituir", pacote: p }); toast.info(`${msg}.`, { action: { label: "Desfazer", onClick: () => despachar({ tipo: "desfazer" }) } }); }
     };
     if (sistemaDoPacote(pacote) || !real) preparar(null);
