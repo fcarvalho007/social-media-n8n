@@ -459,7 +459,7 @@ Deno.serve(async (req) => {
     if (!pode) return json({ error: "Sem acesso a este projeto." }, 403);
     const { data: dv } = await user.from("mc_documentos_versoes").select("documento").eq("documento_id", docId).eq("versao", versao).maybeSingle();
     if (!dv) return json({ error: "Versão inexistente." }, 404);
-    const docV = dv.documento as unknown as DocumentoGrafico;
+    const docV = dv.documento as unknown as { paginas: unknown[]; largura: number; altura: number; formato?: unknown };
     const { paginasComMarcador } = await import("../_shared/motor/modelos.ts");
     const marc = paginasComMarcador(docV as never);
     if (marc.length) return json({ error: `A página ${marc.join(", ")} ainda mostra «Imagem por escolher».`, codigo: "imagem_por_escolher", paginas: marc }, 422);
