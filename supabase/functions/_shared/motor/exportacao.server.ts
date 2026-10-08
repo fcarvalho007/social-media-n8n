@@ -28,7 +28,7 @@ async function registos(sb: SupabaseClient, j: Job): Promise<Registo[]> {
 }
 
 /** Upload without overwrite. If the path already exists (earlier run crashed before registering), accept only identical bytes. */
-async function guardar(sb: SupabaseClient, path: string, bytes: Uint8Array, mime: string, hash: string) {
+export async function guardarFicheiro(sb: SupabaseClient, path: string, bytes: Uint8Array, mime: string, hash: string) {
   const { error } = await sb.storage.from(BUCKET_EXPORT).upload(path, bytes, { contentType: mime, upsert: false, cacheControl: "31536000" });
   if (!error) return;
   if (!/exist|duplicate|409/i.test(error.message)) throw new Error(`storage: upload falhou (${error.message})`);
@@ -80,7 +80,7 @@ async function processarJob(sb: SupabaseClient, j: Job): Promise<string> {
     const png = await renderizarPaginaPng(pacote, variante, i);
     const hash = await sha256(png);
     const path = caminhoFicheiro(j.project_id, j.documento_id, j.documento_versao, nomePagina(i), hash);
-    await guardar(sb, path, png, "image/png", hash);
+    await guardarFicheiro(sb, path, png, "image/png", hash);
     await registar(sb, j, "png", i + 1, path, hash, png.length);
     temPng.add(i + 1);
     renderizadas++;
@@ -103,7 +103,7 @@ async function processarJob(sb: SupabaseClient, j: Job): Promise<string> {
       const out = await pdf.save({ useObjectStreams: true });
       const hash = await sha256(out);
       const path = caminhoFicheiro(j.project_id, j.documento_id, j.documento_versao, "linkedin.pdf", hash);
-      await guardar(sb, path, out, "application/pdf", hash);
+      await guardarFicheiro(sb, path, out, "application/pdf", hash);
       await registar(sb, j, "pdf", null, path, hash, out.length);
     }
     feitos = await registos(sb, j);

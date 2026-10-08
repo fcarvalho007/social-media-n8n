@@ -183,7 +183,7 @@ export async function gravarPerfilAutor(projectId: string, p: PerfilAutor): Prom
   if (error) throw new Error(error.code === "42501" ? "Só o dono do projeto com papel de editor pode alterar o perfil." : "Não foi possível gravar o perfil de autor.");
 }
 
-export interface FicheiroExport { formato: "png" | "pdf" | "zip"; pagina: number | null; url: string; hash: string; bytes: number; nome: string }
+export interface FicheiroExport { formato: "png" | "pdf" | "zip" | "mp4"; pagina: number | null; url: string; hash: string; bytes: number; nome: string }
 export interface EstadoExportacao {
   exportacao: { id: string; estado: "pendente" | "a_processar" | "concluido" | "erro"; erro: string | null; erro_classe: string | null; paginas: number; progresso: { paginas_feitas?: number; total?: number }; concluido_em: string | null } | null;
   ficheiros: FicheiroExport[];
@@ -194,6 +194,27 @@ export const pedirExportacao = (documento_id: string, versao: number) => invocar
 export const lerExportacao = (documento_id: string, versao: number) => invocar<EstadoExportacao>({ acao: "estado_exportacao", documento_id, versao });
 export const prepararRascunho = (documento_id: string, versao: number, proposta_versao: number) =>
   invocar<{ draft_id: string; existente: boolean }>({ acao: "preparar_social", documento_id, versao, proposta_versao, revisto: true });
+
+/** Uploads the browser-recorded video of one animated slide (multipart; never base64-inflated through JSON). */
+export async function carregarVideoAnimacao(documento_id: string, versao: number, pagina: number, carga: Blob): Promise<{ url: string; existente?: boolean }> {
+  const { data: s } = await supabase.auth.getSession();
+  const token = s.session?.access_token;
+  if (!token) throw new Error("A sessão terminou. Entra de novo.");
+  const fd = new FormData();
+  fd.append("acao", "carregar_video_animacao");
+  fd.append("documento_id", documento_id);
+  fd.append("versao", String(versao));
+  fd.append("pagina", String(pagina));
+  fd.append("carga", carga, `slide-${String(pagina).padStart(2, "0")}.${carga.type === "video/webm" ? "webm" : "mp4"}`);
+  const r = await fetch(`${import.meta.env.VITE_SUPABASE_URL}/functions/v1/mc-motor`, {
+    method: "POST",
+    headers: { Authorization: `Bearer ${token}`, apikey: import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY },
+    body: fd,
+  });
+  const corpo = (await r.json().catch(() => null)) as { error?: string; url?: string; existente?: boolean } | null;
+  if (!r.ok || !corpo?.url) throw new Error(corpo?.error ?? "Não foi possível guardar o vídeo do slide.");
+  return { url: corpo.url, existente: corpo.existente };
+}
 
 export interface Capa { documento: DocumentoGrafico; conteudo: PropostaEditorial }
 /** Current cover data (variant A) for library thumbnails; exact current versions only. */

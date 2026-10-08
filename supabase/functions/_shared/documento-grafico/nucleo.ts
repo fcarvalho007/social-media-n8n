@@ -221,6 +221,8 @@ export interface Asset {
   /** Verified animation companion; static rendering continues to use these image bytes. */
   animacao_id?: string;
   duracao_ms?: number;
+  /** Short-lived signed URL of the animation video (client playback only, never persisted). */
+  animacao_url?: string;
   mime: "image/png" | "image/jpeg";
   largura: number;
   altura: number;

@@ -10,11 +10,11 @@ import { normalizarLeitura, normalizarPerfil, OBJETIVO_LEITURA } from "../_share
 // Generation always runs server-side; the browser only polls persisted state.
 import { createClient } from "npm:@supabase/supabase-js@2.57.4";
 import { admin, processarLote } from "../_shared/motor/worker.server.ts";
-import { processarExportacoes, urlPublico } from "../_shared/motor/exportacao.server.ts";
-import { linhaRascunho, nomePagina } from "../_shared/motor/exportacao.ts";
+import { processarExportacoes, guardarFicheiro, urlPublico } from "../_shared/motor/exportacao.server.ts";
+import { linhaRascunho, caminhoFicheiro, validarVideo, BUCKET_EXPORT } from "../_shared/motor/exportacao.ts";
 import type { PropostaEditorial } from "../_shared/motor/proposta.ts";
 import { atribuicao, validarMetaFonte, type MetaFonte } from "../_shared/motor/fontes.ts";
-import { lerLink, registarImagem, resolverAssets } from "../_shared/motor/fontes.server.ts";
+import { lerLink, registarImagem, resolverAssets, sha256Hex } from "../_shared/motor/fontes.server.ts";
 import { carregarImagem, guardarBytes } from "../_shared/motor/carregar.server.ts";
 import { descarregarPexels, pesquisarPexelsMotor } from "../_shared/motor/pexels.server.ts";
 import { creditoPexels, idDoUrl, urlPexelsValido } from "../_shared/motor/pexels.ts";
@@ -72,7 +72,17 @@ Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response("ok", { headers: cors });
   if (req.method !== "POST") return json({ error: "Método não permitido" }, 405);
   let body: Record<string, unknown>;
-  try { body = await req.json(); } catch { return json({ error: "Pedido inválido" }, 400); }
+  // Multipart carries the browser-recorded slide video (never base64-inflated through JSON).
+  if ((req.headers.get("content-type") ?? "").includes("multipart/form-data")) {
+    try {
+      const fd = await req.formData();
+      body = { acao: fd.get("acao") };
+      for (const [k, v] of fd.entries()) if (k !== "acao" && k !== "carga" && typeof v === "string") body[k] = v;
+      body.carga = fd.get("carga");
+    } catch { return json({ error: "Pedido inválido" }, 400); }
+  } else {
+    try { body = await req.json(); } catch { return json({ error: "Pedido inválido" }, 400); }
+  }
   const acao = body.acao;
 
   if (acao === "processar") {
@@ -378,7 +388,7 @@ Deno.serve(async (req) => {
     const ids = Array.isArray(body.ids) ? body.ids.map(String).filter((x) => UUID.test(x)).slice(0, 20) : [];
     const { data: visiveis } = await user.from("mc_assets").select("id").eq("project_id", projectId).in("id", ids.length ? ids : ["00000000-0000-0000-0000-000000000000"]);
     const ok = new Set((visiveis ?? []).map((r) => r.id as string));
-    const { data: animacoes } = await user.from("mc_animacoes").select("id, cover_asset_id, duracao_ms").eq("project_id", projectId).in("cover_asset_id", ids.length ? ids : ["00000000-0000-0000-0000-000000000000"]);
+    const { data: animacoes } = await user.from("mc_animacoes").select("id, cover_asset_id, bucket, storage_path, duracao_ms").eq("project_id", projectId).in("cover_asset_id", ids.length ? ids : ["00000000-0000-0000-0000-000000000000"]);
     const animacaoPorCapa = new Map((animacoes ?? []).map((a) => [a.cover_asset_id as string, a]));
     const assets: Record<string, unknown> = {};
     const falhas: string[] = [];
@@ -388,11 +398,49 @@ Deno.serve(async (req) => {
         const resolvidos = await resolverAssets(sb, projectId, [id]);
         const asset = resolvidos[id];
         const animacao = animacaoPorCapa.get(id);
-        if (asset && animacao) resolvidos[id] = { ...asset, animacao_id: animacao.id, duracao_ms: animacao.duracao_ms };
+        if (asset && animacao) {
+          const { data: su } = await sb.storage.from(animacao.bucket).createSignedUrl(animacao.storage_path, 3600);
+          resolvidos[id] = { ...asset, animacao_id: animacao.id, duracao_ms: animacao.duracao_ms, ...(su?.signedUrl ? { animacao_url: su.signedUrl } : {}) };
+        }
         Object.assign(assets, resolvidos);
       } catch { falhas.push(id); }
     }
     return json({ ok: true, assets, falhas });
+  }
+
+  if (acao === "carregar_video_animacao") {
+    // Browser-recorded MP4/WebM of one animated slide; registered as an immutable export file (formato 'mp4').
+    const docId = String(body.documento_id ?? "");
+    const versao = Number(body.versao);
+    const pagina = Number(body.pagina);
+    const carga = body.carga;
+    if (!UUID.test(docId) || !Number.isInteger(versao) || versao < 1 || !Number.isInteger(pagina) || pagina < 1 || pagina > 20) return json({ error: "Pedido inválido" }, 400);
+    if (!(carga instanceof Blob) || carga.size === 0) return json({ error: "Vídeo em falta." }, 400);
+    if (carga.size > 52428800) return json({ error: "O vídeo ultrapassa 50 MB." }, 413);
+    const { data: doc } = await user.from("mc_documentos").select("id, project_id").eq("id", docId).maybeSingle();
+    if (!doc) return json({ error: "Sem acesso a este carrossel." }, 403);
+    const { data: pode } = await user.rpc("mc_pode_escrever", { _project_id: doc.project_id });
+    if (!pode) return json({ error: "Sem acesso a este projeto." }, 403);
+    const { data: dv } = await user.from("mc_documentos_versoes").select("documento").eq("documento_id", docId).eq("versao", versao).maybeSingle();
+    const pag = (dv?.documento as { paginas?: Array<{ camadas?: Array<{ tipo?: string; animacao_id?: string; duracao_ms?: number }> }> } | undefined)?.paginas?.[pagina - 1];
+    if (!pag?.camadas?.some((c) => c.tipo === "imagem" && typeof c.animacao_id === "string")) return json({ error: "Esta página não tem sticker animado." }, 422);
+    const bytes = new Uint8Array(await carga.arrayBuffer());
+    let mime: string;
+    try { mime = validarVideo(bytes); } catch (e) { return json({ error: (e as Error).message }, 422); }
+    const hash = await sha256Hex(bytes);
+    const path = caminhoFicheiro(doc.project_id, docId, versao, `slide-${String(pagina).padStart(2, "0")}.mp4`, hash);
+    const sb = admin();
+    const linha = () => sb.from("mc_exportacoes").select("hash, storage_path").eq("documento_id", docId).eq("documento_versao", versao).eq("formato", "mp4").eq("pagina", pagina).maybeSingle();
+    const { data: ex } = await linha();
+    if (ex) return ex.hash === hash ? json({ ok: true, url: urlPublico(ex.storage_path), existente: true }) : json({ error: "Esta versão já tem outro vídeo nesta página; as versões são imutáveis." }, 409);
+    await guardarFicheiro(sb, path, bytes, mime, hash);
+    const { error: er } = await sb.rpc("mc_registar_exportacao", { _documento_id: docId, _versao: versao, _formato: "mp4", _pagina: pagina, _bucket: BUCKET_EXPORT, _path: path, _hash: hash, _bytes: bytes.length });
+    if (er) {
+      const { data: ex2 } = await linha();
+      if (ex2 && ex2.hash === hash) return json({ ok: true, url: urlPublico(ex2.storage_path), existente: true });
+      return json({ error: "Não foi possível registar o vídeo desta página." }, 409);
+    }
+    return json({ ok: true, url: urlPublico(path) });
   }
 
   if (acao === "kie_config" || acao === "kie_gerar" || acao === "kie_estado" || acao === "interpretar_imagem" || acao === "redesenho_ia_gerar" || acao === "redesenho_ia_estado") {
@@ -509,7 +557,7 @@ Deno.serve(async (req) => {
     ]);
     const ficheiros = (fich ?? []).sort((a, b) => a.formato.localeCompare(b.formato) || (a.pagina ?? 0) - (b.pagina ?? 0))
       .map((f) => ({ formato: f.formato, pagina: f.pagina, url: urlPublico(f.storage_path), hash: f.hash, bytes: f.bytes,
-        nome: f.formato === "png" ? nomePagina((f.pagina ?? 1) - 1) : f.formato === "pdf" ? "linkedin.pdf" : "instagram.zip" }));
+        nome: f.formato === "png" ? nomePagina((f.pagina ?? 1) - 1) : f.formato === "mp4" ? `slide-${String(f.pagina ?? 1).padStart(2, "0")}.mp4` : f.formato === "pdf" ? "linkedin.pdf" : "instagram.zip" }));
 
     if (acao === "estado_exportacao") {
       if (job && (job.estado === "pendente" || (job.estado === "a_processar" && job.lease_ate && new Date(job.lease_ate) < new Date()))) emSegundoPlano(corridaExport());
@@ -546,7 +594,12 @@ Deno.serve(async (req) => {
     const sb = admin();
     const { data: existe } = await sb.from("posts_drafts").select("id").eq("id", res.draft_previsto).maybeSingle();
     if (!existe) {
-      const pngs = ficheiros.filter((f) => f.formato === "png").map((f) => f.url);
+      const pngsF = ficheiros.filter((f) => f.formato === "png").sort((a, b) => (a.pagina ?? 0) - (b.pagina ?? 0));
+      const pngs = pngsF.map((f) => f.url);
+      const urlPng = new Map(pngsF.filter((f) => f.pagina != null).map((f) => [f.pagina as number, f.url]));
+      // Recorded slide videos join the draft at the slide's position (Instagram only; LinkedIn keeps PNG/PDF).
+      const mp4s = ficheiros.filter((f) => f.formato === "mp4" && f.pagina != null && urlPng.has(f.pagina))
+        .map((f) => ({ pagina: f.pagina as number, url: f.url, png: urlPng.get(f.pagina as number)! }));
       const pdf = ficheiros.find((f) => f.formato === "pdf")?.url;
       if (pngs.length < 1 || pngs.length > 20) return json({ error: "A exportação desta versão não está completa." }, 409);
       const { data: pr } = await sb.from("mc_propostas").select("trabalho_id").eq("id", doc.proposta_id).single();
@@ -554,7 +607,7 @@ Deno.serve(async (req) => {
       if (!pr || !pv) return json({ error: "Proposta inexistente." }, 409);
       if (formatoConteudo((pv.conteudo as unknown as PropostaEditorial).formato) === "carrossel" && !pdf) return json({ error: "Falta o PDF desta versão." }, 409);
       const linha = linhaRascunho({ id: res.draft_previsto, userId: u.user.id, projectId: res.project_id, proposta: pv.conteudo as unknown as PropostaEditorial,
-        pngs, pdf, trabalhoId: pr.trabalho_id, documentoId: docId, variante: doc.variante as "A" | "B", versao, propostaVersao });
+        pngs, mp4s, pdf, trabalhoId: pr.trabalho_id, documentoId: docId, variante: doc.variante as "A" | "B", versao, propostaVersao });
       const { error: ei } = await sb.from("posts_drafts").insert(linha);
       // 23505 = a concurrent preparation already created this exact reserved id → reuse it
       if (ei && ei.code !== "23505") return json({ error: "Não foi possível criar o rascunho social." }, 500);

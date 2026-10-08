@@ -3,7 +3,7 @@ import { toast } from "sonner";
 import {
   AlignCenter, AlignLeft, AlignRight, ArrowDown, ArrowUp, BringToFront, ChevronsDown, ChevronsUp, Circle, Copy, Download,
   AlignStartVertical, AlignCenterVertical, AlignEndVertical, AlignStartHorizontal, AlignCenterHorizontal, AlignEndHorizontal, Bold, CopyCheck, Highlighter, Magnet, Underline,
-  ChevronDown, Eye, FileDown, Wand2, FileUp, Layers, Loader2, Maximize, Minus, MoreHorizontal, Plus, Redo2, ScanSearch, SendToBack, Square, Trash2, Type, Undo2, X,
+  ChevronDown, Eye, FileDown, Wand2, FileUp, Layers, Loader2, Maximize, Minus, MoreHorizontal, Play, Plus, Redo2, ScanSearch, SendToBack, Square, Trash2, Type, Undo2, X,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -34,7 +34,7 @@ import { carregarFicheiro, ficheiroDoArrasto } from "@/features/editor-grafico/c
 import { ABAS_INSERIR, MIME_INSERIR, PainelInserir, resolverBiblioteca, type AbaInserir, type Inserivel } from "@/features/editor-grafico/PainelInserir";
 import { alinharNaPagina, alturaTexto, aplicarATodos, enquadrarTextos, fundoATodos, PRESETS_TAMANHO, tamanhoMais, type Alinhar } from "@/features/editor-grafico/operacoes";
 import { carregarMedidor } from "@/features/editor-grafico/fontes";
-import { carregarImagens, compararPng, renderizarPaginaPng } from "@/features/editor-grafico/desenho";
+import { carregarImagens, carregarVideos, compararPng, renderizarPaginaPng } from "@/features/editor-grafico/desenho";
 import { estadoInicial, reduzir, type Acao, type ModoImagemNova } from "@/features/editor-grafico/estado";
 import { listarProjetos } from "@/services/estudio";
 import { MapaCustos } from "@/features/motor/MapaCustos";
@@ -131,6 +131,10 @@ interface PropsPainel {
   medidor: Medidor;
   despachar: (a: Acao) => void;
   camadasPagina: Camada[];
+  /** Playback of the selected sticker's animation (state lives in the editor). */
+  reproduzir?: boolean;
+  aCarregarAnimacao?: boolean;
+  onReproduzir?: () => void;
 }
 
 const NOME_TIPO: Record<Camada["tipo"], string> = { texto: "Texto", imagem: "Imagem", forma: "Forma" };
@@ -146,7 +150,7 @@ export function rotuloCamada(c: Camada, pacote: PacoteProva): { tipo: string; de
   return { tipo: c.nome ?? NOME_TIPO[c.tipo], detalhe: c.tipo === "forma" ? `${Math.round(c.w)}×${Math.round(c.h)}` : "" };
 }
 
-function PainelPropriedades({ pacote, camada: c, fundo, medidor, despachar, camadasPagina, onImagem, onSubstituirImagem, onFundoTodos }: PropsPainel & { onImagem?: () => void; onSubstituirImagem?: () => void; onFundoTodos?: () => void }) {
+function PainelPropriedades({ pacote, camada: c, fundo, medidor, despachar, camadasPagina, onImagem, onSubstituirImagem, onFundoTodos, reproduzir = false, aCarregarAnimacao = false, onReproduzir }: PropsPainel & { onImagem?: () => void; onSubstituirImagem?: () => void; onFundoTodos?: () => void }) {
   if (!c) {
     return (
       <div className="space-y-5">
@@ -235,6 +239,11 @@ function PainelPropriedades({ pacote, camada: c, fundo, medidor, despachar, cama
             <p className="text-xs text-muted-foreground">A capa mantém o desenho estático; a animação será usada no MP4 deste slide.</p>
           </div>
           <Numero id="duracao-animacao" rotulo="Duração do slide (segundos)" valor={(c.duracao_ms ?? 5000) / 1000} min={0.5} max={60} passo={0.5} onMudar={(n) => alterar({ duracao_ms: Math.round(n * 1000) } as Partial<Camada>)} />
+          <Button variant="outline" size="sm" className="w-full" disabled={!c.asset_id || aCarregarAnimacao} onClick={onReproduzir}>
+            {aCarregarAnimacao ? <Loader2 className="mr-2 h-4 w-4 motion-safe:animate-spin" /> : reproduzir ? <Square className="mr-2 h-3.5 w-3.5" /> : <Play className="mr-2 h-4 w-4" />}
+            {aCarregarAnimacao ? "A carregar…" : reproduzir ? "Parar" : "Ver animação"}
+          </Button>
+          {reproduzir && <p className="text-xs text-muted-foreground">A reprodução está a decorrer. Edição e arrasto ficam pausados até parar.</p>}
         </section>
       )}
 
@@ -340,6 +349,33 @@ export function EditorGrafico({ pacoteInicial, chaveLocal, titulo, seletor, real
   const [medidor, setMedidor] = useState<Medidor | null>(null);
   const [erroFontes, setErroFontes] = useState<string | null>(null);
   const [imagens, setImagens] = useState<Record<string, HTMLImageElement>>({});
+  // Playback of animated stickers on the main canvas (drag/select/editing pauses while playing).
+  const [reproduzir, setReproduzir] = useState(false);
+  const [videos, setVideos] = useState<Record<string, HTMLVideoElement>>({});
+  const videosRef = useRef<Record<string, HTMLVideoElement>>({});
+  const [reproduzirACarregar, setReproduzirACarregar] = useState(false);
+  /** Toggles sticker playback on the main canvas; videos are loaded lazily from the signed URLs. */
+  const alternarReproducao = useCallback(async () => {
+    if (reproduzir) {
+      Object.values(videosRef.current).forEach((v) => v.pause());
+      setReproduzir(false);
+      return;
+    }
+    setReproduzirACarregar(true);
+    try {
+      const vs = await carregarVideos(pacote);
+      videosRef.current = vs;
+      setVideos(vs);
+      setReproduzir(true);
+    } catch { toast.error("Não foi possível carregar a animação."); }
+    finally { setReproduzirACarregar(false); }
+  }, [reproduzir, pacote]);
+  // Leaving the page (or the editor) always stops playback, never leaves videos running.
+  useEffect(() => {
+    setReproduzir(false);
+    Object.values(videosRef.current).forEach((v) => v.pause());
+  }, [pagina, variante]);
+  useEffect(() => () => { Object.values(videosRef.current).forEach((v) => v.pause()); }, []);
   const [zoom, setZoom] = useState<number | "ajustar">("ajustar");
   const [area, setArea] = useState({ w: 800, h: 800 });
   const [preview, setPreview] = useState(false);
@@ -846,7 +882,8 @@ export function EditorGrafico({ pacoteInicial, chaveLocal, titulo, seletor, real
         <div ref={paginaRef} className="relative shadow-lg ring-1 ring-border" aria-label={`Página ${pagina + 1} de ${paginas.length}, variante ${variante}, ${LARGURA} por ${ALTURA}`} role="img">
           {medidor ? (
             <PaginaCanvas pacote={pacote} variante={variante} indice={pagina} medidor={medidor} imagens={imagens} escala={escala}
-              interativo={!preview && !rascunho} selecao={preview || rascunho ? null : selecao} selecoes={preview || rascunho ? [] : selecoes} toque={compacto} corSelecao={corSelecao} encaixe={encaixe}
+              reproduzir={reproduzir} videos={videos}
+              interativo={!preview && !rascunho && !reproduzir} selecao={preview || rascunho ? null : selecao} selecoes={preview || rascunho ? [] : selecoes} toque={compacto} corSelecao={corSelecao} encaixe={encaixe}
               onSelecionar={(id) => { setSelecoes([]); if (id !== editando) setEditando(null); despachar({ tipo: "selecionar", id }); }}
               onSelecionarVarios={(ids) => { setEditando(null); setSelecoes(ids); despachar({ tipo: "selecionar", id: ids.at(-1) ?? null }); }}
               onEditarTexto={(id) => { despachar({ tipo: "selecionar", id }); setEditando(id); }}
@@ -884,7 +921,8 @@ export function EditorGrafico({ pacoteInicial, chaveLocal, titulo, seletor, real
   };
   const propriedades = medidor && paginaAtual && (
     <PainelPropriedades pacote={pacote} camada={camada} fundo={paginaAtual.fundo} medidor={medidor} despachar={despachar} camadasPagina={paginaAtual.camadas} onImagem={onImagem}
-      onFundoTodos={!camada ? fundoTodos : undefined} onSubstituirImagem={camada?.tipo === "imagem" ? () => abrirSubstituicao(camada.id) : undefined} />
+      onFundoTodos={!camada ? fundoTodos : undefined} onSubstituirImagem={camada?.tipo === "imagem" ? () => abrirSubstituicao(camada.id) : undefined}
+      reproduzir={reproduzir} aCarregarAnimacao={reproduzirACarregar} onReproduzir={() => void alternarReproducao()} />
   );
 
   const alterarSel = (patch: Partial<Camada>, agrupar?: string) => camada && despachar({ tipo: "camada", id: camada.id, patch, agrupar });
