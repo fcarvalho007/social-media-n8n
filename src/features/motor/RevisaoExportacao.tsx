@@ -116,10 +116,7 @@ export function RevisaoExportacao({ dados, pacote, medidor, guardado, irPara }: 
 
   const [enviarAoTerminar, setEnviarAoTerminar] = useState(false);
   const preparaRef = useRef<(() => Promise<void>) | null>(null);
-  const ler = useCallback(async () => {
-    if (!doc) return;
-    try { setEstado(await lerExportacao(doc.id, doc.versao)); } catch (e) { toast.error((e as Error).message); }
-  }, [doc]);
+
 
   useEffect(() => { setEstado(null); setRevisto(false); setDraft(null); void ler(); }, [ler]);
 

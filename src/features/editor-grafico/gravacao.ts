@@ -1,7 +1,7 @@
 // Records one slide's animation to a video file entirely in this browser (no server rendering, no cost).
 // MediaRecorder captures the Konva canvas at native resolution while the companion videos play.
 import Konva from "konva";
-import { camadasOrdenadas, type Medidor, type PacoteProva, type Variante } from "../../../supabase/functions/_shared/documento-grafico/nucleo";
+import { camadasOrdenadas, type CamadaImagem, type Medidor, type PacoteProva, type Variante } from "../../../supabase/functions/_shared/documento-grafico/nucleo";
 import { carregarImagens, noCamada } from "./desenho";
 
 export interface OpcoesGravacao {
