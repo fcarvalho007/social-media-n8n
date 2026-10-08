@@ -52,6 +52,26 @@ export function imagemInadequada(papel: PapelVisual | undefined): boolean {
   return papel === "data" || papel === "comparison" || papel === "actions";
 }
 
+/**
+ * Layouts for the two paid AI directions. Independent from the free-route rule that keeps images out of
+ * data pages: the owner explicitly asked for an image here. Text stays canonical; null means "does not fit".
+ */
+export function esqueletosPropostaIA(o: OpcoesRedesign): { editavel: CandidatoRedesign | null; final: CandidatoRedesign | null } {
+  const pac = { ...o, pacote: { ...o.pacote, assets: { ...(o.pacote.assets ?? {}), [ASSET_IA_PENDENTE]: { id: ASSET_IA_PENDENTE, mime: "image/png" as const, largura: 1080, altura: 1350, dados: PNG_NEUTRO } } } };
+  const tentar = (id: string, label: string, opcoes: Array<[ModoImagem, RegiaoTexto, TipoOverlay]>): CandidatoRedesign | null => {
+    for (const [modo, regiao, overlay] of opcoes) {
+      const rc: Receita = { strategy: "AI_IMAGE_COMPOSITION", label, reason: "Imagem IA de apoio; texto original composto pelo Estúdio.", precisaImagem: true, comp: { modo, regiao, overlay, origem: "kie" } };
+      const c = comporCandidato(pac, rc, ASSET_IA_PENDENTE, new Set(), 0, true);
+      if (c && c.pagina.camadas.some((l) => l.tipo === "imagem" && l.asset_id === ASSET_IA_PENDENTE)) return { ...c, id, label, requiresAiImage: true, pendente: true };
+    }
+    return null;
+  };
+  return {
+    editavel: tentar("ia-direcao-a", "Direção A", [["split", "left", "none"], ["contained", "bottom", "none"], ["hero", "bottom", "gradient"]]),
+    final: tentar("ia-direcao-b", "Direção B", [["full_bleed", "bottom", "gradient"], ["background", "center", "vignette"], ["full_bleed", "left", "gradient"]]),
+  };
+}
+
 /** Layout for the AI proposal, decided BEFORE generation; varies by role and avoids modes already used. */
 type DecisaoIA = { modo: ModoImagem; regiao: RegiaoTexto; overlay: TipoOverlay };
 export function decidirComposicaoIA(papel: PapelVisual | undefined, usados: ModoImagem[], ronda = 0): DecisaoIA {
