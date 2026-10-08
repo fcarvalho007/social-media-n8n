@@ -41,7 +41,7 @@ const assinatura = (p: Pagina) => p.camadas.filter((c) => c.id.startsWith("mod-"
 describe("seis modelos de composição", () => {
   it("geram composições geometricamente diferentes (não só cores)", () => {
     const sigs = ESTILOS.map((e) => assinatura(aplicarModelo(pacote(), e.id, e.paleta, e.par, ["A"], m).pacote.variantes.A.paginas[1]));
-    expect(new Set(sigs).size).toBe(6);
+    expect(new Set(sigs).size).toBe(ESTILOS.length);
   });
 
   it("preservam texto, ids, refs, ordem e camadas manuais; nada transborda nem colide", () => {

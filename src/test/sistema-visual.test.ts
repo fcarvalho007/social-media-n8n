@@ -3,7 +3,7 @@ import { describe, expect, it } from "vitest";
 import { parse } from "opentype.js";
 import { criarMedidor, transbordos, type FonteOT, type PacoteProva, type Pagina } from "../../supabase/functions/_shared/documento-grafico/nucleo";
 import { ESTILOS } from "../../supabase/functions/_shared/motor/estilos";
-import { aplicarSistema, PALETAS, PALETAS_PRINCIPAIS, quebrasPadrao, recolorir, sistemaPadrao, slidesQuebra, tipografiaDe, type SistemaVisual } from "../../supabase/functions/_shared/motor/sistema";
+import { aplicarSistema, obterPaleta, PALETAS, PALETAS_PRINCIPAIS, quebrasPadrao, quebrasSugeridas, recolorir, sistemaPadrao, slidesQuebra, tipografiaDe, type SistemaVisual } from "../../supabase/functions/_shared/motor/sistema";
 import { consultarLeitura } from "../../supabase/functions/_shared/motor/leitura";
 
 const ab = (b: Buffer) => b.buffer.slice(b.byteOffset, b.byteOffset + b.byteLength) as ArrayBuffer;
@@ -103,5 +103,29 @@ describe("tipografia e paleta independentes da direção", () => {
   });
   it("as cinco famílias de paleta têm fundos fortes distintos", () => {
     expect(new Set(PALETAS_PRINCIPAIS.map((p) => p.cores.fundoCapa)).size).toBe(5);
+  });
+});
+
+describe("cores manuais, Impacto e ritmo pela narrativa", () => {
+  it("trocar a paleta não recolore texto livre com cor coincidente", () => {
+    const a = aplicarSistema(pacote(), sis("editorial", { paleta: "azul" }), m).pacote;
+    const tit = obterPaleta("azul").cores.titulo;
+    a.variantes.A.paginas[1].camadas.push({ id: "livre", tipo: "texto", texto: "Nota", x: 96, y: 1260, w: 300, h: 40, z: 9, estilo: { peso: 400, tam: 28, linha: 1.2, alinh: "esq", cor: tit, overflow: "cortar" } });
+    const b = recolorir(a, "azul", "terracota");
+    const livre = b.variantes.A.paginas[1].camadas.find((c) => c.id === "livre");
+    expect(livre?.tipo === "texto" && livre.estilo.cor).toBe(tit);
+  });
+  it("Impacto tem duas composições próprias e não usa efeitos acumulados", () => {
+    const r = aplicarSistema(pacote(), sis("impacto"), m).pacote;
+    expect(r.variantes.A.paginas[1].camadas.some((c) => c.id === "mod-painel")).toBe(true);
+    expect(r.variantes.B.paginas[1].camadas.some((c) => c.id === "mod-painel")).toBe(false);
+    expect(r.variantes.A.paginas[1].camadas.some((c) => /fx-(glow|grid|scan|corner)/.test(c.id))).toBe(false);
+  });
+  it("Minimalista e Contraste ficam como estilos anteriores", () => {
+    expect(ESTILOS.filter((e) => e.anterior).map((e) => e.id).sort()).toEqual(["contraste", "minimalista"]);
+    expect(ESTILOS.filter((e) => !e.anterior)).toHaveLength(5);
+  });
+  it("ritmo sugerido nunca marca a capa", () => {
+    expect(quebrasSugeridas(pacote())["1"]).toBeUndefined();
   });
 });
