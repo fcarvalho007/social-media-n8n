@@ -11,7 +11,7 @@ import { normalizarLeitura, normalizarPerfil, OBJETIVO_LEITURA } from "../_share
 import { createClient } from "npm:@supabase/supabase-js@2.57.4";
 import { admin, processarLote } from "../_shared/motor/worker.server.ts";
 import { processarExportacoes, guardarFicheiro, urlPublico } from "../_shared/motor/exportacao.server.ts";
-import { linhaRascunho, nomePagina, caminhoFicheiro, validarVideo, BUCKET_EXPORT } from "../_shared/motor/exportacao.ts";
+import { linhaRascunho, nomePagina, validarFicheiroSocial, exportacaoCompleta, caminhoFicheiro, validarVideo, BUCKET_EXPORT } from "../_shared/motor/exportacao.ts";
 import type { PropostaEditorial } from "../_shared/motor/proposta.ts";
 import { atribuicao, validarMetaFonte, type MetaFonte } from "../_shared/motor/fontes.ts";
 import { lerLink, registarImagem, resolverAssets, sha256Hex } from "../_shared/motor/fontes.server.ts";
