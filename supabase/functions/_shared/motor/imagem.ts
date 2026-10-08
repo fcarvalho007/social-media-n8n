@@ -197,7 +197,7 @@ function comporImagemUma(p: Pagina, o: { altura?: number; indice: number; total:
   const escuro = o.paleta.fundoCapa;
   const zImg = 1, zGrad = 2, zTxt = 5;
   const imagem = (x: number, y: number, w: number, h: number): CamadaImagem =>
-    ({ ...img, x: Math.round(x), y: Math.round(y), w: Math.round(w), h: Math.round(h), z: zImg, recorte: comp?.ajuste === "inteira" ? "contain" : "cover", foco: d.foco, mascara: undefined, opacidade: undefined });
+    ({ ...img, x: Math.round(x), y: Math.round(y), w: Math.round(w), h: Math.round(h), z: zImg, recorte: o.comp?.ajuste === "inteira" ? "contain" : "cover", foco: d.foco, mascara: undefined, opacidade: undefined });
   const grad = (x: number, y: number, w: number, h: number, direcao: DirecaoGradiente, cor: string, inicio: number, intensidade: number): CamadaForma =>
     ({ id: "mod-img-grad", tipo: "forma", forma: "gradiente", x: Math.round(x), y: Math.round(y), w: Math.round(w), h: Math.round(h), z: zGrad, estilo: { cor, direcao, inicio, intensidade } });
 
