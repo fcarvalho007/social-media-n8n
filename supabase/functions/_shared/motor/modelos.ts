@@ -25,12 +25,18 @@ interface Partes { titulo?: CamadaTexto; corpo?: CamadaTexto; num?: CamadaTexto;
 function partes(p: Pagina, adotarLivres = false): Partes {
   const r: Partes = { imagens: [], outras: [] };
   const temRef = p.camadas.some((c) => c.tipo === "texto" && !!c.ref);
-  const livres = adotarLivres && !temRef
-    ? p.camadas.filter((c): c is CamadaTexto => c.tipo === "texto" && c.id !== "num" && !!c.texto?.trim()).sort((a, b) => b.estilo.tam - a.estilo.tam)
+  const candidatas = adotarLivres && !temRef
+    ? p.camadas.filter((c): c is CamadaTexto => c.tipo === "texto" && c.id !== "num" && !!c.texto?.trim()).sort((a, b) => a.y - b.y || a.x - b.x)
     : [];
+  const maior = [...candidatas].sort((a, b) => b.estilo.tam - a.estilo.tam)[0];
+  const seguinte = [...candidatas].filter((c) => c !== maior).sort((a, b) => b.estilo.tam - a.estilo.tam)[0];
+  // A free layer is a title only when it is the sole text or has deliberate title hierarchy.
+  // Similar-sized paragraphs stay body copy instead of being promoted to a headline by accident.
+  const tituloLivre = maior && (!seguinte || maior.estilo.tam >= seguinte.estilo.tam * 1.2 || (maior.texto?.trim().length ?? 0) <= 90 && maior.estilo.peso >= 700) ? maior : undefined;
+  const corpoLivre = candidatas.find((c) => c !== tituloLivre);
   for (const c of p.camadas) {
-    if (c.tipo === "texto" && (c.ref?.endsWith(".titulo") || c === livres[0]) && !r.titulo) r.titulo = c;
-    else if (c.tipo === "texto" && (c.ref?.endsWith(".texto") || c === livres[1]) && !r.corpo) r.corpo = c;
+    if (c.tipo === "texto" && (c.ref?.endsWith(".titulo") || c === tituloLivre) && !r.titulo) r.titulo = c;
+    else if (c.tipo === "texto" && (c.ref?.endsWith(".texto") || c === corpoLivre) && !r.corpo) r.corpo = c;
     else if (c.tipo === "texto" && c.id === "num" && !r.num) r.num = c;
     else if (c.tipo === "imagem" && !(adotarLivres && c.w * c.h < LARGURA * 1350 * 0.25)) r.imagens.push(c);
     else if (ehDecoracao(c)) continue;
