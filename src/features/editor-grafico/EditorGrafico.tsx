@@ -413,7 +413,7 @@ export function EditorGrafico({ pacoteInicial, chaveLocal, titulo, seletor, real
   const [rascunho, setRascunho] = useState<{ antes: PacoteProva; s: SistemaVisual; ajustes?: "manter" | "recriar" } | null>(null);
   const [pedirAjustes, setPedirAjustes] = useState<null | { n: number; continuar: (a: "manter" | "recriar") => void }>(null);
   const avisosSistema = (r: ReturnType<typeof aplicarSistema>) => [r.recusadas.length ? `${r.recusadas.length} página(s) não cabem e ficam como estavam` : "", r.quebrasRecusadas.length ? `${r.quebrasRecusadas.length} quebra(s) não cabem e usam a composição normal` : "", r.imagemRecusadas.length ? "o texto não cabe num modo de imagem; esse slide fica como estava" : ""].filter(Boolean).join("; ");
-  const experimentar = (novo: SistemaVisual, tipo: "estilo" | "variante" | "paleta" | "ritmo" | "imagens") => {
+  const experimentar = (novo: SistemaVisual, tipo: "estilo" | "variante" | "paleta" | "tipografia" | "ritmo" | "imagens") => {
     const antes = rascunho?.antes ?? pacote;
     const atual = rascunho?.s ?? sistemaDoc;
     const correr = (ajustes?: "manter" | "recriar") => {

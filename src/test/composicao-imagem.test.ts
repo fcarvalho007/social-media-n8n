@@ -56,7 +56,7 @@ describe("renderer de composição de imagem", () => {
   const A = aplicarSistema(pacote(), sis("editorial"), m).pacote.variantes.A.paginas;
   it("capa: fundo total, gradiente de base a ~38% na cor escura da paleta, texto branco", () => {
     expect(img(A[0])).toMatchObject({ x: 0, y: 0, w: 1080, h: 1350, foco: { x: 0.5, y: 0.3 } });
-    expect(grad(A[0])?.estilo).toMatchObject({ direcao: "base", inicio: 0.38, cor: PALETAS[0].cores.fundoCapa });
+    expect(grad(A[0])?.estilo).toMatchObject({ direcao: "base", inicio: 0.38, cor: PALETAS.find((p) => p.id === "navy-editorial")!.cores.fundoCapa });
   });
   it("1-2. textRegion left/right gera overlay do mesmo lado", () => {
     for (const r of ["left", "right"] as const) {
@@ -79,7 +79,7 @@ describe("renderer de composição de imagem", () => {
   it("5. hero: imagem no topo com gradiente que funde no fundo", () => {
     const p = A[5];
     expect(img(p)).toMatchObject({ x: 0, y: 0, w: 1080 });
-    expect(grad(p)?.estilo).toMatchObject({ direcao: "base", cor: PALETAS[0].cores.fundo });
+    expect(grad(p)?.estilo).toMatchObject({ direcao: "base", cor: PALETAS.find((p) => p.id === "navy-editorial")!.cores.fundo });
     const t = p.camadas.find((c) => c.id === "t5")!;
     expect(t.y).toBeGreaterThan(img(p)!.h);
   });
@@ -127,7 +127,7 @@ describe("renderer de composição de imagem", () => {
   it("modo que não cabe é recusado sem cortar", () => {
     const base = pacote();
     base.conteudo.slides[1].texto = "Texto muito longo ".repeat(60);
-    const r = comporImagem(base.variantes.A.paginas[1], { indice: 1, total: 8, estilo: "editorial", variante: "A", paleta: PALETAS[0].cores, conteudo: base.conteudo, m, comp: { modo: "split" } });
+    const r = comporImagem(base.variantes.A.paginas[1], { indice: 1, total: 8, estilo: "editorial", variante: "A", paleta: PALETAS.find((p) => p.id === "navy-editorial")!.cores, conteudo: base.conteudo, m, comp: { modo: "split" } });
     expect(r?.cabe).toBe(false);
   });
 });

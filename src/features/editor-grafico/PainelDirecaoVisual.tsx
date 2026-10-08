@@ -3,8 +3,21 @@ import { Button } from "@/components/ui/button";
 import { Switch } from "@/components/ui/switch";
 import type { Medidor, PacoteProva, Variante } from "../../../supabase/functions/_shared/documento-grafico/nucleo";
 import { ESTILOS, type EstiloId } from "../../../supabase/functions/_shared/motor/estilos";
-import { aplicarSistema, NOMES_VARIANTE, PALETAS, quebrasPadrao, slidesQuebra, type PaletaId, type SistemaVisual } from "../../../supabase/functions/_shared/motor/sistema";
+import { aplicarSistema, NOMES_VARIANTE, PALETAS_ANTERIORES, PALETAS_PRINCIPAIS, PARES_PRINCIPAIS, quebrasPadrao, slidesQuebra, tipografiaDe, type PaletaId, type PaletaMarca, type SistemaVisual } from "../../../supabase/functions/_shared/motor/sistema";
 import { PaginaCanvas } from "./PaginaCanvas";
+import { FICHEIROS_EXTRA } from "./fontes";
+import { FAMILIAS, type Familia } from "../../../supabase/functions/_shared/documento-grafico/nucleo";
+
+const NOME_FAMILIA: Record<Familia, string> = { worksans: "Work Sans (anterior)", montserrat: "Montserrat", inter: "Inter", playfair: "Playfair Display", sourcesans: "Source Sans 3", grotesk: "Space Grotesk", dmserif: "DM Serif Display", dmsans: "DM Sans", plex: "IBM Plex Sans" };
+const FONTE_UI = (f: Familia) => `"mc-${f}", system-ui, sans-serif`;
+let amostrasCarregadas = false;
+/** Registers the same TTF files the renderer uses, so each typography option shows a real sample. */
+function carregarAmostras() {
+  if (amostrasCarregadas || typeof FontFace === "undefined") return;
+  amostrasCarregadas = true;
+  for (const [f, pesos] of Object.entries(FICHEIROS_EXTRA)) for (const [peso, url] of Object.entries(pesos ?? {}))
+    new FontFace(`mc-${f}`, `url(${url})`, { weight: peso }).load().then((ff) => document.fonts.add(ff)).catch(() => undefined);
+}
 
 interface Props {
   /** Document before the current draft (catalogue thumbnails are computed from it). */
@@ -14,7 +27,7 @@ interface Props {
   emRascunho: boolean;
   medidor: Medidor | null;
   imagens: Record<string, HTMLImageElement>;
-  onExperimentar: (s: SistemaVisual, tipo: "estilo" | "variante" | "paleta" | "ritmo" | "imagens") => void;
+  onExperimentar: (s: SistemaVisual, tipo: "estilo" | "variante" | "paleta" | "tipografia" | "ritmo" | "imagens") => void;
   onAplicar: () => void;
   onCancelar: () => void;
 }
@@ -25,7 +38,11 @@ const opcao = (ativo: boolean) =>
 /** "Direção visual": every choice is applied immediately to the real document on the canvas (as a draft). */
 export function PainelDirecaoVisual({ base, atual, emRascunho, medidor, imagens, onExperimentar, onAplicar, onCancelar }: Props) {
   const total = base.variantes.A.paginas.length;
-  const s: SistemaVisual = atual ?? { estilo: "editorial", variante: "A", paleta: "navy-editorial", quebras: quebrasPadrao(total), ritmo: "auto", imagens: "auto" };
+  const s: SistemaVisual = atual ?? { estilo: "editorial", variante: "A", paleta: "azul", quebras: quebrasPadrao(total), ritmo: "auto", imagens: "auto", tipografia: { titulo: "montserrat", corpo: "inter" } };
+  const tipo = tipografiaDe(s);
+  useEffect(carregarAmostras, []);
+  const [verAnteriores, setVerAnteriores] = useState(false);
+  const [avancadas, setAvancadas] = useState(false);
   // Catalogue only (cover of this carousel per style); the confirmation is the real canvas.
   // Computed after paint so choosing never waits for the catalogue.
   const [catalogo, setCatalogo] = useState<Array<{ id: string; p: PacoteProva }>>([]);
@@ -34,8 +51,20 @@ export function PainelDirecaoVisual({ base, atual, emRascunho, medidor, imagens,
     const t = setTimeout(() => setCatalogo(ESTILOS.map((e) => ({ id: e.id, p: aplicarSistema(base, { ...s, estilo: e.id }, medidor, [0], {}, { variantes: [s.variante] }).pacote }))), 50);
     return () => clearTimeout(t);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [base, medidor, s.paleta, s.variante, s.imagens]);
+  }, [base, medidor, s.paleta, s.variante, s.imagens, tipo.titulo, tipo.corpo]);
   const ritmo = s.ritmo ?? "auto";
+
+  const linhaPaleta = (p: PaletaMarca) => (
+    <li key={p.id}>
+      <button type="button" aria-pressed={!!atual && s.paleta === p.id} className={opcao(!!atual && s.paleta === p.id)} onClick={() => onExperimentar({ ...s, tipografia: tipo, paleta: p.id as PaletaId }, "paleta")}>
+        <span className="flex shrink-0 overflow-hidden rounded-sm border border-border" aria-hidden>
+          {p.amostras.map((c, i) => <span key={i} className="h-5 w-3" style={{ background: c }} />)}
+        </span>
+        <span className="min-w-0"><span className="block font-medium">{p.nome}</span><span className="block truncate text-xs text-muted-foreground">{p.sensacao}</span></span>
+      </button>
+    </li>
+  );
+  const mudarTipo = (t: { titulo: Familia; corpo: Familia }) => onExperimentar({ ...s, tipografia: t }, "tipografia");
 
   return (
     <div className="space-y-4 text-sm">
@@ -58,7 +87,7 @@ export function PainelDirecaoVisual({ base, atual, emRascunho, medidor, imagens,
             const ativo = !!atual && atual.estilo === e.id;
             return (
               <li key={e.id}>
-                <button type="button" aria-pressed={ativo} onClick={() => onExperimentar({ ...s, estilo: e.id as EstiloId }, "estilo")}
+                <button type="button" aria-pressed={ativo} onClick={() => onExperimentar({ ...s, tipografia: tipo, estilo: e.id as EstiloId }, "estilo")}
                   className={`mc-trans block w-full rounded-[var(--mc-r-md)] border p-1.5 text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring ${ativo ? "border-primary ring-1 ring-primary" : "border-border hover:border-muted-foreground"}`}>
                   <span className="pointer-events-none block overflow-hidden rounded-sm border border-border" aria-hidden>
                     {c && medidor ? <PaginaCanvas pacote={c.p} variante={s.variante} indice={0} medidor={medidor} imagens={imagens} escala={0.098} /> : <span className="block aspect-[4/5] bg-muted" />}
@@ -76,27 +105,53 @@ export function PainelDirecaoVisual({ base, atual, emRascunho, medidor, imagens,
         <h3 id="dv-var" className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Variante</h3>
         <div className="grid grid-cols-2 gap-2">
           {(["A", "B"] as Variante[]).map((v) => (
-            <button key={v} type="button" aria-pressed={!!atual && s.variante === v} className={opcao(!!atual && s.variante === v)} onClick={() => onExperimentar({ ...s, variante: v }, "variante")}>
+            <button key={v} type="button" aria-pressed={!!atual && s.variante === v} className={opcao(!!atual && s.variante === v)} onClick={() => onExperimentar({ ...s, tipografia: tipo, variante: v }, "variante")}>
               {NOMES_VARIANTE[s.estilo][v]}
             </button>
           ))}
         </div>
       </section>
 
+      <section className="space-y-2" aria-labelledby="dv-tipo">
+        <h3 id="dv-tipo" className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Tipografia</h3>
+        <ul className="space-y-1.5">
+          {PARES_PRINCIPAIS.map((p) => {
+            const ativo = tipo.titulo === p.titulo && tipo.corpo === p.corpo;
+            return (
+              <li key={p.id}>
+                <button type="button" aria-pressed={ativo} className={`${opcao(ativo)} flex-col !items-start py-2`} onClick={() => mudarTipo({ titulo: p.titulo, corpo: p.corpo })}>
+                  <span className="block text-base leading-tight" style={{ fontFamily: FONTE_UI(p.titulo), fontWeight: p.titulo === "dmserif" ? 400 : 700 }}>{base.conteudo.slides[0]?.titulo?.slice(0, 40) || "Título da capa"}</span>
+                  <span className="block text-xs text-muted-foreground" style={{ fontFamily: FONTE_UI(p.corpo) }}>{p.nome} · corpo de leitura confortável</span>
+                </button>
+              </li>
+            );
+          })}
+        </ul>
+        <button type="button" className="text-xs font-medium text-primary underline-offset-2 hover:underline" aria-expanded={avancadas} onClick={() => setAvancadas((v) => !v)}>
+          {avancadas ? "Ocultar opções avançadas" : "Opções avançadas: título e corpo separados"}
+        </button>
+        {avancadas && (
+          <div className="grid grid-cols-2 gap-2">
+            {(["titulo", "corpo"] as const).map((k) => (
+              <label key={k} className="space-y-1 text-xs">
+                <span className="text-muted-foreground">{k === "titulo" ? "Títulos" : "Corpo"}</span>
+                <select className="h-10 w-full rounded-[var(--mc-r-md)] border border-input bg-background px-2 text-sm" value={tipo[k]} onChange={(e) => mudarTipo({ ...tipo, [k]: e.target.value as Familia })}>
+                  {FAMILIAS.filter((f) => f !== "worksans" || tipo[k] === "worksans").map((f) => <option key={f} value={f}>{NOME_FAMILIA[f]}</option>)}
+                </select>
+              </label>
+            ))}
+          </div>
+        )}
+        <p className="text-xs text-muted-foreground">Trocar a letra mantém cores, imagens e direção. As quebras de linha são recalculadas e nunca se reduz o tamanho.</p>
+      </section>
+
       <section className="space-y-2" aria-labelledby="dv-pal">
         <h3 id="dv-pal" className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Paleta</h3>
-        <ul className="space-y-1.5">
-          {PALETAS.map((p) => (
-            <li key={p.id}>
-              <button type="button" aria-pressed={!!atual && s.paleta === p.id} className={opcao(!!atual && s.paleta === p.id)} onClick={() => onExperimentar({ ...s, paleta: p.id as PaletaId }, "paleta")}>
-                <span className="flex shrink-0 overflow-hidden rounded-sm border border-border" aria-hidden>
-                  {p.amostras.map((c, i) => <span key={i} className="h-5 w-3" style={{ background: c }} />)}
-                </span>
-                <span className="min-w-0"><span className="block font-medium">{p.nome}</span><span className="block truncate text-xs text-muted-foreground">{p.sensacao}</span></span>
-              </button>
-            </li>
-          ))}
-        </ul>
+        <ul className="space-y-1.5">{PALETAS_PRINCIPAIS.map(linhaPaleta)}</ul>
+        <button type="button" className="text-xs font-medium text-primary underline-offset-2 hover:underline" aria-expanded={verAnteriores} onClick={() => setVerAnteriores((v) => !v)}>
+          {verAnteriores ? "Ocultar paletas anteriores" : "Paletas anteriores (navy)"}
+        </button>
+        {verAnteriores && <ul className="space-y-1.5">{PALETAS_ANTERIORES.map(linhaPaleta)}</ul>}
         <p className="text-xs text-muted-foreground">Trocar a paleta só muda as cores; posições, imagens e recortes ficam.</p>
       </section>
 
