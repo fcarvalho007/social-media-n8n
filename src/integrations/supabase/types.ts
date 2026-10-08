@@ -1160,6 +1160,7 @@ export type Database = {
           erro_classe: string | null
           estado: string
           id: string
+          interrupcoes: number
           lease_ate: string | null
           lease_token: string | null
           manifesto: Json | null
@@ -1179,6 +1180,7 @@ export type Database = {
           erro_classe?: string | null
           estado?: string
           id?: string
+          interrupcoes?: number
           lease_ate?: string | null
           lease_token?: string | null
           manifesto?: Json | null
@@ -1198,6 +1200,7 @@ export type Database = {
           erro_classe?: string | null
           estado?: string
           id?: string
+          interrupcoes?: number
           lease_ate?: string | null
           lease_token?: string | null
           manifesto?: Json | null
@@ -5554,6 +5557,15 @@ export type Database = {
         Args: { _id: string; _lease: string; _manifesto: Json }
         Returns: boolean
       }
+      mc_concluir_exportacao_cliente: {
+        Args: {
+          _criado_por: string
+          _documento_id: string
+          _manifesto: Json
+          _versao: number
+        }
+        Returns: boolean
+      }
       mc_confirmar_draft: {
         Args: { _documento_id: string; _draft: string; _versao: number }
         Returns: number
@@ -5845,6 +5857,7 @@ export type Database = {
           erro_classe: string | null
           estado: string
           id: string
+          interrupcoes: number
           lease_ate: string | null
           lease_token: string | null
           manifesto: Json | null
