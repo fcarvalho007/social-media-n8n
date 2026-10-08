@@ -242,14 +242,14 @@ export function aplicarSistema(pacote: PacoteProva, s: SistemaVisual, m?: Medido
         } else camadas = camadas.map((c) => (c.manual ? (({ manual: _m, ...x }) => x as Camada)(c) : c));
         return { ...r, camadas, ...(papel ? { papel } : {}), ...(comp && Object.keys(comp).length ? { composicao: { ...comp } as Record<string, unknown> } : {}) };
       };
-      const ctx = { altura: doc.altura, unica: (doc.formato ?? "carrossel") !== "carrossel", indice: i, total, paleta, par: estilo.par, tipografia: tipografiaDe(s), conteudo: pacote.conteudo, assets: pacote.assets, m, adotarLivres: !!op.adotarLivres };
+      const ctx = { altura: doc.altura, unica: (doc.formato ?? "carrossel") !== "carrossel", indice: i, total, paleta, par: estilo.par, tipografia: tipografiaDe(s), conteudo: pacote.conteudo, assets: pacote.assets, m, adotarLivres: !!op.adotarLivres, variante: v };
       const forte = i > 0 && !!s.quebras[String(i + 1)];
       let r = comporModelo(pg, s.estilo, { ...ctx, forte });
       if (forte && r && !r.cabe) { quebrasRecusadas.push({ variante: v, pagina: i }); r = comporModelo(pg, s.estilo, ctx); }
       if (!r) return fixar(pg);
       if (!r.cabe) { recusadas.push({ variante: v, pagina: i }); return fixar(pg); }
       marcador ||= r.marcador;
-      const base = v === "B" && (doc.formato ?? "carrossel") === "carrossel" ? composicaoB(r.pagina, pacote.conteudo, m, s.estilo) : r.pagina;
+      const base = v === "B" && s.estilo !== "impacto" && (doc.formato ?? "carrossel") === "carrossel" ? composicaoB(r.pagina, pacote.conteudo, m, s.estilo) : r.pagina;
       if (s.imagens === "manual" && !(comp && Object.keys(comp).length)) return fixar(base);
       const ri = comporImagem(base, { indice: i, total, estilo: s.estilo, variante: v, paleta, conteudo: pacote.conteudo, m, comp, assets: pacote.assets, papel, altura: doc.altura });
       if (!ri) return fixar(base);

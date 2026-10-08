@@ -73,7 +73,7 @@ function escolherTamanhos(q: Partes, conteudo: ConteudoEditorial, tT: Tipo, tB: 
 const texto = (c: CamadaTexto, x: number, y: number, w: number, h: number, t: Tipo, tam: number, cor: string, alinh: CamadaTexto["estilo"]["alinh"] = "esq", z = 20, capitular?: boolean): CamadaTexto =>
   ({ ...c, x: Math.round(x), y: Math.round(y), w: Math.round(w), h: Math.max(1, Math.ceil(h) + 4), z, estilo: { ...c.estilo, familia: t.familia, peso: t.peso, linha: t.linha, tam, tamMin: tam, cor, alinh, overflow: "cortar", maxLinhas: undefined, capitular: capitular || undefined } });
 
-export interface ContextoModelo { altura?: number; unica?: boolean; indice: number; total: number; paleta: Paleta; par: string; /** Explicit typography; wins over `par`. */ tipografia?: { titulo: Familia; corpo: Familia }; conteudo: ConteudoEditorial; assets: PacoteProva["assets"]; m?: Medidor; /** Break slide: composed with the strong (cover-like) treatment. */ forte?: boolean }
+export interface ContextoModelo { altura?: number; unica?: boolean; indice: number; total: number; paleta: Paleta; par: string; /** Explicit typography; wins over `par`. */ tipografia?: { titulo: Familia; corpo: Familia }; conteudo: ConteudoEditorial; assets: PacoteProva["assets"]; m?: Medidor; /** Break slide: composed with the strong (cover-like) treatment. */ forte?: boolean; /** Composition of the direction (A/B) for directions that compose both themselves. */ variante?: "A" | "B" }
 export interface ResultadoModelo { pagina: Pagina; cabe: boolean; /** Page shows the explicit "Imagem por escolher" placeholder. */ marcador: boolean }
 
 /** Composes ONE page in a model. Returns null when the page has no editorial text (manual-only page). */
@@ -118,6 +118,47 @@ export function comporModelo(p: Pagina, modelo: EstiloId, ctx: ContextoModelo): 
       corNum = legivel(pal.discreto, fundo, false);
       break;
     }
+    case "impacto": {
+      // A: geometric panels (one strong surface, deliberate asymmetry). B: expressive typography
+      // (dominant title, heavy rule, no panels). Strength from scale, never from stacked effects.
+      const expressiva = ctx.variante === "B";
+      const tT = tTit(expressiva ? 900 : 800 as Peso, expressiva ? 0.96 : 1.02), tB = tCorpo(1.42);
+      const X = 96, W = LARGURA - 2 * X;
+      if (expressiva) {
+        fundo = capa ? pal.fundoCapa : pal.fundo;
+        const tinta = capa ? sobre(fundo) === "#ffffff" ? "#ffffff" : pal.titulo : pal.titulo;
+        const y0 = capa ? 300 : 170;
+        const s = escolherTamanhos(q, conteudo, tT, tB, capa ? [168, 150, 136, 120, 108] : [132, 120, 108, 96, 88, 80], [42, 40, 38, 36], W, W - 120, 120, LIMITE - y0, m) ?? falhou();
+        if (s) {
+          t = q.titulo && texto(q.titulo, X, y0, W, s.hT, tT, s.tamT, legivel(tinta, fundo, true));
+          const yR = y0 + s.hT + 40;
+          if (q.titulo) decor.push(ret("mod-regua-forte", X, yR, 200, 16, capa ? tinta : pal.destaque, 2));
+          b = q.corpo && texto(q.corpo, X, Math.max(yR + 64, LIMITE - s.hB), W - 120, s.hB, tB, s.tamB, legivel(capa ? tinta : pal.texto, fundo, false));
+        }
+      } else if (capa) {
+        fundo = pal.fundoCapa;
+        const s = escolherTamanhos(q, conteudo, tT, tB, [128, 116, 104, 92], [44, 40, 38, 36], W, W - 240, 80, LIMITE - 360, m) ?? falhou();
+        decor.push(ret("mod-painel-lateral", LARGURA - 200, 0, 200, ALTURA, pal.destaque, 1));
+        if (s) {
+          t = q.titulo && texto(q.titulo, X, 360, W - 200, s.hT, tT, s.tamT, "#ffffff");
+          b = q.corpo && texto(q.corpo, X, 360 + s.hT + 80, W - 240, s.hB, tB, s.tamB, legivel("#e8edf2", fundo, false));
+        }
+      } else {
+        fundo = pal.fundo;
+        const wT = W - 80;
+        const s = escolherTamanhos(q, conteudo, tT, tB, [92, 84, 76, 68, 60], [44, 40, 38, 36], wT, W, 150, LIMITE - 140, m) ?? falhou();
+        const hP = s ? 140 + s.hT + 70 : 560;
+        decor.push(ret("mod-painel", 0, 0, LARGURA, hP, pal.fundoCapa, 1));
+        decor.push(ret("mod-corte", X, hP - 8, 160, 16, pal.destaque, 2));
+        if (s) {
+          t = q.titulo && texto(q.titulo, X, 140, wT, s.hT, tT, s.tamT, "#ffffff");
+          b = q.corpo && texto(q.corpo, X, hP + 80, W, s.hB, tB, s.tamB, legivel(pal.texto, fundo, false));
+        }
+      }
+      corNum = legivel(pal.discreto, fundo, false);
+      if (capa && !expressiva) corNum = "#d5dde5";
+      break;
+    }
     case "contraste": {
       // Asymmetric black panel + controlled neon accent; strong contrast everywhere.
       const tT = tTit(700, 1.04), tB = tCorpo(1.4);
@@ -157,10 +198,9 @@ export function comporModelo(p: Pagina, modelo: EstiloId, ctx: ContextoModelo): 
       let y0 = capa ? 430 : 380;
       if (img && !capa) {
         imagens = imagens.map((i) => (i === img ? { ...i, x: 0, y: 0, w: LARGURA, h: 520, recorte: "cover" as const, z: 1, mascara: "diagonal" as const } : i));
-        decor.push(elipse("mod-circulo", LARGURA - 300, 380, 360, 360, pal.destaque, 2));
         y0 = 600;
-      } else {
-        decor.push(elipse("mod-circulo", LARGURA - 520, -300, 860, 860, capa ? pal.fundo : pal.destaque, 1, capa ? 0.16 : 1));
+      } else if (capa) {
+        decor.push(elipse("mod-circulo", LARGURA - 520, -300, 860, 860, pal.fundo, 1, 0.16));
       }
       const s = escolherTamanhos(q, conteudo, tT, tB, capa ? [156, 140, 124, 108, 96] : [120, 108, 96, 84, 76, 68], [42, 40, 38, 36], W, W, 64, LIMITE - y0, m) ?? falhou();
       const tinta = capa ? sobre(fundo) : pal.titulo;
