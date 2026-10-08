@@ -1,0 +1,2 @@
+ALTER TABLE public.estudio_preferencias ADD COLUMN IF NOT EXISTS direcao_visual jsonb NOT NULL DEFAULT '{}'::jsonb;
+COMMENT ON COLUMN public.estudio_preferencias.direcao_visual IS 'Per-brand default visual direction for NEW content: { "<project_id>|todos": { estilo, variante, paleta, tipografia } }. Never applied retroactively.';

@@ -358,6 +358,13 @@
       "when": 1791397333344,
       "tag": "0050_roteiros_materiais_marcador",
       "breakpoints": true
+    },
+    {
+      "idx": 51,
+      "version": "7",
+      "when": 1791459304017,
+      "tag": "0051_estudio_preferencias_direcao_visual",
+      "breakpoints": true
     }
   ]
 }
