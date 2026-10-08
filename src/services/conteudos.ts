@@ -12,8 +12,8 @@ async function chamar<T>(body: object): Promise<T> {
     if (ctx instanceof Response && ctx.status === 401 && (await tratarSessaoRecusada())) {
       throw new Error("A sessão terminou. Entra de novo.");
     }
-    const msg = ctx ? (await ctx.json().catch(() => null))?.error : null;
-    throw new Error(msg ?? error.message);
+    const msg = ctx && typeof (ctx as { json?: unknown }).json === "function" ? (await ctx.json().catch(() => null))?.error : null;
+    throw new Error(typeof msg === "string" && msg ? msg : "Não foi possível contactar o servidor. Tenta de novo.");
   }
   return data as T;
 }

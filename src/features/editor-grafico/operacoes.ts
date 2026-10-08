@@ -119,7 +119,9 @@ export function enquadrarTextos(p: PacoteProva, m: Medidor): { pacote: PacotePro
         // Next text block below this one (same column) limits the growth.
         const abaixo = pg.camadas.filter((o) => o.id !== c.id && o.tipo === "texto" && o.y >= c.y + c.h - 1 && o.x < c.x + c.w && o.x + o.w > c.x).map((o) => o.y - 16);
         const limite = Math.min(p.variantes[v].altura - 60, ...abaixo) - c.y;
-        if (precisa > limite || Math.abs(precisa - c.h) < 2) return c;
+        // Only grow boxes whose text is actually cut; boxes that already fit are left untouched.
+        if (!layoutTexto(t, est, c.w, c.h, m).cortado) return c;
+        if (precisa <= c.h || precisa > limite) return c;
         if (layoutTexto(t, est, c.w, precisa, m).cortado) return c;
         mudou = true; ajustadas++;
         return { ...c, h: precisa };

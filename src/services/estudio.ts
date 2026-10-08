@@ -177,8 +177,8 @@ async function invocarFn<T>(fn: string, body: object): Promise<T> {
   const { data, error } = await supabase.functions.invoke(fn, { body });
   if (error) {
     const ctx = (error as { context?: Response }).context;
-    const msg = ctx ? (await ctx.json().catch(() => null))?.error : null;
-    throw new Error(msg ?? error.message);
+    const msg = ctx && typeof (ctx as { json?: unknown }).json === "function" ? (await ctx.json().catch(() => null))?.error : null;
+    throw new Error(typeof msg === "string" && msg ? msg : "Não foi possível contactar o servidor. Tenta de novo.");
   }
   return data as T;
 }
