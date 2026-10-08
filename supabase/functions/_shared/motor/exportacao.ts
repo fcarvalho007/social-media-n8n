@@ -46,6 +46,35 @@ export function validarVideo(b: Uint8Array): "video/mp4" | "video/webm" {
 
 export const nomePagina = (i: number) => `slide-${String(i + 1).padStart(2, "0")}.png`;
 
+export const PNG_MAX_BYTES = 20 * 1024 * 1024;
+export const PDF_MAX_BYTES = 60 * 1024 * 1024;
+/**
+ * Browser-rendered social file check (magic bytes, never the declared MIME). A PNG must have exactly the frozen
+ * version's canvas size (IHDR), so a wrong or foreign image can never become a slide of this version.
+ */
+export function validarFicheiroSocial(b: Uint8Array, formato: "png" | "pdf", largura: number, altura: number): "image/png" | "application/pdf" {
+  if (formato === "png") {
+    const assinatura = [0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a];
+    if (b.length < 33 || b.length > PNG_MAX_BYTES) throw new Error("A imagem do slide tem de ter até 20 MB.");
+    if (!assinatura.every((x, i) => b[i] === x) || String.fromCharCode(b[12], b[13], b[14], b[15]) !== "IHDR") throw new Error("O ficheiro não é um PNG válido.");
+    const dv = new DataView(b.buffer, b.byteOffset, b.byteLength);
+    const w = dv.getUint32(16), h = dv.getUint32(20);
+    if (w !== largura || h !== altura) throw new Error(`A imagem tem ${w}×${h} px; esta peça precisa de ${largura}×${altura} px.`);
+    return "image/png";
+  }
+  if (b.length < 8 || b.length > PDF_MAX_BYTES) throw new Error("O PDF tem de ter até 60 MB.");
+  if (String.fromCharCode(b[0], b[1], b[2], b[3], b[4]) !== "%PDF-") throw new Error("O ficheiro não é um PDF válido.");
+  return "application/pdf";
+}
+
+/** Social export is complete when every page has a PNG and a carousel has its PDF (posts/stories have none). */
+export function exportacaoCompleta(formatos: Array<{ formato: string; pagina: number | null }>, paginas: number, carrossel: boolean): boolean {
+  const pngs = new Set(formatos.filter((f) => f.formato === "png" && f.pagina != null).map((f) => f.pagina));
+  for (let i = 1; i <= paginas; i++) if (!pngs.has(i)) return false;
+  const pdf = formatos.some((f) => f.formato === "pdf" && f.pagina == null);
+  return carrossel ? pdf : !pdf;
+}
+
 /** Frozen version → validated real package for one variant. Assets must be pre-resolved, verified bytes of mc_assets (never URLs). */
 export function pacoteParaExportar(id: string, proposta: PropostaEditorial, variante: Variante, doc: DocumentoGrafico, assets: Record<string, Asset> = {}): PacoteProva {
   const bruto = {

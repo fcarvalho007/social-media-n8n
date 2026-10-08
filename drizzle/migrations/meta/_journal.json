@@ -372,6 +372,13 @@
       "when": 1791467604542,
       "tag": "0052_0052_mc_exportacoes_mp4",
       "breakpoints": true
+    },
+    {
+      "idx": 53,
+      "version": "7",
+      "when": 1791478082816,
+      "tag": "0053_mc_export_cliente_interrupcoes",
+      "breakpoints": true
     }
   ]
 }

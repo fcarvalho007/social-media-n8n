@@ -195,6 +195,28 @@ export const lerExportacao = (documento_id: string, versao: number) => invocar<E
 export const prepararRascunho = (documento_id: string, versao: number, proposta_versao: number) =>
   invocar<{ draft_id: string; existente: boolean }>({ acao: "preparar_social", documento_id, versao, proposta_versao, revisto: true });
 
+/** Uploads one browser-rendered slide PNG or the carousel PDF of a frozen version; the server validates and stores it. */
+export async function carregarFicheiroSocial(documento_id: string, versao: number, formato: "png" | "pdf", pagina: number | null, carga: Blob): Promise<{ existente: boolean; concluido: boolean }> {
+  const { data: s } = await supabase.auth.getSession();
+  const token = s.session?.access_token;
+  if (!token) throw new Error("A sessão terminou. Entra de novo.");
+  const fd = new FormData();
+  fd.append("acao", "carregar_ficheiro_social");
+  fd.append("documento_id", documento_id);
+  fd.append("versao", String(versao));
+  fd.append("formato", formato);
+  if (pagina != null) fd.append("pagina", String(pagina));
+  fd.append("carga", carga, formato === "pdf" ? "linkedin.pdf" : `slide-${String(pagina).padStart(2, "0")}.png`);
+  const r = await fetch(`${import.meta.env.VITE_SUPABASE_URL}/functions/v1/mc-motor`, {
+    method: "POST",
+    headers: { Authorization: `Bearer ${token}`, apikey: import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY },
+    body: fd,
+  });
+  const corpo = (await r.json().catch(() => null)) as { error?: string; ok?: boolean; existente?: boolean; concluido?: boolean } | null;
+  if (!r.ok || !corpo?.ok) throw new Error(corpo?.error ?? (formato === "pdf" ? "Não foi possível enviar o PDF." : `Não foi possível enviar o slide ${pagina}.`));
+  return { existente: !!corpo.existente, concluido: !!corpo.concluido };
+}
+
 /** Uploads the browser-recorded video of one animated slide (multipart; never base64-inflated through JSON). */
 export async function carregarVideoAnimacao(documento_id: string, versao: number, pagina: number, carga: Blob): Promise<{ url: string; existente?: boolean }> {
   const { data: s } = await supabase.auth.getSession();

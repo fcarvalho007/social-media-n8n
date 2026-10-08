@@ -11,7 +11,7 @@ import { normalizarLeitura, normalizarPerfil, OBJETIVO_LEITURA } from "../_share
 import { createClient } from "npm:@supabase/supabase-js@2.57.4";
 import { admin, processarLote } from "../_shared/motor/worker.server.ts";
 import { processarExportacoes, guardarFicheiro, urlPublico } from "../_shared/motor/exportacao.server.ts";
-import { linhaRascunho, nomePagina, caminhoFicheiro, validarVideo, BUCKET_EXPORT } from "../_shared/motor/exportacao.ts";
+import { linhaRascunho, nomePagina, validarFicheiroSocial, exportacaoCompleta, caminhoFicheiro, validarVideo, BUCKET_EXPORT } from "../_shared/motor/exportacao.ts";
 import type { PropostaEditorial } from "../_shared/motor/proposta.ts";
 import { atribuicao, validarMetaFonte, type MetaFonte } from "../_shared/motor/fontes.ts";
 import { lerLink, registarImagem, resolverAssets, sha256Hex } from "../_shared/motor/fontes.server.ts";
@@ -441,6 +441,62 @@ Deno.serve(async (req) => {
       return json({ error: "Não foi possível registar o vídeo desta página." }, 409);
     }
     return json({ ok: true, url: urlPublico(path) });
+  }
+
+  if (acao === "carregar_ficheiro_social") {
+    // Browser-rendered slide PNG / carousel PDF of one frozen version (server rendering exceeds the edge CPU budget on
+    // photographic pages). Validated by magic bytes + exact canvas size, stored content-addressed, never overwritten.
+    const docId = String(body.documento_id ?? "");
+    const versao = Number(body.versao);
+    const formato = body.formato === "pdf" ? "pdf" : body.formato === "png" ? "png" : null;
+    const pagina = formato === "png" ? Number(body.pagina) : null;
+    const carga = body.carga;
+    if (!UUID.test(docId) || !Number.isInteger(versao) || versao < 1 || !formato || (formato === "png" && (!Number.isInteger(pagina) || (pagina as number) < 1 || (pagina as number) > 20))) return json({ error: "Pedido inválido" }, 400);
+    if (!(carga instanceof Blob) || carga.size === 0) return json({ error: "Ficheiro em falta." }, 400);
+    const { data: doc } = await user.from("mc_documentos").select("id, project_id").eq("id", docId).maybeSingle();
+    if (!doc) return json({ error: "Sem acesso a este carrossel." }, 403);
+    const { data: pode } = await user.rpc("mc_pode_escrever", { _project_id: doc.project_id });
+    if (!pode) return json({ error: "Sem acesso a este projeto." }, 403);
+    const { data: dv } = await user.from("mc_documentos_versoes").select("documento").eq("documento_id", docId).eq("versao", versao).maybeSingle();
+    if (!dv) return json({ error: "Versão inexistente." }, 404);
+    const docV = dv.documento as unknown as { paginas: unknown[]; largura: number; altura: number; formato?: unknown };
+    const { paginasComMarcador } = await import("../_shared/motor/modelos.ts");
+    const marc = paginasComMarcador(docV as never);
+    if (marc.length) return json({ error: `A página ${marc.join(", ")} ainda mostra «Imagem por escolher».`, codigo: "imagem_por_escolher", paginas: marc }, 422);
+    const total = docV.paginas.length;
+    const carrossel = formatoConteudo(docV.formato) === "carrossel";
+    if (formato === "png" && (pagina as number) > total) return json({ error: "Página inválida." }, 400);
+    if (formato === "pdf" && !carrossel) return json({ error: "Só os carrosséis levam PDF." }, 400);
+    const bytes = new Uint8Array(await carga.arrayBuffer());
+    let mime: string;
+    try { mime = validarFicheiroSocial(bytes, formato, docV.largura, docV.altura); } catch (e) { return json({ error: (e as Error).message }, 422); }
+    const sb = admin();
+    const lista = async () => (await sb.from("mc_exportacoes").select("formato, pagina, storage_path, hash, bytes").eq("documento_id", docId).eq("documento_versao", versao)).data ?? [];
+    let feitos = await lista();
+    const ja = feitos.find((f) => f.formato === formato && (formato === "pdf" ? f.pagina == null : f.pagina === pagina));
+    // An existing file of this version is kept as is (immutable); the upload is simply not needed.
+    if (!ja) {
+      const hash = await sha256Hex(bytes);
+      const path = caminhoFicheiro(doc.project_id, docId, versao, formato === "pdf" ? "linkedin.pdf" : nomePagina((pagina as number) - 1), hash);
+      await guardarFicheiro(sb, path, bytes, mime, hash);
+      const { error: er } = await sb.rpc("mc_registar_exportacao", { _documento_id: docId, _versao: versao, _formato: formato, _pagina: pagina, _bucket: BUCKET_EXPORT, _path: path, _hash: hash, _bytes: bytes.length });
+      if (er && er.code !== "23505") return json({ error: "Não foi possível registar o ficheiro desta página." }, 500);
+      feitos = await lista();
+    }
+    let concluido = false;
+    if (exportacaoCompleta(feitos, total, carrossel)) {
+      const { data: dvp } = await sb.from("mc_documentos_versoes").select("proposta_versao").eq("documento_id", docId).eq("versao", versao).single();
+      const { data: d } = await sb.from("mc_documentos").select("variante").eq("id", docId).single();
+      const manifesto = {
+        v: 1, documento_id: docId, versao, variante: d?.variante, proposta_versao: dvp?.proposta_versao, largura: docV.largura, altura: docV.altura, formato: formatoConteudo(docV.formato), origem: "navegador",
+        ficheiros: feitos.filter((r) => r.formato === "png" || r.formato === "pdf").sort((a, b) => a.formato.localeCompare(b.formato) || (a.pagina ?? 0) - (b.pagina ?? 0))
+          .map((r) => ({ formato: r.formato, pagina: r.pagina, path: r.storage_path, sha256: r.hash, bytes: r.bytes })),
+      };
+      const { data: ok, error: ec } = await sb.rpc("mc_concluir_exportacao_cliente", { _documento_id: docId, _versao: versao, _manifesto: manifesto, _criado_por: u.user.id });
+      if (ec) return json({ error: "Não foi possível fechar a preparação desta versão." }, 500);
+      concluido = ok === true;
+    }
+    return json({ ok: true, existente: !!ja, concluido });
   }
 
   if (acao === "kie_config" || acao === "kie_gerar" || acao === "kie_estado" || acao === "interpretar_imagem" || acao === "redesenho_ia_gerar" || acao === "redesenho_ia_estado" || acao === "redesenho_ia_galeria") {
