@@ -18,6 +18,7 @@ import { useAuth } from "@/contexts/AuthContext";
 import { guardarRecuperacao, lerRecuperacao, limparRecuperacao } from "@/lib/recuperacaoLocal";
 import { renderProvaServidor } from "@/services/conteudos";
 import { ALTURA, FAMILIAS, LARGURA, NOME_FAMILIA, aplicarMarca, layoutTexto, resolverTexto, validarPacote, type Asset, type Camada, type CamadaTexto, type Familia, type Medidor, type PacoteProva, type Variante } from "../../../supabase/functions/_shared/documento-grafico/nucleo";
+import { lerDirecaoPreferida, guardarDirecaoPreferida, type DirecaoPreferida } from "@/services/estudio";
 import { aplicarSistema, nomeVariante, obterPaleta, paginasComAjustes, recolorir, sistemaDoPacote, sistemaPadrao, type SistemaVisual } from "../../../supabase/functions/_shared/motor/sistema";
 import { ESTILOS } from "../../../supabase/functions/_shared/motor/estilos";
 import { PainelDirecaoVisual } from "./PainelDirecaoVisual";
@@ -438,19 +439,28 @@ export function EditorGrafico({ pacoteInicial, chaveLocal, titulo, seletor, real
   useEffect(() => {
     if (preparado.current || !mSis || rascunho) return;
     preparado.current = true;
-    let p = pacote;
-    let msg = "";
-    if (!sistemaDoPacote(p)) {
-      p = aplicarSistema(p, sistemaPadrao(p.conteudo.slides.length || p.variantes.A.paginas.length), mSis).pacote;
-      msg = "Direção visual Editorial aplicada automaticamente";
-    }
-    const e = enquadrarTextos(p, mSis);
-    if (e.ajustadas) { p = e.pacote; msg = `${msg ? `${msg}; ` : ""}${e.ajustadas} caixa(s) de texto ajustada(s) para o texto caber`; }
-    if (p !== pacote) { despachar({ tipo: "substituir", pacote: p }); toast.info(`${msg}.`, { action: { label: "Desfazer", onClick: () => despachar({ tipo: "desfazer" }) } }); }
+    const preparar = (pref: DirecaoPreferida | null) => {
+      let p = pacote;
+      let msg = "";
+      if (!sistemaDoPacote(p)) {
+        const base = sistemaPadrao(p.conteudo.slides.length || p.variantes.A.paginas.length);
+        const est = pref && ESTILOS.some((e) => e.id === pref.estilo) ? pref.estilo as SistemaVisual["estilo"] : base.estilo;
+        const s: SistemaVisual = pref ? { ...base, estilo: est, variante: pref.variante === "B" ? "B" : "A", paleta: obterPaleta(pref.paleta).id === pref.paleta ? pref.paleta as SistemaVisual["paleta"] : base.paleta, tipografia: (pref.tipografia as SistemaVisual["tipografia"]) ?? base.tipografia } : base;
+        p = aplicarSistema(p, s, mSis).pacote;
+        msg = pref ? "Direção visual preferida da marca aplicada" : "Direção visual Editorial aplicada automaticamente";
+      }
+      const e = enquadrarTextos(p, mSis);
+      if (e.ajustadas) { p = e.pacote; msg = `${msg ? `${msg}; ` : ""}${e.ajustadas} caixa(s) de texto ajustada(s) para o texto caber`; }
+      if (p !== pacote) { despachar({ tipo: "substituir", pacote: p }); toast.info(`${msg}.`, { action: { label: "Desfazer", onClick: () => despachar({ tipo: "desfazer" }) } }); }
+    };
+    if (sistemaDoPacote(pacote) || !real) preparar(null);
+    else lerDirecaoPreferida(projectId).then(preparar, () => preparar(null));
   }, [mSis]); // eslint-disable-line react-hooks/exhaustive-deps
   const aplicarRascunho = () => {
     if (!rascunho) return;
     despachar({ tipo: "confirmar", antes: rascunho.antes });
+    const { estilo, variante: v, paleta, tipografia } = rascunho.s;
+    if (real) guardarDirecaoPreferida(projectId, { estilo, variante: v, paleta, tipografia }).catch(() => undefined);
     setRascunho(null);
     toast.success("Direção visual aplicada ao documento.", { action: { label: "Desfazer", onClick: () => despachar({ tipo: "desfazer" }) } });
   };

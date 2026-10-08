@@ -215,3 +215,27 @@ export async function mapearPerfil(source: string, target: string | null) {
   const { error } = await db.rpc("nl_mapear_perfil", { _source: source, _target: target });
   if (error) throw error;
 }
+
+/** Brand default visual direction (only for NEW content; saved documents are never changed). */
+export interface DirecaoPreferida { estilo: string; variante: "A" | "B"; paleta: string; tipografia?: { titulo: string; corpo: string } }
+const chaveDirecao = (projectId: string | null | undefined) => projectId ?? "todos";
+export async function lerDirecaoPreferida(projectId: string | null | undefined): Promise<DirecaoPreferida | null> {
+  const { data: u } = await supabase.auth.getUser();
+  if (!u.user) return null;
+  const { data, error } = await db.from("estudio_preferencias").select("direcao_visual").eq("user_id", u.user.id).maybeSingle();
+  if (error) throw error;
+  const v = (data?.direcao_visual as Record<string, unknown> | null)?.[chaveDirecao(projectId)];
+  return v && typeof v === "object" ? (v as DirecaoPreferida) : null;
+}
+export async function guardarDirecaoPreferida(projectId: string | null | undefined, d: DirecaoPreferida): Promise<void> {
+  const { data: u } = await supabase.auth.getUser();
+  if (!u.user) throw new Error("Sessão em falta");
+  const { data, error } = await db.from("estudio_preferencias").select("direcao_visual").eq("user_id", u.user.id).maybeSingle();
+  if (error) throw error;
+  const atual = (data?.direcao_visual as Record<string, unknown> | null) ?? {};
+  const novo = { ...atual, [chaveDirecao(projectId)]: d };
+  const r = data
+    ? await db.from("estudio_preferencias").update({ direcao_visual: novo, updated_at: new Date().toISOString() }).eq("user_id", u.user.id)
+    : await db.from("estudio_preferencias").insert({ user_id: u.user.id, direcao_visual: novo });
+  if (r.error) throw r.error;
+}
