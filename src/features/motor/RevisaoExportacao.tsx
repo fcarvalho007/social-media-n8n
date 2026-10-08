@@ -119,7 +119,6 @@ export function RevisaoExportacao({ dados, pacote, medidor, guardado, irPara }: 
   if (!doc) return <p className="text-sm text-muted-foreground">Esta variante ainda não tem design guardado.</p>;
 
   const ex = estado?.exportacao;
-  const concluido = ex?.estado === "concluido";
   const desta = estado?.rascunhos.find((r) => r.versao === doc.versao);
   const anteriores = estado?.rascunhos.filter((r) => r.versao !== doc.versao) ?? [];
   const draftAtual = draft ?? desta?.draft_id ?? null;
