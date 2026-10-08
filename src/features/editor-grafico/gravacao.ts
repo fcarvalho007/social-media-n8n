@@ -37,7 +37,7 @@ export function paginaTemAnimacao(p: PacoteProva, variante: Variante, indice: nu
 /** Animation duration of the slide (max of the layers' duracao_ms; default 3000 ms). */
 export function duracaoPagina(p: PacoteProva, variante: Variante, indice: number): number {
   const pag = p.variantes[variante].paginas[indice];
-  const durs = (pag?.camadas ?? []).filter((c) => c.tipo === "imagem" && typeof c.duracao_ms === "number").map((c) => c.duracao_ms as number);
+  const durs = (pag?.camadas ?? []).filter((c): c is CamadaImagem => c.tipo === "imagem" && typeof c.duracao_ms === "number").map((c) => c.duracao_ms as number);
   return Math.min(Math.max(...durs, 1000), 60000);
 }
 
@@ -47,7 +47,7 @@ export async function gravarPagina(o: OpcoesGravacao): Promise<ResultadoGravacao
   const v = o.pacote.variantes[o.variante];
   const pagina = v.paginas[o.indice];
   if (!pagina) throw new Error("Página inexistente.");
-  const animadas = pagina.camadas.filter((c) => c.tipo === "imagem" && c.animacao_id && o.videos[c.animacao_id]);
+  const animadas = pagina.camadas.filter((c): c is CamadaImagem => c.tipo === "imagem" && !!c.animacao_id && !!o.videos[c.animacao_id]);
   if (!animadas.length) throw new Error("Esta página não tem sticker animado.");
   const imgs = await carregarImagens(o.pacote);
   const host = document.createElement("div");
