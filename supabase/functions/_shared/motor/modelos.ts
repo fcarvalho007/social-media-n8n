@@ -137,7 +137,7 @@ export function comporModelo(p: Pagina, modelo: EstiloId, ctx: ContextoModelo): 
         }
       } else if (capa) {
         fundo = pal.fundoCapa;
-        const s = escolherTamanhos(q, conteudo, tT, tB, [128, 116, 104, 92], [44, 40, 38, 36], W, W - 240, 80, LIMITE - 360, m) ?? falhou();
+        const s = escolherTamanhos(q, conteudo, tT, tB, [128, 116, 104, 92, 84], [44, 40, 38, 36], W - 200, W - 240, 80, LIMITE - 360, m) ?? falhou();
         decor.push(ret("mod-painel-lateral", LARGURA - 200, 0, 200, ALTURA, pal.destaque, 1));
         if (s) {
           t = q.titulo && texto(q.titulo, X, 360, W - 200, s.hT, tT, s.tamT, "#ffffff");
