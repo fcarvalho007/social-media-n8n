@@ -16,8 +16,10 @@
 
 ## Design das peças (plano aprovado 08/10/2026)
 - [x] Etapa 1a: tipografia independente (Montserrat+Inter por defeito), 5 famílias de paleta, painel com Tipografia
-- [ ] Etapa 1b: funções de cor por elemento (papelCor) em vez de troca por hexadecimal; preferência por projeto no backend
-- [ ] Etapa 2: cinco direções (Impacto novo) e dez composições próprias; Minimalista/Contraste em "Estilos anteriores"
-- [ ] Etapa 3: ponto focal, ritmo pela narrativa, vista da sequência
-- [ ] Etapa 4: painel completo (alcance, comparação capa+interior+fecho, lista de páginas recompostas)
+- [x] Etapa 1b: funções de cor por elemento (papelCor) em vez de troca por hexadecimal; preferência por projeto no backend
+- [x] Etapa 2: cinco direções (Impacto novo) e dez composições próprias; Minimalista/Contraste em "Estilos anteriores"
+- [x] Etapa 3: ponto focal, ritmo pela narrativa, vista da sequência
+- [x] Etapa 4: painel completo (alcance, comparação capa+interior+fecho, lista de páginas recompostas)
 - [ ] Decisão do dono: DM Serif só tem peso normal
+- [ ] Por fazer: Didático «Cartões» como cartões reais, zonas próprias de story, comparação antes/depois e alcance por página/elemento no painel
+- [ ] Validação no ecrã com sessão iniciada (desktop e 375 px)
