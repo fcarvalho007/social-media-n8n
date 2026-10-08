@@ -8,6 +8,8 @@ import { usePendingContent } from "@/hooks/usePendingContent";
 import { useScheduledCounts } from "@/hooks/useScheduledCounts";
 import { useQuery } from "@tanstack/react-query";
 import { listarCustos } from "@/services/custos";
+import { taxaSucesso } from "@/lib/publicacao/taxaSucesso";
+import { supabase } from "@/integrations/supabase/client";
 import { eur as eurC, filtrar, FORNECEDORES, totais } from "@/features/custos/agregar";
 
 const eur = (v: number) => v.toLocaleString("pt-PT", { style: "currency", currency: "EUR" });
@@ -67,12 +69,27 @@ export function ConteudoBloco() {
     { r: "Agendados", n: scheduledCount, to: "/calendar" },
     { r: "Rascunhos", n: draftsCount, to: "/drafts" },
   ];
+  const { data: taxa } = useQuery({
+    queryKey: ["taxa-sucesso-30d"],
+    refetchOnWindowFocus: true,
+    queryFn: async () => {
+      const desde = new Date(Date.now() - 30 * 864e5).toISOString();
+      const { data, error } = await supabase.from("posts").select("selected_networks, external_post_ids, status").gte("created_at", desde);
+      if (error) throw error;
+      return taxaSucesso((data ?? []) as never);
+    },
+  });
   return (
     <section className="space-y-4 lg:col-span-12">
       <div className="flex flex-col justify-between gap-3 sm:flex-row sm:items-center">
         <div className="flex items-center gap-3">
           <h2 className="text-2xl font-bold">Conteúdo a tratar</h2>
           {!loading && <span className="rounded-full bg-muted px-2.5 py-1 text-xs font-bold">{totalCount}</span>}
+          {taxa && taxa.total > 0 && (
+            <span className="text-xs text-muted-foreground" title={taxa.redes.map((r) => `${r.rede}: ${r.sucesso} de ${r.total}`).join(" · ")}>
+              Publicações com sucesso (30 dias): <strong className="text-foreground">{taxa.sucesso} de {taxa.total} ({taxa.pct}%)</strong>
+            </span>
+          )}
         </div>
         <nav className="flex gap-1 rounded-2xl border bg-card p-1.5" aria-label="Conteúdo a tratar">
           {filtro.map((f, i) => (

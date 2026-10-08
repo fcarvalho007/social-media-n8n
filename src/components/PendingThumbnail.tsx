@@ -54,7 +54,7 @@ const getDateLabel = (type: string, createdAt: string, scheduledDate?: string | 
   if (Number.isNaN(date.getTime())) return type === 'draft' ? 'Guardado' : 'Criado';
 
   const prefix = type === 'scheduled' ? 'Agendado' : type === 'draft' ? 'Guardado' : 'Criado';
-  const pattern = type === 'scheduled' ? "d MMM, HH:mm" : 'd MMM';
+  const pattern = type === 'scheduled' ? "dd/MM/yyyy, HH:mm" : 'dd/MM/yyyy';
   return `${prefix} ${format(date, pattern, { locale: pt })}`;
 };
 
@@ -139,7 +139,7 @@ export function PendingThumbnail({
           </div>
         )}
 
-        <Badge className={`absolute left-1.5 top-1.5 h-5 border px-1.5 py-0 text-[10px] ${getTypeBadgeColor(type)}`}>
+        <Badge className={`absolute left-1.5 top-1.5 h-6 border px-2 py-0 text-xs font-semibold ${getTypeBadgeColor(type)}`}>
           {getTypeLabel(type)}
         </Badge>
 
@@ -159,9 +159,9 @@ export function PendingThumbnail({
         )}
       </div>
 
-      <div className="space-y-1 border-t border-border/60 p-2">
-        <p className="truncate text-[11px] font-medium text-muted-foreground">{dateLabel}</p>
-        <p className="line-clamp-2 min-h-[2rem] text-xs leading-4 text-foreground">{captionPreview}</p>
+      <div className="space-y-1 border-t border-border/60 p-3">
+        <p className="line-clamp-2 min-h-[2.5rem] text-sm font-bold leading-5 text-foreground">{captionPreview.split('\n')[0]}</p>
+        <p className="truncate text-[11px] font-medium text-muted-foreground">{getTypeLabel(type)} · {dateLabel}</p>
       </div>
     </div>
   );
