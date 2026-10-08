@@ -103,7 +103,19 @@ export function PainelImagemSlide({ decisao, comp, temImagem, ocupado, onMudar, 
               </select></div>
             <div className="space-y-2"><Label>Intensidade do overlay · {Math.round(int * 100)}%</Label>
               <Slider min={0} max={100} step={5} value={[Math.round(int * 100)]} disabled={ocupado} onValueChange={([v]) => setInt(v / 100)} onValueCommit={([v]) => mudar("intensidade", v / 100, "Intensidade alterada")} aria-label="Intensidade do overlay" /></div>
+            <div className="space-y-1"><Label className="text-xs text-muted-foreground">Ajuste da imagem</Label>
+              <div className="grid grid-cols-2 gap-1.5">
+                {([["preencher", "Preencher"], ["inteira", "Mostrar inteira"]] as const).map(([id, nome]) => (
+                  <Button key={id} type="button" size="sm" variant={(comp.ajuste ?? "preencher") === id ? "default" : "outline"} className="h-9 text-xs" disabled={ocupado} onClick={() => mudar("ajuste", id, nome === "Preencher" ? "Imagem a preencher" : "Imagem inteira")}>{nome}</Button>
+                ))}
+              </div></div>
             <div className="space-y-2"><Label>Enquadramento (ponto de foco)</Label>
+              <button type="button" disabled={ocupado} aria-label="Clicar para escolher o ponto de foco"
+                className="relative block aspect-[4/5] w-24 rounded-[var(--mc-r-sm)] border border-border bg-muted"
+                onClick={(e) => { const r = e.currentTarget.getBoundingClientRect(); const f = { x: Math.round(((e.clientX - r.left) / r.width) * 20) / 20, y: Math.round(((e.clientY - r.top) / r.height) * 20) / 20 }; setFoco(f); mudar("foco", f, "Ponto de foco escolhido"); }}>
+                <span className="pointer-events-none absolute h-3 w-3 -translate-x-1/2 -translate-y-1/2 rounded-full border-2 border-primary bg-background" style={{ left: `${foco.x * 100}%`, top: `${foco.y * 100}%` }} />
+              </button>
+              <p className="text-xs text-muted-foreground">Clica no ponto que deve ficar sempre visível.</p>
               <Slider min={0} max={100} step={5} value={[Math.round(foco.x * 100)]} disabled={ocupado} onValueChange={([v]) => setFoco((f) => ({ ...f, x: v / 100 }))} onValueCommit={([v]) => mudar("foco", { ...foco, x: v / 100 }, "Enquadramento alterado")} aria-label="Foco horizontal" />
               <Slider min={0} max={100} step={5} value={[Math.round(foco.y * 100)]} disabled={ocupado} onValueChange={([v]) => setFoco((f) => ({ ...f, y: v / 100 }))} onValueCommit={([v]) => mudar("foco", { ...foco, y: v / 100 }, "Enquadramento alterado")} aria-label="Foco vertical" />
               </div>
