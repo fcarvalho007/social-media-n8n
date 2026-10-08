@@ -3,8 +3,9 @@ import { Button } from "@/components/ui/button";
 import { Switch } from "@/components/ui/switch";
 import type { Medidor, PacoteProva, Variante } from "../../../supabase/functions/_shared/documento-grafico/nucleo";
 import { ESTILOS, type EstiloId } from "../../../supabase/functions/_shared/motor/estilos";
-import { aplicarSistema, NOMES_VARIANTE, PALETAS_ANTERIORES, PALETAS_PRINCIPAIS, PARES_PRINCIPAIS, quebrasPadrao, slidesQuebra, tipografiaDe, type PaletaId, type PaletaMarca, type SistemaVisual } from "../../../supabase/functions/_shared/motor/sistema";
+import { aplicarSistema, paginasComAjustes, quebrasSugeridas, NOMES_VARIANTE, PALETAS_ANTERIORES, PALETAS_PRINCIPAIS, PARES_PRINCIPAIS, quebrasPadrao, tipografiaDe, type PaletaId, type PaletaMarca, type SistemaVisual } from "../../../supabase/functions/_shared/motor/sistema";
 import { PaginaCanvas } from "./PaginaCanvas";
+import { VistaSequencia } from "./VistaSequencia";
 import { FICHEIROS_EXTRA } from "./fontes";
 import { FAMILIAS, type Familia } from "../../../supabase/functions/_shared/documento-grafico/nucleo";
 
@@ -43,12 +44,15 @@ export function PainelDirecaoVisual({ base, atual, emRascunho, medidor, imagens,
   useEffect(carregarAmostras, []);
   const [verAnteriores, setVerAnteriores] = useState(false);
   const [avancadas, setAvancadas] = useState(false);
+  const [estilosAnteriores, setEstilosAnteriores] = useState(!!atual && !!ESTILOS.find((e) => e.id === atual.estilo)?.anterior);
+  const ultima = Math.max(0, total - 1), interior = Math.min(1, ultima);
+  const ajustes = paginasComAjustes(base, s.variante);
   // Catalogue only (cover of this carousel per style); the confirmation is the real canvas.
   // Computed after paint so choosing never waits for the catalogue.
   const [catalogo, setCatalogo] = useState<Array<{ id: string; p: PacoteProva }>>([]);
   useEffect(() => {
     if (!medidor) return;
-    const t = setTimeout(() => setCatalogo(ESTILOS.map((e) => ({ id: e.id, p: aplicarSistema(base, { ...s, estilo: e.id }, medidor, [0], {}, { variantes: [s.variante] }).pacote }))), 50);
+    const t = setTimeout(() => setCatalogo(ESTILOS.map((e) => ({ id: e.id, p: aplicarSistema(base, { ...s, tipografia: tipo, estilo: e.id }, medidor, [...new Set([0, interior, ultima])], {}, { variantes: [s.variante] }).pacote }))), 50);
     return () => clearTimeout(t);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [base, medidor, s.paleta, s.variante, s.imagens, tipo.titulo, tipo.corpo]);
@@ -71,7 +75,8 @@ export function PainelDirecaoVisual({ base, atual, emRascunho, medidor, imagens,
       {emRascunho ? (
         <div className="sticky top-0 z-10 space-y-2 rounded-[var(--mc-r-md)] border border-primary bg-background p-3" role="status">
           <p className="font-medium">A experimentar no documento</p>
-          <p className="text-xs text-muted-foreground">O canvas e as miniaturas mostram o resultado real. Só fica guardado ao aplicar.</p>
+          <p className="text-xs text-muted-foreground">O canvas e as miniaturas mostram o resultado real. Só fica guardado ao aplicar; depois, «Desfazer» repõe o anterior.</p>
+          {ajustes > 0 && <p className="text-xs">{ajustes} página(s) têm ajustes manuais; cores postas à mão nunca são trocadas.</p>}
           <div className="flex gap-2">
             <Button className="h-11 flex-1" onClick={onAplicar}>Aplicar</Button>
             <Button variant="outline" className="h-11 flex-1" onClick={onCancelar}>Cancelar</Button>
@@ -80,9 +85,9 @@ export function PainelDirecaoVisual({ base, atual, emRascunho, medidor, imagens,
       ) : !atual && <p className="text-xs text-muted-foreground">Escolhe uma direção visual. Cada escolha muda logo os slides reais.</p>}
 
       <section className="space-y-2" aria-labelledby="dv-estilo">
-        <h3 id="dv-estilo" className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Estilo</h3>
+        <h3 id="dv-estilo" className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Composição</h3>
         <ul className="grid grid-cols-2 gap-2">
-          {ESTILOS.map((e) => {
+          {ESTILOS.filter((e) => !e.anterior || estilosAnteriores).map((e) => {
             const c = catalogo.find((x) => x.id === e.id);
             const ativo = !!atual && atual.estilo === e.id;
             return (
@@ -92,12 +97,27 @@ export function PainelDirecaoVisual({ base, atual, emRascunho, medidor, imagens,
                   <span className="pointer-events-none block overflow-hidden rounded-sm border border-border" aria-hidden>
                     {c && medidor ? <PaginaCanvas pacote={c.p} variante={s.variante} indice={0} medidor={medidor} imagens={imagens} escala={0.098} /> : <span className="block aspect-[4/5] bg-muted" />}
                   </span>
-                  <span className="mt-1 block text-xs font-medium">{e.nome}</span>
+                  <span className="mt-1 block text-xs font-medium">{e.nome}{e.anterior ? " · anterior" : ""}</span>
                 </button>
               </li>
             );
           })}
         </ul>
+        <button type="button" className="text-xs font-medium text-primary underline-offset-2 hover:underline" aria-expanded={estilosAnteriores} onClick={() => setEstilosAnteriores((v) => !v)}>
+          {estilosAnteriores ? "Ocultar estilos anteriores" : "Estilos anteriores (Minimalista, Contraste)"}
+        </button>
+        {medidor && catalogo.find((x) => x.id === s.estilo) && (
+          <div className="space-y-1">
+            <p className="text-xs text-muted-foreground">Capa, página interior e fecho com o conteúdo real:</p>
+            <div className="grid grid-cols-3 gap-1.5" aria-hidden>
+              {[...new Set([0, interior, ultima])].map((i) => (
+                <span key={i} className="block overflow-hidden rounded-sm border border-border">
+                  <PaginaCanvas pacote={catalogo.find((x) => x.id === s.estilo)!.p} variante={s.variante} indice={i} medidor={medidor} imagens={imagens} escala={0.064} />
+                </span>
+              ))}
+            </div>
+          </div>
+        )}
         <p className="text-xs text-muted-foreground">As miniaturas são um catálogo; o resultado é o que vês no canvas.</p>
       </section>
 
@@ -146,7 +166,7 @@ export function PainelDirecaoVisual({ base, atual, emRascunho, medidor, imagens,
       </section>
 
       <section className="space-y-2" aria-labelledby="dv-pal">
-        <h3 id="dv-pal" className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Paleta</h3>
+        <h3 id="dv-pal" className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Cores</h3>
         <ul className="space-y-1.5">{PALETAS_PRINCIPAIS.map(linhaPaleta)}</ul>
         <button type="button" className="text-xs font-medium text-primary underline-offset-2 hover:underline" aria-expanded={verAnteriores} onClick={() => setVerAnteriores((v) => !v)}>
           {verAnteriores ? "Ocultar paletas anteriores" : "Paletas anteriores (navy)"}
@@ -158,22 +178,28 @@ export function PainelDirecaoVisual({ base, atual, emRascunho, medidor, imagens,
       <section className="space-y-2" aria-labelledby="dv-ritmo">
         <h3 id="dv-ritmo" className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Ritmo</h3>
         <div className="grid grid-cols-2 gap-2">
-          <button type="button" aria-pressed={ritmo === "auto"} className={opcao(ritmo === "auto")} onClick={() => onExperimentar({ ...s, ritmo: "auto", quebras: quebrasPadrao(total) }, "ritmo")}>Automático</button>
-          <button type="button" aria-pressed={ritmo === "personalizado"} className={opcao(ritmo === "personalizado")} onClick={() => onExperimentar({ ...s, ritmo: "personalizado" }, "ritmo")}>Personalizado</button>
+          <button type="button" aria-pressed={ritmo === "auto"} className={opcao(ritmo === "auto")} onClick={() => onExperimentar({ ...s, tipografia: tipo, ritmo: "auto", quebras: quebrasPadrao(total) }, "ritmo")}>Automático</button>
+          <button type="button" aria-pressed={ritmo === "personalizado"} className={opcao(ritmo === "personalizado")} onClick={() => onExperimentar({ ...s, tipografia: tipo, ritmo: "personalizado" }, "ritmo")}>Personalizado</button>
         </div>
-        {ritmo === "personalizado" && slidesQuebra(total).map((n) => (
-          <label key={n} className="flex min-h-10 items-center justify-between gap-2">
-            <span>Quebra visual no slide {n}</span>
-            <Switch checked={!!s.quebras[String(n)]} onCheckedChange={(v) => onExperimentar({ ...s, quebras: { ...s.quebras, [String(n)]: v } }, "ritmo")} aria-label={`Quebra visual no slide ${n}`} />
-          </label>
-        ))}
+        {ritmo === "personalizado" && (
+          <>
+            <Button variant="outline" size="sm" className="h-9 w-full text-xs" onClick={() => onExperimentar({ ...s, tipografia: tipo, quebras: quebrasSugeridas(base) }, "ritmo")}>Sugerir pela narrativa</Button>
+            {Array.from({ length: Math.max(0, total - 1) }, (_, k) => k + 2).map((n) => (
+              <label key={n} className="flex min-h-10 items-center justify-between gap-2">
+                <span>Slide {n}: destaque ou transição</span>
+                <Switch checked={!!s.quebras[String(n)]} onCheckedChange={(v) => onExperimentar({ ...s, tipografia: tipo, quebras: { ...s.quebras, [String(n)]: v } }, "ritmo")} aria-label={`Destaque no slide ${n}`} />
+              </label>
+            ))}
+          </>
+        )}
+        <VistaSequencia pacote={base} variante={s.variante} />
       </section>
 
       <section className="space-y-2" aria-labelledby="dv-img">
         <h3 id="dv-img" className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Imagens</h3>
         <div className="grid grid-cols-2 gap-2">
-          <button type="button" aria-pressed={(s.imagens ?? "auto") === "auto"} className={opcao((s.imagens ?? "auto") === "auto")} onClick={() => onExperimentar({ ...s, imagens: "auto" }, "imagens")}>Automático</button>
-          <button type="button" aria-pressed={s.imagens === "manual"} className={opcao(s.imagens === "manual")} onClick={() => onExperimentar({ ...s, imagens: "manual" }, "imagens")}>Sem sugestão automática</button>
+          <button type="button" aria-pressed={(s.imagens ?? "auto") === "auto"} className={opcao((s.imagens ?? "auto") === "auto")} onClick={() => onExperimentar({ ...s, tipografia: tipo, imagens: "auto" }, "imagens")}>Automático</button>
+          <button type="button" aria-pressed={s.imagens === "manual"} className={opcao(s.imagens === "manual")} onClick={() => onExperimentar({ ...s, tipografia: tipo, imagens: "manual" }, "imagens")}>Sem sugestão automática</button>
         </div>
         <p className="text-xs text-muted-foreground">Sem sugestão automática, a imagem só muda nos slides em que a escolheres.</p>
       </section>
