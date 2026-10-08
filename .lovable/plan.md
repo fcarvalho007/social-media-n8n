@@ -13,6 +13,7 @@
 2. **Imagens concluídas nunca desaparecem:** guardar e recuperar também as tarefas concluídas deste slide (as duas mais recentes), ao abrir, fechar e reabrir. As imagens das 15:02 passam a aparecer sem novo pagamento.
 3. **Estados claros por direção:** «A gerar», «Disponível», «Falhou», «Resultado desconhecido», ou «Imagem pronta, mas não cabe nesta composição». «Rever custo e gerar» só aparece quando não existe nenhuma proposta para este slide; com propostas existentes, surge «Gerar novas (pago)» separado.
 4. **«Redesenhar» sempre abre:** reproduzir o erro, corrigir a causa real e garantir que um erro nas propostas IA mostra um aviso dentro da janela em vez de a bloquear.
+5. **Imagens já geradas neste carrossel:** nova secção na janela, «Imagens IA deste carrossel», com todas as imagens concluídas de qualquer slide (mais recentes primeiro, com data e slide de origem). Ao escolher uma, é encaixada nas duas direções (A e B) deste slide para pré-visualizar, sem custo. Nada é aplicado antes de «Aplicar esta versão». Nada é apagado.
 
 ## Validação
 
@@ -25,4 +26,5 @@
 - `PainelRedesenhar.tsx`: `layoutIA` depende de `redesenharPagina(..., incluirIA: true)`, que exclui IA quando `imagemInadequada(papel)`; passar a usar um construtor dedicado em `redesenhar.ts` (ex.: `esqueletosPropostaIA`) que ignora esse bloqueio só para a rota paga.
 - `consultar()` substitui `tarefas` por pendentes; manter lista completa com estado e derivar `resultados` dela; `recuperarPropostasImagemIA` / ação `mc-motor` devem devolver também concluídas (já usa `limit(2)` por `contexto_chave`).
 - Reprodução do segundo clique via Playwright com sessão; verificar consola/erros em `EditorGrafico` (estado `aberto` do painel).
+- Galeria: nova leitura em `mc-motor` das tarefas `mc_kie_tarefas` concluídas cujo `contexto_chave` começa pelo id do carrossel (só leitura, autorizada por `mc_pode_ler`), com miniaturas via `ler_assets`; seleção reutiliza `substituirImagemIA` nos esqueletos A/B.
 - Atualizar `mc-motor` e correr testes do motor, tipos e grafo Edge.
