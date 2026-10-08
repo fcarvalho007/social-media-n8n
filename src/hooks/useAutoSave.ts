@@ -144,7 +144,7 @@ export function useAutoSave(
           mediaUrls: parsed.mediaUrls || [],
           scheduledDate: parsed.scheduledDate,
           time: parsed.time,
-          scheduleAsap: parsed.scheduleAsap || false,
+          scheduleAsap: parsed.scheduleAsap ?? !(parsed.scheduledDate && new Date(parsed.scheduledDate) > new Date()),
           rawTranscription: parsed.rawTranscription || '',
           aiMetadata: parsed.aiMetadata || null,
         };

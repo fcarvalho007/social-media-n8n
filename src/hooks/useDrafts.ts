@@ -136,12 +136,14 @@ export function useDrafts(options: UseDraftsOptions = {}) {
 
   const deleteDraft = useMutation({
     mutationFn: async (id: string) => {
-      const { error } = await supabase
+      const { data, error } = await supabase
         .from('posts_drafts')
         .delete()
-        .eq('id', id);
+        .eq('id', id)
+        .select('id');
 
       if (error) throw error;
+      if (!data?.length) throw new Error('sem-permissao');
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['drafts'] });
@@ -151,18 +153,20 @@ export function useDrafts(options: UseDraftsOptions = {}) {
     },
     onError: (error) => {
       console.error('Error deleting draft:', error);
-      toast.error('Erro ao eliminar rascunho');
+      toast.error(error instanceof Error && error.message === 'sem-permissao' ? 'Não foi eliminado: esta conta não tem permissão para apagar rascunhos.' : 'Erro ao eliminar rascunho');
     },
   });
 
   const deleteManyDrafts = useMutation({
     mutationFn: async (ids: string[]) => {
-      const { error } = await supabase
+      const { data, error } = await supabase
         .from('posts_drafts')
         .delete()
-        .in('id', ids);
+        .in('id', ids)
+        .select('id');
 
       if (error) throw error;
+      if ((data?.length ?? 0) < ids.length) throw new Error('sem-permissao');
     },
     onSuccess: (_, ids) => {
       queryClient.invalidateQueries({ queryKey: ['drafts'] });
@@ -172,7 +176,7 @@ export function useDrafts(options: UseDraftsOptions = {}) {
     },
     onError: (error) => {
       console.error('Error deleting drafts:', error);
-      toast.error('Erro ao eliminar rascunhos');
+      toast.error(error instanceof Error && error.message === 'sem-permissao' ? 'Alguns rascunhos não foram eliminados: esta conta não tem permissão para os apagar.' : 'Erro ao eliminar rascunhos');
     },
   });
 

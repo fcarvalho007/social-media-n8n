@@ -618,7 +618,7 @@ export function usePublishOrchestrator(params: OrchestratorParams) {
         setMediaPreviewUrls([]);
         setScheduledDate(undefined);
         setTime('12:00');
-        setScheduleAsap(false);
+        setScheduleAsap(true);
       }
 
       setTimeout(() => onNavigateAfterSubmit(), 1500);

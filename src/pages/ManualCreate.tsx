@@ -874,7 +874,7 @@ export default function ManualCreate() {
     setMediaPreviewUrls([]);
     setScheduledDate(undefined);
     setTime('12:00');
-    setScheduleAsap(false);
+    setScheduleAsap(true);
     setCurrentDraftId(null);
     setSelectedFormats([]);
     setCurrentStep(1);
