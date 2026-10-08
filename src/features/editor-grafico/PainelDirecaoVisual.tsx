@@ -28,16 +28,27 @@ interface Props {
   emRascunho: boolean;
   medidor: Medidor | null;
   imagens: Record<string, HTMLImageElement>;
-  onExperimentar: (s: SistemaVisual, tipo: "estilo" | "variante" | "paleta" | "tipografia" | "ritmo" | "imagens") => void;
+  /** Document currently on the canvas (the draft when experimenting): "depois" in the comparison. */
+  proposta?: PacoteProva;
+  /** Active page (scope "Esta página" and before/after comparison). */
+  pagina?: number;
+  temSelecao?: boolean;
+  onExperimentar: (s: SistemaVisual, tipo: "estilo" | "variante" | "paleta" | "tipografia" | "ritmo" | "imagens", alcance?: AlcanceUI) => void;
   onAplicar: () => void;
   onCancelar: () => void;
 }
+
+export type AlcanceUI = "documento" | "pagina" | "elemento";
 
 const opcao = (ativo: boolean) =>
   `mc-trans flex min-h-11 w-full items-center gap-2 rounded-[var(--mc-r-md)] border px-3 text-left text-sm hover:border-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring ${ativo ? "border-primary ring-1 ring-primary" : "border-border"}`;
 
 /** "Direção visual": every choice is applied immediately to the real document on the canvas (as a draft). */
-export function PainelDirecaoVisual({ base, atual, emRascunho, medidor, imagens, onExperimentar, onAplicar, onCancelar }: Props) {
+export function PainelDirecaoVisual({ base, atual, emRascunho, medidor, imagens, proposta, pagina = 0, temSelecao = false, onExperimentar: experimentarTodos, onAplicar, onCancelar }: Props) {
+  const [alcance, setAlcance] = useState<AlcanceUI>("documento");
+  // Element scope only makes sense for typography and palette; other choices then apply to the page.
+  const onExperimentar = (n: SistemaVisual, t: Parameters<Props["onExperimentar"]>[1]) =>
+    experimentarTodos(n, t, alcance === "elemento" && t !== "paleta" && t !== "tipografia" ? "pagina" : alcance);
   const total = base.variantes.A.paginas.length;
   const s: SistemaVisual = atual ?? { estilo: "editorial", variante: "A", paleta: "azul", quebras: quebrasPadrao(total), ritmo: "auto", imagens: "auto", tipografia: { titulo: "montserrat", corpo: "inter" } };
   const tipo = tipografiaDe(s);
@@ -83,6 +94,35 @@ export function PainelDirecaoVisual({ base, atual, emRascunho, medidor, imagens,
           </div>
         </div>
       ) : !atual && <p className="text-xs text-muted-foreground">Escolhe uma direção visual. Cada escolha muda logo os slides reais.</p>}
+
+      <section className="space-y-1.5" aria-labelledby="dv-alcance">
+        <h3 id="dv-alcance" className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Alcance</h3>
+        <div className="grid grid-cols-3 gap-1.5" role="radiogroup" aria-labelledby="dv-alcance">
+          {([["documento", "Todo o carrossel"], ["pagina", `Esta página (${pagina + 1})`], ["elemento", "Elemento selecionado"]] as const).map(([v, nome]) => (
+            <button key={v} type="button" role="radio" aria-checked={alcance === v} disabled={emRascunho || (v === "elemento" && !temSelecao)}
+              className={`${opcao(alcance === v)} !min-h-10 justify-center !px-1.5 text-center text-xs disabled:opacity-50`} onClick={() => setAlcance(v)}>{nome}</button>
+          ))}
+        </div>
+        <p className="text-xs text-muted-foreground">
+          {alcance === "elemento" ? "Só a letra e as cores do elemento selecionado mudam; composição e ritmo aplicam-se a esta página." : alcance === "pagina" ? "As restantes páginas ficam exatamente como estão." : emRascunho ? "Para mudar o alcance, aplica ou cancela primeiro." : "Cada escolha aplica-se a todas as páginas."}
+        </p>
+      </section>
+
+      {emRascunho && proposta && medidor && (
+        <section className="space-y-1" aria-label="Comparação antes e depois">
+          <p className="text-xs text-muted-foreground">Página {pagina + 1}: antes e depois</p>
+          <div className="grid grid-cols-2 gap-1.5">
+            {([["Antes", base], ["Depois", proposta]] as const).map(([nome, pk]) => (
+              <figure key={nome} className="space-y-0.5">
+                <span className="block overflow-hidden rounded-sm border border-border" aria-hidden>
+                  <PaginaCanvas pacote={pk} variante={s.variante} indice={Math.min(pagina, pk.variantes[s.variante].paginas.length - 1)} medidor={medidor} imagens={imagens} escala={0.12} />
+                </span>
+                <figcaption className="text-xs font-medium">{nome}</figcaption>
+              </figure>
+            ))}
+          </div>
+        </section>
+      )}
 
       <section className="space-y-2" aria-labelledby="dv-estilo">
         <h3 id="dv-estilo" className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Composição</h3>
