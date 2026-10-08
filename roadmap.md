@@ -13,3 +13,11 @@
 - [x] Separar Giphy com GIFs, stickers e Clips (capa + animação)
 - [x] Expor opções reais de imagem IA, quantidade, custo e modo profissional
 - [x] Acrescentar a sexta composição IA com custo explícito e duas propostas sujeitas a aprovação
+
+## Design das peças (plano aprovado 08/10/2026)
+- [x] Etapa 1a: tipografia independente (Montserrat+Inter por defeito), 5 famílias de paleta, painel com Tipografia
+- [ ] Etapa 1b: funções de cor por elemento (papelCor) em vez de troca por hexadecimal; preferência por projeto no backend
+- [ ] Etapa 2: cinco direções (Impacto novo) e dez composições próprias; Minimalista/Contraste em "Estilos anteriores"
+- [ ] Etapa 3: ponto focal, ritmo pela narrativa, vista da sequência
+- [ ] Etapa 4: painel completo (alcance, comparação capa+interior+fecho, lista de páginas recompostas)
+- [ ] Decisão do dono: DM Serif só tem peso normal

@@ -189,6 +189,8 @@ export interface SistemaDocumento {
   quebras: Record<string, boolean>;
   ritmo?: "auto" | "personalizado";
   imagens?: "auto" | "manual";
+  /** Title/body families, independent from direction and palette (absent = legacy pair of the style). */
+  tipografia?: { titulo: Familia; corpo: Familia };
 }
 
 export type Variante = "A" | "B";

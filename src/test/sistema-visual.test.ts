@@ -3,7 +3,7 @@ import { describe, expect, it } from "vitest";
 import { parse } from "opentype.js";
 import { criarMedidor, transbordos, type FonteOT, type PacoteProva, type Pagina } from "../../supabase/functions/_shared/documento-grafico/nucleo";
 import { ESTILOS } from "../../supabase/functions/_shared/motor/estilos";
-import { aplicarSistema, PALETAS, quebrasPadrao, slidesQuebra, type SistemaVisual } from "../../supabase/functions/_shared/motor/sistema";
+import { aplicarSistema, PALETAS, PALETAS_PRINCIPAIS, quebrasPadrao, recolorir, sistemaPadrao, slidesQuebra, tipografiaDe, type SistemaVisual } from "../../supabase/functions/_shared/motor/sistema";
 import { consultarLeitura } from "../../supabase/functions/_shared/motor/leitura";
 
 const ab = (b: Buffer) => b.buffer.slice(b.byteOffset, b.byteOffset + b.byteLength) as ArrayBuffer;
@@ -64,5 +64,44 @@ describe("sistema visual", () => {
   it("avisa quando a capa tem mais do que uma frase curta", () => {
     const c = consultarLeitura([{ id: "s1", papel: "capa", titulo: "Visibilidade de IA", texto: "A análise mostra uma subida de tráfego direto. Isto levanta questões sobre o impacto real." }]);
     expect(c.some((x) => x.tipo === "capa_longa" && x.acao === "Capa: encurta para uma frase.")).toBe(true);
+  });
+});
+
+describe("tipografia e paleta independentes da direção", () => {
+  const familias = (p: Pagina) => p.camadas.filter((c) => c.tipo === "texto" && !!c.ref).map((c) => c.tipo === "texto" ? c.estilo.familia : "").join("|");
+  const cores = (p: Pagina) => [p.fundo, ...p.camadas.map((c) => (c.tipo === "imagem" ? "" : c.estilo.cor))].join("|");
+  it("conteúdo novo usa Montserrat + Inter em qualquer direção", () => {
+    expect(sistemaPadrao(8).tipografia).toEqual({ titulo: "montserrat", corpo: "inter" });
+    const r = aplicarSistema(pacote(), { ...sistemaPadrao(8), estilo: "editorial" }, m).pacote;
+    const t = r.variantes.A.paginas[1].camadas.find((c) => c.tipo === "texto" && c.ref?.endsWith(".titulo"));
+    expect(t?.tipo === "texto" && t.estilo.familia).toBe("montserrat");
+  });
+  it("trocar Editorial por Revista mantém fonte e paleta escolhidas", () => {
+    const tipografia = { titulo: "grotesk" as const, corpo: "inter" as const };
+    const a = aplicarSistema(pacote(), sis("editorial", { tipografia, paleta: "terracota" }), m).pacote;
+    const b = aplicarSistema(pacote(), sis("revista", { tipografia, paleta: "terracota" }), m).pacote;
+    expect(a.variantes.A.sistema?.tipografia).toEqual(tipografia);
+    expect(b.variantes.A.sistema).toMatchObject({ tipografia, paleta: "terracota" });
+    for (const p of b.variantes.A.paginas) for (const f of familias(p).split("|")) expect(["grotesk", "inter"]).toContain(f);
+  });
+  it("trocar a fonte mantém a paleta (cores iguais)", () => {
+    const a = aplicarSistema(pacote(), sis("editorial", { paleta: "salvia", tipografia: { titulo: "montserrat", corpo: "inter" } }), m).pacote;
+    const b = aplicarSistema(pacote(), sis("editorial", { paleta: "salvia", tipografia: { titulo: "plex", corpo: "plex" } }), m).pacote;
+    expect(b.variantes.A.paginas.map(cores)).toEqual(a.variantes.A.paginas.map(cores));
+    expect(familias(b.variantes.A.paginas[1])).not.toBe(familias(a.variantes.A.paginas[1]));
+  });
+  it("azul → vermelho mantém fontes e posições", () => {
+    const tipografia = { titulo: "montserrat" as const, corpo: "inter" as const };
+    const a = aplicarSistema(pacote(), sis("editorial", { paleta: "azul", tipografia }), m).pacote;
+    const b = recolorir(a, "azul", "terracota");
+    expect(b.variantes.A.paginas.map(geo)).toEqual(a.variantes.A.paginas.map(geo));
+    expect(b.variantes.A.paginas.map(familias)).toEqual(a.variantes.A.paginas.map(familias));
+    expect(b.variantes.A.paginas[1].fundo).not.toBe(a.variantes.A.paginas[1].fundo);
+  });
+  it("documentos antigos sem tipografia mantêm o par do estilo", () => {
+    expect(tipografiaDe({ estilo: "editorial" })).toEqual({ titulo: "playfair", corpo: "sourcesans" });
+  });
+  it("as cinco famílias de paleta têm fundos fortes distintos", () => {
+    expect(new Set(PALETAS_PRINCIPAIS.map((p) => p.cores.fundoCapa)).size).toBe(5);
   });
 });

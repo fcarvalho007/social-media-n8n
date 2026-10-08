@@ -73,7 +73,7 @@ function escolherTamanhos(q: Partes, conteudo: ConteudoEditorial, tT: Tipo, tB: 
 const texto = (c: CamadaTexto, x: number, y: number, w: number, h: number, t: Tipo, tam: number, cor: string, alinh: CamadaTexto["estilo"]["alinh"] = "esq", z = 20, capitular?: boolean): CamadaTexto =>
   ({ ...c, x: Math.round(x), y: Math.round(y), w: Math.round(w), h: Math.max(1, Math.ceil(h) + 4), z, estilo: { ...c.estilo, familia: t.familia, peso: t.peso, linha: t.linha, tam, tamMin: tam, cor, alinh, overflow: "cortar", maxLinhas: undefined, capitular: capitular || undefined } });
 
-export interface ContextoModelo { altura?: number; unica?: boolean; indice: number; total: number; paleta: Paleta; par: string; conteudo: ConteudoEditorial; assets: PacoteProva["assets"]; m?: Medidor; /** Break slide: composed with the strong (cover-like) treatment. */ forte?: boolean }
+export interface ContextoModelo { altura?: number; unica?: boolean; indice: number; total: number; paleta: Paleta; par: string; /** Explicit typography; wins over `par`. */ tipografia?: { titulo: Familia; corpo: Familia }; conteudo: ConteudoEditorial; assets: PacoteProva["assets"]; m?: Medidor; /** Break slide: composed with the strong (cover-like) treatment. */ forte?: boolean }
 export interface ResultadoModelo { pagina: Pagina; cabe: boolean; /** Page shows the explicit "Imagem por escolher" placeholder. */ marcador: boolean }
 
 /** Composes ONE page in a model. Returns null when the page has no editorial text (manual-only page). */
@@ -83,7 +83,7 @@ export function comporModelo(p: Pagina, modelo: EstiloId, ctx: ContextoModelo): 
   const q = partes(p);
   if (!q.titulo && !q.corpo) return null;
   const { indice, total, paleta: pal, conteudo, m } = ctx;
-  const par = PARES_FONTES.find((x) => x.id === ctx.par) ?? PARES_FONTES[0];
+  const par = ctx.tipografia ?? PARES_FONTES.find((x) => x.id === ctx.par) ?? PARES_FONTES[0];
   const capa = indice === 0 || !!ctx.forte;
   const decor: Camada[] = [];
   let fundo = capa ? pal.fundoCapa : pal.fundo;
@@ -151,7 +151,7 @@ export function comporModelo(p: Pagina, modelo: EstiloId, ctx: ContextoModelo): 
     }
     case "revista": {
       // Black title, dramatic scale; a decorative circle may bleed off the page, text never does.
-      const tT = tTit(900, 0.98, "montserrat"), tB = tCorpo(1.4);
+      const tT = tTit(900, 0.98), tB = tCorpo(1.4);
       const X = 80, W = LARGURA - 2 * X;
       const img = imagens.find((i) => i.id !== "mod-foto");
       let y0 = capa ? 430 : 380;

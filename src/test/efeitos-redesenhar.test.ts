@@ -44,7 +44,7 @@ describe("efeitos como tokens do estilo", () => {
   });
   it("paleta muda só cores dos efeitos, nunca geometria ou intensidade", () => {
     const a = aplicarSistema(pacote(false), sis("contraste"), m).pacote;
-    const b = recolorir(a, "navy-editorial", "navy-signal");
+    const b = recolorir(a, a.variantes.A.sistema!.paleta as "azul", "navy-signal");
     const ga = fx(a.variantes.A.paginas[1]), gb = fx(b.variantes.A.paginas[1]);
     expect(gb.map((c) => [c.id, c.x, c.y, c.w, c.h, c.opacidade, c.tipo === "forma" ? c.estilo.intensidade : 0])).toEqual(ga.map((c) => [c.id, c.x, c.y, c.w, c.h, c.opacidade, c.tipo === "forma" ? c.estilo.intensidade : 0]));
     const glowA = ga.find((c) => c.id === "fx-glow"), glowB = gb.find((c) => c.id === "fx-glow");

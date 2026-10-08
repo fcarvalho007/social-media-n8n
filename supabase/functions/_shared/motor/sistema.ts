@@ -1,13 +1,13 @@
 // Visual system = Style (layout/typography) + Variant (A/B composition of that style) + Palette (colours only).
 // Pure and shared: Design previews, Composition and tests call the SAME aplicarSistema, so preview = result.
 // Text is never changed; a page that does not fit keeps its normal composition (break) or stays as it was.
-import { ALTURA, LARGURA, layoutTexto, resolverTexto, type Camada, type CamadaTexto, type ConteudoEditorial, type Medidor, type PacoteProva, type Pagina, type Variante } from "../documento-grafico/nucleo.ts";
+import { ALTURA, PARES_FONTES, type Familia, LARGURA, layoutTexto, resolverTexto, type Camada, type CamadaTexto, type ConteudoEditorial, type Medidor, type PacoteProva, type Pagina, type Variante } from "../documento-grafico/nucleo.ts";
 import { ESTILOS, type EstiloId, type Paleta } from "./estilos.ts";
 import { comporModelo } from "./modelos.ts";
 import { aplicarEfeitos, type OverrideEfeitos } from "./efeitos.ts";
 import { chaveComposicao, comporImagem, inferirPapel, PAPEIS, type ComposicaoImagem, type ComposicoesImagem, type DecisaoImagem, type PapelVisual } from "./imagem.ts";
 
-export type PaletaId = "navy-editorial" | "navy-digital" | "navy-signal" | "navy-sage" | "navy-ice";
+export type PaletaId = "navy-editorial" | "navy-digital" | "navy-signal" | "navy-sage" | "navy-ice" | "azul" | "terracota" | "salvia" | "grafite" | "violeta";
 export interface PaletaMarca { id: PaletaId; nome: string; sensacao: string; amostras: [string, string, string, string, string]; cores: Paleta }
 /** Technical colours available to the engine, not presented as part of the palettes. */
 export const BRANCO = "#FFFFFF", PRETO = "#111111";
@@ -15,18 +15,41 @@ export const BRANCO = "#FFFFFF", PRETO = "#111111";
 const pal = (navy: string, fundo: string, acento: string, grafite = "#20252B"): Paleta =>
   ({ fundo, fundoCapa: navy, titulo: navy, texto: grafite, destaque: acento, discreto: "#5F6B76" });
 
-export const PALETAS: readonly PaletaMarca[] = [
+const fam = (fundoCapa: string, fundo: string, titulo: string, texto: string, destaque: string, discreto: string): Paleta => ({ fundo, fundoCapa, titulo, texto, destaque, discreto });
+/** Five main colour families with distinct identities (strong background, light background, title, body, accent, secondary). */
+export const PALETAS_PRINCIPAIS: readonly PaletaMarca[] = [
+  { id: "azul", nome: "Azul / Navy", sensacao: "Confiança / análise", amostras: ["#0E2A47", "#F3F6FA", "#0E2A47", "#2F7DD1", "#5B6B7C"], cores: fam("#0E2A47", "#F3F6FA", "#0E2A47", "#1F2933", "#2F7DD1", "#5B6B7C") },
+  { id: "terracota", nome: "Vermelho / Terracota", sensacao: "Energia / opinião", amostras: ["#7A2418", "#FAF3EE", "#3A1A14", "#C2452D", "#7A6158"], cores: fam("#7A2418", "#FAF3EE", "#3A1A14", "#2E211D", "#C2452D", "#7A6158") },
+  { id: "salvia", nome: "Verde / Sálvia", sensacao: "Calma / sustentável", amostras: ["#23392D", "#F2F5F0", "#1E3226", "#5E8A6E", "#5F6D63"], cores: fam("#23392D", "#F2F5F0", "#1E3226", "#26302A", "#5E8A6E", "#5F6D63") },
+  { id: "grafite", nome: "Neutra / Grafite", sensacao: "Sóbria / intemporal", amostras: ["#1E2124", "#F5F5F3", "#16181A", "#8A6E3B", "#6B6F73"], cores: fam("#1E2124", "#F5F5F3", "#16181A", "#2A2D30", "#8A6E3B", "#6B6F73") },
+  { id: "violeta", nome: "Violeta", sensacao: "Criativa / inovação", amostras: ["#2E1F5E", "#F5F3FA", "#241848", "#7A52D1", "#6A6380"], cores: fam("#2E1F5E", "#F5F3FA", "#241848", "#2A2535", "#7A52D1", "#6A6380") },
+];
+/** Previous navy palettes: still available and used by existing documents. */
+export const PALETAS_ANTERIORES: readonly PaletaMarca[] = [
   { id: "navy-editorial", nome: "Navy Editorial", sensacao: "Autoridade / premium", amostras: ["#0B1F33", "#F4F1EA", "#20252B", "#89939B", "#C6A15B"], cores: pal("#0B1F33", "#F4F1EA", "#C6A15B") },
   { id: "navy-digital", nome: "Navy Digital", sensacao: "Tecnologia / IA", amostras: ["#0B1F33", "#F5F8FB", "#3578E5", "#B8D4F0", "#20252B"], cores: pal("#0B1F33", "#F5F8FB", "#3578E5") },
   { id: "navy-signal", nome: "Navy Signal", sensacao: "Conteúdo forte / opinião", amostras: ["#0B1F33", "#F5F2ED", "#E4573D", "#D9D2C8", "#20252B"], cores: pal("#0B1F33", "#F5F2ED", "#E4573D") },
   { id: "navy-sage", nome: "Navy Sage", sensacao: "Sofisticação / calma", amostras: ["#0B1F33", "#F1F3EF", "#708779", "#C8D0C8", "#20252B"], cores: pal("#0B1F33", "#F1F3EF", "#708779") },
   { id: "navy-ice", nome: "Navy Ice", sensacao: "Dados / investigação", amostras: ["#10283F", "#EEF3F6", "#6FA6B8", "#AAB8C2", "#20252B"], cores: pal("#10283F", "#EEF3F6", "#6FA6B8") },
 ];
-export const obterPaleta = (id: unknown) => PALETAS.find((p) => p.id === id) ?? PALETAS[0];
+export const PALETAS: readonly PaletaMarca[] = [...PALETAS_PRINCIPAIS, ...PALETAS_ANTERIORES];
+export const obterPaleta = (id: unknown) => PALETAS.find((p) => p.id === id) ?? PALETAS_ANTERIORES[0];
 
 /** Slide number (1-based) → break on/off. */
 export type Quebras = Record<string, boolean>;
-export interface SistemaVisual { estilo: EstiloId; variante: Variante; paleta: PaletaId; quebras: Quebras; ritmo?: "auto" | "personalizado"; imagens?: "auto" | "manual" }
+export interface Tipografia { titulo: Familia; corpo: Familia }
+export interface SistemaVisual { estilo: EstiloId; variante: Variante; paleta: PaletaId; quebras: Quebras; ritmo?: "auto" | "personalizado"; imagens?: "auto" | "manual"; tipografia?: Tipografia }
+/** Default typography for new content, whatever the direction. */
+export const TIPOGRAFIA_PADRAO: Tipografia = { titulo: "montserrat", corpo: "inter" };
+/** Five main typographic pairs (Work Sans stays only for legacy documents). */
+export const PARES_PRINCIPAIS = PARES_FONTES.filter((p) => p.id !== "worksans");
+/** Typography in effect: explicit choice, else the legacy pair of the style (old documents look the same). */
+export function tipografiaDe(s: Pick<SistemaVisual, "estilo" | "tipografia">): Tipografia {
+  if (s.tipografia) return s.tipografia;
+  const par = PARES_FONTES.find((p) => p.id === ESTILOS.find((e) => e.id === s.estilo)?.par) ?? PARES_FONTES[0];
+  return { titulo: par.titulo, corpo: par.corpo };
+}
+export const idPar = (t: Tipografia) => PARES_FONTES.find((p) => p.titulo === t.titulo && p.corpo === t.corpo)?.id ?? null;
 
 /** Human names of the two compositions of each style (internally documents A and B). */
 export const NOMES_VARIANTE: Record<EstiloId, Record<Variante, string>> = {
@@ -43,7 +66,7 @@ export const nomeVariante = (estilo: string | undefined, v: Variante) => NOMES_V
 export function sistemaDoPacote(p: PacoteProva): SistemaVisual | null {
   const s = p.variantes.A.sistema ?? p.variantes.B.sistema;
   if (!s || !ESTILOS.some((e) => e.id === s.estilo)) return null;
-  return { estilo: s.estilo as EstiloId, variante: s.variante, paleta: obterPaleta(s.paleta).id, quebras: s.quebras ?? {}, ritmo: s.ritmo, imagens: s.imagens };
+  return { estilo: s.estilo as EstiloId, variante: s.variante, paleta: obterPaleta(s.paleta).id, quebras: s.quebras ?? {}, ritmo: s.ritmo, imagens: s.imagens, ...(s.tipografia ? { tipografia: s.tipografia } : {}) };
 }
 const comSistema = (p: PacoteProva, s: SistemaVisual): PacoteProva =>
   ({ ...p, variantes: { A: { ...p.variantes.A, sistema: { ...s } }, B: { ...p.variantes.B, sistema: { ...s } } } });
@@ -83,7 +106,7 @@ export function quebrasPadrao(total: number): Quebras {
 export const slidesQuebra = (total: number) => Object.keys(quebrasPadrao(total)).map(Number).sort((a, b) => a - b);
 
 export const sistemaPadrao = (total: number, estilo: EstiloId = "editorial"): SistemaVisual =>
-  ({ estilo, variante: "A", paleta: "navy-editorial", quebras: quebrasPadrao(total) });
+  ({ estilo, variante: "A", paleta: "azul", quebras: quebrasPadrao(total), tipografia: { ...TIPOGRAFIA_PADRAO } });
 
 const texto = (c: Camada) => c.tipo === "texto" && !!c.ref;
 const LIMITE_B = 1210;
@@ -218,7 +241,7 @@ export function aplicarSistema(pacote: PacoteProva, s: SistemaVisual, m?: Medido
         } else camadas = camadas.map((c) => (c.manual ? (({ manual: _m, ...x }) => x as Camada)(c) : c));
         return { ...r, camadas, ...(papel ? { papel } : {}), ...(comp && Object.keys(comp).length ? { composicao: { ...comp } as Record<string, unknown> } : {}) };
       };
-      const ctx = { altura: doc.altura, unica: (doc.formato ?? "carrossel") !== "carrossel", indice: i, total, paleta, par: estilo.par, conteudo: pacote.conteudo, assets: pacote.assets, m, adotarLivres: !!op.adotarLivres };
+      const ctx = { altura: doc.altura, unica: (doc.formato ?? "carrossel") !== "carrossel", indice: i, total, paleta, par: estilo.par, tipografia: tipografiaDe(s), conteudo: pacote.conteudo, assets: pacote.assets, m, adotarLivres: !!op.adotarLivres };
       const forte = i > 0 && !!s.quebras[String(i + 1)];
       let r = comporModelo(pg, s.estilo, { ...ctx, forte });
       if (forte && r && !r.cabe) { quebrasRecusadas.push({ variante: v, pagina: i }); r = comporModelo(pg, s.estilo, ctx); }

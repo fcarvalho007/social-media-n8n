@@ -25,3 +25,4 @@
 - Brands are rows in projects (owner-scoped RLS) with optional logo_url in the owner public covers folder; logos are never auto-placed on slides.
 - AI costs are read only through custos_registos() (staff RPC unioning nl_ia_uso, mc_chamadas_ia, mc_kie_tarefas, ai_usage_log and the append-only custos_ia); every row carries custo_origem and unknown costs never enter totals.
 - Animated media uses one verified still + immutable MP4 pair; GIPHY types share it. Paid AI images are server-tracked and never auto-applied.
+- Visual system keeps direction, typography (sistema.tipografia) and palette as independent choices; absent tipografia falls back to the style's legacy pair so old documents render unchanged.
