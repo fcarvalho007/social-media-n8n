@@ -53,12 +53,13 @@ export const idPar = (t: Tipografia) => PARES_FONTES.find((p) => p.titulo === t.
 
 /** Human names of the two compositions of each style (internally documents A and B). */
 export const NOMES_VARIANTE: Record<EstiloId, Record<Variante, string>> = {
-  editorial: { A: "Clássico", B: "Contemporâneo" },
+  editorial: { A: "Coluna clássica", B: "Editorial assimétrico" },
+  impacto: { A: "Painéis geométricos", B: "Tipografia expressiva" },
   contraste: { A: "Geométrico", B: "Radical" },
-  revista: { A: "Capa", B: "Tipográfico" },
-  fotografico: { A: "Cinematográfico", B: "Glass" },
+  revista: { A: "Fotografia dominante", B: "Manchete dominante" },
+  fotografico: { A: "Imagem integral", B: "Painel translúcido" },
   minimalista: { A: "Suíço", B: "Airy" },
-  didatico: { A: "Steps", B: "Cards" },
+  didatico: { A: "Passos", B: "Cartões" },
 };
 export const nomeVariante = (estilo: string | undefined, v: Variante) => NOMES_VARIANTE[(estilo ?? "editorial") as EstiloId]?.[v] ?? (v === "A" ? "Variante 1" : "Variante 2");
 

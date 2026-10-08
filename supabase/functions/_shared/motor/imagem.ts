@@ -74,16 +74,16 @@ export function inferirPapel(s: { titulo: string; texto: string }, indice: numbe
 type Linha = Record<EstiloId, ModoImagem>;
 /** Role × style matrix used when an image is available (see plan). Without image → "none". */
 export const MATRIZ: Record<PapelVisual, Linha> = {
-  cover:        { editorial: "full_bleed", contraste: "split",     revista: "full_bleed", fotografico: "full_bleed", minimalista: "contained", didatico: "hero" },
-  standard:     { editorial: "contained",  contraste: "split",     revista: "hero",       fotografico: "background", minimalista: "contained", didatico: "contained" },
-  visual_story: { editorial: "hero",       contraste: "split",     revista: "full_bleed", fotografico: "full_bleed", minimalista: "hero",      didatico: "hero" },
-  data:         { editorial: "none",       contraste: "none",      revista: "none",       fotografico: "background", minimalista: "none",      didatico: "none" },
-  concept:      { editorial: "none",       contraste: "none",      revista: "none",       fotografico: "background", minimalista: "none",      didatico: "none" },
-  comparison:   { editorial: "none",       contraste: "none",      revista: "none",       fotografico: "split",      minimalista: "none",      didatico: "none" },
-  case_study:   { editorial: "hero",       contraste: "split",     revista: "hero",       fotografico: "full_bleed", minimalista: "contained", didatico: "hero" },
-  transition:   { editorial: "none",       contraste: "none",      revista: "full_bleed", fotografico: "full_bleed", minimalista: "none",      didatico: "none" },
-  actions:      { editorial: "none",       contraste: "none",      revista: "none",       fotografico: "none",       minimalista: "none",      didatico: "none" },
-  conclusion:   { editorial: "contained",  contraste: "none",      revista: "full_bleed", fotografico: "full_bleed", minimalista: "none",      didatico: "none" },
+  cover:        { editorial: "full_bleed", impacto: "split", contraste: "split",     revista: "full_bleed", fotografico: "full_bleed", minimalista: "contained", didatico: "hero" },
+  standard:     { editorial: "contained",  impacto: "split", contraste: "split",     revista: "hero",       fotografico: "background", minimalista: "contained", didatico: "contained" },
+  visual_story: { editorial: "hero",       impacto: "split", contraste: "split",     revista: "full_bleed", fotografico: "full_bleed", minimalista: "hero",      didatico: "hero" },
+  data:         { editorial: "none",       impacto: "none", contraste: "none",      revista: "none",       fotografico: "background", minimalista: "none",      didatico: "none" },
+  concept:      { editorial: "none",       impacto: "none", contraste: "none",      revista: "none",       fotografico: "background", minimalista: "none",      didatico: "none" },
+  comparison:   { editorial: "none",       impacto: "none", contraste: "none",      revista: "none",       fotografico: "split",      minimalista: "none",      didatico: "none" },
+  case_study:   { editorial: "hero",       impacto: "split", contraste: "split",     revista: "hero",       fotografico: "full_bleed", minimalista: "contained", didatico: "hero" },
+  transition:   { editorial: "none",       impacto: "none", contraste: "none",      revista: "full_bleed", fotografico: "full_bleed", minimalista: "none",      didatico: "none" },
+  actions:      { editorial: "none",       impacto: "none", contraste: "none",      revista: "none",       fotografico: "none",       minimalista: "none",      didatico: "none" },
+  conclusion:   { editorial: "contained",  impacto: "none", contraste: "none",      revista: "full_bleed", fotografico: "full_bleed", minimalista: "none",      didatico: "none" },
 };
 
 const regiaoPadrao = (modo: ModoImagem, v: Variante): RegiaoTexto =>
