@@ -921,7 +921,8 @@ export function EditorGrafico({ pacoteInicial, chaveLocal, titulo, seletor, real
   };
   const propriedades = medidor && paginaAtual && (
     <PainelPropriedades pacote={pacote} camada={camada} fundo={paginaAtual.fundo} medidor={medidor} despachar={despachar} camadasPagina={paginaAtual.camadas} onImagem={onImagem}
-      onFundoTodos={!camada ? fundoTodos : undefined} onSubstituirImagem={camada?.tipo === "imagem" ? () => abrirSubstituicao(camada.id) : undefined} />
+      onFundoTodos={!camada ? fundoTodos : undefined} onSubstituirImagem={camada?.tipo === "imagem" ? () => abrirSubstituicao(camada.id) : undefined}
+      reproduzir={reproduzir} aCarregarAnimacao={reproduzirACarregar} onReproduzir={() => void alternarReproducao()} />
   );
 
   const alterarSel = (patch: Partial<Camada>, agrupar?: string) => camada && despachar({ tipo: "camada", id: camada.id, patch, agrupar });
