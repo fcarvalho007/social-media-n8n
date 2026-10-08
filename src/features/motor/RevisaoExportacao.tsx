@@ -60,6 +60,10 @@ export function RevisaoExportacao({ dados, pacote, medidor, guardado, irPara }: 
   const [gravados, setGravados] = useState<Record<number, string>>({});
   const mp4Existentes = useMemo(() => new Map((estado?.ficheiros ?? []).filter((f) => f.formato === "mp4" && f.pagina != null).map((f) => [f.pagina as number, f.url])), [estado]);
   const mp4Faltam = useMemo(() => paginasAnimadas.filter((p) => !mp4Existentes.has(p + 1) && !gravados[p + 1]), [paginasAnimadas, mp4Existentes, gravados]);
+  const ler = useCallback(async () => {
+    if (!doc) return;
+    try { setEstado(await lerExportacao(doc.id, doc.versao)); } catch (e) { toast.error((e as Error).message); }
+  }, [doc]);
   /** Records and uploads the missing slide videos here in the browser; a failure never blocks the draft (it falls back to the PNG). */
   const gravarVideos = useCallback(async (lista: number[] = mp4Faltam) => {
     if (!medidor || !doc || !lista.length) return;
