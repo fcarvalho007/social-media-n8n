@@ -480,9 +480,9 @@ Deno.serve(async (req) => {
       if (!contextoChave) return json({ error: "Contexto da proposta em falta." }, 400);
       const pedidos: Array<{ tipo: "editavel" | "final"; tarefa: string; estado: string }> = [];
       for (const tipo of ["editavel", "final"] as const) {
-        const r = await criarTarefaKie(admin(), { projectId, userId: u.user.id, prompt: tipo === "editavel" ? prompts.apoio : prompts.final, opcaoId: "kie-seedream-fast", proporcao, tamanho: "2K", profissional: true, permitirTexto: tipo === "final", contextoChave, propostaTipo: tipo });
+        const r = await criarTarefaKie(admin(), { projectId, userId: u.user.id, prompt: tipo === "editavel" ? prompts.direcaoA : prompts.direcaoB, opcaoId: "kie-seedream-fast", proporcao, tamanho: "2K", profissional: true, permitirTexto: false, contextoChave, propostaTipo: tipo });
         const corpo = r.corpo as { tarefa?: string; estado?: string; error?: string };
-        if (r.status !== 200 || !corpo.tarefa) return pedidos.length ? json({ ok: true, tarefas: pedidos, aviso: "A segunda proposta falhou antes de ficar disponível. A proposta concluída mantém-se." }) : json(r.corpo, r.status);
+        if (r.status !== 200 || !corpo.tarefa) return pedidos.length ? json({ ok: true, tarefas: pedidos, falha: { tipo, motivo: corpo.error ?? "A proposta não pôde ser iniciada." } }) : json(r.corpo, r.status);
         pedidos.push({ tipo, tarefa: corpo.tarefa, estado: corpo.estado ?? "criada" });
       }
       return json({ ok: true, tarefas: pedidos });

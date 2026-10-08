@@ -105,6 +105,38 @@ const EXPLORAR: Array<{ estilo: EstiloId; label: string }> = [
   { estilo: "didatico", label: "Aproxima-se de Didático" }, { estilo: "editorial", label: "Abordagem Editorial" },
 ];
 
+const APTIDAO: Record<PapelVisual, Partial<Record<EstrategiaRedesign, number>>> = {
+  cover: { TYPOGRAPHY_LED: 9, PHOTO_HERO: 10, FULL_BLEED: 9, EDITORIAL_SPLIT: 5, MINIMAL: 7, CALLOUT: 6, CONTAINED: 5, OVERLAP: 6 },
+  standard: { TYPOGRAPHY_LED: 8, EDITORIAL_SPLIT: 8, CONTAINED: 7, MINIMAL: 8, CALLOUT: 6, PHOTO_HERO: 4, FULL_BLEED: 3, OVERLAP: 3 },
+  visual_story: { PHOTO_HERO: 10, FULL_BLEED: 9, EDITORIAL_SPLIT: 8, TYPOGRAPHY_LED: 7, CONTAINED: 6, MINIMAL: 5, OVERLAP: 7 },
+  data: { TYPOGRAPHY_LED: 9, CALLOUT: 10, MINIMAL: 8, CONTAINED: 2, EDITORIAL_SPLIT: 1, PHOTO_HERO: 0, FULL_BLEED: 0, OVERLAP: 0 },
+  concept: { TYPOGRAPHY_LED: 10, MINIMAL: 9, CALLOUT: 8, EDITORIAL_SPLIT: 6, CONTAINED: 6, PHOTO_HERO: 4, FULL_BLEED: 5, OVERLAP: 4 },
+  comparison: { EDITORIAL_SPLIT: 10, TYPOGRAPHY_LED: 8, CALLOUT: 8, MINIMAL: 6, CONTAINED: 4, PHOTO_HERO: 0, FULL_BLEED: 0, OVERLAP: 0 },
+  case_study: { PHOTO_HERO: 10, EDITORIAL_SPLIT: 9, CONTAINED: 8, FULL_BLEED: 7, TYPOGRAPHY_LED: 6, MINIMAL: 5, OVERLAP: 6 },
+  transition: { TYPOGRAPHY_LED: 10, MINIMAL: 9, CALLOUT: 7, FULL_BLEED: 6, CONTAINED: 5, EDITORIAL_SPLIT: 4, PHOTO_HERO: 4, OVERLAP: 4 },
+  actions: { CALLOUT: 10, TYPOGRAPHY_LED: 9, MINIMAL: 8, EDITORIAL_SPLIT: 4, CONTAINED: 3, PHOTO_HERO: 0, FULL_BLEED: 0, OVERLAP: 0 },
+  conclusion: { MINIMAL: 10, TYPOGRAPHY_LED: 9, CONTAINED: 8, FULL_BLEED: 7, CALLOUT: 6, EDITORIAL_SPLIT: 4, PHOTO_HERO: 5, OVERLAP: 4 },
+};
+
+function ordenarReceitas(receitas: Receita[], papel: PapelVisual, ronda: number): Receita[] {
+  return receitas.map((receita, indice) => ({ receita, indice, nota: APTIDAO[papel][receita.strategy] ?? 3 }))
+    .sort((a, b) => b.nota - a.nota || ((a.indice - ronda) % receitas.length + receitas.length) % receitas.length - ((b.indice - ronda) % receitas.length + receitas.length) % receitas.length)
+    .map((x) => x.receita);
+}
+
+function razaoEditorial(orig: Pagina, conteudo: ConteudoEditorial, papel: PapelVisual, rc: Receita): string {
+  const blocos = orig.camadas.filter((c) => c.tipo === "texto").map((c) => resolverTexto(c, conteudo).trim()).filter(Boolean);
+  const palavras = blocos.join(" ").match(/[\p{L}\p{N}][\p{L}\p{N}'’-]*/gu)?.length ?? 0;
+  const estrutura = blocos.length >= 3 ? `${blocos.length} blocos de leitura` : palavras <= 28 ? "texto curto" : palavras <= 55 ? "texto de densidade média" : "texto denso";
+  const papelNome: Record<PapelVisual, string> = { cover: "capa", standard: "argumento", visual_story: "história visual", data: "dado", concept: "conceito", comparison: "comparação", case_study: "caso prático", transition: "transição", actions: "ações", conclusion: "conclusão" };
+  const efeito: Partial<Record<EstrategiaRedesign, string>> = {
+    TYPOGRAPHY_LED: "a hierarquia do texto conduz a leitura", EDITORIAL_SPLIT: "separa visualmente as ideias sem perder sequência", PHOTO_HERO: "a imagem contextualiza sem competir com o texto",
+    FULL_BLEED: "concentra a atenção num único foco", OVERLAP: "protege uma zona de leitura sobre a imagem", MINIMAL: "usa espaço negativo para clarificar a mensagem",
+    CALLOUT: "dá relevo à afirmação principal", CONTAINED: "mantém a imagem como apoio", EXPLORE: "propõe um ritmo alternativo controlado",
+  };
+  return `${papelNome[papel]} · ${estrutura}: ${efeito[rc.strategy] ?? rc.reason}.`;
+}
+
 /** Hash of the textual content a page shows (refs + resolved texts). Must be identical across candidates. */
 export function hashConteudo(p: Pagina, conteudo: ConteudoEditorial): string {
   return p.camadas.filter((c) => c.tipo === "texto").map((c) => `${c.tipo === "texto" ? c.ref ?? c.id : ""}=${c.tipo === "texto" ? resolverTexto(c, conteudo) : ""}`).sort().join("\u0001");
@@ -136,8 +168,8 @@ export function redesenharPagina(o: OpcoesRedesign): { candidatos: CandidatoRede
   // Image available: this page's own, or (Automático) another photo already in the package. No downloads.
   const propria = orig.camadas.find((c) => c.tipo === "imagem");
   const assetPagina = propria && propria.tipo === "imagem" ? propria.asset_id : comp0.asset_id ?? undefined;
-  const assetPacote = Object.keys(o.pacote.assets ?? {})[0];
-  const asset = assetPagina ?? (o.imagens !== "sem_novas" ? assetPacote : undefined);
+  // Never promote an unrelated package asset (notably a logo from another page) into this slide.
+  const asset = assetPagina;
   const vistos = new Set<string>([assinatura(orig)]);
   const saida: CandidatoRedesign[] = [];
   let receitas = RECEITAS.filter((x) => !x.precisaImagem || asset);
@@ -145,8 +177,7 @@ export function redesenharPagina(o: OpcoesRedesign): { candidatos: CandidatoRede
     const outros = EXPLORAR.filter((e) => e.estilo !== o.sistema.estilo);
     receitas = [...outros.map((e, i) => ({ ...RECEITAS[i % RECEITAS.length], strategy: "EXPLORE" as const, label: e.label, reason: "Composição excepcional desta página; o estilo global não muda.", estilo: e.estilo, precisaImagem: false })), ...receitas];
   }
-  const rot = (o.ronda ?? 0) * n;
-  receitas = [...receitas.slice(rot % Math.max(1, receitas.length)), ...receitas.slice(0, rot % Math.max(1, receitas.length))];
+  receitas = ordenarReceitas(receitas, papel ?? "standard", o.ronda ?? 0);
   const papelIA = papel;
   const querIA = (o.incluirIA ?? true) && o.imagens !== "sem_novas" && !imagemInadequada(papelIA);
   const nDisruptivas = o.incluirIA === false && n >= 5 ? 2 : 0;
@@ -227,7 +258,7 @@ function comporCandidato(o: OpcoesRedesign, rc: Receita, asset: string | undefin
   const sig = assinatura(nova);
   if (!ignorarAssinatura && vistos.has(sig)) return null;
   vistos.add(sig);
-  return { id: `${rc.strategy}-${idx}-${o.ronda ?? 0}`, strategy: rc.strategy, label: rc.label, reason: rc.reason,
+  return { id: `${rc.strategy}-${idx}-${o.ronda ?? 0}`, strategy: rc.strategy, label: rc.label, reason: razaoEditorial(orig, o.pacote.conteudo, papel ?? "standard", rc),
     pagina: { ...nova, camadas: nova.camadas.map(marcarManual) }, estilo: sis.estilo, requiresAiImage: false, estimatedCost: null };
 }
 

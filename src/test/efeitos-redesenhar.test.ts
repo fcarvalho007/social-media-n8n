@@ -84,6 +84,16 @@ describe("redesenhar slide", () => {
     expect(candidatos.filter((c) => c.disruptiva)).toHaveLength(2);
     expect(new Set(candidatos.map((c) => assinatura(c.pagina))).size).toBe(5);
   });
+  it("ordena as propostas pelo papel editorial e nunca usa uma imagem de outra página", () => {
+    const p = aplicarSistema(pacote(), sis("editorial"), m).pacote;
+    const pg = p.variantes.A.paginas[1];
+    const semImagemNaPagina = { ...p, variantes: { ...p.variantes, A: { ...p.variantes.A, paginas: p.variantes.A.paginas.map((x, i) => i === 1 ? { ...x, papel: "concept" as const, camadas: x.camadas.filter((c) => c.tipo !== "imagem") } : x) } } };
+    const { candidatos } = redesenharPagina({ pacote: semImagemNaPagina, sistema: sis("editorial"), variante: "A", indice: 1, m, incluirIA: false });
+    expect(candidatos[0].strategy).toBe("TYPOGRAPHY_LED");
+    expect(candidatos[0].reason).toMatch(/conceito ·/);
+    expect(candidatos.every((c) => c.pagina.camadas.every((l) => l.tipo !== "imagem"))).toBe(true);
+    expect(pg.camadas.some((c) => c.tipo === "imagem")).toBe(true);
+  });
   it("gerar não altera o documento; aplicar muda só a página escolhida", () => {
     const antes = JSON.stringify(p0);
     const { candidatos } = redesenharPagina({ pacote: p0, sistema: sis("editorial"), variante: "A", indice: 1, m });

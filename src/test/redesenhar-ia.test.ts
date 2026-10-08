@@ -75,8 +75,11 @@ describe("redesenhar com imagem IA obrigatória", () => {
     p.variantes.A.paginas[1].camadas.push({ id: "livre", tipo: "texto", texto: "Nota escrita no compositor", x: 50, y: 1100, w: 800, h: 80, z: 4, estilo: { peso: 400, tam: 32, linha: 1.2, alinh: "esq", cor: "#111111", overflow: "cortar" } });
     expect(textoVisivelPagina(p, "A", 1)).toContain("Nota escrita no compositor");
     const prompts = promptsPropostaImagemIA(p, sis, "A", 1);
-    expect(prompts.apoio).toContain("Nota escrita no compositor");
-    expect(prompts.apoio).toMatch(/editable typography/i);
-    expect(prompts.final).toMatch(/Include the following Portuguese text accurately/i);
+    expect(prompts.direcaoA).toContain("Nota escrita no compositor");
+    expect(prompts.direcaoB).toContain("Nota escrita no compositor");
+    expect(prompts.direcaoA).toMatch(/no text, letters, numbers/i);
+    expect(prompts.direcaoB).toMatch(/no text, letters, numbers/i);
+    expect(prompts.direcaoA).not.toMatch(/\b1\.\s/);
+    expect(prompts.direcaoB).not.toMatch(/\b2\.\s/);
   });
 });
