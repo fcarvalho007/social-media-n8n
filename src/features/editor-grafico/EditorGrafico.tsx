@@ -131,6 +131,10 @@ interface PropsPainel {
   medidor: Medidor;
   despachar: (a: Acao) => void;
   camadasPagina: Camada[];
+  /** Playback of the selected sticker's animation (state lives in the editor). */
+  reproduzir?: boolean;
+  aCarregarAnimacao?: boolean;
+  onReproduzir?: () => void;
 }
 
 const NOME_TIPO: Record<Camada["tipo"], string> = { texto: "Texto", imagem: "Imagem", forma: "Forma" };
@@ -146,7 +150,7 @@ export function rotuloCamada(c: Camada, pacote: PacoteProva): { tipo: string; de
   return { tipo: c.nome ?? NOME_TIPO[c.tipo], detalhe: c.tipo === "forma" ? `${Math.round(c.w)}×${Math.round(c.h)}` : "" };
 }
 
-function PainelPropriedades({ pacote, camada: c, fundo, medidor, despachar, camadasPagina, onImagem, onSubstituirImagem, onFundoTodos }: PropsPainel & { onImagem?: () => void; onSubstituirImagem?: () => void; onFundoTodos?: () => void }) {
+function PainelPropriedades({ pacote, camada: c, fundo, medidor, despachar, camadasPagina, onImagem, onSubstituirImagem, onFundoTodos, reproduzir = false, aCarregarAnimacao = false, onReproduzir }: PropsPainel & { onImagem?: () => void; onSubstituirImagem?: () => void; onFundoTodos?: () => void }) {
   if (!c) {
     return (
       <div className="space-y-5">
