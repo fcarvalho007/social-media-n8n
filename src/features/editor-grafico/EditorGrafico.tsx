@@ -19,9 +19,9 @@ import { guardarRecuperacao, lerRecuperacao, limparRecuperacao } from "@/lib/rec
 import { renderProvaServidor } from "@/services/conteudos";
 import { ALTURA, FAMILIAS, LARGURA, NOME_FAMILIA, aplicarMarca, layoutTexto, resolverTexto, validarPacote, type Asset, type Camada, type CamadaTexto, type Familia, type Medidor, type PacoteProva, type Variante } from "../../../supabase/functions/_shared/documento-grafico/nucleo";
 import { lerDirecaoPreferida, guardarDirecaoPreferida, type DirecaoPreferida } from "@/services/estudio";
-import { aplicarSistema, nomeVariante, obterPaleta, paginasComAjustes, recolorir, sistemaDoPacote, sistemaPadrao, type SistemaVisual } from "../../../supabase/functions/_shared/motor/sistema";
+import { aplicarSistema, nomeVariante, obterPaleta, paginasComAjustes, recolorir, sistemaDoPacote, sistemaPadrao, tipografiaElemento, tipografiaDe, type SistemaVisual } from "../../../supabase/functions/_shared/motor/sistema";
 import { ESTILOS } from "../../../supabase/functions/_shared/motor/estilos";
-import { PainelDirecaoVisual } from "./PainelDirecaoVisual";
+import { PainelDirecaoVisual, type AlcanceUI } from "./PainelDirecaoVisual";
 import { PainelImagemSlide } from "./PainelImagemSlide";
 import { PainelRedesenhar } from "./PainelRedesenhar";
 import { CHAVES_EFEITO, NOMES_EFEITO, efeitosAtivos, type OverrideEfeitos } from "../../../supabase/functions/_shared/motor/efeitos";
@@ -411,27 +411,31 @@ export function EditorGrafico({ pacoteInicial, chaveLocal, titulo, seletor, real
   const [avisoPagina, setAvisoPagina] = useState<string | null>(null);
   const sistemaDoc = useMemo(() => sistemaDoPacote(pacote), [pacote]);
   /** Draft = in-memory copy of the SAME document shown on the canvas; `antes` is what Cancelar restores. */
-  const [rascunho, setRascunho] = useState<{ antes: PacoteProva; s: SistemaVisual; ajustes?: "manter" | "recriar" } | null>(null);
+  const [rascunho, setRascunho] = useState<{ antes: PacoteProva; s: SistemaVisual; ajustes?: "manter" | "recriar"; alcance?: AlcanceUI } | null>(null);
   const [pedirAjustes, setPedirAjustes] = useState<null | { n: number; continuar: (a: "manter" | "recriar") => void }>(null);
   const avisosSistema = (r: ReturnType<typeof aplicarSistema>) => [r.recusadas.length ? `${r.recusadas.length} página(s) não cabem e ficam como estavam` : "", r.quebrasRecusadas.length ? `${r.quebrasRecusadas.length} quebra(s) não cabem e usam a composição normal` : "", r.imagemRecusadas.length ? "o texto não cabe num modo de imagem; esse slide fica como estava" : ""].filter(Boolean).join("; ");
-  const experimentar = (novo: SistemaVisual, tipo: "estilo" | "variante" | "paleta" | "tipografia" | "ritmo" | "imagens") => {
+  const experimentar = (novo: SistemaVisual, tipo: "estilo" | "variante" | "paleta" | "tipografia" | "ritmo" | "imagens", alcance: AlcanceUI = "documento") => {
     const antes = rascunho?.antes ?? pacote;
     const atual = rascunho?.s ?? sistemaDoc;
+    // "elemento" only for typography/palette and only with a selected layer; otherwise falls back to the page.
+    const el = alcance === "elemento" && selecao && (tipo === "paleta" || tipo === "tipografia") ? selecao : null;
+    const so = alcance === "documento" ? undefined : [pagina];
     const correr = (ajustes?: "manter" | "recriar") => {
       let p: PacoteProva;
-      if (tipo === "paleta" && atual) p = recolorir(pacote, atual.paleta, novo.paleta);
+      if (tipo === "paleta" && atual) p = recolorir(pacote, atual.paleta, novo.paleta, { paginas: so, elemento: el ?? undefined });
+      else if (el) p = tipografiaElemento(antes, variante, pagina, el, tipografiaDe(novo));
       else {
-        const r = aplicarSistema(antes, novo, mSis, undefined, {}, { ajustes });
-        p = r.pacote;
+        const r = aplicarSistema(antes, novo, mSis, so, {}, { ajustes, ...(so ? { variantes: [variante] } : {}) });
+        p = so ? { ...r.pacote, variantes: { ...r.pacote.variantes, A: { ...r.pacote.variantes.A, sistema: antes.variantes.A.sistema }, B: { ...r.pacote.variantes.B, sistema: antes.variantes.B.sistema } } } : r.pacote;
         const av = avisosSistema(r);
         if (av) toast.info(`${av}.`);
       }
-      despachar({ tipo: "previsualizar", pacote: p, variante: novo.variante });
-      setRascunho({ antes, s: novo, ajustes });
+      despachar({ tipo: "previsualizar", pacote: p, variante: so ? variante : novo.variante });
+      setRascunho({ antes, s: novo, ajustes, alcance });
     };
     const geometria = tipo !== "paleta" || !atual;
-    const n = paginasComAjustes(antes);
-    if (geometria && n > 0 && !rascunho?.ajustes) setPedirAjustes({ n, continuar: correr });
+    const n = paginasComAjustes(antes, so ? variante : undefined, so);
+    if (!el && geometria && n > 0 && !rascunho?.ajustes) setPedirAjustes({ n, continuar: correr });
     else correr(rascunho?.ajustes);
   };
   // Opening always with a visual direction and with texts already framed (no font reduction, ever).
@@ -460,7 +464,7 @@ export function EditorGrafico({ pacoteInicial, chaveLocal, titulo, seletor, real
     if (!rascunho) return;
     despachar({ tipo: "confirmar", antes: rascunho.antes });
     const { estilo, variante: v, paleta, tipografia } = rascunho.s;
-    if (real) guardarDirecaoPreferida(projectId, { estilo, variante: v, paleta, tipografia }).catch(() => undefined);
+    if (real && (rascunho.alcance ?? "documento") === "documento") guardarDirecaoPreferida(projectId, { estilo, variante: v, paleta, tipografia }).catch(() => undefined);
     setRascunho(null);
     toast.success("Direção visual aplicada ao documento.", { action: { label: "Desfazer", onClick: () => despachar({ tipo: "desfazer" }) } });
   };
@@ -964,6 +968,7 @@ export function EditorGrafico({ pacoteInicial, chaveLocal, titulo, seletor, real
 
   const inserir = (a: AbaInserir) => (a === "estilos" ? (
     <PainelDirecaoVisual base={rascunho?.antes ?? pacote} atual={rascunho?.s ?? sistemaDoc} emRascunho={!!rascunho} medidor={medidor} imagens={imagens}
+      proposta={pacote} pagina={pagina} temSelecao={!!selecao}
       onExperimentar={experimentar} onAplicar={aplicarRascunho} onCancelar={cancelarRascunho} />
   ) : (
     <PainelInserir aba={a} despachar={despachar} projectId={projectId} promptIA={promptIA} subImagens={subImagens} termoFotos={queryAuto} pedirImagem={onImagem} onEstilo={() => undefined}

@@ -263,6 +263,50 @@ export function comporModelo(p: Pagina, modelo: EstiloId, ctx: ContextoModelo): 
       break;
     }
     case "didatico": {
+      if (ctx.variante === "B" && !capa) {
+        // "Cartões": one real card per separable unit of the body. Not separable -> refused (page kept as it was).
+        const corpoTxt = q.corpo ? resolverTexto(q.corpo, conteudo) : "";
+        const unid = unidadesSeparaveis(corpoTxt);
+        if (!unid || !q.corpo) { falhou(); break; }
+        const tT = tTit(700, 1.1), tB = tCorpo(1.4);
+        const X = 96, W = LARGURA - 2 * X, PAD = 28, NUM = 64, wTxt = W - 2 * PAD - NUM - 20;
+        fundo = pal.fundo;
+        const prog = (indice + 1) / Math.max(1, total);
+        decor.push(ret("mod-progresso-base", X, 96, W, 12, pal.titulo, 2, 6, 0.18));
+        decor.push(ret("mod-progresso", X, 96, Math.max(24, W * prog), 12, pal.destaque, 3, 6));
+        const y0 = 170;
+        const linhas = corpoTxt.split("\n");
+        let tamB = 40;
+        const prefixo = (k: number) => (k <= 0 ? 0 : altura({ ...q.corpo, ref: undefined, texto: linhas.slice(0, k).join("\n") }, conteudo, tB, tamB, wTxt, m));
+        let sT: ReturnType<typeof escolherTamanhos> = null;
+        for (const tb of [40, 38, 36]) {
+          tamB = tb;
+          const hB = altura(q.corpo, conteudo, tB, tb, wTxt, m) + 2 * PAD;
+          sT = q.titulo ? escolherTamanhos({ ...q, corpo: undefined }, conteudo, tT, tB, [76, 68, 60, 56], [tb], W, W, 0, LIMITE - y0 - hB - 56, m) : { tamT: 0, tamB: tb, hT: 0, hB: 0 };
+          if (sT) break;
+        }
+        if (!sT) { falhou(); break; }
+        if (q.titulo) t = texto(q.titulo, X, y0, W, sT.hT, tT, sT.tamT, legivel(pal.titulo, fundo, true));
+        // Cards are drawn around each unit's own lines; the single body layer keeps its ref (text stays editable).
+        const yCorpo = y0 + sT.hT + (q.titulo ? 56 : 0) + PAD;
+        const hTot = altura(q.corpo, conteudo, tB, tamB, wTxt, m);
+        const pos = unid.map((u) => ({ ini: prefixo(u.de), fim: prefixo(u.ate) }));
+        const claro = sobre(pal.fundo) === "#ffffff";
+        pos.forEach((u, k) => {
+          const ant = pos[k - 1], seg = pos[k + 1];
+          const topo = k === 0 ? u.ini - PAD : (ant.fim + u.ini) / 2 + 5;
+          const base = !seg ? u.fim + PAD : (u.fim + seg.ini) / 2 - 5;
+          const yc = yCorpo + topo;
+          decor.push(ret(`mod-cartao-${k}`, X, yc, W, base - topo, claro ? "#ffffff" : pal.destaque, 2, 18, claro ? 0.12 : 0.1));
+          decor.push(elipse(`mod-cartao-num-${k}`, X + PAD, yCorpo + u.ini - 4, NUM - 8, NUM - 8, pal.destaque, 3));
+          decor.push({ id: `mod-cartao-n-${k}`, tipo: "texto", texto: String(k + 1), x: X + PAD, y: yCorpo + u.ini + 10, w: NUM - 8, h: 36, z: 4,
+            estilo: { peso: 700, familia: par.titulo, tam: 28, linha: 1, alinh: "centro", cor: sobre(pal.destaque), overflow: "cortar" } });
+        });
+        if (yCorpo + hTot + PAD > LIMITE) { falhou(); break; }
+        b = texto(q.corpo, X + PAD + NUM + 20, yCorpo, wTxt, hTot, tB, tamB, legivel(pal.texto, fundo, false));
+        corNum = legivel(pal.discreto, fundo, false);
+        break;
+      }
       // Prominent step number, vector icon by position, progress bar.
       const tT = tTit(700, 1.1), tB = tCorpo(1.45);
       const X = 96, W = LARGURA - 2 * X;
@@ -288,9 +332,48 @@ export function comporModelo(p: Pagina, modelo: EstiloId, ctx: ContextoModelo): 
     }
   }
   if (!cabe) return { pagina: p, cabe: false, marcador: false };
+  if (ALTURA === 1920) {
+    // Story reading zones: top 250 px and bottom 340 px stay free for the network's own interface.
+    const textos = [t, b].filter((c): c is CamadaTexto => !!c);
+    const mover = (c: Camada) => c.h < ALTURA * 0.6 && c.w < LARGURA;
+    const topo = Math.min(...textos.map((c) => c.y));
+    const fundoTxt = Math.max(...textos.map((c) => c.y + c.h));
+    const lim = ALTURA - ZONA_STORY.base;
+    // Move down out of the top zone, or up out of the bottom zone; refuse only when the text is taller than the band.
+    const d = topo < ZONA_STORY.topo ? ZONA_STORY.topo - topo : fundoTxt > lim ? lim - fundoTxt : 0;
+    if (topo + d < ZONA_STORY.topo || fundoTxt + d > lim) return { pagina: p, cabe: false, marcador: false };
+    if (d) {
+      if (t) t = { ...t, y: t.y + d };
+      if (b) b = { ...b, y: b.y + d };
+      for (let i = 0; i < decor.length; i++) if (mover(decor[i])) decor[i] = { ...decor[i], y: decor[i].y + d };
+    }
+  }
   const num = !ctx.unica && q.num ? { ...q.num, x: q.num.x, y: 1250, z: 20, estilo: { ...q.num.estilo, cor: corNum, familia: par.corpo } } : undefined;
   const camadas: Camada[] = [...imagens, ...decor, ...q.outras, ...[t, b, num].filter((c): c is CamadaTexto => !!c)];
   return { pagina: { ...p, fundo, camadas }, cabe: true, marcador };
+}
+
+/** Story safe areas (px at 1080×1920). */
+export const ZONA_STORY = { topo: 250, base: 340 } as const;
+
+/**
+ * Separable units of a body text (lines or paragraphs): 2–5 units, each short enough to be a card.
+ * Returns line ranges [de, ate) in the original "\n"-split text, or null when the text is one continuous block.
+ */
+export function unidadesSeparaveis(txt: string): Array<{ de: number; ate: number }> | null {
+  const linhas = txt.split("\n");
+  const out: Array<{ de: number; ate: number }> = [];
+  let de = -1;
+  linhas.forEach((l, i) => {
+    if (l.trim()) { if (de < 0) de = i; }
+    else if (de >= 0) { out.push({ de, ate: i }); de = -1; }
+  });
+  if (de >= 0) out.push({ de, ate: linhas.length });
+  // A single paragraph with list markers on separate lines counts per line.
+  const unid = out.length >= 2 ? out : linhas.map((l, i) => ({ l, i })).filter((x) => x.l.trim()).map((x) => ({ de: x.i, ate: x.i + 1 }));
+  if (unid.length < 2 || unid.length > 5) return null;
+  if (unid.some((u) => linhas.slice(u.de, u.ate).join(" ").length > 220)) return null;
+  return unid;
 }
 
 export interface ResultadoPacoteModelo { pacote: PacoteProva; recusadas: Array<{ variante: Variante; pagina: number }>; marcador: boolean }

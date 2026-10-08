@@ -95,7 +95,9 @@ export function paginasComAjustes(p: PacoteProva, v?: Variante, paginas?: number
 }
 
 /** Palette-only change: maps the old palette's colours to the new one; geometry, images, crops, roles untouched. */
-export function recolorir(p: PacoteProva, de: PaletaId, para: PaletaId): PacoteProva {
+/** Optional scope for direction changes: some pages, or one element on those pages. */
+export interface AlcanceDirecao { paginas?: number[]; elemento?: string }
+export function recolorir(p: PacoteProva, de: PaletaId, para: PaletaId, alcance: AlcanceDirecao = {}): PacoteProva {
   const a = obterPaleta(de).cores, b = obterPaleta(para).cores;
   const mapa = new Map<string, string>();
   for (const k of ["fundo", "fundoCapa", "titulo", "texto", "destaque", "discreto"] as const) if (!mapa.has(a[k].toLowerCase())) mapa.set(a[k].toLowerCase(), b[k]);
@@ -103,10 +105,11 @@ export function recolorir(p: PacoteProva, de: PaletaId, para: PaletaId): PacoteP
   const variantes = { ...p.variantes };
   for (const v of ["A", "B"] as const) {
     const d = p.variantes[v];
-    variantes[v] = { ...d, sistema: d.sistema ? { ...d.sistema, paleta: para } : d.sistema, paginas: d.paginas.map((pg) => ({ ...pg, fundo: cor(pg.fundo), camadas: pg.camadas.map((c) =>
+    variantes[v] = { ...d, sistema: d.sistema ? { ...d.sistema, paleta: para } : d.sistema, paginas: d.paginas.map((pg, i) => (alcance.paginas && !alcance.paginas.includes(i) ? pg : { ...pg, fundo: alcance.elemento ? pg.fundo : cor(pg.fundo), camadas: pg.camadas.map((c) =>
       // Colours the user set by hand (free layers or adjusted generated ones) are never recoloured.
-      c.manual || !geradaPeloSistema(c) ? c : c.tipo === "texto" ? { ...c, estilo: { ...c.estilo, cor: cor(c.estilo.cor) } } : c.tipo === "forma" ? { ...c, estilo: { ...c.estilo, cor: cor(c.estilo.cor) } } : c) })) };
+      (alcance.elemento && c.id !== alcance.elemento) || c.manual || !geradaPeloSistema(c) ? c : c.tipo === "texto" ? { ...c, estilo: { ...c.estilo, cor: cor(c.estilo.cor) } } : c.tipo === "forma" ? { ...c, estilo: { ...c.estilo, cor: cor(c.estilo.cor) } } : c) })) };
   }
+  if (alcance.paginas || alcance.elemento) for (const v of ["A", "B"] as const) variantes[v] = { ...variantes[v], sistema: p.variantes[v].sistema };
   return { ...p, variantes };
 }
 
@@ -262,7 +265,7 @@ export function aplicarSistema(pacote: PacoteProva, s: SistemaVisual, m?: Medido
       if (!r) return fixar(pg);
       if (!r.cabe) { recusadas.push({ variante: v, pagina: i }); return fixar(pg); }
       marcador ||= r.marcador;
-      const base = v === "B" && s.estilo !== "impacto" && (doc.formato ?? "carrossel") === "carrossel" ? composicaoB(r.pagina, pacote.conteudo, m, s.estilo) : r.pagina;
+      const base = v === "B" && s.estilo !== "impacto" && s.estilo !== "didatico" && (doc.formato ?? "carrossel") === "carrossel" ? composicaoB(r.pagina, pacote.conteudo, m, s.estilo) : r.pagina;
       if (s.imagens === "manual" && !(comp && Object.keys(comp).length)) return fixar(base);
       const ri = comporImagem(base, { indice: i, total, estilo: s.estilo, variante: v, paleta, conteudo: pacote.conteudo, m, comp, assets: pacote.assets, papel, altura: doc.altura });
       if (!ri) return fixar(base);
@@ -293,4 +296,11 @@ export function migrarLegado(p: PacoteProva, s: SistemaVisual | null, mapa: Comp
     }) };
   }
   return { ...p, variantes };
+}
+
+/** Changes the typography of one text layer only (title or body family by its role); nothing else moves. */
+export function tipografiaElemento(p: PacoteProva, v: Variante, pagina: number, id: string, t: Tipografia): PacoteProva {
+  const d = p.variantes[v];
+  return { ...p, variantes: { ...p.variantes, [v]: { ...d, paginas: d.paginas.map((pg, i) => (i !== pagina ? pg : { ...pg, camadas: pg.camadas.map((c) =>
+    c.id !== id || c.tipo !== "texto" ? c : { ...c, estilo: { ...c.estilo, familia: c.ref?.endsWith(".titulo") || c.estilo.peso >= 700 ? t.titulo : t.corpo } }) })) } } };
 }
