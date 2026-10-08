@@ -26,7 +26,7 @@ describe("validação de vídeo gravado no navegador", () => {
   });
 
   it("caminho versionado aceita .mp4 e recusa extensões desconhecidas", () => {
-    const pid = "0123456789abcdef0123456789abcdef0123"; const did = "fedcba9876543210fedcba9876543210fedcba";
+    const pid = "0123456789abcdef0123456789abcdef0123"; const did = "fedcba9876543210fedcba9876543210fedc";
     const hash = "a".repeat(64);
     expect(caminhoFicheiro(pid, did, 3, "slide-01.mp4", hash)).toBe(`motor/${pid}/${did}/v3/slide-01-${hash.slice(0, 16)}.mp4`);
     expect(() => caminhoFicheiro(pid, did, 3, "slide-01.mov", hash)).toThrow("Caminho inválido.");
