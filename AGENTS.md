@@ -13,7 +13,7 @@
 - nl-worker-conteudos (hourly pg_cron, key read from nl_worker_estado at call time) only reconciles E-goi delivery and processes carousel jobs; automatic jobs only for campaigns accepted after AUTO_DESDE, history only via explicit "preparar"; send/publish crons stay off.
 - Send evidence on nl_edicoes (estado enviada, enviada_em, snapshot_envio, fecho_pendente_em) and nl_egoi_campanhas rows are writable only by the service role (trigger + RLS); client sessions can edit content only.
 - Social tables (posts_drafts, stories, scheduled_jobs) are team-shared for reading, but writes require admin/editor via social_pode_escrever(); profiles are editable only by their owner or an admin; server jobs use the service role and bypass RLS.
-- The Studio's "Para quem?" project lives in ProjetoContext (loaded from estudio_preferencias, optimistic with rollback on save failure); pages filter by it, and the newsletter belongs to a project only through estudio_identidades, so it is never shown as belonging to an unrelated project.
+- Studio project choice lives in ProjetoContext/estudio_preferencias; newsletter ownership comes only from estudio_identidades.
 - Updating an existing social draft never rewrites user_id or project_id; project_id is set only on insert from the persisted Studio choice, preserving authorship.
 - Social draft lists and Studio counts read team drafts filtered server-side by project only (cache keyed by user + project; old drafts without project only under "todos", never auto-assigned); keeps counts and lists consistent without narrowing team visibility.
 - DocumentoGrafico v1 stays separate from legacy flows; slide order follows logical ids across narrative and both variants.
@@ -26,3 +26,4 @@
 - AI costs use custos_registos(); every row has custo_origem and unknown costs never enter totals.
 - Animated media uses a still+MP4 pair; GIPHY shares it. Paid/redesign AI images are tracked, never auto-applied; redesign returns two text-free images under editable copy.
 - Visual system keeps direction, typography (sistema.tipografia) and palette as independent choices; absent tipografia falls back to the style's legacy pair so old documents render unchanged.
+- Newsletter candidate exclusions are edition-scoped; hiding never changes the shared editorial decision or an included item.
